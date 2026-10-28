@@ -145,6 +145,70 @@ describe('one device at a time', () => {
   });
 });
 
+describe('a save whose answer was lost (R-PHONE-RESUME-01: the page froze on iOS mid-upload)', () => {
+  it('the tab-return check reads its own landed write as ours, not "moved"', async () => {
+    const a = service();
+    saveLocally('run:x', 'A1');
+    await a.requestUpload(); // rev 1
+    saveLocally('run:x', 'A2');
+    server.loseNextAnswer = true; // the page goes to the background with this upload in flight
+    await a.requestUpload();
+    expect(server.rows.get('u-1')!.revision).toBe(2); // it committed
+    expect(loadLease()!.revision).toBe(1); // ...but the page never heard
+    expect(await a.movedElsewhere()).toBe(false);
+    expect(moved).toEqual([]);
+    expect(loadLease()!.revision).toBe(2);
+    await a.idle();
+    saveLocally('run:x', 'A3');
+    await a.requestUpload();
+    expect(server.rows.get('u-1')!.payload.save).toBe('A3');
+    expect(moved).toEqual([]);
+  });
+
+  it('the retry of a lost upload adopts its revision and saves on top', async () => {
+    const a = service();
+    saveLocally('run:x', 'A1');
+    await a.requestUpload();
+    saveLocally('run:x', 'A2');
+    server.loseNextAnswer = true;
+    await a.requestUpload();
+    saveLocally('run:x', 'A3');
+    retries.shift()!(); // the scheduled retry
+    await a.idle(); await a.idle();
+    expect(moved).toEqual([]);
+    expect(server.rows.get('u-1')!.payload.save).toBe('A3');
+    expect(loadLease()).toMatchObject({ revision: 3, dirty: false });
+  });
+
+  it('a lost claim on Continue is ours too', async () => {
+    const a = service();
+    saveLocally('run:x', 'A1');
+    await a.requestUpload();
+    server.loseNextAnswer = true;
+    expect(await a.claim()).toBe('offline');
+    expect(await a.claim()).toBe('ok');
+    expect(moved).toEqual([]);
+    expect(loadLease()!.revision).toBe(2);
+  });
+
+  it('another device writing after a lost answer is still reported as moved', async () => {
+    const a = service();
+    saveLocally('run:x', 'A1');
+    await a.requestUpload();
+    saveLocally('run:x', 'A2');
+    server.loseNextAnswer = true;
+    await a.requestUpload(); // rev 2 landed, unheard
+    asDevice('B');
+    const b = service();
+    const seen = await b.checkAtTitle(null);
+    localStorage.setItem(SAVE_KEY, seen.row!.payload.save);
+    b.adopted(seen.row!);
+    await b.claim(); // rev 3, device B
+    asDevice('A');
+    expect(await a.movedElsewhere()).toMatchObject({ revision: 3 });
+  });
+});
+
 describe('run end', () => {
   it('clears the cloud row; a stale local copy of the SAME run on another device is discarded, not resurrected', async () => {
     const a = service();

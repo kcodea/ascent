@@ -543,6 +543,25 @@ async function heartbeat(): Promise<void> {
   }
 }
 
+/**
+ * COMING BACK TO A LIVE MATCH (R-PHONE-RESUME-01, owner 2026-10-27 on his iPhone: "minimizing the game and coming
+ * back"). iOS freezes a backgrounded page: no heartbeat, and the Realtime socket drops, so row changes made meanwhile
+ * never arrive as wake-ups. The socket reconnects by itself and the 4 s heartbeat would resync within a beat; this
+ * resyncs at once instead (the room, the match with its rounds, a heartbeat), so the screen is current the moment it
+ * shows. A live match never pauses for this: the server's deadlines and its disconnect pause are the rule.
+ */
+export function resyncVersusSession(): void {
+  if (!session) return;
+  void heartbeat();
+  void refreshRoom();
+  const mid = get().room?.current_match_id ?? session.matchId;
+  if (mid) void refreshMatch(mid, true);
+}
+if (typeof window !== 'undefined') {
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') resyncVersusSession(); });
+  window.addEventListener('online', resyncVersusSession);
+}
+
 /** Patch the members' last-seen times from a heartbeat's `seen` map (user id -> ISO time). */
 function patchSeen(seen: Record<string, string>): void {
   const room = get().room;

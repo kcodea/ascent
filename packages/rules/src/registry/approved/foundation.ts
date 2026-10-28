@@ -9996,4 +9996,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-10-27 (feat/skins-batch-13). Four names differ from their filenames to pass the catalog name rules (cosmetics.test.ts): Gold Rush Prospector -> Frontier Prospector (no medal words), Stained Glass Lastlight -> Cathedral Lastlight and Low Poly Flutterbutter -> Poly Flutterbutter (20 characters max), and Lego Tapkeeper -> Brick Tapkeeper (a brand name). Glass Gaurdian and Ghillie Sharpsooter are spelling-tidied. All are Claude\x27s calls for the owner to confirm. Reaches the database on the next deploy of progression-inventory.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-27' },
   },
+  {
+    id: 'R-PHONE-RESUME-01',
+    title: 'Coming back to the game never shows an error code',
+    statement:
+      'Leaving the game (switching apps, locking the phone) and coming back never shows an error. A render crash is '
+      + 'first retried silently (one remount, nothing shown); only a crash that comes straight back shows the Game paused '
+      + 'screen: one Continue, no error text outside a collapsed Details. Continue remounts, or, crashing again right after a '
+      + 'remount, saves and reloads to the title Continue. A code-split chunk that fails to load is fetched again, each try '
+      + 'once the page is visible, and a failed load of the FX primitives is retried on the next call instead of cached. A '
+      + 'cloud save whose answer was lost (the page froze mid-request) is recognised as a write from this same device when the '
+      + 'row is exactly that write (same run, this device, the next revision), never reported as the game moving to another '
+      + 'device. A Versus / Duos session resyncs its room, match and rounds the moment the page is visible or back online. '
+      + 'The crash log readout shows only with ?crashlog=1, never by itself after a crash; crashes are still recorded and '
+      + 'uploaded. Turn clocks are unchanged: a solo clock ticks per one-second timer, so it does not advance while iOS '
+      + 'freezes the page; a live match keeps its server deadlines.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-27 (iPhone Safari)', quote: 'seems to be an issue with minimizing the game and coming back. it shows an error. is there a way to fix this or clean it up so you just press continue without an error code there or something? or the game gets paused?' },
+      { kind: 'code', ref: 'packages/ui/src/ErrorBoundary.tsx (crashResponse, continueAction); packages/ui/src/retryImport.ts; packages/ui/src/fx/playDef.ts (ensureDefsReady); packages/ui/src/cloudSave.ts (adoptOwnLostWrite); packages/ui/src/versus/versusStore.ts (resyncVersusSession); packages/ui/src/crashLog.ts (crashReadoutWanted)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-27 (fix/phone-resume-after-background). Before: the boundary showed "The game hit a snag" with the raw error message; a failed lazy chunk re-threw on Try to continue (React caches the rejection); a lost save answer read as "Your game moved"; a Home Screen app showed the crash readout by itself after a crash.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneResume.test.tsx', 'packages/ui/src/cloudSave.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
 ];

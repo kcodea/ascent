@@ -242,6 +242,7 @@ import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGate
 import { Unit } from './Unit';
 import { computeFrame, useCombatReplay } from './useCombatReplay';
 import { endCombatReady } from './endCombatGate';
+import { retryImport } from './retryImport';
 import { CHARGE_SECONDS, chargeElapsed, shopClockStep, standardTurnSeconds, turnClock, turnClockMayTick, turnClockReset, useTurnClockRunning, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
 import { visibleHandPreviews } from './handPreview';
@@ -275,7 +276,7 @@ import { WatchersBadge } from './versus/WatchersBadge';
 import { onPressCue } from './pressCue';
 
 /** GOD MODE panel (owner 2026-10-08) — its own chunk, fetched only when a God Mode run reaches the shop. */
-const GodModePanel = lazy(() => import('./godMode/GodModePanel').then((m) => ({ default: m.GodModePanel })));
+const GodModePanel = lazy(() => retryImport(() => import('./godMode/GodModePanel')).then((m) => ({ default: m.GodModePanel })));
 
 /** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
  *  multi-cast Golden Ruby pays several times in one action. */

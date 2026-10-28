@@ -68,6 +68,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Phones: coming back to the game after switching apps no longer shows an error.',
+        details: [
+          'A hiccup on the way back now recovers by itself. If it cannot, you see Game paused with one Continue button.',
+          'A save sent just before you switched apps no longer says your game moved to another device.',
+          'Versus and Duos matches catch up the moment you come back.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Sixteen new Card Plates in chests.',
         details: [
           'Legendary: Burden, Divine, Mytho, Plasma, Shotsun, The Last Plate and Wither.',

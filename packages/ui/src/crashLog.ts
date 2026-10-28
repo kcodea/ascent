@@ -13,9 +13,11 @@
  * Cheap by design: a write per step (tens per session) plus a heartbeat every 5 s while visible. Never per frame.
  * It records on a phone (`LITE_ART`) or with `?crashlog=1`; desktop without the flag records nothing.
  *
- * The readout (CrashLogReadout.tsx) shows with `?crashlog=1` (remembered, `?crashlog=0` forgets it), and, because a
- * Home Screen web app cannot be given a query (it always opens its start URL, with storage of its own), also in a
- * standalone phone app on the first load after a crash.
+ * The readout (CrashLogReadout.tsx) shows only with `?crashlog=1` (remembered, `?crashlog=0` forgets it). It used to
+ * show by itself in a standalone phone app on the first load after a crash, because a Home Screen app cannot be given a
+ * query. Since crashes upload on their own (crashReport.ts, R-TOUCH-CRASH-REPORT-01) that is not needed, and a player
+ * coming back to the game read it as an error screen (R-PHONE-RESUME-01, owner 2026-10-27: "it shows an error ... so
+ * you just press continue without an error code there"). A crash is still recorded and uploaded exactly as before.
  */
 import { LITE_ART } from './phoneArt';
 import { activeDiagLabel } from './phoneDiag';
@@ -270,7 +272,7 @@ function readStore(): CrashLogStore | null {
   } catch { return null; }
 }
 
-/** Should the readout show: the flag (remembered), or a standalone phone app on the first load after a crash. */
+/** Should the readout show: the flag only (remembered). Never by itself after a crash (R-PHONE-RESUME-01). */
 export function crashReadoutWanted(): boolean {
   if (typeof window === 'undefined') return false;
   const q = queryFlag();
@@ -279,10 +281,7 @@ export function crashReadoutWanted(): boolean {
     if (q === '0') localStorage.removeItem(CRASH_LOG_SHOW_KEY);
     if (localStorage.getItem(CRASH_LOG_SHOW_KEY) === '1') return true;
   } catch { /* blocked storage: the flag alone */ }
-  if (q === '1') return true;
-  const standalone = (navigator as unknown as { standalone?: boolean }).standalone === true
-    || (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches);
-  return LITE_ART && standalone && crashedSessions().length > 0;
+  return q === '1';
 }
 
 let glTracked = false;

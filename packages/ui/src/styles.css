@@ -3940,18 +3940,18 @@ body.modalup .app { z-index: auto; }
   background: color-mix(in srgb, var(--threat) 12%, var(--card)); border: 2px solid var(--line); color: var(--ink);
 }
 .crashdetails { max-width: calc(70 * var(--vw, 1vw)); width: 100%; }
-.crashdetails summary { cursor: pointer; font-family: var(--font-ui), sans-serif; font-weight: 700; font-size: 13px; color: var(--ink3); user-select: none; }
+.crashdetails summary { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; font-family: var(--font-ui), sans-serif; font-weight: 700; font-size: 13px; color: var(--ink3); user-select: none; }
 .crashdetails summary:hover { color: var(--ink); }
 .crashstack { max-height: calc(34 * var(--vh, 1vh)); overflow: auto !important; white-space: pre-wrap; word-break: break-word; margin-top: 8px; font-size: 11px !important; }
-.crashcopy { margin-top: 8px; font-family: var(--font-ui), sans-serif; font-weight: 700; font-size: 12px; padding: 6px 14px; border-radius: 9px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.crashcopy { margin-top: 8px; font-family: var(--font-ui), sans-serif; font-weight: 700; font-size: 12px; padding: 6px 14px; border-radius: 9px; border: 2px solid var(--line); background: var(--card); color: var(--ink); }
 .crashcopy:hover { filter: brightness(1.05); }
 .crashbtns { display: flex; gap: 12px; margin-top: 6px; }
 .crashbtns button {
   font-family: var(--font-ui), sans-serif; font-weight: 800; font-size: 15px; padding: 10px 22px;
   border-radius: 12px; border: 2px solid var(--acc-dk); background: var(--acc); color: #fff;
-  box-shadow: 0 4px 0 var(--acc-dk); cursor: pointer;
+  box-shadow: 0 4px 0 var(--acc-dk);
 }
-.crashbtns button:last-child { background: var(--card); color: var(--ink); border-color: var(--line); box-shadow: 0 4px 0 var(--line); }
+.crashbtns button:not(:first-child) { background: var(--card); color: var(--ink); border-color: var(--line); box-shadow: 0 4px 0 var(--line); }
 .crashbtns button:hover { filter: brightness(1.05); }
 
 /* Battlecry flourish — a tribe-tinted sigil swelling from *under* a just-played minion, with

@@ -38,9 +38,8 @@ tables compare cell by cell before any mode is flipped.
 - **Pause lift 4.1 s after a return (dropFin, every mode that pauses).** The client waited out its reconnect backoff
   (up to 3 s) before the 3-2-1 could start. `VersusCfClient` now reconnects at once on the browser `online` event
   (`wake`, wired in `versusCfRemote.ts`): 3.1 s. R-VERSUS-CF-RECONNECT-01; `workers/versus/test/clientWake.test.ts`.
-- **The Supabase chaos harness was red on main for Group / Duos** (`versusRemote.hostOf is not a function`): #2372 made
-  the store call router-only methods, the harness mocked the bare adapter. The Supabase transport now runs the router
-  with no Worker (`cf: null`, today's production shape). The full Supabase matrix is back to 91/104 (unchanged ledger).
+- The Supabase chaos harness was red on main for Group / Duos (`versusRemote.hostOf is not a function`); #2378 fixed it
+  the same way this branch had (the router with no Worker). The full Supabase matrix: 91/104, ledger unchanged.
 - The Ranked Duos resolver is injectable (`CoreDeps.resolveRanked`, like the 1v1 / Group / Duos ones), so its resolver
   faults and the one-call count apply.
 

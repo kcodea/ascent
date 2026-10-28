@@ -5,7 +5,8 @@
  * `versusStore` session controller, its own `versusRemote` and its own identity and ranked-gate controller.
  *
  * THE TRANSPORT follows the backend under test (`chaosBackend.ts`):
- *  - Supabase: `versusRemote` is the real Supabase adapter (`makeVersusRemote`) over this client's `FakeSupabase`;
+ *  - Supabase: `versusRemote` is the real cutover router with no Worker (`cf: null`) over the real Supabase adapter
+ *    (`makeVersusRemote`) on this client's `FakeSupabase`;
  *  - Cloudflare: `versusRemote` is the real cutover router (`makeRoutedVersusRemote`) with every mode switched to
  *    Cloudflare, over the real Cloudflare transport (`makeCfVersusRemote`, the real `VersusCfClient`), whose WebSocket and
  *    fetch are this client's fake network into `CfChaosServer`. Its Supabase side answers only the record reads the
@@ -145,16 +146,7 @@ export class ChaosClient {
       const groupCombatReady = remote.groupCombatReady;
       remote.combatReady = (m, round) => (drop.has(round) ? lost() : combatReady(m, round));
       remote.groupCombatReady = (m, round) => (drop.has(round) ? lost() : groupCombatReady(m, round));
-      // The game's adapter is the cutover ROUTER (R-VERSUS-CF-CUTOVER-01) over the Supabase adapter: wrap the fake-backed
-      // remote in the real router with no Cloudflare transport, so every call takes the Supabase path exactly as a build
-      // without a Worker does, and the router's own surface (`hostOf`, `noteRoomHost`, ...) is the real one.
-      const { makeRoutedVersusRemote } = await import('../versusRouter');
-      const { makeRoomHostMemory } = await import('../versusHost');
-      const routed = makeRoutedVersusRemote({
-        supabase: remote, cf: null, memory: makeRoomHostMemory(null),
-        readConfig: async () => ({ duel: 'supabase', group: 'supabase', duos: 'supabase', ranked_duos: 'supabase' }),
-      });
-      return { ...real, versusRemote: routed };
+      return { ...real, versusRemote: remote };
     });
     vi.doMock(here('../../net/backoff.ts'), async (orig) => ({
       ...(await orig<typeof import('../../net/backoff')>()),
@@ -404,9 +396,9 @@ export class ChaosClient {
 }
 
 /**
- * THE SUPABASE TRANSPORT: the real Supabase adapter behind the game's cutover router with no Worker in the build (`cf:
- * null`: every call goes straight to Supabase, today's production shape; the store calls router-only methods such as
- * `hostOf`, so the bare adapter is not enough).
+ * THE SUPABASE TRANSPORT: the game's adapter is the cutover ROUTER (R-VERSUS-CF-CUTOVER-01); with no Worker in the build
+ * (`cf: null`) every call takes the Supabase path exactly as a build without a Worker does, and the router's own surface
+ * (`hostOf`, `noteRoomHost`, ...) is the real one (#2378).
  */
 async function supabaseRemote(real: typeof import('../versusRemote'), fake: FakeSupabase) {
   const { makeRoutedVersusRemote } = await import('../versusRouter');

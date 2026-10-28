@@ -77,8 +77,8 @@ export interface FreezeConfig {
 const DEFAULTS: FreezeConfig = {
   // Base point is the board's TOP-CENTRE now (see styles.css .frzwrap); x/y fine-tune from there.
   x: 8,
-  y: 264,
-  scale: 1.36,
+  y: 272,
+  scale: 1.33,
   gemX: 0,
   gemY: -4.5,
   gemS: 1.02,

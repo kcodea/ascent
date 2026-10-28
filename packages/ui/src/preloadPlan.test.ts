@@ -21,7 +21,7 @@ beforeEach(() => { calls.length = 0; __resetPreloadPlan(); });
 
 describe('splitPublicArt', () => {
   const list = [
-    'augustfullboard.webp', 'board.jpg', 'cursors/gauntlet_open.svg', 'frames/cardplate-beast.webp',
+    'playingboard.webp', 'board.jpg', 'cursors/gauntlet_open.svg', 'frames/cardplate-beast.webp',
     'frames/cardplate-mech.webp', 'frames/milestone-atk-1.webp', 'frames/milestone-atk-3.webp', 'frames/oval-beast-gilded.webp',
     'frames/oval-beast.webp', 'frames/oval-mech.webp', 'frames/taunt-beast.webp', 'frames/taunt-shield.png',
     'frames/tier-stars-1.webp', 'frames/title-logo.png', 'fx/burst-blue.png', 'homescreen.webp', 'medallions/echo.webp',
@@ -32,7 +32,7 @@ describe('splitPublicArt', () => {
   it('orders the chrome lane title → shop → hand, and leaves gilded / milestone / FX art to a later lane', () => {
     const { chrome, rest } = splitPublicArt(list);
     const c = strip(chrome);
-    expect(c.indexOf('homescreen.webp')).toBeLessThan(c.indexOf('augustfullboard.webp'));
+    expect(c.indexOf('homescreen.webp')).toBeLessThan(c.indexOf('playingboard.webp'));
     expect(c.indexOf('frames/title-logo.png')).toBeLessThan(c.indexOf('frames/oval-beast.webp'));
     expect(c.indexOf('frames/oval-beast.webp')).toBeLessThan(c.indexOf('frames/cardplate-beast.webp'));
     expect(c).toContain('frames/tier-stars-1.webp');

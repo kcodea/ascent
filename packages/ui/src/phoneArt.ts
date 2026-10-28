@@ -45,7 +45,7 @@ export const PHONE_ASSET_CAPS: Readonly<Record<string, number>> = {
 /** Longest side (px) of the phone copy of a PUBLIC image, or null for none. Only images every reference to which
  *  goes through `phonePublicUrl` belong here (the build also drops any file a stylesheet names, see the plugin). */
 export function phonePublicCap(rel: string): number | null {
-  if (rel === 'augustfullboard.webp' || rel === 'augustboardcombat.webp') return 1920;
+  if (rel === 'playingboard.webp' || rel === 'playingboard-combat.webp') return 1920;
   // The menu backdrop plates (1920 x 1080 masters, drawn behind every menu): about a phone screen's own width
   // (R-TOUCH-GPU-MEMORY-01). `hall-dim` is already 960 wide and a stylesheet names it.
   if (rel === 'backdrops/hall-soft.webp' || rel === 'backdrops/hall.webp') return 1280;
@@ -184,8 +184,8 @@ export const publicArt = (rel: string): string => phonePublicUrl(rel);
 
 /** The stylesheet's custom properties a phone re-points at the phone copy (each var's default names the original). */
 export const PHONE_CSS_VARS: ReadonlyArray<readonly [string, string]> = [
-  ['--board', 'augustfullboard.webp'],
-  ['--board-combat', 'augustboardcombat.webp'],
+  ['--board', 'playingboard.webp'],
+  ['--board-combat', 'playingboard-combat.webp'],
   // The return trip's vista (R-TOUCH-RUN-MEMORY-02): `.wipevista-flat` reads this.
   ['--vista-flat', 'vista-flat.webp'],
 ];

@@ -353,7 +353,14 @@ export function QuestBadges() {
           and because the counter-scale is on the blended element itself (not an isolating ancestor wrapper), the
           discs still `mix-blend-mode` against the badges behind them. LAST children: absolutely positioned (DOM
           order sets paint order — they ride on top) and keep the badges' `:nth-child` stagger counting from 1. */}
-      {runes.length > 0 && [1, 2, 3].map((n) => (
+      {/* Empty-slot frames: a gold ring behind each of the three node spots, so an empty slot still reads as a
+          socket now that the board art no longer paints them. Last in the DOM so the badges' `:nth-child`
+          placement still counts from 1; `z-index: -1` (styles.css) paints them under the badges. */}
+      {[1, 2, 3].map((n) => (
+        <span key={`slot${n}`} className={`quest-slot quest-slot-${n}`} aria-hidden />
+      ))}
+      {/* Always on, empty slots included: the glass belongs to the socket, not to the rune in it. */}
+      {[1, 2, 3].map((n) => (
         <img decoding="sync" key={n} className={`rune-sheen rune-sheen-${n}`} src={publicArt(`frames/rune-sheen-${n}.webp`)} alt="" draggable={false} aria-hidden />
       ))}
       {/* CHAINS on the LOCKED third rune slot (owner ask 2026-08-19): shown once the rune row is up but the 3rd

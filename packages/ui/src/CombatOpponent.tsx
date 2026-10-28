@@ -18,6 +18,7 @@ import { BuffsFrame } from './BuffsFrame';
 import { gatherSnapshotBuffs } from './runBuffs';
 import { stageHost } from './stage';
 import { foePortrait } from './gauntlet/foePortrait';
+import { publicArt } from './phoneArt';
 
 /** A tier worth printing: a whole number from 1 up. Anything else (missing, NaN, 0) hides the pill. */
 export const tierKnown = (tier: number | null | undefined): tier is number =>
@@ -232,6 +233,12 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
           })}
         </div>
       )}
+      {/* Rune glass — the same glossy discs the player's rune slots wear, over the runes (and the empty slots). */}
+      <div className="combatopp-runesheen" aria-hidden="true">
+        {[1, 2, 3].map((n) => (
+          <img decoding="sync" key={n} className={`combatopp-sheen s${n}`} src={publicArt(`frames/rune-sheen-${n}.webp`)} alt="" draggable={false} />
+        ))}
+      </div>
     </div>
     {/* FOE HERO POWER (owner ask 2026-08-29) — the opponent's power icon pinned to the screen's top-right
         corner for the fight. Same classes as the player's .heropowerbtn so the circle treatment can never

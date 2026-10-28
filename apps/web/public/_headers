@@ -29,9 +29,9 @@
   Cache-Control: public, max-age=3600, stale-while-revalidate=604800
 /announcer/*
   Cache-Control: public, max-age=3600, stale-while-revalidate=604800
-/augustfullboard.webp
+/playingboard.webp
   Cache-Control: public, max-age=3600, stale-while-revalidate=604800
-/augustboardcombat.webp
+/playingboard-combat.webp
   Cache-Control: public, max-age=3600, stale-while-revalidate=604800
 /homescreen.webp
   Cache-Control: public, max-age=3600, stale-while-revalidate=604800
@@ -44,4 +44,6 @@
 /blast-dmg-icon.webp
   Cache-Control: public, max-age=3600, stale-while-revalidate=604800
 /opp-rune-slot-*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/rune-slot-*
   Cache-Control: public, max-age=3600, stale-while-revalidate=604800

@@ -69,6 +69,12 @@ export const PATCH_NOTES: PatchNote[] = [
         'In Versus you see who is playing.',
         'Watch takes you straight into their game, Practice included.',
       ] },
+      { category: 'Systems', text: 'The game board has a fresh, cleaner look.', details: [
+        'The board now sits on a deep navy backdrop, with a matching version for combat.',
+        'Your rune and quest slots have sharper gold rings with a glass shine, even while empty. Your opponent\'s rune slots match them in combat.',
+        'Hovering your hero portrait shows a softer shadow that stays under your portrait frame, with larger text.',
+        'Dragging a minion from your hand makes room on your board a little sooner.',
+      ] },
       { category: 'Systems', text: 'Master hero titles have a new look. They glow, shimmer and sparkle.', details: [
         'The gold and red plate is gone. The name now shines in ice blue and violet.',
         'A light sweeps across it and a small star twinkles beside it.',

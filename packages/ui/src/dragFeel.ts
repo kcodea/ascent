@@ -94,13 +94,13 @@ const DEFAULTS: DragFeel = {
   threshold: 0,     // drag engages immediately
   recenter: 0.8,    // owner-tuned 2026-08-14: a slightly eased glide onto the cursor (was 1, instant)
   recenterAfter: 0, // recentre immediately
-  handGrabY: 1,     // owner-tuned 2026-08-10: a hand card hangs from its bottom edge
+  handGrabY: 0.66,  // owner-tuned 2026-10-28: the card hangs a third of the way up from its bottom edge (was 1)
   snapMs: 110,
   magSlideMs: 390,
   magWeldLeadMs: 130,
   collapseY: 50,    // owner-tuned 2026-08-10: lift a bit more before the row fills the gap (was 20)
   spellLine: 0,     // owner-tuned 2026-09-14
-  playLine: -2,     // owner-tuned 2026-09-14: LOWER = the warband opens the slot sooner (reacts with less drag
+  playLine: -3,     // owner-tuned 2026-10-28 (was -2): LOWER = the warband opens the slot sooner (reacts with less drag
                     // up). Owner set this well below the old slider floor for a very eager make-room.
   handFloor: 0,     // owner-tuned 2026-07-20: no floor offset — the pop lift alone places the card
   handPop: 0.22,    // owner-tuned 2026-08-12: a gentler upward pop (× --ch) (was 0.53)
@@ -189,7 +189,7 @@ const KEY = 'ascent.dragfeel';
  * Forget the bump and step 3 silently doesn't happen for anyone who has ever touched the tuner — which is the
  * exact bug this comment exists to prevent, so `dragFeel.test.ts` fails if `DEFAULTS` changes without it.
  */
-export const DRAG_DEFAULTS_VERSION = 11;
+export const DRAG_DEFAULTS_VERSION = 12;
 
 /** Shape actually written to localStorage: the values plus the defaults-version they were tuned against. */
 type SavedDragFeel = Partial<DragFeel> & { __v?: number };

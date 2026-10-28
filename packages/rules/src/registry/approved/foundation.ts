@@ -9631,6 +9631,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/rankedEntry.test.tsx', 'packages/ui/src/MenuSidebar.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
   {
+    id: 'R-RANKED-DUOS-SPLIT-01',
+    title: 'Ranked Duos: the party is its own screen (team name, Invite player, Start game, Back), never in Versus menus; leaving it before the game costs nothing',
+    statement:
+      'The Ranked Duos party is reached only by the Ranked card\x27s Duo + Play and is its own view, apart from Versus. Its screen shows the TEAM '
+      + 'big on the header plate ("Your team", the team name or "Name1 & Name2"; "Invite a teammate" while alone) with Rename team for either teammate '
+      + 'between games, and only Invite player, Start game (the host; the teammate sees "Your teammate starts the game") and Back: no Room options, '
+      + 'Leave, Friends only, Join a party, Previous match stats or empty stands. Back leaves an open or sealed party and shows the mode screen; it '
+      + 'never concedes a running game. A party never shows in the Versus room list (server: versus_list_rooms() is Versus only, '
+      + 'versus_list_rooms(\x27duos\x27) the parties) and is never a Versus room option; versus_set_options refuses a change across the line (bad_mode). '
+      + 'Opening Versus while holding an open party leaves it; Duo + Play while holding an open Versus room leaves it; a running game of the other '
+      + 'kind is shown in its own area. Leaving before the game starts creates no match, so no placement and no rating: only a match created by '
+      + 'versus_press_gate can reach settle_duos_rank. The open parties list and the friends-only switch stay server-side but are off screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-27', quote: 'the duo ranked lobby should just have an invite player option and then start game and a back button to get back to the play screen' },
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-27', quote: "you shouldn't lose mmr for leaving that lobby" },
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-27', quote: 'make the team naming more obvious in lobby' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-02-ranked-duos-party-split.sql; packages/ui/src/versus/VersusRoom.tsx (party chrome); packages/ui/src/versus/versusStore.ts (openVersus, enterDuosParty, leaveDuosParty, rejoinMyRoom); packages/ui/src/versus/VersusTitle.tsx (DuosDoor); packages/ui/src/Title.tsx (duos / duos-party views)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 on feat/ranked-duos-lobby-split. Before, the party was a Versus room with its controls, the parties and Versus rooms shared one list RPC, and a test-tools Versus room could switch to Ranked Duos.',
+    example: 'Kevin picks Duo, presses Play and lands in his party: "Your team" over "Invite a teammate", with Invite player and Back. Lemon joins; the header reads "Kevin & Lemon". Kevin presses Back: he leaves the party, sees the mode screen, and his rating is untouched.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosSplit.test.tsx', 'packages/sim/src/versus/rankedDuosPartySplit.db.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
     id: 'R-VERSUS-READY-01',
     title: 'Versus (every mode): End Turn is a ready signal; the shop stays playable, the fight takes the board as it is at the close, a second press un-readies above 0:00',
     statement:

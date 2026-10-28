@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The Ranked Duos party is now its own screen, apart from Versus.',
+        details: [
+          'Your team name is shown big at the top. Either teammate can rename it between games.',
+          'The party has just Invite player, Start game and Back.',
+          'Back takes you to the mode screen. Leaving the party before the game starts never costs rating.',
+          'Ranked Duos parties no longer show in the Versus room list.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Twenty-nine new minion skins in chests, for many of the most-played cards that had none.',
         details: [
           'Prospector, Chronos, Lastlight, Tapkeeper, Bob Blart, Geode Guardian, Market Tormentor, Blazer, Grimoire, Flutterbutter, Right Hand Hank, Sharpshooter, Cave Cutter, Jewel and Spell Warden each get their first skins.',

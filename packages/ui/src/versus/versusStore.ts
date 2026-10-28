@@ -100,8 +100,13 @@ export interface VersusState {
   duosResult: DuosResultView | null;
 }
 
-/** The two play areas over the one room system: Versus rooms, and Ranked Duos parties (owner 2026-10-26). */
+/** The two play areas over the one room system: Versus rooms, and Ranked Duos parties (owner 2026-10-26). They are
+ *  separate places (owner 2026-10-27, R-RANKED-DUOS-SPLIT-01): neither shows up in the other's menus. */
 export type VersusArea = 'versus' | 'duos';
+/** A Ranked Duos party (a `ranked_duos` room), as opposed to a Versus room. */
+export const isDuosParty = (r: { options?: { mode?: string } | null } | null | undefined): boolean => r?.options?.mode === 'ranked_duos';
+/** The play area a room belongs to. */
+export const areaOfRoom = (r: { options?: { mode?: string } | null } | null | undefined): VersusArea => (isDuosParty(r) ? 'duos' : 'versus');
 /** My team's result for a finished Ranked Duos match (a RankResult-shaped row, team-owned). */
 export interface DuosResultView { matchId: string; placement: number; result: RankResult | null; teamName: string | null; pending: boolean }
 
@@ -242,7 +247,9 @@ export const versusShopRemainingMs = (iso: string | null | undefined): number | 
 export async function refreshRooms(): Promise<void> {
   set({ loading: true });
   try {
-    set({ rooms: await versusRemote.listRooms(), error: null });
+    // Versus rooms only: a Ranked Duos party never shows in the Versus browser (the server lists one area since
+    // 2026-11-02-ranked-duos-party-split.sql; this filter covers a server without it).
+    set({ rooms: (await versusRemote.listRooms()).filter((r) => !isDuosParty(r)), error: null });
   } catch (e) {
     set({ error: errorText(e) });
   } finally {
@@ -277,8 +284,7 @@ export async function joinRoom(roomId: string, as: 'player' | 'spectator'): Prom
       });
     enterRoom(room);
     // RANKED DUOS (phase 3): a party is two players, so joining one as a player takes its free seat at once.
-    if (as === 'player' && room.options?.mode === 'ranked_duos' && room.status === 'open') {
-      set({ area: 'duos' });
+    if (as === 'player' && isDuosParty(room) && room.status === 'open') {
       const free = (['p1', 'p2'] as const).find((r) => !room.members.some((m) => m.role === r));
       if (free) await takeSeat(free);
     }
@@ -381,7 +387,7 @@ let session: {
 
 function enterRoom(room: VersusRoom): void {
   stopSession();
-  set({ room, screen: 'room', error: null, seatMove: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null });
+  set({ room, area: areaOfRoom(room), screen: 'room', error: null, seatMove: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null });
   session = { roomId: room.id, matchId: null, channel: null, beat: 0, tick: 0, wake: null, lastFinalize: 0, candidateSeq: 0, publisher: null, unsubRun: null, unsubGates: useVersus.subscribe(driveGates), unsubHero: watchMyHeroSelect() };
   installSpectateIo({
     latestFrames: (id) => mx.latestFrames(id),
@@ -1634,32 +1640,32 @@ export function returnToRoom(): void {
   void refreshRoom();
 }
 
-/** The title's Versus card. */
+/** The title's Versus card (and a friend's Versus invite / Watch; `area` 'duos' = a Ranked Duos party invite). */
 export function openVersus(area: VersusArea = 'versus'): void {
+  // THE SPLIT (R-RANKED-DUOS-SPLIT-01): a room of the OTHER area is never shown here. One still open (nothing started,
+  // so leaving costs nothing) is left; a running one is the player's live game and shows in its own area.
+  const held = get().room;
+  if (held && areaOfRoom(held) !== area) {
+    if (held.status === 'open') void leaveRoom();
+    else area = areaOfRoom(held);
+  }
   set({ screen: get().room ? 'room' : 'browser', error: null, area });
   useGame.getState().setTitleView('versus');
   if (get().room) return;
-  void refreshRooms();
+  if (area === 'versus') void refreshRooms();
   // A returning player (reload, new tab, crash) is still a member server-side: put them straight back in their room,
   // and from there into their running match (live test 2026-10-14: they used to see only "Watch").
-  void rejoinMyRoom();
+  void rejoinMyRoom(area);
 }
 
 // ── RANKED DUOS (phase 3): the party ───────────────────────────────────────────────────────────────────────────────
 /** The room options of a Ranked Duos party (the live rules: no modifier). */
 export const RANKED_DUOS_OPTIONS: VersusRoomOptions = Object.freeze({ v: 1, mode: 'ranked_duos', modifiers: [] }) as VersusRoomOptions;
 
-/** The Ranked Duos play area: the open parties, Create party (owner 2026-10-26: "if i go into play ranked, duos, it
- *  should open a lobby that's visible in the duo's play area"). */
-export function openDuos(): void {
-  openVersus('duos');
-}
-
 /** Open a party: a Ranked Duos room with me in the first seat (a party is two players; nobody needs the hand). */
 export async function createDuosParty(name: string): Promise<void> {
   try {
     const room = await timed(() => versusRemote.createRoom(name, myIdentity(), RANKED_DUOS_OPTIONS), (r) => r.serverNow);
-    set({ area: 'duos' });
     enterRoom(room);
   } catch (e) {
     set({ error: errorText(e) });
@@ -1670,12 +1676,32 @@ export async function createDuosParty(name: string): Promise<void> {
  *  room specific for duo's where you can invite a friend"): Duo + Play lands in MY party. Already in a room (a party I
  *  left the screen of, or a reload): back into it. Otherwise a new party, me in the first seat. */
 export async function enterDuosParty(name: string): Promise<void> {
-  set({ area: 'duos', error: null, screen: get().room ? 'room' : 'browser' });
+  // THE SPLIT (R-RANKED-DUOS-SPLIT-01): a Versus room I still hold, open (nothing started), is left first; a running
+  // Versus game is shown where it belongs instead (never inside the party flow).
+  const held = get().room;
+  if (held && !isDuosParty(held) && held.status === 'open') await leaveRoom();
+  const room = get().room;
+  set({ area: room ? areaOfRoom(room) : 'duos', error: null, screen: room ? 'room' : 'browser' });
   useGame.getState().setTitleView('versus');
-  if (get().room) return;
-  await rejoinMyRoom();
+  if (room) return;
+  await rejoinMyRoom('duos');
   if (get().room) return;
   await createDuosParty(name);
+}
+
+/**
+ * BACK from the party (owner 2026-10-27: "a back button to get back to the play screen" and "you shouldn't lose mmr
+ * for leaving that lobby", R-RANKED-DUOS-SPLIT-01): the mode screen, and out of the party. Before its game starts the
+ * party is only a waiting room, so leaving it costs nothing (no match exists: no placement, no rating). A game already
+ * running is never conceded from here: Back only shows the mode screen.
+ */
+export async function leaveDuosParty(): Promise<void> {
+  const { room, match } = get();
+  useGame.getState().setTitleView('modes');
+  set({ duosResult: null });
+  const role = myRole(room);
+  if (room?.status === 'in_game' && role && role !== 'spectator' && match && match.phase !== 'complete') return;
+  await leaveRoom();
 }
 
 /** The host lists the party publicly (default) or keeps it to friends (owner Q6). */
@@ -1731,14 +1757,21 @@ export async function resumeVersusMatch(): Promise<void> {
   } catch { /* no backend / offline: nothing to resume */ }
 }
 
-async function rejoinMyRoom(): Promise<void> {
+/** Back into the room this account still holds, when it belongs to `area` (R-RANKED-DUOS-SPLIT-01). One of the other
+ *  area is left when it is still open (free, nothing started), or shown in its own area when its game is running. */
+async function rejoinMyRoom(area: VersusArea): Promise<void> {
   const me = currentUserId();
   if (!me) return;
   try {
     const roomId = await versusRemote.myRoomId(me);
     if (!roomId || get().room) return;
     const room = await versusRemote.room(roomId);
-    if (room) enterRoom(room);
+    if (!room || get().room) return;
+    if (areaOfRoom(room) !== area && room.status === 'open') {
+      await versusRemote.leaveRoom(room.id).catch(() => undefined);
+      return;
+    }
+    enterRoom(room);
   } catch { /* the browser stays up; Watch/Join still work */ }
 }
 

@@ -19,7 +19,7 @@
  * is one-shot transform / opacity (the entrance, the seat moves); the gauntlet cursor comes from the global rule.
  */
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
-import { duosMateOf, normalizeVersusOptions, versusDuosStartingVitals, versusStartingVitals, VERSUS_MODE_SEATS, VERSUS_SPECTATOR_CAP, type VersusGroupSeat } from '@game/sim';
+import { defaultTeamName, duosMateOf, normalizeVersusOptions, versusDuosStartingVitals, versusStartingVitals, VERSUS_MODE_SEATS, VERSUS_SPECTATOR_CAP, type VersusGroupSeat } from '@game/sim';
 import { Icon } from '../Icon';
 import { currentUserId } from '../identity';
 import { sfx } from '../sfx';
@@ -34,14 +34,14 @@ import { versusTestToolsEnabled } from './versusFlag';
 import { resumeSpectating } from './spectate';
 import { VersusEmptySeatCard, VersusPlayerCard } from './VersusPlayerCard';
 import { MAX_RECORD_IDS, useSeatData, type SeatServerData } from './versusSeatCard';
-import { leaveRoom, myRole, setRoomOptions, setVersusStatsOpen, startGame, useVersus, versusRemainingMs, type VersusState } from './versusStore';
+import { leaveDuosParty, leaveRoom, myRole, setRoomOptions, setVersusStatsOpen, startGame, useVersus, versusRemainingMs, type VersusState } from './versusStore';
 import { VersusOptionsPanel, versusOptionsSummary } from './versusOptionsUi';
 import { canDragSeatCard, roomWithSeatMove } from './seatDrag';
 import { beginSeatDrag, endSeatDrag, SeatDragGhost, useRoomCards, useSeatDragStore, type SeatDragState } from './useSeatDrag';
 import type { VersusMember } from './versusRemote';
 import { RoomInvitePanel } from '../friends/RoomInvitePanel';
 import { friendsAccount } from '../friends/friendsStore';
-import { DuosResultOverlay, FriendsOnlyToggle, TeamNamePanel, TeamPlate, partyPair, usePartyTeamName } from './DuosParty';
+import { DuosResultOverlay, TeamNamePanel, partyPair, usePartyTeamName } from './DuosParty';
 import './versus.css';
 
 
@@ -246,12 +246,12 @@ function Seat({ side, m, room, match, me, drag, arena }: { side: VersusGroupSeat
  * from `--n` and its `--off`); the cards are the members' own cards in the room's card layer, placed over the anchors
  * (R-VERSUS-ROOM-MOUNTED-01).
  */
-function SpectatorFan({ n }: { n: number }) {
+function SpectatorFan({ n, label = true }: { n: number; label?: boolean }) {
   return (
     <div className="vsbench" style={{ '--n': n } as CSSProperties}>
       {/* THE BENCH (owner 2026-10-21, R-VERSUS-ROOM-STANDS-01): the spectators as a hand, no box behind them; the quiet
           label is centred on the fan just above the cards. */}
-      <span className="vsstands-label hudpill-name" aria-hidden="true">Spectators<span className="vsstands-count">{n} / {VERSUS_SPECTATOR_CAP}</span></span>
+      {label && <span className="vsstands-label hudpill-name" aria-hidden="true">Spectators<span className="vsstands-count">{n} / {VERSUS_SPECTATOR_CAP}</span></span>}
       {Array.from({ length: n }, (_, i) => <span key={i} className="vsbslot" style={{ '--off': i - (n - 1) / 2 } as CSSProperties} aria-hidden="true" />)}
     </div>
   );
@@ -356,7 +356,8 @@ export function VersusRoom() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   // FRIENDS (R-FRIENDS-04): Invite friends to this room (accounts only).
   const [inviteOpen, setInviteOpen] = useState(false);
-  // RANKED DUOS (phase 3): a party is a ranked_duos room; its team name (either teammate, between games).
+  // RANKED DUOS: a party is a ranked_duos room, its own place (R-RANKED-DUOS-SPLIT-01): the team, Invite player, Start
+  // game and Back, nothing else of a Versus room. Its team name heads the stage (either teammate renames it between games).
   const party = roomMode === 'ranked_duos';
   const [teamName, setTeamName] = usePartyTeamName(party ? serverRoom ?? null : null);
   const [nameOpen, setNameOpen] = useState(false);
@@ -391,6 +392,16 @@ export function VersusRoom() {
   const hostEdits = host && open;
   // Who hosts, wherever they sit (a host in the hand has no seat tag): named once, in the room's heading.
   const hostName = room.members.find((x) => x.userId === room.host_user_id)?.displayName?.trim() || null;
+  // RANKED DUOS: the team's identity. Its name (or "Name1 & Name2" until named) once both seats are taken.
+  const pair = party ? partyPair(room) : null;
+  const teamLabel = pair ? teamName ?? defaultTeamName(pair[0].name, pair[1].name) : null;
+  const canRename = party && open && isPlayer && !!pair && friendsAccount();
+  // Back: a party is left on the way out (before its game that costs nothing); a Versus room is kept, as before.
+  const goBack = (): void => {
+    sfx.pulse();
+    if (party) void stopVersusBot().then(() => leaveDuosParty());
+    else setTitleView('modes');
+  };
 
   let status: string | null = null;
   // THE GATE (owner 2026-10-14): each player's own entry gate (the ranked doors and crystal) plays over this room; a
@@ -400,7 +411,7 @@ export function VersusRoom() {
   else if (running && match!.phase !== 'hero_select' && !isPlayer) status = `Round ${match!.round} is live`;
 
   return (
-    <div ref={stageRef} className={`vsroomstage${entering ? ' vsenter' : ''}`} role="dialog" aria-label={`Versus room ${room.name}`}
+    <div ref={stageRef} className={`vsroomstage${party ? ' vsparty' : ''}${entering ? ' vsenter' : ''}`} role="dialog" aria-label={`Versus room ${room.name}`}
       style={{ '--vs-arena': `url(${arenaBlur})`, '--vs-wire': PLATE_WIRE } as CSSProperties}>
       {/* THE BACKDROP (owner 2026-10-21: "blur the background"): a pre-blurred copy of the arena at cover size (a
           static image, never a live blur), under a static grade that darkens the edges and seats the hand. */}
@@ -409,8 +420,6 @@ export function VersusRoom() {
       <div className={`vsarena${fourSeats ? ' vsgroup' : ''}${roomMode === 'duos' ? ' vsduos' : ''}`} ref={arenaRef}>
         {/* VERSUS DUOS (R-DUOS-01): the seat pairs are the teams; a plate names each pair (the room's own pill style). */}
         {roomMode === 'duos' && <><span className="vsteam vsteam-a hudpill-name">Team 1</span><span className="vsteam vsteam-b hudpill-name">Team 2</span></>}
-        {/* RANKED DUOS: the party's team name over its two seats ("Name1 & Name2" until it is named). */}
-        {party && <TeamPlate room={room} name={teamName} />}
         {/* The VS mark between the two cards: the game's display font with a static glow until it has its own art. */}
         {/* (A Ranked Duos party seats two TEAMMATES: no VS between them.) */}
         {!party && <div key={vsBeat} className={`vsmark${vsBeat > 0 ? ' vsmark-full' : ''}`} aria-hidden="true">VS</div>}
@@ -424,7 +433,7 @@ export function VersusRoom() {
             <div className={`vsstart${startLeaving ? ' out' : ''}`}>
               {host
                 ? <button className="vsplate vsprimary" disabled={startLeaving} onClick={() => { sfx.pulse(); void startGame(); }}>Start game</button>
-                : <span className="vsstate hudpill-name">Host starts the match</span>}
+                : <span className="vsstate hudpill-name">{party ? 'Your teammate starts the game' : 'Host starts the match'}</span>}
             </div>
           )}
           {!open && status && <span className="vsstate hudpill-name">{status}</span>}
@@ -434,7 +443,9 @@ export function VersusRoom() {
           )}
         </div>
 
-        <SpectatorFan n={spectators.length} />
+        {/* (The bench always mounts: its box is part of the room's card geometry. A party with nobody watching hides
+            only its label.) */}
+        <SpectatorFan n={spectators.length} label={!party || spectators.length > 0} />
         {/* Every member's card, mounted for the life of the room and placed by transform (R-VERSUS-ROOM-MOUNTED-01). */}
         <RoomCards room={room} data={seatData} me={me} drag={drag} arena={arenaRef} />
       </div>
@@ -442,31 +453,34 @@ export function VersusRoom() {
       {/* The room's name heads the stage, with its host and how many are watching (of the 20 seats, ruling 8) under it. */}
       {/* THE HEADER PLATE (owner 2026-10-21): the room's name and who hosts it on the Gem plate, top centre, level with
           Back and always on screen; the stands' count lives on the stands' own label. */}
+      {party ? (
+        /* RANKED DUOS (owner 2026-10-27: "make the team naming more obvious in lobby"): the TEAM is the party's identity,
+           big on the header plate, with Rename beside the mode for either teammate between games. */
+        <div className="vsroomhead vspartyhead">
+          <span className="vsroomwatch">Your team</span>
+          <span className={`vsroomtitle vsteamtitle${teamLabel ? '' : ' vsteamwait'}`}>{teamLabel ?? 'Invite a teammate'}</span>
+          <span className="vspartyrow">
+            <span className="vsroommode hudpill-name">Ranked Duos</span>
+            {canRename && <button type="button" className="vsroommode hudpill-name vsrename" onClick={() => { sfx.pulse(); setNameOpen(true); }}>Rename team</button>}
+          </span>
+        </div>
+      ) : (
       <div className="vsroomhead">
         <span className="vsroomtitle">{room.name}</span>
         <span className="vsroomwatch">{hostName ? `Hosted by ${hostName}` : 'Versus'}</span>
-        {/* ROOM OPTIONS (R-VERSUS-OPTIONS-01): what this room plays, for everyone; the host changes it between games.
-            A Ranked Duos party plays the live rules, so its pill only names the mode (the options are test tools). */}
-        {party && !versusTestToolsEnabled()
-          ? <span className="vsroommode hudpill-name">{room.friends_only ? 'Ranked Duos · Friends only' : 'Ranked Duos'}</span>
-          : <button type="button" className="vsroommode hudpill-name" aria-label={`Room options: ${versusOptionsSummary(room.options)}`}
-          onClick={() => { sfx.pulse(); setOptionsOpen((v) => !v); }}>{versusOptionsSummary(room.options)}</button>}
+        {/* ROOM OPTIONS (R-VERSUS-OPTIONS-01): what this room plays, for everyone; the host changes it between games. */}
+        <button type="button" className="vsroommode hudpill-name" aria-label={`Room options: ${versusOptionsSummary(room.options)}`}
+          onClick={() => { sfx.pulse(); setOptionsOpen((v) => !v); }}>{versusOptionsSummary(room.options)}</button>
       </div>
+      )}
       <div className="vsroomtop">
-        <button className="vsplate" onClick={() => { sfx.pulse(); setTitleView('modes'); }}>Back</button>
+        <button className="vsplate" onClick={goBack}>Back</button>
       </div>
       <div className="vsroomctl">
-        {(!party || versusTestToolsEnabled()) && <button className="vsplate" onClick={() => { sfx.pulse(); setOptionsOpen((v) => !v); }}>Room options</button>}
-        {friendsAccount() && <button className="vsplate" onClick={() => { sfx.pulse(); setInviteOpen(true); }}>{party ? 'Invite a friend' : 'Invite friends'}</button>}
-        {/* RANKED DUOS: the host lists the party or keeps it to friends (owner Q6); either teammate names the team. */}
-        {party && hostEdits && <FriendsOnlyToggle room={room} />}
-        {/* Alone in my party: the open parties are one click away (leaving this one shows the Ranked Duos list). */}
-        {party && open && !partyPair(room) && <button className="vsplate" onClick={() => { sfx.pulse(); void leaveRoom(); }}>Join a party</button>}
-        {party && open && isPlayer && partyPair(room) && friendsAccount() && (
-          <button className="vsplate" onClick={() => { sfx.pulse(); setNameOpen(true); }}>Team name</button>
-        )}
-        {lastMatch && open && <button className="vsplate" onClick={() => { sfx.pulse(); setVersusStatsOpen(true); }}>Previous match stats</button>}
-        <button className="vsplate" onClick={() => { sfx.pulse(); void stopVersusBot().then(() => leaveRoom()); }}>{running && isPlayer ? 'Leave (concede)' : party ? 'Leave party' : 'Leave room'}</button>
+        {!party && <button className="vsplate" onClick={() => { sfx.pulse(); setOptionsOpen((v) => !v); }}>Room options</button>}
+        {friendsAccount() && <button className="vsplate" onClick={() => { sfx.pulse(); setInviteOpen(true); }}>{party ? 'Invite player' : 'Invite friends'}</button>}
+        {!party && lastMatch && open && <button className="vsplate" onClick={() => { sfx.pulse(); setVersusStatsOpen(true); }}>Previous match stats</button>}
+        {!party && <button className="vsplate" onClick={() => { sfx.pulse(); void stopVersusBot().then(() => leaveRoom()); }}>{running && isPlayer ? 'Leave (concede)' : 'Leave room'}</button>}
         {roomBots.length > 0 && (
           <>
             <button className="vsplate" onClick={() => setVersusBotDisconnected(!allOff)}>
@@ -484,7 +498,7 @@ export function VersusRoom() {
       )}
       <SeatDragGhost room={room} data={seatData} />
 
-      {optionsOpen && (
+      {optionsOpen && !party && (
         <VersusOptionsPanel options={room.options} editable={hostEdits} onClose={() => setOptionsOpen(false)}
           onChange={(next) => { void setRoomOptions(next); }} />
       )}

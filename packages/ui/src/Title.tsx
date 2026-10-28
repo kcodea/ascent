@@ -27,7 +27,7 @@ import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
 import { StageSelect } from './gauntlet/StageSelect';
 import { GuestSignInButton, PortraitSignInGate } from './GuestSignIn';
 import { schedulePrefetchSocial } from './socialPrefetch';
-import { VersusTitle } from './versus/VersusTitle';
+import { DuosDoor, VersusTitle } from './versus/VersusTitle';
 import { VersusRoom } from './versus/VersusRoom';
 import { enterDuosParty, openVersus, resumeVersusMatch, useVersus } from './versus/versusStore';
 import { defaultPartyName, PlayPartyToggle, usePlayParty } from './versus/playParty';
@@ -46,9 +46,10 @@ import { PracticeOptions } from './PracticeOptions';
 
 /** The mode screen's views (`MenuViewSwap`): the home, its sub-views, Practice's setup, and the Versus room's empty
  *  ground (the room is its own stage over it). */
-type ShellView = 'modes' | 'learn' | 'gauntlet' | 'versus' | 'versus-room' | 'practice';
+type ShellView = 'modes' | 'learn' | 'gauntlet' | 'versus' | 'versus-room' | 'duos' | 'duos-party' | 'practice';
 const SHELL_LABEL: Record<ShellView, string> = {
-  modes: 'Choose a mode', learn: 'Learn', gauntlet: 'Gauntlet', versus: 'Versus', 'versus-room': 'Versus', practice: 'Practice options',
+  modes: 'Choose a mode', learn: 'Learn', gauntlet: 'Gauntlet', versus: 'Versus', 'versus-room': 'Versus',
+  duos: 'Ranked Duos', 'duos-party': 'Ranked Duos', practice: 'Practice options',
 };
 // The layer classes the views' CSS hangs on (`.mp-home` places the home spread; `.mp-practice` the setup column).
 const shellViewClass = (v: ShellView): string => (v === 'modes' ? 'mp-home' : v === 'practice' ? 'practiceopts mp-practice' : `mp-${v}`);
@@ -107,7 +108,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const setPlayerName = useGame((s) => s.setPlayerName);
   const playerAvatar = useGame((s) => s.playerAvatar);
   const versusScreen = useVersus((s) => s.screen);
-  // RANKED DUOS (phase 3): the room browser shows the Ranked Duos parties when the Duos tile opened it.
+  // RANKED DUOS: the party is its own view (R-RANKED-DUOS-SPLIT-01), never the Versus browser.
   const versusArea = useVersus((s) => s.area);
   // SOLO / DUO: the Ranked card's switch (playParty.tsx); its PLAY reads it.
   const party = usePlayParty();
@@ -295,6 +296,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // `startPractice` closes the title flag, but the mode screen it opens over stays mounted (see the early return).
   const shellView: ShellView | null = practiceOpen ? 'practice'
     : titleView === 'menu' ? null
+    : titleView === 'versus' && versusArea === 'duos' ? (versusScreen === 'room' ? 'duos-party' : 'duos')
     : titleView === 'versus' && versusScreen === 'room' ? 'versus-room'
     : titleView;
   // One view's content, the `.mpbox` beside the sidebar (`MenuViewSwap` also renders the outgoing one with it).
@@ -374,11 +376,19 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       // VERSUS: the lobby browser (versus/VersusTitle.tsx). The room is its own stage over this screen (below).
       case 'versus': return (
         <div className="mpbox">
-          {subHead(versusArea === 'duos' ? 'Ranked Duos' : 'Versus')}
+          {subHead('Versus')}
           <VersusTitle />
         </div>
       );
       case 'versus-room': return null;
+      // RANKED DUOS (R-RANKED-DUOS-SPLIT-01): my party opening (or the reason it could not); the party is its stage.
+      case 'duos': return (
+        <div className="mpbox">
+          {subHead('Ranked Duos')}
+          <DuosDoor />
+        </div>
+      );
+      case 'duos-party': return null;
       // PRACTICE OPTIONS (PracticeOptions.tsx): the setup between the Practice tile and the hero picker.
       case 'practice': return <PracticeOptions />;
     }
@@ -563,7 +573,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </SidebarHost>
       )}
       {/* VERSUS ROOM (versus/VersusRoom.tsx): its own arena stage over the mode screen (whose content is empty under it). */}
-      {shellView === 'versus-room' && <VersusRoom />}
+      {(shellView === 'versus-room' || shellView === 'duos-party') && <VersusRoom />}
 
       {/* TUTORIAL NUDGE — a new player who hits Play is offered the guided course first (owner 2026-08-17:
           the nudge lives here, not on an auto-popup). Either choice retires it: "Start Playing" records a

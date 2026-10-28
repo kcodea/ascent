@@ -1,9 +1,11 @@
 /**
- * RANKED DUOS, the party's own controls (owner design 2026-10-26; phase 3). A party is a Versus room playing
- * `ranked_duos`: two seats, the room's own screen and chrome (owner rule: reuse the existing UI, no bespoke chrome).
- *  - THE TEAM NAME (R-RANKED-DUOS-NAME-01): the pair's name on a plate above the seats ("Name1 & Name2" until named);
+ * RANKED DUOS, the party's own controls (owner design 2026-10-26; phase 3). A party is a room playing `ranked_duos`:
+ * two seats on the room's stage (owner rule: reuse the existing UI, no bespoke chrome), but its own place, apart from
+ * Versus (owner 2026-10-27, R-RANKED-DUOS-SPLIT-01): the team, Invite player, Start game and Back.
+ *  - THE TEAM NAME (R-RANKED-DUOS-NAME-01): the pair's name heads the party's stage ("Name1 & Name2" until named);
  *    either teammate renames it between games from the Team name window (the room's own `.vsveil` + `.vspanel`).
- *  - FRIENDS ONLY (owner Q6): the host keeps the party off the public list (friends only) or lists it (default).
+ *  - FRIENDS ONLY (owner Q6): kept server-side (`setFriendsOnly`), but no longer on the party screen: there is no public
+ *    parties list to hide from (2026-10-27).
  *  - THE RESULT (R-RANKED-DUOS-RATING-01): after a game, the team's place and its rating change on the solo end screen's
  *    own rank sequence (`RankScreen`, out of 4 teams), over the room.
  */
@@ -11,7 +13,7 @@ import { useEffect, useState } from 'react';
 import { defaultTeamName, teamNameProblem, TEAM_NAME_MAX } from '@game/sim';
 import { sfx } from '../sfx';
 import { RankScreen } from '../rank/RankScreen';
-import { closeDuosResult, saveTeamName, setFriendsOnly, useVersus } from './versusStore';
+import { closeDuosResult, saveTeamName, useVersus } from './versusStore';
 import { versusRemote, type VersusRoom } from './versusRemote';
 
 /** The server's refusal codes, in plain words (no em dashes). */
@@ -45,13 +47,6 @@ export function usePartyTeamName(room: VersusRoom | null): [string | null, (n: s
     return () => { live = false; };
   }, [key]);
   return [name, setName];
-}
-
-/** The team plate over the two seats: the pair's name, or "Name1 & Name2". */
-export function TeamPlate({ room, name }: { room: VersusRoom; name: string | null }) {
-  const pair = partyPair(room);
-  if (!pair) return null;
-  return <span className="vsteam vsteam-party hudpill-name" aria-label={`Team ${name ?? defaultTeamName(pair[0].name, pair[1].name)}`}>{name ?? defaultTeamName(pair[0].name, pair[1].name)}</span>;
 }
 
 /** The Team name window: either teammate, between games. */
@@ -99,15 +94,6 @@ export function TeamNamePanel({ room, me, name, onSaved, onClose }: { room: Vers
         </form>
       </div>
     </div>
-  );
-}
-
-/** The host's Friends only switch (open rooms only). */
-export function FriendsOnlyToggle({ room }: { room: VersusRoom }) {
-  const on = !!room.friends_only;
-  return (
-    <button className={`vsplate${on ? ' on' : ''}`} aria-pressed={on}
-      onClick={() => { sfx.pulse(); void setFriendsOnly(!on); }}>{on ? 'Friends only: On' : 'Friends only: Off'}</button>
   );
 }
 

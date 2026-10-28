@@ -21,7 +21,7 @@
  */
 import { vi } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { RANKED_DUOS_END_GRACE_MS, RANKED_DUOS_OVERTIME_BACKSTOP_MS } from '@game/sim';
+import { rankedDuosCloseAt } from '@game/sim';
 import { ChaosClient, type ChaosClientOptions, type ChaosPolicy } from './chaosClient';
 import type { ChaosServer } from './chaosServer';
 import { RealtimeBus } from './fakeSupabase';
@@ -231,7 +231,7 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
   const cap = sc.capMs ?? (sc.rounds ? 60_000 + sc.rounds * 90_000 : 45 * 60_000);
   const fired = new Set<ChaosEvent>();
   const firstSeen = new Map<string, number>(); // `${round}|${phase}` -> t
-  const close = new Map<number, { deadline: number | null; allLockedAt: number | null; closedAt: number | null; anyEndedAt: number | null }>();
+  const close = new Map<number, { deadline: number | null; allLockedAt: number | null; closedAt: number | null; ends: (number | null)[] }>();
   const resolving = new Map<number, { start: number; end: number | null }>();
   const behind = new Map<number, { since: number; flagged: boolean; why: string }>();
   const vitalsChecked = new Set<string>();
@@ -239,6 +239,8 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
   let pauseFlagged = false;
   const liftFlagged = new Set<string>();
   const deafSince = new Map<string, number>();
+  const railSince = new Map<string, number>();
+  const railFlagged = new Set<string>();
   const deafFlagged = new Set<string>();
   let last: ServerSnap | null = null;
   let complete = false;
@@ -292,12 +294,12 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
 
     // CLOSE: track the round's shop.
     if (s.phase === 'shop' && s.shopDeadline) {
-      const c = close.get(s.round) ?? { deadline: null, allLockedAt: null, closedAt: null, anyEndedAt: null };
+      const c = close.get(s.round) ?? { deadline: null, allLockedAt: null, closedAt: null, ends: [] };
       if (!s.pausedAt) c.deadline = s.shopDeadline;
       if (liveSeats.length && liveSeats.every((x) => x.locked || x.auto) && c.allLockedAt == null && !s.pausedAt) c.allLockedAt = now;
       if (ranked) {
-        const ends = liveSeats.map((x) => x.lockedAt).filter((x): x is number => x != null);
-        if (ends.length) c.anyEndedAt = Math.min(...ends);
+        // A seat's end counts only while it is locked THIS round (`locked_at` can outlive the round it was set in).
+        c.ends = liveSeats.map((x) => (x.locked || x.auto ? Math.max(x.lockedAt ?? now, firstSeen.get(`${s.round}|shop`) ?? 0) : null));
       }
       close.set(s.round, c);
     }
@@ -332,6 +334,8 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
     }
     // PAUSES.
     const newPause = !!s.pausedAt && s.pausedAt !== last?.pausedAt;
+    if (newPause) say(`server: paused on ${s.pausedSeat}`);
+    if (!s.pausedAt && last?.pausedAt) say(`server: resumed (was paused on ${last.pausedSeat})`);
     if (s.pausedSeat && newPause && !pauseFlagged) {
       const seat = s.seats.find((x) => x.seat === s.pausedSeat);
       const i = clients.findIndex((c) => c.opts.user === seat?.user);
@@ -381,16 +385,43 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
         roundVitals.set(r, got);
       }
       vitalsChecked.add(k);
+      // Either the pools the round committed, or the server's pools NOW (a shop raise, Mend, that already reached the
+      // server's pool since the round opened: R-VERSUS-LIVE-ARMOR-01).
       const want = roundVitals.get(r)!;
+      const live = livePools(s, sc.mode);
+      const okFor = (label: string, health: number, armor: number): string | null => {
+        const a = want[label];
+        const b = live[label];
+        if (!a && !b) return null;
+        if ((a && a.health === health && a.armor === armor) || (b && b.health === health && b.armor === armor)) return null;
+        return `${a ? `${a.health}/${a.armor} after round ${r}` : ''}${a && b ? ', ' : ''}${b ? `${b.health}/${b.armor} now` : ''}`;
+      };
       for (const seat of v.rail) {
-        const exp = want[seat.label];
-        if (!exp) continue;
-        if (exp.health !== seat.resolve || exp.armor !== seat.armor) {
-          flag('vitals', r, `${c.opts.name}'s rail shows ${seat.label} at ${seat.resolve}/${seat.armor}, the server has ${exp.health}/${exp.armor}`);
+        const why = okFor(seat.label, seat.resolve, seat.armor);
+        if (why) flag('vitals', r, `${c.opts.name}'s rail shows ${seat.label} at ${seat.resolve}/${seat.armor}, the server has ${why}`);
+      }
+      const mine = okFor(c.opts.name, v.resolve, v.armor);
+      if (mine) flag('vitals', r, `${c.opts.name}'s own pools are ${v.resolve}/${v.armor}, the server has ${mine}`);
+    }
+    // LIVE VITALS: during a shop, every present client's rail catches up with the server's pools (a shop raise
+    // included) within 8 s (the heartbeat's re-read is 4 s; Realtime is faster).
+    if (s.phase === 'shop' && s.shopDeadline && !s.pausedAt) {
+      const live = livePools(s, sc.mode);
+      for (const [i, c] of clients.entries()) {
+        const v = c.view();
+        const k = c.opts.name;
+        const present = !c.hidden && !c.net.state.offline && !isGone(i, now, 10_000);
+        if (!present || v.runMode !== 'versus' || v.runPhase !== 'recruit' || v.wave !== s.round || v.spectating) { railSince.delete(k); continue; }
+        const off = v.rail.find((x) => live[x.label] && (live[x.label]!.health !== x.resolve || live[x.label]!.armor !== x.armor));
+        if (!off) { railSince.delete(k); continue; }
+        const since = railSince.get(k) ?? now;
+        railSince.set(k, since);
+        const fk = `${k}|${s.round}|${off.label}`;
+        if (now - since > 8000 && !railFlagged.has(fk)) {
+          railFlagged.add(fk);
+          flag('vitals', s.round, `${k}'s rail shows ${off.label} at ${off.resolve}/${off.armor} for ${((now - since) / 1000).toFixed(0)} s; the server's pool is ${live[off.label]!.health}/${live[off.label]!.armor}`);
         }
       }
-      const mine = want[c.opts.name];
-      if (mine && (mine.health !== v.resolve || mine.armor !== v.armor)) flag('vitals', r, `${c.opts.name}'s own pools are ${v.resolve}/${v.armor}, the server has ${mine.health}/${mine.armor}`);
     }
 
     last = s;
@@ -461,10 +492,11 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
 }
 
 /** When a round's shop was due to close (ms), or null when nothing bounds it yet. */
-function closeDue(c: { deadline: number | null; allLockedAt: number | null; anyEndedAt: number | null }, ranked: boolean): number | null {
+function closeDue(c: { deadline: number | null; allLockedAt: number | null; ends: (number | null)[] }, ranked: boolean): number | null {
   if (c.allLockedAt != null) return c.allLockedAt;
   if (c.deadline == null) return null;
-  if (ranked) return c.anyEndedAt != null ? Math.max(c.deadline, c.anyEndedAt) + RANKED_DUOS_END_GRACE_MS : c.deadline + RANKED_DUOS_OVERTIME_BACKSTOP_MS;
+  // RANKED DUOS: the shared end-turn gate (the SQL twin is pinned to it by its own db test).
+  if (ranked) return rankedDuosCloseAt({ deadline: c.deadline, ended: c.ends });
   return c.deadline + 250;
 }
 
@@ -510,6 +542,18 @@ async function snapshot(server: ChaosServer, matchId: string, group: boolean): P
     })),
     teams: teams.map((x) => ({ team: x.team, health: x.health ?? null, armor: x.armor ?? null, placement: x.placement, eliminated: x.eliminated_round })),
   };
+}
+
+/** The server's pools right now, keyed by seat NAME (Duos / Ranked Duos: the team's pool); none before round 1 commits. */
+function livePools(s: ServerSnap, mode: ChaosMode): Record<string, { health: number; armor: number }> {
+  const out: Record<string, { health: number; armor: number }> = {};
+  for (const seat of s.seats) {
+    const team = mode === 'duos' || mode === 'ranked_duos' ? s.teams.find((t) => t.team === seat.team) : null;
+    const health = team ? team.health : seat.health;
+    const armor = team ? team.armor : seat.armor;
+    if (health != null && armor != null) out[seat.name] = { health, armor };
+  }
+  return out;
 }
 
 /** Every seat's pools after round `r`, keyed by the seat's NAME (the rail's label), or null before it is committed. */

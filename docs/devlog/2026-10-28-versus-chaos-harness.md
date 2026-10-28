@@ -32,19 +32,47 @@ a deterministic multi-client harness that plays FULL matches and proves (or disp
 - `npm run versus:soak` (packages/tools/src/versus-soak.ts): a STUB for a live-backend Playwright soak (max 4 Claudebot
   clients, rooms closed, quiet hours). It validates and prints a plan; `--live` refuses.
 
-## What it found on main (2026-10-28)
+## What it found on main (2026-10-28, after #2360 live Armor, #2362 server reliability and #2355 Ranked Duos gate)
+
+| scenario | duel | group3 | group4 | duos | ranked_duos |
+|---|---|---|---|---|---|
+| baseline | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| timer | FAIL: realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime |
+| simultaneous | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| dropRestore | FAIL: pauseLift, realtime | FAIL: pauseLift, realtime | FAIL: pauseLift, realtime | FAIL: pauseLift, realtime | FAIL: realtime |
+| dropShort | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: oneCall, realtime |
+| dropInFight | FAIL: pauseLift, realtime | FAIL: pauseLift, realtime | FAIL: pauseLift, realtime | FAIL: pauseLift, realtime | FAIL: realtime |
+| background15s | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| background6min | FAIL: realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime |
+| hang | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| realtimeDown | pass | pass | pass | pass | pass |
+| resolverSlow | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime |
+| resolverFail3 | FAIL: realtime | FAIL: realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: realtime |
+| resolver409 | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| lockHeld | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| lostCombatReady | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| eotHeavy | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| emptyAll | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| emptyOne | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| sellout | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| duosFirstEmpty | n/a | n/a | n/a | FAIL: realtime | FAIL: realtime |
+| duosSecondEmpty | n/a | n/a | n/a | FAIL: realtime | FAIL: realtime |
+| mendArmor | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+
+(FAIL = the invariants violated; every one is listed in `chaosKnown.ts`, so the suite is green: 104/104.)
 
 1. **Realtime is dead for every match, in every mode** (the audit's "channel reuse on match start", confirmed): the room
    channel is swapped for the match channel with `removeChannel` (async) + `channel(same topic)`, which returns the leaving
-   channel; its `subscribe()` does nothing and the leave ack tears it down. Matches still play on the 4 s heartbeat.
+   channel; its `subscribe()` does nothing and the leave ack tears it down. Matches run on the 4 s heartbeat.
 2. **Duplicate resolver calls**: when a round closes on the clock in Group / Duos / Ranked Duos, two clients' own
    reconciles both see `resolving` and both call the resolver; a slow (10 s) or failing resolver gets backstop duplicates.
-3. **A returning player does not auto-resume**: after a real 20 s drop (or a 15 s hang in Group / Duos) the match pauses
-   correctly but never resumes without an Unpause press, so it never finishes.
+3. **The pause lifts by itself now, but slowly**: after a real 20 s drop the match resumes about 7 s after the player is
+   back (the bar is 4 s, no press). Before #2362 it never resumed without Unpause (the match never finished).
 
-Clean everywhere: empty boards (all empty, one side empty, a player who sold out, a Duos teammate or whole team empty,
-round 1 and later), heavy End of Turn boards, lost combat acks, the 409, the held lock, 15 s and 6 minute backgrounds,
-Health / Armor on every rail every round (Mend's shop Armor included), same fights on every client, final placements.
+Clean everywhere: empty boards (all empty, one side, sold out, a Duos teammate or the whole team, round 1 and later),
+heavy End of Turn boards, lost combatReady, the 409, the held lock, 15 s and 6 minute backgrounds, a 15 s hang,
+Health / Armor on every rail every round and live during the shop (Mend reaches every rail within the heartbeat), same
+fights on every client, final placements and pools.
 
 Judgement calls: a background tab is "gone" only past 5 minutes (heartbeats once a minute); a hang counts as gone when it
 is longer than the 12 s lease; Ranked Duos is seated from generated teams (no recorded pool in PGlite).

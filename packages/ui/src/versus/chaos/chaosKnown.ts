@@ -19,15 +19,14 @@ const REALTIME_REUSE = 'Realtime channel reuse on match start: `subscribe()` clo
 const DUPLICATE_RESOLVER = 'Duplicate resolver calls: when the round closes on its clock (or on a slow / failing resolver), two clients '
   + 'own reconciles both see `resolving` and both call the resolver (`onOwnAnswer` -> `kickFinalize`), or the 4 s backstop '
   + 'overlaps a slow first call.';
-const NO_AUTO_RESUME = 'The returning player does not auto-resume: the match stays paused until someone presses Unpause '
-  + '(`resumeMatch`); with no press it never finishes.';
+const SLOW_RESUME = 'The returning player pause lifts by itself now (fix/versus-server-reliability, #2362), but about 7 s after they are back, not within '
+  + '4 s (the resume waits on the next lease check and the 3-2-1).';
 
 export const KNOWN: KnownFailure[] = [
   // Every cell where Realtime is up (the realtimeDown scenario kills it on purpose, so it has nothing to lose).
   { cells: /^(?!realtimeDown\/)/, invariant: 'realtime', cause: REALTIME_REUSE },
   { cells: /^timer\/(group3|group4|duos|ranked_duos)$|^background6min\/(group3|group4|duos|ranked_duos)$|^dropShort\/ranked_duos$|^resolverFail3\/(group4|duos)$|^resolverSlow\//, invariant: 'oneCall', cause: DUPLICATE_RESOLVER },
-  { cells: /^(dropRestore|dropInFight)\/(duel|group3|group4|duos)$|^hang\/(group3|group4|duos)$/, invariant: 'pauseLift', cause: NO_AUTO_RESUME },
-  { cells: /^(dropRestore|dropInFight)\/(duel|group3|group4|duos)$|^hang\/(group3|group4|duos)$/, invariant: 'finished', cause: NO_AUTO_RESUME },
+  { cells: /^(dropRestore|dropInFight)\/(duel|group3|group4|duos)$/, invariant: 'pauseLift', cause: SLOW_RESUME },
 ];
 
 /** The known failures of one cell, invariant -> cause. */

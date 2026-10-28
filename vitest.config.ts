@@ -16,7 +16,9 @@ const HEAVY_GROUPS = [
   ['packages/sim/src/balance/scoutContext.test.ts', 'packages/sim/src/balance/generalistPilot.test.ts'],
   ['packages/sim/src/balance/selfPlayArmor.test.ts', 'packages/sim/src/lobby/lobby.test.ts'],
 ];
-const ALL_TESTS = ['packages/**/*.test.ts', 'packages/ui/src/**/*.test.tsx', 'apps/**/*.test.ts'];
+// `workers/**` (2026-10-28): the Versus Cloudflare room's rules on a fake clock (pure Node; the workerd round trip is
+// `npm run versus:cf:test`, which needs Node 22 and is not part of this run).
+const ALL_TESTS = ['packages/**/*.test.ts', 'packages/ui/src/**/*.test.tsx', 'apps/**/*.test.ts', 'workers/**/*.test.ts'];
 
 function testSelection(mode: string): { include: string[]; exclude: string[] } {
   const base = configDefaults.exclude;

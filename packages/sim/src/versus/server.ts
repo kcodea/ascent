@@ -9,9 +9,9 @@
 import { contentRevision } from '@game/content';
 import { canonicalDigest, canonicalJson, digestOf } from './canonical';
 import { emptyVersusSide, preparedSideError, resolveVersusFight, versusChair, versusCombatSeed, versusSideOrEmpty, type VersusFightInput, type VersusFightResult } from './combat';
-import { VERSUS_LIMITS, VERSUS_PROTOCOL } from './constants';
+import { VERSUS_COMBAT_VIEW_CAP_SECONDS, VERSUS_GATE_SECONDS, VERSUS_HERO_SELECT_SECONDS, VERSUS_INTRO_CAP_SECONDS, VERSUS_LIMITS, VERSUS_MISSED_ROUNDS_FORFEIT, VERSUS_PAUSE_GRACE_SECONDS, VERSUS_PROTOCOL, VERSUS_SPECTATOR_CAP } from './constants';
 import { handleVersusFinalize, versusFightDigest, versusFightPayload, type VersusFinalizeStore } from './finalize';
-import { versusFreshSide } from './vitals';
+import { reportedVitals, versusArmorFloorMax, versusFreshSide, versusStartingVitals } from './vitals';
 import { resolveVersusGroupRound, versusGroupPairings, type VersusGroupRoundInput, type VersusGroupRoundResult } from './group';
 import { groupFightsPayload, groupRoundDigest, handleVersusGroupFinalize, type VersusGroupFinalizeStore } from './groupFinalize';
 import { normalizeVersusOptions, versusOptionsError } from './options';
@@ -24,6 +24,11 @@ export { canonicalDigest, canonicalJson, digestOf, emptyVersusSide, preparedSide
 export { handleVersusFinalize };
 // HEALTH AND ARMOR (owner 2026-10-26, R-VERSUS-HEALTH-01): the store drops a stale side's pool report with this.
 export { versusFreshSide };
+// VERSUS ON CLOUDFLARE (spike 2026-10-28, workers/versus): the Room Durable Object raises a stored pool's Armor on a
+// fresh report the way `versus__raise_reported_armor` does in SQL, so it needs the same three reads. Export-only: the
+// Edge Function's behaviour is unchanged.
+export { reportedVitals, versusArmorFloorMax, versusStartingVitals };
+export { VERSUS_COMBAT_VIEW_CAP_SECONDS, VERSUS_GATE_SECONDS, VERSUS_HERO_SELECT_SECONDS, VERSUS_INTRO_CAP_SECONDS, VERSUS_MISSED_ROUNDS_FORFEIT, VERSUS_PAUSE_GRACE_SECONDS, VERSUS_SPECTATOR_CAP };
 export type { VersusFightInput, VersusFightResult, VersusFinalizeStore };
 // VERSUS GROUP (owner 2026-10-24): the 3-4 player round's resolver, its finalize handler and the room options check.
 export { handleVersusGroupFinalize, resolveVersusGroupRound, versusGroupPairings, normalizeVersusOptions, versusOptionsError };

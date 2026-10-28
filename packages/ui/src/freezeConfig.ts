@@ -118,7 +118,7 @@ const DEFAULTS: FreezeConfig = {
   iceSpellFeather: 13,
   // Taunt ice fit — owner-tuned 2026-10-28 on the shield frame.
   iceTauntW: 118,
-  iceTauntH: 104.5,
+  iceTauntH: 110.5,
   iceTauntX: 0.25,
   iceTauntY: 0.75,
 };

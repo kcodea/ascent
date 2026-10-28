@@ -26,7 +26,13 @@ async function rest<T>(method: string, path: string, body?: unknown): Promise<T>
 }
 
 const api: Api = {
-  pendingRows: (after, limit) => rest('GET', `run_telemetry?select=id,user_id,replay_text:replay::text&replay=not.is.null&replay_path=is.null&id=gt.${after}&order=id.asc&limit=${limit}`),
+  // The id list never reads the replay column; each replay is then read ALONE (`replay::text`, the exact text the clear
+  // step re-hashes): five at once ran past PostgREST's 8 s statement timeout on 2026-10-28.
+  pendingIds: (after, limit) => rest('GET', `run_telemetry?select=id,user_id&replay=not.is.null&replay_path=is.null&id=gt.${after}&order=id.asc&limit=${limit}`),
+  async replayText(id) {
+    const rows = await rest<Array<{ replay_text: string | null }>>('GET', `run_telemetry?select=replay_text:replay::text&id=eq.${id}&replay_path=is.null&limit=1`);
+    return rows[0]?.replay_text ?? null;
+  },
   storedOnlyRows: (after, limit) => rest('GET', `run_telemetry?select=id,replay_path,replay_sha256&replay=is.null&replay_path=not.is.null&id=gt.${after}&order=id.asc&limit=${limit}`),
   async upload(path, body) {
     const res = await fetch(`${cfg.url}/storage/v1/object/${BUCKET}/${path}`, {
@@ -52,7 +58,9 @@ if (flag('--restore')) {
   const max = num('--max');
   const r = await backfill(api, { dryRun: flag('--dry-run'), ...(max != null ? { maxRows: max } : {}), log });
   const mb = (b: number): string => `${(b / 1024 / 1024).toFixed(1)} MB`;
-  console.log(`${flag('--dry-run') ? 'would copy' : 'copied + verified'} ${r.copied} rows (${mb(r.bytes)} of replay text${flag('--dry-run') ? '' : `, ${mb(r.gzBytes)} stored`}), failed ${r.failed.length}`);
+  console.log(flag('--dry-run')
+    ? `would copy ${r.copied} rows (a dry run lists ids only and reads no replay)`
+    : `copied + verified ${r.copied} rows (${mb(r.bytes)} of replay text, ${mb(r.gzBytes)} stored), failed ${r.failed.length}`);
   if (r.failed.length) { console.log(r.failed); process.exitCode = 1; }
   if (!flag('--dry-run')) console.log('Next (lead): select * from maint.run_telemetry_replay_report(); then maint.run_telemetry_clear_copied_replays(\'CLEAR COPIED REPLAYS\') in batches.');
 }

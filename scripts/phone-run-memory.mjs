@@ -185,6 +185,7 @@ async function launch(profile) {
     if (!ws) await sleep(250);
   }
   if (!ws) { proc.kill(); throw new Error('Chrome did not start'); }
+  if (typeof WebSocket === 'undefined') { proc.kill(); throw new Error(`Node ${process.version} has no global WebSocket; run this script on Node 22+`); }
   const sock = new WebSocket(ws);
   await new Promise((r) => sock.addEventListener('open', r));
   let id = 0; const pending = new Map(); const handlers = new Map();

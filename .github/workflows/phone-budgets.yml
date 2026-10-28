@@ -31,9 +31,11 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      # Node 22, not CI's usual 20: scripts/phone-run-memory.mjs drives Chrome over CDP with the global WebSocket,
+      # which Node 20 does not have (every run crashed with "WebSocket is not defined" before measuring anything).
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run build:web

@@ -6,7 +6,7 @@
  * `installFriendInvites` registers the built-in 'versus_room' invite handler (the Ranked Duos party registers its own).
  */
 import { useGame } from '../store';
-import { joinRoom, openVersus, useVersus } from '../versus/versusStore';
+import { isDuosParty, joinRoom, leaveRoom, openVersus, useVersus } from '../versus/versusStore';
 import { versusEnabled } from '../versus/versusFlag';
 import { watchLiveGame } from '../live/liveWatch';
 import { flashFriends, registerInviteHandler } from './friendsStore';
@@ -15,8 +15,14 @@ import type { Friend, FriendInvite } from './friendsRemote';
 /** Open Versus and enter a room (as a player: into the room's hand, a seat one drag away; or in the stands). */
 export async function goToVersusRoom(roomId: string, as: 'player' | 'spectator', area: 'versus' | 'duos' = 'versus'): Promise<boolean> {
   if (!versusEnabled()) { flashFriends('Versus is not available on this build.'); return false; }
-  const vs = useVersus.getState();
-  if (vs.room && vs.room.id !== roomId) { flashFriends('Leave your Versus room first.'); return false; }
+  let vs = useVersus.getState();
+  // A party invite while I wait in my own party (nothing started there, so leaving is free): swap parties
+  // (R-RANKED-DUOS-SPLIT-01). Any other room I hold stays mine until I leave it.
+  if (area === 'duos' && vs.room && vs.room.id !== roomId && isDuosParty(vs.room) && vs.room.status === 'open') {
+    await leaveRoom();
+    vs = useVersus.getState();
+  }
+  if (vs.room && vs.room.id !== roomId) { flashFriends(isDuosParty(vs.room) ? 'Leave your party first.' : 'Leave your Versus room first.'); return false; }
   const g = useGame.getState();
   g.goTo('menu'); // closes every ladder page, the Friends page included
   openVersus(area);

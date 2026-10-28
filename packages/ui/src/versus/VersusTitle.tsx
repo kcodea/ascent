@@ -19,7 +19,7 @@ import { Icon } from '../Icon';
 import { MemberRing } from './MemberRing';
 import { defaultPartyName } from './playParty';
 import {
-  clearVersusError, createDuosParty, createRoom, joinRoom, refreshRooms, useVersus,
+  clearVersusError, createRoom, enterDuosParty, isDuosParty, joinRoom, refreshRooms, useVersus,
 } from './versusStore';
 import type { VersusRoomSummary } from './versusRemote';
 import { versusOptionsSummary } from './versusOptionsUi';
@@ -61,19 +61,14 @@ function RoomCard({ r }: { r: VersusRoomSummary }) {
 const ROOMS_VISIBLE_MS = 5000;
 const ROOMS_HIDDEN_MS = 30_000;
 
-/** RANKED DUOS (phase 3): a Ranked Duos party (listed in the Duos play area, never in the Versus browser). */
-export const isDuosParty = (r: Pick<VersusRoomSummary, 'options'>): boolean => r.options?.mode === 'ranked_duos';
-
-/** The party name the Create field starts with: "<name>'s party". */
-
 function Browser() {
-  // The two play areas over the one room list (owner 2026-10-26): Versus rooms, or the Ranked Duos parties.
-  const duos = useVersus((s) => s.area === 'duos');
+  // VERSUS ROOMS ONLY (owner 2026-10-27, R-RANKED-DUOS-SPLIT-01): a Ranked Duos party never shows here (the store and
+  // the server both leave them out; this filter is the last guard).
   const allRooms = useVersus((s) => s.rooms);
-  const rooms = allRooms.filter((r) => isDuosParty(r) === duos);
+  const rooms = allRooms.filter((r) => !isDuosParty(r));
   const loading = useVersus((s) => s.loading);
   const playerName = useGame((s) => s.playerName);
-  const [name, setName] = useState(() => (duos ? defaultPartyName(playerName) : defaultRoomName(playerName)));
+  const [name, setName] = useState(() => defaultRoomName(playerName));
   // The open-rooms list refreshes every 5 s while the page is visible; a background tab asks only every 30 s, and
   // coming back to the tab refreshes at once (R-NET-BACKOFF-01, perf 2026-10-26).
   useEffect(() => {
@@ -87,24 +82,38 @@ function Browser() {
   }, []);
   const create = (): void => {
     sfx.pulse();
-    if (duos) void createDuosParty(name.trim() || defaultPartyName(playerName));
-    else void createRoom(name.trim() || defaultRoomName(playerName));
+    void createRoom(name.trim() || defaultRoomName(playerName));
   };
   return (
     <div className="vsbrowser">
       <form className="vscreate" onSubmit={(e) => { e.preventDefault(); create(); }}>
-        <input className="vsinput" maxLength={40} placeholder={duos ? defaultPartyName(playerName) : defaultRoomName(playerName)} value={name} onChange={(e) => setName(e.target.value)} aria-label={duos ? 'Party name' : 'Room name'} />
-        <button type="submit" className="vsplate vscreatebtn">{duos ? 'Create party' : 'Create room'}</button>
+        <input className="vsinput" maxLength={40} placeholder={defaultRoomName(playerName)} value={name} onChange={(e) => setName(e.target.value)} aria-label="Room name" />
+        <button type="submit" className="vsplate vscreatebtn">Create room</button>
       </form>
       <div className="vsrooms-head">
-        <span className="vsrooms-title">{duos ? 'Open duo parties' : 'Open rooms'}</span>
+        <span className="vsrooms-title">Open rooms</span>
         <span className="vsrooms-live" aria-hidden="true">Updates live</span>
       </div>
       <div className="vsrooms" role="list">
-        {rooms.length === 0 && <div className="vsempty">{loading ? (duos ? 'Looking for parties...' : 'Looking for rooms...')
-          : duos ? 'No parties open. Create one and invite a friend, or wait for someone to join.' : 'No rooms open. Create one and invite a friend.'}</div>}
+        {rooms.length === 0 && <div className="vsempty">{loading ? 'Looking for rooms...' : 'No rooms open. Create one and invite a friend.'}</div>}
         {rooms.map((r) => <RoomCard key={r.id} r={r} />)}
       </div>
+    </div>
+  );
+}
+
+/**
+ * THE RANKED DUOS DOOR (R-RANKED-DUOS-SPLIT-01): what shows while my party opens, or when it could not. Never a room
+ * list: the party is reached only by the Ranked card's Duo + Play, and a teammate joins by invite.
+ */
+export function DuosDoor() {
+  const error = useVersus((s) => s.error);
+  const playerName = useGame((s) => s.playerName);
+  return (
+    <div className="vstitle vsduosdoor">
+      {error
+        ? <div className="vserror" role="alert">{error} <button className="vsplate" onClick={() => { sfx.pulse(); clearVersusError(); void enterDuosParty(defaultPartyName(playerName)); }}>Try again</button></div>
+        : <div className="vsempty">Opening your party...</div>}
     </div>
   );
 }

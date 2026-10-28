@@ -111,3 +111,20 @@ export async function toRoundOne(base: string): Promise<{ a: Player; b: Player; 
 
 export const sideOf = (round: number, seat: 'p1' | 'p2'): PreparedCombatSide =>
   structuredClone(FIXTURE.cases[(round - 1) % FIXTURE.cases.length]![seat]);
+
+/** n Group players (3-4) from an empty room to round 1's running shop. */
+export async function toGroupShop(base: string, n: 3 | 4): Promise<{ players: Player[]; roomId: string; matchId: string }> {
+  const players = Array.from({ length: n }, (_, i) => new Player(base, crypto.randomUUID(), `Claudebot${i + 1}`));
+  const host = players[0]!;
+  const roomId = await host.createRoom();
+  for (const p of players) await p.connect(roomId);
+  await host.req('set_options', { options: { v: 1, mode: 'group', modifiers: [] } });
+  for (const p of players.slice(1)) await p.req('join', { as: 'player', display: p.name, profile: {}, content: CONTENT, protocol: VERSUS_PROTOCOL });
+  await host.req('start');
+  for (const p of players) await p.req('gate');
+  const matchId = (await host.req('sync')).match.id as string;
+  for (let i = 0; i < n; i++) await players[i]!.req('register_offer', { matchId, offer: HERO_IDS.slice((i * 3) % 6, (i * 3) % 6 + 3) });
+  for (const p of players) await p.req('pick_hero', { matchId, index: 0 });
+  for (const p of players) await p.req('intro_done', { matchId });
+  return { players, roomId, matchId };
+}

@@ -1,0 +1,755 @@
+/**
+ * VERSUS ON CLOUDFLARE — the 3-4 player GROUP match (port of `2026-10-24-versus-group.sql` and its follow-ups: knockout
+ * to the stands, health, ready signal, live armor, server reliability). Owner rulings R-VERSUS-GROUP-01..08.
+ *
+ * The room (`roomCore.ts`) owns members, seats, the gate and presence; this engine owns one group match: hero select,
+ * the shop clock, End Turn as a ready signal, the round-robin round (pairings incl. Copy boards and ghosts, from
+ * `versusGroupPairings`, resolved by the Edge Function's own `handleVersusGroupFinalize` over an in-memory store),
+ * Health/Armor with the lobby cap, knockouts (together, sharing a placement; the wipeout guard), missed rounds, pauses
+ * with auto-resume, `void` on an unresolvable round, and the end. Row shapes are the SQL's (`versus_group__match_json`,
+ * `versus_group_rounds` + `versus_group_fights`), so the existing Group client reads them unchanged.
+ *
+ * Synchronous except the resolve; `now` and seeds come from the host.
+ */
+import {
+  engineContentRevision,
+  handleVersusGroupFinalize,
+  normalizeVersusOptions,
+  reportedVitals,
+  versusArmorFloorMax,
+  versusFreshSide,
+  VERSUS_COMBAT_VIEW_CAP_SECONDS,
+  VERSUS_HERO_SELECT_SECONDS,
+  VERSUS_INTRO_CAP_SECONDS,
+  VERSUS_LIMITS,
+  VERSUS_MISSED_ROUNDS_FORFEIT,
+  VERSUS_PAUSE_GRACE_SECONDS,
+  type VersusGroupFinalizeStore,
+} from '@game/sim/versus/server';
+
+export type GSeat = 'p1' | 'p2' | 'p3' | 'p4';
+export const GSEATS: readonly GSeat[] = ['p1', 'p2', 'p3', 'p4'];
+
+const SHOP_GRACE_MS = 250;
+const COMBAT_LAST_READY_MS = 5_000;
+const RESUME_COUNTDOWN_MS = 3_000;
+const ABANDON_MS = 10 * 60_000;
+const CHECKPOINT_BYTES = 1_048_576;
+const SCOUT_BYTES = 8_192;
+
+export type GOutReason = 'hearts' | 'forfeit' | 'left' | 'missed';
+export type GEndReason = 'hearts' | 'forfeit' | 'missed' | 'abandoned' | 'void';
+
+export interface GSeatRow {
+  seat: GSeat;
+  user_id: string;
+  name: string;
+  health: number | null;
+  armor: number | null;
+  hero: string | null;
+  locked: boolean;
+  ready: boolean;
+  intro: boolean;
+  auto: boolean;
+  missed: number;
+  eliminated_round: number | null;
+  out_reason: GOutReason | null;
+  placement: number | null;
+}
+
+export interface GMatch {
+  id: string;
+  room_id: string;
+  seed: number;
+  set_id: string;
+  content_revision: string;
+  protocol: number;
+  options: Record<string, unknown>;
+  phase: 'hero_select' | 'shop' | 'resolving' | 'combat' | 'complete';
+  revision: number;
+  round: number;
+  seat_count: number;
+  heroes_revealed: boolean;
+  hero_deadline: number | null;
+  shop_starts_at: number | null;
+  shop_deadline: number | null;
+  intro_deadline: number | null;
+  combat_deadline: number | null;
+  paused_seat: GSeat | null;
+  paused_at: number | null;
+  pause_grace_until: number | null;
+  resume_at: number | null;
+  winner_seat: GSeat | null;
+  end_reason: GEndReason | null;
+  created_at: number;
+  updated_at: number;
+  completed_at: number | null;
+  seats: GSeatRow[];
+}
+
+export interface GPriv {
+  match_id: string;
+  seat: GSeat;
+  user_id: string;
+  hero_seed: number;
+  run_seed: number;
+  hero_offer: string[] | null;
+  hero_index: number | null;
+  hero_auto: boolean;
+  hero_reroll: { slot: number; from: string; to: string } | null;
+}
+
+export interface GSub {
+  round: number;
+  seat: GSeat;
+  user_id: string;
+  candidate_seq: number;
+  prepared_side: unknown;
+  final: boolean;
+  source: 'candidate' | 'lock' | 'deadline' | 'auto' | 'empty';
+  checkpoint: unknown;
+  scout: Record<string, unknown> | null;
+}
+
+/** One fight, exactly the `versus_group_fights` row. */
+export interface GFightRow {
+  round: number;
+  fight: number;
+  a_seat: GSeat;
+  b_seat: GSeat;
+  b_copy: boolean;
+  chair: 'a' | 'b';
+  outcome: 'a' | 'b' | 'draw';
+  heart_lost_by: GSeat | null;
+  damage: number;
+  a_result: unknown;
+  b_result: unknown;
+  a_scout: Record<string, unknown>;
+  b_scout: Record<string, unknown>;
+}
+
+/** One committed round, the client's `VersusGroupRoundRaw` (`versus_group_rounds` + its fights). */
+export interface GRound {
+  match_id: string;
+  round: number;
+  digest: string;
+  vitals: Partial<Record<GSeat, { health: number; armor: number }>>;
+  eliminated: GSeat[];
+  fights: GFightRow[];
+}
+
+export interface GroupState {
+  match: GMatch;
+  priv: Partial<Record<GSeat, GPriv>>;
+  subs: Partial<Record<GSeat, GSub>>;
+  lastLocked: Partial<Record<GSeat, unknown>>;
+  lastCheckpoint: Partial<Record<GSeat, { round: number; final: true; candidate_seq: number; checkpoint: unknown }>>;
+  rounds: Record<number, GRound>;
+}
+
+/** What the engine needs from the room. */
+export interface GroupHost {
+  now(): number;
+  random31(): number;
+  uuid(): string;
+  /** No open socket past the grace. */
+  userGone(userId: string): boolean;
+  touchMatch(): void;
+  touchPriv(seat: GSeat): void;
+  dirty(key: string): void;
+  event(kind: string, detail?: Record<string, unknown>): void;
+  persist(kind: 'group_match' | 'group_round', row: Record<string, unknown>): void;
+  roundCommitted(n: number): void;
+  /** A knocked-out player moves to the room's stands (R-VERSUS-GROUP-06). */
+  toStands(userId: string): void;
+  /** The match ended: the room is Open again. */
+  matchEnded(): void;
+  fail(code: string): never;
+  resolver?: typeof handleVersusGroupFinalize;
+  onResolve?(round: number, ms: number): void;
+  perfNow?(): number;
+}
+
+const iso = (ms: number | null): string | null => (ms == null ? null : new Date(ms).toISOString());
+const jsonBytes = (v: unknown): number => (v == null ? 0 : new TextEncoder().encode(JSON.stringify(v)).length);
+
+function seededPick(seed: number, label: string, n: number): number {
+  let h = 0x811c9dc5;
+  for (const ch of `${seed}:${label}`) {
+    h ^= ch.charCodeAt(0);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0) % n;
+}
+
+function turnSeconds(round: number): number {
+  return Math.max(21, Math.min(80, 18 + (round - 1) * 4 + (round >= 6 ? 6 : 0)) + (round >= 12 ? 12 : 0));
+}
+
+/** A new group match for the seated members (in seat order). */
+export function newGroupState(host: GroupHost, room: { id: string; set_id: string; content_revision: string; protocol: number; options: Record<string, unknown> },
+  seated: { seat: GSeat; userId: string; name: string }[]): GroupState {
+  const now = host.now();
+  const id = host.uuid();
+  const seats = [...seated].sort((a, b) => GSEATS.indexOf(a.seat) - GSEATS.indexOf(b.seat));
+  const match: GMatch = {
+    id, room_id: room.id, seed: host.random31(), set_id: room.set_id, content_revision: room.content_revision, protocol: room.protocol,
+    options: normalizeVersusOptions(room.options) as unknown as Record<string, unknown>, phase: 'hero_select', revision: 1, round: 0,
+    seat_count: seats.length, heroes_revealed: false, hero_deadline: now + VERSUS_HERO_SELECT_SECONDS * 1000, shop_starts_at: null,
+    shop_deadline: null, intro_deadline: null, combat_deadline: null, paused_seat: null, paused_at: null, pause_grace_until: null,
+    resume_at: null, winner_seat: null, end_reason: null, created_at: now, updated_at: now, completed_at: null,
+    seats: seats.map((s) => ({
+      seat: s.seat, user_id: s.userId, name: s.name, health: null, armor: null, hero: null, locked: false, ready: false, intro: false,
+      auto: false, missed: 0, eliminated_round: null, out_reason: null, placement: null,
+    })),
+  };
+  const priv: GroupState['priv'] = {};
+  for (const s of seats) {
+    priv[s.seat] = { match_id: id, seat: s.seat, user_id: s.userId, hero_seed: host.random31(), run_seed: host.random31(), hero_offer: null, hero_index: null, hero_auto: false, hero_reroll: null };
+  }
+  return { match, priv, subs: {}, lastLocked: {}, lastCheckpoint: {}, rounds: {} };
+}
+
+export class GroupEngine {
+  private pending = false;
+  constructor(public g: GroupState, private readonly h: GroupHost) {}
+
+  // ── reads ───────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  get m(): GMatch { return this.g.match; }
+  seatOf(userId: string): GSeat | null { return this.m.seats.find((s) => s.user_id === userId)?.seat ?? null; }
+  row(seat: GSeat): GSeatRow { return this.m.seats.find((s) => s.seat === seat)!; }
+  private stillIn(): GSeatRow[] { return this.m.seats.filter((s) => s.eliminated_round == null); }
+  living(): number { return this.stillIn().length; }
+  running(): boolean { return this.m.phase !== 'complete'; }
+  /** A seat that is still in (a player still in never gets pruned). */
+  holdsLiveSeat(userId: string): boolean { const s = this.m.seats.find((x) => x.user_id === userId); return !!s && s.eliminated_round == null && this.running(); }
+
+  json(): Record<string, unknown> {
+    const m = this.m;
+    const { seats, ...rest } = m;
+    return {
+      ...rest,
+      hero_deadline: iso(m.hero_deadline), shop_starts_at: iso(m.shop_starts_at), shop_deadline: iso(m.shop_deadline),
+      intro_deadline: iso(m.intro_deadline), combat_deadline: iso(m.combat_deadline), paused_at: iso(m.paused_at),
+      pause_grace_until: iso(m.pause_grace_until), resume_at: iso(m.resume_at), created_at: iso(m.created_at),
+      updated_at: iso(m.updated_at), completed_at: iso(m.completed_at), serverNow: iso(this.h.now()),
+      seats: seats.map((s) => ({
+        seat: s.seat, userId: s.user_id, name: s.name, hearts: null, health: s.health, armor: s.armor, hero: s.hero, locked: s.locked,
+        ready: s.ready, intro: s.intro, auto: s.auto, missed: s.missed, eliminatedRound: s.eliminated_round, outReason: s.out_reason, placement: s.placement,
+      })),
+    };
+  }
+
+  privJson(seat: GSeat): Record<string, unknown> | null {
+    const p = this.g.priv[seat];
+    return p ? { ...p } : null;
+  }
+
+  roundsFrom(from: number): GRound[] {
+    return Object.values(this.g.rounds).filter((r) => r.round >= from).sort((a, b) => a.round - b.round);
+  }
+
+  myCheckpoint(seat: GSeat): unknown {
+    const cur = this.g.subs[seat];
+    if (cur && cur.final && cur.checkpoint != null) return { round: cur.round, final: true, candidate_seq: cur.candidate_seq, checkpoint: cur.checkpoint };
+    return this.g.lastCheckpoint[seat] ?? null;
+  }
+
+  /** Every future moment this match must wake for. */
+  alarms(): (number | null)[] {
+    const m = this.m;
+    if (!this.running()) return [];
+    if (m.paused_at != null) return [m.resume_at, m.pause_grace_until, m.paused_at + ABANDON_MS];
+    if (m.phase === 'hero_select') return [m.hero_deadline];
+    if (m.phase === 'shop') return [m.shop_deadline == null ? m.intro_deadline : m.shop_deadline + SHOP_GRACE_MS];
+    if (m.phase === 'combat') return [m.combat_deadline];
+    return [];
+  }
+
+  // ── helpers ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  private touch(): void {
+    this.m.revision += 1;
+    this.m.updated_at = this.h.now();
+    this.h.touchMatch();
+  }
+
+  private requireLive(userId: string): GSeat {
+    const seat = this.seatOf(userId);
+    if (!seat) this.h.fail('not_a_player');
+    if (this.row(seat!).eliminated_round != null) this.h.fail('eliminated');
+    return seat!;
+  }
+
+  private matchRow(): Record<string, unknown> {
+    const j = this.json();
+    delete j.serverNow;
+    return { ...j, room_id: null, seats: this.m.seats };
+  }
+
+  // ── hero select ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+  registerOffer(userId: string, offer: unknown): void {
+    const seat = this.seatOf(userId);
+    if (!seat) this.h.fail('not_a_player');
+    if (!Array.isArray(offer) || offer.length !== 3 || offer.some((o) => typeof o !== 'string' || o.length === 0 || o.length > 32)) this.h.fail('bad_offer');
+    const p = this.g.priv[seat!]!;
+    if (p.hero_offer == null) { p.hero_offer = [...(offer as string[])]; this.h.touchPriv(seat!); }
+  }
+
+  pickHero(userId: string, index: unknown): void {
+    const seat = this.seatOf(userId);
+    if (!seat) this.h.fail('not_a_player');
+    if (this.m.phase !== 'hero_select') this.h.fail('wrong_phase');
+    if (!Number.isInteger(index) || (index as number) < 0 || (index as number) > 2) this.h.fail('bad_index');
+    if (this.h.now() >= (this.m.hero_deadline ?? 0)) { this.maybeStart(); this.h.fail('hero_deadline_passed'); }
+    const p = this.g.priv[seat!]!;
+    if (p.hero_index == null) { p.hero_index = index as number; this.h.touchPriv(seat!); }
+    this.maybeStart();
+  }
+
+  reroll(userId: string, slot: unknown, candidates: unknown): { offer: string[]; reroll: { slot: number; from: string; to: string } } {
+    const seat = this.seatOf(userId);
+    if (!seat) this.h.fail('not_a_player');
+    if (this.m.phase !== 'hero_select') this.h.fail('wrong_phase');
+    if (!Number.isInteger(slot) || (slot as number) < 0 || (slot as number) > 2) this.h.fail('bad_index');
+    if (this.h.now() >= (this.m.hero_deadline ?? 0)) this.h.fail('hero_deadline_passed');
+    const p = this.g.priv[seat!]!;
+    if (!p.hero_offer) this.h.fail('no_offer');
+    if (p.hero_index != null) this.h.fail('already_picked');
+    if (p.hero_reroll) this.h.fail('reroll_used');
+    const c = Array.isArray(candidates) ? (candidates as unknown[]) : [];
+    if (c.length < 1 || c.length > 128 || c.some((x) => typeof x !== 'string' || x.length === 0 || x.length > 32)
+      || new Set(c).size !== c.length || c.some((x) => p.hero_offer!.includes(x as string))) this.h.fail('bad_candidates');
+    const to = c[seededPick(this.m.seed, `hero-reroll:${seat}`, c.length)] as string;
+    const from = p.hero_offer![slot as number]!;
+    p.hero_offer = p.hero_offer!.map((x, i) => (i === slot ? to : x));
+    p.hero_reroll = { slot: slot as number, from, to };
+    this.h.touchPriv(seat!);
+    return { offer: [...p.hero_offer], reroll: { ...p.hero_reroll } };
+  }
+
+  /** `versus_group__maybe_start`: every seat still in picked (or the deadline): reveal, open round 1. */
+  private maybeStart(): void {
+    const m = this.m;
+    if (m.phase !== 'hero_select') return;
+    const waiting = this.stillIn().some((s) => this.g.priv[s.seat]!.hero_index == null);
+    if (this.h.now() < (m.hero_deadline ?? 0) && waiting) return;
+    for (const s of m.seats) {
+      const p = this.g.priv[s.seat]!;
+      if (p.hero_index == null) { p.hero_index = seededPick(m.seed, `hero:${s.seat}`, 3); p.hero_auto = true; this.h.touchPriv(s.seat); }
+      s.hero = p.hero_offer ? p.hero_offer[p.hero_index] ?? null : null;
+    }
+    m.heroes_revealed = true;
+    this.openShop(1);
+  }
+
+  // ── the shop ────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  private openShop(round: number): void {
+    const m = this.m;
+    const now = this.h.now();
+    const first = round === 1;
+    for (const s of m.seats) { s.locked = false; s.ready = false; }
+    m.phase = 'shop';
+    m.round = round;
+    m.shop_starts_at = first ? null : now;
+    m.shop_deadline = first ? null : now + turnSeconds(round) * 1000;
+    m.intro_deadline = first ? now + VERSUS_INTRO_CAP_SECONDS * 1000 : null;
+    m.combat_deadline = null;
+    for (const seat of GSEATS) {
+      const sub = this.g.subs[seat];
+      if (!sub || sub.round >= round) continue;
+      if (sub.final && sub.prepared_side != null) { this.g.lastLocked[seat] = sub.prepared_side; this.h.dirty(`glast:${seat}`); }
+      if (sub.final && sub.checkpoint != null) {
+        this.g.lastCheckpoint[seat] = { round: sub.round, final: true, candidate_seq: sub.candidate_seq, checkpoint: sub.checkpoint };
+        this.h.dirty(`gckpt:${seat}`);
+      }
+      delete this.g.subs[seat];
+      this.h.dirty(`gsub:${seat}`);
+    }
+    this.touch();
+  }
+
+  private startClock(): void {
+    const m = this.m;
+    if (m.phase !== 'shop' || m.shop_deadline != null) return;
+    const now = this.h.now();
+    m.shop_starts_at = now;
+    m.shop_deadline = now + turnSeconds(m.round) * 1000;
+    m.intro_deadline = null;
+    this.touch();
+  }
+
+  /** `versus_group__maybe_clock`: round 1's clock starts once every seat still in is through its intro (or on auto). */
+  private maybeClock(): void {
+    const m = this.m;
+    if (m.phase !== 'shop' || m.shop_deadline != null || m.paused_at != null) return;
+    if (this.stillIn().some((s) => !(s.intro || s.auto))) return;
+    this.startClock();
+  }
+
+  introDone(userId: string): void {
+    const seat = this.seatOf(userId);
+    if (!seat) this.h.fail('not_a_player');
+    if (this.m.phase !== 'shop' || this.m.shop_deadline != null) return;
+    this.row(seat!).intro = true;
+    this.touch();
+    this.maybeClock();
+  }
+
+  submit(userId: string, a: Record<string, unknown>): void {
+    const m = this.m;
+    const seat = this.requireLive(userId);
+    const round = a.round;
+    const seq = Number(a.seq);
+    const final = a.final === true;
+    if (m.phase !== 'shop' || m.round !== round) this.h.fail('stale_round');
+    if (m.paused_at == null && m.shop_deadline != null && this.h.now() >= m.shop_deadline + SHOP_GRACE_MS) this.h.fail('deadline_passed');
+    if (a.side == null || jsonBytes(a.side) > VERSUS_LIMITS.preparedSideBytes) this.h.fail('side_too_large');
+    if (a.checkpoint != null && jsonBytes(a.checkpoint) > CHECKPOINT_BYTES) this.h.fail('checkpoint_too_large');
+    const scout = a.scout && typeof a.scout === 'object' && !Array.isArray(a.scout) ? (a.scout as Record<string, unknown>) : null;
+    if (a.scout != null && (!scout || jsonBytes(scout) > SCOUT_BYTES)) this.h.fail('scout_too_large');
+    if (!Number.isInteger(seq)) this.h.fail('bad_seq');
+    const cur = this.g.subs[seat]?.round === round ? this.g.subs[seat] : undefined;
+    if (cur?.final) {
+      if (!final || seq <= cur.candidate_seq) return;
+      cur.candidate_seq = seq;
+      cur.prepared_side = a.side;
+      if (a.checkpoint != null) cur.checkpoint = a.checkpoint;
+      if (scout) cur.scout = scout;
+      this.h.dirty(`gsub:${seat}`);
+      this.raiseArmor(seat, cur);
+      return;
+    }
+    if (cur && seq <= cur.candidate_seq && !final) return;
+    const next: GSub = {
+      round: round as number, seat, user_id: userId, candidate_seq: Math.max(seq, cur?.candidate_seq ?? seq), prepared_side: a.side, final,
+      source: final ? 'lock' : 'candidate', checkpoint: a.checkpoint ?? cur?.checkpoint ?? null, scout: scout ?? cur?.scout ?? null,
+    };
+    this.g.subs[seat] = next;
+    this.h.dirty(`gsub:${seat}`);
+    this.raiseArmor(seat, next);
+    if (final) {
+      this.row(seat).locked = true;
+      this.touch();
+      this.maybeResolve();
+    }
+  }
+
+  /** R-VERSUS-LIVE-ARMOR-01 for one seat (`versus_group__raise_reported_armor`). */
+  private raiseArmor(seat: GSeat, sub: GSub): void {
+    if (!['candidate', 'lock', 'deadline'].includes(sub.source)) return;
+    if (this.m.phase !== 'shop' && this.m.phase !== 'resolving') return;
+    const rep = reportedVitals(sub.prepared_side);
+    const floor = versusArmorFloorMax();
+    const s = this.row(seat);
+    if (!rep || s.eliminated_round != null || s.health == null || s.armor == null || s.armor >= floor || rep.armor <= s.armor) return;
+    s.armor = Math.min(rep.armor, floor);
+    this.touch();
+  }
+
+  unready(userId: string, round: unknown, seq: unknown): void {
+    const m = this.m;
+    const seat = this.seatOf(userId);
+    if (!seat) this.h.fail('not_a_player');
+    if (m.phase !== 'shop' || m.round !== round) this.h.fail('stale_round');
+    if (m.shop_deadline == null || m.paused_at != null) this.h.fail('not_running');
+    if (this.h.now() >= m.shop_deadline!) this.h.fail('deadline_passed');
+    const s = this.row(seat!);
+    if (s.eliminated_round != null || s.auto) this.h.fail('eliminated');
+    const sub = this.g.subs[seat!];
+    if (sub && sub.round === round) {
+      sub.final = false;
+      sub.source = 'candidate';
+      sub.candidate_seq = Math.max(sub.candidate_seq, Number(seq) || 0);
+      this.h.dirty(`gsub:${seat}`);
+    }
+    s.locked = false;
+    this.touch();
+  }
+
+  /** `versus_group__finalize_seat`. */
+  private finalizeSeat(seat: GSeat, auto: boolean): void {
+    const m = this.m;
+    const s = this.row(seat);
+    const last = this.g.lastLocked[seat] ?? null;
+    const cur = this.g.subs[seat]?.round === m.round ? this.g.subs[seat] : undefined;
+    if (auto) {
+      if (cur) {
+        const had = cur.prepared_side != null;
+        cur.prepared_side = last ?? cur.prepared_side;
+        cur.source = had ? 'deadline' : last == null ? 'empty' : 'auto';
+        cur.final = true;
+      } else {
+        this.g.subs[seat] = { round: m.round, seat, user_id: s.user_id, candidate_seq: 0, prepared_side: last, final: true, source: last == null ? 'empty' : 'auto', checkpoint: null, scout: null };
+      }
+    } else if (cur && cur.prepared_side != null) {
+      cur.final = true;
+      cur.source = 'deadline';
+    } else {
+      this.g.subs[seat] = { round: m.round, seat, user_id: s.user_id, candidate_seq: 0, prepared_side: last, final: true, source: last == null ? 'empty' : 'auto', checkpoint: cur?.checkpoint ?? null, scout: cur?.scout ?? null };
+    }
+    s.locked = true;
+    this.h.dirty(`gsub:${seat}`);
+  }
+
+  /** `versus_group__maybe_resolve`: every seat still in locked (or on auto) → resolving; ghosts of this round fight their last board. */
+  private maybeResolve(): void {
+    const m = this.m;
+    if (m.phase !== 'shop') return;
+    if (this.stillIn().some((s) => !(s.locked || s.auto))) return;
+    for (const s of m.seats) {
+      if (s.locked) continue;
+      if (s.eliminated_round == null || s.eliminated_round >= m.round) this.finalizeSeat(s.seat, true);
+    }
+    m.phase = 'resolving';
+    this.touch();
+    this.h.event('close');
+    this.pending = true;
+  }
+
+  /** Resolve a `resolving` round with the Edge Function's own group handler over an in-memory store. */
+  async settle(): Promise<void> {
+    while (this.pending) {
+      this.pending = false;
+      const m = this.m;
+      if (m.phase !== 'resolving') continue;
+      const t0 = this.h.perfNow?.() ?? 0;
+      const store: VersusGroupFinalizeStore = {
+        match: async () => ({ id: m.id, phase: m.phase, round: m.round, seed: m.seed, content_revision: m.content_revision, options: m.options as never }),
+        seats: async () => m.seats.map((s) => ({ seat: s.seat, eliminated_round: s.eliminated_round, hero: s.hero, health: s.health, armor: s.armor })),
+        finalSides: async () => {
+          const out: Partial<Record<GSeat, unknown>> = {};
+          for (const seat of GSEATS) {
+            const sub = this.g.subs[seat];
+            if (sub && sub.round === m.round && sub.final) out[seat] = versusFreshSide(sub.prepared_side, sub.source);
+          }
+          return out;
+        },
+        commit: async (args) => this.commitRound(args),
+        log: (msg, detail) => console.warn(msg, detail),
+      };
+      let res: { status: number; body: Record<string, unknown> };
+      try {
+        res = await (this.h.resolver ?? handleVersusGroupFinalize)(m.seats[0]!.user_id, { matchId: m.id, round: m.round }, engineContentRevision(), store);
+      } catch (e) {
+        res = { status: 500, body: { error: String(e) } };
+      }
+      if (res.status === 200 && m.phase !== 'resolving') this.h.event('resolve_ok');
+      else {
+        this.h.event('resolve_err', { status: res.status, body: res.body });
+        if (m.phase === 'resolving') { this.h.event('void'); this.complete(null, 'void'); }
+      }
+      this.h.onResolve?.(m.round, (this.h.perfNow?.() ?? 0) - t0);
+    }
+  }
+
+  /** `versus_group_commit_round` (fights with scouts, pools, knockouts sharing a placement, the wipeout guard, missed). */
+  private commitRound(args: Parameters<VersusGroupFinalizeStore['commit']>[0]): unknown {
+    const m = this.m;
+    if (this.g.rounds[args.p_round]) return { alreadyCommitted: true };
+    if (m.phase !== 'resolving' || m.round !== args.p_round) this.h.fail('not_resolving');
+    const now = this.h.now();
+    const scoutOf = (seat: GSeat): Record<string, unknown> => {
+      const sub = this.g.subs[seat];
+      const tier = (sub?.prepared_side as { state?: { tier?: unknown } } | null)?.state?.tier;
+      return { ...(sub?.scout ?? {}), ...(tier != null ? { tier } : {}) };
+    };
+    const fights = (args.p_fights as { fight: number; a: GSeat; b: GSeat; copy: boolean; chair: 'a' | 'b'; outcome: 'a' | 'b' | 'draw'; loser: GSeat | null; damage: number; aResult: unknown; bResult: unknown }[])
+      .map((f): GFightRow => ({
+        round: args.p_round, fight: f.fight, a_seat: f.a, b_seat: f.b, b_copy: f.copy, chair: f.chair, outcome: f.outcome, heart_lost_by: f.loser,
+        damage: f.damage, a_result: f.aResult, b_result: f.bResult, a_scout: scoutOf(f.a), b_scout: scoutOf(f.b),
+      }));
+    const vit = args.p_vitals;
+    for (const s of this.stillIn()) {
+      const v = vit[s.seat];
+      if (v) { s.health = v.health; s.armor = v.armor; }
+    }
+    // Health 0: out together, sharing a placement; ordered by Health + Armor going in, then seat (the wipeout tiebreak).
+    let dead = this.stillIn().filter((s) => (s.health ?? 1) <= 0)
+      .sort((a, b) => (vit[b.seat]?.before ?? 0) - (vit[a.seat]?.before ?? 0) || GSEATS.indexOf(a.seat) - GSEATS.indexOf(b.seat))
+      .map((s) => s.seat);
+    const living = this.living();
+    if (dead.length > 0 && dead.length >= living) dead = dead.slice(1); // never a round with nobody standing
+    for (const seat of dead) {
+      const s = this.row(seat);
+      s.eliminated_round = args.p_round; s.out_reason = 'hearts'; s.auto = false; s.placement = living;
+      this.h.toStands(s.user_id);
+    }
+    let reason: GEndReason = 'hearts';
+    for (const s of this.stillIn()) s.missed = s.auto ? s.missed + 1 : 0;
+    for (const s of [...this.stillIn()].sort((a, b) => GSEATS.indexOf(a.seat) - GSEATS.indexOf(b.seat))) {
+      if (s.missed < VERSUS_MISSED_ROUNDS_FORFEIT) continue;
+      if (this.living() <= 1) break;
+      const place = this.living();
+      s.eliminated_round = args.p_round; s.out_reason = 'missed'; s.auto = false; s.placement = place;
+      this.h.toStands(s.user_id);
+      dead.push(s.seat);
+      if (this.living() <= 1 && fights.every((f) => f.heart_lost_by == null)) reason = 'missed';
+    }
+    const vitalsOut: GRound['vitals'] = {};
+    for (const s of m.seats) if (s.health != null && s.armor != null) vitalsOut[s.seat] = { health: s.health, armor: s.armor };
+    const row: GRound = { match_id: m.id, round: args.p_round, digest: args.p_digest, vitals: vitalsOut, eliminated: dead, fights };
+    this.g.rounds[row.round] = row;
+    this.h.dirty(`ground:${row.round}`);
+    this.h.roundCommitted(row.round);
+    this.h.persist('group_round', row as unknown as Record<string, unknown>);
+    for (const s of m.seats) s.ready = false;
+    m.phase = 'combat';
+    m.combat_deadline = now + VERSUS_COMBAT_VIEW_CAP_SECONDS * 1000;
+    this.touch();
+    if (this.living() <= 1) this.complete(this.stillIn()[0]?.seat ?? null, reason);
+    else this.h.persist('group_match', this.matchRow());
+    return { alreadyCommitted: false };
+  }
+
+  // ── after the fight ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  combatReady(userId: string, round: unknown): void {
+    const m = this.m;
+    const seat = this.seatOf(userId);
+    if (!seat) this.h.fail('not_a_player');
+    if (m.phase !== 'combat' || m.round !== round) return;
+    this.row(seat!).ready = true;
+    this.touch();
+    this.maybeNext();
+    if (m.phase === 'combat' && this.stillIn().filter((s) => !(s.ready || s.auto)).length === 1) {
+      m.combat_deadline = Math.min(m.combat_deadline ?? Infinity, this.h.now() + COMBAT_LAST_READY_MS);
+      this.touch();
+    }
+  }
+
+  private maybeNext(): void {
+    const m = this.m;
+    if (m.phase !== 'combat' || m.paused_at != null) return;
+    if (this.stillIn().some((s) => !(s.ready || s.auto))) return;
+    this.openShop(m.round + 1);
+  }
+
+  // ── leaving, pauses ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** `versus_group__eliminate`: a seat goes out NOW (forfeit, left); it still fights this round as a ghost. */
+  eliminate(seat: GSeat, reason: GOutReason): void {
+    const m = this.m;
+    if (m.phase === 'complete') return;
+    const s = this.row(seat);
+    if (s.eliminated_round != null) return;
+    const place = this.living(); // counted with this seat still in (the SQL update reads the pre-update rows)
+    s.eliminated_round = m.round; s.out_reason = reason; s.auto = false; s.placement = place;
+    this.h.toStands(s.user_id);
+    this.touch();
+    if (this.living() <= 1) {
+      this.complete(this.stillIn()[0]?.seat ?? null, reason === 'missed' ? 'missed' : 'forfeit');
+      return;
+    }
+    if (m.paused_seat === seat) this.resume();
+    if (m.phase === 'hero_select') this.maybeStart();
+    this.maybeClock();
+    this.maybeResolve();
+    this.maybeNext();
+  }
+
+  forfeit(userId: string): void {
+    const seat = this.seatOf(userId);
+    if (!seat) this.h.fail('not_a_player');
+    this.eliminate(seat!, 'forfeit');
+  }
+
+  unpause(userId: string): void {
+    const m = this.m;
+    const seat = this.requireLive(userId);
+    if (m.paused_at == null || m.resume_at != null) return;
+    if (m.paused_seat === seat) this.h.fail('cannot_unpause_own_absence');
+    if (this.h.now() < (m.pause_grace_until ?? 0)) this.h.fail('grace_running');
+    this.row(m.paused_seat!).auto = true;
+    this.h.event('auto_on', { seat: m.paused_seat });
+    m.resume_at = this.h.now() + RESUME_COUNTDOWN_MS;
+    this.touch();
+  }
+
+  requestResume(userId: string): void {
+    const m = this.m;
+    const seat = this.seatOf(userId);
+    if (!seat) this.h.fail('not_a_player');
+    if (m.paused_at == null || m.resume_at != null) return;
+    if (m.paused_seat !== seat) this.h.fail('not_your_pause');
+    m.resume_at = this.h.now() + RESUME_COUNTDOWN_MS;
+    this.touch();
+  }
+
+  /** A player is back (socket or heartbeat): auto ends; their own pause starts its 3-2-1 (R-VERSUS-AUTO-RESUME-01). */
+  returned(userId: string, by: string): void {
+    const m = this.m;
+    if (!this.running()) return;
+    const s = m.seats.find((x) => x.user_id === userId);
+    if (!s || s.eliminated_round != null) return;
+    if (s.auto) { s.auto = false; s.missed = 0; this.h.event('auto_off', { seat: s.seat, by }); this.touch(); }
+    if (m.paused_at != null && m.resume_at == null && m.paused_seat === s.seat) {
+      m.resume_at = this.h.now() + RESUME_COUNTDOWN_MS;
+      this.h.event('resume_request', { seat: s.seat, by });
+      this.touch();
+    }
+  }
+
+  private resume(): void {
+    const m = this.m;
+    if (m.paused_at == null) return;
+    const d = this.h.now() - m.paused_at;
+    const shift = (t: number | null): number | null => (t == null ? null : t + d);
+    m.hero_deadline = shift(m.hero_deadline);
+    m.shop_starts_at = shift(m.shop_starts_at);
+    m.shop_deadline = shift(m.shop_deadline);
+    m.combat_deadline = shift(m.combat_deadline);
+    m.intro_deadline = shift(m.intro_deadline);
+    this.h.event('resume', { seat: m.paused_seat, pausedMs: d });
+    m.paused_seat = null; m.paused_at = null; m.pause_grace_until = null; m.resume_at = null;
+    this.touch();
+    this.maybeClock();
+  }
+
+  private complete(winner: GSeat | null, reason: GEndReason): void {
+    const m = this.m;
+    if (winner) this.row(winner).placement = 1;
+    m.phase = 'complete'; m.winner_seat = winner; m.end_reason = reason;
+    m.paused_seat = null; m.paused_at = null; m.pause_grace_until = null; m.resume_at = null;
+    m.completed_at = this.h.now();
+    this.touch();
+    this.h.matchEnded();
+    this.h.persist('group_match', this.matchRow());
+  }
+
+  /** `versus_group_reconcile`, on every call and every alarm. */
+  reconcile(): void {
+    const m = this.m;
+    if (!this.running()) return;
+    const now = this.h.now();
+    const gone = this.stillIn().filter((s) => !s.auto && this.h.userGone(s.user_id)).map((s) => s.seat);
+    const allGone = this.stillIn().every((s) => this.h.userGone(s.user_id));
+    if (m.paused_at != null) {
+      if (m.resume_at != null && now >= m.resume_at) {
+        this.resume();
+        this.maybeResolve();
+        this.maybeNext();
+      } else if (allGone && now >= m.paused_at + ABANDON_MS) {
+        this.complete(null, 'abandoned');
+        return;
+      } else return;
+    }
+    if (gone.length) {
+      m.paused_seat = gone[0]!; m.paused_at = now; m.pause_grace_until = now + VERSUS_PAUSE_GRACE_SECONDS * 1000; m.resume_at = null;
+      this.h.event('pause', { seat: m.paused_seat, phase: m.phase });
+      this.touch();
+      return;
+    }
+    if (m.phase === 'hero_select' && now >= (m.hero_deadline ?? 0)) this.maybeStart();
+    else if (m.phase === 'shop' && m.shop_deadline == null) {
+      if (now >= (m.intro_deadline ?? 0)) this.startClock(); else this.maybeClock();
+    } else if (m.phase === 'shop' && now >= m.shop_deadline! + SHOP_GRACE_MS) {
+      for (const s of this.stillIn()) if (!s.locked) this.finalizeSeat(s.seat, s.auto);
+      this.maybeResolve();
+    } else if (m.phase === 'shop') this.maybeResolve();
+    else if (m.phase === 'combat' && now >= (m.combat_deadline ?? Infinity)) this.openShop(m.round + 1);
+  }
+}

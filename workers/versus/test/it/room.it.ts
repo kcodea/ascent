@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { resolveVersusFight, versusStartingVitals, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { versusFightDigest } from '@game/sim';
 import { VersusCfClient, versusCfHttp } from '../../src/client';
-import { CONTENT, FIXTURE, Player, sideOf, startLocalWorker, toRoundOne } from './driver';
+import { CONTENT, FIXTURE, Player, sideOf, startLocalWorker, toGroupShop, toRoundOne } from './driver';
 
 let base = '';
 let dispose: () => Promise<void> = async () => undefined;
@@ -94,5 +94,22 @@ describe('Versus room in workerd', () => {
     await b2.req('request_resume', { matchId: a.matchId });
     await resumed;
     for (const p of [a, b2]) p.client!.close();
+  });
+});
+
+describe('Group room in workerd', () => {
+  it('4 players: the last lock resolves both fights and every client gets the round in one push; a drop pauses', async () => {
+    const { players, matchId } = await toGroupShop(base, 4);
+    for (const p of players.slice(0, 3)) await p.req('submit', { matchId, round: 1, seq: 1, side: sideOf(1, 'p1'), final: true, checkpoint: null });
+    const got = Promise.all(players.map((p) => p.next((m) => m.t === 'round' && m.row.round === 1 && Array.isArray(m.row.fights))));
+    const answer = await players[3]!.req('submit', { matchId, round: 1, seq: 1, side: sideOf(1, 'p2'), final: true, checkpoint: null });
+    expect(answer.phase).toBe('combat');
+    const rows = (await got).map((a) => (a.msg as unknown as { row: { fights: unknown[]; digest: string } }).row);
+    expect(rows[0]!.fights).toHaveLength(2);
+    expect(new Set(rows.map((r) => r.digest)).size).toBe(1);
+    const paused = players[0]!.next((m) => m.t === 'match' && m.match.paused_at != null);
+    players[3]!.client!.close();
+    expect((await paused).msg).toMatchObject({ match: { paused_seat: 'p4' } });
+    for (const p of players.slice(0, 3)) p.client!.close();
   });
 });

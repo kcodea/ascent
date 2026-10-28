@@ -1110,9 +1110,9 @@ export const PERSISTENCE_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner ruling 2026-10-28 on the Supabase cleanup (docs/design/2026-10-28-supabase-cleanup.md, question 3)', quote: 'move to cheap storage, keep all' },
-      { kind: 'code', ref: 'supabase/migrations/2026-11-07-replays-storage.sql; packages/ui/src/replayStorage.ts; remoteBoards.ts uploadRunTelemetry / v2OfRow / fetchReplayPayload / fetchLatestReplayForUser / fetchReplayForSeed; liveReplay.ts; packages/tools/src/replays (npm run replays:backfill)' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-07-replays-storage.sql; packages/ui/src/replayStorage.ts; remoteBoards.ts runOutbox send + withStoredReplay / v2OfRow / fetchReplayPayload / fetchLatestReplayForUser / fetchReplayForSeed; liveReplay.ts; packages/tools/src/replays (npm run replays:backfill)' },
     ],
     currentBehaviour: 'Client conforms from this PR once the migration is applied (before it, every write and read falls back to the row). Production 2026-10-28: 409 replays inline, 385 MB as text (121 MB stored); none moved yet.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/replayStorage.db.test.ts', 'packages/ui/src/replayStorage.test.ts', 'packages/tools/src/replays/backfill.test.ts'], lastVerifiedAt: '2026-10-28' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/replayStorage.db.test.ts', 'packages/ui/src/replayStorage.test.ts', 'packages/ui/src/replayStorageOutbox.test.ts', 'packages/tools/src/replays/backfill.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
 ];

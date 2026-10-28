@@ -44,13 +44,14 @@ const BASE_MIGRATIONS = [
 /**
  * Every migration the harness applies: the base list, then ANY newer Versus / Ranked Duos migration by file order (a fix
  * branch's new migration is picked up with no edit here). Skipped: the pg_cron sweep (an extension PGlite lacks; the
- * sweep function itself is in the party migration) and the progression / XP files (other schemas).
+ * sweep function itself is in the party migration), the progression / XP files (other schemas) and the Cloudflare room's
+ * result writer (`versus-cf-*`: needs pgcrypto, and it is not on the Supabase path this harness plays).
  */
 export function versusMigrationFiles(): string[] {
   const dir = join(root, 'supabase/migrations');
   const newest = [...BASE_MIGRATIONS].sort().at(-1)!;
   const later = readdirSync(dir)
-    .filter((f) => f.endsWith('.sql') && f > newest && !BASE_MIGRATIONS.includes(f) && /versus|ranked-duos/.test(f) && !/cron|progression|-xp/.test(f))
+    .filter((f) => f.endsWith('.sql') && f > newest && !BASE_MIGRATIONS.includes(f) && /versus|ranked-duos/.test(f) && !/cron|progression|-xp|versus-cf/.test(f))
     .sort();
   return [...BASE_MIGRATIONS, ...later];
 }

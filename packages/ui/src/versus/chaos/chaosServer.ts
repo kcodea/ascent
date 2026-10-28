@@ -337,6 +337,7 @@ export class ChaosServer {
         }
         return out;
       },
+      // rows: test harness, in-process PGlite; every Versus RPC returns one jsonb value (R-NET-01).
       commit: (a) => this.rpc(null, 'versus_commit_round', a as Record<string, unknown>),
       log: () => undefined,
     } as VersusFinalizeStore;
@@ -353,6 +354,7 @@ export class ChaosServer {
       match: async (id: string) => (await this.admin<any>('select id, phase, round, seed, content_revision, options from public.versus_group_matches where id = $1', [id]))[0] ?? null,
       seats: (id: string) => this.admin<any>('select seat, eliminated_round, hero, health, armor from public.versus_group_seats where match_id = $1', [id]),
       finalSides: this.groupSides,
+      // rows: test harness, in-process PGlite; every Versus RPC returns one jsonb value (R-NET-01).
       commit: (a: Record<string, unknown>) => this.rpc(null, 'versus_group_commit_round', a),
       log: () => undefined,
     } as unknown as VersusGroupFinalizeStore;
@@ -361,6 +363,7 @@ export class ChaosServer {
     return {
       match: async (id: string) => (await this.admin<any>('select id, phase, round, seed, content_revision, options from public.versus_group_matches where id = $1', [id]))[0] ?? null,
       finalSides: this.groupSides,
+      // rows: test harness, in-process PGlite; every Versus RPC returns one jsonb value (R-NET-01).
       commit: (a: Record<string, unknown>) => this.rpc(null, 'versus_duos_commit_round', a),
       seats: (id: string) => this.admin<any>('select seat, hero from public.versus_group_seats where match_id = $1', [id]),
       teams: (id: string) => this.admin<any>('select team, health, armor from public.versus_group_teams where match_id = $1', [id]),
@@ -375,13 +378,16 @@ export class ChaosServer {
       // No recorded pool in the harness: the table is seated from generated teams (unrated), deterministic per seed.
       soloSample: async () => [],
       duoSample: async () => [],
+      // rows: test harness, in-process PGlite; every Versus RPC returns one jsonb value (R-NET-01).
       commit: (a: Record<string, unknown>) => this.rpc(null, 'versus_ranked_duos_seat', a),
       log: () => undefined,
     } as unknown as RankedDuosSeatStore;
   }
   private rankedStore(): RankedDuosFinalizeStore {
     return {
+      // rows: test harness, in-process PGlite; every Versus RPC returns one jsonb value (R-NET-01).
       input: (matchId: string, round: number) => this.rpc(null, 'versus_ranked_duos_round_input', { p_match: matchId, p_round: round }),
+      // rows: test harness, in-process PGlite; every Versus RPC returns one jsonb value (R-NET-01).
       commit: (a: Record<string, unknown>) => this.rpc(null, 'versus_ranked_duos_commit_round', a),
       log: () => undefined,
     } as unknown as RankedDuosFinalizeStore;

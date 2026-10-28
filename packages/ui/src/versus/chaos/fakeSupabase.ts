@@ -229,6 +229,7 @@ export class FakeSupabase {
 
   async rpc(fn: string, args: Record<string, unknown> = {}): Promise<{ data: unknown; error: unknown }> {
     try {
+      // rows: test harness, in-process PGlite; every Versus RPC returns one jsonb value (R-NET-01).
       const data = await this.net.send(`rpc:${fn}`, () => this.server.rpc(this.user, fn, args));
       return { data, error: null };
     } catch (e) {

@@ -4,8 +4,8 @@
  * Ranked card: "move the solo/duo toggle so that it is here, not at the main menu. put it in the bottom left corner
  * below/eclipsing the play art"). R-RANKED-DUOS-PARTY-01 + R-RANKED-DUOS-MODECARD-01.
  *
- * - ONE switch, on the mode screen's Ranked card (Title.tsx), eclipsing its bottom-left edge the way PLAY eclipses the
- *   bottom centre. The menu sidebar and the main menu carry none; their Play opens the mode screen.
+ * - ONE switch, on the mode screen's Ranked card (Title.tsx), eclipsing its top-right edge (moved from the bottom left,
+ *   owner 2026-10-28). The menu sidebar and the main menu carry none; their Play opens the mode screen.
  * - The choice is per viewer and remembered (localStorage, a convenience: it reads Solo when storage is unavailable).
  * - Solo + the card's PLAY: today's flow, unchanged. Duo + PLAY: the Ranked Duos confirmation, then my party room
  *   (`enterDuosParty`).

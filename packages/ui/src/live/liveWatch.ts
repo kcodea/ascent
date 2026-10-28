@@ -205,10 +205,11 @@ let watchUrlFor: (liveHost: string) => string = lobbyLiveWatchUrl;
 /** Tests: where a Cloudflare game is reached. */
 export function setLiveWatchUrlForTests(fn: ((liveHost: string) => string) | null): void { watchUrlFor = fn ?? lobbyLiveWatchUrl; }
 
-/** The other people in the stands, pushed by the game's object (never me). */
-function cfFellows(list: LiveWatcher[]): void {
+/** The other people in the stands, pushed by the game's object (never me: by my identity, and by the account the
+ *  object knows me as, R-SPECTATE-HUD-02). */
+function cfFellows(list: LiveWatcher[], me: string | null): void {
   const all = list.map((w) => ({ id: w.user_id, name: w.display_name ?? '', profile: w.profile ?? null }));
-  setWatchers(othersInStands(all, [currentUserId()]).slice(0, 20));
+  setWatchers(othersInStands(all, [currentUserId(), me]).slice(0, 20));
 }
 
 /**
@@ -218,12 +219,13 @@ function cfFellows(list: LiveWatcher[]): void {
 async function watchOnCf(gameId: string, liveHost: string): Promise<boolean> {
   const s: NonNullable<typeof session> = { gameId, channel: null, poll: null, seatsUnsub: null, seats: null, fellowsAt: 0, polls: 0, cf: null };
   let key: unknown = null;
+  let myId: string | null = null;
   let opened: Awaited<ReturnType<typeof openCfWatcher>>;
   try {
     opened = await openCfWatcher(watchUrlFor(liveHost), gameId, myWatcherIdentity(), {
       onBroadcast: (event, payload) => onGameBroadcast(s, event, payload),
       onRow: (row) => { if (session === s) useLiveWatch.setState({ game: row as LiveGameRow }); },
-      onWatchers: (list) => { if (session === s) cfFellows(list); },
+      onWatchers: (list) => { if (session === s) cfFellows(list, myId); },
       onEnd: (end) => {
         if (session !== s || useLiveWatch.getState().ended) return;
         if (end.abandoned) { leaveLiveGame(true); useLiveWatch.setState({ error: 'That game has ended.' }); return; }
@@ -243,6 +245,7 @@ async function watchOnCf(gameId: string, liveHost: string): Promise<boolean> {
     return false;
   }
   key = opened.hello.key;
+  myId = opened.hello.userId ?? null;
   const row = opened.hello.row as (LiveRow & LiveGameRow) | null;
   if (!row) { opened.watcher.close(); useLiveWatch.setState({ error: errorText({ code: 'no_game' }) }); return false; }
   resetWatchedEmotes();
@@ -261,7 +264,7 @@ async function watchOnCf(gameId: string, liveHost: string): Promise<boolean> {
   if (me) installSpectatorEmotes(me, s.channel.send);
   useSpectate.setState({ name: row.display_name });
   useLiveWatch.setState({ game: row, joining: true });
-  cfFellows(opened.hello.watchers ?? []);
+  cfFellows(opened.hello.watchers ?? [], myId);
   liveSync(gameId);
   s.channel.send(SPECTATE_KEY_EVENT, {}); // a keyframe now, if the player is already publishing
   // The watch record is written by the game's object (R-LIVE-CF-XP-01): no beat from here.

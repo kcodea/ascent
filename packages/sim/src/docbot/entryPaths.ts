@@ -183,6 +183,7 @@ export type EntryPathRef =
  *  the reason each is legitimately unreachable. A card that gains a path makes its entry stale. */
 export const ENTRY_ORPHAN_EXCUSED: Readonly<Record<string, string>> = {
   b2_ninjapal: "an authored token of the Learn Ascent tutorial's seats (packages/sim/src/tutorial/learnAscent.ts) — never minted, summoned or offered in a normal run",
+  w3_ripple: "Falx's Whisper: Falx was archived 2026-10-27 (owner Set 3 list), so no active card grants Ripple and random Whisper rolls skip it (its only owner is in no set). Old saves holding Falx still grant it through CARD_INDEX",
   raysesprout: "Rayse × Ancient of Death's Sprout (owner 2026-10-09): summoned only by the Ancient (ancients.ts `ancientHeroAvengeShopDeath` in the Shop, the `ancientSproutAvenge` combat mod), and ancients.ts is not an entry-site file; Ancients are dev-only (the Scene Builder's Set 3 flag)",
 };
 

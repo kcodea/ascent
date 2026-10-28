@@ -47,16 +47,17 @@ describe('aggregate (synthetic fixture)', () => {
     // Regenerated 2026-10-23: Whisp and Gatherer archived out of Set 3.
     // Regenerated 2026-10-23: Nitrogen joins the Set 3 Dragons.
     // Regenerated 2026-10-24: Set 2 balance (Scrapper T2 3/1, Gem Carver T4, Rik/Cave Cutter/Beev/Huggies/Billy numbers).
+    // Regenerated 2026-10-27: the Set 3 list (Gramps, Zapdash, Goldvein, Whispwarder T4, Falx + Doubletap Brewer out, four new minions).
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:5.03",
-        "fibbsy:30:3.87",
-        "gorr:30:4.77",
-        "harlan:30:5.33",
+        "drakko:30:5.13",
+        "fibbsy:30:3.80",
+        "gorr:30:4.63",
+        "harlan:30:5.17",
         "midas:30:4.30",
-        "nadja:30:4.40",
-        "pete:30:4.10",
-        "warden:30:4.20",
+        "nadja:30:4.27",
+        "pete:30:4.37",
+        "warden:30:4.33",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);

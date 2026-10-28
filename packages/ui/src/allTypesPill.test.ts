@@ -85,6 +85,8 @@ const ART_PENDING = new Set<string>([
   'n3_indy', 'n3_goldenmonkey', 'n3_agnus',
   // SET 4: NONE LEFT (owner 2026-10-13: the eight minions and the two Whispers, Tome + Runebind, are arted).
   // SET 3 DRAGONS: NONE LEFT (Matriarch arted in the 2026-10-16 re-wire: "re-wire the set 3 dragon art").
+  // Owner Set 3 list 2026-10-27: Studious Steven, Choosey Dragon, Riftwalker and Beer Gut Bud are authored ahead of their art.
+  'd3_studioussteven', 'd3_choosey', 'd3_riftwalker', 'dw3_beergutbud',
 ]);
 
 describe('art coverage for live cards', () => {

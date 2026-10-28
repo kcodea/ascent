@@ -60,6 +60,9 @@ export const KNOWN_TEXT_MISMATCH: Readonly<Record<string, KnownTextMismatch>> = 
   // Set 3 Kobolds (2026-10-22): Rosey's "When you cast a Ruby" is the same parser limit.
   k3_rosey: { taxonomy: 'wrong-trigger', kind: 'parser-limitation', why: '"When you cast a Ruby" is a passive marker the Ruby-cast chokepoints scan (`rubyPlayedAnywhere` / `rubyCastGainSelfImproving`: `fireOnRubyPlayed` in the Shop, `playRubyOn` in combat), not a `spellCast` watcher; the parser maps any "When you cast" to `spellCast`' },
   // (d4_whisp's "When you cast a Whisper on a Dragon" pin left 2026-10-23: Whisp was archived, so the sweep no longer reads it.)
+  // Set 3 list 2026-10-27: Zapdash rides Impossible Todd's summon marker with a `rubies` rider, and with the rider Gilded doubles the
+  // Rubies (2 -> 4), never the Golems. The text is right; the extracted contract still assumes Todd's gild (x2 bodies).
+  k3_zapdash: { taxonomy: 'wrong-gilded-amount', kind: 'draft-contract-gap', why: "Zapdash's Gilded text keeps ONE Gemheart Golem and doubles the Rubies (owner 2026-10-27, Geode Guardian's convention; `dealtDamageSummonToken` with a `rubies` rider, simulate.ts noteDamageDealt); the extracted contract reads the marker's Todd gild (x2 bodies) and does not know the rider" },
 };
 
 // ── comparison helpers ───────────────────────────────────────────────────────────────────────────────────

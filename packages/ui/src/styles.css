@@ -5293,6 +5293,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh)));
   aspect-ratio: 1059 / 1427;
 }
+/* TAUNT minions are not `.stdframe` (they wear the shield `.tframe`), so without this they fell back to the bare
+   card box and the ice sat small and low. Same art + Minion ice dials, seated on the shield's own box (the
+   `.tframe-img` geometry) — R-FREEZE-TAUNT-01. */
+[data-zone='tavern'].frozen .card.taunt:not(.spellcard)::after {
+  inset: auto;
+  width: calc(var(--ccw) * 1.527 * var(--sh));
+  left: calc(var(--ccw) * (0.5 - 0.758 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 1.086 * var(--sh)));
+  aspect-ratio: 1086 / 1448;
+}
 [data-zone='tavern'].frozen .card.spellframe::after {
   inset: auto;
   width: calc(var(--ccw) * 1.239 * var(--sh));

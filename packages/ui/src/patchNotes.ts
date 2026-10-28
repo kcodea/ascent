@@ -62,6 +62,7 @@ export const PATCH_NOTES: PatchNote[] = [
         'Before, a game left in a background tab could show as Offline to your friends.',
         'Closing the game now shows you as Offline to your friends right away.',
       ] },
+      { category: 'Systems', text: 'Frozen Taunt minions now get the same ice ring as every other minion, fitted to their shield.' },
       { category: 'Systems', text: 'Live Games now shows every game being played, and you can watch any of them.', details: [
         'Versus 1v1, Versus Group, Versus Duos and Ranked Duos games are listed, with every player\'s name.',
         'Casual and Practice games are listed too. Each row says what kind of game it is.',

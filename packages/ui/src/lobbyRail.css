@@ -296,3 +296,80 @@
   font-size: calc(7.5 * var(--lrow)); font-weight: 700; letter-spacing: 0.02em; line-height: 1.15; text-transform: uppercase;
   color: var(--ui-title, #e8c66a); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
 }
+
+/* ── DUOS: ONE CHUNKY SLOT PER TEAM (owner 2026-10-27: "tie the teammates together better by putting them into chunkier
+   rail slots as a team"; R-DUOS-RAIL-TEAM-01) ──────────────────────────────────────────────────────────────────────
+   LobbyPanel wraps each team's two rows in `.lobbyteamslot`: the team's name across the top (Ranked Duos), the two
+   members stacked (face + name each, the name across the slot's full width), and the team's ONE Health pool at the
+   foot, its bar beside it. The slot takes two rows' share of the rail (so the rail's outer box is unchanged) and carries the team's
+   marks (yours, the next foe, out); the rows inside it are plain. The next foe's pulse is the seat pulse moved onto
+   the slot (a static shadow whose opacity animates, compositor only). */
+.lobbyteamslot {
+  position: relative; flex: 2 1 0; min-height: 0; display: grid;
+  grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  column-gap: calc(3 * var(--lrow)); align-items: center;
+  padding: calc(2.4 * var(--lrow) * var(--lby-seat-pad, 0.75)) calc(4.4 * var(--lrow) * var(--lby-seat-pad, 0.75)) calc(3.4 * var(--lrow) * var(--lby-seat-pad, 0.75));
+  border-radius: calc(5 * var(--lrow) * var(--lby-seat-rad, 0.55)); font-size: calc(11 * var(--lfont));
+  color: var(--lby-name-col, #fff); background: var(--lby-seat-bg, #47311f);
+}
+.lobbyteamslot-name {
+  grid-column: 1 / -1; grid-row: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none;
+  font-size: calc(7.5 * var(--lrow)); font-weight: 800; letter-spacing: 0.04em; line-height: 1.2; text-transform: uppercase;
+  color: var(--ui-title, #e8c66a); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
+}
+/* The members: face + name on one line each, no panel of their own. */
+.lobbyteamslot > .lobbyseat.inteam {
+  grid-column: 1 / -1; grid-row: 2; align-self: stretch; min-height: 0; padding: 0 0 0 calc(0.6 * var(--lrow));
+  grid-template-columns: var(--lteam-face) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); align-items: center;
+  column-gap: calc(3.2 * var(--lrow)); background: none; box-shadow: none; opacity: 1; border-radius: calc(4 * var(--lrow));
+}
+.lobbyteamslot > .lobbyseat.inteam + .lobbyseat.inteam { grid-row: 3; }
+.lobbyteamslot { --lteam-face: calc(18 * var(--lrow) * var(--lby-face, 1.74) * 1.05); }
+.lobbyteamslot > .lobbyseat.inteam :is(.lobbyface) { grid-column: 1; grid-row: 1; align-self: center;
+  width: var(--lteam-face); height: var(--lteam-face); max-height: 100%; aspect-ratio: 1; }
+.lobbyteamslot > .lobbyseat.inteam .lobbynameline { grid-column: 2; grid-row: 1; }
+.lobbyteamslot > .lobbyseat.inteam::before, .lobbyteamslot > .lobbyseat.inteam::after { content: none; display: none; }
+/* A thin divider between the two members, so they read as two players in one slot. */
+.lobbyteamslot > .lobbyseat.inteam + .lobbyseat.inteam { box-shadow: 0 calc(-0.6 * var(--lrow)) 0 calc(-0.3 * var(--lrow)) color-mix(in srgb, var(--ui-divider, rgba(255, 255, 255, 0.12)) 100%, transparent); }
+/* The team's one Health pool at the slot's foot, its bar beside it. (`:root` + both classes: the rail's own
+   `.lobbyhp` / `.lobbybar` placements out-rank a plain class pair.) */
+:root .lobbyteamslot > .lobbyteamslot-hp { grid-column: 1; grid-row: 4; align-self: center; justify-self: start; transform: none; min-width: 0;
+  margin-top: calc(1.2 * var(--lrow)); }
+:root .lobbyteamslot > .lobbyteamslot-bar { grid-column: 2; grid-row: 4; align-self: center; margin-top: calc(1.2 * var(--lrow)); }
+.lobbyteamslot.you { background: var(--lby-you-bg, #003d75); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-you-line, #00fbff) 60%, transparent); }
+.lobbyteamslot.foe { background: var(--lby-foe-bg, #801900); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lby-foe-ring-col, #ff8080) 95%, transparent); }
+.lobbyteamslot.foe::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 calc(var(--lby-foe-ring, 1.7) * var(--lrow)) color-mix(in srgb, var(--lby-foe-ring-col, #ff8080) 95%, transparent),
+    0 0 calc(var(--lby-foe-glow, 14) * var(--lrow)) calc(var(--lby-foe-spread, 5) * var(--lrow)) color-mix(in srgb, var(--lby-foe-glow-col, #ff5252) 55%, transparent);
+  animation: lobbyfoepulse calc(var(--lby-foe-pulse-dur, 1.7) * 1s) ease-in-out infinite; }
+.lobbyteamslot.dead { opacity: 0.5; }
+.lobbyteamslot.dead .lobbyname { text-decoration: line-through; }
+/* The Gem look's paint, the seat's own recipe on the slot. */
+:root:not([data-lobby-rail="classic"]) .lobbyteamslot {
+  color: var(--ui-text);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-top) 40%, color-mix(in srgb, var(--ui-chip-bg) 70%, transparent)), color-mix(in srgb, var(--ui-chip-bg) 88%, transparent));
+  box-shadow: inset 0 0 0 1px var(--ui-divider), inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 -2px 3px -2px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+:root:not([data-lobby-rail="classic"]) .lobbyteamslot.you {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-top) 70%, var(--ui-chip-bg)), color-mix(in srgb, var(--ui-chip-bg) 88%, transparent));
+  box-shadow: inset calc(2.2 * var(--lrow)) 0 0 var(--ui-title), inset 0 0 0 1px var(--ui-edge-main), inset 0 0 0 2px var(--ui-ring), inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 calc(6 * var(--lrow)) color-mix(in srgb, var(--ui-title) 32%, transparent);
+}
+:root:not([data-lobby-rail="classic"]) .lobbyteamslot.foe {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ui-heart) 24%, var(--ui-chip-bg)) 0%, color-mix(in srgb, var(--ui-chip-bg) 80%, transparent) 72%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-heart) 55%, transparent), inset 0 -2px 3px -2px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+:root:not([data-lobby-rail="classic"]) .lobbyteamslot.foe::after {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-heart) 90%, transparent),
+    0 0 calc(7 * var(--lrow)) calc(1 * var(--lrow)) color-mix(in srgb, var(--ui-heart) 42%, transparent);
+}
+:root:not([data-lobby-rail="classic"]) .lobbyteamslot.dead { opacity: 0.6; background: color-mix(in srgb, var(--ui-chip-bg) 45%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-divider) 60%, transparent); }
+:root:not([data-lobby-rail="classic"]) .lobbyteamslot.dead :is(img.lobbyface, .lobbyface-img) { filter: grayscale(1); }
+:root:not([data-lobby-rail="classic"]) .lobbyteamslot.you .lobbyseat.you .lobbyname { color: var(--ui-title); }
+:root:not([data-lobby-rail="classic"]) .lobbyteamslot > .lobbyseat.inteam { background: none; box-shadow: none; opacity: 1; padding: 0 0 0 calc(0.6 * var(--lrow)); }
+:root:not([data-lobby-rail="classic"]) .lobbyteamslot > .lobbyseat.inteam + .lobbyseat.inteam {
+  box-shadow: 0 calc(-0.6 * var(--lrow)) 0 calc(-0.3 * var(--lrow)) var(--ui-divider); }
+:root:not([data-lobby-rail="classic"]) .lobbyteamslot > .lobbyseat.inteam .lobbyface { grid-row: 1; width: var(--lteam-face); height: var(--lteam-face); }
+:root:not([data-lobby-rail="classic"]) .lobbyteamslot > .lobbyteamslot-hp { grid-column: 1; grid-row: 4; }

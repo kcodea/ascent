@@ -1,0 +1,23 @@
+/* VERSUS DUOS — THE TEAMMATE PORTRAIT'S "STILL WORKING" GLOW (owner 2026-10-27: "if a teammate's end of turn effects are
+   going off, causing an end of turn hang, can you play a glow or effect on the teammate's portrait so players know the
+   game isnt frozen"; R-DUOS-MATE-SIGNALS-01). `.duosdock.working` while the round waits on their screen
+   (`duosMateSignals.mateWorking`). Two layers on `.duosdock-work`, both COMPOSITOR ONLY (the kwglow rule): a warm gold
+   halo whose STATIC shadow breathes by opacity, and a gold arc that turns round the rim by transform. The whole layer
+   fades in after a short delay, so a teammate whose End of Turn is instant never flashes it. */
+.duosdock-work { position: absolute; inset: calc(-6 * var(--u)); border-radius: 50%; pointer-events: none; z-index: 2; opacity: 0;
+  visibility: hidden; }
+.duosdock-work::before, .duosdock-work::after { content: ''; position: absolute; border-radius: 50%; pointer-events: none; }
+.duosdock-work::before { inset: calc(6 * var(--u));
+  box-shadow: 0 0 calc(30 * var(--u)) calc(10 * var(--u)) rgba(255, 196, 84, 0.85), 0 0 0 calc(4 * var(--u)) rgba(255, 214, 120, 0.9);
+  will-change: opacity; }
+.duosdock-work::after { inset: 0; box-sizing: border-box; border: calc(7 * var(--u)) solid transparent;
+  border-top-color: rgba(255, 236, 170, 0.95); border-right-color: rgba(255, 196, 84, 0.55); will-change: transform; }
+:is(.duosdock, .duostagin).working .duosdock-work { visibility: visible; animation: duosworkin 0.35s ease-out 0.6s both; }
+:is(.duosdock, .duostagin).working .duosdock-work::before { animation: kwglow 1.2s ease-in-out infinite; }
+:is(.duosdock, .duostagin).working .duosdock-work::after { animation: duosworkspin 1.1s linear infinite; }
+@keyframes duosworkin { from { opacity: 0; } to { opacity: 1; } }
+@keyframes duosworkspin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  :is(.duosdock, .duostagin).working .duosdock-work::after { animation: none; }
+  :is(.duosdock, .duostagin).working .duosdock-work::before { animation: none; opacity: 0.8; }
+}

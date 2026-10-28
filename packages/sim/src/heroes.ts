@@ -1034,7 +1034,10 @@ export function heroPowerLockTurns(run: {
  * disagree. They did: the indicator hardcoded "you already hold 2", so a Midas player — who Gilds at 2 — got
  * no highlight on the duplicate that would have completed it right now (owner report 2026-08-21).
  */
-export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolean; gildCopies?: number; adoptedPowerId?: string; mimicPowerId?: string; voidPowerIds?: string[] }): number {
+export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolean; gildCopies?: number; adoptedPowerId?: string; mimicPowerId?: string; voidPowerIds?: string[]; ancientsEnabled?: boolean; ancients?: { gildAt2?: string[]; powerOverride?: Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost' | 'oncePerGame' | 'usesPerTurn'>> } }, cardId?: string): number {
+  // ANCIENT OF BONDS × Disco Dan (owner 2026-10-27): "Setlist cards only require 2 copies to be Gilded." Per CARD, so
+  // the caller passes the card it is asking about (the shop indicator and `checkTriples` both do).
+  if (cardId && run.ancientsEnabled && run.ancients?.gildAt2?.includes(cardId)) return 2;
   // Coran's Gilded Shortcut writes the count it grants straight into `gildCopies`, so a future "Gild at 2"
   // source needs no new branch here — and the sources cannot stack down to 1 (each only ever says 2).
   if (run.gildCopies) return Math.max(2, Math.min(3, run.gildCopies));

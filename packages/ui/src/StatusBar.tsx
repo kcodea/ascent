@@ -7,6 +7,7 @@ import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, commissionDelayOf, ancientDrumlineNeed, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
+import { ancientArchiveNeed, ancientArchivePassive } from '@game/sim'; // Quillen × Ancients (Genesis: fills at 2; Time: passive)
 import { heroGrantOf, shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
 import { useEotAmplified } from './choreographer/equipmentFx';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
@@ -130,7 +131,7 @@ function heroPowerTallyOf(
     case 'fourPeat': return `${Math.min(3, run.gorrBuys?.length ?? 0)}/3`; // Gorr
     case 'dice': case 'preparation': return diceLock > 0 ? `${diceLock}t` : null; // Gambler / Aster
     case 'contraband': return `${(run.refreshCount ?? 0) % 3}/3`; // Pete
-    case 'archive': return `${(run.archivedTribes?.length ?? 0)}/3`; // Quillen
+    case 'archive': return ancientArchivePassive(run) ? null : `${(run.archivedTribes?.length ?? 0)}/${ancientArchiveNeed(run)}`; // Quillen
     case 'investment': { // Bram — an Ancient pairing may reshape it (Death: deaths toward 16, live; Time: no bank)
       const ancient = run.ancientsEnabled ? ancientInvestmentTally(run, run.fxFriendlyDeathPreview ?? 0) : undefined;
       return ancient !== undefined ? ancient : `${run.bramInvested ?? 0}/5`;
@@ -1103,9 +1104,9 @@ export function StatusBar() {
             {/* QUILLEN: the archived TYPES, each in its own tribe colour, with unused slots as "Empty". A
                 plain rule string cannot carry per-word colour, so the live state is rendered here instead of
                 being folded into the text (owner ask 2026-08-17). */}
-            {power.kind === 'archive' && (
+            {power.kind === 'archive' && !ancientArchivePassive(run) && (
               <span className="herotip-types">
-                {Array.from({ length: 3 }, (_, i) => {
+                {Array.from({ length: ancientArchiveNeed(run) }, (_, i) => {
                   const t = run.archivedTribes?.[i];
                   return (
                     <span

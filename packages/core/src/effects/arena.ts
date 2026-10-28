@@ -1008,7 +1008,8 @@ export const ARENA_EFFECTS = {
   deathrattleGrantCardToHand(arena: EffectArena, params: Record<string, unknown>): void {
     const id = typeof params.cardId === 'string' ? params.cardId : '';
     if (!id) return;
-    arena.grantNamedCard(id, (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1));
+    // `fixed` (Midas × Ancient of Death's graft): a hero-granted Echo, so a Gilded body does not double it.
+    arena.grantNamedCard(id, (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden && !params.fixed ? 2 : 1));
   },
 
   /** Echo: get `count` random Shop spells (golden doubles). `exactTier` pins the tier where the phase can

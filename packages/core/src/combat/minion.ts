@@ -139,7 +139,8 @@ export function instantiate(
     // instance so alignment-gated effects can read it; combat never recomputes it.
     align: board.align,
     reAttackOnKill: cardReAttacksOnKill(card),
-    critChance: board.critChance ?? card.critChance, // Commander Impala: per-swing double-damage chance (constant per CardDef); a spell (Executioner's Edge) can seed one onto the combat board for one fight
+    // A body that only GAINED Critical Strike (Keshi × Ancient of War's random keyword) rolls the game's 50% convention.
+    critChance: board.critChance ?? card.critChance ?? (keywords.includes('CR') ? 0.5 : undefined), // Commander Impala: per-swing double-damage chance (constant per CardDef); a spell (Executioner's Edge) can seed one onto the combat board for one fight
 
     summonBonus: board.summonBonus ?? 0,
     chefGrantedLast: board.chefGrantedLast, // Rune of the Chef: last shop turn's granted total

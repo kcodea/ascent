@@ -195,6 +195,9 @@ export interface BoardCard {
    *  is frozen at grant time — taverning up afterwards no longer inflates the Discover's tier (owner 2026-07-15).
    *  Read by the `discoverOnPlay` resolution + the live card text; absent on non-granted cards. */
   grantedTier?: number;
+  /** ANCIENTS × Keshi: this Triple Reward came from Keshi's Crown (its Discover may offer Tier 7 under the Ancient of
+   *  Genesis). Stamped only on an Ancients run; absent everywhere else. */
+  crownReward?: boolean;
   /** Per-source recruit-phase stat buffs applied to this instance (Karwind, Nadir, Spirit Fire,
    *  Fortify, …) — drives the inspect-panel breakdown. Base stats are NOT recorded here. */
   buffs?: CardBuff[];
@@ -515,11 +518,14 @@ export const DEFAULT_PRACTICE_CONFIG: PracticeConfig = {
 
 export type DiscoverSpec =
   | { kind: 'spell'; extraCasts?: number } // `extraCasts` (Rune of the Astral Draft): the pick is stamped to cast that many more times
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle' | 'equip'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number } }
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle' | 'equip'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number }; ancientTag?: DiscoverAncientTag }
   // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions; Rival's Reflection).
   // `spells` (Re-Pete x Ancient of Fortune, owner 2026-10-02: "Offer spells too"): spells in `ids` are offered too.
   // `lockWave`: the pick is locked in hand until that wave (Hourglass Reserve's `lockedUntilWave`).
-  | { kind: 'pool'; ids: string[]; borrowed?: boolean; spells?: boolean; lockWave?: number };
+  | { kind: 'pool'; ids: string[]; borrowed?: boolean; spells?: boolean; lockWave?: number; ancientTag?: DiscoverAncientTag };
+/** ANCIENTS: where a Discover came from, for the pairings that treat its pick specially (`AncientDiscoverTag`). Only set
+ *  on an Ancients run. */
+export type DiscoverAncientTag = 'triple' | 'crown' | 'archive' | 'discoDeath' | 'discoGenesis';
 
 /** A quest the player has bought — its live objective progress + completion flag. Persists for the run
  *  (shown in the quest panel); one is bought per quest turn, so most heroes accumulate up to 2 (waves 5 & 11),

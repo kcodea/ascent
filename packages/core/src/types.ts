@@ -2034,6 +2034,13 @@ export interface QuestCombatMods {
    *  stats, a random OTHER Warded friendly minion gains +attack Attack. The grant never re-triggers it (guarded).
    *  Combat-only like every combat gain (Engraved keeps it). Player-only; never snapshotted. */
   ancientBonds?: { attack: number; label: string };
+  /** ANCIENT OF DEATH × Midas (owner 2026-10-27): "Gilded minions gain Echo: Get a Gold Pouch". A GILDED body summoned in
+   *  the fight carries the graft too (the board's own Gilded bodies bring it from the Shop). Player-only; never snapshotted. */
+  ancientGildedEcho?: { cardId: string };
+  /** ANCIENT OF BONDS × Midas (owner 2026-10-27): whenever one of this side's GILDED minions gains stats, every OTHER
+   *  living Gilded friendly minion gains +attack/+health. The grant never re-triggers it (guarded). Combat-only like every
+   *  combat gain (Engraved keeps it). Player-only; never snapshotted. */
+  ancientGildedBonds?: { attack: number; health: number; label: string };
   /** ANCIENT OF FORTUNE / GENESIS × Warden: record every FRIENDLY Ward that breaks (`CombatCarryBacks.wardBreaks`).
    *  Off by default so every other fight's result is byte-identical. Player-only; never snapshotted. */
   ancientTrackWardBreaks?: boolean;

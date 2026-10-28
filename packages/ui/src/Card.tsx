@@ -983,7 +983,8 @@ export const Card = memo(function Card({
         // LIVE PINGS (owner 2026-10-29, R-PING-04): in a game, right-click (a phone: long-press) opens the ping menu,
         // which carries Inspect; elsewhere (menus, Compendium, replays, a plain spectator) it inspects at once.
         const inspect = (): void => inspectCard(inspectViewOf(card, skinArtUrl));
-        if (!openCardPingMenu(e, uid != null ? String(uid) : null, inspect)) inspect();
+        if (openCardPingMenu(e, uid != null ? String(uid) : null, inspect)) hideRefTip(); // the menu, not the hover reveal
+        else inspect();
       }}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}

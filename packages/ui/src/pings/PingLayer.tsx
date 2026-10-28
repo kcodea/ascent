@@ -28,7 +28,7 @@ import { playDef } from '../fx/playDef';
 import { Icon } from '../Icon';
 import { sfx } from '../sfx';
 import { rectToStage, stageHost, stageViewport, toStage, type StageRect } from '../stage';
-import { isSelectOption } from '../touchInput';
+import { isSelectOption, setCardHoldGate } from '../touchInput';
 import { useSpectate } from '../versus/spectate';
 import { pingSrc, PING_LOOK } from './pingArt';
 import { clearPing, clearPingsOnCard, expirePings, myPingSeat, pingContext, sendPing, usePings, type ShownPing } from './pingRuntime';
@@ -155,7 +155,7 @@ export function layoutPositions(design: 'A' | 'B', n: number, at: { x: number; y
   }
   const ringN = hasCentre ? n - 1 : n;
   if (hasCentre) out.push({ x: at.x, y: at.y });
-  const r = PING_BUBBLE * 1.05;
+  const r = PING_BUBBLE * 1.3;
   for (let i = 0; i < ringN; i++) {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / ringN;
     out.push({ x: at.x + Math.cos(a) * r, y: at.y + Math.sin(a) * r });
@@ -309,7 +309,9 @@ const PingMark = memo(function PingMark({ p }: { p: ShownPing }): JSX.Element | 
     <span className={`ping-mark pm-${p.target.t}${p.mine ? ' mine' : ''} pr-${p.role}`} role="status"
       aria-label={`${cap ? `${cap} pinged` : 'Ping'}: ${PING_LOOK[p.kind].label}. Click to clear.`}
       style={{ '--ping-left': `${left}ms` } as CSSProperties}>
-      <span className="ping-pop" onPointerDown={dismiss} onContextMenu={dismiss} onClick={dismiss}>
+      {/* Cleared on the CLICK (or right-click), never on the press: removed at the press, the release's click would land
+          on the card under it and inspect or buy it. The press itself is kept from reaching the card. */}
+      <span className="ping-pop" onPointerDown={(e) => { e.stopPropagation(); }} onContextMenu={dismiss} onClick={dismiss}>
         <span className="ping-badge"><PingIcon kind={p.kind} /></span>
         {cap && <span className="atip-pill ping-cap">{cap}</span>}
       </span>
@@ -349,6 +351,8 @@ export function PingLayer(): JSX.Element {
       sfx.tick();
     };
     window.addEventListener('contextmenu', onCtx, true);
+    // A phone's hold on a play-zone card opens the menu while pings are available (else a card hold does nothing).
+    setCardHoldGate((el) => !!pingContext() && !!cardZoneOf(el) && !el.closest('.dragcard'));
     // Moving a pinged card (a drag of it) clears its ping.
     let dragUid: string | null = null;
     const offDrag = dragStore.subscribe(() => {
@@ -357,7 +361,7 @@ export function PingLayer(): JSX.Element {
       dragUid = uid;
       if (uid) clearPingsOnCard(String(uid));
     });
-    return () => { window.removeEventListener('contextmenu', onCtx, true); offDrag(); closePingMenu(); };
+    return () => { window.removeEventListener('contextmenu', onCtx, true); setCardHoldGate(null); offDrag(); closePingMenu(); };
   }, []);
   return (
     <>

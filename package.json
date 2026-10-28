@@ -13,6 +13,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "db:export:board-results": "node scripts/supabase/export-board-results.mjs",
     "typecheck": "npm run typecheck:pkgs && npm run typecheck:web && npm run typecheck:worker",
     "typecheck:pkgs": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

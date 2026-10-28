@@ -42,6 +42,8 @@ packages/tools/.cache/
 # `npm run report:export` output — regenerated on demand, never committed (it is a
 # simulation snapshot, not source).
 balance-export/
+# One-off data exports for the lead (e.g. `scripts/supabase/export-board-results.mjs`): production data, never committed.
+exports/
 
 # Art pipeline: `npm run art:wire` writes a .png intermediate beside every optimized .webp.
 # Only the .webp is shipped/tracked (804 of them) — the intermediates are regenerable, and committing

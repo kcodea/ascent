@@ -49,6 +49,21 @@ export async function kvSet(key: string, value: unknown): Promise<void> {
   });
 }
 
+/** Remove one key (best-effort; a missing key or no IndexedDB is a no-op). */
+export async function kvDel(key: string): Promise<void> {
+  const d = await openDb();
+  if (!d) return;
+  await new Promise<void>((resolve) => {
+    try {
+      const tx = d.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    } catch { resolve(); }
+  });
+}
+
 /**
  * Merge an incremental read into a cached newest-first list: `fresh` rows (newer than the cache) go first, any id
  * already cached is dropped from the old list, and the result is cut to `limit`. Pure (exported for the tests).

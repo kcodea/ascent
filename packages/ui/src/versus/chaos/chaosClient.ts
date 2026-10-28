@@ -123,7 +123,16 @@ export class ChaosClient {
       const groupCombatReady = remote.groupCombatReady;
       remote.combatReady = (m, round) => (drop.has(round) ? lost() : combatReady(m, round));
       remote.groupCombatReady = (m, round) => (drop.has(round) ? lost() : groupCombatReady(m, round));
-      return { ...real, versusRemote: remote };
+      // The game's adapter is the cutover ROUTER (R-VERSUS-CF-CUTOVER-01) over the Supabase adapter: wrap the fake-backed
+      // remote in the real router with no Cloudflare transport, so every call takes the Supabase path exactly as a build
+      // without a Worker does, and the router's own surface (`hostOf`, `noteRoomHost`, ...) is the real one.
+      const { makeRoutedVersusRemote } = await import('../versusRouter');
+      const { makeRoomHostMemory } = await import('../versusHost');
+      const routed = makeRoutedVersusRemote({
+        supabase: remote, cf: null, memory: makeRoomHostMemory(null),
+        readConfig: async () => ({ duel: 'supabase', group: 'supabase', duos: 'supabase', ranked_duos: 'supabase' }),
+      });
+      return { ...real, versusRemote: routed };
     });
     vi.doMock(here('../../net/backoff.ts'), async (orig) => ({
       ...(await orig<typeof import('../../net/backoff')>()),

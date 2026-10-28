@@ -36,6 +36,7 @@ export function valueOfKey(state: CoreState, key: string): unknown {
   if (kind === 'glast') return g.lastLocked[id as GSeat];
   if (kind === 'gckpt') return g.lastCheckpoint[id as GSeat];
   if (kind === 'ground') return g.rounds[Number(id)];
+  if (kind === 'gpass') return g.passes?.[Number(id)];
   return undefined;
 }
 
@@ -70,6 +71,9 @@ export function stateFromEntries(entries: Map<string, unknown>): CoreState | nul
     if (k.startsWith('round:')) {
       const row = v as RoundRow;
       if (state.match && row.match_id === state.match.id) state.rounds[row.round] = row;
+    } else if (k.startsWith('gpass:') && state.group) {
+      const rows = v as GroupState['passes'] extends Record<number, infer P> | undefined ? P : never;
+      if (Array.isArray(rows) && rows[0]?.match_id === state.group.match.id) (state.group.passes ??= {})[Number(k.slice(6))] = rows;
     } else if (k.startsWith('ground:') && state.group) {
       const row = v as GRound;
       if (row.match_id === state.group.match.id) state.group.rounds[row.round] = row;

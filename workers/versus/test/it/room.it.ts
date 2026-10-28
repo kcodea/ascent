@@ -113,3 +113,24 @@ describe('Group room in workerd', () => {
     for (const p of players.slice(0, 3)) p.client!.close();
   });
 });
+
+describe('Duos room in workerd', () => {
+  it('one tag-team fight reaches all four; a pass reaches the teammate only', async () => {
+    const { players, matchId } = await toGroupShop(base, 4, 'duos');
+    const [p1, p2, p3, p4] = players as [Player, Player, Player, Player];
+    const mateSaw = p2.next((m) => m.t === 'pass');
+    let foeSaw = false;
+    const foeWatch = p3.next((m) => m.t === 'pass', 1500).then(() => { foeSaw = true; }, () => undefined);
+    const row = await p1.req('duos_pass', { matchId, round: 1, seq: 1, card: { cardId: 'x', passFrom: 'hand' } });
+    expect(row.to_seat).toBe('p2');
+    expect(((await mateSaw).msg as unknown as { row: { seq: number } }).row.seq).toBe(1);
+    await foeWatch;
+    expect(foeSaw).toBe(false);
+    for (const p of [p1, p2, p3]) await p.req('submit', { matchId, round: 1, seq: 1, side: sideOf(1, 'p1'), final: true, checkpoint: null });
+    const got = Promise.all(players.map((p) => p.next((m) => m.t === 'round' && m.row.round === 1)));
+    await p4.req('submit', { matchId, round: 1, seq: 1, side: sideOf(1, 'p2'), final: true, checkpoint: null });
+    const rows = (await got).map((a) => (a.msg as unknown as { row: { fights: unknown[] } }).row);
+    expect(rows.every((r) => r.fights.length === 1)).toBe(true);
+    for (const p of players) p.client!.close();
+  });
+});

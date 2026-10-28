@@ -13,6 +13,7 @@
  */
 import {
   engineContentRevision,
+  handleVersusDuosFinalize,
   handleVersusGroupFinalize,
   normalizeVersusOptions,
   reportedVitals,
@@ -24,8 +25,41 @@ import {
   VERSUS_LIMITS,
   VERSUS_MISSED_ROUNDS_FORFEIT,
   VERSUS_PAUSE_GRACE_SECONDS,
+  type VersusDuosFinalizeStore,
   type VersusGroupFinalizeStore,
 } from '@game/sim/versus/server';
+
+/** VERSUS DUOS (2v2 tag-team, owner 2026-10-25, R-DUOS-01): seats 1-2 are team a, 3-4 team b. */
+export type GTeamId = 'a' | 'b';
+export const teamOf = (seat: GSeat): GTeamId => (seat === 'p1' || seat === 'p2' ? 'a' : 'b');
+export const mateOf = (seat: GSeat): GSeat => ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const)[seat];
+export const teamSeats = (team: GTeamId): [GSeat, GSeat] => (team === 'a' ? ['p1', 'p2'] : ['p3', 'p4']);
+/** Passes a seat may send per round (`VERSUS_DUOS_PASS_CAP`), and a passed card's size cap. */
+export const DUOS_PASS_CAP = 10;
+const PASS_CARD_BYTES = 16_384;
+
+/** A team's shared pool and its fate (`versus_group_teams`). */
+export interface GTeam {
+  team: GTeamId;
+  health: number | null;
+  armor: number | null;
+  eliminated_round: number | null;
+  out_reason: GOutReason | null;
+  placement: number | null;
+}
+
+/** One pass to the teammate (`versus_duos_passes`). */
+export interface GPass {
+  match_id: string;
+  round: number;
+  from_seat: GSeat;
+  to_seat: GSeat;
+  seq: number;
+  card: Record<string, unknown>;
+  status: 'sent' | 'landed' | 'refused';
+  created_at: string;
+  answered_at: string | null;
+}
 
 export type GSeat = 'p1' | 'p2' | 'p3' | 'p4';
 export const GSEATS: readonly GSeat[] = ['p1', 'p2', 'p3', 'p4'];
@@ -55,6 +89,9 @@ export interface GSeatRow {
   eliminated_round: number | null;
   out_reason: GOutReason | null;
   placement: number | null;
+  /** VERSUS DUOS: the seat's team, and its free hand slots (the pass refusal, `versus_duos_hand_room`). */
+  team?: GTeamId | null;
+  hand_room?: number | null;
 }
 
 export interface GMatch {
@@ -85,6 +122,10 @@ export interface GMatch {
   updated_at: number;
   completed_at: number | null;
   seats: GSeatRow[];
+  /** VERSUS DUOS: the two teams' pools (absent on a Group match). */
+  teams?: GTeam[];
+  /** VERSUS DUOS: always null (the order is the seeded 50/50 every client derives, R-DUOS-ORDER-01). */
+  duos_first?: null;
 }
 
 export interface GPriv {
@@ -145,6 +186,8 @@ export interface GroupState {
   lastLocked: Partial<Record<GSeat, unknown>>;
   lastCheckpoint: Partial<Record<GSeat, { round: number; final: true; candidate_seq: number; checkpoint: unknown }>>;
   rounds: Record<number, GRound>;
+  /** VERSUS DUOS: every pass, by round (stored as `gpass:<round>`). */
+  passes?: Record<number, GPass[]>;
 }
 
 /** What the engine needs from the room. */
@@ -160,6 +203,9 @@ export interface GroupHost {
   event(kind: string, detail?: Record<string, unknown>): void;
   persist(kind: 'group_match' | 'group_round', row: Record<string, unknown>): void;
   roundCommitted(n: number): void;
+  /** VERSUS DUOS: a pass row changed (pushed to that team's two seats only). */
+  passChanged?(row: GPass): void;
+  duosResolver?: typeof handleVersusDuosFinalize;
   /** A knocked-out player moves to the room's stands (R-VERSUS-GROUP-06). */
   toStands(userId: string): void;
   /** The match ended: the room is Open again. */
@@ -203,6 +249,11 @@ export function newGroupState(host: GroupHost, room: { id: string; set_id: strin
       auto: false, missed: 0, eliminated_round: null, out_reason: null, placement: null,
     })),
   };
+  if (match.options.mode === 'duos') {
+    for (const s of match.seats) { s.team = teamOf(s.seat); s.hand_room = null; }
+    match.teams = (['a', 'b'] as const).map((team) => ({ team, health: null, armor: null, eliminated_round: null, out_reason: null, placement: null }));
+    match.duos_first = null;
+  }
   const priv: GroupState['priv'] = {};
   for (const s of seats) {
     priv[s.seat] = { match_id: id, seat: s.seat, user_id: s.userId, hero_seed: host.random31(), run_seed: host.random31(), hero_offer: null, hero_index: null, hero_auto: false, hero_reroll: null };
@@ -217,6 +268,9 @@ export class GroupEngine {
   // ── reads ───────────────────────────────────────────────────────────────────────────────────────────────────────
 
   get m(): GMatch { return this.g.match; }
+  get duos(): boolean { return this.m.options.mode === 'duos'; }
+  private team(id: GTeamId): GTeam { return this.m.teams!.find((x) => x.team === id)!; }
+  private livingTeams(): number { return (this.m.teams ?? []).filter((x) => x.eliminated_round == null).length; }
   seatOf(userId: string): GSeat | null { return this.m.seats.find((s) => s.user_id === userId)?.seat ?? null; }
   row(seat: GSeat): GSeatRow { return this.m.seats.find((s) => s.seat === seat)!; }
   private stillIn(): GSeatRow[] { return this.m.seats.filter((s) => s.eliminated_round == null); }
@@ -228,6 +282,7 @@ export class GroupEngine {
   json(): Record<string, unknown> {
     const m = this.m;
     const { seats, ...rest } = m;
+    delete (rest as { teams?: unknown }).teams; // the SQL row has no teams column (the pools ride the seats)
     return {
       ...rest,
       hero_deadline: iso(m.hero_deadline), shop_starts_at: iso(m.shop_starts_at), shop_deadline: iso(m.shop_deadline),
@@ -285,7 +340,7 @@ export class GroupEngine {
   private matchRow(): Record<string, unknown> {
     const j = this.json();
     delete j.serverNow;
-    return { ...j, room_id: null, seats: this.m.seats };
+    return { ...j, room_id: null, seats: this.m.seats, ...(this.m.teams ? { teams: this.m.teams } : {}) };
   }
 
   // ── hero select ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -445,6 +500,15 @@ export class GroupEngine {
     const rep = reportedVitals(sub.prepared_side);
     const floor = versusArmorFloorMax();
     const s = this.row(seat);
+    if (this.duos) {
+      // A Duos team shares one pool: the raise lands on the team and both seats show it.
+      const tm = this.team(teamOf(seat));
+      if (!rep || tm.eliminated_round != null || tm.health == null || tm.armor == null || tm.armor >= floor || rep.armor <= tm.armor) return;
+      tm.armor = Math.min(rep.armor, floor);
+      for (const x of this.m.seats) if (x.team === tm.team) x.armor = tm.armor;
+      this.touch();
+      return;
+    }
     if (!rep || s.eliminated_round != null || s.health == null || s.armor == null || s.armor >= floor || rep.armor <= s.armor) return;
     s.armor = Math.min(rep.armor, floor);
     this.touch();
@@ -533,7 +597,9 @@ export class GroupEngine {
       };
       let res: { status: number; body: Record<string, unknown> };
       try {
-        res = await (this.h.resolver ?? handleVersusGroupFinalize)(m.seats[0]!.user_id, { matchId: m.id, round: m.round }, engineContentRevision(), store);
+        res = this.duos
+          ? await (this.h.duosResolver ?? handleVersusDuosFinalize)(m.seats[0]!.user_id, { matchId: m.id, round: m.round }, engineContentRevision(), this.duosStore())
+          : await (this.h.resolver ?? handleVersusGroupFinalize)(m.seats[0]!.user_id, { matchId: m.id, round: m.round }, engineContentRevision(), store);
       } catch (e) {
         res = { status: 500, body: { error: String(e) } };
       }
@@ -544,6 +610,173 @@ export class GroupEngine {
       }
       this.h.onResolve?.(m.round, (this.h.perfNow?.() ?? 0) - t0);
     }
+  }
+
+  /** The Duos resolver's in-memory store (the Edge Function's `finalize_duos` reads). */
+  private duosStore(): VersusDuosFinalizeStore {
+    const m = this.m;
+    return {
+      match: async () => ({ id: m.id, phase: m.phase, round: m.round, seed: m.seed, content_revision: m.content_revision, options: m.options as never }),
+      finalSides: async () => {
+        const out: Partial<Record<GSeat, unknown>> = {};
+        for (const seat of GSEATS) {
+          const sub = this.g.subs[seat];
+          if (sub && sub.round === m.round && sub.final) out[seat] = versusFreshSide(sub.prepared_side, sub.source);
+        }
+        return out;
+      },
+      seats: async () => m.seats.map((s) => ({ seat: s.seat, hero: s.hero })),
+      teams: async () => (m.teams ?? []).map((x) => ({ team: x.team, health: x.health, armor: x.armor })),
+      commit: async (args) => this.commitDuos(args),
+      log: (msg, detail) => console.warn(msg, detail),
+    };
+  }
+
+  /** `versus_duos_commit_round`: ONE tag-team fight, the losing team's pool charged, a team at 0 out together. */
+  private commitDuos(args: Parameters<VersusDuosFinalizeStore['commit']>[0]): unknown {
+    const m = this.m;
+    if (this.g.rounds[args.p_round]) return { alreadyCommitted: true };
+    if (m.phase !== 'resolving' || m.round !== args.p_round) this.h.fail('not_resolving');
+    const now = this.h.now();
+    const f = args.p_fight as { a: GSeat; b: GSeat; chair: 'a' | 'b'; outcome: 'a' | 'b' | 'draw'; losingTeam: GTeamId | null; damage: number; aResult: unknown; bResult: unknown };
+    const scoutOf = (seat: GSeat): Record<string, unknown> => {
+      const sub = this.g.subs[seat];
+      const tier = (sub?.prepared_side as { state?: { tier?: unknown } } | null)?.state?.tier;
+      return { ...(sub?.scout ?? {}), ...(tier != null ? { tier } : {}) };
+    };
+    const lose = f.losingTeam;
+    const fight: GFightRow = {
+      round: args.p_round, fight: 0, a_seat: f.a, b_seat: f.b, b_copy: false, chair: f.chair, outcome: f.outcome,
+      heart_lost_by: lose === 'a' ? f.a : lose === 'b' ? f.b : null, damage: lose ? f.damage : 0,
+      a_result: f.aResult, b_result: f.bResult, a_scout: scoutOf(f.a), b_scout: scoutOf(f.b),
+    };
+    for (const tm of m.teams!) {
+      if (tm.eliminated_round != null) continue;
+      const v = args.p_vitals[tm.team];
+      if (v) { tm.health = v.health; tm.armor = v.armor; }
+    }
+    let dead: GSeat[] = [];
+    let reason: GEndReason = 'hearts';
+    if (lose) {
+      const tm = this.team(lose);
+      if (tm.eliminated_round == null && (tm.health ?? 1) <= 0) {
+        const place = this.livingTeams();
+        tm.eliminated_round = args.p_round; tm.out_reason = 'hearts'; tm.placement = place;
+        dead = teamSeats(lose);
+      }
+    }
+    for (const s of m.seats) if (s.eliminated_round == null) s.missed = s.auto ? s.missed + 1 : 0;
+    if (dead.length === 0) {
+      const missed = [...m.seats].filter((s) => s.eliminated_round == null && s.missed >= VERSUS_MISSED_ROUNDS_FORFEIT)
+        .sort((a, b) => GSEATS.indexOf(a.seat) - GSEATS.indexOf(b.seat))[0];
+      if (missed) {
+        const tm = this.team(teamOf(missed.seat));
+        if (tm.eliminated_round == null) {
+          const place = this.livingTeams();
+          tm.eliminated_round = args.p_round; tm.out_reason = 'missed'; tm.placement = place;
+          dead = teamSeats(tm.team);
+          if (!lose) reason = 'missed';
+        }
+      }
+    }
+    // Every seat mirrors its team: pools, the knockout (a teammate who did not miss is out as 'forfeit'), placement.
+    for (const s of m.seats) {
+      const tm = this.team(s.team!);
+      s.health = tm.health; s.armor = tm.armor;
+      if (s.eliminated_round == null && tm.eliminated_round != null) {
+        s.eliminated_round = tm.eliminated_round;
+        s.out_reason = tm.out_reason === 'missed' && s.missed < VERSUS_MISSED_ROUNDS_FORFEIT ? 'forfeit' : tm.out_reason;
+        s.auto = false;
+        this.h.toStands(s.user_id);
+      }
+      if (tm.placement != null) s.placement = tm.placement;
+    }
+    const vitalsOut: GRound['vitals'] = {};
+    for (const s of m.seats) if (s.health != null && s.armor != null) vitalsOut[s.seat] = { health: s.health, armor: s.armor };
+    const row: GRound = { match_id: m.id, round: args.p_round, digest: args.p_digest, vitals: vitalsOut, eliminated: dead, fights: [fight] };
+    this.g.rounds[row.round] = row;
+    this.h.dirty(`ground:${row.round}`);
+    this.h.roundCommitted(row.round);
+    this.h.persist('group_round', row as unknown as Record<string, unknown>);
+    for (const s of m.seats) s.ready = false;
+    m.phase = 'combat';
+    m.combat_deadline = now + VERSUS_COMBAT_VIEW_CAP_SECONDS * 1000;
+    this.touch();
+    if (this.livingTeams() <= 1) {
+      const winner = [...m.seats].filter((s) => s.eliminated_round == null).sort((a, b) => GSEATS.indexOf(a.seat) - GSEATS.indexOf(b.seat))[0];
+      this.complete(winner?.seat ?? null, reason);
+    } else this.h.persist('group_match', this.matchRow());
+    return { alreadyCommitted: false };
+  }
+
+  // ── VERSUS DUOS: passing a card to the teammate (R-DUOS-PASS-01) ─────────────────────────────────────────────────
+
+  /** `versus_duos_pass`: exactly once per seq; refused when the teammate's hand is full, they are away, or past the cap. */
+  pass(userId: string, round: unknown, seq: unknown, card: unknown): GPass {
+    const m = this.m;
+    if (!this.duos) this.h.fail('not_duos');
+    const seat = this.seatOf(userId);
+    if (!seat) this.h.fail('not_a_player');
+    const all = this.g.passes ?? (this.g.passes = {});
+    const existing = Object.values(all).flat().find((p) => p.from_seat === seat && p.seq === seq);
+    if (existing) return existing;
+    if (m.phase !== 'shop' || m.round !== round) this.h.fail('not_shop');
+    if (m.paused_at == null && m.shop_deadline != null && this.h.now() >= m.shop_deadline + SHOP_GRACE_MS) this.h.fail('deadline_passed');
+    if (this.row(seat!).eliminated_round != null) this.h.fail('locked');
+    const mate = mateOf(seat!);
+    const mr = this.row(mate);
+    if (mr.eliminated_round != null) this.h.fail('no_teammate');
+    if (mr.auto || (m.paused_at != null && m.paused_seat === mate)) this.h.fail('teammate_away');
+    const inFlight = Object.values(all).flat().filter((p) => p.to_seat === mate && p.status === 'sent').length;
+    if (mr.hand_room != null && mr.hand_room - inFlight <= 0) this.h.fail('hand_full');
+    const c = card as Record<string, unknown> | null;
+    if (!Number.isInteger(seq) || (seq as number) < 0 || !c || typeof c !== 'object' || Array.isArray(c) || typeof c.cardId !== 'string'
+      || jsonBytes(c) > PASS_CARD_BYTES || c.passFrom !== 'hand') this.h.fail('bad_card');
+    const mine = (all[round as number] ?? []).filter((p) => p.from_seat === seat).length;
+    if (mine >= DUOS_PASS_CAP) this.h.fail('too_many_passes');
+    const row: GPass = {
+      match_id: m.id, round: round as number, from_seat: seat!, to_seat: mate, seq: seq as number, card: c!, status: 'sent',
+      created_at: new Date(this.h.now()).toISOString(), answered_at: null,
+    };
+    (all[row.round] ??= []).push(row);
+    this.h.dirty(`gpass:${row.round}`);
+    this.h.passChanged?.(row);
+    return row;
+  }
+
+  /** `versus_duos_answer_pass`: the receiver's run landed it, or its full hand refused it. */
+  answerPass(userId: string, fromSeat: unknown, seq: unknown, landed: unknown): GPass {
+    const seat = this.seatOf(userId);
+    if (!seat) this.h.fail('not_a_player');
+    const row = Object.values(this.g.passes ?? {}).flat().find((p) => p.from_seat === fromSeat && p.seq === seq);
+    if (!row) this.h.fail('no_pass');
+    if (row!.to_seat !== seat) this.h.fail('not_receiver');
+    if (row!.status === 'sent') {
+      row!.status = landed === true ? 'landed' : 'refused';
+      row!.answered_at = new Date(this.h.now()).toISOString();
+      this.h.dirty(`gpass:${row!.round}`);
+      this.h.passChanged?.(row!);
+    }
+    return row!;
+  }
+
+  /** `versus_duos_hand_room`: my free hand slots. */
+  handRoom(userId: string, room: unknown): void {
+    const seat = this.seatOf(userId);
+    if (!seat) this.h.fail('not_a_player');
+    if (!Number.isInteger(room) || (room as number) < 0 || (room as number) > 30) this.h.fail('bad_room');
+    this.row(seat!).hand_room = room as number;
+    this.h.dirty('meta');
+  }
+
+  /** My team's passes from `fromRound` on (the table's RLS: only the two teammates read them). */
+  passesFor(userId: string, fromRound: number): GPass[] {
+    const seat = this.seatOf(userId);
+    if (!seat) return [];
+    const mine = new Set(teamSeats(teamOf(seat)));
+    return Object.values(this.g.passes ?? {}).flat()
+      .filter((p) => p.round >= fromRound && mine.has(p.from_seat))
+      .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.seq - b.seq);
   }
 
   /** `versus_group_commit_round` (fights with scouts, pools, knockouts sharing a placement, the wipeout guard, missed). */
@@ -636,6 +869,27 @@ export class GroupEngine {
     if (m.phase === 'complete') return;
     const s = this.row(seat);
     if (s.eliminated_round != null) return;
+    if (this.duos) {
+      // The seat's TEAM goes out together, placed by how many teams were still in (2nd of 2).
+      const tm = this.team(teamOf(seat));
+      if (tm.eliminated_round != null) return;
+      const place = this.livingTeams();
+      tm.eliminated_round = m.round; tm.out_reason = reason; tm.placement = place;
+      for (const x of m.seats) {
+        if (x.team !== tm.team || x.eliminated_round != null) continue;
+        x.eliminated_round = m.round; x.out_reason = x.seat === seat ? reason : 'forfeit'; x.auto = false; x.placement = place;
+        this.h.toStands(x.user_id);
+      }
+      this.touch();
+      if (this.livingTeams() <= 1) {
+        const winner = [...m.seats].filter((x) => x.eliminated_round == null).sort((a, b) => GSEATS.indexOf(a.seat) - GSEATS.indexOf(b.seat))[0];
+        this.complete(winner?.seat ?? null, reason === 'missed' ? 'missed' : 'forfeit');
+        return;
+      }
+      this.maybeResolve();
+      this.maybeNext();
+      return;
+    }
     const place = this.living(); // counted with this seat still in (the SQL update reads the pre-update rows)
     s.eliminated_round = m.round; s.out_reason = reason; s.auto = false; s.placement = place;
     this.h.toStands(s.user_id);
@@ -711,7 +965,15 @@ export class GroupEngine {
 
   private complete(winner: GSeat | null, reason: GEndReason): void {
     const m = this.m;
-    if (winner) this.row(winner).placement = 1;
+    if (winner) {
+      this.row(winner).placement = 1;
+      // Duos: placement is by TEAM: the winner's whole team is 1st.
+      if (this.duos) {
+        const tm = this.team(teamOf(winner));
+        tm.placement = 1;
+        for (const x of this.m.seats) if (x.team === tm.team) x.placement = 1;
+      }
+    }
     m.phase = 'complete'; m.winner_seat = winner; m.end_reason = reason;
     m.paused_seat = null; m.paused_at = null; m.pause_grace_until = null; m.resume_at = null;
     m.completed_at = this.h.now();

@@ -275,8 +275,22 @@ match engine beside the 1v1 one, the same op names (the room routes by match id)
 | `versus_sweep` (group loop) | the room's alarm (abandon), and the sweep skips Cloudflare rows (`2026-11-05-versus-cf-writer-group.sql`) |
 | results | `versus_cf_persist` kinds `group_match` (row + seats) and `group_round` (row + fights) |
 
-Duos (phase 3): `versus_duos_*` (pass, answer_pass, hand_room,
-commit_round, team helpers) → room ops + team-scoped relays; `handleVersusDuosFinalize`. Ranked Duos (phase 4):
+Duos (phase 3, PORTED on `feat/versus-cf-duos`): the Group engine with `options.mode = 'duos'` (exactly 4 seats, seats 1-2
+team a, 3-4 team b):
+
+| SQL | Cloudflare (`groupMatch.ts`) |
+|---|---|
+| `versus__mode_roles` / `versus_start_game` `need_four_players` / `versus_press_gate` (all four) | room ops, mode-aware |
+| `versus_group_teams`, `versus_duos__team` / `__mate` / `__seats` / `__living_teams` | `GMatch.teams`, `teamOf`, `mateOf`, `teamSeats`, `livingTeams` |
+| `versus_group__open_shop` (`duos_first` cleared: the seeded 50/50 is the clients' `duosRandomFirst`) | `json()` carries `duos_first: null` |
+| `versus-resolve` `finalize_duos` + `versus_duos_commit_round` (one tag-team fight; the losing team's pool; a team at 0 out together; a team out for missed rounds, the teammate as forfeit; seats mirror the team) | `settle` → `handleVersusDuosFinalize` (same code) → `commitDuos` |
+| `versus_group__eliminate` Duos branch (the team goes out together, placed by living teams) / `versus_group__complete` (the winner's team is 1st) | `eliminate`, `complete` |
+| `versus_group__raise_reported_armor` Duos branch (the team pool, both seats) | `raiseArmor` |
+| `versus_duos_pass` (1 Gold is the client's run; server cap 10 a round; full-hand refusal from `hand_room` minus passes in flight; teammate away; exactly once per seq; `passFrom = 'hand'`), `versus_duos_answer_pass`, `versus_duos_hand_room`, `versus_duos_passes` + RLS (team only) | ops `duos_pass`, `duos_answer_pass`, `duos_hand_room`, `duos_passes`; a `pass` push to the two teammates' sockets only |
+| teammate live view (Realtime broadcast + `isMateFrame`) | the same `bc` relays; the client filters as before |
+| results | `group_match` also writes the seats' `team` and both `versus_group_teams` rows (`2026-11-06-versus-cf-writer-duos.sql`) |
+
+Ranked Duos (phase 4):
 `versus_ranked_duos_*` (seat, table, round_input, submit, commit_round, place_team, record_run, maybe_close, sweep) →
 room ops + Supabase reads/writes through the outbox; the `sweep_abandoned` cron disappears (the room's own alarm abandons).
 

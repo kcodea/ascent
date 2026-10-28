@@ -68,8 +68,38 @@ export function devRouteOverride(): Partial<VersusHostConfig> | null {
     if (!(import.meta.env.DEV || localStorage.getItem('ascent.versus') === '1')) return null;
     const q = new URLSearchParams(window.location.search).get('versusRoute');
     if (q === 'off') sessionStorage.removeItem(ROUTE_KEY);
-    else if (q && parseRouteOverride(q)) sessionStorage.setItem(ROUTE_KEY, q);
+    else if (q && (parseRouteOverride(q) || parseLobbyLiveOverride(q))) sessionStorage.setItem(ROUTE_KEY, q);
     return parseRouteOverride(sessionStorage.getItem(ROUTE_KEY));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * LIVE GAMES ON CLOUDFLARE (R-LIVE-CF-01): the switch's `lobby_live` row (2026-11-10-lobby-live-cf.sql) decides where a
+ * NEW live lobby / Practice game publishes its spectator stream. Anything but 'cf' reads as Supabase (a server without
+ * the row, a failed read).
+ */
+export const parseLobbyLiveHost = (raw: unknown): VersusHost =>
+  raw && typeof raw === 'object' && !Array.isArray(raw) && (raw as Record<string, unknown>).lobby_live === 'cf' ? 'cf' : 'supabase';
+
+/** The dev override for `lobby_live` (`?versusRoute=lobby_live:cf`, or `*:cf`), from the same tab key. Pure. */
+export function parseLobbyLiveOverride(raw: string | null): VersusHost | null {
+  if (!raw) return null;
+  let out: VersusHost | null = null;
+  for (const part of raw.split(',')) {
+    const [mode, host] = part.split(':').map((s) => s.trim());
+    if ((mode === 'lobby_live' || mode === '*') && isHost(host)) out = host;
+  }
+  return out;
+}
+
+/** The dev tab's `lobby_live` override, or null (dev builds / Versus test tools only; `devRouteOverride` keeps the key). */
+export function devLobbyLiveOverride(): VersusHost | null {
+  try {
+    if (typeof window === 'undefined' || !(import.meta.env.DEV || localStorage.getItem('ascent.versus') === '1')) return null;
+    devRouteOverride(); // the URL's `?versusRoute=` lands in the tab key first
+    return parseLobbyLiveOverride(sessionStorage.getItem(ROUTE_KEY));
   } catch {
     return null;
   }
@@ -144,18 +174,24 @@ export function makeRoomHostMemory(storage: Pick<Storage, 'getItem' | 'setItem'>
 
 /** A cached reader of the switch. `fetch` failing (no migration yet, offline) reads as all Supabase for one TTL. */
 export function makeHostConfigReader(fetch: () => Promise<unknown>, now: () => number = Date.now, ttlMs = HOST_CONFIG_TTL_MS) {
-  let cached: { at: number; config: VersusHostConfig } | null = null;
+  let cached: { at: number; config: VersusHostConfig; lobbyLive: VersusHost } | null = null;
   let flight: Promise<VersusHostConfig> | null = null;
+  const get = async (): Promise<VersusHostConfig> => {
+    if (cached && now() - cached.at < ttlMs) return cached.config;
+    flight ??= fetch()
+      .then((raw) => ({ config: parseHostConfig(raw), lobbyLive: parseLobbyLiveHost(raw) }), () => ({ config: { ...DEFAULT_HOST_CONFIG }, lobbyLive: 'supabase' as VersusHost }))
+      .then((r) => { cached = { at: now(), ...r }; return r.config; })
+      .finally(() => { flight = null; });
+    return flight;
+  };
   return {
     /** The last value read (no network): Supabase everywhere before the first read. */
     peek: (): VersusHostConfig => cached?.config ?? { ...DEFAULT_HOST_CONFIG },
-    async get(): Promise<VersusHostConfig> {
-      if (cached && now() - cached.at < ttlMs) return cached.config;
-      flight ??= fetch()
-        .then(parseHostConfig, () => ({ ...DEFAULT_HOST_CONFIG }))
-        .then((config) => { cached = { at: now(), config }; return config; })
-        .finally(() => { flight = null; });
-      return flight;
+    get,
+    /** `lobby_live` as last read, with no network (Supabase before the first read); a stale read refreshes behind. */
+    peekLobbyLive(): VersusHost {
+      if (!cached || now() - cached.at >= ttlMs) void get();
+      return cached?.lobbyLive ?? 'supabase';
     },
   };
 }

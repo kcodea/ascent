@@ -37,6 +37,8 @@ export const VERSUS_CF_CLOSE = {
   roomClosed: 4404,
   /** The same account opened a newer socket on this room (one live socket per account per room). */
   replaced: 4000,
+  /** A live game refused this watcher for good (its own game, the stands full, no such game; R-LIVE-CF-01). */
+  refused: 4403,
 } as const;
 
 /** The text frame a client sends as a keep-alive. The object answers it WITHOUT waking (hibernation auto-response). */

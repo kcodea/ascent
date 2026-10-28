@@ -30,6 +30,9 @@ export interface LiveGameRow {
   mode?: LiveGameMode | null;
   /** The players' line of a Versus match ("Ann vs Bob", "Ann & Bob vs Cat & Dan"). */
   players?: string | null;
+  /** LIVE GAMES ON CLOUDFLARE (R-LIVE-CF-01; 2026-11-10-lobby-live-cf.sql): `cf:<content revision>` when the game is
+   *  published on the Worker (watch it there), null / absent for the Supabase path. */
+  live_host?: string | null;
 }
 
 export type LiveGameMode = 'casual' | 'practice' | 'duel' | 'group' | 'duos' | 'ranked_duos';
@@ -54,14 +57,15 @@ const missingColumn = (e: { code?: string } | null | undefined): boolean => e?.c
 
 export function makeLiveRemote(getClient: () => SupabaseClient | null) {
   let watchAsMissing = false;
-  /** A server without the 2026-11-08 migration has no `mode` / `players`: read the old columns from then on. */
-  let legacyCols = false;
-  const cols = (): string => (legacyCols ? BASE_COLS : `${BASE_COLS}, mode, players`);
-  /** A read of the listing, retried once with the old columns on a server that lacks the new ones. */
+  /** The newest columns this server has: 2 = `live_host` too (2026-11-10), 1 = `mode` / `players` (2026-11-08), 0 =
+   *  the original listing. A server without a migration is read with the columns it has from then on. */
+  let colLevel = 2;
+  const cols = (): string => [BASE_COLS, `${BASE_COLS}, mode, players`, `${BASE_COLS}, mode, players, live_host`][colLevel]!;
+  /** A read of the listing, retried with older columns on a server that lacks the new ones. */
   async function read<T>(q: (columns: string) => PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>): Promise<T> {
     let { data, error } = await q(cols());
-    if (error && !legacyCols && missingColumn(error)) {
-      legacyCols = true;
+    while (error && colLevel > 0 && missingColumn(error)) {
+      colLevel -= 1;
       ({ data, error } = await q(cols()));
     }
     if (error) fail(error);

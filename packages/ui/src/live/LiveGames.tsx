@@ -69,7 +69,7 @@ export function LiveGames(): JSX.Element | null {
     // A Versus match or a Ranked Duos team (R-RANKED-DUOS-PARTY-01) watches its room from the stands, on its own host;
     // a lobby game opens the live watch screen.
     const t = liveWatchTargetOf(r.game_id);
-    void (t.kind === 'room' ? goToVersusRoom(t.ref, 'spectator', t.area) : watchLiveGame(t.gameId)).then((ok) => {
+    void (t.kind === 'room' ? goToVersusRoom(t.ref, 'spectator', t.area) : watchLiveGame(t.gameId, r)).then((ok) => {
       setJoining(null);
       if (ok) useGame.setState({ showLiveGames: false });
     });

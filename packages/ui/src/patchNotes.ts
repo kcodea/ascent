@@ -71,6 +71,9 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-28',
     changes: [
+      { category: 'Systems', text: 'Watching a Versus match to the end earns spectator XP again.', details: [
+        'Watching a Versus 1v1, Group or Duos match to the end gives the same XP as watching any other game.',
+      ] },
       { category: 'Systems', text: 'Friends now shows you as online the whole time your game is open.', details: [
         'Before, a game left in a background tab could show as Offline to your friends.',
         'Closing the game now shows you as Offline to your friends right away.',

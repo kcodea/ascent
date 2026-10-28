@@ -8,7 +8,7 @@ This is the runbook for moving a Versus mode onto the Cloudflare Worker and back
 
 | Piece | Where | What it does |
 |---|---|---|
-| **The switch** | `public.versus_host_config` (one row per mode: `duel`, `group`, `duos`, `ranked_duos`; host `supabase` or `cf`) — `supabase/migrations/2026-11-05-versus-host-config.sql` | Decides where **new** rooms of that mode are created. Nothing else. Every mode starts on `supabase`. |
+| **The switch** | `public.versus_host_config` (one row per mode: `duel`, `group`, `duos`, `ranked_duos`, and since 2026-11-10 `lobby_live`; host `supabase` or `cf`) — `supabase/migrations/2026-11-05-versus-host-config.sql`, `2026-11-10-lobby-live-cf.sql` | Decides where **new** rooms of that mode are created (`lobby_live`: where a new live lobby / Practice game publishes its spectator stream). Nothing else. Every mode starts on `supabase`. |
 | **The client's read** | `versus_host_config()` RPC, read once at launch and at most every 30 s while creating rooms (`packages/ui/src/versus/versusHost.ts`) | Tiny jsonb. Only builds that carry a Worker URL read it at all. A failed read = everything on Supabase. |
 | **The router** | `packages/ui/src/versus/versusRouter.ts` (the game's `versusRemote`) | Sends each call to the room's host. A room keeps the host it was created on **for life**; the client remembers it across a reload. |
 | **The Worker URL** | `VITE_VERSUS_CF_URL`, baked in by `npm run release:web -- --versus-cf` | A build with no URL (or a URL for a different content revision) is Supabase-only whatever the switch says. |
@@ -111,8 +111,47 @@ VERSUS_ALLOWED_ORIGINS="https://ascent-game-web.netlify.app,https://play.example
   `versus_cf_writer_keys` holds, so nothing new to provision); `friends_invite` refuses a `cf:` invite without a valid
   proof (`room_check`). A Worker with no writer secret answers `invites_unavailable`.
 
+## Lobby and Practice spectating: `lobby_live` (2026-11-10)
+
+Owner 2026-10-29: "build the cloudflare spectating for lobby and practice too so it's all uniform" (R-LIVE-CF-01). With
+`lobby_live` on `cf`, a NEW live lobby or Practice game publishes to its own Durable Object on the Worker
+(`VersusLiveGame`, `GET /live/<game>/ws`) instead of the Supabase heartbeat / broadcast channel / `lobby_live_frames`.
+The object writes the game's Live Games row itself through the key-gated `lobby_live_cf` (on a change plus a 2-minute
+keep-alive, `live_host = 'cf:<content revision>'`, removed at the end); watchers reach the game on that Worker. A game
+keeps its host for life, so a flip (either way) moves only new games. A player whose Worker does not answer within 6 s
+publishes that game on Supabase instead (the heartbeat takes the row back).
+
+**Spectator XP on Cloudflare (R-LIVE-CF-XP-01).** Every Cloudflare watch now earns spectator XP: the Versus room (any
+mode) and the live game object beat their stands' watch record through the key-gated `spectate_cf_beat` (same accrual
+rule and caps as `spectate_beat`; one call per object every 30 s for all its watchers). This closes the gap this runbook
+used to list ("watching a Cloudflare match earns no spectator XP"). It needs the migration applied and a Worker deployed
+with `--persist` (PERSIST on) whose writer key is registered.
+
+### Cutover steps for `lobby_live`
+
+1. Apply `supabase/migrations/2026-11-10-lobby-live-cf.sql` (after 2026-11-08). Safe on its own: `lobby_live` starts
+   on `supabase`; the heartbeat, watch and listing behave as before for every Supabase game; older clients read the
+   listing without the new column. It also turns on spectator XP for Cloudflare Versus watches as soon as a Worker
+   carrying this code is live.
+2. Ship a pack with the Worker: `npm run release:web -- --versus-cf` (deploys the Worker with the new `VersusLiveGame`
+   class: Durable Object migration tag `v2`, applied by the deploy). Do the usual versus-resolve redeploy. Make sure
+   the printed `insert into public.versus_cf_writer_keys ...` line was run for this Worker (no key = no Live Games row
+   and no spectator XP from it; watching itself still works).
+3. Flip:
+   ```sql
+   update public.versus_host_config set host = 'cf', updated_at = now(), note = 'cutover lobby_live' where mode = 'lobby_live';
+   select public.versus_host_config();
+   ```
+   Clients pick it up within 30 s (read at launch, cached 30 s); games already running keep their host.
+4. Check: start a Practice game in one browser, Watch it from Live Games in another (Claudebot accounts). The row's
+   `live_host` is `cf:<rev>` (`select game_id, live_host, live_until from public.lobby_live_games;`); during the watch,
+   `select * from public.spectate_sessions where run_id like 'watch:lobby:%' order by last_seen_at desc limit 5;`
+   shows the watcher's time growing every 30 s.
+5. Roll back (instant): `update public.versus_host_config set host = 'supabase', updated_at = now(), note = 'rollback lobby_live' where mode = 'lobby_live';`
+   New games publish on Supabase within 30 s; Cloudflare games finish where they are.
+
+Dev: `?versusRoute=lobby_live:cf` (or `?versusHost=cf` for everything) against `npm run versus:cf:dev`.
+
 ## Still open (not in this plumbing)
 
-- **Spectator XP for a Cloudflare match**: `spectate_beat` checks `versus_members` / the match rows, which a Cloudflare
-  room does not keep live, so watching a Cloudflare match earns no spectator XP yet.
 - **A rollout percentage** (`cf:<percent>` in the design doc) is not built; the switch is all or nothing per mode.

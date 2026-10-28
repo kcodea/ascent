@@ -34,9 +34,18 @@ class_name = "VersusRoom"
 name = "DIRECTORY"
 class_name = "VersusDirectory"
 
+[[durable_objects.bindings]]
+# LIVE GAMES ON CLOUDFLARE (2026-10-29, R-LIVE-CF-01): one object per live lobby / Practice game.
+name = "LIVE"
+class_name = "VersusLiveGame"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["VersusRoom", "VersusDirectory"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["VersusLiveGame"]
 
 [observability]
 enabled = true

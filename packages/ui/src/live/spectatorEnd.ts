@@ -15,6 +15,11 @@
  *    settlement) once it settles. `SpectatorEndNotice` draws it.
  *
  * Nothing here runs on a render or a click path: one RPC every few seconds, one at the end.
+ *
+ * A CLOUDFLARE WATCH (2026-10-29, R-LIVE-CF-XP-01): a Versus room or a live game on the Worker writes its stands' watch
+ * record itself (`spectate_cf_beat`; the object is the witness, Supabase holds no membership row to check). Such a watch
+ * is marked `server` (`markServerRecordedWatch`, or `startSpectatorBeat(..., { server: true })`): this client sends no
+ * beat for it, and its end settles on the object's record (same XP rules, same caps).
  */
 import { create } from 'zustand';
 import { spectateRunId, type SpectateKind } from '@game/progression';
@@ -67,7 +72,14 @@ export function setSpectateBeatForTests(fn: Beat | null): void { beatFn = fn ?? 
  *  refused while the watch was complete: a game a beat saw end still settles (found in the Versus Group live test,
  *  2026-10-24). */
 let sawEnd = new Set<string>();
+/** Watches whose record the server's object writes (a Cloudflare room or live game): never beaten from here. */
+let serverRecorded = new Set<string>();
+/** This watch's record is written by the Cloudflare object the spectator is connected to (R-LIVE-CF-XP-01). */
+export function markServerRecordedWatch(kind: SpectateKind, target: string): void {
+  serverRecorded.add(spectateRunId(kind, target));
+}
 async function beat(kind: SpectateKind, target: string): Promise<boolean> {
+  if (serverRecorded.has(spectateRunId(kind, target))) return true;
   const r = await beatFn(kind, target);
   const ok = typeof r === 'boolean' ? r : r.ok;
   if (typeof r !== 'boolean' && r.ok && r.ended) sawEnd.add(spectateRunId(kind, target));
@@ -76,12 +88,15 @@ async function beat(kind: SpectateKind, target: string): Promise<boolean> {
 
 let current: { kind: SpectateKind; target: string; timer: number | null } | null = null;
 
-/** The watch screen for this game is open: beat now and every few seconds. Idempotent for the same game. */
-export function startSpectatorBeat(kind: SpectateKind, target: string): void {
+/** The watch screen for this game is open: beat now and every few seconds. Idempotent for the same game. `server`: the
+ *  record is the Cloudflare object's (no beat from here). */
+export function startSpectatorBeat(kind: SpectateKind, target: string, opts?: { server?: boolean }): void {
+  if (opts?.server) markServerRecordedWatch(kind, target);
   if (current && current.kind === kind && current.target === target) return;
   stopSpectatorBeat();
   const s: NonNullable<typeof current> = { kind, target, timer: null };
   current = s;
+  if (serverRecorded.has(spectateRunId(kind, target))) return;
   void beat(kind, target);
   // A background tab beats every 30 s (the first 10 s tick past 25 s) instead of every 10 s (R-NET-BACKOFF-01): still inside the server's 45 s
   // continuity window, so the watch record (and the XP for watching) is exactly the same.
@@ -148,5 +163,6 @@ export function resetSpectatorEndForTests(): void {
   stopSpectatorBeat();
   ended = new Set();
   sawEnd = new Set();
+  serverRecorded = new Set();
   useSpectatorEnd.setState({ notice: null });
 }

@@ -31,6 +31,7 @@ import {
   type VersusCfPush,
   type VersusCfServerMessage,
 } from './protocol';
+import type { LiveOp } from './liveProtocol';
 
 /** The few WebSocket members the client needs (the browser's, undici's and Miniflare's all fit). */
 export interface WebSocketLike {
@@ -51,6 +52,12 @@ export interface VersusCfClientOptions {
   /** The Worker's origin, e.g. `http://127.0.0.1:8787`. */
   baseUrl: string;
   roomId: string;
+  /** The socket's path (default: the room's, `versusCfSocketPath(roomId)`). A live game passes `liveCfSocketPath`. */
+  path?: string;
+  /** The hello's arguments (default: the room hello: protocol, Versus protocol, content revision). */
+  hello?: () => Record<string, unknown>;
+  /** The hello's answer, after every (re)connect. Given, it REPLACES the room's replay of room / match / priv. */
+  onHello?: (data: unknown) => void;
   /** The bearer token (a Supabase access token, or `dev.<uuid>.<name>` against a dev Worker). Re-read on reconnect. */
   token: () => Promise<string>;
   versusProtocol: number;
@@ -96,7 +103,7 @@ export class VersusCfClient {
   readonly stats: VersusCfClientStats = { msgsOut: 0, msgsIn: 0, bytesOut: 0, bytesIn: 0, pings: 0, reconnects: 0 };
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
   private readonly clearTimer: (h: unknown) => void;
-  private openWaiters: (() => void)[] = [];
+  private openWaiters: { resolve: () => void; reject: (e: Error) => void }[] = [];
   /** Drops the CURRENT socket as if it closed (the stale keep-alive path). */
   private downCurrent: ((code?: number, reason?: string) => void) | null = null;
   /** The pending reconnect (cleared when a wake reconnects first). */
@@ -117,13 +124,13 @@ export class VersusCfClient {
     this.closed = false;
     if (!this.unwake && this.o.wake) this.unwake = this.o.wake(() => this.reconnectNow());
     return new Promise<void>((resolve, reject) => {
-      this.openWaiters.push(resolve);
-      void this.open().catch(reject);
+      this.openWaiters.push({ resolve, reject });
+      void this.open().catch((e: Error) => { this.openWaiters = this.openWaiters.filter((w) => w.resolve !== resolve); reject(e); });
     });
   }
 
   /** One request. Rejects with the server's error code (`VersusCfError`). */
-  request<T = unknown>(op: VersusCfOp, args: Record<string, unknown> = {}): Promise<T> {
+  request<T = unknown>(op: VersusCfOp | LiveOp, args: Record<string, unknown> = {}): Promise<T> {
     if (this.closed) return Promise.reject(new VersusCfError('closed'));
     const id = this.nextId++;
     const frame = JSON.stringify({ t: 'req', id, op, args });
@@ -192,7 +199,7 @@ export class VersusCfClient {
   private async open(): Promise<void> {
     if (this.closed) return;
     const token = await this.o.token();
-    const url = this.o.baseUrl.replace(/^http/, 'ws').replace(/\/$/, '') + versusCfSocketPath(this.o.roomId);
+    const url = this.o.baseUrl.replace(/^http/, 'ws').replace(/\/$/, '') + (this.o.path ?? versusCfSocketPath(this.o.roomId));
     const ws = this.o.ws(url, [VERSUS_CF_SUBPROTOCOL, VERSUS_CF_BEARER_PREFIX + token]);
     this.ws = ws;
     ws.addEventListener('open', () => {
@@ -200,24 +207,36 @@ export class VersusCfClient {
       this.lastPong = Date.now();
       // The hello goes out ahead of anything queued.
       const id = this.nextId++;
-      const frame = JSON.stringify({ t: 'req', id, op: 'hello', args: { protocol: VERSUS_CF_PROTOCOL, versusProtocol: this.o.versusProtocol, contentRevision: this.o.contentRevision } });
+      const args = this.o.hello?.() ?? { protocol: VERSUS_CF_PROTOCOL, versusProtocol: this.o.versusProtocol, contentRevision: this.o.contentRevision };
+      const frame = JSON.stringify({ t: 'req', id, op: 'hello', args });
       const timer = this.setTimer(() => this.pending.delete(id), this.o.requestTimeoutMs ?? 15_000);
       this.pending.set(id, {
         resolve: (data) => {
           this.ready = true;
           this.attempt = 0;
-          const d = data as { room?: Record<string, unknown>; match?: Record<string, unknown> | null; priv?: Record<string, unknown> | null };
-          const now = new Date().toISOString();
-          if (d.room) this.o.onPush?.({ t: 'room', room: d.room, now });
-          if (d.match) this.o.onPush?.({ t: 'match', match: d.match, now });
-          if (d.priv) this.o.onPush?.({ t: 'priv', priv: d.priv, now });
+          if (this.o.onHello) this.o.onHello(data);
+          else {
+            const d = data as { room?: Record<string, unknown>; match?: Record<string, unknown> | null; priv?: Record<string, unknown> | null };
+            const now = new Date().toISOString();
+            if (d.room) this.o.onPush?.({ t: 'room', room: d.room, now });
+            if (d.match) this.o.onPush?.({ t: 'match', match: d.match, now });
+            if (d.priv) this.o.onPush?.({ t: 'priv', priv: d.priv, now });
+          }
           this.o.onStatus?.('open');
-          for (const w of this.openWaiters.splice(0)) w();
+          for (const w of this.openWaiters.splice(0)) w.resolve();
           // Requests that waited for the socket (or were sent on a socket that died before answering) go now.
           for (const [pid, p] of this.pending) { if (!p.sent) this.flushOne(pid); }
           this.schedulePing();
         },
-        reject: () => undefined,
+        // A refused hello (a live game: not yours, full, over) fails the connect; the socket is closed for good.
+        // (Live games only: a room's refused hello is followed by its fatal close code, as before.)
+        reject: (e) => {
+          if (!this.o.onHello) return;
+          const waiters = this.openWaiters.splice(0);
+          if (!waiters.length) return;
+          this.closed = true;
+          for (const w of waiters) w.reject(e);
+        },
         timer,
         sent: true,
         frame,
@@ -243,7 +262,7 @@ export class VersusCfClient {
       // idempotent or fenced by seq/round on the server, as the SQL RPCs were).
       for (const p of this.pending.values()) p.sent = false;
       const fatal = code === VERSUS_CF_CLOSE.versionMismatch || code === VERSUS_CF_CLOSE.roomClosed || code === VERSUS_CF_CLOSE.unauthorized
-        || code === VERSUS_CF_CLOSE.replaced;
+        || code === VERSUS_CF_CLOSE.replaced || code === VERSUS_CF_CLOSE.refused;
       if (this.closed || fatal) {
         this.o.onStatus?.('dead', reason ?? String(code));
         for (const [id, p] of this.pending) { this.clearTimer(p.timer); p.reject(new VersusCfError(reason || 'closed')); this.pending.delete(id); }

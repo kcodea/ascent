@@ -7,6 +7,7 @@
   "exports": {
     "./protocol": "./src/protocol.ts",
     "./client": "./src/client.ts",
+    "./live": "./src/liveProtocol.ts",
     "./core": "./src/core/roomCore.ts",
     "./core/storage": "./src/core/storage.ts"
   },

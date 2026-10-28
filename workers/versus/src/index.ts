@@ -9,6 +9,8 @@
  *   GET  /me/room              the caller's room id (auth)
  *   GET  /rooms/<id>/ws        the room's WebSocket (auth via the subprotocol; upgraded in the room object)
  *   GET  /rooms/<id>/metrics   DEV only: the room's counters (the measurement script)
+ *   GET  /live/<game>/ws       a live lobby / Practice game's WebSocket (auth via the subprotocol; R-LIVE-CF-01)
+ *   GET  /live/<game>/metrics  DEV only: the live game's counters (the tests)
  */
 import { engineContentRevision, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { bearerOf, verifyCaller, type AuthEnv } from './auth';
@@ -17,12 +19,15 @@ import type { CreateRoomInput } from './core/roomCore';
 import { VersusDirectory } from './directory';
 import { VERSUS_CF_BEARER_PREFIX, VERSUS_CF_PROTOCOL, VERSUS_CF_ROUTES } from './protocol';
 import { INTERNAL_USER_HEADER, VersusRoom, type RoomEnv } from './room';
+import { LIVE_GAME_HEADER, LIVE_USER_HEADER, VersusLiveGame } from './liveGame';
+import { LIVE_GAME_ID } from './liveProtocol';
 
-export { VersusRoom, VersusDirectory };
+export { VersusRoom, VersusDirectory, VersusLiveGame };
 
 export interface Env extends RoomEnv, AuthEnv {
   ALLOWED_ORIGINS?: string;
   ROOMS: DurableObjectNamespace<VersusRoom>;
+  LIVE: DurableObjectNamespace<VersusLiveGame>;
 }
 
 /** CORS headers for one request: only an allowed Origin is ever reflected. */
@@ -34,6 +39,7 @@ const corsFor = (origin: string | null): Record<string, string> => ({
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ROOM_WS = /^\/rooms\/([0-9a-f-]{36})\/(ws|metrics)$/i;
+const LIVE_WS = /^\/live\/([^/]{1,240})\/(ws|metrics)$/;
 const CONTENT = engineContentRevision();
 
 export default {
@@ -59,6 +65,19 @@ export default {
       // The verified user rides an internal header (the object is only reachable through this Worker).
       const headers = new Headers(req.headers);
       headers.set(INTERNAL_USER_HEADER, caller.userId);
+      return stub.fetch(new Request(req, { headers }));
+    }
+    const lv = LIVE_WS.exec(url.pathname);
+    if (lv) {
+      let gameId = '';
+      try { gameId = decodeURIComponent(lv[1]); } catch { /* bad escape */ }
+      if (!LIVE_GAME_ID.test(gameId)) return json(400, { error: 'bad_game' });
+      const stub = env.LIVE.get(env.LIVE.idFromName(`live:${gameId}`));
+      if (lv[2] === 'metrics') return env.DEV_AUTH === '1' ? json(200, await stub.metricsSnapshot()) : json(404, { error: 'not_found' });
+      if (!caller) return new Response('unauthorized', { status: 401 });
+      const headers = new Headers(req.headers);
+      headers.set(LIVE_USER_HEADER, caller.userId);
+      headers.set(LIVE_GAME_HEADER, gameId);
       return stub.fetch(new Request(req, { headers }));
     }
     if (!caller) return json(401, { error: 'not_signed_in' });

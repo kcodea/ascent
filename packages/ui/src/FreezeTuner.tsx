@@ -40,12 +40,17 @@ const SPECS: Record<(typeof FRZ_NUM_KEYS)[number], [string, TunerUnit | undefine
   iceSpellGlowAlpha: ['Resting glow strength', 'opacity', 'How strong that resting glow is.'],
   iceSpellDur: ['Grow-in time', 's', 'How long the top-to-bottom grow takes. Toggle Freeze to replay it.'],
   iceSpellFeather: ['Edge softness', '%', 'How soft the growing edge is. 0 = a hard line.'],
+  iceTauntW: ['Taunt ice width', '%', 'Width of the ice on a frozen Taunt minion, as % of its shield frame.'],
+  iceTauntH: ['Taunt ice height', '%', 'Height of the ice on a frozen Taunt minion, as % of its shield frame.'],
+  iceTauntX: ['Taunt ice X', '%', 'Shift the Taunt ice sideways, as % of the shield frame.'],
+  iceTauntY: ['Taunt ice Y', '%', 'Shift the Taunt ice up/down. Negative moves it up.'],
 };
 
 const controls: TunerControl<Extract<keyof FreezeConfig, string>>[] = FRZ_NUM_KEYS.map((key) => {
   const [label, unit, hint] = SPECS[key];
   const [min, max, step] = FRZ_RANGES[key];
-  const group = key.startsWith('iceSpell') ? (['iceSpellDur', 'iceSpellFeather'].includes(key) ? 'Spell ice — grow-in' : 'Spell ice — look')
+  const group = key.startsWith('iceTaunt') ? 'Taunt ice — fit'
+    : key.startsWith('iceSpell') ? (['iceSpellDur', 'iceSpellFeather'].includes(key) ? 'Spell ice — grow-in' : 'Spell ice — look')
     : key.startsWith('ice') ? (['iceDur', 'iceFeather'].includes(key) ? 'Minion ice — grow-in' : 'Minion ice — look')
     : key.startsWith('gemGlow') || key === 'gemHoverBright' ? 'Gem glow'
     : key.startsWith('gem') ? 'Gem overlay'

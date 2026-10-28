@@ -70,6 +70,14 @@ export interface FreezeConfig {
   iceSpellDur: number;
   /** SPELL ice — softness of the growing edge (%). */
   iceSpellFeather: number;
+  /** TAUNT ice — width, % of the shield frame box. Taunts share the minion art and look; only the fit is theirs. */
+  iceTauntW: number;
+  /** TAUNT ice — height, % of the shield frame box. */
+  iceTauntH: number;
+  /** TAUNT ice — horizontal shift, % of the shield frame box. +x → right. */
+  iceTauntX: number;
+  /** TAUNT ice — vertical shift, % of the shield frame box. +y → down (negative moves it up). */
+  iceTauntY: number;
 }
 
 // Mirrors the Tavern stone's anchor on the opposite side (its x is 8 at 0.155 of the stage; this sits at
@@ -108,6 +116,11 @@ const DEFAULTS: FreezeConfig = {
   iceSpellGlowAlpha: 0,
   iceSpellDur: 1.05,
   iceSpellFeather: 13,
+  // Taunt ice fit — starts equal to the minion fit; owner to tune on the shield frame.
+  iceTauntW: 116,
+  iceTauntH: 109.5,
+  iceTauntX: 0.25,
+  iceTauntY: 6.75,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -142,6 +155,10 @@ export const FRZ_RANGES: Record<keyof FreezeConfig, [number, number, number]> = 
   iceSpellGlowAlpha: [0, 1, 0.01],
   iceSpellDur: [0.1, 1.5, 0.01],
   iceSpellFeather: [0, 60, 1],
+  iceTauntW: [60, 160, 0.5],
+  iceTauntH: [60, 160, 0.5],
+  iceTauntX: [-30, 30, 0.25],
+  iceTauntY: [-30, 30, 0.25],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -176,11 +193,16 @@ export const FRZ_DESC: Record<keyof FreezeConfig, string> = {
   iceSpellGlowAlpha: 'Spell ice — resting glow strength.',
   iceSpellDur: 'Spell ice — how long the top-to-bottom grow takes (s).',
   iceSpellFeather: 'Spell ice — softness of the growing edge.',
+  iceTauntW: 'Taunt ice — width (% of the shield frame).',
+  iceTauntH: 'Taunt ice — height (% of the shield frame).',
+  iceTauntX: 'Taunt ice — horizontal shift (% of the shield frame).',
+  iceTauntY: 'Taunt ice — vertical shift (% of the shield frame). Negative = up.',
 };
 
 export const FRZ_NUM_KEYS = ['x', 'y', 'scale', 'gemX', 'gemY', 'gemS', 'pillX', 'pillY', 'pillS', 'gemGlowSize', 'gemGlowStrength', 'gemHoverBright',
   'iceW', 'iceH', 'iceSpellW', 'iceSpellH', 'iceX', 'iceY', 'iceOpacity', 'iceGlowSize', 'iceGlowAlpha', 'iceDur', 'iceFeather',
-  'iceSpellX', 'iceSpellY', 'iceSpellOpacity', 'iceSpellGlowSize', 'iceSpellGlowAlpha', 'iceSpellDur', 'iceSpellFeather'] as const;
+  'iceSpellX', 'iceSpellY', 'iceSpellOpacity', 'iceSpellGlowSize', 'iceSpellGlowAlpha', 'iceSpellDur', 'iceSpellFeather',
+  'iceTauntW', 'iceTauntH', 'iceTauntX', 'iceTauntY'] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as FRZ_DEFAULTS };
 
@@ -245,6 +267,11 @@ export function applyFreezeVars(): void {
   root.setProperty('--frz-ice-s-dur', `${cfg.iceSpellDur}s`);
   root.setProperty('--frz-ice-s-f0', `${50 - cfg.iceSpellFeather / 2}%`);
   root.setProperty('--frz-ice-s-f1', `${50 + cfg.iceSpellFeather / 2}%`);
+  // Taunt ice fit — the taunt rule in styles.css re-points the shared --frz-ice-w/h/x/y at these.
+  root.setProperty('--frz-ice-t-w', String(cfg.iceTauntW / 100));
+  root.setProperty('--frz-ice-t-h', String(cfg.iceTauntH / 100));
+  root.setProperty('--frz-ice-t-x', `${cfg.iceTauntX}%`);
+  root.setProperty('--frz-ice-t-y', `${cfg.iceTauntY}%`);
 }
 
 export function setFreezeValue(key: keyof FreezeConfig, value: number): void {

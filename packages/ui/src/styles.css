@@ -5302,6 +5302,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   left: calc(var(--ccw) * (0.5 - 0.758 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 1.086 * var(--sh)));
   aspect-ratio: 1086 / 1448;
+  /* Taunt has its OWN fit dials (❄️ Freeze → "Taunt ice — fit"); look + grow-in stay the Minion ice dials. The
+     fallbacks mirror freezeConfig.ts DEFAULTS (iceTaunt*). */
+  --frz-ice-w: var(--frz-ice-t-w, 1.16);
+  --frz-ice-h: var(--frz-ice-t-h, 1.095);
+  --frz-ice-x: var(--frz-ice-t-x, 0.25%);
+  --frz-ice-y: var(--frz-ice-t-y, 6.75%);
 }
 [data-zone='tavern'].frozen .card.spellframe::after {
   inset: auto;

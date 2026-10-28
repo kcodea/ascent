@@ -137,13 +137,14 @@ export function missingHint(c: CosmeticDef): string {
   return c.acquisition.type === 'level_milestone' ? `Reach Level ${c.acquisition.level} to earn it.` : c.acquisition.type === 'crate' ? 'Open chests to find it.' : 'Not found yet.';
 }
 
-/** A hero title's mastery line for the detail panel (owner 2026-09-29), or null for any other item. */
+/** A hero title's mastery line for the detail panel (owner 2026-09-29; the master look since 2026-10-28), or null for
+ *  any other item. */
 export function masteryText(c: CosmeticDef): string | null {
   const h = heroTitleInfo(c.id);
   if (!h) return null;
-  if (h.master) return 'Mastered. Shown as a golden plate.';
+  if (h.master) return 'Mastered. It glows with a starlit shine.';
   const req = achievementOf(`hero.${h.heroId}.mastery`)?.requirement;
-  return req ? `${req.replace(/\.$/, '')} to make it a golden plate.` : null;
+  return req ? `${req.replace(/\.$/, '')} to master it.` : null;
 }
 
 /** What a switched-off category will hold, for its "coming soon" view. */

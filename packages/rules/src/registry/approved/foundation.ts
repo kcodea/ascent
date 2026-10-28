@@ -2976,23 +2976,28 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-TITLE-04',
-    title: 'A master hero title renders as a golden plate with embroidered text on every surface that shows a title, as static CSS',
+    title: 'A master hero title renders in the master look (a glowing gradient pill with a light sweep and a twinkling star) on every surface that shows a title',
     statement:
-      'Wherever a title is shown (the Career name header, the Collection album tile, detail nameplate and preview, the New '
-      + 'rewards popup, the Achievements tab reward line, the Leaderboard, the Hall of Champions and Match details), a hero '
-      + 'title\x27s MASTER version (title_hero_<id>_master) is painted by TitleBadge as a bevelled metallic gold plate with a '
-      + 'dashed thread stitch inside its edge and the name embroidered in crimson satin stitch (thread strands clipped to '
-      + 'the letters over a raised, outlined underside). Its text content is exactly the title name (no native tooltip, no '
-      + 'own cursor), a custom title style never paints over it, and it is entirely static: no animation, transition or '
-      + 'will-change on any .tb-master rule. The base hero title keeps the normal rarity look.',
+      'Wherever a title is shown (the Career name header, the Mode screen player strip, the Collection album tile, detail '
+      + 'nameplate and preview, the New rewards popup, the Achievements tab reward line, the Leaderboard, the Hall of '
+      + 'Champions and Match details), a hero title\x27s MASTER version (title_hero_<id>_master) is painted by TitleBadge in '
+      + 'the master look (.tb-master): a dark pill with a cool blue and violet rim glow, the name in an ice to violet to pink '
+      + 'gradient, a slow light sweep across it and a twinkling star before it. It carries no rarity class (no rarity rule '
+      + 'paints over it), a custom title style never paints over it, and its text content is exactly the title name (the '
+      + 'star and the sweep are pseudo-elements; no native tooltip, no own cursor). Its two loops (tbshimmer, tbmtwinkle) '
+      + 'animate transform and opacity only, no .tb-master rule has a transition, and both loops stop under '
+      + 'prefers-reduced-motion. On a phone (the small touch UI) it is a size up in the Collection, the Career header and the player '
+      + 'strip. The base hero title keeps the normal rarity look. (Until 2026-10-28 the master was a static golden plate '
+      + 'with crimson embroidered text.)',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (hero titles)', quote: 'the master title should be a golden plate and embroidered text' },
-      { kind: 'code', ref: 'packages/ui/src/titles/TitleBadge.tsx; packages/ui/src/titles/titleStyle.ts (TitleLook.master); packages/ui/src/styles.css (.titlebadge.tb-master); packages/ui/src/Career.tsx; packages/ui/src/progression/CollectionScreen.tsx; packages/ui/src/progression/NewRewardsPopup.tsx; packages/ui/src/progression/AchievementsTab.tsx' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-28 (master title restyle; owner picked direction B, Exciting)', quote: 'can you make the mastery title\'s way cleaner and exciting looking? they look gross with gold and red' },
+      { kind: 'code', ref: 'packages/ui/src/titles/TitleBadge.tsx; packages/ui/src/titles/titleStyle.ts (TitleLook.master); packages/ui/src/styles.css (.titlebadge.tb-master); packages/ui/src/touchUi.css; packages/ui/src/Career.tsx; packages/ui/src/PlayerStrip.tsx; packages/ui/src/progression/CollectionScreen.tsx; packages/ui/src/progression/collectionModel.ts (masteryText); packages/ui/src/progression/NewRewardsPopup.tsx; packages/ui/src/progression/AchievementsTab.tsx' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-29.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/titles/titles.test.tsx', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-09-29' },
+    currentBehaviour: 'Conforms, rebuilt 2026-10-28 (the golden plate of 2026-09-29 retired).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/titles/titles.test.tsx', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-10-28' },
   },
   {
     id: 'R-PROG-ATTACK-01',

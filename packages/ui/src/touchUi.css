@@ -389,6 +389,13 @@ html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mpview.mp-home {
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-home .mcdesc { font-size: 28px; }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-home .mclast { font-size: 20px; }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-home :is(.pstrip-rank-name, .pstrip-rank-mmr, .pstrip-go) { font-size: 24px; }
+/* The master hero title reads comfortably on a phone (owner ask 2026-10-28): the Collection album tile, its detail
+   nameplate and preview, the Career name header and the Mode screen's player strip each a size up. */
+html[data-touch-ui][data-touch-small] .colls-tile-name .titlebadge.colls-titleplate.tb-master { --tb-fs: 22px; }
+html[data-touch-ui][data-touch-small] .colls-plate-name .titlebadge.colls-titleplate-lg.tb-master { --tb-fs: 28px; }
+html[data-touch-ui][data-touch-small] .colls-preview-title .titlebadge.colls-titleplate.tb-master { --tb-fs: 19px; }
+html[data-touch-ui][data-touch-small] .titlebadge.cv2-titleplate.tb-master { --tb-fs: 22px; }
+html[data-touch-ui][data-touch-small] .titlebadge.pstrip-title.tb-master { --tb-fs: 17px; }
 /* The menu sidebar's buttons reach 32 pt (it scrolls if they outgrow the height). */
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --touch-sb: 1.6; }
 /* The menu pages zoom a step further on the phone layout so their body text reaches ~9 pt (they scroll). The touch UI

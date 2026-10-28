@@ -128,7 +128,6 @@ import { FxWorkbench } from './fx/ui/Workbench';
 import { BeatLab } from './beatLab/BeatLab';
 import { ALL_TUNER_SPECS, resetAllTuners } from './tunerAll';
 import { isUiEditMode, setUiEditMode } from './uiEditor/config';
-import { cycleMasterTitleLook } from './titles/masterTitleLook';
 
 /**
  * DEV-only Dev Tuning Menu — the single 🛠️ button that indexes every tuner panel.
@@ -398,9 +397,6 @@ export function DevMenu() {
     { id: 'workbench', icon: '🎨', label: 'FX Workbench', hint: 'Author effects and bind them to combat moments', run: () => setWbOpen(true) },
     { id: 'uiedit', icon: '🎛️', label: 'UI Edit Mode', hint: 'Direct-manipulation editor for in-run UI',
       run: () => setUiEditMode(!isUiEditMode()), live: () => isUiEditMode() },
-    { id: 'mastertitle', icon: '🏷️', label: 'Master title look',
-      hint: 'Cycle the master hero title look: plate (shipped), A clean, B exciting, C badge. Dev only, repaints every title at once',
-      run: () => { cycleMasterTitleLook(); } },
     { id: 'beatlab', icon: '🥁', label: 'Beat Lab', hint: 'Read-only viewer: the source-attributed trigger/consequence tree of the last action', run: () => setBlOpen(true) },
     { id: 'rulebook', icon: '📜', label: 'Rulebook Triage', hint: "The owner's ruling board — Doc Bot's queues as clickable Approve/Revise/Reject cards; clicks write decisions.json", run: () => setRbOpen(true) },
     { id: 'bugboard', icon: '🐛', label: 'Bug Board', hint: 'The bug inbox — triage player reports, hand-pick a stack, send the work order to Claude', run: () => setBugOpen(true) },

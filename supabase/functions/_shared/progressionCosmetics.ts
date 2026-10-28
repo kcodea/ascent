@@ -210,10 +210,11 @@ const cardPlate = (id: string, name: string, rarity: CosmeticRarity, master: str
  * after 10 wins with that hero. the master title should be a golden plate and embroidered text"). Two items per
  * playable hero, both ACHIEVEMENT-sourced (never in a crate):
  *   `title_hero_<id>`         the hero's title, from `hero.<id>.titled` (3 Ranked 1sts). Epic; the normal title look.
- *   `title_hero_<id>_master`  the SAME name as a golden plate with embroidered text, from `hero.<id>.mastery` (10).
+ *   `title_hero_<id>_master`  the SAME name in the master look, from `hero.<id>.mastery` (10). The look was the golden
+ *                            plate until the owner picked the glowing gradient pill on 2026-10-28 (TitleBadge).
  * The master UPGRADES the title in place: it supersedes the base one everywhere a player picks or sees their titles
  * (`titleShelf`), the settlement swaps a worn base title for its master the moment it is earned, and every renderer
- * paints a master title as the plate (`isMasterTitle`).
+ * paints a master title in the master look (`isMasterTitle`).
  *
  * Names follow the owner's pattern (Warden "Warded", Gambler "Gambling Addict", Albus "Albus Student"); the rest come
  * from the 2026-09-28 achievements design pass. One per playable hero, in `ACHIEVEMENT_HEROES` order (achievements.ts;
@@ -232,7 +233,7 @@ export const HERO_TITLE_NAMES: ReadonlyArray<readonly [heroId: string, title: st
   ['cia', 'High Roller'], ['keshi', 'Crownbearer'], ['rayse', 'Thornbound'], ['gorun', 'Bladesworn'], ['mimic', 'Not a Mimic'],
 ] as const);
 
-/** The catalog id of a hero's title, and of its master (golden plate) version. Permanent. */
+/** The catalog id of a hero's title, and of its master version. Permanent. */
 export const heroTitleId = (heroId: string): string => `title_hero_${heroId}`;
 export const heroMasterTitleId = (heroId: string): string => `title_hero_${heroId}_master`;
 
@@ -890,7 +891,7 @@ export const HERO_TITLE_INFO: Readonly<Record<string, HeroTitleInfo>> = Object.f
   return [[info.baseId, { ...info, master: false }], [info.masterId, { ...info, master: true }]] as const;
 })));
 export const heroTitleInfo = (id: string | null | undefined): HeroTitleInfo | null => (id ? HERO_TITLE_INFO[id] ?? null : null);
-/** A MASTER hero title (10 Ranked 1sts): every renderer paints it as the golden embroidered plate. */
+/** A MASTER hero title (10 Ranked 1sts): every renderer paints it in the master look (TitleBadge). */
 export const isMasterTitle = (id: string | null | undefined): boolean => heroTitleInfo(id)?.master === true;
 
 /**

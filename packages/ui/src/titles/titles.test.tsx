@@ -85,16 +85,17 @@ describe('TitleBadge', () => {
   });
 });
 
-describe('the master hero title (owner 2026-09-29: "the master title should be a golden plate and embroidered text")', () => {
-  it('a master title is the golden plate everywhere TitleBadge renders it; the base title keeps the normal look', () => {
+describe('the master hero title (owner pick 2026-10-28: "they look gross with gold and red", replacing the golden plate)', () => {
+  it('a master title wears the master look everywhere TitleBadge renders it; the base title keeps the normal look', () => {
     m.render(<TitleBadge id="title_hero_warden_master" />);
-    const plate = badge()!;
-    expect(plate.classList.contains('tb-master')).toBe(true);
-    expect(plate.textContent).toBe('Warded'); // the stitch layer is empty; the emboss comes from data-text
-    expect(plate.querySelector('.tb-stitch')).not.toBeNull();
-    expect(plate.querySelector<HTMLElement>('.tb-text')!.dataset.text).toBe('Warded');
-    expect(plate.hasAttribute('title')).toBe(false);
-    // a custom gradient never paints over the plate
+    const master = badge()!;
+    expect(master.classList.contains('tb-master')).toBe(true);
+    expect(master.textContent).toBe('Warded'); // the star and the sweep are pseudo-elements, never text
+    expect(master.querySelector('.tb-stitch')).toBeNull(); // the retired golden plate's stitch layer is gone
+    expect([...master.classList].some((c) => c.startsWith('r-'))).toBe(false); // no rarity rule paints over it
+    expect(master.dataset.rarity).toBeTruthy();
+    expect(master.hasAttribute('title')).toBe(false);
+    // a custom gradient never paints over the master look
     m.render(<TitleBadge id="title_hero_warden_master" styles={{ title_hero_warden_master: { gradient: 'linear-gradient(#f00, #00f)', effect: 'shimmer' } }} />);
     expect(badge()!.classList.contains('tb-grad')).toBe(false);
     expect(badge()!.classList.contains('tb-shimmer')).toBe(false);
@@ -104,11 +105,24 @@ describe('the master hero title (owner 2026-09-29: "the master title should be a
     expect(badge()!.textContent).toBe('Warded');
   });
 
-  it('the plate is static CSS: no animation, no transition on it (docs/performance.md)', () => {
+  it('its loops animate transform and opacity only, and stop under reduced motion (docs/performance.md)', () => {
     const css = readFileSync(join(__dirname, '../styles.css'), 'utf8');
     const rules = [...css.matchAll(/([^{}]*\.tb-master[^{}]*)\{([^}]*)\}/g)];
     expect(rules.length).toBeGreaterThan(3);
-    for (const [, sel, body] of rules) expect(body, sel).not.toMatch(/animation|transition|will-change/);
+    const animated = rules.filter(([, , body]) => /animation:(?!\s*none)/.test(body!));
+    expect(animated.length).toBe(2); // the sweep and the star
+    for (const [, sel, body] of rules) expect(body, sel).not.toMatch(/transition/);
+    // Both keyframes are one-liners: every property they set is transform or opacity.
+    for (const name of ['tbshimmer', 'tbmtwinkle']) {
+      const line = css.split('\n').find((l) => l.startsWith(`@keyframes ${name} `));
+      expect(line, name).toBeTruthy();
+      const props = [...line!.matchAll(/([a-z-]+)\s*:/g)].map((x) => x[1]);
+      expect(props.length, name).toBeGreaterThan(0);
+      for (const p of props) expect(['transform', 'opacity'], `${name}: ${p}`).toContain(p);
+    }
+    const reduced = [...css.matchAll(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/g)].map((x) => x[1]).join('\n');
+    expect(reduced).toMatch(/\.titlebadge\.tb-master::after \{ animation: none/);
+    expect(reduced).toMatch(/\.titlebadge\.tb-master::before \{ animation: none/);
   });
 });
 

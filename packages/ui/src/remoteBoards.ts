@@ -1974,6 +1974,7 @@ export async function fetchRunBoards(userId: string, ids: readonly number[]): Pr
   if (!c || !userId || ids.length === 0) return null;
   try {
     const res = await Promise.race([
+      // rows: one per id asked for, and the caller asks for at most MATCH_ROWS (50) ids
       Promise.resolve(c.from('run_history').select(CAREER_BOARD_SELECT).eq('user_id', userId).in('id', [...ids])),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS)),
     ]);

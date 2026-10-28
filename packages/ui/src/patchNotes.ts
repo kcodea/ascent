@@ -88,6 +88,21 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Set 3: four new minions, Gramps and Zapdash reworked, and a few tier and Gold changes.',
+        details: [
+          'New: Studious Steven (Tier 4 Dragon, 6/4). Shout: Cast Quick Study.',
+          'New: Choosey Dragon (Tier 3 Dragon, 3/4). Rally: Cast Tribes Choice on the minion to the right of this.',
+          'New: Riftwalker (Tier 6 Dragon, 8/8). Avenge (3): Cast Waking Rift.',
+          'New: Beer Gut Bud (Tier 5 Dwarf, 6/2). Shout and Echo: Get a Dwarven Ale.',
+          'Gramps: Sell now gives your Rubies +1 Attack and casts a Ruby on a friendly Kobold.',
+          'Zapdash: now Pummel (12). Summon a Gemheart Golem and cast 2 Rubies on it. Twice per combat.',
+          'Goldvein: Pummel now gives 2 Gold next turn (was 3).',
+          'Whispwarder: now Tier 4 (was Tier 5).',
+          'Falx and Doubletap Brewer have left Set 3.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Ancients test mode: Midas, Keshi, Quillen and Disco Dan now have all six Ancient powers.',
         details: [
           'Ancients are only in the Scene Builder test mode for now.',

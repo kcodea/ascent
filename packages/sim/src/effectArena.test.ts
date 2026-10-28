@@ -97,6 +97,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     spellPower: () => ({ attack: 0, health: 0 }),
     castRepeat: (_id, body) => body(),
     castNamedSpell: () => {},
+    castNamedSpellOn: () => {},
     cardDef: () => undefined,
     gainShopBuff: () => {},
     grantUndeadAura: () => {},

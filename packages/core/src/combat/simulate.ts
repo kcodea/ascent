@@ -53,6 +53,12 @@ const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
 // (`rallyDerivation` in packages/sim/src/docbot/firePaths.ts) and fails when a watcher misses either path.
 export const RALLY_WATCHER_EFFECTS = new Set<string>(['onRallyBuffOnePerTribe', 'onRallyProcLeftmostEcho', 'onRallyPlayRubiesTribe']);
 const ITERATION_GUARD = 300;
+/** BODY GUARD (2026-10-28): the most bodies one side's board array may ever hold in one fight (the dead stay in it). A
+ *  self-feeding summon loop (a dev-only Ancient pair, Xerox's Avenge copy + Genesis's extra body, on a Wolves Den board)
+ *  re-summoned forever under the 7-living cap; every death scan walks the whole array, so the fight never ended (the
+ *  tag-team fuzz in CI hung). Past this many bodies a summon is refused silently, like a full board but with no overflow
+ *  payoff (an overflow watcher must not keep a runaway loop alive). Real boards stay far below it. */
+const BODY_GUARD = 400;
 const REATTACK_GUARD = 50;
 /** Rune of Ruins: the flat per-stat grant each landed friendly-Demon hit gives that side's board. */
 const RUNE_RUINS_BUFF = 2;
@@ -2597,6 +2603,13 @@ export function simulate(
       summonGenesisExtras(side, card, nearUid, grantKeywords, golden, attackNow, copyStats, doubled);
       return minion;
     }
+    if (boards[side].length >= BODY_GUARD) {
+      // BODY GUARD: a runaway summon loop stops here, silently (see BODY_GUARD). Same bookkeeping as an overflow.
+      if (undertowWarded.delete(minion)) undertowUsed[side] -= 1;
+      rubiesOnLanding.delete(minion);
+      if (foodChainTaken.delete(minion)) foodChainUsed[side] = false;
+      return minion;
+    }
     const arr = boards[side];
     let index = arr.length;
     if (nearUid) {
@@ -3442,9 +3455,17 @@ export function simulate(
       const named = p.tokenId;
       const token = cards[typeof named === 'string' && named ? named : 'impscrap'];
       if (!token) return;
+      // ZAPDASH (owner 2026-10-27): "Pummel (12): Summon a Gemheart Golem and cast 2 Rubies on it." A `rubies` rider
+      // casts that many plain Rubies (`playRubyOn`) on EACH token that actually landed. With a rider, Gilded doubles the
+      // Rubies, never the bodies (Geode Guardian's convention); without one, Todd's Gilded doubles the bodies as before.
+      const rubies = typeof p.rubies === 'number' ? Math.max(0, p.rubies) : 0;
+      const bodies = rubies > 0 ? Math.max(0, typeof p.count === 'number' ? p.count : 1) : count;
       for (let k = 0; k < pays; k++) {
         fired();
-        for (let i = 0; i < count; i++) ctx.summon(dealer.side, token, dealer.uid);
+        for (let i = 0; i < bodies; i++) {
+          const m = ctx.summon(dealer.side, token, dealer.uid);
+          if (rubies > 0 && boards[dealer.side].includes(m) && !m.dead) playRubyOn(ctx, dealer, m, rubies * g);
+        }
       }
       return;
     }
@@ -3468,23 +3489,6 @@ export function simulate(
       for (let k = 0; k < pays; k++) {
         fired();
         ctx.grantRandomSpell(count, dealer.side, dealer.uid);
-      }
-      return;
-    }
-    if (eff.do === 'dealtDamageCastRubiesTribe') {
-      // Zapdash (owner 2026-10-22): "Pummel (10): Cast a Ruby on your Kobolds. (Twice per combat)". Each payout casts
-      // `count` (x2 gilded) PLAIN Rubies (owner confirmed 2026-10-22: "a Ruby" without "random" is the plain one) on
-      // every living friendly `tribe` body, Zapdash included, through the one combat Ruby primitive (`playRubyOn`:
-      // Ruby strength, Paragon, every Ruby watcher). Dual tribes and All-types count (`isTribeOf`). Combat Rubies are
-      // combat-only. The cap is `maxPerCombat` (2) on `pummelFires`, re-armed by a Rise / Rebirth return.
-      const named = p.tribe;
-      const tribe = typeof named === 'string' && named ? named : 'kobold';
-      for (let k = 0; k < pays; k++) {
-        fired();
-        for (const m of [...boards[dealer.side]]) {
-          if (m.dead || m.health <= 0 || !isTribeOf(m, tribe, cards)) continue;
-          playRubyOn(ctx, dealer, m, count);
-        }
       }
       return;
     }

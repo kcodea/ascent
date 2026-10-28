@@ -65,7 +65,7 @@ describe('detectCardKeywords', () => {
     const gover = CARD_INDEX['dw3_hangover']!;
     const vein = CARD_INDEX['k3_goldvein']!;
     expect(gover.text).toBe('**Pummel (40):** Get a **Dwarven Ale**. (Max 5 per combat.)'); // cap 5, owner 2026-09-24
-    expect(vein.text).toBe('**Pummel (6):** Gain **3 Gold** next turn. (Once per combat)');
+    expect(vein.text).toBe('**Pummel (6):** Gain **2 Gold** next turn. (Once per combat)'); // 2 Gold since 2026-10-27
     expect(ids({ keywords: gover.keywords, text: gover.text ?? '' })).toEqual(['pummel', 'ale']);
     expect(ids({ keywords: vein.keywords, text: vein.text ?? '' })).toEqual(['pummel']);
     // Maestro Lux (owner 2026-09-24): "Pummel (12): Get a random Celestial. (Once per combat.)" raises it too.

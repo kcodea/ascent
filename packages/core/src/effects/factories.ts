@@ -592,6 +592,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       });
     },
     castNamedSpell: (spellId) => castNamedSpellInCombat(ctx, self, spellId),
+    castNamedSpellOn: (spellId, target) => castNamedSpellOnInCombat(ctx, self, spellId, target as Minion),
     cardDef: (id) => ctx.getCard(id),
     gainShopBuff: (a, h, source) => ctx.gainTavernBuy(a, h, self.side, self.uid, source),
     grantUndeadAura: (a, h) => {
@@ -1086,6 +1087,16 @@ function resolveCombatSpellCastInner(ctx: CombatContext, self: Minion, def: Card
         for (const t of chosen()) playRubyOn(ctx, self, t, 1);
         did = true; break;
       }
+      case 'spellGainOfTargetTribe': {
+        // TRIBES CHOICE in combat (owner 2026-10-27, Choosey Dragon): "Get a random minion of the targeted minion's type
+        // (up to your tavern tier)". The Shop body reads the target's PRINTED tribe and a neutral target yields nothing;
+        // combat does the same through the shared combat random-minion grant (`grantRandomMinion`: the run's pool, up to
+        // the side's tier), so the card flies to hand mid-fight and settles via `playerHandGrants`.
+        const t = chosen()[0];
+        const tribe = t?.tribe;
+        if (t && tribe && tribe !== 'neutral') { ctx.grantRandomMinion(1, tribe, side, undefined, self.uid); did = true; }
+        break;
+      }
       case 'spellGainRandomMinion': {
         const tier = num(eff.params?.tier, 1);
         const pool = ctx.poolCards(side).filter((c) => !c.spell && !c.token && c.tier === tier);
@@ -1111,6 +1122,7 @@ const COMBAT_CASTABLE_SPELL_DOS = new Set([
   'spellRefreshTierUp', 'spellBuffShop', 'spellBuffTavern', 'spellBuffNextShop', 'getRubies', 'getRandomRubies', 'rubyStatGain',
   'spellGainRandomMinion', 'spellGrantTopTypeMinion', 'spellBuffRandomPerTribe', 'spellBuffHealthGrantFlurryDragon',
   'spellBuffTargetAndNeighbours', 'spellBuffByTier', // Beefy + Lantern Light (2026-08-19)
+  'spellGainOfTargetTribe', // Tribes Choice in combat (Choosey Dragon, owner 2026-10-27): a random minion of the target's type
 ]);
 
 /** Would `resolveCombatSpellCast` do anything with this spell? Pure — safe to gate on before castInCombat,
@@ -1141,6 +1153,24 @@ export function castNamedSpellInCombat(ctx: CombatContext, self: Minion, spellId
     // `withCastingSpell`), so the buffs it produces carry `spellId` on every combat cast path, not only this one.
     if (resolveCombatSpellCast(ctx, self, def, targets)) {
       ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
+    }
+  });
+}
+
+/** The TARGETED twin of `castNamedSpellInCombat` (Choosey Dragon, owner 2026-10-27): cast the named spell for real on
+ *  a GIVEN friendly body instead of a random legal one. Same pipeline (`castInCombat` + `resolveCombatSpellCast`: it
+ *  counts, wakes spell watchers, golden = two casts). A dead or illegal target, or a spell with no combat
+ *  implementation, fizzles without counting. */
+export function castNamedSpellOnInCombat(ctx: CombatContext, self: Minion, spellId: string, target: Minion): void {
+  const def = spellId ? ctx.getCard(spellId) : undefined;
+  if (!def?.spell || self.dead || !combatCastable(def) || !target || target.dead || target.health <= 0) return;
+  const arena = combatArena(ctx, self);
+  if (def.targetTribe && !arena.isTribe(target, def.targetTribe)) return;
+  if (def.targetNoGolden && target.golden) return;
+  castInCombat(ctx, self, () => {
+    if (target.dead || target.health <= 0) return;
+    if (resolveCombatSpellCast(ctx, self, def, [target])) {
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id, target: target.uid });
     }
   });
 }
@@ -1519,6 +1549,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // Rally: this minion's own attack only
     ARENA_EFFECTS.rallyCastNamedSpell(combatArena(ctx, self), params);
+  },
+  /** Choosey Dragon (Set 3, owner 2026-10-27): Rally, cast Tribes Choice on the minion to the right of this. */
+  rallyCastNamedSpellOnRight: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // Rally: this minion's own attack only
+    ARENA_EFFECTS.rallyCastNamedSpellOnRight(combatArena(ctx, self), params);
   },
 
   /** Set 2 — Warflame (combat): whenever a friendly minion of `tribe` attacks, cast a NAMED spell (Dragonflame).
@@ -2301,6 +2337,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return;
     ARENA_EFFECTS.rallyGrantRandomTribeMinion(combatArena(ctx, self), params);
+  },
+
+  /** RIFTWALKER (Set 3, owner 2026-10-27) — "Avenge (3): Cast Waking Rift." Every X friendly deaths (the shared avenge
+   *  window, `avengeCountFor`: a risen body counts from its rebirth) it casts the NAMED spell for real through the
+   *  phase's cast pipeline (`castNamedSpell` -> `castNamedSpellInCombat`), so it counts as a spell cast and wakes
+   *  spell watchers; its buffs are combat-only (R-BUFF-PERM). Golden = two genuine casts (inside `castNamedSpell`). */
+  avengeCastNamedSpell: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    const seen = avengeCountFor(self, count);
+    if (seen <= 0 || seen % x !== 0) return;
+    ARENA_EFFECTS.rallyCastNamedSpell(combatArena(ctx, self), params);
   },
 
   /** WOOZY (Set 3, 2026-10-15) — Avenge (X): every X friendly deaths, get `grant` random Whispers (the whole Whisper
@@ -3342,7 +3391,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   dealtDamageSummonToken: () => {}, // Impossible Todd (2026-10-10): the same meter, a summon-an-Imp body - `noteDamageDealt` pays it
   dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same meter, a random-Ruby body — `noteDamageDealt` pays it
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same meter, a random-Celestial body — `noteDamageDealt` pays it
-  dealtDamageCastRubiesTribe: () => {}, // Zapdash (2026-10-22): the same meter, a cast-a-Ruby-on-your-Kobolds body - `noteDamageDealt` pays it
   rubyCastGainSelfImproving: () => {}, // Rosey (2026-10-22): a passive marker - `playRubyOn` scans living friendlies for it, inside the Ruby it reacts to
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same meter, a Gold-next-turn body — `noteDamageDealt` pays it
 

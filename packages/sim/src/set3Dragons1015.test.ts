@@ -59,7 +59,7 @@ describe('the batch is Set 3 content', () => {
     const want: [string, number, number, number][] = [
       ['d3_gravus', 6, 10, 3] /* T5 8/3 -> T6 10/3 + Taunt, owner 2026-10-23 */, ['d3_wellwatcher', 5, 8, 8] /* T6 -> T5, owner 2026-10-15 */, ['d3_matriarch', 6, 4, 12],
       ['d3_woozy', 3, 5, 3], ['d3_iggy', 5, 7, 2], ['d3_hum', 2, 2, 5], ['d3_gardener', 1, 1, 1],
-      ['d3_baitbrood', 2, 2, 4], ['d3_hatcher', 4, 5, 4], ['d3_whispwarder', 5, 7, 5], // owner additions on #2097
+      ['d3_baitbrood', 2, 2, 4], ['d3_hatcher', 4, 5, 4], ['d3_whispwarder', 4, 7, 5], // owner additions on #2097; Whispwarder T5 -> T4 (owner 2026-10-27)
     ];
     const ids = poolFor('set3').buyable.map((c) => c.id);
     for (const [id, tier, a, h] of want) {

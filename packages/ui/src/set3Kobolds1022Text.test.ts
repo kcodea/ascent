@@ -36,8 +36,8 @@ describe('Rosey: the current grant in place, the countdown as the counter', () =
 });
 
 describe('Zapdash and Frack Attack wear their meters', () => {
-  it('Zapdash: the Pummel badge reads the lifetime tally mod 10', () => {
-    expect(stepProgress('k3_zapdash', { damageDealt: 23 })).toMatchObject({ current: 3, total: 10 });
+  it('Zapdash: the Pummel badge reads the lifetime tally mod 12 (Pummel (12) since 2026-10-27)', () => {
+    expect(stepProgress('k3_zapdash', { damageDealt: 23 })).toMatchObject({ current: 11, total: 12 });
   });
   it('Frack Attack: the friendly-attack meter as N/3', () => {
     expect(stepProgress('k3_frackattack', { attackSeen: 0 })).toMatchObject({ current: 0, total: 3 });

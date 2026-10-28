@@ -12,6 +12,25 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  // -- 2026-10-27 owner ask: Falx archived (Set 3 only, so it leaves every set). --
+  {
+    // ARCHIVED 2026-10-27 (owner Set 3 list: "archive falx"). Moved verbatim from set3/dragons.ts; belongs to no set
+    // now (it was Set 3 only). Its Whisper Ripple (`w3_ripple`) still resolves by id,
+    // but a random Whisper roll no longer offers it in Set 3 (`rollableWhisperIds` only rolls a Whisper whose Dragon is in the pool).
+    // T5 6/5 (owner 2026-10-14). "Whisper: Ripple - Trigger a minion's Shout." Grants the Whisper Ripple exactly as Galas
+    // and Tolan grant theirs (on play from hand + every Start of Turn while on the board). Gilded: a gilded Ripple, which
+    // triggers the Shout twice (each its own replay).
+    id: 'd3_falx',
+    name: 'Falx',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 6,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'startOfTurn', do: 'grantWhisper', params: { cardId: 'w3_ripple' } }],
+    text: "**Whisper:** Trigger a friendly minion's **Shout**.",
+    goldenText: "**Whisper:** Trigger a friendly minion's **Shout** twice.",
+  },
   // -- 2026-10-23 owner ask: Whisp and Gatherer archived (both Set 3 only, so they leave every set). --
   {
     // ARCHIVED 2026-10-23 (owner: "archive these dragons from set 3: * gatherer * whisp"). Moved verbatim from

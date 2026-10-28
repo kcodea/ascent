@@ -55,7 +55,6 @@ export const DAMAGE_METER_MARKERS: Readonly<Record<string, true>> = {
   dealtDamageAleMeter: true,     // Han Gover — "Pummel (40): Get a Dwarven Ale. (Once per combat)"
   dealtDamageGoldNextTurn: true, // Goldvein — "Pummel (6): Gain 3 Gold next turn. (Once per combat)"
   dealtDamageGrantRandomTribe: true, // Maestro Lux (2026-09-24) — "Pummel (12): Get a random Celestial. (Once per combat.)"
-  dealtDamageCastRubiesTribe: true, // Zapdash (owner 2026-10-22) - "Pummel (10): Cast a Ruby on your Kobolds. (Twice per combat)"
   dealtDamageGetRandomRuby: true, // Kobe (Ruby batch 2026-09-24) — "Pummel (15): Get a random Ruby. (Twice per combat)"
   dealtDamageGetRandomSpell: true, // Tauntbreaker (owner 2026-10-03) — "Pummel (25): Get a random Shop Spell. (Once per combat)"
   dealtDamageSummonToken: true, // Impossible Todd (owner 2026-10-10) - "Pummel (20): Summon an Imp. (Once per combat.)"
@@ -480,7 +479,7 @@ export type EffectFactoryId =
   | 'getRandomRubies' // Ruby Shipment (Ruby batch 2026-09-24) — get N RANDOM Rubies, each drawn separately from all six types
   | 'battlecryPlayRubiesRandomTribe' // Shardluck (Ruby batch 2026-09-24) — play N Rubies, each on a random friendly `tribe` minion
   | 'onSummonCardPlayRubiesSelf' // Gemheart Legionnaire (Ruby batch 2026-09-24) — when a friendly `cardId` is summoned, play N permanent Rubies on this
-  | 'dealtDamageSummonToken' // Impossible Todd (owner balance 2026-10-10): "Pummel (20): Summon an Imp. (Once per combat.)" - the shared damage meter with a summon body: each payout summons `params.count` (x2 gilded) `params.tokenId` beside the body through `ctx.summon`, capped by `params.maxPerCombat` (default 1)
+  | 'dealtDamageSummonToken' // Impossible Todd (owner balance 2026-10-10): "Pummel (20): Summon an Imp. (Once per combat.)" - the shared damage meter with a summon body: each payout summons `params.count` (x2 gilded) `params.tokenId` beside the body through `ctx.summon`, capped by `params.maxPerCombat` (default 1). Zapdash (owner 2026-10-27) adds a `params.rubies` rider: that many plain Rubies (x2 gilded) cast on each token that landed; with the rider Gilded doubles the Rubies, not the bodies
   | 'endOfTurnDemonsConsumeShop' // Hydraskus (owner add 2026-10-10): End of Turn, EVERY friendly `params.tribe` minion (left to right) consumes a random Shop minion, one End-of-Turn tick each (`eotTickCount`); gilded eaters gain double (`times`)
   | 'dealtDamageGetRandomSpell' // Tauntbreaker (owner 2026-10-03): "Pummel (25): Get a random Shop Spell. (Once per combat)" — the shared damage meter with a random-Shop-Spell body (`grantRandomSpell`, x2 gilded), capped by `params.maxPerCombat` (default 1)
   | 'dealtDamageGetRandomRuby' // Kobe (Ruby batch 2026-09-24): "Pummel (15): Get a random Ruby. (Twice per combat)" — the shared damage meter with a random-Ruby body (`grantRandomRubies`, x2 gilded), capped by `params.maxPerCombat`
@@ -545,6 +544,7 @@ export type EffectFactoryId =
   | 'deathrattleBuffShopPermanent' // Set 2 — Malphas Echo: death buffs Shop minions permanently
   | 'rallyBuffSelf' // Set 2 — Cinderchef: Rally gains +atk/+hp
   | 'rallyCastNamedSpell' // Set 2 — Flamebeat Drake: Rally casts a named spell (Dragonflame)
+  | 'rallyCastNamedSpellOnRight' // Set 3 Choosey Dragon (owner 2026-10-27): Rally casts a named TARGETED spell (Tribes Choice) on the minion to its right (both phases; golden twice)
   | 'onTribeAttackCastNamedSpell' // Set 2 — Warflame: a friendly Dragon attacks → cast a named spell (Dragonflame)
   | 'rallyGrantRandomShoutMinion' // Set 2 — Roarcollector: Rally adds a random Shout minion to hand
   | 'rallyTriggerTribeShouts' // Set 2 — Embercrest: Rally re-triggers your Dragon Shouts
@@ -1039,13 +1039,13 @@ export type EffectFactoryId =
   | 'rallyGrantRandomTribeMinion' // Gatherer: Rally: get `count` random `tribe` minions from the run's pool, tier-capped (x golden) (both phases)
   | 'deathrattleGiveAttackToOthers' // Gravus: Echo: give this minion's Attack to `count` different random other friendly minions (golden repeats the spread) (both phases)
   | 'whisperDiscoverTribe' // Well of Dragons (Well Watcher's Whisper): Discover a `tribe` minion, x the cast Whisper's multiplier (recruit)
+  | 'avengeCastNamedSpell' // Riftwalker (Set 3, owner 2026-10-27): Avenge (`count`): cast the named Shop spell `spellId` for real through the combat named-spell path (Gilded: two casts) (combat)
   | 'avengeGrantRandomWhispers' // Woozy: Avenge (`count`): get `grant` random Whispers (Gilded: gilded Whispers) (combat)
   | 'whisperKeepOnThis' // Hum (passive marker read by the Shop Whisper cast path): the first `count` (x golden) Whispers cast on this each turn are permanent (recruit)
   | 'whisperGetTribeOfTier' // Hatcher's Whisper (Set 3, 2026-10-15): get a random `tribe` minion of the held Whisper's tier (`grantedTier`, default 1), x the cast Whisper's multiplier (recruit)
   | 'whisperGrantKeyword' // Warding Call (Whispwarder's Whisper, 2026-10-15): the target gains `keyword` until your next turn; a gilded copy grants `gildedKeyword` instead (recruit)
   | 'whisperGrantSeedEcho' // Seed (Gardener's Whisper): the target gains "Echo: summon a 3/3 Drake Pup with Taunt" until your next turn, x the cast Whisper's multiplier (recruit)
   | 'battlecryGrantFreeRolls' // Boy Scout (Set 3 Kobold, owner 2026-10-22): Shout, bank `count` (x2 gilded) free Refreshes (`freeRolls`); combat Shout replays bank through `grantFreeRolls` (the Gryphon carry-back)
-  | 'dealtDamageCastRubiesTribe' // Zapdash (owner 2026-10-22): "Pummel (10): Cast a Ruby on your Kobolds. (Twice per combat)" - a DAMAGE_METER_MARKERS passive; each payout casts `count` (x2 gilded) plain Rubies (`playRubyOn`) on every living friendly `tribe` body, at most `maxPerCombat` payouts (combat)
   | 'friendlyAttacksPlayRubiesSelf' // Frack Attack (owner 2026-10-22): every `every` FRIENDLY attacks this combat (each swing, itself included; per-combat `attackSeen`, reset on a Rise / Rebirth return) cast `count` (x2 gilded) plain Rubies on itself (combat)
   | 'rubyCastGainSelfImproving' // Rosey (owner 2026-10-22): passive marker the Ruby-cast chokepoints scan (`fireOnRubyPlayed` / `playRubyOn`) - per friendly Ruby cast, gain +attack/+health x (1 + floor(eotTick / every of its `shopRefreshTallySelf`)), x2 gilded, PERMANENTLY (combat gains carry back)
   | 'shopRefreshTallySelf' // Rosey: a player-pressed Refresh (`playerRoll`) while on the board ticks this copy's `eotTick` (its Improves meter, read with the sibling effect's `every`)

@@ -455,6 +455,15 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       // The full shop cast pipeline; a TARGETED spell gets a random legal other friend (R-TARGET-07), never none.
       for (let i = 0; i < (self.golden ? 2 : 1); i++) castSpellFromMinion(state, self as BoardCard, def);
     },
+    castNamedSpellOn: (spellId, target) => {
+      const def = spellId ? CARD_INDEX[spellId] : undefined;
+      const t = target as BoardCard;
+      if (!def?.spell || !state.board.includes(t)) return;
+      if (def.targetTribe && !defIsTribe(CARD_INDEX[t.cardId]!, def.targetTribe as Tribe, state)) return;
+      if (def.targetNoGolden && t.golden) return;
+      // The full shop cast pipeline on THIS target (Choosey Dragon's right-hand neighbour). Golden = two real casts.
+      for (let i = 0; i < (self.golden ? 2 : 1); i++) castSpell(state, def, t);
+    },
     cardDef: (id) => CARD_INDEX[id],
     gainShopBuff: (a, h, source) => { state.tavernBuyBonus.atk += a; state.tavernBuyBonus.hp += h; creditShopBuffSource(state, source ?? nameOf(self), a, h); starformFollowShopBuff(state, a, h, source ?? nameOf(self)); },
     grantUndeadAura: (a, h) => {
@@ -4357,6 +4366,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   rallyCastNamedSpell: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
     ARENA_EFFECTS.rallyCastNamedSpell(shopArena(ctx.state, self), params);
+  },
+  rallyCastNamedSpellOnRight: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyCastNamedSpellOnRight(shopArena(ctx.state, self), params);
   },
   rallyBuffShopPermanent: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
@@ -10376,7 +10389,6 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   dealtDamageAleMeter: () => {}, // Han Gover (Pummel (40)): a combat-read meter (`noteDamageDealt`); the LIFETIME tally carries shop → combat → shop (carry-over ruling 2026-09-21), one payout per combat
   dealtDamageGetRandomSpell: () => {}, // Tauntbreaker (2026-10-03): the same combat-read meter, a random-Shop-Spell body
   dealtDamageSummonToken: () => {}, // Impossible Todd (2026-10-10): the same combat-read meter, a summon-an-Imp body
-  dealtDamageCastRubiesTribe: () => {}, // Zapdash (2026-10-22): the same combat-read meter, a cast-a-Ruby-on-your-Kobolds body (twice per combat)
   rubyCastGainSelfImproving: () => {}, // Rosey (2026-10-22): a marker the Ruby-cast chokepoint (`fireOnRubyPlayed`) scans, never dispatched
   dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same combat-read meter, a random-Ruby body
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same combat-read meter, a random-Celestial body

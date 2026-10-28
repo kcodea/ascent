@@ -106,7 +106,8 @@ export const GIFTS_RULES: GameRule[] = [
       + 'shared Shout-replay path (every Shout multiplier and tally sees it). A target with no Shout refuses the cast and '
       + 'the Ripple stays in hand (the Resonance precedent). A Gilded Falx grants a gilded Ripple: the Shout fires twice, '
       + 'each its own replay, and the Ripple prints "twice" live. Tamby copies it, Whisp is cast on when it lands on a '
-      + 'Dragon, Tome counts it.',
+      + 'Dragon, Tome counts it. Falx was ARCHIVED 2026-10-27 (R-ARCHIVE-SET3-1027-01); this still holds for an old save '
+      + 'or replay holding it.',
     domain: 'gifts',
     status: 'approved',
     evidence: [
@@ -339,7 +340,7 @@ export const GIFTS_RULES: GameRule[] = [
     id: 'R-WHISPER-13',
     title: "Whispwarder grants Warding Call: Ward until your next turn (Gilded: Resilient Ward); a Hum keeps it",
     statement:
-      "Whispwarder (Set 3 Dragon, T5 7/5) grants the Whisper Warding Call with the Whisper lifecycle. It gives a friendly minion Ward until the start of your next turn (it fights with it that turn); a Ward the body had of its own never comes off. A Gilded Whispwarder's Warding Call gives Resilient Ward (with its Ward) instead. A Hum keeps it.",
+      "Whispwarder (Set 3 Dragon, T4 7/5; T5 until the owner's 2026-10-27 move) grants the Whisper Warding Call with the Whisper lifecycle. It gives a friendly minion Ward until the start of your next turn (it fights with it that turn); a Ward the body had of its own never comes off. A Gilded Whispwarder's Warding Call gives Resilient Ward (with its Ward) instead. A Hum keeps it.",
     domain: 'gifts',
     status: 'approved',
     evidence: [

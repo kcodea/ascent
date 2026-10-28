@@ -266,6 +266,10 @@ export interface EffectArena {
   /** Cast a NAMED spell for real, resolving its own effect (Dragonflame). Combat: `castNamedSpellInCombat`;
    *  shop: the actual card through the shop's cast pipeline. Golden casts twice in both. */
   castNamedSpell(spellId: string): void;
+  /** Cast a NAMED TARGETED spell for real ON `target` (Choosey Dragon, owner 2026-10-27). Combat:
+   *  `castNamedSpellOnInCombat`; shop: the shop's cast pipeline with that target. Golden casts twice in both. A target
+   *  the spell cannot legally take (its `targetTribe`, a Gilded body for `targetNoGolden`) is a quiet no-op. */
+  castNamedSpellOn(spellId: string, target: ArenaBody): void;
   /** A card definition by id (combat: `ctx.getCard`; shop: `CARD_INDEX`). Read-only. */
   cardDef(id: string): CardDef | undefined;
   /** Permanently buff everything you BUY (the Staff of Guel channel). Combat carries it back through
@@ -1850,6 +1854,18 @@ export const ARENA_EFFECTS = {
    *  resolve their own random targeting inside the phase's cast resolver. */
   rallyCastNamedSpell(arena: EffectArena, params: Record<string, unknown>): void {
     arena.castNamedSpell(str(params.spellId));
+  },
+
+  /** Choosey Dragon (Set 3, owner 2026-10-27): "Rally: Cast Tribe's Choice on the minion to the right of this." The
+   *  NAMED spell is cast for real on this body's right-hand neighbour (the next friendly body in board order: in combat
+   *  the next LIVING one). No right neighbour (the right-most slot), nothing is cast. Golden = two casts (inside
+   *  `castNamedSpellOn`). */
+  rallyCastNamedSpellOnRight(arena: EffectArena, params: Record<string, unknown>): void {
+    const friends = arena.friends();
+    const i = friends.findIndex((m) => m.uid === arena.self.uid);
+    const right = i < 0 ? undefined : friends[i + 1];
+    if (!right) return;
+    arena.castNamedSpellOn(str(params.spellId), right);
   },
 
   /** Firebird (owner batch 2026-10-07) — "When you trigger a Shout, cast Dragonflame": every friendly Shout FIRE

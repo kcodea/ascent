@@ -64,21 +64,6 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     goldenText: 'When a Dragon attacks, cast a **Gilded Runebind** on it. **(3 times per combat)**',
   },
   {
-    // T5 6/5 (owner 2026-10-14). "Whisper: Ripple - Trigger a minion's Shout." Grants the Whisper Ripple exactly as Galas
-    // and Tolan grant theirs (on play from hand + every Start of Turn while on the board). Gilded: a gilded Ripple, which
-    // triggers the Shout twice (each its own replay).
-    id: 'd3_falx',
-    name: 'Falx',
-    tribe: 'dragon',
-    tier: 5,
-    attack: 6,
-    health: 5,
-    keywords: [],
-    effects: [{ on: 'startOfTurn', do: 'grantWhisper', params: { cardId: 'w3_ripple' } }],
-    text: "**Whisper:** Trigger a friendly minion's **Shout**.",
-    goldenText: "**Whisper:** Trigger a friendly minion's **Shout** twice.",
-  },
-  {
     // T5 7/8 (owner 2026-10-14): "Your Spells cast an additional time in combat." Owner: "counts all spells, rubies, shop
     // spells, whispers etc". A PASSIVE read live by the one combat cast path (`spellCastRepsFor`, +1 per living Morro,
     // +2 Gilded, additive with Runebloom / Ancient of War) and by the combat Ruby primitive (`playRubyOn`). Shop-phase
@@ -257,7 +242,7 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     id: 'd3_whispwarder',
     name: 'Whispwarder',
     tribe: 'dragon',
-    tier: 5,
+    tier: 4, // T5 -> T4 (owner Set 3 balance 2026-10-27: "whispwarder -> T4"); stats unchanged
     attack: 7,
     health: 5,
     keywords: [],
@@ -308,5 +293,56 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     effects: [{ on: 'onAttack', do: 'onTribeAttackCastNamedSpell', params: { tribe: 'dragon', spellId: 'growth' } }],
     text: 'When a **Dragon** attacks, cast **Growth**.',
     goldenText: 'When a **Dragon** attacks, cast **Growth** twice.',
+  },
+  // -- Owner Set 3 balance + new minions (2026-10-27). Appended after Nitrogen so no earlier Set 3 pool position moves. --
+  {
+    // STUDIOUS STEVEN, T4 6/4: "Shout: Cast Quick Study. (gilded casts twice)". Shardluck's named-spell Shout
+    // (`battlecryCastNamedSpell`): a REAL cast of the Shop spell Quick Study (Give your Shop spells +1/+1) through the
+    // full Shop cast pipeline, so it counts as a spell cast and wakes every cast-watcher; a combat Shout replay casts it
+    // through the combat named-spell path. Names the spell and lets its hover preview carry the value (the sanctioned
+    // named-spell exception). Gilded: two genuine casts.
+    id: 'd3_studioussteven',
+    name: 'Studious Steven',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 6,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'quickstudy', count: 1 } }],
+    text: '**Shout:** Cast **Quick Study**.',
+    goldenText: '**Shout:** Cast **Quick Study** twice.',
+  },
+  {
+    // CHOOSEY DRAGON, T3 3/4: "Rally: Cast Tribe's Choice on the minion to the right of this. (gilded casts twice)". The
+    // spell is the existing Shop spell Tribes Choice (`tribeschoice`: "Get a random minion of the targeted minion's type
+    // (up to your tavern tier)"), cast for real on the right-hand neighbour (`rallyCastNamedSpellOnRight`, both phases).
+    // No right neighbour, nothing is cast; a neutral neighbour has no type, so it yields nothing (the spell's own rule).
+    // Gilded: two genuine casts. Names the spell and lets its hover preview carry it (the named-spell exception).
+    id: 'd3_choosey',
+    name: 'Choosey Dragon',
+    tribe: 'dragon',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyCastNamedSpellOnRight', params: { spellId: 'tribeschoice' } }],
+    text: '**Rally:** Cast **Tribes Choice** on the minion to the right of this.',
+    goldenText: '**Rally:** Cast **Tribes Choice** on the minion to the right of this twice.',
+  },
+  {
+    // RIFTWALKER, T6 8/8: "Avenge (3): Cast Waking Rift. (gilded casts twice)". Every 3 friendly deaths it casts the
+    // REAL Shop spell Waking Rift (Give your minions +5/+5 twice) through the combat named-spell path
+    // (`avengeCastNamedSpell`: Soul-Lantern Hierophant's avenge window around Flamebeat's cast), so it counts as a
+    // spell cast and wakes spell watchers. Its buffs are combat-only (R-BUFF-PERM). Gilded: two genuine casts.
+    id: 'd3_riftwalker',
+    name: 'Riftwalker',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 8,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeCastNamedSpell', params: { count: 3, spellId: 'sparkplug' } }],
+    text: '**Avenge (3):** Cast **Waking Rift**.',
+    goldenText: '**Avenge (3):** Cast **Waking Rift** twice.',
   },
 ];

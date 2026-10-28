@@ -322,5 +322,23 @@ export const SET3_DWARVES: CardDef[] = [
     ],
     text: 'When you play a **Dwarf**, give your **Dwarves +2/+2**. Improves when you **Sell** **4 minions**.',
     goldenText: 'When you play a **Dwarf**, give your **Dwarves +4/+4**. Improves when you **Sell** **4 minions**.',
+  },  {
+    // BEER GUT BUD (owner Set 3 list 2026-10-27), T5 6/2: "Shout and Echo: Get a Dwarven Ale". The owner's sheet named no
+    // tribe; it is a Dwarf (the Ale axis is the Dwarf tribe's). Both halves are the old Doubletap Brewer's (before its
+    // 2026-10-10 End of Turn rework): the Shout pours in the Shop (`grantRandomAle`, the run's set-pooled Ale draw), the
+    // Echo pours from combat via the hand grant (`combatGrantAle`, Brunni's Echo). Gilded: 2 Ales each time.
+    id: 'dw3_beergutbud',
+    name: 'Beer Gut Bud',
+    tribe: 'dwarf',
+    tier: 5,
+    attack: 6,
+    health: 2,
+    keywords: [],
+    effects: [
+      { on: 'onPlay', do: 'grantRandomAle', params: { count: 1 } },
+      { on: 'onDeath', do: 'combatGrantAle', params: { guard: 'self', count: 1 } },
+    ],
+    text: '**Shout and Echo:** Get a **Dwarven Ale**.',
+    goldenText: '**Shout and Echo:** Get **2 Dwarven Ales**.',
   },
 ];

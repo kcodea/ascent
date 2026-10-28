@@ -122,6 +122,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   onKillCastSpell: 'spellId',
   rallyCastSpell: 'spellId',
   rallyCastNamedSpell: 'spellId',              // Flamebeat Drake -> Dragonflame
+  rallyCastNamedSpellOnRight: 'spellId',       // Choosey Dragon -> Tribes Choice (set 3, 2026-10-27)
   battlecryCastNamedSpell: 'spellId',          // Facetbound Martyr -> Veinstorm
   onBattlecryCastNamedSpell: 'spellId',       // Firebird -> Dragonflame (2026-10-07)
   onTribeAttackCastNamedSpell: 'spellId',      // Warflame -> Dragonflame
@@ -130,6 +131,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   onAllyAttackCastGrowth: 'spellId',
   rallyCastTribeAttack: 'spellId',
   avengeCastTribeAttack: 'spellId', // Soul-Lantern Hierophant (set 3)
+  avengeCastNamedSpell: 'spellId',  // Riftwalker -> Waking Rift (set 3, 2026-10-27)
   battlecryGrantSpell: 'spellId',
   spellGrantSpell: 'spellId',                   // Accretion -> Star Crash (the cast-safe grant, set 3 Celestials)
   onSpellCastOnThisRecastNamed: 'spellId',       // Crash Course -> Star Crash (the named spell it re-casts)

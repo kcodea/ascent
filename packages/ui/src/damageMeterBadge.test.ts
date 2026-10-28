@@ -73,7 +73,7 @@ describe('the combat damage-meter badge ticks per landed hit, including the blow
     const readings = badgePerBeat(r, uid);
     const distinct = readings.filter((v, i) => i === 0 || v !== readings[i - 1]);
     expect(distinct).toEqual(['0/6', '4/6', '2/6', '0/6']); // 4 → 8 → 12: `total mod 6` all the way
-    expect(r.playerBonusGold, 'the 12-crossing pays nothing: once per combat').toBe(3);
+    expect(r.playerBonusGold, 'the 12-crossing pays nothing: once per combat').toBe(2); // 2 Gold since the owner's 2026-10-27 balance
     expect(r.events.filter((e) => e.type === 'pummelTrigger')).toHaveLength(1);
     expect(r.playerDamageMeters).toEqual([{ sourceUid: 'me', total: 12 }]); // → the shop's 0/6
   });

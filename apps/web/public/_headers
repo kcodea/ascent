@@ -33,6 +33,12 @@
   Cache-Control: public, max-age=3600, stale-while-revalidate=604800
 /playingboard-combat.webp
   Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/backdrop-*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/playingboard-shadow.webp
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/playingboard-combat-shadow.webp
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
 /homescreen.webp
   Cache-Control: public, max-age=3600, stale-while-revalidate=604800
 /runeforgebg2.webp

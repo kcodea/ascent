@@ -250,7 +250,8 @@ import { visibleHandPreviews } from './handPreview';
 import { useChargePreview } from './chargeGlyphTune';
 import { FuseSim, type FuseGeom } from './fuseSim';
 import { FuseRenderer, gemCanvasHalf, type FuseView } from './fuseRender';
-import { FUSE_ART_SPAN, FUSE_CFG_EVENT, fuseSeed, getFuseCfg } from './fuseTune';
+import { FUSE_CFG_EVENT, fuseArtSpan, fuseSeed, getFuseCfg } from './fuseTune';
+import './backdrop'; // applies the player's saved board backdrop (Settings → Board) before the board paints
 import { fuseAppearsAt, fuseExitKind, fusePhaseOnLight, type FuseExit } from './fusePhase';
 import { randomSeed } from './fx/rng';
 import { gateFx } from './rankedGate/gateFx';
@@ -578,6 +579,8 @@ interface FuseFx {
   gemCtx: CanvasRenderingContext2D | null;
   /** The fuse box's width in stage px (the burning front's travel). */
   boxW: number;
+  /** The burn span [left tip, right tip] as x fractions of the box, from its measured size (`fuseArtSpan`). */
+  span?: [number, number];
   seed: number;
   /** The dev preview's last charge (a jump backwards replays the light). */
   lastPreview: number;
@@ -720,7 +723,8 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       const pr = parent ? rectToStage(parent.getBoundingClientRect()) : { left: 0, top: 0 };
       const gemEl = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
       const gr = gemEl ? rectToStage(gemEl.getBoundingClientRect()) : null;
-      const [a0, a1] = FUSE_ART_SPAN;
+      const [a0, a1] = fuseArtSpan(br.width, br.height);
+      fx.span = [a0, a1];
       const fuseY = br.top + br.height / 2;
       const g: FuseGeom = {
         fuseX0: br.left + a0 * br.width, fuseX1: br.left + a1 * br.width, fuseY, fuseThick: br.height * 0.18,
@@ -780,7 +784,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     const paint = (charge: number): void => {
       const box = boxRef.current;
       if (!box) return;
-      const [a0, a1] = FUSE_ART_SPAN;
+      const [a0, a1] = fxRef.current?.span ?? fuseArtSpan(box.offsetWidth, box.offsetHeight);
       const burn = a0 + (a1 - a0) * Math.min(1, Math.max(0, charge));
       const key = burn.toFixed(4);
       if (key === lastBurn) return;         // the charged wait writes nothing (flat cost however long it lasts)
@@ -8504,11 +8508,11 @@ export function Recruit() {
     >
       {/* Board art on a full-viewport layer behind the 16:9 stage — extends into the margins on off-16:9 monitors
           (see `.boardbg` in styles.css) rather than letterboxing to black. */}
-      <div className="boardbg" aria-hidden="true" />
+      <div className="boardbg" aria-hidden="true"><div className="boardbg-tex" /></div>
       {/* COMBAT board layer — a second `.boardbg` painting the combat art. No clip animation of its own any
           more: it snaps in/out while the CURTAIN below fully hides the swap (see the wipe state machine).
           Tree position after `.boardbg` keeps it painting above the shop art, below every zone. */}
-      <div className={`boardbg boardbg--combat${combatBgShown ? ' shown' : ''}`} aria-hidden="true" />
+      <div className={`boardbg boardbg--combat${combatBgShown ? ' shown' : ''}`} aria-hidden="true"><div className="boardbg-tex" /></div>
       {/* The CURTAIN + its glowing front: PORTALED TO THE STAGE (`stageHost()`) — the hero panel (.statusbar z40),
           the foe portrait (.combatopp, a portal itself, z42/z100), and the eot banner (z95) all live OUTSIDE
           `.app` in their own fixed stacking contexts, so an in-app curtain could never cover them (owner report

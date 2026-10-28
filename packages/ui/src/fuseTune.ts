@@ -100,13 +100,13 @@ export const FUSE_DEFAULTS: FuseCfg = {
   shardSize: 5,
   moteSize: 2,
   sizeVar: 0.67,
-  life: 8,
+  life: 4,
   lifeVar: 0.79,
   maxLive: 1060,
   captureR: 20,
   absorbR: 14,
   collapsePull: 1600,
-  idleOrbiters: 30,
+  idleOrbiters: 50,
   idleVortex: 60,
   gemGlow: 0.15,
   gemGlowSize: 132,
@@ -123,8 +123,16 @@ export const FUSE_DEFAULTS: FuseCfg = {
   colorGem: '#ade4ff',
 };
 
-/** Where the crystal starts and ends inside `crystal-fuse.png` (x fractions of its width): the burn runs tip to tip. */
-export const FUSE_ART_SPAN: readonly [number, number] = [0.027, 0.971];
+/** The fuse is drawn in three pieces (owner 2026-10-28: "extend it, not stretch it"): the two pointed tips at their
+ *  own aspect, and a seamless crystal tile repeated between them, so Length adds crystal and never stretches a tip.
+ *  The crystal's left / right tip sit this far in from the box's left / right edge, as a share of the box HEIGHT
+ *  (52 and 56 px of the 194 px art): the burn runs tip to tip. */
+export const FUSE_TIP_INSET: readonly [number, number] = [52 / 194, 56 / 194];
+/** The burn span as x fractions of a `w` x `h` fuse box: [left tip, right tip]. */
+export function fuseArtSpan(w: number, h: number): [number, number] {
+  if (!(w > 0) || !(h > 0)) return [0.027, 0.971];
+  return [Math.min(0.49, (FUSE_TIP_INSET[0] * h) / w), Math.max(0.51, 1 - (FUSE_TIP_INSET[1] * h) / w)];
+}
 
 /** Seed control for the tuner's "Lock seed" toggle: a number replays one look; null = fresh per light. */
 export const fuseSeed: { locked: number | null } = { locked: null };

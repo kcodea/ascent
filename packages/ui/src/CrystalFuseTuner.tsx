@@ -51,7 +51,7 @@ const controls: TunerControl<K>[] = [
   r('captureR', 'Capture radius', 'Gem', 20, 200, 1, 'Inside this, pieces are drawn over the End Turn button instead of behind the cards.', 'px'),
   r('absorbR', 'Absorb radius', 'Gem', 2, 60, 1, 'Inside this, the gem swallows a piece (each one brightens it).', 'px'),
   r('collapsePull', '0:00 collapse pull', 'Gem', 200, 6000, 50, 'How hard everything is dragged in at 0:00.', 'px/s'),
-  r('idleOrbiters', 'Pieces left orbiting', 'Gem', 0, 40, 1, 'Debris left circling the charged gem while it waits for End Turn.'),
+  r('idleOrbiters', 'Pieces left orbiting', 'Gem', 0, 80, 1, 'Debris left circling the charged gem while it waits for End Turn.'),
   r('idleVortex', 'Waiting orbit speed', 'Gem', 0, 300, 1, 'Speed of that calm orbit.', 'px/s'),
 
   r('burnFeather', 'Burn edge softness', 'Fuse', 0, 15, 0.1, 'How soft the burning edge of the fuse is.', '%'),

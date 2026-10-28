@@ -91,8 +91,8 @@ export const PATCH_NOTES: PatchNote[] = [
         'Watch takes you straight into their game, Practice included.',
       ] },
       { category: 'Systems', text: 'The game board has a fresh, cleaner look.', details: [
-        'The board now sits on a stone backdrop and casts a soft shadow onto it, with a matching version for combat.',
-        'Pick what lies behind the board in Settings, under Board backdrop: Cobblestone, Oak planks, Aether Stone, Sand or Stone Pavers.',
+        'The board now sits on an oak plank backdrop and casts a soft shadow onto it, with a matching version for combat.',
+        'Pick what lies behind the board in Settings, under Board backdrop: Oak planks (the default), Cobblestone, Aether Stone, Sand or Stone Pavers.',
         'The board is a little bigger, and the buttons around it are a little bigger too.',
         'The end-of-turn crystal fuse is longer and slimmer.',
         'Your rune and quest slots have sharper gold rings with a glass shine, even while empty. Your opponent\'s rune slots match them in combat.',

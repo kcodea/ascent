@@ -64,3 +64,4 @@ supabase/functions/versus-resolve/engine.generated.js
 # Cloudflare Workers local state (wrangler dev) and local secrets
 .wrangler/
 .dev.vars
+docs/ops/db-reports/*.json

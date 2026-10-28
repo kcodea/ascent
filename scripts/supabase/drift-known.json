@@ -1,0 +1,10 @@
+{
+  "_comment": "Explained db:drift findings (`<VERDICT> <name>`: why). db:drift fails on anything NOT listed and prints entries that stopped drifting so they can be removed. Audited 2026-10-28 (docs/design/2026-10-28-supabase-cleanup.md section 5.1).",
+  "OLDER pool_strength_refresh": "Apply order != filename order: 2026-10-06-early-late-strength.sql says APPLY AFTER weighted-strength-again.sql but sorts before it. Live is the early-late version (correct: it also fills strength_early/late).",
+  "OLDER settle_rank": "Apply order != filename order: live is the 2026-09-22-lobby-strength-bonus-floor version (floor 50), applied after lobby-strength-going-in. Replaying files in name order would restore floor 30.",
+  "OLDER versus_create_room": "Stale second overload still live (the pre-group signature). Retires with the Supabase Versus server (cleanup Phase 5).",
+  "OLDER versus_submit": "Stale second overload still live (the 2026-10-14 scout signature). Retires with the Supabase Versus server (cleanup Phase 5).",
+  "OLDER versus_group__open_shop": "Apply order != filename order: 2026-10-25-versus-duos-random-order.sql was applied after 2026-10-25-versus-duos.sql. Live is the random-order version (correct).",
+  "NOTLIVE versus_duos_flip_order": "Apply order != filename order: dropped by 2026-10-25-versus-duos-random-order.sql, which sorts before versus-duos.sql but was applied after it. Correctly absent.",
+  "NOTLIVE god_board_sample": "NOT APPLIED: 2026-10-08-god-board-sample.sql never reached production, so God Mode uses its startup-board fallback (packages/ui/src/godMode/godBoards.ts). Lead/owner call: apply it, or leave it. Remove this line once applied."
+}

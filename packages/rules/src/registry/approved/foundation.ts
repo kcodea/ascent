@@ -9426,7 +9426,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-FRIENDS-05',
     title: 'Presence is one small call per minute that also answers requests and invites; the list is read only while open; nothing is broadcast',
     statement:
-      'The client writes its presence and reads its inbox (friends, friends online, requests, open invites) in ONE call every 60 s while the tab is visible, 120 s while hidden, at once on a status change but never more than every 5 s, and every 3 minutes for an account with no friends. Failures back off. Guests never call it. The friends list is one batched read only while a friends surface is open, every 60 s, never while hidden. Presence is readable by the player and their friends only and is never pushed over Realtime; the only subscription is invites addressed to the player, only with at least one friend and a visible tab.',
+      'The client writes its presence and reads its inbox (friends, friends online, requests, open invites) in ONE call every 60 s while the tab is visible or hidden (120 s hidden until 2026-10-28, R-FRIENDS-PRESENCE-GAP-01), at once on a status change but never more than every 5 s, and every 3 minutes for an account with no friends. Failures back off. Guests never call it. The friends list is one batched read only while a friends surface is open, every 60 s, never while hidden. Presence is readable by the player and their friends only and is never pushed over Realtime; the only subscription is invites addressed to the player, only with at least one friend and a visible tab.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -9436,6 +9436,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-26 (feat/friends-list). New: there was no friends list before.',
     example: 'Ann leaves the game on the main menu for an hour with three friends: about 60 small calls, no list reads unless she opens Friends.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.test.tsx', 'packages/ui/src/friends/friends.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-FRIENDS-PRESENCE-GAP-01',
+    title: 'An open game never reads Offline to friends; a closed one reads Offline at once',
+    statement:
+      'While the game is open, visible or in a background tab, its presence beat lands well inside the server\'s Offline window: the window is 300 s, the beat is every 60 s visible or hidden (every 180 s with no friends), and a failing beat retries no later than 90 s, so a hidden-tab timer that fires a minute late (Chrome batches hidden timers to once a minute) still lands in time. Going hidden beats once when the last beat is at least 30 s old. Closing the page (pagehide) sends one Offline beat as a keepalive request signed with the player\'s token and stops beating; coming back from the back/forward cache beats again at once. Guests never send it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28 (bug report)', quote: 'Mike\'s friends list showed me OFFLINE while I had the game open' },
+      { kind: 'code', ref: 'packages/ui/src/friends/friendsStore.ts (BEAT_HIDDEN_MS, BEAT_MAX_BACKOFF_MS, startFriendsPresence onVis/onPageHide/onPageShow); packages/ui/src/friends/friendsRemote.ts (leave); supabase/migrations/2026-11-09-friends-presence-window.sql (friends__stale 300 s)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-28 (fix/friends-presence-gap). Before: 120 s hidden beats, a 10 min failure backoff and a 180 s window; prod showed an online player\'s last beat 196 s old, so friends saw them Offline.',
+    example: 'Ann alt-tabs to another window for an hour with the game open: Bob sees her online the whole time (about 60 small calls). She closes the tab: Bob sees her Offline on his next list read.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.test.tsx', 'packages/ui/src/friends/friends.db.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
   {
     id: 'R-RANKED-DUOS-GATE-01',

@@ -4,7 +4,7 @@
  *  - requests by handle and by id; accept, decline, cancel, remove; a crossed request accepts; no self, no duplicate,
  *    no guest on either end, the hourly rate limit;
  *  - blocks: block wins (no request, no invite either way), a block ends the friendship and cancels open invites;
- *  - presence: the beat writes it, friends read it (Offline once 180 s stale), nobody else can;
+ *  - presence: the beat writes it, friends read it (Offline once 300 s stale, R-FRIENDS-PRESENCE-GAP-01), nobody else can;
  *  - invites: friends only, the target online, a Versus room I am in and that is open, 2-minute expiry, accept /
  *    decline / cancel, a newer invite replaces the older, rate limit;
  *  - RLS: each table shows a player only their own rows; no client role can write any table directly.
@@ -16,7 +16,8 @@ import { join } from 'node:path';
 
 const root = join(__dirname, '../../../..');
 const mig = (f: string): string => readFileSync(join(root, 'supabase/migrations', f), 'utf8');
-const SQL = mig('2026-10-13-versus.sql') + mig('2026-10-24-versus-group.sql') + mig('2026-10-28-friends.sql');
+const SQL = mig('2026-10-13-versus.sql') + mig('2026-10-24-versus-group.sql') + mig('2026-10-28-friends.sql')
+  + mig('2026-11-09-friends-presence-window.sql');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -194,7 +195,10 @@ describe('presence', () => {
     await beat(BOB, 'in_game', 'ranked', 'live', 'game-123');
     const seen = (await list(ANN)).friends.find((p) => p.userId === BOB)!;
     expect(seen).toMatchObject({ status: 'in_game', mode: 'ranked', watchKind: 'live', watchId: 'game-123' });
-    await db.query(`update public.player_presence set updated_at = now() - interval '181 seconds' where user_id = $1`, [BOB]);
+    // R-FRIENDS-PRESENCE-GAP-01: a 196 s old beat (the owner's prod row, a throttled hidden tab) still reads online.
+    await db.query(`update public.player_presence set updated_at = now() - interval '196 seconds' where user_id = $1`, [BOB]);
+    expect((await list(ANN)).friends.find((p) => p.userId === BOB)!.status).toBe('in_game');
+    await db.query(`update public.player_presence set updated_at = now() - interval '301 seconds' where user_id = $1`, [BOB]);
     const stale = (await list(ANN)).friends.find((p) => p.userId === BOB)!;
     expect(stale.status).toBe('offline');
     expect(stale.watchId).toBeUndefined(); // an offline friend shows no watch target
@@ -275,7 +279,7 @@ describe('invites', () => {
     await beat(CAT, 'in_game', 'practice');
     await expect(rpc(ANN, 'friends_invite', [CAT, 'versus_room', room])).rejects.toThrow(/not_online/);
     await beat(CAT, 'online');
-    await db.query(`update public.player_presence set updated_at = now() - interval '200 seconds' where user_id = $1`, [CAT]);
+    await db.query(`update public.player_presence set updated_at = now() - interval '301 seconds' where user_id = $1`, [CAT]);
     await expect(rpc(ANN, 'friends_invite', [CAT, 'versus_room', room])).rejects.toThrow(/not_online/);
     await beat(CAT, 'online');
     await expect(rpc(BOB, 'friends_invite', [ANN, 'versus_room', room])).rejects.toThrow(/not_online|not_in_room/);

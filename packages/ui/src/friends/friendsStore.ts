@@ -3,9 +3,15 @@
  *
  *  1. THE PRESENCE BEAT (`startFriendsPresence`, once at boot): ONE call, `friends_beat`, writes my presence (online on a
  *     menu, in a game with its mode and a watch target) and answers my inbox (friends, friends online, requests waiting,
- *     open invites). Every 60 s while the tab is visible, every 120 s while hidden, at once (at most every 5 s) when my
- *     status changes, and every 180 s for an account with no friends yet. Failures back off (doubling, up to 10 min);
- *     an undeployed server stops it for the session. Guests and offline builds never beat.
+ *     open invites). Every 60 s, visible or hidden, at once (at most every 5 s) when my status changes, and every 180 s
+ *     for an account with no friends yet (visible or hidden). Failures back off (doubling, but never past 90 s); an
+ *     undeployed server stops it for the session. Guests and offline builds never beat.
+ *     THE GAP (R-FRIENDS-PRESENCE-GAP-01, owner 2026-10-28: Mike saw me Offline with the game open): a row older than
+ *     the server's window (300 s) reads Offline, and a hidden tab's timers are throttled (Chrome batches them to once a
+ *     minute), so a 120 s hidden beat landed 196 s late. Every pace above stays well inside the window even when a
+ *     throttled timer fires a minute late. Going hidden beats once (if the last beat is 30 s old) so the hidden clock
+ *     starts fresh, and closing the page sends an Offline beat (keepalive) so a closed game reads Offline at once.
+ *     Egress: visible 60 an hour (unchanged), hidden 60 an hour (was 30), plus one beat per close.
  *  2. THE INVITE WAKE-UP: a Realtime subscription to INSERTs on `friend_invites` addressed to me (to_user filter + RLS),
  *     only for an account with at least one friend and only while the tab is visible. Each insert triggers one beat.
  *  3. THE FRIENDS LIST (`useFriendsListLoop`): the one batched `friends_list` read, only while a friends surface is open
@@ -31,10 +37,13 @@ import {
 } from './friendsRemote';
 
 export const BEAT_VISIBLE_MS = 60_000;
-export const BEAT_HIDDEN_MS = 120_000;
+export const BEAT_HIDDEN_MS = 60_000;
 export const BEAT_FRIENDLESS_MS = 180_000;
 export const BEAT_MIN_GAP_MS = 5_000;
-export const BEAT_MAX_BACKOFF_MS = 600_000;
+/** The longest a failing beat waits: with a minute of throttling on top it still lands inside the 300 s window. */
+export const BEAT_MAX_BACKOFF_MS = 90_000;
+/** Going hidden beats at once when the last beat is at least this old. */
+export const BEAT_ON_HIDE_MS = 30_000;
 export const LIST_MS = 60_000;
 export const LIST_MAX_BACKOFF_MS = 300_000;
 
@@ -164,6 +173,8 @@ let failures = 0;
 let inFlight = false;
 let invitesSub: { close: () => void } | null = null;
 let invitesSubFor = '';
+/** The page is being closed (pagehide): no more beats until it comes back from the back/forward cache. */
+let leaving = false;
 
 function clearTimer(): void { if (timer !== null) { clearTimeout(timer); timer = null; } }
 
@@ -171,8 +182,9 @@ function nextDelay(): number {
   const ib = get().inbox;
   let d = pageHidden() ? BEAT_HIDDEN_MS : BEAT_VISIBLE_MS;
   // An account with no friends and nothing waiting only needs to hear about new requests now and then.
-  if (ib && ib.friends === 0 && ib.incoming === 0 && !pageHidden()) d = BEAT_FRIENDLESS_MS;
-  if (failures > 0) d = Math.min(BEAT_MAX_BACKOFF_MS, d * 2 ** failures);
+  if (ib && ib.friends === 0 && ib.incoming === 0) d = BEAT_FRIENDLESS_MS;
+  // A failure retries sooner or later, but never later than the cap (a quiet friendless pace is not lengthened).
+  if (failures > 0) d = Math.min(Math.max(d, BEAT_MAX_BACKOFF_MS), d * 2 ** failures);
   return d;
 }
 
@@ -184,7 +196,7 @@ function schedule(ms: number): void {
 /** Beat now (or as soon as the minimum gap allows). Resolves when the answer has landed. */
 export async function beatNow(): Promise<void> {
   if (!get().deployed || !friendsAccount()) { syncInviteSub(); return; }
-  if (inFlight) return;
+  if (inFlight || leaving) return;
   const now = Date.now();
   if (now - lastAt < BEAT_MIN_GAP_MS) { schedule(lastAt + BEAT_MIN_GAP_MS - now); return; }
   const p = presenceNow();
@@ -255,15 +267,35 @@ export function startFriendsPresence(): () => void {
   });
   const onVis = (): void => {
     syncInviteSub();
-    if (!pageHidden() && Date.now() - lastAt >= nextDelay()) schedule(0);
+    if (leaving || !friendsAccount() || !get().deployed) return;
+    if (!pageHidden()) { if (Date.now() - lastAt >= nextDelay()) schedule(0); return; }
+    // Going hidden: start the hidden clock from a fresh beat. A short delay, so a page being CLOSED (hidden, then
+    // pagehide at once) sends only its Offline beat, never a racing online one.
+    if (Date.now() - lastAt >= BEAT_ON_HIDE_MS) schedule(1000);
+  };
+  const onPageHide = (): void => {
+    if (!friendsAccount() || !get().deployed) return;
+    leaving = true;
+    clearTimer();
+    try { remote.leave(); } catch { /* best effort */ }
+  };
+  const onPageShow = (e: PageTransitionEvent): void => {
+    if (!leaving) return;
+    leaving = false;
+    // Back from the back/forward cache: I am here again.
+    if (e.persisted && friendsAccount()) { lastAt = -Infinity; schedule(0); }
   };
   document.addEventListener('visibilitychange', onVis);
+  window.addEventListener('pagehide', onPageHide);
+  window.addEventListener('pageshow', onPageShow);
   schedule(1500); // after boot settles (the session lands first)
   return () => {
     started = false;
     clearTimer();
     unGame(); unVs();
     document.removeEventListener('visibilitychange', onVis);
+    window.removeEventListener('pagehide', onPageHide);
+    window.removeEventListener('pageshow', onPageShow);
     invitesSub?.close(); invitesSub = null; invitesSubFor = '';
   };
 }
@@ -271,7 +303,7 @@ export function startFriendsPresence(): () => void {
 /** Tests: forget the loop's memory. */
 export function resetFriendsForTests(): void {
   clearTimer();
-  started = false; lastAt = -Infinity; lastKey = ''; failures = 0; inFlight = false;
+  started = false; lastAt = -Infinity; lastKey = ''; failures = 0; inFlight = false; leaving = false;
   invitesSub?.close(); invitesSub = null; invitesSubFor = '';
   remote = friendsRemote;
   proofSource = defaultProofSource;

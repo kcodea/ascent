@@ -19,14 +19,17 @@
 import { create } from 'zustand';
 import {
   parsePing,
+  parsePingClear,
   parsePingMentor,
+  PING_CLEAR_EVENT,
+  PING_CLEAR_RATE,
   PING_EVENT,
-  PING_LIFE_MS,
   PING_MENTOR_EVENT,
   PING_RATE,
   PingRateLimiter,
   teammateOf,
   type PingKind,
+  type PingClearMessage,
   type PingMentorMessage,
   type PingMessage,
   type PingMode,
@@ -80,6 +83,7 @@ export function setPingClockForTests(fn: (() => number) | null): void { clock = 
 
 const sendLimit = new PingRateLimiter(PING_RATE);
 const recvLimit = new PingRateLimiter(PING_RATE);
+const clearLimit = new PingRateLimiter(PING_CLEAR_RATE);
 let seq = 0;
 let lastAnnounced: string | null = null;
 
@@ -101,6 +105,7 @@ export function setPingSession(owner: string, next: Omit<PingSession, 'owner'> |
 export function resetPings(): void {
   sendLimit.reset();
   recvLimit.reset();
+  clearLimit.reset();
   lastAnnounced = null;
   if (usePings.getState().list.length) usePings.setState({ list: [] });
   if (Object.keys(useMentors.getState().bySeat).length) useMentors.setState({ bySeat: {} });
@@ -144,32 +149,55 @@ export function pingContext(): { owner: PingSeat; role: PingRole } | null {
   return { owner: mine, role: 'self' };
 }
 
+const sameTarget = (a: PingTarget, b: PingTarget): boolean =>
+  a.t === 'card' ? b.t === 'card' && a.uid === b.uid && a.zone === b.zone : b.t === 'button' && a.id === b.id;
+
 function show(p: Omit<ShownPing, 'key' | 'at'>, key: string): void {
   const now = clock();
-  const list = usePings.getState().list.filter((x) => now - x.at < PING_LIFE_MS && x.key !== key);
-  // One ping per target at a time: a new one replaces the last on the same target.
-  const sameTarget = (x: ShownPing): boolean => x.owner === p.owner && JSON.stringify(x.target) === JSON.stringify(p.target);
-  usePings.setState({ list: [...list.filter((x) => !sameTarget(x)), { ...p, key, at: now }] });
+  // One ping per target at a time: a new one replaces the last on the same target. No timer: a ping settles on its
+  // target until it is cleared (owner 2026-10-29).
+  const list = usePings.getState().list.filter((x) => x.key !== key && !(x.owner === p.owner && sameTarget(x.target, p.target)));
+  usePings.setState({ list: [...list, { ...p, key, at: now }] });
 }
 
-/** Drop pings past their life (the layer calls it when one fades). */
-export function expirePings(now: number = clock()): void {
+/** May I tell the other screens that `owner`'s ping was cleared? The player, the teammate and the mentor may; a plain
+ *  spectator clears only on their own screen. */
+function maySendClearFor(owner: PingSeat): boolean {
+  const mine = myPingSeat();
+  if (mine) return mine === owner || teammateOf(modeNow(), mine) === owner;
+  const me = currentUserId();
+  return !!me && useMentors.getState().bySeat[owner]?.id === me;
+}
+
+function dropAndTell(match: (x: ShownPing) => boolean, tell: boolean): void {
   const list = usePings.getState().list;
-  const keep = list.filter((x) => now - x.at < PING_LIFE_MS);
-  if (keep.length !== list.length) usePings.setState({ list: keep });
+  const gone = list.filter(match);
+  if (gone.length === 0) return;
+  usePings.setState({ list: list.filter((x) => !match(x)) });
+  if (!tell || !session?.send) return;
+  const sent = new Set<string>();
+  for (const g of gone) {
+    const k = `${g.owner}|${JSON.stringify(g.target)}`;
+    if (sent.has(k) || !maySendClearFor(g.owner) || !clearLimit.allow('me', clock())) continue;
+    sent.add(k);
+    session.send(PING_CLEAR_EVENT, { owner: g.owner, target: g.target } satisfies PingClearMessage);
+  }
 }
 
-/** Clear one ping (a click on it). */
+/** Clear one ping (a left- or right-click on it): on every screen showing it. */
 export function clearPing(key: string): void {
-  const list = usePings.getState().list;
-  if (list.some((x) => x.key === key)) usePings.setState({ list: list.filter((x) => x.key !== key) });
+  dropAndTell((x) => x.key === key, true);
 }
 
-/** Clear every ping on a card (it is being moved). */
+/** Clear every ping on a card (it is being moved: dragged, sold, played), on every screen showing it. */
 export function clearPingsOnCard(uid: string): void {
-  const list = usePings.getState().list;
-  const keep = list.filter((x) => !(x.target.t === 'card' && x.target.uid === uid));
-  if (keep.length !== list.length) usePings.setState({ list: keep });
+  dropAndTell((x) => x.target.t === 'card' && x.target.uid === uid, true);
+}
+
+/** A ping whose target left this screen (the shop closed, the card is gone): dropped here only (every screen sees its
+ *  own target go). */
+export function forgetPing(key: string): void {
+  dropAndTell((x) => x.key === key, false);
 }
 
 const myName = (): string => (useGame.getState().playerName ?? '').trim();
@@ -241,9 +269,24 @@ function applyMentor(m: PingMentorMessage): void {
   useMentors.setState({ bySeat: { ...cur, [m.seat]: { id: m.mentor, name: m.name ?? '' } } });
 }
 
+/** An inbound CLEAR: drop the pings on that target. A seated receiver takes one only for its own or its teammate's
+ *  seat (the same audience rule as a ping). */
+export function receivePingClear(payload: unknown): boolean {
+  const m = parsePingClear(payload);
+  if (!m) return false;
+  const mine = myPingSeat();
+  if (mine && m.owner !== mine && teammateOf(modeNow(), mine) !== m.owner) return false;
+  const list = usePings.getState().list;
+  const keep = list.filter((x) => !(x.owner === m.owner && sameTarget(x.target, m.target)));
+  if (keep.length === list.length) return false;
+  usePings.setState({ list: keep });
+  return true;
+}
+
 /** Every handler on a game's stream passes its events here first. True = it was a ping event (handled). */
 export function receivePingEvent(event: string, payload: unknown): boolean {
   if (event === PING_EVENT) { receivePing(payload); return true; }
+  if (event === PING_CLEAR_EVENT) { receivePingClear(payload); return true; }
   if (event === PING_MENTOR_EVENT) { receiveMentor(payload); return true; }
   return false;
 }

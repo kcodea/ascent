@@ -28,7 +28,7 @@ import { signInviteProof } from './invites';
 import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
 import { spectateSinkFor, WatchReporter, type SpectateSink } from './spectate';
 import { roomWatchKey, roomWatchOf, type RoomWatch } from './core/roomWatch';
-import { PING_EVENT, PING_MENTOR_EVENT, PingRateLimiter, routePing, routePingMentor, withMentor, type PingMode, type PingRoomView, type PingSeat } from './pings';
+import { PING_CLEAR_EVENT, PING_CLEAR_RATE, PING_EVENT, PING_MENTOR_EVENT, PingRateLimiter, routePing, routePingClear, routePingMentor, withMentor, type PingMode, type PingRoomView, type PingSeat } from './pings';
 import {
   parseClientMessage,
   VERSUS_CF_CLOSE,
@@ -95,6 +95,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
    *  per-sender ping limit. Stored under `PING_MENTORS_KEY` so a hibernation wake keeps who is mentoring. */
   private pingMentors: { matchId: string | null; mentors: Partial<Record<PingSeat, string>> } = { matchId: null, mentors: {} };
   private readonly pingLimit = new PingRateLimiter();
+  private readonly pingClearLimit = new PingRateLimiter(PING_CLEAR_RATE);
   private readonly metrics: RoomMetrics = { msgsIn: 0, msgsOut: 0, bytesIn: 0, bytesOut: 0, resolveMs: [], alarms: 0, wakes: 0 };
 
   constructor(ctx: DurableObjectState, env: RoomEnv) {
@@ -271,7 +272,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     const a = this.att(ws);
     if (msg.t === 'bc') {
       if (!a.hello) return;
-      if (msg.event === PING_EVENT || msg.event === PING_MENTOR_EVENT) { await this.relayPing(ws, a.userId, msg.event, msg.payload); return; }
+      if (msg.event === PING_EVENT || msg.event === PING_MENTOR_EVENT || msg.event === PING_CLEAR_EVENT) { await this.relayPing(ws, a.userId, msg.event, msg.payload); return; }
       // Relay (spectator frames, cursors, emotes): to every other member's sockets, never back to the sender.
       const out = JSON.stringify({ t: 'bc', event: msg.event, payload: msg.payload, from: a.userId } satisfies VersusCfPush);
       for (const other of this.liveSockets()) if (other !== ws && this.att(other).hello) this.send(other, out);
@@ -352,6 +353,15 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       await this.ctx.storage.put(PING_MENTORS_KEY, this.pingMentors);
       const out = JSON.stringify({ t: 'bc', event, payload: m, from: userId } satisfies VersusCfPush);
       for (const other of this.liveSockets()) if (other !== ws && this.att(other).hello) this.send(other, out);
+      return;
+    }
+    if (event === PING_CLEAR_EVENT) {
+      if (!this.pingClearLimit.allow(userId, Date.now())) return;
+      const c = routePingClear(room, userId, payload);
+      if (!c) return;
+      const to = new Set(c.to);
+      const out = JSON.stringify({ t: 'bc', event, payload: c.msg, from: userId } satisfies VersusCfPush);
+      for (const other of this.liveSockets()) { const o = this.att(other); if (other !== ws && o.hello && to.has(o.userId)) this.send(other, out); }
       return;
     }
     if (!this.pingLimit.allow(userId, Date.now())) { this.log({ ev: 'versus_cf_ping_dropped', user: userId, why: 'rate' }); return; }

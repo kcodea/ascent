@@ -3,7 +3,7 @@
  * change, and the per-sender limit. The Versus room (`room.ts relayPing`) and the lobby live object run exactly these.
  */
 import { describe, expect, it } from 'vitest';
-import { livePingRoom, PING_RATE, PingRateLimiter, routePing, routePingMentor, teammateOf, withMentor, type PingRoomView } from '../src/pings';
+import { livePingRoom, PING_RATE, PingRateLimiter, routePing, routePingClear, routePingMentor, teammateOf, withMentor, type PingRoomView } from '../src/pings';
 
 const ping = (over: Record<string, unknown> = {}) => ({ id: 'a.1', kind: 'check', owner: 'p1', target: { t: 'card', uid: '42', zone: 'shop' }, from: 'spoofed', ...over });
 
@@ -136,5 +136,25 @@ describe('livePingRoom: the Cloudflare live lobby / Practice object (R-PING-01..
 
   it('with no mentor named, no watcher may ping', () => {
     expect(routePing(livePingRoom('ann', ['sam'], null), 'sam', ping()).ok).toBe(false);
+  });
+});
+
+describe('routePingClear: a clear reaches every screen showing the ping (R-PING-05)', () => {
+  const t = { t: 'card', uid: '42', zone: 'shop' };
+  it('the player clears: the stands hear it, the opponent never does', () => {
+    expect(routePingClear(duel, 'ann', { owner: 'p1', target: t })?.to.sort()).toEqual(['sam', 'tia']);
+  });
+  it('Duos: a teammate clears my ping; the other team is never told', () => {
+    const r = routePingClear(duos, 'amy', { owner: 'p1', target: t });
+    expect(r?.to).toContain('ann');
+    expect(r?.to).not.toContain('bob');
+    expect(r?.to).not.toContain('ben');
+  });
+  it('the mentor may clear; a plain spectator or an opponent may not', () => {
+    const room = { ...lobby, mentors: { p1: 'sam' } };
+    expect(routePingClear(room, 'sam', { owner: 'p1', target: t })?.to).toContain('ann');
+    expect(routePingClear(room, 'tia', { owner: 'p1', target: t })).toBeNull();
+    expect(routePingClear(duel, 'bob', { owner: 'p1', target: t })).toBeNull();
+    expect(routePingClear(duel, 'ann', { owner: 'p1', target: { t: 'nope' } })).toBeNull();
   });
 });

@@ -11,7 +11,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../identity', async (orig) => ({ ...(await orig<typeof import('../identity')>()), currentUserId: () => 'me' }));
-import { PING_EVENT, PING_MENTOR_EVENT, type PingMessage } from '@game/versus-cf/pings';
+import { PING_CLEAR_EVENT, PING_EVENT, PING_MENTOR_EVENT, type PingMessage } from '@game/versus-cf/pings';
 import { useGame } from '../store';
 import { useSpectate } from '../versus/spectate';
 import { setWatchers } from '../versus/watchers';
@@ -247,6 +247,40 @@ describe('the layer (R-PING-04/05)', () => {
     expect(usePings.getState().list.map((p) => p.kind)).toEqual(['x']);
     clearPingsOnCard('9');
     expect(usePings.getState().list).toHaveLength(0);
+  });
+
+  it('a clear travels: my click or drag tells the other screens; theirs clears mine; an opponent clear never does', () => {
+    session('p1', 'duos');
+    sendPing('check', { t: 'card', uid: '7', zone: 'shop' });
+    clearPing(usePings.getState().list[0]!.key);
+    expect(sent.filter((x) => x.e === PING_CLEAR_EVENT).map((x) => x.p)).toEqual([{ owner: 'p1', target: { t: 'card', uid: '7', zone: 'shop' } }]);
+    sent.length = 0;
+    sendPing('x', { t: 'card', uid: '9', zone: 'board' });
+    clearPingsOnCard('9');
+    expect(sent.filter((x) => x.e === PING_CLEAR_EVENT)).toHaveLength(1);
+    // My teammate's ping on my card, cleared on their screen: it goes from mine too.
+    receivePingEvent(PING_EVENT, msg({ owner: 'p1', from: 'amy', role: 'mate' }));
+    expect(usePings.getState().list).toHaveLength(1);
+    receivePingEvent(PING_CLEAR_EVENT, { owner: 'p3', target: { t: 'card', uid: '7', zone: 'shop' } });
+    expect(usePings.getState().list).toHaveLength(1);
+    receivePingEvent(PING_CLEAR_EVENT, { owner: 'p1', target: { t: 'card', uid: '7', zone: 'shop' } });
+    expect(usePings.getState().list).toHaveLength(0);
+  });
+
+  it('a plain spectator clears only on their own screen (nothing sent)', () => {
+    session(null);
+    useSpectate.setState({ active: true, seat: 'p1' });
+    receivePingEvent(PING_EVENT, msg());
+    clearPing(usePings.getState().list[0]!.key);
+    expect(usePings.getState().list).toHaveLength(0);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('a ping has no timer: it settles until cleared', () => {
+    sendPing('check', { t: 'card', uid: '7', zone: 'shop' });
+    now += 10 * 60_000;
+    sendPing('x', { t: 'button', id: 'refresh' });
+    expect(usePings.getState().list).toHaveLength(2);
   });
 
   it('design A fans three bubbles above the card and three below; B rings five around Inspect', () => {

@@ -23,7 +23,7 @@ import type { PersistEnv } from './persist';
 import { VERSUS_CF_CLOSE, VERSUS_CF_PING, VERSUS_CF_PONG, VERSUS_CF_STALE_MS, VERSUS_CF_SUBPROTOCOL, parseClientMessage } from './protocol';
 import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
 import { spectateSinkFor, WatchReporter, type SpectateSink } from './spectate';
-import { livePingRoom, PING_EVENT, PING_MENTOR_EVENT, PingRateLimiter, routePing, routePingMentor } from './pings';
+import { livePingRoom, PING_CLEAR_EVENT, PING_CLEAR_RATE, PING_EVENT, PING_MENTOR_EVENT, PingRateLimiter, routePing, routePingClear, routePingMentor } from './pings';
 
 export const LIVE_GAME_HEADER = 'X-Live-Game';
 export const LIVE_USER_HEADER = 'X-Live-User';
@@ -87,6 +87,7 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
   /** LIVE PINGS (R-PING-01..03): the spectator the player named Mentor (stored: a wake keeps it), and the ping limit. */
   private pingMentor: string | null = null;
   private readonly pingLimit = new PingRateLimiter();
+  private readonly pingClearLimit = new PingRateLimiter(PING_CLEAR_RATE);
   private readonly metrics: LiveMetrics = { msgsIn: 0, msgsOut: 0, bytesIn: 0, bytesOut: 0, rowWrites: 0, beatWrites: 0, beats: 0 };
 
   constructor(ctx: DurableObjectState, env: LiveEnv) {
@@ -199,7 +200,7 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
     const a = this.att(ws);
     if (msg.t === 'bc') {
       if (!core || !a.role) return;
-      if (msg.event === PING_EVENT || msg.event === PING_MENTOR_EVENT) { await this.relayPing(core, ws, a.userId, msg.event, msg.payload); return; }
+      if (msg.event === PING_EVENT || msg.event === PING_MENTOR_EVENT || msg.event === PING_CLEAR_EVENT) { await this.relayPing(core, ws, a.userId, msg.event, msg.payload); return; }
       // Relay to everyone else in this game (the player's stream to the stands; a watcher's emote, key request or
       // goodbye to the player and the other watchers), never back to the sender.
       const out = JSON.stringify({ t: 'bc', event: msg.event, payload: msg.payload, from: a.userId } satisfies LivePush);
@@ -328,6 +329,15 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
       else await this.ctx.storage.delete(PING_MENTOR_KEY);
       const out = JSON.stringify({ t: 'bc', event, payload: m, from: userId } satisfies LivePush);
       for (const other of this.liveSockets()) if (other !== ws && this.att(other).role) this.send(other, out);
+      return;
+    }
+    if (event === PING_CLEAR_EVENT) {
+      if (!this.pingClearLimit.allow(userId, Date.now())) return;
+      const c = routePingClear(room, userId, payload);
+      if (!c) return;
+      const to = new Set(c.to);
+      const out = JSON.stringify({ t: 'bc', event, payload: c.msg, from: userId } satisfies LivePush);
+      for (const other of this.liveSockets()) { const o = this.att(other); if (other !== ws && o.role && to.has(o.userId)) this.send(other, out); }
       return;
     }
     if (!this.pingLimit.allow(userId, Date.now())) return;

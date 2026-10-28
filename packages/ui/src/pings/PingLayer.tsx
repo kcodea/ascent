@@ -12,17 +12,17 @@
  *      B RING   : Inspect under the pointer, the five pings in a ring around it (right-click, click in place = Inspect).
  *      C STRIP  : a slim labelled column beside the pointer, Inspect first, right under it.
  *  - THE MARKS (`PingMarks`): a ping SPARKS on its target (the authored `hero-power-spark` FX, one-shot, plus the `pulse`
- *    UI cue), pops in with a short overshoot and settles; it stays about 4 s and fades. A card's mark lives INSIDE the
+ *    UI cue), pops in with a short overshoot and settles; it STAYS until cleared (no timer). A card's mark lives INSIDE the
  *    card's element, so it rides every hover and FLIP the card makes. It is CLEARED by a left- or right-click on the mark
  *    itself, or when its card moves (dragged, sold, played: owner 2026-10-29), on the sender's and the receiver's screen
- *    alike. Only pings for the screen on display show (mine, or the watched / teammate's seat).
+ *    alike (a `ping_clear` on the stream). It also goes when its target leaves the screen (the shop closes for the fight). Only pings for the screen on display show (mine, or the watched / teammate's seat).
  *
  * No per-frame work: the marks are DOM nodes with CSS one-shots; the anchor check is `isConnected` plus a query, 4 Hz.
  */
 import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { create } from 'zustand';
-import { PING_BUTTONS, PING_KINDS, PING_LIFE_MS, type PingButton, type PingKind, type PingTarget, type PingZone } from '@game/versus-cf/pings';
+import { PING_BUTTONS, PING_KINDS, type PingButton, type PingKind, type PingTarget, type PingZone } from '@game/versus-cf/pings';
 import { dragStore } from '../dragStore';
 import { playDef } from '../fx/playDef';
 import { Icon } from '../Icon';
@@ -31,7 +31,7 @@ import { rectToStage, stageHost, stageViewport, toStage, type StageRect } from '
 import { isSelectOption, setCardHoldGate } from '../touchInput';
 import { useSpectate } from '../versus/spectate';
 import { pingSrc, PING_LOOK } from './pingArt';
-import { clearPing, clearPingsOnCard, expirePings, myPingSeat, pingContext, sendPing, usePings, type ShownPing } from './pingRuntime';
+import { clearPing, clearPingsOnCard, forgetPing, myPingSeat, pingContext, sendPing, usePings, type ShownPing } from './pingRuntime';
 import './pings.css';
 
 // ── the layout switch (dev only until the owner picks) ──────────────────────────────────────────────────────────
@@ -293,22 +293,23 @@ const PingMark = memo(function PingMark({ p }: { p: ShownPing }): JSX.Element | 
         const here = pingAnchorOf(t);
         // It MOVED out of its zone (sold, played, bought) or left the screen once seen: the ping is cleared. Never seen yet
         // = its target is not on this screen yet (a teammate's board I am not looking at), so it waits.
-        if (!here && seen.current) { clearPing(p.key); return; }
+        if (!here && seen.current) { forgetPing(p.key); return; }
         setEl((cur) => (cur === here ? cur : here));
       } else {
-        setEl((cur) => (cur && cur.isConnected ? cur : pingAnchorOf(t)));
+        const here = el && el.isConnected ? el : pingAnchorOf(t);
+        // The shop's buttons left the screen (the fight began): the ping on them is done.
+        if (!here && seen.current) { forgetPing(p.key); return; }
+        setEl((cur) => (cur === here ? cur : here));
       }
     }, PING_ANCHOR_CHECK_MS);
     return () => window.clearInterval(id);
-  }, [p.key]);
+  }, [p.key, el]);
   if (!el) return null;
   const cap = caption(p);
-  const left = Math.max(0, PING_LIFE_MS - (Date.now() - p.at));
   const dismiss = (e: React.SyntheticEvent): void => { e.preventDefault(); e.stopPropagation(); clearPing(p.key); };
   return createPortal(
     <span className={`ping-mark pm-${p.target.t}${p.mine ? ' mine' : ''} pr-${p.role}`} role="status"
-      aria-label={`${cap ? `${cap} pinged` : 'Ping'}: ${PING_LOOK[p.kind].label}. Click to clear.`}
-      style={{ '--ping-left': `${left}ms` } as CSSProperties}>
+      aria-label={`${cap ? `${cap} pinged` : 'Ping'}: ${PING_LOOK[p.kind].label}. Click to clear.`}>
       {/* Cleared on the CLICK (or right-click), never on the press: removed at the press, the release's click would land
           on the card under it and inspect or buy it. The press itself is kept from reaching the card. */}
       <span className="ping-pop" onPointerDown={(e) => { e.stopPropagation(); }} onContextMenu={dismiss} onClick={dismiss}>
@@ -325,13 +326,6 @@ function PingMarks(): JSX.Element {
   const list = usePings((s) => s.list);
   const watched = useSpectate((s) => (s.active ? s.seat : null));
   const screen = watched ?? myPingSeat() ?? 'p1';
-  // Drop each ping when its life ends (one timer, for the next to go).
-  useEffect(() => {
-    if (list.length === 0) return;
-    const next = Math.min(...list.map((p) => p.at + PING_LIFE_MS));
-    const id = window.setTimeout(() => expirePings(), Math.max(16, next - Date.now() + 10));
-    return () => window.clearTimeout(id);
-  }, [list]);
   return <>{list.filter((p) => p.owner === screen).map((p) => <PingMark key={p.key} p={p} />)}</>;
 }
 

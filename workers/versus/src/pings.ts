@@ -66,14 +66,34 @@ export interface PingMentorMessage {
 
 export const PING_EVENT = 'ping';
 export const PING_MENTOR_EVENT = 'ping_mentor';
+/** A ping CLEARED (a click on it, or its card moved): every screen that shows it drops it (owner 2026-10-29: "on both
+ *  sender and receiver sides"). */
+export const PING_CLEAR_EVENT = 'ping_clear';
+/** Clears are cheap and come in small bursts (a drag clears one, a click another): a looser limit than pings. */
+export const PING_CLEAR_RATE = { max: 8, windowMs: 2000 } as const;
 /** At most `max` pings per sender in any `windowMs` (owner 2026-10-29: "e.g. 3 pings / 2 s per sender"). */
 export const PING_RATE = { max: 3, windowMs: 2000 } as const;
-/** How long a ping stays on its target before it fades. */
-export const PING_LIFE_MS = 4000;
+/** A ping has no timer (owner 2026-10-29: it sparks, then SETTLES until cleared by a click or by moving its card). The
+ *  marks also go when their target leaves the screen (the shop ends, the card is sold). */
 
 const ID = /^[A-Za-z0-9_:.-]{1,64}$/;
 const isSeat = (v: unknown): v is PingSeat => typeof v === 'string' && (PING_SEATS as readonly string[]).includes(v);
 const clampName = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 24) : undefined);
+
+function parseTarget(raw: unknown): PingTarget | null {
+  const t = raw as Partial<PingTarget> | undefined;
+  if (t?.t === 'card') {
+    const c = t as { uid?: unknown; zone?: unknown };
+    if (typeof c.uid !== 'string' || !ID.test(c.uid) || !(PING_ZONES as readonly unknown[]).includes(c.zone)) return null;
+    return { t: 'card', uid: c.uid, zone: c.zone as PingZone };
+  }
+  if (t?.t === 'button') {
+    const b = t as { id?: unknown };
+    if (!(PING_BUTTONS as readonly unknown[]).includes(b.id)) return null;
+    return { t: 'button', id: b.id as PingButton };
+  }
+  return null;
+}
 
 /** Validate a ping payload; null when malformed. `from` and `role` are carried through as-is (the router overwrites). */
 export function parsePing(payload: unknown): PingMessage | null {
@@ -82,17 +102,8 @@ export function parsePing(payload: unknown): PingMessage | null {
   if (typeof p.id !== 'string' || !ID.test(p.id)) return null;
   if (!(PING_KINDS as readonly unknown[]).includes(p.kind)) return null;
   if (!isSeat(p.owner)) return null;
-  const t = p.target as Partial<PingTarget> | undefined;
-  let target: PingTarget;
-  if (t?.t === 'card') {
-    const c = t as { uid?: unknown; zone?: unknown };
-    if (typeof c.uid !== 'string' || !ID.test(c.uid) || !(PING_ZONES as readonly unknown[]).includes(c.zone)) return null;
-    target = { t: 'card', uid: c.uid, zone: c.zone as PingZone };
-  } else if (t?.t === 'button') {
-    const b = t as { id?: unknown };
-    if (!(PING_BUTTONS as readonly unknown[]).includes(b.id)) return null;
-    target = { t: 'button', id: b.id as PingButton };
-  } else return null;
+  const target = parseTarget(p.target);
+  if (!target) return null;
   const from = typeof p.from === 'string' && ID.test(p.from) ? p.from : '';
   const role = p.role === 'self' || p.role === 'mate' || p.role === 'mentor' ? p.role : undefined;
   const out: PingMessage = { id: p.id, kind: p.kind as PingKind, owner: p.owner, target, from };
@@ -100,6 +111,19 @@ export function parsePing(payload: unknown): PingMessage | null {
   const name = clampName(p.name);
   if (name) out.name = name;
   return out;
+}
+
+/** A ping cleared: every ping on `owner`'s `target`. */
+export interface PingClearMessage {
+  owner: PingSeat;
+  target: PingTarget;
+}
+
+export function parsePingClear(payload: unknown): PingClearMessage | null {
+  const p = payload as Partial<PingClearMessage> | null;
+  if (!p || typeof p !== 'object' || !isSeat(p.owner)) return null;
+  const target = parseTarget(p.target);
+  return target ? { owner: p.owner, target } : null;
 }
 
 export function parsePingMentor(payload: unknown): PingMentorMessage | null {
@@ -184,6 +208,25 @@ export function routePing(room: PingRoomView, sender: string, payload: unknown):
   }
   to.delete(sender);
   return { ok: true, ping, to: [...to] };
+}
+
+/**
+ * Route a CLEAR: anyone who may ping `owner`'s targets (the player, the teammate, the mentor) may clear one, and it
+ * reaches everyone who may be showing it (the owner, the teammate and the stands, the mentor among them; never an
+ * opponent). A plain spectator clears only on their own screen (nothing is sent). Pure.
+ */
+export function routePingClear(room: PingRoomView, sender: string, payload: unknown): { msg: PingClearMessage; to: string[] } | null {
+  const msg = parsePingClear(payload);
+  if (!msg) return null;
+  const ownerUser = userOfSeat(room, msg.owner);
+  if (!ownerUser || !pingRoleOf(room, sender, msg.owner)) return null;
+  const to = new Set<string>([ownerUser]);
+  const mate = teammateOf(room.mode, msg.owner);
+  const mateUser = mate ? userOfSeat(room, mate) : null;
+  if (mateUser) to.add(mateUser);
+  for (const m of room.members) if (m.role === 'spectator') to.add(m.userId);
+  to.delete(sender);
+  return { msg, to: [...to] };
 }
 
 /**

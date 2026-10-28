@@ -10065,6 +10065,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-10-27 (fix/phone-resume-after-background). Before: the boundary showed "The game hit a snag" with the raw error message; a failed lazy chunk re-threw on Try to continue (React caches the rejection); a lost save answer read as "Your game moved"; a Home Screen app showed the crash readout by itself after a crash.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneResume.test.tsx', 'packages/ui/src/cloudSave.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
     id: 'R-VERSUS-CLOSE-ONCE-01',
     title: 'Versus (every mode): exactly one call closes a round and says so; a duplicate resolver save is answered without the match lock',
     statement:

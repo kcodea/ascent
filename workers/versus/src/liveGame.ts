@@ -204,7 +204,7 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
     const now = Date.now();
     const op = msg.op as string;
     try {
-      if (op === 'hello') { await this.hello(ws, a, core, (msg.args ?? {}) as Partial<LiveHello>, answer, now); return; }
+      if (op === 'hello') { await this.hello(ws, a, core, (msg.args ?? {}) as Partial<LiveHello>, answer, now); await this.rearm(); return; }
       if (!a.role) { answer(false, 'hello_first'); return; }
       if (op === 'listing') {
         if (a.role !== 'publish') throw new LiveError('not_owner');

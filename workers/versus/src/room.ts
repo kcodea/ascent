@@ -210,9 +210,12 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     }
   }
 
-  async metricsSnapshot(): Promise<RoomMetrics & { persistLive: boolean; persisted: number }> {
+  async metricsSnapshot(): Promise<RoomMetrics & { persistLive: boolean; persisted: number; watchBeats: unknown[] }> {
     const ob = await this.ctx.storage.list({ prefix: 'ob:' });
-    return { ...this.metrics, persistLive: this.sink.live, persisted: (this.sink as { written?: unknown[] }).written?.length ?? 0, ...{ outbox: ob.size } };
+    return {
+      ...this.metrics, persistLive: this.sink.live, persisted: (this.sink as { written?: unknown[] }).written?.length ?? 0, ...{ outbox: ob.size },
+      watchBeats: (this.watchSink as { written?: unknown[] }).written ?? [],
+    };
   }
 
   // ── HTTP (the WebSocket upgrade) ───────────────────────────────────────────────────────────────────────────────

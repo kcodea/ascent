@@ -25,6 +25,9 @@ import { rankedServiceFor } from './rankedService';
 import { liveListingOf } from './core/liveListing';
 import { LIVE_STORAGE_KEY, liveSinkFor, LiveSlot } from './live';
 import { signInviteProof } from './invites';
+import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
+import { spectateSinkFor, WatchReporter, type SpectateSink } from './spectate';
+import { roomWatchKey, roomWatchOf, type RoomWatch } from './core/roomWatch';
 import {
   parseClientMessage,
   VERSUS_CF_CLOSE,
@@ -63,17 +66,7 @@ interface RoomMetrics {
 
 export const INTERNAL_USER_HEADER = 'X-Versus-User';
 
-/**
- * PER-SOCKET RATE LIMIT (a token bucket per socket, in memory: a wake resets it, which only ever errs generous).
- * Requests: 20/s sustained, bursts of 40 (a shop turn sends one candidate per board change). Relays (spectator frames,
- * cursors, emotes): 60/s, bursts of 120. Over the limit a frame is dropped (a request answers `rate_limited`); a socket
- * that keeps flooding (over the limit 200 times) is closed with 1008. Frames over 1.5 MB are refused outright (a full
- * submit with its checkpoint is ~1.3 MB at most).
- */
-const RATE = { req: { per: 20, burst: 40 }, bc: { per: 60, burst: 120 } } as const;
-const MAX_FRAME_CHARS = 1_500_000;
-const FLOOD_CLOSE_AFTER = 200;
-interface Bucket { req: number; bc: number; at: number; over: number }
+/** Per-socket rate limit: `rate.ts` (shared with the live game objects). */
 
 const uuid = (): string => crypto.randomUUID();
 const random31 = (): number => crypto.getRandomValues(new Uint32Array(1))[0] >>> 1;
@@ -89,12 +82,18 @@ export class VersusRoom extends DurableObject<RoomEnv> {
   private outboxAttempt = 0;
   private outboxRetryAt: number | null = null;
   private readonly buckets = new WeakMap<CfWebSocket, Bucket>();
+  /** SPECTATOR XP (R-LIVE-CF-XP-01): the room beats its stands' watch record (`spectate.ts`, `core/roomWatch.ts`). */
+  private readonly watchSink: SpectateSink;
+  private readonly watchReporter = new WatchReporter();
+  private watchNow: RoomWatch = { target: null, beats: [] };
+  private watchKey = '';
   private readonly metrics: RoomMetrics = { msgsIn: 0, msgsOut: 0, bytesIn: 0, bytesOut: 0, resolveMs: [], alarms: 0, wakes: 0 };
 
   constructor(ctx: DurableObjectState, env: RoomEnv) {
     super(ctx, env);
     this.sink = sinkFor(env);
     this.rankedSvc = rankedServiceFor(env);
+    this.watchSink = spectateSinkFor(env);
     // Keep-alive answered by the runtime itself: a ping never wakes a hibernating room.
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(VERSUS_CF_PING, VERSUS_CF_PONG));
     // The state is read once, before any event is delivered (a wake from hibernation runs the constructor again).
@@ -165,6 +164,29 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     slot.want(liveListingOf(core.state));
     if (!slot.due(Date.now())) return;
     void slot.flush(Date.now()).then(() => this.rearm()).catch(() => undefined);
+  }
+
+  /**
+   * SPECTATOR XP (R-LIVE-CF-XP-01): who in the stands watches the current match, beaten for the watch record. A change
+   * (someone arrives or leaves, the match ends) beats soon; otherwise every `SPECTATE_REPORT_MS` while anyone watches.
+   * Off the request path; a failed beat is dropped (as the client's was).
+   */
+  private syncWatch(now: number): void {
+    const core = this.core;
+    if (!core) return;
+    const connected = new Set(this.liveSockets().filter((ws) => this.att(ws).hello).map((ws) => this.att(ws).userId));
+    const w = roomWatchOf(core.state, connected, now);
+    const key = roomWatchKey(w);
+    if (key !== this.watchKey) {
+      const here = new Set(w.target === this.watchNow.target ? w.beats.map((b) => b.user) : []);
+      for (const b of this.watchNow.beats) if (!here.has(b.user)) this.watchReporter.left(b, now);
+      this.watchReporter.poke(now);
+      this.watchKey = key;
+    }
+    this.watchNow = w;
+    if (!this.watchReporter.due(now, w.beats.length > 0)) return;
+    const beats = this.watchReporter.take(now, w.beats);
+    if (beats.length) void this.watchSink.write(beats).catch((e) => this.log({ ev: 'versus_cf_watch_beat_failed', n: beats.length, error: String(e) }));
   }
 
   // ── RPC from the Worker ────────────────────────────────────────────────────────────────────────────────────────
@@ -258,6 +280,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       if (others > 0) return;
       await this.apply(core.disconnect(userId, Date.now()));
       await this.apply(await core.tick(Date.now()));
+      this.syncWatch(Date.now());
       await this.rearm();
     }
   }
@@ -283,6 +306,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       await this.apply(await core.tick(now));
       await this.drainOutbox();
       this.syncLive();
+      this.syncWatch(now);
       await this.rearm();
     }
   }
@@ -295,16 +319,11 @@ export class VersusRoom extends DurableObject<RoomEnv> {
 
   /** Take one token of `kind` from this socket's bucket. */
   private allow(ws: CfWebSocket, kind: 'req' | 'bc'): boolean {
-    const now = Date.now();
-    const b = this.buckets.get(ws) ?? { req: RATE.req.burst, bc: RATE.bc.burst, at: now, over: 0 };
-    const dt = (now - b.at) / 1000;
-    b.req = Math.min(RATE.req.burst, b.req + dt * RATE.req.per);
-    b.bc = Math.min(RATE.bc.burst, b.bc + dt * RATE.bc.per);
-    b.at = now;
-    this.buckets.set(ws, b);
-    if (b[kind] >= 1) { b[kind] -= 1; return true; }
-    if (++b.over >= FLOOD_CLOSE_AFTER) { try { ws.close(1008, 'rate_limited'); } catch { /* gone */ } }
-    this.log({ ev: 'versus_cf_rate_limited', user: this.att(ws).userId, kind, over: b.over });
+    const { bucket, ok, flood } = takeToken(this.buckets.get(ws), kind, Date.now());
+    this.buckets.set(ws, bucket);
+    if (ok) return true;
+    if (flood) { try { ws.close(1008, 'rate_limited'); } catch { /* gone */ } }
+    this.log({ ev: 'versus_cf_rate_limited', user: this.att(ws).userId, kind, over: bucket.over });
     return false;
   }
 
@@ -325,6 +344,8 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       }
       ws.serializeAttachment({ ...a, hello: true } satisfies Attachment);
       answer(true, { room: core.roomJson(), match: core.currentMatchJson(), priv: core.privFor(a.userId), userId: a.userId });
+      this.syncWatch(Date.now()); // a spectator's watch screen is on: their watch record starts
+      await this.rearm();
       return;
     }
     if (!a.hello) { answer(false, 'hello_first'); return; }
@@ -417,6 +438,8 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     for (const u of fx.left) await this.directory().release(u, core.state.room.id).catch(() => undefined);
     // 5. Live Games (Ranked Duos): only when the listing changed; never on a plain request.
     this.syncLive();
+    // 6. The stands' watch record (spectator XP).
+    this.syncWatch(Date.now());
     if (core.state.room.closed) {
       const bye = JSON.stringify({ t: 'closed', reason: 'room_closed' } satisfies VersusCfPush);
       for (const ws of this.liveSockets()) { this.send(ws, bye); try { ws.close(VERSUS_CF_CLOSE.roomClosed, 'room_closed'); } catch { /* gone */ } }
@@ -502,6 +525,8 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     if (this.outboxRetryAt != null) due.push(this.outboxRetryAt);
     const live = this.liveSlot?.nextAt(Date.now());
     if (live != null) due.push(live);
+    const watch = this.watchReporter.nextAt(this.watchNow.beats.length > 0);
+    if (watch != null) due.push(watch);
     // (A closed room still owing its Live Games removal waits for that write: the slot's own time above, then this.)
     if (core.state.room.closed && !this.liveSlot?.pending()) due.push(Date.now());
     // Stale sockets while a match runs (1v1 or Group / Duos / Ranked Duos): wake exactly when the quietest socket's keep-alive

@@ -13,17 +13,17 @@
 import { LIVE_REFRESH_MS, liveKeyOf, type LiveListing } from './core/liveListing';
 import { persistBackoffMs, type PersistEnv } from './persist';
 
-export interface LiveSink {
+export interface LiveSink<R = LiveListing> {
   readonly live: boolean;
   /** Upsert the room's row, or remove it (`row` null). */
-  write(roomId: string, row: LiveListing | null): Promise<void>;
+  write(roomId: string, row: R | null): Promise<void>;
 }
 
 /** Persistence off (local dev, tests): nothing leaves the Worker; the writes are kept for tests. */
-export class LocalLiveSink implements LiveSink {
+export class LocalLiveSink<R = LiveListing> implements LiveSink<R> {
   readonly live = false;
-  readonly written: { roomId: string; row: LiveListing | null }[] = [];
-  async write(roomId: string, row: LiveListing | null): Promise<void> {
+  readonly written: { roomId: string; row: R | null }[] = [];
+  async write(roomId: string, row: R | null): Promise<void> {
     this.written.push({ roomId, row });
     if (this.written.length > 200) this.written.shift();
   }
@@ -55,8 +55,9 @@ export const LIVE_STORAGE_KEY = 'live';
 /** Failed writes in a row after which a CLOSED room stops waiting for its removal (see `pending`). */
 export const LIVE_GIVE_UP_AFTER = 5;
 
-export class LiveSlot {
-  private wantRow: LiveListing | null = null;
+/** One listing slot. Generic over the row (a room's `LiveListing`, a live lobby game's `LobbyListing`, R-LIVE-CF-01). */
+export class LiveSlot<R = LiveListing> {
+  private wantRow: R | null = null;
   private wantKey = 'none';
   private sentKey: string;
   private sentAt = 0;
@@ -66,11 +67,12 @@ export class LiveSlot {
 
   /** `published`: the key restored from storage after a wake (null = nothing is up). */
   constructor(
-    private readonly sink: LiveSink,
+    private readonly sink: LiveSink<R>,
     private readonly roomId: () => string | null,
     private readonly store: (key: string | null) => Promise<void>,
     published: string | null = null,
     now = 0,
+    private readonly keyOf: (row: R | null) => string = liveKeyOf as unknown as (row: R | null) => string,
   ) {
     this.sentKey = published ?? 'none';
     this.wantKey = this.sentKey;
@@ -79,9 +81,9 @@ export class LiveSlot {
   }
 
   /** Set the listing the room wants up now. */
-  want(row: LiveListing | null): void {
+  want(row: R | null): void {
     this.wantRow = row;
-    this.wantKey = liveKeyOf(row);
+    this.wantKey = this.keyOf(row);
   }
 
   /** Is a write due at `now`? */

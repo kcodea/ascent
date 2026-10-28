@@ -9,8 +9,10 @@ Owner ruling 2026-10-28: "move to cheap storage, keep all". `run_telemetry.repla
   filled by a trigger from `replay` or `replay_head` with the generated columns' own expressions (clients can no longer
   write facts, and a path must sit in the owner's folder); `maint.replay_head`, `maint.run_telemetry_replay_report()`,
   `maint.run_telemetry_clear_copied_replays(phrase, limit)`.
-- **Client**: `replayStorage.ts`. A new game uploads gzipped JSON and inserts the row with `replay: null`, the pointer and
-  the head; any failure falls back to the inline row (old ladder untouched). Every Watch path reads `replay_path` and
+- **Client**: `replayStorage.ts`. The run-end outbox's send (R-NET-OUTBOX-01) uploads a telemetry row's replay as gzipped
+  JSON into the player's folder and sends the row with `replay: null`, the pointer and the head; any failure of that
+  variant (upload, or the server refusing the row) re-sends the inline row in the same send, so the outbox's
+  missing-column handling never sees a pointer row and a replay is never dropped. Every Watch path reads `replay_path` and
   plays the inline replay or the object (`v2OfRow`), and filters by `tp_seed` / `tp_v2_version` (a stored row's
   `replay` is null). A backend without the column answers the exact old selects.
 - **Backfill**: `npm run replays:backfill` (service-role key from the untracked root `.env`): `replay::text` -> gzip ->

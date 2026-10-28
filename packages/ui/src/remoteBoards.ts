@@ -107,6 +107,23 @@ export function anonRestInsert(table: string): ((row: object) => Promise<{ error
   };
 }
 
+/**
+ * A PostgREST RPC sent as a KEEPALIVE fetch, signed as the player (`token`): it finishes even when the page is being
+ * closed, which a supabase-js call does not promise. Fire and forget; false when it could not be sent at all. Used by
+ * the Friends presence's "I left" beat on `pagehide` (R-FRIENDS-PRESENCE-GAP-01).
+ */
+export function keepaliveRpc(fn: string, args: Record<string, unknown>, token: string): boolean {
+  if (!SUPABASE_URL || !SUPABASE_KEY || !token || typeof fetch !== 'function') return false;
+  try {
+    const url = `${String(SUPABASE_URL).replace(/\/+$/, '')}/rest/v1/rpc/${fn}`;
+    void fetch(url, {
+      method: 'POST', keepalive: true, body: JSON.stringify(args),
+      headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${token}`, 'content-type': 'application/json', prefer: 'return=minimal' },
+    }).catch(() => undefined);
+    return true;
+  } catch { return false; }
+}
+
 /** A Supabase auth user → our provider-agnostic `Identity`. `is_anonymous` flips false once an email is
  *  confirmed on the account, so it is the single source of truth for "real account vs device-bound session".
  *  `displayName` is left to the caller (it comes from local storage / the profile, never from auth). */

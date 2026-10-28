@@ -9,7 +9,7 @@
  */
 import { parseGameStatus, type FriendGameStatus } from './gameStatus';
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { supabaseClient } from '../remoteBoards';
+import { keepaliveRpc, supabaseClient } from '../remoteBoards';
 
 export type PresenceStatus = 'online' | 'in_game' | 'offline';
 export type WatchKind = 'live' | 'versus';
@@ -181,6 +181,15 @@ export function parseBeat(raw: unknown): BeatAnswer {
 
 export function makeFriendsRemote(getClient: () => SupabaseClient | null) {
   let gameRefused = false;
+  // The player's access token, kept current by the auth client's own events, so the `pagehide` "I left" beat can be
+  // signed synchronously (a page being closed cannot await `getSession`). Subscribed once, on the first beat.
+  let token: string | null = null;
+  let watchingToken = false;
+  const watchToken = (c: SupabaseClient): void => {
+    if (watchingToken) return;
+    watchingToken = true;
+    try { c.auth.onAuthStateChange((_e, s) => { token = s?.access_token ?? null; }); } catch { /* a stand-in client */ }
+  };
   const db = (): SupabaseClient => {
     const c = getClient();
     if (!c) throw new FriendsError('no_backend');
@@ -194,6 +203,7 @@ export function makeFriendsRemote(getClient: () => SupabaseClient | null) {
   }
   return {
     async beat(p: PresenceReport): Promise<BeatAnswer> {
+      watchToken(db());
       const base = { p_status: p.status, p_mode: p.mode, p_watch_kind: p.watchKind, p_watch_id: p.watchId };
       // `p_game` only when there is one, and never again once a server without the 2026-11-08 SQL refused it: that
       // server still takes the four-argument beat (a refused status must never stop presence).
@@ -207,6 +217,8 @@ export function makeFriendsRemote(getClient: () => SupabaseClient | null) {
       }
       return parseBeat(await rpc('friends_beat', base));
     },
+    /** "I left": an Offline beat that survives the page closing (keepalive). False when it could not be sent. */
+    leave: (): boolean => !!token && keepaliveRpc('friends_beat', { p_status: 'offline' }, token),
     list: async (): Promise<FriendsList> => parseFriendsList(await rpc('friends_list')),
     requestByHandle: (handle: string) => rpc<{ status: 'sent' | 'accepted'; userId: string }>('friends_request', { p_user: null, p_handle: handle }),
     requestById: (userId: string) => rpc<{ status: 'sent' | 'accepted'; userId: string }>('friends_request', { p_user: userId, p_handle: null }),

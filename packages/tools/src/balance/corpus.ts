@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { OUT_ROOT } from './store';
+import { toolReadKey } from '../supabaseReadKey';
 import { digest } from '@game/sim/balance/identity';
 import type { BoardSnapshot } from '@game/sim';
 import { registerOpponents, OPPONENT_POOL, playerRunsFrom } from '@game/sim';
@@ -188,5 +189,5 @@ export function supabaseConfig(): { url: string; key: string } {
     }
   }
   if (!url || !key) throw new Error('balance:corpus — no Supabase config: set SUPABASE_URL + SUPABASE_ANON_KEY (or VITE_…) or keep them in apps/web/.env');
-  return { url, key };
+  return { url, key: toolReadKey(key, resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')) }; // boards: a session-only read since 2026-11-07
 }

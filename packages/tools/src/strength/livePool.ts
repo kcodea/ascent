@@ -8,6 +8,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { BoardSnapshot } from '@game/sim';
+import { toolReadKey } from '../supabaseReadKey';
 
 export const POOL_CACHE = 'packages/tools/.cache/strength-pool.json';
 
@@ -35,7 +36,7 @@ function env(): { url: string; key: string } {
       .map((l) => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]),
   );
   if (!e.VITE_SUPABASE_URL || !e.VITE_SUPABASE_ANON_KEY) throw new Error('no backend configured in apps/web/.env');
-  return { url: e.VITE_SUPABASE_URL, key: e.VITE_SUPABASE_ANON_KEY };
+  return { url: e.VITE_SUPABASE_URL, key: toolReadKey(e.VITE_SUPABASE_ANON_KEY) }; // a session-only read since 2026-11-07
 }
 
 async function get<T>(path: string): Promise<T> {

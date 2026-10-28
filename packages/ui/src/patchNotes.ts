@@ -81,6 +81,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: "Duos: your teammate's portrait now shows what they are up to.",
+        details: [
+          'When your teammate upgrades their shop, the tier-up burst plays over their portrait.',
+          "While the round waits on your teammate's End of Turn, their portrait glows gold so you know the game is still going.",
+          "The lobby rail holds each team in one slot: both players together, the team name, and the team's Health once.",
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Twenty-nine new minion skins in chests, for many of the most-played cards that had none.',
         details: [
           'Prospector, Chronos, Lastlight, Tapkeeper, Bob Blart, Geode Guardian, Market Tormentor, Blazer, Grimoire, Flutterbutter, Right Hand Hank, Sharpshooter, Cave Cutter, Jewel and Spell Warden each get their first skins.',

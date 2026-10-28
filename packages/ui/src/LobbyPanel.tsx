@@ -22,6 +22,7 @@ import { stageHost, stageViewport, toStage } from './stage';
 import { useSpectate } from './versus/spectate';
 import { useVersus } from './versus/versusStore';
 import { groupDuosRailRows } from './versus/versusGroupView';
+import { duosRailTeams, duosTeamHealthRow } from './versus/duosRailTeams';
 import { isRankedDuosRaw, rankedTeamLabels } from './versus/rankedDuosView';
 import { enterTeammateView } from './versus/teammateView';
 import { LobbyGuides } from './guides/LobbyGuides';
@@ -460,7 +461,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         </div>
       ) : (
       <div className={`lobbyseats${swap ? ' lobbyview-in' : ''}`} key="seats">
-        {rows.map((row) => {
+        {(() => {
+        // One seat's row. In a Duos TEAM SLOT (`inTeam`) the row is just the face and the name: the team's name and its
+        // one Health pool sit on the slot (R-DUOS-RAIL-TEAM-01).
+        const seatRow = (row: (typeof rows)[number], inTeam = false): JSX.Element => {
           const seat = lobby.seats.find((s) => s.id === row.id)!;
           const isYou = row.you;
           const isFoe = row.next;
@@ -478,7 +482,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
             <div
               key={seat.id}
               data-seat={seat.id}
-              className={`lobbyseat${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === duosMate ? ' mate' : ''}`}
+              className={`lobbyseat${inTeam ? ' inteam' : ''}${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === duosMate ? ' mate' : ''}`}
               {...(seat.id === duosMate ? { 'aria-label': `${seat.label}, your teammate. Click to watch their board.` } : {})}
               // Hover scouting works on EVERY seat, yours included (owner ask 2026-09-24: "add the same mouseover
               // for self as we have for enemies"). Pinning stays opponent-only; the owner asked for the hover.
@@ -505,13 +509,13 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               })()}
               {/* The opponent name owns its own full-width row (styles.css `.lobbynameline`). The next foe is
                   marked by the seat's own bright pulsing glow (the `foe` class → `.lobbyseat.foe`), not a pill. */}
-              <span className={`lobbynameline${teamLabels?.[seat.id] ? ' hasteam' : ''}`}>
+              <span className={`lobbynameline${!inTeam && teamLabels?.[seat.id] ? ' hasteam' : ''}`}>
                 {/* RANKED DUOS: the team's name heads its first row on a line of its own, above the player's name (owner
                     live test 2026-10-26: laid over the row it collided with the name). */}
-                {teamLabels?.[seat.id] && <span className="lobbyteam" aria-label={`Team ${teamLabels[seat.id]}`}>{teamLabels[seat.id]}</span>}
+                {!inTeam && teamLabels?.[seat.id] && <span className="lobbyteam" aria-label={`Team ${teamLabels[seat.id]}`}>{teamLabels[seat.id]}</span>}
                 <span className="lobbyname">{seat.label}</span>
               </span>
-              {row.alive ? (
+              {inTeam ? null : row.alive ? (
                 <span className="lobbyhp">
                   {/* The health pill heart: its facet + gloss show in the Gem rail and hide in Classic (lobbyRail.css). */}
                   <Icon name="heartPill" />{live.resolve}
@@ -520,7 +524,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               ) : (
                 <span className="lobbyplace">{row.placement ? `#${row.placement}` : 'out'}</span>
               )}
-              {row.alive && (
+              {!inTeam && row.alive && (
                 <span className="lobbybar">
                   <span style={{ width: `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%` }} />
                 </span>
@@ -533,7 +537,42 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               )}
             </div>
           );
-        })}
+        };
+        if (!duosMate) return rows.map((row) => seatRow(row));
+        // VERSUS DUOS / RANKED DUOS (owner 2026-10-27: "tie the teammates together better by putting them into chunkier
+        // rail slots as a team"; R-DUOS-RAIL-TEAM-01): one slot per team, both members inside it, the team's name over
+        // them (Ranked Duos), and the team's one Health pool once, at the slot's foot. The slot carries the team's marks
+        // (yours, the next foe, out), so the rows inside it stay plain.
+        return duosRailTeams(rows).map(({ team, rows: members }) => {
+          const hpRow = duosTeamHealthRow(members)!;
+          const hpSeat = lobby.seats.find((s) => s.id === hpRow.id)!;
+          const label = members.map((m) => teamLabels?.[m.id]).find(Boolean) ?? null;
+          const alive = members.some((m) => m.alive);
+          const teamHp = hpRow.resolve + hpRow.armor;
+          const teamMax = Math.max(1, maxHpOf(hpSeat));
+          const mod = `${members.some((m) => m.you) ? ' you' : ''}${members.some((m) => m.next) ? ' foe' : ''}${members.some((m) => m.ghost) ? ' ghost' : ''}${alive ? '' : ' dead'}${label ? ' named' : ''}`;
+          return (
+            <div key={`team${team}`} className={`lobbyteamslot${mod}`} data-team={team}
+              aria-label={label ? `Team ${label}` : members.some((m) => m.you) ? 'Your team' : 'Opposing team'}>
+              {label && <span className="lobbyteamslot-name">{label}</span>}
+              {members.map((m) => seatRow(m, true))}
+              {alive ? (
+                <span className="lobbyhp lobbyteamslot-hp">
+                  <Icon name="heartPill" />{hpRow.resolve}
+                  {hpRow.armor > 0 && <span className="lobbyarmor"><Icon name="shield" />{hpRow.armor}</span>}
+                </span>
+              ) : (
+                <span className="lobbyplace lobbyteamslot-hp">{hpRow.placement ? `#${hpRow.placement}` : 'out'}</span>
+              )}
+              {alive && (
+                <span className="lobbybar lobbyteamslot-bar">
+                  <span style={{ width: `${Math.max(0, Math.min(100, (teamHp / teamMax) * 100))}%` }} />
+                </span>
+              )}
+            </div>
+          );
+        });
+        })()}
       </div>
       )}
     </div>}

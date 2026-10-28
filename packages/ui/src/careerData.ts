@@ -51,10 +51,12 @@ export interface CareerRun {
   seed: number | null;
   dominantTribe: Tribe | null;
   mode: string | null;
-  /** The final warband — only on the detailed (newest) rows; null on light rows AND on runs with no board. */
+  /** The final warband: on the newest rows (read with the BOARD select) and on rows read in full; null on light rows
+   *  AND on runs with no board. */
   board: BoardSnapshot | null;
   /** True when this row was fetched with its full entry (so a null `board` means "no board stored", not
-   *  "not fetched"). The page shows the outcome-only banner for a detailed row with no board. */
+   *  "not fetched", and a null `match` means "none recorded"). Only the game opened in Match History is read in
+   *  full (Supabase cleanup P1.3); the page shows the outcome-only banner for a detailed row with no board. */
   detailed: boolean;
   /** The runes the run picked — rune ids in acquisition order (Rune of Duplication legitimately repeats one).
    *  Read off the final board snapshot's `runes` (`snapshotOf` stamps the run's `ownedRunes` there), so only a
@@ -109,6 +111,9 @@ export interface RunHistoryRowLike {
   active_ms?: unknown;
   /** `rank_before:entry->rank->before` (`->`, the JSON object) — the position the game settled from (R-GAME-RANK-01). */
   rank_before?: unknown;
+  /** `board:entry->board` (the BOARD select, Supabase cleanup P1.3): the final board without the rest of the entry.
+   *  Gives the banner, the list portrait skins and the MMR tip their board; the match details wait for the full row. */
+  board?: unknown;
 }
 
 /** One `run_telemetry` row as the LIGHT probe projects it — scalars only, never the replay payload. */
@@ -153,8 +158,9 @@ export function careerRunOf(row: RunHistoryRowLike): CareerRun {
   const detailed = !!row.entry && typeof row.entry === 'object';
   const at = str(e.at) ?? (str(e.date) ? `${str(e.date)}T00:00:00` : null) ?? str(row.at) ?? str(row.created_at);
   const atMs = at ? Date.parse(at) : NaN;
-  const board = e.board && typeof e.board === 'object' && Array.isArray((e.board as BoardSnapshot).minions)
-    ? (e.board as BoardSnapshot) : null;
+  const rawBoard = detailed ? e.board : row.board;
+  const board = rawBoard && typeof rawBoard === 'object' && Array.isArray((rawBoard as BoardSnapshot).minions)
+    ? (rawBoard as BoardSnapshot) : null;
   const runes = board && Array.isArray(board.runes) ? (board.runes as unknown[]).filter((id): id is string => typeof id === 'string' && id !== '') : [];
   const activeMs = nonNegative(num(e.activeMs) ?? num(row.active_ms));
   return {
@@ -478,16 +484,25 @@ export function sortHeroCareers(heroes: readonly HeroCareer[], sort: HeroSort): 
   });
 }
 
-/** Upgrade LIGHT runs with their detailed rows (`fetchRunDetails`): only the fields a light row lacks — the final board,
- *  the runes and the match details — are taken, so the telemetry join (Replay, length) and every scalar stay as they
- *  were. Runs with no detailed row come back untouched (same object). Pure. */
+/** Upgrade runs with rows read on demand: a FULL row (`fetchRunDetails`, the selected game) brings the final board,
+ *  the runes and the match details and marks the run detailed; a BOARD row (`fetchRunBoards`, a hero filter's older
+ *  games) brings the board and runes only. Only those fields are taken, so the telemetry join (Replay, length) and
+ *  every scalar stay as they were. A full row wins over a board row for the same id. Runs with nothing to add come
+ *  back untouched (same object). Pure. */
 export function withRunDetails(runs: readonly CareerRun[], detailRows: readonly RunHistoryRowLike[]): CareerRun[] {
   const byId = new Map<number, CareerRun>();
-  for (const d of detailRows) if (typeof d.id === 'number') byId.set(d.id, careerRunOf(d));
+  for (const d of detailRows) {
+    if (typeof d.id !== 'number') continue;
+    const up = careerRunOf(d);
+    if (up.detailed || !byId.get(d.id)?.detailed) byId.set(d.id, up);
+  }
   if (byId.size === 0) return [...runs];
   return runs.map((r) => {
     const up = r.id !== null && !r.detailed ? byId.get(r.id) : undefined;
-    return up ? { ...r, board: up.board, runes: up.runes, match: up.match ?? null, detailed: true } : r;
+    if (!up || (!up.detailed && (r.board || !up.board))) return r;
+    return up.detailed
+      ? { ...r, board: up.board, runes: up.runes, match: up.match ?? null, detailed: true }
+      : { ...r, board: up.board, runes: up.runes };
   });
 }
 

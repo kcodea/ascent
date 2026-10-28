@@ -1014,4 +1014,22 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Tools only until the lead applies the file and runs the batches. Dry run on production 2026-10-28: 2,534 auth users, 5 never touched, 236 guests owning data kept, 1,292 empty guests active in the last 30 days kept, 1,001 candidates.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/anonPurge.db.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-EGRESS-03',
+    title: 'Career reads match details only for the game the player opens',
+    statement:
+      'Opening a Career reads the light run rows (the trends, tiles and Heroes tab) and, for the newest Match History '
+      + 'rows, only their final board (board:entry->board: the list portrait skins and the MMR tip board). The whole entry '
+      + '(the match details with the board of every seat) is read for the one game shown in the detail panel, once per game per '
+      + 'page. The older games of a hero filter read their boards in one batch. Until a game is read in full its lobby slot '
+      + 'stays empty; it never says the details are missing.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-28 (Supabase cleanup, P1.3)', quote: "scope out a massive supabase clean up so that we're running really cleanly across the board." },
+      { kind: 'code', ref: 'packages/ui/src/remoteBoards.ts fetchMyRuns (CAREER_BOARD_SELECT) + fetchRunBoards + fetchRunDetails; Career.tsx openRun effect; careerData.ts withRunDetails' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-28. Before, every Career open read the full entry of the newest 50 runs (~12.7 KB each on prod, ~2 GB in 16 days).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/careerFetch.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/careerData.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

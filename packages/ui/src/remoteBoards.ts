@@ -1874,6 +1874,9 @@ export const CAREER_DETAIL_ROWS = 50; // owner 2026-10-16: 50 games (was 25); tr
  *  simply projects NULL for it — a JSON path to a missing key is never an error. */
 const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, rating_after:entry->>ratingAfter, at:entry->>at, dominant_tribe:entry->>dominantTribe, lobby_strength:entry->lobbyStrength, board_strength:entry->>boardStrength, active_ms:entry->>activeMs, rank_before:entry->rank->before';
 
+/** The BOARD select (Supabase cleanup P1.3): the final board out of `entry`, nothing else of it. */
+export const CAREER_BOARD_SELECT = 'id, created_at, placement, board:entry->board';
+
 /** The light `run_telemetry` probe: the row id (the Watch handle), the seed (the join), the v2 stamp (the
  *  watchability gate) and the first/last frame clocks (the run length). PostgREST resolves `frames->-1` as
  *  the last element; on a DB whose PostgREST predates negative indices the select errors and the probe
@@ -1885,7 +1888,7 @@ export const TELEMETRY_PROBE_SELECT_FAST = 'id, created_at, placement, seed:tp_s
 
 /**
  * The Career page's runs — newest first, `limit` rows in all (light), the newest `CAREER_DETAIL_ROWS` of
- * them detailed (with the final board), every row joined to its replay facts. Defaults to YOUR runs; pass
+ * them with their final board (the match details are read per opened game), every row joined to its replay facts. Defaults to YOUR runs; pass
  * `userId` to read another player's (opening a Career from the leaderboard / Recent Games).
  *
  * Returns null (NOT []) when we couldn't ask — no backend, no session for an own-career read, or the history
@@ -1906,8 +1909,11 @@ export async function fetchMyRuns(
       Promise.resolve(c.from('run_history').select(CAREER_LIGHT_SELECT).eq('user_id', userId).order('created_at', { ascending: false }).limit(limit)),
       timeout(),
     ]);
+    // SUPABASE CLEANUP P1.3 (2026-10-28): the newest rows carry their final BOARD only (the list's portrait skins, the
+    // MMR tip's board), never the whole entry: the match details (every seat's board) were most of its ~12.7 KB and
+    // are read for the one game the player opens (`fetchRunDetails`).
     const detailed = Promise.race([
-      Promise.resolve(c.from('run_history').select('id, created_at, placement, entry').eq('user_id', userId).order('created_at', { ascending: false }).limit(detailLimit)),
+      Promise.resolve(c.from('run_history').select(CAREER_BOARD_SELECT).eq('user_id', userId).order('created_at', { ascending: false }).limit(detailLimit)),
       timeout(),
     ]);
     // The probe is best-effort and (with `onHistory`) never blocks the page, so it gets the longer background budget.
@@ -1938,9 +1944,9 @@ export async function fetchMyRuns(
 }
 
 /**
- * The detailed `run_history` rows (final board, runes, match details) for specific runs of a career — the Match
- * History HERO FILTER (owner 2026-10-23) upgrades the light rows it lists (a hero's games older than the newest
- * `CAREER_DETAIL_ROWS`) with ONE read per hero pick, never one per row or per hover. Null = couldn't ask.
+ * The detailed `run_history` rows (final board, runes, match details) for specific runs of a career. Since Supabase
+ * cleanup P1.3 (2026-10-28) this is ON DEMAND: Match History reads the one game the player opens (once per game per
+ * page), never a page of them. Null = couldn't ask.
  */
 export async function fetchRunDetails(userId: string, ids: readonly number[]): Promise<RunHistoryRowLike[] | null> {
   const c = client();
@@ -1949,6 +1955,27 @@ export async function fetchRunDetails(userId: string, ids: readonly number[]): P
     const res = await Promise.race([
       // rows: one per id asked for, and the caller asks for at most MATCH_ROWS (50) ids
       Promise.resolve(c.from('run_history').select('id, created_at, hero_id, placement, mode, entry').eq('user_id', userId).in('id', [...ids])),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS)),
+    ]);
+    if (!res || res.error || !res.data) return null;
+    return res.data as unknown as RunHistoryRowLike[];
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The final BOARDS (not the whole entry) of specific runs of a career: the Match History hero filter's games older than
+ * the newest `CAREER_DETAIL_ROWS`, so their list portraits wear the recorded skins. ONE read per hero pick. The game the
+ * player opens is read in full by `fetchRunDetails`. Null = couldn't ask.
+ */
+export async function fetchRunBoards(userId: string, ids: readonly number[]): Promise<RunHistoryRowLike[] | null> {
+  const c = client();
+  if (!c || !userId || ids.length === 0) return null;
+  try {
+    const res = await Promise.race([
+      // rows: one per id asked for, and the caller asks for at most MATCH_ROWS (50) ids
+      Promise.resolve(c.from('run_history').select(CAREER_BOARD_SELECT).eq('user_id', userId).in('id', [...ids])),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS)),
     ]);
     if (!res || res.error || !res.data) return null;

@@ -2,7 +2,8 @@
  * CAREER PAGE FETCH (owner rebuild 2026-09-19) — `fetchMyRuns` against a mocked Supabase client. Pins the
  * query shape the page depends on and the assembly of its three result sets:
  *  - `run_history` is read TWICE for the same user (a light JSON-path select for up to `limit` rows, a
- *    detailed `entry` select for the newest `CAREER_DETAIL_ROWS`), NEVER the Hall-of-Champions `runs` table;
+ *    BOARD select `board:entry->board` for the newest `CAREER_DETAIL_ROWS`, never the whole `entry`: Supabase cleanup
+ *    P1.3 reads the match details only for the game the player opens), NEVER the Hall-of-Champions `runs` table;
  *  - `run_telemetry` is probed with JSON-path scalars only (id · seed · v2 stamp · first/last frame clocks) —
  *    the replay payload never crosses the wire on a list read;
  *  - the rows join by seed; a detailed row upgrades its light twin (board); the probe's clock-less fallback
@@ -52,9 +53,9 @@ vi.setConfig({ testTimeout: 30000 });
 
 beforeEach(() => { queries.length = 0; userId = 'me-1'; respond = () => ({ data: [], error: null }); vi.resetModules(); });
 
-/** The light select projects `x:entry->>x` scalars; the detailed one selects the `entry` column itself. */
+/** The light select projects `x:entry->>x` scalars; the board one projects `board:entry->board` (never `entry`). */
 const isLight = (q: Query): boolean => q.table === 'run_history' && !!q.select && q.select.includes('entry->>');
-const isDetail = (q: Query): boolean => q.table === 'run_history' && !!q.select && /(^|, )entry$/.test(q.select);
+const isDetail = (q: Query): boolean => q.table === 'run_history' && !!q.select && q.select.includes('board:entry->board');
 const isProbe = (q: Query): boolean => q.table === 'run_telemetry';
 
 const LIGHT = [
@@ -63,10 +64,12 @@ const LIGHT = [
   { id: 11, created_at: '2026-09-19T05:24:42Z', hero_id: 'repete', wave: 11, wins: 5, placement: 3, mode: 'lobby', losses: '5', draws: '0', apt: '22', seed: '2068602420', gold_spent: '90', rating_delta: '9', rating_after: '69', at: '2026-09-19T05:24:40Z', dominant_tribe: 'mech' },
   { id: 10, created_at: '2026-09-18T01:00:00Z', hero_id: 'cia', wave: 8, wins: 2, placement: 7, mode: 'lobby', losses: '5', draws: '0', apt: '18', seed: '55', gold_spent: '40', rating_delta: '-30', rating_after: null, at: '2026-09-18T00:59:00Z', dominant_tribe: null },
 ];
-const DETAIL = [
+const DETAIL_FULL = [
   { id: 12, created_at: '2026-09-19T05:39:50Z', placement: 1, entry: { v: 1, at: '2026-09-19T05:39:48Z', seed: 1465984878, heroId: 'sable', wins: 9, losses: 4, draws: 1, wave: 15, placement: 1, goldSpent: 120, apt: 26.1, ratingDelta: 41, ratingAfter: 110, dominantTribe: 'beast', board: { minions: [{ cardId: 'alleycat', attack: 5, health: 5 }, { cardId: 'stray', attack: 2, health: 2 }], wave: 15, heroId: 'sable', runes: ['rune_broodpit', 'rune_epic_forge'] } } },
   { id: 11, created_at: '2026-09-19T05:24:42Z', placement: 3, entry: { v: 1, at: '2026-09-19T05:24:40Z', seed: 2068602420, heroId: 'repete', wins: 5, losses: 5, draws: 0, wave: 11, placement: 3, goldSpent: 90, apt: 22, ratingDelta: 9, ratingAfter: 69, dominantTribe: 'mech', board: null } },
 ];
+/** What the BOARD select answers for those rows: the final board, nothing else of the entry. */
+const DETAIL = DETAIL_FULL.map((d) => ({ id: d.id, created_at: d.created_at, placement: d.placement, board: d.entry.board }));
 const PROBE = [
   { id: 97, created_at: '2026-09-19T05:39:50Z', placement: 1, seed: '1465984878', v2_version: '2', first_t: '0', last_t: '883179.2' },
   { id: 96, created_at: '2026-09-19T05:24:42Z', placement: 3, seed: '2068602420', v2_version: null, first_t: '0', last_t: '690108' }, // v1-only → no Watch, but a clock
@@ -91,8 +94,9 @@ describe('fetchMyRuns — the query shape', () => {
     expect(light.select).toContain('lobby_strength:entry->lobbyStrength'); // the lobby-strength stamp (`->`: the JSON object, not text)
     expect(light.select).not.toMatch(/(^|, )entry(,|$)/);
     expect(light.limit).toBe(100);
-    // The detailed select is capped to the match-history rows.
+    // The board select is capped to the match-history rows and never ships the whole entry (P1.3).
     expect(queries.find(isDetail)!.limit).toBe((await load()).CAREER_DETAIL_ROWS);
+    expect(queries.find(isDetail)!.select).not.toMatch(/(^|, )entry(,|$)/);
     // The probe asks for the precomputed replay-facts columns first (2026-10-09): it never opens the replay at all.
     const probe = queries.find(isProbe)!;
     expect(probe.select).toContain('v2_version:tp_v2_version');
@@ -141,12 +145,12 @@ describe('fetchMyRuns — the query shape', () => {
     respond = (q) => ({ data: isLight(q) ? LIGHT : isDetail(q) ? DETAIL : isProbe(q) ? PROBE : [], error: null });
     const runs = (await (await load()).fetchMyRuns(100))!;
     expect(runs.map((r) => r.id)).toEqual([12, 11, 10]);
-    // Row 12: detailed (board), watchable (v2 + id), 883 s long.
-    expect(runs[0]).toMatchObject({ heroId: 'sable', wins: 9, losses: 4, placement: 1, goldSpent: 120, apt: 26.1, ratingDelta: 41, ratingAfter: 110, detailed: true, replayRowId: 97, durationMs: 883179.2 });
+    // Row 12: its board (not yet read in full: `detailed` waits for the opened game), watchable (v2 + id), 883 s long.
+    expect(runs[0]).toMatchObject({ heroId: 'sable', wins: 9, losses: 4, placement: 1, goldSpent: 120, apt: 26.1, ratingDelta: 41, ratingAfter: 110, detailed: false, match: null, replayRowId: 97, durationMs: 883179.2 });
     expect(runs[0]!.board?.minions).toHaveLength(2);
     expect(runs[0]!.runes, "the run's runes ride on the detailed row's board snapshot").toEqual(['rune_broodpit', 'rune_epic_forge']);
-    // Row 11: detailed but no stored board (outcome-only banner, "No runes recorded"); v1-only telemetry → no Watch, clock still read.
-    expect(runs[1]).toMatchObject({ heroId: 'repete', detailed: true, board: null, runes: [], replayRowId: null, durationMs: 690108, placement: 3, ratingAfter: 69 });
+    // Row 11: no stored board ("No runes recorded"); v1-only telemetry → no Watch, clock still read.
+    expect(runs[1]).toMatchObject({ heroId: 'repete', detailed: false, board: null, runes: [], replayRowId: null, durationMs: 690108, placement: 3, ratingAfter: 69 });
     // Row 10: light only (beyond the detail cap), no telemetry row at all, and no settle stamp → no MMR (null, not 0).
     expect(runs[2]).toMatchObject({ heroId: 'cia', detailed: false, board: null, replayRowId: null, durationMs: null, goldSpent: 40, placement: 7, ratingAfter: null });
   });

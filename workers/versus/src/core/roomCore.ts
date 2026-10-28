@@ -285,6 +285,8 @@ export interface CoreDeps {
   resolveGroup?: GroupHost['resolver'];
   /** The Duos resolver (tests inject a failing one; default `handleVersusDuosFinalize`). */
   resolveDuos?: GroupHost['duosResolver'];
+  /** The Ranked Duos resolver (tests inject a failing one; default `handleRankedDuosFinalize`). */
+  resolveRanked?: RankedHost['rankedResolver'];
   /** High-resolution timer for the resolve measurement (performance.now in the object). */
   perfNow?(): number;
 }
@@ -416,6 +418,7 @@ export class RoomCore {
       fail: (c) => fail(c),
       resolver: this.deps.resolveGroup,
       duosResolver: this.deps.resolveDuos,
+      rankedResolver: this.deps.resolveRanked,
       passChanged: (row) => { this.fx.passes.push(row); },
       onResolve: this.deps.onResolve,
       perfNow: this.deps.perfNow,

@@ -23,6 +23,9 @@
  *  - the per-socket rate limit, the hello version check, the join's one-room-per-account directory claim.
  * Not mirrored: the Supabase persistence writer (an always-healthy sink; the jobs are kept for inspection), CORS / auth
  * (the dev token names the user), hibernation as such (covered by the restart, which is the harder case).
+ * RANKED DUOS reads (the pair's team, the recorded solo / duo samples) are stubbed as the Supabase harness stubs them and
+ * as the Worker's own `LocalRankedService` answers with no Supabase: no team (unrated), empty samples, so the seating
+ * handler fills the table with generated teams. They run as their own event after the one that asked, as `rankedIo` does.
  *
  * THE NETWORK. Each client has its own `ChaosNet` (latency, offline, hang, background throttling). A socket's frames ride
  * it in both directions, in order. Going OFFLINE closes the socket on the client at once (the browser sees the network
@@ -45,7 +48,7 @@ import {
 } from '@game/versus-cf/protocol';
 import type { WebSocketLike } from '@game/versus-cf/client';
 import {
-  engineContentRevision, handleVersusDuosFinalize, handleVersusFinalize, handleVersusGroupFinalize, VERSUS_PROTOCOL,
+  engineContentRevision, handleRankedDuosFinalize, handleVersusDuosFinalize, handleVersusFinalize, handleVersusGroupFinalize, VERSUS_PROTOCOL,
 } from '@game/sim/versus/server';
 import type { ChaosBackend, ResolverAction, ResolverCall, ResolverChaos, ServerSnap, Vitals } from './chaosBackend';
 import type { ChaosMode } from './chaosMatch';
@@ -217,6 +220,7 @@ class RoomShell {
       resolve: wrap('finalize', handleVersusFinalize as never),
       resolveGroup: wrap('finalize_group', handleVersusGroupFinalize as never),
       resolveDuos: wrap('finalize_duos', handleVersusDuosFinalize as never),
+      resolveRanked: wrap('finalize_ranked_duos', handleRankedDuosFinalize as never),
     };
   }
 
@@ -448,12 +452,35 @@ class RoomShell {
       const s = JSON.stringify({ t: 'pass', row: p as unknown as Record<string, unknown>, now } satisfies VersusCfPush);
       for (const ws of all) if (to.has(ws.userId)) this.send(ws, s);
     }
+    // RANKED DUOS: the Supabase reads the core asked for, off the request path (`rankedIo`).
+    if (fx.ranked && (fx.ranked.team || fx.ranked.seat)) this.rankedIo(fx.ranked.team, fx.ranked.seat);
     if (fx.summary) this.srv.dir.upsert(core.summary() as RoomSummary);
     for (const u of fx.left) this.srv.dir.release(u, core.state.room.id);
     if (core.state.room.closed) {
       const bye = JSON.stringify({ t: 'closed', reason: 'room_closed' } satisfies VersusCfPush);
       for (const ws of this.live()) { this.send(ws, bye); this.serverClose(ws, VERSUS_CF_CLOSE.roomClosed, 'room_closed'); }
     }
+  }
+
+  /** `rankedIo` with the local service (no Supabase): no team identity, empty samples. */
+  private rankedIo(team: boolean, seat: boolean): void {
+    void this.run(async () => {
+      const core = this.core;
+      if (!core?.ranked) return;
+      try {
+        if (team) this.apply(core.rankedSetTeam({ teamId: null, name: null, division: 0 }, Date.now()));
+        if (seat) {
+          const fx = await core.rankedSeat(LOCAL_RANKED, Date.now());
+          if (this.dying) { this.restart('the resolve died (ranked seat)'); return; }
+          this.apply(fx);
+          this.rearm();
+        }
+      } catch (e) {
+        if (this.dying) { this.restart('the resolve died (ranked seat)'); return; }
+        this.srv.note(`cf room: ranked io failed: ${(e as Error).message}`);
+        this.rearm();
+      }
+    });
   }
 
   send(ws: SrvSock, text: string): void {
@@ -487,6 +514,13 @@ class RoomShell {
 
   dispose(): void { if (this.alarmTimer) clearTimeout(this.alarmTimer); }
 }
+
+/** The Worker's `LocalRankedService` (no Supabase), as the Supabase harness stubs the same reads. */
+const LOCAL_RANKED = {
+  ensureTeam: async () => ({ teamId: null, name: null, division: 0 }),
+  soloSample: async () => [],
+  duoSample: async () => ({ rows: [], names: {} }),
+};
 
 /** mulberry32 (the server's seeds and ids, per scenario). */
 function rngOf(seed: number): () => number {
@@ -759,10 +793,10 @@ export class CfChaosServer implements ChaosBackend {
     return {
       t, phase: m.phase, round: m.round, revision: m.revision, shopDeadline: m.shop_deadline, pausedSeat: m.paused_seat, pausedAt: stamp(m.paused_at), resumeAt: stamp(m.resume_at),
       seats: [...m.seats].sort((a, b) => a.seat.localeCompare(b.seat)).map((x) => ({
-        seat: x.seat, user: x.user_id, name: x.name, locked: !!x.locked, lockedAt: null, health: x.health, armor: x.armor, placement: x.placement,
+        seat: x.seat, user: x.user_id, name: x.name, locked: !!x.locked, lockedAt: x.locked ? x.locked_at ?? null : null, health: x.health, armor: x.armor, placement: x.placement,
         eliminated: x.eliminated_round, team: x.team ?? null, auto: !!x.auto,
       })),
-      teams: (m.teams ?? []).map((x) => ({ team: x.team, health: x.health ?? null, armor: x.armor ?? null, placement: x.placement, eliminated: x.eliminated_round })),
+      teams: (st.group?.ranked?.teams ?? m.teams ?? []).map((x) => ({ team: x.team, health: x.health ?? null, armor: x.armor ?? null, placement: x.placement, eliminated: x.eliminated_round })),
     };
   }
 
@@ -776,7 +810,7 @@ export class CfChaosServer implements ChaosBackend {
       return { [m.p1_name]: { health: row.p1_health, armor: row.p1_armor }, [m.p2_name]: { health: row.p2_health, armor: row.p2_armor } };
     }
     const g = st.group;
-    const row = g?.match.id === matchId ? g.rounds[r] : undefined;
+    const row = g?.match.id === matchId ? (g.ranked ? g.ranked.rounds[r] : g.rounds[r]) : undefined;
     if (!g || !row?.vitals) return null;
     const out: Vitals = {};
     const vit = row.vitals as Record<string, { health: number; armor: number } | undefined>;
@@ -792,7 +826,8 @@ export class CfChaosServer implements ChaosBackend {
     const st = this.roomFor(matchId)?.peek();
     if (!st) return 0;
     if (!group) return st.match?.id === matchId ? Object.keys(st.rounds).length : 0;
-    return st.group?.match.id === matchId ? Object.keys(st.group.rounds).length : 0;
+    const g = st.group;
+    return g?.match.id === matchId ? Object.keys(g.ranked ? g.ranked.rounds : g.rounds).length : 0;
   }
 
   async serverFights(matchId: string, mode: ChaosMode): Promise<Record<number, string>> {
@@ -804,6 +839,13 @@ export class CfChaosServer implements ChaosBackend {
       return out;
     }
     if (st.group?.match.id !== matchId) return out;
+    if (st.group.ranked) {
+      for (const r of Object.values(st.group.ranked.rounds)) {
+        const fights = [...r.fights].sort((a, b) => a.fight - b.fight);
+        if (fights.length) out[r.round] = fights.map((f) => `${f.a_team}-${f.b_team}:${f.outcome}:${f.damage}`).join(' ');
+      }
+      return out;
+    }
     for (const r of Object.values(st.group.rounds)) {
       const fights = [...r.fights].sort((a, b) => a.fight - b.fight);
       if (fights.length) out[r.round] = fights.map((f) => `${f.a_seat}-${f.b_seat}:${f.outcome}:${f.damage}`).join(' ');

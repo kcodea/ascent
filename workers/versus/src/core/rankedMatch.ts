@@ -135,6 +135,8 @@ export interface RankedHost extends GroupHost {
   needTeam(): void;
   /** Ask the shell to seat the table. */
   needSeat(): void;
+  /** The round resolver (tests and the chaos harness inject a slow / failing one; default `handleRankedDuosFinalize`). */
+  rankedResolver?: typeof handleRankedDuosFinalize;
 }
 
 export class RankedEngine extends GroupEngine {
@@ -294,7 +296,7 @@ export class RankedEngine extends GroupEngine {
       };
       let res: { status: number; body: Record<string, unknown> };
       try {
-        res = await handleRankedDuosFinalize(m.seats[0]!.user_id, { matchId: m.id, round: m.round }, engineContentRevision(), store);
+        res = await (this.rh.rankedResolver ?? handleRankedDuosFinalize)(m.seats[0]!.user_id, { matchId: m.id, round: m.round }, engineContentRevision(), store);
       } catch (e) {
         res = { status: 500, body: { error: String(e) } };
       }

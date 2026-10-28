@@ -27,8 +27,8 @@ vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unkn
 const FULL = !!process.env.CHAOS_FULL;
 const ONLY = process.env.CHAOS_ONLY ? new RegExp(process.env.CHAOS_ONLY) : null;
 
-/** The modes the Cloudflare room plays today. Ranked Duos joins when its room port lands (#2374). */
-export const CF_MODES: readonly ChaosMode[] = ['duel', 'group3', 'group4', 'duos'];
+/** Every mode the Cloudflare room plays (Ranked Duos since #2374). */
+export const CF_MODES: readonly ChaosMode[] = ['duel', 'group3', 'group4', 'duos', 'ranked_duos'];
 
 const seedOf = (name: string, mode: ChaosMode): number => [...`${name}/${mode}`].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
 
@@ -55,7 +55,7 @@ export const CF_EXTRA: ScenarioDef[] = [
 /** The CI subset: one clean match per mode family, the restart (the Cloudflare-only failure mode), a drop, a resolve
  *  that dies, and Mend's live Armor on a team. */
 export const SMOKE_CF: string[] = [
-  'baseline/duel', 'baseline/group3', 'baseline/duos',
+  'baseline/duel', 'baseline/group3', 'baseline/duos', 'baseline/ranked_duos',
   'emptyAll/duel', 'dropRestore/duel', 'realtimeDown/duel', 'resolverFail3/group3', 'mendArmor/duos', 'dropFin/group4',
 ];
 

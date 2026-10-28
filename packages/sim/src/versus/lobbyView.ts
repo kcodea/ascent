@@ -15,7 +15,9 @@
  *  - It is never a rated table, a snapshot, a pool board or a replay (the UI's persistence gates key on the mode).
  *
  * TIMING mirrors a lobby seat's health: YOUR pools drop when the fight settles (as your Health would), the opponent's
- * when you leave the fight (as their seat settles at `resolveCombat`), so nothing is shown before it is watched.
+ * when you leave the fight (as their seat settles at `resolveCombat`), so nothing is shown before it is watched. Until
+ * then a seat shows the server's pools GOING INTO the round (`entering`), so a shop Mend shows the moment the server has
+ * it, and a fight's damage never shows before the fight (R-VERSUS-LIVE-ARMOR-01).
  */
 import type { CombatResult } from '@game/core';
 import type { RunCosmeticSnapshot } from '@game/progression';
@@ -59,6 +61,15 @@ export interface VersusLobbyInput {
   rounds: readonly VersusLobbyRound[];
   /** The match's pinned room options (a modifier's Armor in each seat's start). */
   options?: unknown;
+  /** The server's pools going INTO a round, as stored right now (R-VERSUS-LIVE-ARMOR-01: a shop Mend lands on them the
+   *  moment it is reported). Shown for a seat while the view is still at the round before it. */
+  entering?: VersusEnteringVitals<VersusSeat> | null;
+}
+
+/** The server's stored pools going INTO `round` (after round - 1, raised by any shop Armor already reported). */
+export interface VersusEnteringVitals<S extends string> {
+  round: number;
+  vitals: Partial<Record<S, VersusVitals>>;
 }
 
 /** The opponent seat's id in the two-seat lobby. */
@@ -76,7 +87,10 @@ function omenOf(m: CombatResult['initial']['enemy'][number]): AuthoredOmen {
 }
 
 /** A seat's pools at this point of the run: after the last round shown (`throughRound`), else its start. */
-function vitalsOf(seat: VersusSeat, rounds: readonly VersusLobbyRound[], throughRound: number, start: VersusVitals): VersusVitals {
+function vitalsOf(seat: VersusSeat, rounds: readonly VersusLobbyRound[], throughRound: number, start: VersusVitals, entering?: VersusEnteringVitals<VersusSeat> | null): VersusVitals {
+  // The round after the last one shown is not fought yet (or not watched yet): its going-in pools are the server's now.
+  const live = entering && entering.round === throughRound + 1 ? entering.vitals[seat] : undefined;
+  if (live) return { health: Math.max(0, live.health), armor: Math.max(0, live.armor) };
   let v = start;
   for (const r of rounds) if (r.round <= throughRound && r.vitals?.[seat]) v = r.vitals[seat]!;
   return { health: Math.max(0, v.health), armor: Math.max(0, v.armor) };
@@ -106,8 +120,8 @@ export function versusLobby(input: VersusLobbyInput): RunLobby {
   const foeThrough = input.wave - 1;
   const myStart = versusStartingVitals(input.me.heroId, input.options);
   const foeStart = versusStartingVitals(input.foe.heroId, input.options);
-  const mine = vitalsOf(input.seat, rounds, mineThrough, myStart);
-  const theirs = vitalsOf(other, rounds, foeThrough, foeStart);
+  const mine = vitalsOf(input.seat, rounds, mineThrough, myStart, input.entering);
+  const theirs = vitalsOf(other, rounds, foeThrough, foeStart, input.entering);
   const me: LobbySeatState = {
     id: 's0', label: input.me.label, heroId: input.me.heroId, kind: 'player', seed: 0,
     resolve: mine.health, armor: mine.armor, startArmor: myStart.armor, alive: true,
@@ -147,5 +161,11 @@ export function versusLobbyKey(input: VersusLobbyInput): string {
   const last = input.rounds.reduce((n, r) => Math.max(n, r.round), 0);
   const scouted = input.rounds.filter((r) => r.foeScout).length;
   const vit = input.rounds.filter((r) => r.vitals).length;
-  return `${input.seat}|${input.wave}|${input.inCombat ? 1 : 0}${input.combatSettled ? 1 : 0}|${last}|${input.rounds.length}|${scouted}|${vit}|${input.me.heroId}|${input.foe.heroId}|${input.foe.label}`;
+  return `${enteringKey(input.entering)}|${input.seat}|${input.wave}|${input.inCombat ? 1 : 0}${input.combatSettled ? 1 : 0}|${last}|${input.rounds.length}|${scouted}|${vit}|${input.me.heroId}|${input.foe.heroId}|${input.foe.label}`;
+}
+
+/** The going-in pools' part of a view key (a shop Mend reported by anyone rebuilds the view). */
+export function enteringKey(e: VersusEnteringVitals<string> | null | undefined): string {
+  if (!e) return '';
+  return `e${e.round}:${Object.entries(e.vitals).map(([k, v]) => `${k}${v?.health}/${v?.armor}`).sort().join(',')}`;
 }

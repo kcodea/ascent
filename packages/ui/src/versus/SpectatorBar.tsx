@@ -20,6 +20,7 @@ import { SpectatorSelf, WatchedPanel, type WatchSeat } from './SpectatorHud';
 import '../live/live.css';
 import { copyName, duosFirstAt, foeIn, groupPairingAt, isDuosRaw } from './versusGroupView';
 import { isRankedDuosRaw } from './rankedDuosView';
+import { groupPlateVitals } from './spectatorPlates';
 
 const SEATS: readonly VersusSeat[] = ['p1', 'p2'];
 
@@ -60,6 +61,14 @@ export function SpectatorBar(): JSX.Element | null {
   // plate says who that player is fighting, a Copy included); the players still in can be picked, the ones out are
   // dimmed. Watching a player shows their screen and their fight. Default: a player still in.
   const group = match?.group ?? null;
+  // The watched player's screen (their run and its rail): the plates show what it shows (R-VERSUS-LIVE-ARMOR-01).
+  // Keyed on just the numbers the plates read, so a shop click on the watched screen never re-renders the plates.
+  const screenKey = useGame((s) => {
+    const r = s.run;
+    if (!group || heroStage || r.mode !== 'versus') return '';
+    const pools = r.lobby ? r.lobby.seats.map((x) => `${x.id}:${x.resolve}/${x.armor ?? 0}/${x.alive ? 1 : 0}`).join(',') : '-';
+    return `${r.wave}|${r.phase}|${r.combatSettled ? 1 : 0}|${r.resolve}/${r.armor}|${pools}`;
+  });
   const groupSeats = useMemo((): WatchSeat[] => {
     if (!group) return [];
     const raw = group.raw;
@@ -87,30 +96,34 @@ export function SpectatorBar(): JSX.Element | null {
       // The seat's stored pools (Duos: its team's), else its start (R-VERSUS-HEALTH-01, R-DUOS-HEALTH-01).
       const mateHero = raw.seats.find((x) => x.seat === duosMateOf(key))?.hero;
       const start = duos ? versusDuosStartingVitals(row.hero, mateHero, raw.options) : versusStartingVitals(row.hero, raw.options);
+      // As the watched screen shows them: never a fight's damage or knockout before that fight has played there.
+      const shownVitals = groupPlateVitals(raw, seat as VersusGroupSeat | null, key, screenKey ? useGame.getState().run : null, start);
       return {
         key,
         name: row.name,
         heroId: row.hero,
         profile: room?.members.find((m) => m.userId === row.userId)?.profile,
-        health: row.health ?? start.health,
-        armor: row.armor ?? start.armor,
+        health: shownVitals.health,
+        armor: shownVitals.armor,
         on: seat === key,
         pick: () => watchSeat(key),
         vs: ranked ? (raw.teamName ?? null) : duos ? (row.eliminatedRound == null ? (key === 'p1' || key === 'p2' ? 'Team 1' : 'Team 2') : null) : foeRow ? `vs ${foe!.copy ? copyName(foeRow.name) : foeRow.name}` : null,
-        out: row.eliminatedRound != null,
+        out: shownVitals.out,
       };
     });
-  }, [group, room, seat]);
+  }, [group, room, seat, screenKey]);
   const groupOrderRef = useRef<VersusGroupSeat[]>([]);
   groupOrderRef.current = groupSeats.filter((s) => !s.out).map((s) => s.key as VersusGroupSeat);
-  // Watching a player who is out (or a seat that does not exist): move to a player still in.
+  // Watching a player who is out (or a seat that does not exist): move to a player still in. "Out" as the screen shows
+  // it, so the fight that put them out plays to its end first (R-VERSUS-LIVE-ARMOR-01).
+  const watchedOut = groupSeats.find((x) => x.key === seat)?.out ?? true;
   useEffect(() => {
     if (!active || !group) return;
     const cur = group.raw.seats.find((x) => x.seat === seat);
-    if (cur && cur.eliminatedRound == null) return;
+    if (cur && !watchedOut) return;
     const next = groupOrderRef.current[0];
     if (next && next !== seat) watchSeat(next);
-  }, [active, group, seat]);
+  }, [active, group, seat, watchedOut]);
   const seats = useMemo((): WatchSeat[] => {
     if (!match) return [];
     if (match.group) return [];

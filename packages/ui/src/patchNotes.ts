@@ -90,6 +90,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: "Versus: Mend's Armor now shows to everyone right away, and nobody is shown knocked out before you see the fight that did it.",
+        details: [
+          "Cast Mend in the shop and every player sees your new Armor within a second. In Duos it is your teammate's Armor too.",
+          "Other players' Health and Armor change when you leave the fight, never before it plays.",
+          'Spectators in a group match see the same numbers as the player they watch.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Twenty-nine new minion skins in chests, for many of the most-played cards that had none.',
         details: [
           'Prospector, Chronos, Lastlight, Tapkeeper, Bob Blart, Geode Guardian, Market Tormentor, Blazer, Grimoire, Flutterbutter, Right Hand Hank, Sharpshooter, Cave Cutter, Jewel and Spell Warden each get their first skins.',

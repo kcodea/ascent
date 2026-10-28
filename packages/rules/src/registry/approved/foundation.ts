@@ -10106,4 +10106,49 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A Versus Duos rail: one gold-edged slot holds Ann and Bob with 30 Health and 25 Armor once at its foot; the red slot under it holds Cy and Di.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateSignals.test.tsx'], lastVerifiedAt: '2026-10-27' },
   },
+  {
+    id: 'R-VERSUS-LIVE-ARMOR-01',
+    title: 'Versus: a shop Armor raise (Mend) reaches the server pool at once and every rail; no rail shows damage or a knockout before its fight',
+    statement:
+      'In every Versus mode, a board a player sends for the current round (a candidate, a lock, a re-lock or the deadline\x27s '
+      + 'promotion; never an auto-played old board) that reports more Armor than the seat\x27s stored pool (Duos and Ranked Duos: the '
+      + 'team\x27s) raises the stored Armor at once, by the resolver\x27s own bound: never past the highest Armor any card sets (Mend: 5), '
+      + 'never above a pool already at it, never Health, and never a pool not stored yet (before round 1 commits). The match row '
+      + 'is touched only when a pool moved, so every client re-reads it. Every rail then shows a seat on the server\x27s pools going '
+      + 'into the round while the viewer is at the round before (the shop, and that round\x27s fight until they leave it), and the '
+      + 'round\x27s record once they have left: a Mend shows to everyone during the shop, and a fight\x27s damage never shows before the '
+      + 'fight. In Duos the teammate\x27s run takes the team pool\x27s raise in the same shop (their Health box, their rail row and '
+      + 'Mend\x27s own nothing-to-do check). A seat is shown out only together with the round record that put it out (or once the match '
+      + 'is over), and the group spectator\x27s plates show the watched screen\x27s numbers, so the stands never see a knockout while the '
+      + 'fight that caused it is still playing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27 (Versus Group / Duos with friends)', quote: 'i casted mend to get armor but it didn\x27t show to the other players' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27', quote: 'in some instances people seemed to die when they still had hp on my screen' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-03-versus-live-armor.sql (the submission triggers); packages/sim/src/versus/{lobbyView,groupLobbyView}.ts (entering, the knockout guard); packages/ui/src/versus/versusEntering.ts; packages/ui/src/versus/versusStore.ts (noteVersusEntering, syncDuosTeamArmor); packages/ui/src/versus/spectatorPlates.ts + SpectatorBar.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (fix/versus-health-armor-sync). The server half is live once 2026-11-03-versus-live-armor.sql is applied (no versus-resolve redeploy: the resolver is unchanged). Until then the client half still keeps damage and knockouts off the rails before their fight, and Mend shows when the round resolves, as before.',
+    example: 'Round 6, Ann sits on 18 Health and 0 Armor and casts Mend in the shop. Within a second Bob\x27s and Cat\x27s rails show Ann at 18 + 5 Armor; in Duos her teammate\x27s Health box shows the 5 too. Ann loses round 6 by 7: everyone keeps seeing 18 + 5 until they leave the round 6 fight, then 16 + 0.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusLiveArmor.db.test.ts', 'packages/sim/src/versus/versusLiveVitals.test.ts', 'packages/ui/src/versus/versusLiveVitals.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-EMPTY-01',
+    title: 'Versus: an empty board is an ordinary fight in every mode and never stalls a round',
+    statement:
+      'In every Versus mode an empty board (nothing bought, or a missing or refused side) fights like any other: it loses at once to '
+      + 'a side with minions, which charges the lobby damage; two empty sides draw and cost nobody. In a group an empty board\x27s Copy '
+      + 'is empty too, and a Copy is never charged. In Duos an empty first board hands straight over to its teammate, and an empty '
+      + 'second board never steps in, so when the other team\x27s first board wins only one board fought on each side: that is the rule, '
+      + 'not a stall. A team with no minions at all loses to any minion; four empty boards draw.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27 (Versus Group / Duos with friends)', quote: 'on round 1 i think only 1 board fight because an opponent board was empty? make sure empty boards don\x27t halt or break something' },
+      { kind: 'code', ref: 'packages/sim/src/versus/combat.ts versusSideOrEmpty; packages/sim/src/versus/group.ts resolveVersusGroupRound; packages/sim/src/versus/duos.ts resolveVersusDuosRound (the empty-first hand-over); packages/ui/src/useCombatReplay.ts (a zero-beat fight reaches done)' },
+    ],
+    currentBehaviour: 'Conforms (verified 2026-10-27, fix/versus-health-armor-sync); no behaviour change was needed.',
+    example: 'Round 1 of Duos: Bob bought nothing. His teammate Cat\x27s board fights first; Ann\x27s first board wipes it, Bob has nothing to step in, so Ann\x27s team wins and Ann\x27s teammate never fights.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusEmptyBoards.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
 ];

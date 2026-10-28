@@ -52,6 +52,7 @@ import { resumeAudio, stopAllAudio } from '../sfx';
 import { buildGroupMatchRecord, buildVersusMatchRecord, type VersusMatchRecord } from './versusMatchRecord';
 import { versusEndsNow, versusTurn, versusTurnHolds } from './versusTurn';
 import { markFlow } from './flowTiming';
+import { duosTeamArmorRaise, noteVersusEntering, versusEnteringFor } from './versusEntering';
 export { versusFlowTimings } from './flowTiming';
 
 export type VersusScreen = 'browser' | 'room';
@@ -736,6 +737,8 @@ async function onMatch(match: VersusMatch): Promise<void> {
     useGame.setState({ heroArmed: false, equipArmed: false });
   }
   set({ match });
+  // The pools going into the round (R-VERSUS-LIVE-ARMOR-01): 1v1 here, a group match in `ingestGroup`.
+  if (!match.group) noteVersusEntering(match.id, match.phase, match.round, { p1: { health: match.p1_health, armor: match.p1_armor }, p2: { health: match.p2_health, armor: match.p2_armor } });
   // The flow's timeline (R-DUOS-FLOW-01): when this client learned the round closed, and when its fight came in.
   if (match.phase === 'resolving' || (match.phase === 'combat' && prev?.id === match.id && prev.phase === 'shop' && prev.round === match.round)) {
     const key = `${match.id}|${match.round}`;
@@ -922,6 +925,7 @@ function lobbyInputFor(match: VersusMatch, seat: VersusSeat, run: Pick<RunState,
         : {}),
     })),
     options: match.options ?? null,
+    entering: versusEnteringFor<VersusSeat>(match.id),
   };
 }
 /** A SPECTATOR's two-seat lobby for the player it watches, when that player's view carries none (a test bot). */
@@ -1049,7 +1053,10 @@ function ingestGroup(raw: VersusGroupMatchRaw): VersusMatch {
     if (p != null) set({ knockout: { ...ko, placement: p } });
   }
   syncRankedTable(groupRaw);
-  return projectGroupMatch(viewRaw(groupRaw), groupViewer(groupRaw));
+  // The pools going into the round (R-VERSUS-LIVE-ARMOR-01): every seat's stored pool, a shop Mend included.
+  const shown = viewRaw(groupRaw);
+  noteVersusEntering(shown.id, shown.phase, shown.round, Object.fromEntries(shown.seats.map((x) => [x.seat, x])));
+  return projectGroupMatch(shown, groupViewer(groupRaw));
 }
 
 async function loadGroupRounds(match: VersusMatch): Promise<void> {
@@ -1140,6 +1147,8 @@ function groupLobbyInputFor(raw: VersusGroupMatchRaw, seat: VersusGroupSeat, run
       fights: r.fights.map((f) => ({ a: f.a_seat, b: f.b_seat, copy: f.b_copy, loser: f.heart_lost_by, ...(f.damage != null ? { damage: f.damage } : {}), aResult: f.a_result, aScout: f.a_scout, bScout: f.b_scout })),
     })),
     options: raw.options ?? null,
+    entering: versusEnteringFor<VersusGroupSeat>(raw.id),
+    complete: raw.phase === 'complete',
     pairing: groupPairingAt(raw, run.wave),
     ...(isDuosRaw(raw) ? { duos: { first: duosFirstAt(raw, run.wave) } } : {}),
     // RANKED DUOS: each recorded member's board for the round being played (the rail and scout cards, R-LOBBY-SCOUT-01).
@@ -1148,11 +1157,24 @@ function groupLobbyInputFor(raw: VersusGroupMatchRaw, seat: VersusGroupSeat, run
       : {}),
   };
 }
+/**
+ * VERSUS DUOS: the run carries the TEAM's pool (R-DUOS-HEALTH-01), so my teammate's shop Mend is my Armor too
+ * (R-VERSUS-LIVE-ARMOR-01). Once the server has it (the team's stored pool going into this round), my run, still in this
+ * round's shop on the same Health, takes the raise: my Health box, my rail row and Mend's own "nothing to do" check all
+ * read it. Never lowers anything and never touches Health; the fight lands the resolver's pools as always.
+ */
+function syncDuosTeamArmor(input: VersusGroupLobbyInput): void {
+  if (!input.duos || ownRunWhileWatching()) return;
+  const run = useGame.getState().run;
+  const armor = duosTeamArmorRaise(input.entering, input.me, run);
+  if (armor != null) useGame.setState({ run: { ...run, armor, maxArmor: Math.max(run.maxArmor ?? 0, armor) } });
+}
 /** Build / refresh the group rail. True when this is a group match (the 1v1 builder then stays out). */
 function syncGroupLobby(): boolean {
   if (!get().match?.group) return false;
   const input = groupLobbyInput();
   if (!input) return true;
+  syncDuosTeamArmor(input);
   const run = useGame.getState().run;
   const key = versusGroupLobbyKey(input);
   if (key === groupLobbyKey && run.lobby) return true;

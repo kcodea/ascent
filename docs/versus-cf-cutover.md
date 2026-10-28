@@ -84,6 +84,9 @@ update public.versus_host_config set host = 'supabase', updated_at = now(), note
   `?versusCfUrl=` picks the Worker.
 - `npm test` covers the routing (`packages/ui/src/versus/versusRouter.test.ts`) and the origin list
   (`workers/versus/test/origins.test.ts`).
+- **Acceptance gate before a flip: the chaos matrix on Cloudflare** (`packages/ui/src/versus/chaos/versusChaosCf.test.ts`;
+  `npm test` runs its smoke, `CHAOS_FULL=1 npx vitest run versusChaosCf` the whole matrix in ~8 minutes). Same scenarios
+  and invariants as the Supabase matrix; results and open items in `docs/devlog/2026-10-28-versus-chaos-cf.md`.
 
 ## Origin allowlist
 

@@ -9,7 +9,10 @@
  *   the full room, match and private row; they are replayed through `onPush` so the caller's caches converge.
  * - Keep-alive: a `ping` text frame every 5 s (answered by the runtime without waking the room). No `pong` for 15 s =
  *   the socket is dead (a phone that lost its network): it is closed and reopened at once.
- * - Reconnect: 100 ms, then doubling to 3 s. Never after a version mismatch, a refused token or a closed room.
+ * - Reconnect: 100 ms, then doubling to 3 s. Never after a version mismatch, a refused token or a closed room. When the
+ *   device says its network is back (`wake`: the browser's `online` event), a socket that is down reconnects AT ONCE
+ *   instead of waiting out its backoff (up to 3 s), so a returning player's pause lifts in the 3-2-1 alone
+ *   (R-VERSUS-CF-RECONNECT-01; the chaos matrix's dropFin cells measured 4.1 s before).
  *
  * Dependency-free apart from the protocol: the WebSocket constructor is injected (browser, Node 22+, Miniflare).
  */
@@ -57,6 +60,8 @@ export interface VersusCfClientOptions {
   /** Socket state changes (`open` after a successful hello, `down` on any drop, `dead` when it will not reconnect). */
   onStatus?: (status: 'open' | 'down' | 'dead', detail?: string) => void;
   requestTimeoutMs?: number;
+  /** Calls `fn` whenever the device's network comes back (the browser's `online` event); returns an unsubscribe. */
+  wake?: (fn: () => void) => () => void;
   /** Timer hooks (tests). */
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (h: unknown) => void;
@@ -94,6 +99,9 @@ export class VersusCfClient {
   private openWaiters: (() => void)[] = [];
   /** Drops the CURRENT socket as if it closed (the stale keep-alive path). */
   private downCurrent: ((code?: number, reason?: string) => void) | null = null;
+  /** The pending reconnect (cleared when a wake reconnects first). */
+  private retryTimer: unknown = null;
+  private unwake: (() => void) | null = null;
 
   constructor(private readonly o: VersusCfClientOptions) {
     this.setTimer = o.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
@@ -107,6 +115,7 @@ export class VersusCfClient {
   /** Open the socket (resolves after the hello, rejects when the room refuses for good). */
   connect(): Promise<void> {
     this.closed = false;
+    if (!this.unwake && this.o.wake) this.unwake = this.o.wake(() => this.reconnectNow());
     return new Promise<void>((resolve, reject) => {
       this.openWaiters.push(resolve);
       void this.open().catch(reject);
@@ -136,6 +145,9 @@ export class VersusCfClient {
   close(): void {
     this.closed = true;
     this.ready = false;
+    this.unwake?.();
+    this.unwake = null;
+    if (this.retryTimer != null) { this.clearTimer(this.retryTimer); this.retryTimer = null; }
     if (this.pingTimer != null) this.clearTimer(this.pingTimer);
     for (const [id, p] of this.pending) { this.clearTimer(p.timer); p.reject(new VersusCfError('closed')); this.pending.delete(id); }
     try { this.ws?.close(1000, 'bye'); } catch { /* already closed */ }
@@ -143,6 +155,23 @@ export class VersusCfClient {
   }
 
   // ── internals ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** The network is back: a socket waiting out its backoff reconnects now (a live or connecting socket is left alone). */
+  private reconnectNow(): void {
+    if (this.closed || this.ws || this.retryTimer == null) return;
+    this.clearTimer(this.retryTimer);
+    this.retryTimer = null;
+    this.attempt = 0;
+    void this.open().catch(() => this.retry(1000));
+  }
+
+  private retry(ms: number): void {
+    if (this.retryTimer != null) this.clearTimer(this.retryTimer);
+    this.retryTimer = this.setTimer(() => {
+      this.retryTimer = null;
+      void this.open().catch(() => this.retry(1000));
+    }, ms);
+  }
 
   private raw(text: string): void {
     if (!this.ws) return;
@@ -223,7 +252,7 @@ export class VersusCfClient {
       this.o.onStatus?.('down', reason);
       const wait = Math.min(3000, 100 * 2 ** this.attempt++);
       this.stats.reconnects += 1;
-      this.setTimer(() => void this.open().catch(() => this.setTimer(() => void this.open(), 1000)), wait);
+      this.retry(wait);
     };
     this.downCurrent = down;
     ws.addEventListener('close', (ev) => down(ev.code, ev.reason));

@@ -6,7 +6,9 @@
   "description": "VERSUS on Cloudflare (spike, 2026-10-28): one Durable Object per room, WebSockets with hibernation, the deterministic engine resolving inside the object. Local only until the owner has a Cloudflare account. Design: docs/design/2026-10-28-versus-cloudflare.md.",
   "exports": {
     "./protocol": "./src/protocol.ts",
-    "./client": "./src/client.ts"
+    "./client": "./src/client.ts",
+    "./core": "./src/core/roomCore.ts",
+    "./core/storage": "./src/core/storage.ts"
   },
   "scripts": {
     "dev": "wrangler dev --port 8787 --var DEV_AUTH:1",

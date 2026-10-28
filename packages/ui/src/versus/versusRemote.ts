@@ -447,6 +447,8 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
   // ── RANKED DUOS (phase 3) ──────────────────────────────────────────────────────────────────────────────────────
   /** The host keeps the party to friends (or lists it). */
   setFriendsOnly: (roomId: string, on: boolean) => rpc<VersusRoom>('versus_set_friends_only', { p_room: roomId, p_on: on }),
+  /** FRIEND INVITES (R-VERSUS-CF-INVITE-01): a Supabase room needs no proof (`friends_invite` checks the room in SQL). */
+  inviteProof: async (_roomId: string, _to: string, _kind: string): Promise<string | null> => null,
   /** Name my team with `partner` (blank = the default "Name1 & Name2"). */
   setTeamName: (partner: string, name: string) => rpc<{ id: string; name: string | null }>('duos_team_set_name', { p_partner: partner, p_name: name }),
   /** My team's result for one match (RLS: only the two teammates read it), as the rank screen reads a result. */

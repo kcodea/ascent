@@ -41,16 +41,20 @@ export async function acceptVersusRoomInvite(invite: FriendInvite): Promise<void
 }
 
 /** Watch a friend's game, when it is watchable. Resolves true when the watch started. */
-export async function watchFriend(f: Partial<Pick<Friend, 'watchKind' | 'watchId'>>): Promise<boolean> {
+export async function watchFriend(f: Partial<Pick<Friend, 'watchKind' | 'watchId' | 'mode'>>): Promise<boolean> {
   if (!f.watchId) return false;
   if (f.watchKind === 'live') {
     const ok = await watchLiveGame(f.watchId);
     if (ok) useGame.setState({ showLiveGames: false });
     return ok;
   }
-  if (f.watchKind === 'versus') return goToVersusRoom(f.watchId, 'spectator');
+  // A Ranked Duos party lives in the Duos area: watching it from the Versus area would never show it (R-RANKED-DUOS-SPLIT-01).
+  if (f.watchKind === 'versus') return goToVersusRoom(f.watchId, 'spectator', watchAreaOf(f.mode));
   return false;
 }
+
+/** The play area a friend's Versus game is watched from (R-LIVE-ALL-GAMES-01): Ranked Duos in Duos, the rest in Versus. */
+export const watchAreaOf = (mode: string | null | undefined): 'versus' | 'duos' => (mode === 'ranked_duos' ? 'duos' : 'versus');
 
 /** RANKED DUOS (phase 3): accepting a party invite opens the Duos play area and takes the party's free seat. */
 export async function acceptDuosPartyInvite(invite: FriendInvite): Promise<void> {

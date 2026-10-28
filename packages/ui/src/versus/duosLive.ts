@@ -4,6 +4,9 @@
  * the team's name, p1's hero and the team's own medal; Watch opens the party room as a spectator, which watches the two
  * live teammates (never the recorded teams' fights). A friends-only party is never listed (the server answers 0).
  *
+ * A CLOUDFLARE room (R-VERSUS-CF-LIVE-01): the room itself writes `duos:cf:<room>` (the Worker's limited writer), so the
+ * client publishes nothing; `duosLiveRoomOf` hands Watch the `cf:<room>` ref and the router sends it to the Worker.
+ *
  * Egress (R-NET-01 / R-NET-BACKOFF-01): one tiny RPC every 15 s and on a round / phase change, nothing else; a failed
  * beat backs off; a server without the RPC (`not_deployed`) stops publishing for the session.
  */
@@ -11,7 +14,7 @@ import { useEffect } from 'react';
 import { liveRemote, type LiveError } from '../live/liveRemote';
 import { keyedBackoff, pageHidden } from '../net/backoff';
 import { useVersus } from './versusStore';
-import type { VersusPhase } from './versusRemote';
+import { versusRemote, type VersusPhase } from './versusRemote';
 
 export const DUOS_LIVE_PREFIX = 'duos:';
 const BEAT_MS = 15_000;
@@ -27,6 +30,9 @@ export function duosLivePhase(p: VersusPhase): 'hero' | 'shop' | 'combat' | 'end
 export const duosLiveRoomOf = (gameId: string): string | null =>
   gameId.startsWith(DUOS_LIVE_PREFIX) ? gameId.slice(DUOS_LIVE_PREFIX.length) : null;
 
+/** Does this client publish the team's row itself? Only for a Supabase room; a Cloudflare room's Worker writes it. */
+export const publishesOwnRow = (roomId: string, hostOf: (id: string) => string = (id) => versusRemote.hostOf(id)): boolean => hostOf(roomId) !== 'cf';
+
 /** Mounted with the Versus HUD: publishes my team's row while I hold the first seat of a Ranked Duos match. */
 export function useDuosLivePublisher(): void {
   const roomId = useVersus((s) => s.match?.room_id ?? null);
@@ -36,6 +42,9 @@ export function useDuosLivePublisher(): void {
   const phase = useVersus((s) => (s.match ? duosLivePhase(s.match.phase) : null));
   useEffect(() => {
     if (!ranked || !first || !roomId || !phase || missing) return undefined;
+    // A CLOUDFLARE room publishes its own row (`duos:cf:<room>`, the Worker's `versus_cf_live`, R-VERSUS-CF-LIVE-01):
+    // the Supabase heartbeat would only fail (`no_room`) every 15 s.
+    if (!publishesOwnRow(roomId)) return undefined;
     let live = true;
     const beat = (): void => {
       if (!live || missing) return;

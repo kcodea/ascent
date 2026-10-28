@@ -29,6 +29,7 @@ import {
 } from './friendsStore';
 import { watchFriend } from './friendsGo';
 import type { Friend, FriendCard } from './friendsRemote';
+import { gameStatusChips, roundPhaseText, type FriendGameStatus } from './gameStatus';
 import './friends.css';
 
 /** A card's recorded cosmetics (frame + favourite-hero skin) as a snapshot the portrait helpers read. */
@@ -81,6 +82,22 @@ function ConfirmButton({ label, confirm, onConfirm, disabled }: { label: string;
   );
 }
 
+/**
+ * A FRIEND'S GAME at a glance (R-FRIENDS-STATUS-01): the hero they play (a small portrait in the game's own frame), the
+ * round and phase, then their place or the players, Health + Armor and tier. Static text, no animation.
+ */
+export const FriendGame = memo(function FriendGame({ game }: { game: FriendGameStatus }) {
+  const chips = gameStatusChips(game);
+  return (
+    <div className="fr-game">
+      {game.hero && <span className="fr-gamehero" aria-hidden="true"><LbHeroFrame heroId={game.hero} /></span>}
+      <span className="fr-gameline">{roundPhaseText(game)}</span>
+      {chips.map((c) => <span key={c} className="fr-gamechip">{c}</span>)}
+      {game.vs && <span className="fr-gamevs">{game.vs}</span>}
+    </div>
+  );
+});
+
 function FriendRow({ f, inviteRoom }: { f: Friend; inviteRoom: string | null }) {
   const busy = useFriends((s) => !!s.busy[f.userId] || !!s.busy[`invite:${f.userId}`]);
   const sent = useFriends((s) => s.list?.sent.find((x) => x.to === f.userId && x.target === inviteRoom) ?? null);
@@ -94,6 +111,7 @@ function FriendRow({ f, inviteRoom }: { f: Friend; inviteRoom: string | null }) 
       <div className="fr-who">
         <div className="fr-name">{handleOf(f)}</div>
         <div className="fr-status"><span className="fr-dot" aria-hidden="true" />{statusText(f)}</div>
+        {f.status === 'in_game' && f.game && <FriendGame game={f.game} />}
       </div>
       <div className="fr-actions">
         {watchable && (

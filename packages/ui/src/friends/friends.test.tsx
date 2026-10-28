@@ -28,8 +28,8 @@ import { setIdentity } from '../identity';
 import { useVersus } from '../versus/versusStore';
 import type { VersusRoom } from '../versus/versusRemote';
 import {
-  BEAT_HIDDEN_MS, BEAT_VISIBLE_MS, presenceNow, registerInviteHandler, resetFriendsForTests, setFriendsRemoteForTests,
-  startFriendsPresence, useFriends,
+  BEAT_HIDDEN_MS, BEAT_VISIBLE_MS, inviteFriend, presenceNow, registerInviteHandler, resetFriendsForTests, setFriendsRemoteForTests,
+  setInviteProofSourceForTests, startFriendsPresence, useFriends,
 } from './friendsStore';
 import { FriendsError, type BeatAnswer, type Friend, type FriendInvite, type FriendsList, type FriendsRemote, type PresenceReport } from './friendsRemote';
 import { FriendsPage, statusText } from './FriendsPage';
@@ -80,21 +80,43 @@ describe('presence: what the beat reports', () => {
     expect(presenceNow()).toEqual({ status: 'online', mode: null, watchKind: null, watchId: null });
   });
 
-  it('a ranked game is In a game: Ranked, watchable through Live Games; Practice is not watchable', () => {
+  it('a ranked game is In a game: Ranked, watchable through Live Games; so is Practice now (owner 2026-10-28)', () => {
     const run = useGame.getState().run;
     useGame.setState({ showTitle: false, run: { ...run, mode: 'lobby', phase: 'recruit', runId: 'run-7', lobby: { ...(run.lobby ?? {}), unrated: undefined } as never } });
-    expect(presenceNow()).toEqual({ status: 'in_game', mode: 'ranked', watchKind: 'live', watchId: 'run-7' });
-    useGame.setState({ run: { ...run, mode: 'practice', phase: 'combat' } });
-    expect(presenceNow()).toEqual({ status: 'in_game', mode: 'practice', watchKind: null, watchId: null });
+    expect(presenceNow()).toMatchObject({ status: 'in_game', mode: 'ranked', watchKind: 'live', watchId: 'run-7' });
+    useGame.setState({ run: { ...run, mode: 'practice', phase: 'combat', runId: 'run-8' } });
+    expect(presenceNow()).toMatchObject({ status: 'in_game', mode: 'practice', watchKind: 'live', watchId: 'run-8' });
+    net.live = false; // a sandbox / replay: the listing's gate says no, so no Watch
+    expect(presenceNow()).toMatchObject({ status: 'in_game', mode: 'practice', watchKind: null, watchId: null });
+  });
+
+  it('a lobby game carries its status: hero, round + phase, Health + Armor, tier, place among those left (R-FRIENDS-STATUS-01)', () => {
+    const run = useGame.getState().run;
+    const seats = [
+      { id: 's0', resolve: 20, armor: 5, alive: true }, { id: 's1', resolve: 30, armor: 0, alive: true },
+      { id: 's2', resolve: 10, armor: 0, alive: true }, { id: 's3', resolve: 40, armor: 2, alive: false },
+    ];
+    useGame.setState({ showTitle: false, run: { ...run, mode: 'lobby', phase: 'combat', runId: 'run-7', heroId: 'warden', wave: 6, resolve: 20, armor: 5, tier: 4, lobby: { ...(run.lobby ?? {}), unrated: undefined, seats } as never } });
+    expect(presenceNow().game).toEqual({ v: 1, mode: 'ranked', hero: 'warden', round: 6, phase: 'combat', health: 20, armor: 5, tier: 4, place: { rank: 2, left: 3 }, vs: null });
   });
 
   it('a Versus match I play is In a game with the room as the watch target; the room between matches is Online', () => {
     setIdentity({ userId: ME, displayName: 'Me', anonymous: false, email: 'a@b.c' });
     const room = { id: 'room-1', status: 'in_game', options: { mode: 'duos' }, members: [{ userId: ME, role: 'p1', displayName: 'Me', profile: {}, lastSeenAt: '' }] } as unknown as VersusRoom;
-    useVersus.setState({ room, match: { phase: 'shop' } as never });
-    expect(presenceNow()).toEqual({ status: 'in_game', mode: 'versus_duos', watchKind: 'versus', watchId: 'room-1' });
+    useVersus.setState({ room, match: { phase: 'shop', round: 3 } as never });
+    expect(presenceNow()).toMatchObject({ status: 'in_game', mode: 'versus_duos', watchKind: 'versus', watchId: 'room-1', game: { round: 3, phase: 'shop', vs: 'Me vs ' } });
     useVersus.setState({ room: { ...room, status: 'open' }, match: null });
     expect(presenceNow()).toEqual({ status: 'online', mode: 'versus_room', watchKind: null, watchId: null });
+  });
+
+  it('a CLOUDFLARE Versus match is In a game with a cf: watch target, in every mode (R-VERSUS-CF-LIVE-01)', () => {
+    setIdentity({ userId: ME, displayName: 'Me', anonymous: false, email: 'a@b.c' });
+    const want = { duel: 'versus_1v1', group: 'versus_group', duos: 'versus_duos', ranked_duos: 'ranked_duos' } as const;
+    for (const [mode, presence] of Object.entries(want)) {
+      const room = { id: 'room-cf', host: 'cf', status: 'in_game', options: { mode }, members: [{ userId: ME, role: 'p1', displayName: 'Me', profile: {}, lastSeenAt: '' }] } as unknown as VersusRoom;
+      useVersus.setState({ room, match: { phase: 'shop' } as never });
+      expect(presenceNow(), mode).toMatchObject({ status: 'in_game', mode: presence, watchKind: 'versus', watchId: 'cf:room-cf' });
+    }
   });
 
   it('status words', () => {
@@ -217,6 +239,33 @@ describe('the Friends page', () => {
     expect(ui.container.textContent).toContain('You are Me#1111');
     expect(ui.container.querySelector('[title]')).toBeNull();
   });
+
+  it('a friend in a game shows its status, and EVERY game type gets Watch (Practice included; R-FRIENDS-STATUS-01)', async () => {
+    const game = { v: 1 as const, mode: 'practice', hero: 'warden', round: 6, phase: 'shop' as const, health: 20, armor: 5, tier: 4, place: { rank: 3, left: 5 }, vs: null };
+    fake.list = {
+      ...emptyList(),
+      friends: [
+        friend('u-prac', 'Pam', { status: 'in_game', mode: 'practice', watchKind: 'live', watchId: 'run-p', game }),
+        friend('u-duo', 'Dot', { status: 'in_game', mode: 'ranked_duos', watchKind: 'versus', watchId: 'cf:room-d',
+          game: { ...game, mode: 'ranked_duos', phase: 'combat', place: null, vs: 'Dot & Eve' } }),
+      ],
+    };
+    useGame.setState({ showFriends: true });
+    ui = mount(<FriendsPage />);
+    await flush();
+    const text = ui.container.textContent!;
+    expect(text).toContain('Round 6 · Shopping');
+    expect(text).toContain('3rd of 5 left');
+    expect(text).toContain('20 Health + 5 Armor');
+    expect(text).toContain('Tier 4');
+    expect(text).toContain('Round 6 · Fighting');
+    expect(text).toContain('Dot & Eve');
+    expect(ui.container.querySelectorAll('.fr-gamehero .lb-heroframe')).toHaveLength(2);
+    const watch = [...ui.container.querySelectorAll('button')].filter((b) => b.textContent?.includes('Watch'));
+    expect(watch.map((b) => b.getAttribute('aria-label'))).toEqual(['Watch Dot#1234', 'Watch Pam#1234']);
+    expect(text).not.toMatch(/\u2014|--/);
+    expect(ui.container.querySelector('[title]')).toBeNull();
+  });
 });
 
 describe('the side menu Friends plaque', () => {
@@ -263,5 +312,41 @@ describe('the invite notice', () => {
     un();
     act(() => { useFriends.setState({ inbox: { friends: 1, online: 1, incoming: 0, invites: [{ ...inv(90), id: 'inv-2', kind: 'duos_party' }], serverNow: '' } }); });
     expect(ui.container.textContent).toBe('');
+  });
+});
+
+describe('invites into a Cloudflare room are checked when sent (R-VERSUS-CF-INVITE-01)', () => {
+  function inviteRemote(sent: unknown[][], fail?: string): FriendsRemote {
+    return { ...fakeRemote(), list: async () => emptyList(), invite: async (...a: unknown[]) => { sent.push(a); if (fail) throw new FriendsError(fail); return { id: 'i', kind: 'versus_room', target: String(a[2]), expiresAt: '' }; } } as unknown as FriendsRemote;
+  }
+  const F = '00000000-0000-0000-0000-000000000002';
+
+  it('a cf: room asks the room for its proof first and sends it with the invite', async () => {
+    const sent: unknown[][] = [];
+    const asked: unknown[][] = [];
+    setFriendsRemoteForTests(inviteRemote(sent));
+    setInviteProofSourceForTests(async (...a) => { asked.push(a); return '123.abc'; });
+    expect(await inviteFriend(F, 'versus_room', 'cf:room-9')).toBe(true);
+    expect(asked).toEqual([['room-9', F, 'versus_room']]);
+    expect(sent).toEqual([[F, 'versus_room', 'cf:room-9', '123.abc']]);
+  });
+
+  it('the room says no: nothing is sent, and the flash reads as it does for a Supabase room', async () => {
+    const sent: unknown[][] = [];
+    setFriendsRemoteForTests(inviteRemote(sent));
+    setInviteProofSourceForTests(async () => { throw new FriendsError('room_not_open'); });
+    expect(await inviteFriend(F, 'versus_room', 'cf:room-9')).toBe(false);
+    expect(sent).toHaveLength(0);
+    expect(useFriends.getState().flash).toBe('That room is not open.');
+  });
+
+  it('a Supabase room sends no proof (the plain three-argument call)', async () => {
+    const sent: unknown[][] = [];
+    const asked: unknown[][] = [];
+    setFriendsRemoteForTests(inviteRemote(sent));
+    setInviteProofSourceForTests(async (...a) => { asked.push(a); return 'x'; });
+    expect(await inviteFriend(F, 'versus_room', 'room-1')).toBe(true);
+    expect(asked).toHaveLength(0);
+    expect(sent).toEqual([[F, 'versus_room', 'room-1', null]]);
   });
 });

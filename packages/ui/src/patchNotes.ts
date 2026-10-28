@@ -58,6 +58,17 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-28',
     changes: [
+      { category: 'Systems', text: 'Live Games now shows every game being played, and you can watch any of them.', details: [
+        'Versus 1v1, Versus Group, Versus Duos and Ranked Duos games are listed, with every player\'s name.',
+        'Casual and Practice games are listed too. Each row says what kind of game it is.',
+        'A friends-only room only shows to the host\'s friends.',
+      ] },
+      { category: 'Systems', text: 'Friends now shows how a friend\'s game is going, and every game has a Watch button.', details: [
+        'See their hero, the round, and whether they are shopping or fighting.',
+        'See their Health and Armor, their tavern tier, and their place, like "3rd of 5 left".',
+        'In Versus you see who is playing.',
+        'Watch takes you straight into their game, Practice included.',
+      ] },
       { category: 'Systems', text: 'Master hero titles have a new look. They glow, shimmer and sparkle.', details: [
         'The gold and red plate is gone. The name now shines in ice blue and violet.',
         'A light sweeps across it and a small star twinkles beside it.',

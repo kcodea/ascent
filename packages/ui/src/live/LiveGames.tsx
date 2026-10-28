@@ -1,5 +1,6 @@
 /**
- * LIVE GAMES (owner-approved 2026-10-15): ranked lobby games being played right now, best rank first (medal and
+ * LIVE GAMES (owner-approved 2026-10-15; every game since 2026-10-28, R-LIVE-ALL-GAMES-01: lobby games of every kind, Versus
+ * 1v1 / Group / Duos and Ranked Duos, on both hosts): games being played right now, best rank first (medal and
  * division, then points, then rating), each with the player's portrait in their frame and skin, name, hero, rank crest,
  * round and watchers, and a Watch button. A ladder page like Recent Games (the menu sidebar, the `lb-` rows and
  * buttons); one page of 30 at a time with Next / Previous. Refreshed every 10 s while open.
@@ -18,8 +19,8 @@ import { heroPortrait, opponentSkins } from '../skins/skins';
 import { useGame } from '../store';
 import { LIVE_PAGE, liveRemote, type LiveGameRow } from './liveRemote';
 import { useLiveWatch, watchLiveGame } from './liveWatch';
-import { duosLiveRoomOf } from '../versus/duosLive';
 import { goToVersusRoom } from '../friends/friendsGo';
+import { liveModeLabel, liveNameOf, liveWatchTargetOf } from './liveTargets';
 import './live.css';
 
 const REFRESH_MS = 10_000;
@@ -65,9 +66,10 @@ export function LiveGames(): JSX.Element | null {
     if (joining) return;
     sfx.pulse();
     setJoining(r.game_id);
-    // RANKED DUOS (R-RANKED-DUOS-PARTY-01): a team's row watches the party room from the stands (the two live teammates).
-    const duosRoom = duosLiveRoomOf(r.game_id);
-    void (duosRoom ? goToVersusRoom(duosRoom, 'spectator', 'duos') : watchLiveGame(r.game_id)).then((ok) => {
+    // A Versus match or a Ranked Duos team (R-RANKED-DUOS-PARTY-01) watches its room from the stands, on its own host;
+    // a lobby game opens the live watch screen.
+    const t = liveWatchTargetOf(r.game_id);
+    void (t.kind === 'room' ? goToVersusRoom(t.ref, 'spectator', t.area) : watchLiveGame(t.gameId)).then((ok) => {
       setJoining(null);
       if (ok) useGame.setState({ showLiveGames: false });
     });
@@ -81,7 +83,7 @@ export function LiveGames(): JSX.Element | null {
           <Icon name="sword" />
           <div>
             <div className="esch disp">Live Games</div>
-            <div className="lbsub">Ranked games being played right now. Watch any of them live.</div>
+            <div className="lbsub">Games being played right now. Watch any of them live.</div>
           </div>
         </div>
       </div>
@@ -94,7 +96,7 @@ export function LiveGames(): JSX.Element | null {
         ) : rows.length === 0 ? (
           <div className="lbempty lb-state">
             <Icon name="sword" />
-            <div>{page > 0 ? 'No more live games.' : 'No ranked games are being played right now.'}</div>
+            <div>{page > 0 ? 'No more live games.' : 'No games are being played right now.'}</div>
             {/* Not a dead end (2026-10-16 audit): the finished games are one press away. */}
             {page === 0 && <div className="lb-state-sub">Check back soon, or watch a finished game.</div>}
             {page === 0 && <button type="button" className="lb-btn pressable lv-torecent" onClick={() => { sfx.pulse(); goTo('recent'); }}><Icon name="clock" />Recent Games</button>}
@@ -104,12 +106,13 @@ export function LiveGames(): JSX.Element | null {
             {rows.map((r) => {
               const skins = opponentSkins(showOpp, r.cosmetics);
               const hero = getHero(r.hero_id);
+              const label = liveModeLabel(r);
               return (
                 <div key={r.game_id} className="lb-row lv-row">
                   <div className="lb-row-hero">
                     <LbHeroFrame heroId={r.hero_id} art={heroPortrait(r.hero_id, skins)} frameId={frameIdOf(skins)} />
-                    <div className="lb-row-name">{r.display_name}</div>
-                    <div className="lb-row-herosub">{duosLiveRoomOf(r.game_id) ? 'Ranked Duos team' : r.phase === 'hero' ? 'Picking a hero' : hero?.name ?? 'Unknown hero'}</div>
+                    <div className="lb-row-name">{liveNameOf(r)}</div>
+                    <div className="lb-row-herosub">{label ?? (r.phase === 'hero' ? 'Picking a hero' : hero?.name ?? 'Unknown hero')}</div>
                   </div>
                   <div className="lv-rank">
                     <RankCrest divisionIndex={r.division_index} size="row" />
@@ -120,7 +123,7 @@ export function LiveGames(): JSX.Element | null {
                     <div className="lv-status">{liveStatusText(r)}</div>
                     {r.phase !== 'end' && <div className="lv-watchers"><Icon name="eye" />{r.spectators} watching</div>}
                     <button type="button" className="lb-btn lb-watch pressable" disabled={joining !== null || r.phase === 'end' || r.spectators >= 20}
-                      onClick={() => watch(r)} aria-label={`Watch ${r.display_name}`}>
+                      onClick={() => watch(r)} aria-label={`Watch ${liveNameOf(r)}`}>
                       {joining === r.game_id ? 'Joining…' : r.spectators >= 20 ? 'Full' : 'Watch'}
                     </button>
                   </div>

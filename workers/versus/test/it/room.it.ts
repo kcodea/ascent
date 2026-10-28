@@ -8,7 +8,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { resolveVersusFight, versusStartingVitals, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { versusFightDigest } from '@game/sim';
 import { VersusCfClient, versusCfHttp } from '../../src/client';
-import { CONTENT, FIXTURE, HERO_IDS, Player, sideOf, startLocalWorker, toGroupShop, toRoundOne } from './driver';
+import { createHash, createHmac } from 'node:crypto';
+import { CONTENT, FIXTURE, HERO_IDS, IT_WRITER_SECRET, Player, sideOf, startLocalWorker, toGroupShop, toRoundOne } from './driver';
+import { invitePayload } from '../../src/invites';
 
 let base = '';
 let dispose: () => Promise<void> = async () => undefined;
@@ -94,6 +96,29 @@ describe('Versus room in workerd', () => {
     await b2.req('request_resume', { matchId: a.matchId });
     await resumed;
     for (const p of [a, b2]) p.client!.close();
+  });
+});
+
+describe('Friend invites into a Cloudflare room (R-VERSUS-CF-INVITE-01)', () => {
+  it('the room signs an invite only while it is open, from a member, for a non-member; the proof is the HMAC the SQL checks', async () => {
+    const a = new Player(base, crypto.randomUUID(), 'Claudebot1');
+    const b = new Player(base, crypto.randomUUID(), 'Claudebot2');
+    const c = new Player(base, crypto.randomUUID(), 'Claudebot3');
+    const roomId = await a.createRoom();
+    await a.connect(roomId);
+    const { proof } = await a.req<{ proof: string }>('invite_proof', { to: b.userId, kind: 'versus_room' });
+    const [exp, sig] = proof.split('.');
+    const key = createHash('sha256').update(IT_WRITER_SECRET).digest('hex');
+    expect(sig).toBe(createHmac('sha256', key).update(invitePayload({ room: roomId, from: a.userId, to: b.userId, kind: 'versus_room', exp: Number(exp) })).digest('hex'));
+    await expect(a.req('invite_proof', { to: b.userId, kind: 'duos_party' })).rejects.toThrow('bad_kind');
+    await c.connect(roomId); // on the socket, but not a member of the room
+    await expect(c.req('invite_proof', { to: b.userId, kind: 'versus_room' })).rejects.toThrow('not_in_room');
+    await b.connect(roomId);
+    await b.req('join', { as: 'player', display: b.name, profile: {}, content: CONTENT, protocol: VERSUS_PROTOCOL });
+    await expect(a.req('invite_proof', { to: b.userId, kind: 'versus_room' })).rejects.toThrow('already_in_room');
+    await a.req('start');
+    await expect(a.req('invite_proof', { to: c.userId, kind: 'versus_room' })).rejects.toThrow('room_not_open');
+    for (const p of [a, b, c]) p.client!.close();
   });
 });
 

@@ -12,6 +12,7 @@ import {
   parseHostConfig, parseRouteOverride, type VersusHostConfig,
 } from './versusHost';
 import { versusCfLiveUrl } from './versusCfRemote';
+import { duosLiveRoomOf, publishesOwnRow } from './duosLive';
 import { makeVersusRemote, VersusError, type VersusIdentity, type VersusRemote, type VersusRoom, type VersusRoomSummary } from './versusRemote';
 
 type Impl = Partial<Record<keyof VersusRemote, (...a: never[]) => unknown>>;
@@ -165,6 +166,34 @@ describe('Versus cutover: a room keeps its host', () => {
     await t.router.joinRoom('c-3', 'spectator', ME);
     expect(t.cf.names()).toContain('joinRoom');
     expect(t.cf.names()).not.toContain('listRooms'); // known: no lookup
+  });
+
+  it('Live Games: a Cloudflare Ranked Duos row (duos:cf:<room>) watches the room ON THE WORKER (R-VERSUS-CF-LIVE-01)', async () => {
+    const ref = duosLiveRoomOf('duos:cf:c-9')!;
+    expect(ref).toBe('cf:c-9');
+    expect(duosLiveRoomOf('duos:s-9')).toBe('s-9'); // a Supabase team row, unchanged
+    expect(duosLiveRoomOf('run-7')).toBeNull(); // a solo ranked row
+    // What goToVersusRoom does with it: note the host, then join in the stands.
+    const t = setup();
+    const { roomId, host } = decodeRoomRef(ref);
+    t.router.noteRoomHost(roomId, host);
+    await t.router.joinRoom(roomId, 'spectator', ME);
+    expect(t.cf.calls.find((c) => c.name === 'joinRoom')?.args.slice(0, 2)).toEqual(['c-9', 'spectator']);
+    expect(t.supa.names()).not.toContain('joinRoom');
+    // A Cloudflare room's row is the Worker's: the client never heartbeats it to Supabase (it would only fail).
+    expect(publishesOwnRow('c-9', (id) => t.router.hostOf(id))).toBe(false);
+    expect(publishesOwnRow('s-9', (id) => t.router.hostOf(id))).toBe(true);
+  });
+
+  it('invite proof: asked of the host of the room (R-VERSUS-CF-INVITE-01)', async () => {
+    const t = setup({ cfImpl: { inviteProof: () => '1.ab' } });
+    t.router.noteRoomHost('c-4', 'cf');
+    expect(await t.router.inviteProof('c-4', 'u2', 'versus_room')).toBe('1.ab');
+    expect(t.cf.names()).toContain('inviteProof');
+    await t.router.inviteProof('s-4', 'u2', 'versus_room');
+    expect(t.supa.names()).toContain('inviteProof');
+    // The Supabase adapter needs none (friends_invite checks a Supabase room in SQL).
+    expect(await makeVersusRemote(() => null).inviteProof('s-4', 'u2', 'versus_room')).toBeNull();
   });
 
   it('records and dev bots always read Supabase', async () => {

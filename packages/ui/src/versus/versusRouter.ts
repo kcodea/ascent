@@ -26,7 +26,7 @@ type Route = 'room' | 'match' | 'supabase' | 'special';
  */
 export const VERSUS_ROUTES: Record<keyof VersusRemote, Route> = {
   listRooms: 'special', openRooms: 'special', createRoom: 'special', myRoomId: 'special', subscribeRoom: 'special',
-  setFriendsOnly: 'room', setOptions: 'room', joinRoom: 'room', takeSeat: 'room', leaveRoom: 'room', startGame: 'room',
+  setFriendsOnly: 'room', inviteProof: 'room', setOptions: 'room', joinRoom: 'room', takeSeat: 'room', leaveRoom: 'room', startGame: 'room',
   pressGate: 'room', reconcileRoom: 'room', heartbeat: 'room', room: 'room',
   setTeamName: 'supabase', duosResult: 'supabase', duosTeam: 'supabase', duosLeaderboard: 'supabase', duosTeamsOf: 'supabase',
   testBotRegister: 'supabase',

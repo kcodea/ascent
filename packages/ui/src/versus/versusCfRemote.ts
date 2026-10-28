@@ -248,6 +248,9 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     openRooms: (contentRevision: string) =>
       http<{ open: number; seatOpen: number; duosOpen?: number }>(`/rooms/open?protocol=${VERSUS_PROTOCOL}&content=${encodeURIComponent(contentRevision)}`),
     setFriendsOnly: (id: string, on: boolean) => req<VersusRoom>(id, 'friends_only', { on }),
+    /** FRIEND INVITES (R-VERSUS-CF-INVITE-01): the room checks the invite (open, I am in, they are not) and signs it;
+     *  `friends_invite` refuses a Cloudflare invite without that proof. */
+    inviteProof: async (id: string, to: string, kind: string) => (await req<{ proof: string }>(id, 'invite_proof', { to, kind })).proof,
     // Not room state: the Supabase rows (team names, the leaderboard, a settled ranked result) are read where they live.
     setTeamName: (partner: string, name: string) => (deps.fallback ? deps.fallback.setTeamName(partner, name) : unsupported()),
     duosResult: async (matchId: string) => (deps.fallback ? deps.fallback.duosResult(matchId) : null),

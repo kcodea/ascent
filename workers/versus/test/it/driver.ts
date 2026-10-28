@@ -16,10 +16,13 @@ export const FIXTURE = JSON.parse(readFileSync(fileURLToPath(new URL('../../../.
 export const HERO_IDS = HEROES.slice(0, 6).map((h) => h.id);
 export const CONTENT = engineContentRevision();
 
+export const IT_WRITER_SECRET = 'it-writer-secret-not-real';
+
 export async function startLocalWorker(): Promise<{ url: string; dispose: () => Promise<void> }> {
   const worker = await unstable_startWorker({
     config: fileURLToPath(new URL('../../wrangler.toml', import.meta.url)),
-    bindings: { DEV_AUTH: { type: 'plain_text', value: '1' } },
+    // A TEST writer secret (persistence stays off: no PERSIST, no Supabase URL), so the room can sign invite proofs.
+    bindings: { DEV_AUTH: { type: 'plain_text', value: '1' }, VERSUS_WRITER_SECRET: { type: 'plain_text', value: IT_WRITER_SECRET } },
     dev: { server: { port: 0 }, inspector: false, persist: false, logLevel: (process.env.VERSUS_CF_LOG as never) ?? 'error' } as never,
   });
   await worker.ready;

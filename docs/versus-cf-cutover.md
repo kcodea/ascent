@@ -13,7 +13,7 @@ This is the runbook for moving a Versus mode onto the Cloudflare Worker and back
 | **The router** | `packages/ui/src/versus/versusRouter.ts` (the game's `versusRemote`) | Sends each call to the room's host. A room keeps the host it was created on **for life**; the client remembers it across a reload. |
 | **The Worker URL** | `VITE_VERSUS_CF_URL`, baked in by `npm run release:web -- --versus-cf` | A build with no URL (or a URL for a different content revision) is Supabase-only whatever the switch says. |
 | **Room lists** | Both backends, merged in the client | Supabase rooms from `versus_list_rooms` as today; Cloudflare rooms from the Worker's own `GET /rooms` (its directory object). |
-| **Invites / Watch / Live Games** | Room reference `cf:<room id>` for a Cloudflare room, the bare id for a Supabase room | `friends_invite` accepts `cf:<uuid>`; the Friends "Watch" id and a Live Games `duos:` row carry the same prefix. |
+| **Invites / Watch / Live Games** | Room reference `cf:<room id>` for a Cloudflare room, the bare id for a Supabase room | `friends_invite` accepts `cf:<uuid>` with the room's signed proof (checked at send, R-VERSUS-CF-INVITE-01); the Friends "Watch" id and a Live Games `duos:` row carry the same prefix. A Cloudflare Ranked Duos room writes its own Live Games row (`duos:cf:<room>`, R-VERSUS-CF-LIVE-01). |
 | **Origin allowlist** | `ALLOWED_ORIGINS` in `workers/versus/wrangler.toml` | `https://ascent-game-web.netlify.app` + localhost dev ports. Deploy-time override: `VERSUS_ALLOWED_ORIGINS`. |
 
 **Why the Worker lists its own rooms (not a registry table in Supabase):** the Worker already keeps every live room in
@@ -35,6 +35,9 @@ every room list, which is exactly the egress we are trying to shed.
 1. Apply `supabase/migrations/2026-11-04-versus-cf-writer.sql` (the result writer; PR #2369).
 2. Apply `supabase/migrations/2026-11-05-versus-host-config.sql` (the switch + `cf:` invites). Safe on its own: every
    mode starts on `supabase`, and builds without a Worker never read it.
+   Then apply `supabase/migrations/2026-11-08-versus-cf-live-games-invites.sql` (Live Games rows from Cloudflare Ranked
+   Duos rooms, and the signed invite check). Safe on its own: a Supabase invite is checked as before, and a call without
+   the new `p_proof` argument still resolves.
 3. Ship a pack that carries the Worker:
    ```
    npm run release:web -- --versus-cf
@@ -93,10 +96,20 @@ VERSUS_ALLOWED_ORIGINS="https://ascent-game-web.netlify.app,https://play.example
 
 `deploy.ts` validates each entry (https origins, or http on localhost / 127.0.0.1) and echoes the list.
 
+## Live Games and invites (2026-11-08)
+
+- **Live Games** (owner 2026-10-28: every game is a live game): a Cloudflare room writes its own row (`versus:cf:<room>`
+  for 1v1 / Group / Versus Duos, `duos:cf:<room>` for Ranked Duos) through the key-gated `versus_cf_live`, only when the
+  listing changes (start, round, phase, end) plus a 2-minute keep-alive; the row stays listed 4 minutes past its last
+  write and is removed at the end. Supabase Versus rooms are listed by a server trigger on the match rows (no client
+  traffic). Watch from Live Games or Friends joins the room on its own host.
+- **Invites**: the client asks its room for a proof (`invite_proof` on the room socket); the room runs the Supabase
+  checks (open, I am in it, they are not) and signs `<exp>.<hmac>` with the sha256 of its writer secret (the value
+  `versus_cf_writer_keys` holds, so nothing new to provision); `friends_invite` refuses a `cf:` invite without a valid
+  proof (`room_check`). A Worker with no writer secret answers `invites_unavailable`.
+
 ## Still open (not in this plumbing)
 
-- **Live Games for a Cloudflare Ranked Duos match**: the Ranked Duos port must publish its row as `duos:cf:<room>`
-  (the client already reads that); `lobby_live_duos_heartbeat` reads Supabase rooms only.
-- **Friends invite checks for a Cloudflare room** (room open, inviter inside) happen at join, in the Worker, not at
-  invite time.
+- **Spectator XP for a Cloudflare match**: `spectate_beat` checks `versus_members` / the match rows, which a Cloudflare
+  room does not keep live, so watching a Cloudflare match earns no spectator XP yet.
 - **A rollout percentage** (`cf:<percent>` in the design doc) is not built; the switch is all or nothing per mode.

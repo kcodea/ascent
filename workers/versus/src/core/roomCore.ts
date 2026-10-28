@@ -39,6 +39,7 @@ import {
   type VersusFinalizeStore,
 } from '@game/sim/versus/server';
 import { GroupEngine, GSEATS, newGroupState, teamSeats, teamOf, type GPass, type GroupHost, type GroupState, type GSeat } from './groupMatch';
+import { rankedExtra, RankedEngine, type RankedHost, type RankedService } from './rankedMatch';
 
 export type Seat = 'p1' | 'p2';
 /** A room role: a player seat (p3 / p4 only in a Group room) or the stands. */
@@ -247,7 +248,7 @@ export interface CoreState {
 export type PersistJob =
   | { kind: 'match'; row: Record<string, unknown> }
   | { kind: 'round'; row: RoundRow }
-  | { kind: 'group_match' | 'group_round'; row: Record<string, unknown> };
+  | { kind: 'group_match' | 'group_round' | 'ranked_finish'; row: Record<string, unknown> };
 
 /** What changed in a call: the shell pushes these to sockets and writes the dirty storage keys. */
 export interface CoreEffects {
@@ -265,6 +266,8 @@ export interface CoreEffects {
   left: string[];
   /** VERSUS DUOS: pass rows that changed (pushed to that team's two seats only). */
   passes: GPass[];
+  /** RANKED DUOS: the shell must fetch the pair's team identity / seat the table (Supabase I/O, outside the core). */
+  ranked: { team: boolean; seat: boolean };
   /** The room's listing summary may have changed. */
   summary: boolean;
 }
@@ -322,14 +325,14 @@ export function turnSeconds(round: number): number {
 }
 
 function emptyEffects(): CoreEffects {
-  return { room: false, match: false, priv: new Set(), rounds: [], dirty: new Set(), persist: [], events: [], left: [], passes: [], summary: false };
+  return { room: false, match: false, priv: new Set(), rounds: [], dirty: new Set(), persist: [], events: [], left: [], passes: [], ranked: { team: false, seat: false }, summary: false };
 }
 
 export function newRoomState(input: CreateRoomInput, now: number): CoreState {
   const err = input.options == null ? null : versusOptionsError(input.options);
   if (err) fail(err);
   const options = normalizeVersusOptions(input.options) as unknown as Record<string, unknown>;
-  if (options.mode !== 'duel' && options.mode !== 'group' && options.mode !== 'duos') fail('mode_not_supported');
+  if (!['duel', 'group', 'duos', 'ranked_duos'].includes(String(options.mode))) fail('mode_not_supported');
   if (input.protocol !== VERSUS_PROTOCOL) fail('version_mismatch');
   if (input.contentRevision !== engineContentRevision()) fail('version_mismatch');
   if (jsonBytes(input.profile) > PROFILE_BYTES) fail('profile_too_large');
@@ -383,12 +386,21 @@ export class RoomCore {
   get grp(): GroupEngine | null {
     const g = this.state.group;
     if (!g) { this.groupEng = null; return null; }
-    if (!this.groupEng || this.groupEng.g !== g) this.groupEng = new GroupEngine(g, this.groupHost());
+    if (!this.groupEng || this.groupEng.g !== g) this.groupEng = g.ranked ? new RankedEngine(g, this.groupHost()) : new GroupEngine(g, this.groupHost());
     return this.groupEng;
   }
 
-  private groupHost(): GroupHost {
+  /** The Ranked Duos engine, when the current match is one. */
+  get ranked(): RankedEngine | null {
+    const g = this.grp;
+    return g instanceof RankedEngine ? g : null;
+  }
+
+  private groupHost(): RankedHost {
     return {
+      goneFor: (u) => (this.sockets.has(u) ? 0 : this.now - (this.member(u)?.disconnectedAt ?? this.now)),
+      needTeam: () => { this.fx.ranked.team = true; },
+      needSeat: () => { this.fx.ranked.seat = true; },
       now: () => this.now,
       random31: () => this.deps.random31(),
       uuid: () => this.deps.uuid(),
@@ -412,7 +424,7 @@ export class RoomCore {
 
   /** The room's player seats for its mode (`versus__mode_roles`). */
   private modeRoles(mode: unknown = this.state.room.options.mode): readonly GSeat[] {
-    return mode === 'group' || mode === 'duos' ? GSEATS : SEATS;
+    return mode === 'group' || mode === 'duos' ? GSEATS : SEATS; // 1v1 and the Ranked Duos party: two seats
   }
 
   /** No open socket for `userId` past the grace. */
@@ -470,6 +482,7 @@ export class RoomCore {
   /** One committed round as pushed (1v1 `versus_rounds` row or Group round raw). */
   roundJson(n: number): Record<string, unknown> | null {
     const g = this.state.group;
+    if (g?.ranked) return (g.ranked.rounds[n] as unknown as Record<string, unknown>) ?? null;
     if (g) return (g.rounds[n] as unknown as Record<string, unknown>) ?? null;
     return (this.state.rounds[n] as unknown as Record<string, unknown>) ?? null;
   }
@@ -731,6 +744,7 @@ export class RoomCore {
       case 'start': return this.start(userId);
       case 'gate': return this.pressGate(userId);
       case 'set_options': return this.setOptions(userId, a.options);
+      case 'friends_only': return this.setFriendsOnly(userId, a.on);
       case 'reconcile_room': return ROOM_JSON;
       case 'sync': return this.sync(userId);
       case 'heartbeat': return this.heartbeat(userId);
@@ -778,7 +792,7 @@ export class RoomCore {
         return null;
       }
       case 'latest_frames': return [...this.frames.values()];
-      case 'rounds': return g.roundsFrom(Number.isInteger(a.from) ? (a.from as number) : 1);
+      case 'rounds': return g instanceof RankedEngine ? g.rankedRoundsFrom(Number.isInteger(a.from) ? (a.from as number) : 1) : g.roundsFrom(Number.isInteger(a.from) ? (a.from as number) : 1);
       case 'my_private': { const s = g.seatOf(userId); return s ? g.privJson(s) : null; }
       case 'my_checkpoint': { const s = g.seatOf(userId); return s ? g.myCheckpoint(s) : null; }
       // VERSUS DUOS: passing to the teammate.
@@ -786,6 +800,10 @@ export class RoomCore {
       case 'duos_answer_pass': return g.answerPass(userId, a.fromSeat, a.seq, a.landed);
       case 'duos_hand_room': g.handRoom(userId, a.room); return null;
       case 'duos_passes': return g.passesFor(userId, Number.isInteger(a.from) ? (a.from as number) : 1);
+      // RANKED DUOS reads (`versus_ranked_duos_table`, the teams, the rounds with their fights).
+      case 'ranked_table': if (!(g instanceof RankedEngine)) fail('not_ranked_duos'); return (g as RankedEngine).table();
+      case 'ranked_teams': if (!(g instanceof RankedEngine)) fail('not_ranked_duos'); return (g as RankedEngine).teamsJson();
+      case 'ranked_rounds': if (!(g instanceof RankedEngine)) fail('not_ranked_duos'); return (g as RankedEngine).rankedRoundsFrom(Number.isInteger(a.from) ? (a.from as number) : 1);
       default: return fail('unknown_op');
     }
   }
@@ -890,7 +908,13 @@ export class RoomCore {
     if (me!.role === 'p2') r.p2_gate = true;
     if (me!.role === 'p3') r.p3_gate = true;
     if (me!.role === 'p4') r.p4_gate = true;
-    if (r.options.mode === 'group' || r.options.mode === 'duos') {
+    if (r.options.mode === 'ranked_duos') {
+      // The party: both seats pressed → a Ranked Duos match (the recorded teams are seated once both heroes are known).
+      if (r.p1_gate && r.p2_gate) {
+        const seated = r.members.filter((m) => m.role === 'p1' || m.role === 'p2') as (CoreMember & { role: GSeat })[];
+        this.createGroupMatch(seated);
+      }
+    } else if (r.options.mode === 'group' || r.options.mode === 'duos') {
       const gateOf = (s: GSeat): boolean => (s === 'p1' ? r.p1_gate : s === 'p2' ? r.p2_gate : s === 'p3' ? !!r.p3_gate : !!r.p4_gate);
       const seated = r.members.filter((m) => m.role !== 'spectator') as (CoreMember & { role: GSeat })[];
       // Duos needs all four seats (a seat emptied while sealed cannot start a 2v2).
@@ -932,6 +956,35 @@ export class RoomCore {
     return ROOM_JSON;
   }
 
+  /** `versus_set_friends_only`: the host keeps the party to friends (such a room is not listed: invites only). */
+  private setFriendsOnly(userId: string, on: unknown): unknown {
+    const r = this.state.room;
+    if (r.host_user_id !== userId) fail('not_host');
+    r.friends_only = on === true;
+    this.touchRoom();
+    return ROOM_JSON;
+  }
+
+  /** RANKED DUOS: the pair's team identity arrived (the shell asked Supabase). */
+  rankedSetTeam(info: { teamId: string | null; name: string | null; division: number }, now: number): CoreEffects {
+    this.begin(now);
+    this.ranked?.setTeam(info);
+    return this.end();
+  }
+
+  /** RANKED DUOS: seat the table now (the shell supplies the Supabase samples); a round waiting on it resolves. */
+  async rankedSeat(service: RankedService, now: number): Promise<CoreEffects> {
+    this.begin(now);
+    const e = this.ranked;
+    if (e) {
+      await e.seat(service);
+      await this.settle();
+      this.reconcile();
+      await this.settle();
+    }
+    return this.end();
+  }
+
   private sync(userId: string): unknown {
     return { room: this.roomJson(), match: this.currentMatchJson(), priv: this.privFor(userId) };
   }
@@ -966,6 +1019,11 @@ export class RoomCore {
     this.clearMatchKeys();
     this.state.match = null;
     this.state.group = newGroupState(this.groupHost(), r, seated.map((m) => ({ seat: m.role, userId: m.userId, name: m.displayName })));
+    if (r.options.mode === 'ranked_duos') {
+      this.state.group.ranked = rankedExtra();
+      for (const s of this.state.group.match.seats) s.team = 'a';
+      this.fx.ranked.team = true;
+    }
     const g = this.grp!;
     for (const s of g.m.seats) { this.fx.priv.add(s.seat); }
     r.status = 'in_game';
@@ -973,6 +1031,7 @@ export class RoomCore {
     r.gate_deadline = null;
     this.fx.match = true;
     this.fx.dirty.add('meta');
+    if (this.ranked) return; // Ranked Duos is written once, at the end (`ranked_finish`)
     const row = g.json();
     delete row.serverNow;
     this.fx.persist.push({ kind: 'group_match', row: { ...row, room_id: null, seats: g.m.seats } });
@@ -983,6 +1042,8 @@ export class RoomCore {
     for (const n of Object.keys(this.state.rounds)) this.fx.dirty.add(`round:${n}`);
     for (const n of Object.keys(this.state.group?.rounds ?? {})) this.fx.dirty.add(`ground:${n}`);
     for (const s of GSEATS) for (const k of ['sub', 'last', 'ckpt', 'gsub', 'glast', 'gckpt']) this.fx.dirty.add(`${k}:${s}`);
+    for (const n of Object.keys(this.state.group?.ranked?.rounds ?? {})) { this.fx.dirty.add(`rround:${n}`); this.fx.dirty.add(`rhist:${n}`); }
+    this.fx.dirty.add('rserved');
     this.frames.clear();
   }
 

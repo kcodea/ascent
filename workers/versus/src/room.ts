@@ -20,6 +20,8 @@ import { CoreError, newRoomState, RoomCore, type CoreEffects, type CreateRoomInp
 import { stateFromEntries, valueOfKey } from './core/storage';
 import type { VersusDirectory } from './directory';
 import { persistBackoffMs, sinkFor, type PersistEnv, type PersistSink } from './persist';
+import type { RankedService } from './core/rankedMatch';
+import { rankedServiceFor } from './rankedService';
 import {
   parseClientMessage,
   VERSUS_CF_CLOSE,
@@ -77,6 +79,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
   private core: RoomCore | null = null;
   private loaded = false;
   private readonly sink: PersistSink;
+  private readonly rankedSvc: RankedService;
   private outboxSeq = 0;
   private outboxAttempt = 0;
   private outboxRetryAt: number | null = null;
@@ -86,6 +89,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
   constructor(ctx: DurableObjectState, env: RoomEnv) {
     super(ctx, env);
     this.sink = sinkFor(env);
+    this.rankedSvc = rankedServiceFor(env);
     // Keep-alive answered by the runtime itself: a ping never wakes a hibernating room.
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(VERSUS_CF_PING, VERSUS_CF_PONG));
     // The state is read once, before any event is delivered (a wake from hibernation runs the constructor again).
@@ -357,6 +361,9 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       const s = JSON.stringify({ t: 'pass', row: p as unknown as Record<string, unknown>, now } satisfies VersusCfPush);
       for (const ws of all) if (to.has(this.att(ws).userId)) this.send(ws, s);
     }
+    // RANKED DUOS: the Supabase reads the core asked for run here, off the request path; their result is applied as a
+    // new set of effects (a failed seat is retried by the alarm, see RankedEngine.reconcile).
+    if (fx.ranked.team || fx.ranked.seat) void this.rankedIo(fx.ranked.team, fx.ranked.seat);
     // 4. The directory (listing + one-room-per-account).
     if (fx.summary) await this.directory().upsert(core.summary() as never).catch((e) => console.warn('versus cf: directory upsert', e));
     for (const u of fx.left) await this.directory().release(u, core.state.room.id).catch(() => undefined);
@@ -369,6 +376,26 @@ export class VersusRoom extends DurableObject<RoomEnv> {
   /** One structured log line (Workers Logs / `wrangler tail` index the JSON). */
   private log(fields: Record<string, unknown>): void {
     console.log(JSON.stringify({ room: this.core?.state.room.id, ...fields }));
+  }
+
+  private async rankedIo(team: boolean, seat: boolean): Promise<void> {
+    const core = this.core;
+    const g = core?.ranked;
+    if (!core || !g) return;
+    try {
+      if (team) {
+        const live = g.m.seats.filter((x) => x.seat === 'p1' || x.seat === 'p2').map((x) => x.user_id);
+        const info = await this.rankedSvc.ensureTeam(live[0]!, live[1]!);
+        await this.apply(core.rankedSetTeam(info, Date.now()));
+      }
+      if (seat) {
+        await this.apply(await core.rankedSeat(this.rankedSvc, Date.now()));
+        await this.rearm();
+      }
+    } catch (e) {
+      this.log({ ev: 'versus_cf_ranked_io_failed', team, seat, error: String(e) });
+      await this.rearm();
+    }
   }
 
   private send(ws: CfWebSocket, text: string): void {

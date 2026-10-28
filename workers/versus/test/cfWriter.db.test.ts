@@ -25,7 +25,8 @@ const FILES = [
   '2026-11-01-ranked-duos-party.sql', '2026-11-01-versus-ready-signal.sql', '2026-11-02-ranked-duos-both-ready.sql', '2026-11-02-ranked-duos-party-split.sql',
   '2026-11-02-versus-server-reliability.sql', '2026-11-03-versus-live-armor.sql',
 ];
-const WRITER = mig('2026-11-04-versus-cf-writer.sql') + '\n' + mig('2026-11-05-versus-cf-writer-group.sql') + '\n' + mig('2026-11-06-versus-cf-writer-duos.sql');
+const WRITER = mig('2026-11-04-versus-cf-writer.sql') + '\n' + mig('2026-11-05-versus-cf-writer-group.sql') + '\n' + mig('2026-11-06-versus-cf-writer-duos.sql')
+  + '\n' + mig('2026-11-07-versus-cf-ranked.sql');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth; create schema extensions;
@@ -176,5 +177,54 @@ describe('versus_cf_persist, GROUP (2026-11-05-versus-cf-writer-group.sql)', () 
     expect(t).toEqual([{ team: 'a', armor: 12, placement: null }, { team: 'b', armor: 0, placement: 2 }]);
     const s = (await db.query<{ team: string }>('select team from public.versus_group_seats where match_id = $1 order by seat', [DM])).rows;
     expect(s.map((x) => x.team)).toEqual(['a', 'a', 'b', 'b']);
+  });
+});
+
+describe('RANKED DUOS (2026-11-07-versus-cf-ranked.sql)', () => {
+  const RM = '12121212-1212-4121-8121-121212121212';
+  async function ranked(kind: string, args: unknown, key: string | null = SECRET): Promise<any> {
+    await db.exec('set role anon');
+    try {
+      return (await db.query<{ v: unknown }>('select public.versus_cf_ranked($1, $2, $3::jsonb) as v', [key, kind, JSON.stringify(args)])).rows[0]!.v;
+    } finally {
+      await db.exec('reset role');
+    }
+  }
+
+  it('reads: the pair\'s team (created once, division 0 when new) and the samples, key-gated', async () => {
+    const t1 = await ranked('team', { a: P2, b: P1 });
+    const t2 = await ranked('team', { a: P1, b: P2 });
+    expect(t1.teamId).toBe(t2.teamId);
+    expect(t1.division).toBe(0);
+    expect(await ranked('duo_sample', { p_limit: 10, p_set: 'set1', p_seed: 'x' })).toEqual({ rows: [], names: {} });
+    await expect(ranked('team', { a: P1, b: P2 }, 'wrong')).rejects.toThrow('not_authorized');
+  });
+
+  it('ranked_finish writes the whole match once, settles the team rating and records the duo run; a repeat is frozen', async () => {
+    const team = (await ranked('team', { a: P1, b: P2 })).teamId as string;
+    const side = (n: number) => ({ board: [], state: { tier: n }, config: {} });
+    const rounds = [1, 2, 3, 4].map((round) => ({
+      match_id: RM, kind: 'ranked', round, digest: `r${round}`, vitals: { a: { health: 30, armor: 0 } }, eliminated: [], first: { a: 'p1' },
+      fights: [{ round, fight: 0, a_team: 'a', b_team: 'b', ghost: false, chair: 'a', outcome: 'a', loser: 'b', damage: 2, first: { a: 0, b: 1 }, live_result: { r: round } }],
+    }));
+    const row = {
+      placement: 2,
+      match: { id: RM, seed: 5, set_id: 'set1', content_revision: 'rev1', protocol: 2, options: { v: 1, mode: 'ranked_duos', modifiers: [] }, round: 4,
+        winner_seat: null, end_reason: 'hearts', ranked_team: team, unrated: null, seated_at: '2026-10-28T12:00:00.000Z', created_at: '2026-10-28T12:00:00.000Z' },
+      seats: [{ seat: 'p1', user_id: P1, name: 'A', hero: 'h1', placement: 2, health: 0, armor: 0 }, { seat: 'p2', user_id: P2, name: 'B', hero: 'h2', placement: 2, health: 0, armor: 0 }],
+      teams: [{ team: 'a', health: 0, armor: 0, eliminated_round: 4, out_reason: 'hearts', placement: 2 }, { team: 'b', placement: 1, served_kind: 'generated' },
+        { team: 'c', placement: 3, served_kind: 'generated' }, { team: 'd', placement: 4, served_kind: 'generated' }],
+      served: [{ team: 'b', member: 0, kind: 'generated', source_key: 'g1', owner_id: null, name: 'Bot', hero: 'h3', recording: { kind: 'generated' } }],
+      rounds,
+      submissions: [1, 2, 3, 4].flatMap((round) => [{ round, seat: 'p1', user_id: P1, prepared_side: side(round), source: 'lock' }, { round, seat: 'p2', user_id: P2, prepared_side: side(round), source: 'lock' }]),
+    };
+    expect(await call(SECRET, 'ranked_finish', row)).toMatchObject({ ok: true });
+    expect(await call(SECRET, 'ranked_finish', row)).toMatchObject({ frozen: true });
+    expect((await db.query('select * from public.versus_ranked_duos_fights where match_id = $1', [RM])).rows).toHaveLength(4);
+    const settled = (await db.query<{ placement: number }>('select placement from public.duos_rank_results where team_id = $1 and match_id = $2', [team, RM])).rows;
+    expect(settled).toEqual([{ placement: 2 }]);
+    const run = (await db.query<{ round_count: number; placement: number }>('select round_count, placement from public.duo_runs where match_id = $1', [RM])).rows;
+    expect(run).toEqual([{ round_count: 4, placement: 2 }]);
+    expect((await db.query('select * from public.duo_run_rounds dr join public.duo_runs r on r.id = dr.duo_run_id where r.match_id = $1', [RM])).rows).toHaveLength(4);
   });
 });

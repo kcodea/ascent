@@ -84,7 +84,7 @@ export class VersusDirectory extends DurableObject {
   async list(): Promise<RoomSummary[]> {
     const s = await this.load();
     return Object.values(s.rooms)
-      .filter((r) => r.fresh && !r.closed)
+      .filter((r) => r.fresh && !r.closed && !r.friendsOnly) // a friends-only party is reached by invite, never listed
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
       .slice(0, 100)
       .map(({ members: _m, fresh: _f, closed: _c, ...rest }) => rest as RoomSummary);

@@ -77,7 +77,11 @@ export type VersusCfOp =
   | 'duos_pass'
   | 'duos_answer_pass'
   | 'duos_hand_room'
-  | 'duos_passes';
+  | 'duos_passes'
+  | 'friends_only'
+  | 'ranked_table'
+  | 'ranked_teams'
+  | 'ranked_rounds';
 
 export interface VersusCfHello {
   protocol: number;

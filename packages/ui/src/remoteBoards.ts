@@ -29,6 +29,7 @@ import { hallHistoryKeyOf, ownGameRecordsOf, type HallLedgerFight, type HallOwnR
 import { fetchAllRows } from './supabaseRows';
 import { kvGet, kvSet, maxId, mergeNewestFirst } from './net/idbKv';
 import { cachedSample, idbRunCache, type DeltaStats } from './opponentPool/poolRunCache';
+import { createOutbox, idbOutboxStore, type Outbox, type OutboxItem, type OutboxKind } from './net/runOutbox';
 import { careerTotalsOf } from './runHistory';
 import { matchLength } from './activePlayClock';
 
@@ -297,27 +298,87 @@ let flushing = false;
 export async function flushUploadQueue(): Promise<void> {
   if (flushing || !remoteEnabled() || !currentUserId()) return;
   const q = loadQueue();
-  if (q.length === 0) return;
+  if (q.length === 0) { await flushRunOutbox(); return; }
   flushing = true;
   saveQueue([]);
   try {
     for (const item of q) {
       try {
         switch (item.kind) {
-          case 'boards':    await uploadBoards(item.payload as BoardSnapshot[], { unrated: true }); break;
+          // The four run-end writes now live in the durable outbox (R-NET-OUTBOX-01): an item left here by an older
+          // build moves into it as a session-less item (boards therefore UNRATED, exactly as this flush sent them).
+          case 'boards':    await uploadBoards(item.payload as BoardUpload[], { unrated: true, offline: true }); break;
           case 'victory':   await uploadVictory({ ...(item.payload as Parameters<typeof uploadVictory>[0]), unrated: true }); break;
-          case 'telemetry': { const p = item.payload as { t: RunTelemetry; meta: Parameters<typeof uploadRunTelemetry>[1] }; await uploadRunTelemetry(p.t, p.meta); break; }
+          case 'telemetry': { const p = item.payload as { t: RunTelemetry; meta: Parameters<typeof uploadRunTelemetry>[1] }; await uploadRunTelemetry(p.t, p.meta, { offline: true }); break; }
           case 'profile':   await uploadPlayerProfile({ ...(item.payload as Parameters<typeof uploadPlayerProfile>[0]), unrated: true }); break;
-          case 'history':   await uploadRunHistory(item.payload as Parameters<typeof uploadRunHistory>[0]); break;
+          case 'history':   await uploadRunHistory(item.payload as Parameters<typeof uploadRunHistory>[0], { offline: true }); break;
           case 'fight':     break; // the retired board_results ledger (2026-10-14, R-LEDGER-01): a row queued before it is dropped
           case 'seat':      break; // the retired knockout ledger (2026-09-22): a row queued before the fight ledger is dropped
-          case 'fights':    await recordLobbyFights(item.payload as Parameters<typeof recordLobbyFights>[0]); break;
+          case 'fights':    await recordLobbyFights(item.payload as Parameters<typeof recordLobbyFights>[0], { offline: true }); break;
         }
-      } catch { /* best-effort — a failed item is dropped, matching every other write here */ }
+      } catch { /* best-effort: victory / profile keep their old one-shot contract */ }
     }
   } finally {
     flushing = false;
   }
+  await flushRunOutbox();
+}
+
+// ── The run-end outbox (R-NET-OUTBOX-01, Supabase cleanup 2.4) ────────────────────────────────────────────────
+// Boards, telemetry, Career and fight-ledger rows: durable, account-bound, idempotent, retried, and a permanent
+// rejection is reported to the server's failure log. Policy + stores in `net/runOutbox.ts`; this is the wiring.
+let outboxSingleton: Outbox | null = null;
+let outboxTimer: ReturnType<typeof setTimeout> | null = null;
+let outboxTimerAt = Infinity;
+function runOutbox(): Outbox {
+  if (outboxSingleton) return outboxSingleton;
+  const ob = createOutbox({
+    store: idbOutboxStore(),
+    async send(table, rows, conflict) {
+      const c = client();
+      if (!c) return { error: { message: 'no backend' } };
+      const res = conflict
+        ? await c.from(table).upsert(rows, { onConflict: conflict, ignoreDuplicates: true })
+        : await c.from(table).insert(rows);
+      if (!res.error) return { error: null };
+      const e = res.error as { code?: string; message?: string };
+      return { error: { code: e.code, message: e.message, status: (res as { status?: number }).status } };
+    },
+    async report(kind, key, error, detail) {
+      // rows: a write-only RPC returning void (nothing is read back).
+      try { await client()?.rpc('report_write_failure', { p_kind: kind, p_key: key, p_error: error, p_detail: detail }); } catch { /* best-effort */ }
+    },
+    currentUserId,
+    now: () => Date.now(),
+    schedule(at) {
+      if (typeof setTimeout === 'undefined' || at >= outboxTimerAt) return;
+      if (outboxTimer) clearTimeout(outboxTimer);
+      outboxTimerAt = at;
+      outboxTimer = setTimeout(() => { outboxTimer = null; outboxTimerAt = Infinity; void flushRunOutbox(); }, Math.max(1000, at - Date.now()));
+    },
+  });
+  if (typeof window !== 'undefined') window.addEventListener('online', () => { void ob.flush({ force: true }); });
+  return (outboxSingleton = ob);
+}
+
+/** Retry every due run-end write of the current account (boot, identity, network return, the timer). */
+export function flushRunOutbox(): Promise<void> {
+  if (!remoteEnabled() || !currentUserId()) return Promise.resolve();
+  return runOutbox().flush();
+}
+
+/** The run-end writes still waiting (tests, diagnostics). */
+export const pendingRunWrites = (): Promise<OutboxItem[]> => (remoteEnabled() ? runOutbox().pending() : Promise.resolve([]));
+
+/** Hand one run-end write to the outbox: stored, sent now when a session is live, retried until it lands. A write
+ *  made with NO session (`offline`, or none live) waits for the next session and is adopted by it. Never throws. */
+async function submitRunWrite(
+  kind: OutboxKind, key: string, table: string, rows: Record<string, unknown>[], conflict: string | undefined, offline = false,
+): Promise<void> {
+  if (!remoteEnabled() || rows.length === 0) return;
+  try {
+    await runOutbox().submit({ kind, key, table, rows, ...(conflict ? { conflict } : {}), ...(offline || !currentUserId() ? { userId: null } : {}) });
+  } catch { /* storage trouble: the send above already went out when it could; never disrupt the end screen */ }
 }
 
 /** A DB row: the full `BoardSnapshot` lives in the `snapshot` jsonb column; the rest are denormalized so the
@@ -344,31 +405,28 @@ const toRow = (b: BoardSnapshot) => ({
  *  survives the offline queue with the board. */
 export type BoardUpload = BoardSnapshot & { strengthScore?: StrengthScore };
 
-/** Upload a finished run's boards. Fire-and-forget — never throws, never blocks the game (offline → skipped). */
-export async function uploadBoards(boards: BoardUpload[], opts?: { unrated?: boolean }): Promise<void> {
-  const c = client();
-  if (!c || boards.length === 0) return;
-  // No session yet (offline / pre-handshake) → QUEUE rather than lose the boards; flushed when one lands.
-  if (!currentUserId()) { enqueueUpload('boards', boards); return; }
-  try {
-    const rows = boards.map((b) => { const snap: BoardUpload = { ...b }; delete snap.strengthScore; return toRow(snap); });
-    const tagged = rows.map((r) => ({ ...r, unrated: opts?.unrated ?? false }));
-    // BOARD STRENGTH (2026-09-30): the scored columns. A DB without them (the SQL not run yet) rejects the insert,
-    // so the ladder steps down: without the strength columns, then without `unrated` too (the C2b rung below).
-    const scored = boards.some((b) => b.strengthScore);
-    const withStrength = tagged.map((r, i) => {
-      const s = boards[i]!.strengthScore;
-      return s ? { ...r, strength_raw: s.raw, strength_ref: s.ref, strength_wave: s.wave } : r;
-    });
-    let res = await c.from(TABLE).insert(scored ? withStrength : tagged);
-    if (res.error && scored) res = await c.from(TABLE).insert(tagged);
-    // `unrated` is a C2b column; on a DB that hasn't run that migration the insert fails, so retry WITHOUT it
-    // — boards keep uploading, they just aren't tagged until the ALTER is applied. Same discipline as the
-    // telemetry fallback ladder below.
-    if (res.error) await c.from(TABLE).insert(rows);
-  } catch {
-    /* best-effort — capture must never disrupt play */
-  }
+/**
+ * Upload a finished run's boards through the durable outbox (R-NET-OUTBOX-01). Never throws, never blocks the game.
+ * IDEMPOTENT: the server's `boards.upload_key` is the board's own id (`snapshot.id`, stamped once at capture), unique
+ * per account, so a retry after a timeout that committed stores nothing twice. NO DOWNGRADE: the row always carries
+ * its `unrated` tag and its strength columns (the old ladder re-sent an UNRATED board without the tag on ANY error,
+ * timeouts included, and it landed rated).
+ */
+export async function uploadBoards(boards: BoardUpload[], opts?: { unrated?: boolean; offline?: boolean }): Promise<void> {
+  if (!client() || boards.length === 0) return;
+  const rows = boards.map((b) => {
+    const snap: BoardUpload = { ...b };
+    delete snap.strengthScore;
+    const row: Record<string, unknown> = { ...toRow(snap), unrated: opts?.unrated ?? false };
+    delete row.user_id; // stamped at send time from the account the run was played under
+    const s = b.strengthScore;
+    return s ? { ...row, strength_raw: s.raw, strength_ref: s.ref, strength_wave: s.wave } : row;
+  });
+  const first = boards[0]!;
+  const key = `boards:${first.id ?? `${first.author ?? 'anon'}|${first.heroId}|${first.seed ?? ''}|${first.capturedAt ?? ''}`}:${boards.length}`;
+  // Boards without a client id (legacy captures) cannot be deduped by key: a plain insert, as before.
+  const keyed = boards.every((b) => typeof b.id === 'string' && b.id.length > 0);
+  await submitRunWrite('boards', key, TABLE, rows, keyed ? 'user_id,upload_key' : undefined, opts?.offline);
 }
 
 // ── The shared opponent pool ──────────────────────────────────────────────────────────────────────────────
@@ -629,16 +687,21 @@ export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {
 // aggregates them client-side into real offer/pick/win/avg tables. Same fire-and-forget / no-op-when-unconfigured
 // / never-throws contract; dormant until the `run_telemetry` table is migrated (see schema.sql).
 
-/** Upload one finished run's telemetry. Fire-and-forget; never throws / blocks. */
+/**
+ * Upload one finished run's telemetry through the durable outbox (R-NET-OUTBOX-01); never throws / blocks.
+ * `meta.uploadKey` (the run's seed + finish time) is the row's idempotency key (`run_telemetry.upload_key`, unique per
+ * account): a retry never stores the run twice. The FULL row always goes up: the old 6-rung ladder re-sent poorer
+ * rows on ANY error (10 rows lost their set / source / derivation stamps in 16 days); a column is dropped now only
+ * when the server names it as missing.
+ */
 export async function uploadRunTelemetry(
   t: RunTelemetry,
-  meta: { author?: string; patch: string; derived?: DerivedRun; replay?: unknown },
+  meta: { author?: string; patch: string; derived?: DerivedRun; replay?: unknown; uploadKey?: string },
+  opts?: { offline?: boolean },
 ): Promise<void> {
-  const c = client();
-  if (!c) return;
-  if (!currentUserId()) { enqueueUpload('telemetry', { t, meta }); return; }
+  if (!client()) return;
   const base = {
-    user_id: currentUserId(), // ACCOUNTS C1 — the row's owner (RLS checks it); `author` is display-only
+    // ACCOUNTS C1: `user_id` (the row's owner, RLS checks it) is stamped at send time; `author` is display-only.
     patch: meta.patch, author: meta.author ?? null,
     // `mode` rides INSIDE hero_offer's jsonb (as a tagged first entry) — no schema migration needed. The
     // reader strips it back out. Cleaner than a new column given the pre-migration fallback dance below.
@@ -650,37 +713,25 @@ export async function uploadRunTelemetry(
     placement: t.placement ?? null, // lobby finish 1-8; null on any non-lobby row
   };
   try {
-    // Prefer the full row; on a pre-migration DB (columns absent) fall back column-set by column-set so
-    // telemetry keeps recording until `schema.sql`'s ALTERs are applied.
+    // The row is assembled in its historical layers (each was one migration); all of them exist in production.
     const withSplit = {
       ...base,
       discover_offered_cards: t.discoverOfferedCards, discover_bought_cards: t.discoverBoughtCards,
     };
     const withBuys = { ...withSplit, buy_events: t.buyEvents ?? [] };
-    // The derivation columns sit at the TOP of the fallback ladder: on a DB that hasn't run the
-    // 2026-08-05 migration this insert fails and we drop straight back to the row that has always
-    // worked, so a stale backend costs the new analytics and nothing else.
     const withDerived = meta.derived
       ? { ...withBuys, derived: meta.derived, replay: meta.replay ?? null, content_revision: meta.derived.contentRevision }
       : withBuys;
-    // 2026-09-22: the SET + SOURCE stamps (the Balance Report reads one set and never a sandbox row). A NEW
-    // top rung, never a key in `base`: `base` is spread into every rung below, so a column there that the
-    // backend lacks would fail every insert and LOSE the row — exactly the 2026-08-03 `placement` bug. On a
-    // pre-migration table this rung errors and the walk continues one rung down, costing only the stamps
-    // (both also ride inside `derived`, so a stamped payload still survives). A MISSING stamp stays null:
-    // the reader treats null as legacy, and a caller that forgot the stamp must never be labelled ladder.
+    // 2026-09-22: the SET + SOURCE stamps (the Balance Report reads one set and never a sandbox row). A MISSING
+    // stamp stays null: the reader treats null as legacy, and a caller that forgot the stamp must never be labelled
+    // ladder.
     const withSet = { ...withDerived, set_id: t.setId ?? null, source: t.source ?? null };
-    // `placement` must be dropped on the way down. It rides in `base`, which every fallback spreads, so
-    // before this a DB without that column failed ALL THREE inserts identically and the row was lost —
-    // the fallback ladder existed but could never reach the ground (owner report 2026-08-03).
-    const noPlacement: Record<string, unknown> = { ...base };
-    delete noPlacement.placement;
-    // Walk the ladder richest → plainest; the first insert the backend accepts ends it.
-    const ladder: Record<string, unknown>[] = [withSet, ...(meta.derived ? [withDerived] : []), withBuys, withSplit, base, noPlacement];
-    for (const row of ladder) {
-      const res = await c.from('run_telemetry').insert([row]);
-      if (!res?.error) break;
-    }
+    // 2026-10-28 (R-NET-OUTBOX-01): the full row, always. The ladder that used to walk down from here re-sent a
+    // poorer row on ANY error (a timeout included), which is how stamps went missing; the outbox drops a column only
+    // when the server names it as missing, and retries everything else.
+    const row: Record<string, unknown> = meta.uploadKey ? { ...withSet, upload_key: meta.uploadKey } : withSet;
+    const key = `telemetry:${meta.uploadKey ?? `${t.heroId}|${meta.patch}|${Date.now()}`}`;
+    await submitRunWrite('telemetry', key, 'run_telemetry', [row], meta.uploadKey ? 'user_id,upload_key' : undefined, opts?.offline);
   } catch {
     /* best-effort — telemetry must never disrupt the end screen */
   }
@@ -1798,27 +1849,23 @@ export async function fetchPracticeReplay(rowId: number): Promise<ReplayV2 | nul
 /** Post one finished run to the career log. Fire-and-forget, like every other write here. */
 export async function uploadRunHistory(entry: {
   heroId: string; wave: number; wins: number; placement?: number; mode?: string; patch?: string;
-} & Record<string, unknown>): Promise<void> {
-  const c = client();
-  const userId = currentUserId();
-  if (!c) return;
-  // Career is personal history (not the ladder), so it carries no `unrated` tag — but it must not be LOST
-  // offline either, so it queues like the rest and replays when a session lands.
-  if (!userId) { enqueueUpload('history', entry); return; }
-  try {
-    await c.from('run_history').insert([{
-      user_id: userId,
-      patch: entry.patch ?? null,
-      hero_id: entry.heroId,
-      wave: entry.wave,
-      wins: entry.wins,
-      placement: entry.placement ?? null,
-      mode: entry.mode ?? null,
-      entry,
-    }]);
-  } catch {
-    /* best-effort — career logging must never disrupt the end screen */
-  }
+} & Record<string, unknown>, opts?: { offline?: boolean }): Promise<void> {
+  if (!client()) return;
+  // Career is personal history (not the ladder), so it carries no `unrated` tag, and it must not be LOST: it rides
+  // the durable outbox (R-NET-OUTBOX-01). IDEMPOTENT: the server's `run_history.upload_key` is the entry's
+  // `seed|at` (the run's seed and finish time), unique per account, so a retry never writes the run twice.
+  const row = {
+    patch: entry.patch ?? null,
+    hero_id: entry.heroId,
+    wave: entry.wave,
+    wins: entry.wins,
+    placement: entry.placement ?? null,
+    mode: entry.mode ?? null,
+    entry,
+  };
+  const keyed = entry.seed != null && typeof entry.at === 'string';
+  const key = `history:${keyed ? `${String(entry.seed)}|${String(entry.at)}` : `${entry.heroId}|${Date.now()}`}`;
+  await submitRunWrite('history', key, 'run_history', [row], keyed ? 'user_id,upload_key' : undefined, opts?.offline);
 }
 
 /**
@@ -2030,19 +2077,13 @@ export function careerRunsOf(lightRows: RunHistoryRowLike[], detailRows: RunHist
 // This replaces the knockout ledger (`seat_results`, #1630): a knockout is just the fight the reporter lost in
 // their last round, so the table is left in place, no longer written, and nothing is derived from it.
 
-export async function recordLobbyFights(rows: FightRow[]): Promise<void> {
-  const c = client();
-  if (!c || rows.length === 0) return;
-  if (!currentUserId()) { enqueueUpload('fights', rows); return; }
-  try {
-    const uid = currentUserId();
-    await c.from('lobby_fights').upsert(
-      rows.map((r) => ({ user_id: uid, lobby_seed: r.lobbySeed, round: r.round, run_a: r.runA, run_b: r.runB, outcome: r.outcome, observed: r.observed, patch: r.patch })),
-      { onConflict: 'lobby_seed,round,run_a,run_b', ignoreDuplicates: true },
-    );
-  } catch {
-    /* best-effort — the ledger must never disrupt the end screen */
-  }
+export async function recordLobbyFights(rows: FightRow[], opts?: { offline?: boolean }): Promise<void> {
+  if (!client() || rows.length === 0) return;
+  // The durable outbox (R-NET-OUTBOX-01); already idempotent on the pairing, so a retry never counts a fight twice.
+  const first = rows[0]!;
+  await submitRunWrite('fights', `fights:${first.lobbySeed}|${first.runA}|${first.runB}|${rows.length}`, 'lobby_fights',
+    rows.map((r) => ({ lobby_seed: r.lobbySeed, round: r.round, run_a: r.runA, run_b: r.runB, outcome: r.outcome, observed: r.observed, patch: r.patch })),
+    'lobby_seed,round,run_a,run_b', opts?.offline);
 }
 
 /** One run's aggregate from the `run_fight_records` view. */

@@ -81,7 +81,8 @@ describe('recordLobbyFights — the batched upsert', () => {
     const { recordLobbyFights } = await load();
     await recordLobbyFights([{ lobbySeed: 1, round: 1, runA: 'a|h|1', runB: 'b|h|2', outcome: 'b', observed: true, patch: 'p' }]);
     expect(queries).toHaveLength(0);
-    expect(JSON.parse(localStorage.getItem('ascent.uploadqueue') ?? '[]')).toMatchObject([{ kind: 'fights' }]);
+    const { pendingRunWrites } = await load();
+    expect(await pendingRunWrites()).toMatchObject([{ kind: 'fights', userId: null }]);
     userId = 'me-1';
     await recordLobbyFights([]);
     expect(queries).toHaveLength(0);

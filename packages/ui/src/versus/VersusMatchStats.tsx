@@ -54,12 +54,19 @@ export function VersusMatchStats({ record, onClose }: { record: VersusMatchRecor
       <div className="mdd-panel" role="dialog" aria-modal="true" aria-label="Match stats" onPointerDown={(e) => e.stopPropagation()}>
         {/* VICTORY / DEFEAT in the lobby end screen's gold numeral (owner 2026-10-14: the end gate opens on this). */}
         {/* VERSUS GROUP (R-VERSUS-GROUP-07): my place in the lobby end screen's numeral ("Victory", "2ND"). */}
-        {record.table && record.placement != null && (
+        {/* A VOIDED match (fix/versus-server-reliability, R-VERSUS-RELIABLE-05): the server could not settle a fight, so
+            nobody won; a short neutral verdict instead of Victory / Defeat. */}
+        {record.endReason === 'void' && (
+          <div className="endplace vsms-verdict">
+            <span className="endplace-num">No result</span>
+          </div>
+        )}
+        {record.endReason !== 'void' && record.table && record.placement != null && (
           <div className={`endplace vsms-verdict${record.placement === 1 ? ' won' : ''}`}>
             <span className="endplace-num">{record.placement === 1 ? 'Victory' : placementText(record.placement)}</span>
           </div>
         )}
-        {!record.table && record.outcome !== 'none' && (
+        {record.endReason !== 'void' && !record.table && record.outcome !== 'none' && (
           <div className={`endplace vsms-verdict${record.outcome === 'win' ? ' won' : ''}`}>
             <span className="endplace-num">{record.outcome === 'win' ? 'Victory' : 'Defeat'}</span>
           </div>

@@ -313,11 +313,14 @@ export function VersusPauseVeil(): JSX.Element | null {
   );
 }
 
+/** The server's presence lease for the "is back" read: 14 s since fix/versus-server-reliability (`versus__lease()`; the
+ *  sim's `VERSUS_LEASE_SECONDS` stays 12, pinned to the original migration by `versusSchema.db.test.ts`). */
+export const VERSUS_PRESENCE_LEASE_SECONDS = Math.max(VERSUS_LEASE_SECONDS, 14);
 /** The absent player is back in the room (a heartbeat inside the lease) but the match is still paused. */
 export function absentIsBack(match: VersusMatch, members: readonly { userId: string; lastSeenAt: string }[], now: number): boolean {
   const absentUser = match.paused_seat === 'p1' ? match.p1_user : match.group?.pausedUser ?? match.p2_user;
   const seen = members.find((m) => m.userId === absentUser)?.lastSeenAt;
-  return !!seen && now - Date.parse(seen) < VERSUS_LEASE_SECONDS * 1000;
+  return !!seen && now - Date.parse(seen) < VERSUS_PRESENCE_LEASE_SECONDS * 1000;
 }
 
 /** What the pause panel shows (pure; the rules above). `action`: `resume` (mine, I came back) or `unpause` (theirs). */

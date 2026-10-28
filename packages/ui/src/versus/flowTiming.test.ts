@@ -38,13 +38,16 @@ describe('the flow timeline', () => {
 describe('the store keeps the flow tight (structure)', () => {
   const store = readFileSync(join(__dirname, 'versusStore.ts'), 'utf8');
   const remote = readFileSync(join(__dirname, 'versusRemote.ts'), 'utf8');
+  const reliability = readFileSync(join(__dirname, 'versusReliability.ts'), 'utf8');
   it('the closer asks the resolver at once; the tick only backstops after FINALIZE_BACKSTOP_MS', () => {
-    expect(store).toMatch(/async function onOwnAnswer\(m: VersusMatch\)[\s\S]{0,120}if \(m\.phase === 'resolving'\) kickFinalize\(m\);/);
-    expect(store).toMatch(/const FINALIZE_BACKSTOP_MS = 4000;/);
+    // R-VERSUS-RELIABLE-02: only the closer (`closed_by_me`, else the table's first live seat) asks at once; the backstop
+    // is 4 s plus a per-client jitter (behaviour pinned in versusReliabilityStore.test.ts).
+    expect(store).toMatch(/async function onOwnAnswer\(m: VersusMatch\)[\s\S]{0,120}if \(finalizeAsk\(m, iLeadFinalize\(m\)\) === 'now'\) kickFinalize\(m\);/);
+    expect(reliability).toMatch(/export const FINALIZE_BACKSTOP_MS = 4000;/);
     expect(store).toMatch(/await onOwnAnswer\(await inOrder\(\(\) => mx\.submit\(match\.id, match\.round, seq, ready\.side, true/);
   });
   it('after the resolver answers, the row and the round are read in parallel', () => {
-    expect(store).toMatch(/markFlow\(match\.id, match\.round, 'finalize:done'\); return refreshMatch\(match\.id, true\);/);
+    expect(store).toMatch(/markFlow\(match\.id, match\.round, 'finalize:done'\);\s*return refreshMatch\(match\.id, true\);/);
     expect(store).toMatch(/Promise\.all\(\[mx\.match\(matchId\), withRounds \? prefetchRounds\(matchId\) : Promise\.resolve\(\)\]\)/);
     // The group reads go out together (no second round trip for the seats or the fights).
     expect((remote.match(/await Promise\.all\(\[/g) ?? []).length).toBeGreaterThanOrEqual(3);

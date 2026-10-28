@@ -27,7 +27,7 @@ export const RESOLVE_NOTICE_AFTER = 3;
 /** A 500 ms tick that comes this late means the tab was frozen (backgrounded, asleep): treat it as a wake. */
 export const WAKE_GAP_MS = 3000;
 
-/** My heartbeat counts as fresh this long after its answer: two missed 4 s beats, well inside the 12 s lease. */
+/** My heartbeat counts as fresh this long after its answer: two missed 4 s beats, well inside the 14 s lease (12 s before the server reliability pass). */
 export const BEAT_FRESH_MS = 9000;
 /** Is my last answered heartbeat recent enough that a reconcile from me cannot find my own seat silent? */
 export const beatFresh = (now: number, beatOkAt: number): boolean => beatOkAt > 0 && now - beatOkAt < BEAT_FRESH_MS;

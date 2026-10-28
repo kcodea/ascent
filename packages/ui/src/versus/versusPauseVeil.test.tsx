@@ -55,7 +55,7 @@ describe('R-VERSUS-RELIABLE-04: the pause panel', () => {
     expect(versusPauseView({ match: paused({ resume_at: iso(NOW + 2000) }), seat: 'p2', graceIn: 0, absentBack: true })).toEqual({ kind: 'count' });
   });
 
-  it('"back" means a heartbeat inside the 12 s lease', () => {
+  it('"back" means a heartbeat inside the 14 s lease', () => {
     const m = paused();
     expect(absentIsBack(m, [{ userId: 'you', lastSeenAt: iso(NOW - 3000) }], NOW)).toBe(true);
     expect(absentIsBack(m, [{ userId: 'you', lastSeenAt: iso(NOW - 30_000) }], NOW)).toBe(false);

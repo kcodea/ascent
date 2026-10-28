@@ -112,7 +112,7 @@ describe('R-VERSUS-RELIABLE-03: a waking tab sends its heartbeat first', () => {
     expect(beatFresh(10_000, 0), 'never answered').toBe(false);
     expect(beatFresh(10_000, 9_000)).toBe(true);
     expect(beatFresh(10_000 + BEAT_FRESH_MS, 10_000)).toBe(false);
-    expect(BEAT_FRESH_MS).toBeLessThan(12_000); // inside the server's 12 s lease
+    expect(BEAT_FRESH_MS).toBeLessThan(12_000); // inside the lease, old (12 s) and new (14 s)
   });
 });
 

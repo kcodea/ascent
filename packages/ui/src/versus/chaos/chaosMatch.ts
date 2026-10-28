@@ -12,6 +12,8 @@
  *   stuck        no live client sits more than 10 s behind the server's phase (locked / ready / fight / back);
  *   falsePause   a pause only names a seat whose client was really gone (offline, hung, hidden past its lease);
  *   pauseLift    a pause lifts within 4 s of that player's return, with no button pressed;
+ *   latePause    a player who is really gone (an absence longer than 21 s) has paused the match within 20 s of leaving
+ *                (Ranked Duos never pauses: a gone seat plays on auto);
  *   vitals       after every round, every client's rail shows every seat's Health and Armor as the server has them
  *                (shop-phase changes included: Mend's Armor);
  *   fights       every client holds the same fights (digests / outcomes / damage) as the server;
@@ -30,7 +32,7 @@ export const CHAOS_MODES: readonly ChaosMode[] = ['duel', 'group3', 'group4', 'd
 export const playersOf = (m: ChaosMode): number => (m === 'duel' || m === 'ranked_duos' ? 2 : m === 'group3' ? 3 : 4);
 const roomModeOf = (m: ChaosMode): string => (m === 'group3' || m === 'group4' ? 'group' : m);
 
-export type InvariantId = 'close' | 'resolve' | 'oneCall' | 'stuck' | 'falsePause' | 'pauseLift' | 'vitals' | 'fights' | 'final' | 'finished' | 'realtime' | 'error';
+export type InvariantId = 'close' | 'resolve' | 'oneCall' | 'stuck' | 'falsePause' | 'pauseLift' | 'latePause' | 'vitals' | 'fights' | 'final' | 'finished' | 'realtime' | 'error';
 export interface Violation { id: InvariantId; at: number; round: number | null; detail: string }
 
 export type ChaosPhase = 'hero_select' | 'shop' | 'resolving' | 'combat';
@@ -78,6 +80,9 @@ export interface ChaosHarness {
 }
 
 const LEASE_MS = 12_000;
+/** latePause: a gone player must have paused the match this long after leaving (Supabase: the 14 s lease and a reconcile;
+ *  Cloudflare: the 15 s stale keep-alive and the 3 s grace). Judged only for absences that outlast it by a second. */
+const LATE_PAUSE_MS = 20_000;
 const STEP_MS = 100;
 
 
@@ -223,6 +228,9 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
   const vitalsChecked = new Set<string>();
   const roundVitals = new Map<number, Record<string, { health: number; armor: number }>>();
   let pauseFlagged = false;
+  /** Every pause the server started: the client it named, and when (latePause). */
+  const pauseStarts: { i: number; at: number }[] = [];
+  const lateJudged = new Set<number>();
   const liftFlagged = new Set<string>();
   const deafSince = new Map<string, number>();
   const railSince = new Map<string, number>();
@@ -294,7 +302,9 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
       if (c && c.closedAt == null) {
         c.closedAt = now;
         const due = closeDue(c, ranked);
-        if (due != null && now > due + 2000) flag('close', last.round, `shop closed ${now - due} ms after it was due (deadline ${c.deadline ? new Date(c.deadline).toISOString().slice(14, 23) : '-'}${c.allLockedAt ? ', everyone ready' : ''})`);
+        // A shop that closes while the match is paused closed on everyone's locks (the clock was stopped): its deadline
+        // moved by the pause, so the pre-pause one is not its due time.
+        if (due != null && now > due + 2000 && !s.pausedAt && !last.pausedAt) flag('close', last.round, `shop closed ${now - due} ms after it was due (deadline ${c.deadline ? new Date(c.deadline).toISOString().slice(14, 23) : '-'}${c.allLockedAt ? ', everyone ready' : ''})`);
       }
     }
     // A shop still open well past when it was due (a round that never closes).
@@ -322,7 +332,24 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
     }
     // PAUSES.
     const newPause = !!s.pausedAt && s.pausedAt !== last?.pausedAt;
-    if (newPause) say(`server: paused on ${s.pausedSeat}`);
+    if (newPause) {
+      say(`server: paused on ${s.pausedSeat}`);
+      const pi = clients.findIndex((c) => c.opts.user === s.seats.find((x) => x.seat === s.pausedSeat)?.user);
+      if (pi >= 0) pauseStarts.push({ i: pi, at: now });
+    }
+    // LATE PAUSE: a player gone for longer than the bar has paused the match by the bar (unless it already ended, the
+    // seat is out or on auto, another seat's pause already holds the clock, or the mode never pauses).
+    if (!ranked && s.phase !== 'complete') {
+      for (const [k, g] of gone.entries()) {
+        if (lateJudged.has(k) || g.to - g.from <= LATE_PAUSE_MS + 1000 || now < g.from + LATE_PAUSE_MS) continue;
+        lateJudged.add(k);
+        const seat = s.seats.find((x) => x.user === clients[g.i]!.opts.user);
+        if (!seat || seat.eliminated != null || seat.auto) continue;
+        if (pauseStarts.some((p) => p.i === g.i && p.at >= g.from - 1000 && p.at <= g.from + LATE_PAUSE_MS)) continue;
+        if (s.pausedSeat && s.pausedSeat !== seat.seat) continue;
+        flag('latePause', s.round, `${clients[g.i]!.opts.name} has been gone ${((now - g.from) / 1000).toFixed(1)} s and the match has not paused for them`);
+      }
+    }
     if (!s.pausedAt && last?.pausedAt) say(`server: resumed (was paused on ${last.pausedSeat})`);
     if (s.pausedSeat && newPause && !pauseFlagged) {
       const seat = s.seats.find((x) => x.seat === s.pausedSeat);

@@ -78,12 +78,8 @@ oneCall), and a returning socket IS the return (no heartbeat lease to wait out: 
 
 ## Open (not fixed here; owner calls)
 
-- **Silent drops are found late on Cloudflare.** Presence is the socket; a lost network sends no close, so the object
-  only learns from the stale keep-alive (15 s) checked by an alarm that runs every <= 15 s: the match pauses about
-  22 s after the drop (dropLong: 22.5 s in every mode; Supabase's lease is 14 s). A 20 s drop (dropRestore) never
-  pauses on Cloudflare: the absent player's shop clock keeps running and the round closes with their last board.
-  No invariant fails, but it is a behaviour difference. Cheapest fix: arm the stale sweep for the earliest
-  `last ping + 15 s` instead of `now + 15 s` (detection 15-20 s), or shorten the stale window.
+- ~~Silent drops are found late on Cloudflare~~ (a match paused ~22 s after a silent drop; Group / Duos had no stale
+  sweep armed at all): fixed by `2026-10-28-versus-cf-stale-socket.md` (R-VERSUS-CF-STALE-01), guarded by `latePause`.
 - **A resolve that answers non-200 voids the match** (resolver409). By design in the room (R-VERSUS-RESOLVE-TIMEOUT-01:
   the object IS the resolver, so it will not resolve later either); in practice unreachable, since a Worker is
   versioned by content revision and hello refuses any other client.

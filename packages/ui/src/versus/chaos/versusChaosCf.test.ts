@@ -33,16 +33,12 @@ export const CF_MODES: readonly ChaosMode[] = ['duel', 'group3', 'group4', 'duos
 const seedOf = (name: string, mode: ChaosMode): number => [...`${name}/${mode}`].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
 
 /**
- * CLOUDFLARE-ONLY SCENARIOS (beside the shared matrix, which stays unchanged so the two tables compare). On Cloudflare
- * presence is the socket, and the shared drops are SILENT (the object hears nothing and finds the socket only when its
- * keep-alive goes stale, 15-30 s later), so a 20 s drop never pauses there and the pause / auto-resume path would go
- * untested. These two drive it: a drop long enough to be found stale, and a drop the object hears at once.
+ * CLOUDFLARE-ONLY SCENARIOS (beside the shared matrix). On Cloudflare presence is the socket, and the shared drops are
+ * SILENT (the object hears nothing and finds the socket when its keep-alive goes stale, 15 s after the last ping), so a
+ * 20 s drop barely pauses there. `dropLong` (shared, judged by `latePause`) covers the silent case; this one is a drop the
+ * object hears at once (a closed socket): paused within the 3 s grace, lifted on return.
  */
 export const CF_EXTRA: ScenarioDef[] = [
-  {
-    name: 'dropLong', about: 'a silent 45 s network loss in a shop: found stale, the match pauses, and lifts on return', modes: CF_MODES,
-    build: (mode) => ({ name: 'dropLong', mode, seed: seedOf('dropLong', mode), rounds: 3, events: [{ round: 2, phase: 'shop', afterMs: 500, act: (h) => h.drop(1, 45_000) }] }),
-  },
   {
     name: 'dropFin', about: 'a 20 s loss the object hears (a closed socket): paused within the 3 s grace, lifted on return', modes: CF_MODES,
     build: (mode) => ({
@@ -56,7 +52,7 @@ export const CF_EXTRA: ScenarioDef[] = [
  *  that dies, and Mend's live Armor on a team. */
 export const SMOKE_CF: string[] = [
   'baseline/duel', 'baseline/group3', 'baseline/duos', 'baseline/ranked_duos',
-  'emptyAll/duel', 'dropRestore/duel', 'realtimeDown/duel', 'resolverFail3/group3', 'mendArmor/duos', 'dropFin/group4',
+  'emptyAll/duel', 'dropRestore/duel', 'realtimeDown/duel', 'resolverFail3/group3', 'mendArmor/duos', 'dropFin/group4', 'dropLong/group4',
 ];
 
 let server: CfChaosServer;

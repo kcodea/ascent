@@ -24,7 +24,15 @@ export interface LiveGameRow {
   placement: number | null;
   spectators: number;
   started_at: string;
+  /** EVERY GAME IS A LIVE GAME (owner 2026-10-28, R-LIVE-ALL-GAMES-01; 2026-11-08 SQL): null / absent = a ranked lobby
+   *  game; 'casual' / 'practice' = those lobby games; 'duel' / 'group' / 'duos' = a Versus match (`versus:<ref>`);
+   *  'ranked_duos' = a Ranked Duos team (`duos:<ref>`). Absent on a server without the migration. */
+  mode?: LiveGameMode | null;
+  /** The players' line of a Versus match ("Ann vs Bob", "Ann & Bob vs Cat & Dan"). */
+  players?: string | null;
 }
+
+export type LiveGameMode = 'casual' | 'practice' | 'duel' | 'group' | 'duos' | 'ranked_duos';
 
 export class LiveError extends Error {
   constructor(readonly code: string, message?: string) { super(message ?? code); }
@@ -40,8 +48,25 @@ function fail(e: { message?: string; code?: string } | null | undefined): never 
 /** The listing's page size: the rows the Live games page shows at once (ranked best first). */
 export const LIVE_PAGE = 30;
 
+const BASE_COLS = 'game_id, display_name, hero_id, cosmetics, division_index, rank_points, rating, round, phase, placement, spectators, started_at';
+/** A column the server does not have yet (PostgREST passes Postgres' `undefined_column`). */
+const missingColumn = (e: { code?: string } | null | undefined): boolean => e?.code === '42703' || e?.code === 'PGRST204';
+
 export function makeLiveRemote(getClient: () => SupabaseClient | null) {
   let watchAsMissing = false;
+  /** A server without the 2026-11-08 migration has no `mode` / `players`: read the old columns from then on. */
+  let legacyCols = false;
+  const cols = (): string => (legacyCols ? BASE_COLS : `${BASE_COLS}, mode, players`);
+  /** A read of the listing, retried once with the old columns on a server that lacks the new ones. */
+  async function read<T>(q: (columns: string) => PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>): Promise<T> {
+    let { data, error } = await q(cols());
+    if (error && !legacyCols && missingColumn(error)) {
+      legacyCols = true;
+      ({ data, error } = await q(cols()));
+    }
+    if (error) fail(error);
+    return data as T;
+  }
   const db = (): SupabaseClient => {
     const c = getClient();
     if (!c) throw new LiveError('no_backend');
@@ -57,12 +82,10 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
     /** The live games, the best rank first (medal and division, then points, then rating). One page. */
     async list(page = 0): Promise<LiveGameRow[]> {
       // rows: one page of LIVE_PAGE (R-NET-01); stale rows are filtered by the read policy.
-      const { data, error } = await db().from('lobby_live_games')
-        .select('game_id, display_name, hero_id, cosmetics, division_index, rank_points, rating, round, phase, placement, spectators, started_at')
+      const data = await read<LiveGameRow[] | null>((c) => db().from('lobby_live_games').select(c)
         .order('division_index', { ascending: false }).order('rank_points', { ascending: false }).order('rating', { ascending: false })
-        .range(page * LIVE_PAGE, page * LIVE_PAGE + LIVE_PAGE - 1);
-      if (error) fail(error);
-      return (data as LiveGameRow[]) ?? [];
+        .range(page * LIVE_PAGE, page * LIVE_PAGE + LIVE_PAGE - 1));
+      return data ?? [];
     },
     /** How many ranked games are in progress (the side menu's Live Games glow): a head-only count, no rows (R-NET-01).
      *  A finished game (phase `end`) is left out; stale rows are filtered by the read policy. */
@@ -73,15 +96,16 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
     },
     /** One game's listing row (the watch screen's identity and end state), or null when it is gone. */
     async game(gameId: string): Promise<LiveGameRow | null> {
-      const { data, error } = await db().from('lobby_live_games')
-        .select('game_id, display_name, hero_id, cosmetics, division_index, rank_points, rating, round, phase, placement, spectators, started_at')
-        .eq('game_id', gameId).maybeSingle();
-      if (error) fail(error);
-      return (data as LiveGameRow | null) ?? null;
+      return (await read<LiveGameRow | null>((c) => db().from('lobby_live_games').select(c).eq('game_id', gameId).maybeSingle())) ?? null;
     },
     /** The player registers / refreshes its game; returns the live watcher count. */
-    heartbeat: (game: { gameId: string; name: string; heroId: string; cosmetics: RunCosmeticSnapshot | null; round: number; phase: 'hero' | 'shop' | 'combat' | 'end' }) =>
-      rpc<number>('lobby_live_heartbeat', { p_game: game.gameId, p_name: game.name, p_hero: game.heroId, p_cosmetics: game.cosmetics, p_round: game.round, p_phase: game.phase }),
+    /** `mode`: a casual or Practice lobby game (R-LIVE-ALL-GAMES-01); omitted for a ranked one, so a server without the
+     *  2026-11-08 migration still takes the ranked call unchanged. */
+    heartbeat: (game: { gameId: string; name: string; heroId: string; cosmetics: RunCosmeticSnapshot | null; round: number; phase: 'hero' | 'shop' | 'combat' | 'end'; mode?: 'casual' | 'practice' | null }) =>
+      rpc<number>('lobby_live_heartbeat', {
+        p_game: game.gameId, p_name: game.name, p_hero: game.heroId, p_cosmetics: game.cosmetics, p_round: game.round, p_phase: game.phase,
+        ...(game.mode ? { p_mode: game.mode } : {}),
+      }),
     /** RANKED DUOS (2026-11-01-ranked-duos-party.sql): the team's first seat registers / refreshes its team's row
      *  (`duos:<room>`); the server names it and reads the team's medal. Returns the watcher count (0 = not listed). */
     duosHeartbeat: (roomId: string, round: number, phase: 'hero' | 'shop' | 'combat' | 'end') =>

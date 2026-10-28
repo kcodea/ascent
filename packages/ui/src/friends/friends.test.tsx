@@ -80,19 +80,31 @@ describe('presence: what the beat reports', () => {
     expect(presenceNow()).toEqual({ status: 'online', mode: null, watchKind: null, watchId: null });
   });
 
-  it('a ranked game is In a game: Ranked, watchable through Live Games; Practice is not watchable', () => {
+  it('a ranked game is In a game: Ranked, watchable through Live Games; so is Practice now (owner 2026-10-28)', () => {
     const run = useGame.getState().run;
     useGame.setState({ showTitle: false, run: { ...run, mode: 'lobby', phase: 'recruit', runId: 'run-7', lobby: { ...(run.lobby ?? {}), unrated: undefined } as never } });
-    expect(presenceNow()).toEqual({ status: 'in_game', mode: 'ranked', watchKind: 'live', watchId: 'run-7' });
-    useGame.setState({ run: { ...run, mode: 'practice', phase: 'combat' } });
-    expect(presenceNow()).toEqual({ status: 'in_game', mode: 'practice', watchKind: null, watchId: null });
+    expect(presenceNow()).toMatchObject({ status: 'in_game', mode: 'ranked', watchKind: 'live', watchId: 'run-7' });
+    useGame.setState({ run: { ...run, mode: 'practice', phase: 'combat', runId: 'run-8' } });
+    expect(presenceNow()).toMatchObject({ status: 'in_game', mode: 'practice', watchKind: 'live', watchId: 'run-8' });
+    net.live = false; // a sandbox / replay: the listing's gate says no, so no Watch
+    expect(presenceNow()).toMatchObject({ status: 'in_game', mode: 'practice', watchKind: null, watchId: null });
+  });
+
+  it('a lobby game carries its status: hero, round + phase, Health + Armor, tier, place among those left (R-FRIENDS-STATUS-01)', () => {
+    const run = useGame.getState().run;
+    const seats = [
+      { id: 's0', resolve: 20, armor: 5, alive: true }, { id: 's1', resolve: 30, armor: 0, alive: true },
+      { id: 's2', resolve: 10, armor: 0, alive: true }, { id: 's3', resolve: 40, armor: 2, alive: false },
+    ];
+    useGame.setState({ showTitle: false, run: { ...run, mode: 'lobby', phase: 'combat', runId: 'run-7', heroId: 'warden', wave: 6, resolve: 20, armor: 5, tier: 4, lobby: { ...(run.lobby ?? {}), unrated: undefined, seats } as never } });
+    expect(presenceNow().game).toEqual({ v: 1, mode: 'ranked', hero: 'warden', round: 6, phase: 'combat', health: 20, armor: 5, tier: 4, place: { rank: 2, left: 3 }, vs: null });
   });
 
   it('a Versus match I play is In a game with the room as the watch target; the room between matches is Online', () => {
     setIdentity({ userId: ME, displayName: 'Me', anonymous: false, email: 'a@b.c' });
     const room = { id: 'room-1', status: 'in_game', options: { mode: 'duos' }, members: [{ userId: ME, role: 'p1', displayName: 'Me', profile: {}, lastSeenAt: '' }] } as unknown as VersusRoom;
-    useVersus.setState({ room, match: { phase: 'shop' } as never });
-    expect(presenceNow()).toEqual({ status: 'in_game', mode: 'versus_duos', watchKind: 'versus', watchId: 'room-1' });
+    useVersus.setState({ room, match: { phase: 'shop', round: 3 } as never });
+    expect(presenceNow()).toMatchObject({ status: 'in_game', mode: 'versus_duos', watchKind: 'versus', watchId: 'room-1', game: { round: 3, phase: 'shop', vs: 'Me vs ' } });
     useVersus.setState({ room: { ...room, status: 'open' }, match: null });
     expect(presenceNow()).toEqual({ status: 'online', mode: 'versus_room', watchKind: null, watchId: null });
   });
@@ -103,7 +115,7 @@ describe('presence: what the beat reports', () => {
     for (const [mode, presence] of Object.entries(want)) {
       const room = { id: 'room-cf', host: 'cf', status: 'in_game', options: { mode }, members: [{ userId: ME, role: 'p1', displayName: 'Me', profile: {}, lastSeenAt: '' }] } as unknown as VersusRoom;
       useVersus.setState({ room, match: { phase: 'shop' } as never });
-      expect(presenceNow(), mode).toEqual({ status: 'in_game', mode: presence, watchKind: 'versus', watchId: 'cf:room-cf' });
+      expect(presenceNow(), mode).toMatchObject({ status: 'in_game', mode: presence, watchKind: 'versus', watchId: 'cf:room-cf' });
     }
   });
 
@@ -225,6 +237,33 @@ describe('the Friends page', () => {
     const invites = [...ui.container.querySelectorAll('button')].filter((b) => b.textContent === 'Invite');
     expect(invites.map((b) => b.getAttribute('aria-label'))).toEqual(['Invite Amy#1234 to your Versus room']);
     expect(ui.container.textContent).toContain('You are Me#1111');
+    expect(ui.container.querySelector('[title]')).toBeNull();
+  });
+
+  it('a friend in a game shows its status, and EVERY game type gets Watch (Practice included; R-FRIENDS-STATUS-01)', async () => {
+    const game = { v: 1 as const, mode: 'practice', hero: 'warden', round: 6, phase: 'shop' as const, health: 20, armor: 5, tier: 4, place: { rank: 3, left: 5 }, vs: null };
+    fake.list = {
+      ...emptyList(),
+      friends: [
+        friend('u-prac', 'Pam', { status: 'in_game', mode: 'practice', watchKind: 'live', watchId: 'run-p', game }),
+        friend('u-duo', 'Dot', { status: 'in_game', mode: 'ranked_duos', watchKind: 'versus', watchId: 'cf:room-d',
+          game: { ...game, mode: 'ranked_duos', phase: 'combat', place: null, vs: 'Dot & Eve' } }),
+      ],
+    };
+    useGame.setState({ showFriends: true });
+    ui = mount(<FriendsPage />);
+    await flush();
+    const text = ui.container.textContent!;
+    expect(text).toContain('Round 6 · Shopping');
+    expect(text).toContain('3rd of 5 left');
+    expect(text).toContain('20 Health + 5 Armor');
+    expect(text).toContain('Tier 4');
+    expect(text).toContain('Round 6 · Fighting');
+    expect(text).toContain('Dot & Eve');
+    expect(ui.container.querySelectorAll('.fr-gamehero .lb-heroframe')).toHaveLength(2);
+    const watch = [...ui.container.querySelectorAll('button')].filter((b) => b.textContent?.includes('Watch'));
+    expect(watch.map((b) => b.getAttribute('aria-label'))).toEqual(['Watch Dot#1234', 'Watch Pam#1234']);
+    expect(text).not.toMatch(/\u2014|--/);
     expect(ui.container.querySelector('[title]')).toBeNull();
   });
 });

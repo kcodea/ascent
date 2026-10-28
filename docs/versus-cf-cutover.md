@@ -98,10 +98,11 @@ VERSUS_ALLOWED_ORIGINS="https://ascent-game-web.netlify.app,https://play.example
 
 ## Live Games and invites (2026-11-08)
 
-- **Live Games**: a Cloudflare Ranked Duos room writes its team's row itself (`duos:cf:<room>`) through the key-gated
-  `versus_cf_live`, only when the listing changes (start, round, phase, end) plus a 2-minute keep-alive; the row stays
-  listed 4 minutes past its last write and is removed at the end. The client publishes nothing for a Cloudflare room.
-  1v1, Group and Versus Duos are not on Live Games on either backend (Friends "Watch" covers them, with `cf:<room>`).
+- **Live Games** (owner 2026-10-28: every game is a live game): a Cloudflare room writes its own row (`versus:cf:<room>`
+  for 1v1 / Group / Versus Duos, `duos:cf:<room>` for Ranked Duos) through the key-gated `versus_cf_live`, only when the
+  listing changes (start, round, phase, end) plus a 2-minute keep-alive; the row stays listed 4 minutes past its last
+  write and is removed at the end. Supabase Versus rooms are listed by a server trigger on the match rows (no client
+  traffic). Watch from Live Games or Friends joins the room on its own host.
 - **Invites**: the client asks its room for a proof (`invite_proof` on the room socket); the room runs the Supabase
   checks (open, I am in it, they are not) and signs `<exp>.<hmac>` with the sha256 of its writer secret (the value
   `versus_cf_writer_keys` holds, so nothing new to provision); `friends_invite` refuses a `cf:` invite without a valid

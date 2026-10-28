@@ -6,8 +6,9 @@
  * the cursor), all coalesced into the idle-time deferred writer. With nobody watching it costs one tiny RPC every 15 s
  * and nothing per frame or per click. Spectating never touches the run, its timing, uploads or rating.
  *
- * Ranked only (owner 2026-10-15): `mode: 'lobby'` with a rated table (not all-generated), never a sandbox, God Mode or
- * a replay. Always listed for now; a "hide my game" setting would gate `eligible` (the one seam).
+ * Every lobby game since 2026-10-28 (owner: "all games should show as live games"; R-LIVE-ALL-GAMES-01): ranked, casual
+ * and Practice (`liveModeOf`), never a sandbox, God Mode or a replay. Always listed for now; a "hide my game" setting
+ * would gate `eligible` (the one seam).
  */
 import { lobbyIsUnrated, rankedRunIdOf, type RunState } from '@game/sim';
 import { createDeferredWriter } from '../idleWork';
@@ -30,9 +31,21 @@ export const LIVE_HEARTBEAT_MS = 15_000;
 /** Is this run a ranked lobby game the listing may show? The ONE gate (a hide setting would join it here). Only while
  *  the player is IN it: a game parked on the title screen (Save & Continue, the menu) is not live. */
 export function liveEligible(run: RunState, st: { replaying: boolean; showTitle?: boolean }): boolean {
-  if (st.replaying || st.showTitle || run.mode !== 'lobby' || !run.lobby || run.sandbox || run.godMode) return false;
-  if (lobbyIsUnrated(run.lobby)) return false;
+  if (st.replaying || st.showTitle || !liveModeOf(run)) return false;
   return run.phase === 'recruit' || run.phase === 'combat';
+}
+
+/**
+ * EVERY GAME IS A LIVE GAME (owner 2026-10-28: "all games should show as live games, and pressing watch from friends list
+ * should take the spectator into that game"; R-LIVE-ALL-GAMES-01): a ranked, casual (all-generated table) or Practice
+ * lobby game is listed and watchable. Never a dev sandbox or God Mode run, a replay, the Tutorial or the Gauntlet (not
+ * lobby games). Null = not a live game.
+ */
+export function liveModeOf(run: RunState): 'ranked' | 'casual' | 'practice' | null {
+  if (!run.lobby || run.sandbox || run.godMode) return null;
+  if (run.mode === 'practice') return 'practice';
+  if (run.mode !== 'lobby') return null;
+  return lobbyIsUnrated(run.lobby) ? 'casual' : 'ranked';
 }
 
 const phaseOf = (run: RunState): 'shop' | 'combat' => (run.phase === 'combat' ? 'combat' : 'shop');
@@ -91,6 +104,7 @@ function beat(): void {
     gameId: l.gameId, name: g.playerName || 'Player', heroId: frame ? frame.picked ?? frame.offer[0]! : run.heroId,
     cosmetics: frame ? currentRunCosmetics() ?? null : run.cosmetics ?? currentRunCosmetics() ?? null,
     round: frame ? 1 : run.wave, phase: frame ? 'hero' : phaseOf(run),
+    mode: frame ? null : liveModeOf(run) === 'ranked' ? null : liveModeOf(run) as 'casual' | 'practice' | null,
   }).then((n) => { if (live === l) setWatchers(l, Number(n) || 0); }).catch((e: unknown) => {
     if (frame && (e as { code?: string })?.code === 'bad_phase') { heroPhaseRefused = true; if (live === l) stop('abandon'); }
   });

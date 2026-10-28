@@ -149,9 +149,13 @@ describe('the player side: presence and publishing', () => {
     off();
   });
 
-  it('never lists Practice, a sandbox or a replay', () => {
+  it('lists Practice and casual games too (owner 2026-10-28: all games are live games); never a sandbox or a replay', () => {
     const run = rankedRun();
-    expect(pubMod.liveEligible({ ...run, mode: 'practice' } as RunState, { replaying: false })).toBe(false);
+    expect(pubMod.liveEligible({ ...run, mode: 'practice' } as RunState, { replaying: false })).toBe(true);
+    expect(pubMod.liveModeOf({ ...run, mode: 'practice' } as RunState)).toBe('practice');
+    expect(pubMod.liveModeOf(run)).toBe('ranked');
+    expect(pubMod.liveModeOf({ ...run, mode: 'tutorial' } as RunState)).toBeNull();
+    expect(pubMod.liveModeOf({ ...run, lobby: undefined } as RunState)).toBeNull();
     expect(pubMod.liveEligible({ ...run, sandbox: true } as RunState, { replaying: false })).toBe(false);
     expect(pubMod.liveEligible(run, { replaying: true })).toBe(false);
     expect(pubMod.liveEligible(run, { replaying: false, showTitle: true })).toBe(false);

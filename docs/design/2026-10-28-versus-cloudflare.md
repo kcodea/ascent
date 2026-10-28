@@ -307,7 +307,7 @@ Group engine):
 | `versus_ranked_duos__json`, `_table`, the teams / rounds reads | `json`, `table`, `teamsJson`, `rankedRoundsFrom` (ops `ranked_table`, `ranked_teams`, `ranked_rounds`; rounds also pushed) |
 | `versus_ranked_duos_sweep_abandoned` (+ cron) | the room's alarm (the live pair silent 10 minutes = placed as abandoned) |
 | `duos_rank_results`, `duos_teams`, `duos_leaderboard`, `duos_teams_of`, `duos_team_set_name` | stay in Supabase; the dev transport reads them through the Supabase adapter |
-| `lobby_live_duos_heartbeat` (the first seat's client, every 15 s) | the ROOM writes `duos:cf:<room>` through the key-gated `versus_cf_live` (`2026-11-08-versus-cf-live-games-invites.sql`), only when the listing changes + a 2-minute keep-alive (`src/live.ts`, R-VERSUS-CF-LIVE-01) |
+| `lobby_live_duos_heartbeat` (the first seat's client, every 15 s) | the ROOM writes `duos:cf:<room>` through the key-gated `versus_cf_live` (`2026-11-08-versus-cf-live-games-invites.sql`), only when the listing changes + a 2-minute keep-alive (`src/live.ts`, R-VERSUS-CF-LIVE-01); 1v1 / Group / Duos rooms write `versus:cf:<room>` the same way (R-LIVE-ALL-GAMES-01) |
 | `friends_invite`'s room checks (open, inviter in, invitee out) | the room checks at SEND time and signs a 2-minute proof (`invite_proof`, `src/invites.ts`); `friends_invite` verifies it (R-VERSUS-CF-INVITE-01) |
 
 ## 14. What becomes simpler

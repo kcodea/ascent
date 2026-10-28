@@ -10524,9 +10524,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRouter.test.ts', 'packages/ui/src/versus/versusCutoverStore.test.ts', 'workers/versus/test/origins.test.ts'], lastVerifiedAt: '2026-10-28' },
   },  {
     id: 'R-VERSUS-CF-LIVE-01',
-    title: 'A Cloudflare Versus match is on Live Games and in Friends exactly like a Supabase one, mode by mode; the room writes its own Live Games row, throttled',
+    title: 'A Cloudflare match is on Live Games and in Friends exactly like a Supabase one, in every mode; the room writes its own Live Games row, throttled',
     statement:
-      'A Versus match on the Cloudflare Worker is watchable exactly as the same match on Supabase. Ranked Duos: the team is listed on Live Games (`duos:cf:<room>`), its name, medal and rating read from the team in SQL, from Hero Select until the match ends (then the row is removed), never for a friends-only party; Watch joins the room in the stands on the Worker. The ROOM writes the row through the limited, key-gated `versus_cf_live` (never the service role, never the client), and only when the listing changes (it appears, a round or a phase changes, it ends) plus a 2-minute keep-alive: never per frame, per request or per spectator. A Cloudflare row stays listed 4 minutes past its last write; every other row keeps the 60 s rule. 1v1, Group and Versus Duos are not on Live Games on either backend; on both they show in Friends as In a game with a Watch that joins the room (`cf:<room>` for a Cloudflare room).',
+      'A match on the Cloudflare Worker is listed and watchable exactly as the same match on Supabase (R-LIVE-ALL-GAMES-01). The ROOM writes its own Live Games row (`versus:cf:<room>` for 1v1, Group and Versus Duos; `duos:cf:<room>` for a Ranked Duos team, whose name, medal and rating are read from the team in SQL) through the limited, key-gated `versus_cf_live` (never the service role, never the client), and only when the listing changes (it appears, a round or a phase changes, it ends) plus a 2-minute keep-alive: never per frame, per request or per spectator. A Cloudflare row stays listed 4 minutes past its last write. Watch joins the room in the stands on the Worker; the Friends Watch id is `cf:<room>`. The client never heartbeats a Cloudflare room\x27s row.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -10534,8 +10534,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28', quote: 'throttled to keep Supabase egress low (write on start/round change/end only, not per frame)' },
       { kind: 'code', ref: 'workers/versus/src/core/liveListing.ts, workers/versus/src/live.ts, workers/versus/src/room.ts (syncLive), packages/ui/src/versus/duosLive.ts (publishesOwnRow), supabase/migrations/2026-11-08-versus-cf-live-games-invites.sql' },
     ],
-    currentBehaviour: 'Built 2026-10-28 (fix/versus-cf-livegames-invites). Live once the owner applies 2026-11-08-versus-cf-live-games-invites.sql and Ranked Duos is flipped to cf.',
-    example: 'A pair plays Ranked Duos on Cloudflare: round 3 shop shows "Round 3 · Shop" on Live Games; a spectator presses Watch and lands in the room on the Worker. Ten people joining the stands cause no write; the move to combat causes one.',
+    currentBehaviour: 'Built 2026-10-28 (fix/versus-cf-livegames-invites). Live once the owner applies 2026-11-08-versus-cf-live-games-invites.sql and a mode is flipped to cf.',
+    example: 'A Cloudflare Versus Group game in round 3 shows "Ann vs Bob vs Cat", "Versus Group", "Round 3 · Shop" on Live Games; Watch lands in the room on the Worker. Ten people joining the stands cause no write; the move to combat causes one.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveInvite.test.ts', 'workers/versus/test/cfLiveInvite.db.test.ts', 'packages/ui/src/versus/versusRouter.test.ts', 'packages/ui/src/friends/friends.test.tsx'], lastVerifiedAt: '2026-10-28' },
   },
   {
@@ -10552,5 +10552,35 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-28 (fix/versus-cf-livegames-invites). Needs 2026-11-08-versus-cf-live-games-invites.sql applied and a Worker that carries its writer secret.',
     example: 'Ann is in an open Cloudflare 1v1 room and invites Cat: the room signs it and the invite goes out. Once the match starts, the room answers "That room is not open." and nothing is sent; a forged or two-minute-old proof is refused by the server.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveInvite.test.ts', 'workers/versus/test/cfLiveInvite.db.test.ts', 'workers/versus/test/it/room.it.ts', 'packages/ui/src/friends/friends.test.tsx', 'packages/ui/src/versus/versusRouter.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
+  {
+    id: 'R-LIVE-ALL-GAMES-01',
+    title: 'Every game is a live game: Live Games lists every game in progress and Watch from Friends takes the spectator into it',
+    statement:
+      'Live Games lists every game being played: lobby games (ranked, casual and Practice), Versus 1v1, Versus Group, Versus Duos and Ranked Duos, on both hosts (Supabase and Cloudflare rooms), each row labelled with its mode and naming its players or team, in the existing Live Games row. A friends-only Versus room is listed only to its host and the host\x27s friends (the room list\x27s own rule); a friends-only Ranked Duos party is not listed. Writes stay event-driven: a Supabase Versus row is written by the server from the match rows only when the phase, round, pause or first hero changes (no client traffic), a Cloudflare room writes its own (R-VERSUS-CF-LIVE-01), and lobby games keep their existing heartbeat. Watch, from Live Games or from a friend\x27s row on the Friends page, joins that exact game as a spectator in every mode and on both hosts: a lobby game opens the live watch screen, a Versus match the room\x27s stands in Versus, a Ranked Duos team the party\x27s stands in Duos. Leaving follows the existing rules: a Versus spectator goes back to the Versus lobby at the end, a lobby game back to the play menu. Dev sandbox, God Mode, replays, the Tutorial and the Gauntlet are not live games.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28 (owner ruling on PR #2377)', quote: 'all games should show as live games, and pressing watch from friends list should take the spectator into that game' },
+      { kind: 'code', ref: 'packages/ui/src/live/liveTargets.ts, packages/ui/src/live/LiveGames.tsx, packages/ui/src/live/livePublisher.ts (liveModeOf), packages/ui/src/friends/friendsGo.ts (watchAreaOf), packages/ui/src/friends/friendsStore.ts (presenceNow), supabase/migrations/2026-11-08-versus-cf-live-games-invites.sql (lobby_live__sync_*, the triggers, lobby_live__may_see)' },
+    ],
+    currentBehaviour: 'Built 2026-10-28 (fix/versus-cf-livegames-invites). Needs 2026-11-08-versus-cf-live-games-invites.sql applied; until then Live Games reads its old columns and lists what it listed before.',
+    example: 'A friend is in Practice: Friends shows Watch, and pressing it opens their game on the watch screen. A Versus Duos game shows "Ann & Bob vs Cat & Dan" and "Versus Duos" on Live Games; Watch puts you in the room\x27s stands.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/liveAllGames.test.ts', 'packages/ui/src/live/liveGames.test.ts', 'packages/ui/src/friends/friends.test.tsx', 'workers/versus/test/cfLiveInvite.db.test.ts', 'workers/versus/test/liveInvite.test.ts', 'packages/ui/src/live/spectatorEnd.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
+  {
+    id: 'R-FRIENDS-STATUS-01',
+    title: 'A friend in a game shows how it is going: mode, hero, round and phase, Health and Armor, tier, and place or players',
+    statement:
+      'On the Friends page a friend who is in a game shows, under their status, a small portrait of the hero they play, the round and phase ("Hero Select", "Round 6 · Shopping", "Round 6 · Fighting"), their Health and Armor, their tavern tier, and in a lobby game their place among the players still in ("3rd of 5 left", ties share a place), in Versus the players ("Ann vs Bob", "Ann & Bob vs Cat & Dan"). The status is one typed shape (`FriendGameStatus`) carried by the presence beat, capped at 1 KB by the server (a larger one is dropped, never an error), and sent only when it changes (phase, round, place, tier or vitals), never per tick; an older server without it still takes the old beat. The text is short and plain, with no em dash, and fits a phone row.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28 (owner approved)', quote: 'a richer Friends status for in-game friends: mode + hero (small hero portrait next to the name, existing portrait art/frames), round and phase (Hero Select / Shopping / Fighting), Health+Armor, tavern tier, lobby place ("3rd of 5 left") or Versus teams/score' },
+      { kind: 'code', ref: 'packages/ui/src/friends/gameStatus.ts, packages/ui/src/friends/FriendsPage.tsx (FriendGame), packages/ui/src/friends/friendsStore.ts, packages/ui/src/friends/friendsRemote.ts, supabase/migrations/2026-11-08-versus-cf-live-games-invites.sql (player_presence.game, friends_beat p_game)' },
+    ],
+    currentBehaviour: 'Built 2026-10-28 (fix/versus-cf-livegames-invites). Needs 2026-11-08-versus-cf-live-games-invites.sql applied. Versus shows the players but no score yet.',
+    example: 'Pam is in Practice, round 6, shopping, 20 Health and 5 Armor, tier 4, third of five still in: her row reads "Round 6 · Shopping", "3rd of 5 left", "20 Health + 5 Armor", "Tier 4", with her hero beside it and a Watch button.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/liveAllGames.test.ts', 'packages/ui/src/friends/friends.test.tsx', 'workers/versus/test/cfLiveInvite.db.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
 ];

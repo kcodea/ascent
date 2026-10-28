@@ -21,6 +21,7 @@ import { pageHidden } from '../net/backoff';
 import { useGame } from '../store';
 import { useVersus, myRole } from '../versus/versusStore';
 import { versusRemote, versusRoomRef } from '../versus/versusRemote';
+import { gameStatusKey, lobbyGameStatus, versusGameStatus } from './gameStatus';
 import { decodeRoomRef } from '../versus/versusHost';
 import { isWatchingLive } from '../live/liveWatch';
 import { liveEligible } from '../live/livePublisher';
@@ -93,7 +94,12 @@ export function presenceNow(): PresenceReport {
     const mode = VERSUS_MODE_OF[normalizeVersusOptions(v.room.options).mode];
     const role = myRole(v.room);
     const running = v.room.status === 'in_game' && !!v.match && v.match.phase !== 'complete';
-    if (running && role && role !== 'spectator') return { status: 'in_game', mode, watchKind: 'versus', watchId: versusRoomRef(v.room) };
+    if (running && role && role !== 'spectator') {
+      // R-FRIENDS-STATUS-01: my own run's vitals and tier, the match's round and phase, the room's players.
+      const run = g.run.mode === 'versus' ? g.run : null;
+      const seats = v.room.members.filter((m) => m.role !== 'spectator').map((m) => ({ role: m.role, name: m.displayName }));
+      return { status: 'in_game', mode, watchKind: 'versus', watchId: versusRoomRef(v.room), game: versusGameStatus(mode, run, v.match!, seats) };
+    }
     if (running) return { status: 'online', mode: 'watching', watchKind: null, watchId: null };
     return { status: 'online', mode: 'versus_room', watchKind: null, watchId: null };
   }
@@ -105,12 +111,16 @@ export function presenceNow(): PresenceReport {
   let mode: PresenceMode = 'solo';
   if (run.mode === 'lobby') mode = run.sandbox || run.godMode ? 'practice' : run.lobby && lobbyIsUnrated(run.lobby) ? 'casual' : 'ranked';
   else if (run.mode === 'practice' || run.mode === 'tutorial' || run.mode === 'gauntlet') mode = run.mode;
-  // A ranked game is watchable through Live Games (the same gate the listing uses).
-  const live = mode === 'ranked' && liveEligible(run, { replaying: g.replaying, showTitle: g.showTitle });
-  return { status: 'in_game', mode, watchKind: live ? 'live' : null, watchId: live ? rankedRunIdOf(run) : null };
+  // EVERY lobby game (ranked, casual, Practice) is watchable through Live Games (the gate the listing uses;
+  // owner 2026-10-28, R-LIVE-ALL-GAMES-01).
+  const live = liveEligible(run, { replaying: g.replaying, showTitle: g.showTitle });
+  return {
+    status: 'in_game', mode, watchKind: live ? 'live' : null, watchId: live ? rankedRunIdOf(run) : null,
+    game: run.lobby ? lobbyGameStatus(mode, run) : null,
+  };
 }
 
-const presenceKey = (p: PresenceReport): string => `${p.status}|${p.mode ?? ''}|${p.watchKind ?? ''}|${p.watchId ?? ''}`;
+const presenceKey = (p: PresenceReport): string => `${p.status}|${p.mode ?? ''}|${p.watchKind ?? ''}|${p.watchId ?? ''}|${gameStatusKey(p.game ?? null)}`;
 
 /** "Ranked", "Versus Duos", ... for a presence mode. */
 export function modeText(mode: string | null | undefined): string | null {
@@ -236,10 +246,12 @@ export function startFriendsPresence(): () => void {
       return;
     }
     if (s.showTitle !== prev.showTitle || s.practiceSetupOpen !== prev.practiceSetupOpen || s.replaying !== prev.replaying
-      || s.heroChoices !== prev.heroChoices || s.run.mode !== prev.run.mode || s.run.phase !== prev.run.phase) onMaybeChanged();
+      || s.heroChoices !== prev.heroChoices || s.run.mode !== prev.run.mode || s.run.phase !== prev.run.phase
+      || s.run.wave !== prev.run.wave) onMaybeChanged();
   });
   const unVs = useVersus.subscribe((s, prev) => {
-    if (s.room?.id !== prev.room?.id || s.room?.status !== prev.room?.status || s.match?.phase !== prev.match?.phase) onMaybeChanged();
+    if (s.room?.id !== prev.room?.id || s.room?.status !== prev.room?.status || s.match?.phase !== prev.match?.phase
+      || s.match?.round !== prev.match?.round) onMaybeChanged();
   });
   const onVis = (): void => {
     syncInviteSub();

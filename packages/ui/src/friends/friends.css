@@ -26,6 +26,15 @@
 .fr-in_game .fr-dot { background: #f0d089; box-shadow: 0 0 0 2px rgba(240, 208, 137, 0.25); }
 .fr-in_game .fr-status { color: #f0d089; }
 .fr-offline { opacity: 0.78; }
+/* A friend's game at a glance (R-FRIENDS-STATUS-01): one wrapping line of small chips; the hero portrait is the ladder's
+   own frame at chip size. Static. */
+.fr-game { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; min-width: 0; font-family: var(--font-ui); font-weight: 700; font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.78); font-variant-numeric: tabular-nums; }
+.fr-gamehero .lb-heroframe .hero { width: 24px; height: 24px; padding: 1px; box-shadow: 0 0 0 1px rgba(196, 160, 92, 0.6); }
+.fr-gamehero .lb-heroframe .hero .f svg { width: 60%; height: 60%; }
+.fr-gameline { color: #f0d089; white-space: nowrap; }
+.fr-gamechip { padding: 1px 7px; border-radius: 999px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(196, 160, 92, 0.3); white-space: nowrap; }
+.fr-gamevs { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(255, 255, 255, 0.62); }
 .fr-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .fr-actions .lb-btn svg { width: 15px; height: 15px; margin-right: 6px; vertical-align: -2px; }
 .lb-btn.fr-small { padding: 7px 11px; font-size: 12px; }

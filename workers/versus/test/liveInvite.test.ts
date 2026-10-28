@@ -2,8 +2,7 @@
  * VERSUS ON CLOUDFLARE — the room's Live Games row and its invite check, on a fake clock.
  *
  *  - R-VERSUS-CF-LIVE-01: a Ranked Duos match is listed (`duos:cf:<room>` once written) from Hero Select to the end, a
- *    friends-only party never is, and 1v1 / Group / Versus Duos never are (parity: on Supabase only Ranked Duos rows
- *    exist). The writer is throttled: one write per listing change (start, round, phase, end) plus a 2-minute
+ *    friends-only party never is, and 1v1 / Group / Versus Duos are listed too (owner 2026-10-28). The writer is throttled: one write per listing change (start, round, phase, end) plus a 2-minute
  *    keep-alive, never per spectator, never per request; a failed write retries; the removal can't be overtaken.
  *  - R-VERSUS-CF-INVITE-01: the room's invite check answers the SQL's codes, and the proof is a plain HMAC-SHA256 the
  *    SQL can recompute.
@@ -101,7 +100,7 @@ describe('Live Games listing of a Cloudflare room (R-VERSUS-CF-LIVE-01)', () => 
     const open = new H('ranked_duos');
     expect(liveListingOf(open.state)).toBeNull(); // a party waiting is not a game
     const h = await ranked(false);
-    expect(liveListingOf(h.state)).toMatchObject({ room: ROOM, p1: U1, team: TEAM, names: 'One & Two', phase: 'hero', round: 1 });
+    expect(liveListingOf(h.state)).toMatchObject({ room: ROOM, p1: U1, mode: 'ranked_duos', team: TEAM, players: 'One & Two', phase: 'hero', round: 1 });
     const s = await ranked(true);
     expect(liveListingOf(s.state)).toMatchObject({ phase: 'shop', round: 1, hero: HERO_IDS[0] });
     await lock(s, U1);
@@ -119,16 +118,34 @@ describe('Live Games listing of a Cloudflare room (R-VERSUS-CF-LIVE-01)', () => 
     expect(liveListingOf(h.state)).toBeNull();
   });
 
-  it('1v1, Group and Versus Duos are never on Live Games (as on Supabase: Friends Watch covers them)', async () => {
-    for (const mode of ['duel', 'group', 'duos']) {
+  it('1v1, Group and Versus Duos are listed too (owner 2026-10-28: all games are live games), with every player', async () => {
+    const want = { duel: 'One vs Two', group: 'One vs Two vs Two vs Two', duos: ' vs ' } as const;
+    for (const mode of ['duel', 'group', 'duos'] as const) {
       const h = new H(mode);
       const others = mode === 'duel' ? [U2] : [U2, U3, U4];
       for (const u of others) { h.core.connect(u, h.now); await h.op(u, 'join', JOIN); }
       await h.op(U1, 'start');
       for (const u of [U1, ...others]) await h.op(u, 'gate');
       expect(h.state.room.status, mode).toBe('in_game');
-      expect(liveListingOf(h.state), mode).toBeNull();
+      const l = liveListingOf(h.state)!;
+      expect(l, mode).toMatchObject({ room: ROOM, mode, p1: U1, phase: 'hero', round: 1, private_host: null, team: null });
+      expect(l.players, mode).toContain(want[mode]);
+      if (mode === 'duos') expect(l.players.split(' vs ').map((t) => t.split(' & ').length)).toEqual([2, 2]);
     }
+  });
+
+  it('a friends-only Versus room is listed privately (the host, for the read policy); a finished 1v1 is gone', async () => {
+    const h = new H('duel');
+    await h.op(U1, 'friends_only', { on: true });
+    h.core.connect(U2, h.now);
+    await h.op(U2, 'join', JOIN);
+    await h.op(U1, 'start');
+    await h.op(U1, 'gate');
+    await h.op(U2, 'gate');
+    expect(liveListingOf(h.state)).toMatchObject({ mode: 'duel', private_host: U1 });
+    await h.op(U1, 'forfeit', { matchId: h.state.match!.id });
+    expect(h.state.match!.phase).toBe('complete');
+    expect(liveListingOf(h.state)).toBeNull();
   });
 
   it('the write key ignores spectators (a spectator joining costs no write)', async () => {
@@ -174,7 +191,7 @@ describe('the Live Games slot: throttled, latest wins (R-VERSUS-CF-LIVE-01)', ()
     const { s, sync, stored } = slot(sink);
     await sync(null, T0);
     expect(sink.writes).toHaveLength(0); // nothing was ever published: no removal either
-    const row: LiveListing = { room: ROOM, p1: U1, team: TEAM, names: 'One & Two', hero: 'h', round: 2, phase: 'shop', spectators: 0 };
+    const row: LiveListing = { room: ROOM, mode: 'ranked_duos', p1: U1, team: TEAM, players: 'One & Two', hero: 'h', round: 2, phase: 'shop', spectators: 0, private_host: null };
     await sync(row, T0 + 1);
     await sync(row, T0 + 60_000);
     expect(sink.writes).toHaveLength(1);
@@ -195,7 +212,7 @@ describe('the Live Games slot: throttled, latest wins (R-VERSUS-CF-LIVE-01)', ()
   });
 
   it('after a wake: an unchanged row is not re-sent, a row that ended while asleep is removed', async () => {
-    const row: LiveListing = { room: ROOM, p1: U1, team: null, names: 'A & B', hero: 'h', round: 3, phase: 'combat', spectators: 0 };
+    const row: LiveListing = { room: ROOM, mode: 'duel', p1: U1, team: null, players: 'A vs B', hero: 'h', round: 3, phase: 'combat', spectators: 0, private_host: null };
     const a = new FakeSink();
     await slot(a, liveKeyOf(row)).sync(row, T0 + 5);
     expect(a.writes).toHaveLength(0);

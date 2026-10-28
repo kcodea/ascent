@@ -42,7 +42,8 @@ const STUB = `
   grant usage on schema extensions to anon, authenticated, service_role;
   grant execute on function auth.uid() to anon, authenticated, service_role;
   create table auth.users (id uuid primary key, is_anonymous boolean not null default false);
-  create table public.profiles (user_id uuid primary key, author text, discriminator text, avatar text, favorite_hero text);
+  create table public.profiles (user_id uuid primary key, author text, discriminator text, avatar text, favorite_hero text,
+    rank_division int not null default 0, rank_points int not null default 0, rating int not null default 0);
   grant select on public.profiles to anon, authenticated;
   create table public.cosmetic_loadouts (user_id uuid, slot text, target_id text not null default '', cosmetic_id text, primary key (user_id, slot, target_id));
   grant select on public.cosmetic_loadouts to anon, authenticated;
@@ -52,6 +53,8 @@ const u = (n: number): string => `00000000-0000-0000-0000-${String(n).padStart(1
 const ANN = u(1);
 const BOB = u(2);
 const CAT = u(3);
+const DAN = u(4);
+const EVE = u(5);
 const ROOM = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const TEAM = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const GAME = `duos:cf:${ROOM}`;
@@ -74,7 +77,7 @@ async function err(p: Promise<unknown>): Promise<string> {
 }
 const live = (key: string | null, room: string, row: unknown) =>
   as<{ v: Record<string, unknown> }>(null, 'select public.versus_cf_live($1, $2::uuid, $3::jsonb) as v', [key, room, row == null ? null : JSON.stringify(row)]);
-const row = (over: Record<string, unknown> = {}) => ({ room: ROOM, p1: ANN, team: TEAM, names: 'Ann & Bob', hero: 'hero_x', round: 3, phase: 'shop', spectators: 2, ...over });
+const row = (over: Record<string, unknown> = {}) => ({ room: ROOM, mode: 'ranked_duos', p1: ANN, team: TEAM, players: 'Ann & Bob', hero: 'hero_x', round: 3, phase: 'shop', spectators: 2, ...over });
 const listed = async (): Promise<Record<string, unknown>[]> => as(null, `select * from public.lobby_live_games where game_id = '${GAME}'`);
 
 beforeAll(async () => {
@@ -84,7 +87,7 @@ beforeAll(async () => {
   await db.exec(NEW);
   await db.exec(NEW);
   await db.query('insert into public.versus_cf_writer_keys (key_hash, note) values ($1, $2)', [createHash('sha256').update(SECRET).digest('hex'), 'test']);
-  for (const [id, name, tag] of [[ANN, 'Ann', '1111'], [BOB, 'Bob', '2222'], [CAT, 'Cat', '3333']] as const) {
+  for (const [id, name, tag] of [[ANN, 'Ann', '1111'], [BOB, 'Bob', '2222'], [CAT, 'Cat', '3333'], [DAN, 'Dan', '4444'], [EVE, 'Eve', '5555']] as const) {
     await db.query('insert into auth.users (id) values ($1)', [id]);
     await db.query('insert into public.profiles (user_id, author, discriminator, favorite_hero) values ($1, $2, $3, $4)', [id, name, tag, 'hero_a']);
   }
@@ -105,7 +108,7 @@ describe('versus_cf_live: a Cloudflare Ranked Duos room\'s Live Games row', () =
   });
 
   it('writes duos:cf:<room> with the team\'s own name and medal (from SQL, never the room\'s word for it)', async () => {
-    await live(SECRET, ROOM, row({ names: 'ignored when the team is named' }));
+    await live(SECRET, ROOM, row({ players: 'ignored when the team is named' }));
     const [g] = await listed();
     expect(g).toMatchObject({ user_id: ANN, display_name: 'Twin Stars', hero_id: 'hero_x', division_index: 4, rank_points: 37, rating: 437, round: 3, phase: 'shop', spectators: 2 });
     // The page's own read (anon, the listing columns) sees it.
@@ -115,7 +118,7 @@ describe('versus_cf_live: a Cloudflare Ranked Duos room\'s Live Games row', () =
 
   it('an unnamed / unknown team reads as the pair\'s names', async () => {
     const other = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
-    await live(SECRET, other, row({ room: other, p1: CAT, team: null, names: 'Cat & Dan' }));
+    await live(SECRET, other, row({ room: other, p1: CAT, team: null, players: 'Cat & Dan' }));
     const [g] = await as(null, `select display_name, division_index from public.lobby_live_games where game_id = 'duos:cf:${other}'`);
     expect(g).toMatchObject({ display_name: 'Cat & Dan', division_index: 0 });
     await live(SECRET, other, null);
@@ -152,6 +155,100 @@ describe('versus_cf_live: a Cloudflare Ranked Duos room\'s Live Games row', () =
     expect(ids).toContain('solo-x');
     expect(ids).not.toContain('duos:old');
     await live(SECRET, ROOM, null);
+  });
+});
+
+describe('every live game is on Live Games (owner 2026-10-28: all games should show as live games)', () => {
+  const R1 = '10000000-0000-4000-8000-000000000001';
+  const M1 = '10000000-0000-4000-8000-0000000000a1';
+  const R2 = '10000000-0000-4000-8000-000000000002';
+  const G2 = '10000000-0000-4000-8000-0000000000b2';
+  const room = (id: string, host: string, match: string | null, friendsOnly = false) =>
+    db.query(`insert into public.versus_rooms (id, name, host_user_id, status, set_id, content_revision, protocol, current_match_id, friends_only)
+      values ($1, 'Room', $2, 'in_game', 'set1', 'rev1', 2, $3, $4)`, [id, host, match, friendsOnly]);
+  const get = async (game: string, who: string | null = null) => (await as(who, `select * from public.lobby_live_games where game_id = '${game}'`))[0];
+
+  it('a Supabase 1v1 is listed from its match row (no client call): players, mode, phase; ended = gone', async () => {
+    await db.exec('begin');
+    await room(R1, ANN, M1);
+    await db.query(`insert into public.versus_matches (id, room_id, seed, set_id, content_revision, protocol, phase, round, p1_user, p2_user, p1_name, p2_name, p1_hero)
+      values ($1, $2, 1, 'set1', 'rev1', 2, 'hero_select', 0, $3, $4, 'Ann', 'Bob', null)`, [M1, R1, ANN, BOB]);
+    await db.exec('commit');
+    expect(await get(`versus:${R1}`)).toMatchObject({ mode: 'duel', players: 'Ann vs Bob', display_name: 'Ann', phase: 'hero', round: 1, user_id: ANN });
+    await db.query(`update public.versus_matches set phase = 'shop', round = 1, p1_hero = 'hero_q' where id = $1`, [M1]);
+    expect(await get(`versus:${R1}`)).toMatchObject({ phase: 'shop', hero_id: 'hero_q' });
+    // A change the listing does not show (a revision bump) writes nothing.
+    await db.query(`update public.lobby_live_games set round = 99 where game_id = 'versus:${R1}'`);
+    await db.query(`update public.versus_matches set revision = revision + 1 where id = $1`, [M1]);
+    expect((await get(`versus:${R1}`))!.round).toBe(99);
+    await db.query(`update public.versus_matches set phase = 'complete' where id = $1`, [M1]);
+    expect(await get(`versus:${R1}`)).toBeUndefined();
+  });
+
+  it('a Supabase Group and Versus Duos are listed with every player (teams for Duos)', async () => {
+    for (const [mode, players] of [['group', 'Ann vs Bob vs Cat'], ['duos', 'Ann & Bob vs Cat & Dan']] as const) {
+      await db.query(`delete from public.versus_group_matches`);
+      await db.query(`delete from public.versus_rooms where id = $1`, [R2]);
+      await db.exec('begin');
+      await room(R2, ANN, G2);
+      await db.query(`insert into public.versus_group_matches (id, room_id, seed, set_id, content_revision, protocol, options, phase, round, seat_count)
+        values ($1, $2, 1, 'set1', 'rev1', 2, $3::jsonb, 'shop', 2, $4)`, [G2, R2, JSON.stringify({ v: 1, mode, modifiers: [] }), mode === 'duos' ? 4 : 3]);
+      const seats = mode === 'duos' ? [['p1', ANN, 'Ann', 'a'], ['p2', BOB, 'Bob', 'a'], ['p3', CAT, 'Cat', 'b'], ['p4', DAN, 'Dan', 'b']] : [['p1', ANN, 'Ann', null], ['p2', BOB, 'Bob', null], ['p3', CAT, 'Cat', null]];
+      for (const [seat, user, name, team] of seats) {
+        await db.query(`insert into public.versus_group_seats (match_id, seat, user_id, name, hero, team) values ($1, $2, $3, $4, 'hero_g', $5)`, [G2, seat, user, name, team]);
+      }
+      await db.exec('commit');
+      expect(await get(`versus:${R2}`), mode).toMatchObject({ mode, players, round: 2, phase: 'shop', hero_id: 'hero_g' });
+    }
+    await db.query(`update public.versus_group_matches set phase = 'complete' where id = $1`, [G2]);
+    expect(await get(`versus:${R2}`)).toBeUndefined();
+  });
+
+  it('a friends-only room is listed only to its host and the host friends (the room list rule)', async () => {
+    const R3 = '10000000-0000-4000-8000-000000000003';
+    const M3 = '10000000-0000-4000-8000-0000000000a3';
+    await db.exec('begin');
+    await room(R3, CAT, M3, true);
+    await db.query(`insert into public.versus_matches (id, room_id, seed, set_id, content_revision, protocol, phase, round, p1_user, p2_user, p1_name, p2_name)
+      values ($1, $2, 1, 'set1', 'rev1', 2, 'shop', 1, $3, $4, 'Cat', 'Eve')`, [M3, R3, CAT, EVE]);
+    await db.exec('commit');
+    expect(await get(`versus:${R3}`, CAT)).toBeDefined();
+    expect(await get(`versus:${R3}`, ANN)).toBeDefined(); // Ann and Cat are friends
+    expect(await get(`versus:${R3}`, BOB)).toBeUndefined();
+    expect(await get(`versus:${R3}`, null)).toBeUndefined();
+  });
+
+  it('a Cloudflare Versus room writes versus:cf:<room>, private to the host friends when friends-only', async () => {
+    const R4 = '10000000-0000-4000-8000-000000000004';
+    const base = { room: R4, mode: 'group', p1: DAN, team: null, players: 'Dan vs Eve vs Bob', hero: 'h', round: 5, phase: 'combat', spectators: 1, private_host: null };
+    await live(SECRET, R4, base);
+    expect(await get(`versus:cf:${R4}`)).toMatchObject({ mode: 'group', players: 'Dan vs Eve vs Bob', display_name: 'Dan', round: 5 });
+    await live(SECRET, R4, { ...base, private_host: DAN });
+    expect(await get(`versus:cf:${R4}`, BOB)).toBeUndefined();
+    expect(await get(`versus:cf:${R4}`, DAN)).toBeDefined();
+    expect(await err(live(SECRET, R4, { ...base, mode: 'chess' }))).toContain('bad_mode');
+    await live(SECRET, R4, null);
+    expect((await db.query(`select 1 from public.lobby_live_games where game_id = 'versus:cf:${R4}'`)).rows).toHaveLength(0);
+  });
+
+  it('a Practice or casual lobby game is listed with its mode; an older ranked call (six arguments) still lands', async () => {
+    await as(EVE, `select public.lobby_live_heartbeat('run-p', 'Eve', 'h', null, 3, 'shop', 'practice')`);
+    expect(await get('run-p')).toMatchObject({ mode: 'practice' });
+    await as(EVE, `select public.lobby_live_heartbeat('run-r', 'Eve', 'h', null, 3, 'shop')`);
+    expect((await get('run-r'))!.mode).toBeNull();
+  });
+});
+
+describe('the richer Friends status (owner approved 2026-10-28)', () => {
+  it('the beat stores the game status (capped) and friends read it; an older four-argument beat still lands', async () => {
+    const game = { v: 1, mode: 'ranked', hero: 'hero_x', round: 6, phase: 'shop', health: 22, armor: 3, tier: 4, place: { rank: 3, left: 5 } };
+    await as(CAT, `select public.friends_beat('in_game', 'ranked', 'live', 'run-9', $1::jsonb)`, [JSON.stringify(game)]);
+    const list = (await rpc(ANN, 'friends_list')) as { friends: { userId: string; game?: unknown }[] };
+    expect(list.friends.find((f) => f.userId === CAT)?.game).toEqual(game);
+    await as(CAT, `select public.friends_beat('in_game', 'ranked', 'live', 'run-9', $1::jsonb)`, [JSON.stringify({ junk: 'x'.repeat(2000) })]);
+    const again = (await rpc(ANN, 'friends_list')) as { friends: { userId: string; game?: unknown }[] };
+    expect(again.friends.find((f) => f.userId === CAT)?.game ?? null).toBeNull();
+    await as(CAT, `select public.friends_beat('online', null, null, null)`);
   });
 });
 

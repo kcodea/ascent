@@ -1,22 +1,27 @@
-# VERSUS on Cloudflare — LOCAL SPIKE (2026-10-28). Nothing here is deployed: the owner has no Cloudflare account yet.
-# Run locally with `npm run versus:cf:dev` (wrangler dev on :8787, dev tokens accepted).
+# VERSUS on Cloudflare (2026-10-28). Local: `npm run versus:cf:dev` (wrangler dev on :8787, dev tokens accepted).
 #
-# SECRETS (never committed; set with `wrangler secret put <NAME>` once an account exists):
-#   SUPABASE_SERVICE_ROLE_KEY   the persistence writer (versus_matches / versus_rounds upserts); see the design doc
-#                               for the scope question (a dedicated Postgres role is the recommendation).
-#   SUPABASE_JWT_SECRET         only if the project still signs with the legacy HS256 secret (else JWKS is used).
+# DEPLOYS go through `npm run versus:cf:deploy` (scripts/deploy.ts), never a bare `wrangler deploy`: it names the Worker
+# after the engine it carries (`ascent-versus-v<cfProtocol>-<contentRevision>`), so every content revision is its own
+# Worker and its own Durable Object namespace. A new pack deploys a NEW Worker; rooms already playing on the old one
+# finish there (owner ruling 2026-10-28: "in-flight matches finish on the old version"). Old versions are deleted once
+# they have no live rooms. It also passes SUPABASE_ANON_KEY (the public publishable key) from apps/web/.env.
+#
+# SECRETS (never committed; set with scripts/writer-secret.mjs, which pipes them to `wrangler secret put`):
+#   VERSUS_WRITER_SECRET   the result writer's key for `versus_cf_persist` (supabase/migrations/2026-11-04-versus-cf-writer.sql).
+# No Supabase JWT secret is needed: project zcwhbejpqcdcfdpfxeza signs access tokens with an ES256 key (JWKS).
 name = "ascent-versus"
 main = "src/index.ts"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-# The Supabase project (public URL, used to fetch the JWKS that signs player access tokens and as the REST base for
-# persistence). Empty in the spike: no JWKS fetch, no live writes.
-SUPABASE_URL = ""
+# The Supabase project (public URL): the JWKS that signs player access tokens, and the REST base for the result writer.
+SUPABASE_URL = "https://zcwhbejpqcdcfdpfxeza.supabase.co"
 # "1" accepts `dev.<userId>.<name>` bearer tokens (local only; `npm run versus:cf:dev` passes it). Never set in prod.
 DEV_AUTH = "0"
-# Persistence is OFF unless "1" (and the service key secret is set). The spike never writes to Supabase.
+# Result writes are OFF unless "1" (and VERSUS_WRITER_SECRET is set and the writer migration applied).
+# Browser origins allowed to call the Worker (`*` = one host label or a port): the Netlify site and local dev.
+ALLOWED_ORIGINS = "https://*.netlify.app,http://localhost:*,http://127.0.0.1:*"
 PERSIST = "0"
 
 [[durable_objects.bindings]]

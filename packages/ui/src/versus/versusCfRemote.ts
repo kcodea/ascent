@@ -22,7 +22,7 @@ import { ownSeatPerspective, VERSUS_PROTOCOL, type PreparedCombatSide, type Vers
 import type { CombatResult } from '@game/core';
 import { contentRevision } from '@game/content';
 import { VersusCfClient, VersusCfError, versusCfHttp } from '@game/versus-cf/client';
-import type { VersusCfPush } from '@game/versus-cf/protocol';
+import { VERSUS_CF_PROTOCOL, type VersusCfPush } from '@game/versus-cf/protocol';
 import type {
   VersusIdentity,
   VersusMatch,
@@ -39,6 +39,9 @@ import type {
 const HOST_KEY = 'ascent.versusHost';
 const URL_KEY = 'ascent.versusCfUrl';
 export const VERSUS_CF_DEFAULT_URL = 'http://127.0.0.1:8787';
+/** The deployed Worker for THIS build's engine (`workers/versus/scripts/deploy.ts` names it the same way). */
+export const versusCfLiveUrl = (rev: string = contentRevision()): string =>
+  `https://ascent-versus-v${VERSUS_CF_PROTOCOL}-${rev}.team-ascent.workers.dev`;
 
 /** Is the Cloudflare transport selected for this tab? Dev builds (or the Versus test tools) only. */
 export function versusCfSelected(): boolean {
@@ -48,9 +51,11 @@ export function versusCfSelected(): boolean {
     const q = new URLSearchParams(window.location.search);
     const host = q.get('versusHost');
     if (host === 'cf') sessionStorage.setItem(HOST_KEY, 'cf');
+    // `cf-live`: the deployed Worker that carries THIS build's engine (versioned by content revision).
+    if (host === 'cf-live') { sessionStorage.setItem(HOST_KEY, 'cf'); sessionStorage.setItem(URL_KEY, versusCfLiveUrl()); }
     if (host === 'supabase') sessionStorage.removeItem(HOST_KEY);
     const url = q.get('versusCfUrl');
-    if (url && /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) sessionStorage.setItem(URL_KEY, url);
+    if (url && (/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url) || /^https:\/\/[a-z0-9-]+\.team-ascent\.workers\.dev$/.test(url))) sessionStorage.setItem(URL_KEY, url);
     return sessionStorage.getItem(HOST_KEY) === 'cf';
   } catch {
     return false;

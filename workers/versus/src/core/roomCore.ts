@@ -57,6 +57,9 @@ export const ABANDON_MS = 10 * 60_000;
 /** A member with no socket this long leaves the room (an open room, or the stands). Seated players in a match never do:
  *  the pause, auto and abandon rules handle them. Mirrors the open-room listing's "seen in the last 2 minutes". */
 export const MEMBER_PRUNE_MS = 2 * 60_000;
+/** A room with no match running and no request for this long closes itself (everyone leaves, storage is deleted once
+ *  the outbox drains): a forgotten tab never keeps a room, or its alarm, alive. */
+export const ROOM_IDLE_MS = 30 * 60_000;
 /** Spectator frame cap (`versus_publish_frame`). */
 const FRAME_BYTES = VERSUS_LIMITS.spectatorFrameBytes;
 const CHECKPOINT_BYTES = 1_048_576;
@@ -106,6 +109,8 @@ export interface CoreRoom {
   members: CoreMember[];
   /** Everyone left: the object deletes its storage once the outbox is drained. */
   closed: boolean;
+  /** The last client request (the idle self-destruct clock). Absent on rooms stored before 2026-10-28 (= created_at). */
+  last_activity_at?: number;
 }
 
 export type Phase = 'hero_select' | 'shop' | 'resolving' | 'combat' | 'complete';
@@ -363,6 +368,7 @@ export class RoomCore {
   /** Run one client request. Returns the answer (the SQL function's jsonb) and what changed. */
   async op(userId: string, op: string, args: Record<string, unknown>, now: number): Promise<{ data: unknown; effects: CoreEffects }> {
     this.begin(now);
+    if (op !== 'heartbeat') this.state.room.last_activity_at = now;
     const data = this.dispatch(userId, op, args ?? {});
     await this.settle();
     this.reconcile();
@@ -451,6 +457,10 @@ export class RoomCore {
       if (mm.disconnectedAt == null) continue;
       t.push(mm.disconnectedAt + DISCONNECT_GRACE_MS);
       if (this.prunable(mm)) t.push(mm.disconnectedAt + MEMBER_PRUNE_MS);
+    }
+    {
+      const mm = this.state.match;
+      if (!r.closed && (!mm || mm.phase === 'complete')) t.push((r.last_activity_at ?? r.created_at) + ROOM_IDLE_MS);
     }
     const m = this.state.match;
     if (m && m.phase !== 'complete') {
@@ -1208,6 +1218,13 @@ export class RoomCore {
   private reconcile(): void {
     const r = this.state.room;
     if (r.status === 'sealed' && this.now >= (r.gate_deadline ?? 0)) this.reopenGate();
+    // Idle self-destruct: no match running and nobody has asked anything for ROOM_IDLE_MS.
+    const live = this.state.match && this.state.match.phase !== 'complete';
+    if (!r.closed && !live && this.now - (r.last_activity_at ?? r.created_at) >= ROOM_IDLE_MS) {
+      for (const mm of [...r.members]) this.leave(mm.userId);
+      if (!r.closed) { r.closed = true; this.touchRoom(); }
+      return;
+    }
     for (const mm of [...r.members]) {
       if (mm.disconnectedAt != null && this.prunable(mm) && this.now - mm.disconnectedAt >= MEMBER_PRUNE_MS) this.leave(mm.userId);
     }

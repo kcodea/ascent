@@ -12,6 +12,7 @@
  */
 import { engineContentRevision, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { bearerOf, verifyCaller, type AuthEnv } from './auth';
+import { originAllowed } from './origins';
 import type { CreateRoomInput } from './core/roomCore';
 import { VersusDirectory } from './directory';
 import { VERSUS_CF_BEARER_PREFIX, VERSUS_CF_PROTOCOL, VERSUS_CF_ROUTES } from './protocol';
@@ -20,16 +21,16 @@ import { INTERNAL_USER_HEADER, VersusRoom, type RoomEnv } from './room';
 export { VersusRoom, VersusDirectory };
 
 export interface Env extends RoomEnv, AuthEnv {
+  ALLOWED_ORIGINS?: string;
   ROOMS: DurableObjectNamespace<VersusRoom>;
 }
 
-const CORS: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
+/** CORS headers for one request: only an allowed Origin is ever reflected. */
+const corsFor = (origin: string | null): Record<string, string> => ({
+  ...(origin ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : {}),
   'Access-Control-Allow-Headers': 'authorization, content-type',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-};
-const json = (status: number, body: unknown): Response =>
-  new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+});
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ROOM_WS = /^\/rooms\/([0-9a-f-]{36})\/(ws|metrics)$/i;
@@ -38,7 +39,12 @@ const CONTENT = engineContentRevision();
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
-    if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
+    const origin = req.headers.get('Origin');
+    if (!originAllowed(origin, env.ALLOWED_ORIGINS)) return new Response('origin not allowed', { status: 403 });
+    const cors = corsFor(origin);
+    const json = (status: number, body: unknown): Response =>
+      new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+    if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     if (url.pathname === VERSUS_CF_ROUTES.health) {
       return json(200, { cfProtocol: VERSUS_CF_PROTOCOL, protocol: VERSUS_PROTOCOL, contentRevision: CONTENT });
     }

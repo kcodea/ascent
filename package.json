@@ -132,6 +132,7 @@
     "versus:cf:dev": "npm run dev -w @game/versus-cf",
     "versus:cf:test": "npm run test:it -w @game/versus-cf",
     "versus:cf:measure": "npm run measure -w @game/versus-cf",
+    "versus:cf:deploy": "npm run deploy -w @game/versus-cf --",
     "strength": "tsx packages/tools/src/strength/cli.ts",
     "plates:build": "node scripts/build-card-plate.mjs"
   },

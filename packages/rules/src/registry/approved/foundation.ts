@@ -10713,4 +10713,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Freezing a Shop that offers a Taunt minion wraps its shield frame in the same jagged ice ring, at the same relative size, as the oval minion beside it.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/tauntFreezeFit.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-VERSUS-CF-OFFLINE-LOCK-01',
+    title: 'Versus on Cloudflare: an End Turn lock sent while disconnected does not count; the paused shop time comes back',
+    statement:
+      'While a Versus match (1v1, Group or Duos) is paused on a seat, the room refuses a NEW End Turn lock from that seat (error paused). '
+      + 'The only lock that can arrive then is one the client queued while it was gone (its own 0:00 ran out offline and the request waited '
+      + 'for the reconnect), since the screen takes no End Turn while paused. So the round never closes during the pause or its 3-2-1: after '
+      + 'the resume the player has the shop time the pause stopped, as on Supabase (where the offline lock fails at once). A seat that was '
+      + 'already locked before it left stays locked. Ranked Duos never pauses.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-28 (asked whether a lock queued while disconnected should count on Cloudflare)', quote: 'sure' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27 (after a night of End of Turn freezes in Versus)', quote: 'need to be spotless experiences' },
+      { kind: 'code', ref: 'workers/versus/src/core/roomCore.ts (submit), workers/versus/src/core/groupMatch.ts (submit)' },
+    ],
+    currentBehaviour: 'Built 2026-10-28 (fix/versus-cf-offline-lock). Before, the queued lock landed on reconnect and, with the other side ready, closed the round during the 3-2-1 (chaos dropAtZero and dropLong failed pausedClose in 1v1, Group 3, Group 4 and Duos).',
+    example: 'Ann has ended her turn. Bob\x27s connection drops 5 s before 0:00 and the match pauses on him; his screen still reaches 0:00 and sends his lock. When he reconnects 30 s later the room refuses that lock, the 3-2-1 runs, and Bob gets the last seconds of his shop back.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/roomCore.test.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

@@ -12,6 +12,8 @@
  *   stuck        no live client sits more than 10 s behind the server's phase (locked / ready / fight / back);
  *   falsePause   a pause only names a seat whose client was really gone (offline, hung, hidden past its lease);
  *   pauseLift    a pause lifts within 4 s of that player's return, with no button pressed;
+ *   pausedClose  a shop never closes while the match is paused on a seat that is not on auto (the clock is stopped: only
+ *                a stale lock from the absent player could close it, and the pause owes them their shop time);
  *   latePause    a player who is really gone (an absence longer than 21 s) has paused the match within 20 s of leaving
  *                (Ranked Duos never pauses: a gone seat plays on auto);
  *   vitals       after every round, every client's rail shows every seat's Health and Armor as the server has them
@@ -32,7 +34,7 @@ export const CHAOS_MODES: readonly ChaosMode[] = ['duel', 'group3', 'group4', 'd
 export const playersOf = (m: ChaosMode): number => (m === 'duel' || m === 'ranked_duos' ? 2 : m === 'group3' ? 3 : 4);
 const roomModeOf = (m: ChaosMode): string => (m === 'group3' || m === 'group4' ? 'group' : m);
 
-export type InvariantId = 'close' | 'resolve' | 'oneCall' | 'stuck' | 'falsePause' | 'pauseLift' | 'latePause' | 'vitals' | 'fights' | 'final' | 'finished' | 'realtime' | 'error';
+export type InvariantId = 'close' | 'resolve' | 'oneCall' | 'stuck' | 'falsePause' | 'pauseLift' | 'pausedClose' | 'latePause' | 'vitals' | 'fights' | 'final' | 'finished' | 'realtime' | 'error';
 export interface Violation { id: InvariantId; at: number; round: number | null; detail: string }
 
 export type ChaosPhase = 'hero_select' | 'shop' | 'resolving' | 'combat';
@@ -41,6 +43,8 @@ export interface ChaosEvent {
   round: number;
   phase: ChaosPhase;
   afterMs?: number;
+  /** Instead: fire once that round's shop clock (running, not paused) is within this many ms of its deadline. */
+  beforeDeadlineMs?: number;
   act: (h: ChaosHarness) => void;
 }
 
@@ -265,6 +269,10 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
     // Chaos events.
     for (const ev of sc.events ?? []) {
       if (fired.has(ev)) continue;
+      if (ev.beforeDeadlineMs != null) {
+        if (s.phase === 'shop' && s.round === ev.round && s.shopDeadline && !s.pausedAt && s.shopDeadline - now <= ev.beforeDeadlineMs) { fired.add(ev); ev.act(h); }
+        continue;
+      }
       const seen = firstSeen.get(`${ev.round}|${ev.phase}`);
       if (seen != null && now >= seen + (ev.afterMs ?? 0)) { fired.add(ev); ev.act(h); }
     }
@@ -332,6 +340,12 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
     }
     // PAUSES.
     const newPause = !!s.pausedAt && s.pausedAt !== last?.pausedAt;
+    // PAUSED CLOSE: the round left its shop while the clock was stopped for an absent seat.
+    if (last && last.phase === 'shop' && s.phase !== 'shop' && last.pausedSeat && last.round === s.round) {
+      const was = last;
+      const ps = was.seats.find((x) => x.seat === was.pausedSeat);
+      if (ps && !ps.auto) flag('pausedClose', last.round, `round ${last.round}'s shop closed while the match was paused on ${ps.name}`);
+    }
     if (newPause) {
       say(`server: paused on ${s.pausedSeat}`);
       const pi = clients.findIndex((c) => c.opts.user === s.seats.find((x) => x.seat === s.pausedSeat)?.user);

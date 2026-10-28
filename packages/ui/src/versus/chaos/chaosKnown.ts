@@ -24,8 +24,14 @@ const LATE_BACKSTOP = 'A second resolver call for a round already settled or bei
   + 'client backstop still asks ~5 s after the first call committed; after a long hang (Group) or an injected 409 (Group of 4) '
   + 'two clients ask at once.';
 
+const PAUSED_CLOSE = 'A lock from the paused player lands while the match is paused on them (a hung request that finally '
+  + 'arrives, or the lock their client sends the moment it is back, before it has read the pause) and closes the round during '
+  + 'the pause or its 3-2-1: the SQL accepts a lock from the paused seat. The Cloudflare room refuses it '
+  + '(R-VERSUS-CF-OFFLINE-LOCK-01); Supabase is the outgoing host, so it is recorded, not fixed.';
+
 export const KNOWN: KnownFailure[] = [
-  { cells: /^dropRestore\/(group4|duos)$|^dropInFight\/(duel|group4|duos)$/, invariant: 'pauseLift', cause: SLOW_LIFT },
+  { cells: /^hang\/(duel|group3|group4|duos)$|^dropRestore\/(group4|duos)$/, invariant: 'pausedClose', cause: PAUSED_CLOSE },
+  { cells: /^dropRestore\/(group4|duos)$|^dropInFight\/(duel|group4|duos)$|^dropAtZero\/duel$/, invariant: 'pauseLift', cause: SLOW_LIFT },
   { cells: /^resolverSlow\/|^hang\/(group3|group4)$|^resolver409\/group4$/, invariant: 'oneCall', cause: LATE_BACKSTOP },
 ];
 

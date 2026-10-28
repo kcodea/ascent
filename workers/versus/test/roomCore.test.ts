@@ -251,6 +251,28 @@ describe('Versus Room (Cloudflare) — disconnects', () => {
     }
   });
 
+  it('R-VERSUS-CF-OFFLINE-LOCK-01: a lock sent while gone (it lands during the pause or its 3-2-1) is refused; the other side stays ready and the shop time comes back', async () => {
+    const h = await inShop();
+    const c = FIXTURE.cases[0]!;
+    await h.op(U1, 'submit', { matchId: h.id, round: 1, seq: 1, side: side(c, 'p1'), final: true, checkpoint: null });
+    const left = h.m.shop_deadline! - h.now;
+    h.core.disconnect(U2, h.now);
+    await h.advance(DISCONNECT_GRACE_MS);
+    expect(h.m.paused_seat).toBe('p2');
+    await h.advance(20_000);
+    h.core.connect(U2, h.now); // back: the 3-2-1 starts, and the lock queued while offline arrives right behind it
+    await expect(h.op(U2, 'submit', { matchId: h.id, round: 1, seq: 2, side: side(c, 'p2'), final: true, checkpoint: null })).rejects.toThrow('paused');
+    expect(h.m.phase).toBe('shop');
+    expect(h.m.p2_locked).toBe(false);
+    expect(h.m.p1_locked).toBe(true);
+    await h.advance(3_000);
+    expect(h.m.paused_at).toBeNull();
+    // The paused shop time is back (minus the 3 s grace before the pause), and a fresh lock now closes the round.
+    expect(h.m.shop_deadline! - h.now).toBe(left - DISCONNECT_GRACE_MS);
+    await h.op(U2, 'submit', { matchId: h.id, round: 1, seq: 3, side: side(c, 'p2'), final: true, checkpoint: null });
+    expect(h.m.phase).toBe('combat');
+  });
+
   it('a reload inside the grace never pauses', async () => {
     const h = await inShop();
     h.core.disconnect(U2, h.now);

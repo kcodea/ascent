@@ -185,6 +185,31 @@ network round trip is included; add the player's RTT to the nearest Cloudflare P
 | Messages per both-ready round (2 players, 2 candidates + a lock + End Combat each) | RPCs + Realtime wake-ups + re-reads + 500 ms tick asks + 4 s heartbeats | clients send 8, receive 18 (8 answers + 10 pushes); room in 8 / out 18; 26-70 KB out (both fight perspectives to both players) |
 | Worker cold start (first request, engine module init) | Edge Function cold start | ~300-440 ms locally, once per isolate |
 
+### 11b. LIVE, over the real internet (2026-10-28)
+
+`npm run versus:cf:measure -- --url <worker>` against a throwaway TEST Worker on the owner's account
+(`ascent-versus-test-v1-bef2d3c2.team-ascent.workers.dev`: dev tokens, no writes; deleted after), two headless players
+on the owner's PC (Ireland) through the nearest Cloudflare PoP; two runs (8 + 3 ready rounds, 2 + 2 timer rounds), plus
+a concede and a full match to Health 0 (7 rounds, `hearts`). The timer close is corrected for the PC's clock offset.
+
+| | Supabase today | Cloudflare, LIVE |
+|---|---|---|
+| Last End Turn → fight on every client | 1.7-2.7 s resolve (+ the read) | **median 75-90 ms, p90 98-125 ms, max 125 ms** (n=50) |
+| The locking player's own answer (already `combat`) | | median 32-49 ms |
+| 0:00 → fight on every client | Duos median 4.8 s | **318 ms** (250 ms grace + ~70 ms) |
+| Disconnect → the room knows / shows it | 14 s lease | **40-55 ms**; paused at 3.04-3.05 s (3 s grace) |
+| Blip (drop + auto-reconnect) | could pause | back in 420-540 ms (new TLS + WebSocket handshake), no pause |
+| Reconnect → full state / resumed | several reads | **~500 ms** / 3.4 s (the 3-2-1 starts on the reconnect itself) |
+| Concede → both clients see the end | | 41-57 ms |
+| Messages per round | | unchanged: clients 8 out / 18 in |
+
+The real game client was also driven headless over the same Worker (Supabase env blanked, dev identities): room →
+seats → gate → Hero Select → shop → combat → concede, both tabs in step.
+
+The production Worker is deployed with persistence OFF (`ascent-versus-v1-bef2d3c2.team-ascent.workers.dev`; it refuses
+dev tokens, foreign origins and the metrics route). Players stay on Supabase: only a dev tab with `?versusHost=cf-live`
+reaches it.
+
 The game's store still sends its 4 s heartbeat and 500 ms tick asks; over this transport `reconcile` is answered from
 the cache and `finalize` is a no-op, so only the heartbeat adds traffic (one tiny request per 4 s per client). It can
 be dropped at cutover (presence is the socket).

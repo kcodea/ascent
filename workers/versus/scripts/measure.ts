@@ -13,7 +13,7 @@
  * Usage: npm run versus:cf:measure [-- --rounds 6 --timer-rounds 2]. Node 22+ (global WebSocket). Local only.
  */
 import { performance } from 'node:perf_hooks';
-import { CONTENT, Player, sideOf, startLocalWorker, toRoundOne } from '../test/it/driver';
+import { CONTENT, FIXTURE, Player, sideOf, startLocalWorker, toRoundOne } from '../test/it/driver';
 
 const arg = (name: string, dflt: number): number => {
   const i = process.argv.indexOf(`--${name}`);
@@ -35,7 +35,9 @@ async function serverMetrics(base: string, roomId: string): Promise<{ msgsIn: nu
 
 async function main(): Promise<void> {
   const boot0 = performance.now();
-  const worker = await startLocalWorker();
+  const urlAt = process.argv.indexOf('--url');
+  const remote = urlAt > 0 ? process.argv[urlAt + 1]!.replace(/[/]$/, '') : null;
+  const worker = remote ? { url: remote, dispose: async () => undefined } : await startLocalWorker();
   const base = worker.url;
   const bootMs = performance.now() - boot0;
   const h0 = performance.now();
@@ -89,7 +91,16 @@ async function main(): Promise<void> {
     const deadline = Date.parse(String(a.match.shop_deadline));
     console.log(`  timer round ${round}: waiting ${((deadline - Date.now()) / 1000).toFixed(0)} s for 0:00 ...`);
     const [ra, rb] = await Promise.all([a, b].map((p) => p.next((m) => m.t === 'round' && m.row.round === round, 120_000)));
-    timerLatency.push(ra.wall - deadline, rb.wall - deadline);
+    // The deadline is on the SERVER's clock: correct for this machine's offset (best of 5 heartbeat samples).
+    let offset = 0;
+    let bestRtt = Infinity;
+    for (let k = 0; k < 5; k++) {
+      const s0 = Date.now();
+      const hb = await a.req<{ serverNow: string }>('heartbeat');
+      const s1 = Date.now();
+      if (s1 - s0 < bestRtt) { bestRtt = s1 - s0; offset = Date.parse(hb.serverNow) - (s0 + s1) / 2; }
+    }
+    timerLatency.push(ra.wall + offset - deadline, rb.wall + offset - deadline);
     console.log(`  timer round ${round}: fight on both clients; End Combat ...`);
     const nextShop = Promise.all([a, b].map((p) => p.next((m) => m.t === 'match' && (m.match.round === round + 1 || m.match.phase === 'complete'))));
     await a.req('combat_ready', { matchId: mid, round });
@@ -129,15 +140,47 @@ async function main(): Promise<void> {
   const resumeMs = resumed.at - back0;
 
   const server = await serverMetrics(base, roomId);
+  // The concede: B forfeits mid-match; both clients see it end at once.
+  const c0 = performance.now();
+  const ended = a.next((m) => m.t === 'match' && m.match.phase === 'complete');
   await b2.req('forfeit', { matchId: a.matchId });
+  const endedMsg = (await ended).msg as { match: Record<string, unknown> };
+  const concedeMs = performance.now() - c0;
+  console.log(`  concede: ${String(endedMsg.match.end_reason)} won by ${String(endedMsg.match.winner_seat)} in ${concedeMs.toFixed(0)} ms`);
   a.client!.close();
   b2.client!.close();
+
+  // A FULL match to the end: a strong board against an empty one until Health runs out (the lobby damage, Armor first).
+  console.log('  full match to the end ...');
+  const full = await toRoundOne(base);
+  const strong = FIXTURE.cases.find((c) => c.p1.board.length === 7)!;
+  let fullRounds = 0;
+  while (full.a.match?.phase !== 'complete' && fullRounds < 40) {
+    const round = Number(full.a.match!.round);
+    const mid = full.a.matchId;
+    await full.a.req('submit', { matchId: mid, round, seq: 1, side: structuredClone(strong.p1), final: true, checkpoint: null });
+    const got = Promise.all([full.a, full.b].map((p) => p.next((m) => m.t === 'round' && m.row.round === round)));
+    const t0 = performance.now();
+    await full.b.req('submit', { matchId: mid, round, seq: 1, side: { ...structuredClone(strong.p2), board: [] }, final: true, checkpoint: null });
+    const [fa, fb] = await got;
+    readyLatency.push(fa.at - t0, fb.at - t0);
+    fullRounds++;
+    await new Promise((res) => setTimeout(res, 50));
+    if (full.a.match?.phase === 'complete') break;
+    const next = Promise.all([full.a, full.b].map((p) => p.next((m) => m.t === 'match' && (m.match.round === round + 1 || m.match.phase === 'complete'))));
+    await full.a.req('combat_ready', { matchId: mid, round });
+    await full.b.req('combat_ready', { matchId: mid, round });
+    await next;
+  }
+  const fm = full.a.match!;
+  console.log(`  full match: ${String(fm.end_reason)} after ${fullRounds} rounds, winner ${String(fm.winner_seat)}, p2 Health ${String(fm.p2_health)}`);
+  for (const p of [full.a, full.b]) { await p.req('leave').catch(() => undefined); p.client!.close(); }
   await worker.dispose();
 
   const r = stat(readyLatency);
   const tl = timerLatency.length ? stat(timerLatency) : null;
   const res = stat(server.resolveMs);
-  console.log('\n== Versus on Cloudflare: local measurements (workerd via wrangler, one machine, no network RTT) ==');
+  console.log('\n== Versus on Cloudflare: measurements, ' + (remote ? 'LIVE against ' + remote + ' (real internet)' : 'local (workerd via wrangler, one machine, no network RTT)') + ' ==');
   console.log(`last End Turn -> fight on every client: median ${ms(r.median)}, p90 ${ms(r.p90)}, max ${ms(r.max)} (n=${r.n})`);
   console.log(`  the locking player's own answer (already 'combat'): median ${ms(stat(lockAnswer).median)}`);
   console.log(`  resolve inside the object (simulate + digest + commit): median ${ms(res.median)}, max ${ms(res.max)} (n=${res.n})`);

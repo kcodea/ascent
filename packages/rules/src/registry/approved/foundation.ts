@@ -10358,7 +10358,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-VERSUS-RELIABLE-02',
     title: 'Versus: only the client that closed the round asks the resolver at once; the rest wait a jittered backstop; one call in flight',
     statement:
-      'An answer to a client\x27s own submit or reconcile that reads `resolving` makes it ask the resolver at once only when the server says that call closed the round (`closed_by_me`, snake or camel case). Without the field (an older server) exactly one deterministic asker does: seat p1 in 1v1, else the table\x27s first seat still playing in person (not out, not on auto, not a recorded Ranked Duos member). Every other client asks only after its backstop: 4 s plus up to 1.5 s of per-client jitter from when it saw the round closed. A client never has two resolver calls in flight.',
+      'An answer to a client\x27s own submit or reconcile that reads `resolving` makes it ask the resolver at once only when the server says that call closed the round (`closed_by_me`, snake or camel case). Without the field (an older server) exactly one deterministic asker does: seat p1 in 1v1, else the table\x27s first seat still playing in person (not out, not on auto, not a recorded Ranked Duos member). Every other client asks only after its backstop: 4 s plus up to 1.5 s of per-client jitter from when it saw the round closed. When the server bumps the match's `resolve_retry` for the closed round, the client asks once more at once. A client never has two resolver calls in flight.',
     domain: 'foundation',
     status: 'approved',
     evidence: [

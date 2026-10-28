@@ -89,6 +89,17 @@ describe('R-VERSUS-RELIABLE-02: the thundering resolver, through the session', (
     expect(finalize).toHaveBeenCalledTimes(1);
   });
 
+  it('the server bumps `resolve_retry` for the closed round: I ask once more at once (no backstop wait)', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99); // my backstop: about 5.5 s
+    answer = matchOf({ closed_by_me: false, resolve_retry: 0 });
+    await enter();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(finalize).not.toHaveBeenCalled();
+    answer = matchOf({ closed_by_me: false, resolve_retry: 1, revision: 6 });
+    await vi.advanceTimersByTimeAsync(3100); // the next heartbeat (4 s) carries the bump, well before my backstop
+    expect(finalize).toHaveBeenCalledTimes(1);
+  });
+
   it('my call closed the round: I ask at once', async () => {
     answer = matchOf({ closed_by_me: true });
     await enter();

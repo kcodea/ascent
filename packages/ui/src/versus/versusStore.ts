@@ -704,6 +704,14 @@ let readyInFlight = false;
  *  (`finalizeBackstopMs`: 4 s plus this client's jitter, R-VERSUS-RELIABLE-02). */
 let closedSeen: { key: string; at: number; backstop: number } | null = null;
 
+/** The last `resolve_retry` this client saw for the closed round (R-VERSUS-RELIABLE-02). */
+let retrySeen: { key: string; n: number } | null = null;
+/** The match's `resolve_retry` (a group match carries it on its raw row). */
+const resolveRetryOf = (m: VersusMatch): number | null => {
+  const v = m.group?.raw.resolve_retry ?? m.resolve_retry;
+  return typeof v === 'number' ? v : null;
+};
+
 /** Am I the table's fallback asker (the server did not say who closed the round)? */
 function iLeadFinalize(m: VersusMatch): boolean {
   const raw = m.group?.raw;
@@ -812,6 +820,14 @@ async function onMatch(match: VersusMatch): Promise<void> {
   set({ match });
   // The pools going into the round (R-VERSUS-LIVE-ARMOR-01): 1v1 here, a group match in `ingestGroup`.
   if (!match.group) noteVersusEntering(match.id, match.phase, match.round, { p1: { health: match.p1_health, armor: match.p1_armor }, p2: { health: match.p2_health, armor: match.p2_armor } });
+  // THE SERVER ASKS AGAIN (fix/versus-server-reliability's contract): `resolve_retry` going up for the round I see closed
+  // means the resolver must be asked once more; any client may, so this one does (still one call in flight).
+  const retry = resolveRetryOf(match);
+  if (match.phase === 'resolving' && retry != null && mySeat(match)) {
+    const key = `${match.id}|${match.round}`;
+    if (retrySeen?.key === key && retry > retrySeen.n) { finalizeGate.reset(); kickFinalize(match); }
+    if (retrySeen?.key !== key || retry > retrySeen.n) retrySeen = { key, n: retry };
+  }
   // The "slow to settle" notice lasts only while that round is still closed.
   const slow = get().resolveSlow;
   if (slow && (match.phase !== 'resolving' || slow !== `${match.id}|${match.round}`)) set({ resolveSlow: null });

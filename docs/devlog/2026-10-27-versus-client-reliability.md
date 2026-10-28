@@ -19,4 +19,6 @@ Notes for the next session:
   unwatched join status. The per-match topic stays: it keeps late leave/close traffic for an old join off the new channel.
 - Mixed builds in one room (old client on `versus:<room>`, new on `versus:<room>:<match>`) do not see each other's
   broadcasts (emotes, spectator frames) until both update; row changes are unaffected.
-- `closed_by_me` is read as an optional field; it works before and after the server half lands.
+- `closed_by_me` is read as an optional field; it works before and after the server half lands. Without it the client
+  does NOT keep the old every-client kick (the server contract's suggestion): one deterministic asker (p1 / first live
+  seat) plus the jittered backstop. `resolve_retry` going up triggers one more ask; `end_reason: 'void'` is in the unions.

@@ -118,7 +118,7 @@ export interface VersusMatch {
   p1_missed: number;
   p2_missed: number;
   winner_seat: VersusSeat | null;
-  end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | null;
+  end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | 'void' | null;
   completed_at: string | null;
   serverNow?: string;
   /** The room options this match started with (R-VERSUS-OPTIONS-01). Null on a match before 2026-10-24. */
@@ -126,6 +126,9 @@ export interface VersusMatch {
   /** THE CLOSER (R-VERSUS-RELIABLE-02; fix/versus-server-reliability): true on an answer to MY call (submit / reconcile)
    *  when that call closed the round, so this client alone asks the resolver at once. Absent on an older server. */
   closed_by_me?: boolean;
+  /** THE SERVER'S RESOLVE RETRY (fix/versus-server-reliability): 0 when the round entered `resolving`, bumped each time
+   *  the server wants the resolver asked again. Absent on an older server. */
+  resolve_retry?: number | null;
   /** VERSUS GROUP (R-VERSUS-GROUP-01): this row is a 3-4 player match PROJECTED onto the 1v1 shape from one seat's
    *  side (`versusGroupView.ts`): p1 = that seat, p2 = its opponent this round. The full table rides here. */
   group?: VersusGroupView;
@@ -220,6 +223,8 @@ export interface VersusGroupMatchRaw {
   id: string;
   /** THE CLOSER (R-VERSUS-RELIABLE-02): see `VersusMatch.closed_by_me`. */
   closed_by_me?: boolean;
+  /** See `VersusMatch.resolve_retry`. */
+  resolve_retry?: number | null;
   room_id: string | null;
   seed: number;
   set_id: string;
@@ -241,7 +246,7 @@ export interface VersusGroupMatchRaw {
   pause_grace_until: string | null;
   resume_at: string | null;
   winner_seat: VersusGroupSeat | null;
-  end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | null;
+  end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | 'void' | null;
   completed_at: string | null;
   serverNow?: string;
   seats: VersusGroupSeatRow[];

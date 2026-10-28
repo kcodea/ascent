@@ -2113,6 +2113,8 @@ function commitResolvedAction(
               // `v2` itself is assembled above (it also feeds "Rewatch last game" for non-lobby runs).
               void uploadRunTelemetry(telemetry, {
                 author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, derived, replay: { ...replay, v2: v2Stamped },
+                // The row's idempotency key (R-NET-OUTBOX-01): the same seed|finish-time the Career row is keyed by.
+                uploadKey: `${next.seed}|${nowIso}`,
               });
             } catch { /* best-effort — telemetry must never disrupt the end screen */ }
           }

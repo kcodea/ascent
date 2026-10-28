@@ -600,6 +600,31 @@ export const PERSISTENCE_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/waveModeLiveBugs.test.tsx'], lastVerifiedAt: '2026-10-14' },
   },
   {
+    id: 'R-NET-OUTBOX-01',
+    title: 'A finished run\'s boards, telemetry, Career row and fights are never silently lost, doubled or downgraded',
+    statement:
+      'At run end the boards, the telemetry row, the Career row and the fight-ledger rows go through a durable outbox: '
+      + 'stored first, sent at once, and kept until the server takes them. A network failure, a timeout or a busy '
+      + 'server keeps the write and retries it later (on a timer, when the network returns, when a session starts). '
+      + 'Every write carries a key the server dedupes on (a board\'s id, the run\'s seed and finish time), so a retry '
+      + 'never stores a row twice. A write the server refuses for good, or one still failing after five tries, is '
+      + 'reported to the server\'s failure log. A row is sent whole: it is never re-sent with fewer columns because of '
+      + 'an error, and a board played unrated always arrives unrated. Writes stay bound to the account they were played '
+      + 'under; a run finished with no session is sent by the next session, its boards unrated.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-28 (Supabase cleanup scope)', quote: "scope out a massive supabase clean up so that we're running really cleanly across the board" },
+      { kind: 'code', ref: 'packages/ui/src/net/runOutbox.ts (policy + IndexedDB store); packages/ui/src/remoteBoards.ts uploadBoards / uploadRunTelemetry / uploadRunHistory / recordLobbyFights / flushRunOutbox; supabase/migrations/2026-11-07-durable-run-uploads.sql (upload_key indexes, report_write_failure, ops.events)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-28 (idempotency once the migration is applied; until then the client falls back to the plain '
+      + 'insert). Before, each write was one attempt with the error swallowed, a failed item was dropped from the offline '
+      + 'queue, and the board and telemetry "fallback ladders" re-sent poorer rows on ANY error: 2 unrated boards landed '
+      + 'as rated and 10 telemetry rows lost stamps in 16 days.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/net/runOutbox.test.ts', 'packages/ui/src/net/durableUploads.db.test.ts', 'packages/ui/src/uploadQueue.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
+  {
     id: 'R-ENDSCREEN-01',
     title: 'A lobby, tutorial or Gauntlet end screen does none of the work of the retired course screen',
     statement:

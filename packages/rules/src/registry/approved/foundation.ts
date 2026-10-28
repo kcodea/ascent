@@ -10693,4 +10693,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Bob\x27s phone loses its network in a Group shop: his last ping was 2 s before. 13 s later the room closes his socket as stale, and 3 s after that the match pauses on him.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/chaos/versusChaosCf.test.ts', 'packages/ui/src/versus/chaos/chaosMatch.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-FREEZE-TAUNT-01',
+    title: 'Frozen Taunt minions get the same ice as every other minion, seated on their shield frame',
+    statement:
+      'When the Shop is frozen, a Taunt minion wears the same ice ring, look and grow-in as any other minion, sized '
+      + 'and placed on its shield frame the way a regular minion gets it on its oval frame. A frame shape never leaves '
+      + 'a frozen card with a smaller or misplaced ice ring.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-28', quote: 'do taunt frames get the same effect as the minion frames for freeze? they should. it looks like they may not?' },
+      { kind: 'fix-pr', ref: 'fix/taunt-freeze-fit: packages/ui/src/styles.css ([data-zone=tavern].frozen .card.taunt:not(.spellcard)::after on the .tframe-img box)' },
+    ],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-28. The shop ice (PR #2340) only had frame-fitted seats for .stdframe minions and '
+      + '.spellframe spells; Taunt minions are neither, so their ice fell back to the bare card box. They now sit on the '
+      + 'shield box (1.527 wide, 1086/1448) with the shared Minion ice dials.',
+    example: 'Freezing a Shop that offers a Taunt minion wraps its shield frame in the same jagged ice ring, at the same relative size, as the oval minion beside it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/tauntFreezeFit.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

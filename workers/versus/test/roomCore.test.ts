@@ -216,7 +216,7 @@ describe('Versus Room (Cloudflare) — ready, close, resolve', () => {
 });
 
 describe('Versus Room (Cloudflare) — disconnects', () => {
-  it('a closed socket pauses the match after the grace; back + request_resume plays on with every deadline moved', async () => {
+  it('a closed socket pauses the match after the grace; the socket coming back starts the 3-2-1 itself (R-VERSUS-AUTO-RESUME-01) and every deadline moves', async () => {
     const h = await inShop();
     const deadline = h.m.shop_deadline!;
     h.core.disconnect(U2, h.now);
@@ -228,9 +228,10 @@ describe('Versus Room (Cloudflare) — disconnects', () => {
     // The paused clock does not run out.
     await h.advance(turnSeconds(1) * 1000 + 10_000);
     expect(h.m.phase).toBe('shop');
-    h.core.connect(U2, h.now);
     await expect(h.op(U1, 'request_resume', { matchId: h.id })).rejects.toThrow('not_your_pause');
-    await h.op(U2, 'request_resume', { matchId: h.id });
+    const fx = h.core.connect(U2, h.now);
+    expect(h.m.resume_at).toBe(h.now + 3_000);
+    expect(fx.events.map((e) => e.kind)).toContain('resume_request');
     await h.advance(3_000);
     expect(h.m.paused_at).toBeNull();
     expect(h.m.shop_deadline).toBe(deadline + (h.now - pausedAt));
@@ -304,6 +305,28 @@ describe('Versus Room (Cloudflare) — disconnects', () => {
     expect(h.m.paused_at).not.toBeNull();
     await h.advance(10 * 60_000);
     expect(h.m.end_reason).toBe('abandoned');
+  });
+});
+
+describe('Versus Room (Cloudflare) — a round that cannot resolve', () => {
+  it('ends the match void (no winner, nobody charged) instead of sitting in resolving (R-VERSUS-RESOLVE-TIMEOUT-01)', async () => {
+    const h = new Harness();
+    h.core = new RoomCore(h.core.state, { ...deps(), resolve: async () => { throw new Error('engine broke'); } });
+    h.core.connect(U1, h.now);
+    h.core.connect(U2, h.now);
+    await h.op(U2, 'join', JOIN);
+    await h.op(U1, 'start');
+    await h.op(U1, 'gate');
+    await h.op(U2, 'gate');
+    await h.advance(20_000);
+    await h.advance(45_000);
+    await h.op(U1, 'submit', { matchId: h.id, round: 1, seq: 1, side: EMPTY, final: true, checkpoint: null });
+    await h.op(U2, 'submit', { matchId: h.id, round: 1, seq: 1, side: EMPTY, final: true, checkpoint: null });
+    expect(h.m.phase).toBe('complete');
+    expect(h.m.end_reason).toBe('void');
+    expect(h.m.winner_seat).toBeNull();
+    expect(h.core.state.room.status).toBe('open');
+    expect(h.log.flatMap((f) => f.events.map((e) => e.kind))).toEqual(expect.arrayContaining(['close', 'resolve_err', 'void']));
   });
 });
 

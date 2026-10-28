@@ -151,7 +151,8 @@ export interface CoreMatch {
   p1_missed: number;
   p2_missed: number;
   winner_seat: Seat | null;
-  end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | null;
+  /** 'void' (R-VERSUS-RESOLVE-TIMEOUT-01, 2026-11-02): a round that could not be resolved ends the match, no winner. */
+  end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | 'void' | null;
   options: Record<string, unknown>;
   created_at: number;
   updated_at: number;
@@ -243,6 +244,9 @@ export interface CoreEffects {
   /** Storage keys to rewrite (`meta`, `sub:p1`, `last:p2`, `ckpt:p1`, `round:3`, ...). */
   dirty: Set<string>;
   persist: PersistJob[];
+  /** Match events for the log (the `versus_events` kinds, R-VERSUS-EVENTS-01): pause, resume, resume_request, close,
+   *  resolve_ok, resolve_err, void, auto_on, auto_off. */
+  events: { kind: string; round: number; detail?: Record<string, unknown> }[];
   /** Members that left (released from the directory). */
   left: string[];
   /** The room's listing summary may have changed. */
@@ -256,6 +260,8 @@ export interface CoreDeps {
   uuid(): string;
   /** Called with each resolve's wall time (observability). */
   onResolve?(round: number, ms: number): void;
+  /** The resolver (tests inject a failing one; default `handleVersusFinalize`). */
+  resolve?: typeof handleVersusFinalize;
   /** High-resolution timer for the resolve measurement (performance.now in the object). */
   perfNow?(): number;
 }
@@ -296,7 +302,7 @@ export function turnSeconds(round: number): number {
 }
 
 function emptyEffects(): CoreEffects {
-  return { room: false, match: false, priv: new Set(), rounds: [], dirty: new Set(), persist: [], left: [], summary: false };
+  return { room: false, match: false, priv: new Set(), rounds: [], dirty: new Set(), persist: [], events: [], left: [], summary: false };
 }
 
 export function newRoomState(input: CreateRoomInput, now: number): CoreState {
@@ -382,7 +388,34 @@ export class RoomCore {
       m.disconnectedAt = null;
       this.touchRoom();
     }
+    this.returned(userId, 'socket');
     return this.end();
+  }
+
+  /**
+   * A seated player is back (a socket opened, or a heartbeat): auto play ends (`versus_heartbeat`), and if the match is
+   * paused for THEM, the server 3-2-1 starts at once (R-VERSUS-AUTO-RESUME-01, 2026-11-02: "it would simply pause when
+   * someone returned"). No client call needed: the socket coming back IS the return.
+   */
+  private returned(userId: string, by: string): void {
+    const m = this.state.match;
+    const seat = this.seatOf(userId);
+    if (!m || !seat || m.phase === 'complete') return;
+    if (m[`${seat}_auto`]) {
+      m[`${seat}_auto`] = false;
+      m[`${seat}_missed`] = 0;
+      this.event('auto_off', { seat, by });
+      this.touchMatch();
+    }
+    if (m.paused_at != null && m.resume_at == null && m.paused_seat === seat) {
+      m.resume_at = this.now + RESUME_COUNTDOWN_MS;
+      this.event('resume_request', { seat, by });
+      this.touchMatch();
+    }
+  }
+
+  private event(kind: string, detail?: Record<string, unknown>): void {
+    this.fx.events.push({ kind, round: this.state.match?.round ?? 0, ...(detail ? { detail } : {}) });
   }
 
   /** `userId` holds no open socket any more (its last one closed or went stale). */
@@ -730,11 +763,7 @@ export class RoomCore {
     const out: Record<string, unknown> = { serverNow: iso(this.now) };
     const seat = this.seatOf(userId);
     if (m && seat && m.phase !== 'complete') {
-      if (m[`${seat}_auto`]) {
-        m[`${seat}_auto`] = false;
-        m[`${seat}_missed`] = 0;
-        this.touchMatch();
-      }
+      this.returned(userId, 'heartbeat');
       out.match = MATCH_JSON;
     }
     if (m && m.paused_at != null && m.phase !== 'complete') {
@@ -1010,6 +1039,7 @@ export class RoomCore {
     m.p1_locked = m.p2_locked = true;
     this.touchMatch();
     this.pendingResolve = true;
+    this.event('close');
   }
 
   /** Resolve a `resolving` round through the Edge Function's own handler over an in-memory store. */
@@ -1035,8 +1065,19 @@ export class RoomCore {
         commit: async (args) => this.commitRound(args),
         log: (msg, detail) => console.warn(msg, detail),
       };
-      const res = await handleVersusFinalize(m.p1_user, { matchId: m.id, round: m.round }, engineContentRevision(), store);
-      if (res.status !== 200) console.error('versus cf: resolve refused', res.body);
+      let res: { status: number; body: Record<string, unknown> };
+      try {
+        res = await (this.deps.resolve ?? handleVersusFinalize)(m.p1_user, { matchId: m.id, round: m.round }, engineContentRevision(), store);
+      } catch (e) {
+        res = { status: 500, body: { error: String(e) } };
+      }
+      if (res.status === 200 && m.phase !== 'resolving') this.event('resolve_ok');
+      else {
+        // R-VERSUS-RESOLVE-TIMEOUT-01 in one step: the object IS the resolver, so a round it cannot resolve (an engine /
+        // content mismatch, a throw) will never resolve later either. The match ends 'void': no winner, nobody charged.
+        this.event('resolve_err', { status: res.status, body: res.body });
+        if (m.phase === 'resolving') { this.event('void'); this.complete(null, 'void'); }
+      }
       this.deps.onResolve?.(m.round, (this.deps.perfNow?.() ?? 0) - t0);
     }
   }
@@ -1105,6 +1146,7 @@ export class RoomCore {
     if (absent === seat) fail('cannot_unpause_own_absence');
     if (this.now < (m.pause_grace_until ?? 0)) fail('grace_running');
     m[`${absent}_auto`] = true;
+    this.event('auto_on', { seat: absent });
     m.resume_at = this.now + RESUME_COUNTDOWN_MS;
     this.touchMatch();
     return MATCH_JSON;
@@ -1125,6 +1167,7 @@ export class RoomCore {
     const m = this.state.match!;
     if (m.paused_at == null) return;
     const d = this.now - m.paused_at;
+    this.event('resume', { pausedMs: d });
     const shift = (t: number | null): number | null => (t == null ? null : t + d);
     m.hero_deadline = shift(m.hero_deadline);
     m.shop_starts_at = shift(m.shop_starts_at);
@@ -1187,6 +1230,8 @@ export class RoomCore {
       m.paused_seat = gone1 && !m.p1_auto ? 'p1' : 'p2';
       m.paused_at = this.now;
       m.pause_grace_until = this.now + VERSUS_PAUSE_GRACE_SECONDS * 1000;
+      m.resume_at = null;
+      this.event('pause', { seat: m.paused_seat });
       this.touchMatch();
       return;
     }

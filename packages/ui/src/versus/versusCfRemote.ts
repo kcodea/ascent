@@ -307,9 +307,8 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
       listeners.add(l);
       void socket(id).catch(() => undefined);
       return {
-        channel: null as never,
         send: (event: string, payload: unknown) => { if (roomId === id) client?.broadcast(event, payload); },
-        close: () => { listeners.delete(l); },
+        close: async () => { listeners.delete(l); },
       };
     },
   };

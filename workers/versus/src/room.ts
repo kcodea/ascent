@@ -297,6 +297,8 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     }
     // 2. Persistence jobs into the outbox (drained by the alarm, in order).
     if (fx.persist.length) await this.enqueue(fx.persist);
+    // The match event log (Workers Logs; the same kinds `versus_events` records on Supabase).
+    for (const e of fx.events) this.log({ ev: 'versus_cf_event', match: this.core?.state.match?.id, ...e });
     // 3. Pushes. A committed round goes out BEFORE the match row that moved to combat, in one burst, so a client that
     //    sees "combat" already holds the fight (no read between the commit and the fight on screen).
     const now = new Date().toISOString();

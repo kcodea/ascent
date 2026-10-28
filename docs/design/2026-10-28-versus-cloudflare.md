@@ -38,7 +38,7 @@
   Wrangler bundles it (1.82 MB, 427 KB gzipped: inside the Workers Paid 10 MB limit).
 - **The rules are a pure state machine** (`workers/versus/src/core/roomCore.ts`), ported function by function from the
   1v1 SQL. The object (`room.ts`) is a shell: sockets, storage, alarm. `now` and seeds are injected, so the rules are
-  tested on a fake clock in the ordinary `npm test` (`workers/versus/test/roomCore.test.ts`, 20 tests).
+  tested on a fake clock in the ordinary `npm test` (`workers/versus/test/roomCore.test.ts`, 21 tests).
 
 ## 2. Message protocol (client ⇄ room)
 
@@ -87,15 +87,17 @@ of wakes a second, starving the runtime). Only future times are armed; a test pi
 
 | | Supabase today | Cloudflare |
 |---|---|---|
-| Presence | `last_seen_at` from a 4 s heartbeat RPC; gone = no beat for 12 s | The socket. Gone = no open socket for **3 s** (`DISCONNECT_GRACE_MS`) |
-| Detection | 12 s lease + up to one beat (~16 s; was ~20 s before a fix) | Close frame: the room knows in **~3 ms**; pause after the 3 s grace |
+| Presence | `last_seen_at` from a 4 s heartbeat RPC; gone = no beat for 14 s (`versus__lease`, #2362; was 12 s) | The socket. Gone = no open socket for **3 s** (`DISCONNECT_GRACE_MS`) |
+| Detection | 14 s lease + up to one beat (~18 s) | Close frame: the room knows in **~3 ms**; pause after the 3 s grace |
+| Return from a pause | the absent player's next heartbeat starts the 3-2-1 (R-VERSUS-AUTO-RESUME-01, #2362) | the socket reopening starts the 3-2-1 at once (same rule; the heartbeat does it too) |
 | Half-open phone socket | lease expiry | Client: no `pong` for 15 s ⇒ drop + reconnect. Room: alarm sweep closes a socket whose auto-response is older than 15 s |
 | Blip (reload, network hand-over) | can pause if the beat gap passes the lease | Back inside 3 s ⇒ never paused (measured reconnect 120 ms) |
 | Reconnect | re-subscribe + re-read room, match, rounds (several round trips) | `hello` answers room + match + private row in one frame (7-18 ms locally) |
 
 The pause rules are GAME-RULES' unchanged: a seat gone pauses the match (deadlines stop and move later by the pause);
 after 30 s the opponent may unpause, the absent seat then plays its last locked board, three such rounds forfeit;
-coming back (`heartbeat` / `request_resume`) clears auto and starts the 3-2-1; both gone for 10 minutes of pause =
+coming back clears auto and starts the 3-2-1 by itself (R-VERSUS-AUTO-RESUME-01: the reopened socket is the return;
+`heartbeat` and `request_resume` still work); both gone for 10 minutes of pause =
 abandoned; leaving mid-match concedes. One live socket per account per room: a newer socket replaces an older one
 (close 4000), and a closing socket only counts as "gone" if it was the account's last open one.
 
@@ -179,6 +181,7 @@ network round trip is included; add the player's RTT to the nearest Cloudflare P
 | Disconnect → server knows | 12 s lease (+ up to 4 s) | **~3 ms**; pause shown at 3.02 s (3 s grace by design) |
 | Blip (drop + auto-reconnect) | could pause | back in **120 ms**, no pause |
 | Reconnect → full state | several reads after re-subscribe | **7-18 ms** (one `hello`); resume after the 3-2-1 at 3.03 s |
+| Re-run after rebasing on #2362/#2363 | | median 6.6 ms ready close, 274 ms timer close, 9.8 ms reconnect (same) |
 | Messages per both-ready round (2 players, 2 candidates + a lock + End Combat each) | RPCs + Realtime wake-ups + re-reads + 500 ms tick asks + 4 s heartbeats | clients send 8, receive 18 (8 answers + 10 pushes); room in 8 / out 18; 26-70 KB out (both fight perspectives to both players) |
 | Worker cold start (first request, engine module init) | Edge Function cold start | ~300-440 ms locally, once per isolate |
 
@@ -216,8 +219,12 @@ point given the egress overage noted 2026-10-26.
 | `versus__raise_reported_armor` (+ `versus__reported_armor`, `versus__armor_floor_max`) | `raiseReportedArmor` (uses the sim's `reportedVitals` / `versusArmorFloorMax`) |
 | `versus-resolve` `finalize` + `versus_commit_round` + `versus__round_scouts` trigger | `settle` → `handleVersusFinalize` (same code) → `commitRound` |
 | `versus_combat_ready`, `versus_forfeit`, `versus__complete` | ops; `complete` |
-| `versus_heartbeat` | the socket (presence) + op `heartbeat` (clears auto, `seen` while paused) |
-| `versus_reconcile`, `versus__resume`, `versus_unpause`, `versus_request_resume` | `tick` (alarm), `resume`, ops |
+| `versus_heartbeat` (#2362: lock-free beat, 14 s lease, auto-resume) | the socket (presence) + `returned()` on reconnect or op `heartbeat`: clears auto, starts the 3-2-1 for the paused seat (R-VERSUS-AUTO-RESUME-01); `seen` while paused |
+| `versus_reconcile` (#2362: lock-free when nothing is due), `versus__resume`, `versus_unpause`, `versus_request_resume` | `tick` (alarm), `resume`, ops |
+| `versus__close_json` / `closed_by_me` (R-VERSUS-CLOSE-ONCE-01) | not needed: the object closes AND resolves; nobody else is asked. The adapter's `finalize` is a no-op, so the client's one-asker logic (#2363) is inert |
+| `versus__phase_watch`, `resolving_since` / `resolve_deadline` / `resolve_retry`, `versus__resolve_overdue`, `versus__unresolvable` (R-VERSUS-RESOLVE-TIMEOUT-01) | in one step: a resolve that fails (throws, engine/content mismatch) ends the match `void` at once (it would never succeed on a retry inside the same object); test-pinned |
+| `versus_sweep` + cron (R-VERSUS-SWEEP-01) | each room's alarm (abandon after 10 min of pause with both gone; prune); no global sweep |
+| `versus_events` + `versus__event` (R-VERSUS-EVENTS-01) | `CoreEffects.events` → `versus_cf_event` log lines (same kinds); can be mirrored into `versus_events` through the outbox if wanted |
 | `versus_publish_frame` + `versus_spectator_frames` | op `publish_frame` (memory) + `bc` relay |
 | `versus_records`, `settle_progression` (versus branch), `spectate_beat` | stay in Supabase (readers of persisted rows) |
 | `versus_test_bot_register`, `versus_dev_*` | not ported (dev tools; re-add as DEV-only ops if needed) |
@@ -234,7 +241,10 @@ room ops + Supabase reads/writes through the outbox; the `sweep_abandoned` cron 
 - No finalize hop, no "who calls the resolver", no duplicate resolves: the object that closes the round resolves it.
 - No row locks, lock ordering, deadlock retries or `for update` choreography: one single-threaded object per room.
 - No client-driven deadlines (the 500 ms tick, keyed backoff, reconcile storms): one alarm.
-- No heartbeat lease and no false pauses from a late beat: presence is the socket, with a 3 s grace.
+- No heartbeat lease and no false pauses from a late beat or a lock wait: presence is the socket, with a 3 s grace.
+- The whole of #2362/#2363's machinery (closed_by_me, one resolver asker, resolve retry windows, void after 90 s, the
+  global sweep, lock_timeout heartbeats, Realtime heal/re-open, RPC abort timers) has no counterpart to maintain: the
+  object resolves synchronously, owns its own timers, and the client has one socket that reconnects itself.
 - No Postgres Changes, no channel reuse bugs, no polling, no re-read after a wake-up: state is pushed.
 - No RLS gymnastics for private rows (hero offers, Duos passes): the object sends each seat its own.
 - `versus_spectator_frames` writes and most Versus egress disappear.
@@ -249,6 +259,10 @@ Supabase Versus keeps receiving fixes while this is built. Rules for the port wi
 - Engine-side rules (damage, pools, resolve, digests) live once in `@game/sim/versus/*` and are shared automatically.
 - The chaos harness (`test/versus-chaos-harness`) gains a transport switch and runs against both backends; each
   phase's cutover requires a clean chaos run on Cloudflare.
+- Folded in from main since the spike started: #2360 live Armor (raise on a fresh report), #2362 server reliability
+  (auto-resume on return, void instead of a stuck resolving round, the event log kinds; lease/lock/close-once/sweep are
+  structurally unnecessary), #2363 client reliability (the adapter matches the new `subscribeRoom` shape; its resolver
+  asker and Realtime heal are inert over this transport).
 - Known current deltas carried into the port: the 1v1 `submit` scout overload path; `versus_ready_signal` (ready is a
   signal); live Armor (`2026-11-03-versus-live-armor.sql`); `R-VERSUS-EMPTY-01` (empty boards fight) all included.
 
@@ -272,9 +286,11 @@ Supabase Versus keeps receiving fixes while this is built. Rules for the port wi
 
 ## 18. What the owner must provide before going live
 
-1. **A Cloudflare account on Workers Paid** ($5/month; Durable Objects with SQLite storage + WebSocket hibernation).
-2. **An API token** for deploys from CI / the pack script: scope "Edit Cloudflare Workers" (Workers Scripts:Edit,
-   Account Settings:Read, Workers KV/Durable Objects included) on that account only. Plus the account id.
+1. **A Cloudflare account on Workers Paid** — DONE (2026-10-28; `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` are set
+   locally, `wrangler whoami` works). Nothing has been deployed: the first deploy waits for the owner's review of this PR.
+2. **The deploy token's scope**, confirmed before CI uses it: "Edit Cloudflare Workers" on this account only (Workers
+   Scripts:Edit, Account Settings:Read; Durable Objects come with Workers Scripts). Stored as a GitHub Actions secret for
+   the pack/deploy job, never in the repo.
 3. **Supabase key for the persistence writer** (stored as a Worker secret, never in the repo). Recommendation: NOT the
    service role. A dedicated Postgres role (`versus_writer`) with INSERT/UPDATE on `versus_matches`, `versus_rounds`
    (later `versus_group_*`, `duo_runs*`) and EXECUTE on the few RPCs it calls (`settle_duos_rank`, the samples), reached
@@ -308,7 +324,7 @@ Supabase Versus keeps receiving fixes while this is built. Rules for the port wi
   → fight on both clients with the reference digest, the alarm's 0:00 close, blip / pause / reconnect). Needs Node 22+;
   not in the root `npm test` (CI is Node 20).
 - `npm run versus:cf:measure` — the numbers in section 11.
-- `workers/versus/test/roomCore.test.ts` (in `npm test`) — ready, ready-signal unready, 0:00 close with grace, AFK both
+- `workers/versus/test/roomCore.test.ts` (in `npm test`, 21 tests) — void on an unresolvable round, ready, ready-signal unready, 0:00 close with grace, AFK both
   sides, End Combat, combat cap, pause/resume with deadlines moved, blip, unpause → auto → missed forfeit, heartbeat
   clears auto, abandon, concede and leave, Health 0, spectators, hibernation restore, alarm never re-arms the past, and
   **parity**: every fixture fight resolved in the room equals `simulate()` run locally (events and result) and its

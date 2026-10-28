@@ -1,0 +1,261 @@
+// @vitest-environment jsdom
+/**
+ * LIVE PINGS + MENTORS, the client (R-PING-01..05; owner 2026-10-29). Pins:
+ *  - send / receive per mode: a solo player's ping is a local note; a watched player's reaches the stream; a Duos
+ *    teammate's shows; an opponent's never does; a mentor ping only reaches its player, only from that player's mentor;
+ *  - mentor promote / demote, re-announced, and the player as the authority on its own mentor;
+ *  - who may open the menu (pingContext): a player in a game, a mentor on the watch screen; never a plain spectator,
+ *    a replay or the menus (there right-click goes straight to Inspect);
+ *  - the rate limit, the anchor (by uid, in its zone), clearing on a click / a drag, the menu layouts, the phone hold.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../identity', async (orig) => ({ ...(await orig<typeof import('../identity')>()), currentUserId: () => 'me' }));
+import { PING_EVENT, PING_MENTOR_EVENT, type PingMessage } from '@game/versus-cf/pings';
+import { useGame } from '../store';
+import { useSpectate } from '../versus/spectate';
+import { setWatchers } from '../versus/watchers';
+import { holdFiresOn, setCardHoldGate } from '../touchInput';
+import {
+  acceptPing,
+  clearPing,
+  clearPingsOnCard,
+  pingContext,
+  receivePingEvent,
+  resetPingRuntimeForTests,
+  sendPing,
+  setMyMentor,
+  setPingClockForTests,
+  setPingSession,
+  useMentors,
+  usePings,
+} from './pingRuntime';
+import { cardZoneOf, layoutPositions, openCardPingMenu, pingAnchorOf, usePingMenu } from './PingLayer';
+
+let now = 1_000_000;
+const sent: { e: string; p: unknown }[] = [];
+const msg = (over: Partial<PingMessage> = {}): PingMessage => ({ id: 'x.1', kind: 'check', owner: 'p1', target: { t: 'card', uid: '7', zone: 'shop' }, from: 'friend', ...over });
+
+function inGame(): void {
+  const g = useGame.getState();
+  useGame.setState({ showTitle: false, replaying: false, run: { ...g.run, phase: 'recruit' } });
+}
+function session(seat: 'p1' | 'p2' | 'p3' | 'p4' | null, mode: 'duel' | 'duos' | 'lobby' = 'duel', gameKey = 'g1'): void {
+  setPingSession('test', { send: (e, p) => { sent.push({ e, p }); }, seat: () => seat, mode: () => mode, gameKey });
+}
+
+beforeEach(() => {
+  now = 1_000_000;
+  sent.length = 0;
+  setPingClockForTests(() => now);
+  resetPingRuntimeForTests();
+  useSpectate.setState({ active: false, seat: 'p1', teammate: false, hero: null, teammateHero: false });
+  setWatchers([]);
+  inGame();
+});
+afterEach(() => {
+  setPingSession('test', null);
+  setPingClockForTests(null);
+  usePingMenu.setState({ open: null });
+  document.body.innerHTML = '';
+});
+
+describe('sending (R-PING-01)', () => {
+  it('a solo player pings with no stream: a local note to self', () => {
+    expect(pingContext()).toEqual({ owner: 'p1', role: 'self' });
+    expect(sendPing('check', { t: 'card', uid: '7', zone: 'shop' })).toBe(true);
+    expect(usePings.getState().list).toHaveLength(1);
+    expect(usePings.getState().list[0]).toMatchObject({ mine: true, role: 'self', owner: 'p1' });
+  });
+
+  it('a seated player in a game sends on the stream as self (spectators see it)', () => {
+    session('p2');
+    sendPing('sell', { t: 'button', id: 'refresh' });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.e).toBe(PING_EVENT);
+    expect(sent[0]!.p).toMatchObject({ kind: 'sell', owner: 'p2', role: 'self', target: { t: 'button', id: 'refresh' } });
+  });
+
+  it('rate limit: 3 pings per 2 s per sender', () => {
+    const t = { t: 'card' as const, uid: '7', zone: 'shop' as const };
+    expect([sendPing('check', t), sendPing('x', t), sendPing('pass', t), sendPing('sell', t)]).toEqual([true, true, true, false]);
+    now += 2001;
+    expect(sendPing('check', t)).toBe(true);
+  });
+
+  it('outside a game (menus, a replay) there is no ping menu', () => {
+    useGame.setState({ showTitle: true });
+    expect(pingContext()).toBeNull();
+    useGame.setState({ showTitle: false, replaying: true });
+    expect(pingContext()).toBeNull();
+  });
+});
+
+describe('receiving per mode (R-PING-02)', () => {
+  it('Duos: my teammate\'s ping on my board shows; the other team\'s never does', () => {
+    session('p1', 'duos');
+    expect(receivePingEvent(PING_EVENT, msg({ owner: 'p1', role: 'mate', from: 'amy' }))).toBe(true);
+    expect(usePings.getState().list).toHaveLength(1);
+    receivePingEvent(PING_EVENT, msg({ id: 'y.1', owner: 'p3', role: 'self', from: 'bob' }));
+    expect(usePings.getState().list).toHaveLength(1);
+  });
+
+  it('1v1: an opponent\'s ping is never shown to the other player', () => {
+    session('p1', 'duel');
+    receivePingEvent(PING_EVENT, msg({ owner: 'p2', role: 'self', from: 'bob' }));
+    expect(usePings.getState().list).toHaveLength(0);
+  });
+
+  it('a spectator sees the watched player\'s own pings, never a mentor ping', () => {
+    session(null, 'lobby');
+    receivePingEvent(PING_EVENT, msg({ role: 'self', from: 'ann' }));
+    expect(usePings.getState().list).toHaveLength(1);
+    receivePingEvent(PING_EVENT, msg({ id: 'm.1', role: 'mentor', from: 'sam' }));
+    expect(usePings.getState().list).toHaveLength(1);
+  });
+
+  it('a mentor ping reaches the player only from the mentor they named', () => {
+    session('p1', 'lobby');
+    receivePingEvent(PING_EVENT, msg({ role: 'mentor', from: 'sam' }));
+    expect(usePings.getState().list).toHaveLength(0); // no mentor yet
+    setWatchers([{ id: 'sam', name: 'Sam', profile: null }, { id: 'tia', name: 'Tia', profile: null }]);
+    setMyMentor({ id: 'sam', name: 'Sam' });
+    receivePingEvent(PING_EVENT, msg({ id: 'm.2', role: 'mentor', from: 'tia' }));
+    expect(usePings.getState().list).toHaveLength(0); // not my mentor
+    receivePingEvent(PING_EVENT, msg({ id: 'm.3', role: 'mentor', from: 'sam' }));
+    expect(usePings.getState().list).toHaveLength(1);
+    expect(usePings.getState().list[0]).toMatchObject({ role: 'mentor', mine: false });
+  });
+
+  it('receivers rate limit each sender too', () => {
+    session(null, 'lobby');
+    for (let i = 0; i < 5; i++) receivePingEvent(PING_EVENT, msg({ id: `r.${i}`, from: 'ann', target: { t: 'card', uid: String(i), zone: 'board' } }));
+    expect(usePings.getState().list).toHaveLength(3);
+  });
+
+  it('acceptPing is the server rule, client side', () => {
+    const none = () => null;
+    expect(acceptPing(msg({ role: 'mentor', from: 'sam' }), { mySeat: 'p1', mode: 'lobby', mentorOf: () => 'sam' })).toBe(true);
+    expect(acceptPing(msg({ role: 'mentor', from: 'sam' }), { mySeat: null, mode: 'lobby', mentorOf: () => 'sam' })).toBe(false);
+    expect(acceptPing(msg({ owner: 'p4' }), { mySeat: 'p3', mode: 'duos', mentorOf: none })).toBe(true);
+    expect(acceptPing(msg({ owner: 'p2' }), { mySeat: 'p3', mode: 'duos', mentorOf: none })).toBe(false);
+  });
+});
+
+describe('mentors (R-PING-03)', () => {
+  it('promote, announce, demote; one at a time; the stands label follows', () => {
+    session('p1', 'lobby');
+    setWatchers([{ id: 'sam', name: 'Sam', profile: null }, { id: 'tia', name: 'Tia', profile: null }]);
+    expect(setMyMentor({ id: 'sam', name: 'Sam' })).toBe(true);
+    expect(useMentors.getState().bySeat.p1).toEqual({ id: 'sam', name: 'Sam' });
+    expect(sent.at(-1)).toEqual({ e: PING_MENTOR_EVENT, p: { seat: 'p1', mentor: 'sam', name: 'Sam' } });
+    setMyMentor({ id: 'tia', name: 'Tia' });
+    expect(useMentors.getState().bySeat.p1?.id).toBe('tia');
+    setMyMentor(null);
+    expect(useMentors.getState().bySeat.p1).toBeUndefined();
+    expect(sent.at(-1)).toEqual({ e: PING_MENTOR_EVENT, p: { seat: 'p1', mentor: null } });
+  });
+
+  it('a mentor who leaves the stands is demoted; a new game forgets the mentor', () => {
+    session('p1', 'lobby');
+    setWatchers([{ id: 'sam', name: 'Sam', profile: null }]);
+    setMyMentor({ id: 'sam', name: 'Sam' });
+    setWatchers([{ id: 'tia', name: 'Tia', profile: null }]);
+    expect(useMentors.getState().bySeat.p1).toBeUndefined();
+    setWatchers([{ id: 'sam', name: 'Sam', profile: null }]);
+    setMyMentor({ id: 'sam', name: 'Sam' });
+    session('p1', 'lobby', 'g2');
+    expect(useMentors.getState().bySeat.p1).toBeUndefined();
+  });
+
+  it('the player is the authority on its own mentor: a forged mentor message for my seat is ignored', () => {
+    session('p1', 'lobby');
+    receivePingEvent(PING_MENTOR_EVENT, { seat: 'p1', mentor: 'mallory' });
+    expect(useMentors.getState().bySeat.p1).toBeUndefined();
+  });
+
+  it('a spectator named mentor may ping the watched screen; a plain spectator may not', () => {
+    session(null, 'lobby');
+    useSpectate.setState({ active: true, seat: 'p1' });
+    expect(pingContext()).toBeNull();
+    receivePingEvent(PING_MENTOR_EVENT, { seat: 'p1', mentor: 'me', name: 'Me' });
+    expect(pingContext()).toEqual({ owner: 'p1', role: 'mentor' });
+    receivePingEvent(PING_MENTOR_EVENT, { seat: 'p1', mentor: null });
+    expect(pingContext()).toBeNull();
+  });
+
+  it('Duos: watching my teammate, I ping their screen as their mate', () => {
+    session('p1', 'duos');
+    useSpectate.setState({ active: true, seat: 'p2', teammate: true });
+    expect(pingContext()).toEqual({ owner: 'p2', role: 'mate' });
+  });
+});
+
+describe('the layer (R-PING-04/05)', () => {
+  function board(): HTMLElement {
+    document.body.innerHTML = `
+      <div data-zone="tavern"><div class="card" data-uid="7"></div></div>
+      <div data-zone="warband"><div class="row"><div class="card" data-uid="9"></div></div></div>
+      <div data-zone="hand"><div class="row hand"><div class="card" data-uid="11"></div></div></div>
+      <div class="discover"><div class="card" data-uid="13"></div></div>
+      <button data-spec="upgrade"></button>`;
+    return document.body;
+  }
+
+  it('anchors a ping by uid in its zone (it follows the card; a card gone from its zone is not found)', () => {
+    board();
+    expect(pingAnchorOf({ t: 'card', uid: '9', zone: 'board' })?.getAttribute('data-uid')).toBe('9');
+    expect(pingAnchorOf({ t: 'button', id: 'upgrade' })?.tagName).toBe('BUTTON');
+    // the card is re-mounted elsewhere in the zone (a reorder re-render): still found
+    const row = document.querySelector('[data-zone="warband"] .row')!;
+    row.innerHTML = '<div class="card" data-uid="1"></div><div class="card" data-uid="9"></div>';
+    expect(pingAnchorOf({ t: 'card', uid: '9', zone: 'board' })).toBe(row.children[1]);
+    // played / sold out of the zone: gone
+    row.innerHTML = '';
+    expect(pingAnchorOf({ t: 'card', uid: '9', zone: 'board' })).toBeNull();
+  });
+
+  it('right-click opens the menu on a play-zone card, else inspects straight away', () => {
+    board();
+    const inspect = vi.fn();
+    const shop = document.querySelector('[data-uid="7"]')!;
+    expect(openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: shop }, '7', inspect)).toBe(true);
+    expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid: '7', zone: 'shop' });
+    const discover = document.querySelector('[data-uid="13"]')!;
+    expect(openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: discover }, '13', inspect)).toBe(false);
+    useGame.setState({ showTitle: true }); // the menus / Compendium
+    expect(openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: shop }, '7', inspect)).toBe(false);
+    expect(cardZoneOf(document.querySelector('[data-uid="11"]')!)).toBe('hand');
+  });
+
+  it('phone: a hold on a play-zone card fires (opens the menu) only while pings are available', () => {
+    board();
+    const hand = document.querySelector('[data-uid="11"]')!;
+    expect(holdFiresOn(hand)).toBe(false);
+    setCardHoldGate((el) => !!pingContext() && !!cardZoneOf(el));
+    expect(holdFiresOn(hand)).toBe(true);
+    useGame.setState({ showTitle: true });
+    expect(holdFiresOn(hand)).toBe(false);
+    setCardHoldGate(null);
+  });
+
+  it('a ping is cleared by a click on it, or when its card is dragged', () => {
+    sendPing('check', { t: 'card', uid: '7', zone: 'shop' });
+    sendPing('x', { t: 'card', uid: '9', zone: 'board' });
+    const [a] = usePings.getState().list;
+    clearPing(a!.key);
+    expect(usePings.getState().list.map((p) => p.kind)).toEqual(['x']);
+    clearPingsOnCard('9');
+    expect(usePings.getState().list).toHaveLength(0);
+  });
+
+  it('design A fans three bubbles above the card and three below; B rings five around Inspect', () => {
+    const box = { left: 100, top: 200, width: 120, height: 160, right: 220, bottom: 360, x: 100, y: 200 };
+    const a = layoutPositions('A', 6, { x: 160, y: 280, box }, true);
+    expect(a.slice(0, 3).every((p) => p.y < box.top)).toBe(true);
+    expect(a.slice(3).every((p) => p.y > box.bottom)).toBe(true);
+    const b = layoutPositions('B', 6, { x: 160, y: 280, box }, true);
+    expect(b[0]).toEqual({ x: 160, y: 280 });
+    expect(b.slice(1).every((p) => Math.hypot(p.x - 160, p.y - 280) > 80)).toBe(true);
+  });
+});

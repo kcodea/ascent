@@ -12,3 +12,12 @@ export function originAllowed(origin: string | null, list: string | undefined): 
   }
   return false;
 }
+
+/**
+ * One allowlist entry as `scripts/deploy.ts` accepts it from `VERSUS_ALLOWED_ORIGINS`: an https origin (no path), or
+ * http on a local dev host. A bare `*` host, a path, or plain http to anywhere else is refused.
+ */
+export function validOrigin(o: string): boolean {
+  if (/^https:\/\/\*(\.|$)/.test(o) && !/^https:\/\/\*\.[a-z0-9-]+\.[a-z]{2,}$/i.test(o)) return false;
+  return /^https:\/\/[a-z0-9*][a-z0-9*.-]*(:[0-9*]+)?$/i.test(o) || /^http:\/\/(localhost|127\.0\.0\.1)(:[0-9*]+)?$/i.test(o);
+}

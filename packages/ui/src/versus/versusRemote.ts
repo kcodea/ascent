@@ -9,7 +9,9 @@ import { ownSeatPerspective, VERSUS_PROTOCOL, type RankResult, type HeroReroll, 
 import type { BoardMinion, CombatResult } from '@game/core';
 import { supabaseClient } from '../remoteBoards';
 import { currentUserId, setIdentity } from '../identity';
-import { makeCfVersusRemote, versusCfSelected } from './versusCfRemote';
+import { makeCfVersusRemote, versusCfDevUrl, versusCfSelected } from './versusCfRemote';
+import { devRouteOverride, embeddedCfUrl, encodeRoomRef, makeHostConfigReader, makeRoomHostMemory, type VersusHost } from './versusHost';
+import { makeRoutedVersusRemote, type RoutedVersusRemote } from './versusRouter';
 
 export type VersusRoomStatus = 'open' | 'sealed' | 'in_game';
 /** A room role: a player seat (p3 / p4 only in a group room, R-VERSUS-GROUP-01) or the stands. */
@@ -47,6 +49,8 @@ export interface VersusRoom {
   options_changed_at?: string | null;
   /** RANKED DUOS (2026-11-01-ranked-duos-party.sql): the party is listed for the host's friends only. */
   friends_only?: boolean;
+  /** THE CUTOVER (R-VERSUS-CF-CUTOVER-01): the backend the room lives on, stamped by the router (absent = Supabase). */
+  host?: VersusHost;
   members: VersusMember[];
   serverNow: string;
 }
@@ -69,6 +73,8 @@ export interface VersusRoomSummary {
   options?: VersusRoomOptions | null;
   /** RANKED DUOS: a friends-only party (listed only to the host's friends). */
   friendsOnly?: boolean;
+  /** THE CUTOVER: which backend lists the room (the router merges both lists). */
+  host?: VersusHost;
 }
 
 export interface VersusMatch {
@@ -869,11 +875,42 @@ export interface DuosLeaderboardRow { teamId: string; name: string | null; divis
 /** One of a player's Duos teams (`duos_teams_of`). */
 export interface DuosTeamOfRow { teamId: string; name: string | null; partner: DuosPlayerCard | null; division: number; points: number; games: number }
 
-/** The game's adapter. Supabase by default; the Cloudflare room transport only in a dev tab opened with
- *  `?versusHost=cf` (spike 2026-10-28, `versusCfRemote.ts`, docs/design/2026-10-28-versus-cloudflare.md). */
-export const versusRemote: VersusRemote = versusCfSelected()
-  ? makeCfVersusRemote({
-    getClient: supabaseClient, currentUserId, makeError: (code, message) => new VersusError(code, message),
-    adoptDevIdentity: (userId) => setIdentity({ userId, displayName: 'Dev', anonymous: true, email: null }),
-  })
-  : makeVersusRemote(supabaseClient);
+/**
+ * The game's adapter: the CUTOVER ROUTER over Supabase and Cloudflare (R-VERSUS-CF-CUTOVER-01, docs/versus-cf-cutover.md).
+ * Cloudflare is reachable only when this build carries the Worker for its own engine (`VITE_VERSUS_CF_URL`, set by
+ * `npm run release:web -- --versus-cf`), or a dev tab asked for one (`?versusHost=cf` / `cf-live`, `?versusRoute=`).
+ * Without either, every call goes to Supabase exactly as before, and the switch is never even read.
+ */
+const devCf = versusCfSelected();
+const devRoute = devRouteOverride();
+const cfUrl = devCf || devRoute ? versusCfDevUrl() : embeddedCfUrl(import.meta.env.VITE_VERSUS_CF_URL);
+/** The per-mode switch (`versus_host_config()`, 2026-11-05-versus-host-config.sql): one tiny jsonb, cached 30 s. */
+const hostConfig = makeHostConfigReader(async () => {
+  const c = supabaseClient();
+  if (!c) return null;
+  // rows: one jsonb object of four short strings (one per mode), never a table (R-NET-01).
+  const { data, error } = await c.rpc('versus_host_config');
+  if (error) throw error;
+  return data;
+});
+const safeStorage = (): Storage | null => { try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; } };
+
+export const versusRemote: RoutedVersusRemote = makeRoutedVersusRemote({
+  supabase: makeVersusRemote(supabaseClient),
+  cf: cfUrl
+    ? makeCfVersusRemote({
+      baseUrl: cfUrl, getClient: supabaseClient, currentUserId, makeError: (code, message) => new VersusError(code, message),
+      adoptDevIdentity: devCf ? (userId) => setIdentity({ userId, displayName: 'Dev', anonymous: true, email: null }) : undefined,
+    })
+    : null,
+  readConfig: () => hostConfig.get(),
+  // `?versusHost=cf` keeps its old meaning (every mode on Cloudflare); `?versusRoute=` sets single modes.
+  override: () => (devCf ? { duel: 'cf', group: 'cf', duos: 'cf', ranked_duos: 'cf' } : devRoute),
+  memory: makeRoomHostMemory(safeStorage()),
+  warn: (msg) => console.warn(msg),
+});
+export type { VersusHost };
+/** A room as it travels in an invite / a Watch id / a Live Games row: `cf:<id>` for a Cloudflare room, else the bare id. */
+export const versusRoomRef = (room: Pick<VersusRoom, 'id' | 'host'>): string => encodeRoomRef(room.id, room.host ?? versusRemote.hostOf(room.id));
+// The switch is read once at launch when this build can reach Cloudflare (never otherwise: no egress added).
+if (cfUrl) void versusRemote.warmConfig();

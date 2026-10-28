@@ -6,7 +6,7 @@
  * the panel is open (the shared 60 s loop, R-FRIENDS-05).
  */
 import { sfx } from '../sfx';
-import type { VersusRoom } from '../versus/versusRemote';
+import { versusRoomRef, type VersusRoom } from '../versus/versusRemote';
 import { inviteFriend, relationOf, useFriends, useFriendsListLoop } from './friendsStore';
 import { FriendPortrait, handleOf, sortFriends, statusText } from './FriendsPage';
 import { AddFriendButton } from './AddFriendButton';
@@ -25,6 +25,8 @@ export function RoomInvitePanel({ room, me, onClose }: { room: VersusRoom; me: s
   // RANKED DUOS (phase 3): a party's invite is a `duos_party` invite (the notice reads "invites you to their Ranked
   // Duos party"); every other room's is `versus_room`.
   const kind = room.options?.mode === 'ranked_duos' ? 'duos_party' as const : 'versus_room' as const;
+  // THE CUTOVER (R-VERSUS-CF-CUTOVER-01): a Cloudflare room's invite names its host (`cf:<id>`).
+  const target = versusRoomRef(room);
   return (
     <div className="vsveil" role="dialog" aria-label="Invite friends" onClick={onClose}>
       <div className="vspanel fr-roompanel" onClick={(e) => e.stopPropagation()}>
@@ -35,7 +37,7 @@ export function RoomInvitePanel({ room, me, onClose }: { room: VersusRoom; me: s
           {!list ? <div className="vspanel-body">Finding your friends…</div>
             : friends.length === 0 ? <div className="vspanel-body">No friends to invite yet. Add friends from the Friends page.</div>
             : friends.map((f) => {
-              const sent = list.sent.find((x) => x.to === f.userId && x.target === room.id);
+              const sent = list.sent.find((x) => x.to === f.userId && x.target === target);
               const label = sent?.status === 'pending' ? 'Invited' : sent?.status === 'declined' ? 'Declined' : 'Invite';
               return (
                 <div key={f.userId} className={`fr-roomrow fr-${f.status}`}>
@@ -43,7 +45,7 @@ export function RoomInvitePanel({ room, me, onClose }: { room: VersusRoom; me: s
                   <div className="fr-who"><div className="fr-name">{handleOf(f)}</div><div className="fr-status"><span className="fr-dot" aria-hidden="true" />{statusText(f)}</div></div>
                   {open && f.status === 'online' && f.mode !== 'versus_room' && (
                     <button type="button" className="vsplate" disabled={!!busy[`invite:${f.userId}`] || sent?.status === 'pending'}
-                      onClick={() => { sfx.pulse(); void inviteFriend(f.userId, kind, room.id); }}>{label}</button>
+                      onClick={() => { sfx.pulse(); void inviteFriend(f.userId, kind, target); }}>{label}</button>
                   )}
                 </div>
               );

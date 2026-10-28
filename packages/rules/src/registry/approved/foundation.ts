@@ -10508,4 +10508,19 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-10-28 (feat/plushie-plate). Reaches players once the owner runs 2026-11-03-secret-plushie-plate.sql and then deploys progression-inventory (in that order); the first catalog sync after that credits anyone who already owns every Plushie Beast. The Plushie Collector does not pay XP.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/plushiePlate.db.test.ts', 'packages/progression/src/plushiePlate.test.ts', 'packages/ui/src/progression/secretRarity.test.ts', 'packages/ui/src/progression/AchievementsTab.test.tsx'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-VERSUS-CF-CUTOVER-01',
+    title: 'Versus cutover: a per-mode server switch picks where NEW rooms go; a room keeps its host for life',
+    statement:
+      'Where a new Versus room is created (Supabase or the Cloudflare Worker) is decided per mode by the server switch `versus_host_config` (default every mode on Supabase), read by the client at launch and cached 30 s. A room keeps the host it was created on until it closes: room and match calls, reconnect, invites (`cf:<id>`), the Friends Watch id and Live Games rows all go to that host, so flipping a mode back (rollback) moves only new rooms. Room lists, open counts and reconnect read both hosts. A build reaches Cloudflare only when it carries the Worker URL for its own content revision; otherwise it is Supabase-only and never reads the switch.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28 (Versus to Cloudflare)', quote: 'switch modes over one at a time with no downtime and instant rollback' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusRouter.ts, packages/ui/src/versus/versusHost.ts, supabase/migrations/2026-11-05-versus-host-config.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-28 (feat/versus-cf-cutover). Every mode on Supabase until the owner flips one (docs/versus-cf-cutover.md).',
+    example: 'The owner flips duel to cf: the next 1v1 room is a Cloudflare room. He flips it back mid-match: that match finishes on Cloudflare, and the next new 1v1 room is on Supabase.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRouter.test.ts', 'packages/ui/src/versus/versusCutoverStore.test.ts', 'workers/versus/test/origins.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

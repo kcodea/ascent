@@ -26,6 +26,14 @@
  * PowerShell's `Compress-Archive` writes BACKSLASH entry names that Linux tooling reads as literal filenames.
  *
  * Nothing here touches the primary checkout's branch, files or node_modules.
+ *
+ * VERSUS ON CLOUDFLARE (opt-in, docs/versus-cf-cutover.md): `npm run release:web -- --versus-cf` also deploys the
+ * Versus Worker for this exact commit (`npm run versus:cf:deploy -- --persist`, from the release worktree; the Worker is
+ * named after its content revision, so rooms on an older Worker finish there), checks its /health answers this build's
+ * engine, and bakes its URL into the bundle (`VITE_VERSUS_CF_URL`). Without the flag the build carries NO Worker URL
+ * and every Versus room stays on Supabase whatever the server's switch says. `--versus-cf-no-persist` deploys with the
+ * result writer off (test packs only: Cloudflare matches would leave no records). Needs CLOUDFLARE_API_TOKEN and
+ * CLOUDFLARE_ACCOUNT_ID in the environment; neither is ever printed.
  */
 import { execFileSync, execSync } from 'node:child_process';
 import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
@@ -38,7 +46,13 @@ const WT = path.join(ROOT, '.claude', 'worktrees', 'release-web');
 const die = (msg) => { console.error(`\n✗ ${msg}\n`); process.exit(1); };
 const step = (msg) => console.log(`\n• ${msg}`);
 const git = (gitArgs, cwd = ROOT) => execFileSync('git', gitArgs, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
-const run = (cmd, cwd) => { console.log(`  $ ${cmd}`); execSync(cmd, { cwd, stdio: 'inherit' }); };
+const run = (cmd, cwd, env = process.env) => { console.log(`  $ ${cmd}`); execSync(cmd, { cwd, stdio: 'inherit', env }); };
+const VERSUS_CF = process.argv.includes('--versus-cf');
+const VERSUS_CF_PERSIST = !process.argv.includes('--versus-cf-no-persist');
+const WORKER_URL = /https:\/\/ascent-versus-v(\d+)-([0-9a-z]+)\.team-ascent\.workers\.dev/;
+if (VERSUS_CF && (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID)) {
+  die('--versus-cf needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment');
+}
 
 // ── 1. the commit ─────────────────────────────────────────────────────────────────────────────────────────
 step('fetching origin');
@@ -75,8 +89,59 @@ console.log(`  ✓ HEAD ${short}, tree clean`);
 // ── 3–4. install + build, inside the worktree ──────────────────────────────────────────────────────────────
 step('npm ci (lockfile-exact dependencies)');
 run('npm ci --no-audit --no-fund', WT);
+// ── 3b. (opt-in) the Versus Worker for this commit, BEFORE the site: a new site must never meet a missing Worker ─────
+let workerUrl = null;
+let workerRev = null;
+if (VERSUS_CF) {
+  step(`deploying the Versus Worker for ${sha.slice(0, 9)}${VERSUS_CF_PERSIST ? '' : ' (result writer OFF)'}`);
+  // deploy.ts echoes only its own summary and wrangler's URL / version lines, never a key.
+  const cmd = `npm run versus:cf:deploy -- ${VERSUS_CF_PERSIST ? '--persist' : ''}`.trim();
+  console.log(`  $ ${cmd}`);
+  let out;
+  try {
+    out = execSync(cmd, { cwd: WT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (e) {
+    console.log(String(e.stdout ?? ''));
+    die('the Versus Worker deploy failed (nothing was built; the live site is untouched)');
+  }
+  for (const line of out.split(/\r?\n/)) if (line.trim() && !line.startsWith('>')) console.log(`  ${line.trim()}`);
+  const m = WORKER_URL.exec(out);
+  if (!m) die('the Worker deploy printed no ascent-versus-*.team-ascent.workers.dev URL');
+  workerUrl = m[0];
+  // The Worker must answer with THIS build's engine, or every hello would be refused with version_mismatch.
+  let health = null;
+  for (let i = 0; i < 10 && !health; i++) {
+    try {
+      const res = await fetch(`${workerUrl}/health`);
+      if (res.ok) health = await res.json();
+    } catch { /* not routable yet */ }
+    if (!health) await new Promise((r) => setTimeout(r, 3000));
+  }
+  if (!health) die(`${workerUrl}/health did not answer`);
+  if (`v${health.cfProtocol}-${health.contentRevision}` !== `v${m[1]}-${m[2]}`) die(`the Worker at ${workerUrl} carries v${health.cfProtocol}-${health.contentRevision}, not its own name`);
+  workerRev = health.contentRevision;
+  console.log(`  ✓ Worker live: ${workerUrl} (content ${workerRev}, protocol ${health.protocol})`);
+  // Each content revision is its own Worker, so a NEW one has no result-writer secret yet. Give it one (the secret is
+  // generated and piped straight to wrangler; only its sha256 is printed, as the SQL line to run once).
+  if (VERSUS_CF_PERSIST) {
+    const name = `ascent-versus-v${m[1]}-${m[2]}`;
+    const workerDir = path.join(WT, 'workers', 'versus');
+    let secrets = '';
+    try { secrets = execSync(`npx wrangler secret list --name ${name}`, { cwd: workerDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch { /* treated as missing */ }
+    if (secrets.includes('VERSUS_WRITER_SECRET')) console.log('  ✓ result writer secret already set on this Worker');
+    else {
+      console.log('  this Worker has no result writer secret yet: setting one (run the SQL line it prints BEFORE flipping a mode)');
+      run(`node scripts/writer-secret.mjs ${name}`, workerDir);
+    }
+  }
+}
+
 step('building the web bundle');
-run('npm run build:web', WT);
+// The Worker URL is baked in ONLY with --versus-cf; a stray value in the shell never leaks into a plain pack.
+const buildEnv = { ...process.env };
+delete buildEnv.VITE_VERSUS_CF_URL;
+if (workerUrl) buildEnv.VITE_VERSUS_CF_URL = workerUrl;
+run('npm run build:web', WT, buildEnv);
 
 const dist = path.join(WT, 'apps', 'web', 'dist');
 const indexHtml = path.join(dist, 'index.html');
@@ -90,6 +155,10 @@ if (!jsChunks.length) die('no JS chunks in apps/web/dist/assets');
 const shaBaked = jsChunks.some((f) => readFileSync(path.join(assetsDir, f), 'utf8').includes(short));
 if (!shaBaked) die(`the build does not carry ${short} — dist is stale or the SHA was not baked in`);
 console.log(`  ✓ bundle carries ${short}`);
+if (workerUrl) {
+  if (!jsChunks.some((f) => readFileSync(path.join(assetsDir, f), 'utf8').includes(workerUrl))) die(`the bundle does not carry ${workerUrl}`);
+  console.log(`  ✓ bundle carries its Versus Worker (${workerUrl})`);
+}
 
 // Every local file index.html points at must exist. This is the class of bug that shipped a blank damage
 // splash: a path that resolves in dev and 404s from the deployed bundle.
@@ -143,4 +212,10 @@ console.log(`
   Do it from the SITE's Deploys tab; dropping it on the main Sites list creates a NEW site with a new URL.
 
   Then check the title screen badge reads "v${version} · ${short}". Anything else means an older build is live.
-`);
+${workerUrl ? `
+  VERSUS WORKER: ${workerUrl} (content ${workerRev}) is live and baked into this zip.
+  Which modes use it is the server switch (docs/versus-cf-cutover.md); every mode stays on Supabase until it is flipped.
+  The Supabase Versus server (versus-resolve) still needs its usual redeploy from this commit (CLAUDE.md "Releasing").
+` : `
+  This zip carries no Versus Worker: every Versus room stays on Supabase (pass --versus-cf to ship one).
+`}`);

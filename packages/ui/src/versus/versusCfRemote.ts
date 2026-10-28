@@ -65,6 +65,11 @@ export function versusCfSelected(): boolean {
   }
 }
 
+/** The Worker a dev tab picked (`?versusCfUrl=` / `?versusHost=cf-live`), else local `wrangler dev`. */
+export function versusCfDevUrl(): string {
+  return workerUrl();
+}
+
 function workerUrl(): string {
   try {
     return sessionStorage.getItem(URL_KEY) ?? VERSUS_CF_DEFAULT_URL;
@@ -74,6 +79,8 @@ function workerUrl(): string {
 }
 
 export interface CfRemoteDeps {
+  /** The Worker to talk to (the cutover router passes the build's own Worker); default: the dev tab's pick. */
+  baseUrl?: string;
   getClient: () => SupabaseClient | null;
   currentUserId: () => string | null;
   /** The adapter's error type (`VersusError`), injected to keep this module free of a value import cycle. */
@@ -100,7 +107,7 @@ function devUserId(): string {
 type Change = 'room' | 'members' | 'match' | 'rounds' | 'passes';
 
 export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
-  const base = workerUrl();
+  const base = deps.baseUrl ?? workerUrl();
   let roomId: string | null = null;
   let client: VersusCfClient | null = null;
   let room: VersusRoom | null = null;

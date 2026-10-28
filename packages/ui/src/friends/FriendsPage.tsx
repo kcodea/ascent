@@ -21,6 +21,7 @@ import { frameIdOf } from '../portraitFrame/PortraitFrame';
 import { heroPortrait, opponentSkins } from '../skins/skins';
 import { displayHandle, useGame } from '../store';
 import { useVersus } from '../versus/versusStore';
+import { versusRoomRef } from '../versus/versusRemote';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import {
   acceptRequest, addFriendByHandle, blockPlayer, cancelRequest, declineRequest, friendsAccount, inviteFriend, lastSeenText,
@@ -183,7 +184,7 @@ export function FriendsPage(): JSX.Element | null {
   const deployed = useFriends((s) => s.deployed);
   const flash = useFriends((s) => s.flash);
   // INVITE TO MY VERSUS ROOM: only while I am in a room that is open (between matches).
-  const inviteRoom = useVersus((s) => (s.room && s.room.status === 'open' ? s.room.id : null));
+  const inviteRoom = useVersus((s) => (s.room && s.room.status === 'open' ? versusRoomRef(s.room) : null));
   if (!show) return null;
 
   // My handle to share (accounts only: a guest cannot be added).

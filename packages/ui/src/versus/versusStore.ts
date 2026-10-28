@@ -167,6 +167,22 @@ useVersus.subscribe((st, prev) => {
 export async function setRoomOptions(next: VersusRoomOptions): Promise<void> {
   const room = get().room;
   if (!room) return;
+  // THE CUTOVER (R-VERSUS-CF-CUTOVER-01): a room never changes backend, and Cloudflare only plays the modes the switch
+  // has moved there. A Cloudflare room switching to a mode still on Supabase is remade there when the host is alone in
+  // it (nobody to strand); with others in it, the change is refused with a plain reason.
+  if (next.mode !== (room.options?.mode ?? 'duel') && versusRemote.hostOf(room.id) === 'cf' && versusRemote.hostForMode(next.mode) !== 'cf' && room.status === 'open') {
+    const me = currentUserId();
+    if (room.members.some((m) => m.userId !== me)) { flashError(ERROR_TEXT.mode_other_host!); return; }
+    try {
+      let moved = await versusRemote.createRoom(room.name, myIdentity(), next);
+      try { moved = await versusRemote.takeSeat(moved.id, 'spectator'); } catch { /* opens seated */ }
+      try { await versusRemote.leaveRoom(room.id); } catch { /* the old room idles out */ }
+      enterRoom(moved);
+    } catch (e) {
+      flashError(errorText(e));
+    }
+    return;
+  }
   try {
     set({ room: await versusRemote.setOptions(room.id, next), error: null });
   } catch (e) {
@@ -184,6 +200,7 @@ const ERROR_TEXT: Record<string, string> = {
   seats_full: 'Every player seat is taken. You can watch instead.',
   spectators_full: 'The stands are full.',
   version_mismatch: 'That room is on a different game version. Update to join it.',
+  mode_other_host: 'This mode needs a new room. Make one from the Versus menu.',
   seat_taken: 'That seat was just taken.',
   need_two_players: 'You need an opponent to start.',
   need_three_players: 'You need three or four players to start.',

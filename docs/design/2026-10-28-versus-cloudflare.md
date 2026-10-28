@@ -326,6 +326,11 @@ Supabase Versus keeps receiving fixes while this is built. Rules for the port wi
 
 ## 16. Cutover and rollback
 
+> **Built (2026-10-28, feat/versus-cf-cutover):** the switch is per MODE, not one flag: `versus_host_config`
+> (`supabase/migrations/2026-11-05-versus-host-config.sql`), the client router `packages/ui/src/versus/versusRouter.ts`,
+> the pack flag `release:web -- --versus-cf`. Runbook: [`../versus-cf-cutover.md`](../versus-cf-cutover.md). The
+> percentage rollout below is not built. The bullets below are the original design.
+
 - A server-side flag `versus_backend` (Supabase `app_config` row, read at room creation and cached 30 s by the client):
   `supabase` | `cloudflare` | `cloudflare:<percent>`. It decides where NEW rooms are created; nothing else.
 - In-flight rooms finish where they started: a Supabase room keeps its RPCs; a Cloudflare room keeps its socket. The

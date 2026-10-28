@@ -115,6 +115,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Versus is steadier. A player who drops and comes back now ends the pause on their own, and a round can no longer freeze at End of Turn.',
+        details: [
+          'All Versus modes: when the player who paused the game reconnects, a 3, 2, 1 countdown starts and play goes on. Nobody has to press Resume.',
+          'A slow connection no longer pauses the game by mistake. A player counts as gone after about 14 seconds with no signal.',
+          'If a fight takes too long to settle, the game asks for it again every 10 seconds. If it still cannot settle after 90 seconds, the match ends with no winner and nobody loses anything.',
+          'A Versus match that everyone has left now closes on its own after 10 minutes, so the room is free again.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Twenty-nine new minion skins in chests, for many of the most-played cards that had none.',
         details: [
           'Prospector, Chronos, Lastlight, Tapkeeper, Bob Blart, Geode Guardian, Market Tormentor, Blazer, Grimoire, Flutterbutter, Right Hand Hank, Sharpshooter, Cave Cutter, Jewel and Spell Warden each get their first skins.',

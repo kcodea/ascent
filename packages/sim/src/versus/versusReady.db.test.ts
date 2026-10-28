@@ -98,6 +98,8 @@ beforeAll(async () => {
   await db.exec('create table if not exists public.versus_test_bots (bot_user uuid primary key, host_user uuid not null, slot int not null, registered_at timestamptz not null default now())');
   await db.exec(READY);
   await db.exec(READY); // idempotent
+  // The 2026-11-02 reliability migration changes no behaviour these tests pin (R-VERSUS-CLOSE-ONCE-01 and friends).
+  await db.exec(readFileSync(join(root, 'supabase/migrations/2026-11-02-versus-server-reliability.sql'), 'utf8'));
 }, 90_000);
 afterAll(async () => { await db?.close(); });
 beforeEach(async () => {

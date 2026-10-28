@@ -1069,9 +1069,17 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   seat is shown out only together with the round that put it out (never a knockout on the Health before it). An empty
   board is an ordinary fight: it loses to any minion, and two empty boards draw (R-VERSUS-EMPTY-01). *(Hearts, 7 each with one struck per lost
   round, were the rule from 2026-10-13 to 2026-10-26; an older match keeps its recorded hearts.)*
-- **Disconnects.** A disconnect pauses the match for up to 30 seconds (deadlines stop, and move later by the pause).
+- **Disconnects.** A player counts as gone after 14 seconds with no heartbeat (two missed 4 s beats plus margin,
+  R-VERSUS-LEASE-01); that pauses the match for up to 30 seconds (deadlines stop, and move later by the pause).
   After 30 seconds the opponent may unpause: the absent player's last locked board then fights for them every
-  round, and three such rounds in a row forfeit. Coming back ends it. Leaving the room mid-match concedes.
+  round, and three such rounds in a row forfeit. Coming back ends it: the returning player's first heartbeat starts the
+  server's 3-2-1 and play resumes, in Hero Select or the shop, with nobody pressing anything (R-VERSUS-AUTO-RESUME-01).
+  Leaving the room mid-match concedes.
+- **A fight that cannot settle** (R-VERSUS-RESOLVE-TIMEOUT-01, every Versus mode). Only the call that closed the round asks
+  the server to resolve it (R-VERSUS-CLOSE-ONCE-01); every 10 seconds still unresolved, every client asks again. After 90
+  seconds (pauses not counted), or as soon as the server reports the match's content is not the deployed one, the match
+  ends **void**: no winner, nobody charged, Ranked Duos unrated. A match everybody has left for 10 minutes ends
+  abandoned on its own (R-VERSUS-SWEEP-01).
 - **Concede** is in the Esc menu (two taps), from Hero Select or the match. A concede (either player) closes the end gate
   at once for both, wherever they are, mid-fight included, and opens it on the room. The other player wins.
 - **The end.** When the match is decided, the last fight plays out; its End Combat gem (or, with nothing left to

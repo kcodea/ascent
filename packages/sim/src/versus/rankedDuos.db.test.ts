@@ -130,6 +130,8 @@ beforeAll(async () => {
   await db.exec(RANKED); // idempotent
   await db.exec(CLIENT);
   await db.exec(CLIENT); // idempotent
+  // The 2026-11-02 reliability migration changes no behaviour these tests pin (R-VERSUS-CLOSE-ONCE-01 and friends).
+  await db.exec(readFileSync(join(root, 'supabase/migrations/2026-11-02-versus-server-reliability.sql'), 'utf8'));
   // The live project HAS the test-bots table (2026-10-25-versus-test-bots.sql), so every placement reads it: the suite
   // builds its real shape (the bot account is `bot_user`), empty unless a test seats a bot.
   await db.exec('create table if not exists public.versus_test_bots (bot_user uuid primary key, host_user uuid not null, slot int not null, registered_at timestamptz not null default now())');

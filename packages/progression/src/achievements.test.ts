@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ACHIEVEMENTS, ACHIEVEMENTS_150, ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_HEROES, ACHIEVEMENT_INDEX, META_METRIC, RUN_METRICS, RUN_METRIC_KEYS, SERVER_METRICS,
+  ACHIEVEMENTS, ACHIEVEMENTS_150, ACHIEVEMENT_CATEGORIES, ACHIEVEMENT_HEROES, ACHIEVEMENT_INDEX, COLLECTION_METRIC, META_METRIC, RUN_METRICS, RUN_METRIC_KEYS, SERVER_METRICS,
   achievementCatalogHash, achievementCatalogPayload, achievementGatePasses, achievementXpOf, divisionName, evaluateAchievements, sanitizeRunMetrics,
   type AchievementDef, type AchievementSettlement,
 } from './achievements';
 import { factsAsV1, sanitizeProgressionFacts, type ProgressionRunFactsV2 } from './rules';
-import { COSMETICS, cosmeticOf, heroMasterTitleId, heroTitleId } from './cosmetics';
+import { COSMETICS, PLUSHIE_PLATE_ID, cosmeticOf, heroMasterTitleId, heroTitleId } from './cosmetics';
 
 /**
  * ACHIEVEMENTS batch 1 (owner 2026-09-28: "let's just get the normal xp related achievements in for now though").
@@ -17,13 +17,13 @@ const count = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category ===
 const xpOf = (cat: string): number => ACHIEVEMENTS.filter((a) => a.category === cat).reduce((s, a) => s + a.rewards.xp, 0);
 
 describe('the batch 1 registry', () => {
-  it('ships 482 achievements: counts and XP per category (hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP; Pete, Foreman Flint, Emissary, Underdweller, Membrance + Gorun back 2026-10-15: +36, +5,700 XP)', () => {
-    expect(ACHIEVEMENTS).toHaveLength(482);
+  it('ships 483 achievements: counts and XP per category (the Plushie Collector 2026-10-27: +1, 0 XP; hero titles 2026-09-29 added 33 Titled tiers, 4,950 XP; Runesmith + Guardian back 2026-10-01: +10; the 2026-10-03 150: +61,375 XP; the owner-approved long-term re-tune: +7,000 XP; Pete, Foreman Flint, Emissary, Underdweller, Membrance + Gorun back 2026-10-15: +36, +5,700 XP)', () => {
+    expect(ACHIEVEMENTS).toHaveLength(483);
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, count(c)]))).toEqual({
-      career: 17, ranked: 28, heroes: 258, economy: 15, mechanics: 7, runes: 5, set2: 82, combat: 36, milestones: 34,
+      career: 17, ranked: 28, heroes: 258, economy: 15, mechanics: 7, runes: 5, set2: 82, combat: 36, milestones: 34, collection: 1,
     });
     expect(Object.fromEntries(ACHIEVEMENT_CATEGORIES.map((c) => [c, xpOf(c)]))).toEqual({
-      career: 3050, ranked: 4300, heroes: 42850, economy: 1925, mechanics: 1125, runes: 675, set2: 22450, combat: 13175, milestones: 22100,
+      career: 3050, ranked: 4300, heroes: 42850, economy: 1925, mechanics: 1125, runes: 675, set2: 22450, combat: 13175, milestones: 22100, collection: 0,
     });
     expect(ACHIEVEMENTS.reduce((s, a) => s + a.rewards.xp, 0)).toBe(111_650);
     // owner 2026-10-03 ("yes apply these achievement changes"): the batch 1 long-term tiers on the new curve
@@ -34,8 +34,14 @@ describe('the batch 1 registry', () => {
     });
   });
 
-  it('every reward pays XP; ONLY the hero Titled and Mastery tiers carry a title (owner 2026-09-29), each a real catalog title', () => {
+  it('every reward pays XP (but a collection, which pays its item); ONLY the hero Titled and Mastery tiers carry a title (owner 2026-09-29), each a real catalog title', () => {
     for (const a of ACHIEVEMENTS) {
+      if (a.category === 'collection') {
+        // The Plushie Collector (owner 2026-10-27): the reward is the Secret plate, "Only Available From Completing This Achievement".
+        expect(a.rewards, a.id).toEqual({ xp: 0, titleId: null, cosmeticId: PLUSHIE_PLATE_ID });
+        expect(cosmeticOf(PLUSHIE_PLATE_ID)!.acquisition, a.id).toEqual({ type: 'achievement', id: a.id });
+        continue;
+      }
       expect(a.rewards.xp, a.id).toBeGreaterThan(0);
       expect(Object.keys(a.rewards).sort()).toEqual(['titleId', 'xp']);
       if (a.family === 'hero.titled') expect(a.rewards.titleId, a.id).toBe(heroTitleId(a.heroId!));
@@ -57,7 +63,7 @@ describe('the batch 1 registry', () => {
 
   it('ids are unique and stable-shaped; every metric is known', () => {
     expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(ACHIEVEMENTS.length);
-    const known = new Set<string>([...RUN_METRIC_KEYS, ...SERVER_METRICS]);
+    const known = new Set<string>([...RUN_METRIC_KEYS, ...SERVER_METRICS, COLLECTION_METRIC]);
     for (const a of ACHIEVEMENTS) {
       expect(a.id, a.id).toMatch(/^[a-z0-9_]+(\.[a-z0-9_]+)+$/);
       expect(a.id.length).toBeLessThanOrEqual(64);

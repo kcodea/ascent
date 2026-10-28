@@ -1,4 +1,4 @@
-import type { CosmeticRarity } from '@game/progression';
+import type { CrateRarity } from '@game/progression';
 
 /**
  * TIERED CHEST OPENINGS: the tier axis of the crate opening. The opening already escalates with the REWARD's rarity
@@ -23,12 +23,12 @@ export const LAYERED_TIERS: readonly LayeredTier[] = ['rare', 'epic', 'legendary
 
 /** A crate's tier from its guaranteed floor. No floor, or a common one, is Standard. An unknown floor (a newer
  *  server's rarity on an older client) is Standard too. */
-export function chestTierOf(floor: CosmeticRarity | null | undefined): ChestTier {
+export function chestTierOf(floor: CrateRarity | null | undefined): ChestTier {
   return (LAYERED_TIERS as readonly string[]).includes(floor ?? '') ? (floor as LayeredTier) : 'standard';
 }
 
 /** A tier's floor, for the chest's name (`crateLabel` names a shop chest by its floor). Standard (or none) has none. */
-export function chestFloorOf(tier: ChestTier | null | undefined): CosmeticRarity | null {
+export function chestFloorOf(tier: ChestTier | null | undefined): CrateRarity | null {
   return !tier || tier === 'standard' ? null : tier;
 }
 

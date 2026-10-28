@@ -6,7 +6,7 @@
  */
 import {
   COSMETIC_RARITIES, eligibleForCrate, focusFeePercent, isCategoryLive, isFocusableCategory, tieredCrateChances,
-  type AetherEconomy, type CosmeticCategory, type CosmeticRarity,
+  type AetherEconomy, type CosmeticCategory, type CosmeticRarity, type CrateRarity,
 } from '@game/progression';
 
 /** The order the shop lists focus categories in (owner's design; Announcers are not focusable and are not listed). */
@@ -21,7 +21,7 @@ export function shopFocusCategories(): CosmeticCategory[] {
 
 /** How many items each category still has in the UNFOCUSED pool at this floor (Announcers included; the UI just
  *  doesn't show that row). Sums to `eligibleForCrate(owned, floor, null).length`. */
-export function leftByCategory(owned: Iterable<string>, floor: CosmeticRarity): Map<CosmeticCategory, number> {
+export function leftByCategory(owned: Iterable<string>, floor: CrateRarity): Map<CosmeticCategory, number> {
   const out = new Map<CosmeticCategory, number>();
   for (const c of eligibleForCrate(owned, floor, null)) out.set(c.category, (out.get(c.category) ?? 0) + 1);
   return out;
@@ -60,12 +60,12 @@ export interface OddsSlice {
 
 /** The odds bar's slices for this exact chest (floor + focus + what the player doesn't own): rarities with a share,
  *  lowest first; each lists its per-category counts in shop order, then any other category (Announcers) last. */
-export function oddsSlices(owned: Iterable<string>, floor: CosmeticRarity, focus: readonly CosmeticCategory[] | null): OddsSlice[] {
+export function oddsSlices(owned: Iterable<string>, floor: CrateRarity, focus: readonly CosmeticCategory[] | null): OddsSlice[] {
   const eligible = eligibleForCrate(owned, floor, focus);
   const rarityOf = new Map(eligible.map((c) => [c.id, c.rarity] as const));
-  const share = new Map<CosmeticRarity, number>();
+  const share = new Map<CrateRarity, number>();
   for (const [id, p] of tieredCrateChances(eligible, floor)) {
-    const r = rarityOf.get(id)!;
+    const r = rarityOf.get(id)! as CrateRarity; // a crate never holds a Secret item
     share.set(r, (share.get(r) ?? 0) + p);
   }
   const rank = (c: CosmeticCategory) => { const n = SHOP_FOCUS_ORDER.indexOf(c); return n < 0 ? SHOP_FOCUS_ORDER.length : n; };

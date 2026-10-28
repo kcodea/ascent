@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DEFAULT_AETHER_ECONOMY, aetherForSettlement, milestoneLevelsThrough, type CrateTier } from './aether';
 import { atOrAbove, eligibleForCrate, pickTieredCrateReward, quoteCrate } from './crateShop';
-import { COSMETICS, COSMETIC_INDEX, catalogHash, catalogSyncPayload, parseOpenCrateResult, type CosmeticCategory, type CosmeticRarity } from './cosmetics';
+import { COSMETICS, COSMETIC_INDEX, catalogHash, catalogSyncPayload, parseOpenCrateResult, type CosmeticCategory, type CrateRarity } from './cosmetics';
 import { levelOfXp, parseProgressionProfile, parseProgressionResult, versusRunId, xpAtLevelStart, xpForSettlement } from './rules';
 import { parseGauntletClearResult } from './gauntlet';
 
@@ -28,7 +28,7 @@ import { parseGauntletClearResult } from './gauntlet';
  */
 const root = join(__dirname, '../../..');
 const read = (f: string): string => readFileSync(join(root, 'supabase/migrations', f), 'utf8');
-const FILES = ['2026-09-27-account-progression.sql', '2026-09-28-progression-crates.sql', '2026-09-28-progression-skins.sql', '2026-09-28-achievements.sql', '2026-09-29-crate-fixed-rarity-odds.sql', '2026-09-29-crate-uniform-within-rarity.sql', '2026-09-29-gauntlet-progress.sql', '2026-10-02-ancient-rarity.sql', '2026-10-03-placement-xp.sql', '2026-10-13-versus.sql', '2026-10-14-versus-shop-start.sql', '2026-10-14-versus-scout.sql', '2026-10-14-versus-ready-pause.sql', '2026-10-14-versus-progression.sql'];
+const FILES = ['2026-09-27-account-progression.sql', '2026-09-28-progression-crates.sql', '2026-09-28-progression-skins.sql', '2026-09-28-achievements.sql', '2026-09-29-crate-fixed-rarity-odds.sql', '2026-09-29-crate-uniform-within-rarity.sql', '2026-09-29-gauntlet-progress.sql', '2026-10-02-ancient-rarity.sql', '2026-11-03-secret-plushie-plate.sql', '2026-10-03-placement-xp.sql', '2026-10-13-versus.sql', '2026-10-14-versus-shop-start.sql', '2026-10-14-versus-scout.sql', '2026-10-14-versus-ready-pause.sql', '2026-10-14-versus-progression.sql'];
 /** The emote file's starter-acquisition check only (2026-10-13): the code catalog holds STARTER emotes, which the
  *  catalog sync would otherwise refuse. Loaded right before the Aether file, as the other db tests load it. */
 const STARTER_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 2. equip_cosmetic')))(read('2026-10-13-emotes.sql'));
@@ -109,7 +109,7 @@ async function levelCrate(u: string, level = 1): Promise<string> {
 }
 
 const crateItems = COSMETICS.filter((c) => c.acquisition.type === 'crate');
-const idsAtOrAbove = (floor: CosmeticRarity): string[] => crateItems.filter((c) => atOrAbove(c.rarity, floor)).map((c) => c.id);
+const idsAtOrAbove = (floor: CrateRarity): string[] => crateItems.filter((c) => atOrAbove(c.rarity, floor)).map((c) => c.id);
 
 beforeAll(async () => {
   db = new PGlite();

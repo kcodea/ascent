@@ -91,6 +91,15 @@
       "interiorX": 0,
       "interiorY": 0.0994
     },
+    "plate_plushie": {
+      "artScale": 1.05,
+      "frameX": 0.008,
+      "frameY": 0.072,
+      "interiorSx": 0.983,
+      "interiorSy": 0.958,
+      "interiorX": 0,
+      "interiorY": -0.0075
+    },
     "plate_porcelain": {
       "artScale": 1,
       "frameX": 0.005,

@@ -23,6 +23,9 @@ const ATTACK = read('2026-09-28-progression-hero-attack.sql');
 /** The Ancient rarity file's rarity check only (2026-10-02): the code catalog now holds Ancient items, which the crates
  *  file's four-rarity check would reject. Its pick + open_crate are crateOdds.db.test.ts's business. */
 const ANCIENT_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 1. The pick')))(readFileSync(join(root, 'supabase/migrations/2026-10-02-ancient-rarity.sql'), 'utf8'));
+/** The Secret rarity file's rarity check + collection column only (2026-11-03): the code catalog holds a Secret item
+ *  (the Plushie Plate), which the five-rarity check would reject. Its collection logic is plushiePlate.db.test.ts's. */
+const SECRET_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 2. One account')))(readFileSync(join(root, 'supabase/migrations/2026-11-03-secret-plushie-plate.sql'), 'utf8'));
 /** The emote file's starter-acquisition check only (2026-10-13): the code catalog now holds STARTER emotes, which the
  *  crates file's acquisition check would reject. Its equip_cosmetic is emotes.db.test.ts's business. */
 const STARTER_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 2. equip_cosmetic')))(readFileSync(join(root, 'supabase/migrations/2026-10-13-emotes.sql'), 'utf8'));
@@ -83,7 +86,7 @@ beforeAll(async () => {
   await db.exec(MVP);
   await db.exec(API_GRANTS);
   await db.exec(`update public.progression_config set epoch = now() - interval '1 day' where id = 1;`);
-  for (const f of [CRATES, SKINS, ACH, ATTACK, ANCIENT_CHECK, STARTER_CHECK]) { await db.exec(f); await db.exec(API_GRANTS); }
+  for (const f of [CRATES, SKINS, ACH, ATTACK, ANCIENT_CHECK, SECRET_CHECK, STARTER_CHECK]) { await db.exec(f); await db.exec(API_GRANTS); }
   expect(await sync()).toBe('synced');
 }, 60_000);
 afterAll(async () => { await db?.close(); });

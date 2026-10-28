@@ -28,6 +28,8 @@ const ODDS = read('2026-09-29-crate-fixed-rarity-odds.sql');
 const UNIFORM = read('2026-09-29-crate-uniform-within-rarity.sql');
 // 2026-10-02: the Ancient rarity (five rarities at 35/31/22/9/3, roll version 4) supersedes UNIFORM's pick + open_crate.
 const ANCIENT = read('2026-10-02-ancient-rarity.sql');
+/** The Secret rarity check + collection column only (2026-11-03): the code catalog holds a Secret item. */
+const SECRET_CHECK = ((s: string): string => s.slice(0, s.indexOf('-- ── 2. One account')))(read('2026-11-03-secret-plushie-plate.sql'));
 /** The emote file's starter-acquisition check only (2026-10-13): the code catalog holds STARTER emotes. */
 const STARTER_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 2. equip_cosmetic')))(read('2026-10-13-emotes.sql'));
 
@@ -93,7 +95,7 @@ beforeAll(async () => {
   await db.exec(MVP);
   await db.exec(API_GRANTS);
   await db.exec(`update public.progression_config set epoch = now() - interval '1 day' where id = 1;`);
-  for (const f of [CRATES, SKINS, ACH, ATTACK, ODDS, UNIFORM, ANCIENT, STARTER_CHECK]) { await db.exec(f); await db.exec(API_GRANTS); }
+  for (const f of [CRATES, SKINS, ACH, ATTACK, ODDS, UNIFORM, ANCIENT, SECRET_CHECK, STARTER_CHECK]) { await db.exec(f); await db.exec(API_GRANTS); }
   expect(await sync()).toBe('synced');
 }, 60_000);
 afterAll(async () => { await db?.close(); });
@@ -215,8 +217,9 @@ describe('open_crate under the fixed odds', () => {
     ];
     const before = await snap();
     const picks = await Promise.all([0.1, 0.6, 0.9, 0.97].map((d) => sqlPick(u, d)));
-    await db.exec(ANCIENT);
-    await db.exec(ANCIENT);
+    // The rarity check is the Secret file's since 2026-11-03 (a re-run of the Ancient file's five-rarity check would
+    // reject the Secret Plushie Plate), so the re-run here is the pick + open_crate, then that file's check again.
+    for (let i = 0; i < 2; i++) { await db.exec(ANCIENT.slice(ANCIENT.indexOf('-- ── 1. The pick'))); await db.exec(SECRET_CHECK); }
     expect(await snap()).toEqual(before);
     expect(await Promise.all([0.1, 0.6, 0.9, 0.97].map((d) => sqlPick(u, d)))).toEqual(picks);
     expect(await sync()).toBe('unchanged');

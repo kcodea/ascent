@@ -101,7 +101,10 @@ describe('the card plate catalog', () => {
       ['plate_tattle', 'Tattle', 'epic', 'crate', 'plate_tattle', 'Tattle Plate.png', undefined],
       ['plate_trichalice', 'Trichalice', 'epic', 'crate', 'plate_trichalice', 'Trichalice Plate.png', undefined],
       ['plate_gjally', 'Gjally', 'ancient', 'crate', 'plate_gjally', 'Gjally Plate.png', undefined],
+      // The Secret Plushie Plate (owner 2026-10-27): the Plushie Collector's reward, never in a crate.
+      ['plate_plushie', 'Plushie', 'secret', 'achievement', 'plate_plushie', 'Plushie Plate.png', undefined],
     ]);
+    expect(eligibleCrateCosmetics([]).map((c) => c.id)).not.toContain('plate_plushie');
     expect(eligibleCrateCosmetics([]).map((c) => c.id)).toContain('plate_aquarium_rocks');
     expect(eligibleCrateCosmetics(['plate_aquarium_rocks']).map((c) => c.id)).not.toContain('plate_aquarium_rocks');
   });

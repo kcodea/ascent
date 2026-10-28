@@ -10435,4 +10435,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'On a 1920 x 1080 window the teammate portrait sits mirrored off the player\x27s own hero, and in a fight its copy tags in over the player\x27s hero.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosDockStage.test.tsx'], lastVerifiedAt: '2026-10-27' },
   },
+  {
+    id: 'R-PROG-SECRET-01',
+    title: 'The Secret rarity: a red rarity above Ancient that no chest rolls, hidden in the Collection until owned; the Plushie Plate is the Plushie Collector reward',
+    statement:
+      'Secret is a cosmetic rarity ranked above Ancient, coloured red and labelled "Secret". No chest ever rolls it: a Secret '
+      + 'item comes only from an achievement. Until a player owns a Secret item, the Collection does not show it anywhere (not in its '
+      + 'album, any count, or the collected total); once owned it leads its album under its own Secret rarity row. A COLLECTION '
+      + 'achievement completes when the account owns every active item of its collection, and grants its reward in the same '
+      + 'transaction as the item that completes it, whatever granted that item. Its progress and completion are written only by '
+      + 'the server recount (never by a game\x27s metrics). The first is Plushie Collector: own every Plushie Beast skin (24 today; '
+      + 'the target grows as Plushie Beasts are added, and a player who already completed it keeps it), no XP, reward line '
+      + '"Unique Card Plate Only Available From Completing This Achievement", which grants the Secret Plushie Plate.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (Plushie Plate)', quote: 'i want this to be a secrete unlock that the players are given once they unlock every Plushie Beast cosmetic. I don\x27t want it shown in the cosmetic section with the other plates. instead, can we create a new achievement and say the reward is a "Unique Card Plate Only Available From Completing This Achievement"?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (Plushie Plate, the Secret tier)', quote: 'wont it have its own category as "Secret"? we can make it Red, over Ancient. Should ONLY show up once you unlock it' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (question answers)', quote: 'Visible, shows progress; Yes, players who already earned it keep it' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (SECRET_RARITY, PLUSHIE_BEAST_SKIN_IDS, the plate_plushie item); packages/progression/src/achievements.ts (COLLECTION_METRIC, collection.plushie_beasts); supabase/migrations/2026-11-03-secret-plushie-plate.sql; packages/ui/src/progression/collectionModel.ts (albumOf); packages/ui/src/progression/AchievementsTab.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-28 (feat/plushie-plate). Reaches players once the owner runs 2026-11-03-secret-plushie-plate.sql and then deploys progression-inventory (in that order); the first catalog sync after that credits anyone who already owns every Plushie Beast. The Plushie Collector does not pay XP.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/plushiePlate.db.test.ts', 'packages/progression/src/plushiePlate.test.ts', 'packages/ui/src/progression/secretRarity.test.ts', 'packages/ui/src/progression/AchievementsTab.test.tsx'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

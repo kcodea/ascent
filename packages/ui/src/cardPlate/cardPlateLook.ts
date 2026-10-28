@@ -279,6 +279,7 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   plate_tattle: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.047, interiorSy: 1.025, interiorY: 0.0009, darken: false },
   plate_trichalice: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.004, interiorSx: 1.055, interiorSy: 1.026, interiorY: -0.0028, darken: false },
   plate_gjally: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.026, interiorY: -0.0019, darken: false },
+  plate_plushie: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.008, interiorSx: 0.983, interiorSy: 0.958, interiorY: -0.0075, darken: false },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

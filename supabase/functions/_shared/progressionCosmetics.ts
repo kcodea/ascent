@@ -43,8 +43,19 @@
 export const COSMETIC_CATEGORIES = ['announcer', 'hero_skin', 'minion_skin', 'title', 'hero_attack', 'board', 'music', 'portrait_frame', 'emote', 'card_plate'] as const;
 export type CosmeticCategory = typeof COSMETIC_CATEGORIES[number];
 
+/** The CRATE ladder: the rarities a crate can roll, most common first. SECRET is not on it (see below). */
 export const COSMETIC_RARITIES = ['common', 'rare', 'epic', 'legendary', 'ancient'] as const;
-export type CosmeticRarity = typeof COSMETIC_RARITIES[number];
+export type CrateRarity = typeof COSMETIC_RARITIES[number];
+/**
+ * SECRET (owner 2026-10-27: "wont it have its own category as \"Secret\"? we can make it Red, over Ancient. Should ONLY
+ * show up once you unlock it"): a rarity ranked ABOVE Ancient that no crate ever rolls. A Secret item comes only from
+ * an achievement, and the Collection hides it entirely until you own it.
+ */
+export const SECRET_RARITY = 'secret' as const;
+export type CosmeticRarity = CrateRarity | typeof SECRET_RARITY;
+/** Every rarity, most common first, Secret last (the display order; crates use COSMETIC_RARITIES). */
+export const ALL_COSMETIC_RARITIES: readonly CosmeticRarity[] = [...COSMETIC_RARITIES, SECRET_RARITY];
+export const isSecretRarity = (r: CosmeticRarity): boolean => r === SECRET_RARITY;
 
 /**
  * THE PUBLISHED CRATE ODDS, in percent (sum 100). A crate first rolls a rarity at these fixed odds, then picks an
@@ -55,10 +66,10 @@ export type CosmeticRarity = typeof COSMETIC_RARITIES[number];
  * ANCIENT (owner 2026-10-02: "i added a new rarity -> Ancient. can you wire that up so we can have skins that are of
  * ancient rarity? these will be a 3% drop rate") ranks ABOVE Legendary; the odds moved 50/30/15/5 -> 35/31/22/9/3.
  */
-export const CRATE_RARITY_ODDS: Readonly<Record<CosmeticRarity, number>> = Object.freeze({ common: 35, rare: 31, epic: 22, legendary: 9, ancient: 3 });
+export const CRATE_RARITY_ODDS: Readonly<Record<CrateRarity, number>> = Object.freeze({ common: 35, rare: 31, epic: 22, legendary: 9, ancient: 3 });
 
 /** Player-facing rarity labels. */
-export const RARITY_LABELS: Readonly<Record<CosmeticRarity, string>> = Object.freeze({ common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', ancient: 'Ancient' });
+export const RARITY_LABELS: Readonly<Record<CosmeticRarity, string>> = Object.freeze({ common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', ancient: 'Ancient', secret: 'Secret' });
 
 export interface CosmeticCategoryDef {
   id: CosmeticCategory;
@@ -135,6 +146,13 @@ export interface CosmeticDef {
   assets: Readonly<Record<string, string>>;
   /** False = retired: never acquired again, never removed from an owner. */
   active: boolean;
+  /**
+   * A COLLECTION this item belongs to (owner 2026-10-27), e.g. the Plushie Beast skins. Owning every ACTIVE member of a
+   * collection completes the achievement whose id IS the collection id and grants that achievement's reward. The server
+   * keeps the count (`cosmetic_catalog.collection_id`, 2026-11-03-secret-plushie-plate.sql), so a new member joins on the next
+   * catalog sync; a player who already completed it keeps it.
+   */
+  collection?: string;
 }
 
 /** Owner 2026-09-27: the MVP's Level 2 title. A level milestone, so it is never in the crate pool. */
@@ -243,10 +261,28 @@ export const HERO_TITLE_COSMETICS: readonly CosmeticDef[] = Object.freeze(HERO_T
 ]));
 
 /**
+ * THE PLUSHIE BEAST COLLECTION (owner 2026-10-27: "i want this to be a secrete unlock that the players are given once
+ * they unlock every Plushie Beast cosmetic"). Every Plushie skin of a Beast. Owning them all completes the
+ * `collection.plushie_beasts` achievement, which grants the Secret Plushie Plate. A new Plushie Beast skin goes in
+ * this list (cosmetics.test.ts fails a "Plushie" minion skin left out).
+ */
+export const PLUSHIE_BEASTS_COLLECTION_ID = 'collection.plushie_beasts';
+export const PLUSHIE_PLATE_ID = 'plate_plushie';
+export const PLUSHIE_BEAST_SKIN_IDS: readonly string[] = Object.freeze([
+  'skin_hawkus_1', 'skin_oona_2', 'skin_manasaber_1', 'skin_tort_1', 'skin_trex_1', 'skin_florida_1', 'skin_mammoth_1',
+  'skin_dawnclaw_4', 'skin_echohorn_2', 'skin_solaris_1', 'skin_beetle_1', 'skin_elderhorn_1', 'skin_grim_1', 'skin_spots_2',
+  'skin_beardsley_1', 'skin_beev_1', 'skin_sunmane_1', 'skin_bullseye_1', 'skin_packstrider_1', 'skin_wolvie_1',
+  'skin_kennel_2', 'skin_raven_1', 'skin_seaurchin_3', 'skin_armadiyo_1',
+]);
+const COLLECTION_OF: ReadonlyMap<string, string> = new Map(PLUSHIE_BEAST_SKIN_IDS.map((id) => [id, PLUSHIE_BEASTS_COLLECTION_ID]));
+const withCollections = (items: CosmeticDef[]): CosmeticDef[] =>
+  items.map((c) => (COLLECTION_OF.has(c.id) ? { ...c, collection: COLLECTION_OF.get(c.id)! } : c));
+
+/**
  * THE LAUNCH CATALOG. Owner 2026-09-27: "let's just do 15 titles to start." 7 Common, 5 Rare, 2 Epic,
  * 1 Legendary. Names are placeholders for the owner to rename (ids stay).
  */
-export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
+export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   { id: ALPHA_TESTER_TITLE_ID, category: 'title', name: 'Alpha Tester', rarity: 'rare', acquisition: { type: 'level_milestone', level: 2 }, assets: {}, active: true },
   title('title_wanderer', 'Wanderer', 'common'),
   title('title_rune_reader', 'Rune Reader', 'common'),
@@ -874,9 +910,16 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_tattle', 'Tattle', 'epic', 'Tattle Plate.png'),
   cardPlate('plate_trichalice', 'Trichalice', 'epic', 'Trichalice Plate.png'),
   cardPlate('plate_gjally', 'Gjally', 'ancient', 'Gjally Plate.png'),
+  // THE PLUSHIE PLATE (owner 2026-10-27): the first SECRET item, the reward for owning every Plushie Beast skin. Never in
+  // a crate, and hidden in the Collection until owned.
+  { ...cardPlate(PLUSHIE_PLATE_ID, 'Plushie', 'secret', 'Plushie Plate.png'), acquisition: { type: 'achievement', id: PLUSHIE_BEASTS_COLLECTION_ID } },
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
-]);
+]));
+
+/** The ACTIVE members of a collection, in catalog order (the achievement's target is their count). */
+export const collectionMembers = (collectionId: string, catalog: readonly CosmeticDef[] = COSMETICS): CosmeticDef[] =>
+  catalog.filter((c) => c.active && c.collection === collectionId);
 
 export const COSMETIC_INDEX: Readonly<Record<string, CosmeticDef>> = Object.freeze(
   Object.fromEntries(COSMETICS.map((c) => [c.id, c])),
@@ -927,7 +970,7 @@ export function eligibleCrateCosmetics(owned: Iterable<string>, catalog: readonl
  * Where a rolled rarity with nothing left falls: the NEAREST rarity with something eligible, ties toward the MORE
  * COMMON one (Epic empty tries Rare before Legendary). The rolled rarity itself comes first.
  */
-export function crateRarityFallback(rolled: CosmeticRarity): CosmeticRarity[] {
+export function crateRarityFallback(rolled: CrateRarity): CrateRarity[] {
   const i = COSMETIC_RARITIES.indexOf(rolled);
   return COSMETIC_RARITIES.map((r, j) => ({ r, d: Math.abs(j - i), j }))
     .sort((a, b) => a.d - b.d || a.j - b.j)
@@ -935,7 +978,7 @@ export function crateRarityFallback(rolled: CosmeticRarity): CosmeticRarity[] {
 }
 
 /** Which rarity a draw `u` in [0, 1) rolls, and where inside that rarity's odds band it landed (`frac`, [0, 1)). */
-export function rollCrateRarity(u: number): { rarity: CosmeticRarity; frac: number } {
+export function rollCrateRarity(u: number): { rarity: CrateRarity; frac: number } {
   const x = Math.min(Math.max(u, 0), 1) * 100;
   let lo = 0;
   for (const r of COSMETIC_RARITIES) {
@@ -1003,7 +1046,7 @@ export interface CrateRow {
   source?: string;
   /** The crate's rarity FLOOR (Aether era, 2026-10-18): nothing below it can drop. Absent = Common (every crate before the
    *  Crate Shop, and an unfocused Standard crate). `parseCrate` drops it when the server sent none or an unknown value. */
-  floor?: CosmeticRarity;
+  floor?: CrateRarity;
   /** The categories the crate was focused on at purchase (or at opening, for a milestone crate opened before
    *  2026-10-20, when that was still allowed). Absent = unfocused. */
   focus?: CosmeticCategory[];
@@ -1041,14 +1084,14 @@ export const isShopSource = (source: string | null | undefined): boolean => type
  * STANDARD crate. `crateShop.ts` builds its `CRATE_TIER_LABELS` from this, so the shop and an owned crate cannot disagree
  * (and `crateShop.ts` can import this file without a cycle).
  */
-export const crateFloorLabel = (floor: CosmeticRarity): string => (floor === 'common' ? 'Standard' : RARITY_LABELS[floor]);
+export const crateFloorLabel = (floor: CrateRarity): string => (floor === 'common' ? 'Standard' : RARITY_LABELS[floor]);
 
 /**
  * Any crate's player-facing name: a level crate keeps its `crateName`, a Gauntlet crate names its stage, a milestone crate
  * its level and its own floor ("Level 10 Epic Chest"; one granted before 2026-10-20 is Legendary; `floor` absent = Epic,
  * today's milestone floor), a shop crate its tier (`floor` absent = Common = Standard).
  */
-export function crateLabel(crate: { earnedLevel: number | null; source?: string | null; floor?: CosmeticRarity | null }): string {
+export function crateLabel(crate: { earnedLevel: number | null; source?: string | null; floor?: CrateRarity | null }): string {
   if (crate.earnedLevel === null) {
     const stage = gauntletStageOfSource(crate.source);
     if (stage !== null) return `Gauntlet Chest · Stage ${stage}`;
@@ -1098,7 +1141,7 @@ export function parseCrate(v: unknown): CrateRow | null {
   if (source) row.source = source;
   // Aether-era keys: only present when the server sent a valid value, so an old crate keeps its exact shape.
   const floor = o.floor ?? o.floor_rarity;
-  if (typeof floor === 'string' && (COSMETIC_RARITIES as readonly string[]).includes(floor)) row.floor = floor as CosmeticRarity;
+  if (typeof floor === 'string' && (COSMETIC_RARITIES as readonly string[]).includes(floor)) row.floor = floor as CrateRarity;
   const focusRaw = o.focus ?? o.focus_categories;
   if (Array.isArray(focusRaw)) {
     const focus = focusRaw.filter((c): c is CosmeticCategory => typeof c === 'string' && (COSMETIC_CATEGORIES as readonly string[]).includes(c));
@@ -1534,6 +1577,8 @@ export interface CatalogSyncItem {
   targetId: string | null;
   achievementId: string | null;
   active: boolean;
+  /** The collection the item belongs to (`CosmeticDef.collection`), or null (absent = null). */
+  collectionId?: string | null;
 }
 export interface CatalogSyncPayload { version: 1; categories: CatalogSyncCategory[]; items: CatalogSyncItem[] }
 
@@ -1559,6 +1604,7 @@ export function catalogSyncPayload(
         targetId: c.target?.id ?? null,
         achievementId: c.acquisition.type === 'achievement' ? c.acquisition.id : null,
         active: c.active,
+        ...(c.collection ? { collectionId: c.collection } : {}),
       }))
       .sort(byKey((i) => i.cosmeticId)),
   };

@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { activeSet } from '@game/content';
-import { ACHIEVEMENT_CATEGORIES, type AchievementCategory } from '@game/progression';
+import { ACHIEVEMENT_CATEGORIES, UNIQUE_PLATE_REWARD_TEXT, type AchievementCategory } from '@game/progression';
 import { Icon } from '../Icon';
 import { sfx } from '../sfx';
 import { remoteEnabled } from '../remoteBoards';
@@ -40,7 +40,7 @@ type Loaded = { userId: string; completions: AchievementCompletionRow[] | null; 
 
 const CATEGORY_ICONS: Readonly<Record<AchievementCategory, string>> = {
   career: 'crown', ranked: 'shield', heroes: 'taunt', economy: 'ember', mechanics: 'gear', runes: 'anvil', set2: 'paw',
-  combat: 'sword', milestones: 'clock',
+  combat: 'sword', milestones: 'clock', collection: 'gift',
 };
 const TAB_KEY = 'ascent.career.achievements.cat';
 function loadCat(): AchievementCategory {
@@ -176,11 +176,13 @@ const AchTile = memo(function AchTile({ tile }: { tile: AchievementTile }): JSX.
     <article className={`ach-tile${completed ? ' done' : ''}${legacy ? ' legacy' : ''}`} aria-label={`${def.name}${completed ? ', completed' : ''}`}>
       <div className="ach-tile-top">
         <span className="ach-tile-name">{def.name}</span>
-        <span className="ach-tile-xp">{rewardText(def)}</span>
+        {def.rewards.xp > 0 && <span className="ach-tile-xp">{rewardText(def)}</span>}
       </div>
       <div className="ach-tile-req">{def.requirement}</div>
       {/* A title reward (the hero Titled and Mastery tiers, owner 2026-09-29), shown as it will be worn. */}
       {def.rewards.titleId && <div className="ach-tile-title"><span>Title</span><TitleBadge id={def.rewards.titleId} className="ach-titlebadge" /></div>}
+      {/* A cosmetic reward (the Secret Plushie Plate, owner 2026-10-27): named only by its reward line, never shown. */}
+      {def.rewards.cosmeticId && <div className="ach-tile-title ach-tile-secret"><span>Reward</span><span className="ach-secret-reward">{UNIQUE_PLATE_REWARD_TEXT}</span></div>}
       {pct !== null && (
         <div className="ach-prog" aria-label={`${progress} of ${def.target}`}>
           <div className="ach-prog-track"><div className="ach-prog-fill" style={{ transform: `scaleX(${pct})` }} /></div>

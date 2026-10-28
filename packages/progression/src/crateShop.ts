@@ -19,13 +19,13 @@ import { CRATE_TIERS, DEFAULT_AETHER_ECONOMY, type AetherEconomy, type CrateTier
 import {
   COSMETICS, COSMETIC_CATEGORIES, COSMETIC_RARITIES, CRATE_RARITY_ODDS, cosmeticOf, crateFloorLabel, crateRarityFallback, eligibleCrateCosmetics,
   isCategoryLive, isCosmeticLive, parseOpenCrateResult,
-  type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type OpenCrateResult,
+  type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type CrateRarity, type OpenCrateResult,
 } from './cosmetics';
 
 // ── Tiers ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** The rarity floor each tier sells. Standard = Common (nothing is excluded). */
-export const CRATE_TIER_FLOOR: Readonly<Record<CrateTier, CosmeticRarity>> = Object.freeze({
+export const CRATE_TIER_FLOOR: Readonly<Record<CrateTier, CrateRarity>> = Object.freeze({
   standard: 'common', rare: 'rare', epic: 'epic', legendary: 'legendary', ancient: 'ancient',
 });
 
@@ -40,18 +40,19 @@ export const CRATE_TIER_LABELS: Readonly<Record<CrateTier, string>> = Object.fre
 });
 
 /** Is rarity `r` at or above `floor`? */
-export const atOrAbove = (r: CosmeticRarity, floor: CosmeticRarity): boolean => COSMETIC_RARITIES.indexOf(r) >= COSMETIC_RARITIES.indexOf(floor);
+/** Whether an item's rarity is at or above a crate floor. A SECRET item is never on the crate ladder, so never. */
+export const atOrAbove = (r: CosmeticRarity, floor: CrateRarity): boolean => (COSMETIC_RARITIES as readonly string[]).indexOf(r) >= COSMETIC_RARITIES.indexOf(floor);
 
 /** The rarities a floor allows, lowest first, with the sum of their published odds (the renormalizing denominator). */
-function floorBand(floor: CosmeticRarity): { rarities: CosmeticRarity[]; sum: number } {
+function floorBand(floor: CrateRarity): { rarities: CrateRarity[]; sum: number } {
   const rarities = COSMETIC_RARITIES.filter((r) => atOrAbove(r, floor));
   return { rarities, sum: rarities.reduce((s, r) => s + CRATE_RARITY_ODDS[r], 0) };
 }
 
 /** The odds a tier DISPLAYS, in percent to one decimal: each rarity at or above the floor renormalized, 0 below it. */
-export function tierOddsPercent(floor: CosmeticRarity): Record<CosmeticRarity, number> {
+export function tierOddsPercent(floor: CrateRarity): Record<CrateRarity, number> {
   const { sum } = floorBand(floor);
-  const out = {} as Record<CosmeticRarity, number>;
+  const out = {} as Record<CrateRarity, number>;
   for (const r of COSMETIC_RARITIES) out[r] = atOrAbove(r, floor) ? Math.round((CRATE_RARITY_ODDS[r] / sum) * 100 * 10) / 10 : 0;
   return out;
 }
@@ -74,7 +75,7 @@ const serverAllows = (c: CosmeticDef): boolean => isCategoryLive(c.category) && 
  * or above the floor and, when a focus is named, to those categories. A null or empty focus means no focus.
  */
 export function eligibleForCrate(
-  owned: Iterable<string>, floor: CosmeticRarity, focus: readonly CosmeticCategory[] | null, catalog: readonly CosmeticDef[] = COSMETICS,
+  owned: Iterable<string>, floor: CrateRarity, focus: readonly CosmeticCategory[] | null, catalog: readonly CosmeticDef[] = COSMETICS,
 ): CosmeticDef[] {
   const cats = focus && focus.length > 0 ? new Set<CosmeticCategory>(focus) : null;
   return eligibleCrateCosmetics(owned, catalog).filter((c) => serverAllows(c) && atOrAbove(c.rarity, floor) && (!cats || cats.has(c.category)));
@@ -94,7 +95,7 @@ export const isFocusableCategory = (c: CosmeticCategory): boolean => !NON_FOCUSA
 /** The categories a player may focus at this floor: those with something still eligible (so never one the server has
  *  switched off) and focusable (never an Announcer), in `COSMETIC_CATEGORIES` order. When every one of these is ticked
  *  (`normalizeFocus`) the chest is unfocused, so its pool still includes the Announcers. */
-export function availableFocusCategories(owned: Iterable<string>, floor: CosmeticRarity, catalog: readonly CosmeticDef[] = COSMETICS): CosmeticCategory[] {
+export function availableFocusCategories(owned: Iterable<string>, floor: CrateRarity, catalog: readonly CosmeticDef[] = COSMETICS): CosmeticCategory[] {
   const have = new Set(eligibleForCrate(owned, floor, null, catalog).map((c) => c.category));
   return COSMETIC_CATEGORIES.filter((c) => have.has(c) && isFocusableCategory(c));
 }
@@ -126,7 +127,7 @@ export function focusFeePercent(ticked: number, available: number, eco: AetherEc
 
 export interface CrateQuote {
   tier: CrateTier;
-  floor: CosmeticRarity;
+  floor: CrateRarity;
   /** The canonical focus, or null for an unfocused crate. */
   focus: CosmeticCategory[] | null;
   /** The crate's own price (0 for a milestone crate). */
@@ -171,7 +172,7 @@ export function quoteCrate(input: {
  * one at or above the floor (`crateRarityFallback`, ties toward the more common); null when nothing at or above the floor
  * is eligible. u = 1 is the last rarity with frac = 1. With floor Common this is `pickCrateReward` draw for draw.
  */
-export function pickTieredCrateReward(eligible: readonly CosmeticDef[], floor: CosmeticRarity, u: number): CosmeticDef | null {
+export function pickTieredCrateReward(eligible: readonly CosmeticDef[], floor: CrateRarity, u: number): CosmeticDef | null {
   const { rarities, sum } = floorBand(floor);
   const x = Math.min(Math.max(u, 0), 1) * sum;
   let rolled = rarities[rarities.length - 1]!;
@@ -195,7 +196,7 @@ export function pickTieredCrateReward(eligible: readonly CosmeticDef[], floor: C
  * rarity at or above the floor gets its renormalized odds, passed to its fallback when it is empty, then split EQUALLY
  * among that rarity's eligible items. Sums to 1 while anything at or above the floor is eligible.
  */
-export function tieredCrateChances(eligible: readonly CosmeticDef[], floor: CosmeticRarity): Map<string, number> {
+export function tieredCrateChances(eligible: readonly CosmeticDef[], floor: CrateRarity): Map<string, number> {
   const { rarities, sum } = floorBand(floor);
   const out = new Map<string, number>();
   for (const rolled of rarities) {
@@ -238,7 +239,7 @@ function parseCrateQuote(v: unknown): CrateQuote | null {
     focus = o.focus.length > 0 ? [...(o.focus as CosmeticCategory[])] : null;
   }
   if (!isCount(o.crate) || !isCount(o.fee) || !isCount(o.total) || !isCount(o.remaining)) return null;
-  return { tier: tier as CrateTier, floor: o.floor as CosmeticRarity, focus, crate: o.crate, fee: o.fee, total: o.total, remaining: o.remaining };
+  return { tier: tier as CrateTier, floor: o.floor as CrateRarity, focus, crate: o.crate, fee: o.fee, total: o.total, remaining: o.remaining };
 }
 
 /**

@@ -73,6 +73,14 @@ export const PATCH_NOTES: PatchNote[] = [
           'Discover options now show the stats the minion will land with.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'A new Collection achievement, Plushie Collector: own every Plushie Beast skin to earn a unique reward.',
+        details: [
+          'Find it in Career, Achievements, under the new Collection category, with a progress bar.',
+          'The reward is only available from this achievement. If you already own every Plushie Beast, it is yours the next time you play.',
+        ],
+      },
     ],
   },
   {

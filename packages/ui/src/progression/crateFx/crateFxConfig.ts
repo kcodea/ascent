@@ -1,4 +1,4 @@
-import { COSMETIC_RARITIES, type CosmeticRarity } from '@game/progression';
+import { COSMETIC_RARITIES, type CrateRarity as ProgressionCrateRarity } from '@game/progression';
 import type { TunerControl, TunerSpec, TunerUnit } from '../../tunerSchema';
 import type { TailOpts } from '../../audio/tailFade';
 import { clipNames } from '../../sfx';
@@ -39,7 +39,7 @@ import {
  * skips all of it for a short fade.
  */
 
-export type CrateRarity = CosmeticRarity;
+export type CrateRarity = ProgressionCrateRarity;
 export const CRATE_RARITIES: readonly CrateRarity[] = COSMETIC_RARITIES;
 
 /**

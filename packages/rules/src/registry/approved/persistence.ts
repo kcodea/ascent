@@ -997,4 +997,21 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-28. Before, every onAuthStateChange fire re-ran the whole fan-out (~87,000 progression probes and 5,551 profile UPDATEs for 58 profiles in 16 days).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/identityGate.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-SEC-ANON-PURGE-01',
+    title: 'Only empty, idle guest accounts are ever purged',
+    statement:
+      'A guest (anonymous) account may be deleted only when it owns nothing anywhere (no row in any table points at it, '
+      + 'its id appears in no stored file and no game record), it has never started an email sign-in, and it has not '
+      + 'been used for at least 30 days (never less than 7). Email accounts and anyone with any data are never touched. '
+      + 'The purge is a manual, logged, batched operation the lead runs after a dry-run report.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-28 on the Supabase cleanup (docs/design/2026-10-28-supabase-cleanup.md, question 4)', quote: 'yes, purge empty ones' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-07-anon-user-purge.sql (maint.anon_purge_report / _candidates / _batch, maint.anon_purge_log)' },
+    ],
+    currentBehaviour: 'Tools only until the lead applies the file and runs the batches. Dry run on production 2026-10-28: 2,534 auth users, 5 never touched, 236 guests owning data kept, 1,292 empty guests active in the last 30 days kept, 1,001 candidates.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/anonPurge.db.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

@@ -20,7 +20,8 @@ import { remoteEnabled } from '../remoteBoards';
 import { pageHidden } from '../net/backoff';
 import { useGame } from '../store';
 import { useVersus, myRole } from '../versus/versusStore';
-import { versusRoomRef } from '../versus/versusRemote';
+import { versusRemote, versusRoomRef } from '../versus/versusRemote';
+import { decodeRoomRef } from '../versus/versusHost';
 import { isWatchingLive } from '../live/liveWatch';
 import { liveEligible } from '../live/livePublisher';
 import {
@@ -261,6 +262,7 @@ export function resetFriendsForTests(): void {
   started = false; lastAt = -Infinity; lastKey = ''; failures = 0; inFlight = false;
   invitesSub?.close(); invitesSub = null; invitesSubFor = '';
   remote = friendsRemote;
+  proofSource = defaultProofSource;
   set({ inbox: null, list: null, listFailed: false, deployed: true, busy: {}, flash: null, answered: {}, skew: 0 });
 }
 
@@ -377,8 +379,27 @@ export const unblockPlayer = (userId: string): Promise<unknown> => act(userId, (
  * The server checks the friendship, that the friend is online, and the target (a Versus room: one I am in and open).
  */
 export async function inviteFriend(userId: string, kind: InviteKind, target: string): Promise<boolean> {
-  const r = await act(`invite:${userId}`, () => remote.invite(userId, kind, target), 'Invite sent.');
+  const r = await act(`invite:${userId}`, async () => remote.invite(userId, kind, target, await inviteProofFor(userId, kind, target)), 'Invite sent.');
   return !!r;
+}
+
+/** Tests: a fake room check. */
+const defaultProofSource = (roomId: string, to: string, kind: InviteKind): Promise<string | null> => versusRemote.inviteProof(roomId, to, kind);
+let proofSource = defaultProofSource;
+export function setInviteProofSourceForTests(f: typeof proofSource): void { proofSource = f; }
+
+/**
+ * A CLOUDFLARE room's invite carries the room's own signed check (R-VERSUS-CF-INVITE-01): asked of the room on the socket
+ * I already hold, right before `friends_invite`, which refuses a `cf:` invite without it. The room answers the same codes
+ * the SQL does for a Supabase room (`room_not_open`, `not_in_room`, `already_in_room`), so the flash reads the same.
+ * A Supabase room needs none (null).
+ */
+export async function inviteProofFor(userId: string, kind: InviteKind, target: string): Promise<string | null> {
+  const { roomId, host } = decodeRoomRef(target);
+  if (host !== 'cf') return null;
+  const proof = await proofSource(roomId, userId, kind);
+  if (!proof) throw new FriendsError('room_check');
+  return proof;
 }
 
 /** What the relationship with a player is, from the last list (the Add friend buttons read it). */

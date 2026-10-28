@@ -613,6 +613,25 @@ export class RoomCore {
     return this.state.room.members.find((m) => m.userId === userId);
   }
 
+  /**
+   * FRIEND INVITES (R-VERSUS-CF-INVITE-01): may `userId` invite `to` into this room right now? The checks
+   * `friends_invite` runs on a Supabase room, in its order and with its codes: the room is open (`room_not_open`), I am in
+   * it (`not_in_room`), they are not (`already_in_room`); plus the invite kind must be the room's own (a Ranked Duos
+   * party invites with `duos_party`, every other room with `versus_room`). Throws a CoreError; answers nothing. The
+   * shell signs the answer (`invites.ts`) and the SQL checks the signature, so the check happens when the invite is SENT.
+   */
+  inviteCheck(userId: string, to: string, kind: string): void {
+    const r = this.state.room;
+    const want = r.options.mode === 'ranked_duos' ? 'duos_party' : 'versus_room';
+    if (kind !== want) fail('bad_kind');
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(to)) fail('bad_target');
+    if (to === userId) fail('self');
+    if (r.closed) fail('room_not_open');
+    if (!this.member(userId)) fail('not_in_room');
+    if (r.status !== 'open') fail('room_not_open');
+    if (this.member(to)) fail('already_in_room');
+  }
+
   // ── JSON (the SQL's row shapes) ────────────────────────────────────────────────────────────────────────────────
 
   roomJson(): Record<string, unknown> {

@@ -28,8 +28,8 @@ import { setIdentity } from '../identity';
 import { useVersus } from '../versus/versusStore';
 import type { VersusRoom } from '../versus/versusRemote';
 import {
-  BEAT_HIDDEN_MS, BEAT_VISIBLE_MS, presenceNow, registerInviteHandler, resetFriendsForTests, setFriendsRemoteForTests,
-  startFriendsPresence, useFriends,
+  BEAT_HIDDEN_MS, BEAT_VISIBLE_MS, inviteFriend, presenceNow, registerInviteHandler, resetFriendsForTests, setFriendsRemoteForTests,
+  setInviteProofSourceForTests, startFriendsPresence, useFriends,
 } from './friendsStore';
 import { FriendsError, type BeatAnswer, type Friend, type FriendInvite, type FriendsList, type FriendsRemote, type PresenceReport } from './friendsRemote';
 import { FriendsPage, statusText } from './FriendsPage';
@@ -95,6 +95,16 @@ describe('presence: what the beat reports', () => {
     expect(presenceNow()).toEqual({ status: 'in_game', mode: 'versus_duos', watchKind: 'versus', watchId: 'room-1' });
     useVersus.setState({ room: { ...room, status: 'open' }, match: null });
     expect(presenceNow()).toEqual({ status: 'online', mode: 'versus_room', watchKind: null, watchId: null });
+  });
+
+  it('a CLOUDFLARE Versus match is In a game with a cf: watch target, in every mode (R-VERSUS-CF-LIVE-01)', () => {
+    setIdentity({ userId: ME, displayName: 'Me', anonymous: false, email: 'a@b.c' });
+    const want = { duel: 'versus_1v1', group: 'versus_group', duos: 'versus_duos', ranked_duos: 'ranked_duos' } as const;
+    for (const [mode, presence] of Object.entries(want)) {
+      const room = { id: 'room-cf', host: 'cf', status: 'in_game', options: { mode }, members: [{ userId: ME, role: 'p1', displayName: 'Me', profile: {}, lastSeenAt: '' }] } as unknown as VersusRoom;
+      useVersus.setState({ room, match: { phase: 'shop' } as never });
+      expect(presenceNow(), mode).toEqual({ status: 'in_game', mode: presence, watchKind: 'versus', watchId: 'cf:room-cf' });
+    }
   });
 
   it('status words', () => {
@@ -263,5 +273,41 @@ describe('the invite notice', () => {
     un();
     act(() => { useFriends.setState({ inbox: { friends: 1, online: 1, incoming: 0, invites: [{ ...inv(90), id: 'inv-2', kind: 'duos_party' }], serverNow: '' } }); });
     expect(ui.container.textContent).toBe('');
+  });
+});
+
+describe('invites into a Cloudflare room are checked when sent (R-VERSUS-CF-INVITE-01)', () => {
+  function inviteRemote(sent: unknown[][], fail?: string): FriendsRemote {
+    return { ...fakeRemote(), list: async () => emptyList(), invite: async (...a: unknown[]) => { sent.push(a); if (fail) throw new FriendsError(fail); return { id: 'i', kind: 'versus_room', target: String(a[2]), expiresAt: '' }; } } as unknown as FriendsRemote;
+  }
+  const F = '00000000-0000-0000-0000-000000000002';
+
+  it('a cf: room asks the room for its proof first and sends it with the invite', async () => {
+    const sent: unknown[][] = [];
+    const asked: unknown[][] = [];
+    setFriendsRemoteForTests(inviteRemote(sent));
+    setInviteProofSourceForTests(async (...a) => { asked.push(a); return '123.abc'; });
+    expect(await inviteFriend(F, 'versus_room', 'cf:room-9')).toBe(true);
+    expect(asked).toEqual([['room-9', F, 'versus_room']]);
+    expect(sent).toEqual([[F, 'versus_room', 'cf:room-9', '123.abc']]);
+  });
+
+  it('the room says no: nothing is sent, and the flash reads as it does for a Supabase room', async () => {
+    const sent: unknown[][] = [];
+    setFriendsRemoteForTests(inviteRemote(sent));
+    setInviteProofSourceForTests(async () => { throw new FriendsError('room_not_open'); });
+    expect(await inviteFriend(F, 'versus_room', 'cf:room-9')).toBe(false);
+    expect(sent).toHaveLength(0);
+    expect(useFriends.getState().flash).toBe('That room is not open.');
+  });
+
+  it('a Supabase room sends no proof (the plain three-argument call)', async () => {
+    const sent: unknown[][] = [];
+    const asked: unknown[][] = [];
+    setFriendsRemoteForTests(inviteRemote(sent));
+    setInviteProofSourceForTests(async (...a) => { asked.push(a); return 'x'; });
+    expect(await inviteFriend(F, 'versus_room', 'room-1')).toBe(true);
+    expect(asked).toHaveLength(0);
+    expect(sent).toEqual([[F, 'versus_room', 'room-1', null]]);
   });
 });

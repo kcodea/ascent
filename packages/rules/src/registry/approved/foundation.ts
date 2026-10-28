@@ -10522,5 +10522,35 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-28 (feat/versus-cf-cutover). Every mode on Supabase until the owner flips one (docs/versus-cf-cutover.md).',
     example: 'The owner flips duel to cf: the next 1v1 room is a Cloudflare room. He flips it back mid-match: that match finishes on Cloudflare, and the next new 1v1 room is on Supabase.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRouter.test.ts', 'packages/ui/src/versus/versusCutoverStore.test.ts', 'workers/versus/test/origins.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },  {
+    id: 'R-VERSUS-CF-LIVE-01',
+    title: 'A Cloudflare Versus match is on Live Games and in Friends exactly like a Supabase one, mode by mode; the room writes its own Live Games row, throttled',
+    statement:
+      'A Versus match on the Cloudflare Worker is watchable exactly as the same match on Supabase. Ranked Duos: the team is listed on Live Games (`duos:cf:<room>`), its name, medal and rating read from the team in SQL, from Hero Select until the match ends (then the row is removed), never for a friends-only party; Watch joins the room in the stands on the Worker. The ROOM writes the row through the limited, key-gated `versus_cf_live` (never the service role, never the client), and only when the listing changes (it appears, a round or a phase changes, it ends) plus a 2-minute keep-alive: never per frame, per request or per spectator. A Cloudflare row stays listed 4 minutes past its last write; every other row keeps the 60 s rule. 1v1, Group and Versus Duos are not on Live Games on either backend; on both they show in Friends as In a game with a Watch that joins the room (`cf:<room>` for a Cloudflare room).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28 (Versus to Cloudflare, gaps after the Ranked Duos port)', quote: 'a Cloudflare match must show in Live Games (and Friends "In a game" + Watch) exactly like a Supabase one, for EVERY mode' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28', quote: 'throttled to keep Supabase egress low (write on start/round change/end only, not per frame)' },
+      { kind: 'code', ref: 'workers/versus/src/core/liveListing.ts, workers/versus/src/live.ts, workers/versus/src/room.ts (syncLive), packages/ui/src/versus/duosLive.ts (publishesOwnRow), supabase/migrations/2026-11-08-versus-cf-live-games-invites.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-28 (fix/versus-cf-livegames-invites). Live once the owner applies 2026-11-08-versus-cf-live-games-invites.sql and Ranked Duos is flipped to cf.',
+    example: 'A pair plays Ranked Duos on Cloudflare: round 3 shop shows "Round 3 · Shop" on Live Games; a spectator presses Watch and lands in the room on the Worker. Ten people joining the stands cause no write; the move to combat causes one.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveInvite.test.ts', 'workers/versus/test/cfLiveInvite.db.test.ts', 'packages/ui/src/versus/versusRouter.test.ts', 'packages/ui/src/friends/friends.test.tsx'], lastVerifiedAt: '2026-10-28' },
+  },
+  {
+    id: 'R-VERSUS-CF-INVITE-01',
+    title: 'A friend invite into a Cloudflare room is checked when it is sent: the room vouches with a short-lived signed proof',
+    statement:
+      'Inviting a friend into a Cloudflare room runs the same checks as a Supabase room, at send time: the room is open, the inviter is in it, the friend is not (plus the room\x27s own invite kind). The room runs them and answers a proof signed with HMAC-SHA256 over the room, inviter, invitee, kind and an expiry two minutes out, keyed with the hash of the Worker\x27s writer secret that Supabase already holds; `friends_invite` refuses a `cf:` invite without a valid, unexpired proof for exactly that invite (`room_check`), after its friendship, block, online and rate checks. A Supabase room is checked in SQL as before and needs no proof. The client asks the room on the socket it already holds, right before sending.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28 (Versus to Cloudflare, gaps after the Ranked Duos port)', quote: 'for a Cloudflare room, friends_invite with cf:<uuid> currently can\x27t verify the room is open and the inviter is inside; make the check happen at send' },
+      { kind: 'code', ref: 'workers/versus/src/invites.ts, workers/versus/src/core/roomCore.ts (inviteCheck), workers/versus/src/room.ts (invite_proof), packages/ui/src/friends/friendsStore.ts (inviteProofFor), supabase/migrations/2026-11-08-versus-cf-live-games-invites.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-28 (fix/versus-cf-livegames-invites). Needs 2026-11-08-versus-cf-live-games-invites.sql applied and a Worker that carries its writer secret.',
+    example: 'Ann is in an open Cloudflare 1v1 room and invites Cat: the room signs it and the invite goes out. Once the match starts, the room answers "That room is not open." and nothing is sent; a forged or two-minute-old proof is refused by the server.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveInvite.test.ts', 'workers/versus/test/cfLiveInvite.db.test.ts', 'workers/versus/test/it/room.it.ts', 'packages/ui/src/friends/friends.test.tsx', 'packages/ui/src/versus/versusRouter.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
 ];

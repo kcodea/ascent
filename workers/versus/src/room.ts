@@ -22,6 +22,9 @@ import type { VersusDirectory } from './directory';
 import { persistBackoffMs, sinkFor, type PersistEnv, type PersistSink } from './persist';
 import type { RankedService } from './core/rankedMatch';
 import { rankedServiceFor } from './rankedService';
+import { liveListingOf } from './core/liveListing';
+import { LIVE_STORAGE_KEY, liveSinkFor, LiveSlot } from './live';
+import { signInviteProof } from './invites';
 import {
   parseClientMessage,
   VERSUS_CF_CLOSE,
@@ -80,6 +83,8 @@ export class VersusRoom extends DurableObject<RoomEnv> {
   private loaded = false;
   private readonly sink: PersistSink;
   private readonly rankedSvc: RankedService;
+  /** The room's Live Games row (Ranked Duos only; `live.ts`). Rebuilt on every load with the key last published. */
+  private liveSlot: LiveSlot | null = null;
   private outboxSeq = 0;
   private outboxAttempt = 0;
   private outboxRetryAt: number | null = null;
@@ -118,6 +123,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     for (const k of entries.keys()) if (k.startsWith('ob:')) this.outboxSeq = Math.max(this.outboxSeq, Number(k.slice(3)) + 1);
     this.loaded = true;
     this.metrics.wakes += 1;
+    this.liveSlot = this.makeLiveSlot((entries.get(LIVE_STORAGE_KEY) as string | undefined) ?? null);
     if (!state) return null;
     this.core = new RoomCore(state, this.deps());
     this.core.restoreSockets(this.liveSockets().map((ws) => this.att(ws).userId), Date.now());
@@ -140,6 +146,27 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     return this.ctx.getWebSockets().filter((ws) => ws.readyState === 1);
   }
 
+  private makeLiveSlot(published: string | null): LiveSlot {
+    return new LiveSlot(
+      liveSinkFor(this.env),
+      () => this.core?.state.room.id ?? null,
+      async (key) => { if (key == null) await this.ctx.storage.delete(LIVE_STORAGE_KEY); else await this.ctx.storage.put(LIVE_STORAGE_KEY, key); },
+      published,
+      Date.now(),
+    );
+  }
+
+  /** LIVE GAMES (R-VERSUS-CF-LIVE-01): bring the room's listing row up to date, off the request path. A write happens
+   *  only when the listing's key changed (start, round, phase, end) or the keep-alive is due; see `live.ts`. */
+  private syncLive(): void {
+    const core = this.core;
+    const slot = this.liveSlot;
+    if (!core || !slot) return;
+    slot.want(liveListingOf(core.state));
+    if (!slot.due(Date.now())) return;
+    void slot.flush(Date.now()).then(() => this.rearm()).catch(() => undefined);
+  }
+
   // ── RPC from the Worker ────────────────────────────────────────────────────────────────────────────────────────
 
   /** Create the room (the Worker calls this once, with a fresh id). Answers the room json. */
@@ -152,6 +179,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
         this.core = new RoomCore(state, this.deps());
         await this.ctx.storage.put('meta', valueOfKey(state, 'meta'));
         await this.directory().upsert(this.core.summary() as never);
+        this.liveSlot ??= this.makeLiveSlot(null);
         await this.rearm();
         return { ok: true as const, room: this.core.roomJson() };
       } catch (e) {
@@ -255,6 +283,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       }
       await this.apply(await core.tick(now));
       await this.drainOutbox();
+      this.syncLive();
       await this.rearm();
     }
   }
@@ -294,6 +323,20 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       return;
     }
     if (!a.hello) { answer(false, 'hello_first'); return; }
+    if (msg.op === 'invite_proof') {
+      // FRIEND INVITES (R-VERSUS-CF-INVITE-01): the room's own checks, signed; `friends_invite` verifies the proof.
+      const args = (msg.args ?? {}) as { to?: unknown; kind?: unknown };
+      const to = String(args.to ?? '').toLowerCase();
+      const kind = String(args.kind ?? '');
+      try {
+        core.inviteCheck(a.userId, to, kind);
+        if (!this.env.VERSUS_WRITER_SECRET) { answer(false, 'invites_unavailable'); return; }
+        answer(true, { proof: await signInviteProof(this.env.VERSUS_WRITER_SECRET, { room: core.state.room.id, from: a.userId, to, kind }, Date.now()) });
+      } catch (e) {
+        answer(false, e instanceof CoreError ? e.code : 'server_error');
+      }
+      return;
+    }
     try {
       // One room per account: the directory is asked before a join (the SQL's unique index on versus_members.user_id).
       if (msg.op === 'join' && !core.member(a.userId)) {
@@ -367,6 +410,8 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     // 4. The directory (listing + one-room-per-account).
     if (fx.summary) await this.directory().upsert(core.summary() as never).catch((e) => console.warn('versus cf: directory upsert', e));
     for (const u of fx.left) await this.directory().release(u, core.state.room.id).catch(() => undefined);
+    // 5. Live Games (Ranked Duos): only when the listing changed; never on a plain request.
+    this.syncLive();
     if (core.state.room.closed) {
       const bye = JSON.stringify({ t: 'closed', reason: 'room_closed' } satisfies VersusCfPush);
       for (const ws of this.liveSockets()) { this.send(ws, bye); try { ws.close(VERSUS_CF_CLOSE.roomClosed, 'room_closed'); } catch { /* gone */ } }
@@ -436,7 +481,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     const left = await this.ctx.storage.list({ prefix: 'ob:', limit: 1 });
     this.outboxRetryAt = left.size ? Date.now() : null;
     // A closed room with nothing left to write forgets itself.
-    if (!left.size && this.core?.state.room.closed) {
+    if (!left.size && this.core?.state.room.closed && !this.liveSlot?.pending()) {
       await this.ctx.storage.deleteAll();
       await this.ctx.storage.deleteAlarm();
       this.core = null;
@@ -450,7 +495,10 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     const next = core.nextAlarm(Date.now());
     if (next != null) due.push(next);
     if (this.outboxRetryAt != null) due.push(this.outboxRetryAt);
-    if (core.state.room.closed) due.push(Date.now());
+    const live = this.liveSlot?.nextAt(Date.now());
+    if (live != null) due.push(live);
+    // (A closed room still owing its Live Games removal waits for that write: the slot's own time above, then this.)
+    if (core.state.room.closed && !this.liveSlot?.pending()) due.push(Date.now());
     // Stale-socket sweep while a match runs (a half-open phone socket must still pause the match).
     const m = core.state.match;
     if (m && m.phase !== 'complete' && this.liveSockets().length) due.push(Date.now() + VERSUS_CF_STALE_MS);

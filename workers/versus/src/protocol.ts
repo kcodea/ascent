@@ -81,7 +81,9 @@ export type VersusCfOp =
   | 'friends_only'
   | 'ranked_table'
   | 'ranked_teams'
-  | 'ranked_rounds';
+  | 'ranked_rounds'
+  /** A signed proof that I may invite a friend into this room now (R-VERSUS-CF-INVITE-01; `friends_invite` checks it). */
+  | 'invite_proof';
 
 export interface VersusCfHello {
   protocol: number;

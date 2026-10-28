@@ -114,6 +114,8 @@ export const FRIENDS_ERROR_TEXT: Record<string, string> = {
   not_in_room: 'You are not in that room.',
   room_not_open: 'That room is not open.',
   already_in_room: 'They are already in the room.',
+  room_check: 'Could not check the room. Try again.',
+  invites_unavailable: 'Invites are not available for this room yet.',
   no_invite: 'That invite is no longer there.',
   expired: 'That invite has expired.',
   not_deployed: 'Friends are not available yet.',
@@ -194,8 +196,11 @@ export function makeFriendsRemote(getClient: () => SupabaseClient | null) {
     remove: (userId: string) => rpc('friends_remove', { p_user: userId }),
     block: (userId: string) => rpc('friends_block', { p_user: userId }),
     unblock: (userId: string) => rpc('friends_unblock', { p_user: userId }),
-    invite: (userId: string, kind: InviteKind, target: string) =>
-      rpc<{ id: string; kind: InviteKind; target: string; expiresAt: string }>('friends_invite', { p_user: userId, p_kind: kind, p_target: target }),
+    /** `proof`: a Cloudflare room's signed check (R-VERSUS-CF-INVITE-01); omitted for a Supabase room, so the call is
+     *  exactly the three-argument one every server understands. */
+    invite: (userId: string, kind: InviteKind, target: string, proof?: string | null) =>
+      rpc<{ id: string; kind: InviteKind; target: string; expiresAt: string }>('friends_invite',
+        proof ? { p_user: userId, p_kind: kind, p_target: target, p_proof: proof } : { p_user: userId, p_kind: kind, p_target: target }),
     respondInvite: (id: string, accept: boolean) =>
       rpc<{ status: 'accepted' | 'declined'; kind: InviteKind; target: string; from: string }>('friends_invite_respond', { p_invite: id, p_accept: accept }),
     cancelInvite: (id: string) => rpc('friends_invite_cancel', { p_invite: id }),

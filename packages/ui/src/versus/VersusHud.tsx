@@ -29,6 +29,7 @@ import { SpectatorBar } from './SpectatorBar';
 import { useDuosLivePublisher } from './duosLive';
 import { emitPressCue } from '../pressCue';
 import { endTurnStalled } from './versusReliability';
+import { versusFightWaitHeld } from './versusHooks';
 import './versus.css';
 
 /** How often the End Turn watchdog looks (R-VERSUS-RELIABLE-05). */
@@ -103,14 +104,15 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
   // THE WATCHDOG (R-VERSUS-RELIABLE-05): End Turn can return without starting (its beats were still settling, a card
   // play's animation held it), and `firedRef` then said it had played, so it never did: the fight sat unplayed while the
   // table waited on this player ("completely locking us out"). While the fight is in and the run is still shopping it,
-  // with nothing animating, End Turn is asked again (a call while its beats play is ignored by End Turn itself).
+  // with nothing animating and no early End Turn's commit held for its fight (`versusFightWaitHeld`, R-VERSUS-EARLY-EOT-01),
+  // End Turn is asked again (a call while its beats play is ignored by End Turn itself).
   useEffect(() => {
     if (!versus || paused || run.phase !== 'recruit' || endTurnWave !== run.wave) return undefined;
     const wave = run.wave;
     const id = window.setInterval(() => {
       const g = useGame.getState();
       if (firedRef.current !== wave) return; // not played yet: the effect above plays it
-      if (!endTurnStalled({ endTurnWave: useVersus.getState().endTurnWave, run: g.run, presenting: !!g.presentationTx, paused: pausedNow() })) return;
+      if (!endTurnStalled({ endTurnWave: useVersus.getState().endTurnWave, run: g.run, presenting: !!g.presentationTx || versusFightWaitHeld(), paused: pausedNow() })) return;
       endTurn();
     }, END_TURN_RETRY_MS);
     return () => window.clearInterval(id);

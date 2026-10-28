@@ -1279,8 +1279,9 @@ function driveRun(match: VersusMatch, seat: VersusSeat): void {
     if (answered !== run) useGame.setState({ run: answered });
     set({ endTurnWave: run.wave });
   }
-  // The fight is in: an End Turn that started early commits now, landing it.
-  if (round) releaseVersusFightWait(run.wave);
+  // The fight is in: an End Turn that started early commits now, landing it. Off this call stack (a store commit inside
+  // `onMatch` would re-enter the session), on the next task, as the ordinary End Turn's effect always did.
+  if (round) { const wave = run.wave; setTimeout(() => releaseVersusFightWait(wave), 0); }
   // More than a round behind (a long reconnect): finish the old fight at once. One round behind is the ordinary
   // leave, which the fight screen plays through its own exit (`versusTurn` 'leave').
   if (run.phase === 'combat' && !run.pendingCombatSide && match.round > run.wave + 1 && (match.phase === 'shop' || match.phase === 'complete')) {

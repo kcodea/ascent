@@ -90,11 +90,27 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Live games: the End Turn gem is now a Ready button you can switch on and off.',
+        details: [
+          'In Versus and Ranked Duos it reads "Ready up". Once you are ready it stays lit with a green glow. Press it again before 0:00 to cancel.',
+          'The gem only cracks once the round has closed and the fight is on its way.',
+          'Your End of Turn effects now start as soon as the round closes, so the fight opens sooner.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: "Versus: Mend's Armor now shows to everyone right away, and nobody is shown knocked out before you see the fight that did it.",
         details: [
           "Cast Mend in the shop and every player sees your new Armor within a second. In Duos it is your teammate's Armor too.",
           "Other players' Health and Armor change when you leave the fight, never before it plays.",
           'Spectators in a group match see the same numbers as the player they watch.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Ranked Duos: at 0:00 the round now waits until both teammates are ready. No more 5 second countdown.',
+        details: [
+          'A teammate who disconnects counts as ready, and the round still goes on its own 30 seconds after 0:00.',
         ],
       },
       {

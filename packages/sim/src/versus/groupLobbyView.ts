@@ -27,6 +27,7 @@ import type { AuthoredOmen } from '../lobby/tutorialSeats';
 import type { VersusGroupPairing, VersusGroupSeat } from './group';
 import { versusDuosStartingVitals, versusStartingVitals, type VersusVitals } from './vitals';
 import { duosMateOf } from './duos';
+import { enteringKey, type VersusEnteringVitals } from './lobbyView';
 
 /** The Copy row's seat id. */
 export const VERSUS_COPY_SEAT_ID = 'sc';
@@ -84,6 +85,11 @@ export interface VersusGroupLobbyInput {
   /** RANKED DUOS: a recorded member's board for THIS round (`versus_ranked_duos_table`), shown on its row and scout card
    *  exactly as a solo lobby shows a seat's current board (R-LOBBY-SCOUT-01). Keyed by its (virtual) seat. */
   current?: Partial<Record<string, { minions: BoardMinion[]; tier: number | null }>>;
+  /** The server's pools going INTO a round, as stored right now (R-VERSUS-LIVE-ARMOR-01: a shop Mend lands on them the
+   *  moment it is reported; Duos: each seat carries its team's). Shown for a seat while the view is at the round before. */
+  entering?: VersusEnteringVitals<VersusGroupSeat> | null;
+  /** The match is over: every seat's knockout shows even when the round that decided it was never committed (a leave). */
+  complete?: boolean;
 }
 
 /** The Copy row's name: who is copied this round. */
@@ -100,7 +106,10 @@ function omenOf(m: Pick<CombatResult['initial']['enemy'][number], 'cardId' | 'at
 }
 
 /** A seat's pools after the last round shown (`through`), from the rounds' snapshots; before any, its `start`. */
-function vitalsThrough(seat: VersusGroupSeat, rounds: readonly VersusGroupLobbyRound[], through: number, start: VersusVitals): VersusVitals {
+function vitalsThrough(seat: VersusGroupSeat, rounds: readonly VersusGroupLobbyRound[], through: number, start: VersusVitals, entering?: VersusEnteringVitals<VersusGroupSeat> | null): VersusVitals {
+  // The round after the last one shown is not fought yet (or not watched yet): its going-in pools are the server's now.
+  const live = entering && entering.round === through + 1 ? entering.vitals[seat] : undefined;
+  if (live) return { health: Math.max(0, live.health), armor: Math.max(0, live.armor) };
   let v = start;
   for (const r of rounds) if (r.round <= through && r.vitals?.[seat]) v = r.vitals[seat]!;
   return { health: Math.max(0, v.health), armor: Math.max(0, v.armor) };
@@ -144,7 +153,7 @@ export function versusGroupLobby(input: VersusGroupLobbyInput): RunLobby {
     : versusStartingVitals(heroOf(seat), input.options));
   const poolOf = (seat: VersusGroupSeat, through: number): { resolve: number; armor: number; startArmor: number } => {
     const start = startOf(seat);
-    const v = vitalsThrough(seat, rounds, through, start);
+    const v = vitalsThrough(seat, rounds, through, start, input.entering);
     return { resolve: v.health, armor: v.armor, startArmor: start.armor };
   };
 
@@ -180,7 +189,11 @@ export function versusGroupLobby(input: VersusGroupLobbyInput): RunLobby {
       t.boards.push(now.minions.map(omenOf));
       t.tiers.push(now.tier ?? t.tiers[t.tiers.length - 1] ?? 1);
     }
-    const out = s.eliminatedRound != null && s.eliminatedRound <= othersThrough;
+    // A KNOCKOUT NEVER SHOWS WITHOUT THE HEALTH THAT CAUSED IT (owner 2026-10-27: "people seemed to die when they still
+    // had hp on my screen"): the seat row says out the moment the server commits, but the pools come from the round
+    // record, read separately. Until that round's record is here the seat stays in, on the pools last shown.
+    const out = s.eliminatedRound != null && s.eliminatedRound <= othersThrough
+      && (!!input.complete || rounds.some((r) => r.round >= s.eliminatedRound!));
     seats.push({
       id: idOf.get(s.seat)!, label: s.label, heroId: s.heroId, kind: 'authored', seed: seed(i + 1),
       authoredBoards: t.boards, authoredTiers: t.tiers, invulnerable: true,
@@ -262,5 +275,5 @@ export function versusGroupLobbyKey(input: VersusGroupLobbyInput): string {
   const pairing = input.pairing.map((p) => `${p.a}${p.copy ? '~' : '-'}${p.b}`).join(',') + (input.duos ? `|d${input.duos.first.a}${input.duos.first.b}` : '');
   const vit = input.rounds.filter((r) => Object.keys(r.vitals ?? {}).length).length;
   const cur = Object.entries(input.current ?? {}).map(([k, v]) => `${k}:${v?.minions.length ?? 0}:${v?.tier ?? ''}`).join(',');
-  return `g|${input.me}|${input.wave}|${input.inCombat ? 1 : 0}${input.combatSettled ? 1 : 0}|${last}|${input.rounds.length}|${vit}|${seats}|${pairing}|${cur}`;
+  return `g|${enteringKey(input.entering)}|${input.complete ? 1 : 0}|${input.me}|${input.wave}|${input.inCombat ? 1 : 0}${input.combatSettled ? 1 : 0}|${last}|${input.rounds.length}|${vit}|${seats}|${pairing}|${cur}`;
 }

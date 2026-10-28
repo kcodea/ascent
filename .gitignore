@@ -60,3 +60,7 @@ supabase/functions/versus-resolve/engine.generated.js
 
 # perf:gauntlet builds, baseline cache and reports (scripts/perf-gauntlet.mjs)
 /.perf-gauntlet/
+
+# Cloudflare Workers local state (wrangler dev) and local secrets
+.wrangler/
+.dev.vars

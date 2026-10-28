@@ -1,0 +1,26 @@
+{
+  "name": "@game/versus-cf",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "VERSUS on Cloudflare (spike, 2026-10-28): one Durable Object per room, WebSockets with hibernation, the deterministic engine resolving inside the object. Local only until the owner has a Cloudflare account. Design: docs/design/2026-10-28-versus-cloudflare.md.",
+  "exports": {
+    "./protocol": "./src/protocol.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "dev": "wrangler dev --port 8787 --var DEV_AUTH:1",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:it": "vitest run --config vitest.it.config.ts",
+    "measure": "tsx scripts/measure.ts",
+    "bundle:check": "wrangler deploy --dry-run --outdir dist"
+  },
+  "dependencies": {
+    "@game/content": "*",
+    "@game/core": "*",
+    "@game/sim": "*"
+  },
+  "devDependencies": {
+    "wrangler": "4.149.0"
+  }
+}

@@ -1,0 +1,35 @@
+# VERSUS on Cloudflare — LOCAL SPIKE (2026-10-28). Nothing here is deployed: the owner has no Cloudflare account yet.
+# Run locally with `npm run versus:cf:dev` (wrangler dev on :8787, dev tokens accepted).
+#
+# SECRETS (never committed; set with `wrangler secret put <NAME>` once an account exists):
+#   SUPABASE_SERVICE_ROLE_KEY   the persistence writer (versus_matches / versus_rounds upserts); see the design doc
+#                               for the scope question (a dedicated Postgres role is the recommendation).
+#   SUPABASE_JWT_SECRET         only if the project still signs with the legacy HS256 secret (else JWKS is used).
+name = "ascent-versus"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# The Supabase project (public URL, used to fetch the JWKS that signs player access tokens and as the REST base for
+# persistence). Empty in the spike: no JWKS fetch, no live writes.
+SUPABASE_URL = ""
+# "1" accepts `dev.<userId>.<name>` bearer tokens (local only; `npm run versus:cf:dev` passes it). Never set in prod.
+DEV_AUTH = "0"
+# Persistence is OFF unless "1" (and the service key secret is set). The spike never writes to Supabase.
+PERSIST = "0"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "VersusRoom"
+
+[[durable_objects.bindings]]
+name = "DIRECTORY"
+class_name = "VersusDirectory"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["VersusRoom", "VersusDirectory"]
+
+[observability]
+enabled = true

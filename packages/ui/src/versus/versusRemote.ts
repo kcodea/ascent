@@ -8,6 +8,8 @@ import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { ownSeatPerspective, VERSUS_PROTOCOL, type RankResult, type HeroReroll, type PreparedCombatSide, type VersusGroupSeat, type VersusRoomOptions, type VersusSeat, type VersusSeatScout } from '@game/sim';
 import type { BoardMinion, CombatResult } from '@game/core';
 import { supabaseClient } from '../remoteBoards';
+import { currentUserId, setIdentity } from '../identity';
+import { makeCfVersusRemote, versusCfSelected } from './versusCfRemote';
 
 export type VersusRoomStatus = 'open' | 'sealed' | 'in_game';
 /** A room role: a player seat (p3 / p4 only in a group room, R-VERSUS-GROUP-01) or the stands. */
@@ -867,4 +869,11 @@ export interface DuosLeaderboardRow { teamId: string; name: string | null; divis
 /** One of a player's Duos teams (`duos_teams_of`). */
 export interface DuosTeamOfRow { teamId: string; name: string | null; partner: DuosPlayerCard | null; division: number; points: number; games: number }
 
-export const versusRemote: VersusRemote = makeVersusRemote(supabaseClient);
+/** The game's adapter. Supabase by default; the Cloudflare room transport only in a dev tab opened with
+ *  `?versusHost=cf` (spike 2026-10-28, `versusCfRemote.ts`, docs/design/2026-10-28-versus-cloudflare.md). */
+export const versusRemote: VersusRemote = versusCfSelected()
+  ? makeCfVersusRemote({
+    getClient: supabaseClient, currentUserId, makeError: (code, message) => new VersusError(code, message),
+    adoptDevIdentity: (userId) => setIdentity({ userId, displayName: 'Dev', anonymous: true, email: null }),
+  })
+  : makeVersusRemote(supabaseClient);

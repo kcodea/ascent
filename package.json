@@ -6,13 +6,14 @@
   "description": "ASCENT â€” deterministic asynchronous auto-battler: Battlegrounds-style shop + an eight-seat elimination lobby. Pure engine + DOM UI.",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "workers/*"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "typecheck": "npm run typecheck:pkgs && npm run typecheck:web",
+    "typecheck": "npm run typecheck:pkgs && npm run typecheck:web && npm run typecheck:worker",
     "typecheck:pkgs": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:slow": "vitest run --mode nightly",
@@ -119,6 +120,7 @@
     "release:web": "node scripts/release-web.mjs",
     "package:itch": "npm run build:web && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-itch.ps1",
     "typecheck:web": "tsc -p apps/web/tsconfig.json --noEmit",
+    "typecheck:worker": "tsc -p workers/versus/tsconfig.json --noEmit",
     "lint": "eslint .",
     "wire:plate": "node scripts/build-plate-wire.mjs",
     "beats:audit": "tsx packages/tools/src/beat-audit.ts",
@@ -127,6 +129,9 @@
     "guides:pull": "tsx packages/tools/src/guides-pull.ts",
     "versus:bundle": "tsx packages/tools/src/versus-bundle.ts",
     "versus:parity": "tsx packages/tools/src/versus-parity.ts",
+    "versus:cf:dev": "npm run dev -w @game/versus-cf",
+    "versus:cf:test": "npm run test:it -w @game/versus-cf",
+    "versus:cf:measure": "npm run measure -w @game/versus-cf",
     "strength": "tsx packages/tools/src/strength/cli.ts",
     "plates:build": "node scripts/build-card-plate.mjs"
   },

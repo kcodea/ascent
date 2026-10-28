@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Phones: Recent Games, Live Games, Career and Settings now fit a phone screen.',
+        details: [
+          'Recent Games shows the game list beside the open game, with the board, runes and Replay in view. The page scrolls.',
+          'Live Games lists each game on one row with a big Watch button.',
+          'Career: the Heroes tab, Practice games, Seasonal Ranked, the trends and your Ranked Duos teams are easier to read.',
+          'Settings is one tall panel with full-width rows, bigger text and switches, and Done always in reach.',
+          'Friends rows and empty pages are easier to read.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Sixteen new Card Plates in chests.',
         details: [
           'Legendary: Burden, Divine, Mytho, Plasma, Shotsun, The Last Plate and Wither.',

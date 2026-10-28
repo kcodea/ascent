@@ -1051,6 +1051,11 @@ export function undeadBuyBonus(state: RunState, def: CardDef): number {
   if (defIsTribe(def, 'undead', state)) bonus += state.undeadBuyAtk ?? 0;
   if (defIsTribe(def, 'beast', state)) bonus += state.beastBuyAtk ?? 0;
   if (def.keywords.includes('M')) bonus += state.magneticBuyAtk ?? 0; // Scrap Herald (Magnetic/Attachment aura)
+  // The Imp Aura (`impBuff`) is BAKED the same way: every Imp is born carrying it, whatever made it (summon, buy,
+  // Discover, a combat hand-grant). Living here is what makes it reach every creation site at once; before it did,
+  // only the shop summon added it by hand, so an Imp Discovered by Underdweller came to hand at 1/1 (owner report
+  // 2026-10-28, R-IMP-AURA-01).
+  if (def.imp) bonus += state.impBuff?.attack ?? 0;
   return bonus;
 }
 
@@ -1074,6 +1079,7 @@ export function buyHealthAura(state: RunState, def: CardDef): number {
   let bonus = 0;
   if (def.keywords.includes('M')) bonus += state.magneticBuyHp ?? 0;
   if (defIsTribe(def, 'beast', state)) bonus += state.beastBuyHp ?? 0;
+  if (def.imp) bonus += state.impBuff?.health ?? 0; // the Imp Aura's Health half (see `undeadBuyBonus`)
   return bonus;
 }
 
@@ -1711,7 +1717,7 @@ export function buffImpsRunWide(state: RunState, a: number, h: number, source: s
  *   BAKED    auras already inside `stored`, applied at creation or by a run-wide buff pass
  *              · `cardBuff(cardId)`  — per-card-type enchants (Spear Warden) + the live Fodder aura
  *              · `undeadBuyAtk` / `beastBuy*` / `magneticBuy*` — creation auras (`undeadBuyBonus`/`buyHealthAura`)
- *              · `impBuff` for Imps
+ *              · `impBuff` for Imps (folded into `undeadBuyBonus` / `buyHealthAura`)
  *   FOLDED   auras NOT in `stored`, added only when the card is drawn: the Undead aura
  *              (`undeadAttackBonus`/`undeadHealthBonus`, Lantern of Souls). See `instView`:
  *              `shownAtk = inst.attack + undeadAtkBonus`.
@@ -1737,8 +1743,7 @@ export function bakedAuraOf(state: RunState, card: BoardCard): { attack: number;
   let health = typed.health;
   if (def) {
     attack += undeadBuyBonus(state, def);
-    health += buyHealthAura(state, def);
-    if (def.imp) { attack += state.impBuff?.attack ?? 0; health += state.impBuff?.health ?? 0; }
+    health += buyHealthAura(state, def); // includes the Imp Aura for Imps
   }
   return { attack, health };
 }
@@ -2474,7 +2479,10 @@ export function gainGold(state: RunState, amount: number): void {
         const rng = makeRng(state.rngCursor);
         const pick = pool[rng.int(pool.length)]!;
         state.rngCursor = rng.state();
-        state.hand.push({ uid: `b${state.uidSeq++}`, cardId: pick.id, tribe: pick.tribe, attack: pick.attack * 2, health: pick.health * 2, keywords: [...pick.keywords], golden: true });
+        // Golden doubles the BASE; the run's creation auras (per-card enchant, tribe buy auras, the Imp Aura) ride on
+        // top once, as on any created minion (R-AURA-01 / R-IMP-AURA-01).
+        const made = conjuredStats(state, pick);
+        state.hand.push({ uid: `b${state.uidSeq++}`, cardId: pick.id, tribe: pick.tribe, attack: made.attack + pick.attack, health: made.health + pick.health, keywords: [...pick.keywords], golden: true });
       }
     }
   }
@@ -4238,10 +4246,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       state.rngCursor = rng.state();
       if (state.board.length < CONFIG.boardMax) {
         const at = state.board.indexOf(self);
-        const cb = cardBuff(state, pick.id);
+        // The summoned body carries the run's creation auras like its hand copy does (`grantMinionToHandOrBoard`),
+        // not just the per-card enchant (R-AURA-01 / R-IMP-AURA-01).
         const body: BoardCard = {
           uid: `b${state.uidSeq++}`, cardId: pick.id, tribe: pick.tribe,
-          attack: pick.attack + cb.attack, health: pick.health + cb.health, keywords: [...pick.keywords], golden: false,
+          ...conjuredStats(state, pick), keywords: [...pick.keywords], golden: false,
         };
         state.board.splice(at < 0 ? state.board.length : at + 1, 0, body);
         fireSummonBuffs(state, body);
@@ -12529,18 +12538,17 @@ function makeContext(state: RunState): RecruitContext {
         return undefined;
       }
       const buff = cardBuff(state, card.id); // a conjured Fodder carries Ritualist's run buff
-      // A summoned Imp inherits the run-wide Imp aura (Imp Overseer / Brood Matron / Bane) — so an Imp summoned
-      // out of combat (e.g. Crypt Broker firing an Imp-summoning Echo) carries the buff, like a board/hand Imp.
-      const impA = card.imp ? (state.impBuff?.attack ?? 0) : 0;
-      const impH = card.imp ? (state.impBuff?.health ?? 0) : 0;
+      // A summoned Imp inherits the run-wide Imp aura (Imp Overseer / Brood Matron / Bane) through the same
+      // creation-aura helpers below — so an Imp summoned out of combat (e.g. Crypt Broker firing an Imp-summoning
+      // Echo) carries the buff, like a board/hand Imp.
       const minion: BoardCard = {
         uid: `b${state.uidSeq++}`,
         cardId: card.id,
         tribe: card.tribe,
         // A summoned minion inherits the run-wide tribe buy-auras too (Squirl Scout's Beast Attack on a Stray,
         // Lantern on an Undead token, Scrap Herald on a magnetized token) — same bake as bought/conjured beasts.
-        attack: card.attack + buff.attack + undeadBuyBonus(state, card) + impA,
-        health: card.health + buff.health + buyHealthAura(state, card) + impH,
+        attack: card.attack + buff.attack + undeadBuyBonus(state, card),
+        health: card.health + buff.health + buyHealthAura(state, card),
         keywords: [...card.keywords],
         golden: false,
       };

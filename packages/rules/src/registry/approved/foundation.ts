@@ -8451,16 +8451,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-SKIP-DIAMOND-01',
     title: 'Skip lives on the End Turn diamond, which glows yellow while the fight can be skipped',
     statement:
-      'During a combat replay the End Turn diamond is the Skip button; there is no separate Skip pill. From the moment the fight starts until Skip is pressed or the replay ends, the diamond fades into a bright yellow glow, its hover label reads "Skip Combat", and a click bursts the skip-sparks effect off the gem (on the real clock, not raced by the Skip it starts) and runs Skip (R-SKIP-TURBO-01). Pressing Skip fades the glow back to the spent gem; once the replay is done the diamond is End Combat exactly as before. The glow is an opacity fade over a static tint and halo, never a looping paint animation.',
+      'During a combat replay the End Turn diamond is the Skip button; there is no separate Skip pill. From the moment the fight starts until Skip is pressed or the replay ends, the diamond fades into a bright yellow glow, its hover label reads "Skip Combat", and a click bursts the skip-sparks effect off the gem (on the real clock, not raced by the Skip it starts) and runs Skip (R-SKIP-TURBO-01). Pressing Skip fades the glow back to the spent gem; once the replay is done the diamond is End Combat exactly as before. End Combat belongs to THIS fight\x27s finished replay only: the diamond never offers it (not even for one frame) while the fight on screen has not played out, including the first frame of a new fight, so the diamond goes Skip then End Combat and never End Combat, Skip, End Combat. The glow is an opacity fade over a static tint and halo, never a looping paint animation.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Mike, 2026-10-22 (combat Skip)', quote: 'i want to change the skip button from the Skip Pill to the end turn / start combat diamond. once combat starts have the diamond fade into a bright yellow glow. when hovering have a thumbnail that says "Skip Combat"' },
       { kind: 'code', ref: 'packages/ui/src/EndTurnButton.tsx (skipReady / onSkip, .etb-skipglow); packages/ui/src/Recruit.tsx ShopControls skipReady; styles.css .etbwrap.skip' },
+      { kind: 'fix-pr', ref: 'fix/end-turn-ready-early: packages/ui/src/useCombatReplay.ts resets `finished` (what `done` reports) during render with the beat index, not in the [combat] effect' },
     ],
-    currentBehaviour: 'Since 2026-10-22. Before, Skip was a blue pill above the diamond and the diamond sat dim and disabled for the whole replay.',
+    currentBehaviour: 'Since 2026-10-22. Before, Skip was a blue pill above the diamond and the diamond sat dim and disabled for the whole replay. '
+      + 'FIXED 2026-10-27: the first committed frame of every new fight still reported the previous fight\x27s replay as done, so the diamond showed '
+      + 'End Combat at the start of a fight and then Skip for the whole replay (a press there was swallowed, or started the exit before the fight '
+      + 'played); found by the perf gauntlet harness, about 1 fight in 4 there.',
     example: 'The fight begins and the diamond turns gold; hovering it shows Skip Combat; clicking it races the fight, the gold fades, and when the fight ends the diamond offers End Combat.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skipDiamond.test.tsx'], lastVerifiedAt: '2026-10-22' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skipDiamond.test.tsx', 'packages/ui/src/replayDoneStale.test.tsx'], lastVerifiedAt: '2026-10-27' },
   },
   // ── Versus Group: the 3-4 player round robin (owner 2026-10-24) ──────────────────────────────────────────────────
   {

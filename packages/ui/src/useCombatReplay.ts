@@ -1493,10 +1493,19 @@ export function useCombatReplay(
   // A Skip's fast-forward (R-SKIP-TURBO-01): the beat it eases back down for + the once-only landing callback.
   // Reset with the beat index, so it never carries into the next fight.
   const [turbo, setTurbo] = useState<null | { anchor: number; onLand?: () => void; landed?: boolean }>(null);
+  // `finished` lags `replayComplete` by a short hold (see the final-hold effect) so the FINAL beat's death animation +
+  // damage float fully play before the replay reports `done` (which cleans up the dead + triggers the round-end UI).
+  // Without it, the last kill was cut off mid-pop with no number.
+  const [finished, setFinished] = useState(false);
   if (combat !== renderedCombat) {
     setRenderedCombat(combat);
     setBeatIdx(0);
     setTurbo(null);
+    // …and `done` with them (R-SKIP-DIAMOND-01, bug 2026-10-27). Left to the `[combat]` effect (`resetTo`), the FIRST
+    // committed frame of every new fight still reported the PREVIOUS fight's `done: true`, which opened the End
+    // Combat gate for that frame: the diamond showed "End combat" at the start of the fight, then flipped to Skip
+    // for the whole replay, and a press on it was swallowed or started the exit before the fight had played.
+    setFinished(false);
   }
   // Mirrors read by the rAF ramp loop WITHOUT making it a React dep (so pause / beat advance don't re-arm it).
   const beatIdxRef = useRef(0);
@@ -1948,10 +1957,6 @@ export function useCombatReplay(
   // A card a combat effect just granted to the hand (Arcane Weaver → Spirit Fire) — shown flying to the
   // hand for the duration of its beat, so the player sees it happen instead of it just appearing later.
   const [handGrant, setHandGrant] = useState<{ cardId: string; key: number } | null>(null);
-  // `finished` lags `replayComplete` by a short hold (see below) so the FINAL beat's death animation +
-  // damage float fully play before the replay reports `done` (which cleans up the dead + triggers the
-  // round-end UI). Without it, the last kill was cut off mid-pop with no number.
-  const [finished, setFinished] = useState(false);
   // The most recent PUMMEL flash (a Pummel fire's `pummel-trigger`) this replay fired, wall-clock —
   // so the final hold can wait out one fired a beat or two BEFORE the end (Han Gover's crossing trails its Ale's
   // `toHand` beat and the death beat). See `choreo/finalHold.ts`. A stale entry from an earlier fight is

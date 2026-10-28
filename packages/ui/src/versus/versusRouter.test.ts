@@ -9,7 +9,7 @@ import type { VersusRoomOptions } from '@game/sim';
 import { makeRoutedVersusRemote, mergeRoomLists, VERSUS_ROUTES } from './versusRouter';
 import {
   DEFAULT_HOST_CONFIG, decodeRoomRef, embeddedCfUrl, encodeRoomRef, hostForNewRoom, makeHostConfigReader, makeRoomHostMemory,
-  parseHostConfig, parseRouteOverride, type VersusHostConfig,
+  parseHostConfig, parseLobbyLiveHost, parseLobbyLiveOverride, parseRouteOverride, type VersusHostConfig,
 } from './versusHost';
 import { versusCfLiveUrl } from './versusCfRemote';
 import { duosLiveRoomOf, publishesOwnRow } from './duosLive';
@@ -281,5 +281,34 @@ describe('Versus cutover: the switch itself', () => {
   it('every adapter method is routed (nothing skips the router)', () => {
     const methods = Object.keys(makeVersusRemote(() => null)).sort();
     expect(Object.keys(VERSUS_ROUTES).sort()).toEqual(methods);
+  });
+});
+
+describe('the lobby_live switch (R-LIVE-CF-01)', () => {
+  it('reads lobby_live from the same switch; anything but cf is Supabase; the Versus modes are untouched', async () => {
+    expect(parseLobbyLiveHost({ duel: 'cf', lobby_live: 'cf' })).toBe('cf');
+    expect(parseLobbyLiveHost({ lobby_live: 'nope' })).toBe('supabase');
+    expect(parseLobbyLiveHost(null)).toBe('supabase');
+    expect(parseHostConfig({ lobby_live: 'cf' })).toEqual(DEFAULT_HOST_CONFIG);
+    let now = 0;
+    let raw: unknown = { lobby_live: 'cf' };
+    const fetch = vi.fn(async () => raw);
+    const r = makeHostConfigReader(fetch, () => now, 30_000);
+    expect(r.peekLobbyLive()).toBe('supabase'); // before the first read (which it starts)
+    await new Promise((res) => setTimeout(res, 0));
+    expect(r.peekLobbyLive()).toBe('cf');
+    raw = { lobby_live: 'supabase' };
+    now = 31_000;
+    r.peekLobbyLive(); // stale: refreshes behind
+    await new Promise((res) => setTimeout(res, 0));
+    expect(r.peekLobbyLive()).toBe('supabase');
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('the dev override: lobby_live:cf, or *:cf', () => {
+    expect(parseLobbyLiveOverride('lobby_live:cf')).toBe('cf');
+    expect(parseLobbyLiveOverride('duel:cf,lobby_live:supabase')).toBe('supabase');
+    expect(parseLobbyLiveOverride('*:cf')).toBe('cf');
+    expect(parseLobbyLiveOverride('duel:cf')).toBeNull();
   });
 });

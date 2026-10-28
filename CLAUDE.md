@@ -185,6 +185,12 @@ If the bundle's revision is unchanged from what's deployed, say so and skip the 
 the Netlify upload is live too, so the owner should upload promptly; until then the old live client is the one out of
 step. No other trigger for a Versus deploy is needed: merges alone never change what players run.
 
+**Versus on Cloudflare (opt-in until the owner says otherwise):** `npm run release:web -- --versus-cf` also deploys the
+Cloudflare Versus Worker for the same commit FIRST, checks its `/health`, sets a new Worker's result-writer secret (run
+the one SQL line it prints), and bakes the Worker URL into the zip. A zip packed without the flag is Supabase-only. The
+steps above (versus-resolve) still apply either way. Which modes use Cloudflare is the server switch, never the pack:
+runbook + flip/rollback SQL in [`docs/versus-cf-cutover.md`](docs/versus-cf-cutover.md).
+
 ## Collaboration (2 devs — Kevin + Mike, both using Claude Code)
 
 > New to the repo? Start with [`ONBOARDING.md`](ONBOARDING.md) (clone → install → verify → the rules).

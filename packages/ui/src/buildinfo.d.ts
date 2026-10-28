@@ -14,6 +14,8 @@ declare const __PUBLIC_ART__: string[];
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_ANON_KEY?: string;
+  /** THE VERSUS CUTOVER: this build's own Versus Worker (set by `npm run release:web -- --versus-cf`); absent = Supabase only. */
+  readonly VITE_VERSUS_CF_URL?: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;

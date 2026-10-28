@@ -7,14 +7,19 @@
  */
 import { useGame } from '../store';
 import { isDuosParty, joinRoom, leaveRoom, openVersus, useVersus } from '../versus/versusStore';
+import { versusRemote } from '../versus/versusRemote';
+import { decodeRoomRef } from '../versus/versusHost';
 import { versusEnabled } from '../versus/versusFlag';
 import { watchLiveGame } from '../live/liveWatch';
 import { flashFriends, registerInviteHandler } from './friendsStore';
 import type { Friend, FriendInvite } from './friendsRemote';
 
 /** Open Versus and enter a room (as a player: into the room's hand, a seat one drag away; or in the stands). */
-export async function goToVersusRoom(roomId: string, as: 'player' | 'spectator', area: 'versus' | 'duos' = 'versus'): Promise<boolean> {
+export async function goToVersusRoom(ref: string, as: 'player' | 'spectator', area: 'versus' | 'duos' = 'versus'): Promise<boolean> {
   if (!versusEnabled()) { flashFriends('Versus is not available on this build.'); return false; }
+  // THE CUTOVER (R-VERSUS-CF-CUTOVER-01): an invite / Watch id / Live Games row names a Cloudflare room `cf:<id>`.
+  const { roomId, host } = decodeRoomRef(ref);
+  versusRemote.noteRoomHost(roomId, host);
   let vs = useVersus.getState();
   // A party invite while I wait in my own party (nothing started there, so leaving is free): swap parties
   // (R-RANKED-DUOS-SPLIT-01). Any other room I hold stays mine until I leave it.

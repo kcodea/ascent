@@ -20,8 +20,10 @@ SUPABASE_URL = "https://zcwhbejpqcdcfdpfxeza.supabase.co"
 # "1" accepts `dev.<userId>.<name>` bearer tokens (local only; `npm run versus:cf:dev` passes it). Never set in prod.
 DEV_AUTH = "0"
 # Result writes are OFF unless "1" (and VERSUS_WRITER_SECRET is set and the writer migration applied).
-# Browser origins allowed to call the Worker (`*` = one host label or a port): the Netlify site and local dev.
-ALLOWED_ORIGINS = "https://*.netlify.app,http://localhost:*,http://127.0.0.1:*"
+# Browser origins allowed to call the Worker (`*` = one host label or a port): the game's Netlify site (owner 2026-10-28)
+# and local dev ports. CONFIG, not code: a deploy with VERSUS_ALLOWED_ORIGINS set in the environment uses that list
+# instead (scripts/deploy.ts), so a custom domain is added without editing this file (docs/versus-cf-cutover.md).
+ALLOWED_ORIGINS = "https://ascent-game-web.netlify.app,http://localhost:*,http://127.0.0.1:*"
 PERSIST = "0"
 
 [[durable_objects.bindings]]

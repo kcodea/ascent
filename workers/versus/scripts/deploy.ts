@@ -13,6 +13,12 @@
  *              and scripts/writer-secret.mjs has set VERSUS_WRITER_SECRET on this Worker).
  *   --dry-run  bundle and check only; nothing is uploaded.
  *
+ * ORIGINS: `ALLOWED_ORIGINS` defaults to wrangler.toml's list (the Netlify site + local dev). Set
+ * `VERSUS_ALLOWED_ORIGINS` (comma-separated, same `*` rules) in the environment to deploy a different list, e.g. to add
+ * a custom domain, with no code change. It is validated (https origins, or http on localhost / 127.0.0.1) and echoed.
+ *
+ * `VERSUS_CF_ENV_FILE` points at another apps/web/.env (the release worktree's); default: this checkout's.
+ *
  * Only the deployed URL lines of wrangler's output are echoed.
  */
 import { spawnSync } from 'node:child_process';
@@ -21,6 +27,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { contentRevision } from '@game/content';
 import { VERSUS_CF_PROTOCOL } from '../src/protocol';
+import { validOrigin } from '../src/origins';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const root = join(here, '../../..');
@@ -32,10 +39,17 @@ export function versusWorkerName(rev = contentRevision(), isTest = false): strin
 }
 
 function anonKey(): string {
-  const env = readFileSync(join(root, 'apps/web/.env'), 'utf8');
+  const env = readFileSync(process.env.VERSUS_CF_ENV_FILE ?? join(root, 'apps/web/.env'), 'utf8');
   const m = /^VITE_SUPABASE_ANON_KEY=(.+)$/m.exec(env);
   if (!m) throw new Error('apps/web/.env has no VITE_SUPABASE_ANON_KEY');
   return m[1].trim();
+}
+
+const origins = process.env.VERSUS_ALLOWED_ORIGINS?.trim();
+if (origins) {
+  const bad = origins.split(',').map((o) => o.trim()).filter((o) => !validOrigin(o));
+  if (bad.length) { console.error(`VERSUS_ALLOWED_ORIGINS has invalid entries: ${bad.join(', ')}`); process.exit(1); }
+  console.log(`allowed origins (from VERSUS_ALLOWED_ORIGINS): ${origins}`);
 }
 
 const name = versusWorkerName(contentRevision(), test);
@@ -44,6 +58,7 @@ const args = [
   '--var', `SUPABASE_ANON_KEY:${anonKey()}`,
   '--var', `DEV_AUTH:${test ? '1' : '0'}`,
   '--var', `PERSIST:${!test && flag('persist') ? '1' : '0'}`,
+  ...(origins ? ['--var', `ALLOWED_ORIGINS:${origins}`] : []),
   ...(flag('dry-run') ? ['--dry-run', '--outdir', 'dist'] : []),
 ];
 console.log(`deploying ${name}${flag('dry-run') ? ' (dry run)' : ''}${test ? ' [TEST: dev tokens, no writes]' : ''}`);

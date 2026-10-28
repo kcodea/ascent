@@ -20,6 +20,7 @@ import { remoteEnabled } from '../remoteBoards';
 import { pageHidden } from '../net/backoff';
 import { useGame } from '../store';
 import { useVersus, myRole } from '../versus/versusStore';
+import { versusRoomRef } from '../versus/versusRemote';
 import { isWatchingLive } from '../live/liveWatch';
 import { liveEligible } from '../live/livePublisher';
 import {
@@ -91,7 +92,7 @@ export function presenceNow(): PresenceReport {
     const mode = VERSUS_MODE_OF[normalizeVersusOptions(v.room.options).mode];
     const role = myRole(v.room);
     const running = v.room.status === 'in_game' && !!v.match && v.match.phase !== 'complete';
-    if (running && role && role !== 'spectator') return { status: 'in_game', mode, watchKind: 'versus', watchId: v.room.id };
+    if (running && role && role !== 'spectator') return { status: 'in_game', mode, watchKind: 'versus', watchId: versusRoomRef(v.room) };
     if (running) return { status: 'online', mode: 'watching', watchKind: null, watchId: null };
     return { status: 'online', mode: 'versus_room', watchKind: null, watchId: null };
   }

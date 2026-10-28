@@ -233,9 +233,12 @@ export class FakeSupabase {
       const data = await this.net.send(`rpc:${fn}`, () => this.server.rpc(this.user, fn, args));
       return { data, error: null };
     } catch (e) {
+      this.lastError = `${fn}: ${(e as Error).message}`;
       return { data: null, error: errorOf(e) };
     }
   }
+  /** The last RPC failure (diagnostics for a setup step that failed). */
+  lastError: string | null = null;
 
   from(table: string): Query { return new Query(this, table); }
 

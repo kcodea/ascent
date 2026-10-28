@@ -172,17 +172,17 @@ export class ChaosClient {
       if (mode !== 'duel') await this.store.setRoomOptions({ v: 1, mode, modifiers: [] } as never);
     }
     const room = this.store.useVersus.getState().room;
-    if (!room) throw new Error(`${this.opts.name}: no room (${this.store.useVersus.getState().error})`);
+    if (!room) throw new Error(`${this.opts.name}: no room (${this.store.useVersus.getState().error}; ${this.fake.lastError ?? 'no RPC error'})`);
     return room.id;
   }
   async join(roomId: string, mode: string): Promise<void> {
     await this.store.joinRoom(roomId, 'player');
-    if (!this.store.useVersus.getState().room) throw new Error(`${this.opts.name}: join failed (${this.store.useVersus.getState().error})`);
+    if (!this.store.useVersus.getState().room) throw new Error(`${this.opts.name}: join failed (${this.store.useVersus.getState().error}; ${this.fake.lastError ?? 'no RPC error'})`);
     if (mode === 'ranked_duos') return; // a party join takes its free seat itself
   }
   async takeSeat(role: string): Promise<void> {
     const ok = await this.store.takeSeat(role as never);
-    if (!ok) throw new Error(`${this.opts.name}: take ${role} failed (${this.store.useVersus.getState().error})`);
+    if (!ok) throw new Error(`${this.opts.name}: take ${role} failed (${this.store.useVersus.getState().error}; ${this.fake.lastError ?? 'no RPC error'})`);
   }
   async start(): Promise<void> { await this.store.startGame(); }
 

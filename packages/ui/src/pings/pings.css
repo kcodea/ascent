@@ -1,0 +1,85 @@
+/* LIVE PINGS (owner 2026-10-29). The owner's painted thought bubbles in three menu layouts (A fan, B ring, C strip) and on
+   the marks. Only one-shot transform / opacity animations: nothing loops, nothing repaints per frame. No cursor rule:
+   the menu's buttons get the gauntlet from the global button rule. */
+
+/* ── A / B: placed bubbles ── */
+.ping-bubbles { position: fixed; inset: 0; z-index: 960; pointer-events: none; }
+.ping-bub {
+  position: absolute; width: 84px; height: 84px; margin: -42px 0 0 -42px; padding: 0;
+  appearance: none; border: 0; background: transparent; pointer-events: auto;
+}
+.ping-bub-in {
+  display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
+  animation: pingbubin 220ms cubic-bezier(0.2, 1.5, 0.45, 1) both;
+  animation-delay: calc(var(--i, 0) * 28ms);
+  transition: transform 0.1s ease-out;
+}
+.ping-bub:hover .ping-bub-in, .ping-bub:focus-visible .ping-bub-in { transform: scale(1.12); }
+.ping-bub .ping-art { width: 100%; height: 100%; object-fit: contain; }
+.ping-bub .ping-glyph { font-size: 40px; }
+/* A: the fan grows out of the card (the top row from below, the bottom row from above). */
+.pd-A .ping-bub:nth-child(-n + 3) .ping-bub-in { --pfrom: 18px; }
+.pd-A .ping-bub:nth-child(n + 4) .ping-bub-in { --pfrom: -18px; }
+/* B: Inspect sits a touch smaller in the middle of the ring. */
+.pd-B .ping-bub.ping-inspect { transform: scale(0.84); }
+@keyframes pingbubin {
+  0% { opacity: 0; transform: translateY(var(--pfrom, 0px)) scale(0.35); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── C: the strip (the tooltip panel) ── */
+.ping-strip {
+  position: fixed; z-index: 960;
+  max-width: none; width: auto; min-width: 176px;
+  gap: 2px; padding: 6px;
+  pointer-events: auto;
+}
+.ping-opt {
+  appearance: none; display: flex; align-items: center; gap: 10px;
+  min-height: 44px; padding: 3px 12px 3px 4px; border: 0; border-radius: 8px;
+  background: transparent; color: inherit; font: inherit; font-weight: 700; text-align: left;
+  animation: pingstripin 160ms ease-out both; animation-delay: calc(var(--i, 0) * 20ms);
+}
+.ping-opt:hover, .ping-opt:focus-visible { background: rgba(255, 255, 255, 0.09); }
+.ping-strip .ping-inspect { border-bottom: 1px solid var(--atip-divider, rgba(255, 255, 255, 0.12)); border-radius: 8px 8px 2px 2px; margin-bottom: 2px; }
+.ping-ico { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 38px; flex: 0 0 52px; }
+.ping-ico svg { width: 24px; height: 24px; }
+.ping-art { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+@keyframes pingstripin { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+
+/* Placeholder glyphs (a missing file only). */
+.ping-glyph { font-size: 22px; line-height: 1; font-weight: 900; }
+.pg-check { color: #8fe08a; }
+.pg-x { color: #ff7b6b; }
+.pg-question { color: #ffd66b; }
+.pg-pass { color: #9fc7ff; }
+.pg-sell { color: #f3c45a; }
+
+/* ── the mark: centred on its target's top edge, above the card's own layers ── */
+.ping-mark {
+  position: absolute; left: 50%; top: 0; z-index: 40;
+  transform: translate(-50%, -62%);
+  pointer-events: none;
+}
+.ping-mark.pm-button { top: 6%; }
+.ping-pop {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  pointer-events: auto;
+  /* The pop: a big overshoot that draws the eye, then a gentle settle; the fade at the end of its life. */
+  animation: pingpop 520ms cubic-bezier(0.2, 1.9, 0.35, 1) both, pingfade 400ms ease-in calc(var(--ping-left, 4000ms) - 400ms) forwards;
+}
+.ping-badge { display: block; width: 92px; height: 70px; }
+.ping-badge .ping-art { width: 100%; height: 100%; object-fit: contain; }
+.ping-badge .ping-glyph { font-size: 40px; }
+.ping-cap { font-size: 13px; padding: 1px 8px; white-space: nowrap; }
+@keyframes pingpop {
+  0% { transform: scale(0.2) translateY(14px); opacity: 0; }
+  45% { transform: scale(1.32) translateY(-4px); opacity: 1; }
+  70% { transform: scale(0.94); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes pingfade { to { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) {
+  .ping-pop { animation: pingfade 400ms ease-in calc(var(--ping-left, 4000ms) - 400ms) forwards; }
+  .ping-bub-in, .ping-opt { animation: none; }
+}

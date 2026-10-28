@@ -8,6 +8,7 @@
     "./protocol": "./src/protocol.ts",
     "./client": "./src/client.ts",
     "./live": "./src/liveProtocol.ts",
+    "./pings": "./src/pings.ts",
     "./core": "./src/core/roomCore.ts",
     "./core/storage": "./src/core/storage.ts"
   },

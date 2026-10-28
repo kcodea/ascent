@@ -2,6 +2,25 @@
 
 The game is a client-first app; the only server code lives here.
 
+## Applying SQL: `db:apply`, the ledger, `db:drift`, `db:measure` (2026-10-28)
+
+Production records what it has applied in `ops.schema_ledger` (private schema, no client access). Every SQL file goes
+in through the wrapper, never pasted into the SQL Editor:
+
+```bash
+npm run db:apply -- supabase/migrations/<file>.sql          # dry run: what would happen
+npm run db:apply -- supabase/migrations/<file>.sql --yes    # apply, record, then db:drift
+npm run db:apply -- supabase/migrations/<file>.sql --record-only --yes   # it was applied by hand: record it
+npm run db:ledger                                           # PENDING / CHANGED files (exit 1 if any)
+npm run db:drift                                            # live function bodies vs the repo's last definition
+npm run db:measure                                          # dated report in docs/ops/db-reports/
+```
+
+All four use the pinned Supabase CLI (`supabase db query --linked`) and the CLI login; `db:drift`, `db:ledger` and
+`db:measure` force a read-only transaction. Name new migration files so **filename order is apply order** (the date
+prefix after the newest existing file): `db:drift` reads "the repo's last definition" in filename order, and the
+explained exceptions where history broke that rule are listed in `scripts/supabase/drift-known.json`.
+
 ## Email delivery — Gmail SMTP now, a verified domain at release
 
 **The mail provider is a two-stage plan.** Right now auth email goes out through a dedicated **Gmail account

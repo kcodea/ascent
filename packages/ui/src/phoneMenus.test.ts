@@ -64,4 +64,21 @@ describe('phone menus (R-PHONE-MENUS-03)', () => {
     expect(Math.min(...sizes)).toBeGreaterThanOrEqual(8);
     expect(sizes.filter((s) => s >= 11).length / sizes.length).toBeGreaterThan(0.6);
   });
+
+  it('batch 2 (R-PHONE-MENUS-04): Recent Games scrolls as a page, Settings is unzoomed, and the only animation touched is switched off', () => {
+    const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    const rule = (sel: string): string => {
+      const at = bare.indexOf(`${PREFIX} ${sel} {`);
+      expect(at, sel).toBeGreaterThanOrEqual(0);
+      return bare.slice(at, bare.indexOf('}', at));
+    };
+    // Recent Games: the page scrolls (desktop pins the split to the window and hides the overflow).
+    expect(rule('.rg-page .lbscroll:has(> .gsplit)')).toMatch(/overflow-y:\s*auto/);
+    // Settings: the desktop panel's zoom is reset, and the sheet scrolls under a pinned Done.
+    expect(rule('.escov .escpanel')).toMatch(/zoom:\s*1;/);
+    expect(rule('.escov .escpanel button.escclose.pressable')).toMatch(/position:\s*sticky/);
+    // Any animation longhand only ever turns an animation OFF (the open game's one-shot rise-in).
+    const longhands = [...bare.matchAll(/animation-[a-z-]+\s*:\s*([^;}]+)/g)].map((m) => m[1]!.trim());
+    expect(longhands.every((v) => v === 'none')).toBe(true);
+  });
 });

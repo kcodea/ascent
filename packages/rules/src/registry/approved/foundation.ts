@@ -7648,6 +7648,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneMenus.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
   {
+    id: 'R-PHONE-MENUS-04',
+    title: 'Phone menus batch 2: Recent Games, Live Games, the rest of Career, Settings and Friends fit a landscape phone',
+    statement:
+      'On a phone (the page scale) Recent Games scrolls as one page: a one-line summary, the tabs and hero chips, then the '
+      + 'game list (two-line rows, the name first) beside the open game, which shows whole with its Replay / Career buttons '
+      + 'on their own row. Live Games is one row per game with a finger-sized Watch. Career\x27s Heroes grid, Practice lobby, '
+      + 'empty states, Seasonal Ranked (crest beside its numbers), trends and Ranked Duos teams are sized in points. Settings '
+      + 'is one sheet at its real size: full-width rows (label, control, note under it) and Done pinned at its foot. Friends '
+      + 'rows and the ladder pages\x27 empty states and buttons are sized in points. Nothing is clipped at 844 x 390 or 667 x '
+      + '375. Desktop is untouched (every rule keyed on the phone page scale, as R-PHONE-MENUS-03).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-27 (iPhone, landscape)', quote: 'menu navigation is really bad. you cannot see anything in careers/recent games etc. they are completely unusable.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-27 (iPhone, landscape)', quote: 'the settings menu is pretty ugly, but not unusable. just not good' },
+      { kind: 'code', ref: 'packages/ui/src/phoneMenus.css (the BATCH 2 sections)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (feat/phone-menus-batch2), checked in Playwright WebKit at 844 x 390 and 667 x 375 (landscape iPhone, prod build, live backend reads replayed from recorded fixtures). Compendium, Rules, Patch Notes, Versus, Practice options, the Ranked Duos party, hero select, the end screen and sign-in were not reworked in this batch.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneMenus.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
     id: 'R-TOUCH-KEYBOARD-01',
     title: 'Typing on a phone uses a big field above the keyboard',
     statement:

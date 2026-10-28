@@ -5,6 +5,7 @@ import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCu
 import { ancientSwapFree, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
 import { ancientAfterGoldspring, ancientOnSpendGold } from './ancients'; // Nadja
 import { ancientOnGoldSpent, ancientOnCardPlayed } from './ancients'; // Brackus
+import { ancientCrownDueNow, ancientCrownBuyTimes, ancientMidasTripleToo, ancientTierDiscount, ancientSetlistPrice, ancientTripleRewardTag, ancientOnDiscoverTaken, ancientArchiveNeed, ancientArchivePassive, ancientOnArchive, ancientArchiveDiscovers, ancientMarkArchiveDiscover, ancientGildedEchoGraft } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
 import { ancientCommissionDueNow, ancientCommissionReps, ancientAfterCommission, commissionDelayOf, ancientDrumlineNeed, ancientDrumlineComplete, ancientShoutDiscount, ancientFlashCopies, ancientTripleRewardTwice, DRAKKO_CARD_ID } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
@@ -249,7 +250,14 @@ function chronosQuestBuy(s: RunState, card: CardDef): void {
  *  threshold. */
 function keshiCrownBuy(s: RunState, card: CardDef): void {
   if (!hasPower(s, 'crownTally')) return;
-  s.keshiTierPoints += card.tier * wishboneReps(s); // Wishbone: the buy banks its tier twice
+  // Wishbone: the buy banks its tier twice. ANCIENT OF BONDS × Keshi: a minion of your Shop tier banks it twice too.
+  s.keshiTierPoints += card.tier * wishboneReps(s) * ancientCrownBuyTimes(s, card);
+  keshiCrownPayout(s);
+}
+
+/** Keshi's Crown: pay every full Crown (the loop below). Shared by the buy and Keshi × Ancient of Death's Avenge, which
+ *  advances the Crown outside a buy (paid at the reducer's action boundary). */
+function keshiCrownPayout(s: RunState): void {
   // A `while` (not an `if`) purely for safety: max tier 7 against KESHI_CROWN_THRESHOLD (25) means one
   // purchase can never pay twice today, but this can't silently break if either number is retuned later.
   while (s.keshiTierPoints >= KESHI_CROWN_THRESHOLD) {
@@ -263,7 +271,7 @@ function keshiCrownBuy(s: RunState, card: CardDef): void {
     // against that invariant changing (e.g. `buy` ever being added to the modalOpen exemption list), not a
     // guard against a currently-reachable interleaving.
     if (s.hand.length >= handCap(s) - reservedHandSlots(s)) break;
-    grantGoldenDiscover(s);
+    grantGoldenDiscover(s, true);
     s.keshiTierPoints = 0;
   }
 }
@@ -311,14 +319,16 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
   const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe, s) ? runeStacksOf(s, 'rune_trade_in') : 0;
   // ANCIENT OF FORTUNE × Drakko: "Shout minions cost 1 Gold less." (floored at 0 with every other discount below).
-  const shoutOff = !freeBuy ? ancientShoutDiscount(s, offer.cardId) : 0;
+  // ANCIENT OF FORTUNE × Keshi: "Minions of your Tier cost 1 less." (the same additive channel, floored at 0 below).
+  const shoutOff = !freeBuy ? ancientShoutDiscount(s, offer.cardId) + ancientTierDiscount(s, offer) : 0;
   // ANCIENT OF TIME × Frantic Frank: the first N minions bought each turn cost at most the Time price (every price
   // source above, the Starform's live price included, is capped; the discounts below still apply on top).
   const priced = offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s);
   // ANCIENT OF BONDS × Robin: a minion of a type marked by a sale is set to the Bonds price (never raised above its own).
   const bondsPrice = ancientRobinBondsPrice(s, offer.cardId);
   // ANCIENT OF FORTUNE × Ayse: an Enchanted offer is set to the Fortune price (never raised above its own).
-  const caps = [ancientTimePrice(s), bondsPrice, ancientEnchantedPrice(s, offer)].filter((c): c is number => c !== undefined);
+  // ANCIENT OF FORTUNE × Disco Dan: every copy of a Setlist card is set to 1 Gold (never raised above its own).
+  const caps = [ancientTimePrice(s), bondsPrice, ancientEnchantedPrice(s, offer), ancientSetlistPrice(s, offer.cardId)].filter((c): c is number => c !== undefined);
   const capped = caps.length > 0 ? Math.min(priced, ...caps) : priced;
   const cost = freeBuy ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff);
   return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff };
@@ -614,7 +624,9 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
   const id = s.discover?.[index];
   const def = id ? CARD_INDEX[id] : undefined;
   if (!def) return false;
-  ancientOnDiscoverPick(s, def.id); // ANCIENT OF TIME × Braum: Investment's pick is the minion copied each Start of Turn
+  // ANCIENT OF TIME × Braum: Investment's pick is the minion copied each Start of Turn. Also consumes the open Discover's
+  // Ancient origin (`ancientTag`) for the pick below, and records Disco Dan's Setlist picks.
+  const ancientTag = ancientOnDiscoverPick(s, def.id);
   // Albus (Empowerment): this pick REPLACES a Shop offer instead of joining the hand — the offer "turns into"
   // the chosen card. Handled before the hand path because none of the hand-only modifiers (locks, borrowed,
   // gilded, set-stats) mean anything to a Shop offer: it is still unbought, and gets its treatment on purchase.
@@ -670,6 +682,8 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
     for (const k of s.discoverKeywords ?? []) if (!taken.keywords.includes(k)) taken.keywords.push(k);
     // Rune of the Astral Draft: the pick casts an additional time — stamped on the instance, read by `spellCasts`.
     if (s.discoverExtraCasts) taken.extraCasts = (taken.extraCasts ?? 0) + s.discoverExtraCasts;
+    // ANCIENTS (Keshi × War, Quillen × Death, Disco Dan × Death): the pick's keyword grants, by its Discover's origin.
+    ancientOnDiscoverTaken(s, ancientTag, taken);
     s.hand.push(taken);
     takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
     if (empowered) ancientOnEmpowerPick(s, def, undefined, taken);
@@ -972,7 +986,7 @@ export function reduce(state: RunState, action: Action): RunState {
     syncStarDestroyer(next);
     // Set 3 batch 2 rune-graft tripwire: every arrival path stamps the Endless March / Last Tool grafts inline;
     // this sweep catches the ones that do not (a Discover, a conjure, a restored displaced body …).
-    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems || next.questFlags?.runeStellarEchoes || ancientRallyGoldGraft(next)) {
+    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems || next.questFlags?.runeStellarEchoes || ancientRallyGoldGraft(next) || ancientGildedEchoGraft(next)) {
       for (const c of [...next.board, ...next.hand]) applyRuneGrafts(next, c);
     }
     // RUNE OF THE SOUL FURNACE (Set 3 design pass): the Aura's derived Health term follows the Aura Attack at every
@@ -983,6 +997,8 @@ export function reduce(state: RunState, action: Action): RunState {
     ancientSyncEchoEnchants(next); // AYSE × ANCIENT OF DEATH: every Echo offer in the Shop is Enchanted, whatever put it there
     // CASSEN × ANCIENT OF DEATH: a Shop Avenge that brought the running commission due pays it now, in real time.
     if (ancientCommissionDueNow(next)) { const due = next.commission!; captureBuffFx(next, undefined, 'spell', () => payCommission(next, due)); }
+    // KESHI × ANCIENT OF DEATH: an Avenge that filled Keshi's Crown (Shop now, or a fight's at settle) pays it here.
+    if (ancientCrownDueNow(next)) keshiCrownPayout(next);
   }
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
@@ -1009,7 +1025,7 @@ export function reduce(state: RunState, action: Action): RunState {
     // "Give Dragons N total stats" (Skybound Pact / Taragosa's Inheritance): sum the +Attack/+Health BUFFS a
     // Dragon present BEFORE and AFTER this action received (base stats of new Dragons are excluded — only gains
     // on existing Dragons, board + hand). Advances the `tribeStats` objective by that total.
-    const statBefore = new Map([...state.board, ...state.hand].map((c) => [c.uid, { attack: c.attack, health: c.health }]));
+    const statBefore = new Map([...state.board, ...state.hand].map((c) => [c.uid, { attack: c.attack, health: c.health, golden: !!c.golden }]));
     // Set 3 batch 2 (2026-09-16): `onGainStats` reactors (Handy Flame) + the "a minion in your hand gains stats"
     // runes (Dream Mirror / Waking Dreams) ride this same per-action diff — the one boundary every stat writer
     // crosses. Runs before the Dragon tally below so the gains it pays are themselves counted.
@@ -1953,7 +1969,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Steward of Spells, Recaller, Mushy), never advances a spell tally or threshold, and never fires a
         // spellCast watcher. It still counts as a CARD played (`playedThisTurn`, stamped above).
         if (def.token) {
-          queueDiscover(s, { ...spec });
+          // ANCIENTS × Keshi (War / Genesis): a Triple Reward's Discover carries its origin (empty on every other run).
+          queueDiscover(s, spec.kind === 'minion' ? { ...spec, ...ancientTripleRewardTag(s, card) } : { ...spec });
           return s;
         }
         // Multi-cast a Discover-spell by the full spell multiplier — open the Discover once per cast, the extras
@@ -3471,6 +3488,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Quillen: archive a chosen minion — FRIENDLY (board) or SHOP (owner ruling 2026-08-14). It leaves
         // play and its TYPE is recorded. Once per turn (heroReady). On the 3rd archived minion, immediately
         // Discover one random minion per recorded type (so 2 Dragons + a Demon → 2 Dragons + a Demon), then reset.
+        // ANCIENT OF TIME × Quillen: Archive turns passive (its work is the Start-of-Turn grant), never activatable.
+        if (power.passive || ancientArchivePassive(s)) return state;
         const shopIdx = s.shop.findIndex((o) => o.uid === action.uid);
         const src = card ?? (shopIdx >= 0 ? s.shop[shopIdx]! : undefined);
         if (!src) return state; // must target a friendly board minion or a Shop offer
@@ -3486,22 +3505,36 @@ function reduceCore(state: RunState, action: Action): RunState {
         // overflow count carries toward the NEXT bucket rather than being discarded.
         const banked = (s.archivedTribes ??= []);
         for (let r = 0; r < reps; r++) banked.push(t as Tribe);
-        if (banked.length >= 3) {
-          const rng = makeRng(s.rngCursor);
-          const picks: string[] = [];
-          // Exactly THREE counts pay out; anything above that stays banked toward the next bucket (owner
-          // ruling — an overflow from a doubled archive must not be discarded). Identical to the old
-          // clear-everything for an undoubled Quillen, which can never bank more than 3.
-          for (const tribe of banked.slice(0, 3)) {
-            // `defIsTribe`, not a hand-rolled tribe/tribe2 pair: an All-types card counts as EVERY tribe, so
-            // archiving a type the SET does not carry (Undead / Mech) still offers Paragon / Standard Bearer
-            // rather than silently returning nothing (owner report 2026-08-20).
-            const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && defIsTribe(c, tribe, s));
-            if (pool.length > 0) picks.push(pool[rng.int(pool.length)]!.id);
+        ancientOnArchive(s); // ANCIENT OF FORTUNE × Quillen: +1 max Gold per Archive
+        // ANCIENT OF GENESIS × Quillen: Archive fills at 2 instead of 3.
+        const need = ancientArchiveNeed(s);
+        if (banked.length >= need) {
+          const paid = banked.slice(0, need);
+          // ANCIENT OF BONDS × Quillen: three different types pay out TWO Discovers (each its own roll).
+          const discovers = ancientArchiveDiscovers(s, paid);
+          const rollPicks = (): string[] => {
+            const rng = makeRng(s.rngCursor);
+            const picks: string[] = [];
+            // Exactly `need` counts pay out; anything above that stays banked toward the next bucket (owner
+            // ruling — an overflow from a doubled archive must not be discarded). Identical to the old
+            // clear-everything for an undoubled Quillen, which can never bank more than 3.
+            for (const tribe of paid) {
+              // `defIsTribe`, not a hand-rolled tribe/tribe2 pair: an All-types card counts as EVERY tribe, so
+              // archiving a type the SET does not carry (Undead / Mech) still offers Paragon / Standard Bearer
+              // rather than silently returning nothing (owner report 2026-08-20).
+              const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && defIsTribe(c, tribe, s));
+              if (pool.length > 0) picks.push(pool[rng.int(pool.length)]!.id);
+            }
+            s.rngCursor = rng.state();
+            return picks;
+          };
+          const picks = rollPicks();
+          s.archivedTribes = banked.slice(need); // keep the overflow
+          if (picks.length > 0) { s.discover = picks; ancientMarkArchiveDiscover(s); }
+          for (let d = 1; d < discovers; d++) {
+            const more = rollPicks();
+            if (more.length > 0) queueDiscover(s, { kind: 'pool', ids: more, ancientTag: 'archive' });
           }
-          s.rngCursor = rng.state();
-          s.archivedTribes = banked.slice(3); // keep the overflow
-          if (picks.length > 0) s.discover = picks;
         }
       } else if (power.kind === 'investment') {
         // Bram: bank 1 Gold a turn; the 5th invested pays out a random GILDED minion (up to your Shop tier,
@@ -4122,14 +4155,15 @@ function resolveChooseOneSpell(
 
 /** Gildmaster × Ancient of Genesis: true while a Triple Reward's repeat is resolving (so the repeat never repeats). */
 let tripleRewardRepeating = false;
-function grantGoldenDiscover(s: RunState): void {
+function grantGoldenDiscover(s: RunState, crown = false): void {
   // MIDAS: his Gilds pay a Gold Pouch instead of the Triple Reward. Swapped HERE rather than at the call sites
   // because every Gild route funnels through this one function — doing it per-site would guarantee a missed
   // path (the `applySpellBought` lesson).
+  // ANCIENT OF GENESIS × Midas (owner 2026-10-27: "Gilding a minion grants a Triple Reward."): the Pouch AND the reward.
   if (hasPower(s, 'midasTouch')) {
     const pouch = CARD_INDEX['emberpouch'];
     if (pouch && s.hand.length < handCap(s)) conjureToHand(s, [pouch], 1);
-    return;
+    if (!ancientMidasTripleToo(s)) return;
   }
   // Rune of the Corrupted Tome: a Triple Reward grants TWO — and +1 more per extra copy held (repeat family,
   // owner 2026-08-27). Recursion is bounded by the flag being cleared for the inner calls, so the extras can
@@ -4157,6 +4191,7 @@ function grantGoldenDiscover(s: RunState): void {
     keywords: [],
     golden: false,
     grantedTier: s.tier, // freeze "peek one tier up" at the tier it was granted — taverning up later can't inflate it
+    ...(crown && s.ancientsEnabled ? { crownReward: true } : {}), // ANCIENT OF GENESIS × Keshi reads it (Ancients runs only)
   });
   ancientOnTripleReward(s); // ANCIENT OF FORTUNE × Braum: a Triple Reward got also gains 3 Gold (a no-op unless picked)
 }
@@ -4180,16 +4215,16 @@ function checkTriples(s: RunState): void {
     }
     // Rune of Twin Gilding AND Midas' Touch both Gild at 2 — either one is enough, so they cannot stack into 1.
     // Shared with the shop's "this completes a Gild" indicator via `gildCopiesNeeded` so the two cannot drift.
-    const need = gildCopiesNeeded(s);
     let tripleId: string | undefined;
     for (const [id, n] of counts) {
-      if (n >= need) {
+      // Per card: ANCIENT OF BONDS × Disco Dan gilds his Setlist cards at 2 (the rest of the run's rule otherwise).
+      if (n >= gildCopiesNeeded(s, id)) {
         tripleId = id;
         break;
       }
     }
     if (!tripleId) return;
-    combineIntoGolden(s, tripleId, pullCopies(s, tripleId, need));
+    combineIntoGolden(s, tripleId, pullCopies(s, tripleId, gildCopiesNeeded(s, tripleId)));
   }
 }
 
@@ -7469,7 +7504,8 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       s.runeConsume = { attack: (s.runeConsume?.attack ?? 0) + r.attack, health: (s.runeConsume?.health ?? 0) + r.health };
       break;
     case 'goldPouchValue':
-      s.goldPouchValue = r.value; // Rune of Pillaging: your Gold Pouches are worth this much
+      // Rune of Pillaging: your Gold Pouches are worth this much (never LOWERED: Midas × Ancient of Fortune makes them 3).
+      s.goldPouchValue = Math.max(s.goldPouchValue ?? 0, r.value);
       break;
     case 'runeSummoning':
       s.runeSummoning = true; // Rune of Summoning: each spell cast improves your Imps +1/+1

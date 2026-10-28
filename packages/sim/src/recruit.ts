@@ -1,6 +1,7 @@
 import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
+import { ancientGildedEchoGraft, gildedEchoGraftEffect, ancientNoteDiscoverOpened, MIDAS_ECHO_MARK } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
 import { ancientDarahEotCopyLive, ancientRunDarahEotCopy } from './ancients'; // Darah
 import { ancientNadjaShopDeath } from './ancients'; // Nadja
@@ -10864,6 +10865,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     // Rune of the Astral Draft: the pick will cast an additional time — stamped on the OPEN offer and consumed by
     // `takeDiscoverPick`, the same per-offer channel `discoverKeywords` uses.
     state.discoverExtraCasts = spec.extraCasts;
+    ancientNoteDiscoverOpened(state, undefined); // ANCIENTS: a spell Discover carries no Ancient origin
   } else if (spec.kind === 'pool') {
     // Discover from an explicit card-id pool (Second Path). Offer up to 3 distinct, real cards.
     // Spells are excluded because the pool Discover was built for MINIONS — except GIFTS (owner design
@@ -10884,6 +10886,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     state.discoverLockGold = undefined;
     state.discoverLockWave = spec.lockWave; // Re-Pete x Ancient of Fortune: the pick is locked until next turn
     state.discoverBorrowed = spec.borrowed; // Rival's Reflection never borrows; kept generic
+    ancientNoteDiscoverOpened(state, spec.ancientTag); // ANCIENTS × Quillen: Bonds' second Archive Discover
   } else {
     offerDiscover(state, spec.tier, {
       tier: spec.exactTier,
@@ -10899,6 +10902,9 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     // (`borrowed`) ride the same lifecycle.
     if (state.discover) { state.discoverLockTier = spec.lockTier; state.discoverGolden = spec.golden; state.discoverLockGold = spec.lockGold; state.discoverLockWave = spec.lockWave; state.discoverBorrowed = spec.borrowed; state.discoverSetStats = spec.setStats; }
     else { state.discoverLockTier = undefined; state.discoverGolden = undefined; state.discoverLockGold = undefined; state.discoverLockWave = undefined; state.discoverBorrowed = undefined; state.discoverSetStats = undefined; }
+    // ANCIENTS: the offer's origin (a Triple Reward / Keshi's Crown / Disco Dan's Death Discover); Keshi × Genesis may
+    // turn a Crown offer's options into Tier 7 minions here, the one place a spec becomes an offer.
+    ancientNoteDiscoverOpened(state, spec.ancientTag);
   }
 }
 
@@ -13297,7 +13303,8 @@ export const ENDLESS_MARCH_TOKEN = 'knit';
 
 export function applyRuneGrafts(state: RunState, card: BoardCard): void {
   const rallyGold = ancientRallyGoldGraft(state); // ANCIENT OF WAR × Tradesman
-  if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems && !state.questFlags?.runeStellarEchoes && !rallyGold) return;
+  const gildedEcho = ancientGildedEchoGraft(state); // ANCIENT OF DEATH × Midas
+  if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems && !state.questFlags?.runeStellarEchoes && !rallyGold && !gildedEcho) return;
   const def = CARD_INDEX[card.cardId];
   if (!def || def.spell || def.ruby) return;
   const graft = (effect: EffectDef): void => {
@@ -13332,6 +13339,12 @@ export function applyRuneGrafts(state: RunState, card: BoardCard): void {
   if (rallyGold) {
     graft(rallyGoldGraftEffect(rallyGold.gold));
     if (!card.keywords.includes('RL')) card.keywords = [...card.keywords, 'RL'];
+  }
+  // ANCIENT OF DEATH × Midas (owner 2026-10-27): "Gilded minions gain Echo: Get a Gold Pouch". Every Gilded minion (board
+  // and hand, whatever gilded it) carries the graft. Found by its own marker, never by factory id, so a copied Echo of
+  // the same factory (Pillager's) is never overwritten.
+  if (gildedEcho && card.golden && !card.grantedEffects?.some((e) => e.params?.[MIDAS_ECHO_MARK])) {
+    (card.grantedEffects ??= []).push(gildedEchoGraftEffect(gildedEcho.cardId));
   }
 }
 
@@ -15027,7 +15040,7 @@ export function applyEndOfTurn(state: RunState): void {
 function applyEndOfTurnInner(state: RunState): void {
   // ANCIENT OF BONDS × Warden: the End-of-Turn gains react HERE, before the fight is prepared (the reducer's
   // per-action diff runs after `faceOmen` has already resolved combat). Board stats at the start of End of Turn.
-  const bondsBefore = state.ancientsEnabled ? new Map(state.board.map((c) => [c.uid, { attack: c.attack, health: c.health }])) : undefined;
+  const bondsBefore = state.ancientsEnabled ? new Map(state.board.map((c) => [c.uid, { attack: c.attack, health: c.health, golden: !!c.golden }])) : undefined;
   applyEndOfTurnBody(state);
   if (bondsBefore) ancientBondsReact(state, bondsBefore, true);
 }

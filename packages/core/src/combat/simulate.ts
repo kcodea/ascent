@@ -233,6 +233,12 @@ export function simulate(
       minion.effects = [...minion.effects, { on: 'onAttack', do: 'rallyGoldNextTurn', params: { gold: rg.gold, fixed: true } }];
       if (!minion.keywords.includes('RL')) minion.keywords.push('RL');
     }
+    // ANCIENT OF DEATH × Midas (owner 2026-10-27): a GILDED body summoned in the fight carries "Echo: get a Gold Pouch"
+    // (one Pouch: `fixed`). Found by its marker, so a copied Echo of the same factory is never mistaken for it.
+    const ge = m.ancientGildedEcho;
+    if (ge && minion.golden && !card.spell && !card.ruby && !minion.effects.some((e) => e.params?.ancientMidasEcho)) {
+      minion.effects = [...minion.effects, { on: 'onDeath', do: 'deathrattleGrantCardToHand', params: { cardId: ge.cardId, count: 1, fixed: true, ancientMidasEcho: true } }];
+    }
     if (m.runeAggressiveGolems && card.id === 'gemheart-shard' && !minion.effects.some((e) => e.do === 'rallyGiveAttackToRight')) {
       minion.effects = [...minion.effects, { on: 'onAttack', do: 'rallyGiveAttackToRight', params: {} }];
       if (!minion.keywords.includes('RL')) minion.keywords.push('RL');
@@ -1363,6 +1369,7 @@ export function simulate(
   let xeroxBondMirroring = false; // Xerox × Ancient of Bonds: the one-hop guard (see ctx.buff)
   /** ANCIENT OF BONDS: set while its own +Attack lands, so that grant can never trigger Bonds again. */
   let ancientBondsFiring = false;
+  let ancientGildedBondsFiring = false; // Midas × Ancient of Bonds: its own grant never re-triggers it
 
   /**
    * "A card was added to your hand" — broadcast to the side's reactors (owner report 2026-08-29). Called from
@@ -1569,6 +1576,17 @@ export function simulate(
           const pick = rng.pick(others);
           ancientBondsFiring = true;
           try { ctx.buff(pick, bonds.attack, 0, bonds.label); } finally { ancientBondsFiring = false; }
+        }
+      }
+      // ANCIENT OF BONDS × Midas (owner 2026-10-27: "When a Gilded minion gains stats, your other Gilded minions gain
+      // +2/+2."): a positive gain on a GILDED body gives every OTHER living Gilded friend the grant. The grants re-enter
+      // this function, so `ancientGildedBondsFiring` is the load-bearing guard: they never fire it again.
+      const gb = modsFor(target.side).ancientGildedBonds;
+      if (gb && !ancientGildedBondsFiring && target.golden && !target.dead && (attack > 0 || health > 0)) {
+        const others = boards[target.side].filter((m) => m !== target && !m.dead && m.health > 0 && m.golden);
+        if (others.length > 0) {
+          ancientGildedBondsFiring = true;
+          try { for (const o of others) ctx.buff(o, gb.attack, gb.health, gb.label); } finally { ancientGildedBondsFiring = false; }
         }
       }
       // ANCIENT OF BONDS × Xerox (owner 2026-10-02): "The copy and the original are bound. Stats one gains, the other

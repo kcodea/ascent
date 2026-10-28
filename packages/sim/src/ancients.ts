@@ -421,7 +421,7 @@
  */
 import { inRunTribes, makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { handCap, mixSeed, type BoardCard, type CommissionKind, type RunState, type ShopCard, type SotBeatFx } from './state';
+import { handCap, mixSeed, type DiscoverAncientTag, type BoardCard, type CommissionKind, type RunState, type ShopCard, type SotBeatFx } from './state';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { STARFORM_ID } from './starform';
 import { getHero, hasPower, type HeroPower } from './heroes';
@@ -430,6 +430,8 @@ import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, addOfferBuff, aegis
 import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './config';
 import { conjureToHand, gildMinion } from './recruit'; // Braum's Gilded payout (Investment's own conjure + gild)
 import { COMMISSION_DELAY, COMMISSION_TEXT, hasBattlecry, syncRunTribes } from './recruit'; // the 2026-10-09 batch
+import { defIsTribe } from './recruit'; // the 2026-10-27 batch
+import { KESHI_CROWN_THRESHOLD } from './config';
 import { poolOf, randomTierCeiling } from './cardPool';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
@@ -755,7 +757,56 @@ export type AncientEffect =
   /** Start of Turn: a random non-Gilded friendly minion becomes Gilded (the power turns passive via `power`). */
   | { do: 'sotGildRandom' }
   /** Playing a Gilded minion gives your Gilded minions +a/+h, repeated once per Gilded minion this game. */
-  | { do: 'gildedPlayBuffsGilded'; attack: number; health: number };
+  | { do: 'gildedPlayBuffsGilded'; attack: number; health: number }
+  // ── Midas (Midas' Touch) ──
+  /** Your Gilded minions carry "Echo: get `cardId`" (one card; a Gilded body does not double it). */
+  | { do: 'gildedEchoGetCard'; cardId: string }
+  /** Your Gold Pouches give `value` Gold (never lowers a higher value from elsewhere). */
+  | { do: 'goldPouchValue'; value: number }
+  /** Start of Turn: a random Gilded board minion without Ward gains Ward, permanently. */
+  | { do: 'sotWardRandomGilded' }
+  /** A Gild's reward also grants a Triple Reward (Midas: the Gold Pouch AND a Triple Reward). */
+  | { do: 'gildAlsoTripleReward' }
+  /** When a Gilded minion gains stats, your OTHER Gilded minions gain +a/+h. Its own grant never re-triggers it. */
+  | { do: 'gildedGainBuffsGilded'; attack: number; health: number }
+  // ── Keshi (Keshi's Crown) ──
+  /** Avenge (`every`), Shop AND combat (one running count): Keshi's Crown advances by `points`. */
+  | { do: 'avengeAdvanceCrown'; every: number; points: number }
+  /** Minions of your current Shop tier cost `gold` less (floor 0). */
+  | { do: 'tierMinionsDiscount'; gold: number }
+  /** A minion Discovered from a Triple Reward gains one random keyword from `keywords` (one it lacks). */
+  | { do: 'tripleRewardPickKeyword'; keywords: Keyword[] }
+  /** At Shop tier `minTier`+, each option a Crown Triple Reward offers has a `chance` to be a Tier 7 minion. */
+  | { do: 'crownTier7'; chance: number; minTier: number }
+  /** Start of Turn: get `cardId`. */
+  | { do: 'sotGetCard'; cardId: string }
+  /** Buying a minion of your current Shop tier banks its tier on Keshi's Crown `times` times. */
+  | { do: 'crownTierBuyTimes'; times: number }
+  // ── Quillen (Archive) ──
+  /** An Echo minion Discovered from Archive gains Rise. */
+  | { do: 'archiveEchoGainsRise' }
+  /** Each Archive use also gives +`gold` max Gold, permanently. */
+  | { do: 'archiveMaxGold'; gold: number }
+  /** At the pick: get `cardId` (hand first, the board when the hand is full). */
+  | { do: 'pickGetCard'; cardId: string }
+  /** Archive pays out after `count` archived minions instead of 3. */
+  | { do: 'archiveNeed'; count: number }
+  /** Archive is passive; Start of Turn: get a random minion of your most common type (your Shop tier or lower). */
+  | { do: 'sotTopTribeMinion' }
+  /** An Archive payout whose types are all different opens `discovers` Discovers. */
+  | { do: 'archiveDistinctDiscovers'; discovers: number }
+  // ── Disco Dan (Setlist) ──
+  /** At the pick: Discover an Echo minion (your tier or lower). It gains Rise and is locked until your next Shop
+   *  upgrade (no lock at Tier 6+). */
+  | { do: 'pickDiscoverEchoLocked' }
+  /** Every copy of a Setlist card costs at most `price` Gold. */
+  | { do: 'setlistPrice'; price: number }
+  /** At the pick: the Setlist cards you hold gain `keywords`, permanently. */
+  | { do: 'pickSetlistKeywords'; keywords: Keyword[] }
+  /** At the pick: Discover a Tier 7 minion, locked until Shop tier `lockTier`. */
+  | { do: 'pickDiscoverTier7Locked'; lockTier: number }
+  /** Setlist cards Gild at `copies` copies. */
+  | { do: 'setlistGildAt'; copies: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -1757,6 +1808,171 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'gildedPlayBuffsGilded', attack: 5, health: 5 }],
     },
   },
+  // MIDAS (owner pairings 2026-10-27, quoted above each entry). Midas' Touch (passive) = "You need only 2 copies to Gild.
+  // Gilding grants a Gold Pouch instead of a Triple Reward." A Gold Pouch is the `emberpouch` spell.
+  midas: {
+    death: {
+      // "Gilded minions gain Echo: Get a Gold Pouch" (a graft on every Gilded minion, board and hand, Shop and combat;
+      // one Pouch per death: a hero-granted Echo, so the Gilded body does not double it, the rune-graft rule)
+      offerText: 'Your **Gilded** minions gain "**Echo:** get a **Gold Pouch**."',
+      powerText: '{base} Your **Gilded** minions have "**Echo:** get a **Gold Pouch**."',
+      effects: [{ do: 'gildedEchoGetCard', cardId: 'emberpouch' }],
+    },
+    fortune: {
+      // "Gold Pouches grant 3g" (every Gold Pouch, whatever made it; Rune of Pillaging's 2 never lowers it)
+      offerText: 'Your **Gold Pouches** give **3 Gold**.',
+      powerText: '{base} Your **Gold Pouches** give **{mPouch} Gold**.',
+      effects: [{ do: 'goldPouchValue', value: 3 }],
+    },
+    war: {
+      // "Start of Turn: Give a random Gilded minion Ward" (a board minion without Ward first; all Warded: nothing)
+      offerText: '**Start of Turn:** give a random **Gilded** minion **Ward**.',
+      powerText: '{base} **Start of Turn:** give a random **Gilded** minion without **Ward** **Ward**.',
+      effects: [{ do: 'sotWardRandomGilded' }],
+    },
+    genesis: {
+      // "Gilding a minion grants a Triple Reward." (the Gild's reward moment: the Gold Pouch AND a Triple Reward)
+      offerText: 'Gilding a minion also grants a **Triple Reward**.',
+      powerText: 'You need only **2** copies to Gild. Gilding grants a **Gold Pouch** and a **Triple Reward**.',
+      effects: [{ do: 'gildAlsoTripleReward' }],
+    },
+    time: {
+      // "Start of Turn: Make a random friendly minion Gilded" (Gildmaster's Time primitive: a random non-Gilded one)
+      offerText: '**Start of Turn:** make a random friendly minion **Gilded**.',
+      powerText: '{base} **Start of Turn:** make a random friendly minion **Gilded**.',
+      effects: [{ do: 'sotGildRandom' }],
+    },
+    bonds: {
+      // "When a Gilded minion gains stats, your other Gilded minions gain +2/+2." (its own grant never re-triggers it)
+      offerText: 'When a **Gilded** minion gains stats, your other **Gilded** minions gain **+2/+2**. This does not trigger itself.',
+      powerText: '{base} When a **Gilded** minion gains stats, your other **Gilded** minions gain **+2/+2**. This does not trigger itself.',
+      effects: [{ do: 'gildedGainBuffsGilded', attack: 2, health: 2 }],
+    },
+  },
+  // KESHI (owner pairings 2026-10-27, quoted above each entry). Keshi's Crown (passive) = "Get a Triple Reward every 25
+  // shop tiers worth of cards you purchase." (`keshiTierPoints`, paid at `KESHI_CROWN_THRESHOLD`).
+  keshi: {
+    death: {
+      // "Avenge (4): Advance Keshi's Crown by 4" (one running count across Shop and combat, the 2026-10-09 hero Avenge)
+      offerText: '**Avenge (4):** advance Keshi’s Crown by **4**.',
+      powerText: '{base} **Avenge (4):** advance it by **4** (**{kDeathLeft}** more to go).',
+      effects: [{ do: 'avengeAdvanceCrown', every: 4, points: 4 }],
+    },
+    fortune: {
+      // "Minions of your Tier cost 1 less." (your current Shop tier; floor 0)
+      offerText: 'Minions of your Tier cost **1 Gold** less.',
+      powerText: '{base} Minions of your Tier (Tier **{kTier}**) cost **1 Gold** less.',
+      effects: [{ do: 'tierMinionsDiscount', gold: 1 }],
+    },
+    war: {
+      // "Minions discovered from Triple Rewards gain a random effect. (pool: Taunt, Ward, Rise, Flurry, Critical Strike,
+      // Execute, Stealth, Engraved)" (one it does not already have; every Triple Reward, not only the Crown's)
+      offerText: 'Minions you **Discover** from **Triple Rewards** gain a random keyword: **Taunt**, **Ward**, **Rise**, **Flurry**, **Critical Strike**, **Execute**, **Stealth** or **Engraved**.',
+      powerText: '{base} Minions you **Discover** from **Triple Rewards** gain a random keyword: **Taunt**, **Ward**, **Rise**, **Flurry**, **Critical Strike**, **Execute**, **Stealth** or **Engraved**.',
+      effects: [{ do: 'tripleRewardPickKeyword', keywords: ['T', 'DS', 'R', 'W', 'CR', 'V', 'ST', 'EG'] }],
+    },
+    genesis: {
+      // "Keshi's Crown may grant T7 units randomly. (At Tier 6) (25% chance per slot that a T7 shows up)"
+      offerText: 'At Tier **6**, each option a Keshi’s Crown **Triple Reward** offers has a **25%** chance to be a **Tier 7** minion.',
+      powerText: '{base} At Tier **6**, each option its **Triple Reward** offers has a **25%** chance to be a **Tier 7** minion.{kT7Now}',
+      effects: [{ do: 'crownTier7', chance: 0.25, minTier: 6 }],
+    },
+    time: {
+      // "Start of Turn: Get a Beyond the Summit."
+      offerText: '**Start of Turn:** get a **Beyond the Summit**.',
+      powerText: '{base} **Start of Turn:** get a **Beyond the Summit**.',
+      effects: [{ do: 'sotGetCard', cardId: 'beyondsummit' }],
+    },
+    bonds: {
+      // "Buying a minion of your shop tier counts twice." (toward Keshi's Crown: its tier is banked twice)
+      offerText: 'Buying a minion of your Tier counts **twice** for Keshi’s Crown.',
+      powerText: '{base} Buying a minion of your Tier (Tier **{kTier}**) counts **twice**.',
+      effects: [{ do: 'crownTierBuyTimes', times: 2 }],
+    },
+  },
+  // QUILLEN (owner pairings 2026-10-27, quoted above each entry). Archive = "Archive a friendly or shop minion. When full,
+  // discover a minion of those types." (once per turn; full = 3 archived).
+  quillen: {
+    death: {
+      // "Echo minions discovered from Archive gain Rise."
+      offerText: '**Echo** minions you **Discover** from Archive gain **Rise**.',
+      powerText: '{base} **Echo** minions you **Discover** from it gain **Rise**.',
+      effects: [{ do: 'archiveEchoGainsRise' }],
+    },
+    fortune: {
+      // "Archive grants +1 Max gold as well." (each Archive use, permanently: the Gold Font / Shop License channel)
+      offerText: 'Each Archive also gives **+1** max Gold.',
+      powerText: '{base} Each Archive also gives **+1** max Gold (**+{qGold}** so far).',
+      effects: [{ do: 'archiveMaxGold', gold: 1 }],
+    },
+    war: {
+      // "Get a Paragon." (once, the moment it awakens)
+      offerText: 'Get a **Paragon**.',
+      powerText: '{base} You got a **Paragon** when this awakened.',
+      effects: [{ do: 'pickGetCard', cardId: 'n2_paragon' }],
+    },
+    genesis: {
+      // "Archive only requires 2 minions."
+      offerText: 'Archive needs only **2** minions.',
+      powerText: 'Archive a friendly or shop minion. When **2** are archived, discover a minion of those types.',
+      effects: [{ do: 'archiveNeed', count: 2 }],
+    },
+    time: {
+      // "Archive becomes: Start of Turn: Get a random minion of your most common type." (passive; your Shop tier or lower)
+      offerText: 'Archive becomes passive. **Start of Turn:** get a random minion of your most common type.',
+      powerText: '**Start of Turn:** get a random minion of your most common type{qTopTribe}.',
+      power: { passive: true },
+      effects: [{ do: 'sotTopTribeMinion' }],
+    },
+    bonds: {
+      // "Archiving 3 different tribes grants 2 discovers."
+      offerText: 'When Archive fills with **3** different types, you get **2** Discovers.',
+      powerText: '{base} When the **3** are all different types, **Discover** twice.',
+      effects: [{ do: 'archiveDistinctDiscovers', discovers: 2 }],
+    },
+  },
+  // DISCO DAN (owner pairings 2026-10-27, quoted above each entry). Setlist (passive) = "On turn 1, Discover Tier 6, Tier 4,
+  // and Tier 2 minions. Each unlocks when you reach its Shop tier." "Setlist cards" = those three picks (by card,
+  // `AncientsState.discoSetlist`, recorded as each is taken).
+  discodan: {
+    death: {
+      // "Discover an Echo card. It gains Rise and unlocks when you upgrade your shop. (Immediately unlocked if you are
+      // shop tier 6.)" (once, the moment it awakens; your tier or lower)
+      offerText: '**Discover** an **Echo** minion. It gains **Rise** and unlocks when you upgrade your Shop (right away at Tier **6**).',
+      powerText: '{base} You **Discovered** an **Echo** minion with **Rise** when this awakened.',
+      effects: [{ do: 'pickDiscoverEchoLocked' }],
+    },
+    fortune: {
+      // "All copies of your setlist cards cost 1 gold."
+      offerText: 'Every copy of your Setlist cards costs **1 Gold**.',
+      powerText: '{base} Every copy of your Setlist cards costs **1 Gold**{dSetlist}.',
+      effects: [{ do: 'setlistPrice', price: 1 }],
+    },
+    war: {
+      // "Give your Setlist cards Ward and Flurry" (once, the moment it awakens: the Setlist cards you hold)
+      offerText: 'Your Setlist cards gain **Ward** and **Flurry**.',
+      powerText: '{base} Your Setlist cards gained **Ward** and **Flurry** when this awakened.',
+      effects: [{ do: 'pickSetlistKeywords', keywords: ['DS', 'W'] }],
+    },
+    genesis: {
+      // "Discover a T7 that unlocks at shop tier 6." (once, the moment it awakens)
+      offerText: '**Discover** a **Tier 7** minion. It unlocks at Shop Tier **6**.',
+      powerText: '{base} You **Discovered** a **Tier 7** minion that unlocks at Shop Tier **6**.',
+      effects: [{ do: 'pickDiscoverTier7Locked', lockTier: 6 }],
+    },
+    time: {
+      // "End of Turn: Reduce the cost of upgrading your Shop by 3." (Tradesman's Time primitive)
+      offerText: '**End of Turn:** reduce the cost of upgrading your Shop by **3**.',
+      powerText: '{base} **End of Turn:** reduce the cost of upgrading your Shop by **3**.{upgradeNow}',
+      effects: [{ do: 'eotUpgradeDiscount', amount: 3 }],
+    },
+    bonds: {
+      // "Setlist cards only require 2 copies to be Gilded."
+      offerText: 'Your Setlist cards need only **2** copies to Gild.',
+      powerText: '{base} Your Setlist cards need only **2** copies to Gild{dSetlist}.',
+      effects: [{ do: 'setlistGildAt', copies: 2 }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -1950,7 +2166,23 @@ export interface AncientsState {
   drakkoCompletions?: number;
   /** GILDMASTER × DEATH: friendly deaths since the last Goldcrafter (Shop + combat), the running Avenge (14) count. */
   gildDeaths?: number;
+  /** KESHI × DEATH: friendly deaths since the last advance (Shop + combat), the running Avenge (4) count. */
+  keshiDeaths?: number;
+  /** The OPEN Discover's Ancient origin, stamped by `openDiscover` from its spec (`DiscoverSpec.ancientTag`) or by
+   *  Archive's own payout, and consumed by the pick (`ancientOnDiscoverPick`). 'triple' = a Triple Reward, 'crown' =
+   *  a Triple Reward from Keshi's Crown, 'archive' = an Archive payout, 'discoDeath' / 'discoGenesis' = Disco Dan × Death's / Genesis' Discover. */
+  discoverTag?: AncientDiscoverTag;
+  /** DISCO DAN: the Setlist cards (card ids, in pick order), recorded as each Setlist Discover is taken while Ancients
+   *  are on, whatever is picked (Fortune / War / Bonds read them). */
+  discoSetlist?: string[];
+  /** DISCO DAN × BONDS: the card ids that Gild at 2 copies (stamped at the pick; read by `gildCopiesNeeded`). */
+  gildAt2?: string[];
+  /** QUILLEN × FORTUNE: max Gold Archive has given this run (printed live). */
+  quillenMaxGold?: number;
 }
+
+/** Where an open Discover came from, for the Ancients that treat its pick specially. */
+export type AncientDiscoverTag = DiscoverAncientTag;
 
 /** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
 export function enableAncients(run: RunState, override?: Partial<AncientMeterTuning>): RunState {
@@ -2032,6 +2264,7 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   if (aWar) a.ayseWarGain = aWar.amount; // AYSE × WAR: starts at the printed amount
   brackusOnPick(state, a); // BRACKUS × GENESIS / TIME: the Summit lock grows, the countdown starts
   batch5OnPick(state, a); // RAYSE / CASSEN / DRAKKO / GILDMASTER: the pick-time stamps
+  batch6OnPick(state, a); // MIDAS / QUILLEN / DISCO DAN: the pick-time grants and stamps
   return true;
 }
 
@@ -2164,6 +2397,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
     .replace('{smLock}', String(a?.brackusLock ?? SUMMIT_LOCK_GOLD)).replace('{smGenesis}', brackusGenesisText(state))
     .replace('{smTimeLeft}', brackusTimeText(state)).split('{smBondsTotal}').join(String(a?.brackusBondsTotal ?? 0));
   text = batch5PowerText(state, text, base, combat);
+  text = batch6PowerText(state, text, combat);
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -2381,6 +2615,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (bd) out.ancientBrackusAvenge = { every: bd.every, tick: live(state)?.brackusDeaths ?? 0, attack: bd.attack, health: bd.health, flag: ANCIENT_SUMMIT_AVENGE_FLAG, label: ANCIENTS.death.name };
   if (effectOf(state, 'socCopyTier7')) out.ancientSummitCopy = { label: ANCIENTS.war.name };
   Object.assign(out, batch5CombatMods(state));
+  Object.assign(out, batch6CombatMods(state));
   return out;
 }
 
@@ -2445,7 +2680,8 @@ export function ancientRunEotWardBuff(state: RunState, apply: (run: () => void) 
  * grant cannot trigger Bonds (the owner's "this doesnt re-trigger itself"). With `mark` (the End-of-Turn pass) every
  * uid it handled (gainers and recipients) is recorded, so the reducer's per-action diff skips them.
  */
-export function ancientBondsReact(state: RunState, before: Map<string, { attack: number; health: number }>, mark = false): void {
+export function ancientBondsReact(state: RunState, before: Map<string, { attack: number; health: number; golden?: boolean }>, mark = false): void {
+  midasBondsReact(state, before, mark); // MIDAS × BONDS: the same boundary, for Gilded minions
   const a = live(state);
   const e = effectOf(state, 'wardedGainBuffsWarded');
   if (!a || !e) return;
@@ -2491,6 +2727,7 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   // ALBUS × WAR: the lifetime Pummel tally the fight hands back (the payout already happened mid-fight).
   if ((effectOf(state, 'pummelGrantsCards') || effectOf(state, 'pummelCopyWarband') || effectOf(state, 'pummelSwapCharge') || effectOf(state, 'pummelEnemyCopy') || effectOf(state, 'pummelPowerUse')) && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
   batch5AfterCombat(state, a, result); // RAYSE / CASSEN / GILDMASTER: the running Avenge counts + the fight's pulses
+  batch6AfterCombat(state, a, result); // KESHI × DEATH: the running Avenge count + the fight's Crown advances
   // DARAH × WAR: the Swap charge the fight's Pummel paid (one flag per payout, already shown live) joins the bank.
   if (effectOf(state, 'pummelSwapCharge')) {
     const got = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SWAP_CHARGE_FLAG).length;
@@ -2624,6 +2861,7 @@ export function ancientStartOfTurn(state: RunState): void {
   bramStartOfTurn(state);
   brackusStartOfTurn(state);
   gildmasterStartOfTurn(state);
+  batch6StartOfTurn(state); // MIDAS × WAR, KESHI × TIME, QUILLEN × TIME
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -3646,11 +3884,23 @@ export function ancientRunInvestmentTime(state: RunState): boolean {
 
 /** A Discover pick resolved (`takeDiscoverPick`). BRAUM × TIME: Investment's pick becomes the minion copied each Start
  *  of Turn (recorded even when a full hand forfeits the pick itself). */
-export function ancientOnDiscoverPick(state: RunState, cardId: string): void {
+export function ancientOnDiscoverPick(state: RunState, cardId: string): AncientDiscoverTag | undefined {
   const a = live(state);
-  if (!a?.bramTimePending) return;
-  a.bramTimePending = undefined;
-  a.bramTimeCardId = cardId;
+  if (!a) return undefined;
+  // The open Discover's Ancient origin is CONSUMED by this pick (a forfeit to a full hand included), and handed to the
+  // caller for `ancientOnDiscoverTaken`.
+  const tag = a.discoverTag;
+  a.discoverTag = undefined;
+  // DISCO DAN: a Setlist pick (a tier-locked Discover of his own power, never an Ancient's) is recorded by card.
+  if (!tag && state.discoverLockTier && hasPower(state, 'discoLock')) {
+    (a.discoSetlist ??= []).push(cardId);
+    discoAfterSetlistPick(state, a, cardId);
+  }
+  if (a.bramTimePending) {
+    a.bramTimePending = undefined;
+    a.bramTimeCardId = cardId;
+  }
+  return tag;
 }
 
 /** BRAUM × TIME: Start of Turn, a plain copy of Investment's Discovered minion to hand, its own beat (R-SOT-BEAT-01). */
@@ -4189,6 +4439,8 @@ function heroAvengeOf(state: RunState): { every: number; tick: number } | undefi
   if (c) return { every: Math.max(1, c.every), tick: a.cassenDeaths ?? 0 };
   const g = effectOf(state, 'avengeGrantCard');
   if (g) return { every: Math.max(1, g.every), tick: a.gildDeaths ?? 0 };
+  const k = effectOf(state, 'avengeAdvanceCrown');
+  if (k) return { every: Math.max(1, k.every), tick: a.keshiDeaths ?? 0 };
   return undefined;
 }
 
@@ -4231,6 +4483,13 @@ export function ancientHeroAvengeShopDeath(state: RunState, dead: BoardCard): vo
     a.gildDeaths = ((a.gildDeaths ?? 0) + 1) % Math.max(1, g.every);
     const def = CARD_INDEX[g.cardId];
     if (a.gildDeaths === 0 && def && state.hand.length < handCap(state)) conjureToHand(state, [def], 1);
+  }
+  // KESHI × DEATH: the Crown advances right then; a Crown that is now full pays at the reducer's action boundary
+  // (`ancientCrownDueNow`), the Cassen shape.
+  const k = effectOf(state, 'avengeAdvanceCrown');
+  if (k) {
+    a.keshiDeaths = ((a.keshiDeaths ?? 0) + 1) % Math.max(1, k.every);
+    if (a.keshiDeaths === 0) advanceCrown(state, k.points);
   }
 }
 
@@ -4503,4 +4762,272 @@ function batch5PowerText(state: RunState, text: string, base: string, combat: An
     out = out.replace('{base}', base.replace(/\(due turn \d+\)/, `(due turn ${due})`));
   }
   return out;
+}
+
+// ── The 2026-10-27 batch: Midas / Keshi / Quillen / Disco Dan ────────────────────────────────────────────────
+/** KESHI × DEATH: the `questTrigger` flag each combat Avenge pulses (settle advances the Crown once per pulse). */
+export const ANCIENT_CROWN_FLAG = 'ancientCrownAdvance';
+/** MIDAS × DEATH: the marker on the grafted Echo, so the graft is found (and never confused with a copied Echo of the
+ *  same factory, e.g. an Echo Mimic's copy of Pillager's). */
+export const MIDAS_ECHO_MARK = 'ancientMidasEcho';
+
+/** KESHI × DEATH: advance Keshi's Crown by `points` (a Crown now full pays at the reducer's action boundary). */
+function advanceCrown(state: RunState, points: number): void {
+  if (points > 0) state.keshiTierPoints = (state.keshiTierPoints ?? 0) + points;
+}
+
+/** KESHI × DEATH: an Avenge has filled Keshi's Crown, so it pays NOW (the reducer's action boundary runs the Crown's
+ *  own payout loop). Only in the Shop: a combat advance pays at the next Shop's boundary, after settle. */
+export function ancientCrownDueNow(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'avengeAdvanceCrown') && state.phase === 'recruit'
+    && hasPower(state, 'crownTally') && (state.keshiTierPoints ?? 0) >= KESHI_CROWN_THRESHOLD;
+}
+
+/** MIDAS × DEATH: the Echo graft every Gilded minion carries, or undefined when Death is not the picked pairing. */
+export function ancientGildedEchoGraft(state: RunState): { cardId: string } | undefined {
+  const e = live(state) ? effectOf(state, 'gildedEchoGetCard') : undefined;
+  return e ? { cardId: e.cardId } : undefined;
+}
+
+/** MIDAS × DEATH: the grafted Echo ("Echo: get a Gold Pouch"). `fixed`: one card, a Gilded body does not double it. */
+export function gildedEchoGraftEffect(cardId: string): EffectDef {
+  return { on: 'onDeath', do: 'deathrattleGrantCardToHand', params: { cardId, count: 1, fixed: true, [MIDAS_ECHO_MARK]: true } };
+}
+
+/** MIDAS × GENESIS: does a Gild's reward grant a Triple Reward as well as the Gold Pouch? */
+export function ancientMidasTripleToo(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'gildAlsoTripleReward');
+}
+
+/** MIDAS × BONDS, Shop half: every board minion that was ALREADY Gilded and gained stats since `before` gives your OTHER
+ *  Gilded board minions +a/+h. Gainers are resolved before any grant and the grants are never re-diffed, so its own
+ *  grant never triggers it again (the Warden Bonds shape, the same `bondsHandled` marks). */
+function midasBondsReact(state: RunState, before: Map<string, { attack: number; health: number; golden?: boolean }>, mark: boolean): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'gildedGainBuffsGilded') : undefined;
+  if (!a || !e) return;
+  const handled = new Set(a.bondsHandled ?? []);
+  if (!mark) a.bondsHandled = undefined; // the per-action diff is the last reader
+  const gainers = state.board.filter((c) => {
+    if (!c.golden || handled.has(c.uid)) return false;
+    const p = before.get(c.uid);
+    return !!p && !!p.golden && (c.attack > p.attack || c.health > p.health);
+  });
+  if (gainers.length === 0) return;
+  const touched: string[] = [];
+  for (const g of gainers) {
+    const others = state.board.filter((c) => c !== g && c.golden);
+    if (others.length === 0) continue;
+    captureBuffFx(state, g, 'minion', () => { for (const o of others) addBuff(o, ANCIENTS.bonds.name, e.attack, e.health); });
+    touched.push(g.uid, ...others.map((o) => o.uid));
+  }
+  if (mark) a.bondsHandled = [...handled, ...touched];
+}
+
+/** KESHI × FORTUNE: the Gold a Shop minion's price drops by (a minion of your current Shop tier: `gold`; else 0). */
+export function ancientTierDiscount(state: RunState, offer: { cardId: string; starform?: true }): number {
+  const e = live(state) ? effectOf(state, 'tierMinionsDiscount') : undefined;
+  const def = e && !offer.starform ? CARD_INDEX[offer.cardId] : undefined;
+  return e && def && !def.spell && !def.ruby && def.tier === state.tier ? Math.max(0, e.gold) : 0;
+}
+
+/** KESHI × BONDS: how many times a bought card's tier is banked on Keshi's Crown (a minion of your Shop tier: `times`). */
+export function ancientCrownBuyTimes(state: RunState, def: CardDef): number {
+  const e = live(state) ? effectOf(state, 'crownTierBuyTimes') : undefined;
+  return e && !def.spell && !def.ruby && def.tier === state.tier ? Math.max(1, e.times) : 1;
+}
+
+/** The `ancientTag` a Triple Reward's Discover carries (Keshi × War / Genesis read it at the pick / the offer). Empty
+ *  outside an Ancients run, so every other run's Discover specs are byte-identical. */
+export function ancientTripleRewardTag(state: RunState, card: BoardCard): { ancientTag?: AncientDiscoverTag } {
+  if (!live(state) || card.cardId !== 'discoverspell') return {};
+  return { ancientTag: card.crownReward ? 'crown' : 'triple' };
+}
+
+/** A Discover just opened from a spec (`openDiscover`): stamp its Ancient origin (cleared when it carries none). */
+export function ancientNoteDiscoverOpened(state: RunState, tag: AncientDiscoverTag | undefined): void {
+  const a = live(state);
+  if (!a) return;
+  a.discoverTag = state.discover?.length ? tag : undefined;
+  if (a.discoverTag === 'crown') ancientCrownTier7(state);
+}
+
+/** KESHI × GENESIS: at Shop tier 6+, each option of the open Crown Triple Reward has a `chance` to become a Tier 7
+ *  minion (a distinct one with copies left, not already offered; seeded off the run cursor). No Tier 7 left: unchanged. */
+function ancientCrownTier7(state: RunState): void {
+  const e = effectOf(state, 'crownTier7');
+  const offer = state.discover;
+  if (!e || !offer?.length || state.tier < e.minTier) return;
+  const pool = poolOf(state).buyable.filter((c) => !c.spell && !c.ruby && c.tier === 7 && inRunTribes(c, state.tribes)
+    && (state.pool[c.id] ?? 0) > 0 && !offer.includes(c.id));
+  const rng = makeRng(state.rngCursor);
+  const next = [...offer];
+  for (let i = 0; i < next.length && pool.length > 0; i++) {
+    if (rng.next() < e.chance) next[i] = pool.splice(rng.int(pool.length), 1)[0]!.id;
+  }
+  state.rngCursor = rng.state();
+  state.discover = next;
+}
+
+/** A Discover pick was TAKEN into the hand (`takeDiscoverPick`), `tag` = its Ancient origin. KESHI × WAR: a Triple
+ *  Reward pick gains one random keyword it lacks. QUILLEN × DEATH: an Archive pick with an Echo gains Rise. DISCO DAN ×
+ *  DEATH: its Discover's pick gains Rise. */
+export function ancientOnDiscoverTaken(state: RunState, tag: AncientDiscoverTag | undefined, taken: BoardCard): void {
+  if (!tag || !live(state)) return;
+  const kw = (k: Keyword): void => { if (!taken.keywords.includes(k)) taken.keywords.push(k); };
+  const w = effectOf(state, 'tripleRewardPickKeyword');
+  if (w && (tag === 'triple' || tag === 'crown')) {
+    const open = w.keywords.filter((k) => !taken.keywords.includes(k));
+    if (open.length > 0) {
+      const rng = makeRng(state.rngCursor);
+      kw(open[rng.int(open.length)]!);
+      state.rngCursor = rng.state();
+    }
+  }
+  const def = CARD_INDEX[taken.cardId];
+  if (tag === 'archive' && effectOf(state, 'archiveEchoGainsRise') && def && hasDeathrattle(def)) kw('R');
+  if (tag === 'discoDeath' && effectOf(state, 'pickDiscoverEchoLocked')) kw('R');
+}
+
+/** QUILLEN: how many archived minions fill Archive (Genesis: 2; else 3). */
+export function ancientArchiveNeed(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'archiveNeed') : undefined;
+  return e ? Math.max(1, e.count) : 3;
+}
+
+/** QUILLEN × TIME: Archive is passive (its work is the Start-of-Turn grant). */
+export function ancientArchivePassive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'sotTopTribeMinion');
+}
+
+/** QUILLEN: one Archive use resolved. FORTUNE: +`gold` max Gold, permanently (`maxGoldBonus`). */
+export function ancientOnArchive(state: RunState): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'archiveMaxGold') : undefined;
+  if (!a || !e) return;
+  state.maxGoldBonus = (state.maxGoldBonus ?? 0) + e.gold;
+  a.quillenMaxGold = (a.quillenMaxGold ?? 0) + e.gold;
+}
+
+/** QUILLEN × BONDS: how many Discovers an Archive payout over `tribes` opens (`discovers` when 3 or more types paid out
+ *  and they are all different; else 1). */
+export function ancientArchiveDiscovers(state: RunState, tribes: readonly Tribe[]): number {
+  const e = live(state) ? effectOf(state, 'archiveDistinctDiscovers') : undefined;
+  return e && tribes.length >= 3 && new Set(tribes).size === tribes.length ? Math.max(1, e.discovers) : 1;
+}
+
+/** QUILLEN: Archive just opened its payout Discover directly (`s.discover = picks`): mark it as an Archive pick. */
+export function ancientMarkArchiveDiscover(state: RunState): void {
+  const a = live(state);
+  if (a && state.discover?.length) a.discoverTag = 'archive';
+}
+
+/** DISCO DAN: the Setlist cards (card ids): every recorded Setlist pick, plus any still-locked Setlist card held (a
+ *  run whose Setlist was taken before the record existed). */
+function discoSetlist(state: RunState): string[] {
+  const out = [...(live(state)?.discoSetlist ?? [])];
+  if (!hasPower(state, 'discoLock')) return out;
+  for (const c of [...state.board, ...state.hand]) if (c.lockedUntilTier && !out.includes(c.cardId)) out.push(c.cardId);
+  return out;
+}
+
+/** DISCO DAN × FORTUNE: the price cap of a Shop minion that is a copy of a Setlist card (undefined = no cap). */
+export function ancientSetlistPrice(state: RunState, cardId: string): number | undefined {
+  const e = live(state) ? effectOf(state, 'setlistPrice') : undefined;
+  return e && discoSetlist(state).includes(cardId) ? e.price : undefined;
+}
+
+/** DISCO DAN: a Setlist pick was just recorded. BONDS: it Gilds at 2 too. */
+function discoAfterSetlistPick(state: RunState, a: AncientsState, cardId: string): void {
+  if (effectOf(state, 'setlistGildAt') && !(a.gildAt2 ??= []).includes(cardId)) a.gildAt2.push(cardId);
+}
+
+/** The pick-time grants. MIDAS × FORTUNE: Gold Pouches are worth the Fortune value (never lowered). QUILLEN × WAR: the
+ *  card. DISCO DAN × DEATH / GENESIS: the locked Discover; × WAR: the Setlist cards held gain the keywords; × BONDS: the
+ *  Setlist cards Gild at 2. */
+function batch6OnPick(state: RunState, a: AncientsState): void {
+  const mf = effectOf(state, 'goldPouchValue');
+  if (mf) state.goldPouchValue = Math.max(state.goldPouchValue ?? 1, mf.value);
+  const qw = effectOf(state, 'pickGetCard');
+  const qwDef = qw ? CARD_INDEX[qw.cardId] : undefined;
+  if (qwDef) grantMinionToHandOrBoard(state, qwDef, false);
+  if (effectOf(state, 'pickDiscoverEchoLocked')) {
+    const lockTier = state.tier >= 6 ? undefined : state.tier + 1;
+    queueDiscover(state, { kind: 'minion', tier: state.tier, filter: 'deathrattle', ...(lockTier ? { lockTier } : {}), ancientTag: 'discoDeath' });
+  }
+  const dg = effectOf(state, 'pickDiscoverTier7Locked');
+  if (dg) queueDiscover(state, { kind: 'minion', tier: 7, exactTier: 7, ...(state.tier < dg.lockTier ? { lockTier: dg.lockTier } : {}), ancientTag: 'discoGenesis' });
+  const dw = effectOf(state, 'pickSetlistKeywords');
+  if (dw) {
+    const ids = discoSetlist(state);
+    for (const c of [...state.board, ...state.hand]) {
+      if (!ids.includes(c.cardId)) continue;
+      for (const k of dw.keywords) if (!c.keywords.includes(k)) c.keywords.push(k);
+    }
+  }
+  if (effectOf(state, 'setlistGildAt')) a.gildAt2 = discoSetlist(state);
+}
+
+/** Start of Turn, each its own beat (R-SOT-BEAT-01). MIDAS × WAR: a random Gilded board minion without Ward gains Ward.
+ *  KESHI × TIME: the card to hand (hand full: none). QUILLEN × TIME: a random minion of your most common type (the run's
+ *  pool, your Shop tier or lower; no typed minion or a full hand: none). */
+function batch6StartOfTurn(state: RunState): void {
+  if (!live(state)) return;
+  const src = (label: string) => ({ kind: 'hero' as const, id: state.heroId, label });
+  if (effectOf(state, 'sotWardRandomGilded')) {
+    const bare = state.board.filter((c) => c.golden && !c.keywords.includes('DS'));
+    if (bare.length > 0) {
+      const rng = makeRng(state.rngCursor);
+      const pick = bare[rng.int(bare.length)]!;
+      state.rngCursor = rng.state();
+      recordSotBeat(state, src(ANCIENTS.war.name), () => { if (!pick.keywords.includes('DS')) pick.keywords.push('DS'); }, { always: true });
+    }
+  }
+  const kt = effectOf(state, 'sotGetCard');
+  const ktDef = kt ? CARD_INDEX[kt.cardId] : undefined;
+  if (ktDef && state.hand.length < handCap(state)) recordSotBeat(state, src(ANCIENTS.time.name), () => conjureToHand(state, [ktDef], 1));
+  if (effectOf(state, 'sotTopTribeMinion') && state.hand.length < handCap(state)) {
+    const tribe = dominantBoardTribe(state);
+    const pool = tribe ? poolOf(state).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= state.tier && defIsTribe(c, tribe, state)) : [];
+    if (pool.length > 0) recordSotBeat(state, src(ANCIENTS.time.name), () => conjureToHand(state, pool, 1));
+  }
+}
+
+/** This batch's combat halves (player-only, never snapshotted, like every Ancient). */
+function batch6CombatMods(state: RunState): Partial<QuestCombatMods> {
+  const out: Partial<QuestCombatMods> = {};
+  const a = live(state);
+  if (!a?.picked) return out;
+  const kd = effectOf(state, 'avengeAdvanceCrown');
+  if (kd) out.ancientAvengePulse = { every: kd.every, tick: a.keshiDeaths ?? 0, flag: ANCIENT_CROWN_FLAG, label: ANCIENTS.death.name };
+  const md = effectOf(state, 'gildedEchoGetCard');
+  if (md) out.ancientGildedEcho = { cardId: md.cardId };
+  const mb = effectOf(state, 'gildedGainBuffsGilded');
+  if (mb) out.ancientGildedBonds = { attack: mb.attack, health: mb.health, label: ANCIENTS.bonds.name };
+  return out;
+}
+
+/** Settle. KESHI × DEATH: the fight's deaths join the running count, and each pulse advances the Crown. */
+function batch6AfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
+  const kd = effectOf(state, 'avengeAdvanceCrown');
+  if (!kd) return;
+  a.keshiDeaths = ((a.keshiDeaths ?? 0) + (result.playerDeaths ?? 0)) % Math.max(1, kd.every);
+  const pulses = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_CROWN_FLAG).length;
+  advanceCrown(state, kd.points * pulses);
+}
+
+/** This batch's live power-text values (see `AncientPairing.powerText`). */
+function batch6PowerText(state: RunState, text: string, combat: AncientPowerLive): string {
+  const a = live(state);
+  if (!a) return text;
+  const top = effectOf(state, 'sotTopTribeMinion') ? dominantBoardTribe(state) : null;
+  const t7 = effectOf(state, 'crownTier7');
+  const setlist = discoSetlist(state).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n);
+  return text.replace('{mPouch}', String(Math.max(1, state.goldPouchValue ?? 1)))
+    .replace('{kDeathLeft}', String(ancientHeroAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0))
+    .split('{kTier}').join(String(state.tier))
+    .replace('{kT7Now}', t7 ? (state.tier >= t7.minTier ? ' **Active now.**' : ` You are Tier **${state.tier}**.`) : '')
+    .replace('{qGold}', String(a.quillenMaxGold ?? 0))
+    .replace('{qTopTribe}', top ? ` (**${top.charAt(0).toUpperCase()}${top.slice(1)}**)` : '')
+    .split('{dSetlist}').join(setlist.length ? ` (${setlist.map((n) => `**${n}**`).join(', ')})` : '');
 }

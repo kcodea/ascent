@@ -2128,4 +2128,347 @@ export const HEROES_RULES: GameRule[] = [
     example: "Runesmith takes Rune of Shopkeep at his forge, then Power Shifter gives him Goldspring: the button shows Goldspring's art and name, and his upgrade cost no longer drops by 3 each End of Turn.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroGrantRelease.test.ts", "packages/ui/src/heroPowerArtFollowsPower.test.tsx"], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: "R-ANCMIDAS-01",
+    title: "Midas × Ancient of Death: Gilded minions carry \"Echo: get a Gold Pouch\"",
+    statement:
+      "With the Ancient of Death, every Gilded minion (board and hand, whatever gilded it) carries a grafted Echo that gets ONE Gold Pouch (a hero-granted Echo: a Gilded body does not double it). Shop and combat; a Gilded body summoned in combat carries it too. The graft is found by its own marker, never by factory id, so a copied Echo of the same factory is untouched.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Death: \"Gilded minions gain Echo: Get a Gold Pouch\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts gildedEchoGetCard / gildedEchoGraftEffect; recruit.ts applyRuneGrafts; core simulate.ts ancientGildedEcho" },
+    ],
+    contentIds: ["emberpouch"],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMidas.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCMIDAS-02",
+    title: "Midas × Ancient of Fortune: Gold Pouches give 3 Gold",
+    statement:
+      "With the Ancient of Fortune, every Gold Pouch gives 3 Gold (the run's `goldPouchValue`, never lowered: Rune of Pillaging's 2 keeps the 3).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Fortune: \"Gold Pouches grant 3g\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts goldPouchValue / batch6OnPick; reducer.ts goldPouchValue rune reward" },
+    ],
+    contentIds: ["emberpouch"],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMidas.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCMIDAS-03",
+    title: "Midas × Ancient of War: Start of Turn gives a random Gilded minion Ward",
+    statement:
+      "With the Ancient of War, each Start of Turn a random Gilded board minion WITHOUT Ward gains Ward, permanently, on its own Start of Turn beat. No Gilded minion without Ward: nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "War: \"Start of Turn: Give a random Gilded minion Ward\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts sotWardRandomGilded / batch6StartOfTurn" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMidas.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCMIDAS-04",
+    title: "Midas × Ancient of Genesis: a Gild grants a Triple Reward as well as the Gold Pouch",
+    statement:
+      "With the Ancient of Genesis, Midas' Gild reward (`grantGoldenDiscover`, the one chokepoint every Gild reward walks) grants the Gold Pouch AND a Triple Reward.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Genesis: \"Gilding a minion grants a Triple Reward.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts gildAlsoTripleReward / ancientMidasTripleToo; reducer.ts grantGoldenDiscover" },
+    ],
+    contentIds: ["emberpouch", "discoverspell"],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMidas.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCMIDAS-05",
+    title: "Midas × Ancient of Time: Start of Turn makes a random friendly minion Gilded",
+    statement:
+      "With the Ancient of Time, each Start of Turn a random non-Gilded board minion becomes Gilded (Gildmaster's Time primitive), on its own beat. The gild grants no reward.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Time: \"Start of Turn: Make a random friendly minion Gilded\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts sotGildRandom / gildmasterStartOfTurn" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMidas.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCMIDAS-06",
+    title: "Midas × Ancient of Bonds: a Gilded minion's stat gain gives your other Gilded minions +2/+2, never re-triggering",
+    statement:
+      "With the Ancient of Bonds, whenever a board minion that is ALREADY Gilded gains stats, every OTHER Gilded board minion gains +2/+2. Its own grant never triggers it again (no loop). Shop: the reducer's per-action stat diff (+ the End-of-Turn pass); combat: `ctx.buff`, guarded, a combat buff.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Bonds: \"When a Gilded minion gains stats, your other Gilded minions gain +2/+2.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts gildedGainBuffsGilded / midasBondsReact; core simulate.ts ancientGildedBonds" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMidas.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCKESHI-01",
+    title: "Keshi × Ancient of Death: Avenge (4) advances Keshi's Crown by 4",
+    statement:
+      "With the Ancient of Death, Keshi has a hero Avenge (4) on ONE running count of friendly deaths across the Shop and combat. Each fire advances Keshi's Crown by 4: in the Shop right then, from combat at settle (a pulse per fire, Rune of Fury repeats). A Crown it fills pays at the reducer's action boundary.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Death: \"Avenge (4): Advance Keshi's Crown by 4\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeAdvanceCrown / ancientHeroAvengeShopDeath / ancientCrownDueNow; reducer.ts keshiCrownPayout" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKeshi.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCKESHI-02",
+    title: "Keshi × Ancient of Fortune: minions of your Shop tier cost 1 less",
+    statement:
+      "With the Ancient of Fortune, a Shop minion whose tier equals your current Shop tier costs 1 Gold less (floored at 0, through `offerBuyPrice`, so the coin and the buy agree).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Fortune: \"Minions of your Tier cost 1 less.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts tierMinionsDiscount / ancientTierDiscount; reducer.ts offerBuyPrice" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKeshi.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCKESHI-03",
+    title: "Keshi × Ancient of War: a minion Discovered from a Triple Reward gains a random keyword",
+    statement:
+      "With the Ancient of War, a minion Discovered from ANY Triple Reward gains one random keyword it does not have from: Taunt, Ward, Rise, Flurry, Critical Strike, Execute, Stealth, Engraved. A Critical Strike gained this way rolls at 50% (the game's convention).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "War: \"Minions discovered from Triple Rewards gain a random effect. (pool: Taunt, Ward, Rise, Flurry, Critical Strike, Execute, Stealth, Engraved)\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts tripleRewardPickKeyword / ancientOnDiscoverTaken; core minion.ts critChance default" },
+    ],
+    contentIds: ["discoverspell"],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKeshi.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCKESHI-04",
+    title: "Keshi × Ancient of Genesis: at Tier 6, each option of a Crown Triple Reward has a 25% chance to be a Tier 7 minion",
+    statement:
+      "With the Ancient of Genesis, a Triple Reward from Keshi's Crown, opened at Shop tier 6 or higher, rolls each offered option: 25% to become a Tier 7 minion (distinct, with copies left, seeded). Other Triple Rewards are unchanged.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Genesis: \"Keshi's Crown may grant T7 units randomly. (At Tier 6) (25% chance per slot that a T7 shows up)\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts crownTier7 / ancientNoteDiscoverOpened; recruit.ts openDiscover" },
+    ],
+    contentIds: ["discoverspell"],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKeshi.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCKESHI-05",
+    title: "Keshi × Ancient of Time: Start of Turn gets a Beyond the Summit",
+    statement:
+      "With the Ancient of Time, each Start of Turn gets a Beyond the Summit to hand (full hand: none), on its own beat.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Time: \"Start of Turn: Get a Beyond the Summit.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts sotGetCard / batch6StartOfTurn" },
+    ],
+    contentIds: ["beyondsummit"],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKeshi.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCKESHI-06",
+    title: "Keshi × Ancient of Bonds: buying a minion of your Shop tier counts twice for the Crown",
+    statement:
+      "With the Ancient of Bonds, buying a minion whose tier equals your Shop tier banks its tier on Keshi's Crown twice (stacking with Wishbone). Spells and other tiers bank once.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Bonds: \"Buying a minion of your shop tier counts twice.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts crownTierBuyTimes / ancientCrownBuyTimes; reducer.ts keshiCrownBuy" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKeshi.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCQUILL-01",
+    title: "Quillen × Ancient of Death: an Echo minion Discovered from Archive gains Rise",
+    statement:
+      "With the Ancient of Death, a minion with an Echo picked from an Archive payout Discover gains Rise.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Death: \"Echo minions discovered from Archive gain Rise.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts archiveEchoGainsRise / ancientOnDiscoverTaken" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsQuillen.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCQUILL-02",
+    title: "Quillen × Ancient of Fortune: each Archive also gives +1 max Gold",
+    statement:
+      "With the Ancient of Fortune, each Archive use gives +1 max Gold, permanently (`maxGoldBonus`, above the natural cap).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Fortune: \"Archive grants +1 Max gold as well.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts archiveMaxGold / ancientOnArchive" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsQuillen.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCQUILL-03",
+    title: "Quillen × Ancient of War: get a Paragon",
+    statement:
+      "With the Ancient of War, the moment it awakens you get a Paragon (hand first, the board when the hand is full). Once.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "War: \"Get a Paragon.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pickGetCard / batch6OnPick" },
+    ],
+    contentIds: ["n2_paragon"],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsQuillen.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCQUILL-04",
+    title: "Quillen × Ancient of Genesis: Archive fills at 2",
+    statement:
+      "With the Ancient of Genesis, Archive pays out after 2 archived minions instead of 3 (one pick per type; any overflow stays banked).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Genesis: \"Archive only requires 2 minions.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts archiveNeed / ancientArchiveNeed; reducer.ts archive branch" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsQuillen.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCQUILL-05",
+    title: "Quillen × Ancient of Time: Archive turns passive; Start of Turn gets a minion of your most common type",
+    statement:
+      "With the Ancient of Time, Archive cannot be used. Each Start of Turn gets a random minion of your most common board type (the run's pool, your Shop tier or lower), on its own beat. No typed minion or a full hand: nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Time: \"Archive becomes: Start of Turn: Get a random minion of your most common type.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts sotTopTribeMinion / batch6StartOfTurn / ancientArchivePassive" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsQuillen.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCQUILL-06",
+    title: "Quillen × Ancient of Bonds: an Archive of 3 different types pays 2 Discovers",
+    statement:
+      "With the Ancient of Bonds, an Archive payout whose 3 types are all different opens 2 Discovers (each its own roll; the second queued). A repeated type pays 1.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Bonds: \"Archiving 3 different tribes grants 2 discovers.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts archiveDistinctDiscovers / ancientArchiveDiscovers; reducer.ts archive branch" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsQuillen.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCDISCO-01",
+    title: "Disco Dan × Ancient of Death: Discover an Echo minion with Rise, locked until your next Shop upgrade",
+    statement:
+      "With the Ancient of Death, the moment it awakens you Discover an Echo minion (your tier or lower). The pick gains Rise and is locked in hand until your next Shop tier (no lock at Tier 6+). It is not a Setlist card.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Death: \"Discover an Echo card. It gains Rise and unlocks when you upgrade your shop. (Immediately unlocked if you are shop tier 6.)\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pickDiscoverEchoLocked / batch6OnPick / ancientOnDiscoverTaken" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCDISCO-02",
+    title: "Disco Dan × Ancient of Fortune: every copy of a Setlist card costs 1 Gold",
+    statement:
+      "With the Ancient of Fortune, any Shop offer that is a copy of one of your Setlist cards (the three turn-1 picks, recorded by card) costs at most 1 Gold (through `offerBuyPrice`).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Fortune: \"All copies of your setlist cards cost 1 gold.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts setlistPrice / ancientSetlistPrice / discoSetlist; reducer.ts offerBuyPrice" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCDISCO-03",
+    title: "Disco Dan × Ancient of War: your Setlist cards gain Ward and Flurry",
+    statement:
+      "With the Ancient of War, the moment it awakens every Setlist card you hold (hand and board) gains Ward and Flurry, permanently. Once.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "War: \"Give your Setlist cards Ward and Flurry\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pickSetlistKeywords / batch6OnPick" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCDISCO-04",
+    title: "Disco Dan × Ancient of Genesis: Discover a Tier 7 minion locked until Shop tier 6",
+    statement:
+      "With the Ancient of Genesis, the moment it awakens you Discover a Tier 7 minion, locked in hand until Shop tier 6 (no lock if already there). It is not a Setlist card.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Genesis: \"Discover a T7 that unlocks at shop tier 6.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pickDiscoverTier7Locked / batch6OnPick" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCDISCO-05",
+    title: "Disco Dan × Ancient of Time: End of Turn cuts the Shop upgrade by 3",
+    statement:
+      "With the Ancient of Time, each End of Turn the Shop upgrade costs 3 less (Tradesman's Time primitive, `eotUpgradeDiscount`).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Time: \"End of Turn: Reduce the cost of upgrading your Shop by 3.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts eotUpgradeDiscount / ancientRunTradesUpgrade" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCDISCO-06",
+    title: "Disco Dan × Ancient of Bonds: Setlist cards Gild at 2 copies",
+    statement:
+      "With the Ancient of Bonds, a Setlist card Gilds at 2 copies (per card, `gildCopiesNeeded(run, cardId)`, shared by `checkTriples` and the Shop indicator). Every other card keeps the run's rule.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Bonds: \"Setlist cards only require 2 copies to be Gilded.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts setlistGildAt; heroes.ts gildCopiesNeeded; reducer.ts checkTriples" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
 ];

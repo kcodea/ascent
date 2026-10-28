@@ -4517,7 +4517,7 @@ export function Recruit() {
     const out = new Set<string>();
     for (const o of run.shop) {
       const cd = CARD_INDEX[o.cardId];
-      if (!cd?.spell && !cd?.ruby && !cd?.noTriple && (counts.get(o.cardId) ?? 0) >= gildCopiesNeeded(run) - 1) out.add(o.uid);
+      if (!cd?.spell && !cd?.ruby && !cd?.noTriple && (counts.get(o.cardId) ?? 0) >= gildCopiesNeeded(run, o.cardId) - 1) out.add(o.uid);
     }
     return out;
   }, [run.board, run.hand, run.shop, run.heroId, run.runeTwinGilding]);

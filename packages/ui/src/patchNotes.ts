@@ -59,6 +59,17 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-27',
     changes: [
       {
+        category: 'Balance',
+        text: 'Ancients test mode: Midas, Keshi, Quillen and Disco Dan now have all six Ancient powers.',
+        details: [
+          'Ancients are only in the Scene Builder test mode for now.',
+          'Midas: Gold Pouch Echoes, 3 Gold Pouches, Start of Turn Ward, Gild Triple Rewards, Start of Turn Gilding, and Gilded minions that grow together.',
+          'Keshi: an Avenge that advances the Crown, cheaper minions of your Tier, keywords on Triple Reward picks, Tier 7 Crown offers at Tier 6, a Beyond the Summit each turn, and double Crown progress.',
+          'Quillen: Rise on Archive Echo picks, max Gold per Archive, a Paragon, a 2 minion Archive, a passive minion of your top type, and two Discovers for three types.',
+          'Disco Dan: a locked Echo minion with Rise, 1 Gold Setlist copies, Ward and Flurry on your Setlist, a locked Tier 7, cheaper upgrades, and Setlist Gilds at 2 copies.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Sixteen new Card Plates in chests.',
         details: [

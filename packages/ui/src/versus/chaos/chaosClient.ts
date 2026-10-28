@@ -96,6 +96,8 @@ export class ChaosClient {
   private leftWave = -1;
   private gateQueue: { at: number; run: () => void }[] = [];
   private mended = false;
+  /** Mend casts that landed: the round and the Armor before -> after (the runner narrates them). */
+  readonly mends: { wave: number; before: number; after: number }[] = [];
   /** Rounds this client fought to the end of the fight screen (for the "same fights" invariant). */
   readonly errors: string[] = [];
 
@@ -364,6 +366,9 @@ export class ChaosClient {
     this.dispatch({ type: 'buy', uid });
     const card = this.game.useGame.getState().run.hand.find((c) => c.cardId === 'mend');
     if (card) this.dispatch({ type: 'play', uid: card.uid });
+    const after = this.game.useGame.getState().run;
+    if (after.armor !== cur.armor) this.mends.push({ wave: after.wave, before: cur.armor, after: after.armor });
+    else this.errors.push(`Mend did not change Armor in round ${after.wave} (${cur.armor})`);
   }
 }
 

@@ -198,8 +198,10 @@ export class ChaosServer {
   idle(): boolean { return this.pending === 0; }
 
   /** Wipe every Versus row between scenarios (the schema stays). */
-  async reset(): Promise<void> {
+  async reset(seed = 0.5): Promise<void> {
     await this.serial(async () => {
+      // Match and hero seeds come from random(): seeded per scenario, every match replays the same.
+      await this.db.query('select setseed($1)', [seed]);
       await this.db.exec(`delete from public.versus_group_matches; delete from public.versus_matches; delete from public.versus_rooms;
         delete from public._chaos_rt;`);
       for (const t of ['duo_runs', 'duos_rank_results', 'duos_team_ranks', 'duos_teams', 'versus_test_bots', 'versus_housekeeping']) {
@@ -266,6 +268,7 @@ export class ChaosServer {
 
   // ── the match row hold (lock contention) ──────────────────────────────────────────────────────────────────
   holdMatch(matchId: string, ms: number): void { this.holds.set(matchId, this.now() + ms); }
+  holding(matchId: string): boolean { return (this.holds.get(matchId) ?? 0) > this.now(); }
   private async waitHold(args: Record<string, unknown>): Promise<void> {
     for (;;) {
       const m = (args.p_match as string | undefined) ?? (args.p_room ? this.roomOfMatch.get(args.p_room as string) : undefined)

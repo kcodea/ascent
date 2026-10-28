@@ -109,7 +109,7 @@ export interface ChaosResult {
 const realImmediate = (): Promise<void> => new Promise((r) => setImmediate(r));
 
 export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<ChaosResult> {
-  await server.reset();
+  await server.reset(((sc.seed % 1000) / 1000) * 2 - 1);
   const bus = new RealtimeBus();
   server.onChanges = (c) => bus.changes(c);
   const n = playersOf(sc.mode);
@@ -148,7 +148,6 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
   const gone: { i: number; from: number; to: number }[] = [];
   const returns: { i: number; at: number }[] = [];
   const chaosRounds = new Set<number>();
-  const injected = new Map<number, number>(); // round -> injected resolver faults
   let currentRound = 0;
   let matchId: string | null = null;
   const h: ChaosHarness = {
@@ -187,7 +186,6 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
       if (o.fail != null) rc.fail = o.fail;
       if (o.conflict != null) rc.conflict = o.conflict;
       chaosRounds.add(currentRound);
-      injected.set(currentRound, (injected.get(currentRound) ?? 0) + (o.fail ?? 0) + (o.conflict ?? 0));
       say(`chaos: resolver ${JSON.stringify(o)}`);
       if (o.forMs) setTimeout(() => { rc.delayMs = 0; rc.fail = 0; rc.conflict = 0; say('chaos: resolver healthy'); }, o.forMs);
     },
@@ -287,6 +285,8 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
       }
       void i;
     }
+    const rc = server.resolverChaos;
+    if (rc.delayMs > 0 || rc.fail > 0 || rc.conflict > 0 || server.holding(matchId)) chaosRounds.add(s.round);
     const living = s.seats.filter((x) => x.eliminated == null);
     const liveSeats = ranked ? living.filter((x) => x.seat === 'p1' || x.seat === 'p2') : living;
 
@@ -331,7 +331,8 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
       }
     }
     // PAUSES.
-    if (s.pausedSeat && !pauseFlagged) {
+    const newPause = !!s.pausedAt && s.pausedAt !== last?.pausedAt;
+    if (s.pausedSeat && newPause && !pauseFlagged) {
       const seat = s.seats.find((x) => x.seat === s.pausedSeat);
       const i = clients.findIndex((c) => c.opts.user === seat?.user);
       if (i < 0 || !isGone(i, now, LEASE_MS + 4000)) {
@@ -407,16 +408,23 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
   }
 
   // ── after the match ──
+  for (const c of clients) for (const m of c.mends) say(`${c.opts.name} cast Mend in round ${m.wave}: Armor ${m.before} -> ${m.after}`);
+  say(`vitals: ${vitalsChecked.size} rail checks against the server`);
   for (const c of clients) for (const e of c.errors) flag('error', null, `${c.opts.name}: ${e}`);
   const committed = await committedRounds(server, matchId, group);
   if (!sc.rounds && !complete) flag('finished', last?.round ?? null, `the match did not finish inside ${cap / 60_000} min (server at round ${last?.round} ${last?.phase})`);
-  if (sc.rounds && committed < sc.rounds) flag('finished', last?.round ?? null, `only ${committed} of ${sc.rounds} rounds committed inside ${cap / 1000} s (server at round ${last?.round} ${last?.phase}${last?.pausedSeat ? `, paused ${last.pausedSeat}` : ''})`);
-  // ONE CALL per round.
+  if (sc.rounds && !complete && committed < sc.rounds) flag('finished', last?.round ?? null, `only ${committed} of ${sc.rounds} rounds committed inside ${cap / 1000} s (server at round ${last?.round} ${last?.phase}${last?.pausedSeat ? `, paused ${last.pausedSeat}` : ''})`);
+  // ONE CALL per round (plus one per call the harness itself failed: an injected 500 / 409).
   const calls = new Map<number, number>();
-  for (const c of server.resolverLog) if (c.action !== 'seat_ranked_duos' && c.round != null && c.matchId === matchId) calls.set(c.round, (calls.get(c.round) ?? 0) + 1);
+  const allowed = new Map<number, number>();
+  for (const c of server.resolverLog) {
+    if (c.action === 'seat_ranked_duos' || c.round == null || c.matchId !== matchId) continue;
+    calls.set(c.round, (calls.get(c.round) ?? 0) + 1);
+    allowed.set(c.round, (allowed.get(c.round) ?? 1) + (c.handled ? 0 : 1));
+  }
   for (const [r, k] of calls) {
-    const allowed = 1 + (injected.get(r) ?? 0);
-    if (k > allowed) flag('oneCall', r, `${k} resolver calls for the round (expected ${allowed})`);
+    const ok = allowed.get(r) ?? 1;
+    if (k > ok) flag('oneCall', r, `${k} resolver calls for the round (expected ${ok})`);
   }
   if (matchId) {
     // FIGHTS: every client holds the server's fights.

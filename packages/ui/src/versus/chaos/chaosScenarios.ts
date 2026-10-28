@@ -1,7 +1,7 @@
 /**
  * THE CHAOS SCENARIOS (scenario x mode). Each builds a `ChaosScenario` for a mode; `modes` lists where it applies.
  * Player 0 hosts. Default players: a buyer and an empty board alternating (so someone loses every round and a full
- * match ends); Duos seats are p1 + p3 = team a? No: the server assigns teams; the policies are per seat index.
+ * match ends). Policies are per seat index; the server assigns Duos teams.
  *
  * Rounds are counted from 1; chaos usually lands in round 2's shop (after one clean round).
  */
@@ -17,7 +17,6 @@ export interface ScenarioDef {
 }
 
 const ALL = CHAOS_MODES;
-const PVP: readonly ChaosMode[] = ['duel', 'group3', 'group4', 'duos'];
 const TEAMS: readonly ChaosMode[] = ['duos', 'ranked_duos'];
 
 const players = (mode: ChaosMode, f: (i: number) => Partial<ChaosClientOptions>): Partial<ChaosClientOptions>[] =>
@@ -40,7 +39,7 @@ export const SCENARIOS: ScenarioDef[] = [
     build: (mode) => base('simultaneous', mode, { players: players(mode, (i) => ({ thinkMs: 2000, policy: i % 2 ? 'empty' : 'buyer' })) }),
   },
   {
-    name: 'dropRestore', about: 'one player loses the network for 20 s in a shop (a real absence), then returns', modes: PVP,
+    name: 'dropRestore', about: 'one player loses the network for 20 s in a shop (a real absence), then returns', modes: ALL,
     build: (mode) => base('dropRestore', mode, { events: [at(2, 'shop', (h) => h.drop(1, 20_000), 500)] }),
   },
   {
@@ -48,7 +47,7 @@ export const SCENARIOS: ScenarioDef[] = [
     build: (mode) => base('dropShort', mode, { events: [at(2, 'shop', (h) => h.drop(1, 4_000), 500)] }),
   },
   {
-    name: 'dropInFight', about: 'a player drops for 20 s while the fight plays', modes: PVP,
+    name: 'dropInFight', about: 'a player drops for 20 s while the fight plays', modes: ALL,
     build: (mode) => base('dropInFight', mode, { events: [at(1, 'combat', (h) => h.drop(1, 20_000), 300)] }),
   },
   {
@@ -114,7 +113,7 @@ export const SCENARIOS: ScenarioDef[] = [
   },
   {
     name: 'mendArmor', about: 'Armor raised in the shop (Mend) is honoured by the server and shown by every client', modes: ALL,
-    build: (mode) => base('mendArmor', mode, { rounds: 5, players: players(mode, (i) => ({ policy: i % 2 ? 'empty' : 'buyer', mendFrom: 2 })) }),
+    build: (mode) => base('mendArmor', mode, { rounds: 8, players: players(mode, (i) => ({ policy: i % 2 ? 'empty' : 'buyer', mendFrom: 2 })) }),
   },
 ];
 

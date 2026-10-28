@@ -2580,13 +2580,6 @@ export function simulate(
     // mid-Rise still holds its slot (owner 2026-09-09).
     const fromHand = pendingHandSummon[side];
     pendingHandSummon[side] = false; // consumed by THIS placement, landed or not
-    if (boards[side].length >= BODY_GUARD) {
-      // BODY GUARD: a runaway summon loop stops here, silently (see BODY_GUARD). Same bookkeeping as an overflow.
-      if (undertowWarded.delete(minion)) undertowUsed[side] -= 1;
-      rubiesOnLanding.delete(minion);
-      if (foodChainTaken.delete(minion)) foodChainUsed[side] = false;
-      return minion;
-    }
     if (occupied(side) >= 7) {
       // Rune of the Undertow: a deferred body that took a Ward at queue time but never landed gives it back
       // (R-UNDERTOW-LANDED-01) — the allowance counts bodies that were really summoned.
@@ -2608,6 +2601,13 @@ export function simulate(
       // ANCIENT OF GENESIS x Lord of the Risen (owner 2026-09-26: "make sure these count as overflows"): the extra
       // body is still summoned, so on a full board it is a REAL overflow of its own (every overflow watcher hears it).
       summonGenesisExtras(side, card, nearUid, grantKeywords, golden, attackNow, copyStats, doubled);
+      return minion;
+    }
+    if (boards[side].length >= BODY_GUARD) {
+      // BODY GUARD: a runaway summon loop stops here, silently (see BODY_GUARD). Same bookkeeping as an overflow.
+      if (undertowWarded.delete(minion)) undertowUsed[side] -= 1;
+      rubiesOnLanding.delete(minion);
+      if (foodChainTaken.delete(minion)) foodChainUsed[side] = false;
       return minion;
     }
     const arr = boards[side];

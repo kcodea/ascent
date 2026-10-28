@@ -34,7 +34,7 @@ import { CrashLogReadout } from './CrashLogReadout';
 import { PerfLogReadout } from './PerfLogReadout';
 import { PHONE_BENCH_ON } from './perfLogFlag';
 // The on-device auto-bench (R-PHONE-BENCH-01): fetched only with ?phonebench=1.
-const PhoneBenchCard = lazy(() => retryImport(() => import('./PhoneBenchCard')));
+const PhoneBenchCard = lazy(() => import('./PhoneBenchCard'));
 import { installPerfLog } from './phonePerfLog';
 import { CRASH_REPORT_TABLE, scheduleCrashReportUpload } from './crashReport';
 import { anonRestInsert, supabaseClient } from './remoteBoards';

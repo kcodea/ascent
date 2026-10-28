@@ -907,6 +907,11 @@ interface GameStore {
    *  scenario's pinned opponent is re-pinned into `servedBoards` so the authored fight is what resolves.
    *  DEV-only surface: only the Scene Builder panel (itself `import.meta.env.DEV`-gated) calls this. */
   loadQaScenario: (raw: string) => { ok: boolean; errors: string[] };
+  /** LIVE REPLAY (perf tool, liveReplay.ts): put a rebuilt recorded game on screen to be played back through the real
+   *  UI. The same `sandbox: true` write barrier as `loadQaScenario`, so nothing it does is saved or uploaded. */
+  startLiveReplay: (run: RunState) => void;
+  /** True while a live replay owns the run: the sandbox dev panels stay hidden so they don't cost frames. */
+  liveReplay: boolean;
 }
 
 /** See `GameStore.bugScenario`. */
@@ -3218,6 +3223,23 @@ export const useGame = create<GameStore>((rawSet, get) => {
       sandboxReplay: false,
     });
     return { ok: true, errors: [] };
+  },
+  liveReplay: false,
+  startLiveReplay: (run) => {
+    dropBoardFx();
+    // The same entry as `loadQaScenario`: `sandbox: true` is the write barrier (no save, no Continue, no replay
+    // draft, no uploads), and the per-run resets match field for field.
+    const sandboxRun: RunState = { ...run, sandbox: true };
+    if (sandboxRun.lobby) warmLobbyDrivers(sandboxRun);
+    set({
+      run: sandboxRun,
+      presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null,
+      heroChoices: null, showTitle: false, avatarPickerOpen: false,
+      replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(sandboxRun), replayPartial: false,
+      telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(sandboxRun),
+      sandboxReplay: false,
+      liveReplay: true,
+    });
   },
   });
 });

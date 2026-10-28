@@ -34,7 +34,7 @@
  * supabase/functions/_shared/progressionAchievements.ts by `npm run progression:shared`.
  */
 import type { ProgressionMode } from './rules';
-import { heroMasterTitleId, heroTitleId } from './cosmetics';
+import { PLUSHIE_BEASTS_COLLECTION_ID, PLUSHIE_PLATE_ID, collectionMembers, heroMasterTitleId, heroTitleId } from './cosmetics';
 
 // ── Metrics ──────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -156,7 +156,14 @@ export const SERVER_METRICS = [
   'firstStreak', 'topFourStreak', 'heroesPlayed', 'heroesWon', 'achievementsCompleted',
 ] as const;
 export type ServerMetric = typeof SERVER_METRICS[number];
-export type AchievementMetric = RunMetric | ServerMetric;
+/**
+ * A COLLECTION achievement's metric (owner 2026-10-27, the Plushie Plate): how many of the collection's items the account
+ * owns. Neither a run metric nor a settlement metric: the database keeps it from ownership itself
+ * (`progression_refresh_collection` in 2026-11-03-secret-plushie-plate.sql, run whenever an item is granted), and refuses any
+ * other write to it, so a client naming it in a game's metrics moves nothing.
+ */
+export const COLLECTION_METRIC = 'collectionOwned' as const;
+export type AchievementMetric = RunMetric | ServerMetric | typeof COLLECTION_METRIC;
 /** The metric evaluated LAST, after every other completion of the same settlement. */
 export const META_METRIC: ServerMetric = 'achievementsCompleted';
 
@@ -182,11 +189,11 @@ export function sanitizeRunMetrics(v: unknown): Partial<Record<RunMetric, number
 
 // ── Definitions ──────────────────────────────────────────────────────────────────────────────────────────────
 
-export const ACHIEVEMENT_CATEGORIES = ['career', 'ranked', 'heroes', 'economy', 'mechanics', 'runes', 'set2', 'combat', 'milestones'] as const;
+export const ACHIEVEMENT_CATEGORIES = ['career', 'ranked', 'heroes', 'economy', 'mechanics', 'runes', 'set2', 'combat', 'milestones', 'collection'] as const;
 export type AchievementCategory = typeof ACHIEVEMENT_CATEGORIES[number];
 export const ACHIEVEMENT_CATEGORY_LABELS: Readonly<Record<AchievementCategory, string>> = Object.freeze({
   career: 'Career', ranked: 'Ranked', heroes: 'Heroes', economy: 'Economy and Build', mechanics: 'Mechanics', runes: 'Runes', set2: 'Set 2',
-  combat: 'Combat', milestones: 'Milestones',
+  combat: 'Combat', milestones: 'Milestones', collection: 'Collection',
 });
 
 /** Sub-groups (the Set 2 tribes; the others use one group). */
@@ -213,8 +220,14 @@ export type AchievementAgg = typeof ACHIEVEMENT_AGGS[number];
 export const ACHIEVEMENT_TRUSTS = ['S', 'O', 'P'] as const;
 export type AchievementTrust = typeof ACHIEVEMENT_TRUSTS[number];
 
-/** What completing pays. `titleId` is the reserved slot for a title reward (null for every batch 1 def). */
-export interface AchievementRewards { xp: number; titleId: string | null }
+/**
+ * What completing pays. `titleId` is the reserved slot for a title reward (null for every batch 1 def). `cosmeticId` is
+ * a non-title cosmetic reward (the Plushie Plate), granted by the database with the completion.
+ */
+export interface AchievementRewards { xp: number; titleId: string | null; cosmeticId?: string | null }
+
+/** The Plushie Plate's reward line (owner 2026-10-27, verbatim). */
+export const UNIQUE_PLATE_REWARD_TEXT = 'Unique Card Plate Only Available From Completing This Achievement';
 
 export interface AchievementDef {
   /** Permanent. */
@@ -250,17 +263,17 @@ export interface AchievementDef {
 
 type DefInput = Omit<AchievementDef, 'version' | 'group' | 'family' | 'setId' | 'heroId' | 'placementMax' | 'agg' | 'rewards' | 'hidden' | 'trust' | 'batch' | 'showProgress'>
   & Partial<Pick<AchievementDef, 'group' | 'family' | 'setId' | 'heroId' | 'placementMax' | 'agg' | 'hidden' | 'trust' | 'showProgress'>>
-  & { xp: number; titleId?: string | null };
+  & { xp: number; titleId?: string | null; cosmeticId?: string | null };
 
 function def(d: DefInput): AchievementDef {
-  const { xp, titleId, ...rest } = d;
+  const { xp, titleId, cosmeticId, ...rest } = d;
   const agg = d.agg ?? 'max';
   return {
     version: 1, group: null, family: null, setId: null, heroId: null, placementMax: null, hidden: false, trust: 'O', batch: 1,
-    showProgress: d.showProgress ?? (d.target > 1 && (agg === 'sum' || d.metric === 'heroesPlayed' || d.metric === 'heroesWon' || d.metric === 'achievementsCompleted' || d.metric === 'firstStreak' || d.metric === 'topFourStreak')),
+    showProgress: d.showProgress ?? (d.target > 1 && (agg === 'sum' || d.metric === 'heroesPlayed' || d.metric === 'heroesWon' || d.metric === 'achievementsCompleted' || d.metric === COLLECTION_METRIC || d.metric === 'firstStreak' || d.metric === 'topFourStreak')),
     ...rest,
     agg,
-    rewards: { xp, titleId: titleId ?? null },
+    rewards: cosmeticId ? { xp, titleId: titleId ?? null, cosmeticId } : { xp, titleId: titleId ?? null },
   };
 }
 
@@ -628,11 +641,24 @@ const MILESTONES: AchievementDef[] = [
 // career.heroes_played.15 250, career.hero_wins.15 600, career.achievements.25 200, s2.kobold.rubies_life_500 200,
 // hero.<id>.mastery 400). Completions already paid keep the XP they paid (achievement_completions.xp_awarded).
 
+/**
+ * COLLECTION (owner 2026-10-27): "create a new achievement and say the reward is a 'Unique Card Plate Only Available From
+ * Completing This Achievement'". Visible with a progress bar; the target is the collection's size, so a new Plushie Beast
+ * raises it (a player who already completed it keeps it). No XP: the plate is the reward.
+ */
+const COLLECTION: AchievementDef[] = [
+  def({
+    id: PLUSHIE_BEASTS_COLLECTION_ID, name: 'Plushie Collector', requirement: 'Own every Plushie Beast skin.', category: 'collection',
+    mode: 'account', metric: COLLECTION_METRIC, target: collectionMembers(PLUSHIE_BEASTS_COLLECTION_ID).length, xp: 0,
+    cosmeticId: PLUSHIE_PLATE_ID, trust: 'S',
+  }),
+];
+
 /** The 150 added 2026-10-03, in display order. */
 export const ACHIEVEMENTS_150: readonly AchievementDef[] = Object.freeze([...SET2_MORE, ...HERO_DEVOTED, ...HEROES_ALL, ...COMBAT, ...MILESTONES]);
 
 /** Every achievement in the game (batch 1 plus the 2026-10-03 150). Order is display order within a category. */
-export const ACHIEVEMENTS: readonly AchievementDef[] = Object.freeze([...CAREER, ...RANKED, ...HERO_ACHIEVEMENTS, ...ECONOMY, ...MECHANICS, ...RUNES, ...SET2, ...ACHIEVEMENTS_150]);
+export const ACHIEVEMENTS: readonly AchievementDef[] = Object.freeze([...CAREER, ...RANKED, ...HERO_ACHIEVEMENTS, ...ECONOMY, ...MECHANICS, ...RUNES, ...SET2, ...ACHIEVEMENTS_150, ...COLLECTION]);
 
 export const ACHIEVEMENT_INDEX: Readonly<Record<string, AchievementDef>> = Object.freeze(Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a])));
 export const achievementOf = (id: string | null | undefined): AchievementDef | null => (id && ACHIEVEMENT_INDEX[id] ? ACHIEVEMENT_INDEX[id]! : null);

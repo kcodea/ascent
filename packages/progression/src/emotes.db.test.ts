@@ -28,6 +28,9 @@ const ATTACK = read('2026-09-28-progression-hero-attack.sql');
 const FRAMES = read('2026-10-01-portrait-frames.sql');
 const ANNOUNCER = read('2026-10-11-announcer-slot.sql');
 const ANCIENT_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 1. The pick')))(read('2026-10-02-ancient-rarity.sql'));
+/** The Secret rarity file's rarity check + collection column only (2026-11-03): the code catalog holds a Secret item
+ *  (the Plushie Plate), which the five-rarity check would reject. Its collection logic is plushiePlate.db.test.ts's. */
+const SECRET_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 2. One account')))(readFileSync(join(root, 'supabase/migrations/2026-11-03-secret-plushie-plate.sql'), 'utf8'));
 const EMOTES = read('2026-10-13-emotes.sql');
 const PLATES = read('2026-10-14-card-plates.sql');
 const EIGHT = read('2026-10-22-emote-eight-slots.sql');
@@ -101,7 +104,7 @@ beforeAll(async () => {
   await db.exec(MVP);
   await db.exec(API_GRANTS);
   await db.exec(`update public.progression_config set epoch = now() - interval '1 day' where id = 1;`);
-  for (const f of [CRATES, SKINS, ACH, ATTACK, FRAMES, ANNOUNCER, ANCIENT_CHECK]) { await db.exec(f); await db.exec(API_GRANTS); }
+  for (const f of [CRATES, SKINS, ACH, ATTACK, FRAMES, ANNOUNCER, ANCIENT_CHECK, SECRET_CHECK]) { await db.exec(f); await db.exec(API_GRANTS); }
   // BEFORE the emote file the starters cannot sync: the old acquisition check refuses 'starter' (why the owner runs the
   // SQL before deploying progression-inventory).
   expect(await raises('select public.sync_cosmetic_catalog($1::jsonb, $2)', [JSON.stringify(catalogSyncPayload()), 'pre-emote-hash'])).toMatch(/acquisition_source/);

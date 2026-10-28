@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, crateChances, eligibleCrateCosmetics, pickCrateReward, setServerCatalogState,
-  type CosmeticDef,
+  type CosmeticDef, type CrateRarity,
 } from './cosmetics';
 import { CRATE_TIERS, DEFAULT_AETHER_ECONOMY } from './aether';
 import {
@@ -17,7 +17,7 @@ import {
 
 const crateItems = COSMETICS.filter((c) => c.acquisition.type === 'crate' && c.active && COSMETIC_CATEGORY_DEFS[c.category].enabled);
 const allIds = crateItems.map((c) => c.id);
-const rank = (c: CosmeticDef): number => COSMETIC_RARITIES.indexOf(c.rarity);
+const rank = (c: CosmeticDef): number => COSMETIC_RARITIES.indexOf(c.rarity as CrateRarity);
 
 describe('tiers', () => {
   it('each tier maps to the rarity of the same name (standard = common) with a player label', () => {

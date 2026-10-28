@@ -13665,6 +13665,9 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* Ancient (owner 2026-10-02, concept 3 "Prismatic Aurora"): cyan shading to magenta. `--rc` is the cyan (a solid for
    text and borders); `--rc2` the magenta and `--rc-grad` the gradient for the surfaces that can carry one (static). */
 .r-ancient { --rc: #8af5ff; --rc2: #ff7ae0; --rc-a: rgba(138, 245, 255, 0.6); --rc-grad: linear-gradient(100deg, #8af5ff 0%, #c9b8ff 50%, #ff7ae0 100%); }
+/* Secret (owner 2026-10-27: "we can make it Red, over Ancient"): an achievement-only rarity above Ancient. Red, with a
+   deep-crimson second tone for the gradient surfaces (static). */
+.r-secret { --rc: #ff4a4a; --rc2: #b3001b; --rc-a: rgba(255, 74, 74, 0.6); --rc-grad: linear-gradient(100deg, #ff7a6a 0%, #ff3b3b 50%, #b3001b 100%); }
 
 /* ── TITLE BADGE (owner ask 2026-09-28: titles "as a way of showing off their flair") ───────────────────────────
    One badge for every surface (`titles/TitleBadge.tsx`): rarity-coloured small caps on a dark pill, sized in EM

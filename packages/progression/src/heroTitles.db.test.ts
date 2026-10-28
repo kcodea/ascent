@@ -23,7 +23,7 @@ const root = join(__dirname, '../../..');
 const read = (f: string): string => readFileSync(join(root, 'supabase/migrations', f), 'utf8');
 const FILES = [
   '2026-09-28-progression-crates.sql', '2026-09-28-progression-skins.sql', '2026-09-28-achievements.sql', '2026-09-28-progression-hero-attack.sql',
-  '2026-09-29-crate-fixed-rarity-odds.sql', '2026-09-29-crate-uniform-within-rarity.sql', '2026-10-02-ancient-rarity.sql',
+  '2026-09-29-crate-fixed-rarity-odds.sql', '2026-09-29-crate-uniform-within-rarity.sql', '2026-10-02-ancient-rarity.sql', '2026-11-03-secret-plushie-plate.sql',
 ].map(read);
 // The emote file's starter-acquisition check only (2026-10-13): the code catalog holds STARTER emotes.
 FILES.push(((t: string): string => t.slice(0, t.indexOf('-- ── 2. equip_cosmetic')))(read('2026-10-13-emotes.sql')));

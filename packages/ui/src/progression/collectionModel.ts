@@ -1,5 +1,5 @@
 import {
-  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_RARITIES, achievementOf, emoteLoadoutOf, heroTitleInfo, isCategoryLive, isCosmeticLive, titleShelf,
+  COSMETICS, COSMETIC_CATEGORIES, ALL_COSMETIC_RARITIES, achievementOf, emoteLoadoutOf, heroTitleInfo, isCategoryLive, isCosmeticLive, isSecretRarity, titleShelf,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type ProgressionProfile,
 } from '@game/progression';
 import { CARD_INDEX } from '@game/content';
@@ -29,7 +29,7 @@ export type ShowFilter = 'all' | 'owned' | 'missing';
 export type RarityFilter = 'all' | CosmeticRarity;
 
 /** Rarest first: the showcase row leads the album. */
-const RARITY_RANK: Readonly<Record<CosmeticRarity, number>> = { ancient: 0, legendary: 1, epic: 2, rare: 3, common: 4 };
+const RARITY_RANK: Readonly<Record<CosmeticRarity, number>> = { secret: -1, ancient: 0, legendary: 1, epic: 2, rare: 3, common: 4 };
 const CATALOG_INDEX = new Map(COSMETICS.map((c, i) => [c.id, i]));
 
 /** Categories kept OUT of the Collection rail while they are switched off (owner 2026-09-29: "hide music and boards
@@ -58,7 +58,9 @@ export const categoryLive = (c: CosmeticCategory): boolean => isCategoryLive(c);
 export function albumOf(category: CosmeticCategory, catalog: readonly CosmeticDef[] = COSMETICS, owned?: ReadonlySet<string>): CosmeticDef[] {
   if (!categoryLive(category)) return [];
   const items = catalog
-    .filter((c) => c.category === category && c.active && isCosmeticLive(c.id))
+    // A SECRET item (owner 2026-10-27: "Should ONLY show up once you unlock it") is invisible until owned: not in the
+    // album, the counts or the "N / M collected" total.
+    .filter((c) => c.category === category && c.active && isCosmeticLive(c.id) && (!isSecretRarity(c.rarity) || (owned?.has(c.id) ?? false)))
     .sort((a, b) => RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity] || (CATALOG_INDEX.get(a.id) ?? 0) - (CATALOG_INDEX.get(b.id) ?? 0));
   if (category !== 'title') return items;
   const keep = new Set(titleShelf(items.map((c) => c.id), owned ?? new Set()));
@@ -107,7 +109,7 @@ export function countOf(items: readonly CosmeticDef[], owned: ReadonlySet<string
 }
 
 export function rarityCounts(items: readonly CosmeticDef[], owned: ReadonlySet<string>): Record<CosmeticRarity, Count> {
-  const out = Object.fromEntries(COSMETIC_RARITIES.map((r) => [r, { owned: 0, total: 0 }])) as Record<CosmeticRarity, Count>;
+  const out = Object.fromEntries(ALL_COSMETIC_RARITIES.map((r) => [r, { owned: 0, total: 0 }])) as Record<CosmeticRarity, Count>;
   for (const c of items) {
     out[c.rarity].total++;
     if (owned.has(c.id)) out[c.rarity].owned++;

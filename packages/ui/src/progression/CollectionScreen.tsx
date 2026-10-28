@@ -1,9 +1,9 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_TIER_FLOOR, EMOTE_SLOT_COUNT, MILESTONE_CRATE_TIER, RARITY_LABELS, cosmeticOf, crateLabel, crateOddsLine,
+  ALL_COSMETIC_RARITIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_TIER_FLOOR, EMOTE_SLOT_COUNT, MILESTONE_CRATE_TIER, RARITY_LABELS, cosmeticOf, crateLabel, crateOddsLine,
   isMasterTitle, levelProgress,
   milestoneLevelOfSource, tierOddsPercent, withStarterCosmetics,
-  type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type CrateRow,
+  type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type CrateRarity, type CrateRow,
 } from '@game/progression';
 import { tempHandle, useGame } from '../store';
 import { sfx } from '../sfx';
@@ -109,14 +109,14 @@ export function CollectionScreen(): JSX.Element | null {
 
 const EMPTY: readonly string[] = [];
 /** Today's milestone floor (Epic since 2026-10-20): the next milestone chest's, and a milestone crate's that sent none. */
-const MILESTONE_FLOOR: CosmeticRarity = CRATE_TIER_FLOOR[MILESTONE_CRATE_TIER];
+const MILESTONE_FLOOR: CrateRarity = CRATE_TIER_FLOOR[MILESTONE_CRATE_TIER];
 
 /** A sealed crate's rarity floor: its own (shop, milestone), else today's milestone floor for a milestone crate, else
  *  Common (a level or Gauntlet crate rolls every rarity at the published odds). */
-const floorOf = (c: CrateRow): CosmeticRarity => c.floor ?? (milestoneLevelOfSource(c.source) !== null ? MILESTONE_FLOOR : 'common');
+const floorOf = (c: CrateRow): CrateRarity => c.floor ?? (milestoneLevelOfSource(c.source) !== null ? MILESTONE_FLOOR : 'common');
 
 /** The odds a floor shows in the bay, in the bay's own format ("Common 35%, Rare 31%, ..."): only what it can drop. */
-function floorOddsLine(floor: CosmeticRarity): string {
+function floorOddsLine(floor: CrateRarity): string {
   const odds = tierOddsPercent(floor);
   return COSMETIC_RARITIES.filter((r) => odds[r] > 0).map((r) => `${RARITY_LABELS[r]} ${odds[r]}%`).join(', ');
 }
@@ -425,7 +425,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                 </div>
                 <div className="colls-seg" role="group" aria-label="Rarity">
                   <button type="button" className={`colls-chip${rarity === 'all' ? ' on' : ''}`} aria-pressed={rarity === 'all'} onClick={() => { sfx.pulse(); setRarity('all'); }}>Any rarity</button>
-                  {COSMETIC_RARITIES.filter((r) => byRarity[r].total > 0).map((r) => (
+                  {ALL_COSMETIC_RARITIES.filter((r) => byRarity[r].total > 0).map((r) => (
                     <button key={r} type="button" className={`colls-chip colls-chip-r r-${r}${rarity === r ? ' on' : ''}`} aria-pressed={rarity === r} onClick={() => { sfx.pulse(); setRarity(r); }}>
                       <span className="colls-gem" aria-hidden />{RARITY_LABELS[r]}
                       <span className="colls-chip-n">{byRarity[r].owned}/{byRarity[r].total}</span>

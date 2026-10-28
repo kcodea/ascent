@@ -26,6 +26,9 @@ const SKINS = readFileSync(join(root, 'supabase/migrations/2026-09-28-progressio
 /** The Ancient rarity file's rarity check only (2026-10-02): the code catalog now holds Ancient items, which the crates
  *  file's four-rarity check would reject. Its pick + open_crate are crateOdds.db.test.ts's business. */
 const ANCIENT_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 1. The pick')))(readFileSync(join(root, 'supabase/migrations/2026-10-02-ancient-rarity.sql'), 'utf8'));
+/** The Secret rarity file's rarity check + collection column only (2026-11-03): the code catalog holds a Secret item
+ *  (the Plushie Plate), which the five-rarity check would reject. Its collection logic is plushiePlate.db.test.ts's. */
+const SECRET_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 2. One account')))(readFileSync(join(root, 'supabase/migrations/2026-11-03-secret-plushie-plate.sql'), 'utf8'));
 /** The emote file's starter-acquisition check only (2026-10-13): the code catalog now holds STARTER emotes, which the
  *  crates file's acquisition check would reject. Its equip_cosmetic is emotes.db.test.ts's business. */
 const STARTER_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 2. equip_cosmetic')))(readFileSync(join(root, 'supabase/migrations/2026-10-13-emotes.sql'), 'utf8'));
@@ -120,6 +123,7 @@ beforeAll(async () => {
   await db.exec(SKINS);
   await db.exec(API_GRANTS);
   await db.exec(ANCIENT_CHECK);
+  await db.exec(SECRET_CHECK);
   await db.exec(STARTER_CHECK);
   // The first cold start after the deploy.
   expect((await sync()).status).toBe('synced');

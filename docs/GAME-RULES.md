@@ -517,7 +517,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   sidebar, or the Account Level card on your Career; Open one chest, or Open all). The reward is chosen **when the chest is opened**, on the
   server, from the items the player does not own yet. **The rarities (2026-10-02, R-PROG-RARITY-01)** are Common,
   Rare, Epic, Legendary and **Ancient**, rarest last: Ancient ranks above Legendary everywhere (sorting, colour, label,
-  filter, roll). **Fixed rarity odds (2026-09-29, R-PROG-CRATE-03; re-set 2026-10-02 when Ancient joined):** one
+  filter, roll). **Secret (2026-10-27, R-PROG-SECRET-01)** ranks above Ancient and is red, but no chest rolls it: a
+  Secret item comes only from an achievement, and the Collection hides it entirely until you own it. The first is the
+  Plushie Plate, the reward for the **Plushie Collector** achievement (Career, Achievements, Collection): own every
+  Plushie Beast skin (24 today; the target grows when one is added, and a completion is never taken back). No XP. **Fixed rarity odds (2026-09-29, R-PROG-CRATE-03; re-set 2026-10-02 when Ancient joined):** one
   server draw first rolls a rarity at **Common 35% / Rare 31% / Epic 22% / Legendary 9% / Ancient 3%** (was
   50 / 30 / 15 / 5), then picks an unowned item
   of that rarity, **every item of the rarity equally likely** (owner 2026-09-29: "yeah equal chance"; category weights

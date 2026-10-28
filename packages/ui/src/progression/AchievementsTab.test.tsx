@@ -36,7 +36,7 @@ describe('the view model', () => {
   it('every achievement shows (with its reward); categories and Set 2 tribe groups in order', () => {
     const v = achievementView(base);
     expect(v.total).toBe(ACHIEVEMENTS.length);
-    expect(v.categories.map((c) => c.label)).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones']);
+    expect(v.categories.map((c) => c.label)).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones', 'Collection']);
     expect(v.categories.find((c) => c.id === 'set2')!.groups.map((g) => g.label)).toEqual(['Kobolds', 'Dwarves', 'Dragons', 'Beasts', 'Demons', 'Cross-tribe', 'Runes']);
     // 42 heroes (six tiers each since 2026-10-03; 36 until the 2026-10-15 re-enables) after the account-wide "All heroes" group
     const heroes = v.categories.find((c) => c.id === 'heroes')!.groups;
@@ -99,7 +99,7 @@ describe('the rendered tab', () => {
   it('own page: the Career category first, name + requirement + reward on every tile, the date on a completed one, a progress bar', async () => {
     ui = mount(<AchievementsTab userId="me" own ownerName="Kev" />);
     await flush();
-    expect(all('.ach-cat-name')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones']);
+    expect(all('.ach-cat-name')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones', 'Collection']);
     expect(all('.ach-cat-count')[0]).toBe('1 / 17');
     const first = ui.container.querySelector('.ach-tile.done')!;
     expect(first.querySelector('.ach-tile-name')!.textContent).toBe('First Steps');
@@ -108,6 +108,19 @@ describe('the rendered tab', () => {
     expect(all('.ach-tile-req')).toContain('Complete 10 games.');
     expect(all('.ach-prog-num')).toContain('3 / 10');
     expect(fetchOwnAchievementProgress).toHaveBeenCalledTimes(1);
+  });
+
+  it('the Collection category: the Plushie Collector names its reward (no XP chip) and shows its progress (owner 2026-10-27)', async () => {
+    fetchOwnAchievementProgress.mockResolvedValueOnce({ 'collection.plushie_beasts': 7 });
+    ui = mount(<AchievementsTab userId="me" own ownerName="Kev" />);
+    await flush();
+    click(button('Collection'));
+    const tile = ui.container.querySelector('.ach-tile')!;
+    expect(tile.querySelector('.ach-tile-name')!.textContent).toBe('Plushie Collector');
+    expect(tile.querySelector('.ach-tile-req')!.textContent).toBe('Own every Plushie Beast skin.');
+    expect(tile.querySelector('.ach-tile-xp')).toBeNull();
+    expect(tile.querySelector('.ach-secret-reward')!.textContent).toBe('Unique Card Plate Only Available From Completing This Achievement');
+    expect(tile.querySelector('.ach-prog-num')!.textContent).toBe('7 / 24');
   });
 
   it('another player: completions show, progress is never asked for or drawn', async () => {

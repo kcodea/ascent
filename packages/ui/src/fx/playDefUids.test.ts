@@ -49,6 +49,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'ancientPickSlam.ts', id: 'gild-trail', why: 'the Ancients pick: the chosen offer card collapses into the triple trail, which flies to the hero-power BUTTON (HUD chrome), no unit on either end' },
   { file: 'ancientsSmoke.ts', id: 'ancient-pick-impact', why: 'the Ancients pick impact: bursts on the hero-power BUTTON (HUD chrome), no unit' },
   { file: 'TavernUpButton.tsx', id: 'shop-tier-up', why: 'fires at the button' },
+  { file: 'DuosMateDock.tsx', id: 'shop-tier-up', why: "the Duos teammate's tier-up (R-DUOS-MATE-SIGNALS-01): fires over the teammate PORTRAIT bottom right (HUD chrome); its subject is the teammate's shop, not a board unit" },
   { file: 'FreezeButton.tsx', id: 'freeze-blast', why: 'fires at the button' },
   { file: 'StatusBar.tsx', id: 'hero-power-spark', why: 'fires at the hero power button, not a unit' },
   { file: 'useAmplifiedSlotFx.ts', id: 'amplified-slot', why: "the AMPLIFIED glow loops on the Equipment slot button — HUD chrome with no unit uid; the subject is the selected Equipment's next activation, not a body on the board (2026-09-22)" },

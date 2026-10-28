@@ -748,7 +748,7 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     let retry: ReturnType<typeof setTimeout> | null = null;
     /** Drop a channel (ours, or a stale one left on this topic) and wait for its leave. */
     const drop = (x: RealtimeChannel): Promise<unknown> => {
-      const p: Promise<unknown> = c.removeChannel(x).catch(() => undefined).finally(() => { if (leaving.get(topic) === p) leaving.delete(topic); });
+      const p: Promise<unknown> = Promise.resolve().then(() => c.removeChannel(x)).catch(() => undefined).finally(() => { if (leaving.get(topic) === p) leaving.delete(topic); });
       leaving.set(topic, p);
       return p;
     };
@@ -798,9 +798,10 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     // Open once nothing of this topic is left on the client: a leave in flight (ours), or any other stale channel.
     const ready = (async () => {
       await leaving.get(topic);
-      for (const stale of c.getChannels().filter((x) => x.topic === `realtime:${topic}`)) await drop(stale);
+      // (A test double of the client may not implement the channel list; then there is nothing stale to wait on.)
+      for (const stale of (typeof c.getChannels === 'function' ? c.getChannels() : []).filter((x) => x.topic === `realtime:${topic}`)) await drop(stale);
     })();
-    void ready.then(build);
+    void ready.then(build).catch(() => undefined);
     return {
       send: (event, payload) => { if (ch) void ch.send({ type: 'broadcast', event, payload }); },
       close: () => {

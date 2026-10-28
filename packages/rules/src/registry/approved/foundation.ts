@@ -10753,7 +10753,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'The board backdrop shows the player\x27s Settings pick; a touched dev Layout Lab shows exactly what it is set to',
     statement:
       'What lies behind the board is the player\x27s Settings pick (Board backdrop), saved on the device and applied at once '
-      + 'and on every load; Cobblestone when they never chose. In a dev build the Layout Lab\x27s Backdrop section does not '
+      + 'and on every load; Oak planks when they never chose. In a dev build the Layout Lab\x27s Backdrop section does not '
       + 'change that until one of its controls is touched; from then until Reset it shows exactly the texture, wash, blur and '
       + 'shadow it is set to, including when that is the default texture, never the Settings pick in its place.',
     domain: 'foundation',
@@ -10796,5 +10796,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Fixed 2026-10-28 (feat/cf-live-spectate). Needs 2026-11-10-lobby-live-cf.sql applied and a Worker deployed with PERSIST on and its writer key registered.',
     example: 'Cat watches a Cloudflare 1v1 from round 2 to the end (8 minutes of a 12-minute match): the room beats her every 30 s, once more at the end; her settlement finds 8 minutes on the record and pays half a game.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveCore.test.ts', 'workers/versus/test/cfLiveSpectate.db.test.ts', 'workers/versus/test/it/live.it.ts', 'packages/ui/src/live/liveCf.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
+  {
+    id: 'R-ESCSELECT-LAYER-01',
+    title: 'An open Settings dropdown list paints over every row below it',
+    statement:
+      'When a dropdown in the Settings (Esc) menu is open, its list sits above every other row, section heading and note in '
+      + 'the panel, including the next dropdown, so each option can be seen and picked.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-28 (board cutout)', quote: 'the selector menu for  the board backdrop is stuck beind the performance framerate select' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.escselectrow:has(.escselect.open))' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-28 (fix/backdrop-select-layer). Before, every dropdown row shared z-index 2, so the later Max Frame Rate row covered the Board backdrop list.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/escSelectLayer.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
 ];

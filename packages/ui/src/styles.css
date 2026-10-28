@@ -359,9 +359,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .boardbg-tex { position: absolute; inset: -40px; z-index: -1; pointer-events: none;
   filter: blur(calc(var(--btex-blur, var(--bd-blur, 0px)) * var(--scale)));
   background:
-    linear-gradient(rgb(0 0 0 / var(--btex-dark, var(--bd-dark, 0.05))), rgb(0 0 0 / var(--btex-dark, var(--bd-dark, 0.05)))),
-    linear-gradient(color-mix(in srgb, var(--btex-tint-col, var(--bd-tint-col, #90abfe)) calc(var(--btex-tint, var(--bd-tint, 0.06)) * 100%), transparent), color-mix(in srgb, var(--btex-tint-col, var(--bd-tint-col, #90abfe)) calc(var(--btex-tint, var(--bd-tint, 0.06)) * 100%), transparent)),
-    var(--btex-img, var(--bd-img, url('/backdrop-stone.webp'))) 50% 50% / calc(var(--btex-size, var(--bd-size, 420px)) * var(--scale)) auto repeat;
+    linear-gradient(rgb(0 0 0 / var(--btex-dark, var(--bd-dark, 0.24))), rgb(0 0 0 / var(--btex-dark, var(--bd-dark, 0.24)))),
+    linear-gradient(color-mix(in srgb, var(--btex-tint-col, var(--bd-tint-col, #472a00)) calc(var(--btex-tint, var(--bd-tint, 0.16)) * 100%), transparent), color-mix(in srgb, var(--btex-tint-col, var(--bd-tint-col, #472a00)) calc(var(--btex-tint, var(--bd-tint, 0.16)) * 100%), transparent)),
+    var(--btex-img, var(--bd-img, url('/backdrop-oak-planks.webp'))) 50% 50% / calc(var(--btex-size, var(--bd-size, 430px)) * var(--scale)) auto repeat;
 }
 /* The board's drop shadow: a pre-blurred silhouette of the board art, drawn at the art's exact size and position
    between the stones and the board (a background layer can't cast a CSS shadow on another). Opacity + offset are
@@ -8057,6 +8057,9 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 /* THE DROPDOWN (owner ask 2026-10-08, Performance → Max Frame Rate): a gold-rimmed trigger at the row's right end and
    a navy list that opens under it, over the rows below. `.dim` marks a rate above the display's refresh (no effect). */
 .escselectrow { position: relative; z-index: 2; }
+/* The row whose list is open rises above the later rows, which would otherwise paint over it (they share z-index 2:
+   the Board backdrop list hid behind Max Frame Rate, owner 2026-10-28, R-ESCSELECT-LAYER-01). */
+.escselectrow:has(.escselect.open) { z-index: 4; }
 .escselect { position: relative; min-width: 200px; }
 .escselect-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 7px 12px 7px 14px; border-radius: 9px; border: 1.5px solid rgba(196, 160, 92, 0.5); background: rgba(0, 0, 0, 0.35); color: #f4eee2; font-family: var(--font-ui); font-weight: 800; font-size: 18px; transition: border-color 0.12s; }
 .escselect-trigger:hover, .escselect.open .escselect-trigger { border-color: #e8c877; }

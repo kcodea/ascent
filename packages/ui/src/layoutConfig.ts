@@ -48,10 +48,10 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'boardY', cssVar: '--board-y', label: 'Board Y offset', group: 'Global', min: -800, max: 800, step: 1, def: 5, fmt: 'px' },
   // Backdrop behind the cutout board (owner 2026-10-28): tile size, then a black wash and a colour wash over it. The
   // texture and the wash colour are the string knobs in LAYOUT_STR_VARS below.
-  { key: 'btexSize', cssVar: '--btex-size', label: 'Tile size', group: 'Backdrop', min: 150, max: 2400, step: 10, def: 420, fmt: 'px' },
-  { key: 'btexDark', cssVar: '--btex-dark', label: 'Darkness', group: 'Backdrop', min: 0, max: 1, step: 0.01, def: 0.05, fmt: 'mul' },
+  { key: 'btexSize', cssVar: '--btex-size', label: 'Tile size', group: 'Backdrop', min: 150, max: 2400, step: 10, def: 430, fmt: 'px' },
+  { key: 'btexDark', cssVar: '--btex-dark', label: 'Darkness', group: 'Backdrop', min: 0, max: 1, step: 0.01, def: 0.24, fmt: 'mul' },
   { key: 'btexBlur', cssVar: '--btex-blur', label: 'Blur', group: 'Backdrop', min: 0, max: 30, step: 0.5, def: 0, fmt: 'px' },
-  { key: 'btexTint', cssVar: '--btex-tint', label: 'Tint amount', group: 'Backdrop', min: 0, max: 1, step: 0.01, def: 0.06, fmt: 'mul' },
+  { key: 'btexTint', cssVar: '--btex-tint', label: 'Tint amount', group: 'Backdrop', min: 0, max: 1, step: 0.01, def: 0.16, fmt: 'mul' },
   { key: 'bshadowA', cssVar: '--bshadow-a', label: 'Board shadow strength', group: 'Backdrop', min: 0, max: 1, step: 0.01, def: 0.72, fmt: 'mul' },
   { key: 'bshadowX', cssVar: '--bshadow-x', label: 'Board shadow X', group: 'Backdrop', min: -80, max: 80, step: 1, def: 6, fmt: 'px' },
   { key: 'bshadowY', cssVar: '--bshadow-y', label: 'Board shadow Y', group: 'Backdrop', min: -80, max: 80, step: 1, def: 8, fmt: 'px' },
@@ -199,12 +199,12 @@ export interface LayoutStrDef {
 }
 export const LAYOUT_STR_VARS: LayoutStrDef[] = [
   {
-    key: 'btexImg', cssVar: '--btex-img', label: 'Texture', group: 'Backdrop', kind: 'select', def: 'stone',
+    key: 'btexImg', cssVar: '--btex-img', label: 'Texture', group: 'Backdrop', kind: 'select', def: 'oak',
     options: Object.keys(BACKDROP_TEXTURES),
     optionLabels: Object.fromEntries(Object.entries(BACKDROP_TEXTURES).map(([k, v]) => [k, v.label])),
     css: (v) => `url('${(BACKDROP_TEXTURES[v] ?? BACKDROP_TEXTURES.stone).url}')`,
   },
-  { key: 'btexTintCol', cssVar: '--btex-tint-col', label: 'Tint colour', group: 'Backdrop', kind: 'color', def: '#90abfe', css: (v) => v },
+  { key: 'btexTintCol', cssVar: '--btex-tint-col', label: 'Tint colour', group: 'Backdrop', kind: 'color', def: '#472a00', css: (v) => v },
 ];
 export type LayoutStrConfig = Record<string, string>;
 const STR_STORAGE_KEY = 'ascent.layoutlab.str';

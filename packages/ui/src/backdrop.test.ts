@@ -16,11 +16,11 @@ beforeEach(() => {
 afterEach(() => { localStorage.clear(); document.documentElement.removeAttribute('style'); });
 
 describe('the Settings backdrop pick', () => {
-  it('defaults to Cobblestone and writes its preset', async () => {
+  it('defaults to Oak planks and writes its preset', async () => {
     const b = await import('./backdrop');
-    expect(b.getBackdrop()).toBe('stone');
-    expect(rootVar('--bd-img')).toContain('/backdrop-stone.webp');
-    expect(rootVar('--bd-size')).toBe(`${b.BACKDROPS.stone.size}px`);
+    expect(b.getBackdrop()).toBe('oak');
+    expect(rootVar('--bd-img')).toContain('/backdrop-oak-planks.webp');
+    expect(rootVar('--bd-size')).toBe(`${b.BACKDROPS.oak.size}px`);
   });
 
   it('a pick applies at once and is restored on the next load', async () => {
@@ -44,18 +44,18 @@ describe('the Settings backdrop pick', () => {
 
 describe('the Layout Lab over the Settings pick (DEV)', () => {
   it('an untouched Lab leaves the Settings pick showing', async () => {
-    localStorage.setItem('ascent.backdrop', 'oak');
+    localStorage.setItem('ascent.backdrop', 'stone');
     await import('./backdrop');
     await import('./layoutConfig');
     expect(rootVar('--btex-img')).toBe('');
   });
 
   it('picking the DEFAULT texture in the Lab still shows it, not the Settings pick; Reset hands back', async () => {
-    localStorage.setItem('ascent.backdrop', 'oak');
+    localStorage.setItem('ascent.backdrop', 'stone');
     await import('./backdrop');
     const lab = await import('./layoutConfig');
-    lab.setLayoutString('btexImg', 'stone');
-    expect(rootVar('--btex-img')).toContain('/backdrop-stone.webp');
+    lab.setLayoutString('btexImg', 'oak');
+    expect(rootVar('--btex-img')).toContain('/backdrop-oak-planks.webp');
     // Every other Backdrop knob is written too, so the Lab shows ONE coherent backdrop.
     expect(rootVar('--btex-size')).not.toBe('');
     lab.resetLayout();

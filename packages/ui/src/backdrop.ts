@@ -40,7 +40,7 @@ export const BACKDROPS = {
 } as const satisfies Record<string, BackdropPreset>;
 export type BackdropId = keyof typeof BACKDROPS;
 export const BACKDROP_IDS = Object.keys(BACKDROPS) as BackdropId[];
-export const DEFAULT_BACKDROP: BackdropId = 'stone';
+export const DEFAULT_BACKDROP: BackdropId = 'oak';
 export const BACKDROP_KEY = 'ascent.backdrop';
 
 function isBackdropId(v: unknown): v is BackdropId {

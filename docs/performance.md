@@ -454,6 +454,69 @@ steps, shop, End of Turn, fights and FX.
 
 ---
 
+## 2b. The perf gauntlet — `npm run perf:gauntlet` (desktop frames, blind A/B)
+
+The judge for a perf pass (R-PERF-GAUNTLET-01). `npm run perf` only sees the engine; this one sees **frames**, on the
+**production** build, on **your** display, and compares a change against `origin/main` without either side knowing
+which is which.
+
+```
+npm run perf:gauntlet                         # candidate = this working tree, baseline = origin/main, 1 run each
+npm run perf:gauntlet -- --runs 5 --from 11 --to 13  # more runs = a tighter noise band; pick the rounds to measure
+npm run perf:gauntlet -- --blind              # the X/Y key goes to <out>/key.json instead of the console
+npm run perf:gauntlet -- --games 5 --from 4 --to 5  # THE SOAK: 5 games in one page; per game, after a full GC: heap,
+                                              # DOM nodes, listeners, shop frames. A climbing column = buildup
+                                              # (found the R-PERF-LUNGE-LEAK-01 leak, 2026-10-27)
+npm run perf:gauntlet -- --trace shop-actions    # Chrome trace of one scene: style / layout / paint time, which code FORCED
+                                              # each recalc, who dirtied style, the costliest CSS selectors
+npm run perf:gauntlet -- --profile shop-actions  # CPU profile of one scene: top functions by self time, named
+                                              # through the bench build's hidden source maps (VITE_PERF_BENCH only)
+npm run perf:gauntlet -- --base <ref>         # another baseline; --a <dist> --b <dist> skips building; --only <dist>
+```
+
+- **Builds.** Both are `VITE_PERF_BENCH=1` prod bundles. The baseline is built once per sha in a throwaway worktree
+  with its own `npm install` (so its packages resolve to its own sources) and cached under `.perf-gauntlet/`.
+- **The late game is what is measured** (owner 2026-10-27: the slow part is turns 9-14, "when a LOT of cards have been
+  played throughout the game"). One Dwarf-only Practice game against level-10 bots at a fixed seed (`--seed`), so both
+  builds play the identical game:
+  - **Turn 1, the owner's board:** a gilded Edward Keg-hands, two gilded Tapkeepers, Mountainbond and Chef Gary Toast,
+    built through the game's own paths (God Mode's print action into the shop, three bought copies triple into the
+    gilded card, each played from hand). The walk never sells these five.
+  - **Every turn, buy and play as many cards as possible** with the Gold topped up to 999: cast Ales and spells as
+    they land, buy (refreshing when the shop runs dry), tier up once. **When the hand is full:** sell every non-key
+    unit, play the hand (selling a non-key unit again whenever the board fills), sell the non-key units, carry on.
+    **A Discover** (triple reward or anything else) takes the middle option and sells the card it gave; any other
+    choice gets the balance bot's pick.
+  - **Rounds 1-8 are fast-forwarded** (that turn loop, fights played out, all unmeasured). **Rounds 9-14 are measured**
+    (`--from` / `--to`): shop idle, tier up + refresh, mouse drags (sell a filler, buy, play, reorder),
+    `shop-actions` (the buy-and-play turn), End Turn, the whole fight, the return. Plus title, hero select and run
+    start once per run. Real mouse input through CDP; every request off 127.0.0.1 is blocked.
+- **Numbers per scene:** worst / p99 / p95 frame, long (2+ refresh intervals), jank (3+), frames over budget,
+  main-thread ms per frame (`Performance.getMetrics`) and long-animation-frame blocking. Judged in the §0 order: worst,
+  then long / jank, then p95.
+- **Verdict.** A scene **PASSES** only when its worst frame is within 4.17 ms (20% vsync slack) and no frame went
+  over. On a display under 240 Hz, or `--headless`, it says `n/a` instead: an interval can never be shorter than one
+  refresh, so a 60 Hz panel cannot show a 4.17 ms miss. Headless frame intervals are not real (§3i); judge a headless
+  run on `work` only.
+- **Blind A/B.** The two builds are shuffled into X and Y and run alternately (X Y Y X ...). A metric names a winner
+  only when **every** run of one build beats **every** run of the other **and** the medians differ by a real margin:
+  10% on frame times and work (and at least one refresh step on the quantized p95 / p99), 25% on dropped-frame
+  counts. Anything else prints `~` (within noise). The **worst** frame is shown but never decides (`·`).
+- **Calibration (2026-10-27).** A null A/B of two builds of the same code: p95 / p99 / work agreed within ~5%,
+  dropped-frame counts within ~20%, the worst frame differed 2.5x (67 vs 167 ms). The first rule (no overlap alone)
+  made ~12 false calls out of 70 there; the margins above make 0. Re-run a null A/B if the machine changes.
+- **One run a build is the default** (owner 2026-10-27: "2 would suffice"): a quick screen, about 20 minutes for
+  rounds 9-10. On the same identical-builds data, a single pair made a false call on the buy-and-play scene's
+  p95 / p99 / work in 1 of 9 pairings (one odd run). So confirm a win with `--runs 2` before shipping it.
+- **Running it.** Headed Chrome windows open at 1920 x 1080 on your screen. Keep them visible and leave the machine
+  alone; frames that ran while the page was hidden are dropped and counted in a warning.
+
+**The loop it is built for:** pick the worst failing scene, a builder fixes it in its own worktree, a separate critic
+agent runs `perf:gauntlet --blind` and picks X or Y from the numbers alone, then names the biggest remaining gap.
+Repeat until the critic picks ours. The exit code never fails on the budget: it is a judge, not a CI gate.
+
+---
+
 ## 3. Render profiling in the browser (we do this together)
 
 The harness can't catch frame drops — those come from the browser painting/compositing. When the game feels

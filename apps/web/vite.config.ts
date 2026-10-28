@@ -73,6 +73,9 @@ export default defineConfig(({ command }) => ({
   // HOVER GUARD (R-TOUCH-HOVERGUARD-01): every hover glow / lift rule is wrapped in `@media (hover: hover)` at build
   // time so it never sticks after a tap on a phone. A mouse always matches the query, so desktop is unchanged.
   css: { postcss: { plugins: [hoverGuardPlugin()] } },
+  // PERF BENCH builds only (never a player build): hidden source maps, so `npm run perf:gauntlet -- --profile <scene>`
+  // can name the minified functions in a CPU profile. 'hidden' writes the .map files without linking them.
+  build: { sourcemap: process.env.VITE_PERF_BENCH === '1' ? 'hidden' : false },
   server: { watch: { ignored: [STAGES_DIR.replaceAll('\\', '/') + '/**'] } },
   resolve: {
     alias: {

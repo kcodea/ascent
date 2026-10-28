@@ -9940,4 +9940,38 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A Tapkeeper turn generates five Dwarven Ales at once: three of them gather dust onto their wireframes, the other two form their wireframe and resolve without dust, and on a 360 Hz panel the dust redraws 120 times a second instead of 360.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/plateCoalesce.test.ts'], lastVerifiedAt: '2026-10-27' },
   },
+  {
+    id: 'R-PERF-GAUNTLET-01',
+    title: 'npm run perf:gauntlet judges late-game desktop frames: two prod bench builds, the same seeded Dwarf game, blind A/B, the 4.17 ms budget',
+    statement:
+      'npm run perf:gauntlet builds a VITE_PERF_BENCH production bundle of the working tree and of a baseline ref (origin/main '
+      + 'by default, cached by sha) and drives each through the same game in real Chrome at 1920x1080 with real mouse input, '
+      + 'every request off 127.0.0.1 blocked: one Dwarf-only Practice game against level-10 bots at a fixed seed, so both '
+      + 'builds play the identical game. On turn 1 the board becomes a gilded Edward Keg-hands, two gilded Tapkeepers, '
+      + 'Mountainbond and Chef Gary Toast (printed into the shop, tripled by buying three copies, played from hand), and the '
+      + 'walk never sells those five. Every turn, with the Gold topped up, it buys and plays as many cards as it can; when the '
+      + 'hand is full it sells every other unit, plays the hand and sells those units too, then carries on; a Discover takes '
+      + 'the middle option and sells the card it gave. Rounds 1-8 are fast-forwarded (played, unmeasured); rounds 9-14 are '
+      + 'MEASURED (shop idle, refresh, drags, the buy-and-play turn, End Turn, the whole fight, the return). Each scene '
+      + 'reports worst / p99 / p95 frame, long (2+ refresh intervals) and jank (3+), frames over budget, main-thread ms per '
+      + 'frame and long-animation-frame blocking. A scene PASSES only when its worst frame is within 4.17 ms (with 20% vsync '
+      + 'slack) and no frame went over; a display under 240 Hz or a headless run reports n/a instead. Runs alternate between '
+      + 'the builds, which are shuffled into X and Y; a metric names a winner only when every run of one beats every run of '
+      + 'the other AND the medians differ by a real margin (10% on frame times and work, at least one refresh on p95 / p99, '
+      + '25% on dropped-frame counts); otherwise it is within noise, and the worst frame alone never decides. --blind keeps the X/Y key in a file so a critic judges before it knows '
+      + 'which build is ours.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (perf gauntlet loop)', quote: 'Yes, build npm run perf:gauntlet first (scenes, blind A/B vs origin/main, worst/p95/long/jank vs 4.17 ms) as its own PR.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27', quote: 'im talking to desktop performance' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27', quote: 'its on turns 9-14 when a LOT of cards have been played throughout the game' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27', quote: 'put the following on the board. a gilded edward keg hands, two gilded tapkeepers, a mountainbond, aand a chef gary toast. buy and play as many cards as you can' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27', quote: 'when discovering a card - simply select the middle one and sell it, whether its from a triple reward or anything else' },
+      { kind: 'code', ref: 'scripts/perf-gauntlet.mjs (build, serve, drive, report); packages/tools/src/perfGauntletStats.ts (the judging rules)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (feat/perf-gauntlet). A judge for a perf loop, not a CI gate: the budget verdict never fails the exit code. Fights are against level-10 bots, not real player boards (God Mode boards need the network). The Gold top-up and the turn-1 print are bench-only state writes on a throwaway Practice run.',
+    example: 'A candidate that removes a shop-actions hitch prints "shop-actions ... worst 9.0 ... winner worst:X long:X" with X = the working tree once the key is revealed; a change that does nothing prints "~" on every metric.',
+    enforcement: { kind: 'scenario', refs: ['packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
 ];

@@ -1,0 +1,70 @@
+# 2026-10-27 — `npm run perf:gauntlet`: the late-game desktop frame judge
+
+The owner wants perf passes to keep happening, run as a "gauntlet loop": a builder fixes, a separate critic judges
+blind against a bar, and the loop repeats until ours wins. That only works if the judge is real, so this PR builds the
+judge: `npm run perf:gauntlet` (scripts/perf-gauntlet.mjs, R-PERF-GAUNTLET-01). Full usage is in
+docs/performance.md §2b.
+
+**What it does.** It builds two `VITE_PERF_BENCH` production bundles: the working tree, and `origin/main`, cached by
+sha and built in a throwaway worktree with its own `npm install`. It drives each through the same game in headed
+Chrome at 1920x1080 with real mouse input, alternating builds, under blind X/Y labels. Per scene it reports
+worst / p99 / p95, long / jank, frames over the 4.17 ms budget, main-thread ms per frame and LoAF blocking. A metric
+names a winner only when every run of one build beats every run of the other.
+
+**What the game is (all owner rulings, 2026-10-27).** Desktop only ("im talking to desktop performance"). Measure the
+late game, "turns 9-14 when a LOT of cards have been played". One Dwarf-only Practice game against level-10 bots at a
+fixed seed, so both builds play the identical game:
+- On turn 1 the board becomes the owner's: a gilded Edward Keg-hands, two gilded Tapkeepers, Mountainbond and Chef
+  Gary Toast. They are printed into the shop through God Mode's print action, bought three times to triple, and
+  played from hand.
+- Every turn the walk buys and plays as many cards as it can, with the Gold topped up.
+- When the hand is full, it sells every other unit, plays the hand and sells those too, then carries on.
+- A Discover takes the middle option and sells what it gave.
+- Rounds 1-8 are fast-forwarded: played, fights included, but unmeasured. Rounds 9-14 are measured in full.
+
+**Gotchas found while building it.**
+- God Mode's real-player opponent boards come from the network, which the bench blocks. The bundled
+  `OPPONENT_POOL` is empty, so the fights are against Practice bots instead.
+- The combat replay waits for the player at the end: `.etbwrap.ready` marks "replay done", and `.etbwrap.skip` is
+  the mid-fight Skip button.
+- A triple replaces the board card with a gilded one under a NEW uid. The five are protected by card (with a
+  quota), not by uid. Protecting them by uid sold the tripled Mountainbond as filler.
+- This board wins the eight-seat lobby by round 13, so the bot seats are made unkillable, as God Mode does. A game
+  that still ends early just stops measuring.
+- A Discover left open blocks End Turn. Every turn resolves all open choices before it ends.
+
+**First late-game numbers** (one clean run, this branch = `origin/main` game code, 370 Hz display):
+- The buy-and-play turn (`shop-actions`) is p95 16.7 ms / p99 25 ms with 3,645 dropped frames. That is about 4x the
+  budget on the typical frame, so it is the first target for the loop.
+- A late fight had a 967 ms worst frame.
+- End Turn's worst frame was 147 ms.
+
+A full run takes about 9 minutes, so the default A/B (3 runs per build) takes about an hour; `--from` / `--to` /
+`--runs` shorten it.
+
+**A likely game bug it surfaced (not fixed here): Skip can leave the game stuck in combat.** While the walk still
+pressed Skip on fast-forward fights, it got stuck in combat in 3 of about 10 runs, in two ways:
+- Twice, on the `origin/main` bundle at round 3: the fight was skipped, "End combat and go back to shop" showed
+  (`.etbwrap.ready`), and pressing it did nothing (screenshot showed the empty enemy side and a full hand).
+- Once, on the other bundle at round 1: Skip was pressed as the gate fell. `run.phase` stayed `combat`, but the screen
+  showed the shop's "End your turn and start combat" button, and the replay never finished.
+
+The two bundles are the same game code (only their build stamps differ), so it is timing-dependent. A player pressing
+Skip at those moments would presumably hit it too. Worth a look at `Recruit.tsx` `skipCombat` / `endCombat`
+(`wipeExitRef`). The walk now NEVER presses Skip (fast-forward fights play out unmeasured), and it presses End combat
+up to five times, logging "End combat needed N presses ... a possible game bug" if one is ignored.
+
+**The null A/B, and the judging rule it forced.** Two builds of the same code, 3 runs each, rounds 9-14 (one run lost
+to the stuck End combat, below):
+- The metrics that matter agreed closely: shop-actions p95 26.4 / 25.1 ms, p99 38.8 / 38.9 ms, work 6.26 / 6.06 ms per
+  frame. The noise on them is about 5%.
+- The worst frame did not: 167 vs 67 ms on shop-actions, 217 vs 72 ms on combat.
+- The first rule ("every run of one beats every run of the other") made about 12 false calls out of 70. With 2 vs 3
+  runs that happens by chance about 20% of the time per metric.
+- A win now also needs a real margin: 10% on times and work (at least one refresh step on p95 / p99), and 25% on
+  dropped-frame counts. The worst frame never decides alone. Re-judging the same data gives 0 false calls of 70.
+
+**Correction to the bug note below: Skip is not the cause.** With Skip never pressed, End combat still needed about
+4 presses (around 12 s) in 3 fights, and in one it never responded (round 7), so that run was lost. Both stuck
+screenshots show the hero-damage banner ("35 DAMAGE", "DAMAGE CAPPED") still up over the portrait. A guess: the exit
+waits on that animation, which sometimes does not finish.

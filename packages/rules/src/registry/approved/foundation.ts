@@ -9358,7 +9358,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (egress Step 2 approval)', quote: 'Yeah start on this work to fix these issues' },
       { kind: 'code', ref: 'packages/ui/src/net/idbKv.ts; packages/ui/src/remoteBoards.ts (fetchAndRegisterBoardRecords, fetchRecentGames)' },
     ],
-    currentBehaviour: 'Built 2026-10-26. Before: ~255 KB of these two reads on every boot.',
+    currentBehaviour: 'Built 2026-10-26. Before: ~255 KB of these two reads on every boot. Since 2026-10-28 the board-results half is gone entirely: the table is archived and never read (R-EGRESS-04); the Recent Games feed keeps this rule.',
     example: 'A player opens the game twice in an hour: the second boot reads a few new rows instead of the whole board-results window.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/net/backoff.test.ts'], lastVerifiedAt: '2026-10-26' },
   },

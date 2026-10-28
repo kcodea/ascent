@@ -99,7 +99,7 @@ import { normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, typ
 import { withRecordedEmotes } from '@game/sim';
 import type { RuneCombatProgress } from '@game/sim';
 import { takeShopEmotes } from './emotes/emoteRecording';
-import { pushProfileAvatar, backfillProfileAvatar, fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
+import { pushProfileAvatar, backfillProfileAvatar, fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId, type Identity } from './identity';
 import { createAccountStartupGate } from './identityGate';
@@ -163,8 +163,8 @@ setPoolBandFallback(() => lobbyBandFor(loadProfile()));
 void fetchAndRegisterPool(`${__APP_VERSION__}+`);
 // BOARD STRENGTH: the pool's histogram, so a game that ends can freeze its percentile (same startup moment).
 void refreshStrengthHistogram();
-// Board win-rate records for matchmaking weighting — same startup moment, same session-static contract.
-void fetchAndRegisterBoardRecords();
+// (The board win-rate records read that lived here is gone: `board_results` is archived and never read, owner ruling
+// 2026-10-28, R-EGRESS-04.)
 
 /** How many heroes the pre-run picker offers (or all of them, if fewer exist). */
 const HERO_SELECT_COUNT = 3;

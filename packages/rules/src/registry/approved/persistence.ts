@@ -1055,4 +1055,21 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'triggers swallowed their errors as warnings.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/poolRefreshJob.db.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-EGRESS-04',
+    title: 'board_results is archived: no launch or runtime read',
+    statement:
+      'The retired per-board fight ledger (board_results) is never read by the game: not at boot, not between runs, not '
+      + 'by any screen. Nothing feeds the course-mode win-rate weighting any more, so that pick sits at its neutral prior '
+      + '(no live mode fights it, R-LEDGER-01). The table is exported read-only by scripts/supabase/export-board-results.mjs '
+      + 'and dropped in a later phase.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-28 (Supabase cleanup P1.4, board_results)', quote: 'archive and stop reading it' },
+      { kind: 'code', ref: 'packages/ui/src/remoteBoards.ts (fetchAndRegisterBoardRecords, fetchBoardStats, fetchPlayerRoundBoards removed); store.ts startup' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-28. Before, every boot and run end read up to 8,000 rows (~250 KB cold; 16,458 seq scans in 16 days, no index on created_at).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/boardResultsArchived.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

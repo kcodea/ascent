@@ -44,7 +44,13 @@ RUN ENDS  ──uploadBoards(saveRunBoards(...))────►  INSERT this run
 - **Per balance patch:** bump `package.json` `version` (the served patch prefix changes), then clear the old
   version's rows when you want them gone.
 
-## Win-tracking (leaderboard records + the Career per-round log)
+## Win-tracking (leaderboard records + the Career per-round log): RETIRED
+
+> **ARCHIVED (owner ruling 2026-10-28, "archive and stop reading it").** Nothing writes `board_results` since 2026-10-14
+> (R-LEDGER-01) and nothing reads it since Supabase cleanup P1.4 (R-EGRESS-04). Export it with
+> `npm run db:export:board-results` (read-only, writes `exports/board_results-<date>.json` + `.csv`); the table is
+> dropped in a later phase. The section below is history.
+
 
 Each served board carries a stable id (`BoardSnapshot.id`, a UUID stamped at capture). When you fight a served
 board, the client logs the outcome **from that board's perspective** (you lose to it → it gets a win) to a new

@@ -17,7 +17,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { activeSet, type SetId } from '@game/content';
 import type { FightRow, LobbyStrength, MatchDetails, StrengthInput } from '@game/sim';
 import { STRENGTH_REF_VERSION, parseBoardStrength, type RunStrengthHistogramEntry, type StrengthBand, type StrengthHistogram, type StrengthScore } from '@game/sim';
-import { RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, parseRankAtStart, registerBoardRecords, registerOpponentRuns, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, type TelemetryCapture, type RunRegime, type LobbyPoolTelemetry, isRankPosition, type RankPosition } from '@game/sim';
+import { RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, parseRankAtStart, registerOpponentRuns, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, type TelemetryCapture, type RunRegime, type LobbyPoolTelemetry, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { createPoolLoader, STARTUP_LOAD, type PoolLoader } from './opponentPool/poolLoader';
@@ -27,7 +27,7 @@ import { careerRunOf, joinTelemetry, lengthFieldsOf, type CareerRun, type RunHis
 import { telemetryGameRankOf } from './gameRankData';
 import { hallHistoryKeyOf, ownGameRecordsOf, type HallLedgerFight, type HallOwnRecord } from './leaderboardData';
 import { fetchAllRows } from './supabaseRows';
-import { kvGet, kvSet, maxId, mergeNewestFirst } from './net/idbKv';
+import { kvDel, kvGet, kvSet, maxId, mergeNewestFirst } from './net/idbKv';
 import { cachedSample, idbRunCache, type DeltaStats } from './opponentPool/poolRunCache';
 import { careerTotalsOf } from './runHistory';
 import { matchLength } from './activePlayClock';
@@ -468,6 +468,7 @@ export function opponentPoolLoader(patchPrefix = `${typeof __APP_VERSION__ === '
  * calls (the between-runs refresh) draw a fresh sample of whole runs, and registration dedupes.
  */
 export async function fetchAndRegisterPool(patchPrefix?: string): Promise<number> {
+  clearRetiredBoardRecordsCache(); // P1.4: the archived board_results window left in IndexedDB, deleted once
   const loader = opponentPoolLoader(patchPrefix);
   if (!loader) return 0;
   const refresh = loader.state().status !== 'idle';
@@ -497,33 +498,6 @@ export interface VictoryRow {
   /** The final board's fight-ledger id (`board_id`) — the leaderboard looks up this slot's round-17 win record
    *  by it. Undefined for rows logged before win-tracking shipped (they just show no record). */
   boardId?: string;
-}
-
-/** A board's aggregated fight record from the ledger — wins/losses/ties from the BOARD's perspective. */
-export interface BoardWinStats {
-  wins: number;
-  losses: number;
-  ties: number;
-  fights: number; // wins + losses + ties
-  /** Win rate as a whole percent (wins / fights). 0 when it's never been fought. */
-  winRate: number;
-}
-
-const emptyStats = (): BoardWinStats => ({ wins: 0, losses: 0, ties: 0, fights: 0, winRate: 0 });
-function tallyStats(rows: Array<{ board_id: string; outcome: string }>): Map<string, BoardWinStats> {
-  const map = new Map<string, BoardWinStats>();
-  for (const r of rows) {
-    const s = map.get(r.board_id) ?? emptyStats();
-    if (r.outcome === 'win') s.wins++;
-    else if (r.outcome === 'loss') s.losses++;
-    else s.ties++;
-    map.set(r.board_id, s);
-  }
-  for (const s of map.values()) {
-    s.fights = s.wins + s.losses + s.ties;
-    s.winRate = s.fights > 0 ? Math.round((s.wins / s.fights) * 100) : 0;
-  }
-  return map;
 }
 
 /** Log a completed victory run for the leaderboard. Fire-and-forget; never throws / blocks. */
@@ -2289,118 +2263,26 @@ export async function fetchRunFinalBoards(runs: Array<{ key: string; author: str
   }
 }
 
-/** One of your boards at a given round, with its fight record — a row in the Career per-round board log. */
-export interface RoundBoard {
-  round: number;
-  board: BoardSnapshot;
-  stats: BoardWinStats;
+// ── Board win-rate records: RETIRED (owner ruling 2026-10-28, Supabase cleanup P1.4) ─────────────────────────
+// `board_results` is the retired course mode's per-board fight ledger. Its writes stopped on 2026-10-14
+// (R-LEDGER-01) and the owner ruled "archive and stop reading it": no launch or run-end read remains. Nothing feeds
+// `registerBoardRecords` any more, so the course-mode `pickOpponent` weighting sits at its neutral prior (no live
+// mode fights that pick). The table is exported by `scripts/supabase/export-board-results.mjs` and dropped in a later
+// phase. The IndexedDB window this read kept is deleted once.
+const RETIRED_RECORDS_CACHE_KEY = 'boardResults';
+let retiredRecordsCacheCleared = false;
+function clearRetiredBoardRecordsCache(): void {
+  if (retiredRecordsCacheCleared) return;
+  retiredRecordsCacheCleared = true;
+  void kvDel(RETIRED_RECORDS_CACHE_KEY);
 }
-
-/** Fetch YOUR uploaded boards (by author) grouped by round, each with its fight record — the data behind the
- *  Career per-round "winningest board" log. Within each round, sorted best-record first (win-rate, then volume).
- *  Best-effort + time-boxed; an empty map on any failure / no backend / no author. */
-export async function fetchPlayerRoundBoards(author: string): Promise<Map<number, RoundBoard[]>> {
-  const out = new Map<number, RoundBoard[]>();
-  const c = client();
-  if (!c || !author) return out;
-  try {
-    const request = fetchAllRows((from, to) => c.from(TABLE).select('snapshot').eq('author', author).order('id', { ascending: true }).range(from, to));
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const result = await Promise.race([request, timeout]);
-    if (!result || result.error || !result.data) return out;
-    const boards = (result.data as Array<{ snapshot: BoardSnapshot }>)
-      .map((r) => r.snapshot)
-      .filter((s): s is BoardSnapshot & { id: string } => !!s && !!s.id && Array.isArray(s.minions) && s.minions.length > 0);
-    if (boards.length === 0) return out;
-    const stats = await fetchBoardStats(boards.map((b) => b.id)); // all rounds
-    for (const b of boards) {
-      const arr = out.get(b.wave) ?? [];
-      arr.push({ round: b.wave, board: b, stats: stats.get(b.id) ?? emptyStats() });
-      out.set(b.wave, arr);
-    }
-    for (const arr of out.values()) {
-      arr.sort((a, z) => z.stats.winRate - a.stats.winRate || z.stats.fights - a.stats.fights);
-    }
-    return out;
-  } catch {
-    return out;
-  }
-}
-
-/** Aggregate the fight ledger for a set of board ids (optionally at a single round). Best-effort + time-boxed;
- *  an empty map on any failure / no backend. Client-side aggregation over a bounded fetch (friend-scale). */
-export async function fetchBoardStats(boardIds: string[], round?: number): Promise<Map<string, BoardWinStats>> {
-  const c = client();
-  if (!c || boardIds.length === 0) return new Map();
-  try {
-    const request = fetchAllRows((from, to) => {
-      const base = c.from('board_results').select('board_id, outcome').in('board_id', boardIds);
-      return (round !== undefined ? base.eq('round', round) : base).order('id', { ascending: true }).range(from, to);
-    });
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const result = await Promise.race([request, timeout]);
-    if (!result || result.error || !result.data) return new Map();
-    return tallyStats(result.data as Array<{ board_id: string; outcome: string }>);
-  } catch {
-    return new Map();
-  }
-}
-
-// ── Board win-rate records (matchmaking weighting) ─────────────────────────────────────────────────────────
-// One bounded pull of the fight ledger, aggregated client-side into per-board {wins, fights} and registered
-// with the sim (matchmaking.ts). Fetched at startup and REFRESHED BETWEEN RUNS (owner ask 2026-07-18) —
-// never mid-run, so a run's weights stay static (same determinism scope as the pool). Best-effort like the
-// rest of this seam: no backend / un-migrated table → no records → every board sits at the neutral prior.
-const RECORDS_FETCH_LIMIT = 8000;
-export async function fetchAndRegisterBoardRecords(): Promise<number> {
-  const c = client();
-  if (!c) return 0;
-  try {
-    // R-NET-CACHE-01 (perf 2026-10-26): the window is kept in IndexedDB and only rows NEWER than it are read (the table
-    // is append-only, identity ids), so a boot or a run end costs a few rows instead of the whole 8,000-row window
-    // (~96 KB every time). A cache older than a day (or none) is read whole, exactly as before.
-    const cached = await kvGet<BoardRecordsCache>(RECORDS_CACHE_KEY);
-    const usable = !!cached && cached.v === 1 && Date.now() - cached.savedAt < RECORDS_CACHE_MAX_AGE_MS && cached.rows.length > 0;
-    const request = Promise.resolve(usable
-      ? fetchAllRows<BoardResultRow>((from, to) => c.from('board_results').select('id, board_id, outcome').gt('id', maxId(cached!.rows)).order('id', { ascending: false }).range(from, to), { maxRows: RECORDS_FETCH_LIMIT })
-      // The newest RECORDS_FETCH_LIMIT results ON PURPOSE (a recency window), read in pages so the window is whole.
-      : fetchAllRows<BoardResultRow>((from, to) => c.from('board_results').select('id, board_id, outcome').order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, to), { maxRows: RECORDS_FETCH_LIMIT }));
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const result = await Promise.race([request, timeout]);
-    let rows: BoardResultRow[];
-    if (!result || result.error || !result.data) {
-      if (!usable) return 0;
-      rows = cached!.rows; // the network failed: the last good window still registers
-    } else {
-      rows = usable ? mergeNewestFirst(result.data, cached!.rows, RECORDS_FETCH_LIMIT) : result.data;
-      void kvSet(RECORDS_CACHE_KEY, { v: 1, savedAt: usable ? cached!.savedAt : Date.now(), rows } satisfies BoardRecordsCache);
-    }
-    const agg = new Map<string, { wins: number; fights: number }>();
-    for (const r of rows) {
-      const rec = agg.get(r.board_id) ?? { wins: 0, fights: 0 };
-      rec.fights += 1;
-      if (r.outcome === 'win') rec.wins += 1;      // board-perspective: 'win' = the served board beat the player
-      else if (r.outcome === 'tie') rec.wins += 0.5; // a draw counts half, both sides
-      agg.set(r.board_id, rec);
-    }
-    registerBoardRecords(agg);
-    return agg.size;
-  } catch {
-    return 0;
-  }
-}
-interface BoardResultRow { id: number; board_id: string; outcome: string }
-/** `savedAt` is when the window was last read WHOLE (incremental reads keep it), so it is re-read whole once a day. */
-interface BoardRecordsCache { v: 1; savedAt: number; rows: BoardResultRow[] }
-const RECORDS_CACHE_KEY = 'boardResults';
-const RECORDS_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /** Between-runs refresh (owner ask 2026-07-18): re-pull the shared pool (registerOpponents dedupes, so only
- *  NEW boards append) + the fight-ledger records, so consecutive runs in one session see fresh opponents and
- *  fresh win-rates. Fire-and-forget from the run-end boundary — never called mid-run. */
+ *  NEW boards append) + the strength histogram, so consecutive runs in one session see fresh opponents. (The
+ *  fight-ledger records it once re-read are retired: `board_results` is archived, R-EGRESS-04.) Fire-and-forget
+ *  from the run-end boundary — never called mid-run. */
 export function refreshOpponentPoolAndRecords(patchPrefix?: string): void {
   void fetchAndRegisterPool(patchPrefix);
-  void fetchAndRegisterBoardRecords();
   void refreshStrengthHistogram();
 }
 

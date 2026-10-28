@@ -9919,4 +9919,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A player finishes a game whose last fight ended with an Echohorn swing parked at its wind-up, goes back to the title and starts another: the old game\'s screen is freed instead of staying in memory behind the paused swing.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/parkedLungeLeak.test.ts'], lastVerifiedAt: '2026-10-27' },
   },
+  {
+    id: 'R-PERF-COALESCE-DUST-01',
+    title: 'Generated-card coalesce: dust draws at most 120 times a second and on at most 3 cards at once; the rest still coalesce',
+    statement:
+      'The arcane coalesce that plays when a card is generated (plateCoalesce) draws its dust motes at most 120 times a '
+      + 'second, whatever the display rate, and at most three coalesces carry dust at the same time. A coalesce past that '
+      + 'cap still plays the rest of the effect: the wireframe forms over the card and resolves into it, the card held '
+      + 'hidden until then. The trail smear is per elapsed time at the rate it was tuned on (360 Hz), so the look on that '
+      + 'panel does not change with the draw rate. The effect writes its animated styles (the wireframe opacity and scale, '
+      + 'the hidden card opacity) only when the value changes.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (late-game shop perf pass)', quote: 'draw dust at 120 and cap it to 3 concurrent. the remaining should still get the coalesce effect' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27', quote: 'im FAR more worried about the shop performance than the fight performance so lets prioritize that' },
+      { kind: 'code', ref: 'packages/ui/src/plateCoalesce.ts (DUST_FPS, MAX_CONCURRENT_DUST, TRAIL_REF_MS, write-only-what-changed)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-27 (perf/shop-coalesce-writes). Found with npm run perf:gauntlet --profile shop-actions: the coalesce canvases were the biggest named cost of a late-game Ale-engine shop turn (390 motes, two sprites each, every display frame, one canvas per generated card). On a 60 Hz panel the trail is now shorter than before (it used to smear per drawn frame).',
+    example: 'A Tapkeeper turn generates five Dwarven Ales at once: three of them gather dust onto their wireframes, the other two form their wireframe and resolve without dust, and on a 360 Hz panel the dust redraws 120 times a second instead of 360.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/plateCoalesce.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
 ];

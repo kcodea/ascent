@@ -139,6 +139,21 @@ let sprites: { core: HTMLCanvasElement; mid: HTMLCanvasElement } | null = null;
 const GOLD = { cDeep: '#a9700f', cMid: '#f1cb5e', cCore: '#fff6d5' } as const;
 let goldSprites: { core: HTMLCanvasElement; mid: HTMLCanvasElement } | null = null;
 
+/* LATE-GAME SHOP BUDGET (owner 2026-10-27, R-PERF-COALESCE-DUST-01). A Tapkeeper / Ale engine generates many cards a
+   turn, and each coalesce redrew 390 motes (two sprites each) into its own canvas on EVERY display frame (370 a
+   second on the owner's panel): the biggest named cost of a late-game shop turn in `perf:gauntlet --profile`. So:
+   - the dust draws at most DUST_FPS times a second (the motes' paths are time-based, so they land the same);
+   - at most MAX_CONCURRENT_DUST coalesces carry dust at once. One past the cap still plays the rest of the effect
+     (the wireframe forming and resolving into the card), just without its motes.
+   The trail smear used to be per DRAWN frame, so a slower draw would lengthen it; it is now per elapsed time, at
+   the rate the owner tuned it on (his 360 Hz panel), so the look there is unchanged. */
+export const DUST_FPS = 120;
+export const MAX_CONCURRENT_DUST = 3;
+const TRAIL_REF_MS = 1000 / 360;
+let dustLive = 0;
+/** How many coalesces are drawing dust right now (tests). */
+export const plateCoalesceDustLive = (): number => dustLive;
+
 /** A mote flying home: it knows where it LANDS first, then where it started. */
 interface Mote {
   tx: number; ty: number;      // landing point on the shape
@@ -207,20 +222,25 @@ export function playPlateCoalesce(
   // roomier than the dissolve's canvas: motes START outside the plate and fly in
   const pad = 2.6;
   const cw = Math.round(rect.width * pad), ch = Math.round(rect.height * pad);
-  const cv = document.createElement('canvas');
-  cv.width = cw; cv.height = ch;
-  cv.style.cssText = [
-    'position:fixed', `left:${rect.left - (cw - rect.width) / 2}px`, `top:${rect.top - (ch - rect.height) / 2}px`,
-    `width:${cw}px`, `height:${ch}px`, 'pointer-events:none', `z-index:${z}`,
-  ].join(';');
-  stageHost().appendChild(cv);
-  const ctx = cv.getContext('2d');
+  // Past the dust cap: no canvas and no motes; the wireframe and the card's resolve still play (see above).
+  const withDust = dustLive < MAX_CONCURRENT_DUST;
+  if (withDust) dustLive++;
+  const cv = withDust ? document.createElement('canvas') : null;
+  if (cv) {
+    cv.width = cw; cv.height = ch;
+    cv.style.cssText = [
+      'position:fixed', `left:${rect.left - (cw - rect.width) / 2}px`, `top:${rect.top - (ch - rect.height) / 2}px`,
+      `width:${cw}px`, `height:${ch}px`, 'pointer-events:none', `z-index:${z}`,
+    ].join(';');
+    stageHost().appendChild(cv);
+  }
+  const ctx = cv ? cv.getContext('2d') : null;
 
   const motes: Mote[] = [];
   const cx = cw / 2, cy = ch / 2;
   const lp = linePoints(), bp = bodyPoints();
   const havePts = !!((lp && lp.length) || (bp && bp.length));
-  for (let i = 0; i < c.count; i++) {
+  for (let i = 0; withDust && i < c.count; i++) {
     let u: number, v: number;
     if (havePts) {
       const src = (lp && lp.length && Math.random() < c.onLines) ? lp : bp;
@@ -246,17 +266,28 @@ export function playPlateCoalesce(
 
   const t0 = performance.now();
   let raf = 0;
+  let finished = false;
+  let lastDraw = 0; let nextDraw = 0;
+  // The last value written to each animated style (the effect starts with the card hidden at '0', `imp` at '0').
+  const last: { impOpacity: string; impTransform: string; cardOpacity: string | null } = { impOpacity: '0', impTransform: '', cardOpacity: '0' };
   const done = (): void => {
     cancelAnimationFrame(raf);
-    imp.remove(); cv.remove();
+    if (finished) return;
+    finished = true;
+    if (withDust) dustLive--;
+    imp.remove(); cv?.remove();
     unhide();
   };
   const frame = (now: number): void => {
     const ms = now - t0;
 
-    if (ctx) {
+    if (ctx && now >= nextDraw) {
+      const dt = lastDraw > 0 ? now - lastDraw : TRAIL_REF_MS;
+      lastDraw = now;
+      nextDraw += 1000 / DUST_FPS; // a carried schedule: a 144 Hz panel still draws ~120 a second, not 72
+      if (nextDraw < now) nextDraw = now;
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = `rgba(0,0,0,${1 - c.trail})`;
+      ctx.fillStyle = `rgba(0,0,0,${1 - Math.pow(c.trail, dt / TRAIL_REF_MS)})`; // the smear, per elapsed time
       ctx.fillRect(0, 0, cw, ch);
       ctx.globalCompositeOperation = 'lighter';
       const span = Math.max(1, c.gatherMs * (1 - c.stag));
@@ -284,9 +315,16 @@ export function playPlateCoalesce(
     const wireA = Math.min(1, Math.max(0, (ms - (c.gatherMs - c.wireIn)) / Math.max(1, c.wireIn)));
     const cardStart = c.gatherMs + c.holdMs;
     const cardA = Math.min(1, Math.max(0, (ms - cardStart) / Math.max(1, c.cardIn)));
-    imp.style.opacity = String(wireA * (1 - cardA) * c.inten);
-    imp.style.transform = `scale(${1 + (c.puff - 1) * (1 - wireA)})`;
-    if (cardA >= 1) unhide(); else hide(String(cardA));
+    // WRITE ONLY WHAT CHANGED (late-game shop perf 2026-10-27, R-PERF-COALESCE-DUST-01): most frames of the
+    // effect hold these three values still (the wireframe is 0 during the gather, the scale is 1 once formed, the
+    // card stays hidden at 0 until it resolves), and re-setting an unchanged inline style still invalidates style
+    // (docs/performance.md §3h). A late-game shop runs many of these at once, so each frame wrote ~3 per effect.
+    const impOpacity = String(wireA * (1 - cardA) * c.inten);
+    const impTransform = `scale(${1 + (c.puff - 1) * (1 - wireA)})`;
+    const cardOpacity = cardA >= 1 ? null : String(cardA);
+    if (impOpacity !== last.impOpacity) { imp.style.opacity = impOpacity; last.impOpacity = impOpacity; }
+    if (impTransform !== last.impTransform) { imp.style.transform = impTransform; last.impTransform = impTransform; }
+    if (cardOpacity !== last.cardOpacity) { if (cardOpacity === null) unhide(); else hide(cardOpacity); last.cardOpacity = cardOpacity; }
 
     if (ms >= c.total + 200) { done(); return; }
     raf = requestAnimationFrame(frame);

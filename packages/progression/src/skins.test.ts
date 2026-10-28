@@ -17,7 +17,7 @@ afterEach(() => setServerCatalogState(null));
 
 const skins = COSMETICS.filter((c) => c.category === 'hero_skin' || c.category === 'minion_skin');
 
-describe('the one hundred and thirty-nine skins', () => {
+describe('the one hundred and sixty-eight skins', () => {
   // 2026-09-28: a third Black Belt Brian (Legendary) joined; owner: "i added a legendary black belt brian skin and
   // renaemd skins to match their rarity" (masters renamed SkinRare / SkinEpic / SkinLegendary; ids unchanged); then
   // "put the bellringer voss skin in too" (an Epic for Bellringer Voss). Then skins batch 2: "i added some skins here:
@@ -40,7 +40,7 @@ describe('the one hundred and thirty-nine skins', () => {
   // Then skins batch 11 (2026-10-26): "i just added a ton of new images to the art folder ... IMPORT them into
   // collections" (22 minion skins at their folder rarity, nearly all Set 2 Beasts: the Plushie line, Frostclaw,
   // Stoneclaw, Pinata Claw, Stormhorn, Snowyhorn, Solar Spots, Voidworks, Cyborg Roomworks).
-  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2 to 12, and the hero skins; crate items with art keys and attributed masters', () => {
+  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2 to 13, and the hero skins; crate items with art keys and attributed masters', () => {
     expect(skins.map((c) => [c.id, c.category, c.target, c.rarity])).toEqual([
       ['skin_blackbelt_1', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'common'],
       ['skin_blackbelt_2', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'epic'],
@@ -183,6 +183,36 @@ describe('the one hundred and thirty-nine skins', () => {
       ['skin_kennel_2', 'minion_skin', { type: 'card', id: 'kennel' }, 'epic'],
       ['skin_raven_1', 'minion_skin', { type: 'card', id: 'b2_raven' }, 'legendary'],
       ['skin_seaurchin_3', 'minion_skin', { type: 'card', id: 'seaurchin' }, 'legendary'],
+      // skins batch 13 (2026-10-27): "ive added a lot of new skins to the collection via the folder"
+      ['skin_chipwick_1', 'minion_skin', { type: 'card', id: 'k_chipwick' }, 'common'],
+      ['skin_chipwick_2', 'minion_skin', { type: 'card', id: 'k_chipwick' }, 'common'],
+      ['skin_lastlight_1', 'minion_skin', { type: 'card', id: 'n2_lastlight' }, 'common'],
+      ['skin_chronos_1', 'minion_skin', { type: 'card', id: 'chronos' }, 'common'],
+      ['skin_tapkeeper_1', 'minion_skin', { type: 'card', id: 'dw_tapkeeper' }, 'common'],
+      ['skin_tormentor_1', 'minion_skin', { type: 'card', id: 'dm_tormentor' }, 'common'],
+      ['skin_gourmand_1', 'minion_skin', { type: 'card', id: 'dm_gourmand' }, 'common'],
+      ['skin_chipwick_3', 'minion_skin', { type: 'card', id: 'k_chipwick' }, 'rare'],
+      ['skin_armadiyo_1', 'minion_skin', { type: 'card', id: 'b2_armadiyo' }, 'rare'],
+      ['skin_blazer_1', 'minion_skin', { type: 'card', id: 'k_blazer' }, 'rare'],
+      ['skin_grimoire_1', 'minion_skin', { type: 'card', id: 'd2_grimoire' }, 'rare'],
+      ['skin_lastlight_2', 'minion_skin', { type: 'card', id: 'n2_lastlight' }, 'rare'],
+      ['skin_geode_1', 'minion_skin', { type: 'card', id: 'k_geode' }, 'rare'],
+      ['skin_tormentor_2', 'minion_skin', { type: 'card', id: 'dm_tormentor' }, 'rare'],
+      ['skin_gourmand_2', 'minion_skin', { type: 'card', id: 'dm_gourmand' }, 'rare'],
+      ['skin_lastlight_3', 'minion_skin', { type: 'card', id: 'n2_lastlight' }, 'epic'],
+      ['skin_flutterdrake_1', 'minion_skin', { type: 'card', id: 'd2_flutterdrake' }, 'epic'],
+      ['skin_hank_1', 'minion_skin', { type: 'card', id: 'dm_hank' }, 'epic'],
+      ['skin_sharpshooter_1', 'minion_skin', { type: 'card', id: 'dw_sharpshooter' }, 'epic'],
+      ['skin_chronos_2', 'minion_skin', { type: 'card', id: 'chronos' }, 'epic'],
+      ['skin_veinbreaker_1', 'minion_skin', { type: 'card', id: 'k_veinbreaker' }, 'epic'],
+      ['skin_jeweler_1', 'minion_skin', { type: 'card', id: 'k3_jeweler' }, 'epic'],
+      ['skin_spellkeeper_1', 'minion_skin', { type: 'card', id: 'd2_spellkeeper' }, 'epic'],
+      ['skin_chronos_3', 'minion_skin', { type: 'card', id: 'chronos' }, 'legendary'],
+      ['skin_geode_2', 'minion_skin', { type: 'card', id: 'k_geode' }, 'legendary'],
+      ['skin_tapkeeper_2', 'minion_skin', { type: 'card', id: 'dw_tapkeeper' }, 'legendary'],
+      ['skin_gourmand_3', 'minion_skin', { type: 'card', id: 'dm_gourmand' }, 'legendary'],
+      ['skin_chronos_4', 'minion_skin', { type: 'card', id: 'chronos' }, 'ancient'],
+      ['skin_tapkeeper_3', 'minion_skin', { type: 'card', id: 'dw_tapkeeper' }, 'ancient'],
     ]);
     for (const c of skins) {
       expect(c.acquisition).toEqual({ type: 'crate' });

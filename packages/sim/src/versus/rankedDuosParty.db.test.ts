@@ -87,6 +87,8 @@ beforeAll(async () => {
   await db.exec(BASE);
   await db.exec(PARTY);
   await db.exec(PARTY); // idempotent
+  // The 2026-11-02 reliability migration changes no behaviour these tests pin (R-VERSUS-CLOSE-ONCE-01 and friends).
+  await db.exec(readFileSync(join(root, 'supabase/migrations/2026-11-02-versus-server-reliability.sql'), 'utf8'));
   await befriend(A, B); // Kevin and Lemon are friends; Ionlime is nobody's friend
 }, 120_000);
 afterAll(async () => { await db?.close(); });

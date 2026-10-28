@@ -45,6 +45,14 @@
  * A client on another protocol or content revision is refused with 409 rather than resolved under rules it did not
  * show (same posture as `submit-rating`).
  *
+ * FAILURES ARE RECORDED (R-VERSUS-RESOLVE-TIMEOUT-01, 2026-11-02): a match action (finalize / seat) that answers 4xx/5xx
+ * for a signed-in caller leaves one `resolve_err` row in `versus_events` (service role; best effort, never changes the
+ * answer). `stage` says where: `identity` (the CALLER's protocol / content revision is not this server's: another client
+ * may still resolve), `handler` (the handler refused: `engine_mismatch` / `content_mismatch` there means the MATCH's
+ * content is not deployed, so the round can never resolve here and the next reconcile window ends the match 'void'), or
+ * `exception`. Needs `supabase/migrations/2026-11-02-versus-server-reliability.sql` (without it the insert just fails
+ * quietly).
+ *
  * Deno runtime — NOT part of the Node monorepo build (the repo's tsc/eslint don't compile this directory).
  */
 // @ts-nocheck — Deno globals + the generated bundle aren't visible to the repo's Node TypeScript config.
@@ -85,6 +93,45 @@ function callerId(url: string, anonKey: string, req: Request): Promise<string | 
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The actions that act on one match (their failures are recorded in versus_events). */
+const MATCH_ACTIONS = new Set(['finalize', 'finalize_group', 'finalize_duos', 'finalize_ranked_duos', 'seat_ranked_duos']);
+
+/** R-VERSUS-RESOLVE-TIMEOUT-01: one `resolve_err` row for a failed match action. Best effort, only for a signed-in caller
+ *  naming a well-formed match (so nobody can write rows anonymously), and it never fails or changes the answer. */
+async function recordFailure(req: Request, body: Record<string, unknown>, stage: string, status: number, error: unknown): Promise<void> {
+  try {
+    if (!MATCH_ACTIONS.has(body.action as string) || typeof body.matchId !== 'string' || !UUID_RE.test(body.matchId)) return;
+    const url = Deno.env.get('SUPABASE_URL');
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!url || !anonKey || !serviceKey) return;
+    const actor = await callerId(url, anonKey, req);
+    if (!actor) return;
+    await createClient(url, serviceKey).from('versus_events').insert({
+      match_id: body.matchId,
+      round: Number.isInteger(body.round) ? body.round : null,
+      kind: 'resolve_err',
+      actor,
+      detail: {
+        stage, status, action: body.action, error: String(error ?? 'unknown').slice(0, 120),
+        client: { protocol: body.protocol ?? null, contentRevision: typeof body.contentRevision === 'string' ? body.contentRevision.slice(0, 80) : null },
+        engine: CONTENT,
+      },
+    });
+  } catch {
+    // The log is best effort.
+  }
+}
+
+/** A match action's answer, with a failure recorded first. */
+async function recorded(req: Request, body: Record<string, unknown>, res: Response): Promise<Response> {
+  if (res.status >= 400) {
+    const detail = await res.clone().json().catch(() => ({})) as Record<string, unknown>;
+    await recordFailure(req, body, 'handler', res.status, detail.error);
+  }
+  return res;
+}
 /** May this request's reads start before the caller is verified? Only a request that carries a bearer token and names a
  *  well-formed match and round (anything else is refused by the handler before it reads). */
 function prefetchable(req: Request, body: Record<string, unknown>): boolean {
@@ -396,19 +443,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (body instanceof Response) return body;
   if (body.action === 'health') return json(200, { protocol: VERSUS_PROTOCOL, contentRevision: CONTENT });
   const bad = identityError(body);
-  if (bad) return bad;
+  if (bad) {
+    const detail = await bad.clone().json().catch(() => ({})) as Record<string, unknown>;
+    await recordFailure(req, body, 'identity', bad.status, detail.error);
+    return bad;
+  }
   try {
     if (body.action === 'parity') return parity(body);
-    if (body.action === 'finalize') return await finalize(req, body);
-    if (body.action === 'finalize_group') return await finalizeGroup(req, body);
+    if (body.action === 'finalize') return await recorded(req, body, await finalize(req, body));
+    if (body.action === 'finalize_group') return await recorded(req, body, await finalizeGroup(req, body));
     if (body.action === 'parity_group') return parityGroup(body);
-    if (body.action === 'finalize_duos') return await finalizeDuos(req, body);
+    if (body.action === 'finalize_duos') return await recorded(req, body, await finalizeDuos(req, body));
     if (body.action === 'parity_duos') return parityDuos(body);
-    if (body.action === 'seat_ranked_duos') return await seatRankedDuos(req, body);
-    if (body.action === 'finalize_ranked_duos') return await finalizeRankedDuos(req, body);
+    if (body.action === 'seat_ranked_duos') return await recorded(req, body, await seatRankedDuos(req, body));
+    if (body.action === 'finalize_ranked_duos') return await recorded(req, body, await finalizeRankedDuos(req, body));
     return json(400, { error: 'unknown_action' });
   } catch (e) {
     console.error('versus-resolve failed', e);
+    await recordFailure(req, body, 'exception', 500, e instanceof Error ? e.message : e);
     return json(500, { error: 'resolver_failed' });
   }
 });

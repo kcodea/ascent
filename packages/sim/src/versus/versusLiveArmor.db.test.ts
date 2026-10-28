@@ -62,6 +62,8 @@ beforeAll(async () => {
   db = new PGlite();
   await db.exec(STUB);
   await db.exec(BASE);
+  // The 2026-11-02 reliability migration sits between (apply order): the Armor triggers compose with it.
+  await db.exec(readFileSync(join(root, 'supabase/migrations/2026-11-02-versus-server-reliability.sql'), 'utf8'));
   await db.exec(LIVE);
   await db.exec(LIVE); // idempotent
 }, 120_000);

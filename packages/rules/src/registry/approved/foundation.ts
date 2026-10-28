@@ -10067,6 +10067,137 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneResume.test.tsx', 'packages/ui/src/cloudSave.test.ts'], lastVerifiedAt: '2026-10-27' },
   },
   {
+    id: 'R-VERSUS-CLOSE-ONCE-01',
+    title: 'Versus (every mode): exactly one call closes a round and says so; a duplicate resolver save is answered without the match lock',
+    statement:
+      'Every server call that can close a Versus round (versus_submit, versus_reconcile, versus_group_submit, versus_group_reconcile, versus_ranked_duos_submit, '
+      + 'versus_ranked_duos_reconcile) answers `closed_by_me`: true on exactly the ONE call that moved the round from shop to resolving (the match row lock '
+      + 'makes it one), false on every other call (absent on an old server). Only that caller asks versus-resolve straight away. A resolver save for a round '
+      + 'that is already committed is answered `alreadyCommitted` from a plain read, without waiting for the match row, so a burst of duplicate saves never '
+      + 'queues on it. Every close is logged once (versus_events `close`).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27 (after a night of End of Turn freezes in Versus)', quote: 'need to be spotless experiences' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-02-versus-server-reliability.sql (versus__close_json, versus_group__close_json, versus_ranked_duos__close_json, the commit fast paths, versus__phase_watch)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (fix/versus-server-reliability); live once the migration is applied. Before, every client that saw resolving could ask the resolver, and every duplicate save queued on the match row lock.',
+    example: 'Ann and Bob both reconcile at 0:00 a few milliseconds apart: Ann\x27s call closes the round and answers closed_by_me true, so only Ann asks the resolver; Bob\x27s answers false.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusReliability.db.test.ts', 'packages/sim/src/versus/versusLockOrder.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-AUTO-RESUME-01',
+    title: 'Versus (1v1, Group, Duos): a paused player who comes back ends the pause on their own',
+    statement:
+      'When the player whose absence paused a Versus match beats again (versus_heartbeat), the server starts the same 3-2-1 its Unpause / Resume '
+      + 'would (resume_at = now + 3 s); the next reconcile after it resumes the clocks with the pause added back. This holds in Hero Select and in '
+      + 'the shop, in 1v1 and in Group / Duos. Nobody has to press anything. After the 30 s grace any other player may still Unpause (the absent seat '
+      + 'plays on auto until its own heartbeat takes it off auto). Ranked Duos never pauses (a gone seat plays on auto).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27', quote: 'disconnect/reconnects werent done correctly, where it would simply pause when someone returned' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27 (after a night of End of Turn freezes in Versus)', quote: 'need to be spotless experiences' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-02-versus-server-reliability.sql (versus_heartbeat, versus__resume, versus_group__resume)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (fix/versus-server-reliability); live once the migration is applied. Before, only the paused player\x27s own Resume button ended the pause, so a reconnect simply stayed paused.',
+    example: 'Bob\x27s wifi drops in the shop; 15 s later the match pauses. He comes back 40 s later: his first heartbeat starts the 3-2-1 and the shop resumes with the pause added to the clock.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusReliability.db.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-LEASE-01',
+    title: 'Versus: presence never waits on the match row; a pause needs two missed beats plus margin (14 s lease)',
+    statement:
+      'versus_heartbeat records the beat (last_seen_at) without taking the match row lock. It locks the match only to change it (take its own seat off '
+      + 'auto, start the 3-2-1), under a 2 s lock_timeout; a busy match skips that step (the next beat retries) and the beat is still recorded. '
+      + 'A reconcile reads first and returns without any lock when nothing is due. A seated player counts as gone after 14 s without a beat: with a 4 s '
+      + 'beat that is two whole missed beats plus a third allowed 2 s of round trip or lock wait, so one slow beat never pauses a match. '
+      + 'Lock order stays match, room, members (R-VERSUS-LOCK-ORDER-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27 (after a night of End of Turn freezes in Versus)', quote: 'need to be spotless experiences' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27', quote: 'disconnect/reconnects werent done correctly, where it would simply pause when someone returned' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-02-versus-server-reliability.sql (versus_heartbeat, versus_reconcile, versus_group_reconcile, versus_ranked_duos_reconcile, versus__lease)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (fix/versus-server-reliability); live once the migration is applied. Before, every seated heartbeat queued on the match row lock, so a long commit could delay beats past the 12 s lease and pause a match whose players were all there.',
+    example: 'The resolver commit holds the match row for 3 s: Ann\x27s and Bob\x27s heartbeats land at once (they never ask for that lock), so nobody is paused.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusReliability.db.test.ts', 'packages/sim/src/versus/versusLockOrder.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-RESOLVE-TIMEOUT-01',
+    title: 'Versus (every mode): a round never sits in resolving; it is asked for again every 10 s and the match ends void after 90 s',
+    statement:
+      'A round that enters resolving gets resolving_since and resolve_deadline (+10 s) on its match row. Each reconcile past the deadline raises '
+      + 'resolve_retry (and the revision, so every client sees it) and sets a new 10 s deadline; a client that sees resolve_retry go up asks the resolver '
+      + 'once, whoever closed. After 90 s in resolving (paused time not counted), or at the next window once versus-resolve reported that the match\x27s own '
+      + 'content can never resolve on this server (engine or content mismatch), the match ends with end_reason \x27void\x27: no winner, nobody charged, '
+      + 'the room open again; a void Ranked Duos table is unrated (\x27void\x27) and settles no rating. Ending is the safe, deterministic choice: a replayed '
+      + 'or invented round would put the clients\x27 runs out of step with the committed rounds.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27 (after a night of End of Turn freezes in Versus)', quote: 'need to be spotless experiences' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-02-versus-server-reliability.sql (versus__resolve_overdue, versus_group__resolve_overdue, versus__unresolvable); supabase/functions/versus-resolve/index.ts (recordFailure)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (fix/versus-server-reliability); live once the migration is applied. Before, a round whose resolver failed (a crashed closer, a content mismatch 409) stayed in resolving forever: the End of Turn freeze.',
+    example: 'The resolver answers 409 engine_mismatch for a match made before a deploy: 10 s later the next reconcile ends the match void, and both players are back in the room.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusReliability.db.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-SWEEP-01',
+    title: 'Versus (every mode): a match everybody left ends abandoned within minutes, and one stuck match never stalls the sweep',
+    statement:
+      'versus_sweep() (pg_cron every 2 minutes, job versus-sweep, which replaces ranked-duos-sweep) ends any 1v1, Group or Duos match none of whose '
+      + 'seated players has beaten for 10 minutes (end_reason \x27abandoned\x27, no winner, room open), runs the Ranked Duos abandoned sweep, and prunes '
+      + 'versus_events older than 14 days. Every candidate is taken FOR UPDATE SKIP LOCKED, at most 50 a mode a run, so a busy or stuck match is '
+      + 'simply taken next run.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27 (after a night of End of Turn freezes in Versus)', quote: 'need to be spotless experiences' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-02-versus-server-reliability.sql (versus_sweep, versus_ranked_duos_sweep_abandoned); supabase/migrations/2026-11-02-versus-sweep-cron.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (fix/versus-server-reliability); live once the migration is applied. Before, a 1v1 / Group / Duos match only ended when a client reconciled it, so a match everyone closed stayed open for good.',
+    example: 'Ann and Bob both close the game mid-shop: about 10 minutes later the sweep ends the match abandoned.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusReliability.db.test.ts', 'packages/sim/src/versus/versusLockOrder.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-RANKED-DUOS-AUTO-VISIBLE-01',
+    title: 'Ranked Duos: a seat going on or off auto bumps the match row, so every client sees it at once',
+    statement:
+      'When versus_ranked_duos_reconcile puts a seat on auto (its lease lapsed) or takes the caller\x27s own seat off auto, it bumps the match row '
+      + '(revision, updated_at), so every client hears the change through Realtime instead of on its next poll. Each change is logged (auto_on / auto_off).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27 (after a night of End of Turn freezes in Versus)', quote: 'need to be spotless experiences' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27', quote: 'disconnect/reconnects werent done correctly, where it would simply pause when someone returned' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-02-versus-server-reliability.sql (versus_ranked_duos_reconcile)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (fix/versus-server-reliability); live once the migration is applied. Before, only the seats rows changed, which no client subscribes to.',
+    example: 'Lemon\x27s connection drops: the next reconcile puts her seat on auto and Kevin\x27s client shows it at once.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusReliability.db.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-EVENTS-01',
+    title: 'Versus: the server keeps a small private log of pauses, resumes, closes and resolves',
+    statement:
+      'versus_events (match_id, round, kind, actor, at, detail) records pause, resume, resume_request, close, resolve_ok (with how long it took), '
+      + 'resolve_err (written by versus-resolve on a failed match action), resolve_retry, void, auto_on, auto_off and sweep_end. One insert per event, never '
+      + 'read on a hot path, pruned after 14 days by the sweep. Row level security with no policies: players can neither read nor write it, and the '
+      + 'event writer is service-role only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27 (after a night of End of Turn freezes in Versus)', quote: 'need to be spotless experiences' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-02-versus-server-reliability.sql (versus_events, versus__event)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (fix/versus-server-reliability); live once the migration is applied. ',
+    example: 'After a freeze report, the lead reads the match\x27s rows: close at 21:04:10, resolve_err engine_mismatch at 21:04:11, void at 21:04:20.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusReliability.db.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
     id: 'R-DUOS-MATE-SIGNALS-01',
     title: 'Duos: the teammate portrait bursts when they tier up, and glows while the round waits on their screen',
     statement:

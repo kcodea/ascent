@@ -58,15 +58,18 @@ const TABLE_CLASS: Record<string, Cls> = {
   versus_matches: 'match', versus_group_matches: 'match', versus_group_seats: 'seats', versus_rooms: 'room', versus_members: 'member',
 };
 
-interface Ev { at: number; cls: Cls | null; call?: string; trigger?: boolean }
+interface Ev { at: number; cls: Cls | null; call?: string; trigger?: boolean; nowait?: boolean }
+/** One lock of a sequence; `nowait` = taken FOR UPDATE SKIP LOCKED (never waited for, but held from then on). */
+interface Lk { cls: Cls; nowait?: boolean }
 
 /** The row-lock events of one body, in source order (helper calls left for expansion). */
 function eventsOf(body: string, known: Set<string>): Ev[] {
   const out: Ev[] = [];
   const table = '(versus_matches|versus_group_matches|versus_group_seats|versus_rooms|versus_members)\\b';
-  // SELECT / PERFORM ... FROM <t> ... FOR UPDATE (one statement). SKIP LOCKED never waits, so it cannot close a cycle.
+  // SELECT / PERFORM ... FROM <t> ... FOR UPDATE (one statement). SKIP LOCKED never waits, so it cannot close a cycle;
+  // but the row it took IS held from then on, so it guards that match's later writes (the 2026-11-02 sweep).
   for (const m of body.matchAll(new RegExp(`(?:select|perform)[^;]*?from\\s+public\\.${table}[^;]*?for\\s+update(?:\\s+of\\s+\\w+)?(\\s+skip\\s+locked)?`, 'g'))) {
-    if (!m[2]) out.push({ at: m.index!, cls: TABLE_CLASS[m[1]!]! });
+    out.push({ at: m.index!, cls: TABLE_CLASS[m[1]!]!, ...(m[2] ? { nowait: true } : {}) });
   }
   // UPDATE / DELETE FROM <t>. An INSERT makes a NEW row nobody else holds (not a wait), and a statement whose rows come
   // from a SKIP LOCKED subquery never waits either.
@@ -84,12 +87,12 @@ function eventsOf(body: string, known: Set<string>): Ev[] {
   return out.sort((a, b) => a.at - b.at);
 }
 
-function expand(name: string, fns: Map<string, string>, depth = 0, seen: string[] = []): Cls[] {
+function expand(name: string, fns: Map<string, string>, depth = 0, seen: string[] = []): Lk[] {
   const body = fns.get(name);
   if (!body || depth > 12 || seen.includes(name)) return [];
-  const out: Cls[] = [];
+  const out: Lk[] = [];
   for (const e of eventsOf(body, new Set(fns.keys()))) {
-    if (e.cls) out.push(e.cls);
+    if (e.cls) out.push(e.nowait ? { cls: e.cls, nowait: true } : { cls: e.cls });
     else if (e.trigger) out.push(...expand('versus_group__seat_out_to_stands', fns, depth + 1, [...seen, name]));
     else if (e.call) out.push(...expand(e.call, fns, depth + 1, [...seen, name]));
   }
@@ -101,11 +104,12 @@ function expand(name: string, fns: Map<string, string>, depth = 0, seen: string[
  * serialized with every other writer of that match (all of which lock the match first), so their place in the order
  * does not matter; WITHOUT the match lock (versus_duos_hand_room) a seats write must be the transaction's last lock.
  */
-function violation(seq: Cls[]): string | null {
+function violation(seq: Lk[]): string | null {
   const held = new Set<Cls>();
   let top = 0;
   let loose = false;
-  for (const c of seq) {
+  for (const { cls: c, nowait } of seq) {
+    if (nowait) { held.add(c); continue; } // SKIP LOCKED: held without ever waiting, so never out of order
     if (loose && !held.has(c)) return `${c} after unguarded seats`; // re-touching a row it already holds is no new wait
     if (c === 'seats') { if (!held.has('match')) loose = true; continue; }
     if (RANK[c] < top && !held.has(c)) return `${c} after ${(Object.keys(RANK) as Cls[]).find((k) => RANK[k] === top)}`;
@@ -171,5 +175,12 @@ describe('R-VERSUS-LOCK-ORDER-01: every Versus RPC takes its row locks in one gl
     expect(report([...ORDER, FIX, EGRESS, '2026-10-28-versus-health.sql', RANKED_DUOS, '2026-10-30-ranked-duos-client.sql',
       '2026-10-31-ranked-duos-live-fixes.sql', '2026-11-01-ranked-duos-party.sql', '2026-11-01-ranked-duos-sweep-cron.sql', '2026-11-01-versus-ready-signal.sql',
       '2026-11-02-ranked-duos-both-ready.sql', '2026-11-02-ranked-duos-party-split.sql'])).toEqual({});
+  });
+
+  it('after 2026-11-02-versus-server-reliability.sql (lock-free heartbeat + reconcile look, the resolve timeout, the sweep) the order still holds', () => {
+    expect(report([...ORDER, FIX, EGRESS, '2026-10-28-versus-health.sql', RANKED_DUOS, '2026-10-30-ranked-duos-client.sql',
+      '2026-10-31-ranked-duos-live-fixes.sql', '2026-11-01-ranked-duos-party.sql', '2026-11-01-ranked-duos-sweep-cron.sql', '2026-11-01-versus-ready-signal.sql',
+      '2026-11-02-ranked-duos-both-ready.sql', '2026-11-02-ranked-duos-party-split.sql', '2026-11-02-versus-server-reliability.sql',
+      '2026-11-02-versus-sweep-cron.sql', '2026-11-03-versus-live-armor.sql'])).toEqual({});
   });
 });

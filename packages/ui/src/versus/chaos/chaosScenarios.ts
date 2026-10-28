@@ -47,6 +47,14 @@ export const SCENARIOS: ScenarioDef[] = [
     build: (mode) => base('dropLong', mode, { events: [at(2, 'shop', (h) => h.drop(1, 45_000), 500)] }),
   },
   {
+    name: 'dropAtZero', about: 'the other side is ready; one player loses the connection 5 s before 0:00 for 30 s (the room hears the close: Cloudflare pauses within the 3 s grace, before 0:00) and their own 0:00 lock goes out while offline: the round must not close during the pause or its 3-2-1, and the shop time comes back', modes: ['duel', 'group3', 'group4', 'duos'],
+    build: (mode) => base('dropAtZero', mode, {
+      players: players(mode, (i) => ({ policy: 'buyer', endTurn: i === 1 ? 'timer' : 'early' })),
+      // `finOnDrop`: the Cloudflare backend's "the close reaches the room" (Supabase has no such signal: a lease).
+      events: [{ round: 2, phase: 'shop', beforeDeadlineMs: 5000, act: (h) => { (h.server as { finOnDrop?: boolean }).finOnDrop = true; h.drop(1, 30_000); } }],
+    }),
+  },
+  {
     name: 'dropShort', about: 'a 4 s network blip: no pause, nothing waits', modes: ALL,
     build: (mode) => base('dropShort', mode, { events: [at(2, 'shop', (h) => h.drop(1, 4_000), 500)] }),
   },

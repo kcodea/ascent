@@ -1250,6 +1250,11 @@ export class RoomCore {
       this.raiseReportedArmor(seat, cur);
       return MATCH_JSON;
     }
+    // R-VERSUS-CF-OFFLINE-LOCK-01 (owner 2026-10-28): a NEW lock from the seat the match is paused on is refused. Only a
+    // lock the client sent while gone (its own 0:00 ran out offline; it waited in the socket queue) can arrive then, since
+    // the screen takes no End Turn while paused; it must not close the round during the pause or its 3-2-1. The player
+    // gets the paused shop time back. (A seat already locked before it left stays locked.)
+    if (final && m.paused_at != null && m.paused_seat === seat) fail('paused');
     if (cur && seq <= cur.candidate_seq && !final) return MATCH_JSON; // an older candidate arriving late
     const next: CoreSubmission = {
       round: round as number, seat, user_id: userId, candidate_seq: Math.max(seq, cur?.candidate_seq ?? seq), prepared_side: a.side,

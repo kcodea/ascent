@@ -49,6 +49,13 @@ describe('baked production defaults', () => {
     expect(resolvePortraitFrame('opp')).toBeNull();
   });
 
+  it('your in-game socket paints the Default ring when no frame is equipped (the board art has no ring of its own)', () => {
+    expect(resolvePortraitFrame('self', null, 'socket')?.id).toBe('default');
+    expect(resolvePortraitFrame('self', undefined, 'socket')?.id).toBe('default');
+    // An equipped frame still wins.
+    expect(resolvePortraitFrame('self', 'gold', 'socket')?.id).toBe('gold');
+  });
+
   it('production never reads the tuner\'s localStorage', () => {
     const src = read('portraitFrame/portraitFrameConfig.ts');
     expect(src).toMatch(/if \(!import\.meta\.env\.DEV\) return sanitizePortraitFrameState\(DEFAULTS\)/);

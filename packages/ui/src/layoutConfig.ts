@@ -93,12 +93,14 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'qb2Y', cssVar: '--qb2-y', label: 'Node 2 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 5, fmt: 'px' },
   { key: 'qb3X', cssVar: '--qb3-x', label: 'Node 3 · X', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 36, fmt: 'px' },
   { key: 'qb3Y', cssVar: '--qb3-y', label: 'Node 3 · Y', group: 'Quest nodes', min: -800, max: 800, step: 1, def: 20, fmt: 'px' },
+  // The empty-slot ring behind each node (styles.css `.quest-slot`), as a multiple of the node's size.
+  { key: 'qslotS', cssVar: '--qslot-s', label: 'Slot frame size', group: 'Quest nodes', min: 1, max: 2.5, step: 0.01, def: 1.65, fmt: 'mul' },
 
   // Gold pill (bottom-right circle). X/Y are INSETS from the board's right / bottom edge (bigger = further in);
   // Scale sizes the whole circle. Match the styles.css `.goldpill` fallbacks.
   { key: 'goldS', cssVar: '--gold-s', label: 'Scale', group: 'Gold pill', min: 0.5, max: 2.5, step: 0.01, def: 1.69, fmt: 'mul' },
-  { key: 'goldX', cssVar: '--gold-x', label: 'Inset from right', group: 'Gold pill', min: -200, max: 800, step: 1, def: 408, fmt: 'px' },
-  { key: 'goldY', cssVar: '--gold-y', label: 'Inset from bottom', group: 'Gold pill', min: -200, max: 800, step: 1, def: 423, fmt: 'px' },
+  { key: 'goldX', cssVar: '--gold-x', label: 'Inset from right', group: 'Gold pill', min: -200, max: 800, step: 1, def: 407, fmt: 'px' },
+  { key: 'goldY', cssVar: '--gold-y', label: 'Inset from bottom', group: 'Gold pill', min: -200, max: 800, step: 1, def: 421, fmt: 'px' },
 
   // Tavern-tier text pill (on the Tavern Up stone). X/Y nudge it off the stone's bottom-centre; Scale sizes it.
   { key: 'tierS', cssVar: '--tierpill-s', label: 'Scale', group: 'Tavern tier', min: 0.4, max: 2.5, step: 0.01, def: 1.21, fmt: 'mul' },

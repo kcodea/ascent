@@ -98,11 +98,11 @@
      is now the ONLY board: the Esc-menu picker and its two 21:9 alternates were removed 2026-08-22, so this
      var is the single source of the arena art. Consequence of a 16:9 board: it has NO surplus width, so a
      window wider than 16:9 shows `--bg` in the side margins rather than floor art bleeding into them. */
-  --board: url('/augustfullboard.webp');
+  --board: url('/playingboard.webp');
   /* The COMBAT board — the same Aug-25 master with the top-right tray removed, exported by
      `npm run board:export` onto the identical canvas/framing as --board. Painted by a second
      `.boardbg` layer (`.boardbg--combat`) that snaps in while the `.wipecurtain` covers the scene. */
-  --board-combat: url('/augustboardcombat.webp');
+  --board-combat: url('/playingboard-combat.webp');
   /* The board art's own aspect (3840x2143). `.boardbg` needs it to compute the art's WIDTH from the stage
      height. Update it if the art changes — swapping in art of a different shape without this gets sized off
      the old proportions and stretched off the stage. */
@@ -136,8 +136,8 @@
   /* VERTICAL blend (owner ask 2026-08-29): the Aug-25 masters carry less sky than the canvas, so the board
      webps have TRANSPARENT bands above/below the painting; `.boardbg` fills them with this colour fading
      into the art's top/bottom edges. Tuned live in the Board Edge tuner (boardEdgeConfig.ts mirrors these). */
-  --board-vedge-col: #313164;
-  --board-vedge-col-0: rgb(49 49 100 / 0);
+  --board-vedge-col: #312361;
+  --board-vedge-col-0: rgb(49 35 97 / 0);
   --board-vedge-fade: 140px;
   /* TITLE-SCREEN VEIL — the dark navy vignette on `.titlescreen::before`, live-tunable via `titleVeilConfig.ts`
      (which overrides these on `:root` at runtime; keep in sync with its DEFAULTS — the pre-JS / no-JS paint).
@@ -369,7 +369,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
       var(--board-vedge-col) var(--_art-bot),
       var(--board-vedge-col) 100%),
     var(--board) calc(50% + var(--board-x, 0px) * var(--scale)) calc(50% + var(--board-y, 5px) * var(--scale)) / var(--_board-w) auto no-repeat,
-    var(--bg);
+    var(--board-edge-col);
 }
 /* COMBAT BOARD LAYER — a second .boardbg painting the combat art. The modifier only swaps which art the
    shared background stack reads (`--board` is re-pointed at `--board-combat`), so the two layers can never
@@ -1476,7 +1476,7 @@ body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it dro
    next-gold tooltip reveals ABOVE it (the pill sits at the board's bottom edge). `--gold-x/y` allow a nudge. */
 /* A CIRCLE (owner ask 2026-08-11) to seat in the board's bottom-right notch — fixed square + border-radius 50%,
    sized/placed by the Layout Lab (--gold-s scale, --gold-x/y inset from the right/bottom edge). */
-.goldpill { position: fixed; z-index: 41; right: calc(var(--bar-x) + var(--gold-x, 408px) * var(--scale)); bottom: calc(var(--bar-y) + var(--gold-y, 423px) * var(--scale)); transform: scale(var(--gold-s, 1.69)); transform-origin: bottom right; width: calc(66 * var(--u)); height: calc(66 * var(--u)); display: grid; place-items: center; padding: 0; border-radius: 50%; background: linear-gradient(180deg, rgba(247, 205, 86, 0.92), rgba(198, 142, 26, 0.94)); -webkit-backdrop-filter: blur(10px) saturate(1.15); backdrop-filter: blur(10px) saturate(1.15); border: 2px solid rgba(255, 244, 210, 0.6); border-top-color: rgba(255, 250, 235, 0.85); box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.5); color: #3a2408; }
+.goldpill { position: fixed; z-index: 41; right: calc(var(--bar-x) + var(--gold-x, 407px) * var(--scale)); bottom: calc(var(--bar-y) + var(--gold-y, 421px) * var(--scale)); transform: scale(var(--gold-s, 1.69)); transform-origin: bottom right; width: calc(66 * var(--u)); height: calc(66 * var(--u)); display: grid; place-items: center; padding: 0; border-radius: 50%; background: linear-gradient(180deg, rgba(247, 205, 86, 0.92), rgba(198, 142, 26, 0.94)); -webkit-backdrop-filter: blur(10px) saturate(1.15); backdrop-filter: blur(10px) saturate(1.15); border: 2px solid rgba(255, 244, 210, 0.6); border-top-color: rgba(255, 250, 235, 0.85); box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.5); color: #3a2408; }
 .goldpill svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); color: #4a2f08; }
 .goldpill-v { font-family: var(--font-ui); font-weight: 900; font-size: calc(23 * var(--u)); font-variant-numeric: tabular-nums; color: #2e1d05; text-shadow: 0 1px 0 rgba(255, 245, 210, 0.5); line-height: 1; }
 .goldpill:hover .sbtip, .goldpill.tt-on .sbtip { opacity: 1; transition-delay: 0.3s; }
@@ -4135,6 +4135,17 @@ body.modalup .app { z-index: auto; }
 .questbadges .questbadge:nth-child(1) { transform: translate(calc(var(--qb1-x, -5px) * var(--scale)), calc(var(--qb1-y, 53px) * var(--scale))); }
 .questbadges .questbadge:nth-child(2) { transform: translate(calc(var(--qb2-x, 13px) * var(--scale)), calc(var(--qb2-y, 5px) * var(--scale))); }
 .questbadges .questbadge:nth-child(3) { transform: translate(calc(var(--qb3-x, 36px) * var(--scale)), calc(var(--qb3-y, 20px) * var(--scale))); }
+/* Empty-slot frames behind nodes 1-3 (the opponent side's rune-slot rings). Each sits on its node's row slot plus
+   that node's own X/Y nudge, so the Quest-nodes sliders move frame and node together; `--qslot-s` sizes the ring
+   relative to the 53u node and keeps it centred. Chains on a locked slot 3 are drawn separately (.rune-chains). */
+.questbadges .quest-slot { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none;
+  width: calc(53 * var(--qslot-s, 1.65) * var(--u)); height: calc(53 * var(--qslot-s, 1.65) * var(--u));
+  background: url('/rune-slot-1.webp') center / contain no-repeat;
+  --_qslot-pad: calc(53 * (var(--qslot-s, 1.65) - 1) / 2 * var(--u)); }
+.questbadges .quest-slot-1 { transform: translate(calc(var(--qb1-x, -5px) * var(--scale) - var(--_qslot-pad)), calc(var(--qb1-y, 53px) * var(--scale) - var(--_qslot-pad))); }
+.questbadges .quest-slot-2 { background-image: url('/rune-slot-2.webp');
+  transform: translate(calc((53 + var(--qb-gap, 11)) * var(--u) + var(--qb2-x, 13px) * var(--scale) - var(--_qslot-pad)), calc(var(--qb2-y, 5px) * var(--scale) - var(--_qslot-pad))); }
+.questbadges .quest-slot-3 { background-image: url('/rune-slot-3.webp'); transform: translate(calc(2 * (53 + var(--qb-gap, 11)) * var(--u) + var(--qb3-x, 36px) * var(--scale) - var(--_qslot-pad)), calc(var(--qb3-y, 20px) * var(--scale) - var(--_qslot-pad))); }
 /* Each badge is its own stacking context (the `transform` above), so a later sibling's art paints over a
    hovered badge's tooltip. Lift the hovered badge above its siblings (owner report 2026-08-31). */
 .questbadges .questbadge:hover { z-index: 10; }
@@ -4160,7 +4171,7 @@ body.modalup .app { z-index: auto; }
 /* Chains draped over the LOCKED third rune slot — same 3rd-node anchor + counter-scale as the sheen so it stays
    glued to the slot through the Quest-nodes Scale slider; its own `--rch-*` nudge from the 💠 Rune Sheen tuner.
    Sits ABOVE the sheen (z 6) and does not blend — it reads as solid chains over the empty slot. */
-.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 53) * var(--u-base)); transform: translate(calc(var(--rch-x, 127) * var(--u) + var(--qb3-x, 36px) * var(--scale)), calc(var(--rch-y, -1) * var(--u) + var(--qb3-y, 20px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
+.questbadges .rune-chains { position: absolute; left: 0; top: 0; z-index: 6; pointer-events: none; -webkit-user-drag: none; height: auto; transform-origin: 50% 50%; width: calc(var(--rch-w, 53) * var(--u-base)); transform: translate(calc(var(--rch-x, 126) * var(--u) + var(--qb3-x, 36px) * var(--scale)), calc(var(--rch-y, -2) * var(--u) + var(--qb3-y, 20px) * var(--scale))) scale(calc(1 / var(--qb-s, 1.09))); }
 /* Reserve one rune-row's height while the 3rd slot is chained, so the bottom-anchored row doesn't grow (and slide
    the chains) as the first two runes arrive — the chains hold one spot from turn 1 onward. */
 .questbadges.hasrunelock { min-height: calc(53 * var(--u)); }
@@ -4327,13 +4338,17 @@ body.dragging .statusbar .hero { pointer-events: none; }
    is overflow:visible for the arrow/pop-out); opacity-only fade keeps it compositor-cheap. Only the interactive
    (has-buffs) portrait shows it. */
 .statusbar .hero .f .herohover {
-  /* z-index 3: above the hero art, BELOW the name pill (z4) so the pill stays legible over the scrim; the
+  /* z-index 1: above the hero art, BELOW an equipped frame ring (z2) and the name pill (z4); the
      health box is a later sibling and already paints on top. */
-  position: absolute; inset: 0; z-index: 3; border-radius: 50%; overflow: hidden;
-  display: grid; place-items: center; padding: calc(12 * var(--u));
+  position: absolute; inset: 0; z-index: 1; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center; padding: 0 23%; /* narrow column: the text stays inside the solid middle of the fade */
   background: rgba(6, 5, 3, 0.86);
+  /* Heavy feathered edge (owner 2026-10-28): solid only in the middle half, fading out to the rim, so it never
+     shows a hard line against a portrait or frame it doesn't exactly match. */
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 65%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side, #000 65%, transparent 100%);
   color: #fff; font-family: var(--font-ui); font-weight: 800;
-  font-size: calc(3.3 * var(--u)); line-height: 1.32; text-align: center; letter-spacing: 0.01em;
+  font-size: calc(4.4 * var(--u)); line-height: 1.25; text-align: center; letter-spacing: 0.01em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
   opacity: 0; pointer-events: none; transition: opacity 0.16s ease;
 }
@@ -9644,8 +9659,8 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   /* Base point is now the board's TOP-RIGHT (owner ask 2026-08-11): anchor the button's centre near the right
      edge + top of the stage; the `--rfb-x/y` tuner offsets fine-tune from there. */
   left: calc(var(--bar-x) + 0.85 * var(--gw) + var(--rfb-x, -123px) * var(--scale));
-  top: calc(var(--bar-y) + var(--rfb-y, 270px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--rfb-s, 1.54));
+  top: calc(var(--bar-y) + var(--rfb-y, 275px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--rfb-s, 1.53));
   width: calc(170 * var(--u)); height: calc(72 * var(--u)); /* the art's 1927×816 (2.362) aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
@@ -9667,17 +9682,17 @@ body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it dro
   /* A capsule/pill radius (design-px × --scale) so the halo can hug the WIDE Refresh pill instead of being a
      fixed ellipse — tunable via `--rfb-glow-radius` (Glow fit → Corner radius). */
   border-radius: calc(var(--rfb-glow-radius, 33) * var(--u));
-  box-shadow: var(--rfb-glow-shadow, 0 0 22px rgba(82, 189, 255, 1));
+  box-shadow: var(--rfb-glow-shadow, 0 0 33px rgba(214, 204, 255, 1), 0 0 33px rgba(214, 204, 255, 1), 0 0 33px rgba(214, 204, 255, 1));
   opacity: 0; transition: opacity 0.16s ease; z-index: 0; pointer-events: none;
 }
 .rfbwrap:hover:not(:disabled) .rfb-glow,
 body.rfb-glow-preview .rfb-glow, .rfbwrap.tt-on:not(:disabled) .rfb-glow {  /* the tuner's "glow always on" — one pointer can't hover AND drag a slider */
-  animation: rfbbreath var(--rfb-glow-pulse, 1.5s) ease-in-out infinite;
+  animation: rfbbreath var(--rfb-glow-pulse, 2s) ease-in-out infinite;
   opacity: var(--rfb-glow-alpha, 1);
 }
 @keyframes rfbbreath {
   0%, 100% { opacity: var(--rfb-glow-alpha, 1); }
-  50% { opacity: var(--rfb-glow-dim, 0.75); }
+  50% { opacity: var(--rfb-glow-dim, 0.69); }
 }
 
 /* Ambient sheen — a glare bar sweeping the crystal, clipped to its box. Transform-only. */
@@ -9835,8 +9850,8 @@ body.dragging .row.hand .card.compact.showtext::after { pointer-events: none; }
   /* TOP-CENTRE of the board now (owner ask 2026-08-11) — base point is the stage's horizontal centre + top;
      `--frz-x/y` fine-tune from there. */
   left: calc(var(--bar-x) + 0.5 * var(--gw) + var(--frz-x, 8px) * var(--scale));
-  top: calc(var(--bar-y) + var(--frz-y, 264px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--frz-s, 1.36));
+  top: calc(var(--bar-y) + var(--frz-y, 272px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--frz-s, 1.33));
   /* Art box — the freeze_base.webp diamond (833×915 ≈ 0.9104 aspect). No skin: the art IS the button. */
   width: calc(96 * var(--u)); height: calc(105.4 * var(--u));
   background: none; border: none; padding: 0;
@@ -9887,7 +9902,7 @@ button.frzwrap.frzwrap:hover,
 button.frzwrap.frzwrap:not(:disabled):active,
 button.frzwrap.frzwrap:focus,
 button.frzwrap.frzwrap:focus-visible {
-  transform: translate(-50%, -50%) scale(var(--frz-s, 1.36));
+  transform: translate(-50%, -50%) scale(var(--frz-s, 1.33));
 }
 
 /* ---- RUN BUFFS drawer (BuffsFrame.tsx) — extends RIGHT out of the hero portrait, its tab eclipsing the
@@ -12832,7 +12847,8 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    ⚔️ Hero Duel tuner drives the row's scale/offset/gap; `--hd-rune-s` scales each badge, defaulting to 1 = the
    exact player rune size. `pointer-events: auto` here alone (the group is otherwise inert) enables the tips. */
 .combatopp-runes,
-.combatopp-runeslots {
+.combatopp-runeslots,
+.combatopp-runesheen {
   position: absolute; left: 50%; top: 50%;
   /* COUNTER the portrait wrapper's `--hd-opp-s` scale so the badges render at TRUE size — `--hd-rune-s` = 1
      then equals the player's rune size exactly (owner ask: match the player's runes), independent of how big
@@ -12863,13 +12879,23 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    (`Rune slots` → `--hd-slotN-*`); `translate`/`scale` are independent properties (like the rune nudges). */
 .combatopp-runeslots { pointer-events: none; z-index: 0; }
 .combatopp-runes { z-index: 1; }
+/* RUNE GLASS over the foe's runes (owner 2026-10-28): the player's glossy discs, one per slot, sitting on the
+   rune positions. The blend lives on the COLUMN (it is its own stacking context, so a child's blend would only
+   see its siblings); hard-light matches the player's default. A hovered rune lifts its column over the glass so
+   its tooltip reads clean. */
+.combatopp-runesheen { pointer-events: none; z-index: 2; mix-blend-mode: hard-light; }
+.combatopp-runes:has(.combatopp-rune:hover) { z-index: 3; }
+.combatopp-sheen { flex: none; display: block; width: calc(53 * var(--u)); height: calc(53 * var(--u)); object-fit: contain; -webkit-user-drag: none; }
+.combatopp-sheen.s1 { translate: calc(var(--hd-rune1-x, 450px) * var(--scale)) calc(var(--hd-rune1-y, 87px) * var(--scale)); }
+.combatopp-sheen.s2 { translate: calc(var(--hd-rune2-x, 360px) * var(--scale)) calc(var(--hd-rune2-y, -8px) * var(--scale)); }
+.combatopp-sheen.s3 { translate: calc(var(--hd-rune3-x, 281px) * var(--scale)) calc(var(--hd-rune3-y, -75px) * var(--scale)); }
 .combatopp-slot { flex: none; width: calc(53 * var(--u)); height: calc(53 * var(--u));
   background-repeat: no-repeat; background-position: center; background-size: contain; }
-.combatopp-slot.slot1 { background-image: url('/opp-rune-slot-1.webp');
+.combatopp-slot.slot1 { background-image: url('/rune-slot-1.webp');
   translate: calc(var(--hd-slot1-x, 450px) * var(--scale)) calc(var(--hd-slot1-y, 87px) * var(--scale)); scale: var(--hd-slot1-s, 1.65); }
-.combatopp-slot.slot2 { background-image: url('/opp-rune-slot-2.webp');
+.combatopp-slot.slot2 { background-image: url('/rune-slot-2.webp');
   translate: calc(var(--hd-slot2-x, 360px) * var(--scale)) calc(var(--hd-slot2-y, -8px) * var(--scale)); scale: var(--hd-slot2-s, 1.65); }
-.combatopp-slot.slot3 { background-image: url('/opp-rune-slot-3.webp');
+.combatopp-slot.slot3 { background-image: url('/frames/rune-chains.webp'), url('/rune-slot-3.webp'); background-size: 60.6% auto, contain; background-position: calc(50% - 1px) calc(50% - 1px), center; /* chains over the ring (nudged 1px left + 1px up, owner 2026-10-28), at the player slot's chain size (53u on a 53u x 1.65 ring) */
   translate: calc(var(--hd-slot3-x, 281px) * var(--scale)) calc(var(--hd-slot3-y, -75px) * var(--scale)); scale: var(--hd-slot3-s, 1.65); }
 .combatopp-rune .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
 /* Each rune is its own stacking context (the `translate`/`scale` props), so a later sibling's art paints OVER a
@@ -12985,11 +13011,15 @@ html[data-phone-gpu] .opphand-card.spent > img { filter: grayscale(0.72) brightn
 /* The hover scrim + prompt — mirrors `.statusbar .hero .f .herohover`; the font compensates for the duel
    wrapper's scale so the on-screen text size matches the player's prompt. */
 .combatopp-portrait .herohover {
-  position: absolute; inset: 0; z-index: 3; border-radius: 50%; overflow: hidden;
-  display: grid; place-items: center; padding: calc(12 * var(--u));
+  position: absolute; inset: 0; z-index: 1; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center; padding: 0 23%; /* narrow column: the text stays inside the solid middle of the fade */
   background: rgba(6, 5, 3, 0.86);
+  /* Heavy feathered edge (owner 2026-10-28): solid only in the middle half, fading out to the rim, so it never
+     shows a hard line against a portrait or frame it doesn't exactly match. */
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 65%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side, #000 65%, transparent 100%);
   color: #fff; font-family: var(--font-ui); font-weight: 800;
-  font-size: calc(5 * var(--u)); line-height: 1.32; text-align: center; letter-spacing: 0.01em;
+  font-size: calc(6.6 * var(--u)); line-height: 1.25; text-align: center; letter-spacing: 0.01em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
   opacity: 0; pointer-events: none; transition: opacity 0.16s ease;
 }
@@ -14811,6 +14841,9 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   pointer-events: none; -webkit-user-drag: none; user-select: none; }
 /* The portrait inside the ring: round, scaled by the tuner's Portrait scale. */
 .pf-on img:not(.pframe) { border-radius: 50%; transform: scale(var(--pf-art, 1)); }
+/* The hover scrim follows the portrait art's size (owner 2026-10-28), so it stays a perfect fit inside the ring.
+   Its z-index 1 (styles above) keeps it over the art and UNDER the ring (.pframe-box, z2). */
+.pf-on > .herohover { transform: scale(var(--pf-art, 1)); }
 
 /* Surfaces whose ring used to be a CSS border: keep the border's width (no reflow), drop its paint, un-clip the
    disc so the ring can overhang it. */

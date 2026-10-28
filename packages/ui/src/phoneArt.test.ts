@@ -46,7 +46,7 @@ describe('detectLiteArt: who is a phone', () => {
 });
 
 describe('variant selection', () => {
-  const manifest: PhoneArtManifest = { dir: 'm1', assets: ['art/minions/whelp.webp'], public: ['frames/oval-beast.webp', 'augustfullboard.webp'] };
+  const manifest: PhoneArtManifest = { dir: 'm1', assets: ['art/minions/whelp.webp'], public: ['frames/oval-beast.webp', 'playingboard.webp'] };
   const url = 'https://x.test/game/assets/whelp-AbC123.webp';
 
   it('a phone gets the copy one folder down, only for a file the build copied', () => {
@@ -70,7 +70,7 @@ describe('variant selection', () => {
   });
 
   it('public caps: boards 1920, card frames 512; the title logo, Compendium frame and ranked gate get none', () => {
-    expect(phonePublicCap('augustfullboard.webp')).toBe(1920);
+    expect(phonePublicCap('playingboard.webp')).toBe(1920);
     expect(phonePublicCap('frames/oval-beast.webp')).toBe(512);
     expect(phonePublicCap('frames/title-logo.png')).toBeNull();
     expect(phonePublicCap('frames/compendium-frame.webp')).toBeNull();

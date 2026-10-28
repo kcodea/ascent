@@ -19,6 +19,7 @@ import { standardTurnSeconds, turnClock } from '../turnClock';
 import { displaySeconds, shopClockAt } from './versusClock';
 import { driveVersusClock, nextObserveMs } from './versusClockFx';
 import { expireVersusShop, lockTurn, unreadyTurn, mySeat, rereadVersusMatch, resumeMatch, unpauseMatch, useVersus, useVersusPaused, versusRemainingMs, versusServerNow, versusShopRemainingMs, type VersusState } from './versusStore';
+import type { VersusMatch } from './versusRemote';
 import { ownRunWhileWatching, useSpectate } from './spectate';
 import { VERSUS_LEASE_SECONDS } from '@game/sim';
 import { sfx } from '../sfx';
@@ -27,7 +28,14 @@ import { markFlow } from './flowTiming';
 import { SpectatorBar } from './SpectatorBar';
 import { useDuosLivePublisher } from './duosLive';
 import { emitPressCue } from '../pressCue';
+import { endTurnStalled } from './versusReliability';
+import { versusFightWaitHeld } from './versusHooks';
 import './versus.css';
+
+/** How often the End Turn watchdog looks (R-VERSUS-RELIABLE-05). */
+const END_TURN_RETRY_MS = 1500;
+/** Is the match paused right now (outside React)? */
+const pausedNow = (): boolean => { const m = useVersus.getState().match; return !!m?.paused_at && m.phase !== 'complete'; };
 
 /** This player's turn state (`versusTurn`), from the session store and the run. */
 function turnOf(st: Pick<VersusState, 'match' | 'lockedRound' | 'readyRound'>, run: Pick<RunState, 'mode' | 'phase' | 'wave'>): VersusTurn {
@@ -66,6 +74,7 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
   const versus = run.mode === 'versus';
   const endTurnWave = useVersus((s) => s.endTurnWave);
   const match = useVersus((s) => s.match);
+  const resolveSlow = useVersus((s) => s.resolveSlow);
   const turn = useVersusTurn(run);
   const secondsLeft = useSecondsUntil(turn.deadline, turn.kind === 'foeReady');
   // LEAVE THE FIGHT TOGETHER (owner 2026-10-14): the next shop is open (both pressed End Combat, or the 5 s ran out),
@@ -91,6 +100,22 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
       endTurn();
     }, 0); // marked when it plays, not when queued
     return () => window.clearTimeout(t);
+  }, [versus, paused, endTurnWave, run.wave, run.phase, endTurn]);
+  // THE WATCHDOG (R-VERSUS-RELIABLE-05): End Turn can return without starting (its beats were still settling, a card
+  // play's animation held it), and `firedRef` then said it had played, so it never did: the fight sat unplayed while the
+  // table waited on this player ("completely locking us out"). While the fight is in and the run is still shopping it,
+  // with nothing animating and no early End Turn's commit held for its fight (`versusFightWaitHeld`, R-VERSUS-EARLY-EOT-01),
+  // End Turn is asked again (a call while its beats play is ignored by End Turn itself).
+  useEffect(() => {
+    if (!versus || paused || run.phase !== 'recruit' || endTurnWave !== run.wave) return undefined;
+    const wave = run.wave;
+    const id = window.setInterval(() => {
+      const g = useGame.getState();
+      if (firedRef.current !== wave) return; // not played yet: the effect above plays it
+      if (!endTurnStalled({ endTurnWave: useVersus.getState().endTurnWave, run: g.run, presenting: !!g.presentationTx || versusFightWaitHeld(), paused: pausedNow() })) return;
+      endTurn();
+    }, END_TURN_RETRY_MS);
+    return () => window.clearInterval(id);
   }, [versus, paused, endTurnWave, run.wave, run.phase, endTurn]);
   // The shared clock: the server deadline, offset-adjusted, never paused locally (a pause is the server's). A shop
   // whose clock has not started (the other player is not back yet, or round 1 before both intros) shows its full turn.
@@ -162,8 +187,13 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
       return true;
     },
     // LIVE READY (R-VERSUS-READY-02): while the clock is above 0:00 the ready pill says a press takes it back; past 0:00
-    // in Ranked Duos (the round waits for both teammates) it names the teammate.
-    readyNote: versus ? versusTurnNote(turn, secondsLeft, { cancellable: !run.shopClockExpired, overtime: !!run.shopClockExpired }) : null,
+    // in Ranked Duos (the round waits for both teammates) it names the teammate. THE FIGHT IS SLOW TO SETTLE
+    // (R-VERSUS-RELIABLE-05): the resolver calls for this closed round keep failing (they retry on their own); the pill
+    // says so plainly instead of sitting silent.
+    readyNote: versus
+      ? (resolveSlow && match?.phase === 'resolving' && match.round === run.wave ? VERSUS_SLOW_NOTE
+        : versusTurnNote(turn, secondsLeft, { cancellable: !run.shopClockExpired, overtime: !!run.shopClockExpired }))
+      : null,
     // Ready stays pressable (to un-ready) until 0:00; from 0:00 the signal stands, so the gem is spent.
     gemLocked: versus && (versusTurnLocksGem(turn) || (versusTurnReady(turn) && !!run.shopClockExpired)),
     gemReady: versus && versusTurnReady(turn),
@@ -185,26 +215,27 @@ function useSecondsTo(iso: string | null | undefined, on: boolean): number {
   return s;
 }
 
+/** The End Turn pill while the resolver keeps failing for this round (R-VERSUS-RELIABLE-05). Neutral: it retries. */
+export const VERSUS_SLOW_NOTE = 'The fight is on its way';
+
 /**
  * The hold and the pause.
  *  - The HOLD is invisible: while the player waits on the other one (the gem's pill says so) the shop takes no input
  *    and nothing on the board changes.
  *  - The PAUSE (owner 2026-10-14: "when a player d/cs add an overlay for the reconnect time. when that player
- *    reconnects allow them to unpause which shows a 3/2/1"): the game's dark gold-rimmed panel over a dimmed screen.
- *    The opponent sees the reconnect time; the player who came back gets Unpause; then both see 3, 2, 1.
+ *    reconnects allow them to unpause which shows a 3/2/1"): the game's dark gold-rimmed panel over a dimmed screen
+ *    (`VersusPauseVeil`). The opponent sees the reconnect time; the player who came back gets Unpause; then both see
+ *    3, 2, 1.
  */
 export function VersusHud() {
   // RANKED DUOS: the team's Live Games row (first seat only; R-RANKED-DUOS-PARTY-01).
   useDuosLivePublisher();
   const match = useVersus((s) => s.match);
-  const room = useVersus((s) => s.room);
   const mode = useGame((s) => s.run.mode);
   const phase = useGame((s) => s.run.phase);
   const wave = useGame((s) => s.run.wave);
   const seat = mySeat(match);
   const paused = !!match?.paused_at && match.phase !== 'complete';
-  const graceIn = useSecondsTo(match?.pause_grace_until, paused);
-  const resumeIn = useSecondsUntil(match?.resume_at ? Date.parse(match.resume_at) : undefined, paused && !!match?.resume_at);
   // Held whenever this shop is not this player's to play right now (`versusTurn`): nothing on the board changes.
   const held = versusTurnHolds(useVersusTurn({ mode, phase, wave }));
   // VERSUS DUOS (R-DUOS-VIEW-01): watching my teammate's screen (Tab / their rail portrait), and the way back.
@@ -216,35 +247,6 @@ export function VersusHud() {
   if (match && !seat) return <SpectatorBar />;
   if (!match || !seat) return null;
   if (watchingMate) return <><TeammateFrame /><DuosMateDock watching /></>;
-  // VERSUS GROUP: the absent player is whoever the table says (named on `match.group`), not "the opponent".
-  const names = { p1: match.p1_name, p2: match.group?.pausedName ?? match.p2_name };
-  const absent = match.paused_seat;
-  const iAmAbsent = absent === seat;
-  // The absent player is back in the room (fresh heartbeat) but has not pressed Unpause yet.
-  const absentUser = absent === 'p1' ? match.p1_user : match.group?.pausedUser ?? match.p2_user;
-  const seen = room?.members.find((m) => m.userId === absentUser)?.lastSeenAt;
-  const absentBack = !!seen && versusServerNow() - Date.parse(seen) < VERSUS_LEASE_SECONDS * 1000;
-
-  let title = '';
-  let body: string | null = null;
-  let action: { label: string; press: () => void } | null = null;
-  if (paused && match.resume_at) {
-    title = 'Resuming';
-  } else if (paused && iAmAbsent) {
-    title = 'Welcome back';
-    body = 'The match is paused for you. Unpause when you are ready.';
-    action = { label: 'Unpause', press: () => { void resumeMatch(); } };
-  } else if (paused && absentBack) {
-    title = `${names[absent!]} is back`;
-    body = 'Waiting for them to unpause.';
-  } else if (paused && graceIn > 0) {
-    title = `${names[absent!]} disconnected`;
-    body = `Reconnect time ${graceIn}s`;
-  } else if (paused) {
-    title = `${names[absent!]} has not come back`;
-    body = 'Unpause to play on. Their last board fights for them, and three missed rounds forfeit.';
-    action = { label: 'Unpause', press: () => { void unpauseMatch(); } };
-  }
 
   return (
     <>
@@ -253,27 +255,90 @@ export function VersusHud() {
       {/* The teammate portrait stays bottom right in combat too (owner 2026-10-25: "also keep the teammate portrait in the
           bottom right during combat too"); there it only shows who your teammate is (passing and watching are shop-only). */}
       {match.group?.duos && !paused && (phase === 'recruit' || phase === 'combat') && <DuosMateDock watching={false} inCombat={phase === 'combat'} />}
-      {paused && (
-        <div className="vsveil" role="status" aria-live="polite" onContextMenuCapture={blockInspect}>
-          {match.resume_at ? (
-            <div className="vscount" aria-label={`Resuming in ${resumeIn}`}>
-              <span key={resumeIn} className="endplace-num vscount-num">{Math.max(1, resumeIn)}</span>
-            </div>
-          ) : (
-            <div className="vspanel">
-              <div className="vspanel-title">{title}</div>
-              {body && <div className="vspanel-body">{body}</div>}
-              {action && (
-                <div className="vspanel-actions">
-                  <button type="button" className="vsplate vsstartbtn" onClick={() => { sfx.pulse(); action!.press(); }}>{action.label}</button>
-                </div>
-              )}
+      {/* On Hero Select its own veil draws over the picker (`VersusHeroSelectPause`); never two. */}
+      {paused && !heroSelectUp && <VersusPauseVeil />}
+    </>
+  );
+}
+
+/**
+ * THE PAUSE ON HERO SELECT (R-VERSUS-RELIABLE-04; audit 2026-10-27): `VersusHud` lives in the shop screen, which is not
+ * mounted while the heroes are picked, so a disconnect during Hero Select froze the pick clock with nothing on screen
+ * saying why, and no Unpause anywhere. The same veil, over the picker, for a seated player of a paused Versus match.
+ */
+export function VersusHeroSelectPause(): JSX.Element | null {
+  const show = useVersus((s) => !!s.match && !!s.match.paused_at && s.match.phase !== 'complete' && !!mySeat(s.match));
+  const picking = useGame((s) => s.heroChoices !== null && s.pendingMode === 'versus');
+  return show && picking ? <VersusPauseVeil /> : null;
+}
+
+/**
+ * The pause panel (`VersusHud`, and over Hero Select). Who sees what:
+ *  - the absent player, back: "Welcome back", Unpause (a 3-2-1 for everyone);
+ *  - everyone else, inside the reconnect time: who dropped and the seconds left;
+ *  - everyone else once the absent player is back: "X is back", and AFTER the reconnect time an Unpause of their own
+ *    (R-VERSUS-RELIABLE-04; owner 2026-10-27: "it would simply pause when someone returned". It used to wait on the
+ *    returning player's press forever);
+ *  - everyone else after the reconnect time with the absent player still gone: Unpause, their last board fights;
+ *  - a running 3-2-1 (from any Unpause, or the server resuming a returning heartbeat by itself): the count, cleanly.
+ */
+export function VersusPauseVeil(): JSX.Element | null {
+  const match = useVersus((s) => s.match);
+  const room = useVersus((s) => s.room);
+  const seat = mySeat(match);
+  const paused = !!match?.paused_at && match.phase !== 'complete';
+  const graceIn = useSecondsTo(match?.pause_grace_until, paused);
+  const resumeIn = useSecondsUntil(match?.resume_at ? Date.parse(match.resume_at) : undefined, paused && !!match?.resume_at);
+  if (!match || !seat || !paused) return null;
+  const view = versusPauseView({
+    match, seat, graceIn,
+    absentBack: absentIsBack(match, room?.members ?? [], versusServerNow()),
+  });
+  return (
+    <div className="vsveil" role="status" aria-live="polite" onContextMenuCapture={blockInspect}>
+      {view.kind === 'count' ? (
+        <div className="vscount" aria-label={`Resuming in ${Math.max(1, resumeIn)}`}>
+          <span key={resumeIn} className="endplace-num vscount-num">{Math.max(1, resumeIn)}</span>
+        </div>
+      ) : (
+        <div className="vspanel">
+          <div className="vspanel-title">{view.title}</div>
+          {view.body && <div className="vspanel-body">{view.body}</div>}
+          {view.action && (
+            <div className="vspanel-actions">
+              <button type="button" className="vsplate vsstartbtn" onClick={() => { sfx.pulse(); void (view.action === 'resume' ? resumeMatch() : unpauseMatch()); }}>Unpause</button>
             </div>
           )}
         </div>
       )}
-    </>
+    </div>
   );
+}
+
+/** The server's presence lease for the "is back" read: 14 s since fix/versus-server-reliability (`versus__lease()`; the
+ *  sim's `VERSUS_LEASE_SECONDS` stays 12, pinned to the original migration by `versusSchema.db.test.ts`). */
+export const VERSUS_PRESENCE_LEASE_SECONDS = Math.max(VERSUS_LEASE_SECONDS, 14);
+/** The absent player is back in the room (a heartbeat inside the lease) but the match is still paused. */
+export function absentIsBack(match: VersusMatch, members: readonly { userId: string; lastSeenAt: string }[], now: number): boolean {
+  const absentUser = match.paused_seat === 'p1' ? match.p1_user : match.group?.pausedUser ?? match.p2_user;
+  const seen = members.find((m) => m.userId === absentUser)?.lastSeenAt;
+  return !!seen && now - Date.parse(seen) < VERSUS_PRESENCE_LEASE_SECONDS * 1000;
+}
+
+/** What the pause panel shows (pure; the rules above). `action`: `resume` (mine, I came back) or `unpause` (theirs). */
+export function versusPauseView(x: { match: VersusMatch; seat: 'p1' | 'p2'; graceIn: number; absentBack: boolean }):
+  { kind: 'count' } | { kind: 'panel'; title: string; body: string | null; action: 'resume' | 'unpause' | null } {
+  const m = x.match;
+  if (m.resume_at) return { kind: 'count' };
+  // VERSUS GROUP: the absent player is whoever the table says (named on `match.group`), not "the opponent".
+  const names = { p1: m.p1_name, p2: m.group?.pausedName ?? m.p2_name };
+  const absent = m.paused_seat;
+  const name = absent ? names[absent] : 'A player';
+  if (absent === x.seat) return { kind: 'panel', title: 'Welcome back', body: 'The match is paused for you. Unpause when you are ready.', action: 'resume' };
+  if (x.absentBack && x.graceIn > 0) return { kind: 'panel', title: `${name} is back`, body: 'Waiting for them to unpause.', action: null };
+  if (x.absentBack) return { kind: 'panel', title: `${name} is back`, body: 'Unpause to play on.', action: 'unpause' };
+  if (x.graceIn > 0) return { kind: 'panel', title: `${name} disconnected`, body: `Reconnect time ${x.graceIn}s`, action: null };
+  return { kind: 'panel', title: `${name} has not come back`, body: 'Unpause to play on. Their last board fights for them, and three missed rounds forfeit.', action: 'unpause' };
 }
 
 /** Overlays stop the card inspect on whatever is behind them (live PvP 2026-10-14: right-click went through). */

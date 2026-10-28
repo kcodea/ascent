@@ -125,6 +125,19 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Versus on your screen is steadier too: End Turn never gets stuck, and coming back to the game never pauses the match on you.',
+        details: [
+          'Fights start sooner when the clock runs out.',
+          'Coming back to the game sends your presence first.',
+          'After the reconnect time, anyone can unpause for a player who came back.',
+          'A pause during Hero Select now shows on screen.',
+          'Lost End Turn and End Combat signals are sent again.',
+          'A match that ends with no winner says "No result".',
+          'In Duos, your teammate portrait sits in its proper place on large screens.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Twenty-nine new minion skins in chests, for many of the most-played cards that had none.',
         details: [
           'Prospector, Chronos, Lastlight, Tapkeeper, Bob Blart, Geode Guardian, Market Tormentor, Blazer, Grimoire, Flutterbutter, Right Hand Hank, Sharpshooter, Cave Cutter, Jewel and Spell Warden each get their first skins.',

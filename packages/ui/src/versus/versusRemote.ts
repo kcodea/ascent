@@ -118,11 +118,17 @@ export interface VersusMatch {
   p1_missed: number;
   p2_missed: number;
   winner_seat: VersusSeat | null;
-  end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | null;
+  end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | 'void' | null;
   completed_at: string | null;
   serverNow?: string;
   /** The room options this match started with (R-VERSUS-OPTIONS-01). Null on a match before 2026-10-24. */
   options?: VersusRoomOptions | null;
+  /** THE CLOSER (R-VERSUS-RELIABLE-02; fix/versus-server-reliability): true on an answer to MY call (submit / reconcile)
+   *  when that call closed the round, so this client alone asks the resolver at once. Absent on an older server. */
+  closed_by_me?: boolean;
+  /** THE SERVER'S RESOLVE RETRY (fix/versus-server-reliability): 0 when the round entered `resolving`, bumped each time
+   *  the server wants the resolver asked again. Absent on an older server. */
+  resolve_retry?: number | null;
   /** VERSUS GROUP (R-VERSUS-GROUP-01): this row is a 3-4 player match PROJECTED onto the 1v1 shape from one seat's
    *  side (`versusGroupView.ts`): p1 = that seat, p2 = its opponent this round. The full table rides here. */
   group?: VersusGroupView;
@@ -215,6 +221,10 @@ export interface RankedDuosRoundRow {
 /** A group match row with its seats (`versus_group_matches` + `versus_group_seats`). */
 export interface VersusGroupMatchRaw {
   id: string;
+  /** THE CLOSER (R-VERSUS-RELIABLE-02): see `VersusMatch.closed_by_me`. */
+  closed_by_me?: boolean;
+  /** See `VersusMatch.resolve_retry`. */
+  resolve_retry?: number | null;
   room_id: string | null;
   seed: number;
   set_id: string;
@@ -236,7 +246,7 @@ export interface VersusGroupMatchRaw {
   pause_grace_until: string | null;
   resume_at: string | null;
   winner_seat: VersusGroupSeat | null;
-  end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | null;
+  end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | 'void' | null;
   completed_at: string | null;
   serverNow?: string;
   seats: VersusGroupSeatRow[];
@@ -403,11 +413,22 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     return c;
   };
   async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
-    // rows: every Versus RPC returns ONE jsonb value (a row object or a room list capped by the room count), never a table (R-NET-01).
-    const { data, error } = await db().rpc(fn, args);
-    if (error) fail(error);
-    return data as T;
+    // NO CALL HANGS FOREVER (R-VERSUS-RELIABLE-05): supabase-js has no fetch timeout of its own, and the ready calls go out
+    // one at a time (`inOrder`), so one hung request used to block every later End Turn. Aborted at
+    // `VERSUS_RPC_TIMEOUT_MS`, it fails as an ordinary `network` error (the server orders submissions by seq anyway).
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), VERSUS_RPC_TIMEOUT_MS);
+    try {
+      // rows: every Versus RPC returns ONE jsonb value (a row object or a room list capped by the room count), never a table (R-NET-01).
+      const { data, error } = await db().rpc(fn, args).abortSignal(abort.signal);
+      if (error) fail(abort.signal.aborted ? { message: 'network' } : error);
+      return data as T;
+    } finally {
+      clearTimeout(timer);
+    }
   }
+  /** Channels this client is still leaving, by topic: a re-open of the same topic waits for the leave (R-VERSUS-RELIABLE-01). */
+  const leaving = new Map<string, Promise<unknown>>();
   return {
 
   listRooms: () => rpc<VersusRoomSummary[]>('versus_list_rooms'),
@@ -695,6 +716,7 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
   async finalize(matchId: string, round: number, contentRevision: string): Promise<void> {
     const { error } = await db().functions.invoke('versus-resolve', {
       body: { action: 'finalize', protocol: VERSUS_PROTOCOL, contentRevision, matchId, round },
+      timeout: VERSUS_RESOLVE_TIMEOUT_MS, // a cold resolver answers in ~11 s; past this the call is dead (R-VERSUS-RELIABLE-05)
     });
     if (error) throw new VersusError('finalize_failed', (error as Error).message);
   },
@@ -706,34 +728,106 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
    * each rewrite went to every subscriber (~0.9 KB x members x subscribers per beat, the biggest Versus egress line).
    * Every membership change that matters (join, leave, seat move, knockout, prune) bumps the ROOM's revision, which is
    * the wake-up; presence while a match is paused comes back on the heartbeat.
+   *
+   * ONE TOPIC PER MATCH, AND IT HEALS ITSELF (R-VERSUS-RELIABLE-01; audit 2026-10-27). The topic names the match
+   * (`versusTopic`), so a match's channel never shares a topic with the room's or the previous match's, and a late leave
+   * answer or close for an old join can never land on it; a re-open of the same topic waits for any channel still on it
+   * (`RealtimeClient.channel()` hands back an existing channel of the same topic). The join's status is watched: an
+   * error, a timeout or a close we did not ask for re-opens the channel with a backoff (1 s, doubling to 30 s). Before,
+   * nothing watched it, so a channel the server closed stayed dead and the client ran on the 4 s heartbeat and the 12 s
+   * polls alone. A re-join reports the rows as changed, since anything that happened while it was down never arrived.
    */
   subscribeRoom(roomId: string, matchId: string | null, onChange: (what: 'room' | 'members' | 'match' | 'rounds' | 'passes', row?: Record<string, unknown>) => void,
-    onBroadcast?: (event: string, payload: unknown) => void): { channel: RealtimeChannel; send: (event: string, payload: unknown) => void; close: () => void } {
+    onBroadcast?: (event: string, payload: unknown) => void): { send: (event: string, payload: unknown) => void; close: () => Promise<unknown> } {
     const c = db();
-    let ch = c.channel(`versus:${roomId}`, { config: { broadcast: { self: false } } })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_rooms', filter: `id=eq.${roomId}` }, () => onChange('room'));
-    if (matchId) {
-      // A match id lives in exactly one of the two match tables (1v1 or group): listening on both costs nothing.
-      ch = ch
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_matches', filter: `id=eq.${matchId}` }, () => onChange('match'))
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_group_matches', filter: `id=eq.${matchId}` }, () => onChange('match'))
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_group_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'))
-        // VERSUS DUOS: a teammate's pass (RLS lets only the team see the row, so only the teammates wake).
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_duos_passes', filter: `match_id=eq.${matchId}` }, (p: { new?: Record<string, unknown> }) => onChange('passes', p.new));
-    }
-    if (onBroadcast) ch = ch.on('broadcast', { event: '*' }, (msg: { event: string; payload: unknown }) => onBroadcast(msg.event, msg.payload));
-    ch.subscribe();
+    const topic = versusTopic(roomId, matchId);
+    let ch: RealtimeChannel | null = null;
+    let closed = false;
+    let tries = 0;
+    let joinedOnce = false;
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    /** Drop a channel (ours, or a stale one left on this topic) and wait for its leave. */
+    const drop = (x: RealtimeChannel): Promise<unknown> => {
+      const p: Promise<unknown> = Promise.resolve().then(() => c.removeChannel(x)).catch(() => undefined).finally(() => { if (leaving.get(topic) === p) leaving.delete(topic); });
+      leaving.set(topic, p);
+      return p;
+    };
+    const build = (): void => {
+      if (closed) return;
+      let next = c.channel(topic, { config: { broadcast: { self: false } } })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_rooms', filter: `id=eq.${roomId}` }, () => onChange('room'));
+      if (matchId) {
+        // A match id lives in exactly one of the two match tables (1v1 or group): listening on both costs nothing.
+        next = next
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_matches', filter: `id=eq.${matchId}` }, () => onChange('match'))
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_group_matches', filter: `id=eq.${matchId}` }, () => onChange('match'))
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_group_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'))
+          // VERSUS DUOS: a teammate's pass (RLS lets only the team see the row, so only the teammates wake).
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_duos_passes', filter: `match_id=eq.${matchId}` }, (p: { new?: Record<string, unknown> }) => onChange('passes', p.new));
+      }
+      if (onBroadcast) next = next.on('broadcast', { event: '*' }, (msg: { event: string; payload: unknown }) => onBroadcast(msg.event, msg.payload));
+      const mine = next;
+      ch = mine;
+      mine.subscribe((status) => {
+        if (closed || ch !== mine) return;
+        if (status === 'SUBSCRIBED') {
+          tries = 0;
+          // Back after a drop: whatever changed meanwhile never arrived, so read the rows again.
+          if (joinedOnce) { onChange('room'); if (matchId) { onChange('match'); onChange('rounds'); } }
+          joinedOnce = true;
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          heal();
+        }
+      });
+    };
+    const heal = (): void => {
+      if (closed || retry) return;
+      const wait = Math.min(SUB_RETRY_MAX_MS, SUB_RETRY_BASE_MS * 2 ** Math.min(tries, 8));
+      tries += 1;
+      retry = setTimeout(() => {
+        retry = null;
+        const old = ch;
+        if (closed) return;
+        // realtime-js re-joins an errored channel by itself when the socket comes back: a joined one is left alone.
+        if (old && old.state === 'joined') { tries = 0; return; }
+        ch = null;
+        void (old ? drop(old) : Promise.resolve()).then(build);
+      }, wait);
+    };
+    // Open once nothing of this topic is left on the client: a leave in flight (ours), or any other stale channel.
+    const ready = (async () => {
+      await leaving.get(topic);
+      // (A test double of the client may not implement the channel list; then there is nothing stale to wait on.)
+      for (const stale of (typeof c.getChannels === 'function' ? c.getChannels() : []).filter((x) => x.topic === `realtime:${topic}`)) await drop(stale);
+    })();
+    void ready.then(build).catch(() => undefined);
     return {
-      channel: ch,
-      send: (event, payload) => { void ch.send({ type: 'broadcast', event, payload }); },
-      close: () => { void c.removeChannel(ch); },
+      send: (event, payload) => { if (ch) void ch.send({ type: 'broadcast', event, payload }); },
+      close: () => {
+        closed = true;
+        if (retry) { clearTimeout(retry); retry = null; }
+        const x = ch;
+        ch = null;
+        // Not built yet (still waiting on a stale leave): nothing of ours to leave.
+        return x ? drop(x) : ready;
+      },
     };
   },
   };
 }
 
 export type VersusRemote = ReturnType<typeof makeVersusRemote>;
+
+/** The room's Realtime topic for one match (or the room before its first match): see `subscribeRoom`. */
+export const versusTopic = (roomId: string, matchId: string | null): string => `versus:${roomId}:${matchId ?? 'room'}`;
+/** Every Versus RPC is aborted after this long (R-VERSUS-RELIABLE-05). */
+export const VERSUS_RPC_TIMEOUT_MS = 8000;
+/** The resolver call's own limit: a cold start answers in ~11 s (measured 2026-10-26). */
+export const VERSUS_RESOLVE_TIMEOUT_MS = 20_000;
+/** The Realtime re-open backoff (R-VERSUS-RELIABLE-01). */
+const SUB_RETRY_BASE_MS = 1000;
+const SUB_RETRY_MAX_MS = 30_000;
 
 /** A `versus_group_seats` table row in the RPC json's camelCase shape. */
 export function groupSeatOfRow(r: Record<string, unknown>): VersusGroupSeatRow {

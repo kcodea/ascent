@@ -115,8 +115,18 @@ function measureDock(): DockGeometry | null {
   if (typeof document === 'undefined') return null;
   const art = document.querySelector<HTMLElement>('.statusbar .hero .heroimg') ?? document.querySelector<HTMLElement>('.statusbar .hero .f');
   const hp = document.querySelector<HTMLElement>('.statusbar .hero .hpbox');
-  const host = stageHost();
-  return fitDock(art?.getBoundingClientRect() ?? null, hp?.getBoundingClientRect() ?? null, railEl()?.getBoundingClientRect() ?? null, host.getBoundingClientRect(), toStage);
+  return fitDock(art?.getBoundingClientRect() ?? null, hp?.getBoundingClientRect() ?? null, railEl()?.getBoundingClientRect() ?? null, stageBox(stageHost().getBoundingClientRect()), toStage);
+}
+
+/**
+ * THE STAGE'S BOX, ALWAYS A BOX (R-VERSUS-RELIABLE-06; found on the bench prod build 2026-10-27: the dock's inline style
+ * stayed empty in shop and fight, so it sat at its CSS fallback and the tag-in copy never mounted). At the design size
+ * and above the stage is not scaled and `#stage` is `display: contents`, which has NO box: its rect is all zeros, and
+ * `mirrorOfHero` (rightly) refuses a zero-width stage, so no geometry was ever produced on a full-size window. An
+ * unscaled stage IS the viewport (its origin is the window's top-left, no transform), so its box is the window's.
+ */
+export function stageBox(rect: Box, win: { w: number; h: number } = typeof window === 'undefined' ? { w: 0, h: 0 } : { w: window.innerWidth, h: window.innerHeight }): Box {
+  return rect.width > 0 && rect.height > 0 ? rect : { left: 0, top: 0, width: win.w, height: win.h };
 }
 
 /**

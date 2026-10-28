@@ -28,6 +28,7 @@ import { telemetryGameRankOf } from './gameRankData';
 import { hallHistoryKeyOf, ownGameRecordsOf, type HallLedgerFight, type HallOwnRecord } from './leaderboardData';
 import { fetchAllRows } from './supabaseRows';
 import { kvGet, kvSet, maxId, mergeNewestFirst } from './net/idbKv';
+import { cachedSample, idbRunCache, type DeltaStats } from './opponentPool/poolRunCache';
 import { careerTotalsOf } from './runHistory';
 import { matchLength } from './activePlayClock';
 
@@ -393,13 +394,34 @@ const currentPoolBand = (): StrengthBand | null => {
   try { return (poolBandProvider ?? bandFallback)(); } catch { return null; }
 };
 
+/** DEV: what the per-run pool cache did this session (`window.__ascentPoolCache`). */
+export const poolRunCacheStats: DeltaStats = { calls: 0, runs: 0, hits: 0, fetched: 0, fallbacks: 0 };
+
 function poolApi(c: SupabaseClient): PoolApi {
-  return {
+  const err = (e: { code?: string; message: string } | null) => (e ? { code: e.code, message: e.message } : null);
+  // SUPABASE CLEANUP P1.5 (owner 2026-10-28, "yes, cache them"): the same draw as `pool_runs_sample`, but only the runs
+  // this device does not already hold cross the wire (`opponentPool/poolRunCache.ts`). Falls back to the whole-run
+  // sample on a server without the delta SQL.
+  const sample = cachedSample({
+    async keys(args, signal) {
+      // rows: one per RUN (at most p_limit, the RPC caps itself at 300): ids, strengths and the content rev, no boards.
+      const res = await c.rpc('pool_runs_sample_keys', args).abortSignal(signal);
+      return { data: (res.data ?? null) as never, error: err(res.error) };
+    },
+    async boards(ids, signal) {
+      // rows: one per id asked for (POOL_BOARDS_CHUNK = 100 at a time; the RPC refuses more than 300).
+      const res = await c.rpc('pool_runs_boards', { p_ids: ids }).abortSignal(signal);
+      return { data: (res.data ?? null) as never, error: err(res.error) };
+    },
     async sample(args, signal) {
       // rows: one row per RUN, at most p_limit (POOL_SAMPLE_RUNS = 150; the RPC caps itself at 300), each run whole.
       const res = await c.rpc('pool_runs_sample', args).abortSignal(signal);
-      return { data: (res.data ?? null) as never, error: res.error ? { code: res.error.code, message: res.error.message } : null };
+      return { data: (res.data ?? null) as never, error: err(res.error) };
     },
+  }, idbRunCache(), {}, () => Date.now(), poolRunCacheStats);
+  if (import.meta.env.DEV && typeof window !== 'undefined') (window as unknown as { __ascentPoolCache?: DeltaStats }).__ascentPoolCache = poolRunCacheStats;
+  return {
+    sample,
     async lightPage(patchPrefix, from, to, signal) {
       const res = await c.from(TABLE).select('author,hero_id,seed,wave,user_id,set_id:snapshot->>setId')
         .like('patch', `${patchPrefix}%`).order('id', { ascending: true }).range(from, to).abortSignal(signal);

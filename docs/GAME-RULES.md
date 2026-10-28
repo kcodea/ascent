@@ -59,7 +59,9 @@ medal + division — see *Ranked ladder* below).
   forward", "i want them random from all snapshots in the pool"). The client receives a uniform random sample of
   the eligible runs of its set and build version (150 runs; every run equally likely, however old), each run with
   ALL of its boards, or not at all: the server picks runs (`pool_runs_sample`), a run that arrives incomplete is
-  refused whole, and the local cache stores whole runs. **A recorded seat's board for round N is that run's own
+  refused whole, and the local cache stores whole runs. A device keeps the runs it already downloaded and fetches
+  only the drawn runs it lacks, by run and content revision; what it serves is byte-identical to the server's answer
+  (R-EGRESS-05, owner 2026-10-28: *"yes, cache them"*). **A recorded seat's board for round N is that run's own
   wave-N board.** Every round is uploaded, an EMPTY board included (owner 2026-10-17: *"empty boards are never
   uploaded is a problem. this has to be fixed"*); an empty round is part of its run, never a per-wave opponent, and
   a run with nothing on board in any round takes no seat. **The round number is the truth** (owner 2026-10-17:

@@ -10620,4 +10620,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-28. Before, every probe sent four single-column progression_config reads and the full 458-row catalog (~31 KB), ~87,000 times in 16 days.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/progressionConfigOnce.test.ts', 'packages/progression/src/catalogStateHash.db.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-EGRESS-05',
+    title: 'The opponent pool is cached on the device by run: the same draw, the same boards, only missing runs download',
+    statement:
+      'The client asks the server for its pool draw as run keys plus a content revision per run (pool_runs_sample_keys: '
+      + 'the same draw as pool_runs_sample, the picking SQL kept verbatim). A run the device already holds at that revision '
+      + 'is served from its cache (IndexedDB, at most 600 runs, least recently used dropped first, a format version that '
+      + 'drops everything when bumped); only the rest are downloaded (pool_runs_boards). The revision covers every board row '
+      + 'of the run at its row version, so a run that gains, loses or changes a board is downloaded again. Every answer is '
+      + 'byte-identical to what pool_runs_sample returns for that draw: same runs, same order, same boards, the strength '
+      + 'always fresh from the server. A server without the delta SQL is asked pool_runs_sample, exactly as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-28 (Supabase cleanup P1.5, opponent pool local cache)', quote: 'yes, cache them' },
+      { kind: 'owner-chat', ref: 'Owner bar 2026-10-17 (snapshot serving integrity, R-LOBBY-08)', quote: 'literally perfect' },
+      { kind: 'code', ref: 'packages/ui/src/opponentPool/poolRunCache.ts; remoteBoards.ts poolApi; supabase/migrations/2026-11-08-pool-runs-delta.sql' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-28 once the delta SQL is applied. Before, every session start and between-runs refresh downloaded up to 150 whole runs (~3.45 MB a call, ~13.4 GB in 16 days, ~13 GB of temp spill).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/opponentPool/poolRunCache.test.ts', 'packages/sim/src/lobby/poolRunsDelta.db.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

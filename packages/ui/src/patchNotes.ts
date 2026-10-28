@@ -58,6 +58,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-28',
     changes: [
+      { category: 'Systems', text: 'Master hero titles have a new look. They glow, shimmer and sparkle.', details: [
+        'The gold and red plate is gone. The name now shines in ice blue and violet.',
+        'A light sweeps across it and a small star twinkles beside it.',
+        'Both stop when your device asks for reduced motion.',
+        'It is bigger on phones, so it is easy to read.',
+      ] },
       {
         category: 'Systems',
         text: 'Fix: an Imp you get from any source now carries your Imp buffs.',

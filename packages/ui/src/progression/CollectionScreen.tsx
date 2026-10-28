@@ -518,7 +518,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
 
 interface TileProps {
   id: string; name: string; rarity: CosmeticRarity; owned: boolean; equipped: boolean; fresh: boolean; selected: boolean; onPick: (id: string) => void;
-  /** A hero title's golden master version: its name is the embroidered plate (owner 2026-09-29). */
+  /** A hero title's master version: its name wears the master look (TitleBadge, owner pick 2026-10-28). */
   master?: boolean;
   /** A skin's art (its tile shows it, dimmed and blurred until owned). Undefined for a title, or a missing file. */
   art?: string;

@@ -173,12 +173,12 @@ describe('the Collection screen: the album', () => {
   });
 });
 
-describe('hero titles in the Collection (owner 2026-09-29: "the master title should be a golden plate and embroidered text")', () => {
-  it('a missing hero title says how to earn it; the master replaces it in place once owned, as the golden plate', () => {
+describe('hero titles in the Collection (owner 2026-09-29; the master look since the owner pick 2026-10-28)', () => {
+  it('a missing hero title says how to earn it; the master replaces it in place once owned, in the master look', () => {
     open();
     act(() => tile('Warded').click());
     expect(text('.colls-hint')).toBe('Finish 1st in 3 Ranked games as Warden.');
-    expect(text('.colls-facts')).toContain('Finish 1st in 10 Ranked games as Warden to make it a golden plate.');
+    expect(text('.colls-facts')).toContain('Finish 1st in 10 Ranked games as Warden to master it.');
     expect($('.colls-tile .tb-master')).toBeNull(); // no master shows until one is owned
     ui?.unmount();
     open({ titles: ['alpha_tester', 'title_hero_warden', 'title_hero_warden_master'], equippedTitleId: 'title_hero_warden_master' }, { seen: ['alpha_tester', 'title_hero_warden', 'title_hero_warden_master'] });
@@ -189,7 +189,7 @@ describe('hero titles in the Collection (owner 2026-09-29: "the master title sho
     expect(tileNames()).toHaveLength(58); // the master took the title's slot
     expect(tileNames().slice(0, 2)).toEqual(['The Unbroken', 'Warded']); // the Legendaries lead the album
     expect(text('.colls-meter-num')).toBe('8 / 413'); // Alpha Tester + Warded (the master stands for both tiers) + Zen Brian (2026-10-15) + the five Comms emotes (2026-10-22)
-    // the detail panel's nameplate and the preview under your name are the plate too
+    // the detail panel's nameplate and the preview under your name wear the master look too
     expect($('.colls-plate-name .titlebadge.tb-master')?.textContent).toBe('Warded');
     expect($('.colls-preview-title .titlebadge.tb-master')?.textContent).toBe('Warded');
     expect(text('.colls-facts')).toContain('Mastered.');

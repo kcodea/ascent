@@ -28,8 +28,8 @@ export interface TitleLook {
   name: string;
   rarity: CosmeticRarity;
   custom: TitleCustomStyle | null;
-  /** A hero title's MASTER version (10 Ranked 1sts with the hero, owner 2026-09-29): painted as the golden plate with
-   *  embroidered text, whatever `custom` says. */
+  /** A hero title's MASTER version (10 Ranked 1sts with the hero, owner 2026-09-29): painted in the master look (the
+   *  glowing gradient pill, owner pick 2026-10-28), whatever `custom` says. */
   master: boolean;
 }
 

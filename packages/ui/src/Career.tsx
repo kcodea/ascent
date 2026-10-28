@@ -537,7 +537,7 @@ export function Career() {
   // The equipped title for the name header, with its rarity for the colour.
   const headerTitle = titleName(accountProgression?.equippedTitleId ?? null);
   const headerTitleRarity = cosmeticOf(accountProgression?.equippedTitleId ?? null)?.rarity ?? null;
-  // A hero title's master version is the golden embroidered plate (owner 2026-09-29).
+  // A hero title's master version wears the master look (owner pick 2026-10-28).
   const headerTitleMaster = isMasterTitle(accountProgression?.equippedTitleId ?? null);
 
   // SKINS: whose page this is, and the page owner's CURRENT loadout (public, read with their progression). Memoised

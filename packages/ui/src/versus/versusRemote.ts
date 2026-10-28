@@ -888,6 +888,7 @@ const cfUrl = devCf || devRoute ? versusCfDevUrl() : embeddedCfUrl(import.meta.e
 const hostConfig = makeHostConfigReader(async () => {
   const c = supabaseClient();
   if (!c) return null;
+  // rows: one jsonb object of four short strings (one per mode), never a table (R-NET-01).
   const { data, error } = await c.rpc('versus_host_config');
   if (error) throw error;
   return data;

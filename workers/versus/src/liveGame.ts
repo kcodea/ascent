@@ -23,6 +23,7 @@ import type { PersistEnv } from './persist';
 import { VERSUS_CF_CLOSE, VERSUS_CF_PING, VERSUS_CF_PONG, VERSUS_CF_STALE_MS, VERSUS_CF_SUBPROTOCOL, parseClientMessage } from './protocol';
 import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
 import { spectateSinkFor, WatchReporter, type SpectateSink } from './spectate';
+import { livePingRoom, PING_EVENT, PING_MENTOR_EVENT, PingRateLimiter, routePing, routePingMentor } from './pings';
 
 export const LIVE_GAME_HEADER = 'X-Live-Game';
 export const LIVE_USER_HEADER = 'X-Live-User';
@@ -67,6 +68,9 @@ const lobbySinkFor = (env: PersistEnv): LiveSink<LobbyListing> =>
     ? new LobbyLiveSink(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, env.VERSUS_WRITER_SECRET)
     : new LocalLiveSink<LobbyListing>();
 
+/** Storage key of the player's promoted mentor (LIVE PINGS, `relayPing`). */
+const PING_MENTOR_KEY = 'pingMentor';
+
 /** An `end` push waits at most this long for the final watch beat to land (the spectator's settlement follows it). */
 const END_BEAT_WAIT_MS = 4_000;
 
@@ -80,6 +84,9 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
   /** The latest keyframe the player sent (memory only). */
   private key: unknown = null;
   private readonly buckets = new WeakMap<CfWebSocket, Bucket>();
+  /** LIVE PINGS (R-PING-01..03): the spectator the player named Mentor (stored: a wake keeps it), and the ping limit. */
+  private pingMentor: string | null = null;
+  private readonly pingLimit = new PingRateLimiter();
   private readonly metrics: LiveMetrics = { msgsIn: 0, msgsOut: 0, bytesIn: 0, bytesOut: 0, rowWrites: 0, beatWrites: 0, beats: 0 };
 
   constructor(ctx: DurableObjectState, env: LiveEnv) {
@@ -94,8 +101,9 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
 
   private async load(gameId: string | null): Promise<LiveCore | null> {
     if (this.loaded && this.core) return this.core;
-    const entries = await this.ctx.storage.get<unknown>(['meta', LIVE_STORAGE_KEY]);
+    const entries = await this.ctx.storage.get<unknown>(['meta', LIVE_STORAGE_KEY, PING_MENTOR_KEY]);
     const meta = entries.get('meta') as LiveMeta | undefined;
+    this.pingMentor = (entries.get(PING_MENTOR_KEY) as string | undefined) ?? null;
     this.loaded = true;
     if (!meta && !gameId) return null;
     this.core = new LiveCore(meta ?? newLiveMeta(gameId!, engineContentRevision(), Date.now()));
@@ -191,6 +199,7 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
     const a = this.att(ws);
     if (msg.t === 'bc') {
       if (!core || !a.role) return;
+      if (msg.event === PING_EVENT || msg.event === PING_MENTOR_EVENT) { await this.relayPing(core, ws, a.userId, msg.event, msg.payload); return; }
       // Relay to everyone else in this game (the player's stream to the stands; a watcher's emote, key request or
       // goodbye to the player and the other watchers), never back to the sender.
       const out = JSON.stringify({ t: 'bc', event: msg.event, payload: msg.payload, from: a.userId } satisfies LivePush);
@@ -301,6 +310,35 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
 
   async webSocketError(ws: CfWebSocket): Promise<void> {
     await this.webSocketClose(ws);
+  }
+
+  /**
+   * LIVE PINGS (owner 2026-10-29; R-PING-01..03), the same rule as the Versus room (`routePing`): the player (`p1`, the
+   * game's publisher) pings their own targets and every watcher sees it; the ONE watcher the player named Mentor pings
+   * the player's targets and only the player sees it; any other watcher's ping is dropped. `from` and `role` are stamped
+   * from the socket. Only the player may name (or clear) the mentor, and only a watcher in the stands may be named.
+   */
+  private async relayPing(core: LiveCore, ws: CfWebSocket, userId: string, event: string, payload: unknown): Promise<void> {
+    const room = livePingRoom(core.meta.owner, core.watchers.keys(), this.pingMentor);
+    if (event === PING_MENTOR_EVENT) {
+      const m = routePingMentor(room, userId, payload);
+      if (!m) return;
+      this.pingMentor = m.mentor;
+      if (m.mentor) await this.ctx.storage.put(PING_MENTOR_KEY, m.mentor);
+      else await this.ctx.storage.delete(PING_MENTOR_KEY);
+      const out = JSON.stringify({ t: 'bc', event, payload: m, from: userId } satisfies LivePush);
+      for (const other of this.liveSockets()) if (other !== ws && this.att(other).role) this.send(other, out);
+      return;
+    }
+    if (!this.pingLimit.allow(userId, Date.now())) return;
+    const route = routePing(room, userId, payload);
+    if (!route.ok) return;
+    const to = new Set(route.to);
+    const out = JSON.stringify({ t: 'bc', event, payload: route.ping, from: userId } satisfies LivePush);
+    for (const other of this.liveSockets()) {
+      const o = this.att(other);
+      if (other !== ws && o.role && to.has(o.userId)) this.send(other, out);
+    }
   }
 
   /** An account's last socket is gone. */

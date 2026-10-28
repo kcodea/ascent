@@ -221,3 +221,14 @@ export class PingRateLimiter {
   }
   reset(): void { this.at.clear(); }
 }
+
+/**
+ * The ping room of a LIVE lobby / Practice game (the Cloudflare live object, `liveGame.ts`): its one player is seat `p1`,
+ * everyone watching is in the stands, and the player may have named one of them Mentor. Pure.
+ */
+export function livePingRoom(owner: string | null, watchers: Iterable<string>, mentor: string | null): PingRoomView {
+  const members: PingMember[] = [];
+  if (owner) members.push({ userId: owner, role: 'p1' });
+  for (const w of watchers) if (w !== owner) members.push({ userId: w, role: 'spectator' });
+  return { mode: 'lobby', members, mentors: mentor ? { p1: mentor } : {} };
+}

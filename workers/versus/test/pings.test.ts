@@ -3,7 +3,7 @@
  * change, and the per-sender limit. The Versus room (`room.ts relayPing`) and the lobby live object run exactly these.
  */
 import { describe, expect, it } from 'vitest';
-import { PING_RATE, PingRateLimiter, routePing, routePingMentor, teammateOf, withMentor, type PingRoomView } from '../src/pings';
+import { livePingRoom, PING_RATE, PingRateLimiter, routePing, routePingMentor, teammateOf, withMentor, type PingRoomView } from '../src/pings';
 
 const ping = (over: Record<string, unknown> = {}) => ({ id: 'a.1', kind: 'check', owner: 'p1', target: { t: 'card', uid: '42', zone: 'shop' }, from: 'spoofed', ...over });
 
@@ -117,5 +117,24 @@ describe('rate limit + teammates', () => {
     expect(teammateOf('duel', 'p1')).toBeNull();
     expect(teammateOf('group', 'p1')).toBeNull();
     expect(teammateOf('lobby', 'p1')).toBeNull();
+  });
+});
+
+describe('livePingRoom: the Cloudflare live lobby / Practice object (R-PING-01..03)', () => {
+  it('the player is p1, watchers are the stands; only the named mentor reaches the player, only the player hears it', () => {
+    const room = livePingRoom('ann', ['sam', 'tia', 'ann'], 'sam');
+    expect(room.members).toEqual([{ userId: 'ann', role: 'p1' }, { userId: 'sam', role: 'spectator' }, { userId: 'tia', role: 'spectator' }]);
+    const own = routePing(room, 'ann', ping());
+    expect(own.ok && own.to.sort()).toEqual(['sam', 'tia']);
+    const mentor = routePing(room, 'sam', ping({ role: 'self' }));
+    expect(mentor.ok && mentor.ping.role).toBe('mentor');
+    expect(mentor.ok && mentor.to).toEqual(['ann']);
+    expect(routePing(room, 'tia', ping()).ok).toBe(false);
+    expect(routePingMentor(room, 'tia', { seat: 'p1', mentor: 'tia' })).toBeNull();
+    expect(routePingMentor(room, 'ann', { seat: 'p1', mentor: 'tia' })).toEqual({ seat: 'p1', mentor: 'tia' });
+  });
+
+  it('with no mentor named, no watcher may ping', () => {
+    expect(routePing(livePingRoom('ann', ['sam'], null), 'sam', ping()).ok).toBe(false);
   });
 });

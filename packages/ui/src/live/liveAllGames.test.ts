@@ -66,7 +66,25 @@ describe('Live Games rows of every kind (R-LIVE-ALL-GAMES-01)', () => {
     const remote = makeLiveRemote(() => client);
     expect(await remote.list(0)).toEqual([{ game_id: 'run-1' }]);
     expect(await remote.list(0)).toEqual([{ game_id: 'run-1' }]);
-    expect(asked.filter((c) => c.includes('players'))).toHaveLength(1);
+    // Each newer column set is tried once (live_host, then mode / players), never again.
+    expect(asked.filter((c) => c.includes('players'))).toHaveLength(2);
+  });
+
+  it('a server with mode / players but not yet live_host (R-LIVE-CF-01) keeps mode / players', async () => {
+    const asked: string[] = [];
+    const q = (cols: string) => {
+      asked.push(cols);
+      const res = cols.includes('live_host') ? { data: null, error: { code: '42703', message: 'column lobby_live_games.live_host does not exist' } } : { data: [{ game_id: 'run-1', mode: 'practice' }], error: null };
+      const chain: Record<string, unknown> = {};
+      for (const k of ['order', 'range', 'eq', 'neq']) chain[k] = () => chain;
+      chain.then = (ok: (v: unknown) => unknown, bad: (e: unknown) => unknown) => Promise.resolve(res).then(ok, bad);
+      return chain;
+    };
+    const remote = makeLiveRemote(() => ({ from: () => ({ select: q }) }) as never);
+    expect(await remote.list(0)).toEqual([{ game_id: 'run-1', mode: 'practice' }]);
+    expect(await remote.list(0)).toEqual([{ game_id: 'run-1', mode: 'practice' }]);
+    expect(asked.filter((c) => c.includes('live_host'))).toHaveLength(1);
+    expect(asked.at(-1)).toContain('players');
   });
 });
 

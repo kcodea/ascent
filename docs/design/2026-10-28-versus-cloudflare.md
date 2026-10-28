@@ -117,6 +117,43 @@ carries its user in its attachment, and on wake the object re-reads storage and 
 - **Duos passing** (`versus_duos_pass` / `answer_pass` / `hand_room`) becomes an op on the room: the room records the
   pass, pushes it to the receiver, and takes the receiver's landed/refused answer, all in memory, in order, with the
   same per-round cap. No RLS-filtered Postgres Changes needed: the room knows who is on which team.
+- **Spectator XP (2026-10-29, R-LIVE-CF-XP-01).** The room is the witness for its stands: every spectator-role member
+  with a socket open is beaten on the room's current match through the key-gated `spectate_cf_beat` (one call for all
+  of them every 30 s, plus one soon after an arrival / departure and one when the match completes; nothing past 45 s
+  after completion). The SQL applies `spectate_beat`'s accrual rule to each beat, so `settle_progression` is unchanged.
+  The spectator's client sends no beat for a Cloudflare room (`markServerRecordedWatch`). `workers/versus/src/spectate.ts`,
+  `core/roomWatch.ts`.
+
+### 6b. Live lobby and Practice games (2026-10-29, R-LIVE-CF-01)
+
+Owner: "build the cloudflare spectating for lobby and practice too so it's all uniform". A solo lobby or Practice game
+is not a room, so it gets its own small object, `VersusLiveGame` (`workers/versus/src/liveGame.ts`, rules in
+`core/liveCore.ts`, wire in `liveProtocol.ts`), on the same Worker (binding `LIVE`, migration tag `v2`), one per game id,
+reached at `GET /live/<game>/ws` with the same bearer-in-subprotocol auth, ping auto-response, rate limit (`rate.ts`,
+shared with the room) and client (`VersusCfClient` with a `path` / `hello` / `onHello`).
+
+- **Roles.** The first account to publish owns the game (only it may publish, list, send its keyframe or end it); up to
+  20 watchers (one socket per account; a reconnect never counts twice). The publisher's hello must carry this Worker's
+  content revision (its row tells watchers which Worker to reach: `live_host: cf:<rev>`).
+- **What travels.** Publisher to object: `listing` (round / phase / hero / mode; answered with the watcher count),
+  `key` (the latest keyframe, kept in MEMORY for a late joiner, never relayed, never in Postgres or storage), `bc`
+  relays (the spectator stream, cursor, emotes), `end`. Object to watchers: the hello (row, keyframe, stands), then `bc`,
+  `row` on a change, `watchers`, and `end`. The publisher gets `watchers` pushes, so it publishes only while someone
+  watches (as on Supabase) with no polling.
+- **End.** On the player's `end` (placement or abandoned), or the player gone 60 s, the object writes the last watch
+  beats (awaited, at most 4 s), THEN pushes `end` to the stands, so the spectator's settlement never races its record.
+  An ended or idle (5 min, nobody connected) object deletes its storage.
+- **Supabase writes, all key-gated (never the service role).** The Live Games row through `lobby_live_cf` (the room's
+  `LiveSlot`, generic now: on a change of round / phase / hero / name / mode plus a 2-minute keep-alive; removed at the
+  end) and the watch record through `spectate_cf_beat`. No heartbeat, broadcast, keyframe, watcher row or watcher poll.
+- **Client.** `packages/ui/src/live/liveCf.ts` (the socket), `livePublisher.ts` (host chosen once per game from the
+  switch's `lobby_live`, falling back to Supabase when the Worker does not answer within 6 s), `liveWatch.ts` (a row
+  with `live_host` is watched on its Worker; a friend's Watch without the row gets `other_host` from Supabase and then
+  reads the row). Spectator end behaviour is unchanged.
+- **Measured** (`packages/ui/src/live/liveCf.test.ts`, a 10-minute game, one watcher): Supabase calls before = 53
+  player RPCs + 1 keyframe write + 11 realtime broadcasts + ~220 watcher RPCs (watch poll every 5 s, fellows read every
+  15 s, `spectate_beat` every 10 s); after = 0 from either client, ~21 Live Games row writes and ~22 watch-record calls
+  from the object (a row write per round phase change, one call per 30 s for ALL watchers).
 
 ## 7. Ranked Duos matchmaking
 
@@ -252,6 +289,8 @@ point given the egress overage noted 2026-10-26.
 | `versus_events` + `versus__event` (R-VERSUS-EVENTS-01) | `CoreEffects.events` → `versus_cf_event` log lines (same kinds); can be mirrored into `versus_events` through the outbox if wanted |
 | `versus_publish_frame` + `versus_spectator_frames` | op `publish_frame` (memory) + `bc` relay |
 | `versus_records`, `settle_progression` (versus branch), `spectate_beat` | stay in Supabase (readers of persisted rows) |
+| `spectate_beat` for a Cloudflare watch (Versus stands, live lobby games) | the object beats its stands through the key-gated `spectate_cf_beat` (same accrual rule) |
+| `lobby_live_heartbeat` / `_publish_frame` / `_watch(_as)` / `_watchers` / `_unwatch` / `lobby_live_frames` (lobby + Practice) | `VersusLiveGame` object (socket ops `listing` / `key` / `end`, `bc` relays, pushed stands) + `lobby_live_cf` for the row |
 | `versus_test_bot_register`, `versus_dev_*` | not ported (dev tools; re-add as DEV-only ops if needed) |
 
 Group (phase 2, PORTED on `feat/versus-cf-group`, `workers/versus/src/core/groupMatch.ts`): the same room, a 3-4 seat

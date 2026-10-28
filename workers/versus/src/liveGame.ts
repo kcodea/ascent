@@ -208,11 +208,15 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
       if (!a.role) { answer(false, 'hello_first'); return; }
       if (op === 'listing') {
         if (a.role !== 'publish') throw new LiveError('not_owner');
+        const was = JSON.stringify(core.meta.info);
         core.listing(a.userId, msg.args, now);
-        await this.saveMeta();
         answer(true, { watchers: core.watchers.size });
-        const row = core.row();
-        if (row) this.toRole('watch', { t: 'row', row });
+        // The player's 15 s refresh usually changes nothing: no storage write, no push.
+        if (JSON.stringify(core.meta.info) !== was) {
+          await this.saveMeta();
+          const row = core.row();
+          if (row) this.toRole('watch', { t: 'row', row });
+        }
         this.syncRow(now);
       } else if (op === 'key') {
         if (a.role !== 'publish') throw new LiveError('not_owner');

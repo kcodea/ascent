@@ -10766,4 +10766,35 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-10-28 (feat/board-backdrops). Before the fix, picking the default texture in the Lab removed the Lab\x27s override, so the Settings pick (Oak) showed instead.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/backdrop.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-LIVE-CF-01',
+    title: 'Lobby and Practice spectating runs on Cloudflare like Versus: one live game object per game, chosen by the switch, a game keeps its host for life',
+    statement:
+      'When the switch `versus_host_config` says `lobby_live: cf` (default supabase) and the build carries its Worker, a NEW live lobby or Practice game publishes to its own Durable Object on the Worker over one WebSocket: the player\x27s listing, keyframe, stream and end go up the socket; up to 20 watchers (one socket per account, a reconnect never counts twice) get the row, the cached keyframe and the stands in the hello, then the stream, the row as it changes, the stands and the end, pushed (nothing polled); emotes, cursors and key requests relay both ways as on Supabase. Only the game\x27s first publisher may publish, list or end it, never watch it. The object writes the Live Games row through the key-gated `lobby_live_cf` (event-driven: on a change plus a 2-minute keep-alive, removed at the end; never the service role) and no frame ever reaches Postgres. The row carries `live_host: cf:<content revision>`, so a watcher reaches that game\x27s Worker, and the Supabase watch refuses it (`other_host`). A game keeps its host for life: flipping the switch moves only new games. A Worker that cannot be reached within 6 s leaves that game on the Supabase path (the heartbeat takes its row back). A player gone 60 s ends the game as abandoned; an idle object forgets itself. Spectator end behaviour is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'build the cloudflare spectating for lobby and practice too so it\x27s all uniform' },
+      { kind: 'code', ref: 'workers/versus/src/liveGame.ts, workers/versus/src/core/liveCore.ts, workers/versus/src/liveProtocol.ts, packages/ui/src/live/liveCf.ts, packages/ui/src/live/livePublisher.ts, packages/ui/src/live/liveWatch.ts, supabase/migrations/2026-11-10-lobby-live-cf.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-28 (feat/cf-live-spectate). Off until the owner applies 2026-11-10-lobby-live-cf.sql, ships a pack with the Worker and flips lobby_live to cf (docs/versus-cf-cutover.md).',
+    example: 'The switch says cf: Ann starts a Practice game and it is listed with live_host cf:<rev>. Bob presses Watch: his screen opens on the object\x27s keyframe and Ann\x27s "Spectating" chip shows him at once. The owner flips lobby_live back: Ann\x27s game stays on Cloudflare to its end; her next game is on Supabase.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveCore.test.ts', 'workers/versus/test/it/live.it.ts', 'workers/versus/test/cfLiveSpectate.db.test.ts', 'packages/ui/src/live/liveCf.test.ts', 'packages/ui/src/live/liveAllGames.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
+  {
+    id: 'R-LIVE-CF-XP-01',
+    title: 'Watching a Cloudflare game earns spectator XP: the object the spectator is connected to writes the watch record',
+    statement:
+      'For every watch on the Cloudflare Worker (a Versus room\x27s stands in any mode, and a live lobby or Practice game) the object the spectator is connected to writes the watch record (`spectate_sessions`) through the key-gated `spectate_cf_beat`: every watcher of the object in ONE call every 30 s, plus one soon after an arrival or a departure and one at the end, which applies the same accrual rule as `spectate_beat` (time accrues only between beats at most 45 s apart on the one game that spectator beat last), so the XP rules and caps of `settle_progression` are unchanged (half a game, watched to the end, at least half the game up to 5 minutes, never your own game). A room beats only members in the spectator role with a socket open, on its current match, and not past 45 s after the match completed. A live game sends its end to the stands only after the final beat was written (or 4 s passed). The spectator\x27s client sends no beat for a Cloudflare watch and settles on the object\x27s record. Before this, watching a Cloudflare match earned nothing (Supabase held no membership row to check).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'build the cloudflare spectating for lobby and practice too so it\x27s all uniform' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-24 (the XP rule this keeps)', quote: 'watching a player\x27s game rewards 50% of the xp at the end of the match' },
+      { kind: 'code', ref: 'workers/versus/src/spectate.ts, workers/versus/src/core/roomWatch.ts, workers/versus/src/room.ts (syncWatch), workers/versus/src/liveGame.ts (finish), packages/ui/src/live/spectatorEnd.ts (markServerRecordedWatch), packages/ui/src/versus/versusStore.ts, supabase/migrations/2026-11-10-lobby-live-cf.sql' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-28 (feat/cf-live-spectate). Needs 2026-11-10-lobby-live-cf.sql applied and a Worker deployed with PERSIST on and its writer key registered.',
+    example: 'Cat watches a Cloudflare 1v1 from round 2 to the end (8 minutes of a 12-minute match): the room beats her every 30 s, once more at the end; her settlement finds 8 minutes on the record and pays half a game.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveCore.test.ts', 'workers/versus/test/cfLiveSpectate.db.test.ts', 'workers/versus/test/it/live.it.ts', 'packages/ui/src/live/liveCf.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

@@ -9,8 +9,9 @@ import { ownSeatPerspective, VERSUS_PROTOCOL, type RankResult, type HeroReroll, 
 import type { BoardMinion, CombatResult } from '@game/core';
 import { supabaseClient } from '../remoteBoards';
 import { currentUserId, setIdentity } from '../identity';
-import { makeCfVersusRemote, versusCfDevUrl, versusCfSelected } from './versusCfRemote';
-import { devRouteOverride, embeddedCfUrl, encodeRoomRef, makeHostConfigReader, makeRoomHostMemory, type VersusHost } from './versusHost';
+import { makeCfVersusRemote, versusCfDevUrl, versusCfLiveUrl, versusCfSelected } from './versusCfRemote';
+import { devLobbyLiveOverride, devRouteOverride, embeddedCfUrl, encodeRoomRef, makeHostConfigReader, makeRoomHostMemory, type VersusHost } from './versusHost';
+import { contentRevision } from '@game/content';
 import { makeRoutedVersusRemote, type RoutedVersusRemote } from './versusRouter';
 
 export type VersusRoomStatus = 'open' | 'sealed' | 'in_game';
@@ -885,7 +886,9 @@ export interface DuosTeamOfRow { teamId: string; name: string | null; partner: D
  */
 const devCf = versusCfSelected();
 const devRoute = devRouteOverride();
-const cfUrl = devCf || devRoute ? versusCfDevUrl() : embeddedCfUrl(import.meta.env.VITE_VERSUS_CF_URL);
+// `?versusRoute=lobby_live:cf` alone (a dev tab trying live games on the Worker) also points the build at the dev Worker.
+const devLive = devLobbyLiveOverride();
+const cfUrl = devCf || devRoute || devLive ? versusCfDevUrl() : embeddedCfUrl(import.meta.env.VITE_VERSUS_CF_URL);
 /** The per-mode switch (`versus_host_config()`, 2026-11-05-versus-host-config.sql): one tiny jsonb, cached 30 s. */
 const hostConfig = makeHostConfigReader(async () => {
   const c = supabaseClient();
@@ -919,3 +922,23 @@ export type { VersusHost };
 export const versusRoomRef = (room: Pick<VersusRoom, 'id' | 'host'>): string => encodeRoomRef(room.id, room.host ?? versusRemote.hostOf(room.id));
 // The switch is read once at launch when this build can reach Cloudflare (never otherwise: no egress added).
 if (cfUrl) void versusRemote.warmConfig();
+
+/**
+ * LIVE GAMES ON CLOUDFLARE (R-LIVE-CF-01): the Worker a NEW live lobby / Practice game publishes to, or null (Supabase).
+ * Cloudflare only when this build carries its own Worker and the switch's `lobby_live` says so (a dev tab:
+ * `?versusRoute=lobby_live:cf`, or `?versusHost=cf` for everything). Synchronous: the switch as last read (it is read at
+ * launch), so a game's start is never held up by a network call.
+ */
+export function lobbyLivePublishUrl(): string | null {
+  if (!cfUrl) return null;
+  const host = devCf ? 'cf' : devLive ?? hostConfig.peekLobbyLive();
+  return host === 'cf' ? cfUrl : null;
+}
+
+/** The Worker that hosts a game whose row says `cf:<content revision>`: this build's own Worker for its own engine (or a
+ *  dev tab's pick), else the deployed Worker named after that engine. */
+export function lobbyLiveWatchUrl(liveHost: string): string {
+  const rev = liveHost.startsWith('cf:') ? liveHost.slice(3) : liveHost;
+  if (cfUrl && (devCf || devRoute || devLive || rev === contentRevision())) return cfUrl;
+  return versusCfLiveUrl(rev);
+}

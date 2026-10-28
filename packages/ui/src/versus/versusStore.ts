@@ -42,6 +42,7 @@ import { duosAfterRun, duosPull, duosReset } from './duosPasses';
 import { versusOptionsSummary } from './versusOptionsUi';
 import { heroSelectFrame, newPublisher, nextHeroSelectMessage, nextSpectatorMessage, type HeroSelectFrame, type SpectatorPublisher } from './spectatorView';
 import { useOwnHeroPick } from '../hero-select/ownHeroPick';
+import { markServerRecordedWatch } from '../live/spectatorEnd';
 import { installSpectateIo, leaveTeammate, leaveTeammateHero, ownRunWhileWatching, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, trackDuosMatch, useSpectate } from './spectate';
 import { othersInStands, setWatchers, type Watcher } from './watchers';
 import { combatBeatFor, hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs, takeOdds, takeOverlay } from './spectateTap';
@@ -868,6 +869,8 @@ async function onMatch(match: VersusMatch): Promise<void> {
       const rec = groupRecord(get().lastMatch?.myCosmetics ?? null);
       if (rec) set({ lastMatch: rec });
     }
+    // A Cloudflare room writes its stands' watch record itself (R-LIVE-CF-XP-01): this spectator sends no beat for it.
+    if (match.room_id && versusRemote.hostOf(match.room_id) === 'cf') markServerRecordedWatch(match.group ? 'group' : 'versus', match.id);
     spectateSync(match, get().rounds);
     return;
   }

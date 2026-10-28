@@ -14,14 +14,16 @@
  * one key per job so a large round never makes one huge value) and drained in order by the alarm, with exponential
  * backoff; a failed job never blocks the game, only the write behind it.
  *
- * The key is the service role today (a Worker secret, `SUPABASE_SERVICE_ROLE_KEY`). The design doc recommends a
- * dedicated Postgres role limited to INSERT/UPDATE on these two tables, reached through a narrow RPC.
+ * The writer is the limited RPC `versus_cf_persist` (see SupabaseRpcSink), never the service role.
  */
 import type { PersistJob } from './core/roomCore';
 
 export interface PersistEnv {
   SUPABASE_URL?: string;
-  SUPABASE_SERVICE_ROLE_KEY?: string;
+  /** The project's publishable (anon) key: public, a plain var. */
+  SUPABASE_ANON_KEY?: string;
+  /** The writer secret (a Worker secret). Its sha256 is the only row of `versus_cf_writer_keys`. */
+  VERSUS_WRITER_SECRET?: string;
   PERSIST?: string;
 }
 
@@ -30,7 +32,7 @@ export interface PersistSink {
   write(job: PersistJob): Promise<void>;
 }
 
-/** The spike's default: nothing leaves the machine; the jobs are kept (capped) for tests and the measurement script. */
+/** Persistence off: nothing leaves the Worker; the jobs are kept (capped) for tests and the measurement script. */
 export class LocalSink implements PersistSink {
   readonly live = false;
   readonly written: PersistJob[] = [];
@@ -40,28 +42,29 @@ export class LocalSink implements PersistSink {
   }
 }
 
-export class SupabaseRestSink implements PersistSink {
+/**
+ * The limited writer (owner ruling 2026-10-28: never the service role): ONE RPC, `versus_cf_persist`
+ * (supabase/migrations/2026-11-04-versus-cf-writer.sql), called with the publishable key and gated by the writer secret.
+ * It can only upsert a Cloudflare 1v1 match and insert its rounds; both are idempotent, so a retry is harmless.
+ */
+export class SupabaseRpcSink implements PersistSink {
   readonly live = true;
-  constructor(private readonly url: string, private readonly key: string) {}
+  constructor(private readonly url: string, private readonly anonKey: string, private readonly secret: string) {}
 
   async write(job: PersistJob): Promise<void> {
-    const [table, conflict] = job.kind === 'match' ? ['versus_matches', 'id'] : ['versus_rounds', 'match_id,round'];
-    const res = await fetch(`${this.url.replace(/\/$/, '')}/rest/v1/${table}?on_conflict=${conflict}`, {
+    const res = await fetch(`${this.url.replace(/\/$/, '')}/rest/v1/rpc/versus_cf_persist`, {
       method: 'POST',
-      headers: {
-        apikey: this.key,
-        Authorization: `Bearer ${this.key}`,
-        'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates,return=minimal',
-      },
-      body: JSON.stringify(job.row),
+      headers: { apikey: this.anonKey, Authorization: `Bearer ${this.anonKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_key: this.secret, p_kind: job.kind, p_row: job.row }),
     });
-    if (!res.ok) throw new Error(`persist ${table} ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    if (!res.ok) throw new Error(`persist ${job.kind} ${res.status}: ${(await res.text()).slice(0, 200)}`);
   }
 }
 
 export function sinkFor(env: PersistEnv): PersistSink {
-  if (env.PERSIST === '1' && env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) return new SupabaseRestSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  if (env.PERSIST === '1' && env.SUPABASE_URL && env.SUPABASE_ANON_KEY && env.VERSUS_WRITER_SECRET) {
+    return new SupabaseRpcSink(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, env.VERSUS_WRITER_SECRET);
+  }
   return new LocalSink();
 }
 

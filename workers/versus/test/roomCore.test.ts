@@ -21,7 +21,8 @@ import {
   VERSUS_PROTOCOL,
 } from '@game/sim/versus/server';
 import { versusFightDigest } from '@game/sim';
-import { DISCONNECT_GRACE_MS, newRoomState, RoomCore, SHOP_GRACE_MS, turnSeconds, type CoreEffects, type CoreState } from '../src/core/roomCore';
+import { originAllowed } from '../src/origins';
+import { DISCONNECT_GRACE_MS, newRoomState, ROOM_IDLE_MS, RoomCore, SHOP_GRACE_MS, turnSeconds, type CoreEffects, type CoreState } from '../src/core/roomCore';
 import { stateFromEntries, valueOfKey } from '../src/core/storage';
 
 interface Case { name: string; matchSeed: number; round: number; p1: PreparedCombatSide; p2: PreparedCombatSide }
@@ -417,5 +418,35 @@ describe('Versus Room (Cloudflare) — PARITY with simulate()', () => {
       expect(row.digest, c.name).toBe(versusFightDigest(reference));
       expect(row.outcome, c.name).toBe(reference.outcome);
     }
+  });
+});
+
+describe('Versus Room (Cloudflare) — guards', () => {
+  it('a room with no match running and no request for 30 minutes closes itself (its alarm stops)', async () => {
+    const h = new Harness();
+    h.core.connect(U1, h.now);
+    await h.op(U1, 'set_options', { options: { v: 1, mode: 'duel', modifiers: [] } });
+    expect(h.core.nextAlarm(h.now)).toBe(h.now + ROOM_IDLE_MS);
+    await h.advance(ROOM_IDLE_MS);
+    expect(h.core.state.room.closed).toBe(true);
+    expect(h.core.state.room.members).toHaveLength(0);
+    expect(h.core.nextAlarm(h.now)).toBeNull();
+  });
+
+  it('a running match never idles out', async () => {
+    const h = await inShop();
+    await h.advance(ROOM_IDLE_MS);
+    expect(h.core.state.room.closed).toBe(false);
+  });
+
+  it('origins: the Netlify site and local dev only', () => {
+    const list = 'https://*.netlify.app,http://localhost:*,http://127.0.0.1:*';
+    expect(originAllowed('https://ascent-game.netlify.app', list)).toBe(true);
+    expect(originAllowed('http://localhost:5173', list)).toBe(true);
+    expect(originAllowed('http://127.0.0.1:5291', list)).toBe(true);
+    expect(originAllowed('https://evil.example.com', list)).toBe(false);
+    expect(originAllowed('https://netlify.app.evil.com', list)).toBe(false);
+    expect(originAllowed('https://a.b.netlify.app', list)).toBe(false);
+    expect(originAllowed(null, list)).toBe(true);
   });
 });

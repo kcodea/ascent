@@ -58,6 +58,18 @@ interface RoomMetrics {
 
 export const INTERNAL_USER_HEADER = 'X-Versus-User';
 
+/**
+ * PER-SOCKET RATE LIMIT (a token bucket per socket, in memory: a wake resets it, which only ever errs generous).
+ * Requests: 20/s sustained, bursts of 40 (a shop turn sends one candidate per board change). Relays (spectator frames,
+ * cursors, emotes): 60/s, bursts of 120. Over the limit a frame is dropped (a request answers `rate_limited`); a socket
+ * that keeps flooding (over the limit 200 times) is closed with 1008. Frames over 1.5 MB are refused outright (a full
+ * submit with its checkpoint is ~1.3 MB at most).
+ */
+const RATE = { req: { per: 20, burst: 40 }, bc: { per: 60, burst: 120 } } as const;
+const MAX_FRAME_CHARS = 1_500_000;
+const FLOOD_CLOSE_AFTER = 200;
+interface Bucket { req: number; bc: number; at: number; over: number }
+
 const uuid = (): string => crypto.randomUUID();
 const random31 = (): number => crypto.getRandomValues(new Uint32Array(1))[0] >>> 1;
 
@@ -68,6 +80,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
   private outboxSeq = 0;
   private outboxAttempt = 0;
   private outboxRetryAt: number | null = null;
+  private readonly buckets = new WeakMap<CfWebSocket, Bucket>();
   private readonly metrics: RoomMetrics = { msgsIn: 0, msgsOut: 0, bytesIn: 0, bytesOut: 0, resolveMs: [], alarms: 0, wakes: 0 };
 
   constructor(ctx: DurableObjectState, env: RoomEnv) {
@@ -181,8 +194,13 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     this.metrics.msgsIn += 1;
     this.metrics.bytesIn += text.length;
     if (text === VERSUS_CF_PING) { this.send(ws, VERSUS_CF_PONG); return; } // (only when awake; asleep, the runtime answers)
+    if (text.length > MAX_FRAME_CHARS) { try { ws.close(1009, 'too_big'); } catch { /* gone */ } return; }
     const msg = parseClientMessage(text);
     if (!msg) return;
+    if (!this.allow(ws, msg.t === 'bc' ? 'bc' : 'req')) {
+      if (msg.t === 'req') this.send(ws, JSON.stringify({ t: 'res', id: msg.id, ok: false, error: 'rate_limited', now: new Date().toISOString() }));
+      return;
+    }
     const a = this.att(ws);
     if (msg.t === 'bc') {
       if (!a.hello) return;
@@ -235,6 +253,21 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       await this.drainOutbox();
       await this.rearm();
     }
+  }
+
+  /** Take one token of `kind` from this socket's bucket. */
+  private allow(ws: CfWebSocket, kind: 'req' | 'bc'): boolean {
+    const now = Date.now();
+    const b = this.buckets.get(ws) ?? { req: RATE.req.burst, bc: RATE.bc.burst, at: now, over: 0 };
+    const dt = (now - b.at) / 1000;
+    b.req = Math.min(RATE.req.burst, b.req + dt * RATE.req.per);
+    b.bc = Math.min(RATE.bc.burst, b.bc + dt * RATE.bc.per);
+    b.at = now;
+    this.buckets.set(ws, b);
+    if (b[kind] >= 1) { b[kind] -= 1; return true; }
+    if (++b.over >= FLOOD_CLOSE_AFTER) { try { ws.close(1008, 'rate_limited'); } catch { /* gone */ } }
+    this.log({ ev: 'versus_cf_rate_limited', user: this.att(ws).userId, kind, over: b.over });
+    return false;
   }
 
   // ── Requests ───────────────────────────────────────────────────────────────────────────────────────────────────

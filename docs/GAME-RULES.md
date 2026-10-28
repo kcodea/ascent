@@ -1275,6 +1275,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   above 0:00 to take the signal back. The 0:00 rules are unchanged: from 0:00 no shopping (re-order, freeze and the
   teammate view stay open) and the signal stands. A double click is one press. The round closes when everyone is ready
   (or by the mode's clock rule), and only then is the shop held while the fight comes.
+- **The gem is a Ready toggle in every live game** (owner 2026-10-27; R-VERSUS-READY-02: Versus 1v1, Group, Duos and
+  Ranked Duos; the solo lobby is unchanged). Not ready, it reads "Ready up". Ready above 0:00, it stays lit under a
+  green glow with "Ready N/M. Press again to cancel". From 0:00 the signal stands ("Players ready N/M"; Ranked Duos names
+  the teammate: "Waiting for Lemon", "Lemon is ready"). The spent, cracked gem means the round has closed and the fight
+  is coming. **The End of Turn starts at the close** (R-VERSUS-EARLY-EOT-01): your End of Turn effects play while the
+  server settles the round, and the fight opens as soon as it is in.
 - **Spectating a Duos match.** The fight picker lists the players by team ("Team 1", "Team 2"), and a watched player's
   screen shows the hand-off from their side: the opponent slot follows the boards, and the teammate tags in beside the
   watched player's hero.
@@ -1356,9 +1362,11 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **End Turn** (owner: "the game will still halt/not progress into combat, and back to shop, until both players hit
   their end turn/combat gem"). End Turn is a ready signal, not a lock, exactly as in Versus (R-VERSUS-READY-01): you
   keep playing after it, the board that fights is your board when the round closes, and pressing the gem again above
-  0:00 takes it back (the 5 s windows below count from your first ready). Both ended: the round goes at once. One ended with time left: it waits for the other
-  until 0:00, then the other has 5 seconds. Neither ended at 0:00: it waits until one ends, then the other has 5
-  seconds (or it goes at once when both have). From 0:00 you cannot shop (buy, sell, roll, play, tier up, hero power),
+  0:00 takes it back. The round goes when BOTH teammates are ready, at once, whatever the clock says. Past 0:00 it waits
+  for both: there is no countdown after the first End Turn (owner 2026-10-27: "in duos, don't do the 5s timer when a
+  player readies at 0 seconds. make it so both players must ready up to progress it"; R-RANKED-DUOS-GATE-02; until then
+  the first End Turn at 0:00 started a 5 s window). A teammate who disconnects (12 s without a heartbeat) or left counts
+  as ready. From 0:00 you cannot shop (buy, sell, roll, play, tier up, hero power),
   but you can re-order and freeze your board and view your teammate's board (owner: "same as the normal mode when you
   have no time left"). If neither ends within 30 seconds of 0:00 the round goes anyway (an idle safeguard).
 - **Disconnects and leaving.** A teammate who drops or leaves has their last locked board fight for them on auto; the

@@ -126,7 +126,7 @@ import { attemptBugReportUpload, enqueueBugReport, flushBugReportQueue, initBugR
 import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug-report/bugReportTypes';
 import { parseBugScenario } from './bug-report/bugScenario';
 import { spectatorTapOn, tapAct, tapEndTurn } from './versus/spectateTap';
-import { versusAction, versusAfterCommit, versusFreeze, versusLand, versusRefuses } from './versus/versusHooks';
+import { holdUntilVersusFight, versusAction, versusAfterCommit, versusFreeze, versusLand, versusRefuses } from './versus/versusHooks';
 import { HALL_VISIBLE } from './hallFlag';
 
 
@@ -2544,6 +2544,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // telemetry) or fights the player. The combat ARENA still animates (it reacts to `run`, not to dispatch).
     if (get().replaying) return;
     if (versusRefuses(get().run, action)) return; // VERSUS: a paused match (or a held shop) takes no input
+    // VERSUS (R-VERSUS-EARLY-EOT-01): an End Turn started at the round's close commits once its fight is in.
+    if (holdUntilVersusFight(get().run, action, () => get().dispatch(action))) return;
     action = versusAction(get().run, action); // VERSUS: End Turn parks the side for the server
     // The run BEFORE the action — the tutorial bus reads it to resolve a buy/play/sell uid back to its cardId
     // (the card is gone from the committed run). Captured only to hand to the bus; the reducer never sees it.
@@ -2635,6 +2637,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
     if (s.replaying) return; // REPLAY VIEWER: same guard as prepare — nothing commits against a synthetic run
     const tx = s.presentationTx;
     if (!tx) return;
+    // VERSUS (R-VERSUS-EARLY-EOT-01): End Turn started at the round's close; its commit lands the fight, so it waits for it.
+    if (holdUntilVersusFight(s.run, tx.action, () => get().commitPresentationAction())) return;
     const prev = s.run; // the run BEFORE this commit — for the tutorial bus, same as `dispatch`
     set({ presentationTx: null }); // cleared FIRST, so a re-entrant call can't commit twice
     set((st) => commitResolvedAction(st, tx.action, tx.after, tx.batch, import.meta.env.DEV, set));

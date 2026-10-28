@@ -9384,9 +9384,9 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-RANKED-DUOS-GATE-01',
-    title: 'Ranked Duos: the round waits for both End Turns; 0:00 + 5 s once one has ended; shopping stops at 0:00',
+    title: 'Ranked Duos: the round waits for both End Turns (no 5 s window since 2026-10-27, R-RANKED-DUOS-GATE-02); shopping stops at 0:00',
     statement:
-      'In Ranked Duos the shop clock never stops and there is no Gold Fuse. The round goes to combat at once when both live teammates have ended their turn. If one has ended, the other has until 0:00 and then 5 more seconds. If neither has ended at 0:00 the game waits; the first End Turn then gives the other 5 seconds (or the round goes at once when both have ended). From 0:00 nobody can buy, sell, roll, play, tier up or use the hero power, but re-ordering and freezing the board and viewing the teammate stay open until the round goes. A teammate who is disconnected or has left counts as ended. If neither ends within 30 seconds of 0:00 the round goes anyway (an idle safeguard).',
+      'In Ranked Duos the shop clock never stops and there is no Gold Fuse. The round goes to combat at once when both live teammates have ended their turn. Past 0:00 it waits for both (amended 2026-10-27 by R-RANKED-DUOS-GATE-02: there is no longer a 5 second window after the first End Turn). From 0:00 nobody can buy, sell, roll, play, tier up or use the hero power, but re-ordering and freezing the board and viewing the teammate stay open until the round goes. A teammate who is disconnected or has left counts as ended. If neither ends within 30 seconds of 0:00 the round goes anyway (an idle safeguard).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -9395,7 +9395,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/versus/rankedDuos.ts (rankedDuosCloseAt); supabase/migrations/2026-10-29-ranked-duos.sql (versus_ranked_duos__close_at, versus_ranked_duos_submit, versus_ranked_duos_reconcile)' },
     ],
     currentBehaviour: 'Server built 2026-10-26 (feat/ranked-duos, P1). The client clock and the shop refusal at 0:00 come with phase 2.',
-    example: 'The clock reads 0:00 and Lemon has not ended; Kevin presses End Turn at 0:00 + 12 s. Lemon can still re-order for 5 seconds, then the round goes to combat with her board as it stands.',
+    example: 'The clock reads 0:00 and Lemon has not ended; Kevin presses End Turn at 0:00 + 12 s. Lemon can still re-order; the round goes to combat when she presses End Turn too (or at 0:00 + 30 s).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuos.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
   {
@@ -10150,5 +10150,62 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (verified 2026-10-27, fix/versus-health-armor-sync); no behaviour change was needed.',
     example: 'Round 1 of Duos: Bob bought nothing. His teammate Cat\x27s board fights first; Ann\x27s first board wipes it, Bob has nothing to step in, so Ann\x27s team wins and Ann\x27s teammate never fights.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusEmptyBoards.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-RANKED-DUOS-GATE-02',
+    title: 'Ranked Duos: at 0:00 the round progresses only when BOTH teammates are ready (no 5 s window); a dropped teammate counts as ready; the 30 s AFK backstop stays',
+    statement:
+      'In Ranked Duos the round goes to combat when both live teammates are ready (End Turn), at once, whatever the clock says. Past 0:00 with only one '
+      + 'ready the game waits for the other: there is no 5 second window after the first End Turn any more, and the clock face stays at 0:00. A teammate '
+      + 'who disconnects goes on auto after the 12 s lease and counts as ready; a teammate who left counts as ready. The 30 s idle backstop past 0:00 '
+      + 'still closes the round if a connected teammate never presses. Versus Duos, Versus Group and 1v1 are unchanged: their round closes at 0:00 for '
+      + 'everyone (the opponent force-progress).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27', quote: 'in duos, don\x27t do the 5s timer when a player readies at 0 seconds. make it so both players must ready up to progress it.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27', quote: 'versus modes still need the opponent force progress so the game doesn\x27t wait for opponents for too long' },
+      { kind: 'code', ref: 'packages/sim/src/versus/rankedDuos.ts (rankedDuosCloseAt); supabase/migrations/2026-11-02-ranked-duos-both-ready.sql (versus_ranked_duos__close_at); packages/ui/src/versus/VersusHud.tsx (no grace countdown)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (fix/duos-ready-toggle-and-hang). Before, the first End Turn at or after 0:00 started a 5 s countdown and the round went without the other teammate.',
+    example: 'The clock hits 0:00. Kevin pressed End Turn at 0:12; Lemon is still re-ordering. Nothing happens until Lemon presses End Turn at 0:00 + 9 s, then the round goes at once.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuos.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts', 'packages/ui/src/versus/rankedDuosView.test.ts', 'packages/sim/src/versus/versusLockOrder.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-READY-02',
+    title: 'Live games (Versus 1v1 / Group / Duos, Ranked Duos): the End Turn gem reads as a Ready toggle',
+    statement:
+      'In a live game the End Turn gem is a Ready toggle. Not ready: its label reads "Ready up" (with how many others are ready when any are). Ready while '
+      + 'the clock is above 0:00: the gem stays lit under a steady green ready glow (an opacity-only breathing loop) and its pill reads "Ready N/M. Press '
+      + 'again to cancel"; a press takes it back. From 0:00 the signal stands (pill "Players ready N/M"); in Ranked Duos past 0:00 the pills name the '
+      + 'teammate ("Waiting for Lemon", "Lemon is ready"). Once the round closes the gem shows the spent crack: the fight is coming. Solo lobby End Turn '
+      + 'is unchanged. The Ranked Duos teammate name now reaches the pills on screen (the turn hook used to drop it).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27', quote: 'when a player hits their end turn gem, they should be able to un-ready it. maybe we modify the end turn gem for \x27live\x27 games where it is a \x27ready\x27 status that the player can toggle on/off.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusTurn.ts (versusTurnNote opts, versusReadyLabel); packages/ui/src/versus/VersusHud.tsx (useVersusTurn, gemLabel); packages/ui/src/EndTurnButton.tsx (label, readyOn); packages/ui/src/styles.css (.readyon, .etb-readyglow)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (fix/duos-ready-toggle-and-hang). Before, a ready player saw the same spent, cracked gem as a closed round, so it did not read as something to press again.',
+    example: 'Ann presses the gem at 0:31: it stays bright with a green glow and reads "Ready 1/4. Press again to cancel". She presses again at 0:20: it is back to "Ready up".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/endTurnReadyToggle.test.tsx', 'packages/ui/src/versus/versusTurn.test.ts', 'packages/ui/src/versus/rankedDuosView.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-EARLY-EOT-01',
+    title: 'Versus: End Turn (End of Turn beats) starts the moment the round closes, while the resolver settles it; its commit waits for the fight',
+    statement:
+      'In every Versus mode the real End Turn starts as soon as the server closes the round (`resolving`), not after the fight comes back from the '
+      + 'resolver. The End of Turn beats play during that wait. The commit that lands the fight is held until the round\x27s fight is in, with the board '
+      + 'exactly as the beats left it, so the combat screen never opens without this round\x27s fight. A held commit never outlives its match. A '
+      + 'spectator\x27s held End of Turn waits up to 12 s (was 4 s) for the watched player\x27s next view.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27', quote: 'going back to shop from combat is very quick, but going into combat from shop seems to hang?' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusHooks.ts (holdUntilVersusFight, releaseVersusFightWait); packages/ui/src/versus/versusStore.ts (driveRun); packages/ui/src/store.ts (dispatch, commitPresentationAction); packages/ui/src/Recruit.tsx (End of Turn completion)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (fix/duos-ready-toggle-and-hang). Before, the End of Turn beats started only after the resolver answered (about 2 s), so their time added to the wait.',
+    example: 'Both teams ready. Ann has two End of Turn minions: their beats play while the server settles the round, and the fight opens as soon as it is in.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusEarlyEot.test.ts'], lastVerifiedAt: '2026-10-27' },
   },
 ];

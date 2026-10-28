@@ -12,7 +12,7 @@
 import { DuosMateDock } from './DuosMateDock';
 import { DuosOrderPlate } from './DuosOrderPlate';
 import { TeammateFrame, useTeammateViewKeys } from './teammateView';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RunState } from '@game/sim';
 import { useGame } from '../store';
 import { standardTurnSeconds, turnClock } from '../turnClock';
@@ -22,11 +22,10 @@ import { expireVersusShop, lockTurn, unreadyTurn, mySeat, rereadVersusMatch, res
 import { ownRunWhileWatching, useSpectate } from './spectate';
 import { VERSUS_LEASE_SECONDS } from '@game/sim';
 import { sfx } from '../sfx';
-import { versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, versusTurnReady, type VersusTurn } from './versusTurn';
+import { versusReadyLabel, versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, versusTurnReady, type VersusTurn } from './versusTurn';
 import { markFlow } from './flowTiming';
 import { SpectatorBar } from './SpectatorBar';
 import { useDuosLivePublisher } from './duosLive';
-import { isRankedDuosRaw, rankedCloseIso, rankedSomeoneEnded } from './rankedDuosView';
 import { emitPressCue } from '../pressCue';
 import './versus.css';
 
@@ -35,16 +34,14 @@ function turnOf(st: Pick<VersusState, 'match' | 'lockedRound' | 'readyRound'>, r
   return versusTurn({ match: st.match, seat: mySeat(st.match), lockedRound: st.lockedRound, readyRound: st.readyRound, run, now: versusServerNow() });
 }
 
-/** The turn state as a hook: re-renders only when the kind or the ready count changes. A stale row is re-read. */
+/** The turn state as a hook: re-renders only when the kind or the ready count changes. A stale row is re-read. The key
+ *  carries every field, the teammate's name included (it used to drop `mate`, so the Ranked Duos pills never named
+ *  them on screen, R-VERSUS-READY-02). */
 function useVersusTurn(run: Pick<RunState, 'mode' | 'phase' | 'wave'>): VersusTurn {
-  const key = useVersus((s) => { const t = turnOf(s, run); return `${t.kind}|${t.ready ?? ''}|${t.stale ? 1 : 0}|${t.deadline ?? ''}|${t.of ?? ''}`; });
-  const [kind, ready, stale, deadline, of] = key.split('|');
-  useEffect(() => { if (stale === '1') rereadVersusMatch(); }, [stale, key]);
-  return {
-    kind: kind as VersusTurn['kind'], ...(ready ? { ready: Number(ready) } : {}), ...(stale === '1' ? { stale: true as const } : {}),
-    ...(deadline ? { deadline: Number(deadline) } : {}),
-    ...(of ? { of: Number(of) } : {}),
-  };
+  const key = useVersus((s) => JSON.stringify(turnOf(s, run)));
+  const turn = useMemo(() => JSON.parse(key) as VersusTurn, [key]);
+  useEffect(() => { if (turn.stale) rereadVersusMatch(); }, [turn.stale, key]);
+  return turn;
 }
 
 /** Whole seconds until `ms` (server time), ticking while `on`. */
@@ -65,7 +62,7 @@ function useSecondsUntil(ms: number | undefined, on: boolean): number {
  * Recruit's Versus seam. `endTurn` is Recruit's stable End Turn; `endCombat` its End Combat (the fight's exit).
  * `readyNote` is the End Turn / End Combat gem's pill; `gemLocked` says the gem is spent while this player waits.
  */
-export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: () => void): { intercept: () => boolean; readyNote: string | null; gemLocked: boolean; gemReady: boolean; clockQuiet: boolean } {
+export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: () => void): { intercept: () => boolean; readyNote: string | null; gemLocked: boolean; gemReady: boolean; gemLabel: string | null; clockQuiet: boolean } {
   const versus = run.mode === 'versus';
   const endTurnWave = useVersus((s) => s.endTurnWave);
   const match = useVersus((s) => s.match);
@@ -99,12 +96,8 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
   // whose clock has not started (the other player is not back yet, or round 1 before both intros) shows its full turn.
   const deadline = match?.shop_deadline ?? null;
   const pausedAt = match?.paused_at ?? null;
-  // RANKED DUOS (owner 2026-10-26, R-RANKED-DUOS-GATE-01): past 0:00 the round waits for the End Turns; once a teammate
-  // has ended, the clock face counts the last 5 seconds down to the close (`closeAt`). Before anyone ends it reads 0:00.
-  const graceAt = useVersus((s) => {
-    const raw = s.match?.group?.raw;
-    return raw && isRankedDuosRaw(raw) && rankedSomeoneEnded(raw) ? rankedCloseIso(raw) : null;
-  });
+  // RANKED DUOS (R-RANKED-DUOS-GATE-02, owner 2026-10-27: "don't do the 5s timer when a player readies at 0 seconds"):
+  // past 0:00 the round waits for both teammates to be ready, so the clock face simply stays at 0:00 (no countdown).
   const live = versus && match?.phase === 'shop' && match.round === run.wave && !!deadline;
   // QUIET AFTER END TURN (owner 2026-10-16, R-VERSUS-TIMER-FX-01): the player on screen ended the turn early and waits
   // on the other one, so the clock's sounds stop and the charge glyph fades, as a lobby End Turn does. The clock face
@@ -149,20 +142,13 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
     let id = 0;
     const update = (): void => {
       const remaining = pausedAt ? end - Date.parse(pausedAt) : (versusShopRemainingMs(deadline) ?? 0);
-      const grace = !pausedAt && remaining <= 0 && graceAt ? versusShopRemainingMs(graceAt) ?? 0 : null;
-      if (grace != null) {
-        // The 5 s window (Ranked Duos): the same face, counting to the close; no explosion, the 0:00 already played.
-        driveVersusClock({ key: `${key}|grace`, remainingMs: Math.max(0, grace), moving: true, explode: false, quiet: quietRef.current, announceWave: null });
-      } else {
-        driveVersusClock({ key, remainingMs: remaining, moving: !pausedAt, explode: true, quiet: quietRef.current, announceWave: useGame.getState().replaying ? null : run.wave });
-      }
+      driveVersusClock({ key, remainingMs: remaining, moving: !pausedAt, explode: true, quiet: quietRef.current, announceWave: useGame.getState().replaying ? null : run.wave });
       if (!pausedAt && shopClockAt(remaining).locked) expireVersusShop();
       if (!pausedAt && remaining > 0) id = window.setTimeout(update, nextObserveMs(remaining));
-      else if (grace != null && grace > 0) id = window.setTimeout(update, nextObserveMs(grace));
     };
     update();
     return () => { window.clearTimeout(id); turnClock.hold(performance.now()); };
-  }, [versus, live, deadline, pausedAt, graceAt, run.phase, run.wave, match?.round, match?.id]);
+  }, [versus, live, deadline, pausedAt, run.phase, run.wave, match?.round, match?.id]);
   return {
     intercept: () => {
       if (!versus) return false;
@@ -175,10 +161,14 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
       void lockTurn();
       return true;
     },
-    readyNote: versus ? versusTurnNote(turn, secondsLeft) : null,
+    // LIVE READY (R-VERSUS-READY-02): while the clock is above 0:00 the ready pill says a press takes it back; past 0:00
+    // in Ranked Duos (the round waits for both teammates) it names the teammate.
+    readyNote: versus ? versusTurnNote(turn, secondsLeft, { cancellable: !run.shopClockExpired, overtime: !!run.shopClockExpired }) : null,
     // Ready stays pressable (to un-ready) until 0:00; from 0:00 the signal stands, so the gem is spent.
     gemLocked: versus && (versusTurnLocksGem(turn) || (versusTurnReady(turn) && !!run.shopClockExpired)),
     gemReady: versus && versusTurnReady(turn),
+    // The gem's hover label while I am not ready: a live game's End Turn reads as a READY toggle.
+    gemLabel: versus ? versusReadyLabel(turn) : null,
     clockQuiet: versus && clockQuiet,
   };
 }

@@ -18,6 +18,10 @@ Owner ruling 2026-10-28: "move to cheap storage, keep all". `run_telemetry.repla
 - **Backfill**: `npm run replays:backfill` (service-role key from the untracked root `.env`): `replay::text` -> gzip ->
   upload `<uid>/rt-<id>.json.gz` -> download -> byte-equal + gunzip-equal -> records sha256/bytes on the row.
   `--dry-run`, `--max N`, `--restore` (writes Storage-only replays back, sha-checked).
+  Fix (same day, first production dry run): a page of five `replay::text` rows hit PostgREST's 8 s statement timeout
+  (57014). The tool now lists pending ids with a query that never reads the replay, then reads ONE replay per request
+  (the largest takes ~0.27 s on production), and retries every request with backoff (1, 2, 4 s) on a timeout, 5xx or
+  network error; a dry run reads no replay at all.
 - **Clear** (lead): nulls `replay` only where the column still hashes to the proof, writing `replay_head` in the same
   statement, so the list facts never change.
 

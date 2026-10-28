@@ -2,7 +2,9 @@
  * `npm run replays:backfill` — copy every inline `run_telemetry` replay into the private Storage bucket `replays`
  * (owner ruling 2026-10-28: "move to cheap storage, keep all"; supabase/migrations/2026-11-07-replays-storage.sql).
  *
- * Per row, oldest first, a few rows a page (a replay is up to ~5 MB of text):
+ * Per row, oldest first, ONE row per request (a replay is up to ~5 MB of text; a page of five cast to text ran past
+ * PostgREST's 8 s statement timeout on 2026-10-28). The pending ids are listed first with a cheap query that never
+ * touches the replay column; every request is retried with backoff on a timeout / 5xx / network error:
  *  1. read the replay AS POSTGRES PRINTS IT (`replay::text`), the exact bytes the clear step re-hashes later;
  *  2. gzip it and upload to `<user_id>/rt-<id>.json.gz` (overwrite allowed, so a re-run after a crash is safe);
  *  3. download the object again and require it byte-identical to what was sent AND to gunzip back to the exact text;
@@ -20,8 +22,11 @@ import { gunzipSync, gzipSync } from 'node:zlib';
 export const BUCKET = 'replays';
 
 export interface Api {
-  /** Rows with an inline replay and no copy yet, id > afterId, ascending, at most `limit`. */
-  pendingRows(afterId: number, limit: number): Promise<Array<{ id: number; user_id: string | null; replay_text: string }>>;
+  /** Ids (and owners) of rows with an inline replay and no copy yet, id > afterId, ascending, at most `limit`.
+   *  Cheap: never reads the replay column. */
+  pendingIds(afterId: number, limit: number): Promise<Array<{ id: number; user_id: string | null }>>;
+  /** ONE row's replay exactly as Postgres prints it (`replay::text`), or null when it has none any more. */
+  replayText(id: number): Promise<string | null>;
   /** Rows whose replay lives only in Storage, id > afterId, ascending. */
   storedOnlyRows(afterId: number, limit: number): Promise<Array<{ id: number; replay_path: string; replay_sha256: string | null }>>;
   upload(path: string, body: Uint8Array): Promise<void>;
@@ -39,29 +44,48 @@ const sameBytes = (a: Uint8Array, b: Uint8Array): boolean => a.length === b.leng
 
 export interface BackfillReport { copied: number; failed: Array<{ id: number; error: string }>; bytes: number; gzBytes: number }
 
-/** Copy (or, with `dryRun`, only count) every pending row. Never touches the `replay` column. */
-export async function backfill(api: Api, opts: { pageSize?: number; maxRows?: number; dryRun?: boolean; log?: (s: string) => void } = {}): Promise<BackfillReport> {
-  const page = opts.pageSize ?? 5;
+/** Retry a request on a transient failure (statement timeout 57014, 5xx, network), with exponential backoff. A
+ *  definite refusal (4xx other than 408/429) is not retried. */
+export async function withRetry<T>(fn: () => Promise<T>, opts: { attempts?: number; baseMs?: number; sleep?: (ms: number) => Promise<void> } = {}): Promise<T> {
+  const attempts = opts.attempts ?? 4;
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  for (let i = 0; ; i++) {
+    try { return await fn(); } catch (e) {
+      const msg = (e as Error).message ?? '';
+      const permanent = /: 4\d\d /.test(msg) && !/: (408|429) /.test(msg) && !msg.includes('57014');
+      if (permanent || i + 1 >= attempts) throw e;
+      await sleep((opts.baseMs ?? 1000) * 2 ** i);
+    }
+  }
+}
+
+/** Copy (or, with `dryRun`, only list) every pending row, one replay per request. Never touches the `replay` column.
+ *  A dry run reads no replay at all (it reports the row count; `bytes` stays 0). */
+export async function backfill(api: Api, opts: { pageSize?: number; maxRows?: number; dryRun?: boolean; log?: (s: string) => void; sleep?: (ms: number) => Promise<void> } = {}): Promise<BackfillReport> {
+  const page = opts.pageSize ?? 200;
   const log = opts.log ?? (() => {});
+  const retry = <T,>(fn: () => Promise<T>): Promise<T> => withRetry(fn, opts.sleep ? { sleep: opts.sleep } : {});
   const out: BackfillReport = { copied: 0, failed: [], bytes: 0, gzBytes: 0 };
   let after = 0;
   for (;;) {
-    const rows = await api.pendingRows(after, page);
+    const rows = await retry(() => api.pendingIds(after, page));
     if (rows.length === 0) break;
     for (const row of rows) {
       after = Math.max(after, row.id);
       if (opts.maxRows != null && out.copied + out.failed.length >= opts.maxRows) return out;
-      const text = Buffer.from(row.replay_text, 'utf8');
-      out.bytes += text.length;
       if (opts.dryRun) { out.copied++; continue; }
       try {
+        const replayText = await retry(() => api.replayText(row.id));
+        if (replayText == null) { log(`row ${row.id}: no inline replay any more, skipped`); continue; }
+        const text = Buffer.from(replayText, 'utf8');
+        out.bytes += text.length;
         const gz = gzipSync(text, { level: 9 });
         const path = objectPathFor(row.id, row.user_id);
-        await api.upload(path, gz);
-        const back = await api.download(path);
+        await retry(() => api.upload(path, gz));
+        const back = await retry(() => api.download(path));
         if (!sameBytes(back, gz)) throw new Error('downloaded object differs from the upload');
         if (!sameBytes(gunzipSync(back), text)) throw new Error('object does not gunzip to the replay text');
-        await api.markCopied(row.id, { replay_path: path, replay_sha256: sha256Hex(text), replay_bytes: text.length, replay_copied_at: new Date().toISOString() });
+        await retry(() => api.markCopied(row.id, { replay_path: path, replay_sha256: sha256Hex(text), replay_bytes: text.length, replay_copied_at: new Date().toISOString() }));
         out.copied++;
         out.gzBytes += gz.length;
         log(`row ${row.id}: ${text.length} B -> ${gz.length} B gz, verified, ${path}`);
@@ -75,20 +99,21 @@ export async function backfill(api: Api, opts: { pageSize?: number; maxRows?: nu
 }
 
 /** The way back: write each Storage-only replay into its column again, after checking the recorded sha256. */
-export async function restore(api: Api, opts: { pageSize?: number; log?: (s: string) => void } = {}): Promise<{ restored: number; failed: Array<{ id: number; error: string }> }> {
-  const page = opts.pageSize ?? 5;
+export async function restore(api: Api, opts: { pageSize?: number; log?: (s: string) => void; sleep?: (ms: number) => Promise<void> } = {}): Promise<{ restored: number; failed: Array<{ id: number; error: string }> }> {
+  const page = opts.pageSize ?? 200;
   const log = opts.log ?? (() => {});
+  const retry = <T,>(fn: () => Promise<T>): Promise<T> => withRetry(fn, opts.sleep ? { sleep: opts.sleep } : {});
   const out = { restored: 0, failed: [] as Array<{ id: number; error: string }> };
   let after = 0;
   for (;;) {
-    const rows = await api.storedOnlyRows(after, page);
+    const rows = await retry(() => api.storedOnlyRows(after, page));
     if (rows.length === 0) break;
     for (const row of rows) {
       after = Math.max(after, row.id);
       try {
-        const text = gunzipSync(await api.download(row.replay_path));
+        const text = gunzipSync(await retry(() => api.download(row.replay_path)));
         if (row.replay_sha256 && sha256Hex(text) !== row.replay_sha256) throw new Error('object does not match the recorded sha256');
-        await api.restoreReplay(row.id, JSON.parse(text.toString('utf8')));
+        await retry(() => api.restoreReplay(row.id, JSON.parse(text.toString('utf8'))));
         out.restored++;
         log(`row ${row.id}: restored from ${row.replay_path}`);
       } catch (e) {

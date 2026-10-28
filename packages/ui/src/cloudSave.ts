@@ -186,6 +186,24 @@ export function createCloudSave(deps: CloudSaveDeps): CloudSave {
     if (!l) return null;
     return l.userId === uid || l.userId === null ? l : { ...l, userId: null, revision: 0 };
   };
+  /**
+   * A WRITE WHOSE ANSWER WAS LOST (R-PHONE-RESUME-01, owner 2026-10-27 on his iPhone: "seems to be an issue with
+   * minimizing the game and coming back. it shows an error"). iOS freezes a backgrounded page with its save upload
+   * still in flight: the server commits it, the page never hears back (`Load failed`), so the lease keeps the old
+   * revision. The next upload, or the tab-return check, then finds the row one revision ahead and read it as "you
+   * continued this game on another device". It was this device. So a write that went unanswered is remembered, and a
+   * row that is exactly that write landing (same run, this device, the next revision) is adopted, not reported.
+   */
+  let unanswered: { runKey: string; expected: number } | null = null;
+  const adoptOwnLostWrite = (m: CloudRowMeta | null, uid: string, lease: Lease): boolean => {
+    const u = unanswered;
+    if (!m || !u || u.runKey !== lease.runKey || u.expected !== lease.revision) return false;
+    if (m.runKey !== lease.runKey || m.deviceId !== deviceId() || m.revision !== u.expected + 1) return false;
+    unanswered = null;
+    const now = loadLease();
+    if (now && now.runKey === lease.runKey) saveLease({ ...now, userId: uid, revision: m.revision });
+    return true;
+  };
   const scheduleRetry = (): void => {
     if (retryTimer) return;
     retryTimer = true;
@@ -208,9 +226,14 @@ export function createCloudSave(deps: CloudSaveDeps): CloudSave {
         payload: { v: 1, save: raw, ...(deps.seatRuns() ? { seatRuns: deps.seatRuns() } : {}), ...(deps.seatHybrids?.()?.length ? { seatHybrids: deps.seatHybrids() } : {}) },
       });
       if (res.status === 'absent') { disabled = true; return; }
-      if (res.status === 'unavailable') { scheduleRetry(); return; }
+      if (res.status === 'unavailable') { unanswered = { runKey: lease.runKey, expected: lease.revision }; scheduleRetry(); return; }
       retryIdx = 0;
-      if (res.status === 'conflict') { deps.onMoved(res.current); return; }
+      if (res.status === 'conflict') {
+        // Our own earlier write landed after all: take its revision and send this save on top of it.
+        if (adoptOwnLostWrite(res.current, uid, lease)) { void svc.requestUpload(); return; }
+        deps.onMoved(res.current); return;
+      }
+      unanswered = null;
       // Only clear DIRTY if nothing was saved locally while the upload was in flight.
       const now = loadLease();
       if (now && now.runKey === lease.runKey) saveLease({ ...now, userId: uid, revision: res.revision, dirty: now.savedAt !== savedAt });
@@ -227,8 +250,12 @@ export function createCloudSave(deps: CloudSaveDeps): CloudSave {
       }
       const res = await deps.api.put({ runKey: lease.runKey, expected: lease.revision, deviceId: deviceId(), payload: null });
       if (res.status === 'absent') { disabled = true; return 'inactive' as const; }
-      if (res.status === 'unavailable') return 'offline' as const;
-      if (res.status === 'conflict') { deps.onMoved(res.current); return 'moved' as const; }
+      if (res.status === 'unavailable') { unanswered = { runKey: lease.runKey, expected: lease.revision }; return 'offline' as const; }
+      if (res.status === 'conflict') {
+        if (adoptOwnLostWrite(res.current, uid, lease)) return 'ok' as const; // our own claim landed unanswered
+        deps.onMoved(res.current); return 'moved' as const;
+      }
+      unanswered = null;
       const now = loadLease();
       if (now && now.runKey === lease.runKey) saveLease({ ...now, userId: uid, revision: res.revision });
       return 'ok' as const;
@@ -266,6 +293,7 @@ export function createCloudSave(deps: CloudSaveDeps): CloudSave {
       if (meta === 'absent') { disabled = true; return false as const; }
       if (meta === 'unavailable') return false as const;
       if (meta && meta.runKey === lease.runKey && meta.revision === lease.revision) return false as const;
+      if (adoptOwnLostWrite(meta, uid, lease)) { if (loadLease()?.dirty) void svc.requestUpload(); return false as const; }
       return meta; // moved (a newer revision / another run) or null (the run ended elsewhere)
     }),
     idle: () => chain.then(() => undefined),

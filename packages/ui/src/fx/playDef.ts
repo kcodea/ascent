@@ -423,6 +423,9 @@ export function ensureDefsReady(): Promise<void> {
     },
     (e: unknown) => {
       console.warn('[fx] could not load the def primitives — defs will not play:', e);
+      // Forget the failure so the next call tries again (R-PHONE-RESUME-01): the first fetch after iOS wakes the page
+      // can fail outright, and a cached rejection kept every def effect dark for the rest of the session.
+      readying = null;
     },
   );
   return hasPrimitives() ? Promise.resolve() : readying;

@@ -6,8 +6,8 @@ import './crashLog.css';
 
 /**
  * The crash log's readout (R-TOUCH-PLAY-MEMORY-01): "Last session crashed after: <step>", with the memory it saw
- * there and the steps before it. Shows with `?crashlog=1` (remembered until `?crashlog=0`), or in a standalone phone
- * app on the first load after a crash (crashLog.ts says why). Close forgets the recorded crashes. Portalled into the
+ * there and the steps before it. Shows only with `?crashlog=1` (remembered until `?crashlog=0`; never by itself after a
+ * crash since R-PHONE-RESUME-01, crashLog.ts says why). Close forgets the recorded crashes. Portalled into the
  * stage host like every layer (stageTripwire), counter-scaled in crashLog.css.
  */
 export function CrashLogReadout(): React.ReactElement | null {

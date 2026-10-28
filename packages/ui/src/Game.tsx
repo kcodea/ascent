@@ -78,7 +78,7 @@ const EditorOverlay = import.meta.env.DEV ? lazy(() => import('./uiEditor/Editor
 const BugScenarioPanel = import.meta.env.DEV ? lazy(() => import('./bug-report/BugScenarioPanel').then((m) => ({ default: m.BugScenarioPanel }))) : null;
 const BalancePanel = import.meta.env.DEV ? lazy(() => import('./BalancePanel').then((m) => ({ default: m.BalancePanel }))) : null;
 /** Patch Notes ships to players, but only opens from the title: its ~400 KB of changelog text loads on first open. */
-const PatchNotes = lazy(() => import('./PatchNotesOverlay').then((m) => ({ default: m.PatchNotes })));
+const PatchNotes = lazy(() => retryImport(() => import('./PatchNotesOverlay')).then((m) => ({ default: m.PatchNotes })));
 
 /** Seconds of live recording an auto-share needs before it is worth a row. A reload is not a session. */
 const MIN_AUTO_SHARE_SECONDS = 45;
@@ -91,6 +91,7 @@ function setPerfFlag(on: boolean): void {
 }
 import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { ErrorBoundary } from './ErrorBoundary';
+import { retryImport } from './retryImport';
 import { ReplayOverlay } from './replay/ReplayOverlay';
 import { ReplayDragGhost } from './replay/ReplayDragGhost';
 import { ReplayCursorGhost } from './replay/ReplayCursorGhost';

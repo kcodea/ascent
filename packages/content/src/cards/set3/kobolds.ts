@@ -276,9 +276,10 @@ export const SET3_KOBOLDS: CardDef[] = [
     attack: 2,
     health: 3,
     keywords: [],
-    effects: [{ on: 'passive', do: 'dealtDamageGoldNextTurn', params: { every: 6, gold: 3 } }],
-    text: '**Pummel (6):** Gain **3 Gold** next turn. (Once per combat)',
-    goldenText: '**Pummel (6):** Gain **6 Gold** next turn. (Once per combat)',
+    // Owner Set 3 balance 2026-10-27 ("goldvein -> 2g instead of 3g bonus. (4g gilded)"): 3 -> 2 Gold, Gilded 6 -> 4.
+    effects: [{ on: 'passive', do: 'dealtDamageGoldNextTurn', params: { every: 6, gold: 2 } }],
+    text: '**Pummel (6):** Gain **2 Gold** next turn. (Once per combat)',
+    goldenText: '**Pummel (6):** Gain **4 Gold** next turn. (Once per combat)',
   },
   {
     // GEMHEART LEGIONNAIRE (owner Ruby batch 2026-09-24): "When you summon a Gemheart Golem, this casts 5 permanent
@@ -403,9 +404,18 @@ export const SET3_KOBOLDS: CardDef[] = [
     attack: 4,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onSell', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
-    text: '**Sell:** Cast a **Ruby** on all of your minions.',
-    goldenText: '**Sell:** Cast **2 Rubies** on all of your minions.',
+    // Owner Set 3 balance 2026-10-27 ("gramps: Sell: give your Rubies +1 Attack and cast a Ruby on a friendly Kobold"):
+    // the Sell is now TWO steps in order. First the run's Ruby strength rises (`rubyStatGain`, Ruby Mender's body: the
+    // run channel plus every Ruby already in hand), then ONE plain Ruby lands on a random friendly Kobold
+    // (`battlecryPlayRubiesRandomTribe`, Shardluck's old pick: dual-tribe and All-types bodies count), so that Ruby
+    // already carries the +1. Gramps is off the board before its Sell fires, so it is never the target; no Kobold, no
+    // Ruby. Gilded: +2 Attack, and 2 Rubies, each drawn on its own (two Kobolds can each get one).
+    effects: [
+      { on: 'onSell', do: 'rubyStatGain', params: { attack: 1, health: 0 } },
+      { on: 'onSell', do: 'battlecryPlayRubiesRandomTribe', params: { count: 1, tribe: 'kobold' } },
+    ],
+    text: '**Sell:** Give your **Rubies +1 Attack** and cast a **Ruby** on a friendly **Kobold**.',
+    goldenText: '**Sell:** Give your **Rubies +2 Attack** and cast a **Ruby** on a friendly **Kobold** twice.',
   },
   {
     // ZAPDASH: "Pummel (10): Cast a Ruby on your Kobolds. (Twice per combat)". A Pummel marker on the shared
@@ -421,9 +431,14 @@ export const SET3_KOBOLDS: CardDef[] = [
     attack: 4,
     health: 4,
     keywords: [],
-    effects: [{ on: 'passive', do: 'dealtDamageCastRubiesTribe', params: { every: 10, count: 1, maxPerCombat: 2, tribe: 'kobold' } }],
-    text: '**Pummel (10):** Cast a **Ruby** on your **Kobolds**. (Twice per combat)',
-    goldenText: '**Pummel (10):** Cast **2 Rubies** on your **Kobolds**. (Twice per combat)',
+    // Owner Set 3 balance 2026-10-27 ("zapdash: pummel (12): Summon a Gemheart Golem and cast 2 Rubies on it. (Twice per
+    // combat)"): Pummel 10 -> 12, and the payout is Impossible Todd's summon marker (`dealtDamageSummonToken`) with a
+    // `rubies` rider: each payout summons ONE Gemheart Golem beside Zapdash and casts 2 plain Rubies on it (`playRubyOn`,
+    // every Ruby watcher hears each). Combat Rubies on a combat Golem, so they last the fight. A full board summons
+    // nothing and casts nothing. Gilded (Geode Guardian's convention: the Rubies double, not the Golems): one Golem, 4 Rubies.
+    effects: [{ on: 'passive', do: 'dealtDamageSummonToken', params: { every: 12, tokenId: 'gemheart-shard', count: 1, rubies: 2, maxPerCombat: 2 } }],
+    text: '**Pummel (12):** Summon a **Gemheart Golem** and cast **2 Rubies** on it. (Twice per combat)',
+    goldenText: '**Pummel (12):** Summon a **Gemheart Golem** and cast **4 Rubies** on it. (Twice per combat)',
   },
   {
     // FRACK ATTACK: "Start of Combat: Cast 3 Rubies on this. Repeat after 3 friendly attacks." The Start of Combat

@@ -6,7 +6,7 @@ import { CARD_INDEX, poolFor } from '@game/content';
  * `pummelTrigger` (2026-09-21) — PUMMEL (X) as an observable combat event. The owner's keyword for the
  * damage-dealt meter: "Pummel (X): Triggers each time this minion has dealt another X damage. The damage count
  * carries over between combats." Han Gover reads "Pummel (40): Get a Dwarven Ale. (Once per combat)" and
- * Goldvein "Pummel (6): Gain 3 Gold next turn. (Once per combat)". The owner authored `pummel-trigger` for "when
+ * Goldvein "Pummel (6): Gain 2 Gold next turn. (Once per combat)". The owner authored `pummel-trigger` for "when
  * cards like Goldvein and Han Gover trigger"; before the event the UI could only re-derive a crossing from
  * `dmg.source` amounts, Goldvein's payout was silent (`grantBonusGold` emits nothing) and an ENEMY meter was
  * invisible.
@@ -193,13 +193,13 @@ describe('pummelTrigger — Han Gover (Pummel (40): Get a Dwarven Ale. (Max 5 pe
   });
 });
 
-describe('pummelTrigger — Goldvein (Pummel (6): Gain 3 Gold next turn. (Once per combat))', () => {
+describe('pummelTrigger — Goldvein (Pummel (6): Gain 2 Gold next turn. (Once per combat))', () => {
   it('6 damage → ONE trigger, the Gold marker, stamped with the meter’s own key; the Gold still banks', () => {
     const r = fight([vein({ attack: 6 })], [foe(0, 6)]);
     const t = triggers(r.events);
     expect(t).toHaveLength(1);
     expect(t[0]).toMatchObject({ source: r.initial.player[0]!.uid, side: 'player', marker: 'dealtDamageGoldNextTurn', key: 'factory:dealtDamageGoldNextTurn:passive', srcCard: 'k3_goldvein' });
-    expect(r.playerBonusGold).toBe(3);
+    expect(r.playerBonusGold).toBe(2); // 2 Gold since the owner's 2026-10-27 balance
   });
 
   it('12 damage in one combat → still ONE trigger (the latch), whether one hit or two', () => {

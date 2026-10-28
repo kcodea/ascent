@@ -3442,9 +3442,17 @@ export function simulate(
       const named = p.tokenId;
       const token = cards[typeof named === 'string' && named ? named : 'impscrap'];
       if (!token) return;
+      // ZAPDASH (owner 2026-10-27): "Pummel (12): Summon a Gemheart Golem and cast 2 Rubies on it." A `rubies` rider
+      // casts that many plain Rubies (`playRubyOn`) on EACH token that actually landed. With a rider, Gilded doubles the
+      // Rubies, never the bodies (Geode Guardian's convention); without one, Todd's Gilded doubles the bodies as before.
+      const rubies = typeof p.rubies === 'number' ? Math.max(0, p.rubies) : 0;
+      const bodies = rubies > 0 ? Math.max(0, typeof p.count === 'number' ? p.count : 1) : count;
       for (let k = 0; k < pays; k++) {
         fired();
-        for (let i = 0; i < count; i++) ctx.summon(dealer.side, token, dealer.uid);
+        for (let i = 0; i < bodies; i++) {
+          const m = ctx.summon(dealer.side, token, dealer.uid);
+          if (rubies > 0 && boards[dealer.side].includes(m) && !m.dead) playRubyOn(ctx, dealer, m, rubies * g);
+        }
       }
       return;
     }
@@ -3468,23 +3476,6 @@ export function simulate(
       for (let k = 0; k < pays; k++) {
         fired();
         ctx.grantRandomSpell(count, dealer.side, dealer.uid);
-      }
-      return;
-    }
-    if (eff.do === 'dealtDamageCastRubiesTribe') {
-      // Zapdash (owner 2026-10-22): "Pummel (10): Cast a Ruby on your Kobolds. (Twice per combat)". Each payout casts
-      // `count` (x2 gilded) PLAIN Rubies (owner confirmed 2026-10-22: "a Ruby" without "random" is the plain one) on
-      // every living friendly `tribe` body, Zapdash included, through the one combat Ruby primitive (`playRubyOn`:
-      // Ruby strength, Paragon, every Ruby watcher). Dual tribes and All-types count (`isTribeOf`). Combat Rubies are
-      // combat-only. The cap is `maxPerCombat` (2) on `pummelFires`, re-armed by a Rise / Rebirth return.
-      const named = p.tribe;
-      const tribe = typeof named === 'string' && named ? named : 'kobold';
-      for (let k = 0; k < pays; k++) {
-        fired();
-        for (const m of [...boards[dealer.side]]) {
-          if (m.dead || m.health <= 0 || !isTribeOf(m, tribe, cards)) continue;
-          playRubyOn(ctx, dealer, m, count);
-        }
       }
       return;
     }

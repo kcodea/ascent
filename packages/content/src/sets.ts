@@ -194,8 +194,10 @@ const SET2_DWARVES_IN_SET3: readonly CardDef[] = SET2_DWARVES.filter((c) =>
     // Paymaster Pimm, Gangplank, Blade Thrower, Kringle (dw_foreman) and Mountainbond left set 3 on 2026-10-13 (owner
     // Set 3 batch); all five stay set-2 cards. Coinfire, Billings and Lieutenant Thane left set 3 on 2026-10-21 (owner
     // Set 3 Dwarf rework, "archive"); all three stay set-2 cards and resolve globally for old set-3 saves and replays.
+    // Doubletap Brewer (dw_brewer) left set 3 on 2026-10-27 (owner Set 3 list: "archive doubletap brewer"); it stays a
+    // set-2 card and resolves globally for old set-3 saves and replays.
     'dw_brunni', 'dw_dorrin', 'dw_brakka',
-    'dw_brewer', 'dw_edward', 'dw_tapkeeper',
+    'dw_edward', 'dw_tapkeeper',
   ].includes(c.id),
 );
 

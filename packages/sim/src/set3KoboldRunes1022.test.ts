@@ -239,11 +239,12 @@ describe("ROSEY'S GARDEN: When you cast a Ruby, give a random minion +4/+5 perma
     expect(gardenTotal(s)).toEqual({ attack: 8, health: 10 });
   });
 
-  it('Shop: counts per RUBY (a Gilded Gramps sold casts 2 on each minion), and a second copy doubles it', () => {
+  it('Shop: counts per RUBY (a Gilded Gramps sold casts 2 Rubies), and a second copy doubles it', () => {
+    // Gramps since 2026-10-27: "Sell: give your Rubies +1 Attack and cast a Ruby on a friendly Kobold" (Gilded: twice).
     let s = withRune(['rune_roseys_garden']);
     s = { ...s, board: [body('g', 'k3_gramps', { golden: true }), body('a', NEUTRAL), body('b', 'k3_dealski')] };
     s = act(s, { type: 'sell', uid: 'g' });
-    expect(gardenTotal(s)).toEqual({ attack: 4 * 4, health: 5 * 4 }); // 2 Rubies on each of 2 minions
+    expect(gardenTotal(s)).toEqual({ attack: 4 * 2, health: 5 * 2 }); // 2 Rubies, both on the one Kobold
     let d = withRune(['rune_roseys_garden', 'rune_roseys_garden']);
     d = { ...d, board: [body('a', NEUTRAL)] };
     d = castRuby(d, 'a');

@@ -201,6 +201,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffShopPermanent',
   'rallyBuffSelf',
   'rallyCastNamedSpell',
+  'rallyCastNamedSpellOnRight', // Choosey Dragon (Set 3, 2026-10-27): Rally casts Tribes Choice on the minion to its right
   'onTribeAttackCastNamedSpell',
   'rallyGrantRandomShoutMinion',
   'rallyTriggerTribeShouts',
@@ -624,7 +625,6 @@ export const EffectFactoryIdSchema = z.enum([
   'dealtDamageGetRandomSpell',    // Tauntbreaker (2026-10-03): Pummel (25) — the same meter, a random-Shop-Spell body, once per combat
   // ── Set 3 Kobolds, owner batch 2026-10-22 ──
   'battlecryGrantFreeRolls',      // Boy Scout: Shout, gain N free Refreshes (x2 gilded)
-  'dealtDamageCastRubiesTribe',   // Zapdash: Pummel (10), cast a Ruby on your Kobolds, twice per combat
   'friendlyAttacksPlayRubiesSelf', // Frack Attack: every 3 friendly attacks, cast 3 Rubies on this
   'rubyCastGainSelfImproving',    // Rosey: when you cast a Ruby, gain +2/+1 permanently (improving)
   'shopRefreshTallySelf',         // Rosey: its Improves meter, one tick per Refresh pressed
@@ -647,6 +647,7 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyGrantRandomTribeMinion',  // Gatherer (Set 3, 2026-10-15): Rally: get a random Dragon
   'deathrattleGiveAttackToOthers',// Gravus (Set 3, 2026-10-15): Echo: give this minion's Attack to 2 friendly minions
   'whisperDiscoverTribe',         // Well of Dragons (Well Watcher's Whisper, 2026-10-15): Discover a Dragon
+  'avengeCastNamedSpell',         // Riftwalker (Set 3, 2026-10-27): Avenge (3): cast Waking Rift
   'avengeGrantRandomWhispers',    // Woozy (Set 3, 2026-10-15): Avenge (3): get 2 random Whispers
   'whisperKeepOnThis',            // Hum (Set 3, 2026-10-15): the first Whisper cast on this each turn is permanent
   'whisperGrantSeedEcho',         // Seed (Gardener's Whisper, 2026-10-15): grant "Echo: summon a 3/3 Drake Pup with Taunt"

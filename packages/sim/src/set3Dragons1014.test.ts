@@ -39,8 +39,10 @@ const runebindBuffs = (events: readonly CombatEvent[]) =>
   events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.spellId === 'w4_runebind');
 
 describe('the batch is Set 3 content', () => {
-  it('Whaloo, Falx, Queen Morro and Shush are Set 3 Dragons at the owner stats; Jar of Secrets is an Equipment, not a spell', () => {
-    const want: [string, number, number, number][] = [['d3_whaloo', 6, 9, 10], ['d3_falx', 5, 6, 5], ['d3_morro', 5, 7, 8], ['d3_shush', 4, 5, 4]];
+  it('Whaloo, Queen Morro and Shush are Set 3 Dragons at the owner stats (Falx archived 2026-10-27); Jar of Secrets is an Equipment, not a spell', () => {
+    const want: [string, number, number, number][] = [['d3_whaloo', 6, 9, 10], ['d3_morro', 5, 7, 8], ['d3_shush', 4, 5, 4]];
+    expect(CARD_INDEX['d3_falx'], 'Falx still resolves (archived, owner 2026-10-27)').toMatchObject({ tribe: 'dragon', tier: 5, attack: 6, health: 5 });
+    expect(poolFor('set3').all.some((c) => c.id === 'd3_falx'), 'Falx is out of Set 3').toBe(false);
     const ids = poolFor('set3').buyable.map((c) => c.id);
     for (const [id, tier, a, h] of want) {
       const d = CARD_INDEX[id]!;

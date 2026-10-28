@@ -120,6 +120,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rallyGrantRandomTribeMinion:onAttack': { policy: 'ownBeat', family: 'rally' }, // Gatherer: a random Dragon to hand
   'factory:deathrattleGiveAttackToOthers:onDeath': { policy: 'ownBeat', family: 'echo' }, // Gravus: its Attack to 2 friendlies
   'factory:whisperDiscoverTribe:cast': { policy: 'ownBeat', family: 'spellCast' }, // Well of Dragons: Discover a Dragon
+  'factory:avengeCastNamedSpell:avenge': { policy: 'ownBeat', family: 'avenge' }, // Riftwalker: Avenge (3) casts Waking Rift
   'factory:avengeGrantRandomWhispers:avenge': { policy: 'ownBeat', family: 'avenge' }, // Woozy: 2 random Whispers to hand
   'factory:whisperKeepOnThis:passive': { policy: 'passive', family: 'passive' }, // Hum: read by the Shop Whisper cast path
   'factory:whisperGrantSeedEcho:cast': { policy: 'ownBeat', family: 'spellCast' }, // Seed: the target gains the Drake Pup Echo
@@ -253,6 +254,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:grantFreeRolls:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:grantMagePupTaught:spellBought': { policy: 'ownBeat', family: 'economy' },
   'factory:grantRandomAle:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:grantRandomAle:onPlay': { policy: 'ownBeat', family: 'shout' }, // Beer Gut Bud (set 3, 2026-10-27): Shout, get a Dwarven Ale
   'factory:grantRandomAle:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:grantRandomAle:goldSpent': { policy: 'ownBeat', family: 'economy' },
   'factory:impInheritOnDeath:onDeath': { policy: 'ownBeat', family: 'echo' },
@@ -262,7 +264,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:minionSoldBuffRandomTribeOthers:minionSold': { policy: 'ownBeat', family: 'economy' }, // Hank Pepe (set 3, 2026-10-21)
   'factory:minionSoldTally:minionSold': { policy: 'passive', family: 'economy' }, // Leeds (set 3, 2026-10-21): the improve meter, no visible change
   'factory:tribePlayedBuffTribeSellImproving:onTribePlayed': { policy: 'ownBeat', family: 'economy' }, // Leeds (set 3, 2026-10-21)
-  'factory:battlecryPlayRubiesAll:onSell': { policy: 'ownBeat', family: 'economy' }, // Gramps (set 3, 2026-10-22): Sell, cast a Ruby on all of your minions
+  'factory:rubyStatGain:onSell': { policy: 'ownBeat', family: 'economy' }, // Gramps (set 3, rework 2026-10-27): Sell, your Rubies gain +1 Attack
+  'factory:battlecryPlayRubiesRandomTribe:onSell': { policy: 'ownBeat', family: 'economy' }, // Gramps (set 3, rework 2026-10-27): Sell, then cast a Ruby on a friendly Kobold
   'factory:battlecryBuffTribe:onSell': { policy: 'ownBeat', family: 'economy' }, // Sailsey (set 3, 2026-10-21): Sell, give your Dwarves +2/+3
   'factory:friendlyAttacksPlayRubiesSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Frack Attack (2026-10-22): every 3 friendly attacks, 3 Rubies on itself
   'factory:onAllyAttackBuffAll:onAttack': { policy: 'ownBeat', family: 'rally' },
@@ -375,6 +378,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rallyBuffSelfPerTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyBuffShopPermanent:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyCastNamedSpell:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:rallyCastNamedSpellOnRight:onAttack': { policy: 'ownBeat', family: 'rally' }, // Choosey Dragon -> Tribes Choice
   'factory:rallyCastShopBuffSpell:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyCastSpell:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGrantRandomShoutMinion:onAttack': { policy: 'ownBeat', family: 'rally' },
@@ -1248,7 +1252,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:dealtDamageGrantRandomTribe:passive': { policy: 'foldedCue', family: 'react' },        // Maestro Lux (Pummel (12), 2026-09-24) — the same meter; the fire flashes on the hit, the Celestial flies on its own `toHand` beat
   'factory:dealtDamageGetRandomSpell:passive': { policy: 'foldedCue', family: 'react' },           // Tauntbreaker (Pummel (25), 2026-10-03) — the same meter; the fire flashes on the hit, each spell flies on its own `toHand` beat
   'factory:dealtDamageSummonToken:passive': { policy: 'foldedCue', family: 'react' },              // Impossible Todd (Pummel (20), 2026-10-10) - the same meter; the fire flashes on the hit, the Imp lands on its own `summon` beat
-  'factory:dealtDamageCastRubiesTribe:passive': { policy: 'foldedCue', family: 'react' },          // Zapdash (Pummel (10), 2026-10-22) - the same meter; the fire flashes on the hit, each Ruby lands on its own `buff` beat
   'factory:dealtDamageGetRandomRuby:passive': { policy: 'foldedCue', family: 'react' },            // Kobe (Pummel (15), 2026-09-24) — the same meter; the fire flashes on the hit, each Ruby flies on its own `toHand` beat
   'factory:dealtDamageGoldNextTurn:passive': { policy: 'foldedCue', family: 'react' },            // Goldvein (Pummel (6), 2026-09-19) — the same meter; the fire flashes on the hit, the Gold lands at settle
   'factory:buffShopOffersThisTurn:onBuy': { policy: 'foldedCue', family: 'economyReact' },        // Night Market Horror — cf. buffBoardOnBuy

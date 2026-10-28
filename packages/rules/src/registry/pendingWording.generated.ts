@@ -131,17 +131,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-trigger-01",
-    "title": "Wording: Shout vs Battlecry · 148 vs 40",
+    "title": "Wording: Shout vs Battlecry · 150 vs 40",
     "statement": "On-play triggers print \"Shout\" everywhere; every \"Battlecry\" in card text is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shout\" in 148 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shout\" in 150 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
     "cardText": "\"Shout\" — Dawnclaw: \"Taunt. Echo: trigger both adjacent minions' Shouts.\" · \"Battlecry\" — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\"",
     "example": "Pennycat would be re-worded to the \"Shout\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 148 vs 40)"
+        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 150 vs 40)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -178,17 +178,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-trigger-02",
-    "title": "Wording: Echo vs Deathrattle · 132 vs 41",
+    "title": "Wording: Echo vs Deathrattle · 134 vs 41",
     "statement": "On-death triggers print \"Echo\" everywhere; every \"Deathrattle\" in card text is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Echo\" in 132 printed texts, \"Deathrattle\" in 41. Approving picks \"Echo\"; the LG-TRIGGER-02 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Echo\" in 134 printed texts, \"Deathrattle\" in 41. Approving picks \"Echo\"; the LG-TRIGGER-02 guide predicate then watches new text.",
     "cardText": "\"Echo\" — Anubis, Last Gate: \"Echo: give your minions Rise and cast Lantern of Souls.\" · \"Deathrattle\" — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\"",
     "example": "Amun Rab would be re-worded to the \"Echo\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-TRIGGER-02 (corpus survey: 132 vs 41)"
+        "ref": "textParse.wording · LG-TRIGGER-02 (corpus survey: 134 vs 41)"
       }
     ],
     "sourceQueue": "textParse.wording",

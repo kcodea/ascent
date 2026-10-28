@@ -4919,6 +4919,56 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-23).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Archives1023.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-ARCHIVE-SET3-1027-01',
+    title: 'Falx is archived and Doubletap Brewer leaves Set 3; both still resolve for old saves, snapshots and replays',
+    statement:
+      'Falx was Set 3 only, so it is archived and belongs to no set: no run draws, offers, Discovers or grants it, and its '
+      + 'Whisper Ripple is no longer a random Whisper roll in Set 3 (a Whisper rolls only while its Dragon is in the pool). '
+      + 'Doubletap Brewer leaves Set 3 but stays a Set 2 card. Both stay in the global card index, so an old Set 3 save, '
+      + 'snapshot or replay holding either still resolves and plays as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 list 2026-10-27', quote: 'archive doubletap brewer' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 list 2026-10-27 (Falx)', quote: 'archive falx' },
+      { kind: 'code', ref: 'packages/content/src/cards/archive.ts (the 2026-10-27 block); packages/content/src/sets.ts SET2_DWARVES_IN_SET3' },
+    ],
+    contentIds: ['d3_falx', 'dw_brewer'],
+    currentBehaviour: 'Conforms (built 2026-10-27).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Balance1027.test.ts', 'packages/content/src/set3Scaffold.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-SET3-1027-01',
+    title: 'Set 3 changes 2026-10-27: Gramps and Zapdash reworked, Goldvein 2 Gold, Whispwarder T4; new Studious Steven, Choosey Dragon, Riftwalker, Beer Gut Bud',
+    statement:
+      'Gramps: its Sell first gives your Rubies +1 Attack (the run Ruby strength, Rubies in hand included), then casts one '
+      + 'plain Ruby on a random friendly Kobold (dual tribes and All-types count; no Kobold, no Ruby), so that Ruby carries '
+      + 'the +1; Gilded +2 Attack and 2 Rubies, each drawn on its own. Zapdash: Pummel (12); each payout summons ONE Gemheart '
+      + 'Golem beside it and casts 2 plain Rubies on that Golem (combat-only); at most 2 payouts per combat, re-armed by a '
+      + 'Rise / Rebirth return; a full board summons and casts nothing; Gilded casts 4 Rubies on the one Golem (Geode '
+      + 'Guardian\x27s convention: the Rubies double, not the Golems). Goldvein: Pummel (6) banks 2 Gold for next turn (Gilded '
+      + '4). Whispwarder: Tier 4, so its Warding Call is a Tier 4 Whisper. Studious Steven (Dragon T4 6/4): Shout casts the '
+      + 'Shop spell Quick Study for real (a spell cast; Gilded twice). Riftwalker (Dragon T6 8/8): Avenge (3) casts Waking '
+      + 'Rift for real in combat (a spell cast; combat-only buffs; Gilded twice). Choosey Dragon (Dragon T3 3/4): Rally casts '
+      + 'the existing Shop spell Tribes Choice for real on the minion to its right (the next friendly body in board order; '
+      + 'in combat the next living one), in combat and on a Shop-phase Rally alike; no right neighbour, no cast; a neutral '
+      + 'neighbour yields nothing (the spell\x27s own rule); Gilded casts twice. Tribes Choice now also resolves in combat '
+      + '(a random minion of the target\x27s printed type, up to your tier, to hand) for every combat caster. Beer Gut Bud (Dwarf T5 6/2): Shout and '
+      + 'Echo each get a random Dwarven Ale from the run\x27s set (Gilded 2 each).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Set 3 list 2026-10-27 (Gramps)', quote: 'gramps: Sell: give your Rubies +1 Attack and cast a Ruby on a friendly Kobold' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 list 2026-10-27 (Zapdash)', quote: 'zapdash: pummel (12): Summon a Gemheart Golem and cast 2 Rubies on it. (Twice per combat)' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 list 2026-10-27 (Choosey Dragon)', quote: 'Choosey Dragon T3 3/4 Rally: Cast Tribe\x27s Choice on the minion to the right of this. (gilded casts twice)' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 list 2026-10-27 (Riftwalker)', quote: 'Riftwalker Dragon T6 8/8 Avenge (3): Cast Waking Rift (gilded casts twice)' },
+      { kind: 'code', ref: 'packages/content/src/cards/set3/{kobolds,dragons,dwarves}.ts; packages/core/src/combat/simulate.ts noteDamageDealt (dealtDamageSummonToken `rubies` rider); packages/core/src/effects/factories.ts avengeCastNamedSpell / castNamedSpellOnInCombat / resolveCombatSpellCast (spellGainOfTargetTribe); packages/core/src/effects/arena.ts rallyCastNamedSpellOnRight' },
+    ],
+    contentIds: ['k3_gramps', 'k3_zapdash', 'k3_goldvein', 'd3_whispwarder', 'd3_studioussteven', 'd3_choosey', 'd3_riftwalker', 'dw3_beergutbud', 'tribeschoice'],
+    currentBehaviour: 'Conforms (built 2026-10-27).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Balance1027.test.ts', 'packages/sim/src/set3Kobolds1022.test.ts', 'packages/ui/src/set3Kobolds1022Text.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
   // ── The Gold Fuse in every lobby (owner 2026-10-07; supersedes the Bronze-only R-TIMER-BRONZE-01 / -02) ─────────
   {
     id: 'R-TIMER-FUSE-01',

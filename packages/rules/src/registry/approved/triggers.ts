@@ -1520,15 +1520,16 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'bounce hop is not a cast and pays nothing; each step adds the base again (+2/+1, +4/+2, ...) every 3 Refreshes the '
       + 'player presses while it is on the board (Indy\'s meter); Gilded doubles base and steps. Live text: Rosey prints its '
       + 'current grant in place; every countdown is the integer counter under the card (Rosey N/3, Zapdash the Pummel '
-      + 'badge, Frack Attack N/3), never prose.',
+      + 'badge, Frack Attack N/3), never prose. SUPERSEDED IN PART 2026-10-27: Gramps and Zapdash were reworked by the owner '
+      + '(R-SET3-1027-01); the Gramps and Zapdash readings above describe their 2026-10-22 versions.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
       { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-22 (five new Set 3 Kobolds)', quote: 'Frack Attack: Start of Combat: Cast 3 Rubies on this. Repeat after 3 friendly attacks.' },
-      { kind: 'code', ref: 'packages/content/src/cards/set3/kobolds.ts; packages/core/src/combat/simulate.ts noteDamageDealt (dealtDamageCastRubiesTribe); packages/core/src/effects/factories.ts friendlyAttacksPlayRubiesSelf / battlecryGrantFreeRolls / playRubyOn (Rosey); packages/core/src/combat/minion.ts resetPerCombatLimits; packages/sim/src/recruit.ts roseyHearsRubies / shopRefreshTallySelf; packages/core/src/effects/arena.ts rubyCastGainOf' },
+      { kind: 'code', ref: 'packages/content/src/cards/set3/kobolds.ts; packages/core/src/combat/simulate.ts noteDamageDealt; packages/core/src/effects/factories.ts friendlyAttacksPlayRubiesSelf / battlecryGrantFreeRolls / playRubyOn (Rosey); packages/core/src/combat/minion.ts resetPerCombatLimits; packages/sim/src/recruit.ts roseyHearsRubies / shopRefreshTallySelf; packages/core/src/effects/arena.ts rubyCastGainOf' },
     ],
-    cardText: '**Pummel (10):** Cast a **Ruby** on your **Kobolds**. (Twice per combat)',
-    contentIds: ['k3_boyscout', 'k3_gramps', 'k3_zapdash', 'k3_frackattack', 'k3_rosey'],
+    cardText: '**Start of Combat:** Cast **3 Rubies** on this. Repeat after **3** friendly attacks.',
+    contentIds: ['k3_boyscout', 'k3_frackattack', 'k3_rosey'],
     currentBehaviour: 'Conforms (built 2026-10-22).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Kobolds1022.test.ts', 'packages/ui/src/set3Kobolds1022Text.test.ts'], lastVerifiedAt: '2026-10-22' },
   },

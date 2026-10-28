@@ -49,9 +49,10 @@ describe('set 3 scaffold', () => {
       'dw3_goldilox', // Goldilox appended 2026-09-24 (owner batch)
       'dw3_coincounter', 'dw3_kegrunner', 'dw3_championinu', 'dw3_foamguard', // owner batch 2026-10-21
       'dw3_salezarsails', 'dw3_marketing', 'dw3_valyou', 'dw3_leeds', // owner Sell batch 2026-10-21
+      'dw3_beergutbud', // owner Set 3 list 2026-10-27, appended
       // Kringle, Blade Thrower, Pimm, Mountainbond and Gangplank left set 3 2026-10-13 (owner Set 3 batch; still set-2 cards)
       // Coinfire, Lieutenant Thane and Billings left set 3 2026-10-21 (owner Dwarf rework; still set-2 cards)
-      'dw_brunni', 'dw_brakka', 'dw_dorrin', 'dw_brewer', 'dw_tapkeeper',
+      'dw_brunni', 'dw_brakka', 'dw_dorrin', 'dw_tapkeeper', // Doubletap Brewer left set 3 2026-10-27 (owner; still a set-2 card)
       'dw_edward',
       'dw_brill', // Dwarf King, Brill joined 2026-10-21 (owner: buyable in set 3, its rune left set 3)
       // …then the UNDEAD (owner roster 2026-09-09): set 3's eleven new ones (+ Bicycle Bob, 2026-09-18), then the ten set-1 Undead it keeps
@@ -82,11 +83,12 @@ describe('set 3 scaffold', () => {
       // …then the WHISPER DRAGONS (from Set 4, owner swap 2026-10-14), in the slot the Celestials held until they moved
       // to Set 4 the same day. Every earlier minion keeps its position.
       'd4_galas', 'd4_tolan', 'd4_tamby', // Whisp archived 2026-10-23
-      'd3_whaloo', 'd3_falx', 'd3_morro', 'd3_shush', // the first Set 3-authored Dragons (owner 2026-10-14), appended after the swapped-in four
+      'd3_whaloo', 'd3_morro', 'd3_shush', // Falx archived 2026-10-27; the first Set 3-authored Dragons (owner 2026-10-14), appended after the swapped-in four
       'd3_gravus', 'd3_wellwatcher', 'd3_matriarch', 'd3_woozy', 'd3_iggy', 'd3_hum', 'd3_gardener', // Dragon batch 2 (owner 2026-10-15); Gatherer archived 2026-10-23
       'd3_baitbrood', 'd3_hatcher', 'd3_whispwarder', // owner additions on #2097 (2026-10-15)
       'd3_vellum', // the T7 Summit Dragon (owner 2026-10-23), appended after the file's token
       'd3_nitrogen', // owner 2026-10-23, appended
+      'd3_studioussteven', 'd3_choosey', 'd3_riftwalker', // owner Set 3 list 2026-10-27, appended
       'd2_chorus', 'd2_transcendence', 'd2_flutterdrake', // the three carried Set 2 Dragons (2026-10-15), by reference
     ]);
     // The set-1 Undead NOT on the roster stay out (owner confirmation 2026-09-09), still resolvable.

@@ -145,6 +145,7 @@ import type { FormationData } from './heroAttack/damageFormation';
 import { formationPreviewSpeed } from './heroAttack/formationConfig';
 import { playHeroClassic } from './heroAttack/heroClassic';
 import { portraitGeometry } from './heroBlast/portraits';
+import { holdUntilVersusFight } from './versus/versusHooks';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
 import { RefreshButton } from './RefreshButton';
@@ -2370,8 +2371,10 @@ export function Recruit() {
    *  proc gets a breath before the blue sweeps. Turns with NO beats skip it (their fast paths dispatch
    *  immediately, so an empty turn still cuts straight to the curtain). */
   const EOT_COMBAT_PAD_MS = 500;
-  /** How long a watch screen's held End of Turn waits for the watched player's next view before settling anyway. */
-  const EOT_HOLD_SAFETY_MS = 4000;
+  /** How long a watch screen's held End of Turn waits for the watched player's next view before settling anyway. 12 s
+   *  (was 4 s): a Versus End Turn now starts when the round CLOSES (R-VERSUS-EARLY-EOT-01), so the watched player's
+   *  commit trails its beats by the resolver's time too (typically ~2 s, measured up to ~11 s on a cold resolver). */
+  const EOT_HOLD_SAFETY_MS = 12_000;
   const eotPadFiredRef = useRef(false); // once-guard: the unmount safety net's finish() must not double-schedule
   /** A WATCH SCREEN End of Turn that has played its beats and waits for the watched player's next view (see the
    *  completion's `recorded.hold`): settled the moment the run leaves the shop, or by the safety net. */
@@ -7678,6 +7681,10 @@ export function Recruit() {
           recorded.onDone();
           return;
         }
+        // VERSUS (R-VERSUS-EARLY-EOT-01): this End Turn started when the round closed, while the resolver was still at it.
+        // Its commit lands the fight, so the lock and the projections hold (the board exactly as the beats left it) until
+        // the fight is in, then settle in one go as usual.
+        if (!recorded && holdUntilVersusFight(runRef.current, { type: 'faceOmen' }, settleEot)) return;
         settleEot();
         }, EOT_COMBAT_PAD_MS + lassoTail);
       },
@@ -8626,7 +8633,7 @@ export function Recruit() {
           onPick={(r) => { void pickGodRound(r); }} onClose={closeGodPrompt} />
       )}
       <ShopControls
-        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold} readyNote={versusGate.readyNote} gemLocked={versusGate.gemLocked} gemReady={versusGate.gemReady}
+        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold} readyNote={versusGate.readyNote} gemLocked={versusGate.gemLocked} gemReady={versusGate.gemReady} gemLabel={versusGate.gemLabel}
         replayDone={replay.done} replayTurboing={replay.turboing} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
         eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
         roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
@@ -8969,7 +8976,7 @@ const ShopControls = memo(function ShopControls({
   fighting, inCombat, mode, sandbox, godMode, replayDone, replayTurboing, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
   hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
   refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift, combatRoundNo,
-  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold, readyNote, gemLocked, gemReady = false,
+  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold, readyNote, gemLocked, gemReady = false, gemLabel = null,
 }: {
   fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean; replayTurboing: boolean;
   /** GOD MODE (owner 2026-10-08): no clock, so no timer plaque at all. */
@@ -8983,6 +8990,8 @@ const ShopControls = memo(function ShopControls({
   /** VERSUS (R-VERSUS-READY-01): End Turn pressed as a READY signal: the gem shows pressed but stays live (a second press
    *  takes the signal back) and nothing else on the screen is held. */
   gemReady?: boolean;
+  /** LIVE READY (R-VERSUS-READY-02): the gem's shop-phase hover label in a live game ("Ready up"); null elsewhere. */
+  gemLabel?: string | null;
   replayResult: 'win' | 'lose' | 'draw' | null; sandboxReplay: boolean; lossPhase: null | 'tally' | 'blast' | 'done'; combatSettled: boolean;
   eotAnimating: boolean; hasQuestOffer: boolean; hasPowerOffer: boolean; hasRuneforgeOffer: boolean;
   roundSettled: boolean; timeUp: boolean; combatBgShown: boolean; frozen: boolean; embers: number;
@@ -9072,6 +9081,8 @@ const ShopControls = memo(function ShopControls({
           ? !(combatGateOpen || skipReady) || gemLocked
           : eotAnimating || hasQuestOffer || hasPowerOffer || hasRuneforgeOffer || !roundSettled || gemLocked}
         pressed={inCombat || eotAnimating || gemLocked || gemReady}
+        readyOn={!inCombat && !eotAnimating && gemReady}
+        label={inCombat ? null : gemLabel}
         note={readyNote}
         urgent={timeUp && !inCombat}
       />

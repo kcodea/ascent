@@ -32,7 +32,7 @@ import { currentRunCosmetics, tempHandle, useGame } from '../store';
 import { ServerClock, shopClockAt } from './versusClock';
 import { installVersusEmotes, receiveVersusEmote, receiveWatchedEmote, setVersusEmoteSeatMap, uninstallVersusEmotes, VERSUS_EMOTE_EVENT } from './versusEmotes';
 import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from './spectatorEmotes';
-import { installVersusHandlers, type VersusFreeze } from './versusHooks';
+import { installVersusHandlers, releaseVersusFightWait, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
 import { duosFirstAt, duosLobbySeatId, groupPairingAt, groupSeatOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 import { isRankedDuosRaw, rankedCloseIso, rankedRoundsAsGroup, RANKED_DUOS_TEAM_COUNT, withServedSeats, type RankedDuosContext } from './rankedDuosView';
@@ -1269,12 +1269,18 @@ function driveRun(match: VersusMatch, seat: VersusSeat): void {
   const round = get().rounds[run.wave];
   // The fight for the round I am still shopping (or locked) is in: answer any open decision exactly as the lock
   // did, then let Recruit play the real End Turn; the commit lands this fight (`versusLand`).
-  if (round && run.phase === 'recruit' && !g.presentationTx && get().endTurnWave !== run.wave) {
+  // EARLY END TURN (R-VERSUS-EARLY-EOT-01, owner 2026-10-27: "going into combat from shop seems to hang?"): the same,
+  // the moment the server CLOSES this round (`resolving`), while the resolver settles it. The End of Turn beats play
+  // during that wait; their commit holds until the fight is in (`holdUntilVersusFight`), then lands it as before.
+  const closed = match.phase === 'resolving' && match.round === run.wave;
+  if (round) markFlow(match.id, run.wave, 'combat:seen');
+  if ((round || closed) && run.phase === 'recruit' && !g.presentationTx && get().endTurnWave !== run.wave) {
     const answered = versusAutoResolve(run, versusTimeoutRng(Number(match.seed), run.wave, seat));
     if (answered !== run) useGame.setState({ run: answered });
-    markFlow(match.id, run.wave, 'combat:seen');
     set({ endTurnWave: run.wave });
   }
+  // The fight is in: an End Turn that started early commits now, landing it.
+  if (round) releaseVersusFightWait(run.wave);
   // More than a round behind (a long reconnect): finish the old fight at once. One round behind is the ordinary
   // leave, which the fight screen plays through its own exit (`versusTurn` 'leave').
   if (run.phase === 'combat' && !run.pendingCombatSide && match.round > run.wave + 1 && (match.phase === 'shop' || match.phase === 'complete')) {
@@ -1525,8 +1531,8 @@ function watchMyHeroSelect(): () => void {
  */
 export function expireVersusShop(): void {
   // RANKED DUOS (owner 2026-10-26, R-RANKED-DUOS-GATE-01): 0:00 ends SHOPPING (the lobby's lock), not the turn: re-order,
-  // freeze and the teammate view stay open, and the round goes when the server closes it (both ended, or 5 s after the
-  // first End Turn). My own run takes the engine lock even while I watch my teammate.
+  // freeze and the teammate view stay open, and the round goes when the server closes it (both ready, R-RANKED-DUOS-GATE-02;
+  // a dropped teammate counts as ready; the 30 s AFK backstop). My own run takes the engine lock even while I watch my teammate.
   if (groupRaw && isRankedDuosRaw(groupRaw)) {
     // Watching my teammate: nothing to buy on that screen; my own run takes the lock when I am back (`onTick`).
     if (ownRunWhileWatching()) return;

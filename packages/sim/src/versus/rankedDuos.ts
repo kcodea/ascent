@@ -3,10 +3,11 @@
  * share. Bundle-safe (imports nothing heavy): the `versus-resolve` bundle carries it.
  *
  * - The END-TURN GATE (owner: "the game will still halt/not progress into combat, and back to shop, until both players
- *   hit their end turn/combat gem"), as one formula: both teammates ended = the round closes at once; otherwise it closes
- *   5 s after the LATER of the clock's 0:00 and the first End Turn; nobody ended past 0:00 = it waits, up to the 30 s
- *   AFK backstop. A teammate on auto (disconnected / left) counts as ended from the moment they went auto.
- *   Mirrored by `versus_ranked_duos__close_at` (supabase/migrations/2026-10-29-ranked-duos.sql).
+ *   hit their end turn/combat gem"), as one formula: both teammates ready = the round closes at once; otherwise, past
+ *   0:00, it waits for BOTH, up to the 30 s AFK backstop (owner 2026-10-27: "in duos, don't do the 5s timer when a player
+ *   readies at 0 seconds. make it so both players must ready up to progress it"; R-RANKED-DUOS-GATE-02, which retired
+ *   the 5 s window after the first End Turn). A teammate on auto (disconnected / left) counts as ready from the moment
+ *   they went auto. Mirrored by `versus_ranked_duos__close_at` (supabase/migrations/2026-11-02-ranked-duos-both-ready.sql).
  * - TEAM NAMES (owner: "me and lemon could name our team CITRUS"): 2-16 letters, digits and single spaces; the server
  *   also runs the word filter (it stays off the client bundle). Default "Name1 & Name2", display only.
  * - The TEAM identity: the unordered pair of account ids.
@@ -20,9 +21,9 @@ export const RANKED_DUOS_SERVED_TEAMS: readonly RankedDuosTeam[] = ['b', 'c', 'd
 
 /** A team pool starts on 30 Health plus both heroes' Armor (owner 2026-10-26). */
 export const RANKED_DUOS_TEAM_HEALTH = 30;
-/** The other teammate's window once one has ended and the clock is at 0:00 (owner: "a timer ... of 5 seconds"). */
-export const RANKED_DUOS_END_GRACE_MS = 5_000;
-/** Nobody ended this long past 0:00: the round closes as a timeout (an AFK safeguard, picked 2026-10-26). */
+/** Not both ready this long past 0:00: the round closes as a timeout (an AFK safeguard, picked 2026-10-26; since
+ *  2026-10-27 it also bounds a teammate who readied while the other has not, R-RANKED-DUOS-GATE-02). A teammate who
+ *  disconnects goes on auto after the 12 s lease and counts as ready long before this. */
 export const RANKED_DUOS_OVERTIME_BACKSTOP_MS = 30_000;
 
 export interface RankedDuosGateInput {
@@ -41,9 +42,7 @@ export function rankedDuosCloseAt(g: RankedDuosGateInput): number | null {
   const ends = g.ended;
   if (ends.length > 0 && ends.every((e) => e != null)) return Math.max(...(ends as number[]));
   if (g.deadline == null) return null;
-  const first = ends.reduce<number | null>((m, e) => (e == null ? m : m == null ? e : Math.min(m, e)), null);
-  if (first == null) return g.deadline + RANKED_DUOS_OVERTIME_BACKSTOP_MS;
-  return Math.max(g.deadline, first) + RANKED_DUOS_END_GRACE_MS;
+  return g.deadline + RANKED_DUOS_OVERTIME_BACKSTOP_MS;
 }
 
 /** Shop actions are refused from 0:00 (owner: "you can't keep shopping, but can re-order board etc"); re-order, freeze

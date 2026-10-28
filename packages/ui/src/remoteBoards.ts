@@ -1296,7 +1296,9 @@ export async function fetchReplayForSeed(seed: number, opts?: { userId?: string 
     const run = (stored: boolean) => {
       const base = stored
         // the facts columns: a stored row's `replay` is null, its `tp_seed` / `tp_v2_version` are not
+        // rows: `.limit(2)` is applied below, after the optional user filter.
         ? c.from('run_telemetry').select('v2:replay->v2, replay_path').eq('tp_seed', String(seed)).eq('tp_v2_version', '2')
+        // rows: `.limit(2)` is applied below, after the optional user filter.
         : c.from('run_telemetry').select('v2:replay->v2')
           .eq('replay->>seed', String(seed)) // ->> compares as text — robust across PostgREST versions
           .eq('replay->v2->>version', '2');

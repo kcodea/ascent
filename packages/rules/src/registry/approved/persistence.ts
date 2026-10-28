@@ -1032,4 +1032,27 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-28. Before, every Career open read the full entry of the newest 50 runs (~12.7 KB each on prod, ~2 GB in 16 days).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/careerFetch.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/careerData.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-LOBBY-POOL-JOB-01',
+    title: 'A board upload never runs the opponent-pool refresh; a once-a-minute job does, with the same result',
+    statement:
+      "Uploading a run's boards is a plain insert that only queues the run for the pool. A server job, every minute, "
+      + "rebuilds the queued runs' pool rows and their strength exactly as the upload used to (same order, same full or "
+      + 'partial strength refresh rule), so the runs, ids and strengths the opponent pool serves are unchanged; they '
+      + 'arrive in the pool at most one minute later. A failed refresh keeps the runs queued and is logged, never only '
+      + 'warned. The strength histograms are served from tables the same job rebuilds, and the pool sample never spills '
+      + 'to disk (work_mem 16 MB).',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-28 (Supabase cleanup scope)', quote: "scope out a massive supabase clean up so that we're running really cleanly across the board" },
+      { kind: 'owner-chat', ref: 'Owner bar 2026-10-17 (serving integrity)', quote: 'we need to make sure snapshots are served on the right turns, this is a core mechanic of our game... we need the game serving integrity to be literally perfect' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-07-pool-refresh-off-upload.sql (pool_dirty, pool_dirty_after_boards, pool_refresh_dirty, board_strength_hist / run_strength_hist, pool-refresh cron); docs/design/2026-10-28-supabase-cleanup.md sections 3.2 + 4.2' },
+    ],
+    currentBehaviour:
+      'Conforms once the migration is applied. Before, the boards insert ran the pool rebuild and a strength refresh '
+      + '(a FULL one for every new run) inside the upload: 1.35 s mean, 7.7 s max against the 8 s timeout, and both '
+      + 'triggers swallowed their errors as warnings.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/poolRefreshJob.db.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

@@ -1115,4 +1115,40 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Client conforms from this PR once the migration is applied (before it, every write and read falls back to the row). Production 2026-10-28: 409 replays inline, 385 MB as text (121 MB stored); none moved yet.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/replayStorage.db.test.ts', 'packages/ui/src/replayStorage.test.ts', 'packages/ui/src/replayStorageOutbox.test.ts', 'packages/tools/src/replays/backfill.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-SEC-WRITES-01',
+    title: 'Players write only their own rows, and only where a policy says so',
+    statement:
+      'Without a session nobody can write a snapshot board (the old anonymous boards insert is closed), and a signed-in '
+      + 'player (a guest included) writes boards, Career, telemetry, fights, victories, practice games and perf runs only '
+      + 'as themselves. The client roles hold a write privilege on a table only where a row policy allows that write; '
+      + 'everything else (crates, progression, ratings, Versus) is written only by the server functions. No client role '
+      + 'may TRUNCATE, TRIGGER or REFERENCE any table.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-28 (docs/design/2026-10-28-supabase-cleanup.md, Phase 3)', quote: 'scope out a massive supabase clean up so that we\'re running really cleanly across the board' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-07-security-writes.sql (drops boards "anon insert"; revokes writes no policy allows; TRUNCATE/REFERENCES/TRIGGER/MAINTAIN everywhere and in the defaults)' },
+    ],
+    currentBehaviour: 'Conforms once the lead applies 2026-11-07-security-writes.sql. Before: anyone with the public key could insert boards for any user (zero such inserts measured 2026-10-12..28), and RLS alone stood between the client roles and every table.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/securityGrants.db.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
+  {
+    id: 'R-SEC-READS-01',
+    title: 'The large shared tables answer a session only',
+    statement:
+      'Snapshot boards, the opponent pool, telemetry and replays, practice games, victories, the fight ledger and the '
+      + 'board records (and the pool and strength calls) are readable by any signed-in session, an anonymous guest '
+      + 'included, but not by the bare public key. Reads the game makes at boot wait for its sign-in (at most 6 s, once '
+      + 'per load) instead of racing it. Small public reads (profiles, cosmetics, catalogs, guides, Live Games) are '
+      + 'unchanged.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-28 (docs/design/2026-10-28-supabase-cleanup.md S2)', quote: 'scope out a massive supabase clean up so that we\'re running really cleanly across the board' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-09-security-reads-need-session.sql; packages/ui/src/remoteBoards.ts sessionReady / sessionClient; packages/ui/src/identity.ts identitySettled; packages/tools/src/supabaseReadKey.ts' },
+    ],
+    currentBehaviour: 'Client half conforms from this PR. Server half waits: the lead applies 2026-11-09-security-reads-need-session.sql one release after the client ships (older builds then retry their first boot reads once signed in).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/securityGrants.db.test.ts', 'packages/ui/src/sessionFirstReads.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

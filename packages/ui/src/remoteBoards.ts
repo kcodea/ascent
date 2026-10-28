@@ -18,7 +18,7 @@ import { activeSet, type SetId } from '@game/content';
 import type { FightRow, LobbyStrength, MatchDetails, StrengthInput } from '@game/sim';
 import { STRENGTH_REF_VERSION, parseBoardStrength, type RunStrengthHistogramEntry, type StrengthBand, type StrengthHistogram, type StrengthScore } from '@game/sim';
 import { RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseMatchDetails, parseRankResult, parseRankedProfile, parseRankAtStart, registerOpponentRuns, type BoardSnapshot, type DerivedRun, type PlayerKeyBasis, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, type TelemetryCapture, type RunRegime, type LobbyPoolTelemetry, isRankPosition, type RankPosition } from '@game/sim';
-import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
+import { currentIdentity, currentUserId, identitySettled, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { createPoolLoader, STARTUP_LOAD, type PoolLoader } from './opponentPool/poolLoader';
 import { idbPoolCache } from './opponentPool/poolCache';
@@ -79,6 +79,32 @@ function client(): SupabaseClient | null {
         : null;
   }
   return cachedClient;
+}
+
+/**
+ * SESSION-FIRST READS (security pass 2026-11-07, docs/design/2026-10-28-supabase-cleanup.md S2). The large shared
+ * tables (boards, run_telemetry, practice_games, runs, lobby_fights, board_results, pool_runs) and the pool /
+ * strength RPCs answer only a signed-in session (an anonymous guest counts) once
+ * `supabase/migrations/2026-11-09-security-reads-need-session.sql` is applied. A first-time visitor has no stored
+ * session, so a read fired at boot would go out as the bare `anon` role before `signInAnonymously` lands. Those reads
+ * wait here for the boot's sign-in, bounded by SESSION_WAIT_MS so an offline boot is never held. One wait per app
+ * load: a later read with no session (sign-in failed) goes straight out, as before.
+ */
+const SESSION_WAIT_MS = 6000;
+let sessionWaited = false;
+export async function sessionReady(): Promise<void> {
+  try {
+    if (sessionWaited || currentUserId()) return;
+    const settled = identitySettled();
+    if (!settled) return; // no boot sign-in in this process (tools, tests): nothing to wait for
+    await Promise.race([settled.catch(() => null), new Promise((r) => setTimeout(r, SESSION_WAIT_MS))]);
+    sessionWaited = true;
+  } catch { /* the gate never blocks a read: on any surprise the read goes out as before */ }
+}
+async function sessionClient(): Promise<SupabaseClient | null> {
+  const c = client();
+  if (c) await sessionReady();
+  return c;
 }
 
 /** BUG REPORTER (PR 2): the reporter's Edge Function upload rides THIS client — same persisted session and
@@ -545,9 +571,11 @@ export function opponentPoolLoader(patchPrefix = `${typeof __APP_VERSION__ === '
   const session: PoolFetchSession = { rpcMissing: false };
   const loader = createPoolLoader({
     patchPrefix,
-    fetchRuns: (signal) => fetchPoolRuns(api, {
-      setId: activeSet().id, patchPrefix, random: Math.random, band: currentPoolBand(),
-    }, signal, session),
+    // The pool answers only a session (sessionReady above): a first boot waits for its sign-in before sampling.
+    fetchRuns: async (signal) => {
+      await sessionReady();
+      return fetchPoolRuns(api, { setId: activeSet().id, patchPrefix, random: Math.random, band: currentPoolBand() }, signal, session);
+    },
     band: currentPoolBand,
     registerRuns: registerOpponentRuns,
     cache: idbPoolCache(),
@@ -668,7 +696,7 @@ export async function fetchPlayerRating(_author: string): Promise<number | null 
 /** Fetch the latest `limit` victory runs (newest first) for the leaderboard. Best-effort + time-boxed; [] on
  *  any failure / no backend. */
 export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {
-  const c = client();
+  const c = await sessionClient();
   if (!c) return [];
   try {
     const request = Promise.resolve(
@@ -819,7 +847,7 @@ export async function fetchRunTelemetry(opts: { cap?: number; pageSize?: number 
   const cap = opts.cap ?? BALANCE_FLAT_CAP;
   const pageSize = Math.min(opts.pageSize ?? BALANCE_FLAT_PAGE, cap);
   const empty: RunTelemetryFetch = { rows: [], fetched: 0, truncated: false, cap, pageSize, playerKeyBasis: 'displayName' };
-  const c = client();
+  const c = await sessionClient();
   if (!c) return empty;
   try {
     const query = (select: string, from: number) => Promise.race([
@@ -912,7 +940,7 @@ const BALANCE_DERIVED_SELECT = 'id, derived';
 export const DERIVED_CHUNK = 100;
 export async function fetchRunDerived(ids: readonly number[]): Promise<Map<number, DerivedRun>> {
   const out = new Map<number, DerivedRun>();
-  const c = client();
+  const c = await sessionClient();
   if (!c || ids.length === 0) return out;
   try {
     const chunks: number[][] = [];
@@ -1082,7 +1110,7 @@ const newerGame = (a: Record<string, unknown>, b: Record<string, unknown>): numb
   String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')) || Number(b.id) - Number(a.id);
 
 export async function fetchRecentGames(limit = 20): Promise<RecentGameRow[]> {
-  const c = client();
+  const c = await sessionClient();
   if (!c) return [];
   try {
     const timeout = () => new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
@@ -1156,7 +1184,7 @@ async function v2OfRow(c: SupabaseClient, row: { v2?: unknown; replay_path?: unk
  *  riding alongside in the jsonb never cross the wire. Best-effort + time-boxed; null on any failure /
  *  malformed payload — the caller shows "no replay" rather than a broken viewer. */
 export async function fetchReplayPayload(rowId: number): Promise<ReplayV2 | null> {
-  const c = client();
+  const c = await sessionClient();
   if (!c || !Number.isFinite(rowId)) return null;
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
@@ -1179,7 +1207,7 @@ export async function fetchReplayPayload(rowId: number): Promise<ReplayV2 | null
  *  the couple of newest qualifying rows in case the very latest payload is malformed. Null when the player
  *  has no watchable run yet — the caller shows "No run", never a broken viewer. */
 export async function fetchLatestReplayForUser(userId: string): Promise<ReplayV2 | null> {
-  const c = client();
+  const c = await sessionClient();
   if (!c || !userId) return null;
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
@@ -1219,7 +1247,7 @@ export function fetchRecentMatch(rowId: number | null | undefined, userId: strin
   const hit = recentMatchCache.get(rowId);
   if (hit) return hit;
   const p = (async (): Promise<MatchDetails | null> => {
-    const c = client();
+    const c = await sessionClient();
     if (!c) return null;
     try {
       const timeout = <T,>(): Promise<T | null> => new Promise((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
@@ -1288,7 +1316,7 @@ export function pickReplayForSeed(rows: Array<{ v2: unknown }>, seed: number): R
  *  case the latest payload is malformed. Best-effort + time-boxed; null on any failure — the caller shows
  *  "No replay", never a broken viewer. */
 export async function fetchReplayForSeed(seed: number, opts?: { userId?: string | null }): Promise<ReplayV2 | null> {
-  const c = client();
+  const c = await sessionClient();
   if (!c || !Number.isFinite(seed)) return null;
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
@@ -1851,7 +1879,7 @@ export function asPracticeGameRow(r: Record<string, unknown>): PracticeGameRow {
 /** The last N finished practice games across ALL players — newest first. Best-effort + time-boxed; `[]` when
  *  no backend, on any failure, and until the `practice_games` migration has been run. */
 export async function fetchPracticeGames(limit = 20): Promise<PracticeGameRow[]> {
-  const c = client();
+  const c = await sessionClient();
   if (!c) return [];
   try {
     const result = await practiceQuery((select) => c.from('practice_games').select(select).order('created_at', { ascending: false }).limit(limit));
@@ -1866,7 +1894,7 @@ export async function fetchPracticeGames(limit = 20): Promise<PracticeGameRow[]>
  *  by `user_id` (never by the mutable display name). Best-effort + time-boxed like the others: `[]` with no
  *  backend or no user id (nothing to ask), `null` when the read failed or timed out (the tab offers a Retry). */
 export async function fetchMyPracticeGames(userId: string | null | undefined, limit = 25): Promise<PracticeGameRow[] | null> {
-  const c = client();
+  const c = await sessionClient();
   if (!c || !userId) return [];
   try {
     const result = await practiceQuery((select) => c.from('practice_games').select(select).eq('user_id', userId).order('created_at', { ascending: false }).limit(limit));
@@ -1881,7 +1909,7 @@ export async function fetchMyPracticeGames(userId: string | null | undefined, li
  *  twin of `fetchReplayPayload` (selects `replay->v2` alone, so the action log never crosses the wire).
  *  Best-effort + time-boxed; null on any failure / malformed payload, so the caller shows "No replay". */
 export async function fetchPracticeReplay(rowId: number): Promise<ReplayV2 | null> {
-  const c = client();
+  const c = await sessionClient();
   if (!c || !Number.isFinite(rowId)) return null;
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
@@ -2024,7 +2052,7 @@ export async function fetchMyRuns(
   limit = 100,
   opts?: { userId?: string; onHistory?: (runs: CareerRun[]) => void },
 ): Promise<CareerRun[] | null> {
-  const c = client();
+  const c = await sessionClient();
   const userId = opts?.userId ?? currentUserId();
   if (!c || !userId || (!opts?.userId && !currentUserId())) return null;
   const detailLimit = Math.min(CAREER_DETAIL_ROWS, limit);
@@ -2180,7 +2208,7 @@ const KEY_CHUNK = 50;
  *  time-boxed; an EMPTY map on any failure / no backend / a not-yet-migrated view — a key with no row reads
  *  as unserved, which is honest. */
 export async function fetchRunFightRecords(runKeys: string[]): Promise<Map<string, RunFightRecord>> {
-  const c = client();
+  const c = await sessionClient();
   const keys = [...new Set(runKeys.filter((k) => k && !k.startsWith('bot:')))];
   if (!c || keys.length === 0) return new Map();
   const chunks: string[][] = [];
@@ -2209,7 +2237,7 @@ export async function fetchRunFightRecords(runKeys: string[]): Promise<Map<strin
  *  strength stamp rather than a guessed one. The SERVER recomputes its own copy at settle time; this is what the
  *  Career and Recent Games rows print. */
 export async function fetchLobbyStrength(opponentKeys: string[], ownRows: readonly FightRow[] = []): Promise<LobbyStrength | null> {
-  const c = client();
+  const c = await sessionClient();
   if (!c || opponentKeys.length === 0) return null;
   const real = opponentKeys.filter((k) => !k.startsWith('bot:'));
   const records = new Map<string, RunFightRecord>();
@@ -2245,7 +2273,7 @@ export const HALL_MIN_FIGHTS = 10;
  *  fights, then the most recent fight. Best-effort + time-boxed; `[]` on any failure / no backend / a
  *  not-yet-migrated view (the Hall then shows its empty state). */
 export async function fetchHallRecords(limit = HALL_ROWS, minFights = HALL_MIN_FIGHTS): Promise<RunFightRecord[]> {
-  const c = client();
+  const c = await sessionClient();
   if (!c) return [];
   try {
     const request = Promise.resolve(
@@ -2338,7 +2366,7 @@ export async function fetchHallHistory(seeds: number[]): Promise<Map<string, Hal
  *  before the ledger) is absent, and the Hall falls back to the career tally and labels it. Best-effort +
  *  time-boxed; an empty map on any failure. */
 export async function fetchHallOwnGames(runs: Array<{ key: string; seed: number }>): Promise<Map<string, HallOwnRecord>> {
-  const c = client();
+  const c = await sessionClient();
   const seeds = [...new Set(runs.map((r) => r.seed).filter((x) => Number.isFinite(x)))];
   if (!c || seeds.length === 0) return new Map();
   try {
@@ -2365,7 +2393,7 @@ export async function fetchHallOwnGames(runs: Array<{ key: string; seed: number 
  *  (`boards`, by author + hero + seed, `order wave desc limit 1` — one row, one jsonb, a few KB). Ten of these
  *  in parallel is trivial at friend scale. Keyed by run key; a run with no board in the pool is absent. */
 export async function fetchRunFinalBoards(runs: Array<{ key: string; author: string; heroId: string; seed: number }>): Promise<Map<string, BoardSnapshot>> {
-  const c = client();
+  const c = await sessionClient();
   if (!c || runs.length === 0) return new Map();
   try {
     const request = Promise.all(runs.map((r) => Promise.resolve(
@@ -2466,7 +2494,7 @@ export async function fetchRunStrengthHistogramRows(
 }
 
 export async function refreshStrengthHistogram(): Promise<StrengthHistogram | null> {
-  const c = client();
+  const c = await sessionClient();
   if (!c) return null;
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));

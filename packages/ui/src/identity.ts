@@ -116,6 +116,10 @@ export function initIdentity(provider: AuthProvider, displayName: string): Promi
   return initPromise;
 }
 
+/** The boot's session promise, or null when `initIdentity` has not run (tools, tests). Read paths that the server
+ *  serves only to a session wait on it (`sessionClient` in remoteBoards.ts) instead of racing the first sign-in. */
+export const identitySettled = (): Promise<Identity | null> | null => initPromise;
+
 /** Reset the module between tests (the init promise is intentionally sticky in the app). */
 export function resetIdentityForTests(): void {
   current = null;

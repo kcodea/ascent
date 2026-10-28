@@ -11,6 +11,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { toolReadKey } from './supabaseReadKey';
 
 const OUT = 'packages/tools/.cache/player-boards.json';
 
@@ -23,7 +24,7 @@ const env = Object.fromEntries(
 );
 
 const url = env.VITE_SUPABASE_URL;
-const key = env.VITE_SUPABASE_ANON_KEY;
+const key = env.VITE_SUPABASE_ANON_KEY ? toolReadKey(env.VITE_SUPABASE_ANON_KEY) : undefined; // boards: a session-only read since 2026-11-07
 if (!url || !key) { console.error('no backend configured in apps/web/.env'); process.exit(1); }
 
 const c = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });

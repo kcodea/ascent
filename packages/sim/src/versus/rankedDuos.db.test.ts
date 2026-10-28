@@ -7,8 +7,9 @@
  * - team names (format, the guides word filter in SQL agreeing with the TS filter, either teammate, not while in a game);
  * - `settle_duos_rank` agrees with `resolveRank(DUOS_RANK_RULES)` over random walks, and settles once per match;
  * - the table seating through the REAL `handleRankedDuosSeat` (pinned, idempotent, validated);
- * - the end-turn gate: both ended = at once; one ended = 0:00 + 5 s; nobody at 0:00 = the first End Turn + 5 s; the
- *   30 s backstop; re-ordering accepted past 0:00 until the close; a disconnect counts as ended; no pause;
+ * - the end-turn gate (R-RANKED-DUOS-GATE-02, owner 2026-10-27, `2026-11-02-ranked-duos-both-ready.sql`): both ready =
+ *   at once; one ready = it waits for the other past 0:00 (no 5 s window), up to the 30 s backstop; re-ordering accepted
+ *   past 0:00 until the close; a disconnect counts as ready; no pause;
  * - leaving: one leaver plays on auto, both gone = placed in the lowest open place and settled; the abandoned sweep;
  * - the live team's placement settles the rating (rated tables only) and records the duo run exactly as fought.
  */
@@ -21,7 +22,7 @@ import type { PreparedCombatSide } from '../state';
 import { DUOS_RANK_RULES, resolveRank, type RankPosition } from '../rank';
 import { isBlockedText, isReservedByline } from '../../../guides/src/wordFilter';
 import { handleRankedDuosSeat, type RankedDuosSeatStore, type RankedDuosSoloRow } from './rankedDuosSeat';
-import { RANKED_DUOS_END_GRACE_MS, RANKED_DUOS_OVERTIME_BACKSTOP_MS } from './rankedDuos';
+import { RANKED_DUOS_OVERTIME_BACKSTOP_MS } from './rankedDuos';
 import { handleRankedDuosFinalize, type RankedDuosFinalizeStore } from './rankedDuosFinalize';
 
 const root = join(__dirname, '../../../..');
@@ -35,7 +36,10 @@ const FILES = [
 const BASE = FILES.map((f) => readFileSync(join(root, 'supabase/migrations', f), 'utf8')).join('\n');
 const RANKED = readFileSync(join(root, 'supabase/migrations/2026-10-29-ranked-duos.sql'), 'utf8');
 const CLIENT = readFileSync(join(root, 'supabase/migrations/2026-10-30-ranked-duos-client.sql'), 'utf8')
-  + readFileSync(join(root, 'supabase/migrations/2026-10-31-ranked-duos-live-fixes.sql'), 'utf8');
+  + readFileSync(join(root, 'supabase/migrations/2026-10-31-ranked-duos-live-fixes.sql'), 'utf8')
+  // The ready signal (R-VERSUS-READY-01) and BOTH READY at 0:00 (R-RANKED-DUOS-GATE-02, owner 2026-10-27).
+  + readFileSync(join(root, 'supabase/migrations/2026-11-01-versus-ready-signal.sql'), 'utf8')
+  + readFileSync(join(root, 'supabase/migrations/2026-11-02-ranked-duos-both-ready.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -310,7 +314,9 @@ describe('the end-turn gate (R-RANKED-DUOS-GATE-01)', () => {
     expect((await matchRow(m)).phase).toBe('resolving');
   });
 
-  it('one ended with time left: the other has until 0:00 + 5 s, and may re-order past 0:00', async () => {
+  // R-RANKED-DUOS-GATE-02 (owner 2026-10-27: "in duos, don't do the 5s timer when a player readies at 0 seconds. make it
+  // so both players must ready up to progress it").
+  it('one ready with time left: past 0:00 the round waits for the other (no 5 s window), who may still re-order', async () => {
     const { m, deadline } = await shop();
     at(2000);
     await submit(A, m, 1, true);
@@ -318,25 +324,44 @@ describe('the end-turn gate (R-RANKED-DUOS-GATE-01)', () => {
     await beat();
     expect((await reconcile(A, m)).phase).toBe('shop');
     await submit(B, m, 1, false, 2); // a re-order at 0:00 + 1 s still lands
-    gotoMs(deadline + RANKED_DUOS_END_GRACE_MS - 100);
+    gotoMs(deadline + 5_000);
     await beat();
-    expect((await reconcile(B, m)).phase).toBe('shop');
-    gotoMs(deadline + RANKED_DUOS_END_GRACE_MS);
+    expect((await reconcile(B, m)).phase).toBe('shop'); // the old 5 s window is gone
+    gotoMs(deadline + 20_000);
     await beat();
     const r = await reconcile(B, m);
-    expect(r.phase).toBe('resolving');
+    expect(r.phase).toBe('shop');
+    expect(Date.parse(r.closeAt)).toBe(deadline + RANKED_DUOS_OVERTIME_BACKSTOP_MS);
+    await submit(B, m, 1, true, 3); // the teammate readies: the round goes at once
+    expect((await matchRow(m)).phase).toBe('resolving');
     const subs = await q<any>('select seat, source, candidate_seq from public.versus_group_submissions where match_id = $1 and round = 1 order by seat', [m]);
-    expect(subs.map((s) => [s.seat, s.source, s.candidate_seq])).toEqual([['p1', 'lock', 1], ['p2', 'deadline', 2]]);
+    expect(subs.map((s) => [s.seat, s.source, s.candidate_seq])).toEqual([['p1', 'lock', 1], ['p2', 'lock', 3]]);
   });
 
-  it('nobody ended at 0:00: it waits; the first End Turn opens 5 s; the second closes it at once', async () => {
+  it('one ready, the other never presses: the 30 s backstop closes the round with the other teammate newest board', async () => {
+    const { m, deadline } = await shop();
+    await submit(A, m, 1, true);
+    await submit(B, m, 1, false, 2);
+    gotoMs(deadline + RANKED_DUOS_OVERTIME_BACKSTOP_MS - 1);
+    await beat();
+    expect((await reconcile(B, m)).phase).toBe('shop');
+    gotoMs(deadline + RANKED_DUOS_OVERTIME_BACKSTOP_MS);
+    await beat();
+    expect((await reconcile(B, m)).phase).toBe('resolving');
+    const subs = await q<any>('select seat, source from public.versus_group_submissions where match_id = $1 and round = 1 order by seat', [m]);
+    expect(subs.map((s) => [s.seat, s.source])).toEqual([['p1', 'lock'], ['p2', 'deadline']]);
+  });
+
+  it('nobody ready at 0:00: it waits; the first End Turn opens no window; the second closes it at once', async () => {
     const { m, deadline } = await shop();
     gotoMs(deadline + 12_000);
     await beat();
     expect((await reconcile(A, m)).phase).toBe('shop');
     await submit(A, m, 1, true);
-    expect(Date.parse((await reconcile(A, m)).closeAt)).toBe(deadline + 12_000 + RANKED_DUOS_END_GRACE_MS);
-    gotoMs(deadline + 14_000);
+    expect(Date.parse((await reconcile(A, m)).closeAt)).toBe(deadline + RANKED_DUOS_OVERTIME_BACKSTOP_MS);
+    gotoMs(deadline + 18_000);
+    await beat();
+    expect((await reconcile(A, m)).phase).toBe('shop'); // past the old first-press + 5 s
     await submit(B, m, 1, true);
     expect((await matchRow(m)).phase).toBe('resolving');
   });
@@ -354,7 +379,7 @@ describe('the end-turn gate (R-RANKED-DUOS-GATE-01)', () => {
   it('a lock after the close (plus its 250 ms grace) is refused', async () => {
     const { m, deadline } = await shop();
     await submit(A, m, 1, true);
-    gotoMs(deadline + RANKED_DUOS_END_GRACE_MS + 300);
+    gotoMs(deadline + RANKED_DUOS_OVERTIME_BACKSTOP_MS + 300);
     expect(await fails(B, 'select public.versus_ranked_duos_submit($1, 1, 5, $2::jsonb, true, null, null)', [m, JSON.stringify(sideOf([]))])).toMatch(/deadline_passed/);
   });
 

@@ -6,11 +6,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import { combatSide, type BoardMinion } from '@game/core';
-import { resolveRankedDuosRound, versusGroupLobby, RANKED_DUOS_END_GRACE_MS, RANKED_DUOS_OVERTIME_BACKSTOP_MS, type PreparedCombatSide, type VersusGroupSeat } from '@game/sim';
+import { resolveRankedDuosRound, versusGroupLobby, RANKED_DUOS_OVERTIME_BACKSTOP_MS, type PreparedCombatSide, type VersusGroupSeat } from '@game/sim';
 import type { RankedDuosFightRow, RankedDuosRoundRow, RankedDuosTableRaw, RankedDuosTeamRead, VersusGroupMatchRaw, VersusGroupSeatRow } from './versusRemote';
 import { rankedCloseAtMs, rankedFoeAt, rankedRoundsAsGroup, rankedTeamLabels, withServedSeats, type RankedDuosContext } from './rankedDuosView';
 import { duosFirstAt, duosLobbySeatId, groupDuosRailRows, projectGroupMatch, projectGroupRounds } from './versusGroupView';
-import { versusTurn, versusTurnNote } from './versusTurn';
+import { versusReadyLabel, versusTurn, versusTurnNote } from './versusTurn';
 import { buildGroupMatchRecord } from './versusMatchRecord';
 import { watchableSeat } from './spectate';
 
@@ -98,9 +98,9 @@ describe('Ranked Duos: the table on the client (R-RANKED-DUOS-CLIENT-01)', () =>
     expect((rows[0]!.vitals as Record<string, unknown>).p5).toEqual(r1.vitals.c);
   });
 
-  it('the end-turn gate: one ended = 0:00 + 5 s; nobody = the 30 s backstop; both = at once', () => {
+  it('the end-turn gate (R-RANKED-DUOS-GATE-02): one ready = waits for both (the 30 s backstop only); nobody = the backstop; both = at once', () => {
     const D = Date.parse('2026-10-26T12:00:30.000Z');
-    expect(rankedCloseAtMs(raw({ seats: [seat('p1', { locked: true, lockedAt: '2026-10-26T12:00:10.000Z' }), seat('p2')] }))).toBe(D + RANKED_DUOS_END_GRACE_MS);
+    expect(rankedCloseAtMs(raw({ seats: [seat('p1', { locked: true, lockedAt: '2026-10-26T12:00:10.000Z' }), seat('p2')] }))).toBe(D + RANKED_DUOS_OVERTIME_BACKSTOP_MS);
     expect(rankedCloseAtMs(raw())).toBe(D + RANKED_DUOS_OVERTIME_BACKSTOP_MS);
     expect(rankedCloseAtMs(raw({ seats: [seat('p1', { locked: true, lockedAt: '2026-10-26T12:00:10.000Z' }), seat('p2', { auto: true, autoSince: '2026-10-26T12:00:12.000Z' })] })))
       .toBe(Date.parse('2026-10-26T12:00:12.000Z'));
@@ -133,6 +133,27 @@ describe('Ranked Duos: the table on the client (R-RANKED-DUOS-CLIENT-01)', () =>
     const theirs = projectGroupMatch(withServedSeats(raw({ phase: 'combat', round: 2, combat_deadline: '2026-10-26T12:02:00.000Z',
       seats: [seat('p1'), seat('p2', { ready: true })] }), ctx()), 'u1');
     expect(versusTurnNote(versusTurn({ match: theirs, seat: 'p1', lockedRound: null, readyRound: null, run, now: 0 }), 4)).toBe('Lemon is ready · 4s');
+  });
+
+  it('R-VERSUS-READY-02: the ready gem in Ranked Duos: cancellable above 0:00, names the teammate past 0:00', () => {
+    const run = { mode: 'versus' as const, phase: 'recruit' as const, wave: 1 };
+    // I am ready, my teammate is not.
+    const mineOnly = projectGroupMatch(withServedSeats(raw({ seats: [seat('p1', { locked: true }), seat('p2')] }), ctx()), 'u1');
+    const ready = versusTurn({ match: mineOnly, seat: 'p1', lockedRound: 1, readyRound: null, run, now: 0 });
+    expect([ready.kind, ready.ready, ready.of, ready.mate]).toEqual(['ready', 1, 2, 'Lemon']);
+    expect(versusTurnNote(ready, 0, { cancellable: true })).toBe('Ready 1/2. Press again to cancel');
+    expect(versusTurnNote(ready, 0, { overtime: true })).toBe('Waiting for Lemon');
+    expect(versusReadyLabel(ready)).toBe('Press again to cancel');
+    // My teammate is ready, I am not: the hover label counts them; past 0:00 the pill names them.
+    const mateOnly = projectGroupMatch(withServedSeats(raw({ seats: [seat('p1'), seat('p2', { locked: true })] }), ctx()), 'u1');
+    const shop = versusTurn({ match: mateOnly, seat: 'p1', lockedRound: null, readyRound: null, run, now: 0 });
+    expect([shop.kind, shop.ready, shop.of]).toEqual(['shop', 1, 2]);
+    expect(versusReadyLabel(shop)).toBe('Ready up. 1/2 ready');
+    expect(versusTurnNote(shop, 0, { cancellable: true })).toBeNull();
+    expect(versusTurnNote(shop, 0, { overtime: true })).toBe('Lemon is ready');
+    // Nobody ready.
+    const none = versusTurn({ match: projectGroupMatch(withServedSeats(raw(), ctx()), 'u1'), seat: 'p1', lockedRound: null, readyRound: null, run, now: 0 });
+    expect([versusReadyLabel(none), versusTurnNote(none, 0, { overtime: true })]).toEqual(['Ready up', null]);
   });
 
   it('live test fixes: the match stats list all four teams (places 1st to 4th); a spectator never lands on a recorded seat', () => {

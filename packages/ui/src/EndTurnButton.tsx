@@ -41,7 +41,7 @@ import { publicArt } from './phoneArt';
 /** A press cue this soon after a strike is the same press (it lands before `pressed` flips on). */
 const STRIKE_DEDUPE_MS = 1500;
 
-export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatReady, onEndCombat, skipReady, onSkip, note }: {
+export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatReady, onEndCombat, skipReady, onSkip, note, label, readyOn = false }: {
   onEndTurn: () => void;
   disabled: boolean;
   /** The button has been hit — the end-of-turn beats are playing; show the dulled gem + stop the effects. */
@@ -58,6 +58,12 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
   /** A status the gem's own pill shows, pinned on, in place of its label (VERSUS: "Players ready 1/2" while this
    *  player waits on the other one, owner 2026-10-14). Null / absent: the ordinary hover label. */
   note?: string | null;
+  /** LIVE READY (R-VERSUS-READY-02, owner 2026-10-27): the shop-phase hover label in place of "End your turn and start
+   *  combat" (a live Versus / Ranked Duos game: "Ready up"). Null / absent: the ordinary label. */
+  label?: string | null;
+  /** LIVE READY: I am ready and the round is still open. The gem stays LIT (not the spent crack) under a steady green
+   *  ready glow, and a press takes the signal back. */
+  readyOn?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLButtonElement>(null);
@@ -283,10 +289,11 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
     <button
       ref={wrapRef}
       data-spec="endturn"
-      className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}${skipReady ? ' skip' : ''}${note ? ' noted' : ''}`}
+      className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}${skipReady ? ' skip' : ''}${note ? ' noted' : ''}${readyOn && !combatReady && !skipReady ? ' readyon' : ''}`}
       disabled={disabled}
       onClick={click}
-      aria-label={skipReady ? 'Skip combat' : combatReady ? 'End combat and go back to shop' : 'End your turn and start combat'}
+      aria-pressed={readyOn && !combatReady && !skipReady ? true : undefined}
+      aria-label={skipReady ? 'Skip combat' : combatReady ? 'End combat and go back to shop' : readyOn ? 'Ready. Press again to cancel' : label ?? 'End your turn and start combat'}
     >
       <canvas ref={canvasRef} className="etb-bolts" aria-hidden="true" />
       {/* Hover glow is now a drop-shadow ON the gem itself (styles.css `.etb-gem` hover → `--etb-gemglow`),
@@ -309,6 +316,11 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
       <span className="etb-gembox" aria-hidden="true">
         <img decoding="sync" className="etb-skipglow" src={publicArt(`frames/end_button_gem.webp`)} alt="" draggable={false} />
       </span>
+      {/* LIVE READY GLOW (R-VERSUS-READY-02): a green copy of the gem over the lit one while I am ready. Always mounted so
+          it fades (opacity), and its slow breathing is an OPACITY loop over a static filter: nothing repaints per frame. */}
+      <span className="etb-gembox" aria-hidden="true">
+        <img decoding="sync" className="etb-readyglow" src={publicArt(`frames/end_button_gem.webp`)} alt="" draggable={false} />
+      </span>
       {/* Ambient SHEEN — a periodic glare sweeping the gem's face (lit AND pressed), clipped to the gem's
           diamond. The bar animates TRANSFORM only inside a static clip-path (compositor-cheap loop). */}
       <span className="etb-sheen" aria-hidden="true"><span className="etb-sheen-bar" /></span>
@@ -318,7 +330,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
       {/* The END-COMBAT relight — the LIT art shines through as the dim gem hands back to the shop. */}
       {skipFlash && <img decoding="sync" className="etb-flash skipflash" src={publicArt(`frames/end_button_gem.webp`)} alt="" draggable={false} aria-hidden="true" />}
       {relighting && <img decoding="sync" className="etb-flash relight" src={publicArt(`frames/end_button_base.webp`)} alt="" draggable={false} aria-hidden="true" />}
-      <span className="etb-tip" aria-live={note ? 'polite' : undefined}>{note ?? (skipReady ? 'Skip Combat' : combatReady ? 'End combat and go back to shop' : 'End your turn and start combat')}</span>
+      <span className="etb-tip" aria-live={note ? 'polite' : undefined}>{note ?? (skipReady ? 'Skip Combat' : combatReady ? 'End combat and go back to shop' : label ?? 'End your turn and start combat')}</span>
     </button>
   );
 });

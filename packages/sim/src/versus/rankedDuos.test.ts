@@ -8,7 +8,7 @@ import { DUOS_RANK_RULES, resolveRank } from '../rank';
 import { STRENGTH_BANDS } from '../lobby/strengthBands';
 import { runOwnerOf } from '../lobby/snapshotSeats';
 import {
-  cleanTeamName, defaultTeamName, rankedDuosCloseAt, rankedDuosShoppingOpen, RANKED_DUOS_END_GRACE_MS,
+  cleanTeamName, defaultTeamName, rankedDuosCloseAt, rankedDuosShoppingOpen,
   RANKED_DUOS_OVERTIME_BACKSTOP_MS, teamNameProblem, teamPairOf,
 } from './rankedDuos';
 import { RANKED_DUOS_MAX_SEATS_PER_PLAYER, selectRankedDuosTable, servedOwnerOf, type DuoRunCandidate, type SoloRunCandidate } from './rankedDuosSeating';
@@ -20,11 +20,15 @@ describe('the end-turn gate (owner 2026-10-26, R-RANKED-DUOS-GATE-01)', () => {
     expect(rankedDuosCloseAt({ deadline: D, ended: [10_000, 20_000] })).toBe(20_000);
     expect(rankedDuosCloseAt({ deadline: null, ended: [1, 2] })).toBe(2);
   });
-  it('one ended with time left: wait for the other until 0:00, then 5 s', () => {
-    expect(rankedDuosCloseAt({ deadline: D, ended: [40_000, null] })).toBe(D + RANKED_DUOS_END_GRACE_MS);
+  // R-RANKED-DUOS-GATE-02 (owner 2026-10-27): no 5 s window after the first End Turn; both must be ready.
+  it('one ready with time left: the round waits for the other past 0:00, up to the AFK backstop only', () => {
+    expect(rankedDuosCloseAt({ deadline: D, ended: [40_000, null] })).toBe(D + RANKED_DUOS_OVERTIME_BACKSTOP_MS);
   });
-  it('nobody ended at 0:00: the first End Turn opens the 5 s window', () => {
-    expect(rankedDuosCloseAt({ deadline: D, ended: [null, D + 12_000] })).toBe(D + 12_000 + RANKED_DUOS_END_GRACE_MS);
+  it('one ready at 0:00: no 5 s window, it still waits for the teammate', () => {
+    expect(rankedDuosCloseAt({ deadline: D, ended: [null, D + 12_000] })).toBe(D + RANKED_DUOS_OVERTIME_BACKSTOP_MS);
+  });
+  it('the other teammate readies past 0:00: the round goes at once, at that press', () => {
+    expect(rankedDuosCloseAt({ deadline: D, ended: [D + 3_000, D + 12_000] })).toBe(D + 12_000);
   });
   it('nobody ended at all: the 30 s AFK backstop past 0:00', () => {
     expect(rankedDuosCloseAt({ deadline: D, ended: [null, null] })).toBe(D + RANKED_DUOS_OVERTIME_BACKSTOP_MS);

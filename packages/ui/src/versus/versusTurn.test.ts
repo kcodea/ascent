@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { VersusMatch } from './versusRemote';
-import { versusEndsNow, versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, versusTurnReady, type VersusTurnInput } from './versusTurn';
+import { versusEndsNow, versusReadyLabel, versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, versusTurnReady, type VersusTurnInput } from './versusTurn';
 
 const T0 = Date.parse('2026-10-14T18:00:00Z');
 const row = (p: Partial<VersusMatch>): VersusMatch => ({
@@ -126,6 +126,17 @@ describe('R-VERSUS-READY-01: End Turn is a ready signal in every Versus mode (ow
       expect(versusTurnNote(t)).toBe(pill);
     });
   }
+  it('R-VERSUS-READY-02: a live game reads End Turn as a Ready toggle (hover label, cancellable pill)', () => {
+    const shop = versusTurn(at(row({ p2_locked: true }), 2, 'recruit'));
+    expect([shop.kind, shop.ready, shop.of, versusReadyLabel(shop)]).toEqual(['shop', 1, 2, 'Ready up. 1/2 ready']);
+    expect(versusReadyLabel(versusTurn(at(row({}), 2, 'recruit')))).toBe('Ready up');
+    const ready = versusTurn(at(row({ p1_locked: true }), 2, 'recruit', 2));
+    expect(versusTurnNote(ready, 0, { cancellable: true })).toBe('Ready 1/2. Press again to cancel');
+    expect(versusTurnNote(ready, 0, { cancellable: false, overtime: true })).toBe('Players ready 1/2'); // 1v1 names nobody
+    const g = versusTurn(at(group({ p1_locked: false, group: { counts: { living: 3, locked: 2, ready: 0, intro: 3 } } as never }), 2, 'recruit'));
+    expect([g.kind, g.ready, g.of]).toEqual(['shop', 2, 3]);
+    expect(versusReadyLabel(versusTurn(at(row({ phase: 'resolving', p1_locked: true }), 2, 'recruit', 2)))).toBeNull();
+  });
   it('once the server closes the round the fight is coming: held again (nothing may change the board that fights)', () => {
     for (const m of [duos({ phase: 'resolving' }), row({ phase: 'resolving', p1_locked: true, p2_locked: true })]) {
       const t = versusTurn(at(m, 2, 'recruit', 2));

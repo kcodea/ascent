@@ -78,9 +78,17 @@ export function versusTurn({ match: m, seat, lockedRound, readyRound = null, run
   if (m.round === wave) {
     if (m.phase === 'shop') {
       if (!m.shop_deadline) return m[`${seat}_intro`] ? { kind: 'intro', ready: count((s) => m[`${s}_intro`], 'intro'), of } : { kind: 'waiting' };
-      if (lockedRound !== wave) return { kind: 'shop' };
+      // RANKED DUOS: the one other live player is my teammate; the gem's pills name them (R-VERSUS-READY-02).
+      const mate = rankedMateName(m);
+      if (lockedRound !== wave) {
+        // Not ready: how many of the others are (the gem's hover label and, past 0:00 in Ranked Duos, its pill).
+        const meRow = g ? g.raw?.seats.find((x) => x.seat === g.me) : undefined;
+        const others = g ? Math.max(0, g.counts.locked - (meRow && (meRow.locked || meRow.auto) ? 1 : 0))
+          : SEATS.filter((s) => s !== seat && (!!m[`${s}_locked`] || !!m[`${s}_auto`])).length;
+        return { kind: 'shop', ready: Math.min(of, others), of, ...(mate ? { mate } : {}) };
+      }
       // End Turn is a ready signal while the round is open (R-VERSUS-READY-01).
-      return { kind: 'ready', ready: count((s) => m[`${s}_locked`], 'locked'), of };
+      return { kind: 'ready', ready: count((s) => m[`${s}_locked`], 'locked'), of, ...(mate ? { mate } : {}) };
     }
     // Resolving / the fight committed: my lock was early only if I pressed End Turn this round.
     return lockedRound === wave ? { kind: 'locked', ready: of, of } : { kind: 'waiting' };
@@ -96,6 +104,13 @@ export function versusTurn({ match: m, seat, lockedRound, readyRound = null, run
   return { kind: 'waiting', stale: true };
 }
 
+/** RANKED DUOS: my teammate's name (the one other live player, so the gem's pills can name them); else undefined. */
+function rankedMateName(m: VersusMatch): string | undefined {
+  const g = m.group;
+  const mateSeat = g && g.raw?.options?.mode === 'ranked_duos' ? g.duos?.mate ?? null : null;
+  return mateSeat ? g!.raw.seats.find((x) => x.seat === mateSeat)?.name : undefined;
+}
+
 /** The fight screen's state (see the header). */
 function fightTurn(m: VersusMatch, seat: VersusSeat, readyRound: number | null, wave: number): VersusTurn {
   if ((m.phase === 'shop' || m.phase === 'resolving') && m.round > wave) return { kind: 'leave' };
@@ -106,8 +121,7 @@ function fightTurn(m: VersusMatch, seat: VersusSeat, readyRound: number | null, 
     const mineG = readyRound === wave || !!m.p1_ready;
     const back = Math.min(g.counts.living, g.counts.ready + (mineG && !m.p1_ready ? 1 : 0));
     // RANKED DUOS: the one other player is my teammate (the recorded teams are never waited on): name them.
-    const mateSeat = g.raw.options?.mode === 'ranked_duos' ? g.duos?.mate ?? null : null;
-    const mate = mateSeat ? g.raw.seats.find((x) => x.seat === mateSeat)?.name : undefined;
+    const mate = rankedMateName(m);
     if (mineG) return { kind: 'fightReady', ready: back, of: g.counts.living, ...(mate ? { mate } : {}) };
     if (back >= g.counts.living - 1) return { kind: 'foeReady', of: g.counts.living, ...(mate ? { mate } : {}), ...(m.combat_deadline ? { deadline: Date.parse(m.combat_deadline) } : {}) };
     return { kind: 'fight' };
@@ -122,12 +136,24 @@ function fightTurn(m: VersusMatch, seat: VersusSeat, readyRound: number | null, 
 
 /** The shop is held (no input) in these states. Fight-screen states never hold the shop (it is not on screen). */
 export const versusTurnHolds = (t: VersusTurn): boolean => t.kind === 'locked' || t.kind === 'back' || t.kind === 'intro' || t.kind === 'waiting';
-/** The End Turn / End Combat gem's pill. `secondsLeft` feeds the opponent-ready countdown. */
-export const versusTurnNote = (t: VersusTurn, secondsLeft = 0): string | null =>
+/** The End Turn / End Combat gem's pill. `secondsLeft` feeds the opponent-ready countdown.
+ *  LIVE READY (R-VERSUS-READY-02, owner 2026-10-27: "maybe we modify the end turn gem for 'live' games where it is a
+ *  'ready' status that the player can toggle on/off"): `cancellable` (the clock is above 0:00, so a press takes the
+ *  signal back) says so on the pill; `overtime` (Ranked Duos past 0:00, where the round waits for both teammates) names
+ *  the teammate instead of a count. */
+export const versusTurnNote = (t: VersusTurn, secondsLeft = 0, opts: { cancellable?: boolean; overtime?: boolean } = {}): string | null =>
   // RANKED DUOS (lead 2026-10-26): after End Combat the pills name the teammate.
   t.kind === 'fightReady' && t.mate && (t.ready ?? 0) < (t.of ?? 2) ? `Waiting for ${t.mate}`
+    : t.kind === 'ready' && t.mate && opts.overtime && (t.ready ?? 0) < (t.of ?? 2) ? `Waiting for ${t.mate}`
+    : t.kind === 'ready' && opts.cancellable ? `Ready ${t.ready}/${t.of ?? 2}. Press again to cancel`
+    : t.kind === 'shop' && t.mate && opts.overtime && (t.ready ?? 0) > 0 ? `${t.mate} is ready`
     : t.kind === 'locked' || t.kind === 'ready' || t.kind === 'back' || t.kind === 'intro' || t.kind === 'fightReady' ? `Players ready ${t.ready}/${t.of ?? 2}`
     : t.kind === 'foeReady' ? `${t.mate ?? (t.of && t.of > 2 ? 'Everyone else' : 'Opponent')} is ready · ${Math.max(0, secondsLeft)}s` : null;
+/** LIVE READY (R-VERSUS-READY-02): the gem's hover label in a live game while I am not ready ("Ready up", with how many
+ *  of the others are when any are). */
+export const versusReadyLabel = (t: VersusTurn): string | null =>
+  t.kind === 'shop' ? ((t.ready ?? 0) > 0 ? `Ready up. ${t.ready}/${t.of ?? 2} ready` : 'Ready up')
+    : t.kind === 'ready' ? 'Press again to cancel' : null;
 /** The gem is spent (pressed, not pressable) while this player waits on the other. */
 /** The gem shows pressed (ready) but stays live, a second press takes the signal back (R-VERSUS-READY-01). */
 export const versusTurnReady = (t: VersusTurn): boolean => t.kind === 'ready';

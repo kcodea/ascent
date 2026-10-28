@@ -162,11 +162,6 @@ export function rankedCloseAtMs(raw: VersusGroupMatchRaw): number | null {
   return rankedDuosCloseAt({ deadline, ended });
 }
 
-/** Has anyone on the live team ended this round (the 5 s window counts down only then)? */
-export function rankedSomeoneEnded(raw: VersusGroupMatchRaw): boolean {
-  return raw.seats.some((s) => !s.served && s.eliminatedRound == null && (s.locked || s.auto || !!s.leftAt || !!raw.leftAt?.[s.seat]));
-}
-
 /** The teammate of a live seat (p1 <-> p2). */
 export const rankedMateOf = (seat: VersusGroupSeat): VersusGroupSeat => duosMateOf(seat);
 

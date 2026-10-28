@@ -34,6 +34,35 @@ let handlers: VersusCommitHandlers | null = null;
 
 export function installVersusHandlers(h: VersusCommitHandlers | null): void {
   handlers = h;
+  heldUntilFight = null; // a held End Turn never outlives the match it was for
+}
+
+/**
+ * EARLY END TURN (R-VERSUS-EARLY-EOT-01, owner 2026-10-27: "going into combat from shop seems to hang?"). The real End
+ * Turn (its End of Turn beats) starts the moment the server CLOSES the round, while `versus-resolve` is still settling
+ * it, instead of after the fight is in. Its COMMIT is what lands the fight (`versusLand`), so the commit waits here
+ * until the round's fight is in: the board stays exactly as the beats left it and nothing reaches the combat screen
+ * early (never a stale `lastCombat`). One held commit at a time; `releaseVersusFightWait` runs it once the fight is in.
+ */
+let heldUntilFight: { wave: number; go: () => void } | null = null;
+
+/** Hold `go` (a Versus End Turn's commit) until the fight for `run.wave` is in. True when it was held. */
+export function holdUntilVersusFight(run: RunState, action: Action, go: () => void): boolean {
+  if (run.mode !== 'versus' || action.type !== 'faceOmen' || !handlers || run.phase !== 'recruit') return false;
+  if (handlers.fightFor(run.wave)) return false;
+  heldUntilFight = { wave: run.wave, go };
+  return true;
+}
+
+/** Is a Versus End Turn's commit waiting on its fight? */
+export const versusFightWaitHeld = (): boolean => heldUntilFight !== null;
+
+/** The fight for `wave` is in: run the held commit (once). */
+export function releaseVersusFightWait(wave: number): void {
+  const h = heldUntilFight;
+  if (!h || h.wave !== wave || !handlers?.fightFor(wave)) return;
+  heldUntilFight = null;
+  h.go();
 }
 
 /** The current freeze ('paused' / 'held' / null). Null outside a live Versus match. */

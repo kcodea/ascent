@@ -10066,4 +10066,44 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-27 (fix/phone-resume-after-background). Before: the boundary showed "The game hit a snag" with the raw error message; a failed lazy chunk re-threw on Try to continue (React caches the rejection); a lost save answer read as "Your game moved"; a Home Screen app showed the crash readout by itself after a crash.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneResume.test.tsx', 'packages/ui/src/cloudSave.test.ts'], lastVerifiedAt: '2026-10-27' },
   },
+  {
+    id: 'R-DUOS-MATE-SIGNALS-01',
+    title: 'Duos: the teammate portrait bursts when they tier up, and glows while the round waits on their screen',
+    statement:
+      'On the player\x27s own board (shop or fight; never while they watch their teammate, never at Hero Select), the bottom-right teammate '
+      + 'portrait reads the teammate\x27s live stream. When the teammate\x27s shop tier goes UP (any source), the player\x27s own tier-up burst '
+      + '(`shop-tier-up`) plays over the portrait once. While the round waits on the teammate\x27s screen (the round has closed and their '
+      + 'screen is still on that round\x27s shop, playing their End of Turn; or the player is back from the fight and the teammate\x27s late fight '
+      + 'is still playing), the portrait carries a breathing gold glow with a turning arc, after a short delay so an instant End of Turn never '
+      + 'flashes it, also on the tag-in copy over the player\x27s hero. Never while the teammate is only shopping or away. The glow animates '
+      + 'opacity and transform only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27', quote: 'if a teammate tiers their shop up, can you play a similar burst animation over their portrait so the teammates know when they tier up?' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27', quote: 'if a teammate\x27s end of turn effects are going off, causing an end of turn hang, can you play a glow or effect on the teammate\x27s portrait so players know the game isnt frozen' },
+      { kind: 'code', ref: 'packages/ui/src/versus/duosMateSignals.ts (noteMateFrame, mateWorking); packages/ui/src/versus/spectate.ts (receiveSpectate); packages/ui/src/versus/DuosMateDock.tsx; packages/ui/src/versus/duosMateSignals.css' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (feat/duos-portrait-signals-rail). Before, a teammate\x27s tier-up showed nowhere on the player\x27s screen and a long teammate End of Turn read as a frozen game.',
+    example: 'Bob upgrades his shop to Tier 3: the tier-up burst plays over his portrait bottom right on Ann\x27s screen. Next round Bob\x27s End of Turn runs long; Ann\x27s fight is over and his portrait glows gold until his fight catches up.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateSignals.test.tsx'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-DUOS-RAIL-TEAM-01',
+    title: 'Duos: the lobby rail shows one slot per team',
+    statement:
+      'In Versus Duos and Ranked Duos the lobby rail draws each team as ONE slot: the team\x27s name across its top (when it has one), both '
+      + 'members stacked inside it (portrait and name each, still clickable and hoverable as before), and the team\x27s one Health pool and its bar '
+      + 'once at the foot. The slot carries the team\x27s marks (yours, the next foe with its pulse, out). The rail keeps its outer size; each slot '
+      + 'takes two rows\x27 share. Solo modes are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27', quote: 'clean up the duo\x27s rail a bit. can you tie the teammates together better by putting them into chunkier rail slots as a team?' },
+      { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (the team slot); packages/ui/src/versus/duosRailTeams.ts; packages/ui/src/lobbyRail.css (.lobbyteamslot)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (feat/duos-portrait-signals-rail). Before, every member had its own row with the same team Health repeated, only grouped by order.',
+    example: 'A Versus Duos rail: one gold-edged slot holds Ann and Bob with 30 Health and 25 Armor once at its foot; the red slot under it holds Cy and Di.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateSignals.test.tsx'], lastVerifiedAt: '2026-10-27' },
+  },
 ];

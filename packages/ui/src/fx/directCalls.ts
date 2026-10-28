@@ -150,7 +150,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // End-of-Turn economy beats (owner 2026-10-02, R-EOT-ECON-01): the generic self-buff burst played on the HUD control
   // whose number an End-of-Turn trigger moved (Tier stone, Refresh crystal, Gold pill). See choreographer/resourceFx.ts.
   'self-buff-burst': ['Recruit.tsx'],
-  'shop-tier-up': ['TavernUpButton.tsx'],
+  // ...and over the Duos teammate portrait when THEIR shop tiers up (R-DUOS-MATE-SIGNALS-01): the same burst, smaller.
+  'shop-tier-up': ['TavernUpButton.tsx', 'versus/DuosMateDock.tsx'],
   'spell-bounce': ['Recruit.tsx', 'choreo/score.ts'], // see `ruby-bounce` above — the spell family's placeholder twin
   // The Starform's pulls (owner-authored 2026-09-12): the token eating a Shop minion (from the meal's
   // `shopEaten` ghost, in place of `consume-pull`), a Celestial consuming the token, and the Collapse — one

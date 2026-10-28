@@ -28,7 +28,7 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSPr
 import { parseCosmeticSnapshot } from '@game/progression';
 import { FoePortraitDisc } from '../FoePortraitDisc';
 import { frameIdOf, usePortraitFrame } from '../portraitFrame/PortraitFrame';
-import { ensureDefsReady } from '../fx/playDef';
+import { ensureDefsReady, playDef } from '../fx/playDef';
 import { useDragSlice } from '../dragStore';
 import { useGame } from '../store';
 import { heroPortrait } from '../skins/skinArt';
@@ -42,6 +42,12 @@ import { useSpectate } from './spectate';
 import { useDuosCombat } from './duosCombat';
 import { useOwnHeroPick } from '../hero-select/ownHeroPick';
 import { avatarSrc } from '../art';
+import './duosMateSignals.css';
+import { mateWorking, useDuosMateSignals } from './duosMateSignals';
+
+/** The tier-up burst over the teammate disc, as a share of the player's own (`shop-tier-up` is authored for the Tier
+ *  stone; the disc is about the same size, the burst a touch smaller so it reads as theirs, not mine). */
+export const DOCK_TIER_FX_SCALE = 0.85;
 
 /** A tap's own release swaps; the browser's click that follows it within this window is the same gesture. */
 const TAP_CLICK_MS = 700;
@@ -152,6 +158,40 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   const note = useDuosPassNote((st) => (watching || heroSelect || !st.text ? null : `${st.n}|${st.text}`));
   // THE TAG-IN (R-DUOS-SLOTS-02): my teammate's board is fighting on my side right now.
   const tagged = useDuosCombat((st) => inCombat && !watching && !heroSelect && st.on && !!st.selfSeatId);
+  // MY TEAMMATE'S SIGNALS (owner 2026-10-27, R-DUOS-MATE-SIGNALS-01): only while this portrait is THEIRS (on my board, in
+  // the shop or the fight; never while I watch them, where their own screen shows it, nor at Hero Select).
+  const signals = !watching && !heroSelect;
+  const mate = useVersus((s) => (signals ? s.match?.group?.duos?.mate ?? null : null));
+  // Their shop tiered up: the player's own tier-up burst over the disc (`shop-tier-up`, TavernUpButton's def).
+  const tierPop = useDuosMateSignals((st) => (mate ? st.tierPop[mate] ?? 0 : 0));
+  // The round is waiting on their screen (their End of Turn going off, or their late fight): the working glow.
+  const seen = useDuosMateSignals((st) => (mate ? st.seen[mate] ?? null : null));
+  const roundKey = useVersus((s) => {
+    const m = s.match;
+    const g = m?.group;
+    if (!signals || !m || !g?.duos?.mate) return null;
+    const row = g.raw.seats.find((x) => x.seat === g.duos!.mate);
+    return `${m.round}|${m.phase}|${s.readyRound === m.round || m.p1_ready ? 1 : 0}|${row?.ready ? 1 : 0}`;
+  });
+  const myWave = useGame((s) => s.run.wave);
+  const myPhase = useGame((s) => s.run.phase);
+  const working = useMemo(() => {
+    if (!roundKey) return false;
+    const [round, matchPhase, meBack, mateBack] = roundKey.split('|');
+    return mateWorking({ seen, round: Number(round), matchPhase: matchPhase!, myWave, myPhase, meBack: meBack === '1', mateBack: mateBack === '1', away });
+  }, [roundKey, seen, myWave, myPhase, away]);
+  const holdRef = useRef<HTMLDivElement>(null);
+  const seenPop = useRef(tierPop);
+  useEffect(() => {
+    if (tierPop === seenPop.current) return;
+    seenPop.current = tierPop;
+    if (!tierPop) return;
+    // One layout read per tier-up (an event, never a frame): the disc's live centre.
+    const r = holdRef.current?.getBoundingClientRect();
+    if (!r || !(r.width > 0)) return;
+    const c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    playDef('shop-tier-up', { source: c, target: c }, { scale: DOCK_TIER_FX_SCALE });
+  }, [tierPop]);
   const face = useMemo(() => {
     if (!key) return null;
     const [hero, name, cosRaw, avatar] = JSON.parse(key) as [string | null, string, unknown, string | null];
@@ -215,7 +255,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   return (
     <>
     <div
-      className={`duosdock${geo ? ' placed' : ''}${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${tagged ? ' tagged' : ''}${heroSelect ? ' hsdock' : ''}${passOver ? ` pass-${passOver}` : ''}`}
+      className={`duosdock${geo ? ' placed' : ''}${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${tagged ? ' tagged' : ''}${heroSelect ? ' hsdock' : ''}${passOver ? ` pass-${passOver}` : ''}${working ? ' working' : ''}`}
       style={style}
       {...(back ? {
         role: 'button',
@@ -229,7 +269,10 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
       {/* IN COMBAT (owner 2026-10-25) the portrait stays but is only a face: the fight is the team's (both of you watch
           the same one) and passing is shop-only, so it takes no click. */}
       {inCombat ? (
-        <div className="duosdock-hold" data-duos-mate="" aria-label={`${face.name}, your teammate.`}>{disc}</div>
+        <div ref={holdRef} className="duosdock-hold" data-duos-mate="" aria-label={`${face.name}, your teammate.`}>
+          <span className="duosdock-work" aria-hidden="true" />
+          {disc}
+        </div>
       ) : back ? (
         <div className="duosdock-hold" data-duos-mate="">
           <span className="duosdock-glow" aria-hidden="true" />
@@ -238,12 +281,14 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
         </div>
       ) : (
         <div
+          ref={holdRef}
           className="duosdock-hold"
           data-duos-mate=""
           role="button"
           aria-label={heroSelect ? `${face.name}, your teammate. Click to see their hero choices.` : `${face.name}, your teammate. Click to watch their board, or drag a card here to pass it.`}
           onClick={() => enterTeammateView()}
         >
+          <span className="duosdock-work" aria-hidden="true" />
           <span className="duosdock-glow" aria-hidden="true" />
           <span className="duosdock-no" aria-hidden="true" />
           {disc}
@@ -253,7 +298,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
       <span className="duosdock-name hudpill-name">{face.name}</span>
       {shownNote && <span key={shownNote + (note ?? '')} className="duosdock-note hudpill-name">{shownNote}</span>}
     </div>
-    {inCombat && geo?.hero && <DuosTagIn on={tagged} hero={geo.hero} art={face.art} frame={frame} name={face.name} />}
+    {inCombat && geo?.hero && <DuosTagIn on={tagged} hero={geo.hero} art={face.art} frame={frame} name={face.name} working={working} />}
     </>
   );
 });
@@ -267,7 +312,7 @@ const TAG_OUT_MS = 240;
  * mounted for the fade-out, then goes). Pointer-events none: my hero underneath keeps its own clicks and its lunge.
  * Fixed in stage px off my hero disc's measured box, so it never reads layout itself.
  */
-function DuosTagIn({ on, hero, art, frame, name }: { on: boolean; hero: NonNullable<DockGeometry['hero']>; art: string | undefined; frame: ReturnType<typeof usePortraitFrame>; name: string }): JSX.Element | null {
+function DuosTagIn({ on, hero, art, frame, name, working }: { on: boolean; hero: NonNullable<DockGeometry['hero']>; art: string | undefined; frame: ReturnType<typeof usePortraitFrame>; name: string; working: boolean }): JSX.Element | null {
   const [shown, setShown] = useState(on);
   const timer = useRef(0);
   useEffect(() => {
@@ -279,8 +324,10 @@ function DuosTagIn({ on, hero, art, frame, name }: { on: boolean; hero: NonNulla
   if (!shown && !on) return null;
   const style = { '--duos-d': `${hero.d}px`, left: `${hero.left}px`, bottom: `${hero.bottom}px` } as CSSProperties;
   return (
-    <div className={`duostagin${on ? '' : ' out'}`} style={style} aria-label={`${name} is fighting for your team.`}>
+    <div className={`duostagin${on ? '' : ' out'}${working ? ' working' : ''}`} style={style} aria-label={`${name} is fighting for your team.`}>
       <div className="duostagin-hold">
+        {/* While their portrait stands in over mine, it carries their "still working" glow too (R-DUOS-MATE-SIGNALS-01). */}
+        <span className="duosdock-work" aria-hidden="true" />
         <FoePortraitDisc art={art} gauntlet={false} frame={frame} extraClass=" duosdock-disc" />
         <span className="duosdock-name hudpill-name">{name}</span>
       </div>

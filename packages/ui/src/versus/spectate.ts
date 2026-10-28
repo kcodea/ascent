@@ -37,6 +37,7 @@ import { applySpectatorMessage, newReceiver, type CombatBeat, type HeroSelectFra
 import type { VersusMatch, VersusRoundRow } from './versusRemote';
 import { endWatchedGame, startSpectatorBeat, stopSpectatorBeat } from '../live/spectatorEnd';
 import { roundResultFor } from './versusGroupView';
+import { noteMateFrame, resetDuosMateSignals } from './duosMateSignals';
 
 /** The broadcast event a spectator sends when it needs a fresh keyframe (a gap it could not repair from the table). */
 export const SPECTATE_KEY_EVENT = 'spectate_key';
@@ -123,6 +124,7 @@ export function trackDuosMatch(match: VersusMatch | null, allRounds: Record<numb
     last = null;
     resumeAt = null;
     if (useSpectate.getState().matePick) useSpectate.setState({ matePick: null });
+    resetDuosMateSignals();
     void fetchKeyframes();
   }
   if (useSpectate.getState().teammate || useSpectate.getState().teammateHero) schedule();
@@ -398,6 +400,8 @@ export function receiveSpectate(payload: unknown): void {
   // The SAME fight arriving again (a later keyframe) keeps the object on screen, so the arena never restarts its replay.
   if (msg.fight && next.view) next = { ...next, view: { ...next.view, lastCombat: sameFight(rx[msg.seat].view, msg.fight) } };
   rx[msg.seat] = next;
+  // VERSUS DUOS: my teammate's tier-ups and End of Turn, for their bottom-right portrait (R-DUOS-MATE-SIGNALS-01).
+  if (asPlayer && msg.kind !== 'hero') noteMateFrame(msg.seat, prevView, next.view, msg.acts);
   // The player's own odds for this fight (their probe's result): the stands' Summary shows exactly these.
   const od = parseWireOdds(msg.od);
   if (od) { const cur = useSpectate.getState().odds ?? {}; if (cur[msg.seat]?.w !== od.w || cur[msg.seat]?.o.win !== od.o.win) useSpectate.setState({ odds: { ...cur, [msg.seat]: od } }); }
@@ -1202,6 +1206,7 @@ export function resetSpectate(): void {
   rx = newReceivers();
   rounds = {};
   useSpectate.setState({ seat: 'p1', optedOut: null, name: null, odds: {}, overlay: {}, teammate: false, teammateHero: false, hero: null, matePick: null });
+  resetDuosMateSignals();
 }
 
 /**

@@ -25,7 +25,7 @@ const FILES = [
   '2026-11-01-ranked-duos-party.sql', '2026-11-01-versus-ready-signal.sql', '2026-11-02-ranked-duos-both-ready.sql', '2026-11-02-ranked-duos-party-split.sql',
   '2026-11-02-versus-server-reliability.sql', '2026-11-03-versus-live-armor.sql',
 ];
-const WRITER = mig('2026-11-04-versus-cf-writer.sql') + '\n' + mig('2026-11-05-versus-cf-writer-group.sql');
+const WRITER = mig('2026-11-04-versus-cf-writer.sql') + '\n' + mig('2026-11-05-versus-cf-writer-group.sql') + '\n' + mig('2026-11-06-versus-cf-writer-duos.sql');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth; create schema extensions;
@@ -159,5 +159,22 @@ describe('versus_cf_persist, GROUP (2026-11-05-versus-cf-writer-group.sql)', () 
     expect(seats.map((s) => s.placement)).toEqual([1, 3, 3]);
     expect(await call(SECRET, 'group_match', gmatch({ phase: 'shop' }))).toMatchObject({ frozen: true });
     expect(await fails(null, 'group_match', gmatch())).toContain('not_authorized');
+  });
+
+  it('a Duos match writes its seats\' teams and the two team pools (2026-11-06-versus-cf-writer-duos.sql)', async () => {
+    const DM = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+    const P4 = '00000000-0000-0000-0000-000000000004';
+    const teams = [
+      { team: 'a', health: 30, armor: 12, eliminated_round: null, out_reason: null, placement: null },
+      { team: 'b', health: 0, armor: 0, eliminated_round: 4, out_reason: 'hearts', placement: 2 },
+    ];
+    expect(await call(SECRET, 'group_match', gmatch({
+      id: DM, seat_count: 4, options: { v: 1, mode: 'duos', modifiers: [] }, teams,
+      seats: [seat('p1', P1, { team: 'a' }), seat('p2', P2, { team: 'a' }), seat('p3', P3, { team: 'b' }), seat('p4', P4, { team: 'b' })],
+    }))).toMatchObject({ ok: true });
+    const t = (await db.query<{ team: string; armor: number; placement: number | null }>('select team, armor, placement from public.versus_group_teams where match_id = $1 order by team', [DM])).rows;
+    expect(t).toEqual([{ team: 'a', armor: 12, placement: null }, { team: 'b', armor: 0, placement: 2 }]);
+    const s = (await db.query<{ team: string }>('select team from public.versus_group_seats where match_id = $1 order by seat', [DM])).rows;
+    expect(s.map((x) => x.team)).toEqual(['a', 'a', 'b', 'b']);
   });
 });

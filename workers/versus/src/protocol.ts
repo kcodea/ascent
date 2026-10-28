@@ -73,7 +73,11 @@ export type VersusCfOp =
   | 'rounds'
   | 'my_private'
   | 'my_checkpoint'
-  | 'sync';
+  | 'sync'
+  | 'duos_pass'
+  | 'duos_answer_pass'
+  | 'duos_hand_room'
+  | 'duos_passes';
 
 export interface VersusCfHello {
   protocol: number;
@@ -106,6 +110,8 @@ export type VersusCfPush =
   | { t: 'match'; match: Record<string, unknown>; now: string }
   | { t: 'round'; row: Record<string, unknown>; now: string }
   | { t: 'priv'; priv: Record<string, unknown>; now: string }
+  /** VERSUS DUOS: a pass to (or from) my teammate changed (only the two teammates receive it). */
+  | { t: 'pass'; row: Record<string, unknown>; now: string }
   | { t: 'bc'; event: string; payload: unknown; from: string }
   | { t: 'closed'; reason: string };
 

@@ -351,6 +351,12 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       const s = JSON.stringify({ t: 'priv', priv: p, now } satisfies VersusCfPush);
       for (const ws of all) if (this.att(ws).userId === p.user_id) this.send(ws, s);
     }
+    // VERSUS DUOS: a pass goes to its team's two seats only (the table's RLS rule).
+    for (const p of fx.passes) {
+      const to = new Set(core.passAudience(p));
+      const s = JSON.stringify({ t: 'pass', row: p as unknown as Record<string, unknown>, now } satisfies VersusCfPush);
+      for (const ws of all) if (to.has(this.att(ws).userId)) this.send(ws, s);
+    }
     // 4. The directory (listing + one-room-per-account).
     if (fx.summary) await this.directory().upsert(core.summary() as never).catch((e) => console.warn('versus cf: directory upsert', e));
     for (const u of fx.left) await this.directory().release(u, core.state.room.id).catch(() => undefined);

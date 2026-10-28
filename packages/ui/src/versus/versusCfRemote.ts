@@ -24,6 +24,7 @@ import { contentRevision } from '@game/content';
 import { VersusCfClient, VersusCfError, versusCfHttp } from '@game/versus-cf/client';
 import { VERSUS_CF_PROTOCOL, type VersusCfPush } from '@game/versus-cf/protocol';
 import type {
+  VersusDuosPassRow,
   VersusGroupMatchRaw,
   VersusGroupRoundRaw,
   VersusIdentity,
@@ -168,6 +169,9 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
       if (match && r.match_id !== match.id) return;
       rounds.set(r.round, r);
       for (const l of listeners) l.onChange('rounds');
+    } else if (msg.t === 'pass') {
+      // VERSUS DUOS: a pass to or from my teammate (only the two teammates receive it, as the table's RLS).
+      for (const l of listeners) l.onChange('passes', msg.row);
     } else if (msg.t === 'priv') {
       priv = msg.priv as unknown as VersusPrivate;
     } else if (msg.t === 'bc') {
@@ -341,17 +345,19 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     /** The room resolved the round itself when it closed; nothing to ask for. */
     finalizeGroup: async () => undefined,
 
-    // ── Not on Cloudflare yet (Duos, Ranked Duos): reads answer "nothing", writes refuse. ──────────────────────────
-    finalizeDuos: unsupported,
+    // ── Not on Cloudflare yet (Ranked Duos): reads answer "nothing", writes refuse. ─────────────────────────────────
+    /** The room resolved the round itself when it closed; nothing to ask for. */
+    finalizeDuos: async () => undefined,
     finalizeRankedDuos: unsupported,
     seatRankedDuos: unsupported,
     rankedTable: unsupported,
     rankedTeams: async () => [],
     rankedRounds: async () => [],
-    duosPass: unsupported,
-    duosHandRoom: unsupported,
-    duosAnswerPass: unsupported,
-    duosPasses: async () => [],
+    duosPass: (id: string, round: number, seq: number, card: unknown) => mreq<VersusDuosPassRow>('duos_pass', { matchId: id, round, seq, card }),
+    duosHandRoom: (id: string, room: number) => mreq<void>('duos_hand_room', { matchId: id, room }),
+    duosAnswerPass: (id: string, fromSeat: VersusGroupSeat, seq: number, landed: boolean) =>
+      mreq<VersusDuosPassRow>('duos_answer_pass', { matchId: id, fromSeat, seq, landed }),
+    duosPasses: (id: string, fromRound: number) => mreq<VersusDuosPassRow[]>('duos_passes', { matchId: id, from: fromRound }),
     testBotRegister: unsupported,
     devSetVitals: unsupported,
     devSkipShop: unsupported,

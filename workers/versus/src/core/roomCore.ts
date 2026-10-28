@@ -38,7 +38,7 @@ import {
   VERSUS_SPECTATOR_CAP,
   type VersusFinalizeStore,
 } from '@game/sim/versus/server';
-import { GroupEngine, GSEATS, newGroupState, type GroupHost, type GroupState, type GSeat } from './groupMatch';
+import { GroupEngine, GSEATS, newGroupState, teamSeats, teamOf, type GPass, type GroupHost, type GroupState, type GSeat } from './groupMatch';
 
 export type Seat = 'p1' | 'p2';
 /** A room role: a player seat (p3 / p4 only in a Group room) or the stands. */
@@ -263,6 +263,8 @@ export interface CoreEffects {
   events: { kind: string; round: number; detail?: Record<string, unknown> }[];
   /** Members that left (released from the directory). */
   left: string[];
+  /** VERSUS DUOS: pass rows that changed (pushed to that team's two seats only). */
+  passes: GPass[];
   /** The room's listing summary may have changed. */
   summary: boolean;
 }
@@ -278,6 +280,8 @@ export interface CoreDeps {
   resolve?: typeof handleVersusFinalize;
   /** The group resolver (tests inject a failing one; default `handleVersusGroupFinalize`). */
   resolveGroup?: GroupHost['resolver'];
+  /** The Duos resolver (tests inject a failing one; default `handleVersusDuosFinalize`). */
+  resolveDuos?: GroupHost['duosResolver'];
   /** High-resolution timer for the resolve measurement (performance.now in the object). */
   perfNow?(): number;
 }
@@ -318,14 +322,14 @@ export function turnSeconds(round: number): number {
 }
 
 function emptyEffects(): CoreEffects {
-  return { room: false, match: false, priv: new Set(), rounds: [], dirty: new Set(), persist: [], events: [], left: [], summary: false };
+  return { room: false, match: false, priv: new Set(), rounds: [], dirty: new Set(), persist: [], events: [], left: [], passes: [], summary: false };
 }
 
 export function newRoomState(input: CreateRoomInput, now: number): CoreState {
   const err = input.options == null ? null : versusOptionsError(input.options);
   if (err) fail(err);
   const options = normalizeVersusOptions(input.options) as unknown as Record<string, unknown>;
-  if (options.mode !== 'duel' && options.mode !== 'group') fail('mode_not_supported');
+  if (options.mode !== 'duel' && options.mode !== 'group' && options.mode !== 'duos') fail('mode_not_supported');
   if (input.protocol !== VERSUS_PROTOCOL) fail('version_mismatch');
   if (input.contentRevision !== engineContentRevision()) fail('version_mismatch');
   if (jsonBytes(input.profile) > PROFILE_BYTES) fail('profile_too_large');
@@ -399,6 +403,8 @@ export class RoomCore {
       matchEnded: () => this.groupEnded(),
       fail: (c) => fail(c),
       resolver: this.deps.resolveGroup,
+      duosResolver: this.deps.resolveDuos,
+      passChanged: (row) => { this.fx.passes.push(row); },
       onResolve: this.deps.onResolve,
       perfNow: this.deps.perfNow,
     };
@@ -406,7 +412,7 @@ export class RoomCore {
 
   /** The room's player seats for its mode (`versus__mode_roles`). */
   private modeRoles(mode: unknown = this.state.room.options.mode): readonly GSeat[] {
-    return mode === 'group' ? GSEATS : SEATS;
+    return mode === 'group' || mode === 'duos' ? GSEATS : SEATS;
   }
 
   /** No open socket for `userId` past the grace. */
@@ -446,6 +452,14 @@ export class RoomCore {
     if (g) { const s = g.seatOf(userId); return s ? g.privJson(s) : null; }
     const seat = this.seatOf(userId);
     return seat ? this.privJson(seat) : null;
+  }
+
+  /** VERSUS DUOS: the two user ids of a pass's team (its pushes go to them only). */
+  passAudience(row: GPass): string[] {
+    const g = this.state.group;
+    if (!g) return [];
+    const seats = new Set<GSeat>(teamSeats(teamOf(row.from_seat)));
+    return g.match.seats.filter((s) => seats.has(s.seat)).map((s) => s.user_id);
   }
 
   /** The current match row (1v1 json or Group json). */
@@ -767,6 +781,11 @@ export class RoomCore {
       case 'rounds': return g.roundsFrom(Number.isInteger(a.from) ? (a.from as number) : 1);
       case 'my_private': { const s = g.seatOf(userId); return s ? g.privJson(s) : null; }
       case 'my_checkpoint': { const s = g.seatOf(userId); return s ? g.myCheckpoint(s) : null; }
+      // VERSUS DUOS: passing to the teammate.
+      case 'duos_pass': return g.pass(userId, a.round, a.seq, a.card);
+      case 'duos_answer_pass': return g.answerPass(userId, a.fromSeat, a.seq, a.landed);
+      case 'duos_hand_room': g.handRoom(userId, a.room); return null;
+      case 'duos_passes': return g.passesFor(userId, Number.isInteger(a.from) ? (a.from as number) : 1);
       default: return fail('unknown_op');
     }
   }
@@ -849,7 +868,8 @@ export class RoomCore {
     if (r.status !== 'open') fail('room_not_open');
     const roles = this.modeRoles();
     const seated = r.members.filter((m) => m.role !== 'spectator' && roles.includes(m.role)).length;
-    if (r.options.mode === 'group' ? seated < 3 : seated < 2) fail(r.options.mode === 'group' ? 'need_three_players' : 'need_two_players');
+    const need = r.options.mode === 'duos' ? 4 : r.options.mode === 'group' ? 3 : 2;
+    if (seated < need) fail(need === 4 ? 'need_four_players' : need === 3 ? 'need_three_players' : 'need_two_players');
     r.status = 'sealed';
     r.p1_gate = r.p2_gate = r.p3_gate = r.p4_gate = false;
     r.gate_deadline = this.now + VERSUS_GATE_SECONDS * 1000;
@@ -870,10 +890,12 @@ export class RoomCore {
     if (me!.role === 'p2') r.p2_gate = true;
     if (me!.role === 'p3') r.p3_gate = true;
     if (me!.role === 'p4') r.p4_gate = true;
-    if (r.options.mode === 'group') {
+    if (r.options.mode === 'group' || r.options.mode === 'duos') {
       const gateOf = (s: GSeat): boolean => (s === 'p1' ? r.p1_gate : s === 'p2' ? r.p2_gate : s === 'p3' ? !!r.p3_gate : !!r.p4_gate);
       const seated = r.members.filter((m) => m.role !== 'spectator') as (CoreMember & { role: GSeat })[];
-      if (seated.length >= 3 && seated.every((m) => gateOf(m.role))) this.createGroupMatch(seated);
+      // Duos needs all four seats (a seat emptied while sealed cannot start a 2v2).
+      const enough = r.options.mode === 'duos' ? seated.length === 4 : seated.length >= 3;
+      if (enough && seated.every((m) => gateOf(m.role))) this.createGroupMatch(seated);
     } else if (r.p1_gate && r.p2_gate) this.createMatch();
     this.touchRoom();
     return ROOM_JSON;
@@ -894,7 +916,8 @@ export class RoomCore {
     const err = versusOptionsError(raw);
     if (err) fail(err);
     const next = normalizeVersusOptions(raw) as unknown as Record<string, unknown>;
-    if (next.mode !== 'duel' && next.mode !== 'group') fail('mode_not_supported'); // Duos / Ranked Duos: later phases
+    if (next.mode === 'ranked_duos' || r.options.mode === 'ranked_duos') fail('bad_mode'); // the party is its own place
+    if (next.mode !== 'duel' && next.mode !== 'group' && next.mode !== 'duos') fail('mode_not_supported');
     if (JSON.stringify(next) === JSON.stringify(r.options)) return ROOM_JSON;
     // Switching modes: a player in a seat the new mode does not have takes a free one, else goes to the stands.
     const roles = this.modeRoles(next.mode);

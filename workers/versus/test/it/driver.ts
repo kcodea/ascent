@@ -113,12 +113,12 @@ export const sideOf = (round: number, seat: 'p1' | 'p2'): PreparedCombatSide =>
   structuredClone(FIXTURE.cases[(round - 1) % FIXTURE.cases.length]![seat]);
 
 /** n Group players (3-4) from an empty room to round 1's running shop. */
-export async function toGroupShop(base: string, n: 3 | 4): Promise<{ players: Player[]; roomId: string; matchId: string }> {
+export async function toGroupShop(base: string, n: 3 | 4, mode: 'group' | 'duos' = 'group'): Promise<{ players: Player[]; roomId: string; matchId: string }> {
   const players = Array.from({ length: n }, (_, i) => new Player(base, crypto.randomUUID(), `Claudebot${i + 1}`));
   const host = players[0]!;
   const roomId = await host.createRoom();
   for (const p of players) await p.connect(roomId);
-  await host.req('set_options', { options: { v: 1, mode: 'group', modifiers: [] } });
+  await host.req('set_options', { options: { v: 1, mode, modifiers: [] } });
   for (const p of players.slice(1)) await p.req('join', { as: 'player', display: p.name, profile: {}, content: CONTENT, protocol: VERSUS_PROTOCOL });
   await host.req('start');
   for (const p of players) await p.req('gate');

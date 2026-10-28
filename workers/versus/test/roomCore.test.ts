@@ -127,10 +127,10 @@ describe('Versus Room (Cloudflare) — rooms and the gate', () => {
     expect(h.core.state.room.status).toBe('open');
   });
 
-  it('refuses a mode not ported yet (Duos)', async () => {
+  it('a Versus room never turns into a Ranked Duos party (bad_mode)', async () => {
     const h = new Harness();
     h.core.connect(U1, h.now);
-    await expect(h.op(U1, 'set_options', { options: { v: 1, mode: 'duos', modifiers: [] } })).rejects.toThrow('mode_not_supported');
+    await expect(h.op(U1, 'set_options', { options: { v: 1, mode: 'ranked_duos', modifiers: [] } })).rejects.toThrow('bad_mode');
     await h.op(U1, 'set_options', { options: { v: 1, mode: 'duel', modifiers: ['summit'] } });
     expect(h.core.state.room.options_rev).toBe(1);
   });

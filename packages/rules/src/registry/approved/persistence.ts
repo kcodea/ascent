@@ -1097,4 +1097,22 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-28. Before, every boot and run end read up to 8,000 rows (~250 KB cold; 16,458 seq scans in 16 days, no index on created_at).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/boardResultsArchived.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-REPLAY-STORAGE-01',
+    title: 'Every replay stays watchable when replays move to Storage',
+    statement:
+      'A finished game\'s replay is kept for good. New games store it in the private replays bucket (any signed-in '
+      + 'player can watch it, as before; nobody without a session can) and the game row keeps a pointer plus the facts '
+      + 'the lists show. Older replays stay in the row until they are copied, verified byte for byte and cleared by the '
+      + 'lead. Every Watch path (Recent Games, Career, a player\'s latest game, Live replay) plays a replay from either '
+      + 'place, and the lists show the same facts for both.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-28 on the Supabase cleanup (docs/design/2026-10-28-supabase-cleanup.md, question 3)', quote: 'move to cheap storage, keep all' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-07-replays-storage.sql; packages/ui/src/replayStorage.ts; remoteBoards.ts runOutbox send + withStoredReplay / v2OfRow / fetchReplayPayload / fetchLatestReplayForUser / fetchReplayForSeed; liveReplay.ts; packages/tools/src/replays (npm run replays:backfill)' },
+    ],
+    currentBehaviour: 'Client conforms from this PR once the migration is applied (before it, every write and read falls back to the row). Production 2026-10-28: 409 replays inline, 385 MB as text (121 MB stored); none moved yet.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/replayStorage.db.test.ts', 'packages/ui/src/replayStorage.test.ts', 'packages/ui/src/replayStorageOutbox.test.ts', 'packages/tools/src/replays/backfill.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

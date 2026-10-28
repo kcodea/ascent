@@ -32,6 +32,7 @@ import { cachedSample, idbRunCache, type DeltaStats } from './opponentPool/poolR
 import { createOutbox, idbOutboxStore, type Outbox, type OutboxItem, type OutboxKind } from './net/runOutbox';
 import { careerTotalsOf } from './runHistory';
 import { matchLength } from './activePlayClock';
+import { loadStoredReplay, storeReplay } from './replayStorage';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -354,9 +355,18 @@ function runOutbox(): Outbox {
     async send(table, rows, conflict) {
       const c = client();
       if (!c) return { error: { message: 'no backend' } };
-      const res = conflict
-        ? await c.from(table).upsert(rows, { onConflict: conflict, ignoreDuplicates: true })
-        : await c.from(table).insert(rows);
+      const put = (rs: Record<string, unknown>[]) => (conflict
+        ? c.from(table).upsert(rs, { onConflict: conflict, ignoreDuplicates: true })
+        : c.from(table).insert(rs));
+      // REPLAYS IN STORAGE (R-REPLAY-STORAGE-01, replayStorage.ts): a telemetry row's replay goes to the `replays` bucket
+      // and the row carries the pointer + head instead. ANY failure of that variant (no bucket / column yet, refused,
+      // offline) falls straight back to the inline row in this same send, so the outbox's missing-column handling only
+      // ever sees the inline row and can never drop the pointer of a replay it no longer carries.
+      if (table === 'run_telemetry') {
+        const stored = await withStoredReplay(c, rows);
+        if (stored && !(await put(stored)).error) return { error: null };
+      }
+      const res = await put(rows);
       if (!res.error) return { error: null };
       const e = res.error as { code?: string; message?: string };
       return { error: { code: e.code, message: e.message, status: (res as { status?: number }).status } };
@@ -376,6 +386,21 @@ function runOutbox(): Outbox {
   });
   if (typeof window !== 'undefined') window.addEventListener('online', () => { void ob.flush({ force: true }); });
   return (outboxSingleton = ob);
+}
+
+/** The telemetry rows with each replay moved into Storage (`<user_id>/...`), or null when there is nothing to move or
+ *  any upload failed (the caller then sends the rows as they are). */
+async function withStoredReplay(c: SupabaseClient, rows: Record<string, unknown>[]): Promise<Record<string, unknown>[] | null> {
+  if (!rows.some((r) => r.replay != null)) return null;
+  const out: Record<string, unknown>[] = [];
+  for (const r of rows) {
+    if (r.replay == null) { out.push(r); continue; }
+    if (typeof r.user_id !== 'string') return null;
+    const stored = await storeReplay(c, r.user_id, r.replay);
+    if (!stored) return null;
+    out.push({ ...r, replay: null, ...stored });
+  }
+  return out;
 }
 
 /** Retry every due run-end write of the current account (boot, identity, network return, the timer). */
@@ -1104,6 +1129,28 @@ export async function fetchRecentGames(limit = 20): Promise<RecentGameRow[]> {
   }
 }
 
+/**
+ * REPLAYS IN STORAGE (2026-11-07, replayStorage.ts): a row's replay is inline (`replay`) or an object in the `replays`
+ * bucket (`replay_path`). The watch reads select both and play whichever the row has. Whether the backend has the
+ * `replay_path` column (supabase/migrations/2026-11-07-replays-storage.sql) is learnt once, like the replay facts: an
+ * error flips it to false for the session and the reads go back to the exact pre-move selects. null = not asked yet.
+ */
+let storedReplays: boolean | null = null;
+async function withStoredReplays<T extends { error: unknown } | null>(fast: () => Promise<T>, slow: () => Promise<T>): Promise<T> {
+  if (storedReplays === false) return slow();
+  const r = await fast();
+  if (r && !r.error) { storedReplays = true; return r; }
+  if (r && r.error) { storedReplays = false; return slow(); }
+  return r; // a timeout says nothing about the column
+}
+
+/** The playable v2 of one fetched row: the inline replay's, else its Storage object's (downloaded once a session). */
+async function v2OfRow(c: SupabaseClient, row: { v2?: unknown; replay_path?: unknown }): Promise<ReplayV2 | null> {
+  if (isReplayV2(row.v2)) return row.v2;
+  if (typeof row.replay_path !== 'string' || !row.replay_path) return null;
+  return v2ReplayOf(await loadStoredReplay(c, row.replay_path));
+}
+
 /** Fetch ONE row's full v2 replay by its `run_telemetry` PK — the heavy half of the two-step spectate fetch
  *  (the list read only probed `replay->v2->version`). Selects `replay->v2` alone, so the dormant v1 fields
  *  riding alongside in the jsonb never cross the wire. Best-effort + time-boxed; null on any failure /
@@ -1114,12 +1161,14 @@ export async function fetchReplayPayload(rowId: number): Promise<ReplayV2 | null
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([
-      Promise.resolve(c.from('run_telemetry').select('v2:replay->v2').eq('id', rowId).limit(1)),
+      withStoredReplays(
+        () => Promise.resolve(c.from('run_telemetry').select('v2:replay->v2, replay_path').eq('id', rowId).limit(1)),
+        () => Promise.resolve(c.from('run_telemetry').select('v2:replay->v2').eq('id', rowId).limit(1)),
+      ),
       timeout,
     ]);
     if (!result || result.error || !result.data?.length) return null;
-    const v2 = (result.data[0] as unknown as { v2: unknown }).v2;
-    return isReplayV2(v2) ? v2 : null;
+    return await v2OfRow(c, result.data[0] as unknown as { v2?: unknown; replay_path?: unknown });
   } catch {
     return null;
   }
@@ -1135,16 +1184,20 @@ export async function fetchLatestReplayForUser(userId: string): Promise<ReplayV2
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([
-      Promise.resolve(
-        c.from('run_telemetry').select('v2:replay->v2').eq('user_id', userId)
+      withStoredReplays(
+        // a stored row's `replay` is null, so the filter reads the `tp_v2_version` fact (set for both kinds of row)
+        () => Promise.resolve(c.from('run_telemetry').select('v2:replay->v2, replay_path').eq('user_id', userId)
+          .eq('tp_v2_version', '2').order('created_at', { ascending: false }).limit(2)),
+        () => Promise.resolve(c.from('run_telemetry').select('v2:replay->v2').eq('user_id', userId)
           .eq('replay->v2->>version', '2') // ->> filters as text — robust across PostgREST versions
-          .order('created_at', { ascending: false }).limit(2),
+          .order('created_at', { ascending: false }).limit(2)),
       ),
       timeout,
     ]);
     if (!result || result.error || !result.data?.length) return null;
-    for (const row of result.data as unknown as Array<{ v2: unknown }>) {
-      if (isReplayV2(row.v2)) return row.v2;
+    for (const row of result.data as unknown as Array<{ v2?: unknown; replay_path?: unknown }>) {
+      const v2 = await v2OfRow(c, row);
+      if (v2) return v2;
     }
     return null;
   } catch {
@@ -1170,7 +1223,10 @@ export function fetchRecentMatch(rowId: number | null | undefined, userId: strin
     if (!c) return null;
     try {
       const timeout = <T,>(): Promise<T | null> => new Promise((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-      const tel = await Promise.race([Promise.resolve(c.from('run_telemetry').select('seed:replay->>seed').eq('id', rowId).limit(1)), timeout<never>()]);
+      // `tp_seed` (doc 3.2: no detoast of a whole replay to read a seed; and a stored row's `replay` is null).
+      const tel = await Promise.race([withReplayFacts('run_telemetry',
+        () => Promise.resolve(c.from('run_telemetry').select('seed:tp_seed').eq('id', rowId).limit(1)),
+        () => Promise.resolve(c.from('run_telemetry').select('seed:replay->>seed').eq('id', rowId).limit(1))), timeout<never>()]);
       const seed = (tel?.data?.[0] as { seed?: unknown } | undefined)?.seed;
       if (tel?.error || seed == null || seed === '') return null;
       const hist = await Promise.race([
@@ -1237,16 +1293,25 @@ export async function fetchReplayForSeed(seed: number, opts?: { userId?: string 
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     // rows: `.limit(2)` is applied below, after the optional user filter.
-    const base = c.from('run_telemetry').select('v2:replay->v2')
-      .eq('replay->>seed', String(seed)) // ->> compares as text — robust across PostgREST versions
-      .eq('replay->v2->>version', '2');
-    const query = opts?.userId ? base.eq('user_id', opts.userId) : base;
-    const result = await Promise.race([
-      Promise.resolve(query.order('created_at', { ascending: false }).limit(2)),
-      timeout,
-    ]);
+    const run = (stored: boolean) => {
+      const base = stored
+        // the facts columns: a stored row's `replay` is null, its `tp_seed` / `tp_v2_version` are not
+        // rows: `.limit(2)` is applied below, after the optional user filter.
+        ? c.from('run_telemetry').select('v2:replay->v2, replay_path').eq('tp_seed', String(seed)).eq('tp_v2_version', '2')
+        // rows: `.limit(2)` is applied below, after the optional user filter.
+        : c.from('run_telemetry').select('v2:replay->v2')
+          .eq('replay->>seed', String(seed)) // ->> compares as text — robust across PostgREST versions
+          .eq('replay->v2->>version', '2');
+      const query = opts?.userId ? base.eq('user_id', opts.userId) : base;
+      return Promise.resolve(query.order('created_at', { ascending: false }).limit(2));
+    };
+    const result = await Promise.race([withStoredReplays(() => run(true), () => run(false)), timeout]);
     if (!result || result.error || !result.data?.length) return null;
-    return pickReplayForSeed(result.data as unknown as Array<{ v2: unknown }>, seed);
+    for (const row of result.data as unknown as Array<{ v2?: unknown; replay_path?: unknown }>) {
+      const picked = pickReplayForSeed([{ v2: await v2OfRow(c, row) }], seed);
+      if (picked) return picked;
+    }
+    return null;
   } catch {
     return null;
   }

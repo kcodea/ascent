@@ -89,6 +89,7 @@
     "rules:impact": "tsx packages/tools/src/rules-impact.ts",
     "board:elo": "tsx packages/tools/src/board-elo.ts",
     "boards:fetch": "tsx packages/tools/src/fetch-boards.ts",
+    "replays:backfill": "tsx packages/tools/src/replays/cli.ts",
     "lobby:snapshots": "tsx packages/tools/src/lobby-snapshot-check.ts",
     "lobby:ladder": "tsx packages/tools/src/lobby-ladder.ts",
     "bot:learn": "tsx packages/tools/src/bot-learn.ts",

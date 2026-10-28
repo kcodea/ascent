@@ -22,6 +22,9 @@ interface Query { table: string; select?: string; eqs: [string, unknown][] }
 const queries: Query[] = [];
 let rows: unknown[] = [];
 let userId: string | null = 'me-1';
+/** REPLAYS IN STORAGE: a backend without `replay_path` (the migration not applied) errors on that select. */
+let noReplayPath = false;
+const objects = new Map<string, unknown>();
 
 vi.stubEnv('VITE_SUPABASE_URL', 'http://test.local');
 vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'test-key');
@@ -35,10 +38,21 @@ vi.mock('@supabase/supabase-js', () => ({
         select: (sel: string) => { q.select = sel; return chain; },
         eq: (col: string, val: unknown) => { q.eqs.push([col, val]); return chain; },
         order: () => chain,
-        limit: () => Promise.resolve({ data: rows, error: null }),
+        limit: () => Promise.resolve(noReplayPath && q.select?.includes('replay_path')
+          ? { data: null, error: { code: '42703', message: 'column run_telemetry.replay_path does not exist' } }
+          : { data: rows, error: null }),
         then: (res: (v: unknown) => unknown) => res({ data: rows, error: null }),
       };
       return chain;
+    },
+    storage: {
+      from: () => ({
+        download: async (path: string) => {
+          if (!objects.has(path)) return { data: null, error: { message: 'not found' } };
+          const { gzipText } = await import('./replayStorage');
+          return { data: new Blob([(await gzipText(JSON.stringify(objects.get(path))))! as BlobPart]), error: null };
+        },
+      }),
     },
   }),
 }));
@@ -51,7 +65,7 @@ vi.mock('./identity', () => ({
 
 const load = async () => await import('./remoteBoards');
 
-beforeEach(() => { queries.length = 0; rows = []; userId = 'me-1'; vi.resetModules(); });
+beforeEach(() => { queries.length = 0; rows = []; userId = 'me-1'; noReplayPath = false; objects.clear(); vi.resetModules(); });
 
 /** A minimal structurally-valid v2 payload with a seed (the gate checks version + non-empty frames). */
 const v2Of = (seed: number) => ({
@@ -127,10 +141,30 @@ describe('fetchReplayForSeed — the server-side filter shape', () => {
     const rep = await (await load()).fetchReplayForSeed(424242, { userId: 'me-1' });
     expect(rep).toMatchObject({ version: 2, seed: 424242 });
     const q = queries.find((x) => x.table === 'run_telemetry');
-    expect(q?.select).toBe('v2:replay->v2'); // the v2 payload alone — dormant v1 fields never cross the wire
+    // the v2 payload (or the Storage pointer) alone — dormant v1 fields never cross the wire; the filter reads the
+    // facts columns, which a Storage row carries too (its `replay` is null)
+    expect(q?.select).toBe('v2:replay->v2, replay_path');
+    expect(q?.eqs).toContainEqual(['tp_seed', '424242']);
+    expect(q?.eqs).toContainEqual(['tp_v2_version', '2']);
+    expect(q?.eqs).toContainEqual(['user_id', 'me-1']);
+  });
+
+  it('REPLAYS IN STORAGE: a row whose replay lives in the bucket plays from its object (R-REPLAY-STORAGE-01)', async () => {
+    objects.set('me-1/k.json.gz', { seed: 424242, actions: [], v2: v2Of(424242) });
+    rows = [{ v2: null, replay_path: 'me-1/k.json.gz' }];
+    expect(await (await load()).fetchReplayForSeed(424242, { userId: 'me-1' })).toMatchObject({ version: 2, seed: 424242 });
+    rows = [{ v2: null, replay_path: 'me-1/missing.json.gz' }];
+    expect(await (await load()).fetchReplayForSeed(424242, { userId: 'me-1' })).toBeNull();
+  });
+
+  it('a backend before the Storage migration answers the exact old select (replay->>seed, inline v2)', async () => {
+    noReplayPath = true;
+    rows = [{ v2: v2Of(424242) }];
+    expect(await (await load()).fetchReplayForSeed(424242, { userId: 'me-1' })).toMatchObject({ seed: 424242 });
+    const q = queries.filter((x) => x.table === 'run_telemetry').at(-1);
+    expect(q?.select).toBe('v2:replay->v2');
     expect(q?.eqs).toContainEqual(['replay->>seed', '424242']);
     expect(q?.eqs).toContainEqual(['replay->v2->>version', '2']);
-    expect(q?.eqs).toContainEqual(['user_id', 'me-1']);
   });
 
   it('omits the user filter when the owner is unknown (a signed-out client can still watch)', async () => {

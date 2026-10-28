@@ -25,6 +25,7 @@ import {
 } from '@game/sim';
 import { useGame } from './store';
 import { supabaseClient } from './remoteBoards';
+import { loadStoredReplay } from './replayStorage';
 import { buildLiveReplaySchedule, liveFireAt, shopDifferences, type LiveReplayStep, type RecordedFrame } from './liveReplaySchedule';
 
 /** Everything needed to rebuild and play one recorded game. */
@@ -60,10 +61,17 @@ const setStatus = (patch: Partial<LiveReplayStatus>): void => { status = { ...st
 export async function fetchLiveReplayBundle(rowId: number): Promise<LiveReplayBundle> {
   const c = supabaseClient();
   if (!c) throw new Error('no backend configured');
-  const res = await c.from('run_telemetry').select('id, patch, set_id, replay').eq('id', rowId).limit(1);
-  const row = res.data?.[0] as { id: number; patch: string | null; set_id: string | null; replay: { seed: number; heroId: string; mode?: string; actions: Action[]; v2?: { frames: RecordedFrame[] & { view?: { lobby?: unknown } }[] } } } | undefined;
+  type Rep = { seed: number; heroId: string; mode?: string; actions: Action[]; v2?: { frames: RecordedFrame[] & { view?: { lobby?: unknown } }[] } };
+  // REPLAYS IN STORAGE (2026-11-07): the replay is inline or an object (`replay_path`); a backend without the column
+  // answers the plain select.
+  const withPath = await c.from('run_telemetry').select('id, patch, set_id, replay, replay_path').eq('id', rowId).limit(1);
+  const res: { data: unknown[] | null; error: { message: string } | null } = withPath.error
+    ? await c.from('run_telemetry').select('id, patch, set_id, replay').eq('id', rowId).limit(1)
+    : withPath;
+  const row = res.data?.[0] as { id: number; patch: string | null; set_id: string | null; replay: Rep | null; replay_path?: string | null } | undefined;
   if (res.error || !row) throw new Error(`game ${rowId} not found (${res.error?.message ?? 'no row'})`);
-  const rep = row.replay;
+  const rep = row.replay ?? (row.replay_path ? (await loadStoredReplay(c, row.replay_path)) as Rep | null : null);
+  if (!rep) throw new Error(`game ${rowId} has no replay`);
   if (rep.mode !== 'lobby') throw new Error(`game ${rowId} is a ${rep.mode ?? 'non-lobby'} game; only lobby games are supported`);
   const frames = (rep.v2?.frames ?? []) as (RecordedFrame & { view?: { lobby?: { seats?: { kind: string; runKey?: string }[]; setId?: string } } })[];
   const lobby = frames[0]?.view?.lobby;

@@ -25,54 +25,58 @@ a deterministic multi-client harness that plays FULL matches and proves (or disp
   every round, Mend included), fights, final, finished, realtime (every present client subscribed to the match).
 - `chaosScenarios.ts` (22 scenarios, 104 scenario x mode cells) and `chaosKnown.ts` (what fails on main, by cell and
   invariant, with the cause). A cell passes only when its violations are exactly its known ones: a regression fails it, and
-  a fix fails it with "fixed: delete its KNOWN entry", so the fix PR edits `chaosKnown.ts`.
-- `versusChaos.db.test.ts`: `npm test` runs a 7-cell smoke subset; `CHAOS_FULL=1` runs all; `CHAOS_ONLY=<regex>` picks
+  a fix fails it with "fixed: delete its KNOWN entry", so the fix PR edits `chaosKnown.ts` (a race-only entry is marked
+  `sometimes`: its absence does not fail). The client's own `Math.random` (the backstop jitter) is seeded per scenario.
+- `versusChaos.db.test.ts`: `npm test` runs an 8-cell smoke subset; `CHAOS_FULL=1` runs all; `CHAOS_ONLY=<regex>` picks
   cells; `CHAOS_LOG=<file>` streams each match's narrative. A full matrix is ~16 minutes locally; the PGlite instance is
   rebooted every 12 matches (it hits "stack depth limit exceeded" after ~90).
 - `npm run versus:soak` (packages/tools/src/versus-soak.ts): a STUB for a live-backend Playwright soak (max 4 Claudebot
   clients, rooms closed, quiet hours). It validates and prints a plan; `--live` refuses.
 
-## What it found on main (2026-10-28, after #2360 live Armor, #2362 server reliability and #2355 Ranked Duos gate)
+## What it found
+
+Before the reliability fixes (main at #2358/#2360), every cell where Realtime was up failed `realtime` (the match channel
+reused the room topic: realtime-js handed back the leaving channel, so every match ran on the 4 s heartbeat), the
+clock-closed rounds of Group / Duos / Ranked Duos made two resolver calls, and a returning player's pause never lifted
+without Unpause (with #2362 alone it lifted ~7 s after the return). #2362 (server) + #2363 (client) fixed those; the
+harness proved each fix by failing its cell with "fixed: delete its KNOWN entry".
+
+On main with #2362 + #2363 (2026-10-28; two full runs, identical):
 
 | scenario | duel | group3 | group4 | duos | ranked_duos |
 |---|---|---|---|---|---|
-| baseline | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
-| timer | FAIL: realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime |
-| simultaneous | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
-| dropRestore | FAIL: pauseLift, realtime | FAIL: pauseLift, realtime | FAIL: pauseLift, realtime | FAIL: pauseLift, realtime | FAIL: realtime |
-| dropShort | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: oneCall, realtime |
-| dropInFight | FAIL: pauseLift, realtime | FAIL: pauseLift, realtime | FAIL: pauseLift, realtime | FAIL: pauseLift, realtime | FAIL: realtime |
-| background15s | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
-| background6min | FAIL: realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime |
-| hang | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| baseline | pass | pass | pass | pass | pass |
+| timer | pass | pass | pass | pass | pass |
+| simultaneous | pass | pass | pass | pass | pass |
+| dropRestore | pass | pass | FAIL: pauseLift | FAIL: pauseLift | pass |
+| dropShort | pass | pass | pass | pass | pass |
+| dropInFight | FAIL: pauseLift | pass | FAIL: pauseLift | FAIL: pauseLift | pass |
+| background15s | pass | pass | pass | pass | pass |
+| background6min | pass | pass | pass | pass | pass |
+| hang | pass | FAIL: oneCall | FAIL: oneCall | pass | pass |
 | realtimeDown | pass | pass | pass | pass | pass |
-| resolverSlow | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime |
-| resolverFail3 | FAIL: realtime | FAIL: realtime | FAIL: oneCall, realtime | FAIL: oneCall, realtime | FAIL: realtime |
-| resolver409 | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
-| lockHeld | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
-| lostCombatReady | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
-| eotHeavy | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
-| emptyAll | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
-| emptyOne | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
-| sellout | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
-| duosFirstEmpty | n/a | n/a | n/a | FAIL: realtime | FAIL: realtime |
-| duosSecondEmpty | n/a | n/a | n/a | FAIL: realtime | FAIL: realtime |
-| mendArmor | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime | FAIL: realtime |
+| resolverSlow | FAIL: oneCall | FAIL: oneCall | FAIL: oneCall | FAIL: oneCall | FAIL: oneCall |
+| resolverFail3 | pass | pass | pass | pass | pass |
+| resolver409 | pass | pass | FAIL: oneCall | pass | pass |
+| lockHeld | pass | pass | pass | pass | pass |
+| lostCombatReady | pass | pass | pass | pass | pass |
+| eotHeavy | pass | pass | pass | pass | pass |
+| emptyAll | pass | pass | pass | pass | pass |
+| emptyOne | pass | pass | pass | pass | pass |
+| sellout | pass | pass | pass | pass | pass |
+| duosFirstEmpty | n/a | n/a | n/a | pass | pass |
+| duosSecondEmpty | n/a | n/a | n/a | pass | pass |
+| mendArmor | pass | pass | pass | pass | pass |
 
-(FAIL = the invariants violated; every one is listed in `chaosKnown.ts`, so the suite is green: 104/104.)
+Still failing (listed in `chaosKnown.ts`):
+- **pauseLift**: the pause lifts by itself but ~4.9 s after the player is back (Group of 4, Duos; a drop during the fight
+  in 1v1); the bar is 4 s.
+- **oneCall**: with a 10 s resolver another client's backstop still asks ~5 s after the round has committed (every mode);
+  after a 15 s hang (Group) or an injected 409 (Group of 4) two clients ask at once.
 
-1. **Realtime is dead for every match, in every mode** (the audit's "channel reuse on match start", confirmed): the room
-   channel is swapped for the match channel with `removeChannel` (async) + `channel(same topic)`, which returns the leaving
-   channel; its `subscribe()` does nothing and the leave ack tears it down. Matches run on the 4 s heartbeat.
-2. **Duplicate resolver calls**: when a round closes on the clock in Group / Duos / Ranked Duos, two clients' own
-   reconciles both see `resolving` and both call the resolver; a slow (10 s) or failing resolver gets backstop duplicates.
-3. **The pause lifts by itself now, but slowly**: after a real 20 s drop the match resumes about 7 s after the player is
-   back (the bar is 4 s, no press). Before #2362 it never resumed without Unpause (the match never finished).
-
-Clean everywhere: empty boards (all empty, one side, sold out, a Duos teammate or the whole team, round 1 and later),
-heavy End of Turn boards, lost combatReady, the 409, the held lock, 15 s and 6 minute backgrounds, a 15 s hang,
-Health / Armor on every rail every round and live during the shop (Mend reaches every rail within the heartbeat), same
-fights on every client, final placements and pools.
+Clean everywhere else: empty boards (all empty, one side, sold out, a Duos teammate or the whole team, round 1 and
+later), heavy End of Turn boards, lost combatReady, the held lock, 15 s and 6 minute backgrounds, a 15 s hang, Realtime
+down, Health / Armor on every rail every round and live during the shop (Mend), same fights everywhere, final placements.
 
 Judgement calls: a background tab is "gone" only past 5 minutes (heartbeats once a minute); a hang counts as gone when it
 is longer than the 12 s lease; Ranked Duos is seated from generated teams (no recorded pool in PGlite).

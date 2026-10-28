@@ -78,6 +78,8 @@ export class RealtimeBus {
   /** Channels opened, by topic (a "channel reuse" check reads it). */
   readonly opened: Record<string, number> = {};
 
+  /** Drop every joined channel whose socket cannot be up (the runner calls this each step). */
+  sweep(): void { for (const s of this.subs) s.channel.socketLost(); }
   register(sub: Sub): void { this.subs.add(sub); this.opened[sub.channel.topic] = (this.opened[sub.channel.topic] ?? 0) + 1; }
   unregister(ch: FakeChannel): void { for (const s of this.subs) if (s.channel === ch) this.subs.delete(s); }
   /** Is a channel of `owner` joined AND listening to this match's row (it would hear the match change)? */
@@ -145,18 +147,46 @@ export class FakeChannel {
   get joined(): boolean { return this.state === 'joined'; }
   on(type: string, filter: Record<string, unknown>, cb: (p: any) => void): this {
     if ((this.state === 'joined' || this.state === 'joining') && type === 'postgres_changes') {
-      throw new Error(`cannot add \`${type}\` callbacks for realtime:${this.topic} after \`subscribe()\`.`);
+      throw new Error(`cannot add \`${type}\` callbacks for ${this.topic} after \`subscribe()\`.`);
     }
     if (type === 'postgres_changes') this.sub.pg.push({ f: filter as unknown as PgFilter, cb });
     else if (type === 'broadcast') this.sub.bc.push(cb);
     return this;
   }
-  subscribe(): this {
+  /** realtime-js's status callback (`SUBSCRIBED`, `CHANNEL_ERROR`, `TIMED_OUT`, `CLOSED`). */
+  private status: ((s: string) => void) | null = null;
+  subscribe(cb?: (status: string) => void): this {
     if (this.state !== 'closed') return this;
+    if (cb) this.status = cb;
     this.state = 'joining';
     this.bus.register(this.sub);
-    setTimeout(() => { if (this.state === 'joining') this.state = 'joined'; }, this.bus.latencyMs * 2);
+    this.tryJoin();
     return this;
+  }
+  /** A join round trip: SUBSCRIBED when the socket is up, else TIMED_OUT after 10 s and another try (realtime-js keeps
+   *  re-joining an errored channel). */
+  private tryJoin(): void {
+    setTimeout(() => {
+      if (this.state !== 'joining') return;
+      if (this.reachable()) { this.state = 'joined'; this.status?.('SUBSCRIBED'); return; }
+      setTimeout(() => {
+        if (this.state !== 'joining') return;
+        if (this.reachable()) { this.state = 'joined'; this.status?.('SUBSCRIBED'); return; }
+        this.status?.('TIMED_OUT');
+        this.tryJoin();
+      }, 10_000);
+    }, this.bus.latencyMs * 2);
+  }
+  private reachable(): boolean {
+    const n = this.net.state;
+    return this.bus.enabled && !n.offline && !n.realtimeDown && !(n.hiddenSince != null && Date.now() - n.hiddenSince >= 5 * 60_000);
+  }
+  /** The socket dropped under a joined channel (Realtime down, the network gone, a starved background socket). */
+  socketLost(): void {
+    if (this.state !== 'joined' || this.reachable()) return;
+    this.state = 'joining';
+    this.status?.('CHANNEL_ERROR');
+    this.tryJoin();
   }
   send(msg: { type: string; event: string; payload: unknown }): Promise<'ok'> {
     if (this.joined) this.bus.broadcast(this, msg.event, msg.payload);
@@ -165,6 +195,7 @@ export class FakeChannel {
   /** `removeChannel`: leave now (no more events), gone from the client's registry once the server acks. */
   unsubscribe(): Promise<'ok'> {
     if (this.state === 'closed') { this.onRemoved(this); return Promise.resolve('ok'); }
+    this.status = null;
     this.state = 'leaving';
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -227,7 +258,20 @@ function errorOf(e: unknown): { message: string; code?: string } {
 export class FakeSupabase {
   constructor(readonly user: string, readonly server: ChaosServer, readonly net: ChaosNet, readonly bus: RealtimeBus) {}
 
-  async rpc(fn: string, args: Record<string, unknown> = {}): Promise<{ data: unknown; error: unknown }> {
+  /** `rpc()` as PostgREST's builder: a thenable with `.abortSignal()` (an abort answers with an AbortError). */
+  rpc(fn: string, args: Record<string, unknown> = {}): PromiseLike<{ data: unknown; error: unknown }> & { abortSignal(sig: AbortSignal): PromiseLike<{ data: unknown; error: unknown }> } {
+    const run = this.rpcRun(fn, args);
+    const out = {
+      then: <A, B>(ok?: ((v: { data: unknown; error: unknown }) => A | PromiseLike<A>) | null, bad?: ((e: unknown) => B | PromiseLike<B>) | null) => run.then(ok, bad),
+      abortSignal: (sig: AbortSignal) => new Promise<{ data: unknown; error: unknown }>((resolve) => {
+        if (sig.aborted) { resolve({ data: null, error: { message: 'AbortError: The operation was aborted' } }); return; }
+        sig.addEventListener('abort', () => resolve({ data: null, error: { message: 'AbortError: The operation was aborted' } }), { once: true });
+        void run.then(resolve);
+      }),
+    };
+    return out;
+  }
+  private async rpcRun(fn: string, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }> {
     try {
       // rows: test harness, in-process PGlite; every Versus RPC returns one jsonb value (R-NET-01).
       const data = await this.net.send(`rpc:${fn}`, () => this.server.rpc(this.user, fn, args));
@@ -243,10 +287,14 @@ export class FakeSupabase {
   from(table: string): Query { return new Query(this, table); }
 
   readonly functions = {
-    invoke: async (name: string, opts: { body: Record<string, unknown> }): Promise<{ data: unknown; error: unknown }> => {
+    invoke: async (name: string, opts: { body: Record<string, unknown>; timeout?: number }): Promise<{ data: unknown; error: unknown }> => {
       if (name !== 'versus-resolve') return { data: null, error: new Error('unknown function') };
       try {
-        const res = await this.net.send(`fn:${String(opts.body.action)}`, () => this.server.resolve(this.user, opts.body));
+        const call = this.net.send(`fn:${String(opts.body.action)}`, () => this.server.resolve(this.user, opts.body));
+        // supabase-js `timeout`: the request is aborted (the server may still finish it).
+        const res = opts.timeout
+          ? await Promise.race([call, new Promise<never>((_, bad) => setTimeout(() => bad(new Error('FunctionsFetchError: timed out')), opts.timeout))])
+          : await call;
         if (res.status >= 200 && res.status < 300) return { data: res.body, error: null };
         return { data: null, error: new Error(`Edge Function returned a non-2xx status code (${res.status})`) };
       } catch (e) {
@@ -260,9 +308,13 @@ export class FakeSupabase {
   channel(topic: string): FakeChannel {
     const have = this.channels.get(topic);
     if (have) return have;
-    const ch = new FakeChannel(topic, this.user, this.net, this.bus, (c) => { if (this.channels.get(topic) === c) this.channels.delete(topic); });
+    const ch = new FakeChannel(`realtime:${topic}`, this.user, this.net, this.bus, (c) => { if (this.channels.get(topic) === c) this.channels.delete(topic); });
     this.channels.set(topic, ch);
     return ch;
   }
   removeChannel(ch: FakeChannel): Promise<'ok'> { return ch.unsubscribe(); }
+  /** realtime-js `getChannels()`: every registered channel (its topic carries the `realtime:` prefix). */
+  getChannels(): { topic: string; state: string }[] {
+    return [...this.channels.values()];
+  }
 }

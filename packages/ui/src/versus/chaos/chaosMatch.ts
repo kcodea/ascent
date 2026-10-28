@@ -251,6 +251,7 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
 
   while (Date.now() - t0 < cap) {
     for (const c of clients) c.tick();
+    bus.sweep();
     await step();
     // The match.
     if (!matchId) {
@@ -324,6 +325,8 @@ export async function runChaos(server: ChaosServer, sc: ChaosScenario): Promise<
     if (s.phase === 'resolving' && !resolving.has(s.round)) resolving.set(s.round, { start: now, end: null });
     for (const [r, rv] of resolving) {
       if (rv.end != null) continue;
+      // A pause holds the round (by design): the 5 s run from the resume.
+      if (s.pausedAt) { rv.start = now; continue; }
       if ((s.round === r && (s.phase === 'combat' || s.phase === 'complete')) || s.round > r) {
         rv.end = now;
         if (!chaosRounds.has(r) && rv.end - rv.start > 5000) flag('resolve', r, `the fight took ${rv.end - rv.start} ms to land after the round closed`);

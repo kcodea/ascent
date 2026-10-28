@@ -37,7 +37,7 @@ beforeAll(async () => {
 }, 180_000);
 afterAll(async () => { await server?.close(); });
 
-async function play(sc: ChaosScenario, known: Partial<Record<InvariantId, string>>): Promise<void> {
+async function play(sc: ChaosScenario, known: Partial<Record<InvariantId, { cause: string; sometimes: boolean }>>): Promise<void> {
   if (played > 0 && played % REBOOT_EVERY === 0) {
     await server.close();
     server = new ChaosServer(() => Date.now());
@@ -45,13 +45,23 @@ async function play(sc: ChaosScenario, known: Partial<Record<InvariantId, string
   }
   played++;
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'], now: Date.parse('2026-10-27T12:00:00Z') });
+  // The client jitters some waits (the finalize backstop) with Math.random: seeded per scenario, every run replays.
+  let m = (sc.seed ^ 0x9e3779b9) >>> 0;
+  const random = vi.spyOn(Math, 'random').mockImplementation(() => {
+    m = (m + 0x6d2b79f5) >>> 0;
+    let t = m;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  });
   try {
     const r = await runChaos(server, sc);
     const seen = new Set(r.violations.map((v) => v.id));
     const unexpected = r.violations.filter((v) => !known[v.id]).map((v) => `${v.id} r${v.round ?? '-'} @${(v.at / 1000).toFixed(1)}s: ${v.detail}`);
-    const fixed = (Object.keys(known) as InvariantId[]).filter((id) => !seen.has(id)).map((id) => `fixed: ${id} (${known[id]}) no longer happens; delete its KNOWN entry`);
+    const fixed = (Object.keys(known) as InvariantId[]).filter((id) => !seen.has(id) && !known[id]!.sometimes).map((id) => `fixed: ${id} (${known[id]!.cause}) no longer happens; delete its KNOWN entry`);
     expect([...unexpected, ...fixed], `${sc.name}/${sc.mode}: ${r.roundsCommitted} rounds, ${r.resolverCalls} resolver calls`).toEqual([]);
   } finally {
+    random.mockRestore();
     vi.useRealTimers();
   }
 }

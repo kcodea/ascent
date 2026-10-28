@@ -11,27 +11,27 @@ interface KnownFailure {
   cells: RegExp;
   invariant: InvariantId;
   cause: string;
+  /** A race that happens on some runs only (the client's retry jitter): its absence does not fail the cell. */
+  sometimes?: true;
 }
 
-const REALTIME_REUSE = 'Realtime channel reuse on match start: `subscribe()` closes the room channel (`removeChannel` is async: '
-  + 'the channel stays registered while LEAVING) and asks for the same topic at once; realtime-js hands back the leaving channel, '
-  + 'its `.subscribe()` is a no-op, and the leave ack tears it down. The whole match then runs on the 4 s heartbeat.';
-const DUPLICATE_RESOLVER = 'Duplicate resolver calls: when the round closes on its clock (or on a slow / failing resolver), two clients '
-  + 'own reconciles both see `resolving` and both call the resolver (`onOwnAnswer` -> `kickFinalize`), or the 4 s backstop '
-  + 'overlaps a slow first call.';
-const SLOW_RESUME = 'The returning player pause lifts by itself now (fix/versus-server-reliability, #2362), but about 7 s after they are back, not within '
-  + '4 s (the resume waits on the next lease check and the 3-2-1).';
+// Fixed on main by #2362 (server reliability) + #2363 (client reliability), proven by this matrix on 2026-10-28:
+// Realtime channel reuse on match start, duplicate resolver calls at 0:00 / on a slow or failing resolver, and the
+// returning player's pause that never (then slowly) lifted. Add an entry here only for a failure that is real and known.
+const SLOW_LIFT = 'The returning player pause lifts by itself, but about 4.9 s after they are back (Group of 4, Duos, and a '
+  + 'drop during the fight in 1v1); the bar is 4 s with no press.';
+const LATE_BACKSTOP = 'A second resolver call for a round already settled or being retried: with a 10 s resolver another '
+  + 'client backstop still asks ~5 s after the first call committed; after a long hang (Group) or an injected 409 (Group of 4) '
+  + 'two clients ask at once.';
 
 export const KNOWN: KnownFailure[] = [
-  // Every cell where Realtime is up (the realtimeDown scenario kills it on purpose, so it has nothing to lose).
-  { cells: /^(?!realtimeDown\/)/, invariant: 'realtime', cause: REALTIME_REUSE },
-  { cells: /^timer\/(group3|group4|duos|ranked_duos)$|^background6min\/(group3|group4|duos|ranked_duos)$|^dropShort\/ranked_duos$|^resolverFail3\/(group4|duos)$|^resolverSlow\//, invariant: 'oneCall', cause: DUPLICATE_RESOLVER },
-  { cells: /^(dropRestore|dropInFight)\/(duel|group3|group4|duos)$/, invariant: 'pauseLift', cause: SLOW_RESUME },
+  { cells: /^dropRestore\/(group4|duos)$|^dropInFight\/(duel|group4|duos)$/, invariant: 'pauseLift', cause: SLOW_LIFT },
+  { cells: /^resolverSlow\/|^hang\/(group3|group4)$|^resolver409\/group4$/, invariant: 'oneCall', cause: LATE_BACKSTOP },
 ];
 
 /** The known failures of one cell, invariant -> cause. */
-export function knownFor(cell: string): Partial<Record<InvariantId, string>> {
-  const out: Partial<Record<InvariantId, string>> = {};
-  for (const k of KNOWN) if (k.cells.test(cell)) out[k.invariant] = k.cause;
+export function knownFor(cell: string): Partial<Record<InvariantId, { cause: string; sometimes: boolean }>> {
+  const out: Partial<Record<InvariantId, { cause: string; sometimes: boolean }>> = {};
+  for (const k of KNOWN) if (k.cells.test(cell)) out[k.invariant] = { cause: k.cause, sometimes: !!k.sometimes };
   return out;
 }

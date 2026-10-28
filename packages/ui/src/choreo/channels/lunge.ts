@@ -114,6 +114,21 @@ export function setTransition(el: Element, value: string): void {
   if (st) st.transition = value;
 }
 
+/* EVERY LUNGE TIMELINE STILL ALIVE (R-PERF-LUNGE-LEAK-01, 2026-10-27). A lunge can be left PAUSED, a held-windup
+   park whose release never came (the fight ended, the screen unmounted, or a release path dropped its reference
+   without killing it). A paused timeline stays in gsap's global timeline forever, and its callbacks hold the screen it
+   was made on: a 5-game soak kept every game's whole shop screen alive (~1,100 DOM nodes and ~420 listeners a game).
+   Each lunge registers here until it completes or is killed, and `killLiveLunges` (the combat replay's unmount)
+   kills whatever is left, however it was stranded. */
+const liveLunges = new Set<ReturnType<typeof gsap.timeline>>();
+/** Kill every lunge timeline still alive (finished or killed ones have already left the set). */
+export function killLiveLunges(): void {
+  for (const tl of [...liveLunges]) tl.kill();
+  liveLunges.clear();
+}
+/** How many lunge timelines are alive (tests). */
+export const liveLungeCount = (): number => liveLunges.size;
+
 export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   const { attacker, dx, dy, speed, strike, strikeDur, travel = 0, leadTilt, attackerRebound, impactOffsetMs = 0, rallyPauseMs = 0, hitStopMs = 0, returnDelayMs = 0, flurry = false, holdAfterWindup = false } = ctx;
   const onContact = once(ctx.onContact);
@@ -155,9 +170,11 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   setTransition(attacker, 'none');
   const tl = gsap.timeline({
     onComplete: () => {
+      liveLunges.delete(tl);
       setTransition(attacker, '');
       gsap.set(attacker, { clearProps: 'transform,zIndex' });
     },
+    onInterrupt: () => { liveLunges.delete(tl); }, // killed before it finished (a reset, a death in the wind-up)
     onUpdate: () => {
       if (tl.time() > trailCutoff) return; // no trail on the elastic settle
       const cx = cx0 + toScreen(Number(gsap.getProperty(attacker, 'x')));
@@ -170,6 +187,7 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
       }
     },
   });
+  liveLunges.add(tl);
   if (onWindupStart) tl.call(onWindupStart, undefined, 0); // the wind-up's first frame (the immune shield forms)
   tl.to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: leadTilt, scale: c.windupScale, duration: c.windupDur, ease: 'power1.out' }); // wind up, tilt to lead a corner
   if (windupPauseS > 0) {

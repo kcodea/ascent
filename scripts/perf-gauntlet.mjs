@@ -48,6 +48,11 @@
  *   npm run perf:gauntlet -- --debug-end              log the wipe / End Turn state after each End combat press that did not land
  *   npm run perf:gauntlet -- --games 5 --from 4 --to 5   THE SOAK: 5 games in one page; per game (after a full GC) heap, DOM
  *                                                  nodes, listeners and shop frames, so buildup across a session shows
+ *   npm run perf:gauntlet -- --board d2_roomworks,d2_flamebeat --tribes dragon   another turn-1 board (a trailing * = gilded)
+ *   npm run perf:gauntlet -- --round-probe --from 13 --to 12   ONE game, a probe at the start of every shop once the
+ *                                                  return trip is over: idle frames + what is alive (heap, DOM, FX, GSAP, Pixi)
+ *   npm run perf:gauntlet -- --css "<rules>"         inject CSS (test what a CSS change would buy before making it)
+ *   npm run perf:gauntlet -- --hold 60               keep the page open after the walk (CDP on port+1) to inspect it
  *   A run that loses a scene is run again once (--no-retry turns that off).
  *   npm run perf:gauntlet -- --headless         no window (main-thread numbers only; frame intervals are not real)
  *   npm run perf:gauntlet -- --scenes drag,combat   report only these scenes
@@ -75,8 +80,14 @@ const CACHE = path.join(ROOT, '.perf-gauntlet');
 // single pair made a false call on the target scene's p95 / p99 / work in about 1 of 9 pairings (one odd run), so
 // confirm a win with another pair (--runs 2) before shipping it.
 const RUNS = Number(arg('runs', '1'));
-const GAMES = Number(arg('games', '1')); // --games N: N games back to back in one page (the soak)
+const GAMES = Number(arg('games', '1'));
+// --board: the turn-1 board, card ids, a trailing * = gilded (bought three times to triple). Default: the owner's Dwarf
+// Ale engine (2026-10-27). --tribes: the Practice game's tribes, so the shop offers the board's tribe.
+const BOARD = arg('board', 'dw_edward*,dw_tapkeeper*,dw_tapkeeper*,dw_mountainbond,dw_chef').split(',').map((x) => [x.replace(/\*$/, ''), x.endsWith('*')]);
+const TRIBES = arg('tribes', 'dwarf').split(',');
+const ROUND_PROBE = flag('round-probe'); // --games N: N games back to back in one page (the soak)
 let soakRows = [];
+let probeRows = [];
 const FROM = Number(arg('from', '9')); // the first MEASURED round: everything before it is fast-forwarded
 const TO = Number(arg('to', '14')); // the last measured round
 const FF_ACTION_MS = Number(arg('ff-ms', '40')); // the pause between the bot's shop actions
@@ -274,7 +285,7 @@ async function playScenes(c) {
   // AFTER the setup rolls its own, so both builds play the identical game. Bot seats need no network (God Mode's
   // real-player boards do, and every request off 127.0.0.1 is blocked), and the Gold is topped up each round below
   // so the boards grow like God Mode's.
-  await d.ev(`(() => { const s = ${g}; s.startPractice(); s.setPracticeDraft({ godMode: false, opponents: 'bots', botDifficulty: 10, health: 'unlimited', timeMult: 0, heroes: 'all', tribes: ['dwarf'] }); })()`);
+  await d.ev(`(() => { const s = ${g}; s.startPractice(); s.setPracticeDraft({ godMode: false, opponents: 'bots', botDifficulty: 10, health: 'unlimited', timeMult: 0, heroes: 'all', tribes: ${JSON.stringify(TRIBES)} }); })()`);
   await sleep(600);
   await d.ev(`${g}.confirmPracticeSetup()`);
   need(await d.waitFor(`!!document.querySelector('.herocard.big')`, 15_000), 'heroselect');
@@ -303,7 +314,7 @@ async function playScenes(c) {
     // The owner's five, kept BY CARD, not by uid: a triple (two more copies bought from the shop) replaces the board
     // card with a gilded one under a new uid, and that card is still one of the five. Up to the quota per card, gilded
     // copies first; anything past the quota is ordinary filler.
-    const QUOTA = { dw_edward: 1, dw_tapkeeper: 2, dw_mountainbond: 1, dw_chef: 1 };
+    const QUOTA = ${JSON.stringify(BOARD.reduce((q, [id]) => ({ ...q, [id]: (q[id] || 0) + 1 }), {}))};
     window.__pgKept = (run) => {
       const left = { ...QUOTA }; const kept = new Set();
       for (const b of [...run.board].sort((x, y) => (y.golden ? 1 : 0) - (x.golden ? 1 : 0))) if (left[b.cardId] > 0) { left[b.cardId]--; kept.add(b.uid); }
@@ -361,7 +372,7 @@ async function playScenes(c) {
     // otherwise, and the game ends before the rounds being measured.
     st.setState((s) => ({ run: { ...s.run, lobby: s.run.lobby ? { ...s.run.lobby, seats: s.run.lobby.seats.map((seat, i) => (i === 0 ? seat : { ...seat, invulnerable: true })) } : s.run.lobby } }));
     const keep = [];
-    for (const [id, gilded] of [['dw_edward', true], ['dw_tapkeeper', true], ['dw_tapkeeper', true], ['dw_mountainbond', false], ['dw_chef', false]]) {
+    for (const [id, gilded] of ${JSON.stringify(BOARD)}) {
       for (let k = 0; k < (gilded ? 3 : 1); k++) await buyPrinted(id);
       const uid = await playFromHand(id, gilded);
       if (uid) keep.push(uid);
@@ -424,6 +435,9 @@ async function playScenes(c) {
       await resolveChoices();
       await d.click(await d.visible('.etbwrap'));
       fought = await d.waitFor(`${g}.run.phase === 'combat'`, 2500);
+      // A pressed End Turn is playing its End-of-Turn chain (a spell-heavy late board can take well over 25 s):
+      // wait for it rather than pressing again.
+      if (!fought && await d.ev(`!!document.querySelector('.etbwrap.pressed')`)) fought = await d.waitFor(`${g}.run.phase === 'combat'`, 60_000);
     }
     if (!need(fought, `fight ${label}`)) {
       const shot = await c.send('Page.captureScreenshot', { format: 'png' }).catch(() => null);
@@ -472,8 +486,33 @@ async function playScenes(c) {
   await mark('ff');
   log(`   board: ${await setupBoard()}`);
   log(`   fast-forward to round ${FROM} ...`);
+  // --round-probe: at the START of every shop phase, before any action and after a full GC, what is alive (heap, DOM,
+  // listeners, CSS / WAAPI animations, GSAP tweens, Pixi FX plays and their particles) plus 3 s of IDLE shop frames, as
+  // scene probe-rN. A column that climbs round over round inside one game is buildup (owner 2026-10-27: "when lots of
+  // spells procc from dragons ... the shop phase can become choppy even without a lot of actions").
+  const probe = async (after) => {
+    if (!ROUND_PROBE) return;
+    await waitQuiet();
+    const r = await wave();
+    await c.send('HeapProfiler.collectGarbage').catch(() => {});
+    const heap = await c.send('Runtime.getHeapUsage').catch(() => null);
+    const dom = await c.send('Memory.getDOMCounters').catch(() => null);
+    const live = await d.ev(`(() => { const b = window.__bench; const plays = b.livePlays ? b.livePlays() : []; const gs = b.gsap; return { attached: document.querySelectorAll('*').length, anims: document.getAnimations().filter((a) => a.playState === 'running').length, tweens: gs ? gs.globalTimeline.getChildren(true, true, false).filter((t) => t.isActive()).length : null, gsapAll: gs ? gs.globalTimeline.getChildren(true, true, false).length : null, plays: plays.length, particles: plays.reduce((n, p) => n + (p.particles || 0), 0), canvasList: [...document.querySelectorAll('canvas')].map((cv) => { const host = cv.closest('[class]'); const r = cv.getBoundingClientRect(); return (cv.className || (host && host !== cv ? 'in ' + String(host.className).split(' ')[0] : '?')) + ' ' + cv.width + 'x' + cv.height + ' @' + Math.round(r.width) + 'x' + Math.round(r.height) + (getComputedStyle(cv).visibility === 'hidden' || getComputedStyle(cv).display === 'none' || r.width === 0 ? ' (hidden)' : ''); }).join(' ; '), pixi: (() => { const app = b.pixiFx && b.pixiFx.app; if (!app) return 'none'; let n = 0, f = 0, vis = 0; const w = (c) => { if (!c) return; n++; if (c.visible !== false && c.renderable !== false) vis++; if (c.filters && c.filters.length) f += c.filters.length; for (const k of c.children || []) w(k); }; w(app.stage); return 'ticker ' + (app.ticker.started ? 'on' : 'off') + ', ' + n + ' objects (' + vis + ' visible), ' + f + ' filters'; })(), ids: [...new Set(plays.map((p) => p.id))].slice(0, 6).join(',') }; })()`).catch(() => ({}));
+    live.gate = await d.ev(`(async () => { const b = window.__bench; if (!b.gateFx) return 'n/a'; const g = await b.gateFx(); if (!g.__counted) { g.__counted = {}; for (const m of ['slam', 'land', 'portal', 'edgeBloom', 'shudder', 'gather', 'ambient', 'shatter', 'warm', 'clear', 'release']) { const orig = g[m].bind(g); g[m] = (...x) => { g.__counted[m] = (g.__counted[m] || 0) + 1; return orig(...x); }; } } const calls = JSON.stringify(g.__counted); const app = g.app; return app ? 'particles ' + g.particles.length + ', ambient ' + (g.ambientAt ? 'ON' : 'off') + ', ticker ' + (app.ticker.started ? 'on' : 'off') + ', canvas ' + app.canvas.style.visibility + (g.particles[0] ? ', p0 age ' + Math.round(g.particles[0].age) + '/life ' + Math.round(g.particles[0].life) + ' alpha ' + (g.particles[0].sp.alpha ?? '?').toFixed?.(2) : '') + ', tick lastTime ' + Math.round(app.ticker.lastTime) + ' now ' + Math.round(performance.now()) + ' dMS ' + app.ticker.deltaMS.toFixed(1) + ' count ' + app.ticker.count + ' requestId ' + app.ticker._requestId + ' calls ' + calls : 'no app'; })()`).catch((e) => 'err ' + String(e).slice(0, 60));
+    probeRows.push({ r, heapMB: heap ? heap.usedSize / 1048576 : null, nodes: dom?.nodes, listeners: dom?.jsEventListeners, ...live });
+    await mark(`probe-r${r}`); await sleep(3000); await mark(after);
+  };
+  // A QUIET shop: the return trip (vista, gem portal, edge bloom) has fully finished and the gate layer is empty. The
+  // probe used to start as the shop opened, so its "idle" window caught the transition's tail (~250 particles for ~1 s)
+  // and read it as idle cost (2026-10-27).
+  const waitQuiet = async () => {
+    await d.waitFor(`window.__bench.store.getState().wipeIdle === true`, 15_000);
+    await d.waitFor(`(async () => { const b = window.__bench; if (!b.gateFx) return true; const g = await b.gateFx(); return g.particles.length === 0; })()`, 10_000);
+    await sleep(1500);
+  };
   for (let guard = 0; guard < 40 && (await wave()) < FROM; guard++) {
     await topUp();
+    await probe('ff');
     await buyPlayTurn(150, FF_ACTION_MS);
     if (!(await fight(`ff-r${await wave()}`, false))) return missed;
     await sleep(800);
@@ -485,6 +524,7 @@ async function playScenes(c) {
     // The game can end before --to (owner 2026-10-27: "its ok if it doesnt get to 14"): the rounds measured so far stand.
     if ((await d.ev(`${g}.run.phase`)) === 'gameover') { log(`   the game ended before round ${r}: measured up to round ${r - 1}`); break; }
     await topUp();
+    await probe('shop-idle');
     await takeDiscovers();
     await mark('shop-idle'); await sleep(3000);
     await mark('reroll');
@@ -505,14 +545,14 @@ async function playScenes(c) {
     // The rest of the turn the way a late game spends it: lots of buys, plays and spells (measured as its own scene).
     await mark('shop-actions');
     const acts = await buyPlayTurn(150, 60);
-    log(`   round ${r}: kept ${await d.ev(`window.__pgKept(${g}.run).size`)}/5, board ${await d.ev(`${g}.run.board.length`)}, tier ${await d.ev(`${g}.run.tier`)}, hand ${await d.ev(`${g}.run.hand.length`)}, actions ${acts}`);
+    log(`   round ${r}: kept ${await d.ev(`window.__pgKept(${g}.run).size`)}/${BOARD.length}, board ${await d.ev(`${g}.run.board.length`)}, tier ${await d.ev(`${g}.run.tier`)}, hand ${await d.ev(`${g}.run.hand.length`)}, actions ${acts}`);
     await sleep(1000);
     await mark('end-turn');
     if (!(await fight(`r${r}`, true))) break;
     await sleep(2500);
   }
   await mark('end');
-  await d.ev(`${g}.openTitle()`).catch(() => {});
+  if (!arg('hold', '')) await d.ev(`${g}.openTitle()`).catch(() => {}); // --hold keeps the shop up to inspect
   // --games N (the soak): what this game left behind, AFTER a full garbage collection, so growth game over game is
   // something still referenced (a leak), not garbage waiting to be collected.
   if (GAMES > 1) {
@@ -558,6 +598,7 @@ const METRIC_KEYS = ['TaskDuration', 'ScriptDuration', 'RecalcStyleDuration', 'L
 
 async function measureOnce(dist, runIdx) {
   soakRows = [];
+  probeRows = [];
   const port = PORT + runIdx * 2;
   const server = await serve(dist, port);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'ascent-perf-gauntlet-'));
@@ -577,6 +618,9 @@ async function measureOnce(dist, runIdx) {
     if (TRACE) c.on('Tracing.dataCollected', (p) => { for (const e of p.value) traceEvents.push(e); });
     await c.send('Page.enable'); await c.send('Runtime.enable'); await c.send('Performance.enable', { timeDomain: 'timeTicks' });
     if (PROFILE) { await c.send('Profiler.enable'); await c.send('Profiler.setSamplingInterval', { interval: 250 }); }
+    // Console errors (the FX fault reporter, React), de-duplicated: a fault can explain a stuck layer.
+    const seenErr = new Set();
+    c.on('Runtime.consoleAPICalled', (p) => { if (p.type !== 'error') return; const msg = (p.args || []).map((a) => a.value ?? a.description ?? '').join(' ').split('\n')[0].slice(0, 200); if (!seenErr.has(msg)) { seenErr.add(msg); log(`   (console error: ${msg})`); } });
     c.on('Runtime.exceptionThrown', (p) => log(`   (page exception: ${String(p.exceptionDetails?.exception?.description || p.exceptionDetails?.text || '').split('\n')[0]})`));
     await c.send('Fetch.enable', { patterns: [{ urlPattern: '*' }] });
     c.on('Fetch.requestPaused', (p) => {
@@ -584,6 +628,8 @@ async function measureOnce(dist, runIdx) {
       void (local ? c.send('Fetch.continueRequest', { requestId: p.requestId }) : c.send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'BlockedByClient' })).catch(() => {});
     });
     await c.send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE });
+    // --css "<rules>": an extra stylesheet, to test what a CSS change would buy before changing the source.
+    if (arg('css', '')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `document.addEventListener('DOMContentLoaded', () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(arg('css', ''))}; document.head.appendChild(s); });` });
     await c.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
     await c.send('Page.bringToFront').catch(() => {});
     await c.send('Page.navigate', { url: `http://127.0.0.1:${port}/` });
@@ -634,10 +680,12 @@ async function measureOnce(dist, runIdx) {
       return origSend(method, params);
     } };
     const missed = await playScenes(cc);
+    // --hold <s>: keep the page open after the walk (CDP on port+1), to inspect a live state from another script.
+    if (arg('hold', '')) { log(`   holding the page open ${arg('hold')} s (CDP port ${port + 1})`); await sleep(Number(arg('hold')) * 1000); }
     if (profiling) profiles.push((await c.send('Profiler.stop')).profile);
     if (tracing) await stopTrace(c.send);
     const dump = await evaluate(c, 'window.__pg.dump()');
-    return { missed, dump, metricMarks, profiles, traceEvents, soak: soakRows };
+    return { missed, dump, metricMarks, profiles, traceEvents, soak: soakRows, probe: probeRows };
   } finally {
     c.close(); server.close();
     await sleep(600);
@@ -831,7 +879,8 @@ let builds;
 try {
   if (arg('only', '')) builds = [{ dist: path.resolve(arg('only')), label: arg('only') }];
   else if (arg('a', '') && arg('b', '')) builds = [{ dist: path.resolve(arg('a')), label: arg('a') }, { dist: path.resolve(arg('b')), label: arg('b') }];
-  else builds = [buildWorking(), buildRef(arg('base', 'origin/main'))];
+  // --a <dist> alone: a prebuilt candidate (e.g. another worktree's bench build) against --base built here.
+  else builds = [arg('a', '') ? { dist: path.resolve(arg('a')), label: arg('a') } : buildWorking(), buildRef(arg('base', 'origin/main'))];
   for (const b of builds) if (!fs.existsSync(path.join(b.dist, 'index.html'))) throw new Error(`No build at ${b.dist}`);
 } catch (e) { console.error(String(e.message || e)); process.exit(2); }
 
@@ -877,6 +926,16 @@ for (let i = 0; i < schedule.length; i++) {
       log([`   profile (${PROFILE}, ${total.toFixed(0)} ms, top 12 by self time):`, ...lines.slice(0, 12).map((l) => '     ' + l)].join('\n'));
     }
     const a = analyse(raw);
+    if (raw.probe?.length) {
+      // THE ROUND PROBE TABLE: one row a round of ONE game, taken at the start of its shop phase (after a GC, before any
+      // action) with 3 s of idle frames. A climbing column = something piling up inside the game.
+      const rows = raw.probe.map((p) => {
+        const sc = a.scenes[`${GAMES > 1 ? 'g1:' : ''}probe-r${p.r}`] || a.scenes[`probe-r${p.r}`];
+        return `   round ${String(p.r).padStart(2)}  idle p95 ${fmt(sc?.p95).padStart(5)} p99 ${fmt(sc?.p99).padStart(5)} work ${fmt(sc?.workPerFrame, 2).padStart(5)} long ${String(sc?.long ?? '-').padStart(4)}  | heap ${p.heapMB?.toFixed(1) ?? '?'} MB  nodes ${p.nodes} (page ${p.attached})  listeners ${p.listeners}  anims ${p.anims}  gsap ${p.tweens}/${p.gsapAll}  fx plays ${p.plays} (${p.particles} particles${p.ids ? ': ' + p.ids : ''})  pixi ${p.pixi}  | gate: ${p.gate}  | canvases: ${p.canvasList}`;
+      });
+      log(['   ROUND PROBE (start of each shop phase, after a GC, 3 s idle):', ...rows].join('\n'));
+      fs.writeFileSync(path.join(OUT, `probe-run${i + 1}-${n}.txt`), [...rows, ''].join('\n'));
+    }
     if (GAMES > 1 && raw.soak?.length) {
       // THE SOAK TABLE: one row a game, the same seeded game each time, so any column that climbs is buildup.
       const pick = (gm, sc, k) => a.scenes[`g${gm}:${sc}`]?.[k];

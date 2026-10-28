@@ -1307,6 +1307,16 @@ export interface PlayerRow {
   avatar?: string;
 }
 
+/** The email this device last wrote onto `profiles` for a user (per user id), so `claimHandle` can skip a no-op write. */
+const HANDLE_CLAIM_KEY = 'ascent.handleclaim';
+function handleClaimMemo(userId: string): string | undefined {
+  try { const o = JSON.parse(localStorage.getItem(HANDLE_CLAIM_KEY) ?? 'null') as { userId?: unknown; email?: unknown } | null; return o && o.userId === userId && typeof o.email === 'string' ? o.email : undefined; }
+  catch { return undefined; }
+}
+function rememberHandleClaim(userId: string, email: string): void {
+  try { localStorage.setItem(HANDLE_CLAIM_KEY, JSON.stringify({ userId, email })); } catch { /* ignore */ }
+}
+
 /**
  * ACCOUNTS C2b — ensure this account has a stable `#tag`, and keep `author`/`email` on the profile current.
  *
@@ -1321,7 +1331,7 @@ export async function claimHandle(name: string): Promise<{ author: string; discr
   const author = name.trim().slice(0, 24);
   if (!author) return null;
   try {
-    const existing = await c.from('profiles').select('discriminator').eq('user_id', userId).limit(1);
+    const existing = await c.from('profiles').select('discriminator, author').eq('user_id', userId).limit(1);
     if (existing.error) return null;
     // A leaderboard row is EARNED by finishing a run (`uploadPlayerProfile` creates it), not by setting a
     // name. If there's no row yet, do NOT create one — otherwise every throwaway anonymous session that types
@@ -1329,8 +1339,13 @@ export async function claimHandle(name: string): Promise<{ author: string; discr
     // from a fresh session that never played). The tag lands on the next boot after the first run instead.
     const rowExists = !!existing.data && existing.data.length > 0;
     if (!rowExists) return null;
-    const currentTag = (existing.data?.[0] as { discriminator?: string | null } | undefined)?.discriminator ?? null;
+    const row = existing.data?.[0] as { discriminator?: string | null; author?: string | null } | undefined;
+    const currentTag = row?.discriminator ?? null;
     const email = currentIdentity()?.email ?? null;
+    // SUPABASE CLEANUP P1.1 (2026-10-28): write only when something changed. The row already carries this name and a
+    // tag, and this device last wrote this email for this user (the client cannot read `profiles.email` back), so
+    // the UPDATE would be a no-op. It used to run on every auth event: 5,551 UPDATEs for 58 profiles in 16 days.
+    if (currentTag && row?.author === author && handleClaimMemo(userId) === (email ?? '')) return { author, discriminator: currentTag };
     // Prefer the current tag (stable across renames); fall back to fresh random tags on collision.
     const candidates: string[] = [
       ...(currentTag ? [currentTag] : []),
@@ -1339,7 +1354,7 @@ export async function claimHandle(name: string): Promise<{ author: string; discr
     for (const tag of candidates) {
       const patch = { author, discriminator: tag, email, updated_at: new Date().toISOString() };
       const res = await c.from('profiles').update(patch).eq('user_id', userId).select('user_id');
-      if (!res.error) return { author, discriminator: tag };
+      if (!res.error) { rememberHandleClaim(userId, email ?? ''); return { author, discriminator: tag }; }
       if (res.error.code !== '23505') return null; // a real error, not a `name#tag` uniqueness collision
     }
     return null; // every candidate collided — astronomically unlikely at any real player count

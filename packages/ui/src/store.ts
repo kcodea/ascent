@@ -101,7 +101,8 @@ import type { RuneCombatProgress } from '@game/sim';
 import { takeShopEmotes } from './emotes/emoteRecording';
 import { pushProfileAvatar, backfillProfileAvatar, fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
-import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
+import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId, type Identity } from './identity';
+import { createAccountStartupGate } from './identityGate';
 import { createCloudSave, deviceId, noteLocalClear, noteLocalSave, runKeyOf, type CloudRow, type CloudRowMeta } from './cloudSave';
 import { supabaseCloudSaveApi } from './cloudSaveRemote';
 import { notifyTutorialActions } from './tutorial/actionBus';
@@ -3575,40 +3576,46 @@ if (typeof window !== 'undefined') syncProfileFromServer(loadPlayerName());
 //       landing after the redirect, a token refresh, or a sign-out in another tab. The "check your inbox →
 //       click the link" flow completes HERE: the click reloads the app, Supabase parses the session out of the
 //       URL, `onChange` fires with the now-permanent user, and we pull that account's authoritative profile.
+// SUPABASE CLEANUP P1.1 (2026-10-28): the startup work runs once per ACCOUNT, not once per auth event. Supabase
+// re-fires `onChange` on every token refresh and tab refocus; each fire used to re-run the whole fan-out below
+// (~87k progression probes in 16 days). `accountStartupGate` lets it through only when the user id, the anonymous
+// flag or the email actually changes (or the session ends). DEV: `window.__ascentAuthStartup` counts both.
+const accountStartupGate = createAccountStartupGate();
+if (import.meta.env.DEV && typeof window !== 'undefined') (window as unknown as { __ascentAuthStartup?: unknown }).__ascentAuthStartup = accountStartupGate.counters;
+function mirrorAccountTag(name: string): void {
+  if (name) void claimHandle(name).then((h) => { if (h) useGame.setState((st) => ({ account: { ...st.account, discriminator: h.discriminator } })); });
+}
+/** Everything a newly signed-in account needs, run once per account change (never on a token refresh). */
+function runAccountStartup(id: Identity | null): void {
+  useGame.setState((st) => ({
+    account: id
+      ? { ...st.account, userId: id.userId, email: id.email, anonymous: id.anonymous }
+      : { userId: null, email: null, anonymous: true, discriminator: null },
+  }));
+  void loadGuides(); // GUIDES: the Team Ascent guides under this identity (cleared when there is none)
+  if (!id) return;
+  void flushUploadQueue(); // a session now exists — replay anything queued while offline
+  void flushPendingRanks(applyRankOutcome); // …and any rated result stranded pending under THIS account
+  void probeProgression(); // ACCOUNT PROGRESSION: is the feature on? then the mirror + any XP stranded pending
+  void refreshGauntletAccount().then(flushGauntlet); // GAUNTLET: the account's cleared stages + clears queued offline
+  void flushBugReportQueue(); // …and any bug reports stranded offline / pre-handshake (§6.2 auth trigger)
+  if (!id.anonymous) {
+    void syncCloudAtTitle(); // CROSS-DEVICE SAVES: a real account just landed — offer its cloud Continue
+    syncProfileFromServer(loadPlayerName()); // a real account just landed — pull its authoritative row
+  }
+  // Ensure this account carries a `#tag` (and its author/email are current), and mirror the tag back.
+  mirrorAccountTag(loadPlayerName());
+}
 function initAccounts(): void {
   const name = loadPlayerName();
   void initIdentity(supabaseAuthProvider, name).then((id) => {
     if (!id) return;
-    useGame.setState((st) => ({ account: { ...st.account, userId: id.userId, email: id.email, anonymous: id.anonymous } }));
-    void flushUploadQueue(); // a session now exists — replay anything queued while offline
-    if (!id.anonymous) void syncCloudAtTitle(); // CROSS-DEVICE SAVES: a signed-in player's cloud Continue
-    void flushPendingRanks(applyRankOutcome); // …and any rated result stranded pending under THIS account
-    void probeProgression(); // ACCOUNT PROGRESSION: is the feature on? then the mirror + any XP stranded pending
-    void loadGuides(); // GUIDES: the Team Ascent guides from the server (the built-in ones show until it answers)
-    void refreshGauntletAccount().then(flushGauntlet); // GAUNTLET: the account's cleared stages + clears queued offline
-    void flushBugReportQueue(); // …and any bug reports stranded offline / pre-handshake (§6.2 auth trigger)
-    // Ensure this account carries a `#tag` (and its author/email are current) once identity exists.
-    if (name) void claimHandle(name).then((h) => { if (h) useGame.setState((st) => ({ account: { ...st.account, discriminator: h.discriminator } })); });
+    if (accountStartupGate.claim(id)) runAccountStartup(id);
   });
   supabaseAuthProvider.onChange((id) => {
-    useGame.setState((st) => ({
-      account: id
-        ? { ...st.account, userId: id.userId, email: id.email, anonymous: id.anonymous }
-        : { userId: null, email: null, anonymous: true, discriminator: null },
-    }));
-    if (id) void flushUploadQueue(); // session (re)established → flush the offline queue
-    if (id) void flushPendingRanks(applyRankOutcome); // rated results parked under this account resume here
-    if (id) void probeProgression(); // …and progression (same user id across the magic-link upgrade)
-    void loadGuides(); // ...and the guides: re-read under the new identity, or cleared when there is none
-    if (id && !id.anonymous) void refreshGauntletAccount().then(flushGauntlet); // …and a signed-in Gauntlet's stages
-    if (id) void flushBugReportQueue(); // §6.2: retry bug reports after authentication restoration
-    if (id && !id.anonymous) {
-      void syncCloudAtTitle(); // CROSS-DEVICE SAVES: a real account just landed — offer its cloud Continue
-      syncProfileFromServer(loadPlayerName()); // a real account just landed — pull its authoritative row
-      // Re-claim so the now-known email is written onto the profile, and mirror the tag back.
-      const nm = loadPlayerName();
-      if (nm) void claimHandle(nm).then((h) => { if (h) useGame.setState((st) => ({ account: { ...st.account, discriminator: h.discriminator } })); });
-    }
+    const changed = accountStartupGate.claim(id);
+    if (import.meta.env.DEV) console.debug('[auth] identity event', changed ? 'account changed: startup runs' : 'same account: skipped', { ...accountStartupGate.counters });
+    if (changed) runAccountStartup(id);
   });
 }
 initAccounts();

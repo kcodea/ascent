@@ -979,4 +979,22 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'this fight\'s `rubyGain` on the body, so every Ruby read on the risen copy still saw the original\'s Rubies.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/riseFreshRubies1026.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-EGRESS-01',
+    title: 'The login startup work runs once per account change, never per auth event',
+    statement:
+      'The work a newly signed-in account needs (the progression probe, guides, the upload / rank / bug-report flushes, the '
+      + 'Gauntlet read, cloud saves, the profile pull and the handle claim) runs when the account actually changes: a '
+      + 'different user id, the anonymous to email upgrade, a new email, or a sign-out. A token refresh, an INITIAL_SESSION '
+      + 'repeat or a tab refocus that reports the same account does nothing. The handle claim writes the profile only when '
+      + 'the name, tag or email differs from what is already there.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-28 (Supabase cleanup, P1.1)', quote: "scope out a massive supabase clean up so that we're running really cleanly across the board." },
+      { kind: 'code', ref: 'packages/ui/src/identityGate.ts createAccountStartupGate; packages/ui/src/store.ts initAccounts / runAccountStartup; remoteBoards.ts claimHandle' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-28. Before, every onAuthStateChange fire re-ran the whole fan-out (~87,000 progression probes and 5,551 profile UPDATEs for 58 profiles in 16 days).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/identityGate.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

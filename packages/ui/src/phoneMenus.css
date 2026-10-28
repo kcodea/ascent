@@ -702,5 +702,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] .fr-page .fr-status { gap
 html[data-touch-ui][data-touch-small][data-page-scale] .fr-page .fr-game { gap: calc(3 * var(--pt)) calc(4 * var(--pt)); font-size: calc(10.5 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .fr-page .fr-gamehero .lb-heroframe .hero { width: calc(18 * var(--pt)); height: calc(18 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .fr-page .fr-gamechip { padding: 0 calc(5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .fr-page .fr-vitals svg { width: calc(10 * var(--pt)); height: calc(10 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .fr-page .fr-detail { gap: calc(2 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .fr-page .fr-dot { width: calc(8 * var(--pt)); height: calc(8 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .fr-page .fr-actions { gap: calc(6 * var(--pt)); }

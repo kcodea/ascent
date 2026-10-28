@@ -77,8 +77,8 @@ beforeEach(() => {
 afterEach(() => { ui?.unmount(); ui = null; vi.useRealTimers(); resetFriendsForTests(); setIdentity(null); });
 
 describe('presence: what the beat reports', () => {
-  it('a menu is Online with no mode', () => {
-    expect(presenceNow()).toEqual({ status: 'online', mode: null, watchKind: null, watchId: null });
+  it('a menu is Online with no mode, and says it is on the main menu (R-FRIENDS-ACTIVITY-01)', () => {
+    expect(presenceNow()).toEqual({ status: 'online', mode: null, watchKind: null, watchId: null, activity: { v: 1, act: 'menu' } });
   });
 
   it('a ranked game is In a game: Ranked, watchable through Live Games; so is Practice now (owner 2026-10-28)', () => {
@@ -98,7 +98,7 @@ describe('presence: what the beat reports', () => {
       { id: 's2', resolve: 10, armor: 0, alive: true }, { id: 's3', resolve: 40, armor: 2, alive: false },
     ];
     useGame.setState({ showTitle: false, run: { ...run, mode: 'lobby', phase: 'combat', runId: 'run-7', heroId: 'warden', wave: 6, resolve: 20, armor: 5, tier: 4, lobby: { ...(run.lobby ?? {}), unrated: undefined, seats } as never } });
-    expect(presenceNow().game).toEqual({ v: 1, mode: 'ranked', hero: 'warden', round: 6, phase: 'combat', health: 20, armor: 5, tier: 4, place: { rank: 2, left: 3 }, vs: null });
+    expect(presenceNow().game).toEqual({ v: 1, mode: 'ranked', hero: 'warden', round: 6, phase: 'combat', health: 20, armor: 5, tier: 4, place: { rank: 2, left: 3 }, vs: null, step: 'fight', foe: null });
   });
 
   it('a Versus match I play is In a game with the room as the watch target; the room between matches is Online', () => {
@@ -107,7 +107,7 @@ describe('presence: what the beat reports', () => {
     useVersus.setState({ room, match: { phase: 'shop', round: 3 } as never });
     expect(presenceNow()).toMatchObject({ status: 'in_game', mode: 'versus_duos', watchKind: 'versus', watchId: 'room-1', game: { round: 3, phase: 'shop', vs: 'Me vs ' } });
     useVersus.setState({ room: { ...room, status: 'open' }, match: null });
-    expect(presenceNow()).toEqual({ status: 'online', mode: 'versus_room', watchKind: null, watchId: null });
+    expect(presenceNow()).toEqual({ status: 'online', mode: 'versus_room', watchKind: null, watchId: null, activity: { v: 1, act: 'versus_room', mode: 'versus_duos', players: 1, max: 4 } });
   });
 
   it('a CLOUDFLARE Versus match is In a game with a cf: watch target, in every mode (R-VERSUS-CF-LIVE-01)', () => {
@@ -323,12 +323,15 @@ describe('the Friends page', () => {
     ui = mount(<FriendsPage />);
     await flush();
     const text = ui.container.textContent!;
+    // The row: two short lines (R-FRIENDS-ACTIVITY-01); the rest is in the hover / tap.
     expect(text).toContain('Round 6 · Shopping');
-    expect(text).toContain('3rd of 5 left');
-    expect(text).toContain('20 Health + 5 Armor');
+    expect(text).toContain('3rd of 5');
     expect(text).toContain('Tier 4');
     expect(text).toContain('Round 6 · Fighting');
-    expect(text).toContain('Dot & Eve');
+    const tips = [...ui.container.querySelectorAll('.fr-detail[data-tip]')].map((e) => e.getAttribute('data-tip')!);
+    expect(tips.join(' ')).toContain('3rd of 5 left');
+    expect(tips.join(' ')).toContain('20 Health + 5 Armor');
+    expect(tips.join(' ')).toContain('Dot & Eve');
     expect(ui.container.querySelectorAll('.fr-gamehero .lb-heroframe')).toHaveLength(2);
     const watch = [...ui.container.querySelectorAll('button')].filter((b) => b.textContent?.includes('Watch'));
     expect(watch.map((b) => b.getAttribute('aria-label'))).toEqual(['Watch Dot#1234', 'Watch Pam#1234']);

@@ -10601,6 +10601,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/liveAllGames.test.ts', 'packages/ui/src/friends/friends.test.tsx', 'workers/versus/test/cfLiveInvite.db.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
   {
+    id: 'R-FRIENDS-ACTIVITY-01',
+    title: 'Friends see what a friend is doing: the screen they are on, and in a game the round, step and who they fight; a Settings switch hides it',
+    statement:
+      'An online friend\x27s row names where they are (Main menu, Choosing a mode, Tutorial, Browsing Career / the Leaderboard / the Hall of Champions / Recent Games / Live Games, Collection, Compendium, Patch Notes, Settings, Friends, Hero Select with its mode, Setting up Practice, Looking for a Versus room or a Duo party, In a Versus room with its mode, players of seats and Waiting or Starting, In a Duo party with the partner, Watching a player or a Versus match, Watching a replay: their own, a friend\x27s by name, a stranger\x27s unnamed). A friend in a game shows the round and step (Picking a hero, Shopping, Ending turn, Fighting <name> or "a recorded board", Knocked out Nth and watching the fight, Won the game, Finished Nth) with hero, place, Health + Armor and tier; Versus shows the teams and Duos the teammate in the hover. The row stays two short lines; every other line is in its hover / tap (data-tip, never title=). The activity is one typed shape (`FriendActivity`, beside `FriendGameStatus`) derived only from stores already on the device (no extra network call), carried in the presence beat\x27s p_game slot (<=1 KB) and reused unchanged by the Cloudflare presence hub. A beat is owed only when the COARSE activity changes (never Health, Armor, tier or place alone; a lobby End Turn rides along), after the screen has settled 1.5 s (rapid hops send one beat, a flip straight back none), at most every 5 s, never per frame. "Show friends what I\x27m doing" (Settings, on by default, saved on the device) off sends only Online, or In a game with its mode.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'Can we get more granular player online text in friends list like in main menu, browsing career, browsing leaderboard, watching a replay, and then better in game granularity too' },
+      { kind: 'code', ref: 'packages/ui/src/friends/gameStatus.ts (FriendActivity, stepText, gameCoarseKey), packages/ui/src/friends/friendsStore.ts (presenceNow, onMaybeChanged, CHANGE_SETTLE_MS), packages/ui/src/friends/friendsPrefs.ts, packages/ui/src/friends/FriendsPage.tsx (friendDetail), packages/ui/src/EscMenu.tsx (Friends toggle), supabase/migrations/2026-11-10-friends-activity.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/friend-activity-granular). The online activity needs 2026-11-10-friends-activity.sql applied (until then the server keeps only the in-game status, never an error). Measured on a scripted 35-minute session: 53 beats (92 an hour) against 46 before (80 an hour); 36 with the switch off.',
+    example: 'Ann opens Career, hops through Leaderboard and Live Games and settles on Friends: her friends see "Online: Friends" after one beat. In a ranked game they see "Round 7 · Fighting Cat" with her hero, "2nd of 4", her Health and "Tier 5"; hovering shows "2nd of 4 left" and "12 Health". With the switch off they see only "In a game: Ranked".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friendsActivity.test.tsx', 'packages/ui/src/friends/friendsBeatBudget.test.ts', 'packages/ui/src/friends/friendsActivity.db.test.ts', 'packages/ui/src/friends/friends.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
     id: 'R-VERSUS-CF-RECONNECT-01',
     title: 'Versus on Cloudflare: a dropped room socket reconnects the moment the network is back',
     statement:

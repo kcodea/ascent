@@ -254,9 +254,28 @@ point given the egress overage noted 2026-10-26.
 | `versus_records`, `settle_progression` (versus branch), `spectate_beat` | stay in Supabase (readers of persisted rows) |
 | `versus_test_bot_register`, `versus_dev_*` | not ported (dev tools; re-add as DEV-only ops if needed) |
 
-Group (phase 2): `versus_group_*` (submit, pick, reroll, intro, combat_ready, forfeit, unpause, request_resume,
-reconcile, unready, publish_frame, eliminate, seat_out_to_stands, maybe_next, living, commit_round) → the same room with a
-seat list of 3-4; `handleVersusGroupFinalize` in-object. Duos (phase 3): `versus_duos_*` (pass, answer_pass, hand_room,
+Group (phase 2, PORTED on `feat/versus-cf-group`, `workers/versus/src/core/groupMatch.ts`): the same room, a 3-4 seat
+match engine beside the 1v1 one, the same op names (the room routes by match id). The function map:
+
+| SQL | Cloudflare |
+|---|---|
+| `versus_create_room` / `versus_set_options` (mode switch moves seats 3-4 to a free seat or the stands), `versus__mode_roles`, `versus_start_game` (`need_three_players`), `versus_press_gate` (all seated pressed) | `roomCore.ts` room ops, mode-aware (`modeRoles`) |
+| `versus_group__match_json`, `versus_group__living`, `versus_group__seat_of`, `versus_group__touch` | `GroupEngine.json` (same camelCase seat rows), `living`, `seatOf`, `touch` |
+| `versus_group_register_offer`, `_pick_hero`, `_reroll_hero`, `versus_group__maybe_start` | `registerOffer`, `pickHero`, `reroll`, `maybeStart` |
+| `versus_group__open_shop`, `__start_clock`, `__maybe_clock`, `versus_group_intro_done` | `openShop`, `startClock`, `maybeClock`, `introDone` |
+| `versus_group_submit` (ready signal), `versus_group_unready`, `versus_group__raise_reported_armor` (live Armor) | `submit`, `unready`, `raiseArmor` |
+| `versus_group__finalize_seat`, `versus_group__maybe_resolve` (ghosts of this round fight their last board) | `finalizeSeat`, `maybeResolve` |
+| `versus-resolve` `finalize_group` + `versus_group_commit_round` (fights + scouts, pools, knockouts sharing a placement, wipeout guard, missed rounds) | `settle` → `handleVersusGroupFinalize` (same code) → `commitRound` |
+| `versus_group__seat_out_to_stands` trigger | `toStands` (the knocked-out player's room role → spectator) |
+| `versus_group_combat_ready` (the last one gets 5 s), `versus_group__maybe_next` | `combatReady`, `maybeNext` |
+| `versus_group__eliminate`, `versus_group_forfeit`, leave-room-mid-match | `eliminate` (placed with themselves counted, as the SQL's pre-update read), `forfeit`, room `leave` |
+| `versus_group_reconcile`, `__resume`, `_unpause`, `_request_resume`, heartbeat auto-resume | `reconcile` (alarm), `resume`, `unpause`, `requestResume`, `returned` (socket / heartbeat) |
+| `versus_group__resolve_overdue` / void | a failed resolve ends the match `void` at once |
+| `versus_group_publish_frame` / `versus_group_spectator_frames` | the room's frame map + `bc` relays (as 1v1) |
+| `versus_sweep` (group loop) | the room's alarm (abandon), and the sweep skips Cloudflare rows (`2026-11-05-versus-cf-writer-group.sql`) |
+| results | `versus_cf_persist` kinds `group_match` (row + seats) and `group_round` (row + fights) |
+
+Duos (phase 3): `versus_duos_*` (pass, answer_pass, hand_room,
 commit_round, team helpers) → room ops + team-scoped relays; `handleVersusDuosFinalize`. Ranked Duos (phase 4):
 `versus_ranked_duos_*` (seat, table, round_input, submit, commit_round, place_team, record_run, maybe_close, sweep) →
 room ops + Supabase reads/writes through the outbox; the `sweep_abandoned` cron disappears (the room's own alarm abandons).

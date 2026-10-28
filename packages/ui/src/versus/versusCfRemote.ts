@@ -18,12 +18,14 @@
  * (`DEV_AUTH=1`), a dev token naming this browser's account id.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { ownSeatPerspective, VERSUS_PROTOCOL, type PreparedCombatSide, type VersusRoomOptions, type VersusSeatScout } from '@game/sim';
+import { ownSeatPerspective, VERSUS_PROTOCOL, type HeroReroll, type PreparedCombatSide, type VersusGroupSeat, type VersusRoomOptions, type VersusSeatScout } from '@game/sim';
 import type { CombatResult } from '@game/core';
 import { contentRevision } from '@game/content';
 import { VersusCfClient, VersusCfError, versusCfHttp } from '@game/versus-cf/client';
 import { VERSUS_CF_PROTOCOL, type VersusCfPush } from '@game/versus-cf/protocol';
 import type {
+  VersusGroupMatchRaw,
+  VersusGroupRoundRaw,
   VersusIdentity,
   VersusMatch,
   VersusPrivate,
@@ -104,6 +106,12 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
   let match: VersusMatch | null = null;
   let priv: VersusPrivate | null = null;
   const rounds = new Map<number, VersusRoundRow>();
+  /** VERSUS GROUP (3-4 players): the room's current group match (`versus_group__match_json` shape) and its rounds. */
+  let group: VersusGroupMatchRaw | null = null;
+  const groupRounds = new Map<number, VersusGroupRoundRaw>();
+  const isGroupJson = (m: Record<string, unknown>): boolean => Array.isArray(m.seats);
+  /** The latest committed round of a match row (combat / complete: this one; otherwise the one before). */
+  const committedOf = (m: { phase: string; round: number }): number => (m.phase === 'combat' || m.phase === 'complete' ? m.round : m.round - 1);
   const listeners = new Set<{ onChange: (what: Change, row?: Record<string, unknown>) => void; onBroadcast?: (event: string, payload: unknown) => void }>();
 
   const err = (e: unknown): never => {
@@ -136,11 +144,26 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
       room = msg.room as unknown as VersusRoom;
       for (const l of listeners) l.onChange('room');
     } else if (msg.t === 'match') {
-      const m = msg.match as unknown as VersusMatch;
-      if (match && m.id !== match.id) rounds.clear();
-      match = m;
+      if (isGroupJson(msg.match)) {
+        const g = msg.match as unknown as VersusGroupMatchRaw;
+        if (group && g.id !== group.id) groupRounds.clear();
+        group = g;
+        match = null;
+      } else {
+        const m = msg.match as unknown as VersusMatch;
+        if (match && m.id !== match.id) rounds.clear();
+        match = m;
+        group = null;
+      }
       for (const l of listeners) l.onChange('match');
     } else if (msg.t === 'round') {
+      if (Array.isArray(msg.row.fights)) {
+        const g = msg.row as unknown as VersusGroupRoundRaw & { match_id?: string };
+        if (group && g.match_id && g.match_id !== group.id) return;
+        groupRounds.set(g.round, g);
+        for (const l of listeners) l.onChange('rounds');
+        return;
+      }
       const r = roundOf(msg.row);
       if (match && r.match_id !== match.id) return;
       rounds.set(r.round, r);
@@ -164,6 +187,8 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     match = null;
     priv = null;
     rounds.clear();
+    group = null;
+    groupRounds.clear();
     client = new VersusCfClient({
       baseUrl: base, roomId: id, token, versusProtocol: VERSUS_PROTOCOL, contentRevision: contentRevision(),
       ws: (url, protocols) => new WebSocket(url, protocols) as never, onPush,
@@ -233,9 +258,10 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     },
     async match(id: string) {
       if (match?.id === id) return match;
-      if (!roomId) return null;
-      const s = await req<{ match: VersusMatch | null }>(roomId, 'sync');
-      return s.match?.id === id ? s.match : null;
+      if (group?.id === id || !roomId) return null; // a group match: the store reads it through groupMatch
+      const s = await req<{ match: Record<string, unknown> | null }>(roomId, 'sync');
+      if (s.match && isGroupJson(s.match)) { group = s.match as unknown as VersusGroupMatchRaw; return null; }
+      return s.match?.id === id ? (s.match as unknown as VersusMatch) : null;
     },
     async myPrivate(id: string) {
       if (priv?.match_id === id) return priv;
@@ -272,30 +298,56 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     publishFrame: (id: string, seq: number, round: number, frame: unknown) => mreq<void>('publish_frame', { matchId: id, seq, round, frame }),
     latestFrames: (id: string) => mreq<{ seat: 'p1' | 'p2'; seq: number; round: number; frame: unknown }[]>('latest_frames', { matchId: id }),
 
-    // ── Not on Cloudflare yet (phase 2+): reads answer "nothing", writes refuse. ─────────────────────────────────
-    groupMatch: async () => null,
-    groupRounds: async () => [],
-    groupMyPrivate: async () => null,
-    groupMyLatestCheckpoint: async () => null,
-    groupRegisterOffer: unsupported,
-    groupPickHero: unsupported,
-    groupRerollHero: unsupported,
-    groupSubmit: unsupported,
-    groupIntroDone: unsupported,
-    groupCombatReady: unsupported,
-    groupForfeit: unsupported,
-    groupUnpause: unsupported,
-    groupRequestResume: unsupported,
-    groupReconcile: unsupported,
-    groupPublishFrame: unsupported,
-    groupLatestFrames: async () => [],
+    // ── VERSUS GROUP (3-4 players): the same room ops; answers are the group json (`versus_group__match_json`). ──
+    async groupMatch(id: string) {
+      if (group?.id === id) return group;
+      if (!roomId) return null;
+      const s = await req<{ match: Record<string, unknown> | null }>(roomId, 'sync');
+      if (s.match && isGroupJson(s.match) && s.match.id === id) { group = s.match as unknown as VersusGroupMatchRaw; return group; }
+      return null;
+    },
+    async groupRounds(matchId: string, fromRound = 1) {
+      const last = group?.id === matchId ? committedOf(group) : -1;
+      let complete = last >= fromRound - 1;
+      for (let r = fromRound; complete && r <= last; r++) if (!groupRounds.has(r)) complete = false;
+      if (!complete && roomId) {
+        for (const row of await mreq<VersusGroupRoundRaw[]>('rounds', { matchId, from: fromRound })) groupRounds.set(row.round, row);
+      }
+      return [...groupRounds.values()].filter((r) => r.round >= fromRound && r.fights.length > 0).sort((a, b) => a.round - b.round);
+    },
+    async groupMyPrivate(id: string) {
+      if (priv?.match_id === id) return priv;
+      return roomId ? mreq<VersusPrivate | null>('my_private', { matchId: id }) : null;
+    },
+    groupMyLatestCheckpoint: (id: string) => mreq<VersusOwnSubmission | null>('my_checkpoint', { matchId: id }),
+    groupRegisterOffer: (id: string, offer: string[]) => mreq<VersusGroupMatchRaw>('register_offer', { matchId: id, offer }),
+    groupPickHero: (id: string, index: number) => mreq<VersusGroupMatchRaw>('pick_hero', { matchId: id, index }),
+    async groupRerollHero(id: string, slot: number, candidates: string[]) {
+      const out = await mreq<{ match: VersusGroupMatchRaw; offer: string[]; reroll: HeroReroll }>('reroll_hero', { matchId: id, slot, candidates });
+      if (priv?.match_id === id) priv = { ...priv, hero_offer: out.offer, hero_reroll: out.reroll };
+      return out;
+    },
+    groupSubmit: (id: string, round: number, seq: number, side: PreparedCombatSide, final: boolean, checkpoint: string | null, scout?: VersusSeatScout | null) =>
+      mreq<VersusGroupMatchRaw>('submit', { matchId: id, round, seq, side, final, checkpoint, scout: scout ?? null }),
+    groupIntroDone: (id: string) => mreq<VersusGroupMatchRaw>('intro_done', { matchId: id }),
+    groupCombatReady: (id: string, round: number) => mreq<VersusGroupMatchRaw>('combat_ready', { matchId: id, round }),
+    groupForfeit: (id: string) => mreq<VersusGroupMatchRaw>('forfeit', { matchId: id }),
+    groupUnpause: (id: string) => mreq<VersusGroupMatchRaw>('unpause', { matchId: id }),
+    groupRequestResume: (id: string) => mreq<VersusGroupMatchRaw>('request_resume', { matchId: id }),
+    groupReconcile: async (id: string) => (group?.id === id ? group : mreq<VersusGroupMatchRaw>('reconcile', { matchId: id })),
+    groupPublishFrame: (id: string, seq: number, round: number, frame: unknown) => mreq<void>('publish_frame', { matchId: id, seq, round, frame }),
+    groupLatestFrames: (id: string) => mreq<{ seat: VersusGroupSeat; seq: number; round: number; frame: unknown }[]>('latest_frames', { matchId: id }),
+    groupUnready: (id: string, round: number, seq: number) => mreq<VersusGroupMatchRaw>('unready', { matchId: id, round, seq }),
+    /** The room resolved the round itself when it closed; nothing to ask for. */
+    finalizeGroup: async () => undefined,
+
+    // ── Not on Cloudflare yet (Duos, Ranked Duos): reads answer "nothing", writes refuse. ──────────────────────────
     finalizeDuos: unsupported,
     finalizeRankedDuos: unsupported,
     seatRankedDuos: unsupported,
     rankedTable: unsupported,
     rankedTeams: async () => [],
     rankedRounds: async () => [],
-    groupUnready: unsupported,
     duosPass: unsupported,
     duosHandRoom: unsupported,
     duosAnswerPass: unsupported,
@@ -303,7 +355,6 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     testBotRegister: unsupported,
     devSetVitals: unsupported,
     devSkipShop: unsupported,
-    finalizeGroup: unsupported,
     /** The room resolved the round itself when it closed; nothing to ask for. */
     finalize: async () => undefined,
 

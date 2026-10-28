@@ -286,8 +286,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
         return;
       }
       ws.serializeAttachment({ ...a, hello: true } satisfies Attachment);
-      const seat = core.seatOf(a.userId);
-      answer(true, { room: core.roomJson(), match: core.matchJson(), priv: seat ? core.privJson(seat) : null, userId: a.userId });
+      answer(true, { room: core.roomJson(), match: core.currentMatchJson(), priv: core.privFor(a.userId), userId: a.userId });
       return;
     }
     if (!a.hello) { answer(false, 'hello_first'); return; }
@@ -342,10 +341,10 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     };
     if (fx.room) toAll({ t: 'room', room: core.roomJson(), now });
     for (const n of fx.rounds) {
-      const row = core.state.rounds[n];
-      if (row) toAll({ t: 'round', row: row as unknown as Record<string, unknown>, now });
+      const row = core.roundJson(n);
+      if (row) toAll({ t: 'round', row, now });
     }
-    if (fx.match) { const m = core.matchJson(); if (m) toAll({ t: 'match', match: m, now }); }
+    if (fx.match) { const m = core.currentMatchJson(); if (m) toAll({ t: 'match', match: m, now }); }
     for (const seat of fx.priv) {
       const p = core.privJson(seat);
       if (!p) continue;

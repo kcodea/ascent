@@ -25,7 +25,7 @@ const FILES = [
   '2026-11-01-ranked-duos-party.sql', '2026-11-01-versus-ready-signal.sql', '2026-11-02-ranked-duos-both-ready.sql', '2026-11-02-ranked-duos-party-split.sql',
   '2026-11-02-versus-server-reliability.sql', '2026-11-03-versus-live-armor.sql',
 ];
-const WRITER = mig('2026-11-04-versus-cf-writer.sql');
+const WRITER = mig('2026-11-04-versus-cf-writer.sql') + '\n' + mig('2026-11-05-versus-cf-writer-group.sql');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth; create schema extensions;
@@ -122,5 +122,42 @@ describe('versus_cf_persist (the Cloudflare room\'s only write path)', () => {
       values ('${other}', 1, 'set1', 'rev1', 2, 'shop', '${P1}', '${P2}', 'a', 'b')`);
     expect(await fails(SECRET, 'match', matchRow({ id: other }))).toContain('not_cloudflare');
     expect(await fails(SECRET, 'round', { ...roundRow(1), match_id: other })).toContain('not_cloudflare');
+  });
+});
+
+describe('versus_cf_persist, GROUP (2026-11-05-versus-cf-writer-group.sql)', () => {
+  const GM = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const P3 = '00000000-0000-0000-0000-000000000003';
+  const seat = (s: string, user: string, over: Record<string, unknown> = {}) => ({
+    seat: s, user_id: user, name: s, health: 30, armor: 5, hero: 'h', locked: false, ready: false, intro: true, auto: false, missed: 0,
+    eliminated_round: null, out_reason: null, placement: null, ...over,
+  });
+  const gmatch = (over: Record<string, unknown> = {}) => ({
+    id: GM, seed: 7, set_id: 'set1', content_revision: 'rev1', protocol: 2, options: { v: 1, mode: 'group', modifiers: [] }, phase: 'combat',
+    revision: 3, round: 1, seat_count: 3, heroes_revealed: true, winner_seat: null, end_reason: null, created_at: '2026-10-28T12:00:00.000Z',
+    updated_at: '2026-10-28T12:01:00.000Z', completed_at: null, seats: [seat('p1', P1), seat('p2', P2), seat('p3', P3)], ...over,
+  });
+
+  it('writes a Cloudflare group match, its seats, a round and its fights; frozen once complete; key-gated', async () => {
+    expect(await call(SECRET, 'group_match', gmatch())).toMatchObject({ ok: true });
+    const round = {
+      match_id: GM, round: 1, digest: 'g1', vitals: { p1: { health: 30, armor: 5 } }, eliminated: [],
+      fights: [
+        { fight: 0, a_seat: 'p1', b_seat: 'p2', b_copy: false, chair: 'a', outcome: 'a', heart_lost_by: 'p2', damage: 3, a_result: { r: 1 }, b_result: { r: 2 }, a_scout: { tier: 1 }, b_scout: { tier: 1 } },
+        { fight: 1, a_seat: 'p3', b_seat: 'p1', b_copy: true, chair: 'a', outcome: 'draw', heart_lost_by: null, damage: 0, a_result: {}, b_result: {}, a_scout: {}, b_scout: {} },
+      ],
+    };
+    expect(await call(SECRET, 'group_round', round)).toMatchObject({ ok: true });
+    expect(await call(SECRET, 'group_round', round)).toMatchObject({ ok: true }); // a retry is harmless
+    expect((await db.query('select * from public.versus_group_fights where match_id = $1', [GM])).rows).toHaveLength(2);
+    await call(SECRET, 'group_match', gmatch({
+      phase: 'complete', winner_seat: 'p1', end_reason: 'hearts',
+      seats: [seat('p1', P1, { placement: 1 }), seat('p2', P2, { eliminated_round: 1, out_reason: 'hearts', placement: 3, health: 0 }),
+        seat('p3', P3, { eliminated_round: 1, out_reason: 'hearts', placement: 3, health: 0 })],
+    }));
+    const seats = (await db.query<{ placement: number }>('select placement from public.versus_group_seats where match_id = $1 order by seat', [GM])).rows;
+    expect(seats.map((s) => s.placement)).toEqual([1, 3, 3]);
+    expect(await call(SECRET, 'group_match', gmatch({ phase: 'shop' }))).toMatchObject({ frozen: true });
+    expect(await fails(null, 'group_match', gmatch())).toContain('not_authorized');
   });
 });

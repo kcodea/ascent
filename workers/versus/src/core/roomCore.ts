@@ -38,9 +38,11 @@ import {
   VERSUS_SPECTATOR_CAP,
   type VersusFinalizeStore,
 } from '@game/sim/versus/server';
+import { GroupEngine, GSEATS, newGroupState, type GroupHost, type GroupState, type GSeat } from './groupMatch';
 
 export type Seat = 'p1' | 'p2';
-export type Role = Seat | 'spectator';
+/** A room role: a player seat (p3 / p4 only in a Group room) or the stands. */
+export type Role = GSeat | 'spectator';
 export const SEATS: readonly Seat[] = ['p1', 'p2'];
 const other = (s: Seat): Seat => (s === 'p1' ? 'p2' : 'p1');
 
@@ -99,6 +101,9 @@ export interface CoreRoom {
   gate_deadline: number | null;
   p1_gate: boolean;
   p2_gate: boolean;
+  /** Group rooms: seats 3 and 4's gates (absent on rooms stored before the Group port = false). */
+  p3_gate?: boolean;
+  p4_gate?: boolean;
   current_match_id: string | null;
   options: Record<string, unknown>;
   options_rev: number;
@@ -233,18 +238,22 @@ export interface CoreState {
   lastCheckpoint: Partial<Record<Seat, CheckpointRow>>;
   /** The current match's committed rounds. */
   rounds: Record<number, RoundRow>;
+  /** The current GROUP match (3-4 players), when the room plays Group (`groupMatch.ts`). Only one of `match` / `group`
+   *  is the room's current match (`room.current_match_id`). */
+  group?: GroupState | null;
 }
 
 /** What the shell persists to Supabase (in order, retried, idempotent upserts). */
 export type PersistJob =
   | { kind: 'match'; row: Record<string, unknown> }
-  | { kind: 'round'; row: RoundRow };
+  | { kind: 'round'; row: RoundRow }
+  | { kind: 'group_match' | 'group_round'; row: Record<string, unknown> };
 
 /** What changed in a call: the shell pushes these to sockets and writes the dirty storage keys. */
 export interface CoreEffects {
   room: boolean;
   match: boolean;
-  priv: Set<Seat>;
+  priv: Set<string>;
   rounds: number[];
   /** Storage keys to rewrite (`meta`, `sub:p1`, `last:p2`, `ckpt:p1`, `round:3`, ...). */
   dirty: Set<string>;
@@ -267,6 +276,8 @@ export interface CoreDeps {
   onResolve?(round: number, ms: number): void;
   /** The resolver (tests inject a failing one; default `handleVersusFinalize`). */
   resolve?: typeof handleVersusFinalize;
+  /** The group resolver (tests inject a failing one; default `handleVersusGroupFinalize`). */
+  resolveGroup?: GroupHost['resolver'];
   /** High-resolution timer for the resolve measurement (performance.now in the object). */
   perfNow?(): number;
 }
@@ -314,7 +325,7 @@ export function newRoomState(input: CreateRoomInput, now: number): CoreState {
   const err = input.options == null ? null : versusOptionsError(input.options);
   if (err) fail(err);
   const options = normalizeVersusOptions(input.options) as unknown as Record<string, unknown>;
-  if (options.mode !== 'duel') fail('mode_not_supported');
+  if (options.mode !== 'duel' && options.mode !== 'group') fail('mode_not_supported');
   if (input.protocol !== VERSUS_PROTOCOL) fail('version_mismatch');
   if (input.contentRevision !== engineContentRevision()) fail('version_mismatch');
   if (jsonBytes(input.profile) > PROFILE_BYTES) fail('profile_too_large');
@@ -356,12 +367,98 @@ export class RoomCore {
    *  closing while its replacement is already open), so the core never counts opens and closes itself. */
   private readonly sockets = new Set<string>();
   /** Runtime only: the latest spectator keyframe per seat (`versus_spectator_frames`; a late joiner reads it). */
-  private readonly frames = new Map<Seat, { seat: Seat; seq: number; round: number; frame: unknown }>();
+  private readonly frames = new Map<GSeat, { seat: GSeat; seq: number; round: number; frame: unknown }>();
   private now = 0;
   private fx: CoreEffects = emptyEffects();
   private pendingResolve = false;
+  private groupEng: GroupEngine | null = null;
 
   constructor(public state: CoreState, private readonly deps: CoreDeps) {}
+
+  /** The group engine over `state.group` (rebuilt after a wake). */
+  get grp(): GroupEngine | null {
+    const g = this.state.group;
+    if (!g) { this.groupEng = null; return null; }
+    if (!this.groupEng || this.groupEng.g !== g) this.groupEng = new GroupEngine(g, this.groupHost());
+    return this.groupEng;
+  }
+
+  private groupHost(): GroupHost {
+    return {
+      now: () => this.now,
+      random31: () => this.deps.random31(),
+      uuid: () => this.deps.uuid(),
+      userGone: (u) => this.userGone(u),
+      touchMatch: () => { this.fx.match = true; this.fx.dirty.add('meta'); },
+      touchPriv: (s) => { this.fx.priv.add(s); this.fx.dirty.add('meta'); },
+      dirty: (k) => { this.fx.dirty.add(k); },
+      event: (k, d) => this.event(k, d),
+      persist: (kind, row) => { this.fx.persist.push({ kind, row }); },
+      roundCommitted: (n) => { this.fx.rounds.push(n); },
+      toStands: (u) => this.toStands(u),
+      matchEnded: () => this.groupEnded(),
+      fail: (c) => fail(c),
+      resolver: this.deps.resolveGroup,
+      onResolve: this.deps.onResolve,
+      perfNow: this.deps.perfNow,
+    };
+  }
+
+  /** The room's player seats for its mode (`versus__mode_roles`). */
+  private modeRoles(mode: unknown = this.state.room.options.mode): readonly GSeat[] {
+    return mode === 'group' ? GSEATS : SEATS;
+  }
+
+  /** No open socket for `userId` past the grace. */
+  private userGone(userId: string): boolean {
+    if (this.sockets.has(userId)) return false;
+    const mem = this.member(userId);
+    if (!mem) return true;
+    return mem.disconnectedAt == null || this.now - mem.disconnectedAt >= DISCONNECT_GRACE_MS;
+  }
+
+  /** A knocked-out Group player moves to the stands (R-VERSUS-GROUP-06), past a full stand. */
+  private toStands(userId: string): void {
+    const mm = this.member(userId);
+    if (!mm || mm.role === 'spectator') return;
+    mm.role = 'spectator';
+    this.touchRoom();
+  }
+
+  /** A Group match ended: the room is Open again (`versus_group__complete`). */
+  private groupEnded(): void {
+    const r = this.state.room;
+    if (r.current_match_id !== this.state.group?.match.id) return;
+    r.status = 'open';
+    r.p1_gate = r.p2_gate = r.p3_gate = r.p4_gate = false;
+    r.gate_deadline = null;
+    this.touchRoom();
+  }
+
+  /** Is a match (1v1 or Group) running? */
+  private matchRunning(): boolean {
+    return (!!this.state.match && this.state.match.phase !== 'complete') || (!!this.grp && this.grp.running());
+  }
+
+  /** The seat's private row (1v1 or Group) for `userId`. */
+  privFor(userId: string): Record<string, unknown> | null {
+    const g = this.grp;
+    if (g) { const s = g.seatOf(userId); return s ? g.privJson(s) : null; }
+    const seat = this.seatOf(userId);
+    return seat ? this.privJson(seat) : null;
+  }
+
+  /** The current match row (1v1 json or Group json). */
+  currentMatchJson(): Record<string, unknown> | null {
+    return this.grp ? this.grp.json() : this.matchJson();
+  }
+
+  /** One committed round as pushed (1v1 `versus_rounds` row or Group round raw). */
+  roundJson(n: number): Record<string, unknown> | null {
+    const g = this.state.group;
+    if (g) return (g.rounds[n] as unknown as Record<string, unknown>) ?? null;
+    return (this.state.rounds[n] as unknown as Record<string, unknown>) ?? null;
+  }
 
   // ── Shell entry points ─────────────────────────────────────────────────────────────────────────────────────────
 
@@ -404,6 +501,7 @@ export class RoomCore {
    * someone returned"). No client call needed: the socket coming back IS the return.
    */
   private returned(userId: string, by: string): void {
+    this.grp?.returned(userId, by);
     const m = this.state.match;
     const seat = this.seatOf(userId);
     if (!m || !seat || m.phase === 'complete') return;
@@ -421,7 +519,7 @@ export class RoomCore {
   }
 
   private event(kind: string, detail?: Record<string, unknown>): void {
-    this.fx.events.push({ kind, round: this.state.match?.round ?? 0, ...(detail ? { detail } : {}) });
+    this.fx.events.push({ kind, round: this.state.match?.round ?? this.state.group?.match.round ?? 0, ...(detail ? { detail } : {}) });
   }
 
   /** `userId` holds no open socket any more (its last one closed or went stale). */
@@ -459,8 +557,8 @@ export class RoomCore {
       if (this.prunable(mm)) t.push(mm.disconnectedAt + MEMBER_PRUNE_MS);
     }
     {
-      const mm = this.state.match;
-      if (!r.closed && (!mm || mm.phase === 'complete')) t.push((r.last_activity_at ?? r.created_at) + ROOM_IDLE_MS);
+      if (!r.closed && !this.matchRunning()) t.push((r.last_activity_at ?? r.created_at) + ROOM_IDLE_MS);
+      for (const x of this.grp?.alarms() ?? []) t.push(x);
     }
     const m = this.state.match;
     if (m && m.phase !== 'complete') {
@@ -495,7 +593,7 @@ export class RoomCore {
     return {
       id: r.id, name: r.name, host_user_id: r.host_user_id, status: r.status, set_id: r.set_id, content_revision: r.content_revision,
       protocol: r.protocol, revision: r.revision, gate_deadline: iso(r.gate_deadline), p1_gate: r.p1_gate, p2_gate: r.p2_gate,
-      p3_gate: false, p4_gate: false, current_match_id: r.current_match_id, options: r.options, options_rev: r.options_rev,
+      p3_gate: !!r.p3_gate, p4_gate: !!r.p4_gate, current_match_id: r.current_match_id, options: r.options, options_rev: r.options_rev,
       options_changed_at: iso(r.options_changed_at), friends_only: r.friends_only, created_at: iso(r.created_at), updated_at: iso(r.updated_at),
       members: [...r.members].sort((a, b) => a.joinedAt - b.joinedAt).map((m) => ({
         userId: m.userId, role: m.role, displayName: m.displayName, profile: m.profile,
@@ -519,8 +617,9 @@ export class RoomCore {
     };
   }
 
-  privJson(seat: Seat): Record<string, unknown> | null {
-    const p = this.state.priv[seat];
+  privJson(seat: string): Record<string, unknown> | null {
+    if (this.state.group) return this.grp!.privJson(seat as GSeat);
+    const p = this.state.priv[seat as Seat];
     return p ? { ...p } : null;
   }
 
@@ -532,7 +631,7 @@ export class RoomCore {
       id: r.id, name: r.name, status: r.status, setId: r.set_id, contentRevision: r.content_revision, protocol: r.protocol,
       createdAt: iso(r.created_at), currentMatchId: r.current_match_id, hostName: host?.displayName ?? null,
       hostProfile: host?.profile ?? null, players: r.members.filter((m) => m.role !== 'spectator').length,
-      spectators: r.members.filter((m) => m.role === 'spectator').length, maxPlayers: 2, options: r.options, friendsOnly: r.friends_only,
+      spectators: r.members.filter((m) => m.role === 'spectator').length, maxPlayers: this.modeRoles().length, options: r.options, friendsOnly: r.friends_only,
       /** Fresh = someone connected in the last two minutes (the open-room count's rule). */
       fresh: r.members.some((m) => m.disconnectedAt == null || this.now - m.disconnectedAt < MEMBER_PRUNE_MS),
       closed: r.closed,
@@ -603,11 +702,14 @@ export class RoomCore {
     const r = this.state.room;
     if (mm.role === 'spectator') return true;
     // A seated player in a running match is never pruned (pause / auto / abandon decide); otherwise yes.
+    if (this.grp?.holdsLiveSeat(mm.userId)) return false;
     const m = this.state.match;
     return !(r.status === 'in_game' && m && m.phase !== 'complete' && this.seatOf(mm.userId));
   }
 
   private dispatch(userId: string, op: string, a: Record<string, unknown>): unknown {
+    const g = this.grp;
+    if (g && a.matchId === g.m.id) return this.dispatchGroup(g, userId, op, a);
     switch (op) {
       case 'join': return this.join(userId, a);
       case 'take_seat': return this.takeSeat(userId, a.role);
@@ -638,6 +740,37 @@ export class RoomCore {
     }
   }
 
+  /** The Group match's ops (the `versus_group_*` RPCs); every answer is the group json after the call settles. */
+  private dispatchGroup(g: GroupEngine, userId: string, op: string, a: Record<string, unknown>): unknown {
+    switch (op) {
+      case 'register_offer': g.registerOffer(userId, a.offer); return GROUP_JSON;
+      case 'pick_hero': g.pickHero(userId, a.index); return GROUP_JSON;
+      case 'reroll_hero': { const x = g.reroll(userId, a.slot, a.candidates); return { match: GROUP_JSON, offer: x.offer, reroll: x.reroll }; }
+      case 'submit': g.submit(userId, a); return GROUP_JSON;
+      case 'unready': g.unready(userId, a.round, a.seq); return GROUP_JSON;
+      case 'intro_done': g.introDone(userId); return GROUP_JSON;
+      case 'combat_ready': g.combatReady(userId, a.round); return GROUP_JSON;
+      case 'forfeit': g.forfeit(userId); return GROUP_JSON;
+      case 'unpause': g.unpause(userId); return GROUP_JSON;
+      case 'request_resume': g.requestResume(userId); return GROUP_JSON;
+      case 'reconcile': return GROUP_JSON;
+      case 'publish_frame': {
+        const seat = g.seatOf(userId);
+        if (!seat) fail('not_a_player');
+        if (a.frame == null || jsonBytes(a.frame) > FRAME_BYTES) fail('frame_too_large');
+        const seq = Number(a.seq);
+        const prev = this.frames.get(seat!);
+        if (!prev || prev.seq < seq) this.frames.set(seat!, { seat: seat!, seq, round: Number(a.round), frame: a.frame });
+        return null;
+      }
+      case 'latest_frames': return [...this.frames.values()];
+      case 'rounds': return g.roundsFrom(Number.isInteger(a.from) ? (a.from as number) : 1);
+      case 'my_private': { const s = g.seatOf(userId); return s ? g.privJson(s) : null; }
+      case 'my_checkpoint': { const s = g.seatOf(userId); return s ? g.myCheckpoint(s) : null; }
+      default: return fail('unknown_op');
+    }
+  }
+
   // ── Room ops (versus_join_room, versus_take_seat, versus_leave_room, versus_start_game, versus_press_gate, ...) ──
 
   private join(userId: string, a: Record<string, unknown>): unknown {
@@ -650,7 +783,7 @@ export class RoomCore {
     let role: Role;
     if (a.as === 'player') {
       if (r.status !== 'open') fail('room_not_open');
-      const free = SEATS.find((s) => !r.members.some((m) => m.role === s));
+      const free = this.modeRoles().find((s) => !r.members.some((m) => m.role === s));
       if (!free) fail('seats_full');
       role = free!;
     } else if (a.as === 'spectator') {
@@ -667,7 +800,7 @@ export class RoomCore {
     const me = this.member(userId);
     if (!me) fail('not_a_member');
     if (r.status !== 'open') fail('room_not_open');
-    if (role !== 'spectator' && role !== 'p1' && role !== 'p2') fail('bad_role');
+    if (role !== 'spectator' && !this.modeRoles().includes(role as GSeat)) fail('bad_role');
     if (me!.role === role) return ROOM_JSON;
     if (role !== 'spectator' && r.members.some((m) => m.role === role)) fail('seat_taken');
     if (role === 'spectator' && r.members.filter((m) => m.role === 'spectator').length >= VERSUS_SPECTATOR_CAP) fail('spectators_full');
@@ -685,6 +818,11 @@ export class RoomCore {
       const seat = this.seatOf(userId);
       if (seat) this.complete(other(seat), 'forfeit');
     }
+    const g = this.grp;
+    if (g && g.running() && r.current_match_id === g.m.id) {
+      const seat = g.seatOf(userId);
+      if (seat && g.row(seat).eliminated_round == null) g.eliminate(seat, 'left');
+    }
     r.members = r.members.filter((x) => x.userId !== userId);
     this.fx.left.push(userId);
     if (r.members.length === 0) {
@@ -700,8 +838,7 @@ export class RoomCore {
       r.status = 'open';
       r.gate_deadline = null;
     }
-    r.p1_gate = false;
-    r.p2_gate = false;
+    r.p1_gate = r.p2_gate = r.p3_gate = r.p4_gate = false;
     this.touchRoom();
     return { left: true };
   }
@@ -710,10 +847,11 @@ export class RoomCore {
     const r = this.state.room;
     if (r.host_user_id !== userId) fail('not_host');
     if (r.status !== 'open') fail('room_not_open');
-    if (r.members.filter((m) => m.role === 'p1' || m.role === 'p2').length < 2) fail('need_two_players');
+    const roles = this.modeRoles();
+    const seated = r.members.filter((m) => m.role !== 'spectator' && roles.includes(m.role)).length;
+    if (r.options.mode === 'group' ? seated < 3 : seated < 2) fail(r.options.mode === 'group' ? 'need_three_players' : 'need_two_players');
     r.status = 'sealed';
-    r.p1_gate = false;
-    r.p2_gate = false;
+    r.p1_gate = r.p2_gate = r.p3_gate = r.p4_gate = false;
     r.gate_deadline = this.now + VERSUS_GATE_SECONDS * 1000;
     this.touchRoom();
     return ROOM_JSON;
@@ -730,7 +868,13 @@ export class RoomCore {
     }
     if (me!.role === 'p1') r.p1_gate = true;
     if (me!.role === 'p2') r.p2_gate = true;
-    if (r.p1_gate && r.p2_gate) this.createMatch();
+    if (me!.role === 'p3') r.p3_gate = true;
+    if (me!.role === 'p4') r.p4_gate = true;
+    if (r.options.mode === 'group') {
+      const gateOf = (s: GSeat): boolean => (s === 'p1' ? r.p1_gate : s === 'p2' ? r.p2_gate : s === 'p3' ? !!r.p3_gate : !!r.p4_gate);
+      const seated = r.members.filter((m) => m.role !== 'spectator') as (CoreMember & { role: GSeat })[];
+      if (seated.length >= 3 && seated.every((m) => gateOf(m.role))) this.createGroupMatch(seated);
+    } else if (r.p1_gate && r.p2_gate) this.createMatch();
     this.touchRoom();
     return ROOM_JSON;
   }
@@ -738,8 +882,7 @@ export class RoomCore {
   private reopenGate(): void {
     const r = this.state.room;
     r.status = 'open';
-    r.p1_gate = false;
-    r.p2_gate = false;
+    r.p1_gate = r.p2_gate = r.p3_gate = r.p4_gate = false;
     r.gate_deadline = null;
     this.touchRoom();
   }
@@ -751,8 +894,14 @@ export class RoomCore {
     const err = versusOptionsError(raw);
     if (err) fail(err);
     const next = normalizeVersusOptions(raw) as unknown as Record<string, unknown>;
-    if (next.mode !== 'duel') fail('mode_not_supported'); // the spike ports 1v1 only (design doc, phased rollout)
+    if (next.mode !== 'duel' && next.mode !== 'group') fail('mode_not_supported'); // Duos / Ranked Duos: later phases
     if (JSON.stringify(next) === JSON.stringify(r.options)) return ROOM_JSON;
+    // Switching modes: a player in a seat the new mode does not have takes a free one, else goes to the stands.
+    const roles = this.modeRoles(next.mode);
+    for (const mm of [...r.members].filter((x) => x.role !== 'spectator' && !roles.includes(x.role as GSeat)).sort((a, b) => GSEATS.indexOf(a.role as GSeat) - GSEATS.indexOf(b.role as GSeat))) {
+      const free = roles.find((s) => !r.members.some((x) => x.role === s));
+      mm.role = free ?? 'spectator';
+    }
     r.options = next;
     r.options_rev += 1;
     r.options_changed_at = this.now;
@@ -761,8 +910,7 @@ export class RoomCore {
   }
 
   private sync(userId: string): unknown {
-    const seat = this.seatOf(userId);
-    return { room: this.roomJson(), match: this.matchJson(), priv: seat ? this.privJson(seat) : null };
+    return { room: this.roomJson(), match: this.currentMatchJson(), priv: this.privFor(userId) };
   }
 
   /** `versus_heartbeat`: a seat on auto that is back plays again; while paused, every member's last-seen. Presence
@@ -776,7 +924,12 @@ export class RoomCore {
       this.returned(userId, 'heartbeat');
       out.match = MATCH_JSON;
     }
-    if (m && m.paused_at != null && m.phase !== 'complete') {
+    const g = this.grp;
+    if (g && g.running() && g.holdsLiveSeat(userId)) {
+      this.returned(userId, 'heartbeat');
+      out.groupMatch = GROUP_JSON;
+    }
+    if ((m && m.paused_at != null && m.phase !== 'complete') || (g && g.running() && g.m.paused_at != null)) {
       out.seen = Object.fromEntries(this.state.room.members.map((mm) => [mm.userId, iso(mm.disconnectedAt ?? this.now)]));
     }
     return out;
@@ -784,8 +937,36 @@ export class RoomCore {
 
   // ── Match ops ──────────────────────────────────────────────────────────────────────────────────────────────────
 
+  /** `versus_press_gate`, Group branch: every seated player pressed, a 3-4 player match starts. */
+  private createGroupMatch(seated: (CoreMember & { role: GSeat })[]): void {
+    const r = this.state.room;
+    this.clearMatchKeys();
+    this.state.match = null;
+    this.state.group = newGroupState(this.groupHost(), r, seated.map((m) => ({ seat: m.role, userId: m.userId, name: m.displayName })));
+    const g = this.grp!;
+    for (const s of g.m.seats) { this.fx.priv.add(s.seat); }
+    r.status = 'in_game';
+    r.current_match_id = g.m.id;
+    r.gate_deadline = null;
+    this.fx.match = true;
+    this.fx.dirty.add('meta');
+    const row = g.json();
+    delete row.serverNow;
+    this.fx.persist.push({ kind: 'group_match', row: { ...row, room_id: null, seats: g.m.seats } });
+  }
+
+  /** A new match starts clean: every stored round / board of the previous one (either mode) is dropped. */
+  private clearMatchKeys(): void {
+    for (const n of Object.keys(this.state.rounds)) this.fx.dirty.add(`round:${n}`);
+    for (const n of Object.keys(this.state.group?.rounds ?? {})) this.fx.dirty.add(`ground:${n}`);
+    for (const s of GSEATS) for (const k of ['sub', 'last', 'ckpt', 'gsub', 'glast', 'gckpt']) this.fx.dirty.add(`${k}:${s}`);
+    this.frames.clear();
+  }
+
   private createMatch(): void {
     const r = this.state.room;
+    this.clearMatchKeys();
+    this.state.group = null;
     const p1 = r.members.find((m) => m.role === 'p1')!;
     const p2 = r.members.find((m) => m.role === 'p2')!;
     const id = this.deps.uuid();
@@ -1054,6 +1235,7 @@ export class RoomCore {
 
   /** Resolve a `resolving` round through the Edge Function's own handler over an in-memory store. */
   private async settle(): Promise<void> {
+    await this.grp?.settle();
     while (this.pendingResolve) {
       this.pendingResolve = false;
       const m = this.state.match;
@@ -1219,7 +1401,7 @@ export class RoomCore {
     const r = this.state.room;
     if (r.status === 'sealed' && this.now >= (r.gate_deadline ?? 0)) this.reopenGate();
     // Idle self-destruct: no match running and nobody has asked anything for ROOM_IDLE_MS.
-    const live = this.state.match && this.state.match.phase !== 'complete';
+    const live = this.matchRunning();
     if (!r.closed && !live && this.now - (r.last_activity_at ?? r.created_at) >= ROOM_IDLE_MS) {
       for (const mm of [...r.members]) this.leave(mm.userId);
       if (!r.closed) { r.closed = true; this.touchRoom(); }
@@ -1228,6 +1410,7 @@ export class RoomCore {
     for (const mm of [...r.members]) {
       if (mm.disconnectedAt != null && this.prunable(mm) && this.now - mm.disconnectedAt >= MEMBER_PRUNE_MS) this.leave(mm.userId);
     }
+    if (this.grp && !r.closed) this.grp.reconcile();
     const m = this.state.match;
     if (!m || m.phase === 'complete' || r.closed) return;
     const gone1 = this.gone('p1');
@@ -1310,17 +1493,19 @@ export class RoomCore {
 /** Sentinels: "answer with the match / room json as it stands AFTER this call settles". */
 const MATCH_JSON = Symbol('match_json');
 const ROOM_JSON = Symbol('room_json');
+const GROUP_JSON = Symbol('group_json');
 
 /** Replace sentinels nested one level deep (the reroll answer, the heartbeat answer). */
 export function resolveSentinels(data: unknown, core: RoomCore): unknown {
   if (data === MATCH_JSON) return core.matchJson();
   if (data === ROOM_JSON) return core.roomJson();
+  if (data === GROUP_JSON) return core.grp?.json() ?? null;
   if (data && typeof data === 'object' && !Array.isArray(data)) {
     const o = data as Record<string, unknown>;
     let changed = false;
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(o)) {
-      if (v === MATCH_JSON) { out[k] = core.matchJson(); changed = true; } else if (v === ROOM_JSON) { out[k] = core.roomJson(); changed = true; } else out[k] = v;
+      if (v === MATCH_JSON) { out[k] = core.matchJson(); changed = true; } else if (v === ROOM_JSON) { out[k] = core.roomJson(); changed = true; } else if (v === GROUP_JSON) { out[k] = core.grp?.json() ?? null; changed = true; } else out[k] = v;
     }
     return changed ? out : data;
   }

@@ -25,6 +25,11 @@ import {
   type RankedDuosFinalizeStore, type RankedDuosSeatStore, type VersusDuosFinalizeStore, type VersusFinalizeStore, type VersusGroupFinalizeStore,
 } from '@game/sim/versus/server';
 import { versusFreshSide } from '@game/sim';
+import type { ChaosBackend, ResolverAction, ResolverCall, ResolverChaos, ServerSnap, Vitals } from './chaosBackend';
+import type { ChaosMode } from './chaosMatch';
+import { RealtimeBus } from './fakeSupabase';
+
+export type { ResolverAction, ResolverCall, ResolverChaos } from './chaosBackend';
 
 const root = join(__dirname, '../../../../..');
 
@@ -98,30 +103,6 @@ const REALTIME = `
 
 export interface RtChange { tbl: string; op: string; key: string; row: Record<string, unknown> | null }
 
-export type ResolverAction = 'finalize' | 'finalize_group' | 'finalize_duos' | 'finalize_ranked_duos' | 'seat_ranked_duos';
-export interface ResolverCall {
-  at: number;
-  user: string;
-  action: ResolverAction;
-  matchId: string;
-  round: number | null;
-  status: number;
-  /** The call reached the handler (not an injected failure / 409). */
-  handled: boolean;
-  /** The handler committed (or found committed) this round. */
-  committed: boolean;
-  body: unknown;
-}
-
-/** Resolver chaos: everything optional; `delayMs` is per call, `fail` counts down per call. */
-export interface ResolverChaos {
-  delayMs: number;
-  /** The next N calls answer 500 without reaching the handler. */
-  fail: number;
-  /** The next N calls answer 409 (content / protocol mismatch). */
-  conflict: number;
-}
-
 /** Plain JSON values back from PGlite: Dates as ISO strings and BigInts as numbers (what PostgREST hands supabase-js). */
 export function plain(v: unknown): unknown {
   if (v instanceof Date) return v.toISOString();
@@ -143,8 +124,11 @@ function bindArg(v: unknown): unknown {
   return v;
 }
 
-export class ChaosServer {
+export class ChaosServer implements ChaosBackend {
+  readonly kind = 'supabase' as const;
   db!: PGlite;
+  /** This match's Realtime service (fresh per scenario). */
+  bus = new RealtimeBus();
   private queue: Promise<unknown> = Promise.resolve();
   private pending = 0;
   /** Fake-clock now (ms): the harness hands in `Date.now` (faked). */
@@ -212,7 +196,30 @@ export class ChaosServer {
     this.resolverLog.length = 0;
     Object.assign(this.resolverChaos, { delayMs: 0, fail: 0, conflict: 0 });
     this.holds.clear();
+    this.roomOfMatch.clear();
+    this.bus = new RealtimeBus();
+    this.onChanges = (c) => this.bus.changes(c);
   }
+
+  // ── the backend seam (chaosBackend.ts) ────────────────────────────────────────────────────────────────────
+  onNote: (s: string) => void = () => undefined;
+  killRealtime(ms: number): string {
+    this.bus.enabled = false;
+    if (ms) setTimeout(() => { this.bus.enabled = true; this.onNote('chaos: realtime back'); }, ms);
+    return `realtime down${ms ? ` ${ms} ms` : ''}`;
+  }
+  realtimeUp(): boolean { return this.bus.enabled; }
+  listening(user: string, matchId: string): boolean { return this.bus.listening(user, matchId); }
+  sweep(): void { this.bus.sweep(); }
+  noteRoomMatch(roomId: string, matchId: string): void { this.roomOfMatch.set(roomId, matchId); }
+  async currentMatchOf(roomId: string): Promise<string | null> {
+    const r = (await this.admin<{ current_match_id: string | null }>('select current_match_id from public.versus_rooms where id = $1', [roomId]))[0];
+    return r?.current_match_id ?? null;
+  }
+  snapshot(matchId: string, group: boolean): Promise<ServerSnap | null> { return snapshot(this, matchId, group); }
+  committedVitals(matchId: string, r: number, mode: ChaosMode): Promise<Vitals | null> { return committedVitals(this, matchId, r, mode); }
+  committedRounds(matchId: string | null, group: boolean): Promise<number> { return committedRounds(this, matchId, group); }
+  serverFights(matchId: string, mode: ChaosMode): Promise<Record<number, string>> { return serverFights(this, matchId, mode); }
 
   /** Run `fn` alone on the connection, then drain the realtime feed. */
   serial<T>(fn: () => Promise<T>): Promise<T> {
@@ -393,4 +400,77 @@ export class ChaosServer {
       log: () => undefined,
     } as unknown as RankedDuosFinalizeStore;
   }
+}
+
+// ── the harness's reads (moved here from chaosMatch.ts unchanged: the SQL is this backend's) ─────────────────────
+
+async function snapshot(server: ChaosServer, matchId: string, group: boolean): Promise<ServerSnap | null> {
+  const t = Date.now();
+  const ms = (x: unknown): number | null => (x == null ? null : Date.parse(String(x)));
+  if (!group) {
+    const m = (await server.admin<any>('select * from public.versus_matches where id = $1', [matchId]))[0];
+    if (!m) return null;
+    return {
+      t, phase: m.phase, round: m.round, revision: m.revision, shopDeadline: ms(m.shop_deadline), pausedSeat: m.paused_seat, pausedAt: m.paused_at, resumeAt: m.resume_at ?? null,
+      seats: (['p1', 'p2'] as const).map((p) => ({
+        seat: p, user: m[`${p}_user`], name: m[`${p}_name`], locked: !!m[`${p}_locked`], lockedAt: null, health: m[`${p}_health`], armor: m[`${p}_armor`],
+        placement: m.phase === 'complete' ? (m.winner_seat === p ? 1 : 2) : null, eliminated: null, team: null, auto: !!m[`${p}_auto`],
+      })),
+      teams: [],
+    };
+  }
+  const m = (await server.admin<any>('select * from public.versus_group_matches where id = $1', [matchId]))[0];
+  if (!m) return null;
+  const seats = await server.admin<any>('select * from public.versus_group_seats where match_id = $1 order by seat', [matchId]);
+  const teams = await server.admin<any>('select * from public.versus_group_teams where match_id = $1 order by team', [matchId]);
+  return {
+    t, phase: m.phase, round: m.round, revision: m.revision, shopDeadline: ms(m.shop_deadline), pausedSeat: m.paused_seat, pausedAt: m.paused_at, resumeAt: m.resume_at ?? null,
+    seats: seats.map((x) => ({
+      seat: x.seat, user: x.user_id, name: x.name, locked: !!x.locked, lockedAt: ms(x.locked_at), health: x.health, armor: x.armor, placement: x.placement,
+      eliminated: x.eliminated_round, team: x.team ?? null, auto: !!x.auto,
+    })),
+    teams: teams.map((x) => ({ team: x.team, health: x.health ?? null, armor: x.armor ?? null, placement: x.placement, eliminated: x.eliminated_round })),
+  };
+}
+
+/** Every seat's pools after round `r`, keyed by the seat's NAME (the rail's label), or null before it is committed. */
+async function committedVitals(server: ChaosServer, matchId: string, r: number, mode: ChaosMode): Promise<Vitals | null> {
+  if (mode === 'duel') {
+    const row = (await server.admin<any>('select * from public.versus_rounds where match_id = $1 and round = $2', [matchId, r]))[0];
+    const m = (await server.admin<any>('select p1_name, p2_name from public.versus_matches where id = $1', [matchId]))[0];
+    if (!row || !m || row.p1_health == null) return null;
+    return { [m.p1_name]: { health: row.p1_health, armor: row.p1_armor }, [m.p2_name]: { health: row.p2_health, armor: row.p2_armor } };
+  }
+  const row = (await server.admin<any>('select vitals from public.versus_group_rounds where match_id = $1 and round = $2', [matchId, r]))[0];
+  if (!row?.vitals) return null;
+  const seats = await server.admin<any>('select seat, name, team from public.versus_group_seats where match_id = $1', [matchId]);
+  const out: Record<string, { health: number; armor: number }> = {};
+  for (const s of seats) {
+    const v = (mode === 'duos' || mode === 'ranked_duos') ? row.vitals[s.team] ?? row.vitals[s.seat] : row.vitals[s.seat];
+    if (v) out[s.name] = { health: v.health, armor: v.armor };
+  }
+  return out;
+}
+
+async function committedRounds(server: ChaosServer, matchId: string | null, group: boolean): Promise<number> {
+  if (!matchId) return 0;
+  const r = await server.admin<{ n: number }>(`select count(*)::int n from public.${group ? 'versus_group_rounds' : 'versus_rounds'} where match_id = $1`, [matchId]);
+  return r[0]?.n ?? 0;
+}
+
+/** The server's fights, one canonical line per round. */
+async function serverFights(server: ChaosServer, matchId: string, mode: ChaosMode): Promise<Record<number, string>> {
+  const out: Record<number, string> = {};
+  if (mode === 'duel') {
+    for (const r of await server.admin<any>('select round, outcome, digest from public.versus_rounds where match_id = $1', [matchId])) out[r.round] = `${r.outcome}:${r.digest}`;
+    return out;
+  }
+  if (mode === 'ranked_duos') {
+    const rows = await server.admin<any>('select round, fight, a_team, b_team, outcome, damage from public.versus_ranked_duos_fights where match_id = $1 order by round, fight', [matchId]);
+    for (const f of rows) out[f.round] = `${out[f.round] ? `${out[f.round]} ` : ''}${f.a_team}-${f.b_team}:${f.outcome}:${f.damage}`;
+    return out;
+  }
+  const rows = await server.admin<any>('select round, fight, a_seat, b_seat, outcome, damage from public.versus_group_fights where match_id = $1 order by round, fight', [matchId]);
+  for (const f of rows) out[f.round] = `${out[f.round] ? `${out[f.round]} ` : ''}${f.a_seat}-${f.b_seat}:${f.outcome}:${f.damage}`;
+  return out;
 }

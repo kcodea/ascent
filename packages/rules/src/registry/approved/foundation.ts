@@ -10523,4 +10523,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'The owner flips duel to cf: the next 1v1 room is a Cloudflare room. He flips it back mid-match: that match finishes on Cloudflare, and the next new 1v1 room is on Supabase.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRouter.test.ts', 'packages/ui/src/versus/versusCutoverStore.test.ts', 'workers/versus/test/origins.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-VERSUS-CF-RECONNECT-01',
+    title: 'Versus on Cloudflare: a dropped room socket reconnects the moment the network is back',
+    statement:
+      'A Cloudflare Versus client whose room socket is down reconnects AT ONCE when the device reports its network is back (the browser '
+      + '`online` event), instead of waiting out its reconnect backoff (100 ms doubling to 3 s). The room treats the new socket as the '
+      + 'player\x27s return, so a match paused for that player starts its 3-2-1 within a round trip of the network coming back and lifts in '
+      + 'about 3 s, with no button pressed. Without a network event (a silent mobile hiccup) the backoff still reconnects within 3 s.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27', quote: 'disconnect/reconnects werent done correctly, where it would simply pause when someone returned' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27 (after a night of End of Turn freezes in Versus)', quote: 'need to be spotless experiences' },
+      { kind: 'code', ref: 'workers/versus/src/client.ts (wake, reconnectNow), packages/ui/src/versus/versusCfRemote.ts (the online hook)' },
+    ],
+    currentBehaviour: 'Built 2026-10-28 (test/versus-chaos-cf). Found by the Cloudflare chaos matrix: before, the dropFin cells lifted the pause 4.1 s after the player was back (up to 3 s of backoff, then the 3 s countdown); after, 3.1 s.',
+    example: 'Bob\x27s wifi drops in the shop and the match pauses on him. 20 s later his wifi is back: his socket reconnects at once, the 3-2-1 starts, and the shop runs again 3 s later.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientWake.test.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

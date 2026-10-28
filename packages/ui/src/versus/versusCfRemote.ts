@@ -217,6 +217,12 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     client = new VersusCfClient({
       baseUrl: base, roomId: id, token, versusProtocol: VERSUS_PROTOCOL, contentRevision: contentRevision(),
       ws: (url, protocols) => new WebSocket(url, protocols) as never, onPush,
+      // The network is back: reconnect now, not after the backoff (R-VERSUS-CF-RECONNECT-01).
+      wake: (fn) => {
+        if (typeof window === 'undefined') return () => undefined;
+        window.addEventListener('online', fn);
+        return () => window.removeEventListener('online', fn);
+      },
     });
     await client.connect().catch(err);
     return client;

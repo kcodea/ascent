@@ -1,4 +1,7 @@
-import { LAYOUT_VARS, defaultLayout, getLayout, resetLayout, setLayoutValue, type LayoutConfig } from './layoutConfig';
+import {
+  LAYOUT_STR_VARS, LAYOUT_VARS, defaultLayout, defaultLayoutStrings, getLayout, getLayoutStrings, resetLayout, setLayoutString,
+  setLayoutValue,
+} from './layoutConfig';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec } from './tunerSchema';
 
@@ -50,7 +53,8 @@ const HINTS: Record<string, string> = {
   qbY:   'Moves that badge row vertically.',
   qbGap: 'Space between the badges.',
 
-  glyphW: 'Width of the end-of-turn charge glyph. The whole glyph scales with it, aspect locked.',
+  glyphW: 'Length of the crystal fuse. Adds or removes crystal between the two tips; nothing stretches.',
+  glyphH: 'Thickness of the crystal fuse (its height). The tips keep their shape.',
   glyphX: 'Nudges the glyph sideways off the board midline it anchors to.',
   glyphY: 'Nudges the glyph up or down off that midline. The midline itself auto-aligns to the art divider at any aspect ratio.',
 
@@ -58,7 +62,7 @@ const HINTS: Record<string, string> = {
   buyZoneY:  'Moves the drag-to-BUY boundary, hit-test included. Lower values raise the line, making the buy region bigger.',
 };
 
-const controls: TunerControl<string>[] = LAYOUT_VARS.map((v) => ({
+const numericControls: TunerControl<string>[] = LAYOUT_VARS.map((v) => ({
   key: v.key,
   label: v.label,
   hint: HINTS[v.key],
@@ -71,14 +75,28 @@ const controls: TunerControl<string>[] = LAYOUT_VARS.map((v) => ({
   step: v.step,
 }));
 
-export const SPEC: TunerSpec<LayoutConfig> = {
+// The string knobs (Backdrop texture dropdown, tint colour) slot in at the START of their group: the panel needs
+// each group's controls to run consecutively.
+const controls: TunerControl<string>[] = [...numericControls];
+for (const v of LAYOUT_STR_VARS) {
+  const at = controls.findIndex((c) => c.group === v.group);
+  const ctl: TunerControl<string> = {
+    key: v.key, label: v.label, group: v.group, kind: v.kind, min: 0, max: 0, step: 0,
+    ...(v.options ? { options: v.options } : {}), ...(v.optionLabels ? { optionLabels: v.optionLabels } : {}),
+  };
+  controls.splice(at < 0 ? controls.length : at + LAYOUT_STR_VARS.filter((w) => w.group === v.group).indexOf(v), 0, ctl);
+}
+
+type LayoutLabConfig = Record<string, number | string>;
+export const SPEC: TunerSpec<LayoutLabConfig> = {
   id: 'layout',                     // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Layout Lab',
   note: 'dev · scale + position',
-  read: getLayout,
+  read: () => ({ ...getLayout(), ...getLayoutStrings() }),
   write: setLayoutValue,
+  writeColor: setLayoutString,
   reset: resetLayout,
-  defaults: defaultLayout(),
+  defaults: { ...defaultLayout(), ...defaultLayoutStrings() },
   controls,
 };
 

@@ -67,7 +67,7 @@ describe('Settings controls', () => {
     ui = mount(<EscMenu onClose={() => {}} />);
     expect(ui.container.querySelector('#esc-fps-label')?.textContent).toBe('Max Frame Rate');
     expect(ui.container.querySelectorAll('.escfpsopt')).toHaveLength(0);
-    const trigger = ui.container.querySelector<HTMLButtonElement>('.escselect-trigger')!;
+    const trigger = ui.container.querySelector<HTMLButtonElement>('.escselect-trigger[aria-labelledby="esc-fps-label"]')!;
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
     expect(ui.container.querySelector('[role="listbox"]')).toBeNull();
 
@@ -81,9 +81,9 @@ describe('Settings controls', () => {
     expect(useGame.getState().fpsCap).toBe(60);
     expect(localStorage.getItem('ascent.fpscap')).toBe('60');
     expect(ui.container.querySelector('[role="listbox"]')).toBeNull();
-    expect(ui.container.querySelector('.escselect-value')?.textContent).toBe('60 FPS');
+    expect(ui.container.querySelector('.escselect-trigger[aria-labelledby="esc-fps-label"] .escselect-value')?.textContent).toBe('60 FPS');
 
-    press(ui.container.querySelector('.escselect-trigger'));
+    press(ui.container.querySelector('.escselect-trigger[aria-labelledby="esc-fps-label"]'));
     expect(ui.container.querySelector('[role="listbox"]')).not.toBeNull();
     act(() => { document.body.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
     expect(ui.container.querySelector('[role="listbox"]')).toBeNull();

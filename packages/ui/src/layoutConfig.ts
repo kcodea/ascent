@@ -36,18 +36,50 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   // Fine-scale the board backdrop art (its height on `.boardbg`) so the painted frame lines up with the (fixed
   // 16:9) UI when you swap in new board art — 1 = art scaled to the stage height.
   { key: 'boardZoom', cssVar: '--board-zoom', label: 'Board zoom', group: 'Global', min: 0.6, max: 1.8, step: 0.01, def: 1.25, fmt: 'mul' },
+  // Board grow (owner 2026-10-28): the board ART alone grows (with its shadow); cards and both hero portraits keep their
+  // size and seat. The hero cluster anchors to `--_artw`, which this deliberately does not touch.
+  { key: 'boardGrow', cssVar: '--board-grow', label: 'Board art size', group: 'Global', min: 0.8, max: 1.4, step: 0.01, def: 1.05, fmt: 'mul' },
+  // Gold, Refresh, Freeze, End Turn and the Tavern-up stone grow in place by this, on top of their own Scale sliders.
+  { key: 'pieceGrow', cssVar: '--piece-grow', label: 'Edge buttons size', group: 'Global', min: 0.8, max: 1.4, step: 0.01, def: 1.05, fmt: 'mul' },
   // Shift the board backdrop art (its position on `.boardbg`). The art is WIDER than the 16:9 stage, so ~17% of
   // it spills past each side; a 16:9 fullscreen crops that spill while a wider browser window shows it. These
   // nudge the art so a feature sitting in the spill (e.g. the hero-portrait paw) can be pulled into the stage.
   { key: 'boardX', cssVar: '--board-x', label: 'Board X offset', group: 'Global', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
   { key: 'boardY', cssVar: '--board-y', label: 'Board Y offset', group: 'Global', min: -800, max: 800, step: 1, def: 5, fmt: 'px' },
+  // Backdrop behind the cutout board (owner 2026-10-28): tile size, then a black wash and a colour wash over it. The
+  // texture and the wash colour are the string knobs in LAYOUT_STR_VARS below.
+  { key: 'btexSize', cssVar: '--btex-size', label: 'Tile size', group: 'Backdrop', min: 150, max: 2400, step: 10, def: 420, fmt: 'px' },
+  { key: 'btexDark', cssVar: '--btex-dark', label: 'Darkness', group: 'Backdrop', min: 0, max: 1, step: 0.01, def: 0.05, fmt: 'mul' },
+  { key: 'btexBlur', cssVar: '--btex-blur', label: 'Blur', group: 'Backdrop', min: 0, max: 30, step: 0.5, def: 0, fmt: 'px' },
+  { key: 'btexTint', cssVar: '--btex-tint', label: 'Tint amount', group: 'Backdrop', min: 0, max: 1, step: 0.01, def: 0.06, fmt: 'mul' },
+  { key: 'bshadowA', cssVar: '--bshadow-a', label: 'Board shadow strength', group: 'Backdrop', min: 0, max: 1, step: 0.01, def: 0.72, fmt: 'mul' },
+  { key: 'bshadowX', cssVar: '--bshadow-x', label: 'Board shadow X', group: 'Backdrop', min: -80, max: 80, step: 1, def: 6, fmt: 'px' },
+  { key: 'bshadowY', cssVar: '--bshadow-y', label: 'Board shadow Y', group: 'Backdrop', min: -80, max: 80, step: 1, def: 8, fmt: 'px' },
+  // The hero group (portrait + rune slots + name pill + Health + hero power) as one, and the hero power on its own
+  // inside it (on top of its board-grow shift). Owner 2026-10-28.
+  { key: 'herogrpX', cssVar: '--herogrp-x', label: 'Group X', group: 'Hero group', min: -200, max: 200, step: 1, def: -35, fmt: 'px' },
+  { key: 'herogrpY', cssVar: '--herogrp-y', label: 'Group Y', group: 'Hero group', min: -200, max: 200, step: 1, def: 0, fmt: 'px' },
+  { key: 'hpowX', cssVar: '--hpow-x', label: 'Hero power X', group: 'Hero group', min: -200, max: 200, step: 1, def: 45, fmt: 'px' },
+  { key: 'hpowY', cssVar: '--hpow-y', label: 'Hero power Y', group: 'Hero group', min: -200, max: 200, step: 1, def: 0, fmt: 'px' },
+  // The foe's rune set in combat (slots + runes + glass), inside the foe cluster (scaled ~2.4x, so small numbers).
+  { key: 'orunesX', cssVar: '--orunes-x', label: 'Foe runes X', group: 'Hero group', min: -60, max: 60, step: 1, def: -5, fmt: 'px' },
+  { key: 'orunesY', cssVar: '--orunes-y', label: 'Foe runes Y', group: 'Hero group', min: -60, max: 60, step: 1, def: -5, fmt: 'px' },
+  // Drop shadows under both heroes' portraits and their rune slots (owner 2026-10-28).
+  { key: 'pshA', cssVar: '--psh-a', label: 'Portrait strength', group: 'Portrait shadows', min: 0, max: 1, step: 0.01, def: 1, fmt: 'mul' },
+  { key: 'pshBlur', cssVar: '--psh-blur', label: 'Portrait blur', group: 'Portrait shadows', min: 0, max: 60, step: 1, def: 15, fmt: 'px' },
+  { key: 'pshX', cssVar: '--psh-x', label: 'Portrait X', group: 'Portrait shadows', min: -40, max: 40, step: 1, def: 0, fmt: 'px' },
+  { key: 'pshY', cssVar: '--psh-y', label: 'Portrait Y', group: 'Portrait shadows', min: -40, max: 40, step: 1, def: 6, fmt: 'px' },
+  { key: 'rshA', cssVar: '--rsh-a', label: 'Rune slot strength', group: 'Portrait shadows', min: 0, max: 1, step: 0.01, def: 1, fmt: 'mul' },
+  { key: 'rshBlur', cssVar: '--rsh-blur', label: 'Rune slot blur', group: 'Portrait shadows', min: 0, max: 40, step: 1, def: 10, fmt: 'px' },
+  { key: 'rshX', cssVar: '--rsh-x', label: 'Rune slot X', group: 'Portrait shadows', min: -30, max: 30, step: 1, def: 0, fmt: 'px' },
+  { key: 'rshY', cssVar: '--rsh-y', label: 'Rune slot Y', group: 'Portrait shadows', min: -30, max: 30, step: 1, def: 3, fmt: 'px' },
 
   { key: 'shopS', cssVar: '--z-shop-s', label: 'Card size', group: 'Shop row', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
-  { key: 'shopGap', cssVar: '--z-shop-gap', label: 'Card gap', group: 'Shop row', min: 0, max: 80, step: 1, def: 16, fmt: 'px' },
+  { key: 'shopGap', cssVar: '--z-shop-gap', label: 'Card gap', group: 'Shop row', min: 0, max: 80, step: 1, def: 18, fmt: 'px' },
   // Offsets the shop CARDS only (the tavern zone) — not the shop buttons (a separate `.shopbar`). The enemy
   // warband renders in this same tavern zone during combat, so these also place the opponent's board.
   { key: 'shopX', cssVar: '--z-shop-x', label: 'X offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 8, fmt: 'px' },
-  { key: 'shopY', cssVar: '--z-shop-y', label: 'Y offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 59, fmt: 'px' },
+  { key: 'shopY', cssVar: '--z-shop-y', label: 'Y offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 52, fmt: 'px' },
 
   // The shop CONTROLS tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip), scaled via its local --u.
   { key: 'shopUiS', cssVar: '--z-shopui-s', label: 'Scale', group: 'Shop controls', min: 0.5, max: 1.6, step: 0.01, def: 1.6, fmt: 'mul' },
@@ -55,9 +87,9 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'shopUiY', cssVar: '--z-shopui-y', label: 'Y offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: -6, fmt: 'px' },
 
   { key: 'wbS', cssVar: '--z-wb-s', label: 'Card size', group: 'Warband', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
-  { key: 'wbGap', cssVar: '--z-wb-gap', label: 'Card gap', group: 'Warband', min: 0, max: 80, step: 1, def: 16, fmt: 'px' },
+  { key: 'wbGap', cssVar: '--z-wb-gap', label: 'Card gap', group: 'Warband', min: 0, max: 80, step: 1, def: 18, fmt: 'px' },
   { key: 'wbX', cssVar: '--z-wb-x', label: 'X offset', group: 'Warband', min: -400, max: 400, step: 1, def: 9, fmt: 'px' },
-  { key: 'wbY', cssVar: '--z-wb-y', label: 'Y offset', group: 'Warband', min: -400, max: 400, step: 1, def: -136, fmt: 'px' },
+  { key: 'wbY', cssVar: '--z-wb-y', label: 'Y offset', group: 'Warband', min: -400, max: 400, step: 1, def: -130, fmt: 'px' },
 
   { key: 'handS', cssVar: '--z-hand-s', label: 'Card size', group: 'Hand', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   // Hand cards fan + overlap via a NEGATIVE margin that's a fraction of the (compact) card width, so it stays
@@ -75,7 +107,7 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
 
   { key: 'hudS', cssVar: '--z-hud-s', label: 'Scale', group: 'HUD bar', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'hudX', cssVar: '--z-hud-x', label: 'X offset', group: 'HUD bar', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
-  { key: 'hudY', cssVar: '--z-hud-y', label: 'Y offset', group: 'HUD bar', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+  { key: 'hudY', cssVar: '--z-hud-y', label: 'Y offset', group: 'HUD bar', min: -400, max: 400, step: 1, def: -21, fmt: 'px' },
 
   // (Hero power rows retired 2026-07-16 — the diamond housing's position/scale/glow moved to the dedicated
   //  💠 Hero Power Button tuner / heroPowerBtnConfig.ts, mirroring the End Turn diamond's setup.)
@@ -108,12 +140,13 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'tierY', cssVar: '--tierpill-y', label: 'Y offset', group: 'Tavern tier', min: -400, max: 400, step: 1, def: -141, fmt: 'px' },
 
   // The end-of-turn CRYSTAL FUSE (the Charge Glyph's look since 2026-10-26). STATIC px scaled by --scale, anchored
-  // to the measured board midline (--charge-y); Size scales the fuse (aspect-locked), X/Y nudge it so its right tip
+  // to the measured board midline (--charge-y); Length extends the fuse (more crystal, tips unchanged) and Thickness sets its height, X/Y nudge it so its right tip
   // meets the End Turn gem. Defaults are the CSS fallbacks in styles.css `.chargeglyph` — keep the two in sync so
   // production (no tuner) matches a Reset. (Physics/look: Dev Menu → Crystal Fuse.)
-  { key: 'glyphW', cssVar: '--charge-w', label: 'Size', group: 'Crystal Fuse', min: 200, max: 1800, step: 4, def: 1320, fmt: 'px' },
-  { key: 'glyphX', cssVar: '--charge-x', label: 'X offset', group: 'Crystal Fuse', min: -600, max: 600, step: 1, def: -42, fmt: 'px' },
-  { key: 'glyphY', cssVar: '--charge-yoff', label: 'Y offset', group: 'Crystal Fuse', min: -400, max: 400, step: 1, def: -63, fmt: 'px' },
+  { key: 'glyphW', cssVar: '--charge-w', label: 'Length', group: 'Crystal Fuse', min: 200, max: 2400, step: 4, def: 1460, fmt: 'px' },
+  { key: 'glyphH', cssVar: '--charge-h', label: 'Thickness', group: 'Crystal Fuse', min: 40, max: 260, step: 1, def: 90, fmt: 'px' },
+  { key: 'glyphX', cssVar: '--charge-x', label: 'X offset', group: 'Crystal Fuse', min: -600, max: 600, step: 1, def: -14, fmt: 'px' },
+  { key: 'glyphY', cssVar: '--charge-yoff', label: 'Y offset', group: 'Crystal Fuse', min: -400, max: 400, step: 1, def: -77, fmt: 'px' },
 
   // The drag-to-BUY / drag-to-SELL drop regions. Unlike the other groups these aren't pure CSS — the boundary is
   // computed in JS at drag start (sell = above the warband top; buy = below the board midline) and drives BOTH the
@@ -123,6 +156,91 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'sellZoneY', cssVar: '--z-sellzone-y', label: 'Sell edge', group: 'Buy/Sell zones', min: -400, max: 400, step: 1, def: -136, fmt: 'px' },
   { key: 'buyZoneY', cssVar: '--z-buyzone-y', label: 'Buy edge', group: 'Buy/Sell zones', min: -400, max: 400, step: 1, def: 79, fmt: 'px' },
 ];
+
+/** The Backdrop knobs that a player's Settings pick also sets (backdrop.ts). The Lab writes NONE of them until you
+ *  touch one; from then on it writes ALL of them (so picking Stone in the Lab shows Stone, not the Settings choice)
+ *  until Reset. The flag is saved, so a reload keeps the Lab's backdrop. */
+const BACKDROP_PRESET_KEYS = new Set(['btexSize', 'btexDark', 'btexBlur', 'btexTint', 'btexImg', 'btexTintCol', 'bshadowA', 'bshadowX', 'bshadowY']);
+const LAB_BACKDROP_KEY = 'ascent.layoutlab.backdropOn';
+let labBackdropOn = ((): boolean => {
+  if (!import.meta.env.DEV) return false;
+  try { return localStorage.getItem(LAB_BACKDROP_KEY) === '1'; } catch { return false; }
+})();
+function setLabBackdropOn(on: boolean): void {
+  labBackdropOn = on;
+  try { if (on) localStorage.setItem(LAB_BACKDROP_KEY, '1'); else localStorage.removeItem(LAB_BACKDROP_KEY); } catch { /* ignore */ }
+}
+
+/**
+ * BACKDROP TEXTURES (owner 2026-10-28: "ill be adding more"). Each is a seamless tile in apps/web/public. To add one:
+ * drop the webp there and add a line here; it appears in the Layout Lab's Backdrop dropdown.
+ */
+export const BACKDROP_TEXTURES: Record<string, { label: string; url: string }> = {
+  stone: { label: 'Cobblestone', url: '/backdrop-stone.webp' },
+  oak: { label: 'Oak planks', url: '/backdrop-oak-planks.webp' },
+  sand: { label: 'Sand', url: '/backdrop-mystic-sand.webp' },
+  aether: { label: 'Aether Stone', url: '/backdrop-arcane-crystal.webp' },
+  moonstone: { label: 'Stone Pavers', url: '/backdrop-moonstone-pavers.webp' },
+};
+
+/** The Layout Lab's STRING knobs (a dropdown or a colour), kept apart from the numeric ones so every numeric read of
+ *  `getLayout()` stays a number. Same rules: dev-only, applied to `:root`, the CSS fallbacks are what ships. */
+export interface LayoutStrDef {
+  key: string;
+  cssVar: string;
+  label: string;
+  group: string;
+  kind: 'select' | 'color';
+  def: string;
+  options?: readonly string[];
+  optionLabels?: Record<string, string>;
+  /** The CSS value written for a stored value. */
+  css: (v: string) => string;
+}
+export const LAYOUT_STR_VARS: LayoutStrDef[] = [
+  {
+    key: 'btexImg', cssVar: '--btex-img', label: 'Texture', group: 'Backdrop', kind: 'select', def: 'stone',
+    options: Object.keys(BACKDROP_TEXTURES),
+    optionLabels: Object.fromEntries(Object.entries(BACKDROP_TEXTURES).map(([k, v]) => [k, v.label])),
+    css: (v) => `url('${(BACKDROP_TEXTURES[v] ?? BACKDROP_TEXTURES.stone).url}')`,
+  },
+  { key: 'btexTintCol', cssVar: '--btex-tint-col', label: 'Tint colour', group: 'Backdrop', kind: 'color', def: '#90abfe', css: (v) => v },
+];
+export type LayoutStrConfig = Record<string, string>;
+const STR_STORAGE_KEY = 'ascent.layoutlab.str';
+const HEX = /^#[0-9a-f]{6}$/i;
+export function defaultLayoutStrings(): LayoutStrConfig {
+  return Object.fromEntries(LAYOUT_STR_VARS.map((v) => [v.key, v.def]));
+}
+function loadLayoutStrings(): LayoutStrConfig {
+  const cfg = defaultLayoutStrings();
+  if (!import.meta.env.DEV) return cfg;
+  try {
+    const stored = JSON.parse(localStorage.getItem(STR_STORAGE_KEY) || '{}') as Partial<LayoutStrConfig>;
+    for (const v of LAYOUT_STR_VARS) {
+      const s = stored[v.key];
+      if (typeof s !== 'string') continue;
+      if (v.kind === 'select' ? v.options?.includes(s) : HEX.test(s)) cfg[v.key] = s;
+    }
+  } catch { /* ignore */ }
+  return cfg;
+}
+function applyLayoutStrings(cfg: LayoutStrConfig): void {
+  const root = document.documentElement.style;
+  for (const v of LAYOUT_STR_VARS) {
+    const s = cfg[v.key] ?? v.def;
+    if (BACKDROP_PRESET_KEYS.has(v.key) && !labBackdropOn) { root.removeProperty(v.cssVar); continue; }
+    root.setProperty(v.cssVar, v.css(s));
+  }
+}
+let currentStr: LayoutStrConfig = loadLayoutStrings();
+export function getLayoutStrings(): LayoutStrConfig { return currentStr; }
+export function setLayoutString(key: string, val: string): void {
+  if (BACKDROP_PRESET_KEYS.has(key)) { setLabBackdropOn(true); applyLayout(current); }
+  currentStr = { ...currentStr, [key]: val };
+  try { localStorage.setItem(STR_STORAGE_KEY, JSON.stringify(currentStr)); } catch { /* ignore */ }
+  applyLayoutStrings(currentStr);
+}
 
 export type LayoutConfig = Record<string, number>;
 const STORAGE_KEY = 'ascent.layoutlab';
@@ -158,6 +276,7 @@ export function applyLayout(cfg: LayoutConfig): void {
   const root = document.documentElement.style;
   for (const v of LAYOUT_VARS) {
     const n = cfg[v.key] ?? v.def;
+    if (BACKDROP_PRESET_KEYS.has(v.key) && !labBackdropOn) { root.removeProperty(v.cssVar); continue; }
     root.setProperty(v.cssVar, v.fmt === 'px' ? `${n}px` : String(n));
   }
 }
@@ -165,16 +284,21 @@ export function applyLayout(cfg: LayoutConfig): void {
 let current: LayoutConfig = loadLayout();
 export function getLayout(): LayoutConfig { return current; }
 export function setLayoutValue(key: string, val: number): void {
+  if (BACKDROP_PRESET_KEYS.has(key)) { setLabBackdropOn(true); applyLayoutStrings(currentStr); }
   current = { ...current, [key]: val };
   saveLayout(current);
   applyLayout(current);
 }
 export function resetLayout(): void {
+  setLabBackdropOn(false);
   current = defaultLayout();
   saveLayout(current);
   applyLayout(current);
+  currentStr = defaultLayoutStrings();
+  try { localStorage.setItem(STR_STORAGE_KEY, JSON.stringify(currentStr)); } catch { /* ignore */ }
+  applyLayoutStrings(currentStr);
 }
 
 // Apply the persisted layout at module load — but only in dev (the tuner is dev-only; production keeps the CSS
 // fallbacks, i.e. the shipped layout). So a saved tweak is live on every screen before the panel is ever opened.
-if (import.meta.env.DEV) applyLayout(current);
+if (import.meta.env.DEV) { applyLayout(current); applyLayoutStrings(currentStr); }

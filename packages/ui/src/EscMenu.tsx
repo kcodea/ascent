@@ -24,6 +24,7 @@ import { getAnnouncerVolume, isAnnouncerMuted, setAnnouncerVolume, toggleAnnounc
 import { getMasterVolume, isMasterMuted, setMasterVolume, toggleMasterMute } from './audio/master';
 import { useGame } from './store';
 import { FPS_CAP_OPTIONS, fpsCapLabel } from './fpsCap';
+import { BACKDROPS, BACKDROP_IDS, getBackdrop, setBackdrop, type BackdropId } from './backdrop';
 import { perfThresholds } from './perfMonitor';
 import { endReplay } from './replay/replayPlayer';
 import { forfeitMatch } from './versus/versusStore';
@@ -67,6 +68,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // TOUCH UI SIZE (owner 2026-10-18, R-TOUCH-UISCALE-01): a local preference, offered on touch devices only.
   const touchDevice = isTouchDevice();
   const [touchSize, setTouchSize] = useState<TouchUiSize>(() => touchUi().size);
+  const [backdrop, setBackdropPick] = useState<BackdropId>(getBackdrop);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
@@ -250,6 +252,18 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           on={spectatorEmotesOn}
           onToggle={() => { setSpectatorEmotesOn(!spectatorEmotesOn); sfx.pulse(); }}
         />
+        {/* BOARD BACKDROP (owner 2026-10-28): what lies behind the board. Each option is a preset tuned in the Layout Lab
+            (backdrop.ts); the pick is saved on this device and applies at once. */}
+        <div className="escsec">Board</div>
+        <div className="escvol escselectrow">
+          <span className="evl" id="esc-backdrop-label">Board backdrop</span>
+          <SettingSelect
+            labelledBy="esc-backdrop-label"
+            value={backdrop}
+            options={BACKDROP_IDS.map((id) => ({ value: id, label: BACKDROPS[id].label }))}
+            onChange={(id) => { if (id !== backdrop) { setBackdropPick(id); setBackdrop(id); sfx.pulse(); } }}
+          />
+        </div>
         <div className="escsec">Performance</div>
         {/* EFFECTS FRAME CAP (owner ask 2026-09-04; a dropdown named "Max Frame Rate" since 2026-10-08). Caps the Pixi
             effects + GSAP clocks ONLY — CSS (hover, drag, fly-ins, floats, the wipe) runs at the display refresh and the

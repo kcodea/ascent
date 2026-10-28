@@ -81,10 +81,10 @@
 .statusbar .heropanel.equipslot .herotip { --atip-k: var(--eqs-scale, 0.99); }
 .questbadges .questbadge-tip { --atip-k: var(--qb-s, 1.09); }
 .oppframe .questbadge-tip { --atip-k: 1.265; }
-.goldpill .sbtip { --atip-k: var(--gold-s, 1.69); }
-.frzwrap .sbtip { --atip-k: var(--frz-s, 1.36); }
-.tvbwrap .tvb-tip { --atip-k: var(--tvb-s, 1.24); }
-.rfbwrap .rfb-tip { --atip-k: var(--rfb-s, 1.54); }
+.goldpill .sbtip { --atip-k: calc(var(--gold-s, 1.69) * var(--piece-grow, 1.05)); }
+.frzwrap .sbtip { --atip-k: calc(var(--frz-s, 1.36) * var(--piece-grow, 1.05)); }
+.tvbwrap .tvb-tip { --atip-k: calc(var(--tvb-s, 1.24) * var(--piece-grow, 1.05)); }
+.rfbwrap .rfb-tip { --atip-k: calc(var(--rfb-s, 1.54) * var(--piece-grow, 1.05)); }
 .cardref .kwbox { --atip-k: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1.52)); }
 .inspect-card .kwbox, .inspect-card .inspect-buffs { --atip-k: 1.9; }
 

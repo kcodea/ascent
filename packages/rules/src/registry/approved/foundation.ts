@@ -10733,4 +10733,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann has ended her turn. Bob\x27s connection drops 5 s before 0:00 and the match pauses on him; his screen still reaches 0:00 and sends his lock. When he reconnects 30 s later the room refuses that lock, the 3-2-1 runs, and Bob gets the last seconds of his shop back.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/roomCore.test.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-BACKDROP-LAB-01',
+    title: 'The board backdrop shows the player\x27s Settings pick; a touched dev Layout Lab shows exactly what it is set to',
+    statement:
+      'What lies behind the board is the player\x27s Settings pick (Board backdrop), saved on the device and applied at once '
+      + 'and on every load; Cobblestone when they never chose. In a dev build the Layout Lab\x27s Backdrop section does not '
+      + 'change that until one of its controls is touched; from then until Reset it shows exactly the texture, wash, blur and '
+      + 'shadow it is set to, including when that is the default texture, never the Settings pick in its place.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-28 (board cutout)', quote: 'cobblestone (which is currently wood in the tuner for some reason when selected)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-28 (board cutout)', quote: 'how do we set this as a selectable background option in the real game? can we add a dropdown in the settings menu?' },
+      { kind: 'code', ref: 'packages/ui/src/backdrop.ts; packages/ui/src/layoutConfig.ts (BACKDROP_PRESET_KEYS, labBackdropOn); packages/ui/src/EscMenu.tsx (Board backdrop)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-28 (feat/board-backdrops). Before the fix, picking the default texture in the Lab removed the Lab\x27s override, so the Settings pick (Oak) showed instead.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/backdrop.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

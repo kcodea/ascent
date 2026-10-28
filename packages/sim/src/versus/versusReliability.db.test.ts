@@ -38,10 +38,12 @@ const FILES = [
   '2026-10-25-versus-duos-pass-back.sql', '2026-10-26-versus-lock-order.sql', '2026-10-27-versus-egress.sql', '2026-10-28-versus-health.sql',
   '2026-10-15-lobby-live.sql', '2026-10-26-lobby-live-hero-select.sql', '2026-10-28-friends.sql',
   '2026-10-29-ranked-duos.sql', '2026-10-30-ranked-duos-client.sql', '2026-10-31-ranked-duos-live-fixes.sql',
-  '2026-11-01-ranked-duos-party.sql', '2026-11-01-versus-ready-signal.sql', '2026-11-02-ranked-duos-party-split.sql',
+  '2026-11-01-ranked-duos-party.sql', '2026-11-01-versus-ready-signal.sql', '2026-11-02-ranked-duos-both-ready.sql', '2026-11-02-ranked-duos-party-split.sql',
 ];
 const BASE = FILES.map(mig).join('\n');
 const FIX = mig('2026-11-02-versus-server-reliability.sql');
+/** Applied after this one on the live project (2026-11-03): its Armor triggers run inside the submit / finalize transactions. */
+const AFTER = mig('2026-11-03-versus-live-armor.sql');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -165,6 +167,7 @@ beforeAll(async () => {
   await db.exec('create table if not exists public.versus_test_bots (bot_user uuid primary key, host_user uuid not null, slot int not null, registered_at timestamptz not null default now())');
   await db.exec(FIX);
   await db.exec(FIX); // idempotent
+  await db.exec(AFTER);
 }, 120_000);
 afterAll(async () => { await db?.close(); });
 async function reset(): Promise<void> {
@@ -476,7 +479,7 @@ describe('R-VERSUS-SWEEP-01: a match everybody left ends', () => {
     const kept = await startGroup('group', [A, B, C]);
     const duos = await startGroup('duos', [D, E, F, G]);
     await as(null, `select public.versus__event($1, 0, 'pause', null)`, [left.m]);
-    await q(`update public.versus_events set at = now() - interval '15 days'`);
+    await q(`update public.versus_events set at = $1::timestamptz - interval '15 days'`, [new Date(clock).toISOString()]);
     at(11 * 60_000);
     await heartbeat(C, kept.room);
     const out = await as<any>(null, 'select public.versus_sweep()');

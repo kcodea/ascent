@@ -274,8 +274,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       const now = Date.now();
       // A socket whose keep-alive went stale is a phone that lost its network without a FIN: treat it as closed.
       for (const ws of this.liveSockets()) {
-        const last = this.ctx.getWebSocketAutoResponseTimestamp(ws)?.getTime() ?? this.att(ws).at;
-        if (now - Math.max(last, this.att(ws).at) > VERSUS_CF_STALE_MS) {
+        if (now >= this.staleAt(ws)) {
           try { ws.close(1001, 'stale'); } catch { /* gone */ }
           const userId = this.att(ws).userId;
           if (!this.liveSockets().some((o) => o !== ws && this.att(o).userId === userId)) await this.apply(core.disconnect(userId, now));
@@ -286,6 +285,12 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       this.syncLive();
       await this.rearm();
     }
+  }
+
+  /** When this socket's keep-alive goes stale: its last ping (the runtime's auto-response stamp) or its open, + 15 s. */
+  private staleAt(ws: CfWebSocket): number {
+    const last = this.ctx.getWebSocketAutoResponseTimestamp(ws)?.getTime() ?? this.att(ws).at;
+    return Math.max(last, this.att(ws).at) + VERSUS_CF_STALE_MS + 1;
   }
 
   /** Take one token of `kind` from this socket's bucket. */
@@ -499,9 +504,11 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     if (live != null) due.push(live);
     // (A closed room still owing its Live Games removal waits for that write: the slot's own time above, then this.)
     if (core.state.room.closed && !this.liveSlot?.pending()) due.push(Date.now());
-    // Stale-socket sweep while a match runs (a half-open phone socket must still pause the match).
+    // Stale sockets while a match runs (1v1 or Group / Duos / Ranked Duos): wake exactly when the quietest socket's keep-alive
+    // goes stale, so a half-open phone socket is found 15 s after its last ping, not up to 30 s (R-VERSUS-CF-STALE-01).
     const m = core.state.match;
-    if (m && m.phase !== 'complete' && this.liveSockets().length) due.push(Date.now() + VERSUS_CF_STALE_MS);
+    const g = core.state.group?.match;
+    if ((m && m.phase !== 'complete') || (g && g.phase !== 'complete')) for (const ws of this.liveSockets()) due.push(this.staleAt(ws));
     if (!due.length) return;
     const at = Math.max(Date.now(), Math.min(...due));
     const cur = await this.ctx.storage.getAlarm();

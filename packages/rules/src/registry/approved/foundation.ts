@@ -10674,4 +10674,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-10-28 (feat/board-cutout-preview, PR #2375). Before it, the ring was painted into the old board art, so the cutout board left an unframed portrait.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/portraitFrame/portraitFrame.test.tsx'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-VERSUS-CF-STALE-01',
+    title: 'Versus on Cloudflare: a silently dropped player is found 15 s after their last keep-alive, in every mode',
+    statement:
+      'A room socket that stops pinging (a lost network sends no close) is treated as closed exactly 15 s after its last keep-alive: '
+      + 'while a match runs (1v1, Group, Duos or Ranked Duos) the room wakes at each live socket\x27s own stale moment, not on a fixed '
+      + '15 s sweep. The 3 s pause grace then applies as for any close, so a silent drop pauses the match about 13-18 s after the '
+      + 'player left (Ranked Duos never pauses: the seat plays on auto). The chaos invariant latePause holds every host to 20 s.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27', quote: 'disconnect/reconnects werent done correctly, where it would simply pause when someone returned' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27 (after a night of End of Turn freezes in Versus)', quote: 'need to be spotless experiences' },
+      { kind: 'code', ref: 'workers/versus/src/room.ts (staleAt, alarm, rearm)' },
+    ],
+    currentBehaviour: 'Built 2026-10-28 (fix/versus-cf-stale-socket). Before, the sweep was armed for now + 15 s only in a 1v1 match: a silent drop paused 1v1 about 22 s after the player left and Group / Duos about 25 s (only when another alarm happened to run); the chaos dropLong cells failed latePause in all four pausing modes.',
+    example: 'Bob\x27s phone loses its network in a Group shop: his last ping was 2 s before. 13 s later the room closes his socket as stale, and 3 s after that the match pauses on him.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/chaos/versusChaosCf.test.ts', 'packages/ui/src/versus/chaos/chaosMatch.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

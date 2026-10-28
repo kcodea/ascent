@@ -43,6 +43,10 @@ export const SCENARIOS: ScenarioDef[] = [
     build: (mode) => base('dropRestore', mode, { events: [at(2, 'shop', (h) => h.drop(1, 20_000), 500)] }),
   },
   {
+    name: 'dropLong', about: 'a silent 45 s network loss in a shop: the match pauses within 20 s (latePause) and lifts on return', modes: ALL,
+    build: (mode) => base('dropLong', mode, { events: [at(2, 'shop', (h) => h.drop(1, 45_000), 500)] }),
+  },
+  {
     name: 'dropShort', about: 'a 4 s network blip: no pause, nothing waits', modes: ALL,
     build: (mode) => base('dropShort', mode, { events: [at(2, 'shop', (h) => h.drop(1, 4_000), 500)] }),
   },

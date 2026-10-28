@@ -17,7 +17,8 @@
  *  - every change written to storage before its pushes go out, and a RESTART (eviction, deploy, a resolve that dies)
  *    drops the in-memory room and every socket; the next event re-reads the room from storage (`stateFromEntries`) and
  *    re-counts the sockets (`restoreSockets`); an alarm that died is retried with backoff, as the runtime does;
- *  - one alarm per room, re-armed exactly as `rearm()` does (deadlines, the 15 s stale-socket sweep while a match runs);
+ *  - one alarm per room, re-armed exactly as `rearm()` does (deadlines, and each live socket's stale moment while a match
+ *    runs);
  *  - presence is the socket: the runtime answers keep-alive pings (`setWebSocketAutoResponse`) and stamps them; the alarm
  *    closes a socket whose last ping is older than `VERSUS_CF_STALE_MS`; one live socket per account (newest wins);
  *  - the per-socket rate limit, the hello version check, the join's one-room-per-account directory claim.
@@ -120,6 +121,9 @@ export class FakeCfWebSocket implements WebSocketLike {
     this.fire('close', { code, reason });
   }
 }
+
+/** `room.ts` `staleAt`: the socket's last ping (or its open) + the stale window. */
+const staleAt = (ws: SrvSock): number => Math.max(ws.lastAuto ?? ws.at, ws.at) + VERSUS_CF_STALE_MS + 1;
 
 /** The directory object (`directory.ts`), in memory. */
 interface RoomSummary { id: string; status: string; protocol: number; contentRevision: string; createdAt: string | null; players: number; maxPlayers: number; fresh: boolean; closed: boolean; [k: string]: unknown }
@@ -351,7 +355,7 @@ class RoomShell {
       if (!core) return;
       const now = Date.now();
       for (const ws of this.live()) {
-        if (now - Math.max(ws.lastAuto ?? ws.at, ws.at) > VERSUS_CF_STALE_MS) {
+        if (now >= staleAt(ws)) {
           this.srv.note(`cf room: stale socket closed (${this.srv.nameOf(ws.userId)})`);
           this.serverClose(ws, 1001, 'stale');
           if (!this.live().some((o) => o.userId === ws.userId)) this.apply(core.disconnect(ws.userId, now));
@@ -500,7 +504,8 @@ class RoomShell {
     if (core.state.room.closed) due.push(now);
     const m = core.state.match;
     const g = core.state.group?.match;
-    if (((m && m.phase !== 'complete') || (g && g.phase !== 'complete')) && this.live().length) due.push(now + VERSUS_CF_STALE_MS);
+    // Each live socket's own stale moment while a match runs (R-VERSUS-CF-STALE-01).
+    if ((m && m.phase !== 'complete') || (g && g.phase !== 'complete')) for (const ws of this.live()) due.push(staleAt(ws));
     if (!due.length) return;
     const at = Math.max(now, Math.min(...due));
     if (this.alarmAt == null || this.alarmAt > at || this.alarmAt < now) this.setAlarm(at);

@@ -33,6 +33,7 @@ const fetchPlayerById = vi.fn<(userId: string) => Promise<PlayerRow | null>>();
 const startReplay = vi.fn();
 const fetchPracticeReplay = vi.fn<(rowId: number) => Promise<unknown>>();
 const fetchRunDetails = vi.fn<(userId: string, ids: readonly number[]) => Promise<unknown[] | null>>();
+const fetchRunBoards = vi.fn<(userId: string, ids: readonly number[]) => Promise<unknown[] | null>>();
 const fetchMyPracticeGames = vi.fn<(userId: string | null | undefined, limit?: number) => Promise<PracticeGameRow[] | null>>();
 
 vi.mock('./remoteBoards', async (importOriginal) => ({
@@ -44,6 +45,7 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   fetchMyPracticeGames: (id: string | null | undefined, limit?: number) => fetchMyPracticeGames(id, limit),
   fetchPracticeReplay: (id: number) => fetchPracticeReplay(id),
   fetchRunDetails: (userId: string, ids: readonly number[]) => fetchRunDetails(userId, ids),
+  fetchRunBoards: (userId: string, ids: readonly number[]) => fetchRunBoards(userId, ids),
   fetchPlayerRating: async () => undefined, // syncProfileFromServer: "couldn't ask" → keep the local rating
 }));
 // The LOBBY STRENGTH readout is hidden behind one switch (owner 2026-09-30); a getter-backed mock lets a test
@@ -110,6 +112,7 @@ beforeEach(async () => {
   startReplay.mockReset();
   fetchMyPracticeGames.mockReset().mockResolvedValue(PRACTICE);
   fetchRunDetails.mockReset().mockResolvedValue([]);
+  fetchRunBoards.mockReset().mockResolvedValue([]);
   try { localStorage.removeItem('ascent.career.heroSort'); } catch { /* jsdom */ }
   fetchPracticeReplay.mockReset().mockResolvedValue({ version: 2, seed: 7, frames: [{}] });
   useGame.setState({
@@ -657,9 +660,11 @@ describe('the Heroes tab', () => {
     expect(ui.container.querySelector('.cv2-sec-sub')?.textContent).toBe('2 Brackus games');
     const items = [...ui.container.querySelectorAll('.gs-item .gs-title')].map((n) => n.textContent);
     expect(items).toEqual(['Brackus', 'Brackus']);
-    // The light (older) Brackus run asks for its detailed row ONCE; the detailed one never does.
-    expect(fetchRunDetails).toHaveBeenCalledTimes(1);
-    expect(fetchRunDetails.mock.calls[0]![1]).toEqual([10]);
+    // The light (older) Brackus run asks for its BOARD once (its list portrait's skins); the opened game is already
+    // read in full, so nothing is read in full (P1.3: the full row is read only for an opened game that lacks it).
+    expect(fetchRunBoards).toHaveBeenCalledTimes(1);
+    expect(fetchRunBoards.mock.calls[0]![1]).toEqual([10]);
+    expect(fetchRunDetails).not.toHaveBeenCalled();
     // Each row keeps its own Replay state: the selected (newest) Brackus run has no recording here.
     const replay = ui.container.querySelector<HTMLButtonElement>('.gs-detail .cv2-watch');
     expect(replay?.disabled).toBe(true);
@@ -667,6 +672,22 @@ describe('the Heroes tab', () => {
     expect(ui.container.querySelector('.cv2-herofilter-chip')).toBeNull();
     expect(ui.container.querySelectorAll('.gs-item')).toHaveLength(3);
     expect(ui.container.querySelector('.cv2-sec-sub')?.textContent).toBe('Last 3 runs');
+  });
+
+  it('DETAIL ON DEMAND (P1.3): only the opened game is read in full, once per game, and its lobby details appear', async () => {
+    const pick = (i: number): void => { act(() => { (ui.container.querySelectorAll('.gs-item')[i] as HTMLElement).click(); }); };
+    await flush();
+    expect(fetchRunDetails).not.toHaveBeenCalled(); // the newest game is already detailed here
+    fetchRunDetails.mockResolvedValue([{ id: 10, created_at: '2026-01-01T00:00:00Z', placement: 7, entry: { heroId: 'brackus', board: { minions: [{ cardId: 'alleycat', attack: 3, health: 3 }], wave: 9, heroId: 'brackus', runes: [] } } }]);
+    pick(2); // run 10: light
+    await flush();
+    expect(fetchRunDetails).toHaveBeenCalledTimes(1);
+    expect(fetchRunDetails.mock.calls[0]).toEqual(['me-1', [10]]);
+    pick(0);
+    pick(2); // flick back: no second read
+    await flush();
+    expect(fetchRunDetails).toHaveBeenCalledTimes(1);
+    expect(ui.container.querySelector('.gs-detail .cv2-row-none')?.textContent ?? '').not.toContain('No final team');
   });
 
   it('Back to Heroes returns to the grid and drops the filter; Enter on a focused card opens it too', () => {

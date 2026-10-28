@@ -23,7 +23,7 @@ import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { AddFriendButton } from './friends/AddFriendButton';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
 import { CareerDuosTeams } from './versus/DuosBoards';
-import { fetchMyPracticeGames, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, fetchRunDetails, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
+import { fetchMyPracticeGames, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, fetchRunBoards, fetchRunDetails, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import type { RunHistoryRowLike } from './careerData';
 import { careerFresh, careerKeyUser, carryTelemetry, loadCareer } from './careerLoad';
@@ -208,7 +208,9 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
   const fights = run.wins + run.losses + run.draws;
   // THE LOBBY PICKER (owner 2026-10-16): whose board the big board shows; yours by default.
   const { own } = useContext(CareerSkinContext);
-  const lp = useLobbyParts(run.match, own, <div className="cv2-lobby-none">{NO_DETAILS_TEXT}</div>);
+  // A run not read in full yet (P1.3: the match details arrive when the game is opened) holds an empty slot, never
+  // "no details", which would be wrong for a second.
+  const lp = useLobbyParts(run.match, own, run.detailed ? <div className="cv2-lobby-none">{NO_DETAILS_TEXT}</div> : <div className="cv2-lobby-none" aria-busy="true" />);
   // THE GAME CARD (GameCard.tsx, 2026-10-16): the placement once, the hero + record, the board strip, runes and actions
   // at the side, and one quiet meta line. The match WIN / LOSS (top 4 or not) is the card's band colour now.
   return (
@@ -509,23 +511,29 @@ export function Career() {
   // with the detailed rows read below once they land.
   const heroDetailRows = heroDetail && heroDetail.userId === userId ? heroDetail.rows : null;
   const heroRuns = useMemo(
-    () => (heroFilter && runs ? withRunDetails(runsOfHero(runs, heroFilter, MATCH_ROWS), heroDetailRows ?? []) : null),
-    [heroFilter, runs, heroDetailRows],
+    () => (heroFilter && runs ? runsOfHero(runs, heroFilter, MATCH_ROWS) : null),
+    [heroFilter, runs],
   );
-  // A hero's games older than the newest `CAREER_DETAIL_ROWS` were fetched light (no final team): read their detailed
-  // rows ONCE per hero pick so the selected game shows its board. Replay never waits on this (the telemetry join
-  // already gave every row its handle).
+  // The Match History list: the hero's games or the newest MATCH_ROWS, upgraded with every row read on demand (the hero
+  // filter's boards, the opened games in full).
+  const matchRows = useMemo(
+    () => withRunDetails(heroRuns ?? (runs ?? []).slice(0, MATCH_ROWS), heroDetailRows ?? []),
+    [heroRuns, runs, heroDetailRows],
+  );
+  // A hero's games older than the newest `CAREER_DETAIL_ROWS` were fetched light (no final team): read their final
+  // BOARDS ONCE per hero pick so the list portraits wear the recorded skins (the opened game is read in full below).
+  // Replay never waits on this (the telemetry join already gave every row its handle).
   useEffect(() => {
     if (!show) { setHeroFilter(null); setHeroDetail(null); heroAsked.current.clear(); return; }
     if (tab !== 'history' || !heroFilter || !userId || !runs || !remoteEnabled()) return;
     const ask = `${userId}|${heroFilter}`;
     if (heroAsked.current.has(ask)) return;
-    const ids = runsOfHero(runs, heroFilter, MATCH_ROWS).filter((r) => !r.detailed && r.id !== null).map((r) => r.id!);
+    const ids = runsOfHero(runs, heroFilter, MATCH_ROWS).filter((r) => !r.detailed && !r.board && r.id !== null).map((r) => r.id!);
     if (ids.length === 0) return;
     heroAsked.current.add(ask);
     let live = true;
     const who = userId;
-    void fetchRunDetails(who, ids).then((rows) => {
+    void fetchRunBoards(who, ids).then((rows) => {
       if (!live || !rows) return;
       setHeroDetail((prev) => ({ userId: who, rows: [...(prev && prev.userId === who ? prev.rows : []), ...rows] }));
     });
@@ -549,6 +557,26 @@ export function Career() {
   const [pickedRun, setPickedRun] = useState<string | null>(null);
   const [pickedPractice, setPickedPractice] = useState<string | null>(null);
   useEffect(() => { setPickedRun(null); setPickedPractice(null); setHeroFilter(null); }, [viewing?.userId, viewing?.focus]);
+  // DETAIL ON DEMAND (Supabase cleanup P1.3, 2026-10-28): the list rows carry their board, never the match details;
+  // the game open in the detail panel is read in full, once per game per page (the same pick the panel renders).
+  const openRun = useMemo(() => {
+    if (matchRows.length === 0) return null;
+    const focusAt = heroFilter ? -1 : focusIndex;
+    return matchRows.find((r, i) => `r${r.id ?? i}` === pickedRun) ?? matchRows[focusAt >= 0 ? focusAt : 0] ?? null;
+  }, [matchRows, pickedRun, heroFilter, focusIndex]);
+  const openRunId = openRun && !openRun.detailed ? openRun.id : null;
+  useEffect(() => {
+    if (!show || tab !== 'history' || openRunId === null || !userId || !remoteEnabled()) return;
+    const ask = `${userId}|#${openRunId}`;
+    if (heroAsked.current.has(ask)) return;
+    heroAsked.current.add(ask);
+    const who = userId;
+    // Kept even if the player has moved on: the read is per game, and a quick flick back must not ask twice.
+    void fetchRunDetails(who, [openRunId]).then((rows) => {
+      if (!rows) { heroAsked.current.delete(ask); return; } // couldn't ask: the next open tries again
+      setHeroDetail((prev) => ({ userId: who, rows: [...(prev && prev.userId === who ? prev.rows : []), ...rows] }));
+    });
+  }, [show, tab, openRunId, userId]);
   // Stable Watch callbacks for the memoised banners; the ref always holds this render's handler.
   const watchRunRef = useRef<(run: CareerRun) => void>(() => {});
   const onWatchRun = useCallback((run: CareerRun) => watchRunRef.current(run), []);
@@ -600,7 +628,6 @@ export function Career() {
 
   const heroId = aggregates.mostPlayedHero ?? viewing?.favoriteHero ?? '';
   const heroName = heroId ? getHero(heroId).name : '—';
-  const matchRows = heroRuns ?? (runs ?? []).slice(0, MATCH_ROWS);
   const filterName = heroFilter ? getHero(heroFilter).name : '';
   // Leaving Match History drops the hero filter: it only ever comes from a hero card's click.
   const pickTab = (t: CenterTab): void => { if (t === tab) return; if (t !== 'history') setHeroFilter(null); setTab(t); saveTab(t); };

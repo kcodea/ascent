@@ -377,6 +377,24 @@ describe('Net MMR + the hero sorts + the hero filter rows (owner 2026-10-23)', (
     expect(up[1]!.replayRowId).toBe(44); // the telemetry join survives the upgrade
     expect(up[0]).toBe(runs[0]); // no detailed row: the same object
   });
+
+  it('P1.3: a BOARD row (board:entry->board) brings board + runes but not `detailed`; the full row then wins', () => {
+    const full = detailedRow({ id: 3 });
+    const boardRow = { id: 3, created_at: full.created_at, placement: 2, board: full.entry.board };
+    const asBoard = careerRunOf(boardRow);
+    expect(asBoard).toMatchObject({ detailed: false, match: null, runes: ['rune_broodpit', 'rune_epic_forge'] });
+    expect(asBoard.board?.minions).toHaveLength(1);
+    const runs = [run({ id: 3, heroId: 'a', replayRowId: 44 })];
+    const boarded = withRunDetails(runs, [boardRow]);
+    expect(boarded[0]).toMatchObject({ detailed: false, replayRowId: 44, runes: ['rune_broodpit', 'rune_epic_forge'] });
+    expect(boarded[0]!.board).not.toBeNull();
+    // Both read (the hero filter's board, then the opened game in full), in either order: the full row wins.
+    expect(withRunDetails(runs, [boardRow, full])[0]!.detailed).toBe(true);
+    expect(withRunDetails(runs, [full, boardRow])[0]!.detailed).toBe(true);
+    // A board row never replaces a board the run already has.
+    const already = run({ id: 3, heroId: 'a', board: { minions: [] } as never });
+    expect(withRunDetails([already], [boardRow])[0]).toBe(already);
+  });
 });
 
 describe('trendSeries — the four lines over a window', () => {

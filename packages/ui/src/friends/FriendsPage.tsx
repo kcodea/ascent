@@ -29,7 +29,7 @@ import {
 } from './friendsStore';
 import { watchFriend } from './friendsGo';
 import type { Friend, FriendCard } from './friendsRemote';
-import { gameStatusChips, roundPhaseText, type FriendGameStatus } from './gameStatus';
+import { activityText, gameStatusDetail, ORD, stepText, type FriendActivity, type FriendGameStatus } from './gameStatus';
 import './friends.css';
 
 /** A card's recorded cosmetics (frame + favourite-hero skin) as a snapshot the portrait helpers read. */
@@ -52,9 +52,10 @@ export const FriendPortrait = memo(function FriendPortrait({ card }: { card: Fri
 
 export const handleOf = (c: Pick<FriendCard, 'author' | 'discriminator' | 'userId'>): string => displayHandle(c.author, c.discriminator, c.userId);
 
-/** "Online" / "In a game: Ranked" / "Last seen 3 minutes ago". */
-export function statusText(f: Pick<Friend, 'status' | 'mode' | 'lastSeen'>, now = Date.now()): string {
+/** "Online" / "Online: Browsing Career" / "In a game: Ranked" / "Last seen 3 minutes ago". */
+export function statusText(f: Pick<Friend, 'status' | 'mode' | 'lastSeen' | 'activity'>, now = Date.now()): string {
   if (f.status === 'online') {
+    if (f.activity) return `Online: ${activityText(f.activity, modeText)[0]}`;
     const m = f.mode === 'versus_room' ? 'In a Versus room' : f.mode === 'watching' || f.mode === 'replay' ? modeText(f.mode) : null;
     return m ? `Online: ${m}` : 'Online';
   }
@@ -83,20 +84,43 @@ function ConfirmButton({ label, confirm, onConfirm, disabled }: { label: string;
 }
 
 /**
- * A FRIEND'S GAME at a glance (R-FRIENDS-STATUS-01): the hero they play (a small portrait in the game's own frame), the
- * round and phase, then their place or the players, Health + Armor and tier. Static text, no animation.
+ * A FRIEND'S GAME at a glance (R-FRIENDS-STATUS-01, R-FRIENDS-ACTIVITY-01): ONE line under the status: the hero they
+ * play (a small portrait in the game's own frame), what they are doing ("Round 6 · Fighting Ann"), then their place,
+ * Health + Armor (the game's own pill icons) and tier. The players, the teammate and the long words live in the
+ * row's hover / tap (`friendDetail`). Static text, no animation.
  */
 export const FriendGame = memo(function FriendGame({ game }: { game: FriendGameStatus }) {
-  const chips = gameStatusChips(game);
   return (
     <div className="fr-game">
       {game.hero && <span className="fr-gamehero" aria-hidden="true"><LbHeroFrame heroId={game.hero} /></span>}
-      <span className="fr-gameline">{roundPhaseText(game)}</span>
-      {chips.map((c) => <span key={c} className="fr-gamechip">{c}</span>)}
-      {game.vs && <span className="fr-gamevs">{game.vs}</span>}
+      <span className="fr-gameline">{stepText(game)}</span>
+      {game.place && <span className="fr-gamechip">{`${ORD(game.place.rank)} of ${game.place.left}`}</span>}
+      {game.health != null && (
+        <span className="fr-gamechip fr-vitals" aria-label={game.armor ? `${game.health} Health and ${game.armor} Armor` : `${game.health} Health`}>
+          <Icon name="heartPill" />{game.health}{game.armor ? <><Icon name="armor" />{game.armor}</> : null}
+        </span>
+      )}
+      {game.tier != null && <span className="fr-gamechip">{`Tier ${game.tier}`}</span>}
     </div>
   );
 });
+
+/** An online friend's second line, when the activity has one ("3 of 4 players · Waiting"). */
+function ActivityDetail({ activity }: { activity: FriendActivity }) {
+  const detail = activityText(activity, modeText)[1];
+  return detail ? <div className="fr-game"><span className="fr-gamevs">{detail}</span></div> : null;
+}
+
+/** The full detail the row's hover / tap shows: every line, so the row itself stays two short lines. Null when the
+ *  row already says it all. */
+export function friendDetail(f: Pick<Friend, 'status' | 'mode' | 'game' | 'activity'>): string | null {
+  if (f.status === 'in_game' && f.game) return gameStatusDetail(f.game, modeText(f.mode)).join('\n');
+  if (f.status === 'online' && f.activity) {
+    const [line, detail] = activityText(f.activity, modeText);
+    return detail ? `${line}\n${detail}` : null;
+  }
+  return null;
+}
 
 function FriendRow({ f, inviteRoom }: { f: Friend; inviteRoom: string | null }) {
   const busy = useFriends((s) => !!s.busy[f.userId] || !!s.busy[`invite:${f.userId}`]);
@@ -104,14 +128,18 @@ function FriendRow({ f, inviteRoom }: { f: Friend; inviteRoom: string | null }) 
   const [going, setGoing] = useState(false);
   const watchable = f.status === 'in_game' && !!f.watchId && (f.watchKind === 'live' || f.watchKind === 'versus');
   const invitable = !!inviteRoom && f.status === 'online' && f.mode !== 'versus_room';
+  const tip = friendDetail(f);
   const inviteLabel = sent?.status === 'pending' ? 'Invited' : sent?.status === 'declined' ? 'Declined' : sent?.status === 'accepted' ? 'Joined' : 'Invite';
   return (
     <div className={`lb-row fr-row fr-${f.status}`}>
       <div className="lb-row-hero"><FriendPortrait card={f} /></div>
       <div className="fr-who">
         <div className="fr-name">{handleOf(f)}</div>
-        <div className="fr-status"><span className="fr-dot" aria-hidden="true" />{statusText(f)}</div>
-        {f.status === 'in_game' && f.game && <FriendGame game={f.game} />}
+        <div className="fr-detail" data-tip={tip ?? undefined} tabIndex={tip ? 0 : undefined}>
+          <div className="fr-status"><span className="fr-dot" aria-hidden="true" /><span className="fr-statustext">{statusText(f)}</span></div>
+          {f.status === 'in_game' && f.game && <FriendGame game={f.game} />}
+          {f.status === 'online' && f.activity && <ActivityDetail activity={f.activity} />}
+        </div>
       </div>
       <div className="fr-actions">
         {watchable && (

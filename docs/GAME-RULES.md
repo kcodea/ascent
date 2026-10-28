@@ -1453,13 +1453,27 @@ Ranked Duos party).
   watchable: a ranked lobby game through Live Games, a Versus match from their room's stands. The sidebar plaque shows
   requests waiting, else how many friends are online.
 - **Presence.** Online = on a menu (including a Versus room between matches); In a game = playing; Offline = nothing
-  heard for 3 minutes. Only you and your friends can read your presence. It is never broadcast.
+  heard for 5 minutes (or the game was closed). Only you and your friends can read your presence. It is never broadcast.
+- **What a friend is doing** (owner 2026-10-29, R-FRIENDS-ACTIVITY-01). Online, the row names the screen: Main menu,
+  Choosing a mode, Tutorial, Browsing Career / the Leaderboard / the Hall of Champions / Recent Games / Live Games,
+  Collection, Compendium, Patch Notes, Settings, Friends, Hero Select (with its mode), Setting up Practice, Looking for a
+  Versus room / a Duo party, In a Versus room (its mode, "3 of 4 players", Waiting or Starting), In a Duo party with
+  the partner, Watching a player or a Versus match, Watching a replay (their own, a friend's by name, a stranger's
+  unnamed). In a game: the round and the step (Picking a hero, Shopping, Ending turn, Fighting and who, or "a recorded
+  board"; Knocked out, Nth and watching the fight in Versus; Won the game or Finished Nth on the end screen), with the
+  hero, place, Health + Armor and tier. The row stays two short lines; the rest (players, teammate, every number) is in
+  its hover / tap. Everything is derived from screens already on the player's device: no extra network call.
+- **"Show friends what I'm doing"** (Settings > Friends, on by default, saved on the device). Off: friends see only
+  Online, or In a game with its mode (no screen, no game detail, no Watch from the Friends page).
 - **Invites.** From a Versus room (Invite friends) or the Friends page while you are in an open room: only to a friend
   who is Online (not in a game). The invitee gets a corner notice with Accept / Decline on any menu (never over a game);
   it lasts 2 minutes. Accept opens Versus and joins the room (a seat is then one drag away). A newer invite to the same
   friend replaces the older one. 30 invites an hour. The Ranked Duos party uses the same invite (kind `duos_party`): Accept opens the party and takes its free seat.
 - **Cost (egress).** One small presence call (it also answers requests and invites) every 60 s while the tab is
-  visible, 120 s while hidden, at once on a status change (at most every 5 s), every 3 minutes with no friends; the
+  visible or hidden, on a status change once the screen has settled for 1.5 s (rapid hops send one call, a flip
+  straight back sends none; at most every 5 s), every 3 minutes with no friends. Only the coarse activity sends a call:
+  Health, Armor, tier and place ride along, and a lobby End Turn never sends one of its own. A typical session measured
+  92 calls an hour (80 before the activity; 62 with the setting off); the
   friends list is read only while a friends surface is open, every 60 s, never while hidden; the only Realtime
   subscription is invites addressed to you, only with at least one friend and a visible tab.
 

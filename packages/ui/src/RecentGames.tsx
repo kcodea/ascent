@@ -299,7 +299,7 @@ export function RecentGames(): JSX.Element | null {
     // A practice row's replay lives on its own table (`practice_games.replay`), a ranked row's on run_telemetry.
     void ('practice' in r ? fetchPracticeReplay(r.rowId) : fetchReplayPayload(r.rowId))
       .then((rep) => {
-        if (rep) startReplay(rep, { authorName: r.author || undefined });
+        if (rep) startReplay(rep, { authorName: r.author || undefined, authorId: r.userId ?? null });
         else setNoReplay(key);
       })
       .finally(() => setWatching(null));

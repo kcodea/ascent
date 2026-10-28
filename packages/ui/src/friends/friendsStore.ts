@@ -12,6 +12,10 @@
  *     throttled timer fires a minute late. Going hidden beats once (if the last beat is 30 s old) so the hidden clock
  *     starts fresh, and closing the page sends an Offline beat (keepalive) so a closed game reads Offline at once.
  *     Egress: visible 60 an hour (unchanged), hidden 60 an hour (was 30), plus one beat per close.
+ *     THE ACTIVITY (R-FRIENDS-ACTIVITY-01, owner 2026-10-29): the beat also says which screen I am on and, in a game,
+ *     the step. A change beats once the screen has settled (`CHANGE_SETTLE_MS`), only when the COARSE activity moved;
+ *     "Show friends what I'm doing" off (`friendsPrefs.ts`) sends only Online, or In a game with its mode. Measured on
+ *     a scripted 35-minute session (`friendsBeatBudget.test.ts`): 53 beats, against 46 before; 36 with the switch off.
  *  2. THE INVITE WAKE-UP: a Realtime subscription to INSERTs on `friend_invites` addressed to me (to_user filter + RLS),
  *     only for an account with at least one friend and only while the tab is visible. Each insert triggers one beat.
  *  3. THE FRIENDS LIST (`useFriendsListLoop`): the one batched `friends_list` read, only while a friends surface is open
@@ -21,15 +25,18 @@
  */
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import { lobbyIsUnrated, normalizeVersusOptions, rankedRunIdOf } from '@game/sim';
+import { lobbyIsUnrated, normalizeVersusOptions, pairRunLobby, rankedRunIdOf, VERSUS_MODE_SEATS, type RunLobby } from '@game/sim';
 import { remoteEnabled } from '../remoteBoards';
 import { pageHidden } from '../net/backoff';
 import { useGame } from '../store';
 import { useVersus, myRole } from '../versus/versusStore';
 import { versusRemote, versusRoomRef } from '../versus/versusRemote';
-import { gameStatusKey, lobbyGameStatus, versusGameStatus } from './gameStatus';
+import {
+  activityKey, gameCoarseKey, lobbyGameStatus, NAME_MAX, versusGameStatus, versusLine, type ActivityKind, type FriendActivity, type GameExtras,
+} from './gameStatus';
+import { useFriendsPrefs } from './friendsPrefs';
 import { decodeRoomRef } from '../versus/versusHost';
-import { isWatchingLive } from '../live/liveWatch';
+import { isWatchingLive, useLiveWatch } from '../live/liveWatch';
 import { liveEligible } from '../live/livePublisher';
 import {
   friendsRemote, friendsErrorText, FriendsError, type BeatAnswer, type FriendInvite, type FriendsList, type FriendsRemote,
@@ -40,6 +47,8 @@ export const BEAT_VISIBLE_MS = 60_000;
 export const BEAT_HIDDEN_MS = 60_000;
 export const BEAT_FRIENDLESS_MS = 180_000;
 export const BEAT_MIN_GAP_MS = 5_000;
+/** A change waits this long for the screen to settle before it beats (R-FRIENDS-ACTIVITY-01). */
+export const CHANGE_SETTLE_MS = 1_500;
 /** The longest a failing beat waits: with a minute of throttling on top it still lands inside the 300 s window. */
 export const BEAT_MAX_BACKOFF_MS = 90_000;
 /** Going hidden beats at once when the last beat is at least this old. */
@@ -95,41 +104,159 @@ export type PresenceMode = 'ranked' | 'casual' | 'practice' | 'tutorial' | 'gaun
 
 const VERSUS_MODE_OF = { duel: 'versus_1v1', group: 'versus_group', duos: 'versus_duos', ranked_duos: 'ranked_duos' } as const;
 
-/** My presence, from the stores. Cheap (a few field reads); pure for the tests. */
+/**
+ * My presence, from the stores. Cheap (a few field reads; one pairing only during a fight); pure for the tests.
+ * "Show friends what I'm doing" off (R-FRIENDS-ACTIVITY-01): only Online, or In a game with its mode.
+ */
 export function presenceNow(): PresenceReport {
+  const p = presenceDetailed();
+  return useFriendsPrefs.getState().showActivity ? p : privatePresence(p);
+}
+
+/** The private presence: Online, or In a game with its mode. No screen, no game detail, no watch target. */
+export function privatePresence(p: PresenceReport): PresenceReport {
+  return p.status === 'in_game'
+    ? { status: 'in_game', mode: p.mode, watchKind: null, watchId: null }
+    : { status: p.status, mode: null, watchKind: null, watchId: null };
+}
+
+const online = (mode: PresenceMode | null, activity: FriendActivity | null): PresenceReport =>
+  activity ? { status: 'online', mode, watchKind: null, watchId: null, activity } : { status: 'online', mode, watchKind: null, watchId: null };
+
+/** Who the player fights in a lobby round (null: a recorded board with no seat, or a bye). Cached per lobby + round. */
+let foeCache: { lobby: RunLobby; round: number; name: string | null } | null = null;
+export function lobbyFoeName(lobby: RunLobby): string | null {
+  if (foeCache && foeCache.lobby === lobby && foeCache.round === lobby.round) return foeCache.name;
+  let name: string | null = null;
+  try {
+    const forced = lobby.forcedOpponent;
+    if (forced && forced.round === lobby.round) name = lobby.seats.find((x) => x.id === forced.seatId)?.label ?? null;
+    else {
+      const pair = pairRunLobby(lobby).pairs.find(([a, b]) => a.id === 's0' || b.id === 's0');
+      name = pair ? (pair[0].id === 's0' ? pair[1] : pair[0]).label || null : null;
+    }
+  } catch { name = null; }
+  foeCache = { lobby, round: lobby.round, name };
+  return name;
+}
+
+/** Whose replay: my own, a friend's (by id, from the last list), else nobody named (a stranger stays unnamed). */
+function replayActivity(): FriendActivity {
+  const a = useFriendsPrefs.getState().replayAuthor;
+  if (a?.own) return { v: 1, act: 'replay', own: true };
+  const friend = a?.id ? get().list?.friends.find((f) => f.userId === a.id) : undefined;
+  const who = friend ? (friend.author ?? a?.name ?? null) : null;
+  return who ? { v: 1, act: 'replay', who: who.slice(0, NAME_MAX) } : { v: 1, act: 'replay' };
+}
+
+/** The screen I am on outside a game (the top overlay first, then the ladder page, then the title's view). */
+function menuActivity(g: ReturnType<typeof useGame.getState>, area: string): FriendActivity | null {
+  const act = (a: ActivityKind): FriendActivity => ({ v: 1, act: a });
+  if (g.showPatchNotes) return act('patch_notes');
+  if (g.settingsOpen) return act('settings');
+  if (g.showBook) return act('compendium');
+  if (g.showFriends) return act('friends');
+  if (g.showCareer) return act('career');
+  if (g.showRankings) return act('leaderboard');
+  if (g.showLeaderboard) return act('hall');
+  if (g.showRecentGames) return act('recent');
+  if (g.showLiveGames) return act('live');
+  if (g.showCollection) return act('collection');
+  if (!g.showTitle) return null;
+  switch (g.titleView) {
+    case 'modes': case 'gauntlet': return act('modes');
+    case 'learn': return act('learn');
+    case 'versus': return act(area === 'duos' ? 'duos_browser' : 'versus_browser');
+    default: return act('menu');
+  }
+}
+
+/** My presence in full, before the privacy switch. */
+function presenceDetailed(): PresenceReport {
   const g = useGame.getState();
   const v = useVersus.getState();
   if (v.room) {
-    const mode = VERSUS_MODE_OF[normalizeVersusOptions(v.room.options).mode];
+    const vmode = normalizeVersusOptions(v.room.options).mode;
+    const mode = VERSUS_MODE_OF[vmode];
     const role = myRole(v.room);
     const running = v.room.status === 'in_game' && !!v.match && v.match.phase !== 'complete';
-    if (running && role && role !== 'spectator') {
+    const seats = v.room.members.filter((m) => m.role !== 'spectator').map((m) => ({ role: m.role, name: m.displayName }));
+    // VERSUS GROUP KNOCKOUT: moved to the stands, still in the match (watching the rest, with my place).
+    const ko = running && v.knockout && v.knockout.matchId === v.match!.id ? v.knockout : null;
+    if (running && ((role && role !== 'spectator') || ko)) {
       // R-FRIENDS-STATUS-01: my own run's vitals and tier, the match's round and phase, the room's players.
       const run = g.run.mode === 'versus' ? g.run : null;
-      const seats = v.room.members.filter((m) => m.role !== 'spectator').map((m) => ({ role: m.role, name: m.displayName }));
-      return { status: 'in_game', mode, watchKind: 'versus', watchId: versusRoomRef(v.room), game: versusGameStatus(mode, run, v.match!, seats) };
+      const m = v.match!;
+      const mate = vmode === 'duos' || vmode === 'ranked_duos' ? teammateOf(role, seats) : null;
+      const extras: GameExtras = {
+        ending: m.phase === 'resolving' || (m.phase === 'shop' && v.lockedRound === m.round),
+        mate,
+        out: ko ? { place: ko.placement } : null,
+      };
+      if (m.phase === 'combat') extras.foe = versusFoe(vmode, role, seats, run?.lobby ?? null);
+      return { status: 'in_game', mode, watchKind: 'versus', watchId: versusRoomRef(v.room), game: versusGameStatus(mode, run, m, seats, extras) };
     }
-    if (running) return { status: 'online', mode: 'watching', watchKind: null, watchId: null };
-    return { status: 'online', mode: 'versus_room', watchKind: null, watchId: null };
+    if (running) return online('watching', { v: 1, act: 'spectate', mode, who: versusLine(mode, seats)?.slice(0, NAME_MAX) ?? null });
+    const max = VERSUS_MODE_SEATS[vmode].max;
+    const starting = v.room.status !== 'open';
+    if (vmode === 'ranked_duos') {
+      const mate = teammateOf(role, seats);
+      return online('versus_room', { v: 1, act: 'duo_party', ...(mate ? { who: mate.slice(0, NAME_MAX) } : {}), players: seats.length, max, ...(starting ? { starting } : {}) });
+    }
+    return online('versus_room', { v: 1, act: 'versus_room', mode, players: Math.min(seats.length, max), max, ...(starting ? { starting } : {}) });
   }
-  if (isWatchingLive()) return { status: 'online', mode: 'watching', watchKind: null, watchId: null };
-  if (g.replaying) return { status: 'online', mode: 'replay', watchKind: null, watchId: null };
+  if (isWatchingLive()) {
+    const who = useLiveWatch.getState().game?.display_name;
+    return online('watching', who ? { v: 1, act: 'spectate', who: who.slice(0, NAME_MAX) } : { v: 1, act: 'spectate' });
+  }
+  if (g.replaying) return online('replay', replayActivity());
   const run = g.run;
-  const playing = !g.showTitle && !g.practiceSetupOpen && !g.heroChoices && (run.phase === 'recruit' || run.phase === 'combat');
-  if (!playing) return { status: 'online', mode: null, watchKind: null, watchId: null };
-  let mode: PresenceMode = 'solo';
-  if (run.mode === 'lobby') mode = run.sandbox || run.godMode ? 'practice' : run.lobby && lobbyIsUnrated(run.lobby) ? 'casual' : 'ranked';
-  else if (run.mode === 'practice' || run.mode === 'tutorial' || run.mode === 'gauntlet') mode = run.mode;
-  // EVERY lobby game (ranked, casual, Practice) is watchable through Live Games (the gate the listing uses;
-  // owner 2026-10-28, R-LIVE-ALL-GAMES-01).
-  const live = liveEligible(run, { replaying: g.replaying, showTitle: g.showTitle });
-  return {
-    status: 'in_game', mode, watchKind: live ? 'live' : null, watchId: live ? rankedRunIdOf(run) : null,
-    game: run.lobby ? lobbyGameStatus(mode, run) : null,
-  };
+  const inRun = !g.showTitle && !g.practiceSetupOpen && !g.heroChoices;
+  const playing = inRun && (run.phase === 'recruit' || run.phase === 'combat');
+  // THE END SCREEN of a lobby game: Won, or Finished Nth, until the player leaves it.
+  const over = inRun && !!run.lobby && (run.phase === 'gameover' || run.phase === 'victory');
+  if (playing || over) {
+    let mode: PresenceMode = 'solo';
+    if (run.mode === 'lobby') mode = run.sandbox || run.godMode ? 'practice' : run.lobby && lobbyIsUnrated(run.lobby) ? 'casual' : 'ranked';
+    else if (run.mode === 'practice' || run.mode === 'tutorial' || run.mode === 'gauntlet') mode = run.mode;
+    // EVERY lobby game (ranked, casual, Practice) is watchable through Live Games (the gate the listing uses;
+    // owner 2026-10-28, R-LIVE-ALL-GAMES-01).
+    const live = playing && liveEligible(run, { replaying: g.replaying, showTitle: g.showTitle });
+    const extras: GameExtras = { ending: run.phase === 'recruit' && g.endTurnAnimating };
+    if (run.phase === 'combat' && run.lobby) extras.foe = lobbyFoeName(run.lobby);
+    return {
+      status: 'in_game', mode, watchKind: live ? 'live' : null, watchId: live ? rankedRunIdOf(run) : null,
+      game: run.lobby ? lobbyGameStatus(mode, run, false, extras) : null,
+    };
+  }
+  if (g.heroChoices && !g.showTitle) {
+    const mode = g.pendingGauntletStage != null ? 'gauntlet' : g.pendingMode === 'practice' ? 'practice' : 'ranked';
+    return online(null, { v: 1, act: 'hero_select', mode });
+  }
+  if (g.practiceSetupOpen) return online(null, { v: 1, act: 'practice_setup' });
+  return online(null, menuActivity(g, v.area));
 }
 
-const presenceKey = (p: PresenceReport): string => `${p.status}|${p.mode ?? ''}|${p.watchKind ?? ''}|${p.watchId ?? ''}|${gameStatusKey(p.game ?? null)}`;
+/** My teammate in a two-player team (p1 + p2, p3 + p4). */
+function teammateOf(role: string | null, seats: readonly { role: string; name: string }[]): string | null {
+  const pairOf: Record<string, string> = { p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' };
+  const other = role ? pairOf[role] : undefined;
+  return (other && seats.find((s) => s.role === other)?.name) || null;
+}
+
+/** Who I fight in a Versus round: the other player (1v1), the other team (Duos), else the display lobby's pairing. */
+function versusFoe(vmode: string, role: string | null, seats: readonly { role: string; name: string }[], lobby: RunLobby | null): string | null {
+  if (vmode === 'duel') return seats.find((s) => s.role !== role)?.name ?? null;
+  if (vmode === 'duos') {
+    const theirs = role === 'p3' || role === 'p4' ? ['p1', 'p2'] : ['p3', 'p4'];
+    return seats.filter((s) => theirs.includes(s.role)).map((s) => s.name).join(' & ').slice(0, NAME_MAX) || null;
+  }
+  return lobby ? lobbyFoeName(lobby) : null;
+}
+
+/** What decides that a beat is owed: the coarse activity (never Health, Armor, tier or place on their own). */
+const presenceKey = (p: PresenceReport): string =>
+  `${p.status}|${p.mode ?? ''}|${p.watchKind ?? ''}|${p.watchId ?? ''}|${gameCoarseKey(p.game ?? null)}|${activityKey(p.activity)}`;
 
 /** "Ranked", "Versus Duos", ... for a presence mode. */
 export function modeText(mode: string | null | undefined): string | null {
@@ -171,6 +298,8 @@ let lastAt = -Infinity;
 let lastKey = '';
 let failures = 0;
 let inFlight = false;
+/** A change beat is armed (the settle is running). */
+let changePending = false;
 let invitesSub: { close: () => void } | null = null;
 let invitesSubFor = '';
 /** The page is being closed (pagehide): no more beats until it comes back from the back/forward cache. */
@@ -200,6 +329,7 @@ export async function beatNow(): Promise<void> {
   const now = Date.now();
   if (now - lastAt < BEAT_MIN_GAP_MS) { schedule(lastAt + BEAT_MIN_GAP_MS - now); return; }
   const p = presenceNow();
+  changePending = false;
   inFlight = true;
   lastAt = now;
   lastKey = presenceKey(p);
@@ -222,12 +352,24 @@ export async function beatNow(): Promise<void> {
   if (started) schedule(nextDelay());
 }
 
-/** My status may have changed: beat soon if it did. */
+/**
+ * My status may have changed: beat once it SETTLES (R-FRIENDS-ACTIVITY-01). Each change re-arms a short settle
+ * (`CHANGE_SETTLE_MS`), so rapid screen flips (sidebar hops, a quick look at Settings) send one beat for where I land,
+ * and flipping straight back sends none. Never faster than the beat's own gap, and never later than the regular
+ * beat would have gone (a player hopping forever still beats on the normal pace).
+ */
 function onMaybeChanged(): void {
   if (!started || !friendsAccount()) { syncInviteSub(); return; }
-  if (presenceKey(presenceNow()) === lastKey) return;
-  const wait = Math.max(0, lastAt + BEAT_MIN_GAP_MS - Date.now());
-  schedule(Math.max(wait, 800)); // a short settle: a screen change often lands in two writes
+  const now = Date.now();
+  const periodicAt = Number.isFinite(lastAt) ? lastAt + nextDelay() : Infinity;
+  if (presenceKey(presenceNow()) === lastKey) {
+    // Back where the last beat left me: the pending change beat is not owed any more.
+    if (changePending) { changePending = false; schedule(Number.isFinite(periodicAt) ? Math.max(0, periodicAt - now) : CHANGE_SETTLE_MS); }
+    return;
+  }
+  changePending = true;
+  const at = Math.min(periodicAt, Math.max(now + CHANGE_SETTLE_MS, lastAt + BEAT_MIN_GAP_MS));
+  schedule(Math.max(0, at - now));
 }
 
 /** The invite wake-up: on while an account with friends has the tab visible. */
@@ -245,6 +387,13 @@ function syncInviteSub(): void {
   } catch { invitesSub = null; }
 }
 
+/** The store fields the activity reads (screens, overlays, the pick, the End Turn). */
+const GAME_FIELDS = [
+  'showTitle', 'titleView', 'settingsOpen', 'showLeaderboard', 'showRankings', 'showRecentGames', 'showLiveGames', 'showFriends',
+  'showCareer', 'showCollection', 'showBook', 'showPatchNotes', 'practiceSetupOpen', 'replaying', 'heroChoices', 'pendingMode',
+  'endTurnAnimating',
+] as const;
+
 /** Start the presence beat (once, at boot). Returns a stop function (tests). */
 export function startFriendsPresence(): () => void {
   if (started || typeof window === 'undefined') return () => undefined;
@@ -257,13 +406,19 @@ export function startFriendsPresence(): () => void {
       if (friendsAccount()) schedule(0); else { clearTimer(); syncInviteSub(); }
       return;
     }
-    if (s.showTitle !== prev.showTitle || s.practiceSetupOpen !== prev.practiceSetupOpen || s.replaying !== prev.replaying
-      || s.heroChoices !== prev.heroChoices || s.run.mode !== prev.run.mode || s.run.phase !== prev.run.phase
+    // Identity compares on the few fields the activity reads (no derivation on an unrelated store write).
+    if (GAME_FIELDS.some((k) => s[k] !== prev[k]) || s.run.mode !== prev.run.mode || s.run.phase !== prev.run.phase
       || s.run.wave !== prev.run.wave) onMaybeChanged();
   });
   const unVs = useVersus.subscribe((s, prev) => {
     if (s.room?.id !== prev.room?.id || s.room?.status !== prev.room?.status || s.match?.phase !== prev.match?.phase
-      || s.match?.round !== prev.match?.round) onMaybeChanged();
+      || s.match?.round !== prev.match?.round || s.room?.members.length !== prev.room?.members.length
+      || s.room?.options?.mode !== prev.room?.options?.mode || s.lockedRound !== prev.lockedRound || s.knockout !== prev.knockout
+      || s.area !== prev.area) onMaybeChanged();
+  });
+  const unLive = useLiveWatch.subscribe((s, prev) => { if (s.game?.game_id !== prev.game?.game_id) onMaybeChanged(); });
+  const unPrefs = useFriendsPrefs.subscribe((s, prev) => {
+    if (s.showActivity !== prev.showActivity || s.replayAuthor !== prev.replayAuthor) onMaybeChanged();
   });
   const onVis = (): void => {
     syncInviteSub();
@@ -292,7 +447,7 @@ export function startFriendsPresence(): () => void {
   return () => {
     started = false;
     clearTimer();
-    unGame(); unVs();
+    unGame(); unVs(); unLive(); unPrefs();
     document.removeEventListener('visibilitychange', onVis);
     window.removeEventListener('pagehide', onPageHide);
     window.removeEventListener('pageshow', onPageShow);
@@ -303,7 +458,7 @@ export function startFriendsPresence(): () => void {
 /** Tests: forget the loop's memory. */
 export function resetFriendsForTests(): void {
   clearTimer();
-  started = false; lastAt = -Infinity; lastKey = ''; failures = 0; inFlight = false; leaving = false;
+  started = false; lastAt = -Infinity; lastKey = ''; failures = 0; inFlight = false; leaving = false; changePending = false; foeCache = null;
   invitesSub?.close(); invitesSub = null; invitesSubFor = '';
   remote = friendsRemote;
   proofSource = defaultProofSource;

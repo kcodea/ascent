@@ -56,6 +56,19 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-29',
+    changes: [
+      { category: 'Systems', text: 'Friends now shows what your friends are doing, in more detail.', details: [
+        'Outside a game you see where they are, like Main menu, Browsing Career, Browsing the Leaderboard or Watching a replay.',
+        'You also see when they are in a Versus room or a Duo party, how many players are in, and when it is starting.',
+        'In a game you see the round and what they are doing: Picking a hero, Shopping, Ending turn, or Fighting and who.',
+        'When a game ends you see Won the game, or the place they finished.',
+        'Hover or tap a friend to see everything: Health and Armor, tier, place, teammate and players.',
+        "Rather not share? Turn off Show friends what I'm doing in Settings. Friends then only see Online, or In a game with its mode.",
+      ] },
+    ],
+  },
+  {
     date: '2026-10-28',
     changes: [
       { category: 'Systems', text: 'Friends now shows you as online the whole time your game is open.', details: [

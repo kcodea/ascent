@@ -7,7 +7,7 @@
  * waiting); the friends list is `list` (one batched read, only while a friends surface is open); the one Realtime
  * subscription is INSERTs on `friend_invites` filtered to rows addressed to me. Presence is never broadcast.
  */
-import { parseGameStatus, type FriendGameStatus } from './gameStatus';
+import { parseActivity, parseGameStatus, type FriendActivity, type FriendGameStatus } from './gameStatus';
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { keepaliveRpc, supabaseClient } from '../remoteBoards';
 
@@ -37,6 +37,8 @@ export interface Friend extends FriendCard {
   lastSeen: string | null;
   /** In a game: what it looks like right now (R-FRIENDS-STATUS-01; absent on a server without the 2026-11-08 SQL). */
   game?: FriendGameStatus | null;
+  /** Online, not in a game: where they are (R-FRIENDS-ACTIVITY-01; absent when they hide it or on an older server). */
+  activity?: FriendActivity | null;
 }
 
 export interface FriendInvite {
@@ -82,6 +84,8 @@ export interface PresenceReport {
   watchId: string | null;
   /** In a game: its at-a-glance status (R-FRIENDS-STATUS-01). Omitted / null otherwise. */
   game?: FriendGameStatus | null;
+  /** Online, not in a game: where I am (R-FRIENDS-ACTIVITY-01). Rides the same `p_game` slot, told apart by `act`. */
+  activity?: FriendActivity | null;
 }
 
 export class FriendsError extends Error {
@@ -144,6 +148,7 @@ function friendOf(r: Record<string, unknown>): Friend {
     watchKind: r.watchKind === 'live' || r.watchKind === 'versus' ? r.watchKind : null,
     watchId: str(r.watchId), lastSeen: str(r.lastSeen),
     game: status === 'in_game' ? parseGameStatus(r.game) : null,
+    activity: status === 'online' ? parseActivity(r.game) : null,
   };
 }
 function inviteOf(r: Record<string, unknown>): FriendInvite {
@@ -207,9 +212,12 @@ export function makeFriendsRemote(getClient: () => SupabaseClient | null) {
       const base = { p_status: p.status, p_mode: p.mode, p_watch_kind: p.watchKind, p_watch_id: p.watchId };
       // `p_game` only when there is one, and never again once a server without the 2026-11-08 SQL refused it: that
       // server still takes the four-argument beat (a refused status must never stop presence).
-      if (p.game && !gameRefused) {
+      // The activity (online) rides the same slot as the game status (in a game); a server without
+      // 2026-11-10-friends-activity.sql stores only an in-game status and drops the rest, never an error.
+      const detail = p.game ?? p.activity ?? null;
+      if (detail && !gameRefused) {
         try {
-          return parseBeat(await rpc('friends_beat', { ...base, p_game: p.game }));
+          return parseBeat(await rpc('friends_beat', { ...base, p_game: detail }));
         } catch (e) {
           if ((e as FriendsError).code !== 'not_deployed') throw e;
           gameRefused = true;

@@ -26,6 +26,8 @@ import { skipRuneforgeEntrance } from '../runeforgeEntrance/entrance';
 import type { RuneLockInCard } from '../RuneLockIn';
 import { synthRunFromShopView } from './synthRun';
 import { presentHeldDrop } from '../versus/spectate';
+import { noteReplayAuthor } from '../friends/friendsPrefs';
+import { currentUserId } from '../identity';
 import { seekStream, startStreamPlayback, stopStreamPlayback, streamFightShown } from './replayStreamPlayer';
 
 /** Shop-frame pacing bounds (before the speed divisor) — salvaged from the killed v1 driver. A FLOOR so a
@@ -855,7 +857,7 @@ function awaitEot(myToken: number): void {
  * `expandFrames` runs ONCE here — delta frames become full views up front, so every later render and seek
  * is a plain array index.
  */
-export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): void {
+export function startReplay(replay: ReplayV2, meta?: { authorName?: string; authorId?: string | null }): void {
   const expanded = expandFrames(replay.frames);
   if (expanded.length === 0) return;
   if (snapshot) endReplay(); // a replay is already running — exit it cleanly first (restores its snapshot)
@@ -879,6 +881,9 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
   // The recorded spectator stream (2026-10-22): played through the watch screen's pipeline on this replay's clock.
   streamOn = startStreamPlayback(replay.stream, replayClockMs, () => speed, () => sounds);
   authorName = meta?.authorName ?? replay.author;
+  // WHOSE REPLAY, for the friends presence (R-FRIENDS-ACTIVITY-01): no meta is a Rewatch of my own last game.
+  const me = currentUserId();
+  noteReplayAuthor({ name: authorName ?? null, id: meta?.authorId ?? null, own: !meta || (!!me && meta.authorId === me) });
   // A recording that doesn't reach back to round 1 advertises its RANGE, so the rail can say what it has
   // instead of letting the viewer infer that rounds were dropped. Derived from the marks rather than trusted
   // from the payload — a recording from before `firstRecordedWave` existed still labels correctly.
@@ -1055,6 +1060,7 @@ export function endReplay(): void {
   cursorTrail = [];
   stopStreamPlayback();
   streamOn = false;
+  noteReplayAuthor(null);
   roundInfo = [];
   cancelBackfill();
   replayEpoch += 1;

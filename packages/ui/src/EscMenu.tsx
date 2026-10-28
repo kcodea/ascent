@@ -31,6 +31,7 @@ import { forfeitMatch } from './versus/versusStore';
 import { leaveSpectating, useSpectate } from './versus/spectate';
 import { isWatchingLive, leaveLiveGame } from './live/liveWatch';
 import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from './versus/spectatorEmotes';
+import { setShowActivity, useFriendsPrefs } from './friends/friendsPrefs';
 import { isTouchDevice, touchText } from './touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from './touchUi';
 import { PHONE_DIAG_FLAGS, PHONE_GPU, activeDiagLabel, saveDiagFlags, storedDiagFlags, type PhoneDiagFlags } from './phoneDiag';
@@ -98,6 +99,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   const showOpponentSkins = useGame((s) => s.showOpponentSkins);
   // SPECTATOR EMOTES (owner 2026-10-16, R-SPECTATE-EMOTE-01): on by default; off hides every spectator's emote.
   const spectatorEmotesOn = useSpectatorEmotePrefs((s) => s.on);
+  const showActivity = useFriendsPrefs((s) => s.showActivity);
   const setShowOpponentSkins = useGame((s) => s.setShowOpponentSkins);
   const fpsCap = useGame((s) => s.fpsCap);
   const setFpsCap = useGame((s) => s.setFpsCap);
@@ -251,6 +253,14 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           note={`Off hides the emotes of people watching your game. ${touchText('Right-click', 'Tap and hold')} a spectator in the top left to mute just them.`} /* R-TOUCH-WORDING-01 */
           on={spectatorEmotesOn}
           onToggle={() => { setSpectatorEmotesOn(!spectatorEmotesOn); sfx.pulse(); }}
+        />
+        {/* FRIENDS (owner 2026-10-29, R-FRIENDS-ACTIVITY-01): what friends see on my row. Saved on this device. */}
+        <div className="escsec">Friends</div>
+        <ToggleRow
+          label="Show friends what I'm doing"
+          note="Off shows friends only Online, or In a game with its mode."
+          on={showActivity}
+          onToggle={() => { setShowActivity(!showActivity); sfx.pulse(); }}
         />
         {/* BOARD BACKDROP (owner 2026-10-28): what lies behind the board. Each option is a preset tuned in the Layout Lab
             (backdrop.ts); the pick is saved on this device and applies at once. */}

@@ -603,7 +603,7 @@ export function Career() {
     setWatching(run.id);
     void fetchReplayPayload(run.replayRowId)
       .then((rep) => {
-        if (rep) startReplay(rep, { authorName: shownName || undefined });
+        if (rep) startReplay(rep, { authorName: shownName || undefined, authorId: viewing ? viewing.userId : myId });
         else setNoReplay(run.id);
       })
       .finally(() => setWatching(null));
@@ -620,7 +620,7 @@ export function Career() {
     setWatchingPractice(id);
     void fetchPracticeReplay(id)
       .then((rep) => {
-        if (rep) startReplay(rep, { authorName: shownName || undefined });
+        if (rep) startReplay(rep, { authorName: shownName || undefined, authorId: viewing ? viewing.userId : myId });
         else setNoPracticeReplay(id);
       })
       .finally(() => setWatchingPractice(null));

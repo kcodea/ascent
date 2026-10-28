@@ -26,10 +26,22 @@
 .fr-in_game .fr-dot { background: #f0d089; box-shadow: 0 0 0 2px rgba(240, 208, 137, 0.25); }
 .fr-in_game .fr-status { color: #f0d089; }
 .fr-offline { opacity: 0.78; }
-/* A friend's game at a glance (R-FRIENDS-STATUS-01): one wrapping line of small chips; the hero portrait is the ladder's
-   own frame at chip size. Static. */
-.fr-game { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; min-width: 0; font-family: var(--font-ui); font-weight: 700; font-size: 12.5px;
+/* A friend's game / activity at a glance (R-FRIENDS-STATUS-01, R-FRIENDS-ACTIVITY-01): the status line, then ONE line of
+   small chips that never wraps (a narrow row cuts it off; the hover / tap shows every line). The hero portrait is the
+   ladder's own frame at chip size. Static. */
+.fr-detail { display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: 100%; align-self: flex-start; outline: none; }
+.fr-detail:focus-visible { box-shadow: 0 0 0 2px rgba(240, 208, 137, 0.6); border-radius: 6px; }
+.lbpage .fr-detail[data-tip]::after { white-space: pre-line; text-align: left; width: max-content; max-width: min(340px, calc(var(--lvw, 100vw) - 40px)); }
+.fr-detail .fr-status { max-width: 100%; min-width: 0; }
+.fr-statustext { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fr-game { display: flex; align-items: center; flex-wrap: nowrap; gap: 6px; min-width: 0; overflow: hidden; font-family: var(--font-ui); font-weight: 700; font-size: 12.5px;
   color: rgba(255, 255, 255, 0.78); font-variant-numeric: tabular-nums; }
+.fr-game > * { flex: none; }
+/* What they are doing wins the room: it keeps its width, and the chips after it are cut first. */
+.fr-game > .fr-gameline { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.fr-game > .fr-gamevs { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.fr-vitals { display: inline-flex; align-items: center; gap: 3px; }
+.fr-vitals svg { width: 12px; height: 12px; flex: none; }
 .fr-gamehero .lb-heroframe .hero { width: 24px; height: 24px; padding: 1px; box-shadow: 0 0 0 1px rgba(196, 160, 92, 0.6); }
 .fr-gamehero .lb-heroframe .hero .f svg { width: 60%; height: 60%; }
 .fr-gameline { color: #f0d089; white-space: nowrap; }

@@ -228,6 +228,8 @@ runbook + flip/rollback SQL in [`docs/versus-cf-cutover.md`](docs/versus-cf-cuto
     `verify` starts — that is not "CI disabled", just not-yet-started; wait and re-poll. Since 2026-09-24 the
     work runs as parallel `checks` + `test (N)` shard jobs and `verify` is the aggregator that `needs:` them
     all — it stays pending until the slowest shard ends and fails if any job failed, was skipped or cancelled.
+    Since 2026-10-28 PRs skip the 4 heavy self-play shards (they run on push to `main`, nightly, dispatch, or a PR
+    labelled `ci:heavy`) — see [`docs/concurrency.md` §7](docs/concurrency.md#7-ci-what-runs-where).
   - **Claude MAY merge from the CLI** once `verify` is green — `gh pr merge --squash` then works with no
     override. Anything `gh` does is attributed to the authenticated owner, so "a review from the other person"
     is a convention between the two of you, not something the repo can check. Ask first when the change is

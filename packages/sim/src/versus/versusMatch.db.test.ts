@@ -92,6 +92,11 @@ function shop(run: RunState, round: number): RunState {
 
 describe('Versus: two scripted clients, one match', () => {
   it('plays to 0 Health with one fight per round (the lobby damage + cap, Armor first), landed identically on both clients; a reconnect converges', async () => {
+    // PIN the database's random(): the match seed and both seats' hero/run seeds are drawn from it. Unpinned, every
+    // run played a different match, and the greedy pilot never tiers up, so two Tier 1 boards trade 2-3 damage a
+    // round with many draws: about 3% of seeds were still in the shop after the 39 rounds this loop plays (the CI
+    // "expected 'shop' to be 'complete'" flake). Pinned, the match is the same every run (27 rounds today).
+    await db.query('select setseed($1)', [0.5]);
     const room = await as<any>(USER.p1, `select public.versus_create_room('E2E', 'Ann', '{}', 'set2', $1, 1)`, [contentRevision()]);
     await as(USER.p2, `select public.versus_join_room($1, 'player', 'Bob', '{}', $2, 1)`, [room.id, contentRevision()]);
     await as(USER.p1, 'select public.versus_start_game($1)', [room.id]);
@@ -183,7 +188,7 @@ describe('Versus: two scripted clients, one match', () => {
       const total = start[s].health + start[s].armor;
       expect(m[`${s}_health`] + m[`${s}_armor`]).toBe(Math.max(0, total - taken[s]));
     }
-    expect(m.phase).toBe('complete');
+    expect(m.phase, 'the pinned match must reach a knockout inside the loop; if a content or pilot change lengthened it, re-pin the seed').toBe('complete');
     expect(m.end_reason).toBe('hearts'); // the knockout reason's legacy id
     const out: VersusSeat = m.p1_health <= 0 ? 'p1' : 'p2';
     expect(m[`${out}_health`]).toBe(0);

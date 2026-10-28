@@ -1062,7 +1062,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   on 4-7, 15 on 8-11, 20 on 12-14, none from 15; the Max dmg beside the Round plate). Armor absorbs first. A draw costs
   nobody. 0 Health loses the match. Your Health box drops when the fight settles, the opponent's when you leave the fight.
   The server owns the numbers (each seat's pools after every round); a locked turn reports the run's pools so Mend's "Set
-  your Armor to 5" counts (never more Armor than a card sets, never Health). *(Hearts, 7 each with one struck per lost
+  your Armor to 5" counts (never more Armor than a card sets, never Health). That raise reaches the server's stored pool the
+  moment the shop sends the board (a candidate, a lock or a re-lock; R-VERSUS-LIVE-ARMOR-01, owner 2026-10-27: "i casted
+  mend to get armor but it didn't show to the other players"), so every rail shows it during the shop, and in Duos it is
+  the teammate's Armor too. Every other seat shows the server's pools going into the round until you leave the fight, and a
+  seat is shown out only together with the round that put it out (never a knockout on the Health before it). An empty
+  board is an ordinary fight: it loses to any minion, and two empty boards draw (R-VERSUS-EMPTY-01). *(Hearts, 7 each with one struck per lost
   round, were the rule from 2026-10-13 to 2026-10-26; an older match keeps its recorded hearts.)*
 - **Disconnects.** A disconnect pauses the match for up to 30 seconds (deadlines stop, and move later by the pause).
   After 30 seconds the opponent may unpause: the absent player's last locked board then fights for them every

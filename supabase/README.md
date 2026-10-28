@@ -123,8 +123,9 @@ No Site URL / redirect allow-list is needed for the exe path (that's only for th
 The **only** writer of `profiles.rating`. A client sends `{ runId, placement }` (never a rating); the function,
 running as the service role, reads the caller's stored rating and computes the new one itself from the same
 placement-delta table the client uses (`functions/_shared/lobbyRating.ts`, kept in parity with the sim by
-`packages/ui/src/lobbyRatingParity.test.ts`). One rating per `(user, run)` via the `rated_runs` ledger, plus a
-per-player rate limit.
+`packages/ui/src/lobbyRatingParity.test.ts`). Since the medal rank (2026-09-20) it settles through `settle_rank`, one result per
+`(user, run)` in the `rank_results` ledger. (The original C3 `rated_runs` ledger is unused and dropped by
+`migrations/2026-11-07-drop-rated-runs.sql`.)
 
 ### Deploy (owner)
 
@@ -134,7 +135,8 @@ Do these two together — the SQL revokes the client's legacy fallback, so deplo
 # 1. deploy the function (needs the Supabase CLI + `supabase login` + a linked project)
 supabase functions deploy submit-rating
 
-# 2. then run the C3 block in ../schema.sql (creates rated_runs, revokes submit_own_rating from clients)
+# 2. then run the C3 block in ../schema.sql (revokes submit_own_rating from clients; its rated_runs table was
+#    dropped on 2026-10-28 as unused)
 ```
 
 Until both are done the client keeps using the `submit_own_rating` RPC fallback and nothing breaks — C3 simply

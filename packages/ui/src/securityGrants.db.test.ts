@@ -19,7 +19,7 @@ import { join } from 'node:path';
  */
 const root = join(__dirname, '../../..');
 const PART1 = readFileSync(join(root, 'supabase/migrations/2026-11-07-security-writes.sql'), 'utf8');
-const PART2 = readFileSync(join(root, 'supabase/migrations/2026-11-07-security-reads-need-session.sql'), 'utf8');
+const PART2 = readFileSync(join(root, 'supabase/migrations/2026-11-09-security-reads-need-session.sql'), 'utf8');
 const CRASH = readFileSync(join(root, 'supabase/migrations/2026-10-22-client-crash-reports.sql'), 'utf8');
 
 const STUB = `
@@ -103,6 +103,13 @@ const STUB = `
     select count(*) from public.boards $$;
   create function public.run_strength_histogram(p_set text) returns table (n bigint) language sql stable as $$
     select count(*) from public.pool_runs $$;
+  -- the delta-cache pair (2026-11-08-pool-runs-delta.sql): invoker, granted to anon there
+  create function public.pool_runs_sample_keys(p_limit int) returns table (run_key text) language sql stable as $$
+    select run_key from public.pool_runs order by run_key limit p_limit $$;
+  create function public.pool_runs_boards(p_ids bigint[]) returns setof public.boards language sql stable as $$
+    select * from public.boards where id = any (p_ids) $$;
+  grant execute on function public.pool_runs_sample_keys(int) to anon, authenticated;
+  grant execute on function public.pool_runs_boards(bigint[]) to anon, authenticated;
 
   create view public.run_fight_records with (security_invoker = true) as
     select run_a as run_key, count(*) as fights from public.lobby_fights group by run_a;
@@ -162,6 +169,8 @@ async function sessionReadsAnswer(user: string): Promise<void> {
   }
   expect((await as('authenticated', user, 'select * from public.run_fight_records')).length).toBeGreaterThan(0);
   expect((await as('authenticated', user, 'select * from public.pool_runs_sample(150)')).length).toBeGreaterThan(0);
+  expect((await as('authenticated', user, 'select * from public.pool_runs_sample_keys(150)')).length).toBeGreaterThan(0);
+  expect((await as('authenticated', user, "select * from public.pool_runs_boards(array(select id from public.boards))")).length).toBeGreaterThan(0);
   expect((await as<{ n: number }>('authenticated', user, "select * from public.board_strength_histogram('v1')"))[0]!.n).toBeGreaterThan(0);
   expect((await as('authenticated', user, "select * from public.run_strength_histogram('set3')")).length).toBe(1);
   expect((await as('authenticated', user, 'select * from public.loot_crates')).length).toBeGreaterThan(0);
@@ -233,6 +242,8 @@ describe('security pass (2026-11-07)', () => {
     await expect(as('anon', null, 'select * from public.pool_runs_sample(150)')).rejects.toThrow(/permission denied/);
     await expect(as('anon', null, "select * from public.board_strength_histogram('v1')")).rejects.toThrow(/permission denied/);
     await expect(as('anon', null, "select * from public.run_strength_histogram('set3')")).rejects.toThrow(/permission denied/);
+    await expect(as('anon', null, 'select * from public.pool_runs_sample_keys(150)')).rejects.toThrow(/permission denied/);
+    await expect(as('anon', null, "select * from public.pool_runs_boards('{1}')")).rejects.toThrow(/permission denied/);
     expect((await as('anon', null, 'select user_id, author from public.profiles')).length).toBeGreaterThan(0);
     await sessionReadsAnswer(A);
     await sessionReadsAnswer(B);

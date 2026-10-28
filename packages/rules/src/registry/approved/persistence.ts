@@ -1146,9 +1146,9 @@ export const PERSISTENCE_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner ask 2026-10-28 (docs/design/2026-10-28-supabase-cleanup.md S2)', quote: 'scope out a massive supabase clean up so that we\'re running really cleanly across the board' },
-      { kind: 'code', ref: 'supabase/migrations/2026-11-07-security-reads-need-session.sql; packages/ui/src/remoteBoards.ts sessionReady / sessionClient; packages/ui/src/identity.ts identitySettled; packages/tools/src/supabaseReadKey.ts' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-09-security-reads-need-session.sql; packages/ui/src/remoteBoards.ts sessionReady / sessionClient; packages/ui/src/identity.ts identitySettled; packages/tools/src/supabaseReadKey.ts' },
     ],
-    currentBehaviour: 'Client half conforms from this PR. Server half waits: the lead applies 2026-11-07-security-reads-need-session.sql one release after the client ships (older builds then retry their first boot reads once signed in).',
+    currentBehaviour: 'Client half conforms from this PR. Server half waits: the lead applies 2026-11-09-security-reads-need-session.sql one release after the client ships (older builds then retry their first boot reads once signed in).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/securityGrants.db.test.ts', 'packages/ui/src/sessionFirstReads.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
 ];

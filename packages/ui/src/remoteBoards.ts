@@ -85,7 +85,7 @@ function client(): SupabaseClient | null {
  * SESSION-FIRST READS (security pass 2026-11-07, docs/design/2026-10-28-supabase-cleanup.md S2). The large shared
  * tables (boards, run_telemetry, practice_games, runs, lobby_fights, board_results, pool_runs) and the pool /
  * strength RPCs answer only a signed-in session (an anonymous guest counts) once
- * `supabase/migrations/2026-11-07-security-reads-need-session.sql` is applied. A first-time visitor has no stored
+ * `supabase/migrations/2026-11-09-security-reads-need-session.sql` is applied. A first-time visitor has no stored
  * session, so a read fired at boot would go out as the bare `anon` role before `signInAnonymously` lands. Those reads
  * wait here for the boot's sign-in, bounded by SESSION_WAIT_MS so an offline boot is never held. One wait per app
  * load: a later read with no session (sign-in failed) goes straight out, as before.

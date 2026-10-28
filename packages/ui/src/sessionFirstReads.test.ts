@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * SESSION-FIRST READS (R-SEC-READS-01, 2026-11-07). The large shared tables answer only a session once
- * `2026-11-07-security-reads-need-session.sql` is applied, so a boot-time read waits for the boot's anonymous sign-in
+ * `2026-11-09-security-reads-need-session.sql` is applied, so a boot-time read waits for the boot's anonymous sign-in
  * instead of going out as the bare public key; bounded, so an offline boot is never held; and once only per load.
  */
 const h = vi.hoisted(() => ({ userId: null as string | null, settled: null as Promise<unknown> | null }));

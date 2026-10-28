@@ -13,7 +13,7 @@ Two migration files, applied by the lead in order, a release apart:
    run_history, run_telemetry, runs: insert; perf_runs: insert + delete; profiles: insert + update;
    client_crash_reports: the column insert grant). Future `postgres`-created tables no longer default-grant
    TRUNCATE / REFERENCES / TRIGGER / MAINTAIN. INSERT / UPDATE / DELETE defaults are left alone on purpose.
-2. **`supabase/migrations/2026-11-07-security-reads-need-session.sql` (apply one release later).** run_telemetry,
+2. **`supabase/migrations/2026-11-09-security-reads-need-session.sql` (apply one release later).** run_telemetry,
    boards, practice_games, runs, lobby_fights, board_results, pool_runs (and the `run_fight_records` view, the pool
    and histogram RPCs) answer `authenticated` only. Every player has a session (anonymous sign-in at boot), so
    only the bare public key loses access. Small public reads stay public.

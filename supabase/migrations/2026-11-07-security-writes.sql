@@ -2,7 +2,7 @@
 -- SECURITY PASS, PART 1 OF 2: close the anonymous `boards` insert and trim client WRITE grants
 -- (2026-11-07, fix/supabase-security-p3a; docs/design/2026-10-28-supabase-cleanup.md S1 + S3, Phase 3).
 -- Safe to apply at once: it removes nothing a live client does. Idempotent (run it twice, same result).
--- Part 2 (2026-11-07-security-reads-need-session.sql) waits for a client release; see that file.
+-- Part 2 (2026-11-09-security-reads-need-session.sql) waits for a client release; see that file.
 -- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 --
 -- 1. `boards` had a policy `anon insert ... with check (true)`: anyone holding the public key, with no session, could

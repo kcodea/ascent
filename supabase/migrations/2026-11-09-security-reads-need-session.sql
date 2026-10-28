@@ -2,7 +2,7 @@
 -- SECURITY PASS, PART 2 OF 2: the large shared tables answer only a session (2026-11-07, fix/supabase-security-p3a;
 -- docs/design/2026-10-28-supabase-cleanup.md S2, Phase 3.2). Idempotent.
 --
--- APPLY ORDER: after 2026-11-07-security-writes.sql, and only once the web build carrying the session-first reads
+-- APPLY ORDER: after 2026-11-07-security-writes.sql AND 2026-11-08-pool-runs-delta.sql (whose grants it narrows), and only once the web build carrying the session-first reads
 -- (remoteBoards.ts `sessionReady`, same PR) has been live for a release, the Netlify pack and the desktop exe
 -- included. A build without it still works afterwards: its first boot-time reads (before its anonymous sign-in
 -- lands) are refused and the pool / histogram / records retry or refresh once the session exists.
@@ -22,7 +22,8 @@
 --   for each table T below: drop policy "read T" on public.T; create policy "read T" on public.T for select using (true);
 --   grant select on <the seven tables>, public.run_fight_records to anon;
 --   create policy "anon read" on public.boards for select to anon using (true);
---   grant execute on function public.pool_runs_sample(...), public.board_strength_histogram(text),
+--   grant execute on function public.pool_runs_sample(...), public.pool_runs_sample_keys(...), public.pool_runs_boards(bigint[]),
+--     public.pool_runs__pick(...), public.pool_run__rev(text, text, bigint), public.board_strength_histogram(text),
 --     public.run_strength_histogram(text) to anon;
 --
 -- Verify after applying (false, false, true):
@@ -59,7 +60,8 @@ do $$ begin
 end $$;
 
 -- The pool and strength RPCs read those tables as the caller (SECURITY INVOKER); they would already fail for anon,
--- this makes the refusal explicit (permission denied on the call, not a confusing table error). Every overload.
+-- this makes the refusal explicit (permission denied on the call, not a confusing table error). Every overload,
+-- including the delta-cache pair and its helpers from 2026-11-08-pool-runs-delta.sql (skipped where not applied).
 do $$
 declare
   f record;
@@ -67,7 +69,8 @@ begin
   for f in
     select p.oid::regprocedure as sig
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.proname in ('pool_runs_sample', 'board_strength_histogram', 'run_strength_histogram')
+    where n.nspname = 'public' and p.proname in ('pool_runs_sample', 'pool_runs_sample_keys', 'pool_runs_boards', 'pool_runs__pick', 'pool_run__rev',
+      'board_strength_histogram', 'run_strength_histogram')
   loop
     execute format('revoke execute on function %s from public, anon', f.sig);
     execute format('grant execute on function %s to authenticated, service_role', f.sig);

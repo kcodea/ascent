@@ -41,7 +41,7 @@ import {
   enqueuePendingProgression, flushPendingProgressions, installProgressionRetryTriggers, type PendingProgression,
 } from './progressionQueue';
 import {
-  buyCrateRemote, equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchAetherEconomy, fetchAetherEnabled, fetchCratesEnabled, fetchOwnCrates, fetchOwnProgression, fetchProgressionEnabled, fetchSeenCosmeticIds, fetchServerCatalogState, markCosmeticsSeenRemote, openCrateRemote, progressionRequestFor,
+  buyCrateRemote, equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchAetherEconomy, fetchAetherEnabled, fetchCratesEnabled, fetchOwnCrates, fetchProgressionConfig, fetchOwnProgression, fetchProgressionEnabled, fetchSeenCosmeticIds, fetchServerCatalogState, markCosmeticsSeenRemote, openCrateRemote, progressionRequestFor,
   type ProgressionSubmitOutcome,
 } from './progressionRemote';
 
@@ -87,6 +87,8 @@ interface ProgressionStore {
 
 const MIRROR_KEY = 'ascent.progression';
 const SERVER_CATALOG_KEY = 'ascent.cosmetics.server';
+/** The `catalog_state_hash` the cached kill-switch answer was read under (Supabase cleanup P1.2). */
+const SERVER_CATALOG_HASH_KEY = 'ascent.cosmetics.server.hash';
 
 /** Apply (and cache) the server's catalog switches, then bump the render epoch. */
 export function applyServerCatalogState(state: ServerCatalogState | null, persist = true): void {
@@ -468,8 +470,19 @@ export async function equipTitle(titleId: string | null): Promise<boolean> {
 
 /** Re-read the server's catalog switches (retired items / disabled categories). Never throws. */
 export async function refreshServerCatalog(): Promise<void> {
+  // SUPABASE CLEANUP P1.2 (2026-10-28): `progression_config.catalog_state_hash` (a trigger keeps it equal to the md5 of
+  // the kill-switch rows) says whether the server's switches moved since the answer cached here. Unchanged = no read:
+  // the cached state was applied at module load. No hash (an older server) = read as before.
+  const cfg = await fetchProgressionConfig().catch(() => undefined);
+  const hash = typeof cfg?.row?.catalog_state_hash === 'string' && cfg.row.catalog_state_hash ? cfg.row.catalog_state_hash : null;
+  if (hash && hash === loadServerCatalogHash() && loadServerCatalogState()) return;
   const state = await fetchServerCatalogState().catch(() => undefined);
-  if (state) applyServerCatalogState(state);
+  if (!state) return;
+  applyServerCatalogState(state);
+  try { if (hash) localStorage.setItem(SERVER_CATALOG_HASH_KEY, hash); else localStorage.removeItem(SERVER_CATALOG_HASH_KEY); } catch { /* ignore */ }
+}
+function loadServerCatalogHash(): string | null {
+  try { return localStorage.getItem(SERVER_CATALOG_HASH_KEY); } catch { return null; }
 }
 
 /** Wear an owned skin on its hero / card, or an owned hero attack (target ''), or Default (null). Returns whether
@@ -618,7 +631,7 @@ export function markProgressionPresented(mode: ProgressionMode, runId: string): 
 export function resetProgressionForTests(): void {
   presented = [];
   try { localStorage.removeItem(PRESENTED_KEY); localStorage.removeItem(MIRROR_KEY); } catch { /* ignore */ }
-  try { localStorage.removeItem(SERVER_CATALOG_KEY); } catch { /* ignore */ }
+  try { localStorage.removeItem(SERVER_CATALOG_KEY); localStorage.removeItem(SERVER_CATALOG_HASH_KEY); } catch { /* ignore */ }
   setServerCatalogState(null);
   useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown', aetherCapability: 'unknown', economy: DEFAULT_AETHER_ECONOMY, seenKnown: null });
   seenAccount = null;

@@ -10602,4 +10602,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Bob\x27s wifi drops in the shop and the match pauses on him. 20 s later his wifi is back: his socket reconnects at once, the 3-2-1 starts, and the shop runs again 3 s later.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientWake.test.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-EGRESS-02',
+    title: 'progression_config is read once per session; the cosmetic kill switch is re-read only when its hash moves',
+    statement:
+      'The progression switches (epoch, crates, achievements, Aether) and the catalog hash come from ONE read of the '
+      + 'progression_config row, kept for the session once answered (a failed read is asked again). The kill-switch '
+      + 'catalog read asks only for switched-off items and categories, and is skipped while '
+      + 'progression_config.catalog_state_hash (kept by a trigger on cosmetic_catalog and cosmetic_categories) equals the '
+      + 'hash the cached answer was read under. A server without the hash is read every time, as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-28 (Supabase cleanup, P1.2)', quote: "scope out a massive supabase clean up so that we're running really cleanly across the board." },
+      { kind: 'code', ref: 'packages/ui/src/progression/progressionRemote.ts fetchProgressionConfig + fetchServerCatalogState; progressionStore.ts refreshServerCatalog; supabase/migrations/2026-11-07-catalog-state-hash.sql' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-28. Before, every probe sent four single-column progression_config reads and the full 458-row catalog (~31 KB), ~87,000 times in 16 days.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/progressionConfigOnce.test.ts', 'packages/progression/src/catalogStateHash.db.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

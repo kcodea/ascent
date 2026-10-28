@@ -81,6 +81,22 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Live games: the End Turn gem is now a Ready button you can switch on and off.',
+        details: [
+          'In Versus and Ranked Duos it reads "Ready up". Once you are ready it stays lit with a green glow. Press it again before 0:00 to cancel.',
+          'The gem only cracks once the round has closed and the fight is on its way.',
+          'Your End of Turn effects now start as soon as the round closes, so the fight opens sooner.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Ranked Duos: at 0:00 the round now waits until both teammates are ready. No more 5 second countdown.',
+        details: [
+          'A teammate who disconnects counts as ready, and the round still goes on its own 30 seconds after 0:00.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Twenty-nine new minion skins in chests, for many of the most-played cards that had none.',
         details: [
           'Prospector, Chronos, Lastlight, Tapkeeper, Bob Blart, Geode Guardian, Market Tormentor, Blazer, Grimoire, Flutterbutter, Right Hand Hank, Sharpshooter, Cave Cutter, Jewel and Spell Warden each get their first skins.',

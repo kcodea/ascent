@@ -9343,15 +9343,15 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(120, 70, 10, 0.25), 0 5px 0 var(--cta-depth), 0 14px 26px -10px rgba(0, 0, 0, 0.8); }
 .mcframe[data-mp] .mcname.mc-cta .crest { font-size: 34px; }
 .modecard.mc-hero:active .mc-cta { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 0 var(--cta-depth), 0 6px 12px -8px rgba(0, 0, 0, 0.8); }
-/* ON THE RANKED CARD (owner 2026-10-26: "put it in the bottom left corner below/eclipsing the play art",
-   R-RANKED-DUOS-MODECARD-01): a sibling sharing the card's grid cell, half on the art and half below it, the way PLAY
-   eclipses the bottom centre. PLAY's own family: a pill on its gold edge and drop, the picked side in the gold face,
+/* ON THE RANKED CARD (owner 2026-10-26, moved to the top right 2026-10-28, R-RANKED-DUOS-MODECARD-01): a sibling
+   sharing the card's grid cell, eclipsing its top-right edge (half on the art, half above it). The plate is fully
+   opaque so the art never shows through the unpicked side (owner 2026-10-28). PLAY's own family: a pill on its gold edge and drop, the picked side in the gold face,
    the other on the dark plate. It rises in with the card (same one-shot; off under reduced motion with the WS-7 set).
    The overlap is a negative margin, not a
    transform, so the entrance keyframe never fights it. */
-.mpgrid > .playparty.mc-party { grid-area: hero; align-self: end; justify-self: start; z-index: 2; position: relative;
-  width: auto; height: 52px; margin: 0 0 -26px 44px; border-radius: 999px; border: 2px solid var(--cta-edge);
-  background: rgba(8, 14, 30, 0.9); box-shadow: 0 5px 0 var(--cta-depth), 0 14px 26px -10px rgba(0, 0, 0, 0.8); }
+.mpgrid > .playparty.mc-party { grid-area: hero; align-self: start; justify-self: end; z-index: 2; position: relative;
+  width: auto; height: 52px; margin: -26px 44px 0 0; border-radius: 999px; border: 2px solid var(--cta-edge);
+  background: rgb(8, 14, 30); box-shadow: 0 5px 0 var(--cta-depth), 0 14px 26px -10px rgba(0, 0, 0, 0.8); }
 .mc-party .playparty-btn { flex: none; min-width: 118px; padding: 0 26px; font-size: 21px; font-weight: 900; letter-spacing: 0.14em;
   color: rgba(255, 246, 228, 0.78); background: transparent; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
 .mc-party .playparty-btn + .playparty-btn { border-left: 2px solid var(--cta-edge); }
@@ -9362,6 +9362,8 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
   border: 1.5px solid transparent; background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+/* The Ranked card's top-right corner holds SOLO / DUO, so its "Last played" plate sits top-left instead. */
+.mc-hero .mclast { right: auto; left: 14px; }
 /* The art inside each tile, pannable from the dev tuner. Versus's square art keeps its focal height. */
 .mcart-clip { position: absolute; inset: 0; border-radius: 25px; overflow: hidden; }
 .mcart-clip .mcframe-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0; }

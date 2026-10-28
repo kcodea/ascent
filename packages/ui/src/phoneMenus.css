@@ -281,8 +281,8 @@ html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-fact {
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page :is(.colls-shopbtn, .colls-detail-actions button, .colls-bay-actions button) { font-size: calc(12 * var(--pt)); min-height: calc(38 * var(--pt)); padding: calc(6 * var(--pt)) calc(12 * var(--pt)); }
 
 /* The Ranked card's Solo / Duo switch (R-RANKED-DUOS-MODECARD-01): finger-sized (34 pt tall, 11.5 pt text) and clear of
-   PLAY, still on the card's bottom-left edge (the mode home is zoomed by --hs-zoom, so it divides back out, as the name tags do). */
-html[data-touch-ui][data-touch-small][data-page-scale] .mp-home .mpgrid > .playparty.mc-party { height: calc(34 * var(--pt) / var(--hs-zoom, 1)); margin: 0 0 calc(-17 * var(--pt) / var(--hs-zoom, 1)) calc(12 * var(--pt) / var(--hs-zoom, 1)); }
+   PLAY, still on the card's top-right edge (the mode home is zoomed by --hs-zoom, so it divides back out, as the name tags do). */
+html[data-touch-ui][data-touch-small][data-page-scale] .mp-home .mpgrid > .playparty.mc-party { height: calc(34 * var(--pt) / var(--hs-zoom, 1)); margin: calc(-17 * var(--pt) / var(--hs-zoom, 1)) calc(12 * var(--pt) / var(--hs-zoom, 1)) 0 0; }
 html[data-touch-ui][data-touch-small][data-page-scale] .mp-home .mc-party .playparty-btn { font-size: calc(11.5 * var(--pt) / var(--hs-zoom, 1)); letter-spacing: 0.1em; min-width: calc(48 * var(--pt) / var(--hs-zoom, 1)); padding: 0 calc(9 * var(--pt) / var(--hs-zoom, 1)); }
 
 /* ── Round 2 (blind critic, judged against Hearthstone's phone menus) ─────────────────────────────────────────────── */

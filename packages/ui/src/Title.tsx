@@ -326,8 +326,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <span className="mcname mc-cta"><Crest /><span>Play</span></span>
               </div>
             </button>
-            {/* SOLO / DUO (owner 2026-10-26: "put it in the bottom left corner below/eclipsing the play art"): a sibling
-                sharing the card's grid cell (a button can't hold buttons), eclipsing its bottom-left edge. */}
+            {/* SOLO / DUO (owner 2026-10-26; moved to the top right 2026-10-28): a sibling sharing the card's grid cell
+                (a button can't hold buttons), eclipsing its top-right edge. */}
             <PlayPartyToggle className="mc-party" />
             <div className="mpside">
               {modeTile('practice', 'practice', 'Practice', 'More time and unlimited Health.', () => { rememberMode('practice'); sfx.pulse(); startPractice(); }, <IconHelm />)}

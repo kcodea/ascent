@@ -9689,10 +9689,11 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-RANKED-DUOS-MODECARD-01',
-    title: 'Solo | Duo lives on the mode screen\x27s Ranked card (bottom-left, eclipsing its edge), not on the sidebar or main menu',
+    title: 'Solo | Duo lives on the mode screen\x27s Ranked card (top-right, eclipsing its edge, on an opaque plate), not on the sidebar or main menu',
     statement:
-      'ONE Solo | Duo switch sits on the mode screen\x27s Ranked card, anchored at its bottom-left corner and overlapping the card\x27s bottom edge '
-      + '(half on the art, half below, as the PLAY button overlaps the bottom centre), in PLAY\x27s gold family; on phones it sits in the same spot, '
+      'ONE Solo | Duo switch sits on the mode screen\x27s Ranked card, anchored at its top-right corner and overlapping the card\x27s top edge '
+      + '(half on the art, half above), in PLAY\x27s gold family, on a fully opaque dark plate so the art never shows through the unpicked side; '
+      + 'the card\x27s "Last played" tag sits top-left to stay clear of it. On phones it sits in the same spot, '
       + 'finger-sized. The menu sidebar and the main menu carry no switch: their Play always opens the mode screen, whichever side is picked. '
       + 'The card\x27s PLAY with Solo is the solo ranked flow (tutorial nudge for a new player, then the ranked confirmation); with Duo it asks '
       + 'the Ranked Duos confirmation, whose Yes opens the player\x27s party. The choice stays remembered per viewer.',
@@ -9700,10 +9701,11 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-26 (screenshot of the Choose a mode screen)', quote: 'move the solo/duo toggle so that it is here, not at the main menu. put it in the bottom left corner below/eclipsing the play art' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-28 (screenshot of the Ranked card)', quote: 'can you move this toggle to the top right of the play section? make the dark blue of the "duo" section full 100% opaccity' },
       { kind: 'code', ref: 'packages/ui/src/Title.tsx (mode picker, onPlay); packages/ui/src/versus/playParty.tsx; packages/ui/src/styles.css (.mc-party); packages/ui/src/phoneMenus.css; packages/ui/src/MenuSidebar.tsx' },
     ],
-    currentBehaviour: 'Moved 2026-10-26 on fix/solo-duo-on-mode-card.',
-    example: 'Kevin opens Play from the sidebar with Duo remembered: the mode screen opens, the Ranked card shows Duo lit at its bottom-left, and its PLAY asks the Ranked Duos confirmation.',
+    currentBehaviour: 'Moved 2026-10-26 on fix/solo-duo-on-mode-card; to the top right on an opaque plate 2026-10-28 on fix/duo-toggle-top-right. PARTIAL pin: the tests pin that the switch is on the card, not which corner (that is CSS only).',
+    example: 'Kevin opens Play from the sidebar with Duo remembered: the mode screen opens, the Ranked card shows Duo lit at its top-right, and its PLAY asks the Ranked Duos confirmation.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/rankedEntry.test.tsx', 'packages/ui/src/MenuSidebar.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
   {

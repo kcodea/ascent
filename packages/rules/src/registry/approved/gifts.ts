@@ -383,4 +383,19 @@ export const GIFTS_RULES: GameRule[] = [
     currentBehaviour: "Conforms as of 2026-10-16. Tamby's copy is exempt (owner ruling on PR #2111). Whaloo CASTS Runebind directly (no Whisper is gained), so it is not gated.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/whisperTiers.test.ts"], lastVerifiedAt: '2026-10-16' },
   },
+  {
+    id: 'R-WHISPER-SNAPSHOT-01',
+    title: "A board with active Whispers fights identically on every recorded path (lobby seat, served opponent, Ranked Duos, Versus, save)",
+    statement:
+      "Whatever Whispers did to a board that turn fights again, unchanged, wherever that board is recorded and re-fought. A Whisper's temporary stats ride IN the captured Attack/Health and its keywords (Warding Call, Bait) ride IN the captured keywords; Seed's temporary Drake Pup Echo stacks are summed into `seedEchoes`; the run's per-Whisper improvement (Runebind, which a combat Whaloo / War Council cast reads and raises) rides `whisperImprove`; the Dragon runes that read Whispers (Borrowed Flame's grown value, Spell Tempering's carried meter, Runic Transposition, War Council, Final Utterance, Runebound Brood) ride the captured combat mods. So a board captured by `snapshotBoard` and re-fought through `seatCombatSide` (lobby seats, the boards table), `opponentBoard` + `sideFromSnapshot` (a served or pinned opponent), `rankedDuosMemberSide` (Ranked Duos, snapshot or prepared-side member), the JSON-transported prepared side (Versus, `versus-resolve`) or a save-and-continue round trip produces the SAME result, damage, event log and Whisper carry-backs as the owner's live fight. The per-turn Whisper bookkeeping (`whisperBuffs`, `whisperKeywords`, Hum / Tamby / Lasting Words latches) is deliberately not captured: it only tells the owner's NEXT Start of Turn what to strip, and a served board never has one. Replay v2 and Live Games spectating carry the fight's event log, never re-simulate, so they show the live fight as fought.",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-27 (Whisper snapshot audit)', quote: 'make sure whispers are wired to work correctly with snapshots. i think they are, but need to confirm they carry into combat snapshots etc' },
+      { kind: 'code', ref: 'packages/sim/src/snapshot.ts cleanBoard (seedEchoes fold) + snapshotBoard (whisperImprove, questMods); packages/sim/src/boardSide.ts sideFromSnapshot / seatCombatSide; packages/sim/src/docbot/snapshotRegistry.ts capture:whisper* excuses' },
+    ],
+    contentIds: ["d4_galas", "d4_tolan", "d4_tamby", "d3_whaloo", "d3_gardener", "d3_whispwarder", "d3_baitbrood", "w4_tome", "w4_runebind", "w3_seed", "w3_wardingcall", "w3_bait"],
+    currentBehaviour: "Conforms as of 2026-10-27 (audit found no dropped Whisper field; the end-to-end test pins it).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/whisperSnapshotFidelity.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
 ];

@@ -13735,6 +13735,62 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   text-shadow: 0 0.07em 0 rgba(58, 26, 0, 0.75), 0 -0.05em 0 rgba(255, 246, 206, 0.9), 0.04em 0 0 rgba(58, 26, 0, 0.3), -0.04em 0 0 rgba(58, 26, 0, 0.3);
 }
 .titlebadge.tb-master.tb-md { padding: 0.46em 1.2em 0.4em; letter-spacing: 0.16em; }
+/* ── MASTER TITLE RESTYLE CANDIDATES (DEV switch, owner ask 2026-10-28: "cleaner and exciting looking ... they look
+   gross with gold and red"). `TitleBadge` paints one of these instead of the plate when `masterTitleLook.ts` says so.
+   Shared: the title face, wider tracking, and a decorative `.tbm-glyph` (aria-hidden, so the text stays the name).
+   Every loop animates transform/opacity only and stops under reduced motion (docs/performance.md). */
+.titlebadge.tbm { gap: 0.5em; font-family: var(--font-title, var(--font-ui)); font-weight: 800; letter-spacing: 0.18em; }
+.titlebadge.tbm .tbm-glyph { flex: none; font-size: 0.82em; line-height: 1; letter-spacing: 0; }
+
+/* A. CLEAN: no plate. Crisp platinum letters, one ice-blue glyph, and a hairline rule beneath that fades at both
+   ends. Reads as a quiet step above the purple hero title. */
+.titlebadge.tbm-clean {
+  overflow: visible; padding: 0.12em 0.15em 0.4em; border: 0; border-radius: 0; background: none; box-shadow: none;
+  color: #f4f1ea; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7), 0 0 0.7em rgba(0, 0, 0, 0.55);
+}
+.titlebadge.tbm-clean::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, rgba(150, 220, 255, 0) 0%, rgba(150, 220, 255, 0.9) 18%, rgba(150, 220, 255, 0.9) 82%, rgba(150, 220, 255, 0) 100%);
+}
+.titlebadge.tbm-clean .tbm-glyph { color: #96dcff; text-shadow: 0 0 0.5em rgba(150, 220, 255, 0.6); }
+
+/* B. EXCITING: a dark pill with a cool rim glow (static), the name painted in an ice-to-violet gradient, a slow light
+   sweep across it (the shared `tbshimmer`, transform only) and a twinkling star glyph (opacity + scale only). */
+.titlebadge.tbm-exciting {
+  padding: 0.26em 1em 0.24em 0.8em; border-radius: 999px; color: #e9fbff;
+  background: linear-gradient(180deg, rgba(22, 26, 46, 0.92), rgba(8, 9, 18, 0.92));
+  border: 1px solid rgba(150, 225, 255, 0.75);
+  box-shadow: 0 0 0.9em -0.1em rgba(110, 210, 255, 0.7), 0 0 1.6em -0.3em rgba(180, 120, 255, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 0 0.8em -0.3em rgba(125, 234, 255, 0.35);
+}
+.titlebadge.tbm-exciting .tb-text {
+  background: linear-gradient(100deg, #ffffff 0%, #7deaff 30%, #a98bff 65%, #ff8fe0 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.titlebadge.tbm-exciting::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(100deg, transparent 32%, rgba(255, 255, 255, 0.32) 50%, transparent 68%);
+  transform: translateX(-120%); animation: tbshimmer 4.2s ease-in-out infinite; will-change: transform;
+}
+.titlebadge.tbm-exciting .tbm-glyph {
+  color: #f2fdff; text-shadow: 0 0 0.35em #a8f2ff, 0 0 0.8em rgba(201, 168, 255, 0.9);
+  animation: tbmtwinkle 2.6s ease-in-out infinite; will-change: transform, opacity;
+}
+@keyframes tbmtwinkle { 0%, 100% { opacity: 0.65; transform: scale(0.85) rotate(0deg); } 50% { opacity: 1; transform: scale(1.12) rotate(45deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .titlebadge.tbm-exciting::after { animation: none; opacity: 0; }
+  .titlebadge.tbm-exciting .tbm-glyph { animation: none; opacity: 1; transform: none; }
+}
+
+/* C. BADGE: the game's own painted pewter tier plate (`frames/tierplate.webp`, the shop tier plate) nine-sliced around
+   the name, so its bevelled points keep their shape at any length. Dark engraved ink on the metal, a light catch
+   under each letter. No code-drawn plate: the art is the plate. */
+.titlebadge.tbm-badge {
+  padding: 0.12em 0.2em 0.1em; border-radius: 0; background: none; box-shadow: none;
+  border-style: solid; border-width: 0.44em 1.1em; border-color: transparent;
+  border-image: url('/frames/tierplate.webp') 62 150 62 150 fill / 0.44em 1.1em stretch;
+  color: #241f2c; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55); letter-spacing: 0.16em;
+  filter: drop-shadow(0 0.12em 0.25em rgba(0, 0, 0, 0.6));
+}
 /* The Career name header: the master plate at the rarity chip's size. */
 .titlebadge.cv2-titleplate { --tb-fs: 15px; flex: none; transform: translateY(-4px); }
 

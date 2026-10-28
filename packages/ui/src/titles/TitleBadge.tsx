@@ -2,6 +2,7 @@ import { memo, type CSSProperties } from 'react';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { useProgression } from '../progression/progressionStore';
 import { TITLE_STYLES, titleLookOf, titleLookOfId, type TitleCustomStyle } from './titleStyle';
+import { useMasterTitleLook } from './masterTitleLook';
 
 /**
  * THE ONE TITLE BADGE (owner ask 2026-09-28). Every surface that shows a player's title renders this.
@@ -34,6 +35,7 @@ export interface TitleBadgeProps {
 
 export const TitleBadge = memo(function TitleBadge({ snapshot, id, size = 'sm', className, styles = TITLE_STYLES }: TitleBadgeProps): JSX.Element | null {
   useProgression((s) => s.catalogEpoch); // re-resolve on a server retire / restore
+  const masterLook = useMasterTitleLook((s) => s.look); // DEV restyle candidates; always 'plate' in production
   const look = snapshot !== undefined ? titleLookOf(snapshot, styles) : titleLookOfId(id, styles);
   if (!look) return null;
   // A MASTER hero title is the golden plate with embroidered text (owner 2026-09-29), on every surface.
@@ -43,6 +45,17 @@ export const TitleBadge = memo(function TitleBadge({ snapshot, id, size = 'sm', 
     'titlebadge', `tb-${size}`, `r-${look.rarity}`, look.master ? 'tb-master' : '',
     custom?.gradient ? 'tb-grad' : '', custom?.effect === 'shimmer' ? 'tb-shimmer' : '', className ?? '',
   ].filter(Boolean).join(' ');
+  if (look.master && masterLook !== 'plate') {
+    // DEV candidates for the master restyle (masterTitleLook.ts). Text content stays exactly the title name: the
+    // glyph is a decorative aria-hidden sibling, and the shimmer is the badge's own ::after.
+    const glyph = masterLook === 'badge' ? null : <span className="tbm-glyph" aria-hidden>✦</span>;
+    return (
+      <span className={['titlebadge', `tb-${size}`, 'tbm', `tbm-${masterLook}`, className ?? ''].filter(Boolean).join(' ')} data-title-id={look.id} data-rarity={look.rarity} data-master="" data-look={masterLook}>
+        {glyph}
+        <span className="tb-text">{look.name}</span>
+      </span>
+    );
+  }
   if (look.master) {
     // The stitch border is an empty decorative layer; the thread's raised underside is the text's own ::before
     // (`data-text`), so the badge's text content stays exactly the title name.

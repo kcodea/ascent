@@ -207,9 +207,13 @@ describe('who I am: team flag and my guides', () => {
     // Pinned as text: mounting the whole game store to observe a sign-out is far heavier than the one line it guards.
     const src = readFileSync(join(__dirname, '..', 'store.ts'), 'utf8');
     expect(src).not.toContain('if (id) void loadGuides()');
-    // Three call sites: identity landing at boot, every identity change, and `signOutAccount` itself (a sign-out whose
-    // request fails fires no identity change; guidesSignOut.test.ts drives that one for real).
-    expect(src.match(/void loadGuides\(\)/g)).toHaveLength(3);
+    // Two call sites: the account startup (boot AND every account change, including to none, go through the one
+    // gate since R-EGRESS-01; a token refresh for the same account is not a change), and `signOutAccount` itself (a
+    // sign-out whose request fails fires no identity change; guidesSignOut.test.ts drives that one for real).
+    expect(src.match(/void loadGuides\(\)/g)).toHaveLength(2);
+    const startup = src.slice(src.indexOf('function runAccountStartup('), src.indexOf('function initAccounts('));
+    expect(startup.indexOf('void loadGuides()')).toBeGreaterThan(-1);
+    expect(startup.indexOf('void loadGuides()')).toBeLessThan(startup.indexOf('if (!id) return;'));
     const signOut = src.slice(src.indexOf('signOutAccount: async () => {'), src.indexOf('playerAvatar: loadPlayerAvatar()'));
     expect(signOut).toContain('void loadGuides();');
   });

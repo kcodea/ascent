@@ -25,6 +25,9 @@ import { VersusCfClient, VersusCfError, versusCfHttp } from '@game/versus-cf/cli
 import { VERSUS_CF_PROTOCOL, type VersusCfPush } from '@game/versus-cf/protocol';
 import type {
   VersusDuosPassRow,
+  RankedDuosRoundRow,
+  RankedDuosTableRaw,
+  RankedDuosTeamRead,
   VersusGroupMatchRaw,
   VersusGroupRoundRaw,
   VersusIdentity,
@@ -88,6 +91,8 @@ export interface CfRemoteDeps {
   /** DEV ONLY: with no backend configured (no Supabase session, no account id), give this tab a throwaway account id so
    *  the store can tell which seat is its own. Never used when a real identity exists. */
   adoptDevIdentity?: (userId: string) => void;
+  /** The Supabase adapter, for what is not room state (the Duos leaderboard, team names, a ranked result: Supabase rows). */
+  fallback?: VersusRemote;
 }
 
 /** A throwaway account id for this TAB (each headless test player is its own tab). */
@@ -117,6 +122,8 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
   /** VERSUS GROUP (3-4 players): the room's current group match (`versus_group__match_json` shape) and its rounds. */
   let group: VersusGroupMatchRaw | null = null;
   const groupRounds = new Map<number, VersusGroupRoundRaw>();
+  /** RANKED DUOS: the committed rounds (pushed as they commit). */
+  const rankedRounds = new Map<number, RankedDuosRoundRow>();
   const isGroupJson = (m: Record<string, unknown>): boolean => Array.isArray(m.seats);
   /** The latest committed round of a match row (combat / complete: this one; otherwise the one before). */
   const committedOf = (m: { phase: string; round: number }): number => (m.phase === 'combat' || m.phase === 'complete' ? m.round : m.round - 1);
@@ -165,6 +172,12 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
       }
       for (const l of listeners) l.onChange('match');
     } else if (msg.t === 'round') {
+      if (msg.row.kind === 'ranked') {
+        // RANKED DUOS: a committed round of the four teams (vitals by team, the live team's fight in full).
+        rankedRounds.set(Number(msg.row.round), msg.row as unknown as RankedDuosRoundRow);
+        for (const l of listeners) l.onChange('rounds');
+        return;
+      }
       if (Array.isArray(msg.row.fights)) {
         const g = msg.row as unknown as VersusGroupRoundRaw & { match_id?: string };
         if (group && g.match_id && g.match_id !== group.id) return;
@@ -200,6 +213,7 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     rounds.clear();
     group = null;
     groupRounds.clear();
+    rankedRounds.clear();
     client = new VersusCfClient({
       baseUrl: base, roomId: id, token, versusProtocol: VERSUS_PROTOCOL, contentRevision: contentRevision(),
       ws: (url, protocols) => new WebSocket(url, protocols) as never, onPush,
@@ -233,12 +247,13 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     listRooms: () => http<VersusRoomSummary[]>('/rooms'),
     openRooms: (contentRevision: string) =>
       http<{ open: number; seatOpen: number; duosOpen?: number }>(`/rooms/open?protocol=${VERSUS_PROTOCOL}&content=${encodeURIComponent(contentRevision)}`),
-    setFriendsOnly: unsupported,
-    setTeamName: unsupported,
-    duosResult: async () => null,
-    duosTeam: async () => null,
-    duosLeaderboard: async () => [],
-    duosTeamsOf: async () => [],
+    setFriendsOnly: (id: string, on: boolean) => req<VersusRoom>(id, 'friends_only', { on }),
+    // Not room state: the Supabase rows (team names, the leaderboard, a settled ranked result) are read where they live.
+    setTeamName: (partner: string, name: string) => (deps.fallback ? deps.fallback.setTeamName(partner, name) : unsupported()),
+    duosResult: async (matchId: string) => (deps.fallback ? deps.fallback.duosResult(matchId) : null),
+    duosTeam: async (a: string, b: string) => (deps.fallback ? deps.fallback.duosTeam(a, b) : null),
+    duosLeaderboard: async (limit?: number, offset?: number) => (deps.fallback ? deps.fallback.duosLeaderboard(limit, offset) : []),
+    duosTeamsOf: async (userId: string) => (deps.fallback ? deps.fallback.duosTeamsOf(userId) : []),
     async createRoom(name: string, me: VersusIdentity, options?: VersusRoomOptions | null) {
       const r = await http<VersusRoom>('/rooms', {
         method: 'POST', body: { name, display: me.displayName, profile: me.profile, setId: me.setId, contentRevision: me.contentRevision, protocol: VERSUS_PROTOCOL, options: options ?? null },
@@ -355,11 +370,18 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     // ── Not on Cloudflare yet (Ranked Duos): reads answer "nothing", writes refuse. ─────────────────────────────────
     /** The room resolved the round itself when it closed; nothing to ask for. */
     finalizeDuos: async () => undefined,
-    finalizeRankedDuos: unsupported,
-    seatRankedDuos: unsupported,
-    rankedTable: unsupported,
-    rankedTeams: async () => [],
-    rankedRounds: async () => [],
+    /** The room seats the table and resolves every round itself; nothing to ask for. */
+    finalizeRankedDuos: async () => undefined,
+    seatRankedDuos: async () => undefined,
+    rankedTable: (id: string) => mreq<RankedDuosTableRaw>('ranked_table', { matchId: id }),
+    rankedTeams: (id: string) => mreq<RankedDuosTeamRead[]>('ranked_teams', { matchId: id }),
+    async rankedRounds(id: string, fromRound = 1) {
+      const last = group?.id === id ? committedOf(group) : -1;
+      let complete = last >= fromRound - 1;
+      for (let r = fromRound; complete && r <= last; r++) if (!rankedRounds.has(r)) complete = false;
+      if (!complete && roomId) for (const row of await mreq<RankedDuosRoundRow[]>('ranked_rounds', { matchId: id, from: fromRound })) rankedRounds.set(row.round, row);
+      return [...rankedRounds.values()].filter((r) => r.round >= fromRound).sort((a, b) => a.round - b.round);
+    },
     duosPass: (id: string, round: number, seq: number, card: unknown) => mreq<VersusDuosPassRow>('duos_pass', { matchId: id, round, seq, card }),
     duosHandRoom: (id: string, room: number) => mreq<void>('duos_hand_room', { matchId: id, room }),
     duosAnswerPass: (id: string, fromSeat: VersusGroupSeat, seq: number, landed: boolean) =>

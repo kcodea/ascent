@@ -31,6 +31,7 @@ import {
 
 /** VERSUS DUOS (2v2 tag-team, owner 2026-10-25, R-DUOS-01): seats 1-2 are team a, 3-4 team b. */
 export type GTeamId = 'a' | 'b';
+import type { RankedExtra, ServedMember } from './rankedMatch';
 export const teamOf = (seat: GSeat): GTeamId => (seat === 'p1' || seat === 'p2' ? 'a' : 'b');
 export const mateOf = (seat: GSeat): GSeat => ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const)[seat];
 export const teamSeats = (team: GTeamId): [GSeat, GSeat] => (team === 'a' ? ['p1', 'p2'] : ['p3', 'p4']);
@@ -92,6 +93,10 @@ export interface GSeatRow {
   /** VERSUS DUOS: the seat's team, and its free hand slots (the pass refusal, `versus_duos_hand_room`). */
   team?: GTeamId | null;
   hand_room?: number | null;
+  /** RANKED DUOS: when the seat ended its turn, went auto, left the party for good. */
+  locked_at?: number | null;
+  auto_since?: number | null;
+  left_at?: number | null;
 }
 
 export interface GMatch {
@@ -188,6 +193,11 @@ export interface GroupState {
   rounds: Record<number, GRound>;
   /** VERSUS DUOS: every pass, by round (stored as `gpass:<round>`). */
   passes?: Record<number, GPass[]>;
+  /** RANKED DUOS: the ranked state (`meta`), the served recordings (`rserved`), the live seats' final boards per round
+   *  (`rhist:<round>`, for the duo run recording). */
+  ranked?: RankedExtra;
+  served?: ServedMember[];
+  history?: { round: number; seat: GSeat; user_id: string; prepared_side: unknown; source: string }[];
 }
 
 /** What the engine needs from the room. */
@@ -197,6 +207,8 @@ export interface GroupHost {
   uuid(): string;
   /** No open socket past the grace. */
   userGone(userId: string): boolean;
+  /** How long `userId` has had no open socket (0 while connected). */
+  goneFor(userId: string): number;
   touchMatch(): void;
   touchPriv(seat: GSeat): void;
   dirty(key: string): void;
@@ -262,18 +274,29 @@ export function newGroupState(host: GroupHost, room: { id: string; set_id: strin
 }
 
 export class GroupEngine {
-  private pending = false;
+  protected pending = false;
   constructor(public g: GroupState, private readonly h: GroupHost) {}
+
+  /** The last moment a side may still land this round (Ranked Duos: its close + grace). Null = no clock yet. */
+  protected submitDeadline(): number | null {
+    return this.m.shop_deadline == null ? null : this.m.shop_deadline + SHOP_GRACE_MS;
+  }
+
+  /** A seat just ended its turn (Ranked Duos stamps when). */
+  protected onLocked(_seat: GSeat): void {}
+
+  /** A seat's submission of an earlier round is folded away (Ranked Duos keeps the live boards for the duo run). */
+  protected foldSub(_seat: GSeat, _sub: GSub): void {}
 
   // ── reads ───────────────────────────────────────────────────────────────────────────────────────────────────────
 
   get m(): GMatch { return this.g.match; }
   get duos(): boolean { return this.m.options.mode === 'duos'; }
-  private team(id: GTeamId): GTeam { return this.m.teams!.find((x) => x.team === id)!; }
-  private livingTeams(): number { return (this.m.teams ?? []).filter((x) => x.eliminated_round == null).length; }
+  protected team(id: GTeamId): GTeam { return this.m.teams!.find((x) => x.team === id)!; }
+  protected livingTeams(): number { return (this.m.teams ?? []).filter((x) => x.eliminated_round == null).length; }
   seatOf(userId: string): GSeat | null { return this.m.seats.find((s) => s.user_id === userId)?.seat ?? null; }
   row(seat: GSeat): GSeatRow { return this.m.seats.find((s) => s.seat === seat)!; }
-  private stillIn(): GSeatRow[] { return this.m.seats.filter((s) => s.eliminated_round == null); }
+  protected stillIn(): GSeatRow[] { return this.m.seats.filter((s) => s.eliminated_round == null); }
   living(): number { return this.stillIn().length; }
   running(): boolean { return this.m.phase !== 'complete'; }
   /** A seat that is still in (a player still in never gets pruned). */
@@ -324,20 +347,20 @@ export class GroupEngine {
 
   // ── helpers ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
-  private touch(): void {
+  protected touch(): void {
     this.m.revision += 1;
     this.m.updated_at = this.h.now();
     this.h.touchMatch();
   }
 
-  private requireLive(userId: string): GSeat {
+  protected requireLive(userId: string): GSeat {
     const seat = this.seatOf(userId);
     if (!seat) this.h.fail('not_a_player');
     if (this.row(seat!).eliminated_round != null) this.h.fail('eliminated');
     return seat!;
   }
 
-  private matchRow(): Record<string, unknown> {
+  protected matchRow(): Record<string, unknown> {
     const j = this.json();
     delete j.serverNow;
     return { ...j, room_id: null, seats: this.m.seats, ...(this.m.teams ? { teams: this.m.teams } : {}) };
@@ -386,7 +409,7 @@ export class GroupEngine {
   }
 
   /** `versus_group__maybe_start`: every seat still in picked (or the deadline): reveal, open round 1. */
-  private maybeStart(): void {
+  protected maybeStart(): void {
     const m = this.m;
     if (m.phase !== 'hero_select') return;
     const waiting = this.stillIn().some((s) => this.g.priv[s.seat]!.hero_index == null);
@@ -402,7 +425,7 @@ export class GroupEngine {
 
   // ── the shop ────────────────────────────────────────────────────────────────────────────────────────────────────
 
-  private openShop(round: number): void {
+  protected openShop(round: number): void {
     const m = this.m;
     const now = this.h.now();
     const first = round === 1;
@@ -416,6 +439,7 @@ export class GroupEngine {
     for (const seat of GSEATS) {
       const sub = this.g.subs[seat];
       if (!sub || sub.round >= round) continue;
+      this.foldSub(seat, sub);
       if (sub.final && sub.prepared_side != null) { this.g.lastLocked[seat] = sub.prepared_side; this.h.dirty(`glast:${seat}`); }
       if (sub.final && sub.checkpoint != null) {
         this.g.lastCheckpoint[seat] = { round: sub.round, final: true, candidate_seq: sub.candidate_seq, checkpoint: sub.checkpoint };
@@ -427,7 +451,7 @@ export class GroupEngine {
     this.touch();
   }
 
-  private startClock(): void {
+  protected startClock(): void {
     const m = this.m;
     if (m.phase !== 'shop' || m.shop_deadline != null) return;
     const now = this.h.now();
@@ -438,7 +462,7 @@ export class GroupEngine {
   }
 
   /** `versus_group__maybe_clock`: round 1's clock starts once every seat still in is through its intro (or on auto). */
-  private maybeClock(): void {
+  protected maybeClock(): void {
     const m = this.m;
     if (m.phase !== 'shop' || m.shop_deadline != null || m.paused_at != null) return;
     if (this.stillIn().some((s) => !(s.intro || s.auto))) return;
@@ -461,7 +485,8 @@ export class GroupEngine {
     const seq = Number(a.seq);
     const final = a.final === true;
     if (m.phase !== 'shop' || m.round !== round) this.h.fail('stale_round');
-    if (m.paused_at == null && m.shop_deadline != null && this.h.now() >= m.shop_deadline + SHOP_GRACE_MS) this.h.fail('deadline_passed');
+    const dl = this.submitDeadline();
+    if (m.paused_at == null && dl != null && this.h.now() >= dl) this.h.fail('deadline_passed');
     if (a.side == null || jsonBytes(a.side) > VERSUS_LIMITS.preparedSideBytes) this.h.fail('side_too_large');
     if (a.checkpoint != null && jsonBytes(a.checkpoint) > CHECKPOINT_BYTES) this.h.fail('checkpoint_too_large');
     const scout = a.scout && typeof a.scout === 'object' && !Array.isArray(a.scout) ? (a.scout as Record<string, unknown>) : null;
@@ -488,13 +513,14 @@ export class GroupEngine {
     this.raiseArmor(seat, next);
     if (final) {
       this.row(seat).locked = true;
+      this.onLocked(seat);
       this.touch();
       this.maybeResolve();
     }
   }
 
   /** R-VERSUS-LIVE-ARMOR-01 for one seat (`versus_group__raise_reported_armor`). */
-  private raiseArmor(seat: GSeat, sub: GSub): void {
+  protected raiseArmor(seat: GSeat, sub: GSub): void {
     if (!['candidate', 'lock', 'deadline'].includes(sub.source)) return;
     if (this.m.phase !== 'shop' && this.m.phase !== 'resolving') return;
     const rep = reportedVitals(sub.prepared_side);
@@ -535,7 +561,7 @@ export class GroupEngine {
   }
 
   /** `versus_group__finalize_seat`. */
-  private finalizeSeat(seat: GSeat, auto: boolean): void {
+  protected finalizeSeat(seat: GSeat, auto: boolean): void {
     const m = this.m;
     const s = this.row(seat);
     const last = this.g.lastLocked[seat] ?? null;
@@ -560,7 +586,7 @@ export class GroupEngine {
   }
 
   /** `versus_group__maybe_resolve`: every seat still in locked (or on auto) → resolving; ghosts of this round fight their last board. */
-  private maybeResolve(): void {
+  protected maybeResolve(): void {
     const m = this.m;
     if (m.phase !== 'shop') return;
     if (this.stillIn().some((s) => !(s.locked || s.auto))) return;
@@ -613,7 +639,7 @@ export class GroupEngine {
   }
 
   /** The Duos resolver's in-memory store (the Edge Function's `finalize_duos` reads). */
-  private duosStore(): VersusDuosFinalizeStore {
+  protected duosStore(): VersusDuosFinalizeStore {
     const m = this.m;
     return {
       match: async () => ({ id: m.id, phase: m.phase, round: m.round, seed: m.seed, content_revision: m.content_revision, options: m.options as never }),
@@ -633,7 +659,7 @@ export class GroupEngine {
   }
 
   /** `versus_duos_commit_round`: ONE tag-team fight, the losing team's pool charged, a team at 0 out together. */
-  private commitDuos(args: Parameters<VersusDuosFinalizeStore['commit']>[0]): unknown {
+  protected commitDuos(args: Parameters<VersusDuosFinalizeStore['commit']>[0]): unknown {
     const m = this.m;
     if (this.g.rounds[args.p_round]) return { alreadyCommitted: true };
     if (m.phase !== 'resolving' || m.round !== args.p_round) this.h.fail('not_resolving');
@@ -780,7 +806,7 @@ export class GroupEngine {
   }
 
   /** `versus_group_commit_round` (fights with scouts, pools, knockouts sharing a placement, the wipeout guard, missed). */
-  private commitRound(args: Parameters<VersusGroupFinalizeStore['commit']>[0]): unknown {
+  protected commitRound(args: Parameters<VersusGroupFinalizeStore['commit']>[0]): unknown {
     const m = this.m;
     if (this.g.rounds[args.p_round]) return { alreadyCommitted: true };
     if (m.phase !== 'resolving' || m.round !== args.p_round) this.h.fail('not_resolving');
@@ -854,7 +880,7 @@ export class GroupEngine {
     }
   }
 
-  private maybeNext(): void {
+  protected maybeNext(): void {
     const m = this.m;
     if (m.phase !== 'combat' || m.paused_at != null) return;
     if (this.stillIn().some((s) => !(s.ready || s.auto))) return;
@@ -947,7 +973,7 @@ export class GroupEngine {
     }
   }
 
-  private resume(): void {
+  protected resume(): void {
     const m = this.m;
     if (m.paused_at == null) return;
     const d = this.h.now() - m.paused_at;
@@ -963,7 +989,7 @@ export class GroupEngine {
     this.maybeClock();
   }
 
-  private complete(winner: GSeat | null, reason: GEndReason): void {
+  protected complete(winner: GSeat | null, reason: GEndReason): void {
     const m = this.m;
     if (winner) {
       this.row(winner).placement = 1;

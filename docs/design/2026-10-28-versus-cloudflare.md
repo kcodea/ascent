@@ -290,9 +290,23 @@ team a, 3-4 team b):
 | teammate live view (Realtime broadcast + `isMateFrame`) | the same `bc` relays; the client filters as before |
 | results | `group_match` also writes the seats' `team` and both `versus_group_teams` rows (`2026-11-06-versus-cf-writer-duos.sql`) |
 
-Ranked Duos (phase 4):
-`versus_ranked_duos_*` (seat, table, round_input, submit, commit_round, place_team, record_run, maybe_close, sweep) →
-room ops + Supabase reads/writes through the outbox; the `sweep_abandoned` cron disappears (the room's own alarm abandons).
+Ranked Duos (phase 4, PORTED on `feat/versus-cf-ranked`, `workers/versus/src/core/rankedMatch.ts`, a subclass of the
+Group engine):
+
+| SQL / Edge Function | Cloudflare |
+|---|---|
+| the party (`ranked_duos` room, 2 seats, `versus_set_friends_only`, never turns into a Versus room) | room ops; a friends-only party is not listed (invites only) |
+| `versus_press_gate` + `duos__ensure_team` | the match starts at once; the shell asks Supabase for the team (`versus_cf_ranked` 'team': id, name, division) |
+| `versus_group__maybe_start` ranked branch (a clock pick never takes the teammate's hero) | `RankedEngine.maybeStart` |
+| `seat_ranked_duos` (samples read server side, `versus_ranked_duos_seat`) | `RankedEngine.seat` → `handleRankedDuosSeat` (same code) over the shell's Supabase samples (`versus_cf_ranked` 'solo_sample' / 'duo_sample'); retried by the alarm; a round waits in resolving until seated |
+| `versus_ranked_duos__close_at` / `__maybe_close` / `_submit` (both ended, else 30 s after 0:00) | `closeAt`, `maybeResolve`, `submitDeadline`, `onLocked` |
+| `versus_ranked_duos_reconcile` (no pause: absence = auto, return = off) | `reconcile`, `returned` |
+| `versus_ranked_duos_round_input` + `__member_board` | `roundInput`, `memberBoard` (JS port, unit-tested) |
+| `finalize_ranked_duos` + `versus_ranked_duos_commit_round` | `settle` → `handleRankedDuosFinalize` (same code) → `commitRanked` |
+| `versus_ranked_duos__place_team` (+ `settle_duos_rank`, `__record_run` → `duo_runs` / `duo_run_rounds`) | `placeTeam` → ONE `ranked_finish` writer job (`2026-11-07-versus-cf-ranked.sql`): rows, then the settle (deduped per team + match), then the duo run |
+| `versus_ranked_duos__json`, `_table`, the teams / rounds reads | `json`, `table`, `teamsJson`, `rankedRoundsFrom` (ops `ranked_table`, `ranked_teams`, `ranked_rounds`; rounds also pushed) |
+| `versus_ranked_duos_sweep_abandoned` (+ cron) | the room's alarm (the live pair silent 10 minutes = placed as abandoned) |
+| `duos_rank_results`, `duos_teams`, `duos_leaderboard`, `duos_teams_of`, `duos_team_set_name` | stay in Supabase; the dev transport reads them through the Supabase adapter |
 
 ## 14. What becomes simpler
 

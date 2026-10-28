@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { resolveVersusFight, versusStartingVitals, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { versusFightDigest } from '@game/sim';
 import { VersusCfClient, versusCfHttp } from '../../src/client';
-import { CONTENT, FIXTURE, Player, sideOf, startLocalWorker, toGroupShop, toRoundOne } from './driver';
+import { CONTENT, FIXTURE, HERO_IDS, Player, sideOf, startLocalWorker, toGroupShop, toRoundOne } from './driver';
 
 let base = '';
 let dispose: () => Promise<void> = async () => undefined;
@@ -132,5 +132,40 @@ describe('Duos room in workerd', () => {
     const rows = (await got).map((a) => (a.msg as unknown as { row: { fights: unknown[] } }).row);
     expect(rows.every((r) => r.fights.length === 1)).toBe(true);
     for (const p of players) p.client!.close();
+  });
+});
+
+describe('Ranked Duos party in workerd', () => {
+  it('the pair plays a round against three seated teams (local: generated, unrated); every client gets the ranked round', async () => {
+    const a = new Player(base, crypto.randomUUID(), 'Claudebot1');
+    const b = new Player(base, crypto.randomUUID(), 'Claudebot2');
+    const roomId = await (async () => {
+      const room = await versusCfHttp<Record<string, any>>(base, '/rooms', a.token, {
+        method: 'POST', body: { name: 'Party', display: 'A', profile: {}, setId: 'set1', contentRevision: CONTENT, protocol: VERSUS_PROTOCOL, options: { v: 1, mode: 'ranked_duos', modifiers: [] } },
+      });
+      return room.id as string;
+    })();
+    await a.connect(roomId);
+    await b.connect(roomId);
+    await b.req('join', { as: 'player', display: 'B', profile: {}, content: CONTENT, protocol: VERSUS_PROTOCOL });
+    await a.req('start');
+    await a.req('gate');
+    await b.req('gate');
+    const matchId = (await a.req('sync')).match.id as string;
+    await a.req('register_offer', { matchId, offer: HERO_IDS.slice(0, 3) });
+    await b.req('register_offer', { matchId, offer: HERO_IDS.slice(3, 6) });
+    await a.req('pick_hero', { matchId, index: 0 });
+    await b.req('pick_hero', { matchId, index: 0 });
+    await a.next((m) => m.t === 'match' && (m.match as { seated?: boolean }).seated === true, 10_000);
+    await a.req('intro_done', { matchId });
+    await b.req('intro_done', { matchId });
+    await a.req('submit', { matchId, round: 1, seq: 1, side: sideOf(1, 'p1'), final: true, checkpoint: null });
+    const got = Promise.all([a, b].map((p) => p.next((m) => m.t === 'round' && (m.row as { kind?: string }).kind === 'ranked')));
+    await b.req('submit', { matchId, round: 1, seq: 1, side: sideOf(1, 'p2'), final: true, checkpoint: null });
+    const rows = (await got).map((x) => (x.msg as unknown as { row: { vitals: Record<string, unknown> } }).row);
+    expect(Object.keys(rows[0]!.vitals).sort()).toEqual(['a', 'b', 'c', 'd']);
+    const table = await a.req('ranked_table', { matchId });
+    expect(table.served).toHaveLength(6);
+    for (const p of [a, b]) p.client!.close();
   });
 });

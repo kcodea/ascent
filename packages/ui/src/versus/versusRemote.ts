@@ -895,12 +895,15 @@ const hostConfig = makeHostConfigReader(async () => {
 });
 const safeStorage = (): Storage | null => { try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; } };
 
+const supabaseRemote = makeVersusRemote(supabaseClient);
 export const versusRemote: RoutedVersusRemote = makeRoutedVersusRemote({
-  supabase: makeVersusRemote(supabaseClient),
+  supabase: supabaseRemote,
   cf: cfUrl
     ? makeCfVersusRemote({
       baseUrl: cfUrl, getClient: supabaseClient, currentUserId, makeError: (code, message) => new VersusError(code, message),
       adoptDevIdentity: devCf ? (userId) => setIdentity({ userId, displayName: 'Dev', anonymous: true, email: null }) : undefined,
+      // Ranked Duos: the Supabase-only rows (a ranked result, team names, the leaderboard) are read where they live.
+      fallback: supabaseRemote,
     })
     : null,
   readConfig: () => hostConfig.get(),

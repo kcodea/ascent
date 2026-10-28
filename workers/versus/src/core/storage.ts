@@ -23,7 +23,8 @@ const SEATS: readonly Seat[] = ['p1', 'p2'];
 export function valueOfKey(state: CoreState, key: string): unknown {
   if (key === 'meta') {
     const g = state.group;
-    return { v: state.v, room: state.room, match: state.match, priv: state.priv, group: g ? { match: g.match, priv: g.priv } : null };
+    const ranked = g?.ranked ? { ...g.ranked, rounds: {} } : undefined;
+    return { v: state.v, room: state.room, match: state.match, priv: state.priv, group: g ? { match: g.match, priv: g.priv, ...(ranked ? { ranked } : {}) } : null };
   }
   const [kind, id] = key.split(':');
   if (kind === 'sub') return state.subs[id as Seat];
@@ -37,12 +38,15 @@ export function valueOfKey(state: CoreState, key: string): unknown {
   if (kind === 'gckpt') return g.lastCheckpoint[id as GSeat];
   if (kind === 'ground') return g.rounds[Number(id)];
   if (kind === 'gpass') return g.passes?.[Number(id)];
+  if (kind === 'rserved') return g.served;
+  if (kind === 'rround') return g.ranked?.rounds[Number(id)];
+  if (kind === 'rhist') { const rows = (g.history ?? []).filter((x) => x.round === Number(id)); return rows.length ? rows : undefined; }
   return undefined;
 }
 
 /** Rebuild the state from every stored key (null when the room was never created). */
 export function stateFromEntries(entries: Map<string, unknown>): CoreState | null {
-  const meta = entries.get('meta') as (Pick<CoreState, 'v' | 'room' | 'match' | 'priv'> & { group?: Pick<GroupState, 'match' | 'priv'> | null }) | undefined;
+  const meta = entries.get('meta') as (Pick<CoreState, 'v' | 'room' | 'match' | 'priv'> & { group?: Pick<GroupState, 'match' | 'priv' | 'ranked'> | null }) | undefined;
   if (!meta) return null;
   const { group: gmeta, ...rest } = meta;
   const state: CoreState = { ...rest, subs: {}, lastLocked: {}, lastCheckpoint: {}, rounds: {}, group: null };
@@ -56,6 +60,11 @@ export function stateFromEntries(entries: Map<string, unknown>): CoreState | nul
   }
   if (gmeta) {
     const g: GroupState = { match: gmeta.match, priv: gmeta.priv, subs: {}, lastLocked: {}, lastCheckpoint: {}, rounds: {} };
+    if (gmeta.ranked) {
+      g.ranked = { ...gmeta.ranked, rounds: {} };
+      const served = entries.get('rserved');
+      if (Array.isArray(served)) g.served = served as GroupState['served'];
+    }
     for (const s of GSEATS) {
       const sub = entries.get(`gsub:${s}`);
       if (sub) g.subs[s] = sub as GroupState['subs'][GSeat];
@@ -71,6 +80,11 @@ export function stateFromEntries(entries: Map<string, unknown>): CoreState | nul
     if (k.startsWith('round:')) {
       const row = v as RoundRow;
       if (state.match && row.match_id === state.match.id) state.rounds[row.round] = row;
+    } else if (k.startsWith('rround:') && state.group?.ranked) {
+      const row = v as { match_id: string; round: number };
+      if (row.match_id === state.group.match.id) state.group.ranked.rounds[row.round] = v as never;
+    } else if (k.startsWith('rhist:') && state.group?.ranked) {
+      (state.group.history ??= []).push(...(v as NonNullable<GroupState['history']>));
     } else if (k.startsWith('gpass:') && state.group) {
       const rows = v as GroupState['passes'] extends Record<number, infer P> | undefined ? P : never;
       if (Array.isArray(rows) && rows[0]?.match_id === state.group.match.id) (state.group.passes ??= {})[Number(k.slice(6))] = rows;

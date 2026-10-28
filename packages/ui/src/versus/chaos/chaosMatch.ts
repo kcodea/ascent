@@ -342,7 +342,8 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
     const newPause = !!s.pausedAt && s.pausedAt !== last?.pausedAt;
     // PAUSED CLOSE: the round left its shop while the clock was stopped for an absent seat.
     if (last && last.phase === 'shop' && s.phase !== 'shop' && last.pausedSeat && last.round === s.round) {
-      const ps = last.seats.find((x) => x.seat === last.pausedSeat);
+      const was = last;
+      const ps = was.seats.find((x) => x.seat === was.pausedSeat);
       if (ps && !ps.auto) flag('pausedClose', last.round, `round ${last.round}'s shop closed while the match was paused on ${ps.name}`);
     }
     if (newPause) {

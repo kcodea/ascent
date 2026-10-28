@@ -4345,8 +4345,8 @@ body.dragging .statusbar .hero { pointer-events: none; }
   background: rgba(6, 5, 3, 0.86);
   /* Heavy feathered edge (owner 2026-10-28): solid only in the middle half, fading out to the rim, so it never
      shows a hard line against a portrait or frame it doesn't exactly match. */
-  -webkit-mask-image: radial-gradient(circle closest-side, #000 45%, transparent 100%);
-  mask-image: radial-gradient(circle closest-side, #000 45%, transparent 100%);
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 65%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side, #000 65%, transparent 100%);
   color: #fff; font-family: var(--font-ui); font-weight: 800;
   font-size: calc(4.4 * var(--u)); line-height: 1.25; text-align: center; letter-spacing: 0.01em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
@@ -13016,8 +13016,8 @@ html[data-phone-gpu] .opphand-card.spent > img { filter: grayscale(0.72) brightn
   background: rgba(6, 5, 3, 0.86);
   /* Heavy feathered edge (owner 2026-10-28): solid only in the middle half, fading out to the rim, so it never
      shows a hard line against a portrait or frame it doesn't exactly match. */
-  -webkit-mask-image: radial-gradient(circle closest-side, #000 45%, transparent 100%);
-  mask-image: radial-gradient(circle closest-side, #000 45%, transparent 100%);
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 65%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side, #000 65%, transparent 100%);
   color: #fff; font-family: var(--font-ui); font-weight: 800;
   font-size: calc(6.6 * var(--u)); line-height: 1.25; text-align: center; letter-spacing: 0.01em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);

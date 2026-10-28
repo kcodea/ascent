@@ -10643,4 +10643,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-28 once the delta SQL is applied. Before, every session start and between-runs refresh downloaded up to 150 whole runs (~3.45 MB a call, ~13.4 GB in 16 days, ~13 GB of temp spill).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/opponentPool/poolRunCache.test.ts', 'packages/sim/src/lobby/poolRunsDelta.db.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-PFRAME-SOCKET-01',
+    title: 'Your in-game portrait always shows a ring: the Default ring when no frame is equipped',
+    statement:
+      'Your hero portrait on the game board always wears a ring. With a portrait frame equipped it wears that frame; with '
+      + 'none (the standard / default choice) it wears the Default ring. The board art carries no ring of its own, so the '
+      + 'portrait never relies on the background to frame it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-28 (board cutout)', quote: 'when i have the standard (default) frame selected. it should show here.' },
+      { kind: 'code', ref: 'packages/ui/src/portraitFrame/portraitFrameConfig.ts (resolvePortraitFrame, socket surface)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-28 (feat/board-cutout-preview, PR #2375). Before it, the ring was painted into the old board art, so the cutout board left an unframed portrait.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/portraitFrame/portraitFrame.test.tsx'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

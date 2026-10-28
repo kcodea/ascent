@@ -284,7 +284,10 @@ export function resolveImageFrame(id: AnyFrameId, surface: FrameSurface = 'defau
 /** The whole lookup: null = keep the surface's current look. */
 export function resolvePortraitFrame(side: PortraitSide, frameId?: string | null, surface: FrameSurface = 'default'): ResolvedFrame | null {
   const choice = resolveFrameChoice(side, frameId);
-  return choice === 'current' ? null : resolveImageFrame(choice, surface);
+  // The in-game socket's ring used to be painted into the board art; the cutout board (2026-10-28) has none, so the
+  // socket paints the Default ring image when no frame is equipped.
+  if (choice === 'current') return surface === 'socket' ? resolveImageFrame('default', surface) : null;
+  return resolveImageFrame(choice, surface);
 }
 
 /** For the hero-select ceremony, which draws its own ring at a tuned size around the default ring's geometry:

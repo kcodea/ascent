@@ -467,6 +467,40 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_kennel_2', 'minion_skin', 'Plushie Kennelmaster', 'epic', 'kennel', 'Plushie Kennelmaster.png'),
   skin('skin_raven_1', 'minion_skin', 'Plushie Raven', 'legendary', 'b2_raven', 'Plushie Raven.png'),
   skin('skin_seaurchin_3', 'minion_skin', 'Plushie Sea Urchin', 'legendary', 'seaurchin', 'Plushie Sea Urchin.png'),
+  // Skins batch 13 (owner 2026-10-27: "ive added a lot of new skins to the collection via the folder"). Twenty-nine skins
+  // for the most-bought cards that had none, plus Plushie Armadiyo (the 24th Set 2 Plushie Beast). Rarity = the folder.
+  // Names are the filenames with Gaurdian / Sharpsooter tidied. Renamed for the catalog's name rules: Gold Rush Prospector ->
+  // Frontier Prospector (no medal words), Stained Glass Lastlight -> Cathedral Lastlight and Low Poly Flutterbutter -> Poly
+  // Flutterbutter (20 characters max), and 'Lego Tapkeeper.png' ships as Brick Tapkeeper (a brand name).
+  skin('skin_chipwick_1', 'minion_skin', 'Frontier Prospector', 'common', 'k_chipwick', 'Gold Rush Prospector.png'),
+  skin('skin_chipwick_2', 'minion_skin', 'Star Prospector', 'common', 'k_chipwick', 'Star Prospector.png'),
+  skin('skin_lastlight_1', 'minion_skin', 'Anime Lastlight', 'common', 'n2_lastlight', 'Anime Lastlight.png'),
+  skin('skin_chronos_1', 'minion_skin', 'Cuckoo Chronos', 'common', 'chronos', 'Cuckoo Chronos.png'),
+  skin('skin_tapkeeper_1', 'minion_skin', 'Tiki Tapkeeper', 'common', 'dw_tapkeeper', 'Tiki Tapkeeper.png'),
+  skin('skin_tormentor_1', 'minion_skin', 'Puppet Tormentor', 'common', 'dm_tormentor', 'Puppet Tormentor.png'),
+  skin('skin_gourmand_1', 'minion_skin', 'Jello Blart', 'common', 'dm_gourmand', 'Jello Blart.png'),
+  skin('skin_chipwick_3', 'minion_skin', 'Blocky Prospector', 'rare', 'k_chipwick', 'Blocky Prospector.png'),
+  skin('skin_armadiyo_1', 'minion_skin', 'Plushie Armadiyo', 'rare', 'b2_armadiyo', 'Plushie Armadiyo.png'),
+  skin('skin_blazer_1', 'minion_skin', 'Low Poly Blazer', 'rare', 'k_blazer', 'Low Poly Blazer.png'),
+  skin('skin_grimoire_1', 'minion_skin', 'Low Poly Grimoire', 'rare', 'd2_grimoire', 'Low Poly Grimoire.png'),
+  skin('skin_lastlight_2', 'minion_skin', 'Low Poly Lastlight', 'rare', 'n2_lastlight', 'Low Poly Lastlight.png'),
+  skin('skin_geode_1', 'minion_skin', 'Glass Guardian', 'rare', 'k_geode', 'Glass Gaurdian.png'),
+  skin('skin_tormentor_2', 'minion_skin', 'Shadow Tormentor', 'rare', 'dm_tormentor', 'Shadow Tormentor.png'),
+  skin('skin_gourmand_2', 'minion_skin', 'Mall Bob', 'rare', 'dm_gourmand', 'Mall Bob.png'),
+  skin('skin_lastlight_3', 'minion_skin', 'Cathedral Lastlight', 'epic', 'n2_lastlight', 'Stained Glass Lastlight.png'),
+  skin('skin_flutterdrake_1', 'minion_skin', 'Poly Flutterbutter', 'epic', 'd2_flutterdrake', 'Low Poly Flutterbutter.png'),
+  skin('skin_hank_1', 'minion_skin', 'Blox Hank', 'epic', 'dm_hank', 'Blox Hank.png'),
+  skin('skin_sharpshooter_1', 'minion_skin', 'Ghillie Sharpshooter', 'epic', 'dw_sharpshooter', 'Ghillie Sharpsooter.png'),
+  skin('skin_chronos_2', 'minion_skin', 'Low Poly Chronos', 'epic', 'chronos', 'Low Poly Chronos.png'),
+  skin('skin_veinbreaker_1', 'minion_skin', 'Clay Cave Cutter', 'epic', 'k_veinbreaker', 'Clay Cave Cutter.png'),
+  skin('skin_jeweler_1', 'minion_skin', 'Bedazzled Jewel', 'epic', 'k3_jeweler', 'Bedazzled Jewel.png'),
+  skin('skin_spellkeeper_1', 'minion_skin', 'Scribble Warden', 'epic', 'd2_spellkeeper', 'Scribble Warden.png'),
+  skin('skin_chronos_3', 'minion_skin', 'Deja Vu Chronos', 'legendary', 'chronos', 'Deja Vu Chronos.png'),
+  skin('skin_geode_2', 'minion_skin', 'Pet Rock Guardian', 'legendary', 'k_geode', 'Pet Rock Guardian.png'),
+  skin('skin_tapkeeper_2', 'minion_skin', 'Scribble Tapkeeper', 'legendary', 'dw_tapkeeper', 'Scribble Tapkeeper.png'),
+  skin('skin_gourmand_3', 'minion_skin', 'Scribbled Bob', 'legendary', 'dm_gourmand', 'Scribbled Bob.png'),
+  skin('skin_chronos_4', 'minion_skin', 'Blueprint Chronos', 'ancient', 'chronos', 'Blueprint Chronos.png'),
+  skin('skin_tapkeeper_3', 'minion_skin', 'Brick Tapkeeper', 'ancient', 'dw_tapkeeper', 'Lego Tapkeeper.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is

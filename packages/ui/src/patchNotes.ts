@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Twenty-nine new minion skins in chests, for many of the most-played cards that had none.',
+        details: [
+          'Prospector, Chronos, Lastlight, Tapkeeper, Bob Blart, Geode Guardian, Market Tormentor, Blazer, Grimoire, Flutterbutter, Right Hand Hank, Sharpshooter, Cave Cutter, Jewel and Spell Warden each get their first skins.',
+          'Plushie Armadiyo completes the Plushie Beast line.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Sixteen new Card Plates in chests.',
         details: [
           'Legendary: Burden, Divine, Mytho, Plasma, Shotsun, The Last Plate and Wither.',

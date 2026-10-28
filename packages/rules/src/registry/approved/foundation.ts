@@ -9974,4 +9974,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A candidate that removes a shop-actions hitch prints "shop-actions ... worst 9.0 ... winner worst:X long:X" with X = the working tree once the key is revealed; a change that does nothing prints "~" on every metric.',
     enforcement: { kind: 'scenario', refs: ['packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-27' },
   },
+  {
+    id: 'R-PROG-SKINS-21',
+    title: 'Skins batch 13: twenty-nine minion skins for the most-bought unskinned cards join the crates at their folder rarity',
+    statement:
+      'Twenty-nine minion skins are crate items, each targeting one card by stable id and shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, at the rarity of the Minion Skins folder its master sits in (R-PROG-SKINS-11). '
+      + 'Common: Frontier Prospector, Star Prospector, Anime Lastlight, Cuckoo Chronos, Tiki Tapkeeper, Puppet Tormentor, Jello Blart. Rare: Blocky Prospector, Plushie Armadiyo, Low Poly Blazer, Low Poly Grimoire, Low Poly Lastlight, Glass Guardian, Shadow Tormentor, Mall Bob. Epic: Cathedral Lastlight, Poly Flutterbutter, Blox Hank, Ghillie Sharpshooter, Low Poly Chronos, Clay Cave Cutter, Bedazzled Jewel, Scribble Warden. Legendary: Deja Vu Chronos, Pet Rock Guardian, Scribble Tapkeeper, Scribbled Bob. Ancient: Blueprint Chronos, Brick Tapkeeper. '
+      + 'With them in, a first crate holds 52 Common, 98 Rare, 96 Epic, 87 Legendary and 31 Ancient items (each Common '
+      + '0.673%, Rare 0.316%, Epic 0.229%, Legendary 0.103%, Ancient 0.097%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (skins batch 13)', quote: 'ive added a lot of new skins to the collection via the folder. can you please add th em to game' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 13); packages/ui/src/art/skins/ (29 new webps)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-27 (feat/skins-batch-13). Four names differ from their filenames to pass the catalog name rules (cosmetics.test.ts): Gold Rush Prospector -> Frontier Prospector (no medal words), Stained Glass Lastlight -> Cathedral Lastlight and Low Poly Flutterbutter -> Poly Flutterbutter (20 characters max), and Lego Tapkeeper -> Brick Tapkeeper (a brand name). Glass Gaurdian and Ghillie Sharpsooter are spelling-tidied. All are Claude\x27s calls for the owner to confirm. Reaches the database on the next deploy of progression-inventory.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-27' },
+  },
 ];

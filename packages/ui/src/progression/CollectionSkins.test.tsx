@@ -68,8 +68,8 @@ describe('the Heroes and Minions tabs', () => {
     expect(tab('Heroes').className).not.toMatch(/\blocked\b/);
     expect(tab('Heroes').querySelector('.colls-tab-count')?.textContent).toBe('1/41'); // skins batch 10 (2026-10-21): seven hero skins (was 1/34); skins batch 8 (2026-10-03): eleven hero skins (was 1/23); skins batch 7 (2026-10-01): Goth Merrin, Iron Guardian, Robin Hood (was 1/20)
     // 2026-09-28: three Black Belt Brian skins and one Bellringer Voss skin, so Minions is 1/4 and the album 22 items (30 with the eight hero attacks, 2026-09-28); skins batch 2 (2026-09-28) adds 13 minion skins: Minions 1/17, the album 43; the 33 hero titles (2026-09-29) make it 76; the ninth hero attack, Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80; Hemorrhage (2026-09-29), 81; skins batch 3 (2026-09-29) adds 4 minion skins (Minions 1/21) and a Frantic Frank hero skin (Heroes 1/3), +5; skins batch 4 (2026-09-30) adds 16 minion skins (Minions 1/37) and 16 hero skins (Heroes 1/19), +32; skins batch 5 (2026-09-30) adds 11 minion skins (Minions 1/48) and Influencer Indy (Heroes 1/20), +12; skins batch 6 (2026-10-01) adds 9 minion skins (Minions 1/57), +9; skins batch 9 (2026-10-07) adds Canyon Drake and Thunderchorus Drake (Minions 1/59), +2; frames batch 9 (2026-10-07) adds 5 portrait frames, +5
-    expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('1/98'); // + nine Plushie skins batch 12 (2026-10-27); + twenty-two skins batch 11 (2026-10-26); + seven skins batch 10 (2026-10-21); + Astral Fatecarver (2026-10-10)
-    expect(text('.colls-meter-num')).toBe('9 / 384'); // 2026-10-26: skins batch 11 (+22). 2026-10-22: the five Comms emotes, owned by all (+5 / +5). 2026-10-18: nine more crate emotes (+9). 2026-10-17: Phoenix removed (-1), Goop (+1), three more card plates (+3), after thirteen (+13). 2026-10-16: the Chrome card plate (+1). 2026-10-16: seven more card plates (+7). 2026-10-15: Sad Wrangler retired (-1). 2026-10-15: Zen Brian, the one starter emote, owned by all (+1). 2026-10-15: no starter emotes (owned -4), thirteen crate emotes in the total (+10 net, Angry Mushy retired). + the six card plates (2026-10-14/15), + the four starter emotes (2026-10-13), + six hero titles (2026-10-15)
+    expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('1/127'); // + twenty-nine skins batch 13 (2026-10-27); + nine Plushie skins batch 12 (2026-10-27); + twenty-two skins batch 11 (2026-10-26); + seven skins batch 10 (2026-10-21); + Astral Fatecarver (2026-10-10)
+    expect(text('.colls-meter-num')).toBe('9 / 413'); // 2026-10-26: skins batch 11 (+22). 2026-10-22: the five Comms emotes, owned by all (+5 / +5). 2026-10-18: nine more crate emotes (+9). 2026-10-17: Phoenix removed (-1), Goop (+1), three more card plates (+3), after thirteen (+13). 2026-10-16: the Chrome card plate (+1). 2026-10-16: seven more card plates (+7). 2026-10-15: Sad Wrangler retired (-1). 2026-10-15: Zen Brian, the one starter emote, owned by all (+1). 2026-10-15: no starter emotes (owned -4), thirteen crate emotes in the total (+10 net, Angry Mushy retired). + the six card plates (2026-10-14/15), + the four starter emotes (2026-10-13), + six hero titles (2026-10-15)
   });
 
   it('tiles show the art and the target; unowned are dimmed + blurred (missing) with a lock', () => {
@@ -100,6 +100,8 @@ describe('the Heroes and Minions tabs', () => {
       'Pinata Claw', 'Plushie Dawnclaw', 'Plushie Echohorn', 'Snowyhorn', 'Plushie Solaris', 'Plushie Beetle', 'Plushie Elderhorn', 'Plushie Grim', 'Plushie Spots',
       // skins batch 12 (2026-10-27)
       'Plushie Beardsley', 'Plushie Beev', 'Plushie Sunmane', 'Plushie Bullseye', 'Plushie Packstrider', 'Plushie Wolvie', 'Plushie Kennelmaster', 'Plushie Raven', 'Plushie Sea Urchin',
+      // skins batch 13 (2026-10-27)
+      'Frontier Prospector', 'Star Prospector', 'Anime Lastlight', 'Cuckoo Chronos', 'Tiki Tapkeeper', 'Puppet Tormentor', 'Jello Blart', 'Blocky Prospector', 'Plushie Armadiyo', 'Low Poly Blazer', 'Low Poly Grimoire', 'Low Poly Lastlight', 'Glass Guardian', 'Shadow Tormentor', 'Mall Bob', 'Cathedral Lastlight', 'Poly Flutterbutter', 'Blox Hank', 'Ghillie Sharpshooter', 'Low Poly Chronos', 'Clay Cave Cutter', 'Bedazzled Jewel', 'Scribble Warden', 'Deja Vu Chronos', 'Pet Rock Guardian', 'Scribble Tapkeeper', 'Scribbled Bob', 'Blueprint Chronos', 'Brick Tapkeeper',
     ].sort());
     const owned = tile('Sheriff Brian');
     expect(owned.className).toMatch(/\bskin\b/);
@@ -169,23 +171,23 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     expect(tileNames()).toContain('Sheriff Brian');
     act(() => applyServerCatalogState({ retiredIds: ['skin_blackbelt_1'], disabledCategories: [] }));
     expect(tileNames()).toEqual([ // rarest first, then catalog order
-      'Tee Time Sylus', 'Edward Colada Hands', // Ancient (2026-10-02)
+      'Tee Time Sylus', 'Edward Colada Hands', 'Blueprint Chronos', 'Brick Tapkeeper', // Ancient (2026-10-02; batch 13 2026-10-27)
       'Grandmaster Brian', 'Cashier Drakko', 'Candy Cane Venom', 'Magician Buddy Buddy', 'Prophet Pimm', 'Chrome Scalefeather',
-      'Portal Buddy', 'Cotton Candy Nimbus', 'Cybernetic Warpath', 'Plushie Beetle', 'Plushie Elderhorn', 'Plushie Grim', 'Plushie Spots', 'Plushie Raven', 'Plushie Sea Urchin',
+      'Portal Buddy', 'Cotton Candy Nimbus', 'Cybernetic Warpath', 'Plushie Beetle', 'Plushie Elderhorn', 'Plushie Grim', 'Plushie Spots', 'Plushie Raven', 'Plushie Sea Urchin', 'Deja Vu Chronos', 'Pet Rock Guardian', 'Scribble Tapkeeper', 'Scribbled Bob',
       'Glitch Brian', 'Clocktower Voss', 'Rock Star Drakko', 'Slam Dunk Sylus', 'Rooks Oona', 'Mace Urchin', 'Magma Recaller', 'Sketch Buddy',
-      'Sketch Drakko', 'Thor Orin', 'Dark Nimbus', 'Pastry Chef Butcher', 'Nature Commander', 'Cosmic Mushy', 'Gilded Kennelmaster', 'Jensen & Fi Sky', 'Pinata Claw', 'Plushie Dawnclaw', 'Plushie Echohorn', 'Snowyhorn', 'Plushie Solaris', 'Plushie Kennelmaster',
+      'Sketch Drakko', 'Thor Orin', 'Dark Nimbus', 'Pastry Chef Butcher', 'Nature Commander', 'Cosmic Mushy', 'Gilded Kennelmaster', 'Jensen & Fi Sky', 'Pinata Claw', 'Plushie Dawnclaw', 'Plushie Echohorn', 'Snowyhorn', 'Plushie Solaris', 'Plushie Kennelmaster', 'Cathedral Lastlight', 'Poly Flutterbutter', 'Blox Hank', 'Ghillie Sharpshooter', 'Low Poly Chronos', 'Clay Cave Cutter', 'Bedazzled Jewel', 'Scribble Warden',
       'Sketchbook Brian', 'Crowd Surf Drakko', 'Lounge Act Joker', 'Storm Front Nimbus', 'Superfan Paragon', 'Stencil Sylus', 'Blown Glass Recaller', 'Crimson Chimerus',
       'Epic Baal', 'Smog Nimbus', 'Lightblade Sword', 'Mascot Scalefeather', 'Mime Joker', 'Quartet Chorusdrake', 'Star Urchin',
       'Sea Dragon Wayfinder', 'Timeworn Spellsword', 'Frost Commander', 'Canyon Drake', 'Thunderchorus Drake', 'Astral Fatecarver',
-      'Anvilshade', 'Liberty Voss', 'Metal Rachel', 'Mushy River', 'Cyborg Roomworks', 'Voidworks', 'Frostclaw', 'Stoneclaw', 'Plushie T-Rex', 'Plushie Vicious', 'Plushie Wooly', 'Solar Spots', 'Stormhorn', 'Plushie Bullseye', 'Plushie Packstrider', 'Plushie Wolvie',
+      'Anvilshade', 'Liberty Voss', 'Metal Rachel', 'Mushy River', 'Cyborg Roomworks', 'Voidworks', 'Frostclaw', 'Stoneclaw', 'Plushie T-Rex', 'Plushie Vicious', 'Plushie Wooly', 'Solar Spots', 'Stormhorn', 'Plushie Bullseye', 'Plushie Packstrider', 'Plushie Wolvie', 'Blocky Prospector', 'Plushie Armadiyo', 'Low Poly Blazer', 'Low Poly Grimoire', 'Low Poly Lastlight', 'Glass Guardian', 'Shadow Tormentor', 'Mall Bob',
       'Joyride Jensen & Fi', 'Potion Stand Steward', 'Double Agent Zyff', 'Beefy Arnold', 'Starform Recaller', 'Bouncer Pimm', 'Mecha Scalefeather', 'Lavish Date',
-      'Soul Surf Wayfinder', 'Hexhunter Wardkeeper', 'Amber Deepvein', 'Static Deepvein', 'Frost Wardkeeper', 'Infernal Wayfinder', 'Plushie Hawkus', 'Plushie Oona', 'Plushie Panther', 'Plushie Tort', 'Plushie Beardsley', 'Plushie Beev', 'Plushie Sunmane',
+      'Soul Surf Wayfinder', 'Hexhunter Wardkeeper', 'Amber Deepvein', 'Static Deepvein', 'Frost Wardkeeper', 'Infernal Wayfinder', 'Plushie Hawkus', 'Plushie Oona', 'Plushie Panther', 'Plushie Tort', 'Plushie Beardsley', 'Plushie Beev', 'Plushie Sunmane', 'Frontier Prospector', 'Star Prospector', 'Anime Lastlight', 'Cuckoo Chronos', 'Tiki Tapkeeper', 'Puppet Tormentor', 'Jello Blart',
     ]);
-    expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/97');
-    expect(text('.colls-meter-num')).toBe('8 / 383');
+    expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/126');
+    expect(text('.colls-meter-num')).toBe('8 / 412');
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: [] }));
     expect(tile('Sheriff Brian').className).toMatch(/\bowned\b/);
-    expect(text('.colls-meter-num')).toBe('9 / 384'); // 2026-10-26: skins batch 11 (+22). 2026-10-22: the five Comms emotes (+5 / +5). 2026-10-17: Phoenix removed (-1), Goop (+1), three more card plates (+3), after thirteen (+13). 2026-10-16: the Chrome card plate (+1). 2026-10-16: seven more card plates (+7). 2026-10-15: Sad Wrangler retired (-1). 2026-10-15: Zen Brian, the one starter emote, owned by all (+1). 2026-10-15: no starter emotes (owned -4), thirteen crate emotes in the total (+10 net, Angry Mushy retired). + the six card plates (2026-10-14/15), + the four starter emotes (2026-10-13), + six hero titles (2026-10-15)
+    expect(text('.colls-meter-num')).toBe('9 / 413'); // 2026-10-26: skins batch 11 (+22). 2026-10-22: the five Comms emotes (+5 / +5). 2026-10-17: Phoenix removed (-1), Goop (+1), three more card plates (+3), after thirteen (+13). 2026-10-16: the Chrome card plate (+1). 2026-10-16: seven more card plates (+7). 2026-10-15: Sad Wrangler retired (-1). 2026-10-15: Zen Brian, the one starter emote, owned by all (+1). 2026-10-15: no starter emotes (owned -4), thirteen crate emotes in the total (+10 net, Angry Mushy retired). + the six card plates (2026-10-14/15), + the four starter emotes (2026-10-13), + six hero titles (2026-10-15)
   });
 
   it('a disabled CATEGORY becomes a locked Soon tab', () => {
@@ -193,6 +195,6 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: ['hero_skin'] }));
     expect(tab('Heroes').className).toMatch(/\blocked\b/);
     expect(tab('Heroes').textContent).toContain('Soon');
-    expect(text('.colls-meter-num')).toBe('8 / 343');
+    expect(text('.colls-meter-num')).toBe('8 / 372');
   });
 });

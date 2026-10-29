@@ -471,6 +471,10 @@ npm run perf:gauntlet -- --trace shop-actions    # Chrome trace of one scene: st
                                               # each recalc, who dirtied style, the costliest CSS selectors
 npm run perf:gauntlet -- --profile shop-actions  # CPU profile of one scene: top functions by self time, named
                                               # through the bench build's hidden source maps (VITE_PERF_BENCH only)
+npm run perf:gauntlet -- --round-probe --round-scenes --from 2 --to 14 --headless  # DEGRADATION: ONE game, every scene
+                                              # tagged with its round + a probe (heap, DOM, listeners, timers, FX plays, store
+                                              # slice sizes) each shop; raw-run*.json for per-round tables. --perf-timings adds
+                                              # the in-game monitor's spans per wave, --snap 3,13 heap snapshots, --cpu-throttle 4
 npm run perf:gauntlet -- --base <ref>         # another baseline; --a <dist> --b <dist> skips building; --only <dist>
 ```
 

@@ -1,79 +1,73 @@
-/* THE FRIENDS DOCK (owner 2026-10-29, R-FRIENDS-DOCK-01 / -02): ONE dock, bottom left, on every screen. The button wears
-   the gear / Compendium / Rules plaque; the panels are the Versus notices' dark panel (`.vspanel`) with the old Friends
-   page's status line and chips. MOTION: one-shot transform + opacity only (the open rises out of the button, the close
-   sinks back into it); nothing loops. No cursor rules: the global gauntlet paints every button (CLAUDE.md), and the row
-   (role="button") gets the gauntlet pointer from the global [role="button"] rule.
+/* THE FRIENDS DOCK (owner 2026-10-29, R-FRIENDS-DOCK-05: "move the friends thing to the bottom right instead ... i want
+   the friend button to like expand into the list/collapse back down"): ONE dock, bottom right, on every screen. The
+   button wears the gear / Compendium / Rules plaque and is the fourth square of their corner row; the panel is the
+   Versus notices' dark panel (`.vspanel`) with the old Friends page's status line and chips, and it GROWS OUT OF THE
+   BUTTON: its bottom-right corner sits on the button's, the button stays put as the right end of the panel's title bar
+   (along its foot), and the panel rises up and to the left. MOTION: one-shot transform + opacity only (the panel scales
+   out of the button's corner and back into it); nothing loops. No cursor rules: the global gauntlet paints every button
+   (CLAUDE.md), and the row (role="button") gets the gauntlet pointer from the global [role="button"] rule.
+   LAYERS: above the menu pages (`.lbpage` 470), the title (450) and the corner row (85 / 451), under the friend menu
+   (490), the Settings veil (500), the account panel (540) and every modal above them. */
 
-   PLACEMENT: the very bottom-left corner, `--fdock-x` from the left edge and `--fdock-y` from the bottom edge, small
-   enough to tuck under / beside what every screen keeps there (the in-game hero portrait's Health plate, the side menu's
-   Settings plaque, the title's footer links, which make room for it). The panels rise from the button's top, left edges
-   aligned; the message panel opens to the list's RIGHT.
-   LAYERS: above the menu pages (`.lbpage` 470) and the title (450), under the friend menu (490), the Settings veil (500),
-   the account panel (540) and every modal above them. */
-/* The three pieces that sit on the corner share its numbers: the button's size (`--fdock-cb`) and its distance from the
-   left / bottom edges. Menus (title, ladder pages, hero select): the corner plaque's own 40 units, 12 px in. In a run the
-   corner lies under the hero portrait's Health plate, so the button tucks in smaller and lower (`.ingame`). */
-.fdock-btn, .fdock-stack, .dm-toast { --fdock-cb: calc(40 * var(--u)); --fdock-x: 12px; --fdock-y: 12px; }
-.fdock-btn.ingame, .fdock-stack.ingame, .dm-toast.ingame { --fdock-cb: calc(32 * var(--u)); --fdock-x: 10px; --fdock-y: 5px; }
+/* THE CORNER SLOT: the row's own numbers (styles.css `.gearbtn` / `.bookbtn` / `.rulesbtn`): gear 0, Compendium 1,
+   Rules 2, Friends 3 (`--fdock-slot`), each `--fdock-cb` square with a 10 px gap, 16 px in from the right and bottom
+   edges. `--fdock-r` / `--fdock-b` are the button's right / bottom offsets; the panel and the toast hang off them.
+   Where the row is covered the button takes slot 0, the corner itself (FriendsDock `dockCorner`, `.corner`: hero
+   select, a side-menu page and the in-game menu lie over the whole row), as on a phone's side-menu screens (Rules and
+   the Compendium move to the top and the gear is under the page). */
+.fdock-btn, .fdock-stack, .dm-toast { --fdock-cb: calc(40 * var(--u)); --fdock-slot: 3; --fdock-pad: 6px;
+  --fdock-r: calc(var(--edge-r) + 16px + var(--fdock-slot) * (var(--fdock-cb) + 10px)); --fdock-b: calc(var(--edge-b) + 16px); }
+:is(.fdock-btn, .fdock-stack, .dm-toast).corner { --fdock-slot: 0; }
 html[data-touch-ui] :is(.fdock-btn, .fdock-stack, .dm-toast) { --fdock-cb: var(--touch-cb); }
-html[data-touch-ui] :is(.fdock-btn, .fdock-stack, .dm-toast).ingame { --fdock-cb: calc(var(--touch-cb) * 0.8); }
-html[data-touch-ui][data-phone-zoom] :is(.fdock-btn, .fdock-stack, .dm-toast).ingame { --fdock-cb: 54px; }
-html[data-phone-layout]:not([data-phone-menus]) :is(.fdock-btn, .fdock-stack, .dm-toast) { --fdock-cb: var(--pl-cb); }
+html[data-touch-ui][data-touch-small][data-phone-sbpage] :is(.fdock-btn, .fdock-stack, .dm-toast),
+html[data-phone-layout][data-phone-sbpage] :is(.fdock-btn, .fdock-stack, .dm-toast) { --fdock-slot: 0; }
+/* A phone in a game (the zoomed stage, touchUi.css): the row's 66 px squares on their own design-x offsets. */
+html[data-touch-ui][data-phone-zoom] :is(.fdock-btn, .fdock-stack, .dm-toast) { --fdock-cb: 66px;
+  --fdock-r: calc(var(--pz-bxr) + 1920px - 1675px); --fdock-b: calc(var(--pz-safe-b, var(--safe-b)) + 15px); }
+html[data-touch-ui][data-phone-zoom] :is(.fdock-btn, .fdock-stack, .dm-toast).corner { --fdock-r: calc(var(--pz-bxr) + 1920px - 1897px); }
+/* The phone layout's game screen (phoneLayout.css places the row in bar px from the top left): the same square, as
+   right / bottom offsets. */
+html[data-phone-layout]:not([data-phone-menus]) :is(.fdock-btn, .fdock-stack, .dm-toast) { --fdock-cb: var(--pl-cb);
+  --fdock-r: calc(var(--lvw, 100vw) - var(--bar-x) - 2260px * var(--scale) - var(--pl-cb));
+  --fdock-b: calc(var(--lvh, 100vh) - var(--bar-y) - 1290px * var(--scale) - var(--pl-cb)); }
 
-.fdock-btn { position: fixed; left: calc(var(--edge-l) + var(--fdock-x)); bottom: calc(var(--edge-b) + var(--fdock-y));
+.fdock-btn { position: fixed; right: var(--fdock-r); bottom: var(--fdock-b);
   width: var(--fdock-cb); height: var(--fdock-cb); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 480;
   color: #f0d089; border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease; }
 .fdock-btn:hover { border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); transform: translateY(-2px); }
 .fdock-btn:active, .fdock-btn:hover:active { transform: translateY(3px) scale(0.97); filter: brightness(0.9); transition-duration: 0.06s; }
+/* Open: the button is the panel's collapse control, above the panel that grew out of it. */
 .fdock-btn.on { z-index: 487; border-color: rgba(240, 208, 137, 0.95); }
 .fdock-btn > svg { width: 62%; height: 62%; pointer-events: none; }
-/* The counts: friends online (the side menu's old green chip) on the button's top-right corner, unread messages + friend
-   requests waiting (the red chip) on its top-left. In a run they ride BESIDE the button instead, to its right, never above
-   it, where the hero's Health plate sits. Static. */
+html[data-touch-ui] .fdock-btn > svg { width: 56%; height: 56%; }
+/* The counts on the button's corners: friends online (the side menu's old green chip) top right, unread messages +
+   friend requests waiting (the red chip) top left. Static; hidden while open (the title bar says it). */
 .fdock-chips { position: absolute; inset: -7px; pointer-events: none; }
 .fdock-chips > .fdock-count { position: absolute; top: 0; right: 0; }
 .fdock-chips > .dm-unread { position: absolute; top: 0; left: 0; }
-.fdock-btn.ingame .fdock-chips { inset: auto; left: calc(100% + 5px); top: 50%; transform: translateY(-50%); display: flex; gap: 4px; }
-.fdock-btn.ingame .fdock-chips > * { position: static; }
-.fdock-btn.ingame .fdock-chips > .dm-unread { order: 2; }
 .fdock-count { min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
   display: grid; place-items: center; font-family: var(--font-ui); font-weight: 900; font-size: 11px; line-height: 1; color: #fff;
   background: #2f7a48; border: 1px solid #9ee0b2; font-variant-numeric: tabular-nums; }
-html[data-phone-zoom] .fdock-btn { bottom: calc(var(--pz-safe-b, var(--safe-b)) + var(--fdock-y)); }
 
-/* The catcher: every press outside the panels lands here and closes the dock (never on the board or menu underneath). */
+/* The catcher: every press outside the panel lands here and closes the dock (never on the board or menu underneath). */
 .fdock-catch { position: fixed; inset: 0; z-index: 484; background: transparent; touch-action: none; }
 
-/* The panels, bottom-aligned just above the button, left edges on the button's left edge. */
-.fdock-stack { position: fixed; z-index: 486; left: calc(var(--edge-l) + var(--fdock-x)); bottom: calc(var(--edge-b) + var(--fdock-y) + var(--fdock-cb) + 10px);
-  --fdock-z: 1; --fdock-maxh: calc(100 * var(--vh, 1vh) - var(--fdock-cb) - 40px);
-  display: flex; align-items: flex-end; gap: 10px; max-height: var(--fdock-maxh); max-width: calc(var(--lvw, 100vw) - 24px);
-  transform-origin: 0 100%; animation: fdockin 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.fdock-stack.closing { animation: fdockout 0.16s ease-in both; pointer-events: none; }
-@keyframes fdockin { from { opacity: 0; transform: translateY(14px) scale(0.96); } }
-@keyframes fdockout { to { opacity: 0; transform: translateY(14px) scale(0.96); } }
-html[data-phone-zoom] .fdock-stack { bottom: calc(var(--pz-safe-b, var(--safe-b)) + var(--fdock-y) + var(--fdock-cb) + 10px); }
+/* THE PANEL: bottom-right corner on the button's (wrapping it by `--fdock-pad`), growing up and to the left, never
+   wider or taller than the room left of / above it. It scales out of that corner (transform-origin) and back in. */
+.fdock-stack { position: fixed; z-index: 486; right: calc(var(--fdock-r) - var(--fdock-pad)); bottom: calc(var(--fdock-b) - var(--fdock-pad));
+  --fdock-z: 1; --fdock-maxh: calc(var(--lvh, 100vh) - var(--fdock-b) - 12px);
+  display: flex; align-items: flex-end; max-height: var(--fdock-maxh); max-width: calc(var(--lvw, 100vw) - var(--fdock-r) - 12px);
+  transform-origin: 100% 100%; animation: fdockin 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.fdock-stack.closing { animation: fdockout 0.16s cubic-bezier(0.5, 0, 0.75, 0) both; pointer-events: none; }
+@keyframes fdockin { from { opacity: 0; transform: scale(0.12); } 40% { opacity: 1; } }
+@keyframes fdockout { 60% { opacity: 1; } to { opacity: 0; transform: scale(0.12); } }
 
-/* A MENU'S OWN CORNER SPACE (R-FRIENDS-DOCK-03). The side menu's foot (under Settings) and the title menu's column
-   (under its last plaque) carry a `.fdock-slot`; the button is portalled INTO it, so it moves and scales with that
-   layout and never sits on top of anything. The panel then opens beside the slot's column (`.beside`, placed in stage
-   px by `useDockAnchor`), never over the menu's own buttons. An empty slot (no dock: no backend) takes no room. */
-.fdock-slot:empty { display: none; }
-.fdock-slot { position: relative; flex: none; }
-.msb-dock { align-self: flex-start; margin-top: -2px; }
-/* The title's corner (R-FRIENDS-DOCK-04): bottom left, just above the footer links, left edges aligned with them. Out
-   of flow (absolute in the footer), so the links never move. */
-.titlefoot > .title-dock { position: absolute; left: 0; bottom: calc(100% + 12px); }
-.fdock-btn.inslot { position: relative; left: auto; bottom: auto; z-index: auto; --fdock-cb: 40px; }
-.title-dock .fdock-btn.inslot { --fdock-cb: 46px; }
-html[data-touch-ui][data-touch-small][data-page-scale] .msb-dock .fdock-btn.inslot { --fdock-cb: calc(40 * var(--pt)); }
-.fdock-stack.beside { transform-origin: 0 100%; }
-
-.fdock-panel.vspanel { min-width: 0; max-width: none; padding: 12px; box-sizing: border-box; text-align: left; display: flex; flex-direction: column;
-  max-height: calc(var(--fdock-maxh) / var(--fdock-z)); min-height: 0; overflow: hidden; zoom: var(--fdock-z); }
-/* A phone's stage is scaled down a lot: the panels grow back to a readable size (the friend menu's own trick, friends.css). */
+.fdock-panel.vspanel { min-width: 0; max-width: calc((var(--lvw, 100vw) - var(--fdock-r) - 12px) / var(--fdock-z)); padding: 12px 12px var(--fdock-pad); box-sizing: border-box; text-align: left; display: flex; flex-direction: column;
+  max-height: calc(var(--fdock-maxh) / var(--fdock-z)); min-height: 0; overflow: hidden; zoom: var(--fdock-z);
+  background: linear-gradient(180deg, rgb(13, 22, 40), rgb(9, 15, 29)); /* solid: the board must not ghost through the list */ }
+/* A phone's stage is scaled down a lot: the panel grows back to a readable size (the friend menu's own trick, friends.css). */
 html[data-touch-ui][data-touch-small] .fdock-stack { --fdock-z: calc(var(--touch-inv-s, 1) * 0.7); }
 /* Desktop (owner 2026-10-29: "make the friends panel larger on desktop so it shows a bit more info"): wide enough
    that a friend's whole status shows (round and phase, "4th of 8", Health, Tier, "Fighting <name>"); the game line
@@ -84,6 +78,16 @@ html:not([data-touch-ui]) .fdock-row .fr-game { flex-wrap: wrap; row-gap: 4px; o
 html:not([data-touch-ui]) .fdock-row .fr-game > :is(.fr-gameline, .fr-gamevs) { white-space: normal; overflow: visible; }
 html:not([data-touch-ui]) .fdock-row .fr-statustext { white-space: normal; }
 html[data-phone-layout]:not([data-phone-menus]) .fdock-panel.vspanel { width: 300px; }
+
+/* THE TITLE BAR, along the panel's foot: "Friends", the online count, my handle to share, then the room the button sits
+   in (the button's own square, unzoomed, so it lines up with the real one at any panel zoom). */
+.fdock-bar.fdock-head { flex: none; align-items: center; margin: 8px 0 0; padding-top: var(--fdock-pad); min-height: calc(var(--fdock-cb) / var(--fdock-z));
+  border-top: 1px solid rgba(196, 160, 92, 0.3); }
+.fdock-bar .fdock-title { padding-left: 4px; }
+.fdock-btnroom { flex: none; width: calc(var(--fdock-cb) / var(--fdock-z)); height: calc(var(--fdock-cb) / var(--fdock-z)); margin-left: 4px; }
+.fdock-bar .fdock-me { margin-left: auto; }
+.fdock-list > :is(.fdock-rows, .fdock-empty) { flex: 1 1 auto; }
+.fdock-list > .fdock-empty { display: flex; flex-direction: column; justify-content: center; }
 
 .fdock-head { display: flex; align-items: baseline; gap: 10px; margin: 0 2px 8px; }
 .fdock-title { font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.9); }

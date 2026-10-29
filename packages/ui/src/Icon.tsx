@@ -267,6 +267,8 @@ const ICONS: Record<string, ReactNode> = {
       <rect x="4.8" y="10.4" width="14.4" height="10.4" rx="2" fill="currentColor" />
     </>
   ),
+  // PIN (2026-10-29): a push pin, the chat window's "keep it open while I play" toggle (R-DM-CHAT-02).
+  pin: <path fill="currentColor" d="M9 3h6l-1 2v5l3 3v2h-4.2v6L12 22l-.8-1v-6H7v-2l3-3V5z" />,
 };
 
 export function Icon({ name }: { name: string }) {

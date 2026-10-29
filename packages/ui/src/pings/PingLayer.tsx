@@ -320,8 +320,8 @@ export function PingLayer(): JSX.Element {
   useEffect(() => {
     // The shop buttons' right-click (a card's own handler runs first and opens its menu).
     const onCtx = (e: MouseEvent): void => {
-      // The Friends dock and its friend menu own their right-click (they sit over the shop buttons' corner).
-      if ((e.target as Element | null)?.closest?.('.card, .ping-menu, .ping-mark, .fdock-stack, .fdock-catch, .frmenu-at, .frmenu-catch')) return;
+      // The Friends dock, its friend menu and a pinned chat window own their right-click (they can sit over the shop buttons).
+      if ((e.target as Element | null)?.closest?.('.card, .ping-menu, .ping-mark, .fdock-stack, .fdock-catch, .dmchat-at, .frmenu-at, .frmenu-catch')) return;
       // (The button hit test only runs while a ping could be opened or cleared here: no rect reads otherwise.)
       if (!pingContext() && !usePings.getState().list.some((p) => p.mine && p.target.t === 'button')) return;
       const hit = pingButtonAt(e.target, e.clientX, e.clientY);

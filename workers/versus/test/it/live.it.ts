@@ -171,3 +171,60 @@ describe('a Versus room beats its stands (R-LIVE-CF-XP-01)', () => {
     for (const p of [a, b, s]) p.client!.close();
   });
 });
+
+/** A ping on a card the watched player owns (seat `p1`). */
+const ping = (id: string) => ({ id, kind: 'check', owner: 'p1', target: { t: 'card', uid: '31', zone: 'board' }, from: 'spoofed', role: 'self' });
+
+describe('LIVE PINGS end to end in workerd: promote, then the mentor pings (R-PING-03, R-PING-06)', () => {
+  it('the lobby / Practice live object: the player names a watcher Mentor; the mentor ping reaches the player ONLY, stamped; a plain watcher is dropped', async () => {
+    const game = `run-${crypto.randomUUID()}`;
+    const pub = new End(game, 'publish', undefined, 'Claudebot1');
+    await pub.connect();
+    await pub.req('listing', listing);
+    const mentor = new End(game, 'watch', undefined, 'Claudebot2');
+    const plain = new End(game, 'watch', undefined, 'Claudebot3');
+    await mentor.connect();
+    await plain.connect();
+    // The player promotes: every watcher hears who is mentoring.
+    const heardM = mentor.next((m) => m.t === 'bc' && m.event === 'ping_mentor');
+    const heardP = plain.next((m) => m.t === 'bc' && m.event === 'ping_mentor');
+    pub.client.broadcast('ping_mentor', { seat: 'p1', mentor: mentor.userId, name: 'Claudebot2' });
+    expect(await heardM).toMatchObject({ payload: { seat: 'p1', mentor: mentor.userId } });
+    await heardP;
+    // The mentor pings the player's card: the player gets it as a mentor ping from the mentor; the other watcher never.
+    const got = pub.next((m) => m.t === 'bc' && m.event === 'ping');
+    mentor.client.broadcast('ping', ping('m.1'));
+    expect(await got).toMatchObject({ payload: { id: 'm.1', role: 'mentor', from: mentor.userId, owner: 'p1' }, from: mentor.userId });
+    // A plain watcher's ping is dropped; the player's own ping reaches both watchers.
+    plain.client.broadcast('ping', ping('p.1'));
+    const own = plain.next((m) => m.t === 'bc' && m.event === 'ping');
+    pub.client.broadcast('ping', ping('o.1'));
+    expect(await own).toMatchObject({ payload: { id: 'o.1', role: 'self', from: pub.userId } });
+    await sleep(500);
+    expect(pub.pushes.some((m) => m.t === 'bc' && m.event === 'ping' && (m.payload as { id?: string }).id === 'p.1')).toBe(false);
+    expect(plain.pushes.some((m) => m.t === 'bc' && m.event === 'ping' && (m.payload as { id?: string }).id === 'm.1')).toBe(false);
+    for (const e of [pub, mentor, plain]) e.client.close();
+  });
+
+  it('a Versus room: player 1 names a spectator Mentor; the mentor ping reaches player 1 ONLY (never the opponent or the stands)', async () => {
+    const { a, b, roomId } = await toRoundOne(base);
+    const s = new Player(base, crypto.randomUUID(), 'Claudebot3');
+    const t = new Player(base, crypto.randomUUID(), 'Claudebot4');
+    for (const p of [s, t]) {
+      await p.connect(roomId);
+      await p.req('join', { as: 'spectator', display: p.name, profile: {}, content: CONTENT, protocol: VERSUS_PROTOCOL });
+    }
+    const heard = s.next((m) => m.t === 'bc' && m.event === 'ping_mentor');
+    a.client!.broadcast('ping_mentor', { seat: 'p1', mentor: s.userId, name: s.name });
+    await heard;
+    const got = a.next((m) => m.t === 'bc' && m.event === 'ping');
+    s.client!.broadcast('ping', ping('m.1'));
+    expect((await got).msg).toMatchObject({ payload: { id: 'm.1', role: 'mentor', from: s.userId }, from: s.userId });
+    // A plain spectator's ping is dropped.
+    t.client!.broadcast('ping', ping('p.1'));
+    await sleep(600);
+    expect(a.arrivals.some((x) => x.msg.t === 'bc' && x.msg.event === 'ping' && (x.msg.payload as { id?: string }).id === 'p.1')).toBe(false);
+    for (const p of [b, t]) expect(p.arrivals.some((x) => x.msg.t === 'bc' && x.msg.event === 'ping')).toBe(false);
+    for (const p of [a, b, s, t]) p.client!.close();
+  });
+});

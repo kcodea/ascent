@@ -94,6 +94,14 @@ const controls: TunerControl<Key>[] = [
   num('shadow', 'Strength', 'How dark the board\'s shadow is on this background.', 'Board shadow', 0, 1, 0.01, 'opacity'),
   num('shadowX', 'Left / right', 'Moves the board\'s shadow sideways. Positive moves it right.', 'Board shadow', -120, 120, 1, 'px'),
   num('shadowY', 'Up / down', 'Moves the board\'s shadow up or down. Positive moves it down.', 'Board shadow', -120, 120, 1, 'px'),
+  num('shadeDark', 'Darkness', 'How dark the circles under both hero portraits are. 0 = off, 1 = black at the centre.', 'Hero shades', 0, 1, 0.01, 'opacity'),
+  num('shadeSoft', 'Softness', 'How gradually the circles fade out. 0 = a hard edge, 100 = fades from the very centre.', 'Hero shades', 0, 100, 1, '%'),
+  num('shadeSize', 'Your size', 'How wide the circle under YOUR portrait spreads, in portrait widths (2 = twice the portrait).', 'Hero shades', 0, 10, 0.05, '×'),
+  num('shadeX', 'Your left / right', 'Moves the circle under your portrait, in % of the portrait. Positive moves it right.', 'Hero shades', -400, 400, 1, '%'),
+  num('shadeY', 'Your up / down', 'Moves the circle under your portrait, in % of the portrait. Positive moves it down.', 'Hero shades', -400, 400, 1, '%'),
+  num('oppShadeSize', 'Opponent size', 'How wide the circle under the OPPONENT\'s portrait spreads (in combat), in portrait widths.', 'Hero shades', 0, 10, 0.05, '×'),
+  num('oppShadeX', 'Opponent left / right', 'Moves the circle under the opponent\'s portrait, in % of the portrait. Positive moves it right.', 'Hero shades', -400, 400, 1, '%'),
+  num('oppShadeY', 'Opponent up / down', 'Moves the circle under the opponent\'s portrait, in % of the portrait. Positive moves it down.', 'Hero shades', -400, 400, 1, '%'),
 ];
 
 export const SPEC: TunerSpec<BgConfig> = {

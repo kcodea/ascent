@@ -153,6 +153,8 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
       <div className="combatopp-drop">
         <div className="combatopp-name hudpill-name">{seat.label}</div>
         <div className="combatopp-body">
+          {/* HERO SHADE (owner 2026-10-29): a soft dark circle under the foe's portrait, tuned per backdrop. */}
+          <span className="hero-shade hero-shade--opp" aria-hidden="true" />
           {/* The disc itself is shared with the Gauntlet's shop foe (FoePortraitDisc), so the two faces match. */}
           <FoePortraitDisc
             art={art}

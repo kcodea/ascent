@@ -171,3 +171,29 @@ describe('single-image (cover) backdrops', () => {
     expect(document.documentElement.dataset.bdFit).toBeUndefined();
   });
 });
+
+describe('hero shades (owner 2026-10-29: "another circle under each portrait that i can spread out and make very dark")', () => {
+  it('a backdrop writes the shade vars, and the tuner can change them live', async () => {
+    const b = await import('./backdrop');
+    b.setBackdrop('castle');
+    expect(rootVar('--bd-shade-a')).toBe(String(b.tuneOf('castle').shadeDark));
+    b.setLiveTune('castle', 'shadeDark', 0.95);
+    b.setLiveTune('castle', 'shadeSoft', 40);
+    b.setLiveTune('castle', 'oppShadeSize', 3.5);
+    expect(rootVar('--bd-shade-a')).toBe('0.95');
+    expect(rootVar('--bd-shade-core')).toBe('60%');
+    expect(rootVar('--bd-oshade-size')).toBe('3.5');
+    b.clearLiveTune();
+  });
+
+  it('each portrait carries its own circle, under the portrait and sized against it', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const read = (f: string): string => readFileSync(resolve(__dirname, f), 'utf8');
+    expect(read('StatusBar.tsx')).toMatch(/<span className="hero-shade" aria-hidden="true" \/>\s*<div className=\{`herolunge/);
+    expect(read('CombatOpponent.tsx')).toMatch(/<div className="combatopp-body">[\s\S]{0,200}<span className="hero-shade hero-shade--opp" aria-hidden="true" \/>/);
+    const css = read('styles.css');
+    expect(css).toMatch(/\.hero-shade \{[^}]*z-index: -1;[^}]*pointer-events: none;[^}]*width: calc\(var\(--bd-shade-size, 2\.4\) \* 100%\)/);
+    expect(css).toMatch(/\.hero-shade--opp \{[^}]*width: calc\(var\(--bd-oshade-size, 2\.4\) \* 100%\)/);
+  });
+});

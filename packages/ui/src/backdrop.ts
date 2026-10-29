@@ -39,6 +39,20 @@ export interface BackdropTune {
   shadow: number;
   shadowX: number;
   shadowY: number;
+  /** HERO SHADES (owner 2026-10-29: "another circle under each portrait that i can spread out and make very dark"): a
+   *  soft dark circle under the player's portrait and the opponent's, separate from the portraits' own drop shadow, so
+   *  they read on a bright background. Darkness 0..1 and Softness 0..100 (0 = a hard edge) are shared. */
+  shadeDark: number;
+  shadeSoft: number;
+  /** The player's circle: diameter in portrait widths (2 = twice the portrait), and its offset from the portrait's
+   *  centre in % of the portrait. Relative to the portrait, so it fits at any screen size and any portrait scale. */
+  shadeSize: number;
+  shadeX: number;
+  shadeY: number;
+  /** The opponent's circle (combat): the same, against the opponent's portrait. */
+  oppShadeSize: number;
+  oppShadeX: number;
+  oppShadeY: number;
 }
 export type BackdropTuneKey = keyof BackdropTune;
 export type BackdropNumberKey = Exclude<BackdropTuneKey, 'tint'>;
@@ -52,9 +66,11 @@ export interface BackdropPreset extends Partial<BackdropTune> {
 /** What a preset leaves out. */
 export const TUNE_DEFAULTS: Readonly<BackdropTune> = {
   zoom: 1, panX: 0, panY: 0, size: 430, dark: 0, blur: 0, tint: '#000000', tintAmount: 0, shadow: 0.72, shadowX: 6, shadowY: 8,
+  shadeDark: 0.6, shadeSoft: 70, shadeSize: 2.4, shadeX: 0, shadeY: 0, oppShadeSize: 2.4, oppShadeX: 0, oppShadeY: 0,
 };
 export const NUMBER_KEYS: readonly BackdropNumberKey[] =
-  ['zoom', 'panX', 'panY', 'size', 'dark', 'blur', 'tintAmount', 'shadow', 'shadowX', 'shadowY'];
+  ['zoom', 'panX', 'panY', 'size', 'dark', 'blur', 'tintAmount', 'shadow', 'shadowX', 'shadowY',
+    'shadeDark', 'shadeSoft', 'shadeSize', 'shadeX', 'shadeY', 'oppShadeSize', 'oppShadeX', 'oppShadeY'];
 const HEX = /^#[0-9a-f]{6}$/i;
 
 /** A single painted image (a `cover` texture): shown as painted until tuned. */
@@ -146,6 +162,14 @@ export function backdropVars(id: BackdropId): Record<string, string> {
     '--bd-shadow-a': String(t.shadow),
     '--bd-shadow-x': `${t.shadowX}px`,
     '--bd-shadow-y': `${t.shadowY}px`,
+    '--bd-shade-a': String(t.shadeDark),
+    '--bd-shade-core': `${100 - t.shadeSoft}%`,
+    '--bd-shade-size': String(t.shadeSize),
+    '--bd-shade-x': String(t.shadeX),
+    '--bd-shade-y': String(t.shadeY),
+    '--bd-oshade-size': String(t.oppShadeSize),
+    '--bd-oshade-x': String(t.oppShadeX),
+    '--bd-oshade-y': String(t.oppShadeY),
   };
 }
 

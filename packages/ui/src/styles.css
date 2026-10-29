@@ -359,6 +359,28 @@ canvas.spr { image-rendering: pixelated; display: block; }
    between the stones and the board (a background layer can't cast a CSS shadow on another). Strength + offset are
    per backdrop (Background Tuner); static, so no per-frame cost. */
 .boardbg::before, .boardbg::after { content: ''; position: absolute; inset: 0; }
+/* HERO SHADES (owner 2026-10-29: "another circle under each portrait that i can spread out and make very dark (separate
+   from what already exists)"): one soft dark circle behind each hero portrait (yours in .hero .f, the foe's in
+   .combatopp-body), so the portraits read on a bright backdrop. Separate from the portraits' own drop shadow. Per
+   backdrop: backdrop.ts writes --bd-shade-* from the Background Tuner. z -1 inside the portrait's stacking context:
+   under the portrait, over the backdrop. A static radial gradient: no filter, no per-frame cost. Measured against its
+   OWN portrait (the box it sits in): size in portrait widths, offset in % of the portrait, so it fits at any screen
+   size and through the portraits' different wrapper scales. */
+.hero-shade {
+  position: absolute; z-index: -1; pointer-events: none; border-radius: 50%; aspect-ratio: 1;
+  left: calc(50% + var(--bd-shade-x, 0) * 1%); top: calc(50% + var(--bd-shade-y, 0) * 1%);
+  width: calc(var(--bd-shade-size, 2.4) * 100%);
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side,
+    rgb(0 0 0 / var(--bd-shade-a, 0.6)) 0%,
+    rgb(0 0 0 / var(--bd-shade-a, 0.6)) var(--bd-shade-core, 30%),
+    rgb(0 0 0 / calc(var(--bd-shade-a, 0.6) * 0.35)) calc((var(--bd-shade-core, 30%) + 100%) / 2),
+    transparent 100%);
+}
+.hero-shade--opp {
+  left: calc(50% + var(--bd-oshade-x, 0) * 1%); top: calc(50% + var(--bd-oshade-y, 0) * 1%);
+  width: calc(var(--bd-oshade-size, 2.4) * 100%);
+}
 .boardbg::before {
   background: var(--board-shadow) calc(50% + var(--board-x, 0px) * var(--scale)) calc(50% + var(--board-y, 5px) * var(--scale)) / var(--_board-w) auto no-repeat;
   opacity: var(--bd-shadow-a, 0.72);

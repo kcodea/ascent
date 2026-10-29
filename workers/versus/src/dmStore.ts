@@ -1,6 +1,6 @@
 /**
  * THE FRIENDS HUB — direct messages are stored in Supabase (R-DM-02), through the SAME limited, key-gated writer pattern
- * as the Versus results (`versus_cf_persist`): two functions in supabase/migrations/2026-11-12-direct-messages.sql,
+ * as the Versus results (`versus_cf_persist`), with the hub Worker's OWN secret (`HUB_WRITER_SECRET`): two functions in supabase/migrations/2026-11-12-direct-messages.sql,
  * called with the publishable key and gated by the writer secret, never the service role.
  *
  *   - `dm_cf_send(p_key, p_from, p_to, p_body, p_cid)`: stores one message. Postgres is the authority on the rules that
@@ -14,7 +14,17 @@
  */
 import { DmError, dmErrorOf, MemoryDmBackend, type DmBackend, type SendCheck } from './core/hubCore';
 import type { DmRow } from './hubProtocol';
-import type { PersistEnv } from './persist';
+
+/** The hub Worker's own settings (`hub.wrangler.toml`): its own writer secret, never the Versus Worker's. */
+export interface HubStoreEnv {
+  SUPABASE_URL?: string;
+  /** The project's publishable (anon) key: public. */
+  SUPABASE_ANON_KEY?: string;
+  /** The hub's writer secret (a Worker secret). Its sha256 is a row of `versus_cf_writer_keys` (note 'ascent-hub'). */
+  HUB_WRITER_SECRET?: string;
+  PERSIST?: string;
+  DEV_AUTH?: string;
+}
 
 export class SupabaseDmBackend implements DmBackend {
   readonly live = true;
@@ -57,9 +67,9 @@ export class OffDmBackend implements DmBackend {
   async friendsOf(): Promise<string[]> { return []; }
 }
 
-export function dmBackendFor(env: PersistEnv & { DEV_AUTH?: string }): DmBackend {
-  if (env.PERSIST === '1' && env.SUPABASE_URL && env.SUPABASE_ANON_KEY && env.VERSUS_WRITER_SECRET) {
-    return new SupabaseDmBackend(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, env.VERSUS_WRITER_SECRET);
+export function dmBackendFor(env: HubStoreEnv): DmBackend {
+  if (env.PERSIST === '1' && env.SUPABASE_URL && env.SUPABASE_ANON_KEY && env.HUB_WRITER_SECRET) {
+    return new SupabaseDmBackend(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, env.HUB_WRITER_SECRET);
   }
   return env.DEV_AUTH === '1' ? new MemoryDmBackend() : new OffDmBackend();
 }

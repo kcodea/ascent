@@ -25,7 +25,7 @@ import { cleanDmBody, DM_MAX_CHARS, HUB_PROTOCOL, HUB_SOCKET_PATH, type DmRow, t
 import { currentUserId } from '../../identity';
 import { supabaseClient } from '../../remoteBoards';
 import { useGame } from '../../store';
-import { friendsHubUrl } from '../../versus/versusRemote';
+import { friendsHubUrl } from './hubUrl';
 import { useFriendsDock } from '../dock/dockStore';
 import { friendsAccount, presenceNow, refreshFriendsList, useFriends } from '../friendsStore';
 import type { Friend, PresenceReport } from '../friendsRemote';
@@ -206,7 +206,7 @@ function syncConnection(): void {
     hello: () => {
       const p = presenceWire(presenceNow());
       lastPresenceKey = presenceKey(p);
-      return { protocol: HUB_PROTOCOL, presence: p };
+      return { protocol: HUB_PROTOCOL, presence: p, build: contentRevision() };
     },
     onHello, onPush, onStatus,
   });

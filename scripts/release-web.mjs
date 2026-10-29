@@ -34,6 +34,10 @@
  * and every Versus room stays on Supabase whatever the server's switch says. `--versus-cf-no-persist` deploys with the
  * result writer off (test packs only: Cloudflare matches would leave no records). Needs CLOUDFLARE_API_TOKEN and
  * CLOUDFLARE_ACCOUNT_ID in the environment; neither is ever printed.
+ *
+ * THE FRIENDS HUB (direct messages + live presence, one stable Worker `ascent-hub` for every build): `--versus-cf` also
+ * runs `npm run hub:deploy`, which deploys the hub ONLY when its code changed (never per content revision), checks its
+ * /health, gives a newly persisting hub its writer secret, and bakes the stable hub URL (`VITE_FRIENDS_HUB_URL`).
  */
 import { execFileSync, execSync } from 'node:child_process';
 import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
@@ -136,11 +140,54 @@ if (VERSUS_CF) {
   }
 }
 
+// ── 3c. (opt-in) THE FRIENDS HUB: one stable Worker for every build, deployed only when its own code changed ─────────
+let hubUrl = null;
+let hubNote = '';
+if (VERSUS_CF) {
+  step('the friends hub (deployed only when its code changed)');
+  const cmd = `npm run hub:deploy -- ${VERSUS_CF_PERSIST ? '--persist' : ''}`.trim();
+  console.log(`  $ ${cmd}`);
+  let out;
+  try {
+    out = execSync(cmd, { cwd: WT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (e) {
+    console.log(String(e.stdout ?? ''));
+    die('the friends hub deploy failed (nothing was built; the live site is untouched)');
+  }
+  for (const line of out.split(/\r?\n/)) if (line.trim() && !line.startsWith('>')) console.log(`  ${line.trim()}`);
+  const m = /hub: (deployed|unchanged) (https:\/\/ascent-hub\.team-ascent\.workers\.dev) ([0-9a-f]+)/.exec(out);
+  if (!m) die('the hub deploy printed no "hub: deployed|unchanged <url> <hash>" line');
+  let health = null;
+  for (let i = 0; i < 10 && !health; i++) {
+    try {
+      const res = await fetch(`${m[2]}/health`);
+      if (res.ok) health = await res.json();
+    } catch { /* not routable yet */ }
+    if (!health) await new Promise((r) => setTimeout(r, 3000));
+  }
+  if (!health || health.code !== m[3]) die(`${m[2]}/health does not answer code ${m[3]}`);
+  hubUrl = m[2];
+  hubNote = `${m[1]} (code ${m[3]}, hub protocol ${health.hub}, oldest client ${health.min})`;
+  console.log(`  ✓ friends hub live: ${hubUrl} ${hubNote}`);
+  if (VERSUS_CF_PERSIST) {
+    const workerDir = path.join(WT, 'workers', 'versus');
+    let secrets = '';
+    try { secrets = execSync('npx wrangler secret list --name ascent-hub', { cwd: workerDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch { /* treated as missing */ }
+    if (secrets.includes('HUB_WRITER_SECRET')) console.log('  ✓ hub writer secret already set');
+    else {
+      console.log('  the hub has no writer secret yet: setting one (run the SQL line it prints, or messages are refused)');
+      run('node scripts/writer-secret.mjs ascent-hub', workerDir);
+    }
+  }
+}
+
 step('building the web bundle');
 // The Worker URL is baked in ONLY with --versus-cf; a stray value in the shell never leaks into a plain pack.
 const buildEnv = { ...process.env };
 delete buildEnv.VITE_VERSUS_CF_URL;
+delete buildEnv.VITE_FRIENDS_HUB_URL;
 if (workerUrl) buildEnv.VITE_VERSUS_CF_URL = workerUrl;
+if (hubUrl) buildEnv.VITE_FRIENDS_HUB_URL = hubUrl;
 run('npm run build:web', WT, buildEnv);
 
 const dist = path.join(WT, 'apps', 'web', 'dist');
@@ -158,6 +205,10 @@ console.log(`  ✓ bundle carries ${short}`);
 if (workerUrl) {
   if (!jsChunks.some((f) => readFileSync(path.join(assetsDir, f), 'utf8').includes(workerUrl))) die(`the bundle does not carry ${workerUrl}`);
   console.log(`  ✓ bundle carries its Versus Worker (${workerUrl})`);
+}
+if (hubUrl) {
+  if (!jsChunks.some((f) => readFileSync(path.join(assetsDir, f), 'utf8').includes(hubUrl))) die(`the bundle does not carry ${hubUrl}`);
+  console.log(`  ✓ bundle carries the friends hub (${hubUrl})`);
 }
 
 // Every local file index.html points at must exist. This is the class of bug that shipped a blank damage
@@ -216,6 +267,7 @@ ${workerUrl ? `
   VERSUS WORKER: ${workerUrl} (content ${workerRev}) is live and baked into this zip.
   Which modes use it is the server switch (docs/versus-cf-cutover.md); every mode stays on Supabase until it is flipped.
   The Supabase Versus server (versus-resolve) still needs its usual redeploy from this commit (CLAUDE.md "Releasing").
+  FRIENDS HUB: ${hubUrl} ${hubNote}.
 ` : `
   This zip carries no Versus Worker: every Versus room stays on Supabase (pass --versus-cf to ship one).
 `}`);

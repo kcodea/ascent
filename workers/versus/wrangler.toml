@@ -39,11 +39,6 @@ class_name = "VersusDirectory"
 name = "LIVE"
 class_name = "VersusLiveGame"
 
-[[durable_objects.bindings]]
-# THE FRIENDS HUB (2026-10-29, R-DM-01): one object per account: presence + direct messages.
-name = "HUB"
-class_name = "FriendHub"
-
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["VersusRoom", "VersusDirectory"]
@@ -51,10 +46,6 @@ new_sqlite_classes = ["VersusRoom", "VersusDirectory"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["VersusLiveGame"]
-
-[[migrations]]
-tag = "v3"
-new_sqlite_classes = ["FriendHub"]
 
 [observability]
 enabled = true

@@ -1,21 +1,25 @@
 /**
- * THE FRIENDS HUB in real workerd (`npm run versus:cf:test`, local only; R-DM-01). The rules are unit-tested in
+ * THE FRIENDS HUB in real workerd, on its OWN Worker (`hub.wrangler.toml`; `npm run versus:cf:test`, local only; R-DM-01). The rules are unit-tested in
  * `test/hubCore.test.ts` and the store in `test/dm.db.test.ts`; this proves what only the runtime can, over real
  * sockets on a dev Worker (memory store, friends named in the dev hello):
  *  - presence: a friend coming online is pushed to me, and I am in their hello; a status change and going offline too;
  *  - a direct message is delivered live to every open game of the friend, and to my own other game;
  *  - a non-friend and a blocked friend are refused; the 5 / 10 s rate limit; a too-long body;
+ *  - ONE hub for every build: clients on different content revisions, and an older and a newer hub protocol (with
+ *    fields this hub does not know), see each other's presence and messages at once;
+ *  - a client older than the oldest supported protocol is refused; /health answers the protocol range;
+ *  - the Versus Worker no longer serves the hub;
  *  - a socket with no token is refused (a guest is refused in `index.ts`: dev tokens are always accounts).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { VersusCfClient, type WebSocketLike } from '../../src/client';
-import { DM_MAX_CHARS, HUB_PROTOCOL, HUB_SOCKET_PATH, type HubHelloAnswer, type HubPush } from '../../src/hubProtocol';
-import { CONTENT, startLocalWorker } from './driver';
+import { DM_MAX_CHARS, HUB_PROTOCOL, HUB_PROTOCOL_MIN, HUB_SOCKET_PATH, type HubHelloAnswer, type HubPush } from '../../src/hubProtocol';
+import { CONTENT, startHubWorker, startLocalWorker } from './driver';
 
 let base = '';
 let dispose: () => Promise<void> = async () => undefined;
 beforeAll(async () => {
-  const w = await startLocalWorker();
+  const w = await startHubWorker();
   base = w.url;
   dispose = w.dispose;
 });
@@ -28,11 +32,14 @@ class Game {
   hello: HubHelloAnswer | null = null;
   client: VersusCfClient;
   private waiters: { pred: (m: HubPush) => boolean; resolve: (m: HubPush) => void }[] = [];
-  constructor(readonly userId: string, opts: { friends?: string[]; blocked?: string[]; status?: 'online' | 'in_game' } = {}) {
+  constructor(readonly userId: string, opts: { friends?: string[]; blocked?: string[]; status?: 'online' | 'in_game'; build?: string; protocol?: number; extra?: Record<string, unknown> } = {}) {
     this.client = new VersusCfClient({
       baseUrl: base, roomId: 'hub', path: HUB_SOCKET_PATH, token: async () => `dev.${userId}.Claudebot`,
-      versusProtocol: 0, contentRevision: CONTENT, ws: (url, protocols) => new NodeWS(url, protocols),
-      hello: () => ({ protocol: HUB_PROTOCOL, presence: { status: opts.status ?? 'online' }, devFriends: opts.friends ?? [], devBlocked: opts.blocked ?? [] }),
+      versusProtocol: 0, contentRevision: opts.build ?? CONTENT, ws: (url, protocols) => new NodeWS(url, protocols),
+      hello: () => ({
+        protocol: opts.protocol ?? HUB_PROTOCOL, build: opts.build ?? CONTENT, presence: { status: opts.status ?? 'online' },
+        devFriends: opts.friends ?? [], devBlocked: opts.blocked ?? [], ...(opts.extra ?? {}),
+      }),
       onHello: (d) => { this.hello = d as HubHelloAnswer; },
       onPush: (m) => this.push(m as unknown as HubPush),
     });
@@ -117,6 +124,41 @@ describe('the friends hub (R-DM-01)', () => {
     expect(refused).toBe('rate_limited');
     expect(sent).toBe(5);
     d.client.close();
+  });
+
+  it('one hub for every build: different content revisions and protocols see each other and talk at once', async () => {
+    const ann = crypto.randomUUID();
+    const bob = crypto.randomUUID();
+    // Ann on an older build speaking the oldest protocol; Bob on a newer build, a newer protocol, with fields this hub
+    // has never heard of (they are ignored, never refused).
+    const a = new Game(ann, { friends: [bob], build: 'aaaaaaaaaaaa', protocol: HUB_PROTOCOL_MIN });
+    await a.client.connect();
+    const b = new Game(bob, { friends: [ann], build: 'bbbbbbbbbbbb', protocol: HUB_PROTOCOL + 1, status: 'in_game', extra: { futureField: { x: 1 } } });
+    await b.client.connect();
+    expect(b.hello?.protocol).toBe(HUB_PROTOCOL);
+    expect(b.hello?.peers.map((p) => p.userId)).toEqual([ann]);
+    await a.next((m) => m.t === 'peer' && m.peer.userId === bob && m.peer.presence?.status === 'in_game');
+    const row = await b.send(ann, 'same hub, different builds', crypto.randomUUID());
+    const got = await a.next((m) => m.t === 'dm' && m.msg.id === row.id);
+    expect(got.t === 'dm' && got.msg.body).toBe('same hub, different builds');
+    a.client.close();
+    b.client.close();
+  });
+
+  it('refuses a client older than the oldest supported protocol; /health names the range', async () => {
+    const health = await (await fetch(`${base}/health`)).json() as { hub: number; min: number; code: string };
+    expect(health).toMatchObject({ hub: HUB_PROTOCOL, min: HUB_PROTOCOL_MIN });
+    const old = new Game(crypto.randomUUID(), { protocol: HUB_PROTOCOL_MIN - 1 });
+    expect(await fails(old.client.connect())).not.toBe('did not fail');
+    old.client.close();
+  });
+
+  it('the Versus Worker no longer serves the hub', async () => {
+    const v = await startLocalWorker();
+    try {
+      const res = await fetch(`${v.url}${HUB_SOCKET_PATH}`, { headers: { Authorization: `Bearer dev.${crypto.randomUUID()}.Claudebot` } });
+      expect(res.status).toBe(404);
+    } finally { await v.dispose(); }
   });
 
   it('refuses a socket with no token', async () => {

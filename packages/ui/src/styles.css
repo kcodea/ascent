@@ -429,7 +429,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .boardbg--combat.shown { display: block; }
 /* THE WIPE CURTAIN — the two-stage combat transition (owner ask 2026-08-28). The boot splash's dark-blue
    gradient covers the ENTIRE scene (cards, lobby rail, hero panels, banners — a BODY portal at z105:
-   above the out-of-app fixed panels (.statusbar z40, .combatopp z100, .eotbanner z95) AND above the z110 Pixi FX canvas + every transient float layer (spell sparks z121, fodder ghosts z120,
+   above the out-of-app fixed panels (.statusbar z40, .combatopp z100) AND above the z110 Pixi FX canvas + every transient float layer (spell sparks z121, fodder ghosts z120,
    damage/death floats z112, flying hand-grants — the occasional straggler from the End-of-Turn beats was
    popping in over the blue, owner report 2026-08-29, hence z250). z250 still left a band of in-game layers
    ABOVE the blue (the Rebirth pillar z2000, the rune lock-in z640, the tutorial spotlight z600-620, emotes
@@ -3998,22 +3998,6 @@ body.modalup .app { z-index: auto; }
 .fodderghost .card { width: 100%; height: 100%; animation: none; box-shadow: 0 0 0 3px var(--t-demon), 0 8px 22px rgba(0, 0, 0, 0.4); }
 /* Stats toggle (🍖 consume tuner `showStats`): hide the eaten minion's atk/hp badges on the ghost. */
 .fodderghost.nostats .badge { visibility: hidden; }
-
-/* "End of Turn" banner — a brief centred title as the turn ends (end-of-turn effects resolved). */
-/* Centred over the upper (shop / enemy-board) region, not the screen middle — so the banner
-   clears the player's warband below as the turn's end-of-turn effects resolve. */
-.eotbanner { position: fixed; left: 0; right: 0; top: 0; height: calc(62 * var(--vh, 1vh)); z-index: 95; display: grid; place-items: center; pointer-events: none; }
-.eotbanner .eot-text {
-  font-family: var(--font-ui); font-weight: 900; font-size: clamp(34px, calc(6 * var(--vh, 1vh)), 64px); letter-spacing: 0.08em;
-  text-transform: uppercase; color: #fff; text-shadow: 0 3px 0 var(--acc-dk), 0 0 34px rgba(240, 144, 46, 0.75);
-  animation: eotpop 0.85s ease forwards;
-}
-@keyframes eotpop {
-  0% { opacity: 0; transform: scale(0.72) translateY(10px); letter-spacing: 0.02em; }
-  24% { opacity: 1; transform: scale(1) translateY(0); letter-spacing: 0.08em; }
-  72% { opacity: 1; transform: scale(1.02); }
-  100% { opacity: 0; transform: scale(1.07) translateY(-8px); }
-}
 
 /* Render-crash fallback (ErrorBoundary) — a calm, centred recovery card instead of a frozen app. */
 .crashscreen {

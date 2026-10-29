@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'The "End of Turn" title no longer flashes across the screen when you end your turn.' },
       { category: 'Systems', text: "Duos: swapping to your teammate's screen and back no longer hitches. The board is redrawn in place instead of rebuilt.", details: [
         'Nothing in motion on one screen carries over to the other: no effect, glow or number roll plays on the wrong board.',
         'Coming back shows your own board exactly as you left it.',

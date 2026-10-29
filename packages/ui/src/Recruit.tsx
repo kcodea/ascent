@@ -2119,9 +2119,6 @@ export function Recruit() {
   // them (same rule as `rubyOwned` below). Keyed by `recruitFxSeq` so it only applies to that one action.
   const spellCastOwnedRef = useSwapRef<{ seq: number; uids: Set<string> }>({ seq: -1, uids: new Set() }, swapped);
   const prevAuraSeq = useSwapRef(run.auraFxSeq ?? 0, swapped); // aura-wash FX watcher — same init-to-current contract
-  // A brief "End of Turn" banner when the turn ends (recruit → combat), making it clear that
-  // end-of-turn effects (Ritualist & co.) just resolved.
-  const [endTurnFlash, setEndTurnFlash] = useSwapState(false, swapped);
   // A one-shot flourish under a freshly-played minion whose Battlecry just fired.
   const [battlecryUids, setBattlecryUids] = useSwapState<Set<string>>(new Set(), swapped);
   // Per-uid clear timers for that flourish. In a ref, not the effect's cleanup, so a hold survives the next
@@ -3459,8 +3456,8 @@ export function Recruit() {
   }, [inCombat, run.combatSettled, cbA, cbH, cpEsc.attack, cpEsc.health, cpCasts, cpDeaths, cpBlades, cpScout, cpCond, cpCondE, dispatch]);
 
   // Entering combat: hold on the "shop closing" intro, then let the enemies arrive
-  // and the replay begin. Also flash the "End of Turn" banner (end-of-turn effects just
-  // resolved) and snapshot the hand so post-combat grants can be detected.
+  // and the replay begin, and snapshot the hand so post-combat grants can be detected. (The "End of Turn" banner
+  // that flashed here was retired 2026-10-29, owner: "that is redundant now".)
   useEffect(() => {
     if (!inCombat) {
       setCombatStage('closing');
@@ -3475,11 +3472,6 @@ export function Recruit() {
     setFodderAnim(null); // never let a lingering Fodder ghost survive into combat + replay on return
     setHeldConsume([]); // and never carry a held (invisible) consumed slot into combat / the next shop
     setCombatStage('closing');
-    setEndTurnFlash(true);
-    const banner = window.setTimeout(() => setEndTurnFlash(false), 850);
-    return () => {
-      window.clearTimeout(banner);
-    };
   }, [inCombat, run.lastCombat]);
   // START OF COMBAT waits for the CURTAIN, not a fixed 480ms (owner ask 2026-08-28): with the two-stage
   // wipe, the old timer let the opening beats play while the scene was still covered/being revealed. The
@@ -8864,13 +8856,6 @@ export function Recruit() {
           same card, at the same instant, in the middle of the screen — the duplicate announcement the owner
           asked us to get rid of. `replay.handGrant` and the `.handgrant` CSS are kept, so restoring this is
           just putting the block back. */}
-
-      {/* A clear "End of Turn" beat as the turn ends (end-of-turn effects have resolved). */}
-      {endTurnFlash && (
-        <div className="eotbanner" aria-hidden="true">
-          <span className="eot-text">End of Turn</span>
-        </div>
-      )}
 
       {/* The floating drag card is portalled to <body> by `DragOverlay` (mounted with the drop zones above). */}
 

@@ -107,6 +107,21 @@ describe('watching my teammate: no plate up top', () => {
     expect(css).not.toMatch(/\.duosview-bar|\.duosview-name/);
   });
 
+  // R-DUOS-VIEW-05 (owner bug 2026-10-29: "going to a teammates screen while they are in runeforge makes it so i cant do
+  // anything"). The teammate's Runeforge / Discover / Quest / power offer / Choose One / scouted board is the full-screen
+  // `.discover-ov` scrim; the Ancients gate covers the screen too. MY portrait (the way back) must sit over all of them,
+  // and under the swap's ghost so the cross-fade still covers it.
+  it("MY portrait sits over every overlay the teammate's screen can open, so the way back is always clickable", () => {
+    const z = (css: string, sel: RegExp): number => Number(css.match(sel)![1]);
+    const vs = readFileSync(join(__dirname, 'versus.css'), 'utf8');
+    const main = readFileSync(join(__dirname, '../styles.css'), 'utf8');
+    const anc = readFileSync(join(__dirname, '../ancients/ancients.css'), 'utf8');
+    const self = z(vs, /\.duosdock\.self \{ z-index: (\d+)/);
+    expect(self).toBeGreaterThan(z(main, /\.discover-ov \{[^}]*?z-index: (\d+)/)); // Runeforge, Discover, Quest, power, Choose One, scout
+    expect(self).toBeGreaterThan(z(anc, /\.anc-gate \{[^}]*?z-index: (\d+)/)); // the Ancients gate
+    expect(self).toBeLessThan(z(vs, /\.duosghost \{[^}]*?z-index: (\d+)/)); // the cross-fade still covers it
+  });
+
   // R-DUOS-VIEW-04 (owner bug 2026-10-26): the teal haze washed the bottom-left hero plate (name pill + Health box) while a
   // teammate's hand card popped. The vignette stays a static layer UNDER every HUD plate and the hand pop, over the board.
   it('the team vignette sits under the hero cluster, the teammate portrait and the hand pop, over the board', () => {

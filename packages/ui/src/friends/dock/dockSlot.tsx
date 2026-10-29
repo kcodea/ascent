@@ -1,7 +1,7 @@
 /**
  * THE DOCK'S HOME ON A MENU (owner 2026-10-29, R-FRIENDS-DOCK-03: "looks like friends moved over the menus and stuff -
  * can you fix that?"). A menu screen that has its own bottom-left corner space marks it with a `DockSlot`: the side
- * menu's foot (under Settings) and the title menu's column (under its last plaque). The Friends button then lives IN
+ * menu's foot (under Settings) and the title menu's column (beside its last plaque, just right of it). The Friends button then lives IN
  * that space (a portal into the slot, so it scales and moves with the layout that owns it and never sits on top of
  * anything), and the panel opens to the RIGHT of the slot's column (the side menu / the title menu), so it never hides
  * the menu's own buttons. With no slot on screen (hero select, every game, spectating, replays) the button keeps its

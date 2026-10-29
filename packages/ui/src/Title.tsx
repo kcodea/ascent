@@ -553,9 +553,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="mbicon"><Icon name="gear" /></span>
             <span className="mblabel">{txt.settings}</span>
           </button>
+          {/* The Friends dock's home on the title (R-FRIENDS-DOCK-03): beside the last plaque, just right of the
+              column, so it needs no height of its own and never meets the footer links below. */}
+          <DockSlot className="title-dock" side=".titlenav" />
         </nav>
-        {/* The Friends dock's home on the title (R-FRIENDS-DOCK-03): under the last plaque, in the column's own space. */}
-        <DockSlot className="title-dock" side=".titlenav" />
 
       </div>
 

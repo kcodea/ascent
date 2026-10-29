@@ -63,7 +63,8 @@ html[data-phone-zoom] .fdock-stack { bottom: calc(var(--pz-safe-b, var(--safe-b)
 .fdock-slot:empty { display: none; }
 .fdock-slot { position: relative; flex: none; }
 .msb-dock { align-self: flex-start; margin-top: -2px; }
-.title-dock { position: absolute; left: 0; top: calc(100% + 16px); }
+.titlenav:has(> .title-dock) { position: relative; }
+.titlenav > .title-dock { position: absolute; left: calc(100% + 14px); bottom: 8px; animation: none; }
 .fdock-btn.inslot { position: relative; left: auto; bottom: auto; z-index: auto; --fdock-cb: 40px; }
 .title-dock .fdock-btn.inslot { --fdock-cb: 46px; }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb-dock .fdock-btn.inslot { --fdock-cb: calc(40 * var(--pt)); }

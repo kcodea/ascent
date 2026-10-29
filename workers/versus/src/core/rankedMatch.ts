@@ -450,7 +450,7 @@ export class RankedEngine extends GroupEngine {
     const subs = Object.values(this.r.rounds).length ? this.liveSubmissions() : [];
     return {
       match: { ...j, room_id: null, ranked_team: this.r.ranked_team, unrated: this.r.unrated, seated_at: this.r.seated_at == null ? null : new Date(this.r.seated_at).toISOString() },
-      seats: m.seats, teams: this.r.teams, served: this.g.served ?? [],
+      seats: m.seats.map(wireSeat), teams: this.r.teams, served: this.g.served ?? [],
       rounds: Object.values(this.r.rounds).sort((a, b) => a.round - b.round), submissions: subs, placement,
     };
   }
@@ -552,6 +552,28 @@ export class RankedEngine extends GroupEngine {
 }
 
 const toIso = (ms: number | null | undefined): string | null => (ms == null ? null : new Date(ms).toISOString());
+
+/** A seat's out reasons the `versus_group_seats` check allows (a team's own 'abandoned' is a seat that left). */
+const SEAT_OUT = new Set(['hearts', 'forfeit', 'left', 'missed']);
+
+/**
+ * One seat as the `ranked_finish` writer stores it (R-VERSUS-CF-PERSIST-01, fix/versus-cf-duos-parity): the room keeps
+ * its moments as epoch ms, but `versus_group_seats.locked_at` / `auto_since` / `left_at` are timestamptz, so a raw seat
+ * made `jsonb_populate_record` throw ("date/time field value out of range") and the WHOLE result never landed (no match
+ * row, no rating, no duo run; the client's result screen waited on it and gave up). Times go as ISO; an out reason the
+ * seat table does not allow ('abandoned', a team's own) goes as 'left'. Idempotent: an already-wire seat is unchanged.
+ */
+export function wireSeat(s: Record<string, unknown> | GSeatRow): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...(s as Record<string, unknown>) };
+  for (const k of ['locked_at', 'auto_since', 'left_at']) if (typeof out[k] === 'number') out[k] = toIso(out[k] as number);
+  if (out.out_reason != null && !SEAT_OUT.has(String(out.out_reason))) out.out_reason = 'left';
+  return out;
+}
+
+/** A queued `ranked_finish` row made wire-safe at write time (a job queued by an older build still lands). */
+export function rankedFinishWire(row: Record<string, unknown>): Record<string, unknown> {
+  return Array.isArray(row.seats) ? { ...row, seats: (row.seats as Record<string, unknown>[]).map(wireSeat) } : row;
+}
 
 function seededPick(seed: number, label: string, n: number): number {
   let h = 0x811c9dc5;

@@ -17,6 +17,7 @@
  * The writer is the limited RPC `versus_cf_persist` (see SupabaseRpcSink), never the service role.
  */
 import type { PersistJob } from './core/roomCore';
+import { rankedFinishWire } from './core/rankedMatch';
 
 export interface PersistEnv {
   SUPABASE_URL?: string;
@@ -55,10 +56,15 @@ export class SupabaseRpcSink implements PersistSink {
     const res = await fetch(`${this.url.replace(/\/$/, '')}/rest/v1/rpc/versus_cf_persist`, {
       method: 'POST',
       headers: { apikey: this.anonKey, Authorization: `Bearer ${this.anonKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_key: this.secret, p_kind: job.kind, p_row: job.row }),
+      body: JSON.stringify({ p_key: this.secret, p_kind: job.kind, p_row: wireRow(job) }),
     });
     if (!res.ok) throw new Error(`persist ${job.kind} ${res.status}: ${(await res.text()).slice(0, 200)}`);
   }
+}
+
+/** The row as the writer sends it: a `ranked_finish` queued before the wire fix is made safe here too (R-VERSUS-CF-PERSIST-01). */
+export function wireRow(job: PersistJob): unknown {
+  return job.kind === 'ranked_finish' ? rankedFinishWire(job.row) : job.row;
 }
 
 export function sinkFor(env: PersistEnv): PersistSink {

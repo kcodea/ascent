@@ -3,7 +3,8 @@
  * THE IN-GAME FRIENDS DOCK (R-FRIENDS-DOCK-01) and THE FRIEND MENU (R-FRIENDS-MENU-01 / -02), with the network faked:
  *  - the dock shows only in a game screen, for an account; its badge is the beat's online count (no extra call);
  *  - open lists ONLINE friends only (online, then in a game), reading the list while open and never while closed;
- *  - a friend opens their direct message panel (the empty conversation slot, the disabled "coming soon" composer);
+ *  - a friend opens their direct message panel (an empty conversation; with no friends hub in this build, the composer
+ *    says messages are not available right now: R-DM-05);
  *  - a press outside closes BOTH panels in one motion and never reaches the game; Escape too, without the Esc menu;
  *  - the menu's entries per state, and each action: Spectate, Invite to lobby / Duos (an existing room, or a NEW one
  *    made first, on either host; mid-game disabled), Invite to spectate (my live game / Versus room, either host), and
@@ -134,7 +135,7 @@ describe('the dock (R-FRIENDS-DOCK-01)', () => {
     expect(q('.fdock-stack')).toBeNull();
   });
 
-  it('a friend opens their direct message panel: header, empty conversation, disabled composer; another friend swaps it', async () => {
+  it('a friend opens their direct message panel: header, empty conversation, composer (unavailable with no hub); another friend swaps it', async () => {
     inRun();
     ui = mount(<FriendsDock />);
     click(q('.fdock-btn'));
@@ -143,8 +144,8 @@ describe('the dock (R-FRIENDS-DOCK-01)', () => {
     expect(q('.fdock-dm')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
     const input = q('.fdock-input') as HTMLInputElement;
     expect(input.disabled).toBe(true);
-    expect(input.placeholder).toBe('Messages are coming soon');
-    expect(q('.fdock-convo')?.textContent).toBe('No messages yet.');
+    expect(input.placeholder).toBe('Messages are not available right now.');
+    expect(q('.fdock-convo')?.textContent).toBe('No messages yet. Say hi to Amy#1234.');
     click(q('.fdock-rowmain[aria-label="Message Gus#1234"]'));
     expect(q('.fdock-dm')?.getAttribute('aria-label')).toBe('Messages with Gus#1234');
     expect(q('.fdock-dm')?.textContent).toContain('Watch');

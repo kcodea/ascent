@@ -9,9 +9,11 @@
 import { create } from 'zustand';
 
 const KEY = 'ascent.friendsShowActivity';
+/** "Filter bad words in messages" (R-DM-04): on unless turned off. */
+const FILTER_KEY = 'ascent.dmFilter';
 
-function load(): boolean {
-  try { return localStorage.getItem(KEY) !== 'false'; } catch { return true; }
+function load(key: string = KEY): boolean {
+  try { return localStorage.getItem(key) !== 'false'; } catch { return true; }
 }
 
 export interface ReplayAuthor {
@@ -23,9 +25,15 @@ export interface ReplayAuthor {
   own: boolean;
 }
 
-export const useFriendsPrefs = create<{ showActivity: boolean; replayAuthor: ReplayAuthor | null }>(() => ({
-  showActivity: load(), replayAuthor: null,
+export const useFriendsPrefs = create<{ showActivity: boolean; replayAuthor: ReplayAuthor | null; filterMessages: boolean }>(() => ({
+  showActivity: load(), replayAuthor: null, filterMessages: load(FILTER_KEY),
 }));
+
+/** The direct message filter switch (masks swear words and slurs in messages I read; saved on this device). */
+export function setFilterMessages(on: boolean): void {
+  try { localStorage.setItem(FILTER_KEY, String(on)); } catch { /* private mode: this session only */ }
+  useFriendsPrefs.setState({ filterMessages: on });
+}
 
 export function setShowActivity(on: boolean): void {
   try { localStorage.setItem(KEY, String(on)); } catch { /* private mode: this session only */ }

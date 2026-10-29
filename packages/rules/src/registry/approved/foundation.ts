@@ -10626,7 +10626,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'I want to add a friends list button in game that shows online friends and their status. It can go in the bottom right. It will expand upward and collapse back down, and it will be how we add direct message chats as an overlay. If you click a player, a dm opens with them as an overlay. Clicking out needs to close both menus seamlessly so it isn\x27t clunky.' },
       { kind: 'code', ref: 'packages/ui/src/friends/dock/FriendsDock.tsx (FriendsDock, DockShell, DockFriendList, DmPanel), packages/ui/src/friends/dock/dockStore.ts, packages/ui/src/friends/dock/friendsDock.css, packages/ui/src/Game.tsx' },
     ],
-    currentBehaviour: 'Built 2026-10-29 (feat/ingame-friends-dock). Messaging itself is not built yet: the composer is disabled.',
+    currentBehaviour: 'Built 2026-10-29 (feat/ingame-friends-dock). Messaging shipped on feat/messaging (R-DM-01..05): the conversation slot now holds the messages and a live composer.',
     example: 'Mid-shop, Ann taps the Friends button (badge 2): the list rises with Bob (Online: Main menu) and Cat (Round 6 · Fighting Dan, Watch). She taps Bob and his message panel opens beside the list. She taps the board: both panels sink back into the button and nothing on the board was bought.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
@@ -11132,5 +11132,82 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Fixed 2026-10-29 (fix/spectate-cursor-idle). Before, the player sent a hide after 4 s without a move, and the watcher hid the hand 1.2 s after its last message anyway. A replay recorded before the fix still holds those idle hides.',
     example: 'The player rests their mouse on a shop card to read it for ten seconds. The spectator sees the gauntlet stay on that card, its preview open, the whole time.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateCursorIdle.test.tsx', 'packages/ui/src/versus/spectateLive.test.ts', 'packages/ui/src/replay/streamParity.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-DM-01',
+    title: 'The friends hub: one Cloudflare socket per open game carries live presence and direct messages between friends',
+    statement:
+      'While a signed-in account has the game open and the build carries its Worker, the game holds ONE WebSocket to that account\x27s friends hub (a Durable Object per account on the Versus Worker, `GET /hub/ws`, Supabase token in the subprotocol, guests refused). Its hello carries my presence (the friends list\x27s own shape, after the "Show friends what I\x27m doing" switch); the hub tells each of my friends\x27 hubs, and those whose game is open answer with theirs, so both sides see each other at once. A presence change (piggybacked on the presence beat\x27s settle) goes to connected friends; the last open game closing (or a dead socket, swept within a minute) tells them I went offline. The hub\x27s word overrides the friends list\x27s status when it is newer than the list. A message: checked by the hub (5 per 10 s per account, 1 to 500 characters after cleaning), stored in Supabase, pushed to every open game of the friend and to my own other games. Keep-alive pings are answered without waking the object; nothing ticks while nobody is connected.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'start building in game messaging' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'In game messaging should be direct messages through the friends list, click a friend and a chat overlay pops up' },
+      { kind: 'code', ref: 'workers/versus/src/hub.ts (FriendHub), workers/versus/src/hubProtocol.ts, workers/versus/src/core/hubCore.ts, workers/versus/src/index.ts (/hub/ws), packages/ui/src/friends/dm/dmStore.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/messaging). The hub lives on the per-content-revision Worker, so two friends on different builds only meet through the friends list (and stored messages).',
+    example: 'Ann has a Ranked game open; Bob opens the game. Ann\x27s dock shows Bob Online within a second, and Bob\x27s shows Ann In a game. Bob sends "gg"; it appears in Ann\x27s game and in Bob\x27s second tab at once.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/hubCore.test.ts', 'workers/versus/test/it/hub.it.ts', 'packages/ui/src/friends/dm/dm.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-DM-02',
+    title: 'Direct messages are friends only: stored by the hub\x27s key-gated writer, never to a non-friend or across a block, each player reading only their own conversations',
+    statement:
+      'Messages live in `direct_messages` (sender, recipient, body, created_at, read_at), written ONLY by the hub through `dm_cf_send` (the publishable key plus the Worker\x27s writer secret, the `versus_cf_persist` pattern; never the service role). Postgres refuses a message unless both are accounts with an accepted friendship and no block either way, the body is 1 to 500 characters, and the sender has sent fewer than 30 in the last minute. The same (sender, client id) again answers the stored row, so a retry is stored once. Row level security lets a player read only conversations they are in; no client role can insert, update or delete a message or read a report.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'In game messaging should be direct messages through the friends list, click a friend and a chat overlay pops up' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-12-direct-messages.sql (direct_messages, dm_cf_send, dm_cf_friends), workers/versus/src/dmStore.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/messaging); the migration is written, not applied.',
+    example: 'Cat is not Ann\x27s friend: Ann\x27s message to her is refused "Not sent. You can only message friends." Bob blocks Ann: her next message is refused and their history is hidden from both.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/dm.db.test.ts', 'workers/versus/test/hubCore.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-DM-03',
+    title: 'Clicking a friend opens a chat overlay ready to type; unread counts on the dock and rows; a toast for a message whose chat is closed; history 50 at a time',
+    statement:
+      'Clicking a friend in the in-game Friends dock opens their direct message panel beside the list (one conversation at a time; another friend switches it); on a menu, the Friends page\x27s Message does the same over the page with no dock button. The panel shows the conversation (mine on the right, theirs on the left, each with its time), the last 50 messages read when it opens and "Show older messages" for the page before, and a composer focused at once (not on a touch screen) where Enter sends and no key reaches the game\x27s shortcuts. A press outside or Escape closes it like the dock. Opening a conversation marks it read. A message whose conversation is not open adds to the unread count on the dock button (a red chip) and the friend\x27s row (the dock also lists an offline friend with unread messages), and shows a small toast above the Friends button for 5 s that opens the chat when pressed. Unread counts are read once when the hub connects, so messages sent while I was away show on my next open.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'In game messaging should be direct messages through the friends list, click a friend and a chat overlay pops up' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'Clicking a friend in the in-game Friends dock (and the main-menu Friends page) pops up the chat overlay for that friend, ready to type (focus the input), works while playing without blocking the game, and closes with click-outside/Escape like the dock.' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dm/DmConversation.tsx, packages/ui/src/friends/dm/DmToast.tsx, packages/ui/src/friends/dock/FriendsDock.tsx, packages/ui/src/friends/FriendsPage.tsx, packages/ui/src/friends/dm/dmRemote.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/messaging).',
+    example: 'Mid-shop, a toast rises above the Friends button: "Bob: rematch?". Ann presses it; Bob\x27s chat opens with the message, the dock badge clears, and she types "sure" and presses Enter without the shop seeing a key.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dm/dm.test.tsx', 'packages/ui/src/friends/dock/friendsDock.test.tsx', 'workers/versus/test/dm.db.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-DM-04',
+    title: 'Message safety: a bad-word filter (on by default), Report message, blocks hide everything, 90-day retention',
+    statement:
+      'The Settings switch "Filter bad words in messages" (on by default, saved on this device) masks common swear words and slurs in the messages I read, whole words only and with look-alike letters undone; the stored message is unchanged. Each message from a friend has Report (asks once more), which stores a review row with a copy of the body (`dm_reports`, once per message, never readable by players). A block stops messages either way and hides the pair\x27s history and unread counts while it stands. Messages older than 90 days are deleted (and reports older than 180 days) by `dm_prune`, run daily by pg_cron.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'start building in game messaging' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dm/profanity.ts, packages/ui/src/friends/friendsPrefs.ts (filterMessages), packages/ui/src/EscMenu.tsx, supabase/migrations/2026-11-12-direct-messages.sql (dm_report, dm_prune)' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/messaging). Retention (90 days) and the report reasons were defaulted by the builder; the owner may change them.',
+    example: 'Bob writes "you are sh1t". With the filter on Ann reads "you are ****"; she presses Report, then Report? again, and the message shows Reported.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dm/dm.test.tsx', 'workers/versus/test/dm.db.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-DM-05',
+    title: 'Messages are never silently dropped: a message waits while the hub reconnects; with no hub, messages read as not available',
+    statement:
+      'A message sent while the hub socket is reconnecting shows "Sending" with a line saying it will send when the hub is back, waits in the outbox, and goes the moment the hub reconnects under the same client id (stored once even if an earlier try landed). A refusal shows its reason on the message with Retry. With no hub at all (a build without its Worker), the composer is disabled and reads "Messages are not available right now." Egress: messages travel over the socket; Supabase sees one write per message sent, reads of a conversation only when it is opened, the unread counts once per connection, and a read receipt only when something was unread. Nothing is on Realtime.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'start building in game messaging' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dm/dmStore.ts (outbox, flushOutbox, sendDm), packages/ui/src/friends/dm/DmConversation.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/messaging).',
+    example: 'Ann\x27s train goes into a tunnel. She types "brb"; it shows Sending. Twenty seconds later the socket is back and "brb" reaches Bob once.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dm/dm.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
 ];

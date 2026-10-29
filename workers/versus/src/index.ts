@@ -11,6 +11,7 @@
  *   GET  /rooms/<id>/metrics   DEV only: the room's counters (the measurement script)
  *   GET  /live/<game>/ws       a live lobby / Practice game's WebSocket (auth via the subprotocol; R-LIVE-CF-01)
  *   GET  /live/<game>/metrics  DEV only: the live game's counters (the tests)
+ *   GET  /hub/ws               my FRIENDS HUB's WebSocket: presence + direct messages (accounts only; R-DM-01)
  */
 import { engineContentRevision, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { bearerOf, verifyCaller, type AuthEnv } from './auth';
@@ -21,13 +22,16 @@ import { VERSUS_CF_BEARER_PREFIX, VERSUS_CF_PROTOCOL, VERSUS_CF_ROUTES } from '.
 import { INTERNAL_USER_HEADER, VersusRoom, type RoomEnv } from './room';
 import { LIVE_GAME_HEADER, LIVE_USER_HEADER, VersusLiveGame } from './liveGame';
 import { LIVE_GAME_ID } from './liveProtocol';
+import { FriendHub, HUB_USER_HEADER, hubName } from './hub';
+import { HUB_SOCKET_PATH } from './hubProtocol';
 
-export { VersusRoom, VersusDirectory, VersusLiveGame };
+export { VersusRoom, VersusDirectory, VersusLiveGame, FriendHub };
 
 export interface Env extends RoomEnv, AuthEnv {
   ALLOWED_ORIGINS?: string;
   ROOMS: DurableObjectNamespace<VersusRoom>;
   LIVE: DurableObjectNamespace<VersusLiveGame>;
+  HUB: DurableObjectNamespace<FriendHub>;
 }
 
 /** CORS headers for one request: only an allowed Origin is ever reflected. */
@@ -84,6 +88,14 @@ export default {
       headers.set(LIVE_USER_HEADER, caller.userId);
       headers.set(LIVE_GAME_HEADER, gameId);
       return stub.fetch(new Request(req, { headers }));
+    }
+    if (url.pathname === HUB_SOCKET_PATH) {
+      if (!caller) return new Response('unauthorized', { status: 401 });
+      // A guest has no friends (the friends SQL refuses guests): no hub.
+      if (caller.anonymous) return json(403, { error: 'guest' });
+      const headers = new Headers(req.headers);
+      headers.set(HUB_USER_HEADER, caller.userId);
+      return env.HUB.get(env.HUB.idFromName(hubName(caller.userId))).fetch(new Request(req, { headers }));
     }
     if (!caller) return json(401, { error: 'not_signed_in' });
 

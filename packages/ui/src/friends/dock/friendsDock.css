@@ -77,7 +77,10 @@ html[data-touch-ui][data-touch-small] .fdock-panel.vspanel { width: 300px; }
 .fdock-x { flex: none; align-self: flex-start; width: 30px; height: 30px; padding: 0; border-radius: 8px; border: none; font-family: var(--font-ui); font-weight: 800; font-size: 15px;
   color: #ddd2c0; background: rgba(255, 255, 255, 0.08); }
 .fdock-x:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
-.fdock-convo { flex: 1 1 auto; min-height: 120px; margin: 10px 0; overflow-y: auto; display: flex; flex-direction: column; justify-content: flex-end; }
+/* Bottom-aligned by its content (`.dm-list` margin-top: auto), never `justify-content: flex-end`, which would make the
+   oldest messages unreachable once the list overflows. */
+.fdock-convo { flex: 1 1 auto; min-height: 120px; max-height: 420px; margin: 10px 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
+.fdock-convo > .fdock-convo-empty { margin: auto 0; }
 .fdock-convo-empty { text-align: center; padding: 12px; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.5); }
 .fdock-compose { display: flex; }
 .fdock-input.acctinput { flex: 1; width: auto; font-size: 14px; padding: 8px 12px; opacity: 0.6; }
@@ -85,3 +88,7 @@ html[data-touch-ui][data-touch-small] .fdock-panel.vspanel { width: 300px; }
 @media (prefers-reduced-motion: reduce) {
   .fdock-stack, .fdock-stack.closing, .fdock-dm.vspanel { animation-duration: 0.01s; }
 }
+
+/* On a MENU (R-DM-03): the message panel opened from the Friends page sits above that page (a ladder page, z 470). */
+.fdock-catch.menu { z-index: 480; }
+.fdock-stack.menu { z-index: 481; }

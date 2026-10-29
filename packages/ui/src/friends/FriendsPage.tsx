@@ -7,6 +7,7 @@
  *  - Friends: online first, then in a game (with its mode and Watch when the game is watchable), then offline with
  *    last seen; Invite when I am in an open Versus room and they are online; Remove friend and Block live in the row's
  *    right-click / long-press menu, never on the row (owner 2026-10-29, R-FRIENDS-MENU-03);
+ *    Message (with their unread count) opens the direct message panel over the page (R-DM-03);
  *  - Blocked: Unblock.
  * A guest sees one line, "Save your account to add friends", and the existing Save account panel.
  * The list is ONE batched read while the page is open (60 s, nothing while hidden; R-FRIENDS-05).
@@ -29,6 +30,8 @@ import {
   modeText, unblockPlayer, useFriends, useFriendsListLoop,
 } from './friendsStore';
 import { watchFriend } from './friendsGo';
+import { openDm } from './dock/dockStore';
+import { liveFriends, useDm } from './dm/dmStore';
 import { friendMenuHandlers } from './FriendMenu';
 import type { Friend, FriendCard } from './friendsRemote';
 import { activityText, gameStatusDetail, ORD, stepText, type FriendActivity, type FriendGameStatus } from './gameStatus';
@@ -128,6 +131,7 @@ function FriendRow({ f, inviteRoom }: { f: Friend; inviteRoom: string | null }) 
   const busy = useFriends((s) => !!s.busy[f.userId] || !!s.busy[`invite:${f.userId}`]);
   const sent = useFriends((s) => s.list?.sent.find((x) => x.to === f.userId && x.target === inviteRoom) ?? null);
   const [going, setGoing] = useState(false);
+  const unread = useDm((s) => s.unread[f.userId.toLowerCase()] ?? 0);
   const watchable = f.status === 'in_game' && !!f.watchId && (f.watchKind === 'live' || f.watchKind === 'versus');
   const invitable = !!inviteRoom && f.status === 'online' && f.mode !== 'versus_room';
   const tip = friendDetail(f);
@@ -145,6 +149,10 @@ function FriendRow({ f, inviteRoom }: { f: Friend; inviteRoom: string | null }) 
         </div>
       </div>
       <div className="fr-actions">
+        <button type="button" className="lb-btn pressable" aria-label={unread > 0 ? `Message ${handleOf(f)}, ${unread} unread` : `Message ${handleOf(f)}`}
+          onClick={() => { sfx.pulse(); openDm(f.userId); }}>
+          Message{unread > 0 && <span className="dm-unread" aria-hidden="true">{unread > 99 ? '99+' : unread}</span>}
+        </button>
         {watchable && (
           <button type="button" className="lb-btn pressable" disabled={going} aria-label={`Watch ${handleOf(f)}`}
             onClick={() => { sfx.pulse(); setGoing(true); void watchFriend(f).finally(() => setGoing(false)); }}>
@@ -232,12 +240,14 @@ export function FriendsPage(): JSX.Element | null {
   const flash = useFriends((s) => s.flash);
   // INVITE TO MY VERSUS ROOM: only while I am in a room that is open (between matches).
   const inviteRoom = useVersus((s) => (s.room && s.room.status === 'open' ? versusRoomRef(s.room) : null));
+  // The hub's live presence over the list, and the unread counts (R-DM-03).
+  const peers = useDm((s) => s.peers);
   if (!show) return null;
 
   // My handle to share (accounts only: a guest cannot be added).
   const myHandle = isAccount && account.discriminator && playerName ? `${playerName}#${account.discriminator}` : null;
   const requests = (list?.incoming.length ?? 0) + (list?.outgoing.length ?? 0);
-  const friends = list ? sortFriends(list.friends) : [];
+  const friends = list ? sortFriends(liveFriends(list.friends, peers)) : [];
   const online = friends.filter((f) => f.status !== 'offline').length;
 
   let body: JSX.Element;

@@ -10,8 +10,13 @@
  *  - `DockFriendList`: the ONLINE friends (online or in a game) with their live status, the Friends page's own status
  *    line and game chips, Watch where it can. A click opens the direct message; right-click / long press opens the
  *    friend menu (R-FRIENDS-MENU-01).
- *  - `DmPanel`: the friend's header (portrait, name, status), the existing Watch / Invite actions, and a `conversation`
- *    slot plus a `composer` slot. Today the slot is empty and the composer a disabled "Messages are coming soon" field.
+ *  - `DmPanel`: the friend's header (portrait, name, status), the existing Watch / Invite actions, and the conversation
+ *    (`dm/DmConversation.tsx`: the messages and the composer, R-DM-03). A `conversation` override is kept for tests.
+ *
+ * DIRECT MESSAGES (owner 2026-10-29: "In game messaging should be direct messages through the friends list, click a
+ * friend and a chat overlay pops up"; R-DM-03): the button carries the unread count (a red chip, top left), a row its
+ * friend's, and the list also shows an OFFLINE friend who has unread messages. On a MENU (no game on screen) there is
+ * no button: the Friends page's Message opens the same message panel on its own (`openDm`), closed the same way.
  *
  * WHERE: one slot left of Rules in the corner row (gear, Compendium, Rules, Friends: right to left), in every game
  * screen (lobby, Practice, every Versus mode, Ranked Duos, watching a game or a replay). Accounts only (a guest has no
@@ -23,7 +28,7 @@
  * and those are one-click Gold spends; an accidental spend is worse than one extra click). It closes on pointerdown, so
  * the dock is already collapsing by the time the finger lifts.
  */
-import { memo, useEffect, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, type ReactNode } from 'react';
 import { Icon } from '../../Icon';
 import { sfx } from '../../sfx';
 import { isPreRun, useGame } from '../../store';
@@ -35,30 +40,38 @@ import { FriendGame, FriendPortrait, friendDetail, handleOf, sortFriends, status
 import { friendMenuEatsClick, friendMenuHandlers } from '../FriendMenu';
 import type { Friend } from '../friendsRemote';
 import { closeDm, closeDock, closeDockNow, openDm, swallowNextClick, toggleDock, useFriendsDock } from './dockStore';
+import { DmConversation } from '../dm/DmConversation';
+import { liveFriend, liveFriends, totalUnread, useDm } from '../dm/dmStore';
 import '../friends.css';
 import './friendsDock.css';
 
-/** Online friends first by status (online, then in a game), then by name: the dock lists nobody offline. */
-export function onlineFriends(list: readonly Friend[] | null | undefined): Friend[] {
-  return list ? sortFriends(list).filter((f) => f.status !== 'offline') : [];
+/** Online friends first by status (online, then in a game), then by name: the dock lists nobody offline, except a
+ *  friend with unread messages (`unread`), so a message that arrived while they were away can still be opened. */
+export function onlineFriends(list: readonly Friend[] | null | undefined, unread: Record<string, number> = {}): Friend[] {
+  return list ? sortFriends(list).filter((f) => f.status !== 'offline' || (unread[f.userId.toLowerCase()] ?? 0) > 0) : [];
 }
 
 export function FriendsDock(): JSX.Element | null {
   const inGame = useGame((s) => !isPreRun(s) || s.replaying);
   const isAccount = useGame((s) => !!s.account.userId && !s.account.anonymous) && friendsAccount();
   const deployed = useFriends((s) => s.deployed);
-  const show = inGame && isAccount && deployed;
+  // On a menu, the message panel opened from the Friends page (no button, no list).
+  const menuDm = useFriendsDock((s) => s.phase !== 'closed' && !!s.dmWith);
+  const show = isAccount && deployed && (inGame || menuDm);
   // The screen went away under an open dock (the game ended, a sign-out): it is closed when it next appears.
   useEffect(() => { if (!show) closeDockNow(); }, [show]);
+  // Entering or leaving a game closes a panel that belonged to the other screen.
+  useEffect(() => { closeDockNow(); }, [inGame]);
   if (!show) return null;
-  return <DockShell />;
+  return <DockShell menu={!inGame} />;
 }
 
 /** The shell: button, panels, outside-press and Escape. */
-export function DockShell({ conversation }: { conversation?: (friend: Friend) => ReactNode } = {}): JSX.Element {
+export function DockShell({ conversation, menu = false }: { conversation?: (friend: Friend) => ReactNode; menu?: boolean } = {}): JSX.Element {
   const phase = useFriendsDock((s) => s.phase);
   const dmWith = useFriendsDock((s) => s.dmWith);
   const online = useFriends((s) => s.inbox?.online ?? 0);
+  const unread = useDm((s) => totalUnread(s.unread));
   const open = phase !== 'closed';
 
   // Escape closes both (capture: the same press must not also open the Esc menu underneath).
@@ -77,22 +90,26 @@ export function DockShell({ conversation }: { conversation?: (friend: Friend) =>
   return (
     <>
       {open && (
-        <div className="fdock-catch" aria-hidden="true"
+        <div className={`fdock-catch${menu ? ' menu' : ''}`} aria-hidden="true"
           onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); swallowNextClick(); closeDock(); }}
           onContextMenu={(e) => { e.preventDefault(); closeDock(); }} />
       )}
       {open && (
-        <div className={`fdock-stack${phase === 'closing' ? ' closing' : ''}`}>
+        <div className={`fdock-stack${phase === 'closing' ? ' closing' : ''}${menu ? ' menu' : ''}`}>
           {dmWith && <DmPanel userId={dmWith} conversation={conversation} />}
-          <DockFriendList active={phase === 'open'} selected={dmWith} />
+          {!menu && <DockFriendList active={phase === 'open'} selected={dmWith} />}
         </div>
       )}
-      <button type="button" className={`fdock-btn gtip${open ? ' on' : ''}`} data-tip={open ? undefined : 'Friends'}
-        aria-label={online > 0 ? `Friends, ${online} online` : 'Friends'} aria-expanded={phase === 'open'}
-        onClick={() => { sfx.pulse(); toggleDock(); }}>
-        <Icon name="friends" />
-        {online > 0 && <span className="fdock-count" aria-hidden="true">{online > 99 ? '99+' : online}</span>}
-      </button>
+      {!menu && (
+        <button type="button" className={`fdock-btn gtip${open ? ' on' : ''}`} data-tip={open ? undefined : 'Friends'}
+          aria-label={`Friends${online > 0 ? `, ${online} online` : ''}${unread > 0 ? `, ${unread} unread ${unread === 1 ? 'message' : 'messages'}` : ''}`}
+          aria-expanded={phase === 'open'}
+          onClick={() => { sfx.pulse(); toggleDock(); }}>
+          <Icon name="friends" />
+          {online > 0 && <span className="fdock-count" aria-hidden="true">{online > 99 ? '99+' : online}</span>}
+          {unread > 0 && <span className="dm-unread" aria-hidden="true">{unread > 99 ? '99+' : unread}</span>}
+        </button>
+      )}
     </>
   );
 }
@@ -103,16 +120,18 @@ export function DockFriendList({ active, selected }: { active: boolean; selected
   const list = useFriends((s) => s.list);
   const failed = useFriends((s) => s.listFailed);
   const flash = useFriends((s) => s.flash);
-  const friends = onlineFriends(list?.friends);
+  const peers = useDm((s) => s.peers);
+  const unread = useDm((s) => s.unread);
+  const friends = onlineFriends(liveFriends(list?.friends, peers), unread);
   let body: JSX.Element;
   if (!list) body = <div className="fdock-empty">{failed ? 'Friends are not available right now.' : 'Finding your friends…'}</div>;
   else if (friends.length === 0) body = <div className="fdock-empty">{list.friends.length === 0 ? 'No friends yet. Add them from the Friends page.' : 'No friends online.'}</div>;
-  else body = <div className="fdock-rows" role="list">{friends.map((f) => <DockRow key={f.userId} f={f} selected={selected === f.userId} />)}</div>;
+  else body = <div className="fdock-rows" role="list">{friends.map((f) => <DockRow key={f.userId} f={f} selected={selected === f.userId} unread={unread[f.userId.toLowerCase()] ?? 0} />)}</div>;
   return (
     <section className="fdock-panel fdock-list vspanel" aria-label="Friends online">
       <div className="fdock-head">
         <span className="fdock-title">Friends</span>
-        <span className="fdock-sub">{`${friends.length} online`}</span>
+        <span className="fdock-sub">{`${friends.filter((f) => f.status !== 'offline').length} online`}</span>
       </div>
       {flash && <div className="fr-flash fdock-flash" role="status">{flash}</div>}
       {body}
@@ -120,12 +139,13 @@ export function DockFriendList({ active, selected }: { active: boolean; selected
   );
 }
 
-const DockRow = memo(function DockRow({ f, selected }: { f: Friend; selected: boolean }) {
+const DockRow = memo(function DockRow({ f, selected, unread }: { f: Friend; selected: boolean; unread: number }) {
   const tip = friendDetail(f);
   const menu = friendMenuHandlers(f);
   return (
     <div role="listitem" className={`fdock-row fr-${f.status}${selected ? ' sel' : ''}`}>
-      <div role="button" tabIndex={0} className="fdock-rowmain" aria-label={`Message ${handleOf(f)}`} aria-pressed={selected}
+      <div role="button" tabIndex={0} className="fdock-rowmain" aria-pressed={selected}
+        aria-label={unread > 0 ? `Message ${handleOf(f)}, ${unread} unread` : `Message ${handleOf(f)}`}
         {...menu}
         onClick={() => { if (friendMenuEatsClick()) return; sfx.pulse(); openDm(f.userId); }}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sfx.pulse(); openDm(f.userId); } }}>
@@ -137,6 +157,7 @@ const DockRow = memo(function DockRow({ f, selected }: { f: Friend; selected: bo
             {f.status === 'in_game' && f.game && <FriendGame game={f.game} />}
           </span>
         </span>
+        {unread > 0 && <span className="dm-unread" aria-hidden="true">{unread > 99 ? '99+' : unread}</span>}
       </div>
       <FriendActions f={f} compact />
     </div>
@@ -179,11 +200,16 @@ export function FriendActions({ f, compact }: { f: Friend; compact?: boolean }):
 }
 
 /**
- * THE DIRECT MESSAGE PANEL (beside the list). The friend's header and actions are live from the list; `conversation`
- * is the messages' slot (empty until messaging ships) and the composer is disabled until then.
+ * THE DIRECT MESSAGE PANEL (beside the list). The friend's header and actions are live from the list (with the hub's
+ * live presence over it); the conversation is the messages and the composer (R-DM-03). `conversation` replaces the
+ * whole conversation (tests).
  */
 export function DmPanel({ userId, conversation }: { userId: string; conversation?: (friend: Friend) => ReactNode }): JSX.Element | null {
-  const f = useFriends((s) => s.list?.friends.find((x) => x.userId === userId) ?? null);
+  const listed = useFriends((s) => s.list?.friends.find((x) => x.userId === userId) ?? null);
+  const peers = useDm((s) => s.peers);
+  // The panel can open before any friends surface read the list (a toast on a menu): read it now.
+  useFriendsListLoop(!listed);
+  const f = useMemo(() => (listed ? liveFriend(listed, peers) : null), [listed, peers]);
   if (!f) return null;
   return (
     <section className="fdock-panel fdock-dm vspanel" aria-label={`Messages with ${handleOf(f)}`}>
@@ -199,12 +225,7 @@ export function DmPanel({ userId, conversation }: { userId: string; conversation
         </button>
       </header>
       <FriendActions f={f} />
-      <div className="fdock-convo" role="log" aria-label="Conversation">
-        {conversation ? conversation(f) : <div className="fdock-convo-empty">No messages yet.</div>}
-      </div>
-      <form className="fdock-compose" onSubmit={(e) => e.preventDefault()}>
-        <input className="acctinput fdock-input" disabled placeholder="Messages are coming soon" aria-label="Messages are coming soon" />
-      </form>
+      {conversation ? <div className="fdock-convo" role="log" aria-label="Conversation">{conversation(f)}</div> : <DmConversation friend={f} />}
     </section>
   );
 }

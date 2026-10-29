@@ -31,7 +31,7 @@ import { forfeitMatch } from './versus/versusStore';
 import { leaveSpectating, useSpectate } from './versus/spectate';
 import { isWatchingLive, leaveLiveGame } from './live/liveWatch';
 import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from './versus/spectatorEmotes';
-import { setShowActivity, useFriendsPrefs } from './friends/friendsPrefs';
+import { setFilterMessages, setShowActivity, useFriendsPrefs } from './friends/friendsPrefs';
 import { isTouchDevice, touchText } from './touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from './touchUi';
 import { PHONE_DIAG_FLAGS, PHONE_GPU, activeDiagLabel, saveDiagFlags, storedDiagFlags, type PhoneDiagFlags } from './phoneDiag';
@@ -100,6 +100,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // SPECTATOR EMOTES (owner 2026-10-16, R-SPECTATE-EMOTE-01): on by default; off hides every spectator's emote.
   const spectatorEmotesOn = useSpectatorEmotePrefs((s) => s.on);
   const showActivity = useFriendsPrefs((s) => s.showActivity);
+  const filterMessages = useFriendsPrefs((s) => s.filterMessages);
   const setShowOpponentSkins = useGame((s) => s.setShowOpponentSkins);
   const fpsCap = useGame((s) => s.fpsCap);
   const setFpsCap = useGame((s) => s.setFpsCap);
@@ -261,6 +262,13 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           note="Off shows friends only Online, or In a game with its mode."
           on={showActivity}
           onToggle={() => { setShowActivity(!showActivity); sfx.pulse(); }}
+        />
+        {/* DIRECT MESSAGES (R-DM-04): masks swear words and slurs in messages I read. Saved on this device. */}
+        <ToggleRow
+          label="Filter bad words in messages"
+          note="Hides swear words and slurs in messages from friends."
+          on={filterMessages}
+          onToggle={() => { setFilterMessages(!filterMessages); sfx.pulse(); }}
         />
         {/* BOARD BACKDROP (owner 2026-10-28): what lies behind the board. Each option is a preset tuned in the Layout Lab
             (backdrop.ts); the pick is saved on this device and applies at once. */}

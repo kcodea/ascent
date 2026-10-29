@@ -853,8 +853,6 @@ export function StatusBar() {
                 This wrapper has NO base transform, so the lunge is clean; the 1.2 lives on `.f` as its ancestor
                 (heroStrike divides by the measured scale, so the geometry is unaffected). Everything visual —
                 the art, name and attack pill — rides it together. */}
-            {/* HERO SHADE (owner 2026-10-29): a soft dark circle under the portrait, tuned per backdrop (Background Tuner). */}
-            <span className="hero-shade" aria-hidden="true" />
             <div className={`herolunge${pfClass(frame)}`} style={frame?.hostStyle}>
             {/* Buff flash — remounts on `buffFlash` so the one-shot shard+ripple replays each time a run buff
                 grows. `aria-hidden`, pointer-events none; sits over the art, under the name pill. */}

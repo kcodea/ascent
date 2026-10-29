@@ -360,26 +360,25 @@ canvas.spr { image-rendering: pixelated; display: block; }
    per backdrop (Background Tuner); static, so no per-frame cost. */
 .boardbg::before, .boardbg::after { content: ''; position: absolute; inset: 0; }
 /* HERO SHADES (owner 2026-10-29: "another circle under each portrait that i can spread out and make very dark (separate
-   from what already exists)"): one soft dark circle behind each hero portrait (yours in .hero .f, the foe's in
-   .combatopp-body), so the portraits read on a bright backdrop. Separate from the portraits' own drop shadow. Per
-   backdrop: backdrop.ts writes --bd-shade-* from the Background Tuner. z -1 inside the portrait's stacking context:
-   under the portrait, over the backdrop. A static radial gradient: no filter, no per-frame cost. Measured against its
-   OWN portrait (the box it sits in): size in portrait widths, offset in % of the portrait, so it fits at any screen
-   size and through the portraits' different wrapper scales. */
-.hero-shade {
-  position: absolute; z-index: -1; pointer-events: none; border-radius: 50%; aspect-ratio: 1;
-  left: calc(50% + var(--bd-shade-x, 0) * 1%); top: calc(50% + var(--bd-shade-y, 0) * 1%);
-  width: calc(var(--bd-shade-size, 2.4) * 100%);
-  transform: translate(-50%, -50%);
-  background: radial-gradient(closest-side,
-    rgb(0 0 0 / var(--bd-shade-a, 0.6)) 0%,
-    rgb(0 0 0 / var(--bd-shade-a, 0.6)) var(--bd-shade-core, 30%),
-    rgb(0 0 0 / calc(var(--bd-shade-a, 0.6) * 0.35)) calc((var(--bd-shade-core, 30%) + 100%) / 2),
-    transparent 100%);
+   from what already exists)", then the hero power, then "is it possible for it to go under the board too?"): soft dark
+   circles in the BACKDROP layer, above the backdrop picture and under the board's shadow and art (z -1, after
+   .boardbg-tex), behind your portrait, your hero power and, in combat, the foe's portrait. So they never darken the
+   board. Per backdrop: backdrop.ts writes --bd-shade-* from the Background Tuner. Radius and centre are reference px
+   from the board's centre (x --scale, + the board's own --board-x/y nudge), the same frame the hero corners are pinned
+   in, so the circles stay under them at any screen size. Static radial gradients: no filter, no per-frame cost. */
+.boardbg-shade {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  --_shade-stops: rgb(0 0 0 / var(--bd-shade-a, 0.6)) 0%, rgb(0 0 0 / var(--bd-shade-a, 0.6)) var(--bd-shade-core, 30%),
+    rgb(0 0 0 / calc(var(--bd-shade-a, 0.6) * 0.35)) calc((var(--bd-shade-core, 30%) + 100%) / 2), transparent 100%;
+  background:
+    radial-gradient(circle calc(var(--bd-shade-r) * var(--scale)) at calc(50% + (var(--board-x, 0px) + var(--bd-shade-x)) * var(--scale)) calc(50% + (var(--board-y, 5px) + var(--bd-shade-y)) * var(--scale)), var(--_shade-stops)),
+    radial-gradient(circle calc(var(--bd-pshade-r) * var(--scale)) at calc(50% + (var(--board-x, 0px) + var(--bd-pshade-x)) * var(--scale)) calc(50% + (var(--board-y, 5px) + var(--bd-pshade-y)) * var(--scale)), var(--_shade-stops));
 }
-.hero-shade--opp {
-  left: calc(50% + var(--bd-oshade-x, 0) * 1%); top: calc(50% + var(--bd-oshade-y, 0) * 1%);
-  width: calc(var(--bd-oshade-size, 2.4) * 100%);
+.boardbg--combat .boardbg-shade {
+  background:
+    radial-gradient(circle calc(var(--bd-shade-r) * var(--scale)) at calc(50% + (var(--board-x, 0px) + var(--bd-shade-x)) * var(--scale)) calc(50% + (var(--board-y, 5px) + var(--bd-shade-y)) * var(--scale)), var(--_shade-stops)),
+    radial-gradient(circle calc(var(--bd-pshade-r) * var(--scale)) at calc(50% + (var(--board-x, 0px) + var(--bd-pshade-x)) * var(--scale)) calc(50% + (var(--board-y, 5px) + var(--bd-pshade-y)) * var(--scale)), var(--_shade-stops)),
+    radial-gradient(circle calc(var(--bd-oshade-r) * var(--scale)) at calc(50% + (var(--board-x, 0px) + var(--bd-oshade-x)) * var(--scale)) calc(50% + (var(--board-y, 5px) + var(--bd-oshade-y)) * var(--scale)), var(--_shade-stops));
 }
 .boardbg::before {
   background: var(--board-shadow) calc(50% + var(--board-x, 0px) * var(--scale)) calc(50% + var(--board-y, 5px) * var(--scale)) / var(--_board-w) auto no-repeat;

@@ -8537,11 +8537,11 @@ export function Recruit() {
     >
       {/* Board art on a full-viewport layer behind the 16:9 stage — extends into the margins on off-16:9 monitors
           (see `.boardbg` in styles.css) rather than letterboxing to black. */}
-      <div className="boardbg" aria-hidden="true"><div className="boardbg-tex" /></div>
+      <div className="boardbg" aria-hidden="true"><div className="boardbg-tex" /><div className="boardbg-shade" /></div>
       {/* COMBAT board layer — a second `.boardbg` painting the combat art. No clip animation of its own any
           more: it snaps in/out while the CURTAIN below fully hides the swap (see the wipe state machine).
           Tree position after `.boardbg` keeps it painting above the shop art, below every zone. */}
-      <div className={`boardbg boardbg--combat${combatBgShown ? ' shown' : ''}`} aria-hidden="true"><div className="boardbg-tex" /></div>
+      <div className={`boardbg boardbg--combat${combatBgShown ? ' shown' : ''}`} aria-hidden="true"><div className="boardbg-tex" /><div className="boardbg-shade" /></div>
       {/* The CURTAIN + its glowing front: PORTALED TO THE STAGE (`stageHost()`) — the hero panel (.statusbar z40),
           the foe portrait (.combatopp, a portal itself, z42/z100), and the eot banner (z95) all live OUTSIDE
           `.app` in their own fixed stacking contexts, so an in-app curtain could never cover them (owner report

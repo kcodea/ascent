@@ -39,17 +39,23 @@ export interface BackdropTune {
   shadow: number;
   shadowX: number;
   shadowY: number;
-  /** HERO SHADES (owner 2026-10-29: "another circle under each portrait that i can spread out and make very dark"): a
-   *  soft dark circle under the player's portrait and the opponent's, separate from the portraits' own drop shadow, so
-   *  they read on a bright background. Darkness 0..1 and Softness 0..100 (0 = a hard edge) are shared. */
+  /** HERO SHADES (owner 2026-10-29: "another circle under each portrait that i can spread out and make very dark", then
+   *  "can we have the shadow under the hero power?" and "is it possible for it to go under the board too?"): soft dark
+   *  circles in the backdrop layer, UNDER the board, behind your portrait, your hero power and (combat) the opponent's
+   *  portrait, so they read on a bright background. Separate from the portraits' own drop shadow. Darkness 0..1 and
+   *  Softness 0..100 (0 = a hard edge) are shared. Each circle's size is its diameter and its X/Y its centre, measured
+   *  from the board's centre, in reference px (x --scale), so it stays put relative to the board at any screen size. */
   shadeDark: number;
   shadeSoft: number;
-  /** The player's circle: diameter in portrait widths (2 = twice the portrait), and its offset from the portrait's
-   *  centre in % of the portrait. Relative to the portrait, so it fits at any screen size and any portrait scale. */
+  /** Under your portrait. */
   shadeSize: number;
   shadeX: number;
   shadeY: number;
-  /** The opponent's circle (combat): the same, against the opponent's portrait. */
+  /** Under your hero power. */
+  powerShadeSize: number;
+  powerShadeX: number;
+  powerShadeY: number;
+  /** Under the opponent's portrait (combat only). */
   oppShadeSize: number;
   oppShadeX: number;
   oppShadeY: number;
@@ -66,11 +72,13 @@ export interface BackdropPreset extends Partial<BackdropTune> {
 /** What a preset leaves out. */
 export const TUNE_DEFAULTS: Readonly<BackdropTune> = {
   zoom: 1, panX: 0, panY: 0, size: 430, dark: 0, blur: 0, tint: '#000000', tintAmount: 0, shadow: 0.72, shadowX: 6, shadowY: 8,
-  shadeDark: 0.6, shadeSoft: 70, shadeSize: 2.4, shadeX: 0, shadeY: 0, oppShadeSize: 2.4, oppShadeX: 0, oppShadeY: 0,
+  shadeDark: 0.6, shadeSoft: 70, shadeSize: 1100, shadeX: -1049, shadeY: 427,
+  powerShadeSize: 400, powerShadeX: -813, powerShadeY: 232, oppShadeSize: 900, oppShadeX: 1082, oppShadeY: -511,
 };
 export const NUMBER_KEYS: readonly BackdropNumberKey[] =
   ['zoom', 'panX', 'panY', 'size', 'dark', 'blur', 'tintAmount', 'shadow', 'shadowX', 'shadowY',
-    'shadeDark', 'shadeSoft', 'shadeSize', 'shadeX', 'shadeY', 'oppShadeSize', 'oppShadeX', 'oppShadeY'];
+    'shadeDark', 'shadeSoft', 'shadeSize', 'shadeX', 'shadeY', 'powerShadeSize', 'powerShadeX', 'powerShadeY',
+    'oppShadeSize', 'oppShadeX', 'oppShadeY'];
 const HEX = /^#[0-9a-f]{6}$/i;
 
 /** A single painted image (a `cover` texture): shown as painted until tuned. */
@@ -164,12 +172,16 @@ export function backdropVars(id: BackdropId): Record<string, string> {
     '--bd-shadow-y': `${t.shadowY}px`,
     '--bd-shade-a': String(t.shadeDark),
     '--bd-shade-core': `${100 - t.shadeSoft}%`,
-    '--bd-shade-size': String(t.shadeSize),
-    '--bd-shade-x': String(t.shadeX),
-    '--bd-shade-y': String(t.shadeY),
-    '--bd-oshade-size': String(t.oppShadeSize),
-    '--bd-oshade-x': String(t.oppShadeX),
-    '--bd-oshade-y': String(t.oppShadeY),
+    // Radius (half the diameter) and centre, reference px: styles.css .boardbg-shade multiplies by --scale.
+    '--bd-shade-r': `${t.shadeSize / 2}px`,
+    '--bd-shade-x': `${t.shadeX}px`,
+    '--bd-shade-y': `${t.shadeY}px`,
+    '--bd-pshade-r': `${t.powerShadeSize / 2}px`,
+    '--bd-pshade-x': `${t.powerShadeX}px`,
+    '--bd-pshade-y': `${t.powerShadeY}px`,
+    '--bd-oshade-r': `${t.oppShadeSize / 2}px`,
+    '--bd-oshade-x': `${t.oppShadeX}px`,
+    '--bd-oshade-y': `${t.oppShadeY}px`,
   };
 }
 

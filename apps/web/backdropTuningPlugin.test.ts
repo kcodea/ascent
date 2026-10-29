@@ -5,7 +5,8 @@ import { planBackdropTuningWrite } from './backdropTuningPlugin';
 const EMPTY = JSON.stringify({ version: 1, backdrops: {} });
 const VALUES = {
   zoom: 1.25, panX: -30, panY: 12.5, size: 430, dark: 0.1, blur: 0, tint: '#472A00', tintAmount: 0.05, shadow: 0.72, shadowX: 6, shadowY: 8,
-  shadeDark: 0.8, shadeSoft: 60, shadeSize: 3.2, shadeX: -20, shadeY: 40, oppShadeSize: 2.5, oppShadeX: 10, oppShadeY: -15,
+  shadeDark: 0.8, shadeSoft: 60, shadeSize: 1200, shadeX: -1000, shadeY: 400, powerShadeSize: 420, powerShadeX: -800, powerShadeY: 230,
+  oppShadeSize: 950, oppShadeX: 1080, oppShadeY: -500,
 };
 
 describe('planBackdropTuningWrite', () => {

@@ -43,7 +43,7 @@ export type TitleView = 'menu' | 'modes' | 'learn' | 'gauntlet' | 'versus';
 export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'live' | 'collection' | 'settings' | 'friends';
 /** Every ladder page closed — the set `goTo` / `openTitle` clear (and the one `startReplay` clears). Settings is a page
  *  like the others since 2026-10-29 (R-ESC-SIDEBAR-01), so it closes with them. */
-const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false, settingsOpen: false } as const;
+export const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false, settingsOpen: false } as const;
 /** Is any sidebar page (a ladder page, Collection or Settings) open? The title skips its paint under one, and the in-game
  *  menu hides its own rail while a page (which carries the rail) is up. */
 export const anyPageOpen = (s: Pick<GameStore, 'showCareer' | 'showRankings' | 'showLeaderboard' | 'showRecentGames' | 'showLiveGames' | 'showCollection' | 'settingsOpen'>): boolean =>

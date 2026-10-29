@@ -6,7 +6,7 @@
  * `installFriendInvites` registers the built-in 'versus_room' invite handler (the Ranked Duos party registers its own).
  */
 import { normalizeVersusOptions, VERSUS_MODE_SEATS } from '@game/sim';
-import { isPreRun, useGame } from '../store';
+import { isPreRun, PAGES_CLOSED, useGame } from '../store';
 import { createRoom, enterDuosParty, isDuosParty, joinRoom, leaveRoom, openVersus, useVersus } from '../versus/versusStore';
 import { versusRemote, versusRoomRef, type VersusRoom } from '../versus/versusRemote';
 import { defaultPartyName } from '../versus/playParty';
@@ -14,6 +14,9 @@ import { defaultRoomName } from '../versus/VersusTitle';
 import { decodeRoomRef } from '../versus/versusHost';
 import { versusEnabled } from '../versus/versusFlag';
 import { watchLiveGame } from '../live/liveWatch';
+import type { LiveGameRow } from '../live/liveRemote';
+import type { LiveWatchTarget } from '../live/liveTargets';
+import { endReplay } from '../replay/replayPlayer';
 import { blockPlayer, flashFriends, iAmPlaying, inviteFriend, mySpectateTarget, parseSpectateTarget, registerInviteHandler, removeFriend } from './friendsStore';
 import type { Friend, FriendInvite } from './friendsRemote';
 
@@ -43,16 +46,33 @@ export async function acceptVersusRoomInvite(invite: FriendInvite): Promise<void
   await goToVersusRoom(invite.target, 'player');
 }
 
+/**
+ * THE ONE WATCH PATH (owner 2026-10-29: "clicking watch from friends list doesnt bring the player into the game, the game
+ * happens behind the screen"; R-WATCH-ENTERS-01). Live Games' Watch, a friend's Watch / Spectate (the dock, the friend
+ * menu) and an accepted spectate invite all come here, from any screen: a replay being viewed is left first (its restore
+ * would land over the watch), then the game is joined (a lobby / Practice game: the live watch screen, either host; a
+ * Versus or Ranked Duos match: its room's stands), and once joined EVERY page that could sit over the watch closes
+ * (Career, Recent Games, Live Games, Rankings, the Hall, Collection, Settings, the Practice setup, the in-game menu). A failed join
+ * leaves the screen as it was (Live Games shows why). `hint`: the game's listing row, when the caller has it.
+ */
+export async function watchGame(t: LiveWatchTarget, hint?: Pick<LiveGameRow, 'live_host'> | null): Promise<boolean> {
+  if (useGame.getState().replaySession) endReplay();
+  const ok = t.kind === 'room' ? await goToVersusRoom(t.ref, 'spectator', t.area) : await watchLiveGame(t.gameId, hint);
+  if (ok) closeScreensOverWatch();
+  return ok;
+}
+
+/** Every page that would paint over the watch screen, closed (the title itself is the watch screen's own business). */
+export function closeScreensOverWatch(): void {
+  useGame.setState({ ...PAGES_CLOSED, practiceSetupOpen: false, gameMenuOpen: false });
+}
+
 /** Watch a friend's game, when it is watchable. Resolves true when the watch started. */
 export async function watchFriend(f: Partial<Pick<Friend, 'watchKind' | 'watchId' | 'mode'>>): Promise<boolean> {
   if (!f.watchId) return false;
-  if (f.watchKind === 'live') {
-    const ok = await watchLiveGame(f.watchId);
-    if (ok) useGame.setState({ showLiveGames: false });
-    return ok;
-  }
+  if (f.watchKind === 'live') return watchGame({ kind: 'lobby', gameId: f.watchId });
   // A Ranked Duos party lives in the Duos area: watching it from the Versus area would never show it (R-RANKED-DUOS-SPLIT-01).
-  if (f.watchKind === 'versus') return goToVersusRoom(f.watchId, 'spectator', watchAreaOf(f.mode));
+  if (f.watchKind === 'versus') return watchGame({ kind: 'room', ref: f.watchId, area: watchAreaOf(f.mode) });
   return false;
 }
 

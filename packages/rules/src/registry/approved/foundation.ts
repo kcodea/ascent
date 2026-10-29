@@ -10702,6 +10702,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
   {
+    id: 'R-WATCH-ENTERS-01',
+    title: 'Watch from the Friends dock (or the friend menu, or a spectate invite) takes me INTO the game from any screen, exactly like Live Games\x27 Watch',
+    statement:
+      'Every Watch goes through ONE path (`watchGame`), the one Live Games\x27 own Watch uses: a lobby or Practice game opens the live watch screen (either host), a Versus or Ranked Duos match opens its room\x27s stands. From any screen the dock shows on (the title, every side-menu page: Career, Recent Games, Live Games, Rankings, the Hall, Collection, Settings; the Practice setup; the in-game menu; hero select; a replay), a replay being viewed is left first, and once the watch has started every page that could paint over the watch screen closes, so the watched game is what I see. A failed join leaves the screen as it was. While I am playing my own game Watch stays disabled (R-FRIENDS-MENU-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (Watch pressed in the dock on Career > Recent Games, friend in Practice)', quote: 'clicking watch from friends list doesnt bring the player into the game, the game happens behind the screen but they are never actually brought in' },
+      { kind: 'code', ref: 'packages/ui/src/friends/friendsGo.ts (watchGame, closeScreensOverWatch, watchFriend), packages/ui/src/live/LiveGames.tsx' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-29 (fix/dock-watch-enters-game). Before: a friend\x27s Watch on a lobby / Practice game joined it but only closed the Live Games page, so from Career, Recent Games, Rankings, the Hall, Collection or Settings the page stayed painted over the watch screen while the game ran behind it.',
+    example: 'Ann is on Career > Recent Games. Her friend Bo is in Practice, Round 5. She opens the Friends dock and presses Watch on Bo: Recent Games closes and she is watching Bo\x27s shop. Leave takes her to the Live Games list.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
     id: 'R-FRIENDS-MENU-01',
     title: 'Right-click (or a long press) on a friend opens a menu: Spectate, Invite to lobby, Invite to Duos, Invite to spectate, only the ones that make sense now',
     statement:

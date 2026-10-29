@@ -22,7 +22,7 @@ export const SPEC: TunerSpec<FlipConfig> = {
     {
       key: 'dragMs',
       label: 'Slide while dragging',
-      hint: 'How long cards take to open a slot as you drag a card across the row.',
+      hint: 'Inert since 2026-10-29: the drag slide is the CSS transition on the cards (styles.css, body.dragging).',
       unit: 'ms',
       min: FLIP_RANGES.dragMs[0], max: FLIP_RANGES.dragMs[1], step: FLIP_RANGES.dragMs[2],
     },

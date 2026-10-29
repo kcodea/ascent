@@ -7,7 +7,9 @@
  * at animation time, so a change applies to the next reposition.
  */
 export interface FlipConfig {
-  /** Live drag slide (ms) — cards gliding aside as a card is dragged across the row. */
+  /** Live drag slide (ms). NOT READ since 2026-10-29 (R-PHONE-DRAG-02): the cards that make room during a drag glide
+   *  on their own CSS transition (`body.dragging … .card { transition: transform 0.36s … }`, styles.css), which is what
+   *  always showed. Kept only so a saved tuner value still parses; the DEV slider is inert. */
   dragMs: number;
   /** Committed settle (ms) — the slide after a drop / play / sell / auto-reposition. */
   commitMs: number;
@@ -28,7 +30,7 @@ export const FLIP_RANGES: Record<keyof FlipConfig, [number, number, number]> = {
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
 export const FLIP_DESC: Record<keyof FlipConfig, string> = {
-  dragMs: 'Pre-emptive slide: how long cards take to open the slot as you DRAG a card across the row (ms).',
+  dragMs: 'Inert: the slide while dragging is the CSS transition on the cards (styles.css, body.dragging). Kept for saved values.',
   commitMs: 'Settle after DROPPING — 0 = instant (the cards already slid into place during the drag).',
 };
 

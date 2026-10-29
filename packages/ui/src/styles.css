@@ -12640,11 +12640,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .roundrail-wrap { position: fixed; left: calc(var(--rrl-x, 11) * 1px); top: calc(50% + var(--rrl-y, -300) * 1px);
   transform: translate(var(--rrl-dx, 0px), var(--rrl-dy, 0px)) translateY(-50%) scale(var(--rrl-s, 1.09));
   transform-origin: left center; z-index: 555; will-change: transform; }
-.roundrail-wrap.dragging { user-select: none; }
+.roundrail-wrap.rr-dragging { user-select: none; }
 /* Any point of the rail drags it (2026-09-20), so the whole surface wears the grab gauntlet; buttons keep the
    global open-gauntlet rule. `touch-action: none` on the surface keeps a touch drag from scrolling the page. */
 .roundrail-wrap { cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; touch-action: none; }
-.roundrail-wrap.dragging, .roundrail-wrap.dragging * { cursor: url('/cursors/gauntlet_open.svg') 6 2, grabbing; }
+.roundrail-wrap.rr-dragging, .roundrail-wrap.rr-dragging * { cursor: url('/cursors/gauntlet_open.svg') 6 2, grabbing; }
 .roundrail {
   display: flex; flex-direction: column; gap: 3px; padding: 6px 6px 8px; border-radius: 10px; max-height: calc(82 * var(--vh, 1vh)); overflow-y: auto;
   background: #14111c; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
@@ -12657,7 +12657,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   font-weight: 800; font-size: 12px; line-height: 1; letter-spacing: -2px; color: rgba(255, 255, 255, 0.45);
   cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; touch-action: none; }
 .roundrail-grab:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
-.roundrail-wrap.dragging .roundrail-grab { background: rgba(196, 160, 92, 0.25); color: #fff; }
+.roundrail-wrap.rr-dragging .roundrail-grab { background: rgba(196, 160, 92, 0.25); color: #fff; }
 .roundrail-toggle { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; border: none;
   border-radius: 5px; background: transparent; color: rgba(255, 255, 255, 0.6); font: inherit; font-weight: 800; font-size: 12px; }
 .roundrail-toggle:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }

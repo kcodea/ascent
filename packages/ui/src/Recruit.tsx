@@ -3998,7 +3998,6 @@ export function Recruit() {
     }
   }, [handPreviews, inCombat, run.combatSettled]);
 
-  const flipStateRef = useRef<StageFlipState | null>(null);
   // Hand reorder (drag a hand card sideways): the GSAP Flip state captured at drop, glided by a dedicated
   // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
   // x-tween that path uses, so Flip.from (which preserves the full transform) drives the hand instead.
@@ -4740,10 +4739,8 @@ export function Recruit() {
       shop: measureSlots('[data-zone="tavern"] .row .card[data-uid]').filter((c) => c.uid !== run.spell?.uid),
       hand: handSlots,
     };
-    // The FLIP baseline for the drag's pre-emptive slides — captured HERE, on the layout the drag starts from
-    // (one more read on the flush the measurements above already forced), instead of on every non-drag commit
-    // (see `RowFlip`'s read pass). `simple: true`: these rows only translate horizontally.
-    flipStateRef.current = getSimpleState(FLIP_SELECTOR); // Flip simple, scaled-stage safe (stageFlip.ts)
+    // No FLIP baseline is captured for the drag (R-PHONE-DRAG-02): the pre-emptive slides are the cards' own CSS
+    // transitions on their `slideDir` transforms (see `RowFlip`), which read no layout.
     // Hand slot spacing = the gap between consecutive card lefts (they overlap, so it's < card width). Used to
     // size the reorder parting so cards shift exactly one slot. Falls back to the card width for a 1-card hand.
     const handSlotW = handSlots.length >= 2 ? handSlots[1]!.left - handSlots[0]!.left : handSlots[0]?.width ?? 0;
@@ -6978,7 +6975,7 @@ export function Recruit() {
   const handOrder = useMemo(() => run.hand.map((c) => c.uid), [run.hand]);
   // Row composition + order — the non-pointer half of the FLIP key (`RowFlip` folds the live gap indices in).
   const rowsKey = displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + displayBoard.map((m) => m.uid).join(',');
-  const flipRefs = useRef<FlipRefs>({ flipStateRef, commitRectsRef, handPlaySnapRef, handFlipRef, handFlipSelRef, placePendingRef, shiftHoldRef, shopRectsRef, lastCentreRef, departedCentreRef, prevShopFxSeq, preFiredEchoRef }).current;
+  const flipRefs = useRef<FlipRefs>({ commitRectsRef, handPlaySnapRef, handFlipRef, handFlipSelRef, placePendingRef, shiftHoldRef, shopRectsRef, lastCentreRef, departedCentreRef, prevShopFxSeq, preFiredEchoRef }).current;
 
   // Hand reorder glide: a drag-reorder (applyDrop) captured the fan's pre-move layout into handReorderFlipRef;
   // when the new hand order commits here, Flip.from animates each card from its old slot to its new one. GSAP
@@ -8379,7 +8376,7 @@ export function Recruit() {
         // per card, twice (from + to state). On a 7-card hand that was ~40 recalc/layout pairs inside ONE React
         // commit, 36 ms each, fired every time the dragged card crossed a hand slot: 13 dropped frames on a
         // 360 Hz display per crossing. The hand fan has no rotation (`--fan-rot: 0deg`), so the bounding-box
-        // capture is exact; the board's own drag flip already used it (see `flipStateRef`).
+        // capture is exact; the board's own drag flip used to rely on the same.
         handReorderFlipRef.current = getSimpleState(els);
         dispatch({ type: 'reorderHand', uid: d.uid, toIndex: to });
       }
@@ -9565,7 +9562,6 @@ const RenderMark = memo(function RenderMark({ start, phase }: { start: number; p
 /** The mutable bookkeeping the FLIP runner shares with `Recruit`'s handlers — created once in `Recruit` (the
  *  drop handlers and the End-of-Turn presenters write into it) and handed to `RowFlip` as one stable object. */
 interface FlipRefs {
-  flipStateRef: { current: StageFlipState | null };
   commitRectsRef: { current: CommitSweep | null };
   handPlaySnapRef: { current: boolean };
   handFlipRef: { current: Map<string, number> | null };
@@ -9599,7 +9595,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
   findEl: (uid: string) => Element | null; refs: FlipRefs;
 }) {
   const { dragActive, gapIndex, shopGapIndex, collapsedLift } = useDragSlice(selectFlipDrag);
-  const { flipStateRef, commitRectsRef, handPlaySnapRef, handFlipRef, handFlipSelRef, placePendingRef, shiftHoldRef, shopRectsRef, lastCentreRef, departedCentreRef, prevShopFxSeq, preFiredEchoRef } = refs;
+  const { commitRectsRef, handPlaySnapRef, handFlipRef, handFlipSelRef, placePendingRef, shiftHoldRef, shopRectsRef, lastCentreRef, departedCentreRef, prevShopFxSeq, preFiredEchoRef } = refs;
   // A RESIZE re-lays both rows out under cards that did not move, so the last commit sweep no longer describes the
   // screen: drop it, and the next row change snaps instead of flinging every survivor in from the old layout (the
   // same stale-baseline fault as the Growth report, `commitFlip.ts`). One listener, no layout read.
@@ -9686,34 +9682,19 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
     shopRectsRef.current = { prev: shopRectsRef.current.cur, cur };
   }, [flipKey]);
 
-  // FLIP via GSAP. `flipStateRef` holds the layout state captured at the end of the *previous* drag commit (the
-  // cards' old spots — seeded at drag START, see `startDragSession`); after React commits the new order,
-  // `Flip.from` animates each card from there to its fresh spot. Newly-mounted cards (a freshly bought/played
-  // card) aren't in the prior state, so they pop in (cardpop) instead of sliding from nowhere; removed cards
-  // (sold) just leave. GSAP clears its own transforms on complete and manages interruptions, so a fast drag
-  // blends rather than flinging cards.
+  // The row FLIP for COMMITTED moves (a drop, a sell, a summon): a manual per-card slide off the sweeps below.
+  // Newly-mounted cards (a freshly bought/played card) aren't in the prior sweep, so they pop in (cardpop) instead
+  // of sliding from nowhere; removed cards (sold) just leave. DURING a drag this effect writes and reads nothing
+  // (R-PHONE-DRAG-02): the pre-emptive parting is the cards' CSS transition (see the dragging branch below).
   useLayoutEffect(() => {
    // Timed as `layout:flip` (perf export): GSAP Flip animation + the forced reflows + the per-commit
    // Flip.getState / commitRects rebuild (O(cards) offsetLeft reads). Runs on every flipKey change — a heavy
    // branch here is the fanout-frame cost that's neither the sim nor the weld FX.
    perfMonitor.measure('layout:flip', () => {
-    // WHICH ROW CAN MOVE. Only one row re-lays-out during a drag: the warband when its drop gap is open, the
-    // tavern when the shop's is. Capturing/animating BOTH doubled the most expensive thing in the shop phase
-    // for a row that provably cannot have moved. Outside a drag (a buy, a sell, a commit) either row can
-    // change, so the full selector stands.
-    //
-    // Switching selectors mid-drag is safe: `Flip.from` simply ignores elements absent from the captured
-    // state, and an absent element is one that did not move — which is the same outcome it had before.
-    // (Perf capture 2026-08-06: `layout:flip` was 4,511 ms of 5,010 ms measured — 90% of all work, ~9.2 ms
-    // per call against a 4.17 ms budget at 240 Hz, firing ~50×/s during a drag.)
     // Consumed once: the hold applies to the single commit that follows the death, never to later ones.
     const shiftHold = shiftHoldRef.current;
     shiftHoldRef.current = 0;
     const draggingNow = dragActive;
-    const flipSel = !draggingNow ? FLIP_SELECTOR
-      : gapIndex >= 0 && shopGapIndex < 0 ? FLIP_SEL_WARBAND
-        : shopGapIndex >= 0 && gapIndex < 0 ? FLIP_SEL_TAVERN
-          : FLIP_SELECTOR;
     // SPLIT INTO ITS TWO HALVES (perf, 2026-09-15): `layout:flip:write` is the animation branch — Flip.from
     // or the manual tweens — and `layout:flip:read` is the state capture (Flip.getState / the offsetLeft
     // sweep). The 2026-09-11 capture put this effect at ~7.3 ms mean, 98% of it during drags, and could not
@@ -9725,9 +9706,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
     // second one on every other commit. `offsetLeft` is a LAYOUT position — transform-immune, so no write in
     // this effect can change it — and reading it on the flush React's own DOM writes already made unavoidable
     // costs nothing extra. The commit branch below then diffs this sweep against the previous one, so a commit
-    // that moved nothing (a roll) writes nothing and forces nothing. The two per-drag-commit flushes (Flip.from's
-    // read, then the state capture the NEXT commit blends from) stay: the capture has to see the tween just seeded.
-    const prevFlipState = flipStateRef.current;
+    // that moved nothing (a roll) writes nothing and forces nothing. A drag commit forces nothing at all.
     const flipCfg = getFlipConfig();
     let commitLefts: Map<string, number> | null = null;
     if (!draggingNow) perfMonitor.measure('layout:flip:read', () => {
@@ -9795,14 +9774,17 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         }
       };
       if (draggingNow) {
-        // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide
-        // to make room (dragMs = the slide duration). The cards' CSS `transition: transform` is off for the
-        // whole drag (body.dragging rule in styles.css) so GSAP's transform animation isn't masked.
-        // `simple: true` on the ANIMATION call too (perf 2026-09-17): the recorded state was captured simple, but
-        // `Flip.from` builds its own "to" state for the same targets and, without the flag, resolves a global
-        // matrix per card — GSAP appends a temp element beside each and reads it, a forced layout per card.
-        // These cards only translate, so the simple path is the same slide; this was ~9 ms per slot crossing.
-        if (prevFlipState) fromSimpleState(prevFlipState, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
+        // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide to
+        // make room. That glide is the cards' own CSS transition on their `slideDir` transform
+        // (`body.dragging .zone[data-zone=…] .card { transition: transform 0.36s … !important }`, styles.css): a
+        // compositor animation that retargets smoothly when the gap moves again mid-glide. Nothing to do here.
+        //
+        // Until 2026-10-29 this ran a GSAP `Flip.from` off a state captured after the previous crossing, then
+        // re-captured. It never showed (R-PHONE-DRAG-02): the capture COMPLETES an in-flight flip on its targets, so
+        // the moved row's flip ended in the same task it began, and the other row's ran a zero-offset tween; the
+        // `!important` CSS transition masked GSAP's inline writes either way. It cost two forced style + layout
+        // passes and a full inline-style restore on every row card at every slot crossing, which a phone pays as a
+        // dropped frame mid-drag (owner 2026-10-29: "stuttering trying to catch up").
       } else if (handPlaySnapRef.current) {
         // A drag-drop just committed (a hand card landed, or a board / shop card was reordered). We do a MANUAL
         // FLIP on the settled row's cards only (never a full Flip.from — for a hand-play the freshly played card
@@ -9882,17 +9864,6 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         slideFromSweep(null);
       }
       // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
-    });
-    if (draggingNow) perfMonitor.measure('layout:flip:read', () => {
-      // `simple: true` is GSAP's documented fast path: it skips the rotation/scale/skew accounting, which is
-      // the expensive half of a state capture (a `getComputedStyle` read per element on top of the rect). These
-      // rows only ever TRANSLATE horizontally, and `body.dragging` neutralises the hover `scale(1.06)` for the
-      // whole drag (styles.css), so there is no rotation or scale for the full path to account for.
-      // ONLY DURING A DRAG (perf 2026-09-17): the captured state feeds the next drag commit's `Flip.from` and
-      // nothing else, so outside a drag it was a forced layout per commit for a value the next drag START now
-      // captures fresh (`startDragSession`) — where it is also correct by construction, whereas a state kept
-      // from the last commit could predate a viewport resize.
-      flipStateRef.current = getSimpleState(flipSel);
     });
     if (commitLefts) commitRectsRef.current = { key: rowsKey, lefts: commitLefts };
    });

@@ -175,7 +175,7 @@ export function RoundRail(): JSX.Element | null {
       if (Math.abs(mx) < DRAG_THRESHOLD_PX && Math.abs(my) < DRAG_THRESHOLD_PX) return; // still a click
       d.dragging = true;
       try { el.setPointerCapture(d.pointerId); } catch { /* unsupported */ }
-      el.classList.add('dragging');
+      el.classList.add('rr-dragging');
     }
     const next = clampRailOffset(
       { dx: d.dx0 + toStage(mx), dy: d.dy0 + toStage(my) },
@@ -189,7 +189,7 @@ export function RoundRail(): JSX.Element | null {
     dragRef.current = null;
     const el = wrapRef.current;
     if (!d?.dragging) return; // a click — let the browser deliver it to whatever was pressed
-    el?.classList.remove('dragging');
+    el?.classList.remove('rr-dragging');
     try { el?.releasePointerCapture(d.pointerId); } catch { /* ignore */ }
     swallowClickRef.current = true;
     if (!d.last) return;

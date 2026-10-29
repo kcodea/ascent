@@ -227,7 +227,7 @@ const PROBE = `(() => {
   requestAnimationFrame((now) => { last = now; t[n++] = now; requestAnimationFrame(tick); });
   const marks = [];
   const loaf = [];
-  try { new PerformanceObserver((l) => { for (const e of l.getEntries()) loaf.push([e.startTime, e.duration, e.blockingDuration || 0]); }).observe({ type: 'long-animation-frame', buffered: true }); } catch {}
+  try { new PerformanceObserver((l) => { for (const e of l.getEntries()) loaf.push([e.startTime, e.duration, e.blockingDuration || 0, (e.scripts || []).slice().sort((a, b) => b.duration - a.duration).slice(0, 3).map((x) => [Math.round(x.duration), x.invokerType, x.invoker, x.sourceFunctionName, x.sourceURL, x.sourceCharPosition])]); }).observe({ type: 'long-animation-frame', buffered: true }); } catch {}
   const hidden = []; // [from, to] spans the page was hidden: their frames are dropped, not judged
   document.addEventListener('visibilitychange', () => { if (document.hidden) hidden.push([performance.now(), Infinity]); else if (hidden.length) hidden[hidden.length - 1][1] = performance.now(); });
   window.__pg = {
@@ -240,15 +240,18 @@ const PROBE = `(() => {
  *  and every requestAnimationFrame request, counted from before any page script, with the creating stack's first app
  *  frame for intervals, so a probe can say whether timers pile up round over round. */
 const TIMER_CENSUS = `(() => {
+  try { performance.setResourceTimingBufferSize(100000); } catch {}
   const iv = new Map(); const to = new Set(); let rafCalls = 0;
   const si = window.setInterval.bind(window), ci = window.clearInterval.bind(window), st = window.setTimeout.bind(window), ct = window.clearTimeout.bind(window), raf = window.requestAnimationFrame.bind(window);
   const where = () => { const s = (new Error().stack || '').split(String.fromCharCode(10)).slice(3, 5).map((l) => l.trim().replace(/^at /, '').replace(/https?:[^ )]*[/]/, '')).join(' < '); return s.slice(0, 120); };
   window.setInterval = (fn, ms, ...a) => { const id = si(fn, ms, ...a); iv.set(id, (ms | 0) + 'ms ' + where()); return id; };
   window.clearInterval = (id) => { iv.delete(id); return ci(id); };
-  window.setTimeout = (fn, ms, ...a) => { let id; const w = typeof fn === 'function' ? (...x) => { to.delete(id); return fn(...x); } : fn; id = st(w, ms, ...a); to.add(id); return id; };
+  const slow = [];
+  window.setTimeout = (fn, ms, ...a) => { let id; const born = new Error(); const w = typeof fn === 'function' ? (...x) => { to.delete(id); const t0 = performance.now(); try { return fn(...x); } finally { const dur = performance.now() - t0; if (dur > 12 && slow.length < 400) slow.push([Math.round(dur), Math.round(t0), (born.stack || '').split(String.fromCharCode(10)).slice(2, 7).map((l) => l.trim()).join(' | ')]); } } : fn; id = st(w, ms, ...a); to.add(id); return id; };
   window.clearTimeout = (id) => { to.delete(id); return ct(id); };
   window.requestAnimationFrame = (cb) => { rafCalls++; return raf(cb); };
   window.__pgTimers = () => { const by = {}; for (const v of iv.values()) by[v] = (by[v] || 0) + 1; return { intervals: iv.size, timeouts: to.size, rafCalls, byInterval: by }; };
+  window.__pgSlowTimeouts = () => slow;
 })();`;
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -426,7 +429,26 @@ async function playScenes(c) {
   //           unit that is not one of the five, play the hand (selling a non-key unit again whenever the board is
   //           full), sell the non-key units, then back to BUYING.
   // The five kept cards are never sold.
-  const buyPlayTurn = (maxActions, paceMs) => d.ev(`(async () => {
+  // --bot: the shop turn is played by the balance bot (sim DEFAULT_BOT, a greedy player that buys, plays, sells and
+  // tiers like a person would) instead of the buy-everything walk: a typical board and stat curve, not the Ale engine.
+  const botTurn = (maxActions, paceMs) => d.ev(`(async () => {
+    const sim = await window.__bench.sim(); const st = window.__bench.store; const S = () => st.getState();
+    let n = 0;
+    for (; n < ${maxActions}; n++) {
+      const run = S().run;
+      if (run.phase !== 'recruit') break;
+      if (sim.modalOpen(run) && run.discover) { await window.__pgResolve(); continue; }
+      const a = sim.DEFAULT_BOT.act(run);
+      if (!a || a.type === 'faceOmen') break;
+      S().dispatch(a);
+      if (S().run === run) break;
+      await new Promise((r) => setTimeout(r, ${paceMs}));
+    }
+    await window.__pgResolve();
+    return n + ' (bot)';
+  })()`);
+  const buyPlayTurn = (maxActions, paceMs) => (flag('bot') ? botTurn(maxActions, paceMs) : buyPlayTurnWalk(maxActions, paceMs));
+  const buyPlayTurnWalk = (maxActions, paceMs) => d.ev(`(async () => {
     const sim = await window.__bench.sim(); const st = window.__bench.store; const S = () => st.getState();
     const CARDS = window.__bench.combat.cards;
     const isSpell = (c) => !!CARDS[c.cardId]?.spell;
@@ -548,6 +570,8 @@ async function playScenes(c) {
       return Object.entries(acc).sort((a, b) => b[1].total - a[1].total).slice(0, 14).map(([k, v]) => k + ' ' + v.total.toFixed(0) + 'ms/' + v.n + ' max ' + v.max.toFixed(1)).join(', ');
     })()`).catch((e) => 'err ' + e);
     live.store = await d.ev(`(() => { const st = window.__bench.store.getState(); const size = (v) => { try { return JSON.stringify(v)?.length || 0; } catch { return -1; } }; const top = Object.entries(st).filter(([, v]) => typeof v !== 'function').map(([k, v]) => [k, size(v)]).sort((a, b) => b[1] - a[1]).slice(0, 8); const run = st.run ? Object.entries(st.run).map(([k, v]) => [k, size(v)]).sort((a, b) => b[1] - a[1]).slice(0, 8) : []; return { top, run }; })()`).catch(() => null);
+    // Images: distinct image URLs fetched so far and their encoded KB (the decoded-image working set grows with it).
+    live.imgs = await d.ev(`(() => { const r = performance.getEntriesByType('resource').filter((e) => /[.](png|webp|jpe?g|avif|svg)([?]|$)/.test(e.name)); return { urls: new Set(r.map((e) => e.name)).size, kb: Math.round(r.reduce((n, e) => n + (e.decodedBodySize || 0), 0) / 1024), live: document.images.length }; })()`).catch(() => null);
     live.tex = await d.ev(`(() => { const app = window.__bench.pixiFx && window.__bench.pixiFx.app; const t = app && app.renderer && app.renderer.texture; const gc = app && app.renderer && app.renderer.textureGC; return t ? { managed: (t.managedTextures || []).length, glTextures: Object.keys(t._glTextures || {}).length } : null; })()`).catch(() => null);
     if (SNAP_ROUNDS.has(r)) {
       const file = path.join(OUT, `heap-r${r}.heapsnapshot`);
@@ -562,7 +586,7 @@ async function playScenes(c) {
       log(`   heap snapshot r${r} -> ${file}`);
     }
     probeRows.push({ r, heapMB: heap ? heap.usedSize / 1048576 : null, nodes: dom?.nodes, listeners: dom?.jsEventListeners, ...live });
-    { const p = probeRows[probeRows.length - 1]; log(`   PROBE r${r}: heap ${p.heapMB?.toFixed(1)} MB nodes ${p.nodes} (page ${p.attached}) listeners ${p.listeners} anims ${p.anims} gsap ${p.tweens}/${p.gsapAll} plays ${p.plays}/${p.particles} pixi ${p.pixi} | timers ${JSON.stringify(p.timers)} | tex ${JSON.stringify(p.tex)} | store ${JSON.stringify(p.store)}${p.perfT ? ' | perf(prev wave) ' + p.perfT : ''}`); }
+    { const p = probeRows[probeRows.length - 1]; log(`   PROBE r${r}: heap ${p.heapMB?.toFixed(1)} MB nodes ${p.nodes} (page ${p.attached}) listeners ${p.listeners} anims ${p.anims} gsap ${p.tweens}/${p.gsapAll} plays ${p.plays}/${p.particles} pixi ${p.pixi} | timers ${JSON.stringify(p.timers)} | tex ${JSON.stringify(p.tex)} | imgs ${JSON.stringify(p.imgs)} | store ${JSON.stringify(p.store)}${p.perfT ? ' | perf(prev wave) ' + p.perfT : ''}`); }
     await mark(`probe-r${r}`); await sleep(3000); await mark(after);
   };
   // A QUIET shop: the return trip (vista, gem portal, edge bloom) has fully finished and the gate layer is empty. The
@@ -590,6 +614,7 @@ async function playScenes(c) {
     await probe('shop-idle');
     await takeDiscovers();
     await mark('shop-idle'); await sleep(3000);
+    if (!flag('bot')) {
     await mark('reroll');
     await d.click(await d.visible('.tvbwrap')); await sleep(1000);
     for (let k = 0; k < 3; k++) { await d.click(await d.visible('.rfbwrap')); await sleep(900); }
@@ -605,6 +630,7 @@ async function playScenes(c) {
     const first = await d.visible('[data-zone="warband"] .row .card[data-uid]');
     const lastCard = await d.ev(`(() => { const a = [...document.querySelectorAll('[data-zone="warband"] .row .card[data-uid]')].filter((x) => x.getClientRects().length); const e = a[a.length - 1]; if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.right + 40, y: r.top + r.height / 2 }; })()`);
     await d.drag(first, lastCard, 900);
+    } // --bot: the reroll + drag scenes are skipped (they spend the Gold and sell the board a typical game is building)
     // The rest of the turn the way a late game spends it: lots of buys, plays and spells (measured as its own scene).
     await mark('shop-actions');
     const acts = await buyPlayTurn(APM, 60);
@@ -752,6 +778,7 @@ async function measureOnce(dist, runIdx) {
     if (profiling) profiles.push((await c.send('Profiler.stop')).profile);
     if (tracing) await stopTrace(c.send);
     const dump = await evaluate(c, 'window.__pg.dump()');
+    dump.slowTimeouts = await evaluate(c, 'window.__pgSlowTimeouts ? window.__pgSlowTimeouts() : []').catch(() => []);
     return { missed, dump, metricMarks, profiles, traceEvents, soak: soakRows, probe: probeRows };
   } finally {
     c.close(); server.close();

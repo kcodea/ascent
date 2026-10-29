@@ -1437,15 +1437,17 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Pings.** In any game a player may ping a shop card, a board minion, a hand card, or a shop button (Tavern Up,
   Refresh, Freeze, the hero power, End Turn) with **check, X, question, pass or sell**: right-click, or press and hold on
   a phone. A card's menu also carries **Inspect**; outside a game, in a replay, on a Discover option, or for a spectator
-  who is not a mentor, right-click on a card still inspects at once. A ping pops on its target (spark + sound), stays
-  about 4 s, and is cleared by clicking it or by moving its card. At most 3 pings per 2 s per sender.
+  who is not a mentor, right-click on a card still inspects at once. A ping pops on its target (spark + sound), then
+  settles and stays until it is cleared: a left- or right-click on it, or moving its card (drag, sell, play), clears it
+  on every screen that shows it. It also goes when its target leaves the screen (the shop closes for the fight). At most 3 pings per 2 s per sender.
 - **Who sees what.** A player's own pings: the player, every spectator, and (Duos / Ranked Duos) the teammate. Duos
   teammates ping each other's cards from the teammate view. **Opponents never see a ping.**
 - **Mentors.** A watched player may click one spectator's plate (top left) to make them **Mentor** for this game, and
   click again to demote. The mentor may ping that player's targets; **only that player** sees mentor pings. Every screen
   shows who is mentoring. A plain spectator cannot ping.
-- **Enforcement.** The rule is one shared module (`workers/versus/src/pings.ts`): the Versus Cloudflare room routes each
-  ping to its audience only and drops the rest; over a Supabase broadcast channel the receiver re-checks the same rule.
+- **Enforcement.** The rule is one shared module (`workers/versus/src/pings.ts`): the Versus Cloudflare room and the
+  lobby / Practice Cloudflare live object route each ping (and each clear) to its audience only and drop the rest; over
+  a Supabase broadcast channel the receiver re-checks the same rule.
 
 ## Friends (owner 2026-10-26; R-FRIENDS-01, R-FRIENDS-02, R-FRIENDS-03, R-FRIENDS-04, R-FRIENDS-05)
 

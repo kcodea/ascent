@@ -497,7 +497,7 @@ function subscribe(matchId: string | null): void {
   setPingSession('versus', {
     send: (e, p) => ch.send(e, p),
     seat: () => emoteSeatOf(get().match),
-    mode: () => pingModeOf(get().room?.options?.mode),
+    mode: () => pingModeOf(get().match?.options?.mode ?? get().room?.options?.mode),
     gameKey: `versus:${roomId}:${matchId ?? ''}`,
   });
   // A channel swap mid-match keeps the emote transport on the live channel.

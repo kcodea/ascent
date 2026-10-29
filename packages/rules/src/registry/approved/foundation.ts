@@ -10891,9 +10891,9 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PING-05',
-    title: 'A ping sparks on its target with a sound, stays about 4 s, and clears when clicked or its card moves',
+    title: 'A ping sparks on its target with a sound, settles until cleared, and clears everywhere when clicked or its card moves',
     statement:
-      "A ping pops on its target with the hero power spark FX and the pulse UI sound, settles, stays about 4 s and fades (transform and opacity only, nothing loops). On a card it sits inside the card element, so it rides the card. It is cleared at once by a left- or right-click on the ping itself, or when its card is dragged, sold, played or otherwise leaves its zone; on the sender's and the receiver's screen alike. A new ping on the same target replaces the last.",
+      "A ping pops on its target with the hero power spark FX and the pulse UI sound, then settles and stays with no timer (transform and opacity only, nothing loops). On a card it sits inside the card element, so it rides the card. It is cleared by a left- or right-click on the ping itself, or when its card is dragged, sold, played or otherwise leaves its zone; a click or a drag sends a `ping_clear` on the stream so the sender's and the receivers' screens clear alike (the player, the teammate and the mentor may send one; a plain spectator clears only their own screen). A ping whose target leaves the screen (the shop closes for the fight) goes too. A new ping on the same target replaces the last.",
     domain: 'foundation',
     status: 'approved',
     evidence: [

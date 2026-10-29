@@ -7,8 +7,12 @@ player sees; players can ping on their own and spectators see those pings.
 - **One wire contract** (`workers/versus/src/pings.ts`, imported by the UI as `@game/versus-cf/pings`): `PingMessage`,
   `PingMentorMessage`, `routePing` / `routePingMentor` (who may send, who receives), `PingRateLimiter` (3 / 2 s). The
   Versus room (`room.ts relayPing`) intercepts the `ping` / `ping_mentor` broadcast events, stamps `from` + `role`, and
-  relays to the audience only. The CF live object for lobby/Practice (feat/cf-live-spectate) should call the same two
-  functions with `mode: 'lobby'` and members = the player (`p1`) + watchers.
+  relays to the audience only. The CF live object for lobby/Practice (`liveGame.ts relayPing`, PR #2402) runs the same
+  rule through `livePingRoom(owner, watchers, mentor)` (the player is `p1`, the stands are spectators) and stores the
+  mentor under `pingMentor`.
+- **Clears travel** (`ping_clear`, `routePingClear`): a click on a ping or a drag of its card clears it on every screen
+  that shows it. The player, the teammate and the mentor may send one; a plain spectator clears only locally. Pings have
+  no timer (owner: "spark ... then settle"); a ping also goes when its target leaves the screen.
 - **Client adapter** (`packages/ui/src/pings/pingRuntime.ts`): `setPingSession(owner, { send, seat, mode, gameKey })`
   is installed by the Versus store, the live lobby publisher and the live watcher; every stream handler passes events
   to `receivePingEvent` first. Over Supabase the receiver re-checks the rule (the channel cannot authenticate senders).

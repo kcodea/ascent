@@ -63,8 +63,9 @@ html[data-phone-zoom] .fdock-stack { bottom: calc(var(--pz-safe-b, var(--safe-b)
 .fdock-slot:empty { display: none; }
 .fdock-slot { position: relative; flex: none; }
 .msb-dock { align-self: flex-start; margin-top: -2px; }
-.titlenav:has(> .title-dock) { position: relative; }
-.titlenav > .title-dock { position: absolute; left: calc(100% + 14px); bottom: 8px; animation: none; }
+/* The title's corner (R-FRIENDS-DOCK-04): bottom left, just above the footer links, left edges aligned with them. Out
+   of flow (absolute in the footer), so the links never move. */
+.titlefoot > .title-dock { position: absolute; left: 0; bottom: calc(100% + 12px); }
 .fdock-btn.inslot { position: relative; left: auto; bottom: auto; z-index: auto; --fdock-cb: 40px; }
 .title-dock .fdock-btn.inslot { --fdock-cb: 46px; }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb-dock .fdock-btn.inslot { --fdock-cb: calc(40 * var(--pt)); }
@@ -74,9 +75,14 @@ html[data-touch-ui][data-touch-small][data-page-scale] .msb-dock .fdock-btn.insl
   max-height: calc(var(--fdock-maxh) / var(--fdock-z)); min-height: 0; overflow: hidden; zoom: var(--fdock-z); }
 /* A phone's stage is scaled down a lot: the panels grow back to a readable size (the friend menu's own trick, friends.css). */
 html[data-touch-ui][data-touch-small] .fdock-stack { --fdock-z: calc(var(--touch-inv-s, 1) * 0.7); }
+/* Desktop (owner 2026-10-29: "make the friends panel larger on desktop so it shows a bit more info"): wide enough
+   that a friend's whole status shows (round and phase, "4th of 8", Health, Tier, "Fighting <name>"); the game line
+   wraps onto a second row before it would cut a word. Touch screens keep the compact 380. */
 .fdock-list.vspanel { width: 380px; }
-.fdock-dm.vspanel { width: 340px; animation: fdockdm 0.18s cubic-bezier(0.16, 1, 0.3, 1) both; }
-@keyframes fdockdm { from { opacity: 0; transform: translateX(-16px); } }
+html:not([data-touch-ui]) .fdock-list.vspanel { width: 520px; min-height: min(440px, var(--fdock-maxh)); }
+html:not([data-touch-ui]) .fdock-row .fr-game { flex-wrap: wrap; row-gap: 4px; overflow: visible; }
+html:not([data-touch-ui]) .fdock-row .fr-game > :is(.fr-gameline, .fr-gamevs) { white-space: normal; overflow: visible; }
+html:not([data-touch-ui]) .fdock-row .fr-statustext { white-space: normal; }
 html[data-phone-layout]:not([data-phone-menus]) .fdock-panel.vspanel { width: 300px; }
 
 .fdock-head { display: flex; align-items: baseline; gap: 10px; margin: 0 2px 8px; }
@@ -116,7 +122,7 @@ html[data-phone-layout]:not([data-phone-menus]) .fdock-panel.vspanel { width: 30
 .fdock-actions .lb-btn svg { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; }
 .fdock-actions:not(.compact) { margin: 8px 0 0; }
 
-/* The direct message panel. */
+/* A conversation's header (the chat window's, R-DM-CHAT-01). */
 .fdock-dmhead { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(196, 160, 92, 0.25); }
 .fdock-dmhead .fr-who { flex: 1 1 auto; min-width: 0; }
 .fdock-x { flex: none; align-self: flex-start; width: 30px; height: 30px; padding: 0; border-radius: 8px; border: none; font-family: var(--font-ui); font-weight: 800; font-size: 15px;
@@ -124,13 +130,13 @@ html[data-phone-layout]:not([data-phone-menus]) .fdock-panel.vspanel { width: 30
 .fdock-x:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
 /* Bottom-aligned by its content (`.dm-list` margin-top: auto), never `justify-content: flex-end`, which would make the
    oldest messages unreachable once the list overflows. */
-.fdock-convo { flex: 1 1 auto; min-height: 120px; max-height: 420px; margin: 10px 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
+.fdock-convo { flex: 1 1 auto; min-height: 120px; margin: 10px 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
 .fdock-convo > .fdock-convo-empty { margin: auto 0; }
 .fdock-convo-empty { text-align: center; padding: 12px; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.5); }
 .fdock-compose { display: flex; }
 .fdock-input.acctinput { flex: 1; width: auto; font-size: 14px; padding: 8px 12px; opacity: 0.6; }
 
 @media (prefers-reduced-motion: reduce) {
-  .fdock-stack, .fdock-stack.closing, .fdock-dm.vspanel { animation-duration: 0.01s; }
+  .fdock-stack, .fdock-stack.closing { animation-duration: 0.01s; }
 }
 

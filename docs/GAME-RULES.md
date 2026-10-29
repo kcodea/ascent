@@ -1477,9 +1477,11 @@ Ranked Duos party).
   Tutorial, Gauntlet, Versus 1v1 / Group / Duos, Ranked Duos) and Watch when it is watchable: a ranked lobby game
   through Live Games, a Versus match from their room's stands. A guest's button opens "Sign in to add friends." In a
   game the button tucks in smaller under the hero's Health plate with its counts beside it. On a menu it lives in the
-  menu's own corner space (R-FRIENDS-DOCK-03): the side menu's foot under Settings, or under the title menu's last
-  plaque; it never moves the footer or a plaque, and its panel opens to the RIGHT of that menu so no menu button is
-  hidden.
+  menu's own corner space (R-FRIENDS-DOCK-03): the side menu's foot under Settings; on the title, the bottom-left
+  corner just above the footer links (R-FRIENDS-DOCK-04, never beside the menu buttons). It never moves the footer or a
+  plaque, and its panel opens to the RIGHT of that menu so no menu button is hidden. On a desktop the panel is wide
+  (about 520) so a friend's whole game line shows (round and step, place, Health, Tier, who they fight); touch screens
+  keep the compact one.
 - **Presence.** Online = on a menu (including a Versus room between matches); In a game = playing; Offline = nothing
   heard for 5 minutes (or the game was closed). Only you and your friends can read your presence. It is never broadcast.
 - **What a friend is doing** (owner 2026-10-29, R-FRIENDS-ACTIVITY-01). Online, the row names the screen: Main menu,
@@ -1498,8 +1500,16 @@ Ranked Duos party).
   it lasts 2 minutes. Accept opens Versus and joins the room (a seat is then one drag away). A newer invite to the same
   friend replaces the older one. 30 invites an hour. The Ranked Duos party uses the same invite (kind `duos_party`): Accept opens the party and takes its free seat.
 - **The dock's motion and safety** (owner 2026-10-29, R-FRIENDS-DOCK-01). The panel opens upward out of the button;
-  a friend opens their direct message panel beside it (to its right). A press anywhere outside, or Escape, closes
-  both in one motion; that press is caught and never reaches the board or a menu button. Escape with the friend menu
+  pressing a friend opens the CHAT WINDOW (below) and the list collapses. A press anywhere outside the list, or Escape,
+  closes it; that press is caught and never reaches the board or a menu button.
+- **The chat window** (owner 2026-10-29, R-DM-CHAT-01). A large window in the middle of the screen with one TAB per
+  conversation across its top: every friend you opened this session (in that order), then every friend with unread
+  messages. A tab shows the portrait, name, unread count and its own close (closing a tab with unread messages reads
+  them; closing the last tab closes the window). Under the tabs: the friend's header (portrait, status, their game
+  line, Watch / Invite), the messages and the composer (Enter or Send). It closes with its close button, Escape (never
+  the Esc menu) or a press outside it (caught, never reaching the board); its tabs stay for the session. Over a menu it
+  dims the page; in a game it barely dims, and the game keeps running underneath. A new-message toast opens it on that
+  friend. Pressing Watch closes it and goes to their game. Escape with the friend menu
   open closes only the menu. The list is read only while the dock is open (60 s, nothing while hidden).
 - **The friend menu** (owner 2026-10-29, R-FRIENDS-MENU-01 / -02). Right-click (or a long press) on a friend in the
   dock: **Spectate** (their game, when watchable; disabled while you play your own),

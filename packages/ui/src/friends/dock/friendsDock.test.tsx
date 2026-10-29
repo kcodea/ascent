@@ -59,7 +59,9 @@ import { acceptSpectateInvite, FINISH_FIRST, friendMenuEntries, inviteToRoom, in
 import { FriendMenu, openFriendMenu, useFriendMenu } from '../FriendMenu';
 import { FriendsDock } from './FriendsDock';
 import { DockSlot, useDockSlots } from './dockSlot';
-import { DOCK_CLOSE_MS, resetDockForTests, useFriendsDock } from './dockStore';
+import { chatTabOrder } from '../dm/ChatWindow';
+import { useDm } from '../dm/dmStore';
+import { DOCK_CLOSE_MS, openDm, resetDockForTests, useFriendsDock } from './dockStore';
 
 const ME = '00000000-0000-0000-0000-000000000001';
 const card = (id: string, author: string) => ({ userId: id, author, discriminator: '1234', avatar: null, favoriteHero: null, frame: null, skin: null });
@@ -140,18 +142,19 @@ describe('the dock (R-FRIENDS-DOCK-01)', () => {
     expect(document.body.querySelector('[title]')).toBeNull();
   });
 
-  it('keeps its state across screen changes: open and the open message survive title -> menu page -> game -> title', async () => {
+  it('keeps its state across screen changes: the open chat survives title -> menu page -> game -> title', async () => {
     ui = mount(<FriendsDock />);
     click(q('.fdock-btn'));
     await flush();
     click(q('.fdock-rowmain[aria-label="Message Amy#1234"]'));
-    expect(q('.fdock-dm')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
+    expect(q('.dmchat-pane')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
     act(() => { useGame.setState({ showCareer: true }); });
     act(() => inRun());
-    expect(useFriendsDock.getState()).toMatchObject({ phase: 'open', dmWith: 'u-amy' });
-    expect(q('.fdock-dm')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
+    expect(useFriendsDock.getState()).toMatchObject({ dmWith: 'u-amy', chatTabs: ['u-amy'] });
+    expect(q('.dmchat-pane')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
+    expect(q('.dmchat-veil.ingame')).not.toBeNull(); // in a game the veil barely dims
     act(() => { useGame.setState({ showTitle: true, showCareer: false }); });
-    expect(q('.fdock-dm')).not.toBeNull();
+    expect(q('.dmchat-pane')).not.toBeNull();
     expect(lists).toBe(1); // the same instance throughout: one read, not one per screen
   });
 
@@ -174,28 +177,77 @@ describe('the dock (R-FRIENDS-DOCK-01)', () => {
     expect(q('.fdock-stack')).toBeNull();
   });
 
-  it('a friend opens their direct message panel: header, empty conversation, composer (unavailable with no hub); another friend swaps it', async () => {
+  it('a friend opens the CHAT WINDOW in the middle (R-DM-CHAT-01): the list collapses; header, empty conversation, composer (unavailable with no hub)', async () => {
     inRun();
     ui = mount(<FriendsDock />);
     click(q('.fdock-btn'));
     await flush();
     click(q('.fdock-rowmain[aria-label="Message Amy#1234"]'));
-    expect(q('.fdock-dm')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
+    expect(q('.dmchat[role="dialog"]')).not.toBeNull();
+    expect(q('.dmchat-pane')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
+    expect(useFriendsDock.getState().phase).toBe('closing'); // one surface at a time
     const input = q('.fdock-input') as HTMLInputElement;
     expect(input.disabled).toBe(true);
     expect(input.placeholder).toBe('Messages are not available right now.');
+    expect((q('.dm-send') as HTMLButtonElement).disabled).toBe(true);
     expect(q('.fdock-convo')?.textContent).toBe('No messages yet. Say hi to Amy#1234.');
-    click(q('.fdock-rowmain[aria-label="Message Gus#1234"]'));
-    expect(q('.fdock-dm')?.getAttribute('aria-label')).toBe('Messages with Gus#1234');
-    expect(q('.fdock-dm')?.textContent).toContain('Watch');
+    expect(document.body.querySelector('[title]')).toBeNull();
   });
 
-  it('a press outside closes BOTH panels in one motion, and never reaches the game underneath', async () => {
+  it('every conversation is a tab: opening another friend adds one; a tab switches; closing a tab picks its neighbour; the last closes the window', async () => {
     inRun();
     ui = mount(<FriendsDock />);
     click(q('.fdock-btn'));
     await flush();
     click(q('.fdock-rowmain[aria-label="Message Amy#1234"]'));
+    await waitClose();
+    click(q('.fdock-btn'));
+    await flush();
+    click(q('.fdock-rowmain[aria-label="Message Gus#1234"]'));
+    const tabs = (): string[] => [...document.body.querySelectorAll('.dmchat-tab')].map((t) => `${t.querySelector('.dmchat-tabname')?.textContent}${t.classList.contains('on') ? '*' : ''}`);
+    expect(tabs()).toEqual(['Amy#1234', 'Gus#1234*']);
+    expect(q('.dmchat-pane')?.getAttribute('aria-label')).toBe('Messages with Gus#1234');
+    expect(q('.dmchat-pane')?.textContent).toContain('Watch'); // the header keeps Watch
+    click(q('.dmchat-tabmain[aria-label="Amy#1234"]'));
+    expect(tabs()).toEqual(['Amy#1234*', 'Gus#1234']);
+    click(q('.dmchat-tabx[aria-label="Close the conversation with Amy#1234"]'));
+    expect(tabs()).toEqual(['Gus#1234*']);
+    click(q('.dmchat-tabx[aria-label="Close the conversation with Gus#1234"]'));
+    expect(q('.dmchat-veil')).toBeNull();
+    expect(useFriendsDock.getState()).toMatchObject({ dmWith: null, chatTabs: [] });
+  });
+
+  it('the chat closes on its close button, Escape (never the Esc menu) and a press on the veil (never the game); its tabs stay', async () => {
+    inRun();
+    ui = mount(<FriendsDock />);
+    act(() => openDm('u-amy'));
+    await flush();
+    click(q('.dmchat-close'));
+    expect(q('.dmchat-veil')).toBeNull();
+    act(() => openDm('u-amy'));
+    const esc = vi.fn();
+    window.addEventListener('keydown', esc);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    window.removeEventListener('keydown', esc);
+    expect(esc).not.toHaveBeenCalled();
+    expect(q('.dmchat-veil')).toBeNull();
+    act(() => openDm('u-amy'));
+    const game = vi.fn();
+    window.addEventListener('pointerdown', game);
+    press(q('.dmchat'));
+    expect(q('.dmchat-veil')).not.toBeNull(); // a press inside the window keeps it
+    press(q('.dmchat-veil'));
+    window.removeEventListener('pointerdown', game);
+    expect(game).toHaveBeenCalledTimes(1); // only the press inside the window bubbled on
+    expect(q('.dmchat-veil')).toBeNull();
+    expect(useFriendsDock.getState().chatTabs).toEqual(['u-amy']);
+  });
+
+  it('a press outside closes the list in one motion, and never reaches the game underneath', async () => {
+    inRun();
+    ui = mount(<FriendsDock />);
+    click(q('.fdock-btn'));
+    await flush();
     const game = vi.fn();
     window.addEventListener('pointerdown', game);
     press(q('.fdock-catch'));
@@ -211,18 +263,17 @@ describe('the dock (R-FRIENDS-DOCK-01)', () => {
     expect(bought).toHaveBeenCalledTimes(1);
     board.remove();
     expect(useFriendsDock.getState().phase).toBe('closing');
-    expect(q('.fdock-stack.closing .fdock-dm')).not.toBeNull(); // the DM collapses WITH the list
+    expect(q('.fdock-stack.closing .fdock-list')).not.toBeNull();
     await waitClose();
     expect(useFriendsDock.getState()).toMatchObject({ phase: 'closed', dmWith: null });
     expect(q('.fdock-catch')).toBeNull();
   });
 
-  it('Escape closes both, and the same press does not reach the Esc menu', async () => {
+  it('Escape closes the list, and the same press does not reach the Esc menu', async () => {
     inRun();
     ui = mount(<FriendsDock />);
     click(q('.fdock-btn'));
     await flush();
-    click(q('.fdock-rowmain[aria-label="Message Amy#1234"]'));
     const esc = vi.fn();
     window.addEventListener('keydown', esc);
     act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
@@ -230,7 +281,7 @@ describe('the dock (R-FRIENDS-DOCK-01)', () => {
     expect(esc).not.toHaveBeenCalled();
     expect(useFriendsDock.getState().phase).toBe('closing');
     await waitClose();
-    expect(useFriendsDock.getState().dmWith).toBeNull();
+    expect(useFriendsDock.getState().phase).toBe('closed');
   });
 });
 
@@ -456,7 +507,14 @@ describe('placement: bottom left, clear of each screen\'s corner furniture (R-FR
   });
   it('on a menu the button lives in the layout own slot (in flow), and nothing pushes the footer or the side menu', () => {
     expect(css).toContain('.fdock-btn.inslot { position: relative; left: auto; bottom: auto;');
-    expect(css).not.toMatch(/data-fdock|\.titlefoot|\.msb \{/);
+    expect(css).not.toMatch(/data-fdock|\.titlefoot \{|\.titlefoot [^>]|\.msb \{/);
+  });
+  it('on the title it sits in the bottom-left corner just ABOVE the footer links, out of flow (R-FRIENDS-DOCK-04)', () => {
+    expect(css).toContain('.titlefoot > .title-dock { position: absolute; left: 0; bottom: calc(100% + 12px); }');
+    const title = readFileSync(join(__dirname, '..', '..', 'Title.tsx'), 'utf8');
+    const foot = title.slice(title.indexOf('<div className="titlefoot">'));
+    expect(foot.slice(0, foot.indexOf('titlesecondary'))).toContain('<DockSlot className="title-dock" side=".titlenav" />');
+    expect(title.slice(title.indexOf('<nav'), title.indexOf('</nav>'))).not.toContain('DockSlot'); // never beside the menu buttons
   });
   it('layers above the menu pages (470) and under the friend menu (490) and the Settings veil (500)', () => {
     const z = (sel: string): number => {
@@ -485,6 +543,24 @@ describe('a menu own corner space (R-FRIENDS-DOCK-03: "looks like friends moved 
   });
 
   for (const [w, h] of SIZES) {
+    it(`${w}x${h}: on the title the button sits in the corner slot and the panel opens beside the plaques, inside the window (R-FRIENDS-DOCK-04)`, async () => {
+      Object.assign(window, { innerWidth: w, innerHeight: h });
+      ui = mount(<div className="titlescreen"><nav className="titlenav" /><div className="titlefoot"><DockSlot className="title-dock" side=".titlenav" /></div><FriendsDock /></div>);
+      const slot = q('.title-dock')!; const nav = q('.titlenav')!;
+      expect(slot.querySelector('.fdock-btn.inslot')).not.toBeNull();
+      const navR = Math.round(Math.min(560, w * 0.45));
+      nav.getBoundingClientRect = () => rect(130, h * 0.3, navR - 130, h * 0.55);
+      slot.getBoundingClientRect = () => rect(36, h - 110, 46, 46);
+      click(q('.fdock-btn'));
+      await flush();
+      const st = q('.fdock-stack.beside')!;
+      const left = parseFloat(st.style.left); const bottom = parseFloat(st.style.bottom);
+      expect(left).toBeGreaterThan(navR); // never over the title's plaques
+      expect(bottom).toBe(64); // its bottom on the corner button's
+      expect(parseFloat(st.style.maxWidth)).toBeLessThanOrEqual(w - left);
+      expect(parseFloat(st.style.getPropertyValue('--fdock-maxh'))).toBeLessThanOrEqual(h - bottom);
+    });
+
     it(`${w}x${h}: the panel opens beside the side menu, inside the window`, async () => {
       Object.assign(window, { innerWidth: w, innerHeight: h });
       ui = mount(<><aside className="msb"><DockSlot className="msb-dock" side=".msb" /></aside><FriendsDock /></>);
@@ -563,5 +639,29 @@ describe('dock Watch brings me INTO the game from every screen (R-WATCH-ENTERS-0
     const src = readFileSync(join(__dirname, '../../live/LiveGames.tsx'), 'utf8');
     expect(src).toMatch(/watchGame\(liveWatchTargetOf\(/);
     expect(src).not.toMatch(/watchLiveGame\(|goToVersusRoom\(/);
+  });
+});
+
+describe('the chat window tabs (R-DM-CHAT-01: "tabs that hold all conversations")', () => {
+  const fl = [{ userId: 'u-amy' }, { userId: 'u-gus' }, { userId: 'u-oli' }];
+  it('the conversations opened this session, in the order opened, then friends with unread messages; never a removed friend', () => {
+    expect(chatTabOrder(['u-gus', 'u-amy'], {}, fl)).toEqual(['u-gus', 'u-amy']);
+    expect(chatTabOrder(['u-gus'], { 'u-oli': 2, 'u-gus': 1, 'u-amy': 0 }, fl)).toEqual(['u-gus', 'u-oli']);
+    expect(chatTabOrder(['u-gone', 'u-amy'], { 'u-left': 3 }, fl)).toEqual(['u-amy']);
+    expect(chatTabOrder(['U-AMY'], { 'u-amy': 1 }, fl)).toEqual(['u-amy']); // one tab per friend, any case
+  });
+
+  it('a friend with unread messages gets a tab with the count; closing it reads them', async () => {
+    useDm.setState({ unread: { 'u-gus': 2 } });
+    inRun();
+    ui = mount(<FriendsDock />);
+    act(() => openDm('u-amy'));
+    await flush();
+    const tabs = [...document.body.querySelectorAll('.dmchat-tabmain')].map((t) => t.getAttribute('aria-label'));
+    expect(tabs).toEqual(['Amy#1234', 'Gus#1234, 2 unread']);
+    click(q('.dmchat-tabx[aria-label="Close the conversation with Gus#1234"]'));
+    expect(useDm.getState().unread['u-gus']).toBeUndefined();
+    expect([...document.body.querySelectorAll('.dmchat-tabmain')].map((t) => t.getAttribute('aria-label'))).toEqual(['Amy#1234']);
+    useDm.setState({ unread: {} });
   });
 });

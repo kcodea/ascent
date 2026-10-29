@@ -10690,7 +10690,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-FRIENDS-DOCK-03',
     title: 'On a menu the Friends button lives in the menu\x27s own corner space and its panel opens beside the menu: never over or pushing a menu button, a footer or the side menu, at any window size',
     statement:
-      'A menu screen with its own bottom-left space marks it with a dock slot: the side menu\x27s foot (under Settings) on every side-menu page, and the title menu\x27s column (under its last plaque) on the title. The Friends button is placed IN that slot (it moves and scales with that layout), so it never sits on top of, or shifts, the footer links, the Settings plaque or any other plaque. Its panel (and the new-message toast) opens to the RIGHT of that menu column, bottom-aligned with the slot, never wider or taller than the room left (never clipped), so no menu button is hidden while it is open. With no slot on screen (hero select, every game, spectating, replays) the button keeps its fixed corner (R-FRIENDS-DOCK-02). Placement is measured once on open and on a window resize, never per frame.',
+      'A menu screen with its own bottom-left space marks it with a dock slot: the side menu\x27s foot (under Settings) on every side-menu page, and, on the title, the bottom-left corner just above the footer links (R-FRIENDS-DOCK-04; it was the title menu\x27s column before). The Friends button is placed IN that slot (it moves and scales with that layout), so it never sits on top of, or shifts, the footer links, the Settings plaque or any other plaque. Its panel (and the new-message toast) opens to the RIGHT of that menu column, bottom-aligned with the slot, never wider or taller than the room left (never clipped), so no menu button is hidden while it is open. With no slot on screen (hero select, every game, spectating, replays) the button keeps its fixed corner (R-FRIENDS-DOCK-02). Placement is measured once on open and on a window resize, never per frame.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -10715,6 +10715,37 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Fixed 2026-10-29 (fix/dock-watch-enters-game). Before: a friend\x27s Watch on a lobby / Practice game joined it but only closed the Live Games page, so from Career, Recent Games, Rankings, the Hall, Collection or Settings the page stayed painted over the watch screen while the game ran behind it.',
     example: 'Ann is on Career > Recent Games. Her friend Bo is in Practice, Round 5. She opens the Friends dock and presses Watch on Bo: Recent Games closes and she is watching Bo\x27s shop. Leave takes her to the Live Games list.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-FRIENDS-DOCK-04',
+    title: 'On the title the Friends button sits in the bottom-left corner just above the footer links, never beside the menu buttons; on a desktop the friends panel is wide enough to show a friend\x27s whole status',
+    statement:
+      'On the title screen the Friends button lives in the bottom-left corner, just above the footer links (Report a Problem, the build stamp), left-aligned with them and out of their flow, so it never pushes or covers them; it is never placed beside the menu plaques. Its panel still opens to the RIGHT of the menu column (R-FRIENDS-DOCK-03), bottom-aligned with the button, so no plaque is hidden. The side menu pages keep the button at the side menu\x27s foot. On a desktop (no touch screen) the friends panel is about 520 wide and a friend\x27s game line wraps rather than cutting off, so round and step, place ("4th of 8"), Health, Tier and "Fighting <name>" show in full; touch screens keep the compact panel.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'make the friends panel larger on desktop so it shows a bit more info' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'dont have the friends button at the main menu be next to the other buttons. put it at the bottom left again.' },
+      { kind: 'code', ref: 'packages/ui/src/Title.tsx (the title-dock slot in .titlefoot), packages/ui/src/friends/dock/dockSlot.tsx, packages/ui/src/friends/dock/friendsDock.css' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/friends-chat-window). Before: the title\x27s button sat beside the Settings plaque in the menu column (R-FRIENDS-DOCK-03), and the 380-wide panel cut rows short ("Round 8 · Shopping  4th o...").',
+    example: 'On the title at 1920x1080 the Friends button sits at the bottom left just above "Report a Problem". Ann opens it: the list opens right of the plaques, and Gus\x27s row reads "Round 11 · Fighting Velvet Lightning" with "2nd of 5", his Health and "Tier 5" under it, nothing cut.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-DM-CHAT-01',
+    title: 'Pressing a friend opens a large chat window in the middle of the screen, with one tab per conversation (every one opened this session, plus every one with unread messages)',
+    statement:
+      'Pressing a friend in the Friends dock (or a new-message toast) opens the chat window in the middle of the screen on that friend, and the friends list collapses. Across its top is one tab per conversation: every friend opened this session in the order opened, then every friend with unread messages (one tab per friend; a friend no longer on the list has none). A tab shows the friend\x27s portrait with a status dot, their name, the unread count and its own close; pressing a tab switches to it (and reads it). Closing a tab picks the next one (else the one before); closing a tab with unread messages reads them; closing the last tab closes the window. Under the tabs: the friend\x27s header (portrait, name, live status and game line, Watch / Invite), the messages, and the composer (Enter or Send). The window closes with its close button, Escape (capture: the Esc menu never opens on the same press) or a press outside it on the veil (caught: it never reaches the board or a menu button); its tabs stay for the session. Over a menu the veil dims the page; in a game it barely dims and the game keeps running. Pressing Watch closes it first. Same art as the dock (the dark panel, the gold tab colours, the game\x27s buttons), no browser tooltips, the game\x27s cursor; it opens with a one-shot motion and nothing loops.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'the chat should open as a larger overlay in the center of the screen, and should have tabs that hold all conversations' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dm/ChatWindow.tsx, packages/ui/src/friends/dock/dockStore.ts (openDm, closeDm, closeChatTab), packages/ui/src/friends/dm/dmStore.ts (viewing), packages/ui/src/friends/dm/dm.css' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/friends-chat-window). Before: a friend opened a small 340-wide message card beside the list, one conversation at a time.',
+    example: 'Mid-shop Ann opens Gus, then Amy, from the dock: the chat window shows tabs "Gus" and "Amy" (Amy selected), and a third tab "Bob (2)" because Bob sent two messages. She presses Bob\x27s tab, reads them, types "gg" and presses Send, then Escape: the window closes and the shop is as she left it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx', 'packages/ui/src/friends/dm/dm.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
   {
     id: 'R-FRIENDS-MENU-01',
@@ -11270,7 +11301,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-DM-03',
     title: 'Clicking a friend opens a chat overlay ready to type; unread counts on the dock and rows; a toast for a message whose chat is closed; history 50 at a time',
     statement:
-      'Clicking a friend in the in-game Friends dock opens their direct message panel beside the list (one conversation at a time; another friend switches it); on a menu, the Friends page\x27s Message does the same over the page with no dock button. The panel shows the conversation (mine on the right, theirs on the left, each with its time), the last 50 messages read when it opens and "Show older messages" for the page before, and a composer focused at once (not on a touch screen) where Enter sends and no key reaches the game\x27s shortcuts. A press outside or Escape closes it like the dock. Opening a conversation marks it read. A message whose conversation is not open adds to the unread count on the dock button (a red chip) and the friend\x27s row (the dock also lists an offline friend with unread messages), and shows a small toast above the Friends button for 5 s that opens the chat when pressed. Unread counts are read once when the hub connects, so messages sent while I was away show on my next open.',
+      'Clicking a friend in the in-game Friends dock opens their conversation in the chat window in the middle of the screen (one tab per conversation, R-DM-CHAT-01); on a menu, the Friends page\x27s Message does the same over the page with no dock button. The panel shows the conversation (mine on the right, theirs on the left, each with its time), the last 50 messages read when it opens and "Show older messages" for the page before, and a composer focused at once (not on a touch screen) where Enter sends and no key reaches the game\x27s shortcuts. A press outside or Escape closes it like the dock. Opening a conversation marks it read. A message whose conversation is not open adds to the unread count on the dock button (a red chip) and the friend\x27s row (the dock also lists an offline friend with unread messages), and shows a small toast above the Friends button for 5 s that opens the chat when pressed. Unread counts are read once when the hub connects, so messages sent while I was away show on my next open.',
     domain: 'foundation',
     status: 'approved',
     evidence: [

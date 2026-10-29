@@ -4,7 +4,7 @@
  *  - The list: my messages on the right, my friend's on the left, each with its time; the last 50 on open, "Show older"
  *    for the page before. Sending shows "Sending"; a refusal shows its reason with Retry. Their messages carry a small
  *    Report (asks once more before it reports). The filter (Settings, on by default) masks swear words as I read them.
- *  - The composer: Enter sends, focused the moment the panel opens (not on a touch screen, where it would throw the
+ *  - The composer: Enter (or Send) sends, focused the moment the panel opens (not on a touch screen, where it would throw the
  *    keyboard up over the game). Keys typed here never reach the game's own shortcuts (Tab, emotes, ...); Escape still
  *    closes the dock.
  *  - No hub (this build has no Worker, or I am a guest): the composer says messages are not available right now.
@@ -126,15 +126,19 @@ function Composer({ friend, available, onSent }: { friend: Friend; available: bo
   };
   return (
     <form className="fdock-compose dm-compose" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-      <input ref={input} className="acctinput fdock-input dm-input" type="text" enterKeyHint="send" autoComplete="off" spellCheck
-        disabled={!available} maxLength={DM_MAX_CHARS * 2} value={text}
-        placeholder={available ? `Message ${handleOf(friend)}` : DM_UNAVAILABLE_TEXT}
-        aria-label={available ? `Message ${handleOf(friend)}` : DM_UNAVAILABLE_TEXT}
-        onChange={(e) => { setText(e.target.value); if (error) setError(null); }}
-        // Typing is not playing: no key reaches the game's shortcuts. Escape still closes the dock (its capture listener).
-        onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }}
-        onKeyUp={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }} />
-      {available && left < 60 && <span className={`dm-count${left < 0 ? ' over' : ''}`} aria-live="polite">{left}</span>}
+      <span className="dm-field">
+        <input ref={input} className="acctinput fdock-input dm-input" type="text" enterKeyHint="send" autoComplete="off" spellCheck
+          disabled={!available} maxLength={DM_MAX_CHARS * 2} value={text}
+          placeholder={available ? `Message ${handleOf(friend)}` : DM_UNAVAILABLE_TEXT}
+          aria-label={available ? `Message ${handleOf(friend)}` : DM_UNAVAILABLE_TEXT}
+          onChange={(e) => { setText(e.target.value); if (error) setError(null); }}
+          // Typing is not playing: no key reaches the game's shortcuts. Escape still closes the chat window (its capture listener).
+          onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }}
+          onKeyUp={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }} />
+        {available && left < 60 && <span className={`dm-count${left < 0 ? ' over' : ''}`} aria-live="polite">{left}</span>}
+      </span>
+      {/* Send (R-DM-CHAT-01): Enter does the same. */}
+      <button type="submit" className="lb-btn pressable dm-send" disabled={!available || !text.trim()}>Send</button>
       {error && <div className="dm-err dm-formerr" role="alert">{error}</div>}
     </form>
   );

@@ -240,7 +240,7 @@ export function startDirectMessages(): () => void {
   });
   // A conversation I am looking at is read the moment it opens.
   const unDock = useFriendsDock.subscribe((s, prev) => {
-    if (s.dmWith && (s.dmWith !== prev.dmWith || (s.phase === 'open' && prev.phase !== 'open'))) void openConversation(s.dmWith);
+    if (s.dmWith && s.dmWith !== prev.dmWith) void openConversation(s.dmWith);
   });
   syncConnection();
   return () => {
@@ -280,11 +280,11 @@ function merge(list: DmMsg[], rows: DmMsg[]): DmMsg[] {
   return out.sort((a, b) => (a.state === 'sending' || a.state === 'failed' ? 1 : 0) - (b.state === 'sending' || b.state === 'failed' ? 1 : 0) || a.at.localeCompare(b.at));
 }
 
-/** I am looking at this conversation right now (the panel is open on it and the page is visible). */
+/** I am looking at this conversation right now (the chat window is open on its tab and the page is visible). */
 export function viewing(friendId: string): boolean {
   const d = useFriendsDock.getState();
   const visible = typeof document === 'undefined' || document.visibilityState !== 'hidden';
-  return d.phase === 'open' && d.dmWith === friendId && visible;
+  return !!d.dmWith && d.dmWith.toLowerCase() === friendId.toLowerCase() && visible;
 }
 
 function receive(row: DmRow): void {

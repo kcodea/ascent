@@ -1,0 +1,56 @@
+/* DIRECT MESSAGES (R-DM-03): the conversation inside the dock's message panel, and the new-message toast. The dock's
+   own dark panel and type; nothing loops (the toast's entrance is one-shot transform + opacity). No cursor rules: the
+   global gauntlet paints every button and [role="button"] (CLAUDE.md). */
+
+.dm-list { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding: 0 2px; }
+.dm-msg { display: flex; flex-direction: column; max-width: 84%; }
+.dm-msg.mine { align-self: flex-end; align-items: flex-end; }
+.dm-msg.theirs { align-self: flex-start; align-items: flex-start; }
+.dm-bubble { padding: 7px 11px; border-radius: 12px; font-family: var(--font-ui); font-weight: 600; font-size: 14px; line-height: 1.35; color: #f4eee2;
+  white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.dm-msg.theirs .dm-bubble { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.1); border-bottom-left-radius: 4px; }
+.dm-msg.mine .dm-bubble { background: rgba(196, 160, 92, 0.22); border: 1px solid rgba(240, 208, 137, 0.35); border-bottom-right-radius: 4px; }
+.dm-msg.sending .dm-bubble { opacity: 0.6; }
+.dm-msg.failed .dm-bubble { border-color: rgba(230, 110, 90, 0.7); }
+.dm-meta { display: flex; gap: 8px; align-items: baseline; margin: 2px 4px 0; font-family: var(--font-ui); font-weight: 700; font-size: 11px; color: rgba(255, 255, 255, 0.45);
+  font-variant-numeric: tabular-nums; }
+.dm-link { padding: 0; border: none; background: none; font: inherit; color: rgba(240, 208, 137, 0.85); text-decoration: underline; text-underline-offset: 2px; }
+.dm-link:hover { color: #f0d089; }
+.dm-link:disabled { opacity: 0.5; }
+.dm-report { opacity: 0; transition: opacity 0.12s ease; }
+.dm-msg:hover .dm-report, .dm-report:focus-visible, .dm-report.armed { opacity: 1; }
+html[data-touch-ui] .dm-report { opacity: 0.8; }
+.dm-report.armed { color: #f08c78; }
+.dm-reported { color: rgba(240, 140, 120, 0.8); }
+.dm-err { color: #f08c78; }
+.dm-older { align-self: center; margin: 2px 0 6px; font-size: 12px; font-weight: 700; font-family: var(--font-ui); }
+.dm-status { margin: -4px 2px 8px; font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(240, 208, 137, 0.85); }
+
+.dm-compose { position: relative; flex-wrap: wrap; }
+.fdock-input.acctinput.dm-input { opacity: 1; }
+.fdock-input.acctinput.dm-input:disabled { opacity: 0.6; }
+.dm-count { position: absolute; right: 10px; top: 9px; font-family: var(--font-ui); font-weight: 800; font-size: 11px; color: rgba(255, 255, 255, 0.5); pointer-events: none; }
+.dm-count.over { color: #f08c78; }
+.dm-formerr { flex-basis: 100%; margin: 6px 2px 0; font-family: var(--font-ui); font-weight: 700; font-size: 12px; }
+
+/* Unread counts: the dock button's (a red chip on its top-left, the online count keeps the top-right) and a row's. */
+.dm-unread { min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; display: inline-grid; place-items: center;
+  font-family: var(--font-ui); font-weight: 900; font-size: 11px; line-height: 1; color: #fff; background: #b8432f; border: 1px solid #f3b0a0;
+  font-variant-numeric: tabular-nums; pointer-events: none; }
+.fdock-btn .dm-unread { position: absolute; top: -7px; left: -7px; }
+.fdock-row .dm-unread, .fr-row .dm-unread { flex: none; margin-left: 4px; }
+
+/* The toast: just above the Friends button's row, right-aligned with the dock's panels. */
+.dm-toast.vspanel { position: fixed; z-index: 482; right: calc(var(--edge-r) + 16px); bottom: calc(var(--edge-b) + 16px + 40 * var(--u) + 12px);
+  width: 320px; min-width: 0; max-width: calc(var(--lvw, 100vw) - 32px); box-sizing: border-box; padding: 10px 12px; display: flex; align-items: center; gap: 10px;
+  text-align: left; animation: dmtoastin 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.dm-toast.vspanel:hover { border-color: rgba(240, 208, 137, 0.75); }
+@keyframes dmtoastin { from { opacity: 0; transform: translateY(12px); } }
+.dm-toast-text { display: flex; flex-direction: column; min-width: 0; }
+.dm-toast-name { font-family: var(--font-ui); font-weight: 900; font-size: 14px; color: #f0d089; }
+.dm-toast-body { font-family: var(--font-ui); font-weight: 600; font-size: 13.5px; color: #f4eee2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-touch-ui] .dm-toast.vspanel { bottom: calc(var(--edge-b) + 16px + var(--touch-cb) + 12px); }
+html[data-touch-ui][data-phone-zoom] .dm-toast.vspanel { right: calc(var(--pz-bxr) + 1920px - 1897px); bottom: calc(var(--pz-safe-b, var(--safe-b)) + 15px + 66px + 10px); }
+html[data-phone-layout]:not([data-phone-menus]) .dm-toast.vspanel { right: calc(var(--edge-r) + 12px); bottom: auto; top: 12px; width: 300px; }
+
+@media (prefers-reduced-motion: reduce) { .dm-toast.vspanel { animation-duration: 0.01s; } }

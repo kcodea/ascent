@@ -942,3 +942,12 @@ export function lobbyLiveWatchUrl(liveHost: string): string {
   if (cfUrl && (devCf || devRoute || devLive || rev === contentRevision())) return cfUrl;
   return versusCfLiveUrl(rev);
 }
+
+/**
+ * THE FRIENDS HUB (presence + direct messages, R-DM-01) lives on this build's own Worker: the same `cfUrl` as Versus and
+ * Live Games (the embedded Worker for this engine, or a dev tab's pick). Null when this build carries no Worker: then
+ * messages show as not available, and the friends list keeps working on its presence beat alone.
+ */
+export function friendsHubUrl(): string | null {
+  return cfUrl;
+}

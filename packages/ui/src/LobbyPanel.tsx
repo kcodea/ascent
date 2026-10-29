@@ -38,6 +38,12 @@ export function maxDamageLabel(cap: number): string {
   return Number.isFinite(cap) ? `Max dmg ${cap}` : 'No cap';
 }
 
+/** VERSUS: does the rail area show the 1v1 opponent block (`VersusFoe`) instead of the rail? Only a real 1v1: two seats
+ *  and not a group match (R-VERSUS-RAIL-LAYOUT-01: a Ranked Duos table before its recorded teams are seated has two). */
+export function versusDuelLayout(versus: boolean, seats: number, groupMatch: boolean): boolean {
+  return versus && seats <= 2 && !groupMatch;
+}
+
 /** The hover tip on the max-damage readout, with the live number (owner ask 2026-10-02). */
 export function maxDamageTip(cap: number): { title: string; rule: string } {
   return Number.isFinite(cap)
@@ -354,7 +360,11 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // Health + Armor, owner 2026-10-14); your own pools sit under your hero. VERSUS GROUP (R-VERSUS-GROUP-03): the ranked
   // rail with every player (you included) on their Health + Armor, the Copy in the last slot while one is in play.
   // A 1v1 (two seats) keeps its one-opponent block (`versusDuel`).
-  const versusDuel = versus && lobby.seats.length <= 2;
+  // A GROUP match (Group, Duos, Ranked Duos) is never the 1v1 block, whatever its seat count: a Ranked Duos table holds
+  // only the live pair until the recorded teams are seated, and showing the teammate as "the opponent" read as the 1v1
+  // screen (owner report 2026-10-28, R-VERSUS-RAIL-LAYOUT-01).
+  const groupMatch = useVersus((st) => versus && !!st.match?.group);
+  const versusDuel = versusDuelLayout(versus, lobby.seats.length, groupMatch);
   // VERSUS DUOS (R-DUOS-01): the teammate's row (always s1), kept next to yours. A click opens their live screen
   // (R-DUOS-VIEW-01), a second way in beside the bottom-right teammate portrait (the pass target, DuosMateDock).
   const duosMate = useVersus((st) => (versus && st.match?.group?.duos?.mate && st.match.group.me ? 's1' : null));

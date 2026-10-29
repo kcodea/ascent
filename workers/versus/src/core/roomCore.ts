@@ -40,6 +40,7 @@ import {
 } from '@game/sim/versus/server';
 import { GroupEngine, GSEATS, newGroupState, teamSeats, teamOf, type GPass, type GroupHost, type GroupState, type GSeat } from './groupMatch';
 import { rankedExtra, RankedEngine, type RankedHost, type RankedService } from './rankedMatch';
+export { fitFinishRow, rankedFinishWire, RANKED_FINISH_BUDGET, wireSeat } from './rankedMatch';
 
 export type Seat = 'p1' | 'p2';
 /** A room role: a player seat (p3 / p4 only in a Group room) or the stands. */

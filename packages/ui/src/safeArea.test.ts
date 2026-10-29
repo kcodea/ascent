@@ -94,8 +94,8 @@ describe('the stylesheet', () => {
     expect(css).toMatch(/--surplus-x: max\(0px, calc\(\(var\(--avw\) - var\(--avh\) \* 16 \/ 9\) \/ 2\)\)/);
   });
 
-  it('lets a tablet play upright: the rotate prompt is phones only', () => {
-    expect(css).toContain(':root[data-tablet] .rotate-prompt { display: none; }');
+  it('lets a tablet play upright; a phone never gets a rotate prompt (R-PHONE-SIDEWAYS-01: it plays turned)', () => {
+    expect(css).not.toContain('.rotate-prompt');
     expect(isTabletSize(820, 1180)).toBe(true);  // iPad Air portrait
     expect(isTabletSize(768, 1024)).toBe(true);
     expect(isTabletSize(393, 852)).toBe(false);  // iPhone portrait

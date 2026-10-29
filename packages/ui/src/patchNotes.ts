@@ -62,6 +62,10 @@ export const PATCH_NOTES: PatchNote[] = [
         'Picking a card up and dropping it no longer makes the whole screen redraw its styles.',
         'Cards making room for the one you drag no longer measure the board at every slot you pass. They slide as before.',
       ] },
+      { category: 'Systems', text: 'Phones now always play in landscape. No more "rotate your device" screen.', details: [
+        'Held upright, a phone shows the game turned sideways, ready to play. Turn the phone and it fits the screen as usual.',
+        'On Android, your first tap also locks the screen to landscape and goes full screen.',
+      ] },
       { category: 'Systems', text: 'Message your friends. Click a friend in the Friends list to open a chat.', details: [
         'In a game, click a friend in the Friends button list. On the menu, press Message on the Friends page.',
         'New messages show a count on the Friends button and a short note above it. Messages sent while you were away wait for you.',

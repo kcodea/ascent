@@ -51,7 +51,6 @@ const ABOVE_CURTAIN: Record<string, string> = {
   '.wipecurtain.preview': 'the Screen wipe tuner preview (DEV), plays over any screen',
   '.wipefront.preview': 'the Screen wipe tuner preview (DEV)',
   '.wipebar.preview': 'the Screen wipe tuner preview (DEV)',
-  '.rotate-prompt': 'the turn-your-phone screen: nothing is playable under it',
   '.bootload': 'the boot loader, before any run exists',
   '.drag-cursor-veil': 'a transparent cursor veil during a drag; paints nothing',
   '.fxflash': 'the FX screen flash; `body.wipe-up .fxflash` drops it under the curtain while it is up',

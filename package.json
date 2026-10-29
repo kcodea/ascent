@@ -53,6 +53,7 @@
     "perf:phone-play": "node scripts/phone-play-memory.mjs",
     "phone:preview": "node scripts/phone-preview.mjs",
     "phone:webkit": "node scripts/phone-webkit.mjs",
+    "phone:sideways": "node scripts/phone-sideways.mjs",
     "perf:phone-run": "node scripts/phone-run-memory.mjs",
     "pool": "tsx packages/tools/src/build-pool.ts",
     "board:export": "tsx packages/tools/src/board-export.ts",

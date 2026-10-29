@@ -222,28 +222,9 @@ body { -webkit-tap-highlight-color: transparent; }
    not edit an input that inherits `-webkit-user-select: none`. */
 img, canvas, svg { -webkit-touch-callout: none; -webkit-user-drag: none; }
 input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
-/* Landscape-only on phones: a full-screen "rotate your device" overlay, shown ONLY on a touch device held in
-   portrait (`pointer: coarse` excludes a desktop window that merely happens to be portrait). The 16:9 board is
-   unusable upright on a PHONE, so we ask the player to rotate rather than maintain a second, portrait layout. A TABLET
-   (shorter side >= 700 px, `data-tablet` from stage.ts, owner 2026-10-18, R-TOUCH-ROTATE-01) plays upright too: the stage letterboxes the 16:9
-   board top and bottom, and the backdrops fill the bars. */
-.rotate-prompt { display: none; }
-@media (orientation: portrait) and (pointer: coarse) {
-  .rotate-prompt {
-    display: flex; position: fixed; inset: 0; z-index: 10000; flex-direction: column; align-items: center;
-    justify-content: center; gap: 20px; text-align: center; padding: 40px calc(40px + env(safe-area-inset-right));
-    /* The board's own ambient (the ultrawide side-blend colour) so it reads as the game, not a browser error. */
-    background: radial-gradient(ellipse 90% 60% at 50% 45%, #3a2d74 0%, var(--board-edge-col, #312361) 45%, #120d26 100%);
-    color: #f0e8da; font-family: var(--font-ui), sans-serif; pointer-events: auto; touch-action: none;
-  }
-  /* transform-only loop (compositor), per the performance rules */
-  .rotate-prompt svg { width: 76px; height: 76px; color: var(--gold-lt, #e6b45a); filter: drop-shadow(0 0 10px rgba(230, 180, 90, 0.45)); animation: rotatehint 2.6s ease-in-out infinite; }
-  .rotate-prompt-t { font-family: var(--font-title), sans-serif; font-weight: 800; font-size: 24px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold-lt, #e6b45a); }
-  .rotate-prompt-s { font-weight: 600; font-size: 15px; color: rgba(240, 232, 218, 0.68); max-width: 300px; line-height: 1.5; }
-}
-@keyframes rotatehint { 0%, 42% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
-/* A TABLET plays upright (R-TOUCH-ROTATE-01): stage.ts marks `data-tablet` when the window's shorter side is >= 700 px. */
-:root[data-tablet] .rotate-prompt { display: none; }
+/* A phone held upright no longer gets a "Rotate your device" screen (R-PHONE-SIDEWAYS-01, owner 2026-10-29): the stage
+   is turned a quarter turn and the landscape game plays sideways (sideways.ts, stage.ts), and Android also locks the
+   screen to landscape on the first tap (orientationLock.ts). A tablet still plays upright, letterboxed (R-TOUCH-ROTATE-01). */
 /* Boot loading screen — held up front while all card/hero art fetches + decodes (see Boot.tsx). Uses only
    fixed units (no --u letterbox vars, which Game sets later) so it renders correctly before Game mounts. */
 .bootload { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: var(--bg2, #efe5d4); color: var(--ink, #2a2017); }

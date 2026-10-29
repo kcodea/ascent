@@ -492,9 +492,6 @@ html[data-touch-ui][data-phone-zoom] .fr-odds-dmg-label { font-size: calc(16 * v
        so the board's `touch-action: none` is unchanged. ── */
 html[data-touch-ui][data-page-scale] { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html[data-touch-ui][data-page-scale], html[data-touch-ui][data-page-scale] body { touch-action: pan-x pan-y; }
-/* The rotate prompt sits outside the stage, so the page scale shrinks it too (to ~0.2 upright on a phone): it takes the
-   scale back out, and reads at its own size on the screen. */
-html[data-touch-ui][data-page-scale] .rotate-prompt { zoom: calc(1 / var(--stage-s, 1)); }
 
 /* ── A Runeforge offer's inspect view, opened by a hold (R-TOUCH-TAPSELECT-01, RuneInspect.tsx; touch only) ──────────────────────
    The rune tablet at the forge's own card size, the cards its reward grants beside it, the whole row enlarged as one

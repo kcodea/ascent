@@ -18,7 +18,7 @@
  * to the minion their aim is on (R-SPECTATE-AIM-01); the viewer's own mouse never moves it. While they hold a card, the
  * rows open the same drop gap theirs do (R-SPECTATE-DRAGGAP-01).
  *
- * Cost: one rAF loop only while the hand is live (it stops ~1 s after the last message), two transform writes per frame
+ * Cost: one rAF loop only while the hand is live (it stops ~1 s after the last message and the hand rests where it is), two transform writes per frame
  * (the hand and the card), no layout reads per frame, no React render per frame (React renders only when the card in
  * hand, the aim or the visibility changes). The sprite is the game's own gauntlet; pointer events never land on it.
  */
@@ -44,8 +44,10 @@ const OPEN_SRC = `${import.meta.env.BASE_URL}cursors/gauntlet_open.svg`;
 const FIST_SRC = `${import.meta.env.BASE_URL}cursors/hand_closed.svg`;
 /** The older wire's draw delay (kept for its tests and for an older player's arrival-stamped samples). */
 export const CURSOR_BUFFER_MS = 100;
-/** Stop the loop (and fade) this long after the newest message. */
-const STALE_MS = 1200;
+/** Stop the loop this long after the newest message. The hand STAYS drawn where it rests (owner 2026-10-29,
+ *  R-SPECTATE-CURSOR-IDLE-01): only a hide (the player's tab went to the background, or their mouse left the game
+ *  window) or the end of the stream (`resetCursorFeed`) takes it away. */
+export const STALE_MS = 1200;
 /** A jump this far (screen px) is a teleport (the hand came back from hidden), never smoothed across. */
 const TELEPORT_PX = 400;
 
@@ -144,6 +146,7 @@ export function SpectatorCursor(): JSX.Element | null {
       } else if (aiming) { aiming = false; pixiFx.clearAimLine(); }
       const live = now - cursorFeed.lastAt < STALE_MS && !cursorFeed.hidden;
       if (live || cursorFeed.pending.length || cursorFeed.landing) raf = requestAnimationFrame(frame);
+      else if (!cursorFeed.hidden) lastFrame = 0; // a RESTING hand: the loop sleeps, the hand (and any aim) stays put
       else { setVisible(false); drawn = null; lastFrame = 0; if (aiming) { aiming = false; pixiFx.clearAimLine(); } }
     };
     const sync = (): void => {
@@ -156,6 +159,8 @@ export function SpectatorCursor(): JSX.Element | null {
       if (card?.mode === 'held' && cardRef.current && moverRef.current?.style.transform) cardRef.current.style.transform = moverRef.current.style.transform;
       setAimOn(show && !!cursorFeed.aim);
       if (!raf && !inFrame && (show || cursorFeed.pending.length || cursorFeed.landing)) raf = requestAnimationFrame(frame);
+      // A resting hand's aim line was left standing by the sleeping loop: a hide or the stream's end takes it down.
+      if (!raf && !inFrame && cursorFeed.hidden && aiming) { aiming = false; pixiFx.clearAimLine(); }
       // The held card's drop gap moved (a new decision object only when it did): the rows slide, as the player's do.
       const d = cursorFeed.drag;
       const cur = dragStore.get();

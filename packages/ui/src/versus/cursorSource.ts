@@ -17,8 +17,9 @@
  *
  * Cost: nothing at all with no subscriber. With one or more: a passive pointermove listener that writes the newest
  * point into a fixed pool of six point slots (no allocation per move, no layout read), and a 20 Hz timer that builds at
- * most one message per tick (one anchor rect read, shared by the message's points). A still hand builds nothing; an
- * idle one sends one hide and then nothing.
+ * most one message per tick (one anchor rect read, shared by the message's points). A still hand builds nothing, however
+ * long it rests: the stands keep drawing it where it stopped (owner 2026-10-29, R-SPECTATE-CURSOR-IDLE-01). Only a hand
+ * that leaves the game window, or a tab sent to the background, sends one hide.
  */
 import type { StreamCursorBody, StreamTrailPoint } from '@game/sim';
 import { liveAim } from '../aimState';
@@ -29,7 +30,8 @@ import { encodePoint } from './cursorSpace';
 export const CURSOR_TICK_MS = 50;
 /** One point per this many ms of pointer motion (the newest move in each slot wins). */
 export const CURSOR_POINT_MS = 16;
-/** A hand this long without a move (and holding nothing) sends one hide and goes quiet. */
+/** A hand this long without a move. It is NOT hidden any more (R-SPECTATE-CURSOR-IDLE-01): it simply sends nothing
+ *  while it rests, and the stands keep it where it stopped. Kept for the tests that wait out a rest. */
 export const CURSOR_IDLE_MS = 4000;
 /** How long after a drop the rows are still settling (the commit FLIP and the place slide). */
 const SETTLE_MS = 450;
@@ -57,10 +59,11 @@ let timer: number | null = null;
 let actSerial = 0;
 let cx = 0;
 let cy = 0;
-let movedAt = 0;
 let lastDragKey = '';
 let hidden = false;
 let overEl: Element | null = null;
+/** The mouse left the game window (R-SPECTATE-CURSOR-IDLE-01): the stands hide the hand until it comes back. */
+let outside = false;
 /** The pointer's points since the last message: a fixed pool (`SLOTS`), `count` in use, oldest first. */
 interface MovePoint { t: number; x: number; y: number; el: Element | null; slot: number }
 const pool: MovePoint[] = Array.from({ length: SLOTS }, () => ({ t: 0, x: 0, y: 0, el: null, slot: 0 }));
@@ -72,11 +75,17 @@ let heldMark = 0;
  *  moved (an anchor to it would land the stands' hand on its OLD slot, a jump across the board). */
 let unanchoredUntil = 0;
 
+/** The mouse left the page (a `pointerout` with nowhere to go). A touch lifting off fires the same, so only a mouse or
+ *  pen counts: a finger's last spot stays drawn, as a resting mouse does. */
+const onOut = (e: PointerEvent): void => {
+  if (e.relatedTarget == null && (e.pointerType === 'mouse' || e.pointerType === 'pen')) outside = true;
+};
+
 const onMove = (e: PointerEvent): void => {
+  outside = false;
   cx = e.clientX; cy = e.clientY; overEl = e.target as Element | null;
   // The event's own timestamp is on the `performance.now()` clock; a synthetic event may carry 0.
   const t = e.timeStamp > 0 ? e.timeStamp : performance.now();
-  movedAt = performance.now();
   const last = count ? pool[count - 1]! : null;
   if (last && t - last.slot < CURSOR_POINT_MS) { last.x = cx; last.y = cy; last.el = overEl; last.t = t; return; }
   if (count === SLOTS) {
@@ -121,15 +130,15 @@ function tick(): void {
   let de: StreamCursorBody['de'];
   if (heldUid && dragNow?.uid !== heldUid) { de = actSerial > heldMark ? 'c' : 'x'; heldUid = null; unanchoredUntil = performance.now() + SETTLE_MS; }
   if (dragNow && dragNow.uid !== heldUid) { heldUid = dragNow.uid; heldMark = actSerial; }
-  const idle = !dragNow && !aimNow && !de && performance.now() - movedAt > CURSOR_IDLE_MS;
-  if (document.visibilityState === 'hidden' || idle) {
+  // A RESTING hand is never hidden (owner 2026-10-29: "can we make it so the a spectated player's mouse doesnt go
+  // invisible when it isnt moving?", R-SPECTATE-CURSOR-IDLE-01): it sends nothing and the stands keep drawing it where it
+  // stopped, its hover still open. Only a backgrounded tab, or a mouse that left the game window, hides it.
+  const gone = !dragNow && !aimNow && !de && outside;
+  if (document.visibilityState === 'hidden' || gone) {
     count = 0;
     if (!hidden) {
       hidden = true;
-      // An IDLE hand still over a card keeps that card's hover open in the stands (the player is reading it); a
-      // backgrounded tab hovers nothing.
-      const still = document.visibilityState !== 'hidden' && overEl?.isConnected ? encodePoint(cx, cy, overEl).an : null;
-      emit({ x: 0, y: 0, hide: true, ts: Math.round(performance.now()), ...(still ? { an: still } : {}) });
+      emit({ x: 0, y: 0, hide: true, ts: Math.round(performance.now()) });
     }
     return;
   }
@@ -170,11 +179,11 @@ export function noteCursorAct(): void {
 export function subscribeCursor(fn: Listener): () => void {
   if (listeners.has(fn)) return () => unsubscribe(fn);
   listeners.add(fn);
-  movedAt = performance.now();
   hidden = false;
   lastDragKey = '';
   if (listeners.size === 1 && typeof window !== 'undefined') {
     window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerout', onOut, { passive: true });
     timer = window.setInterval(tick, CURSOR_TICK_MS);
   }
   return () => unsubscribe(fn);
@@ -183,6 +192,7 @@ export function subscribeCursor(fn: Listener): () => void {
 function unsubscribe(fn: Listener): void {
   if (!listeners.delete(fn) || listeners.size > 0) return;
   window.removeEventListener('pointermove', onMove);
+  window.removeEventListener('pointerout', onOut);
   if (timer != null) window.clearInterval(timer);
   timer = null;
   count = 0;
@@ -191,6 +201,7 @@ function unsubscribe(fn: Listener): void {
   hidden = false;
   lastDragKey = '';
   overEl = null;
+  outside = false;
 }
 
 /** For the tests: how many subscribers the source has. */

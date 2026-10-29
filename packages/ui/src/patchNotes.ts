@@ -58,6 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: "Fixed: a watched player's cursor no longer vanishes when they stop moving it.", details: [
+        'It stays where they left it, with its card preview still open.',
+        'It hides only when their mouse leaves the game window or they switch tabs.',
+        'This works when you spectate, in your Duos teammate view, and in new replays.',
+      ] },
       { category: 'Systems', text: 'Fixed: Kringle and other repeating End of Turn effects could sometimes buff one tick at a time again.', details: [
         'This could happen in Versus when End Turn was asked during a pause, or while you watched your teammate.',
         'End Turn now waits and plays the normal fast version once the game can take it.',

@@ -884,7 +884,7 @@ export const TRIGGERS_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-29 (Esc menu and the shop timer)', quote: 'yes, lets have it pause the shop timer for now' },
-      { kind: 'code', ref: 'packages/ui/src/turnClock.ts turnClockMayTick (settingsOpen); packages/ui/src/Recruit.tsx (the countdown gate reads the store settingsOpen, kept out of overlayOpen; the charge glyph follows the clock, R-TIMER-SYNC-01)' },
+      { kind: 'code', ref: 'packages/ui/src/turnClock.ts turnClockMayTick (settingsOpen); packages/ui/src/Recruit.tsx (the countdown gate reads the store settingsOpen, kept out of overlayOpen; the charge glyph follows the clock, R-TIMER-SYNC-01). Since 2026-10-29 the Esc menu is the in-game sidebar (R-ESC-SIDEBAR-01): the gate reads settingsOpen || gameMenuOpen' },
     ],
     currentBehaviour: 'Conforms (2026-09-29). Before this the Shop clock kept running behind the Esc menu.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/escMenuPausesTimer.test.ts'], lastVerifiedAt: '2026-09-29' },

@@ -78,6 +78,13 @@ export const PATCH_NOTES: PatchNote[] = [
         'Everyone who saw the ping sees it go.',
         'A ping someone else placed still opens the ping menu. A quick double right-click still inspects.',
       ] },
+      { category: 'Systems', text: 'Escape in a game now opens the main menu sidebar over your game, with every menu page and Settings.', details: [
+        'Your game stays on screen, dimmed, and keeps playing. The sidebar shows your shop time left so you never run out.',
+        'Open Career, Collection, the Leaderboard, Recent Games, Live Games or Patch Notes without leaving your game.',
+        'Resume (gold, at the top) or Escape takes you back. So does clicking your game.',
+        'Save & Quit, or Concede in Versus, is at the bottom of the sidebar. Tap it twice to leave.',
+        'Settings is now its own page beside the sidebar, on the main menu and in a game, with every setting on it.',
+      ] },
       { category: 'Systems', text: 'Friends now live in one button in the bottom left corner, on every screen: the menus, hero select, every game, watching and replays.', details: [
         'Press it to open your friends list. Press outside it or Escape to close it.',
         'It stays as you left it when you change screens, with an open chat still open.',

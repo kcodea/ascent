@@ -22,11 +22,12 @@ beforeEach(() => {
 afterEach(() => { localStorage.clear(); clearRoot(); });
 
 describe('the Settings backdrop pick', () => {
-  it('defaults to Oak planks and writes its preset', async () => {
+  it('defaults to Castle (owner 2026-10-29) and writes its preset', async () => {
     const b = await import('./backdrop');
-    expect(b.getBackdrop()).toBe('oak');
-    expect(rootVar('--bd-img')).toContain('/backdrop-oak-planks.webp');
-    expect(rootVar('--bd-size')).toBe(`${b.BACKDROPS.oak.size}px`);
+    expect(b.getBackdrop()).toBe('castle');
+    expect(rootVar('--bd-img')).toContain('/backdrop-castle.webp');
+    expect(document.documentElement.dataset.bdFit).toBe('cover');
+    expect(rootVar('--bd-size')).toBe(`${b.BACKDROPS.castle.size}px`);
   });
 
   it('a pick applies at once and is restored on the next load', async () => {
@@ -90,6 +91,21 @@ describe('single-image (cover) backdrops', () => {
     expect(html.dataset.btexFit).toBe('tile');
     lab.resetLayout();
     expect(html.dataset.btexFit).toBeUndefined();
+  });
+
+  it('every painted image is in Settings and fills the window when picked', async () => {
+    const b = await import('./backdrop');
+    const { BACKDROP_TEXTURES } = await import('./layoutConfig');
+    const covers = Object.keys(BACKDROP_TEXTURES).filter((t) => BACKDROP_TEXTURES[t]!.cover);
+    expect(covers.length).toBeGreaterThanOrEqual(10);
+    for (const tex of covers) {
+      const id = b.BACKDROP_IDS.find((i) => b.BACKDROPS[i].texture === tex);
+      expect(id, tex).toBeTruthy();
+      b.setBackdrop(id!);
+      expect(document.documentElement.dataset.bdFit, tex).toBe('cover');
+    }
+    b.setBackdrop('oak');
+    expect(document.documentElement.dataset.bdFit).toBeUndefined();
   });
 
   it('a tile Settings pick never carries the cover flag', async () => {

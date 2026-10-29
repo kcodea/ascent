@@ -7,7 +7,7 @@
  * board's CSS reads the Layout Lab's `--btex-*` first (DEV only, and only for a slider moved off its shipped value),
  * then these, then the Stone fallbacks. Saved per device in localStorage; read once at load.
  *
- * To add a backdrop: drop its tile in apps/web/public, add it to `BACKDROP_TEXTURES` (layoutConfig.ts) so the Layout
+ * To add a backdrop: drop its tile (or a single painted image, marked `cover` in BACKDROP_TEXTURES) in apps/web/public, add it to `BACKDROP_TEXTURES` (layoutConfig.ts) so the Layout
  * Lab can tune it, then copy the tuned values into a preset here.
  */
 import { BACKDROP_TEXTURES, backdropFit } from './layoutConfig';
@@ -31,16 +31,33 @@ export interface BackdropPreset {
   shadowY: number;
 }
 
+/** A single painted image (a `cover` texture): it fills the window, so size, darkness and tint stay neutral. */
+function image(label: string, texture: string): BackdropPreset {
+  return { label, texture, size: 430, blur: 0, dark: 0, tint: '#000000', tintAmount: 0, shadow: 0.72, shadowX: 6, shadowY: 8 };
+}
+
 export const BACKDROPS = {
   stone: { label: 'Cobblestone', texture: 'stone', size: 420, blur: 0, dark: 0.05, tint: '#90abfe', tintAmount: 0.06, shadow: 0.72, shadowX: 6, shadowY: 8 },
   oak: { label: 'Oak planks', texture: 'oak', size: 430, blur: 0, dark: 0.24, tint: '#472a00', tintAmount: 0.16, shadow: 0.72, shadowX: 6, shadowY: 8 },
   aether: { label: 'Aether Stone', texture: 'aether', size: 660, blur: 0, dark: 0.18, tint: '#7a33ff', tintAmount: 0.09, shadow: 0.72, shadowX: 6, shadowY: 8 },
   sand: { label: 'Sand', texture: 'sand', size: 1770, blur: 0, dark: 0.2, tint: '#ffa8f3', tintAmount: 0.13, shadow: 0.72, shadowX: 6, shadowY: 8 },
   pavers: { label: 'Stone Pavers', texture: 'moonstone', size: 450, blur: 0, dark: 0.19, tint: '#69b1dd', tintAmount: 0.04, shadow: 0.72, shadowX: 6, shadowY: 8 },
+  // Single painted images (owner 2026-10-29): each fills the window instead of tiling, shown as painted.
+  castle: image('Castle', 'castle'),
+  runicSlate: image('Runic Slate', 'runicSlate'),
+  cosmicEnergy: image('Cosmic Energy', 'cosmicEnergy'),
+  darkSanctum: image('Dark Sanctum', 'darkSanctum'),
+  temple: image('Temple', 'temple'),
+  stoneCourtyard: image('Stone Courtyard', 'stoneCourtyard'),
+  koiPond: image('Koi Pond', 'koiPond'),
+  freshPond: image('Fresh Pond', 'freshPond'),
+  bambooForest: image('Bamboo Forest', 'bambooForest'),
+  treasureHoard: image('Treasure Hoard', 'treasureHoard'),
+  celestial: image('Celestial', 'celestial'),
 } as const satisfies Record<string, BackdropPreset>;
 export type BackdropId = keyof typeof BACKDROPS;
 export const BACKDROP_IDS = Object.keys(BACKDROPS) as BackdropId[];
-export const DEFAULT_BACKDROP: BackdropId = 'oak';
+export const DEFAULT_BACKDROP: BackdropId = 'castle';
 export const BACKDROP_KEY = 'ascent.backdrop';
 
 function isBackdropId(v: unknown): v is BackdropId {

@@ -186,6 +186,7 @@ export const BACKDROP_TEXTURES: Record<string, { label: string; url: string; cov
   moonstone: { label: 'Stone Pavers', url: '/backdrop-moonstone-pavers.webp' },
   runicSlate: { label: 'Runic Slate (image)', url: '/backdrop-runic-slate.webp', cover: true },
   cosmicEnergy: { label: 'Cosmic Energy (image)', url: '/backdrop-cosmic-energy.webp', cover: true },
+  celestial: { label: 'Celestial (image)', url: '/backdrop-celestial.webp', cover: true },
   treasureHoard: { label: 'Treasure Hoard (image)', url: '/backdrop-treasure-hoard.webp', cover: true },
   temple: { label: 'Temple (image)', url: '/backdrop-temple.webp', cover: true },
   freshPond: { label: 'Fresh Pond (image)', url: '/backdrop-fresh-pond.webp', cover: true },

@@ -58,6 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Eleven new painted backdrops to put behind the board, and the castle courtyard is the new default.', details: [
+        'Pick one in Settings under Board backdrop: Castle, Runic Slate, Cosmic Energy, Dark Sanctum, Temple, Stone Courtyard, Koi Pond, Fresh Pond, Bamboo Forest, Treasure Hoard or Celestial.',
+        'Each is one painted scene that fills your whole screen, ultrawide monitors included.',
+        'If you already chose a backdrop, you keep it. Oak planks and the other patterns are still there too.',
+      ] },
       { category: 'Systems', text: 'Fixed: pressing Watch on a friend in the Friends list now takes you into their game from any screen.', details: [
         'Before, from a menu page like Career or Recent Games, the game started behind the page and you never saw it.',
         'Watch from the Friends list now works exactly like Watch in Live Games.',

@@ -10941,7 +10941,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'The board backdrop shows the player\x27s Settings pick; a touched dev Layout Lab shows exactly what it is set to',
     statement:
       'What lies behind the board is the player\x27s Settings pick (Board backdrop), saved on the device and applied at once '
-      + 'and on every load; Oak planks when they never chose. In a dev build the Layout Lab\x27s Backdrop section does not '
+      + 'and on every load; Castle when they never chose (Oak planks until 2026-10-29). In a dev build the Layout Lab\x27s Backdrop section does not '
       + 'change that until one of its controls is touched; from then until Reset it shows exactly the texture, wash, blur and '
       + 'shadow it is set to, including when that is the default texture, never the Settings pick in its place.',
     domain: 'foundation',

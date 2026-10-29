@@ -24,7 +24,7 @@ import { sfx } from '../sfx';
 import { toStage } from '../stage';
 import { useGame } from '../store';
 import { MemberRing } from './MemberRing';
-import { StandsPlates } from './WatchersBadge';
+import { FELLOWS_SHOWN, StandsPlates } from './WatchersBadge';
 import { myWatcherIdentity, othersInStands, useWatchers } from './watchers';
 import './versus.css';
 
@@ -59,7 +59,7 @@ export const SpectatorSelf = memo(function SpectatorSelf({ onLeave }: { onLeave:
             <span className="vsspec-hp hudpill-hp vswatch-tag">Spectating</span>
           </span>
         </button>
-        <StandsPlates list={fellows} />
+        <StandsPlates list={fellows} max={FELLOWS_SHOWN} />
       </div>
       <button type="button" className="vsplate vsspec-leave" onClick={() => { sfx.pulse(); onLeave(); }}>Leave</button>
     </div>

@@ -395,8 +395,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .frzwrap.frzwrap { translate: calc((var(--board-grow, 1.05) - 1) * (var(--frz-x, 8px) - var(--board-x, 0px)) * var(--scale)) calc((var(--board-grow, 1.05) - 1) * ((var(--frz-y, 272px) - var(--board-y, 5px)) * var(--scale) - 0.5 * var(--gh))); }
 .goldpill { translate: calc((var(--board-grow, 1.05) - 1) * (0.5 * var(--gw) - (var(--gold-x, 407px) + var(--board-x, 0px)) * var(--scale))) calc((var(--board-grow, 1.05) - 1) * (0.5 * var(--gh) - (var(--gold-y, 421px) + var(--board-y, 5px)) * var(--scale))); }
 .tvbwrap { translate: calc((var(--board-grow, 1.05) - 1) * (-0.345 * var(--gw) + (var(--tvb-x, 104px) - var(--board-x, 0px)) * var(--scale))) calc((var(--board-grow, 1.05) - 1) * (-0.08 * var(--gh) + (var(--tvb-y, -318px) - var(--board-y, 5px)) * var(--scale))); }
-/* The whole hero group (portrait, rune slots, name pill, Health, hero power) nudged as one: Layout tuner "Hero group". */
-.statusbar { translate: calc(var(--herogrp-x, -35px) * var(--scale)) calc(var(--herogrp-y, 0px) * var(--scale)); }
+/* The whole hero group (portrait, rune slots, name pill, Health, hero power) nudged as one: Layout tuner "Hero group"
+   (`--herogrp-x/y`). NEVER as a `translate`/`transform` on `.statusbar` (R-HUD-HEROPOWER-01): that makes the bar the
+   containing block of its `position: fixed` hero power seats, which then resolve their stage left/top against the bar
+   instead of the stage and land below the screen (hit 2026-10-29, #2399: the hero power gone in every mode). The bar
+   folds the nudge into its own `left`/`bottom` (see `.statusbar` below); the fixed seats add it to their own `translate`
+   (`.statusbar .heropanel`). */
 .combatopp, .heropowerbtn.opp-power { translate: calc((var(--board-grow, 1.05) - 1) * 796px * var(--scale)) calc((var(--board-grow, 1.05) - 1) * -437px * var(--scale)); }
 /* COMBAT BOARD LAYER — a second .boardbg painting the combat art. The modifier only swaps which art the
    shared background stack reads (`--board` is re-pointed at `--board-combat`), so the two layers can never
@@ -4128,7 +4132,7 @@ body.modalup .app { z-index: auto; }
    `touch-action: manipulation` let the browser claim that finger move as a pan (pointercancel), so the aim never
    landed. The status bar holds no scrollable content. */
 .statusbar { touch-action: none; }
-.statusbar { position: fixed; bottom: calc(50% - 0.389444 * var(--_arth) - var(--board-y, 5px) * var(--scale)); left: calc(50% - 0.391888 * var(--_artw) + var(--board-x, 0px) * var(--scale)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
+.statusbar { position: fixed; bottom: calc(50% - 0.389444 * var(--_arth) - var(--board-y, 5px) * var(--scale) - var(--herogrp-y, 0px) * var(--scale)); left: calc(50% - 0.391888 * var(--_artw) + var(--board-x, 0px) * var(--scale) + var(--herogrp-x, -35px) * var(--scale)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
 /* IN COMBAT THE HERO CLUSTER SITS UNDER THE ARENA (owner report 2026-09-23: "can you fix the z axis of the hero
    power art etc? it is on top of minions and heroes so when they attack they are behind it"). The z40 above is
    the SHOP order: the cluster over the whole `.app` (z1). In combat `.app` dissolves (see the COMBAT Z-ORDER
@@ -4450,8 +4454,9 @@ body.duel-attacker-opp .combatopp { z-index: 100; }
 /* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
    the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
 .statusbar .heropanel {
-  /* Follows its board socket as the board grows, plus the Hero power X/Y nudge (Layout Lab "Hero group", owner 2026-10-28). */
-  translate: calc(((var(--board-grow, 1.05) - 1) * -836px + var(--hpow-x, 45px)) * var(--scale)) calc(((var(--board-grow, 1.05) - 1) * 228px + var(--hpow-y, 0px)) * var(--scale));
+  /* Follows its board socket as the board grows, plus the Hero power X/Y nudge and the whole Hero group nudge (Layout Lab
+     "Hero group", owner 2026-10-28). The group nudge rides HERE, not on `.statusbar` (R-HUD-HEROPOWER-01, see above). */
+  translate: calc(((var(--board-grow, 1.05) - 1) * -836px + var(--hpow-x, 45px) + var(--herogrp-x, -35px)) * var(--scale)) calc(((var(--board-grow, 1.05) - 1) * 228px + var(--hpow-y, 0px) + var(--herogrp-y, 0px)) * var(--scale));
   /* Floated onto the board's mid-left — the power reads as a board action, NOT a boxed corner button: the
      diamond housing + a name pill, no panel background/border. Base position is 19%/45%; the 💠 tuner nudges
      it via px offsets × --scale (pinned to the stage, resolution-independent) and scales via --hpb-s. The

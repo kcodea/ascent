@@ -58,6 +58,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Spectators and emotes are tidier, bigger and easier to read.', details: [
+        'Spectators now stand in one neat column at the top left, with bigger portraits and names.',
+        'Emotes are bigger, on every screen and on phones.',
+        'Emotes never cover each other. When several land at once they spread out, or wait a moment for room.',
+        'Emotes beside the lobby rail and your opponent no longer show their words backwards.',
+      ] },
       { category: 'Systems', text: 'Friends now shows what your friends are doing, in more detail.', details: [
         'Outside a game you see where they are, like Main menu, Browsing Career, Browsing the Leaderboard or Watching a replay.',
         'You also see when they are in a Versus room or a Duo party, how many players are in, and when it is starting.',

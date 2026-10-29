@@ -41,7 +41,7 @@ export const PHONE_BUBBLE_SCALE = 1.25;
 const MIN_TOP = 8;
 const EDGE = 8;
 /** At most this many bubbles on screen at once, and this many of them from spectators. */
-export const MAX_LIVE = 6;
+export const MAX_LIVE = 9;
 export const MAX_WATCH_LIVE = 3;
 /** A waiting bubble that cannot go up within this long is dropped (it would arrive too late to mean anything). */
 export const QUEUE_STALE_MS = 4000;
@@ -126,9 +126,12 @@ export function placementFor(seat: string): BubblePlacement | null {
     const ring = plate?.querySelector('.portring')?.getBoundingClientRect();
     const r = ring && ring.width ? ring : plate?.getBoundingClientRect();
     if (!r || !r.width) return null;
-    // The tail lands just past the portrait's right edge, a little below its middle.
+    // The bubble starts just past the stands column (so it never covers a name plate), level with the portrait, its
+    // tail pointing back at it.
+    const col = plate?.closest('.vsspec-seats')?.getBoundingClientRect();
+    const edge = toStage(col && col.width ? Math.max(col.right, r.right) : r.right);
     const width = widthOf('watch');
-    return { x: toStage(r.right + 2), y: toStage(r.top + r.height * 0.62), width, side: 'right', slide: Math.round(width * EMOTE_ASPECT) };
+    return { x: edge + 4 + EMOTE_TAIL.x * width, y: toStage(r.top + r.height * 0.62), width, side: 'right', slide: Math.round(width * EMOTE_ASPECT) };
   }
   if (seat === PLAYER_SEAT) {
     const el = document.querySelector('.statusbar .hero .f');

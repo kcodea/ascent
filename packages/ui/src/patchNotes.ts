@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Fixed: pressing Watch on a friend in the Friends list now takes you into their game from any screen.', details: [
+        'Before, from a menu page like Career or Recent Games, the game started behind the page and you never saw it.',
+        'Watch from the Friends list now works exactly like Watch in Live Games.',
+      ] },
       { category: 'Systems', text: 'Your Career now shows each Ranked Duos team in its own rank card, just like your solo rank.', details: [
         'One team at a time, your best ranked team first. Use the arrows to see your other teams.',
         'Each card shows the team name, your partner, games played, the medal and the MMR.',

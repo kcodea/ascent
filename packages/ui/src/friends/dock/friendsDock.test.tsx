@@ -18,12 +18,16 @@ import { act } from 'react';
 import { mount, type Mounted } from '../../renderedText.mount';
 
 vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
-const net = vi.hoisted(() => ({ live: true, created: [] as string[], parties: [] as string[], watched: [] as string[], joined: [] as Array<[string, string]> }));
+const net = vi.hoisted(() => ({ live: true, failWatch: false, created: [] as string[], parties: [] as string[], watched: [] as string[], joined: [] as Array<[string, string]>, replaysEnded: 0 }));
 vi.mock('../../remoteBoards', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../remoteBoards')>()), remoteEnabled: () => true }));
 vi.mock('../../live/livePublisher', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../live/livePublisher')>()), liveEligible: () => net.live }));
 vi.mock('../../live/liveWatch', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../live/liveWatch')>()),
-  watchLiveGame: vi.fn(async (id: string) => { net.watched.push(id); return true; }),
+  watchLiveGame: vi.fn(async (id: string) => { net.watched.push(id); return !net.failWatch; }),
+}));
+vi.mock('../../replay/replayPlayer', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../replay/replayPlayer')>()),
+  endReplay: vi.fn(() => { net.replaysEnded++; }),
 }));
 vi.mock('../../stage', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../stage')>()),
@@ -50,6 +54,7 @@ import { setIdentity } from '../../identity';
 import { useVersus } from '../../versus/versusStore';
 import { resetFriendsForTests, setFriendsRemoteForTests, setInviteProofSourceForTests, useFriends } from '../friendsStore';
 import type { Friend, FriendInvite, FriendsList, FriendsRemote, InviteKind } from '../friendsRemote';
+import { PAGES_CLOSED } from '../../store';
 import { acceptSpectateInvite, FINISH_FIRST, friendMenuEntries, inviteToRoom, inviteToSpectate, runFriendMenu, type FriendMenuContext } from '../friendsGo';
 import { FriendMenu, openFriendMenu, useFriendMenu } from '../FriendMenu';
 import { FriendsDock } from './FriendsDock';
@@ -94,7 +99,7 @@ beforeEach(() => {
   setFriendsRemoteForTests(fakeRemote());
   setInviteProofSourceForTests(async (room, to, kind) => `proof:${room}:${to}:${kind}`);
   lists = 0; invites = []; harmed = [];
-  Object.assign(net, { live: true, created: [], parties: [], watched: [], joined: [] });
+  Object.assign(net, { live: true, failWatch: false, created: [], parties: [], watched: [], joined: [], replaysEnded: 0 });
   (globalThis as { __host?: string }).__host = undefined;
   list = {
     ...emptyList(),
@@ -497,4 +502,66 @@ describe('a menu own corner space (R-FRIENDS-DOCK-03: "looks like friends moved 
       expect(parseFloat(st.style.getPropertyValue('--fdock-maxh'))).toBeLessThanOrEqual(h - bottom);
     });
   }
+});
+
+/**
+ * DOCK WATCH ENTERS THE GAME (owner 2026-10-29: "clicking watch from friends list doesnt bring the player into the game,
+ * the game happens behind the screen but they are never actually brought in"; R-WATCH-ENTERS-01). The dock's Watch
+ * joined the game but only closed the Live Games page, so from Career, Recent Games or any other page the page stayed
+ * painted over the watch. Now every Watch runs Live Games' own path (`watchGame`), which closes every page over it.
+ */
+describe('dock Watch brings me INTO the game from every screen (R-WATCH-ENTERS-01)', () => {
+  const SCREENS: Array<[string, Record<string, unknown>]> = [
+    ['the title', {}],
+    ['Career', { showCareer: true }],
+    ['Recent Games', { showRecentGames: true }],
+    ['Live Games', { showLiveGames: true }],
+    ['Rankings', { showRankings: true }],
+    ['the Hall', { showLeaderboard: true }],
+    ['Collection', { showCollection: true }],
+    ['the Practice setup', { practiceSetupOpen: true }],
+    ['Settings', { settingsOpen: true }],
+    ['the in-game menu', { gameMenuOpen: true }],
+    ['hero select', { showTitle: false, heroChoices: [] }],
+  ];
+  const overWatch = (): Record<string, unknown> => {
+    const g = useGame.getState() as unknown as Record<string, unknown>;
+    return Object.fromEntries([...Object.keys(PAGES_CLOSED), 'practiceSetupOpen', 'gameMenuOpen'].map((k) => [k, g[k]]));
+  };
+  const closed = { ...PAGES_CLOSED, practiceSetupOpen: false, gameMenuOpen: false };
+
+  for (const [name, screen] of SCREENS) {
+    for (const kind of ['live', 'versus'] as const) {
+      it(`${name}: Watch on a friend in a ${kind === 'live' ? 'lobby / Practice' : 'Versus'} game joins it and closes every page over it`, async () => {
+        list = { ...emptyList(), friends: [friend('u-gus', 'Gus', { status: 'in_game', mode: kind === 'live' ? 'practice' : 'versus', watchKind: kind, watchId: kind === 'live' ? 'run-gus' : 'cf:room-gus' })] };
+        useGame.setState(screen as never);
+        ui = mount(<FriendsDock />);
+        click(q('.fdock-btn'));
+        await flush();
+        click(q('.fdock-rowmain[aria-label="Message Gus#1234"]'));
+        click(q('button[aria-label="Watch Gus#1234"]'));
+        await flush();
+        if (kind === 'live') expect(net.watched).toEqual(['run-gus']);
+        else expect(net.joined).toEqual([['room-gus', 'spectator']]);
+        expect(overWatch()).toEqual(closed);
+      });
+    }
+  }
+
+  it('a replay being viewed is left first; a failed join leaves the page where it was', async () => {
+    useGame.setState({ replaySession: {} as never, showRecentGames: true });
+    expect(await runFriendMenu('spectate', friend('u-gus', 'Gus', { status: 'in_game', watchKind: 'live', watchId: 'run-gus' }))).toBe(true);
+    expect(net.replaysEnded).toBe(1);
+    expect(useGame.getState().showRecentGames).toBe(false);
+    useGame.setState({ replaySession: null, showCareer: true });
+    net.failWatch = true;
+    expect(await runFriendMenu('spectate', friend('u-gus', 'Gus', { status: 'in_game', watchKind: 'live', watchId: 'run-gus' }))).toBe(false);
+    expect(useGame.getState().showCareer).toBe(true);
+  });
+
+  it("Live Games' own Watch and the friend Watch are ONE path (no second implementation)", () => {
+    const src = readFileSync(join(__dirname, '../../live/LiveGames.tsx'), 'utf8');
+    expect(src).toMatch(/watchGame\(liveWatchTargetOf\(/);
+    expect(src).not.toMatch(/watchLiveGame\(|goToVersusRoom\(/);
+  });
 });

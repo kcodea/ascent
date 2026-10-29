@@ -19,8 +19,8 @@ import { frameIdOf } from '../portraitFrame/PortraitFrame';
 import { heroPortrait, opponentSkins } from '../skins/skins';
 import { useGame } from '../store';
 import { LIVE_PAGE, liveRemote, type LiveGameRow } from './liveRemote';
-import { useLiveWatch, watchLiveGame } from './liveWatch';
-import { goToVersusRoom } from '../friends/friendsGo';
+import { useLiveWatch } from './liveWatch';
+import { watchGame } from '../friends/friendsGo';
 import { liveModeLabel, liveNameOf, liveWatchTargetOf } from './liveTargets';
 import './live.css';
 
@@ -69,12 +69,8 @@ export function LiveGames(): JSX.Element | null {
     sfx.pulse();
     setJoining(r.game_id);
     // A Versus match or a Ranked Duos team (R-RANKED-DUOS-PARTY-01) watches its room from the stands, on its own host;
-    // a lobby game opens the live watch screen.
-    const t = liveWatchTargetOf(r.game_id);
-    void (t.kind === 'room' ? goToVersusRoom(t.ref, 'spectator', t.area) : watchLiveGame(t.gameId, r)).then((ok) => {
-      setJoining(null);
-      if (ok) useGame.setState({ showLiveGames: false });
-    });
+    // a lobby game opens the live watch screen. The one watch path, shared with a friend's Watch (R-WATCH-ENTERS-01).
+    void watchGame(liveWatchTargetOf(r.game_id), r).then(() => setJoining(null));
   };
 
   return (

@@ -186,7 +186,7 @@ export function StageBoardCanvas() {
 
   return createPortal(
     <div className="stbc" aria-label={`Stage ${draft.number} round ${round}: the opponent's warband`}>
-      <div className="boardbg boardbg--combat shown" aria-hidden="true"><div className="boardbg-tex" /></div>
+      <div className="boardbg boardbg--combat shown" aria-hidden="true"><div className="boardbg-tex" /><div className="boardbg-shade" /></div>
       <div className="stbc-head">
         <span className="stbc-stage">Stage {draft.number} · {draft.name}</span>
         <span className="stbc-round">Round {round}</span>

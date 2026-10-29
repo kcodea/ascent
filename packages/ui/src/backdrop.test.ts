@@ -172,28 +172,48 @@ describe('single-image (cover) backdrops', () => {
   });
 });
 
-describe('hero shades (owner 2026-10-29: "another circle under each portrait that i can spread out and make very dark")', () => {
-  it('a backdrop writes the shade vars, and the tuner can change them live', async () => {
+describe('hero shades (owner 2026-10-29: "another circle under each portrait", "the shadow under the hero power", "go under the board")', () => {
+  it('a backdrop writes the shade vars (radius = half the size), and the tuner can change them live', async () => {
     const b = await import('./backdrop');
     b.setBackdrop('castle');
-    expect(rootVar('--bd-shade-a')).toBe(String(b.tuneOf('castle').shadeDark));
+    const t = b.tuneOf('castle');
+    expect(rootVar('--bd-shade-a')).toBe(String(t.shadeDark));
+    expect(rootVar('--bd-shade-r')).toBe(`${t.shadeSize / 2}px`);
+    expect(rootVar('--bd-pshade-x')).toBe(`${t.powerShadeX}px`);
     b.setLiveTune('castle', 'shadeDark', 0.95);
     b.setLiveTune('castle', 'shadeSoft', 40);
-    b.setLiveTune('castle', 'oppShadeSize', 3.5);
+    b.setLiveTune('castle', 'powerShadeSize', 600);
+    b.setLiveTune('castle', 'oppShadeY', -480);
     expect(rootVar('--bd-shade-a')).toBe('0.95');
     expect(rootVar('--bd-shade-core')).toBe('60%');
-    expect(rootVar('--bd-oshade-size')).toBe('3.5');
+    expect(rootVar('--bd-pshade-r')).toBe('300px');
+    expect(rootVar('--bd-oshade-y')).toBe('-480px');
     b.clearLiveTune();
   });
 
-  it('each portrait carries its own circle, under the portrait and sized against it', async () => {
+  it('the circles live UNDER the board: a backdrop layer, never inside the portraits', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const read = (f: string): string => readFileSync(resolve(__dirname, f), 'utf8');
-    expect(read('StatusBar.tsx')).toMatch(/<span className="hero-shade" aria-hidden="true" \/>\s*<div className=\{`herolunge/);
-    expect(read('CombatOpponent.tsx')).toMatch(/<div className="combatopp-body">[\s\S]{0,200}<span className="hero-shade hero-shade--opp" aria-hidden="true" \/>/);
+    // Both board backgrounds (shop + combat) carry the shade layer right after the texture.
+    const recruit = read('Recruit.tsx');
+    expect(recruit.match(/<div className="boardbg-tex" \/><div className="boardbg-shade" \/><\/div>/g)?.length).toBe(2);
+    expect(read('StatusBar.tsx')).not.toContain('hero-shade');
+    expect(read('CombatOpponent.tsx')).not.toContain('hero-shade');
     const css = read('styles.css');
-    expect(css).toMatch(/\.hero-shade \{[^}]*z-index: -1;[^}]*pointer-events: none;[^}]*width: calc\(var\(--bd-shade-size, 2\.4\) \* 100%\)/);
-    expect(css).toMatch(/\.hero-shade--opp \{[^}]*width: calc\(var\(--bd-oshade-size, 2\.4\) \* 100%\)/);
+    expect(css).not.toMatch(/\.hero-shade\b/);
+    const rule = (sel: string): string => css.match(new RegExp(`\\n${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{([^}]*)\\}`))?.[1] ?? '';
+    const shop = rule('.boardbg-shade');
+    const combat = rule('.boardbg--combat .boardbg-shade');
+    // Same z as the texture and AFTER it in the DOM: above the picture, under the board's shadow and art.
+    expect(shop).toMatch(/z-index: -1;/);
+    expect(shop).toMatch(/pointer-events: none;/);
+    // Shop: your portrait + hero power. Combat adds the foe's portrait.
+    expect(shop.match(/radial-gradient\(/g)?.length).toBe(2);
+    expect(shop).toContain('var(--bd-pshade-r)');
+    expect(combat.match(/radial-gradient\(/g)?.length).toBe(3);
+    expect(combat).toContain('var(--bd-oshade-r)');
+    // Measured from the board's centre in --scale units, with the board's own nudge, so it rides the hero corners.
+    expect(shop).toContain('calc(50% + (var(--board-x, 0px) + var(--bd-shade-x)) * var(--scale))');
   });
 });

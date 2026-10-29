@@ -29,12 +29,15 @@ export const BACKDROP_TUNING_RANGES: Readonly<Record<string, readonly [number, n
   shadowY: [-120, 120],
   shadeDark: [0, 1],
   shadeSoft: [0, 100],
-  shadeSize: [0, 10],
-  shadeX: [-400, 400],
-  shadeY: [-400, 400],
-  oppShadeSize: [0, 10],
-  oppShadeX: [-400, 400],
-  oppShadeY: [-400, 400],
+  shadeSize: [0, 4000],
+  shadeX: [-2000, 2000],
+  shadeY: [-2000, 2000],
+  powerShadeSize: [0, 4000],
+  powerShadeX: [-2000, 2000],
+  powerShadeY: [-2000, 2000],
+  oppShadeSize: [0, 4000],
+  oppShadeX: [-2000, 2000],
+  oppShadeY: [-2000, 2000],
 };
 const ID_RE = /^[a-z][a-zA-Z0-9]{0,40}$/;
 const HEX_RE = /^#[0-9a-f]{6}$/i;

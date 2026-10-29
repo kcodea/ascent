@@ -97,7 +97,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'combat-speed',
     topic: 'controls',
     q: 'Can I speed up or skip a fight?',
-    a: "Yep. While a fight plays there's a **Skip** button just above the End Turn gem. To make every fight faster, open the menu with **Esc** and move the combat speed slider (anywhere from 0.5× to 5×).",
+    a: "Yep. While a fight plays there's a **Skip** button just above the End Turn gem. To make every fight faster, press **Esc**, open **Settings** and move the combat speed slider (anywhere from 0.5× to 5×).",
     aliases: ['fast forward', 'skip combat', 'speed', 'slow down'],
   },
 ];

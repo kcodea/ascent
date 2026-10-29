@@ -5030,7 +5030,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Conforms, built 2026-10-08. A God Mode run is a `sandbox` run (packages/sim/src/godMode.ts, packages/ui/src/store.ts): '
       + 'the save slot, Continue and the real save on disk are pinned by the store test. PARTIAL pin: no XP, crate, '
       + 'upload or replay rides the pre-existing `sandbox` write barrier, which these tests do not re-check.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/godModeStore.test.ts', 'packages/ui/src/EscMenuGodMode.test.tsx'], lastVerifiedAt: '2026-10-08' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/godModeStore.test.ts', 'packages/ui/src/gameMenu.test.tsx'], lastVerifiedAt: '2026-10-08' },
   },
   {
     id: 'R-GODMODE-02',
@@ -11383,5 +11383,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Since 2026-10-29 (qa/duos-spectate-polish). Before, the pinned fight let go 2.6 s after the replay ended: the Health dropped and the lobby was rebuilt then, after or in the middle of the strike (seen in the browser run: the settled view and a lobby rebuild arriving 2.6 s after replay done), and the end gate keyed on the same 2.6 s.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateQueue.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-ESC-SIDEBAR-01',
+    title: 'Escape in a game slides in the main menu\x27s sidebar over the dimmed game, with every player page, Resume, the Shop clock and the leave button; Settings is a normal page',
+    statement:
+      'In a game (a run, its hero select, a replay, a watched game) Escape or the gear slides in the SAME left sidebar the main menu pages use, over the game, which stays on screen dimmed and keeps running. Its top plaque is a gold Resume (closes the menu) instead of Play; under it the time left in the Shop turn. It lists every player page (Career, Collection, Leaderboard, Recent Games, Live Games, Patch Notes) and Settings; never the dev builders. Opening a page shows it as the ordinary page beside the same sidebar, over the dimmed game, without its painted backdrop. At the foot is the leave button: Save & Quit in a solo or lobby game (Leave God Mode in God Mode), Concede in Versus, Duos and Ranked Duos, Abandon match from a ranked hero select, Leave replay, Stop watching or Leave match for a spectator; each asks for a second tap first. Escape again, Resume, or a press on the dimmed game closes the menu and any page it opened; a drag in hand is dropped when it opens. A page action that would leave the game (watch a replay, watch a live game) is refused there with a short note. Settings is a page like Collection, on the main menu and in a game, showing every section (Combat, Audio, Cosmetics, Friends, Board, Performance, Display and Phone diagnostics on phones, Game on desktop, Account); it has no leave or Resume of its own. On the menus Escape opens and closes the Settings page. The menu holds the Shop clock where R-TIMER-ESC-01 allows (lobby, Practice) and never in Versus, and never pauses a combat.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'when pressing escape, have the left side bar come up with the play/etc buttons. allow players to view this information in game, and have the settings panel at the bottom baked into a normal \x27window\x27 just like these other pages are. so opening settings sits attached to the side bar in its own view with all settings shown.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (answers)', quote: 'Top button in game: a gold RESUME (closes the sidebar, back to the game) instead of PLAY.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (answers)', quote: 'the game stays visible but dimmed behind; the game keeps running (no pause where rules don\x27t allow); show a small shop clock on the sidebar so players don\x27t time out.' },
+      { kind: 'code', ref: 'packages/ui/src/GameMenu.tsx (GameMenu, handleEscape, openMenu), packages/ui/src/gameMenuParts.tsx (ResumeButton, SidebarShopClock, LeaveButton, leaveKindOf, refuseInGame), packages/ui/src/MenuSidebar.tsx (in-game form), packages/ui/src/EscMenu.tsx (SettingsPage, SettingsPanel), packages/ui/src/store.ts (gameMenuOpen, goTo settings), packages/ui/src/Recruit.tsx (drag drop, overlayOpen), packages/ui/src/styles.css (.gmenu)' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/esc-sidebar). Before: Escape opened a centred Settings modal everywhere, with Save & Quit (or Concede, Leave replay, ...) at its top and a Resume / Done button at its foot.',
+    example: 'Mid-shop with 0:38 left, Ann presses Escape: the sidebar slides in over her dimmed board, showing Resume and 0:38 under it. She opens Collection, then Settings, and turns the music down. She presses Escape and is back in the Shop. Later she taps Save & Quit once, it asks "Tap again to quit", and the second tap takes her to the main menu.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/gameMenu.test.tsx', 'packages/ui/src/MenuSidebar.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
 ];

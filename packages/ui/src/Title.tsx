@@ -11,7 +11,7 @@ import { applyTitleAccountVars } from './titleAccountConfig';
 import { Icon } from './Icon';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { sfx } from './sfx';
-import { useGame, tempHandle } from './store';
+import { anyPageOpen, useGame, tempHandle } from './store';
 import { abandonWarningOf, withAbandonWarning } from './rank/ratedRun';
 import { DUOS_CONFIRM_TEXT, DUOS_CONFIRM_TITLE, RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_TITLE, RANKED_CONFIRM_YES } from './rank/rankedEntry';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
@@ -172,7 +172,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // top of the title, which stays mounted under it so Back is instant. Once the page's 0.2 s fade-in is done the
   // title is skipped by the browser (`.titlescreen.covered`: no style, paint or animation work under an opaque page);
   // closing the page un-skips it at once.
-  const pageOpen = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showLiveGames || s.showCollection);
+  const pageOpen = useGame(anyPageOpen); // the Settings page included (R-ESC-SIDEBAR-01)
   const [covered, setCovered] = useState(false);
   useEffect(() => {
     if (!pageOpen) { setCovered(false); return undefined; }

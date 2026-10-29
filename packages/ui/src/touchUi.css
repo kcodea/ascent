@@ -72,7 +72,7 @@ html[data-touch-ui] .hsback { scale: var(--touch-k); transform-origin: 0 0; }
    `--touch-p` zooms the page content (it reflows: a zoomed page lays out in a narrower box, like a tablet), the
    sidebar grows by `--touch-sb` (capped so its plaques still fit the height), and each zoomed box scrolls. */
 html[data-touch-ui] { --touch-sb: min(var(--touch-p), 1.4); }
-html[data-touch-ui] .lbpage, html[data-touch-ui] .modepick.sb-host { --sb-w: calc(240px * var(--touch-sb)); }
+html[data-touch-ui] .lbpage, html[data-touch-ui] .modepick.sb-host, html[data-touch-ui] .gmenu { --sb-w: calc(240px * var(--touch-sb)); }
 html[data-touch-ui] .msb {
   zoom: var(--touch-sb); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
   width: calc((var(--sb-w) + var(--safe-l)) / var(--touch-sb));
@@ -80,6 +80,9 @@ html[data-touch-ui] .msb {
 }
 html[data-touch-ui] .lbpage > :not(.msb):not(.mbd) { zoom: var(--touch-p); }
 html[data-touch-ui] .lbpage .lbscroll { overflow-y: auto; }
+/* THE SETTINGS PAGE (R-ESC-SIDEBAR-01): its panel sits in the page's already zoomed scroller, so it drops its own zoom
+   (a zoom inside a zoom grows it twice, and WebKit then paints its box shorter than its rows). */
+html[data-touch-ui] .lbpage.set-page .escpanel { zoom: 1; width: min(900px, 100%); box-sizing: border-box; min-width: 0; }
 /* The mode picker, Practice, Versus, Learn and hero select ride `--hs-zoom` (their boxes cap their width by it). */
 html[data-touch-ui] .modepick, html[data-touch-ui] .heroselect { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * var(--touch-p)); }
 /* Their width caps are the whole viewport on desktop; beside the (now wider) sidebar they cap at the space left. */

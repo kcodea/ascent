@@ -8,6 +8,7 @@ import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from './matchDetails/matchDeta
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
+import { refuseInGame } from './gameMenuParts';
 import { useGame } from './store';
 import { useSocial } from './socialCache';
 import { GameSplit, type GameListItem } from './GameSplit';
@@ -293,6 +294,7 @@ export function RecentGames(): JSX.Element | null {
   const onWatch = useCallback((e: React.MouseEvent, r: FeedRow, key: string): void => {
     e.stopPropagation();
     if (r.rowId == null || live.current.watching) return;
+    if (refuseInGame()) return; // never from inside a game (R-ESC-SIDEBAR-01)
     sfx.pulse();
     setNoReplay(null);
     setWatching(key);

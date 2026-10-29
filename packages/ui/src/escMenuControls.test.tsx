@@ -10,7 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { mount, type Mounted } from './renderedText.mount';
-import { EscMenu } from './EscMenu';
+import { SettingsPanel } from './EscMenu';
 import { useGame } from './store';
 
 let ui: Mounted | null = null;
@@ -32,7 +32,7 @@ afterEach(() => {
 
 describe('Settings controls', () => {
   it('on/off settings are switches with their note outside the button', () => {
-    ui = mount(<EscMenu onClose={() => {}} />);
+    ui = mount(<SettingsPanel />);
     const ramp = switchNamed(ui.container, 'Auto-ramp speed');
     expect(ramp).not.toBeNull();
     expect(ramp!.getAttribute('aria-checked')).toBe('false');
@@ -57,14 +57,14 @@ describe('Settings controls', () => {
   });
 
   it('no button carries supporting text inside it', () => {
-    ui = mount(<EscMenu onClose={() => {}} />);
+    ui = mount(<SettingsPanel />);
     expect(ui.container.querySelectorAll('.ebs')).toHaveLength(0);
-    const primary = ui.container.querySelector('.escbtn-primary');
-    expect(primary?.textContent).toBe('Save & Quit');
+    // Leaving a game is not a setting (R-ESC-SIDEBAR-01): it sits at the foot of the in-game sidebar.
+    expect(ui.container.querySelector('.escbtn-primary')).toBeNull();
   });
 
   it('Max Frame Rate is one dropdown: open, pick, closed; a press outside closes it', () => {
-    ui = mount(<EscMenu onClose={() => {}} />);
+    ui = mount(<SettingsPanel />);
     expect(ui.container.querySelector('#esc-fps-label')?.textContent).toBe('Max Frame Rate');
     expect(ui.container.querySelectorAll('.escfpsopt')).toHaveLength(0);
     const trigger = ui.container.querySelector<HTMLButtonElement>('.escselect-trigger[aria-labelledby="esc-fps-label"]')!;

@@ -40,9 +40,17 @@ export interface CareerView {
 export type TitleView = 'menu' | 'modes' | 'learn' | 'gauntlet' | 'versus';
 /** Where the menu sidebar can send the player: the title menu / mode picker, or one of the ladder pages. 'friends' is
  *  not a page any more (R-FRIENDS-DOCK-02): it opens the global Friends dock over whatever is on screen. */
-export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'live' | 'collection' | 'friends';
-/** Every ladder page closed — the set `goTo` / `openTitle` clear (and the one `startReplay` clears). */
-const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false } as const;
+export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'live' | 'collection' | 'settings' | 'friends';
+/** Every ladder page closed — the set `goTo` / `openTitle` clear (and the one `startReplay` clears). Settings is a page
+ *  like the others since 2026-10-29 (R-ESC-SIDEBAR-01), so it closes with them. */
+const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false, settingsOpen: false } as const;
+/** Is any sidebar page (a ladder page, Collection or Settings) open? The title skips its paint under one, and the in-game
+ *  menu hides its own rail while a page (which carries the rail) is up. */
+export const anyPageOpen = (s: Pick<GameStore, 'showCareer' | 'showRankings' | 'showLeaderboard' | 'showRecentGames' | 'showLiveGames' | 'showCollection' | 'settingsOpen'>): boolean =>
+  s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showLiveGames || s.showCollection || s.settingsOpen;
+/** Is the player IN a game (a run, its hero select, a replay, a watched game) rather than on the menus? This is where
+ *  Escape opens the in-game menu (the sidebar over the dimmed game, R-ESC-SIDEBAR-01) instead of the Settings page. */
+export const inGameScreen = (s: Pick<GameStore, 'showTitle' | 'practiceSetupOpen'>): boolean => !s.showTitle && !s.practiceSetupOpen;
 /** The clock `navHopAt` is stamped with — the reader (`useMountedFromHop`) MUST use the same one. */
 export const navClockNow = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
@@ -808,10 +816,17 @@ interface GameStore {
    *  solid across the hop and only the content beside it fades (`useMountedFromHop`). Self-expiring, so no
    *  consumer has to clear it. */
   navHopAt: number;
-  /** The Settings modal (Esc menu) is open. In the store so the menu sidebar can open it from any page. */
+  /** The Settings PAGE is open (R-ESC-SIDEBAR-01: a sidebar page like Collection, on the menus and in a game). In the
+   *  store so the menu sidebar can open it from any page. */
   settingsOpen: boolean;
   openSettings: () => void;
   closeSettings: () => void;
+  /** THE IN-GAME MENU (owner 2026-10-29, R-ESC-SIDEBAR-01): Escape (or the gear) in a game slides the menu sidebar in
+   *  over the dimmed game; its pages open beside it. The game keeps running underneath. */
+  gameMenuOpen: boolean;
+  openGameMenu: () => void;
+  /** Resume: close the in-game menu and any page opened from it. */
+  closeGameMenu: () => void;
   /** The Hall of Champions overlay (latest victory runs + their warbands) is open. */
   showLeaderboard: boolean;
   openLeaderboard: () => void;
@@ -3009,7 +3024,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // GOD MODE (owner 2026-10-08): leaving a God Mode game puts the save slot back behind the title exactly as a
     // boot would (the real save, or a throwaway when there is none), so Continue never resumes the God Mode game.
     if (get().run.godMode === true || get().run.mode === 'versus') restoreSaveSlot(); // VERSUS never holds the slot either
-    set({ showTitle: true, heroChoices: null, titleView: 'menu', ...PAGES_CLOSED });
+    set({ showTitle: true, heroChoices: null, titleView: 'menu', ...PAGES_CLOSED, gameMenuOpen: false });
     void syncCloudAtTitle();
   },
   titleView: 'menu',
@@ -3031,6 +3046,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       case 'recent': set({ ...PAGES_CLOSED, ...off, showRecentGames: true, navHopAt }); break;
       case 'live': set({ ...PAGES_CLOSED, ...off, showLiveGames: true, navHopAt }); break;
       case 'collection': set({ ...PAGES_CLOSED, ...off, showCollection: true, navHopAt }); break;
+      case 'settings': set({ ...PAGES_CLOSED, ...off, settingsOpen: true, navHopAt }); break;
       // The Friends page is gone (owner 2026-10-29, R-FRIENDS-DOCK-02): a request for it opens the dock in place.
       case 'friends': openDockOn('friends'); break;
     }
@@ -3039,6 +3055,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
   settingsOpen: false,
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
+  gameMenuOpen: false,
+  openGameMenu: () => set({ gameMenuOpen: true }),
+  closeGameMenu: () => set({ ...PAGES_CLOSED, gameMenuOpen: false }),
   openLeaderboard: () => set(HALL_VISIBLE ? { showLeaderboard: true } : { showRankings: true }),
   closeLeaderboard: () => set({ showLeaderboard: false }),
   showRankings: false,

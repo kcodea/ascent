@@ -38,7 +38,7 @@ describe('R-TIMER-ESC-01: the Esc menu holds the Shop clock', () => {
 
   it('Recruit wires settingsOpen into the countdown gate only, not into overlayOpen', () => {
     const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'Recruit.tsx'), 'utf8');
-    expect(src).toContain('const settingsOpen = useGame((s) => s.settingsOpen);');
+    expect(src).toContain('const settingsOpen = useGame((s) => s.settingsOpen || s.gameMenuOpen);');
     const call = src.slice(src.indexOf('if (!turnClockMayTick({'), src.indexOf('})) return;', src.indexOf('if (!turnClockMayTick({')));
     expect(call, 'the countdown gate receives the menu flag').toMatch(/\bsettingsOpen,/);
     expect(src, 'the countdown effect re-runs when the menu flips').toMatch(/overlayOpen, settingsOpen, introPlaying, run\.wave/);

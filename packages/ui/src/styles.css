@@ -839,7 +839,10 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
 body.wipe-up .fxflash { z-index: 2990; }
 /* The falling gate's landing dust (gateFx.land) rides the ranked gate's particle canvas, lifted over the curtain while it is up. */
 body.wipe-up .gatefx-canvas { z-index: 3005; }
-body.wipe-up .escov, body.wipe-up .pnov, body.wipe-up .inspect-ov { z-index: 3100; }
+body.wipe-up .pnov, body.wipe-up .inspect-ov { z-index: 3100; }
+/* The in-game menu (R-ESC-SIDEBAR-01) and the pages it opens stay over the curtain too, at their own z + 2600. */
+body.wipe-up .gmenu { z-index: 3065; }
+body.wipe-up .gmenu ~ .lbpage { z-index: 3070; }
 body.wipe-up .disc-toggle.disc-peek.inspect-act { z-index: 3101; }
 body.wipe-up .replay-cursor { z-index: 3135; }
 body.wipe-up .acctpanel { z-index: 3140; }
@@ -7287,7 +7290,6 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 /* THE HOUSE NAVY + GOLD (owner ask 2026-10-08): the Settings panel wears the Career / match-details chrome, a deep
    navy body inside a double gold frame (2px rim + inset hairline). Rows are recessed dark wells with a gold hairline
    that brightens on hover; a chosen option fills with a gold wash. Nothing here loops. */
-.escov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(4, 8, 16, 0.66); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
 .escpanel { zoom: calc(var(--ui-zoom) * var(--esc-k, 0.8)); color: #f4eee2; background: linear-gradient(180deg, rgba(13, 22, 40, 0.97), rgba(9, 15, 29, 0.98)); border: 2px solid rgba(196, 160, 92, 0.55); border-radius: 18px; padding: 24px 28px 22px; min-width: 380px;
   /* 900px (owner ask 2026-10-08: "reduce it by 30%" from the ~1290px the long notes stretched it to); the notes wrap. */
   /* --esc-k (owner 2026-10-28: "reduce the size of the options menu elements to ensure it fits on screen without
@@ -8197,6 +8199,46 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    down to a ~400px window without scrolling or overlapping Back. */
 /* [stage] Dead since the scaled stage (stage.ts, 2026-09-26): the LAYOUT viewport is never under 1920x1080, so a
    viewport query below that can only misfire on a phone. Removed rather than left to reflow the scaled layout. */
+/* ── THE IN-GAME MENU (owner 2026-10-29, R-ESC-SIDEBAR-01: "when pressing escape, have the left side bar come up") ──
+   `GameMenu.tsx`: the menu rail slid in over the game, which stays on screen DIMMED and keeps running. One fixed layer
+   under the pages (465 < 470) and the Friends dock (480). The veil is a STATIC fill (no backdrop-filter, so the game
+   under it costs nothing extra) whose opacity fades in once; the rail slides in once on `transform`. A page opened from
+   the menu is the ordinary page host drawn without its own navy, so the dimmed game shows through (the veil deepens
+   under a page so its rows read), and the menu's own rail hides under the page's identical one (visibility only, so
+   it never replays its slide). Nothing loops. */
+.gmenu { position: fixed; inset: 0; z-index: 465; --sb-w: 240px; }
+.gmenu-veil { position: absolute; inset: 0; background: rgb(4, 8, 16); opacity: 0.6; transition: opacity 0.16s ease; animation: gm-veil-in 0.16s ease; }
+.gmenu.paged .gmenu-veil { opacity: 0.9; }
+/* The rail itself is near-opaque in a game: its menu-page fill is see-through for the painted hall, which over a live
+   board let the hero portrait and the cards show through the plaques. */
+.msb.msb-ingame { background: linear-gradient(180deg, rgba(8, 16, 34, 0.97) 0%, rgba(10, 22, 46, 0.95) 40%, rgba(4, 9, 22, 0.97) 100%); }
+@keyframes gm-veil-in { from { opacity: 0; } }
+.gmenu-rail { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--sb-w) + var(--safe-l)); }
+.gmenu-rail > .msb { animation: gm-slide 0.2s cubic-bezier(0, 0, 0.2, 1); }
+@keyframes gm-slide { from { transform: translateX(-100%); } }
+.gmenu.paged .gmenu-rail { visibility: hidden; }
+.gmenu ~ .lbpage { background: transparent; }
+@media (prefers-reduced-motion: reduce) { .gmenu-rail > .msb { animation: none; } }
+/* THE SHOP CLOCK under Resume: the time left this turn, so a player reading a page never times out. Red in the last 10 s. */
+.msb-clock { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 9px; margin: 2px 0 4px;
+  border: 1px solid rgba(196, 160, 92, 0.4); background: rgba(4, 9, 20, 0.6); color: #e7d9b5; font-family: var(--font-ui); }
+.msb-clock-ic { display: grid; place-items: center; width: 20px; height: 20px; flex: none; color: #d9b86a; }
+.msb-clock-ic svg { width: 18px; height: 18px; }
+.msb-clock-l { flex: 1; min-width: 0; font-weight: 700; font-size: 12.5px; line-height: 1.25; letter-spacing: 0.04em; color: rgba(231, 217, 181, 0.8); }
+.msb-clock-v { font-weight: 900; font-size: 18px; font-variant-numeric: tabular-nums; color: #f6efe2; }
+.msb-clock.low { border-color: rgba(229, 112, 122, 0.75); }
+.msb-clock.low .msb-clock-v, .msb-clock.low .msb-clock-ic { color: #ff8a8f; }
+/* THE LEAVE BUTTON at the foot (Save & Quit / Concede / ...): a plain plaque; armed (asking for the second tap) it turns
+   red and its note shows under it. */
+.msb-leavewrap { flex: none; position: relative; }
+.sbbtn.msb-leave.armed { border-color: rgba(229, 112, 122, 0.9); background: linear-gradient(180deg, rgba(122, 32, 40, 0.95), rgba(78, 18, 25, 0.96)); color: #fff; }
+.sbbtn.msb-leave.armed .mbicon { color: #ffb3b6; }
+.msb-leavenote, .msb-ingamenote { font-family: var(--font-ui); font-weight: 700; font-size: 12.5px; line-height: 1.3; color: rgba(244, 238, 226, 0.8); margin: 6px 2px 0; }
+.msb-ingamenote { flex: none; padding: 7px 10px; border-radius: 9px; border: 1px solid rgba(196, 160, 92, 0.45); background: rgba(4, 9, 20, 0.75); animation: fadein 0.16s ease; }
+/* THE SETTINGS PAGE (R-ESC-SIDEBAR-01): the old Esc panel's sections, centred in the page's scroller at their full height
+   (the page scrolls, not the panel). */
+/* `#root` so it beats the touch UI's own panel heights (touchUi.css), which were written for the old modal. */
+#root .lbpage.set-page .escpanel { align-self: center; max-height: none; overflow: visible; flex: none; margin: 0 auto 24px; }
 /* A HOP between two sidebar hosts (the store's `goTo`): the destination mounts as the source unmounts, in one
    store write, so the hosts' page-level `fadein` re-faded the sidebar and showed the title through it on every
    hop (review 2026-09-21). The host mounted BY the sidebar wears `.hop` (`SidebarHost` — see MenuSidebar.tsx)

@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createLobbyRun } from '@game/sim';
 import { mount, type Mounted } from './renderedText.mount';
-import { EscMenu } from './EscMenu';
+import { SettingsPanel } from './EscMenu';
 import { useGame } from './store';
 import { isMuted, toggleMute } from './sfx';
 import { isMusicMuted, toggleMusicMute } from './music';
@@ -54,7 +54,7 @@ afterEach(() => {
 
 describe('the Audio panel', () => {
   it('always shows Master; one "Advanced Controls" button, collapsed by default, expands the three channels', () => {
-    ui = mount(<EscMenu onClose={() => {}} />);
+    ui = mount(<SettingsPanel />);
     const btn = audioButton(ui.container);
     expect(btn).not.toBeNull();
     expect(btn!.getAttribute('aria-expanded')).toBe('false');
@@ -77,17 +77,17 @@ describe('the Audio panel', () => {
   });
 
   it('remembers open / closed across a remount (localStorage)', () => {
-    ui = mount(<EscMenu onClose={() => {}} />);
+    ui = mount(<SettingsPanel />);
     press(audioButton(ui.container));
     expect(localStorage.getItem('ascent.audiopanel')).toBe('1');
     ui.unmount();
-    ui = mount(<EscMenu onClose={() => {}} />);
+    ui = mount(<SettingsPanel />);
     expect(audioButton(ui.container)!.getAttribute('aria-expanded')).toBe('true');
     expect(rows(ui.container)).toHaveLength(4);
   });
 
   it('each mute is its own persisted toggle: the slider disables, the value reads Off, the others are untouched', () => {
-    ui = mount(<EscMenu onClose={() => {}} />);
+    ui = mount(<SettingsPanel />);
     press(audioButton(ui.container));
     const [, , music, announcer] = rows(ui.container) as [HTMLElement, HTMLElement, HTMLElement, HTMLElement];
     press(announcer.querySelector('button.escmute'));
@@ -111,7 +111,7 @@ describe('the Audio panel', () => {
 
   it('the Announcer slider drives its own persisted level (default 90)', () => {
     setAnnouncerVolume(0.9);
-    ui = mount(<EscMenu onClose={() => {}} />);
+    ui = mount(<SettingsPanel />);
     press(audioButton(ui.container));
     const row = rows(ui.container)[3]!;
     const slider = row.querySelector<HTMLInputElement>('input[type="range"]')!;
@@ -129,7 +129,7 @@ describe('the Audio panel', () => {
   });
 
   it('Master sits on top: default 100, its slider persists, its mute silences everything and leaves the channel mutes alone', () => {
-    ui = mount(<EscMenu onClose={() => {}} />);
+    ui = mount(<SettingsPanel />);
     press(audioButton(ui.container));
     const master = rows(ui.container)[0]!;
     const slider = master.querySelector<HTMLInputElement>('input[type="range"]')!;
@@ -155,7 +155,7 @@ describe('the Audio panel', () => {
   });
 
   it('nothing native, nothing typographic: no title= anywhere, no em dash / double hyphen in the menu text', () => {
-    ui = mount(<EscMenu onClose={() => {}} />);
+    ui = mount(<SettingsPanel />);
     press(audioButton(ui.container));
     expect(ui.container.querySelectorAll('[title]')).toHaveLength(0);
     const text = ui.container.textContent ?? '';

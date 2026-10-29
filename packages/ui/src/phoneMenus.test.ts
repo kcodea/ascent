@@ -74,9 +74,8 @@ describe('phone menus (R-PHONE-MENUS-03)', () => {
     };
     // Recent Games: the page scrolls (desktop pins the split to the window and hides the overflow).
     expect(rule('.rg-page .lbscroll:has(> .gsplit)')).toMatch(/overflow-y:\s*auto/);
-    // Settings: the desktop panel's zoom is reset, and the sheet scrolls under a pinned Done.
-    expect(rule('.escov .escpanel')).toMatch(/zoom:\s*1;/);
-    expect(rule('.escov .escpanel button.escclose.pressable')).toMatch(/position:\s*sticky/);
+    // Settings (a sidebar page since R-ESC-SIDEBAR-01): the desktop panel's zoom is reset; the page scrolls it.
+    expect(rule('.set-page .escpanel')).toMatch(/zoom:\s*1;/);
     // Any animation longhand only ever turns an animation OFF (the open game's one-shot rise-in).
     const longhands = [...bare.matchAll(/animation-[a-z-]+\s*:\s*([^;}]+)/g)].map((m) => m[1]!.trim());
     expect(longhands.every((v) => v === 'none')).toBe(true);

@@ -51,7 +51,8 @@ import { MinionBook } from './MinionBook';
 import compendiumBookArt from './compendium-book.png';
 import rulesQuestionArt from './rules-question.png';
 import settingsArt from './settings-medallion.png';
-import { EscMenu } from './EscMenu';
+import { SettingsPage } from './EscMenu';
+import { GameMenu, handleEscape, openMenu } from './GameMenu';
 import { setFxScene, type FxScene } from './fx/fxBudget';
 import { installPerfBench } from './perfBench';
 import { ensureDefsReady } from './fx/playDef';
@@ -111,7 +112,7 @@ import { equippedAnnouncerPack } from './progression/announcerPack';
 import { setMusicAudioContextProvider, syncMusic } from './music';
 import { syncPhoneSfxPrewarm } from './audio/phonePrewarm';
 import { LITE_ART } from './phoneArt';
-import { useGame, isPreRun } from './store';
+import { useGame, isPreRun, inGameScreen } from './store';
 import { RankedGate } from './rankedGate/RankedGate';
 import { installStage, onStageChange, setStageInRun, setStageMenuZoom, stageFit, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
@@ -187,11 +188,10 @@ export function Game() {
   // See `isPreRun`: the board must not render (or tick) until a run is actually entered.
   const preRun = useGame(isPreRun);
   const heroPicking = useGame((s) => s.heroChoices !== null);
-  // The Settings modal's open flag lives in the store (`settingsOpen`) so the ladder pages' menu sidebar can
-  // open it from anywhere, not only the title's plaque and the in-run gear.
-  const settingsOpen = useGame((s) => s.settingsOpen);
+  // The Settings PAGE's flag lives in the store (`settingsOpen`) so the menu sidebar can open it from any page.
   const openSettings = useGame((s) => s.openSettings);
-  const closeSettings = useGame((s) => s.closeSettings);
+  // The gear names what it opens: the in-game menu in a game, the Settings page on the menus.
+  const gearInGame = useGame(inGameScreen);
   const [perfOn, setPerfOn] = useState(perfEnabledByFlag);
 
   // The OS `title` tooltip never shows anywhere in the game (owner ruling 2026-09-18) — see noNativeTooltips.ts.
@@ -451,9 +451,12 @@ export function Game() {
   // Discover layer as hero select opens, and Recruit warms the wipe on mount.
   useEffect(() => { if (!PHONE_GPU) warmDiscoverFx(); }, []);
   // A PHONE's menus shrink the stage with CSS zoom, not a transform (stage.ts, R-TOUCH-GPU-MEMORY-01). No-op on desktop.
-  useEffect(() => { setStageMenuZoom(preRun && !heroPicking); }, [preRun, heroPicking]);
+  // THE IN-GAME MENU (R-ESC-SIDEBAR-01) is a menu too: while it is open a phone fits the stage as on the menus, so the
+  // sidebar and its pages get the phone page layout instead of being cropped by the in-run zoom. Once per open / close.
+  const gameMenuOpen = useGame((s) => s.gameMenuOpen);
+  useEffect(() => { setStageMenuZoom((preRun && !heroPicking) || gameMenuOpen); }, [preRun, heroPicking, gameMenuOpen]);
   // …and the phone zoom (R-PHONE-ZOOM-01) only once a run is on screen: hero select keeps the plain fit.
-  useEffect(() => { setStageInRun(!preRun && !heroPicking); }, [preRun, heroPicking]);
+  useEffect(() => { setStageInRun(!preRun && !heroPicking && !gameMenuOpen); }, [preRun, heroPicking, gameMenuOpen]);
   // …and the screen-wipe's Pixi canvas the same way (perf 2026-10-10). Recruit warms it on mount, which put its
   // WebGL context creation (~200-450 ms, `getContext`) in the FIRST SHOP of the session as an unlabelled long task.
   // On idle at the title it is paid before any run; Recruit's own `warm()` then finds it ready (idempotent).
@@ -511,15 +514,13 @@ export function Game() {
 
   // Esc toggles the menu — but if the menu is closed and a card is being inspected, let the
   // inspect overlay claim Esc (it closes itself) instead of opening the menu. The Minion Book
-  // also claims Esc (closes itself) before the menu would open.
+  // and Patch Notes also claim Esc (close themselves) before the menu would open or close.
+  // IN A GAME (R-ESC-SIDEBAR-01) the menu is the sidebar over the dimmed game; Esc again closes it with any page it
+  // opened. On the menus Esc opens (and closes) the Settings page.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      const st = useGame.getState();
-      if (st.showBook) { st.closeBook(); return; }
-      if (st.settingsOpen) { st.closeSettings(); return; }
-      if (st.inspect) return;
-      st.openSettings();
+      handleEscape();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -632,14 +633,13 @@ export function Game() {
         </button>
       )}
       {/* The gear wears the book's navy/gold plaque and the gold tools medallion (owner ask 2026-10-08). */}
-      <button className="gearbtn gtip" data-tip="Settings" onPointerDown={openSettings} aria-label="Settings">
+      <button className="gearbtn gtip" data-tip={gearInGame ? 'Menu' : 'Settings'} onPointerDown={() => openMenu()} aria-label={gearInGame ? 'Menu' : 'Settings'}>
         <img decoding="sync" src={settingsArt} alt="" draggable={false} />
       </button>
       {/* Build badge above the gear — version + short git SHA, so you can tell at a glance which build is live. */}
       <div className="version" aria-description={`ASCENT v${__APP_VERSION__} · build ${__BUILD_SHA__}`}>
         v{__APP_VERSION__} <span>{__BUILD_SHA__}</span>
       </div>
-      {settingsOpen && <EscMenu onClose={closeSettings} />}
       {/* DEV-only tuning menu — one 🛠️ button opening every live tuner (stripped from production). */}
       {DevMenu && <Suspense fallback={null}><DevMenu /></Suspense>}
       {/* DEV-only in-run UI editor overlay — direct-manipulation move/resize/restyle of live UI, toggled
@@ -691,6 +691,9 @@ export function Game() {
           them on hero select. Mounted here, after the Title and the picker, because it must outlive the Title:
           the swap happens behind the shut doors. Renders nothing between gates. */}
       <RankedGate />
+      {/* THE IN-GAME MENU (R-ESC-SIDEBAR-01): the sidebar over the dimmed game. Before the pages, so a page opened from
+          it paints over it, and `.gmenu ~ .lbpage` (styles.css) draws those pages over the game without their backdrop. */}
+      <GameMenu />
       <Leaderboard />
       <Rankings />
       <RecentGames />
@@ -715,6 +718,8 @@ export function Game() {
       {/* The Collection page (2026-09-28). After Career in DOM order, so a Collection opened from your Career's
           Account Level card paints on top of it and Back returns there. */}
       <CollectionScreen />
+      {/* The Settings page (R-ESC-SIDEBAR-01): a sidebar page like the others, last so it paints over a page it opened on. */}
+      <SettingsPage />
       {/* DEV: the Crate opening tuner's practice crates (▶ Common … ▶ Legendary). Local only; renders nothing until
           a Play is pressed. `VITE_CRATE_PREVIEW=1` also bakes it into a PRODUCTION bundle, only so the opening can be
           profiled on the prod build (docs/performance.md); player builds never set it. */}

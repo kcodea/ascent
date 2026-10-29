@@ -113,7 +113,7 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
   it('R-PHONE-MENUS-01: the phone menu rules are touch-phone only and zoom the modal panels', () => {
     const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
     const K = 'html[data-touch-ui][data-touch-small]:not([data-phone-layout])';
-    for (const sel of ['.pnpanel { zoom: var(--pm-z)', '.bgrpanel { zoom: var(--pm-z)', '.book { scale: var(--pm-book)', '.lvend .vspanel { zoom: var(--pm-z)']) expect(css).toContain(`${K} ${sel}`);
+    for (const sel of ['.bgrpanel { zoom: var(--pm-z)', '.book { scale: var(--pm-book)', '.lvend .vspanel { zoom: var(--pm-z)']) expect(css).toContain(`${K} ${sel}`);
     // the menu page zoom on a phone
     expect(css).toContain(`${K} { --touch-p: 2.1 !important; }`);
     // board badges step in on a zoomed phone only

@@ -839,7 +839,7 @@ body.wipe-up .lobbydmg-float { z-index: 240; }
 body.wipe-up .fxflash { z-index: 2990; }
 /* The falling gate's landing dust (gateFx.land) rides the ranked gate's particle canvas, lifted over the curtain while it is up. */
 body.wipe-up .gatefx-canvas { z-index: 3005; }
-body.wipe-up .pnov, body.wipe-up .inspect-ov { z-index: 3100; }
+body.wipe-up .inspect-ov { z-index: 3100; }
 /* The in-game menu (R-ESC-SIDEBAR-01) and the pages it opens stay over the curtain too, at their own z + 2600. */
 body.wipe-up .gmenu { z-index: 3065; }
 body.wipe-up .gmenu ~ .lbpage { z-index: 3070; }
@@ -8250,9 +8250,9 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    an empty frame between two pages (the old page's content leaves in the same commit the new one arrives). */
 @keyframes page-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .lbpage.hop > :not(.msb):not(.mbd), .modepick.hop > :not(.msb):not(.mbd) { animation: page-enter 0.225s cubic-bezier(0, 0, 0.2, 1) both; }
-.lbpage:not(.hop) > .lbtopbar, .lbpage:not(.hop) > .lbscroll { animation: page-enter 0.225s cubic-bezier(0, 0, 0.2, 1) both; }
+.lbpage:not(.hop) > .lbtopbar, .lbpage:not(.hop) > .lbscroll, .lbpage:not(.hop) > .pnbar { animation: page-enter 0.225s cubic-bezier(0, 0, 0.2, 1) both; }
 @media (prefers-reduced-motion: reduce) {
-  .lbpage.hop > :not(.msb):not(.mbd), .modepick.hop > :not(.msb):not(.mbd), .lbpage:not(.hop) > .lbtopbar, .lbpage:not(.hop) > .lbscroll { animation: fadein 0.12s ease both; }
+  .lbpage.hop > :not(.msb):not(.mbd), .modepick.hop > :not(.msb):not(.mbd), .lbpage:not(.hop) > .lbtopbar, .lbpage:not(.hop) > .lbscroll, .lbpage:not(.hop) > .pnbar { animation: fadein 0.12s ease both; }
 }
 
 /* ── THE MODE SCREEN'S VIEW SWAP (owner 2026-10-21, R-MENU-VIEW-SWAP-01: "it should be a clean, seamless menu shift
@@ -12750,46 +12750,38 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .replay-dragghost .ghostfist { position: absolute; left: 0; top: 0; width: 30px; height: 30px;
   transform: translate(-13px, -12px); /* the live cursor hotspot (13 12) lands on the path point */ }
 
-/* ── PATCH NOTES (owner ask 2026-08-24) — the gameplay changelog, opened from the title only. Full-screen
-   overlay mirroring the Esc panel's chrome (`.escov`/`.escpanel`), with a scrolling newest-first list. ── */
-.pnov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
-.pnpanel { width: min(760px, calc(92 * var(--vw, 1vw))); max-height: calc(86 * var(--vh, 1vh)); display: flex; flex-direction: column; background: var(--bg2); border: 2px solid var(--line); border-radius: 18px; box-shadow: 0 22px 60px -18px rgba(0, 0, 0, 0.6); overflow: hidden; }
-.pnhead { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 10px; }
+/* ── PATCH NOTES (owner ask 2026-08-24) — the gameplay changelog. A sidebar page since 2026-10-29
+   (R-PATCHNOTES-PAGE-01; it was a centred overlay): `.lbpage.pn-page` gives the rail, the title and the scroller; these
+   rules are the tab bar under the title and the newest-first list in a centred reading column. ── */
 /* The tab bar under the title (owner ask 2026-09-23): the Game / Systems tabs on the left, the Summary /
    Detailed segment on the right. Both are the same pill-track language; the tabs read a touch larger because
    they are the primary navigation. */
-.pnbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 22px 12px; border-bottom: 1px solid var(--line); }
-.pntabs { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); }
-/* NO explicit `cursor` on `.pntab` — the global `button` rule paints the gauntlet (see the `.pnclose` note). */
-.pntab { font-family: var(--font-ui); font-weight: 800; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink3); background: none; border: none; border-radius: 999px; padding: 6px 18px; transition: color 120ms ease, background 120ms ease; }
-.pntab:hover { color: var(--ink2); }
-.pntab.on { color: var(--bg); background: var(--acc); }
-.pntab:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
-.pntitle { font-size: 26px; color: var(--ink); letter-spacing: 0.02em; }
-/* NO explicit `cursor` here — the global `button` rule (§ line ~151) already paints the custom gauntlet cursor;
-   overriding it with plain `cursor: pointer` swaps in the bare OS arrow and "breaks" the cursor (owner report
-   2026-08-24). Same reason `.pntoggle-btn` below carries no cursor. See CLAUDE.md's cursor note. */
-.pnclose { font-size: 18px; font-weight: 900; color: var(--ink3); background: none; border: none; border-radius: 10px; width: 36px; height: 36px; }
-.pnclose:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
-.pnscroll { overflow-y: auto; overflow-x: hidden; padding: 8px 22px 22px; }
-.pnpatch { padding: 16px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.pnbar { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; width: min(900px, calc(100% - 60px)); box-sizing: border-box; margin: 0 auto; padding: 0 0 14px; border-bottom: 1px solid rgba(196, 160, 92, 0.22); }
+.pntabs, .pntoggle { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(196, 160, 92, 0.35); }
+/* NO explicit `cursor` on the tabs or the toggle: the global `button` rule paints the gauntlet (CLAUDE.md's cursor note). */
+.pntab { font-family: var(--font-ui); font-weight: 800; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.06em; background: none; border: none; border-radius: 999px; padding: 6px 18px; transition: color 120ms ease, background 120ms ease; }
+.pntoggle-btn { font-family: var(--font-ui); font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; background: none; border: none; border-radius: 999px; padding: 5px 14px; transition: color 120ms ease, background 120ms ease; }
+.pntab, .pntoggle-btn { color: rgba(236, 220, 178, 0.66); }
+.pntab:hover, .pntoggle-btn:hover { color: #f4eee2; }
+/* The selected tab is the lit plate with gold letters (the WS-3 rule; never a gold fill). */
+.pntab.on, .pntoggle-btn.on { color: var(--ui-title, #f1d48a); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  background: var(--ui-sheen), var(--ui-hover-plate); box-shadow: var(--ui-bevel), inset 0 0 0 1px color-mix(in srgb, var(--ui-title, #f1d48a) 45%, transparent); }
+.pntab:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 2px; }
+/* The list: one reading column, centred in the page's scroller (the page scrolls, not a panel). */
+.pncol { width: min(900px, 100%); margin: 0 auto; }
+.pnpatch { padding: 16px 0; border-bottom: 1px solid rgba(196, 160, 92, 0.14); }
 .pnpatch:last-child { border-bottom: none; }
 .pnpatchhead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
-.pndate { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: var(--ink); }
-.pnlabel { font-family: var(--font-ui); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, transparent); border: 1px solid color-mix(in srgb, var(--acc) 35%, transparent); padding: 2px 9px; border-radius: 999px; }
-.pnempty { font-family: var(--font-ui); font-weight: 600; font-size: 14px; color: var(--ink3); padding: 18px 0; margin: 0; }
+.pndate { font-family: var(--font-ui); font-weight: 900; font-size: 19px; color: #fff; }
+.pnlabel { font-family: var(--font-ui); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #f6dfa2; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(232, 200, 119, 0.5); padding: 2px 9px; border-radius: 999px; }
+.pnempty { font-family: var(--font-ui); font-weight: 600; font-size: 14px; color: rgba(255, 255, 255, 0.6); padding: 18px 0; margin: 0; }
 .pnlist { margin: 0; padding: 0 0 0 2px; list-style: none; display: flex; flex-direction: column; gap: 6px; }
-.pnlist > li { font-family: var(--font-ui); font-weight: 600; font-size: 14.5px; line-height: 1.4; color: var(--ink2); }
+.pnlist > li { font-family: var(--font-ui); font-weight: 600; font-size: 15px; line-height: 1.45; color: rgba(244, 238, 226, 0.92); }
 /* Detailed view: the granular sub-bullets under a change. Indented, dimmer, with a real bullet to read as a
    breakdown rather than more headlines. */
 .pnsublist { margin: 6px 0 2px; padding: 0 0 0 18px; list-style: disc; display: flex; flex-direction: column; gap: 4px; }
-.pnsublist li { font-family: var(--font-ui); font-weight: 500; font-size: 13px; line-height: 1.4; color: var(--ink3); }
-.pnsublist li::marker { color: color-mix(in srgb, var(--ink3) 60%, transparent); }
-/* Summary ↔ Detailed pill toggle in the header. Two segments in one rounded track; the active side lifts. */
-.pntoggle { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); }
-.pntoggle-btn { font-family: var(--font-ui); font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink3); background: none; border: none; border-radius: 999px; padding: 5px 14px; transition: color 120ms ease, background 120ms ease; }
-.pntoggle-btn:hover { color: var(--ink2); }
-.pntoggle-btn.on { color: var(--bg); background: var(--acc); }
+.pnsublist li { font-family: var(--font-ui); font-weight: 500; font-size: 14px; line-height: 1.4; color: rgba(244, 238, 226, 0.66); }
+.pnsublist li::marker { color: rgba(196, 160, 92, 0.7); }
 
 /* ── IN-GAME HOVER BUBBLE (`.gtip[data-tip]`, owner ask 2026-09-24: "remove the window tooltips on these buttons
    (and every button)"). Native `title=` tooltips are banned (ESLint `no-restricted-syntax`, see CLAUDE.md); a hover
@@ -13153,7 +13145,7 @@ html[data-phone-gpu] .opphand-card.spent > img { filter: grayscale(0.72) brightn
    scale), which is what made a struck portrait appear to shrink. */
 
 /* ── BUG REPORTER (Ctrl+B, PR 1) — the incident-report modal + the §4.3 "finish the current effect" toast.
-   Glass-overlay language shared with the Patch Notes panel (.pnov/.pnpanel); restrained by design — one
+   Glass-overlay language; restrained by design — one
    one-shot fade-in, no looping animation (an interruption-recovery tool, blueprint §5.4). NO `cursor`
    anywhere here: the global `button` rule paints the gauntlet cursor (see CLAUDE.md's cursor note). ── */
 .bgrov { position: fixed; inset: 0; z-index: 560; display: grid; place-items: center; background: rgba(20, 14, 7, 0.55); backdrop-filter: blur(2px); animation: fadein 0.14s ease; }
@@ -14535,35 +14527,6 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .titlefoot .titlesecondary { padding-left: 0; }
 .titlefoot .titlesecondary button { font-size: 13px; }
 .titlefoot .titleversion { position: static; font-size: 12px; color: rgba(236, 220, 178, 0.5); }
-
-/* PATCH NOTES IN THE MENU SYSTEM (UI pass 2, 2026-10-16). It was the one light surface in the game: a cream sheet
-   with orange pills, reading the app's parchment tokens. It now wears the menu pages' navy + bronze panel, the
-   selected tab is the lit plate with gold letters (the WS-3 rule; never a gold fill), and the full-screen
-   backdrop-filter blur is gone (a plain dim; no full-screen backdrop-filter on the menus). */
-.pnov { background: rgba(4, 8, 18, 0.72); backdrop-filter: none; }
-.pnpanel { width: min(820px, calc(92 * var(--vw, 1vw))); color: #f4eee2;
-  border: 1.5px solid rgba(196, 160, 92, 0.6); border-radius: 16px;
-  background: linear-gradient(180deg, rgba(14, 23, 44, 0.98), rgba(8, 14, 28, 0.98));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 26px 60px -18px rgba(0, 0, 0, 0.85); }
-.pnhead { padding: 20px 24px 12px; }
-.pntitle { font-size: 30px; color: var(--ui-title, #f1d48a); letter-spacing: 0.04em; }
-.pnclose { color: rgba(236, 220, 178, 0.75); }
-.pnclose:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
-.pnbar { padding: 0 24px 14px; border-bottom-color: rgba(196, 160, 92, 0.22); }
-.pntabs, .pntoggle { background: rgba(0, 0, 0, 0.35); border-color: rgba(196, 160, 92, 0.35); }
-.pntab, .pntoggle-btn { color: rgba(236, 220, 178, 0.66); }
-.pntab:hover, .pntoggle-btn:hover { color: #f4eee2; }
-.pntab.on, .pntoggle-btn.on { color: var(--ui-title, #f1d48a); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-  background: var(--ui-sheen), var(--ui-hover-plate); box-shadow: var(--ui-bevel), inset 0 0 0 1px color-mix(in srgb, var(--ui-title, #f1d48a) 45%, transparent); }
-.pntab:focus-visible { outline-color: rgba(230, 200, 130, 0.95); }
-.pnscroll { padding: 6px 24px 24px; }
-.pnpatch { border-bottom-color: rgba(196, 160, 92, 0.14); }
-.pndate { font-size: 19px; color: #fff; }
-.pnlabel { color: #f6dfa2; background: rgba(0, 0, 0, 0.3); border-color: rgba(232, 200, 119, 0.5); }
-.pnempty { color: rgba(255, 255, 255, 0.6); }
-.pnlist > li { font-size: 15px; line-height: 1.45; color: rgba(244, 238, 226, 0.92); }
-.pnsublist li { font-size: 14px; color: rgba(244, 238, 226, 0.66); }
-.pnsublist li::marker { color: rgba(196, 160, 92, 0.7); }
 
 /* SETTINGS OVER THE MENUS: the close is "Done" on the Gem plate, not the gold Resume (the gold rule, UI pass 2). */
 .escclose.quiet { width: 36%; padding: 13px 12px; font-size: 18px; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);

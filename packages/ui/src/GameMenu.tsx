@@ -5,7 +5,7 @@
  *
  * Escape (or the gear) in a game slides in the main menu's own sidebar (`MenuSidebar`, in its in-game form: Resume, the
  * Shop clock, the pages, Settings, the leave button) over the game, which stays on screen DIMMED and keeps running.
- * A page opened from it (Career, Collection, Settings, ...) is the ordinary page host, drawn without its painted
+ * A page opened from it (Career, Collection, Settings, Patch Notes, ...) is the ordinary page host, drawn without its painted
  * backdrop so the dimmed game shows through (`.gmenu ~ .lbpage` in styles.css); the page carries the same rail, so this
  * layer's own rail hides under it (visibility only, so it never replays its slide-in).
  *
@@ -28,14 +28,15 @@ export function openMenu(): void {
   else st.openSettings();
 }
 
-/** THE ESCAPE KEY (Game.tsx's one listener). The Compendium and Patch Notes close first; then an open in-game menu closes
- *  (with any page it opened), or an open Settings page; a card being inspected claims Esc itself; else the menu opens. */
+/** THE ESCAPE KEY (Game.tsx's one listener). The Compendium closes first; then an open in-game menu closes (with any page
+ *  it opened, Patch Notes included), or an open Settings / Patch Notes page on the menus; a card being inspected claims
+ *  Esc itself; else the menu opens. */
 export function handleEscape(): void {
   const st = useGame.getState();
   if (st.showBook) { st.closeBook(); return; }
-  if (st.showPatchNotes) { st.closePatchNotes(); return; }
   if (st.gameMenuOpen) { st.closeGameMenu(); return; }
   if (st.settingsOpen) { st.closeSettings(); return; }
+  if (st.showPatchNotes) { st.closePatchNotes(); return; }
   if (st.inspect) return;
   openMenu();
 }

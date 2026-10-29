@@ -5030,7 +5030,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Conforms, built 2026-10-08. A God Mode run is a `sandbox` run (packages/sim/src/godMode.ts, packages/ui/src/store.ts): '
       + 'the save slot, Continue and the real save on disk are pinned by the store test. PARTIAL pin: no XP, crate, '
       + 'upload or replay rides the pre-existing `sandbox` write barrier, which these tests do not re-check.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/godModeStore.test.ts', 'packages/ui/src/EscMenuGodMode.test.tsx'], lastVerifiedAt: '2026-10-08' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/godModeStore.test.ts', 'packages/ui/src/gameMenu.test.tsx'], lastVerifiedAt: '2026-10-08' },
   },
   {
     id: 'R-GODMODE-02',

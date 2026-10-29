@@ -133,13 +133,14 @@ function ClockLine() {
   const s = Math.max(0, useTurnSeconds());
   const running = useTurnClockRunning();
   const waiting = goldClockWaiting(s);
-  const face = waiting ? 'Spend Gold' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-  const state = waiting ? 'Starts after Gold' : s <= 0 ? 'Time is up' : running ? 'Shop time left' : 'Shop clock paused';
+  // A Gold Fuse turn's clock has not started (it waits for the turn's first Gold to be spent): one plain line, no number.
+  const face = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const state = waiting ? 'Shop clock starts when you spend Gold' : s <= 0 ? 'Time is up' : running ? 'Shop time left' : 'Shop clock paused';
   return (
-    <div className={`msb-clock${!waiting && s <= 10 ? ' low' : ''}`} role="timer" aria-label={`${state}. ${waiting ? '' : face}`.trim()}>
+    <div className={`msb-clock${!waiting && s <= 10 ? ' low' : ''}`} role="timer" aria-label={waiting ? state : `${state}. ${face}`}>
       <span className="msb-clock-ic"><Icon name="clock" /></span>
       <span className="msb-clock-l">{state}</span>
-      <span className="msb-clock-v">{face}</span>
+      {!waiting && <span className="msb-clock-v">{face}</span>}
     </div>
   );
 }

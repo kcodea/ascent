@@ -451,9 +451,12 @@ export function Game() {
   // Discover layer as hero select opens, and Recruit warms the wipe on mount.
   useEffect(() => { if (!PHONE_GPU) warmDiscoverFx(); }, []);
   // A PHONE's menus shrink the stage with CSS zoom, not a transform (stage.ts, R-TOUCH-GPU-MEMORY-01). No-op on desktop.
-  useEffect(() => { setStageMenuZoom(preRun && !heroPicking); }, [preRun, heroPicking]);
+  // THE IN-GAME MENU (R-ESC-SIDEBAR-01) is a menu too: while it is open a phone fits the stage as on the menus, so the
+  // sidebar and its pages get the phone page layout instead of being cropped by the in-run zoom. Once per open / close.
+  const gameMenuOpen = useGame((s) => s.gameMenuOpen);
+  useEffect(() => { setStageMenuZoom((preRun && !heroPicking) || gameMenuOpen); }, [preRun, heroPicking, gameMenuOpen]);
   // …and the phone zoom (R-PHONE-ZOOM-01) only once a run is on screen: hero select keeps the plain fit.
-  useEffect(() => { setStageInRun(!preRun && !heroPicking); }, [preRun, heroPicking]);
+  useEffect(() => { setStageInRun(!preRun && !heroPicking && !gameMenuOpen); }, [preRun, heroPicking, gameMenuOpen]);
   // …and the screen-wipe's Pixi canvas the same way (perf 2026-10-10). Recruit warms it on mount, which put its
   // WebGL context creation (~200-450 ms, `getContext`) in the FIRST SHOP of the session as an unlabelled long task.
   // On idle at the title it is paid before any run; Recruit's own `warm()` then finds it ready (idempotent).

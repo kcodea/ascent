@@ -8208,7 +8208,10 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    it never replays its slide). Nothing loops. */
 .gmenu { position: fixed; inset: 0; z-index: 465; --sb-w: 240px; }
 .gmenu-veil { position: absolute; inset: 0; background: rgb(4, 8, 16); opacity: 0.6; transition: opacity 0.16s ease; animation: gm-veil-in 0.16s ease; }
-.gmenu.paged .gmenu-veil { opacity: 0.82; }
+.gmenu.paged .gmenu-veil { opacity: 0.9; }
+/* The rail itself is near-opaque in a game: its menu-page fill is see-through for the painted hall, which over a live
+   board let the hero portrait and the cards show through the plaques. */
+.msb.msb-ingame { background: linear-gradient(180deg, rgba(8, 16, 34, 0.97) 0%, rgba(10, 22, 46, 0.95) 40%, rgba(4, 9, 22, 0.97) 100%); }
 @keyframes gm-veil-in { from { opacity: 0; } }
 .gmenu-rail { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--sb-w) + var(--safe-l)); }
 .gmenu-rail > .msb { animation: gm-slide 0.2s cubic-bezier(0, 0, 0.2, 1); }
@@ -8221,7 +8224,7 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
   border: 1px solid rgba(196, 160, 92, 0.4); background: rgba(4, 9, 20, 0.6); color: #e7d9b5; font-family: var(--font-ui); }
 .msb-clock-ic { display: grid; place-items: center; width: 20px; height: 20px; flex: none; color: #d9b86a; }
 .msb-clock-ic svg { width: 18px; height: 18px; }
-.msb-clock-l { flex: 1; min-width: 0; font-weight: 700; font-size: 12.5px; letter-spacing: 0.04em; color: rgba(231, 217, 181, 0.8); }
+.msb-clock-l { flex: 1; min-width: 0; font-weight: 700; font-size: 12.5px; line-height: 1.25; letter-spacing: 0.04em; color: rgba(231, 217, 181, 0.8); }
 .msb-clock-v { font-weight: 900; font-size: 18px; font-variant-numeric: tabular-nums; color: #f6efe2; }
 .msb-clock.low { border-color: rgba(229, 112, 122, 0.75); }
 .msb-clock.low .msb-clock-v, .msb-clock.low .msb-clock-ic { color: #ff8a8f; }

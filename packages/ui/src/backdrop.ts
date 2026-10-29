@@ -86,12 +86,11 @@ export const TUNE_DEFAULTS: Readonly<BackdropTune> = {
 export const NUMBER_KEYS: readonly BackdropNumberKey[] =
   ['zoom', 'panX', 'panY', 'size', 'dark', 'blur', 'tintAmount'];
 
-/** The shared look (board shadow + hero shades) until the tuner saves it. Shade positions measured off the owner's
- *  screenshot (2026-10-29). */
+/** The shared look (board shadow + hero shades) until the tuner saves it: the owner's final values (2026-10-29). */
 export const SHARED_DEFAULTS: Readonly<SharedLook> = {
-  shadow: 0.72, shadowX: 6, shadowY: 8,
-  shadeDark: 0.6, shadeSoft: 70, shadeSize: 1100, shadeX: -1049, shadeY: 427,
-  powerShadeSize: 400, powerShadeX: -813, powerShadeY: 232, oppShadeSize: 900, oppShadeX: 1082, oppShadeY: -511,
+  shadow: 0.76, shadowX: 6, shadowY: 8,
+  shadeDark: 1, shadeSoft: 100, shadeSize: 1050, shadeX: -1080, shadeY: 427,
+  powerShadeSize: 0, powerShadeX: -60, powerShadeY: 232, oppShadeSize: 1020, oppShadeX: 1024, oppShadeY: -511,
 };
 export const SHARED_KEYS = Object.keys(SHARED_DEFAULTS) as SharedKey[];
 const HEX = /^#[0-9a-f]{6}$/i;

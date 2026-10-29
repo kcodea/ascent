@@ -11461,6 +11461,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-29 (feat/patch-notes-page). Before: Patch Notes was a centred overlay with its own close, opened from the title button and, in a game, from the in-game sidebar only; the menu sidebar had no Patch Notes plaque.',
     example: 'On Career, Ann taps Patch Notes on the sidebar: Career closes and Patch Notes opens beside the same sidebar. Mid-shop she presses Escape, taps Patch Notes, reads the Systems tab over her dimmed board, then presses Escape and is back in the Shop.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/patchNotesPage.test.tsx', 'packages/ui/src/PatchNotesBody.test.tsx', 'packages/ui/src/MenuSidebar.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
     id: 'R-LIVE-STATUS-01',
     title: 'Live Games shows each game at the same granularity as a friend\x27s row: the mode, the step and whom they fight, place, Health + Armor and tier, from the same status shape and formatters',
     statement:

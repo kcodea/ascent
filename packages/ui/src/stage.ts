@@ -23,6 +23,8 @@
 
 import { PHONE_DIAG, PHONE_GPU, setPixiPageScale } from './phoneDiag';
 import { isPhone } from './deviceClass';
+import { installSideways, realInnerSize, setSideways, sidewaysApplies, sidewaysInsets, sidewaysOn, sidewaysTransform } from './sideways';
+import { installLandscapeLock } from './orientationLock';
 
 /** The design viewport: the layout never goes smaller than this. The owner's 1080p desktop look. */
 export const DESIGN_W = 1920;
@@ -308,8 +310,9 @@ export function readSafeInsets(): SafeInsets {
  * screen too"). So the screen's own size, oriented by the current orientation, wins whenever it is the larger.
  */
 export function windowSize(base?: { w: number; h: number }): { w: number; h: number } {
-  let w = base ? base.w : window.innerWidth;
-  let h = base ? base.h : window.innerHeight;
+  const real = base ?? realInnerSize(); // never the swapped size the turned game sees (sideways.ts)
+  let w = real.w;
+  let h = real.h;
   try {
     const nav = navigator as Navigator & { standalone?: boolean };
     const standalone = nav.standalone === true
@@ -375,7 +378,7 @@ export function pageScale(): number { return pageScaleNow; }
 export function screenViewport(): { w: number; h: number } {
   const vv = window.visualViewport;
   if (vv && vv.width > 0 && vv.height > 0 && vv.scale > 0) return { w: vv.width * vv.scale, h: vv.height * vv.scale };
-  return { w: window.innerWidth, h: window.innerHeight };
+  return realInnerSize();
 }
 
 /**
@@ -427,10 +430,20 @@ function blockPinch(): void {
 
 export function applyStage(): StageFit {
   if (typeof window === 'undefined') return fit;
+  // SIDEWAYS (R-PHONE-SIDEWAYS-01): while a text field has the keyboard up on a turned phone, hold the fit. The keyboard
+  // shrinks the visible viewport, which on a turned game is its WIDTH: refitting would shrink the whole game under it.
+  if (sidewaysOn() && isEditing()) { const r = windowSize(screenViewport()); if (r.h > r.w) return fit; }
   const mode = stageMode();
   if (mode === 'page') return applyPageStage();
   if (pageScaleNow !== 1 || document.documentElement.hasAttribute('data-page-scale')) leavePageScale();
   return applyScaledStage();
+}
+
+/** A text field has focus (the on-screen keyboard is up on a phone). */
+function isEditing(): boolean {
+  const el = typeof document !== 'undefined' ? document.activeElement : null;
+  if (!el) return false;
+  return el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || (el as HTMLElement).isContentEditable === true;
 }
 
 /** Back from the page scale to a scale-1 page (a diagnostics switch, or a big tablet). */
@@ -447,8 +460,12 @@ function applyPageStage(): StageFit {
   const raw = readSafeInsets();
   if (cur === 1 && !de.hasAttribute('data-page-scale')) insetsAt1 = raw;
   learnInsetUnits(raw, cur);
-  const insets = screenInsets(raw, cur);
-  const { w, h } = windowSize(screenViewport());
+  const upright = windowSize(screenViewport());
+  // SIDEWAYS (R-PHONE-SIDEWAYS-01): a phone held upright fits the LANDSCAPE game (the window's sides and safe area
+  // turned), and the stage is turned onto the screen below.
+  const side = sidewaysApplies(isPhone(), upright.w, upright.h);
+  const insets = side ? sidewaysInsets(screenInsets(raw, cur)) : screenInsets(raw, cur);
+  const { w, h } = side ? { w: upright.h, h: upright.w } : upright;
   const phoneLayout = phoneLayoutApplies(isPhone(), w, h, !!PHONE_DIAG.phonelayout);
   de.toggleAttribute('data-phone-layout', phoneLayout);
   const phoneZoom = !phoneLayout && phoneZoomApplies(isPhone(), w, h, !!PHONE_DIAG.nophonezoom, inRun);
@@ -460,13 +477,15 @@ function applyPageStage(): StageFit {
   // already in layout px, so the fit it sees is unscaled (`s === 1`); the box, the safe area and the bars stay as fitted.
   // The meta viewport takes a whole layout width, so the scale is snapped to it (under 0.05%): the browser's own scale,
   // width / layout width, is then exactly the one the layout is sized for.
-  const k = w / Math.max(1, Math.round(vis.lw));
+  // Turned, the upright document is the layout HEIGHT wide, so that is the width the scale snaps to.
+  const k = side ? h / Math.max(1, Math.round(vis.lh)) : w / Math.max(1, Math.round(vis.lw));
   fit = { ...vis, s: 1, vs: k, lw: w / k, lh: h / k };
   pageScaleNow = k;
   setPixiPageScale(k);
   blockPinch();
   de.setAttribute('data-page-scale', String(Number(k.toFixed(4))));
-  setViewportMeta(pageViewportContent(fit.lw, k));
+  setViewportMeta(pageViewportContent(side ? fit.lh : fit.lw, k));
+  setSideways(side, fit.lh);
   writeFitVars(fit, w, h, insets, phoneLayout);
   // The stage-scale var stays the screen scale (screen px per layout px): the crash readout counter-scales by it.
   de.style.setProperty('--stage-s', String(k));
@@ -474,7 +493,8 @@ function applyPageStage(): StageFit {
   if (root) {
     root.style.width = `${fit.lw}px`;
     root.style.height = `${fit.lh}px`;
-    root.style.removeProperty('transform'); root.style.removeProperty('zoom');
+    root.style.removeProperty('zoom');
+    if (side) root.style.transform = sidewaysTransform(fit.lh); else root.style.removeProperty('transform');
   }
   listeners.forEach((l) => l(fit));
   return fit;
@@ -500,7 +520,11 @@ function writeFitVars(next: StageFit, w: number, h: number, insets: SafeInsets, 
 }
 
 function applyScaledStage(): StageFit {
-  const { w, h } = windowSize();
+  const upright = windowSize();
+  // SIDEWAYS (R-PHONE-SIDEWAYS-01) on the transform path (a phone diagnostics switch): the same turn, before the scale.
+  // Never on the `zoom` switch (no transform to turn with) and never on desktop (`sidewaysApplies` needs a phone).
+  const side = stageMode() === 'transform' && sidewaysApplies(isPhone(), upright.w, upright.h);
+  const { w, h } = side ? { w: upright.h, h: upright.w } : upright;
   // THE PHONE LAYOUT (R-PHONE-LAYOUT-01): a phone in landscape lays out in the 2:1 box. Decided per fit (a rotation to
   // portrait drops it), written as `data-phone-layout` for phoneLayout.css. Desktop never has the attribute.
   const phoneLayout = phoneLayoutApplies(isPhone(), w, h, !!PHONE_DIAG.phonelayout);
@@ -511,7 +535,7 @@ function applyScaledStage(): StageFit {
   // …and whether it is on the MENUS (title, mode pages) rather than hero select or a run: the in-game composition's
   // corner-button seats do not apply there (phoneLayout.css).
   document.documentElement.toggleAttribute('data-phone-menus', phoneLayout && menuZoom);
-  const insets = readSafeInsets();
+  const insets = side ? sidewaysInsets(readSafeInsets()) : readSafeInsets();
   const next = fitStage(w, h, insets, phoneLayout ? PHONE_DESIGN_W : DESIGN_W, phoneZoom ? phoneZoomOf(PHONE_DIAG) : 1, isPhone() && !phoneLayout);
   fit = next;
   const de = document.documentElement.style;
@@ -534,9 +558,10 @@ function applyScaledStage(): StageFit {
   // screen on every phone, whatever bottom inset its browser reports. Never written off a phone (they fall back to --safe-b).
   if (isPhone() && w > h && !phoneLayout) de.setProperty('--pz-safe-b', `${phoneBottomStrip(h, insets.bottom) / next.s}px`);
   else de.removeProperty('--pz-safe-b');
-  // A TABLET may play upright, letterboxed (owner 2026-10-18, R-TOUCH-ROTATE-01): the rotate prompt is phones only.
+  // A TABLET may play upright, letterboxed (owner 2026-10-18, R-TOUCH-ROTATE-01); a phone held upright plays turned (R-PHONE-SIDEWAYS-01).
   document.documentElement.toggleAttribute('data-tablet', isTabletSize(w, h));
   const root = stageHost();
+  setSideways(side && next.s !== 1, upright.w);
   if (next.s === 1) {
     // Identity: the pre-stage behaviour exactly. Viewport units resolve against the real window.
     de.removeProperty('--lvw'); de.removeProperty('--lvh'); de.removeProperty('--vw'); de.removeProperty('--vh');
@@ -554,7 +579,7 @@ function applyScaledStage(): StageFit {
       // The `zoom` phone diagnostics switch only (the old phone path, before the page scale, R-PHONE-PAGESCALE-01).
       // Desktop never takes this branch (`PHONE_GPU` is false there).
       if (stageMode() === 'zoom') { root.style.removeProperty('transform'); root.style.zoom = String(next.s); }
-      else { root.style.removeProperty('zoom'); root.style.transform = `scale(${next.s})`; }
+      else { root.style.removeProperty('zoom'); root.style.transform = side ? sidewaysTransform(upright.w, next.s) : `scale(${next.s})`; }
     }
   }
   listeners.forEach((l) => l(next));
@@ -587,6 +612,8 @@ let installed = false;
 export function installStage(): void {
   if (installed || typeof window === 'undefined') return;
   installed = true;
+  // Phones only (R-PHONE-SIDEWAYS-01): the turned-render coordinate frame, and Android's landscape lock on the first tap.
+  if (isPhone()) { installSideways(); installLandscapeLock(); }
   applyStage();
   // iOS reports a rotation before its new size (and its new safe-area insets) settle, so a rotation fits again a
   // beat later. Two timers per rotation, never per frame.

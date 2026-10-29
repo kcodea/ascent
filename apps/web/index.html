@@ -15,6 +15,20 @@
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
     <title>ASCENT</title>
+    <!-- SIDEWAYS (R-PHONE-SIDEWAYS-01, owner 2026-10-29): a phone held upright plays the landscape game turned a quarter
+         turn, never a "rotate your device" step. stage.ts owns `data-sideways` once the bundle runs; this sets it before
+         the first paint so the splash below already comes up turned. Same test as stage.ts: a coarse pointer, a screen
+         whose shorter side is a phone's, a window taller than wide. -->
+    <script>
+      (function () {
+        try {
+          var m = Math.min(screen.width, screen.height);
+          if (m > 0 && m <= 600 && window.matchMedia('(pointer: coarse)').matches && window.innerHeight > window.innerWidth) {
+            document.documentElement.setAttribute('data-sideways', '');
+          }
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
     <!-- FIRST-PAINT SPLASH. Fetched with high priority so it is on screen before the ~3 MB JS bundle has even
          parsed — a React-rendered splash cannot appear until after that, which on a cold load is the exact
          second the screen is blank. -->
@@ -108,6 +122,9 @@
       }
       #bootsplash.is-in #bootsplash-img { opacity: 1; }
       #bootsplash.is-out { opacity: 0; pointer-events: none; }
+      /* Turned with the game on an upright phone (R-PHONE-SIDEWAYS-01): the same quarter turn as the stage. */
+      html[data-sideways] #bootsplash { inset: auto; left: 100vw; top: 0; width: 100vh; height: 100vw; transform-origin: 0 0; transform: rotate(90deg); }
+      html[data-sideways] #bootsplash-bar { bottom: 22.5vw; width: min(413px, 46vh); }
       #bootsplash-bar {
         position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--ls-bar-bottom, 22.5vh);
         width: var(--ls-bar-w, min(413px, 46vw)); height: var(--ls-bar-h, 8px); border-radius: 999px;

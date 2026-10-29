@@ -7136,10 +7136,11 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-TOUCH-ROTATE-01',
-    title: 'A tablet can play upright; only a phone is asked to rotate',
+    title: 'A tablet can play upright, letterboxed (a phone plays turned instead, R-PHONE-SIDEWAYS-01)',
     statement:
-      'Held upright, a phone shows the "Rotate your device" prompt. A tablet (its shorter side at least 700 px) plays '
-      + 'upright too, with the 16:9 game letterboxed top and bottom and the backgrounds filling the rest.',
+      'A tablet (its shorter side at least 700 px) plays upright, with the 16:9 game letterboxed top and bottom and the '
+      + 'backgrounds filling the rest. A phone held upright is no longer asked to rotate: since 2026-10-29 it plays the '
+      + 'landscape game turned a quarter turn (R-PHONE-SIDEWAYS-01).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -7147,7 +7148,27 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/stage.ts (isTabletSize, data-tablet); styles.css (.rotate-prompt); Boot.tsx (wording)' },
     ],
     currentBehaviour: 'Conforms as of 2026-10-18 (fix/mobile-touch-input). Before, every touch device in portrait was blocked and the prompt said "phone".',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/safeArea.test.ts'], lastVerifiedAt: '2026-10-18' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/safeArea.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-PHONE-SIDEWAYS-01',
+    title: 'A phone always plays in landscape: held upright it plays the game turned, never a rotate step',
+    statement:
+      'A phone never shows a "rotate your device" screen. Held upright, it lays the game out exactly as the same phone in '
+      + 'landscape and draws it turned a quarter turn clockwise (the notch on the left of the game), so it plays sideways at once; '
+      + 'turned to landscape it plays normally. Every tap, drag, long-press and measured position lands on what is drawn '
+      + 'under the finger (the screen-geometry APIs report the landscape frame of the game while turned). On Android the first '
+      + 'tap also asks for fullscreen and locks the screen to landscape; a refusal is silent and the turned render stays. '
+      + 'iOS has no orientation lock for web pages, so an iPhone always uses the turned render. The installed app asks for '
+      + 'landscape in its manifest. Tablets keep playing upright, letterboxed (R-TOUCH-ROTATE-01). Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-29', quote: "Make it so mobile only loads in landscape so it doesn't require a rotate" },
+      { kind: 'code', ref: 'packages/ui/src/sideways.ts (turned frame + wrapped geometry APIs); stage.ts (turned fit + transform); orientationLock.ts (Android lock); apps/web/index.html (turned splash); apps/web/public/manifest.webmanifest (orientation: landscape)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-29 (feat/mobile-landscape-only). Before, a phone held upright showed the "Rotate your device" prompt.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/sideways.test.ts', 'packages/ui/src/orientationLock.test.ts', 'scripts/phone-sideways.mjs'], lastVerifiedAt: '2026-10-29' },
   },
   // ── Phones get a short loading gate, small art and bounded memory (owner 2026-10-18, phone-only relaxation) ────
   {

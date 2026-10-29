@@ -16,6 +16,7 @@
  * Repositioning runs on focus and on `visualViewport` resize / scroll only, never per frame.
  */
 import { cssSafeInsets, pageScale } from './stage';
+import { rectScreenToGame, sidewaysOn, sidewaysWidth } from './sideways';
 
 /** The field kinds that bring up a text keyboard. */
 const TEXT_TYPES = new Set(['', 'text', 'email', 'search', 'url', 'tel', 'password', 'number']);
@@ -73,8 +74,12 @@ export function installTouchKeyboard(enabled: () => boolean): () => void {
     // `k` screen px each; everywhere else `k` is 1.
     const k = pageScale();
     const vv = window.visualViewport;
-    const view: ViewportBox = vv
-      ? { left: vv.offsetLeft * k, top: vv.offsetTop * k, width: vv.width * k, height: vv.height * k }
+    // Turned (R-PHONE-SIDEWAYS-01): the visible viewport is reported upright; the field is placed in the game's frame,
+    // along the game's bottom edge beside the keyboard (which covers the game's right-hand side).
+    const vr = vv ? { left: vv.offsetLeft, top: vv.offsetTop, width: vv.width, height: vv.height } : null;
+    const vg = vr && sidewaysOn() ? rectScreenToGame(vr, sidewaysWidth()) : vr;
+    const view: ViewportBox = vg
+      ? { left: vg.left * k, top: vg.top * k, width: vg.width * k, height: vg.height * k }
       : { left: 0, top: 0, width: window.innerWidth * k, height: window.innerHeight * k };
     const ins = cssSafeInsets();
     const target = liftBox(view, ins.left * k, ins.right * k, ins.bottom * k);

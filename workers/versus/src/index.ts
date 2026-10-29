@@ -65,7 +65,12 @@ export default {
       // The verified user rides an internal header (the object is only reachable through this Worker).
       const headers = new Headers(req.headers);
       headers.set(INTERNAL_USER_HEADER, caller.userId);
-      return stub.fetch(new Request(req, { headers }));
+      const res = await stub.fetch(new Request(req, { headers }));
+      // A room that is gone (closed and forgotten) answers 404. If the directory still says the caller is in it (its
+      // closing write was lost), that stale claim would refuse every new room with `already_in_room` and point `/me/room`
+      // at a room no socket can open: drop it now (R-VERSUS-CF-CONNECT-01). `release` only drops a claim on THIS room.
+      if (res.status === 404) await dir.release(caller.userId, ws[1].toLowerCase()).catch(() => undefined);
+      return res;
     }
     const lv = LIVE_WS.exec(url.pathname);
     if (lv) {

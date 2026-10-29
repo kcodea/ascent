@@ -10903,4 +10903,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann pings Check on her hand card, then drags it to the board: the check is gone.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-VERSUS-CF-CONNECT-01',
+    title: 'Versus on Cloudflare: opening a room never hangs; Duo + Play always ends in a party or a reason',
+    statement:
+      'Opening a Cloudflare room\x27s socket waits at most 10 s for the room\x27s hello, then fails with `timeout` (a refused upgrade, a '
+      + 'socket that never answers, a fatal close before the hello and a socket replaced by a newer room all fail the open instead of '
+      + 'leaving it pending). A room CREATE that times out is made on Supabase instead (the cutover router\x27s "Cloudflare unreachable" '
+      + 'rule); a read, join or leave shows its error. Duo + Play has its own 20 s deadline: past it the Ranked Duos door shows "Your party '
+      + 'did not open. Try again." with Try again (Back is the Modes crumb), and losing the party while its door is on screen shows "Your '
+      + 'party closed." So "Opening your party..." only ever shows while an open is in flight. The Worker drops a caller\x27s directory '
+      + 'claim on a room that answers its socket with 404 (gone), so a lost closing write can no longer refuse every new room with '
+      + '`already_in_room` or point `/me/room` at a room nobody can open.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-29 (prod 6c135033a, versus_host_config ranked_duos = cf)', quote: 'Opening your party... forever' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27', quote: 'need to be spotless experiences' },
+      { kind: 'code', ref: 'workers/versus/src/client.ts (connectTimeoutMs, failWaiters), packages/ui/src/versus/versusCfRemote.ts (socket), packages/ui/src/versus/versusStore.ts (enterDuosParty, leaveRoom), workers/versus/src/index.ts (404 release)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-29 (fix/ranked-duos-party-cf). Before, a Cloudflare room socket that could not open retried for ever and its connect() never settled; Duo + Play awaits a read of the held room first, so it sat on "Opening your party..." with no error.',
+    example: 'Kev presses Duo + Play. His account still points at a Cloudflare room that is gone. The read gives up after 10 s, the Worker drops the stale claim, and his new party opens. If nothing answers at all, after 20 s the door says "Your party did not open. Try again."',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientConnect.test.ts', 'workers/versus/test/staleClaim.test.ts', 'packages/ui/src/versus/rankedDuosPartyCf.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
 ];

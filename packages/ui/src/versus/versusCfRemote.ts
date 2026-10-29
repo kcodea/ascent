@@ -45,6 +45,12 @@ import type {
 const HOST_KEY = 'ascent.versusHost';
 const URL_KEY = 'ascent.versusCfUrl';
 export const VERSUS_CF_DEFAULT_URL = 'http://127.0.0.1:8787';
+/**
+ * THE ROOM SOCKET NEVER HANGS (R-VERSUS-CF-CONNECT-01, live 2026-10-29: Duo + Play sat on "Opening your party..." for
+ * good on the Cloudflare host). Opening a room's socket waits at most this long for the room's hello; past it the call
+ * fails with `timeout` (the cutover router then makes a NEW room on Supabase; a read or join shows its error).
+ */
+export const VERSUS_CF_CONNECT_TIMEOUT_MS = 10_000;
 /** The deployed Worker for THIS build's engine (`workers/versus/scripts/deploy.ts` names it the same way). */
 export const versusCfLiveUrl = (rev: string = contentRevision()): string =>
   `https://ascent-versus-v${VERSUS_CF_PROTOCOL}-${rev}.team-ascent.workers.dev`;
@@ -214,8 +220,9 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     group = null;
     groupRounds.clear();
     rankedRounds.clear();
-    client = new VersusCfClient({
+    const c = new VersusCfClient({
       baseUrl: base, roomId: id, token, versusProtocol: VERSUS_PROTOCOL, contentRevision: contentRevision(),
+      connectTimeoutMs: VERSUS_CF_CONNECT_TIMEOUT_MS,
       ws: (url, protocols) => new WebSocket(url, protocols) as never, onPush,
       // The network is back: reconnect now, not after the backoff (R-VERSUS-CF-RECONNECT-01).
       wake: (fn) => {
@@ -224,8 +231,17 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
         return () => window.removeEventListener('online', fn);
       },
     });
-    await client.connect().catch(err);
-    return client;
+    client = c;
+    try {
+      await c.connect();
+    } catch (e) {
+      // A socket that never opened is dropped (a later call opens a fresh one) rather than left retrying behind a caller
+      // that has already been told it failed.
+      if (client === c) { c.close(); client = null; roomId = null; }
+      else c.close();
+      return err(e);
+    }
+    return c;
   }
 
   async function req<T>(id: string | null, op: Parameters<VersusCfClient['request']>[0], args: Record<string, unknown> = {}): Promise<T> {

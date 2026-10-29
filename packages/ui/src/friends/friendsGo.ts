@@ -14,7 +14,7 @@ import { defaultRoomName } from '../versus/VersusTitle';
 import { decodeRoomRef } from '../versus/versusHost';
 import { versusEnabled } from '../versus/versusFlag';
 import { watchLiveGame } from '../live/liveWatch';
-import { flashFriends, iAmPlaying, inviteFriend, mySpectateTarget, parseSpectateTarget, registerInviteHandler } from './friendsStore';
+import { blockPlayer, flashFriends, iAmPlaying, inviteFriend, mySpectateTarget, parseSpectateTarget, registerInviteHandler, removeFriend } from './friendsStore';
 import type { Friend, FriendInvite } from './friendsRemote';
 
 /** Open Versus and enter a room (as a player: into the room's hand, a seat one drag away; or in the stands). */
@@ -80,13 +80,22 @@ export async function acceptSpectateInvite(invite: FriendInvite): Promise<void> 
 
 // ── THE FRIEND MENU (owner 2026-10-29, R-FRIENDS-MENU-01): right-click / long-press on a friend row ───────────────
 
-export type FriendMenuAction = 'spectate' | 'invite_lobby' | 'invite_duos' | 'invite_spectate';
+export type FriendMenuAction = 'spectate' | 'invite_lobby' | 'invite_duos' | 'invite_spectate' | 'remove' | 'block';
 export interface FriendMenuEntry {
   id: FriendMenuAction;
   label: string;
   /** Shown but not pressable, with this short reason (a room invite while I am mid-game). */
   disabled?: string;
+  /** A harmful entry (Remove friend, Block): set apart at the bottom, and the first press only arms it, showing this
+   *  label; the second press acts (R-FRIENDS-MENU-03). */
+  confirm?: string;
 }
+
+/** The last two entries of every friend's menu (owner 2026-10-29, R-FRIENDS-MENU-03): the row no longer shows them. */
+export const FRIEND_MENU_HARM: readonly FriendMenuEntry[] = [
+  { id: 'remove', label: 'Remove friend', confirm: 'Remove? Press again' },
+  { id: 'block', label: 'Block', confirm: 'Block? Press again' },
+];
 
 /** What the menu needs to know about ME right now (pure inputs, so the entries are testable). */
 export interface FriendMenuContext {
@@ -120,7 +129,14 @@ export function friendMenuEntries(f: Pick<Friend, 'status' | 'mode' | 'watchKind
   if (f.status === 'in_game' && f.watchId && (f.watchKind === 'live' || f.watchKind === 'versus')) {
     out.push(ctx.playing ? { id: 'spectate', label: 'Spectate', disabled: FINISH_FIRST } : { id: 'spectate', label: 'Spectate' });
   }
-  if (f.status !== 'online') return out;
+  if (f.status === 'online') out.push(...onlineEntries(f, ctx));
+  // Remove friend and Block, always, last (R-FRIENDS-MENU-03).
+  out.push(...FRIEND_MENU_HARM);
+  return out;
+}
+
+function onlineEntries(f: Pick<Friend, 'mode'>, ctx: FriendMenuContext): FriendMenuEntry[] {
+  const out: FriendMenuEntry[] = [];
   if (ctx.versus && f.mode !== 'versus_room') {
     const room = ctx.room;
     const busy = ctx.inGame || (!!room && room.status !== 'open') ? FINISH_FIRST : undefined;
@@ -195,6 +211,9 @@ export function runFriendMenu(action: FriendMenuAction, f: Friend): Promise<bool
     case 'invite_lobby': return inviteToRoom(f.userId, 'versus');
     case 'invite_duos': return inviteToRoom(f.userId, 'duos');
     case 'invite_spectate': return inviteToSpectate(f.userId);
+    // The existing friends API (block also stops their messages and invites, server side).
+    case 'remove': return removeFriend(f.userId).then(() => true);
+    case 'block': return blockPlayer(f.userId).then(() => true);
   }
 }
 

@@ -53,6 +53,7 @@ const friend = (id: string, author: string, extra: Partial<Friend> = {}): Friend
 const emptyList = (): FriendsList => ({ friends: [], incoming: [], outgoing: [], blocked: [], invites: [], sent: [], serverNow: new Date().toISOString() });
 
 let lists = 0;
+let harmed: string[] = [];
 let invites: Array<{ to: string; kind: InviteKind; target: string; proof: string | null | undefined }> = [];
 let list: FriendsList = emptyList();
 function fakeRemote(): FriendsRemote {
@@ -61,6 +62,8 @@ function fakeRemote(): FriendsRemote {
     leave: () => true,
     list: async () => { lists++; return list; },
     invite: async (to: string, kind: InviteKind, target: string, proof?: string | null) => { invites.push({ to, kind, target, proof }); return { id: 'i1', kind, target, expiresAt: new Date(Date.now() + 120_000).toISOString() }; },
+    remove: async (id: string) => { harmed.push(`remove:${id}`); },
+    block: async (id: string) => { harmed.push(`block:${id}`); },
     subscribeInvites: () => ({ channel: null, close: () => undefined }),
   } as unknown as FriendsRemote;
 }
@@ -81,7 +84,7 @@ beforeEach(() => {
   resetDockForTests();
   setFriendsRemoteForTests(fakeRemote());
   setInviteProofSourceForTests(async (room, to, kind) => `proof:${room}:${to}:${kind}`);
-  lists = 0; invites = [];
+  lists = 0; invites = []; harmed = [];
   Object.assign(net, { live: true, created: [], parties: [], watched: [], joined: [] });
   (globalThis as { __host?: string }).__host = undefined;
   list = {
@@ -193,7 +196,8 @@ describe('the dock (R-FRIENDS-DOCK-01)', () => {
 
 describe('the friend menu entries (R-FRIENDS-MENU-01)', () => {
   const free: FriendMenuContext = { versus: true, inGame: false, playing: false, room: null, spectate: null };
-  const ids = (f: Friend, ctx: FriendMenuContext) => friendMenuEntries(f, ctx).map((e) => (e.disabled ? `${e.id}(${e.disabled})` : e.id));
+  // Remove friend + Block always close the list (asserted in R-FRIENDS-MENU-03 below), so these cases read the rest.
+  const ids = (f: Friend, ctx: FriendMenuContext) => friendMenuEntries(f, ctx).filter((e) => !e.confirm).map((e) => (e.disabled ? `${e.id}(${e.disabled})` : e.id));
   const amy = friend('u-amy', 'Amy', { status: 'online' });
   const room = (mode: string, status = 'open', seated = 1) => ({ status, options: { v: 1, mode, modifiers: [] }, members: Array.from({ length: seated }, (_, i) => ({ userId: `u${i}`, role: `p${i + 1}`, displayName: 'x' })) }) as never;
 
@@ -226,7 +230,7 @@ describe('the friend menu entries (R-FRIENDS-MENU-01)', () => {
     const row = q('.fdock-rowmain[aria-label="Message Amy#1234"]')!;
     act(() => { row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 300, clientY: 200 })); });
     const items = [...document.body.querySelectorAll('.frmenu-item')];
-    expect(items.map((b) => b.querySelector('.frmenu-label')?.textContent)).toEqual(['Invite to lobby', 'Invite to Duos', 'Invite to spectate']);
+    expect(items.map((b) => b.querySelector('.frmenu-label')?.textContent)).toEqual(['Invite to lobby', 'Invite to Duos', 'Invite to spectate', 'Remove friend', 'Block']);
     expect((items[0] as HTMLButtonElement).disabled).toBe(true);
     expect(items[0]!.textContent).toContain(FINISH_FIRST);
     expect(useFriendsDock.getState().dmWith).toBeNull(); // right-click is not a click: no DM
@@ -243,10 +247,10 @@ describe('the friend menu on the Friends page (the main menu)', () => {
     await flush();
     const row = [...document.body.querySelectorAll('.fr-row')].find((r) => r.textContent?.includes('Gus#1234'))!;
     act(() => { row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 })); });
-    expect([...document.body.querySelectorAll('.frmenu-label')].map((n) => n.textContent)).toEqual(['Spectate']);
+    expect([...document.body.querySelectorAll('.frmenu-label')].map((n) => n.textContent)).toEqual(['Spectate', 'Remove friend', 'Block']);
     const amy = [...document.body.querySelectorAll('.fr-row')].find((r) => r.textContent?.includes('Amy#1234'))!;
     act(() => { amy.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 })); });
-    expect([...document.body.querySelectorAll('.frmenu-label')].map((n) => n.textContent)).toEqual(['Invite to lobby', 'Invite to Duos']);
+    expect([...document.body.querySelectorAll('.frmenu-label')].map((n) => n.textContent)).toEqual(['Invite to lobby', 'Invite to Duos', 'Remove friend', 'Block']);
     const esc = vi.fn();
     window.addEventListener('keydown', esc);
     act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
@@ -329,6 +333,70 @@ describe('the friend menu actions', () => {
 
   it('openFriendMenu reads the entries once, at open', () => {
     openFriendMenu(friend('u-amy', 'Amy', { status: 'online' }), 10, 10);
-    expect(useFriendMenu.getState().entries.map((e) => e.id)).toEqual(['invite_lobby', 'invite_duos']);
+    expect(useFriendMenu.getState().entries.map((e) => e.id)).toEqual(['invite_lobby', 'invite_duos', 'remove', 'block']);
+  });
+});
+
+describe('Remove friend and Block live in the menu, never on the row (R-FRIENDS-MENU-03)', () => {
+  const free: FriendMenuContext = { versus: true, inGame: false, playing: false, room: null, spectate: null };
+
+  it('every friend menu ends with Remove friend then Block, whatever their status or mine', () => {
+    for (const f of [friend('u', 'Oli'), friend('u', 'Amy', { status: 'online' }), friend('u', 'Gus', { status: 'in_game', watchKind: 'live', watchId: 'r' })]) {
+      for (const ctx of [free, { ...free, inGame: true, playing: true }, { ...free, versus: false }]) {
+        const e = friendMenuEntries(f, ctx);
+        expect(e.slice(-2).map((x) => [x.id, x.label, !!x.disabled])).toEqual([['remove', 'Remove friend', false], ['block', 'Block', false]]);
+      }
+    }
+  });
+
+  it('the Friends page rows show no Remove or Block button; the menu sets them apart and each asks once more before it acts', async () => {
+    // An earlier test's catcher press armed swallowNextClick (eats the next click within 700 ms): spend it here.
+    act(() => { document.body.click(); });
+    useGame.setState({ showFriends: true });
+    ui = mount(<><FriendsPage /><FriendMenu /></>);
+    await flush();
+    const rows = [...document.body.querySelectorAll('.fr-row')];
+    expect(rows.length).toBe(3);
+    for (const r of rows) expect([...r.querySelectorAll('button')].map((b) => b.textContent)).not.toContain('Remove');
+    for (const r of rows) expect([...r.querySelectorAll('button')].map((b) => b.textContent)).not.toContain('Block');
+    const oli = rows.find((r) => r.textContent?.includes('Oli#1234'))!;
+    act(() => { oli.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 })); });
+    // An offline friend: only the two, behind the divider.
+    expect([...document.body.querySelectorAll('.frmenu > *')].map((n) => n.className.split(' ')[0])).toEqual(['atip-title', 'frmenu-sep', 'frmenu-item', 'frmenu-item']);
+    const item = (label: string) => [...document.body.querySelectorAll('.frmenu-item')].find((b) => b.textContent?.startsWith(label)) as HTMLElement;
+    click(item('Remove friend'));
+    expect(harmed).toEqual([]); // first press only arms it
+    expect(q('.frmenu')).not.toBeNull();
+    expect(item('Remove? Press again').classList.contains('frmenu-armed')).toBe(true);
+    click(item('Remove? Press again'));
+    await flush();
+    expect(harmed).toEqual(['remove:u-off']);
+    expect(q('.frmenu')).toBeNull();
+    // Block, the same two presses; closing the menu in between disarms it.
+    act(() => { oli.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 })); });
+    click(item('Block'));
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    act(() => { oli.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 })); });
+    expect(item('Block')).toBeTruthy();
+    click(item('Block'));
+    click(item('Block? Press again'));
+    await flush();
+    expect(harmed).toEqual(['remove:u-off', 'block:u-off']);
+    expect(document.body.querySelector('[title]')).toBeNull();
+  });
+
+  it('in the dock: Block from the menu keeps the dock open (it is not a trip somewhere)', async () => {
+    inRun();
+    ui = mount(<><FriendsDock /><FriendMenu /></>);
+    click(q('.fdock-btn'));
+    await flush();
+    const row = q('.fdock-rowmain[aria-label="Message Amy#1234"]')!;
+    act(() => { row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 300, clientY: 200 })); });
+    const item = (label: string) => [...document.body.querySelectorAll('.frmenu-item')].find((b) => b.textContent?.startsWith(label)) as HTMLElement;
+    click(item('Block'));
+    click(item('Block? Press again'));
+    await flush();
+    expect(harmed).toEqual(['block:u-amy']);
+    expect(useFriendsDock.getState().phase).toBe('open');
   });
 });

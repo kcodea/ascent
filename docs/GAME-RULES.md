@@ -1476,8 +1476,10 @@ Ranked Duos party).
   **Blocked** (Unblock; shown while someone is blocked). A friend in a game shows its mode (Ranked, Casual, Practice,
   Tutorial, Gauntlet, Versus 1v1 / Group / Duos, Ranked Duos) and Watch when it is watchable: a ranked lobby game
   through Live Games, a Versus match from their room's stands. A guest's button opens "Sign in to add friends." In a
-  game the button tucks in smaller under the hero's Health plate with its counts beside it; on the menus the side
-  menu's Settings plaque and the title's footer links make room for it.
+  game the button tucks in smaller under the hero's Health plate with its counts beside it. On a menu it lives in the
+  menu's own corner space (R-FRIENDS-DOCK-03): the side menu's foot under Settings, or under the title menu's last
+  plaque; it never moves the footer or a plaque, and its panel opens to the RIGHT of that menu so no menu button is
+  hidden.
 - **Presence.** Online = on a menu (including a Versus room between matches); In a game = playing; Offline = nothing
   heard for 5 minutes (or the game was closed). Only you and your friends can read your presence. It is never broadcast.
 - **What a friend is doing** (owner 2026-10-29, R-FRIENDS-ACTIVITY-01). Online, the row names the screen: Main menu,

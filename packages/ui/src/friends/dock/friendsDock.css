@@ -56,13 +56,18 @@ html[data-phone-zoom] .fdock-btn { bottom: calc(var(--pz-safe-b, var(--safe-b)) 
 @keyframes fdockout { to { opacity: 0; transform: translateY(14px) scale(0.96); } }
 html[data-phone-zoom] .fdock-stack { bottom: calc(var(--pz-safe-b, var(--safe-b)) + var(--fdock-y) + var(--fdock-cb) + 10px); }
 
-/* Room for the button on the menus: the side menu's Settings plaque lifts above it, and the title's footer links start
-   to its right (html[data-fdock] is set while the button is on screen). */
-html[data-fdock] { --fdock-room: calc(40 * var(--u)); }
-html[data-fdock][data-touch-ui] { --fdock-room: var(--touch-cb); }
-html[data-fdock] .msb { padding-bottom: calc(22px + var(--safe-b) + var(--fdock-room) + 14px); }
-html[data-fdock][data-touch-ui][data-touch-small][data-page-scale] .msb { padding-bottom: calc(6 * var(--pt) + var(--pz-safe-b, var(--safe-b)) + var(--fdock-room) + 14px); }
-html[data-fdock] .titlefoot { left: calc((var(--safe-l) + 12px + var(--fdock-room) + 18px) / var(--ui-zoom, 1)); }
+/* A MENU'S OWN CORNER SPACE (R-FRIENDS-DOCK-03). The side menu's foot (under Settings) and the title menu's column
+   (under its last plaque) carry a `.fdock-slot`; the button is portalled INTO it, so it moves and scales with that
+   layout and never sits on top of anything. The panel then opens beside the slot's column (`.beside`, placed in stage
+   px by `useDockAnchor`), never over the menu's own buttons. An empty slot (no dock: no backend) takes no room. */
+.fdock-slot:empty { display: none; }
+.fdock-slot { position: relative; flex: none; }
+.msb-dock { align-self: flex-start; margin-top: -2px; }
+.title-dock { position: absolute; left: 0; top: calc(100% + 16px); }
+.fdock-btn.inslot { position: relative; left: auto; bottom: auto; z-index: auto; --fdock-cb: 40px; }
+.title-dock .fdock-btn.inslot { --fdock-cb: 46px; }
+html[data-touch-ui][data-touch-small][data-page-scale] .msb-dock .fdock-btn.inslot { --fdock-cb: calc(40 * var(--pt)); }
+.fdock-stack.beside { transform-origin: 0 100%; }
 
 .fdock-panel.vspanel { min-width: 0; max-width: none; padding: 12px; box-sizing: border-box; text-align: left; display: flex; flex-direction: column;
   max-height: calc(var(--fdock-maxh) / var(--fdock-z)); min-height: 0; overflow: hidden; zoom: var(--fdock-z); }

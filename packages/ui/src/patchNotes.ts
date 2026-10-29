@@ -70,6 +70,7 @@ export const PATCH_NOTES: PatchNote[] = [
         'Everything from the old Friends page is in it: your name and tag to share, Add friend, Requests and Blocked.',
         'The Friends page and its menu button are gone.',
         'Not signed in? The button shows how to sign in to add friends.',
+        'On the menus it sits in the menu itself, under the last button, and its list opens beside the menu. It no longer covers or pushes anything, whatever your window size.',
       ] },
       { category: 'Systems', text: 'Smoother card dragging, most of all on phones. The card keeps up with your finger.', details: [
         'Picking a card up and dropping it no longer makes the whole screen redraw its styles.',

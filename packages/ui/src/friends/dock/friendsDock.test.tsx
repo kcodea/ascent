@@ -25,6 +25,11 @@ vi.mock('../../live/liveWatch', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../live/liveWatch')>()),
   watchLiveGame: vi.fn(async (id: string) => { net.watched.push(id); return true; }),
 }));
+vi.mock('../../stage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../stage')>()),
+  stageViewport: () => ({ w: window.innerWidth, h: window.innerHeight }),
+  rectToStage: (r: DOMRect) => ({ left: r.left, top: r.top, width: r.width, height: r.height, right: r.left + r.width, bottom: r.top + r.height, x: r.left, y: r.top }),
+}));
 vi.mock('../../versus/versusFlag', () => ({ versusEnabled: () => true }));
 vi.mock('../../versus/versusStore', async (importOriginal) => {
   const orig = await importOriginal<typeof import('../../versus/versusStore')>();
@@ -48,6 +53,7 @@ import type { Friend, FriendInvite, FriendsList, FriendsRemote, InviteKind } fro
 import { acceptSpectateInvite, FINISH_FIRST, friendMenuEntries, inviteToRoom, inviteToSpectate, runFriendMenu, type FriendMenuContext } from '../friendsGo';
 import { FriendMenu, openFriendMenu, useFriendMenu } from '../FriendMenu';
 import { FriendsDock } from './FriendsDock';
+import { DockSlot, useDockSlots } from './dockSlot';
 import { DOCK_CLOSE_MS, resetDockForTests, useFriendsDock } from './dockStore';
 
 const ME = '00000000-0000-0000-0000-000000000001';
@@ -114,7 +120,6 @@ describe('the dock (R-FRIENDS-DOCK-01)', () => {
     expect(q('.fdock-btn')?.getAttribute('aria-label')).toBe('Friends, 2 online'); // the title
     expect(q('.fdock-count')?.textContent).toBe('2');
     expect(q('.fdock-btn.ingame')).toBeNull();
-    expect(document.documentElement.hasAttribute('data-fdock')).toBe(true); // the menus make room for it
     act(() => { useGame.setState({ showTitle: true, showCareer: true }); });
     expect(q('.fdock-btn')).not.toBeNull(); // a ladder page
     act(() => { useGame.setState({ showCareer: false, showTitle: false, heroChoices: [] as never }); });
@@ -444,9 +449,9 @@ describe('placement: bottom left, clear of each screen\'s corner furniture (R-FR
     expect(css).toContain('.fdock-btn.ingame, .fdock-stack.ingame, .dm-toast.ingame { --fdock-cb: calc(32 * var(--u)); --fdock-x: 10px; --fdock-y: 5px; }');
     expect(css).toMatch(/\.fdock-btn\.ingame \.fdock-chips \{ inset: auto; left: calc\(100% \+ 5px\)/);
   });
-  it('the menus make room: the side menu lifts Settings, the title footer starts to its right', () => {
-    expect(css).toMatch(/html\[data-fdock\] \.msb \{ padding-bottom: calc\(22px \+ var\(--safe-b\) \+ var\(--fdock-room\) \+ 14px\); \}/);
-    expect(css).toMatch(/html\[data-fdock\] \.titlefoot \{ left:/);
+  it('on a menu the button lives in the layout own slot (in flow), and nothing pushes the footer or the side menu', () => {
+    expect(css).toContain('.fdock-btn.inslot { position: relative; left: auto; bottom: auto;');
+    expect(css).not.toMatch(/data-fdock|\.titlefoot|\.msb \{/);
   });
   it('layers above the menu pages (470) and under the friend menu (490) and the Settings veil (500)', () => {
     const z = (sel: string): number => {
@@ -456,4 +461,40 @@ describe('placement: bottom left, clear of each screen\'s corner furniture (R-FR
     };
     for (const sel of ['.fdock-btn', '.fdock-catch', '.fdock-stack']) { expect(z(sel)).toBeGreaterThan(470); expect(z(sel)).toBeLessThan(490); }
   });
+});
+
+describe('a menu own corner space (R-FRIENDS-DOCK-03: "looks like friends moved over the menus and stuff")', () => {
+  // The owner's report came from a near-square window (1191x1147). The real-browser sweep (devlog) measured every
+  // screen at these sizes; here the anchor maths is pinned at each: the panel opens RIGHT of the menu column (never
+  // over its buttons), its bottom on the slot's, and it is never wider or taller than the room left (never clipped).
+  const SIZES: Array<[number, number]> = [[1191, 1147], [1280, 720], [1366, 768], [1440, 900], [1920, 1080], [1920, 1200], [2560, 1080], [1024, 1366], [800, 600], [844, 390], [667, 375]];
+  const rect = (l: number, t: number, w: number, h: number) => ({ left: l, top: t, width: w, height: h, right: l + w, bottom: t + h, x: l, y: t, toJSON: () => null }) as DOMRect;
+  afterEach(() => { useDockSlots.setState({ slots: [] }); });
+
+  it('the button is portalled INTO the slot (in flow), the last mounted slot wins, and with none it keeps the fixed corner', async () => {
+    ui = mount(<><div className="msb"><DockSlot className="msb-dock" side=".msb" /></div><FriendsDock /></>);
+    expect(q('.msb-dock > .fdock-btn.inslot')).not.toBeNull();
+    act(() => { useDockSlots.setState({ slots: [] }); });
+    expect(q('.fdock-btn.inslot')).toBeNull();
+    expect(q('.fdock-btn')).not.toBeNull(); // the fixed corner (a game, hero select)
+  });
+
+  for (const [w, h] of SIZES) {
+    it(`${w}x${h}: the panel opens beside the side menu, inside the window`, async () => {
+      Object.assign(window, { innerWidth: w, innerHeight: h });
+      ui = mount(<><aside className="msb"><DockSlot className="msb-dock" side=".msb" /></aside><FriendsDock /></>);
+      const rail = q('.msb')!; const slot = q('.msb-dock')!;
+      const railW = Math.round(Math.min(260, w * 0.28));
+      rail.getBoundingClientRect = () => rect(0, 0, railW, h);
+      slot.getBoundingClientRect = () => rect(16, h - 64, 40, 40);
+      click(q('.fdock-btn'));
+      await flush();
+      const st = q('.fdock-stack.beside')!;
+      const left = parseFloat(st.style.left); const bottom = parseFloat(st.style.bottom);
+      expect(left).toBeGreaterThan(railW); // never over the side menu's plaques
+      expect(bottom).toBe(24); // its bottom on the slot's bottom
+      expect(parseFloat(st.style.maxWidth)).toBeLessThanOrEqual(w - left);
+      expect(parseFloat(st.style.getPropertyValue('--fdock-maxh'))).toBeLessThanOrEqual(h - bottom);
+    });
+  }
 });

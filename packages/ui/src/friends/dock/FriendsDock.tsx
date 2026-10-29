@@ -29,7 +29,8 @@
  * COST: the online count is the presence beat's own answer and the unread counts the hub's (no call of their own); the
  * list is read only while the panel is open, on the shared 60 s loop (R-FRIENDS-05).
  */
-import { memo, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from '../../Icon';
 import { remoteEnabled } from '../../remoteBoards';
 import { sfx } from '../../sfx';
@@ -44,6 +45,7 @@ import { FINISH_FIRST, runFriendMenu } from '../friendsGo';
 import { ActivityDetail, ConfirmButton, FriendGame, FriendPortrait, friendDetail, handleOf, sortFriends, statusText } from '../friendBits';
 import { friendMenuEatsClick, friendMenuHandlers, useFriendMenu } from '../FriendMenu';
 import type { Friend, FriendCard } from '../friendsRemote';
+import { currentDockSlot, useDockAnchor, useDockSlots } from './dockSlot';
 import { closeDm, closeDock, closeDockNow, openDm, setDockTab, swallowNextClick, toggleDock, useFriendsDock, type DockTab } from './dockStore';
 import { DmConversation } from '../dm/DmConversation';
 import { liveFriend, liveFriends, totalUnread, useDm } from '../dm/dmStore';
@@ -67,16 +69,12 @@ export function FriendsDock(): JSX.Element | null {
   const shown = remoteEnabled() && (guest || deployed);
   // A different identity (a sign-in, a sign-out, a guest saved): whatever was open belonged to the other one.
   useEffect(() => { closeDockNow(); }, [userId, anonymous]);
-  // `html[data-fdock]` while the button is on screen: the menus' bottom-left furniture (the side menu's Settings plaque,
-  // the title's footer links) makes room for it. One attribute write per mount, nothing per frame.
-  useEffect(() => {
-    if (!shown || typeof document === 'undefined') return undefined;
-    document.documentElement.setAttribute('data-fdock', '');
-    return () => document.documentElement.removeAttribute('data-fdock');
-  }, [shown]);
   if (!shown) return null;
   return <DockShell guest={guest} inGame={inGame} />;
 }
+
+/** The button in its slot (a menu's corner space) or, with none, in the fixed corner. */
+const portalTo = (el: HTMLElement | null, node: JSX.Element): JSX.Element => (el ? createPortal(node, el) : node);
 
 /** The shell: button, panels, outside-press and Escape. */
 export function DockShell({ conversation, guest = false, inGame = false }: { conversation?: (friend: Friend) => ReactNode; guest?: boolean; inGame?: boolean } = {}): JSX.Element {
@@ -87,6 +85,12 @@ export function DockShell({ conversation, guest = false, inGame = false }: { con
   const unread = useDm((s) => (guest ? 0 : totalUnread(s.unread)));
   const open = phase !== 'closed';
   const waiting = unread + requests;
+  // A menu with its own corner space (R-FRIENDS-DOCK-03): the button lives in it, the panel opens beside its column.
+  const slot = useDockSlots((s) => currentDockSlot(s.slots));
+  const anchor = useDockAnchor(open);
+  const stackStyle = anchor
+    ? ({ left: anchor.left, bottom: anchor.bottom, maxWidth: anchor.maxW, '--fdock-maxh': `${anchor.maxH}px` } as CSSProperties)
+    : undefined;
 
   // Escape closes both (capture: the same press must not also open the Esc menu underneath).
   useEffect(() => {
@@ -117,12 +121,12 @@ export function DockShell({ conversation, guest = false, inGame = false }: { con
           onContextMenu={(e) => { e.preventDefault(); closeDock(); }} />
       )}
       {open && (
-        <div className={`fdock-stack${phase === 'closing' ? ' closing' : ''}${inGame ? ' ingame' : ''}`}>
+        <div className={`fdock-stack${phase === 'closing' ? ' closing' : ''}${inGame ? ' ingame' : ''}${anchor ? ' beside' : ''}`} style={stackStyle}>
           {guest ? <GuestPanel /> : <FriendsPanel active={phase === 'open'} selected={dmWith} />}
           {!guest && dmWith && <DmPanel userId={dmWith} conversation={conversation} />}
         </div>
       )}
-      <button type="button" className={`fdock-btn gtip${open ? ' on' : ''}${inGame ? ' ingame' : ''}`} data-tip={open ? undefined : 'Friends'}
+      {portalTo(slot?.el ?? null, <button type="button" className={`fdock-btn gtip${open ? ' on' : ''}${inGame ? ' ingame' : ''}${slot ? ' inslot' : ''}`} data-tip={open ? undefined : 'Friends'}
         aria-label={label} aria-expanded={phase === 'open'}
         onClick={() => { sfx.pulse(); toggleDock(); }}>
         <Icon name="friends" />
@@ -132,7 +136,7 @@ export function DockShell({ conversation, guest = false, inGame = false }: { con
             {waiting > 0 && <span className="dm-unread">{waiting > 99 ? '99+' : waiting}</span>}
           </span>
         )}
-      </button>
+      </button>)}
     </>
   );
 }

@@ -138,6 +138,12 @@ const ALIASES: Record<string, string> = {
   // Owner 2026-10-14 ("wire amplified agnus art for set 3"): the master is filed as AmplifiedAgnus.png, the
   // card is named Amplification Agnus.
   amplifiedagnus: 'n3_agnus',
+  // Owner 2026-10-29 ("wire the new art for set 3 dragons"): Choosey Dragon's master is filed as Choosey.png.
+  choosey: 'd3_choosey',
+  // Owner pick 2026-10-29 between two masters for one card: the `2` file is the CHOSEN base art here, not a
+  // variant slot (full-stem aliases resolve before the `<Name>2` convention). The losing files are in the set-3 skip list.
+  coincounter2: 'dw3_coincounter',
+  tromboneer2: 'dw3_tromboneer',
   gatheringguide: 'sp3_gatheringguide', // now Branch Manager
   festivalkeeper: 'sp3_festivalkeeper', // now Tally
   bondweavershaman: 'sp3_bondweaver',  // now Knot
@@ -390,6 +396,9 @@ const JOBS: Job[] = [
     // Dragons folder here (Whaloo first, owner-named). An absent folder is simply skipped.
     dirs: ['Dragons', 'Dwarves', 'Kobolds', 'Neutrals', 'Spirits', 'Undead'],
     dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+    // Owner pick 2026-10-29 (two masters per card in Dwarves/): Coin Counter and Tromboneer wear their `2` file (aliased
+    // above), Hank Pepe wears the plain HankPepe.png. The unpicked files are skipped so a re-run never swaps them back.
+    skip: new Set(['coincounter', 'tromboneer', 'hankpepe2']),
   },
   {
     // EQUIPMENT icons — their own class, their own folder, their own destination. Matched against the

@@ -10,8 +10,17 @@
    aligned; the message panel opens to the list's RIGHT.
    LAYERS: above the menu pages (`.lbpage` 470) and the title (450), under the friend menu (490), the Settings veil (500),
    the account panel (540) and every modal above them. */
-:root { --fdock-x: 10px; --fdock-y: 8px; }
-.fdock-btn { --fdock-cb: calc(36 * var(--u)); position: fixed; left: calc(var(--edge-l) + var(--fdock-x)); bottom: calc(var(--edge-b) + var(--fdock-y));
+/* The three pieces that sit on the corner share its numbers: the button's size (`--fdock-cb`) and its distance from the
+   left / bottom edges. Menus (title, ladder pages, hero select): the corner plaque's own 40 units, 12 px in. In a run the
+   corner lies under the hero portrait's Health plate, so the button tucks in smaller and lower (`.ingame`). */
+.fdock-btn, .fdock-stack, .dm-toast { --fdock-cb: calc(40 * var(--u)); --fdock-x: 12px; --fdock-y: 12px; }
+.fdock-btn.ingame, .fdock-stack.ingame, .dm-toast.ingame { --fdock-cb: calc(32 * var(--u)); --fdock-x: 10px; --fdock-y: 5px; }
+html[data-touch-ui] :is(.fdock-btn, .fdock-stack, .dm-toast) { --fdock-cb: var(--touch-cb); }
+html[data-touch-ui] :is(.fdock-btn, .fdock-stack, .dm-toast).ingame { --fdock-cb: calc(var(--touch-cb) * 0.8); }
+html[data-touch-ui][data-phone-zoom] :is(.fdock-btn, .fdock-stack, .dm-toast).ingame { --fdock-cb: 54px; }
+html[data-phone-layout]:not([data-phone-menus]) :is(.fdock-btn, .fdock-stack, .dm-toast) { --fdock-cb: var(--pl-cb); }
+
+.fdock-btn { position: fixed; left: calc(var(--edge-l) + var(--fdock-x)); bottom: calc(var(--edge-b) + var(--fdock-y));
   width: var(--fdock-cb); height: var(--fdock-cb); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 480;
   color: #f0d089; border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
@@ -20,37 +29,49 @@
 .fdock-btn:active, .fdock-btn:hover:active { transform: translateY(3px) scale(0.97); filter: brightness(0.9); transition-duration: 0.06s; }
 .fdock-btn.on { z-index: 487; border-color: rgba(240, 208, 137, 0.95); }
 .fdock-btn > svg { width: 62%; height: 62%; pointer-events: none; }
-/* The online count: the side menu's old green friends chip, on the button's top-right corner. Static. */
-.fdock-count { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
+/* The counts: friends online (the side menu's old green chip) on the button's top-right corner, unread messages + friend
+   requests waiting (the red chip) on its top-left. In a run they ride BESIDE the button instead, to its right, never above
+   it, where the hero's Health plate sits. Static. */
+.fdock-chips { position: absolute; inset: -7px; pointer-events: none; }
+.fdock-chips > .fdock-count { position: absolute; top: 0; right: 0; }
+.fdock-chips > .dm-unread { position: absolute; top: 0; left: 0; }
+.fdock-btn.ingame .fdock-chips { inset: auto; left: calc(100% + 5px); top: 50%; transform: translateY(-50%); display: flex; gap: 4px; }
+.fdock-btn.ingame .fdock-chips > * { position: static; }
+.fdock-btn.ingame .fdock-chips > .dm-unread { order: 2; }
+.fdock-count { min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
   display: grid; place-items: center; font-family: var(--font-ui); font-weight: 900; font-size: 11px; line-height: 1; color: #fff;
-  background: #2f7a48; border: 1px solid #9ee0b2; pointer-events: none; font-variant-numeric: tabular-nums; }
-
-/* Touch: the corner squares' touch size; the phone framings keep it at the corner of what the player sees. */
-html[data-touch-ui] .fdock-btn { --fdock-cb: calc(var(--touch-cb) * 0.9); }
-html[data-touch-ui][data-phone-zoom] .fdock-btn { --fdock-cb: 58px; bottom: calc(var(--pz-safe-b, var(--safe-b)) + var(--fdock-y)); }
-html[data-phone-layout]:not([data-phone-menus]) .fdock-btn { --fdock-cb: var(--pl-cb); }
+  background: #2f7a48; border: 1px solid #9ee0b2; font-variant-numeric: tabular-nums; }
+html[data-phone-zoom] .fdock-btn { bottom: calc(var(--pz-safe-b, var(--safe-b)) + var(--fdock-y)); }
 
 /* The catcher: every press outside the panels lands here and closes the dock (never on the board or menu underneath). */
 .fdock-catch { position: fixed; inset: 0; z-index: 484; background: transparent; touch-action: none; }
 
 /* The panels, bottom-aligned just above the button, left edges on the button's left edge. */
-.fdock-stack { position: fixed; z-index: 486; left: calc(var(--edge-l) + var(--fdock-x)); bottom: calc(var(--edge-b) + var(--fdock-y) + 36 * var(--u) + 12px);
-  display: flex; align-items: flex-end; gap: 10px; max-height: calc(100 * var(--vh, 1vh) - 120px); max-width: calc(var(--lvw, 100vw) - 24px); transform-origin: 0 100%;
-  animation: fdockin 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.fdock-stack { position: fixed; z-index: 486; left: calc(var(--edge-l) + var(--fdock-x)); bottom: calc(var(--edge-b) + var(--fdock-y) + var(--fdock-cb) + 10px);
+  --fdock-z: 1; --fdock-maxh: calc(100 * var(--vh, 1vh) - var(--fdock-cb) - 40px);
+  display: flex; align-items: flex-end; gap: 10px; max-height: var(--fdock-maxh); max-width: calc(var(--lvw, 100vw) - 24px);
+  transform-origin: 0 100%; animation: fdockin 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .fdock-stack.closing { animation: fdockout 0.16s ease-in both; pointer-events: none; }
 @keyframes fdockin { from { opacity: 0; transform: translateY(14px) scale(0.96); } }
 @keyframes fdockout { to { opacity: 0; transform: translateY(14px) scale(0.96); } }
-html[data-touch-ui] .fdock-stack { bottom: calc(var(--edge-b) + var(--fdock-y) + var(--touch-cb) * 0.9 + 12px); }
-html[data-touch-ui][data-phone-zoom] .fdock-stack { bottom: calc(var(--pz-safe-b, var(--safe-b)) + var(--fdock-y) + 58px + 10px); max-height: calc(100 * var(--vh, 1vh) - 100px); }
-html[data-phone-layout]:not([data-phone-menus]) .fdock-stack { bottom: auto; top: 12px; max-height: none; height: calc(100 * var(--vh, 1vh) - 24px - var(--pl-cb) - 12px); align-items: stretch; }
+html[data-phone-zoom] .fdock-stack { bottom: calc(var(--pz-safe-b, var(--safe-b)) + var(--fdock-y) + var(--fdock-cb) + 10px); }
+
+/* Room for the button on the menus: the side menu's Settings plaque lifts above it, and the title's footer links start
+   to its right (html[data-fdock] is set while the button is on screen). */
+html[data-fdock] { --fdock-room: calc(40 * var(--u)); }
+html[data-fdock][data-touch-ui] { --fdock-room: var(--touch-cb); }
+html[data-fdock] .msb { padding-bottom: calc(22px + var(--safe-b) + var(--fdock-room) + 14px); }
+html[data-fdock][data-touch-ui][data-touch-small][data-page-scale] .msb { padding-bottom: calc(6 * var(--pt) + var(--pz-safe-b, var(--safe-b)) + var(--fdock-room) + 14px); }
+html[data-fdock] .titlefoot { left: calc((var(--safe-l) + 12px + var(--fdock-room) + 18px) / var(--ui-zoom, 1)); }
 
 .fdock-panel.vspanel { min-width: 0; max-width: none; padding: 12px; box-sizing: border-box; text-align: left; display: flex; flex-direction: column;
-  max-height: inherit; min-height: 0; overflow: hidden; }
+  max-height: calc(var(--fdock-maxh) / var(--fdock-z)); min-height: 0; overflow: hidden; zoom: var(--fdock-z); }
+/* A phone's stage is scaled down a lot: the panels grow back to a readable size (the friend menu's own trick, friends.css). */
+html[data-touch-ui][data-touch-small] .fdock-stack { --fdock-z: calc(var(--touch-inv-s, 1) * 0.7); }
 .fdock-list.vspanel { width: 380px; }
 .fdock-dm.vspanel { width: 340px; animation: fdockdm 0.18s cubic-bezier(0.16, 1, 0.3, 1) both; }
 @keyframes fdockdm { from { opacity: 0; transform: translateX(-16px); } }
-html[data-phone-layout]:not([data-phone-menus]) .fdock-panel.vspanel,
-html[data-touch-ui][data-touch-small] .fdock-panel.vspanel { width: 300px; }
+html[data-phone-layout]:not([data-phone-menus]) .fdock-panel.vspanel { width: 300px; }
 
 .fdock-head { display: flex; align-items: baseline; gap: 10px; margin: 0 2px 8px; }
 .fdock-title { font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.9); }

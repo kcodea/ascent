@@ -61,14 +61,25 @@ export function FriendsDock(): JSX.Element | null {
   const anonymous = useGame((s) => s.account.anonymous);
   const deployed = useFriends((s) => s.deployed);
   const guest = !userId || anonymous;
+  // In a run (or a replay / a watched game), the corner is under the hero portrait's Health plate: the button tucks in
+  // smaller there (friendsDock.css `.ingame`).
+  const inGame = useGame((s) => !isPreRun(s) || s.replaying);
+  const shown = remoteEnabled() && (guest || deployed);
   // A different identity (a sign-in, a sign-out, a guest saved): whatever was open belonged to the other one.
   useEffect(() => { closeDockNow(); }, [userId, anonymous]);
-  if (!remoteEnabled() || (!guest && !deployed)) return null;
-  return <DockShell guest={guest} />;
+  // `html[data-fdock]` while the button is on screen: the menus' bottom-left furniture (the side menu's Settings plaque,
+  // the title's footer links) makes room for it. One attribute write per mount, nothing per frame.
+  useEffect(() => {
+    if (!shown || typeof document === 'undefined') return undefined;
+    document.documentElement.setAttribute('data-fdock', '');
+    return () => document.documentElement.removeAttribute('data-fdock');
+  }, [shown]);
+  if (!shown) return null;
+  return <DockShell guest={guest} inGame={inGame} />;
 }
 
 /** The shell: button, panels, outside-press and Escape. */
-export function DockShell({ conversation, guest = false }: { conversation?: (friend: Friend) => ReactNode; guest?: boolean } = {}): JSX.Element {
+export function DockShell({ conversation, guest = false, inGame = false }: { conversation?: (friend: Friend) => ReactNode; guest?: boolean; inGame?: boolean } = {}): JSX.Element {
   const phase = useFriendsDock((s) => s.phase);
   const dmWith = useFriendsDock((s) => s.dmWith);
   const online = useFriends((s) => (guest ? 0 : s.inbox?.online ?? 0));
@@ -104,17 +115,21 @@ export function DockShell({ conversation, guest = false }: { conversation?: (fri
           onContextMenu={(e) => { e.preventDefault(); closeDock(); }} />
       )}
       {open && (
-        <div className={`fdock-stack${phase === 'closing' ? ' closing' : ''}`}>
+        <div className={`fdock-stack${phase === 'closing' ? ' closing' : ''}${inGame ? ' ingame' : ''}`}>
           {guest ? <GuestPanel /> : <FriendsPanel active={phase === 'open'} selected={dmWith} />}
           {!guest && dmWith && <DmPanel userId={dmWith} conversation={conversation} />}
         </div>
       )}
-      <button type="button" className={`fdock-btn gtip${open ? ' on' : ''}`} data-tip={open ? undefined : 'Friends'}
+      <button type="button" className={`fdock-btn gtip${open ? ' on' : ''}${inGame ? ' ingame' : ''}`} data-tip={open ? undefined : 'Friends'}
         aria-label={label} aria-expanded={phase === 'open'}
         onClick={() => { sfx.pulse(); toggleDock(); }}>
         <Icon name="friends" />
-        {online > 0 && <span className="fdock-count" aria-hidden="true">{online > 99 ? '99+' : online}</span>}
-        {waiting > 0 && <span className="dm-unread" aria-hidden="true">{waiting > 99 ? '99+' : waiting}</span>}
+        {(online > 0 || waiting > 0) && (
+          <span className="fdock-chips" aria-hidden="true">
+            {online > 0 && <span className="fdock-count">{online > 99 ? '99+' : online}</span>}
+            {waiting > 0 && <span className="dm-unread">{waiting > 99 ? '99+' : waiting}</span>}
+          </span>
+        )}
       </button>
     </>
   );

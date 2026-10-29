@@ -5,6 +5,7 @@
  * presses that land on it; the game underneath keeps playing. Motion: one-shot transform + opacity.
  */
 import { sfx } from '../../sfx';
+import { isPreRun, useGame } from '../../store';
 import { openDm, useFriendsDock } from '../dock/dockStore';
 import { useFriendsPrefs } from '../friendsPrefs';
 import { FriendPortrait, handleOf } from '../friendBits';
@@ -18,11 +19,12 @@ export function DmToast(): JSX.Element | null {
   const friend = useFriends((s) => (toast ? s.list?.friends.find((f) => f.userId.toLowerCase() === toast.from) ?? null : null));
   const open = useFriendsDock((s) => s.phase === 'open' && s.dmWith === toast?.from);
   const filter = useFriendsPrefs((s) => s.filterMessages);
+  const inGame = useGame((s) => !isPreRun(s) || s.replaying);
   if (!toast || open || !friend) return null;
   const body = filter ? maskProfanity(toast.body) : toast.body;
   const go = (): void => { sfx.pulse(); dismissDmToast(); openDm(friend.userId); };
   return (
-    <div key={toast.id} role="button" tabIndex={0} className="dm-toast vspanel" aria-label={`New message from ${handleOf(friend)}: ${body}. Open the conversation.`}
+    <div key={toast.id} role="button" tabIndex={0} className={`dm-toast vspanel${inGame ? ' ingame' : ''}`} aria-label={`New message from ${handleOf(friend)}: ${body}. Open the conversation.`}
       onClick={go} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }}>
       <span className="fdock-portrait"><FriendPortrait card={friend} /></span>
       <span className="dm-toast-text">

@@ -10926,4 +10926,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Kev presses Duo + Play. His account still points at a Cloudflare room that is gone. The read gives up after 10 s, the Worker drops the stale claim, and his new party opens. If nothing answers at all, after 20 s the door says "Your party did not open. Try again."',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientConnect.test.ts', 'workers/versus/test/staleClaim.test.ts', 'packages/ui/src/versus/rankedDuosPartyCf.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-HUD-HEROPOWER-01',
+    title: 'The hero power button always sits on its board socket, visible and clickable, in every mode',
+    statement:
+      "The hero power button (and the second power and Equipment seats beside it) always draws on its socket at the board's lower-left "
+      + 'corner, on screen and clickable, in every mode: lobby, Practice, Gauntlet, Versus, Ranked Duos and every watch screen. A layout nudge '
+      + 'of the hero group (portrait, rune slots, name, Health, hero power) moves them together and never pushes the hero power off the screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-29 (two Ranked Duos screenshots of the empty socket)', quote: 'why is the hero power missing ifrom the duos gameplay?' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-29', quote: 'its not that art is unavailable, its also not clickable' },
+      { kind: 'fix-pr', ref: 'fix/hero-power-offscreen: packages/ui/src/styles.css (.statusbar places the Hero group nudge in its left/bottom; .statusbar .heropanel carries it in its own translate)' },
+    ],
+    currentBehaviour: 'Broken 2026-10-28 by #2399 (a translate on .statusbar re-anchored the fixed hero power seats to the bar, ~950 px below their socket on a 1080 screen, in every mode); fixed 2026-10-29 on fix/hero-power-offscreen. The pin is source-level: nothing may give .statusbar a containing block, and the seat must carry the group nudge itself.',
+    example: "A Warden in Practice sees Aegis glowing in the round socket at the board's lower-left corner and can press it.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroPowerSeat.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
 ];

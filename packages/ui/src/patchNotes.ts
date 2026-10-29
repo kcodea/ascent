@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Fixed: the hero power button is back. It sits in its round socket at the bottom left of the board again, in every mode, and you can press it.' },
       { category: 'Systems', text: 'Fixed: Duo and Play could get stuck on "Opening your party..." for good.', details: [
         'Your party now opens even when the game server is slow to answer.',
         'If it still cannot open, you see why and a Try again button after a few seconds.',

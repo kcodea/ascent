@@ -237,6 +237,31 @@ function presenceDetailed(): PresenceReport {
   return online(null, menuActivity(g, v.area));
 }
 
+/** A 'spectate' invite's target, parsed: a live lobby / Practice game, or a Versus room (`duos` = a Ranked Duos one). */
+export type SpectateTarget = { host: 'live' | 'versus' | 'duos'; id: string };
+export function parseSpectateTarget(target: string): SpectateTarget | null {
+  const m = /^(live|versus|duos):(.{1,58})$/.exec(target);
+  return m ? { host: m[1] as SpectateTarget['host'], id: m[2] } : null;
+}
+
+/**
+ * INVITE TO SPECTATE (owner 2026-10-29, R-FRIENDS-MENU-02): the game a friend would watch, when I am PLAYING one that
+ * can be watched (the same gate as my presence's Watch target), else null. The privacy switch does not hide it: sending
+ * the invite is my own choice to be watched.
+ */
+export function mySpectateTarget(): string | null {
+  const p = presenceDetailed();
+  if (p.status !== 'in_game' || !p.watchId) return null;
+  if (p.watchKind === 'live') return `live:${p.watchId}`;
+  if (p.watchKind === 'versus') return `${p.mode === 'ranked_duos' ? 'duos' : 'versus'}:${p.watchId}`;
+  return null;
+}
+
+/** I am PLAYING a game of my own right now (not watching, not on a menu): leaving to watch a friend would abandon it. */
+export function iAmPlaying(): boolean {
+  return presenceDetailed().status === 'in_game';
+}
+
 /** My teammate in a two-player team (p1 + p2, p3 + p4). */
 function teammateOf(role: string | null, seats: readonly { role: string; name: string }[]): string | null {
   const pairOf: Record<string, string> = { p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' };
@@ -594,7 +619,14 @@ export function setInviteProofSourceForTests(f: typeof proofSource): void { proo
  * A Supabase room needs none (null).
  */
 export async function inviteProofFor(userId: string, kind: InviteKind, target: string): Promise<string | null> {
-  const { roomId, host } = decodeRoomRef(target);
+  let ref = target;
+  if (kind === 'spectate') {
+    // A live lobby game is checked by Postgres itself (its Live Games row is mine); a Versus room by its host.
+    const t = parseSpectateTarget(target);
+    if (!t || t.host === 'live') return null;
+    ref = t.id;
+  }
+  const { roomId, host } = decodeRoomRef(ref);
   if (host !== 'cf') return null;
   const proof = await proofSource(roomId, userId, kind);
   if (!proof) throw new FriendsError('room_check');

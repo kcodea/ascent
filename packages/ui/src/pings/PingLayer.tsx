@@ -274,7 +274,8 @@ export function PingLayer(): JSX.Element {
   useEffect(() => {
     // The shop buttons' right-click (a card's own handler runs first and opens its menu).
     const onCtx = (e: MouseEvent): void => {
-      if ((e.target as Element | null)?.closest?.('.card, .ping-menu, .ping-mark')) return;
+      // The Friends dock and its friend menu own their right-click (they sit over the shop buttons' corner).
+      if ((e.target as Element | null)?.closest?.('.card, .ping-menu, .ping-mark, .fdock-stack, .fdock-catch, .frmenu-at, .frmenu-catch')) return;
       if (!pingContext()) return;
       const hit = pingButtonAt(e.target, e.clientX, e.clientY);
       if (!hit) return;

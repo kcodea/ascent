@@ -126,6 +126,8 @@ import { LiveJoining, LiveWatchBar } from './live/LiveWatchBar';
 import { SpectatorEndNotice } from './live/SpectatorEndNotice';
 import { FriendsPage } from './friends/FriendsPage';
 import { InviteNotice } from './friends/InviteNotice';
+import { FriendsDock } from './friends/dock/FriendsDock';
+import { FriendMenu } from './friends/FriendMenu';
 import { startFriendsPresence } from './friends/friendsStore';
 import { installFriendInvites } from './friends/friendsGo';
 // The tuned look (R-PRESENT-TUNED-01): every config module that applies its defaults at load, so a production build
@@ -634,6 +636,9 @@ export function Game() {
       <div className="version" aria-description={`ASCENT v${__APP_VERSION__} · build ${__BUILD_SHA__}`}>
         v{__APP_VERSION__} <span>{__BUILD_SHA__}</span>
       </div>
+      {/* THE FRIENDS DOCK (owner 2026-10-29, R-FRIENDS-DOCK-01): one slot left of Rules, in every game screen; the online
+          friends list rises out of it, and a friend's direct message panel opens beside it. Accounts only. */}
+      <FriendsDock />
       {settingsOpen && <EscMenu onClose={closeSettings} />}
       {/* DEV-only tuning menu — one 🛠️ button opening every live tuner (stripped from production). */}
       {DevMenu && <Suspense fallback={null}><DevMenu /></Suspense>}
@@ -698,6 +703,8 @@ export function Game() {
       <SpectatorEndNotice />
       {/* A friend's invite (R-FRIENDS-04): a corner notice over the menus, never over a game. */}
       <InviteNotice />
+      {/* The friend menu (R-FRIENDS-MENU-01): right-click / long press on a friend row (Friends page or dock). */}
+      <FriendMenu />
       <Career />
       {/* The Collection page (2026-09-28). After Career in DOM order, so a Collection opened from your Career's
           Account Level card paints on top of it and Back returns there. */}

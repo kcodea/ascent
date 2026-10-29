@@ -18,6 +18,7 @@ import './friends.css';
 /** The words for an invite. */
 export function inviteText(i: Pick<FriendInvite, 'kind' | 'from'>): string {
   const who = handleOf(i.from);
+  if (i.kind === 'spectate') return `${who} invites you to watch their game.`;
   return i.kind === 'duos_party' ? `${who} invites you to their Ranked Duos party.` : `${who} invites you to their Versus room.`;
 }
 

@@ -1,0 +1,87 @@
+/* THE IN-GAME FRIENDS DOCK (owner 2026-10-29, R-FRIENDS-DOCK-01). The corner button wears the gear / Compendium / Rules
+   plaque and sits one slot left of Rules; the panels are the Versus notices' dark panel (`.vspanel`) with the Friends
+   page's own status line and chips. MOTION: one-shot transform + opacity only (the open rises out of the button, the
+   close sinks back into it); nothing loops. No cursor rules: the global gauntlet paints every button (CLAUDE.md), and
+   the row (role="button") gets the gauntlet pointer from the global [role="button"] rule. */
+
+/* The corner slot: index 3 of the row (gear 0, Compendium 1, Rules 2), measured like the others. */
+.fdock-btn { --fdock-cb: calc(40 * var(--u)); position: fixed; bottom: calc(var(--edge-b) + 16px); right: calc(var(--edge-r) + 16px + 3 * (var(--fdock-cb) + 10px));
+  width: var(--fdock-cb); height: var(--fdock-cb); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 85;
+  color: #f0d089; border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease; }
+.fdock-btn:hover { border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); transform: translateY(-2px); }
+.fdock-btn:active, .fdock-btn:hover:active { transform: translateY(3px) scale(0.97); filter: brightness(0.9); transition-duration: 0.06s; }
+.fdock-btn.on { z-index: 462; border-color: rgba(240, 208, 137, 0.95); }
+.fdock-btn > svg { width: 62%; height: 62%; pointer-events: none; }
+/* The online count: the side menu's green friends chip, on the button's top-right corner. Static. */
+.fdock-count { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
+  display: grid; place-items: center; font-family: var(--font-ui); font-weight: 900; font-size: 11px; line-height: 1; color: #fff;
+  background: #2f7a48; border: 1px solid #9ee0b2; pointer-events: none; font-variant-numeric: tabular-nums; }
+
+/* Touch: the corner squares' touch size and slot (touchUi.css), and the two phone framings (phoneLayout.css / phone zoom). */
+html[data-touch-ui] .fdock-btn { --fdock-cb: var(--touch-cb); }
+html[data-touch-ui][data-phone-zoom] .fdock-btn { --fdock-cb: 66px; left: auto; top: auto; bottom: calc(var(--pz-safe-b, var(--safe-b)) + 15px); right: calc(var(--pz-bxr) + 1920px - 1675px); }
+html[data-phone-layout]:not([data-phone-menus]) .fdock-btn { --fdock-cb: var(--pl-cb); bottom: auto; right: auto; top: calc(var(--bar-y) + 1290px * var(--scale)); left: calc(var(--bar-x) + 2260px * var(--scale)); }
+
+/* The catcher: every press outside the panels lands here and closes the dock (never on the board underneath). */
+.fdock-catch { position: fixed; inset: 0; z-index: 460; background: transparent; touch-action: none; }
+
+/* The panels, bottom-aligned just above the button's row, right edge on the button's right edge; the message panel to
+   the list's LEFT (beside it, so a phone's short screen keeps both). */
+.fdock-stack { position: fixed; z-index: 461; right: calc(var(--edge-r) + 16px); bottom: calc(var(--edge-b) + 16px + 40 * var(--u) + 12px);
+  display: flex; align-items: flex-end; gap: 10px; max-height: calc(100 * var(--vh, 1vh) - 140px); transform-origin: 100% 100%;
+  animation: fdockin 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.fdock-stack.closing { animation: fdockout 0.16s ease-in both; pointer-events: none; }
+@keyframes fdockin { from { opacity: 0; transform: translateY(14px) scale(0.96); } }
+@keyframes fdockout { to { opacity: 0; transform: translateY(14px) scale(0.96); } }
+html[data-touch-ui] .fdock-stack { bottom: calc(var(--edge-b) + 16px + var(--touch-cb) + 12px); }
+html[data-touch-ui][data-phone-zoom] .fdock-stack { right: calc(var(--pz-bxr) + 1920px - 1897px); bottom: calc(var(--pz-safe-b, var(--safe-b)) + 15px + 66px + 10px); max-height: calc(100 * var(--vh, 1vh) - 110px); }
+html[data-phone-layout]:not([data-phone-menus]) .fdock-stack { right: calc(var(--edge-r) + 12px); bottom: auto; top: 12px; max-height: none;
+  height: calc(var(--bar-y) + 1290px * var(--scale) - 24px); align-items: stretch; }
+
+.fdock-panel.vspanel { min-width: 0; max-width: none; padding: 12px; box-sizing: border-box; text-align: left; display: flex; flex-direction: column;
+  max-height: inherit; min-height: 0; overflow: hidden; }
+.fdock-list.vspanel { width: 380px; }
+.fdock-dm.vspanel { width: 340px; animation: fdockdm 0.18s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes fdockdm { from { opacity: 0; transform: translateX(16px); } }
+html[data-phone-layout]:not([data-phone-menus]) .fdock-panel.vspanel,
+html[data-touch-ui][data-touch-small] .fdock-panel.vspanel { width: 300px; }
+
+.fdock-head { display: flex; align-items: baseline; gap: 10px; margin: 0 2px 8px; }
+.fdock-title { font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.9); }
+.fdock-sub { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.62); }
+.fdock-flash.fr-flash { margin: 0 0 8px; font-size: 13px; }
+.fdock-empty { padding: 18px 8px; text-align: center; font-family: var(--font-ui); font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.7); }
+.fdock-rows { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+
+/* A row: the Friends page's status line and game chips, compact. */
+.fdock-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 12px; background: rgba(0, 0, 0, 0.22); border: 1px solid rgba(196, 160, 92, 0.25);
+  transition: border-color 0.12s ease, background-color 0.12s ease; }
+.fdock-row:hover, .fdock-row.sel { border-color: rgba(240, 208, 137, 0.75); background: rgba(240, 208, 137, 0.08); }
+.fdock-rowmain { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; outline: none; -webkit-touch-callout: none; user-select: none; }
+.fdock-rowmain:focus-visible { box-shadow: 0 0 0 2px rgba(240, 208, 137, 0.6); border-radius: 8px; }
+.fdock-portrait { flex: none; display: block; width: 44px; height: 44px; }
+.fdock-portrait .lb-heroframe { width: 44px; height: 44px; }
+.fdock-portrait .lb-heroframe .hero { width: 44px; height: 44px; }
+.fdock-row .fr-name, .fdock-dmhead .fr-name { display: block; font-size: 15px; }
+.fdock-row .fr-status, .fdock-dmhead .fr-status { font-size: 12.5px; }
+.fdock-row .fr-detail { display: flex; }
+.fdock-actions { display: flex; gap: 6px; flex: none; }
+.fdock-actions .lb-btn svg { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; }
+.fdock-actions:not(.compact) { margin: 8px 0 0; }
+
+/* The direct message panel. */
+.fdock-dmhead { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(196, 160, 92, 0.25); }
+.fdock-dmhead .fr-who { flex: 1 1 auto; min-width: 0; }
+.fdock-x { flex: none; align-self: flex-start; width: 30px; height: 30px; padding: 0; border-radius: 8px; border: none; font-family: var(--font-ui); font-weight: 800; font-size: 15px;
+  color: #ddd2c0; background: rgba(255, 255, 255, 0.08); }
+.fdock-x:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
+.fdock-convo { flex: 1 1 auto; min-height: 120px; margin: 10px 0; overflow-y: auto; display: flex; flex-direction: column; justify-content: flex-end; }
+.fdock-convo-empty { text-align: center; padding: 12px; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.5); }
+.fdock-compose { display: flex; }
+.fdock-input.acctinput { flex: 1; width: auto; font-size: 14px; padding: 8px 12px; opacity: 0.6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fdock-stack, .fdock-stack.closing, .fdock-dm.vspanel { animation-duration: 0.01s; }
+}

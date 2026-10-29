@@ -1487,6 +1487,21 @@ Ranked Duos party).
   who is Online (not in a game). The invitee gets a corner notice with Accept / Decline on any menu (never over a game);
   it lasts 2 minutes. Accept opens Versus and joins the room (a seat is then one drag away). A newer invite to the same
   friend replaces the older one. 30 invites an hour. The Ranked Duos party uses the same invite (kind `duos_party`): Accept opens the party and takes its free seat.
+- **The in-game Friends dock** (owner 2026-10-29, R-FRIENDS-DOCK-01). In every game screen (lobby, Practice, every
+  Versus mode, Ranked Duos, watching a game or a replay) an account has a Friends button in the bottom-right corner
+  row, one slot left of Rules, with the number of friends online. It opens a list of ONLINE friends upward (status and
+  game chips as on the Friends page, Watch where it can); a friend opens their direct message panel beside it (header,
+  Watch / Invite, an empty conversation and a disabled "Messages are coming soon" field: messaging is not built yet).
+  A press anywhere outside, or Escape, closes both in one motion; that press is caught and never reaches the board.
+  The list is read only while the dock is open (the Friends page's 60 s loop).
+- **The friend menu** (owner 2026-10-29, R-FRIENDS-MENU-01 / -02). Right-click (or a long press) on a friend, on the
+  Friends page or in the dock: **Spectate** (their game, when watchable; disabled while you play your own),
+  **Invite to lobby** / **Invite to Duos** (an Online friend: your open Versus room / Duo party, or a NEW one made for
+  you first through the normal create flow, then the invite; disabled "Finish your game first" while you are in a
+  game, "Your party is full" for a full party), **Invite to spectate** (while you play a watchable game). Only the
+  entries that make sense show. Invite to spectate is invite kind `spectate`, target `live:<game>` (a lobby / Practice
+  game on Live Games), `versus:<room>` or `duos:<room>` (a Cloudflare room as `cf:<id>`, signed by the room like room
+  invites); `friends_invite` checks the game is mine and running. Accept drops the friend straight into watching.
 - **Cost (egress).** One small presence call (it also answers requests and invites) every 60 s while the tab is
   visible or hidden, on a status change once the screen has settled for 1.5 s (rapid hops send one call, a flip
   straight back sends none; at most every 5 s), every 3 minutes with no friends. Only the coarse activity sends a call:

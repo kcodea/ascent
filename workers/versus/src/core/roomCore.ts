@@ -625,6 +625,16 @@ export class RoomCore {
    */
   inviteCheck(userId: string, to: string, kind: string): void {
     const r = this.state.room;
+    if (kind === 'spectate') {
+      // INVITE TO SPECTATE (R-FRIENDS-MENU-02, owner 2026-10-29): a member asks a friend to WATCH this room's running
+      // game. The same codes as the SQL's own Supabase-room branch (2026-11-11-friends-invite-spectate.sql).
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(to)) fail('bad_target');
+      if (to === userId) fail('self');
+      if (!this.member(userId)) fail('not_in_room');
+      if (r.closed || r.status !== 'in_game') fail('no_game');
+      if (this.member(to)) fail('already_in_room');
+      return;
+    }
     const want = r.options.mode === 'ranked_duos' ? 'duos_party' : 'versus_room';
     if (kind !== want) fail('bad_kind');
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(to)) fail('bad_target');

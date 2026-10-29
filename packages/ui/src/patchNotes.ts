@@ -58,6 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Live Games now shows each game in more detail, like your Friends list does.', details: [
+        'Each row shows the mode, then what the player is doing: picking a hero, shopping, or fighting and who they fight.',
+        'Lobby and Practice games also show their place among the players left, their Health and Armor, and their tavern tier.',
+        'Versus and Ranked Duos show the round, what is happening and the players.',
+      ] },
       { category: 'Systems', text: 'Twelve new painted backdrops to put behind the board, and the castle courtyard is the new default.', details: [
         'Pick one in Settings under Board backdrop: Castle, Runic Slate, Cosmic Energy, Dark Sanctum, Temple, Stone Courtyard, Koi Pond, Fresh Pond, Bamboo Forest, Treasure Hoard, Celestial or Autumn Fire.',
         'Each is one painted scene that fills your whole screen, ultrawide monitors included, and stays sharp on 4K screens.',

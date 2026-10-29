@@ -34,6 +34,7 @@ import { openCfPublisher, type CfListing, type CfPublisher, type LiveWatcher } f
 import { lobbyLivePublishUrl } from '../versus/versusRemote';
 import { currentRankOf } from '../rank/rankSource';
 import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
+import { lobbyStatusNow, type FriendGameStatus } from '../friends/gameStatus';
 
 export const LIVE_HEARTBEAT_MS = 15_000;
 
@@ -109,6 +110,16 @@ let publishUrl: () => string | null = lobbyLivePublishUrl;
 /** For the tests: where a new game publishes (null: Supabase). */
 export function setLivePublishUrlForTests(fn: (() => string | null) | null): void { publishUrl = fn ?? lobbyLivePublishUrl; }
 
+/** MY GAME AT A GLANCE (R-LIVE-STATUS-01): the Friends status of my lobby game (the step and whom I fight, place, Health,
+ *  Armor, tier), sent with the listing so the Live Games row shows what a friend's row shows. Null on Hero Select (the
+ *  row says "Picking a hero" on its own). It rides on the beats that go anyway: never a beat of its own. */
+function myStatus(l: Live): FriendGameStatus | null {
+  if (l.hero) return null;
+  const g = useGame.getState();
+  const mode = liveModeOf(g.run);
+  return mode ? lobbyStatusNow(mode, g.run, g.endTurnAnimating) : null;
+}
+
 /** My listing as the Cloudflare object takes it. */
 function cfListing(l: Live): CfListing {
   const g = useGame.getState();
@@ -119,7 +130,7 @@ function cfListing(l: Live): CfListing {
     name: g.playerName || 'Player', hero: frame ? frame.picked ?? frame.offer[0]! : run.heroId,
     cosmetics: frame ? currentRunCosmetics() ?? null : run.cosmetics ?? currentRunCosmetics() ?? null,
     round: frame ? 1 : run.wave, phase: frame ? 'hero' : phaseOf(run), mode: frame ? 'ranked' : liveModeOf(run) ?? 'ranked',
-    division: rank?.divisionIndex ?? 0, points: rank?.points ?? 0,
+    division: rank?.divisionIndex ?? 0, points: rank?.points ?? 0, status: myStatus(l),
   };
 }
 
@@ -141,6 +152,7 @@ function beat(): void {
     cosmetics: frame ? currentRunCosmetics() ?? null : run.cosmetics ?? currentRunCosmetics() ?? null,
     round: frame ? 1 : run.wave, phase: frame ? 'hero' : phaseOf(run),
     mode: frame ? null : liveModeOf(run) === 'ranked' ? null : liveModeOf(run) as 'casual' | 'practice' | null,
+    status: myStatus(l),
   }).then((n) => { if (live === l) setWatchers(l, Number(n) || 0); }).catch((e: unknown) => {
     if (frame && (e as { code?: string })?.code === 'bad_phase') { heroPhaseRefused = true; if (live === l) stop('abandon'); }
   });

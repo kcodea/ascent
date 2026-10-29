@@ -12,7 +12,12 @@
  * an older client ignores; and an ONLINE player gets `FriendActivity` (the screen they are on), carried in the same
  * slot and told apart by `act`. A beat is owed only when the COARSE key changes (`gameCoarseKey`, `activityKey`):
  * Health, Armor, tier and place ride along on a beat that goes anyway, never send one of their own.
+ *
+ * LIVE GAMES READ IT TOO (owner 2026-10-29: "give live games the same granularity that friends show";
+ * R-LIVE-STATUS-01): a live lobby game's listing carries the same status (`lobbyStatusNow`), and the Live Games row draws
+ * it with the same words and chips (`FriendGame`). One shape, one set of formatters, for both surfaces.
  */
+import { pairRunLobby, type RunLobby } from '@game/sim';
 
 export interface FriendGameStatus {
   v: 1;
@@ -193,6 +198,35 @@ export function versusGameStatus(
     health: playing && !out ? run!.resolve : null, armor: playing && !out ? run!.armor : null, tier: playing ? run!.tier : null,
     place: null, vs: versusLine(mode, seats),
   }, extras);
+}
+
+/** Who the player fights in a lobby round (null: a recorded board with no seat, or a bye). Cached per lobby + round. */
+let foeCache: { lobby: RunLobby; round: number; name: string | null } | null = null;
+export function lobbyFoeName(lobby: RunLobby): string | null {
+  if (foeCache && foeCache.lobby === lobby && foeCache.round === lobby.round) return foeCache.name;
+  let name: string | null = null;
+  try {
+    const forced = lobby.forcedOpponent;
+    if (forced && forced.round === lobby.round) name = lobby.seats.find((x) => x.id === forced.seatId)?.label ?? null;
+    else {
+      const pair = pairRunLobby(lobby).pairs.find(([a, b]) => a.id === 's0' || b.id === 's0');
+      name = pair ? (pair[0].id === 's0' ? pair[1] : pair[0]).label || null : null;
+    }
+  } catch { name = null; }
+  foeCache = { lobby, round: lobby.round, name };
+  return name;
+}
+
+/** Tests: forget the cached pairing. */
+export function resetFoeCacheForTests(): void { foeCache = null; }
+
+/** My lobby game's status right now, with its step (ending the turn, fighting whom): what the presence beat AND the
+ *  Live Games listing send (R-FRIENDS-ACTIVITY-01, R-LIVE-STATUS-01). Null for a run with no lobby. */
+export function lobbyStatusNow(mode: string, run: RunSlice & { lobby?: RunLobby | null }, endTurnAnimating: boolean): FriendGameStatus | null {
+  if (!run.lobby) return null;
+  const extras: GameExtras = { ending: run.phase === 'recruit' && endTurnAnimating };
+  if (run.phase === 'combat') extras.foe = lobbyFoeName(run.lobby);
+  return lobbyGameStatus(mode, run, false, extras);
 }
 
 // ── text (player-facing: short plain sentences, no em dash) ─────────────────────────────────────────────

@@ -11323,7 +11323,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'The teammate view swap answers on the click frame and fades on the compositor',
     statement:
       'Clicking the portrait of your teammate (or yours, to come back) answers at once: the click does no rendering work, the browser snapshots the screen you leave, the swap renders once, and the cross-fade (130 ms) runs on the compositor (a View Transition), so a busy main thread never stutters it. '
-      + 'No copy of the game screen is made in the page. Browsers without View Transitions keep the earlier frozen-ghost cross-fade. '
+      + 'No copy of the game screen is made in the page. Phones (the phone GPU path) and browsers without View Transitions keep the earlier frozen-ghost cross-fade: on phones the snapshot textures cost memory and measured worse. '
       + 'If the shop closed between the click and the swap, your own board stays on screen.',
     domain: 'foundation',
     status: 'approved',
@@ -11332,7 +11332,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'qa/duos-spectate-polish' },
       { kind: 'code', ref: 'packages/ui/src/versus/teammateView.tsx (turnByViewTransition); packages/ui/src/versus/spectate.ts (flushSpectateRender); packages/ui/src/versus/versus.css (duos-vt)' },
     ],
-    currentBehaviour: 'Since 2026-10-29 (qa/duos-spectate-polish). Before, the click cloned the whole game screen as a ghost and rendered the new screen inside the click (click to next paint 80-216 ms on the bench, desktop prod build), and the fade waited at least 70 ms for calm frames. The swap still remounts the board (about 25 ms of main-thread work per direction on desktop), so it is not yet zero dropped frames: see the QA report.',
+    currentBehaviour: 'Since 2026-10-29 (qa/duos-spectate-polish). Before, the click cloned the whole game screen as a ghost and rendered the new screen inside the click (click to next paint 80-216 ms on the bench, desktop prod build), and the fade waited at least 70 ms for calm frames. The swap still remounts the board (about 25 ms of main-thread work per direction on desktop, 250-500 ms on a 4x-throttled phone), so it is not yet zero dropped frames: see the QA report.',
     example: "You click Bob's portrait. The same frame your click registers, your board starts fading into his, with no pause before it.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateFade.test.ts'], lastVerifiedAt: '2026-10-29' },
   },

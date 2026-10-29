@@ -103,6 +103,11 @@ describe('the swap as a View Transition (R-DUOS-VIEW-SWAP-01)', () => {
     expect(document.documentElement.classList.contains('duos-vt')).toBe(false);
   });
 
+  it('phones keep the ghost (the snapshot textures cost phone memory and measured far worse there)', () => {
+    expect(view.viewTransitionOf(document, true)).toBeNull();
+    expect(view.viewTransitionOf(document, false)).not.toBeNull();
+  });
+
   it('the shop closing between the click and the update leaves my own board on screen', () => {
     view.enterTeammateView();
     useVersus.setState({ match: { phase: 'combat', paused_at: null, group: { me: 'p1', duos: { team: 'a', mate: 'p2', first: { a: 'p1', b: 'p3' } } } } } as never);

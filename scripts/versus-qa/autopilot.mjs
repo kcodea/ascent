@@ -46,7 +46,9 @@ export async function clickSel(p, sel, nth = 0, { touch = false } = {}) {
   const el = p.page.locator(sel).nth(nth);
   const box = await el.boundingBox().catch(() => null);
   if (!box) return false;
-  if (touch) await p.page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  // On the phone layout the help / Compendium / settings squares cover the teammate portrait (a QA finding): a touch
+  // there opens the Compendium. `touch` taps the element itself (its own click), so the swap can still be measured.
+  if (touch) await el.dispatchEvent('click');
   else await p.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   return true;
 }

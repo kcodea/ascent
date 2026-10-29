@@ -23,6 +23,7 @@ import { flushSync } from 'react-dom';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { perfMonitor } from '../perfMonitor';
+import { PHONE_GPU } from '../phoneDiag';
 import { flushSpectateRender, leaveTeammate, leaveTeammateHero, useSpectate, watchTeammate, watchTeammateHero } from './spectate';
 import { useVersus } from './versusStore';
 
@@ -85,8 +86,14 @@ function whenNewScreenSettled(changed: () => boolean, done: () => void): void {
 interface ViewTransitionLike { finished: Promise<unknown>; ready: Promise<unknown> }
 type StartViewTransition = (cb: () => void | Promise<void>) => ViewTransitionLike;
 
-/** The browser's View Transition entry point, or null where there is none (the frozen-ghost fallback then runs). */
-export function viewTransitionOf(doc: Document | undefined = typeof document !== 'undefined' ? document : undefined): StartViewTransition | null {
+/**
+ * The browser's View Transition entry point, or null where there is none (the frozen-ghost fallback then runs).
+ * DESKTOP ONLY: on the phone GPU path (`PHONE_GPU`) the full-screen snapshot pair the transition keeps is a large
+ * texture cost (the phone memory budget, R-TOUCH-RUN-MEMORY-01), and on the throttled phone bench it measured far worse
+ * than the ghost (one 0.9-1.7 s frame per swap); phones keep the ghost.
+ */
+export function viewTransitionOf(doc: Document | undefined = typeof document !== 'undefined' ? document : undefined, phone: boolean = PHONE_GPU): StartViewTransition | null {
+  if (phone) return null;
   const f = (doc as unknown as { startViewTransition?: StartViewTransition } | undefined)?.startViewTransition;
   return typeof f === 'function' ? f.bind(doc) : null;
 }

@@ -8237,7 +8237,8 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 .msb-ingamenote { flex: none; padding: 7px 10px; border-radius: 9px; border: 1px solid rgba(196, 160, 92, 0.45); background: rgba(4, 9, 20, 0.75); animation: fadein 0.16s ease; }
 /* THE SETTINGS PAGE (R-ESC-SIDEBAR-01): the old Esc panel's sections, centred in the page's scroller at their full height
    (the page scrolls, not the panel). */
-.lbpage.set-page .escpanel { align-self: center; max-height: none; overflow: visible; flex: none; margin: 0 auto 24px; }
+/* `#root` so it beats the touch UI's own panel heights (touchUi.css), which were written for the old modal. */
+#root .lbpage.set-page .escpanel { align-self: center; max-height: none; overflow: visible; flex: none; margin: 0 auto 24px; }
 /* A HOP between two sidebar hosts (the store's `goTo`): the destination mounts as the source unmounts, in one
    store write, so the hosts' page-level `fadein` re-faded the sidebar and showed the title through it on every
    hop (review 2026-09-21). The host mounted BY the sidebar wears `.hop` (`SidebarHost` — see MenuSidebar.tsx)

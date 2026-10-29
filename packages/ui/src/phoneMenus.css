@@ -96,7 +96,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-mepin .lb-u
 /* ── THE MENU RAIL (MenuSidebar) ─────────────────────────────────────────────────────────────────────────────────────
    A slim rail at its real size (no zoom): the brand, Play, then one 40 pt plaque per page with a 12.5 pt label.
    The group headings go (the plaques say where they lead); the rail scrolls if a phone is too short for every plaque. */
-html[data-touch-ui][data-touch-small][data-page-scale] :is(.lbpage, .modepick.sb-host) { --sb-w: calc(160 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.lbpage, .modepick.sb-host, .gmenu) { --sb-w: calc(160 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb {
   zoom: 1; width: calc(var(--sb-w) + var(--safe-l)); gap: calc(4 * var(--pt));
   padding: calc(8 * var(--pt) + var(--safe-t)) calc(10 * var(--pt)) calc(8 * var(--pt) + var(--pz-safe-b, var(--safe-b))) calc(10 * var(--pt) + var(--safe-l));
@@ -365,7 +365,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn :is(.sb-livec
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-body { grid-template-columns: minmax(0, 1fr) calc(176 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-grid { grid-template-columns: repeat(auto-fill, minmax(calc(98 * var(--pt)), 1fr)); gap: calc(7 * var(--pt)); }
 /* Round 4. The rail a little wider so a plaque's live / online chip sits at its right edge beside the label. */
-html[data-touch-ui][data-touch-small][data-page-scale] :is(.lbpage, .modepick.sb-host) { --sb-w: calc(168 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.lbpage, .modepick.sb-host, .gmenu) { --sb-w: calc(168 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn :is(.sb-livechip, .newpill) { top: 50%; right: calc(5 * var(--pt)); transform: translateY(-50%); font-size: calc(9 * var(--pt)); padding: calc(1 * var(--pt)) calc(4 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn:has(:is(.sb-livechip, .newpill)) .mblabel { padding-right: calc(30 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn .mblabel { letter-spacing: 0.01em; }

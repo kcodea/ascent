@@ -26,7 +26,6 @@
  * `navHopAt` stamp it wears `.hop`, which turns the page fade off and fades only the content beside the
  * sidebar (see the `.hop` rules in styles.css).
  */
-import { DockSlot } from './friends/dock/dockSlot';
 import { useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { phoneLayoutOn } from './stage';
@@ -219,8 +218,6 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
         <span className="mbicon"><Icon name="gear" /></span>
         <span className="mblabel">{txt.settings}</span>
       </button>
-      {/* The Friends dock's home on every side-menu page (R-FRIENDS-DOCK-03): the rail's foot, under Settings. */}
-      <DockSlot className="msb-dock" side=".msb" />
     </aside>
     </>
   );

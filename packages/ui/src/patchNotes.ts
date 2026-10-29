@@ -58,6 +58,17 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'The Friends button moves to the bottom right corner and opens into your Friends list.', details: [
+        'It sits with the corner buttons, just left of Rules, on every screen.',
+        'Press it and the list grows out of the button. Press it again and the list folds back in.',
+        'Nothing on the left of the screen is covered any more: the side menu, the footer links and your hero.',
+      ] },
+      { category: 'Systems', text: 'You can move, resize and pin the chat window.', details: [
+        'Drag the tabs or the top of a chat to move the window. Drag an edge or a corner to resize it.',
+        'Pin it to keep it open while you play. A pinned chat does not dim the game, and clicks outside it go to the game.',
+        'Your chat keeps its place, size and pin on this device.',
+        'On a phone the chat stays full screen.',
+      ] },
       { category: 'Systems', text: 'In the Escape menu, the leave button is now red and sits right under Resume.', details: [
         'It still says Save & Quit, Concede, Leave replay or Stop watching, whichever fits your game.',
         'It still asks for a second tap before you leave.',

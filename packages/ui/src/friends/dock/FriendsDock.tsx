@@ -1,41 +1,46 @@
 /**
- * THE FRIENDS DOCK: ONE global dock, bottom left, on every screen (owner 2026-10-29: "Move the friends panel to the bottom
- * left, and then move the friends panel from the menu into the in game panel. Aka just have the in game friends
- * expand/collapse panel moved to the bottom left and be shown at all times in game through menus and in game etc. you
- * can then remove the friends area in the menus since it's redundant"; R-FRIENDS-DOCK-02, after R-FRIENDS-DOCK-01's
- * first in-game version: "It will expand upward and collapse back down ... Clicking out needs to close both menus
- * seamlessly so it isn't clunky.").
+ * THE FRIENDS DOCK: ONE global dock, BOTTOM RIGHT, on every screen (owner 2026-10-29, R-FRIENDS-DOCK-05: "move the
+ * friends thing to the bottom right instead i guess because this looks super sloppy how this looks. i want the friend
+ * button to like expand into the list/collapse back down"; after R-FRIENDS-DOCK-02's bottom-left dock and
+ * R-FRIENDS-DOCK-03 / -04's per-menu slots).
  *
  * WHERE: mounted ONCE in `Game` (never per screen), so it is the same instance on the title, every menu page, hero
  * select, every game mode, spectating and replays: open or closed, the tab and an open message all survive a screen
- * change. The button sits at the very bottom-left corner (`friendsDock.css` has the placement per framing, clear of the
- * in-game hero portrait, the side menu's Settings plaque and the title's footer links); the panels rise above it.
+ * change. The button is the fourth square of the bottom-right corner row, one slot left of Rules (gear, Compendium,
+ * Rules, Friends, right to left), wearing the same plaque at the same size on every screen (`friendsDock.css` has the
+ * slot per framing). Where that row is covered it takes the corner itself (`dockCorner`): hero select, a side-menu
+ * page and the in-game menu all lie over the whole row, and a phone's side-menu screens lift Rules and the Compendium to
+ * the top.
  *
  * THE PIECES:
  *  - `DockShell`: the corner button (online count, top right; unread messages + friend requests waiting, the red chip,
- *    top left), the open / close motion, and closing on a press outside or Escape. The panels mount only while open
+ *    top left), the open / close motion, and closing on a press outside or Escape. The panel mounts only while open
  *    (closed = one button, no list read).
- *  - `FriendsPanel`: what the old Friends page did, in tabs (the Career page's `.cv2-tabs` pill): Friends (my handle to
- *    share, Add by handle, then every friend: online, in a game, then offline with last seen; a click opens the direct
- *    message, right-click / long press opens the friend menu, R-FRIENDS-MENU-01), Requests (incoming Accept / Decline /
- *    Block, sent Cancel) and Blocked (Unblock; only while someone is blocked).
+ *  - ONE PANEL that grows out of the button: its bottom-right corner sits on the button's, it rises up and to the left,
+ *    and the button stays where it was as the right end of the panel's title bar (the bar runs along the panel's foot:
+ *    "Friends", the online count, my handle, then the button, now showing a collapse chevron). Pressing it again sinks
+ *    the panel back into the button.
+ *  - `FriendsPanel`: what the old Friends page did, in tabs (the Career page's `.cv2-tabs` pill): Friends (Add by
+ *    handle, then every friend: online, in a game, then offline with last seen; a click opens the chat window, right-
+ *    click / long press opens the friend menu, R-FRIENDS-MENU-01), Requests (incoming Accept / Decline / Block, sent
+ *    Cancel) and Blocked (Unblock; only while someone is blocked).
  *  - `GuestPanel`: a guest (or no session) sees "Sign in to add friends." and the existing account panel.
- *  - `ChatWindow` (`../dm/ChatWindow.tsx`, R-DM-CHAT-01): pressing a friend opens a large chat window in the middle of
- *    the screen, one tab per conversation; the list collapses as it opens.
+ *  - `ChatWindow` (`../dm/ChatWindow.tsx`, R-DM-CHAT-01 / -02): pressing a friend opens the chat window, one tab per
+ *    conversation; the list collapses as it opens. It can be moved, resized and pinned open while playing.
  *
- * A PRESS OUTSIDE closes the list, and is CAUGHT: a transparent catcher under the panels takes it, so
- * the press that closes the dock never also buys, refreshes, ends the turn, starts a drag or presses a menu button. It
- * closes on pointerdown, so the dock is already collapsing by the time the finger lifts.
+ * A PRESS OUTSIDE closes the list, and is CAUGHT: a transparent catcher under the panel takes it, so the press that
+ * closes the dock never also buys, refreshes, ends the turn, starts a drag or presses a menu button. It closes on
+ * pointerdown, so the dock is already collapsing by the time the finger lifts.
  *
- * COST: the online count is the presence beat's own answer and the unread counts the hub's (no call of their own); the
- * list is read only while the panel is open, on the shared 60 s loop (R-FRIENDS-05).
+ * MOTION: one-shot transform + opacity only (the panel scales out of the button's corner and back into it); nothing
+ * loops, nothing is measured. COST: the online count is the presence beat's own answer and the unread counts the hub's
+ * (no call of their own); the list is read only while the panel is open, on the shared 60 s loop (R-FRIENDS-05).
  */
-import { memo, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { memo, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Icon } from '../../Icon';
 import { remoteEnabled } from '../../remoteBoards';
 import { sfx } from '../../sfx';
-import { isPreRun, useGame } from '../../store';
+import { anyPageOpen, isPreRun, useGame } from '../../store';
 import { useVersus } from '../../versus/versusStore';
 import { versusRoomRef } from '../../versus/versusRemote';
 import {
@@ -46,17 +51,26 @@ import { FINISH_FIRST, runFriendMenu } from '../friendsGo';
 import { ActivityDetail, ConfirmButton, FriendGame, FriendPortrait, friendDetail, handleOf, sortFriends, statusText } from '../friendBits';
 import { friendMenuEatsClick, friendMenuHandlers, useFriendMenu } from '../FriendMenu';
 import type { Friend, FriendCard } from '../friendsRemote';
-import { currentDockSlot, useDockAnchor, useDockSlots } from './dockSlot';
 import { closeDock, closeDockNow, openDm, setDockTab, swallowNextClick, toggleDock, useFriendsDock, type DockTab } from './dockStore';
 import { ChatWindow } from '../dm/ChatWindow';
 import { liveFriends, totalUnread, useDm } from '../dm/dmStore';
 import '../friends.css';
 import './friendsDock.css';
 
+type GameState = ReturnType<typeof useGame.getState>;
+
 /** Every friend for the dock's list: online, then in a game, then offline (each by name). */
 export function dockFriends(list: readonly Friend[] | null | undefined): Friend[] {
   return list ? sortFriends(list) : [];
 }
+
+/**
+ * Which slot of the corner row the button takes (friendsDock.css): '' = slot 3, left of Rules; 'corner' = slot 0, the
+ * corner itself, while something lies over the whole row (hero select, a side-menu page, the in-game menu). One string,
+ * so the dock re-renders only when it changes.
+ */
+export const dockCorner = (s: Pick<GameState, 'showCareer' | 'showRankings' | 'showLeaderboard' | 'showRecentGames' | 'showLiveGames' | 'showCollection' | 'settingsOpen' | 'showPatchNotes' | 'gameMenuOpen' | 'heroChoices'>): '' | 'corner' =>
+  (anyPageOpen(s) || s.gameMenuOpen || s.heroChoices !== null ? 'corner' : '');
 
 /** The dock, on every screen. Nothing without a backend, or once the server said friends are not deployed. */
 export function FriendsDock(): JSX.Element | null {
@@ -64,21 +78,18 @@ export function FriendsDock(): JSX.Element | null {
   const anonymous = useGame((s) => s.account.anonymous);
   const deployed = useFriends((s) => s.deployed);
   const guest = !userId || anonymous;
-  // In a run (or a replay / a watched game), the corner is under the hero portrait's Health plate: the button tucks in
-  // smaller there (friendsDock.css `.ingame`).
+  // In a run (or a replay / a watched game) the chat's veil barely dims (the game keeps running underneath).
   const inGame = useGame((s) => !isPreRun(s) || s.replaying);
+  const slot = useGame(dockCorner);
   const shown = remoteEnabled() && (guest || deployed);
   // A different identity (a sign-in, a sign-out, a guest saved): whatever was open belonged to the other one.
   useEffect(() => { closeDockNow(); }, [userId, anonymous]);
   if (!shown) return null;
-  return <DockShell guest={guest} inGame={inGame} />;
+  return <DockShell guest={guest} inGame={inGame} slot={slot} />;
 }
 
-/** The button in its slot (a menu's corner space) or, with none, in the fixed corner. */
-const portalTo = (el: HTMLElement | null, node: JSX.Element): JSX.Element => (el ? createPortal(node, el) : node);
-
-/** The shell: button, panels, outside-press and Escape. */
-export function DockShell({ conversation, guest = false, inGame = false }: { conversation?: (friend: Friend) => ReactNode; guest?: boolean; inGame?: boolean } = {}): JSX.Element {
+/** The shell: the corner button, the panel that grows out of it, outside-press and Escape. */
+export function DockShell({ conversation, guest = false, inGame = false, slot = '' }: { conversation?: (friend: Friend) => ReactNode; guest?: boolean; inGame?: boolean; slot?: '' | 'corner' } = {}): JSX.Element {
   const phase = useFriendsDock((s) => s.phase);
   const dmWith = useFriendsDock((s) => s.dmWith);
   const online = useFriends((s) => (guest ? 0 : s.inbox?.online ?? 0));
@@ -86,12 +97,7 @@ export function DockShell({ conversation, guest = false, inGame = false }: { con
   const unread = useDm((s) => (guest ? 0 : totalUnread(s.unread)));
   const open = phase !== 'closed';
   const waiting = unread + requests;
-  // A menu with its own corner space (R-FRIENDS-DOCK-03): the button lives in it, the panel opens beside its column.
-  const slot = useDockSlots((s) => currentDockSlot(s.slots));
-  const anchor = useDockAnchor(open);
-  const stackStyle = anchor
-    ? ({ left: anchor.left, bottom: anchor.bottom, maxWidth: anchor.maxW, '--fdock-maxh': `${anchor.maxH}px` } as CSSProperties)
-    : undefined;
+  const corner = slot ? ` ${slot}` : '';
 
   // Escape closes the list (capture: the same press must not also open the Esc menu underneath).
   useEffect(() => {
@@ -122,22 +128,24 @@ export function DockShell({ conversation, guest = false, inGame = false }: { con
           onContextMenu={(e) => { e.preventDefault(); closeDock(); }} />
       )}
       {open && (
-        <div className={`fdock-stack${phase === 'closing' ? ' closing' : ''}${inGame ? ' ingame' : ''}${anchor ? ' beside' : ''}`} style={stackStyle}>
+        <div className={`fdock-stack${phase === 'closing' ? ' closing' : ''}${corner}`}>
           {guest ? <GuestPanel /> : <FriendsPanel active={phase === 'open'} selected={dmWith} />}
         </div>
       )}
       {!guest && <ChatWindow inGame={inGame} conversation={conversation} />}
-      {portalTo(slot?.el ?? null, <button type="button" className={`fdock-btn gtip${open ? ' on' : ''}${inGame ? ' ingame' : ''}${slot ? ' inslot' : ''}`} data-tip={open ? undefined : 'Friends'}
-        aria-label={label} aria-expanded={phase === 'open'}
+      {/* The button: closed, the corner square with its counts; open, the right end of the panel's title bar showing a
+          collapse chevron (the panel grows out of it and sinks back into it). */}
+      <button type="button" className={`fdock-btn gtip${open ? ' on' : ''}${corner}`} data-tip={open ? undefined : 'Friends'}
+        aria-label={phase === 'open' ? `${label}. Collapse` : label} aria-expanded={phase === 'open'}
         onClick={() => { sfx.pulse(); toggleDock(); }}>
-        <Icon name="friends" />
-        {(online > 0 || waiting > 0) && (
+        <Icon name={phase === 'open' ? 'chevron' : 'friends'} />
+        {!open && (online > 0 || waiting > 0) && (
           <span className="fdock-chips" aria-hidden="true">
             {online > 0 && <span className="fdock-count">{online > 99 ? '99+' : online}</span>}
             {waiting > 0 && <span className="dm-unread">{waiting > 99 ? '99+' : waiting}</span>}
           </span>
         )}
-      </button>)}
+      </button>
     </>
   );
 }
@@ -147,12 +155,12 @@ function GuestPanel(): JSX.Element {
   const openAccountPanel = useGame((s) => s.openAccountPanel);
   return (
     <section className="fdock-panel fdock-list fdock-guest vspanel" aria-label="Friends">
-      <div className="fdock-head"><span className="fdock-title">Friends</span></div>
       <div className="fdock-empty">
         <div>Sign in to add friends.</div>
         <div className="fdock-emptysub">Friends need a saved account, so they can find you on any device.</div>
         <button type="button" className="lb-btn pressable fdock-signin" onClick={() => { sfx.pulse(); closeDockNow(); openAccountPanel(); }}>Sign in</button>
       </div>
+      <PanelBar />
     </section>
   );
 }
@@ -206,11 +214,6 @@ export function FriendsPanel({ active, selected }: { active: boolean; selected: 
   }
   return (
     <section className="fdock-panel fdock-list vspanel" aria-label="Friends">
-      <div className="fdock-head">
-        <span className="fdock-title">Friends</span>
-        {list && <span className="fdock-sub">{`${online} online`}</span>}
-        {myHandle && <span className="fdock-me" aria-label={`You are ${myHandle}. Share it so friends can add you.`}>{myHandle}</span>}
-      </div>
       <div className="cv2-tabs fdock-tabs" role="tablist" aria-label="Friends view">
         {tabs.map((t) => (
           <button key={t.id} type="button" role="tab" className={`cv2-tab${tab === t.id ? ' on' : ''}`} aria-selected={tab === t.id}
@@ -223,7 +226,22 @@ export function FriendsPanel({ active, selected }: { active: boolean; selected: 
       {tab === 'friends' && list && <AddByHandle />}
       {flash && <div className="fr-flash fdock-flash" role="status">{flash}</div>}
       {body}
+      <PanelBar>
+        {list && <span className="fdock-sub">{`${online} online`}</span>}
+        {myHandle && <span className="fdock-me" aria-label={`You are ${myHandle}. Share it so friends can add you.`}>{myHandle}</span>}
+      </PanelBar>
     </section>
+  );
+}
+
+/** The panel's title bar, along its foot: the title and its details, then the room the corner button sits in. */
+function PanelBar({ children }: { children?: ReactNode }): JSX.Element {
+  return (
+    <div className="fdock-head fdock-bar">
+      <span className="fdock-title">Friends</span>
+      {children}
+      <span className="fdock-btnroom" aria-hidden="true" />
+    </div>
   );
 }
 

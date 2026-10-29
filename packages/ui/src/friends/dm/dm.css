@@ -42,8 +42,9 @@ html[data-touch-ui] .dm-report { opacity: 0.8; }
   font-variant-numeric: tabular-nums; pointer-events: none; }
 .fdock-row .dm-unread { flex: none; margin-left: auto; }
 
-/* The toast: just above the Friends button, bottom left, left-aligned with the dock's panels (R-FRIENDS-DOCK-02). */
-.dm-toast.vspanel { position: fixed; z-index: 482; left: calc(var(--edge-l) + var(--fdock-x)); bottom: calc(var(--edge-b) + var(--fdock-y) + var(--fdock-cb) + 10px);
+/* The toast: just above the Friends button, bottom right, its right edge on the button's (R-FRIENDS-DOCK-05; the slot
+   numbers are friendsDock.css's `--fdock-r` / `--fdock-b`). */
+.dm-toast.vspanel { position: fixed; z-index: 482; right: var(--fdock-r); bottom: calc(var(--fdock-b) + var(--fdock-cb) + 10px);
   width: 320px; min-width: 0; max-width: calc(var(--lvw, 100vw) - 32px); box-sizing: border-box; padding: 10px 12px; display: flex; align-items: center; gap: 10px;
   text-align: left; animation: dmtoastin 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .dm-toast.vspanel:hover { border-color: rgba(240, 208, 137, 0.75); }
@@ -51,28 +52,64 @@ html[data-touch-ui] .dm-report { opacity: 0.8; }
 .dm-toast-text { display: flex; flex-direction: column; min-width: 0; }
 .dm-toast-name { font-family: var(--font-ui); font-weight: 900; font-size: 14px; color: #f0d089; }
 .dm-toast-body { font-family: var(--font-ui); font-weight: 600; font-size: 13.5px; color: #f4eee2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-html[data-phone-zoom] .dm-toast.vspanel { bottom: calc(var(--pz-safe-b, var(--safe-b)) + var(--fdock-y) + var(--fdock-cb) + 10px); }
 html[data-phone-layout]:not([data-phone-menus]) .dm-toast.vspanel { width: 300px; }
 
 @media (prefers-reduced-motion: reduce) { .dm-toast.vspanel { animation-duration: 0.01s; } }
 
-/* THE CHAT WINDOW (owner 2026-10-29, R-DM-CHAT-01): a large window in the middle of the screen, in the dock's dark
-   panel (`.vspanel`), with one tab per conversation across its top in the Career page's tab pill colours (`.cv2-tab`).
-   LAYERS: over the dock (480-487) and the friend menu (490), under the Settings veil (500) and the account panel (540).
-   The veil dims the menus a little and a game barely (it keeps running underneath). Sizes are layout px: the stage
-   scales them with everything else on a smaller window. Motion: one-shot opacity (veil) + transform/opacity (window). */
-.dmchat-veil { position: fixed; inset: 0; z-index: 492; display: grid; place-items: center; background: rgba(4, 8, 16, 0.5); touch-action: none;
+/* THE CHAT WINDOW (owner 2026-10-29, R-DM-CHAT-01 / -02): a window in the dock's dark panel (`.vspanel`), with one tab
+   per conversation across its top in the Career page's tab pill colours (`.cv2-tab`). It can be MOVED (the tab strip and
+   the conversation header), RESIZED (`.dmchat-rs`, four edges and four corners) and PINNED.
+   THE FRAME (`.dmchat-at`) is placed by `--dmx` / `--dmy` (a transform: a drag writes the transform straight to it) and
+   sized by `--dmw` / `--dmh` (stage px, set from `chatWindowPrefs.ts`); the panel inside fills it and plays the open.
+   LAYERS: unpinned, over the dock (480-487) and the friend menu (490), under the Settings veil (500) and the account
+   panel (540), with the veil (dims the menus a little and a game barely; it keeps running underneath). PINNED (no veil)
+   it sits UNDER the Friends button (480), the toast (482) and the dock's list (484-487), so they stay reachable, and over
+   the game and the menu pages (470). Motion: one-shot opacity (veil) + transform / opacity (panel); nothing loops. */
+.dmchat-veil { position: fixed; inset: 0; z-index: 492; background: rgba(4, 8, 16, 0.5); touch-action: none;
   animation: dmchatveil 0.16s ease-out both; }
 .dmchat-veil.ingame { background: rgba(4, 8, 16, 0.22); }
 @keyframes dmchatveil { from { opacity: 0; } }
-.dmchat.vspanel { --dmchat-z: 1; zoom: var(--dmchat-z); width: calc(min(960px, var(--lvw, 100vw) - 64px) / var(--dmchat-z)); height: calc(min(720px, var(--lvh, 100vh) - 96px) / var(--dmchat-z));
+.dmchat-at { position: fixed; left: 0; top: 0; z-index: 493; width: var(--dmw); height: var(--dmh); transform: translate(var(--dmx), var(--dmy)); }
+.dmchat-at.pinned { z-index: 479; }
+.dmchat-at.moving { will-change: transform; }
+.dmchat.vspanel { --dmchat-z: 1; width: 100%; height: 100%;
   min-width: 0; max-width: none; box-sizing: border-box; padding: 0; display: flex; flex-direction: column; text-align: left; overflow: hidden; touch-action: auto;
   background: linear-gradient(180deg, rgb(13, 22, 40), rgb(9, 15, 29)); /* the panel's colours, fully solid: a big window must not ghost the board through */
   animation: dmchatin 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.dmchat-at.pinned > .dmchat.vspanel { border-color: rgba(240, 208, 137, 0.8); }
 @keyframes dmchatin { from { opacity: 0; transform: translateY(18px) scale(0.97); } }
-/* A phone's stage is scaled down a lot: the window fills the screen and grows back to a readable size (the dock's trick). */
-html[data-touch-ui][data-touch-small] .dmchat.vspanel { --dmchat-z: calc(var(--touch-inv-s, 1) * 0.62);
+/* A phone's stage is scaled down a lot: the window fills the screen and grows back to a readable size (the dock's trick).
+   No move, no resize, no pin there (ChatWindow). */
+.dmchat-at.phone { transform: none; left: 12px; top: 12px; width: auto; height: auto; }
+html[data-touch-ui][data-touch-small] .dmchat-at.phone > .dmchat.vspanel { --dmchat-z: calc(var(--touch-inv-s, 1) * 0.62); zoom: var(--dmchat-z);
   width: calc((var(--lvw, 100vw) - 24px) / var(--dmchat-z)); height: calc((var(--lvh, 100vh) - 24px) / var(--dmchat-z)); }
+
+/* MOVE: the strip and the header take the open gauntlet (they can be grabbed); while moving, the closed one. */
+.dmchat-at:not(.phone) :is(.dmchat-top, .dmchat-head) { cursor: url('/cursors/gauntlet_open.svg') 6 2, move; touch-action: none; }
+.dmchat-at.moving, .dmchat-at.moving * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
+/* RESIZE: thin grips on the frame's edges (corners a little bigger), just outside the panel's rounded rim. The gauntlet
+   with the resize arrow as its fallback. */
+.dmchat-rs { position: absolute; z-index: 2; touch-action: none; }
+.dmchat-rs-n, .dmchat-rs-s { left: 14px; right: 14px; height: 10px; cursor: url('/cursors/gauntlet_open.svg') 6 2, ns-resize; }
+.dmchat-rs-e, .dmchat-rs-w { top: 14px; bottom: 14px; width: 10px; cursor: url('/cursors/gauntlet_open.svg') 6 2, ew-resize; }
+.dmchat-rs-n { top: -5px; } .dmchat-rs-s { bottom: -5px; } .dmchat-rs-e { right: -5px; } .dmchat-rs-w { left: -5px; }
+.dmchat-rs-ne, .dmchat-rs-se, .dmchat-rs-sw, .dmchat-rs-nw { width: 18px; height: 18px; }
+.dmchat-rs-ne { top: -6px; right: -6px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nesw-resize; }
+.dmchat-rs-sw { bottom: -6px; left: -6px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nesw-resize; }
+.dmchat-rs-nw { top: -6px; left: -6px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nwse-resize; }
+.dmchat-rs-se { bottom: -6px; right: -6px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nwse-resize; }
+/* The corner grip a mouse looks for: the panel's own gold hairline, two short strokes in the corner. */
+.dmchat-rs-se::after { content: ''; position: absolute; right: 9px; bottom: 9px; width: 8px; height: 8px; border-right: 2px solid rgba(240, 208, 137, 0.55);
+  border-bottom: 2px solid rgba(240, 208, 137, 0.55); border-bottom-right-radius: 3px; pointer-events: none; }
+/* The resize outline: where the window will land, drawn while a grip is held (the window commits its size on release). */
+.dmchat-ghost { position: fixed; left: 0; top: 0; z-index: 494; display: none; box-sizing: border-box; border: 2px dashed rgba(240, 208, 137, 0.85);
+  border-radius: 18px; background: rgba(240, 208, 137, 0.06); pointer-events: none; }
+.dmchat-ghost.on { display: block; }
+/* The pin: the close button's square; lit while pinned. */
+.dmchat-pin.fdock-x { align-self: center; margin-bottom: 10px; width: 34px; height: 34px; display: grid; place-items: center; color: rgba(240, 222, 180, 0.7); }
+.dmchat-pin.fdock-x svg { width: 18px; height: 18px; transform: rotate(35deg); transition: transform 0.14s ease; }
+.dmchat-pin.fdock-x.on { color: #241705; background: linear-gradient(180deg, #f0d089, #c99d4e); }
+.dmchat-pin.fdock-x.on svg { transform: none; }
 
 /* The tab strip: a darker band across the top, the close button at its right end. Scrolls sideways when full. */
 .dmchat-top { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px 0 12px; background: rgba(0, 0, 0, 0.28);
@@ -112,4 +149,4 @@ html[data-touch-ui][data-touch-small] .dmchat.vspanel { --dmchat-z: calc(var(--t
 .dmchat-pane .fdock-input.acctinput { font-size: 15.5px; padding: 11px 14px; }
 .dmchat-wait { margin: auto; }
 
-@media (prefers-reduced-motion: reduce) { .dmchat-veil, .dmchat.vspanel { animation-duration: 0.01s; } }
+@media (prefers-reduced-motion: reduce) { .dmchat-veil, .dmchat.vspanel { animation-duration: 0.01s; } .dmchat-pin.fdock-x svg { transition: none; } }

@@ -1470,19 +1470,23 @@ Ranked Duos party).
   yourself, no duplicates. Limits: 200 friends, 50 requests waiting, 20 requests an hour.
 - **Blocking.** Block ends any friendship or request between the two players and cancels their open invites; while it
   stands neither can request or invite the other (block wins). The blocked player is never told. Unblock lifts it.
-- **The Friends dock** (owner 2026-10-29, R-FRIENDS-DOCK-02; there is no Friends page or sidebar plaque any more).
-  ONE Friends button in the bottom-left corner on every screen (title, every menu page, hero select, every game mode,
-  watching, replays), the same instance throughout, so open / closed, the tab and an open chat survive a screen
-  change. It carries friends online (green) and unread messages + requests waiting (red). Its panel rises above it
-  with tabs: **Friends** (your own handle to share, Add by handle, then every friend: online first, then in a game,
+- **The Friends dock** (owner 2026-10-29, R-FRIENDS-DOCK-02 / -05; there is no Friends page or sidebar plaque any
+  more). ONE Friends button in the BOTTOM-RIGHT corner on every screen (title, every menu page, hero select, every game
+  mode, watching, replays), the same instance throughout, so open / closed, the tab and an open chat survive a screen
+  change. It is the fourth square of the corner row (gear, Compendium, Rules, Friends, right to left), with the same
+  plaque and size; where something covers that row (hero select, a side-menu page, the in-game menu, a phone's
+  side-menu screens) it sits in the corner itself. It
+  carries friends online (green) and unread messages + requests waiting (red). The button EXPANDS INTO the friends
+  list: one panel grows up and to the left out of it, the button staying put as the right end of the panel's title bar
+  (along its foot: Friends, the online count, your handle), now a collapse chevron; pressing it again sinks the panel
+  back into the button. The panel has tabs: **Friends** (your own handle to share, Add by handle, then every friend: online first, then in a game,
   then offline with last seen), **Requests** (incoming Accept / Decline / Block, sent Cancel, with a count) and
   **Blocked** (Unblock; shown while someone is blocked). A friend in a game shows its mode (Ranked, Casual, Practice,
   Tutorial, Gauntlet, Versus 1v1 / Group / Duos, Ranked Duos) and Watch when it is watchable: a ranked lobby game
-  through Live Games, a Versus match from their room's stands. A guest's button opens "Sign in to add friends." In a
-  game the button tucks in smaller under the hero's Health plate with its counts beside it. On a menu it lives in the
-  menu's own corner space (R-FRIENDS-DOCK-03): the side menu's foot under Settings; on the title, the bottom-left
-  corner just above the footer links (R-FRIENDS-DOCK-04, never beside the menu buttons). It never moves the footer or a
-  plaque, and its panel opens to the RIGHT of that menu so no menu button is hidden. On a desktop the panel is wide
+  through Live Games, a Versus match from their room's stands. A guest's button opens "Sign in to add friends." The
+  bottom-left placements (under the hero's Health plate in a game, the side menu's foot, above the title's footer
+  links: R-FRIENDS-DOCK-02 / -03 / -04) are gone, so nothing on the left (the side menu, the footer links, the hero
+  portrait) is ever covered. On a desktop the panel is wide
   (about 520) so a friend's whole game line shows (round and step, place, Health, Tier, who they fight); touch screens
   keep the compact one.
 - **Presence.** Online = on a menu (including a Versus room between matches); In a game = playing; Offline = nothing
@@ -1502,10 +1506,11 @@ Ranked Duos party).
   who is Online (not in a game). The invitee gets a corner notice with Accept / Decline on any menu (never over a game);
   it lasts 2 minutes. Accept opens Versus and joins the room (a seat is then one drag away). A newer invite to the same
   friend replaces the older one. 30 invites an hour. The Ranked Duos party uses the same invite (kind `duos_party`): Accept opens the party and takes its free seat.
-- **The dock's motion and safety** (owner 2026-10-29, R-FRIENDS-DOCK-01). The panel opens upward out of the button;
+- **The dock's motion and safety** (owner 2026-10-29, R-FRIENDS-DOCK-01 / -05). The panel scales out of the button's
+  corner and back into it (one short transform + opacity, instant with reduced motion);
   pressing a friend opens the CHAT WINDOW (below) and the list collapses. A press anywhere outside the list, or Escape,
   closes it; that press is caught and never reaches the board or a menu button.
-- **The chat window** (owner 2026-10-29, R-DM-CHAT-01). A large window in the middle of the screen with one TAB per
+- **The chat window** (owner 2026-10-29, R-DM-CHAT-01). A large window (in the middle of the screen until you move it) with one TAB per
   conversation across its top: every friend you opened this session (in that order), then every friend with unread
   messages. A tab shows the portrait, name, unread count and its own close (closing a tab with unread messages reads
   them; closing the last tab closes the window). Under the tabs: the friend's header (portrait, status, their game
@@ -1514,6 +1519,15 @@ Ranked Duos party).
   dims the page; in a game it barely dims, and the game keeps running underneath. A new-message toast opens it on that
   friend. Pressing Watch closes it and goes to their game. Escape with the friend menu
   open closes only the menu. The list is read only while the dock is open (60 s, nothing while hidden).
+- **Moving, resizing and pinning the chat** (owner 2026-10-29, R-DM-CHAT-02). Drag the tab strip or the conversation's
+  header to move the window (a press that barely moves is still a click); drag any edge or corner to resize it (420 x
+  320 at least, 1600 x 1200 at most, never bigger than the screen; an outline shows the new size and the window takes
+  it on release). It always stays wholly on screen and is put back inside when the screen shrinks. The **pin** (beside
+  the close) keeps it up while you play: no dimming, Escape and presses outside it go to the game (the Esc menu opens
+  as usual), the game takes every press outside its rect, Watch takes it along, and it stays through the shop, combat
+  and every screen change until you close it. Pinned, it sits under the Friends button, the list and the new-message
+  toast so they stay reachable. Unpinned is the overlay above. The place, the size and the pin are remembered on this
+  device. A phone keeps the full-screen chat: no move, no resize, no pin.
 - **The friend menu** (owner 2026-10-29, R-FRIENDS-MENU-01 / -02). Right-click (or a long press) on a friend in the
   dock: **Spectate** (their game, when watchable; disabled while you play your own),
   **Invite to lobby** / **Invite to Duos** (an Online friend: your open Versus room / Duo party, or a NEW one made for

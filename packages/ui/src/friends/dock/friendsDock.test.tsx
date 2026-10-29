@@ -57,10 +57,12 @@ import type { Friend, FriendInvite, FriendsList, FriendsRemote, InviteKind } fro
 import { PAGES_CLOSED } from '../../store';
 import { acceptSpectateInvite, FINISH_FIRST, friendMenuEntries, inviteToRoom, inviteToSpectate, runFriendMenu, type FriendMenuContext } from '../friendsGo';
 import { FriendMenu, openFriendMenu, useFriendMenu } from '../FriendMenu';
-import { FriendsDock } from './FriendsDock';
-import { DockSlot, useDockSlots } from './dockSlot';
+import { dockCorner, FriendsDock } from './FriendsDock';
 import { chatTabOrder } from '../dm/ChatWindow';
 import { useDm } from '../dm/dmStore';
+import {
+  CHAT_MAX_H, CHAT_MAX_W, CHAT_MIN_H, CHAT_MIN_W, clampChatGeom, defaultChatGeom, moveChatGeom, resetChatWindowForTests, resizeChatGeom, setChatPinned, useChatWindow, type ChatGeom,
+} from '../dm/chatWindowPrefs';
 import { DOCK_CLOSE_MS, openDm, resetDockForTests, useFriendsDock } from './dockStore';
 
 const ME = '00000000-0000-0000-0000-000000000001';
@@ -126,13 +128,13 @@ describe('the dock (R-FRIENDS-DOCK-01)', () => {
     ui = mount(<FriendsDock />);
     expect(q('.fdock-btn')?.getAttribute('aria-label')).toBe('Friends, 2 online'); // the title
     expect(q('.fdock-count')?.textContent).toBe('2');
-    expect(q('.fdock-btn.ingame')).toBeNull();
+    expect(q('.fdock-btn')?.className).toBe('fdock-btn gtip'); // slot 3, left of Rules
     act(() => { useGame.setState({ showTitle: true, showCareer: true }); });
-    expect(q('.fdock-btn')).not.toBeNull(); // a ladder page
+    expect(q('.fdock-btn.corner')).not.toBeNull(); // a ladder page covers the corner row: the corner itself
     act(() => { useGame.setState({ showCareer: false, showTitle: false, heroChoices: [] as never }); });
-    expect(q('.fdock-btn')).not.toBeNull(); // hero select
+    expect(q('.fdock-btn.corner')).not.toBeNull(); // hero select lies over the row too
     act(() => inRun());
-    expect(q('.fdock-btn.ingame')).not.toBeNull(); // a game: tucked under the hero's Health plate
+    expect(q('.fdock-btn')?.className).toBe('fdock-btn gtip'); // a game: slot 3 again, the same plaque as the row
     act(() => { useGame.setState({ account: { userId: ME, email: null, anonymous: true, discriminator: null } }); });
     expect(q('.fdock-btn')?.getAttribute('aria-label')).toBe('Friends'); // a guest: no counts
     click(q('.fdock-btn'));
@@ -492,29 +494,49 @@ describe('Remove friend and Block live in the menu, never on the row (R-FRIENDS-
   });
 });
 
-describe('placement: bottom left, clear of each screen\'s corner furniture (R-FRIENDS-DOCK-02)', () => {
-  // jsdom has no layout: the headless screenshot pass (devlog 2026-10-29-friends-dock-global) measured these; this pins
-  // the contract so a later edit cannot quietly move the dock back over the Health plate or the Settings plaque.
+describe('placement: bottom right, the fourth square of the corner row (R-FRIENDS-DOCK-05)', () => {
+  // jsdom has no layout: the headless screenshot pass (devlog 2026-10-29-friends-dock-bottom-right) measured these at
+  // 1280x720, 1920x1080, 1191x1147 and a phone; this pins the contract so a later edit cannot quietly move it again.
   const css = readFileSync(join(__dirname, 'friendsDock.css'), 'utf8');
-  it('the button, the panels and the toast anchor LEFT, never right', () => {
-    expect(css).toMatch(/\.fdock-btn \{ position: fixed; left: calc\(var\(--edge-l\) \+ var\(--fdock-x\)\); bottom: calc\(var\(--edge-b\) \+ var\(--fdock-y\)\);/);
-    expect(css).toMatch(/\.fdock-stack \{[^}]*left: calc\(var\(--edge-l\) \+ var\(--fdock-x\)\)/);
-    expect(css).not.toMatch(/\.fdock-(btn|stack) \{[^}]*right:/);
+  const styles = readFileSync(join(__dirname, '..', '..', 'styles.css'), 'utf8');
+  it('the button anchors RIGHT and BOTTOM on the corner row\'s own numbers, one slot left of Rules, never left', () => {
+    expect(css).toContain('.fdock-btn, .fdock-stack, .dm-toast { --fdock-cb: calc(40 * var(--u)); --fdock-slot: 3; --fdock-pad: 6px;');
+    expect(css).toContain('--fdock-r: calc(var(--edge-r) + 16px + var(--fdock-slot) * (var(--fdock-cb) + 10px)); --fdock-b: calc(var(--edge-b) + 16px); }');
+    expect(css).toMatch(/\.fdock-btn \{ position: fixed; right: var\(--fdock-r\); bottom: var\(--fdock-b\);/);
+    expect(css).not.toMatch(/\.fdock-(btn|stack) \{[^}]*left:/);
+    // The row it joins: gear 0, Compendium 1, Rules 2 (each 40u + 10 px, 16 px in), so slot 3 is the next square.
+    expect(styles).toContain('.rulesbtn { right: calc(var(--edge-r) + 16px + 2 * (40 * var(--u) + 10px)); }');
+    // The dev tools button (dev builds only) already stepped to slot 4 for it.
+    expect(styles).toMatch(/\.devmenu-btn \{ position: fixed; right: calc\(var\(--bar-x\) \+ 16px \+ 4 \* \(40 \* var\(--u\) \+ 10px\)\)/);
   });
-  it('in a game it tucks in smaller and lower, counts beside it (never above, where the Health plate is)', () => {
-    expect(css).toContain('.fdock-btn.ingame, .fdock-stack.ingame, .dm-toast.ingame { --fdock-cb: calc(32 * var(--u)); --fdock-x: 10px; --fdock-y: 5px; }');
-    expect(css).toMatch(/\.fdock-btn\.ingame \.fdock-chips \{ inset: auto; left: calc\(100% \+ 5px\)/);
+  it('it takes the corner itself where the row is covered: hero select, a side-menu page, the in-game menu', () => {
+    const base = { ...PAGES_CLOSED, gameMenuOpen: false, heroChoices: null } as Parameters<typeof dockCorner>[0];
+    expect(dockCorner(base)).toBe('');
+    expect(dockCorner({ ...base, heroChoices: [] as never })).toBe('corner');
+    for (const page of ['showCareer', 'showRankings', 'showLeaderboard', 'showRecentGames', 'showLiveGames', 'showCollection', 'settingsOpen', 'showPatchNotes'] as const) {
+      expect(dockCorner({ ...base, [page]: true })).toBe('corner');
+    }
+    expect(dockCorner({ ...base, gameMenuOpen: true })).toBe('corner');
+    expect(css).toContain(':is(.fdock-btn, .fdock-stack, .dm-toast).corner { --fdock-slot: 0; }');
+    // A phone in a game: the zoomed row's own design offsets (touchUi.css: gear 1897, book 1823, rules 1749; 66 px).
+    expect(css).toContain('--fdock-r: calc(var(--pz-bxr) + 1920px - 1675px); --fdock-b: calc(var(--pz-safe-b, var(--safe-b)) + 15px); }');
   });
-  it('on a menu the button lives in the layout own slot (in flow), and nothing pushes the footer or the side menu', () => {
-    expect(css).toContain('.fdock-btn.inslot { position: relative; left: auto; bottom: auto;');
-    expect(css).not.toMatch(/data-fdock|\.titlefoot \{|\.titlefoot [^>]|\.msb \{/);
+  it('the panel grows out of the button: its bottom-right corner on the button\'s, scaling from that corner, never past the window', () => {
+    expect(css).toMatch(/\.fdock-stack \{ position: fixed; z-index: 486; right: calc\(var\(--fdock-r\) - var\(--fdock-pad\)\); bottom: calc\(var\(--fdock-b\) - var\(--fdock-pad\)\);/);
+    expect(css).toMatch(/\.fdock-stack \{[^}]*transform-origin: 100% 100%;/);
+    expect(css).toMatch(/max-width: calc\(var\(--lvw, 100vw\) - var\(--fdock-r\) - 12px\)/);
+    // One-shot transform + opacity only, both ways; nothing loops.
+    expect(css).toContain('@keyframes fdockin { from { opacity: 0; transform: scale(0.12); } 40% { opacity: 1; } }');
+    expect(css).toContain('@keyframes fdockout { 60% { opacity: 1; } to { opacity: 0; transform: scale(0.12); } }');
+    expect(css).not.toMatch(/infinite/);
+    expect(css).toMatch(/prefers-reduced-motion: reduce\) \{\s*\.fdock-stack, \.fdock-stack\.closing \{ animation-duration: 0\.01s; \}/);
   });
-  it('on the title it sits in the bottom-left corner just ABOVE the footer links, out of flow (R-FRIENDS-DOCK-04)', () => {
-    expect(css).toContain('.titlefoot > .title-dock { position: absolute; left: 0; bottom: calc(100% + 12px); }');
+  it('no per-menu slot remains: the side menu and the title carry no dock home of their own', () => {
     const title = readFileSync(join(__dirname, '..', '..', 'Title.tsx'), 'utf8');
-    const foot = title.slice(title.indexOf('<div className="titlefoot">'));
-    expect(foot.slice(0, foot.indexOf('titlesecondary'))).toContain('<DockSlot className="title-dock" side=".titlenav" />');
-    expect(title.slice(title.indexOf('<nav'), title.indexOf('</nav>'))).not.toContain('DockSlot'); // never beside the menu buttons
+    const sidebar = readFileSync(join(__dirname, '..', '..', 'MenuSidebar.tsx'), 'utf8');
+    expect(title).not.toContain('DockSlot');
+    expect(sidebar).not.toContain('DockSlot');
+    expect(css).not.toMatch(/\.fdock-slot|title-dock|msb-dock|\.beside/);
   });
   it('layers above the menu pages (470) and under the friend menu (490) and the Settings veil (500)', () => {
     const z = (sel: string): number => {
@@ -526,58 +548,28 @@ describe('placement: bottom left, clear of each screen\'s corner furniture (R-FR
   });
 });
 
-describe('a menu own corner space (R-FRIENDS-DOCK-03: "looks like friends moved over the menus and stuff")', () => {
-  // The owner's report came from a near-square window (1191x1147). The real-browser sweep (devlog) measured every
-  // screen at these sizes; here the anchor maths is pinned at each: the panel opens RIGHT of the menu column (never
-  // over its buttons), its bottom on the slot's, and it is never wider or taller than the room left (never clipped).
-  const SIZES: Array<[number, number]> = [[1191, 1147], [1280, 720], [1366, 768], [1440, 900], [1920, 1080], [1920, 1200], [2560, 1080], [1024, 1366], [800, 600], [844, 390], [667, 375]];
-  const rect = (l: number, t: number, w: number, h: number) => ({ left: l, top: t, width: w, height: h, right: l + w, bottom: t + h, x: l, y: t, toJSON: () => null }) as DOMRect;
-  afterEach(() => { useDockSlots.setState({ slots: [] }); });
-
-  it('the button is portalled INTO the slot (in flow), the last mounted slot wins, and with none it keeps the fixed corner', async () => {
-    ui = mount(<><div className="msb"><DockSlot className="msb-dock" side=".msb" /></div><FriendsDock /></>);
-    expect(q('.msb-dock > .fdock-btn.inslot')).not.toBeNull();
-    act(() => { useDockSlots.setState({ slots: [] }); });
-    expect(q('.fdock-btn.inslot')).toBeNull();
-    expect(q('.fdock-btn')).not.toBeNull(); // the fixed corner (a game, hero select)
+describe('the button expands into the list (R-FRIENDS-DOCK-05: "expand into the list/collapse back down")', () => {
+  it('open: one panel whose title bar runs along its foot and ends in the room the button sits in; the button turns into a collapse chevron', async () => {
+    inRun();
+    ui = mount(<FriendsDock />);
+    const btn = q('.fdock-btn')!;
+    expect(btn.querySelector('.fdock-chips')).not.toBeNull(); // closed: the counts on its corners
+    click(btn);
+    await flush();
+    const panel = q('.fdock-stack > .fdock-list')!;
+    expect(panel.lastElementChild?.classList.contains('fdock-bar')).toBe(true); // the title bar is the panel's foot
+    expect([...panel.lastElementChild!.children].map((c) => c.className)).toEqual(['fdock-title', 'fdock-sub', 'fdock-me', 'fdock-btnroom']);
+    expect(q('.fdock-btn')?.getAttribute('aria-label')).toBe('Friends, 2 online. Collapse');
+    expect(q('.fdock-btn')?.getAttribute('aria-expanded')).toBe('true');
+    expect(q('.fdock-btn .fdock-chips')).toBeNull(); // the bar says it
+    expect(q('.fdock-btn')?.hasAttribute('data-tip')).toBe(false);
+    click(q('.fdock-btn'));
+    expect(q('.fdock-stack.closing')).not.toBeNull(); // sinks back into the button
+    await waitClose();
+    expect(q('.fdock-stack')).toBeNull();
+    expect(q('.fdock-btn .fdock-chips')).not.toBeNull();
+    expect(document.body.querySelector('[title]')).toBeNull();
   });
-
-  for (const [w, h] of SIZES) {
-    it(`${w}x${h}: on the title the button sits in the corner slot and the panel opens beside the plaques, inside the window (R-FRIENDS-DOCK-04)`, async () => {
-      Object.assign(window, { innerWidth: w, innerHeight: h });
-      ui = mount(<div className="titlescreen"><nav className="titlenav" /><div className="titlefoot"><DockSlot className="title-dock" side=".titlenav" /></div><FriendsDock /></div>);
-      const slot = q('.title-dock')!; const nav = q('.titlenav')!;
-      expect(slot.querySelector('.fdock-btn.inslot')).not.toBeNull();
-      const navR = Math.round(Math.min(560, w * 0.45));
-      nav.getBoundingClientRect = () => rect(130, h * 0.3, navR - 130, h * 0.55);
-      slot.getBoundingClientRect = () => rect(36, h - 110, 46, 46);
-      click(q('.fdock-btn'));
-      await flush();
-      const st = q('.fdock-stack.beside')!;
-      const left = parseFloat(st.style.left); const bottom = parseFloat(st.style.bottom);
-      expect(left).toBeGreaterThan(navR); // never over the title's plaques
-      expect(bottom).toBe(64); // its bottom on the corner button's
-      expect(parseFloat(st.style.maxWidth)).toBeLessThanOrEqual(w - left);
-      expect(parseFloat(st.style.getPropertyValue('--fdock-maxh'))).toBeLessThanOrEqual(h - bottom);
-    });
-
-    it(`${w}x${h}: the panel opens beside the side menu, inside the window`, async () => {
-      Object.assign(window, { innerWidth: w, innerHeight: h });
-      ui = mount(<><aside className="msb"><DockSlot className="msb-dock" side=".msb" /></aside><FriendsDock /></>);
-      const rail = q('.msb')!; const slot = q('.msb-dock')!;
-      const railW = Math.round(Math.min(260, w * 0.28));
-      rail.getBoundingClientRect = () => rect(0, 0, railW, h);
-      slot.getBoundingClientRect = () => rect(16, h - 64, 40, 40);
-      click(q('.fdock-btn'));
-      await flush();
-      const st = q('.fdock-stack.beside')!;
-      const left = parseFloat(st.style.left); const bottom = parseFloat(st.style.bottom);
-      expect(left).toBeGreaterThan(railW); // never over the side menu's plaques
-      expect(bottom).toBe(24); // its bottom on the slot's bottom
-      expect(parseFloat(st.style.maxWidth)).toBeLessThanOrEqual(w - left);
-      expect(parseFloat(st.style.getPropertyValue('--fdock-maxh'))).toBeLessThanOrEqual(h - bottom);
-    });
-  }
 });
 
 /**
@@ -663,5 +655,228 @@ describe('the chat window tabs (R-DM-CHAT-01: "tabs that hold all conversations"
     expect(useDm.getState().unread['u-gus']).toBeUndefined();
     expect([...document.body.querySelectorAll('.dmchat-tabmain')].map((t) => t.getAttribute('aria-label'))).toEqual(['Amy#1234']);
     useDm.setState({ unread: {} });
+  });
+});
+
+/**
+ * THE CHAT WINDOW MOVES, RESIZES AND PINS (owner 2026-10-29, R-DM-CHAT-02: "let me move the chat panel around, resize
+ * it, and pin it so that it stays while i play if i want it up").
+ */
+describe('the chat window moves, resizes and pins (R-DM-CHAT-02)', () => {
+  const KEY = 'ascent.chatWindow.v1';
+  const frame = (): HTMLElement => q('.dmchat-at')!;
+  const vars = (): ChatGeom => {
+    const st = frame().style;
+    return { x: parseFloat(st.getPropertyValue('--dmx')), y: parseFloat(st.getPropertyValue('--dmy')), w: parseFloat(st.getPropertyValue('--dmw')), h: parseFloat(st.getPropertyValue('--dmh')) };
+  };
+  const ptr = (el: Element, type: string, x: number, y: number): void => {
+    act(() => { el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 })); });
+  };
+  beforeEach(() => {
+    Object.assign(window, { innerWidth: 1600, innerHeight: 900 });
+    try { localStorage.removeItem(KEY); } catch { /* */ }
+    resetChatWindowForTests();
+  });
+  afterEach(() => {
+    try { localStorage.removeItem(KEY); } catch { /* */ }
+    resetChatWindowForTests();
+    document.documentElement.removeAttribute('data-touch-ui');
+    document.documentElement.removeAttribute('data-touch-small');
+  });
+
+  it('the geometry: centred by default, kept inside the screen, min / max sizes, the opposite edge stays put', () => {
+    expect(defaultChatGeom(1600, 900)).toEqual({ x: 320, y: 90, w: 960, h: 720 });
+    expect(clampChatGeom({ x: 1500, y: -40, w: 960, h: 720 }, 1600, 900)).toEqual({ x: 1600 - 8 - 960, y: 8, w: 960, h: 720 });
+    expect(clampChatGeom({ x: 0, y: 0, w: 100, h: 100 }, 1600, 900)).toMatchObject({ w: CHAT_MIN_W, h: CHAT_MIN_H });
+    expect(clampChatGeom({ x: 0, y: 0, w: 5000, h: 5000 }, 1600, 900)).toMatchObject({ w: 1584, h: 884 }); // never bigger than the screen
+    expect(clampChatGeom({ x: 0, y: 0, w: 5000, h: 5000 }, 3840, 2160)).toMatchObject({ w: CHAT_MAX_W, h: CHAT_MAX_H });
+    // A screen that shrank: the window comes back inside it.
+    expect(clampChatGeom({ x: 900, y: 500, w: 700, h: 380 }, 1280, 720)).toEqual({ x: 1280 - 8 - 700, y: 720 - 8 - 380, w: 700, h: 380 });
+    const g = { x: 400, y: 200, w: 700, h: 500 };
+    expect(moveChatGeom(g, 100, -50, 1600, 900)).toEqual({ x: 500, y: 150, w: 700, h: 500 });
+    expect(moveChatGeom(g, -900, 900, 1600, 900)).toEqual({ x: 8, y: 900 - 8 - 500, w: 700, h: 500 });
+    expect(resizeChatGeom(g, 'se', 120, 80, 1600, 900)).toEqual({ x: 400, y: 200, w: 820, h: 580 });
+    expect(resizeChatGeom(g, 'nw', -100, -50, 1600, 900)).toEqual({ x: 300, y: 150, w: 800, h: 550 }); // right / bottom edges stay
+    expect(resizeChatGeom(g, 'w', 600, 0, 1600, 900)).toEqual({ x: 400 + 700 - CHAT_MIN_W, y: 200, w: CHAT_MIN_W, h: 500 }); // stops at the min
+    expect(resizeChatGeom(g, 'e', 2000, 0, 1600, 900)).toMatchObject({ x: 400, w: 1600 - 8 - 400 }); // stops at the screen
+    expect(resizeChatGeom(g, 'n', 0, -900, 1600, 900)).toMatchObject({ y: 8, h: 200 + 500 - 8 });
+  });
+
+  it('a drag on the tab strip moves the frame by transform only, commits once on release, and the release is not a click', async () => {
+    inRun();
+    ui = mount(<FriendsDock />);
+    act(() => openDm('u-amy'));
+    await flush();
+    expect(vars()).toEqual({ x: 320, y: 90, w: 960, h: 720 }); // centred
+    const strip = q('.dmchat-top')!;
+    const tab = q('.dmchat-tabmain')!;
+    const commits = vi.fn();
+    const stop = useChatWindow.subscribe(commits);
+    ptr(tab, 'pointerdown', 500, 120);
+    ptr(tab, 'pointermove', 503, 122); // within the slop: still a press
+    expect(frame().classList.contains('moving')).toBe(false);
+    ptr(tab, 'pointermove', 700, 80);
+    expect(frame().classList.contains('moving')).toBe(true);
+    expect(frame().style.transform).toBe('translate(520px, 50px)');
+    expect(commits).not.toHaveBeenCalled(); // nothing rendered or saved per move
+    ptr(strip, 'pointerup', 700, 80);
+    stop();
+    expect(commits).toHaveBeenCalledTimes(1);
+    expect(useChatWindow.getState().geom).toEqual({ x: 520, y: 50, w: 960, h: 720 });
+    expect(frame().style.transform).toBe(''); // the CSS vars carry it now
+    expect(vars()).toEqual({ x: 520, y: 50, w: 960, h: 720 });
+    expect(JSON.parse(localStorage.getItem(KEY)!)).toMatchObject({ geom: { x: 520, y: 50, w: 960, h: 720 }, pinned: false });
+    const swallowed = vi.fn();
+    tab.addEventListener('click', swallowed);
+    act(() => { (tab as HTMLElement).click(); });
+    expect(swallowed).not.toHaveBeenCalled(); // the drag's own release never presses the tab
+    tab.removeEventListener('click', swallowed);
+    // A press that barely moves is still a press (the tab or button under it works).
+    act(() => { document.body.click(); });
+    ptr(tab, 'pointerdown', 500, 120);
+    ptr(tab, 'pointerup', 502, 121);
+    expect(useChatWindow.getState().geom).toEqual({ x: 520, y: 50, w: 960, h: 720 });
+    // Typing in the composer never starts a drag.
+    ptr(q('.fdock-input')!, 'pointerdown', 600, 700);
+    ptr(q('.fdock-input')!, 'pointermove', 800, 500);
+    expect(frame().classList.contains('moving')).toBe(false);
+    ptr(q('.fdock-input')!, 'pointerup', 800, 500);
+  });
+
+  it('a grip resizes through an outline and sets the size once, on release; the screen shrinking puts it back inside', async () => {
+    inRun();
+    ui = mount(<FriendsDock />);
+    act(() => openDm('u-amy'));
+    await flush();
+    expect(document.body.querySelectorAll('.dmchat-rs')).toHaveLength(8); // four edges, four corners
+    const grip = q('.dmchat-rs-se')!;
+    ptr(grip, 'pointerdown', 1280, 810);
+    const ghost = q('.dmchat-ghost')!;
+    expect(ghost.classList.contains('on')).toBe(true);
+    ptr(grip, 'pointermove', 1100, 700);
+    expect(ghost.style.width).toBe('780px');
+    expect(ghost.style.height).toBe('610px');
+    expect(vars()).toMatchObject({ w: 960, h: 720 }); // the window itself waits for the release
+    ptr(grip, 'pointerup', 1100, 700);
+    expect(ghost.classList.contains('on')).toBe(false);
+    expect(vars()).toEqual({ x: 320, y: 90, w: 780, h: 610 });
+    // The window shrinks to 1000 x 600: the window is clamped back inside (and its saved place is left alone).
+    Object.assign(window, { innerWidth: 1000, innerHeight: 600 });
+    act(() => { useFriendsDock.setState({ dmWith: null }); });
+    act(() => openDm('u-amy'));
+    expect(vars()).toEqual({ x: 1000 - 8 - 780, y: 8, w: 780, h: 584 });
+    expect(useChatWindow.getState().geom).toEqual({ x: 320, y: 90, w: 780, h: 610 });
+  });
+
+  it('PINNED: no veil, Escape and outside presses go to the game, and it rides through screen and phase changes', async () => {
+    inRun();
+    ui = mount(<FriendsDock />);
+    act(() => openDm('u-gus'));
+    await flush();
+    const pin = q('.dmchat-pin')!;
+    expect(pin.getAttribute('aria-pressed')).toBe('false');
+    expect(pin.getAttribute('aria-label')).toBe('Pin the chat open while you play');
+    click(pin);
+    expect(q('.dmchat-pin')?.getAttribute('aria-pressed')).toBe('true');
+    expect(q('.dmchat-veil')).toBeNull();
+    expect(frame().classList.contains('pinned')).toBe(true);
+    expect(JSON.parse(localStorage.getItem(KEY)!)).toMatchObject({ pinned: true });
+    // Escape is the game's again (the Esc menu opens); the window stays.
+    const esc = vi.fn();
+    window.addEventListener('keydown', esc);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    window.removeEventListener('keydown', esc);
+    expect(esc).toHaveBeenCalledTimes(1);
+    expect(q('.dmchat-pane')).not.toBeNull();
+    // A press on the board reaches the board (nothing catches it) and the window stays.
+    const board = document.createElement('button');
+    const bought = vi.fn();
+    board.addEventListener('pointerdown', bought);
+    board.addEventListener('click', bought);
+    document.body.appendChild(board);
+    press(board);
+    act(() => { board.click(); });
+    board.remove();
+    expect(bought).toHaveBeenCalledTimes(2);
+    expect(q('.dmchat-pane')).not.toBeNull();
+    // Shop -> combat -> the menus -> a page -> back: still up, still pinned, the same conversation.
+    act(() => { useGame.setState((s) => ({ run: { ...s.run, phase: 'combat' } })); });
+    act(() => { useGame.setState({ showTitle: true }); });
+    act(() => { useGame.setState({ showCareer: true }); });
+    act(() => { useGame.setState({ showCareer: false }); });
+    act(() => inRun());
+    expect(q('.dmchat-at.pinned .dmchat-pane')?.getAttribute('aria-label')).toBe('Messages with Gus#1234');
+    // Watch from a pinned window keeps it (it comes along); only the close button closes it.
+    act(() => { useGame.setState({ showTitle: true }); }); // off my own game, so Watch is live
+    click(q('.dmchat-actions button[aria-label="Watch Gus#1234"]'));
+    await flush();
+    expect(useFriendsDock.getState().dmWith).toBe('u-gus');
+    click(q('.dmchat-close'));
+    expect(q('.dmchat-at')).toBeNull();
+    // Unpinned again: the overlay of R-DM-CHAT-01 (veil, Escape closes).
+    act(() => openDm('u-gus'));
+    click(q('.dmchat-pin'));
+    expect(q('.dmchat-veil')).not.toBeNull();
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    expect(q('.dmchat-at')).toBeNull();
+  });
+
+  it('pinned, it sits under the Friends button, its list and the toast (they stay reachable) and over the game and the menu pages', () => {
+    const css = readFileSync(join(__dirname, '..', 'dm', 'dm.css'), 'utf8');
+    const z = (sel: string): number => Number(new RegExp(`${sel.replace(/\./g, '\\.')} \\{[^}]*z-index: (\\d+)`).exec(css)?.[1]);
+    expect(z('.dmchat-at.pinned')).toBeGreaterThan(470);
+    expect(z('.dmchat-at.pinned')).toBeLessThan(480); // the Friends button
+    expect(z('.dmchat-at')).toBeGreaterThan(z('.dmchat-veil'));
+    expect(z('.dmchat-ghost')).toBeGreaterThan(z('.dmchat-at'));
+    // Gauntlet cursors only (CLAUDE.md): every cursor rule names a gauntlet / hand image first.
+    for (const m of css.matchAll(/cursor: ([^;]+);/g)) expect(m[1]).toMatch(/^url\('\/cursors\//);
+    // Moving and resizing never animate layout: the frame moves by transform and nothing loops.
+    expect(css).toContain('.dmchat-at { position: fixed; left: 0; top: 0; z-index: 493; width: var(--dmw); height: var(--dmh); transform: translate(var(--dmx), var(--dmy)); }');
+    expect(css).not.toMatch(/infinite/);
+  });
+
+  it('this device remembers the place and the pin; broken or blocked storage starts from the centred default', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ geom: { x: 100, y: 120, w: 600, h: 500 }, pinned: true }));
+    resetChatWindowForTests();
+    inRun();
+    ui = mount(<FriendsDock />);
+    act(() => openDm('u-amy'));
+    await flush();
+    expect(vars()).toEqual({ x: 100, y: 120, w: 600, h: 500 });
+    expect(q('.dmchat-at.pinned')).not.toBeNull();
+    localStorage.setItem(KEY, '{not json');
+    resetChatWindowForTests();
+    expect(useChatWindow.getState()).toEqual({ geom: null, pinned: false });
+    localStorage.setItem(KEY, JSON.stringify({ geom: { x: 'a' }, pinned: 'yes' }));
+    resetChatWindowForTests();
+    expect(useChatWindow.getState()).toEqual({ geom: null, pinned: false });
+    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+    resetChatWindowForTests();
+    expect(useChatWindow.getState()).toEqual({ geom: null, pinned: false });
+    expect(() => setChatPinned(true)).not.toThrow(); // this session only
+    expect(useChatWindow.getState().pinned).toBe(true);
+    get.mockRestore(); set.mockRestore();
+  });
+
+  it('a phone keeps the full-screen window: no grips, no pin, no move, and a saved pin does not apply', async () => {
+    document.documentElement.setAttribute('data-touch-ui', '');
+    document.documentElement.setAttribute('data-touch-small', '');
+    localStorage.setItem(KEY, JSON.stringify({ geom: { x: 100, y: 120, w: 600, h: 500 }, pinned: true }));
+    resetChatWindowForTests();
+    inRun();
+    ui = mount(<FriendsDock />);
+    act(() => openDm('u-amy'));
+    await flush();
+    expect(q('.dmchat-at.phone')).not.toBeNull();
+    expect(q('.dmchat-at.pinned')).toBeNull();
+    expect(q('.dmchat-veil')).not.toBeNull();
+    expect(q('.dmchat-pin')).toBeNull();
+    expect(q('.dmchat-rs')).toBeNull();
+    expect(q('.dmchat-ghost')).toBeNull();
+    ptr(q('.dmchat-top')!, 'pointerdown', 100, 20);
+    ptr(q('.dmchat-top')!, 'pointermove', 300, 220);
+    expect(frame().classList.contains('moving')).toBe(false);
+    expect(document.body.querySelector('[title]')).toBeNull();
   });
 });

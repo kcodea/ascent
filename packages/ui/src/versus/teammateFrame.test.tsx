@@ -107,7 +107,7 @@ describe('watching my teammate: no plate up top', () => {
     expect(css).not.toMatch(/\.duosview-bar|\.duosview-name/);
   });
 
-  // R-DUOS-VIEW-05 (owner bug 2026-10-29: "going to a teammates screen while they are in runeforge makes it so i cant do
+  // R-DUOS-VIEW-06 (owner bug 2026-10-29: "going to a teammates screen while they are in runeforge makes it so i cant do
   // anything"). The teammate's Runeforge / Discover / Quest / power offer / Choose One / scouted board is the full-screen
   // `.discover-ov` scrim; the Ancients gate covers the screen too. MY portrait (the way back) must sit over all of them,
   // and under the swap's ghost so the cross-fade still covers it.

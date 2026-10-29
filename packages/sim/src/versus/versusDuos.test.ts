@@ -308,7 +308,7 @@ describe('passing a card (R-DUOS-PASS-01: "passing should cost 1 gold")', () => 
     expect(got.hand).toHaveLength(recv.hand.length + 1);
   });
 
-  // R-DUOS-PASS-02 (owner 2026-10-29: "passing needs to check for triples").
+  // R-DUOS-PASS-06 (owner 2026-10-29: "passing needs to check for triples").
   it('a passed card that is my 3rd copy completes the triple, exactly like a buy', () => {
     const recv = duosRun(); // one copy in hand (h1), one on the board (b1)
     const id = recv.hand[0]!.cardId;

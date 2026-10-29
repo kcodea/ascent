@@ -333,31 +333,36 @@ canvas.spr { image-rendering: pixelated; display: block; }
   background: var(--board-edge-col);
 }
 /* THE BACKDROP TEXTURE (owner 2026-10-28): its own layer, `.boardbg-tex`, so it can BLUR without blurring the board.
-   A seamless tile, darkened then tinted. The PLAYER picks a backdrop preset in Settings (backdrop.ts writes --bd-*);
-   in DEV the Layout Lab's Backdrop knobs (--btex-*) override it while moved. z -1 inside `.boardbg`'s stacking
-   context: above its colour, below the shadow (::before) and the board (::after). It overhangs the screen by 40px so
-   the blur never pulls the window edge in. Static (one filter, nothing animates), so no per-frame cost. */
+   A seamless tile (or one painted image, below), darkened then tinted. The PLAYER picks a backdrop in Settings and
+   backdrop.ts writes its tune as --bd-*; the DEV Background Tuner edits the same vars live. z -1 inside `.boardbg`'s
+   stacking context: above its colour, below the shadow (::before) and the board (::after). It overhangs the screen by
+   40px so the blur never pulls the window edge in. Static (one filter, nothing animates), so no per-frame cost. */
 .boardbg-tex { position: absolute; inset: -40px; z-index: -1; pointer-events: none;
-  filter: blur(calc(var(--btex-blur, var(--bd-blur, 0px)) * var(--scale)));
+  filter: blur(calc(var(--bd-blur, 0px) * var(--scale)));
   background:
-    linear-gradient(rgb(0 0 0 / var(--btex-dark, var(--bd-dark, 0.24))), rgb(0 0 0 / var(--btex-dark, var(--bd-dark, 0.24)))),
-    linear-gradient(color-mix(in srgb, var(--btex-tint-col, var(--bd-tint-col, #472a00)) calc(var(--btex-tint, var(--bd-tint, 0.16)) * 100%), transparent), color-mix(in srgb, var(--btex-tint-col, var(--bd-tint-col, #472a00)) calc(var(--btex-tint, var(--bd-tint, 0.16)) * 100%), transparent)),
-    var(--btex-img, var(--bd-img, url('/backdrop-oak-planks.webp'))) 50% 50% / calc(var(--btex-size, var(--bd-size, 430px)) * var(--scale)) auto repeat;
+    linear-gradient(rgb(0 0 0 / var(--bd-dark, 0.24)), rgb(0 0 0 / var(--bd-dark, 0.24))),
+    linear-gradient(color-mix(in srgb, var(--bd-tint-col, #472a00) calc(var(--bd-tint, 0.16) * 100%), transparent), color-mix(in srgb, var(--bd-tint-col, #472a00) calc(var(--bd-tint, 0.16) * 100%), transparent)),
+    var(--bd-img, url('/backdrop-oak-planks.webp')) 50% 50% / calc(var(--bd-size, 430px) * var(--scale)) auto repeat;
 }
-/* A SINGLE-IMAGE backdrop (owner 2026-10-29): one painting scaled to fill the window, centred, never repeated, so a 16:9
-   image fits a standard screen exactly and a wider one trims evenly off the top and bottom. The Settings pick sets
-   data-bd-fit; the DEV Layout Lab's data-btex-fit (set only while it drives the backdrop) comes later and wins. */
-:root[data-bd-fit='cover'] .boardbg-tex,
-:root[data-btex-fit='cover'] .boardbg-tex { background-size: auto, auto, cover; background-repeat: no-repeat; }
-:root[data-btex-fit='tile'] .boardbg-tex { background-size: auto, auto, calc(var(--btex-size, var(--bd-size, 430px)) * var(--scale)) auto; background-repeat: repeat; }
+/* A SINGLE-IMAGE backdrop (owner 2026-10-29): one painting scaled to fill the window, never repeated, so a 16:9 image
+   fits a standard screen exactly and a wider one trims evenly off the top and bottom. ZOOM grows the layer's box about
+   the window centre (zoom 2 = twice the window each way) and the painting covers that box; POSITION (--bd-pan-x/y,
+   -100..100) slides the painting within the room the zoom made, as a background-position, so no setting can ever show
+   the painting's edge (owner: "could i still have controls that increase the size and position of these backgrounds?").
+   Static: set once per pick, no per-frame cost. backdrop.ts sets data-bd-fit. */
+:root[data-bd-fit='cover'] .boardbg-tex {
+  inset: calc(-40px - (var(--bd-zoom, 1) - 1) * 50%);
+  background-size: auto, auto, cover; background-repeat: no-repeat;
+  background-position: 0 0, 0 0, calc(50% - var(--bd-pan-x, 0) * 0.5%) calc(50% - var(--bd-pan-y, 0) * 0.5%);
+}
 /* The board's drop shadow: a pre-blurred silhouette of the board art, drawn at the art's exact size and position
-   between the stones and the board (a background layer can't cast a CSS shadow on another). Opacity + offset are
-   Layout tuner sliders (group "Backdrop"); static, so no per-frame cost. */
+   between the stones and the board (a background layer can't cast a CSS shadow on another). Strength + offset are
+   per backdrop (Background Tuner); static, so no per-frame cost. */
 .boardbg::before, .boardbg::after { content: ''; position: absolute; inset: 0; }
 .boardbg::before {
   background: var(--board-shadow) calc(50% + var(--board-x, 0px) * var(--scale)) calc(50% + var(--board-y, 5px) * var(--scale)) / var(--_board-w) auto no-repeat;
-  opacity: var(--bshadow-a, var(--bd-shadow-a, 0.72));
-  transform: translate(calc(var(--bshadow-x, var(--bd-shadow-x, 6px)) * var(--scale)), calc(var(--bshadow-y, var(--bd-shadow-y, 8px)) * var(--scale)));
+  opacity: var(--bd-shadow-a, 0.72);
+  transform: translate(calc(var(--bd-shadow-x, 6px) * var(--scale)), calc(var(--bd-shadow-y, 8px) * var(--scale)));
 }
 .boardbg::after {
   background:
@@ -5499,6 +5504,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 .plate-editor-preview { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0 10px; }
 .plate-editor-stage { position: relative; width: var(--cw); height: 588px; padding-top: 126px; box-sizing: content-box; } /* 40% up from 420 / 90 with the card (owner 2026-10-18) */
 .plate-editor-note { margin: 0; font-size: 12px; line-height: 1.35; color: #e8dcc0; text-align: center; max-width: 300px; }
+/* The Background Tuner's note lines (BackgroundTuner.tsx). */
+.bg-tuner-readout { display: grid; gap: 4px; margin-bottom: 6px; }
+.bg-tuner-note { margin: 0; font-size: 12px; line-height: 1.35; color: #e8dcc0; }
 .card.plated .cardloan { z-index: 9; } /* the shared rule seats it at z0 with the plate; the marker goes on top */
 /* TRIBE NAME on the plate's bottom gem (tribe-plated cards only — the drawer label is suppressed for them).
    Positioned down the plate by the SAME geometry the plate uses, so it tracks the bottom diamond at any size;

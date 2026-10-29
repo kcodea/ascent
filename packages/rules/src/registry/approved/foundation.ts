@@ -10969,21 +10969,24 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-BACKDROP-LAB-01',
-    title: 'The board backdrop shows the player\x27s Settings pick; a touched dev Layout Lab shows exactly what it is set to',
+    title: 'The board backdrop shows the player\x27s Settings pick, tuned per backdrop by the dev Background Tuner; the Layout Lab never touches it',
     statement:
       'What lies behind the board is the player\x27s Settings pick (Board backdrop), saved on the device and applied at once '
-      + 'and on every load; Castle when they never chose (Oak planks until 2026-10-29). In a dev build the Layout Lab\x27s Backdrop section does not '
-      + 'change that until one of its controls is touched; from then until Reset it shows exactly the texture, wash, blur and '
-      + 'shadow it is set to, including when that is the default texture, never the Settings pick in its place.',
+      + 'and on every load; Castle when they never chose (Oak planks until 2026-10-29). Each backdrop shows its own tune: '
+      + 'its preset, then what the dev Background Tuner saved for it (which ships to every player once committed). In a dev '
+      + 'build the Background Tuner puts the backdrop it is tuning on screen and shows every edit to it at once, never on '
+      + 'another backdrop, until Save or Reset. A painted backdrop\x27s zoom and position can never show the edge of the '
+      + 'picture. The Layout Lab (Scale & Layout) has no backdrop controls.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-28 (board cutout)', quote: 'cobblestone (which is currently wood in the tuner for some reason when selected)' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-28 (board cutout)', quote: 'how do we set this as a selectable background option in the real game? can we add a dropdown in the settings menu?' },
-      { kind: 'code', ref: 'packages/ui/src/backdrop.ts; packages/ui/src/layoutConfig.ts (BACKDROP_PRESET_KEYS, labBackdropOn); packages/ui/src/EscMenu.tsx (Board backdrop)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-29 (board cutout)', quote: 'lets make a standalone background tuner. i dont want it in the scale and layout' },
+      { kind: 'code', ref: 'packages/ui/src/backdrop.ts (tuneOf, setLiveTune); packages/ui/src/BackgroundTuner.tsx; apps/web/backdropTuningPlugin.ts; packages/ui/src/backdrop-tuning.json; packages/ui/src/EscMenu.tsx (Board backdrop)' },
     ],
-    currentBehaviour: 'Conforms since 2026-10-28 (feat/board-backdrops). Before the fix, picking the default texture in the Lab removed the Lab\x27s override, so the Settings pick (Oak) showed instead.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/backdrop.test.ts'], lastVerifiedAt: '2026-10-28' },
+    currentBehaviour: 'Conforms since 2026-10-29 (feat/background-tuner): the Background Tuner replaced the Layout Lab\x27s Backdrop section. From 2026-10-28 the Layout Lab drove the backdrop and, before a fix that day, picking its default texture showed the Settings pick instead.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/backdrop.test.ts', 'apps/web/backdropTuningPlugin.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
   {
     id: 'R-LIVE-CF-01',

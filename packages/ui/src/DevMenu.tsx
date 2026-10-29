@@ -109,6 +109,7 @@ import { GlowTuner } from './GlowTuner';
 import { AlignArcTuner } from './AlignArcTuner';
 import { CardPlateTuner } from './CardPlateTuner';
 import { CardPlateEditorTuner } from './CardPlateEditorTuner';
+import { BackgroundTuner } from './BackgroundTuner';
 import { CardTextTuner } from './CardTextTuner';
 import { PlateDissolveTuner } from './PlateDissolveTuner';
 import { HandSummonTuner } from './HandSummonTuner';
@@ -172,6 +173,7 @@ const GROUPS: Group[] = [
     title: 'Stage & Layout',
     items: [
       { key: 'layout', icon: '📐', label: 'Scale & Layout', C: LayoutTuner, hint: 'Global board scale and per-region card positions' },
+      { key: 'background', icon: '🏞️', label: 'Background Tuner', C: BackgroundTuner, hint: 'One board background at a time: zoom and position a painted image (or size a tile), darkness, blur, tint and the board shadow, saved to the repo', alt: 'board backdrop background zoom position pan tile darkness tint blur shadow castle painted image save' },
       { key: 'frame', icon: '🖼️', label: 'Card Frames', C: FrameTuner, hint: 'The gold oval on minions and purple square on spells' },
       { key: 'cardplate', icon: '🂠', label: 'Card Plate', C: CardPlateTuner, hint: "The hand card's backplate geometry" },
       { key: 'plateeditor', icon: '🪟', label: 'Card Plate Editor', C: CardPlateEditorTuner, hint: 'One card plate cosmetic at a time: its frame and interior size and position, saved to the repo', alt: 'card plate cosmetic frame interior size position editor save' },

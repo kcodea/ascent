@@ -29,6 +29,7 @@ import { SPEC as BuffFxSpec } from './BuffFxTuner';
 import { SPEC as CardPillsSpec } from './CardPillsTuner';
 import { SPEC as CardPlateSpec } from './CardPlateTuner';
 import { SPEC as CardPlateEditorSpec } from './CardPlateEditorTuner';
+import { SPEC as BackgroundSpec } from './BackgroundTuner';
 import { SPEC as CardTextSpec } from './CardTextTuner';
 import { SPEC as CrystalFuseSpec } from './CrystalFuseTuner';
 import { SPEC as HeroCeremonySpec } from './HeroCeremonyTuner';
@@ -132,6 +133,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   CardPillsSpec,
   CardPlateSpec,
   CardPlateEditorSpec,
+  BackgroundSpec,
   CardTextSpec,
   CrystalFuseSpec,
   HeroCeremonySpec,

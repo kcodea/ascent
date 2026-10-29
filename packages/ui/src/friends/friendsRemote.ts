@@ -13,7 +13,11 @@ import { keepaliveRpc, supabaseClient } from '../remoteBoards';
 
 export type PresenceStatus = 'online' | 'in_game' | 'offline';
 export type WatchKind = 'live' | 'versus';
-export type InviteKind = 'versus_room' | 'duos_party';
+/** 'versus_room' and 'duos_party' bring a friend INTO my room; 'spectate' (owner 2026-10-29, R-FRIENDS-MENU-02) asks them
+ *  to WATCH my game: its target is `live:<game id>` (a lobby / Practice game), `versus:<room ref>` or `duos:<room ref>`. */
+export type InviteKind = 'versus_room' | 'duos_party' | 'spectate';
+/** An invite kind from a server row (an unknown kind reads as a room invite, as before). */
+export const inviteKindOf = (k: unknown): InviteKind => (k === 'duos_party' || k === 'spectate' ? k : 'versus_room');
 
 /** A player's public card (the friends__card SQL). */
 export interface FriendCard {
@@ -124,6 +128,7 @@ export const FRIENDS_ERROR_TEXT: Record<string, string> = {
   room_not_open: 'That room is not open.',
   already_in_room: 'They are already in the room.',
   room_check: 'Could not check the room. Try again.',
+  no_game: 'Your game is not running.',
   invites_unavailable: 'Invites are not available for this room yet.',
   no_invite: 'That invite is no longer there.',
   expired: 'That invite has expired.',
@@ -153,7 +158,7 @@ function friendOf(r: Record<string, unknown>): Friend {
 }
 function inviteOf(r: Record<string, unknown>): FriendInvite {
   return {
-    id: String(r.id), kind: r.kind === 'duos_party' ? 'duos_party' : 'versus_room', target: String(r.target ?? ''),
+    id: String(r.id), kind: inviteKindOf(r.kind), target: String(r.target ?? ''),
     expiresAt: String(r.expiresAt ?? ''), createdAt: str(r.createdAt) ?? undefined, from: cardOf((r.from ?? {}) as Record<string, unknown>),
   };
 }
@@ -168,7 +173,7 @@ export function parseFriendsList(raw: unknown): FriendsList {
     blocked: arr(r.blocked).map(cardOf),
     invites: arr(r.invites).map(inviteOf),
     sent: arr(r.sent).map((s) => ({
-      id: String(s.id), to: String(s.to), kind: s.kind === 'duos_party' ? 'duos_party' : 'versus_room', target: String(s.target ?? ''),
+      id: String(s.id), to: String(s.to), kind: inviteKindOf(s.kind), target: String(s.target ?? ''),
       status: (['pending', 'accepted', 'declined', 'cancelled', 'expired'].includes(String(s.status)) ? s.status : 'expired') as SentInvite['status'],
       expiresAt: String(s.expiresAt ?? ''),
     })),

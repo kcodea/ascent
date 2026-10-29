@@ -72,6 +72,14 @@ export const PATCH_NOTES: PatchNote[] = [
         'Duos: open your teammate view to ping their cards. It shows on their screen.',
         'Being watched? Click a spectator in the top left to make them your Mentor. Their pings show on your screen only. Click again to remove them.',
       ] },
+      { category: 'Systems', text: 'A Friends button in every game shows who is online, and right-click on a friend lets you watch or invite them.', details: [
+        'The Friends button sits in the bottom right corner, next to Rules. Its number is how many friends are online.',
+        'Press it to see your online friends and what they are doing. Press a friend to open their message panel. Messages are coming soon.',
+        'Press anywhere else, or Escape, to close it. That press never touches your board.',
+        'Right-click a friend (or press and hold on a phone), in game or on the Friends page: Spectate, Invite to lobby, Invite to Duos, Invite to spectate.',
+        'Invite to lobby or Invite to Duos opens your room or party for you, then sends the invite. When they accept, they join you.',
+        'Invite to spectate asks a friend to watch your game. When they accept, they are watching.',
+      ] },
       { category: 'Systems', text: 'Spectators and emotes are tidier, bigger and easier to read.', details: [
         'Spectators now stand in one neat column at the top left, with bigger portraits and names.',
         'Emotes are bigger, on every screen and on phones.',

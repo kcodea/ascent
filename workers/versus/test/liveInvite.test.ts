@@ -250,6 +250,25 @@ describe('invite check + proof (R-VERSUS-CF-INVITE-01)', () => {
     expect(() => party.core.inviteCheck(U1, U2, 'versus_room')).toThrow('bad_kind');
   });
 
+  it('INVITE TO SPECTATE (R-FRIENDS-MENU-02): only a member, only while the game runs, only for a non-member, either room kind', async () => {
+    const h = new H('duel');
+    h.core.connect(U2, h.now);
+    await h.op(U2, 'join', JOIN);
+    expect(() => h.core.inviteCheck(U1, U3, 'spectate')).toThrow('no_game'); // open: nothing to watch yet
+    await h.op(U1, 'start');
+    expect(() => h.core.inviteCheck(U1, U3, 'spectate')).toThrow('no_game'); // sealed: the gates are not pressed yet
+    await h.op(U1, 'gate');
+    await h.op(U2, 'gate');
+    expect(() => h.core.inviteCheck(U1, U3, 'spectate')).not.toThrow();
+    expect(() => h.core.inviteCheck(U2, U3, 'spectate')).not.toThrow();
+    expect(() => h.core.inviteCheck(U3, U4, 'spectate')).toThrow('not_in_room');
+    expect(() => h.core.inviteCheck(U1, U2, 'spectate')).toThrow('already_in_room');
+    expect(() => h.core.inviteCheck(U1, U1, 'spectate')).toThrow('self');
+    expect(() => h.core.inviteCheck(U1, 'nope', 'spectate')).toThrow('bad_target');
+    const party = await ranked(false);
+    expect(() => party.core.inviteCheck(U1, U3, 'spectate')).not.toThrow();
+  });
+
   it('the proof is `<exp>.<hmac-sha256 hex>` keyed by sha256(secret), over the bound payload', async () => {
     const secret = 'test-secret';
     const p = { room: ROOM, from: U1, to: U2, kind: 'versus_room' };

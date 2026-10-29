@@ -7342,7 +7342,7 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    Dressed in the shipped vocabulary (vellum face, gold rim, ink text, warm shadows) so dev chrome reads as
    part of the same object family as the game rather than a bolted-on tool.
    ========================================================================================================== */
-.devmenu-btn { position: fixed; right: calc(var(--bar-x) + 16px + 3 * (40 * var(--u) + 10px)); bottom: calc(var(--bar-y) + 16px); z-index: 9990; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.12s ease; }
+.devmenu-btn { position: fixed; right: calc(var(--bar-x) + 16px + 4 * (40 * var(--u) + 10px)); /* slot 4: slot 3 is the Friends dock (R-FRIENDS-DOCK-01) */ bottom: calc(var(--bar-y) + 16px); z-index: 9990; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.12s ease; }
 .devmenu-btn:hover { transform: translateY(-1px); border-color: var(--acc); }
 .devmenu-btn:active { transform: translateY(1px); }
 /* The button carries a badge when panels are open, so you can tell at a glance that the board is wearing dev

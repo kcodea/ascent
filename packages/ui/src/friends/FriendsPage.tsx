@@ -28,6 +28,7 @@ import {
   modeText, removeFriend, unblockPlayer, useFriends, useFriendsListLoop,
 } from './friendsStore';
 import { watchFriend } from './friendsGo';
+import { friendMenuHandlers } from './FriendMenu';
 import type { Friend, FriendCard } from './friendsRemote';
 import { activityText, gameStatusDetail, ORD, stepText, type FriendActivity, type FriendGameStatus } from './gameStatus';
 import './friends.css';
@@ -131,7 +132,8 @@ function FriendRow({ f, inviteRoom }: { f: Friend; inviteRoom: string | null }) 
   const tip = friendDetail(f);
   const inviteLabel = sent?.status === 'pending' ? 'Invited' : sent?.status === 'declined' ? 'Declined' : sent?.status === 'accepted' ? 'Joined' : 'Invite';
   return (
-    <div className={`lb-row fr-row fr-${f.status}`}>
+    // Right-click / long press: the friend menu (R-FRIENDS-MENU-01).
+    <div className={`lb-row fr-row fr-${f.status}`} {...friendMenuHandlers(f)}>
       <div className="lb-row-hero"><FriendPortrait card={f} /></div>
       <div className="fr-who">
         <div className="fr-name">{handleOf(f)}</div>

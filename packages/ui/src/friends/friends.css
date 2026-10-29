@@ -82,3 +82,19 @@
    Live Games chip's shape, green). Static. */
 .newpill.fr-reqpill { margin-left: auto; }
 .sb-livechip.fr-onchip { background: #2f7a48; border-color: #9ee0b2; }
+
+/* THE FRIEND MENU (owner 2026-10-29, R-FRIENDS-MENU-01): right-click / long press on a friend row. The game's hover panel
+   (`.atip`, the emote menu's look) as a short list; its own transparent catcher takes the press that closes it. Static. */
+.frmenu-catch { position: fixed; inset: 0; z-index: 490; background: transparent; touch-action: none; }
+.frmenu-at { position: fixed; z-index: 491; }
+/* On a phone's menu pages (sized up by --touch-inv-s, phoneMenus.css) the menu grows with them: the zoom sits on a plain
+   wrapper, so the tip keeps the shared tooltip dials and the placed box does not move. */
+html[data-touch-ui][data-touch-small][data-page-scale] body:has(.lbpage) .frmenu-z { zoom: var(--touch-inv-s, 1); }
+.atip.frmenu { position: relative; transform: none; min-width: 190px; max-width: 260px; gap: 4px; box-sizing: border-box; white-space: normal; pointer-events: auto; }
+.frmenu-title { padding: 2px 8px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frmenu-item { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; padding: 8px 10px; border: none; border-radius: 8px; background: transparent; text-align: left;
+  font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: #f4eee2; }
+.frmenu-item:not(:disabled):hover, .frmenu-item:not(:disabled):focus-visible { background: rgba(240, 208, 137, 0.16); color: #fff; outline: none; }
+.frmenu-item:disabled { opacity: 0.55; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.frmenu-why { font-weight: 700; font-size: 12px; color: rgba(240, 208, 137, 0.85); }
+.frmenu-empty { padding: 6px 10px; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.65); }

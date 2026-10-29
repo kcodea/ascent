@@ -63,6 +63,21 @@ describe('Versus Duos projection (R-DUOS-01)', () => {
     expect(projectGroupMatch(done, 'u4').end_reason).toBe('hearts');
   });
 
+  it('the same round projected again answers the SAME fight objects, so a watched Duos fight never restarts (R-SPECTATE-FIGHT-STABLE-01)', () => {
+    // Owner 2026-10-29: "spectating is doing some janky stuff at end of combat, rebuilding the opponent board and showing
+    // a hit". Every match update (an End Combat press) re-projects the rounds; the watch screen's fight is that object, and
+    // the replay starts over on a new one.
+    const r = round();
+    const first = projectGroupRounds(raw(), [r], null);
+    const again = projectGroupRounds(raw({ revision: 9, phase: 'combat' }), [r], null);
+    for (const s of ['p1', 'p2', 'p3', 'p4'] as VersusGroupSeat[]) {
+      expect(again[1]!.results?.[s]).toBeDefined();
+      expect(again[1]!.results?.[s]).toBe(first[1]!.results?.[s]);
+    }
+    // A player's own row reads the same objects too.
+    expect(projectGroupRounds(raw(), [r], 'u2')[1]!.p1_result).toBe(projectGroupRounds(raw(), [r], 'u2')[1]!.p1_result);
+  });
+
   it('my round row: my own board view (its carry-backs only), my team outcome and pool', () => {
     const r = round();
     const rows1 = projectGroupRounds(raw(), [r], 'u1');

@@ -143,8 +143,24 @@ function poolsOf(r: VersusGroupRoundRaw, meSeat: VersusGroupSeat, foeSeat: Versu
   };
 }
 
-/** Each seat's OWN result in a round (its fight's side; a Copy is nobody's). */
+/**
+ * ONE OBJECT PER FIGHT (R-SPECTATE-FIGHT-STABLE-01, owner 2026-10-29: "spectating is doing some janky stuff at end of
+ * combat, rebuilding the opponent board and showing a hit"). The rounds are re-projected on every match update (an End
+ * Combat press bumps the match), and a Duos seat's own view (`duosMemberView`) was rebuilt each time: a NEW result object
+ * for the same fight. The watch screen's fight is that object (`run.lastCombat`), and the replay restarts on a new one,
+ * so the stands' fight started over at the end of every Duos fight. The views are kept per stored round object: the same
+ * round row always answers the same objects.
+ */
+const resultsMemo = new WeakMap<VersusGroupRoundRaw, Partial<Record<VersusGroupSeat, CombatResult>>>();
+/** Each seat's OWN result in a round (its fight's side; a Copy is nobody's). The same object for the same round row. */
 export function resultsOf(r: VersusGroupRoundRaw): Partial<Record<VersusGroupSeat, CombatResult>> {
+  const hit = resultsMemo.get(r);
+  if (hit) return hit;
+  const out = resultsOfRound(r);
+  resultsMemo.set(r, out);
+  return out;
+}
+function resultsOfRound(r: VersusGroupRoundRaw): Partial<Record<VersusGroupSeat, CombatResult>> {
   const out: Partial<Record<VersusGroupSeat, CombatResult>> = {};
   // Duos: ONE team fight; each seat's own view carries only its board's carry-backs (`duosMemberView`).
   const d = r.fights[0];

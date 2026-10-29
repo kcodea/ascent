@@ -71,3 +71,62 @@ export async function recStop(p) {
       res: r.res.map(([n, s, dur]) => `${n}@${(s - r.t0).toFixed(0)}`), seq: r.frames.map(([t, dt]) => [+(t - r.t0).toFixed(0), +dt.toFixed(1)]) };
   });
 }
+
+/** CPU profile around `fn` (CDP), summarised: self time by function and inclusive time for the named roots. */
+export async function profileAround(p, fn, ms = 400) {
+  const cdp = p.cdp ?? (p.cdp = await p.ctx.newCDPSession(p.page));
+  await cdp.send('Profiler.enable');
+  await cdp.send('Profiler.setSamplingInterval', { interval: 100 });
+  await cdp.send('Profiler.start');
+  await fn();
+  await sleep(ms);
+  const { profile } = await cdp.send('Profiler.stop');
+  const byId = new Map(profile.nodes.map((n) => [n.id, n]));
+  const parent = new Map();
+  for (const n of profile.nodes) for (const c of n.children ?? []) parent.set(c, n.id);
+  const self = new Map();
+  const incl = new Map();
+  const dt = profile.timeDeltas;
+  profile.samples.forEach((id, i) => {
+    const d = (dt[i + 1] ?? dt[i] ?? 0) / 1000;
+    const n = byId.get(id);
+    const key = (x) => `${x.callFrame.functionName || '(anon)'} ${x.callFrame.url.split('/').pop()}:${x.callFrame.lineNumber}`;
+    self.set(key(n), (self.get(key(n)) ?? 0) + d);
+    const seen = new Set();
+    for (let cur = id; cur != null; cur = parent.get(cur)) { const k = key(byId.get(cur)); if (seen.has(k)) continue; seen.add(k); incl.set(k, (incl.get(k) ?? 0) + d); }
+  });
+  const top = (m, n) => [...m.entries()].filter(([k]) => !/^\((idle|program|root)\)/.test(k)).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${v.toFixed(1)}ms ${k}`);
+  return { self: top(self, 30), incl: top(incl, 60) };
+}
+
+/** A DevTools timeline trace around `fn`: every main-thread task over 8 ms, with its style / layout / script / paint split. */
+export async function traceAround(browser, p, fn, ms = 600) {
+  await browser.startTracing(p.page, { categories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'blink.user_timing', 'v8.execute'] });
+  const t0 = await p.page.evaluate(() => performance.timeOrigin + performance.now());
+  await fn();
+  await sleep(ms);
+  const buf = await browser.stopTracing();
+  const ev = JSON.parse(buf.toString()).traceEvents;
+  // The renderer main thread: the thread carrying the most RunTask events with layout.
+  const byTid = new Map();
+  for (const e of ev) if (e.name === 'Layout' || e.name === 'UpdateLayoutTree') byTid.set(`${e.pid}:${e.tid}`, (byTid.get(`${e.pid}:${e.tid}`) ?? 0) + 1);
+  const clickEv = ev.find((e) => e.name === 'EventDispatch' && e.args?.data?.type === 'click');
+  const main = clickEv ? `${clickEv.pid}:${clickEv.tid}` : [...byTid.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const mine = ev.filter((e) => `${e.pid}:${e.tid}` === main && e.ph === 'X');
+  const tasks = mine.filter((e) => e.name === 'RunTask' && e.dur > 8000).sort((a, b) => a.ts - b.ts);
+  const base = clickEv?.ts ?? tasks[0]?.ts ?? 0;
+  const KIND = { UpdateLayoutTree: 'style', Layout: 'layout', FunctionCall: 'script', EvaluateScript: 'script', TimerFire: 'script', FireAnimationFrame: 'raf', EventDispatch: 'event', Paint: 'paint', PrePaint: 'prepaint', Layerize: 'layerize', 'Document::updateStyleAndLayout': 'layout', ParseHTML: 'parse', 'Decode Image': 'decode', 'ImageDecodeTask': 'decode', HitTest: 'hittest', GCEvent: 'gc', MinorGC: 'gc', MajorGC: 'gc', 'V8.GC_SCAVENGER': 'gc', 'BlinkGC.AtomicPhase': 'gc', UpdateLayer: 'layer', 'CompositeLayers': 'composite' };
+  const out = tasks.map((t) => {
+    const split = {};
+    for (const e of mine) {
+      if (e.ts < t.ts || e.ts + (e.dur ?? 0) > t.ts + t.dur || e === t) continue;
+      const k = KIND[e.name];
+      if (!k || k === 'raf' || k === 'event') continue;
+      split[k] = (split[k] ?? 0) + e.dur / 1000;
+    }
+    // Nested script inside script double-counts; keep only the outer total for script by taking max chain: approximate.
+    return { at: +((t.ts - base) / 1000).toFixed(0), ms: +(t.dur / 1000).toFixed(1), split: Object.fromEntries(Object.entries(split).map(([k, v]) => [k, +v.toFixed(1)])) };
+  });
+  void t0;
+  return out;
+}

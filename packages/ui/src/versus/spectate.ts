@@ -924,6 +924,15 @@ async function fetchKeyframes(): Promise<void> {
   } catch { /* retried on the next gap */ } finally { fetching = false; }
 }
 
+/**
+ * Render NOW (the teammate-view swap, R-DUOS-VIEW-SWAP-01): the swap runs inside a View Transition, whose update callback
+ * must leave the DOM showing the new screen when it returns, and no animation frame runs while it is pending. A render
+ * already scheduled for the next frame is taken here instead.
+ */
+export function flushSpectateRender(): void {
+  if (raf) { cancelAnimationFrame(raf); raf = 0; }
+  render();
+}
 /** One render per animation frame, whatever the burst. */
 function schedule(): void {
   if (raf) return;

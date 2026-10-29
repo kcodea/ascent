@@ -3,7 +3,8 @@
 //   node scripts/versus-qa/duos-swap.mjs [--phone] [--rounds 3] [--dist apps/web/dist-bench]
 import fs from 'node:fs';
 import path from 'node:path';
-import { launch, player, serveDist, shot, sleep, installRecorder, recStart, recStop, QA_OUT } from './lib.mjs';
+import { launch, player, serveDist, shot, sleep, installRecorder, recStart, recStop, profileAround, QA_OUT } from './lib.mjs';
+const PROFILE = process.argv.includes('--profile');
 import { step, clickSel, stateOf } from './autopilot.mjs';
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i >= 0 ? process.argv[i + 1] : d; };
 const PHONE = process.argv.includes('--phone');
@@ -35,7 +36,16 @@ while (Date.now() - t0 < 15 * 60_000) {
   // The swap: once A has shopped and B has had a moment, A views B and comes back (twice per round).
   if (sa.runMode === 'versus' && sa.runPhase === 'recruit' && sa.phase === 'shop' && sa.round === sa.wave && memA.acted === sa.wave && !swapped.has(sa.wave) && Date.now() - memA.shopAt[sa.wave] > 2500) {
     swapped.add(sa.wave);
-    for (let k = 0; k < 2; k++) {
+    if (PROFILE) {
+      const pin = await profileAround(A, () => clickSel(A, '.duosdock-hold[role="button"]'));
+      await sleep(800);
+      const pout = await profileAround(A, () => clickSel(A, '.duosdock[role="button"]'));
+      await sleep(800);
+      fs.writeFileSync(path.join(QA_OUT, `prof-${TAG}-r${sa.wave}.json`), JSON.stringify({ pin, pout }, null, 1));
+      console.log('profile r' + sa.wave + ' written');
+
+    }
+    for (let k = 0; k < (PROFILE ? 0 : 2); k++) {
       await sleep(400);
       await recStart(A);
       const okIn = await clickSel(A, '.duosdock-hold[role="button"]');
@@ -49,14 +59,17 @@ while (Date.now() - t0 < 15 * 60_000) {
       const back = await recStop(A);
       const sOut = await stateOf(A);
       results.push({ round: sa.wave, k, okIn, okOut, viewing: sIn.teammate, back: !sOut.teammate, into, out: back });
-      console.log(`r${sa.wave}#${k} in: p50 ${into.p50} p95 ${into.p95} max ${into.max} >16:${into.over16} >33:${into.over33} long ${JSON.stringify(into.long)} +${into.added}/-${into.removed} ev ${JSON.stringify(into.events)}`);
-      console.log(`r${sa.wave}#${k} out: p50 ${back.p50} p95 ${back.p95} max ${back.max} >16:${back.over16} >33:${back.over33} long ${JSON.stringify(back.long)} +${back.added}/-${back.removed} ev ${JSON.stringify(back.events)}`);
+      const line = (x) => `p50 ${x.p50} p95 ${x.p95} max ${x.max} >16:${x.over16} >33:${x.over33} long ${JSON.stringify(x.long)} click ${JSON.stringify(x.events.filter((e) => e.n === 'click').map((e) => [e.proc, e.dur]))}`;
+      console.log(`r${sa.wave}#${k} in (${sIn.teammate ? 'viewing' : 'NOT viewing'}): ${line(into)}`);
+      console.log(`r${sa.wave}#${k} out (${sOut.teammate ? 'STILL viewing' : 'back'}): ${line(back)}`);
     }
   }
   if (sa.wave > ROUNDS || sa.phase === 'complete') break;
   await sleep(200);
 }
 fs.writeFileSync(path.join(QA_OUT, `swap-${TAG}.json`), JSON.stringify(results, null, 1));
+const sum = (k) => { const xs = results.map((r) => r[k]); return { maxP: Math.max(...xs.map((x) => x.max)), over33: xs.reduce((a, x) => a + x.over33, 0), over16: xs.reduce((a, x) => a + x.over16, 0), clickMs: xs.map((x) => x.events.find((e) => e.n === 'click')?.proc ?? null) }; };
+if (results.length) console.log('SUMMARY in', JSON.stringify(sum('into')), 'out', JSON.stringify(sum('out')));
 console.log('A log', A.log.slice(0, 15));
 console.log('B log', B.log.slice(0, 15));
 await b.close(); srv.close();

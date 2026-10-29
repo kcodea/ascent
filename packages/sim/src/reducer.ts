@@ -1457,7 +1457,14 @@ function reduceCore(state: RunState, action: Action): RunState {
   // A finished run (loss or victory) takes no more actions — restart goes through the store.
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
   // VERSUS DUOS (R-DUOS-PASS-01): a teammate's pass lands whatever the phase or modal (it waits for room / the Shop).
-  if (action.type === 'receivePass') return receiveDuosPass(state, action.from, action.seq, action.card);
+  if (action.type === 'receivePass') {
+    const next = receiveDuosPass(state, action.from, action.seq, action.card);
+    // A PASSED CARD CAN COMPLETE A TRIPLE (owner 2026-10-29: "passing needs to check for triples"; R-DUOS-PASS-06): the
+    // same `checkTriples` every other way into the hand runs, the moment it lands in the Shop. A pass that lands while
+    // a fight is on is caught by the shop-open check (the combat carry-back rule), never mid-fight under a live board.
+    if (next !== state && next.phase === 'recruit' && next.hand.length > state.hand.length) checkTriples(next);
+    return next;
+  }
   if (action.type === 'passRefunded') return refundDuosPass(state, action.seq);
   // Nothing owed — a late or duplicate resolve (the UI timer racing a click) is a free no-op, not a clone.
   if (action.type === 'resolveShopDeath' && !state.pendingDeath) return state;

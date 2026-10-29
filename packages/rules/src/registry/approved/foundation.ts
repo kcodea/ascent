@@ -10944,4 +10944,58 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: "A Warden in Practice sees Aegis glowing in the round socket at the board's lower-left corner and can press it.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroPowerSeat.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-DUOS-VIEW-06',
+    title: 'Versus Duos: the way back from the teammate view is never covered by their Runeforge, Discover or any other offer',
+    statement:
+      'While a Duos player watches their teammate, the teammate\x27s open offers (the Runeforge, a Discover, a Quest, a hero power '
+      + 'offer, Choose One, a scouted board, the Ancients gate) show read-only and never take the watcher\x27s input: the watcher\x27s own '
+      + 'portrait, bottom right, the way back, always sits above them and answers a click, and Esc and Tab still return. Back on their '
+      + 'own board the watcher has full control again.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Duos feedback via the coordinator, 2026-10-29', quote: 'going to a teammates screen while they are in runeforge makes it so i cant do anything.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versus.css (.duosdock.self z-index 180, over .discover-ov 160 and .anc-gate 105, under .duosghost 190)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-29. Before, the portrait sat at z75 under the offer scrim (z160), so the click back landed on the scrim.',
+    example: 'Amy opens her Runeforge; Ann looks at Amy\x27s screen and sees the forge, then clicks her own portrait bottom right and is back on her board with every control live.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateFrame.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-DUOS-PASS-06',
+    title: 'Versus Duos: a passed card checks for triples on landing, like any other way into the hand',
+    statement:
+      'When a teammate\x27s pass lands in a player\x27s hand during the shop, the same triple check every other way into the hand runs '
+      + 'at once: if it is the third copy (or the second, under a Gild-at-2 effect) the copies combine into the Gilded card and the Triple '
+      + 'Reward follows, exactly as a buy. A pass that lands while a fight is on is checked when the next shop opens, never under the live '
+      + 'board.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Duos feedback via the coordinator, 2026-10-29', quote: 'passing needs to check for triples' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts reduceCore receivePass -> checkTriples' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-29. Before, a passed third copy sat in the hand next to its two copies and never combined.',
+    example: 'Ann holds one Scrapper and has one on her board; Amy passes her a third: it gilds at once.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-PING-06',
+    title: 'Pings work on the watch screen: a Duos player pings their teammate\x27s shop, board and hand, a mentor their player\x27s',
+    statement:
+      'While a Duos (or Ranked Duos) player looks at their teammate\x27s screen, right-click (a phone: long-press) on the teammate\x27s shop '
+      + 'card, board minion, hand card or shop button opens the ping fan, and the ping is the teammate role: it reaches the teammate and '
+      + 'everyone watching them, never the other team, with the same rate limit. A mentor on the watched player\x27s screen pings the same '
+      + 'way. A recorded replay still has no ping menu (right-click inspects).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner Duos feedback via the coordinator, 2026-10-29', quote: 'players should be able to ping their teammates board/minions etc as well' },
+      { kind: 'code', ref: 'packages/ui/src/pings/pingRuntime.ts pingContext (the watch screen sets `replaying`; only a non-watch replay closes the menu); workers/versus/src/pings.ts routePing (mate role)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-29. Before, the watch screen\x27s `replaying` flag closed the ping menu, so neither a teammate nor a mentor could ping there.',
+    example: 'Ann opens Amy\x27s screen and pings Question on Amy\x27s board minion: Amy sees it with Ann\x27s name; the other team never does.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
 ];

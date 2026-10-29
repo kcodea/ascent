@@ -779,8 +779,12 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
    reason. */
 .duosdock { --duos-d: calc(252 * var(--u)); position: fixed; z-index: 41; pointer-events: none; width: var(--duos-d); height: var(--duos-d);
   right: calc(var(--bar-x) + 140px * var(--scale)); bottom: calc(var(--bar-y) + 93px * var(--scale)); }
-/* While watching, MY portrait sits above the team frame (z70) so the way back reads clearly; under the plate (z80). */
-.duosdock.self { z-index: 75; pointer-events: auto; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; } /* the whole portrait is the way back */
+/* While watching, MY portrait is the way back, so it sits above EVERYTHING the teammate's screen can open over the board
+   (owner bug 2026-10-29: "going to a teammates screen while they are in runeforge makes it so i cant do anything";
+   R-DUOS-VIEW-06). Their Runeforge, Discover, Quest, hero-power offer, Choose One and scouted board are all the full-screen
+   `.discover-ov` scrim (z160, at root under `body.modalup`), and the Ancients gate is z105: at z75 the portrait sat under
+   the scrim and the click back landed on it. z180: over those, under the swap's ghost (z190) and the pixi FX (z200). */
+.duosdock.self { z-index: 180; pointer-events: auto; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; } /* the whole portrait is the way back */
 /* The watch screen makes every [role=button] inert (`.app.viewing [role="button"]`); MY portrait is the one control
    that must stay live there (owner 2026-10-25: "Clicking your portrait should take you back to your board"). Before
    this rule the inert rule out-ranked the portrait and the click back did nothing. */

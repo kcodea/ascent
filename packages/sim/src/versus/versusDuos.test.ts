@@ -308,6 +308,28 @@ describe('passing a card (R-DUOS-PASS-01: "passing should cost 1 gold")', () => 
     expect(got.hand).toHaveLength(recv.hand.length + 1);
   });
 
+  // R-DUOS-PASS-06 (owner 2026-10-29: "passing needs to check for triples").
+  it('a passed card that is my 3rd copy completes the triple, exactly like a buy', () => {
+    const recv = duosRun(); // one copy in hand (h1), one on the board (b1)
+    const id = recv.hand[0]!.cardId;
+    const got = reduce(recv, { type: 'receivePass', from: 'p1', seq: 0, card: { ...recv.hand[0]!, uid: 'sent' } });
+    expect(got.duos!.received).toEqual(['p1:0']);
+    expect((got.triplesMade ?? 0) - (recv.triplesMade ?? 0)).toBe(1);
+    expect([...got.board, ...got.hand].filter((c) => c.cardId === id && !c.golden)).toHaveLength(0);
+    expect([...got.board, ...got.hand].filter((c) => c.cardId === id && c.golden)).toHaveLength(1);
+    // Two copies only: no triple, the card just lands.
+    const two = reduce({ ...duosRun(), board: [] }, { type: 'receivePass', from: 'p1', seq: 0, card: duosRun().hand[0]! });
+    expect(two.hand.filter((c) => c.cardId === id && !c.golden)).toHaveLength(2);
+    expect(two.triplesMade ?? 0).toBe(duosRun().triplesMade ?? 0);
+  });
+
+  it('a 3rd copy passed in mid-fight never combines under the live board (the shop-open check takes it)', () => {
+    const recv = { ...duosRun(), phase: 'combat' as const };
+    const got = reduce(recv, { type: 'receivePass', from: 'p1', seq: 0, card: { ...recv.hand[0]!, uid: 'sent' } });
+    expect(got.board.map((c) => c.uid)).toEqual(['b1']);
+    expect(got.triplesMade ?? 0).toBe(recv.triplesMade ?? 0);
+  });
+
   it('team ids are letters by seat pair, so N teams extend the same helpers', () => {
     expect(duosTeamSeats('a')).toEqual(['p1', 'p2']);
     expect(duosTeamSeats('b')).toEqual(['p3', 'p4']);

@@ -4456,7 +4456,7 @@ body.duel-attacker-opp .combatopp { z-index: 100; }
 .statusbar .heropanel {
   /* Follows its board socket as the board grows, plus the Hero power X/Y nudge and the whole Hero group nudge (Layout Lab
      "Hero group", owner 2026-10-28). The group nudge rides HERE, not on `.statusbar` (R-HUD-HEROPOWER-01, see above). */
-  translate: calc(((var(--board-grow, 1.05) - 1) * -836px + var(--hpow-x, 45px) + var(--herogrp-x, -35px)) * var(--scale)) calc(((var(--board-grow, 1.05) - 1) * 228px + var(--hpow-y, 0px) + var(--herogrp-y, 0px)) * var(--scale));
+  translate: calc(((var(--board-grow, 1.05) - 1) * -836px + var(--hpow-x, 40px) + var(--herogrp-x, -35px)) * var(--scale)) calc(((var(--board-grow, 1.05) - 1) * 228px + var(--hpow-y, 2px) + var(--herogrp-y, 0px)) * var(--scale));
   /* Floated onto the board's mid-left — the power reads as a board action, NOT a boxed corner button: the
      diamond housing + a name pill, no panel background/border. Base position is 19%/45%; the 💠 tuner nudges
      it via px offsets × --scale (pinned to the stage, resolution-independent) and scales via --hpb-s. The

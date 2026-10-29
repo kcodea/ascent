@@ -59,8 +59,8 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   // inside it (on top of its board-grow shift). Owner 2026-10-28.
   { key: 'herogrpX', cssVar: '--herogrp-x', label: 'Group X', group: 'Hero group', min: -200, max: 200, step: 1, def: -35, fmt: 'px' },
   { key: 'herogrpY', cssVar: '--herogrp-y', label: 'Group Y', group: 'Hero group', min: -200, max: 200, step: 1, def: 0, fmt: 'px' },
-  { key: 'hpowX', cssVar: '--hpow-x', label: 'Hero power X', group: 'Hero group', min: -200, max: 200, step: 1, def: 45, fmt: 'px' },
-  { key: 'hpowY', cssVar: '--hpow-y', label: 'Hero power Y', group: 'Hero group', min: -200, max: 200, step: 1, def: 0, fmt: 'px' },
+  { key: 'hpowX', cssVar: '--hpow-x', label: 'Hero power X', group: 'Hero group', min: -200, max: 200, step: 1, def: 40, fmt: 'px' },
+  { key: 'hpowY', cssVar: '--hpow-y', label: 'Hero power Y', group: 'Hero group', min: -200, max: 200, step: 1, def: 2, fmt: 'px' },
   // The foe's rune set in combat (slots + runes + glass), inside the foe cluster (scaled ~2.4x, so small numbers).
   { key: 'orunesX', cssVar: '--orunes-x', label: 'Foe runes X', group: 'Hero group', min: -60, max: 60, step: 1, def: -5, fmt: 'px' },
   { key: 'orunesY', cssVar: '--orunes-y', label: 'Foe runes Y', group: 'Hero group', min: -60, max: 60, step: 1, def: -5, fmt: 'px' },

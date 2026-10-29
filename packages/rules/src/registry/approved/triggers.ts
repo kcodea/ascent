@@ -528,6 +528,40 @@ export const TRIGGERS_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-REPEAT-06',
+    title: 'A repeating End-of-Turn chain is NEVER played one tick at a time, from any End Turn path',
+    statement:
+      'Every End Turn plays its repeat chains (Kringle, Striker, Mother Moss, Rope Wrangler, a rune repeat) on the '
+      + 'R-REPEAT-04/05 schedule: a lead-in, then accelerating and batched ticks inside the shared budget. There is no '
+      + 'path that plays one full beat per tick. When End of Turn cannot resolve right now (a Versus pause or its 3-2-1, '
+      + 'the Duos teammate view, the replay viewer), End Turn does nothing at all: no beats, no Whisper fade, no lock. '
+      + 'Versus asks End Turn again once the match can take it, and the normal fast version plays then. The legacy '
+      + 'End-of-Turn runner (the `ascent.choreo = 0` rollback valve) batches its repeat ticks on the same schedule. '
+      + 'Presentation only: no outcome changes.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-29 (live Versus Duos, Dwarf board, several Kringles)',
+        quote: 'my kringle is buffing 1 by 1 again for some reason, it doesnt happen everytime but it randomly does this',
+      },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx endTurn (endTurnRefused, no legacy fallback); packages/ui/src/choreographer/endTurnGate.ts; packages/ui/src/choreographer/repeatPacing.ts legacyEotRepeatPlan' },
+    ],
+    contentIds: ['dw_foreman', 'dw3_striker', 'sp3_nurturer'],
+    currentBehaviour:
+      'Conforms as of 2026-10-29. Before, when the store refused to prepare End of Turn, End Turn fell back to the legacy '
+      + 'runner, which played one fixed 930 ms beat per tick (a 61-tick Kringle took about a minute, ribbons flying one at '
+      + 'a time, End Turn locked) and then had its closing faceOmen refused by the same guard. The authoritative path was '
+      + 'already paced on every board tried (golden, huge stats, Chronos, Versus deferFight).',
+    example: 'Four golden Kringles after a 60-card turn, End Turn pressed during a Versus pause: nothing plays until the resume, then all four roll in about 4 seconds.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/choreographer/repeatNeverSequential.test.ts'],
+      lastVerifiedAt: '2026-10-29',
+    },
+  },
+  {
     id: 'R-SHOPSPELL-01',
     title: '"When you cast a Shop spell" (Goldilox) hears a Shop-pool spell from any source, in any phase, on the board and in the hand',
     statement:

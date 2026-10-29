@@ -13,8 +13,7 @@ import { act } from 'react';
 import { mount, type Mounted } from './renderedText.mount';
 import { PATCH_NOTES, type PatchCategory, type PatchNote } from './patchNotes';
 import { sfx } from './sfx';
-import { useGame } from './store';
-import { PATCH_TAB_STORAGE_KEY, PatchNotes, notesForTab } from './PatchNotesOverlay';
+import { PATCH_TAB_STORAGE_KEY, PatchNotesBody, notesForTab } from './PatchNotesBody';
 
 let ui: Mounted | null = null;
 
@@ -38,8 +37,7 @@ const textsOf = (cat: PatchCategory, notes: PatchNote[]): Set<string> =>
 const entriesWith = (cat: PatchCategory, notes: PatchNote[]): number => notes.filter((n) => n.changes.some((c) => c.category === cat)).length;
 
 function open(): Mounted {
-  useGame.setState({ showPatchNotes: true });
-  ui = mount(<PatchNotes />);
+  ui = mount(<PatchNotesBody />);
   return ui;
 }
 
@@ -50,7 +48,6 @@ beforeEach(() => {
 afterEach(() => {
   ui?.unmount(); ui = null;
   vi.restoreAllMocks();
-  useGame.setState({ showPatchNotes: false });
   try { localStorage.removeItem(PATCH_TAB_STORAGE_KEY); } catch { /* ignore */ }
 });
 

@@ -7,7 +7,7 @@
  *
  * Pins: Escape in a game opens the sidebar over the dimmed game and Escape again closes it (with any page it opened);
  * on the menus Escape opens the Settings page; Resume and a press on the dimmed game close it; the in-game rail swaps
- * Play for a gold Resume and carries Patch Notes, Settings and the leave button, never the dev builders; a page opened
+ * Play for a gold Resume and carries the pages (Patch Notes among them), Settings and the leave button, never the dev builders; a page opened
  * in a game wears the in-game rail and no painted backdrop; the Settings page shows every section and no leave button;
  * every leave asks twice and does the right thing per mode; the Shop clock shows on the rail in a Shop turn only; a
  * page action that would leave the game is refused with a note; opening the menu drops a drag in hand.

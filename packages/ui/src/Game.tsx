@@ -52,6 +52,7 @@ import compendiumBookArt from './compendium-book.png';
 import rulesQuestionArt from './rules-question.png';
 import settingsArt from './settings-medallion.png';
 import { SettingsPage } from './EscMenu';
+import { PatchNotesPage } from './PatchNotesPage';
 import { GameMenu, handleEscape, openMenu } from './GameMenu';
 import { setFxScene, type FxScene } from './fx/fxBudget';
 import { installPerfBench } from './perfBench';
@@ -80,8 +81,6 @@ const DevMenu = import.meta.env.DEV ? lazy(() => import('./DevMenu').then((m) =>
 const EditorOverlay = import.meta.env.DEV ? lazy(() => import('./uiEditor/EditorOverlay').then((m) => ({ default: m.EditorOverlay }))) : null;
 const BugScenarioPanel = import.meta.env.DEV ? lazy(() => import('./bug-report/BugScenarioPanel').then((m) => ({ default: m.BugScenarioPanel }))) : null;
 const BalancePanel = import.meta.env.DEV ? lazy(() => import('./BalancePanel').then((m) => ({ default: m.BalancePanel }))) : null;
-/** Patch Notes ships to players, but only opens from the title: its ~400 KB of changelog text loads on first open. */
-const PatchNotes = lazy(() => retryImport(() => import('./PatchNotesOverlay')).then((m) => ({ default: m.PatchNotes })));
 
 /** Seconds of live recording an auto-share needs before it is worth a row. A reload is not a session. */
 const MIN_AUTO_SHARE_SECONDS = 45;
@@ -173,7 +172,6 @@ export function Game() {
   const godMode = useGame((s) => s.run.godMode === true);
   const bugScenarioLoaded = useGame((s) => s.bugScenario !== null);
   const showBook = useGame((s) => s.showBook);
-  const showPatchNotes = useGame((s) => s.showPatchNotes);
   const toggleBook = useGame((s) => s.toggleBook);
   const openRules = useGame((s) => s.openRules);
   // Recruit stays mounted across phases (combat plays out in place), so its closures/refs live for the whole
@@ -514,7 +512,7 @@ export function Game() {
 
   // Esc toggles the menu — but if the menu is closed and a card is being inspected, let the
   // inspect overlay claim Esc (it closes itself) instead of opening the menu. The Minion Book
-  // and Patch Notes also claim Esc (close themselves) before the menu would open or close.
+  // also claims Esc (closes itself) before the menu would open or close.
   // IN A GAME (R-ESC-SIDEBAR-01) the menu is the sidebar over the dimmed game; Esc again closes it with any page it
   // opened. On the menus Esc opens (and closes) the Settings page.
   useEffect(() => {
@@ -657,9 +655,6 @@ export function Game() {
       {/* DEV-ONLY (owner 2026-08-24): the Balance Report reads dev/session telemetry and must not ship in the
           exe or itch repacks, which are production `build:web` bundles where `import.meta.env.DEV` is false. */}
       {BalancePanel && <Suspense fallback={null}><BalancePanel /></Suspense>}
-      {/* Patch Notes — opened from the title only (owner ask 2026-08-24). Mounted here beside the other
-          full-screen overlays; mounted (and its chunk fetched) only once the title opens it. */}
-      {showPatchNotes && <Suspense fallback={null}><PatchNotes /></Suspense>}
       {/* Bug reporter (Ctrl+B) — self-gates on `bugReportOpen` / `bugReportToast`. Pausing is Recruit's
           `overlayOpen` job, not this component's. */}
       <BugReportModal />
@@ -718,6 +713,8 @@ export function Game() {
       {/* The Collection page (2026-09-28). After Career in DOM order, so a Collection opened from your Career's
           Account Level card paints on top of it and Back returns there. */}
       <CollectionScreen />
+      {/* The Patch Notes page (R-PATCHNOTES-PAGE-01): a sidebar page like Settings; its changelog chunk loads on first open. */}
+      <PatchNotesPage />
       {/* The Settings page (R-ESC-SIDEBAR-01): a sidebar page like the others, last so it paints over a page it opened on. */}
       <SettingsPage />
       {/* DEV: the Crate opening tuner's practice crates (▶ Common … ▶ Legendary). Local only; renders nothing until

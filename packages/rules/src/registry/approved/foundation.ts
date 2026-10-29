@@ -11416,4 +11416,19 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Mid-shop with 0:38 left, Ann presses Escape: the sidebar slides in over her dimmed board, showing Resume and 0:38 under it. She opens Collection, then Settings, and turns the music down. She presses Escape and is back in the Shop. Later she taps Save & Quit once, it asks "Tap again to quit", and the second tap takes her to the main menu.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/gameMenu.test.tsx', 'packages/ui/src/MenuSidebar.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-PATCHNOTES-PAGE-01',
+    title: 'Patch Notes is a normal sidebar page, on the menus and in a game, like Settings',
+    statement:
+      'Patch Notes is a page like Settings and Collection, not a centred overlay. It shows the menu sidebar on the left with Patch Notes current, the page title, then the Game / Systems tabs, the Summary / Detailed toggle and the dated changes in the page scroller. It opens from the Patch Notes button on the title and from the Patch Notes plaque on the sidebar, which is on every sidebar page on the menus and in the in-game menu; the same page serves both places. A sidebar hop to it closes the page it came from. In a game it wears the in-game sidebar (Resume, the Shop clock, the leave button) over the dimmed game with no painted backdrop, and Escape, Resume or a press on the dimmed game close it with the menu. On the menus Escape or the Home mark on the sidebar close it. It has no close button of its own.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'patch notes should also be a page i think' },
+      { kind: 'code', ref: 'packages/ui/src/PatchNotesPage.tsx (PatchNotesPage), packages/ui/src/PatchNotesBody.tsx (PatchNotesBody, lazy chunk), packages/ui/src/MenuSidebar.tsx (patchnotes plaque), packages/ui/src/store.ts (MenuDest patchnotes, PAGES_CLOSED, anyPageOpen), packages/ui/src/GameMenu.tsx (handleEscape)' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/patch-notes-page). Before: Patch Notes was a centred overlay with its own close, opened from the title button and, in a game, from the in-game sidebar only; the menu sidebar had no Patch Notes plaque.',
+    example: 'On Career, Ann taps Patch Notes on the sidebar: Career closes and Patch Notes opens beside the same sidebar. Mid-shop she presses Escape, taps Patch Notes, reads the Systems tab over her dimmed board, then presses Escape and is back in the Shop.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/patchNotesPage.test.tsx', 'packages/ui/src/PatchNotesBody.test.tsx', 'packages/ui/src/MenuSidebar.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
 ];

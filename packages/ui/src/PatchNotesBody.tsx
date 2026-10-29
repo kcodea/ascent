@@ -1,5 +1,4 @@
 import { useState, type KeyboardEvent } from 'react';
-import { useGame } from './store';
 import { sfx } from './sfx';
 import { PATCH_NOTES, PATCH_CATEGORY_ORDER, type PatchCategory, type PatchChange, type PatchNote } from './patchNotes';
 
@@ -56,22 +55,20 @@ const tabDomId = (tab: PatchCategory): string => `pntab-${tab.toLowerCase()}`;
 const panelDomId = (tab: PatchCategory): string => `pnpanel-${tab.toLowerCase()}`;
 
 /**
- * PATCH NOTES — the gameplay changelog, opened from the title screen only (owner ask 2026-08-24). Two tabs
- * (owner ask 2026-09-23): **Game** (every `Balance` change: cards, heroes, runes, equipment, economy, rules)
- * and **Systems** (every `Systems` change: screens, effects, information, dev updates). Each tab is a
- * scrolling, newest-first list of the dated patches that have at least one change of its category, showing
- * only those changes; the per-change category chip is gone because the tab already says it. The Summary /
+ * PATCH NOTES — the gameplay changelog's CONTENT, under the page's title (`PatchNotesPage.tsx`, a sidebar page since
+ * owner 2026-10-29, R-PATCHNOTES-PAGE-01; it was a centred overlay opened from the title). Split out so its ~400 KB of
+ * changelog text loads only on first open, while the page shell (rail + title) paints at once. Two tabs (owner ask
+ * 2026-09-23): **Game** (every `Balance` change: cards, heroes, runes, equipment, economy, rules) and **Systems**
+ * (every `Systems` change: screens, effects, information, dev updates). Each tab is a scrolling, newest-first list of
+ * the dated patches that have at least one change of its category, showing only those changes. The Summary /
  * Detailed toggle is independent of the tab. The last tab is remembered in localStorage. Data lives in
  * `patchNotes.ts`; this is a pure renderer over it.
  */
-export function PatchNotes() {
-  const show = useGame((s) => s.showPatchNotes);
-  const close = useGame((s) => s.closePatchNotes);
+export function PatchNotesBody() {
   // Two reading levels (owner ask 2026-08-24): Summary (headlines only) vs Detailed (every change's specifics).
   const [detailed, setDetailed] = useState(false);
   // Which bucket is open. Lazily read from storage so a blocked localStorage never throws during render.
   const [tab, setTab] = useState<PatchCategory>(readStoredTab);
-  if (!show) return null;
 
   const pickTab = (next: PatchCategory): void => {
     if (next === tab) return;
@@ -97,44 +94,40 @@ export function PatchNotes() {
   const entries = notesForTab(tab);
 
   return (
-    <div className="pnov" onPointerDown={() => { sfx.tick(); close(); }}>
-      <div className="pnpanel" onPointerDown={(e) => e.stopPropagation()}>
-        <div className="pnhead">
-          <span className="pntitle disp">Patch Notes</span>
-          <button className="pnclose pressable" onPointerDown={() => { sfx.tick(); close(); }} aria-label="Close patch notes">✕</button>
-        </div>
-        <div className="pnbar">
-          {/* Game ↔ Systems. Pill tabs in the same track language as the Summary/Detailed segment. */}
-          <div className="pntabs" role="tablist" aria-label="Patch note sections">
-            {PATCH_CATEGORY_ORDER.map((t) => (
-              <button
-                key={t}
-                id={tabDomId(t)}
-                className={`pntab${t === tab ? ' on' : ''}`}
-                role="tab"
-                aria-selected={t === tab}
-                aria-controls={panelDomId(t)}
-                tabIndex={t === tab ? 0 : -1}
-                onClick={() => pickTab(t)}
-                onKeyDown={onTabKey}
-              >{PATCH_TAB_LABEL[t]}</button>
-            ))}
-          </div>
-          {/* Summary ↔ Detailed. A single pill toggle: the pressed side is the active view. Independent of the tab. */}
-          <div className="pntoggle" role="group" aria-label="Detail level">
+    <>
+      <div className="pnbar">
+        {/* Game / Systems. Pill tabs in the same track language as the Summary/Detailed segment. */}
+        <div className="pntabs" role="tablist" aria-label="Patch note sections">
+          {PATCH_CATEGORY_ORDER.map((t) => (
             <button
-              className={`pntoggle-btn${detailed ? '' : ' on'}`}
-              aria-pressed={!detailed}
-              onPointerDown={() => { sfx.tick(); setDetailed(false); }}
-            >Summary</button>
-            <button
-              className={`pntoggle-btn${detailed ? ' on' : ''}`}
-              aria-pressed={detailed}
-              onPointerDown={() => { sfx.tick(); setDetailed(true); }}
-            >Detailed</button>
-          </div>
+              key={t}
+              id={tabDomId(t)}
+              className={`pntab${t === tab ? ' on' : ''}`}
+              role="tab"
+              aria-selected={t === tab}
+              aria-controls={panelDomId(t)}
+              tabIndex={t === tab ? 0 : -1}
+              onClick={() => pickTab(t)}
+              onKeyDown={onTabKey}
+            >{PATCH_TAB_LABEL[t]}</button>
+          ))}
         </div>
-        <div className="pnscroll" role="tabpanel" id={panelDomId(tab)} aria-labelledby={tabDomId(tab)}>
+        {/* Summary / Detailed. A single pill toggle: the pressed side is the active view. Independent of the tab. */}
+        <div className="pntoggle" role="group" aria-label="Detail level">
+          <button
+            className={`pntoggle-btn${detailed ? '' : ' on'}`}
+            aria-pressed={!detailed}
+            onPointerDown={() => { sfx.tick(); setDetailed(false); }}
+          >Summary</button>
+          <button
+            className={`pntoggle-btn${detailed ? ' on' : ''}`}
+            aria-pressed={detailed}
+            onPointerDown={() => { sfx.tick(); setDetailed(true); }}
+          >Detailed</button>
+        </div>
+      </div>
+      <div className="lbscroll pnscroll" role="tabpanel" id={panelDomId(tab)} aria-labelledby={tabDomId(tab)}>
+        <div className="pncol">
           {entries.length === 0 && <p className="pnempty">Nothing here yet.</p>}
           {entries.map(({ note, items }, i) => (
             <section className="pnpatch" key={`${note.date}-${i}`}>
@@ -159,6 +152,6 @@ export function PatchNotes() {
           ))}
         </div>
       </div>
-    </div>
+    </>
   );
 }

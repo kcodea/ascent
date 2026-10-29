@@ -5,6 +5,7 @@
 .dm-list { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding: 0 2px; }
 .dm-msg { display: flex; flex-direction: column; max-width: 84%; }
 .dm-msg.mine { align-self: flex-end; align-items: flex-end; }
+.dm-msg.mine .dm-meta { justify-content: flex-end; text-align: right; }
 .dm-msg.theirs { align-self: flex-start; align-items: flex-start; }
 .dm-bubble { padding: 7px 11px; border-radius: 12px; font-family: var(--font-ui); font-weight: 600; font-size: 14px; line-height: 1.35; color: #f4eee2;
   white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
@@ -12,7 +13,7 @@
 .dm-msg.mine .dm-bubble { background: rgba(196, 160, 92, 0.22); border: 1px solid rgba(240, 208, 137, 0.35); border-bottom-right-radius: 4px; }
 .dm-msg.sending .dm-bubble { opacity: 0.6; }
 .dm-msg.failed .dm-bubble { border-color: rgba(230, 110, 90, 0.7); }
-.dm-meta { display: flex; gap: 8px; align-items: baseline; margin: 2px 4px 0; font-family: var(--font-ui); font-weight: 700; font-size: 11px; color: rgba(255, 255, 255, 0.45);
+.dm-meta { display: flex; flex-wrap: wrap; column-gap: 8px; row-gap: 2px; align-items: baseline; margin: 2px 4px 0; font-family: var(--font-ui); font-weight: 700; font-size: 11px; color: rgba(255, 255, 255, 0.45);
   font-variant-numeric: tabular-nums; }
 .dm-link { padding: 0; border: none; background: none; font: inherit; color: rgba(240, 208, 137, 0.85); text-decoration: underline; text-underline-offset: 2px; }
 .dm-link:hover { color: #f0d089; }
@@ -27,7 +28,7 @@ html[data-touch-ui] .dm-report { opacity: 0.8; }
 .dm-status { margin: -4px 2px 8px; font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(240, 208, 137, 0.85); }
 
 .dm-compose { position: relative; flex-wrap: wrap; }
-.fdock-input.acctinput.dm-input { opacity: 1; }
+.fdock-input.acctinput.dm-input { opacity: 1; text-align: left; letter-spacing: normal; text-transform: none; }
 .fdock-input.acctinput.dm-input:disabled { opacity: 0.6; }
 .dm-count { position: absolute; right: 10px; top: 9px; font-family: var(--font-ui); font-weight: 800; font-size: 11px; color: rgba(255, 255, 255, 0.5); pointer-events: none; }
 .dm-count.over { color: #f08c78; }
@@ -38,7 +39,8 @@ html[data-touch-ui] .dm-report { opacity: 0.8; }
   font-family: var(--font-ui); font-weight: 900; font-size: 11px; line-height: 1; color: #fff; background: #b8432f; border: 1px solid #f3b0a0;
   font-variant-numeric: tabular-nums; pointer-events: none; }
 .fdock-btn .dm-unread { position: absolute; top: -7px; left: -7px; }
-.fdock-row .dm-unread, .fr-row .dm-unread { flex: none; margin-left: 4px; }
+.fdock-row .dm-unread { flex: none; margin-left: auto; }
+.fr-row .lb-btn .dm-unread { margin-left: 6px; vertical-align: 1px; }
 
 /* The toast: just above the Friends button's row, right-aligned with the dock's panels. */
 .dm-toast.vspanel { position: fixed; z-index: 482; right: calc(var(--edge-r) + 16px); bottom: calc(var(--edge-b) + 16px + 40 * var(--u) + 12px);

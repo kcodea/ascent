@@ -77,7 +77,8 @@ describe('the sidebar on each ladder page', () => {
       // The groups are labelled for assistive tech; Play leads, Settings sits at the foot, outside the nav.
       expect([...sb!.querySelectorAll('.msb-group')].map((g) => g.getAttribute('aria-label'))).toEqual(['Progress', 'Community']);
       expect(sb!.querySelector('.msb-nav .sbbtn')?.classList.contains('sb-play')).toBe(true);
-      expect(sb!.lastElementChild?.classList.contains('msb-settings')).toBe(true);
+      // Settings closes the rail; only the Friends dock's slot (R-FRIENDS-DOCK-03) follows it.
+      expect(sb!.querySelector(':scope > .msb-settings + .msb-dock:last-child')).not.toBeNull();
       expect(labels(sb!)).toEqual(LABELS);
       expect(current(sb!)).toBe(active);
       expect(sb!.querySelectorAll('.sbbtn.active')).toHaveLength(1);

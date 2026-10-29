@@ -7,6 +7,7 @@
 import { sfx } from '../../sfx';
 import { isPreRun, useGame } from '../../store';
 import { openDm, useFriendsDock } from '../dock/dockStore';
+import { useDockAnchor } from '../dock/dockSlot';
 import { useFriendsPrefs } from '../friendsPrefs';
 import { FriendPortrait, handleOf } from '../friendBits';
 import { useFriends } from '../friendsStore';
@@ -20,11 +21,14 @@ export function DmToast(): JSX.Element | null {
   const open = useFriendsDock((s) => s.phase === 'open' && s.dmWith === toast?.from);
   const filter = useFriendsPrefs((s) => s.filterMessages);
   const inGame = useGame((s) => !isPreRun(s) || s.replaying);
+  // On a menu with a dock slot, the toast rises beside the slot's column like the panel (R-FRIENDS-DOCK-03).
+  const anchor = useDockAnchor(!!toast && !open && !!friend);
   if (!toast || open || !friend) return null;
   const body = filter ? maskProfanity(toast.body) : toast.body;
   const go = (): void => { sfx.pulse(); dismissDmToast(); openDm(friend.userId); };
   return (
     <div key={toast.id} role="button" tabIndex={0} className={`dm-toast vspanel${inGame ? ' ingame' : ''}`} aria-label={`New message from ${handleOf(friend)}: ${body}. Open the conversation.`}
+      style={anchor ? { left: anchor.left, bottom: anchor.bottom } : undefined}
       onClick={go} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }}>
       <span className="fdock-portrait"><FriendPortrait card={friend} /></span>
       <span className="dm-toast-text">

@@ -10687,6 +10687,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx', 'packages/ui/src/friends/friends.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
   {
+    id: 'R-FRIENDS-DOCK-03',
+    title: 'On a menu the Friends button lives in the menu\x27s own corner space and its panel opens beside the menu: never over or pushing a menu button, a footer or the side menu, at any window size',
+    statement:
+      'A menu screen with its own bottom-left space marks it with a dock slot: the side menu\x27s foot (under Settings) on every side-menu page, and the title menu\x27s column (under its last plaque) on the title. The Friends button is placed IN that slot (it moves and scales with that layout), so it never sits on top of, or shifts, the footer links, the Settings plaque or any other plaque. Its panel (and the new-message toast) opens to the RIGHT of that menu column, bottom-aligned with the slot, never wider or taller than the room left (never clipped), so no menu button is hidden while it is open. With no slot on screen (hero select, every game, spectating, replays) the button keeps its fixed corner (R-FRIENDS-DOCK-02). Placement is measured once on open and on a window resize, never per frame.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (window ~1191x1147)', quote: 'looks like friends moved over the menus and stuff - can you fix that?' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dock/dockSlot.tsx (DockSlot, useDockAnchor), packages/ui/src/friends/dock/FriendsDock.tsx, packages/ui/src/MenuSidebar.tsx, packages/ui/src/Title.tsx, packages/ui/src/friends/dock/friendsDock.css' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-29 (fix/friends-dock-placement). Before: on the menus the button sat in the screen corner over the side menu, the title footer links were pushed right to make room, and the open panel covered the title plaques and the side menu (every size; phones worst).',
+    example: 'On a 1191x1147 window Ann is on the title: the Friends button sits under Settings in the menu column and the footer links stay where they were. She opens it: the list rises to the right of the plaques, all of which stay visible. On Career the button sits under Settings in the side menu and the list opens beside the side menu.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
     id: 'R-FRIENDS-MENU-01',
     title: 'Right-click (or a long press) on a friend opens a menu: Spectate, Invite to lobby, Invite to Duos, Invite to spectate, only the ones that make sense now',
     statement:

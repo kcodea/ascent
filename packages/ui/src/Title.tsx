@@ -1,3 +1,4 @@
+import { DockSlot } from './friends/dock/dockSlot';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AscentLogo } from './AscentLogo';
 import { LEARN_ASCENT } from '@game/sim';
@@ -552,6 +553,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="mbicon"><Icon name="gear" /></span>
             <span className="mblabel">{txt.settings}</span>
           </button>
+          {/* The Friends dock's home on the title (R-FRIENDS-DOCK-03): beside the last plaque, just right of the
+              column, so it needs no height of its own and never meets the footer links below. */}
+          <DockSlot className="title-dock" side=".titlenav" />
         </nav>
 
       </div>

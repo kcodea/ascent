@@ -11,7 +11,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../identity', async (orig) => ({ ...(await orig<typeof import('../identity')>()), currentUserId: () => 'me' }));
-import { PING_CLEAR_EVENT, PING_EVENT, PING_MENTOR_EVENT, type PingMessage } from '@game/versus-cf/pings';
+import { PING_CLEAR_EVENT, PING_EVENT, PING_MENTOR_EVENT, routePing, type PingMessage } from '@game/versus-cf/pings';
 import { useGame } from '../store';
 import { useSpectate } from '../versus/spectate';
 import { setWatchers } from '../versus/watchers';
@@ -21,6 +21,7 @@ import {
   clearPing,
   clearPingsOnCard,
   pingContext,
+  receivePing,
   receivePingEvent,
   resetPingRuntimeForTests,
   sendPing,
@@ -189,6 +190,74 @@ describe('mentors (R-PING-03)', () => {
     session('p1', 'duos');
     useSpectate.setState({ active: true, seat: 'p2', teammate: true });
     expect(pingContext()).toEqual({ owner: 'p2', role: 'mate' });
+  });
+});
+
+// R-PING-06 (owner 2026-10-29: "players should be able to ping their teammates board/minions etc as well"). The watch
+// screen (the teammate view, the mentor's screen) sets `replaying` so nothing commits against the synthetic run; the
+// menu used to read that as "a replay" and close, so neither a teammate nor a mentor could ever ping there.
+describe('pinging on the watch screen as it really is (`replaying` set by spectate.ts)', () => {
+  const watchScreen = (seat: 'p1' | 'p2', teammate: boolean): void => {
+    useGame.setState({ replaying: true });
+    useSpectate.setState({ active: true, seat, teammate });
+  };
+
+  it('the teammate view: the menu opens on their shop, board and hand, and the ping is sent as mate', () => {
+    session('p1', 'duos');
+    watchScreen('p2', true);
+    expect(pingContext()).toEqual({ owner: 'p2', role: 'mate' });
+    document.body.innerHTML = `
+      <div data-zone="tavern"><div class="card" data-uid="t1"></div></div>
+      <div data-zone="warband"><div class="row"><div class="card" data-uid="w1"></div></div></div>
+      <div data-zone="hand"><div class="row hand"><div class="card" data-uid="h1"></div></div></div>`;
+    for (const [uid, zone] of [['t1', 'shop'], ['w1', 'board'], ['h1', 'hand']] as const) {
+      const el = document.querySelector(`[data-uid="${uid}"]`)!;
+      expect(openCardPingMenu({ clientX: 5, clientY: 5, currentTarget: el }, uid, () => undefined)).toBe(true);
+      expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid, zone });
+      usePingMenu.setState({ open: null });
+    }
+    expect(sendPing('question', { t: 'card', uid: 'w1', zone: 'board' })).toBe(true);
+    expect(sent[0]!.p).toMatchObject({ owner: 'p2', role: 'mate', target: { t: 'card', uid: 'w1', zone: 'board' } });
+    // ...and it shows on MY screen (the teammate's, on display) at once.
+    expect(usePings.getState().list[0]).toMatchObject({ owner: 'p2', role: 'mate', mine: true });
+  });
+
+  it('the server rule delivers it to the teammate and the stands, never the other team', () => {
+    session('p1', 'duos');
+    watchScreen('p2', true);
+    sendPing('check', { t: 'card', uid: 'h1', zone: 'hand' });
+    const room = { mode: 'duos' as const, mentors: {}, members: [
+      { userId: 'ann', role: 'p1' }, { userId: 'amy', role: 'p2' }, { userId: 'cy', role: 'p3' }, { userId: 'di', role: 'p4' }, { userId: 'sam', role: 'spectator' },
+    ] };
+    const route = routePing(room, 'ann', sent[0]!.p); // sent from my client (Ann, p1); the server stamps who sent it
+    expect(route.ok).toBe(true);
+    if (!route.ok) return;
+    expect(route.ping.role).toBe('mate');
+    expect(new Set(route.to)).toEqual(new Set(['amy', 'sam']));
+    // The teammate's client (p2, on its own screen) shows it on its own hand card.
+    resetPingRuntimeForTests();
+    useGame.setState({ replaying: false });
+    useSpectate.setState({ active: false, seat: 'p1', teammate: false });
+    session('p2', 'duos');
+    expect(receivePing(route.ping)).toBe(true);
+    expect(usePings.getState().list[0]).toMatchObject({ owner: 'p2', role: 'mate', mine: false });
+    // The other team's client never shows it (the Supabase relay cannot filter, so the receiver re-checks).
+    resetPingRuntimeForTests();
+    session('p3', 'duos');
+    expect(receivePing(route.ping)).toBe(false);
+  });
+
+  it("a mentor pings the watched player's screen there too; a recorded replay still has no menu", () => {
+    session(null, 'lobby');
+    watchScreen('p1', false);
+    receivePingEvent(PING_MENTOR_EVENT, { seat: 'p1', mentor: 'me', name: 'Me' });
+    expect(pingContext()).toEqual({ owner: 'p1', role: 'mentor' });
+    useSpectate.setState({ active: false });
+    expect(pingContext()).toBeNull(); // replaying, not the watch screen
+    useGame.setState({ replaySession: {} as never, replaying: true });
+    useSpectate.setState({ active: true });
+    expect(pingContext()).toBeNull(); // a replay session never pings
+    useGame.setState({ replaySession: null });
   });
 });
 

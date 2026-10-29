@@ -131,8 +131,12 @@ export function onScreenSeat(): PingSeat {
  */
 export function pingContext(): { owner: PingSeat; role: PingRole } | null {
   const g = useGame.getState();
-  if (g.replaying || g.showTitle) return null;
   const sp = useSpectate.getState();
+  // THE WATCH SCREEN IS `replaying` TOO (spectate.ts sets it so nothing commits against the synthetic run), so only a
+  // replay that is NOT the live watch screen closes the menu here. It used to close it for the teammate view and the
+  // mentor's screen alike (owner 2026-10-29: "players should be able to ping their teammates board/minions etc as
+  // well"; R-PING-06).
+  if (g.showTitle || g.replaySession || (g.replaying && !sp.active)) return null;
   const mine = myPingSeat();
   if (sp.active) {
     if (sp.hero || sp.teammateHero) return null;

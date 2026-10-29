@@ -30,6 +30,18 @@ export async function startLocalWorker(): Promise<{ url: string; dispose: () => 
   return { url, dispose: () => worker.dispose() };
 }
 
+/** THE FRIENDS HUB's own Worker (`hub.wrangler.toml`), local, dev tokens on, nothing stored. */
+export async function startHubWorker(): Promise<{ url: string; dispose: () => Promise<void> }> {
+  const worker = await unstable_startWorker({
+    config: fileURLToPath(new URL('../../hub.wrangler.toml', import.meta.url)),
+    bindings: { DEV_AUTH: { type: 'plain_text', value: '1' } },
+    dev: { server: { port: 0 }, inspector: false, persist: false, logLevel: (process.env.VERSUS_CF_LOG as never) ?? 'error' } as never,
+  });
+  await worker.ready;
+  const url = String(await worker.url).replace(/\/$/, '');
+  return { url, dispose: () => worker.dispose() };
+}
+
 const NodeWS = (globalThis as unknown as { WebSocket: new (url: string, protocols: string[]) => WebSocketLike }).WebSocket;
 
 export interface Arrival { at: number; wall: number; msg: VersusCfPush }

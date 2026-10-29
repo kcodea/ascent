@@ -197,6 +197,14 @@ export const BACKDROP_TEXTURES: Record<string, { label: string; url: string; cov
   stoneCourtyard: { label: 'Stone Courtyard (image)', url: '/backdrop-stone-courtyard.webp', cover: true },
 };
 
+/** The SMALL copy of a painted (`cover`) backdrop that touch devices load instead (1600x900, `<name>-sm.webp`): a
+ *  2560-wide painting costs ~14 MB of decoded memory, which broke the phone image budget (CI `phone-budgets`). A tile
+ *  has no small copy (it is already small). */
+export function backdropSmallUrl(texture: string | undefined): string | undefined {
+  const t = texture ? BACKDROP_TEXTURES[texture] : undefined;
+  return t?.cover ? t.url.replace(/\.webp$/, '-sm.webp') : undefined;
+}
+
 /** How a texture fills the screen: `cover` (one image) or `tile` (repeat). */
 export function backdropFit(texture: string | undefined): 'cover' | 'tile' {
   return texture && BACKDROP_TEXTURES[texture]?.cover ? 'cover' : 'tile';

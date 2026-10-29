@@ -10,7 +10,7 @@
  * To add a backdrop: drop its tile (or a single painted image, marked `cover` in BACKDROP_TEXTURES) in apps/web/public, add it to `BACKDROP_TEXTURES` (layoutConfig.ts) so the Layout
  * Lab can tune it, then copy the tuned values into a preset here.
  */
-import { BACKDROP_TEXTURES, backdropFit } from './layoutConfig';
+import { BACKDROP_TEXTURES, backdropFit, backdropSmallUrl } from './layoutConfig';
 
 export interface BackdropPreset {
   label: string;
@@ -79,6 +79,8 @@ export function backdropVars(id: BackdropId): Record<string, string> {
   const tex = BACKDROP_TEXTURES[p.texture] ?? BACKDROP_TEXTURES.stone!;
   return {
     '--bd-img': `url('${tex.url}')`,
+    // A painted backdrop's phone copy (touchUi.css swaps it in on touch devices); a tile uses its one image.
+    '--bd-img-sm': `url('${backdropSmallUrl(p.texture) ?? tex.url}')`,
     '--bd-size': `${p.size}px`,
     '--bd-dark': String(p.dark),
     '--bd-blur': `${p.blur}px`,

@@ -108,6 +108,23 @@ describe('single-image (cover) backdrops', () => {
     expect(document.documentElement.dataset.bdFit).toBeUndefined();
   });
 
+  it('every painted image has a small phone copy on disk, and a pick writes it for touch devices', async () => {
+    const { existsSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const b = await import('./backdrop');
+    const { BACKDROP_TEXTURES, backdropSmallUrl } = await import('./layoutConfig');
+    for (const [tex, t] of Object.entries(BACKDROP_TEXTURES)) {
+      const sm = backdropSmallUrl(tex);
+      if (!t.cover) { expect(sm, tex).toBeUndefined(); continue; }
+      expect(sm, tex).toBe(t.url.replace('.webp', '-sm.webp'));
+      expect(existsSync(resolve(__dirname, '../../../apps/web/public', sm!.slice(1))), sm).toBe(true);
+    }
+    b.setBackdrop('castle');
+    expect(rootVar('--bd-img-sm')).toContain('/backdrop-castle-sm.webp');
+    b.setBackdrop('oak');
+    expect(rootVar('--bd-img-sm')).toContain('/backdrop-oak-planks.webp');
+  });
+
   it('a tile Settings pick never carries the cover flag', async () => {
     localStorage.setItem('ascent.backdrop', 'oak');
     await import('./backdrop');

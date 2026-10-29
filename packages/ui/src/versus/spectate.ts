@@ -1096,12 +1096,43 @@ function pinnedView(seat: VersusGroupSeat, view: VersusSpectatorView): VersusSpe
   lateEntry = false;
   return pin && !pin.released ? pin.view : view;
 }
+/**
+ * THE HIT LANDS ON THE BLOW (R-SPECTATE-STRIKE-01, owner 2026-10-29: "spectating is doing some janky stuff at end of
+ * combat ... showing a hit or something weird"). The watched player's Health drops on their hero strike's impact
+ * (`settleCombat` in Recruit's strike). The watch screen swallows that dispatch and used to let its pinned fight go a
+ * fixed 2.6 s after the replay ended instead: the Health dropped (a second "-X") seconds after the blow, or in the middle
+ * of a long cosmetic strike. Now Recruit reports the strike: its start holds the pin (a safety cap only), its impact
+ * releases it on that beat, as the player saw it.
+ */
+const STRIKE_SAFETY_MS = 9000;
+/** After the blow lands, the beat the strike's aftermath gets before a finished match's end gate may close. */
+const AFTER_IMPACT_MS = 1500;
+/** A strike is playing on this screen: the end gate waits for its impact, not a fixed time (R-SPECTATE-END-01). */
+let striking = false;
+export function spectatorStrikeStarted(): void {
+  if (!useSpectate.getState().active) return;
+  striking = true;
+  // A strike that never reports its impact (cancelled, unmounted) still lets the screen and the end gate go.
+  if (releaseTimer != null) window.clearTimeout(releaseTimer);
+  releaseTimer = window.setTimeout(() => { releaseTimer = null; spectatorStrikeLanded(); }, STRIKE_SAFETY_MS);
+}
+export function spectatorStrikeLanded(): void {
+  if (!useSpectate.getState().active) return;
+  if (striking) {
+    striking = false;
+    const key = `${matchId}|${useGame.getState().run.wave}`;
+    window.setTimeout(() => { fightShown = key; maybeEndWatch(); }, AFTER_IMPACT_MS);
+  }
+  if (releaseTimer != null) { window.clearTimeout(releaseTimer); releaseTimer = null; }
+  if (pin && !pin.released) { pin.released = true; schedule(); }
+}
 function onReplayDone(done: boolean): void {
   // A finished match waits for its last fight (and the strike after it) before the end gate (R-SPECTATE-END-01).
   // (Noted on every finished fight: the match row can complete after the screen has already played the last one.)
   if (done) {
     const key = `${matchId}|${useGame.getState().run.wave}`;
-    window.setTimeout(() => { fightShown = key; maybeEndWatch(); }, STRIKE_MS);
+    // A strike still playing marks the fight shown at its impact instead (`spectatorStrikeLanded`).
+    window.setTimeout(() => { if (striking) return; fightShown = key; maybeEndWatch(); }, STRIKE_MS);
   }
   if (!done || !pin || pin.released || releaseTimer != null) return;
   releaseTimer = window.setTimeout(() => { releaseTimer = null; if (pin) pin.released = true; schedule(); }, STRIKE_MS);
@@ -1209,6 +1240,7 @@ export function stopSpectating(restoreOnly = false): void {
   unsubDone = null;
   if (releaseTimer != null) { window.clearTimeout(releaseTimer); releaseTimer = null; }
   pin = null;
+  striking = false;
   lateEntry = true;
   fightBeat = null;
   resumeAt = null;

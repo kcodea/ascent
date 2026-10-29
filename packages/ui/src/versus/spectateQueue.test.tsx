@@ -95,3 +95,44 @@ describe('the stands\' queue', () => {
     expect(useGame.getState().run.phase).toBe('combat');
   });
 });
+
+describe('the blow lands on the beat (R-SPECTATE-STRIKE-01)', () => {
+  // Owner 2026-10-29: "spectating is doing some janky stuff at end of combat ... showing a hit or something weird".
+  async function intoFight(id: string): Promise<{ pub: ReturnType<typeof newPublisher>; fightRun: RunState }> {
+    const run = shopRun();
+    const pub = await watch(run, id);
+    const fightRun = { ...run, phase: 'combat' } as RunState;
+    sp.receiveSpectate(nextSpectatorMessage(pub, fightRun, 1)!);
+    sp.spectateSync({ id, phase: 'combat', round: 1 } as never, rounds);
+    expect(useGame.getState().run.phase).toBe('combat');
+    return { pub, fightRun };
+  }
+
+  it('the watched Health drops at the strike impact, never a fixed time after the replay (and never mid-strike)', async () => {
+    const { pub, fightRun } = await intoFight('st1');
+    const before = useGame.getState().run.resolve;
+    // The player's own screen settles at its impact: their settled view arrives while this screen still plays the fight.
+    sp.receiveSpectate(nextSpectatorMessage(pub, { ...fightRun, combatSettled: true, resolve: before - 7 } as RunState, 1)!);
+    useGame.setState({ combatReplayDone: true });
+    sp.spectatorStrikeStarted();
+    vi.advanceTimersByTime(4000); // a long cosmetic strike: past the old fixed 2.6 s
+    sp.flushSpectateRender();
+    expect(useGame.getState().run.resolve).toBe(before);
+    expect(useGame.getState().run.combatSettled).toBe(false);
+    sp.spectatorStrikeLanded(); // the impact
+    sp.flushSpectateRender();
+    expect(useGame.getState().run.resolve).toBe(before - 7);
+    expect(useGame.getState().run.phase).toBe('combat');
+  });
+
+  it('a strike that never reports its impact still lets the fight go (safety)', async () => {
+    const { pub, fightRun } = await intoFight('st2');
+    const before = useGame.getState().run.resolve;
+    sp.receiveSpectate(nextSpectatorMessage(pub, { ...fightRun, combatSettled: true, resolve: before - 3 } as RunState, 1)!);
+    useGame.setState({ combatReplayDone: true });
+    sp.spectatorStrikeStarted();
+    vi.advanceTimersByTime(10_000);
+    sp.flushSpectateRender();
+    expect(useGame.getState().run.resolve).toBe(before - 3);
+  });
+});

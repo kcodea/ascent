@@ -11352,4 +11352,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Since 2026-10-29 (qa/duos-spectate-polish). Before, a failed pick only set an error that is not shown in a match. The owner report was not reproduced on the local Cloudflare stack (Hero Select and both-ready closes measured at about 0.2 s); this closes the one path found that matches it.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusHeroPickRetry.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-SPECTATE-STRIKE-01',
+    title: 'On the watch screen the Health drops on the hero strike, as the player saw it',
+    statement:
+      'When a watched fight ends in a hero strike, the watch screen keeps the fight as it was until the blow lands, and the watched player Health (and the rail) drop on the impact beat, the same beat as on the player own screen. '
+      + 'Never a fixed time after the replay: not seconds after the blow (a second hit), and not in the middle of a long cosmetic attack. '
+      + 'A finished match closes the end gate after that impact and a short beat, never mid-strike. A strike that never reports its impact lets go after a safety cap (9 s).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (Duos + spectating QA, report b)', quote: 'spectating is doing some janky stuff at end of combat, rebuilding the opponent board and showing a hit or something weird. also end game didnt resolve nicely for spectators' },
+      { kind: 'fix-pr', ref: 'qa/duos-spectate-polish' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts (spectatorStrikeStarted / spectatorStrikeLanded); packages/ui/src/Recruit.tsx (the strike reports both)' },
+    ],
+    currentBehaviour: 'Since 2026-10-29 (qa/duos-spectate-polish). Before, the pinned fight let go 2.6 s after the replay ended: the Health dropped and the lobby was rebuilt then, after or in the middle of the strike (seen in the browser run: the settled view and a lobby rebuild arriving 2.6 s after replay done), and the end gate keyed on the same 2.6 s.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateQueue.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
 ];

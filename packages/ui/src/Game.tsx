@@ -9,7 +9,9 @@ import './runeCard.css'; // the forge card: rune cards + rune rack badges (owner
 import './tooltipConfig';
 import './boardEdgeConfig'; // side-effect: apply the ultrawide edge-blend vars (dev: persisted tune; prod: DEFAULTS)
 import './healthPillConfig'; // side-effect: stamp the health-pill look on <html> (dev: persisted pick; prod: DEFAULT)
-import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useSpectate } from './versus/spectate';
+import { heldScreenKey } from './screenSwap';
 import { Recruit } from './Recruit';
 import { PERF_DOM_CONTAINERS } from './perfDomContainers';
 import { EndScreen } from './EndScreen';
@@ -182,7 +184,17 @@ export function Game() {
   // REPLAY VIEWER: the seek epoch is folded in so a replay SEEK remounts the recruit tree — every FX hook's
   // sequence-diff ref re-inits at the target frame, so a jump across 30 frames can't fire 30 stale effects
   // (buys/welds still replay during ordinary frame stepping, which never bumps the epoch). 0 outside replays.
-  const runKey = useGame((s) => `${s.run.seed}:${s.run.heroId}:${s.replaySeekEpoch}`);
+  const liveRunKey = useGame((s) => `${s.run.seed}:${s.run.heroId}:${s.replaySeekEpoch}`);
+  // VERSUS DUOS, THE TEAMMATE VIEW (owner 2026-10-29, "Option A"; R-DUOS-VIEW-NOREMOUNT-01): watching my teammate puts
+  // THEIR run in the store (its own seed and hero), which used to change this key and rebuild the whole board twice a
+  // swap. The key now HOLDS my own run's identity while the teammate view is open, so the swap re-renders in place.
+  // What the remount used to reset (FX sequence watchers, diff snapshots, timers, the rows) is reset in Recruit on the
+  // swap render instead (screenSwap.ts). The StatusBar and the EmoteLayer stay on the LIVE key: they are small, the hero
+  // panel is a different hero anyway, and remounting them keeps their per-run refs (`prevHp`) honest for free.
+  const watchingMate = useSpectate((s) => s.teammate === true);
+  const runKeyRef = useRef(liveRunKey);
+  runKeyRef.current = heldScreenKey(runKeyRef.current, liveRunKey, watchingMate);
+  const runKey = runKeyRef.current;
   // See `isPreRun`: the board must not render (or tick) until a run is actually entered.
   const preRun = useGame(isPreRun);
   const heroPicking = useGame((s) => s.heroChoices !== null);
@@ -603,10 +615,10 @@ export function Game() {
           inert (no ticker, nothing drawn) until something fires, so this is still outside the 2026-08-30 ruling.
           `heroPicking` is no longer read here. */}
       <PixiFxLayer gameplay={!preRun || heroPicking} inRun={!preRun} />
-      {!preRun && <StatusBar key={`sb:${runKey}`} />}
+      {!preRun && <StatusBar key={`sb:${liveRunKey}`} />}
       {/* EMOTES (owner 2026-10-13): the right-click menu on your portrait, the bubbles, and the served seats' recorded
           emotes. One per run (keyed like the StatusBar), no per-frame work. */}
-      {!preRun && <EmoteLayer key={`em:${runKey}`} />}
+      {!preRun && <EmoteLayer key={`em:${liveRunKey}`} />}
       {/* LIVE PINGS (owner 2026-10-29): the right-click ping menu and the marks on their targets. */}
       {!preRun && <PingLayer />}
       {/* The cast preview (owner ask 2026-09-23): a rune's / minion's cast spell floating above its caster — one

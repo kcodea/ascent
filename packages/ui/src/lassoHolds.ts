@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import type { RunState } from '@game/sim';
+import { useScreenSwapped, useSwapRef, useSwapState } from './screenSwap';
 
 /**
  * THE LASSO HOLDS (owner ask 2026-09-22) — the state machine behind "the card comes to hand when the beam
@@ -144,6 +145,9 @@ export interface LassoCascadeOpts {
   /** `run.shop`'s uids as they stand now (post-splice): the row a hold belongs to. */
   shopUids: readonly string[];
   handlers: MutableRefObject<LassoCascadeHandlers>;
+  /** The identity of the run on screen (`screenIdOf`): a Duos teammate swap re-renders in place, and this resets the
+   *  cascade as the remount it replaced did (R-DUOS-VIEW-NOREMOUNT-01). */
+  screen?: string;
 }
 
 export interface LassoCascade {
@@ -172,10 +176,12 @@ export function useLassoCascade(opts: LassoCascadeOpts): LassoCascade {
   const { seq, phase, events, shopUids } = opts;
   const latest = useRef(opts);
   latest.current = opts;
+  const screen = opts.screen ?? '';
+  const swapped = useScreenSwapped(screen);
 
-  const [raw, setRaw] = useState<LassoHolds>(EMPTY_LASSO_HOLDS);
-  const [heldSeq, setHeldSeq] = useState(seq);
-  if (seq !== heldSeq) {
+  const [raw, setRaw] = useSwapState<LassoHolds>(EMPTY_LASSO_HOLDS, swapped);
+  const [heldSeq, setHeldSeq] = useSwapState(seq, swapped);
+  if (!swapped && seq !== heldSeq) {
     setHeldSeq(seq);
     const fresh = phase === 'recruit' ? events : [];
     if (fresh.length) setRaw((prev) => holdLassoSteals(resolveAllLassoHolds(prev), fresh, shopUids));
@@ -192,7 +198,7 @@ export function useLassoCascade(opts: LassoCascadeOpts): LassoCascade {
     return id;
   }, []);
 
-  const prevSeq = useRef(seq);
+  const prevSeq = useSwapRef(seq, swapped);
   useEffect(() => {
     if (seq === prevSeq.current) return;
     prevSeq.current = seq; // advance FIRST — exactly once per action (the #947 lesson)
@@ -222,7 +228,7 @@ export function useLassoCascade(opts: LassoCascadeOpts): LassoCascade {
   useEffect(() => () => {
     for (const t of timersRef.current.splice(0)) window.clearTimeout(t);
     for (const t of beatTimersRef.current.splice(0)) window.clearTimeout(t);
-  }, []);
+  }, [screen]);
 
   return { holds: lassoHoldsForPhase(raw, phase), resolve, trackBeatTimer };
 }

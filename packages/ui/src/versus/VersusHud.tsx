@@ -15,6 +15,7 @@ import { TeammateFrame, useTeammateViewKeys } from './teammateView';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RunState } from '@game/sim';
 import { useGame } from '../store';
+import { useScreenSwapped, useSwapRef } from '../screenSwap';
 import { standardTurnSeconds, turnClock } from '../turnClock';
 import { displaySeconds, shopClockAt } from './versusClock';
 import { driveVersusClock, nextObserveMs } from './versusClockFx';
@@ -70,7 +71,7 @@ function useSecondsUntil(ms: number | undefined, on: boolean): number {
  * Recruit's Versus seam. `endTurn` is Recruit's stable End Turn; `endCombat` its End Combat (the fight's exit).
  * `readyNote` is the End Turn / End Combat gem's pill; `gemLocked` says the gem is spent while this player waits.
  */
-export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: () => void): { intercept: () => boolean; readyNote: string | null; gemLocked: boolean; gemReady: boolean; gemLabel: string | null; clockQuiet: boolean } {
+export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: () => void, screen = ''): { intercept: () => boolean; readyNote: string | null; gemLocked: boolean; gemReady: boolean; gemLabel: string | null; clockQuiet: boolean } {
   const versus = run.mode === 'versus';
   const endTurnWave = useVersus((s) => s.endTurnWave);
   const match = useVersus((s) => s.match);
@@ -79,14 +80,17 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
   const secondsLeft = useSecondsUntil(turn.deadline, turn.kind === 'foeReady');
   // LEAVE THE FIGHT TOGETHER (owner 2026-10-14): the next shop is open (both pressed End Combat, or the 5 s ran out),
   // so this fight leaves through its ordinary exit, a replay still playing included. Once per wave.
-  const leftRef = useRef<number | null>(null);
+  // `screen`: the run on screen (Recruit's `screenId`). A Duos teammate swap no longer remounts Recruit, so the once-per-wave
+  // marks below reset on it as they did with the remount (R-DUOS-VIEW-NOREMOUNT-01).
+  const swapped = useScreenSwapped(screen);
+  const leftRef = useSwapRef<number | null>(null, swapped);
   useEffect(() => {
     if (!versus || turn.kind !== 'leave' || leftRef.current === run.wave) return;
     leftRef.current = run.wave;
     endCombat();
   }, [versus, turn.kind, run.wave, endCombat]);
   // The fight is in: play the real End Turn (its commit lands the fight). Once per wave.
-  const firedRef = useRef<number | null>(null);
+  const firedRef = useSwapRef<number | null>(null, swapped);
   // A pause holds it (the action layer would refuse it) and it plays on the resume.
   const paused = useVersusPaused();
   useEffect(() => {

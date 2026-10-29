@@ -11415,9 +11415,27 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'qa/duos-spectate-polish' },
       { kind: 'code', ref: 'packages/ui/src/versus/teammateView.tsx (turnByViewTransition); packages/ui/src/versus/spectate.ts (flushSpectateRender); packages/ui/src/versus/versus.css (duos-vt)' },
     ],
-    currentBehaviour: 'Since 2026-10-29 (qa/duos-spectate-polish). Before, the click cloned the whole game screen as a ghost and rendered the new screen inside the click (click to next paint 80-216 ms on the bench, desktop prod build), and the fade waited at least 70 ms for calm frames. The swap still remounts the board (about 25 ms of main-thread work per direction on desktop, 250-500 ms on a 4x-throttled phone), so it is not yet zero dropped frames: see the QA report.',
+    currentBehaviour: 'Since 2026-10-29 (qa/duos-spectate-polish). Before, the click cloned the whole game screen as a ghost and rendered the new screen inside the click (click to next paint 80-216 ms on the bench, desktop prod build), and the fade waited at least 70 ms for calm frames. Since perf/duos-swap-no-remount the board is no longer remounted by the swap (R-DUOS-VIEW-NOREMOUNT-01).',
     example: "You click Bob's portrait. The same frame your click registers, your board starts fading into his, with no pause before it.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateFade.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-DUOS-VIEW-NOREMOUNT-01',
+    title: 'Swapping to your teammate\'s screen redraws the board in place, and neither screen inherits the other\'s effects',
+    statement:
+      'Opening your teammate\'s screen (and coming back) no longer tears down and rebuilds the whole game screen: the frame, the buttons, the rail position and the teammate portrait stay, and only what differs (the cards, the rows, the overlays, the hero panel) is drawn again. '
+      + 'Nothing in flight on the screen you leave plays on the one you arrive at: no effect fires for the difference between the two runs, no card rolls or pops from the other screen\'s card with the same id, no held stat, sparkle, flourish or timer carries over, a drag in progress ends, and your own End of Turn in progress finishes at once as before. '
+      + 'Coming back shows your own board exactly as it is, with nothing replayed. A new game or a replay seek still starts the screen fresh.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (approved Option A: no remount on the swap)', quote: 'look into toggling yours and teammates screen. It can be kinda janky' },
+      { kind: 'fix-pr', ref: 'perf/duos-swap-no-remount' },
+      { kind: 'code', ref: 'packages/ui/src/screenSwap.ts; packages/ui/src/Game.tsx (runKey); packages/ui/src/Recruit.tsx (screenId, swapped)' },
+    ],
+    currentBehaviour: 'Since 2026-10-29 (perf/duos-swap-no-remount). Before, Recruit was keyed on the run on screen, so each swap unmounted and remounted the whole recruit tree (one or two frames over 33 ms per swap on the desktop bench, 250-500 ms of long tasks on a 4x-throttled phone).',
+    example: 'Your Kobold just played its Battlecry and its flourish is still glowing when you click Bob\'s portrait. Bob\'s board appears without that glow on his card in the same slot, and when you click back your board is there as you left it, with no effect playing a second time.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/screenSwap.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
   {
     id: 'R-VERSUS-HEROPICK-RETRY-01',

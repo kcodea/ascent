@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: "Duos: swapping to your teammate's screen and back no longer hitches. The board is redrawn in place instead of rebuilt.", details: [
+        'Nothing in motion on one screen carries over to the other: no effect, glow or number roll plays on the wrong board.',
+        'Coming back shows your own board exactly as you left it.',
+      ] },
       { category: 'Systems', text: 'Recent Games has a new Duos tab with your Ranked Duos and Versus Duos games.', details: [
         'Each game shows your team\'s place, your team name, your hero and your teammate, and when you played.',
         'Ranked Duos games also show the rank you played at and the points you gained or lost.',

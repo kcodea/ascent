@@ -134,7 +134,7 @@ describe('every Start of Turn source gets its own beat, and the turn waits for t
 
 describe('the Shop plays the beats after the wipe (source pins)', () => {
   it('derives the holds DURING RENDER on the seq (no frame shows the raised numbers or the new cards) and marks the turn busy', () => {
-    const i = RECRUIT.indexOf('if ((run.sotBeatFxSeq ?? 0) !== sotSeqSeen) {');
+    const i = RECRUIT.indexOf('if (!swapped && (run.sotBeatFxSeq ?? 0) !== sotSeqSeen) {');
     expect(i).toBeGreaterThan(-1);
     const block = RECRUIT.slice(i, i + 500);
     expect(block).toContain('setSotHolds((prev) => holdSotBeats(prev, batch));');
@@ -145,7 +145,7 @@ describe('the Shop plays the beats after the wipe (source pins)', () => {
   });
 
   it('queues the batch on its seq and plays it only when sotBeatsMayPlay (the wipe at rest), source first', () => {
-    expect(RECRUIT).toContain('const prevSotSeq = useRef(run.sotBeatFxSeq ?? 0);');
+    expect(RECRUIT).toContain('const prevSotSeq = useSwapRef(run.sotBeatFxSeq ?? 0, swapped);');
     const i = RECRUIT.indexOf('if (!sotBeatsMayPlay(run.phase, wipe)');
     expect(i).toBeGreaterThan(-1);
     const block = RECRUIT.slice(i, i + 7000);

@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Smoother card dragging, most of all on phones. The card keeps up with your finger.', details: [
+        'Picking a card up and dropping it no longer makes the whole screen redraw its styles.',
+        'Cards making room for the one you drag no longer measure the board at every slot you pass. They slide as before.',
+      ] },
       { category: 'Systems', text: 'Message your friends. Click a friend in the Friends list to open a chat.', details: [
         'In a game, click a friend in the Friends button list. On the menu, press Message on the Friends page.',
         'New messages show a count on the Friends button and a short note above it. Messages sent while you were away wait for you.',

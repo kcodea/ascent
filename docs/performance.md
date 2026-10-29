@@ -121,7 +121,7 @@ top-offenders list is built from.
 | `view:shop` | building the tavern's card views (memoized per offer by signature — `shopViewCache.ts`) | `Recruit.tsx` |
 | `render:recruit` / `render:combat` | React render + commit of the shop / combat screen (phase-aware) | `Recruit.tsx` |
 | `view:board` / `view:hand` | building the card views | `Recruit.tsx` |
-| `layout:flip` → `layout:flip:write` + `layout:flip:read` | the FLIP effect (`RowFlip`, in the commit where a row moves): the capture half (the offsetLeft sweep, read FIRST outside a drag; Flip.getState after the write during one) and the animation half (Flip.from / manual tweens) | `Recruit.tsx` |
+| `layout:flip` → `layout:flip:write` + `layout:flip:read` | the FLIP effect (`RowFlip`, in the commit where a row moves): the capture half (the offsetLeft sweep, outside a drag only) and the animation half (the manual commit tweens). A drag commit does neither: the parting is CSS (R-PHONE-DRAG-02) | `Recruit.tsx` |
 | `drag:flushMove`, `layout:handglide`, `odds:deferred`, `recruit:moment cues` | drag / hand / odds / cue paths | `Recruit.tsx` |
 | `input:pointermove` / `input:pointerdown` / `input:pointerup` | the raw drag, grab and aim handlers (perf PR 1, 2026-09-17) | `Recruit.tsx` |
 | `input:aim-flush` / `input:target-flush` | the hero-power / battlecry aim's rAF-coalesced work | `Recruit.tsx` |
@@ -923,13 +923,15 @@ throttle) and at 1920x1080 with no throttle. Numbers and method: `docs/devlog/20
   is not enough: its module is side-effect-free, so Rollup drops an unused reference.
 - **An uninterruptible idle-time step is sized by measured cost, not a fixed count.** The odds probe's 10-sim step
   was a 59 ms task on the throttled phone late-game (`oddsStepper.ts` now aims each step at ~2 ms).
-- **Open: a drag re-layerizes every frame.** A trace of a moving touch drag shows `Layerize`
-  (`PaintArtifactCompositor::Update`) on every frame (364 of 363, ~5 ms each at 4x throttle), plus a ~10-element
-  restyle of the dragged card. That is the biggest per-frame cost of a drag, and it is not JS. The weighted-drag rAF
-  moves `.dragcard` with `zoom` + `perspective` + a 2D transform on the outer and a 3D tilt on `.dragtilt`; the
-  transform change is evidently not taking Chrome's direct composited-transform update. Skipping unchanged writes
-  did not move the count (the finger moves every frame). Next: try `will-change: transform` on both layers, and
-  test whether `zoom` on the moving element is what forces the full update.
+- **A drag re-layerizes every frame (Chromium; measured 2026-10-29, cheap).** `Layerize` runs on every drag frame.
+  It is the dragged card (hiding `.dragcard` removes it) and mostly its 3D tilt, not `zoom` (forcing `zoom: 1` changed
+  nothing). It is ~0.1 ms a frame unthrottled, so it was left alone. The real drag costs were the pickup, the drop and
+  the slot crossings (next bullet).
+- **Pickup, drop and slot crossings (2026-10-29, R-PHONE-DRAG-02; `docs/devlog/2026-10-29-mobile-drag-smooth.md`).**
+  `.roundrail-wrap.dragging *` shared its class with `body.dragging`, so every pickup and every drop restyled the whole
+  document (476 elements). And every slot crossing ran `Flip.from` + `Flip.getState`, two forced style + layout passes
+  for a flip the capture completed in the same task (the `!important` CSS transition was always the visible glide).
+  Both are gone; `bodyClassRestyle.test.ts` and `dragSession.test.ts` pin them.
 - **Phone-only budgets go through `deviceClass.ts` (`isPhone`).** Phones get 60% FX particle and filter ceilings
   (`fxBudgetConfig.ts`); desktop, laptops and tablets keep theirs.
 - **Reading headless phone numbers:** SwiftShader draws everything in software, so multi-second frame gaps with
@@ -1031,6 +1033,12 @@ These are the rules the audits surfaced; the codebase already follows them — k
   subscribes to none of it. A new piece of pointer-driven state goes there, and the component that draws it
   subscribes; the drag session (`startDragSession`) publishes decisions, never `setState`. `dragSession.test.ts`
   is the source contract: the move flush reads no layout and calls no React setter.
+- **A class toggled on `<body>` must never sit in front of a featureless subject** (`.dragging *`, `.x > *`), in ANY
+  rule, even one meant for another element (R-PHONE-DRAG-02). The browser keys that invalidation on the class name
+  alone, so the replay rail's `.roundrail-wrap.dragging *` restyled the whole page every time `body.dragging` flipped.
+  Give a component's state class its own name. `bodyClassRestyle.test.ts` fails on it.
+- **Don't run a GSAP Flip on a drag crossing.** The parting cards glide on their own CSS transition
+  (`body.dragging … .card { transition: transform … !important }`); a Flip there only adds forced layouts.
 - **Pass `simple: true` to `Flip.from` / `Flip.to`, not only to `Flip.getState`.** The animation call builds its
   own "to" state; without the flag GSAP resolves a global matrix per element by appending a temp node and
   reading it — a forced layout per card, ~9 ms per slot crossing on a 13-card shop. Only the Choose One

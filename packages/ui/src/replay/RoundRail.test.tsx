@@ -174,7 +174,7 @@ describe('drag from anywhere (owner 2026-09-20)', () => {
     expect(wrap.style.getPropertyValue('--rrl-dy')).toBe('30px');
     expect(JSON.parse(localStorage.getItem(RAIL_PLACEMENT_KEY)!)).toMatchObject({ dx: 60, dy: 30 });
     expect(useGame.getState().replaySession?.index, 'the drag-release click is swallowed').toBe(before);
-    expect(wrap.classList.contains('dragging')).toBe(false);
+    expect(wrap.classList.contains('rr-dragging')).toBe(false);
   });
 
   it('a press on a cell that does NOT travel (or travels under 4 px) is a click: the cell still seeks and the rail stays put', () => {

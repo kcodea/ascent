@@ -9636,6 +9636,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchPopUpgrade.test.ts', 'packages/ui/src/tapInspect.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
   {
+    id: 'R-PHONE-DRAG-02',
+    title: 'Picking up, moving and dropping a card does no page-wide restyle and no forced layout',
+    statement:
+      'A card drag (Shop to board, hand to board, a board or Shop reorder) costs only its own work. Picking the card up and '
+      + 'dropping it restyle the dragged card and the rows, never the whole page: no class the game toggles on <body> '
+      + '(`dragging`, `aiming`, ...) may sit in front of a featureless selector subject (`.x *`) in any stylesheet. While '
+      + 'the card is held, crossing a slot or lifting it out of its row re-renders the rows and nothing reads layout or runs '
+      + 'a GSAP Flip: the cards that make room glide on their own CSS transition, exactly as before. The dragged card rides '
+      + 'the finger 1:1 (touch follow is instant) on transform writes only. Mouse and touch alike.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-29 (real phone, prod build)', quote: 'Mobile dragging still feels stutter/janky. Can you improve that? Feels like it is stuttering trying to catch up' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css + replay/RoundRail.tsx (.roundrail-wrap.rr-dragging, was .dragging); packages/ui/src/Recruit.tsx (RowFlip: the dragging branch is CSS-only; startDragSession captures no Flip state)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-29 (perf/mobile-drag-smooth). Before, the replay rail\x27s `.roundrail-wrap.dragging *` cursor rule shared its class with `body.dragging`, so every pickup and every drop restyled the whole document (476 elements, ~20 ms at a 4x-throttled phone profile), and each slot crossing ran a GSAP `Flip.from` plus a `Flip.getState` that completed it in the same task (never visible: the CSS transition did the glide) at the cost of two forced style + layout passes and a zero-offset tween on the other row.',
+    example: 'Drag a Shop minion across the Shop and down onto the board on a phone: the offers part and close as before, and the card stays under your finger the whole way, with no hitch at the pickup or at each slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/bodyClassRestyle.test.ts', 'packages/ui/src/dragSession.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
     id: 'R-PHONE-LASSO-01',
     title: 'The targeting lasso runs from its source to the finger at any frame rate (a 60 Hz phone included)',
     statement:

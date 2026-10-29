@@ -69,6 +69,10 @@ const STUB = `
   create function auth.jwt() returns jsonb language sql stable as $$ select '{}'::jsonb $$;
   create table auth.users (id uuid primary key, is_anonymous boolean not null default false);
   grant usage on schema public to anon, authenticated, service_role;
+  -- Supabase's own default: every new public table is granted to the API roles, and RLS decides the rows. Without it a
+  -- table with a select policy but no explicit grant (versus_group_teams, versus_duos_passes) refused every read here,
+  -- so a Ranked Duos client never saw its recorded teams (found by versusCfParity.db.test.ts).
+  alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
   grant usage on schema auth to anon, authenticated, service_role;
   grant execute on function auth.uid() to anon, authenticated, service_role;
   grant select on auth.users to authenticated;

@@ -19,7 +19,7 @@ import { engineContentRevision, VERSUS_PROTOCOL } from '@game/sim/versus/server'
 import { CoreError, newRoomState, RoomCore, type CoreEffects, type CreateRoomInput, type PersistJob } from './core/roomCore';
 import { stateFromEntries, valueOfKey } from './core/storage';
 import type { VersusDirectory } from './directory';
-import { persistBackoffMs, sinkFor, type PersistEnv, type PersistSink } from './persist';
+import { PERSIST_DEAD_AFTER, persistBackoffMs, sinkFor, type PersistEnv, type PersistSink } from './persist';
 import type { RankedService } from './core/rankedMatch';
 import { rankedServiceFor } from './rankedService';
 import { liveListingOf } from './core/liveListing';
@@ -465,7 +465,12 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       if (dels.length) await this.ctx.storage.delete(dels);
     }
     // 2. Persistence jobs into the outbox (drained by the alarm, in order).
-    if (fx.persist.length) await this.enqueue(fx.persist);
+    //    A job the outbox cannot store (a value over the storage limit) is logged and dropped: the game's pushes below
+    //    must still go out, or every player is left on a stale screen (R-VERSUS-CF-PERSIST-01: a Ranked Duos result too
+    //    big to store once held back the final match push, so the end never reached anyone).
+    if (fx.persist.length) {
+      await this.enqueue(fx.persist).catch((e) => this.log({ ev: 'versus_cf_persist_enqueue_failed', kinds: fx.persist.map((j) => j.kind), error: String(e) }));
+    }
     // The match event log (Workers Logs; the same kinds `versus_events` records on Supabase).
     for (const e of fx.events) this.log({ ev: 'versus_cf_event', match: this.core?.state.match?.id, ...e });
     // 3. Pushes. A committed round goes out BEFORE the match row that moved to combat, in one burst, so a client that
@@ -566,6 +571,15 @@ export class VersusRoom extends DurableObject<RoomEnv> {
         this.outboxAttempt = 0;
       } catch (e) {
         console.warn(JSON.stringify({ ev: 'versus_cf_persist_retry', key, attempt: this.outboxAttempt, error: String(e) }));
+        // A job that keeps failing is set aside (kept under `dead:` for a look), so one bad row never holds every
+        // write behind it for the life of the room (R-VERSUS-CF-PERSIST-01).
+        if (this.outboxAttempt >= PERSIST_DEAD_AFTER) {
+          await this.ctx.storage.put(`dead:${key}`, job).catch(() => undefined);
+          await this.ctx.storage.delete(key);
+          console.error(JSON.stringify({ ev: 'versus_cf_persist_dead', key, kind: job.kind, error: String(e) }));
+          this.outboxAttempt = 0;
+          continue;
+        }
         this.outboxRetryAt = Date.now() + persistBackoffMs(this.outboxAttempt++);
         return;
       }

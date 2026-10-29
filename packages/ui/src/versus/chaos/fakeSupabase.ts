@@ -243,6 +243,7 @@ class Query implements PromiseLike<{ data: unknown; error: unknown }> {
       const rows = await this.c.net.send('read', () => this.c.server.query<Row>(this.c.user, sql, params));
       return { data: this.single ? rows[0] ?? null : rows, error: null };
     } catch (e) {
+      this.c.lastError = `from ${this.table}: ${(e as Error).message}`;
       return { data: null, error: errorOf(e) };
     }
   }

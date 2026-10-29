@@ -448,11 +448,11 @@ export class RankedEngine extends GroupEngine {
     const j = this.json();
     delete j.serverNow;
     const subs = Object.values(this.r.rounds).length ? this.liveSubmissions() : [];
-    return {
+    return fitFinishRow({
       match: { ...j, room_id: null, ranked_team: this.r.ranked_team, unrated: this.r.unrated, seated_at: this.r.seated_at == null ? null : new Date(this.r.seated_at).toISOString() },
       seats: m.seats.map(wireSeat), teams: this.r.teams, served: this.g.served ?? [],
       rounds: Object.values(this.r.rounds).sort((a, b) => a.round - b.round), submissions: subs, placement,
-    };
+    });
   }
 
   /** Every live seat's FINAL board per round (kept for the duo run recording; `versus_group_submissions` final rows). */
@@ -567,6 +567,45 @@ export function wireSeat(s: Record<string, unknown> | GSeatRow): Record<string, 
   const out: Record<string, unknown> = { ...(s as Record<string, unknown>) };
   for (const k of ['locked_at', 'auto_since', 'left_at']) if (typeof out[k] === 'number') out[k] = toIso(out[k] as number);
   if (out.out_reason != null && !SEAT_OUT.has(String(out.out_reason))) out.out_reason = 'left';
+  return out;
+}
+
+/**
+ * The most a `ranked_finish` row may weigh as JSON (R-VERSUS-CF-PERSIST-01). Two hard limits sit above it: the writer
+ * refuses a row over 2 MB (`versus_cf_persist`'s `bad_row`, measured on jsonb text, which is a little LARGER than the
+ * JSON) and a Durable Object storage value is at most 2 MB (the job is stored in the outbox before it is sent). A long
+ * Ranked Duos match (every fight's full event log, six whole recordings, every final board) can pass both, and then the
+ * result is never stored or written at all. 1.5 MB keeps a margin for the jsonb text form.
+ */
+export const RANKED_FINISH_BUDGET = 1_500_000;
+
+/**
+ * Fit a `ranked_finish` row into the budget by dropping ARCHIVE-ONLY data, heaviest first, never what the rating or the
+ * duo run needs (the match, seats, teams, placement, every round's vitals / outcome / damage, and the live seats' final
+ * boards that `versus_ranked_duos__record_run` records):
+ *   1. the served members' whole recordings (a stub keeps the row valid: the table is never read after the match);
+ *   2. the live team's fight event logs (`live_result`), oldest round first (the outcome and damage stay).
+ * Pure; returns the row unchanged when it already fits.
+ */
+export function fitFinishRow(row: Record<string, unknown>, budget = RANKED_FINISH_BUDGET): Record<string, unknown> {
+  const size = (x: unknown): number => JSON.stringify(x).length;
+  if (size(row) <= budget) return row;
+  let out: Record<string, unknown> = {
+    ...row,
+    served: ((row.served ?? []) as Record<string, unknown>[]).map((s) => ({ ...s, recording: { kind: (s.recording as { kind?: unknown } | null)?.kind ?? 'none', trimmed: true } })),
+  };
+  if (size(out) <= budget) return out;
+  const rounds = ((out.rounds ?? []) as { fights?: Record<string, unknown>[] }[]).map((r) => ({ ...r, fights: (r.fights ?? []).map((f) => ({ ...f })) }));
+  out = { ...out, rounds };
+  let total = size(out);
+  for (const r of rounds) {
+    for (const f of r.fights) {
+      if (total <= budget) return out;
+      if (f.live_result == null) continue;
+      total -= size(f.live_result) - 4; // "null"
+      f.live_result = null;
+    }
+  }
   return out;
 }
 

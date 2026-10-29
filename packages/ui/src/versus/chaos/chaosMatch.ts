@@ -59,6 +59,8 @@ export interface ChaosScenario {
   rounds?: number;
   /** Fake-time cap (ms). */
   capMs?: number;
+  /** Called once per runner step with the server's truth (a recorder: the backend parity test, `versusCfParity.db.test.ts`). */
+  onStep?: (h: ChaosHarness, s: ServerSnap) => void;
 }
 
 /** What the scenario's chaos can do (handed to every event). */
@@ -453,6 +455,7 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
       }
     }
 
+    sc.onStep?.(h, s);
     last = s;
     // The end.
     if (s.phase === 'complete') {

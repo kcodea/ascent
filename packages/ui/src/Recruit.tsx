@@ -2494,14 +2494,14 @@ export function Recruit() {
   // button is inert, so the second half of a double-click that ended the LAST round can't immediately end the
   // new one. Keyed on the wave so it re-arms every round, and only while the shop is up — in combat the button
   // is the "end combat" control and gating it would strand the player.
-  const [roundSettled, setRoundSettled] = useSwapState(false, swapped);
+  const [roundSettled, setRoundSettled] = useState(false); // NOT reset on a teammate swap: only its wave effect re-arms it
   useEffect(() => {
     if (inCombat) { setRoundSettled(true); return; }
     setRoundSettled(false);
     const t = window.setTimeout(() => setRoundSettled(true), END_TURN_LOCK_MS);
     return () => window.clearTimeout(t);
   }, [run.wave, inCombat]);
-  const [combatStage, setCombatStage] = useSwapState<'closing' | 'fighting'>('closing', swapped);
+  const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing'); // effect-driven (a swap is shop-only)
   const fighting = inCombat && combatStage === 'fighting';
   // BOARD WIPE — a TWO-STAGE full-scene CURTAIN (owner ask 2026-08-28). The first version clipped only the
   // background layer, so everything the phase flip animates (the lobby rail sliding away, the opponent

@@ -250,7 +250,9 @@ export function VersusHud() {
   // A SPECTATOR (Versus phase 2): the seat switcher, and no player controls.
   if (match && !seat) return <SpectatorBar />;
   if (!match || !seat) return null;
-  if (watchingMate) return <><TeammateFrame /><DuosMateDock watching /></>;
+  // The portrait keeps ONE identity (`key="dock"`) across the swap, so it is never remounted by it: its mount measures your
+  // own hero disc (a forced layout in the swap's commit, R-DUOS-VIEW-NOREMOUNT-01) and its place cannot change.
+  if (watchingMate) return <><TeammateFrame /><DuosMateDock key="dock" watching /></>;
 
   return (
     <>
@@ -258,7 +260,7 @@ export function VersusHud() {
       {match.group?.duos && !paused && phase === 'recruit' && <DuosOrderPlate />}
       {/* The teammate portrait stays bottom right in combat too (owner 2026-10-25: "also keep the teammate portrait in the
           bottom right during combat too"); there it only shows who your teammate is (passing and watching are shop-only). */}
-      {match.group?.duos && !paused && (phase === 'recruit' || phase === 'combat') && <DuosMateDock watching={false} inCombat={phase === 'combat'} />}
+      {match.group?.duos && !paused && (phase === 'recruit' || phase === 'combat') && <DuosMateDock key="dock" watching={false} inCombat={phase === 'combat'} />}
       {/* On Hero Select its own veil draws over the picker (`VersusHeroSelectPause`); never two. */}
       {paused && !heroSelectUp && <VersusPauseVeil />}
     </>

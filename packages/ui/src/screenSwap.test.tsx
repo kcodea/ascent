@@ -117,4 +117,9 @@ describe('the wiring (source pins)', () => {
     expect(r).toContain('<RowFlip key={screenId} ');
     expect(r).toContain('<DragOverlay key={screenId} ');
   });
+  it('the teammate portrait keeps one identity across the swap (its mount measures the hero disc: a forced layout)', () => {
+    const hud = src('versus/VersusHud.tsx');
+    expect(hud).toContain('<DuosMateDock key="dock" watching />');
+    expect(hud).toContain('<DuosMateDock key="dock" watching={false} ');
+  });
 });

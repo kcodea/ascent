@@ -13,12 +13,14 @@
  */
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { Icon } from './Icon';
-import { bandOf, placeText } from './GameCard';
+import { bandOf, placeText, type GameBand } from './GameCard';
 import { GameRank } from './gameRank';
 
 export interface GameListItem {
   key: string;
   place: number | null;
+  /** The band, when the placement's own split does not fit (a Duos team placement). Absent = `bandOf(place)`. */
+  band?: GameBand;
   /** The hero portrait in its recorded frame. */
   portrait: ReactNode;
   title: string;
@@ -61,7 +63,7 @@ export function GameSplit({ items, selected, onPick, detail, label, className = 
     <div className={`gsplit ${className}`.trim()}>
       <div className="gs-list" role="listbox" aria-label={label} ref={listRef} tabIndex={0} onKeyDown={onKey}>
         {items.map((it) => {
-          const band = bandOf(it.place);
+          const band = it.band ?? bandOf(it.place);
           const on = it.key === selected;
           return (
             <button

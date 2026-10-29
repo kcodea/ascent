@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./semanticRevision": "./src/semanticRevision.ts",
     "./versus/server": "./src/versus/server.ts",
+    "./versus/duosHistory": "./src/versus/duosHistory.ts",
     "./balance/*": "./src/balance/*.ts"
   },
   "dependencies": {

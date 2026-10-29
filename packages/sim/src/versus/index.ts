@@ -19,3 +19,5 @@ export * from './rankedDuosSeating';
 export { handleRankedDuosSeat, rankedDuosTablePayload, RANKED_DUOS_DUO_SAMPLE, RANKED_DUOS_SOLO_SAMPLE, type RankedDuosSeatStore, type RankedDuosSeatMatchRow, type RankedDuosSoloRow, type RankedDuosDuoRow } from './rankedDuosSeat';
 export * from './rankedDuosRound';
 export { handleRankedDuosFinalize, rankedDuosFirstOf, rankedDuosMemberSide, rankedDuosPayload, rankedDuosRoundDigest, type RankedDuosFinalizeStore, type RankedDuosRoundRaw, type RankedDuosTeamRow, type RankedDuosMemberBoard } from './rankedDuosFinalize';
+// DUOS MATCH HISTORY (owner 2026-10-29): the compact per-game record the Cloudflare room writes and Recent Games reads.
+export * from './duosHistory';

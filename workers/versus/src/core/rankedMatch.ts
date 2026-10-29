@@ -21,6 +21,7 @@ import {
   type RankedDuosFinalizeStore,
   type RankedDuosSeatStore,
 } from '@game/sim/versus/server';
+import { buildDuosHistory, duosBoardOfSide, duosBoardOfSnapshot, type DuosHistoryRecord } from '@game/sim/versus/duosHistory';
 import { GroupEngine, GSEATS, type GOutReason, type GroupHost, type GroupState, type GSeat, type GSeatRow } from './groupMatch';
 
 const SHOP_GRACE_MS = 250;
@@ -452,6 +453,40 @@ export class RankedEngine extends GroupEngine {
       match: { ...j, room_id: null, ranked_team: this.r.ranked_team, unrated: this.r.unrated, seated_at: this.r.seated_at == null ? null : new Date(this.r.seated_at).toISOString() },
       seats: m.seats.map(wireSeat), teams: this.r.teams, served: this.g.served ?? [],
       rounds: Object.values(this.r.rounds).sort((a, b) => a.round - b.round), submissions: subs, placement,
+      // DUOS MATCH HISTORY (R-DUOS-HISTORY-01): built from memory BEFORE the fit, so a trimmed recording never empties it.
+      history: this.rankedHistory(),
+    });
+  }
+
+  /** RANKED DUOS: the finished game's history record. The live pair's last fought boards; each recorded member's board
+   *  from its recording at the round its team went out (or the end round), the same board the table fielded. */
+  rankedHistory(): DuosHistoryRecord {
+    const m = this.m;
+    const end = Math.max(m.round, 1);
+    const liveBoard = (seat: GSeat): ReturnType<typeof duosBoardOfSide> => {
+      const sub = this.g.subs[seat];
+      if (sub && sub.final && sub.prepared_side != null) return duosBoardOfSide(sub.prepared_side, sub.round, sub.scout?.runes);
+      const h = (this.g.history ?? []).filter((x) => x.seat === seat).sort((a, b) => b.round - a.round)[0];
+      return h ? duosBoardOfSide(h.prepared_side, h.round) : null;
+    };
+    const servedBoard = (v: ServedMember, at: number): ReturnType<typeof duosBoardOfSide> => {
+      const b = memberBoard(v.recording, at);
+      return b.form === 'snapshot' ? duosBoardOfSnapshot(b.board, at) : b.form === 'side' ? duosBoardOfSide(b.board, at) : null;
+    };
+    return buildDuosHistory({
+      mode: 'ranked_duos', endRound: m.round, startedAt: toIso(m.created_at), endedAt: toIso(m.completed_at),
+      teams: this.r.teams.map((t) => {
+        const at = t.eliminated_round != null && t.eliminated_round < end ? t.eliminated_round : end;
+        const live = t.team === 'a';
+        return {
+          team: t.team, kind: live ? 'live' as const : (t.served_kind ?? 'generated'), name: live ? this.r.team_name : t.name,
+          placement: t.placement, outRound: t.eliminated_round,
+          members: live
+            ? this.liveSeats().sort((a, b) => a.seat.localeCompare(b.seat)).map((s) => ({ seat: s.seat, userId: s.user_id, name: s.name, heroId: s.hero, board: liveBoard(s.seat) }))
+            : (this.g.served ?? []).filter((x) => x.team === t.team).sort((a, b) => a.member - b.member)
+              .map((x) => ({ seat: `${x.team}${x.member}`, name: x.name, heroId: x.hero, board: servedBoard(x, at) })),
+        };
+      }),
     });
   }
 

@@ -25,6 +25,8 @@ import { heroPortrait, opponentSkins } from './skins/skins';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { HeroFilterChips } from './HeroFilterChips';
 import { heroFilterCounts } from './heroFilter';
+import { DuosGameCard } from './duosHistory/DuosGameCard';
+import { DUOS_ROWS, duosBand, duosGameView, duosModeLabel, fetchMyDuosGames, teamPlaceText, type DuosGameRow } from './duosHistory/duosHistoryData';
 
 /**
  * Recent Games (owner ask 2026-08-11; polished 2026-09-20) — the last 100 finished games across ALL players (20, then 50, on 2026-10-16),
@@ -45,12 +47,19 @@ import { heroFilterCounts } from './heroFilter';
  * 2026-09-27: practice games record replays from then on; older rows show no button); its banner opens the player's
  * Career on its default view (practice runs are not in the Career's match history, so there is no run to focus).
  * Each tab fetches when it is first shown and keeps its rows while the page stays open.
+ *
+ * DUOS (owner 2026-10-29: "we're going to want to start capturing duo's match history as well", R-DUOS-HISTORY-01): a
+ * third tab, YOUR finished Duos games (Ranked Duos and Versus Duos), read from `duos_match_history` (one row per game,
+ * written by the game's server when it ended; a player reads only the games they were in, so this tab is personal, not
+ * the whole feed). Each row is the same list row (your team's placement, your hero, the team name, the rank it was played
+ * at and the points it moved) and the same detail card, with your board AND your teammate's and the lobby grouped by team
+ * (`duosHistory/DuosGameCard.tsx`). No replay, no hero chips, no summary (a team placement is not a lobby placement).
  */
 /** How many games the feed lists (owner 2026-10-16: "allow up to 50 games", then "can recent games show last 100 games"). A plain
  *  PostgREST `.limit`, well under the 1000-row cap (R-NET-01); no RPC caps it. */
 const FEED_ROWS = 100;
 
-export type RecentGamesTab = 'ranked' | 'practice';
+export type RecentGamesTab = 'ranked' | 'practice' | 'duos';
 
 /** "Bots Lv 5" / "Players": the practice row's Opponents fact. */
 export function practiceOpponentsText(cfg: PracticeGameConfig): string {
@@ -241,6 +250,8 @@ export function RecentGames(): JSX.Element | null {
   // the last list at once and refreshes behind it when stale, and switching back and forth never flashes a spinner.
   const rows = useSocial<RecentGameRow[]>(show && tab === 'ranked' ? RECENT_RANKED_KEY : null, loadRecentRanked) ?? null;
   const practiceRows = useSocial<PracticeGameRow[]>(show && tab === 'practice' ? RECENT_PRACTICE_KEY : null, loadRecentPractice) ?? null;
+  // DUOS: the signed-in player's own Duos games (cached per player; a failed read shows the empty state, never a spinner).
+  const duosRows = useSocial<DuosGameRow[]>(show && tab === 'duos' && myId ? `recent:duos:${myId}` : null, async () => (await fetchMyDuosGames(myId)) ?? []) ?? null;
   const [opening, setOpening] = useState<string | null>(null); // row key currently being opened
   const [watching, setWatching] = useState<string | null>(null); // row key whose replay payload is loading
   const [noReplay, setNoReplay] = useState<string | null>(null); // row key whose payload came back unplayable
@@ -253,7 +264,8 @@ export function RecentGames(): JSX.Element | null {
   }, [show]);
 
   const practice = tab === 'practice';
-  const all: FeedRow[] | null = practice ? practiceRows : rows;
+  const duos = tab === 'duos';
+  const all: FeedRow[] | null = duos ? [] : practice ? practiceRows : rows;
   const shown = useMemo(() => (all && heroFilter ? all.filter((r) => r.heroId === heroFilter) : all), [all, heroFilter]);
   const keyOf = useCallback((r: FeedRow, i: number): string => `${tab}-${r.rowId ?? r.author ?? '?'}-${r.createdAt ?? ''}-${i}`, [tab]);
   // The hero filter: every hero in this feed with its game count, most played first (HeroFilterChips shows as many as
@@ -325,6 +337,7 @@ export function RecentGames(): JSX.Element | null {
 
   let body: JSX.Element;
   if (!remoteEnabled()) body = <div className="lbempty lb-state"><Icon name="gear" /><div>Recent games unavailable. No backend configured.</div></div>;
+  else if (duos) body = <DuosFeed rows={myId ? duosRows : []} myId={myId} picked={picked} onPick={setPicked} />;
   else if (shown === null) body = <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>{practice ? 'Gathering the latest practice games…' : 'Gathering the latest games…'}</div></div>;
   else if ((all ?? []).length === 0) {
     body = practice
@@ -364,12 +377,12 @@ export function RecentGames(): JSX.Element | null {
           <Icon name="clock" />
           <div>
             <div className="esch disp">Recent Games</div>
-            <div className="lbsub">{practice ? `The last ${FEED_ROWS} practice games across every player` : `The last ${FEED_ROWS} games across every player`}</div>
+            <div className="lbsub">{duos ? `Your last ${DUOS_ROWS} Duos games` : practice ? `The last ${FEED_ROWS} practice games across every player` : `The last ${FEED_ROWS} games across every player`}</div>
           </div>
         </div>
       </div>
       <div className="lbscroll">
-        {shown && shown.length > 0 && <Summary rows={shown} practice={practice} />}
+        {!duos && shown && shown.length > 0 && <Summary rows={shown} practice={practice} />}
         {/* ONE FILTER BAR (2026-10-16 polish): the Ranked / Practice feed and the hero chips together. */}
         <div className="rg-filterbar">
           <div className="cv2-tabs rg-tabs" role="tablist" aria-label="Recent games view">
@@ -379,11 +392,44 @@ export function RecentGames(): JSX.Element | null {
             <button type="button" role="tab" className={`cv2-tab${practice ? ' on' : ''}`} aria-selected={practice} onClick={() => pickTab('practice')}>
               <Icon name="target" />Practice
             </button>
+            <button type="button" role="tab" className={`cv2-tab${duos ? ' on' : ''}`} aria-selected={duos} onClick={() => pickTab('duos')}>
+              <Icon name="friends" />Duos
+            </button>
           </div>
-          <HeroFilterChips counts={heroCounts} value={heroFilter} onChange={pickHero} />
+          {!duos && <HeroFilterChips counts={heroCounts} value={heroFilter} onChange={pickHero} />}
         </div>
         {body}
       </div>
     </SidebarHost>
+  );
+}
+
+/** The DUOS tab's body: your Duos games as the shared list + the selected game's card. */
+function DuosFeed({ rows, myId, picked, onPick }: { rows: DuosGameRow[] | null; myId: string | null; picked: string | null; onPick: (key: string) => void }) {
+  const items = useMemo((): GameListItem[] => (rows ?? []).map((r) => {
+    const v = duosGameView(r.record, myId);
+    const heroName = v.me?.heroId ? getHero(v.me.heroId).name : 'Unknown hero';
+    const title = v.myTeam?.name ?? duosModeLabel(r.mode);
+    const sub = v.mate ? `${heroName} with ${v.mate.name}` : heroName;
+    const rank = r.mode === 'ranked_duos' && r.rank ? r.rank.divisionBefore : null;
+    return {
+      key: r.matchId, place: v.place, band: duosBand(v.place, v.teamCount), title, sub, when: playedAtText(r.completedAt) || undefined, rank,
+      delta: r.rank?.delta ?? null,
+      label: `${teamPlaceText(v.place, v.teamCount)}, ${duosModeLabel(r.mode)}, ${sub}${rank != null ? `, played at ${rankLabel(rank)}` : ''}`,
+      portrait: <LbHeroFrame heroId={v.me?.heroId} side="self" />,
+    };
+  }), [rows, myId]);
+  if (rows === null) return <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>Gathering your Duos games…</div></div>;
+  if (rows.length === 0) {
+    return <div className="lbempty lb-state"><Icon name="friends" /><div>{myId ? 'No Duos games yet. Finish a Ranked Duos or Versus Duos game to see it here.' : 'Sign in to see your Duos games.'}</div></div>;
+  }
+  const sel = rows.find((r) => r.matchId === picked) ?? rows[0]!;
+  return (
+    <GameSplit
+      className="rg-split rg-duos"
+      items={items} selected={sel.matchId} onPick={onPick}
+      label="Your Duos games"
+      detail={<DuosGameCard key={sel.matchId} row={sel} myId={myId} />}
+    />
   );
 }

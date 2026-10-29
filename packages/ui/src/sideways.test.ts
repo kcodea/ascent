@@ -11,7 +11,7 @@ import {
   deltaToGame, eventX, eventY, gameToScreen, installSideways, rectScreenToGame, screenToGame, setSideways, sidewaysApplies,
   sidewaysInsets, sidewaysOn, sidewaysTransform,
 } from './sideways';
-import { canLockLandscape } from './orientationLock';
+import { canLockLandscape, isIosUa } from './orientationLock';
 import { fitStage } from './stage';
 
 /** Apply `translateX(pw) rotate(90deg)` about the origin to a game point: the browser's own drawing of the stage. */
@@ -80,6 +80,11 @@ describe('the turned frame (pure)', () => {
     expect(canLockLandscape({}, () => Promise.resolve())).toBe(false);
     expect(canLockLandscape({ lock: () => Promise.resolve() }, undefined)).toBe(false);
     expect(canLockLandscape(undefined, undefined)).toBe(false);
+    // iOS never locks (no orientation lock for pages), even where the APIs exist (an iPad's fullscreen)
+    expect(canLockLandscape({ lock: () => Promise.resolve() }, () => Promise.resolve(), true)).toBe(false);
+    expect(isIosUa('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)', 5)).toBe(true);
+    expect(isIosUa('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 5)).toBe(true);
+    expect(isIosUa('Mozilla/5.0 (Linux; Android 14; Pixel 8)', 5)).toBe(false);
   });
 });
 

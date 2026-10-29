@@ -15,7 +15,9 @@ Owner: "Make it so mobile only loads in landscape so it doesn't require a rotate
   (untrusted: the long-press `contextmenu`, replayed `pointerout`) are already in the game frame and pass through.
   stage.ts reads the real window size through `realInnerSize`. Each wrapper is one boolean check while not turned.
 - **`orientationLock.ts`** (Android): the first `pointerup` asks for fullscreen then `screen.orientation.lock('landscape')`;
-  refusals are silent (the turned render stays), and it re-arms when fullscreen is left. iPhone has neither API.
+  refusals are silent (the turned render stays), and it re-arms when fullscreen is left. Never on iOS (UA check, as
+  phoneArt.ts): there is no lock there, and the CI phone-budget run (Chrome with an iPhone UA) broke when Chrome's
+  emulated fullscreen fired on its first tap.
 - **`touchKeyboard.ts`**: while turned, the lifted text field is placed from the visible viewport mapped into the game
   frame; `applyStage` holds the fit while a text field is focused on a turned phone (the keyboard would otherwise
   shrink the game's width).

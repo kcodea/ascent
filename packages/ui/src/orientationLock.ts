@@ -15,9 +15,14 @@
 
 interface LockableOrientation { lock?: (o: string) => Promise<void> }
 
-/** Pure: can this browser lock the screen to landscape from a page? */
-export function canLockLandscape(orientation: unknown, requestFullscreen: unknown): boolean {
-  return typeof requestFullscreen === 'function' && !!orientation && typeof (orientation as LockableOrientation).lock === 'function';
+/** Pure: an iOS device (iPhone / iPod / iPad, and iPadOS reporting a desktop Mac UA with touch), as phoneArt.ts tells it. */
+export function isIosUa(ua: string, maxTouchPoints: number): boolean {
+  return /iPhone|iPod|iPad/.test(ua) || (/Macintosh/.test(ua) && maxTouchPoints > 1);
+}
+/** Pure: can this browser lock the screen to landscape from a page? Never iOS: it has no orientation lock for pages
+ *  (an iPad's element fullscreen would only take the screen and lock nothing). */
+export function canLockLandscape(orientation: unknown, requestFullscreen: unknown, ios = false): boolean {
+  return !ios && typeof requestFullscreen === 'function' && !!orientation && typeof (orientation as LockableOrientation).lock === 'function';
 }
 
 let installed = false;
@@ -26,7 +31,8 @@ export function installLandscapeLock(): void {
   if (installed || typeof window === 'undefined' || typeof document === 'undefined') return;
   const de = document.documentElement as HTMLElement & { requestFullscreen?: (o?: FullscreenOptions) => Promise<void> };
   const orientation = typeof screen !== 'undefined' ? (screen.orientation as unknown as LockableOrientation | undefined) : undefined;
-  if (!canLockLandscape(orientation, de.requestFullscreen)) return;
+  const ios = typeof navigator !== 'undefined' && isIosUa(navigator.userAgent || '', navigator.maxTouchPoints || 0);
+  if (!canLockLandscape(orientation, de.requestFullscreen, ios)) return;
   installed = true;
 
   const lock = (): Promise<void> => orientation!.lock!('landscape').catch(() => { /* refused: the turned render stays */ });

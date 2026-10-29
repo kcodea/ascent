@@ -64,6 +64,12 @@ export const PATCH_NOTES: PatchNote[] = [
         'If it still cannot open, you see why and a Try again button after a few seconds.',
         'Versus rooms got the same fix. Creating or joining a room can no longer hang without a message.',
       ] },
+      { category: 'Systems', text: 'Duos fixes: pinging your teammate works, passed cards can triple, and watching a teammate in their Runeforge no longer locks you out.', details: [
+        'Open your teammate view and right-click their shop, minions or hand to ping them. Your teammate sees it. The other team never does.',
+        'Mentors can ping the screen they watch too.',
+        'A card passed to you that makes your third copy now combines right away, Triple Reward and all.',
+        'Your portrait, bottom right, always takes you back, even while your teammate has a Runeforge or Discover open.',
+      ] },
       { category: 'Systems', text: 'New: live pings. Point at a card with Check, No, Question, Pass or Sell, or at a shop button with Check, No or Question.', details: [
         'Right-click a shop card, a minion, a hand card or a shop button in a game. On a phone, press and hold.',
         'The menu still has Inspect, so you can always look at a card.',

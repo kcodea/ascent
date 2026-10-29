@@ -40,7 +40,6 @@ await S.page.evaluate(async () => {
   const log = (window.__specLog = []);
   const t0 = performance.now();
   let prev = st.getState();
-  const fights = new Map();
   st.subscribe((s) => {
     const r = s.run, q = prev.run;
     if (r !== q) {

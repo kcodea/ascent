@@ -32,6 +32,12 @@ also extremely clean", plus (coordinator, top priority) the teammate-view swap h
 - **Teammate swap** (R-DUOS-VIEW-SWAP-01): desktop now swaps inside a View Transition (no DOM clone, no rendering in the
   click handler, compositor cross-fade). Phones keep the ghost: on the throttled phone bench the transition's snapshots
   measured far worse.
+- **The hit landed seconds after the blow on the watch screen** (R-SPECTATE-STRIKE-01): the pinned fight let go a fixed
+  2.6 s after the replay ended, so the Health drop and the lobby rebuild came after (or in the middle of) the hero strike,
+  and the end gate keyed on the same 2.6 s. Recruit's strike now reports its start and impact to `spectate.ts`; the
+  stands drop the Health on the impact beat and the end gate waits for it (9 s safety). Browser run (Versus Duos, 4
+  players + a spectator switching players, 21+ rounds): settle 1.6-2.1 s after replay done (the impact), no fight replaced,
+  no phase going backwards.
 - **Hero pick retry** (R-VERSUS-HEROPICK-RETRY-01): a pick that did not land was never resent, leaving "Waiting for your
   opponent" up for the whole 20 s clock and a random server pick. Hardening for report (a), which did not reproduce.
 

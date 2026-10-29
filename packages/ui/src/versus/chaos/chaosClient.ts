@@ -318,7 +318,7 @@ export class ChaosClient {
     // The recorded End of Turn the watched player's screen played (Recruit plays the cue, then answers `replayEotDone`):
     // about half a second per End of Turn beat, as the players' own End of Turn above.
     const cue = this.game.useGame.getState().replayEotCue;
-    if (cue && this.eotCue?.key !== cue.key) this.eotCue = { key: cue.key, at: Date.now() + 50 + 450 * ((cue.eot as { batch?: unknown[] }).batch?.length ?? 0) };
+    if (cue && this.eotCue?.key !== cue.key) this.eotCue = { key: cue.key, at: Date.now() + 50 + 450 * Math.min(10, (cue.eot as unknown as { batch?: { events?: unknown[] } }).batch?.events?.length ?? 0) };
     if (this.eotCue && Date.now() >= this.eotCue.at && this.game.useGame.getState().replayEotCue?.key === this.eotCue.key && this.game.useGame.getState().replayEotDone !== this.eotCue.key) {
       this.game.useGame.setState({ replayEotDone: this.eotCue.key });
     }

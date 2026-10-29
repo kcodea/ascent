@@ -11085,4 +11085,19 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann opens Amy\x27s screen and pings Question on Amy\x27s board minion: Amy sees it with Ann\x27s name; the other team never does.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-SPECTATE-TIP-01',
+    title: 'The spectator column hover tips open to the right, on screen',
+    statement:
+      'The spectator plates and the "+N" chip sit in one column at the very top left. Their hover tips (make mentor, mute, the other names) open to the RIGHT of the plate, centred on it (the shared `.gtip-right` placement), never above it where the top and left edges of the screen clip them. The "+N" chip does not clip its own tip. Desktop and phone alike.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'whenever hovering over a spectator some weird box shows up off screen' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.gtip-right), packages/ui/src/versus/WatchersBadge.tsx, packages/ui/src/versus/SpectatorHud.tsx, packages/ui/src/versus/versus.css (.vswatch-more)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-29 (fix/ping-double-right-click). Before, the shared tip opened above and centred on a plate at the top-left corner, so it was cut off by the screen edge, and the "+N" chip clipped its tip inside itself.',
+    example: 'Hover AnnTheBold in your spectator column: "Click to make AnnTheBold your mentor..." opens to the right of her plate, fully on screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/standsTip.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
 ];

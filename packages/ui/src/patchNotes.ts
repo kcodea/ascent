@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Hovering a spectator in the top left now shows its tip beside them, fully on screen.' },
       { category: 'Systems', text: 'Fixed: Duos games now end cleanly. Your result and rating change show right away, and the match is saved.', details: [
         'Ranked Duos games on the new game server could hang at the end and drop you back to the room. Their results were not being saved.',
         'Duos and Ranked Duos games now always show the opponent rail on the right. They no longer open on the 1v1 view.',

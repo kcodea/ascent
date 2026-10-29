@@ -40,7 +40,7 @@ export const StandsPlate = memo(function StandsPlate({ w, muted, mentor = false,
   const toggle = (): void => { setMyMentor(mentor ? null : w); sfx.tick(); };
   return (
     <span
-      className={`vsspec-seat on vswatch-seat gtip${muted ? ' muted' : ''}${mentor ? ' mentor' : ''}`}
+      className={`vsspec-seat on vswatch-seat gtip gtip-right${muted ? ' muted' : ''}${mentor ? ' mentor' : ''}`}
       data-watcher={w.id}
       data-tip={tip}
       role={canPromote ? 'button' : undefined}
@@ -77,7 +77,7 @@ export const StandsPlates = memo(function StandsPlates({ list, max = WATCHERS_SH
     <>
       {shown.map((w) => <StandsPlate key={w.id} w={w} muted={muted.includes(w.id)} mentor={ids.has(w.id)} promote={promote} />)}
       {rest.length > 0 && (
-        <span className="vsspec-name hudpill-name vswatch-more gtip" data-tip={rest.map(watcherName).join(', ')} aria-label={`${rest.length} more spectating`}>+{rest.length}</span>
+        <span className="vsspec-name hudpill-name vswatch-more gtip gtip-right" data-tip={rest.map(watcherName).join(', ')} aria-label={`${rest.length} more spectating`}>+{rest.length}</span>
       )}
     </>
   );

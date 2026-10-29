@@ -202,6 +202,28 @@ export function clearPing(key: string): void {
   dropAndTell((x) => x.key === key, true);
 }
 
+/**
+ * MY OWN live ping on `target` on the screen on display, or null (R-PING-07). Only a ping I placed counts: a teammate's,
+ * a mentor's or the player's own ping on the same target is not mine to clear this way (their right-click opens the fan).
+ */
+export function myPingOn(target: PingTarget): ShownPing | null {
+  const owner = onScreenSeat();
+  const now = clock();
+  return usePings.getState().list.find((x) => x.mine && x.owner === owner && now - x.at < PING_LIFE_MS && sameTarget(x.target, target)) ?? null;
+}
+
+/**
+ * A single right-click (a phone: long-press) on a target that carries MY ping clears it, on every screen that shows it
+ * (owner 2026-10-29: "players in general should be able to clear their own pings on friends boards etc too by right
+ * clicking the minion/button etc once"; R-PING-07). Answers whether one was cleared (then no fan opens).
+ */
+export function clearMyPingOn(target: PingTarget): boolean {
+  const p = myPingOn(target);
+  if (!p) return false;
+  clearPing(p.key);
+  return true;
+}
+
 /** Clear every ping on a card (it is being moved: dragged, sold, played), on every screen showing it. */
 export function clearPingsOnCard(uid: string): void {
   dropAndTell((x) => x.target.t === 'card' && x.target.uid === uid, true);

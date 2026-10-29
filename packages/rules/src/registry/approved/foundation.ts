@@ -11064,6 +11064,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
   {
+    id: 'R-PING-07',
+    title: 'One right-click on a target clears your own ping there, for every sender',
+    statement:
+      'A single right-click (a phone: long-press) on a shop card, board minion, hand card or shop button that carries a ping YOU placed clears that ping instead of opening the fan. It works for every sender: a player on their own screen, a Duos teammate on their mate’s screen, and a mentor on the watched player’s screen; a spectator whose mentor role ended can still clear their own leftover ping on their own screen. The clear is sent as the usual `ping_clear`, so it goes from every screen that showed the ping (the receiver, the teammate, the stands); the Versus room and the lobby live object accept it from the player, the teammate and the mentor. A right-click on a target with someone else’s ping, or none, opens the fan as before. It counts as the first click of a double: a second right-click on the same card within 350 ms inspects it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: "spectators should be able to clear their pings/players in general should be able to clear their own pings on friends boards etc too by right clicking the minion/button etc once. that'll clear it" },
+      { kind: 'code', ref: 'packages/ui/src/pings/pingRuntime.ts myPingOn / clearMyPingOn; packages/ui/src/pings/PingLayer.tsx openCardPingMenu, the shop-button contextmenu, the phone hold gate; workers/versus/src/pings.ts routePingClear' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-29 (fix/right-click-clears-own-ping). Before, a right-click on a pinged target always opened the fan; only a click on the small ping mark itself cleared it.',
+    example: "Ann, watching her Duos mate Amy, pinged Question on Amy's minion. Ann right-clicks that minion once: the question mark goes from Ann's and Amy's screens and the stands.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
     id: 'R-VERSUS-CF-CONNECT-01',
     title: 'Versus on Cloudflare: opening a room never hangs; Duo + Play always ends in a party or a reason',
     statement:

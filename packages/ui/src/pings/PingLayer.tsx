@@ -8,6 +8,10 @@
  *    `PING_DOUBLE_MS` closes it at once and opens Inspect. A phone keeps its tap-to-inspect. Where pings are not
  *    available (outside a game, a replay, a spectator who is not a mentor) a card's right-click goes STRAIGHT to Inspect
  *    as before. A left-click away or Escape closes the menu.
+ *    CLEARING MY OWN PING (owner 2026-10-29, R-PING-07): a SINGLE right-click (a phone: long-press) on a card or shop
+ *    button that carries a ping I placed clears it everywhere instead of opening the fan, for every sender (the player,
+ *    a Duos teammate, a mentor). It counts as the first of a double, so a quick second right-click still inspects.
+ *    Someone else's ping (or none) opens the fan as before.
  *    THE FAN (owner pick 2026-10-29, the only layout): on a card, the TOP arc is Check, X, Question (left to right) and
  *    the BOTTOM row is Pass (left) and Sell (right). A shop button gets the top arc only (Check, X, Question). The
  *    bubbles pop in with a staggered one-shot.
@@ -31,7 +35,7 @@ import { rectToStage, stageHost, stageViewport, toStage, type StageRect } from '
 import { isSelectOption, setCardHoldGate } from '../touchInput';
 import { useSpectate } from '../versus/spectate';
 import { pingSrc, PING_LOOK } from './pingArt';
-import { clearPing, clearPingsOnCard, expirePings, forgetPing, myPingSeat, pingContext, sendPing, usePings, type ShownPing } from './pingRuntime';
+import { clearMyPingOn, clearPing, clearPingsOnCard, expirePings, forgetPing, myPingOn, myPingSeat, pingContext, sendPing, usePings, type ShownPing } from './pingRuntime';
 import './pings.css';
 
 // ── the menu ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -67,11 +71,15 @@ const boxOf = (el: Element): StageRect | null => {
  * here, not a play-zone card, a choice option, or a card being dragged.
  */
 export function openCardPingMenu(e: { clientX: number; clientY: number; currentTarget: Element }, uid: string | null | undefined, inspect: () => void): boolean {
-  if (!uid || !pingContext()) return false;
+  if (!uid) return false;
   const el = e.currentTarget;
   if (el.closest('.dragcard') || isSelectOption(el)) return false;
   const zone = cardZoneOf(el);
   if (!zone) return false;
+  const target: PingTarget = { t: 'card', uid, zone };
+  // My own ping on it (R-PING-07) counts even where I could not ping now (a mentor just demoted keeps their own marks).
+  const own = myPingOn(target);
+  if (!own && !pingContext()) return false;
   const now = Date.now();
   const key = `${zone}:${uid}`;
   // The SECOND right-click of a double on the same card: the fan goes at once and Inspect opens.
@@ -82,9 +90,23 @@ export function openCardPingMenu(e: { clientX: number; clientY: number; currentT
     return true;
   }
   lastCardRightClick = { key, at: now };
-  usePingMenu.setState({ open: { x: toStage(e.clientX), y: toStage(e.clientY), box: boxOf(el), target: { t: 'card', uid, zone }, inspect } });
+  // A single right-click on a card carrying MY ping clears it (no fan). It still counts as the first of a double, so a
+  // second right-click within PING_DOUBLE_MS inspects as always.
+  if (own) {
+    closePingMenu();
+    clearPing(own.key);
+    return true;
+  }
+  usePingMenu.setState({ open: { x: toStage(e.clientX), y: toStage(e.clientY), box: boxOf(el), target, inspect } });
   sfx.tick();
   return true;
+}
+
+/** Does the play-zone card under `el` carry MY ping (R-PING-07)? */
+function hasMyPingOnCard(el: Element): boolean {
+  const zone = cardZoneOf(el);
+  const uid = el.closest('.card[data-uid]')?.getAttribute('data-uid');
+  return !!zone && !!uid && !!myPingOn({ t: 'card', uid, zone });
 }
 
 /** Two right-clicks on the same card within this long are a double right-click: Inspect. */
@@ -300,16 +322,21 @@ export function PingLayer(): JSX.Element {
     const onCtx = (e: MouseEvent): void => {
       // The Friends dock and its friend menu own their right-click (they sit over the shop buttons' corner).
       if ((e.target as Element | null)?.closest?.('.card, .ping-menu, .ping-mark, .fdock-stack, .fdock-catch, .frmenu-at, .frmenu-catch')) return;
-      if (!pingContext()) return;
+      // (The button hit test only runs while a ping could be opened or cleared here: no rect reads otherwise.)
+      if (!pingContext() && !usePings.getState().list.some((p) => p.mine && p.target.t === 'button')) return;
       const hit = pingButtonAt(e.target, e.clientX, e.clientY);
       if (!hit) return;
+      // A single right-click on a button carrying MY ping clears it, no fan (R-PING-07).
+      if (clearMyPingOn({ t: 'button', id: hit.id })) { e.preventDefault(); closePingMenu(); return; }
+      if (!pingContext()) return;
       e.preventDefault();
       usePingMenu.setState({ open: { x: toStage(e.clientX), y: toStage(e.clientY), box: boxOf(hit.el), target: { t: 'button', id: hit.id }, inspect: null } });
       sfx.tick();
     };
     window.addEventListener('contextmenu', onCtx, true);
     // A phone's hold on a play-zone card opens the menu while pings are available (else a card hold does nothing).
-    setCardHoldGate((el) => !!pingContext() && !!cardZoneOf(el) && !el.closest('.dragcard'));
+    // (A hold on a card carrying MY ping clears it, R-PING-07: that fires too, even where I could not ping now.)
+    setCardHoldGate((el) => !!cardZoneOf(el) && !el.closest('.dragcard') && (!!pingContext() || hasMyPingOnCard(el)));
     // Moving a pinged card (a drag of it) clears its ping.
     let dragUid: string | null = null;
     const offDrag = dragStore.subscribe(() => {

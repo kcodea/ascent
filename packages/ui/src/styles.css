@@ -8253,11 +8253,23 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 .msb-clock-v { font-weight: 900; font-size: 18px; font-variant-numeric: tabular-nums; color: #f6efe2; }
 .msb-clock.low { border-color: rgba(229, 112, 122, 0.75); }
 .msb-clock.low .msb-clock-v, .msb-clock.low .msb-clock-ic { color: #ff8a8f; }
-/* THE LEAVE BUTTON at the foot (Save & Quit / Concede / ...): a plain plaque; armed (asking for the second tap) it turns
-   red and its note shows under it. */
-.msb-leavewrap { flex: none; position: relative; }
-.sbbtn.msb-leave.armed { border-color: rgba(229, 112, 122, 0.9); background: linear-gradient(180deg, rgba(122, 32, 40, 0.95), rgba(78, 18, 25, 0.96)); color: #fff; }
-.sbbtn.msb-leave.armed .mbicon { color: #ffb3b6; }
+/* THE LEAVE BUTTON right under Resume (Save & Quit / Concede / ..., owner 2026-10-29, R-ESC-SIDEBAR-01): the same
+   plaque in the theme's warning reds (the ranked hero select's armed Back, `.hsback.armed`, wears the same tokens): a
+   deep red face, the red rim, a dark red 4px edge. Armed (asking for the second tap) it lights up brighter and its note
+   shows under it. Static changes only, nothing loops. No `cursor`: the global button rule paints the gauntlet. */
+.msb-leavewrap { flex: none; position: relative; margin-bottom: 4px; }
+.sbbtn.msb-leave { border-color: color-mix(in srgb, var(--ui-warn-rim) 70%, transparent);
+  background: linear-gradient(180deg, #8a2533, color-mix(in srgb, var(--ui-warn-edge) 85%, #000));
+  box-shadow: inset 0 1px 0 rgba(255, 220, 226, 0.22), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #3a0d15, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
+  color: var(--ui-warn-hand); }
+.sbbtn.msb-leave .mbicon, .sbbtn.msb-leave:hover .mbicon { color: var(--ui-warn); }
+.sbbtn.msb-leave .mblabel { font-weight: 800; }
+.sbbtn.msb-leave:hover { border-color: var(--ui-warn-rim); }
+.sbbtn.msb-leave:active, .sbbtn.msb-leave:hover:active {
+  box-shadow: inset 0 1px 0 rgba(255, 220, 226, 0.16), inset 0 0 0 1px rgba(0, 0, 0, 0.4), 0 1px 0 #3a0d15, 0 3px 8px -6px rgba(0, 0, 0, 0.75); }
+.sbbtn.msb-leave:focus-visible { outline-color: var(--ui-warn-rim); border-color: var(--ui-warn-rim); }
+.sbbtn.msb-leave.armed { border-color: var(--ui-warn-rim); background: linear-gradient(180deg, #c23a4c, #8a2533); color: #fff; }
+.sbbtn.msb-leave.armed .mbicon { color: #fff; }
 .msb-leavenote, .msb-ingamenote { font-family: var(--font-ui); font-weight: 700; font-size: 12.5px; line-height: 1.3; color: rgba(244, 238, 226, 0.8); margin: 6px 2px 0; }
 .msb-ingamenote { flex: none; padding: 7px 10px; border-radius: 9px; border: 1px solid rgba(196, 160, 92, 0.45); background: rgba(4, 9, 20, 0.75); animation: fadein 0.16s ease; }
 /* THE SETTINGS PAGE (R-ESC-SIDEBAR-01): the old Esc panel's sections, centred in the page's scroller at their full height

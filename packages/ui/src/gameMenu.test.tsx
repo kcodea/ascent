@@ -103,7 +103,7 @@ describe('R-ESC-SIDEBAR-01: Escape', () => {
 });
 
 describe('R-ESC-SIDEBAR-01: the in-game sidebar', () => {
-  it('slides in over the dimmed game: Resume (gold) instead of Play, the pages, Patch Notes, Settings, then the leave button; no dev builders', () => {
+  it('slides in over the dimmed game: Resume (gold) instead of Play, the red leave button under it, the pages, Patch Notes, Settings at the foot; no dev builders', () => {
     inGame();
     act(() => { useGame.getState().openGameMenu(); });
     ui = mount(<GameMenu />);
@@ -117,8 +117,14 @@ describe('R-ESC-SIDEBAR-01: the in-game sidebar', () => {
     expect(rail.querySelector('.msb-resume')?.classList.contains('sb-play')).toBe(true);
     expect(ls).not.toContain('Play');
     for (const page of ['Career', 'Leaderboard', 'Recent Games', 'Live Games', 'Patch Notes', 'Settings']) expect(ls).toContain(page);
-    expect(ls.at(-1)).toBe('Save & Quit');
-    expect(ls.at(-2)).toBe('Settings');
+    // R-ESC-SIDEBAR-01 (owner 2026-10-29: "put "Leave" or "Quit" under resume instead, and make the button red"): the
+    // leave button is the plaque right under Resume, inside the nav and before the Shop clock; Settings is the foot.
+    expect(ls[1]).toBe('Save & Quit');
+    expect(ls.at(-1)).toBe('Settings');
+    const leave = rail.querySelector('.msb-leave')!;
+    expect(leave.closest('.msb-nav'), 'the leave sits in the nav, under Resume').not.toBeNull();
+    expect(rail.querySelector('.msb-resume')!.compareDocumentPosition(leave) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(rail.querySelectorAll('.sbbtn')[1]).toBe(leave);
     expect(rail.textContent).not.toMatch(/Scene Builder|Stage Builder/);
     expect(ui.container.querySelector('.mbd'), 'no painted backdrop: the game shows through').toBeNull();
     expect(ui.container.querySelector('[title]')).toBeNull();
@@ -256,6 +262,8 @@ describe('R-ESC-SIDEBAR-01: the Shop clock on the rail', () => {
     act(() => { turnClock.set(42); useGame.getState().openGameMenu(); });
     ui = mount(<GameMenu />);
     expect(ui.container.querySelector('.msb-clock-v')?.textContent).toBe('0:42');
+    // Under Resume, then the leave, then the clock (R-ESC-SIDEBAR-01).
+    expect(ui.container.querySelector('.msb-leavewrap')!.nextElementSibling?.classList.contains('msb-clock')).toBe(true);
     expect(ui.container.querySelector('.msb-clock')?.classList.contains('low')).toBe(false);
     act(() => { turnClock.set(7); });
     expect(ui.container.querySelector('.msb-clock-v')?.textContent).toBe('0:07');
@@ -264,6 +272,19 @@ describe('R-ESC-SIDEBAR-01: the Shop clock on the rail', () => {
     expect(ui.container.querySelector('.msb-clock')).toBeNull();
     act(() => { useGame.setState({ run: { ...useGame.getState().run, phase: 'recruit' }, replaying: true }); });
     expect(ui.container.querySelector('.msb-clock')).toBeNull();
+  });
+});
+
+describe('R-ESC-SIDEBAR-01: the leave button is red', () => {
+  it('wears the theme\'s warning reds at rest (not the navy plaque) and lights up brighter when armed; no bare cursor', () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const css = readFileSync(join(here, 'styles.css'), 'utf8');
+    const rest = css.match(/^\.sbbtn\.msb-leave \{[^}]*\}/m)?.[0] ?? '';
+    expect(rest).toContain('var(--ui-warn-rim)');
+    expect(rest).toMatch(/background: linear-gradient\(180deg, #8a2533/);
+    expect(css).toMatch(/^\.sbbtn\.msb-leave\.armed \{[^}]*var\(--ui-warn-rim\)/m);
+    const leaveRules = css.split('\n').filter((l) => l.includes('msb-leave')).join('\n');
+    expect(leaveRules).not.toMatch(/cursor:/);
   });
 });
 

@@ -4,9 +4,10 @@
  * (`MenuSidebar`), slid in over the dimmed game; in a game it swaps three things in:
  *
  *   - RESUME, the gold plaque where Play sits on the menus: closes the menu, back to the game;
- *   - THE SHOP CLOCK under it, so a player reading a page never times out (the game keeps running underneath);
- *   - THE LEAVE BUTTON at the very foot: Save & Quit in a solo or lobby game, Concede in Versus / Duos / Ranked Duos,
- *     Abandon from a ranked hero select, Leave replay, Stop watching. Every one asks twice (a confirm step).
+ *   - THE LEAVE BUTTON right under Resume, in red (owner 2026-10-29, R-ESC-SIDEBAR-01: "put "Leave" or "Quit" under
+ *     resume instead, and make the button red"): Save & Quit in a solo or lobby game, Concede in Versus / Duos / Ranked Duos,
+ *     Abandon from a ranked hero select, Leave replay, Stop watching. Every one asks twice (a confirm step);
+ *   - THE SHOP CLOCK under those, so a player reading a page never times out (the game keeps running underneath).
  *
  * A page action that would take the player OUT of the game (watch a replay, watch a live game) is refused while the
  * menu is open, with a short note on the sidebar instead (`refuseInGame`).
@@ -58,7 +59,7 @@ export function leaveText(kind: LeaveKind, godMode: boolean, live: boolean): Lea
 /** How long an armed leave waits for its second tap before it disarms. */
 const ARM_MS = 4000;
 
-/** THE LEAVE BUTTON, at the foot of the in-game sidebar. First tap arms it (its label asks for a second tap and its note
+/** THE LEAVE BUTTON, red, right under Resume on the in-game sidebar (R-ESC-SIDEBAR-01). First tap arms it (its label asks for a second tap and its note
  *  shows); the second tap leaves. It disarms on its own after a few seconds. */
 export function LeaveButton() {
   const watching = useSpectate((s) => s.active);

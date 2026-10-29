@@ -58,6 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Fixed: Kringle and other repeating End of Turn effects could sometimes buff one tick at a time again.', details: [
+        'This could happen in Versus when End Turn was asked during a pause, or while you watched your teammate.',
+        'End Turn now waits and plays the normal fast version once the game can take it.',
+        'Repeats always speed up and finish in a few seconds, however many cards you played.',
+      ] },
       { category: 'Systems', text: 'Fixed: the hero power button is back. It sits in its round socket at the bottom left of the board again, in every mode, and you can press it.' },
       { category: 'Systems', text: 'Fixed: Duo and Play could get stuck on "Opening your party..." for good.', details: [
         'Your party now opens even when the game server is slow to answer.',

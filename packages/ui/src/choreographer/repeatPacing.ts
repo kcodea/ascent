@@ -196,3 +196,52 @@ export function repeatChainDurationMs(schedule: readonly RepeatTickPace[]): numb
   for (const s of schedule) if (!s.sharesSlot) t += s.spanMs;
   return t;
 }
+
+/** One beat of the LEGACY End-of-Turn runner, as `legacyEotRepeatPlan` paces it. */
+export interface LegacyBeatPace {
+  /** How long this beat holds before the runner moves on (the beat's share of its slot), in ms. Null when the beat is
+   *  not part of a repeat chain: the runner keeps its own fixed timing for it. */
+  holdMs: number | null;
+  /** The gap after the hold, in ms (null with `holdMs`). Zero inside a batched slot: the next tick plays at once. */
+  gapMs: number | null;
+  /** Plays its ribbons and medallion cue. A non-accent tick lands its stats silently, as on the authoritative path. */
+  accent: boolean;
+}
+
+/**
+ * THE LEGACY RUNNER BATCHES TOO (owner report 2026-10-29, R-REPEAT-06: "my kringle is buffing 1 by 1 again for some
+ * reason, it doesnt happen everytime but it randomly does this").
+ *
+ * The legacy End-of-Turn runner (`Recruit.tsx`, the `ascent.choreo = '0'` rollback valve) plays one fixed 760 + 170 ms
+ * beat per entry of its beat list, and a "Repeat for every card played" card takes one entry PER TICK, so a Kringle
+ * that saw 60 cards played sat on screen for a minute, its ribbons flying to the end Dwarves one at a time. This is the
+ * same R-REPEAT-04/05 schedule the compiler lays authoritative ticks on, applied to the legacy beat list: a run of
+ * consecutive beats from one source (`uids`, '' = a sourceless quest beat, never a chain) is a chain; its ticks
+ * accelerate, batch several to a slot and fit the cap, and several long chains share the End of Turn's budget.
+ *
+ * PURE: the beat list in, one pace per beat out (1:1). Presentation only.
+ */
+export function legacyEotRepeatPlan(uids: readonly string[], beatMs: number, gapMs: number, p: RepeatPacingConfig = REPEAT_PACING): LegacyBeatPace[] {
+  const full = Math.max(1, beatMs + gapMs);
+  const holdShare = beatMs / full;
+  const runs: { start: number; count: number }[] = [];
+  for (let i = 0; i < uids.length;) {
+    let j = i + 1;
+    while (j < uids.length && uids[j] && uids[j] === uids[i]) j++;
+    if (uids[i] && j - i >= 2) runs.push({ start: i, count: j - i });
+    i = j;
+  }
+  const longCap = repeatChainCapMs(runs.filter((r) => isLongChain(r.count, p)).length, p);
+  const out: LegacyBeatPace[] = uids.map(() => ({ holdMs: null, gapMs: null, accent: true }));
+  for (const r of runs) {
+    const schedule = repeatChainSchedule(r.count, full, p, isLongChain(r.count, p) ? longCap : p.capMs);
+    for (let k = 0; k < r.count; k++) {
+      const tick = schedule[k]!;
+      // The runner moves on after this tick's slot, or at once when the next tick shares it.
+      const next = schedule[k + 1];
+      const span = next?.sharesSlot ? 0 : tick.spanMs;
+      out[r.start + k] = { holdMs: span * holdShare, gapMs: span - span * holdShare, accent: tick.accent };
+    }
+  }
+  return out;
+}

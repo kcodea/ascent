@@ -7,7 +7,7 @@ import { createOddsStepper } from './oddsStepper';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
-import { repeatTickFxIntensity } from './choreographer/repeatPacing';
+import { legacyEotRepeatPlan, repeatTickFxIntensity } from './choreographer/repeatPacing';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
 import { playCastFanOutBuffFx, playGenericCastSound, playMinionSpellCastFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
@@ -146,6 +146,7 @@ import { formationPreviewSpeed } from './heroAttack/formationConfig';
 import { playHeroClassic } from './heroAttack/heroClassic';
 import { portraitGeometry } from './heroBlast/portraits';
 import { holdUntilVersusFight } from './versus/versusHooks';
+import { endTurnRefused } from './choreographer/endTurnGate';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
 import { RefreshButton } from './RefreshButton';
@@ -7723,12 +7724,23 @@ export function Recruit() {
     // GOD MODE (owner 2026-10-08): End Turn first asks which round the opponent board should be from; the pick
     // (`pickGodRound`) fetches + pins a real board and re-enters here with the gate open.
     if (godEndTurnNeedsPick(run, godFoeReadyRef.current)) { if (!godPrompt) setGodPrompt({ busy: false, message: null }); return; }
+    // A REFUSED End Turn does nothing at all (owner report 2026-10-29, R-REPEAT-06: "my kringle is buffing 1 by 1 again
+    // for some reason, it doesnt happen everytime but it randomly does this"). The store refuses to resolve End of Turn
+    // while a Versus match is paused (its 3-2-1 included) or the store's run is not this player's (the replay viewer,
+    // the Duos teammate view). The authoritative path below then could not prepare, and this used to FALL BACK to the
+    // legacy runner: one 930 ms beat per Kringle tick, a minute of ribbons flying one at a time, with End Turn locked
+    // the whole while, and its closing `faceOmen` refused by the same guard anyway. Versus re-asks End Turn once the
+    // match can take it (`useVersusRecruit`: the resume effect and its watchdog), and the real path plays it then.
+    // Checked BEFORE the Whispers dissipate, so a refused press changes nothing on screen.
+    if (CHOREO_EOT && endTurnRefused(useGame.getState())) return;
     // Unused Whispers dissipate now, in parallel with whatever End of Turn plays next (owner 2026-10-14).
     beginWhisperDissipate();
     // CHOREOGRAPHER PR 4: the authoritative path. Resolve End of Turn ONCE, animate the emitted batch through
-    // the shared compiler + player, then commit the already-resolved state. Legacy stays the default until the
-    // owner has compared them side by side (blueprint PR 4 keeps both, PR 5 deletes the old one).
-    if (CHOREO_EOT && playEndOfTurnAuthoritative()) return;
+    // the shared compiler + player, then commit the already-resolved state. With the choreographer on (the default),
+    // End of Turn NEVER falls through to the legacy runner below: `playEndOfTurnAuthoritative` can only return false
+    // when the store refused to prepare (R-REPEAT-06 above), and a refused End Turn plays nothing. The legacy runner
+    // is reachable only through the `ascent.choreo = '0'` rollback valve.
+    if (CHOREO_EOT) { playEndOfTurnAuthoritative(); return; }
     const repeats = endOfTurnRepeats(run);
     type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean; infuse?: boolean; eotEffect?: string };
     const beats: Beat[] = [];
@@ -7796,6 +7808,9 @@ export function Recruit() {
     setEotShopStats(null); // fresh shop-buff climb for this turn (drained + baked when combat starts)
     const BEAT = 760;
     const GAP = 170;
+    // R-REPEAT-06: a repeat chain's ticks (a Kringle's "Repeat for every card played") accelerate and batch on the same
+    // schedule the authoritative path uses, instead of one 930 ms beat each. 1:1 with `beats`.
+    const pacing = legacyEotRepeatPlan(beats.map((b) => b.uid), BEAT, GAP);
     const playBeat = (i: number): void => {
       if (i >= beats.length) {
         // The whole completion block is DEFERRED by the pad so the previews still drop in the SAME commit
@@ -7824,8 +7839,8 @@ export function Recruit() {
       }
       // Medallion cue: officially firing → the energy-release pulse; progress-only (cadence ticked but
       // didn't fire, e.g. Frontdrake's countdown) → the softer glow cue.
-      if (b.completes) sfx.triggerPulse();
-      else sfx.triggerGlow();
+      const accent = pacing[i]?.accent ?? true; // a batched repeat tick lands its stats silently (R-REPEAT-06)
+      if (accent) { if (b.completes) sfx.triggerPulse(); else sfx.triggerGlow(); }
       // SPELL POWER — fired from the BEAT, for the same reason as the tendril below: the End-of-Turn commit
       // lands after the phase flips, so the reducer-keyed signal played at Start of Combat instead of on the
       // proc (owner report 2026-07-21 — Aeon Guard). Driving it here puts the flourish on the unit, at its
@@ -7909,7 +7924,7 @@ export function Recruit() {
         // Itemized per-z rewards land one WAVE per step (every eligible minion inside a wave fires
         // together), paced by the ✨ Buff FX tuner's minimum wave gap rather than beat ÷ event-count —
         // the old formula compressed a big board into an unreadable smear (owner 2026-07-18).
-        if (bfx.buffFx.length > 0) {
+        if (bfx.buffFx.length > 0 && accent) {
           // Targets that took a RUBY this beat get the gem cascade below instead of the generic descend —
           // the same "authored replaces stock" rule the shop's `rubyOwned` filter applies (owner 2026-08-12).
           const rubied = new Set((bfx.ruby ?? []).map((l) => l.uid));
@@ -8040,15 +8055,20 @@ export function Recruit() {
       }
       // End-of-turn cue: every proc plays the glow sound. For a glow-only beat this is the SAME sound the
       // medallion cue above just fired for the same card — the built-in dedup collapses them to one play.
-      sfx.triggerGlow();
+      if (accent) sfx.triggerGlow();
       // A beat that threw lassos RESERVES the time its cascade needs — counting beats is not the same as
       // giving them room (the choreography rule), and five casts at 300 ms overrun a 760 ms beat by half.
-      const beatMs = Math.max(BEAT, lassoCascadeMs(bfx?.steals?.length ?? 0));
+      // A paced repeat tick holds only its slot (R-REPEAT-06); a tick that shares its slot with the next plays it at once.
+      const pace = pacing[i];
+      const lasso = lassoCascadeMs(bfx?.steals?.length ?? 0);
+      const beatMs = Math.max(pace?.holdMs ?? BEAT, lasso);
+      const gapMs = pace?.gapMs ?? GAP;
+      if (beatMs + gapMs <= 0) { playBeat(i + 1); return; }
       window.setTimeout(() => {
         setEotProcUids(new Set());
         setEotPulseUids(new Set());
         setElectrifyUids(new Set());
-        window.setTimeout(() => playBeat(i + 1), GAP);
+        window.setTimeout(() => playBeat(i + 1), gapMs);
       }, beatMs);
     };
     playBeat(0);

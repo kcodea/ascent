@@ -453,3 +453,131 @@ describe('the layer (R-PING-04/05)', () => {
     expect(button.every((p) => p.y < box.top)).toBe(true);
   });
 });
+
+// R-PING-07 (owner 2026-10-29: "spectators should be able to clear their pings/players in general should be able to clear
+// their own pings on friends boards etc too by right clicking the minion/button etc once. that'll clear it").
+describe('a single right-click on a target carrying MY ping clears it (R-PING-07)', () => {
+  function board(): void {
+    document.body.innerHTML = `
+      <div data-zone="tavern"><div class="card" data-uid="7"></div></div>
+      <div data-zone="warband"><div class="card" data-uid="9"><span class="inner"></span></div></div>
+      <button data-spec="upgrade"></button>`;
+  }
+  const clears = (): unknown[] => sent.filter((x) => x.e === PING_CLEAR_EVENT).map((x) => x.p);
+  const rc = (uid: string, inspect = vi.fn()): boolean => openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: document.querySelector(`[data-uid="${uid}"]`)! }, uid, inspect);
+
+  it('the player, on their own board: one right-click clears it everywhere, no fan; a quick second right-click still inspects', () => {
+    board();
+    session('p1', 'duos');
+    const t0 = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(t0);
+    sendPing('check', { t: 'card', uid: '9', zone: 'board' });
+    const inspect = vi.fn();
+    expect(rc('9', inspect)).toBe(true);
+    expect(usePings.getState().list).toHaveLength(0);
+    expect(usePingMenu.getState().open).toBeNull();
+    expect(inspect).not.toHaveBeenCalled();
+    expect(clears()).toEqual([{ owner: 'p1', target: { t: 'card', uid: '9', zone: 'board' } }]);
+    // The second right-click of a double (same card, within PING_DOUBLE_MS) inspects, as always.
+    clock.mockReturnValue(t0 + PING_DOUBLE_MS - 50);
+    expect(rc('9', inspect)).toBe(true);
+    expect(inspect).toHaveBeenCalledTimes(1);
+    expect(usePingMenu.getState().open).toBeNull();
+    // With no ping on it any more, a later right-click opens the fan.
+    clock.mockReturnValue(t0 + 2000);
+    expect(rc('9', inspect)).toBe(true);
+    expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid: '9', zone: 'board' });
+    clock.mockRestore();
+  });
+
+  it('someone ELSE\'s ping on the target (here my teammate\'s) is not mine: the right-click opens the fan and the ping stays', () => {
+    board();
+    session('p1', 'duos');
+    receivePingEvent(PING_EVENT, msg({ owner: 'p1', from: 'amy', role: 'mate', target: { t: 'card', uid: '9', zone: 'board' } }));
+    expect(rc('9')).toBe(true);
+    expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid: '9', zone: 'board' });
+    expect(usePings.getState().list).toHaveLength(1);
+    expect(clears()).toHaveLength(0);
+  });
+
+  it('a Duos teammate on their mate\'s board: the right-click clears it and the clear reaches the mate', () => {
+    board();
+    session('p1', 'duos');
+    useSpectate.setState({ active: true, seat: 'p2', teammate: true });
+    sendPing('question', { t: 'card', uid: '7', zone: 'shop' });
+    expect(rc('7')).toBe(true);
+    expect(usePings.getState().list).toHaveLength(0);
+    expect(usePingMenu.getState().open).toBeNull();
+    const c = clears();
+    expect(c).toEqual([{ owner: 'p2', target: { t: 'card', uid: '7', zone: 'shop' } }]);
+    // The mate's screen takes it (their own seat).
+    setPingSession('test', null);
+    resetPingRuntimeForTests();
+    useSpectate.setState({ active: false, teammate: false });
+    session('p2', 'duos');
+    receivePingEvent(PING_EVENT, msg({ owner: 'p2', from: 'ann', role: 'mate', target: { t: 'card', uid: '7', zone: 'shop' } }));
+    expect(usePings.getState().list).toHaveLength(1);
+    receivePingEvent(PING_CLEAR_EVENT, c[0]);
+    expect(usePings.getState().list).toHaveLength(0);
+  });
+
+  it('a mentor on the watched player\'s board: the right-click clears it and the clear is sent (the player drops it)', () => {
+    board();
+    session(null, 'lobby');
+    useGame.setState({ replaying: true, showTitle: false });
+    useSpectate.setState({ active: true, seat: 'p1' });
+    receivePingEvent(PING_MENTOR_EVENT, { seat: 'p1', mentor: 'me', name: 'Me' });
+    sendPing('x', { t: 'card', uid: '9', zone: 'board' });
+    expect(rc('9')).toBe(true);
+    expect(usePings.getState().list).toHaveLength(0);
+    expect(usePingMenu.getState().open).toBeNull();
+    expect(clears()).toEqual([{ owner: 'p1', target: { t: 'card', uid: '9', zone: 'board' } }]);
+  });
+
+  it('a spectator demoted from mentor still clears their own leftover ping with a right-click, on their own screen only', () => {
+    board();
+    session(null, 'lobby');
+    useSpectate.setState({ active: true, seat: 'p1' });
+    receivePingEvent(PING_MENTOR_EVENT, { seat: 'p1', mentor: 'me', name: 'Me' });
+    sendPing('x', { t: 'card', uid: '9', zone: 'board' });
+    receivePingEvent(PING_MENTOR_EVENT, { seat: 'p1', mentor: null });
+    expect(pingContext()).toBeNull();
+    const inspect = vi.fn();
+    expect(rc('9', inspect)).toBe(true);
+    expect(inspect).not.toHaveBeenCalled();
+    expect(usePings.getState().list).toHaveLength(0);
+    expect(clears()).toHaveLength(0); // no longer allowed to tell the player
+    // Nothing of mine on it now: a plain spectator's right-click inspects at once, as before.
+    expect(rc('9', inspect)).toBe(false);
+  });
+
+  it('a shop button: one right-click on a button carrying my ping clears it, no fan; with none it opens the fan; a phone hold clears', async () => {
+    const { act } = await import('react');
+    const { createRoot } = await import('react-dom/client');
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const { PingLayer } = await import('./PingLayer');
+    board();
+    session('p1', 'duel');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() => root.render(<PingLayer />));
+    const btn = document.querySelector('[data-spec="upgrade"]')!;
+    const fire = (): MouseEvent => { const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 1, clientY: 1 }); act(() => { btn.dispatchEvent(ev); }); return ev; };
+    act(() => { sendPing('check', { t: 'button', id: 'upgrade' }); });
+    const ev = fire();
+    expect(ev.defaultPrevented).toBe(true);
+    expect(usePings.getState().list).toHaveLength(0);
+    expect(usePingMenu.getState().open).toBeNull();
+    expect(clears()).toEqual([{ owner: 'p1', target: { t: 'button', id: 'upgrade' } }]);
+    fire();
+    expect(usePingMenu.getState().open?.target).toEqual({ t: 'button', id: 'upgrade' });
+    // Phone: a hold on a card carrying my ping fires (it clears), even where no ping could be opened.
+    act(() => { usePingMenu.setState({ open: null }); sendPing('x', { t: 'card', uid: '9', zone: 'board' }); });
+    act(() => { useGame.setState({ run: { ...useGame.getState().run, phase: 'combat' } }); });
+    expect(pingContext()).toBeNull();
+    expect(holdFiresOn(document.querySelector('[data-uid="9"] .inner')!)).toBe(true);
+    expect(holdFiresOn(document.querySelector('[data-uid="7"]')!)).toBe(false);
+    act(() => root.unmount());
+  });
+});

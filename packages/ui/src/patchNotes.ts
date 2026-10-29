@@ -58,6 +58,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Right-click a card or button once to clear your own ping on it.', details: [
+        "Works on your own board, your Duos teammate's board, and as a mentor on your player's board.",
+        'On a phone, long-press the card instead.',
+        'Everyone who saw the ping sees it go.',
+        'A ping someone else placed still opens the ping menu. A quick double right-click still inspects.',
+      ] },
       { category: 'Systems', text: 'Friends now live in one button in the bottom left corner, on every screen: the menus, hero select, every game, watching and replays.', details: [
         'Press it to open your friends list. Press outside it or Escape to close it.',
         'It stays as you left it when you change screens, with an open chat still open.',

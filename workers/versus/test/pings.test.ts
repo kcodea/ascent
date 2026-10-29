@@ -159,6 +159,29 @@ describe('routePingClear: a clear reaches every screen showing the ping (R-PING-
   });
 });
 
+// R-PING-07 (owner 2026-10-29: "players in general should be able to clear their own pings on friends boards etc too by
+// right clicking the minion/button etc once"): every sender role's clear of its OWN ping is accepted by the server and
+// reaches everyone who saw that ping, on the Versus room and the lobby live object alike.
+describe('routePingClear: each sender clears its own ping, everywhere it showed (R-PING-07)', () => {
+  const t = { t: 'card', uid: '42', zone: 'board' };
+  it('the player, on their own board: the teammate and the stands hear it', () => {
+    expect(routePingClear(duos, 'ann', { owner: 'p1', target: t })?.to.sort()).toEqual(['amy', 'sam']);
+  });
+  it('a Duos teammate on their mate board (owner = the mate): the mate and the stands hear it, never the other team', () => {
+    expect(routePingClear(duos, 'amy', { owner: 'p1', target: t })?.to.sort()).toEqual(['ann', 'sam']);
+    expect(routePingClear(duos, 'ann', { owner: 'p2', target: { t: 'button', id: 'endturn' } })?.to.sort()).toEqual(['amy', 'sam']);
+  });
+  it('a mentor in a Versus room: the player they mentor hears it', () => {
+    const room: PingRoomView = { ...duel, mentors: { p1: 'sam' } };
+    expect(routePingClear(room, 'sam', { owner: 'p1', target: t })?.to).toContain('ann');
+    expect(routePingClear(room, 'sam', { owner: 'p2', target: t })).toBeNull(); // not their player
+  });
+  it('a mentor on the lobby live object: the player hears it; a demoted one is refused', () => {
+    expect(routePingClear(livePingRoom('ann', ['sam', 'tia'], 'sam'), 'sam', { owner: 'p1', target: t })?.to).toContain('ann');
+    expect(routePingClear(livePingRoom('ann', ['sam', 'tia'], null), 'sam', { owner: 'p1', target: t })).toBeNull();
+  });
+});
+
 describe('a shop button takes the fan top three only (owner pick 2026-10-29)', () => {
   it('Check, X and Question route; Pass and Sell on a button are refused', () => {
     for (const kind of ['check', 'x', 'question']) expect(routePing(duel, 'ann', ping({ kind, target: { t: 'button', id: 'endturn' } })).ok).toBe(true);

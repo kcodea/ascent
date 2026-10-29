@@ -20,9 +20,10 @@
  *    message, right-click / long press opens the friend menu, R-FRIENDS-MENU-01), Requests (incoming Accept / Decline /
  *    Block, sent Cancel) and Blocked (Unblock; only while someone is blocked).
  *  - `GuestPanel`: a guest (or no session) sees "Sign in to add friends." and the existing account panel.
- *  - `DmPanel`: the friend's header, Watch / Invite, and the conversation (R-DM-03), beside the list.
+ *  - `ChatWindow` (`../dm/ChatWindow.tsx`, R-DM-CHAT-01): pressing a friend opens a large chat window in the middle of
+ *    the screen, one tab per conversation; the list collapses as it opens.
  *
- * A PRESS OUTSIDE closes both panels in one motion, and is CAUGHT: a transparent catcher under the panels takes it, so
+ * A PRESS OUTSIDE closes the list, and is CAUGHT: a transparent catcher under the panels takes it, so
  * the press that closes the dock never also buys, refreshes, ends the turn, starts a drag or presses a menu button. It
  * closes on pointerdown, so the dock is already collapsing by the time the finger lifts.
  *
@@ -46,9 +47,9 @@ import { ActivityDetail, ConfirmButton, FriendGame, FriendPortrait, friendDetail
 import { friendMenuEatsClick, friendMenuHandlers, useFriendMenu } from '../FriendMenu';
 import type { Friend, FriendCard } from '../friendsRemote';
 import { currentDockSlot, useDockAnchor, useDockSlots } from './dockSlot';
-import { closeDm, closeDock, closeDockNow, openDm, setDockTab, swallowNextClick, toggleDock, useFriendsDock, type DockTab } from './dockStore';
-import { DmConversation } from '../dm/DmConversation';
-import { liveFriend, liveFriends, totalUnread, useDm } from '../dm/dmStore';
+import { closeDock, closeDockNow, openDm, setDockTab, swallowNextClick, toggleDock, useFriendsDock, type DockTab } from './dockStore';
+import { ChatWindow } from '../dm/ChatWindow';
+import { liveFriends, totalUnread, useDm } from '../dm/dmStore';
 import '../friends.css';
 import './friendsDock.css';
 
@@ -92,7 +93,7 @@ export function DockShell({ conversation, guest = false, inGame = false }: { con
     ? ({ left: anchor.left, bottom: anchor.bottom, maxWidth: anchor.maxW, '--fdock-maxh': `${anchor.maxH}px` } as CSSProperties)
     : undefined;
 
-  // Escape closes both (capture: the same press must not also open the Esc menu underneath).
+  // Escape closes the list (capture: the same press must not also open the Esc menu underneath).
   useEffect(() => {
     if (phase !== 'open') return undefined;
     const onKey = (e: KeyboardEvent): void => {
@@ -123,9 +124,9 @@ export function DockShell({ conversation, guest = false, inGame = false }: { con
       {open && (
         <div className={`fdock-stack${phase === 'closing' ? ' closing' : ''}${inGame ? ' ingame' : ''}${anchor ? ' beside' : ''}`} style={stackStyle}>
           {guest ? <GuestPanel /> : <FriendsPanel active={phase === 'open'} selected={dmWith} />}
-          {!guest && dmWith && <DmPanel userId={dmWith} conversation={conversation} />}
         </div>
       )}
+      {!guest && <ChatWindow inGame={inGame} conversation={conversation} />}
       {portalTo(slot?.el ?? null, <button type="button" className={`fdock-btn gtip${open ? ' on' : ''}${inGame ? ' ingame' : ''}${slot ? ' inslot' : ''}`} data-tip={open ? undefined : 'Friends'}
         aria-label={label} aria-expanded={phase === 'open'}
         onClick={() => { sfx.pulse(); toggleDock(); }}>
@@ -341,36 +342,5 @@ export function FriendActions({ f, compact }: { f: Friend; compact?: boolean }):
         </button>
       )}
     </div>
-  );
-}
-
-/**
- * THE DIRECT MESSAGE PANEL (beside the list). The friend's header and actions are live from the list (with the hub's
- * live presence over it); the conversation is the messages and the composer (R-DM-03). `conversation` replaces the
- * whole conversation (tests).
- */
-export function DmPanel({ userId, conversation }: { userId: string; conversation?: (friend: Friend) => ReactNode }): JSX.Element | null {
-  const listed = useFriends((s) => s.list?.friends.find((x) => x.userId === userId) ?? null);
-  const peers = useDm((s) => s.peers);
-  // The panel can open before any friends surface read the list (a toast on a menu): read it now.
-  useFriendsListLoop(!listed);
-  const f = useMemo(() => (listed ? liveFriend(listed, peers) : null), [listed, peers]);
-  if (!f) return null;
-  return (
-    <section className="fdock-panel fdock-dm vspanel" aria-label={`Messages with ${handleOf(f)}`}>
-      <header className={`fdock-dmhead fr-${f.status}`}>
-        <span className="fdock-portrait"><FriendPortrait card={f} /></span>
-        <span className="fr-who">
-          <span className="fr-name">{handleOf(f)}</span>
-          <span className="fr-status"><span className="fr-dot" aria-hidden="true" /><span className="fr-statustext">{statusText(f)}</span></span>
-          {f.status === 'in_game' && f.game && <FriendGame game={f.game} />}
-        </span>
-        <button type="button" className="fdock-x pressable" aria-label="Close messages" onClick={() => { sfx.pulse(); closeDm(); }}>
-          <span aria-hidden="true">✕</span>
-        </button>
-      </header>
-      <FriendActions f={f} />
-      {conversation ? <div className="fdock-convo" role="log" aria-label="Conversation">{conversation(f)}</div> : <DmConversation friend={f} />}
-    </section>
   );
 }

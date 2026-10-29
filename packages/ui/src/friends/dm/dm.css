@@ -27,7 +27,9 @@ html[data-touch-ui] .dm-report { opacity: 0.8; }
 .dm-older { align-self: center; margin: 2px 0 6px; font-size: 12px; font-weight: 700; font-family: var(--font-ui); }
 .dm-status { margin: -4px 2px 8px; font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(240, 208, 137, 0.85); }
 
-.dm-compose { position: relative; flex-wrap: wrap; }
+.dm-compose { position: relative; flex-wrap: wrap; gap: 8px; }
+.dm-field { position: relative; flex: 1 1 0; min-width: 0; display: flex; }
+.dm-send.lb-btn { flex: none; align-self: stretch; padding: 0 18px; }
 .fdock-input.acctinput.dm-input { opacity: 1; text-align: left; letter-spacing: normal; text-transform: none; }
 .fdock-input.acctinput.dm-input:disabled { opacity: 0.6; }
 .dm-count { position: absolute; right: 10px; top: 9px; font-family: var(--font-ui); font-weight: 800; font-size: 11px; color: rgba(255, 255, 255, 0.5); pointer-events: none; }
@@ -53,3 +55,61 @@ html[data-phone-zoom] .dm-toast.vspanel { bottom: calc(var(--pz-safe-b, var(--sa
 html[data-phone-layout]:not([data-phone-menus]) .dm-toast.vspanel { width: 300px; }
 
 @media (prefers-reduced-motion: reduce) { .dm-toast.vspanel { animation-duration: 0.01s; } }
+
+/* THE CHAT WINDOW (owner 2026-10-29, R-DM-CHAT-01): a large window in the middle of the screen, in the dock's dark
+   panel (`.vspanel`), with one tab per conversation across its top in the Career page's tab pill colours (`.cv2-tab`).
+   LAYERS: over the dock (480-487) and the friend menu (490), under the Settings veil (500) and the account panel (540).
+   The veil dims the menus a little and a game barely (it keeps running underneath). Sizes are layout px: the stage
+   scales them with everything else on a smaller window. Motion: one-shot opacity (veil) + transform/opacity (window). */
+.dmchat-veil { position: fixed; inset: 0; z-index: 492; display: grid; place-items: center; background: rgba(4, 8, 16, 0.5); touch-action: none;
+  animation: dmchatveil 0.16s ease-out both; }
+.dmchat-veil.ingame { background: rgba(4, 8, 16, 0.22); }
+@keyframes dmchatveil { from { opacity: 0; } }
+.dmchat.vspanel { --dmchat-z: 1; zoom: var(--dmchat-z); width: calc(min(960px, var(--lvw, 100vw) - 64px) / var(--dmchat-z)); height: calc(min(720px, var(--lvh, 100vh) - 96px) / var(--dmchat-z));
+  min-width: 0; max-width: none; box-sizing: border-box; padding: 0; display: flex; flex-direction: column; text-align: left; overflow: hidden; touch-action: auto;
+  background: linear-gradient(180deg, rgb(13, 22, 40), rgb(9, 15, 29)); /* the panel's colours, fully solid: a big window must not ghost the board through */
+  animation: dmchatin 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes dmchatin { from { opacity: 0; transform: translateY(18px) scale(0.97); } }
+/* A phone's stage is scaled down a lot: the window fills the screen and grows back to a readable size (the dock's trick). */
+html[data-touch-ui][data-touch-small] .dmchat.vspanel { --dmchat-z: calc(var(--touch-inv-s, 1) * 0.62);
+  width: calc((var(--lvw, 100vw) - 24px) / var(--dmchat-z)); height: calc((var(--lvh, 100vh) - 24px) / var(--dmchat-z)); }
+
+/* The tab strip: a darker band across the top, the close button at its right end. Scrolls sideways when full. */
+.dmchat-top { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px 0 12px; background: rgba(0, 0, 0, 0.28);
+  border-bottom: 1px solid rgba(196, 160, 92, 0.35); }
+.dmchat-tabs { flex: 1 1 auto; min-width: 0; display: flex; align-items: flex-end; gap: 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; overscroll-behavior: contain; }
+.dmchat-close.fdock-x { align-self: center; margin-bottom: 10px; width: 34px; height: 34px; font-size: 16px; }
+.dmchat-tab { flex: none; display: flex; align-items: center; max-width: 240px; border-radius: 10px 10px 0 0; border: 1px solid rgba(196, 160, 92, 0.3); border-bottom: none;
+  background: rgba(255, 255, 255, 0.04); transition: background-color 0.12s ease, border-color 0.12s ease; }
+.dmchat-tab:hover { background: rgba(240, 208, 137, 0.1); border-color: rgba(240, 208, 137, 0.55); }
+.dmchat-tab.on { background: linear-gradient(180deg, #f0d089, #c99d4e); border-color: #f0d089; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+.dmchat-tabmain { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 7px 4px 7px 9px; border: none; background: none; font: inherit; color: inherit; }
+.dmchat-tabmain:focus-visible { outline: 2px solid rgba(240, 208, 137, 0.7); outline-offset: -2px; border-radius: 8px; }
+.dmchat-tabportrait { position: relative; flex: none; width: 30px; height: 30px; }
+.dmchat-tabportrait .lb-heroframe, .dmchat-tabportrait .lb-heroframe .hero { width: 30px; height: 30px; }
+.dmchat-tabportrait .fr-dot { position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border: 2px solid #101a2c; }
+.dmchat-tabname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-ui); font-weight: 900; font-size: 14px; color: rgba(240, 222, 180, 0.85); }
+.dmchat-tab.on .dmchat-tabname { color: #241705; }
+.dmchat-tab .dm-unread { flex: none; }
+.dmchat-tabx { flex: none; width: 24px; height: 24px; margin-right: 6px; padding: 0; border: none; border-radius: 6px; display: grid; place-items: center;
+  font-family: var(--font-ui); font-weight: 800; font-size: 12px; color: rgba(240, 222, 180, 0.65); background: transparent; }
+.dmchat-tabx:hover { color: #fff; background: rgba(255, 255, 255, 0.14); }
+.dmchat-tab.on .dmchat-tabx { color: rgba(36, 23, 5, 0.7); }
+.dmchat-tab.on .dmchat-tabx:hover { color: #241705; background: rgba(36, 23, 5, 0.14); }
+
+/* One conversation: the header (bigger than the old card's), then the messages filling the window, the composer last. */
+.dmchat-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 14px 18px 16px; }
+.dmchat-head.fdock-dmhead { flex: none; gap: 14px; padding-bottom: 12px; }
+.dmchat-head .fdock-portrait, .dmchat-head .fdock-portrait .lb-heroframe, .dmchat-head .fdock-portrait .lb-heroframe .hero { width: 56px; height: 56px; }
+.dmchat-head .fr-name { font-size: 19px; }
+.dmchat-head .fr-status { font-size: 14px; }
+.dmchat-head .fr-game { flex-wrap: wrap; overflow: visible; }
+.dmchat-actions { flex: none; align-self: center; }
+.dmchat-actions .fdock-actions { margin: 0; }
+.dmchat-pane .fdock-convo { min-height: 0; margin: 12px 0; padding-right: 4px; }
+.dmchat-pane .dm-bubble { font-size: 15.5px; padding: 8px 13px; }
+.dmchat-pane .dm-msg { max-width: 72%; }
+.dmchat-pane .fdock-input.acctinput { font-size: 15.5px; padding: 11px 14px; }
+.dmchat-wait { margin: auto; }
+
+@media (prefers-reduced-motion: reduce) { .dmchat-veil, .dmchat.vspanel { animation-duration: 0.01s; } }

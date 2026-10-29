@@ -72,6 +72,13 @@ export const PATCH_NOTES: PatchNote[] = [
         'Before, from a menu page like Career or Recent Games, the game started behind the page and you never saw it.',
         'Watch from the Friends list now works exactly like Watch in Live Games.',
       ] },
+      { category: 'Systems', text: 'Chat now opens in a big window in the middle of the screen, with a tab for each conversation.', details: [
+        'Press a friend to open their chat. Every chat you open stays as a tab, and friends with unread messages get one too.',
+        'Each tab shows the unread count and has its own close.',
+        'Close the window with the X, Escape, or a click outside it. In a game it barely dims the board.',
+        'The friends panel is wider on desktop, so a friend\'s round, place and fight show in full.',
+        'On the main menu the Friends button is back in the bottom-left corner, above the footer links.',
+      ] },
       { category: 'Systems', text: 'Your Career now shows each Ranked Duos team in its own rank card, just like your solo rank.', details: [
         'One team at a time, your best ranked team first. Use the arrows to see your other teams.',
         'Each card shows the team name, your partner, games played, the medal and the MMR.',

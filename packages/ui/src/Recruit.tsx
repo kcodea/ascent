@@ -220,7 +220,7 @@ import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor, castFxReplacesTendril } from './choreo/bindings';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseAllStats, releaseStat } from './fx/statHold';
-import { screenIdOf, useScreenSwapped, useSwapRef, useSwapState } from './screenSwap';
+import { ScreenContext, screenIdOf, useScreenSwapped, useSwapRef, useSwapState } from './screenSwap';
 /** Set 4 self-damage in the Shop: how long a hit's dip holds when no +Health follows it on screen, and how long the
  *  Health badge takes to roll back up (owner 2026-10-13: down, a beat, then back up). */
 const SELF_DAMAGE_HOLD_MS = 450;
@@ -1425,7 +1425,7 @@ export function Recruit() {
   // THE RUN ON SCREEN (R-DUOS-VIEW-NOREMOUNT-01): stable for a whole run, and different while a Duos player watches their
   // teammate (the store then holds the teammate's run). This component is NOT remounted for that swap (Game.tsx holds its
   // key), so `swapped` is true on the render the identity changes, and every ref and state below that a remount used to
-  // reset is reset on it (`useSwapRef` / `useSwapState`, screenSwap.ts); the rows and overlays are keyed on `screenId`.
+  // reset is reset on it (`useSwapRef` / `useSwapState`, screenSwap.ts); the cards read it through `ScreenContext`.
   const screenId = screenIdOf(run);
   const swapped = useScreenSwapped(screenId);
   const dispatch = useGame((s) => s.dispatch);
@@ -8555,6 +8555,8 @@ export function Recruit() {
   }, [handPreviewViews, combatGrantUids, combatHandSummoned]);
 
   return (
+    // Every card below reads the run on screen (R-DUOS-VIEW-NOREMOUNT-01): see `ScreenContext`.
+    <ScreenContext.Provider value={screenId}>
     <div
       className={`app${run.lobby ? ' lobby' : ''}${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${combatBgShown ? ' staged' : ''}${fighting ? ' fighting' : ''}${replay.shaking ? ' shaking' : ''}${replay.critShaking ? ' shaking-crit' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
@@ -8676,7 +8678,7 @@ export function Recruit() {
       {/* GOD MODE (owner 2026-10-08): the background table is invisible — the player picks each round's foe. */}
       {run.lobby && !run.godMode && (run.mode === 'gauntlet'
         ? <GauntletFoe />
-        : <LobbyPanel key={screenId} lobby={run.lobby} />)}
+        : <LobbyPanel lobby={run.lobby} />)}
       {/* GOD MODE panel: shop phase only — gone for the fight (owner: "the panel should not be visible during the
           fight phase") and while End of Turn plays out (the same interaction lock as the shop / board); also kept off
           hero select, the Good Luck intro and the full-screen pages (title, Compendium, …), which it would float over. */}
@@ -8695,7 +8697,7 @@ export function Recruit() {
           onPick={(r) => { void pickGodRound(r); }} onClose={closeGodPrompt} />
       )}
       <ShopControls
-        key={screenId}
+        screen={screenId}
         fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold} readyNote={versusGate.readyNote} gemLocked={versusGate.gemLocked} gemReady={versusGate.gemReady} gemLabel={versusGate.gemLabel}
         replayDone={replay.done} replayTurboing={replay.turboing} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
         eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
@@ -8710,13 +8712,14 @@ export function Recruit() {
 
       {/* The sell / buy zones + the floating drag card — `DragOverlay` draws them straight from `dragStore`
           (perf 2026-09-17), so a drag decision never reaches this component. Same DOM position as before. */}
-      <DragOverlay key={screenId} timeUp={timeUp} heroArmed={heroArmed} equipArmed={equipArmed} hasPendingTarget={!!pendingTarget} />
+      <DragOverlay timeUp={timeUp} heroArmed={heroArmed} equipArmed={equipArmed} hasPendingTarget={!!pendingTarget} />
 
-      {/* THE ROWS, the FLIP runner, the drag layer and the overlays are keyed on the run ON SCREEN (R-DUOS-VIEW-NOREMOUNT-01):
-          a Duos teammate swap re-renders this component in place, but both runs mint uids from the same counter, so the
-          same uid names two different cards. Keyed, every card mounts fresh (no stat roll, pop or FLIP glide from the
-          other screen's card); the static chrome around them stays mounted. Same key on the stateful HUD pieces above. */}
-      <PerfProfiler key={screenId} id="render:recruit:shop">
+      {/* THE ROWS ARE NOT KEYED on the run on screen (R-DUOS-VIEW-NOREMOUNT-01): on a Duos teammate swap React reuses each
+          card's DOM for the other screen's card with the same uid, which is most of what the swap saves (keyed rows
+          measured slower than the old full remount). Each `Card` reads `ScreenContext` so the reuse plays nothing, and the
+          FLIP baselines (`lastCentreRef`, `commitRectsRef`, ...) are swap refs, so nothing glides. The overlays (mostly
+          empty, cheap) and the foe pieces ARE keyed: their local state is the other screen's. */}
+      <PerfProfiler id="render:recruit:shop">
       <TavernRow
         frozen={!!run.frozen && !inCombat} replay={combatUnitsShown ? replay : null}
         sbEnemyShown={sbTavernShowsEnemy && !!run.sandbox} sbEnemySnap={sbEnemySnap} sbEditMode={sbEditMode} onSbEnemyPointerDown={onSbEnemyPointerDown}
@@ -8727,7 +8730,7 @@ export function Recruit() {
       />
       </PerfProfiler>
 
-      <PerfProfiler key={screenId} id="render:recruit:board">
+      <PerfProfiler id="render:recruit:board">
       <WarbandRow
         replay={combatUnitsShown ? replay : null}
         displayBoard={displayBoard} boardOrder={boardOrder} boardAligns={boardAligns} boardViews={boardViews} refViewsByUid={refViewsByUid}
@@ -8739,7 +8742,7 @@ export function Recruit() {
       />
       </PerfProfiler>
 
-      <PerfProfiler key={screenId} id="render:recruit:hand">
+      <PerfProfiler id="render:recruit:hand">
       <HandRow
         gambleHand={handRow} handOrder={handOrder} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
         handViews={handRowViews} fadeDelays={whisperFadeDelays} refViewsByUid={refViewsByUid} combatHandSummoned={combatHandSummoned}
@@ -8750,7 +8753,7 @@ export function Recruit() {
       {/* `render:recruit` for THIS render (after every card's own layout effect, before the FLIP) — see RenderMark. */}
       <RenderMark start={renderStart} phase={run.phase} />
       {/* The warband / tavern FLIP + the shop death cues, in the commit where a row moves (see RowFlip). */}
-      <RowFlip key={screenId} rowsKey={rowsKey} shopFxSeq={run.shopFxSeq} shopDeathFx={run.shopDeathFx} findEl={findEl} refs={flipRefs} />
+      <RowFlip rowsKey={rowsKey} shopFxSeq={run.shopFxSeq} shopDeathFx={run.shopDeathFx} findEl={findEl} refs={flipRefs} />
 
       {/* Measured overlay positions below (replay floats/bolts, sell floats) are SCREEN px, converted
           to stage px here at the CSS write (stage.ts); the producers keep screen px because Pixi shares them. */}
@@ -9020,6 +9023,7 @@ export function Recruit() {
         );
       })()}
     </div>
+    </ScreenContext.Provider>
   );
 }
 
@@ -9043,8 +9047,10 @@ const ShopControls = memo(function ShopControls({
   fighting, inCombat, mode, sandbox, godMode, replayDone, replayTurboing, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
   hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
   refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift, combatRoundNo,
-  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold, readyNote, gemLocked, gemReady = false, gemLabel = null,
+  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold, readyNote, gemLocked, gemReady = false, gemLabel = null, screen,
 }: {
+  /** The run on screen (`screenId`): the gem's one-shot strike state starts over on a Duos teammate swap. */
+  screen: string;
   fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean; replayTurboing: boolean;
   /** GOD MODE (owner 2026-10-08): no clock, so no timer plaque at all. */
   godMode: boolean;
@@ -9139,6 +9145,7 @@ const ShopControls = memo(function ShopControls({
           when the screen mounted (a finished fight reopened by Continue after a reload, bug 2026-09-28): the
           sequence early-returns on `combatSettled` there too. The rule lives in `endCombatReady`. */}
       <EndTurnButton
+        screen={screen}
         onEndTurn={onEndTurn}
         onEndCombat={onEndCombat}
         combatReady={inCombat && combatGateOpen}

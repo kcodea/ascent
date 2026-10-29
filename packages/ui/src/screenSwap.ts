@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { createContext, useLayoutEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import type { RunState } from '@game/sim';
 
 /**
@@ -12,8 +12,10 @@ import type { RunState } from '@game/sim';
  *  - `useSwapRef`: a ref re-initialised from the new run (an FX sequence watcher's last-seen seq, a diff snapshot), so no
  *    watcher fires for the jump between two runs;
  *  - `useSwapState`: transient animation state back to its resting value;
- *  - the rows, overlays and FLIP runner below the shop are keyed on the screen (`screenIdOf`), so every card and its
- *    own stat-roll / pop state starts fresh (both runs mint uids from `b0`, so the same uid names two different cards);
+ *  - every `Card` reads the screen from `ScreenContext` and treats a change of it like a change of uid: both runs mint
+ *    uids from the same counter, so the same uid names two different cards, and React reuses the card's DOM across the
+ *    swap (that reuse is most of the saving); no stat roll, badge pop, step flourish or ward crack fires for it. Keying
+ *    the rows instead measured SLOWER than the old full remount (2026-10-29), so they are not keyed;
  *  - effects that cancel in-flight work on unmount also run their cleanup on a swap (`screenId` in their deps).
  */
 
@@ -21,6 +23,9 @@ import type { RunState } from '@game/sim';
 export function screenIdOf(run: Pick<RunState, 'seed' | 'heroId' | 'runId'>): string {
   return `${run.seed}:${run.heroId}:${run.runId ?? ''}`;
 }
+
+/** The run on screen, for the cards under the recruit screen (`Card`); '' everywhere else (no swap there). */
+export const ScreenContext = createContext('');
 
 /** Game.tsx's mount key: holds the one it had while my teammate's screen is on (the store holds their run then). */
 export function heldScreenKey(prev: string, live: string, watchingMate: boolean): string {

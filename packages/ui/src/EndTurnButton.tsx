@@ -1,4 +1,5 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef } from 'react';
+import { useScreenSwapped, useSwapRef, useSwapState } from './screenSwap';
 import { getEndTurnConfig, rgba } from './endTurnConfig';
 import { pixiFx } from './pixiFx';
 import { playDef } from './fx/playDef';
@@ -41,7 +42,10 @@ import { publicArt } from './phoneArt';
 /** A press cue this soon after a strike is the same press (it lands before `pressed` flips on). */
 const STRIKE_DEDUPE_MS = 1500;
 
-export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatReady, onEndCombat, skipReady, onSkip, note, label, readyOn = false }: {
+export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatReady, onEndCombat, skipReady, onSkip, note, label, readyOn = false, screen = '' }: {
+  /** The run on screen (Recruit's `screenId`): a Duos teammate swap re-renders this gem in place (R-DUOS-VIEW-NOREMOUNT-01),
+   *  so its one-shot strike / relight / skip state starts over on it, as the remount it replaced did. */
+  screen?: string;
   onEndTurn: () => void;
   disabled: boolean;
   /** The button has been hit — the end-of-turn beats are playing; show the dulled gem + stop the effects. */
@@ -69,12 +73,13 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
   const wrapRef = useRef<HTMLButtonElement>(null);
   const pressedRef = useRef(pressed);
   pressedRef.current = pressed;
-  const burstRef = useRef(0); // timestamp of a pending strike burst — the rAF loop consumes it
-  const struckAtRef = useRef(-1); // when this press last struck (-1: not yet this turn) — one strike per End Turn
+  const swapped = useScreenSwapped(screen);
+  const burstRef = useSwapRef(0, swapped); // timestamp of a pending strike burst — the rAF loop consumes it
+  const struckAtRef = useSwapRef(-1, swapped); // when this press last struck (-1: not yet this turn) — one strike per End Turn
   const wakeRef = useRef<() => void>(() => {}); // re-arms the (idling) bolt loop — see the arc effect
-  const [striking, setStriking] = useState(false); // the one-shot strike flash is playing
-  const [relighting, setRelighting] = useState(false); // the one-shot END-COMBAT shine is playing
-  const [skipFlash, setSkipFlash] = useState(false); // the one-shot gold pop on a Skip click
+  const [striking, setStriking] = useSwapState(false, swapped); // the one-shot strike flash is playing
+  const [relighting, setRelighting] = useSwapState(false, swapped); // the one-shot END-COMBAT shine is playing
+  const [skipFlash, setSkipFlash] = useSwapState(false, swapped); // the one-shot gold pop on a Skip click
 
   // The STRIKE (owner notes 2026-07-16): the art swaps to the dim gem immediately, and the swap is masked
   // by a white-hot gem flash + a burst of lightning arcs + a dirt/smoke billow + an outward shockwave

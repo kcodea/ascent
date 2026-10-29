@@ -6,12 +6,16 @@
  * swap unmounted and rebuilt the whole board (the hitch). Its key now holds through a teammate view, and what the remount
  * used to reset is reset on the swap render instead (screenSwap.ts). These pin both halves: the key, and the resets.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
 import { act, useEffect, useLayoutEffect } from 'react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { mount, type Mounted } from './renderedText.mount';
-import { heldScreenKey, screenIdOf, useScreenSwapped, useSwapRef, useSwapState } from './screenSwap';
+import { heldScreenKey, screenIdOf, ScreenContext, useScreenSwapped, useSwapRef, useSwapState } from './screenSwap';
+import { Card, type CardView } from './Card';
+import { heldFor, releaseAllStats } from './fx/statHold';
 
 describe('the mount key (Game.tsx)', () => {
   it('holds my run\'s key while my teammate\'s screen is on, and follows the live key otherwise', () => {
@@ -90,6 +94,25 @@ describe('what the remount used to reset (screenSwap.ts)', () => {
   });
 });
 
+describe('a card reused across the swap (both runs count uids from the same start)', () => {
+  const view = (attack: number, health: number): CardView => ({
+    name: 'Test', cardId: 'ce3_seer', tribe: 'neutral', attack, health, keywords: [], text: '', tier: 1, baseAttack: 1, baseHealth: 1,
+  } as CardView);
+  const at = (screen: string, a: number, h: number): JSX.Element => (
+    <ScreenContext.Provider value={screen}><Card uid="b5" card={view(a, h)} suppressPop /></ScreenContext.Provider>
+  );
+  afterEach(() => releaseAllStats());
+  it("my b5 growing rolls its numbers; my teammate's b5 taking the component over does not", () => {
+    m = mount(at('mine', 3, 3));
+    m.render(at('mine', 5, 5));
+    expect(heldFor('b5'), 'a real buff on my screen rolls').not.toBeNull();
+    releaseAllStats();
+    m.render(at('theirs', 40, 40));
+    expect(heldFor('b5'), "another screen's card is not a buff").toBeNull();
+    expect(m.container.querySelector('.badge.atk')!.textContent).toContain('40');
+  });
+});
+
 describe('the wiring (source pins)', () => {
   const src = (f: string): string => readFileSync(join(__dirname, f), 'utf8');
   it('Recruit is keyed on the held key; the StatusBar and the EmoteLayer stay on the live one', () => {
@@ -111,11 +134,14 @@ describe('the wiring (source pins)', () => {
     });
     expect(bad).toEqual([]);
   });
-  it('the rows, the FLIP runner, the drag layer and the overlays are keyed on the screen', () => {
+  it('the rows reuse their cards across the swap (no key: measured slower), every card reads the screen, the overlays are keyed', () => {
     const r = src('Recruit.tsx');
-    for (const id of ['shop', 'board', 'hand', 'overlays']) expect(r).toContain(`<PerfProfiler key={screenId} id="render:recruit:${id}">`);
-    expect(r).toContain('<RowFlip key={screenId} ');
-    expect(r).toContain('<DragOverlay key={screenId} ');
+    for (const id of ['shop', 'board', 'hand']) expect(r).toContain(`<PerfProfiler id="render:recruit:${id}">`);
+    expect(r).toContain('<PerfProfiler key={screenId} id="render:recruit:overlays">');
+    expect(r).toContain('<ScreenContext.Provider value={screenId}>');
+    const card = src('Card.tsx');
+    expect(card).toMatch(/if \(prev\.uid !== uid \|\| prev\.screen !== screen \|\|/);
+    expect(card).toContain('useBadgePop(shownAttack, screen)');
   });
   it('the teammate portrait keeps one identity across the swap (its mount measures the hero disc: a forced layout)', () => {
     const hud = src('versus/VersusHud.tsx');

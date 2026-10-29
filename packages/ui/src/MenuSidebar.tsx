@@ -96,9 +96,9 @@ let lastIndicatorY: number | null = null;
 
 /**
  * IN A GAME (owner 2026-10-29, R-ESC-SIDEBAR-01) the same rail is the in-game menu: Escape slides it in over the dimmed
- * game (`GameMenu.tsx`), and every page it opens wears it. Play becomes the gold RESUME, the Shop clock sits under it,
- * and the foot carries Settings then the LEAVE button (Save & Quit / Concede / ...,
- * `gameMenuParts.tsx`). No painted backdrop: the game shows through, dimmed. `current` is null on the bare rail.
+ * game (`GameMenu.tsx`), and every page it opens wears it. Play becomes the gold RESUME, the red LEAVE button
+ * (Save & Quit / Concede / ..., `gameMenuParts.tsx`) sits right under it (R-ESC-SIDEBAR-01), then the Shop clock;
+ * Settings stays at the foot. No painted backdrop: the game shows through, dimmed. `current` is null on the bare rail.
  */
 export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
   const inGame = useGame((s) => s.gameMenuOpen);
@@ -198,6 +198,8 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
         {playTip
           ? <div className="msb-item" data-tip={playTip}>{play}</div>
           : play}
+        {/* LEAVE sits right under Resume, in red (owner 2026-10-29, R-ESC-SIDEBAR-01), then the Shop clock. */}
+        {inGame && <LeaveButton />}
         {inGame && <SidebarShopClock />}
         <div className="msb-group" role="group" aria-label="Progress">
           <div className="msb-gh" aria-hidden="true">Progress</div>
@@ -217,7 +219,6 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
         <span className="mbicon"><Icon name="gear" /></span>
         <span className="mblabel">{txt.settings}</span>
       </button>
-      {inGame && <LeaveButton />}
       {/* The Friends dock's home on every side-menu page (R-FRIENDS-DOCK-03): the rail's foot, under Settings. */}
       <DockSlot className="msb-dock" side=".msb" />
     </aside>

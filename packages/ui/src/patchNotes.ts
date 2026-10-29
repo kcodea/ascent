@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'In the Escape menu, the leave button is now red and sits right under Resume.', details: [
+        'It still says Save & Quit, Concede, Leave replay or Stop watching, whichever fits your game.',
+        'It still asks for a second tap before you leave.',
+      ] },
       { category: 'Systems', text: 'The "End of Turn" title no longer flashes across the screen when you end your turn.' },
       { category: 'Systems', text: "Duos: swapping to your teammate's screen and back no longer hitches. The board is redrawn in place instead of rebuilt.", details: [
         'Nothing in motion on one screen carries over to the other: no effect, glow or number roll plays on the wrong board.',
@@ -121,7 +125,7 @@ export const PATCH_NOTES: PatchNote[] = [
         'Your game stays on screen, dimmed, and keeps playing. The sidebar shows your shop time left so you never run out.',
         'Open Career, Collection, the Leaderboard, Recent Games, Live Games or Patch Notes without leaving your game.',
         'Resume (gold, at the top) or Escape takes you back. So does clicking your game.',
-        'Save & Quit, or Concede in Versus, is at the bottom of the sidebar. Tap it twice to leave.',
+        'Save & Quit, or Concede in Versus, is in red right under Resume. Tap it twice to leave.',
         'Settings is now its own page beside the sidebar, on the main menu and in a game, with every setting on it.',
       ] },
       { category: 'Systems', text: 'Friends now live in one button in the bottom left corner, on every screen: the menus, hero select, every game, watching and replays.', details: [

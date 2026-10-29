@@ -113,6 +113,9 @@ html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn .mbicon { wid
 html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn .mbicon svg { width: calc(16 * var(--pt)); height: calc(16 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn .mbicon .crest { font-size: calc(16 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn .mblabel { font-size: calc(12 * var(--pt)); letter-spacing: 0.02em; white-space: nowrap; }
+/* The in-game LEAVE plaque (R-ESC-SIDEBAR-01) wraps instead: its armed label ("Tap again to quit") is longer than a
+   page name and was clipped on a phone. */
+html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn.msb-leave .mblabel { white-space: normal; min-width: 0; }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn.sb-play { min-height: calc(42 * var(--pt)); margin-bottom: calc(2 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn.sb-play .mblabel { font-size: calc(15 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb :is(.sb-livechip, .newpill) { font-size: calc(9.5 * var(--pt)); }

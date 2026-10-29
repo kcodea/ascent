@@ -22,6 +22,10 @@
  *   final        the match ends, and every client shows the server's final placements and pools;
  *   realtime     every present client is subscribed to the match's changes within 10 s (while Realtime is up);
  *   finished     the match completes inside its time cap (a full match) / reaches its round target.
+ *   spectate     (scenarios with SPECTATORS, R-SPECTATE-HARNESS-01) every spectator's screen follows the watched player
+ *                (same phase and wave within 12 s), never goes back a phase, holds ONE fight object per fight (a new one
+ *                restarts the replay: the board rebuilt and the hits played again), moves to a newly chosen player within
+ *                3 s, and ends back in the room once the match is over.
  */
 import { vi } from 'vitest';
 import { appendFileSync } from 'node:fs';
@@ -34,7 +38,7 @@ export const CHAOS_MODES: readonly ChaosMode[] = ['duel', 'group3', 'group4', 'd
 export const playersOf = (m: ChaosMode): number => (m === 'duel' || m === 'ranked_duos' ? 2 : m === 'group3' ? 3 : 4);
 const roomModeOf = (m: ChaosMode): string => (m === 'group3' || m === 'group4' ? 'group' : m);
 
-export type InvariantId = 'close' | 'resolve' | 'oneCall' | 'stuck' | 'falsePause' | 'pauseLift' | 'pausedClose' | 'latePause' | 'vitals' | 'fights' | 'final' | 'finished' | 'realtime' | 'error';
+export type InvariantId = 'close' | 'resolve' | 'oneCall' | 'stuck' | 'falsePause' | 'pauseLift' | 'pausedClose' | 'latePause' | 'vitals' | 'fights' | 'final' | 'finished' | 'realtime' | 'error' | 'spectate';
 export interface Violation { id: InvariantId; at: number; round: number | null; detail: string }
 
 export type ChaosPhase = 'hero_select' | 'shop' | 'resolving' | 'combat';
@@ -59,6 +63,8 @@ export interface ChaosScenario {
   rounds?: number;
   /** Fake-time cap (ms). */
   capMs?: number;
+  /** SPECTATORS in the stands (R-SPECTATE-HARNESS-01): each starts on `watch` (default p1) and switches as listed. */
+  spectators?: { watch?: string; switches?: { round: number; phase: ChaosPhase; afterMs?: number; seat: string }[] }[];
   /** Called once per runner step with the server's truth (a recorder: the backend parity test, `versusCfParity.db.test.ts`). */
   onStep?: (h: ChaosHarness, s: ServerSnap) => void;
 }
@@ -126,6 +132,7 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
   };
 
   server.onNote = (s) => say(s);
+  (globalThis as any).__specDbg = (m: string) => say(`dbg ${m}`);
   server.onResolve = (c) => say(`resolver: ${c.action} r${c.round ?? '-'} by ${names[clients.findIndex((x) => x.opts.user === c.user)] ?? '?'} -> ${c.status}${c.status !== 200 ? ` ${JSON.stringify(c.body).slice(0, 160)}` : ''}`);
 
   // ── the players ──
@@ -141,6 +148,15 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
     await c.build();
     clients.push(c);
     say(`client ${names[i]} built`);
+  }
+
+  // ── the stands ──
+  const watchers: { c: ChaosClient; def: NonNullable<ChaosScenario['spectators']>[number] }[] = [];
+  for (const [k, def] of (sc.spectators ?? []).entries()) {
+    const c = new ChaosClient({ user: `00000000-0000-0000-0000-0000000000${String(50 + k)}`, name: ['Eve', 'Fay'][k] ?? `Spec${k}`, seed: sc.seed * 37 + k, policy: 'empty', endTurn: 'early', spectator: true }, server);
+    await c.build();
+    watchers.push({ c, def });
+    say(`spectator ${c.opts.name} built`);
   }
 
   // ── gone windows (for the pause invariants) ──
@@ -220,6 +236,7 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
   if (sc.mode !== 'ranked_duos') {
     for (const [i, c] of clients.entries()) { await during(c.takeSeat(`p${i + 1}`)); await step(200); }
   }
+  for (const w of watchers) { await during(w.c.joinStands(roomId)); await step(200); }
   await step(500);
   await during(clients[0]!.start());
   say(`room ${roomId.slice(0, 8)} (${roomMode}) started`);
@@ -243,6 +260,7 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
   const railFlagged = new Set<string>();
   const deafFlagged = new Set<string>();
   let last: ServerSnap | null = null;
+  const specState: { off: number | null; fights: Map<string, unknown>; order: Map<string, number>; switched: { seat: string; at: number } | null; switchDone?: Set<unknown>; flagged: Set<string>; sig?: string }[] = [];
   let complete = false;
   let doneAt: number | null = null;
 
@@ -251,6 +269,7 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
 
   while (Date.now() - t0 < cap) {
     for (const c of clients) c.tick();
+    for (const w of watchers) w.c.spectatorTick();
     server.sweep();
     await step();
     // The match.
@@ -455,6 +474,50 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
       }
     }
 
+    // SPECTATE: the stands follow the player they watch (R-SPECTATE-HARNESS-01).
+    for (const [k, w] of watchers.entries()) {
+      const st = specState[k] ??= { off: null, fights: new Map(), order: new Map(), switched: null, flagged: new Set() };
+      const once = (key: string, detail: string): void => { if (st.flagged.has(key)) return; st.flagged.add(key); flag('spectate', s.round, `${w.c.opts.name}: ${detail}`); };
+      for (const sw of w.def.switches ?? []) {
+        const seen = firstSeen.get(`${sw.round}|${sw.phase}`);
+        if (seen == null || now < seen + (sw.afterMs ?? 0) || st.switchDone?.has(sw)) continue;
+        (st.switchDone ??= new Set()).add(sw);
+        w.c.watch(sw.seat);
+        st.switched = { seat: sw.seat, at: now };
+        say(`spectator ${w.c.opts.name} switches to ${sw.seat}`);
+      }
+      const v = w.c.spectatorView();
+      const rxv = w.c.spec?.spectatorViewOf(v.seat as never) ?? null;
+      const sig = `${v.active ? 'on' : 'off'} ${v.runId?.slice(-2) ?? '-'} ${v.phase} ${v.wave}${v.settled ? ' settled' : ''} [rx ${rxv ? `${rxv.phase} ${rxv.wave}` : '-'}; rounds ${Object.keys(w.c.store.useVersus.getState().rounds).join(',')}]`;
+      if (st.sig !== sig) { st.sig = sig; say(`spectator ${w.c.opts.name}: ${sig}`); }
+      if (!v.active || !v.runId || s.phase === 'complete' || s.phase === 'hero_select') continue;
+      const seatRow = s.seats.find((x) => x.seat === v.seat);
+      const pi = clients.findIndex((c) => c.opts.user === seatRow?.user);
+      const pv = pi >= 0 ? clients[pi]!.view() : null;
+      // A seat switch lands within 3 s, on that player's current wave.
+      if (st.switched && now - st.switched.at > 3000) {
+        if (!v.runId.endsWith(`:${st.switched.seat}`)) once(`sw${st.switched.at}`, `asked to watch ${st.switched.seat} ${((now - st.switched.at) / 1000).toFixed(1)} s ago, the screen shows ${v.runId}`);
+        st.switched = null;
+      }
+      // One fight object per fight on screen.
+      if (v.phase === 'combat' && v.fight) {
+        const fk = `${v.runId}|${v.wave}`;
+        const had = st.fights.get(fk);
+        if (had == null) st.fights.set(fk, v.fight);
+        else if (had !== v.fight) once(`fight${fk}`, `the fight of round ${v.wave} (${v.runId}) was replaced by a new object mid-fight: the replay starts over`);
+      }
+      // Never back a phase on the same player's screen.
+      const ord = v.wave * 2 + (v.phase === 'combat' ? 1 : 0);
+      const prev = st.order.get(v.runId) ?? -1;
+      if (ord < prev) once(`back${v.runId}|${ord}`, `went back from ${prev % 2 ? 'combat' : 'shop'} ${Math.floor(prev / 2)} to ${v.phase} ${v.wave} on ${v.runId}`);
+      st.order.set(v.runId, Math.max(prev, ord));
+      // Following the player.
+      const absent = pi < 0 || isGone(pi, now, 10_000) || clients[pi]!.hidden || !!s.pausedAt || seatRow?.eliminated != null;
+      const same = !!pv && pv.runMode === 'versus' && pv.runPhase === v.phase && pv.wave === v.wave;
+      if (absent || same || !pv || pv.runMode !== 'versus') { st.off = null; continue; }
+      st.off ??= now;
+      if (now - st.off > 12_000) once(`lag${v.runId}|${pv.runPhase}|${pv.wave}`, `shows ${v.phase} ${v.wave} of ${v.seat} while that player has been on ${pv.runPhase} ${pv.wave} for ${((now - st.off) / 1000).toFixed(0)} s`);
+    }
     sc.onStep?.(h, s);
     last = s;
     // The end.
@@ -464,8 +527,8 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
       const settled = clients.every((c, i) => {
         const v = c.view();
         return v.runMode !== 'versus' || c.hidden || clients[i]!.net.state.offline;
-      });
-      if (settled || now - doneAt > 60_000) break;
+      }) && watchers.every((w) => !w.c.spectatorView().active);
+      if (settled || now - doneAt > (watchers.length ? 75_000 : 60_000)) break;
     }
     if (sc.rounds && s.round > sc.rounds && s.phase === 'shop') break;
   }
@@ -474,6 +537,12 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
   for (const c of clients) for (const m of c.mends) say(`${c.opts.name} cast Mend in round ${m.wave}: Armor ${m.before} -> ${m.after}`);
   say(`vitals: ${vitalsChecked.size} rail checks against the server`);
   for (const c of clients) for (const e of c.errors) flag('error', null, `${c.opts.name}: ${e}`);
+  for (const w of watchers) {
+    for (const e of w.c.errors) flag('error', null, `${w.c.opts.name}: ${e}`);
+    // The match ended: every spectator is back in the room (the end gate opened on it), not on a frozen screen.
+    const v = w.c.spectatorView();
+    if (complete && (v.active || !v.showTitle || v.titleView !== 'versus')) flag('spectate', null, `${w.c.opts.name}: after the end the screen is ${v.active ? `still watching (${v.phase} ${v.wave})` : `${v.showTitle ? 'the title' : 'the game'} (${v.titleView})`}, not the room`);
+  }
   const committed = await server.committedRounds(matchId, group);
   if (!sc.rounds && !complete) flag('finished', last?.round ?? null, `the match did not finish inside ${cap / 60_000} min (server at round ${last?.round} ${last?.phase})`);
   if (sc.rounds && !complete && committed < sc.rounds) flag('finished', last?.round ?? null, `only ${committed} of ${sc.rounds} rounds committed inside ${cap / 1000} s (server at round ${last?.round} ${last?.phase}${last?.pausedSeat ? `, paused ${last.pausedSeat}` : ''})`);

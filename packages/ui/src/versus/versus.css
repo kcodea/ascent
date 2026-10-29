@@ -866,6 +866,12 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
    the opacity animation promotes the layer by itself, cheaply. */
 .duosghost { position: fixed; inset: 0; z-index: 190; pointer-events: none; display: flex; align-items: center; justify-content: center;
   overflow: hidden; }
+/* THE SAME SWAP AS A VIEW TRANSITION where the browser has one (R-DUOS-VIEW-SWAP-01): the old screen is a GPU snapshot and
+   the cross-fade runs on the compositor. Only while `duos-vt` is on (teammateView.turnByViewTransition), so no other
+   view transition is touched. 130 ms = FADE_MS. */
+html.duos-vt::view-transition-group(root) { animation-duration: 130ms; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+html.duos-vt::view-transition-old(root), html.duos-vt::view-transition-new(root) { animation-duration: 130ms;
+  animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
 
 /* THE VERSUS BOTS + DUOS DEV TUNER (DEV only, the dev menu's panel): the dev panel's own pieces, laid out as rows of
    small buttons. The game's gauntlet cursor on every control (the dev panel button class sets a bare pointer). */

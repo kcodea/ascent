@@ -1791,12 +1791,30 @@ export function unreadyTurn(): boolean {
 export async function pickVersusHero(index: number): Promise<void> {
   const match = get().match;
   if (!match) return;
-  try {
-    await onMatch(await mx.pickHero(match.id, index));
-  } catch (e) {
-    set({ error: errorText(e) });
+  // A PICK THAT DID NOT LAND IS SENT AGAIN (R-VERSUS-HEROPICK-RETRY-01, QA 2026-10-29 for the owner's "both players pressed
+  // ready and each said waiting on the other player, and then it eventually went through"). The card is locked on this
+  // screen the moment it is chosen (`pickedFor`), so a pick lost to a timeout, a refused request or a busy room used to
+  // leave "Waiting for your opponent" up until the 20 s clock ran out and the server picked a hero AT RANDOM for this
+  // player. While the match is still on Hero Select and the server has no pick of mine, it is retried.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await onMatch(await mx.pickHero(match.id, index));
+      return;
+    } catch (e) {
+      const code = (e as VersusError)?.code;
+      const st = get();
+      const stillOpen = st.match?.id === match.id && st.match.phase === 'hero_select' && st.priv?.hero_index == null;
+      if (!stillOpen || attempt >= HERO_PICK_RETRIES || (code && HERO_PICK_FINAL.has(code))) { set({ error: errorText(e) }); return; }
+      await new Promise((r) => window.setTimeout(r, HERO_PICK_RETRY_MS * (attempt + 1)));
+      const now = get();
+      if (now.match?.id !== match.id || now.match.phase !== 'hero_select' || now.priv?.hero_index != null) return;
+    }
   }
 }
+/** A pick refused for one of these never lands, however often it is sent. */
+const HERO_PICK_FINAL = new Set(['wrong_phase', 'hero_deadline_passed', 'bad_index', 'not_a_player', 'already_picked']);
+export const HERO_PICK_RETRIES = 4;
+const HERO_PICK_RETRY_MS = 600;
 
 /** Back from a disconnect: Unpause starts the 3-2-1 for both (`resume_at`); the server resumes the match at it. */
 export async function resumeMatch(): Promise<void> {

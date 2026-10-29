@@ -19,10 +19,12 @@
  * (versusStore's `teammateViewReturns`). My clock still runs and still locks MY turn at 0:00 while I watch.
  */
 import { useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { perfMonitor } from '../perfMonitor';
-import { leaveTeammate, leaveTeammateHero, useSpectate, watchTeammate, watchTeammateHero } from './spectate';
+import { PHONE_GPU } from '../phoneDiag';
+import { flushSpectateRender, leaveTeammate, leaveTeammateHero, useSpectate, watchTeammate, watchTeammateHero } from './spectate';
 import { useVersus } from './versusStore';
 
 /**
@@ -80,10 +82,57 @@ function whenNewScreenSettled(changed: () => boolean, done: () => void): void {
   requestAnimationFrame(tick);
 }
 
+/** A View Transition handle (the subset used here; `document.startViewTransition`, Chrome 111+ / Safari 18+). */
+interface ViewTransitionLike { finished: Promise<unknown>; ready: Promise<unknown> }
+type StartViewTransition = (cb: () => void | Promise<void>) => ViewTransitionLike;
+
+/**
+ * The browser's View Transition entry point, or null where there is none (the frozen-ghost fallback then runs).
+ * DESKTOP ONLY: on the phone GPU path (`PHONE_GPU`) the full-screen snapshot pair the transition keeps is a large
+ * texture cost (the phone memory budget, R-TOUCH-RUN-MEMORY-01), and on the throttled phone bench it measured far worse
+ * than the ghost (one 0.9-1.7 s frame per swap); phones keep the ghost.
+ */
+export function viewTransitionOf(doc: Document | undefined = typeof document !== 'undefined' ? document : undefined, phone: boolean = PHONE_GPU): StartViewTransition | null {
+  if (phone) return null;
+  const f = (doc as unknown as { startViewTransition?: StartViewTransition } | undefined)?.startViewTransition;
+  return typeof f === 'function' ? f.bind(doc) : null;
+}
+
+/**
+ * THE SWAP AS A VIEW TRANSITION (owner 2026-10-29: "toggling yours and teammates screen ... can be kinda janky. It needs
+ * to feel like you clicked the button and are viewing the other player's screen then clicking to get back ... [without]
+ * massive hitching"; R-DUOS-VIEW-SWAP-01). The browser snapshots the screen I am leaving on the GPU (no DOM copy: the
+ * frozen ghost below cost a full clone of `#root`, its style + layout + paint on the click frame and its removal later,
+ * measured 15-40 ms of the 50-75 ms swap frames), the update runs once, synchronously (`flushSync`, and the watch screen
+ * renders at once instead of on its next frame: no animation frame runs while the update is pending), and the cross-fade
+ * itself runs on the compositor, so a busy main thread after the swap never stutters it. Durations: `duos-vt` in
+ * versus.css (FADE_MS).
+ */
+function turnByViewTransition(start: StartViewTransition, swap: () => void): void {
+  turning = true;
+  perfMonitor.mark?.('duos:turn:start');
+  const root = document.documentElement;
+  root.classList.add('duos-vt');
+  let t: ViewTransitionLike;
+  try {
+    t = start(() => { flushSync(swap); });
+  } catch {
+    root.classList.remove('duos-vt');
+    turning = false;
+    swap();
+    return;
+  }
+  const end = (): void => { root.classList.remove('duos-vt'); turning = false; perfMonitor.mark?.('duos:turn:end'); };
+  t.finished.then(end, end);
+}
+
 /** The swap: freeze the screen I am leaving as a ghost on top, swap under it, cross-fade once the new one is drawn. */
 function turn(swap: () => void, changedSince?: () => () => boolean): void {
   const root = typeof document !== 'undefined' ? document.getElementById('root') : null;
-  if (!root || !('animate' in root) || turning) { swap(); return; }
+  if (!root || turning) { swap(); return; }
+  const vt = viewTransitionOf();
+  if (vt) { turnByViewTransition(vt, swap); return; }
+  if (!('animate' in root)) { swap(); return; }
   turning = true;
   perfMonitor.mark?.('duos:turn:start');
   const ghost = ghostOf(root);
@@ -124,7 +173,7 @@ export function enterTeammateHeroView(): void {
   const mate = v.match?.group?.duos?.mate;
   if (!mate || !ownVersusHeroSelect() || useSpectate.getState().teammateHero) return;
   sfx.tick();
-  turn(() => watchTeammateHero(mate), heroChanged);
+  turn(() => { watchTeammateHero(mate); flushSpectateRender(); }, heroChanged);
 }
 /** Back to my own hero choices. */
 export function exitTeammateHeroView(): void {
@@ -143,7 +192,11 @@ export function enterTeammateView(): void {
   if (g.run.mode !== 'versus' || g.run.phase !== 'recruit') return;
   sfx.tick();
   turn(() => {
+    // The swap runs a frame after the click (the View Transition captures the screen first): the shop may have closed.
+    const now = useVersus.getState().match;
+    if (!now || now.phase !== 'shop' || now.paused_at || useGame.getState().run.phase !== 'recruit') return;
     watchTeammate(mate);
+    flushSpectateRender();
     document.body.classList.add('duos-viewing');
   });
 }

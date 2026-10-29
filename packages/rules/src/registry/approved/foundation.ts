@@ -11282,4 +11282,91 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann\x27s train goes into a tunnel. She types "brb"; it shows Sending. Twenty seconds later the socket is back and "brb" reaches Bob once.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dm/dm.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-SPECTATE-FIGHT-STABLE-01',
+    title: 'A watched Duos fight plays once, start to finish, with no restart at its end',
+    statement:
+      'On the watch screen (the stands, a mentor, a live game viewer) a fight is one object from the moment it lands to the moment the screen leaves it. '
+      + 'Re-reading the match (an End Combat press, a pause, any match update) never hands the screen a new copy of the same fight, so the replay never starts over, the opponent board is never rebuilt and no hit is played twice. '
+      + 'Versus Duos and Ranked Duos included: each seat own view of the team fight is built once per stored round.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (Duos + spectating QA)', quote: 'spectating is doing some janky stuff at end of combat, rebuilding the opponent board and showing a hit' },
+      { kind: 'fix-pr', ref: 'qa/duos-spectate-polish' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusGroupView.ts (resultsOf memo per round row)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-29 (qa/duos-spectate-polish). Before, every Duos round projection built new per-seat result objects (duosMemberView), and the projection runs on each match update. The first End Combat press of a Duos fight therefore restarted the replay on every spectator screen: the boards were rebuilt and the hits played again.',
+    example: 'You watch a Duos fight. Your watched player presses End Combat. Your screen finishes the strike it was showing and then leaves to the shop, instead of jumping back to the start of the fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-SPECTATE-LANDWAIT-01',
+    title: 'A watched action never waits more than a moment for the drawn hand',
+    statement:
+      'The stands land each action of the watched player when the drawn hand reaches it, but one action waits at most MAX_LAND_WAIT_MS (400 ms) in all, however many times it re-checks. '
+      + 'A hand whose clock reads ahead of the watcher can never hold the queue, so the stands never sit on a shop while the player is already in the fight. '
+      + 'A shop action from before the fight already on screen is history and is dropped, never landed: the screen does not leave the fight to show the old shop (R-SPECTATE-STALE-SHOP-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (Duos + spectating QA)', quote: 'Make sure spectating is also extremely clean' },
+      { kind: 'fix-pr', ref: 'qa/duos-spectate-polish' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts (pump: waitFrom, staleShopItem)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-29 (qa/duos-spectate-polish), found by the spectator cells of the Cloudflare chaos matrix. Before, the 400 ms cap was per retry: the wait re-armed while the cursor kept arriving, so a whole first fight could play with the stands still on the shop, then the screen went back to that shop after the fight.',
+    example: 'The watched player makes a last drag and presses End Turn. Your screen shows the drag land within a moment and follows them into the fight. It never shows the fight and then jumps back to that shop.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateQueue.test.tsx', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-DUOS-VIEW-SWAP-01',
+    title: 'The teammate view swap answers on the click frame and fades on the compositor',
+    statement:
+      'Clicking the portrait of your teammate (or yours, to come back) answers at once: the click does no rendering work, the browser snapshots the screen you leave, the swap renders once, and the cross-fade (130 ms) runs on the compositor (a View Transition), so a busy main thread never stutters it. '
+      + 'No copy of the game screen is made in the page. Phones (the phone GPU path) and browsers without View Transitions keep the earlier frozen-ghost cross-fade: on phones the snapshot textures cost memory and measured worse. '
+      + 'If the shop closed between the click and the swap, your own board stays on screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'look into toggling yours and teammates screen. It can be kinda janky' },
+      { kind: 'fix-pr', ref: 'qa/duos-spectate-polish' },
+      { kind: 'code', ref: 'packages/ui/src/versus/teammateView.tsx (turnByViewTransition); packages/ui/src/versus/spectate.ts (flushSpectateRender); packages/ui/src/versus/versus.css (duos-vt)' },
+    ],
+    currentBehaviour: 'Since 2026-10-29 (qa/duos-spectate-polish). Before, the click cloned the whole game screen as a ghost and rendered the new screen inside the click (click to next paint 80-216 ms on the bench, desktop prod build), and the fade waited at least 70 ms for calm frames. The swap still remounts the board (about 25 ms of main-thread work per direction on desktop, 250-500 ms on a 4x-throttled phone), so it is not yet zero dropped frames: see the QA report.',
+    example: "You click Bob's portrait. The same frame your click registers, your board starts fading into his, with no pause before it.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateFade.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-VERSUS-HEROPICK-RETRY-01',
+    title: 'A hero pick that did not reach the game server is sent again',
+    statement:
+      'In every Versus mode the hero you choose is locked on your screen at once. If the pick does not reach the server (a timeout, a refused or busy request), it is sent again, a few times, while the match is still on Hero Select and the server has no pick from you. '
+      + 'A pick the server says can never land (Hero Select is over, the clock ran out) is not resent. So "Waiting for your opponent" never sits out the whole hero clock for a pick that was simply lost, and the server never picks a random hero over the one you chose.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (Duos QA, report a)', quote: 'both players pressed ready and each said waiting on the other player, and then it eventually went through' },
+      { kind: 'fix-pr', ref: 'qa/duos-spectate-polish' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusStore.ts (pickVersusHero)' },
+    ],
+    currentBehaviour: 'Since 2026-10-29 (qa/duos-spectate-polish). Before, a failed pick only set an error that is not shown in a match. The owner report was not reproduced on the local Cloudflare stack (Hero Select and both-ready closes measured at about 0.2 s); this closes the one path found that matches it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusHeroPickRetry.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-SPECTATE-STRIKE-01',
+    title: 'On the watch screen the Health drops on the hero strike, as the player saw it',
+    statement:
+      'When a watched fight ends in a hero strike, the watch screen keeps the fight as it was until the blow lands, and the watched player Health (and the rail) drop on the impact beat, the same beat as on the player own screen. '
+      + 'Never a fixed time after the replay: not seconds after the blow (a second hit), and not in the middle of a long cosmetic attack. '
+      + 'A finished match closes the end gate after that impact and a short beat, never mid-strike. A strike that never reports its impact lets go after a safety cap (9 s).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (Duos + spectating QA, report b)', quote: 'spectating is doing some janky stuff at end of combat, rebuilding the opponent board and showing a hit or something weird. also end game didnt resolve nicely for spectators' },
+      { kind: 'fix-pr', ref: 'qa/duos-spectate-polish' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts (spectatorStrikeStarted / spectatorStrikeLanded); packages/ui/src/Recruit.tsx (the strike reports both)' },
+    ],
+    currentBehaviour: 'Since 2026-10-29 (qa/duos-spectate-polish). Before, the pinned fight let go 2.6 s after the replay ended: the Health dropped and the lobby was rebuilt then, after or in the middle of the strike (seen in the browser run: the settled view and a lobby rebuild arriving 2.6 s after replay done), and the end gate keyed on the same 2.6 s.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateQueue.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
 ];

@@ -58,6 +58,15 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Duos: swapping to your teammate\'s screen and back now starts the moment you click, with a smoother fade.' },
+      { category: 'Systems', text: 'Fixed: spectating is cleaner at the end of a fight.', details: [
+        'Watching a Duos fight, the fight no longer starts over when a player presses End Combat. The boards are not rebuilt and no hit plays twice.',
+        'Spectators no longer stay on the shop while the player they watch is already fighting.',
+        'Spectators no longer see the fight, then the old shop, then the new shop.',
+        'The watched player\'s Health now drops on the hero strike, the same moment the player sees it, not a few seconds later.',
+        'At the end of a match, the gate closes after the last blow lands, never in the middle of it.',
+      ] },
+      { category: 'Systems', text: 'Fixed: in Versus, a hero pick that did not reach the server is now sent again, so you are not left waiting for the clock or given a random hero.' },
       { category: 'Systems', text: 'Right-click a card or button once to clear your own ping on it.', details: [
         "Works on your own board, your Duos teammate's board, and as a mentor on your player's board.",
         'On a phone, long-press the card instead.',

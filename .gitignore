@@ -67,3 +67,5 @@ supabase/functions/versus-resolve/engine.generated.js
 .wrangler/
 .dev.vars
 docs/ops/db-reports/*.json
+apps/web/dist-bench*/
+.versus-qa/

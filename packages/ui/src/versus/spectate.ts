@@ -427,7 +427,7 @@ export function receiveSpectate(payload: unknown): void {
 // ── the watched player's actions, replayed in order ────────────────────────────────────────────────────────
 
 /** `before`: the view the message applied to (what the screen showed before these actions). */
-interface Pending { view: VersusSpectatorView; acts: SpectatorAct[]; before?: VersusSpectatorView | null }
+interface Pending { view: VersusSpectatorView; acts: SpectatorAct[]; before?: VersusSpectatorView | null; waitFrom?: number }
 let queue: Pending[] = [];
 /** The view on screen while the queue plays (null: the latest received). */
 let shownView: VersusSpectatorView | null = null;
@@ -532,7 +532,9 @@ function pump(): void {
   // THE PLAYER IS BACK IN THE SHOP while this screen still shows the fight (they skipped it, or this screen is behind):
   // the screen leaves the fight FIRST (the exit curtain, then the shop as it stood before these actions), and only then
   // plays them, on the shop they were made in (R-SPECTATE-SKIP-01). Never a shop action presented over a fight.
-  if (useGame.getState().run.phase === 'combat' && item.view.phase === 'recruit') {
+  const onScreen = useGame.getState().run;
+  if (staleShopItem(item, onScreen)) { pump(); return; }
+  if (onScreen.phase === 'combat' && item.view.phase === 'recruit') {
     queue.unshift(item);
     awaitingShop = true;
     shownView = item.before?.phase === 'recruit' ? item.before : item.view;
@@ -543,8 +545,13 @@ function pump(): void {
   // ON THE HAND'S CLOCK (R-SPECTATE-SMOOTH-01): an action lands when the drawn hand reaches the moment it happened on
   // the player's screen, not when its message arrived (which is usually before the hand gets there). Capped, and only
   // while the screen is not behind.
+  // The cap is on the action's WHOLE wait (R-SPECTATE-LANDWAIT-01): a hand whose clock reads ahead of this screen's (a
+  // drifting estimate, a throttled sender) once re-armed the wait on every retry, so the queue never moved again while
+  // its cursor kept arriving, and the stands sat on the shop through a whole fight (found by the spectator chaos cells).
+  const now = performance.now();
+  item.waitFrom ??= now;
   const due = queue.length < BEHIND ? cursorDueAt(item.acts.find((a) => typeof a.ts === 'number')?.ts) : null;
-  const wait = due === null ? 0 : Math.min(MAX_LAND_WAIT_MS, due - performance.now());
+  const wait = due === null ? 0 : Math.min(MAX_LAND_WAIT_MS - (now - item.waitFrom), due - now);
   if (wait > 4) {
     queue.unshift(item);
     busy = window.setTimeout(() => { busy = null; pump(); }, wait);
@@ -594,7 +601,23 @@ export function presentHeldDrop(acts: readonly { t: string; uid?: string }[], pr
   return false;
 }
 
+/**
+ * A SHOP ACTION FROM BEFORE THE FIGHT ON SCREEN (R-SPECTATE-STALE-SHOP-01): the screen already moved into the fight that
+ * shop led to (a match update rendered the latest view while the action was queued or still flying). It is history:
+ * landing it would take the screen back OUT of the fight to the shop it was made in, then into the fight again (found by
+ * the spectator chaos cells: "combat 1 -> recruit 1"). Dropped, never presented.
+ */
+function staleShopItem(item: Pending, onScreen: RunState): boolean {
+  return onScreen.phase === 'combat' && item.view.phase === 'recruit' && item.view.wave <= onScreen.wave;
+}
+
 function land(item: Pending, prevRun: RunState): void {
+  if (staleShopItem(item, useGame.getState().run)) {
+    releaseGhostHold();
+    if (useGame.getState().replayDragGhost) useGame.setState({ replayDragGhost: null });
+    busy = window.setTimeout(() => { busy = null; pump(); }, 0);
+    return;
+  }
   // The card in the hand that let go of it (the flight's ghost, or the live drag's): where its plate dissolves from.
   const plate = document.querySelector<HTMLElement>('.replay-dragghost .ghostcardwrap .card')?.getBoundingClientRect() ?? null;
   presentHeldDrop(item.acts, prevRun, item.view as { hand?: { uid: string }[]; triplesMade?: number });
@@ -924,6 +947,15 @@ async function fetchKeyframes(): Promise<void> {
   } catch { /* retried on the next gap */ } finally { fetching = false; }
 }
 
+/**
+ * Render NOW (the teammate-view swap, R-DUOS-VIEW-SWAP-01): the swap runs inside a View Transition, whose update callback
+ * must leave the DOM showing the new screen when it returns, and no animation frame runs while it is pending. A render
+ * already scheduled for the next frame is taken here instead.
+ */
+export function flushSpectateRender(): void {
+  if (raf) { cancelAnimationFrame(raf); raf = 0; }
+  render();
+}
 /** One render per animation frame, whatever the burst. */
 function schedule(): void {
   if (raf) return;
@@ -1064,12 +1096,43 @@ function pinnedView(seat: VersusGroupSeat, view: VersusSpectatorView): VersusSpe
   lateEntry = false;
   return pin && !pin.released ? pin.view : view;
 }
+/**
+ * THE HIT LANDS ON THE BLOW (R-SPECTATE-STRIKE-01, owner 2026-10-29: "spectating is doing some janky stuff at end of
+ * combat ... showing a hit or something weird"). The watched player's Health drops on their hero strike's impact
+ * (`settleCombat` in Recruit's strike). The watch screen swallows that dispatch and used to let its pinned fight go a
+ * fixed 2.6 s after the replay ended instead: the Health dropped (a second "-X") seconds after the blow, or in the middle
+ * of a long cosmetic strike. Now Recruit reports the strike: its start holds the pin (a safety cap only), its impact
+ * releases it on that beat, as the player saw it.
+ */
+const STRIKE_SAFETY_MS = 9000;
+/** After the blow lands, the beat the strike's aftermath gets before a finished match's end gate may close. */
+const AFTER_IMPACT_MS = 1500;
+/** A strike is playing on this screen: the end gate waits for its impact, not a fixed time (R-SPECTATE-END-01). */
+let striking = false;
+export function spectatorStrikeStarted(): void {
+  if (!useSpectate.getState().active) return;
+  striking = true;
+  // A strike that never reports its impact (cancelled, unmounted) still lets the screen and the end gate go.
+  if (releaseTimer != null) window.clearTimeout(releaseTimer);
+  releaseTimer = window.setTimeout(() => { releaseTimer = null; spectatorStrikeLanded(); }, STRIKE_SAFETY_MS);
+}
+export function spectatorStrikeLanded(): void {
+  if (!useSpectate.getState().active) return;
+  if (striking) {
+    striking = false;
+    const key = `${matchId}|${useGame.getState().run.wave}`;
+    window.setTimeout(() => { fightShown = key; maybeEndWatch(); }, AFTER_IMPACT_MS);
+  }
+  if (releaseTimer != null) { window.clearTimeout(releaseTimer); releaseTimer = null; }
+  if (pin && !pin.released) { pin.released = true; schedule(); }
+}
 function onReplayDone(done: boolean): void {
   // A finished match waits for its last fight (and the strike after it) before the end gate (R-SPECTATE-END-01).
   // (Noted on every finished fight: the match row can complete after the screen has already played the last one.)
   if (done) {
     const key = `${matchId}|${useGame.getState().run.wave}`;
-    window.setTimeout(() => { fightShown = key; maybeEndWatch(); }, STRIKE_MS);
+    // A strike still playing marks the fight shown at its impact instead (`spectatorStrikeLanded`).
+    window.setTimeout(() => { if (striking) return; fightShown = key; maybeEndWatch(); }, STRIKE_MS);
   }
   if (!done || !pin || pin.released || releaseTimer != null) return;
   releaseTimer = window.setTimeout(() => { releaseTimer = null; if (pin) pin.released = true; schedule(); }, STRIKE_MS);
@@ -1177,6 +1240,7 @@ export function stopSpectating(restoreOnly = false): void {
   unsubDone = null;
   if (releaseTimer != null) { window.clearTimeout(releaseTimer); releaseTimer = null; }
   pin = null;
+  striking = false;
   lateEntry = true;
   fightBeat = null;
   resumeAt = null;

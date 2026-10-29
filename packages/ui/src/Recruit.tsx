@@ -272,7 +272,7 @@ import { godEndTurnNeedsPick, runGodPick, type GodPromptState } from './godMode/
 import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 import { VersusHud, useVersusRecruit } from './versus/VersusHud';
 import { finishVersusMatch, useVersusPaused, versusEndCombatPressed, versusMatchEndsAtPress } from './versus/versusStore';
-import { noteSpectatorBeat, overlayMinOf, spectatorFightCovered, takeSpectatorResume, useSpectate } from './versus/spectate';
+import { noteSpectatorBeat, overlayMinOf, spectatorFightCovered, spectatorStrikeLanded, spectatorStrikeStarted, takeSpectatorResume, useSpectate } from './versus/spectate';
 import { useReplayStream } from './replay/replayStreamPlayer';
 import { notePlayerBeat, tapOdds, tapOverlay, tapSkipCombat } from './versus/spectateTap';
 import { WatchersBadge } from './versus/WatchersBadge';
@@ -3746,11 +3746,13 @@ export function Recruit() {
           ? { play: playHeroQuake, preview: heroQuakePreviewSpeed() }
           : { play: playHeroBlast, preview: heroBlastPreviewSpeed() };
       setLossPhase('blast');
+      spectatorStrikeStarted(); // the watch screen holds its fight until this blow lands (R-SPECTATE-STRIKE-01)
       const landBlast = (): void => {
         // The style punches its own big hit number onto the struck hero (above every flash), so the portrait's small
         // red number is not shown too.
         if (playerWon) useGame.getState().setOppDmgDealt(strikeDmg);
         dispatch({ type: 'settleCombat' }); // the health drop lands on the impact beat, exactly as Classic's
+        spectatorStrikeLanded(); // ...and on the watch screen (its dispatch is swallowed), on the same beat
       };
       blastRef.current = runner.play({
         formation,
@@ -3781,6 +3783,7 @@ export function Recruit() {
     // and connects with the hit-stop, the strike burst, the knockback and the same big -N; the health drops on
     // contact. Only the attacking side is raised above the other portrait for the swing (see `.duel-attacker-*`).
     setLossPhase('blast');
+    spectatorStrikeStarted();
     const zClass = playerWon ? 'duel-attacker-player' : 'duel-attacker-opp';
     document.body.classList.add(zClass);
     blastRef.current = playHeroClassic({
@@ -3790,6 +3793,7 @@ export function Recruit() {
       onImpact: () => {
         if (playerWon) useGame.getState().setOppDmgDealt(strikeDmg);
         dispatch({ type: 'settleCombat' }); // the health drop lands on contact, exactly as every style's
+        spectatorStrikeLanded();
       },
       onDone: () => {
         blastRef.current = null;

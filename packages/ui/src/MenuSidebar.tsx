@@ -87,7 +87,7 @@ interface Item { dest: SidebarCurrent; label: string; icon: ReactNode }
  *   - PLAY, the one primary action: larger, and the gold-filled plaque (the gold rule: Play is the only bright
  *     filled gold on a menu screen; navigation stays navy with a bronze rim);
  *   - PROGRESS: Career, Collection;
- *   - COMMUNITY: Leaderboard, Hall of Champions, Recent Games, Live Games;
+ *   - COMMUNITY: Leaderboard, Hall of Champions, Recent Games, Live Games, Patch Notes;
  *   - Settings, pinned to the foot.
  * Every destination is still one click from every page (Valorant 5.08 hid modes behind Play and had to revert).
  */
@@ -97,12 +97,11 @@ let lastIndicatorY: number | null = null;
 /**
  * IN A GAME (owner 2026-10-29, R-ESC-SIDEBAR-01) the same rail is the in-game menu: Escape slides it in over the dimmed
  * game (`GameMenu.tsx`), and every page it opens wears it. Play becomes the gold RESUME, the Shop clock sits under it,
- * Patch Notes joins the rail, and the foot carries Settings then the LEAVE button (Save & Quit / Concede / ...,
+ * and the foot carries Settings then the LEAVE button (Save & Quit / Concede / ...,
  * `gameMenuParts.tsx`). No painted backdrop: the game shows through, dimmed. `current` is null on the bare rail.
  */
 export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
   const inGame = useGame((s) => s.gameMenuOpen);
-  const openPatchNotes = useGame((s) => s.openPatchNotes);
   const navRef = useRef<HTMLElement>(null);
   const indRef = useRef<HTMLSpanElement>(null);
   // THE SELECTION BAR (2026-10-16): measured ONCE per page (offsetTop, before paint), then a single transform
@@ -149,6 +148,8 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
     { dest: 'recent', label: 'Recent Games', icon: <Icon name="clock" /> },
     { dest: 'live', label: 'Live Games', icon: <Icon name="sword" /> },
     // No Friends plaque any more (owner 2026-10-29, R-FRIENDS-DOCK-02): the global Friends dock, bottom left, is it.
+    // PATCH NOTES is a page like the others (owner 2026-10-29, R-PATCHNOTES-PAGE-01), on the menus and in a game.
+    { dest: 'patchnotes', label: 'Patch Notes', icon: <Icon name="clock" /> },
   ];
 
   const plaque = (it: Item, extra = '', badge: ReactNode = null): JSX.Element => {
@@ -205,13 +206,6 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
         <div className="msb-group" role="group" aria-label="Community">
           <div className="msb-gh" aria-hidden="true">Community</div>
           {community.map((it) => plaque(it))}
-          {/* PATCH NOTES in a game (owner 2026-10-29): the title's Patch Notes, opened over the game. */}
-          {inGame && (
-            <button className="sbbtn" onClick={() => { sfx.pulse(); openPatchNotes(); }}>
-              <span className="mbicon"><Icon name="clock" /></span>
-              <span className="mblabel">Patch Notes</span>
-            </button>
-          )}
         </div>
       </nav>
       {inGame && <InGameNote />}

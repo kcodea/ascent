@@ -40,14 +40,15 @@ export interface CareerView {
 export type TitleView = 'menu' | 'modes' | 'learn' | 'gauntlet' | 'versus';
 /** Where the menu sidebar can send the player: the title menu / mode picker, or one of the ladder pages. 'friends' is
  *  not a page any more (R-FRIENDS-DOCK-02): it opens the global Friends dock over whatever is on screen. */
-export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'live' | 'collection' | 'settings' | 'friends';
+export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'live' | 'collection' | 'settings' | 'patchnotes' | 'friends';
 /** Every ladder page closed — the set `goTo` / `openTitle` clear (and the one `startReplay` clears). Settings is a page
- *  like the others since 2026-10-29 (R-ESC-SIDEBAR-01), so it closes with them. */
-export const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false, settingsOpen: false } as const;
-/** Is any sidebar page (a ladder page, Collection or Settings) open? The title skips its paint under one, and the in-game
- *  menu hides its own rail while a page (which carries the rail) is up. */
-export const anyPageOpen = (s: Pick<GameStore, 'showCareer' | 'showRankings' | 'showLeaderboard' | 'showRecentGames' | 'showLiveGames' | 'showCollection' | 'settingsOpen'>): boolean =>
-  s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showLiveGames || s.showCollection || s.settingsOpen;
+ *  like the others since 2026-10-29 (R-ESC-SIDEBAR-01), and so is Patch Notes (R-PATCHNOTES-PAGE-01), so both close
+ *  with them. */
+export const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false, settingsOpen: false, showPatchNotes: false } as const;
+/** Is any sidebar page (a ladder page, Collection, Settings or Patch Notes) open? The title skips its paint under one,
+ *  and the in-game menu hides its own rail while a page (which carries the rail) is up. */
+export const anyPageOpen = (s: Pick<GameStore, 'showCareer' | 'showRankings' | 'showLeaderboard' | 'showRecentGames' | 'showLiveGames' | 'showCollection' | 'settingsOpen' | 'showPatchNotes'>): boolean =>
+  s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showLiveGames || s.showCollection || s.settingsOpen || s.showPatchNotes;
 /** Is the player IN a game (a run, its hero select, a replay, a watched game) rather than on the menus? This is where
  *  Escape opens the in-game menu (the sidebar over the dimmed game, R-ESC-SIDEBAR-01) instead of the Settings page. */
 export const inGameScreen = (s: Pick<GameStore, 'showTitle' | 'practiceSetupOpen'>): boolean => !s.showTitle && !s.practiceSetupOpen;
@@ -879,7 +880,8 @@ interface GameStore {
   showBalance: boolean;
   openBalance: () => void;
   closeBalance: () => void;
-  /** Patch Notes overlay — opened from the TITLE only (owner ask 2026-08-24). */
+  /** The Patch Notes PAGE is open (owner 2026-10-29, R-PATCHNOTES-PAGE-01: a sidebar page like Settings, opened from the
+   *  title's Patch Notes button and from the menu sidebar, on the menus and in a game). It was a centred overlay. */
   showPatchNotes: boolean;
   openPatchNotes: () => void;
   closePatchNotes: () => void;
@@ -3047,6 +3049,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       case 'live': set({ ...PAGES_CLOSED, ...off, showLiveGames: true, navHopAt }); break;
       case 'collection': set({ ...PAGES_CLOSED, ...off, showCollection: true, navHopAt }); break;
       case 'settings': set({ ...PAGES_CLOSED, ...off, settingsOpen: true, navHopAt }); break;
+      case 'patchnotes': set({ ...PAGES_CLOSED, ...off, showPatchNotes: true, navHopAt }); break;
       // The Friends page is gone (owner 2026-10-29, R-FRIENDS-DOCK-02): a request for it opens the dock in place.
       case 'friends': openDockOn('friends'); break;
     }

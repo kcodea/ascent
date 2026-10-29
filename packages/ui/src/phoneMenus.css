@@ -664,6 +664,22 @@ html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escs
 html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escselect-list { top: calc(100% + 4 * var(--pt)); gap: calc(2 * var(--pt)); padding: calc(4 * var(--pt)); border-radius: calc(8 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escselect-opt { min-height: calc(38 * var(--pt)); padding: 0 calc(10 * var(--pt)); border-radius: calc(6 * var(--pt)); font-size: calc(13.5 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel::after { content: ''; display: block; height: calc(12 * var(--pt)); }
+
+/* ── PATCH NOTES (a sidebar page since 2026-10-29, R-PATCHNOTES-PAGE-01) ──
+   The tab bar and the list at their real size in the page's scroller: the tabs and the Summary / Detailed toggle as
+   40 pt tap targets on one line, then the dated entries at body size. */
+html[data-touch-ui][data-touch-small][data-page-scale] .pn-page .pnbar { width: auto; margin: 0 calc(16 * var(--pt)); gap: calc(8 * var(--pt)); padding-bottom: calc(8 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .pn-page :is(.pntab, .pntoggle-btn) { font-size: calc(12 * var(--pt)); min-height: calc(36 * var(--pt)); padding: 0 calc(14 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .pn-page .pncol { width: 100%; }
+html[data-touch-ui][data-touch-small][data-page-scale] .pn-page .pnpatch { padding: calc(10 * var(--pt)) 0; }
+html[data-touch-ui][data-touch-small][data-page-scale] .pn-page .pnpatchhead { gap: calc(8 * var(--pt)); margin-bottom: calc(6 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .pn-page .pndate { font-size: calc(15 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .pn-page .pnlabel { font-size: calc(10.5 * var(--pt)); padding: calc(1 * var(--pt)) calc(7 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .pn-page .pnlist { gap: calc(5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .pn-page .pnlist > li { font-size: calc(13.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .pn-page .pnsublist { padding-left: calc(16 * var(--pt)); gap: calc(3 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .pn-page .pnsublist li { font-size: calc(12 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .pn-page .pnempty { font-size: calc(13 * var(--pt)); }
 /* The open game appears at once on a phone (no rise-in): one less animation on a busy page, and it is never caught
    half-faded while a long list is still settling. */
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-in { animation-name: none; }

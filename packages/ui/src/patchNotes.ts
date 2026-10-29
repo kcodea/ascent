@@ -1,5 +1,5 @@
 /**
- * PATCH NOTES — the player-facing, gameplay-only changelog shown from the title screen.
+ * PATCH NOTES — the player-facing, gameplay-only changelog shown on the Patch Notes page (PatchNotesPage.tsx).
  *
  * ONE ENTRY PER PATCH, NEWEST FIRST. Each entry is a date (the patch's ship date, absolute) with an optional
  * short version label, and a flat list of changes tagged by category. The viewer renders these verbatim, so
@@ -62,6 +62,11 @@ export const PATCH_NOTES: PatchNote[] = [
         'Pick one in Settings under Board backdrop: Castle, Runic Slate, Cosmic Energy, Dark Sanctum, Temple, Stone Courtyard, Koi Pond, Fresh Pond, Bamboo Forest, Treasure Hoard or Celestial.',
         'Each is one painted scene that fills your whole screen, ultrawide monitors included.',
         'If you already chose a backdrop, you keep it. Oak planks and the other patterns are still there too.',
+      ] },
+      { category: 'Systems', text: 'Patch Notes is now a page like Settings, with the menu sidebar beside it.', details: [
+        'Open it from the Patch Notes button on the main menu, or from the sidebar on any menu page.',
+        'In a game, press Escape and pick Patch Notes. Your game stays on screen, dimmed.',
+        'Escape, Resume, or a tap on the game closes it, the same as every other page.',
       ] },
       { category: 'Systems', text: 'Fixed: pressing Watch on a friend in the Friends list now takes you into their game from any screen.', details: [
         'Before, from a menu page like Career or Recent Games, the game started behind the page and you never saw it.',

@@ -415,11 +415,10 @@ html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .msb-gh { fo
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .sbbtn { min-height: 62px; }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .mblabel { font-size: 17.5px; }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .msb-nav { gap: 3px; }
-/* The modal panels a phone opens from the menus read at ~10 pt: Patch Notes, Report a Problem, the Compendium and its
+/* The modal panels a phone opens from the menus read at ~10 pt: Report a Problem, the Compendium and its
    Rules, the spectator's end notice. Each zooms (it reflows at the zoomed size) and its viewport-sized caps divide by the
    same factor, so it still fits the screen and scrolls inside. */
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --pm-z: 2.1; --pm-book: 1.7; }
-html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .pnpanel { zoom: var(--pm-z); width: min(820px, calc(92 * var(--vw, 1vw) / var(--pm-z))); max-height: calc(88 * var(--vh, 1vh) / var(--pm-z)); }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .bgrpanel { zoom: var(--pm-z); width: min(640px, calc(92 * var(--vw, 1vw) / var(--pm-z))); max-height: calc(88 * var(--vh, 1vh) / var(--pm-z)); }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .book { scale: var(--pm-book); width: min(2300px, calc((100 * var(--vw, 1vw) - var(--safe-l) - var(--safe-r)) / var(--pm-book))); height: min(1450px, calc((100 * var(--vh, 1vh) - var(--safe-t) - var(--pz-safe-b, var(--safe-b))) / var(--pm-book))); }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lvend .vspanel { zoom: var(--pm-z); }

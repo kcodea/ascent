@@ -115,7 +115,7 @@ describe('the combat <-> shop curtain outranks every in-game layer (R-PRESENT-17
   it('while it is up, the menus and replay controls rise over it at their own z + 2600, under the dev tools', () => {
     const rules = zRules(css);
     const zOf = (sel: string): number | undefined => rules.find((r) => r.selectors.includes(sel))?.z;
-    for (const sel of ['.gmenu', '.pnov', '.inspect-ov', '.disc-toggle.disc-peek.inspect-act', '.replay-cursor', '.acctpanel',
+    for (const sel of ['.gmenu', '.inspect-ov', '.disc-toggle.disc-peek.inspect-act', '.replay-cursor', '.acctpanel',
       '.roundrail-wrap', '.bgrov', '.replaybar', '.bgrtoast']) {
       const base = zOf(sel);
       const lifted = zOf(`body.wipe-up ${sel}`);

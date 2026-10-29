@@ -48,13 +48,6 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'boardY', cssVar: '--board-y', label: 'Board Y offset', group: 'Global', min: -800, max: 800, step: 1, def: 5, fmt: 'px' },
   // Backdrop behind the cutout board (owner 2026-10-28): tile size, then a black wash and a colour wash over it. The
   // texture and the wash colour are the string knobs in LAYOUT_STR_VARS below.
-  { key: 'btexSize', cssVar: '--btex-size', label: 'Tile size', group: 'Backdrop', min: 150, max: 2400, step: 10, def: 430, fmt: 'px' },
-  { key: 'btexDark', cssVar: '--btex-dark', label: 'Darkness', group: 'Backdrop', min: 0, max: 1, step: 0.01, def: 0.24, fmt: 'mul' },
-  { key: 'btexBlur', cssVar: '--btex-blur', label: 'Blur', group: 'Backdrop', min: 0, max: 30, step: 0.5, def: 0, fmt: 'px' },
-  { key: 'btexTint', cssVar: '--btex-tint', label: 'Tint amount', group: 'Backdrop', min: 0, max: 1, step: 0.01, def: 0.16, fmt: 'mul' },
-  { key: 'bshadowA', cssVar: '--bshadow-a', label: 'Board shadow strength', group: 'Backdrop', min: 0, max: 1, step: 0.01, def: 0.72, fmt: 'mul' },
-  { key: 'bshadowX', cssVar: '--bshadow-x', label: 'Board shadow X', group: 'Backdrop', min: -80, max: 80, step: 1, def: 6, fmt: 'px' },
-  { key: 'bshadowY', cssVar: '--bshadow-y', label: 'Board shadow Y', group: 'Backdrop', min: -80, max: 80, step: 1, def: 8, fmt: 'px' },
   // The hero group (portrait + rune slots + name pill + Health + hero power) as one, and the hero power on its own
   // inside it (on top of its board-grow shift). Owner 2026-10-28.
   { key: 'herogrpX', cssVar: '--herogrp-x', label: 'Group X', group: 'Hero group', min: -200, max: 200, step: 1, def: -35, fmt: 'px' },
@@ -157,25 +150,11 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'buyZoneY', cssVar: '--z-buyzone-y', label: 'Buy edge', group: 'Buy/Sell zones', min: -400, max: 400, step: 1, def: 79, fmt: 'px' },
 ];
 
-/** The Backdrop knobs that a player's Settings pick also sets (backdrop.ts). The Lab writes NONE of them until you
- *  touch one; from then on it writes ALL of them (so picking Stone in the Lab shows Stone, not the Settings choice)
- *  until Reset. The flag is saved, so a reload keeps the Lab's backdrop. */
-const BACKDROP_PRESET_KEYS = new Set(['btexSize', 'btexDark', 'btexBlur', 'btexTint', 'btexImg', 'btexTintCol', 'bshadowA', 'bshadowX', 'bshadowY']);
-const LAB_BACKDROP_KEY = 'ascent.layoutlab.backdropOn';
-let labBackdropOn = ((): boolean => {
-  if (!import.meta.env.DEV) return false;
-  try { return localStorage.getItem(LAB_BACKDROP_KEY) === '1'; } catch { return false; }
-})();
-function setLabBackdropOn(on: boolean): void {
-  labBackdropOn = on;
-  try { if (on) localStorage.setItem(LAB_BACKDROP_KEY, '1'); else localStorage.removeItem(LAB_BACKDROP_KEY); } catch { /* ignore */ }
-}
-
 /**
  * BACKDROP TEXTURES (owner 2026-10-28: "ill be adding more"). Each is a seamless tile in apps/web/public. To add one:
- * drop the webp there and add a line here; it appears in the Layout Lab's Backdrop dropdown.
+ * drop the webp there, add a line here and a preset in backdrop.ts; tune it in the DEV Background Tuner.
  * `cover: true` marks a SINGLE painted image instead of a tile (owner 2026-10-29): it is scaled to fill the window,
- * centred, never repeated, and the Tile size knob does nothing for it. Paint one 16:9 against the board template, with
+ * never repeated; the Background Tuner zooms and positions it. Paint one 16:9 against the board template, with
  * the detail in the margins the board leaves visible.
  */
 export const BACKDROP_TEXTURES: Record<string, { label: string; url: string; cover?: boolean }> = {
@@ -225,14 +204,8 @@ export interface LayoutStrDef {
   /** The CSS value written for a stored value. */
   css: (v: string) => string;
 }
+/** The Layout Lab's string knobs. Empty since the board backdrop moved to its own Background Tuner (owner 2026-10-29). */
 export const LAYOUT_STR_VARS: LayoutStrDef[] = [
-  {
-    key: 'btexImg', cssVar: '--btex-img', label: 'Texture', group: 'Backdrop', kind: 'select', def: 'oak',
-    options: Object.keys(BACKDROP_TEXTURES),
-    optionLabels: Object.fromEntries(Object.entries(BACKDROP_TEXTURES).map(([k, v]) => [k, v.label])),
-    css: (v) => `url('${(BACKDROP_TEXTURES[v] ?? BACKDROP_TEXTURES.stone).url}')`,
-  },
-  { key: 'btexTintCol', cssVar: '--btex-tint-col', label: 'Tint colour', group: 'Backdrop', kind: 'color', def: '#472a00', css: (v) => v },
 ];
 export type LayoutStrConfig = Record<string, string>;
 const STR_STORAGE_KEY = 'ascent.layoutlab.str';
@@ -257,19 +230,12 @@ function applyLayoutStrings(cfg: LayoutStrConfig): void {
   const root = document.documentElement.style;
   for (const v of LAYOUT_STR_VARS) {
     const s = cfg[v.key] ?? v.def;
-    if (BACKDROP_PRESET_KEYS.has(v.key) && !labBackdropOn) { root.removeProperty(v.cssVar); continue; }
     root.setProperty(v.cssVar, v.css(s));
   }
-  // A cover texture can't be told apart by a CSS var value, so the Lab's fit rides on an attribute (styles.css
-  // .boardbg-tex): set while the Lab drives the backdrop, so a tile picked here beats a cover picked in Settings.
-  const html = document.documentElement;
-  if (labBackdropOn) html.dataset.btexFit = backdropFit(cfg.btexImg ?? 'oak');
-  else delete html.dataset.btexFit;
 }
 let currentStr: LayoutStrConfig = loadLayoutStrings();
 export function getLayoutStrings(): LayoutStrConfig { return currentStr; }
 export function setLayoutString(key: string, val: string): void {
-  if (BACKDROP_PRESET_KEYS.has(key)) { setLabBackdropOn(true); applyLayout(current); }
   currentStr = { ...currentStr, [key]: val };
   try { localStorage.setItem(STR_STORAGE_KEY, JSON.stringify(currentStr)); } catch { /* ignore */ }
   applyLayoutStrings(currentStr);
@@ -309,7 +275,6 @@ export function applyLayout(cfg: LayoutConfig): void {
   const root = document.documentElement.style;
   for (const v of LAYOUT_VARS) {
     const n = cfg[v.key] ?? v.def;
-    if (BACKDROP_PRESET_KEYS.has(v.key) && !labBackdropOn) { root.removeProperty(v.cssVar); continue; }
     root.setProperty(v.cssVar, v.fmt === 'px' ? `${n}px` : String(n));
   }
 }
@@ -317,13 +282,11 @@ export function applyLayout(cfg: LayoutConfig): void {
 let current: LayoutConfig = loadLayout();
 export function getLayout(): LayoutConfig { return current; }
 export function setLayoutValue(key: string, val: number): void {
-  if (BACKDROP_PRESET_KEYS.has(key)) { setLabBackdropOn(true); applyLayoutStrings(currentStr); }
   current = { ...current, [key]: val };
   saveLayout(current);
   applyLayout(current);
 }
 export function resetLayout(): void {
-  setLabBackdropOn(false);
   current = defaultLayout();
   saveLayout(current);
   applyLayout(current);

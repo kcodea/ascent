@@ -11,6 +11,7 @@ import { bugBoardPlugin } from './bugBoardPlugin';
 import { qaScenarioPlugin } from './qaScenarioPlugin';
 import { gauntletStagePlugin, STAGES_DIR } from './gauntletStagePlugin';
 import { plateTuningPlugin } from './plateTuningPlugin';
+import { backdropTuningPlugin } from './backdropTuningPlugin';
 import { workbenchPlugin } from './workbenchPlugin';
 import { publicArtList } from './publicArt';
 import { phoneArtPlugin } from './phoneArtPlugin';
@@ -63,11 +64,13 @@ export default defineConfig(({ command }) => ({
   // writes nothing — the workbench's one write (accepting a wording recommendation) reuses /__rulebook/decide.
   // `plateTuningPlugin` (also `apply: 'serve'`) = the Card Plate Editor's POST /__plates/tuning: one plate's frame and
   // interior numbers into packages/ui/src/cardPlate/plate-tuning.json, then that plate's Collection image rebuilt.
+  // `backdropTuningPlugin` (also `apply: 'serve'`) = the Background Tuner's POST /__backdrops/tuning: one board backdrop's
+  // tune (zoom, position, darkness, tint, shadow) into packages/ui/src/backdrop-tuning.json.
   // `gauntletStagePlugin` (also `apply: 'serve'`) = the Stage Builder's GET/POST /__gauntlet/stage over
   // packages/content/src/gauntlet/stages/*.json. That directory is watcher-ignored so a Save does not force a
   // full page reload (which would throw away the sandbox): the running game keeps the BUNDLED stage data until
   // the dev server restarts, while the Stage Builder always reads from disk via GET.
-  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin(), bugBoardPlugin(), qaScenarioPlugin(), workbenchPlugin(), gauntletStagePlugin(), plateTuningPlugin(),
+  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin(), bugBoardPlugin(), qaScenarioPlugin(), workbenchPlugin(), gauntletStagePlugin(), plateTuningPlugin(), backdropTuningPlugin(),
     // Production only: the downscaled phone copies of the big art + the `__PHONE_ART__` list of them (phoneArtPlugin.ts).
     phoneArtPlugin({ uiSrc: r('../../packages/ui/src'), publicDir: r('./public'), publicArt, cacheDir: r('../../node_modules/.cache/phone-art') })],
   // HOVER GUARD (R-TOUCH-HOVERGUARD-01): every hover glow / lift rule is wrapped in `@media (hover: hover)` at build

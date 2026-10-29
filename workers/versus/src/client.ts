@@ -67,6 +67,12 @@ export interface VersusCfClientOptions {
   /** Socket state changes (`open` after a successful hello, `down` on any drop, `dead` when it will not reconnect). */
   onStatus?: (status: 'open' | 'down' | 'dead', detail?: string) => void;
   requestTimeoutMs?: number;
+  /**
+   * The longest `connect()` waits for the room's hello (R-VERSUS-CF-CONNECT-01). Past it `connect()` rejects with
+   * `timeout` instead of waiting forever: a refused upgrade (a room that is gone answers 404, which a browser only sees as
+   * a dropped socket) would otherwise retry for ever and the caller's promise would never settle. Unset: no deadline.
+   */
+  connectTimeoutMs?: number;
   /** Calls `fn` whenever the device's network comes back (the browser's `online` event); returns an unsubscribe. */
   wake?: (fn: () => void) => () => void;
   /** Timer hooks (tests). */
@@ -124,9 +130,25 @@ export class VersusCfClient {
     this.closed = false;
     if (!this.unwake && this.o.wake) this.unwake = this.o.wake(() => this.reconnectNow());
     return new Promise<void>((resolve, reject) => {
-      this.openWaiters.push({ resolve, reject });
-      void this.open().catch((e: Error) => { this.openWaiters = this.openWaiters.filter((w) => w.resolve !== resolve); reject(e); });
+      let timer: unknown = null;
+      const done = (): void => { if (timer != null) this.clearTimer(timer); timer = null; };
+      const w = { resolve: () => { done(); resolve(); }, reject: (e: Error) => { done(); reject(e); } };
+      this.openWaiters.push(w);
+      if (this.o.connectTimeoutMs != null) {
+        timer = this.setTimer(() => {
+          timer = null;
+          if (!this.openWaiters.includes(w)) return;
+          this.openWaiters = this.openWaiters.filter((x) => x !== w);
+          reject(new VersusCfError('timeout'));
+        }, this.o.connectTimeoutMs);
+      }
+      void this.open().catch((e: Error) => { this.openWaiters = this.openWaiters.filter((x) => x !== w); w.reject(e); });
     });
+  }
+
+  /** Every `connect()` still waiting fails with `code` (the socket was closed, or refused for good): never left hanging. */
+  private failWaiters(code: string): void {
+    for (const w of this.openWaiters.splice(0)) w.reject(new VersusCfError(code));
   }
 
   /** One request. Rejects with the server's error code (`VersusCfError`). */
@@ -157,6 +179,7 @@ export class VersusCfClient {
     if (this.retryTimer != null) { this.clearTimer(this.retryTimer); this.retryTimer = null; }
     if (this.pingTimer != null) this.clearTimer(this.pingTimer);
     for (const [id, p] of this.pending) { this.clearTimer(p.timer); p.reject(new VersusCfError('closed')); this.pending.delete(id); }
+    this.failWaiters('closed');
     try { this.ws?.close(1000, 'bye'); } catch { /* already closed */ }
     this.ws = null;
   }
@@ -266,6 +289,7 @@ export class VersusCfClient {
       if (this.closed || fatal) {
         this.o.onStatus?.('dead', reason ?? String(code));
         for (const [id, p] of this.pending) { this.clearTimer(p.timer); p.reject(new VersusCfError(reason || 'closed')); this.pending.delete(id); }
+        this.failWaiters(reason || 'closed');
         return;
       }
       this.o.onStatus?.('down', reason);

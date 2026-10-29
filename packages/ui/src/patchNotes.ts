@@ -58,6 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Fixed: Duo and Play could get stuck on "Opening your party..." for good.', details: [
+        'Your party now opens even when the game server is slow to answer.',
+        'If it still cannot open, you see why and a Try again button after a few seconds.',
+        'Versus rooms got the same fix. Creating or joining a room can no longer hang without a message.',
+      ] },
       { category: 'Systems', text: 'New: live pings. Point at a card with Check, No, Question, Pass or Sell, or at a shop button with Check, No or Question.', details: [
         'Right-click a shop card, a minion, a hand card or a shop button in a game. On a phone, press and hold.',
         'The menu still has Inspect, so you can always look at a card.',

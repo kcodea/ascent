@@ -221,6 +221,8 @@ const ERROR_TEXT: Record<string, string> = {
   hero_taken: 'Your teammate picked that hero.',
   room_not_sealed: 'The game is already starting.',
   team_in_game: 'Rename your team between games.',
+  party_slow: 'Your party did not open. Try again.',
+  party_closed: 'Your party closed.',
 };
 const errorText = (e: unknown): string => ERROR_TEXT[(e as VersusError)?.code] ?? ERROR_TEXT.network!;
 
@@ -388,12 +390,17 @@ export async function leaveRoom(): Promise<void> {
   duosReset(); // VERSUS DUOS: no pass transport outlives the room
   const room = get().room;
   stopSession();
-  set({ room: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, statsOpen: false, seatMove: null, screen: 'browser', resolveSlow: null });
+  // THE DUOS DOOR NEVER WAITS ON NOTHING (R-VERSUS-CF-CONNECT-01): losing my party while its door is on screen (the room
+  // closed, I was dropped from it) says so, with Try again, instead of falling back to an endless "Opening your party...".
+  // Back (`leaveDuosParty`) shows the mode screen first, so a chosen leave never sets this.
+  const doorShowing = !!room && isDuosParty(room) && get().area === 'duos' && useGame.getState().titleView === 'versus';
+  set({ room: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, statsOpen: false, seatMove: null, screen: 'browser', resolveSlow: null, ...(doorShowing ? { error: ERROR_TEXT.party_closed! } : {}) });
   if (useGame.getState().run.mode === 'versus') useGame.getState().leaveVersusRun();
   if (room) {
     try { await versusRemote.leaveRoom(room.id); } catch { /* the server prunes a silent member anyway */ }
   }
-  void refreshRooms();
+  // The Versus room list (the Duos door lists nothing, and a refresh would clear the reason it shows).
+  if (!doorShowing) void refreshRooms();
 }
 
 // ── the session loop ───────────────────────────────────────────────────────────────────────────────────────
@@ -1895,6 +1902,24 @@ export async function createDuosParty(name: string): Promise<void> {
  *  room specific for duo's where you can invite a friend"): Duo + Play lands in MY party. Already in a room (a party I
  *  left the screen of, or a reload): back into it. Otherwise a new party, me in the first seat. */
 export async function enterDuosParty(name: string): Promise<void> {
+  // NEVER AN ENDLESS "Opening your party..." (R-VERSUS-CF-CONNECT-01, live 2026-10-29): the whole open has a deadline.
+  // Past it the door shows a reason and Try again; a party that still arrives late is entered as usual.
+  const seq = ++duosOpenSeq;
+  let timer = 0;
+  const deadline = new Promise<'late'>((r) => { timer = window.setTimeout(() => r('late'), DUOS_OPEN_DEADLINE_MS); });
+  try {
+    const out = await Promise.race([openDuosParty(name).then(() => 'done' as const), deadline]);
+    if (out === 'late' && seq === duosOpenSeq && !get().room) set({ error: ERROR_TEXT.party_slow! });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+/** How long Duo + Play may take to open (or rejoin) my party before the door says it did not open. */
+export const DUOS_OPEN_DEADLINE_MS = 20_000;
+let duosOpenSeq = 0;
+
+async function openDuosParty(name: string): Promise<void> {
   // THE SPLIT (R-RANKED-DUOS-SPLIT-01): a Versus room I still hold, open (nothing started), is left first; a running
   // Versus game is shown where it belongs instead (never inside the party flow).
   const held = get().room;

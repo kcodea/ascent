@@ -11431,7 +11431,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (approved Option A: no remount on the swap)', quote: 'look into toggling yours and teammates screen. It can be kinda janky' },
       { kind: 'fix-pr', ref: 'perf/duos-swap-no-remount' },
-      { kind: 'code', ref: 'packages/ui/src/screenSwap.ts; packages/ui/src/Game.tsx (runKey); packages/ui/src/Recruit.tsx (screenId, swapped)' },
+      { kind: 'code', ref: 'packages/ui/src/screenSwap.ts; packages/ui/src/Game.tsx (runKey); packages/ui/src/Recruit.tsx (screenId, swapped); packages/ui/src/Card.tsx (ScreenContext); packages/ui/src/versus/VersusHud.tsx (the dock key)' },
     ],
     currentBehaviour: 'Since 2026-10-29 (perf/duos-swap-no-remount). Before, Recruit was keyed on the run on screen, so each swap unmounted and remounted the whole recruit tree (one or two frames over 33 ms per swap on the desktop bench, 250-500 ms of long tasks on a 4x-throttled phone).',
     example: 'Your Kobold just played its Battlecry and its flourish is still glowing when you click Bob\'s portrait. Bob\'s board appears without that glow on his card in the same slot, and when you click back your board is there as you left it, with no effect playing a second time.',

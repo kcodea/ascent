@@ -90,7 +90,9 @@ type StartViewTransition = (cb: () => void | Promise<void>) => ViewTransitionLik
  * The browser's View Transition entry point, or null where there is none (the frozen-ghost fallback then runs).
  * DESKTOP ONLY: on the phone GPU path (`PHONE_GPU`) the full-screen snapshot pair the transition keeps is a large
  * texture cost (the phone memory budget, R-TOUCH-RUN-MEMORY-01), and on the throttled phone bench it measured far worse
- * than the ghost (one 0.9-1.7 s frame per swap); phones keep the ghost.
+ * than the ghost (one 0.9-1.7 s frame per swap); phones keep the ghost. Re-measured once the swap stopped remounting the
+ * board (R-DUOS-VIEW-NOREMOUNT-01, 2026-10-29, 4x-throttled phone bench): the ghost still measured best (worst swap frame
+ * about 0.2 s), the View Transition still 0.8-1.3 s, and a plain swap with no fade at all was worse than both.
  */
 export function viewTransitionOf(doc: Document | undefined = typeof document !== 'undefined' ? document : undefined, phone: boolean = PHONE_GPU): StartViewTransition | null {
   if (phone) return null;

@@ -573,21 +573,18 @@ html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-trends .ct
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-trends .ct-small { gap: calc(3 * var(--pt)); padding: calc(6 * var(--pt)); border-radius: calc(8 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-trends .ct-grid2 { gap: calc(6 * var(--pt)); margin-top: calc(6 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-trends .cv2-trends-head { gap: calc(6 * var(--pt)); }
-/* Ranked Duos teams: one row per team at phone sizes, under the trends across both columns. */
-html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-right > .cv2-duos { grid-column: 1 / -1; gap: calc(6 * var(--pt)); margin-top: calc(10 * var(--pt)); padding: calc(10 * var(--pt)) calc(14 * var(--pt)); border-radius: calc(12 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duos-head { font-size: calc(11 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duos-row { column-gap: calc(10 * var(--pt)); min-height: calc(40 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duos-name { font-size: calc(14 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duos-sub { font-size: calc(11.5 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duos .rankcrest-row { --ring: calc(26 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duos .rankbar-label { font-size: calc(12 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duos .rankbar-points { font-size: calc(11 * var(--pt)); }
 /* Seasonal Ranked reads top-down (division, MMR, then the bar and its points) and sits at its own height; the Ranked
    Duos teams fill the column under it, beside the trends. */
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-cols > .cv2-right { grid-template-rows: auto auto 1fr; align-items: start; }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-right > .cv2-ranked { grid-column: 1; grid-row: 2; }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-right > .cv2-trends { grid-column: 2; grid-row: 2 / span 2; }
-html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-right > .cv2-duos { grid-column: 1; grid-row: 3; margin-top: calc(10 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-right > .cv2-ranked.cv2-duocard { grid-column: 1; grid-row: 3; margin-top: calc(10 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duocard-kicker { font-size: calc(11 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duocard-team { grid-template-columns: calc(30 * var(--pt)) minmax(0, 1fr) calc(30 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duocard-arrow { width: calc(30 * var(--pt)); height: calc(30 * var(--pt)); min-height: 0; padding: 0; }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duocard-count { font-size: calc(10 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duocard-name { font-size: calc(14 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-duocard-sub { font-size: calc(11.5 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-ranked .rankbar-stack .rankbar-label { order: -2; }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-ranked .rankbar-stack .rankbar-caption { order: -1; }
 

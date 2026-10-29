@@ -14977,13 +14977,25 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .rankpage .lb-table.lb-duos .lb-trow, .lb-duos .lb-trow { grid-template-columns: 84px minmax(0, 1fr) 260px 130px; }
 .lb-duopair { display: inline-flex; flex: none; }
 .lb-duopair > .lb-heroframe + .lb-heroframe { margin-left: -18px; }
-.cv2-duos { display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 14px; margin-top: 14px; border-radius: 16px;
-  background: linear-gradient(180deg, rgba(13, 22, 40, 0.8), rgba(9, 15, 29, 0.88)); border: 2px solid rgba(196, 160, 92, 0.5); }
-.cv2-duos-head { font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
-.cv2-duos-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 12px; align-items: center; }
-.cv2-duos-name { font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: #f4eee2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cv2-duos-sub { grid-row: 2; font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(244, 238, 226, 0.65); }
-.cv2-duos-rank { grid-row: 1 / span 2; grid-column: 2; }
+/* The Career's Ranked Duos card (owner 2026-10-29): the Seasonal Ranked card itself (`RankCard`, `.cv2-ranked`), with the
+   team's line on top and arrows either side of it (one team at a time). Static paint; the arrows are the seg plate. */
+.cv2-duocard-head { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 4px; }
+/* The two rank cards and the trends are taller than the one-frame column (1080 stage), so a player WITH Duos teams gets
+   the column's own scroll (the game's gold thumb); a player without keeps the no-scroll column. */
+.cv2-cols > .cv2-right:has(> .cv2-duocard) { overflow-y: auto; }
+.cv2-duocard-kicker { display: flex; align-items: baseline; gap: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
+.cv2-duocard-count { font-weight: 700; font-size: 11px; letter-spacing: 0.06em; text-transform: none; color: rgba(244, 238, 226, 0.55); font-variant-numeric: tabular-nums; }
+.cv2-duocard-team { display: grid; grid-template-columns: 32px minmax(0, 1fr) 32px; align-items: center; column-gap: 8px; width: 100%; }
+.cv2-duocard-who { grid-column: 2; display: flex; flex-direction: column; align-items: center; min-width: 0; text-align: center; }
+.cv2-duocard-name { max-width: 100%; font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: #f4eee2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv2-duocard-sub { max-width: 100%; font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(244, 238, 226, 0.65); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv2-duocard-arrow { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 8px; border: 1px solid rgba(196, 160, 92, 0.4); }
+.cv2-duocard-arrow.prev { grid-column: 1; }
+.cv2-duocard-arrow.next { grid-column: 3; }
+.cv2-duocard-arrow svg { width: 18px; height: 18px; }
+.cv2-duocard-arrow.prev svg { transform: rotate(90deg); }
+.cv2-duocard-arrow.next svg { transform: rotate(-90deg); }
+.cv2-duocard-arrow:focus-visible { outline: 2px solid rgba(240, 208, 137, 0.9); outline-offset: 2px; }
 
 /* SOLO / DUO (owner 2026-10-26): the segmented switch's base look. Static. */
 .playparty { display: flex; width: 100%; box-sizing: border-box; border-radius: 8px; overflow: hidden; border: 1px solid rgba(196, 160, 92, 0.4); }

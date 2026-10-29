@@ -27,13 +27,13 @@ import { fetchMyPracticeGames, fetchPracticeReplay, fetchPlayerById, fetchReplay
 import { startReplay } from './replay/replayPlayer';
 import type { RunHistoryRowLike } from './careerData';
 import { careerFresh, careerKeyUser, carryTelemetry, loadCareer } from './careerLoad';
-import { RankBar } from './rank/RankBar';
+import { RankCard } from './rank/RankCard';
 import { cosmeticOf, isMasterTitle, levelProgress, titleName } from '@game/progression';
 import { TitleBadge } from './titles/TitleBadge';
 import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
 import { AchievementsTab } from './progression/AchievementsTab';
 import { achievementsVisible, useProgression } from './progression/progressionStore';
-import { rankLabel, rankScalar, scalarCaption } from './rank/rankFormat';
+import { rankLabel, rankScalar } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
 import {
   HERO_SORTS, HERO_SORT_LABEL, TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, outcomeOf, playedOnText, runLengthText,
@@ -869,10 +869,8 @@ export function Career() {
         {/* RIGHT — Seasonal Ranked + Performance Trends */}
         <aside className="cv2-col cv2-right">
           <div className="cv2-colhead"><div className="cv2-sec"><Icon name="star" />Seasonal Ranked</div></div>
-          <div className="cv2-panel cv2-ranked">
-            {rank ? (
-              <RankBar position={rank} size="big" layout="stack" caption={`${scalarCaption(rank)} MMR`} />
-            ) : rankPending ? (
+          <RankCard position={rank ?? null}>
+            {rankPending ? (
               <div className="cv2-rank-wait" aria-busy="true" aria-label="Loading rank" />
             ) : (
               <div className="cv2-mmr">
@@ -880,7 +878,10 @@ export function Career() {
                 <span className="cv2-mmr-l">MMR</span>
               </div>
             )}
-          </div>
+          </RankCard>
+          {/* RANKED DUOS (owner 2026-10-26, Q5; 2026-10-29): the player's teams as the same rank card, one team at a
+              time with arrows, best rank first, above the trends (hidden with none). */}
+          <CareerDuosTeams userId={userId ?? null} />
           <div className="cv2-panel cv2-trends">
             <div className="cv2-trends-head">
               <div className="cv2-sec">Performance Trends</div>
@@ -905,8 +906,6 @@ export function Career() {
                 top 4 rate, APM and games as small multiples with rolling averages and the change vs the period before. */}
             <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} own={!viewing} />
           </div>
-          {/* RANKED DUOS (owner 2026-10-26, Q5): the player's teams, each with its own medal (hidden with none). */}
-          <CareerDuosTeams userId={userId ?? null} />
         </aside>
       </div>
     );

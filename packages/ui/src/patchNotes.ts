@@ -58,6 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Your Career now shows each Ranked Duos team in its own rank card, just like your solo rank.', details: [
+        'One team at a time, your best ranked team first. Use the arrows to see your other teams.',
+        'Each card shows the team name, your partner, games played, the medal and the MMR.',
+        'It sits above Performance Trends.',
+      ] },
       { category: 'Systems', text: 'Duos: swapping to your teammate\'s screen and back now starts the moment you click, with a smoother fade.' },
       { category: 'Systems', text: 'Fixed: spectating is cleaner at the end of a fight.', details: [
         'Watching a Duos fight, the fight no longer starts over when a player presses End Combat. The boards are not rebuilt and no hit plays twice.',

@@ -46,9 +46,10 @@ const click = (el: Element | null | undefined): void => { act(() => { (el as HTM
 const press = (el: Element | null | undefined): void => { act(() => { el!.dispatchEvent(new Event('pointerdown', { bubbles: true })); }); };
 const plaque = (root: ParentNode, label: string): HTMLElement | undefined =>
   [...root.querySelectorAll<HTMLElement>('.sbbtn')].find((b) => b.textContent?.trim() === label);
-/** The changelog is its own lazy chunk: let it resolve and render. */
+/** The changelog is its own lazy chunk: let it resolve and render. Up to 3 s (the test allows 15): a loaded CI shard can take far longer than
+ *  the 200 ms this used to allow (main went red on 632f6ab61 with the chunk still loading). */
 const settle = async (): Promise<void> => {
-  for (let i = 0; i < 20 && !ui?.container.querySelector('.pnpatch'); i++) await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+  for (let i = 0; i < 300 && !ui?.container.querySelector('.pnpatch'); i++) await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
 };
 
 afterEach(() => {
@@ -82,7 +83,7 @@ describe('R-PATCHNOTES-PAGE-01: Patch Notes is a sidebar page', () => {
     expect(page.querySelector('[role="tablist"]')).not.toBeNull();
     expect(ui.container.querySelector('.pnov, .pnpanel, .pnclose'), 'the old overlay and its close are gone').toBeNull();
     expect(ui.container.querySelector('[title]')).toBeNull();
-  });
+  }, 15_000);
 
   it('on the menus Escape closes it, and so does the rail\'s Home', () => {
     onMenus();

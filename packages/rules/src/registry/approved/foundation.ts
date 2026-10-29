@@ -10963,17 +10963,18 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PING-04',
-    title: 'Right-click (a phone: long-press) opens the ping menu with Inspect; elsewhere it still inspects at once',
+    title: 'Right-click (a phone: long-press) opens the ping fan; a double right-click inspects; elsewhere right-click still inspects at once',
     statement:
-      'On a shop, board or hand card in a game where the viewer may ping, right-click (or a long-press on a phone) opens the ping fan: Check, X, Question in an arc above the card and Pass, Inspect, Sell in an arc below it. A shop button gets Check, X and Question only (no bottom arc), and a button ping of any other kind is refused by the shared rule. A left-click away or Escape closes it. Where pings are not available (menus, the Compendium, a replay, a Discover or Choose One option, a spectator who is not a mentor) right-click on a card inspects at once as before, and a phone hold on a card still does nothing (a tap inspects).',
+      'On a shop, board or hand card in a game where the viewer may ping, right-click (or a long-press on a phone) opens the ping fan: Check, X, Question in an arc above the card and Pass (left) and Sell (right) below it. A DOUBLE right-click on a card (a second right-click on the same card within 350 ms) closes the fan at once and opens Inspect; a phone keeps tap-to-inspect. A shop button gets Check, X and Question only (no bottom arc), and a button ping of any other kind is refused by the shared rule. A left-click away or Escape closes it. Where pings are not available (menus, the Compendium, a replay, a Discover or Choose One option, a spectator who is not a mentor) right-click on a card inspects at once as before, and a phone hold on a card still does nothing (a tap inspects).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: "Right clicking replaces the inspect, so we'll need to add an inspect option in the ping wheel so players can inspect a card still" },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: 'Right clicking opens the menu then left clicking away should close the menu.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (follow-up)', quote: 'remove the magnifying glass ping, change it so that double right clicking inspects' },
     ],
-    currentBehaviour: 'New on 2026-10-29. The menu is the fan (owner pick 2026-10-29): Check, X, Question in an arc above the target; on a card, Pass, Inspect, Sell in an arc below it. A shop button gets the top three only.',
-    example: 'Right-click a board minion, then Inspect: the usual Inspect view opens.',
+    currentBehaviour: 'New on 2026-10-29. The menu is the fan (owner pick 2026-10-29): Check, X, Question in an arc above the target; on a card, Pass and Sell below it. A shop button gets the top three only. Inspect left the fan the same day for a double right-click.',
+    example: 'Double right-click a board minion: the fan flashes away and the usual Inspect view opens.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
   {
@@ -11079,11 +11080,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner Duos feedback via the coordinator, 2026-10-29', quote: 'players should be able to ping their teammates board/minions etc as well' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live on prod 6c135033a)', quote: 'mike made me a mentor but im unable to ping on his cards' },
       { kind: 'code', ref: 'packages/ui/src/pings/pingRuntime.ts pingContext (the watch screen sets `replaying`; only a non-watch replay closes the menu); workers/versus/src/pings.ts routePing (mate role)' },
     ],
     currentBehaviour: 'Fixed 2026-10-29. Before, the watch screen\x27s `replaying` flag closed the ping menu, so neither a teammate nor a mentor could ping there.',
     example: 'Ann opens Amy\x27s screen and pings Question on Amy\x27s board minion: Amy sees it with Ann\x27s name; the other team never does.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx'], lastVerifiedAt: '2026-10-29' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/it/live.it.ts'], lastVerifiedAt: '2026-10-29' },
   },
   {
     id: 'R-SPECTATE-TIP-01',

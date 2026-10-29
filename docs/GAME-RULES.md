@@ -1437,7 +1437,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Pings.** In any game a player may ping a shop card, a board minion or a hand card with **check, X, question, pass
   or sell**, and a shop button (Tavern Up, Refresh, Freeze, the hero power, End Turn) with **check, X or question**:
   right-click, or press and hold on a phone. The menu is a fan (owner pick 2026-10-29): Check, X, Question in an arc
-  above the target; on a card, Pass, **Inspect**, Sell in an arc below it; outside a game, in a replay, on a Discover option, or for a spectator
+  above the target; on a card, Pass (left) and Sell (right) below it. A **double right-click** on a card inspects it (a
+  phone keeps tap-to-inspect); outside a game, in a replay, on a Discover option, or for a spectator
   who is not a mentor, right-click on a card still inspects at once. A ping pops on its target (spark + sound), then
   settles and stays until it is cleared: a left- or right-click on it, or moving its card (drag, sell, play), clears it
   on every screen that shows it. It also goes when its target leaves the screen (the shop closes for the fight). At most 3 pings per 2 s per sender.

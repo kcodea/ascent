@@ -82,7 +82,7 @@ export const PATCH_NOTES: PatchNote[] = [
       ] },
       { category: 'Systems', text: 'New: live pings. Point at a card with Check, No, Question, Pass or Sell, or at a shop button with Check, No or Question.', details: [
         'Right-click a shop card, a minion, a hand card or a shop button in a game. On a phone, press and hold.',
-        'The menu still has Inspect, so you can always look at a card.',
+        'Right-click a card twice quickly to inspect it. On a phone, tap it as before.',
         'A ping pops on its target and stays there. Click it to clear it. Moving the card clears it too.',
         'Everyone watching you sees your pings. In Duos your teammate sees them too. Opponents never do.',
         'Duos: open your teammate view to ping their cards. It shows on their screen.',

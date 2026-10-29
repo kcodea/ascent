@@ -62,6 +62,11 @@ export const PATCH_NOTES: PatchNote[] = [
         'Ranked Duos games on the new game server could hang at the end and drop you back to the room. Their results were not being saved.',
         'Duos and Ranked Duos games now always show the opponent rail on the right. They no longer open on the 1v1 view.',
       ] },
+      { category: 'Systems', text: "Fixed: a watched player's cursor no longer vanishes when they stop moving it.", details: [
+        'It stays where they left it, with its card preview still open.',
+        'It hides only when their mouse leaves the game window or they switch tabs.',
+        'This works when you spectate, in your Duos teammate view, and in new replays.',
+      ] },
       { category: 'Systems', text: 'Fixed: Kringle and other repeating End of Turn effects could sometimes buff one tick at a time again.', details: [
         'This could happen in Versus when End Turn was asked during a pause, or while you watched your teammate.',
         'End Turn now waits and plays the normal fast version once the game can take it.',

@@ -4,7 +4,7 @@
  *
  * The live sender (`versus/spectateTap.ts`) and the replay recorder (`replay/streamRecorder.ts`) both subscribe to the
  * one builder (`versus/cursorSource.ts`). Driven with the same inputs (pointer moves over anchored and plain UI, a card
- * picked up with its drop gap, a committed drop, a refused drop, an aim line, an idle hide), every message the stands
+ * picked up with its drop gap, a committed drop, a refused drop, an aim line, a mouse leaving the window), every message the stands
  * received comes back out of the recorded stream exactly, minus the seat and the legacy window fractions. Also pinned:
  * one segment per round (the fight included since 2026-10-22), nothing recorded when the run records no replay, the overlay and Skip
  * events, and a resume splicing restored rounds in front on the clock.
@@ -112,8 +112,15 @@ describe('R-REPLAY-STREAM-01: the recorder stores exactly what the live sender s
     dragStore.set({ aimTargetUid: null });
     move(card, 455, 362);
     step();
-    // idle: one hide, still over the card
+    // idle: nothing more (the hand rests where it stopped, R-SPECTATE-CURSOR-IDLE-01)
+    const beforeIdle = send.mock.calls.length;
     vi.advanceTimersByTime(tap.CURSOR_IDLE_MS + 200);
+    expect(send.mock.calls.length).toBe(beforeIdle);
+    // the mouse leaves the game window: one hide
+    const out = new MouseEvent('pointerout', { relatedTarget: null });
+    Object.defineProperty(out, 'pointerType', { value: 'mouse' });
+    window.dispatchEvent(out);
+    vi.advanceTimersByTime(tap.CURSOR_TICK_MS);
 
     const sent = send.mock.calls.filter((c) => c[0] === tap.SPECTATE_CURSOR_EVENT).map((c) => stripSent(c[1]));
     expect(sent.length).toBeGreaterThan(10);

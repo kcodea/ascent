@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
- * THE IN-GAME FRIENDS DOCK (R-FRIENDS-DOCK-01) and THE FRIEND MENU (R-FRIENDS-MENU-01 / -02), with the network faked:
- *  - the dock shows only in a game screen, for an account; its badge is the beat's online count (no extra call);
- *  - open lists ONLINE friends only (online, then in a game), reading the list while open and never while closed;
+ * THE FRIENDS DOCK (R-FRIENDS-DOCK-01 / -02) and THE FRIEND MENU (R-FRIENDS-MENU-01 / -02), with the network faked:
+ *  - ONE dock on every screen (title, menu pages, hero select, a game), for an account and (a compact Sign in state) a
+ *    guest; its badge is the beat's online count (no extra call); it keeps its state across screen changes;
+ *  - open lists every friend (online, then in a game, then offline), reading the list while open and never while closed;
  *  - a friend opens their direct message panel (an empty conversation; with no friends hub in this build, the composer
  *    says messages are not available right now: R-DM-05);
  *  - a press outside closes BOTH panels in one motion and never reaches the game; Escape too, without the Esc menu;
@@ -10,6 +11,8 @@
  *    made first, on either host; mid-game disabled), Invite to spectate (my live game / Versus room, either host), and
  *    accepting a spectate invite drops the friend into watching.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { mount, type Mounted } from '../../renderedText.mount';
@@ -45,7 +48,6 @@ import type { Friend, FriendInvite, FriendsList, FriendsRemote, InviteKind } fro
 import { acceptSpectateInvite, FINISH_FIRST, friendMenuEntries, inviteToRoom, inviteToSpectate, runFriendMenu, type FriendMenuContext } from '../friendsGo';
 import { FriendMenu, openFriendMenu, useFriendMenu } from '../FriendMenu';
 import { FriendsDock } from './FriendsDock';
-import { FriendsPage } from '../FriendsPage';
 import { DOCK_CLOSE_MS, resetDockForTests, useFriendsDock } from './dockStore';
 
 const ME = '00000000-0000-0000-0000-000000000001';
@@ -101,22 +103,49 @@ beforeEach(() => {
   useVersus.setState({ room: null, match: null });
   useGame.setState({ showTitle: true, practiceSetupOpen: false, replaying: false, heroChoices: null, titleView: 'menu' });
   useFriendMenu.setState({ friend: null, entries: [] });
+  // An earlier test's catcher press armed swallowNextClick (eats the next click within 700 ms): spend it.
+  act(() => { document.body.click(); });
 });
 afterEach(() => { ui?.unmount(); ui = null; resetDockForTests(); resetFriendsForTests(); setIdentity(null); });
 
 describe('the dock (R-FRIENDS-DOCK-01)', () => {
-  it('shows only in a game screen, for an account; the badge is the beat\'s online count', () => {
+  it('shows on EVERY screen: the title, a menu page, hero select, a game; a guest gets the compact Sign in state', async () => {
     ui = mount(<FriendsDock />);
-    expect(q('.fdock-btn')).toBeNull(); // the title
-    act(() => inRun());
-    expect(q('.fdock-btn')?.getAttribute('aria-label')).toBe('Friends, 2 online');
+    expect(q('.fdock-btn')?.getAttribute('aria-label')).toBe('Friends, 2 online'); // the title
     expect(q('.fdock-count')?.textContent).toBe('2');
+    expect(q('.fdock-btn.ingame')).toBeNull();
+    expect(document.documentElement.hasAttribute('data-fdock')).toBe(true); // the menus make room for it
+    act(() => { useGame.setState({ showTitle: true, showCareer: true }); });
+    expect(q('.fdock-btn')).not.toBeNull(); // a ladder page
+    act(() => { useGame.setState({ showCareer: false, showTitle: false, heroChoices: [] as never }); });
+    expect(q('.fdock-btn')).not.toBeNull(); // hero select
+    act(() => inRun());
+    expect(q('.fdock-btn.ingame')).not.toBeNull(); // a game: tucked under the hero's Health plate
     act(() => { useGame.setState({ account: { userId: ME, email: null, anonymous: true, discriminator: null } }); });
-    expect(q('.fdock-btn')).toBeNull(); // a guest
+    expect(q('.fdock-btn')?.getAttribute('aria-label')).toBe('Friends'); // a guest: no counts
+    click(q('.fdock-btn'));
+    await flush();
+    expect(q('.fdock-guest')?.textContent).toContain('Sign in to add friends.');
+    expect(lists).toBe(0);
     expect(document.body.querySelector('[title]')).toBeNull();
   });
 
-  it('closed renders only the button and reads nothing; open lists ONLINE friends only; click again collapses', async () => {
+  it('keeps its state across screen changes: open and the open message survive title -> menu page -> game -> title', async () => {
+    ui = mount(<FriendsDock />);
+    click(q('.fdock-btn'));
+    await flush();
+    click(q('.fdock-rowmain[aria-label="Message Amy#1234"]'));
+    expect(q('.fdock-dm')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
+    act(() => { useGame.setState({ showCareer: true }); });
+    act(() => inRun());
+    expect(useFriendsDock.getState()).toMatchObject({ phase: 'open', dmWith: 'u-amy' });
+    expect(q('.fdock-dm')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
+    act(() => { useGame.setState({ showTitle: true, showCareer: false }); });
+    expect(q('.fdock-dm')).not.toBeNull();
+    expect(lists).toBe(1); // the same instance throughout: one read, not one per screen
+  });
+
+  it('closed renders only the button and reads nothing; open lists every friend; click again collapses', async () => {
     inRun();
     ui = mount(<FriendsDock />);
     await flush();
@@ -126,7 +155,7 @@ describe('the dock (R-FRIENDS-DOCK-01)', () => {
     await flush();
     expect(lists).toBe(1);
     const names = [...document.body.querySelectorAll('.fdock-list .fr-name')].map((n) => n.textContent);
-    expect(names).toEqual(['Amy#1234', 'Gus#1234']); // online first, then in a game; Oli (offline) is not listed
+    expect(names).toEqual(['Amy#1234', 'Gus#1234', 'Oli#1234']); // online, then in a game, then offline
     expect(q('.fdock-sub')?.textContent).toBe('2 online');
     click(q('.fdock-btn'));
     expect(useFriendsDock.getState().phase).toBe('closing');
@@ -241,15 +270,15 @@ describe('the friend menu entries (R-FRIENDS-MENU-01)', () => {
   });
 });
 
-describe('the friend menu on the Friends page (the main menu)', () => {
+describe('the friend menu from the dock on the main menu', () => {
   it('right-click on a row opens the same menu; Escape closes it without opening the Esc menu', async () => {
-    useGame.setState({ showFriends: true });
-    ui = mount(<><FriendsPage /><FriendMenu /></>);
+    ui = mount(<><FriendsDock /><FriendMenu /></>);
+    click(q('.fdock-btn'));
     await flush();
-    const row = [...document.body.querySelectorAll('.fr-row')].find((r) => r.textContent?.includes('Gus#1234'))!;
+    const row = q('.fdock-rowmain[aria-label="Message Gus#1234"]')!;
     act(() => { row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 })); });
     expect([...document.body.querySelectorAll('.frmenu-label')].map((n) => n.textContent)).toEqual(['Spectate', 'Remove friend', 'Block']);
-    const amy = [...document.body.querySelectorAll('.fr-row')].find((r) => r.textContent?.includes('Amy#1234'))!;
+    const amy = q('.fdock-rowmain[aria-label="Message Amy#1234"]')!;
     act(() => { amy.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 })); });
     expect([...document.body.querySelectorAll('.frmenu-label')].map((n) => n.textContent)).toEqual(['Invite to lobby', 'Invite to Duos', 'Remove friend', 'Block']);
     const esc = vi.fn();
@@ -350,17 +379,17 @@ describe('Remove friend and Block live in the menu, never on the row (R-FRIENDS-
     }
   });
 
-  it('the Friends page rows show no Remove or Block button; the menu sets them apart and each asks once more before it acts', async () => {
+  it('the dock rows show no Remove or Block button; the menu sets them apart and each asks once more before it acts', async () => {
     // An earlier test's catcher press armed swallowNextClick (eats the next click within 700 ms): spend it here.
     act(() => { document.body.click(); });
-    useGame.setState({ showFriends: true });
-    ui = mount(<><FriendsPage /><FriendMenu /></>);
+    ui = mount(<><FriendsDock /><FriendMenu /></>);
+    click(q('.fdock-btn'));
     await flush();
-    const rows = [...document.body.querySelectorAll('.fr-row')];
+    const rows = [...document.body.querySelectorAll('.fdock-list .fdock-row')];
     expect(rows.length).toBe(3);
     for (const r of rows) expect([...r.querySelectorAll('button')].map((b) => b.textContent)).not.toContain('Remove');
     for (const r of rows) expect([...r.querySelectorAll('button')].map((b) => b.textContent)).not.toContain('Block');
-    const oli = rows.find((r) => r.textContent?.includes('Oli#1234'))!;
+    const oli = rows.find((r) => r.textContent?.includes('Oli#1234'))!.querySelector('.fdock-rowmain')!;
     act(() => { oli.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 })); });
     // An offline friend: only the two, behind the divider.
     expect([...document.body.querySelectorAll('.frmenu > *')].map((n) => n.className.split(' ')[0])).toEqual(['atip-title', 'frmenu-sep', 'frmenu-item', 'frmenu-item']);
@@ -399,5 +428,32 @@ describe('Remove friend and Block live in the menu, never on the row (R-FRIENDS-
     await flush();
     expect(harmed).toEqual(['block:u-amy']);
     expect(useFriendsDock.getState().phase).toBe('open');
+  });
+});
+
+describe('placement: bottom left, clear of each screen\'s corner furniture (R-FRIENDS-DOCK-02)', () => {
+  // jsdom has no layout: the headless screenshot pass (devlog 2026-10-29-friends-dock-global) measured these; this pins
+  // the contract so a later edit cannot quietly move the dock back over the Health plate or the Settings plaque.
+  const css = readFileSync(join(__dirname, 'friendsDock.css'), 'utf8');
+  it('the button, the panels and the toast anchor LEFT, never right', () => {
+    expect(css).toMatch(/\.fdock-btn \{ position: fixed; left: calc\(var\(--edge-l\) \+ var\(--fdock-x\)\); bottom: calc\(var\(--edge-b\) \+ var\(--fdock-y\)\);/);
+    expect(css).toMatch(/\.fdock-stack \{[^}]*left: calc\(var\(--edge-l\) \+ var\(--fdock-x\)\)/);
+    expect(css).not.toMatch(/\.fdock-(btn|stack) \{[^}]*right:/);
+  });
+  it('in a game it tucks in smaller and lower, counts beside it (never above, where the Health plate is)', () => {
+    expect(css).toContain('.fdock-btn.ingame, .fdock-stack.ingame, .dm-toast.ingame { --fdock-cb: calc(32 * var(--u)); --fdock-x: 10px; --fdock-y: 5px; }');
+    expect(css).toMatch(/\.fdock-btn\.ingame \.fdock-chips \{ inset: auto; left: calc\(100% \+ 5px\)/);
+  });
+  it('the menus make room: the side menu lifts Settings, the title footer starts to its right', () => {
+    expect(css).toMatch(/html\[data-fdock\] \.msb \{ padding-bottom: calc\(22px \+ var\(--safe-b\) \+ var\(--fdock-room\) \+ 14px\); \}/);
+    expect(css).toMatch(/html\[data-fdock\] \.titlefoot \{ left:/);
+  });
+  it('layers above the menu pages (470) and under the friend menu (490) and the Settings veil (500)', () => {
+    const z = (sel: string): number => {
+      const at = css.indexOf(`${sel} {`);
+      const rule = css.slice(at, css.indexOf('}', at));
+      return Number(/z-index: (\d+)/.exec(rule)?.[1]);
+    };
+    for (const sel of ['.fdock-btn', '.fdock-catch', '.fdock-stack']) { expect(z(sel)).toBeGreaterThan(470); expect(z(sel)).toBeLessThan(490); }
   });
 });

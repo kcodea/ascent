@@ -19,7 +19,7 @@
  *  2. THE INVITE WAKE-UP: a Realtime subscription to INSERTs on `friend_invites` addressed to me (to_user filter + RLS),
  *     only for an account with at least one friend and only while the tab is visible. Each insert triggers one beat.
  *  3. THE FRIENDS LIST (`useFriendsListLoop`): the one batched `friends_list` read, only while a friends surface is open
- *     (the Friends page, the room's invite panel), every 60 s while visible, nothing while hidden, backing off on errors.
+ *     (the Friends dock, the room's invite panel), every 60 s while visible, nothing while hidden, backing off on errors.
  *
  * Nothing here is broadcast: presence is read by friends through the list, never pushed (R-NET-REALTIME-01).
  */
@@ -155,7 +155,6 @@ function menuActivity(g: ReturnType<typeof useGame.getState>, area: string): Fri
   if (g.showPatchNotes) return act('patch_notes');
   if (g.settingsOpen) return act('settings');
   if (g.showBook) return act('compendium');
-  if (g.showFriends) return act('friends');
   if (g.showCareer) return act('career');
   if (g.showRankings) return act('leaderboard');
   if (g.showLeaderboard) return act('hall');
@@ -414,7 +413,7 @@ function syncInviteSub(): void {
 
 /** The store fields the activity reads (screens, overlays, the pick, the End Turn). */
 const GAME_FIELDS = [
-  'showTitle', 'titleView', 'settingsOpen', 'showLeaderboard', 'showRankings', 'showRecentGames', 'showLiveGames', 'showFriends',
+  'showTitle', 'titleView', 'settingsOpen', 'showLeaderboard', 'showRankings', 'showRecentGames', 'showLiveGames',
   'showCareer', 'showCollection', 'showBook', 'showPatchNotes', 'practiceSetupOpen', 'replaying', 'heroChoices', 'pendingMode',
   'endTurnAnimating',
 ] as const;

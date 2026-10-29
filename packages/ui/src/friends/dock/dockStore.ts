@@ -1,6 +1,7 @@
 /**
- * THE IN-GAME FRIENDS DOCK's state (owner 2026-10-29, R-FRIENDS-DOCK-01): open or closed, and whose direct message
- * panel is up. Kept apart from the component so the messaging work can open a conversation from anywhere (a new
+ * THE FRIENDS DOCK's state (owner 2026-10-29, R-FRIENDS-DOCK-01 / -02): open or closed, which tab the panel shows, and
+ * whose direct message panel is up. One store for the whole app: the dock lives on every screen, so moving between
+ * screens keeps all of it. Kept apart from the component so the messaging work can open a conversation from anywhere (a new
  * message, a notice) with `openDm(userId)`, and so the context menu can close everything in one call.
  *
  * `phase` drives the one-shot open / close motion: 'open' mounts the panels (they animate in), 'closing' keeps them
@@ -9,14 +10,17 @@
 import { create } from 'zustand';
 
 export type DockPhase = 'closed' | 'open' | 'closing';
+/** The panel's tabs: the friends list (with Add by handle), requests in and out, blocked players. */
+export type DockTab = 'friends' | 'requests' | 'blocked';
 
 export interface DockState {
   phase: DockPhase;
   /** The friend whose direct message panel is open (null: just the list). */
   dmWith: string | null;
+  tab: DockTab;
 }
 
-export const useFriendsDock = create<DockState>(() => ({ phase: 'closed', dmWith: null }));
+export const useFriendsDock = create<DockState>(() => ({ phase: 'closed', dmWith: null, tab: 'friends' }));
 
 /** How long the collapse plays before the panels unmount (matches `.fdock-stack.closing` in friendsDock.css). */
 export const DOCK_CLOSE_MS = 160;
@@ -49,6 +53,16 @@ export function openDm(userId: string): void {
   useFriendsDock.setState({ phase: 'open', dmWith: st.phase === 'open' && st.dmWith === userId ? null : userId });
 }
 
+/** Open the dock on a tab (a request's notice, a deep link that used to open the Friends page). */
+export function openDockOn(tab: DockTab): void {
+  clearCloseTimer();
+  useFriendsDock.setState({ phase: 'open', tab });
+}
+
+export function setDockTab(tab: DockTab): void {
+  useFriendsDock.setState({ tab });
+}
+
 export function closeDm(): void {
   useFriendsDock.setState({ dmWith: null });
 }
@@ -56,7 +70,7 @@ export function closeDm(): void {
 /** Tests: back to closed at once. */
 export function resetDockForTests(): void {
   clearCloseTimer();
-  useFriendsDock.setState({ phase: 'closed', dmWith: null });
+  useFriendsDock.setState({ phase: 'closed', dmWith: null, tab: 'friends' });
 }
 
 /**

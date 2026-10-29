@@ -10,7 +10,7 @@ import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { useVersus } from '../versus/versusStore';
 import { answerInvite, openInvites, useFriends } from './friendsStore';
-import { FriendPortrait, handleOf } from './FriendsPage';
+import { FriendPortrait, handleOf } from './friendBits';
 import type { FriendInvite } from './friendsRemote';
 import '../versus/versus.css';
 import './friends.css';

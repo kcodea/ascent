@@ -35,7 +35,7 @@ beforeEach(() => {
   } as unknown as FriendsRemote);
   useGame.setState({ account: { userId: ME, email: 'a@b.c', anonymous: false, discriminator: '1111' }, playerName: 'Me' });
   useVersus.setState({ room: null, match: null });
-  useGame.setState({ showTitle: true, practiceSetupOpen: false, replaying: false, heroChoices: null, titleView: 'menu', showFriends: false, settingsOpen: false });
+  useGame.setState({ showTitle: true, practiceSetupOpen: false, replaying: false, heroChoices: null, titleView: 'menu', settingsOpen: false });
 });
 afterEach(() => { vi.useRealTimers(); resetFriendsForTests(); setShowActivity(true); });
 
@@ -45,7 +45,7 @@ async function typicalSession(): Promise<{ beats: number; ms: number }> {
   let ms = 0;
   const wait = async (s: number): Promise<void> => { ms += s * 1000; await act(async () => { await vi.advanceTimersByTimeAsync(s * 1000); }); };
   const go = async (patch: Record<string, unknown>, s: number): Promise<void> => { act(() => { useGame.setState(patch as never); }); await wait(s); };
-  const closed = { showCareer: false, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false, showFriends: false };
+  const closed = { showCareer: false, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false };
   const stop = startFriendsPresence();
   await wait(60);                                                       // the main menu
   await go({ titleView: 'modes' }, 15);                                 // looks at the modes
@@ -55,7 +55,7 @@ async function typicalSession(): Promise<{ beats: number; ms: number }> {
   await go({ ...closed, showLiveGames: true }, 0.4);
   await go({ ...closed, showRankings: true }, 45);                      // settles on the Leaderboard
   await go({ ...closed, showCollection: true }, 30);
-  await go({ ...closed, showFriends: true }, 40);
+  await go({ ...closed, showRecentGames: true }, 40);
   await go({ ...closed, settingsOpen: true }, 20);
   await go({ settingsOpen: false, showPatchNotes: true }, 20);
   await go({ showPatchNotes: false, showBook: true }, 30);
@@ -92,7 +92,7 @@ describe('the beat budget (R-FRIENDS-ACTIVITY-01)', () => {
     expect(n).toBeLessThanOrEqual(Math.ceil(BASELINE_BEATS * 1.25));
     // Where it landed: every screen was reported, the hop through Live Games never was.
     const acts = beats.map((b) => b.activity?.act ?? b.game?.step ?? b.game?.phase ?? b.status);
-    expect(acts).toEqual(expect.arrayContaining(['career', 'leaderboard', 'collection', 'friends', 'settings', 'patch_notes', 'compendium', 'replay', 'done']));
+    expect(acts).toEqual(expect.arrayContaining(['career', 'leaderboard', 'collection', 'recent', 'settings', 'patch_notes', 'compendium', 'replay', 'done']));
     expect(acts).not.toContain('live');
   });
 

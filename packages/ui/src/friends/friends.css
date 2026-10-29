@@ -1,22 +1,17 @@
-/* FRIENDS (owner 2026-10-26, R-FRIENDS-01..04). The ladder page's own rows and buttons (`.lb-row`, `.lb-btn`), the
+/* FRIENDS (owner 2026-10-26, R-FRIENDS-01..04; the page itself moved into the dock 2026-10-29). The ladder's buttons (`.lb-btn`), the
    Versus notices' dark panel (`.vspanel`, `.vsplate`) for the invite notice and the room's invite panel. Static paint:
    no looping animation, no cursor rules (the global gauntlet paints every button, CLAUDE.md). */
-.fr-page .lbtopbar { gap: 18px; flex-wrap: wrap; }
-.fr-add { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: none; }
 .fr-input.acctinput { width: 240px; font-size: 16px; letter-spacing: 0.02em; padding: 9px 14px; }
 .fr-flash { margin: 0 18px 8px; padding: 8px 14px; border-radius: 10px; background: rgba(13, 22, 40, 0.86); border: 1px solid rgba(196, 160, 92, 0.45);
   color: #f0d089; font-family: var(--font-ui); font-weight: 800; font-size: 14px; }
 .fr-flash-inline { margin: 10px 0 0; text-align: center; }
 
-.fr-section { margin-bottom: 22px; }
 .fr-sh { display: flex; align-items: baseline; gap: 10px; margin: 4px 4px 10px; font-family: var(--font-ui); font-weight: 900; font-size: 15px;
   letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.9); }
 .fr-sh-panel { margin-top: 16px; font-size: 13px; }
-.fr-sub { font-weight: 700; font-size: 13px; letter-spacing: 0.04em; text-transform: none; color: rgba(255, 255, 255, 0.62); }
 .fr-count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; font-size: 12px; letter-spacing: 0;
   color: #fff; background: #b4423a; border: 1px solid #ffb3a8; }
 
-.fr-row.lb-row { grid-template-columns: 110px minmax(0, 1fr) auto; }
 .fr-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .fr-name { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fr-status { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.65); }
@@ -31,7 +26,7 @@
    ladder's own frame at chip size. Static. */
 .fr-detail { display: flex; flex-direction: column; gap: 4px; min-width: 0; max-width: 100%; align-self: flex-start; outline: none; }
 .fr-detail:focus-visible { box-shadow: 0 0 0 2px rgba(240, 208, 137, 0.6); border-radius: 6px; }
-.lbpage .fr-detail[data-tip]::after { white-space: pre-line; text-align: left; width: max-content; max-width: min(340px, calc(var(--lvw, 100vw) - 40px)); }
+.fdock-row .fr-detail[data-tip]::after { white-space: pre-line; text-align: left; width: max-content; max-width: min(340px, calc(var(--lvw, 100vw) - 40px)); }
 .fr-detail .fr-status { max-width: 100%; min-width: 0; }
 .fr-statustext { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fr-game { display: flex; align-items: center; flex-wrap: nowrap; gap: 6px; min-width: 0; overflow: hidden; font-family: var(--font-ui); font-weight: 700; font-size: 12.5px;
@@ -51,7 +46,6 @@
 .fr-actions .lb-btn svg { width: 15px; height: 15px; margin-right: 6px; vertical-align: -2px; }
 .lb-btn.fr-small { padding: 7px 11px; font-size: 12px; }
 .lb-btn.fr-armed { color: #ffd7d7; border-color: rgba(255, 140, 140, 0.8); }
-.fr-empty, .fr-guest { margin: 28px auto; }
 
 /* Add friend on a Career page header / a room member. */
 .fr-addbtn { flex: none; }
@@ -77,11 +71,6 @@
 .fr-roomrow .lb-heroframe { flex: none; }
 
 @media (prefers-reduced-motion: reduce) { .fr-notice.vspanel { animation: none; } }
-
-/* The side menu's Friends plaque: requests waiting (the orange NEW pill's look, with the count), else friends online (the
-   Live Games chip's shape, green). Static. */
-.newpill.fr-reqpill { margin-left: auto; }
-.sb-livechip.fr-onchip { background: #2f7a48; border-color: #9ee0b2; }
 
 /* THE FRIEND MENU (owner 2026-10-29, R-FRIENDS-MENU-01): right-click / long press on a friend row. The game's hover panel
    (`.atip`, the emote menu's look) as a short list; its own transparent catcher takes the press that closes it. Static. */

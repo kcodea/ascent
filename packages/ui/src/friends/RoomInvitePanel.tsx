@@ -8,7 +8,7 @@
 import { sfx } from '../sfx';
 import { versusRoomRef, type VersusRoom } from '../versus/versusRemote';
 import { inviteFriend, relationOf, useFriends, useFriendsListLoop } from './friendsStore';
-import { FriendPortrait, handleOf, sortFriends, statusText } from './FriendsPage';
+import { FriendPortrait, handleOf, sortFriends, statusText } from './friendBits';
 import { AddFriendButton } from './AddFriendButton';
 import '../versus/versus.css';
 import './friends.css';

@@ -42,8 +42,8 @@ html[data-touch-ui] .dm-report { opacity: 0.8; }
 .fdock-row .dm-unread { flex: none; margin-left: auto; }
 .fr-row .lb-btn .dm-unread { margin-left: 6px; vertical-align: 1px; }
 
-/* The toast: just above the Friends button's row, right-aligned with the dock's panels. */
-.dm-toast.vspanel { position: fixed; z-index: 482; right: calc(var(--edge-r) + 16px); bottom: calc(var(--edge-b) + 16px + 40 * var(--u) + 12px);
+/* The toast: just above the Friends button, bottom left, left-aligned with the dock's panels (R-FRIENDS-DOCK-02). */
+.dm-toast.vspanel { position: fixed; z-index: 482; left: calc(var(--edge-l) + var(--fdock-x, 10px)); bottom: calc(var(--edge-b) + var(--fdock-y, 8px) + 36 * var(--u) + 12px);
   width: 320px; min-width: 0; max-width: calc(var(--lvw, 100vw) - 32px); box-sizing: border-box; padding: 10px 12px; display: flex; align-items: center; gap: 10px;
   text-align: left; animation: dmtoastin 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .dm-toast.vspanel:hover { border-color: rgba(240, 208, 137, 0.75); }
@@ -51,8 +51,8 @@ html[data-touch-ui] .dm-report { opacity: 0.8; }
 .dm-toast-text { display: flex; flex-direction: column; min-width: 0; }
 .dm-toast-name { font-family: var(--font-ui); font-weight: 900; font-size: 14px; color: #f0d089; }
 .dm-toast-body { font-family: var(--font-ui); font-weight: 600; font-size: 13.5px; color: #f4eee2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-html[data-touch-ui] .dm-toast.vspanel { bottom: calc(var(--edge-b) + 16px + var(--touch-cb) + 12px); }
-html[data-touch-ui][data-phone-zoom] .dm-toast.vspanel { right: calc(var(--pz-bxr) + 1920px - 1897px); bottom: calc(var(--pz-safe-b, var(--safe-b)) + 15px + 66px + 10px); }
-html[data-phone-layout]:not([data-phone-menus]) .dm-toast.vspanel { right: calc(var(--edge-r) + 12px); bottom: auto; top: 12px; width: 300px; }
+html[data-touch-ui] .dm-toast.vspanel { bottom: calc(var(--edge-b) + var(--fdock-y, 8px) + var(--touch-cb) * 0.9 + 12px); }
+html[data-touch-ui][data-phone-zoom] .dm-toast.vspanel { bottom: calc(var(--pz-safe-b, var(--safe-b)) + var(--fdock-y, 8px) + 58px + 10px); }
+html[data-phone-layout]:not([data-phone-menus]) .dm-toast.vspanel { width: 300px; }
 
 @media (prefers-reduced-motion: reduce) { .dm-toast.vspanel { animation-duration: 0.01s; } }

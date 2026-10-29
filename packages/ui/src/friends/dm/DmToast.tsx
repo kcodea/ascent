@@ -1,13 +1,13 @@
 /**
  * THE NEW-MESSAGE TOAST (R-DM-03): a message arrives while its conversation is not open, so a small panel rises just
- * above the Friends button (bottom right, clear of the board's middle): the friend's portrait, name and the message.
+ * above the Friends button (bottom left since R-FRIENDS-DOCK-02, clear of the board's middle): the friend's portrait, name and the message.
  * Pressing it opens the conversation; it leaves by itself after 5 s. One at a time (the newest). It only takes the
  * presses that land on it; the game underneath keeps playing. Motion: one-shot transform + opacity.
  */
 import { sfx } from '../../sfx';
 import { openDm, useFriendsDock } from '../dock/dockStore';
 import { useFriendsPrefs } from '../friendsPrefs';
-import { FriendPortrait, handleOf } from '../FriendsPage';
+import { FriendPortrait, handleOf } from '../friendBits';
 import { useFriends } from '../friendsStore';
 import { dismissDmToast, useDm } from './dmStore';
 import { maskProfanity } from './profanity';

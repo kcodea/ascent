@@ -155,7 +155,6 @@ function menuActivity(g: ReturnType<typeof useGame.getState>, area: string): Fri
   if (g.showPatchNotes) return act('patch_notes');
   if (g.settingsOpen) return act('settings');
   if (g.showBook) return act('compendium');
-  if (g.showFriends) return act('friends');
   if (g.showCareer) return act('career');
   if (g.showRankings) return act('leaderboard');
   if (g.showLeaderboard) return act('hall');
@@ -414,7 +413,7 @@ function syncInviteSub(): void {
 
 /** The store fields the activity reads (screens, overlays, the pick, the End Turn). */
 const GAME_FIELDS = [
-  'showTitle', 'titleView', 'settingsOpen', 'showLeaderboard', 'showRankings', 'showRecentGames', 'showLiveGames', 'showFriends',
+  'showTitle', 'titleView', 'settingsOpen', 'showLeaderboard', 'showRankings', 'showRecentGames', 'showLiveGames',
   'showCareer', 'showCollection', 'showBook', 'showPatchNotes', 'practiceSetupOpen', 'replaying', 'heroChoices', 'pendingMode',
   'endTurnAnimating',
 ] as const;

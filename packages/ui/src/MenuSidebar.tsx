@@ -43,7 +43,6 @@ import { useLiveCount, useWindowFocused } from './live/liveCount';
 import { useVersusOpenRooms, versusRoomsTip } from './versus/versusOpenRooms';
 import { VsOpenBadge } from './versus/VsOpenBadge';
 import { HALL_VISIBLE } from './hallFlag';
-import { useFriends } from './friends/friendsStore';
 import './friends/friends.css';
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
@@ -75,7 +74,7 @@ export function SidebarHost({ className, children, ...rest }: HTMLAttributes<HTM
 }
 
 /** The screen the sidebar is rendered on — its plaque is the blue one. */
-export type SidebarCurrent = Exclude<MenuDest, 'menu'>;
+export type SidebarCurrent = Exclude<MenuDest, 'menu' | 'friends'>;
 
 interface Item { dest: SidebarCurrent; label: string; icon: ReactNode }
 
@@ -129,10 +128,6 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
   const focused = useWindowFocused();
   // VERSUS ROOMS OPEN (owner 2026-10-17, R-VERSUS-OPEN-ROOMS-01): Play carries the title's small badge + bubble.
   const vsOpen = useVersusOpenRooms();
-  // FRIENDS (owner 2026-10-26, R-FRIENDS-02): requests waiting and friends online, from the presence beat's answer (no
-  // read of its own). Accounts only: a guest's beat never runs, so both stay 0.
-  const frIncoming = useFriends((s) => s.inbox?.incoming ?? 0);
-  const frOnline = useFriends((s) => s.inbox?.online ?? 0);
 
   const progress: Item[] = [
     { dest: 'career', label: txt.career, icon: <IconHelm /> },
@@ -144,7 +139,7 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
     ...(HALL_VISIBLE ? [{ dest: 'hall' as const, label: txt.champions, icon: <Icon name="crown" /> }] : []),
     { dest: 'recent', label: 'Recent Games', icon: <Icon name="clock" /> },
     { dest: 'live', label: 'Live Games', icon: <Icon name="sword" /> },
-    { dest: 'friends', label: 'Friends', icon: <Icon name="friends" /> },
+    // No Friends plaque any more (owner 2026-10-29, R-FRIENDS-DOCK-02): the global Friends dock, bottom left, is it.
   ];
 
   const plaque = (it: Item, extra = '', badge: ReactNode = null): JSX.Element => {
@@ -164,8 +159,6 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
         {fresh && <NewPill />}
         {badge}
         {live && <span className="sb-livechip" aria-label={`${liveCount} live ${liveCount === 1 ? 'game' : 'games'}`}>{liveCount} live</span>}
-        {it.dest === 'friends' && frIncoming > 0 && <span className="newpill fr-reqpill" aria-label={`${frIncoming} friend ${frIncoming === 1 ? 'request' : 'requests'}`}>{frIncoming}</span>}
-        {it.dest === 'friends' && frIncoming === 0 && frOnline > 0 && <span className="sb-livechip fr-onchip" aria-label={`${frOnline} ${frOnline === 1 ? 'friend' : 'friends'} online`}>{frOnline} online</span>}
       </button>
     );
   };

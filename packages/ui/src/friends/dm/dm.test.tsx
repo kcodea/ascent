@@ -28,7 +28,7 @@ import { resetFriendsForTests, setFriendsRemoteForTests, useFriends } from '../f
 import type { Friend, FriendsList, FriendsRemote } from '../friendsRemote';
 import { setFilterMessages } from '../friendsPrefs';
 import { FriendsDock } from '../dock/FriendsDock';
-import { FriendsPage } from '../FriendsPage';
+import { FriendsPage } from '../friendBits';
 import { openDm, resetDockForTests, useFriendsDock } from '../dock/dockStore';
 import type { DmRemote, DmUnread } from './dmRemote';
 import {

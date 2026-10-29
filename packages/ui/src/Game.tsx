@@ -124,7 +124,6 @@ import { installLivePublisher } from './live/livePublisher';
 import { LiveGames } from './live/LiveGames';
 import { LiveJoining, LiveWatchBar } from './live/LiveWatchBar';
 import { SpectatorEndNotice } from './live/SpectatorEndNotice';
-import { FriendsPage } from './friends/FriendsPage';
 import { InviteNotice } from './friends/InviteNotice';
 import { FriendsDock } from './friends/dock/FriendsDock';
 import { FriendMenu } from './friends/FriendMenu';
@@ -640,9 +639,6 @@ export function Game() {
       <div className="version" aria-description={`ASCENT v${__APP_VERSION__} · build ${__BUILD_SHA__}`}>
         v{__APP_VERSION__} <span>{__BUILD_SHA__}</span>
       </div>
-      {/* THE FRIENDS DOCK (owner 2026-10-29, R-FRIENDS-DOCK-01): one slot left of Rules, in every game screen; the online
-          friends list rises out of it, and a friend's direct message panel opens beside it. Accounts only. */}
-      <FriendsDock />
       {settingsOpen && <EscMenu onClose={closeSettings} />}
       {/* DEV-only tuning menu — one 🛠️ button opening every live tuner (stripped from production). */}
       {DevMenu && <Suspense fallback={null}><DevMenu /></Suspense>}
@@ -699,7 +695,6 @@ export function Game() {
       <Rankings />
       <RecentGames />
       <LiveGames />
-      <FriendsPage />
       {/* The watched player's held card (SpectatorCursor) is THEIR run's card: their skins (R-PROG-SKINS-17). */}
       <RunSkins><LiveWatchBar /></RunSkins>
       <LiveJoining />
@@ -707,9 +702,14 @@ export function Game() {
       <SpectatorEndNotice />
       {/* A friend's invite (R-FRIENDS-04): a corner notice over the menus, never over a game. */}
       <InviteNotice />
+      {/* THE FRIENDS DOCK (owner 2026-10-29, R-FRIENDS-DOCK-01 / -02): ONE instance for the whole app, bottom left, on
+          every screen (title, menus, hero select, every game mode, spectating, replays), so open / closed, the tab and
+          an open message survive every screen change. The friends list rises out of it, a friend's direct message
+          beside it. Mounted after the menu pages so it paints over them. */}
+      <FriendsDock />
       {/* A direct message whose conversation is not open (R-DM-03): a small toast above the Friends button. */}
       <DmToast />
-      {/* The friend menu (R-FRIENDS-MENU-01): right-click / long press on a friend row (Friends page or dock). */}
+      {/* The friend menu (R-FRIENDS-MENU-01): right-click / long press on a friend row in the dock. */}
       <FriendMenu />
       <Career />
       {/* The Collection page (2026-09-28). After Career in DOM order, so a Collection opened from your Career's

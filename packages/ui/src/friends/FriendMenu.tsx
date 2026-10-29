@@ -16,7 +16,7 @@ import { sfx } from '../sfx';
 import { pointToStage, stageHost, stageViewport, toStage } from '../stage';
 import { LONG_PRESS_MS, TAP_SLOP } from '../touchInput';
 import { friendMenuContext, friendMenuEntries, runFriendMenu, type FriendMenuEntry } from './friendsGo';
-import { handleOf } from './FriendsPage';
+import { handleOf } from './friendBits';
 import type { Friend } from './friendsRemote';
 import { closeDock, swallowNextClick, useFriendsDock } from './dock/dockStore';
 import './friends.css';

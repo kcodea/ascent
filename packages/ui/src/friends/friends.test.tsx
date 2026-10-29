@@ -32,7 +32,7 @@ import {
   setInviteProofSourceForTests, startFriendsPresence, useFriends,
 } from './friendsStore';
 import { FriendsError, type BeatAnswer, type Friend, type FriendInvite, type FriendsList, type FriendsRemote, type PresenceReport } from './friendsRemote';
-import { FriendsPage, statusText } from './FriendsPage';
+import { FriendsPage, statusText } from './friendBits';
 import { InviteNotice } from './InviteNotice';
 import { MenuSidebar } from '../MenuSidebar';
 

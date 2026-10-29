@@ -51,7 +51,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // page and the mode picker, not only from a run — review 2026-09-21): a replay leaves the replay; a title
   // surface (a ladder page or a picker view over the title) goes to the main menu; the main menu itself has
   // nowhere to go, so the section is omitted; a run saves & quits.
-  const onPage = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showLiveGames || s.showFriends || s.showCollection || s.titleView !== 'menu');
+  const onPage = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showLiveGames || s.showCollection || s.titleView !== 'menu');
   // THE RANKED HERO SELECT (owner 2026-10-11, R-RANK-06): the player confirmed a ranked lobby and no run exists
   // yet, so there is nothing to "Save & Quit". Leaving from here is an abandon that settles as an 8th, and the
   // button says so (two taps, like Quit game).

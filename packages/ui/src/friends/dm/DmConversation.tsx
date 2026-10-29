@@ -15,7 +15,7 @@ import { sfx } from '../../sfx';
 import { useGame } from '../../store';
 import { useFriendsPrefs } from '../friendsPrefs';
 import type { Friend } from '../friendsRemote';
-import { handleOf } from '../FriendsPage';
+import { handleOf } from '../friendBits';
 import {
   DM_MAX_CHARS, DM_RECONNECTING_TEXT, DM_UNAVAILABLE_TEXT, loadOlder, reportDm, retryDm, sendDm, useDm, type DmMsg,
 } from './dmStore';

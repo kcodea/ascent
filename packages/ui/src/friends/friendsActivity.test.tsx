@@ -27,7 +27,7 @@ import type { VersusRoom } from '../versus/versusRemote';
 import { CHANGE_SETTLE_MS, presenceNow, resetFriendsForTests, setFriendsRemoteForTests, startFriendsPresence, useFriends } from './friendsStore';
 import { noteReplayAuthor, setShowActivity, useFriendsPrefs } from './friendsPrefs';
 import { activityText, parseActivity, parseGameStatus, stepText, type FriendActivity } from './gameStatus';
-import { FriendsPage, friendDetail, statusText } from './FriendsPage';
+import { FriendsPage, friendDetail, statusText } from './friendBits';
 import type { Friend, FriendsList, FriendsRemote, PresenceReport } from './friendsRemote';
 import { modeText } from './friendsStore';
 

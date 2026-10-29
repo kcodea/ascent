@@ -45,7 +45,7 @@ import type { Friend, FriendInvite, FriendsList, FriendsRemote, InviteKind } fro
 import { acceptSpectateInvite, FINISH_FIRST, friendMenuEntries, inviteToRoom, inviteToSpectate, runFriendMenu, type FriendMenuContext } from '../friendsGo';
 import { FriendMenu, openFriendMenu, useFriendMenu } from '../FriendMenu';
 import { FriendsDock } from './FriendsDock';
-import { FriendsPage } from '../FriendsPage';
+import { FriendsPage } from '../friendBits';
 import { DOCK_CLOSE_MS, resetDockForTests, useFriendsDock } from './dockStore';
 
 const ME = '00000000-0000-0000-0000-000000000001';

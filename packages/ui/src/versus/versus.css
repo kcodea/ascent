@@ -681,10 +681,17 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    stacking and the sizes change. Static paint. */
 .vswatch-seat { flex-direction: column; align-items: center; gap: 0; }
 .vswatch-seat .vsspec-info { align-items: center; gap: calc(2 * var(--u)); margin-top: calc(-11 * var(--u)); position: relative; z-index: 2; }
-.vswatch-seat .vsspec-name { max-width: calc(118 * var(--u)); font-size: calc(14 * var(--u)); }
-.vswatch-seat .vswatch-tag { color: var(--ui-title, #ffd98a); font-size: calc(10 * var(--u)); letter-spacing: 0.04em; padding: calc(1.5 * var(--u)) calc(7 * var(--u)); }
-.vswatch .vswatch-ring, .vsself .vswatch-seat:not(.vsself-seat) .vsspec-ring { --ring: calc(72 * var(--u)); }
-.vswatch .vsspec-seats, .vsself .vsspec-seats { align-items: flex-start; flex-wrap: wrap; gap: calc(12 * var(--u)); }
+.vswatch-seat .vsspec-name { max-width: calc(132 * var(--u)); font-size: calc(16 * var(--u)); }
+.vswatch-seat .vswatch-tag { color: var(--ui-title, #ffd98a); font-size: calc(12 * var(--u)); letter-spacing: 0.04em; padding: calc(2 * var(--u)) calc(8 * var(--u)); }
+/* THE STANDS COLUMN (owner 2026-10-29: "Need to clean up spectators and their emotes. It's cluttered and emotes cover
+   each other. They are also kinda small"; R-EMOTE-LAYOUT-01). One tidy column down the top-left edge, every plate the
+   same size (larger portraits), the same gap, at most three then the "+N" chip; never wrapping into the tier gem or the
+   timer. Each spectator's emote opens to the RIGHT of their own plate (emoteBubble.ts), so a column gives every bubble
+   its own lane. Static paint. */
+.vswatch .vswatch-ring, .vsself .vsspec-ring { --ring: calc(88 * var(--u)); }
+.vswatch .vsspec-seats, .vsself .vsspec-seats { flex-direction: column; align-items: center; flex-wrap: nowrap; gap: calc(10 * var(--u)); width: calc(132 * var(--u)); }
+.vswatch .vswatch-more, .vsself .vswatch-more { font-size: calc(15 * var(--u)); align-self: center; }
+.vsspec.vswatch, .vsspec.vsself { flex-direction: column; align-items: center; }
 
 /* THE SPECTATOR'S OWN HUD (SpectatorHud.tsx, owner 2026-10-16, R-SPECTATE-HUD-01). TOP LEFT (`.vsspec.vsself`, the
    `.vsspec` anchor): me as a spectator, the same plate the player sees for me, then the rest of the stands, then Leave.
@@ -692,7 +699,6 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    corner's Settings / book / rules buttons and the version line. Static paint; no cursor rule (buttons take the global
    gauntlet, everything else inherits the body's). */
 .vsself .vsself-seat { opacity: 1; }
-.vsself .vsself-seat .vsspec-ring { --ring: calc(84 * var(--u)); }
 .vswatchpanel { left: auto; top: auto; right: calc(var(--edge-r, 0px) + 20 * var(--u));
   bottom: calc(var(--edge-b, 0px) + 16px + 40 * var(--u) + 30px); }
 .vswatchpanel-one .vsspec-info { align-items: flex-end; }

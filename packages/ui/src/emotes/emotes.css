@@ -9,9 +9,10 @@
   will-change: transform, opacity;
 }
 .emote-bubble > img { display: block; width: 100%; height: 100%; object-fit: contain; }
-/* The rail and the combat foe sit at the stage's right edge, so their bubble opens to the LEFT: the art is mirrored
-   (statically, about its own centre) so the painted tail still points at the face. */
-.emote-bubble.flip > img { transform: scaleX(-1); }
+/* NEVER MIRRORED (owner 2026-10-29: "mirrored emotes on the lobby rail come out backwards so text doesn't work";
+   R-EMOTE-LAYOUT-01). The words are painted into the art, so a bubble beside a face at the stage's right edge (the rail,
+   the foe) is placed to the LEFT of the face as painted (`.emote-bubble.left`), never flipped. */
+.emote-bubble.left > img { transform: none; }
 
 .emote-menu {
   position: fixed; z-index: 950;

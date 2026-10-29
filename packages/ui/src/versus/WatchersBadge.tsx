@@ -3,7 +3,8 @@
  * a spectator joins? it can show their portrait and name and say spectating?"; R-SPECTATE-WATCHERS-01).
  *
  * Top left of the player's own game screen (shop and combat, Versus and a live ranked lobby game): one plate per person
- * watching, up to three, then a "+N" chip. Built from the spectator bar's existing pieces (`.vsspec`): the portrait
+ * watching, up to three, then a "+N" chip, in ONE column down the left edge (owner 2026-10-29: "It's cluttered";
+ * R-EMOTE-LAYOUT-01). Built from the spectator bar's existing pieces (`.vsspec`): the portrait
  * ring in their frame (`MemberRing`), the name pill and a second pill reading "Spectating". It stays while they watch
  * and goes when they leave (the list is the watcher rows, `watchers.ts`). The chip's names ride the game's own
  * `data-tip` hover, never a native tooltip.
@@ -47,12 +48,15 @@ export const StandsPlate = memo(function StandsPlate({ w, muted }: { w: Watcher;
   );
 });
 
-/** The stands as plates (up to three, then "+N"). Shared by the player's indicator and a spectator's own row. */
-export const StandsPlates = memo(function StandsPlates({ list }: { list: readonly Watcher[] }): JSX.Element | null {
+/** Plates shown on a spectator's own column under their own plate (theirs is drawn first, so the column stays as short). */
+export const FELLOWS_SHOWN = 2;
+
+/** The stands as plates (up to `max`, then "+N"). Shared by the player's indicator and a spectator's own column. */
+export const StandsPlates = memo(function StandsPlates({ list, max = WATCHERS_SHOWN }: { list: readonly Watcher[]; max?: number }): JSX.Element | null {
   const muted = useSpectatorEmotePrefs((s) => s.muted);
   if (list.length === 0) return null;
-  const shown = list.slice(0, WATCHERS_SHOWN);
-  const rest = list.slice(WATCHERS_SHOWN);
+  const shown = list.slice(0, max);
+  const rest = list.slice(max);
   return (
     <>
       {shown.map((w) => <StandsPlate key={w.id} w={w} muted={muted.includes(w.id)} />)}

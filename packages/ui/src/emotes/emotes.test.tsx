@@ -6,7 +6,8 @@
  *  - in a lobby run it is RECORDED for the round's board at its offset into the phase: a shop emote is held until the
  *    round's board is captured, a combat emote lands on the board already captured; practice records nothing;
  *  - a served seat's recorded emotes REPLAY at the same offset into your phase (fake clock), bots never;
- *  - the bubble sits by its speaker: yours as painted, a rail seat's mirrored, nothing for a face not on screen.
+ *  - the bubble sits by its speaker: yours up and right, a rail seat's to the left of its face (never mirrored: the words
+ *    are painted in), nothing for a face not on screen.
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
@@ -16,7 +17,7 @@ import { useGame } from '../store';
 import { EMOTE_COOLDOWN_MS, closeEmoteMenu, markEmotePhase, openEmoteMenu, resetEmotesForTests, sayEmote } from './emoteRuntime';
 import { resetHeldEmotes, takeShopEmotes } from './emoteRecording';
 import { deliverEmote, sendEmote, setEmoteTransport, subscribeEmotes } from './emoteTransport';
-import { bubbleBox, clearEmoteBubbles, setEmoteFoe, showEmoteBubble } from './emoteBubble';
+import { BUBBLE_WIDTH, bubbleBox, clearEmoteBubbles, setEmoteFoe, showEmoteBubble } from './emoteBubble';
 import { EmoteLayer } from './EmoteLayer';
 import { useProgression } from '../progression/progressionStore';
 import { equipEmoteLocally, parseLocalEmotes, useLocalEmotes } from './emoteLoadout';
@@ -199,23 +200,24 @@ describe('the bubble sits by its speaker', () => {
   };
 
   it('yours: from your portrait\'s upper-right, art as painted (tail down-left)', () => {
-    place('<div class="statusbar"><div class="hero"><div class="f"></div></div></div>', '.statusbar .hero .f', { left: 40, top: 800, width: 200, height: 200 });
+    place('<div class="statusbar"><div class="hero"><div class="f"></div></div></div>', '.statusbar .hero .f', { left: 40, top: 400, width: 200, height: 200 });
     expect(showEmoteBubble('s0', RETIRED)).toBe(false); // a retired emote (an old recording, an old client) shows nothing
     expect(showEmoteBubble('s0', A)).toBe(true);
     const img = document.body.querySelector<HTMLElement>('.emote-bubble.self')!;
-    expect(img.className).not.toMatch(/\bflip\b/);
+    expect(img.className).toMatch(/\bright\b/);
     expect(img.getAttribute('aria-hidden')).toBe('true');
     expect(img.querySelector('img')!.getAttribute('src')).toMatch(/emote_flirty_midas/);
-    const box = bubbleBox({ x: 40 + 200 - 60, y: 800 - 8, width: 300, flip: false });
-    expect([img.style.left, img.style.top, img.style.width]).toEqual([`${box.left}px`, `${box.top}px`, '300px']);
+    const box = bubbleBox({ x: 40 + 200 - 60, y: 400 - 8, width: BUBBLE_WIDTH.self, side: 'right' });
+    expect([img.style.left, img.style.top, img.style.width]).toEqual([`${box.left}px`, `${box.top}px`, `${BUBBLE_WIDTH.self}px`]);
     expect(box.left).toBeGreaterThan(40); // it opens to the right of the face
   });
 
-  it('a rail seat: to the LEFT of its face, mirrored; a seat with no face on screen gets nothing', () => {
+  it('a rail seat: to the LEFT of its face, art as painted; a seat with no face on screen gets nothing', () => {
     place('<div class="lobbyseat" data-seat="s3"><span class="lobbyface"></span></div>', '.lobbyseat[data-seat="s3"] .lobbyface', { left: 1700, top: 300, width: 60, height: 60 });
     expect(showEmoteBubble('s3', B)).toBe(true);
-    const img = document.body.querySelector<HTMLElement>('.emote-bubble.flip')!;
+    const img = document.body.querySelector<HTMLElement>('.emote-bubble.left')!;
     expect(img.dataset.seat).toBe('s3');
+    expect(img.className).not.toMatch(/\bflip\b/);
     expect(Number.parseFloat(img.style.left) + Number.parseFloat(img.style.width)).toBeLessThan(1760);
     expect(showEmoteBubble('s5', B)).toBe(false);
     // a new emote from the same seat replaces its bubble
@@ -233,12 +235,12 @@ describe('the bubble sits by its speaker', () => {
     expect(showEmoteBubble('s4', A)).toBe(false);
   });
 
-  it('VERSUS shop (no rail): the opponent emote opens beside their block portrait, mirrored (R-EMOTE-VERSUS-SHOP-01)', () => {
+  it('VERSUS shop (no rail): the opponent emote opens beside their block portrait, to its left (R-EMOTE-VERSUS-SHOP-01)', () => {
     // The Versus shop draws the opponent's block (VersusFoe) where the rail would stand; there is no `.lobbyseat` row.
     place('<div class="vsfoe-face" data-seat="s1"><div class="combatopp-portrait vsfoe-disc"></div></div>', '.vsfoe-face[data-seat="s1"] .vsfoe-disc', { left: 1600, top: 380, width: 160, height: 160 });
     expect(showEmoteBubble('s1', A)).toBe(true);
     const el = document.body.querySelector<HTMLElement>('.emote-bubble[data-seat="s1"]')!;
-    expect(el.className).toMatch(/\bflip\b/);
+    expect(el.className).toMatch(/\bleft\b/);
     expect(Number.parseFloat(el.style.left)).toBeLessThan(1600); // it opens to the LEFT of the face
     // your own bubble in the same shop still rises from your portrait
     place('<div class="statusbar"><div class="hero"><div class="f"></div></div></div>', '.statusbar .hero .f', { left: 40, top: 800, width: 200, height: 200 });

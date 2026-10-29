@@ -266,13 +266,14 @@ describe('R-SPECTATE-LOCAL-01: a spectator uses their own rail, guides and Summa
 });
 
 describe('R-SPECTATE-HUD-03: spectators are drawn like players', () => {
-  it('portrait on top, the name plate under it, a small Spectating tag, larger rings, a row that wraps', () => {
+  it('portrait on top, the name plate under it, a small Spectating tag, larger rings, one tidy column (R-EMOTE-LAYOUT-01)', () => {
     const css = readFileSync(join(__dirname, 'versus.css'), 'utf8');
     expect(css).toContain('.vswatch-seat { flex-direction: column; align-items: center; gap: 0; }');
     expect(css).toMatch(/\.vswatch-seat \.vsspec-info \{[^}]*margin-top: calc\(-11 \* var\(--u\)\)/);
-    expect(css).toContain('.vswatch .vswatch-ring, .vsself .vswatch-seat:not(.vsself-seat) .vsspec-ring { --ring: calc(72 * var(--u)); }');
-    expect(css).toContain('.vsself .vsself-seat .vsspec-ring { --ring: calc(84 * var(--u)); }');
-    expect(css).toMatch(/\.vswatch \.vsspec-seats, \.vsself \.vsspec-seats \{[^}]*flex-wrap: wrap/);
+    // every plate the same, larger ring (owner 2026-10-29: "They are also kinda small"), the player's and a spectator's own
+    expect(css).toContain('.vswatch .vswatch-ring, .vsself .vsspec-ring { --ring: calc(88 * var(--u)); }');
+    // one column, never wrapping into the tier gem or the timer (owner 2026-10-29: "It's cluttered")
+    expect(css).toMatch(/\.vswatch \.vsspec-seats, \.vsself \.vsspec-seats \{[^}]*flex-direction: column[^}]*flex-wrap: nowrap/);
     // the tag stays under the name in the same info column (the markup is unchanged: ring, then name, then tag)
     const badge = readFileSync(join(__dirname, 'WatchersBadge.tsx'), 'utf8');
     expect(badge.indexOf('vswatch-ring')).toBeLessThan(badge.indexOf('vsspec-name hudpill-name">{name}'));

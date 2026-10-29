@@ -11103,4 +11103,19 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Hover AnnTheBold in your spectator column: "Click to make AnnTheBold your mentor..." opens to the right of her plate, fully on screen.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/standsTip.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-SPECTATE-CURSOR-IDLE-01',
+    title: "A watched player's resting cursor stays visible",
+    statement:
+      "When the watched player stops moving their mouse, the stands keep drawing their hand where it stopped, for as long as it rests: on the live watch screen, for Versus and Duos spectators, in the Duos teammate view and in a replay's Cursor. The player's still hand sends nothing (no keep-alive); the watcher keeps the last position and its hover. The hand hides only when the player's mouse leaves the game window, their tab goes to the background, or the stream ends. A finger lifting off a touch screen is not leaving: its last spot stays drawn.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (spectated cursor idle)', quote: "can we make it so the a spectated player's mouse doesnt go invisible when it isnt moving?" },
+      { kind: 'code', ref: 'packages/ui/src/versus/cursorSource.ts (no idle hide; pointerout hide); packages/ui/src/versus/SpectatorCursor.tsx (the sleeping loop keeps the hand)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-29 (fix/spectate-cursor-idle). Before, the player sent a hide after 4 s without a move, and the watcher hid the hand 1.2 s after its last message anyway. A replay recorded before the fix still holds those idle hides.',
+    example: 'The player rests their mouse on a shop card to read it for ten seconds. The spectator sees the gauntlet stay on that card, its preview open, the whole time.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateCursorIdle.test.tsx', 'packages/ui/src/versus/spectateLive.test.ts', 'packages/ui/src/replay/streamParity.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
 ];

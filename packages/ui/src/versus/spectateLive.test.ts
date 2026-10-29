@@ -59,10 +59,26 @@ describe('player side', () => {
     // no movement -> nothing more
     vi.advanceTimersByTime(tap.CURSOR_TICK_MS * 3);
     expect(send.mock.calls.filter((c) => c[0] === tap.SPECTATE_CURSOR_EVENT)).toHaveLength(1);
-    // idle -> one hide, then nothing
+    // idle -> still nothing: the stands keep the resting hand where it stopped (R-SPECTATE-CURSOR-IDLE-01)
     vi.advanceTimersByTime(tap.CURSOR_IDLE_MS + 200);
+    expect(send.mock.calls.filter((c) => c[0] === tap.SPECTATE_CURSOR_EVENT)).toHaveLength(1);
+    // a touch lifting off is not the hand leaving
+    const lift = new MouseEvent('pointerout', { relatedTarget: null });
+    Object.defineProperty(lift, 'pointerType', { value: 'touch' });
+    window.dispatchEvent(lift);
+    vi.advanceTimersByTime(tap.CURSOR_TICK_MS * 2);
+    expect(send.mock.calls.filter((c) => c[0] === tap.SPECTATE_CURSOR_EVENT)).toHaveLength(1);
+    // the mouse leaves the game window -> one hide, then nothing
+    const out = new MouseEvent('pointerout', { relatedTarget: null });
+    Object.defineProperty(out, 'pointerType', { value: 'mouse' });
+    window.dispatchEvent(out);
+    vi.advanceTimersByTime(tap.CURSOR_TICK_MS * 4);
     const hides = send.mock.calls.filter((c) => c[0] === tap.SPECTATE_CURSOR_EVENT && (c[1] as { hide?: boolean }).hide);
     expect(hides).toHaveLength(1);
+    // it comes back -> drawn again
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX: 300, clientY: 200 }));
+    vi.advanceTimersByTime(tap.CURSOR_TICK_MS);
+    expect((send.mock.calls.at(-1)![1] as { hide?: boolean }).hide).toBeUndefined();
     tap.setSpectatorTap(false, null, null);
     expect(tap.spectatorTapOn()).toBe(false);
   });

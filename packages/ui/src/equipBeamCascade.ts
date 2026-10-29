@@ -3,6 +3,7 @@ import { EQUIPMENT_INDEX } from '@game/content';
 import type { RunState } from '@game/sim';
 import { LASSO_STAGGER_MS } from './lassoHolds';
 import { DEFAULT_ROLL_MS, holdStat } from './fx/statHold';
+import { useScreenSwapped, useSwapRef } from './screenSwap';
 import { canPlayDefs, playDef } from './fx/playDef';
 
 /**
@@ -159,6 +160,9 @@ export interface EquipBeamCascadeOpts {
   /** Read at fire time (a tuner edit applies to the next press): the `useDelayMs` before the first beam. */
   baseDelayMs: () => number;
   anchors: MutableRefObject<EquipBeamAnchors>;
+  /** The identity of the run on screen (`screenIdOf`): a Duos teammate swap re-renders in place, and this resets the
+   *  cascade as the remount it replaced did (R-DUOS-VIEW-NOREMOUNT-01). */
+  screen?: string;
 }
 
 export interface EquipBeamCascade {
@@ -179,7 +183,8 @@ export function useEquipBeamCascade(opts: EquipBeamCascadeOpts): EquipBeamCascad
     for (const f of stopsRef.current.splice(0)) f();
   }, []);
 
-  const prevSeq = useRef(seq);
+  const screen = opts.screen ?? '';
+  const prevSeq = useSwapRef(seq, useScreenSwapped(screen));
   useLayoutEffect(() => {
     if (seq === undefined || seq === prevSeq.current) return;
     prevSeq.current = seq; // advance FIRST — exactly once per action, however many cues bumped it
@@ -222,7 +227,7 @@ export function useEquipBeamCascade(opts: EquipBeamCascadeOpts): EquipBeamCascad
   // Leaving the shop (End Turn, a combat, a restore) retires every pending launch and every playing def; the
   // holds themselves are dropped by the store's `dropBoardFx` on the same flip.
   useEffect(() => { if (phase !== 'recruit') retire(); }, [phase, retire]);
-  useEffect(() => () => retire(), [retire]);
+  useEffect(() => () => retire(), [retire, screen]);
 
   return { stops: stopsRef, retire };
 }

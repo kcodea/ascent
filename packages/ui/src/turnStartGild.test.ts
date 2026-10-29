@@ -88,8 +88,8 @@ const SRC = (f: string): string => readFileSync(join(dirname(fileURLToPath(impor
 describe('the Shop wiring (source pins: no jsdom in this repo)', () => {
   const RECRUIT = SRC('Recruit.tsx');
   it('parks DURING RENDER on the triples count, below the wipe state, so no frame paints the golden early', () => {
-    const wipeAt = RECRUIT.indexOf('const [wipe, setWipe] = useState<WipeState>');
-    const parkAt = RECRUIT.indexOf('if ((run.triplesMade ?? 0) !== gildTriplesSeen) {');
+    const wipeAt = RECRUIT.indexOf('const [wipe, setWipe] = useSwapState<WipeState>');
+    const parkAt = RECRUIT.indexOf('if (!swapped && (run.triplesMade ?? 0) !== gildTriplesSeen) {');
     expect(parkAt).toBeGreaterThan(wipeAt);
     const block = RECRUIT.slice(parkAt, parkAt + 1200);
     expect(block).toContain('gildMustWait(run.phase, wipe)');

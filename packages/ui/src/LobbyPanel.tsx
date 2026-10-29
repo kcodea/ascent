@@ -18,6 +18,7 @@ import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { FadeImg } from './FadeImg';
 import { useGame } from './store';
+import { useScreenSwapped, useSwapRef } from './screenSwap';
 import { stageHost, stageViewport, toStage } from './stage';
 import { useSpectate } from './versus/spectate';
 import { useVersus } from './versus/versusStore';
@@ -101,7 +102,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The portrait-frames tuner's rings for the seat faces (null = today's plain round face).
   const selfFrame = usePortraitFrame('self', frameIdOf(runSkins)); // your seat: the frame recorded on this run
   const oppFrame = usePortraitFrame('opp');
-  const seenRound = useRef<number | null>(null); // the round whose damage floats already played (null = first sight)
+  // THE RUN ON SCREEN (R-DUOS-VIEW-NOREMOUNT-01): a Duos teammate swap re-renders this rail in place (it is no longer
+  // remounted), so the "first sight of a table" diffs below start over on it, exactly as a remount made them.
+  const swapped = useScreenSwapped(useGame((st) => `${st.run.runId ?? ''}:${st.run.seed}:${st.run.heroId}`));
+  const seenRound = useSwapRef<number | null>(null, swapped); // the round whose damage floats already played (null = first sight)
   const pendingFloatRef = useRef<(() => void) | null>(null);
   // The hovered seat AND where it sits on screen. The anchor is measured because the card is `position: fixed`
   // — see `ScoutCard`. One measurement per hover, not per frame, so this does not violate the layout-read rule.
@@ -293,13 +297,13 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
       requestAnimationFrame(() => { floatLobbyDamageOnSeats(floats); }); // every row measured, then every float added
     });
   }, [lobby?.round, lobby]);
-  useEffect(() => () => pendingFloatRef.current?.(), []);
+  useEffect(() => () => pendingFloatRef.current?.(), [runKey]);
 
   // THE KNOCKOUT (owner ask 2026-10-02): a seat that falls plays a one-shot smoke burst on its row as the row fades
   // into its dead look (lobbyKnockoutFx.ts). Diffed against the alive set this panel last saw, so it fires once per
   // elimination; the first sight of a table (mount / reload / new run) only records it, so an already-dead seat stays
   // static. Held for the curtain like the damage float, so it plays over the revealed rail.
-  const aliveRef = useRef<Set<string> | null>(null);
+  const aliveRef = useSwapRef<Set<string> | null>(null, swapped);
   const koTimers = useRef<(() => void)[]>([]);
   const [koIds, setKoIds] = useState<readonly string[]>([]);
   useEffect(() => {
@@ -317,7 +321,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     });
     koTimers.current.push(() => { cancelHold(); window.clearTimeout(clear); });
   }, [lobby]);
-  useEffect(() => () => { for (const stop of koTimers.current) stop(); }, []);
+  useEffect(() => () => { for (const stop of koTimers.current.splice(0)) stop(); }, [runKey]);
 
   // THE MAX-DAMAGE PUNCH (owner ask 2026-10-09: "add a small animation to the max dmg thing in the rail when it
   // updates to the next threshold. it should be an obvious animation that draws attention"). Diffed against the cap

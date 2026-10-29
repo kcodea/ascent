@@ -1,5 +1,5 @@
 import { openCardPingMenu } from './pings/PingLayer';
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
+import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { damageMeterOf, type Keyword, type RiseTint, type Tribe } from '@game/core';
@@ -48,13 +48,23 @@ const BADGE_POP_MS = 180;
  * a swell that only gets partway before the next digit lands, so the badge rides slightly enlarged for the
  * length of the roll and then completes one full pop as it settles.
  */
-function useBadgePop(value: number): RefObject<HTMLSpanElement> {
+function useBadgePop(value: number, screen: string): RefObject<HTMLSpanElement> {
   const ref = useRef<HTMLSpanElement>(null);
   /** The value as of the last frame that actually reached the screen — see the rAF below. */
   const painted = useRef(value);
   const anim = useRef<Animation | null>(null);
   const raf = useRef(0);
+  // A Duos teammate swap (R-DUOS-VIEW-NOREMOUNT-01) is not a change of this badge: the other screen's card with the same
+  // uid just took over the component. Its number is adopted silently.
+  const paintedScreen = useRef(screen);
   useLayoutEffect(() => {
+    if (paintedScreen.current !== screen) {
+      paintedScreen.current = screen;
+      cancelAnimationFrame(raf.current);
+      anim.current?.cancel();
+      painted.current = value;
+      return;
+    }
     /*
      * Compare at the PAINT boundary, not per commit.
      *
@@ -82,7 +92,7 @@ function useBadgePop(value: number): RefObject<HTMLSpanElement> {
       } catch { /* WAAPI composite unsupported: skip the pop rather than clobber the badge's transform */ }
     });
     return () => cancelAnimationFrame(raf.current);
-  }, [value]);
+  }, [value, screen]);
   return ref;
 }
 // Side-effect import: `cardPillsConfig` applies the pill layout vars (`--cpl-*-t`) to :root at module
@@ -107,6 +117,7 @@ import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
 import { useGame } from './store';
+import { ScreenContext } from './screenSwap';
 import { lastPointerWasTouch, tapInspectAllowed } from './touchInput';
 import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle, flurryRingPaintStyle } from './flurryConfig';
 import { pixiFx } from './pixiFx';
@@ -628,11 +639,14 @@ export const Card = memo(function Card({
    * `prevStats` resets when the uid changes, because React reuses a Card component across units — without
    * that, a recycled card would roll from the previous minion's numbers to this one's.
    */
-  const prevStats = useRef<{ uid?: string; attack: number; health: number }>({ uid, attack: card.attack, health: card.health });
+  // `screen` (R-DUOS-VIEW-NOREMOUNT-01): a Duos teammate swap reuses this component for the other screen's card with the
+  // SAME uid (both runs count uids from one start), so a change of screen is a recycled component too.
+  const screen = useContext(ScreenContext);
+  const prevStats = useRef<{ uid?: string; screen: string; attack: number; health: number }>({ uid, screen, attack: card.attack, health: card.health });
   useLayoutEffect(() => {
     const prev = prevStats.current;
-    prevStats.current = { uid, attack: card.attack, health: card.health };
-    if (prev.uid !== uid || uid === undefined || !autoRoll) return;   // a recycled component, not a stat change
+    prevStats.current = { uid, screen, attack: card.attack, health: card.health };
+    if (prev.uid !== uid || prev.screen !== screen || uid === undefined || !autoRoll) return;   // a recycled component, not a stat change
     const dA = card.attack - prev.attack;
     const dH = card.health - prev.health;
     if (dA === 0 && dH === 0) return;
@@ -654,7 +668,7 @@ export const Card = memo(function Card({
       const r = hpPopRef.current?.getBoundingClientRect();
       if (r) fireStatMilestone(card.cardId, 'health', hpTier, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
     }
-  }, [uid, card.attack, card.health, autoRoll, card.cardId]);
+  }, [uid, screen, card.attack, card.health, autoRoll, card.cardId]);
 
   // What the badges actually print. Live value MINUS whatever hasn't been shown yet, so the number stays
   // correct under anything else that touches the unit mid-hold (see statHold.ts on why it is a delta).
@@ -674,8 +688,8 @@ export const Card = memo(function Card({
   const atkMs = tierOf('attack', card.attack);
   const hpMs = tierOf('health', card.health);
   // Each badge pops independently, so a buff that only moves attack leaves the health badge alone.
-  const atkPopRef = useBadgePop(shownAttack);
-  const hpPopRef = useBadgePop(shownHealth);
+  const atkPopRef = useBadgePop(shownAttack, screen);
+  const hpPopRef = useBadgePop(shownHealth, screen);
   // A persistent Pixi effect rides each badge that has reached the FINAL milestone tier (≥5000), everywhere —
   // shop, warband and combat (combat units render through this same Card). Latches on for the unit's life.
   useMilestoneBadgeFx(uid, 'attack', atkMs, () => atkPopRef.current, own);
@@ -728,13 +742,17 @@ export const Card = memo(function Card({
   // Its own config (`stepProcFxConfig`), NOT the spell-power one — same primitive, independently tunable.
   const stepCounterRef = useRef<HTMLSpanElement>(null);
   const prevStepRef = useRef<number | null>(null);
+  const stepScreenRef = useRef(screen);
   // The counter's last laid-out CENTRE. Kept because one card fires its flourish as the counter DISAPPEARS
   // (see below), by which point the element is unmounted and has no rect of its own to read.
   const lastStepPtRef = useRef<{ x: number; y: number } | null>(null);
   const stepCur = card.stepProgress?.current;
   const stepTotal = card.stepProgress?.total;
   useEffect(() => {
-    const prev = prevStepRef.current;
+    // Another screen's card took this component over (a Duos teammate swap): its counter is a first sight, not a tick.
+    const swappedIn = stepScreenRef.current !== screen;
+    stepScreenRef.current = screen;
+    const prev = swappedIn ? null : prevStepRef.current;
     prevStepRef.current = stepCur ?? null;
     const el = stepCounterRef.current;
     if (el) {
@@ -764,7 +782,7 @@ export const Card = memo(function Card({
     const r = el.getBoundingClientRect();
     if (!r.width && !r.height) return;             // not laid out (hidden/unmounted) — nothing to fire from
     pixiFx.spellPower(r.left + r.width / 2, r.top + r.height / 2, getStepProcFxConfig());
-  }, [stepCur, stepTotal]);
+  }, [stepCur, stepTotal, screen]);
   // The golden-aware rules text — doubled numbers (or explicit goldenText) when shown golden.
   const shownText = card.golden ? (card.goldenText ?? doubleNums(card.text)) : card.text;
   // The rules HTML, memoized on the text it renders (perf audit 2026-08-06). Unmemoized, every Card render
@@ -1500,10 +1518,14 @@ const RESIL_SHARDS: readonly { x: string; y: string; w: string; r0: string; dx: 
 const WardGlass = memo(function WardGlass({ resilient }: { resilient: boolean }) {
   const was = useRef(resilient);
   const [crack, setCrack] = useState(0);
+  const screen = useContext(ScreenContext);
+  const wasScreen = useRef(screen);
   useEffect(() => {
-    if (was.current && !resilient) setCrack((n) => n + 1);
+    // Not on a Duos teammate swap: the other screen's card with this uid never had this ward (R-DUOS-VIEW-NOREMOUNT-01).
+    if (was.current && !resilient && wasScreen.current === screen) setCrack((n) => n + 1);
     was.current = resilient;
-  }, [resilient]);
+    wasScreen.current = screen;
+  }, [resilient, screen]);
   return (
     <div className={`wardglass${resilient ? ' resil' : ''}`} aria-hidden="true">
       <div className="wg-fill" />

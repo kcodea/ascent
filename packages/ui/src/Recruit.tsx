@@ -82,7 +82,7 @@ import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
 import { FightRecap } from './FightRecap';
 import { instView, liveCardText, tribeFace, type LiveTextParams, type SellTextState } from './instView';
 import { grantedTriggersOfBoard } from './grantedTriggers';
-import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
+import { clearAllHandBuffs, diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
 import { GauntletFoe } from './gauntlet/GauntletFoe';
@@ -219,7 +219,8 @@ import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMomen
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor, castFxReplacesTendril } from './choreo/bindings';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
-import { holdStat, releaseStat } from './fx/statHold';
+import { holdStat, releaseAllStats, releaseStat } from './fx/statHold';
+import { ScreenContext, screenIdOf, useScreenSwapped, useSwapRef, useSwapState } from './screenSwap';
 /** Set 4 self-damage in the Shop: how long a hit's dip holds when no +Health follows it on screen, and how long the
  *  Health badge takes to roll back up (owner 2026-10-13: down, a beat, then back up). */
 const SELF_DAMAGE_HOLD_MS = 450;
@@ -1421,6 +1422,12 @@ export function Recruit() {
   // Flip layout effect so it excludes Flip (timed separately). No-op cost when the monitor is off.
   const renderStart = performance.now();
   const run = useGame((s) => s.run);
+  // THE RUN ON SCREEN (R-DUOS-VIEW-NOREMOUNT-01): stable for a whole run, and different while a Duos player watches their
+  // teammate (the store then holds the teammate's run). This component is NOT remounted for that swap (Game.tsx holds its
+  // key), so `swapped` is true on the render the identity changes, and every ref and state below that a remount used to
+  // reset is reset on it (`useSwapRef` / `useSwapState`, screenSwap.ts); the cards read it through `ScreenContext`.
+  const screenId = screenIdOf(run);
+  const swapped = useScreenSwapped(screenId);
   const dispatch = useGame((s) => s.dispatch);
   const heroArmed = useGame((s) => s.heroArmed);
   const compactCards = useGame((s) => s.compactCards);
@@ -1576,11 +1583,11 @@ export function Recruit() {
   // SANDBOX ONLY: which board minion the unit editor is open on, and the rect it is seated under. Held as a
   // uid + rect rather than an element so a re-render (a stat edit is a re-render) can't leave a stale node.
   const sbEditMode = useGame((s) => s.sbEditMode);
-  const [sbEditing, setSbEditing] = useState<{ uid: string; rect: DOMRect } | null>(null);
+  const [sbEditing, setSbEditing] = useSwapState<{ uid: string; rect: DOMRect } | null>(null, swapped);
   // SANDBOX ONLY: the toggle that swaps the tavern row from shop offers to the board pinned for the coming
   // fight, and the same index+rect pattern as `sbEditing` for whichever pinned enemy slot is being edited.
   const sbTavernShowsEnemy = useGame((s) => s.sbTavernShowsEnemy);
-  const [sbEditingFoe, setSbEditingFoe] = useState<{ index: number; rect: DOMRect } | null>(null);
+  const [sbEditingFoe, setSbEditingFoe] = useSwapState<{ index: number; rect: DOMRect } | null>(null, swapped);
   // SANDBOX ONLY: this combat phase is a RE-WATCH of an already-resolved fight, not a fight awaiting
   // resolution. Every combat EXIT below has to branch on it — the whole contract of "run it again" is that
   // it re-runs the animation and nothing else, and the shared exits all resolve a combat.
@@ -1590,21 +1597,21 @@ export function Recruit() {
   // below). `prevHandSigRef` is the last rendered value signature per hand-card uid. The cue itself lives in
   // `handBuffFx.ts`, NOT here — any phase or surface has to be able to start it (end of turn, start of combat,
   // a mid-combat Echo/Avenge); this component just detects the buffs it can see and calls `fireHandBuff`.
-  const prevHandSigRef = useRef<Map<string, string>>(new Map());
+  const prevHandSigRef = useSwapRef<Map<string, string>>(new Map(), swapped);
   // Last phase the hand-buff watcher saw — lets it skip the single render where the phase flips (see below).
   // Named apart from the stat-diff watcher's own `prevPhaseRef`, which exists lower down for the same class of
   // reason (suppressing a spurious flash across the combat↔recruit transition) but tracks its own cadence.
-  const handBuffPhaseRef = useRef(run.phase);
+  const handBuffPhaseRef = useSwapRef(run.phase, swapped);
   // Last weld seq the stat-diff watcher has seen — lets it suppress the generic buff cues for the minions a
   // FRESH weld just landed on (the weld has its own ring + wiggle), without touching any other buff.
-  const weldStatSeqRef = useRef<number | undefined>(undefined);
+  const weldStatSeqRef = useSwapRef<number | undefined>(undefined, swapped);
   // A one-shot spark burst at a screen point, fired when a spell is cast.
-  const [spark, setSpark] = useState<{ x: number; y: number; key: number } | null>(null);
+  const [spark, setSpark] = useSwapState<{ x: number; y: number; key: number } | null>(null, swapped);
   const sparkKeyRef = useRef(0);
   // Channeling the Devourer: a stat "projectile" flung from the devoured minion to its random recipient.
-  const [devourBolt, setDevourBolt] = useState<
+  const [devourBolt, setDevourBolt] = useSwapState<
     { fromX: number; fromY: number; toUid: string; attack: number; health: number; key: number } | null
-  >(null);
+  >(null, swapped);
   const devourBoltRef = useRef<HTMLDivElement>(null);
   // Animate the Devourer bolt: the +A/+B mote arcs from the devoured minion to its recipient, then bursts
   // (a spark on arrival). The recipient's stats already jumped on cast — the bolt sells the transfer.
@@ -1640,7 +1647,7 @@ export function Recruit() {
   // Chaos hero power: when a Chaos Attachment is granted (every 5th turn), fly the new hand token in from the
   // hero portrait. One-shot, keyed off `chaosGrantSeq` (like fodderEatenSeq); inits to the current value so it
   // doesn't fire on mount (the game-start token is just there).
-  const prevChaosSeq = useRef(run.chaosGrantSeq);
+  const prevChaosSeq = useSwapRef(run.chaosGrantSeq, swapped);
   useEffect(() => {
     const seq = run.chaosGrantSeq;
     if (seq === undefined || seq === prevChaosSeq.current) return;
@@ -1665,7 +1672,7 @@ export function Recruit() {
   // One-shot, keyed off `aleGrantSeq` (inits to current so a restored save doesn't fire); the rect is read one
   // frame late so React has committed. Combat-generated ales are fired by the choreographer (score.ts), not here.
   // End-of-Turn ales (Brunni) are fired by the beat (`cardGranted`); `aleBubbleSources` skips the commit's stamp.
-  const prevAleSeq = useRef(run.aleGrantSeq);
+  const prevAleSeq = useSwapRef(run.aleGrantSeq, swapped);
   useEffect(() => {
     const seq = run.aleGrantSeq;
     if (seq === prevAleSeq.current) return;
@@ -1688,7 +1695,7 @@ export function Recruit() {
   // cards (the arrival on the board, the displaced offer in the tavern). Keyed off `swapFxSeq` (one-shot,
   // the chaosGrantSeq pattern; inits to the current value so a restored save doesn't fire). The rects are
   // read one frame late so React has committed both new cards first.
-  const prevSwapFxSeq = useRef(run.swapFxSeq);
+  const prevSwapFxSeq = useSwapRef(run.swapFxSeq, swapped);
   useEffect(() => {
     const seq = run.swapFxSeq;
     if (seq === undefined || seq === prevSwapFxSeq.current) return;
@@ -1718,7 +1725,7 @@ export function Recruit() {
   // floats up once they land. Keyed off `spellPowerFxSeq`, the same one-shot dedupe as swapFx; inits to the
   // current value so a restored save never fires on load. Anchored to the shop row — the cue means "your
   // spells got stronger", which is a tavern-wide fact rather than one card's.
-  const prevSpellPowerSeq = useRef(run.spellPowerFxSeq);
+  const prevSpellPowerSeq = useSwapRef(run.spellPowerFxSeq, swapped);
   useEffect(() => {
     const seq = run.spellPowerFxSeq;
     if (seq === undefined || seq === prevSpellPowerSeq.current) return;
@@ -1752,7 +1759,7 @@ export function Recruit() {
   // Guarded like the spell-power twin: a SOURCELESS bump outside the shop is the combat CARRY-BACK, which the
   // mid-combat narration beat has already shown — firing it again is the end-of-combat double-play the owner
   // reported. A sourced bump (a card you played) still fires in any phase.
-  const prevRubyPowerSeq = useRef(run.rubyPowerFxSeq);
+  const prevRubyPowerSeq = useSwapRef(run.rubyPowerFxSeq, swapped);
   useEffect(() => {
     const seq = run.rubyPowerFxSeq;
     if (seq === undefined || seq === prevRubyPowerSeq.current) return;
@@ -1791,13 +1798,13 @@ export function Recruit() {
   // Covers every recruit source at once — your drag from hand, a board-wide Shout, an End-of-Turn mint — because
   // `rubyLandedFxUids` is derived in the reducer from a `rubiesOnThisTurn` delta rather than stamped per play
   // site. The combat half is the `rubyFx` cue channel, off the `ruby` flag on the buff event.
-  const prevRubyLandedSeq = useRef(run.rubyLandedFxSeq);
+  const prevRubyLandedSeq = useSwapRef(run.rubyLandedFxSeq, swapped);
   /** The Veinstorm shop-gem HOLD's own guard — the offers withhold their pre-Ruby badge on `veinstormFxSeq`,
    *  a different signal from the per-card cascade's `rubyLandedFxSeq`, so it needs its own advance. */
-  const prevVeinstormHoldSeq = useRef(run.veinstormFxSeq);
+  const prevVeinstormHoldSeq = useSwapRef(run.veinstormFxSeq, swapped);
   /** The recruit-cue runner's own counter snapshot — see `recruitMoments.ts`. Separate from
    *  `prevRubyLandedSeq`, which the stat-HOLD effect below owns and advances on its own schedule. */
-  const prevRecruitSeqs = useRef(recruitSeqsOf(run));
+  const prevRecruitSeqs = useSwapRef(recruitSeqsOf(run), swapped);
   /** Live `run` for the cue runner's lookups, so the effect below can depend on the two counters
    *  alone. Assigned every render (a property write, no effect) — see `combatSpeedRef`. */
   const runRef = useRef(run);
@@ -1931,7 +1938,7 @@ export function Recruit() {
   // Pim uses." The gem is the ordinary `rubyLanded` cascade above; the Gold cue is Pimm's own `shout` binding
   // (`coin-shout` + its `maxGold` sound), resolved through the binding table rather than a hardcoded def so a
   // re-bind of Pimm carries over. It fires on the Ruby's target a beat after the gem, once per Gold payout.
-  const prevRubyRiderSeq = useRef(run.rubyRiderFxSeq);
+  const prevRubyRiderSeq = useSwapRef(run.rubyRiderFxSeq, swapped);
   useEffect(() => {
     const seq = run.rubyRiderFxSeq;
     if (seq === undefined || seq === prevRubyRiderSeq.current) return;
@@ -1957,7 +1964,7 @@ export function Recruit() {
   // ANCIENT OF FORTUNE × HUNCH (2026-09-30): each Rounded Spellbook use raises max Gold by 1. The coin burst out of
   // the GOLD PILL (the authored `coin` def the sell path already plays there) is the beat, one per bump of the sim's
   // presentation counter. Nothing on the first render (the ref starts at the current value).
-  const prevBookGoldSeq = useRef(run.ancients?.bookGoldFxSeq);
+  const prevBookGoldSeq = useSwapRef(run.ancients?.bookGoldFxSeq, swapped);
   useEffect(() => {
     const seq = run.ancients?.bookGoldFxSeq;
     if (seq === undefined || seq === prevBookGoldSeq.current) return;
@@ -2035,7 +2042,7 @@ export function Recruit() {
       else window.setTimeout(launch, i * cfg.staggerMs);
     }
   }, []);
-  const prevFodderSendSeq = useRef(run.fodderSendSeq);
+  const prevFodderSendSeq = useSwapRef(run.fodderSendSeq, swapped);
   useEffect(() => {
     const seq = run.fodderSendSeq;
     if (seq === undefined || seq === prevFodderSendSeq.current) return;
@@ -2078,7 +2085,7 @@ export function Recruit() {
       applyWeldWiggle(hosts.map((h) => h.el), land); // the card reacts to the IMPACT, not the ring appearing
     });
   }, []);
-  const prevWeldFxSeq = useRef(run.weldFxSeq);
+  const prevWeldFxSeq = useSwapRef(run.weldFxSeq, swapped);
   useEffect(() => {
     const seq = run.weldFxSeq;
     if (seq === undefined || seq === prevWeldFxSeq.current) return;
@@ -2093,55 +2100,55 @@ export function Recruit() {
   // Tavern-Fodder consume: a ghost Fred pops in the tavern and swirls into the eater Demon.
   // The ghost carries the Fodder's *effective* stats (attack/health) so a Ritualist-buffed
   // Fred shows e.g. 3/3, not the 1/1 base.
-  const [fodderAnim, setFodderAnim] = useState<
+  const [fodderAnim, setFodderAnim] = useSwapState<
     {
       key: number;
       ghosts: { fid: string; attack: number; health: number; x0: number; y0: number; w: number; h: number; eaterUid: string }[];
     } | null
-  >(null);
-  const prevFodderSeq = useRef(run.fodderEatenSeq);
-  const prevShopEatSeq = useRef(run.shopEatenSeq); // Set 2's shop-minion consume — its own channel (see state.ts)
+  >(null, swapped);
+  const prevFodderSeq = useSwapRef(run.fodderEatenSeq, swapped);
+  const prevShopEatSeq = useSwapRef(run.shopEatenSeq, swapped); // Set 2's shop-minion consume — its own channel (see state.ts)
   const eotEatKey = useRef(1_000_000); // fodderAnim keys for EoT-beat eats — offset far above the seq-keyed watcher's range
-  const prevEatFlashSeq = useRef(run.fodderEatenSeq); // the stat-diff flash's own eat tracker (suppresses the eaters' instant pop)
-  const prevFxSeq = useRef(run.recruitFxSeq); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
-  const prevShoutLinkSeq = useRef(run.shoutLinkFxSeq); // the Shop's Shout chain links (R-SHRIEKER-BEATS-01), same mount rule
+  const prevEatFlashSeq = useSwapRef(run.fodderEatenSeq, swapped); // the stat-diff flash's own eat tracker (suppresses the eaters' instant pop)
+  const prevFxSeq = useSwapRef(run.recruitFxSeq, swapped); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
+  const prevShoutLinkSeq = useSwapRef(run.shoutLinkFxSeq, swapped); // the Shop's Shout chain links (R-SHRIEKER-BEATS-01), same mount rule
   const shoutChainTimersRef = useRef<number[]>([]); // the chain's delayed links + buff waves, cleared on unmount
   /** Buff-FX waves captured while the arena covered the board (a combat-grant's settle-time reactor) — replayed on the shop reveal. */
-  const settleFxRef = useRef<RunState['recruitBuffFx']>([]);
+  const settleFxRef = useSwapRef<RunState['recruitBuffFx']>([], swapped);
   // The buffed minions an ale cast is visualizing this action, so the generic buff tendril is suppressed for
   // them (same rule as `rubyOwned` below). Keyed by `recruitFxSeq` so it only applies to that one action.
-  const spellCastOwnedRef = useRef<{ seq: number; uids: Set<string> }>({ seq: -1, uids: new Set() });
-  const prevAuraSeq = useRef(run.auraFxSeq ?? 0); // aura-wash FX watcher — same init-to-current contract
+  const spellCastOwnedRef = useSwapRef<{ seq: number; uids: Set<string> }>({ seq: -1, uids: new Set() }, swapped);
+  const prevAuraSeq = useSwapRef(run.auraFxSeq ?? 0, swapped); // aura-wash FX watcher — same init-to-current contract
   // A brief "End of Turn" banner when the turn ends (recruit → combat), making it clear that
   // end-of-turn effects (Ritualist & co.) just resolved.
-  const [endTurnFlash, setEndTurnFlash] = useState(false);
+  const [endTurnFlash, setEndTurnFlash] = useSwapState(false, swapped);
   // A one-shot flourish under a freshly-played minion whose Battlecry just fired.
-  const [battlecryUids, setBattlecryUids] = useState<Set<string>>(new Set());
+  const [battlecryUids, setBattlecryUids] = useSwapState<Set<string>>(new Set(), swapped);
   // Per-uid clear timers for that flourish. In a ref, not the effect's cleanup, so a hold survives the next
   // board change — see the battlecry effect for what cancelling them cost.
   const bcTimersRef = useRef<Map<string, number>>(new Map());
   // Lazily seeded (perf audit 2026-08-06): `useRef(expr)` evaluates its argument on EVERY render and throws
   // it away after the first — two .map() arrays + two Sets per render, at drag frame rate. The null-guard
   // runs the construction exactly once, with the same first-render seed.
-  const prevBoardUidsRef = useRef<Set<string> | null>(null);
+  const prevBoardUidsRef = useSwapRef<Set<string> | null>(null, swapped);
   /** Board uids the PLAYER just placed by a play (see the arrival watcher): their landing is `applyDrop`'s. */
-  const playerPlacedRef = useRef<Set<string>>(new Set());
+  const playerPlacedRef = useSwapRef<Set<string>>(new Set(), swapped);
   prevBoardUidsRef.current ??= new Set(run.board.map((c) => c.uid));
   // COALESCE watcher state. A card that appears in hand from nowhere gets the arcane materialise; see the
   // effect below for what's deliberately excluded (buys, gilds, Refrain bounces).
-  const prevHandUidsRef = useRef<Set<string> | null>(null);
+  const prevHandUidsRef = useSwapRef<Set<string> | null>(null, swapped);
   prevHandUidsRef.current ??= new Set(run.hand.map((c) => c.uid));
   // `minionPlayed` cue state — its OWN board/hand snapshots (NOT the coalesce watcher's `prevHandUidsRef`,
   // which a layout effect advances mid-commit before this effect reads it). A minion played from hand is new
   // to the board this frame AND was in the hand last frame; tokens and Triple-merges never pass through hand.
-  const playedPrevBoardRef = useRef<Set<string> | null>(null);
+  const playedPrevBoardRef = useSwapRef<Set<string> | null>(null, swapped);
   playedPrevBoardRef.current ??= new Set(run.board.map((c) => c.uid));
-  const playedPrevHandRef = useRef<Set<string> | null>(null);
+  const playedPrevHandRef = useSwapRef<Set<string> | null>(null, swapped);
   playedPrevHandRef.current ??= new Set(run.hand.map((c) => c.uid));
-  const prevTriplesRef = useRef<number>(run.triplesMade ?? 0);
+  const prevTriplesRef = useSwapRef<number>(run.triplesMade ?? 0, swapped);
   /** Where each would-be triple copy stood on the LAST commit — the gild's trails start there, because the sim
    *  consumes the copies inside the commit that reports the triple (see `gildTrailSources.ts`). */
-  const gildSnapRef = useRef<Map<string, GildSnap>>(new Map());
+  const gildSnapRef = useSwapRef<Map<string, GildSnap>>(new Map(), swapped);
   /* Set at the `buy` dispatch: a bought card was already visible in the tavern, so it is acquired rather
      than conjured. It gets its own shop→hand slide (`buySlide`) instead of the arcane coalesce, so this
      carries the release point the slide starts from (owner ruling 2026-07-22).
@@ -2153,7 +2160,7 @@ export function Recruit() {
      A uid rather than a bare flag, too: as a flag it discarded every fresh card in the commit, so anything
      a buy ALSO conjures in the same tick lost its coalesce — Dupes, Gorr's Four Peat, the Drakko and
      Chronos quest rewards, the Spellslinging gold drip. */
-  const buyPendingRef = useRef<{ uid: string; from: BuyFrom } | null>(null);
+  const buyPendingRef = useSwapRef<{ uid: string; from: BuyFrom } | null>(null, swapped);
   /* Set at a drag-drop that PLACES a minion on the board or REARRANGES one (board / hand / shop reorder).
      The dragged card is excluded from the settle FLIP (it appears at its committed slot with no glide — see
      `handFlipRef`'s `uid !== d.uid`), so it's ours to slide the last stretch home from where you released
@@ -2161,28 +2168,28 @@ export function Recruit() {
      card's uid (kept across a play/reorder, unlike a buy which mints a new one), the row selector to find it
      in, and the release box. Buy + sell are deliberately NOT set here: buy has its own slide, sell removes
      the card. */
-  const placePendingRef = useRef<{ uid: string; sel: string; from: BuyFrom } | null>(null);
+  const placePendingRef = useSwapRef<{ uid: string; sel: string; from: BuyFrom } | null>(null, swapped);
   /* cardIds whose in-combat coalesce actually played (see the hand-grant watcher), so the settle-side
      coalesce suppresses exactly those and nothing else. Consumed one-per-card by the coalesce watcher as
      the grants land in the real hand, which happens at `settleCombat` on a win but not until
      `resolveCombat` on a loss — matching there rather than at the phase flip is what keeps both paths
      single-fire. On a SKIPPED replay nothing renders mid-fight, so this stays empty and those grants
      coalesce on arrival instead of losing their effect entirely. */
-  const grantPlayedRef = useRef<string[]>([]);
+  const grantPlayedRef = useSwapRef<string[]>([], swapped);
   // How many hand-grant previews have already materialised (index into `handPreviews`).
-  const grantsShownRef = useRef(0);
+  const grantsShownRef = useSwapRef(0, swapped);
   /* cardIds an End-of-Turn BEAT has granted to hand so far, appended one beat at a time. `faceOmen` commits
      every End-of-Turn grant in a single dispatch after the LAST beat, so the whole batch used to appear at
      once, after every pulse had already fired. Showing the projection's per-beat grants (`EotStepFx.handGrants`)
      as the beats run puts each card's arrival on its own pulse (owner ask 2026-07-27); the real cards replace
      them at `faceOmen`, and `grantPlayedRef` keeps them from materialising twice. */
-  const [eotGrants, setEotGrants] = useState<string[]>([]);
+  const [eotGrants, setEotGrants] = useSwapState<string[]>([], swapped);
   // GAMBLE'S DIE (owner ask 2026-08-15; 3D die per the 2026-09-17 handoff): the spell rolls the SAME shared
   // `DiceRoll` the Gambler's hero power does — THROWN from the point you released the card (the last pointer
   // position, recorded below) toward the board centre, bouncing across the table (owner follow-up 2026-09-17) —
   // and the card it won is WITHHELD from the hand until the die's FINAL touchdown (`onLand`), not until it settles. The pull itself already resolved in the reducer
   // (deterministic/replayable) — this is purely when you get to see it. The face IS the tier pulled.
-  const [gambleDie, setGambleDie] = useState<{ result: DieFace; x: number; y: number; to: { x: number; y: number }; seed: number; key: number } | null>(null);
+  const [gambleDie, setGambleDie] = useSwapState<{ result: DieFace; x: number; y: number; to: { x: number; y: number }; seed: number; key: number } | null>(null, swapped);
   /** Where a Gamble die thrown from `from` lands (owner follow-up 2026-09-17): toward the board centre, bent by the
    *  seeded wobble, clamped inside the viewport and above the hand row. ONE layout read per cast, never per frame. */
   const gambleLanding = (from: { x: number; y: number }, seed: number): { x: number; y: number } => {
@@ -2202,7 +2209,7 @@ export function Recruit() {
     if (import.meta.env.DEV) console.debug('[dice] throw', JSON.stringify({ from, flick, dir, distance, to, samples: pointerTrailRef.current.length, handTop: hand?.top }));
     return to;
   };
-  const [gambleHold, setGambleHold] = useState<readonly string[] | null>(null);
+  const [gambleHold, setGambleHold] = useSwapState<readonly string[] | null>(null, swapped);
   /* THE LASSO HOLDS (`lassoHolds.ts`). `holds.shop` keeps a STOLEN Shop offer rendered in its own slot — the
      real card, not a placeholder, because the beam has to have something to hit — and `holds.hand` keeps its
      copy out of the fan, both until that steal's beam lands. The sim spliced the offer and pushed the hand
@@ -2229,12 +2236,13 @@ export function Recruit() {
     phase: run.phase,
     shopUids: lassoShopUids,
     handlers: lassoHandlersRef,
+    screen: screenId,
   });
   const lassoHolds = lassoCascade.holds;
   const trackLassoBeatTimer = lassoCascade.trackBeatTimer;
   /** Where the player let a SPELL go, stashed beside the dispatch that plays it (the `buyPendingRef` /
    *  `placePendingRef` pattern). A Lasso cast throws its beam from that point; cleared once read. */
-  const lassoDropRef = useRef<{ x: number; y: number } | null>(null);
+  const lassoDropRef = useSwapRef<{ x: number; y: number } | null>(null, swapped);
   const pointerRef = useRef({ x: 0, y: 0 });
   // The last ~150 ms of pointer motion (a small ring, newest last) — the THROW's direction is the flick the mouse
   // made just before the card was released (owner ask 2026-09-17), read by `flickOf` at roll start.
@@ -2251,7 +2259,7 @@ export function Recruit() {
     window.addEventListener('pointerdown', onMove, { passive: true });
     return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerdown', onMove); };
   }, []);
-  const prevGambleSeq = useRef(run.gambleRoll?.seq);
+  const prevGambleSeq = useSwapRef(run.gambleRoll?.seq, swapped);
   useEffect(() => {
     const seq = run.gambleRoll?.seq;
     const prev = prevGambleSeq.current;
@@ -2305,10 +2313,10 @@ export function Recruit() {
      board and shop rows). DERIVED DURING RENDER on the seq (the `heldConsume` pattern), never in an effect, so no frame
      ever paints the raised numbers or the new cards, and no row FLIPs toward them early. `sotPlaying` stays true from
      the batch's arrival until its last beat's tail: the turn timer and the Shop's offers wait on it. */
-  const [sotHolds, setSotHolds] = useState<SotHolds>(NO_SOT_HOLDS);
-  const [sotPlaying, setSotPlaying] = useState(false);
-  const [sotSeqSeen, setSotSeqSeen] = useState(run.sotBeatFxSeq ?? 0); // inits to current: a resumed save never holds a stale batch
-  if ((run.sotBeatFxSeq ?? 0) !== sotSeqSeen) {
+  const [sotHolds, setSotHolds] = useSwapState<SotHolds>(NO_SOT_HOLDS, swapped);
+  const [sotPlaying, setSotPlaying] = useSwapState(false, swapped);
+  const [sotSeqSeen, setSotSeqSeen] = useSwapState(run.sotBeatFxSeq ?? 0, swapped); // inits to current: a resumed save never holds a stale batch
+  if (!swapped && (run.sotBeatFxSeq ?? 0) !== sotSeqSeen) { // a swap is not a new batch: the reset above took the new run's seq
     setSotSeqSeen(run.sotBeatFxSeq ?? 0);
     const batch = run.sotBeatFx ?? [];
     if (batch.length > 0) {
@@ -2320,19 +2328,19 @@ export function Recruit() {
   /* A TRIPLE MADE AT START OF TURN (R-SOT-GILD-01, `turnStartGild.ts`): its golden card stays out of its row and its gild
      is parked until the Shop is in front of the player (the wipe at rest, the Start-of-Turn beats done, no offer such as
      the Runeforge covering it). Parked during render, below the wipe state, so no frame paints the golden early. */
-  const [gildHold, setGildHold] = useState<HeldGild | null>(null);
-  const [gildTriplesSeen, setGildTriplesSeen] = useState(run.triplesMade ?? 0);
+  const [gildHold, setGildHold] = useSwapState<HeldGild | null>(null, swapped);
+  const [gildTriplesSeen, setGildTriplesSeen] = useSwapState(run.triplesMade ?? 0, swapped);
   const handHeldBack = (uid: string): boolean => !!gambleHold?.includes(uid) || lassoHolds.hand.has(uid) || !!sotHolds.hand?.has(uid) || gildHold?.uid === uid;
   const gambleHand = gambleHold || lassoHolds.hand.size || sotHolds.hand?.size || gildHold ? handShown.filter((c) => !handHeldBack(c.uid)) : handShown;
   /* WHISPER DISSIPATE (owner 2026-10-14, `whisperDissipate.ts`). On End Turn every unused Whisper plays its drift-and-fade
      in the hand row while the End-of-Turn beats and the combat transition run (never delaying them). The commit removes
      it from `run.hand`; the row then holds it as a GHOST at its slot until its own fade ends, and drops it the moment the
      fade ends, before or after the commit, so the hand glides shut behind it. */
-  const [whisperFade, setWhisperFade] = useState<{ items: WhisperFadeItem[]; ghosts: Map<string, BoardCard>; views: Map<string, CardView>; ended: Set<string> } | null>(null);
+  const [whisperFade, setWhisperFade] = useSwapState<{ items: WhisperFadeItem[]; ghosts: Map<string, BoardCard>; views: Map<string, CardView>; ended: Set<string> } | null>(null, swapped);
   const whisperFadeTimersRef = useRef<number[]>([]);
   /** Set when a dissipated Whisper leaves the row, so the hand's close-the-gap glide runs even once combat has begun. */
-  const whisperGlideRef = useRef(false);
-  useEffect(() => () => { for (const t of whisperFadeTimersRef.current) window.clearTimeout(t); }, []);
+  const whisperGlideRef = useSwapRef(false, swapped);
+  useEffect(() => () => { for (const t of whisperFadeTimersRef.current) window.clearTimeout(t); }, [screenId]); // and on a screen swap (R-DUOS-VIEW-NOREMOUNT-01)
   // Done once every fade has ended and the commit has taken the cards out of the run (a fade that ends while the
   // End-of-Turn beats still show the old hand keeps hiding it until then).
   useEffect(() => {
@@ -2350,30 +2358,30 @@ export function Recruit() {
   );
   // Minions summoned to the BOARD during End-of-Turn playback (Moira re-firing a summoner) — injected into the
   // rendered board on their beat so they arrive in real time, replaced by the real cards at commit (same uid).
-  const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string; index?: number }[]>([]);
+  const [eotSummons, setEotSummons] = useSwapState<{ uid: string; cardId: string; index?: number }[]>([], swapped);
   // Keywords gained on board minions during End-of-Turn playback — overlaid so the pip shows on the beat.
-  const [eotKeywords, setEotKeywords] = useState<ReadonlyMap<string, ReadonlySet<string>>>(EMPTY_KW);
+  const [eotKeywords, setEotKeywords] = useSwapState<ReadonlyMap<string, ReadonlySet<string>>>(EMPTY_KW, swapped);
   // uid -> the card it BECAME this End of Turn (Skybound Ascendant's tier-up), so the swap renders on the beat.
-  const [eotTransforms, setEotTransforms] = useState<ReadonlyMap<string, string>>(EMPTY_TRANSFORMS);
+  const [eotTransforms, setEotTransforms] = useSwapState<ReadonlyMap<string, string>>(EMPTY_TRANSFORMS, swapped);
   // Shop resource deltas delivered so far this End of Turn (upgrade price, free Refreshes, next-turn Gold), folded
   // onto the HUD props so the price on the Tier stone drops on its beat (R-EOT-ECON-01). Null outside playback.
-  const [eotResources, setEotResources] = useState<Readonly<Record<string, number>> | null>(null);
+  const [eotResources, setEotResources] = useSwapState<Readonly<Record<string, number>> | null>(null, swapped);
   // Only while the End-of-Turn lock holds: the commit and the lock release land in one tick, so the HUD never adds a
   // delivered delta on top of the committed run (the deltas are cleared when the next End of Turn starts).
   const eotRes = eotAnimating ? eotResources : null;
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
-  const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
+  const [eotProcUids, setEotProcUids] = useSwapState<Set<string>>(new Set(), swapped);
   // Subset of eotProcUids whose effect OFFICIALLY fired this beat (cadence paid off / non-cadence EOT) —
   // these pulse the medallion (ring); progress-only ticks (in eotProcUids but not here) just glow.
-  const [eotPulseUids, setEotPulseUids] = useState<Set<string>>(new Set());
+  const [eotPulseUids, setEotPulseUids] = useSwapState<Set<string>>(new Set(), swapped);
   const discoverBurstRef = useRef<HTMLDivElement>(null); // mount point for the discover burst FX layer
   // Tokens summoned by a battlecry this play — their card mount-pop is held ~0.2s so the trigger pulse
   // reads first, THEN the token appears (e.g. Alleycat's pulse → Stray pops in just after).
-  const [summonDelayUids, setSummonDelayUids] = useState<Set<string>>(new Set());
+  const [summonDelayUids, setSummonDelayUids] = useSwapState<Set<string>>(new Set(), swapped);
   // Loss-damage sequence: on a defeat, surviving enemy tiers + the opponent's tier fly up into a damage
   // counter above the enemy board, then a Pixi bolt blasts it into the Resolve bar (which drops on impact).
-  const [lossPhase, setLossPhase] = useState<null | 'tally' | 'blast' | 'done'>(null);
-  const lossSeqRef = useRef(false);
+  const [lossPhase, setLossPhase] = useSwapState<null | 'tally' | 'blast' | 'done'>(null, swapped);
+  const lossSeqRef = useSwapRef(false, swapped);
   /** The hero attack in flight (Classic or a cosmetic style), held in a REF because the effect's deps (`replay.frame`)
    *  keep changing after the replay ends: it is cancelled only when combat actually ends, and on unmount. */
   const blastRef = useRef<HeroAttackHandle | null>(null);
@@ -2406,27 +2414,27 @@ export function Recruit() {
     eotCancelRef.current = null;
     for (const stop of eotFodderCleanupRef.current) stop();
     eotFodderCleanupRef.current = [];
-  }, []);
+  }, [screenId]); // a Duos teammate swap is the same "screen goes away" (R-DUOS-VIEW-NOREMOUNT-01)
   // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
   // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
-  const [eotAnimStats, setEotAnimStats] = useState<Record<string, { attack: number; health: number }> | null>(null);
+  const [eotAnimStats, setEotAnimStats] = useSwapState<Record<string, { attack: number; health: number }> | null>(null, swapped);
   // (The Start-of-Turn stat hold, `sotHeld`, is derived with the other Start-of-Turn holds above the hand filter.)
   // During the same animation, the running SHOP-offer buff delta per offer uid — so a shop minion buffed by an
   // End-of-Turn effect (Moira re-firing Market Tormentor / Contract Butcher) shows its stats climb in real time
   // on the beat, not jump only after the phase commits (owner ask 2026-08-12). Null outside the animation.
-  const [eotShopStats, setEotShopStats] = useState<Record<string, { attack: number; health: number }> | null>(null);
+  const [eotShopStats, setEotShopStats] = useSwapState<Record<string, { attack: number; health: number }> | null>(null, swapped);
   // Shop offers CONSUMED during the End-of-Turn animation (Bob Blart's Consume) — hidden from the row on the
   // eater's beat so they visibly leave in real time, instead of snapping out only at commit (owner report
   // 2026-08-14). Cleared when the animation completes; the committed state has already removed them by then.
-  const [eotConsumedUids, setEotConsumedUids] = useState<ReadonlySet<string>>(new Set());
+  const [eotConsumedUids, setEotConsumedUids] = useSwapState<ReadonlySet<string>>(new Set(), swapped);
   // A consumed SHOP minion's slot is HELD OPEN (an invisible placeholder) until its ghost has been pulled into
   // the eater, so the survivors reflow AFTER the card leaves rather than the instant the consume commits (owner
   // ask 2026-08-17). `heldConsume` is the eaten uids + their pre-removal slot index; `heldConsumeSeq` gates the
   // derive-during-render that seeds it from `run.shopEaten`. Declared here (not by the shop row below) because
   // `displayShop` reads it. The paired `shopRectsRef` snapshot (whose `cur` still holds the pre-removal layout
   // while the slot is held) supplies the index + the ghost's launch rect.
-  const [heldConsume, setHeldConsume] = useState<{ uid: string; index: number }[]>([]);
-  const [heldConsumeSeq, setHeldConsumeSeq] = useState(run.shopEatenSeq);
+  const [heldConsume, setHeldConsume] = useSwapState<{ uid: string; index: number }[]>([], swapped);
+  const [heldConsumeSeq, setHeldConsumeSeq] = useSwapState(run.shopEatenSeq, swapped);
   // Double-buffered snapshot of each shop card's centre + size, keyed by uid. A consumed shop minion is spliced
   // from `run.shop` (and the DOM) in the SAME commit that fires its eat cue, so by the time `playFodderEat` runs
   // the card is gone and its slot can't be measured — which is why the ghost used to spawn at the row centre.
@@ -2434,28 +2442,46 @@ export function Recruit() {
   // pre-removal layout) BEFORE the seq-watcher (a passive effect) reads it to find the eaten card's real slot.
   // While the slot is HELD (flipKey unchanged), this effect does not run, so `cur` still holds the pre-removal
   // layout — the launch read below falls back to `cur` for exactly that case.
-  const shopRectsRef = useRef<{ prev: Map<string, { cx: number; cy: number; w: number; h: number }>; cur: Map<string, { cx: number; cy: number; w: number; h: number }> }>({ prev: new Map(), cur: new Map() });
+  const shopRectsRef = useSwapRef<{ prev: Map<string, { cx: number; cy: number; w: number; h: number }>; cur: Map<string, { cx: number; cy: number; w: number; h: number }> }>({ prev: new Map(), cur: new Map() }, swapped);
   // During the same animation, the PROJECTED cadence tick per uid (eotTick + 1) so a cadence counter
   // (Money Maker / Frontdrake) visibly ticks up on its beat — the reducer only commits eotTick in faceOmen
   // (after the beats), so without this the counter would jump a turn late. Null outside the animation.
-  const [eotAnimTick, setEotAnimTick] = useState<Record<string, number> | null>(null);
+  const [eotAnimTick, setEotAnimTick] = useSwapState<Record<string, number> | null>(null, swapped);
   // Dragons Karwind just flame-buffed (keyed off run.karwindFlashSeq) — a one-shot flame flash.
-  const [karwindFlameUids, setKarwindFlameUids] = useState<Set<string>>(new Set());
+  const [karwindFlameUids, setKarwindFlameUids] = useSwapState<Set<string>>(new Set(), swapped);
   // The flame's clear timer, held in a ref so a dispatch can't cancel it — see the Karwind effect.
   const karwindTimerRef = useRef<number | undefined>(undefined);
-  const prevKarwindSeq = useRef(run.karwindFlashSeq);
+  const prevKarwindSeq = useSwapRef(run.karwindFlashSeq, swapped);
   // A trigger-medallion pulse on the BUFFER (Karwind) when its effect fires. A bound source's flame flash is
   // suppressed in favour of its authored ring on the buffed Dragons — but the buffer itself then had no
   // on-card cue that it triggered, so its medallion pulses instead (owner ask 2026-08-11). Own set + ref so
   // it only touches `pulse`, never the battlecry sigil, and clears independently of the flame.
-  const [karwindPulseUids, setKarwindPulseUids] = useState<Set<string>>(new Set());
+  const [karwindPulseUids, setKarwindPulseUids] = useSwapState<Set<string>>(new Set(), swapped);
   // The subset of the above whose proc was a CRIT (Karwind's 20% double): their medallion pulses RED instead
   // of white. Split from `karwindPulseUids` so a card is in exactly one, and cleared by the same timer.
-  const [karwindCritPulseUids, setKarwindCritPulseUids] = useState<Set<string>>(new Set());
+  const [karwindCritPulseUids, setKarwindCritPulseUids] = useSwapState<Set<string>>(new Set(), swapped);
   const karwindPulseTimerRef = useRef<number | undefined>(undefined);
   // A purple wash over the whole shop when Ritualist's End-of-Turn buffs the Fodder there.
   // Mechs being electrified as Combinator magnetizes Cling Drones onto them (End of Turn).
-  const [electrifyUids, setElectrifyUids] = useState<Set<string>>(new Set());
+  const [electrifyUids, setElectrifyUids] = useSwapState<Set<string>>(new Set(), swapped);
+  // A SCREEN SWAP (R-DUOS-VIEW-NOREMOUNT-01) drops what the old screen had in flight outside React: its pending flourish
+  // timers, a watch screen's held End of Turn (settled now, which drops its lock, instead of 12 s later onto the other
+  // screen), and the per-uid stat holds and
+  // hand-buff sparkles (both runs mint uids from the same counter, so a survivor would hold SOMEONE ELSE's number, the
+  // store's `dropBoardFx` rule). A layout cleanup: it runs in the swap's commit, before the new cards' own layout effects.
+  useLayoutEffect(() => () => {
+    for (const t of bcTimersRef.current.values()) window.clearTimeout(t);
+    bcTimersRef.current.clear();
+    window.clearTimeout(karwindTimerRef.current);
+    karwindTimerRef.current = undefined;
+    window.clearTimeout(karwindPulseTimerRef.current);
+    karwindPulseTimerRef.current = undefined;
+    const held = eotHeldRef.current;
+    if (held) { eotHeldRef.current = null; window.clearTimeout(held.timer); held.settle(); }
+    releaseAllStats();
+    clearAllHandBuffs();
+    pixiFx.clearParticles(); // the old screen's dust, sparks and tendrils never play over the new one
+  }, [screenId]);
 
   // --- In-place combat. Instead of swapping to a separate arena screen, the fight
   // plays out on this same board: the shop "closes" (the tavern offers, controls,
@@ -2468,14 +2494,14 @@ export function Recruit() {
   // button is inert, so the second half of a double-click that ended the LAST round can't immediately end the
   // new one. Keyed on the wave so it re-arms every round, and only while the shop is up — in combat the button
   // is the "end combat" control and gating it would strand the player.
-  const [roundSettled, setRoundSettled] = useState(false);
+  const [roundSettled, setRoundSettled] = useState(false); // NOT reset on a teammate swap: only its wave effect re-arms it
   useEffect(() => {
     if (inCombat) { setRoundSettled(true); return; }
     setRoundSettled(false);
     const t = window.setTimeout(() => setRoundSettled(true), END_TURN_LOCK_MS);
     return () => window.clearTimeout(t);
   }, [run.wave, inCombat]);
-  const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing');
+  const [combatStage, setCombatStage] = useState<'closing' | 'fighting'>('closing'); // effect-driven (a swap is shop-only)
   const fighting = inCombat && combatStage === 'fighting';
   // BOARD WIPE — a TWO-STAGE full-scene CURTAIN (owner ask 2026-08-28). The first version clipped only the
   // background layer, so everything the phase flip animates (the lobby rail sliding away, the opponent
@@ -2496,10 +2522,10 @@ export function Recruit() {
   const showOppSkins = useGame((s) => s.showOpponentSkins);
   // The portrait-frames tuner's opponent ring for the NOW FACING face (null = today's gold CSS border).
   const foeFrame = usePortraitFrame('opp');
-  const [wipe, setWipe] = useState<WipeState>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
+  const [wipe, setWipe] = useSwapState<WipeState>(() => (run.phase === 'combat' ? 'combat' : 'idle'), swapped);
   // Park a triple that landed under the return wipe (R-SOT-GILD-01). Sources resolve NOW, against the snapshot of the
   // pre-combat layout (`gildSnapRef`), which the next recruit commit overwrites.
-  if ((run.triplesMade ?? 0) !== gildTriplesSeen) {
+  if (!swapped && (run.triplesMade ?? 0) !== gildTriplesSeen) { // a swap is not a triple (the reset above took the new count)
     setGildTriplesSeen(run.triplesMade ?? 0);
     if ((run.triplesMade ?? 0) > gildTriplesSeen && gildMustWait(run.phase, wipe)) {
       const prevHand = prevHandUidsRef.current!, prevBoard = prevBoardUidsRef.current!;
@@ -2588,7 +2614,7 @@ export function Recruit() {
       titleWooshRef.current = window.setTimeout(() => sfx.vistaTrip('title'), VISTA_ARRIVAL_MS - 300); // moved 0.3 s earlier with the letters ("pop up .3 seconds earlier"), keeping its lead on them
     } else if (wipe === 'idle' || wipe === 'chargeIn' || wipe === 'combat') window.clearTimeout(titleWooshRef.current);
   }, [wipe]);
-  useEffect(() => () => window.clearTimeout(titleWooshRef.current), []);
+  useEffect(() => () => window.clearTimeout(titleWooshRef.current), [screenId]);
   // THROUGH THE DOOR (owner 2026-10-23: "at the moment that we pass through the glowing door completely, have those same
   // fluttery sparks bloom out from all four sides of the player screen"): once the dive has the doorway filling the
   // screen (82% of it, just before the vista fades off the shop), the portal's sparks bloom in off every edge.
@@ -2688,7 +2714,7 @@ export function Recruit() {
   // is open with a death pending (the body is still on the board), released one dissolve after the death commits
   // (+ the reborn re-form when the body Rises). Shared by construction: ANY effect that stamps `pendingDeath` and
   // opens a Discover in one action goes through this hold. `discoverHeld` is what the overlay reads.
-  const [postDeathHold, setPostDeathHold] = useState(false);
+  const [postDeathHold, setPostDeathHold] = useSwapState(false, swapped);
   const discoverOpen = !!run.discover;
   const discoverDeathHold = discoverOpen && (!!run.pendingDeath || postDeathHold);
   const discoverHeld = overlaysHeld || discoverDeathHold;
@@ -2740,12 +2766,12 @@ export function Recruit() {
   // Skip used to drive these classes too (a freeze + crossfade to the resolved board); it fast-forwards the
   // replay now (R-SKIP-TURBO-01). Kept as a const so the className derivation below reads unchanged.
   const combatOutro: null | 'out' | 'in' = null;
-  const [showLog, setShowLog] = useState(false); // the post-combat Combat Summary overlay
+  const [showLog, setShowLog] = useSwapState(false, swapped); // the post-combat Combat Summary overlay
   // DEFERRED odds (perf audit 2026-08-01, owner call): faceOmen no longer runs the 200-sim probe on the End
   // Turn click — it stashes `lastCombat.oddsInput` and this effect runs the probe in idle time once the
   // combat is mounted. Keyed on the lastCombat OBJECT (a new fight is a new object), and it also covers a
   // resumed mid-combat run (oddsInput is serialized with the save). Legacy saves with baked odds short-cut.
-  const [combatOdds, setCombatOdds] = useState<CombatOdds | null>(null);
+  const [combatOdds, setCombatOdds] = useSwapState<CombatOdds | null>(null, swapped);
   // A SPECTATOR (owner 2026-10-16: "allow spectators to view the combat summary in combat so they can see the chance to
   // win/lose etc."; R-SPECTATE-LOCAL-01): the odds are the PLAYER's own, computed once on their client and carried on the
   // spectate channel (`spectateTap.tapOdds`), so the numbers are the same and the watch screen runs no probe at all (its
@@ -2810,10 +2836,10 @@ export function Recruit() {
     };
   }, [run.lastCombat, run.seed, run.wave, oddsLossCap, spectatorOn]);
   const shownOdds = spectatorOn ? (watchedOdds && watchedOdds.w === run.wave ? watchedOdds.o : null) : combatOdds;
-  const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
-  const [powerMin, setPowerMin] = useState(false); // the hero-power Discover's Peek (same toggle, same contract)
-  const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
-  const [forgeMin, setForgeMin] = useState(false);
+  const [discoverMin, setDiscoverMin] = useSwapState(false, swapped); // B2: the Discover overlay is minimized (inspect the board)
+  const [powerMin, setPowerMin] = useSwapState(false, swapped); // the hero-power Discover's Peek (same toggle, same contract)
+  const [questMin, setQuestMin] = useSwapState(false, swapped); // the Quest overlay is minimized (inspect the shop rolled behind it)
+  const [forgeMin, setForgeMin] = useSwapState(false, swapped);
 
   /**
    * RUNE LOCK-IN CEREMONY (owner ask 2026-08-29) — the short flourish after a rune is bought.
@@ -2822,11 +2848,11 @@ export function Recruit() {
    * clears `runeforgeOffer`, so anything owned by that subtree unmounts with it. This state outlives the
    * forge, which is what lets the ceremony play after the thing it is about is gone.
    */
-  const [lockIn, setLockIn] = useState<RuneLockInCard[] | null>(null);
+  const [lockIn, setLockIn] = useSwapState<RuneLockInCard[] | null>(null, swapped);
   /** See the store field: set only by `replayPlayer`, never by live play. */
   const runeLockInCue = useGame((st) => st.runeLockInCue);
   /** Dev-only slow-motion for the demo — the real ceremony always plays at its authored speed. */
-  const [lockInSlow, setLockInSlow] = useState(1);
+  const [lockInSlow, setLockInSlow] = useSwapState(1, swapped);
   // RELEASE A PARKED START-OF-TURN GILD (R-SOT-GILD-01) once the Shop is in front of the player: the golden returns to
   // its row, then (next layout pass, so it is laid out) the trails fly into it and the triple sound plays. `actionSfx`
   // stays silent for a `resolveCombat` triple, so this is its one sound. Leaving the Shop first drops it unplayed.
@@ -2837,7 +2863,7 @@ export function Recruit() {
     power: !!run.powerOffer, powerMin,
     chooseOne: !!run.chooseOne, scouting: (run.scoutedNextOpponent?.length ?? 0) > 0, ancientOffer: (run.ancients?.offer?.length ?? 0) > 0,
   });
-  const gildPlayRef = useRef<HeldGild | null>(null);
+  const gildPlayRef = useSwapRef<HeldGild | null>(null, swapped);
   useEffect(() => {
     if (!gildHold) return undefined;
     if (run.phase !== 'recruit') { setGildHold(null); return undefined; }
@@ -2926,10 +2952,10 @@ export function Recruit() {
   }, []); // the Runeforge overlay is minimized (inspect the board behind it)
   // Per-card stat snapshot (attack + health) for the recruit-phase buff flash (declared up here so the
   // combat→recruit transition can re-sync it and avoid a spurious flash on the way back in).
-  const prevStatsRef = useRef<Map<string, { a: number; h: number }>>(new Map());
-  const prevPhaseRef = useRef(run.phase);
+  const prevStatsRef = useSwapRef<Map<string, { a: number; h: number }>>(new Map(), swapped);
+  const prevPhaseRef = useSwapRef(run.phase, swapped);
   // Gold floats at the spot a minion was sold (the actual sell value) — fixed-screen, auto-cleared.
-  const [sellFloats, setSellFloats] = useState<{ id: number; x: number; y: number; amount: number }[]>([]);
+  const [sellFloats, setSellFloats] = useSwapState<{ id: number; x: number; y: number; amount: number }[]>([], swapped);
   const sellFloatId = useRef(0);
   // True on the single render where we flip combat → recruit (prevPhaseRef is updated later, in the
   // layout effect). The warband cards mount on exactly this render, so passing it as `suppressPop`
@@ -2943,10 +2969,10 @@ export function Recruit() {
     [],
   );
   /** Echoes already played by the LEAD below — skipped when their batch arrives, so one Echo is one burst. */
-  const preFiredEchoRef = useRef<Set<string>>(new Set());
+  const preFiredEchoRef = useSwapRef<Set<string>>(new Set(), swapped);
   /** Set when a death cue fires, consumed by the commit FLIP below: the survivors hold before sliding
    *  into the dead minion's slot, so the death reads before the board rearranges (owner 2026-08-28). */
-  const shiftHoldRef = useRef(0);
+  const shiftHoldRef = useSwapRef(0, swapped);
 
   /**
    * THE SHOP'S TWO-STEP DEATH — the landing half (owner design 2026-08-28: "the minion should be coded to
@@ -3002,7 +3028,7 @@ export function Recruit() {
    * Kept BRISK by construction: everything is fired together (staggered per source), not queued behind the
    * player. Nothing here gates gameplay — the state has already committed.
    */
-  const prevEquipFxSeq = useRef(run.equipFxSeq);
+  const prevEquipFxSeq = useSwapRef(run.equipFxSeq, swapped);
   /* THE BEAM CASCADE (owner ruling 2026-09-22: "spiritbinder one beam per fire"). An Equipment whose def flies
      at the body its own effect picked (`useFxTargetsBuffed`) stamps one `use` cue PER FIRE, and
      `useEquipBeamCascade` plays them as N beams `EQUIP_BEAM_STAGGER_MS` apart, each landing on ITS recipient
@@ -3027,7 +3053,7 @@ export function Recruit() {
   };
   const equipBeams = useEquipBeamCascade({
     seq: run.equipFxSeq, cues: run.equipFx, phase: run.phase,
-    baseDelayMs: () => getEquipFxConfig().useDelayMs, anchors: equipBeamAnchorsRef,
+    baseDelayMs: () => getEquipFxConfig().useDelayMs, anchors: equipBeamAnchorsRef, screen: screenId,
   });
   /** Retire fns for USE defs (Deathfibrillator, Bloodpot) and for every beam of the cascade above — ONE list.
    *  Held OUTSIDE the cue effect on purpose: that effect re-runs (and cleans up) on the very next action — and
@@ -3181,10 +3207,10 @@ export function Recruit() {
    * cache below keeps the last known centre of every board card; this effect reads it BEFORE the refresh
    * effect (declared after it, so it runs after) overwrites it with the new layout.
    */
-  const lastCentreRef = useRef<Map<string, { x: number; y: number; w: number }>>(new Map());
+  const lastCentreRef = useSwapRef<Map<string, { x: number; y: number; w: number }>>(new Map(), swapped);
   /** The board cards that LEFT in the latest commit, with the centre they last stood at — see the refresh effect. */
-  const departedCentreRef = useRef<Map<string, { x: number; y: number; w: number }>>(new Map());
-  const prevShopFxSeq = useRef(run.shopFxSeq);
+  const departedCentreRef = useSwapRef<Map<string, { x: number; y: number; w: number }>>(new Map(), swapped);
+  const prevShopFxSeq = useSwapRef(run.shopFxSeq, swapped);
   // The death-cue layout effect and the last-centre refresh that used to sit here run inside `RowFlip` now
   // (perf 2026-09-17) — same order, same bodies — so they land in the commit where the row moves even when
   // that commit was a drag decision that never re-rendered `Recruit`. The refs above are theirs to write.
@@ -3194,8 +3220,8 @@ export function Recruit() {
   // still sits on screen (End Combat only opens now), the return trip's hold and dive play once, unseen, behind the
   // game, so the compositor has drawn every layer at every scale the trip needs. Once per fight. A press during it ends
   // it at once (the real trip takes the element over): whatever it had drawn by then still counts.
-  const [vistaWarm, setVistaWarm] = useState<VistaWarmStep | null>(null);
-  const vistaWarmedForRef = useRef<unknown>(null);
+  const [vistaWarm, setVistaWarm] = useSwapState<VistaWarmStep | null>(null, swapped);
+  const vistaWarmedForRef = useSwapRef<unknown>(null, swapped);
   useEffect(() => {
     if (wipe !== 'combat' || !replay.done || !run.lastCombat || vistaWarmedForRef.current === run.lastCombat) return undefined;
     vistaWarmedForRef.current = run.lastCombat;
@@ -3535,7 +3561,7 @@ export function Recruit() {
   // prepared-action seam, and held. If it ends the game the doors close over the fight and the held result is
   // committed behind them; if not, the blue sweep plays as always and commits it at full cover (below). Every other
   // fight is untouched: nothing is resolved at the press. See rankedGate/endGameGate.ts.
-  const wipeExitRef = useRef(false);
+  const wipeExitRef = useSwapRef(false, swapped);
   const endCombat = useCallback((): void => {
     if (wipeExitRef.current) return; // already leaving — ignore a double-click
     // VERSUS (owner 2026-10-14): End Combat tells the server this player is back, but the fight stays on screen until
@@ -3810,7 +3836,7 @@ export function Recruit() {
   }, [fighting, replay.done, replay.result, replay.frame, findEl, dispatch]);
 
   // Unmount safety for the strike's timers (leaving the run mid-sequence).
-  useEffect(() => () => { blastRef.current?.cancel(); blastRef.current = null; }, []);
+  useEffect(() => () => { blastRef.current?.cancel(); blastRef.current = null; }, [screenId]);
 
   // Reset the loss sequence when leaving combat (ready for the next fight).
   useEffect(() => {
@@ -3957,7 +3983,7 @@ export function Recruit() {
      DERIVED rather than cleared in a callback that races the commit — see `visibleHandPreviews`, and player
      report bb5195d5 (the hand briefly showing twice the granted cards). Captured when the preview list first
      becomes non-empty, which is the beat the projection lands. */
-  const eotHandBaseRef = useRef(0);
+  const eotHandBaseRef = useSwapRef(0, swapped);
   if (eotGrants.length === 0) eotHandBaseRef.current = run.hand.length;
   const handPreviews = useMemo(
     () => {
@@ -4008,44 +4034,44 @@ export function Recruit() {
   // Hand reorder (drag a hand card sideways): the GSAP Flip state captured at drop, glided by a dedicated
   // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
   // x-tween that path uses, so Flip.from (which preserves the full transform) drives the hand instead.
-  const handReorderFlipRef = useRef<StageFlipState | null>(null);
+  const handReorderFlipRef = useSwapRef<StageFlipState | null>(null, swapped);
   // Set true for the ONE commit in which the reorder-Flip above handles a drag-reorder, so the make-room
   // `--hand-glide` effect stands down that commit. Both effects key off `handOrderKey` and would otherwise BOTH
   // fire on a reorder (the drag is already null by the layout phase, so `--hand-glide`'s drag guard misses),
   // re-sliding the neighbours a whole slot on top of the Flip — the "the slide repeats after I let go" bug.
-  const reorderGlidedRef = useRef(false);
+  const reorderGlidedRef = useSwapRef(false, swapped);
   // Each hand card's LAYOUT x (offsetLeft) as of the previous commit — the make-room glide's "from". Layout,
   // not a rect, so no transform (hover zoom, drag slide, live glide) can ever leak into it.
-  const handLeftsRef = useRef<Map<string, number>>(new Map());
+  const handLeftsRef = useSwapRef<Map<string, number>>(new Map(), swapped);
   // Prior-frame left edges (uid → x) of every flipping card, for the commit-branch manual FLIP (a SELL /
   // effect reposition glides survivors from here → their new slot; symmetric where GSAP Flip was not).
   // Keyed by the row composition it was taken under (`CommitSweep`), so a commit that changed no row never diffs
   // against it (owner 2026-09-24: casting Growth slid the whole warband, `commitFlip.ts`).
-  const commitRectsRef = useRef<CommitSweep | null>(null);
+  const commitRectsRef = useSwapRef<CommitSweep | null>(null, swapped);
   // Set true when a hand card is just PLAYED onto the board, so the next FLIP commit SNAPS instead of running
   // GSAP. A played card is a NEW element entering the flex row: GSAP Flip doesn't take it out of flow, so it
   // fights the reflow (siblings close, then the new card shoves them back open = a jolt). The neighbours are
   // already parted to their final spots by the drag, so we let the card just pop in (CSS `popin`) and hold.
-  const handPlaySnapRef = useRef(false);
+  const handPlaySnapRef = useSwapRef(false, swapped);
   // Neighbours' visual left-edges captured at the instant of a hand-play drop (before the row reflows), so the
   // commit can FLIP each one from exactly where it sat to its final slot — no teleport if the release point
   // outran the rAF-throttled live preview (the "land it far over and a card jumps" bug).
-  const handFlipRef = useRef<Map<string, number> | null>(null);
+  const handFlipRef = useSwapRef<Map<string, number> | null>(null, swapped);
   // Which row (warband or tavern) the captured `handFlipRef` rects belong to — so the commit FLIPs the right
   // row. A board/hand drop targets the warband; a shop-offer reorder targets the tavern.
-  const handFlipSelRef = useRef<string | null>(null);
+  const handFlipSelRef = useSwapRef<string | null>(null, swapped);
   // The Y (viewport px) below which releasing a dragged HAND minion cancels back to hand instead of playing —
   // the "minimum play height". Measured once per drag (see the drag effect); Infinity until then = play anywhere.
-  const playFloorRef = useRef(Infinity);
+  const playFloorRef = useSwapRef(Infinity, swapped);
   // A SPELL arms on its own, LOWER line (closer to the hand) than a minion's play floor — so casting doesn't
   // need a long drag up. Set alongside playFloor from the live `spellLine` knob. Fallback = playFloor.
-  const spellFloorRef = useRef(Infinity);
+  const spellFloorRef = useSwapRef(Infinity, swapped);
   /** `castAimRef` mirrors the move flush's `castingSpell` / `castTargetUid` so the same flush can keep the
    *  spell aim line exact every frame. `defId` picks the aim EFFECT for this cast: a Ruby dragged from hand plays
    *  `ruby-target`; everything else leaves it undefined so `setAimLine` uses its default (`spell-target`).
    *  (The exact pointer position is `dragStore.pos`; the floating card, its weighted-drag rAF and the aim-line
    *  effect live in `DragOverlay` — perf 2026-09-17.) */
-  const castAimRef = useRef<{ casting: boolean; onTarget: boolean; defId?: string }>({ casting: false, onTarget: false });
+  const castAimRef = useSwapRef<{ casting: boolean; onTarget: boolean; defId?: string }>({ casting: false, onTarget: false }, swapped);
   /** The drag session's entry + exit (see `startDragSession`): `onCardPointerDown` starts one through the ref
    *  (always the latest render's closure), `endSessionRef` tears the live one down (drop, snap-back, unmount),
    *  `dragSessionSeq` tokens each session so a stale timer cannot end its successor. */
@@ -4057,22 +4083,22 @@ export function Recruit() {
   // Cached board/shop card rects for spell targeting — populated at drag-start (the board is static
   // during a spell drag: a spell doesn't open an insertion gap), so boardUidAt/shopUidAt hit-test
   // arithmetic instead of calling elementFromPoint every frame. Null outside a spell drag.
-  const targetRectsRef = useRef<{ board: { uid: string; r: DOMRect }[]; shop: { uid: string; r: DOMRect }[] } | null>(null);
+  const targetRectsRef = useSwapRef<{ board: { uid: string; r: DOMRect }[]; shop: { uid: string; r: DOMRect }[] } | null>(null, swapped);
   // Cached warband/shop insertion slots (resting left + width per card), populated at drag-start. The row
   // CONTAINERS don't move during a drag — only the cards shift (via GSAP Flip) — so the insertion index can
   // be counted against the cached resting midpoints instead of calling getBoundingClientRect on every card
   // every frame. That live read was the last drag path still forcing a synchronous reflow per frame (a
   // read-after-Flip-write thrash); arithmetic against the cache removes it. Null outside a drag.
-  const duosMateRectRef = useRef<DOMRect | null>(null);
-  const insertRectsRef = useRef<{ warband: { uid: string; left: number; width: number }[]; shop: { uid: string; left: number; width: number }[]; hand: { uid: string; left: number; width: number }[] } | null>(null);
+  const duosMateRectRef = useSwapRef<DOMRect | null>(null, swapped);
+  const insertRectsRef = useSwapRef<{ warband: { uid: string; left: number; width: number }[]; shop: { uid: string; left: number; width: number }[]; hand: { uid: string; left: number; width: number }[] } | null>(null, swapped);
   // Hand cards OVERLAP (negative margin), so their slot spacing isn't the card width — measured once per drag
   // (consecutive cached lefts) into `dragStore.handSlotW`; the hand row multiplies its per-card slot offset by it.
   // Last frame's reorder gap index (warband / shop). A reorder swap must trigger against each neighbour's
   // CURRENT (shifted) position, and that depends on where the gap currently is — hence we carry it frame to
   // frame. -1 = not reordering yet (falls back to the dragged card's home slot).
-  const prevWarbandGapRef = useRef(-1);
-  const prevShopGapRef = useRef(-1);
-  const prevHandGapRef = useRef(-1);
+  const prevWarbandGapRef = useSwapRef(-1, swapped);
+  const prevShopGapRef = useSwapRef(-1, swapped);
+  const prevHandGapRef = useSwapRef(-1, swapped);
   /**
    * WATCHING, not playing (owner report 2026-08-30: *"the buttons in game like end turn, freeze, and refresh
    * etc should not be clickable as a viewer in a replay ... it looks weird and causes bugs"*).
@@ -4234,11 +4260,11 @@ export function Recruit() {
      REVERSE order on re-insertion: each record's `index` was taken against the row as it stood when THAT steal
      spliced, so the later (smaller) row is rebuilt first and the earlier indices then land correctly. */
   const shopWithHolds = useMemo(() => foldLassoHolds(run.shop, lassoHolds) as ShopCard[], [run.shop, lassoHolds]);
-  const shopViewCache = useRef(new Map<string, ShopViewCacheEntry<CardView>>()); // per-offer signature memo — see shopViewCache.ts
-  const spellViewCache = useRef<CardView | null>(null);
-  const refViewCache = useRef(new Map<string, CardView[]>());
-  const boardViewCache = useRef(new Map<string, CardView>());
-  const handViewCache = useRef(new Map<string, CardView>());
+  const shopViewCache = useSwapRef(new Map<string, ShopViewCacheEntry<CardView>>(), swapped); // per-offer signature memo — see shopViewCache.ts
+  const spellViewCache = useSwapRef<CardView | null>(null, swapped);
+  const refViewCache = useSwapRef(new Map<string, CardView[]>(), swapped);
+  const boardViewCache = useSwapRef(new Map<string, CardView>(), swapped);
+  const handViewCache = useSwapRef(new Map<string, CardView>(), swapped);
   const shopViews = useMemo(
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
@@ -4351,7 +4377,7 @@ export function Recruit() {
    * it is taken in the cancel HANDLER (not a layout effect, which runs after the DOM has already moved) and
    * replayed by the effect below once the card is back in its hand slot.
    */
-  const coalesceRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const coalesceRef = useSwapRef<ReturnType<typeof Flip.getState> | null>(null, swapped);
   const captureCoalesce = useCallback((): void => {
     const uid = chooseOneHeldSlot(useGame.getState().run)?.uid;
     if (!uid) return;
@@ -5066,7 +5092,7 @@ export function Recruit() {
   };
   startDragSessionRef.current = startDragSession;
   // Unmounting mid-drag (a new run remounts Recruit via its runKey) must never strand the listeners or the store.
-  useEffect(() => () => { endSessionRef.current?.(); }, []);
+  useEffect(() => () => { endSessionRef.current?.(); }, [screenId]); // a live drag ends on a teammate swap too
   // Opening the IN-GAME MENU (Escape or the gear, R-ESC-SIDEBAR-01) drops any drag in hand: the card springs back and
   // nothing is played. A store subscription, so the menu flag never re-renders this tree for it.
   useEffect(() => useGame.subscribe((st, prev) => {
@@ -5364,7 +5390,7 @@ export function Recruit() {
    * gets invoked twice. The comment a few lines up still said "Recruit stays mounted" — it is corrected
    * below, because a stale claim like that is how the next person misreads this.
    */
-  const resumedWaveRef = useRef<number | null>(null);
+  const resumedWaveRef = useSwapRef<number | null>(null, swapped);
   useLayoutEffect(() => {
     // Behind the title the clock is hidden and paused (via overlayOpen); the resumed value is applied the moment
     // showTitle flips back to false on Continue — this effect keys on showTitle precisely so that flip fires it.
@@ -5597,7 +5623,7 @@ export function Recruit() {
   // own Shout grants it (Oathshield Orin — "Shout: gain Ward"), which arrives already warded in one reducer
   // action. The discriminator for a just-arrived minion is its CARD DEF: a base-Ward minion you BOUGHT lists
   // `'DS'` in its def and came with it (no blast); Orin's def has no `'DS'` and its Shout added it (blast).
-  const prevWardRef = useRef<Map<string, boolean> | null>(null);
+  const prevWardRef = useSwapRef<Map<string, boolean> | null>(null, swapped);
   useEffect(() => {
     if (inCombat) { prevWardRef.current = null; return; }
     const prev = prevWardRef.current;
@@ -5625,8 +5651,8 @@ export function Recruit() {
   // popped in, silent. Any NEW board uid in the Shop now gets the same landing dust and the summon sound. The player's
   // play is excluded (`playerPlacedRef`, it already has both), and so is a gild (the gild owns its card). The sound is
   // `sfx.summon`, gated per clip (a mass summon rings each clip once). End-of-Turn summons ride `cardSummoned`.
-  const arrivalPrevRef = useRef<Set<string> | null>(null);
-  const arrivalTriplesRef = useRef<number>(run.triplesMade ?? 0);
+  const arrivalPrevRef = useSwapRef<Set<string> | null>(null, swapped);
+  const arrivalTriplesRef = useSwapRef<number>(run.triplesMade ?? 0, swapped);
   useEffect(() => {
     const prev = arrivalPrevRef.current;
     const tripled = (run.triplesMade ?? 0) > arrivalTriplesRef.current;
@@ -5649,9 +5675,9 @@ export function Recruit() {
   // the pair is exact: the hand card lifts out and travels to the new body, which crossfades in. The
   // same flight combat plays (`useCombatReplay`). A LAYOUT effect, so the body is hidden on its first painted frame.
   // Bodies End-of-Turn playback already drew (`eotSummons`) are on screen: nothing to fly.
-  const eotShownRef = useRef<Set<string>>(new Set());
+  const eotShownRef = useSwapRef<Set<string>>(new Set(), swapped);
   useEffect(() => { for (const e of eotSummons) eotShownRef.current.add(e.uid); }, [eotSummons]);
-  const handSummonPrevRef = useRef<{ copied: readonly string[]; board: Set<string> } | null>(null);
+  const handSummonPrevRef = useSwapRef<{ copied: readonly string[]; board: Set<string> } | null>(null, swapped);
   useLayoutEffect(() => {
     const prev = handSummonPrevRef.current;
     const copied = run.handCopiedThisTurn ?? [];
@@ -5661,7 +5687,7 @@ export function Recruit() {
     launchHandSummonFlights(shopHandSummonFlights(prev.copied, copied, prev.board, run.board, run.hand, eotShownRef.current), findEl);
     // (the Shop's landing rings its own summon sound: the arrival effect below stands down for these bodies)
   }, [run.board, run.handCopiedThisTurn, inCombat]);
-  useEffect(() => () => clearHandSummonFx(), []);
+  useEffect(() => () => clearHandSummonFx(), [screenId]);
 
 
   // Replay a batch of captured buff-other events as source→target tendrils (living minion) or descends
@@ -5914,7 +5940,7 @@ export function Recruit() {
       else shoutChainTimersRef.current.push(window.setTimeout(fire, p.linkAtMs));
     }
   }, [run.shoutLinkFxSeq]);
-  useEffect(() => () => { for (const t of shoutChainTimersRef.current) window.clearTimeout(t); shoutChainTimersRef.current = []; }, []);
+  useEffect(() => () => { for (const t of shoutChainTimersRef.current) window.clearTimeout(t); shoutChainTimersRef.current = []; }, [screenId]);
   // …and the parked wave plays once the curtain has revealed the shop (`wipe` back to `idle` with the phase on
   // `recruit`), when the warband is measurable again. A decisive combat (end screen) drops it — no board to land on.
   useEffect(() => {
@@ -5945,11 +5971,11 @@ export function Recruit() {
    * INPUT is NOT blocked while the beats play (blocking read as sluggish): the Shop stays usable, only the clock waits.
    * The holds are deltas / uid sets over the live run, so an action taken mid-beat still reads right.
    */
-  const prevSotSeq = useRef(run.sotBeatFxSeq ?? 0); // inits to current: a resumed save never replays a stale beat
-  const sotQueueRef = useRef<NonNullable<RunState['sotBeatFx']>>([]);
+  const prevSotSeq = useSwapRef(run.sotBeatFxSeq ?? 0, swapped); // inits to current: a resumed save never replays a stale beat
+  const sotQueueRef = useSwapRef<NonNullable<RunState['sotBeatFx']>>([], swapped);
   const sotTimersRef = useRef<number[]>([]);
-  const sotArrivedRef = useRef<Set<string>>(new Set()); // released arrivals waiting for their element to materialise
-  const [sotQueued, setSotQueued] = useState(0);
+  const sotArrivedRef = useSwapRef<Set<string>>(new Set(), swapped); // released arrivals waiting for their element to materialise
+  const [sotQueued, setSotQueued] = useSwapState(0, swapped);
   useLayoutEffect(() => {
     const seq = run.sotBeatFxSeq ?? 0;
     if (seq === prevSotSeq.current) return;
@@ -6093,7 +6119,7 @@ export function Recruit() {
       if (r.width > 0) playPlateCoalesce(r, el);
     }
   });
-  useEffect(() => () => { sotTimersRef.current.forEach(window.clearTimeout); sotTimersRef.current = []; }, []);
+  useEffect(() => () => { sotTimersRef.current.forEach(window.clearTimeout); sotTimersRef.current = []; }, [screenId]);
 
   // AURA WAVE: a run-wide tribe-aura channel rose this action (auraFxSeq bumped) — bloom a tribe-colored wave
   // from the board CENTRE out to both edges. It's a GLOBAL cue (the aura touched the whole board), so it fires
@@ -6236,7 +6262,7 @@ export function Recruit() {
   // Pup → Spirit Worgen on its 10th spell (`spellCastTransform` keeps the uid, swaps cardId). Bloom the SAME ascend
   // flash combat uses, at the card's slot, so a shop transform reads as dramatically as a combat one. Gated to a def
   // that can actually morph (spellCastTransform / ascendInto) so a triple / golden / Magnetic merge never false-fires.
-  const prevBoardCardIdsRef = useRef<Map<string, string> | null>(null);
+  const prevBoardCardIdsRef = useSwapRef<Map<string, string> | null>(null, swapped);
   useEffect(() => {
     const current = new Map(run.board.map((c) => [c.uid, c.cardId]));
     if (prevBoardCardIdsRef.current === null || inCombat) { prevBoardCardIdsRef.current = current; return; }
@@ -6272,7 +6298,7 @@ export function Recruit() {
    * needs no staged anchors (`playDef` fills the viewport centre in), but the centre is passed for source and
    * target too so a future layer on another anchor still lands somewhere sensible rather than in the corner.
    */
-  const prevChooseOneEq = useRef<string | undefined>(undefined);
+  const prevChooseOneEq = useSwapRef<string | undefined>(undefined, swapped);
   useEffect(() => {
     const eqId = run.chooseOne?.equipmentId;
     if (eqId === prevChooseOneEq.current) return;
@@ -6591,14 +6617,14 @@ export function Recruit() {
   // The mid-shop consume's raise arrives on `run.board` in the same commit as the seq bump, so the hold goes
   // in from a LAYOUT effect keyed on that seq — before paint, and before the passive watcher below runs.
   // Its own prev-seq ref, because the watcher's is bookkeeping for the choreography, not for this.
-  const prevFodderHoldSeq = useRef(run.fodderEatenSeq);
+  const prevFodderHoldSeq = useSwapRef(run.fodderEatenSeq, swapped);
   useLayoutEffect(() => {
     if (run.fodderEatenSeq === prevFodderHoldSeq.current) return;
     prevFodderHoldSeq.current = run.fodderEatenSeq;
     holdFodderGains(fodderGainHolds(run.fodderEaten ?? []));
   }, [run.fodderEatenSeq, run.fodderEaten, holdFodderGains]);
 
-  const prevShopEatHoldSeq = useRef(run.shopEatenSeq);
+  const prevShopEatHoldSeq = useSwapRef(run.shopEatenSeq, swapped);
   useLayoutEffect(() => {
     if (run.shopEatenSeq === prevShopEatHoldSeq.current) return;
     prevShopEatHoldSeq.current = run.shopEatenSeq;
@@ -6614,7 +6640,7 @@ export function Recruit() {
    * `useState` (default). React is free to commit the sync one alone, and that commit is the one that prints
    * `old − gain`. A layout effect on `eotAnimStats` can only run in a commit that already carries the raise.
    */
-  const pendingFodderHolds = useRef<FodderGain[] | null>(null);
+  const pendingFodderHolds = useSwapRef<FodderGain[] | null>(null, swapped);
   useLayoutEffect(() => {
     const pending = pendingFodderHolds.current;
     if (pending === null) return;
@@ -6662,7 +6688,7 @@ export function Recruit() {
   // already gone when this passive effect runs. `shopRectsRef` (the drag layer's double-buffered measure
   // cache) still holds its pre-removal centre — `prev` after the layout snapshot swapped, `cur` while a slot is
   // held — so the pull launches from where the token sat. No ghost is drawn for the token itself.
-  const prevStarformFxSeq = useRef(run.starformFxSeq ?? 0);
+  const prevStarformFxSeq = useSwapRef(run.starformFxSeq ?? 0, swapped);
   useEffect(() => {
     const seq = run.starformFxSeq ?? 0;
     if (seq === prevStarformFxSeq.current) return;
@@ -6722,7 +6748,7 @@ export function Recruit() {
   // End-of-Turn cast commits after the phase flips and rides its beat instead — the `spellResolved` presenter
   // on the authoritative path, `EotStepFx.casts` on the legacy one (the `lassoFx` split). The caster's element
   // can lag the commit a frame (summoned-and-cast in one action), so `fireCastPreviewAt` retries briefly.
-  const prevCastFxSeq = useRef(run.castFxSeq ?? 0);
+  const prevCastFxSeq = useSwapRef(run.castFxSeq ?? 0, swapped);
   useEffect(() => {
     const seq = run.castFxSeq ?? 0;
     if (seq === prevCastFxSeq.current) return;
@@ -6753,7 +6779,7 @@ export function Recruit() {
   // ANCHORS: `anchorsForUnits` reads both rows, so a Shop-offer source (Distillation, Star Crash on the Starform
   // token) resolves like a board one. The recipient can land a frame late (a spell resolving in the same commit
   // that mounts a body) — retry briefly like the Starform pull above rather than dropping the play.
-  const prevBounceFxSeq = useRef(run.bounceFxSeq ?? 0);
+  const prevBounceFxSeq = useSwapRef(run.bounceFxSeq ?? 0, swapped);
   useEffect(() => {
     const seq = run.bounceFxSeq ?? 0;
     if (seq === prevBounceFxSeq.current) return;
@@ -6871,7 +6897,7 @@ export function Recruit() {
   }, []);
   /* The cascade's three hooks into the screen, handed over by plain assignment DURING render — the component
      body runs top to bottom before any effect, so what `useLassoCascade` reads is always this render's. */
-  const lassoBatchDropRef = useRef<{ x: number; y: number } | null>(null);
+  const lassoBatchDropRef = useSwapRef<{ x: number; y: number } | null>(null, swapped);
   lassoHandlersRef.current = {
     // One release point, one cast: the spell's drop point is snapshotted (and cleared) as the batch opens, so
     // every beam in it leaves where the card was let go and the next action starts clean.
@@ -6920,7 +6946,7 @@ export function Recruit() {
   // eater (the taffy's `durationMs`), and only THEN does the slot drop and the survivors glide closed. Derive-
   // during-render (not an effect) is required: a passive effect would run AFTER the FLIP layout effect had
   // already animated the reflow.
-  if (run.shopEatenSeq !== heldConsumeSeq) {
+  if (!swapped && run.shopEatenSeq !== heldConsumeSeq) { // a swap is not a consume (the reset above took the new seq)
     setHeldConsumeSeq(run.shopEatenSeq);
     const order = [...shopRectsRef.current.cur.keys()];
     // A Starform creation's meal is `silent` (2026-09-14): the token already sits in the victim's slot, so holding
@@ -8089,11 +8115,11 @@ export function Recruit() {
   const endTurnStable = useCallback((): void => { endTurnRef.current(); }, []);
   // VERSUS (2026-10-13): End Turn locks the round; the shared server deadline drives the clock; the real End Turn
   // re-enters `endTurn` once the round's one fight is committed. Inert outside Versus.
-  const versusGate = useVersusRecruit(run, endTurnStable, endCombat);
+  const versusGate = useVersusRecruit(run, endTurnStable, endCombat, screenId);
   // GOD MODE (owner 2026-10-08): End Turn asks for the opponent's round first; a pick fetches + pins a real board,
   // then re-enters endTurn with the gate open. Double-pick guard: the prompt's buttons are disabled while `busy`,
   // and a board that arrives after the shop moved on (phase / round changed) is dropped, never pinned.
-  const [godPrompt, setGodPrompt] = useState<GodPromptState>(null);
+  const [godPrompt, setGodPrompt] = useSwapState<GodPromptState>(null, swapped);
   const godFoeReadyRef = useRef(false);
   const pickGodRound = useCallback(async (round: number): Promise<void> => {
     await runGodPick(round, {
@@ -8509,7 +8535,7 @@ export function Recruit() {
   // player source finds it by this position (`setPlayerGrantUids`, R-HANDSUMMON-FX-01). Without it the lift found no
   // origin and the minion just popped in.
   useEffect(() => { setPlayerGrantUids(combatGrantUids ?? []); }, [combatGrantUids]);
-  useEffect(() => () => setPlayerGrantUids([]), []);
+  useEffect(() => () => setPlayerGrantUids([]), [screenId]);
   const handPreviewShown = useMemo(() => {
     if (!combatGrantUids || !combatHandBuffs) return handPreviewViews;
     let changed = false;
@@ -8529,6 +8555,8 @@ export function Recruit() {
   }, [handPreviewViews, combatGrantUids, combatHandSummoned]);
 
   return (
+    // Every card below reads the run on screen (R-DUOS-VIEW-NOREMOUNT-01): see `ScreenContext`.
+    <ScreenContext.Provider value={screenId}>
     <div
       className={`app${run.lobby ? ' lobby' : ''}${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${combatBgShown ? ' staged' : ''}${fighting ? ' fighting' : ''}${replay.shaking ? ' shaking' : ''}${replay.critShaking ? ' shaking-crit' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
@@ -8657,9 +8685,9 @@ export function Recruit() {
       {run.godMode && !inCombat && !eotAnimating && !heroSelecting && !introPlaying && !overlayOpen && <Suspense fallback={null}><GodModePanel /></Suspense>}
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
-      <CombatOpponent />
+      <CombatOpponent key={screenId} />
       {/* The foe's hand, face down, left of its runes (R-OPP-HAND-01): the count, the mid-fight grants, the greys. */}
-      <OpponentHand events={replay.replayEvents} through={replay.processedEnd} summoned={replay.enemyHandSummonedShown} live={inCombat} />
+      <OpponentHand key={screenId} events={replay.replayEvents} through={replay.processedEnd} summoned={replay.enemyHandSummonedShown} live={inCombat} />
       {run.mode === 'versus' && <VersusHud />}
       {/* Who is watching this player (Versus or a live ranked lobby game): top left, R-SPECTATE-WATCHERS-01. */}
       <WatchersBadge />
@@ -8669,6 +8697,7 @@ export function Recruit() {
           onPick={(r) => { void pickGodRound(r); }} onClose={closeGodPrompt} />
       )}
       <ShopControls
+        screen={screenId}
         fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold} readyNote={versusGate.readyNote} gemLocked={versusGate.gemLocked} gemReady={versusGate.gemReady} gemLabel={versusGate.gemLabel}
         replayDone={replay.done} replayTurboing={replay.turboing} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
         eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
@@ -8685,6 +8714,11 @@ export function Recruit() {
           (perf 2026-09-17), so a drag decision never reaches this component. Same DOM position as before. */}
       <DragOverlay timeUp={timeUp} heroArmed={heroArmed} equipArmed={equipArmed} hasPendingTarget={!!pendingTarget} />
 
+      {/* THE ROWS ARE NOT KEYED on the run on screen (R-DUOS-VIEW-NOREMOUNT-01): on a Duos teammate swap React reuses each
+          card's DOM for the other screen's card with the same uid, which is most of what the swap saves (keyed rows
+          measured slower than the old full remount). Each `Card` reads `ScreenContext` so the reuse plays nothing, and the
+          FLIP baselines (`lastCentreRef`, `commitRectsRef`, ...) are swap refs, so nothing glides. The overlays (mostly
+          empty, cheap) and the foe pieces ARE keyed: their local state is the other screen's. */}
       <PerfProfiler id="render:recruit:shop">
       <TavernRow
         frozen={!!run.frozen && !inCombat} replay={combatUnitsShown ? replay : null}
@@ -8893,7 +8927,7 @@ export function Recruit() {
           );
         })}
 
-      <PerfProfiler id="render:recruit:overlays">
+      <PerfProfiler key={screenId} id="render:recruit:overlays">
       <CombatLogOverlay
         showLog={showLog} result={replay.result} combatOdds={shownOdds} lastCombat={run.lastCombat}
         lobby={run.lobby} board={run.board} wave={run.wave} mode={run.mode} gauntletStage={run.gauntletStage}
@@ -8989,6 +9023,7 @@ export function Recruit() {
         );
       })()}
     </div>
+    </ScreenContext.Provider>
   );
 }
 
@@ -9012,8 +9047,10 @@ const ShopControls = memo(function ShopControls({
   fighting, inCombat, mode, sandbox, godMode, replayDone, replayTurboing, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
   hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
   refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift, combatRoundNo,
-  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold, readyNote, gemLocked, gemReady = false, gemLabel = null,
+  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold, readyNote, gemLocked, gemReady = false, gemLabel = null, screen,
 }: {
+  /** The run on screen (`screenId`): the gem's one-shot strike state starts over on a Duos teammate swap. */
+  screen: string;
   fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean; replayTurboing: boolean;
   /** GOD MODE (owner 2026-10-08): no clock, so no timer plaque at all. */
   godMode: boolean;
@@ -9108,6 +9145,7 @@ const ShopControls = memo(function ShopControls({
           when the screen mounted (a finished fight reopened by Continue after a reload, bug 2026-09-28): the
           sequence early-returns on `combatSettled` there too. The rule lives in `endCombatReady`. */}
       <EndTurnButton
+        screen={screen}
         onEndTurn={onEndTurn}
         onEndCombat={onEndCombat}
         combatReady={inCombat && combatGateOpen}

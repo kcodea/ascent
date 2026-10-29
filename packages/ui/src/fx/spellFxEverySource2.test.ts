@@ -149,7 +149,7 @@ describe('4. Staff of Guel on the authoritative End of Turn', () => {
 describe('5. a minion arriving from any source lands like a player play', () => {
   it('the Shop arrival watcher and the End-of-Turn summon both play the landing dust and the summon sound', () => {
     const recruit = src('../Recruit.tsx');
-    const watcher = recruit.slice(recruit.indexOf('const arrivalPrevRef = useRef'));
+    const watcher = recruit.slice(recruit.indexOf('const arrivalPrevRef = useSwapRef'));
     expect(watcher.slice(0, 1200)).toMatch(/puffOnBoard\(c\.uid\);\s*sfx\.summon\(c\.cardId\);/);
     expect(recruit).toContain('cardSummoned: (cardId, uid) => { puffOnBoard(uid); sfx.summon(cardId); },');
     // The player's own play is excluded (it already lands with both): it presents `placing` (actionPresenter.ts, the

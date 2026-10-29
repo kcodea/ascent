@@ -453,9 +453,13 @@ export function docClaimErrors(markdown: string, r: FinalReport): string[] {
   for (const key of PLACEHOLDER_ONLY_HEADLINES) {
     if (!(key in resolved.filled)) errors.push(`${key} must be written as the placeholder \`{{${key}}}\` (it is generated, never a literal) — it is missing from the document`);
   }
+  // A headline written as a literal is looked for in the text WITHOUT the placeholders' fills: a generated count that
+  // happens to equal it (the rule total reached 1143, the contract total, on 2026-10-29) must not stand in for it.
+  const literalText = markdown.replace(/\{\{\s*[\w.]+\s*\}\}/g, ' ');
   for (const [key, value] of Object.entries(headlineNumbers(r))) {
+    if (key in resolved.filled) continue; // written as its placeholder: filled from the generator, so always current
     const token = new RegExp(`(^|[^\\d.,])${value}([^\\d.%]|%|$)`, 'm');
-    if (!token.test(resolved.text)) errors.push(`${key} = ${value} does not appear in the document — run \`${REPORT_COMMAND}\` and update it`);
+    if (!token.test(literalText)) errors.push(`${key} = ${value} does not appear in the document — run \`${REPORT_COMMAND}\` and update it`);
   }
   if (!markdown.includes(REPORT_COMMAND)) errors.push(`the document must cite its generator (\`${REPORT_COMMAND}\`)`);
   if (!/commit\s*[`:]/i.test(markdown)) errors.push('the document must stamp the commit it was generated at');

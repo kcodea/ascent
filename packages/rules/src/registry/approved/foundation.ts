@@ -10616,6 +10616,52 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friendsActivity.test.tsx', 'packages/ui/src/friends/friendsBeatBudget.test.ts', 'packages/ui/src/friends/friendsActivity.db.test.ts', 'packages/ui/src/friends/friends.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
   {
+    id: 'R-FRIENDS-DOCK-01',
+    title: 'The in-game Friends dock: a corner button that opens the online friends list upward and a friend\x27s direct message panel beside it; a press outside or Escape closes both',
+    statement:
+      'In every game screen (lobby, Practice, every Versus mode, Ranked Duos, watching a game or a replay), a signed-in account has a Friends button in the bottom-right corner row, one slot left of Rules, wearing the corner plaque, with the number of friends online (the presence beat\x27s own count, no extra call). Pressing it opens a panel UPWARD out of the button (one-shot transform + opacity) listing ONLINE friends only (online, then in a game) with the Friends page\x27s live status line and game chips and Watch where their game can be watched; pressing it again collapses it. The list is read only while the dock is open, on the Friends page\x27s 60 s loop (nothing while closed or hidden). Clicking a friend opens a direct message panel beside the list: their portrait, name and status, the existing Watch / Invite actions, an empty conversation and a disabled field reading "Messages are coming soon" (a `conversation` slot for messaging later). A press anywhere outside closes BOTH panels in one motion and is caught by a transparent layer, so it never also buys, refreshes, ends the turn or starts a drag; Escape closes both without opening the Esc menu. No title= tooltips; the gauntlet cursor everywhere.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'I want to add a friends list button in game that shows online friends and their status. It can go in the bottom right. It will expand upward and collapse back down, and it will be how we add direct message chats as an overlay. If you click a player, a dm opens with them as an overlay. Clicking out needs to close both menus seamlessly so it isn\x27t clunky.' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dock/FriendsDock.tsx (FriendsDock, DockShell, DockFriendList, DmPanel), packages/ui/src/friends/dock/dockStore.ts, packages/ui/src/friends/dock/friendsDock.css, packages/ui/src/Game.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/ingame-friends-dock). Messaging itself is not built yet: the composer is disabled.',
+    example: 'Mid-shop, Ann taps the Friends button (badge 2): the list rises with Bob (Online: Main menu) and Cat (Round 6 · Fighting Dan, Watch). She taps Bob and his message panel opens beside the list. She taps the board: both panels sink back into the button and nothing on the board was bought.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-FRIENDS-MENU-01',
+    title: 'Right-click (or a long press) on a friend opens a menu: Spectate, Invite to lobby, Invite to Duos, Invite to spectate, only the ones that make sense now',
+    statement:
+      'On a friend row on the Friends page and in the in-game dock, right-click (a mouse) or a long press (a finger) opens a short menu in the game\x27s hover-panel look. Spectate shows when the friend is in a game that can be watched (the existing Watch path); while I am playing my own game it, and the dock\x27s Watch, show disabled with "Finish your game first" (watching would abandon my game). Invite to lobby and Invite to Duos show for an Online friend not already in a Versus room, when Versus is on: if I hold an open room of that kind (a Versus room, or a Ranked Duos party with a free seat) the invite goes to it; otherwise a NEW one is made first through the normal create flow (Versus: a room with the default options on the host the per-mode switch picks; Duos: the Duo + Play party) and I am taken there, then the invite is sent; the friend\x27s Accept seats them in it through the existing join, and a decline or an expiry leaves me in my room. While I am in a game (or my room\x27s game is running) both show disabled with "Finish your game first", and a full party shows "Your party is full". Invite to spectate shows while I am playing a watchable game. A press outside (or Escape) closes the menu, caught like the dock\x27s; outside the dock too, it closes the dock in the same press.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'There should be a right click -> spectate/invite to lobby/invite to duos/invite to spectate features as well from this friends list, as well as the friends list in the main menu' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'if I see a friend on and invite them to duo, it will instantly put me in a duo room and he joins when he accepts. Same for lobby' },
+      { kind: 'code', ref: 'packages/ui/src/friends/FriendMenu.tsx, packages/ui/src/friends/friendsGo.ts (friendMenuEntries, friendMenuContext, inviteToRoom, runFriendMenu), packages/ui/src/friends/FriendsPage.tsx (FriendRow)' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/ingame-friends-dock).',
+    example: 'On the main menu Ann right-clicks Bob (Online) and picks Invite to Duos: her Ranked Duos party opens and Bob gets the invite; he accepts and takes the second seat. Mid-game, the same menu shows Invite to Duos greyed with "Finish your game first".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-FRIENDS-MENU-02',
+    title: 'Invite to spectate: a friend\x27s Accept drops them straight into watching my game, on either host',
+    statement:
+      'A new invite kind, spectate, asks an Online friend to watch the game I am playing. Its target names the game: live:<game id> for a lobby / Practice game (Live Games, either host), versus:<room> or duos:<room> for a Versus or Ranked Duos match (a Cloudflare room as cf:<id>). friends_invite checks it at send time: a live game must be my own listed, still-live Live Games row; a Supabase room must hold me, be in game, and not hold the friend; a Cloudflare room signs the invite itself after the same checks (kind spectate, the room proof of R-VERSUS-CF-INVITE-01). The friend gets the normal invite notice ("<Name> invites you to watch their game."), and Accept opens the watch through the existing paths (watchLiveGame, or the room\x27s stands).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'There should be a right click -> spectate/invite to lobby/invite to duos/invite to spectate features as well from this friends list' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-11-friends-invite-spectate.sql, workers/versus/src/core/roomCore.ts (inviteCheck), packages/ui/src/friends/friendsStore.ts (mySpectateTarget, inviteProofFor), packages/ui/src/friends/friendsGo.ts (acceptSpectateInvite), packages/ui/src/friends/InviteNotice.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/ingame-friends-dock). Needs 2026-11-11-friends-invite-spectate.sql applied (until then the server answers bad_kind) and the Versus Worker redeployed for Cloudflare rooms.',
+    example: 'Ann is in round 5 of a Practice game and right-clicks Bob in the dock: Invite to spectate. Bob, on the main menu, sees "Ann#1111 invites you to watch their game." and presses Accept: he is watching her shop.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx', 'workers/versus/test/spectateInvite.db.test.ts', 'workers/versus/test/liveInvite.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
     id: 'R-VERSUS-CF-RECONNECT-01',
     title: 'Versus on Cloudflare: a dropped room socket reconnects the moment the network is back',
     statement:
@@ -10943,51 +10989,5 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Broken 2026-10-28 by #2399 (a translate on .statusbar re-anchored the fixed hero power seats to the bar, ~950 px below their socket on a 1080 screen, in every mode); fixed 2026-10-29 on fix/hero-power-offscreen. The pin is source-level: nothing may give .statusbar a containing block, and the seat must carry the group nudge itself.',
     example: "A Warden in Practice sees Aegis glowing in the round socket at the board's lower-left corner and can press it.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroPowerSeat.test.ts'], lastVerifiedAt: '2026-10-29' },
-  },
-  {
-    id: 'R-FRIENDS-DOCK-01',
-    title: 'The in-game Friends dock: a corner button that opens the online friends list upward and a friend\x27s direct message panel beside it; a press outside or Escape closes both',
-    statement:
-      'In every game screen (lobby, Practice, every Versus mode, Ranked Duos, watching a game or a replay), a signed-in account has a Friends button in the bottom-right corner row, one slot left of Rules, wearing the corner plaque, with the number of friends online (the presence beat\x27s own count, no extra call). Pressing it opens a panel UPWARD out of the button (one-shot transform + opacity) listing ONLINE friends only (online, then in a game) with the Friends page\x27s live status line and game chips and Watch where their game can be watched; pressing it again collapses it. The list is read only while the dock is open, on the Friends page\x27s 60 s loop (nothing while closed or hidden). Clicking a friend opens a direct message panel beside the list: their portrait, name and status, the existing Watch / Invite actions, an empty conversation and a disabled field reading "Messages are coming soon" (a `conversation` slot for messaging later). A press anywhere outside closes BOTH panels in one motion and is caught by a transparent layer, so it never also buys, refreshes, ends the turn or starts a drag; Escape closes both without opening the Esc menu. No title= tooltips; the gauntlet cursor everywhere.',
-    domain: 'foundation',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'I want to add a friends list button in game that shows online friends and their status. It can go in the bottom right. It will expand upward and collapse back down, and it will be how we add direct message chats as an overlay. If you click a player, a dm opens with them as an overlay. Clicking out needs to close both menus seamlessly so it isn\x27t clunky.' },
-      { kind: 'code', ref: 'packages/ui/src/friends/dock/FriendsDock.tsx (FriendsDock, DockShell, DockFriendList, DmPanel), packages/ui/src/friends/dock/dockStore.ts, packages/ui/src/friends/dock/friendsDock.css, packages/ui/src/Game.tsx' },
-    ],
-    currentBehaviour: 'Built 2026-10-29 (feat/ingame-friends-dock). Messaging itself is not built yet: the composer is disabled.',
-    example: 'Mid-shop, Ann taps the Friends button (badge 2): the list rises with Bob (Online: Main menu) and Cat (Round 6 · Fighting Dan, Watch). She taps Bob and his message panel opens beside the list. She taps the board: both panels sink back into the button and nothing on the board was bought.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
-  },
-  {
-    id: 'R-FRIENDS-MENU-01',
-    title: 'Right-click (or a long press) on a friend opens a menu: Spectate, Invite to lobby, Invite to Duos, Invite to spectate, only the ones that make sense now',
-    statement:
-      'On a friend row on the Friends page and in the in-game dock, right-click (a mouse) or a long press (a finger) opens a short menu in the game\x27s hover-panel look. Spectate shows when the friend is in a game that can be watched (the existing Watch path); while I am playing my own game it, and the dock\x27s Watch, show disabled with "Finish your game first" (watching would abandon my game). Invite to lobby and Invite to Duos show for an Online friend not already in a Versus room, when Versus is on: if I hold an open room of that kind (a Versus room, or a Ranked Duos party with a free seat) the invite goes to it; otherwise a NEW one is made first through the normal create flow (Versus: a room with the default options on the host the per-mode switch picks; Duos: the Duo + Play party) and I am taken there, then the invite is sent; the friend\x27s Accept seats them in it through the existing join, and a decline or an expiry leaves me in my room. While I am in a game (or my room\x27s game is running) both show disabled with "Finish your game first", and a full party shows "Your party is full". Invite to spectate shows while I am playing a watchable game. A press outside (or Escape) closes the menu, caught like the dock\x27s; outside the dock too, it closes the dock in the same press.',
-    domain: 'foundation',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'There should be a right click -> spectate/invite to lobby/invite to duos/invite to spectate features as well from this friends list, as well as the friends list in the main menu' },
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'if I see a friend on and invite them to duo, it will instantly put me in a duo room and he joins when he accepts. Same for lobby' },
-      { kind: 'code', ref: 'packages/ui/src/friends/FriendMenu.tsx, packages/ui/src/friends/friendsGo.ts (friendMenuEntries, friendMenuContext, inviteToRoom, runFriendMenu), packages/ui/src/friends/FriendsPage.tsx (FriendRow)' },
-    ],
-    currentBehaviour: 'Built 2026-10-29 (feat/ingame-friends-dock).',
-    example: 'On the main menu Ann right-clicks Bob (Online) and picks Invite to Duos: her Ranked Duos party opens and Bob gets the invite; he accepts and takes the second seat. Mid-game, the same menu shows Invite to Duos greyed with "Finish your game first".',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
-  },
-  {
-    id: 'R-FRIENDS-MENU-02',
-    title: 'Invite to spectate: a friend\x27s Accept drops them straight into watching my game, on either host',
-    statement:
-      'A new invite kind, spectate, asks an Online friend to watch the game I am playing. Its target names the game: live:<game id> for a lobby / Practice game (Live Games, either host), versus:<room> or duos:<room> for a Versus or Ranked Duos match (a Cloudflare room as cf:<id>). friends_invite checks it at send time: a live game must be my own listed, still-live Live Games row; a Supabase room must hold me, be in game, and not hold the friend; a Cloudflare room signs the invite itself after the same checks (kind spectate, the room proof of R-VERSUS-CF-INVITE-01). The friend gets the normal invite notice ("<Name> invites you to watch their game."), and Accept opens the watch through the existing paths (watchLiveGame, or the room\x27s stands).',
-    domain: 'foundation',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'There should be a right click -> spectate/invite to lobby/invite to duos/invite to spectate features as well from this friends list' },
-      { kind: 'code', ref: 'supabase/migrations/2026-11-11-friends-invite-spectate.sql, workers/versus/src/core/roomCore.ts (inviteCheck), packages/ui/src/friends/friendsStore.ts (mySpectateTarget, inviteProofFor), packages/ui/src/friends/friendsGo.ts (acceptSpectateInvite), packages/ui/src/friends/InviteNotice.tsx' },
-    ],
-    currentBehaviour: 'Built 2026-10-29 (feat/ingame-friends-dock). Needs 2026-11-11-friends-invite-spectate.sql applied (until then the server answers bad_kind) and the Versus Worker redeployed for Cloudflare rooms.',
-    example: 'Ann is in round 5 of a Practice game and right-clicks Bob in the dock: Invite to spectate. Bob, on the main menu, sees "Ann#1111 invites you to watch their game." and presses Accept: he is watching her shop.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx', 'workers/versus/test/spectateInvite.db.test.ts', 'workers/versus/test/liveInvite.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
 ];

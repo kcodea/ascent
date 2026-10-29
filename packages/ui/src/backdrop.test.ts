@@ -241,12 +241,43 @@ describe('hero shades (owner 2026-10-29: "another circle under each portrait", "
     // Same z as the texture and AFTER it in the DOM: above the picture, under the board's shadow and art.
     expect(shop).toMatch(/z-index: -1;/);
     expect(shop).toMatch(/pointer-events: none;/);
-    // Shop: your portrait + hero power. Combat adds the foe's portrait.
-    expect(shop.match(/radial-gradient\(/g)?.length).toBe(2);
+    // Shop: your portrait + hero power shades (plus the portrait's drop shadow, defined here as --_psh). Combat adds
+    // the foe's portrait.
+    expect(shop.match(/radial-gradient\(/g)?.length).toBe(3);
     expect(shop).toContain('var(--bd-pshade-r)');
     expect(combat.match(/radial-gradient\(/g)?.length).toBe(3);
     expect(combat).toContain('var(--bd-oshade-r)');
     // Measured from the board's centre in --scale units, with the board's own nudge, so it rides the hero corners.
     expect(shop).toContain('calc(50% + (var(--board-x, 0px) + var(--bd-shade-x)) * var(--scale))');
+  });
+});
+
+describe('your portrait\'s drop shadow sits UNDER the board (owner 2026-10-29: "make sure the hero portrait shadow ... is also behind the hero power/board")', () => {
+  it('the portrait wears no filter shadow; the board\'s shade layer draws it on top of the other layers, in both phases', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const css = readFileSync(resolve(__dirname, 'styles.css'), 'utf8');
+    expect(css).not.toMatch(/\.statusbar \.hero \.herolunge \{ filter: drop-shadow/);
+    const rule = (sel: string): string => css.match(new RegExp(`\\n${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{([^}]*)\\}`))?.[1] ?? '';
+    const shop = rule('.boardbg-shade');
+    const combat = rule('.boardbg--combat .boardbg-shade');
+    // The stand-in reads the Layout Lab's Portrait shadows (strength, blur, X/Y, size) at the measured disc, off-screen
+    // until measured.
+    expect(shop).toMatch(/--_psh: radial-gradient\(circle calc\(var\(--psh-r0, 0px\) \* var\(--psh-size, 1\.2\)/);
+    expect(shop).toContain('var(--psh-cx, -9999px)');
+    expect(shop).toContain('rgb(0 0 0 / var(--psh-a, 1))');
+    // First listed = painted on top of the hero shades.
+    expect(shop).toMatch(/background:\s*var\(--_psh\),/);
+    expect(combat).toMatch(/background:\s*var\(--_psh\),/);
+  });
+
+  it('StatusBar measures the resting portrait (mount, after the entrance, on a stage change), never per frame', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const src = readFileSync(resolve(__dirname, 'StatusBar.tsx'), 'utf8');
+    expect(src).toContain("root.setProperty('--psh-cx',");
+    expect(src).toContain("root.setProperty('--psh-r0',");
+    expect(src).toContain('const off = onStageChange(measure);');
+    expect(src).toMatch(/ref=\{portraitRef\}\s*className=\{`f\$\{/);
   });
 });

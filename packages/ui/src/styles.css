@@ -370,12 +370,17 @@ canvas.spr { image-rendering: pixelated; display: block; }
   position: absolute; inset: 0; z-index: -1; pointer-events: none;
   --_shade-stops: rgb(0 0 0 / var(--bd-shade-a, 0.6)) 0%, rgb(0 0 0 / var(--bd-shade-a, 0.6)) var(--bd-shade-core, 30%),
     rgb(0 0 0 / calc(var(--bd-shade-a, 0.6) * 0.35)) calc((var(--bd-shade-core, 30%) + 100%) / 2), transparent 100%;
+  /* Top layer: YOUR portrait's drop shadow (the Layout Lab's Portrait shadows: strength, blur, X/Y, size), a soft circle
+     at the portrait disc StatusBar measures (--psh-cx/cy/r0, stage px). Off-screen until measured. */
+  --_psh: radial-gradient(circle calc(var(--psh-r0, 0px) * var(--psh-size, 1.2) + var(--psh-blur, 15px) * var(--scale)) at calc(var(--psh-cx, -9999px) + var(--psh-x, 0px) * var(--scale)) calc(var(--psh-cy, -9999px) + var(--psh-y, 6px) * var(--scale)), rgb(0 0 0 / var(--psh-a, 1)) calc(var(--psh-r0, 0px) * var(--psh-size, 1.2) - var(--psh-blur, 15px) * var(--scale)), transparent calc(var(--psh-r0, 0px) * var(--psh-size, 1.2) + var(--psh-blur, 15px) * var(--scale)));
   background:
+    var(--_psh),
     radial-gradient(circle calc(var(--bd-shade-r) * var(--scale)) at calc(50% + (var(--board-x, 0px) + var(--bd-shade-x)) * var(--scale)) calc(50% + (var(--board-y, 5px) + var(--bd-shade-y)) * var(--scale)), var(--_shade-stops)),
     radial-gradient(circle calc(var(--bd-pshade-r) * var(--scale)) at calc(50% + (var(--board-x, 0px) + var(--bd-pshade-x)) * var(--scale)) calc(50% + (var(--board-y, 5px) + var(--bd-pshade-y)) * var(--scale)), var(--_shade-stops));
 }
 .boardbg--combat .boardbg-shade {
   background:
+    var(--_psh),
     radial-gradient(circle calc(var(--bd-shade-r) * var(--scale)) at calc(50% + (var(--board-x, 0px) + var(--bd-shade-x)) * var(--scale)) calc(50% + (var(--board-y, 5px) + var(--bd-shade-y)) * var(--scale)), var(--_shade-stops)),
     radial-gradient(circle calc(var(--bd-pshade-r) * var(--scale)) at calc(50% + (var(--board-x, 0px) + var(--bd-pshade-x)) * var(--scale)) calc(50% + (var(--board-y, 5px) + var(--bd-pshade-y)) * var(--scale)), var(--_shade-stops)),
     radial-gradient(circle calc(var(--bd-oshade-r) * var(--scale)) at calc(50% + (var(--board-x, 0px) + var(--bd-oshade-x)) * var(--scale)) calc(50% + (var(--board-y, 5px) + var(--bd-oshade-y)) * var(--scale)), var(--_shade-stops));
@@ -394,7 +399,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
    three rune slots cast a soft shadow onto the backdrop. `drop-shadow` follows each piece's real outline. Static: drawn
    once, nothing animates the filter (the lunge moves the portrait by transform). The foe's cluster is drawn ~2.4x up,
    so its values are divided by that scale to match on screen. Layout Lab -> "Portrait shadows". */
-.statusbar .hero .herolunge { filter: drop-shadow(calc(var(--psh-x, 0px) * var(--scale)) calc(var(--psh-y, 6px) * var(--scale)) calc(var(--psh-blur, 15px) * var(--scale)) rgb(0 0 0 / var(--psh-a, 1))); }
+/* YOUR portrait's drop shadow is NOT a filter here any more: it is drawn UNDER the board and the hero power, in
+   .boardbg-shade (owner 2026-10-29: "make sure the hero portrait shadow ... is also behind the hero power/board"). */
 .combatopp-portrait { filter: drop-shadow(calc(var(--psh-x, 0px) * var(--scale) / var(--hd-opp-s, 2.4)) calc(var(--psh-y, 6px) * var(--scale) / var(--hd-opp-s, 2.4)) calc(var(--psh-blur, 15px) * var(--scale) / var(--hd-opp-s, 2.4)) rgb(0 0 0 / var(--psh-a, 1))); }
 .questbadges .quest-slot { filter: drop-shadow(calc(var(--rsh-x, 0px) * var(--scale)) calc(var(--rsh-y, 3px) * var(--scale)) calc(var(--rsh-blur, 10px) * var(--scale)) rgb(0 0 0 / var(--rsh-a, 1))); }
 .combatopp-slot { filter: drop-shadow(calc(var(--rsh-x, 0px) * var(--scale) / var(--hd-opp-s, 2.4)) calc(var(--rsh-y, 3px) * var(--scale) / var(--hd-opp-s, 2.4)) calc(var(--rsh-blur, 10px) * var(--scale) / var(--hd-opp-s, 2.4)) rgb(0 0 0 / var(--rsh-a, 1))); }

@@ -59,9 +59,12 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'orunesY', cssVar: '--orunes-y', label: 'Foe runes Y', group: 'Hero group', min: -60, max: 60, step: 1, def: -5, fmt: 'px' },
   // Drop shadows under both heroes' portraits and their rune slots (owner 2026-10-28).
   { key: 'pshA', cssVar: '--psh-a', label: 'Portrait strength', group: 'Portrait shadows', min: 0, max: 1, step: 0.01, def: 1, fmt: 'mul' },
-  { key: 'pshBlur', cssVar: '--psh-blur', label: 'Portrait blur', group: 'Portrait shadows', min: 0, max: 60, step: 1, def: 15, fmt: 'px' },
+  { key: 'pshBlur', cssVar: '--psh-blur', label: 'Portrait blur', group: 'Portrait shadows', min: 0, max: 60, step: 1, def: 60, fmt: 'px' }, // owner 2026-10-29
   { key: 'pshX', cssVar: '--psh-x', label: 'Portrait X', group: 'Portrait shadows', min: -40, max: 40, step: 1, def: 0, fmt: 'px' },
   { key: 'pshY', cssVar: '--psh-y', label: 'Portrait Y', group: 'Portrait shadows', min: -40, max: 40, step: 1, def: 6, fmt: 'px' },
+  // YOUR portrait's shadow sits UNDER the board (owner 2026-10-29), drawn as a soft circle, so it needs a size: this
+  // times the portrait disc. (The foe's portrait keeps its true drop shadow.)
+  { key: 'pshSize', cssVar: '--psh-size', label: 'Portrait size', group: 'Portrait shadows', min: 0.5, max: 2, step: 0.01, def: 1.2, fmt: 'mul' },
   { key: 'rshA', cssVar: '--rsh-a', label: 'Rune slot strength', group: 'Portrait shadows', min: 0, max: 1, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'rshBlur', cssVar: '--rsh-blur', label: 'Rune slot blur', group: 'Portrait shadows', min: 0, max: 40, step: 1, def: 10, fmt: 'px' },
   { key: 'rshX', cssVar: '--rsh-x', label: 'Rune slot X', group: 'Portrait shadows', min: -30, max: 30, step: 1, def: 0, fmt: 'px' },

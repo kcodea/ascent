@@ -43,7 +43,7 @@ import { getHeroPowerBtnConfig } from './heroPowerBtnConfig';
 import { pixiFx } from './pixiFx';
 import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
-import { rectToStage, stageHost, stageViewport, toStage } from './stage';
+import { onStageChange, rectToStage, stageHost, stageViewport, toStage } from './stage';
 import { openEmoteMenu } from './emotes/emoteRuntime';
 import { useFitRefPopup, type RefPopupPos } from './useFitRefPopup';
 import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
@@ -508,6 +508,37 @@ export function StatusBar() {
   // The button's rect is read ONCE per roll, here, never per frame. `settled` flips at t = 1 so the held face
   // appears under the fading overlay; `null` again once the overlay has retired.
   const powerBtnRef = useRef<HTMLButtonElement>(null);
+  // THE PORTRAIT'S DROP SHADOW, UNDER THE BOARD (owner 2026-10-29: "make sure the hero portrait shadow ... is also behind
+  // the hero power/board"). The shadow is a soft circle in the board's shade layer (styles.css .boardbg-shade), which
+  // cannot see the portrait, so this writes where the portrait disc sits (stage px) as --psh-cx/--psh-cy/--psh-r0. Read
+  // on mount, once more after the entrance settles, and on a stage change (resize/rotation): never per frame, and never
+  // mid-lunge, so the shadow stays put under the resting portrait.
+  const portraitRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = portraitRef.current;
+    if (!el) return undefined;
+    const root = document.documentElement.style;
+    let raf = 0;
+    const measure = (): void => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = rectToStage(el.getBoundingClientRect());
+        if (!(r.width > 0)) return;
+        root.setProperty('--psh-cx', `${r.left + r.width / 2}px`);
+        root.setProperty('--psh-cy', `${r.top + r.height / 2}px`);
+        root.setProperty('--psh-r0', `${r.width / 2}px`);
+      });
+    };
+    measure();
+    const settle = window.setTimeout(measure, 700);
+    const off = onStageChange(measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(settle);
+      off();
+      for (const k of ['--psh-cx', '--psh-cy', '--psh-r0']) root.removeProperty(k);
+    };
+  }, []);
   // A Versus SPECTATOR sees the hero-power press the player made (`pressCue.ts`): the same cue, SFX and spark.
   useEffect(() => onPressCue('heroPower', () => {
     sfx.pulse();
@@ -834,6 +865,7 @@ export function StatusBar() {
           {/* The portrait holds the hero art; the PLAYER name rides the bottom pill, and CLICKING it toggles the
               run-buffs pop-out (the up-arrow at its top + the dark hover overlay are the cues). */}
           <div
+            ref={portraitRef}
             className={`f${buffRows.length ? ' hasbuffs' : ''}${buffsOpen ? ' buffsopen' : ''}`}
             onClick={() => { if (buffRows.length) setBuffsOpen((o) => !o); }}
             // EMOTES (owner 2026-10-13): right-click YOUR portrait for the emote menu. The browser menu is suppressed

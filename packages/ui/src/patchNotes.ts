@@ -58,6 +58,13 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Message your friends. Click a friend in the Friends list to open a chat.', details: [
+        'In a game, click a friend in the Friends button list. On the menu, press Message on the Friends page.',
+        'New messages show a count on the Friends button and a short note above it. Messages sent while you were away wait for you.',
+        'Friends only. Blocking a player stops their messages and hides your chat.',
+        'Swear words are hidden by default. You can turn this off in Settings under Friends.',
+        'Report a message from its chat. Messages are kept for 90 days.',
+      ] },
       { category: 'Systems', text: 'Friend rows no longer show Remove and Block buttons. Right-click a friend (or long press on a phone) to find them.', details: [
         'They sit at the bottom of the friend menu, set apart from the invites.',
         'Each one asks you to press it again before it acts.',

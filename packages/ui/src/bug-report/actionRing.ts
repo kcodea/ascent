@@ -13,19 +13,24 @@
  * already holds, calls no rng, and mutates nothing (the sim-side traceNeutrality lane proves the rails'
  * helpers inert; recording rides AFTER `reduce` resolved, so it cannot perturb resolution by construction).
  *
- * COST: one `hashRunState` per accepted action (the before-hash reuses the previous entry's after-hash via
- * an identity cache), at human click cadence — never per frame. Measured in the WP C PR notes.
+ * COST: recording is a push and an action clone. The hashes (one `hashRunState` per entry still in the ring; the
+ * before-hash reuses the previous entry's after-hash via an identity cache) are paid at Ctrl+B only.
  *
  * OFF THE FRAME (perf 2026-09-17): the hash is a JSON round-trip + stable-stringify of the WHOLE run — 5–15 ms
  * late-game, and it ran inside the dispatch's `store:set`, i.e. inside the frame the click dropped. The entry
- * is pushed synchronously (so the ring's ORDER and capacity are exactly as before) with its two states held,
- * and the hashes are filled in on idle time (`idleWork.ts`). Nothing reads a hash before `snapshotActionWindow`,
- * which flushes the pending work first, so a reader never sees an unhashed entry. Safe because the reducer
- * never mutates a state it has returned (it clones; `lastCombat` / `servedBoards` are only ever replaced).
+ * is pushed synchronously (so the ring's ORDER and capacity are exactly as before) with its two states held.
+ *
+ * ONLY WHEN READ (perf degradation hunt 2026-10-29, R-PERF-RING-LAZY-01): the hashes used to be filled in on idle
+ * time, but "idle" still runs on the main thread, and one idle callback drained the whole ring. The whole-run hash
+ * grows with the game (the fight's event log rides in `lastCombat`), and a late fight's display-only preview
+ * actions (one per friendly death / spell cast) refilled the ring every fight, so a 30-50 ms idle task landed in
+ * the middle of late combats, longer every round. Nothing reads a hash before `snapshotActionWindow` (Ctrl+B), so
+ * that is now the only place they are computed. An entry that falls off the ring is never hashed at all. Safe
+ * because the reducer never mutates a state it has returned (it clones; `lastCombat` / `servedBoards` are only
+ * ever replaced), so a hash taken at Ctrl+B equals the one an idle callback would have taken.
  */
 import { hashRunState, type Action, type RecordedActionWindow, type RunState } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
-import { createDeferredWriter } from '../idleWork';
 
 /** Ring capacity — sized like the capsule's two-wave frame window: comfortably more accepted actions than a
  *  long shop turn produces, small enough that the capsule copy is a few KB. The tuning knob (§18-C). */
@@ -62,7 +67,6 @@ export function recordActionEntry(before: RunState, action: Action, after: RunSt
       pending: { before, after },
     });
     if (ring.length > ACTION_RING_SIZE) ring.splice(0, ring.length - ACTION_RING_SIZE);
-    hasher.schedule(undefined);
   } catch {
     // Diagnostics must never break the commit path — a failed record simply shortens the window.
   }
@@ -85,12 +89,11 @@ function hashPending(): void {
     e.pending = null;
   }
 }
-/** Hashing runs on idle time, at most `ACTION_HASH_TIMEOUT_MS` after the dispatch on a busy thread. */
-export const ACTION_HASH_TIMEOUT_MS = 1500;
-const hasher = createDeferredWriter<undefined>(() => hashPending(), ACTION_HASH_TIMEOUT_MS);
-
 /** Compute any hash still owed, synchronously. Every reader below calls this first; tests may call it directly. */
-export function flushActionRing(): void { hasher.flush(); hashPending(); }
+export function flushActionRing(): void { hashPending(); }
+
+/** How many entries still owe their hashes (the regression test: recording must never hash). */
+export function owedActionHashes(): number { return ring.reduce((n, e) => n + (e.pending ? 1 : 0), 0); }
 
 /** The contiguous tail of entries belonging to `runId` (a previous run's leftovers never leak into another
  *  run's capsule). Returns the SHARED window objects — callers that persist them must clone (the capture
@@ -111,7 +114,6 @@ export function snapshotActionBatches(runId: string): (PresentationBatch | null)
 
 /** Test hook / hard reset. The ring otherwise self-cleans: capacity + the runId tail filter. */
 export function resetActionRing(): void {
-  hasher.cancel();
   ring = [];
   lastAfter = null;
   lastAfterHash = '';

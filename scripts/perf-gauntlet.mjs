@@ -51,6 +51,12 @@
  *   npm run perf:gauntlet -- --board d2_roomworks,d2_flamebeat --tribes dragon   another turn-1 board (a trailing * = gilded)
  *   npm run perf:gauntlet -- --round-probe --from 13 --to 12   ONE game, a probe at the start of every shop once the
  *                                                  return trip is over: idle frames + what is alive (heap, DOM, FX, GSAP, Pixi)
+ *     + --perf-timings (with --round-probe): turn the in-game perf monitor on and print its measured spans per wave
+ *     + --snap 3,13 (with --round-probe): a heap snapshot at those rounds' probes (<out>/heap-rN.heapsnapshot)
+ *     + timers: live setInterval / setTimeout / rAF counts are added to every probe row
+ *   npm run perf:gauntlet -- --round-scenes --from 2 --to 14   tag every measured scene with its round (shop-actions#r11)
+ *                                                  and write <out>/raw-run*.json, so one scene can be read round over round
+ *   npm run perf:gauntlet -- --cpu-throttle 4         Chrome CPU throttling (DevTools' 4x: a mid-range phone's main thread)
  *   npm run perf:gauntlet -- --css "<rules>"         inject CSS (test what a CSS change would buy before making it)
  *   npm run perf:gauntlet -- --hold 60               keep the page open after the walk (CDP on port+1) to inspect it
  *   A run that loses a scene is run again once (--no-retry turns that off).
@@ -83,9 +89,13 @@ const RUNS = Number(arg('runs', '1'));
 const GAMES = Number(arg('games', '1'));
 // --board: the turn-1 board, card ids, a trailing * = gilded (bought three times to triple). Default: the owner's Dwarf
 // Ale engine (2026-10-27). --tribes: the Practice game's tribes, so the shop offers the board's tribe.
-const BOARD = arg('board', 'dw_edward*,dw_tapkeeper*,dw_tapkeeper*,dw_mountainbond,dw_chef').split(',').map((x) => [x.replace(/\*$/, ''), x.endsWith('*')]);
+const BOARD = arg('board', 'dw_edward*,dw_tapkeeper*,dw_tapkeeper*,dw_mountainbond,dw_chef').split(',').filter((x) => x && x !== 'none').map((x) => [x.replace(/\*$/, ''), x.endsWith('*')]); // --board none: no printed board
+// --apm N: shop actions per turn (default 150, the owner's high-APM late game; ~30 is a typical player). --no-topup: no
+// Gold top-up, so the run's own economy decides what it can buy (a typical-stat game).
+const APM = Number(arg('apm', '150'));
 const TRIBES = arg('tribes', 'dwarf').split(',');
-const ROUND_PROBE = flag('round-probe'); // --games N: N games back to back in one page (the soak)
+const ROUND_PROBE = flag('round-probe');
+const SNAP_ROUNDS = new Set(arg('snap', '').split(',').filter(Boolean).map(Number)); // --round-probe --snap 2,14: heap snapshots at those rounds' probes // --games N: N games back to back in one page (the soak)
 let soakRows = [];
 let probeRows = [];
 const FROM = Number(arg('from', '9')); // the first MEASURED round: everything before it is fast-forwarded
@@ -226,6 +236,21 @@ const PROBE = `(() => {
   };
 })();`;
 
+/** --round-probe only (perf degradation hunt, 2026-10-29): live timers. Every setInterval / setTimeout still pending
+ *  and every requestAnimationFrame request, counted from before any page script, with the creating stack's first app
+ *  frame for intervals, so a probe can say whether timers pile up round over round. */
+const TIMER_CENSUS = `(() => {
+  const iv = new Map(); const to = new Set(); let rafCalls = 0;
+  const si = window.setInterval.bind(window), ci = window.clearInterval.bind(window), st = window.setTimeout.bind(window), ct = window.clearTimeout.bind(window), raf = window.requestAnimationFrame.bind(window);
+  const where = () => { const s = (new Error().stack || '').split(String.fromCharCode(10)).slice(3, 5).map((l) => l.trim().replace(/^at /, '').replace(/https?:[^ )]*[/]/, '')).join(' < '); return s.slice(0, 120); };
+  window.setInterval = (fn, ms, ...a) => { const id = si(fn, ms, ...a); iv.set(id, (ms | 0) + 'ms ' + where()); return id; };
+  window.clearInterval = (id) => { iv.delete(id); return ci(id); };
+  window.setTimeout = (fn, ms, ...a) => { let id; const w = typeof fn === 'function' ? (...x) => { to.delete(id); return fn(...x); } : fn; id = st(w, ms, ...a); to.add(id); return id; };
+  window.clearTimeout = (id) => { to.delete(id); return ct(id); };
+  window.requestAnimationFrame = (cb) => { rafCalls++; return raf(cb); };
+  window.__pgTimers = () => { const by = {}; for (const v of iv.values()) by[v] = (by[v] || 0) + 1; return { intervals: iv.size, timeouts: to.size, rafCalls, byInterval: by }; };
+})();`;
+
 // ---------------------------------------------------------------------------------------------------------------
 // Driving the game (desktop: real mouse events through CDP)
 // ---------------------------------------------------------------------------------------------------------------
@@ -266,7 +291,13 @@ function driver(c) {
 async function playScenes(c) {
   const d = driver(c);
   let prefix = ''; // --games: 'gN:' on every measured scene of game N ('ff' and 'end' stay bare: they are never judged)
-  const mark = (s) => d.ev(`window.__pg.mark(${JSON.stringify(s === 'ff' || s === 'end' ? s : prefix + s)})`);
+  // --round-scenes: every measured scene is tagged with its round ("shop-actions#r11"), so raw.json can be read round
+  // over round (the degradation hunt, 2026-10-29: does the SAME scene cost more as the game goes on?).
+  const mark = async (s) => {
+    let name = s === 'ff' || s === 'end' ? s : prefix + s;
+    if (flag('round-scenes') && s !== 'ff' && s !== 'end' && !s.startsWith('probe-')) name += `#r${await d.ev('window.__bench?.store.getState().run?.wave ?? 0')}`;
+    return d.ev(`window.__pg.mark(${JSON.stringify(name)})`);
+  };
   const missed = [];
   const need = (ok, what) => { if (!ok) missed.push(what); return ok; };
   const g = `window.__bench.store.getState()`;
@@ -285,9 +316,16 @@ async function playScenes(c) {
   // AFTER the setup rolls its own, so both builds play the identical game. Bot seats need no network (God Mode's
   // real-player boards do, and every request off 127.0.0.1 is blocked), and the Gold is topped up each round below
   // so the boards grow like God Mode's.
-  await d.ev(`(() => { const s = ${g}; s.startPractice(); s.setPracticeDraft({ godMode: false, opponents: 'bots', botDifficulty: 10, health: 'unlimited', timeMult: 0, heroes: 'all', tribes: ${JSON.stringify(TRIBES)} }); })()`);
-  await sleep(600);
-  await d.ev(`${g}.confirmPracticeSetup()`);
+  // --mode lobby: a RATED-style lobby instead of Practice (the replay draft's per-round IndexedDB chunks, the board
+  // strength scorer, the announcer and the autosave all run there). The pool is empty offline, so its seats are the
+  // generated ones; every upload fails at the blocked network, as it would offline.
+  if (arg('mode', 'practice') === 'lobby') {
+    await d.ev(`${g}.startLobby()`);
+  } else {
+    await d.ev(`(() => { const s = ${g}; s.startPractice(); s.setPracticeDraft({ godMode: false, opponents: 'bots', botDifficulty: 10, health: 'unlimited', timeMult: 0, heroes: 'all', tribes: ${JSON.stringify(TRIBES)} }); })()`);
+    await sleep(600);
+    await d.ev(`${g}.confirmPracticeSetup()`);
+  }
   need(await d.waitFor(`!!document.querySelector('.herocard.big')`, 15_000), 'heroselect');
   await d.ev(`window.__bench.store.setState({ pendingSeed: ${SEED} })`);
   await sleep(1500);
@@ -303,7 +341,7 @@ async function playScenes(c) {
   await sleep(2000);
 
   // Gold for a shop turn (a bench-only write; the game is a throwaway Practice run in a throwaway profile).
-  const topUp = () => d.ev(`window.__bench.store.setState((s) => ({ run: { ...s.run, embers: 999 } }))`);
+  const topUp = () => (flag('no-topup') ? Promise.resolve() : d.ev(`window.__bench.store.setState((s) => ({ run: { ...s.run, embers: 999 } }))`));
   const wave = () => d.ev(`${g}.run.wave`);
   // OPEN CHOICES, one handler for the whole walk. A DISCOVER (a triple reward or anything else) takes the MIDDLE
   // option and sells the card it gave (owner 2026-10-27: "when discovering a card - simply select the middle one and
@@ -499,7 +537,32 @@ async function playScenes(c) {
     const dom = await c.send('Memory.getDOMCounters').catch(() => null);
     const live = await d.ev(`(() => { const b = window.__bench; const plays = b.livePlays ? b.livePlays() : []; const gs = b.gsap; return { attached: document.querySelectorAll('*').length, anims: document.getAnimations().filter((a) => a.playState === 'running').length, tweens: gs ? gs.globalTimeline.getChildren(true, true, false).filter((t) => t.isActive()).length : null, gsapAll: gs ? gs.globalTimeline.getChildren(true, true, false).length : null, plays: plays.length, particles: plays.reduce((n, p) => n + (p.particles || 0), 0), canvasList: [...document.querySelectorAll('canvas')].map((cv) => { const host = cv.closest('[class]'); const r = cv.getBoundingClientRect(); return (cv.className || (host && host !== cv ? 'in ' + String(host.className).split(' ')[0] : '?')) + ' ' + cv.width + 'x' + cv.height + ' @' + Math.round(r.width) + 'x' + Math.round(r.height) + (getComputedStyle(cv).visibility === 'hidden' || getComputedStyle(cv).display === 'none' || r.width === 0 ? ' (hidden)' : ''); }).join(' ; '), pixi: (() => { const app = b.pixiFx && b.pixiFx.app; if (!app) return 'none'; let n = 0, f = 0, vis = 0; const w = (c) => { if (!c) return; n++; if (c.visible !== false && c.renderable !== false) vis++; if (c.filters && c.filters.length) f += c.filters.length; for (const k of c.children || []) w(k); }; w(app.stage); return 'ticker ' + (app.ticker.started ? 'on' : 'off') + ', ' + n + ' objects (' + vis + ' visible), ' + f + ' filters'; })(), ids: [...new Set(plays.map((p) => p.id))].slice(0, 6).join(',') }; })()`).catch(() => ({}));
     live.gate = await d.ev(`(async () => { const b = window.__bench; if (!b.gateFx) return 'n/a'; const g = await b.gateFx(); if (!g.__counted) { g.__counted = {}; for (const m of ['slam', 'land', 'portal', 'edgeBloom', 'shudder', 'gather', 'ambient', 'shatter', 'warm', 'clear', 'release']) { const orig = g[m].bind(g); g[m] = (...x) => { g.__counted[m] = (g.__counted[m] || 0) + 1; return orig(...x); }; } } const calls = JSON.stringify(g.__counted); const app = g.app; return app ? 'particles ' + g.particles.length + ', ambient ' + (g.ambientAt ? 'ON' : 'off') + ', ticker ' + (app.ticker.started ? 'on' : 'off') + ', canvas ' + app.canvas.style.visibility + (g.particles[0] ? ', p0 age ' + Math.round(g.particles[0].age) + '/life ' + Math.round(g.particles[0].life) + ' alpha ' + (g.particles[0].sp.alpha ?? '?').toFixed?.(2) : '') + ', tick lastTime ' + Math.round(app.ticker.lastTime) + ' now ' + Math.round(performance.now()) + ' dMS ' + app.ticker.deltaMS.toFixed(1) + ' count ' + app.ticker.count + ' requestId ' + app.ticker._requestId + ' calls ' + calls : 'no app'; })()`).catch((e) => 'err ' + String(e).slice(0, 60));
+    // The degradation hunt (2026-10-29): timers, the store's biggest slices and the FX renderer's textures, per round.
+    live.timers = await d.ev(`window.__pgTimers ? window.__pgTimers() : null`).catch(() => null);
+    // --perf-timings: the in-game perf monitor's measured spans (autosave, commit:*, store:set, render:*, fx:*), summed
+    // per wave from its 1 s buckets, so the bookkeeping paths can be read round over round.
+    if (flag('perf-timings')) live.perfT = await d.ev(`(() => {
+      const P = window.__perf; if (!P) return 'no __perf';
+      if (!window.__pgT) { window.__pgT = {}; P.subscribe((b) => { const w = b.wave ?? 0; const acc = (window.__pgT[w] ||= {}); for (const [k, v] of Object.entries(b.timings || {})) { const a = (acc[k] ||= { n: 0, total: 0, max: 0 }); a.n += v.n; a.total += v.total; a.max = Math.max(a.max, v.max); } }); return 'hooked'; }
+      const prevW = window.__bench.store.getState().run.wave - 1; const acc = window.__pgT[prevW] || {};
+      return Object.entries(acc).sort((a, b) => b[1].total - a[1].total).slice(0, 14).map(([k, v]) => k + ' ' + v.total.toFixed(0) + 'ms/' + v.n + ' max ' + v.max.toFixed(1)).join(', ');
+    })()`).catch((e) => 'err ' + e);
+    live.store = await d.ev(`(() => { const st = window.__bench.store.getState(); const size = (v) => { try { return JSON.stringify(v)?.length || 0; } catch { return -1; } }; const top = Object.entries(st).filter(([, v]) => typeof v !== 'function').map(([k, v]) => [k, size(v)]).sort((a, b) => b[1] - a[1]).slice(0, 8); const run = st.run ? Object.entries(st.run).map(([k, v]) => [k, size(v)]).sort((a, b) => b[1] - a[1]).slice(0, 8) : []; return { top, run }; })()`).catch(() => null);
+    live.tex = await d.ev(`(() => { const app = window.__bench.pixiFx && window.__bench.pixiFx.app; const t = app && app.renderer && app.renderer.texture; const gc = app && app.renderer && app.renderer.textureGC; return t ? { managed: (t.managedTextures || []).length, glTextures: Object.keys(t._glTextures || {}).length } : null; })()`).catch(() => null);
+    if (SNAP_ROUNDS.has(r)) {
+      const file = path.join(OUT, `heap-r${r}.heapsnapshot`);
+      fs.mkdirSync(OUT, { recursive: true });
+      const out = fs.createWriteStream(file);
+      if (!c.__snapHooked) { c.__snapHooked = true; c.on('HeapProfiler.addHeapSnapshotChunk', (p) => c.__snapOut?.write(p.chunk)); }
+      c.__snapOut = out;
+      await c.send('HeapProfiler.enable').catch(() => {});
+      await c.send('HeapProfiler.takeHeapSnapshot', { reportProgress: false, captureNumericValue: false }).catch((e) => log('   snapshot failed ' + e));
+      c.__snapOut = null;
+      await new Promise((res) => out.end(res));
+      log(`   heap snapshot r${r} -> ${file}`);
+    }
     probeRows.push({ r, heapMB: heap ? heap.usedSize / 1048576 : null, nodes: dom?.nodes, listeners: dom?.jsEventListeners, ...live });
+    { const p = probeRows[probeRows.length - 1]; log(`   PROBE r${r}: heap ${p.heapMB?.toFixed(1)} MB nodes ${p.nodes} (page ${p.attached}) listeners ${p.listeners} anims ${p.anims} gsap ${p.tweens}/${p.gsapAll} plays ${p.plays}/${p.particles} pixi ${p.pixi} | timers ${JSON.stringify(p.timers)} | tex ${JSON.stringify(p.tex)} | store ${JSON.stringify(p.store)}${p.perfT ? ' | perf(prev wave) ' + p.perfT : ''}`); }
     await mark(`probe-r${r}`); await sleep(3000); await mark(after);
   };
   // A QUIET shop: the return trip (vista, gem portal, edge bloom) has fully finished and the gate layer is empty. The
@@ -513,7 +576,7 @@ async function playScenes(c) {
   for (let guard = 0; guard < 40 && (await wave()) < FROM; guard++) {
     await topUp();
     await probe('ff');
-    await buyPlayTurn(150, FF_ACTION_MS);
+    await buyPlayTurn(APM, FF_ACTION_MS);
     if (!(await fight(`ff-r${await wave()}`, false))) return missed;
     await sleep(800);
   }
@@ -544,7 +607,7 @@ async function playScenes(c) {
     await d.drag(first, lastCard, 900);
     // The rest of the turn the way a late game spends it: lots of buys, plays and spells (measured as its own scene).
     await mark('shop-actions');
-    const acts = await buyPlayTurn(150, 60);
+    const acts = await buyPlayTurn(APM, 60);
     log(`   round ${r}: kept ${await d.ev(`window.__pgKept(${g}.run).size`)}/${BOARD.length}, board ${await d.ev(`${g}.run.board.length`)}, tier ${await d.ev(`${g}.run.tier`)}, hand ${await d.ev(`${g}.run.hand.length`)}, actions ${acts}`);
     await sleep(1000);
     await mark('end-turn');
@@ -628,9 +691,13 @@ async function measureOnce(dist, runIdx) {
       void (local ? c.send('Fetch.continueRequest', { requestId: p.requestId }) : c.send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'BlockedByClient' })).catch(() => {});
     });
     await c.send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE });
+    if (flag('perf-timings')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('ascent.perf', '1'); } catch {}` });
+    if (ROUND_PROBE) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: TIMER_CENSUS });
     // --css "<rules>": an extra stylesheet, to test what a CSS change would buy before changing the source.
     if (arg('css', '')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `document.addEventListener('DOMContentLoaded', () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(arg('css', ''))}; document.head.appendChild(s); });` });
     await c.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+    // --cpu-throttle N: Chrome's CPU throttling (4 = DevTools' "4x slowdown", a mid-range phone's main thread).
+    if (Number(arg('cpu-throttle', '0')) > 1) await c.send('Emulation.setCPUThrottlingRate', { rate: Number(arg('cpu-throttle')) });
     await c.send('Page.bringToFront').catch(() => {});
     await c.send('Page.navigate', { url: `http://127.0.0.1:${port}/` });
     // Main-thread work is sampled at each scene mark: wrap __pg.mark from the outside.
@@ -926,12 +993,13 @@ for (let i = 0; i < schedule.length; i++) {
       log([`   profile (${PROFILE}, ${total.toFixed(0)} ms, top 12 by self time):`, ...lines.slice(0, 12).map((l) => '     ' + l)].join('\n'));
     }
     const a = analyse(raw);
+    if (flag('round-scenes') || ROUND_PROBE) fs.writeFileSync(path.join(OUT, `raw-run${i + 1}-${n}.json`), JSON.stringify({ dump: raw.dump, metricMarks: raw.metricMarks, probe: raw.probe }));
     if (raw.probe?.length) {
       // THE ROUND PROBE TABLE: one row a round of ONE game, taken at the start of its shop phase (after a GC, before any
       // action) with 3 s of idle frames. A climbing column = something piling up inside the game.
       const rows = raw.probe.map((p) => {
         const sc = a.scenes[`${GAMES > 1 ? 'g1:' : ''}probe-r${p.r}`] || a.scenes[`probe-r${p.r}`];
-        return `   round ${String(p.r).padStart(2)}  idle p95 ${fmt(sc?.p95).padStart(5)} p99 ${fmt(sc?.p99).padStart(5)} work ${fmt(sc?.workPerFrame, 2).padStart(5)} long ${String(sc?.long ?? '-').padStart(4)}  | heap ${p.heapMB?.toFixed(1) ?? '?'} MB  nodes ${p.nodes} (page ${p.attached})  listeners ${p.listeners}  anims ${p.anims}  gsap ${p.tweens}/${p.gsapAll}  fx plays ${p.plays} (${p.particles} particles${p.ids ? ': ' + p.ids : ''})  pixi ${p.pixi}  | gate: ${p.gate}  | canvases: ${p.canvasList}`;
+        return `   round ${String(p.r).padStart(2)}  idle p95 ${fmt(sc?.p95).padStart(5)} p99 ${fmt(sc?.p99).padStart(5)} work ${fmt(sc?.workPerFrame, 2).padStart(5)} long ${String(sc?.long ?? '-').padStart(4)}  | heap ${p.heapMB?.toFixed(1) ?? '?'} MB  nodes ${p.nodes} (page ${p.attached})  listeners ${p.listeners}  anims ${p.anims}  gsap ${p.tweens}/${p.gsapAll}  fx plays ${p.plays} (${p.particles} particles${p.ids ? ': ' + p.ids : ''})  pixi ${p.pixi}  | gate: ${p.gate}  | canvases: ${p.canvasList}  | timers ${JSON.stringify(p.timers)}  | tex ${JSON.stringify(p.tex)}  | store ${JSON.stringify(p.store)}`;
       });
       log(['   ROUND PROBE (start of each shop phase, after a GC, 3 s idle):', ...rows].join('\n'));
       fs.writeFileSync(path.join(OUT, `probe-run${i + 1}-${n}.txt`), [...rows, ''].join('\n'));

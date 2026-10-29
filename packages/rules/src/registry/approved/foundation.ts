@@ -10104,6 +10104,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/plateCoalesce.test.ts'], lastVerifiedAt: '2026-10-27' },
   },
   {
+    id: 'R-PERF-RING-LAZY-01',
+    title: 'The bug-report action ring hashes the run only when a report is taken, never during play',
+    statement:
+      'The rolling window of recent actions that a bug report carries records each accepted action as it happens, but '
+      + 'the two state hashes per action are computed only when the window is read (Ctrl+B, the bug-report capture). '
+      + 'Nothing is hashed on idle time or on a timer, so no whole-run hash ever runs during a shop turn or a fight. The '
+      + 'hashes are the same as before (the reducer never mutates a state it returned).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (top priority)', quote: 'Performance degrades over the course of a game. It degrades massively by end game, causing major hitching and jank' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'We need to solve this above everything else in the game.' },
+      { kind: 'code', ref: 'packages/ui/src/bug-report/actionRing.ts (recordActionEntry, flushActionRing, owedActionHashes)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-29 (perf/degradation-hunt). Before: the hashes were filled in on idle time, and one idle callback hashed every owed entry (up to 32) of a run that grows all game (the fight\x27s event log rides in lastCombat). A late fight\x27s display-only preview actions refilled the ring every fight, so the perf monitor recorded a 40-52 ms idle task during combat in most rounds from round 5 on (perf:gauntlet --round-probe --perf-timings, Ale engine game), and perf:late measured the hash itself growing from 1.0 to 1.9 ms a call over a lobby game.',
+    example: 'Late in a game Ann\x27s board loses six minions in a fight. Each death updates the live text on her spells, which records an action. Before, the game then spent about 45 ms hashing those actions in the middle of the fight, a visible hitch. Now nothing is hashed unless she files a bug report.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/bug-report/actionRing.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
     id: 'R-PERF-GAUNTLET-01',
     title: 'npm run perf:gauntlet judges late-game desktop frames: two prod bench builds, the same seeded Dwarf game, blind A/B, the 4.17 ms budget',
     statement:

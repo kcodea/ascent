@@ -6,12 +6,12 @@
  * capture path as a cloned, frozen, OPTIONAL capsule field; and be the trim ladder's next rung after the
  * previous wave's frames.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CONFIG, createRun, hashRunState, reduce, serialize,
   type Action, type BugReportEnvelope, type RunState,
 } from '@game/sim';
-import { ACTION_RING_SIZE, flushActionRing, recordActionEntry, resetActionRing, snapshotActionWindow } from './actionRing';
+import { ACTION_RING_SIZE, flushActionRing, owedActionHashes, recordActionEntry, resetActionRing, snapshotActionWindow } from './actionRing';
 import { captureIncidentCapsule, type BugCaptureSource } from './bugReportCapture';
 import { BUG_MAX_BODY_BYTES, trimEnvelope } from './bugReportUpload';
 
@@ -52,7 +52,23 @@ describe('actionRing', () => {
     });
   });
 
-  it('the hashes are owed on idle time and always present by the time a reader looks (perf 2026-09-17)', () => {
+  // R-PERF-RING-LAZY-01 (perf degradation hunt 2026-10-29): the whole-run hash grows with the game, and an idle
+  // callback that drained the ring was a 30-50 ms task in the middle of late fights. Recording never hashes; time
+  // passing never hashes; only a reader does.
+  it('recording never hashes, not even on idle time: the hashes are paid only when the window is read', () => {
+    vi.useFakeTimers();
+    try {
+      drive(49, 10);
+      const owed = owedActionHashes();
+      expect(owed).toBeGreaterThan(0);
+      vi.advanceTimersByTime(60_000); // any idle / timeout fallback would have run by now
+      expect(owedActionHashes()).toBe(owed);
+      flushActionRing();
+      expect(owedActionHashes()).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('the hashes are always present by the time a reader looks (perf 2026-09-17)', () => {
     const s = createRun(48);
     const a: Action = { type: 'roll' };
     const next = reduce(s, a);

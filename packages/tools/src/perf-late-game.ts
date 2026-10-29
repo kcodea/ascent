@@ -25,7 +25,7 @@ import { CARD_INDEX, validateCards } from '@game/content';
 import {
   createLobbyRun, reduce, serialize, CONFIG, HEROES,
   emptyTelemetryLog, recordTelemetryAction, beginDerive, observeAction,
-  shopFrameOf, deltaShopFrameOf, combatFrameOf, snapshotBoard,
+  shopFrameOf, deltaShopFrameOf, combatFrameOf, snapshotBoard, hashRunState,
   type Action, type RunState, type ShopCard, type ReplayFrame, type ShopView, type BoardSnapshot,
 } from '@game/sim';
 
@@ -86,6 +86,7 @@ interface WaveRow {
   telemetry: Agg;
   replay: Agg;
   saveMs: number; // median serialize + stringify at the turn boundary
+  hashMs: number; // hashRunState at the turn boundary: the bug-report action ring's per-action cost (two per action)
   saveKb: number;
   runKb: number;
   replayFrames: number;
@@ -118,7 +119,7 @@ function playLobby(seed: number, heroId: string): WaveRow[] {
   const openRow = (): WaveRow => ({
     wave: s.wave, alive: s.lobby?.seats.filter((x) => x.alive).length ?? 0, dispatches: 0,
     probeMs: 0, reduce: agg(), faceOmen: agg(), resolve: agg(), telemetry: agg(), replay: agg(),
-    saveMs: 0, saveKb: 0, runKb: 0, replayFrames: 0, combatEvents: 0,
+    saveMs: 0, hashMs: 0, saveKb: 0, runKb: 0, replayFrames: 0, combatEvents: 0,
   });
   const probe = (r: WaveRow): void => {
     // The same cheap action every wave, so the comparison is about the STATE, not about which action ran.
@@ -137,6 +138,9 @@ function playLobby(seed: number, heroId: string): WaveRow[] {
       bytes = str.length;
     }
     r.saveMs = median(samples);
+    const hs: number[] = [];
+    for (let i = 0; i < SAVE_ITERS; i++) hs.push(time(() => hashRunState(s))[1]);
+    r.hashMs = median(hs);
     r.saveKb = bytes / 1024;
     r.runKb = serialize(s).length / 1024;
     r.replayFrames = replayFrames.length;
@@ -220,14 +224,14 @@ const pad = (v: string, w: number): string => v.padStart(w);
 
 console.log(`\n=== ASCENT: late-game logic check (lobby, seed ${best.seed}, hero ${best.hero}, ${rows.length} waves) ===`);
 console.log('ms per call. "avg/max" = across that wave\'s calls. Sizes in KB. Logic only: no React, paint or localStorage.\n');
-const head = ['wave', 'seats', 'acts', 'probe', 'reduce avg/max', 'endTurn', 'resolve', 'telem avg', 'replay avg/max', 'autosave', 'save KB', 'run KB', 'frames', 'events'];
-const widths = [4, 5, 4, 7, 15, 8, 8, 9, 15, 8, 8, 7, 6, 6];
+const head = ['wave', 'seats', 'acts', 'probe', 'reduce avg/max', 'endTurn', 'resolve', 'telem avg', 'replay avg/max', 'autosave', 'hash', 'save KB', 'run KB', 'frames', 'events'];
+const widths = [4, 5, 4, 7, 15, 8, 8, 9, 15, 8, 6, 8, 7, 6, 6];
 console.log(head.map((h, i) => pad(h, widths[i]!)).join(' '));
 for (const r of rows) {
   const cells = [
     String(r.wave), String(r.alive), String(r.dispatches), Number.isFinite(r.probeMs) ? f3(r.probeMs) : '-',
     `${f3(avg(r.reduce))}/${f2(r.reduce.max)}`, f2(r.faceOmen.max), f2(r.resolve.max), f3(avg(r.telemetry)),
-    `${f3(avg(r.replay))}/${f2(r.replay.max)}`, f2(r.saveMs), f2(r.saveKb), f2(r.runKb), String(r.replayFrames), String(r.combatEvents),
+    `${f3(avg(r.replay))}/${f2(r.replay.max)}`, f2(r.saveMs), f2(r.hashMs), f2(r.saveKb), f2(r.runKb), String(r.replayFrames), String(r.combatEvents),
   ];
   console.log(cells.map((c, i) => pad(c, widths[i]!)).join(' '));
 }
@@ -249,6 +253,7 @@ const metrics: { label: string; pick: (r: WaveRow) => number; budgetMs?: number 
   { label: 'replay frame, avg', pick: (r) => avg(r.replay) },
   { label: 'replay frame, worst', pick: (r) => r.replay.max },
   { label: 'autosave (serialize+stringify)', pick: (r) => r.saveMs },
+  { label: 'action-ring state hash', pick: (r) => r.hashMs },
   { label: 'save payload KB', pick: (r) => r.saveKb },
   { label: 'run state KB', pick: (r) => r.runKb },
 ];

@@ -58,8 +58,8 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
-      { category: 'Systems', text: 'Eleven new painted backdrops to put behind the board, and the castle courtyard is the new default.', details: [
-        'Pick one in Settings under Board backdrop: Castle, Runic Slate, Cosmic Energy, Dark Sanctum, Temple, Stone Courtyard, Koi Pond, Fresh Pond, Bamboo Forest, Treasure Hoard or Celestial.',
+      { category: 'Systems', text: 'Twelve new painted backdrops to put behind the board, and the castle courtyard is the new default.', details: [
+        'Pick one in Settings under Board backdrop: Castle, Runic Slate, Cosmic Energy, Dark Sanctum, Temple, Stone Courtyard, Koi Pond, Fresh Pond, Bamboo Forest, Treasure Hoard, Celestial or Autumn Fire.',
         'Each is one painted scene that fills your whole screen, ultrawide monitors included, and stays sharp on 4K screens.',
         'If you already chose a backdrop, you keep it. Oak planks and the other patterns are still there too.',
       ] },

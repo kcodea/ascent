@@ -20,6 +20,7 @@ import {
   acceptPing,
   clearPing,
   clearPingsOnCard,
+  expirePings,
   pingContext,
   receivePing,
   receivePingEvent,
@@ -31,7 +32,7 @@ import {
   useMentors,
   usePings,
 } from './pingRuntime';
-import { cardZoneOf, fanOptions, fanPositions, openCardPingMenu, pingAnchorOf, usePingMenu } from './PingLayer';
+import { cardZoneOf, fanOptions, fanPositions, openCardPingMenu, PING_DOUBLE_MS, pingAnchorOf, resetPingDoubleForTests, usePingMenu } from './PingLayer';
 
 let now = 1_000_000;
 const sent: { e: string; p: unknown }[] = [];
@@ -50,6 +51,7 @@ beforeEach(() => {
   sent.length = 0;
   setPingClockForTests(() => now);
   resetPingRuntimeForTests();
+  resetPingDoubleForTests();
   useSpectate.setState({ active: false, seat: 'p1', teammate: false, hero: null, teammateHero: false });
   setWatchers([]);
   inGame();
@@ -337,6 +339,38 @@ describe('the layer (R-PING-04/05)', () => {
     expect(cardZoneOf(document.querySelector('[data-uid="11"]')!)).toBe('hand');
   });
 
+  it('a DOUBLE right-click on a card inspects (owner 2026-10-29): the fan goes at once, no menu is left open', () => {
+    board();
+    const inspect = vi.fn();
+    const shop = document.querySelector('[data-uid="7"]')!;
+    const hand = document.querySelector('[data-uid="11"]')!;
+    const at = { clientX: 10, clientY: 10 };
+    const t0 = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(t0);
+    expect(openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect)).toBe(true);
+    expect(usePingMenu.getState().open).not.toBeNull();
+    expect(inspect).not.toHaveBeenCalled();
+    clock.mockReturnValue(t0 + 200);
+    expect(openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect)).toBe(true);
+    expect(inspect).toHaveBeenCalledTimes(1);
+    expect(usePingMenu.getState().open).toBeNull();
+    // Too slow: the second right-click opens the fan again, no Inspect.
+    clock.mockReturnValue(t0 + 1000);
+    openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect);
+    clock.mockReturnValue(t0 + 1000 + PING_DOUBLE_MS + 1);
+    openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect);
+    expect(inspect).toHaveBeenCalledTimes(1);
+    expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid: '7', zone: 'shop' });
+    // A second right-click on ANOTHER card is a new fan, not a double.
+    clock.mockReturnValue(t0 + 5000);
+    openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect);
+    clock.mockReturnValue(t0 + 5100);
+    openCardPingMenu({ ...at, currentTarget: hand }, '11', inspect);
+    expect(inspect).toHaveBeenCalledTimes(1);
+    expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid: '11', zone: 'hand' });
+    clock.mockRestore();
+  });
+
   it('phone: a hold on a play-zone card fires (opens the menu) only while pings are available', () => {
     board();
     const hand = document.querySelector('[data-uid="11"]')!;
@@ -385,25 +419,35 @@ describe('the layer (R-PING-04/05)', () => {
     expect(sent).toHaveLength(0);
   });
 
-  it('a ping has no timer: it settles until cleared', () => {
+  it('a ping lasts 5 s if nobody clears it (owner 2026-10-29), timed locally from its arrival on each screen, nothing sent', () => {
+    session('p1', 'duos');
     sendPing('check', { t: 'card', uid: '7', zone: 'shop' });
-    now += 10 * 60_000;
-    sendPing('x', { t: 'button', id: 'refresh' });
+    now += 3000;
+    receivePingEvent(PING_EVENT, msg({ owner: 'p1', from: 'amy', role: 'mate', target: { t: 'card', uid: '9', zone: 'board' } }));
+    expirePings(now + 1999);
     expect(usePings.getState().list).toHaveLength(2);
+    expirePings(now + 2000); // my ping: 5 s since it landed here
+    expect(usePings.getState().list.map((p) => p.mine)).toEqual([false]);
+    expirePings(now + 5000); // the teammate's: 5 s since it ARRIVED here, not since it was sent
+    expect(usePings.getState().list).toHaveLength(0);
+    expect(sent.filter((x) => x.e !== PING_EVENT)).toHaveLength(0); // the timer sends nothing (no clear)
   });
 
-  it('the fan (owner pick): Check, X, Question above; Pass, Inspect, Sell below; a shop button gets the top three only', () => {
-    expect(fanOptions(true)).toEqual({ top: ['check', 'x', 'question'], bottom: ['pass', 'inspect', 'sell'] });
+  it('the fan (owner 2026-10-29): Check, X, Question above; Pass and Sell below (no Inspect); a shop button gets the top three only', () => {
+    expect(fanOptions(true)).toEqual({ top: ['check', 'x', 'question'], bottom: ['pass', 'sell'] });
     expect(fanOptions(false)).toEqual({ top: ['check', 'x', 'question'], bottom: [] });
     const box = { left: 100, top: 200, width: 120, height: 160, right: 220, bottom: 360, x: 100, y: 200 };
-    const card = fanPositions({ top: 3, bottom: 3 }, { x: 160, y: 280, box });
+    const card = fanPositions({ top: 3, bottom: 2 }, { x: 160, y: 280, box });
     expect(card.slice(0, 3).every((p) => p.y < box.top)).toBe(true);
     expect(card.slice(3).every((p) => p.y > box.bottom)).toBe(true);
-    // Left to right in each arc, the middle bowing furthest out.
+    // Left to right in the top arc, the middle bowing furthest out.
     expect(card[0]!.x < card[1]!.x && card[1]!.x < card[2]!.x).toBe(true);
-    expect(card[3]!.x < card[4]!.x && card[4]!.x < card[5]!.x).toBe(true);
-    expect(card[1]!.y < card[0]!.y && card[4]!.y > card[3]!.y).toBe(true);
-    expect(card[4]!.x).toBe(160); // Inspect bottom-middle, under the card's centre
+    expect(card[1]!.y < card[0]!.y).toBe(true);
+    // Pass left, Sell right, level, spaced evenly about the card's centre.
+    expect(card[3]!.x).toBeLessThan(160);
+    expect(card[4]!.x).toBeGreaterThan(160);
+    expect(card[3]!.y).toBe(card[4]!.y);
+    expect(160 - card[3]!.x).toBeCloseTo(card[4]!.x - 160, 6);
     const button = fanPositions({ top: 3, bottom: 0 }, { x: 160, y: 280, box });
     expect(button).toHaveLength(3);
     expect(button.every((p) => p.y < box.top)).toBe(true);

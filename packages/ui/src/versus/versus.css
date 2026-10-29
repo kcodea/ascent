@@ -691,6 +691,9 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
 .vswatch .vswatch-ring, .vsself .vsspec-ring { --ring: calc(88 * var(--u)); }
 .vswatch .vsspec-seats, .vsself .vsspec-seats { flex-direction: column; align-items: center; flex-wrap: nowrap; gap: calc(10 * var(--u)); width: calc(132 * var(--u)); }
 .vswatch .vswatch-more, .vsself .vswatch-more { font-size: calc(15 * var(--u)); align-self: center; }
+/* The "+N" chip is a name pill (which clips its text for the ellipsis); "+N" never needs one, and its hover tip (the
+   other names, `.gtip-right`) must not be clipped inside it. The .vsself chip takes the hover too. */
+.vswatch .vswatch-more, .vsself .vswatch-more { overflow: visible; pointer-events: auto; }
 .vsspec.vswatch, .vsspec.vsself { flex-direction: column; align-items: center; }
 
 /* THE SPECTATOR'S OWN HUD (SpectatorHud.tsx, owner 2026-10-16, R-SPECTATE-HUD-01). TOP LEFT (`.vsspec.vsself`, the

@@ -37,7 +37,7 @@ export const TIP_CLASSES = [
 /** Classes whose names look like a tip but are not a hover panel: the `.gtip` family marks the ELEMENT that owns a
  *  `data-tip` bubble (the bubble itself is its `::after`, checked separately), `rankbar-tip` is the glowing end of a
  *  progress bar, `hctip` is a hero card's always-visible blurb. */
-export const NOT_TIP_CLASSES = ['gtip', 'gtip-down', 'gtip-end', 'rankbar-tip', 'hctip', 'baltipname', 'tiprow'] as const;
+export const NOT_TIP_CLASSES = ['gtip', 'gtip-down', 'gtip-end', 'gtip-right', 'rankbar-tip', 'hctip', 'baltipname', 'tiprow'] as const;
 
 /**
  * Deliberate per-type paint that stays inside the unified frame, by exact selector:

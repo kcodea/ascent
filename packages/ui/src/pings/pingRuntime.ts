@@ -25,6 +25,7 @@ import {
   PING_CLEAR_EVENT,
   PING_CLEAR_RATE,
   PING_EVENT,
+  PING_LIFE_MS,
   PING_MENTOR_EVENT,
   PING_RATE,
   PingRateLimiter,
@@ -159,10 +160,17 @@ const sameTarget = (a: PingTarget, b: PingTarget): boolean =>
 
 function show(p: Omit<ShownPing, 'key' | 'at'>, key: string): void {
   const now = clock();
-  // One ping per target at a time: a new one replaces the last on the same target. No timer: a ping settles on its
-  // target until it is cleared (owner 2026-10-29).
-  const list = usePings.getState().list.filter((x) => x.key !== key && !(x.owner === p.owner && sameTarget(x.target, p.target)));
+  // One ping per target at a time: a new one replaces the last on the same target. A ping lives PING_LIFE_MS from its
+  // arrival on THIS screen unless it is cleared sooner (owner 2026-10-29: "they should only last 5s if not cleared").
+  const list = usePings.getState().list.filter((x) => now - x.at < PING_LIFE_MS && x.key !== key && !(x.owner === p.owner && sameTarget(x.target, p.target)));
   usePings.setState({ list: [...list, { ...p, key, at: now }] });
+}
+
+/** Drop pings past their life (the layer calls it when the next one is due; local only, nothing is sent). */
+export function expirePings(now: number = clock()): void {
+  const list = usePings.getState().list;
+  const keep = list.filter((x) => now - x.at < PING_LIFE_MS);
+  if (keep.length !== list.length) usePings.setState({ list: keep });
 }
 
 /** May I tell the other screens that `owner`'s ping was cleared? The player, the teammate and the mentor may; a plain

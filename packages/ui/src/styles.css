@@ -12789,6 +12789,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    wears the standard `.herotip` panel.) */
 .gtip.gtip-end[data-tip]::after { left: auto; right: 0; transform: translateY(4px); }
 .gtip.gtip-end.gtip-down[data-tip]::after { transform: translateY(-4px); }
+/* `.gtip-right`: opens to the element's RIGHT, centred on it, for chips pinned to the LEFT edge where a centred bubble
+   above would be clipped by the top and left of the screen (the spectator column, top left; owner 2026-10-29:
+   "whenever hovering over a spectator some weird box shows up off screen"). */
+.gtip.gtip-right[data-tip]::after { left: calc(100% + 9px); right: auto; top: 50%; bottom: auto; text-align: left; transform: translateY(-50%) translateX(-4px); }
+.gtip.gtip-right[data-tip]:hover::after, .gtip.gtip-right[data-tip]:focus-visible::after, .gtip.gtip-right[data-tip].tt-on::after { transform: translateY(-50%) translateX(0); }
 .gtip.gtip-end[data-tip]:hover::after, .gtip.gtip-end[data-tip]:focus-visible::after, .gtip.gtip-end[data-tip].tt-on::after { transform: translateY(0); }
 /* The lobby rail clips its overflow (it scrolls), so a bubble inside it must fit its ~125px left of the chip. */
 .lobbyrail .gtip[data-tip]::after { max-width: 118px; font-size: calc(var(--atip-z-simple) * 0.86); padding: calc(var(--atip-z-pad) * 0.45) calc(var(--atip-z-pad) * 0.75); }

@@ -17,7 +17,8 @@ player sees; players can ping on their own and spectators see those pings.
   is installed by the Versus store, the live lobby publisher and the live watcher; every stream handler passes events
   to `receivePingEvent` first. Over Supabase the receiver re-checks the rule (the channel cannot authenticate senders).
 - **Layer** (`PingLayer.tsx`): the fan menu (owner pick 2026-10-29 from three prototyped layouts: fan, ring, strip):
-  Check, X, Question in an arc above the target; on a card, Pass, Inspect, Sell in an arc below. A shop button gets the
+  Check, X, Question in an arc above the target; on a card, Pass and Sell below (Inspect left the fan the same day: a double right-click inspects, owner "remove the
+  magnifying glass ping"; its art stays in the folder, unused). A shop button gets the
   top three only. Marks are portaled INTO the card element (they ride its transforms);
   a 4 Hz `isConnected` + query check (no layout read) clears a ping whose card left its zone; a drag clears it at once.
 - **Phone**: `touchInput.holdFiresOn` takes a gate from the ping layer, so a hold on a play-zone card opens the menu

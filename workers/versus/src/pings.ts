@@ -76,8 +76,12 @@ export const PING_CLEAR_EVENT = 'ping_clear';
 export const PING_CLEAR_RATE = { max: 8, windowMs: 2000 } as const;
 /** At most `max` pings per sender in any `windowMs` (owner 2026-10-29: "e.g. 3 pings / 2 s per sender"). */
 export const PING_RATE = { max: 3, windowMs: 2000 } as const;
-/** A ping has no timer (owner 2026-10-29: it sparks, then SETTLES until cleared by a click or by moving its card). The
- *  marks also go when their target leaves the screen (the shop ends, the card is sold). */
+/** How long a ping stays on its target if nobody clears it (owner 2026-10-29: "we need to add a timer on pings - they
+ *  should only last 5s if not cleared"). Timed LOCALLY on every screen from when the ping arrived there (no message);
+ *  a click or a move clears it sooner, and it goes with its target if that leaves the screen. */
+export const PING_LIFE_MS = 5000;
+/** The fade at the end of that life (one-shot opacity). */
+export const PING_FADE_MS = 300;
 
 const ID = /^[A-Za-z0-9_:.-]{1,64}$/;
 const isSeat = (v: unknown): v is PingSeat => typeof v === 'string' && (PING_SEATS as readonly string[]).includes(v);

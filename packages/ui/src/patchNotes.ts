@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Hovering a spectator in the top left now shows its tip beside them, fully on screen.' },
       { category: 'Systems', text: 'Fixed: Duos games now end cleanly. Your result and rating change show right away, and the match is saved.', details: [
         'Ranked Duos games on the new game server could hang at the end and drop you back to the room. Their results were not being saved.',
         'Duos and Ranked Duos games now always show the opponent rail on the right. They no longer open on the 1v1 view.',
@@ -81,8 +82,8 @@ export const PATCH_NOTES: PatchNote[] = [
       ] },
       { category: 'Systems', text: 'New: live pings. Point at a card with Check, No, Question, Pass or Sell, or at a shop button with Check, No or Question.', details: [
         'Right-click a shop card, a minion, a hand card or a shop button in a game. On a phone, press and hold.',
-        'The menu still has Inspect, so you can always look at a card.',
-        'A ping pops on its target and stays there. Click it to clear it. Moving the card clears it too.',
+        'Right-click a card twice quickly to inspect it. On a phone, tap it as before.',
+        'A ping pops on its target. Pings fade after 5 seconds. Click one to clear it sooner. Moving the card clears it too.',
         'Everyone watching you sees your pings. In Duos your teammate sees them too. Opponents never do.',
         'Duos: open your teammate view to ping their cards. It shows on their screen.',
         'Being watched? Click a spectator in the top left to make them your Mentor. Their pings show on your screen only. Click again to remove them.',

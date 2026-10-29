@@ -3,15 +3,17 @@
  *
  *  - THE MENU (`PingMenu`): right-click (a phone: long-press, which `touchInput.ts` turns into the same right-click) on a
  *    shop card, a board minion, a hand card, or a shop button (Tavern Up, Refresh, Freeze, the hero power, End Turn)
- *    opens it. A card's menu carries INSPECT (owner 2026-10-29: "Right clicking replaces the inspect, so we'll need to add
- *    an inspect option in the ping wheel"); buttons have none. Where pings are not available (outside a game, a replay, a
- *    spectator who is not a mentor) a card's right-click goes STRAIGHT to Inspect as before. A left-click away or Escape
- *    closes it.
+ *    opens it. A DOUBLE right-click on a card inspects it (owner 2026-10-29: "remove the magnifying glass ping, change it
+ *    so that double right clicking inspects"): the first opens the fan, a second on the same card within
+ *    `PING_DOUBLE_MS` closes it at once and opens Inspect. A phone keeps its tap-to-inspect. Where pings are not
+ *    available (outside a game, a replay, a spectator who is not a mentor) a card's right-click goes STRAIGHT to Inspect
+ *    as before. A left-click away or Escape closes the menu.
  *    THE FAN (owner pick 2026-10-29, the only layout): on a card, the TOP arc is Check, X, Question (left to right) and
- *    the BOTTOM arc is Pass, Inspect, Sell. A shop button gets the top arc only (Check, X, Question). The bubbles pop in
- *    with a staggered one-shot.
+ *    the BOTTOM row is Pass (left) and Sell (right). A shop button gets the top arc only (Check, X, Question). The
+ *    bubbles pop in with a staggered one-shot.
  *  - THE MARKS (`PingMarks`): a ping SPARKS on its target (the authored `hero-power-spark` FX, one-shot, plus the `pulse`
- *    UI cue), pops in with a short overshoot and settles; it STAYS until cleared (no timer). A card's mark lives INSIDE the
+ *    UI cue), pops in with a short overshoot and settles; it fades out on its own `PING_LIFE_MS` (5 s) after it landed
+ *    on this screen, timed locally (owner 2026-10-29: "they should only last 5s if not cleared"). A card's mark lives INSIDE the
  *    card's element, so it rides every hover and FLIP the card makes. It is CLEARED by a left- or right-click on the mark
  *    itself, or when its card moves (dragged, sold, played: owner 2026-10-29), on the sender's and the receiver's screen
  *    alike (a `ping_clear` on the stream). It also goes when its target leaves the screen (the shop closes for the fight). Only pings for the screen on display show (mine, or the watched / teammate's seat).
@@ -21,16 +23,15 @@
 import { memo, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { create } from 'zustand';
-import { PING_BUTTONS, type PingButton, type PingKind, type PingTarget, type PingZone } from '@game/versus-cf/pings';
+import { PING_BUTTONS, PING_FADE_MS, PING_LIFE_MS, type PingButton, type PingKind, type PingTarget, type PingZone } from '@game/versus-cf/pings';
 import { dragStore } from '../dragStore';
 import { playDef } from '../fx/playDef';
-import { Icon } from '../Icon';
 import { sfx } from '../sfx';
 import { rectToStage, stageHost, stageViewport, toStage, type StageRect } from '../stage';
 import { isSelectOption, setCardHoldGate } from '../touchInput';
 import { useSpectate } from '../versus/spectate';
 import { pingSrc, PING_LOOK } from './pingArt';
-import { clearPing, clearPingsOnCard, forgetPing, myPingSeat, pingContext, sendPing, usePings, type ShownPing } from './pingRuntime';
+import { clearPing, clearPingsOnCard, expirePings, forgetPing, myPingSeat, pingContext, sendPing, usePings, type ShownPing } from './pingRuntime';
 import './pings.css';
 
 // ── the menu ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -42,7 +43,7 @@ export interface PingMenuState {
   /** The target's box in stage px (read once, at open). */
   box: StageRect | null;
   target: PingTarget;
-  /** The card's Inspect (cards only). */
+  /** The card's Inspect (cards only; a double right-click opens it). */
   inspect: (() => void) | null;
 }
 export const usePingMenu = create<{ open: PingMenuState | null }>(() => ({ open: null }));
@@ -71,10 +72,27 @@ export function openCardPingMenu(e: { clientX: number; clientY: number; currentT
   if (el.closest('.dragcard') || isSelectOption(el)) return false;
   const zone = cardZoneOf(el);
   if (!zone) return false;
+  const now = Date.now();
+  const key = `${zone}:${uid}`;
+  // The SECOND right-click of a double on the same card: the fan goes at once and Inspect opens.
+  if (lastCardRightClick && lastCardRightClick.key === key && now - lastCardRightClick.at <= PING_DOUBLE_MS) {
+    lastCardRightClick = null;
+    closePingMenu();
+    inspect();
+    return true;
+  }
+  lastCardRightClick = { key, at: now };
   usePingMenu.setState({ open: { x: toStage(e.clientX), y: toStage(e.clientY), box: boxOf(el), target: { t: 'card', uid, zone }, inspect } });
   sfx.tick();
   return true;
 }
+
+/** Two right-clicks on the same card within this long are a double right-click: Inspect. */
+export const PING_DOUBLE_MS = 350;
+/** The last right-click that opened a card's fan (kept apart from the menu, which a right press closes first). */
+let lastCardRightClick: { key: string; at: number } | null = null;
+/** For the tests. */
+export function resetPingDoubleForTests(): void { lastCardRightClick = null; }
 
 /** The shop button under a right-click (by its `data-spec`), or null. A disabled button may not receive the event
  *  itself, so the pointer is also tested against the five buttons' boxes (five rect reads, per right-click only). */
@@ -92,25 +110,24 @@ export function pingButtonAt(target: EventTarget | null, x: number, y: number): 
   return null;
 }
 
-/** The painted icon (`inspect` too), or a placeholder glyph when a file is missing. */
-const PingIcon = memo(function PingIcon({ kind }: { kind: PingKind | 'inspect' }): JSX.Element {
+/** The painted icon, or a placeholder glyph when a file is missing. */
+const PingIcon = memo(function PingIcon({ kind }: { kind: PingKind }): JSX.Element {
   const src = pingSrc(kind);
   if (src) return <img className="ping-art" src={src} alt="" draggable={false} decoding="sync" />;
-  if (kind === 'inspect') return <Icon name="eye" />;
   return <span className={`ping-glyph pg-${kind}`} aria-hidden="true">{PING_LOOK[kind].glyph}</span>;
 });
 
-type OptId = PingKind | 'inspect';
+type OptId = PingKind;
 /** The fan's slots (owner pick 2026-10-29). Top arc, left to right; bottom arc, left to right. */
 export const PING_FAN_TOP: readonly OptId[] = ['check', 'x', 'question'];
-export const PING_FAN_BOTTOM: readonly OptId[] = ['pass', 'inspect', 'sell'];
+export const PING_FAN_BOTTOM: readonly OptId[] = ['pass', 'sell'];
 
 /** The menu's two arcs: a card gets both; a shop button (no Inspect) the top arc only. Pure; exported for tests. */
 export function fanOptions(isCard: boolean): { top: OptId[]; bottom: OptId[] } {
   return { top: [...PING_FAN_TOP], bottom: isCard ? [...PING_FAN_BOTTOM] : [] };
 }
 
-const labelOf = (id: OptId): string => (id === 'inspect' ? 'Inspect' : PING_LOOK[id].label);
+const labelOf = (id: OptId): string => PING_LOOK[id].label;
 
 /** Bubble size in the fan (stage px). */
 export const PING_BUBBLE = 84;
@@ -160,9 +177,8 @@ function useCloseOnAway(ref: React.RefObject<HTMLElement>): void {
   }, [ref]);
 }
 
-function choose(at: PingMenuState, id: PingKind | 'inspect'): void {
+function choose(at: PingMenuState, id: PingKind): void {
   closePingMenu();
-  if (id === 'inspect') { at.inspect?.(); return; }
   if (!sendPing(id, at.target)) sfx.deny(); // its mark plays the spark and the cue when it pops
 }
 
@@ -170,14 +186,14 @@ function choose(at: PingMenuState, id: PingKind | 'inspect'): void {
 function PingMenu({ at }: { at: PingMenuState }): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
   useCloseOnAway(ref);
-  const { top, bottom } = fanOptions(!!at.inspect);
+  const { top, bottom } = fanOptions(at.target.t === 'card');
   const opts = [...top, ...bottom];
   const pts = clampGroup(fanPositions({ top: top.length, bottom: bottom.length }, at), PING_BUBBLE / 2, stageViewport());
   return createPortal(
     <div ref={ref} className="ping-menu ping-bubbles" role="menu" aria-label="Ping" onContextMenu={(e) => { e.preventDefault(); }}>
       {opts.map((id, i) => (
-        <button key={id} type="button" role="menuitem" className={`ping-bub ${i < top.length ? 'pf-top' : 'pf-bottom'}${id === 'inspect' ? ' ping-inspect' : ''}`}
-          aria-label={id === 'inspect' ? 'Inspect' : `Ping ${labelOf(id)}`}
+        <button key={id} type="button" role="menuitem" className={`ping-bub ${i < top.length ? 'pf-top' : 'pf-bottom'}`}
+          aria-label={`Ping ${labelOf(id)}`}
           style={{ left: `${pts[i]!.x}px`, top: `${pts[i]!.y}px`, '--i': i } as CSSProperties}
           onClick={() => choose(at, id)}>
           <span className="ping-bub-in"><PingIcon kind={id} /></span>
@@ -247,7 +263,8 @@ const PingMark = memo(function PingMark({ p }: { p: ShownPing }): JSX.Element | 
   const dismiss = (e: React.SyntheticEvent): void => { e.preventDefault(); e.stopPropagation(); clearPing(p.key); };
   return createPortal(
     <span className={`ping-mark pm-${p.target.t}${p.mine ? ' mine' : ''} pr-${p.role}`} role="status"
-      aria-label={`${cap ? `${cap} pinged` : 'Ping'}: ${PING_LOOK[p.kind].label}. Click to clear.`}>
+      aria-label={`${cap ? `${cap} pinged` : 'Ping'}: ${PING_LOOK[p.kind].label}. Click to clear.`}
+      style={{ '--ping-fade-at': `${Math.max(0, PING_LIFE_MS - PING_FADE_MS - (Date.now() - p.at))}ms`, '--ping-fade': `${PING_FADE_MS}ms` } as CSSProperties}>
       {/* Cleared on the CLICK (or right-click), never on the press: removed at the press, the release's click would land
           on the card under it and inspect or buy it. The press itself is kept from reaching the card. */}
       <span className="ping-pop" onPointerDown={(e) => { e.stopPropagation(); }} onContextMenu={dismiss} onClick={dismiss}>
@@ -264,6 +281,13 @@ function PingMarks(): JSX.Element {
   const list = usePings((s) => s.list);
   const watched = useSpectate((s) => (s.active ? s.seat : null));
   const screen = watched ?? myPingSeat() ?? 'p1';
+  // Each ping goes when its life ends: one timer, for the next one due (no per-frame work).
+  useEffect(() => {
+    if (list.length === 0) return;
+    const next = Math.min(...list.map((p) => p.at + PING_LIFE_MS));
+    const id = window.setTimeout(() => expirePings(), Math.max(16, next - Date.now() + 10));
+    return () => window.clearTimeout(id);
+  }, [list]);
   return <>{list.filter((p) => p.owner === screen).map((p) => <PingMark key={p.key} p={p} />)}</>;
 }
 

@@ -11,6 +11,8 @@
  *    made first, on either host; mid-game disabled), Invite to spectate (my live game / Versus room, either host), and
  *    accepting a spectate invite drops the friend into watching.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { mount, type Mounted } from '../../renderedText.mount';
@@ -426,5 +428,32 @@ describe('Remove friend and Block live in the menu, never on the row (R-FRIENDS-
     await flush();
     expect(harmed).toEqual(['block:u-amy']);
     expect(useFriendsDock.getState().phase).toBe('open');
+  });
+});
+
+describe('placement: bottom left, clear of each screen\'s corner furniture (R-FRIENDS-DOCK-02)', () => {
+  // jsdom has no layout: the headless screenshot pass (devlog 2026-10-29-friends-dock-global) measured these; this pins
+  // the contract so a later edit cannot quietly move the dock back over the Health plate or the Settings plaque.
+  const css = readFileSync(join(__dirname, 'friendsDock.css'), 'utf8');
+  it('the button, the panels and the toast anchor LEFT, never right', () => {
+    expect(css).toMatch(/\.fdock-btn \{ position: fixed; left: calc\(var\(--edge-l\) \+ var\(--fdock-x\)\); bottom: calc\(var\(--edge-b\) \+ var\(--fdock-y\)\);/);
+    expect(css).toMatch(/\.fdock-stack \{[^}]*left: calc\(var\(--edge-l\) \+ var\(--fdock-x\)\)/);
+    expect(css).not.toMatch(/\.fdock-(btn|stack) \{[^}]*right:/);
+  });
+  it('in a game it tucks in smaller and lower, counts beside it (never above, where the Health plate is)', () => {
+    expect(css).toContain('.fdock-btn.ingame, .fdock-stack.ingame, .dm-toast.ingame { --fdock-cb: calc(32 * var(--u)); --fdock-x: 10px; --fdock-y: 5px; }');
+    expect(css).toMatch(/\.fdock-btn\.ingame \.fdock-chips \{ inset: auto; left: calc\(100% \+ 5px\)/);
+  });
+  it('the menus make room: the side menu lifts Settings, the title footer starts to its right', () => {
+    expect(css).toMatch(/html\[data-fdock\] \.msb \{ padding-bottom: calc\(22px \+ var\(--safe-b\) \+ var\(--fdock-room\) \+ 14px\); \}/);
+    expect(css).toMatch(/html\[data-fdock\] \.titlefoot \{ left:/);
+  });
+  it('layers above the menu pages (470) and under the friend menu (490) and the Settings veil (500)', () => {
+    const z = (sel: string): number => {
+      const at = css.indexOf(`${sel} {`);
+      const rule = css.slice(at, css.indexOf('}', at));
+      return Number(/z-index: (\d+)/.exec(rule)?.[1]);
+    };
+    for (const sel of ['.fdock-btn', '.fdock-catch', '.fdock-stack']) { expect(z(sel)).toBeGreaterThan(470); expect(z(sel)).toBeLessThan(490); }
   });
 });

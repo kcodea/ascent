@@ -6,7 +6,7 @@ import { sleep } from './lib.mjs';
 import { clickSel } from './autopilot.mjs';
 import { rankedDuos } from './setup.mjs';
 const ROUNDS = Number(process.argv[2] ?? 6);
-const m = await rankedDuos({ port: 4506 });
+const m = await rankedDuos({ dist: 'apps/web/dist-bench-vt', port: 4506 });
 const late = (w) => w % 2 === 0;
 const hold = (who) => (s) => late(s.wave) ? (s.remainingMs ?? 1) > (who === 'A' ? -500 : -1500) : Date.now() - (who === 'A' ? m.mem.A : m.mem.B).shopAt[s.wave] < (who === 'A' ? 3000 : 4000);
 const log = [];

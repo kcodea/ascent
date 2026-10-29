@@ -11336,4 +11336,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: "You click Bob's portrait. The same frame your click registers, your board starts fading into his, with no pause before it.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateFade.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-VERSUS-HEROPICK-RETRY-01',
+    title: 'A hero pick that did not reach the game server is sent again',
+    statement:
+      'In every Versus mode the hero you choose is locked on your screen at once. If the pick does not reach the server (a timeout, a refused or busy request), it is sent again, a few times, while the match is still on Hero Select and the server has no pick from you. '
+      + 'A pick the server says can never land (Hero Select is over, the clock ran out) is not resent. So "Waiting for your opponent" never sits out the whole hero clock for a pick that was simply lost, and the server never picks a random hero over the one you chose.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (Duos QA, report a)', quote: 'both players pressed ready and each said waiting on the other player, and then it eventually went through' },
+      { kind: 'fix-pr', ref: 'qa/duos-spectate-polish' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusStore.ts (pickVersusHero)' },
+    ],
+    currentBehaviour: 'Since 2026-10-29 (qa/duos-spectate-polish). Before, a failed pick only set an error that is not shown in a match. The owner report was not reproduced on the local Cloudflare stack (Hero Select and both-ready closes measured at about 0.2 s); this closes the one path found that matches it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusHeroPickRetry.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
 ];

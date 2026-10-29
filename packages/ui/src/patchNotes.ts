@@ -64,6 +64,7 @@ export const PATCH_NOTES: PatchNote[] = [
         'Spectators no longer stay on the shop while the player they watch is already fighting.',
         'Spectators no longer see the fight, then the old shop, then the new shop.',
       ] },
+      { category: 'Systems', text: 'Fixed: in Versus, a hero pick that did not reach the server is now sent again, so you are not left waiting for the clock or given a random hero.' },
       { category: 'Systems', text: 'Right-click a card or button once to clear your own ping on it.', details: [
         "Works on your own board, your Duos teammate's board, and as a mentor on your player's board.",
         'On a phone, long-press the card instead.',

@@ -32,7 +32,7 @@ export async function goToVersusRoom(ref: string, as: 'player' | 'spectator', ar
   }
   if (vs.room && vs.room.id !== roomId) { flashFriends(isDuosParty(vs.room) ? 'Leave your party first.' : 'Leave your Versus room first.'); return false; }
   const g = useGame.getState();
-  g.goTo('menu'); // closes every ladder page, the Friends page included
+  g.goTo('menu'); // closes every ladder page
   openVersus(area);
   if (vs.room?.id === roomId) return true;
   await joinRoom(roomId, as);
@@ -182,7 +182,7 @@ export async function inviteToRoom(userId: string, area: 'versus' | 'duos'): Pro
   let room = heldOpen(area);
   if (!room) {
     const name = g.playerName;
-    g.goTo('menu'); // closes every ladder page (the Friends page included)
+    g.goTo('menu'); // closes every ladder page
     if (area === 'duos') await enterDuosParty(defaultPartyName(name));
     else { openVersus('versus'); await createRoom(defaultRoomName(name)); }
     room = heldOpen(area);

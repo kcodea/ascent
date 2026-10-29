@@ -11,7 +11,7 @@
  *  - live presence: a friend's hub presence overrides the friends list once it is newer;
  *  - the filter (on by default, a Settings switch) masks swear words as I read them; Report records once;
  *  - the composer: Enter sends, focused on open, and typing never reaches the game's shortcuts;
- *  - the Friends page (a menu): Message opens the conversation over the page.
+ *  - on a menu the same dock (button, list, conversation) is there (R-FRIENDS-DOCK-02).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
@@ -28,7 +28,6 @@ import { resetFriendsForTests, setFriendsRemoteForTests, useFriends } from '../f
 import type { Friend, FriendsList, FriendsRemote } from '../friendsRemote';
 import { setFilterMessages } from '../friendsPrefs';
 import { FriendsDock } from '../dock/FriendsDock';
-import { FriendsPage } from '../friendBits';
 import { openDm, resetDockForTests, useFriendsDock } from '../dock/dockStore';
 import type { DmRemote, DmUnread } from './dmRemote';
 import {
@@ -243,7 +242,7 @@ describe('receiving (R-DM-03)', () => {
     expect(q('.dm-msg.theirs')?.textContent).toContain('hey');
   });
 
-  it('an offline friend with unread messages is still listed in the dock', async () => {
+  it('an offline friend with unread messages shows the count on their row', async () => {
     inRun();
     ui = mount(<FriendsDock />);
     hub.push({ t: 'dm', msg: row(GUS, ME, 'left you a note') });
@@ -347,17 +346,17 @@ describe('the composer (R-DM-03)', () => {
   });
 });
 
-describe('the Friends page on a menu (R-DM-03)', () => {
-  it('Message opens the conversation over the page, with no dock button', async () => {
-    useGame.setState({ showTitle: true, showFriends: true });
-    ui = mount(<><FriendsPage /><FriendsDock /></>);
+describe('the dock on a menu (R-DM-03, R-FRIENDS-DOCK-02)', () => {
+  it('on the title, the same dock button and list open the conversation; a toast opens it there too', async () => {
+    useGame.setState({ showTitle: true });
+    ui = mount(<FriendsDock />);
     await flush();
-    expect(q('.fdock-btn')).toBeNull();
-    const btn = qa('.fr-row .lb-btn').find((b) => b.getAttribute('aria-label') === 'Message Amy#1234');
-    click(btn!);
+    click(q('.fdock-btn'));
     await flush();
-    expect(q('.fdock-stack.menu .fdock-dm')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
-    expect(q('.fdock-btn')).toBeNull();
-    expect(q('.fdock-list')).toBeNull();
+    click(q('.fdock-rowmain[aria-label="Message Amy#1234"]'));
+    await flush();
+    expect(q('.fdock-stack .fdock-dm')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
+    expect(q('.fdock-list')).not.toBeNull();
+    expect(q('.fdock-btn')).not.toBeNull();
   });
 });

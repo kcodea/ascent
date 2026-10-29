@@ -19,7 +19,7 @@
  *  2. THE INVITE WAKE-UP: a Realtime subscription to INSERTs on `friend_invites` addressed to me (to_user filter + RLS),
  *     only for an account with at least one friend and only while the tab is visible. Each insert triggers one beat.
  *  3. THE FRIENDS LIST (`useFriendsListLoop`): the one batched `friends_list` read, only while a friends surface is open
- *     (the Friends page, the room's invite panel), every 60 s while visible, nothing while hidden, backing off on errors.
+ *     (the Friends dock, the room's invite panel), every 60 s while visible, nothing while hidden, backing off on errors.
  *
  * Nothing here is broadcast: presence is read by friends through the list, never pushed (R-NET-REALTIME-01).
  */

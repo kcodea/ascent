@@ -6,9 +6,10 @@
  *  - the beat (egress, R-FRIENDS-05): one call after boot, then every 60 s visible or hidden, at once on a status
  *    change (never faster than every 5 s), never for a guest, stopped for good by an undeployed server; the invite
  *    wake-up is subscribed only for an account with friends and a visible tab;
- *  - the Friends page: guests get the Save account prompt; requests with a count; friends online first; Watch only on
- *    a watchable game; Invite only while I am in an open Versus room and the friend is online; no title= anywhere;
- *  - the side menu's Friends plaque: requests waiting, else friends online;
+ *  - the Friends panel (the dock, which took over the old Friends page): guests get the Sign in state; friends online
+ *    first; Watch only on a watchable game; Invite only while I am in an open Versus room and the friend is online;
+ *    Requests with a count; no title= anywhere;
+ *  - no Friends page or side menu plaque any more; goTo('friends') opens the dock;
  *  - the invite notice: on a menu only, Accept answers the server then runs the kind's handler, gone once expired.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -32,7 +33,9 @@ import {
   setInviteProofSourceForTests, startFriendsPresence, useFriends,
 } from './friendsStore';
 import { FriendsError, type BeatAnswer, type Friend, type FriendInvite, type FriendsList, type FriendsRemote, type PresenceReport } from './friendsRemote';
-import { FriendsPage, statusText } from './friendBits';
+import { statusText } from './friendBits';
+import { FriendsDock } from './dock/FriendsDock';
+import { openDock, resetDockForTests, useFriendsDock } from './dock/dockStore';
 import { InviteNotice } from './InviteNotice';
 import { MenuSidebar } from '../MenuSidebar';
 
@@ -72,7 +75,8 @@ beforeEach(() => {
   setHidden(false);
   account(false);
   useVersus.setState({ room: null, match: null });
-  useGame.setState({ showTitle: true, practiceSetupOpen: false, replaying: false, heroChoices: null, titleView: 'menu', showFriends: false });
+  useGame.setState({ showTitle: true, practiceSetupOpen: false, replaying: false, heroChoices: null, titleView: 'menu' });
+  resetDockForTests();
 });
 afterEach(() => { ui?.unmount(); ui = null; vi.useRealTimers(); resetFriendsForTests(); setIdentity(null); });
 
@@ -266,19 +270,21 @@ describe('the beat (egress)', () => {
   });
 });
 
-describe('the Friends page', () => {
-  it('a guest gets the Save account prompt and no list read', () => {
+describe('the Friends panel in the dock (the old Friends page, R-FRIENDS-DOCK-02)', () => {
+  const open = async (): Promise<void> => { act(() => { openDock(); }); await flush(); };
+  it('a guest gets the compact Sign in state and no list read', async () => {
     account(true);
-    useGame.setState({ showFriends: true });
     const listSpy = vi.fn();
     setFriendsRemoteForTests({ ...fakeRemote(), list: async () => { listSpy(); return emptyList(); } } as FriendsRemote);
-    ui = mount(<FriendsPage />);
-    expect(ui.container.textContent).toContain('Save your account to add friends.');
+    ui = mount(<FriendsDock />);
+    expect(ui.container.querySelector('.fdock-btn')).not.toBeNull();
+    await open();
+    expect(ui.container.textContent).toContain('Sign in to add friends.');
     expect(listSpy).not.toHaveBeenCalled();
     expect(ui.container.querySelector('[title]')).toBeNull();
   });
 
-  it('lists requests with a count and friends online first; Watch only on a watchable game; Invite only in an open room', async () => {
+  it('Friends lists everyone online first then offline, Watch only on a watchable game, Invite only in an open room; Requests has the count', async () => {
     fake.list = {
       ...emptyList(),
       friends: [
@@ -290,22 +296,24 @@ describe('the Friends page', () => {
       incoming: [card('u-in', 'Ike')],
       outgoing: [card('u-out', 'Oli')],
     };
-    useGame.setState({ showFriends: true });
-    ui = mount(<FriendsPage />);
-    await flush();
-    const text = ui.container.textContent!;
-    expect(text).toContain('Requests 2');
-    expect(text).toContain('Wants to be friends');
-    const names = [...ui.container.querySelectorAll('.fr-section[aria-label="Friends"] .fr-name')].map((n) => n.textContent);
+    ui = mount(<FriendsDock />);
+    await open();
+    const names = [...ui.container.querySelectorAll('.fdock-rows[aria-label="Friends"] .fr-name')].map((n) => n.textContent);
     expect(names).toEqual(['Amy#1234', 'Gus#1234', 'Pam#1234', 'Zed#1234']);
-    expect(text).toContain('Last seen 2 hours ago');
+    expect(ui.container.textContent).toContain('Last seen 2 hours ago');
+    expect(ui.container.textContent).toContain('Me#1111'); // my handle to share
+    expect(ui.container.querySelector('.fdock-addinput')).not.toBeNull(); // Add by handle
     const watch = [...ui.container.querySelectorAll('button')].filter((b) => b.textContent?.includes('Watch'));
     expect(watch.map((b) => b.getAttribute('aria-label'))).toEqual(['Watch Gus#1234']);
     expect([...ui.container.querySelectorAll('button')].some((b) => b.textContent === 'Invite')).toBe(false);
     act(() => { useVersus.setState({ room: { id: 'room-1', status: 'open', options: null, members: [] } as unknown as VersusRoom }); });
     const invites = [...ui.container.querySelectorAll('button')].filter((b) => b.textContent === 'Invite');
-    expect(invites.map((b) => b.getAttribute('aria-label'))).toEqual(['Invite Amy#1234 to your Versus room']);
-    expect(ui.container.textContent).toContain('You are Me#1111');
+    expect(invites.map((b) => b.getAttribute('aria-label'))).toEqual(['Invite Amy#1234 to your room']);
+    const reqTab = [...ui.container.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((t) => t.textContent?.startsWith('Requests'))!;
+    expect(reqTab.textContent).toBe('Requests1');
+    act(() => { reqTab.click(); });
+    expect(ui.container.textContent).toContain('Wants to be friends');
+    expect(ui.container.textContent).toContain('Request sent');
     expect(ui.container.querySelector('[title]')).toBeNull();
   });
 
@@ -319,11 +327,9 @@ describe('the Friends page', () => {
           game: { ...game, mode: 'ranked_duos', phase: 'combat', place: null, vs: 'Dot & Eve' } }),
       ],
     };
-    useGame.setState({ showFriends: true });
-    ui = mount(<FriendsPage />);
-    await flush();
+    ui = mount(<FriendsDock />);
+    await open();
     const text = ui.container.textContent!;
-    // The row: two short lines (R-FRIENDS-ACTIVITY-01); the rest is in the hover / tap.
     expect(text).toContain('Round 6 · Shopping');
     expect(text).toContain('3rd of 5');
     expect(text).toContain('Tier 4');
@@ -335,21 +341,21 @@ describe('the Friends page', () => {
     expect(ui.container.querySelectorAll('.fr-gamehero .lb-heroframe')).toHaveLength(2);
     const watch = [...ui.container.querySelectorAll('button')].filter((b) => b.textContent?.includes('Watch'));
     expect(watch.map((b) => b.getAttribute('aria-label'))).toEqual(['Watch Dot#1234', 'Watch Pam#1234']);
-    expect(text).not.toMatch(/\u2014|--/);
+    expect(text).not.toMatch(/—|--/);
     expect(ui.container.querySelector('[title]')).toBeNull();
   });
 });
 
-describe('the side menu Friends plaque', () => {
-  it('shows requests waiting, else friends online', () => {
-    ui = mount(<MenuSidebar current="friends" />);
-    const plaque = (): HTMLElement => [...ui!.container.querySelectorAll<HTMLElement>('.sbbtn')].find((b) => b.textContent?.includes('Friends'))!;
-    expect(plaque().getAttribute('aria-current')).toBe('page');
-    act(() => { useFriends.setState({ inbox: { friends: 3, online: 2, incoming: 0, invites: [], serverNow: '' } }); });
-    expect(plaque().querySelector('.fr-onchip')?.textContent).toBe('2 online');
-    act(() => { useFriends.setState({ inbox: { friends: 3, online: 2, incoming: 1, invites: [], serverNow: '' } }); });
-    expect(plaque().querySelector('.fr-reqpill')?.textContent).toBe('1');
-    expect(plaque().querySelector('.fr-onchip')).toBeNull();
+describe('no Friends page on the menus (R-FRIENDS-DOCK-02)', () => {
+  it('the side menu has no Friends plaque; goTo(friends) opens the dock in place and changes no page', () => {
+    ui = mount(<MenuSidebar current="career" />);
+    expect([...ui.container.querySelectorAll('.sbbtn')].some((b) => b.textContent?.includes('Friends'))).toBe(false);
+    useGame.setState({ showCareer: true });
+    act(() => { useGame.getState().goTo('friends'); });
+    expect(useFriendsDock.getState().phase).toBe('open');
+    expect(useFriendsDock.getState().tab).toBe('friends');
+    expect(useGame.getState().showCareer).toBe(true);
+    expect('showFriends' in useGame.getState()).toBe(false);
   });
 });
 

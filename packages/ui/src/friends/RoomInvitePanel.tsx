@@ -35,7 +35,7 @@ export function RoomInvitePanel({ room, me, onClose }: { room: VersusRoom; me: s
         {flash && <div className="fr-flash fr-flash-inline" role="status">{flash}</div>}
         <div className="fr-roomlist">
           {!list ? <div className="vspanel-body">Finding your friends…</div>
-            : friends.length === 0 ? <div className="vspanel-body">No friends to invite yet. Add friends from the Friends page.</div>
+            : friends.length === 0 ? <div className="vspanel-body">No friends to invite yet. Add friends with the Friends button, bottom left.</div>
             : friends.map((f) => {
               const sent = list.sent.find((x) => x.to === f.userId && x.target === target);
               const label = sent?.status === 'pending' ? 'Invited' : sent?.status === 'declined' ? 'Declined' : 'Invite';

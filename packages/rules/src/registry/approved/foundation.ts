@@ -9407,9 +9407,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (friends list scope)', quote: 'yes to adding a friends list that shows online players, to simplify invites' },
-      { kind: 'code', ref: 'packages/ui/src/friends/FriendsPage.tsx; packages/ui/src/MenuSidebar.tsx; packages/ui/src/friends/friendsGo.ts' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dock/FriendsDock.tsx; packages/ui/src/MenuSidebar.tsx; packages/ui/src/friends/friendsGo.ts' },
     ],
-    currentBehaviour: 'Built 2026-10-26 (feat/friends-list). New: there was no friends list before.',
+    currentBehaviour: 'Built 2026-10-26 (feat/friends-list). Since 2026-10-29 (R-FRIENDS-DOCK-02) there is no Friends page or sidebar plaque: the same list, requests and blocked players live in the global Friends dock, bottom left.',
     example: 'Gus is in a ranked game: his row reads In a game: Ranked with Watch. Zed closed the game two hours ago: Last seen 2 hours ago.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
@@ -10635,7 +10635,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28 (owner approved)', quote: 'a richer Friends status for in-game friends: mode + hero (small hero portrait next to the name, existing portrait art/frames), round and phase (Hero Select / Shopping / Fighting), Health+Armor, tavern tier, lobby place ("3rd of 5 left") or Versus teams/score' },
-      { kind: 'code', ref: 'packages/ui/src/friends/gameStatus.ts, packages/ui/src/friends/FriendsPage.tsx (FriendGame), packages/ui/src/friends/friendsStore.ts, packages/ui/src/friends/friendsRemote.ts, supabase/migrations/2026-11-08-versus-cf-live-games-invites.sql (player_presence.game, friends_beat p_game)' },
+      { kind: 'code', ref: 'packages/ui/src/friends/gameStatus.ts, packages/ui/src/friends/dock/FriendsDock.tsx (FriendGame), packages/ui/src/friends/friendsStore.ts, packages/ui/src/friends/friendsRemote.ts, supabase/migrations/2026-11-08-versus-cf-live-games-invites.sql (player_presence.game, friends_beat p_game)' },
     ],
     currentBehaviour: 'Built 2026-10-28 (fix/versus-cf-livegames-invites). Needs 2026-11-08-versus-cf-live-games-invites.sql applied. Versus shows the players but no score yet.',
     example: 'Pam is in Practice, round 6, shopping, 20 Health and 5 Armor, tier 4, third of five still in: her row reads "Round 6 · Shopping", "3rd of 5 left", "20 Health + 5 Armor", "Tier 4", with her hero beside it and a Watch button.',
@@ -10650,7 +10650,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'Can we get more granular player online text in friends list like in main menu, browsing career, browsing leaderboard, watching a replay, and then better in game granularity too' },
-      { kind: 'code', ref: 'packages/ui/src/friends/gameStatus.ts (FriendActivity, stepText, gameCoarseKey), packages/ui/src/friends/friendsStore.ts (presenceNow, onMaybeChanged, CHANGE_SETTLE_MS), packages/ui/src/friends/friendsPrefs.ts, packages/ui/src/friends/FriendsPage.tsx (friendDetail), packages/ui/src/EscMenu.tsx (Friends toggle), supabase/migrations/2026-11-10-friends-activity.sql' },
+      { kind: 'code', ref: 'packages/ui/src/friends/gameStatus.ts (FriendActivity, stepText, gameCoarseKey), packages/ui/src/friends/friendsStore.ts (presenceNow, onMaybeChanged, CHANGE_SETTLE_MS), packages/ui/src/friends/friendsPrefs.ts, packages/ui/src/friends/dock/FriendsDock.tsx (friendDetail), packages/ui/src/EscMenu.tsx (Friends toggle), supabase/migrations/2026-11-10-friends-activity.sql' },
     ],
     currentBehaviour: 'Built 2026-10-29 (feat/friend-activity-granular). The online activity needs 2026-11-10-friends-activity.sql applied (until then the server keeps only the in-game status, never an error). Measured on a scripted 35-minute session: 53 beats (92 an hour) against 46 before (80 an hour); 36 with the switch off.',
     example: 'Ann opens Career, hops through Leaderboard and Live Games and settles on Friends: her friends see "Online: Friends" after one beat. In a ranked game they see "Round 7 · Fighting Cat" with her hero, "2nd of 4", her Health and "Tier 5"; hovering shows "2nd of 4 left" and "12 Health". With the switch off they see only "In a game: Ranked".',
@@ -10667,9 +10667,24 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'I want to add a friends list button in game that shows online friends and their status. It can go in the bottom right. It will expand upward and collapse back down, and it will be how we add direct message chats as an overlay. If you click a player, a dm opens with them as an overlay. Clicking out needs to close both menus seamlessly so it isn\x27t clunky.' },
       { kind: 'code', ref: 'packages/ui/src/friends/dock/FriendsDock.tsx (FriendsDock, DockShell, DockFriendList, DmPanel), packages/ui/src/friends/dock/dockStore.ts, packages/ui/src/friends/dock/friendsDock.css, packages/ui/src/Game.tsx' },
     ],
-    currentBehaviour: 'Built 2026-10-29 (feat/ingame-friends-dock). Messaging shipped on feat/messaging (R-DM-01..05): the conversation slot now holds the messages and a live composer.',
+    currentBehaviour: 'Built 2026-10-29 (feat/ingame-friends-dock). Messaging shipped on feat/messaging (R-DM-01..05): the conversation slot now holds the messages and a live composer. Since R-FRIENDS-DOCK-02 (same day) the dock is global and bottom left, lists every friend, and the message panel opens to the list\x27s right.',
     example: 'Mid-shop, Ann taps the Friends button (badge 2): the list rises with Bob (Online: Main menu) and Cat (Round 6 · Fighting Dan, Watch). She taps Bob and his message panel opens beside the list. She taps the board: both panels sink back into the button and nothing on the board was bought.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-FRIENDS-DOCK-02',
+    title: 'ONE global Friends dock, bottom left, on every screen; the Friends page and its sidebar plaque are gone and everything they did lives in the dock',
+    statement:
+      'The Friends dock is mounted once for the whole app and shows on every screen: the title, every menu page (Career, Leaderboard, Recent Games, Live Games, Collection), mode select, hero select, every game mode, spectating and replays. It is the same instance throughout, so open / closed, the tab and an open direct message survive every screen change. The button sits at the very bottom-left corner and never overlaps what each screen keeps there: on the menus the side menu\x27s Settings plaque lifts above it and the title\x27s footer links start to its right (`html[data-fdock]`); in a game it tucks in smaller under the hero portrait\x27s Health plate with its counts beside it instead of above. The button shows friends online (green) and unread messages plus friend requests waiting (red). The panel rises above it with the Career page\x27s tab pill: Friends (my handle to share, Add by handle, every friend online, in a game, then offline with last seen; a click opens the chat, right-click / long press the friend menu), Requests (incoming Accept / Decline / Block that asks once more, sent Cancel, with a count) and Blocked (Unblock; shown while someone is blocked). A guest (or no session) gets the button with a compact "Sign in to add friends." panel and no list read. There is no Friends page, no sidebar plaque and no route; goTo(\x27friends\x27) opens the dock in place. Closed, the dock is one button and reads nothing; the list is read only while it is open (R-FRIENDS-05). A press outside or Escape closes it and is caught (R-FRIENDS-DOCK-01); Escape with the friend menu open closes only the menu.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'Move the friends panel to the bottom left, and then move the friends panel from the menu into the in game panel. Aka just have the in game friends expand/collapse panel moved to the bottom left and be shown at all times in game through menus and in game etc. you can then remove the friends area in the menus since it\x27s redundant' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dock/FriendsDock.tsx (FriendsDock, DockShell, FriendsPanel, GuestPanel), packages/ui/src/friends/dock/dockStore.ts (tab, openDockOn), packages/ui/src/friends/dock/friendsDock.css, packages/ui/src/friends/friendBits.tsx, packages/ui/src/MenuSidebar.tsx, packages/ui/src/store.ts (goTo), packages/ui/src/Game.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/friends-dock-global). Before: the dock showed only in a game, bottom right, listing online friends; the menus had a separate Friends page with its own sidebar plaque.',
+    example: 'Ann opens the Friends button on the title and starts a chat with Bob. She goes to Career, then starts a game: the chat is still open at the bottom left, now above a smaller button tucked under her hero\x27s Health. A guest pressing the same button reads "Sign in to add friends."',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx', 'packages/ui/src/friends/friends.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
   {
     id: 'R-FRIENDS-MENU-01',
@@ -10681,7 +10696,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'There should be a right click -> spectate/invite to lobby/invite to duos/invite to spectate features as well from this friends list, as well as the friends list in the main menu' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'if I see a friend on and invite them to duo, it will instantly put me in a duo room and he joins when he accepts. Same for lobby' },
-      { kind: 'code', ref: 'packages/ui/src/friends/FriendMenu.tsx, packages/ui/src/friends/friendsGo.ts (friendMenuEntries, friendMenuContext, inviteToRoom, runFriendMenu), packages/ui/src/friends/FriendsPage.tsx (FriendRow)' },
+      { kind: 'code', ref: 'packages/ui/src/friends/FriendMenu.tsx, packages/ui/src/friends/friendsGo.ts (friendMenuEntries, friendMenuContext, inviteToRoom, runFriendMenu), packages/ui/src/friends/dock/FriendsDock.tsx (DockRow)' },
     ],
     currentBehaviour: 'Built 2026-10-29 (feat/ingame-friends-dock).',
     example: 'On the main menu Ann right-clicks Bob (Online) and picks Invite to Duos: her Ranked Duos party opens and Bob gets the invite; he accepts and takes the second seat. Mid-game, the same menu shows Invite to Duos greyed with "Finish your game first".',
@@ -10711,7 +10726,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'Remove the block/remove buttons from friends list.' },
-      { kind: 'code', ref: 'packages/ui/src/friends/friendsGo.ts (FRIEND_MENU_HARM, friendMenuEntries, runFriendMenu), packages/ui/src/friends/FriendMenu.tsx, packages/ui/src/friends/FriendsPage.tsx (FriendRow)' },
+      { kind: 'code', ref: 'packages/ui/src/friends/friendsGo.ts (FRIEND_MENU_HARM, friendMenuEntries, runFriendMenu), packages/ui/src/friends/FriendMenu.tsx, packages/ui/src/friends/dock/FriendsDock.tsx (DockRow)' },
     ],
     currentBehaviour: 'Built 2026-10-29 (fix/friends-row-buttons).',
     example: 'Ann right-clicks Bob on the Friends page: below Invite to lobby and Invite to Duos, past a divider, sit Remove friend and Block. She presses Block; it reads "Block? Press again". She presses again and Bob moves to Blocked.',
@@ -11216,7 +11231,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'In game messaging should be direct messages through the friends list, click a friend and a chat overlay pops up' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'Clicking a friend in the in-game Friends dock (and the main-menu Friends page) pops up the chat overlay for that friend, ready to type (focus the input), works while playing without blocking the game, and closes with click-outside/Escape like the dock.' },
-      { kind: 'code', ref: 'packages/ui/src/friends/dm/DmConversation.tsx, packages/ui/src/friends/dm/DmToast.tsx, packages/ui/src/friends/dock/FriendsDock.tsx, packages/ui/src/friends/FriendsPage.tsx, packages/ui/src/friends/dm/dmRemote.ts' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dm/DmConversation.tsx, packages/ui/src/friends/dm/DmToast.tsx, packages/ui/src/friends/dock/FriendsDock.tsx, packages/ui/src/friends/dock/FriendsDock.tsx, packages/ui/src/friends/dm/dmRemote.ts' },
     ],
     currentBehaviour: 'Built 2026-10-29 (feat/messaging).',
     example: 'Mid-shop, a toast rises above the Friends button: "Bob: rematch?". Ann presses it; Bob\x27s chat opens with the message, the dock badge clears, and she types "sure" and presses Enter without the shop seeing a key.',

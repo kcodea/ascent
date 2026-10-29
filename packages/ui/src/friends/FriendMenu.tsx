@@ -2,7 +2,7 @@
  * THE FRIEND MENU (owner 2026-10-29: "There should be a right click -> spectate/invite to lobby/invite to duos/invite to
  * spectate features as well from this friends list, as well as the friends list in the main menu"; R-FRIENDS-MENU-01).
  *
- * Right-click (a mouse) or a long press (a finger) on a friend row, on the Friends page or in the in-game dock, opens a
+ * Right-click (a mouse) or a long press (a finger) on a friend row, in the Friends dock (on every screen), opens a
  * short list in the game's own hover-panel look (`.atip`, the emote menu's panel): only the entries that make sense
  * right now (`friendMenuEntries`), a room invite mid-game shown disabled with its reason. ONE layer, mounted once in
  * Game; rows only call `openFriendMenu`. A press outside it (or Escape) closes it, and that same press is caught by the

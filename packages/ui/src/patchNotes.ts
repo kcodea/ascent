@@ -58,6 +58,13 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Friends now live in one button in the bottom left corner, on every screen: the menus, hero select, every game, watching and replays.', details: [
+        'Press it to open your friends list. Press outside it or Escape to close it.',
+        'It stays as you left it when you change screens, with an open chat still open.',
+        'Everything from the old Friends page is in it: your name and tag to share, Add friend, Requests and Blocked.',
+        'The Friends page and its menu button are gone.',
+        'Not signed in? The button shows how to sign in to add friends.',
+      ] },
       { category: 'Systems', text: 'Smoother card dragging, most of all on phones. The card keeps up with your finger.', details: [
         'Picking a card up and dropping it no longer makes the whole screen redraw its styles.',
         'Cards making room for the one you drag no longer measure the board at every slot you pass. They slide as before.',
@@ -67,7 +74,7 @@ export const PATCH_NOTES: PatchNote[] = [
         'On Android, your first tap also locks the screen to landscape and goes full screen.',
       ] },
       { category: 'Systems', text: 'Message your friends. Click a friend in the Friends list to open a chat.', details: [
-        'In a game, click a friend in the Friends button list. On the menu, press Message on the Friends page.',
+        'Click a friend in the Friends list, bottom left, on any screen.',
         'New messages show a count on the Friends button and a short note above it. Messages sent while you were away wait for you.',
         'Friends only. Blocking a player stops their messages and hides your chat.',
         'Swear words are hidden by default. You can turn this off in Settings under Friends.',

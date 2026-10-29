@@ -41,8 +41,8 @@ import {
   useFriends, useFriendsListLoop,
 } from '../friendsStore';
 import { FINISH_FIRST, runFriendMenu } from '../friendsGo';
-import { ConfirmButton, FriendGame, FriendPortrait, friendDetail, handleOf, sortFriends, statusText } from '../friendBits';
-import { friendMenuEatsClick, friendMenuHandlers } from '../FriendMenu';
+import { ActivityDetail, ConfirmButton, FriendGame, FriendPortrait, friendDetail, handleOf, sortFriends, statusText } from '../friendBits';
+import { friendMenuEatsClick, friendMenuHandlers, useFriendMenu } from '../FriendMenu';
 import type { Friend, FriendCard } from '../friendsRemote';
 import { closeDm, closeDock, closeDockNow, openDm, setDockTab, swallowNextClick, toggleDock, useFriendsDock, type DockTab } from './dockStore';
 import { DmConversation } from '../dm/DmConversation';
@@ -93,6 +93,8 @@ export function DockShell({ conversation, guest = false, inGame = false }: { con
     if (phase !== 'open') return undefined;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
+      // The friend menu over the dock takes this Escape (its own listener closes just it): the dock stays open.
+      if (useFriendMenu.getState().friend) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       closeDock();
@@ -255,6 +257,7 @@ const DockRow = memo(function DockRow({ f, selected, unread }: { f: Friend; sele
           <span className="fr-detail" data-tip={tip ?? undefined}>
             <span className="fr-status"><span className="fr-dot" aria-hidden="true" /><span className="fr-statustext">{statusText(f)}</span></span>
             {f.status === 'in_game' && f.game && <FriendGame game={f.game} />}
+            {f.status === 'online' && f.activity && <ActivityDetail activity={f.activity} />}
           </span>
         </span>
         {unread > 0 && <span className="dm-unread" aria-hidden="true">{unread > 99 ? '99+' : unread}</span>}

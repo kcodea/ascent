@@ -27,7 +27,9 @@ import type { VersusRoom } from '../versus/versusRemote';
 import { CHANGE_SETTLE_MS, presenceNow, resetFriendsForTests, setFriendsRemoteForTests, startFriendsPresence, useFriends } from './friendsStore';
 import { noteReplayAuthor, setShowActivity, useFriendsPrefs } from './friendsPrefs';
 import { activityText, parseActivity, parseGameStatus, stepText, type FriendActivity } from './gameStatus';
-import { FriendsPage, friendDetail, statusText } from './friendBits';
+import { friendDetail, statusText } from './friendBits';
+import { FriendsDock } from './dock/FriendsDock';
+import { openDock, resetDockForTests } from './dock/dockStore';
 import type { Friend, FriendsList, FriendsRemote, PresenceReport } from './friendsRemote';
 import { modeText } from './friendsStore';
 
@@ -36,7 +38,7 @@ const FRIEND = '00000000-0000-0000-0000-000000000002';
 let beats: PresenceReport[] = [];
 let list: FriendsList;
 const emptyList = (): FriendsList => ({ friends: [], incoming: [], outgoing: [], blocked: [], invites: [], sent: [], serverNow: new Date().toISOString() });
-const CLOSED = { showCareer: false, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false, showFriends: false, showBook: false, showPatchNotes: false, settingsOpen: false };
+const CLOSED = { showCareer: false, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false, showBook: false, showPatchNotes: false, settingsOpen: false };
 const act$ = (): string | undefined => presenceNow().activity?.act;
 let ui: Mounted | null = null;
 
@@ -59,7 +61,7 @@ beforeEach(() => {
   useVersus.setState({ room: null, match: null, knockout: null, lockedRound: null, area: 'versus' });
   useGame.setState({ ...CLOSED, showTitle: true, practiceSetupOpen: false, replaying: false, heroChoices: null, titleView: 'menu', endTurnAnimating: false });
 });
-afterEach(() => { ui?.unmount(); ui = null; vi.useRealTimers(); resetFriendsForTests(); setIdentity(null); setShowActivity(true); });
+afterEach(() => { ui?.unmount(); ui = null; resetDockForTests(); vi.useRealTimers(); resetFriendsForTests(); setIdentity(null); setShowActivity(true); });
 
 describe('what I am doing, out of a game', () => {
   it('every menu screen has its own line', () => {
@@ -68,7 +70,7 @@ describe('what I am doing, out of a game', () => {
       [{ titleView: 'versus' }, 'versus_browser'],
       [{ showCareer: true }, 'career'], [{ showRankings: true }, 'leaderboard'], [{ showLeaderboard: true }, 'hall'],
       [{ showRecentGames: true }, 'recent'], [{ showLiveGames: true }, 'live'], [{ showCollection: true }, 'collection'],
-      [{ showFriends: true }, 'friends'], [{ showBook: true }, 'compendium'], [{ showPatchNotes: true }, 'patch_notes'],
+      [{ showBook: true }, 'compendium'], [{ showPatchNotes: true }, 'patch_notes'],
       [{ settingsOpen: true }, 'settings'], [{ showCareer: true, settingsOpen: true }, 'settings'], // an overlay over a page
     ];
     for (const [patch, want] of cases) {
@@ -222,14 +224,14 @@ describe('the settle (egress)', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
     await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
     expect(beats).toHaveLength(1);
-    for (const page of ['showCareer', 'showRankings', 'showLiveGames', 'showFriends'] as const) {
+    for (const page of ['showCareer', 'showRankings', 'showLiveGames', 'showCollection'] as const) {
       act(() => { useGame.setState({ ...CLOSED, [page]: true }); });
       await act(async () => { await vi.advanceTimersByTimeAsync(400); });
     }
     expect(beats).toHaveLength(1); // still settling
     await act(async () => { await vi.advanceTimersByTimeAsync(CHANGE_SETTLE_MS); });
     expect(beats).toHaveLength(2);
-    expect(beats[1]!.activity?.act).toBe('friends');
+    expect(beats[1]!.activity?.act).toBe('collection');
     // A quick look at Settings and straight back: nothing is owed.
     act(() => { useGame.setState({ settingsOpen: true }); });
     await act(async () => { await vi.advanceTimersByTimeAsync(600); });
@@ -282,14 +284,14 @@ describe('the Friends row', () => {
     expect(friendDetail(friend({ activity: { v: 1, act: 'career' } }))).toBeNull(); // the row says it all
   });
 
-  it('renders the activity on the page with the detail in the hover, and no title=', async () => {
+  it('renders the activity in the dock with the detail in the hover, and no title=', async () => {
     list = { ...emptyList(), friends: [
       friend({ activity: { v: 1, act: 'versus_room', mode: 'versus_group', players: 3, max: 4 }, mode: 'versus_room' }),
       friend({ userId: '00000000-0000-0000-0000-000000000003', author: 'Bea', status: 'in_game', mode: 'ranked',
         game: { v: 1, mode: 'ranked', hero: null, round: 7, phase: 'combat', health: 12, armor: 0, tier: 5, place: { rank: 2, left: 4 }, vs: null, step: 'fight', foe: 'Cat' } }),
     ] };
-    useGame.setState({ showFriends: true });
-    ui = mount(<FriendsPage />);
+    ui = mount(<FriendsDock />);
+    act(() => { openDock(); });
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     const text = ui.container.textContent!;
     expect(text).toContain('Online: In a Versus Group room');

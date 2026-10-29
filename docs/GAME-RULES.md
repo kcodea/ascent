@@ -1467,11 +1467,17 @@ Ranked Duos party).
   yourself, no duplicates. Limits: 200 friends, 50 requests waiting, 20 requests an hour.
 - **Blocking.** Block ends any friendship or request between the two players and cancels their open invites; while it
   stands neither can request or invite the other (block wins). The blocked player is never told. Unblock lifts it.
-- **The Friends page** (menu sidebar, Community > Friends): your own handle to share, Add by handle, Requests (with a
-  count), Friends (online first, then in a game, then offline with last seen), Blocked. A friend in a game shows its
-  mode (Ranked, Casual, Practice, Tutorial, Gauntlet, Versus 1v1 / Group / Duos, Ranked Duos) and Watch when it is
-  watchable: a ranked lobby game through Live Games, a Versus match from their room's stands. The sidebar plaque shows
-  requests waiting, else how many friends are online.
+- **The Friends dock** (owner 2026-10-29, R-FRIENDS-DOCK-02; there is no Friends page or sidebar plaque any more).
+  ONE Friends button in the bottom-left corner on every screen (title, every menu page, hero select, every game mode,
+  watching, replays), the same instance throughout, so open / closed, the tab and an open chat survive a screen
+  change. It carries friends online (green) and unread messages + requests waiting (red). Its panel rises above it
+  with tabs: **Friends** (your own handle to share, Add by handle, then every friend: online first, then in a game,
+  then offline with last seen), **Requests** (incoming Accept / Decline / Block, sent Cancel, with a count) and
+  **Blocked** (Unblock; shown while someone is blocked). A friend in a game shows its mode (Ranked, Casual, Practice,
+  Tutorial, Gauntlet, Versus 1v1 / Group / Duos, Ranked Duos) and Watch when it is watchable: a ranked lobby game
+  through Live Games, a Versus match from their room's stands. A guest's button opens "Sign in to add friends." In a
+  game the button tucks in smaller under the hero's Health plate with its counts beside it; on the menus the side
+  menu's Settings plaque and the title's footer links make room for it.
 - **Presence.** Online = on a menu (including a Versus room between matches); In a game = playing; Offline = nothing
   heard for 5 minutes (or the game was closed). Only you and your friends can read your presence. It is never broadcast.
 - **What a friend is doing** (owner 2026-10-29, R-FRIENDS-ACTIVITY-01). Online, the row names the screen: Main menu,
@@ -1484,20 +1490,17 @@ Ranked Duos party).
   hero, place, Health + Armor and tier. The row stays two short lines; the rest (players, teammate, every number) is in
   its hover / tap. Everything is derived from screens already on the player's device: no extra network call.
 - **"Show friends what I'm doing"** (Settings > Friends, on by default, saved on the device). Off: friends see only
-  Online, or In a game with its mode (no screen, no game detail, no Watch from the Friends page).
-- **Invites.** From a Versus room (Invite friends) or the Friends page while you are in an open room: only to a friend
+  Online, or In a game with its mode (no screen, no game detail, no Watch in the dock).
+- **Invites.** From a Versus room (Invite friends) or the Friends dock while you are in an open room: only to a friend
   who is Online (not in a game). The invitee gets a corner notice with Accept / Decline on any menu (never over a game);
   it lasts 2 minutes. Accept opens Versus and joins the room (a seat is then one drag away). A newer invite to the same
   friend replaces the older one. 30 invites an hour. The Ranked Duos party uses the same invite (kind `duos_party`): Accept opens the party and takes its free seat.
-- **The in-game Friends dock** (owner 2026-10-29, R-FRIENDS-DOCK-01). In every game screen (lobby, Practice, every
-  Versus mode, Ranked Duos, watching a game or a replay) an account has a Friends button in the bottom-right corner
-  row, one slot left of Rules, with the number of friends online. It opens a list of ONLINE friends upward (status and
-  game chips as on the Friends page, Watch where it can); a friend opens their direct message panel beside it (header,
-  Watch / Invite, an empty conversation and a disabled "Messages are coming soon" field: messaging is not built yet).
-  A press anywhere outside, or Escape, closes both in one motion; that press is caught and never reaches the board.
-  The list is read only while the dock is open (the Friends page's 60 s loop).
-- **The friend menu** (owner 2026-10-29, R-FRIENDS-MENU-01 / -02). Right-click (or a long press) on a friend, on the
-  Friends page or in the dock: **Spectate** (their game, when watchable; disabled while you play your own),
+- **The dock's motion and safety** (owner 2026-10-29, R-FRIENDS-DOCK-01). The panel opens upward out of the button;
+  a friend opens their direct message panel beside it (to its right). A press anywhere outside, or Escape, closes
+  both in one motion; that press is caught and never reaches the board or a menu button. Escape with the friend menu
+  open closes only the menu. The list is read only while the dock is open (60 s, nothing while hidden).
+- **The friend menu** (owner 2026-10-29, R-FRIENDS-MENU-01 / -02). Right-click (or a long press) on a friend in the
+  dock: **Spectate** (their game, when watchable; disabled while you play your own),
   **Invite to lobby** / **Invite to Duos** (an Online friend: your open Versus room / Duo party, or a NEW one made for
   you first through the normal create flow, then the invite; disabled "Finish your game first" while you are in a
   game, "Your party is full" for a full party), **Invite to spectate** (while you play a watchable game). Only the

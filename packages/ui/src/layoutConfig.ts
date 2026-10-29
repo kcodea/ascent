@@ -185,6 +185,7 @@ export const BACKDROP_TEXTURES: Record<string, { label: string; url: string; cov
   aether: { label: 'Aether Stone', url: '/backdrop-arcane-crystal.webp' },
   moonstone: { label: 'Stone Pavers', url: '/backdrop-moonstone-pavers.webp' },
   runicSlate: { label: 'Runic Slate (image)', url: '/backdrop-runic-slate.webp', cover: true },
+  cosmicEnergy: { label: 'Cosmic Energy (image)', url: '/backdrop-cosmic-energy.webp', cover: true },
 };
 
 /** How a texture fills the screen: `cover` (one image) or `tile` (repeat). */

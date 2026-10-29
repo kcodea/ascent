@@ -42,11 +42,12 @@ export async function shopTurn(p, policy) {
   }, policy);
 }
 
-export async function clickSel(p, sel, nth = 0) {
+export async function clickSel(p, sel, nth = 0, { touch = false } = {}) {
   const el = p.page.locator(sel).nth(nth);
   const box = await el.boundingBox().catch(() => null);
   if (!box) return false;
-  await p.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  if (touch) await p.page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  else await p.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   return true;
 }
 

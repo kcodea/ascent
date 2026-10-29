@@ -37,9 +37,9 @@ while (Date.now() - t0 < 15 * 60_000) {
   if (sa.runMode === 'versus' && sa.runPhase === 'recruit' && sa.phase === 'shop' && sa.round === sa.wave && memA.acted === sa.wave && !swapped.has(sa.wave) && Date.now() - memA.shopAt[sa.wave] > 2500) {
     swapped.add(sa.wave);
     if (PROFILE) {
-      const pin = await profileAround(A, () => clickSel(A, '.duosdock-hold[role="button"]'));
+      const pin = await profileAround(A, () => clickSel(A, '.duosdock-hold[role="button"]', 0, { touch: PHONE }));
       await sleep(800);
-      const pout = await profileAround(A, () => clickSel(A, '.duosdock[role="button"]'));
+      const pout = await profileAround(A, () => clickSel(A, '.duosdock[role="button"]', 0, { touch: PHONE }));
       await sleep(800);
       fs.writeFileSync(path.join(QA_OUT, `prof-${TAG}-r${sa.wave}.json`), JSON.stringify({ pin, pout }, null, 1));
       console.log('profile r' + sa.wave + ' written');
@@ -48,18 +48,19 @@ while (Date.now() - t0 < 15 * 60_000) {
     for (let k = 0; k < (PROFILE ? 0 : 2); k++) {
       await sleep(400);
       await recStart(A);
-      const okIn = await clickSel(A, '.duosdock-hold[role="button"]');
+      const okIn = await clickSel(A, '.duosdock-hold[role="button"]', 0, { touch: PHONE });
       await sleep(1200);
       const into = await recStop(A);
+      if (PHONE && k === 0) await shot(A, `${TAG}-r${sa.wave}-in`);
       const sIn = await stateOf(A);
       await shot(A, `${TAG}-r${sa.wave}-${k}-teammate`);
       await recStart(A);
-      const okOut = await clickSel(A, '.duosdock[role="button"]');
+      const okOut = await clickSel(A, '.duosdock[role="button"]', 0, { touch: PHONE });
       await sleep(1200);
       const back = await recStop(A);
       const sOut = await stateOf(A);
       results.push({ round: sa.wave, k, okIn, okOut, viewing: sIn.teammate, back: !sOut.teammate, into, out: back });
-      const line = (x) => `p50 ${x.p50} p95 ${x.p95} max ${x.max} >16:${x.over16} >33:${x.over33} long ${JSON.stringify(x.long)} click ${JSON.stringify(x.events.filter((e) => e.n === 'click').map((e) => [e.proc, e.dur]))}`;
+      const line = (x) => `p50 ${x.p50} p95 ${x.p95} max ${x.max} >16:${x.over16} >33:${x.over33} long ${JSON.stringify(x.long)} input ${JSON.stringify(x.events.filter((e) => e.n === 'click' || e.n === 'pointerup').map((e) => [e.proc, e.dur]))}`;
       console.log(`r${sa.wave}#${k} in (${sIn.teammate ? 'viewing' : 'NOT viewing'}): ${line(into)}`);
       console.log(`r${sa.wave}#${k} out (${sOut.teammate ? 'STILL viewing' : 'back'}): ${line(back)}`);
     }

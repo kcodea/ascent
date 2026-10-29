@@ -27,7 +27,7 @@ export async function launch() {
 
 /** One player: its own context (own sessionStorage = own dev account). */
 export async function player(browser, name, url, { viewport = { width: 1600, height: 900 }, mobile = false } = {}) {
-  const ctx = await browser.newContext({ viewport, ...(mobile ? { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : {}) });
+  const ctx = await browser.newContext({ viewport, ...(mobile ? { isMobile: true, hasTouch: true, deviceScaleFactor: 2, userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36' } : {}) });
   await ctx.addInitScript(() => { try { localStorage.setItem('ascent.versus', '1'); localStorage.setItem('ascent.ftue.done', '1'); } catch {} });
   const page = await ctx.newPage();
   const log = [];

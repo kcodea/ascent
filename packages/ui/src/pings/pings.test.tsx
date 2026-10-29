@@ -30,7 +30,7 @@ import {
   useMentors,
   usePings,
 } from './pingRuntime';
-import { cardZoneOf, layoutPositions, openCardPingMenu, pingAnchorOf, usePingMenu } from './PingLayer';
+import { cardZoneOf, fanOptions, fanPositions, openCardPingMenu, pingAnchorOf, usePingMenu } from './PingLayer';
 
 let now = 1_000_000;
 const sent: { e: string; p: unknown }[] = [];
@@ -70,10 +70,11 @@ describe('sending (R-PING-01)', () => {
 
   it('a seated player in a game sends on the stream as self (spectators see it)', () => {
     session('p2');
-    sendPing('sell', { t: 'button', id: 'refresh' });
+    expect(sendPing('sell', { t: 'button', id: 'refresh' })).toBe(false); // a button takes Check, X, Question only
+    sendPing('question', { t: 'button', id: 'refresh' });
     expect(sent).toHaveLength(1);
     expect(sent[0]!.e).toBe(PING_EVENT);
-    expect(sent[0]!.p).toMatchObject({ kind: 'sell', owner: 'p2', role: 'self', target: { t: 'button', id: 'refresh' } });
+    expect(sent[0]!.p).toMatchObject({ kind: 'question', owner: 'p2', role: 'self', target: { t: 'button', id: 'refresh' } });
   });
 
   it('rate limit: 3 pings per 2 s per sender', () => {
@@ -283,13 +284,20 @@ describe('the layer (R-PING-04/05)', () => {
     expect(usePings.getState().list).toHaveLength(2);
   });
 
-  it('design A fans three bubbles above the card and three below; B rings five around Inspect', () => {
+  it('the fan (owner pick): Check, X, Question above; Pass, Inspect, Sell below; a shop button gets the top three only', () => {
+    expect(fanOptions(true)).toEqual({ top: ['check', 'x', 'question'], bottom: ['pass', 'inspect', 'sell'] });
+    expect(fanOptions(false)).toEqual({ top: ['check', 'x', 'question'], bottom: [] });
     const box = { left: 100, top: 200, width: 120, height: 160, right: 220, bottom: 360, x: 100, y: 200 };
-    const a = layoutPositions('A', 6, { x: 160, y: 280, box }, true);
-    expect(a.slice(0, 3).every((p) => p.y < box.top)).toBe(true);
-    expect(a.slice(3).every((p) => p.y > box.bottom)).toBe(true);
-    const b = layoutPositions('B', 6, { x: 160, y: 280, box }, true);
-    expect(b[0]).toEqual({ x: 160, y: 280 });
-    expect(b.slice(1).every((p) => Math.hypot(p.x - 160, p.y - 280) > 80)).toBe(true);
+    const card = fanPositions({ top: 3, bottom: 3 }, { x: 160, y: 280, box });
+    expect(card.slice(0, 3).every((p) => p.y < box.top)).toBe(true);
+    expect(card.slice(3).every((p) => p.y > box.bottom)).toBe(true);
+    // Left to right in each arc, the middle bowing furthest out.
+    expect(card[0]!.x < card[1]!.x && card[1]!.x < card[2]!.x).toBe(true);
+    expect(card[3]!.x < card[4]!.x && card[4]!.x < card[5]!.x).toBe(true);
+    expect(card[1]!.y < card[0]!.y && card[4]!.y > card[3]!.y).toBe(true);
+    expect(card[4]!.x).toBe(160); // Inspect bottom-middle, under the card's centre
+    const button = fanPositions({ top: 3, bottom: 0 }, { x: 160, y: 280, box });
+    expect(button).toHaveLength(3);
+    expect(button.every((p) => p.y < box.top)).toBe(true);
   });
 });

@@ -158,3 +158,10 @@ describe('routePingClear: a clear reaches every screen showing the ping (R-PING-
     expect(routePingClear(duel, 'ann', { owner: 'p1', target: { t: 'nope' } })).toBeNull();
   });
 });
+
+describe('a shop button takes the fan top three only (owner pick 2026-10-29)', () => {
+  it('Check, X and Question route; Pass and Sell on a button are refused', () => {
+    for (const kind of ['check', 'x', 'question']) expect(routePing(duel, 'ann', ping({ kind, target: { t: 'button', id: 'endturn' } })).ok).toBe(true);
+    for (const kind of ['pass', 'sell']) expect(routePing(duel, 'ann', ping({ kind, target: { t: 'button', id: 'endturn' } })).ok).toBe(false);
+  });
+});

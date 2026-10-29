@@ -10878,14 +10878,14 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PING-04',
     title: 'Right-click (a phone: long-press) opens the ping menu with Inspect; elsewhere it still inspects at once',
     statement:
-      'On a shop, board or hand card in a game where the viewer may ping, right-click (or a long-press on a phone) opens the ping menu, which carries Inspect plus the five pings; buttons have the five pings only. A left-click away or Escape closes it. Where pings are not available (menus, the Compendium, a replay, a Discover or Choose One option, a spectator who is not a mentor) right-click on a card inspects at once as before, and a phone hold on a card still does nothing (a tap inspects).',
+      'On a shop, board or hand card in a game where the viewer may ping, right-click (or a long-press on a phone) opens the ping fan: Check, X, Question in an arc above the card and Pass, Inspect, Sell in an arc below it. A shop button gets Check, X and Question only (no bottom arc), and a button ping of any other kind is refused by the shared rule. A left-click away or Escape closes it. Where pings are not available (menus, the Compendium, a replay, a Discover or Choose One option, a spectator who is not a mentor) right-click on a card inspects at once as before, and a phone hold on a card still does nothing (a tap inspects).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: "Right clicking replaces the inspect, so we'll need to add an inspect option in the ping wheel so players can inspect a card still" },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: 'Right clicking opens the menu then left clicking away should close the menu.' },
     ],
-    currentBehaviour: 'New on 2026-10-29. Three menu layouts (A fan, B ring, C strip) behind a dev switch until the owner picks; players get A.',
+    currentBehaviour: 'New on 2026-10-29. The menu is the fan (owner pick 2026-10-29): Check, X, Question in an arc above the target; on a card, Pass, Inspect, Sell in an arc below it. A shop button gets the top three only.',
     example: 'Right-click a board minion, then Inspect: the usual Inspect view opens.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
   },

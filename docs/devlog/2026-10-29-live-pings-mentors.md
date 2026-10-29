@@ -16,8 +16,9 @@ player sees; players can ping on their own and spectators see those pings.
 - **Client adapter** (`packages/ui/src/pings/pingRuntime.ts`): `setPingSession(owner, { send, seat, mode, gameKey })`
   is installed by the Versus store, the live lobby publisher and the live watcher; every stream handler passes events
   to `receivePingEvent` first. Over Supabase the receiver re-checks the rule (the channel cannot authenticate senders).
-- **Layer** (`PingLayer.tsx`): three menu layouts behind the dev switch `ascent.pingDesign` / `?pingDesign=A|B|C`
-  (A fan, B ring, C strip) while the owner picks. Marks are portaled INTO the card element (they ride its transforms);
+- **Layer** (`PingLayer.tsx`): the fan menu (owner pick 2026-10-29 from three prototyped layouts: fan, ring, strip):
+  Check, X, Question in an arc above the target; on a card, Pass, Inspect, Sell in an arc below. A shop button gets the
+  top three only. Marks are portaled INTO the card element (they ride its transforms);
   a 4 Hz `isConnected` + query check (no layout read) clears a ping whose card left its zone; a drag clears it at once.
 - **Phone**: `touchInput.holdFiresOn` takes a gate from the ping layer, so a hold on a play-zone card opens the menu
   only while pings are available (R-TOUCH-TAPINSPECT-01 otherwise unchanged); a press on a mark never pops the hand card.

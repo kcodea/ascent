@@ -29,6 +29,9 @@ export const PING_SEATS: readonly PingSeat[] = ['p1', 'p2', 'p3', 'p4'];
 export type PingKind = 'check' | 'x' | 'question' | 'pass' | 'sell';
 export const PING_KINDS: readonly PingKind[] = ['check', 'x', 'question', 'pass', 'sell'];
 
+/** The pings a shop BUTTON takes (owner pick 2026-10-29: the fan's top three; no Pass or Sell on a button). */
+export const PING_BUTTON_KINDS: readonly PingKind[] = ['check', 'x', 'question'];
+
 /** The shop buttons a ping may land on (their `data-spec` names in the UI). */
 export type PingButton = 'upgrade' | 'refresh' | 'freeze' | 'heropower' | 'endturn';
 export const PING_BUTTONS: readonly PingButton[] = ['upgrade', 'refresh', 'freeze', 'heropower', 'endturn'];
@@ -104,6 +107,8 @@ export function parsePing(payload: unknown): PingMessage | null {
   if (!isSeat(p.owner)) return null;
   const target = parseTarget(p.target);
   if (!target) return null;
+  // A shop button takes Check, X or Question only (owner pick 2026-10-29: "only the top three").
+  if (target.t === 'button' && !(PING_BUTTON_KINDS as readonly string[]).includes(p.kind as string)) return null;
   const from = typeof p.from === 'string' && ID.test(p.from) ? p.from : '';
   const role = p.role === 'self' || p.role === 'mate' || p.role === 'mentor' ? p.role : undefined;
   const out: PingMessage = { id: p.id, kind: p.kind as PingKind, owner: p.owner, target, from };

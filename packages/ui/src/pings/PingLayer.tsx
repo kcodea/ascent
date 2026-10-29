@@ -7,10 +7,9 @@
  *    an inspect option in the ping wheel"); buttons have none. Where pings are not available (outside a game, a replay, a
  *    spectator who is not a mentor) a card's right-click goes STRAIGHT to Inspect as before. A left-click away or Escape
  *    closes it.
- *    THREE LAYOUTS while the owner picks (dev switch `ascent.pingDesign`, `?pingDesign=A|B|C`; default A):
- *      A FAN    (the owner's): the six bubbles pop in, three fanned in an arc ABOVE the card and three BELOW it.
- *      B RING   : Inspect under the pointer, the five pings in a ring around it (right-click, click in place = Inspect).
- *      C STRIP  : a slim labelled column beside the pointer, Inspect first, right under it.
+ *    THE FAN (owner pick 2026-10-29, the only layout): on a card, the TOP arc is Check, X, Question (left to right) and
+ *    the BOTTOM arc is Pass, Inspect, Sell. A shop button gets the top arc only (Check, X, Question). The bubbles pop in
+ *    with a staggered one-shot.
  *  - THE MARKS (`PingMarks`): a ping SPARKS on its target (the authored `hero-power-spark` FX, one-shot, plus the `pulse`
  *    UI cue), pops in with a short overshoot and settles; it STAYS until cleared (no timer). A card's mark lives INSIDE the
  *    card's element, so it rides every hover and FLIP the card makes. It is CLEARED by a left- or right-click on the mark
@@ -19,10 +18,10 @@
  *
  * No per-frame work: the marks are DOM nodes with CSS one-shots; the anchor check is `isConnected` plus a query, 4 Hz.
  */
-import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { memo, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { create } from 'zustand';
-import { PING_BUTTONS, PING_KINDS, type PingButton, type PingKind, type PingTarget, type PingZone } from '@game/versus-cf/pings';
+import { PING_BUTTONS, type PingButton, type PingKind, type PingTarget, type PingZone } from '@game/versus-cf/pings';
 import { dragStore } from '../dragStore';
 import { playDef } from '../fx/playDef';
 import { Icon } from '../Icon';
@@ -33,25 +32,6 @@ import { useSpectate } from '../versus/spectate';
 import { pingSrc, PING_LOOK } from './pingArt';
 import { clearPing, clearPingsOnCard, forgetPing, myPingSeat, pingContext, sendPing, usePings, type ShownPing } from './pingRuntime';
 import './pings.css';
-
-// ── the layout switch (dev only until the owner picks) ──────────────────────────────────────────────────────────
-
-export type PingDesign = 'A' | 'B' | 'C';
-const DESIGN_KEY = 'ascent.pingDesign';
-const isDesign = (v: unknown): v is PingDesign => v === 'A' || v === 'B' || v === 'C';
-/** The menu layout. A dev build (or the Versus test tools) may switch it; players get the default. */
-export function pingDesign(): PingDesign {
-  try {
-    const devOk = import.meta.env.DEV || localStorage.getItem('ascent.versus') === '1';
-    if (!devOk) return 'A';
-    const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('pingDesign') : null;
-    if (isDesign(q)) localStorage.setItem(DESIGN_KEY, q);
-    const v = localStorage.getItem(DESIGN_KEY);
-    return isDesign(v) ? v : 'A';
-  } catch {
-    return 'A';
-  }
-}
 
 // ── the menu ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -120,46 +100,38 @@ const PingIcon = memo(function PingIcon({ kind }: { kind: PingKind | 'inspect' }
   return <span className={`ping-glyph pg-${kind}`} aria-hidden="true">{PING_LOOK[kind].glyph}</span>;
 });
 
-type Opt = { id: PingKind | 'inspect'; label: string };
-const optionsFor = (at: PingMenuState): Opt[] => [
-  ...(at.inspect ? [{ id: 'inspect' as const, label: 'Inspect' }] : []),
-  ...PING_KINDS.map((k) => ({ id: k, label: PING_LOOK[k].label })),
-];
+type OptId = PingKind | 'inspect';
+/** The fan's slots (owner pick 2026-10-29). Top arc, left to right; bottom arc, left to right. */
+export const PING_FAN_TOP: readonly OptId[] = ['check', 'x', 'question'];
+export const PING_FAN_BOTTOM: readonly OptId[] = ['pass', 'inspect', 'sell'];
 
-/** Bubble size in the fan and ring (stage px). */
+/** The menu's two arcs: a card gets both; a shop button (no Inspect) the top arc only. Pure; exported for tests. */
+export function fanOptions(isCard: boolean): { top: OptId[]; bottom: OptId[] } {
+  return { top: [...PING_FAN_TOP], bottom: isCard ? [...PING_FAN_BOTTOM] : [] };
+}
+
+const labelOf = (id: OptId): string => (id === 'inspect' ? 'Inspect' : PING_LOOK[id].label);
+
+/** Bubble size in the fan (stage px). */
 export const PING_BUBBLE = 84;
 
 /**
- * Where each option's CENTRE goes, in stage px, for layouts A and B (C is a flowed column). Pure; exported for tests.
- * A: up to three in an arc above the target's box and the rest in an arc below it. B: the first option (Inspect, on a
- * card) under the pointer, the others on a ring around it (with no Inspect, all of them on the ring).
+ * Where each bubble's CENTRE goes, in stage px: `top` in an arc above the target's box, `bottom` in an arc below it,
+ * each left to right, the middle one bowing furthest out. Pure; exported for tests.
  */
-export function layoutPositions(design: 'A' | 'B', n: number, at: { x: number; y: number; box: StageRect | null }, hasCentre: boolean): { x: number; y: number }[] {
+export function fanPositions(counts: { top: number; bottom: number }, at: { x: number; y: number; box: StageRect | null }): { x: number; y: number }[] {
   const out: { x: number; y: number }[] = [];
-  if (design === 'A') {
-    const box = at.box ?? { left: at.x - 60, right: at.x + 60, top: at.y - 80, bottom: at.y + 80, width: 120, height: 160, x: at.x - 60, y: at.y - 80 };
-    const cx = box.left + box.width / 2;
-    const above = Math.min(3, n);
-    const below = n - above;
-    const arc = (count: number, baseY: number, dir: -1 | 1): void => {
-      const spread = PING_BUBBLE * 1.08;
-      for (let i = 0; i < count; i++) {
-        const off = i - (count - 1) / 2; // -1, 0, 1
-        // The middle bubble sits furthest out: an arc bowing away from the card.
-        out.push({ x: cx + off * spread, y: baseY + dir * (PING_BUBBLE * 0.58 + (1 - Math.abs(off)) * PING_BUBBLE * 0.22) });
-      }
-    };
-    arc(above, box.top, -1);
-    arc(below, box.bottom, 1);
-    return out;
-  }
-  const ringN = hasCentre ? n - 1 : n;
-  if (hasCentre) out.push({ x: at.x, y: at.y });
-  const r = PING_BUBBLE * 1.3;
-  for (let i = 0; i < ringN; i++) {
-    const a = -Math.PI / 2 + (i * 2 * Math.PI) / ringN;
-    out.push({ x: at.x + Math.cos(a) * r, y: at.y + Math.sin(a) * r });
-  }
+  const box = at.box ?? { left: at.x - 60, right: at.x + 60, top: at.y - 80, bottom: at.y + 80, width: 120, height: 160, x: at.x - 60, y: at.y - 80 };
+  const cx = box.left + box.width / 2;
+  const arc = (count: number, baseY: number, dir: -1 | 1): void => {
+    const spread = PING_BUBBLE * 1.08;
+    for (let i = 0; i < count; i++) {
+      const off = i - (count - 1) / 2; // -1, 0, 1
+      out.push({ x: cx + off * spread, y: baseY + dir * (PING_BUBBLE * 0.58 + (1 - Math.abs(off)) * PING_BUBBLE * 0.22) });
+    }
+  };
+  arc(counts.top, box.top, -1);
+  arc(counts.bottom, box.bottom, 1);
   return out;
 }
 
@@ -194,60 +166,26 @@ function choose(at: PingMenuState, id: PingKind | 'inspect'): void {
   if (!sendPing(id, at.target)) sfx.deny(); // its mark plays the spark and the cue when it pops
 }
 
-/** Layouts A and B: absolutely placed bubbles, a staggered one-shot pop. */
-function BubbleMenu({ at, design }: { at: PingMenuState; design: 'A' | 'B' }): JSX.Element {
-  const ref = useRef<HTMLDivElement>(null);
-  useCloseOnAway(ref);
-  const opts = optionsFor(at);
-  const pts = clampGroup(layoutPositions(design, opts.length, at, !!at.inspect), PING_BUBBLE / 2, stageViewport());
-  return createPortal(
-    <div ref={ref} className={`ping-menu ping-bubbles pd-${design}`} role="menu" aria-label="Ping" onContextMenu={(e) => { e.preventDefault(); }}>
-      {opts.map((o, i) => (
-        <button key={o.id} type="button" role="menuitem" className={`ping-bub${o.id === 'inspect' ? ' ping-inspect' : ''}`}
-          aria-label={o.id === 'inspect' ? 'Inspect' : `Ping ${o.label}`}
-          style={{ left: `${pts[i]!.x}px`, top: `${pts[i]!.y}px`, '--i': i } as CSSProperties}
-          onClick={() => choose(at, o.id)}>
-          <span className="ping-bub-in"><PingIcon kind={o.id} /></span>
-        </button>
-      ))}
-    </div>,
-    stageHost(),
-  );
-}
-
-/** Layout C: a slim labelled column, its first row under the pointer. */
-function StripMenu({ at }: { at: PingMenuState }): JSX.Element {
-  const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
-  useCloseOnAway(ref);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const vp = stageViewport();
-    const first = el.querySelector<HTMLElement>('.ping-opt');
-    const fx = first ? first.offsetLeft + 26 : 24;
-    const fy = first ? first.offsetTop + first.offsetHeight / 2 : 24;
-    setPos({ left: Math.max(4, Math.min(vp.w - el.offsetWidth - 4, at.x - fx)), top: Math.max(4, Math.min(vp.h - el.offsetHeight - 4, at.y - fy)) });
-  }, [at]);
-  return createPortal(
-    <div ref={ref} className="atip ping-menu ping-strip" role="menu" aria-label="Ping"
-      style={{ left: `${pos?.left ?? at.x}px`, top: `${pos?.top ?? at.y}px`, visibility: pos ? undefined : 'hidden' }}
-      onContextMenu={(e) => { e.preventDefault(); }}>
-      {optionsFor(at).map((o, i) => (
-        <button key={o.id} type="button" role="menuitem" className={`ping-opt${o.id === 'inspect' ? ' ping-inspect' : ''}`} style={{ '--i': i } as CSSProperties}
-          aria-label={o.id === 'inspect' ? 'Inspect' : `Ping ${o.label}`} onClick={() => choose(at, o.id)}>
-          <span className="ping-ico"><PingIcon kind={o.id} /></span>
-          <span className="ping-lab">{o.label}</span>
-        </button>
-      ))}
-    </div>,
-    stageHost(),
-  );
-}
-
+/** The fan: absolutely placed bubbles, a staggered one-shot pop. */
 function PingMenu({ at }: { at: PingMenuState }): JSX.Element {
-  const d = pingDesign();
-  return d === 'C' ? <StripMenu at={at} /> : <BubbleMenu at={at} design={d} />;
+  const ref = useRef<HTMLDivElement>(null);
+  useCloseOnAway(ref);
+  const { top, bottom } = fanOptions(!!at.inspect);
+  const opts = [...top, ...bottom];
+  const pts = clampGroup(fanPositions({ top: top.length, bottom: bottom.length }, at), PING_BUBBLE / 2, stageViewport());
+  return createPortal(
+    <div ref={ref} className="ping-menu ping-bubbles" role="menu" aria-label="Ping" onContextMenu={(e) => { e.preventDefault(); }}>
+      {opts.map((id, i) => (
+        <button key={id} type="button" role="menuitem" className={`ping-bub ${i < top.length ? 'pf-top' : 'pf-bottom'}${id === 'inspect' ? ' ping-inspect' : ''}`}
+          aria-label={id === 'inspect' ? 'Inspect' : `Ping ${labelOf(id)}`}
+          style={{ left: `${pts[i]!.x}px`, top: `${pts[i]!.y}px`, '--i': i } as CSSProperties}
+          onClick={() => choose(at, id)}>
+          <span className="ping-bub-in"><PingIcon kind={id} /></span>
+        </button>
+      ))}
+    </div>,
+    stageHost(),
+  );
 }
 
 // ── the marks ───────────────────────────────────────────────────────────────────────────────────────────────

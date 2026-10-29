@@ -21,6 +21,7 @@ import {
   parsePing,
   parsePingClear,
   parsePingMentor,
+  PING_BUTTON_KINDS,
   PING_CLEAR_EVENT,
   PING_CLEAR_RATE,
   PING_EVENT,
@@ -209,6 +210,7 @@ const myName = (): string => (useGame.getState().playerName ?? '').trim();
 export function sendPing(kind: PingKind, target: PingTarget): boolean {
   const ctx = pingContext();
   if (!ctx) return false;
+  if (target.t === 'button' && !PING_BUTTON_KINDS.includes(kind)) return false; // a button takes the top three only
   const me = currentUserId() ?? 'me';
   if (!sendLimit.allow(me, clock())) return false;
   seq += 1;

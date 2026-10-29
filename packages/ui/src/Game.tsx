@@ -43,6 +43,7 @@ import { maybeStartLiveReplayFromUrl } from './liveReplay';
 import { PHONE_GPU } from './phoneDiag';
 import { AccountPanel } from './AccountPanel';
 import { EmoteLayer } from './emotes/EmoteLayer';
+import { PingLayer } from './pings/PingLayer';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { RuneInspect } from './RuneInspect';
@@ -602,6 +603,8 @@ export function Game() {
       {/* EMOTES (owner 2026-10-13): the right-click menu on your portrait, the bubbles, and the served seats' recorded
           emotes. One per run (keyed like the StatusBar), no per-frame work. */}
       {!preRun && <EmoteLayer key={`em:${runKey}`} />}
+      {/* LIVE PINGS (owner 2026-10-29): the right-click ping menu and the marks on their targets. */}
+      {!preRun && <PingLayer />}
       {/* The cast preview (owner ask 2026-09-23): a rune's / minion's cast spell floating above its caster — one
           fixed, input-transparent layer serving the shop and the combat replay alike. */}
       {!preRun && <CastPreviewLayer />}

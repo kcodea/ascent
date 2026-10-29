@@ -33,6 +33,7 @@ import { liveRemote, type LiveRemote } from './liveRemote';
 import { openCfPublisher, type CfListing, type CfPublisher, type LiveWatcher } from './liveCf';
 import { lobbyLivePublishUrl } from '../versus/versusRemote';
 import { currentRankOf } from '../rank/rankSource';
+import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
 
 export const LIVE_HEARTBEAT_MS = 15_000;
 
@@ -151,6 +152,9 @@ function beat(): void {
  *  watcher count starts publishing. */
 const ASK_THROTTLE_MS = 2000;
 function onBroadcast(l: Live, event: string, payload?: unknown): void {
+  // LIVE PINGS (R-PING-02): my mentor's pings, and who is mentoring (the receiver re-checks the rule: a Supabase
+  // broadcast channel cannot).
+  if (receivePingEvent(event, payload)) return;
   // A watcher's emote: it pops from their chip in my "Spectating" indicator (R-SPECTATE-EMOTE-01). Only a watcher in my
   // stands (the watcher rows) can emote; the receiver throttles it on its own clock.
   if (event === SPECTATOR_EMOTE_EVENT) { receiveSpectatorEmote(payload); return; }
@@ -317,6 +321,10 @@ function start(gameId: string, hero: boolean): void {
   const url = publishUrl();
   if (url) { l.host = 'connecting'; startCf(l, url); }
   else startSupabase(l);
+  // LIVE PINGS (R-PING-01/02): I am the game's one player (`p1`). My own pings reach the stands only while someone
+  // watches (nothing is sent unwatched), on whichever host carries the game (Cloudflare object or Supabase channel);
+  // my mentor's arrive through `onBroadcast`.
+  setPingSession('lobbylive', { send: (e, p) => { if (live === l && l.pub && l.channel) l.channel.send(e, p); }, seat: () => 'p1', mode: () => 'lobby', gameKey: `lobby:${gameId}` });
   // the first beat is the round / phase key change in the subscriber (one registration, not two)
 }
 
@@ -325,6 +333,7 @@ function stop(ended: number | null | 'abandon'): void {
   if (!l) return;
   live = null;
   if (l.timer != null) window.clearInterval(l.timer);
+  setPingSession('lobbylive', null);
   stopPublishing(l);
   frames.cancel(); // a publish still waiting for idle time belongs to the game that just stopped
   setWatcherList([]);

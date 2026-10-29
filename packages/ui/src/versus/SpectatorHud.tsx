@@ -26,6 +26,7 @@ import { useGame } from '../store';
 import { MemberRing } from './MemberRing';
 import { FELLOWS_SHOWN, StandsPlates } from './WatchersBadge';
 import { myWatcherIdentity, othersInStands, useWatchers } from './watchers';
+import { useMentors } from '../pings/pingRuntime';
 import './versus.css';
 
 /** The top-left plate's anchor key when I have no account id yet (a test, or signed out). */
@@ -42,6 +43,8 @@ export const SpectatorSelf = memo(function SpectatorSelf({ onLeave }: { onLeave:
   // Never me twice: my plate is drawn first, so the others are the stands without me (R-SPECTATE-HUD-02).
   const fellows = useMemo(() => othersInStands(stands, [myId]), [stands, myId]);
   const name = me.name || 'You';
+  // LIVE PINGS (R-PING-03): a player made me their Mentor: my plate says so (and right-click on their cards pings).
+  const mentoring = useMentors((s) => Object.values(s.bySeat).some((m) => m?.id === myId));
   const openMenu = (e: React.MouseEvent<HTMLButtonElement>): void => {
     e.preventDefault();
     const r = e.currentTarget.querySelector('.portring')?.getBoundingClientRect() ?? e.currentTarget.getBoundingClientRect();
@@ -52,11 +55,11 @@ export const SpectatorSelf = memo(function SpectatorSelf({ onLeave }: { onLeave:
     <div className="vsspec vsself" role="group" aria-label="You are spectating">
       <div className="vsspec-seats">
         <button type="button" className="vsspec-seat on vswatch-seat vsself-seat gtip" data-watcher={myId} data-tip="Emotes"
-          aria-haspopup="menu" aria-label={`${name}, spectating. Open emotes`} onClick={openMenu} onContextMenu={openMenu}>
+          aria-haspopup="menu" aria-label={`${name}, ${mentoring ? 'mentoring' : 'spectating'}. Open emotes`} onClick={openMenu} onContextMenu={openMenu}>
           <MemberRing self name={name} profile={me.profile} className="vsspec-ring" />
           <span className="vsspec-info">
             <span className="vsspec-name hudpill-name">{name}</span>
-            <span className="vsspec-hp hudpill-hp vswatch-tag">Spectating</span>
+            <span className="vsspec-hp hudpill-hp vswatch-tag">{mentoring ? 'Mentor' : 'Spectating'}</span>
           </span>
         </button>
         <StandsPlates list={fellows} max={FELLOWS_SHOWN} />

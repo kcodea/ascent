@@ -94,7 +94,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The DOWN-RANK hit (owner-authored 2026-09-21): a shockwave off the crest, then a blue→orange shard fall as
   // the old crest drops — fired by the post-game rank timeline at every demotion beat (division and medal).
   'down-rank': ['rank/rankTimeline.ts'],
-  'hero-power-spark': ['StatusBar.tsx'],
+  'hero-power-spark': ['StatusBar.tsx', 'pings/PingLayer.tsx'],
   'hero-power-target': ['Recruit.tsx'],
   'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'choreo/channels/impact.ts'],
   // IMMUNE WHILE ATTACKING (owner 2026-10-18): the shield's formation motes, its deflect sparks and its outward

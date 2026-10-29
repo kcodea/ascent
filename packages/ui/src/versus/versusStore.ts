@@ -32,6 +32,8 @@ import { currentRunCosmetics, tempHandle, useGame } from '../store';
 import { ServerClock, shopClockAt } from './versusClock';
 import { installVersusEmotes, receiveVersusEmote, receiveWatchedEmote, setVersusEmoteSeatMap, uninstallVersusEmotes, VERSUS_EMOTE_EVENT } from './versusEmotes';
 import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from './spectatorEmotes';
+import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
+import type { PingMode } from '@game/versus-cf/pings';
 import { installVersusHandlers, releaseVersusFightWait, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
 import { duosFirstAt, duosLobbySeatId, groupPairingAt, groupSeatOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
@@ -435,6 +437,7 @@ function stopSession(): void {
   window.clearInterval(session.tick);
   if (session.wake != null) window.clearTimeout(session.wake);
   session.channel?.close();
+  setPingSession('versus', null);
   session.unsubRun?.();
   session.unsubGates();
   session.unsubHero();
@@ -465,6 +468,9 @@ function subscribe(matchId: string | null): void {
     // heartbeats are not subscribed to at all (R-NET-REALTIME-01).
     scheduleRefresh(what);
   }, (event, payload) => {
+    // LIVE PINGS (R-PING-01..03): a teammate's, a mentor's or a watched player's ping, and who is mentoring. The
+    // Cloudflare room routes them; over Supabase the receiver re-checks the same rule.
+    if (receivePingEvent(event, payload)) return;
     // A player's emote: the other player shows it on its foe; a SPECTATOR shows both players' where the watched seat's
     // screen does (R-SPECTATE-EMOTE-02). Never both: a seated client is a player.
     if (event === VERSUS_EMOTE_EVENT) {
@@ -484,6 +490,15 @@ function subscribe(matchId: string | null): void {
         else { keyWanted = true; frames.schedule({ matchId: session.matchId, forceKey: true }); }
       }
     }
+  });
+  // LIVE PINGS: on the room's stream, as my seat (a group / Duos seat, or the 1v1 one), or as a spectator (no seat).
+  const ch = session.channel;
+  const roomId = session.roomId;
+  setPingSession('versus', {
+    send: (e, p) => ch.send(e, p),
+    seat: () => emoteSeatOf(get().match),
+    mode: () => pingModeOf(get().match?.options?.mode ?? get().room?.options?.mode),
+    gameKey: `versus:${roomId}:${matchId ?? ''}`,
   });
   // A channel swap mid-match keeps the emote transport on the live channel.
   const seat = mySeat();
@@ -1129,6 +1144,11 @@ function groupViewer(raw: VersusGroupMatchRaw): string | null {
   if (!row) return null;
   if (row.eliminatedRound != null && builtFor !== raw.id) return null;
   return me;
+}
+
+/** The room's mode as the ping rules see it (teammates in Duos and the Ranked Duos party). */
+function pingModeOf(mode: unknown): PingMode {
+  return mode === 'group' || mode === 'duos' || mode === 'ranked_duos' ? mode : 'duel';
 }
 
 /** My seat on the emote wire: my REAL seat in a group match (p1..p4), else the 1v1 seat. */

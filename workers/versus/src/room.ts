@@ -28,6 +28,7 @@ import { signInviteProof } from './invites';
 import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
 import { spectateSinkFor, WatchReporter, type SpectateSink } from './spectate';
 import { roomWatchKey, roomWatchOf, type RoomWatch } from './core/roomWatch';
+import { PING_CLEAR_EVENT, PING_CLEAR_RATE, PING_EVENT, PING_MENTOR_EVENT, PingRateLimiter, routePing, routePingClear, routePingMentor, withMentor, type PingMode, type PingRoomView, type PingSeat } from './pings';
 import {
   parseClientMessage,
   VERSUS_CF_CLOSE,
@@ -68,6 +69,9 @@ export const INTERNAL_USER_HEADER = 'X-Versus-User';
 
 /** Per-socket rate limit: `rate.ts` (shared with the live game objects). */
 
+/** Storage key of the current match's mentors (`relayPing`). */
+const PING_MENTORS_KEY = 'pingMentors';
+
 const uuid = (): string => crypto.randomUUID();
 const random31 = (): number => crypto.getRandomValues(new Uint32Array(1))[0] >>> 1;
 
@@ -87,6 +91,11 @@ export class VersusRoom extends DurableObject<RoomEnv> {
   private readonly watchReporter = new WatchReporter();
   private watchNow: RoomWatch = { target: null, beats: [] };
   private watchKey = '';
+  /** LIVE PINGS (R-PING-01): each seat's promoted mentor for the CURRENT match (a new match forgets them), and the
+   *  per-sender ping limit. Stored under `PING_MENTORS_KEY` so a hibernation wake keeps who is mentoring. */
+  private pingMentors: { matchId: string | null; mentors: Partial<Record<PingSeat, string>> } = { matchId: null, mentors: {} };
+  private readonly pingLimit = new PingRateLimiter();
+  private readonly pingClearLimit = new PingRateLimiter(PING_CLEAR_RATE);
   private readonly metrics: RoomMetrics = { msgsIn: 0, msgsOut: 0, bytesIn: 0, bytesOut: 0, resolveMs: [], alarms: 0, wakes: 0 };
 
   constructor(ctx: DurableObjectState, env: RoomEnv) {
@@ -123,6 +132,8 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     this.loaded = true;
     this.metrics.wakes += 1;
     this.liveSlot = this.makeLiveSlot((entries.get(LIVE_STORAGE_KEY) as string | undefined) ?? null);
+    const pm = entries.get(PING_MENTORS_KEY) as typeof this.pingMentors | undefined;
+    if (pm && typeof pm === 'object' && pm.mentors) this.pingMentors = pm;
     if (!state) return null;
     this.core = new RoomCore(state, this.deps());
     this.core.restoreSockets(this.liveSockets().map((ws) => this.att(ws).userId), Date.now());
@@ -261,6 +272,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     const a = this.att(ws);
     if (msg.t === 'bc') {
       if (!a.hello) return;
+      if (msg.event === PING_EVENT || msg.event === PING_MENTOR_EVENT || msg.event === PING_CLEAR_EVENT) { await this.relayPing(ws, a.userId, msg.event, msg.payload); return; }
       // Relay (spectator frames, cursors, emotes): to every other member's sockets, never back to the sender.
       const out = JSON.stringify({ t: 'bc', event: msg.event, payload: msg.payload, from: a.userId } satisfies VersusCfPush);
       for (const other of this.liveSockets()) if (other !== ws && this.att(other).hello) this.send(other, out);
@@ -311,6 +323,55 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       this.syncLive();
       this.syncWatch(now);
       await this.rearm();
+    }
+  }
+
+  /** The room as the ping rules see it (`pings.ts`), with the mentors of the CURRENT match only. */
+  private pingRoom(): PingRoomView | null {
+    const core = this.core;
+    if (!core) return null;
+    const r = core.state.room;
+    const mode = (['duel', 'group', 'duos', 'ranked_duos'].includes(String(r.options.mode)) ? r.options.mode : 'duel') as PingMode;
+    const mentors = this.pingMentors.matchId === r.current_match_id ? this.pingMentors.mentors : {};
+    return { mode, members: r.members.map((m) => ({ userId: m.userId, role: m.role })), mentors };
+  }
+
+  /**
+   * LIVE PINGS (owner 2026-10-29; R-PING-01). A ping is relayed ONLY to its audience (`routePing`: a mentor's to the
+   * player alone; a player's own or a teammate's to the owner, the teammate and the stands; never an opponent), with
+   * `from` and `role` stamped from the authenticated socket. A plain spectator's, a demoted mentor's or an opponent's
+   * ping is dropped here, as is anything over `PING_RATE` per sender. A mentor change is accepted only from the seated
+   * player it names, for a spectator in the room, and is relayed to everyone (every screen shows who is mentoring).
+   */
+  private async relayPing(ws: CfWebSocket, userId: string, event: string, payload: unknown): Promise<void> {
+    const room = this.pingRoom();
+    if (!room) return;
+    if (event === PING_MENTOR_EVENT) {
+      const m = routePingMentor(room, userId, payload);
+      if (!m) { this.log({ ev: 'versus_cf_ping_dropped', user: userId, why: 'mentor_refused' }); return; }
+      this.pingMentors = { matchId: this.core?.state.room.current_match_id ?? null, mentors: withMentor(room.mentors, m) };
+      await this.ctx.storage.put(PING_MENTORS_KEY, this.pingMentors);
+      const out = JSON.stringify({ t: 'bc', event, payload: m, from: userId } satisfies VersusCfPush);
+      for (const other of this.liveSockets()) if (other !== ws && this.att(other).hello) this.send(other, out);
+      return;
+    }
+    if (event === PING_CLEAR_EVENT) {
+      if (!this.pingClearLimit.allow(userId, Date.now())) return;
+      const c = routePingClear(room, userId, payload);
+      if (!c) return;
+      const to = new Set(c.to);
+      const out = JSON.stringify({ t: 'bc', event, payload: c.msg, from: userId } satisfies VersusCfPush);
+      for (const other of this.liveSockets()) { const o = this.att(other); if (other !== ws && o.hello && to.has(o.userId)) this.send(other, out); }
+      return;
+    }
+    if (!this.pingLimit.allow(userId, Date.now())) { this.log({ ev: 'versus_cf_ping_dropped', user: userId, why: 'rate' }); return; }
+    const route = routePing(room, userId, payload);
+    if (!route.ok) { this.log({ ev: 'versus_cf_ping_dropped', user: userId, why: route.reason }); return; }
+    const to = new Set(route.to);
+    const out = JSON.stringify({ t: 'bc', event, payload: route.ping, from: userId } satisfies VersusCfPush);
+    for (const other of this.liveSockets()) {
+      const o = this.att(other);
+      if (other !== ws && o.hello && to.has(o.userId)) this.send(other, out);
     }
   }
 

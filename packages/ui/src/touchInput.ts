@@ -108,8 +108,14 @@ export function isSelectOption(el: Element | null): boolean {
 /** Pure: does a long-press fire on `target`? Not on a play-zone card (its Inspect is a tap; holding it starts a drag),
  *  but on a choice option, whose tap is the pick. */
 export function holdFiresOn(target: Element): boolean {
-  return !target.closest(NO_HOLD) || isSelectOption(target);
+  if (!target.closest(NO_HOLD) || isSelectOption(target)) return true;
+  // LIVE PINGS (owner 2026-10-29: "long-press on phone opens the same menu"; R-PING-04): in a game, a hold on a shop,
+  // board or hand card opens the ping menu (a tap still inspects). Everywhere else a card hold still does nothing.
+  return !!cardHoldGate?.(target);
 }
+let cardHoldGate: ((card: Element) => boolean) | null = null;
+/** The ping layer says which card holds open its menu (null: none). */
+export function setCardHoldGate(fn: ((card: Element) => boolean) | null): void { cardHoldGate = fn; }
 /** Click `el` as the commit it always was (the Inspect view's Pick), past the tap-to-inspect above. */
 export function clickAsPick(el: HTMLElement): void {
   pickBypass = true;
@@ -324,6 +330,8 @@ function writePop(el: HTMLElement): void {
 export const BODY_PRESS_CLASS = 'tt-handpress';
 /** Pure: the hand card a touch landed on, or null. */
 export function handCardOf(el: Element | null): Element | null {
+  // A press on a ping mark (`.ping-mark`, inside the card) is a tap on the MARK: the card stays put, so the tap clears it.
+  if (el?.closest?.('.ping-mark')) return null;
   return el?.closest?.('.row.hand .card') ?? null;
 }
 

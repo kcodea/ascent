@@ -26,6 +26,7 @@ import { liveRemote, LiveError, type LiveGameRow, type LiveRemote } from './live
 import { endWatchedGame, startSpectatorBeat, stopSpectatorBeat } from './spectatorEnd';
 import { cfErrorCode, openCfWatcher, type CfWatcher, type LiveRow, type LiveWatcher } from './liveCf';
 import { lobbyLiveWatchUrl } from '../versus/versusRemote';
+import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
 
 export interface LiveWatchState {
   /** The game being watched (its listing row), or null. */
@@ -179,6 +180,7 @@ export async function watchLiveGame(gameId: string, hint?: Pick<LiveGameRow, 'li
   // My own emotes go out on this channel, as me; a sender I do not know yet re-reads the stands (throttled).
   const me = currentUserId();
   if (me) installSpectatorEmotes(me, s.channel.send);
+  installWatchPings(s, gameId);
   onUnknownSpectatorEmote(() => { if (Date.now() - s.fellowsAt > FELLOWS_ASK_MS) void readFellows(s); });
   useSpectate.setState({ name: row.display_name });
   useLiveWatch.setState({ game: row, joining: true });
@@ -195,10 +197,19 @@ export async function watchLiveGame(gameId: string, hint?: Pick<LiveGameRow, 'li
 /** The game's channel handler (both hosts): the player's stream, cursor and emotes, and the other spectators' emotes. */
 function onGameBroadcast(s: NonNullable<typeof session>, event: string, payload: unknown): void {
   if (session !== s) return;
+  // LIVE PINGS (R-PING-02/03): the player's own pings show on the watched screen; a mentor ping reaches only the
+  // player (the receiver drops it here); who is mentoring shows on the stands.
+  if (receivePingEvent(event, payload)) return;
   if (event === 'spectate') { receiveSpectate(payload); if (useSpectate.getState().active) useLiveWatch.setState({ joining: false }); }
   else if (event === SPECTATE_CURSOR_EVENT) receiveSpectatorCursor(payload);
   else if (event === SPECTATOR_EMOTE_EVENT) receiveSpectatorEmote(payload);
   else if (event === VERSUS_EMOTE_EVENT && useSpectate.getState().active) receiveWatchedEmote(payload, useSpectate.getState().seat);
+}
+
+/** As a spectator I hold no seat; if the player makes me their mentor I may ping their screen (R-PING-03). Sent on
+ *  whichever host carries the game (the Cloudflare object stamps and routes it; Supabase relies on the receiver). */
+function installWatchPings(s: NonNullable<typeof session>, gameId: string): void {
+  setPingSession('livewatch', { send: (e, p) => { if (session === s) s.channel?.send(e, p); }, seat: () => null, mode: () => 'lobby', gameKey: `lobby:${gameId}` });
 }
 
 let watchUrlFor: (liveHost: string) => string = lobbyLiveWatchUrl;
@@ -262,6 +273,7 @@ async function watchOnCf(gameId: string, liveHost: string): Promise<boolean> {
   });
   const me = currentUserId();
   if (me) installSpectatorEmotes(me, s.channel.send);
+  installWatchPings(s, gameId);
   useSpectate.setState({ name: row.display_name });
   useLiveWatch.setState({ game: row, joining: true });
   cfFellows(opened.hello.watchers ?? [], myId);
@@ -329,6 +341,7 @@ export function leaveLiveGame(back = true): void {
   // Cloudflare the closing socket tells the game's object, which tells the player.
   if (!s.cf) s.channel?.send(SPECTATE_BYE_EVENT, {});
   s.channel?.close();
+  setPingSession('livewatch', null);
   uninstallSpectatorEmotes();
   setWatchers([]);
   if (!s.cf) void remote.unwatch(s.gameId).catch(() => undefined);

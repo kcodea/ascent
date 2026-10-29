@@ -58,6 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'New: live pings. Point at a card with Check, No, Question, Pass or Sell, or at a shop button with Check, No or Question.', details: [
+        'Right-click a shop card, a minion, a hand card or a shop button in a game. On a phone, press and hold.',
+        'The menu still has Inspect, so you can always look at a card.',
+        'A ping pops on its target and stays there. Click it to clear it. Moving the card clears it too.',
+        'Everyone watching you sees your pings. In Duos your teammate sees them too. Opponents never do.',
+        'Duos: open your teammate view to ping their cards. It shows on their screen.',
+        'Being watched? Click a spectator in the top left to make them your Mentor. Their pings show on your screen only. Click again to remove them.',
+      ] },
       { category: 'Systems', text: 'Spectators and emotes are tidier, bigger and easier to read.', details: [
         'Spectators now stand in one neat column at the top left, with bigger portraits and names.',
         'Emotes are bigger, on every screen and on phones.',

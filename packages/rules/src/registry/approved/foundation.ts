@@ -10830,4 +10830,77 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Three spectators and two rail neighbours emote at once: the three spectator bubbles stack down beside the stands column, the two rail bubbles sit apart to the left of their rows, and every word reads the right way round.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/emotes/emoteLayout.test.ts', 'packages/ui/src/emotes/emotes.test.tsx', 'packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-PING-01',
+    title: 'A player can ping their own targets in every game; spectators and a Duos teammate see it, opponents never do',
+    statement:
+      "In any game (lobby, Practice, Versus 1v1, Group, Duos, Ranked Duos) a player may ping a shop card, a board minion, a hand card, or a shop button (Tavern Up, Refresh, Freeze, the hero power, End Turn) with one of five pings: check, X, question, pass, sell. With nobody watching it is a note to self on their own screen. It travels on the game's spectator stream (the Versus room relay, or the live lobby game channel) to every spectator and, in Duos and Ranked Duos, to the teammate. An opponent never receives or shows it. At most 3 pings per 2 s per sender, enforced on the sender, the receiver and the Cloudflare room.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: 'Players should be able to ping on their own as well, and spectators should be able to see the player pings' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: 'Start building live pings for duos. I can make the art for them. We need one for check mark, x, question mark, pass, and sell.' },
+    ],
+    currentBehaviour: 'New on 2026-10-29 (feat/live-pings-mentors).',
+    example: 'Ann right-clicks a shop minion and picks Check: a check bubble pops on it on her screen and on the screen of everyone watching her.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-PING-02',
+    title: 'Duos teammates ping each other live; the ping shows on the target on both screens',
+    statement:
+      "In Versus Duos and Ranked Duos a player may ping their teammate's shop, board, hand and buttons from the teammate view. The ping shows on that target on the teammate's screen and on the sender's own as a confirmation, and on the screens of spectators of either. The server derives the sender's role from their seat, never from the payload, and stamps who sent it.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: "Duos: teammates ping each other live (the ping appears on the target on the teammate's screen, and on your own as a confirmation). Opponents never see pings." },
+    ],
+    currentBehaviour: 'New on 2026-10-29.',
+    example: "Amy watches Ann's board in the teammate view and pings Sell on Ann's Pup: a Sell bubble pops on that Pup on Ann's screen.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-PING-03',
+    title: 'A player can promote one spectator to Mentor for this game; only that player sees mentor pings',
+    statement:
+      "In any game a player is being watched in, they may click a spectator's plate in their top-left Spectating indicator to make them Mentor, and click again to demote. One mentor per player; naming another replaces the first; a mentor who leaves the stands is demoted; a new game starts with none. Every screen shows who is mentoring (the plate reads Mentor). The mentor may ping the same targets on the watched screen; those pings reach that player only, never other spectators. A spectator who is not that player's mentor cannot ping: the Cloudflare room drops it, and a receiver on the Supabase channel ignores it (the player is the authority on its own mentor and ignores any mentor message for its seat it did not send).",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: 'i want a player to be able to promote a spectator to a mentor, which allows the mentor to use live pings for the player to help guide them through a game' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: "Spectators who aren't mentors cannot ping." },
+    ],
+    currentBehaviour: 'New on 2026-10-29. Over the Supabase live channel the sender of a broadcast cannot be authenticated, so a forged from field is only stopped by the Cloudflare room and the coming Cloudflare live object.',
+    example: 'Sam is watching Ann. Ann clicks his plate: it reads Mentor, and his right-click on her shop opens the ping menu. His pings show on her screen only.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-PING-04',
+    title: 'Right-click (a phone: long-press) opens the ping menu with Inspect; elsewhere it still inspects at once',
+    statement:
+      'On a shop, board or hand card in a game where the viewer may ping, right-click (or a long-press on a phone) opens the ping fan: Check, X, Question in an arc above the card and Pass, Inspect, Sell in an arc below it. A shop button gets Check, X and Question only (no bottom arc), and a button ping of any other kind is refused by the shared rule. A left-click away or Escape closes it. Where pings are not available (menus, the Compendium, a replay, a Discover or Choose One option, a spectator who is not a mentor) right-click on a card inspects at once as before, and a phone hold on a card still does nothing (a tap inspects).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: "Right clicking replaces the inspect, so we'll need to add an inspect option in the ping wheel so players can inspect a card still" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: 'Right clicking opens the menu then left clicking away should close the menu.' },
+    ],
+    currentBehaviour: 'New on 2026-10-29. The menu is the fan (owner pick 2026-10-29): Check, X, Question in an arc above the target; on a card, Pass, Inspect, Sell in an arc below it. A shop button gets the top three only.',
+    example: 'Right-click a board minion, then Inspect: the usual Inspect view opens.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-PING-05',
+    title: 'A ping sparks on its target with a sound, settles until cleared, and clears everywhere when clicked or its card moves',
+    statement:
+      "A ping pops on its target with the hero power spark FX and the pulse UI sound, then settles and stays with no timer (transform and opacity only, nothing loops). On a card it sits inside the card element, so it rides the card. It is cleared by a left- or right-click on the ping itself, or when its card is dragged, sold, played or otherwise leaves its zone; a click or a drag sends a `ping_clear` on the stream so the sender's and the receivers' screens clear alike (the player, the teammate and the mentor may send one; a plain spectator clears only their own screen). A ping whose target leaves the screen (the shop closes for the fight) goes too. A new ping on the same target replaces the last.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: 'Then when selected, the ping should spark / draw attention and have a sound cue. It can be cleared by a player simply right or left clicking it or moving a card with a ping.' },
+    ],
+    currentBehaviour: 'New on 2026-10-29.',
+    example: 'Ann pings Check on her hand card, then drags it to the board: the check is gone.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
+  },
 ];

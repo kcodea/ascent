@@ -5,7 +5,8 @@
  *  - the top bar: my own handle (to share) and Add by handle ("Name#1234");
  *  - Requests: incoming (Accept / Decline) and sent (Cancel), with a count;
  *  - Friends: online first, then in a game (with its mode and Watch when the game is watchable), then offline with
- *    last seen; Invite when I am in an open Versus room and they are online; Remove and Block (each asks once more);
+ *    last seen; Invite when I am in an open Versus room and they are online; Remove friend and Block live in the row's
+ *    right-click / long-press menu, never on the row (owner 2026-10-29, R-FRIENDS-MENU-03);
  *  - Blocked: Unblock.
  * A guest sees one line, "Save your account to add friends", and the existing Save account panel.
  * The list is ONE batched read while the page is open (60 s, nothing while hidden; R-FRIENDS-05).
@@ -25,7 +26,7 @@ import { versusRoomRef } from '../versus/versusRemote';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import {
   acceptRequest, addFriendByHandle, blockPlayer, cancelRequest, declineRequest, friendsAccount, inviteFriend, lastSeenText,
-  modeText, removeFriend, unblockPlayer, useFriends, useFriendsListLoop,
+  modeText, unblockPlayer, useFriends, useFriendsListLoop,
 } from './friendsStore';
 import { watchFriend } from './friendsGo';
 import { friendMenuHandlers } from './FriendMenu';
@@ -72,7 +73,7 @@ export function sortFriends(list: readonly Friend[]): Friend[] {
   return [...list].sort((a, b) => ORDER[a.status] - ORDER[b.status] || handleOf(a).localeCompare(handleOf(b)));
 }
 
-/** A button that asks once more before it acts (Remove, Block). */
+/** A button that asks once more before it acts (Block on an incoming request). */
 function ConfirmButton({ label, confirm, onConfirm, disabled }: { label: string; confirm: string; onConfirm: () => void; disabled?: boolean }) {
   const [armed, setArmed] = useState(false);
   return (
@@ -157,8 +158,6 @@ function FriendRow({ f, inviteRoom }: { f: Friend; inviteRoom: string | null }) 
             {inviteLabel}
           </button>
         )}
-        <ConfirmButton label="Remove" confirm="Remove?" disabled={busy} onConfirm={() => void removeFriend(f.userId)} />
-        <ConfirmButton label="Block" confirm="Block?" disabled={busy} onConfirm={() => void blockPlayer(f.userId)} />
       </div>
     </div>
   );

@@ -97,4 +97,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] body:has(.lbpage) .frmenu
 .frmenu-item:not(:disabled):hover, .frmenu-item:not(:disabled):focus-visible { background: rgba(240, 208, 137, 0.16); color: #fff; outline: none; }
 .frmenu-item:disabled { opacity: 0.55; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .frmenu-why { font-weight: 700; font-size: 12px; color: rgba(240, 208, 137, 0.85); }
+.frmenu-sep { height: 1px; margin: 4px 6px; background: rgba(240, 208, 137, 0.25); }
+.frmenu-item.frmenu-harm { color: #f0c9c0; }
+.frmenu-item.frmenu-armed { color: #ffd7d7; background: rgba(255, 120, 120, 0.16); box-shadow: inset 0 0 0 1px rgba(255, 140, 140, 0.8); }
 .frmenu-empty { padding: 6px 10px; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.65); }

@@ -10662,6 +10662,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx', 'workers/versus/test/spectateInvite.db.test.ts', 'workers/versus/test/liveInvite.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
   {
+    id: 'R-FRIENDS-MENU-03',
+    title: 'Remove friend and Block live in the friend menu, never as buttons on a friend row; each asks once more',
+    statement:
+      'A friend row (the Friends page and the in-game dock) shows no Remove or Block button. Both are the last two entries of each friend\x27s right-click / long-press menu (R-FRIENDS-MENU-01), for every friend whatever their status, set apart from the entries above by a divider. The first press only arms the entry (it reads "Remove? Press again" / "Block? Press again"); the second press acts through the existing friends API (remove, block). Closing the menu, or moving focus off the entry, disarms it. Blocking still stops their messages and invites (server side, unchanged). Remove and Block do not close the dock. An incoming friend request keeps its own Block next to Accept / Decline.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'Remove the block/remove buttons from friends list.' },
+      { kind: 'code', ref: 'packages/ui/src/friends/friendsGo.ts (FRIEND_MENU_HARM, friendMenuEntries, runFriendMenu), packages/ui/src/friends/FriendMenu.tsx, packages/ui/src/friends/FriendsPage.tsx (FriendRow)' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (fix/friends-row-buttons).',
+    example: 'Ann right-clicks Bob on the Friends page: below Invite to lobby and Invite to Duos, past a divider, sit Remove friend and Block. She presses Block; it reads "Block? Press again". She presses again and Bob moves to Blocked.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
     id: 'R-VERSUS-CF-RECONNECT-01',
     title: 'Versus on Cloudflare: a dropped room socket reconnects the moment the network is back',
     statement:

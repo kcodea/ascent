@@ -9,7 +9,7 @@
  * menu's own transparent catcher, so it never also lands on the board (the dock's rule, R-FRIENDS-DOCK-01). A press
  * outside the dock as well closes the dock in the same motion.
  */
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { create } from 'zustand';
 import { sfx } from '../sfx';
@@ -82,6 +82,9 @@ export function FriendMenu(): JSX.Element | null {
   const { friend, x, y, entries } = useFriendMenu();
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  // The harmful entry pressed once (it asks again before it acts); cleared whenever the menu opens or closes.
+  const [armed, setArmed] = useState<string | null>(null);
+  useEffect(() => { setArmed(null); }, [friend]);
 
   // Keep it on screen: one measure when it opens (never per frame). It lives in the scaled stage (stageHost), so the
   // press point (window px) and its size become stage px, clamped to the stage's visible box.
@@ -137,19 +140,31 @@ export function FriendMenu(): JSX.Element | null {
         <b className="atip-title frmenu-title">{name}</b>
         {entries.length === 0 ? (
           <div className="frmenu-empty">Nothing to do right now.</div>
-        ) : entries.map((it) => (
-          <button key={it.id} type="button" role="menuitem" className="frmenu-item pressable" disabled={!!it.disabled}
-            aria-label={it.disabled ? `${it.label}. ${it.disabled}` : it.label}
-            onClick={() => {
-              sfx.pulse();
-              closeFriendMenu();
-              closeDock();
-              void runFriendMenu(it.id, friend);
-            }}>
-            <span className="frmenu-label">{it.label}</span>
-            {it.disabled && <span className="frmenu-why">{it.disabled}</span>}
-          </button>
-        ))}
+        ) : entries.map((it, i) => {
+          const armedNow = armed === it.id;
+          return (
+            <Fragment key={it.id}>
+              {/* Remove friend and Block sit apart at the bottom (R-FRIENDS-MENU-03). */}
+              {it.confirm && !entries[i - 1]?.confirm && <div className="frmenu-sep" role="separator" />}
+              <button type="button" role="menuitem" className={`frmenu-item pressable${it.confirm ? ' frmenu-harm' : ''}${armedNow ? ' frmenu-armed' : ''}`}
+                disabled={!!it.disabled}
+                aria-label={it.disabled ? `${it.label}. ${it.disabled}` : armedNow ? it.confirm : it.label}
+                onBlur={() => { if (armedNow) setArmed(null); }}
+                onClick={() => {
+                  sfx.pulse();
+                  // The first press only arms a harmful entry; the second acts (the Friends page's old ConfirmButton).
+                  if (it.confirm && !armedNow) { setArmed(it.id); return; }
+                  setArmed(null);
+                  closeFriendMenu();
+                  if (!it.confirm) closeDock();
+                  void runFriendMenu(it.id, friend);
+                }}>
+                <span className="frmenu-label">{armedNow ? it.confirm : it.label}</span>
+                {it.disabled && <span className="frmenu-why">{it.disabled}</span>}
+              </button>
+            </Fragment>
+          );
+        })}
       </div>
       </div>
       </div>

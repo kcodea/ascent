@@ -58,6 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Friend rows no longer show Remove and Block buttons. Right-click a friend (or long press on a phone) to find them.', details: [
+        'They sit at the bottom of the friend menu, set apart from the invites.',
+        'Each one asks you to press it again before it acts.',
+        'Blocking still stops their messages and invites.',
+      ] },
       { category: 'Systems', text: 'Hovering a spectator in the top left now shows its tip beside them, fully on screen.' },
       { category: 'Systems', text: 'Fixed: Duos games now end cleanly. Your result and rating change show right away, and the match is saved.', details: [
         'Ranked Duos games on the new game server could hang at the end and drop you back to the room. Their results were not being saved.',

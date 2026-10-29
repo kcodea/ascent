@@ -478,6 +478,20 @@ npm run perf:gauntlet -- --round-probe --round-scenes --from 2 --to 14 --headles
                                               # A typical game instead of the Ale engine: --board none --bot --apm 40 --no-topup;
                                               # --mode lobby for a rated-style lobby. raw-run*.json also lists every setTimeout
                                               # callback over 12 ms with the stack that scheduled it (slowTimeouts).
+                                              # --action-bench: the SAME inputs every round after the probe (a real-mouse
+                                              # hover sweep over every card + [data-tip], then 3x roll/buy/play/sell; the
+                                              # run is snapshotted and put back), each its own scene (hover#rN, act-roll#rN)
+                                              # --profile-re "<regex>": CPU-profile every matching scene, saved per scene
+                                              # (profiles-run*.json), so one input reads round over round
+                                              # --gpu: a REAL GPU (ANGLE D3D11), headless too; --gpu-trace "<regex>": GPU
+                                              # process / viz / cc trace per matching scene (DrawAndSwap, render passes,
+                                              # raster, thread busy) into gpu-run*.json; --layers: compositor layer census
+                                              # per probe. Draw calls (all WebGL contexts) are counted at every mark.
+                                              # --url <origin>: drive a running server instead (the DEV server:
+                                              # VITE_PERF_BENCH=1 npx vite --port N, never 5173). --allow-net <regex>: let
+                                              # matching reads through (GET); --allow-write <regex>: the only writes that pass.
+                                              # From Git Bash set MSYS_NO_PATHCONV=1, or a regex starting with "/" is
+                                              # rewritten into a Windows path.
 npm run perf:gauntlet -- --base <ref>         # another baseline; --a <dist> --b <dist> skips building; --only <dist>
 ```
 

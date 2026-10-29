@@ -58,6 +58,13 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Recent Games has a new Duos tab with your Ranked Duos and Versus Duos games.', details: [
+        'Each game shows your team\'s place, your team name, your hero and your teammate, and when you played.',
+        'Ranked Duos games also show the rank you played at and the points you gained or lost.',
+        'Open a game to see your final board and your teammate\'s, and every team in the lobby with the round it went out.',
+        'Pick any player in the lobby to see their board.',
+        'Your earlier Duos games are included too.',
+      ] },
       { category: 'Systems', text: 'Live Games now shows each game in more detail, like your Friends list does.', details: [
         'Each row shows the mode, then what the player is doing: picking a hero, shopping, or fighting and who they fight.',
         'Lobby and Practice games also show their place among the players left, their Health and Armor, and their tavern tier.',

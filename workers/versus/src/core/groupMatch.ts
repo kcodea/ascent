@@ -28,6 +28,7 @@ import {
   type VersusDuosFinalizeStore,
   type VersusGroupFinalizeStore,
 } from '@game/sim/versus/server';
+import { buildDuosHistory, duosBoardOfSide, type DuosHistoryRecord } from '@game/sim/versus/duosHistory';
 
 /** VERSUS DUOS (2v2 tag-team, owner 2026-10-25, R-DUOS-01): seats 1-2 are team a, 3-4 team b. */
 export type GTeamId = 'a' | 'b';
@@ -1010,7 +1011,31 @@ export class GroupEngine {
     m.completed_at = this.h.now();
     this.touch();
     this.h.matchEnded();
-    this.h.persist('group_match', this.matchRow());
+    // VERSUS DUOS: the game's history record rides the final match row (DUOS MATCH HISTORY, R-DUOS-HISTORY-01).
+    this.h.persist('group_match', this.duos ? { ...this.matchRow(), history: this.duosHistory() } : this.matchRow());
+  }
+
+  /** A live seat's last fought board: this round's final submission, else the last board it locked (runes ride the
+   *  submission's scout, so a board from an earlier round carries none). Null = it never locked a board. */
+  protected lastBoardOf(seat: GSeat): ReturnType<typeof duosBoardOfSide> {
+    const sub = this.g.subs[seat];
+    if (sub && sub.final && sub.prepared_side != null) return duosBoardOfSide(sub.prepared_side, sub.round, sub.scout?.runes);
+    const last = this.g.lastLocked[seat];
+    if (last == null) return null;
+    const rounds = Object.keys(this.g.rounds).map(Number).filter((n) => n < this.m.round);
+    return duosBoardOfSide(last, rounds.length ? Math.max(...rounds) : Math.max(1, this.m.round - 1));
+  }
+
+  /** VERSUS DUOS: the finished game's history record (both teams, each player's last fought board). */
+  duosHistory(): DuosHistoryRecord {
+    const m = this.m;
+    return buildDuosHistory({
+      mode: 'versus_duos', endRound: m.round, startedAt: iso(m.created_at), endedAt: iso(m.completed_at),
+      teams: (m.teams ?? []).map((t) => ({
+        team: t.team, kind: 'live' as const, placement: t.placement, outRound: t.eliminated_round,
+        members: m.seats.filter((s) => s.team === t.team).map((s) => ({ seat: s.seat, userId: s.user_id, name: s.name, heroId: s.hero, board: this.lastBoardOf(s.seat) })),
+      })),
+    });
   }
 
   /** `versus_group_reconcile`, on every call and every alarm. */

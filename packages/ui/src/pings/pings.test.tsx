@@ -186,6 +186,45 @@ describe('mentors (R-PING-03)', () => {
     expect(pingContext()).toBeNull();
   });
 
+  it('LIVE BUG 2026-10-29 (R-PING-06): on the REAL watch screen (`replaying` is true there) a promoted mentor right-clicks the watched card, the fan opens, and the ping goes out as a mentor ping that only the player shows', () => {
+    // The mentor's screen, as spectate.ts `enter` leaves it.
+    session(null, 'lobby');
+    useGame.setState({ replaying: true, showTitle: false });
+    useSpectate.setState({ active: true, seat: 'p1' });
+    document.body.innerHTML = `<div data-zone="warband"><div class="card" data-uid="31"></div></div>`;
+    const card = document.querySelector('.card')!;
+    const inspect = vi.fn();
+    // Not promoted yet: right-click inspects at once.
+    expect(openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: card }, '31', inspect)).toBe(false);
+    // The player promotes me (their mentor message reaches the stands).
+    receivePingEvent(PING_MENTOR_EVENT, { seat: 'p1', mentor: 'me', name: 'Me' });
+    expect(openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: card }, '31', inspect)).toBe(true);
+    expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid: '31', zone: 'board' });
+    expect(sendPing('check', { t: 'card', uid: '31', zone: 'board' })).toBe(true);
+    const out = sent.find((x) => x.e === PING_EVENT)!.p as PingMessage;
+    expect(out).toMatchObject({ owner: 'p1', role: 'mentor', kind: 'check' });
+    // The player's screen: the stamped mentor ping from the mentor they named shows; another spectator's never does.
+    setPingSession('test', null);
+    resetPingRuntimeForTests();
+    useSpectate.setState({ active: false });
+    useGame.setState({ replaying: false });
+    session('p1', 'lobby');
+    setMyMentor({ id: 'mentor-uid', name: 'Orangez' });
+    receivePingEvent(PING_EVENT, { ...out, from: 'someone-else', role: 'mentor' });
+    expect(usePings.getState().list).toHaveLength(0);
+    receivePingEvent(PING_EVENT, { ...out, from: 'mentor-uid', role: 'mentor' });
+    expect(usePings.getState().list).toMatchObject([{ kind: 'check', role: 'mentor', owner: 'p1', mine: false }]);
+  });
+
+  it('LIVE BUG 2026-10-29 (R-PING-06): the Duos teammate view (also on the replay renderer) pings as mate; a recorded replay never pings', () => {
+    session('p1', 'duos');
+    useGame.setState({ replaying: true, showTitle: false });
+    useSpectate.setState({ active: true, seat: 'p2', teammate: true });
+    expect(pingContext()).toEqual({ owner: 'p2', role: 'mate' });
+    useSpectate.setState({ active: false, teammate: false });
+    expect(pingContext()).toBeNull();
+  });
+
   it('Duos: watching my teammate, I ping their screen as their mate', () => {
     session('p1', 'duos');
     useSpectate.setState({ active: true, seat: 'p2', teammate: true });

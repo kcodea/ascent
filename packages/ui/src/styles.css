@@ -12963,7 +12963,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   translate: calc(var(--hd-slot1-x, 450px) * var(--scale)) calc(var(--hd-slot1-y, 87px) * var(--scale)); scale: var(--hd-slot1-s, 1.65); }
 .combatopp-slot.slot2 { background-image: url('/rune-slot-2.webp');
   translate: calc(var(--hd-slot2-x, 360px) * var(--scale)) calc(var(--hd-slot2-y, -8px) * var(--scale)); scale: var(--hd-slot2-s, 1.65); }
-.combatopp-slot.slot3 { background-image: url('/frames/rune-chains.webp'), url('/rune-slot-3.webp'); background-size: 60.6% auto, contain; background-position: calc(50% - 1px) calc(50% - 1px), center; /* chains over the ring (nudged 1px left + 1px up, owner 2026-10-28), at the player slot's chain size (53u on a 53u x 1.65 ring) */
+.combatopp-slot.slot3 { background-image: url('/frames/rune-chains.webp'), url('/rune-slot-3.webp'); background-size: 60.6% auto, contain; background-position: 50% calc(50% - 0.5px), center; /* chains over the ring (nudged 1px left + 1px up, owner 2026-10-28; then 1px right + 0.5px down, owner 2026-10-29), at the player slot's chain size (53u on a 53u x 1.65 ring) */
   translate: calc(var(--hd-slot3-x, 281px) * var(--scale)) calc(var(--hd-slot3-y, -75px) * var(--scale)); scale: var(--hd-slot3-s, 1.65); }
 .combatopp-rune .questbadge-tip { bottom: auto; top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); }
 /* Each rune is its own stacking context (the `translate`/`scale` props), so a later sibling's art paints OVER a

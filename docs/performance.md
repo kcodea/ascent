@@ -475,6 +475,9 @@ npm run perf:gauntlet -- --round-probe --round-scenes --from 2 --to 14 --headles
                                               # tagged with its round + a probe (heap, DOM, listeners, timers, FX plays, store
                                               # slice sizes) each shop; raw-run*.json for per-round tables. --perf-timings adds
                                               # the in-game monitor's spans per wave, --snap 3,13 heap snapshots, --cpu-throttle 4
+                                              # A typical game instead of the Ale engine: --board none --bot --apm 40 --no-topup;
+                                              # --mode lobby for a rated-style lobby. raw-run*.json also lists every setTimeout
+                                              # callback over 12 ms with the stack that scheduled it (slowTimeouts).
 npm run perf:gauntlet -- --base <ref>         # another baseline; --a <dist> --b <dist> skips building; --only <dist>
 ```
 

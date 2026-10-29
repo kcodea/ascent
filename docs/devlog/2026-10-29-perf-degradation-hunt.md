@@ -3,47 +3,71 @@
 Owner, top priority: "Performance degrades over the course of a game. It degrades massively by end game, causing
 major hitching and jank, and it degrades even faster on mobile obviously."
 
-**How it was measured.** One seeded Practice game, the gauntlet's Dwarf Ale engine (150 actions a turn), on a
-`VITE_PERF_BENCH` prod build in headless Chrome. New `perf:gauntlet` flags:
-- `--round-scenes` tags every measured scene with its round and writes `raw-run*.json`.
-- The `--round-probe` rows now also carry timers, the store's biggest slices and a heap snapshot (`--snap`).
-- `--perf-timings` adds the in-game monitor's spans per wave.
-- `--cpu-throttle N` is available for a phone-like run.
+## How it was measured
 
-`perf:late` gained a column for the bug-report state hash.
+Every run below uses a `VITE_PERF_BENCH` prod build in headless Chrome, with network blocked. A probe at the start of
+every shop (after a full GC) records heap, DOM, listeners, timers, FX plays, store slice sizes and images. Every
+measured scene is tagged with its round. The new `perf:gauntlet` flags are listed in `docs/performance.md`.
 
-**What does NOT grow** (each probe runs after a full GC at the start of a shop, r2 to r14):
-- DOM nodes stay at 3.3-4.1k and listeners at 790-1,050.
-- Running CSS animations, GSAP tweens, intervals (4) and pending timeouts stay flat. Detached DOM stays flat.
-- The heap grows about 1.5 MB a round (44 to 62 MB), almost all of it replay frames held for the end-of-game upload.
-  That is memory, not frame time.
-- The bookkeeping stays small: autosave is 0.25 to 1.3 ms (on idle time, at phase boundaries only), a replay frame
-  0.3 ms and telemetry under 0.1 ms. Moving replay or snapshot assembly to a server would not change how a late
-  game plays.
+Four game setups:
+- **Ale engine:** the gauntlet's Dwarf board, 150 actions a turn, high stats.
+- **Typical Practice:** balance-bot shop turns, no Gold top-up, 4 tribes.
+- **Typical lobby:** the same, but `--mode lobby` (replay draft, scorer, announcer, autosave all live).
+- **4x CPU throttle:** the typical Practice game, throttled.
 
-**What grows: main-thread script per frame, in every scene that is not dominated by its own actions.**
+Two older comparisons:
+- The typical game on main as of 2026-10-02 (`e9163d6ea`).
+- The Ale game with the milestone badge FX switched off.
 
-| scene | early | late (r12-14) |
+## What does NOT accumulate (all four setups, rounds 2-14)
+
+- **DOM nodes and listeners** grow only with what is on screen (board and hand size), then go flat. Detached DOM stays
+  flat. CSS animations, GSAP tweens and timers (4 intervals, 1-2 timeouts) stay flat. Pixi managed textures go flat
+  after the opening rounds.
+- **Heap** grows about 1.5 MB a round in the Ale game (replay frames kept for the end-of-game upload) and about
+  0.4 MB a round in a typical game. GC is 0.3% of a late fight's CPU profile, so it is not a source of hitches.
+- **Bookkeeping stays small:**
+  - autosave: 0.25 to 1.3 ms, idle time, phase boundaries only
+  - replay frame capture: 0.3 ms per action
+  - telemetry: under 0.1 ms
+  - the lobby's store commit: about 0.2 ms average
+
+  None of these grows into a hitch. Moving replay or snapshot assembly to a server would not change how a late game
+  plays.
+- **Every image is fetched at boot** (about 1,800 URLs), so the image working set does not grow by round in a
+  desktop session.
+
+## What grew, and what was done
+
+**1. The bug-report action ring hashed the whole run on idle time. Fixed (R-PERF-RING-LAZY-01).**
+- Every accepted action queued a whole-run hash. That includes the display-only previews a fight dispatches per
+  friendly death and spell cast.
+- One idle callback hashed up to 32 entries. The hash grows with the run, from 1.0 to 1.9 ms a call over a lobby game.
+- The perf monitor recorded 40-52 ms `IdleRequestCallback` long frames in most rounds from round 5 on.
+- Now the hashes are computed only when a bug report reads the window. The same game shows none in rounds 1-14.
+
+**2. Milestone badge loops (units at 5,000+ Attack or Health). The only steady per-frame climb in the Ale game.**
+
+| main-thread script per frame | badges on | badges off |
 |---|---|---|
-| idle shop | 0.03 ms | 0.62 ms |
-| drag | 0.27 ms | 0.95 ms |
-| End Turn | 0.68 ms | 1.3 ms |
-| combat | 0.34 ms | 1.1 ms |
-| return | 0.3 ms | 0.9 ms |
+| idle shop | 0.03 → 0.62 ms | 0.03 ms, flat |
+| combat | 0.34 → 1.1 ms | 0.39 → 0.55 ms |
 
-**Cause 1 (the steady climb): the milestone badge loops.** Every unit at 5,000+ Attack or Health wears a permanent
-looping Pixi effect (about 142 particles each). Each loop reads its badge's rect every frame, and each stat's loops
-draw through a shared full-screen Bloom + Glow pass. Live loops in an idle shop went 0, 0, ..., 1 (r10), 4 (r11),
-5 (r12-14). The Pixi ticker then never stops, and the script cost tracks the loop count. Not changed here: capping
-their rate or count changes the authored look, so it needs an owner call.
+The owner ruled this is not the long-standing cause, since typical games rarely reach 5,000. Not changed here.
 
-**Cause 2 (fixed here): the bug-report action ring hashed the whole run on idle time.**
-- Every accepted action is recorded, including the display-only previews a fight dispatches per friendly death and
-  spell cast. One idle callback then hashed every owed entry, up to 32, each a JSON round-trip of a run that grows
-  all game.
-- The perf monitor recorded 40-52 ms `IdleRequestCallback` long frames during most rounds from round 5 on.
-- Now the hashes are computed only when a bug report reads the window, and the same run shows none in rounds 1-14.
-- Rule R-PERF-RING-LAZY-01; test `packages/ui/src/bug-report/actionRing.test.ts`.
+**3. Board size.** In typical games, per-frame combat and End Turn cost rises while the board fills (rounds 2-6), then
+goes flat. The 2026-10-02 build shows the same shape, with more style time.
 
-**Still open.** `setTimeout` long frames of 21-40 ms, 4-10 a round, source not named yet. A CPU-throttled run. The
-lobby-only paths (board strength scoring, replay drafts) are not exercised by Practice.
+## Not found
+
+The `setTimeout` long frames the perf monitor showed (21-40 ms) are the walk's own shop actions resuming after its
+pacing timer, i.e. what a buy or play costs. No game timer runs long.
+
+Nothing else measured grew round over round in the headless main thread. If players still feel the game get slower
+late, the cost is in something this harness cannot see:
+- GPU, raster or compositing (headless uses software GL)
+- the network (realtime, uploads, recorded seats)
+- hover and preview input
+- a real phone
+
+The next step is a Perf HUD export from a real late game.

@@ -72,3 +72,43 @@ describe('the swap cross-fade', () => {
     anims[0]!.onfinish?.();
   });
 });
+
+describe('the swap as a View Transition (R-DUOS-VIEW-SWAP-01)', () => {
+  // Owner 2026-10-29: "toggling yours and teammates screen ... needs to feel like you clicked the button and are viewing
+  // the other players screen then clicking to get back and do it [without] massive hitching and jank".
+  let pending: (() => void | Promise<void>) | null = null;
+  let finish: (() => void) | null = null;
+  beforeEach(() => {
+    pending = null;
+    document.body.classList.remove('duos-viewing');
+    (document as unknown as { startViewTransition?: unknown }).startViewTransition = (cb: () => void | Promise<void>) => {
+      pending = cb;
+      return { ready: Promise.resolve(), finished: new Promise<void>((r) => { finish = r; }) };
+    };
+  });
+  afterEach(() => { delete (document as unknown as { startViewTransition?: unknown }).startViewTransition; document.documentElement.classList.remove('duos-vt'); });
+
+  it('the browser snapshots my screen; the swap runs once in its update (no DOM ghost, no main-thread fade), and the class clears at the end', async () => {
+    view.enterTeammateView();
+    expect(document.querySelector('.duosghost')).toBeNull();
+    expect(watch).not.toHaveBeenCalled(); // the old screen is captured first
+    expect(document.documentElement.classList.contains('duos-vt')).toBe(true);
+    pending!();
+    expect(watch).toHaveBeenCalledWith('p2');
+    expect(useGame.getState().run.runId).toBe('spectate:m:p2'); // in place when the update returns
+    expect(document.body.classList.contains('duos-viewing')).toBe(true);
+    expect(anims).toHaveLength(0); // the cross-fade is the browser's, on the compositor
+    finish!();
+    await Promise.resolve(); await Promise.resolve();
+    expect(document.documentElement.classList.contains('duos-vt')).toBe(false);
+  });
+
+  it('the shop closing between the click and the update leaves my own board on screen', () => {
+    view.enterTeammateView();
+    useVersus.setState({ match: { phase: 'combat', paused_at: null, group: { me: 'p1', duos: { team: 'a', mate: 'p2', first: { a: 'p1', b: 'p3' } } } } } as never);
+    pending!();
+    expect(watch).not.toHaveBeenCalled();
+    expect(document.body.classList.contains('duos-viewing')).toBe(false);
+    finish!();
+  });
+});

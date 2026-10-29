@@ -67,6 +67,7 @@ while (Date.now() - t0 < 15 * 60_000) {
   if (sa.wave > ROUNDS || sa.phase === 'complete') break;
   await sleep(200);
 }
+console.log('END state A', JSON.stringify(await stateOf(A)), 'B', JSON.stringify(await stateOf(B)));
 fs.writeFileSync(path.join(QA_OUT, `swap-${TAG}.json`), JSON.stringify(results, null, 1));
 const sum = (k) => { const xs = results.map((r) => r[k]); return { maxP: Math.max(...xs.map((x) => x.max)), over33: xs.reduce((a, x) => a + x.over33, 0), over16: xs.reduce((a, x) => a + x.over16, 0), clickMs: xs.map((x) => x.events.find((e) => e.n === 'click')?.proc ?? null) }; };
 if (results.length) console.log('SUMMARY in', JSON.stringify(sum('into')), 'out', JSON.stringify(sum('out')));

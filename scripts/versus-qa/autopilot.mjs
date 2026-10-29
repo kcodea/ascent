@@ -18,7 +18,7 @@ export async function stateOf(p) {
       etb: vis('.etbwrap'), etbReady: vis('.etbwrap.ready'), etbPressed: !!document.querySelector('.etbwrap.pressed'),
       lockedRound: v.lockedRound, screen: v.screen, err: v.error, spect: S.useSpectate.getState().active, teammate: !!S.useSpectate.getState().teammate,
       resolve: g.run.resolve, mate: m?.group?.duos?.mate ?? null, awaiting: !!m && m.phase === 'hero_select' && v.pickedFor === m.id,
-      curtain: !!document.querySelector('.hsc-curtain'), waitPanel: [...document.querySelectorAll('.vspanel-title')].map((e) => e.textContent),
+      curtain: !!document.querySelector('.hsc-curtain'), remainingMs: m?.shop_deadline ? V.versusShopRemainingMs(m.shop_deadline) : null, tip: document.querySelector('.etb-tip')?.textContent ?? null, revision: m?.revision ?? null, locked: m?.group?.raw?.seats?.map((x) => x.seat + ':' + (x.locked ? 'L' : '-') + (x.ready ? 'R' : '-')).join(' ') ?? null, waitPanel: [...document.querySelectorAll('.vspanel-title')].map((e) => e.textContent),
     };
   });
 }

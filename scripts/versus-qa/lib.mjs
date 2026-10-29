@@ -96,7 +96,7 @@ export async function profileAround(p, fn, ms = 400) {
     for (let cur = id; cur != null; cur = parent.get(cur)) { const k = key(byId.get(cur)); if (seen.has(k)) continue; seen.add(k); incl.set(k, (incl.get(k) ?? 0) + d); }
   });
   const top = (m, n) => [...m.entries()].filter(([k]) => !/^\((idle|program|root)\)/.test(k)).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${v.toFixed(1)}ms ${k}`);
-  return { self: top(self, 30), incl: top(incl, 60) };
+  return { self: top(self, 40), incl: top(incl, 400) };
 }
 
 /** A DevTools timeline trace around `fn`: every main-thread task over 8 ms, with its style / layout / script / paint split. */

@@ -109,7 +109,29 @@ const HEADLESS = flag('headless');
 const BLIND = flag('blind');
 const OUT = path.resolve(arg('out', path.join(CACHE, 'reports', new Date().toISOString().replace(/[:.]/g, '-'))));
 const TRACE = arg('trace', ''); // a scene to trace: layout / style / paint time, and which JS FORCED each layout
+// --gpu-trace <regex> (degradation hunt 2): a trace with the GPU process, viz and cc events during every scene whose name
+// matches, summarised per scene (thread busy time, DrawAndSwap / render passes / raster per frame) into gpu-run*.json.
+const GPU_TRACE = arg('gpu-trace', '') ? new RegExp(arg('gpu-trace')) : null;
 const PROFILE = arg('profile', ''); // a scene to CPU-profile (e.g. shop-actions): its top functions are printed per run
+// --profile-re <regex> (degradation hunt 2, 2026-10-29): profile EVERY scene whose name matches, one profile per scene
+// occurrence, saved by scene (<out>/profiles-run*.json), so the same action can be compared round over round.
+const PROFILE_RE = arg('profile-re', '') ? new RegExp(arg('profile-re')) : null;
+const profiled = (scene) => !!scene && ((PROFILE && scene === PROFILE) || (PROFILE_RE && PROFILE_RE.test(scene)));
+// --action-bench (with --round-probe): after each probe, the SAME fixed inputs every round, so their cost can be read
+// round over round: a hover sweep (real mouse moves over every shop, board and hand card and the keyword pills on
+// them, dwelling on each so tooltips and previews open) and a fixed action set (roll, buy, play, sell), Gold restored.
+const ACTION_BENCH = flag('action-bench');
+// --gpu: a REAL GPU (ANGLE on D3D11), headless too, so raster / compositing / GPU-process cost is the machine's, not
+// SwiftShader's. --layers (with --round-probe): the compositor's layer count and their area at every probe.
+const GPU = flag('gpu');
+// --url <origin>: drive an already-running server (e.g. the DEV server, `VITE_PERF_BENCH=1 npx vite --port N`) instead
+// of serving a dist. --allow-net <regex>: let requests whose URL matches through (e.g. the live Supabase, briefly).
+const EXT_URL = arg('url', '');
+const ALLOW_NET = arg('allow-net', '') ? new RegExp(arg('allow-net')) : null;
+// --allow-write <regex>: with --allow-net, a request that WRITES (POST / PUT / PATCH / DELETE) passes only when its URL
+// also matches this (default: nothing), so a live-backend run stays read-only apart from what is named.
+const ALLOW_WRITE = arg('allow-write', '') ? new RegExp(arg('allow-write')) : null;
+const netAllowed = (req) => !!ALLOW_NET && ALLOW_NET.test(req.url) && (/^(GET|HEAD|OPTIONS)$/.test(req.method) || (!!ALLOW_WRITE && ALLOW_WRITE.test(req.url)));
 const ONLY_SCENES = arg('scenes', '') ? new Set(arg('scenes', '').split(',')) : null;
 const W = 1920; const H = 1080;
 const SCENES = ['title', 'heroselect', 'run-start', 'shop-idle', 'reroll', 'drag', 'shop-actions', 'end-turn', 'combat', 'return'];
@@ -192,6 +214,7 @@ async function launch(profile, cdpPort) {
     `--window-size=${W},${H}`, '--window-position=0,0',
   ];
   if (HEADLESS) flags.unshift('--headless=new');
+  if (GPU) flags.push('--enable-gpu', '--use-angle=d3d11', '--ignore-gpu-blocklist', '--enable-gpu-rasterization');
   const proc = spawn(chromePath(), [...flags, 'about:blank'], { stdio: 'ignore' });
   let ws;
   for (let i = 0; i < 80 && !ws; i++) {
@@ -230,8 +253,12 @@ const PROBE = `(() => {
   try { new PerformanceObserver((l) => { for (const e of l.getEntries()) loaf.push([e.startTime, e.duration, e.blockingDuration || 0, (e.scripts || []).slice().sort((a, b) => b.duration - a.duration).slice(0, 3).map((x) => [Math.round(x.duration), x.invokerType, x.invoker, x.sourceFunctionName, x.sourceURL, x.sourceCharPosition])]); }).observe({ type: 'long-animation-frame', buffered: true }); } catch {}
   const hidden = []; // [from, to] spans the page was hidden: their frames are dropped, not judged
   document.addEventListener('visibilitychange', () => { if (document.hidden) hidden.push([performance.now(), Infinity]); else if (hidden.length) hidden[hidden.length - 1][1] = performance.now(); });
+  // WebGL draw calls across every context (Pixi FX, the gate, the wipe): a growing count = growing GPU work.
+  let draws = 0;
+  try { for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) { if (!C) continue; for (const m of ['drawElements', 'drawArrays', 'drawElementsInstanced', 'drawArraysInstanced']) { const o = C.prototype[m]; if (o) C.prototype[m] = function (...a) { draws++; return o.apply(this, a); }; } } } catch {}
   window.__pg = {
-    mark: (scene) => { marks.push([performance.now(), scene]); },
+    draws: () => draws,
+    mark: (scene) => { marks.push([performance.now(), scene, draws]); },
     dump: () => ({ t: Array.from(t.subarray(0, n)), marks, loaf, hidden: hidden.map(([a, b]) => [a, b === Infinity ? 1e15 : b]) }),
   };
 })();`;
@@ -587,7 +614,74 @@ async function playScenes(c) {
     }
     probeRows.push({ r, heapMB: heap ? heap.usedSize / 1048576 : null, nodes: dom?.nodes, listeners: dom?.jsEventListeners, ...live });
     { const p = probeRows[probeRows.length - 1]; log(`   PROBE r${r}: heap ${p.heapMB?.toFixed(1)} MB nodes ${p.nodes} (page ${p.attached}) listeners ${p.listeners} anims ${p.anims} gsap ${p.tweens}/${p.gsapAll} plays ${p.plays}/${p.particles} pixi ${p.pixi} | timers ${JSON.stringify(p.timers)} | tex ${JSON.stringify(p.tex)} | imgs ${JSON.stringify(p.imgs)} | store ${JSON.stringify(p.store)}${p.perfT ? ' | perf(prev wave) ' + p.perfT : ''}`); }
-    await mark(`probe-r${r}`); await sleep(3000); await mark(after);
+    await mark(`probe-r${r}`); await sleep(3000);
+    if (flag('layers')) probeRows[probeRows.length - 1].layers = await layerCensus();
+    if (probeRows.length === 1) { const gl = await d.ev(`(() => { try { const x = document.createElement('canvas').getContext('webgl'); const e = x.getExtension('WEBGL_debug_renderer_info'); return e ? x.getParameter(e.UNMASKED_RENDERER_WEBGL) : x.getParameter(x.RENDERER); } catch (err) { return 'none'; } })()`); log(`   WebGL renderer: ${gl}`); probeRows[0].gl = gl; }
+    if (ACTION_BENCH) probeRows[probeRows.length - 1].bench = await actionBench();
+    await mark(after);
+  };
+  // --layers: the compositor's layer tree, briefly (LayerTree.enable streams every change, which costs while on).
+  const layerCensus = async () => {
+    let tree = null;
+    const got = new Promise((res) => c.on('LayerTree.layerTreeDidChange', (p) => { if (p.layers) { tree = p.layers; res(); } }));
+    await c.send('LayerTree.enable').catch(() => {});
+    await Promise.race([got, sleep(2500)]);
+    await c.send('LayerTree.disable').catch(() => {});
+    if (!tree) return null;
+    const drawing = tree.filter((l) => l.drawsContent);
+    const area = drawing.reduce((n, l) => n + l.width * l.height, 0);
+    return { layers: tree.length, drawing: drawing.length, mpx: +(area / 1e6).toFixed(2), big: drawing.filter((l) => l.width * l.height > 250000).length };
+  };
+  // --action-bench: the SAME inputs every round (see ACTION_BENCH). Each input is its own marked scene (hover / act-roll /
+  // act-buy / act-play / act-sell), so its main-thread work and frames are measured per round, and --profile-re can
+  // CPU-profile it. Also timed in the page: dispatch -> the next frame after the commit.
+  const actionBench = async () => {
+    const res = { hover: 0, acts: {} };
+    // HOVER: real mouse moves (CDP) across every visible shop, board and hand card, then any [data-tip] element, dwelling
+    // 350 ms on each so its preview, keyword definitions and tooltip open.
+    const targets = await d.ev(`(() => { const pts = []; const add = (e) => { const r = e.getBoundingClientRect(); if (r.width > 4 && r.height > 4 && r.top >= 0 && r.bottom <= innerHeight) pts.push({ x: r.left + r.width / 2, y: r.top + r.height * 0.4 }); };
+      for (const z of ['tavern', 'warband', 'hand']) for (const e of document.querySelectorAll('[data-zone="' + z + '"] .card[data-uid]')) if (e.getClientRects().length) add(e);
+      [...document.querySelectorAll('[data-tip]')].filter((e) => e.getClientRects().length).slice(0, 8).forEach(add);
+      return pts; })()`);
+    await mark('hover');
+    let last = { x: 960, y: 540 };
+    for (const t of targets) {
+      for (let k = 1; k <= 8; k++) { await c.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: last.x + (t.x - last.x) * k / 8, y: last.y + (t.y - last.y) * k / 8 }); await sleep(12); }
+      last = t; res.hover++;
+      await sleep(350);
+    }
+    await c.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 960, y: 1060 });
+    await sleep(400);
+    // ACTIONS: three cycles of [make board room] -> roll -> buy the first minion -> play it -> sell it. The run is
+    // snapshotted first and PUT BACK after (an unmeasured commit), so the game the walk plays is unchanged and a full
+    // late board or hand measures the same actions as an early one.
+    await mark('ff');
+    await d.ev(`(() => { window.__pgBenchSnap = window.__bench.store.getState().run; window.__bench.store.setState((s) => ({ run: { ...s.run, embers: 99 } })); })()`);
+    const timed = async (label, expr) => {
+      await mark('act-' + label);
+      const ms = await d.ev(`(async () => { const S = () => window.__bench.store.getState(); await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))); const t0 = performance.now(); const ok = (${expr}); if (!ok) return null; await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))); return performance.now() - t0; })()`);
+      await sleep(450);
+      await mark('ff');
+      await takeDiscovers();
+      if (ms !== null && ms !== undefined) (res.acts[label] ||= []).push(+ms.toFixed(1));
+      return ms !== null;
+    };
+    const sellUid = (uid) => `(() => { const r = S().run; if (!r.board.find((b) => b.uid === ${JSON.stringify(uid)})) return false; S().dispatch({ type: 'sell', uid: ${JSON.stringify(uid)} }); return S().run !== r; })()`;
+    for (let k = 0; k < 3; k++) {
+      if (await d.ev(`${g}.run.board.length >= 7`)) await timed('sell', sellUid(await d.ev(`${g}.run.board[${g}.run.board.length - 1].uid`)));
+      await timed('roll', `(() => { const r = S().run; S().dispatch({ type: 'roll' }); return S().run !== r; })()`);
+      let uid = null;
+      if (await d.ev(`${g}.run.hand.length < 10`)) {
+        uid = await d.ev(`(() => { const C = window.__bench.combat.cards; const m = window.__bench.store.getState().run.shop.find((c) => !C[c.cardId]?.spell); return m ? m.uid : null; })()`);
+        if (uid && !(await timed('buy', `(() => { const r = S().run; S().dispatch({ type: 'buy', uid: ${JSON.stringify(uid)} }); return S().run !== r; })()`))) uid = null;
+      }
+      if (!uid) uid = await d.ev(`(() => { const C = window.__bench.combat.cards; const h = window.__bench.store.getState().run.hand.find((c) => !C[c.cardId]?.spell); return h ? h.uid : null; })()`);
+      if (!uid) continue;
+      if (await timed('play', `(() => { const r = S().run; if (!r.hand.find((h) => h.uid === ${JSON.stringify(uid)})) return false; S().dispatch({ type: 'play', uid: ${JSON.stringify(uid)}, toIndex: r.board.length }); return S().run !== r; })()`)) await timed('sell', sellUid(uid));
+    }
+    await d.ev(`(() => { const snap = window.__pgBenchSnap; window.__pgBenchSnap = null; if (snap) window.__bench.store.setState({ run: snap }); })()`);
+    await sleep(800);
+    return res;
   };
   // A QUIET shop: the return trip (vista, gem portal, edge bloom) has fully finished and the gate layer is empty. The
   // probe used to start as the shop opened, so its "idle" window caught the transition's tail (~250 particles for ~1 s)
@@ -689,12 +783,14 @@ async function measureOnce(dist, runIdx) {
   soakRows = [];
   probeRows = [];
   const port = PORT + runIdx * 2;
-  const server = await serve(dist, port);
+  const server = EXT_URL ? { close: () => {} } : await serve(dist, port);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'ascent-perf-gauntlet-'));
   const c = await launch(profile, port + 1);
   const metricMarks = []; // [wallclock page time, scene, metrics]
   const profiles = []; let profiling = false;
   const traceEvents = []; let tracing = false;
+  const blockedNet = new Set(); const netLog = [];
+  const gpuSummaries = []; let gpuTracing = null;
   // --trace: Chrome's own timeline events while the chosen scene is on. Tracing.end flushes them asynchronously,
   // so stopping waits for tracingComplete.
   const stopTrace = async (send) => {
@@ -704,16 +800,18 @@ async function measureOnce(dist, runIdx) {
     tracing = false;
   };
   try {
-    if (TRACE) c.on('Tracing.dataCollected', (p) => { for (const e of p.value) traceEvents.push(e); });
+    if (TRACE || GPU_TRACE) c.on('Tracing.dataCollected', (p) => { for (const e of p.value) traceEvents.push(e); });
     await c.send('Page.enable'); await c.send('Runtime.enable'); await c.send('Performance.enable', { timeDomain: 'timeTicks' });
-    if (PROFILE) { await c.send('Profiler.enable'); await c.send('Profiler.setSamplingInterval', { interval: 250 }); }
+    if (PROFILE || PROFILE_RE) { await c.send('Profiler.enable'); await c.send('Profiler.setSamplingInterval', { interval: 250 }); }
     // Console errors (the FX fault reporter, React), de-duplicated: a fault can explain a stuck layer.
     const seenErr = new Set();
     c.on('Runtime.consoleAPICalled', (p) => { if (p.type !== 'error') return; const msg = (p.args || []).map((a) => a.value ?? a.description ?? '').join(' ').split('\n')[0].slice(0, 200); if (!seenErr.has(msg)) { seenErr.add(msg); log(`   (console error: ${msg})`); } });
     c.on('Runtime.exceptionThrown', (p) => log(`   (page exception: ${String(p.exceptionDetails?.exception?.description || p.exceptionDetails?.text || '').split('\n')[0]})`));
     await c.send('Fetch.enable', { patterns: [{ urlPattern: '*' }] });
     c.on('Fetch.requestPaused', (p) => {
-      const local = /^https?:\/\/127\.0\.0\.1[:/]/.test(p.request.url) || /^(data|blob):/.test(p.request.url);
+      const local = /^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(p.request.url) || /^(data|blob):/.test(p.request.url) || netAllowed(p.request);
+      if (!local) blockedNet.add(p.request.method + ' ' + p.request.url.replace(/[?#].*$/, '').slice(0, 120));
+      else if (netAllowed(p.request)) netLog.push([Math.round(Date.now()), p.request.method, p.request.url.replace(/[?#].*$/, '').slice(0, 140)]);
       void (local ? c.send('Fetch.continueRequest', { requestId: p.requestId }) : c.send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'BlockedByClient' })).catch(() => {});
     });
     await c.send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE });
@@ -725,7 +823,7 @@ async function measureOnce(dist, runIdx) {
     // --cpu-throttle N: Chrome's CPU throttling (4 = DevTools' "4x slowdown", a mid-range phone's main thread).
     if (Number(arg('cpu-throttle', '0')) > 1) await c.send('Emulation.setCPUThrottlingRate', { rate: Number(arg('cpu-throttle')) });
     await c.send('Page.bringToFront').catch(() => {});
-    await c.send('Page.navigate', { url: `http://127.0.0.1:${port}/` });
+    await c.send('Page.navigate', { url: EXT_URL || `http://127.0.0.1:${port}/` });
     // Main-thread work is sampled at each scene mark: wrap __pg.mark from the outside.
     const metrics = async () => Object.fromEntries((await c.send('Performance.getMetrics')).metrics.filter((m) => METRIC_KEYS.includes(m.name)).map((m) => [m.name, m.value * 1000]));
     const origSend = c.send;
@@ -735,8 +833,8 @@ async function measureOnce(dist, runIdx) {
         const scene = /mark\("([^"]+)"\)/.exec(params.expression)?.[1];
         metricMarks.push([scene, await metrics()]);
         // --profile: the CPU profiler runs only while the chosen scene is on.
-        if (profiling && scene !== PROFILE) { profiles.push((await origSend('Profiler.stop')).profile); profiling = false; }
-        if (!profiling && PROFILE && scene === PROFILE) { await origSend('Profiler.start'); profiling = true; }
+        if (profiling && (scene !== profiling || PROFILE_RE)) { const pr = (await origSend('Profiler.stop')).profile; pr.scene = profiling; profiles.push(pr); profiling = false; }
+        if (!profiling && profiled(scene)) { await origSend('Profiler.start'); profiling = scene; }
         // --anim-census <scene>: which CSS animations / transitions / WAAPI animations are running during that scene,
         // by name and target, sampled three times (an animation dirties its element's style every frame).
         if (arg('anim-census', '') === scene) {
@@ -763,8 +861,13 @@ async function measureOnce(dist, runIdx) {
             return [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25);
           })()` }).then((r) => log(`   anim census @${ms}ms in ${scene}:\n` + (r.result.value || []).map(([k, n]) => `     x${String(n).padEnd(4)} ${k}`).join('\n'))).catch(() => {}); }, ms);
         }
-        if (tracing && scene !== TRACE) await stopTrace(origSend);
-        if (!tracing && TRACE && scene === TRACE) {
+        if (gpuTracing && scene !== gpuTracing) { await stopTrace(origSend); gpuSummaries.push(summariseGpu(traceEvents.splice(0), gpuTracing)); gpuTracing = null; }
+        if (!tracing && GPU_TRACE && scene && GPU_TRACE.test(scene)) {
+          await origSend('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['toplevel', 'gpu', 'viz', 'cc', 'disabled-by-default-gpu.service', 'disabled-by-default-viz.gpu_composite_time', 'benchmark', 'devtools.timeline', '__metadata'] } });
+          tracing = true; gpuTracing = scene;
+        }
+        if (tracing && !gpuTracing && scene !== TRACE) await stopTrace(origSend);
+        if (!tracing && !gpuTracing && TRACE && scene === TRACE) {
           await origSend('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.stack', 'disabled-by-default-blink.debug', 'v8.execute', '__metadata'] } });
           tracing = true;
         }
@@ -775,11 +878,11 @@ async function measureOnce(dist, runIdx) {
     const missed = await playScenes(cc);
     // --hold <s>: keep the page open after the walk (CDP on port+1), to inspect a live state from another script.
     if (arg('hold', '')) { log(`   holding the page open ${arg('hold')} s (CDP port ${port + 1})`); await sleep(Number(arg('hold')) * 1000); }
-    if (profiling) profiles.push((await c.send('Profiler.stop')).profile);
+    if (profiling) { const pr = (await c.send('Profiler.stop')).profile; pr.scene = profiling; profiles.push(pr); }
     if (tracing) await stopTrace(c.send);
     const dump = await evaluate(c, 'window.__pg.dump()');
     dump.slowTimeouts = await evaluate(c, 'window.__pgSlowTimeouts ? window.__pgSlowTimeouts() : []').catch(() => []);
-    return { missed, dump, metricMarks, profiles, traceEvents, soak: soakRows, probe: probeRows };
+    return { missed, dump, metricMarks, profiles, traceEvents, gpu: gpuSummaries, soak: soakRows, probe: probeRows, net: { allowed: netLog, blocked: [...blockedNet] } };
   } finally {
     c.close(); server.close();
     await sleep(600);
@@ -841,6 +944,35 @@ function summariseProfiles(profiles, dist) {
   const rows = [...self.entries()].sort((a, b) => b[1] - a[1]);
   const callerRows = new Map([...callers.entries()].map(([k, c]) => [k, [...c.entries()].sort((a, b) => b[1] - a[1])]));
   return { total, rows, callerRows };
+}
+
+/** --gpu-trace: one scene's GPU-side work. Busy ms per thread (its top-level tasks), frames drawn (Display::DrawAndSwap),
+ *  render passes and raster tasks, per frame. A number that climbs round over round is growing compositor / GPU work. */
+function summariseGpu(events, scene) {
+  const names = new Map();
+  for (const e of events) if (e.ph === 'M' && e.name === 'thread_name') names.set(`${e.pid}:${e.tid}`, e.args?.name || '?');
+  const xs = events.filter((e) => e.ph === 'X' && typeof e.dur === 'number');
+  let t0 = Infinity; let t1 = -Infinity;
+  for (const e of xs) { if (e.ts < t0) t0 = e.ts; if (e.ts + e.dur > t1) t1 = e.ts + e.dur; }
+  const span = (t1 - t0) / 1000;
+  const busy = {};
+  for (const e of xs) {
+    if (e.name !== 'ThreadControllerImpl::RunTask' && e.name !== 'RunTask') continue;
+    let th = names.get(`${e.pid}:${e.tid}`) || 'tid' + e.tid; th = th.replace(/\d+$/, 'N');
+    busy[th] = (busy[th] || 0) + e.dur / 1000;
+  }
+  const count = (re) => { let n = 0, ms = 0; for (const e of xs) if (re.test(e.name)) { n++; ms += e.dur / 1000; } return { n, ms: +ms.toFixed(1) }; };
+  const draw = count(/^Display::DrawAndSwap$/);
+  const frames = Math.max(1, draw.n);
+  const per = (o) => ({ n: +(o.n / frames).toFixed(2), ms: +(o.ms / frames).toFixed(3) });
+  return {
+    scene, spanMs: +span.toFixed(0), frames: draw.n,
+    drawAndSwap: per(draw),
+    renderPasses: per(count(/FinishPaintRenderPass|DrawRenderPass$/)),
+    raster: per(count(/^(RasterTask|TileTaskManager::RunTask|RasterBufferProvider::PlaybackToMemory|GpuRasterBufferProvider::RasterBuffer)/)),
+    gpuSchedule: per(count(/^(CommandBufferStub::OnAsyncFlush|GpuChannel::ExecuteDeferredRequest|CommandBufferService:PutChanged)$/)),
+    busyMsPerSec: Object.fromEntries(Object.entries(busy).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, v]) => [k, +(v / span * 1000).toFixed(1)])),
+  };
 }
 
 /** --trace: main-thread time by event (style, layout, paint, script, GC), and the layouts / style recalcs that JS
@@ -971,11 +1103,12 @@ function report(folded, hz, names) {
 fs.mkdirSync(OUT, { recursive: true });
 let builds;
 try {
-  if (arg('only', '')) builds = [{ dist: path.resolve(arg('only')), label: arg('only') }];
+  if (EXT_URL) builds = [{ dist: path.resolve(arg('only', '.')), label: EXT_URL, ext: true }];
+  else if (arg('only', '')) builds = [{ dist: path.resolve(arg('only')), label: arg('only') }];
   else if (arg('a', '') && arg('b', '')) builds = [{ dist: path.resolve(arg('a')), label: arg('a') }, { dist: path.resolve(arg('b')), label: arg('b') }];
   // --a <dist> alone: a prebuilt candidate (e.g. another worktree's bench build) against --base built here.
   else builds = [arg('a', '') ? { dist: path.resolve(arg('a')), label: arg('a') } : buildWorking(), buildRef(arg('base', 'origin/main'))];
-  for (const b of builds) if (!fs.existsSync(path.join(b.dist, 'index.html'))) throw new Error(`No build at ${b.dist}`);
+  for (const b of builds) if (!b.ext && !fs.existsSync(path.join(b.dist, 'index.html'))) throw new Error(`No build at ${b.dist}`);
 } catch (e) { console.error(String(e.message || e)); process.exit(2); }
 
 // Blind: shuffle the builds into X / Y.
@@ -1001,11 +1134,21 @@ for (let i = 0; i < schedule.length; i++) {
       log(`   missed: ${raw.missed.join(', ')}; running build ${n} again`);
       raw = await measureOnce(blind[n].dist, i);
     }
+    if (raw.gpu?.length) fs.writeFileSync(path.join(OUT, `gpu-run${i + 1}-${n}.json`), JSON.stringify(raw.gpu, null, 1));
     if (TRACE && raw.traceEvents?.length) {
       const tl = summariseTrace(raw.traceEvents, blind[n].dist);
       fs.writeFileSync(path.join(OUT, `trace-run${i + 1}-${n}.json`), JSON.stringify({ traceEvents: raw.traceEvents })); // DevTools > Performance > Load
       fs.writeFileSync(path.join(OUT, `trace-run${i + 1}-${n}.txt`), [`${TRACE}:`, ...tl, ''].join('\n'));
       log([`   trace (${TRACE}):`, ...tl.map((l) => '     ' + l)].join('\n'));
+    }
+    if (PROFILE_RE && raw.profiles?.length) {
+      // One summary per profiled scene (the same action, round over round): top functions by self time.
+      const byScene = new Map();
+      for (const pr of raw.profiles) byScene.set(pr.scene, [...(byScene.get(pr.scene) || []), pr]);
+      const out = {};
+      for (const [sc, prs] of byScene) { const { total, rows } = summariseProfiles(prs, blind[n].dist); out[sc] = { total, rows: rows.slice(0, 80) }; }
+      fs.writeFileSync(path.join(OUT, `profiles-run${i + 1}-${n}.json`), JSON.stringify(out));
+      log(`   profiled ${byScene.size} scene(s) -> profiles-run${i + 1}-${n}.json`);
     }
     if (PROFILE && raw.profiles?.length) {
       const { total, rows, callerRows } = summariseProfiles(raw.profiles, blind[n].dist);
@@ -1020,7 +1163,7 @@ for (let i = 0; i < schedule.length; i++) {
       log([`   profile (${PROFILE}, ${total.toFixed(0)} ms, top 12 by self time):`, ...lines.slice(0, 12).map((l) => '     ' + l)].join('\n'));
     }
     const a = analyse(raw);
-    if (flag('round-scenes') || ROUND_PROBE) fs.writeFileSync(path.join(OUT, `raw-run${i + 1}-${n}.json`), JSON.stringify({ dump: raw.dump, metricMarks: raw.metricMarks, probe: raw.probe }));
+    if (flag('round-scenes') || ROUND_PROBE) fs.writeFileSync(path.join(OUT, `raw-run${i + 1}-${n}.json`), JSON.stringify({ dump: raw.dump, metricMarks: raw.metricMarks, probe: raw.probe, net: raw.net, scenes: a.scenes }));
     if (raw.probe?.length) {
       // THE ROUND PROBE TABLE: one row a round of ONE game, taken at the start of its shop phase (after a GC, before any
       // action) with 3 s of idle frames. A climbing column = something piling up inside the game.

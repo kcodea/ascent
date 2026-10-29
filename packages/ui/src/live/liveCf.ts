@@ -37,6 +37,8 @@ export interface CfListing {
   division?: number;
   points?: number;
   rating?: number;
+  /** The game at a glance (R-LIVE-STATUS-01): the Friends status shape, or null on Hero Select. */
+  status?: unknown;
 }
 
 /** The socket seam (tests replace it). */

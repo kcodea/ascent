@@ -4,6 +4,11 @@
  * division, then points, then rating), each with the player's portrait in their frame and skin, name, hero, rank crest,
  * round and watchers, and a Watch button. A ladder page like Recent Games (the menu sidebar, the `lb-` rows and
  * buttons); one page of 30 at a time with Next / Previous. Refreshed every 10 s while open.
+ *
+ * THE GAME AT A GLANCE (owner 2026-10-29: "give live games the same granularity that friends show"; R-LIVE-STATUS-01):
+ * each row's middle shows the mode, then what a friend's row shows, drawn by the friends' own `FriendGame` from the same
+ * `FriendGameStatus` (`liveGameStatusOf`): the step ("Round 6 · Fighting Ann", "Picking a hero", "Finished 3rd"), the
+ * place, Health + Armor and tier, and a Ranked Duos teammate. No second formatter.
  */
 import { useEffect, useState } from 'react';
 import { getHero, rankLabel } from '@game/sim';
@@ -21,17 +26,11 @@ import { useGame } from '../store';
 import { LIVE_PAGE, liveRemote, type LiveGameRow } from './liveRemote';
 import { useLiveWatch } from './liveWatch';
 import { watchGame } from '../friends/friendsGo';
-import { liveModeLabel, liveNameOf, liveWatchTargetOf } from './liveTargets';
+import { liveGameStatusOf, liveModeLabel, liveNameOf, liveWatchTargetOf } from './liveTargets';
+import { FriendGame } from '../friends/friendBits';
 import './live.css';
 
 const REFRESH_MS = 10_000;
-
-/** "Round 6 · Shop" / "Round 6 · Fight" / "Finished 3rd". */
-export function liveStatusText(r: Pick<LiveGameRow, 'round' | 'phase' | 'placement'>): string {
-  if (r.phase === 'end') return r.placement ? `Finished #${r.placement}` : 'Finished';
-  if (r.phase === 'hero') return 'Hero Select';
-  return `Round ${r.round} · ${r.phase === 'combat' ? 'Fight' : 'Shop'}`;
-}
 
 export function LiveGames(): JSX.Element | null {
   const show = useGame((s) => s.showLiveGames);
@@ -105,20 +104,31 @@ export function LiveGames(): JSX.Element | null {
               const skins = opponentSkins(showOpp, r.cosmetics);
               const hero = getHero(r.hero_id);
               const label = liveModeLabel(r);
+              const room = liveWatchTargetOf(r.game_id).kind === 'room';
+              const status = liveGameStatusOf(r);
+              // A room's portrait is its first seat's hero; the name line is already the players. A lobby game names its hero.
+              const sub = room || r.phase === 'hero' ? null : hero?.name ?? null;
               return (
                 <div key={r.game_id} className="lb-row lv-row">
                   <div className="lb-row-hero">
                     <LbHeroFrame heroId={r.hero_id} art={heroPortrait(r.hero_id, skins)} frameId={frameIdOf(skins)} />
                     <div className="lb-row-name">{liveNameOf(r)}</div>
-                    <div className="lb-row-herosub">{label ?? (r.phase === 'hero' ? 'Picking a hero' : hero?.name ?? 'Unknown hero')}</div>
+                    {sub && <div className="lb-row-herosub">{sub}</div>}
                   </div>
                   <div className="lv-rank">
                     <RankCrest divisionIndex={r.division_index} size="row" />
                     <div className="lv-rank-label">{rankLabel({ divisionIndex: r.division_index, points: r.rank_points })}</div>
                     <div className="lv-rating">{r.rating} rating</div>
                   </div>
+                  <div className="lv-game">
+                    <div className="lv-mode">{label ?? 'Ranked'}</div>
+                    {/* The friends' own line (the portrait is the row's, so the small one is left out). */}
+                    <FriendGame game={status.hero ? { ...status, hero: null } : status} />
+                    {/* The friends' detail lines: the players (a long Versus line is cut on the name), the teammate. */}
+                    {room && status.vs && <div className="fr-gamevs lv-mate">{status.vs}</div>}
+                    {status.mate && <div className="fr-gamevs lv-mate">{`Teammate: ${status.mate}`}</div>}
+                  </div>
                   <div className="lb-row-outcome lv-state">
-                    <div className="lv-status">{liveStatusText(r)}</div>
                     {r.phase !== 'end' && <div className="lv-watchers"><Icon name="eye" />{r.spectators} watching</div>}
                     <button type="button" className="lb-btn lb-watch pressable" disabled={joining !== null || r.phase === 'end' || r.spectators >= 20}
                       onClick={() => watch(r)} aria-label={`Watch ${liveNameOf(r)}`}>

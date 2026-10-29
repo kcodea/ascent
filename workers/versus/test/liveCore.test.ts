@@ -104,6 +104,22 @@ describe('a live game (R-LIVE-CF-01)', () => {
     expect(lobbyListingKey(c.listingRow())).toBe(k);
     expect(c.listingRow()).toMatchObject({ mode: 'practice', spectators: 1, user: P, host: 'cf:rev1' });
   });
+
+  it('passes the game at a glance through to the row and the watchers (R-LIVE-STATUS-01); a new status is a write', () => {
+    const status = { v: 1, mode: 'ranked', round: 2, phase: 'shop', health: 30, armor: 5, tier: 3, place: { rank: 1, left: 8 } };
+    expect(cleanInfo({ ...info, status }).status).toEqual(status);
+    expect(cleanInfo({ ...info, status: [1] }).status).toBeNull();
+    expect(cleanInfo({ ...info, status: { pad: 'x'.repeat(2000) } }).status).toBeNull(); // the SQL column's 1 KB bound
+    expect(cleanInfo(info).status).toBeNull(); // an older client
+    const c = fresh();
+    c.publish(P, T0);
+    c.listing(P, { ...info, status }, T0);
+    expect(c.listingRow()?.status).toEqual(status);
+    expect(c.row()?.status).toEqual(status);
+    const k = lobbyListingKey(c.listingRow());
+    c.listing(P, { ...info, status: { ...status, health: 24 } }, T0);
+    expect(lobbyListingKey(c.listingRow())).not.toBe(k);
+  });
 });
 
 describe('the watch record from an object (R-LIVE-CF-XP-01)', () => {

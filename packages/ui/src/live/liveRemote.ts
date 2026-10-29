@@ -8,6 +8,7 @@ import type { RunCosmeticSnapshot } from '@game/progression';
 import type { BoardSnapshot } from '@game/sim';
 import { supabaseClient } from '../remoteBoards';
 import { fetchAllRows } from '../supabaseRows';
+import type { FriendGameStatus } from '../friends/gameStatus';
 
 /** One live game as the listing shows it (public columns only; never run state). */
 export interface LiveGameRow {
@@ -33,6 +34,10 @@ export interface LiveGameRow {
   /** LIVE GAMES ON CLOUDFLARE (R-LIVE-CF-01; 2026-11-10-lobby-live-cf.sql): `cf:<content revision>` when the game is
    *  published on the Worker (watch it there), null / absent for the Supabase path. */
   live_host?: string | null;
+  /** A LIVE GAME AT A GLANCE (R-LIVE-STATUS-01; 2026-11-13-lobby-live-status.sql): the lobby player's game status in the
+   *  Friends shape (`FriendGameStatus`: the step and whom it fights, place, Health, Armor, tier). Read through
+   *  `liveGameStatusOf`; absent on a Versus / Ranked Duos row, an older client, or a server without the migration. */
+  status?: unknown;
 }
 
 export type LiveGameMode = 'casual' | 'practice' | 'duel' | 'group' | 'duos' | 'ranked_duos';
@@ -57,10 +62,13 @@ const missingColumn = (e: { code?: string } | null | undefined): boolean => e?.c
 
 export function makeLiveRemote(getClient: () => SupabaseClient | null) {
   let watchAsMissing = false;
-  /** The newest columns this server has: 2 = `live_host` too (2026-11-10), 1 = `mode` / `players` (2026-11-08), 0 =
-   *  the original listing. A server without a migration is read with the columns it has from then on. */
-  let colLevel = 2;
-  const cols = (): string => [BASE_COLS, `${BASE_COLS}, mode, players`, `${BASE_COLS}, mode, players, live_host`][colLevel]!;
+  /** The heartbeat's `p_status` is not on this server (2026-11-13): sent without it from then on. */
+  let statusArgMissing = false;
+  /** The newest columns this server has: 3 = `status` too (2026-11-13), 2 = `live_host` too (2026-11-10), 1 = `mode` /
+   *  `players` (2026-11-08), 0 = the original listing. A server without a migration is read with the columns it has
+   *  from then on. */
+  let colLevel = 3;
+  const cols = (): string => [BASE_COLS, `${BASE_COLS}, mode, players`, `${BASE_COLS}, mode, players, live_host`, `${BASE_COLS}, mode, players, live_host, status`][colLevel]!;
   /** A read of the listing, retried with older columns on a server that lacks the new ones. */
   async function read<T>(q: (columns: string) => PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>): Promise<T> {
     let { data, error } = await q(cols());
@@ -105,11 +113,22 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
     /** The player registers / refreshes its game; returns the live watcher count. */
     /** `mode`: a casual or Practice lobby game (R-LIVE-ALL-GAMES-01); omitted for a ranked one, so a server without the
      *  2026-11-08 migration still takes the ranked call unchanged. */
-    heartbeat: (game: { gameId: string; name: string; heroId: string; cosmetics: RunCosmeticSnapshot | null; round: number; phase: 'hero' | 'shop' | 'combat' | 'end'; mode?: 'casual' | 'practice' | null }) =>
-      rpc<number>('lobby_live_heartbeat', {
+    /** `status`: the game at a glance (R-LIVE-STATUS-01), sent only to a server with the 2026-11-13 migration (one refused
+     *  call, then never again this session). */
+    async heartbeat(game: { gameId: string; name: string; heroId: string; cosmetics: RunCosmeticSnapshot | null; round: number; phase: 'hero' | 'shop' | 'combat' | 'end'; mode?: 'casual' | 'practice' | null; status?: FriendGameStatus | null }): Promise<number> {
+      const args = {
         p_game: game.gameId, p_name: game.name, p_hero: game.heroId, p_cosmetics: game.cosmetics, p_round: game.round, p_phase: game.phase,
         ...(game.mode ? { p_mode: game.mode } : {}),
-      }),
+      };
+      if (statusArgMissing || !game.status) return rpc<number>('lobby_live_heartbeat', args);
+      try {
+        return await rpc<number>('lobby_live_heartbeat', { ...args, p_status: game.status });
+      } catch (e) {
+        if ((e as LiveError).code !== 'not_deployed') throw e;
+        statusArgMissing = true;
+        return rpc<number>('lobby_live_heartbeat', args);
+      }
+    },
     /** RANKED DUOS (2026-11-01-ranked-duos-party.sql): the team's first seat registers / refreshes its team's row
      *  (`duos:<room>`); the server names it and reads the team's medal. Returns the watcher count (0 = not listed). */
     duosHeartbeat: (roomId: string, round: number, phase: 'hero' | 'shop' | 'combat' | 'end') =>

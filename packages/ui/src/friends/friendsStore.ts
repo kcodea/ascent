@@ -25,14 +25,14 @@
  */
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import { lobbyIsUnrated, normalizeVersusOptions, pairRunLobby, rankedRunIdOf, VERSUS_MODE_SEATS, type RunLobby } from '@game/sim';
+import { lobbyIsUnrated, normalizeVersusOptions, rankedRunIdOf, VERSUS_MODE_SEATS, type RunLobby } from '@game/sim';
 import { remoteEnabled } from '../remoteBoards';
 import { pageHidden } from '../net/backoff';
 import { useGame } from '../store';
 import { useVersus, myRole } from '../versus/versusStore';
 import { versusRemote, versusRoomRef } from '../versus/versusRemote';
 import {
-  activityKey, gameCoarseKey, lobbyGameStatus, NAME_MAX, versusGameStatus, versusLine, type ActivityKind, type FriendActivity, type GameExtras,
+  activityKey, gameCoarseKey, lobbyFoeName, lobbyStatusNow, NAME_MAX, resetFoeCacheForTests, versusGameStatus, versusLine, type ActivityKind, type FriendActivity, type GameExtras,
 } from './gameStatus';
 import { useFriendsPrefs } from './friendsPrefs';
 import { decodeRoomRef } from '../versus/versusHost';
@@ -123,23 +123,6 @@ export function privatePresence(p: PresenceReport): PresenceReport {
 const online = (mode: PresenceMode | null, activity: FriendActivity | null): PresenceReport =>
   activity ? { status: 'online', mode, watchKind: null, watchId: null, activity } : { status: 'online', mode, watchKind: null, watchId: null };
 
-/** Who the player fights in a lobby round (null: a recorded board with no seat, or a bye). Cached per lobby + round. */
-let foeCache: { lobby: RunLobby; round: number; name: string | null } | null = null;
-export function lobbyFoeName(lobby: RunLobby): string | null {
-  if (foeCache && foeCache.lobby === lobby && foeCache.round === lobby.round) return foeCache.name;
-  let name: string | null = null;
-  try {
-    const forced = lobby.forcedOpponent;
-    if (forced && forced.round === lobby.round) name = lobby.seats.find((x) => x.id === forced.seatId)?.label ?? null;
-    else {
-      const pair = pairRunLobby(lobby).pairs.find(([a, b]) => a.id === 's0' || b.id === 's0');
-      name = pair ? (pair[0].id === 's0' ? pair[1] : pair[0]).label || null : null;
-    }
-  } catch { name = null; }
-  foeCache = { lobby, round: lobby.round, name };
-  return name;
-}
-
 /** Whose replay: my own, a friend's (by id, from the last list), else nobody named (a stranger stays unnamed). */
 function replayActivity(): FriendActivity {
   const a = useFriendsPrefs.getState().replayAuthor;
@@ -221,11 +204,9 @@ function presenceDetailed(): PresenceReport {
     // EVERY lobby game (ranked, casual, Practice) is watchable through Live Games (the gate the listing uses;
     // owner 2026-10-28, R-LIVE-ALL-GAMES-01).
     const live = playing && liveEligible(run, { replaying: g.replaying, showTitle: g.showTitle });
-    const extras: GameExtras = { ending: run.phase === 'recruit' && g.endTurnAnimating };
-    if (run.phase === 'combat' && run.lobby) extras.foe = lobbyFoeName(run.lobby);
     return {
       status: 'in_game', mode, watchKind: live ? 'live' : null, watchId: live ? rankedRunIdOf(run) : null,
-      game: run.lobby ? lobbyGameStatus(mode, run, false, extras) : null,
+      game: lobbyStatusNow(mode, run, g.endTurnAnimating),
     };
   }
   if (g.heroChoices && !g.showTitle) {
@@ -482,7 +463,7 @@ export function startFriendsPresence(): () => void {
 /** Tests: forget the loop's memory. */
 export function resetFriendsForTests(): void {
   clearTimer();
-  started = false; lastAt = -Infinity; lastKey = ''; failures = 0; inFlight = false; leaving = false; changePending = false; foeCache = null;
+  started = false; lastAt = -Infinity; lastKey = ''; failures = 0; inFlight = false; leaving = false; changePending = false; resetFoeCacheForTests();
   invitesSub?.close(); invitesSub = null; invitesSubFor = '';
   remote = friendsRemote;
   proofSource = defaultProofSource;

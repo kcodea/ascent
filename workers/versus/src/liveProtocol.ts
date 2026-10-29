@@ -25,6 +25,8 @@ export const LIVE_WATCHER_CAP = 20;
 export const LIVE_PUBLISHER_GRACE_MS = 60_000;
 /** An object with no publisher and no watcher forgets itself after this long (idle self-destruct). */
 export const LIVE_IDLE_MS = 5 * 60_000;
+/** The largest status the object keeps (the SQL column's own bound, `2026-11-13-lobby-live-status.sql`). */
+export const LIVE_STATUS_MAX_CHARS = 1024;
 /** A keyframe larger than this is not cached (the room's spectator-frame bound is far below it). */
 export const LIVE_MAX_KEY_CHARS = 1_000_000;
 
@@ -44,6 +46,9 @@ export interface LiveGameInfo {
   division?: number;
   points?: number;
   rating?: number;
+  /** The game at a glance (R-LIVE-STATUS-01): the client's Friends status shape (step, foe, place, Health, Armor, tier),
+   *  passed through opaque (an object of at most `LIVE_STATUS_MAX_CHARS`), or null. */
+  status?: Record<string, unknown> | null;
 }
 
 /** One person in the stands. */
@@ -69,6 +74,8 @@ export interface LiveRow {
   started_at: string;
   mode: 'casual' | 'practice' | null;
   live_host: string;
+  /** The game at a glance (R-LIVE-STATUS-01), as the publisher sent it, or null (absent from an older Worker). */
+  status?: Record<string, unknown> | null;
 }
 
 export interface LiveHello {

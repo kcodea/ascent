@@ -589,25 +589,31 @@ html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-ranked .ra
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-ranked .rankbar-stack .rankbar-caption { order: -1; }
 
 /* ── LIVE GAMES ──────────────────────────────────────────────────────────────────────────────────────────────────────
-   One 56 pt row per game: the portrait beside the name and hero, the division, then the round, the watchers and Watch. */
+   One row per game: the portrait beside the name and hero, the division, the game at a glance (mode, step, place,
+   Health + Armor, tier: R-LIVE-STATUS-01), then the watchers and Watch. */
 html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-list { gap: calc(6 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-list .lb-row.lv-row {
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; gap: calc(10 * var(--pt)); min-height: calc(56 * var(--pt)); padding: calc(6 * var(--pt)) calc(12 * var(--pt)); border-radius: calc(10 * var(--pt)); border-width: 1.5px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1.5fr) auto; gap: calc(10 * var(--pt)); min-height: calc(56 * var(--pt)); padding: calc(6 * var(--pt)) calc(12 * var(--pt)); border-radius: calc(10 * var(--pt)); border-width: 1.5px;
 }
 html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-row .lb-row-hero { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; justify-items: start; column-gap: calc(8 * var(--pt)); row-gap: 0; text-align: left; }
 html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-row .lb-row-hero > .lb-heroframe { grid-row: 1 / span 2; --ring: calc(42 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-row .lb-row-hero .lb-heroframe .hero { width: calc(42 * var(--pt)); height: calc(42 * var(--pt)); padding: calc(2 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-row .lb-row-name { margin: 0; font-size: calc(14 * var(--pt)); align-self: end; }
 html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-row .lb-row-herosub { font-size: calc(11.5 * var(--pt)); align-self: start; }
-html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-rank { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: calc(8 * var(--pt)); row-gap: 0; align-items: center; }
+html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-rank { column-gap: calc(8 * var(--pt)); row-gap: 0; }
 html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-rank .rankcrest { grid-row: 1 / span 2; --ring: calc(30 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-rank-label { font-size: calc(13 * var(--pt)); align-self: end; white-space: nowrap; }
-html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-rating { font-size: calc(11 * var(--pt)); align-self: start; }
-html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-state { display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: calc(12 * var(--pt)); row-gap: calc(2 * var(--pt)); align-items: center; justify-items: end; }
-html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-state .lv-status { grid-column: 1; grid-row: 1; font-size: calc(12.5 * var(--pt)); white-space: nowrap; }
-html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-state .lv-watchers { grid-column: 1; grid-row: 2; gap: calc(4 * var(--pt)); font-size: calc(11 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-rank-label { font-size: calc(13 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-rating { font-size: calc(11 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-game { gap: calc(3 * var(--pt)); padding-left: calc(10 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-mode { font-size: calc(9.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-game .fr-game { gap: calc(3 * var(--pt)) calc(5 * var(--pt)); font-size: calc(11 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-game .fr-gameline { font-size: calc(12.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-game .fr-gamechip { padding: calc(1 * var(--pt)) calc(6 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-game .fr-vitals svg { width: calc(11 * var(--pt)); height: calc(11 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-mate { font-size: calc(10.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-state { display: flex; flex-direction: column; align-items: flex-end; gap: calc(4 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-state .lv-watchers { gap: calc(4 * var(--pt)); font-size: calc(11 * var(--pt)); white-space: nowrap; }
 html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-state .lv-watchers svg { width: calc(12 * var(--pt)); height: calc(12 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-state .lb-watch { grid-column: 2; grid-row: 1 / span 2; }
 html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-error { margin: 0 calc(16 * var(--pt)) calc(6 * var(--pt)); padding: calc(6 * var(--pt)) calc(10 * var(--pt)); font-size: calc(12 * var(--pt)); border-radius: calc(8 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .lv-page .lv-pager { gap: calc(10 * var(--pt)); padding: calc(10 * var(--pt)) 0 calc(6 * var(--pt)); }
 /* Every ladder page's buttons and empty-state lines (Live Games, Recent Games, the Leaderboard): finger-sized, legible. */

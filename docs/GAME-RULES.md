@@ -1420,7 +1420,10 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   (one gate on the player's side). No delay: watchers see the game as it happens.
 - **The list.** Main menu > Live Games. Best rank first (medal and division, then rank points, then rating), 30 a page
   with Previous / Next. Each row shows the player's portrait in their frame and skin, name, hero, rank crest and label,
-  rating, round and phase, how many are watching, and Watch. A game drops off the list when it ends, is abandoned, or
+  rating, how many are watching, and Watch, and between them the game at a glance at the Friends list's granularity
+  (R-LIVE-STATUS-01, the same status shape and formatters): the mode, the step ("Round 6 · Fighting Cat", "Picking a
+  hero", "Finished 3rd") and, for a lobby game, its place among those left, Health + Armor and tier. A Versus or Ranked
+  Duos row shows the step and the players (the server writes those rows and holds no per-player status). A game drops off the list when it ends, is abandoned, or
   its player has been silent for about a minute.
 - **Watching** uses the Versus spectator screen: the player's real lobby shop and combat screens from their side
   (board, hand, shop, Gold, tier, hero and power, runes, quests, Equipment, the lobby rail and placements, Health,

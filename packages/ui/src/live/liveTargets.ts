@@ -9,6 +9,7 @@
  * router sends the join to the right host. Pure.
  */
 import type { LiveGameRow } from './liveRemote';
+import { parseGameStatus, type FriendGameStatus } from '../friends/gameStatus';
 
 export const VERSUS_LIVE_PREFIX = 'versus:';
 export const DUOS_LIVE_PREFIX = 'duos:';
@@ -39,3 +40,30 @@ export function liveModeLabel(r: Pick<LiveGameRow, 'game_id' | 'mode'>): string 
 /** The name line: the players of a Versus match, else the player (or the team). */
 export const liveNameOf = (r: Pick<LiveGameRow, 'display_name' | 'players' | 'game_id'>): string =>
   r.game_id.startsWith(VERSUS_LIVE_PREFIX) && r.players ? r.players : r.display_name;
+
+/** The row's mode as a presence mode (the status's `mode`): what the friends formatters read. */
+const PRESENCE_MODE: Record<string, string> = { duel: 'versus_1v1', group: 'versus_group', duos: 'versus_duos', ranked_duos: 'ranked_duos', casual: 'casual', practice: 'practice' };
+
+/**
+ * A LIVE GAME AT A GLANCE (owner 2026-10-29: "give live games the same granularity that friends show"; R-LIVE-STATUS-01):
+ * the row's status in the Friends shape (`FriendGameStatus`), so Live Games draws it with the friends' own words and
+ * chips. A lobby game's player sends its full status with the listing (`status`: the step and whom it fights, place,
+ * Health, Armor, tier); a row without one (a Versus match or Ranked Duos team, an older client or server) gets what the
+ * row itself says: the round and phase, the players, and the final place once it is over. The row's round and phase
+ * always win (a status rides on the same write, but the row is the listing). Pure.
+ */
+export function liveGameStatusOf(r: Pick<LiveGameRow, 'game_id' | 'mode' | 'round' | 'phase' | 'placement' | 'players' | 'status'>): FriendGameStatus {
+  const sent = parseGameStatus(r.status);
+  const mode = PRESENCE_MODE[r.mode ?? ''] ?? (r.game_id.startsWith(DUOS_LIVE_PREFIX) ? 'ranked_duos' : r.game_id.startsWith(VERSUS_LIVE_PREFIX) ? 'versus_1v1' : 'ranked');
+  if (r.phase === 'end') {
+    return { v: 1, mode, hero: null, round: r.round, phase: 'shop', health: null, armor: null, tier: null, place: null, vs: null,
+      step: r.placement === 1 ? 'won' : 'done', ...(r.placement ? { final: r.placement } : {}) };
+  }
+  const phase = r.phase;
+  // A status sent for another phase (a row written between two beats) keeps only what still holds: its vitals and tier.
+  if (sent && sent.round === r.round && sent.phase === phase) return { ...sent, mode, vs: sent.vs ?? r.players ?? null };
+  return {
+    v: 1, mode, hero: null, round: r.round, phase, health: sent?.health ?? null, armor: sent?.armor ?? null, tier: sent?.tier ?? null,
+    place: sent?.place ?? null, vs: r.players ?? null, ...(sent?.mate ? { mate: sent.mate } : {}),
+  };
+}

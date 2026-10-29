@@ -11,6 +11,7 @@
 import {
   LIVE_IDLE_MS,
   LIVE_PUBLISHER_GRACE_MS,
+  LIVE_STATUS_MAX_CHARS,
   LIVE_WATCHER_CAP,
   liveHostOf,
   type LiveGameInfo,
@@ -46,6 +47,8 @@ export interface LobbyListing {
   mode: 'casual' | 'practice' | null;
   spectators: number;
   host: string;
+  /** The game at a glance (R-LIVE-STATUS-01), or null. */
+  status: Record<string, unknown> | null;
 }
 
 export class LiveError extends Error {
@@ -71,10 +74,13 @@ export function cleanInfo(raw: unknown): LiveGameInfo {
   const mode = r.mode === 'casual' || r.mode === 'practice' ? r.mode : 'ranked';
   const cos = r.cosmetics && typeof r.cosmetics === 'object' && !Array.isArray(r.cosmetics) && JSON.stringify(r.cosmetics).length <= 4096
     ? (r.cosmetics as Record<string, unknown>) : null;
+  const status = r.status && typeof r.status === 'object' && !Array.isArray(r.status) && JSON.stringify(r.status).length <= LIVE_STATUS_MAX_CHARS
+    ? (r.status as Record<string, unknown>) : null;
   return {
     name: clampName(r.name, 'Player'), hero: String(r.hero ?? '').trim().slice(0, 60) || 'warden', cosmetics: cos,
     round: int(r.round, 1, 200, 1), phase, mode,
     division: int(r.division, 0, 999, 0), points: int(r.points, 0, 1_000_000, 0), rating: int(r.rating, 0, 1_000_000, 0),
+    status,
   };
 }
 
@@ -190,6 +196,7 @@ export class LiveCore {
       division_index: i.division ?? 0, rank_points: i.points ?? 0, rating: i.rating ?? 0,
       round: i.round, phase: m.end ? 'end' : i.phase, placement: m.end?.placement ?? null, spectators: this.watchers.size,
       started_at: new Date(m.startedAt).toISOString(), mode: i.mode === 'ranked' ? null : i.mode, live_host: liveHostOf(m.contentRevision),
+      status: i.status ?? null,
     };
   }
 
@@ -201,6 +208,7 @@ export class LiveCore {
     return {
       game: m.gameId, user: m.owner, name: i.name, hero: i.hero, cosmetics: i.cosmetics, round: i.round, phase: i.phase,
       mode: i.mode === 'ranked' ? null : i.mode, spectators: this.watchers.size, host: liveHostOf(m.contentRevision),
+      status: i.status ?? null,
     };
   }
 
@@ -216,6 +224,8 @@ export class LiveCore {
   }
 }
 
-/** What makes a Live Games row write due: it appearing / leaving, round, phase, hero, name, mode. Not the stands. */
+/** What makes a Live Games row write due: it appearing / leaving, round, phase, hero, name, mode, and the status
+ *  (R-LIVE-STATUS-01: the step, Health, tier... change a few times a round, and the player sends it at most once per
+ *  listing, so it is a few small writes a round, never per frame). Not the stands. */
 export const lobbyListingKey = (l: LobbyListing | null): string =>
-  l ? `${l.game}|${l.user}|${l.round}|${l.phase}|${l.hero}|${l.name}|${l.mode ?? ''}|${l.host}` : 'none';
+  l ? `${l.game}|${l.user}|${l.round}|${l.phase}|${l.hero}|${l.name}|${l.mode ?? ''}|${l.host}|${l.status ? JSON.stringify(l.status) : ''}` : 'none';

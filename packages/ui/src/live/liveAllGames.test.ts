@@ -66,8 +66,8 @@ describe('Live Games rows of every kind (R-LIVE-ALL-GAMES-01)', () => {
     const remote = makeLiveRemote(() => client);
     expect(await remote.list(0)).toEqual([{ game_id: 'run-1' }]);
     expect(await remote.list(0)).toEqual([{ game_id: 'run-1' }]);
-    // Each newer column set is tried once (live_host, then mode / players), never again.
-    expect(asked.filter((c) => c.includes('players'))).toHaveLength(2);
+    // Each newer column set is tried once (status, live_host, then mode / players), never again.
+    expect(asked.filter((c) => c.includes('players'))).toHaveLength(3);
   });
 
   it('a server with mode / players but not yet live_host (R-LIVE-CF-01) keeps mode / players', async () => {
@@ -83,7 +83,8 @@ describe('Live Games rows of every kind (R-LIVE-ALL-GAMES-01)', () => {
     const remote = makeLiveRemote(() => ({ from: () => ({ select: q }) }) as never);
     expect(await remote.list(0)).toEqual([{ game_id: 'run-1', mode: 'practice' }]);
     expect(await remote.list(0)).toEqual([{ game_id: 'run-1', mode: 'practice' }]);
-    expect(asked.filter((c) => c.includes('live_host'))).toHaveLength(1);
+    // status (R-LIVE-STATUS-01) and live_host are each tried once.
+    expect(asked.filter((c) => c.includes('live_host'))).toHaveLength(2);
     expect(asked.at(-1)).toContain('players');
   });
 });

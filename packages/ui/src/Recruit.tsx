@@ -1469,7 +1469,9 @@ export function Recruit() {
   // reporter pauses the recruit clock AND the combat replay through this one path — and it is deliberately
   // NOT in the clock-reset effect's deps below, so open/close resumes from the exact displayed second
   // instead of resetting the turn.
-  const overlayOpen = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook || s.showBalance || s.bugReportOpen);
+  // A ladder page opened from the IN-GAME MENU (R-ESC-SIDEBAR-01) is part of that menu, which holds the Shop clock only
+  // (below): the game keeps running behind it, so it never pauses the combat replay the way a Career opened mid-run does.
+  const overlayOpen = useGame((s) => s.showTitle || ((s.showLeaderboard || s.showRankings || s.showCareer) && !s.gameMenuOpen) || s.showBook || s.showBalance || s.bugReportOpen);
   // VERSUS: a disconnect pause (and its 3-2-1) freezes the fight's beat clock like a fullscreen overlay, and holds any
   // in-flight shop death until the resume (owner 2026-10-14: nothing advances or applies during a pause).
   const versusPaused = useVersusPaused();
@@ -1481,7 +1483,8 @@ export function Recruit() {
   // the shop timer for now"). Deliberately NOT folded into `overlayOpen`: that one also pauses the combat replay and
   // blanks the Choose-Both markers, which the ruling does not ask for. It feeds the countdown gate, nothing else (the
   // charge glyph follows the clock's own running/held state, R-TIMER-SYNC-01).
-  const settingsOpen = useGame((s) => s.settingsOpen);
+  // The in-game menu (the sidebar over the dimmed game, R-ESC-SIDEBAR-01) IS the Esc menu now, with its pages.
+  const settingsOpen = useGame((s) => s.settingsOpen || s.gameMenuOpen);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   // The ARMED slot's wielded power (Mimic's disguise / Void's pair — `activePowers`), not the native hero's:
   // the aim-target rules below must describe the power that will actually fire.
@@ -5064,6 +5067,11 @@ export function Recruit() {
   startDragSessionRef.current = startDragSession;
   // Unmounting mid-drag (a new run remounts Recruit via its runKey) must never strand the listeners or the store.
   useEffect(() => () => { endSessionRef.current?.(); }, []);
+  // Opening the IN-GAME MENU (Escape or the gear, R-ESC-SIDEBAR-01) drops any drag in hand: the card springs back and
+  // nothing is played. A store subscription, so the menu flag never re-renders this tree for it.
+  useEffect(() => useGame.subscribe((st, prev) => {
+    if (st.gameMenuOpen && !prev.gameMenuOpen && endSessionRef.current) { cancelDragTrace(); endSessionRef.current(); }
+  }), []);
 
   // Align the charge glyph to the board's midline (the background divider) at any resolution/aspect. The glyph is
   // a direct child of `.app` (NOT the warband zone), so it's independent of the warband layout offset (x/y/scale) —

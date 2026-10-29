@@ -10,6 +10,7 @@ import { getHero, rankLabel } from '@game/sim';
 import { Icon } from '../Icon';
 import { LbHeroFrame } from '../LadderBits';
 import { MenuSidebar, SidebarHost } from '../MenuSidebar';
+import { refuseInGame } from '../gameMenuParts';
 import { RankCrest } from '../rank/RankBar';
 import { remoteEnabled } from '../remoteBoards';
 import { pageHidden } from '../net/backoff';
@@ -64,6 +65,7 @@ export function LiveGames(): JSX.Element | null {
   if (!show) return null;
   const watch = (r: LiveGameRow): void => {
     if (joining) return;
+    if (refuseInGame()) return; // never from inside a game (R-ESC-SIDEBAR-01)
     sfx.pulse();
     setJoining(r.game_id);
     // A Versus match or a Ranked Duos team (R-RANKED-DUOS-PARTY-01) watches its room from the stands, on its own host;

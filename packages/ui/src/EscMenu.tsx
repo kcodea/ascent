@@ -1,8 +1,8 @@
-/** Pause / settings overlay (Esc). Trimmed to what players actually need: combat pacing (first, owner ask
- *  2026-10-08), audio (the MASTER row always shown, and an "Advanced Controls" button since 2026-10-08 that expands
+/** The SETTINGS page (a sidebar page since 2026-10-29, R-ESC-SIDEBAR-01; it was the centred Esc modal before). Trimmed
+ *  to what players actually need: combat pacing (first, owner ask 2026-10-08), audio (the MASTER row always shown, and an "Advanced Controls" button since 2026-10-08 that expands
  *  three channels, each a slider + mute: Game sounds (sfx.ts), Music (music.ts) and the Announcer (announcer.ts);
  *  collapsed by default, its open state remembered in localStorage), the opponent-cosmetics switch, the effects
- *  frame cap, Quit back to the main menu, and — in the Electron shell only — a fullscreen toggle + Quit game (see
+ *  frame cap, and — in the Electron shell only — a fullscreen toggle + Quit game (see
  *  `desktop.ts`; the web build has no shell to close).
  *
  *  LAYOUT RULES (owner asks 2026-10-08): a button is only as wide as its label and carries nothing else; any
@@ -14,7 +14,7 @@
  *  `boardConfig.ts` — whose only consumers were this menu and a side-effect import — was retired with it, so
  *  the stylesheet's `--board` is now the single source of the arena art. Resolution and board dimming went the
  *  same way in 2026-07-14. The HUD's quick-mute sits behind the enemy frame, so the dependable audio controls
- *  live here, in a modal nothing can obscure. */
+ *  live here, one Escape away in any game. */
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { isDesktop, quitGame, toggleFullscreen } from './desktop';
@@ -26,19 +26,40 @@ import { useGame } from './store';
 import { FPS_CAP_OPTIONS, fpsCapLabel } from './fpsCap';
 import { BACKDROPS, BACKDROP_IDS, getBackdrop, setBackdrop, type BackdropId } from './backdrop';
 import { perfThresholds } from './perfMonitor';
-import { endReplay } from './replay/replayPlayer';
-import { forfeitMatch } from './versus/versusStore';
-import { leaveSpectating, useSpectate } from './versus/spectate';
-import { isWatchingLive, leaveLiveGame } from './live/liveWatch';
+import { Icon } from './Icon';
+import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from './versus/spectatorEmotes';
 import { setFilterMessages, setShowActivity, useFriendsPrefs } from './friends/friendsPrefs';
 import { isTouchDevice, touchText } from './touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from './touchUi';
 import { PHONE_DIAG_FLAGS, PHONE_GPU, activeDiagLabel, saveDiagFlags, storedDiagFlags, type PhoneDiagFlags } from './phoneDiag';
 
-export function EscMenu({ onClose }: { onClose: () => void }) {
-  const openTitle = useGame((s) => s.openTitle);
-  const replaying = useGame((s) => s.replaying);
+/** THE SETTINGS PAGE (owner 2026-10-29, R-ESC-SIDEBAR-01: "have the settings panel at the bottom baked into a normal
+ *  'window' just like these other pages are"). A sidebar page like Collection: the menu rail on the left with Settings
+ *  current, the page title, and every section below, on the main menu and inside the in-game menu alike. Leaving a game
+ *  (Save & Quit, Concede, Leave replay, ...) is no longer here: it sits at the foot of the in-game sidebar
+ *  (`gameMenuParts.tsx`). Mounted only while open (the store's `settingsOpen`), like every page. */
+export function SettingsPage() {
+  const show = useGame((s) => s.settingsOpen);
+  if (!show) return null;
+  return (
+    <SidebarHost className="lbpage set-page">
+      <MenuSidebar current="settings" />
+      <div className="lbtopbar">
+        <div className="lbtitle">
+          <Icon name="gear" />
+          <span className="esch disp">Settings</span>
+        </div>
+      </div>
+      <div className="lbscroll">
+        <SettingsPanel />
+      </div>
+    </SidebarHost>
+  );
+}
+
+/** Every setting, in its sections (the body of the Settings page). */
+export function SettingsPanel() {
   // ACCOUNT row (owner ask 2026-09-21): Sign in / Sign out moved here from the Title's top-right chip. The
   // AccountPanel only ever renders over the Title (its own gate), so the Sign-in button is offered on the title
   // and in-game the row just says where to go; Sign out is safe anywhere (it only resets the local identity).
@@ -47,25 +68,6 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   const signOutAccount = useGame((s) => s.signOutAccount);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
   const signedIn = !account.anonymous && !!account.email;
-  // Where the modal was opened FROM decides its primary action (the menu sidebar can open it from every ladder
-  // page and the mode picker, not only from a run — review 2026-09-21): a replay leaves the replay; a title
-  // surface (a ladder page or a picker view over the title) goes to the main menu; the main menu itself has
-  // nowhere to go, so the section is omitted; a run saves & quits.
-  const onPage = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showLiveGames || s.showCollection || s.titleView !== 'menu');
-  // THE RANKED HERO SELECT (owner 2026-10-11, R-RANK-06): the player confirmed a ranked lobby and no run exists
-  // yet, so there is nothing to "Save & Quit". Leaving from here is an abandon that settles as an 8th, and the
-  // button says so (two taps, like Quit game).
-  const rankedPick = useGame((s) => !s.showTitle && s.heroChoices !== null && s.pendingMode === 'lobby' && s.rankedEntry !== null);
-  const abandonRankedEntry = useGame((s) => s.abandonRankedEntry);
-  const [confirmAbandon, setConfirmAbandon] = useState(false);
-  // VERSUS (owner 2026-10-14): the match's only exit is CONCEDE, here, with the same two-tap confirm. From Hero Select
-  // or the match itself; there is nothing to save (the match server owns it).
-  const versusPlay = useGame((s) => !s.showTitle && (s.run.mode === 'versus' || (s.heroChoices !== null && s.pendingMode === 'versus')));
-  // A VERSUS SPECTATOR (`replaying` with no replay session): the only exit is back to the room.
-  const watching = useSpectate((s) => s.active);
-  const primary: 'replay' | 'watch' | 'menu' | 'none' | 'abandon' | 'run' | 'concede' = watching ? 'watch' : replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : versusPlay ? 'concede' : rankedPick ? 'abandon' : 'run';
-  // GOD MODE (owner 2026-10-08): nothing from a God Mode game is saved, so its leave button must not promise a save.
-  const godMode = useGame((s) => s.run.godMode === true);
   // TOUCH UI SIZE (owner 2026-10-18, R-TOUCH-UISCALE-01): a local preference, offered on touch devices only.
   const touchDevice = isTouchDevice();
   const [touchSize, setTouchSize] = useState<TouchUiSize>(() => touchUi().size);
@@ -110,65 +112,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   const [confirmQuit, setConfirmQuit] = useState(false);
 
   return (
-    <div className="escov" onPointerDown={onClose}>
-      <div className="escpanel" onPointerDown={(e) => e.stopPropagation()}>
-        <div className="esch disp">Settings</div>
-        {primary !== 'none' && <div className="escsec">{primary === 'watch' ? 'Watching' : primary === 'replay' ? 'Replay' : primary === 'menu' ? 'Menu' : primary === 'concede' ? 'Match' : 'Run'}</div>}
-        {/* SAVE & QUIT — promoted to the top and styled as the primary action (owner ask 2026-08-24). The
-            run is already saved continuously; this button makes that explicit and one obvious tap. During a
-            REPLAY the quit path must END THE PLAYBACK first (owner report 2026-08-19: quitting left the replay
-            HUD floating over the title) — endReplay restores the snapshot, then opening the title wins. From a
-            ladder page / the picker there is nothing to save: the same openTitle, labelled for what it does. */}
-        {primary === 'watch' && (
-          <ActionButton
-            label={isWatchingLive() ? 'Stop watching' : 'Leave match'}
-            note={isWatchingLive() ? 'Back to the live games. The game goes on.' : 'Back to the room. The match goes on.'}
-            primary
-            onPress={() => { if (isWatchingLive()) leaveLiveGame(true); else leaveSpectating(); onClose(); }}
-          />
-        )}
-        {primary === 'replay' && (
-          <ActionButton
-            label="Leave replay"
-            note="Back to the main menu. The replay closes."
-            primary
-            onPress={() => { endReplay(); openTitle(); onClose(); }}
-          />
-        )}
-        {primary === 'menu' && (
-          <ActionButton
-            label="Main menu"
-            note="Closes this page and returns to the main menu."
-            primary
-            onPress={() => { openTitle(); onClose(); }}
-          />
-        )}
-        {primary === 'abandon' && (
-          <ActionButton
-            label={confirmAbandon ? 'Tap again to abandon' : 'Abandon match'}
-            note="This is a ranked lobby. Leaving now counts as an 8th place finish and costs MMR."
-            danger={confirmAbandon}
-            onPress={() => { if (!confirmAbandon) { setConfirmAbandon(true); return; } abandonRankedEntry(); onClose(); }}
-          />
-        )}
-        {primary === 'concede' && (
-          <ActionButton
-            label={confirmAbandon ? 'Tap again to concede' : 'Concede match'}
-            note="Your opponent wins this match. You go back to the room."
-            danger={confirmAbandon}
-            onPress={() => { if (!confirmAbandon) { setConfirmAbandon(true); return; } void forfeitMatch(); onClose(); }}
-          />
-        )}
-        {primary === 'run' && (
-          <ActionButton
-            label={godMode ? 'Leave God Mode' : 'Save & Quit'}
-            note={godMode
-              ? 'Returns to the menu. Nothing from this game is saved.'
-              : 'Saves this exact moment and returns to the menu. Continue picks up right here.'}
-            primary
-            onPress={() => { openTitle(); onClose(); }}
-          />
-        )}
+      <div className="escpanel">
         {/* COMBAT leads the settings (owner ask 2026-10-08): the speed is the one players reach for mid-run. */}
         <div className="escsec">Combat</div>
         <div className="escvol">
@@ -354,17 +298,13 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           <ActionButton
             label="Sign in"
             note="Save your progress. Email only, no password."
-            // The panel paints ABOVE this modal (z 540 vs 500); close the modal first so it does not linger underneath.
-            onPress={() => { sfx.pulse(); onClose(); openAccountPanel(); }}
+            // The account panel paints over the page (z 540 vs 470); the page stays under it.
+            onPress={() => { sfx.pulse(); openAccountPanel(); }}
           />
         ) : (
           <div className="escnote">Not signed in. Sign in from the main menu to keep your progress across devices.</div>
         )}
-        {/* Over the menus there is nothing to resume, and the gold fill belongs to Play alone there (UI pass 2,
-            2026-10-16): the close is a quiet "Done" on the Gem plate. In a game it stays the gold Resume. */}
-        <button className={`escclose pressable${onTitle ? ' quiet' : ''}`} onPointerDown={onClose}>{onTitle ? 'Done' : 'Resume'}</button>
       </div>
-    </div>
   );
 }
 

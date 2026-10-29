@@ -20,6 +20,7 @@ import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { recordText } from './leaderboardData';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
+import { refuseInGame } from './gameMenuParts';
 import { AddFriendButton } from './friends/AddFriendButton';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
 import { CareerDuosTeams } from './versus/DuosBoards';
@@ -598,6 +599,7 @@ export function Career() {
   // restores it on exit. An unplayable payload degrades the button to "No replay", never a broken viewer.
   const watchRun = (run: CareerRun): void => {
     if (run.replayRowId === null || run.id === null || watching !== null) return;
+    if (refuseInGame()) return; // never from inside a game (R-ESC-SIDEBAR-01)
     sfx.pulse();
     setNoReplay(null);
     setWatching(run.id);
@@ -614,6 +616,7 @@ export function Career() {
   // Watch a practice game back: the twin of `watchRun`, reading the practice row's own `replay->v2` by id.
   const watchPractice = (game: PracticeGameRow): void => {
     if (!game.hasReplay || game.rowId === null || watchingPractice !== null) return;
+    if (refuseInGame()) return;
     const id = game.rowId;
     sfx.pulse();
     setNoPracticeReplay(null);

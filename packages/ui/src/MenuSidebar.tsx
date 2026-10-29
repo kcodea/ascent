@@ -10,7 +10,7 @@
  *
  * Every hop goes through the store's `goTo`, which closes ALL four page flags before opening the destination
  * — the pages are z-470 siblings that stack in DOM order, so merely opening a flag would leave the current
- * page painted on top. Play opens the mode picker (`titleView: 'modes'`); Settings opens the Esc menu.
+ * page painted on top. Play opens the mode picker (`titleView: 'modes'`); Settings opens the Settings page (`goTo('settings')`).
  *
  * Markup rules (pinned by Career.test / ladderPages.test): no `title=` attribute anywhere (the owner banned
  * native tooltips — the saved-run note rides a `data-tip` on a positioned wrapper, never on the pressable
@@ -44,6 +44,7 @@ import { useLiveCount, useWindowFocused } from './live/liveCount';
 import { useVersusOpenRooms, versusRoomsTip } from './versus/versusOpenRooms';
 import { VsOpenBadge } from './versus/VsOpenBadge';
 import { HALL_VISIBLE } from './hallFlag';
+import { InGameNote, LeaveButton, ResumeButton, SidebarShopClock } from './gameMenuParts';
 import './friends/friends.css';
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
@@ -93,7 +94,15 @@ interface Item { dest: SidebarCurrent; label: string; icon: ReactNode }
 // Where the rail's selection bar last sat (stage px within the nav), so the next page's rail can slide it from there.
 let lastIndicatorY: number | null = null;
 
-export function MenuSidebar({ current }: { current: SidebarCurrent }) {
+/**
+ * IN A GAME (owner 2026-10-29, R-ESC-SIDEBAR-01) the same rail is the in-game menu: Escape slides it in over the dimmed
+ * game (`GameMenu.tsx`), and every page it opens wears it. Play becomes the gold RESUME, the Shop clock sits under it,
+ * Patch Notes joins the rail, and the foot carries Settings then the LEAVE button (Save & Quit / Concede / ...,
+ * `gameMenuParts.tsx`). No painted backdrop: the game shows through, dimmed. `current` is null on the bare rail.
+ */
+export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
+  const inGame = useGame((s) => s.gameMenuOpen);
+  const openPatchNotes = useGame((s) => s.openPatchNotes);
   const navRef = useRef<HTMLElement>(null);
   const indRef = useRef<HTMLSpanElement>(null);
   // THE SELECTION BAR (2026-10-16): measured ONCE per page (offsetTop, before paint), then a single transform
@@ -119,7 +128,6 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
     return () => cancelAnimationFrame(raf);
   }, [current]);
   const goTo = useGame((s) => s.goTo);
-  const openSettings = useGame((s) => s.openSettings);
   const savedRun = useGame((s) => s.savedRun);
   const txt = getTitleText();
   // The Collection plaque shows once crates are live (always in DEV, so the screen and its tuner are reachable).
@@ -166,19 +174,19 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
 
   // Play opens the mode screen. SOLO / DUO lives on its Ranked card now (owner 2026-10-26, R-RANKED-DUOS-MODECARD-01),
   // so this plaque never starts a game itself, whichever side is picked.
-  const play = plaque({ dest: 'modes', label: txt.play, icon: <Crest /> }, ' sb-play', vsOpen > 0 ? <VsOpenBadge n={vsOpen} paused={!focused} /> : null);
+  const play = inGame ? <ResumeButton /> : plaque({ dest: 'modes', label: txt.play, icon: <Crest /> }, ' sb-play', vsOpen > 0 ? <VsOpenBadge n={vsOpen} paused={!focused} /> : null);
   const playWarn = savedRun ? withAbandonWarning('New run. Replaces your saved run.', savedRun) : null;
   const vsTip = vsOpen > 0 ? versusRoomsTip(vsOpen) : null;
-  const playTip = playWarn && vsTip ? `${playWarn} ${vsTip}.` : playWarn ?? vsTip;
+  const playTip = inGame ? null : playWarn && vsTip ? `${playWarn} ${vsTip}.` : playWarn ?? vsTip;
 
   // The screen's painted backdrop rides along with the sidebar, so every host gets it (MenuBackdrop.tsx).
   return (
     <>
-    <MenuBackdrop screen={current} />
-    <aside className="msb" aria-label="Menu">
+    {!inGame && current && <MenuBackdrop screen={current} />}
+    <aside className={`msb${inGame ? ' msb-ingame' : ''}`} aria-label={inGame ? 'Game menu' : 'Menu'}>
       {/* HOME: the brand mark, back to the main menu. The tip rides the button (no sheen on it, so no ::after
-          clash); no native title. */}
-      <button className="msb-home" onClick={() => { sfx.pulse(); goTo('menu'); }} aria-label="Main menu" data-tip="Main menu">
+          clash); no native title. In a game it closes the open page, back to the bare rail over the game. */}
+      <button className="msb-home" onClick={() => { sfx.pulse(); goTo('menu'); }} aria-label={inGame ? 'Close this page' : 'Main menu'} data-tip={inGame ? 'Close this page' : 'Main menu'}>
         <img className="msb-mark" src={TITLE_LOGO_SRC} alt="" draggable={false} decoding="sync" />
         <span className="msb-word">{txt.wordmark}</span>
       </button>
@@ -189,6 +197,7 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
         {playTip
           ? <div className="msb-item" data-tip={playTip}>{play}</div>
           : play}
+        {inGame && <SidebarShopClock />}
         <div className="msb-group" role="group" aria-label="Progress">
           <div className="msb-gh" aria-hidden="true">Progress</div>
           {progress.map((it) => plaque(it))}
@@ -196,12 +205,25 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
         <div className="msb-group" role="group" aria-label="Community">
           <div className="msb-gh" aria-hidden="true">Community</div>
           {community.map((it) => plaque(it))}
+          {/* PATCH NOTES in a game (owner 2026-10-29): the title's Patch Notes, opened over the game. */}
+          {inGame && (
+            <button className="sbbtn" onClick={() => { sfx.pulse(); openPatchNotes(); }}>
+              <span className="mbicon"><Icon name="clock" /></span>
+              <span className="mblabel">Patch Notes</span>
+            </button>
+          )}
         </div>
       </nav>
-      <button className="sbbtn msb-settings" onClick={() => { sfx.pulse(); openSettings(); }}>
+      {inGame && <InGameNote />}
+      <button
+        className={`sbbtn msb-settings${current === 'settings' ? ' active' : ''}`}
+        aria-current={current === 'settings' ? 'page' : undefined}
+        onClick={() => { sfx.pulse(); if (current !== 'settings') goTo('settings'); }}
+      >
         <span className="mbicon"><Icon name="gear" /></span>
         <span className="mblabel">{txt.settings}</span>
       </button>
+      {inGame && <LeaveButton />}
       {/* The Friends dock's home on every side-menu page (R-FRIENDS-DOCK-03): the rail's foot, under Settings. */}
       <DockSlot className="msb-dock" side=".msb" />
     </aside>

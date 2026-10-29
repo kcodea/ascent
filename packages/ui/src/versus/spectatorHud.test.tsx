@@ -84,7 +84,9 @@ describe('R-SPECTATE-EMOTE-01: a spectator emotes to the player', () => {
     const b = document.body.querySelector<HTMLElement>('.emote-bubble[data-seat="w:spec-me"]')!;
     expect(b).not.toBeNull();
     expect(b.className).not.toMatch(/\bflip\b/); // top left: it opens to the right, art as painted
-    expect(Number.parseFloat(b.style.left)).toBeGreaterThan(20 + 160 - 40); // beside the plate, past its name
+    // beside the plate, its tail over the plate's right edge (R-EMOTE-LAYOUT-01: it eclipses the portrait a little)
+    expect(Number.parseFloat(b.style.left)).toBeGreaterThan(20);
+    expect(Number.parseFloat(b.style.left)).toBeLessThan(20 + 160);
   });
 
   it('the receiver guards the channel on its own clock: cooldown, burst, unknown senders, junk', () => {

@@ -8,19 +8,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const rootVar = (name: string): string => document.documentElement.style.getPropertyValue(name);
 
+const clearRoot = (): void => {
+  const html = document.documentElement;
+  html.removeAttribute('style');
+  delete html.dataset.bdFit;
+  delete html.dataset.btexFit;
+};
 beforeEach(() => {
   localStorage.clear();
-  document.documentElement.removeAttribute('style');
+  clearRoot();
   vi.resetModules();
 });
-afterEach(() => { localStorage.clear(); document.documentElement.removeAttribute('style'); });
+afterEach(() => { localStorage.clear(); clearRoot(); });
 
 describe('the Settings backdrop pick', () => {
-  it('defaults to Oak planks and writes its preset', async () => {
+  it('defaults to Castle (owner 2026-10-29) and writes its preset', async () => {
     const b = await import('./backdrop');
-    expect(b.getBackdrop()).toBe('oak');
-    expect(rootVar('--bd-img')).toContain('/backdrop-oak-planks.webp');
-    expect(rootVar('--bd-size')).toBe(`${b.BACKDROPS.oak.size}px`);
+    expect(b.getBackdrop()).toBe('castle');
+    expect(rootVar('--bd-img')).toContain('/backdrop-castle.webp');
+    expect(document.documentElement.dataset.bdFit).toBe('cover');
+    expect(rootVar('--bd-size')).toBe(`${b.BACKDROPS.castle.size}px`);
   });
 
   it('a pick applies at once and is restored on the next load', async () => {
@@ -61,5 +68,66 @@ describe('the Layout Lab over the Settings pick (DEV)', () => {
     lab.resetLayout();
     expect(rootVar('--btex-img')).toBe('');
     expect(rootVar('--btex-size')).toBe('');
+  });
+});
+
+describe('single-image (cover) backdrops', () => {
+  it('a cover texture fills the window; a tile texture repeats', async () => {
+    const { backdropFit, BACKDROP_TEXTURES } = await import('./layoutConfig');
+    expect(BACKDROP_TEXTURES.runicSlate?.cover).toBe(true);
+    expect(backdropFit('runicSlate')).toBe('cover');
+    expect(backdropFit('oak')).toBe('tile');
+    expect(backdropFit('nope')).toBe('tile');
+  });
+
+  it('the Lab flags its fit only while it drives the backdrop, and Reset hands back', async () => {
+    await import('./backdrop');
+    const lab = await import('./layoutConfig');
+    const html = document.documentElement;
+    expect(html.dataset.btexFit).toBeUndefined();
+    lab.setLayoutString('btexImg', 'runicSlate');
+    expect(html.dataset.btexFit).toBe('cover');
+    lab.setLayoutString('btexImg', 'stone');
+    expect(html.dataset.btexFit).toBe('tile');
+    lab.resetLayout();
+    expect(html.dataset.btexFit).toBeUndefined();
+  });
+
+  it('every painted image is in Settings and fills the window when picked', async () => {
+    const b = await import('./backdrop');
+    const { BACKDROP_TEXTURES } = await import('./layoutConfig');
+    const covers = Object.keys(BACKDROP_TEXTURES).filter((t) => BACKDROP_TEXTURES[t]!.cover);
+    expect(covers.length).toBeGreaterThanOrEqual(10);
+    for (const tex of covers) {
+      const id = b.BACKDROP_IDS.find((i) => b.BACKDROPS[i].texture === tex);
+      expect(id, tex).toBeTruthy();
+      b.setBackdrop(id!);
+      expect(document.documentElement.dataset.bdFit, tex).toBe('cover');
+    }
+    b.setBackdrop('oak');
+    expect(document.documentElement.dataset.bdFit).toBeUndefined();
+  });
+
+  it('every painted image has a small phone copy on disk, and a pick writes it for touch devices', async () => {
+    const { existsSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const b = await import('./backdrop');
+    const { BACKDROP_TEXTURES, backdropSmallUrl } = await import('./layoutConfig');
+    for (const [tex, t] of Object.entries(BACKDROP_TEXTURES)) {
+      const sm = backdropSmallUrl(tex);
+      if (!t.cover) { expect(sm, tex).toBeUndefined(); continue; }
+      expect(sm, tex).toBe(t.url.replace('.webp', '-sm.webp'));
+      expect(existsSync(resolve(__dirname, '../../../apps/web/public', sm!.slice(1))), sm).toBe(true);
+    }
+    b.setBackdrop('castle');
+    expect(rootVar('--bd-img-sm')).toContain('/backdrop-castle-sm.webp');
+    b.setBackdrop('oak');
+    expect(rootVar('--bd-img-sm')).toContain('/backdrop-oak-planks.webp');
+  });
+
+  it('a tile Settings pick never carries the cover flag', async () => {
+    localStorage.setItem('ascent.backdrop', 'oak');
+    await import('./backdrop');
+    expect(document.documentElement.dataset.bdFit).toBeUndefined();
   });
 });

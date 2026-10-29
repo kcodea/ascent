@@ -523,3 +523,7 @@ html[data-touch-ui][data-phone-gpu] .dragcard { filter: none; }
 html[data-touch-ui][data-phone-gpu] .goldpill { -webkit-backdrop-filter: none; backdrop-filter: none; }
 html[data-touch-ui][data-phone-gpu] .inspect-ov::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(20, 12, 4, 0.74); }
 html[data-touch-ui][data-phone-gpu] :is(.lobbyrail, .lobbyrailhead) { will-change: auto; }
+
+/* PAINTED BACKDROPS ON TOUCH (2026-10-29): a phone or tablet draws the 1600x900 copy of a painted (cover) backdrop, not
+   the 2560 one: ~5.5 MB of decoded image instead of ~14, which keeps the phone image budget. backdrop.ts writes both. */
+html[data-touch-ui][data-bd-fit='cover'] .boardbg-tex { --bd-img: var(--bd-img-sm); }

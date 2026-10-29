@@ -58,6 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Eleven new painted backdrops to put behind the board, and the castle courtyard is the new default.', details: [
+        'Pick one in Settings under Board backdrop: Castle, Runic Slate, Cosmic Energy, Dark Sanctum, Temple, Stone Courtyard, Koi Pond, Fresh Pond, Bamboo Forest, Treasure Hoard or Celestial.',
+        'Each is one painted scene that fills your whole screen, ultrawide monitors included.',
+        'If you already chose a backdrop, you keep it. Oak planks and the other patterns are still there too.',
+      ] },
       { category: 'Systems', text: 'Patch Notes is now a page like Settings, with the menu sidebar beside it.', details: [
         'Open it from the Patch Notes button on the main menu, or from the sidebar on any menu page.',
         'In a game, press Escape and pick Patch Notes. Your game stays on screen, dimmed.',

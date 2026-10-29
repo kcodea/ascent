@@ -10,7 +10,7 @@
  * To add a backdrop: drop its tile in apps/web/public, add it to `BACKDROP_TEXTURES` (layoutConfig.ts) so the Layout
  * Lab can tune it, then copy the tuned values into a preset here.
  */
-import { BACKDROP_TEXTURES } from './layoutConfig';
+import { BACKDROP_TEXTURES, backdropFit } from './layoutConfig';
 
 export interface BackdropPreset {
   label: string;
@@ -77,6 +77,9 @@ function apply(id: BackdropId): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement.style;
   for (const [k, v] of Object.entries(backdropVars(id))) root.setProperty(k, v);
+  // A single-image (cover) backdrop fills the window instead of tiling: styles.css .boardbg-tex reads this.
+  if (backdropFit(BACKDROPS[id].texture) === 'cover') document.documentElement.dataset.bdFit = 'cover';
+  else delete document.documentElement.dataset.bdFit;
 }
 
 let current: BackdropId = typeof localStorage === 'undefined' ? DEFAULT_BACKDROP : readStored();

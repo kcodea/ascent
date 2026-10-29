@@ -174,14 +174,23 @@ function setLabBackdropOn(on: boolean): void {
 /**
  * BACKDROP TEXTURES (owner 2026-10-28: "ill be adding more"). Each is a seamless tile in apps/web/public. To add one:
  * drop the webp there and add a line here; it appears in the Layout Lab's Backdrop dropdown.
+ * `cover: true` marks a SINGLE painted image instead of a tile (owner 2026-10-29): it is scaled to fill the window,
+ * centred, never repeated, and the Tile size knob does nothing for it. Paint one 16:9 against the board template, with
+ * the detail in the margins the board leaves visible.
  */
-export const BACKDROP_TEXTURES: Record<string, { label: string; url: string }> = {
+export const BACKDROP_TEXTURES: Record<string, { label: string; url: string; cover?: boolean }> = {
   stone: { label: 'Cobblestone', url: '/backdrop-stone.webp' },
   oak: { label: 'Oak planks', url: '/backdrop-oak-planks.webp' },
   sand: { label: 'Sand', url: '/backdrop-mystic-sand.webp' },
   aether: { label: 'Aether Stone', url: '/backdrop-arcane-crystal.webp' },
   moonstone: { label: 'Stone Pavers', url: '/backdrop-moonstone-pavers.webp' },
+  runicSlate: { label: 'Runic Slate (image)', url: '/backdrop-runic-slate.webp', cover: true },
 };
+
+/** How a texture fills the screen: `cover` (one image) or `tile` (repeat). */
+export function backdropFit(texture: string | undefined): 'cover' | 'tile' {
+  return texture && BACKDROP_TEXTURES[texture]?.cover ? 'cover' : 'tile';
+}
 
 /** The Layout Lab's STRING knobs (a dropdown or a colour), kept apart from the numeric ones so every numeric read of
  *  `getLayout()` stays a number. Same rules: dev-only, applied to `:root`, the CSS fallbacks are what ships. */
@@ -232,6 +241,11 @@ function applyLayoutStrings(cfg: LayoutStrConfig): void {
     if (BACKDROP_PRESET_KEYS.has(v.key) && !labBackdropOn) { root.removeProperty(v.cssVar); continue; }
     root.setProperty(v.cssVar, v.css(s));
   }
+  // A cover texture can't be told apart by a CSS var value, so the Lab's fit rides on an attribute (styles.css
+  // .boardbg-tex): set while the Lab drives the backdrop, so a tile picked here beats a cover picked in Settings.
+  const html = document.documentElement;
+  if (labBackdropOn) html.dataset.btexFit = backdropFit(cfg.btexImg ?? 'oak');
+  else delete html.dataset.btexFit;
 }
 let currentStr: LayoutStrConfig = loadLayoutStrings();
 export function getLayoutStrings(): LayoutStrConfig { return currentStr; }

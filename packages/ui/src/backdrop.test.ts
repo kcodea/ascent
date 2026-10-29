@@ -8,12 +8,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const rootVar = (name: string): string => document.documentElement.style.getPropertyValue(name);
 
+const clearRoot = (): void => {
+  const html = document.documentElement;
+  html.removeAttribute('style');
+  delete html.dataset.bdFit;
+  delete html.dataset.btexFit;
+};
 beforeEach(() => {
   localStorage.clear();
-  document.documentElement.removeAttribute('style');
+  clearRoot();
   vi.resetModules();
 });
-afterEach(() => { localStorage.clear(); document.documentElement.removeAttribute('style'); });
+afterEach(() => { localStorage.clear(); clearRoot(); });
 
 describe('the Settings backdrop pick', () => {
   it('defaults to Oak planks and writes its preset', async () => {
@@ -61,5 +67,34 @@ describe('the Layout Lab over the Settings pick (DEV)', () => {
     lab.resetLayout();
     expect(rootVar('--btex-img')).toBe('');
     expect(rootVar('--btex-size')).toBe('');
+  });
+});
+
+describe('single-image (cover) backdrops', () => {
+  it('a cover texture fills the window; a tile texture repeats', async () => {
+    const { backdropFit, BACKDROP_TEXTURES } = await import('./layoutConfig');
+    expect(BACKDROP_TEXTURES.runicSlate?.cover).toBe(true);
+    expect(backdropFit('runicSlate')).toBe('cover');
+    expect(backdropFit('oak')).toBe('tile');
+    expect(backdropFit('nope')).toBe('tile');
+  });
+
+  it('the Lab flags its fit only while it drives the backdrop, and Reset hands back', async () => {
+    await import('./backdrop');
+    const lab = await import('./layoutConfig');
+    const html = document.documentElement;
+    expect(html.dataset.btexFit).toBeUndefined();
+    lab.setLayoutString('btexImg', 'runicSlate');
+    expect(html.dataset.btexFit).toBe('cover');
+    lab.setLayoutString('btexImg', 'stone');
+    expect(html.dataset.btexFit).toBe('tile');
+    lab.resetLayout();
+    expect(html.dataset.btexFit).toBeUndefined();
+  });
+
+  it('a tile Settings pick never carries the cover flag', async () => {
+    localStorage.setItem('ascent.backdrop', 'oak');
+    await import('./backdrop');
+    expect(document.documentElement.dataset.bdFit).toBeUndefined();
   });
 });

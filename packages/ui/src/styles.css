@@ -344,6 +344,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
     linear-gradient(color-mix(in srgb, var(--btex-tint-col, var(--bd-tint-col, #472a00)) calc(var(--btex-tint, var(--bd-tint, 0.16)) * 100%), transparent), color-mix(in srgb, var(--btex-tint-col, var(--bd-tint-col, #472a00)) calc(var(--btex-tint, var(--bd-tint, 0.16)) * 100%), transparent)),
     var(--btex-img, var(--bd-img, url('/backdrop-oak-planks.webp'))) 50% 50% / calc(var(--btex-size, var(--bd-size, 430px)) * var(--scale)) auto repeat;
 }
+/* A SINGLE-IMAGE backdrop (owner 2026-10-29): one painting scaled to fill the window, centred, never repeated, so a 16:9
+   image fits a standard screen exactly and a wider one trims evenly off the top and bottom. The Settings pick sets
+   data-bd-fit; the DEV Layout Lab's data-btex-fit (set only while it drives the backdrop) comes later and wins. */
+:root[data-bd-fit='cover'] .boardbg-tex,
+:root[data-btex-fit='cover'] .boardbg-tex { background-size: auto, auto, cover; background-repeat: no-repeat; }
+:root[data-btex-fit='tile'] .boardbg-tex { background-size: auto, auto, calc(var(--btex-size, var(--bd-size, 430px)) * var(--scale)) auto; background-repeat: repeat; }
 /* The board's drop shadow: a pre-blurred silhouette of the board art, drawn at the art's exact size and position
    between the stones and the board (a background layer can't cast a CSS shadow on another). Opacity + offset are
    Layout tuner sliders (group "Backdrop"); static, so no per-frame cost. */

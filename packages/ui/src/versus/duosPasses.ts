@@ -259,10 +259,13 @@ function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
       // A row my run already refused (before a reload) never lands: its sender has that card back.
       if (!answered && r.status !== 'refused') {
         const before = new Set(run.hand.map((c) => c.uid));
+        const triples = run.triplesMade ?? 0;
         dispatch({ type: 'receivePass', from: r.from_seat, seq: r.seq, card: r.card as unknown as BoardCard });
-        // The lob in (R-DUOS-PASS-01): the card drops out of my teammate's portrait into my hand.
-        const got = useGame.getState().run.hand.find((c) => !before.has(c.uid));
-        if (got && !ownRunWhileWatching()) playArrival(got.uid);
+        // The lob in (R-DUOS-PASS-01): the card drops out of my teammate's portrait into my hand. A pass that completed
+        // a triple (R-DUOS-PASS-02) shows the Gild instead (Recruit's `triplesMade` watcher: the trails into the golden).
+        const after = useGame.getState().run;
+        const got = after.hand.find((c) => !before.has(c.uid));
+        if (got && (after.triplesMade ?? 0) === triples && !ownRunWhileWatching()) playArrival(got.uid);
       }
       if (r.status === 'sent') {
         const after = useGame.getState().run.duos;

@@ -3,10 +3,13 @@
  * tab lists TEAMS (name, both players, medal + bar, games) and the Career shows a player's teams. Same row chrome as the
  * solo Leaderboard (`.lb-trow`, `LbMedallion`, `RankBar`); one capped read each (R-NET-01), cached across opens.
  */
-import { defaultTeamName } from '@game/sim';
+import { useMemo, useState } from 'react';
+import { compareRank, defaultTeamName } from '@game/sim';
 import { Icon } from '../Icon';
 import { LbHeroFrame, LbMedallion } from '../LadderBits';
 import { RankBar } from '../rank/RankBar';
+import { RankCard } from '../rank/RankCard';
+import { sfx } from '../sfx';
 import { displayHandle } from '../store';
 import { useSocial } from '../socialCache';
 import { remoteEnabled } from '../remoteBoards';
@@ -59,20 +62,57 @@ export function DuosLeaderboard({ show, myId }: { show: boolean; myId: string | 
   );
 }
 
-/** The Career's Duos section: this player's teams, each with its partner, medal and games. Hidden with none. */
+/** The Career's teams, best rank first (division, then points; more games breaks a tie, then the team id so the order
+ *  never flickers between reads). */
+export function sortDuosTeams(rows: readonly DuosTeamOfRow[]): DuosTeamOfRow[] {
+  return [...rows].sort((a, b) =>
+    compareRank({ divisionIndex: b.division, points: b.points }, { divisionIndex: a.division, points: a.points })
+    || b.games - a.games || (a.teamId < b.teamId ? -1 : a.teamId > b.teamId ? 1 : 0));
+}
+
+/**
+ * The Career's Ranked Duos card (owner 2026-10-29: "make the ranked duos look like the solo rank ... show 1 team at a
+ * time with an arrow to scroll duos teams, sorted by highest rank"): the SAME rank card as Seasonal Ranked (`RankCard`),
+ * with the team's name, partner and games as a header and arrows either side of it. The arrows WRAP (the last team's
+ * Next goes back to the best) and hide with one team. Hidden with no teams.
+ */
 export function CareerDuosTeams({ userId }: { userId: string | null }) {
   const rows = useSocial<DuosTeamOfRow[]>(userId && remoteEnabled() ? `career:duos:${userId}` : null, () => versusRemote.duosTeamsOf(userId!).catch(() => [])) ?? null;
-  if (!rows || rows.length === 0) return null;
+  const teams = useMemo(() => (rows ? sortDuosTeams(rows) : []), [rows]);
+  const [at, setAt] = useState(0);
+  if (teams.length === 0) return null;
+  const i = ((at % teams.length) + teams.length) % teams.length;
+  const t = teams[i]!;
+  const many = teams.length > 1;
+  const step = (d: number) => { sfx.pulse(); setAt((a) => a + d); };
+  const partner = `With ${handleOf(t.partner)}`;
+  const games = `${t.games} game${t.games === 1 ? '' : 's'}`;
   return (
-    <div className="cv2-duos" aria-label="Ranked Duos teams">
-      <div className="cv2-duos-head">Ranked Duos</div>
-      {rows.slice(0, 5).map((t) => (
-        <div className="cv2-duos-row" key={t.teamId}>
-          <span className="cv2-duos-name">{t.name ?? `With ${handleOf(t.partner)}`}</span>
-          <span className="cv2-duos-sub">{t.name ? `With ${handleOf(t.partner)} · ` : ''}{t.games} game{t.games === 1 ? '' : 's'}</span>
-          <span className="cv2-duos-rank"><RankBar position={{ divisionIndex: t.division, points: t.points }} size="row" showGate={false} /></span>
+    <RankCard
+      className="cv2-duocard"
+      label="Ranked Duos teams"
+      position={{ divisionIndex: t.division, points: t.points }}
+      header={(
+        <div className="cv2-duocard-head">
+          <div className="cv2-duocard-kicker">Ranked Duos{many && <span className="cv2-duocard-count">{i + 1} of {teams.length}</span>}</div>
+          <div className="cv2-duocard-team">
+            {many && (
+              <button type="button" className="cv2-seg-btn cv2-duocard-arrow prev pressable" aria-label="Previous team" onClick={() => step(-1)}>
+                <Icon name="chevron" />
+              </button>
+            )}
+            <div className="cv2-duocard-who" aria-live="polite">
+              <span className="cv2-duocard-name">{t.name ?? partner}</span>
+              <span className="cv2-duocard-sub">{t.name ? `${partner} · ${games}` : games}</span>
+            </div>
+            {many && (
+              <button type="button" className="cv2-seg-btn cv2-duocard-arrow next pressable" aria-label="Next team" onClick={() => step(1)}>
+                <Icon name="chevron" />
+              </button>
+            )}
+          </div>
         </div>
-      ))}
-    </div>
+      )}
+    />
   );
 }

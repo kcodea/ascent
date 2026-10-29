@@ -35,7 +35,7 @@ export const BACKDROPS = {
   stone: { label: 'Cobblestone', texture: 'stone', size: 420, blur: 0, dark: 0.05, tint: '#90abfe', tintAmount: 0.06, shadow: 0.72, shadowX: 6, shadowY: 8 },
   oak: { label: 'Oak planks', texture: 'oak', size: 430, blur: 0, dark: 0.24, tint: '#472a00', tintAmount: 0.16, shadow: 0.72, shadowX: 6, shadowY: 8 },
   aether: { label: 'Aether Stone', texture: 'aether', size: 660, blur: 0, dark: 0.18, tint: '#7a33ff', tintAmount: 0.09, shadow: 0.72, shadowX: 6, shadowY: 8 },
-  sand: { label: 'Sand', texture: 'sand', size: 1600, blur: 0, dark: 0.02, tint: '#ffa8f3', tintAmount: 0.13, shadow: 0.72, shadowX: 6, shadowY: 8 },
+  sand: { label: 'Sand', texture: 'sand', size: 1770, blur: 0, dark: 0.2, tint: '#ffa8f3', tintAmount: 0.13, shadow: 0.72, shadowX: 6, shadowY: 8 },
   pavers: { label: 'Stone Pavers', texture: 'moonstone', size: 450, blur: 0, dark: 0.19, tint: '#69b1dd', tintAmount: 0.04, shadow: 0.72, shadowX: 6, shadowY: 8 },
 } as const satisfies Record<string, BackdropPreset>;
 export type BackdropId = keyof typeof BACKDROPS;

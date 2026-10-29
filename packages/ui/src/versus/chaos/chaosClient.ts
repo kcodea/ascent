@@ -40,6 +40,7 @@ type GameMod = typeof import('../../store');
 type TurnMod = typeof import('../versusTurn');
 type ClockMod = typeof import('../versusClock');
 type SimMod = typeof import('@game/sim');
+type SpectateMod = typeof import('../spectate');
 
 /** How a bot shops (deterministic per seed). */
 export type ChaosPolicy =
@@ -70,6 +71,8 @@ export interface ChaosClientOptions {
   /** Armor-in-the-shop probe: from this round, once its Armor is under 5, Mend ("Set your Armor to 5") goes into its
    *  shop and it buys and casts it (a SHOP-PHASE pool change the resolver must honour). */
   mendFrom?: number;
+  /** A SPECTATOR (R-SPECTATE-HARNESS-01): joins the room's stands and watches; never takes a seat or plays. */
+  spectator?: boolean;
 }
 
 const here = (p: string): string => fileURLToPath(new URL(p, import.meta.url));
@@ -95,6 +98,8 @@ export class ChaosClient {
   turn!: TurnMod;
   clock!: ClockMod;
   sim!: SimMod;
+  /** A spectator's watch screen module (null for a player). */
+  spec: SpectateMod | null = null;
   private rng: () => number;
   /** Driver state. */
   private launching = false;
@@ -157,6 +162,11 @@ export class ChaosClient {
     this.turn = await import('../versusTurn');
     this.clock = await import('../versusClock');
     this.sim = await import('@game/sim');
+    if (this.opts.spectator) {
+      this.spec = await import('../spectate');
+      // The watch record's beat goes to the progression backend (not under test here): answer it locally.
+      (await import('../../live/spectatorEnd')).setSpectateBeatForTests(async () => true);
+    }
     const identity = await import('../../identity');
     const gate = await import('../../rankedGate/rankedGateController');
     vi.doUnmock(here('../versusRemote.ts'));
@@ -202,6 +212,10 @@ export class ChaosClient {
     await this.store.joinRoom(roomId, 'player');
     if (!this.store.useVersus.getState().room) throw new Error(`${this.opts.name}: join failed (${this.store.useVersus.getState().error}; ${this.lastError()})`);
     if (mode === 'ranked_duos') return; // a party join takes its free seat itself
+  }
+  async joinStands(roomId: string): Promise<void> {
+    await this.store.joinRoom(roomId, 'spectator');
+    if (!this.store.useVersus.getState().room) throw new Error(`${this.opts.name}: spectator join failed (${this.store.useVersus.getState().error}; ${this.lastError()})`);
   }
   async takeSeat(role: string): Promise<void> {
     const ok = await this.store.takeSeat(role as never);
@@ -288,6 +302,47 @@ export class ChaosClient {
       }
     }
   }
+
+  // ── a SPECTATOR's screen (R-SPECTATE-HARNESS-01) ────────────────────────────────────────────────────────────
+  /** What the watch screen does once per step that needs the screen: render now (no animation frames under the fake
+   *  clock) and report the fight's replay as done a while after it started (Recruit's `combatReplayDone` bridge). */
+  private specFight: { key: string; at: number; done: boolean } | null = null;
+  private eotCue: { key: number; at: number } | null = null;
+  spectatorTick(): void {
+    const spec = this.spec;
+    if (!spec) return;
+    for (const q of this.gateQueue.splice(0)) {
+      if (q.at <= Date.now()) q.run();
+      else this.gateQueue.push(q);
+    }
+    // The recorded End of Turn the watched player's screen played (Recruit plays the cue, then answers `replayEotDone`):
+    // about half a second per End of Turn beat, as the players' own End of Turn above.
+    const cue = this.game.useGame.getState().replayEotCue;
+    if (cue && this.eotCue?.key !== cue.key) this.eotCue = { key: cue.key, at: Date.now() + 50 + 450 * ((cue.eot as { batch?: unknown[] }).batch?.length ?? 0) };
+    if (this.eotCue && Date.now() >= this.eotCue.at && this.game.useGame.getState().replayEotCue?.key === this.eotCue.key && this.game.useGame.getState().replayEotDone !== this.eotCue.key) {
+      this.game.useGame.setState({ replayEotDone: this.eotCue.key });
+    }
+    spec.flushSpectateRender();
+    const g = this.game.useGame.getState();
+    if (!spec.useSpectate.getState().active || g.run.phase !== 'combat') { this.specFight = null; if (g.combatReplayDone) this.game.useGame.setState({ combatReplayDone: false }); return; }
+    const key = `${g.run.runId}|${g.run.wave}`;
+    if (this.specFight?.key !== key) { this.specFight = { key, at: Date.now(), done: false }; this.game.useGame.setState({ combatReplayDone: false }); }
+    if (!this.specFight.done && Date.now() - this.specFight.at >= (this.opts.watchMs ?? 3500)) { this.specFight.done = true; this.game.useGame.setState({ combatReplayDone: true }); }
+    // The leave's exit curtain (Recruit answers `spectatorFightCovered` at its full cover).
+    spec.spectatorFightCovered();
+  }
+  /** The spectator's screen: whose seat, which phase and wave, and the fight object on it. */
+  spectatorView(): { active: boolean; seat: string; runId: string | null; phase: string; wave: number; settled: boolean; fight: unknown; resolve: number; titleView: string; showTitle: boolean; lobby: unknown } {
+    const g = this.game.useGame.getState();
+    const st = this.spec?.useSpectate.getState();
+    const runId = typeof g.run.runId === 'string' ? g.run.runId : null;
+    return {
+      active: !!st?.active, seat: st?.seat ?? '', runId, phase: g.run.phase, wave: g.run.wave, settled: !!g.run.combatSettled,
+      fight: (g.run as { lastCombat?: unknown }).lastCombat ?? null, resolve: g.run.resolve, titleView: g.titleView, showTitle: g.showTitle, lobby: g.run.lobby,
+    };
+  }
+  /** The spectator bar's seat buttons (hotkeys 1-4). */
+  watch(seat: string): void { this.spec?.watchSeat(seat as never); }
 
   /** Recruit's End Turn button: `useVersusRecruit().intercept()`. */
   pressEndTurn(): void {

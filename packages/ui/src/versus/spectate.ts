@@ -427,7 +427,7 @@ export function receiveSpectate(payload: unknown): void {
 // ── the watched player's actions, replayed in order ────────────────────────────────────────────────────────
 
 /** `before`: the view the message applied to (what the screen showed before these actions). */
-interface Pending { view: VersusSpectatorView; acts: SpectatorAct[]; before?: VersusSpectatorView | null }
+interface Pending { view: VersusSpectatorView; acts: SpectatorAct[]; before?: VersusSpectatorView | null; waitFrom?: number }
 let queue: Pending[] = [];
 /** The view on screen while the queue plays (null: the latest received). */
 let shownView: VersusSpectatorView | null = null;
@@ -532,7 +532,9 @@ function pump(): void {
   // THE PLAYER IS BACK IN THE SHOP while this screen still shows the fight (they skipped it, or this screen is behind):
   // the screen leaves the fight FIRST (the exit curtain, then the shop as it stood before these actions), and only then
   // plays them, on the shop they were made in (R-SPECTATE-SKIP-01). Never a shop action presented over a fight.
-  if (useGame.getState().run.phase === 'combat' && item.view.phase === 'recruit') {
+  const onScreen = useGame.getState().run;
+  if (staleShopItem(item, onScreen)) { pump(); return; }
+  if (onScreen.phase === 'combat' && item.view.phase === 'recruit') {
     queue.unshift(item);
     awaitingShop = true;
     shownView = item.before?.phase === 'recruit' ? item.before : item.view;
@@ -543,8 +545,13 @@ function pump(): void {
   // ON THE HAND'S CLOCK (R-SPECTATE-SMOOTH-01): an action lands when the drawn hand reaches the moment it happened on
   // the player's screen, not when its message arrived (which is usually before the hand gets there). Capped, and only
   // while the screen is not behind.
+  // The cap is on the action's WHOLE wait (R-SPECTATE-LANDWAIT-01): a hand whose clock reads ahead of this screen's (a
+  // drifting estimate, a throttled sender) once re-armed the wait on every retry, so the queue never moved again while
+  // its cursor kept arriving, and the stands sat on the shop through a whole fight (found by the spectator chaos cells).
+  const now = performance.now();
+  item.waitFrom ??= now;
   const due = queue.length < BEHIND ? cursorDueAt(item.acts.find((a) => typeof a.ts === 'number')?.ts) : null;
-  const wait = due === null ? 0 : Math.min(MAX_LAND_WAIT_MS, due - performance.now());
+  const wait = due === null ? 0 : Math.min(MAX_LAND_WAIT_MS - (now - item.waitFrom), due - now);
   if (wait > 4) {
     queue.unshift(item);
     busy = window.setTimeout(() => { busy = null; pump(); }, wait);
@@ -594,7 +601,23 @@ export function presentHeldDrop(acts: readonly { t: string; uid?: string }[], pr
   return false;
 }
 
+/**
+ * A SHOP ACTION FROM BEFORE THE FIGHT ON SCREEN (R-SPECTATE-STALE-SHOP-01): the screen already moved into the fight that
+ * shop led to (a match update rendered the latest view while the action was queued or still flying). It is history:
+ * landing it would take the screen back OUT of the fight to the shop it was made in, then into the fight again (found by
+ * the spectator chaos cells: "combat 1 -> recruit 1"). Dropped, never presented.
+ */
+function staleShopItem(item: Pending, onScreen: RunState): boolean {
+  return onScreen.phase === 'combat' && item.view.phase === 'recruit' && item.view.wave <= onScreen.wave;
+}
+
 function land(item: Pending, prevRun: RunState): void {
+  if (staleShopItem(item, useGame.getState().run)) {
+    releaseGhostHold();
+    if (useGame.getState().replayDragGhost) useGame.setState({ replayDragGhost: null });
+    busy = window.setTimeout(() => { busy = null; pump(); }, 0);
+    return;
+  }
   // The card in the hand that let go of it (the flight's ghost, or the live drag's): where its plate dissolves from.
   const plate = document.querySelector<HTMLElement>('.replay-dragghost .ghostcardwrap .card')?.getBoundingClientRect() ?? null;
   presentHeldDrop(item.acts, prevRun, item.view as { hand?: { uid: string }[]; triplesMade?: number });

@@ -40,6 +40,15 @@ const seedOf = (name: string, mode: ChaosMode): number => [...`${name}/${mode}`]
  */
 export const CF_EXTRA: ScenarioDef[] = [
   {
+    // R-SPECTATE-HARNESS-01 (owner 2026-10-29: "make sure spectating is also extremely clean"): a whole match watched
+    // from the stands, the watched player switched in a shop and again mid-fight; the match runs to its end.
+    name: 'spectate', about: 'a spectator watches the whole match, switching players in a shop and mid-fight, and ends back in the room', modes: CF_MODES,
+    build: (mode) => ({
+      name: 'spectate', mode, seed: seedOf('spectate', mode),
+      spectators: [{ switches: [{ round: 2, phase: 'shop', afterMs: 1500, seat: 'p2' }, { round: 3, phase: 'combat', afterMs: 1000, seat: 'p1' }] }],
+    }),
+  },
+  {
     name: 'dropFin', about: 'a 20 s loss the object hears (a closed socket): paused within the 3 s grace, lifted on return', modes: CF_MODES,
     build: (mode) => ({
       name: 'dropFin', mode, seed: seedOf('dropFin', mode), rounds: 3,
@@ -52,6 +61,7 @@ export const CF_EXTRA: ScenarioDef[] = [
  *  that dies, and Mend's live Armor on a team. */
 export const SMOKE_CF: string[] = [
   'baseline/duel', 'baseline/group3', 'baseline/duos', 'baseline/ranked_duos',
+  'spectate/duel', 'spectate/duos', 'spectate/ranked_duos',
   'emptyAll/duel', 'dropRestore/duel', 'realtimeDown/duel', 'resolverFail3/group3', 'mendArmor/duos', 'dropFin/group4', 'dropLong/group4',
 ];
 
@@ -63,7 +73,7 @@ beforeAll(() => {
 afterAll(() => { server?.uninstall(); });
 
 async function play(sc: ChaosScenario, known: Partial<Record<InvariantId, { cause: string; sometimes: boolean }>>): Promise<void> {
-  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'], now: Date.parse('2026-10-27T12:00:00Z') });
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date', 'performance'], now: Date.parse('2026-10-27T12:00:00Z') });
   let m = (sc.seed ^ 0x9e3779b9) >>> 0;
   const random = vi.spyOn(Math, 'random').mockImplementation(() => {
     m = (m + 0x6d2b79f5) >>> 0;

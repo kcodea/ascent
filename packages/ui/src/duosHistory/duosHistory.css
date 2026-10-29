@@ -24,8 +24,3 @@
 .dh-team-head .lp-tile-out { margin-left: auto; }
 .dh-team-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .dh-tile-hero { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* Phones: one team per row. */
-@media (max-width: 760px) {
-  .dh-teams, .dh-teams.n2 { grid-template-columns: minmax(0, 1fr); }
-}

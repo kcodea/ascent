@@ -6,7 +6,9 @@
  *  - simultaneous bubbles never overlap: several spectators at once, neighbouring rail rows at once, a spectator's next
  *    to the player's own; a bubble with no room waits and goes up when one leaves; the on-screen caps hold;
  *  - no bubble is ever mirrored: no `flip` class, no mirroring transform on the art, and the stylesheet carries none;
- *  - bubbles are larger than before (2026-10-13 widths: self 300, rail 200, foe 230, spectator 190).
+ *  - every bubble fits its portrait (owner follow-up the same day: "emotes should eclipse the players icon a bit more and
+ *    be more vertically aligned and sized appropriately to the portraits"): a fixed multiple of the portrait's width
+ *    per surface, level with its middle, its near edge over the portrait.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
@@ -14,7 +16,8 @@ import { useGame } from '../store';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  BUBBLE_WIDTH, MAX_WATCH_LIVE, bubbleBox, bubblesOverlap, clearEmoteBubbles, setEmoteFoe, settleBubble, showEmoteBubble,
+  BUBBLE_TO_PORTRAIT, MAX_WATCH_LIVE, MIN_BUBBLE_WIDTH, PORTRAIT_ECLIPSE, bubbleBox, bubblesOverlap, clearEmoteBubbles, fitToPortrait,
+  setEmoteFoe, settleBubble, showEmoteBubble,
 } from './emoteBubble';
 
 const EMOTES = ['emote_hi', 'emote_good_choice', 'emote_too_nasty', 'emote_lemon_approved', 'emote_its_beasts', 'emote_zen_brian'];
@@ -101,8 +104,8 @@ describe('bubbles never cover each other', () => {
     const shown = boxes();
     expect(shown.length).toBeGreaterThanOrEqual(3);
     expect(noTwoOverlap(shown)).toBe(true);
-    // every rail bubble stays to the LEFT of the faces
-    for (const b of shown) expect(b.left + b.width).toBeLessThanOrEqual(1740);
+    // every rail bubble sits to the LEFT of the faces, its right end only over their left edge
+    for (const b of shown) expect(b.left + b.width).toBeLessThanOrEqual(1740 + 60 * PORTRAIT_ECLIPSE + 1);
   });
 
   it('a spectator bubble never covers the player\'s own bubble: it slides clear, or waits for it to leave', () => {
@@ -155,10 +158,47 @@ describe('emote art is never mirrored (the words are painted in)', () => {
     for (const r of rules) expect(r).not.toMatch(/scaleX\(\s*-1\s*\)|scale\(\s*-1/);
   });
 
-  it('bubbles are larger than the 2026-10-13 sizes', () => {
-    expect(BUBBLE_WIDTH.self).toBeGreaterThan(300);
-    expect(BUBBLE_WIDTH.rail).toBeGreaterThan(200);
-    expect(BUBBLE_WIDTH.foe).toBeGreaterThan(230);
-    expect(BUBBLE_WIDTH.watch).toBeGreaterThan(190);
+});
+
+describe('every bubble fits its portrait (owner 2026-10-29: "eclipse the players icon a bit more ... vertically aligned and sized appropriately to the portraits")', () => {
+  const middle = (b: R): number => b.top + b.height / 2;
+
+  it('sized as a fixed multiple of its portrait, per surface: a bigger portrait gets a bigger bubble, a small face a floor', () => {
+    for (const surface of ['self', 'rail', 'foe', 'watch'] as const) {
+      const small = fitToPortrait({ left: 400, top: 400, width: 100, height: 100 }, surface, 'right');
+      const big = fitToPortrait({ left: 400, top: 400, width: 200, height: 200 }, surface, 'right');
+      expect(big.width).toBe(Math.max(MIN_BUBBLE_WIDTH, Math.round(200 * BUBBLE_TO_PORTRAIT[surface])));
+      expect(big.width).toBeGreaterThanOrEqual(small.width);
+      expect(small.width).toBeGreaterThanOrEqual(MIN_BUBBLE_WIDTH);
+    }
+    // the hero portrait's bubble is the biggest at the game's real sizes (hero 266, foe 160, ring 88, rail face 58)
+    const w = (s: keyof typeof BUBBLE_TO_PORTRAIT, px: number): number => fitToPortrait({ left: 400, top: 400, width: px, height: px }, s, 'left').width;
+    expect(w('self', 266)).toBeGreaterThan(w('foe', 160));
+    expect(w('foe', 160)).toBeGreaterThan(w('watch', 88));
+    expect(w('watch', 88)).toBeGreaterThan(w('rail', 58));
+  });
+
+  it('level with the portrait\'s middle, its near edge over the portrait by the eclipse, on every surface', () => {
+    railRow('s2', 300);
+    const foe = add('<div class="vsfoe-face" data-seat="s1"><div class="vsfoe-disc"></div></div>');
+    stub(foe.querySelector('.vsfoe-disc')!, { left: 1600, top: 500, width: 160, height: 160 });
+    plate('u1', 120);
+    const me = add('<div class="statusbar"><div class="hero"><div class="f"></div></div></div>');
+    stub(me.querySelector('.f')!, { left: 40, top: 420, width: 260, height: 260 });
+    for (const [seat, e] of [['s2', 'emote_hi'], ['s1', 'emote_too_nasty'], ['w:u1', 'emote_good_choice'], ['s0', 'emote_its_beasts']] as const) {
+      expect(showEmoteBubble(seat, e)).toBe(true);
+    }
+    const by = Object.fromEntries(boxes().map((b) => [b.seat, b]));
+    const check = (seat: string, p: R, side: 'left' | 'right'): void => {
+      const b = by[seat]!;
+      expect(Math.abs(middle(b) - (p.top + p.height / 2))).toBeLessThanOrEqual(1);
+      const eclipse = p.width * PORTRAIT_ECLIPSE;
+      if (side === 'right') expect(b.left).toBeCloseTo(p.left + p.width - eclipse, 0);
+      else expect(b.left + b.width).toBeCloseTo(p.left + eclipse, 0);
+    };
+    check('s2', { left: 1740, top: 300, width: 60, height: 60 }, 'left');
+    check('s1', { left: 1600, top: 500, width: 160, height: 160 }, 'left');
+    check('w:u1', { left: 42, top: 120, width: 88, height: 88 }, 'right');
+    check('s0', { left: 40, top: 420, width: 260, height: 260 }, 'right');
   });
 });

@@ -17,7 +17,7 @@ import { useGame } from '../store';
 import { EMOTE_COOLDOWN_MS, closeEmoteMenu, markEmotePhase, openEmoteMenu, resetEmotesForTests, sayEmote } from './emoteRuntime';
 import { resetHeldEmotes, takeShopEmotes } from './emoteRecording';
 import { deliverEmote, sendEmote, setEmoteTransport, subscribeEmotes } from './emoteTransport';
-import { BUBBLE_WIDTH, bubbleBox, clearEmoteBubbles, setEmoteFoe, showEmoteBubble } from './emoteBubble';
+import { bubbleBox, fitToPortrait, clearEmoteBubbles, setEmoteFoe, showEmoteBubble } from './emoteBubble';
 import { EmoteLayer } from './EmoteLayer';
 import { useProgression } from '../progression/progressionStore';
 import { equipEmoteLocally, parseLocalEmotes, useLocalEmotes } from './emoteLoadout';
@@ -199,7 +199,7 @@ describe('the bubble sits by its speaker', () => {
     stubRect(document.body.querySelector(sel)!, r);
   };
 
-  it('yours: from your portrait\'s upper-right, art as painted (tail down-left)', () => {
+  it('yours: to the right of your portrait, eclipsing its edge, level with it, art as painted (tail down-left)', () => {
     place('<div class="statusbar"><div class="hero"><div class="f"></div></div></div>', '.statusbar .hero .f', { left: 40, top: 400, width: 200, height: 200 });
     expect(showEmoteBubble('s0', RETIRED)).toBe(false); // a retired emote (an old recording, an old client) shows nothing
     expect(showEmoteBubble('s0', A)).toBe(true);
@@ -207,9 +207,10 @@ describe('the bubble sits by its speaker', () => {
     expect(img.className).toMatch(/\bright\b/);
     expect(img.getAttribute('aria-hidden')).toBe('true');
     expect(img.querySelector('img')!.getAttribute('src')).toMatch(/emote_flirty_midas/);
-    const box = bubbleBox({ x: 40 + 200 - 60, y: 400 - 8, width: BUBBLE_WIDTH.self, side: 'right' });
-    expect([img.style.left, img.style.top, img.style.width]).toEqual([`${box.left}px`, `${box.top}px`, `${BUBBLE_WIDTH.self}px`]);
-    expect(box.left).toBeGreaterThan(40); // it opens to the right of the face
+    const box = bubbleBox(fitToPortrait({ left: 40, top: 400, width: 200, height: 200 }, 'self', 'right'));
+    expect([img.style.left, img.style.top, img.style.width]).toEqual([`${box.left}px`, `${box.top}px`, `${box.width}px`]);
+    expect(box.left).toBeGreaterThan(40); // it opens to the right of the face...
+    expect(box.left).toBeLessThan(240); // ...over its right edge
   });
 
   it('a rail seat: to the LEFT of its face, art as painted; a seat with no face on screen gets nothing', () => {
@@ -218,7 +219,9 @@ describe('the bubble sits by its speaker', () => {
     const img = document.body.querySelector<HTMLElement>('.emote-bubble.left')!;
     expect(img.dataset.seat).toBe('s3');
     expect(img.className).not.toMatch(/\bflip\b/);
-    expect(Number.parseFloat(img.style.left) + Number.parseFloat(img.style.width)).toBeLessThan(1760);
+    // its right end eclipses the face's left edge, never past the face
+    expect(Number.parseFloat(img.style.left) + Number.parseFloat(img.style.width)).toBeGreaterThan(1700);
+    expect(Number.parseFloat(img.style.left) + Number.parseFloat(img.style.width)).toBeLessThan(1730);
     expect(showEmoteBubble('s5', B)).toBe(false);
     // a new emote from the same seat replaces its bubble
     expect(showEmoteBubble('s3', C)).toBe(true);

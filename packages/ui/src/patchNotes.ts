@@ -61,6 +61,7 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Spectators and emotes are tidier, bigger and easier to read.', details: [
         'Spectators now stand in one neat column at the top left, with bigger portraits and names.',
         'Emotes are bigger, on every screen and on phones.',
+        'Each emote now sits level with the portrait it comes from, tucks over its edge, and is sized to match it.',
         'Emotes never cover each other. When several land at once they spread out, or wait a moment for room.',
         'Emotes beside the lobby rail and your opponent no longer show their words backwards.',
       ] },

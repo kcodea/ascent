@@ -619,57 +619,51 @@ html[data-touch-ui][data-touch-small][data-page-scale] .lbpage .lb-state .lb-spi
 /* The list rows' names keep their room: a hero or record beside a name gives way first. */
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-item > .gs-who .gs-sub { flex: 0 100 auto; }
 
-/* ── SETTINGS (the Esc menu; owner 2026-10-27: "the settings menu is pretty ugly, but not unusable. just not good") ──
-   The desktop panel zoomed onto a phone: a short box, rows of every width, notes beside their buttons and a sticky Done
-   that hid half of the list. On a phone it is one tall sheet at its real size: the title, then each section's rows at
-   the sheet's full width (label on the left, its control on the right, its note under it), then Done pinned at the
-   foot. The same game panel, plates, switches and buttons; only their sizes and the row layout change. */
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel {
-  zoom: 1; box-sizing: border-box; min-width: 0; width: min(calc(560 * var(--pt)), calc(100% - 2 * var(--safe-l) - 24 * var(--pt)));
-  max-height: calc(var(--lvh, 100dvh) - var(--safe-t) - var(--pz-safe-b, var(--safe-b)) - 20 * var(--pt));
+/* ── SETTINGS (owner 2026-10-27: "the settings menu is pretty ugly, but not unusable. just not good"; a sidebar page
+   since 2026-10-29, R-ESC-SIDEBAR-01) ──
+   The desktop panel zoomed onto a phone: a short box, rows of every width, notes beside their buttons. On a phone it is
+   one tall sheet at its real size in the page's scroller: each section's rows at the sheet's full width (label on the
+   left, its control on the right, its note under it). The same game panel, plates, switches and buttons; only their
+   sizes and the row layout change. */
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel {
+  zoom: 1; box-sizing: border-box; min-width: 0; width: min(calc(560 * var(--pt)), 100%);
   padding: calc(12 * var(--pt)) calc(16 * var(--pt)) 0; border-radius: calc(14 * var(--pt)); border-width: 1.5px;
-  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y;
 }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .esch { font-size: calc(20 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escsec { gap: calc(10 * var(--pt)); font-size: calc(12 * var(--pt)); margin: calc(16 * var(--pt)) 0 calc(8 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .esch + .escsec { margin-top: calc(8 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escsec::after { height: 1px; }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .esch { font-size: calc(20 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escsec { gap: calc(10 * var(--pt)); font-size: calc(12 * var(--pt)); margin: calc(16 * var(--pt)) 0 calc(8 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .esch + .escsec { margin-top: calc(8 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escsec::after { height: 1px; }
 /* A row of buttons (a toggle, an action): the button spans the sheet, its note sits under it. */
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escline { display: flex; flex-direction: column; align-items: stretch; gap: calc(4 * var(--pt)); margin-bottom: calc(8 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel button.escbtn.pressable {
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escline { display: flex; flex-direction: column; align-items: stretch; gap: calc(4 * var(--pt)); margin-bottom: calc(8 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel button.escbtn.pressable {
   width: 100%; box-sizing: border-box; align-items: center; gap: calc(12 * var(--pt)); min-height: calc(44 * var(--pt)); padding: calc(6 * var(--pt)) calc(14 * var(--pt)); border-radius: calc(10 * var(--pt)); border-width: 1.5px;
 }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escbtn .ebl { font-size: calc(14 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escnote { font-size: calc(11.5 * var(--pt)); line-height: 1.35; margin: 0 calc(4 * var(--pt)) calc(8 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escline .escnote.eschint { margin: 0 calc(4 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escswitch { width: calc(44 * var(--pt)); height: calc(24 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escknob { top: calc(2 * var(--pt)); left: calc(2 * var(--pt)); width: calc(18 * var(--pt)); height: calc(18 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .esctoggle.is-on .escknob { transform: translateX(calc(20 * var(--pt))); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escchev { width: calc(14 * var(--pt)); height: calc(14 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escbtn .ebl { font-size: calc(14 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escnote { font-size: calc(11.5 * var(--pt)); line-height: 1.35; margin: 0 calc(4 * var(--pt)) calc(8 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escline .escnote.eschint { margin: 0 calc(4 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escswitch { width: calc(44 * var(--pt)); height: calc(24 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escknob { top: calc(2 * var(--pt)); left: calc(2 * var(--pt)); width: calc(18 * var(--pt)); height: calc(18 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .esctoggle.is-on .escknob { transform: translateX(calc(20 * var(--pt))); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escchev { width: calc(14 * var(--pt)); height: calc(14 * var(--pt)); }
 /* A slider or a choice: the label, then the control filling the row, then its value and mute. */
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escaudio { align-items: stretch; }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escvol {
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escaudio { align-items: stretch; }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escvol {
   width: 100%; box-sizing: border-box; gap: calc(10 * var(--pt)); min-height: calc(44 * var(--pt)); padding: calc(4 * var(--pt)) calc(14 * var(--pt)); border-radius: calc(10 * var(--pt)); border-width: 1.5px; margin-bottom: calc(8 * var(--pt));
 }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escvol .evl { flex: 0 0 calc(118 * var(--pt)); font-size: calc(14 * var(--pt)); white-space: normal; }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escvol .evv { font-size: calc(13 * var(--pt)); min-width: calc(32 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escvol input[type='range'] { flex: 1 1 0; width: auto; min-width: 0; height: calc(8 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escvol input[type='range']::-webkit-slider-thumb { width: calc(26 * var(--pt)); height: calc(26 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escvol input[type='range']::-moz-range-thumb { width: calc(26 * var(--pt)); height: calc(26 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escvol .escmute { font-size: calc(11 * var(--pt)); min-height: calc(32 * var(--pt)); min-width: calc(58 * var(--pt)); padding: 0 calc(10 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escaudio .escdisclose { width: 100%; }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escaudio-adv { align-items: stretch; padding-left: calc(10 * var(--pt)); margin: 0 0 calc(4 * var(--pt)) calc(4 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escselect { flex: 1 1 0; min-width: 0; }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escselect-trigger { gap: calc(8 * var(--pt)); min-height: calc(36 * var(--pt)); padding: 0 calc(10 * var(--pt)) 0 calc(12 * var(--pt)); border-radius: calc(8 * var(--pt)); font-size: calc(13.5 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escselect-value { font-size: calc(13.5 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escselect-list { top: calc(100% + 4 * var(--pt)); gap: calc(2 * var(--pt)); padding: calc(4 * var(--pt)); border-radius: calc(8 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel .escselect-opt { min-height: calc(38 * var(--pt)); padding: 0 calc(10 * var(--pt)); border-radius: calc(6 * var(--pt)); font-size: calc(13.5 * var(--pt)); }
-/* Done (or Resume) pinned at the sheet's foot, on a band of the sheet's own colour so the rows scroll under it. */
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel button.escclose.pressable {
-  position: sticky; bottom: 0; z-index: 3; width: 100%; min-height: calc(44 * var(--pt)); margin: calc(12 * var(--pt)) 0 0; padding: 0; border-radius: calc(10 * var(--pt)); font-size: calc(14 * var(--pt));
-  outline: calc(10 * var(--pt)) solid rgb(10, 16, 31); outline-offset: 0;
-}
-html[data-touch-ui][data-touch-small][data-page-scale] .escov .escpanel::after { content: ''; display: block; height: calc(12 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escvol .evl { flex: 0 0 calc(118 * var(--pt)); font-size: calc(14 * var(--pt)); white-space: normal; }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escvol .evv { font-size: calc(13 * var(--pt)); min-width: calc(32 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escvol input[type='range'] { flex: 1 1 0; width: auto; min-width: 0; height: calc(8 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escvol input[type='range']::-webkit-slider-thumb { width: calc(26 * var(--pt)); height: calc(26 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escvol input[type='range']::-moz-range-thumb { width: calc(26 * var(--pt)); height: calc(26 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escvol .escmute { font-size: calc(11 * var(--pt)); min-height: calc(32 * var(--pt)); min-width: calc(58 * var(--pt)); padding: 0 calc(10 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escaudio .escdisclose { width: 100%; }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escaudio-adv { align-items: stretch; padding-left: calc(10 * var(--pt)); margin: 0 0 calc(4 * var(--pt)) calc(4 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escselect { flex: 1 1 0; min-width: 0; }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escselect-trigger { gap: calc(8 * var(--pt)); min-height: calc(36 * var(--pt)); padding: 0 calc(10 * var(--pt)) 0 calc(12 * var(--pt)); border-radius: calc(8 * var(--pt)); font-size: calc(13.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escselect-value { font-size: calc(13.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escselect-list { top: calc(100% + 4 * var(--pt)); gap: calc(2 * var(--pt)); padding: calc(4 * var(--pt)); border-radius: calc(8 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel .escselect-opt { min-height: calc(38 * var(--pt)); padding: 0 calc(10 * var(--pt)); border-radius: calc(6 * var(--pt)); font-size: calc(13.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .set-page .escpanel::after { content: ''; display: block; height: calc(12 * var(--pt)); }
 /* The open game appears at once on a phone (no rise-in): one less animation on a busy page, and it is never caught
    half-faded while a long list is still settling. */
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-in { animation-name: none; }

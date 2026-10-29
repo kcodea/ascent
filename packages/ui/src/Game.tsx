@@ -52,7 +52,7 @@ import compendiumBookArt from './compendium-book.png';
 import rulesQuestionArt from './rules-question.png';
 import settingsArt from './settings-medallion.png';
 import { SettingsPage } from './EscMenu';
-import { GameMenu } from './GameMenu';
+import { GameMenu, handleEscape, openMenu } from './GameMenu';
 import { setFxScene, type FxScene } from './fx/fxBudget';
 import { installPerfBench } from './perfBench';
 import { ensureDefsReady } from './fx/playDef';
@@ -163,13 +163,6 @@ const MENU_SFX_SKIP = '[data-nohoversfx], [data-quiet], .devmenu, .desk, .heropo
   // like clicking between games, or between opponents"): picking a game, a lobby seat, a tab, a hero filter, a trend
   // range, a Leaderboard row. Real actions (Play, a mode, Replay, confirms, crates) keep their sounds.
   + '.gs-item, .gs-list, .lp-tile, .lp-back, .cv2-tab, .rg-chip, .cv2-seg-btn, .lb-seg-btn, .ct-seg button, .lb-trow-btn, .lb-podium, .colls-tab, .colls-chip';
-
-/** Escape / the gear: in a game the in-game menu (the sidebar over the dimmed game), on the menus the Settings page. */
-function openMenu(): void {
-  const st = useGame.getState();
-  if (inGameScreen(st)) st.openGameMenu();
-  else st.openSettings();
-}
 
 export function Game() {
   const phase = useGame((s) => s.run.phase);
@@ -524,13 +517,7 @@ export function Game() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      const st = useGame.getState();
-      if (st.showBook) { st.closeBook(); return; }
-      if (st.showPatchNotes) { st.closePatchNotes(); return; }
-      if (st.gameMenuOpen) { st.closeGameMenu(); return; }
-      if (st.settingsOpen) { st.closeSettings(); return; }
-      if (st.inspect) return;
-      openMenu();
+      handleEscape();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

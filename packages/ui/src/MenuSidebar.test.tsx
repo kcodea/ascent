@@ -32,7 +32,7 @@ import { Career } from './Career';
 import { Rankings } from './Rankings';
 import { Leaderboard } from './Leaderboard';
 import { RecentGames } from './RecentGames';
-import { EscMenu } from './EscMenu';
+import { SettingsPanel } from './EscMenu';
 import { sfx } from './sfx';
 import { useGame } from './store';
 import { setPlayParty } from './versus/playParty';
@@ -186,29 +186,24 @@ describe('navigation', () => {
     expect(ui.container.querySelector('.msb')?.classList.contains('hop')).toBe(false);
   });
 
-  it('Settings over a ladder page offers MAIN MENU (not a Save & Quit no run can honour); over the bare title, no primary at all', () => {
-    useGame.setState({ showRankings: true, showTitle: true, replaying: false });
-    ui = mount(<EscMenu onClose={() => {}} />);
-    const primary = ui.container.querySelector('.escbtn-primary');
-    expect(primary?.textContent).toMatch(/^Main menu/);
-    expect(primary?.textContent).not.toMatch(/Save/);
-    ui.unmount();
-    useGame.setState({ ...PAGES_CLOSED, titleView: 'menu', showTitle: true });
-    ui = mount(<EscMenu onClose={() => {}} />);
-    expect(ui.container.querySelector('.escbtn-primary')).toBeNull();
-    ui.unmount();
-    useGame.setState({ showTitle: false });
-    ui = mount(<EscMenu onClose={() => {}} />);
-    expect(ui.container.querySelector('.escbtn-primary')?.textContent).toMatch(/^Save & Quit/);
+  it('the Settings page carries no leave button on the menus or in a game (R-ESC-SIDEBAR-01: it moved to the in-game sidebar)', () => {
+    for (const st of [{ showRankings: true, showTitle: true }, { showTitle: true }, { showTitle: false }]) {
+      useGame.setState({ ...PAGES_CLOSED, titleView: 'menu', replaying: false, ...st });
+      ui = mount(<SettingsPanel />);
+      expect(ui.container.querySelector('.escbtn-primary')).toBeNull();
+      expect(ui.container.textContent).not.toMatch(/Save & Quit|Main menu|Resume/);
+      ui.unmount(); ui = null;
+    }
   });
 
-  it('Settings opens the store\'s modal flag from a page', () => {
+  it('Settings is a page: the plaque opens it through goTo, closing the page it was pressed on', () => {
     useGame.setState({ showRankings: true });
     ui = mount(<Rankings />);
     click([...ui.container.querySelectorAll('.sbbtn')].find((b) => b.textContent?.trim() === 'Settings'));
     expect(useGame.getState().settingsOpen).toBe(true);
-    useGame.getState().closeSettings();
-    expect(useGame.getState().settingsOpen).toBe(false);
+    expect(useGame.getState().showRankings).toBe(false);
+    useGame.getState().goTo('career');
+    expect(useGame.getState().settingsOpen, 'a hop away closes Settings like any page').toBe(false);
   });
 
   it('returning to the title (openTitle / cancelPracticeSetup) lands on the MAIN menu, never a sub-view — with every page closed', () => {

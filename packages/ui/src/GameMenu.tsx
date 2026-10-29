@@ -18,8 +18,27 @@
  */
 import { useEffect } from 'react';
 import { MenuSidebar } from './MenuSidebar';
-import { anyPageOpen, useGame } from './store';
+import { anyPageOpen, inGameScreen, useGame } from './store';
 import { sfx } from './sfx';
+
+/** Escape / the gear: in a game the in-game menu (the sidebar over the dimmed game), on the menus the Settings page. */
+export function openMenu(): void {
+  const st = useGame.getState();
+  if (inGameScreen(st)) st.openGameMenu();
+  else st.openSettings();
+}
+
+/** THE ESCAPE KEY (Game.tsx's one listener). The Compendium and Patch Notes close first; then an open in-game menu closes
+ *  (with any page it opened), or an open Settings page; a card being inspected claims Esc itself; else the menu opens. */
+export function handleEscape(): void {
+  const st = useGame.getState();
+  if (st.showBook) { st.closeBook(); return; }
+  if (st.showPatchNotes) { st.closePatchNotes(); return; }
+  if (st.gameMenuOpen) { st.closeGameMenu(); return; }
+  if (st.settingsOpen) { st.closeSettings(); return; }
+  if (st.inspect) return;
+  openMenu();
+}
 
 export function GameMenu() {
   const open = useGame((s) => s.gameMenuOpen);

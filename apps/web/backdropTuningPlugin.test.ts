@@ -4,7 +4,11 @@ import { planBackdropTuningWrite } from './backdropTuningPlugin';
 /** The Background Tuner's Save (owner 2026-10-29): one backdrop's tune into backdrop-tuning.json, validated. */
 const EMPTY = JSON.stringify({ version: 1, backdrops: {} });
 const VALUES = {
-  zoom: 1.25, panX: -30, panY: 12.5, size: 430, dark: 0.1, blur: 0, tint: '#472A00', tintAmount: 0.05, shadow: 0.72, shadowX: 6, shadowY: 8,
+  zoom: 1.25, panX: -30, panY: 12.5, size: 430, dark: 0.1, blur: 0, tint: '#472A00', tintAmount: 0.05,
+};
+/** The look every backdrop shares (owner 2026-10-29: hero shades and board shadow "should be global"). */
+const SHARED = {
+  shadow: 0.72, shadowX: 6, shadowY: 8,
   shadeDark: 0.8, shadeSoft: 60, shadeSize: 1200, shadeX: -1000, shadeY: 400, powerShadeSize: 420, powerShadeX: -800, powerShadeY: 230,
   oppShadeSize: 950, oppShadeX: 1080, oppShadeY: -500,
 };
@@ -29,11 +33,30 @@ describe('planBackdropTuningWrite', () => {
   it('rejects a bad id, an unknown, missing or out-of-range knob, a bad tint, and a broken file', () => {
     expect(planBackdropTuningWrite({ id: '../evil', values: VALUES }, EMPTY).status).toBe(400);
     expect(planBackdropTuningWrite({ id: 'castle', values: { ...VALUES, extra: 1 } }, EMPTY).status).toBe(400);
-    const { panY: _drop, ...missing } = VALUES;
+    const missing = Object.fromEntries(Object.entries(VALUES).filter(([k]) => k !== 'panY'));
     expect(planBackdropTuningWrite({ id: 'castle', values: missing }, EMPTY).status).toBe(400);
     expect(planBackdropTuningWrite({ id: 'castle', values: { ...VALUES, zoom: 0.5 } }, EMPTY).status).toBe(400);
     expect(planBackdropTuningWrite({ id: 'castle', values: { ...VALUES, panX: Number.NaN } }, EMPTY).status).toBe(400);
     expect(planBackdropTuningWrite({ id: 'castle', values: { ...VALUES, tint: 'red' } }, EMPTY).status).toBe(400);
     expect(planBackdropTuningWrite({ id: 'castle', values: VALUES }, '{').status).toBe(500);
+  });
+
+  it('writes the shared look once, as allBackgrounds, and keeps it when a later save leaves it out', () => {
+    const first = planBackdropTuningWrite({ id: 'castle', values: VALUES, shared: SHARED }, EMPTY);
+    expect(first.status).toBe(200);
+    expect(JSON.parse(first.data!).allBackgrounds).toEqual(SHARED);
+    const second = planBackdropTuningWrite({ id: 'temple', values: VALUES }, first.data!);
+    const file = JSON.parse(second.data!);
+    expect(file.allBackgrounds).toEqual(SHARED);
+    expect(Object.keys(file.backdrops)).toEqual(['castle', 'temple']);
+  });
+
+  it('rejects a shared look with a missing, unknown or out-of-range knob', () => {
+    const missing = Object.fromEntries(Object.entries(SHARED).filter(([k]) => k !== 'shadowY'));
+    expect(planBackdropTuningWrite({ id: 'castle', values: VALUES, shared: missing }, EMPTY).status).toBe(400);
+    expect(planBackdropTuningWrite({ id: 'castle', values: VALUES, shared: { ...SHARED, zoom: 1 } }, EMPTY).status).toBe(400);
+    expect(planBackdropTuningWrite({ id: 'castle', values: VALUES, shared: { ...SHARED, shadeDark: 2 } }, EMPTY).status).toBe(400);
+    // a board-shadow knob in the per-backdrop values is no longer accepted
+    expect(planBackdropTuningWrite({ id: 'castle', values: { ...VALUES, shadow: 0.5 } }, EMPTY).status).toBe(400);
   });
 });

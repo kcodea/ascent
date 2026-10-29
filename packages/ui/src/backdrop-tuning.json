@@ -9,9 +9,6 @@
       "dark": 0,
       "blur": 0,
       "tintAmount": 0.04,
-      "shadow": 0.72,
-      "shadowX": 6,
-      "shadowY": 8,
       "tint": "#4462f8"
     }
   }

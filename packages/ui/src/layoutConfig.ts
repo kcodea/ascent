@@ -195,6 +195,7 @@ export const BACKDROP_TEXTURES: Record<string, { label: string; url: string; cov
   bambooForest: { label: 'Bamboo Forest (image)', url: '/backdrop-bamboo-forest.webp', cover: true },
   koiPond: { label: 'Koi Pond (image)', url: '/backdrop-koi-pond.webp', cover: true },
   stoneCourtyard: { label: 'Stone Courtyard (image)', url: '/backdrop-stone-courtyard.webp', cover: true },
+  autumnFire: { label: 'Autumn Fire (image)', url: '/backdrop-autumn-fire.webp', cover: true },
 };
 
 /** The SMALL copy of a painted (`cover`) backdrop that touch devices load instead (1600x900, `<name>-sm.webp`): a

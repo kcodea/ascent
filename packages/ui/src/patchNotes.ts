@@ -74,7 +74,7 @@ export const PATCH_NOTES: PatchNote[] = [
         'Pick one in Settings under Board backdrop: Castle, Runic Slate, Cosmic Energy, Dark Sanctum, Temple, Stone Courtyard, Koi Pond, Fresh Pond, Bamboo Forest, Treasure Hoard, Celestial or Autumn Fire.',
         'Each is one painted scene that fills your whole screen, ultrawide monitors included, and stays sharp on 4K screens.',
         'If you already chose a backdrop, you keep it. Oak planks and the other patterns are still there too.',
-        'Soft dark shadows now sit behind your portrait, your hero power and your opponent\'s portrait, so they stand out on a bright backdrop.',
+        'Soft dark shadows now sit behind your portrait and your opponent\'s portrait, so they stand out on a bright backdrop.',
       ] },
       { category: 'Systems', text: 'Patch Notes is now a page like Settings, with the menu sidebar beside it.', details: [
         'Open it from the Patch Notes button on the main menu, or from the sidebar on any menu page.',

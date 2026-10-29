@@ -98,16 +98,18 @@ describe('the Background Tuner (DEV)', () => {
 
   it('every slider fits what Save accepts, so a save never fails on a value the tuner can set', async () => {
     const { SPEC } = await import('./BackgroundTuner');
-    const { BACKDROP_TUNING_RANGES } = await import('../../../apps/web/backdropTuningPlugin');
-    const { NUMBER_KEYS } = await import('./backdrop');
-    for (const k of NUMBER_KEYS) {
-      const c = SPEC.controls.find((x) => x.key === k);
-      expect(c, k).toBeTruthy();
-      const [min, max] = BACKDROP_TUNING_RANGES[k]!;
-      expect(c!.min, k).toBeGreaterThanOrEqual(min);
-      expect(c!.max, k).toBeLessThanOrEqual(max);
+    const { BACKDROP_TUNING_RANGES, SHARED_RANGES } = await import('../../../apps/web/backdropTuningPlugin');
+    const { NUMBER_KEYS, SHARED_KEYS } = await import('./backdrop');
+    for (const [keys, ranges] of [[NUMBER_KEYS, BACKDROP_TUNING_RANGES], [SHARED_KEYS, SHARED_RANGES]] as const) {
+      for (const k of keys) {
+        const c = SPEC.controls.find((x) => x.key === k);
+        expect(c, k).toBeTruthy();
+        const [min, max] = ranges[k]!;
+        expect(c!.min, k).toBeGreaterThanOrEqual(min);
+        expect(c!.max, k).toBeLessThanOrEqual(max);
+      }
+      expect(Object.keys(ranges).sort()).toEqual([...keys].sort());
     }
-    expect(Object.keys(BACKDROP_TUNING_RANGES).sort()).toEqual([...NUMBER_KEYS].sort());
   });
 
   it('the Layout Lab has no Backdrop controls, and the board CSS reads only the backdrop\'s own vars', async () => {
@@ -176,19 +178,50 @@ describe('hero shades (owner 2026-10-29: "another circle under each portrait", "
   it('a backdrop writes the shade vars (radius = half the size), and the tuner can change them live', async () => {
     const b = await import('./backdrop');
     b.setBackdrop('castle');
-    const t = b.tuneOf('castle');
-    expect(rootVar('--bd-shade-a')).toBe(String(t.shadeDark));
-    expect(rootVar('--bd-shade-r')).toBe(`${t.shadeSize / 2}px`);
-    expect(rootVar('--bd-pshade-x')).toBe(`${t.powerShadeX}px`);
-    b.setLiveTune('castle', 'shadeDark', 0.95);
-    b.setLiveTune('castle', 'shadeSoft', 40);
-    b.setLiveTune('castle', 'powerShadeSize', 600);
-    b.setLiveTune('castle', 'oppShadeY', -480);
+    const s = b.sharedLook();
+    expect(rootVar('--bd-shade-a')).toBe(String(s.shadeDark));
+    expect(rootVar('--bd-shade-r')).toBe(`${s.shadeSize / 2}px`);
+    expect(rootVar('--bd-pshade-x')).toBe(`${s.powerShadeX}px`);
+    b.setLiveShared('shadeDark', 0.95);
+    b.setLiveShared('shadeSoft', 40);
+    b.setLiveShared('powerShadeSize', 600);
+    b.setLiveShared('oppShadeY', -480);
     expect(rootVar('--bd-shade-a')).toBe('0.95');
     expect(rootVar('--bd-shade-core')).toBe('60%');
     expect(rootVar('--bd-pshade-r')).toBe('300px');
     expect(rootVar('--bd-oshade-y')).toBe('-480px');
     b.clearLiveTune();
+  });
+
+  it('the board shadow and hero shades are ONE setting for every backdrop (owner: "should be global")', async () => {
+    const b = await import('./backdrop');
+    b.setBackdrop('castle');
+    b.setLiveShared('shadeDark', 0.9);
+    b.setLiveShared('shadow', 0.4);
+    b.setLiveShared('shadowX', 12);
+    for (const id of ['temple', 'oak', 'koiPond'] as const) {
+      b.setBackdrop(id);
+      expect(rootVar('--bd-shade-a'), id).toBe('0.9');
+      expect(rootVar('--bd-shadow-a'), id).toBe('0.4');
+      expect(rootVar('--bd-shadow-x'), id).toBe('12px');
+    }
+    // A backdrop's own tune no longer carries them.
+    expect(Object.keys(b.tuneOf('castle'))).not.toContain('shadow');
+    expect(Object.keys(b.tuneOf('castle'))).not.toContain('shadeDark');
+    b.clearLiveTune();
+  });
+
+  it('the SAVED shared look applies to every backdrop', async () => {
+    vi.doMock('./backdrop-tuning.json', () => ({
+      default: { version: 1, allBackgrounds: { shadeDark: 0.85, shadow: 0.5, bogus: 3 }, backdrops: {} },
+    }));
+    const b = await import('./backdrop');
+    expect(b.sharedLook()).toMatchObject({ shadeDark: 0.85, shadow: 0.5, shadowX: b.SHARED_DEFAULTS.shadowX });
+    expect(b.sharedLook()).not.toHaveProperty('bogus');
+    b.setBackdrop('darkSanctum');
+    expect(rootVar('--bd-shade-a')).toBe('0.85');
+    expect(rootVar('--bd-shadow-a')).toBe('0.5');
+    vi.doUnmock('./backdrop-tuning.json');
   });
 
   it('the circles live UNDER the board: a backdrop layer, never inside the portraits', async () => {

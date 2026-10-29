@@ -1,5 +1,21 @@
 {
   "version": 1,
+  "allBackgrounds": {
+    "shadow": 0.76,
+    "shadowX": 6,
+    "shadowY": 8,
+    "shadeDark": 1,
+    "shadeSoft": 100,
+    "shadeSize": 1050,
+    "shadeX": -1080,
+    "shadeY": 427,
+    "powerShadeSize": 0,
+    "powerShadeX": -60,
+    "powerShadeY": 232,
+    "oppShadeSize": 1020,
+    "oppShadeX": 1024,
+    "oppShadeY": -511
+  },
   "backdrops": {
     "castle": {
       "zoom": 1.11,
@@ -9,9 +25,6 @@
       "dark": 0,
       "blur": 0,
       "tintAmount": 0.04,
-      "shadow": 0.72,
-      "shadowX": 6,
-      "shadowY": 8,
       "tint": "#4462f8"
     }
   }

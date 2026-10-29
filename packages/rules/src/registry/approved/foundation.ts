@@ -10995,13 +10995,16 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'its preset, then what the dev Background Tuner saved for it (which ships to every player once committed). In a dev '
       + 'build the Background Tuner puts the backdrop it is tuning on screen and shows every edit to it at once, never on '
       + 'another backdrop, until Save or Reset. A painted backdrop\x27s zoom and position can never show the edge of the '
-      + 'picture. The Layout Lab (Scale & Layout) has no backdrop controls.',
+      + 'picture. The board\x27s shadow and the hero shades (dark circles under the board behind both portraits and the hero power) '
+      + 'are ONE setting shared by every backdrop. The Layout Lab (Scale & Layout) has no backdrop controls.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-28 (board cutout)', quote: 'cobblestone (which is currently wood in the tuner for some reason when selected)' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-28 (board cutout)', quote: 'how do we set this as a selectable background option in the real game? can we add a dropdown in the settings menu?' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-29 (board cutout)', quote: 'lets make a standalone background tuner. i dont want it in the scale and layout' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-29 (board cutout)', quote: 'the edits to the hero shades should be global. the same effect on every background, no matter whats selected' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-29 (board cutout)', quote: 'same with the board shadow settings' },
       { kind: 'code', ref: 'packages/ui/src/backdrop.ts (tuneOf, setLiveTune); packages/ui/src/BackgroundTuner.tsx; apps/web/backdropTuningPlugin.ts; packages/ui/src/backdrop-tuning.json; packages/ui/src/EscMenu.tsx (Board backdrop)' },
     ],
     currentBehaviour: 'Conforms since 2026-10-29 (feat/background-tuner): the Background Tuner replaced the Layout Lab\x27s Backdrop section. From 2026-10-28 the Layout Lab drove the backdrop and, before a fix that day, picking its default texture showed the Settings pick instead.',

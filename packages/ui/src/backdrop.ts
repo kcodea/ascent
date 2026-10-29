@@ -8,7 +8,8 @@
  * reads them). Saved per device in localStorage; read once at load.
  *
  * TUNING (owner 2026-10-29: "lets make a standalone background tuner. i dont want it in the scale and layout"): the
- * DEV Background Tuner (BackgroundTuner.tsx) edits ONE backdrop's tune live; its Save writes the numbers into
+ * DEV Background Tuner (BackgroundTuner.tsx) edits ONE backdrop's tune live, plus the SHARED LOOK every backdrop wears
+ * (the board's shadow and the hero shades, owner: "should be global"); its Save writes the numbers into
  * `backdrop-tuning.json` through the dev server (apps/web/backdropTuningPlugin.ts), which lays over the preset below,
  * so a saved tune ships to every player once the file is committed.
  *
@@ -18,7 +19,7 @@
 import { BACKDROP_TEXTURES, backdropFit, backdropSmallUrl } from './layoutConfig';
 import savedTuning from './backdrop-tuning.json';
 
-/** Everything the Background Tuner can change on one backdrop. */
+/** Everything the Background Tuner can change on ONE backdrop (the shared look is below). */
 export interface BackdropTune {
   /** Painted images: how far the picture is enlarged, 1 = just fills the window. */
   zoom: number;
@@ -35,16 +36,26 @@ export interface BackdropTune {
   /** Tint colour and its amount, 0..1. */
   tint: string;
   tintAmount: number;
-  /** The board's drop shadow on this backdrop: strength 0..1 and offset, reference px. */
+}
+export type BackdropTuneKey = keyof BackdropTune;
+export type BackdropNumberKey = Exclude<BackdropTuneKey, 'tint'>;
+
+/**
+ * HERO SHADES (owner 2026-10-29: "another circle under each portrait that i can spread out and make very dark", then
+ * "can we have the shadow under the hero power?", "is it possible for it to go under the board too?" and "the edits to
+ * the hero shades should be global. the same effect on every background, no matter whats selected"): soft dark circles
+ * in the backdrop layer, UNDER the board, behind your portrait, your hero power and (combat) the opponent's portrait, so
+ * they read on a bright background. Separate from the portraits' own drop shadow. ONE setting for every backdrop.
+ * Darkness 0..1 and Softness 0..100 (0 = a hard edge) are shared by the circles. Each circle's size is its diameter
+ * and its X/Y its centre, measured from the board's centre, in reference px (x --scale), so it stays put relative to the
+ * board at any screen size.
+ */
+export interface SharedLook {
+  /** THE BOARD'S DROP SHADOW (owner 2026-10-29: "same with the board shadow settings"): strength 0..1 and offset,
+   *  reference px. One setting for every backdrop, like the hero shades. */
   shadow: number;
   shadowX: number;
   shadowY: number;
-  /** HERO SHADES (owner 2026-10-29: "another circle under each portrait that i can spread out and make very dark", then
-   *  "can we have the shadow under the hero power?" and "is it possible for it to go under the board too?"): soft dark
-   *  circles in the backdrop layer, UNDER the board, behind your portrait, your hero power and (combat) the opponent's
-   *  portrait, so they read on a bright background. Separate from the portraits' own drop shadow. Darkness 0..1 and
-   *  Softness 0..100 (0 = a hard edge) are shared. Each circle's size is its diameter and its X/Y its centre, measured
-   *  from the board's centre, in reference px (x --scale), so it stays put relative to the board at any screen size. */
   shadeDark: number;
   shadeSoft: number;
   /** Under your portrait. */
@@ -60,8 +71,7 @@ export interface BackdropTune {
   oppShadeX: number;
   oppShadeY: number;
 }
-export type BackdropTuneKey = keyof BackdropTune;
-export type BackdropNumberKey = Exclude<BackdropTuneKey, 'tint'>;
+export type SharedKey = keyof SharedLook;
 
 export interface BackdropPreset extends Partial<BackdropTune> {
   label: string;
@@ -71,14 +81,18 @@ export interface BackdropPreset extends Partial<BackdropTune> {
 
 /** What a preset leaves out. */
 export const TUNE_DEFAULTS: Readonly<BackdropTune> = {
-  zoom: 1, panX: 0, panY: 0, size: 430, dark: 0, blur: 0, tint: '#000000', tintAmount: 0, shadow: 0.72, shadowX: 6, shadowY: 8,
-  shadeDark: 0.6, shadeSoft: 70, shadeSize: 1100, shadeX: -1049, shadeY: 427,
-  powerShadeSize: 400, powerShadeX: -813, powerShadeY: 232, oppShadeSize: 900, oppShadeX: 1082, oppShadeY: -511,
+  zoom: 1, panX: 0, panY: 0, size: 430, dark: 0, blur: 0, tint: '#000000', tintAmount: 0,
 };
 export const NUMBER_KEYS: readonly BackdropNumberKey[] =
-  ['zoom', 'panX', 'panY', 'size', 'dark', 'blur', 'tintAmount', 'shadow', 'shadowX', 'shadowY',
-    'shadeDark', 'shadeSoft', 'shadeSize', 'shadeX', 'shadeY', 'powerShadeSize', 'powerShadeX', 'powerShadeY',
-    'oppShadeSize', 'oppShadeX', 'oppShadeY'];
+  ['zoom', 'panX', 'panY', 'size', 'dark', 'blur', 'tintAmount'];
+
+/** The shared look (board shadow + hero shades) until the tuner saves it: the owner's final values (2026-10-29). */
+export const SHARED_DEFAULTS: Readonly<SharedLook> = {
+  shadow: 0.76, shadowX: 6, shadowY: 8,
+  shadeDark: 1, shadeSoft: 100, shadeSize: 1050, shadeX: -1080, shadeY: 427,
+  powerShadeSize: 0, powerShadeX: -60, powerShadeY: 232, oppShadeSize: 1020, oppShadeX: 1024, oppShadeY: -511,
+};
+export const SHARED_KEYS = Object.keys(SHARED_DEFAULTS) as SharedKey[];
 const HEX = /^#[0-9a-f]{6}$/i;
 
 /** A single painted image (a `cover` texture): shown as painted until tuned. */
@@ -136,6 +150,23 @@ const SAVED: Partial<Record<BackdropId, Partial<BackdropTune>>> = (() => {
 /** DEV: the Background Tuner's unsaved edits, per backdrop. Wins over the saved file until Save or Reset. */
 let live: Partial<Record<BackdropId, Partial<BackdropTune>>> = {};
 
+function cleanShared(raw: unknown): Partial<SharedLook> {
+  if (!raw || typeof raw !== 'object') return {};
+  const r = raw as Record<string, unknown>;
+  const out: Partial<SharedLook> = {};
+  for (const k of SHARED_KEYS) if (typeof r[k] === 'number' && Number.isFinite(r[k])) out[k] = r[k] as number;
+  return out;
+}
+/** The shared look the tuner SAVED (`backdrop-tuning.json` → allBackgrounds), the same for every backdrop. */
+const SAVED_SHARED: Partial<SharedLook> = cleanShared((savedTuning as { allBackgrounds?: unknown }).allBackgrounds);
+/** DEV: unsaved edits to the shared look. */
+let liveShared: Partial<SharedLook> = {};
+
+/** The shared look (board shadow + hero shades), whatever backdrop is on: defaults, then saved, then unsaved edits. */
+export function sharedLook(): SharedLook {
+  return { ...SHARED_DEFAULTS, ...SAVED_SHARED, ...liveShared };
+}
+
 /** A backdrop's full tune: defaults, then its preset, then what was saved, then any unsaved tuner edit. */
 export function tuneOf(id: BackdropId): BackdropTune {
   return { ...TUNE_DEFAULTS, ...cleanTune(BACKDROPS[id]), ...SAVED[id], ...live[id] };
@@ -154,6 +185,7 @@ function readStored(): BackdropId {
 export function backdropVars(id: BackdropId): Record<string, string> {
   const p: BackdropPreset = BACKDROPS[id];
   const t = tuneOf(id);
+  const s = sharedLook();
   const tex = BACKDROP_TEXTURES[p.texture] ?? BACKDROP_TEXTURES.stone!;
   return {
     '--bd-img': `url('${tex.url}')`,
@@ -167,21 +199,21 @@ export function backdropVars(id: BackdropId): Record<string, string> {
     '--bd-blur': `${t.blur}px`,
     '--bd-tint-col': t.tint,
     '--bd-tint': String(t.tintAmount),
-    '--bd-shadow-a': String(t.shadow),
-    '--bd-shadow-x': `${t.shadowX}px`,
-    '--bd-shadow-y': `${t.shadowY}px`,
-    '--bd-shade-a': String(t.shadeDark),
-    '--bd-shade-core': `${100 - t.shadeSoft}%`,
+    '--bd-shadow-a': String(s.shadow),
+    '--bd-shadow-x': `${s.shadowX}px`,
+    '--bd-shadow-y': `${s.shadowY}px`,
+    '--bd-shade-a': String(s.shadeDark),
+    '--bd-shade-core': `${100 - s.shadeSoft}%`,
     // Radius (half the diameter) and centre, reference px: styles.css .boardbg-shade multiplies by --scale.
-    '--bd-shade-r': `${t.shadeSize / 2}px`,
-    '--bd-shade-x': `${t.shadeX}px`,
-    '--bd-shade-y': `${t.shadeY}px`,
-    '--bd-pshade-r': `${t.powerShadeSize / 2}px`,
-    '--bd-pshade-x': `${t.powerShadeX}px`,
-    '--bd-pshade-y': `${t.powerShadeY}px`,
-    '--bd-oshade-r': `${t.oppShadeSize / 2}px`,
-    '--bd-oshade-x': `${t.oppShadeX}px`,
-    '--bd-oshade-y': `${t.oppShadeY}px`,
+    '--bd-shade-r': `${s.shadeSize / 2}px`,
+    '--bd-shade-x': `${s.shadeX}px`,
+    '--bd-shade-y': `${s.shadeY}px`,
+    '--bd-pshade-r': `${s.powerShadeSize / 2}px`,
+    '--bd-pshade-x': `${s.powerShadeX}px`,
+    '--bd-pshade-y': `${s.powerShadeY}px`,
+    '--bd-oshade-r': `${s.oppShadeSize / 2}px`,
+    '--bd-oshade-x': `${s.oppShadeX}px`,
+    '--bd-oshade-y': `${s.oppShadeY}px`,
   };
 }
 
@@ -213,8 +245,16 @@ export function setLiveTune<K extends BackdropTuneKey>(id: BackdropId, key: K, v
   if (id === current) apply(id);
 }
 
-/** DEV (Background Tuner): drop every unsaved edit, back to what is saved. */
+/** DEV (Background Tuner): change one shared knob (board shadow or hero shade), live, for every backdrop. */
+export function setLiveShared(key: SharedKey, value: number): void {
+  if (!SHARED_KEYS.includes(key) || !Number.isFinite(value)) return;
+  liveShared = { ...liveShared, [key]: value };
+  apply(current);
+}
+
+/** DEV (Background Tuner): drop every unsaved edit (backdrops and the shared look), back to what is saved. */
 export function clearLiveTune(): void {
   live = {};
+  liveShared = {};
   apply(current);
 }

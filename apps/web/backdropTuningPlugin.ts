@@ -7,8 +7,9 @@ import type { Plugin } from 'vite';
 /**
  * THE BACKGROUND TUNER's Save (owner 2026-10-29: "lets make a standalone background tuner. i dont want it in the scale
  * and layout"). DEV-ONLY middleware: POST /__backdrops/tuning writes ONE board backdrop's tune (zoom, position, tile
- * size, darkness, blur, tint, board shadow) into the git-tracked `packages/ui/src/backdrop-tuning.json`, which
- * `backdrop.ts` imports and lays over its presets, so a saved backdrop ships once the file is committed.
+ * size, darkness, blur, tint), plus the shared look every backdrop wears (board shadow + hero shades), into the git-tracked
+ * `packages/ui/src/backdrop-tuning.json`, which `backdrop.ts` imports and lays over its presets, so a saved tune ships
+ * once the file is committed.
  *
  * `apply: 'serve'`, never part of a production build. Mirrors `plateTuningPlugin.ts`: the whole validation surface is
  * ONE pure function (`planBackdropTuningWrite`), unit-tested without a server or fs. The destination file is FIXED by
@@ -24,6 +25,10 @@ export const BACKDROP_TUNING_RANGES: Readonly<Record<string, readonly [number, n
   dark: [0, 1],
   blur: [0, 40],
   tintAmount: [0, 1],
+};
+/** The SHARED LOOK (board shadow + hero shades): ONE setting for every backdrop, saved under `allBackgrounds`
+ *  (owner 2026-10-29: "the edits to the hero shades should be global", "same with the board shadow settings"). */
+export const SHARED_RANGES: Readonly<Record<string, readonly [number, number]>> = {
   shadow: [0, 1],
   shadowX: [-120, 120],
   shadowY: [-120, 120],
@@ -51,9 +56,23 @@ export interface BackdropTuningPlan {
 const bad = (status: number, error: string): BackdropTuningPlan => ({ status, error });
 const isRecord = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
 
+/** Every knob of `ranges`, each finite and in range, rounded; or the reason it is not. */
+function cleanNumbers(values: Record<string, unknown>, ranges: Readonly<Record<string, readonly [number, number]>>, allowed: readonly string[]): Record<string, number> | string {
+  for (const key of Object.keys(values)) if (!(key in ranges) && !allowed.includes(key)) return `'${key}' is not a known knob.`;
+  const clean: Record<string, number> = {};
+  for (const [key, [min, max]] of Object.entries(ranges)) {
+    const v = values[key];
+    if (typeof v !== 'number' || !Number.isFinite(v)) return `'${key}' must be a finite number.`;
+    if (v < min || v > max) return `'${key}' must be between ${min} and ${max}.`;
+    clean[key] = Math.round(v * 10000) / 10000;
+  }
+  return clean;
+}
+
 /**
- * Validate a save and fold it into the current file, as a pure function. The body is `{ id, values }`; `values` must
- * carry every knob plus `tint` (the tuner sends the backdrop's whole tune, so the file never holds a half-tuned one).
+ * Validate a save and fold it into the current file, as a pure function. The body is `{ id, values, shared? }`:
+ * `values` must carry every backdrop knob plus `tint` (the tuner sends the backdrop's whole tune, so the file never
+ * holds a half-tuned one); `shared`, when sent, every shared knob, and it replaces the file's one `allBackgrounds`.
  * Rejects a bad id, an unknown or missing knob, a value out of range or not finite, and a tint that is not #rrggbb.
  */
 export function planBackdropTuningWrite(body: unknown, current: string): BackdropTuningPlan {
@@ -61,16 +80,17 @@ export function planBackdropTuningWrite(body: unknown, current: string): Backdro
   const { id, values } = body;
   if (typeof id !== 'string' || !ID_RE.test(id)) return bad(400, '`id` must be a backdrop id like castle or runicSlate.');
   if (!isRecord(values)) return bad(400, '`values` must be an object.');
-  for (const key of Object.keys(values)) if (!(key in BACKDROP_TUNING_RANGES) && key !== 'tint') return bad(400, `'${key}' is not a backdrop knob.`);
-  const clean: Record<string, number | string> = {};
-  for (const [key, [min, max]] of Object.entries(BACKDROP_TUNING_RANGES)) {
-    const v = values[key];
-    if (typeof v !== 'number' || !Number.isFinite(v)) return bad(400, `'${key}' must be a finite number.`);
-    if (v < min || v > max) return bad(400, `'${key}' must be between ${min} and ${max}.`);
-    clean[key] = Math.round(v * 10000) / 10000;
-  }
+  const nums = cleanNumbers(values, BACKDROP_TUNING_RANGES, ['tint']);
+  if (typeof nums === 'string') return bad(400, nums);
   if (typeof values.tint !== 'string' || !HEX_RE.test(values.tint)) return bad(400, '`tint` must be a colour like #472a00.');
-  clean.tint = values.tint.toLowerCase();
+  const clean: Record<string, number | string> = { ...nums, tint: values.tint.toLowerCase() };
+  let shared: Record<string, number> | undefined;
+  if (body.shared !== undefined) {
+    if (!isRecord(body.shared)) return bad(400, '`shared` must be an object.');
+    const s = cleanNumbers(body.shared, SHARED_RANGES, []);
+    if (typeof s === 'string') return bad(400, s);
+    shared = s;
+  }
 
   let parsed: unknown;
   try { parsed = JSON.parse(current); } catch { return bad(500, 'backdrop-tuning.json is not valid JSON.'); }
@@ -78,7 +98,9 @@ export function planBackdropTuningWrite(body: unknown, current: string): Backdro
   // Sorted by backdrop id, so the committed file diffs cleanly.
   const backdrops = { ...parsed.backdrops, [id]: clean };
   const sorted = Object.fromEntries(Object.keys(backdrops).sort().map((k) => [k, backdrops[k]]));
-  return { status: 200, data: `${JSON.stringify({ version: 1, backdrops: sorted }, null, 2)}\n` };
+  const allBackgrounds = shared ?? (isRecord(parsed.allBackgrounds) ? parsed.allBackgrounds : undefined);
+  const out = allBackgrounds ? { version: 1, allBackgrounds, backdrops: sorted } : { version: 1, backdrops: sorted };
+  return { status: 200, data: `${JSON.stringify(out, null, 2)}\n` };
 }
 
 const MAX_BODY_BYTES = 8 * 1024;

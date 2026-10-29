@@ -11477,4 +11477,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann is in round 6 of a Practice game, fighting Cat, 2nd of 5 left with 21 Health and 4 Armor on tier 4. Her Live Games row reads PRACTICE, then "Round 6 · Fighting Cat", "2nd of 5", the heart 21 and armor 4 pills and "Tier 4". A Versus match beside it reads VERSUS 1V1 and "Round 3 · Fighting" under "Cat vs Dan".',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/liveStatus.test.tsx', 'workers/versus/test/liveCore.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-DUOS-HISTORY-01',
+    title: 'Duos match history: every finished Duos game is recorded once by its server, and each of its players sees it under Recent Games > Duos',
+    statement:
+      'When a Ranked Duos or Versus Duos game ends, the server that ran it records ONE history row for the game, the same for all of its '
+      + 'players: every team in table order with its placement and the round it went out (or still in, or the winner), its name when it '
+      + 'has one, and each player\x27s name, hero and the board they last fought with (with its runes when known). A Ranked Duos row also '
+      + 'carries the rank the team played at and the points it gained or lost. Only the players who were in the game can read it. Recent '
+      + 'Games has a Duos tab listing your own Duos games, newest first: your team\x27s placement, your team name (or the mode), your hero '
+      + 'and your teammate, the rank and points for a rated game, and when. The open game shows your board and your teammate\x27s, and the '
+      + 'lobby by team; picking a player shows their board until Back to yours. Storing the history never holds back or undoes the '
+      + 'result, the rating or the duo run. 1v1 and Group games are not recorded here. Games finished before this was built are filled in '
+      + 'from what the tables kept.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-29', quote: 'we\x27re going to want to start capturing duo\x27s match history as well' },
+      { kind: 'code', ref: 'packages/sim/src/versus/duosHistory.ts (buildDuosHistory, parseDuosHistory), workers/versus/src/core/groupMatch.ts (duosHistory, complete), workers/versus/src/core/rankedMatch.ts (rankedHistory, finishRow), supabase/migrations/2026-11-13-duos-match-history.sql (duos_match_history, duos_history__store, duos_history_backfill, versus_cf_persist), packages/ui/src/duosHistory/ (DuosGameCard, duosHistoryData), packages/ui/src/RecentGames.tsx (Duos tab)' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (feat/duos-match-history). Before: Duos games were not in any history view; Recent Games had only Ranked and Practice.',
+    example: 'IonLime and Orangez (team CITRUS) finish 2nd of 4 in Ranked Duos at Gold II and gain 11 points. In Recent Games > Duos, IonLime sees "2nd, CITRUS, Cia with Orangez, +11"; opening it shows both boards, and the lobby lists Goats 1st, CITRUS 2nd (Out R9), then the other two teams. Picking Goats\x27 Ann shows her board.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/cfWriter.db.test.ts', 'workers/versus/test/duosCore.test.ts', 'workers/versus/test/rankedCore.test.ts', 'packages/ui/src/versus/chaos/versusCfParity.db.test.ts', 'packages/ui/src/duosHistory/duosHistory.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
 ];

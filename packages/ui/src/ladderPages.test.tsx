@@ -652,7 +652,7 @@ describe('RecentGames — the Practice tab (owner ask 2026-09-24)', () => {
 
   it('opens on Ranked (the feed as before) and does not read practice games until the tab is picked', () => {
     expect(ui.container.querySelector('[role="tablist"]')?.classList.contains('cv2-tabs')).toBe(true); // the Career tab style
-    expect(tabs().map((t) => t.textContent?.trim())).toEqual(['Ranked', 'Practice']);
+    expect(tabs().map((t) => t.textContent?.trim())).toEqual(['Ranked', 'Practice', 'Duos']);
     expect(selected()).toBe('Ranked');
     expect(text('.gs-item .gs-title')).toEqual(['Nadja', 'Kev', 'Robin']);
     expect(fetchPracticeGames).not.toHaveBeenCalled();

@@ -36,9 +36,12 @@ export function bandOf(place: number | null): GameBand {
 }
 
 export function GameCard({
-  place, label, resultClass = '', className = '', hero, title, subtitle, record, rank, board, boardKey, lobby, runes, actions, meta, extra, as = 'article', rootProps,
+  place, band: bandGiven, label, resultClass = '', className = '', hero, title, subtitle, record, rank, board, boardKey, lobby, runes, actions, meta, extra, as = 'article', rootProps,
 }: {
   place: number | null;
+  /** The band, when the placement's own split does not fit (a Duos TEAM placement: 2nd of 4 is a good finish, 2nd of 2
+   *  the loss). Absent = `bandOf(place)`. */
+  band?: GameBand;
   /** What the placement means, for assistive tech ("Victory", "2nd place"). */
   label: string;
   /** Extra classes on the placement element (a host's own hooks). */
@@ -58,7 +61,7 @@ export function GameCard({
   as?: 'article' | 'div';
   rootProps?: HTMLAttributes<HTMLElement>;
 }) {
-  const band = bandOf(place);
+  const band = bandGiven ?? bandOf(place);
   const Root = as;
   return (
     <Root {...rootProps} className={`gc gc-${band} ${className}`.trim()}>

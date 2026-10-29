@@ -1,0 +1,31 @@
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   DUOS MATCH HISTORY (Recent Games' DUOS tab, DuosGameCard.tsx; R-DUOS-HISTORY-01). The game card's board slot holds
+   TWO boards (yours and your teammate's), and the lobby groups the players by team: each team a header (place, name,
+   fate) over its two lobby-picker tiles. Static styling; the tiles keep the lobby picker's one-shot hover lift.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.dh-boards { display: flex; flex-direction: column; gap: 4px; }
+.dh-board { display: flex; flex-direction: column; gap: 2px; min-width: 0; container-type: inline-size; }
+.dh-board + .dh-board { border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 8px; }
+.dh-board-l { display: flex; align-items: baseline; gap: 10px; padding: 4px 12px 0; }
+.dh-board-who { font-family: var(--font-ui); font-weight: 900; font-size: 15px; color: #fff; }
+.dh-board-hero { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
+.dh-runes { padding: 0 12px 6px; }
+.gc.gc-detail .gc-board .dh-board .cv2-row-none { padding: 18px 0; }
+.dh-delta.up { color: #7fe8ac; }
+.dh-delta.down { color: #ff9a9a; }
+
+.dh-teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.dh-teams.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dh-team { --band: #9ccaf5; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 8px 10px 10px; border-radius: 14px;
+  border: 1px solid rgba(196, 160, 92, 0.22); background: rgba(6, 11, 22, 0.45); }
+.dh-team.mine { border-color: rgba(156, 202, 245, 0.55); }
+.dh-team-head { display: flex; align-items: baseline; gap: 10px; min-width: 0; padding: 0 2px; }
+.dh-team-name { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #fff; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dh-team-head .lp-tile-out { margin-left: auto; }
+.dh-team-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.dh-tile-hero { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Phones: one team per row. */
+@media (max-width: 760px) {
+  .dh-teams, .dh-teams.n2 { grid-template-columns: minmax(0, 1fr); }
+}

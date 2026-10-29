@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { HEROES, type PreparedCombatSide } from '@game/sim';
 import { engineContentRevision, VERSUS_PROTOCOL } from '@game/sim/versus/server';
+import { parseDuosHistory } from '@game/sim/versus/duosHistory';
 import { DISCONNECT_GRACE_MS, newRoomState, RoomCore, turnSeconds, type CoreDeps, type CoreEffects, type CoreState } from '../src/core/roomCore';
 import { memberBoard, type RankedService } from '../src/core/rankedMatch';
 import { LocalRankedService } from '../src/rankedService';
@@ -174,6 +175,24 @@ describe('Ranked Duos room (Cloudflare) — absence, leaving, the end', () => {
     expect(h.g.phase).toBe('complete');
     expect(h.r.r.teams.find((t) => t.team === 'a')!.placement).not.toBeNull();
     expect(h.core.state.room.status).toBe('open');
+    // DUOS MATCH HISTORY (R-DUOS-HISTORY-01): the finish job carries the whole table, the live pair's boards included.
+    const fin = h.persisted().find((j) => j.kind === 'ranked_finish')!.row as { history: unknown; placement: number };
+    const hist = parseDuosHistory(fin.history)!;
+    expect(hist.mode).toBe('ranked_duos');
+    expect(hist.teams).toHaveLength(4);
+    const live = hist.teams.find((t) => t.team === 'a')!;
+    expect(live.kind).toBe('live');
+    expect(live.placement).toBe(fin.placement);
+    expect(live.members.map((m) => m.userId)).toEqual([U1, U2]);
+    expect(live.members.every((m) => m.board && m.board.minions.length === STRONG.board.length && m.board.round === h.g.round)).toBe(true);
+    for (const t of hist.teams.filter((x) => x.team !== 'a')) {
+      expect(t.kind).not.toBe('live');
+      expect(t.members).toHaveLength(2);
+      expect(t.members.every((m) => m.userId === undefined && m.heroId !== '')).toBe(true);
+    }
+    // Table order: by placement, a team still standing ahead of the placed ones below it.
+    const places = hist.teams.map((t) => t.placement ?? 1.5);
+    expect(places).toEqual([...places].sort((a, b) => a - b));
   });
 
   it('the table could not be seated yet: the round waits in resolving and resolves once it is', async () => {

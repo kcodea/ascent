@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { duosRoundDigest, HEROES, versusDuosStartingVitals, type PreparedCombatSide } from '@game/sim';
 import { engineContentRevision, resolveVersusDuosRound, VERSUS_PROTOCOL } from '@game/sim/versus/server';
+import { DUOS_HISTORY_MAX_BYTES, parseDuosHistory } from '@game/sim/versus/duosHistory';
 import { DISCONNECT_GRACE_MS, newRoomState, RoomCore, turnSeconds, type CoreDeps, type CoreEffects, type CoreState } from '../src/core/roomCore';
 import type { GSeat } from '../src/core/groupMatch';
 
@@ -127,6 +128,30 @@ describe('Duos room (Cloudflare) — knockouts and the end', () => {
     expect(h.core.state.room.status).toBe('open');
   });
 
+  it("the final match row carries the game's history record: both teams placed, every player's last fought board (R-DUOS-HISTORY-01)", async () => {
+    const h = await inShop();
+    let guard = 0;
+    while (h.g.phase !== 'complete' && guard++ < 60) {
+      await lockAll(h, [STRONG, MID, EMPTY, MID]);
+      if (h.g.phase === 'combat') await readyAll(h);
+    }
+    const rows = h.log.flatMap((f) => f.persist).filter((j) => j.kind === 'group_match');
+    // Only the final row carries it (a mid-game row never does).
+    expect(rows.filter((j) => (j.row as { history?: unknown }).history).length).toBe(1);
+    const hist = parseDuosHistory((rows.at(-1)!.row as { history: unknown }).history)!;
+    expect(hist.mode).toBe('versus_duos');
+    expect(hist.endRound).toBe(h.g.round);
+    expect(hist.teams.map((t) => [t.team, t.placement, t.kind])).toEqual([['a', 1, 'live'], ['b', 2, 'live']]);
+    expect(hist.teams[1]!.outRound).toBe(h.g.round);
+    expect(hist.teams.flatMap((t) => t.members.map((m) => m.userId))).toEqual([...U]);
+    const p1 = hist.teams[0]!.members[0]!;
+    expect(p1.heroId).toBe(h.seat('p1').hero);
+    expect(p1.board!.minions.map((m) => m.cardId)).toEqual(STRONG.board.map((m) => m.cardId));
+    expect(p1.board!.round).toBe(h.g.round);
+    expect(hist.teams[1]!.members[0]!.board!.minions).toEqual([]); // an empty board is recorded as empty, not missing
+    expect(JSON.stringify(hist).length).toBeLessThan(DUOS_HISTORY_MAX_BYTES);
+  });
+
   it('a forfeit takes the whole team out (the teammate as forfeit too); the other team wins', async () => {
     const h = await inShop();
     await h.op(U[3], 'forfeit', { matchId: h.id });
@@ -134,6 +159,11 @@ describe('Duos room (Cloudflare) — knockouts and the end', () => {
     expect(h.seat('p3').eliminated_round).toBe(1);
     expect(h.g.phase).toBe('complete');
     expect(h.g.winner_seat).toBe('p1');
+    // A game over before anyone locked a board still records the game, with no boards.
+    const fin = h.log.flatMap((f) => f.persist).filter((j) => j.kind === 'group_match').at(-1)!.row as { history: unknown };
+    const hist = parseDuosHistory(fin.history)!;
+    expect(hist.teams.map((t) => [t.team, t.placement, t.outRound ?? null])).toEqual([['a', 1, null], ['b', 2, 1]]);
+    expect(hist.teams.every((t) => t.members.every((m) => m.board === null))).toBe(true);
   });
 });
 

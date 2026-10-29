@@ -147,7 +147,7 @@ describe('Versus: the same match on Supabase and on Cloudflare shows the same sc
 });
 
 // ── the Cloudflare room's result reaches Supabase (the real writer, on the Supabase harness's own PGlite) ───────────────
-const WRITER = ['2026-11-04-versus-cf-writer.sql', '2026-11-05-versus-cf-writer-group.sql', '2026-11-06-versus-cf-writer-duos.sql', '2026-11-07-versus-cf-ranked.sql'];
+const WRITER = ['2026-11-04-versus-cf-writer.sql', '2026-11-05-versus-cf-writer-group.sql', '2026-11-06-versus-cf-writer-duos.sql', '2026-11-07-versus-cf-ranked.sql', '2026-11-13-duos-match-history.sql'];
 const SECRET = 'parity-writer-secret-not-real';
 
 describe('Cloudflare: every finished match persists through versus_cf_persist (R-VERSUS-CF-PERSIST-01)', () => {
@@ -169,6 +169,8 @@ describe('Cloudflare: every finished match persists through versus_cf_persist (R
       const ids = [...new Set(jobs!.map((j) => String((j.row as { id?: unknown; match_id?: unknown; match?: { id?: unknown } }).id ?? (j.row as { match_id?: unknown }).match_id ?? (j.row as { match?: { id?: unknown } }).match?.id)))];
       await db.query('delete from public.versus_group_matches where id = any($1::uuid[])', [ids]);
       await db.query('delete from public.versus_matches where id = any($1::uuid[])', [ids]);
+      // The harness's match ids repeat across modes (a seeded uuid per room), and a history row has no foreign key.
+      await db.query('delete from public.duos_match_history where match_id = any($1::uuid[])', [ids]);
       await db.exec('set role anon');
       try {
         for (const j of jobs!) await db.query('select public.versus_cf_persist($1, $2, $3::jsonb)', [SECRET, j.kind, JSON.stringify(j.row)]);
@@ -178,6 +180,14 @@ describe('Cloudflare: every finished match persists through versus_cf_persist (R
       const table = mode === 'duel' ? 'versus_matches' : 'versus_group_matches';
       const rows = (await db.query<{ phase: string; backend: string }>(`select phase, backend from public.${table} where id = any($1::uuid[])`, [ids])).rows;
       expect(rows).toEqual([{ phase: 'complete', backend: 'cloudflare' }]);
+      // DUOS MATCH HISTORY (R-DUOS-HISTORY-01): a Duos game lands ONE history row for its players; 1v1 and Group none.
+      const hist = (await db.query<{ mode: string; players: string[]; record: { teams: { members: { board: unknown }[] }[] } }>(
+        'select mode, players, record from public.duos_match_history where match_id = any($1::uuid[])', [ids])).rows;
+      if (mode === 'duos' || mode === 'ranked_duos') {
+        expect(hist.map((h) => [h.mode, h.players.length])).toEqual([[mode === 'duos' ? 'versus_duos' : 'ranked_duos', mode === 'duos' ? 4 : 2]]);
+        expect(hist[0]!.record.teams.length).toBe(mode === 'duos' ? 2 : 4);
+        expect(hist[0]!.record.teams.some((t) => t.members.some((m) => m.board != null))).toBe(true);
+      } else expect(hist).toEqual([]);
     }, 120_000);
   }
 

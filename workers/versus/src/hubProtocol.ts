@@ -17,8 +17,19 @@
  * Dependency-free: no imports (the UI imports it).
  */
 
-/** Bump when a message shape changes (a client on another version is refused at hello). */
+/**
+ * VERSIONING: the hub is ONE Worker shared by every build, so old and new clients must coexist. `HUB_PROTOCOL` is what
+ * this code speaks; a change that old clients can live with (a new optional field, a new push type) bumps it and they
+ * keep working: both sides IGNORE unknown fields and unknown push types. A change old clients cannot survive raises
+ * `HUB_PROTOCOL_MIN` (the hub then refuses those clients at hello with close 4409). Never rename or reuse a field.
+ */
 export const HUB_PROTOCOL = 1;
+/** The oldest client protocol the hub still accepts. */
+export const HUB_PROTOCOL_MIN = 1;
+/** The deployed hub (one stable Worker, never per content revision). */
+export const FRIENDS_HUB_LIVE_URL = 'https://ascent-hub.team-ascent.workers.dev';
+/** The hub's health route: `{ hub: HUB_PROTOCOL, min: HUB_PROTOCOL_MIN, code: <source hash> }`. */
+export const HUB_HEALTH_PATH = '/health';
 /** The hub's socket path. */
 export const HUB_SOCKET_PATH = '/hub/ws';
 
@@ -76,9 +87,13 @@ export interface DmRow {
 export interface HubHello {
   protocol: number;
   presence: HubPresence | null;
+  /** The client's build (content revision). Informational only: the hub never refuses on it. */
+  build?: string;
 }
 
 export interface HubHelloAnswer {
+  /** The protocol the hub speaks (absent on the first hub build: read as 1). */
+  protocol?: number;
   me: string;
   peers: HubPeer[];
   now: string;

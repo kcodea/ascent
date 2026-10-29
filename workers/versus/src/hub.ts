@@ -1,5 +1,7 @@
 /**
- * THE FRIENDS HUB — one Durable Object per account (`hub:<userId>`), holding that account's open games' sockets
+ * THE FRIENDS HUB — one Durable Object per account (`hub:<userId>`), holding that account's open games' sockets.
+ * It runs on its OWN, version-independent Worker (`ascent-hub`, `hubWorker.ts` + `hub.wrangler.toml`; owner 2026-10-29),
+ * never on the per-content-revision Versus Worker, so every build's players share one hub
  * (owner 2026-10-29: "start building in game messaging"; R-DM-01..05). Wire: `hubProtocol.ts`. Rules: `core/hubCore.ts`.
  *
  *   - PRESENCE: the first open game says hello with my presence; the hub tells each of my friends' hubs (`peerUpdate`),
@@ -21,17 +23,16 @@ import { DurableObject } from 'cloudflare:workers';
 import { checkSend, DmError, DmRateLimiter, MemoryDmBackend, type DmBackend } from './core/hubCore';
 import { dmBackendFor } from './dmStore';
 import {
-  cleanPresence, HUB_FRIENDS_TTL_MS, HUB_MAX_SOCKETS, HUB_PROTOCOL, HUB_STALE_MS, HUB_SWEEP_MS, isUuid,
+  cleanPresence, HUB_FRIENDS_TTL_MS, HUB_MAX_SOCKETS, HUB_PROTOCOL, HUB_PROTOCOL_MIN, HUB_STALE_MS, HUB_SWEEP_MS, isUuid,
   type DmRow, type HubHelloAnswer, type HubPeer, type HubPresence, type HubPush,
 } from './hubProtocol';
-import type { PersistEnv } from './persist';
+import type { HubStoreEnv } from './dmStore';
 import { VERSUS_CF_CLOSE, VERSUS_CF_PING, VERSUS_CF_PONG, VERSUS_CF_SUBPROTOCOL, parseClientMessage } from './protocol';
 import { takeToken, type Bucket } from './rate';
 
 export const HUB_USER_HEADER = 'X-Hub-User';
 
-export interface HubEnv extends PersistEnv {
-  DEV_AUTH?: string;
+export interface HubEnv extends HubStoreEnv {
   HUB: DurableObjectNamespace<FriendHub>;
 }
 
@@ -164,7 +165,10 @@ export class FriendHub extends DurableObject<HubEnv> {
   }
 
   private async hello(ws: CfWebSocket, a: Attachment, args: Record<string, unknown>): Promise<HubHelloAnswer> {
-    if (Number(args.protocol) !== HUB_PROTOCOL) {
+    // Old and new clients share ONE hub: any protocol from the oldest still supported up is accepted (a newer client
+    // speaks down to this hub; unknown fields are ignored). Only a client older than HUB_PROTOCOL_MIN is refused.
+    const proto = Number(args.protocol);
+    if (!Number.isInteger(proto) || proto < HUB_PROTOCOL_MIN) {
       try { ws.close(VERSUS_CF_CLOSE.versionMismatch, 'version_mismatch'); } catch { /* gone */ }
       throw new DmError('unavailable');
     }
@@ -183,7 +187,7 @@ export class FriendHub extends DurableObject<HubEnv> {
     if (!wasOnline) await this.fanOut(await this.friendIds(true), presence, true);
     else await this.fanOut([...this.peers.keys()], presence, false);
     await this.arm();
-    return { me: this.me!, peers: [...this.peers.values()], now: new Date().toISOString() };
+    return { protocol: HUB_PROTOCOL, me: this.me!, peers: [...this.peers.values()], now: new Date().toISOString() };
   }
 
   /** Tell `targets` my presence (null: offline). `learn`: keep who answered as connected (my going-online round). */

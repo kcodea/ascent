@@ -1,0 +1,38 @@
+# THE FRIENDS HUB (2026-10-29, owner: one hub for every build; R-DM-01). Local: `npm run hub:dev` (wrangler dev on :8788,
+# dev tokens accepted).
+#
+# ONE STABLE WORKER. Unlike the Versus Worker (one Worker per content revision), this is always `ascent-hub`, so its
+# Durable Object namespace never changes and every build's players share it. NEVER rename this Worker or the FriendHub
+# class: a new name is a new, empty namespace (every connected player would vanish from their friends' hubs).
+# Migrations below are append-only.
+#
+# DEPLOYS go through `npm run hub:deploy` (scripts/deploy-hub.ts), never a bare `wrangler deploy`: it stamps the hub's
+# source hash (HUB_CODE) and skips the deploy when the live hub already carries it. `npm run release:web -- --versus-cf`
+# runs it too.
+#
+# SECRETS (never committed; set with `node scripts/writer-secret.mjs ascent-hub`, which pipes it to `wrangler secret put`):
+#   HUB_WRITER_SECRET   the message writer's key for `dm_cf_send` (supabase/migrations/2026-11-12-direct-messages.sql);
+#                       its sha256 is one row of versus_cf_writer_keys (note 'ascent-hub').
+name = "ascent-hub"
+main = "src/hubWorker.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+SUPABASE_URL = "https://zcwhbejpqcdcfdpfxeza.supabase.co"
+# "1" accepts `dev.<userId>.<name>` bearer tokens (local only). Never set in prod.
+DEV_AUTH = "0"
+ALLOWED_ORIGINS = "https://ascent-game-web.netlify.app,http://localhost:*,http://127.0.0.1:*"
+# Messages are stored only when "1" (and HUB_WRITER_SECRET is set and the direct-messages migration applied).
+PERSIST = "0"
+
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "FriendHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["FriendHub"]
+
+[observability]
+enabled = true

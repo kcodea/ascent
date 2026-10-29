@@ -16,6 +16,8 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_ANON_KEY?: string;
   /** THE VERSUS CUTOVER: this build's own Versus Worker (set by `npm run release:web -- --versus-cf`); absent = Supabase only. */
   readonly VITE_VERSUS_CF_URL?: string;
+  /** The friends hub (`ascent-hub`), baked by `release:web --versus-cf` (R-DM-01). */
+  readonly VITE_FRIENDS_HUB_URL?: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;

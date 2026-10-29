@@ -10795,6 +10795,47 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/roomCore.test.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
   {
+    id: 'R-VERSUS-CF-PERSIST-01',
+    title: 'Versus on Cloudflare: every finished match reaches Supabase, and storing its result never holds the game back',
+    statement:
+      'When a Versus match on a Cloudflare room ends (1v1, Group, Duos or Ranked Duos), its result is written to the same Supabase tables '
+      + 'the Supabase host fills, through the limited writer (versus_cf_persist): the match row, its seats and rounds, and for Ranked Duos '
+      + 'the team rating and the duo run. The Ranked Duos result is sent in a shape the writer accepts (seat times as ISO, an out reason '
+      + 'the seat table allows) and within the writer\x27s and the room storage\x27s 2 MB limits: when it would be larger, archive-only data '
+      + 'is dropped first (the served teams\x27 whole recordings, then the oldest fights\x27 event logs), never the placement, pools, '
+      + 'outcomes, damage or the final boards the duo run records. A result the room cannot store is logged and dropped, and the game\x27s '
+      + 'own messages (the final match row, the end of the fight) still reach every player and spectator. A write that keeps failing is set '
+      + 'aside after 10 tries so it never blocks the writes behind it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-28 (a live Duos game on the Cloudflare host)', quote: 'when the game ends it just breaks the lobby right now' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-28', quote: 'i want you to just fix it' },
+      { kind: 'code', ref: 'workers/versus/src/core/rankedMatch.ts (finishRow, wireSeat, fitFinishRow), workers/versus/src/room.ts (apply, drainOutbox), workers/versus/src/persist.ts (wireRow)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-28 (fix/versus-cf-duos-parity). Before, every Ranked Duos result on Cloudflare failed in the writer (epoch-ms seat times into timestamptz columns): no match row, no rating, no duo run, retried forever; the result screen waited for a rating that never came. A long match could also be too big to store, which held back the final match message itself.',
+    example: 'IonLime and Orangez finish 2nd in a 14-round Ranked Duos game on a Cloudflare room. Both screens end the game at once, the 2nd place result shows its rating change a moment later, and the match, team rating and duo run are in Supabase.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/chaos/versusCfParity.db.test.ts', 'workers/versus/test/cfWriter.db.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
+  {
+    id: 'R-VERSUS-RAIL-LAYOUT-01',
+    title: 'Versus: only a 1v1 shows the single opponent block; every group mode shows the rail',
+    statement:
+      'In a Versus match the right side of the screen shows the 1v1 opponent block (one big portrait, its Health and Armor, the Round and Max '
+      + 'dmg plates) only in a 1v1. Versus Group, Versus Duos and Ranked Duos always show the lobby rail, on both hosts, from the first shop. '
+      + 'A Ranked Duos table holds only the live pair for a moment, until its recorded teams are seated: the rail shows the pair then, never '
+      + 'the teammate as if they were the opponent.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-28 (a live Duos game on the Cloudflare host)', quote: 'the duo game starts with the 1v1 ui on the right instead of an enemy rail' },
+      { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (versusDuelLayout)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-28 (fix/versus-cf-duos-parity). Before, the layout followed the seat count alone, so a Ranked Duos game opened on the 1v1 block (the teammate in the opponent slot) until the recorded teams arrived; on Cloudflare the table is seated by the room after both heroes lock, so the window was long enough to see.',
+    example: 'A Ranked Duos game opens its first shop before the recorded teams are seated: the rail shows IonLime and Orangez, and the three recorded teams join it a moment later. The 1v1 opponent block never appears.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/chaos/versusCfParity.db.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
+  {
     id: 'R-BACKDROP-LAB-01',
     title: 'The board backdrop shows the player\x27s Settings pick; a touched dev Layout Lab shows exactly what it is set to',
     statement:

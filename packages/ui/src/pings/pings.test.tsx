@@ -20,6 +20,7 @@ import {
   acceptPing,
   clearPing,
   clearPingsOnCard,
+  expirePings,
   pingContext,
   receivePing,
   receivePingEvent,
@@ -379,11 +380,18 @@ describe('the layer (R-PING-04/05)', () => {
     expect(sent).toHaveLength(0);
   });
 
-  it('a ping has no timer: it settles until cleared', () => {
+  it('a ping lasts 5 s if nobody clears it (owner 2026-10-29), timed locally from its arrival on each screen, nothing sent', () => {
+    session('p1', 'duos');
     sendPing('check', { t: 'card', uid: '7', zone: 'shop' });
-    now += 10 * 60_000;
-    sendPing('x', { t: 'button', id: 'refresh' });
+    now += 3000;
+    receivePingEvent(PING_EVENT, msg({ owner: 'p1', from: 'amy', role: 'mate', target: { t: 'card', uid: '9', zone: 'board' } }));
+    expirePings(now + 1999);
     expect(usePings.getState().list).toHaveLength(2);
+    expirePings(now + 2000); // my ping: 5 s since it landed here
+    expect(usePings.getState().list.map((p) => p.mine)).toEqual([false]);
+    expirePings(now + 5000); // the teammate's: 5 s since it ARRIVED here, not since it was sent
+    expect(usePings.getState().list).toHaveLength(0);
+    expect(sent.filter((x) => x.e !== PING_EVENT)).toHaveLength(0); // the timer sends nothing (no clear)
   });
 
   it('the fan (owner 2026-10-29): Check, X, Question above; Pass and Sell below (no Inspect); a shop button gets the top three only', () => {

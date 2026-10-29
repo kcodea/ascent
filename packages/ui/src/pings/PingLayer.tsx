@@ -12,7 +12,8 @@
  *    the BOTTOM row is Pass (left) and Sell (right). A shop button gets the top arc only (Check, X, Question). The
  *    bubbles pop in with a staggered one-shot.
  *  - THE MARKS (`PingMarks`): a ping SPARKS on its target (the authored `hero-power-spark` FX, one-shot, plus the `pulse`
- *    UI cue), pops in with a short overshoot and settles; it STAYS until cleared (no timer). A card's mark lives INSIDE the
+ *    UI cue), pops in with a short overshoot and settles; it fades out on its own `PING_LIFE_MS` (5 s) after it landed
+ *    on this screen, timed locally (owner 2026-10-29: "they should only last 5s if not cleared"). A card's mark lives INSIDE the
  *    card's element, so it rides every hover and FLIP the card makes. It is CLEARED by a left- or right-click on the mark
  *    itself, or when its card moves (dragged, sold, played: owner 2026-10-29), on the sender's and the receiver's screen
  *    alike (a `ping_clear` on the stream). It also goes when its target leaves the screen (the shop closes for the fight). Only pings for the screen on display show (mine, or the watched / teammate's seat).
@@ -22,7 +23,7 @@
 import { memo, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { create } from 'zustand';
-import { PING_BUTTONS, type PingButton, type PingKind, type PingTarget, type PingZone } from '@game/versus-cf/pings';
+import { PING_BUTTONS, PING_FADE_MS, PING_LIFE_MS, type PingButton, type PingKind, type PingTarget, type PingZone } from '@game/versus-cf/pings';
 import { dragStore } from '../dragStore';
 import { playDef } from '../fx/playDef';
 import { sfx } from '../sfx';
@@ -30,7 +31,7 @@ import { rectToStage, stageHost, stageViewport, toStage, type StageRect } from '
 import { isSelectOption, setCardHoldGate } from '../touchInput';
 import { useSpectate } from '../versus/spectate';
 import { pingSrc, PING_LOOK } from './pingArt';
-import { clearPing, clearPingsOnCard, forgetPing, myPingSeat, pingContext, sendPing, usePings, type ShownPing } from './pingRuntime';
+import { clearPing, clearPingsOnCard, expirePings, forgetPing, myPingSeat, pingContext, sendPing, usePings, type ShownPing } from './pingRuntime';
 import './pings.css';
 
 // ── the menu ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -262,7 +263,8 @@ const PingMark = memo(function PingMark({ p }: { p: ShownPing }): JSX.Element | 
   const dismiss = (e: React.SyntheticEvent): void => { e.preventDefault(); e.stopPropagation(); clearPing(p.key); };
   return createPortal(
     <span className={`ping-mark pm-${p.target.t}${p.mine ? ' mine' : ''} pr-${p.role}`} role="status"
-      aria-label={`${cap ? `${cap} pinged` : 'Ping'}: ${PING_LOOK[p.kind].label}. Click to clear.`}>
+      aria-label={`${cap ? `${cap} pinged` : 'Ping'}: ${PING_LOOK[p.kind].label}. Click to clear.`}
+      style={{ '--ping-fade-at': `${Math.max(0, PING_LIFE_MS - PING_FADE_MS - (Date.now() - p.at))}ms`, '--ping-fade': `${PING_FADE_MS}ms` } as CSSProperties}>
       {/* Cleared on the CLICK (or right-click), never on the press: removed at the press, the release's click would land
           on the card under it and inspect or buy it. The press itself is kept from reaching the card. */}
       <span className="ping-pop" onPointerDown={(e) => { e.stopPropagation(); }} onContextMenu={dismiss} onClick={dismiss}>
@@ -279,6 +281,13 @@ function PingMarks(): JSX.Element {
   const list = usePings((s) => s.list);
   const watched = useSpectate((s) => (s.active ? s.seat : null));
   const screen = watched ?? myPingSeat() ?? 'p1';
+  // Each ping goes when its life ends: one timer, for the next one due (no per-frame work).
+  useEffect(() => {
+    if (list.length === 0) return;
+    const next = Math.min(...list.map((p) => p.at + PING_LIFE_MS));
+    const id = window.setTimeout(() => expirePings(), Math.max(16, next - Date.now() + 10));
+    return () => window.clearTimeout(id);
+  }, [list]);
   return <>{list.filter((p) => p.owner === screen).map((p) => <PingMark key={p.key} p={p} />)}</>;
 }
 

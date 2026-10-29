@@ -10979,12 +10979,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PING-05',
-    title: 'A ping sparks on its target with a sound, settles until cleared, and clears everywhere when clicked or its card moves',
+    title: 'A ping sparks on its target with a sound, fades after 5 s, and clears everywhere sooner when clicked or its card moves',
     statement:
-      "A ping pops on its target with the hero power spark FX and the pulse UI sound, then settles and stays with no timer (transform and opacity only, nothing loops). On a card it sits inside the card element, so it rides the card. It is cleared by a left- or right-click on the ping itself, or when its card is dragged, sold, played or otherwise leaves its zone; a click or a drag sends a `ping_clear` on the stream so the sender's and the receivers' screens clear alike (the player, the teammate and the mentor may send one; a plain spectator clears only their own screen). A ping whose target leaves the screen (the shop closes for the fight) goes too. A new ping on the same target replaces the last.",
+      "A ping pops on its target with the hero power spark FX and the pulse UI sound, then settles; 5 s after it landed on a screen it fades out there (a 300 ms one-shot opacity fade) and is gone, timed locally from its arrival on that screen with no message (transform and opacity only, nothing loops). On a card it sits inside the card element, so it rides the card. It is cleared by a left- or right-click on the ping itself, or when its card is dragged, sold, played or otherwise leaves its zone; a click or a drag sends a `ping_clear` on the stream so the sender's and the receivers' screens clear alike (the player, the teammate and the mentor may send one; a plain spectator clears only their own screen). A ping whose target leaves the screen (the shop closes for the fight) goes too. A new ping on the same target replaces the last.",
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (follow-up)', quote: 'we need to add a timer on pings - they should only last 5s if not cleared' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: 'Then when selected, the ping should spark / draw attention and have a sound cue. It can be cleared by a player simply right or left clicking it or moving a card with a ping.' },
     ],
     currentBehaviour: 'New on 2026-10-29.',

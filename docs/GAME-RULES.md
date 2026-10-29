@@ -1440,7 +1440,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   above the target; on a card, Pass (left) and Sell (right) below it. A **double right-click** on a card inspects it (a
   phone keeps tap-to-inspect); outside a game, in a replay, on a Discover option, or for a spectator
   who is not a mentor, right-click on a card still inspects at once. A ping pops on its target (spark + sound), then
-  settles and stays until it is cleared: a left- or right-click on it, or moving its card (drag, sell, play), clears it
+  settles. It fades out on its own **5 s** after it lands (timed on each screen from its arrival there), unless it is
+  cleared sooner: a left- or right-click on it, or moving its card (drag, sell, play), clears it
   on every screen that shows it. It also goes when its target leaves the screen (the shop closes for the fight). At most 3 pings per 2 s per sender.
 - **Who sees what.** A player's own pings: the player, every spectator, and (Duos / Ranked Duos) the teammate. Duos
   teammates ping each other's cards from the teammate view. **Opponents never see a ping.**

@@ -1,7 +1,7 @@
 /**
  * THE NEW-MESSAGE TOAST (R-DM-03): a message arrives while its conversation is not open, so a small panel rises just
  * above the Friends button (bottom left since R-FRIENDS-DOCK-02, clear of the board's middle): the friend's portrait, name and the message.
- * Pressing it opens the conversation; it leaves by itself after 5 s. One at a time (the newest). It only takes the
+ * Pressing it opens the conversation in the chat window (R-DM-CHAT-01); it leaves by itself after 5 s. One at a time (the newest). It only takes the
  * presses that land on it; the game underneath keeps playing. Motion: one-shot transform + opacity.
  */
 import { sfx } from '../../sfx';
@@ -18,7 +18,8 @@ import './dm.css';
 export function DmToast(): JSX.Element | null {
   const toast = useDm((s) => s.toast);
   const friend = useFriends((s) => (toast ? s.list?.friends.find((f) => f.userId.toLowerCase() === toast.from) ?? null : null));
-  const open = useFriendsDock((s) => s.phase === 'open' && s.dmWith === toast?.from);
+  // Its conversation is on screen in the chat window (R-DM-CHAT-01): no toast.
+  const open = useFriendsDock((s) => !!toast && !!s.dmWith && s.dmWith.toLowerCase() === toast.from);
   const filter = useFriendsPrefs((s) => s.filterMessages);
   const inGame = useGame((s) => !isPreRun(s) || s.replaying);
   // On a menu with a dock slot, the toast rises beside the slot's column like the panel (R-FRIENDS-DOCK-03).

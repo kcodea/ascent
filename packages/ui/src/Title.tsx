@@ -553,9 +553,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="mbicon"><Icon name="gear" /></span>
             <span className="mblabel">{txt.settings}</span>
           </button>
-          {/* The Friends dock's home on the title (R-FRIENDS-DOCK-03): beside the last plaque, just right of the
-              column, so it needs no height of its own and never meets the footer links below. */}
-          <DockSlot className="title-dock" side=".titlenav" />
         </nav>
 
       </div>
@@ -625,6 +622,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       {/* The corner footer: the reporter and the other small links, then the build stamp. Bottom left, clear of the
           Compendium + help buttons in the bottom-right corner (they overlapped the stamp before). */}
       <div className="titlefoot">
+        {/* The Friends dock's home on the title (owner 2026-10-29, R-FRIENDS-DOCK-04: "dont have the friends button at
+            the main menu be next to the other buttons. put it at the bottom left again"): the bottom-left corner,
+            just ABOVE these footer links (out of flow, so it never pushes or covers them). Its panel opens beside the
+            menu column (`side`), so no plaque is hidden while it is open (R-FRIENDS-DOCK-03). */}
+        <DockSlot className="title-dock" side=".titlenav" />
         {/* Secondary links under the plaques: the reporter, the DEV balance report and the last replay. The
             Compendium link left here on 2026-09-21 (owner: "not important" on the title); it is still Tab. */}
         <div className="titlesecondary">

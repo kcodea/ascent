@@ -222,7 +222,8 @@ describe('receiving (R-DM-03)', () => {
     history[AMY] = [row(AMY, ME, 'gg!'), row(AMY, ME, 'rematch?')];
     click(q('.dm-toast'));
     await flush();
-    expect(useFriendsDock.getState()).toMatchObject({ phase: 'open', dmWith: AMY });
+    expect(useFriendsDock.getState()).toMatchObject({ dmWith: AMY, chatTabs: [AMY] });
+    expect(q('.dmchat-pane')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
     expect(useDm.getState().unread[AMY]).toBeUndefined();
     expect(marked).toEqual([AMY]);
     expect(q('.dm-toast')).toBeNull();
@@ -355,8 +356,8 @@ describe('the dock on a menu (R-DM-03, R-FRIENDS-DOCK-02)', () => {
     await flush();
     click(q('.fdock-rowmain[aria-label="Message Amy#1234"]'));
     await flush();
-    expect(q('.fdock-stack .fdock-dm')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
-    expect(q('.fdock-list')).not.toBeNull();
+    expect(q('.dmchat-pane')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
+    expect(q('.dmchat-veil.ingame')).toBeNull(); // a menu: the fuller dim
     expect(q('.fdock-btn')).not.toBeNull();
   });
 });

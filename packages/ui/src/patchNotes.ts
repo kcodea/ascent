@@ -67,6 +67,10 @@ export const PATCH_NOTES: PatchNote[] = [
         'Chat now connects on every version of the game that can reach it.',
         'If the chat connection drops for good, it tries again on its own a moment later. Messages you typed meanwhile still send.',
       ] },
+      { category: 'Systems', text: "Fixed the opponent's portrait dropping in again and again during combat and leaving a big black shadow behind, which stayed into the Shop.", details: [
+        'The portrait now drops in once per fight and leaves with the fight.',
+        'The dark circle over the standings and the hero power is gone.',
+      ] },
       { category: 'Systems', text: 'The Friends button moves to the bottom right corner and opens into your Friends list.', details: [
         'It sits with the corner buttons, just left of Rules, on every screen.',
         'Press it and the list grows out of the button. Press it again and the list folds back in.',

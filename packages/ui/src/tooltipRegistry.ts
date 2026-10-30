@@ -50,6 +50,12 @@ export const PAINT_EXCEPTIONS = [
   // ...and the same End Combat label in the Gem plate HUD look (healthPills.css), matching the Skip / Summary buttons.
   ':root[data-hp-look="gem"] .etbwrap.ready .etb-tip',
   '.kwbox[data-kw="rebirth"]',
+  // OWNER REVIEW (2026-10-30, DEV only, lobbyRailVariants.css): the scout card dressed to match the candidate rail
+  // designs (A the painted frame, B the Gem pill plate, C the minimal medallion card). Remove with the losers.
+  '.lobbyscout.lrv-scout-plaque::before',
+  '.lobbyscout.lrv-scout-plaque::after',
+  '.lobbyscout.lrv-scout-ledger',
+  '.lobbyscout.lrv-scout-medallion',
 ] as const;
 
 /**

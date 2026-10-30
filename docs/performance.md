@@ -490,6 +490,11 @@ npm run perf:gauntlet -- --round-probe --round-scenes --from 2 --to 14 --headles
                                               # --audio: REAL audio (autoplay allowed, output muted); every probe prints
                                               # the decoded AudioBuffer MB still alive after a full GC, split by what
                                               # fetched it (announcer / sfx / created). Climbing = an audio cache leak.
+                                              # Also a MEM row at boot (title, no input), the mode home (a real PLAY
+                                              # click, then how long the SFX bank took to land) and every round: the sfx
+                                              # bank's own counters (decoded MB, LRU MB, evictions, first-play misses and
+                                              # their lag), JS heap after GC, measureUserAgentSpecificMemory (the page is
+                                              # served cross-origin isolated) and the renderer process's private MB.
                                               # --url <origin>: drive a running server instead (the DEV server:
                                               # VITE_PERF_BENCH=1 npx vite --port N, never 5173). --allow-net <regex>: let
                                               # matching reads through (GET); --allow-write <regex>: the only writes that pass.

@@ -29,6 +29,7 @@ import type { Lane } from './assetQueue';
 import { LITE_ART } from './phoneArt';
 import { audioBufferBytes, createPlayStats, PHONE_AUDIO_LRU_BYTES, PHONE_AUDIO_MAX_RATE, PHONE_AUDIO_PREFETCH_DELAY_MS, PHONE_DECODE_GAP_MS, pacedQueue, phoneDecodeRate, phoneMono } from './audio/phoneAudio';
 import type { ClipIndex, PrewarmScene } from './audio/clipIndex';
+import { createClipLru, desktopLruCapBytes } from './audio/clipLru';
 import { crumb, crumbOnce, registerCrashProbe } from './crashLog';
 import { createPickPressLatch } from './pickPressLatch';
 import { SCENES } from './audio/scenes';
@@ -293,9 +294,9 @@ function audio(): AudioContext | null {
       };
       tap('master', master);
       for (const b of BUS_NAMES) tap(b, busNodes.get(b)!.input);
-      // Decode the mp3 SFX once the context exists (first user gesture), on the NEXT task: queueing ~400 samples
-      // inside the gesture cost ~10 ms of the first menu click's frame (perf 2026-10-09). The clip this click plays
-      // is unaffected: a play of an unloaded sample asks for it itself.
+      // Decode the resident SFX bank once the context exists (first user gesture), on the NEXT task: queueing the
+      // samples inside the gesture cost ~10 ms of the first menu click's frame (perf 2026-10-09). The clip this click
+      // plays is unaffected: a play of an unloaded sample asks for it itself.
       // A PHONE waits a moment and then decodes one clip at a time (R-TOUCH-PLAY-MEMORY-01, audio/phoneAudio.ts):
       // its first touch is usually Play, and the bank must not land in the same second as the mode home.
       setTimeout(prefetchSamples, LITE_ART ? PHONE_AUDIO_PREFETCH_DELAY_MS : 0);
@@ -340,7 +341,7 @@ const playStats = createPlayStats();
 /** A play asked for a clip that is not decoded yet: count the miss (only for a clip the bank has: a card with no
  *  voice file asks for one on every play and that is not a miss) and ask for it. */
 function missSample(name: string): void {
-  if (clipNamesInBank().includes(name)) playStats.miss(name, LITE_ART && !isPhoneResident(name));
+  if (clipNamesInBank().includes(name)) playStats.miss(name, !isResidentClip(name));
   loadSample(name);
 }
 const loadingSamples = new Set<string>();
@@ -457,8 +458,12 @@ export async function importFxSound(file: File): Promise<{ id: string; label: st
  * a moment after the first touch, decodes one clip at a time and keeps it mono (audio/phoneAudio.ts). Since
  * R-TOUCH-AUDIO-QUALITY-01 (owner 2026-10-23, "the sound effects were all terrible/not loaded") it decodes at the
  * context's own rate (not 32 kHz), and decodes the clips the game will need next AHEAD of their first play
- * (`prewarmSfx`, fed by audio/phonePrewarm.ts), so a card's or hero's first sound is not silent. Desktop decodes and
- * keeps everything, as before.
+ * (`prewarmSfx`, fed by audio/phonePrewarm.ts), so a card's or hero's first sound is not silent.
+ *
+ * DESKTOP (R-AUDIO-MEMORY-02, 2026-10-29) used to decode and keep the WHOLE bank from the first click: 519 clips,
+ * 488 MB at a 96 kHz context. It now keeps the same resident set as a phone and the rest in the same kind of LRU
+ * (audio/clipLru.ts), prewarmed the same way, with a desktop-sized cap (`desktopLruCapBytes`). Unlike a phone it keeps
+ * stereo at the context's own rate, decodes without pacing, and starts the bank at once.
  */
 export const LITE_AUDIO_BYTES = PHONE_AUDIO_LRU_BYTES;
 /** A phone decodes one clip at a time (R-TOUCH-PLAY-MEMORY-01): no burst of decodes in flight together. Paced
@@ -491,8 +496,8 @@ function monoCopy(a: AudioContext, buf: AudioBuffer): AudioBuffer {
 /** Every decoded clip held right now, in MB (the crash log's breadcrumbs read it). */
 registerCrashProbe('audio', () => decodedAudioMB());
 // The phone measurement (`npm run perf:phone-run`) reads the play stats and the decoded total off the page.
-if (LITE_ART && typeof window !== 'undefined') {
-  (window as unknown as { __ascentSfx?: () => unknown }).__ascentSfx = () => ({ ...playStats.stats, decodedMB: decodedAudioMB(), clips: buffers.size, rate: ctx?.sampleRate ?? 0 });
+if (typeof window !== 'undefined') {
+  (window as unknown as { __ascentSfx?: () => unknown }).__ascentSfx = () => ({ ...playStats.stats, decodedMB: decodedAudioMB(), clips: buffers.size, rate: ctx?.sampleRate ?? 0, lruMB: clipLru.bytes() / 1048576, lruClips: clipLru.size(), evictions: clipLru.evictions(), bankReadyMs });
 }
 export function decodedAudioMB(): number {
   let b = 0;
@@ -504,47 +509,56 @@ export const isCoreSample = (name: string): boolean => !name.includes('/') || na
 /** Every clip name in the bank (`roll`, `cards/x`, `heroes/x`, `fx/x`). */
 let allClipNames: string[] | null = null;
 const clipNamesInBank = (): string[] => (allClipNames ??= Object.keys(SAMPLE_URLS).map(sampleName));
-/** Which clips a game needs (audio/clipIndex.ts). A phone loads that module (it reads every FX def and binding) when
- *  its bank starts; desktop never loads it. Null until then. */
+/** Which clips a game needs (audio/clipIndex.ts). Loaded (it reads every FX def and binding) when the bank starts.
+ *  Null until then. */
 let clipIndex: ClipIndex | null = null;
 let clipIndexModule: typeof import('./audio/clipIndex') | null = null;
-/** Held for the whole session on a phone: the core bank plus the FX clips every game plays. */
-const isPhoneResident = (name: string): boolean => isCoreSample(name) || !!clipIndex?.common.has(name);
-let liteAudioBytes = 0;
-/** Hold a decoded clip. On a phone a non-resident clip joins the LRU (least recently played dropped past the cap). */
+/** Held for the whole session (phone and desktop): the core bank plus the FX clips every game plays. */
+const isResidentClip = (name: string): boolean => isCoreSample(name) || !!clipIndex?.common.has(name);
+/** Every other clip: least recently played dropped past the cap, never while it sounds (audio/clipLru.ts). */
+const clipLru = createClipLru(buffers, {
+  capBytes: () => (LITE_ART ? LITE_AUDIO_BYTES : desktopLruCapBytes(ctx?.sampleRate ?? 48000)),
+  isResident: isResidentClip,
+  sizeOf: audioBufferBytes,
+  onEvict: (k) => { reversedBuffers.delete(k); }, // its reversed copy goes with it (R-AUDIO-MEMORY-01): it must not outlive the clip
+});
+/** Hold a decoded clip (a non-resident one joins the LRU). */
 function keepBuffer(name: string, buf: AudioBuffer): void {
-  buffers.set(name, buf);
+  clipLru.keep(name, buf);
   playStats.ready(name);
-  if (!LITE_ART || isPhoneResident(name)) return;
-  liteAudioBytes += audioBufferBytes(buf);
-  for (const [k, b] of buffers) {
-    if (liteAudioBytes <= LITE_AUDIO_BYTES) break;
-    if (k === name || isPhoneResident(k)) continue;
-    buffers.delete(k);
-    reversedBuffers.delete(k); // its reversed copy goes with it (R-AUDIO-MEMORY-01): it must not outlive the clip
-    liteAudioBytes -= audioBufferBytes(b);
-  }
+  if (residentLeft > 0 && isResidentClip(name) && --residentLeft === 0) bankReadyMs = Math.round(performance.now() - bankStartedAt);
 }
-/** A phone's LRU order is the Map's insertion order: a play moves its clip to the young end. */
-function touchBuffer(name: string, buf: AudioBuffer): void {
-  if (!LITE_ART || isPhoneResident(name)) return;
-  buffers.delete(name);
-  buffers.set(name, buf);
+/** A play used this clip: it becomes the most recently used. */
+function touchBuffer(name: string): void { clipLru.touch(name); }
+/** A play holds its clip until the source ends, so a sounding clip is never dropped. */
+function holdWhilePlaying(name: string, src: AudioBufferSourceNode): void {
+  clipLru.playStarted(name);
+  src.addEventListener('ended', () => clipLru.playEnded(name), { once: true });
 }
+/** The resident bank's progress, for the measurement (`__ascentSfx`): ms from its start to its last clip decoded. */
+let residentLeft = 0;
+let bankStartedAt = 0;
+let bankReadyMs = 0;
 
 /** The lane a phone's sounds ride: after the title's art, ahead of the background art stream (R-TOUCH-AUDIO-QUALITY-01). */
 const PHONE_SFX_LANE: Lane = 'chrome';
+/** The lane the RESIDENT bank rides: on desktop the `audio` lane the whole bank always rode (it starts at the first
+ *  click, before any game art streams). The prewarm rides `PHONE_SFX_LANE` on both: a card a roll just offered can be
+ *  bought and played within a second, so its clips go ahead of the background art stream (R-AUDIO-MEMORY-02). */
+const SFX_LANE: Lane = LITE_ART ? PHONE_SFX_LANE : 'audio';
 
 function prefetchSamples(): void {
-  if (!LITE_ART) { for (const name of clipNamesInBank()) loadSample(name, 'audio'); return; }
-  // A phone prefetches its resident bank only (core + the FX every game plays); the rest is decoded ahead of use by
-  // `prewarmSfx` (R-TOUCH-PLAY-MEMORY-01, R-TOUCH-AUDIO-QUALITY-01).
+  // Phone and desktop prefetch the resident bank only (core + the FX every game plays); the rest is decoded ahead of
+  // use by `prewarmSfx` (R-TOUCH-PLAY-MEMORY-01, R-TOUCH-AUDIO-QUALITY-01; desktop since R-AUDIO-MEMORY-02).
+  bankStartedAt = performance.now();
   void import('./audio/clipIndex').then((m) => {
     clipIndexModule = m;
     clipIndex = m.shippedClipIndex(clipNamesInBank());
   }, () => { /* no index: the core bank alone, every other clip on demand */ }).finally(() => {
     prefetchStarted = true;
-    for (const name of clipNamesInBank()) if (isPhoneResident(name)) loadSample(name, PHONE_SFX_LANE);
+    const resident = clipNamesInBank().filter(isResidentClip);
+    residentLeft = resident.filter((n) => !buffers.has(n)).length;
+    for (const name of resident) loadSample(name, SFX_LANE);
     if (pendingScene) { const sc = pendingScene; pendingScene = null; prewarmSfx(sc); }
   });
 }
@@ -553,13 +567,12 @@ function prefetchSamples(): void {
 let pendingScene: PrewarmScene | null = null;
 let prefetchStarted = false;
 /**
- * PHONE PREWARM (R-TOUCH-AUDIO-QUALITY-01): decode, ahead of their first play, the clips this scene will need: the
- * hero's lines, the cards on the board, in the hand, in the Shop and in the fight, the heroes on offer, and the
- * hero-attack clips (audio/clipIndex.ts `prewarmList`). Queued behind the resident bank, one decode at a time, never
- * creating the audio context. Does nothing on desktop (it already holds every clip). Returns how many it queued.
+ * PREWARM (R-TOUCH-AUDIO-QUALITY-01; desktop too since R-AUDIO-MEMORY-02): decode, ahead of their first play, the
+ * clips this scene will need: the hero's lines, the cards on the board, in the hand, in the Shop and in the fight, the
+ * heroes on offer, and the hero-attack clips (audio/clipIndex.ts `prewarmList`). Queued behind the resident bank
+ * (on a phone one decode at a time), never creating the audio context. Returns how many it queued.
  */
 export function prewarmSfx(scene: PrewarmScene): number {
-  if (!LITE_ART) return 0;
   if (!ctx || !prefetchStarted || !clipIndex || !clipIndexModule) { pendingScene = scene; return 0; }
   const list = clipIndexModule.prewarmList(clipIndex, scene, (c) => buffers.has(c) || loadingSamples.has(c));
   for (const c of list) loadSample(c, PHONE_SFX_LANE);
@@ -603,7 +616,7 @@ function playSample(name: string, category: string, delay = 0, onNodes?: (nodes:
   const buf = buffers.get(name);
   if (!buf) { missSample(name); return false; }
   playStats.hit();
-  touchBuffer(name, buf);
+  touchBuffer(name);
   const src = a.createBufferSource();
   src.buffer = buf;
   const g = a.createGain();
@@ -612,6 +625,7 @@ function playSample(name: string, category: string, delay = 0, onNodes?: (nodes:
   const when = a.currentTime + Math.max(0, delay);
   if (slice) src.start(when, Math.max(0, slice.offset), Math.max(0, slice.duration));
   else src.start(when);
+  holdWhilePlaying(name, src);
   onNodes?.({ src, gain: g });
   return true;
 }
@@ -789,7 +803,7 @@ function playTailedSample(name: string, category: string, vol: number, delay: nu
   const buf = buffers.get(name);
   if (!buf) { missSample(name); return null; }
   playStats.hit();
-  touchBuffer(name, buf);
+  touchBuffer(name);
   const src = a.createBufferSource();
   // Reversed: the cached reversed copy (Web Audio has no negative playbackRate); a slice is a window of THAT copy.
   src.buffer = reverse ? reversedBuffer(a, name, buf) : buf;
@@ -818,6 +832,7 @@ function playTailedSample(name: string, category: string, vol: number, delay: nu
   scheduleTailFade(env.gain, when, playDur / r, Math.max(0, tail.fadeOutMs) / 1000);
   if (slice) src.start(when, offset, playDur);
   else src.start(when);
+  holdWhilePlaying(name, src);
 
   let released = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -2514,7 +2529,7 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   const buf = buffers.get(clip);
   if (!buf) { missSample(clip); return null; } // not decoded yet — caller retries
   playStats.hit();
-  touchBuffer(clip, buf);
+  touchBuffer(clip);
   const src = a.createBufferSource();
   src.buffer = opts.reverse ? reversedBuffer(a, clip, buf) : buf;
   const pitchJit = opts.pitchVar ? 1 + (Math.random() * 2 - 1) * opts.pitchVar : 1;
@@ -2566,6 +2581,7 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   // Third arg = the buffer-time length to play, so the End offset actually stops the clip early. Omitted when
   // there's no end trim, so a full clip keeps the exact prior behaviour (play to the natural end).
   if (endTrim > 0) src.start(t0, offset, clipLen); else src.start(t0, offset);
+  holdWhilePlaying(clip, src);
   let isEnded = false;
   src.onended = () => { isEnded = true; };
   return {

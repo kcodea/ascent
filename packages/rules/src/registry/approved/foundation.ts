@@ -7344,13 +7344,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'lane, ahead of the background art stream; (3) the clips the scene will need are decoded ahead of their first '
       + 'play: the heroes on offer in hero select, the player\'s hero, every card on the board, in the hand, in the Shop '
       + 'and in the fight (with the FX defs bound to them), and the fx clips named in code (hero attacks); (4) the '
-      + 'on-demand clips live in a 40 MB least-recently-played cache, sized above a busy game\'s working set. Desktop is '
-      + 'unchanged: it decodes and keeps the whole bank.',
+      + 'on-demand clips live in a 40 MB least-recently-played cache, sized above a busy game\'s working set. Desktop '
+      + 'shares (2) to (4) since R-AUDIO-MEMORY-02 (its own cap, stereo at the context rate); (1) is phone only.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-23 (a real iPhone, the build with #2242)', quote: 'the sound effects were all terrible/not loaded' },
-      { kind: 'code', ref: 'packages/ui/src/audio/phoneAudio.ts (phoneDecodeRate, phoneMono, PHONE_AUDIO_LRU_BYTES); packages/ui/src/audio/clipIndex.ts + codeClips.ts; packages/ui/src/audio/phonePrewarm.ts; packages/ui/src/sfx.ts (prewarmSfx, isPhoneResident, touchBuffer, PHONE_SFX_LANE); scripts/phone-run-memory.mjs (--net, SFX play stats)' },
+      { kind: 'code', ref: 'packages/ui/src/audio/phoneAudio.ts (phoneDecodeRate, phoneMono, PHONE_AUDIO_LRU_BYTES); packages/ui/src/audio/clipIndex.ts + codeClips.ts; packages/ui/src/audio/phonePrewarm.ts; packages/ui/src/sfx.ts (prewarmSfx, isResidentClip, touchBuffer, PHONE_SFX_LANE); scripts/phone-run-memory.mjs (--net, SFX play stats)' },
     ],
     currentBehaviour:
       'Conforms from 2026-10-23 (fix/phone-audio-quality). Before, a phone decoded at 32 kHz (played back through a '
@@ -11658,5 +11658,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-29 (chore/retire-supabase-versus). Before: the cutover router (R-VERSUS-CF-CUTOVER-01) read versus_host_config and, when a Cloudflare create timed out, silently made the room on Supabase, where the versus-resolve Edge Function settled its rounds; every pack had to redeploy that function. The server half (switch pinned to cf, Supabase room creation refused, the versus-sweep job unscheduled) is live once 2026-11-14-retire-supabase-versus.sql is applied.',
     example: 'The Worker is down when Kev presses Create room: the room screen says "Connection problem. Try again." and no room is made anywhere. Ann accepts an old invite that names a bare room id from before the move: "That room has closed."',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusCfOnly.test.ts', 'packages/ui/src/versus/rankedDuosPartyCf.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-AUDIO-MEMORY-02',
+    title: 'Desktop keeps a bounded sound bank: the resident clips, plus the rest in a capped cache warmed ahead of use',
+    statement:
+      'On desktop, the first click decodes only the resident sound bank (the top-level shop and combat clips, the hero '
+      + 'select ceremony, and the FX clips bound to generic moments or fired from code), in stereo at the audio '
+      + 'context\'s own rate. Every other clip (card, hero and FX clips) is decoded ahead of its first play for the scene '
+      + 'in play, the same scene a phone warms (R-TOUCH-AUDIO-QUALITY-01) plus an open Discover\'s offer, and is held in '
+      + 'a least-recently-played cache capped at 64 MB at 48 kHz (scaled with the context rate, so it always holds the '
+      + 'same seconds of sound: 128 MB at 96 kHz). A clip still sounding is never dropped, a resident clip is never '
+      + 'dropped, and a dropped clip\'s reversed copy goes with it. The whole bank is never decoded at once.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (top priority)', quote: 'Performance degrades over the course of a game. It degrades massively by end game, causing major hitching and jank' },
+      { kind: 'fix-pr', ref: '#2450 (perf/audio-memory), its devlog finding: desktop decodes and keeps the whole SFX bank, 519 clips, about 488 MB at 96 kHz' },
+      { kind: 'code', ref: 'packages/ui/src/audio/clipLru.ts (createClipLru, desktopLruCapBytes); packages/ui/src/sfx.ts (prefetchSamples, keepBuffer, holdWhilePlaying, prewarmSfx); packages/ui/src/audio/phonePrewarm.ts (sceneOf, PREWARM_SETTLE_MS); packages/ui/src/Game.tsx; scripts/perf-gauntlet.mjs (--audio memory probes)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-29 (perf/desktop-sfx-memory). Before, desktop decoded all 519 clips at the first click and '
+      + 'kept them for the page\'s life: 488 MB of decoded audio at a 96 kHz context (about 244 MB at 48 kHz) from the '
+      + 'mode home on, flat all game.',
+    example: 'Sam plays on a laptop whose sound card runs at 96 kHz. Before, the first click on the title decoded every sound in the game, about 488 MB, and kept it all. Now the mode home holds about 200 MB, and a late game stays under about 300 MB, because the sounds of cards that left the game are let go.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/desktopSfxMemory.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
 ];

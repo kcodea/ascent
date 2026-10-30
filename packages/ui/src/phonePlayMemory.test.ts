@@ -46,7 +46,8 @@ describe('phone audio memory', () => {
     expect(s).toContain('phoneDecode(() => phoneDecodeCtx(a).decodeAudioData(ab)');
     expect(s).toContain('pacedQueue(PHONE_DECODE_GAP_MS)');
     expect(s).toContain('keepBuffer(name, monoCopy(a, buf))');
-    expect(s).toContain('for (const name of clipNamesInBank()) if (isPhoneResident(name)) loadSample(name, PHONE_SFX_LANE);');
+    expect(s).toContain('const resident = clipNamesInBank().filter(isResidentClip);');
+    expect(s).toContain("const SFX_LANE: Lane = LITE_ART ? PHONE_SFX_LANE : 'audio';");
     expect(s).not.toContain('sfx-fetch:');
     expect(PHONE_AUDIO_PREFETCH_DELAY_MS).toBeGreaterThan(0);
   });

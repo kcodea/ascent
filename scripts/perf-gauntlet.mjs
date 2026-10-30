@@ -190,7 +190,10 @@ function serve(dist, port) {
   const server = http.createServer((req, res) => {
     let f = path.join(dist, decodeURIComponent((req.url || '/').split('?')[0]));
     if (!f.startsWith(dist) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) f = path.join(dist, 'index.html');
-    res.writeHead(200, { 'content-type': types[path.extname(f)] || 'application/octet-stream' });
+    // --audio: cross-origin isolated (COOP + COEP credentialless), so the probes can read
+    // performance.measureUserAgentSpecificMemory (the page's whole memory, not just the JS heap).
+    const iso = flag('audio') ? { 'cross-origin-opener-policy': 'same-origin', 'cross-origin-embedder-policy': 'credentialless' } : {};
+    res.writeHead(200, { 'content-type': types[path.extname(f)] || 'application/octet-stream', ...iso });
     fs.createReadStream(f).pipe(res);
   });
   return new Promise((r, rej) => { server.once('error', (e) => rej(new Error(`port ${port} is busy (${e.code}): another perf:gauntlet still running? Pass --port.`))); server.listen(port, '127.0.0.1', () => r(server)); });
@@ -300,6 +303,46 @@ const AUDIO_CENSUS = `(() => {
   window.__pgAudio = () => { const by = {}; let n = 0, bytes = 0; for (let i = live.length - 1; i >= 0; i--) { const b = live[i][0].deref(); if (!b) { live.splice(i, 1); continue; } const k = live[i][1]; const x = b.length * b.numberOfChannels * 4; (by[k] ||= { n: 0, mb: 0 }); by[k].n++; by[k].mb += x / 1048576; n++; bytes += x; } for (const v of Object.values(by)) v.mb = +v.mb.toFixed(1); return { liveMB: +(bytes / 1048576).toFixed(1), live: n, madeMB: +(madeBytes / 1048576).toFixed(1), made, by }; };
 })();`;
 
+/** The Chrome profile of the run in progress (--audio: its renderer's process memory is read by profile path). */
+let CURRENT_PROFILE = '';
+/** --audio: private + working-set memory of this run's renderer process(es), in MB (Windows only; null elsewhere). */
+function rendererMemMB() {
+  if (process.platform !== 'win32' || !CURRENT_PROFILE) return null;
+  try {
+    const key = path.basename(CURRENT_PROFILE).replace(/'/g, '');
+    const ps = `Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object { $_.CommandLine -like '*${key}*' } | ForEach-Object { $t = if ($_.CommandLine -match '--type=([a-z-]+)') { $Matches[1] } else { 'browser' }; "$t $($_.PrivatePageCount) $($_.WorkingSetSize)" }`;
+    const out = execFileSync('powershell', ['-NoProfile', '-Command', ps], { encoding: 'utf8', timeout: 20_000 });
+    const by = {};
+    for (const line of out.split(/\r?\n/).filter(Boolean)) { const [t, priv, ws] = line.trim().split(' '); const o = (by[t] ||= { privMB: 0, wsMB: 0, n: 0 }); o.privMB += Number(priv) / 1048576; o.wsMB += Number(ws) / 1048576; o.n++; }
+    for (const v of Object.values(by)) { v.privMB = Math.round(v.privMB); v.wsMB = Math.round(v.wsMB); }
+    return by;
+  } catch { return null; }
+}
+/** --audio: one memory row. Decoded audio still alive (the census), the sfx bank's own counters (window.__ascentSfx:
+ *  decoded MB, clips held, plays and first-play misses), the JS heap after a full GC, the page's whole memory
+ *  (measureUserAgentSpecificMemory, when cross-origin isolated) and the renderer process's memory. */
+async function memProbe(c, label) {
+  const ev = (e) => evaluate(c, e).catch(() => null);
+  await c.send('HeapProfiler.collectGarbage').catch(() => {});
+  const ua = ev(`(async () => { if (!self.crossOriginIsolated || !performance.measureUserAgentSpecificMemory) return 'n/a (isolated ' + !!self.crossOriginIsolated + ')'; const r = await Promise.race([performance.measureUserAgentSpecificMemory(), new Promise((res) => setTimeout(() => res(null), 30000))]); if (!r) return 'timeout'; const by = {}; for (const b of r.breakdown) for (const t of b.types.length ? b.types : ['?']) by[t] = (by[t] || 0) + b.bytes / 1048576; for (const k of Object.keys(by)) by[k] = Math.round(by[k]); return { totalMB: Math.round(r.bytes / 1048576), by }; })()`);
+  await new Promise((r) => setTimeout(r, 200));
+  await c.send('HeapProfiler.collectGarbage').catch(() => {});
+  const heap = await c.send('Runtime.getHeapUsage').catch(() => null);
+  const row = {
+    label,
+    audio: await ev(`window.__pgAudio ? window.__pgAudio() : null`),
+    sfx: await ev(`window.__ascentSfx ? (({ missed, lagMs, ...x }) => ({ ...x, lagMs: lagMs.length ? { n: lagMs.length, p50: lagMs.slice().sort((a, b) => a - b)[lagMs.length >> 1], max: Math.max(...lagMs) } : null, missed: missed.slice(0, 12) }))(window.__ascentSfx()) : null`),
+    heapMB: heap ? +(heap.usedSize / 1048576).toFixed(1) : null,
+    jsHeapMB: await ev(`performance.memory ? +(performance.memory.usedJSHeapSize / 1048576).toFixed(1) : null`),
+    uaMemory: await ua,
+    process: rendererMemMB(),
+  };
+  log(`   MEM ${label}: ${JSON.stringify(row)}`);
+  memRows.push(row);
+  return row;
+}
+let memRows = [];
+
 // ---------------------------------------------------------------------------------------------------------------
 // Driving the game (desktop: real mouse events through CDP)
 // ---------------------------------------------------------------------------------------------------------------
@@ -356,6 +399,21 @@ async function playScenes(c) {
   if (!need(await d.waitFor(`!!window.__bench && !document.getElementById('bootsplash') && [...document.querySelectorAll('button,[role=button]')].some((x) => x.getClientRects().length > 0 && (x.innerText || '').trim().toUpperCase() === 'PLAY')`, 120_000), 'title (is this a VITE_PERF_BENCH build?)')) return missed;
   await sleep(2500);
   await mark('title'); await sleep(4000);
+  // --audio: memory at BOOT (the title, before any input: no audio context yet), then a real click on PLAY (the first
+  // gesture creates the audio context and starts the SFX bank) and memory at the MODE HOME once the bank settles.
+  if (flag('audio')) {
+    await memProbe(c, 'boot');
+    await d.click(await d.byText('PLAY'));
+    // How long the bank the first click starts takes to land: the last time the decoded clip count grew.
+    const t0 = Date.now(); let lastN = -1; let settledAt = 0;
+    while (Date.now() - t0 < Number(arg('home-ms', '15000'))) {
+      const n = await d.ev(`window.__ascentSfx ? window.__ascentSfx().clips : 0`).catch(() => 0);
+      if (n !== lastN) { lastN = n; settledAt = Date.now() - t0; }
+      await sleep(100);
+    }
+    log(`   SFX bank after the first click: ${lastN} clips decoded, the last one landed ${settledAt} ms after the click`);
+    await memProbe(c, 'home');
+  }
 
   // --games N: the whole game below N times in the SAME page (the way a player plays a session), each game's scenes
   // marked "gN:<scene>", so anything that builds up across games (memory, DOM, listeners, frame time) shows.
@@ -607,7 +665,7 @@ async function playScenes(c) {
     live.gate = await d.ev(`(async () => { const b = window.__bench; if (!b.gateFx) return 'n/a'; const g = await b.gateFx(); if (!g.__counted) { g.__counted = {}; for (const m of ['slam', 'land', 'portal', 'edgeBloom', 'shudder', 'gather', 'ambient', 'shatter', 'warm', 'clear', 'release']) { const orig = g[m].bind(g); g[m] = (...x) => { g.__counted[m] = (g.__counted[m] || 0) + 1; return orig(...x); }; } } const calls = JSON.stringify(g.__counted); const app = g.app; return app ? 'particles ' + g.particles.length + ', ambient ' + (g.ambientAt ? 'ON' : 'off') + ', ticker ' + (app.ticker.started ? 'on' : 'off') + ', canvas ' + app.canvas.style.visibility + (g.particles[0] ? ', p0 age ' + Math.round(g.particles[0].age) + '/life ' + Math.round(g.particles[0].life) + ' alpha ' + (g.particles[0].sp.alpha ?? '?').toFixed?.(2) : '') + ', tick lastTime ' + Math.round(app.ticker.lastTime) + ' now ' + Math.round(performance.now()) + ' dMS ' + app.ticker.deltaMS.toFixed(1) + ' count ' + app.ticker.count + ' requestId ' + app.ticker._requestId + ' calls ' + calls : 'no app'; })()`).catch((e) => 'err ' + String(e).slice(0, 60));
     // The degradation hunt (2026-10-29): timers, the store's biggest slices and the FX renderer's textures, per round.
     live.timers = await d.ev(`window.__pgTimers ? window.__pgTimers() : null`).catch(() => null);
-    if (flag('audio')) { live.audio = await d.ev(`window.__pgAudio ? window.__pgAudio() : null`).catch(() => null); log(`   AUDIO r${r}: ${JSON.stringify(live.audio)}`); }
+    if (flag('audio')) { live.audio = await d.ev(`window.__pgAudio ? window.__pgAudio() : null`).catch(() => null); log(`   AUDIO r${r}: ${JSON.stringify(live.audio)}`); live.mem = await memProbe(c, `r${r}`); }
     // --perf-timings: the in-game perf monitor's measured spans (autosave, commit:*, store:set, render:*, fx:*), summed
     // per wave from its 1 s buckets, so the bookkeeping paths can be read round over round.
     if (flag('perf-timings')) live.perfT = await d.ev(`(() => {
@@ -802,9 +860,11 @@ const METRIC_KEYS = ['TaskDuration', 'ScriptDuration', 'RecalcStyleDuration', 'L
 async function measureOnce(dist, runIdx) {
   soakRows = [];
   probeRows = [];
+  memRows = [];
   const port = PORT + runIdx * 2;
   const server = EXT_URL ? { close: () => {} } : await serve(dist, port);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'ascent-perf-gauntlet-'));
+  CURRENT_PROFILE = profile;
   const c = await launch(profile, port + 1);
   const metricMarks = []; // [wallclock page time, scene, metrics]
   const profiles = []; let profiling = false;
@@ -903,7 +963,7 @@ async function measureOnce(dist, runIdx) {
     if (tracing) await stopTrace(c.send);
     const dump = await evaluate(c, 'window.__pg.dump()');
     dump.slowTimeouts = await evaluate(c, 'window.__pgSlowTimeouts ? window.__pgSlowTimeouts() : []').catch(() => []);
-    return { missed, dump, metricMarks, profiles, traceEvents, gpu: gpuSummaries, soak: soakRows, probe: probeRows, net: { allowed: netLog, blocked: [...blockedNet] } };
+    return { missed, dump, metricMarks, profiles, traceEvents, gpu: gpuSummaries, soak: soakRows, probe: probeRows, mem: memRows, net: { allowed: netLog, blocked: [...blockedNet] } };
   } finally {
     c.close(); server.close();
     await sleep(600);
@@ -1184,7 +1244,7 @@ for (let i = 0; i < schedule.length; i++) {
       log([`   profile (${PROFILE}, ${total.toFixed(0)} ms, top 12 by self time):`, ...lines.slice(0, 12).map((l) => '     ' + l)].join('\n'));
     }
     const a = analyse(raw);
-    if (flag('round-scenes') || ROUND_PROBE) fs.writeFileSync(path.join(OUT, `raw-run${i + 1}-${n}.json`), JSON.stringify({ dump: raw.dump, metricMarks: raw.metricMarks, probe: raw.probe, net: raw.net, scenes: a.scenes }));
+    if (flag('round-scenes') || ROUND_PROBE) fs.writeFileSync(path.join(OUT, `raw-run${i + 1}-${n}.json`), JSON.stringify({ dump: raw.dump, metricMarks: raw.metricMarks, probe: raw.probe, mem: raw.mem, net: raw.net, scenes: a.scenes }));
     if (raw.probe?.length) {
       // THE ROUND PROBE TABLE: one row a round of ONE game, taken at the start of its shop phase (after a GC, before any
       // action) with 3 s of idle frames. A climbing column = something piling up inside the game.

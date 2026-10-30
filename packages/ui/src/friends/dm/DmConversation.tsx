@@ -7,7 +7,7 @@
  *  - The composer: Enter (or Send) sends, focused the moment the panel opens (not on a touch screen, where it would throw the
  *    keyboard up over the game). Keys typed here never reach the game's own shortcuts (Tab, emotes, ...); Escape still
  *    closes the dock.
- *  - No hub (this build has no Worker, or I am a guest): the composer says messages are not available right now.
+ *  - No hub (a page the hub would refuse, or I am a guest): the composer says messages are not available right now.
  *    The hub reconnecting: a line says the messages will send when it is back.
  */
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';

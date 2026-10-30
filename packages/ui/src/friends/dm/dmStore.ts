@@ -15,8 +15,9 @@
  *
  * NEVER A SILENT DROP (R-DM-05): a message typed while the hub is reconnecting is shown as "Sending" and kept in the
  * outbox; it goes the moment the hub is back (the same client id: stored once even if an earlier try landed). A
- * refusal (not friends, blocked, too fast) shows on the message with its reason. With no hub at all (no Worker in this
- * build) the composer says messages are not available right now.
+ * refusal (not friends, blocked, too fast) shows on the message with its reason. With no hub at all (a page the hub
+ * would refuse, R-DM-HUB-URL-01) the composer says messages are not available right now; a socket that died for good
+ * is reopened after HUB_RESTART_MS.
  */
 import { create } from 'zustand';
 import { contentRevision } from '@game/content';
@@ -25,7 +26,7 @@ import { cleanDmBody, DM_MAX_CHARS, HUB_PROTOCOL, HUB_SOCKET_PATH, type DmRow, t
 import { currentUserId } from '../../identity';
 import { supabaseClient } from '../../remoteBoards';
 import { useGame } from '../../store';
-import { friendsHubUrl } from './hubUrl';
+import { friendsHubUrl, isLocalHub } from './hubUrl';
 import { useFriendsDock } from '../dock/dockStore';
 import { friendsAccount, presenceNow, refreshFriendsList, useFriends } from '../friendsStore';
 import type { Friend, PresenceReport } from '../friendsRemote';
@@ -104,32 +105,46 @@ export interface HubHandlers {
   hello: () => Record<string, unknown>;
   onHello: (d: HubHelloAnswer) => void;
   onPush: (m: HubPush) => void;
-  onStatus: (s: 'open' | 'down' | 'dead') => void;
+  /** `detail`: why a socket died (the close reason or code), when it will not reconnect by itself. */
+  onStatus: (s: 'open' | 'down' | 'dead', detail?: string) => void;
 }
 /** Opens the hub socket, or null when this build has no Worker. */
 export type HubFactory = (h: HubHandlers) => HubConn | null;
 
-async function hubToken(): Promise<string> {
+/** The longest the hub waits for my access token before trying again (a stuck session read must never stall it for good). */
+export const HUB_TOKEN_TIMEOUT_MS = 8_000;
+
+async function hubToken(base: string): Promise<string> {
   const c = supabaseClient();
   if (c) {
-    const { data } = await c.auth.getSession();
-    if (data.session?.access_token) return data.session.access_token;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+      const { data } = await Promise.race([
+        c.auth.getSession(),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new VersusCfError('token_timeout')), HUB_TOKEN_TIMEOUT_MS); }),
+      ]);
+      if (data.session?.access_token) return data.session.access_token;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
   const me = currentUserId();
   if (!me) throw new VersusCfError('not_signed_in');
-  return `dev.${me}.dev`; // a dev Worker only (DEV_AUTH=1); a deployed one refuses it
+  // A dev token works only on a local dev hub (DEV_AUTH=1); the live hub would refuse it, so wait for a real session.
+  if (!isLocalHub(base)) throw new VersusCfError('not_signed_in');
+  return `dev.${me}.dev`;
 }
 
 const defaultFactory: HubFactory = (h) => {
   const base = friendsHubUrl();
   if (!base || typeof WebSocket === 'undefined') return null;
   const c = new VersusCfClient({
-    baseUrl: base, roomId: 'hub', path: HUB_SOCKET_PATH, token: hubToken, versusProtocol: 0, contentRevision: contentRevision(),
+    baseUrl: base, roomId: 'hub', path: HUB_SOCKET_PATH, token: () => hubToken(base), versusProtocol: 0, contentRevision: contentRevision(),
     ws: (url, protocols) => new WebSocket(url, protocols) as never,
     hello: h.hello,
     onHello: (d) => h.onHello(d as HubHelloAnswer),
     onPush: (m) => h.onPush(m as unknown as HubPush),
-    onStatus: (s) => h.onStatus(s),
+    onStatus: (s, detail) => h.onStatus(s, detail),
     requestTimeoutMs: 12_000,
     wake: (fn) => {
       if (typeof window === 'undefined') return () => undefined;
@@ -149,6 +164,7 @@ let unreadReadFor = '';
 let hellos = 0;
 let lastPresenceKey = '';
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
+let restartTimer: ReturnType<typeof setTimeout> | null = null;
 /** When the friends list last arrived (a hub peer heard after it is newer than it). */
 let listAt = 0;
 /** Sends waiting for the hub (in order). */
@@ -185,15 +201,69 @@ function onPush(m: HubPush): void {
   if (m.t === 'dm') receive(m.msg);
 }
 
-function onStatus(s: 'open' | 'down' | 'dead'): void {
+/**
+ * A hub socket that will not come back by itself (a refused hello, a socket closed for good) is replaced by a fresh one
+ * after `HUB_RESTART_MS`, so messages never stay "not available" for the rest of the session (R-DM-HUB-URL-01). Two
+ * deaths are final: an old client the hub no longer speaks to (`version_mismatch`), and a game replaced by a newer one
+ * of mine (`replaced`: more than HUB_MAX_SOCKETS open games; reopening would only close the other one).
+ */
+export const HUB_RESTART_MS = 30_000;
+const FINAL_DEATHS = new Set(['version_mismatch', '4409', 'replaced', '4000']);
+
+function clearRestart(): void {
+  if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
+}
+
+/** A socket that died for a final reason (its refused hello and its close may come in either order). */
+let finalConn: HubConn | null = null;
+
+function scheduleRestart(c: HubConn, detail: string | undefined): void {
+  if (detail && FINAL_DEATHS.has(detail)) { finalConn = c; clearRestart(); return; }
+  if (conn !== c || restartTimer || finalConn === c) return;
+  restartTimer = setTimeout(() => {
+    restartTimer = null;
+    if (conn !== c || !connFor) return;
+    c.close();
+    conn = null;
+    openHub();
+  }, HUB_RESTART_MS);
+}
+
+function onStatus(c: HubConn | null, s: 'open' | 'down' | 'dead', detail?: string): void {
+  if (c && conn !== c) return;
   if (s === 'open') { set({ hub: 'open' }); return; }
   set({ hub: s === 'dead' ? 'off' : 'down' });
+  if (s === 'dead' && c) scheduleRestart(c, detail);
+}
+
+/** Open a hub socket for the account in `connFor` (the conversations, unread counts and outbox are kept). */
+function openHub(): void {
+  let made: HubConn | null = null;
+  const c = factory({
+    hello: () => {
+      const p = presenceWire(presenceNow());
+      lastPresenceKey = presenceKey(p);
+      return { protocol: HUB_PROTOCOL, presence: p, build: contentRevision() };
+    },
+    onHello, onPush,
+    onStatus: (st, detail) => onStatus(made, st, detail),
+  });
+  if (!c) return;
+  made = c;
+  conn = c;
+  set({ hub: 'connecting' });
+  c.connect().catch((e: unknown) => {
+    if (conn !== c) return;
+    set({ hub: 'down' });
+    scheduleRestart(c, (e as VersusCfError)?.code);
+  });
 }
 
 /** Open (or close) the hub for whoever is signed in now. */
 function syncConnection(): void {
   const want = started && friendsAccount() && useFriends.getState().deployed ? me() : '';
   if (want === connFor) return;
+  clearRestart();
   conn?.close();
   conn = null;
   connFor = want;
@@ -202,18 +272,7 @@ function syncConnection(): void {
   lastPresenceKey = '';
   set({ hub: 'off', convos: {}, unread: {}, peers: {}, toast: null });
   if (!want) return;
-  const c = factory({
-    hello: () => {
-      const p = presenceWire(presenceNow());
-      lastPresenceKey = presenceKey(p);
-      return { protocol: HUB_PROTOCOL, presence: p, build: contentRevision() };
-    },
-    onHello, onPush, onStatus,
-  });
-  if (!c) return;
-  conn = c;
-  set({ hub: 'connecting' });
-  c.connect().catch(() => { if (conn === c) set({ hub: 'down' }); });
+  openHub();
 }
 
 /** My presence moved (the beat answered): tell my friends through the hub, once per change. */
@@ -252,6 +311,7 @@ export function startDirectMessages(): () => void {
 
 /** Tests: forget everything. */
 export function resetDmForTests(): void {
+  clearRestart();
   conn?.close();
   conn = null; connFor = ''; started = false; outbox = []; unreadReadFor = ''; lastPresenceKey = ''; listAt = 0;
   if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }

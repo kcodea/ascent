@@ -80,7 +80,7 @@ export const DUOS_NEUTRAL_DISCOVER_PASS: readonly CardDef[] = [
     // teammate's board as this run last saw it (`duos.mateTribes`, recorded by `noteMateTribes`; ties a seeded 50/50).
     // The options come from the set's Duos pool (any tribe of the set, up to your Shop tier); the pick is an EFFECT
     // pass (free, counts as a pass). In combat (a Shout re-fire) it gives the teammate a random minion of their most
-    // common type at settle instead (no Discover or pass mid-fight). Gilded: Discover twice.
+    // common type instead (a combat gift, sent in real time) (no Discover or pass mid-fight). Gilded: Discover twice.
     id: 'duo_matchmaker',
     name: 'Matchmaker',
     tribe: 'neutral',

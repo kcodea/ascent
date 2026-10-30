@@ -11966,16 +11966,16 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'When a card gives "your team" something (max Gold, a cheaper Shop upgrade), your half happens at once. Your teammate\x27s half, and '
       + 'anything given only to your teammate (a card, Gold, a Triple Reward), is sent to them and resolved by their game: a random pick '
-      + 'uses their board, their pool and their seed. A gift their full hand cannot take is lost, and you get nothing back. A teammate who '
+      + 'uses their board, their pool and their seed. A card gift their full hand cannot take yet waits for room (R-DUOS-EFFECT-PASS-QUEUE-01). A teammate who '
       + 'disconnected still gets it when they come back. A teammate who left the party or is out of the match gets nothing. A combat '
-      + 'effect (an Echo) sends its gift when the fight is settled.',
+      + 'effect (an Echo) sends its gift in real time (R-DUOS-RUNES-02).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'duos requires 2 live players' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts receiveTeamEffect; workers/versus/src/core/groupMatch.ts duosTeamFxRefusal' },
     ],
-    currentBehaviour: 'Built 2026-10-30. Combat gifts land at settle, not mid-fight (an open question for the owner).',
+    currentBehaviour: 'Built 2026-10-30. Card gifts stopped being lost to a full hand the same day (they wait, R-DUOS-EFFECT-PASS-QUEUE-01); combat gifts became real time with R-DUOS-RUNES-02.',
     example: 'Ann plays Richmond: her max Gold goes up now; Amy\x27s goes up when the effect reaches her game a moment later.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCards.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
@@ -12200,10 +12200,11 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-DUOS-EFFECT-PASS-QUEUE-01',
-    title: 'A card passed by an effect waits for room in a full hand; it is never sent back',
+    title: 'A card passed or given to your teammate by an effect waits for room in a full hand; it is never lost or sent back',
     statement:
-      'When a card or spell passes a card to your teammate (Handout, CueBee\x27s Pass, Matchmaker, every pass rune) and their hand '
-      + 'is full, the card is not refused and does not come back. It waits, and lands in their hand the moment they have room (after '
+      'When a card or spell passes a card to your teammate (Handout, CueBee\x27s Pass, Matchmaker, Salesman of the Year), or GIVES '
+      + 'them a card (Disco\x27s other options, Antsy, Toot Toot, Tribe Bundle, a Gold Pouch, a rune\x27s gift), and their hand is '
+      + 'full, the card is not refused and does not come back. It waits, and lands in their hand the moment they have room (after '
       + 'they play, sell or pass a card, or the turn turns over), in the order it was passed. A Shop minion passed this way has left '
       + 'the Shop for good. A waiting card survives a reload. Their portrait shows how many cards are waiting. A MANUAL pass (a drag '
       + 'onto the portrait) keeps its rule: a full hand refuses it and the Gold comes back.',
@@ -12221,12 +12222,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-DUOS-CARDS-05',
     title: 'Disco, Matchmaker and CueBee: Discover for the team, and a Whisper that passes',
     statement:
-      'Disco: Discover a minion up to your Shop tier; the options you did not take go to your teammate\x27s hand (a full hand loses '
-      + 'them, like any gift). Matchmaker: its Shout Discovers a minion of your teammate\x27s most common type and passes your pick to '
+      'Disco: Discover a minion up to your Shop tier; the options you did not take go to your teammate\x27s hand (a full hand holds '
+      + 'them until there is room, like any gift). Matchmaker: its Shout Discovers a minion of your teammate\x27s most common type and passes your pick to '
       + 'them (free, a pass for every pass trigger). The type is read from your teammate\x27s board as your game last saw it; a tie is a '
       + 'seeded 50/50; never seen, it picks among your own tribes. The options come from the set\x27s Duos pool, any tribe the set has, '
       + 'up to your Shop tier. Gilded Matchmaker does it twice. Re-fired in combat it gives your teammate a random minion of their most '
-      + 'common type when the fight is settled. CueBee: a Whisper granter like the Dragons. You get a free Pass on play and every Start '
+      + 'common type, sent in real time. CueBee: a Whisper granter like the Dragons. You get a free Pass on play and every Start '
       + 'of Turn while it is on your board; it fades at End of Turn and counts as a spell cast. Pass aims at a Shop minion or one of '
       + 'yours (never a Golden one) and passes it, free. Gilded CueBee gives 2 Passes.',
     domain: 'foundation',

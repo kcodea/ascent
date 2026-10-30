@@ -63,7 +63,8 @@ export const PATCH_NOTES: PatchNote[] = [
         "Matchmaker (Tier 3): Shout: Discover a minion of your teammate's most common type and pass it to them.",
         'CueBee (Tier 4): Whisper: Pass. Each turn you get a free Pass. Aim it at a Shop minion or one of yours to send it to your teammate.',
       ] },
-      { category: 'Systems', text: "Duos: a card passed by a card or spell now waits if your teammate's hand is full.", details: [
+      { category: 'Systems', text: "Duos: a card your teammate gets from a card, spell or rune now waits if their hand is full.", details: [
+        'Passes and gifts alike, like the options Disco leaves or a Gold Pouch.',
         'It lands in their hand as soon as they have room. It never comes back to you.',
         'Their portrait shows how many cards are waiting.',
         'Dragging a card onto your teammate still needs room in their hand.',

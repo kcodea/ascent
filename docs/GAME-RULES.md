@@ -1292,7 +1292,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   passed that way has left the Shop for good. It counts as a pass for "when you pass" / "when your team passes" cards on
   both teammates' boards. A **team effect** ("give your team +1 max Gold", "give your teammate a Gold Pouch") lands on
   your run at once and on your teammate's run through their own game, which makes any random pick with its own board,
-  pool and seed; a gift their full hand cannot take is lost. A disconnected teammate gets it when they return; a teammate
+  pool and seed; a card gift their full hand cannot take yet waits for room (see below), never lost. A disconnected teammate gets it when they return; a teammate
   who left or is out gets nothing. An effect from combat (an Echo) is sent **in real time** (R-DUOS-RUNES-02): the fight
   marks the moment (`teamSend`), the sender's client sends it when its replay reaches that beat and the card lands in the
   teammate's hand mid-fight; settle only sends what never went out (a disconnect mid-fight), never twice. "Your teammate's

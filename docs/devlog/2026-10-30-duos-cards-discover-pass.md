@@ -10,7 +10,7 @@ Branch `feat/duos-cards-discover-pass`, on the #2468 foundation. Rules R-DUOS-CA
 - **Matchmaker** (T3 3/2 neutral): Shout `discoverMateTribePass` opens a `pool` Discover (`duos: 'pass'`) of the set's Duos
   pool, any tribe the set has (NOT narrowed to the sender's run tribes: the teammate rolled their own), up to the Shop tier,
   of the teammate's most common type. The pick goes out through `effectPassCard(..., 'hand')`. Gilded: twice. Combat
-  re-fire: a `giftTeammate { mateTribe }` at settle (no Discover / pass mid-fight).
+  re-fire: a `giftTeammate { mateTribe }` sent in real time (R-DUOS-RUNES-02; no Discover / pass mid-fight).
 - **CueBee** (T4 6/6 neutral): `grantWhisper` naming `duo_w_pass` with `goldenCopies` (Gilded = 2 plain Passes, since a
   Pass has no magnitude). `duo_w_pass` lives in `cards/duos/whispers.ts` (`DUOS_WHISPERS`), outside `DUOS_CARDS` so it never
   joins the Duos Shop spell pool; it is in `WHISPER_IDS`, tier 4 from CueBee. The reducer's Whisper branch now accepts a
@@ -36,12 +36,15 @@ appears, then `checkTriples`. The Worker no longer applies the hand-room refusal
 hand room minus waiting cards, so a manual drag is refused up front. The teammate portrait shows "Hand full: N cards
 waiting" (`.duosdock-note` pill). Manual passes are unchanged.
 
-Golden override: `effectPassCard(..., { allowGolden: true })` records `allowGolden`, the wire carries `passGolden: true`,
-the Worker's golden guard lets exactly that through (Salesman of the Year, the runes builder).
+Golden override: the runes PR's `effectPassCard(..., { allowGolden: true, via: 'sale' })` (`passFrom: 'sale'`); the Worker's
+hand-room skip covers `sale` as well as `spell`, and the receiver queues both.
 
 ## Open / flagged
 
 - Matchmaker's tribe is not printed live on the card (a tribe, not a magnitude; ties are random).
-- Disco's leftovers are GIFTS (team effects), so a full hand still loses them (the R-DUOS-CARDS-02 gift rule), unlike
-  effect passes. Ask the owner whether they should wait too.
+- Every card GIFT (Disco's leftovers, Antsy, Toot Toot, Tribe Bundle, Bratworst, Monstrocity, Gold Pouch, Shoutful Bounty /
+  Echoing Results) also waits in `duos.waiting` (lead ruling 2026-10-30, same owner quote): what fits lands now, the rest is
+  rolled at arrival on the receiver's RNG and waits (no pass key: a gift is not a pass). Not cards (Gold, max Gold, Triple
+  Reward, upgrade discount) are unaffected. The golden override is the runes PR's `via: 'sale'` (Salesman of the Year), which
+  waits like any effect pass; my earlier `passGolden` flag was dropped in its favour.
 - In a Duos run Jar of Secrets / Woozy can roll Pass (its owner CueBee is in the Duos pool).

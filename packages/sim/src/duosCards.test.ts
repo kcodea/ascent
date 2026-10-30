@@ -122,16 +122,15 @@ describe('Share the Wealth: "Gain +1 max Gold. Give your teammate a Gold Pouch."
     expect(bob.hand.map((c) => c.cardId)).toEqual(['emberpouch']);
   });
 
-  it('a full hand refuses the gift; the sender loses nothing more and gets nothing back', () => {
+  it('a full hand does not lose the gift: the Gold Pouch waits for room (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01)', () => {
     let ann = seat({ hand: [card('duo_sharewealth', 's1')] });
     let bob = seat({ hand: filler(10, 'h') }, 12);
     ann = reduce(ann, { type: 'play', uid: 's1' });
     bob = ship(ann, 'p1', bob);
     expect(bob.hand).toHaveLength(10);
-    expect(bob.duos!.refused).toEqual(['p1:0']);
-    const embers = ann.embers, hand = ann.hand.length;
-    ann = reduce(ann, { type: 'passRefunded', seq: 0 });
-    expect([ann.embers, ann.hand.length, ann.duos!.outbox[0]!.refunded]).toEqual([embers, hand, true]);
+    expect(bob.duos!.refused).toEqual([]);
+    expect(bob.duos!.received).toEqual(['p1:0']);
+    expect(bob.duos!.waiting!.map((w) => w.card.cardId)).toEqual(['emberpouch']);
   });
 });
 

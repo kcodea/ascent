@@ -200,16 +200,38 @@ describe('effect passes wait for room (owner 2026-10-30: "they get the card once
     expect(duosWaitingCount(bob)).toBe(1);
   });
 
-  it('Golden: refused by default, passed with the explicit per-effect override (it travels as `passGolden`)', () => {
+  it("Golden: refused by default; Salesman of the Year's sale pass (the one override) carries it, and it waits too", () => {
     const s = seat();
     const g = { ...filler(1, 'g')[0]!, golden: true };
     expect(effectPassCard(s, g, 'board', 0)).toBe(false);
-    expect(effectPassCard(s, g, 'board', 0, { allowGolden: true })).toBe(true);
+    expect(effectPassCard(s, g, 'hand', -1, { allowGolden: true, via: 'sale' })).toBe(true);
     const e = s.duos!.outbox[0]!;
-    expect(e.allowGolden).toBe(true);
-    expect(duosWireOf(e)).toMatchObject({ passFrom: 'spell', passGolden: true, golden: true });
-    const bob = ship(s, 'p1', seat({}, 12));
-    expect(bob.hand[0]).toMatchObject({ golden: true });
-    expect('passGolden' in bob.hand[0]!).toBe(false);
+    expect(duosWireOf(e)).toMatchObject({ passFrom: 'sale', golden: true });
+    let bob = ship(s, 'p1', seat({ hand: fullHand() }, 12));
+    expect(bob.duos!.received).toEqual(['p1:0']);
+    expect(duosWaitingCount(bob)).toBe(1); // a full hand: the sold Golden waits like any effect pass
+    bob = reduce(bob, { type: 'play', uid: 'h0' });
+    expect(bob.hand.at(-1)).toMatchObject({ golden: true, passKey: 'p1:0' });
+    expect('passFrom' in bob.hand.at(-1)!).toBe(false);
+  });
+
+  it("a GIFT of a card waits too (Disco's options, a Gold Pouch, Antsy, Toot Toot...): never lost, landed in order, no pass key", () => {
+    let ann = seat({ hand: [card('duo_disco', 'd1')] });
+    ann = reduce(ann, { type: 'play', uid: 'd1' });
+    const opts = [...ann.discover!];
+    ann = reduce(ann, { type: 'discover', index: 0 });
+    let bob = ship(ann, 'p1', seat({ hand: fullHand() }, 12));
+    expect(bob.duos!.refused).toEqual([]);
+    expect(bob.duos!.waiting!.map((w) => w.card.cardId)).toEqual([opts[1], opts[2]]);
+    bob = reduce(bob, { type: 'play', uid: 'h0' });
+    expect(bob.hand.at(-1)).toMatchObject({ cardId: opts[1] });
+    expect(bob.hand.at(-1)!.passKey).toBeUndefined();
+    expect(duosWaitingCount(bob)).toBe(1);
+    // A random gift (a minion of their most common type) is rolled on arrival, so a replay waits for the same card.
+    const wire = { uid: 'team9', cardId: '__team', tribe: 'neutral' as const, attack: 0, health: 0, keywords: [], golden: false, passFrom: 'team' as const, team: { kind: 'gift' as const, randomMinion: true, count: 2 } };
+    const a1 = reduce(bob, { type: 'receivePass', from: 'p1', seq: 9, card: wire });
+    const a2 = reduce(bob, { type: 'receivePass', from: 'p1', seq: 9, card: wire });
+    expect(a1.duos!.waiting).toEqual(a2.duos!.waiting);
+    expect(duosWaitingCount(a1)).toBe(3);
   });
 });

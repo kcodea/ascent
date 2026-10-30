@@ -17632,7 +17632,7 @@ export function effectPassCard(state: RunState, card: BoardCard, from: 'board' |
 }
 
 /** A gift's cards into this run's hand; returns how many landed (0 = a full hand refused it). */
-function landTeamGift(state: RunState, g: Extract<TeamEffect, { kind: 'gift' }>): number {
+function landTeamGift(state: RunState, g: Extract<TeamEffect, { kind: 'gift' }>, key: string): number {
   const count = Math.min(10, Math.max(1, Math.floor(g.count ?? 1)));
   let pool: CardDef[] = [];
   if (g.cardId) {
@@ -17651,9 +17651,33 @@ function landTeamGift(state: RunState, g: Extract<TeamEffect, { kind: 'gift' }>)
     state.rngCursor = rng.state();
     pool = t ? legalRandomMinionPool(state, { maxTier: state.tier }).filter((c) => defIsTribe(c, t, state)) : [];
   }
+  if (pool.length === 0) return 0;
+  // A GIFT NEVER GOES MISSING (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01: "they get the card once there is space in
+  // their hand"): what fits lands now (the ordinary conjure, behind anything already waiting), the rest is picked NOW
+  // from this run's pool and RNG and waits in `duos.waiting` with the effect passes, in order.
+  const waiting = state.duos?.waiting?.length ?? 0;
+  const room = waiting > 0 ? 0 : Math.max(0, handCap(state) - reservedHandSlots(state) - state.hand.length);
   const before = state.hand.length;
-  conjureToHand(state, pool, count);
-  return state.hand.length - before;
+  if (room > 0) conjureToHand(state, pool, Math.min(count, room));
+  const landed = state.hand.length - before;
+  const rest = count - landed;
+  if (rest > 0 && state.duos) {
+    const rng = makeRng(state.rngCursor);
+    for (let i = 0; i < rest; i++) {
+      const def = pool[rng.int(pool.length)]!;
+      const cb = cardBuff(state, def.id);
+      const card: BoardCard = {
+        uid: `w${i}`, cardId: def.id, tribe: def.tribe,
+        attack: def.attack + cb.attack + undeadBuyBonus(state, def),
+        health: def.health + cb.health + buyHealthAura(state, def),
+        keywords: [...def.keywords], golden: false,
+      };
+      takeFromPool(state, def.id);
+      (state.duos.waiting ??= []).push({ key: `${key}#${i}`, card, gift: true });
+    }
+    state.rngCursor = rng.state();
+  }
+  return count;
 }
 
 /**
@@ -17669,7 +17693,7 @@ export function receiveTeamEffect(state: RunState, from: string, seq: number, ef
   const d = s.duos!;
   const amt = (v: unknown): number => Math.min(10, Math.max(0, Math.floor(typeof v === 'number' ? v : 0)));
   if (effect.kind === 'gift') {
-    if (landTeamGift(s, effect) === 0) { d.refused.push(key); return s; }
+    if (landTeamGift(s, effect, key) === 0) { d.refused.push(key); return s; }
   } else if (effect.kind === 'sold') {
     const stat = (v: unknown): number => Math.max(0, Math.floor(typeof v === 'number' && Number.isFinite(v) ? v : 0));
     fireTeammateSold(s, { cardId: String(effect.cardId), attack: stat(effect.attack), health: stat(effect.health) });

@@ -121,7 +121,7 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Twelve new painted backdrops to put behind the board, and the castle courtyard is the new default.', details: [
         'Pick one in Settings under Board backdrop: Castle, Runic Slate, Cosmic Energy, Dark Sanctum, Temple, Stone Courtyard, Koi Pond, Fresh Pond, Bamboo Forest, Treasure Hoard, Celestial or Autumn Fire.',
         'Each is one painted scene that fills your whole screen, ultrawide monitors included, and stays sharp on 4K screens.',
-        'If you already chose a backdrop, you keep it. Oak planks and the other patterns are still there too.',
+        'Everyone starts on the castle courtyard once. Oak planks and the other patterns are still in Settings if you want to switch back.',
         'Soft dark shadows now sit behind your portrait and your opponent\'s portrait, so they stand out on a bright backdrop.',
       ] },
       { category: 'Systems', text: 'Patch Notes is now a page like Settings, with the menu sidebar beside it.', details: [

@@ -8,7 +8,7 @@
  *   - `DmBackend`: where messages are stored and friendships are read. Supabase in production (`dmStore.ts`); a memory
  *     backend for the tests and a local `wrangler dev`.
  */
-import { cleanDmBody, DM_RATE, isUuid, type DmRow, type DmSendError } from '../hubProtocol';
+import { cleanDmBody, DM_RATE, DM_REPLY_SNIPPET, isUuid, type DmRow, type DmSendError } from '../hubProtocol';
 
 export class DmError extends Error {
   constructor(public readonly code: DmSendError) {
@@ -33,6 +33,8 @@ export interface SendCheck {
   cid: string;
   to: string;
   body: string;
+  /** The message this one answers (protocol 2), or null. The store checks it is in this conversation. */
+  replyTo?: string | null;
 }
 
 /** Validate a `send`'s arguments (no store call yet). Throws `DmError`. */
@@ -42,7 +44,9 @@ export function checkSend(me: string, args: Record<string, unknown>): SendCheck 
   if (!isUuid(to) || to.toLowerCase() === me.toLowerCase()) throw new DmError('bad_target');
   const body = cleanDmBody(args.body);
   if (body == null) throw new DmError('bad_body');
-  return { cid: cid.toLowerCase(), to: to.toLowerCase(), body };
+  // A reply target that is not a message id is dropped, never refused: the message itself still goes.
+  const replyTo = isUuid(args.replyTo) ? args.replyTo.toLowerCase() : null;
+  return { cid: cid.toLowerCase(), to: to.toLowerCase(), body, replyTo };
 }
 
 /** Where messages live. Every call may throw `DmError` (a refusal) or anything else (the store is unreachable). */
@@ -83,9 +87,13 @@ export class MemoryDmBackend implements DmBackend {
     if (this.blocked(from, msg.to)) throw new DmError('blocked');
     if (!this.friends.get(from)?.has(msg.to)) throw new DmError('not_friends');
     this.seq += 1;
+    // A reply must answer a message of THIS conversation (the SQL's rule); anything else is stored as a plain message.
+    const orig = msg.replyTo ? this.rows.find((r) => r.id === msg.replyTo && ((r.from === from && r.to === msg.to) || (r.from === msg.to && r.to === from))) : undefined;
     const row: DmRow = {
       id: `00000000-0000-4000-8000-${String(this.seq).padStart(12, '0')}`, cid: msg.cid, from, to: msg.to, body: msg.body,
       at: new Date(this.clock()).toISOString(), readAt: null,
+      replyTo: orig?.id ?? null,
+      reply: orig ? { id: orig.id, from: orig.from, body: [...orig.body].slice(0, DM_REPLY_SNIPPET).join('') } : null,
     };
     this.rows.push(row);
     if (this.rows.length > 500) this.rows.shift();

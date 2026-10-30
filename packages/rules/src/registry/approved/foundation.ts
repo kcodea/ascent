@@ -10827,6 +10827,51 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/GameScroll.test.tsx', 'packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-30' },
   },
   {
+    id: 'R-DM-READ-01',
+    title: 'A conversation is read whenever it is actually in front of me: chat window on its tab (pinned or not) on a visible, focused page; coming back, pressing into the window or sending reads it, one write per change',
+    statement:
+      'A conversation counts as seen while the chat window is open on its tab (pinned or not) AND the page is visible and focused. A message that arrives then is never counted unread and never toasts; the store hears it in ONE coalesced read write (1.2 s after the first of a burst), never one per message. A message that arrives while the page is hidden or unfocused counts as unread (dock badge, tab badge, toast). The moment I am back with that conversation showing it is read: the page becoming visible (visibilitychange), the window gaining focus, a press or focus anywhere in the chat window, or sending a message in it. Each of those clears the dock badge, the tab badge and that friend\x27s toast, and makes ONE dm_mark_read write, and only when something was unread (repeated returns with nothing new write nothing). Unread counts read when the hub connects skip the conversation in front of me and mark it read in one write. Reopening the chat is never needed. There is no browser-tab title or favicon badge.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: 'if they are open and i come back to my tab the notification doesnt go away when i respond etc.' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dm/dmStore.ts (pageSeen, viewing, noteDmSeen, markRead, queueRead, startDirectMessages listeners), packages/ui/src/friends/dm/ChatWindow.tsx (onPointerDownCapture / onFocusCapture)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-30 (feat/chat-unread-emotes-replies). Before: a message that arrived while the page was hidden stayed unread until the chat was closed and reopened; coming back, clicking in or replying did not clear it, and each live message seen while looking was its own read write.',
+    example: 'Ann has Gus\x27s chat pinned and alt-tabs away. Gus sends two messages: the Friends button shows 2. Ann tabs back: the badge, the tab count and the toast go at once, with one read write. While she watches, Gus sends three more: no badge, and one write covers all three.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dm/dm.test.tsx'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DM-EMOTE-01',
+    title: 'Chat messages show the game\x27s own emotes small and inline (a little bigger when a message is only emotes); the composer has an emote picker of my emote menu',
+    statement:
+      'A direct message names an emote with a token in its text, ":<emote id>:" (for example ":emote_hi:"), so nothing new is stored and the hub and SQL are unchanged. A token shows as the emote\x27s painted bubble only when it names a live emote of the game\x27s set whose art is in this build; anything else (a typo, a retired emote, plain colons) shows as the text it is, and an older game shows the token text. Inline the bubble is about one and a half lines high; a message of one to three emotes and nothing else shows them about 1.6 times bigger. The new-message toast shows them small too and its label reads each emote by name. The composer has an emote button (the Zen Brian bubble) beside Send that opens a compact picker in the hover-panel plate with the emotes of my emote menu (the in-game set, no cooldown in chat); picking one puts its token where I was typing, with a space either side, and closes the picker. Escape or a press outside closes the picker without closing the chat window. No browser tooltips (alt text and aria-labels name each emote), the game\x27s cursor, nothing animates.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: 'emotes in chat (they should probably be shrunk down)' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dm/chatEmotes.ts, packages/ui/src/friends/dm/DmConversation.tsx (DmBody, EmoteButton), packages/ui/src/friends/dm/DmToast.tsx, packages/ui/src/friends/dm/dm.css' },
+    ],
+    currentBehaviour: 'Built 2026-10-30 (feat/chat-unread-emotes-replies). Before: messages were plain text only.',
+    example: 'Ann types "gg", presses the emote button and picks Good Choice: the box reads "gg :emote_good_choice: " and Gus sees "gg" followed by the small Good Choice bubble. Gus answers with Hi alone, which shows a little bigger.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dm/dm.test.tsx'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DM-REPLY-01',
+    title: 'Reply to a chat message: a "Replying to" bar in the composer, a small quote above the reply, and the quote jumps to the original',
+    statement:
+      'Every stored message (mine or my friend\x27s, not one still sending or failed) has a Reply beside its time, shown on hover (always shown on a touch screen). Pressing it shows a bar above the composer, "Replying to <name>" (or "yourself") with the start of that message, and a close that cancels it; switching conversation cancels it too. The message I then send names the one it answers (hub protocol 2, field replyTo) and the store keeps the link (direct_messages.reply_to, 2026-11-15-dm-replies.sql) only when the original is in the same conversation; otherwise it is stored as a plain message, never refused. Every row the hub or the SQL answers carries replyTo plus a quote of the original (its sender and first 140 characters), so a reply shows its quote even when the original is not loaded. The quote sits above the reply in one line (the name, then the snippet, emotes small); pressing it scrolls to the original when it is loaded and flashes it once (a one-shot opacity ring), and does nothing otherwise. A quote is only ever shown when the store kept it: a reply answered without one (an older hub, or the SQL not applied yet) drops its quote. A pruned original leaves the reply without its quote. Backward compatible: the hub accepts messages without replyTo, a protocol 1 client never sends it and ignores it on rows, and HUB_PROTOCOL_MIN stays 1.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: 'reply feature to reply to certain responses' },
+      { kind: 'code', ref: 'workers/versus/src/hubProtocol.ts (DmRow.replyTo / reply, HubSendArgs.replyTo, HUB_PROTOCOL 2), workers/versus/src/core/hubCore.ts (checkSend, MemoryDmBackend), workers/versus/src/dmStore.ts, supabase/migrations/2026-11-15-dm-replies.sql, packages/ui/src/friends/dm/dmStore.ts (sendDm), packages/ui/src/friends/dm/DmConversation.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-30 (feat/chat-unread-emotes-replies). Before: there was no way to answer a particular message.',
+    example: 'Gus asks about adding minions to Duos, then talks about something else. Ann hovers his first message, presses Reply, types "yes, more minions" and sends: her message shows "Gus: about adding minions to Duos..." above it, and pressing that scrolls up and flashes his question.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dm/dm.test.tsx', 'workers/versus/test/hubCore.test.ts', 'workers/versus/test/dm.db.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
     id: 'R-FRIENDS-MENU-01',
     title: 'Right-click (or a long press) on a friend opens a menu: Spectate, Invite to lobby, Invite to Duos, Invite to spectate, only the ones that make sense now',
     statement:

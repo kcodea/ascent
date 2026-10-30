@@ -7,7 +7,7 @@
  * hub connection; `markRead` only when there was something unread; `report` on a player's press.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { DmRow } from '@game/versus-cf/hub';
+import { cleanReplyPreview, type DmRow } from '@game/versus-cf/hub';
 import { supabaseClient } from '../../remoteBoards';
 
 export const DM_PAGE = 50;
@@ -33,6 +33,7 @@ export function parseDmRow(raw: unknown): DmRow | null {
   return {
     id: r.id, cid: typeof r.cid === 'string' ? r.cid : null, from: r.from.toLowerCase(), to: r.to.toLowerCase(), body: r.body, at: r.at,
     readAt: typeof r.readAt === 'string' ? r.readAt : null,
+    replyTo: typeof r.replyTo === 'string' ? r.replyTo : null, reply: cleanReplyPreview(r.reply),
   };
 }
 

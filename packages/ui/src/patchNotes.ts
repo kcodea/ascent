@@ -58,6 +58,19 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Systems', text: 'Chat: message alerts now clear as soon as you look at the conversation.', details: [
+        'Coming back to the game with a chat open on that friend clears its alert.',
+        'Clicking into the chat window or sending a reply clears it too. You no longer need to reopen the chat.',
+        'Messages that arrive while you are looking at the chat never show an alert.',
+      ] },
+      { category: 'Systems', text: 'Chat: send emotes in messages.', details: [
+        'Press the emote button beside Send to add one of your emotes.',
+        'Emotes show small, inside the message. A message that is only emotes shows them a little bigger.',
+      ] },
+      { category: 'Systems', text: 'Chat: reply to a message.', details: [
+        'Hover a message and press Reply. Your message shows a small quote of the one you answered.',
+        'Press the quote to jump to the original message.',
+      ] },
       { category: 'Systems', text: 'Settings now fits on one screen: its sections sit in two columns at full size, even with Advanced Controls open.' },
       { category: 'Systems', text: 'The Board backdrop list in Settings is now two columns and scrolls on its own, without moving the rest of Settings.' },
       { category: 'Balance', text: 'New Dragon in Set 3: Scrollz.', details: [

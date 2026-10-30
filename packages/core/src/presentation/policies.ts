@@ -244,6 +244,17 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:passTargetMinion:cast': { policy: 'ownBeat', family: 'spellCast' }, // Handout (the pass stream plays from the minion)
   'factory:duosFirstPassFree:passive': { policy: 'passive', family: 'passive' }, // Brian's Pal: read by the pass price, never a beat
   'factory:teamPassBuffSelf:teamPassedCard': { policy: 'ownBeat', family: 'economy' }, // Hitchhiker
+  // ── DUOS-ONLY CARDS, batch A (owner design 2026-10-30) ──
+  'factory:giftTeammate:onDeath': { policy: 'ownBeat', family: 'echo' }, // Antsy (the teammate's half lands on their run)
+  'factory:aleCastGiftTeammate:spellCast': { policy: 'ownBeat', family: 'economy' }, // Bratworst Buck
+  'factory:teamUpgradeDiscount:onDeath': { policy: 'ownBeat', family: 'echo' }, // Spencer
+  'factory:getRubies:passedCard': { policy: 'ownBeat', family: 'economy' }, // Roo
+  'factory:giftTeammate:onAttack': { policy: 'ownBeat', family: 'rally' }, // Toot Toot
+  'factory:demonConsumesShop:passedCard': { policy: 'ownBeat', family: 'economy' }, // Proxus
+  'factory:teammateSoldGainStats:teammateSold': { policy: 'ownBeat', family: 'economy' }, // Hippie Hulk
+  'factory:passedSpellGetCopy:passedCard': { policy: 'ownBeat', family: 'economy' }, // Galfagan
+  'factory:giftTeammate:onBuy': { policy: 'ownBeat', family: 'economy' }, // Monstrocity
+  'factory:spellBuffTeamLeftmost:cast': { policy: 'ownBeat', family: 'spellCast' }, // Broshake
   'factory:gainMaxMana:onPlay': { policy: 'ownBeat', family: 'shout' }, // Jewel (set 3, 2026-09-24): the max-Gold Choose One branch
   'factory:getEchoAndTrigger:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:getRandomRubies:cast': { policy: 'ownBeat', family: 'spellCast' },

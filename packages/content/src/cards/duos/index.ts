@@ -2,6 +2,10 @@ import type { CardDef } from '@game/core';
 import { DUOS_DRAGONS } from './dragons';
 import { DUOS_NEUTRAL } from './neutral';
 import { DUOS_SPELLS } from './spells';
+import { DUOS_BEASTS } from './beasts';
+import { DUOS_DWARVES } from './dwarves';
+import { DUOS_KOBOLDS } from './kobolds';
+import { DUOS_DEMONS } from './demons';
 
 /**
  * ── DUOS-ONLY CARDS (owner design 2026-10-30, R-DUOS-CARDS-01) ─────────────────────────────────────────────
@@ -16,5 +20,9 @@ import { DUOS_SPELLS } from './spells';
  * order seeds the Duos Shop). Team effects use the primitives in `sim/duosTeam.ts` (see that header and the
  * `ascent-content` skill).
  */
-export const DUOS_CARDS: readonly CardDef[] = [...DUOS_NEUTRAL, ...DUOS_DRAGONS, ...DUOS_SPELLS];
-export { DUOS_DRAGONS, DUOS_NEUTRAL, DUOS_SPELLS };
+export const DUOS_CARDS: readonly CardDef[] = [
+  ...DUOS_NEUTRAL, ...DUOS_DRAGONS, ...DUOS_SPELLS,
+  // Batch A (owner design 2026-10-30): the first Duos cards of these tribes.
+  ...DUOS_BEASTS, ...DUOS_DWARVES, ...DUOS_KOBOLDS, ...DUOS_DEMONS,
+];
+export { DUOS_DRAGONS, DUOS_NEUTRAL, DUOS_SPELLS, DUOS_BEASTS, DUOS_DWARVES, DUOS_KOBOLDS, DUOS_DEMONS };

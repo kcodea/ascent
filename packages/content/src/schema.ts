@@ -80,6 +80,11 @@ export const EffectFactoryIdSchema = z.enum([
   'teammateSoldGainStats',
   'giftTeammateGold',
   'giftTeammateTripleReward',
+  // DUOS-ONLY CARDS, batch A (owner design 2026-10-30)
+  'aleCastGiftTeammate',
+  'passedSpellGetCopy',
+  'demonConsumesShop',
+  'spellBuffTeamLeftmost',
   'giftTierAboveMinion',
   'giftSecondCalling',
   'giftPartingGifts',

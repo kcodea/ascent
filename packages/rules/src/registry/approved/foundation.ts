@@ -11991,4 +11991,53 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'You win round 5 and press the gem as your hero winds up its Inferno attack: the fireball\'s roar stops at the click, the return transition plays with only its own sound, and the opponent still takes the damage.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatHardStop.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
+  {
+    id: 'R-DUOS-BATCHA-01',
+    title: 'A Duos "(Once per turn)" or "(Twice per turn)" card counts per copy and shows what is left',
+    statement:
+      'Galfagan, Hippie Hulk (once) and Bratworst Buck (twice) count their uses per copy, per turn, and re-arm at the next turn. '
+      + 'Once one has fired this turn its text shows how many uses are left. Bratworst Buck\x27s Dwarven Ales cast during a fight '
+      + 'have their own two per fight.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'When you cast an Ale, give your teammate a copy. (Twice per turn)' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts duosOnceOk / spendDuosTurnUse; packages/ui/src/cardText.ts duosTurnCapText' },
+    ],
+    currentBehaviour: 'Built 2026-10-30 (Duos cards batch A).',
+    example: 'Ann has Bratworst Buck and casts three Dwarven Ales: Amy gets two copies, and the card reads "0 left this turn".',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCardsBatchA.test.ts', 'packages/ui/src/duosCardsBatchA.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-BATCHA-02',
+    title: 'Monstrocity counts as every type and sends a copy only when YOU buy or Discover it',
+    statement:
+      'Monstrocity is an All-type minion, so it is in every set\x27s Duos pool. When you buy it, or take it from a Discover, your '
+      + 'teammate gets a copy. A copy that arrives any other way (a gift, a pass) sends nothing, so it never chains.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'Monstrocity is an ALL-type minion' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts fireSelfObtained; packages/sim/src/reducer.ts takeDiscoverPick' },
+    ],
+    currentBehaviour: 'Built 2026-10-30 (Duos cards batch A).',
+    example: 'Ann buys Monstrocity: Amy gets one in her hand. Amy plays it; nothing more is sent.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCardsBatchA.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-BATCHA-03',
+    title: 'Salandaman grows for every Salandaman that died, like Spear Warden',
+    statement:
+      'Every Salandaman that dies (in a fight or in the Shop, any copy, a summoned one too) gives every Salandaman +4/+4 for the rest '
+      + 'of the game, including copies bought later. The card shows the total and how many have died.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'like Spear Warden: real-time tally aura across all copies, incl. summoned' },
+      { kind: 'code', ref: 'packages/content/src/cards/duos/beasts.ts duo_salandaman (cardDeathScaler)' },
+    ],
+    currentBehaviour: 'Built 2026-10-30 (Duos cards batch A).',
+    example: 'Two of Ann\x27s Salandamans die in a fight: every Salandaman she has, and every one she buys later, is +8/+8.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCardsBatchA.test.ts', 'packages/ui/src/duosCardsBatchA.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

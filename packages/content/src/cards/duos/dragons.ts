@@ -20,4 +20,20 @@ export const DUOS_DRAGONS: readonly CardDef[] = [
     text: '**Shout:** Give your team **+1 max Gold**.',
     goldenText: '**Shout:** Give your team **+2 max Gold**.',
   },
+  {
+    // GALFAGAN — "When you pass a Shop Spell, get a copy of it. (Once per turn)". A pass YOU make (`passedCard`,
+    // `spellOnly`); only a Shop-pool spell counts (`passedSpellGetCopy`: a Ruby, a Clue or a token is not a Shop
+    // Spell). The first each turn per copy of Galfagan (`oncePerTurn`). Gilded gets 2 copies.
+    id: 'duo_galfagan',
+    name: 'Galfagan',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 5,
+    health: 4,
+    keywords: [],
+    duos: true,
+    effects: [{ on: 'passedCard', do: 'passedSpellGetCopy', params: { spellOnly: true, oncePerTurn: true } }],
+    text: 'When you pass a **Shop Spell**, get a copy of it. **(Once per turn)**',
+    goldenText: 'When you pass a **Shop Spell**, get **2** copies of it. **(Once per turn)**',
+  },
 ];

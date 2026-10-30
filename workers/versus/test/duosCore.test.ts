@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { createVersusRun, duosRoundDigest, duosWireOf, HEROES, reduce, versusDuosStartingVitals, type PreparedCombatSide, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
+import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { engineContentRevision, resolveVersusDuosRound, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { DUOS_HISTORY_MAX_BYTES, parseDuosHistory } from '@game/sim/versus/duosHistory';
 import { DISCONNECT_GRACE_MS, newRoomState, RoomCore, turnSeconds, type CoreDeps, type CoreEffects, type CoreState } from '../src/core/roomCore';
@@ -263,6 +264,67 @@ describe('Duos room (Cloudflare) — Duos-only cards: team effects ride the pass
     expect(duosTeamFxRefusal({ eliminated_round: null, left_at: null })).toBeNull();
     expect(duosTeamFxRefusal({ eliminated_round: null, left_at: T0 })).toBe('no_teammate');
     expect(duosTeamFxRefusal({ eliminated_round: 3, left_at: null })).toBe('no_teammate');
+  });
+});
+
+describe('Duos room (Cloudflare) — Duos cards batch A: BOTH TEAMMATES through the Worker', () => {
+  const card = (id: string, uid: string): RunState['hand'][number] => {
+    const d = CARD_INDEX[id]!;
+    return { uid, cardId: id, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false };
+  };
+  const seat = (seed: number, over: Partial<RunState> = {}): RunState => ({ ...createVersusRun(seed, 'warden', 'set2', DUOS), hand: [], board: [], embers: 10, ...over });
+  /** Send every queued team row of `from` (seat p1) through the Worker, then land the teammate's pulled rows on `to`. */
+  async function relay(h: H, from: RunState, to: RunState): Promise<RunState> {
+    for (const e of from.duos!.outbox) await h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: e.seq, card: duosWireOf(e) });
+    let b = to;
+    for (const r of await h.op(U[1], 'duos_passes', { matchId: h.id, from: 1 })) {
+      b = reduce(b, { type: 'receivePass', from: r.from_seat, seq: r.seq, card: r.card });
+      await h.op(U[1], 'duos_answer_pass', { matchId: h.id, fromSeat: r.from_seat, seq: r.seq, landed: b.duos!.received.includes(`${r.from_seat}:${r.seq}`) });
+    }
+    return b;
+  }
+
+  it('Tribe Bundle, Monstrocity, Broshake and Bratworst Buck: each gift reaches the other run and lands there', async () => {
+    const h = await inShop();
+    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 10 });
+    const filler = Object.values(CARD_INDEX).find((c) => c && !c.spell && !c.token && !c.duos && c.tier === 1 && c.effects.length === 0)!.id;
+    let a = seat(11, { board: [card(filler, 'm0'), card('duo_bratworst', 'bb')], hand: [card('duo_tribebundle', 'tb'), card('duo_broshake', 'bs'), card('wo_champion', 'ale')] });
+    const run0 = a;
+    a = reduce(a, { type: 'play', uid: 'tb' });
+    a = reduce(a, { type: 'play', uid: 'bs' });
+    a = reduce(a, { type: 'play', uid: 'ale' });
+    a = reduce({ ...a, shop: [{ uid: 'mo', cardId: 'duo_monstrocity' }, ...a.shop], embers: 10 }, { type: 'buy', uid: 'mo' });
+    expect(a.duos!.outbox.map((e) => e.team?.kind)).toEqual(['gift', 'buffLeftmost', 'gift', 'gift']);
+    expect(run0.duos!.outbox).toHaveLength(0);
+    const mateBoard = [card(filler, 'q0')];
+    const b = await relay(h, a, seat(12, { board: mateBoard }));
+    const got = b.hand.map((c) => c.cardId);
+    expect(got).toContain('wo_champion');
+    expect(got).toContain('duo_monstrocity');
+    expect(got).toHaveLength(3); // + the Tribe Bundle minion
+    expect(b.board[0]).toMatchObject({ attack: mateBoard[0]!.attack + 3, health: mateBoard[0]!.health + 5 });
+    // The opponents see none of it.
+    expect(await h.op(U[2], 'duos_passes', { matchId: h.id, from: 1 })).toHaveLength(0);
+  });
+
+  it("combat gifts (Antsy's Echo, Toot Toot's Rally, Spencer's Echo) are sent at settle and land on the teammate", async () => {
+    const h = await inShop();
+    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 10 });
+    const run = seat(11, { board: [card('duo_toottoot', 't1'), card('duo_antsy', 'a1'), card('duo_spencer', 's1')] });
+    const parked = reduce(run, { type: 'faceOmen', deferFight: true });
+    const prep = parked.pendingCombatSide!;
+    const foe = [{ cardId: 'sandbag', attack: 20, health: 30, keywords: [] }] as unknown as BoardMinion[];
+    const result = simulate(structuredClone(prep.board), foe, makeRng(7), CARD_INDEX, structuredClone(prep.state), combatSide({ tier: 6 }), prep.config);
+    const a = reduce(parked, { type: 'resolveCombat', fight: { result, damageTaken: 0 } });
+    const kinds = a.duos!.outbox.map((e) => e.team?.kind);
+    expect(kinds).toContain('upgradeDiscount');
+    const gifts = a.duos!.outbox.filter((e) => e.team?.kind === 'gift');
+    expect(gifts.length).toBeGreaterThanOrEqual(2); // Antsy's spell + at least one Toot Toot swing
+    const mate = seat(12);
+    const b = await relay(h, a, mate);
+    expect(b.upgradeCost).toBe(mate.upgradeCost - 1);
+    expect(b.hand.length).toBe(Math.min(10, gifts.length));
+    expect(b.hand.some((c) => CARD_INDEX[c.cardId]?.spell && CARD_INDEX[c.cardId]?.tier === 1)).toBe(true);
   });
 });
 

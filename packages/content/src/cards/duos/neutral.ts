@@ -35,4 +35,22 @@ export const DUOS_NEUTRAL: readonly CardDef[] = [
     text: 'Your first pass each turn is free.',
     goldenText: 'Your first **2** passes each turn are free.',
   },
+  {
+    // MONSTROCITY — "When you buy or Discover this, your teammate gets a copy." An ALL-TYPE minion (owner correction
+    // 2026-10-30: it counts as every tribe), so it prints `tribe: 'neutral'` + `universalTribe` and joins every set's
+    // Duos pool. `selfObtain`: its OWN buy (`applyOnBuy`) or Discover pick (`takeDiscoverPick`) gives the teammate a
+    // fresh copy (`giftTeammate`); a copy that ARRIVES some other way (a gift, a pass) does not chain. Gilded gives 2.
+    id: 'duo_monstrocity',
+    name: 'Monstrocity',
+    tribe: 'neutral',
+    universalTribe: true,
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    duos: true,
+    effects: [{ on: 'onBuy', do: 'giftTeammate', params: { cardId: 'duo_monstrocity', selfObtain: true } }],
+    text: 'When you buy or **Discover** this, your teammate gets a copy.',
+    goldenText: 'When you buy or **Discover** this, your teammate gets **2** copies.',
+  },
 ];

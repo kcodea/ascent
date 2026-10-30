@@ -2134,6 +2134,13 @@ export function simulate(
             withEffect(m, eff, () => FACTORIES.spellCastBuffAll!(ctx, m, eff.params ?? {}, { side, spellId }));
           }
         }
+        // BRATWORST BUCK (Duos batch A): "When you cast a Dwarven Ale, give your teammate a copy." The same per-cast hook.
+        for (const m of living(side)) {
+          for (const eff of m.effects) {
+            if (eff.on !== 'spellCast' || eff.do !== 'aleCastGiftTeammate') continue;
+            withEffect(m, eff, () => FACTORIES.aleCastGiftTeammate!(ctx, m, eff.params ?? {}, { side, spellId }));
+          }
+        }
       }
       // GOLDILOX (owner 2026-09-24): "shop spells cast from anywhere count, not rubies, clues or generic spells …
       // this should work in combat, so if spells are cast in combat, goldilox gains stats and those stats are

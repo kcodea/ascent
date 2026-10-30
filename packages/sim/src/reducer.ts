@@ -34,7 +34,7 @@ import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounc
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
 import { applyDuosPass, isDuosTeamWire, queueTeamEffect, receiveDuosPass, refundDuosPass } from './duosPass';
-import { applyOwnTeamEffect, fireTeamPassTriggers, receiveTeamEffect } from './recruit';
+import { applyOwnTeamEffect, fireSelfObtained, fireTeamPassTriggers, receiveTeamEffect } from './recruit';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
@@ -691,6 +691,7 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
     s.hand.push(taken);
     takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
     if (empowered) ancientOnEmpowerPick(s, def, undefined, taken);
+    fireSelfObtained(s, taken); // DUOS (Monstrocity): "When you Discover this, your teammate gets a copy.
   }
   // RUNE OF EMPTY HANDS (Set 3 batch 2): the pick's CARD joins the run's free-Equipment list — its Equipment costs
   // 0 for the run, sold and re-bought included (owner note 2026-09-16: by card). Consumed by this pick, taken or
@@ -5767,6 +5768,7 @@ function advanceCombat(s: RunState): void {
     if (c.namedSpreadUsedThisTurn) c.namedSpreadUsedThisTurn = false; // Crash Course: "the first Star Crash on this each turn"
     if (c.whisperCopiedThisTurn) c.whisperCopiedThisTurn = false; // Tamby: "(Once per turn)" re-arms
     if (c.whisperKeptThisTurn && HUM_PER_TURN) c.whisperKeptThisTurn = 0; // Hum: "the first Whisper ... each turn" re-arms
+    if (c.duosUses) c.duosUses = undefined; // DUOS (batch A): "(Once / Twice per turn)" team triggers re-arm
     if (c.lastingWordsUsedThisTurn) c.lastingWordsUsedThisTurn = undefined; // Rune of Lasting Words: "each Dragon each turn" re-arms
     // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
     // — clear both halves.

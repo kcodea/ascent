@@ -1290,6 +1290,9 @@ function sprayDamageExceptFriendlyTribe(ctx: CombatContext, self: Minion, amount
   }
 }
 
+/** Bratworst Buck's per-fight Ale gift count, per combat body (a fresh fight builds fresh bodies, so it re-arms). */
+const ALE_GIFTS_THIS_FIGHT = new WeakMap<Minion, number>();
+
 export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /**
    * ── "WHEN A CARD IS ADDED TO YOUR HAND", IN COMBAT (owner report 2026-08-29) ───────────────────────────
@@ -4237,8 +4240,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.teamUpgradeDiscount(combatArena(ctx, self), params);
   },
   giftTeammate: (ctx, self, params, payload) => {
-    const m = (payload as Partial<MinionPayload> | undefined)?.minion;
-    if (m && m !== self) return;
+    // Own trigger only (Toot Toot's Rally, Antsy's Echo): another body's swing or death is not this one's.
+    const minion = (payload as Partial<MinionPayload> | undefined)?.minion;
+    if (minion && minion !== self) return;
     ARENA_EFFECTS.giftTeammate(combatArena(ctx, self), params);
   },
   giftTeammateGold: (ctx, self, params, payload) => {
@@ -4250,6 +4254,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const m = (payload as Partial<MinionPayload> | undefined)?.minion;
     if (m && m !== self) return;
     ARENA_EFFECTS.giftTeammateTripleReward(combatArena(ctx, self), params);
+  },
+  /** BRATWORST BUCK (Duos batch A), combat half: an Ale cast mid-fight on this side gives the teammate a copy. Called
+   *  by `spellResolved` (simulate.ts) with the cast Ale's id; the bare `spellCast` emit carries none and is ignored.
+   *  The combat budget is `perTurn` per body per FIGHT (the Shop's turn count is not carried into combat). */
+  aleCastGiftTeammate: (ctx, self, params, payload) => {
+    const { side, spellId } = (payload ?? {}) as { side?: Side; spellId?: string };
+    if (self.dead || side !== self.side || !spellId || !ALE_IDS.includes(spellId)) return;
+    const used = ALE_GIFTS_THIS_FIGHT.get(self) ?? 0;
+    if (used >= num(params.perTurn, 2)) return;
+    ALE_GIFTS_THIS_FIGHT.set(self, used + 1);
+    ARENA_EFFECTS.giftTeammate(combatArena(ctx, self), { count: 1 }, spellId);
   },
 
   /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the

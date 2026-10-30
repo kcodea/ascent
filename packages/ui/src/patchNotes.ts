@@ -58,6 +58,21 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Balance', text: 'Duos: 12 more Duos-only cards.', details: [
+        'Antsy (Tier 1 Beast): Echo: give your teammate a random Tier 1 Shop Spell.',
+        'Roo (Tier 2 Kobold): when you pass a card, get 2 Rubies.',
+        'Bratworst Buck (Tier 3 Dwarf): when you cast a Dwarven Ale, give your teammate a copy. Twice per turn.',
+        'Salandaman (Tier 4 Beast): has +4/+4 for every Salandaman that died this game.',
+        "Spencer (Tier 4 Dwarf): Echo: your team's Shop upgrades cost 1 less.",
+        'Toot Toot (Tier 4 Kobold): Rally: give your teammate a minion of their most common type.',
+        'Galfagan (Tier 4 Dragon): when you pass a Shop Spell, get a copy of it. Once per turn.',
+        'Monstrocity (Tier 4, every type): when you buy or Discover it, your teammate gets a copy.',
+        'Proxus (Tier 5 Demon): when you pass a card, a Demon eats a minion in the Shop.',
+        'Hippie Hulk (Tier 6 Demon): when your teammate sells a minion, it gains that minion\'s stats. Once per turn.',
+        "Broshake (Tier 2 spell): give your left-most minion and your teammate's left-most minion +3/+5.",
+        'Tribe Bundle (Tier 2 spell): give your teammate a minion of their most common type.',
+        'Gifts from a fight (Echo, Rally) reach your teammate when the fight ends.',
+      ] },
       { category: 'Systems', text: 'Hover a backdrop in Settings to see a small preview of it.' },
       { category: 'Systems', text: 'The end-of-game rank screen now fits on screen. A long Account XP breakdown scrolls inside its box, and your level bar always shows.' },
       { category: 'Balance', text: 'Duos: the first Duos-only cards. They only show up in Versus Duos and Ranked Duos.', details: [

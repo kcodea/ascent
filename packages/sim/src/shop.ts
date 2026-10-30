@@ -99,10 +99,43 @@ export function drawOfferId(rng: Rng, pool: CardDef[], stock: Readonly<Record<st
 
 /** A spell offer respects the tavern tier — like minions, a spell can only appear once you're at least
  *  its tier. Uniform among the eligible spells. */
-const drawSpellId = (rng: Rng, tier: number, state: RunState): string | null => {
-  const eligible = runSpells(state).filter((c) => c.tier <= tier);
+const drawSpellId = (rng: Rng, tier: number, state: RunState, avoid?: string): string | null => {
+  const all = runSpells(state).filter((c) => c.tier <= tier);
+  // `avoid` (the extra row spell): prefer a spell other than the slot's, unless it is the only one eligible.
+  const eligible = avoid && all.some((c) => c.id !== avoid) ? all.filter((c) => c.id !== avoid) : all;
   return eligible.length > 0 ? eligible[rng.int(eligible.length)]!.id : null;
 };
+
+/** SCROLL DRAKE (Set 3, Dragon/Spirit, owner design 2026-10-30): while on your board, Shop spells cost 1 less (2
+ *  Gilded; `spellCostReduction`) and every Shop roll serves one extra spell in the minion row IN PLACE OF a minion. */
+export const SCROLL_DRAKE_ID = 'd3_scrolldrake';
+
+/**
+ * How many spells the MINION ROW should carry on a roll: 1 while a Scroll Drake is on the board, else 0. Capped at
+ * ONE however many copies (or a Gilded one) you hold: "adds a second spell to every shop", never a third. The row
+ * keeps its normal size, so the spell takes a minion's place and the total offer count never grows ("so that the
+ * shop doesn't have more total offers").
+ */
+export function extraRowSpells(state: RunState): number {
+  return state.board.some((c) => c.cardId === SCROLL_DRAKE_ID) ? 1 : 0;
+}
+
+const isSpellOffer = (o: ShopCard): boolean => !!CARD_INDEX[o.cardId]?.spell;
+
+/** The Scroll Drake's row spells still owed by a row: the target less the spells the row already holds (a frozen
+ *  or Layaway-kept spell offer already counts, so a kept spell never makes room for another). */
+const rowSpellsOwed = (state: RunState, row: readonly ShopCard[]): number =>
+  Math.max(0, extraRowSpells(state) - row.filter(isSpellOffer).length);
+
+/** Serve the Scroll Drake's extra spell at the right end of the minion row when the row has room for it. */
+function pushRowSpell(state: RunState, rng: Rng, slots: number): ShopCard | null {
+  if (state.shop.length >= slots) return null;
+  const id = drawSpellId(rng, state.tier, state, state.spell?.cardId);
+  if (!id) return null;
+  const offer: ShopCard = { uid: `s${state.uidSeq++}`, cardId: id };
+  state.shop.push(offer);
+  return offer;
+}
 
 /**
  * Return a minion's copies to the shared pool (sell, or a discarded reroll offer). Tokens / Fodder /
@@ -252,7 +285,9 @@ function rollShopRow(state: RunState, slots: number): void {
   // state for exactly that roll). Narrowed here, at the single draw site, like the candle, so the pool stays honest;
   // a type with no stock left at your tier falls back to the ordinary draw.
   const rollTribe = state.ancientsEnabled ? state.ancients?.rollTribe : undefined;
-  for (let i = kept.length; i < slots; i++) {
+  // SCROLL DRAKE: a spell owed to the row takes a MINION's place, so the row draws that many fewer minions.
+  const spellsOwed = rowSpellsOwed(state, kept);
+  for (let i = kept.length; i < slots - spellsOwed; i++) {
     const pool = availableOffers(state);
     // Re-filtered per slot so the stock decrements below are respected; falls back only when the tier is
     // genuinely exhausted, which is the one case where a narrowed shop cannot be filled.
@@ -296,6 +331,12 @@ function rollShopRow(state: RunState, slots: number): void {
   // still gated by tavern tier (a T5 spell can't appear at T2).
   const spellId = drawSpellId(rng, state.tier, state);
   state.spell = spellId ? { uid: `s${state.uidSeq++}`, cardId: spellId } : null;
+  // SCROLL DRAKE: the row's extra spell, drawn AFTER the slot spell so a run without the Drake keeps its exact
+  // rng stream. Same tier gate as the slot spell; a different spell when one exists.
+  if (spellsOwed > 0) {
+    const extra = pushRowSpell(state, rng, slots);
+    if (extra) stampNewShopOffers(state, [extra], { onRefresh: true });
+  }
   state.rngCursor = rng.state();
 }
 
@@ -428,7 +469,8 @@ export function topUpTavern(state: RunState): void {
   const rng = makeRng(state.rngCursor);
   const slots = tierSlots(state.tier);
   const added: ShopCard[] = [];
-  while (state.shop.length < slots) {
+  const spellsOwed = rowSpellsOwed(state, state.shop); // SCROLL DRAKE: a frozen row tops up its spell too
+  while (state.shop.length < slots - spellsOwed) {
     const id = drawOfferId(rng, availableOffers(state), state.pool);
     if (!id) break;
     state.pool[id] -= 1;
@@ -439,6 +481,10 @@ export function topUpTavern(state: RunState): void {
   if (!state.spell) {
     const spellId = drawSpellId(rng, state.tier, state);
     if (spellId) state.spell = { uid: `s${state.uidSeq++}`, cardId: spellId };
+  }
+  if (spellsOwed > 0) {
+    const extra = pushRowSpell(state, rng, slots);
+    if (extra) added.push(extra);
   }
   state.rngCursor = rng.state();
   // The one new-offer stamp — the frozen offers already wore theirs; only the gap-fillers are new.

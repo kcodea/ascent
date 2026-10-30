@@ -843,11 +843,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-dual-tribe",
-    "title": "Dual & universal tribes · 25 carriers",
+    "title": "Dual & universal tribes · 26 carriers",
     "statement": "A dual-tribe minion counts as both tribes, everywhere. A universal minion counts as every tribe. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "isTribe/tribe predicates fold tribe2 and universalTribe; the tribePredicates lane sweeps raw comparisons.",
-    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Carriers: Bane · Crypt Drake · Crypt Wolf · Vaultkeeper · Gravus · Goldilox · Han Gover · Baal · High King Mykel · Mountainbond · Heckbinder · Kurse · … and 13 more",
+    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Carriers: Bane · Crypt Drake · Crypt Wolf · Vaultkeeper · Gravus · Scroll Drake · Goldilox · Han Gover · Baal · High King Mykel · Mountainbond · Heckbinder · … and 14 more",
     "example": "Bane receives BOTH tribes' buffs and satisfies either tribe's quest counters.",
     "contentIds": [
       "bane",
@@ -855,6 +855,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "cryptwolf",
       "d2_herzog",
       "d3_gravus",
+      "d3_scrolldrake",
       "dw3_goldilox",
       "dw3_hangover",
       "dw_baal",
@@ -919,7 +920,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "407 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "408 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -1359,7 +1360,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Rally means: triggers its effect each time this minion attacks — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Rally for all 39 carriers.",
-    "cardText": "Exemplar — Echohorn: \"Rally: trigger your left-most Echo.\" · Carriers: Echohorn · Packstrider · Raven · Sunmane · Better Bot · Chimerus · Chorus Engine · Chorus Drake · Cinderchef · Flamebeat Drake · Roarcollector · Choosey Dragon · … and 27 more",
+    "cardText": "Exemplar — Echohorn: \"Rally: trigger your left-most Echo.\" · Carriers: Echohorn · Packstrider · Raven · Sunmane · Better Bot · Chimerus · Chorus Engine · Chorus Drake · Cinderchef · Flamebeat Drake · Roarcollector · Picky Dragon · … and 27 more",
     "example": "Echohorn carries Rally — in play, triggers its effect each time this minion attacks.",
     "contentIds": [
       "b2_echohorn",
@@ -2604,7 +2605,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 7 of these fire on one trigger: the turn starts. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "4 effect factories across 7 cards dispatch on 'startOfTurn' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Bait Brood: \"Whisper: Give a minion +3/+5 and Taunt.\" · Members: Bait Brood · Gardener · Hatcher · Well Watcher · Whispwarder · Galas · Tolan",
+    "cardText": "Exemplar — Bait Brood: \"Whisper: Give a minion +3/+5 and Taunt.\" · Members: Bait Brood · Gardener · Hatcher · Well Watcher · Shelly · Quill · Tolan",
     "example": "Bait Brood fires when the turn starts, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "d3_baitbrood",

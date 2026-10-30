@@ -12,6 +12,7 @@ import type { RunState, BoardCard } from '../state';
 import { CONFIG } from '../config';
 import { reduce } from '../reducer';
 import { refreshCostOf, upgradeCostOf } from '../reducer';
+import { spellCostReduction } from '../recruit';
 import { getHero } from '../heroes';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { cardScore, type BotWeights } from './scoring';
@@ -227,7 +228,7 @@ export function decide(state: RunState, w: BotWeights, b: BotBehaviour, pkg?: Bo
   const topSpell = slotSpell && (!shopSpell || slotSpell.v >= shopSpell.v) ? slotSpell : shopSpell;
   const handRoom = state.hand.length < CONFIG.boardMax;
 
-  if (topSpell && handRoom && topSpell.v >= b.spellThreshold && spendable >= (topSpell.def!.cost ?? CONFIG.minionCost)) {
+  if (topSpell && handRoom && topSpell.v >= b.spellThreshold && spendable >= Math.max(0, (topSpell.def!.cost ?? CONFIG.minionCost) - spellCostReduction(state, topSpell.def))) { // the live price (Lazarus, Scroll Drake, …)
     const buy: Action = { type: 'buy', uid: topSpell.o.uid };
     // Only if it beats the body we'd otherwise buy — a strong body still takes priority at equal value.
     if ((!topMinion || topSpell.v > topMinion.v || !roomOnBoard) && legal(state, buy)) return buy;

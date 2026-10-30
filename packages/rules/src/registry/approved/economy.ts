@@ -276,4 +276,27 @@ export const ECONOMY_RULES: GameRule[] = [
       + 'Rubies and no slot enchant.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/shopOfferStamp.test.ts'], lastVerifiedAt: '2026-10-14' },
   },
+  {
+    id: 'R-SCROLL-DRAKE-01',
+    title: 'Scroll Drake: Shop spells cost less, and every Shop roll trades one minion for a spell',
+    statement:
+      'While a Scroll Drake (Set 3, Tier 3 Dragon/Spirit) is on your board, every Shop spell costs 1 less per copy '
+      + '(2 less Gilded), stacking with every other spell discount and floored at 0. The discount is a live board read '
+      + '(`spellCostReduction`), so it applies the moment the Drake is played and ends the moment it is sold or '
+      + 'destroyed, on every price surface. Every Shop roll (turn start, every refresh, a frozen top-up) serves ONE '
+      + 'spell in the minion row in place of a minion, at every tier, so the total offer count never grows. Any '
+      + 'number of copies (or a Gilded one) still adds only one extra spell. A kept or frozen spell in the row already '
+      + 'counts, the Starform keeps its pinned slot, and a run without the Drake rolls exactly as before.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner design 2026-10-30 (via the lead session)', quote: "This will replace a minion at highest shop tiers so that the shop doesn't have more total offers" },
+      { kind: 'owner-chat', ref: 'Owner follow-up 2026-10-30', quote: 'Actually make it a dragon spirit. Golden is 2 less' },
+      { kind: 'code', ref: 'packages/sim/src/shop.ts extraRowSpells / rollShopRow / topUpTavern; packages/sim/src/recruit.ts spellCostReduction; packages/content/src/cards/set3/dragons.ts d3_scrolldrake' },
+    ],
+    contentIds: ['d3_scrolldrake'],
+    cardText: '**Shop spells** cost **1** less. Each Shop has an extra spell in place of a minion.',
+    currentBehaviour: 'Conforms (2026-10-30, new card). Name and stats are placeholders.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/scrollDrake.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

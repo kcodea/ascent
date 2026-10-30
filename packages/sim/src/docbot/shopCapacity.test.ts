@@ -125,6 +125,8 @@ describe('Doc Bot — the Shop never overflows its capacity', () => {
    * declared — which is a prompt to check the bound, not a chore to silence.
    */
   const PUSH_SITES: Record<string, string> = {
+    'shop.ts pushRowSpell': 'guarded by `if (state.shop.length >= slots) return null` — the Scroll Drake spell only '
+      + 'ever fills a slot the row left free for it (owner 2026-10-30: the Shop never gets more total offers)',
     'shop.ts topUpTavern': 'the loop condition IS the bound — `while (state.shop.length < slots)`',
     'reducer.ts appendDominantTypeOffer': 'fills a free slot when short, otherwise REPLACES the right-most '
       + 'minion offer (owner ruling 2026-08-31, the fix for report 5c5b50a0)',

@@ -345,4 +345,28 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     text: '**Avenge (3):** Cast **Waking Rift**.',
     goldenText: '**Avenge (3):** Cast **Waking Rift** twice.',
   },
+  {
+    // SCROLL DRAKE (owner design 2026-10-30, retyped Dragon/Spirit the same day): "a t3 ... spirit minion that reduces
+    // the cost of spells in the shop by 1 and adds a second spell to every shop. (This will replace a minion at
+    // highest shop tiers so that the shop doesn't have more total offers)". Follow-up: "Golden is 2 less".
+    // A BOARD AURA with no effect subscription (the Lazarus shape), read live at two seams:
+    //  - PRICE: `spellCostReduction` (recruit.ts), the ONE function every spell price reads (both buy paths, the
+    //    Shop pill, the bots' visible state): -1 per copy on the board, -2 Gilded, stacking with every other
+    //    discount; the buy floors at 0. Live the instant it lands, sells or dies (it is a board read).
+    //  - OFFERS: `extraRowSpells` (shop.ts). Every Shop ROLL (turn start, every refresh, a frozen top-up) serves ONE
+    //    spell in the minion row in place of a minion, so the total offer count never grows. Capped at one extra
+    //    spell however many copies (or a Gilded one) you have.
+    // NAME + STATS ARE PLACEHOLDERS (owner to set). No art wired.
+    id: 'd3_scrolldrake',
+    name: 'Scroll Drake',
+    tribe: 'dragon',
+    tribe2: 'spirit',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: [],
+    effects: [],
+    text: '**Shop spells** cost **1** less. Each Shop has an extra spell in place of a minion.',
+    goldenText: '**Shop spells** cost **2** less. Each Shop has an extra spell in place of a minion.',
+  },
 ];

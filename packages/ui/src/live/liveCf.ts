@@ -189,5 +189,36 @@ export async function openCfWatcher(baseUrl: string, gameId: string, me: { name:
   return { watcher: { send: (e, p) => sock.broadcast(e, p), close: () => sock.close() }, hello: first! };
 }
 
+/** How long each diagnosis request may take. */
+export const CF_DIAGNOSE_TIMEOUT_MS = 4000;
+
+/**
+ * WHY A SOCKET DID NOT OPEN (R-LIVE-WATCH-REACH-01). A browser sees every refused WebSocket upgrade (401, 403, 404) as
+ * the same dropped socket, so the client keeps retrying until `CF_OPEN_TIMEOUT_MS` and only knows "unreachable". Two
+ * plain HTTP reads tell the cases apart, with no Worker change:
+ *   - `offline`:      the device has no network;
+ *   - `server_down`:  the Worker's `/health` does not answer (or answers an error);
+ *   - `signed_out`:   the Worker answers, but refuses this account's token (`/me/room` says 401);
+ *   - `unreachable`:  the Worker answers and accepts the token, yet the game's socket still did not open.
+ */
+export type CfOpenDiagnosis = 'offline' | 'server_down' | 'signed_out' | 'unreachable';
+
+export async function diagnoseCfOpen(baseUrl: string): Promise<CfOpenDiagnosis> {
+  try { if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'offline'; } catch { /* no navigator */ }
+  const base = baseUrl.replace(/\/$/, '');
+  const within = async (path: string, init?: RequestInit): Promise<Response | null> => {
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = setTimeout(() => ctl?.abort(), CF_DIAGNOSE_TIMEOUT_MS);
+    try { return await fetch(base + path, { ...init, signal: ctl?.signal }); } catch { return null; } finally { clearTimeout(timer); }
+  };
+  const health = await within('/health');
+  if (!health || !health.ok) return 'server_down';
+  let t: string;
+  try { t = await token(); } catch { return 'signed_out'; }
+  const me = await within('/me/room', { headers: { Authorization: `Bearer ${t}` } });
+  if (me && me.status === 401) return 'signed_out';
+  return 'unreachable';
+}
+
 /** The error code of a failed open (`spectators_full`, `no_game`, `own_game`, `unreachable`, ...). */
 export const cfErrorCode = (e: unknown): string => (e instanceof VersusCfError ? e.code : 'network');

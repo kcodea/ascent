@@ -63,6 +63,11 @@ export const PATCH_NOTES: PatchNote[] = [
         'While it is on your board, Shop spells cost 1 less. Gilded, they cost 2 less.',
         'Each Shop also offers a second spell in place of one minion, so the Shop never gets bigger.',
       ] },
+      { category: 'Systems', text: 'Fixed Watch on Live Games sometimes saying it could not reach the game.', details: [
+        'Watch now always connects to the server the game is on.',
+        'If the first try times out, Watch tries once more on its own.',
+        'When it still fails, it tells you why: you are offline, the server is down, or you need to sign in again.',
+      ] },
     ],
   },
   {

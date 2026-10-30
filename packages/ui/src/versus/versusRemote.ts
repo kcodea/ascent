@@ -682,10 +682,17 @@ export function lobbyLivePublishUrl(): string {
   return cfUrl;
 }
 
-/** The Worker that hosts a game whose row says `cf:<content revision>`: this build's own Worker for its own engine (or a
- *  dev tab's pick), else the deployed Worker named after that engine. */
+/**
+ * The Worker that hosts a game whose row says `cf:<content revision>`: ALWAYS the deployed Worker named after that
+ * engine (a dev tab's explicit pick aside). Every listed row was written by a deployed Worker (a local `wrangler dev`
+ * writes no rows), so it is never this build's own fallback. Before (R-LIVE-WATCH-REACH-01, owner 2026-10-30: "i keep
+ * getting this error trying to spectate"): a dev build on the same engine as the game sent the watch to its local
+ * `wrangler dev` (127.0.0.1:8787), which nothing was serving, and every Watch timed out as "Could not reach that game".
+ * A pack's own Worker IS `versusCfLiveUrl(<its revision>)` (`embeddedCfUrl`), so a live build is unchanged. The
+ * watcher's own engine does not matter: the object never refuses a watcher by revision (spectators render projections).
+ */
 export function lobbyLiveWatchUrl(liveHost: string): string {
   const rev = liveHost.startsWith('cf:') ? liveHost.slice(3) : liveHost;
-  if (devCf || rev === contentRevision()) return cfUrl;
-  return versusCfLiveUrl(rev);
+  if (devCf) return cfUrl;
+  return versusCfLiveUrl(rev || contentRevision());
 }

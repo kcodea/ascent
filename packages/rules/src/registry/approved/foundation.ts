@@ -11021,7 +11021,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'The board backdrop shows the player\x27s Settings pick, tuned per backdrop by the dev Background Tuner; the Layout Lab never touches it',
     statement:
       'What lies behind the board is the player\x27s Settings pick (Board backdrop), saved on the device and applied at once '
-      + 'and on every load; Castle when they never chose (Oak planks until 2026-10-29). Each backdrop shows its own tune: '
+      + 'and on every load; Castle when they never chose (Oak planks until 2026-10-29). Once, on the first load of the 2026-10-30 '
+      + 'version, a pick saved before then is cleared so every player starts on Castle; picks made after that stick. Each backdrop shows its own tune: '
       + 'its preset, then what the dev Background Tuner saved for it (which ships to every player once committed). In a dev '
       + 'build the Background Tuner puts the backdrop it is tuning on screen and shows every edit to it at once, never on '
       + 'another backdrop, until Save or Reset. A painted backdrop\x27s zoom and position can never show the edge of the '
@@ -11035,6 +11036,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-29 (board cutout)', quote: 'lets make a standalone background tuner. i dont want it in the scale and layout' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-29 (board cutout)', quote: 'the edits to the hero shades should be global. the same effect on every background, no matter whats selected' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-29 (board cutout)', quote: 'same with the board shadow settings' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-30 (board cutout)', quote: 'yes, exactly - we want castle to be the default experience. planks was available before the default experience was' },
       { kind: 'code', ref: 'packages/ui/src/backdrop.ts (tuneOf, setLiveTune); packages/ui/src/BackgroundTuner.tsx; apps/web/backdropTuningPlugin.ts; packages/ui/src/backdrop-tuning.json; packages/ui/src/EscMenu.tsx (Board backdrop)' },
     ],
     currentBehaviour: 'Conforms since 2026-10-29 (feat/background-tuner): the Background Tuner replaced the Layout Lab\x27s Backdrop section. From 2026-10-28 the Layout Lab drove the backdrop and, before a fix that day, picking its default texture showed the Settings pick instead.',

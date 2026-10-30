@@ -172,7 +172,23 @@ export function tuneOf(id: BackdropId): BackdropTune {
   return { ...TUNE_DEFAULTS, ...cleanTune(BACKDROPS[id]), ...SAVED[id], ...live[id] };
 }
 
+/**
+ * CASTLE FOR EVERYONE, ONCE (owner 2026-10-30: "we want castle to be the default experience. planks was available
+ * before the default experience was"). A pick saved before Castle became the default is cleared the first time a
+ * device loads this version, so every player starts on Castle; from then on their pick is theirs again. The marker
+ * makes it one-time: a pick made after it is never reset.
+ */
+export const CASTLE_RESET_KEY = 'ascent.backdrop.castleReset';
+function resetToCastleOnce(): void {
+  try {
+    if (localStorage.getItem(CASTLE_RESET_KEY) === '1') return;
+    localStorage.removeItem(BACKDROP_KEY);
+    localStorage.setItem(CASTLE_RESET_KEY, '1');
+  } catch { /* storage blocked: nothing saved, so the default (Castle) already shows */ }
+}
+
 function readStored(): BackdropId {
+  resetToCastleOnce();
   try {
     const v = localStorage.getItem(BACKDROP_KEY);
     return isBackdropId(v) ? v : DEFAULT_BACKDROP;

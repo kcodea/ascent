@@ -168,6 +168,7 @@ describe('single-image (cover) backdrops', () => {
   });
 
   it('a tile Settings pick never carries the cover flag', async () => {
+    localStorage.setItem('ascent.backdrop.castleReset', '1'); // a device past the one-time Castle reset
     localStorage.setItem('ascent.backdrop', 'oak');
     await import('./backdrop');
     expect(document.documentElement.dataset.bdFit).toBeUndefined();
@@ -279,5 +280,27 @@ describe('your portrait\'s drop shadow sits UNDER the board (owner 2026-10-29: "
     expect(src).toContain("root.setProperty('--psh-r0',");
     expect(src).toContain('const off = onStageChange(measure);');
     expect(src).toMatch(/ref=\{portraitRef\}\s*className=\{`f\$\{/);
+  });
+});
+
+describe('everyone starts on Castle once (owner 2026-10-30: "we want castle to be the default experience")', () => {
+  it('a pick saved before the reset is cleared on the first load, so the player lands on Castle', async () => {
+    localStorage.setItem('ascent.backdrop', 'oak');
+    const b = await import('./backdrop');
+    expect(b.getBackdrop()).toBe('castle');
+    expect(localStorage.getItem('ascent.backdrop')).toBeNull();
+    expect(localStorage.getItem(b.CASTLE_RESET_KEY)).toBe('1');
+    expect(rootVar('--bd-img')).toContain('/backdrop-castle.webp');
+  });
+
+  it('it happens only once: a pick made afterwards survives every later load', async () => {
+    const b = await import('./backdrop');
+    b.setBackdrop('koiPond');
+    vi.resetModules();
+    const again = await import('./backdrop');
+    expect(again.getBackdrop()).toBe('koiPond');
+    vi.resetModules();
+    const third = await import('./backdrop');
+    expect(third.getBackdrop()).toBe('koiPond');
   });
 });

@@ -57,6 +57,7 @@ export const DEFAULT_RULES: GroupingRules = {
   absorbIntoWindup: new Set([
     'buff', 'rally', 'summon', 'reveal', 'improve', 'tribeAura', 'spellcast', 'questTrigger',
     'toHand', 'handBuff', 'keyword', 'keywordLost',
+    'teamSend', // DUOS (R-DUOS-RUNES-02): a Rally's team gift (Toot Toot) rides the swing like a `toHand`
   ]),
 };
 

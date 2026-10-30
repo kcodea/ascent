@@ -68,6 +68,15 @@ export const PATCH_NOTES: PatchNote[] = [
         'If the first try times out, Watch tries once more on its own.',
         'When it still fails, it tells you why: you are offline, the server is down, or you need to sign in again.',
       ] },
+      { category: 'Systems', text: "Chat and the Friends list have a gold scroll bar in the game's style.", details: [
+        'The grey bar with arrows is gone. A slim gold bar shows when there is more to scroll.',
+        'Drag it to scroll, or click the bar to jump there. The mouse wheel works as before.',
+        'On a phone, swipe the list as before.',
+      ] },
+      { category: 'Systems', text: "The chat window's resize grip is much easier to see.", details: [
+        'The bottom right corner has a gold grip.',
+        'Hover any edge or corner and it lights up gold, so you can see where to drag.',
+      ] },
     ],
   },
   {

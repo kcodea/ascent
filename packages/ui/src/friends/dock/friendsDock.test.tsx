@@ -825,6 +825,32 @@ describe('the chat window moves, resizes and pins (R-DM-CHAT-02)', () => {
     expect(css).not.toMatch(/infinite/);
   });
 
+  it('the resize grips are easy to see (R-DM-CHAT-03): a gold ridged corner grip, every grip lights the rim on hover', () => {
+    const css = readFileSync(join(__dirname, '..', 'dm', 'dm.css'), 'utf8');
+    const rule = (sel: string): string => new RegExp(`${sel.replace(/[.:>]/g, (c) => `\\${c}`)} \\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+    const grip = rule('.dmchat-rs-se::after');
+    expect(grip).toMatch(/width: 1[4-8]px; height: 1[4-8]px/);
+    expect(grip).toMatch(/linear-gradient\(135deg[^)]*#f0d089/);
+    expect(rule('.dmchat-rs:hover::before')).toContain('opacity: 1');
+    expect(rule('.dmchat-at > .dmchat-rs-se:hover::after, .dmchat-at.sizing > .dmchat-rs-se::after')).toContain('opacity: 1');
+    // Hover changes opacity only (one-shot, compositor): no paint property transitions on the grips.
+    for (const m of css.matchAll(/\.dmchat-rs[^{]*\{([^}]*)\}/g)) if (/transition/.test(m[1])) expect(m[1]).toMatch(/transition: opacity/);
+  });
+
+  it('the conversation, the tabs and the friends list scroll with the game bar, not the native one (R-UI-SCROLLBAR-01)', async () => {
+    inRun();
+    ui = mount(<FriendsDock />);
+    act(() => openDm('u-amy'));
+    await flush();
+    expect(q('.gscroll.fdock-convo-wrap > .gscroll-view.fdock-convo[role="log"]')).not.toBeNull();
+    expect(q('.gscroll-x.dmchat-tabs-wrap > .gscroll-view.dmchat-tabs[role="tablist"]')).not.toBeNull();
+    const dm = readFileSync(join(__dirname, '..', 'dm', 'dm.css'), 'utf8');
+    expect(dm).not.toMatch(/scrollbar-width: thin/);
+    const src = readFileSync(join(__dirname, 'FriendsDock.tsx'), 'utf8');
+    expect(src).not.toMatch(/<div className="fdock-rows"/);
+    expect(src.match(/<GameScroll className="fdock-rows"/g)).toHaveLength(3);
+  });
+
   it('this device remembers the place and the pin; broken or blocked storage starts from the centred default', async () => {
     localStorage.setItem(KEY, JSON.stringify({ geom: { x: 100, y: 120, w: 600, h: 500 }, pinned: true }));
     resetChatWindowForTests();

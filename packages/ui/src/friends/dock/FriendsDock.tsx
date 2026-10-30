@@ -37,6 +37,7 @@
  * (no call of their own); the list is read only while the panel is open, on the shared 60 s loop (R-FRIENDS-05).
  */
 import { memo, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { GameScroll } from '../../GameScroll';
 import { Icon } from '../../Icon';
 import { remoteEnabled } from '../../remoteBoards';
 import { sfx } from '../../sfx';
@@ -194,22 +195,22 @@ export function FriendsPanel({ active, selected }: { active: boolean; selected: 
     body = requests === 0
       ? <div className="fdock-empty">No friend requests.</div>
       : (
-        <div className="fdock-rows" role="list" aria-label="Friend requests">
+        <GameScroll className="fdock-rows" outerClassName="fdock-rows-wrap" role="list" aria-label="Friend requests">
           {list.incoming.map((c) => <RequestRow key={c.userId} c={c} incoming />)}
           {list.outgoing.map((c) => <RequestRow key={c.userId} c={c} incoming={false} />)}
-        </div>
+        </GameScroll>
       );
   } else if (tab === 'blocked') {
     body = blocked === 0
       ? <div className="fdock-empty">Nobody is blocked.</div>
-      : <div className="fdock-rows" role="list" aria-label="Blocked players">{list.blocked.map((c) => <BlockedRow key={c.userId} c={c} />)}</div>;
+      : <GameScroll className="fdock-rows" outerClassName="fdock-rows-wrap" role="list" aria-label="Blocked players">{list.blocked.map((c) => <BlockedRow key={c.userId} c={c} />)}</GameScroll>;
   } else {
     body = friends.length === 0
       ? <div className="fdock-empty">No friends yet.<div className="fdock-emptysub">Add one by name and tag, like Name#1234.</div></div>
       : (
-        <div className="fdock-rows" role="list" aria-label="Friends">
+        <GameScroll className="fdock-rows" outerClassName="fdock-rows-wrap" role="list" aria-label="Friends">
           {friends.map((f) => <DockRow key={f.userId} f={f} selected={selected === f.userId} unread={unread[f.userId.toLowerCase()] ?? 0} />)}
-        </div>
+        </GameScroll>
       );
   }
   return (

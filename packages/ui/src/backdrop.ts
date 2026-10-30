@@ -119,6 +119,12 @@ export const BACKDROPS = {
   treasureHoard: image('Treasure Hoard', 'treasureHoard'),
   celestial: image('Celestial', 'celestial'),
   autumnFire: image('Autumn Fire', 'autumnFire'),
+  skyColosseum: image('Sky Colosseum', 'skyColosseum'),
+  cozy: image('Cozy', 'cozy'),
+  dwarvenArena: image('Dwarven Arena', 'dwarvenArena'),
+  cloudIsland: image('Cloud Island', 'cloudIsland'),
+  frozenArena: image('Frozen Arena', 'frozenArena'),
+  dunesArena: image('Dunes Arena', 'dunesArena'),
 } as const satisfies Record<string, BackdropPreset>;
 export type BackdropId = keyof typeof BACKDROPS;
 export const BACKDROP_IDS = Object.keys(BACKDROPS) as BackdropId[];

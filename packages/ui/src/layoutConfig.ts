@@ -178,6 +178,12 @@ export const BACKDROP_TEXTURES: Record<string, { label: string; url: string; cov
   koiPond: { label: 'Koi Pond (image)', url: '/backdrop-koi-pond.webp', cover: true },
   stoneCourtyard: { label: 'Stone Courtyard (image)', url: '/backdrop-stone-courtyard.webp', cover: true },
   autumnFire: { label: 'Autumn Fire (image)', url: '/backdrop-autumn-fire.webp', cover: true },
+  skyColosseum: { label: 'Sky Colosseum (image)', url: '/backdrop-sky-colosseum.webp', cover: true },
+  cozy: { label: 'Cozy (image)', url: '/backdrop-cozy.webp', cover: true },
+  dwarvenArena: { label: 'Dwarven Arena (image)', url: '/backdrop-dwarven-arena.webp', cover: true },
+  cloudIsland: { label: 'Cloud Island (image)', url: '/backdrop-cloud-island.webp', cover: true },
+  frozenArena: { label: 'Frozen Arena (image)', url: '/backdrop-frozen-arena.webp', cover: true },
+  dunesArena: { label: 'Dunes Arena (image)', url: '/backdrop-dunes-arena.webp', cover: true },
 };
 
 /** The SMALL copy of a painted (`cover`) backdrop that touch devices load instead (1600x900, `<name>-sm.webp`): a

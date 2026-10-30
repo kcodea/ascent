@@ -73,16 +73,36 @@ export function dockFriends(list: readonly Friend[] | null | undefined): Friend[
 export const dockCorner = (s: Pick<GameState, 'showCareer' | 'showRankings' | 'showLeaderboard' | 'showRecentGames' | 'showLiveGames' | 'showCollection' | 'settingsOpen' | 'showPatchNotes' | 'gameMenuOpen' | 'heroChoices'>): '' | 'corner' =>
   (anyPageOpen(s) || s.gameMenuOpen || s.heroChoices !== null ? 'corner' : '');
 
+/** Whether the dock's button is on screen: a backend, and either a guest or a server with friends deployed. */
+function useDockShown(): boolean {
+  const guest = useGame((s) => !s.account.userId || s.account.anonymous);
+  const deployed = useFriends((s) => s.deployed);
+  return remoteEnabled() && (guest || deployed);
+}
+
+/**
+ * THE DEV CORNER SQUARES (DEV only, R-DEV-CORNER-01): the corner-row slot of the FIRST dev square (the dev tuner; the
+ * minimized Scene Builder takes the next one). They queue up left of Friends: slot 4 beside it, 3 when there is no
+ * Friends button, and down at the corner with it (1, or 0 without it) where the row is covered (`dockCorner`).
+ */
+export const devCornerSlot = (dockShown: boolean, corner: '' | 'corner'): number => (corner ? 0 : 3) + (dockShown ? 1 : 0);
+
+/** `devCornerSlot` for the live screen (styles.css `.cornerdev` reads it as `--cd-slot`). */
+export function useDevCornerSlot(): number {
+  const shown = useDockShown();
+  const corner = useGame(dockCorner);
+  return devCornerSlot(shown, corner);
+}
+
 /** The dock, on every screen. Nothing without a backend, or once the server said friends are not deployed. */
 export function FriendsDock(): JSX.Element | null {
   const userId = useGame((s) => s.account.userId);
   const anonymous = useGame((s) => s.account.anonymous);
-  const deployed = useFriends((s) => s.deployed);
   const guest = !userId || anonymous;
   // In a run (or a replay / a watched game) the chat's veil barely dims (the game keeps running underneath).
   const inGame = useGame((s) => !isPreRun(s) || s.replaying);
   const slot = useGame(dockCorner);
-  const shown = remoteEnabled() && (guest || deployed);
+  const shown = useDockShown();
   // A different identity (a sign-in, a sign-out, a guest saved): whatever was open belonged to the other one.
   useEffect(() => { closeDockNow(); }, [userId, anonymous]);
   if (!shown) return null;

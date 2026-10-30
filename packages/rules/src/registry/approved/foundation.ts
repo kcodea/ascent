@@ -12040,4 +12040,19 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Two of Ann\x27s Salandamans die in a fight: every Salandaman she has, and every one she buys later, is +8/+8.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCardsBatchA.test.ts', 'packages/ui/src/duosCardsBatchA.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
+  {
+    id: 'R-DEV-CORNER-01',
+    title: 'DEV builds only: the dev tuner and the minimized Scene Builder are squares of the bottom-right corner row, just left of Friends, wearing the row\x27s plaque',
+    statement:
+      'In a DEV build the dev tuning menu button and the minimized Scene Builder are two more squares of the bottom-right corner row (gear, Compendium, Rules, Friends, dev tuner, Scene Builder, right to left), with the row\x27s plaque, size, hover lift, gauntlet cursor, an aria-label and the game\x27s hover bubble (no native tooltip). The dev tuner is the gear glyph, the Scene Builder the anvil glyph; the dev tuner keeps its open-panel count. They queue up after the Friends button: with no Friends button they close up one slot, and where the row is covered (hero select, a side-menu page, the in-game menu) they step down to the corner beside Friends. The Scene Builder square shows only while the Scene Builder is minimized. They stay above every layer so dev tools are always reachable. A production build carries neither.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30 (screenshot of the bottom-right corner row on the title)', quote: 'can you put our dev tuner and dev scene builder tuner buttons into a button like this, and put them in the bottom right' },
+      { kind: 'code', ref: 'packages/ui/src/DevMenu.tsx, packages/ui/src/SceneBuilder.tsx (SceneBuilderDock), packages/ui/src/friends/dock/FriendsDock.tsx (devCornerSlot, useDevCornerSlot), packages/ui/src/styles.css (.cornerdev)' },
+    ],
+    currentBehaviour: 'Built 2026-10-30 (feat/dev-buttons-corner-row). Before: the dev tuner was a round emoji button floating at slot 4 on the old bar offsets, and the minimized Scene Builder a round emoji button floating at a stale offset, neither matching the row.',
+    example: 'In a dev build on the title, the corner row reads gear, book, question mark, Friends, then a gear square: the dev tuner. Kevin minimizes the Scene Builder in the sandbox and an anvil square appears just left of it. He opens Career: Friends drops to the corner and the two dev squares sit right beside it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/devCorner.test.tsx'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

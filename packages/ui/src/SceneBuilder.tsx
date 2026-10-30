@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
 import { buildQaScenario, reproCommandFor, scenarioFileName, scenarioFileText, QA_SCENARIO_FIXTURE_DIR } from './qaScenarioBridge';
@@ -12,6 +12,8 @@ import { SceneBuilderPreview, type SbPreviewTarget } from './SceneBuilderPreview
 import { toStage } from './stage';
 import { HeroPicker, HeroPickerTrigger } from './SceneBuilderHeroPicker';
 import { archivedCardRows, archivedRuneRows, cardRowsFor, matches, runeRowsFor, searchTerms, type CardRow, type RuneRow } from './cardSearch';
+import { Icon } from './Icon';
+import { useDevCornerSlot } from './friends/dock/FriendsDock';
 import './sceneBuilder.css';
 
 /**
@@ -608,12 +610,9 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
         </div>
       )}
     </div>
-    {/* Minimized (the header ✕ hides it): a circle icon docked bottom-right, left of the 🛠️ dev-tuning button.
+    {/* Minimized (the header ✕ hides it): a dev corner square, one slot left of the dev tuner (R-DEV-CORNER-01).
         Click restores + refocuses (brings the panel back to the front via the shared hook's raise). */}
-    {minimized && (
-      <button className="sb-dock" aria-label="Restore Scene Builder"
-        onClick={() => { onRestore(); raise(); }}>🧩</button>
-    )}
+    {minimized && <SceneBuilderDock onRestore={() => { onRestore(); raise(); }} />}
     {/* The hero picker flyout: portalled beside the panel while open. */}
     {heroOpen && !collapsed && !minimized && (
       <HeroPicker heroId={run?.heroId ?? 'warden'} showAncients={setId === 'set3'} anchor={() => heroBtnRef.current?.closest<HTMLElement>('.scenebuilder') ?? null}
@@ -650,5 +649,16 @@ export function Sec({ id, title, right, folded, onFold, defaultFolded, children 
       </div>
       {!closed && children}
     </div>
+  );
+}
+
+/** The minimized Scene Builder: a corner-row square (`.cornerdev`), the slot after the dev tuner's (R-DEV-CORNER-01). */
+export function SceneBuilderDock({ onRestore }: { onRestore: () => void }): JSX.Element {
+  const slot = useDevCornerSlot() + 1;
+  return (
+    <button type="button" className="sb-dock cornerdev gtip" style={{ '--cd-slot': slot } as CSSProperties}
+      data-tip="Scene Builder" aria-label="Restore Scene Builder" onClick={onRestore}>
+      <Icon name="anvil" />
+    </button>
   );
 }

@@ -496,8 +496,8 @@ describe('placement: bottom right, the fourth square of the corner row (R-FRIEND
     expect(css).not.toMatch(/\.fdock-(btn|stack) \{[^}]*left:/);
     // The row it joins: gear 0, Compendium 1, Rules 2 (each 40u + 10 px, 16 px in), so slot 3 is the next square.
     expect(styles).toContain('.rulesbtn { right: calc(var(--edge-r) + 16px + 2 * (40 * var(--u) + 10px)); }');
-    // The dev tools button (dev builds only) already stepped to slot 4 for it.
-    expect(styles).toMatch(/\.devmenu-btn \{ position: fixed; right: calc\(var\(--bar-x\) \+ 16px \+ 4 \* \(40 \* var\(--u\) \+ 10px\)\)/);
+    // The dev squares (dev builds only, R-DEV-CORNER-01) queue up after it: slot 4 and 5 on the same numbers.
+    expect(styles).toContain('right: calc(var(--edge-r) + 16px + var(--cd-slot) * (var(--cd-cb) + 10px)); bottom: calc(var(--edge-b) + 16px);');
   });
   it('it takes the corner itself where the row is covered: hero select, a side-menu page, the in-game menu', () => {
     const base = { ...PAGES_CLOSED, gameMenuOpen: false, heroChoices: null } as Parameters<typeof dockCorner>[0];

@@ -549,7 +549,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                 const extras = rv ? (
                   <>
                     {tier ? <span className="lrv-tier" aria-label={`Shop tier ${tier}`}>{tier}</span> : null}
-                    {isFoe && variant !== 'plaque' && <span className={`lrv-swords${isGhost ? ' ghost' : ''}`} aria-label="Your next opponent"><Icon name="sword" /><Icon name="sword" /></span>}
+                    {isFoe && variant === 'ledger' && <span className={`lrv-swords${isGhost ? ' ghost' : ''}`} aria-label="Your next opponent"><Icon name="sword" /><Icon name="sword" /></span>}
                     {!row.alive && row.placement ? <PlaceMedal place={row.placement} /> : null}
                   </>
                 ) : null;
@@ -726,13 +726,10 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
   // VERSUS: a seat with no runes yet says so instead of drawing three empty sockets. (The fight log reads damage, as
   // in a lobby game, since 2026-10-26: R-VERSUS-HEALTH-01.)
   const versusCard = useGame((st) => st.run.mode === 'versus');
-  // OWNER REVIEW (2026-10-30): the card dresses to match the rail variant on screen; A and C put the seat's ringed
-  // portrait in the card's header.
+  // OWNER REVIEW (2026-10-30): the card dresses to match the rail variant on screen; A puts the seat's ringed portrait
+  // in the card's header, C has its own lean layout (below).
   const railVariant = useRailVariant();
-  // C (Medallions) also carries the seat's Health + Armor pill under the name; your own reads the run, as your row does.
-  const myPools = useGame((st) => (seat.id === 's0' ? `${st.run.resolve}|${st.run.armor}` : ''));
-  const [hpNow, armorNow] = myPools ? myPools.split('|').map(Number) as [number, number] : [seat.resolve, seat.armor];
-  const headFace = railVariant === 'plaque' || railVariant === 'medallion' ? (() => {
+  const headFace = railVariant === 'plaque' ? (() => {
     const ring = resolveImageFrame(seat.id === 's0' ? 'gold' : 'default');
     const src = heroPortrait(seat.heroId, seat.id === 's0' ? runSkins : opponentSkins(showOppSkins, seat.cosmetics));
     return ring ? (
@@ -755,12 +752,6 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
       <span className="lrv-scoutwho">
         <span className="lobbyscout-name">{seat.label}</span>
         <span className="lobbyscout-hero"><b>Hero:</b> {heroName}</span>
-        {railVariant === 'medallion' && seat.alive && (
-          <span className="lobbyhp lrv-scouthp" aria-label={`Health ${Math.max(0, hpNow)}${armorNow > 0 ? `, Armor ${armorNow}` : ''}`}>
-            <Icon name="heartPill" />{Math.max(0, hpNow)}
-            {armorNow > 0 && <span className="lobbyarmor"><Icon name="shield" />{armorNow}</span>}
-          </span>
-        )}
       </span>
     </div>
   ) : (
@@ -854,7 +845,56 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
 
   // ── The three candidate layouts (owner picked V1; the others stay for reference). Same data, different form. ──
   let body: JSX.Element;
-  if (variant === 2) {
+  if (railVariant === 'medallion') {
+    // C · MEDALLIONS (owner 2026-10-30: "make the mouse over window way cleaner and less redundant info"). The rail
+    // already shows the portrait, the name and the Health / Armor, so the card carries only what scouting needs: the
+    // hero, the shop tier, the build, the last three fights (face, W / L / D, damage) and the runes they own.
+    const ownedRunes = runeIds.map((id) => RUNE_INDEX[id]!).filter(Boolean);
+    body = (
+      <>
+        <div className="lrvc-head">
+          <span className="lrvc-hero">{heroName}</span>
+          {intel ? (
+            <span className="lrvc-tags">
+              <span className="lrvc-tag" aria-label={`Shop tier ${intel.tier}`}>Tier {intel.tier}</span>
+              <span className="lrvc-tag lrvc-build" style={{ '--c': tribeColor } as React.CSSProperties}>{tribeText}</span>
+            </span>
+          ) : <span className="lrvc-none">No intel yet</span>}
+        </div>
+        {badges}
+        {results.length > 0 && (
+          <div className="lrvc-fights" aria-label="Last fights">
+            {results.map((r) => (
+              <div className={`lrvc-fight ${r.outcome}`} key={r.round} aria-label={`Round ${r.round}: ${OUTCOME_LABEL[r.outcome] ?? ''} vs ${r.foeLabel}`}>
+                {r.foeHeroId
+                  ? <img decoding="sync" className="lrvc-foe" src={faceOf(r)} alt="" />
+                  : <span className="lrvc-foe lrvc-foename">{r.foeLabel}</span>}
+                <span className="lrvc-out">{r.outcome === 'win' ? 'W' : r.outcome === 'lose' ? 'L' : 'D'}</span>
+                <span className="lrvc-dmg">{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {ownedRunes.length > 0 && (
+          <div className="lrvc-runes" aria-label="Runes">
+            {ownedRunes.map((rune) => {
+              const rart = runeArt(rune.id);
+              return (
+                <div className="lobbyscout-socket filled" key={rune.id}>
+                  {rart ? <img decoding="sync" className="lobbyscout-socketart" src={rart} alt="" aria-hidden /> : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
+                  <div className="questbadge-tip" role="tooltip">
+                    <b>{rune.name}</b>
+                    <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(liveRuneText(rune.id, rune.text, intel?.runeLive)) }} />
+                    <span className="questbadge-tip-state">Rune · active</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </>
+    );
+  } else if (variant === 2) {
     // V2 — identity banner (dominant tribe front + centre) + a thin meta line, history given its own titled block.
     body = (
       <>

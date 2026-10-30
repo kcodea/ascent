@@ -13,6 +13,7 @@ import { CardPillsTuner } from './CardPillsTuner';
 import { CardArtTuner } from './CardArtTuner';
 import { LobbyPanelTuner } from './LobbyPanelTuner';
 import { LobbyRailLookTuner } from './LobbyRailLookTuner';
+import { LobbyRailTuner2 } from './LobbyRailTuner2';
 import { HealthPillTuner } from './HealthPillTuner';
 import { ScoutCardTuner } from './ScoutCardTuner';
 import { TitleLogoTuner } from './TitleLogoTuner';
@@ -189,6 +190,7 @@ const GROUPS: Group[] = [
       { key: 'lobbypanel', icon: '🪑', label: 'Lobby Rail', C: LobbyPanelTuner, hint: 'The 8-seat table down the right edge' },
       { key: 'opponentsbackplate', icon: '🖼️', label: 'Opponents Backplate', C: OpponentsBackplateTuner, hint: 'The gilded frame art behind the lobby rail', alt: 'lobby rail backdrop backplate frame' },
       { key: 'hudpills', icon: '❤️', label: 'HUD pills', C: HealthPillTuner, hint: 'Classic vs Gem plate for every Health pill, name pill, Tier / Freeze label, the turn timer and the Skip / Summary / End Combat buttons', alt: 'health hp pill armor shield shop tier name freeze timer clock skip summary end combat hero select look style gem' },
+      { key: 'lobbyrailtuner2', icon: '🏅', label: 'Lobby Rail Tuner 2', C: LobbyRailTuner2, hint: 'The Medallions rail (C): position, scale, header, medallions, Health / Armor plate, fallen seats, backing, opponent pulse and hover card. Every control live', alt: 'lobby rail medallions position size spacing header pulse hover card tuner 2' },
       { key: 'lobbyraillook', icon: '🎨', label: 'Lobby Rail Look', C: LobbyRailLookTuner, hint: 'Colours, portraits, spacing, corners and the next-foe marker inside the rail', alt: 'lobby rail contents colours portraits next foe' },
       { key: 'scoutcard', icon: '🔎', label: 'Scout Card', C: ScoutCardTuner, hint: 'The hover/pinned opponent scouting report — box, text, portraits, rune sockets, colours', alt: 'opponent scout hover card intel report' },
       { key: 'secondpower', icon: '👥', label: 'Second Power', C: SecondPowerTuner, hint: "Void's second hero-power button — offset + scale", alt: 'void twin power position' },

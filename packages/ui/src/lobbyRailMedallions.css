@@ -1,0 +1,184 @@
+/* ── C · MEDALLIONS (the owner's pick, 2026-10-30) — DEV ONLY, driven by LOBBY RAIL TUNER 2 ─────────────────────────────
+   A column of large ringed portrait medallions with no row boxes, the name and the Health / Armor plate beside each;
+   YOUR medallion in the Gold ring (LobbyPanel); the next foe's medallion breathes red; the fallen shrink and grey with
+   their place medal; a solid minimal backing; a lean scouting card.
+
+   EVERY DIMENSION HERE READS ONE `--lr2-*` VAR (lobbyRailTuner2Config.ts writes them on :root; nothing else declares
+   them), so every Tuner 2 control moves exactly what it names. The fallbacks equal the tuner's DEFAULTS. Units:
+     --k   the rail's size unit: the row unit x the phone factor (--rv-ph) x the overall scale
+     --f   the rail's text unit: the font unit x the same two factors
+   Loaded only in a dev build with the other variant sheet (LobbyPanel.tsx).
+
+   PERFORMANCE. Static paint, except the next-foe pulse: a STATIC red ring + glow on `::before` whose OPACITY and a slight
+   SCALE loop (compositor only, the kwglow way); one element on the rail; reduced motion holds it still and lit. The
+   tuner's sliders write vars, so dragging one restyles the rail but nothing animates a paint property.
+   ────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/* ── Position: the rail, its header and its Guides tab move together; the header has its own nudge on top. A
+   `translate` (not `transform`), so the staged slide-away transform still composes. ── */
+html:root[data-lobby-rail="medallion"] :is(.lobbyrail, .lobbyrailtab) {
+  translate: calc(var(--lr2-rail-x, 0) * 1px) calc(var(--lr2-rail-y, 0) * 1px);
+}
+html:root[data-lobby-rail="medallion"] .lobbyrailhead {
+  translate: calc((var(--lr2-rail-x, 0) + var(--lr2-head-x, 0)) * 1px) calc((var(--lr2-rail-y, 0) + var(--lr2-head-y, 0)) * 1px);
+}
+/* LEFT ANCHOR: the rail, header and tab hang from the stage's left edge instead (the tab on the rail's right side). */
+html:root[data-lobby-rail="medallion"][data-lr2-anchor="left"] :is(.lobbyrail, .lobbyrailhead) { right: auto; left: 10px; }
+html:root[data-lobby-rail="medallion"][data-lr2-anchor="left"] .lobbyrailtab { right: auto; left: calc(10px + var(--lr2-bg-w, var(--lr-w)) - 2px); scale: -1 1; }
+html:root[data-lobby-rail="medallion"][data-lr2-anchor="left"] .lobbyrailtab > * { scale: -1 1; }
+/* The Guides tab sits a fixed step under the rail's top (its stock formula assumes Classic's row heights). */
+html:root[data-lobby-rail="medallion"] .lobbyrailtab:not(.guidesview) { top: calc(var(--lby-top, 13.5%) + var(--lby-y, -3) * var(--lu) + 30 * var(--lu)); }
+
+/* ── The backing ── */
+html:root[data-lobby-rail="medallion"] .lobbyrail {
+  --k: calc(var(--lrow) * var(--rv-ph, 1) * var(--lr2-scale, 1));
+  --f: calc(var(--lfont) * var(--rv-ph, 1) * var(--lr2-scale, 1));
+  --rv-face: calc(var(--lr2-med-size, 40) * var(--k));
+  --rv-dead: calc(var(--rv-face) * var(--lr2-dead-scale, 0.5));
+  width: var(--lr2-bg-w, var(--lr-w)); height: var(--lr2-bg-h, auto); max-height: none;
+  overflow: visible; border: 0; box-shadow: none;
+  padding: calc(9 * var(--k) * var(--lr2-bg-pad, 1)) calc(7 * var(--k) * var(--lr2-bg-pad, 1)) calc(14 * var(--k) * var(--lr2-bg-pad, 1)) calc(10 * var(--k) * var(--lr2-bg-pad, 1));
+  border-radius: calc(var(--lr2-bg-radius, 47) * 1px);
+  background:
+    url('/frames/name-divider.webp') 50% calc(100% - 5 * var(--k)) / 86% calc(6 * var(--k)) no-repeat,
+    linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-bot) calc(100% * var(--lr2-bg-opacity, 0.92)), transparent), color-mix(in srgb, var(--ui-plate-bot) calc(96% * var(--lr2-bg-opacity, 0.92)), transparent));
+  outline: 1px solid color-mix(in srgb, var(--ui-edge-main) 60%, transparent); outline-offset: -4px;
+}
+html:root[data-lobby-rail="medallion"] .lobbyrail::before,
+html:root[data-lobby-rail="medallion"] .lobbyrail::after { content: none; }
+
+/* ── The header: ROUND in the title face over the painted divider, "N LEFT" and the max damage beneath, all with a
+   shadow for any board art behind them. ── */
+html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) {
+  --lr2-sh: 0 1px 0 rgba(0, 0, 0, calc(0.95 * var(--lr2-head-shadow, 1))), 0 2px 4px rgba(0, 0, 0, calc(0.9 * var(--lr2-head-shadow, 1))), 0 0 10px rgba(0, 0, 0, calc(0.75 * var(--lr2-head-shadow, 1)));
+  width: var(--lr2-bg-w, var(--lr-w));
+  flex-wrap: wrap; justify-content: center; align-items: baseline;
+  column-gap: calc(var(--lr2-head-gap, 0.9) * 1em); row-gap: calc(2 * var(--lu)); padding: 0 0 calc(4 * var(--lu));
+  font-size: calc(10.5 * var(--lfont) * var(--lr2-head-font, 1) * var(--lr2-scale, 1));
+  text-shadow: var(--lr2-sh);
+}
+html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) > .lobbyround {
+  flex: 0 0 100%; text-align: center; font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.16em;
+  font-size: 2em; color: var(--ui-title); text-shadow: var(--lr2-sh);
+  padding-bottom: 0.33em; background: url('/frames/name-divider.webp') 50% 100% / 92% 0.29em no-repeat;
+}
+html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) > :is(.lrv-left, .lobbymax) {
+  font-size: 1em; font-weight: 900; letter-spacing: 0.08em; color: var(--ui-text); text-shadow: var(--lr2-sh);
+}
+html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) .lobbymax {
+  align-self: auto; transform: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+}
+html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) .lobbymax svg { width: 1em; height: 1em; color: var(--ui-heart); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); }
+html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) > .herotip.lobbymax-tip { right: 0; font-size: initial; text-shadow: none; }
+
+/* ── The seats. (`:is(.you.foe.ghost.dead, *)` lifts the box-clearing rules over the Gem rail's state rules.) ── */
+html:root[data-lobby-rail="medallion"] .lobbyseats { flex: none; gap: 0; }
+html:root[data-lobby-rail="medallion"] .lobbyseat:is(.you.foe.ghost.dead, *) {
+  flex: none; min-height: 0; margin: 0; display: grid;
+  grid-template-columns: calc(var(--rv-face) * var(--lr2-med-col, 1)) minmax(0, 1fr); grid-template-rows: auto auto auto;
+  align-content: center; column-gap: calc(5 * var(--k)); row-gap: calc(1.6 * var(--k));
+  padding: 0 calc(2 * var(--k)) 0 0; background: none; box-shadow: none; border: 0; opacity: 1; color: var(--ui-text);
+}
+html:root[data-lobby-rail="medallion"] .lobbyseat:is(.you.foe.ghost.dead, *)::before,
+html:root[data-lobby-rail="medallion"] .lobbyseat:is(.you.foe.ghost.dead, *)::after { content: none; animation: none; }
+/* (The same `:is` lift as the rule above, which zeroes every seat's margin: these must out-rank it.) */
+html:root[data-lobby-rail="medallion"] .lobbyseat + .lobbyseat:is(.you.foe.ghost.dead, *) { margin-top: calc(var(--lr2-med-gap, 6) * var(--k)); }
+html:root[data-lobby-rail="medallion"] .lobbyseat + .lobbyseat.dead:is(.you.foe.ghost.dead, *) { margin-top: calc(var(--lr2-dead-gap, 6) * var(--k)); }
+
+/* The medallion, centred in its column; the painted ring grows with "Ring size". */
+html:root[data-lobby-rail="medallion"] .lobbyseat .lobbyface {
+  grid-column: 1; grid-row: 1 / -1; justify-self: center; align-self: center;
+  width: var(--rv-face); height: var(--rv-face); border-radius: 50%;
+}
+html:root[data-lobby-rail="medallion"] .lobbyseat .lobbyface .pframe-box { scale: var(--lr2-ring-size, 1); }
+
+/* The name and the Health / Armor plate beside it. */
+html:root[data-lobby-rail="medallion"] .lobbyseat .lobbynameline {
+  grid-column: 2; grid-row: 1; align-self: end;
+  translate: calc(var(--lr2-name-x, 0) * 1px) calc(var(--lr2-name-y, 0) * 1px);
+}
+html:root[data-lobby-rail="medallion"] .lobbyseat .lobbyname {
+  font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.02em; line-height: 1.1;
+  font-size: calc(var(--lr2-name-font, 16) * var(--f)); color: var(--ui-text);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6);
+}
+html:root[data-lobby-rail="medallion"] .lobbyseat:not(.dead) .lobbyhp {
+  grid-column: 2; grid-row: 2; font-size: calc(var(--lr2-hp-font, 18) * var(--f));
+  transform-origin: 0 50%; scale: var(--lr2-hp-scale, 1);
+  translate: calc(var(--lr2-hp-x, 0) * 1px) calc(var(--lr2-hp-y, 0) * 1px);
+}
+html:root[data-lobby-rail="medallion"] .lobbyseat:not(.dead) .lobbybar {
+  grid-column: 2; grid-row: 3; height: calc(1.6 * var(--k)); width: 88%; border-radius: 99px; align-self: start;
+}
+html:root[data-lobby-rail="medallion"] .lobbyseat.you .lobbyname { color: var(--ui-title); }
+
+/* ── THE NEXT FOE (owner 2026-10-30: "make the opponent you're facing pulse red instead of that icon on the
+   portrait"): a STATIC red ring + glow on `::before`; only its opacity and a slight scale loop. Ghost: teal. ── */
+html:root[data-lobby-rail="medallion"] .lobbyseat.foe .lobbyface::before {
+  --lr2-pc: var(--ui-heart);
+  content: ''; position: absolute; z-index: 1; inset: -7%; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 calc(var(--lr2-pulse-ring, 1.3) * var(--k)) color-mix(in srgb, var(--lr2-pc) 90%, #fff),
+    0 0 calc(9 * var(--k) * var(--lr2-pulse-glow, 1)) calc(3 * var(--k) * var(--lr2-pulse-glow, 1)) color-mix(in srgb, var(--lr2-pc) 70%, transparent);
+  will-change: opacity, transform;
+  animation: lr2FoePulse calc(var(--lr2-pulse-period, 1.6) * 1s) ease-in-out infinite;
+}
+html:root[data-lobby-rail="medallion"] .lobbyseat.foe.ghost .lobbyface::before { --lr2-pc: var(--ui-ghost); }
+@keyframes lr2FoePulse {
+  0%, 100% { opacity: var(--lr2-pulse-min, 0.3); transform: scale(0.97); }
+  50% { opacity: var(--lr2-pulse-max, 1); transform: scale(1.03); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:root[data-lobby-rail="medallion"] .lobbyseat.foe .lobbyface::before { animation: none; opacity: var(--lr2-pulse-max, 1); transform: none; }
+}
+html:root[data-lobby-rail="medallion"] .lobbyseat.foe .lobbyname { color: color-mix(in srgb, var(--ui-heart) 45%, #fff); }
+html:root[data-lobby-rail="medallion"] .lobbyseat.foe.ghost .lobbyname { color: color-mix(in srgb, var(--ui-ghost) 45%, #fff); }
+
+/* ── THE FALLEN: the medallion shrinks (centred under the living ones) and greys, its medal hung on it. ── */
+html:root[data-lobby-rail="medallion"] .lobbyseat.dead:is(.you.foe.ghost.dead, *) {
+  grid-template-columns: calc(var(--rv-face) * var(--lr2-med-col, 1)) minmax(0, 1fr); grid-template-rows: auto;
+  opacity: var(--lr2-dead-opacity, 0.85);
+}
+html:root[data-lobby-rail="medallion"] .lobbyseat.dead .lobbyface { grid-row: 1; width: var(--rv-dead); height: var(--rv-dead); }
+html:root[data-lobby-rail="medallion"] .lobbyseat.dead .lobbynameline { grid-row: 1; align-self: center; }
+html:root[data-lobby-rail="medallion"] .lobbyseat.dead .lobbyname { font-size: calc(var(--lr2-name-font, 16) * 0.84 * var(--f)); color: var(--ui-muted); text-decoration: line-through; }
+html:root[data-lobby-rail="medallion"] .lobbyseat.dead .lobbyplace { display: none; }
+html:root[data-lobby-rail="medallion"] .lobbyseat.dead .lrv-medal { right: -30%; bottom: -16%; width: 62%; height: 62%; font-size: calc(11 * var(--f)); }
+html:root[data-lobby-rail="medallion"] .lobbyseat.dead.foe.ghost { opacity: 1; }
+
+/* ── THE LEAN SCOUT CARD (owner 2026-10-30: "way cleaner and less redundant info"): the hero in the title face, the
+   tier and build tags, three compact fight rows, the runes. Fully solid. Width, offset and scale from Tuner 2. ── */
+.lobbyscout.lrv-scout-medallion {
+  --lfont: calc(var(--lu) * var(--lby-font, 0.9) * var(--lr2-card-font, 1));
+  --lrow: calc(var(--lu) * var(--lby-row, 1.91) * var(--lr2-card-font, 1));
+  width: calc(112 * var(--lu) * var(--lr2-card-w, 1.7));
+  translate: calc(var(--lr2-card-x, 0) * 1px) calc(var(--lr2-card-y, 0) * 1px);
+  gap: calc(7 * var(--lfont)); padding: calc(12 * var(--lfont)) calc(14 * var(--lfont));
+  border: 1px solid color-mix(in srgb, var(--ui-edge-main) 60%, transparent); border-radius: calc(14 * var(--lu));
+  background: linear-gradient(180deg, var(--ui-plate-mid), var(--ui-plate-bot));
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.85);
+}
+.lobbyscout.lrv-scout-medallion .lrvc-head { display: flex; flex-direction: column; gap: calc(5 * var(--lfont));
+  padding-bottom: calc(8 * var(--lfont)); background: url('/frames/name-divider.webp') 50% 100% / 100% calc(5 * var(--lfont)) no-repeat; }
+.lobbyscout.lrv-scout-medallion .lrvc-hero { font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.03em; line-height: 1.1;
+  font-size: calc(26 * var(--lfont)); color: var(--ui-title); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lobbyscout.lrv-scout-medallion .lrvc-tags { display: flex; flex-wrap: wrap; gap: calc(4 * var(--lfont)); }
+.lobbyscout.lrv-scout-medallion .lrvc-tag {
+  padding: calc(1.5 * var(--lfont)) calc(6 * var(--lfont)); border-radius: 999px; font-size: calc(15 * var(--lfont)); font-weight: 800; line-height: 1.2;
+  color: var(--ui-text); background: var(--ui-chip-bg); box-shadow: inset 0 0 0 1px var(--ui-divider); white-space: nowrap;
+}
+.lobbyscout.lrv-scout-medallion .lrvc-build { color: color-mix(in srgb, var(--c) 70%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent); }
+.lobbyscout.lrv-scout-medallion .lrvc-none { font-size: calc(11 * var(--lfont)); color: var(--ui-muted); font-style: italic; }
+.lobbyscout.lrv-scout-medallion .lrvc-fights { display: flex; flex-direction: column; gap: calc(5 * var(--lfont)); }
+.lobbyscout.lrv-scout-medallion .lrvc-fight { display: grid; grid-template-columns: auto auto 1fr; align-items: center; column-gap: calc(9 * var(--lfont));
+  font-size: calc(18 * var(--lfont)); font-weight: 900; font-variant-numeric: tabular-nums; }
+.lobbyscout.lrv-scout-medallion .lrvc-foe { width: calc(25 * var(--lrow)); height: calc(25 * var(--lrow)); border-radius: 50%; object-fit: cover;
+  box-shadow: 0 0 0 1.5px currentColor; }
+.lobbyscout.lrv-scout-medallion .lrvc-foename { width: auto; height: auto; box-shadow: none; font-size: 0.8em; color: var(--ui-text); }
+.lobbyscout.lrv-scout-medallion .lrvc-fight.win { color: var(--sc-win, #4be081); }
+.lobbyscout.lrv-scout-medallion .lrvc-fight.lose { color: var(--sc-lose, #ff5555); }
+.lobbyscout.lrv-scout-medallion .lrvc-fight.draw { color: var(--sc-draw, #c9bca3); }
+.lobbyscout.lrv-scout-medallion .lrvc-out { letter-spacing: 0.06em; min-width: 1.1em; }
+.lobbyscout.lrv-scout-medallion .lrvc-dmg { justify-self: end; }
+.lobbyscout.lrv-scout-medallion .lrvc-runes { display: flex; gap: calc(5 * var(--lfont)); padding-top: calc(7 * var(--lfont)); border-top: 1px solid var(--ui-divider); }
+.lobbyscout.lrv-scout-medallion .lrvc-runes .lobbyscout-socket { width: calc(25 * var(--lrow)); height: calc(25 * var(--lrow)); }

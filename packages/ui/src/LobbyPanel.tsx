@@ -35,7 +35,11 @@ import { ownsMine, useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 // OWNER REVIEW (2026-10-30): the three candidate rail designs (lobbyRailVariant.ts). Their stylesheet is loaded in a DEV
 // build only: in production this branch is dead code, so the file is never bundled and the rail is exactly today's.
-if (import.meta.env.DEV) void import('./lobbyRailVariants.css');
+if (import.meta.env.DEV) {
+  void import('./lobbyRailVariants.css');
+  void import('./lobbyRailMedallions.css'); // C, every dimension driven by Lobby Rail Tuner 2
+  void import('./lobbyRailTuner2Config'); // applies Tuner 2's saved values before the panel is ever opened
+}
 
 /** OWNER REVIEW (2026-10-30): a variant's portrait ring when the seat has no cosmetic frame of its own: the painted
  *  Default ring (the Career / ladder ring), and the Gold ring on YOUR portrait in A and C. Current keeps today's face. */

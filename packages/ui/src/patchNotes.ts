@@ -58,6 +58,9 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Systems', text: 'Six new painted backdrops: Sky Colosseum, Cozy, Dwarven Arena, Cloud Island, Frozen Arena and Dunes Arena.', details: [
+        'Pick one in Settings under Board backdrop. Hover an option to preview it.',
+      ] },
       { category: 'Systems', text: 'Versus turns are 15% longer. Duos turns are 30% longer.', details: [
         'Versus and Versus Group: every turn clock is 15% longer. Round 1 is 24 seconds, round 12 is 92.',
         'Versus Duos and Ranked Duos: every turn clock is 30% longer. Round 1 is 27 seconds, round 12 is 104.',

@@ -11,7 +11,11 @@
  *  - live presence: a friend's hub presence overrides the friends list once it is newer;
  *  - the filter (on by default, a Settings switch) masks swear words as I read them; Report records once;
  *  - the composer: Enter sends, focused on open, and typing never reaches the game's shortcuts;
- *  - on a menu the same dock (button, list, conversation) is there (R-FRIENDS-DOCK-02).
+ *  - on a menu the same dock (button, list, conversation) is there (R-FRIENDS-DOCK-02);
+ *  - read when seen (R-DM-READ-01): a conversation showing on a visible, focused page is read; coming back to the page,
+ *    pressing into the window or sending reads it, one write per change, never one per message;
+ *  - emotes (R-DM-EMOTE-01): `:emote_id:` tokens of the game's set show small inline; the composer's picker adds them;
+ *  - replies (R-DM-REPLY-01): Reply, the "Replying to" bar, the quote, and the quote's jump to the original.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
@@ -30,10 +34,12 @@ import { setFilterMessages } from '../friendsPrefs';
 import { FriendsDock } from '../dock/FriendsDock';
 import { openDm, resetDockForTests, useFriendsDock } from '../dock/dockStore';
 import type { DmRemote, DmUnread } from './dmRemote';
+import { HUB_PROTOCOL } from '@game/versus-cf/hub';
 import {
-  DM_ERROR_TEXT, DM_UNAVAILABLE_TEXT, HUB_RESTART_MS, liveFriend, loadOlder, openConversation, resetDmForTests, retryDm, sendDm, setDmDepsForTests,
+  DM_ERROR_TEXT, DM_READ_COALESCE_MS, DM_UNAVAILABLE_TEXT, HUB_RESTART_MS, liveFriend, loadOlder, openConversation, resetDmForTests, retryDm, sendDm, setDmDepsForTests,
   startDirectMessages, useDm, type HubHandlers,
 } from './dmStore';
+import { dmPieces, dmPlainText, emoteOnly, isChatEmote } from './chatEmotes';
 import { DmToast } from './DmToast';
 import { isProfane, maskProfanity } from './profanity';
 
@@ -121,9 +127,23 @@ const inRun = (): void => {
   useGame.setState({ showTitle: false, heroChoices: null, practiceSetupOpen: false, replaying: false, run: { ...run, mode: 'practice', phase: 'recruit', runId: 'run-me' } });
 };
 const convo = (id: string) => useDm.getState().convos[id];
+/** The page as the browser reports it (jsdom has no real visibility or focus). */
+let pageVisible = true;
+let pageFocused = true;
+const setPage = (visible: boolean, focused: boolean = visible): void => { pageVisible = visible; pageFocused = focused; };
+const type = (input: HTMLInputElement, text: string): void => {
+  act(() => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    setter.call(input, text);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+};
 
 beforeEach(async () => {
   seq = 0; history = {}; unreadAnswer = {}; marked = []; reported = [];
+  setPage(true);
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (pageVisible ? 'visible' : 'hidden') });
+  vi.spyOn(document, 'hasFocus').mockImplementation(() => pageVisible && pageFocused);
   resetFriendsForTests();
   resetDmForTests();
   resetDockForTests();
@@ -145,12 +165,14 @@ afterEach(() => {
   stop?.(); stop = null;
   resetDmForTests();
   resetDockForTests();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe('sending (R-DM-01, R-DM-05)', () => {
   it('connects with my presence, then a message shows Sending and becomes the stored row', async () => {
     expect(useDm.getState().hub).toBe('open');
-    expect(hub.hello).toMatchObject({ protocol: 1, presence: { status: expect.any(String) } });
+    expect(hub.hello).toMatchObject({ protocol: HUB_PROTOCOL, presence: { status: expect.any(String) } });
     expect(sendDm(AMY, '  hello   there ')).toBeNull();
     const m = convo(AMY)!.msgs[0]!;
     expect(m.body).toBe('hello there');
@@ -288,10 +310,13 @@ describe('receiving (R-DM-03)', () => {
     ui = mount(<><FriendsDock /><DmToast /></>);
     act(() => openDm(AMY));
     await flush();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     hub.push({ t: 'dm', msg: row(AMY, ME, 'hey') });
     await flush();
     expect(useDm.getState().unread[AMY]).toBeUndefined();
     expect(q('.dm-toast')).toBeNull();
+    act(() => { vi.advanceTimersByTime(DM_READ_COALESCE_MS); });
+    await flush();
     expect(marked).toEqual([AMY]);
     expect(q('.dm-msg.theirs')?.textContent).toContain('hey');
   });
@@ -412,5 +437,232 @@ describe('the dock on a menu (R-DM-03, R-FRIENDS-DOCK-02)', () => {
     expect(q('.dmchat-pane')?.getAttribute('aria-label')).toBe('Messages with Amy#1234');
     expect(q('.dmchat-veil.ingame')).toBeNull(); // a menu: the fuller dim
     expect(q('.fdock-btn')).not.toBeNull();
+  });
+});
+
+describe('read when seen (owner 2026-10-30, R-DM-READ-01)', () => {
+  const openOn = async (id: string): Promise<void> => {
+    inRun();
+    ui = mount(<><FriendsDock /><DmToast /></>);
+    act(() => openDm(id));
+    await flush();
+  };
+  const leave = (): void => { setPage(false); act(() => { document.dispatchEvent(new Event('visibilitychange')); }); };
+  const comeBack = (): void => { setPage(true); act(() => { document.dispatchEvent(new Event('visibilitychange')); }); };
+
+  it('a burst that lands while I look is never unread, never toasts, and is ONE write', async () => {
+    await openOn(AMY);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    for (const t of ['one', 'two', 'three']) hub.push({ t: 'dm', msg: row(AMY, ME, t) });
+    await flush();
+    expect(useDm.getState().unread).toEqual({});
+    expect(useDm.getState().toast).toBeNull();
+    expect(marked).toEqual([]);
+    act(() => { vi.advanceTimersByTime(DM_READ_COALESCE_MS); });
+    await flush();
+    expect(marked).toEqual([AMY]);
+  });
+
+  it('messages while the page is hidden count; coming back with the chat showing reads them (badge, tab and toast go)', async () => {
+    await openOn(AMY);
+    leave();
+    hub.push({ t: 'dm', msg: row(AMY, ME, 'you there?') });
+    hub.push({ t: 'dm', msg: row(AMY, ME, 'hello?') });
+    await flush();
+    expect(useDm.getState().unread[AMY]).toBe(2);
+    expect(q('.fdock-btn .dm-unread')?.textContent).toBe('2');
+    expect(useDm.getState().toast?.from).toBe(AMY);
+    comeBack();
+    await flush();
+    expect(useDm.getState().unread[AMY]).toBeUndefined();
+    expect(useDm.getState().toast).toBeNull();
+    expect(q('.fdock-btn .dm-unread')).toBeNull();
+    expect(q('.dmchat-tab .dm-unread')).toBeNull();
+    expect(marked).toEqual([AMY]);
+    // Coming back again with nothing new writes nothing.
+    leave(); comeBack();
+    act(() => { window.dispatchEvent(new Event('focus')); });
+    await flush();
+    expect(marked).toEqual([AMY]);
+  });
+
+  it('a visible page that is not focused counts them; focusing it reads them', async () => {
+    await openOn(AMY);
+    setPage(true, false);
+    hub.push({ t: 'dm', msg: row(AMY, ME, 'on your other screen') });
+    await flush();
+    expect(useDm.getState().unread[AMY]).toBe(1);
+    setPage(true, true);
+    act(() => { window.dispatchEvent(new Event('focus')); });
+    await flush();
+    expect(useDm.getState().unread[AMY]).toBeUndefined();
+    expect(marked).toEqual([AMY]);
+  });
+
+  it('pressing into the chat window reads it', async () => {
+    await openOn(AMY);
+    leave();
+    hub.push({ t: 'dm', msg: row(AMY, ME, 'ping') });
+    await flush();
+    // The page came back without an event this client heard: a press says I am here.
+    setPage(true);
+    act(() => { q('.dmchat-pane')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
+    await flush();
+    expect(useDm.getState().unread[AMY]).toBeUndefined();
+    expect(marked).toEqual([AMY]);
+  });
+
+  it('sending in the conversation reads it', async () => {
+    await openOn(AMY);
+    leave();
+    hub.push({ t: 'dm', msg: row(AMY, ME, 'gg') });
+    await flush();
+    setPage(true);
+    expect(sendDm(AMY, 'gg wp')).toBeNull();
+    await flush();
+    expect(useDm.getState().unread[AMY]).toBeUndefined();
+    expect(marked).toEqual([AMY]);
+  });
+
+  it('a pinned window counts as showing; a closed one does not', async () => {
+    await openOn(AMY);
+    click(q('.dmchat-pin'));
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    hub.push({ t: 'dm', msg: row(AMY, ME, 'pinned and seen') });
+    await flush();
+    expect(useDm.getState().unread[AMY]).toBeUndefined();
+    click(q('.dmchat-pin'));
+    click(q('.dmchat-close'));
+    hub.push({ t: 'dm', msg: row(AMY, ME, 'closed, so unread') });
+    await flush();
+    expect(useDm.getState().unread[AMY]).toBe(1);
+  });
+
+  it('unread waiting on the server for the conversation I am looking at is read when the hub connects (one write)', async () => {
+    await openOn(AMY);
+    unreadAnswer = { [AMY]: { count: 2, last: row(AMY, ME, 'while you were out') } };
+    hub.reconnect();
+    await flush();
+    expect(useDm.getState().unread[AMY]).toBeUndefined();
+    expect(useDm.getState().toast).toBeNull();
+    expect(marked).toEqual([AMY]);
+  });
+});
+
+describe('emotes in chat (owner 2026-10-30, R-DM-EMOTE-01)', () => {
+  it('a token of a live emote of the game set is an emote; anything else stays text', () => {
+    expect(isChatEmote('emote_hi')).toBe(true);
+    expect(isChatEmote('emote_angry_mushy')).toBe(false); // retired
+    expect(isChatEmote('emote_nope')).toBe(false);
+    expect(dmPieces('gg :emote_hi: wp')).toEqual(['gg ', { emote: 'emote_hi' }, ' wp']);
+    expect(dmPieces('time is 10:30:00')).toEqual(['time is 10:30:00']);
+    expect(dmPieces(':emote_nope: :emote_angry_mushy:')).toEqual([':emote_nope: :emote_angry_mushy:']);
+    expect(emoteOnly(dmPieces(' :emote_hi: :emote_good_choice: '))).toBe(true);
+    expect(emoteOnly(dmPieces(':emote_hi: hello'))).toBe(false);
+    expect(emoteOnly(dmPieces(':emote_hi::emote_hi::emote_hi::emote_hi:'))).toBe(false); // too many to show big
+    expect(dmPlainText('nice :emote_good_choice:')).toBe('nice Good Choice');
+  });
+
+  it('shows emotes small inline, a little bigger alone, and the toast reads their names', async () => {
+    inRun();
+    ui = mount(<><FriendsDock /><DmToast /></>);
+    hub.push({ t: 'dm', msg: row(AMY, ME, 'gg :emote_hi:') });
+    await flush();
+    expect(q('.dm-toast .dm-emote')?.getAttribute('alt')).toBe('Hi');
+    expect(q('.dm-toast')?.getAttribute('aria-label')).toContain('gg Hi');
+    history[AMY] = [row(AMY, ME, 'gg :emote_hi:'), row(AMY, ME, ':emote_good_choice:')];
+    act(() => openDm(AMY));
+    await flush();
+    const bubbles = qa('.dm-msg.theirs .dm-bubble');
+    expect(bubbles[0]!.querySelector('img.dm-emote')?.getAttribute('alt')).toBe('Hi');
+    expect(bubbles[0]!.classList.contains('solo')).toBe(false);
+    expect(bubbles[1]!.classList.contains('solo')).toBe(true);
+    expect(qa('img.dm-emote').every((i) => !i.hasAttribute('title'))).toBe(true);
+  });
+
+  it('the composer picker adds an emote token where I type; Escape closes the picker, not the chat', async () => {
+    inRun();
+    ui = mount(<FriendsDock />);
+    act(() => openDm(AMY));
+    await flush();
+    const input = q('.dm-input') as HTMLInputElement;
+    type(input, 'nice');
+    click(q('.dm-emotebtn'));
+    expect(q('.dm-emotes[role="menu"]')).not.toBeNull();
+    const pick = q('.dm-emote-pick[aria-label="Add Hi"]');
+    expect(pick).not.toBeNull();
+    click(pick);
+    expect(q('.dm-emotes')).toBeNull();
+    expect(input.value).toBe('nice :emote_hi: ');
+    click(q('.dm-emotebtn'));
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    expect(q('.dm-emotes')).toBeNull();
+    expect(useFriendsDock.getState().dmWith).toBe(AMY);
+    act(() => { (input.form as HTMLFormElement).requestSubmit(); });
+    await flush();
+    expect(hub.sent.find((x) => x.op === 'send')?.args.body).toBe('nice :emote_hi:');
+  });
+});
+
+describe('replies (owner 2026-10-30, R-DM-REPLY-01)', () => {
+  it('Reply shows the bar; the sent message carries the quote, which jumps to and flashes the original', async () => {
+    inRun();
+    ui = mount(<FriendsDock />);
+    const orig = row(AMY, ME, 'should we add minions to duos?');
+    history[AMY] = [orig, row(AMY, ME, 'also gg')];
+    act(() => openDm(AMY));
+    await flush();
+    click(qa('.dm-msg.theirs .dm-reply')[0]!);
+    expect(q('.dm-replybar')?.textContent).toContain('Replying to Amy#1234');
+    expect(q('.dm-replybar')?.textContent).toContain('should we add minions to duos?');
+    hub.answer = (args) => row(ME, AMY, String(args.body), {
+      cid: String(args.cid), replyTo: String(args.replyTo), reply: { id: orig.id, from: AMY, body: orig.body },
+    });
+    const input = q('.dm-input') as HTMLInputElement;
+    type(input, 'yes, more minions');
+    act(() => { (input.form as HTMLFormElement).requestSubmit(); });
+    await flush();
+    expect(hub.sent.find((x) => x.op === 'send')?.args).toMatchObject({ body: 'yes, more minions', replyTo: orig.id });
+    expect(q('.dm-replybar')).toBeNull();
+    const mineMsg = q('.dm-msg.mine')!;
+    expect(mineMsg.querySelector('.dm-quote')?.textContent).toContain('Amy#1234');
+    expect(mineMsg.querySelector('.dm-quote')?.textContent).toContain('should we add minions');
+    click(mineMsg.querySelector('.dm-quote'));
+    expect(q(`.dm-msg[data-mid="${orig.id}"]`)?.classList.contains('flash')).toBe(true);
+  });
+
+  it('the bar closes with its X; a plain message sends no reply field', async () => {
+    inRun();
+    ui = mount(<FriendsDock />);
+    history[AMY] = [row(AMY, ME, 'hi')];
+    act(() => openDm(AMY));
+    await flush();
+    click(q('.dm-reply'));
+    click(q('.dm-replybar-x'));
+    expect(q('.dm-replybar')).toBeNull();
+    sendDm(AMY, 'plain');
+    await flush();
+    expect('replyTo' in hub.sent.find((x) => x.op === 'send')!.args).toBe(false);
+  });
+
+  it('a store that kept no quote (an older hub) shows none: never one the friend will not see', async () => {
+    const orig = row(AMY, ME, 'question');
+    history[AMY] = [orig];
+    await act(async () => { await openConversation(AMY); });
+    sendDm(AMY, 'answer', convo(AMY)!.msgs[0]!);
+    expect(convo(AMY)!.msgs.find((m) => m.body === 'answer')?.reply?.id).toBe(orig.id); // shown while sending
+    await flush();
+    expect(convo(AMY)!.msgs.find((m) => m.body === 'answer')).toMatchObject({ replyTo: null, reply: null });
+  });
+
+  it('a received reply shows its quote even when the original is not loaded', async () => {
+    inRun();
+    ui = mount(<FriendsDock />);
+    history[AMY] = [row(AMY, ME, 'sure', { replyTo: 'old-1', reply: { id: 'old-1', from: ME, body: 'want to duo later?' } })];
+    act(() => openDm(AMY));
+    await flush();
+    expect(q('.dm-msg.theirs .dm-quote')?.textContent).toContain('You');
+    expect(q('.dm-msg.theirs .dm-quote')?.textContent).toContain('want to duo later?');
+    click(q('.dm-msg.theirs .dm-quote')); // not loaded: nothing breaks
   });
 });

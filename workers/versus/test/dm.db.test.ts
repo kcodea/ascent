@@ -7,7 +7,10 @@
  *  - read receipts, history paging (50 at a time, older pages), a block hides the pair's history and unread;
  *  - Report message: only a message sent to me, once; the report keeps a copy of the body;
  *  - RLS: a player reads only their own conversations; no client role can write either table;
- *  - retention: `dm_prune` drops messages older than 90 days.
+ *  - retention: `dm_prune` drops messages older than 90 days;
+ *  - replies (`2026-11-15-dm-replies.sql`, R-DM-REPLY-01): a reply to a message of this conversation keeps it and its
+ *    quote in every read; one to another conversation is stored plain; the 5-argument call still works; a pruned
+ *    original leaves the reply without its quote.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
@@ -20,6 +23,7 @@ const root = join(__dirname, '../../..');
 const mig = (f: string): string => readFileSync(join(root, 'supabase/migrations', f), 'utf8');
 const BASE = mig('2026-10-13-versus.sql') + mig('2026-10-24-versus-group.sql') + mig('2026-10-28-friends.sql') + mig('2026-11-09-friends-presence-window.sql');
 const DM = mig('2026-11-12-direct-messages.sql');
+const REPLIES = mig('2026-11-15-dm-replies.sql');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth; create schema extensions;
@@ -61,7 +65,7 @@ async function fails(p: Promise<unknown>): Promise<string> {
   try { await p; } catch (e) { return (e as Error).message; }
   return 'did not fail';
 }
-type Row = { id: string; cid: string | null; from: string; to: string; body: string; at: string; readAt: string | null };
+type Row = { id: string; cid: string | null; from: string; to: string; body: string; at: string; readAt: string | null; replyTo?: string | null; reply?: { id: string; from: string; body: string } | null };
 const send = (from: string, to: string, body: string, cid: string = randomUUID(), key: string | null = SECRET): Promise<Row> =>
   rpc<Row>(null, 'dm_cf_send', [key, from, to, body, cid]);
 async function befriend(a: string, b: string): Promise<void> {
@@ -75,6 +79,8 @@ beforeAll(async () => {
   await db.exec(BASE);
   await db.exec(DM);
   await db.exec(DM); // idempotent
+  await db.exec(REPLIES);
+  await db.exec(REPLIES); // idempotent
   await db.query('insert into public.versus_cf_writer_keys (key_hash) values ($1)', [createHash('sha256').update(SECRET).digest('hex')]);
   for (const [id, name, anon] of [[ANN, 'Ann', false], [BOB, 'Bob', false], [CAT, 'Cat', false], [GUEST, 'Guest', true]] as const) {
     await db.query('insert into auth.users (id, is_anonymous) values ($1, $2)', [id, anon]);
@@ -222,5 +228,47 @@ describe('retention (R-DM-04)', () => {
     expect(await db.query('select public.dm_prune()')).toBeTruthy();
     const left = await db.query<{ body: string }>(`select body from public.direct_messages where body in ('old', 'recent')`);
     expect(left.rows.map((r) => r.body)).toEqual(['recent']);
+  });
+});
+
+describe('replies (R-DM-REPLY-01)', () => {
+  const reply = (from: string, to: string, body: string, to_msg: string | null): Promise<Row> =>
+    rpc<Row>(null, 'dm_cf_send', [SECRET, from, to, body, randomUUID(), to_msg]);
+
+  it('a reply keeps the message it answers, with a short quote, in the answer, the history and the unread counts', async () => {
+    const q = await send(BOB, ANN, `should we add minions to duos? ${'x'.repeat(200)}`);
+    const r = await reply(ANN, BOB, 'yes, more minions', q.id);
+    expect(r.replyTo).toBe(q.id);
+    expect(r.reply).toMatchObject({ id: q.id, from: BOB });
+    expect(r.reply!.body).toHaveLength(140);
+    const hist = await rpc<Row[]>(BOB, 'dm_history', [ANN, null, 50]);
+    expect(hist.find((h) => h.id === r.id)).toMatchObject({ replyTo: q.id, reply: { id: q.id } });
+    const un = await rpc<Record<string, { last: Row }>>(BOB, 'dm_unread');
+    expect(un[ANN]!.last).toMatchObject({ id: r.id, replyTo: q.id });
+    // A plain message carries no quote.
+    expect((await send(ANN, BOB, 'plain'))).toMatchObject({ replyTo: null, reply: null });
+    await rpc(BOB, 'dm_mark_read', [ANN]);
+    await rpc(ANN, 'dm_mark_read', [BOB]);
+  });
+
+  it('a reply to a message of another conversation is stored as a plain message', async () => {
+    const d = u(60); const e = u(61);
+    for (const id of [d, e]) {
+      await db.query('insert into auth.users (id) values ($1)', [id]);
+      await db.query('insert into public.profiles (user_id, author, discriminator) values ($1, $2, $3)', [id, `P${id.slice(-2)}`, '6666']);
+    }
+    await befriend(d, e);
+    const theirs = await send(ANN, BOB, 'between Ann and Bob');
+    const r = await reply(d, e, 'sneaky', theirs.id);
+    expect(r).toMatchObject({ body: 'sneaky', replyTo: null, reply: null });
+  });
+
+  it('a pruned original leaves the reply, without its quote', async () => {
+    const q = await send(BOB, ANN, 'old news');
+    const r = await reply(ANN, BOB, 'agreed', q.id);
+    await db.query(`update public.direct_messages set created_at = now() - interval '100 days' where id = $1`, [q.id]);
+    await db.query('select public.dm_prune()');
+    const hist = await rpc<Row[]>(ANN, 'dm_history', [BOB, null, 50]);
+    expect(hist.find((h) => h.id === r.id)).toMatchObject({ body: 'agreed', replyTo: null, reply: null });
   });
 });

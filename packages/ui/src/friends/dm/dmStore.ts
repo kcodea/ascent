@@ -13,6 +13,17 @@
  * SUPABASE (`dmRemote.ts`), on demand only (R-DM-05): unread counts once per hub connection; a conversation's last 50
  * when it is opened (older pages on request); read receipts only when there was something unread; Report.
  *
+ * READ WHEN SEEN (owner 2026-10-30, R-DM-READ-01: "if they are open and i come back to my tab the notification doesnt go
+ * away when i respond"): a conversation is read whenever it is actually in front of me, meaning the chat window is on
+ * its tab (pinned or not) AND the page is visible and focused (`viewing`). A message that arrives then is never counted
+ * unread and never toasts; coming back to the page (visibilitychange / focus), pressing into the window, or sending in
+ * it reads what arrived while I was away. Each of those is ONE `dm_mark_read` write, and only when something was
+ * unread; live messages seen while looking are written in one coalesced write (`DM_READ_COALESCE_MS`), never one per
+ * message.
+ *
+ * REPLIES (R-DM-REPLY-01): a message may answer an earlier one (`replyTo`, protocol 2); the stored row carries a short
+ * copy of the original (`reply`) for the quote.
+ *
  * NEVER A SILENT DROP (R-DM-05): a message typed while the hub is reconnecting is shown as "Sending" and kept in the
  * outbox; it goes the moment the hub is back (the same client id: stored once even if an earlier try landed). A
  * refusal (not friends, blocked, too fast) shows on the message with its reason. With no hub at all (a page the hub
@@ -22,7 +33,9 @@
 import { create } from 'zustand';
 import { contentRevision } from '@game/content';
 import { VersusCfClient, VersusCfError } from '@game/versus-cf/client';
-import { cleanDmBody, DM_MAX_CHARS, HUB_PROTOCOL, HUB_SOCKET_PATH, type DmRow, type HubHelloAnswer, type HubPeer, type HubPush } from '@game/versus-cf/hub';
+import {
+  cleanDmBody, DM_MAX_CHARS, DM_REPLY_SNIPPET, HUB_PROTOCOL, HUB_SOCKET_PATH, type DmReplyPreview, type DmRow, type HubHelloAnswer, type HubPeer, type HubPush,
+} from '@game/versus-cf/hub';
 import { currentUserId } from '../../identity';
 import { supabaseClient } from '../../remoteBoards';
 import { useGame } from '../../store';
@@ -93,6 +106,8 @@ export const DM_UNAVAILABLE_TEXT = 'Messages are not available right now.';
 export const DM_RECONNECTING_TEXT = 'Reconnecting. Your messages will send when it is back.';
 /** How long a new-message toast stays up. */
 export const DM_TOAST_MS = 5_000;
+/** Live messages I saw while looking are marked read in ONE write this long after the first (a burst is one write). */
+export const DM_READ_COALESCE_MS = 1_200;
 
 // ── the hub connection (injectable for the tests) ────────────────────────────────────────────────────────────
 
@@ -168,7 +183,10 @@ let restartTimer: ReturnType<typeof setTimeout> | null = null;
 /** When the friends list last arrived (a hub peer heard after it is newer than it). */
 let listAt = 0;
 /** Sends waiting for the hub (in order). */
-let outbox: { cid: string; to: string; body: string }[] = [];
+let outbox: { cid: string; to: string; body: string; replyTo: string | null }[] = [];
+/** Friends whose live messages I saw while looking but the store still has unread (one coalesced write). */
+const pendingRead = new Set<string>();
+let readTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Tests: a fake hub and a fake Supabase. */
 export function setDmDepsForTests(deps: { factory?: HubFactory; remote?: DmRemote }): void {
@@ -301,10 +319,21 @@ export function startDirectMessages(): () => void {
   const unDock = useFriendsDock.subscribe((s, prev) => {
     if (s.dmWith && s.dmWith !== prev.dmWith) void openConversation(s.dmWith);
   });
+  // Coming back to the page with a conversation showing reads it (R-DM-READ-01).
+  const onSeen = (): void => { noteDmSeen(); };
+  const hasDom = typeof document !== 'undefined' && typeof window !== 'undefined';
+  if (hasDom) {
+    document.addEventListener('visibilitychange', onSeen);
+    window.addEventListener('focus', onSeen);
+  }
   syncConnection();
   return () => {
     started = false;
     unGame(); unFriends(); unDock();
+    if (hasDom) {
+      document.removeEventListener('visibilitychange', onSeen);
+      window.removeEventListener('focus', onSeen);
+    }
     syncConnection();
   };
 }
@@ -315,6 +344,8 @@ export function resetDmForTests(): void {
   conn?.close();
   conn = null; connFor = ''; started = false; outbox = []; unreadReadFor = ''; lastPresenceKey = ''; listAt = 0;
   if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+  if (readTimer) { clearTimeout(readTimer); readTimer = null; }
+  pendingRead.clear();
   factory = defaultFactory;
   remote = dmRemote;
   set({ hub: 'off', convos: {}, unread: {}, peers: {}, toast: null, reported: {} });
@@ -340,11 +371,26 @@ function merge(list: DmMsg[], rows: DmMsg[]): DmMsg[] {
   return out.sort((a, b) => (a.state === 'sending' || a.state === 'failed' ? 1 : 0) - (b.state === 'sending' || b.state === 'failed' ? 1 : 0) || a.at.localeCompare(b.at));
 }
 
-/** I am looking at this conversation right now (the chat window is open on its tab and the page is visible). */
+/** The page is in front of me: visible, and focused where the browser can tell. */
+export function pageSeen(): boolean {
+  if (typeof document === 'undefined') return true;
+  if (document.visibilityState === 'hidden') return false;
+  return typeof document.hasFocus !== 'function' || document.hasFocus();
+}
+
+/** I am looking at this conversation right now (the chat window is open on its tab, pinned or not, and the page is seen). */
 export function viewing(friendId: string): boolean {
   const d = useFriendsDock.getState();
-  const visible = typeof document === 'undefined' || document.visibilityState !== 'hidden';
-  return !!d.dmWith && d.dmWith.toLowerCase() === friendId.toLowerCase() && visible;
+  return !!d.dmWith && d.dmWith.toLowerCase() === friendId.toLowerCase() && pageSeen();
+}
+
+/**
+ * Something says I am looking at the open conversation (the page came back, a press or focus in the chat window): read
+ * it. A no-op (no write) when nothing in it is unread.
+ */
+export function noteDmSeen(): void {
+  const d = useFriendsDock.getState().dmWith;
+  if (d && pageSeen()) void markRead(d);
 }
 
 function receive(row: DmRow): void {
@@ -353,7 +399,12 @@ function receive(row: DmRow): void {
   const c = get().convos[id];
   if (c?.loaded) putConvo(id, { ...c, msgs: merge(c.msgs, [row]) });
   if (row.from === mine) return;
-  if (viewing(id)) { void markRead(id, true); return; }
+  if (viewing(id)) {
+    // Seen as it lands: never unread, no toast; the store hears it in one coalesced write.
+    if (get().unread[id]) void markRead(id);
+    else queueRead(id);
+    return;
+  }
   set({ unread: { ...get().unread, [id]: (get().unread[id] ?? 0) + 1 } });
   showToast({ from: id, body: row.body, id: row.id, count: get().unread[id]! });
   // The toast needs the friend's name: read the list once if no friends surface has yet.
@@ -379,8 +430,13 @@ async function loadUnread(): Promise<void> {
     const u = await remote.unread();
     if (me() !== who) return;
     const unread: Record<string, number> = {};
-    for (const [id, v] of Object.entries(u)) if (!viewing(id)) unread[id] = v.count;
+    const seen: string[] = [];
+    for (const [id, v] of Object.entries(u)) {
+      if (viewing(id)) seen.push(id); else unread[id] = v.count;
+    }
     set({ unread });
+    // The conversation in front of me had messages waiting: they are read now (one write each).
+    for (const id of seen) void markRead(id, true);
     // Messages that arrived while I was away: one toast for the newest.
     const newest = Object.entries(u).filter(([id]) => !viewing(id)).map(([id, v]) => ({ id, v }))
       .sort((a, b) => (b.v.last?.at ?? '').localeCompare(a.v.last?.at ?? ''))[0];
@@ -405,7 +461,7 @@ export async function openConversation(friendId: string): Promise<void> {
       putConvo(id, { ...(get().convos[id] ?? emptyConvo()), loading: false, failed: true });
     }
   }
-  if ((get().unread[id] ?? 0) > 0) void markRead(id);
+  if ((get().unread[id] ?? 0) > 0 || pendingRead.has(id)) void markRead(id);
   if (get().toast?.from === id) dismissDmToast();
 }
 
@@ -425,12 +481,28 @@ export async function loadOlder(friendId: string): Promise<void> {
   }
 }
 
-/** Everything from this friend is read (one write, only when something was unread; `force`: a live message I saw). */
+/**
+ * Everything from this friend is read: the badge, the dock count and their toast go, and the store hears it in ONE
+ * write, only when something was unread (or a live message I saw is waiting for its write; `force`: the store says so).
+ */
 export async function markRead(friendId: string, force = false): Promise<void> {
   const id = friendId.toLowerCase();
-  if (!force && !(get().unread[id] ?? 0)) return;
-  if (get().unread[id]) { const u = { ...get().unread }; delete u[id]; set({ unread: u }); }
+  const had = (get().unread[id] ?? 0) > 0;
+  if (!force && !had && !pendingRead.has(id)) return;
+  pendingRead.delete(id);
+  if (had) { const u = { ...get().unread }; delete u[id]; set({ unread: u }); }
+  if (get().toast?.from === id) dismissDmToast();
   try { await remote.markRead(id); } catch { /* the next open marks it again */ }
+}
+
+/** A live message seen as it landed: written read with any others in the same burst. */
+function queueRead(id: string): void {
+  pendingRead.add(id);
+  if (readTimer) return;
+  readTimer = setTimeout(() => {
+    readTimer = null;
+    for (const f of [...pendingRead]) void markRead(f);
+  }, DM_READ_COALESCE_MS);
 }
 
 /** All unread messages (the dock button's badge). */
@@ -440,18 +512,33 @@ export const totalUnread = (u: Record<string, number>): number => Object.values(
 
 const newCid = (): string => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now().toString(16).padStart(8, '0')}-0000-4000-8000-${Math.floor(Math.random() * 1e12).toString(16).padStart(12, '0')}`);
 
-/** Send a message. Answers null when it is on its way (or queued), else a sentence saying why not. */
-export function sendDm(friendId: string, raw: string): string | null {
+/** The quote a reply shows, made from the message it answers. */
+export const replyPreviewOf = (m: Pick<DmRow, 'id' | 'from' | 'body'>): DmReplyPreview =>
+  ({ id: m.id, from: m.from.toLowerCase(), body: [...m.body].slice(0, DM_REPLY_SNIPPET).join('') });
+
+/** A message that can be answered: a stored one (not one still sending or failed). */
+export const canReplyTo = (m: DmMsg): boolean => !m.state && !m.id.startsWith('local:');
+
+/**
+ * Send a message (`replyTo`: the stored message it answers). Answers null when it is on its way (or queued), else a
+ * sentence saying why not. Sending in a conversation reads it (I am clearly looking at it).
+ */
+export function sendDm(friendId: string, raw: string, replyTo: DmMsg | null = null): string | null {
   const to = friendId.toLowerCase();
   const body = cleanDmBody(raw);
   if (body == null) return raw.trim() ? DM_ERROR_TEXT.bad_body! : null;
   if (!connFor || !conn) return DM_UNAVAILABLE_TEXT;
   const cid = newCid();
-  const local: DmMsg = { id: `local:${cid}`, cid, from: me(), to, body, at: new Date().toISOString(), readAt: null, state: 'sending' };
+  const answers = replyTo && canReplyTo(replyTo) ? replyTo : null;
+  const local: DmMsg = {
+    id: `local:${cid}`, cid, from: me(), to, body, at: new Date().toISOString(), readAt: null, state: 'sending',
+    replyTo: answers?.id ?? null, reply: answers ? replyPreviewOf(answers) : null,
+  };
   const c = get().convos[to] ?? emptyConvo();
   putConvo(to, { ...c, msgs: merge(c.msgs, [local]) });
-  outbox.push({ cid, to, body });
+  outbox.push({ cid, to, body, replyTo: answers?.id ?? null });
   flushOutbox();
+  void markRead(to);
   return null;
 }
 
@@ -462,7 +549,7 @@ export function retryDm(friendId: string, cid: string): void {
   const m = c?.msgs.find((x) => x.cid === cid && x.state === 'failed');
   if (!c || !m) return;
   putConvo(to, { ...c, msgs: merge(c.msgs, [{ ...m, state: 'sending', error: undefined }]) });
-  if (!outbox.some((o) => o.cid === cid)) outbox.push({ cid, to, body: m.body });
+  if (!outbox.some((o) => o.cid === cid)) outbox.push({ cid, to, body: m.body, replyTo: m.replyTo ?? null });
   flushOutbox();
 }
 
@@ -476,10 +563,17 @@ function flushOutbox(): void {
     while (outbox.length && conn === c && get().hub === 'open') {
       const o = outbox[0]!;
       try {
-        const row = await c.request<DmRow>('send', { cid: o.cid, to: o.to, body: o.body });
+        // `replyTo` only when set: a protocol 1 hub never sees the field.
+        const args: Record<string, unknown> = { cid: o.cid, to: o.to, body: o.body };
+        if (o.replyTo) args.replyTo = o.replyTo;
+        const row = await c.request<DmRow>('send', args);
         outbox.shift();
         const cv = get().convos[o.to] ?? emptyConvo();
-        putConvo(o.to, { ...cv, msgs: merge(cv.msgs, [{ ...row, from: row.from.toLowerCase(), to: row.to.toLowerCase(), state: undefined, error: undefined }]) });
+        // The quote is what the STORE kept (an older hub, or the replies SQL not applied yet, keeps none): never one the
+        // friend will not see.
+        putConvo(o.to, { ...cv, msgs: merge(cv.msgs, [{
+          ...row, from: row.from.toLowerCase(), to: row.to.toLowerCase(), replyTo: row.replyTo ?? null, reply: row.reply ?? null, state: undefined, error: undefined,
+        }]) });
       } catch (e) {
         const code = (e as VersusCfError)?.code ?? 'unavailable';
         // Lost on the way (a timeout, a dropped socket): keep it; the next open sends it.

@@ -23,7 +23,9 @@
  * keep working: both sides IGNORE unknown fields and unknown push types. A change old clients cannot survive raises
  * `HUB_PROTOCOL_MIN` (the hub then refuses those clients at hello with close 4409). Never rename or reuse a field.
  */
-export const HUB_PROTOCOL = 1;
+export const HUB_PROTOCOL = 2;
+// 2 (2026-10-30, R-DM-REPLY-01): a `send` may carry `replyTo`, and a stored row may carry `replyTo` + `reply`. Optional
+// both ways: a protocol 1 client never sends it and ignores it on the rows it gets; the minimum stays 1.
 /** The oldest client protocol the hub still accepts. */
 export const HUB_PROTOCOL_MIN = 1;
 /** The deployed hub (one stable Worker, never per content revision). */
@@ -82,7 +84,20 @@ export interface DmRow {
   at: string;
   /** ISO time the recipient read it (null: unread). */
   readAt?: string | null;
+  /** The message this one answers (same conversation), or null. Absent from protocol 1 hubs and old rows. */
+  replyTo?: string | null;
+  /** A short copy of the message it answers, for the quote above it (null when that message is gone). */
+  reply?: DmReplyPreview | null;
 }
+
+/** The quote a reply shows: who wrote the original and the start of it (`DM_REPLY_SNIPPET` characters at most). */
+export interface DmReplyPreview {
+  id: string;
+  from: string;
+  body: string;
+}
+/** The longest quoted snippet a reply row carries, in characters. */
+export const DM_REPLY_SNIPPET = 140;
 
 export interface HubHello {
   protocol: number;
@@ -104,6 +119,8 @@ export interface HubSendArgs {
   cid: string;
   to: string;
   body: string;
+  /** Protocol 2: the stored message this one answers (a uuid in the same conversation; anything else is dropped). */
+  replyTo?: string | null;
 }
 
 export type HubPush =
@@ -133,6 +150,14 @@ export function cleanDmBody(raw: unknown): string | null {
   const s = raw.replace(INVISIBLE, ' ').replace(/\s+/g, ' ').trim();
   if (!s) return null;
   return [...s].length > DM_MAX_CHARS ? null : s;
+}
+
+/** A reply preview from a store row, or null when it is not one. Pure. */
+export function cleanReplyPreview(raw: unknown): DmReplyPreview | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.id !== 'string' || typeof r.from !== 'string' || typeof r.body !== 'string') return null;
+  return { id: r.id, from: r.from.toLowerCase(), body: [...r.body].slice(0, DM_REPLY_SNIPPET).join('') };
 }
 
 /** A presence as the hub keeps it: known fields only, and bounded. Null for anything that is not a presence. */

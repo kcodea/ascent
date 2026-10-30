@@ -36,8 +36,8 @@ import { useFriendMenu } from '../FriendMenu';
 import { FriendGame, FriendPortrait, handleOf, statusText } from '../friendBits';
 import type { Friend } from '../friendsRemote';
 import { useFriends, useFriendsListLoop } from '../friendsStore';
-import { DmConversation } from './DmConversation';
-import { liveFriend, markRead, useDm } from './dmStore';
+import { DmConversation, dmEmotePickerOpen } from './DmConversation';
+import { liveFriend, markRead, noteDmSeen, useDm } from './dmStore';
 import { FriendActions } from '../dock/FriendsDock';
 import {
   CHAT_EDGES, clampChatGeom, defaultChatGeom, moveChatGeom, resizeChatGeom, setChatGeom, setChatPinned, useChatWindow, type ChatEdge, type ChatGeom,
@@ -104,7 +104,7 @@ export function ChatWindow({ inGame = false, conversation }: { inGame?: boolean;
     if (!dmWith || pinned) return undefined;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
-      if (useFriendMenu.getState().friend) return;
+      if (useFriendMenu.getState().friend || dmEmotePickerOpen()) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       closeDm();
@@ -178,7 +178,10 @@ export function ChatWindow({ inGame = false, conversation }: { inGame?: boolean;
           onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); swallowNextClick(); closeDm(); }}
           onContextMenu={(e) => { e.preventDefault(); closeDm(); }} />
       )}
+      {/* A press or focus anywhere in the window says I am looking at it: what arrived while I was away is read
+          (R-DM-READ-01; no write when nothing is unread). */}
       <div ref={frame} className={`dmchat-at${pinned ? ' pinned' : ''}${phone ? ' phone' : ''}`} style={pos}
+        onPointerDownCapture={noteDmSeen} onFocusCapture={noteDmSeen}
         onPointerMove={onMove} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}>
         <section className="dmchat vspanel" role="dialog" aria-label="Messages">
           <div className="dmchat-top" {...drag}>

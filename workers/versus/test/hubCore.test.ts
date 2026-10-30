@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { checkSend, DmError, DmRateLimiter, dmErrorOf, MemoryDmBackend } from '../src/core/hubCore';
-import { cleanDmBody, cleanPresence, DM_MAX_CHARS, DM_RATE, HUB_PRESENCE_MAX_CHARS } from '../src/hubProtocol';
+import { cleanDmBody, cleanPresence, cleanReplyPreview, DM_MAX_CHARS, DM_RATE, DM_REPLY_SNIPPET, HUB_PRESENCE_MAX_CHARS, HUB_PROTOCOL, HUB_PROTOCOL_MIN } from '../src/hubProtocol';
 
 const ANN = '00000000-0000-4000-8000-000000000001';
 const BOB = '00000000-0000-4000-8000-000000000002';
@@ -31,7 +31,7 @@ describe('rate limit (R-DM-01)', () => {
 
 describe('send arguments (R-DM-01)', () => {
   it('needs a client id, a friend that is not me, and a clean body', () => {
-    expect(checkSend(ANN, { cid: CID, to: BOB, body: '  hi\n there  ' })).toEqual({ cid: CID, to: BOB, body: 'hi there' });
+    expect(checkSend(ANN, { cid: CID, to: BOB, body: '  hi\n there  ' })).toEqual({ cid: CID, to: BOB, body: 'hi there', replyTo: null });
     expect(code(() => checkSend(ANN, { cid: 'nope', to: BOB, body: 'hi' }))).toBe('bad_body');
     expect(code(() => checkSend(ANN, { cid: CID, to: ANN, body: 'hi' }))).toBe('bad_target');
     expect(code(() => checkSend(ANN, { cid: CID, to: 'x', body: 'hi' }))).toBe('bad_target');
@@ -72,5 +72,37 @@ describe('memory backend: friends only, blocks (R-DM-02)', () => {
     b.block(BOB, ANN);
     await expect(b.send(ANN, { cid: CID.replace('1111-4', '3333-4'), to: BOB, body: 'hi' })).rejects.toMatchObject({ code: 'blocked' });
     expect(await b.friendsOf(ANN)).toEqual([]);
+  });
+});
+
+describe('replies (protocol 2, R-DM-REPLY-01)', () => {
+  it('a send may name the message it answers; anything that is not a message id is dropped, never refused', () => {
+    const ORIG = '22222222-2222-4222-8222-222222222222';
+    expect(checkSend(ANN, { cid: CID, to: BOB, body: 'yes', replyTo: ORIG.toUpperCase() }).replyTo).toBe(ORIG);
+    expect(checkSend(ANN, { cid: CID, to: BOB, body: 'yes', replyTo: 'nope' }).replyTo).toBeNull();
+    expect(checkSend(ANN, { cid: CID, to: BOB, body: 'yes' }).replyTo).toBeNull();
+    expect(HUB_PROTOCOL).toBe(2);
+    expect(HUB_PROTOCOL_MIN).toBe(1); // old clients keep working: they never send it and ignore it on rows
+  });
+
+  it('the memory backend keeps a reply to this conversation with a short quote, and drops one to another', async () => {
+    const b = new MemoryDmBackend(() => 0);
+    b.befriend(ANN, BOB);
+    b.befriend(ANN, CAT);
+    const cid = (n: number): string => `${String(n).padStart(8, '0')}-1111-4111-8111-111111111111`;
+    const q = await b.send(BOB, { cid: cid(1), to: ANN, body: 'should we add minions to duos? '.repeat(10) });
+    const other = await b.send(CAT, { cid: cid(2), to: ANN, body: 'hello' });
+    const r = await b.send(ANN, { cid: cid(3), to: BOB, body: 'yes', replyTo: q.id });
+    expect(r.replyTo).toBe(q.id);
+    expect(r.reply).toMatchObject({ id: q.id, from: BOB });
+    expect([...r.reply!.body]).toHaveLength(DM_REPLY_SNIPPET);
+    const stray = await b.send(ANN, { cid: cid(4), to: BOB, body: 'no', replyTo: other.id });
+    expect(stray).toMatchObject({ replyTo: null, reply: null, body: 'no' });
+  });
+
+  it('the quote on a stored row is read safely', () => {
+    expect(cleanReplyPreview({ id: 'x', from: 'ABC', body: 'hi' })).toEqual({ id: 'x', from: 'abc', body: 'hi' });
+    expect(cleanReplyPreview(null)).toBeNull();
+    expect(cleanReplyPreview({ id: 1 })).toBeNull();
   });
 });

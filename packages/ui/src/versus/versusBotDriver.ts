@@ -61,7 +61,7 @@ export interface VersusBotHooks {
 }
 
 /** Server refusals that mean a pass will never be recorded: the sender gets it back (as `duosPasses.ts`). */
-const PASS_REFUSALS = new Set(['hand_full', 'locked', 'not_shop', 'deadline_passed', 'no_teammate', 'too_many_passes', 'bad_card', 'not_duos', 'teammate_away']);
+const PASS_REFUSALS = new Set(['hand_full', 'locked', 'not_shop', 'deadline_passed', 'no_teammate', 'too_many_passes', 'bad_card', 'golden', 'not_duos', 'teammate_away']);
 
 export interface VersusBotOptions {
   /** The bot's own account id (to find its seat). */

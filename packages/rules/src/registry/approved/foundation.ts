@@ -9090,6 +9090,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx', 'packages/ui/src/versus/duosPassesRestore.test.ts', 'packages/ui/src/versus/duosPassRelease.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
+    id: 'R-DUOS-PASS-NO-GOLDEN-01',
+    title: 'Versus Duos passing: a Golden minion can never be passed',
+    statement:
+      'In Versus Duos a Golden minion in hand cannot be passed to the teammate. Dragged over the teammate portrait it shows the red ring '
+      + 'and "Golden minions cannot be passed", and a release there refuses it: the card stays, no Gold is spent. The run refuses the '
+      + 'pass (duosPassBlocked returns golden) and the server refuses any pass whose card is golden (code golden), so a client cannot '
+      + 'get around it. Non-golden cards pass as before (R-DUOS-PASS-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: 'Duos note -> Golden minions CANNOT be passed.' },
+      { kind: 'code', ref: 'fix/duos-no-golden-pass: packages/sim/src/duosPass.ts (duosPassBlocked golden); packages/ui/src/versus/duosPassUi.ts (golden reason text); packages/ui/src/versus/duosPasses.ts + versusBotDriver.ts (golden is a refusal); workers/versus/src/core/groupMatch.ts (pass: golden)' },
+    ],
+    currentBehaviour: 'Changed 2026-10-30 (fix/duos-no-golden-pass). Before, a Golden minion in hand could be passed like any other card. Passes already recorded keep what they did.',
+    example: 'Ann has a Golden minion in hand and 3 Gold. She drags it over Bob\x27s portrait: a red ring and "Golden minions cannot be passed". She lets go: it springs back to her hand and she still has 3 Gold.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
     id: 'R-DUOS-DEVTUNER-01',
     title: 'Versus test bots and the Duos dev tuner: a host fills any seat with bots and forces each Duos mechanic; a test never earns XP',
     statement:

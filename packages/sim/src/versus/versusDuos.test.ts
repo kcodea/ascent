@@ -223,6 +223,14 @@ describe('passing a card (R-DUOS-PASS-01: "passing should cost 1 gold")', () => 
     expect(duosPassBlocked(run, 'h1')).toBeNull();
   });
 
+  it('"Golden minions CANNOT be passed" (R-DUOS-PASS-NO-GOLDEN-01): a golden in hand is refused, no Gold spent', () => {
+    const base = duosRun();
+    const run = { ...base, hand: [{ ...base.hand[0]!, golden: true }] };
+    expect(duosPassBlocked(run, 'h1')).toBe('golden');
+    expect(reduce(run, { type: 'passCard', uid: 'h1' })).toBe(run);
+    expect(duosPassBlocked(base, 'h1')).toBeNull(); // the same card, not golden, passes
+  });
+
   it('"you should be able to pass cards back to your teammate": ping-pong A->B->A->B, 1 Gold each time', () => {
     // Ann (p1) and Bob (p2), each with 3 Gold. Ann passes h1; Bob receives it and sends it straight back; Ann sends it
     // again; Bob lands it. Every pass is charged, every landing is exactly once, the card is never duplicated.
@@ -259,13 +267,13 @@ describe('passing a card (R-DUOS-PASS-01: "passing should cost 1 gold")', () => 
 
   it('a received card lands in the hand with a fresh uid and everything it carried, once', () => {
     const sender = duosRun();
-    const card = { ...sender.hand[0]!, golden: true, keywords: ['T' as const] };
+    const card = { ...sender.hand[0]!, golden: false, keywords: ['T' as const] };
     const recv = { ...duosRun(), hand: [] };
     const got = reduce(recv, { type: 'receivePass', from: 'p2', seq: 0, card });
     expect(got.hand).toHaveLength(1);
     const arrived = got.hand[0]!;
     expect(arrived.uid).not.toBe(card.uid);
-    expect(arrived).toMatchObject({ cardId: card.cardId, attack: card.attack, health: card.health, golden: true, keywords: ['T'], passKey: 'p2:0' });
+    expect(arrived).toMatchObject({ cardId: card.cardId, attack: card.attack, health: card.health, golden: false, keywords: ['T'], passKey: 'p2:0' });
     // Re-delivered: nothing changes.
     expect(reduce(got, { type: 'receivePass', from: 'p2', seq: 0, card })).toBe(got);
     // ...and it CAN be passed straight back (owner 2026-10-25), for its 1 Gold.

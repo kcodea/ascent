@@ -381,7 +381,14 @@ export type GameEvent =
    *  `starformReason` + the token's FULL stats at removal (Zenith-style payoffs). The Star Destroyer's silent
    *  exit never fires it (owner rules v2, 2026-09-13). See `sim/starform.ts`. */
   | 'starformGained'
-  | 'starformRemoved';
+  | 'starformRemoved'
+  /** DUOS-ONLY CARDS (owner design 2026-10-30, `sim/duosTeam.ts`). Recruit-phase board watchers; passing only happens
+   *  in the Shop. `passedCard`: YOU passed a card (payload `cardId`, `spell` when it was a Shop Spell).
+   *  `teamPassedCard`: YOU or YOUR TEAMMATE passed a card (fires on both runs: the sender's at the pass, the receiver's
+   *  when it lands). `teammateSold`: your teammate sold a minion (payload carries its stats). */
+  | 'passedCard'
+  | 'teamPassedCard'
+  | 'teammateSold';
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -1049,6 +1056,14 @@ export type EffectFactoryId =
   | 'friendlyAttacksPlayRubiesSelf' // Frack Attack (owner 2026-10-22): every `every` FRIENDLY attacks this combat (each swing, itself included; per-combat `attackSeen`, reset on a Rise / Rebirth return) cast `count` (x2 gilded) plain Rubies on itself (combat)
   | 'rubyCastGainSelfImproving' // Rosey (owner 2026-10-22): passive marker the Ruby-cast chokepoints scan (`fireOnRubyPlayed` / `playRubyOn`) - per friendly Ruby cast, gain +attack/+health x (1 + floor(eotTick / every of its `shopRefreshTallySelf`)), x2 gilded, PERMANENTLY (combat gains carry back)
   | 'shopRefreshTallySelf' // Rosey: a player-pressed Refresh (`playerRoll`) while on the board ticks this copy's `eotTick` (its Improves meter, read with the sibling effect's `every`)
+  // ── DUOS-ONLY CARDS (owner design 2026-10-30): the team primitives (`sim/duosTeam.ts`, R-DUOS-CARDS-01) ──
+  | 'teamGainMaxGold' // you AND your teammate gain +amount max Gold (Richmond). Both phases (combat carries it back)
+  | 'teamUpgradeDiscount' // you AND your teammate: upgrading the Shop costs `amount` less (Spencer). Both phases
+  | 'giftTeammate' // give your teammate a card: `cardId` / `randomSpellTier` / `mateTribe` / `fromPayload` (Share the Wealth, Antsy, Toot Toot). Both phases
+  | 'passTargetMinion' // cast: pass the targeted Shop or board minion to your teammate, free (Handout; CueBee's Pass)
+  | 'duosFirstPassFree' // passive marker: your first pass each turn costs no Gold (Brian's Pal). Read by `duosPassCost`
+  | 'teamPassBuffSelf' // `passedCard` / `teamPassedCard`: this gains +attack/+health permanently (Hitchhiker)
+  | 'teammateSoldGainStats' // `teammateSold`: this gains the sold minion's stats (`oncePerTurn`; gilded doubles) (Hippie Hulk)
   | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
 
 export interface EffectDef {
@@ -1110,6 +1125,10 @@ export interface CardDef {
   goldenText?: string;
   /** Non-buyable token (e.g. Pup, Stray, Imp). */
   token?: boolean;
+  /** DUOS-ONLY (owner design 2026-10-30, R-DUOS-CARDS-01): drawable only in a Duos run (Versus Duos, Ranked Duos).
+   *  These cards live in `cards/duos/`, outside every set manifest; `duosPoolFor` appends them to a set's pool when
+   *  their tribe is one of the set's tribes (neutrals and spells always). Every other run never sees them. */
+  duos?: boolean;
   /** CELESTIAL — this card's text changes with its board ALIGNMENT (Dawn / Dusk / Eclipse). Drives the
    *  alignment HUD: the strip appears once any Celestial is on the board. See `Alignment`. */
   celestial?: boolean;
@@ -4008,7 +4027,22 @@ export interface CombatResult {
  * should be real time in combat"). The grant happens — and is logged — at the moment the Shout fires; the run
  * fields only exist in the Shop, so settle folds each one in ONCE. Nothing here is ever replayed as a Shout.
  */
+/** DUOS-ONLY CARDS (owner design 2026-10-30): one effect between teammates. Sent through the pass channel and
+ *  resolved by the RECEIVING run (its own board, pool and RNG), so a gift's random pick is the receiver's to make. */
+export type TeamEffect =
+  | { kind: 'maxGold'; amount: number }
+  | { kind: 'upgradeDiscount'; amount: number }
+  /** A card for the teammate's hand: exactly one of `cardId` (that card), `randomSpellTier` (a random Shop Spell of
+   *  that tier from the receiver's pool) or `mateTribe` (a random minion of the receiver's most common type, up to
+   *  their Shop tier). `count` copies (default 1). */
+  | { kind: 'gift'; cardId?: string; randomSpellTier?: number; mateTribe?: boolean; count?: number }
+  /** The sender sold a minion (Hippie Hulk's trigger on the receiver). */
+  | { kind: 'sold'; cardId: string; attack: number; health: number };
+
 export interface ShoutCarry {
+  /** DUOS: team effects a combat body produced (`sendTeam`): `self` lands on this side's run at settle, `mate` is
+   *  sent to the teammate. A served (recorded) side's carry is never applied, so it sends nothing. */
+  teamEffects?: { effect: TeamEffect; self: boolean; mate: boolean }[];
   /** Nimbus: extra casts banked on the next Shop spell (`nextSpellExtraCasts`). */
   nextSpellExtraCasts?: number;
   /** Sugarnova: +A/+H banked on the next Shop spell (`nextSpellBonus`). */
@@ -4438,6 +4472,9 @@ export interface CombatContext {
   /** CONDUCTOR: step the side's run-wide improvement — live for the rest of this fight, carried back
    *  PERMANENTLY at settle via `ShoutCarry.conductorBuff` (owner 2026-10-24). */
   growConductor(step: number, side: Side): void;
+  /** DUOS (owner design 2026-10-30): a team effect from a combat body. `self` lands on this side's run at settle,
+   *  `mate` goes to the teammate; both ride `ShoutCarry.teamEffects`. Optional: a context without it drops it. */
+  sendTeam?(effect: TeamEffect, self: boolean, mate: boolean, side: Side): void;
   /** Bane (combat, reacting to Ryme's battlecry replays): permanently enchant the Fodder card type run-wide
    *  by +atk/+hp (player only). Carried back via CombatResult.playerFodderBuffGain → `buffFodderRunWide`. */
   grantFodderBuff(attack: number, health: number, side: Side): void;

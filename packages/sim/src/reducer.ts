@@ -33,7 +33,8 @@ import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpel
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
-import { applyDuosPass, receiveDuosPass, refundDuosPass } from './duosPass';
+import { applyDuosPass, isDuosTeamWire, queueTeamEffect, receiveDuosPass, refundDuosPass } from './duosPass';
+import { applyOwnTeamEffect, fireTeamPassTriggers, receiveTeamEffect } from './recruit';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
@@ -1458,7 +1459,17 @@ function reduceCore(state: RunState, action: Action): RunState {
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
   // VERSUS DUOS (R-DUOS-PASS-01): a teammate's pass lands whatever the phase or modal (it waits for room / the Shop).
   if (action.type === 'receivePass') {
+    // DUOS-ONLY CARDS (R-DUOS-CARDS-01): a TEAM EFFECT rides the pass channel (`passFrom: 'team'`); this run resolves it.
+    if (isDuosTeamWire(action.card)) {
+      const fx = receiveTeamEffect(state, action.from, action.seq, action.card.team);
+      if (fx !== state && fx.phase === 'recruit' && fx.hand.length > state.hand.length) checkTriples(fx);
+      return fx;
+    }
     const next = receiveDuosPass(state, action.from, action.seq, action.card);
+    // A card the teammate passed LANDED: your team passed a card (Hitchhiker, `teamPassedCard`, R-DUOS-CARDS-01).
+    if (next !== state && next.duos?.received.includes(`${action.from}:${action.seq}`)) {
+      fireTeamPassTriggers(next, { mine: false, cardId: action.card.cardId });
+    }
     // A PASSED CARD CAN COMPLETE A TRIPLE (owner 2026-10-29: "passing needs to check for triples"; R-DUOS-PASS-06): the
     // same `checkTriples` every other way into the hand runs, the moment it lands in the Shop. A pass that lands while
     // a fight is on is caught by the shop-open check (the combat carry-back rule), never mid-fight under a live board.
@@ -2689,7 +2700,10 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     case 'passCard': {
       // VERSUS DUOS (R-DUOS-PASS-01): the card leaves for the teammate; 1 Gold through the one Gold-spend chokepoint.
+      const passing = s.hand.find((c) => c.uid === action.uid);
       if (!applyDuosPass(s, action.uid, spendGold)) return state;
+      // The pass watchers (R-DUOS-CARDS-01): `passedCard` (you passed) and `teamPassedCard` (Hitchhiker), in real time.
+      if (passing) fireTeamPassTriggers(s, { mine: true, cardId: passing.cardId });
       return s;
     }
     case 'sell': {
@@ -5259,6 +5273,12 @@ function settleCombat(s: RunState, result: CombatResult): void {
     if (c.grimoireMult) s.grimoireMult = Math.max(s.grimoireMult ?? 0, c.grimoireMult); // Living Grimoire
     if (c.squirlScoutBuff) s.squirlScoutBuff = (s.squirlScoutBuff ?? 0) + c.squirlScoutBuff; // Squirl Scout
     if (c.conductorBuff) s.conductorBuff = (s.conductorBuff ?? 0) + c.conductorBuff; // Conductor: the improvement keeps (owner 2026-10-24)
+    // DUOS-ONLY CARDS (R-DUOS-CARDS-01): a combat body's team effects (an Echo, a combat Shout re-fire, a combat cast).
+    // This run's half lands now; the teammate's half queues on the pass channel. Outside Duos the teammate half drops.
+    for (const t of c.teamEffects ?? []) {
+      if (t.self) applyOwnTeamEffect(s, t.effect);
+      if (t.mate) queueTeamEffect(s, t.effect);
+    }
     for (const b of c.runShopBuffs ?? []) applyRunShopBuff(s, b.attack, b.health, b.source, b.cardId); // Contract Butcher / Malphas
     for (const id of c.shopSpellHalves ?? []) applyShopSpellHalf(s, id); // Storm Chaser's split Veinstorm (owner 2026-10-10)
     // Set 3 Whispers (Whaloo, 2026-10-14): Runebind cast in combat improved PERMANENTLY. The carry holds the fight's END

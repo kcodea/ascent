@@ -52,6 +52,9 @@ export const GameEventSchema = z.enum([
   'orbitFired', // Celestial — a board-wide watcher: ANY Orbit on your board resolved
   'starformGained', // Celestial — your Starform (the Shop token) gained stats (Twin Star); payload carries the delta
   'starformRemoved', // Celestial — your Starform left the Shop (consumed / collapsed); payload carries its stats. A Star Destroyer exit never fires it
+  'passedCard', // DUOS: you passed a card to your teammate (payload cardId / spell)
+  'teamPassedCard', // DUOS: you OR your teammate passed a card (fires on both runs)
+  'teammateSold', // DUOS: your teammate sold a minion (payload carries its stats)
   'equipmentActivated', // set 3 Neutrals (2026-09-18): the player ACTIVATED an Equipment from the slot (Rig) — board watchers only; payload carries the Equipment id
 ]);
 
@@ -67,6 +70,14 @@ export const EffectFactoryIdSchema = z.enum([
   'giftSpellDiscountTurn',
   'giftMinionDiscountTurn',
   'giftUpgradeDiscount',
+  // DUOS-ONLY CARDS (owner design 2026-10-30): the team primitives (sim/duosTeam.ts)
+  'teamGainMaxGold',
+  'teamUpgradeDiscount',
+  'giftTeammate',
+  'passTargetMinion',
+  'duosFirstPassFree',
+  'teamPassBuffSelf',
+  'teammateSoldGainStats',
   'giftTierAboveMinion',
   'giftSecondCalling',
   'giftPartingGifts',
@@ -712,6 +723,7 @@ export const CardDefSchema = z.object({
   shoutExtraAura: z.number().int().positive().optional(), // Orivax: board-aura Shout extras (see CardDef)
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
+  duos: z.boolean().optional(), // DUOS-ONLY: drawable only in a Duos run (cards/duos/, `duosPoolFor`)
   celestial: z.boolean().optional(), // alignment-bearing (Dawn/Dusk/Eclipse) — drives the alignment HUD
   henchman: z.boolean().optional(), // hero-bound recruit — never shop-offered (see cards/henchmen.ts)
   noTriple: z.boolean().optional(),

@@ -1,6 +1,6 @@
 import { combatTierCeiling, inRunTribes, legalRandomMinions, type CardDef } from '@game/core';
 import type { CardPool, SetId } from '@game/content';
-import { poolFor } from '@game/content';
+import { duosPoolFor, poolFor } from '@game/content';
 import type { RunState } from './state';
 
 /**
@@ -13,8 +13,11 @@ import type { RunState } from './state';
  * Saves written before sets existed carry no `setId`; they resolve to `set1`, which is exactly the pool
  * they were played under, so old saves and replays keep working untouched.
  */
-export function poolOf(state: Pick<RunState, 'setId'> & Partial<Pick<RunState, 'tribes' | 'practiceConfig' | 'mode'>>): CardPool {
-  const set = poolFor(state.setId ?? 'set1');
+export function poolOf(state: Pick<RunState, 'setId'> & Partial<Pick<RunState, 'tribes' | 'practiceConfig' | 'mode' | 'duos'>>): CardPool {
+  // DUOS-ONLY CARDS (owner design 2026-10-30, R-DUOS-CARDS-01): a Duos seat's run (`duos` present: Versus Duos and
+  // Ranked Duos) draws its set's pool PLUS the Duos cards whose tribe the set fields (`duosPoolFor`). Every other run
+  // keeps the set's pool, byte for byte.
+  const set = state.duos ? duosPoolFor(state.setId ?? 'set1') : poolFor(state.setId ?? 'set1');
   // VERSUS (owner ruling 2026-10-13, R-VERSUS-POOL-01): "Pre-emptive Assault ... just remove this spell from
   // versus." Every attack-first source is out of a Versus run's pool, so it can never be shopped, Discovered or
   // granted, and the resolver's chair only decides the seeded tie-break.
@@ -37,11 +40,12 @@ export function isVersusExcludedCard(c: Pick<CardDef, 'effects'>): boolean {
 
 const VERSUS_POOLS = new Map<string, CardPool>();
 function versusPool(base: CardPool): CardPool {
-  const hit = VERSUS_POOLS.get(base.setId);
+  const key = `${base.setId}|${base.all.length}`; // a Duos pool is longer than its set's: its own entry
+  const hit = VERSUS_POOLS.get(key);
   if (hit) return hit;
   const keep = (c: CardDef): boolean => !isVersusExcludedCard(c);
   const pool: CardPool = { setId: base.setId, all: base.all.filter(keep), buyable: base.buyable.filter(keep), spells: base.spells.filter(keep) };
-  VERSUS_POOLS.set(base.setId, pool);
+  VERSUS_POOLS.set(key, pool);
   return pool;
 }
 

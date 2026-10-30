@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TeamEffect, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientGildedEchoGraft, gildedEchoGraftEffect, ancientNoteDiscoverOpened, MIDAS_ECHO_MARK } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
@@ -8,6 +8,7 @@ import { ancientNadjaShopDeath } from './ancients'; // Nadja
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
+import { duosDraft, queueTeamEffect, recordSpellPass } from './duosPass';
 import { runTallyUnions, tribeUnionKey, tribeUnionPlaysOf } from './runTally';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -347,6 +348,11 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     improveReps: () => improveReps(state),
     conductorTally: () => state.conductorBuff ?? 0, // CONDUCTOR's run-wide improvement (owner 2026-10-24)
     growConductor: (step) => { state.conductorBuff = (state.conductorBuff ?? 0) + step; },
+    // DUOS (R-DUOS-CARDS-01): this run's half lands now; the teammate's half queues on the pass channel at once.
+    sendTeam: (effect, toSelf, toMate) => {
+      if (toSelf) applyOwnTeamEffect(state, effect);
+      if (toMate) queueTeamEffect(state, effect);
+    },
     matriarchReps: () => 1, // the legacy shop halves never applied Matriarch; preserved until ruled otherwise
     logSpellProgress: () => {}, // the live countdown re-derives from the instance field in the shop
     logImprove: () => {},
@@ -3961,6 +3967,58 @@ export function grantTopTypeMinion(state: RunState): boolean {
 const recruitHuntGuard = new WeakSet<object>();
 
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
+
+  // ═══ DUOS-ONLY CARDS (owner design 2026-10-30, R-DUOS-CARDS-01) — the team primitives. The cross-phase bodies are
+  // ARENA_EFFECTS (one body, the shop adapter's `sendTeam` lands this run's half and queues the teammate's); the
+  // pass-shaped ones are Shop-only by nature (passing happens in the Shop). See `duosTeam` notes below. ═══
+
+  /** Richmond — Shout: you AND your teammate gain +amount max Gold (Gold Font's permanent route on both runs). */
+  teamGainMaxGold: (ctx, self, params) => {
+    ARENA_EFFECTS.teamGainMaxGold(shopArena(ctx.state, self), params);
+  },
+
+  /** Spencer — Echo: upgrading the Shop costs `amount` less for you AND your teammate. */
+  teamUpgradeDiscount: (ctx, self, params) => {
+    ARENA_EFFECTS.teamUpgradeDiscount(shopArena(ctx.state, self), params);
+  },
+
+  /** Give your teammate a card (Share the Wealth's Gold Pouch). `fromPayload: 'spell'` gifts the spell that fired the
+   *  trigger (a "when you cast X, give your teammate a copy" card); `'card'` the card in the payload. */
+  giftTeammate: (ctx, self, params, payload) => {
+    const from = params.fromPayload;
+    const id = from === 'spell' ? (payload.spellDef?.id ?? payload.spellId) : from === 'card' ? payload.cardId : undefined;
+    if (from && !id) return;
+    ARENA_EFFECTS.giftTeammate(shopArena(ctx.state, self), params, id);
+  },
+
+  /** Handout — cast: pass the targeted minion (a Shop offer or one of yours) to your teammate, free. */
+  passTargetMinion: (ctx, self) => {
+    passMinionToTeammate(ctx.state, self);
+  },
+
+  /** Brian's Pal — a passive marker `duosPassCost` reads (never dispatched). */
+  duosFirstPassFree: () => {},
+
+  /** Hitchhiker — `teamPassedCard`: this gains +attack/+health permanently (a Shop buff). Gilded doubles. */
+  teamPassBuffSelf: (ctx, self, params) => {
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
+    const a = num(params.attack, 1) * gold(self);
+    const h = num(params.health, 1) * gold(self);
+    if (a <= 0 && h <= 0) return;
+    addBuff(self, nameOf(self), a, h);
+  },
+
+  /** Hippie Hulk — `teammateSold`: this gains the sold minion's stats (Gilded doubles). Once per turn via the dispatcher's
+   *  `oncePerTurn`. */
+  teammateSoldGainStats: (ctx, self, params, payload) => {
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
+    const sold = payload.target;
+    if (!sold) return;
+    const g = gold(self) * num(params.mult, 1);
+    const a = Math.max(0, sold.attack) * g, h = Math.max(0, sold.health) * g;
+    if (a <= 0 && h <= 0) return;
+    addBuff(self, nameOf(self), a, h);
+  },
 
   // ═══ OWNER RULINGS 2026-08-26 (Rulebook triage board) — the shop halves the owner ruled IN. Each mirrors
   // its combat body's semantics; see decisions.json for the ruling and the triage card it answered. ═══
@@ -12318,6 +12376,8 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
     }
   }
   runeReturnCustomers(state, sold);
+  // DUOS (R-DUOS-CARDS-01): the teammate hears every sale (`teammateSold`, Hippie Hulk), with the stats it sold at.
+  if (state.duos) queueTeamEffect(state, { kind: 'sold', cardId: sold.cardId, attack: sold.attack, health: sold.health });
   // RUNE OF THE LAST WORD: the turn's first Dragon-with-a-Shout you sell fires its Shout on the way out — one
   // more use from a body you were cashing in anyway. `replayBattlecry` is the same path Myra's hero power and
   // every other Shout re-fire uses, so a targeted Shout auto-picks exactly as it does there.
@@ -17244,4 +17304,149 @@ export function setStatsValue(params: Record<string, unknown> | undefined, shopT
   const stepped = atTier > 0 && (shopTier ?? 0) >= atTier;
   if (stepped) return { attack: num(p.tierAttack, 50), health: num(p.tierHealth, 50), stepped };
   return { attack: num(p.attack, 20), health: num(p.health, 20), stepped };
+}
+
+// ══ DUOS-ONLY CARDS: the team primitives (owner design 2026-10-30, R-DUOS-CARDS-01) ═══════════════════════════════════
+//
+// How a team effect travels: the SENDER's run applies its own half at once and queues the teammate's half on the pass
+// channel (`queueTeamEffect`: an outbox entry with `team`, sent by the Versus store like a pass, relayed by the Worker to
+// the teammate's socket only). The RECEIVER's run lands it through the recorded `receivePass` action
+// (`receiveTeamEffect`), so a restore or replay reproduces it, and resolves any random pick on ITS OWN run (its board,
+// its pool, its RNG). Combat bodies carry both halves to settle (`ShoutCarry.teamEffects`).
+
+/** This run's OWN half of a team effect (max Gold, the upgrade discount). A gift or a sale has no own half. */
+export function applyOwnTeamEffect(state: RunState, effect: TeamEffect): void {
+  if (effect.kind === 'maxGold') state.maxGoldBonus = (state.maxGoldBonus ?? 0) + effect.amount;
+  else if (effect.kind === 'upgradeDiscount') state.upgradeCost = Math.max(CONFIG.upgradeCostFloor ?? 0, state.upgradeCost - effect.amount);
+}
+
+/**
+ * "Your teammate's most common type" (Toot Toot, Tribe Bundle, Matchmaker), read on the RECEIVING run: the run tribe
+ * with the most minions on its board, through the shared tribe predicate (an All-types minion counts for each). TIES
+ * (owner 2026-10-30: "50/50"): a uniform seeded pick among the tied tribes; an empty board ties every run tribe. RNG is
+ * drawn only when there is a tie. Null only when the run has no tribes.
+ */
+export function mostCommonTribe(state: RunState, rng: Rng): Tribe | null {
+  const tribes = (state.tribes ?? []).filter((t) => t !== 'neutral');
+  if (tribes.length === 0) return null;
+  let best = -1;
+  let tied: Tribe[] = [];
+  for (const t of tribes) {
+    const n = state.board.filter((c) => isTribe(c, t)).length;
+    if (n > best) { best = n; tied = [t]; } else if (n === best) tied.push(t);
+  }
+  return tied.length === 1 ? tied[0]! : tied[rng.int(tied.length)]!;
+}
+
+/** Board watchers on a pass: `passedCard` (only when THIS run passed; `spellOnly` = a Shop Spell only) and
+ *  `teamPassedCard` (either teammate). `oncePerTurn` latches per instance and effect. */
+export function fireTeamPassTriggers(state: RunState, info: { mine: boolean; cardId: string }): void {
+  const def0 = CARD_INDEX[info.cardId];
+  const spell = !!def0?.spell && !def0.ruby;
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def) continue;
+    for (const eff of def.effects) {
+      if (eff.on !== 'teamPassedCard' && !(eff.on === 'passedCard' && info.mine)) continue;
+      if (eff.params?.spellOnly === true && !spell) continue;
+      if (!duosOnceOk(state, card, eff)) continue;
+      RECRUIT_FACTORIES[eff.do]?.(makeContext(state), card, eff.params ?? {}, { minion: card, cardId: info.cardId, ...(spell && def0 ? { spellDef: def0 } : {}) });
+    }
+  }
+}
+
+/** Board watchers on the TEAMMATE's sale (`teammateSold`); the sold body rides as `target`. */
+export function fireTeammateSold(state: RunState, sold: { cardId: string; attack: number; health: number }): void {
+  const def0 = CARD_INDEX[sold.cardId];
+  const body: BoardCard = { uid: 'mate-sold', cardId: sold.cardId, tribe: def0?.tribe ?? 'neutral', attack: sold.attack, health: sold.health, keywords: [], golden: false };
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def) continue;
+    for (const eff of def.effects) {
+      if (eff.on !== 'teammateSold' || !duosOnceOk(state, card, eff)) continue;
+      RECRUIT_FACTORIES[eff.do]?.(makeContext(state), card, eff.params ?? {}, { minion: card, target: body, cardId: sold.cardId });
+    }
+  }
+}
+
+/** "(Once per turn)" on a team trigger (`params.oncePerTurn`): true the first time this turn, latching it. */
+function duosOnceOk(state: RunState, card: BoardCard, eff: EffectDef): boolean {
+  if (eff.params?.oncePerTurn !== true) return true;
+  const seen = card.duosOnce?.[eff.do];
+  if (seen === state.wave) return false;
+  card.duosOnce = { ...(card.duosOnce ?? {}), [eff.do]: state.wave };
+  return true;
+}
+
+/**
+ * HANDOUT / CueBee's Pass: pass `target` (a Shop minion or one of yours) to the teammate, free. A Golden minion is never
+ * passed (R-DUOS-PASS-07) and a spell offer is not a minion. Fires the pass watchers like a drag pass. Outside a Duos run
+ * nothing happens. Returns whether it passed.
+ */
+export function passMinionToTeammate(state: RunState, target: BoardCard): boolean {
+  if (!state.duos || target.golden) return false;
+  const si = state.shop.findIndex((o) => o.uid === target.uid);
+  if (si >= 0) {
+    const offer = state.shop[si]!;
+    const def = CARD_INDEX[offer.cardId];
+    if (!def || def.spell || def.ruby || offer.golden) return false;
+    state.shop.splice(si, 1);
+    const card: BoardCard = {
+      uid: target.uid, cardId: target.cardId, tribe: def.tribe, attack: target.attack, health: target.health,
+      keywords: [...target.keywords], golden: false, ...(offer.buffs?.length ? { buffs: structuredClone(offer.buffs) } : {}),
+    };
+    recordSpellPass(state, card, 'shop', si);
+  } else {
+    const bi = state.board.findIndex((c) => c.uid === target.uid);
+    if (bi < 0) return false;
+    const [card] = state.board.splice(bi, 1);
+    if (!card) return false;
+    recordSpellPass(state, card, 'board', bi);
+  }
+  fireTeamPassTriggers(state, { mine: true, cardId: target.cardId });
+  return true;
+}
+
+/** A gift's cards into this run's hand; returns how many landed (0 = a full hand refused it). */
+function landTeamGift(state: RunState, g: Extract<TeamEffect, { kind: 'gift' }>): number {
+  const count = Math.min(10, Math.max(1, Math.floor(g.count ?? 1)));
+  let pool: CardDef[] = [];
+  if (g.cardId) {
+    const d = CARD_INDEX[g.cardId];
+    if (d) pool = [d];
+  } else if (typeof g.randomSpellTier === 'number') {
+    pool = runSpells(state).filter((c) => c.tier === g.randomSpellTier);
+  } else if (g.mateTribe) {
+    const rng = makeRng(state.rngCursor);
+    const t = mostCommonTribe(state, rng);
+    state.rngCursor = rng.state();
+    pool = t ? legalRandomMinionPool(state, { maxTier: state.tier }).filter((c) => defIsTribe(c, t, state)) : [];
+  }
+  const before = state.hand.length;
+  conjureToHand(state, pool, count);
+  return state.hand.length - before;
+}
+
+/**
+ * THE RECEIVER's half of a team effect (the `receivePass` action with a `passFrom: 'team'` payload): a fresh draft, or
+ * `state` itself when it is not for this run or already answered. A gift with no room is REFUSED (recorded; the sender
+ * loses nothing, it never left their run). Amounts are clamped: the payload comes from the teammate's client.
+ */
+export function receiveTeamEffect(state: RunState, from: string, seq: number, effect: TeamEffect): RunState {
+  if (!state.duos || !effect || typeof effect !== 'object') return state;
+  const key = `${from}:${seq}`;
+  if (state.duos.received.includes(key) || state.duos.refused.includes(key)) return state;
+  const s = duosDraft(state);
+  const d = s.duos!;
+  const amt = (v: unknown): number => Math.min(10, Math.max(0, Math.floor(typeof v === 'number' ? v : 0)));
+  if (effect.kind === 'gift') {
+    if (landTeamGift(s, effect) === 0) { d.refused.push(key); return s; }
+  } else if (effect.kind === 'sold') {
+    const stat = (v: unknown): number => Math.max(0, Math.floor(typeof v === 'number' && Number.isFinite(v) ? v : 0));
+    fireTeammateSold(s, { cardId: String(effect.cardId), attack: stat(effect.attack), health: stat(effect.health) });
+  } else if (effect.kind === 'maxGold' || effect.kind === 'upgradeDiscount') {
+    applyOwnTeamEffect(s, { kind: effect.kind, amount: amt(effect.amount) });
+  }
+  d.received.push(key);
+  return s;
 }

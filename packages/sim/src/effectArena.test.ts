@@ -70,6 +70,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     improveReps: () => 1,
     conductorTally: () => 0,
     growConductor: () => {},
+    sendTeam: () => {},
     matriarchReps: () => 1,
     logSpellProgress: () => {},
     logImprove: () => {},

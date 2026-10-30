@@ -475,6 +475,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       ctx.log({ type: 'improve', target: self.uid, amount: 0, display: step, conductor: step, side: self.side });
     },
     matriarchReps: () => ctx.matriarchRepsFor(self.side),
+    sendTeam: (effect, toSelf, toMate) => ctx.sendTeam?.(effect, toSelf, toMate, self.side),
     logSpellProgress: (amount) => ctx.log({ type: 'spellProgress', target: self.uid, amount }),
     logImprove: (amount) => ctx.log({ type: 'improve', target: self.uid, amount }),
     spellsThisTurn: () => ctx.spellsThisTurnFor(self.side),
@@ -4227,6 +4228,24 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).
    *  Golden doubles the per-proc amount. */
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
+  // ── DUOS-ONLY CARDS (owner design 2026-10-30, R-DUOS-CARDS-01): the combat halves of the team primitives (an Echo,
+  // a combat Shout re-fire, a combat cast). One arena body each; the combat adapter carries both halves to settle. ──
+  teamGainMaxGold: (ctx, self, params, payload) => {
+    const m = (payload as Partial<MinionPayload> | undefined)?.minion;
+    if (m && m !== self) return;
+    ARENA_EFFECTS.teamGainMaxGold(combatArena(ctx, self), params);
+  },
+  teamUpgradeDiscount: (ctx, self, params, payload) => {
+    const m = (payload as Partial<MinionPayload> | undefined)?.minion;
+    if (m && m !== self) return;
+    ARENA_EFFECTS.teamUpgradeDiscount(combatArena(ctx, self), params);
+  },
+  giftTeammate: (ctx, self, params, payload) => {
+    const m = (payload as Partial<MinionPayload> | undefined)?.minion;
+    if (m && m !== self) return;
+    ARENA_EFFECTS.giftTeammate(combatArena(ctx, self), params);
+  },
+
   deathrattleBuffImps: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     ARENA_EFFECTS.deathrattleBuffImps(combatArena(ctx, self), params);

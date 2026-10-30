@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Icon } from './Icon';
+import { useDevCornerSlot } from './friends/dock/FriendsDock';
 import { DevPanelContext } from './useDraggablePanel';
 import { useGame } from './store';
 import { SfxMixer } from './SfxMixer';
@@ -357,6 +359,9 @@ type Action = { id: string; icon: string; label: string; hint: string; run: () =
 
 export function DevMenu() {
   const [open, setOpen] = useState(false);
+  // The corner-row square this button takes (R-DEV-CORNER-01); the dropdown hangs above it.
+  const devSlot = useDevCornerSlot();
+  const slotStyle = useMemo(() => ({ '--cd-slot': devSlot }) as CSSProperties, [devSlot]);
   const [shown, setShown] = useState<Set<string>>(new Set());
   const [wbOpen, setWbOpen] = useState(false);
   const [blOpen, setBlOpen] = useState(false);
@@ -496,21 +501,23 @@ export function DevMenu() {
 
   return (
     <>
-      {/* The emoji IS the label, so the button needs a real accessible name — `title` alone is not reliably
-          announced, and "hammer and wrench" is what a screen reader would otherwise read out. */}
+      {/* A corner-row square (R-DEV-CORNER-01): the row's plaque, the gear glyph, the game's hover bubble. */}
       <button
-        className={`devmenu-btn${shown.size ? ' has-open' : ''}`}
+        type="button"
+        className={`devmenu-btn cornerdev gtip${shown.size ? ' has-open' : ''}`}
+        style={slotStyle}
+        data-tip={open ? undefined : 'Dev tuner'}
         onClick={() => setOpen((o) => !o)}
         aria-label={shown.size
           ? `Dev tuning menu, ${shown.size} panel${shown.size === 1 ? '' : 's'} open`
           : 'Dev tuning menu'}
         aria-expanded={open}
       >
-        <span aria-hidden>🛠️</span>
+        <Icon name="gear" />
         {shown.size > 0 && <span className="devmenu-count" aria-hidden>{shown.size}</span>}
       </button>
       {open && (
-        <div className="devmenu" onKeyDown={onKeyDown}>
+        <div className="devmenu" style={slotStyle} onKeyDown={onKeyDown}>
           <div className="devmenu-top">
             <input
               ref={searchRef}

@@ -7352,15 +7352,35 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    Dressed in the shipped vocabulary (vellum face, gold rim, ink text, warm shadows) so dev chrome reads as
    part of the same object family as the game rather than a bolted-on tool.
    ========================================================================================================== */
-.devmenu-btn { position: fixed; right: calc(var(--bar-x) + 16px + 4 * (40 * var(--u) + 10px)); /* slot 4: slot 3 is the Friends dock (R-FRIENDS-DOCK-01) */ bottom: calc(var(--bar-y) + 16px); z-index: 9990; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.12s ease; }
-.devmenu-btn:hover { transform: translateY(-1px); border-color: var(--acc); }
-.devmenu-btn:active { transform: translateY(1px); }
-/* The button carries a badge when panels are open, so you can tell at a glance that the board is wearing dev
-   overlays — the old menu gave no signal once it was closed. */
-.devmenu-btn.has-open { border-color: var(--acc); }
+/* THE DEV CORNER SQUARES (DEV only, owner 2026-10-30, R-DEV-CORNER-01: "put our dev tuner and dev scene builder tuner
+   buttons into a button like this, and put them in the bottom right"): the 🛠️ dev tuning menu and the minimized Scene
+   Builder wear the corner row's plaque (`.gearbtn` / `.bookbtn` / `.rulesbtn` / `.fdock-btn`: navy fill, gold rim,
+   inner bevel, hard bottom edge, the same lift on hover) at the row's size, and take the next squares LEFT of Friends:
+   gear 0, Compendium 1, Rules 2, Friends 3, dev tuner 4, Scene Builder 5. `--cd-slot` is set per button by
+   `useDevCornerSlot` (FriendsDock.tsx), so they close up when the Friends button is absent and step down to the corner
+   with it (slots 1 and 2) where the row is covered. No cursor rule: the global gauntlet paints every button (CLAUDE.md).
+   z 9990: dev tools stay reachable over every layer (curtainLadder.test.ts). */
+.cornerdev { --cd-cb: calc(40 * var(--u)); --cd-slot: 4; position: fixed; z-index: 9990;
+  right: calc(var(--edge-r) + 16px + var(--cd-slot) * (var(--cd-cb) + 10px)); bottom: calc(var(--edge-b) + 16px);
+  width: var(--cd-cb); height: var(--cd-cb); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; color: #f0d089;
+  border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease; }
+.cornerdev:hover { border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); transform: translateY(-2px); }
+.cornerdev:active, .cornerdev:hover:active { transform: translateY(3px) scale(0.97); filter: brightness(0.9); transition-duration: 0.06s; }
+.cornerdev > svg { width: 62%; height: 62%; pointer-events: none; }
+html[data-touch-ui] .cornerdev { --cd-cb: var(--touch-cb); }
+html[data-touch-ui] .cornerdev > svg { width: 56%; height: 56%; }
+/* A phone in a game (the zoomed stage, touchUi.css): the row's 66 px squares, 74 px apart from the gear's 1897. */
+html[data-touch-ui][data-phone-zoom] .cornerdev { --cd-cb: 66px; right: calc(var(--pz-bxr) + 1920px - 1897px + var(--cd-slot) * 74px); bottom: calc(var(--pz-safe-b, var(--safe-b)) + 15px); }
+/* The phone layout's game screen (phoneLayout.css): the row in bar px from the top left, 155 px apart from the gear's 2725. */
+html[data-phone-layout]:not([data-phone-menus]) .cornerdev { --cd-cb: var(--pl-cb); right: auto; bottom: auto;
+  top: calc(var(--bar-y) + 1290px * var(--scale)); left: calc(var(--bar-x) + (2725px - var(--cd-slot) * 155px) * var(--scale)); }
+/* Panels open: the tuner square's rim lights, and the count badge says how many. */
+.devmenu-btn.has-open { border-color: rgba(240, 208, 137, 0.95); }
 .devmenu-count { position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--acc); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 10px; line-height: 17px; text-align: center; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
 
-.devmenu { position: fixed; right: calc(var(--bar-x) + 64px); bottom: calc(var(--bar-y) + 64px); z-index: 9991;
+.devmenu { position: fixed; right: calc(var(--edge-r) + 16px + var(--cd-slot, 4) * (40 * var(--u) + 10px)); bottom: calc(var(--edge-b) + 16px + 40 * var(--u) + 10px); z-index: 9991;
   width: 296px; max-width: calc(var(--lvw, 100vw) - 24px);
   display: flex; flex-direction: column; max-height: min(calc(72 * var(--vh, 1vh)), 620px);
   background: var(--card); border: 2px solid var(--gold); border-radius: 14px; padding: 8px;
@@ -10242,12 +10262,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    Dev-only, stripped from production. */
 .sb-head { display: flex; align-items: center; justify-content: space-between; gap: calc(8 * var(--u)); }
 .sb-collapse { background: none; border: none; color: #d8c8a2; font-size: calc(13 * var(--u)); cursor: pointer; padding: 0 calc(2 * var(--u)); }
-/* Minimized Scene Builder → a circle icon in the bottom-right cluster, immediately LEFT of the 🛠️ dev-tuning
-   button (which sits at right: bar-x + 64px, is 40px wide); +48px = its width + an 8px gap. Same size/style. */
-.sb-dock { position: fixed; right: calc(var(--bar-x) + 112px); bottom: calc(var(--bar-y) + 16px); z-index: 9990;
-  width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: var(--card);
-  font-size: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); display: grid; place-items: center; }
-.sb-dock:hover { border-color: var(--acc, #ff8a3c); }
+/* Minimized Scene Builder: a dev corner square (`.cornerdev`, R-DEV-CORNER-01), one slot left of the dev tuner. */
 .sb-body { display: flex; flex-direction: column; gap: calc(8 * var(--u)); padding-top: calc(4 * var(--u)); }
 
 .sb-sec { display: flex; flex-direction: column; gap: calc(4 * var(--u)); padding-bottom: calc(7 * var(--u)); border-bottom: 1px solid #3a3220; }

@@ -11761,4 +11761,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-10-30 (feat/backdrop-list-columns). Before, the list had no height cap, so the 18 backdrops ran past the panel and the whole Settings page had to scroll to reach them.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/escSelectScroll.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
+  {
+    id: 'R-SETTINGS-FIT-01',
+    title: 'The Settings page fits the screen without scrolling, Advanced Controls open or not',
+    statement:
+      'On a desktop screen the Settings page shows every section at once, with no scrolling, even with the Audio section\x27s '
+      + 'Advanced Controls open: its sections sit in two side-by-side columns (Combat, Audio and Cosmetics on the left; '
+      + 'Friends, Board, Performance and Account on the right) at full size. On a touch device the panel keeps one column.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-30 (board cutout)', quote: 'i need the settings menu to be contained within the bounds of my screen without scrolling' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-30 (board cutout)', quote: 'its when i have advanced controls selected, it pushes everythign down' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-30 (board cutout)', quote: 'can we re-increase the sizing of the elements inside?' },
+      { kind: 'code', ref: 'packages/ui/src/EscMenu.tsx (SettingsPanel .esccol); packages/ui/src/styles.css (#root .lbpage.set-page .escpanel); packages/ui/src/touchUi.css' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-30 (feat/settings-two-columns), checked at 2000x1077 with Advanced Controls open. Before, one column at 0.8 size ran off the bottom of the screen once Advanced Controls opened.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/settingsFit.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

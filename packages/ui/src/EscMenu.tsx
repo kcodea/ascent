@@ -113,6 +113,10 @@ export function SettingsPanel() {
 
   return (
       <div className="escpanel">
+        {/* TWO COLUMNS on the Settings page (owner 2026-10-30: "i need the settings menu to be contained within the bounds
+            of my screen without scrolling"): Combat, Audio and Cosmetics on the left; Friends onward on the right.
+            styles.css sets the columns side by side on the page; anywhere else (and on touch) they simply stack. */}
+        <div className="esccol">
         {/* COMBAT leads the settings (owner ask 2026-10-08): the speed is the one players reach for mid-run. */}
         <div className="escsec">Combat</div>
         <div className="escvol">
@@ -199,6 +203,8 @@ export function SettingsPanel() {
           on={spectatorEmotesOn}
           onToggle={() => { setSpectatorEmotesOn(!spectatorEmotesOn); sfx.pulse(); }}
         />
+        </div>
+        <div className="esccol">
         {/* FRIENDS (owner 2026-10-29, R-FRIENDS-ACTIVITY-01): what friends see on my row. Saved on this device. */}
         <div className="escsec">Friends</div>
         <ToggleRow
@@ -305,6 +311,7 @@ export function SettingsPanel() {
         ) : (
           <div className="escnote">Not signed in. Sign in from the main menu to keep your progress across devices.</div>
         )}
+        </div>
       </div>
   );
 }

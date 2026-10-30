@@ -39,6 +39,26 @@ export const teamSeats = (team: GTeamId): [GSeat, GSeat] => (team === 'a' ? ['p1
 /** Passes a seat may send per round (`VERSUS_DUOS_PASS_CAP`), and a passed card's size cap. */
 export const DUOS_PASS_CAP = 10;
 const PASS_CARD_BYTES = 16_384;
+/**
+ * DUOS-ONLY CARDS (owner design 2026-10-30, R-DUOS-CARDS-01): TEAM EFFECTS ride the pass channel as `passFrom: 'team'`
+ * rows (a gift, team max Gold, the upgrade discount, "my teammate sold a minion"). They are not passes: they skip the
+ * pass cap, the hand-room check (the receiver's run refuses a gift its full hand cannot take) and the Shop-phase check
+ * (a combat Echo's effect is queued at settle, after the round moved on); they have their own per-round cap.
+ */
+export const DUOS_TEAM_FX_CAP = 60;
+/**
+ * WHERE A TEAM EFFECT GOES (owner 2026-10-30: "duos requires 2 live players"; a Duos teammate is always a live player in
+ * the room, recorded duo snapshots are only ever opponents):
+ *  - teammate connected: delivered now;
+ *  - teammate DISCONNECTED (on auto, or the match paused for them; their last board fights on auto): recorded anyway and
+ *    landed on their run when their client reconnects and pulls the team's rows (`replayRestore` lands every unanswered
+ *    row in the server's order);
+ *  - teammate LEFT the party for good or OUT of the match: skipped (`no_teammate`; the sender loses nothing).
+ * A card pass keeps its own rule (refused while the teammate is away).
+ */
+export function duosTeamFxRefusal(mate: Pick<GSeatRow, 'eliminated_round' | 'left_at'>): 'no_teammate' | null {
+  return mate.eliminated_round != null || mate.left_at != null ? 'no_teammate' : null;
+}
 
 /** A team's shared pool and its fate (`versus_group_teams`). */
 export interface GTeam {
@@ -752,22 +772,40 @@ export class GroupEngine {
     const all = this.g.passes ?? (this.g.passes = {});
     const existing = Object.values(all).flat().find((p) => p.from_seat === seat && p.seq === seq);
     if (existing) return existing;
-    if (m.phase !== 'shop' || m.round !== round) this.h.fail('not_shop');
-    if (m.paused_at == null && m.shop_deadline != null && this.h.now() >= m.shop_deadline + SHOP_GRACE_MS) this.h.fail('deadline_passed');
+    const c = card as Record<string, unknown> | null;
+    // A TEAM EFFECT (R-DUOS-CARDS-01) is checked by its own rules below; a card pass keeps every rule it had.
+    const teamFx = !!c && typeof c === 'object' && !Array.isArray(c) && c.passFrom === 'team';
+    if (teamFx) {
+      if (m.phase === 'hero_select' || m.phase === 'complete' || !Number.isInteger(round) || (round as number) < 1 || (round as number) > m.round) this.h.fail('not_shop');
+    } else {
+      if (m.phase !== 'shop' || m.round !== round) this.h.fail('not_shop');
+      if (m.paused_at == null && m.shop_deadline != null && this.h.now() >= m.shop_deadline + SHOP_GRACE_MS) this.h.fail('deadline_passed');
+    }
     if (this.row(seat!).eliminated_round != null) this.h.fail('locked');
     const mate = mateOf(seat!);
     const mr = this.row(mate);
-    if (mr.eliminated_round != null) this.h.fail('no_teammate');
-    if (mr.auto || (m.paused_at != null && m.paused_seat === mate)) this.h.fail('teammate_away');
-    const inFlight = Object.values(all).flat().filter((p) => p.to_seat === mate && p.status === 'sent').length;
-    if (mr.hand_room != null && mr.hand_room - inFlight <= 0) this.h.fail('hand_full');
-    const c = card as Record<string, unknown> | null;
+    if (teamFx) {
+      const why = duosTeamFxRefusal(mr);
+      if (why) this.h.fail(why);
+    } else {
+      if (mr.eliminated_round != null) this.h.fail('no_teammate');
+      if (mr.auto || (m.paused_at != null && m.paused_seat === mate)) this.h.fail('teammate_away');
+    }
+    if (!teamFx) {
+      const inFlight = Object.values(all).flat().filter((p) => p.to_seat === mate && p.status === 'sent' && p.card.passFrom !== 'team').length;
+      if (mr.hand_room != null && mr.hand_room - inFlight <= 0) this.h.fail('hand_full');
+    }
+    // A card pass travels from the hand (`'hand'`, the drag) or from a Duos spell (`'spell'`, Handout: a Shop or board
+    // minion); a team effect carries its `team` object. Anything else is refused as before.
+    const okFrom = c?.passFrom === 'hand' || c?.passFrom === 'spell' || (teamFx && !!c?.team && typeof c.team === 'object' && !Array.isArray(c.team));
     if (!Number.isInteger(seq) || (seq as number) < 0 || !c || typeof c !== 'object' || Array.isArray(c) || typeof c.cardId !== 'string'
-      || jsonBytes(c) > PASS_CARD_BYTES || c.passFrom !== 'hand') this.h.fail('bad_card');
+      || jsonBytes(c) > PASS_CARD_BYTES || !okFrom) this.h.fail('bad_card');
     // NO GOLDENS (owner 2026-10-30: "Golden minions CANNOT be passed"). The client refuses it too; this is the guard.
+    // Every pass: the manual drag and an effect's pass (Handout) alike.
     if (c!.golden === true) this.h.fail('golden');
-    const mine = (all[round as number] ?? []).filter((p) => p.from_seat === seat).length;
-    if (mine >= DUOS_PASS_CAP) this.h.fail('too_many_passes');
+    const sameKind = (p: GPass): boolean => p.from_seat === seat && (p.card.passFrom === 'team') === teamFx;
+    const mine = (all[round as number] ?? []).filter(sameKind).length;
+    if (mine >= (teamFx ? DUOS_TEAM_FX_CAP : DUOS_PASS_CAP)) this.h.fail('too_many_passes');
     const row: GPass = {
       match_id: m.id, round: round as number, from_seat: seat!, to_seat: mate, seq: seq as number, card: c!, status: 'sent',
       created_at: new Date(this.h.now()).toISOString(), answered_at: null,

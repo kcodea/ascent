@@ -4952,7 +4952,9 @@ export function Recruit() {
             : { cx: e.clientX, cy: e.clientY, w: toStage(d.w), h: toStage(d.h) };
           const plate = dc?.querySelector<HTMLElement>('.cardplate:not(.plate-interior)')?.getBoundingClientRect() ?? null;
           const door = mateDoor();
-          playDrop({ from, zoom, plate, to: door?.getBoundingClientRect() ?? mateRect, face: dc?.querySelector<HTMLElement>('.dragshrink > .card') ?? dc?.querySelector<HTMLElement>('.card') ?? null, coin: true, onLand: () => catchPulse(door) });
+          // The coin only when Gold was paid (Brian's Pal's free pass sends none, R-DUOS-CARDS-01).
+          const paid = useGame.getState().run.duos?.outbox[sent]?.paid ?? 1;
+          playDrop({ from, zoom, plate, to: door?.getBoundingClientRect() ?? mateRect, face: dc?.querySelector<HTMLElement>('.dragshrink > .card') ?? dc?.querySelector<HTMLElement>('.card') ?? null, coin: paid > 0, onLand: () => catchPulse(door) });
           sfx.sell?.();
           endSession();
           return;

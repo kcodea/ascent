@@ -215,6 +215,24 @@ export function playDrop(opts: {
   }
 }
 
+/**
+ * A SPELL's pass (Handout, R-DUOS-CARDS-01): the minion `uid` (a Shop offer or one of your board minions) dissolves where
+ * it stands and streams into the teammate portrait, the same send as a drag pass, with no coin (the spell paid). Call it
+ * while the card's element is still on screen (the store commit, before React re-renders). One layout read.
+ */
+export function playSpellPass(uid: string): void {
+  if (typeof document === 'undefined') return;
+  const card = document.querySelector<HTMLElement>(`.card[data-uid="${uid}"]`);
+  const door = mateDoor();
+  if (!card || !door) return;
+  const r = card.getBoundingClientRect();
+  if (r.width <= 0) return;
+  playDrop({
+    from: { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: card.offsetWidth, h: card.offsetHeight },
+    plate: plateBox(card), face: card, to: door.getBoundingClientRect(), coin: false, onLand: () => catchPulse(door),
+  });
+}
+
 // ── RECEIVING ────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Hand cards whose entrance is a pass (no generic generated-card coalesce for them: the pass plays its own). */

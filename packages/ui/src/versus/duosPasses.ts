@@ -10,9 +10,9 @@
  *  - HAND ROOM: my free hand slots, reported whenever they change, so the server refuses a pass to a full hand up front.
  * Network only off the hot path: nothing here runs per frame; a shop click never waits on it.
  */
-import { duosWireCard, handCap, type BoardCard, type RunState, type VersusGroupSeat } from '@game/sim';
+import { duosWireOf, handCap, type BoardCard, type RunState, type VersusGroupSeat } from '@game/sim';
 import { useGame } from '../store';
-import { playArrival } from './passLob';
+import { playArrival, playSpellPass } from './passLob';
 import { notePassRefused } from './duosPassUi';
 import { sfx } from '../sfx';
 import { ownRunWhileWatching } from './spectate';
@@ -61,16 +61,19 @@ export function duosAfterRun(matchId: string, me: VersusGroupSeat, run: RunState
     if (s.shipped.has(idx) || e.refunded || s.inFlight.has(idx)) continue;
     const seq = seqFor(s, idx);
     s.inFlight.add(idx);
-    lastRefusal = null;
-    void versusRemote.duosPass(matchId, e.wave, seq, duosWireCard(e.card)).then(() => {
+    // A SPELL's pass (Handout, R-DUOS-CARDS-01): the minion streams from where it stood into the teammate portrait. This
+    // runs inside the store's commit, before React drops the card, so its element is still there to start from.
+    if (e.via === 'spell' && !ownRunWhileWatching()) playSpellPass(e.card.uid);
+    if (!e.team) lastRefusal = null;
+    void versusRemote.duosPass(matchId, e.wave, seq, duosWireOf(e)).then(() => {
       s.shipped.add(idx);
     }).catch((err: unknown) => {
       const code = err instanceof VersusError ? err.code : '';
       if (REFUSALS.has(code)) {
         s.shipped.add(idx);
-        lastRefusal = { seq: idx, reason: code };
         dispatch({ type: 'passRefunded', seq: idx });
-        sayReturned(code);
+        // A TEAM EFFECT (a gift, team max Gold) never took anything from me: nothing came back, so nothing to say.
+        if (!e.team) { lastRefusal = { seq: idx, reason: code }; sayReturned(code); }
       }
       // Anything else (offline, a blip): the next run change retries it.
     }).finally(() => s.inFlight.delete(idx));
@@ -275,7 +278,10 @@ function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
     } else if (r.from_seat === s.me && r.status === 'refused') {
       const idx = idxFor(s, r.seq);
       const e = idx == null ? undefined : run.duos.outbox[idx];
-      if (e && !e.refunded) { lastRefusal = { seq: idx!, reason: 'hand_full' }; dispatch({ type: 'passRefunded', seq: idx! }); sayReturned('hand_full'); }
+      if (e && !e.refunded) {
+        dispatch({ type: 'passRefunded', seq: idx! });
+        if (!e.team) { lastRefusal = { seq: idx!, reason: 'hand_full' }; sayReturned('hand_full'); }
+      }
     }
   }
 }

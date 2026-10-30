@@ -2050,6 +2050,12 @@ export function simulate(
       const c = shoutCarry[side];
       c.conductorBuff = (c.conductorBuff ?? 0) + step;
     },
+    // DUOS (owner design 2026-10-30, R-DUOS-CARDS-01): a team effect from a combat body rides the side's carry to
+    // settle, where the side's own run lands its half and queues its teammate's. Symmetric: each side carries its own.
+    sendTeam: (effect, toSelf, toMate, side) => {
+      if (!toSelf && !toMate) return;
+      (shoutCarry[side].teamEffects ??= []).push({ effect: { ...effect }, self: toSelf, mate: toMate });
+    },
     grantFodderBuff: (attack, health, side) => {
       fodderBuffGain[side].attack += attack;
       fodderBuffGain[side].health += health;

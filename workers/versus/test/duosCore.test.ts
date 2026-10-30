@@ -8,11 +8,12 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { duosRoundDigest, HEROES, versusDuosStartingVitals, type PreparedCombatSide } from '@game/sim';
+import { createVersusRun, duosRoundDigest, duosWireOf, HEROES, reduce, versusDuosStartingVitals, type PreparedCombatSide, type RunState } from '@game/sim';
+import { CARD_INDEX } from '@game/content';
 import { engineContentRevision, resolveVersusDuosRound, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { DUOS_HISTORY_MAX_BYTES, parseDuosHistory } from '@game/sim/versus/duosHistory';
 import { DISCONNECT_GRACE_MS, newRoomState, RoomCore, turnSeconds, type CoreDeps, type CoreEffects, type CoreState } from '../src/core/roomCore';
-import type { GSeat } from '../src/core/groupMatch';
+import { DUOS_TEAM_FX_CAP, duosTeamFxRefusal, type GSeat } from '../src/core/groupMatch';
 
 interface Case { name: string; matchSeed: number; round: number; p1: PreparedCombatSide; p2: PreparedCombatSide }
 const FIXTURE = JSON.parse(readFileSync(fileURLToPath(new URL('../../../packages/sim/src/versus/fixtures/parity.v1.json', import.meta.url)), 'utf8')) as { cases: Case[] };
@@ -24,7 +25,7 @@ const U = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-2222
 const SEAT: GSeat[] = ['p1', 'p2', 'p3', 'p4'];
 const T0 = Date.UTC(2026, 9, 28, 12, 0, 0);
 const HERO_IDS = HEROES.slice(0, 12).map((h) => h.id);
-const DUOS = { v: 1, mode: 'duos', modifiers: [] };
+const DUOS: { v: 1; mode: 'duos'; modifiers: [] } = { v: 1, mode: 'duos', modifiers: [] };
 
 function deps(): CoreDeps {
   let s = 4242;
@@ -201,6 +202,67 @@ describe('Duos room (Cloudflare) — passing (R-DUOS-PASS-01)', () => {
     h.core.disconnect(U[3], h.now);
     await h.advance(DISCONNECT_GRACE_MS);
     await expect(h.op(U[2], 'duos_pass', { matchId: h.id, round: 1, seq: 2, card: card() })).rejects.toThrow('teammate_away');
+  });
+});
+
+describe('Duos room (Cloudflare) — Duos-only cards: team effects ride the pass channel (R-DUOS-CARDS-01)', () => {
+  const ann = (hand: string[]): RunState => {
+    const run = createVersusRun(11, 'warden', 'set2', DUOS);
+    return { ...run, embers: 10, hand: hand.map((id, i) => ({ uid: `a${i}`, cardId: id, tribe: CARD_INDEX[id]!.tribe, attack: 0, health: 1, keywords: [], golden: false })) };
+  };
+
+  it('BOTH TEAMMATES end to end: Share the Wealth on one run puts a Gold Pouch in the other run\'s hand, through the Worker', async () => {
+    const h = await inShop();
+    const a = reduce(ann(['duo_sharewealth']), { type: 'play', uid: 'a0' });
+    const e = a.duos!.outbox[0]!;
+    expect(e.team).toEqual({ kind: 'gift', cardId: 'emberpouch', count: 1 });
+    // The receiver's hand reports no room: a TEAM EFFECT is not refused up front (its run decides).
+    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 0 });
+    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 5 });
+    const row = await h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: e.seq, card: duosWireOf(e) });
+    expect(row).toMatchObject({ from_seat: 'p1', to_seat: 'p2', status: 'sent' });
+    expect(h.core.passAudience(h.log.at(-1)!.passes[0]!).sort()).toEqual([U[0], U[1]].sort());
+    // The teammate pulls the team's rows and lands each through its own run's `receivePass`.
+    let b: RunState = { ...createVersusRun(12, 'warden', 'set2', DUOS), hand: [] };
+    for (const r of await h.op(U[1], 'duos_passes', { matchId: h.id, from: 1 })) {
+      b = reduce(b, { type: 'receivePass', from: r.from_seat, seq: r.seq, card: r.card });
+      await h.op(U[1], 'duos_answer_pass', { matchId: h.id, fromSeat: r.from_seat, seq: r.seq, landed: b.duos!.received.includes(`${r.from_seat}:${r.seq}`) });
+    }
+    expect(b.hand.map((c) => c.cardId)).toEqual(['emberpouch']);
+    expect((await h.op(U[1], 'duos_passes', { matchId: h.id, from: 1 }))[0].status).toBe('landed');
+    // The opponents never see it.
+    expect(await h.op(U[2], 'duos_passes', { matchId: h.id, from: 1 })).toHaveLength(0);
+  });
+
+  it('team effects skip the hand-room check and the 10-pass cap, have their own cap, and a spell pass travels as `spell`', async () => {
+    const h = await inShop();
+    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 30 });
+    const team = (seq: number) => ({ uid: `team${seq}`, cardId: '__team', passFrom: 'team', team: { kind: 'maxGold', amount: 1 } });
+    for (let s = 1; s <= 10; s++) await h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: s, card: { cardId: HERO_IDS[0], passFrom: 'hand' } });
+    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 11, card: { cardId: HERO_IDS[0], passFrom: 'hand' } })).rejects.toThrow('too_many_passes');
+    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 0 });
+    for (let s = 11; s < 11 + DUOS_TEAM_FX_CAP; s++) await h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: s, card: team(s) });
+    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 200, card: team(200) })).rejects.toThrow('too_many_passes');
+    // A team effect needs its `team` object; a spell's pass is a card pass (hand room applies).
+    await expect(h.op(U[2], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: { cardId: '__team', passFrom: 'team' } })).rejects.toThrow('bad_card');
+    await expect(h.op(U[2], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: { cardId: HERO_IDS[0], passFrom: 'spell' } })).resolves.toMatchObject({ to_seat: 'p4' });
+  });
+
+  it('owner 2026-10-30: a DISCONNECTED teammate still gets it (lands on reconnect); a teammate who LEFT or is OUT is skipped', async () => {
+    const h = await inShop();
+    h.core.disconnect(U[3], h.now);
+    await h.advance(DISCONNECT_GRACE_MS);
+    const fx = { uid: 'team1', cardId: '__team', passFrom: 'team', team: { kind: 'maxGold', amount: 1 } };
+    // A card pass to the away teammate is still refused; the team effect is recorded for them.
+    await expect(h.op(U[2], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: { cardId: HERO_IDS[0], passFrom: 'hand' } })).rejects.toThrow('teammate_away');
+    await expect(h.op(U[2], 'duos_pass', { matchId: h.id, round: 1, seq: 2, card: fx })).resolves.toMatchObject({ to_seat: 'p4', status: 'sent' });
+    // Back: their client pulls the team's rows and finds it waiting.
+    h.core.connect(U[3], h.now);
+    expect((await h.op(U[3], 'duos_passes', { matchId: h.id, from: 1 })).map((r: { status: string }) => r.status)).toEqual(['sent']);
+    // Left the party for good (Ranked Duos) or out of the match: skipped.
+    expect(duosTeamFxRefusal({ eliminated_round: null, left_at: null })).toBeNull();
+    expect(duosTeamFxRefusal({ eliminated_round: null, left_at: T0 })).toBe('no_teammate');
+    expect(duosTeamFxRefusal({ eliminated_round: 3, left_at: null })).toBe('no_teammate');
   });
 });
 

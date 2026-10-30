@@ -1,5 +1,5 @@
 import type { Rng } from '../rng';
-import { ALE_IDS, type CardDef, type EffectDef } from '../types';
+import { ALE_IDS, type CardDef, type EffectDef, type TeamEffect } from '../types';
 import { inRunTribes } from '../tribeGate';
 import { defIsTribe } from '../combat/tribe';
 
@@ -158,6 +158,10 @@ export interface EffectArena {
    *  side's live value, logs it for the replay's live text, and carries the growth back PERMANENTLY at settle
    *  (owner 2026-10-24: "the stats won't be permanently granted, but the improvement would be"). */
   growConductor(step: number): void;
+  /** DUOS (owner design 2026-10-30, R-DUOS-CARDS-01): a team effect. `self` applies it to THIS side's run, `mate` sends
+   *  it to the teammate. The shop writes the run at once and queues the teammate's half on the pass channel; combat
+   *  carries both halves back to settle (`ShoutCarry.teamEffects`). Outside a Duos run the `mate` half is dropped. */
+  sendTeam(effect: TeamEffect, self: boolean, mate: boolean): void;
   /** Rune of the Matriarch reps (2 with the rune, else 1). The shop adapter returns 1 — the legacy shop
    *  halves never applied Matriarch, and that behaviour is preserved until ruled otherwise. */
   matriarchReps(): number;
@@ -609,6 +613,50 @@ export const ARENA_EFFECTS = {
       (typeof params.attack === 'number' ? params.attack : 2) * g,
       (typeof params.health === 'number' ? params.health : 3) * g,
     );
+  },
+
+  // ── DUOS-ONLY CARDS (owner design 2026-10-30, R-DUOS-CARDS-01): the team primitives. Each body states the effect;
+  // the adapter owns where it lands (the shop: the run now + the pass channel; combat: the carry, landed at settle). ──
+
+  /** Richmond: "Give your team +1 max Gold." You AND your teammate. Gilded doubles. */
+  teamGainMaxGold(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const amount = (typeof params.amount === 'number' ? params.amount : 1) * g;
+    if (amount > 0) arena.sendTeam({ kind: 'maxGold', amount }, true, true);
+  },
+
+  /** Spencer: "Reduce the cost of upgrading your team's Shops by 1." You AND your teammate. Gilded doubles. */
+  teamUpgradeDiscount(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const amount = (typeof params.amount === 'number' ? params.amount : 1) * g;
+    if (amount > 0) arena.sendTeam({ kind: 'upgradeDiscount', amount }, true, true);
+  },
+
+  /** Give your TEAMMATE a card (Share the Wealth's Gold Pouch, Antsy's random Tier 1 Shop Spell, Toot Toot's minion
+   *  of their most common type). The receiver resolves the pick on its own run. Gilded doubles the count; a spell is
+   *  never Gilded. `cardId` may be passed in by the caller (a "copy of the spell you cast" trigger). */
+  giftTeammate(arena: EffectArena, params: Record<string, unknown>, cardId?: string): void {
+    const g = arena.self.golden ? 2 : 1;
+    const count = (typeof params.count === 'number' ? params.count : 1) * g;
+    const id = cardId ?? (typeof params.cardId === 'string' ? params.cardId : undefined);
+    const tier = typeof params.randomSpellTier === 'number' ? params.randomSpellTier : undefined;
+    const mateTribe = params.mateTribe === true;
+    const randomMinion = params.randomMinion === true;
+    if (!id && tier == null && !mateTribe && !randomMinion) return;
+    const what = id ? { cardId: id } : tier != null ? { randomSpellTier: tier } : mateTribe ? { mateTribe: true } : { randomMinion: true };
+    arena.sendTeam({ kind: 'gift', ...what, count }, false, true);
+  },
+
+  /** Give your TEAMMATE `amount` Gold (Gilded doubles). */
+  giftTeammateGold(arena: EffectArena, params: Record<string, unknown>): void {
+    const amount = (typeof params.amount === 'number' ? params.amount : 1) * (arena.self.golden ? 2 : 1);
+    if (amount > 0) arena.sendTeam({ kind: 'gold', amount }, false, true);
+  },
+
+  /** Give your TEAMMATE a Triple Reward (`count`, Gilded doubles). */
+  giftTeammateTripleReward(arena: EffectArena, params: Record<string, unknown>): void {
+    const count = (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1);
+    if (count > 0) arena.sendTeam({ kind: 'tripleReward', count }, false, true);
   },
 
   /** Herald of the Divide — whenever a Battlecry fires on your side, THIS body grows (golden doubles). */

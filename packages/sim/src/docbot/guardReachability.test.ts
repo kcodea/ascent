@@ -127,6 +127,13 @@ const FIXTURES: Record<string, Fixture> = {
   rubyexcavation: { arms: 'spellPlayRubiesAll: a minion on the board', make: () => ({ s: base({ setId: 'set2', board: [onBoard(anyMinion(), 'm1')] }) }) },
   rubyblast: { arms: 'spellPlayRubiesAll (Blast Pump payload, 1 Ruby each): a minion on the board', make: () => ({ s: base({ setId: 'set3', board: [onBoard(anyMinion(), 'm1')] }) }) },
 
+  // ── Duos-only (2026-10-30, R-DUOS-CARDS-01) ──
+  duo_handout: {
+    arms: 'inline targetNoGolden: a plain (non-Golden) minion on the board of a Duos run',
+    make: () => ({ s: base({ duos: { outbox: [], received: [], refused: [] }, board: [onBoard(anyMinion(), 'm1')] }), targetUid: 'm1' }),
+    proof: (next) => expect(next.duos?.outbox.length, 'Handout passed the minion').toBe(1),
+  },
+
   // ── fizzle-table: shop-facing ───────────────────────────────────────────────────────────────────────
   lasso: {
     arms: 'stealTavernMinion: a minion offer in the tavern',

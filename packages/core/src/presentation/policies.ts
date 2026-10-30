@@ -238,6 +238,12 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:endOfTurnTriggerShouts:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn', children: 'sequential' },
   'factory:gainEmbers:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:gainMaxMana:cast': { policy: 'ownBeat', family: 'spellCast' },
+  // ── DUOS-ONLY CARDS (owner design 2026-10-30, R-DUOS-CARDS-01) ──
+  'factory:teamGainMaxGold:onPlay': { policy: 'ownBeat', family: 'shout' }, // Richmond
+  'factory:giftTeammate:cast': { policy: 'ownBeat', family: 'spellCast' }, // Share the Wealth (the teammate's half lands on their run)
+  'factory:passTargetMinion:cast': { policy: 'ownBeat', family: 'spellCast' }, // Handout (the pass stream plays from the minion)
+  'factory:duosFirstPassFree:passive': { policy: 'passive', family: 'passive' }, // Brian's Pal: read by the pass price, never a beat
+  'factory:teamPassBuffSelf:teamPassedCard': { policy: 'ownBeat', family: 'economy' }, // Hitchhiker
   'factory:gainMaxMana:onPlay': { policy: 'ownBeat', family: 'shout' }, // Jewel (set 3, 2026-09-24): the max-Gold Choose One branch
   'factory:getEchoAndTrigger:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:getRandomRubies:cast': { policy: 'ownBeat', family: 'spellCast' },

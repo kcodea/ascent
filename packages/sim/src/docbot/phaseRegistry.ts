@@ -56,6 +56,9 @@ export const TRIGGER_PHASES: Readonly<Record<string, 'recruit' | 'combat' | 'bot
   orbit: 'recruit', // Celestial alignment is a shop mechanic
   orbitFired: 'recruit',
   starformGained: 'recruit', // the Starform is a SHOP token — it only grows in the shop (fireStarformGained)
+  passedCard: 'recruit', // DUOS (2026-10-30): passing happens only in the Shop (reducer passCard, effectPassCard -> fireTeamPassTriggers)
+  teamPassedCard: 'recruit', // …and a teammate's pass lands through the recorded receivePass action (fireTeamPassTriggers on the run board)
+  teammateSold: 'recruit', // DUOS: a teammate's sale lands through receivePass (receiveTeamEffect -> fireTeammateSold)
   starformRemoved: 'recruit', // …and only leaves the shop there (consume / collapse / dismiss — fireStarformRemoved)
   spellCast: 'recruit', // the shop-side watcher; combat spell-cast watchers dispatch through their own factory ids, all present
   spellCastOnThis: 'recruit',
@@ -154,6 +157,7 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
 
   // ── implemented outside the map on the RECRUIT side ──
   gainEmbers: { phase: 'recruit', kind: 'outside-map', why: 'special-cased in castSpell (recruit.ts ~8405: the gainEmbers override) so the printed value can fold in bonuses' },
+  duosFirstPassFree: { phase: 'combat', kind: 'no-surface', why: "Brian's Pal (Duos, 2026-10-30): a passive MARKER the manual pass price reads (duosPass.ts duosPassCost); passing never happens in combat" },
   whisperKeepOnThis: { phase: 'recruit', kind: 'outside-map', why: 'Hum (Set 3, 2026-10-15): a passive MARKER the Shop Whisper cast path reads (recruit.ts castSpell -> keepWhispersOnHum); the combat map holds a stub' },
   whisperEchoOnDragon: { phase: 'recruit', kind: 'outside-map', why: 'Set 4 Whisp: a passive MARKER the Shop cast path reads (recruit.ts castSpell -> whisperEchoOnDragons); the combat map holds a stub because a Whisper is never cast in combat' },
   rubyStatMultiplier: { phase: 'recruit', kind: 'outside-map', why: 'a passive MARKER — both phases read it with direct effects.some() scans; the combat map holds a stub, the shop scans directly' },

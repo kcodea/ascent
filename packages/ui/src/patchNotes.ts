@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-30',
     changes: [
       { category: 'Systems', text: 'The end-of-game rank screen now fits on screen. A long Account XP breakdown scrolls inside its box, and your level bar always shows.' },
+      { category: 'Balance', text: 'Duos: the first Duos-only cards. They only show up in Versus Duos and Ranked Duos.', details: [
+        'Hitchhiker (Tier 1): when your team passes a card, it gains +1/+2.',
+        "Brian's Pal (Tier 2): your first pass each turn is free.",
+        'Richmond (Tier 5 Dragon): Shout: give your team +1 max Gold.',
+        'Handout (Tier 4 spell): Pass a minion from the Shop or your board. The pass itself is free.',
+        'Share the Wealth (Tier 3 spell): gain +1 max Gold and give your teammate a Gold Pouch.',
+        'Only dragging a card onto your teammate costs Gold. Cards that pass for you are free.',
+      ] },
       { category: 'Systems', text: 'Duos: Golden minions can no longer be passed to your teammate.', details: [
         "Drag one over your teammate's portrait and it shows why. Let go and it stays in your hand. No Gold is spent.",
       ] },

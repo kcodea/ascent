@@ -475,6 +475,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       ctx.log({ type: 'improve', target: self.uid, amount: 0, display: step, conductor: step, side: self.side });
     },
     matriarchReps: () => ctx.matriarchRepsFor(self.side),
+    sendTeam: (effect, toSelf, toMate) => ctx.sendTeam?.(effect, toSelf, toMate, self.side),
     logSpellProgress: (amount) => ctx.log({ type: 'spellProgress', target: self.uid, amount }),
     logImprove: (amount) => ctx.log({ type: 'improve', target: self.uid, amount }),
     spellsThisTurn: () => ctx.spellsThisTurnFor(self.side),
@@ -4222,6 +4223,34 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.deathrattleCastTribeAttack(combatArena(ctx, self), params);
   },
 
+
+  // ── DUOS-ONLY CARDS (owner design 2026-10-30, R-DUOS-CARDS-01): the combat halves of the team primitives (an Echo,
+  // a combat Shout re-fire, a combat cast). One arena body each; the combat adapter carries both halves to settle. ──
+  teamGainMaxGold: (ctx, self, params, payload) => {
+    const m = (payload as Partial<MinionPayload> | undefined)?.minion;
+    if (m && m !== self) return;
+    ARENA_EFFECTS.teamGainMaxGold(combatArena(ctx, self), params);
+  },
+  teamUpgradeDiscount: (ctx, self, params, payload) => {
+    const m = (payload as Partial<MinionPayload> | undefined)?.minion;
+    if (m && m !== self) return;
+    ARENA_EFFECTS.teamUpgradeDiscount(combatArena(ctx, self), params);
+  },
+  giftTeammate: (ctx, self, params, payload) => {
+    const m = (payload as Partial<MinionPayload> | undefined)?.minion;
+    if (m && m !== self) return;
+    ARENA_EFFECTS.giftTeammate(combatArena(ctx, self), params);
+  },
+  giftTeammateGold: (ctx, self, params, payload) => {
+    const m = (payload as Partial<MinionPayload> | undefined)?.minion;
+    if (m && m !== self) return;
+    ARENA_EFFECTS.giftTeammateGold(combatArena(ctx, self), params);
+  },
+  giftTeammateTripleReward: (ctx, self, params, payload) => {
+    const m = (payload as Partial<MinionPayload> | undefined)?.minion;
+    if (m && m !== self) return;
+    ARENA_EFFECTS.giftTeammateTripleReward(combatArena(ctx, self), params);
+  },
 
   /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
    *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).

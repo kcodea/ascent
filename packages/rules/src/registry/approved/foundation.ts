@@ -11779,4 +11779,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-10-30 (feat/settings-two-columns), checked at 2000x1077 with Advanced Controls open. Before, one column at 0.8 size ran off the bottom of the screen once Advanced Controls opened.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/settingsFit.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
+  {
+    id: 'R-PERF-MEDALLION-MASK-01',
+    title: 'The keyword medallion on a card loads its picture once per session, never again each time it mounts or fires',
+    statement:
+      'The tint overlay on the mechanic medallion of a card takes its mask from one stylesheet rule per medallion art '
+      + '(`.cgem-tint[data-art=...]`, a literal url()), never from an inline custom property holding a url(). Once the '
+      + 'boot gate and the first shop have loaded the art, a desktop round asks the network stack for at most 25 '
+      + 'pictures (a phone, whose art cache drops art on purpose, at most 150), so no picture is fetched and decoded '
+      + 'again round after round.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29/30 (top priority)', quote: 'performance degrades over a game, worse on phones' },
+      { kind: 'code', ref: 'packages/ui/src/mechMedallion.ts (mechMedallionArtId, mechMedallionMaskCss, installMechMedallionMasks); packages/ui/src/Card.tsx (.cgem-tint data-art); packages/ui/src/styles.css (.cgem > .cgem-tint); packages/tools/src/perfGauntletStats.ts (imageCensusVerdict); scripts/perf-gauntlet.mjs (--img-census, --lite-art, --mem-infra)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-30 (perf/image-redecode-creep). Before, every medallion that mounted (and every trigger '
+      + 'pulse remounts one) resolved `--cgem-artsrc: url(...)` through var(), a fresh image value each time, so the '
+      + 'page asked for the same 10 medallion pictures 250 to 370 times a round from round 2 on (1,833 then ~300 a '
+      + 'round, seed 424242 desktop; ~400 a round on the phone path), each one fetched and decoded again.',
+    example: 'Late in a Dwarf game, Shout and Echo medallions fire on every card in every fight. Before, each fire reloaded the Shout picture; a round asked for about 300 pictures it already had. Now a round asks for about 10.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/mechMedallion.test.ts', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

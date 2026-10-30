@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { SPEC } from './medallionConfig';
-import { mechMedallionArtScale, mechMedallionSrc } from './mechMedallion';
+import { mechMedallionArtId, mechMedallionArtScale, mechMedallionSrc } from './mechMedallion';
 import { TunerPanel } from './TunerPanel';
 
 /** A handful of wired mechanics with authored PNG medallion art (see `MECH_MEDALLION_PNGS`), so the preview
@@ -29,7 +29,7 @@ function MedallionPreview(): JSX.Element {
           return (
             <div key={id} className="medprev-item">
               <span className="cgem" aria-hidden="true">
-                {src ? <><img decoding="sync" className="cgem-img" src={src} alt="" aria-hidden="true" style={{ '--cgem-art-mech': mechMedallionArtScale(id) } as CSSProperties} /><span className="cgem-tint" style={{ '--cgem-artsrc': `url("${src}")`, '--cgem-art-mech': mechMedallionArtScale(id) } as CSSProperties} aria-hidden="true" /></> : null}
+                {src ? <><img decoding="sync" className="cgem-img" src={src} alt="" aria-hidden="true" style={{ '--cgem-art-mech': mechMedallionArtScale(id) } as CSSProperties} /><span className="cgem-tint" data-art={mechMedallionArtId(id) ?? undefined} style={{ '--cgem-art-mech': mechMedallionArtScale(id) } as CSSProperties} aria-hidden="true" /></> : null}
               </span>
               <span className="medprev-label">{label}</span>
             </div>

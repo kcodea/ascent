@@ -65,3 +65,39 @@ export const MECH_MEDALLION_ART_TINT: Readonly<Record<string, MechArtTint>> = {
 export function mechMedallionArtTint(mechanicId: string): MechArtTint | null {
   return MECH_MEDALLION_ART_TINT[mechanicId] ?? null;
 }
+
+/**
+ * THE TINT OVERLAY'S MASK, ONE STYLESHEET RULE PER ART (R-PERF-MEDALLION-MASK-01, perf degradation hunt 2026-10-30:
+ * "performance degrades over a game, worse on phones").
+ *
+ * The `.cgem-tint` overlay used to take its mask from an INLINE custom property (`--cgem-artsrc: url("…")`, set per
+ * card and substituted into `mask` through `var()`). A `url()` that arrives through a custom property is parsed again
+ * for every element that resolves it, so each card medallion that mounted (and every trigger pulse remounts one: it is
+ * keyed on the pulse nonce) made a NEW image value and asked the network stack for the picture again. Measured on a
+ * bench build (perf:gauntlet --img-census): ~300 medallion requests a round from round 2 on (shout, endTurn, watcher,
+ * echo, rally, …), each a fresh fetch + decode that the renderer and GPU process kept, while the distinct URL count
+ * stayed flat. A literal `url()` in a stylesheet rule is ONE image value shared by every element it matches, fetched
+ * and decoded once per document. So the overlay names its art (`data-art`) and this sheet holds one rule per art.
+ */
+export function mechMedallionArtId(mechanicId: string): string | null {
+  return MECH_MEDALLION_PNGS.has(mechanicId) ? MECH_MEDALLION_ART_ALIAS[mechanicId] ?? mechanicId : null;
+}
+
+/** The stylesheet text: `.cgem-tint[data-art="<art>"] { mask-image: url(<the art>) }`, one rule per medallion art. */
+export function mechMedallionMaskCss(base: string = import.meta.env.BASE_URL): string {
+  const arts = new Set([...MECH_MEDALLION_PNGS].map((id) => MECH_MEDALLION_ART_ALIAS[id] ?? id));
+  return [...arts].map((art) => {
+    const u = `url("${base}medallions/${art}.webp")`;
+    return `.cgem-tint[data-art="${art}"]{-webkit-mask-image:${u};mask-image:${u}}`;
+  }).join('\n');
+}
+
+/** Installs the mask sheet once (browser only). Imported for its effect by the components that draw `.cgem-tint`. */
+export function installMechMedallionMasks(): void {
+  if (typeof document === 'undefined' || document.getElementById('cgem-art-masks')) return;
+  const style = document.createElement('style');
+  style.id = 'cgem-art-masks';
+  style.textContent = mechMedallionMaskCss();
+  document.head.appendChild(style);
+}
+installMechMedallionMasks();

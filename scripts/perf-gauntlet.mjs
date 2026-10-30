@@ -54,6 +54,12 @@
  *     + --perf-timings (with --round-probe): turn the in-game perf monitor on and print its measured spans per wave
  *     + --snap 3,13 (with --round-probe): a heap snapshot at those rounds' probes (<out>/heap-rN.heapsnapshot)
  *     + timers: live setInterval / setTimeout / rAF counts are added to every probe row
+ *     + --img-census (with --round-probe): per round, the image requests that missed Blink's memory cache (a picture
+ *       fetched and decoded AGAIN), the renderer's image decode tasks (a light trace) and process memory, judged by
+ *       imageCensusVerdict (R-PERF-MEDALLION-MASK-01): a FAIL exits 3. --renderer-limit <MB> also gates the renderer's
+ *       per-round growth (reported either way); + --mem-infra: Chrome's memory-infra allocator dump per probe
+ *     + --lite-art: the phone art path (downscaled copies + the bounded decoded-image LRU) on this page; with
+ *       --cpu-throttle 4 it is the phone-like run
  *   npm run perf:gauntlet -- --round-scenes --from 2 --to 14   tag every measured scene with its round (shop-actions#r11)
  *                                                  and write <out>/raw-run*.json, so one scene can be read round over round
  *   npm run perf:gauntlet -- --cpu-throttle 4         Chrome CPU throttling (DevTools' 4x: a mid-range phone's main thread)
@@ -62,7 +68,7 @@
  *   A run that loses a scene is run again once (--no-retry turns that off).
  *   npm run perf:gauntlet -- --headless         no window (main-thread numbers only; frame intervals are not real)
  *   npm run perf:gauntlet -- --scenes drag,combat   report only these scenes
- * Exit code: 0 = done; 1 = a run failed to reach a scene; 2 = setup error. The budget verdict never fails the exit
+ * Exit code: 0 = done; 1 = a run failed to reach a scene; 2 = setup error; 3 = the --img-census guard failed. The budget verdict never fails the exit
  * code (most scenes are over 4.17 ms today; this is a judge for a loop, not a CI gate yet).
  *
  * Keep the Chrome window visible and leave the machine alone while it runs: a covered or minimised window, or other
@@ -75,7 +81,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { budgetVerdict, foldRuns, framesByScene, median, refreshInterval, sceneStats, winner } from '../packages/tools/src/perfGauntletStats.ts';
+import { LITE_CENSUS_REQS, budgetVerdict, foldRuns, framesByScene, imageCensusVerdict, median, refreshInterval, sceneStats, winner } from '../packages/tools/src/perfGauntletStats.ts';
 
 const args = process.argv.slice(2);
 const arg = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : d; };
@@ -103,8 +109,23 @@ let probeRows = [];
  *  renderer's image DECODES from a light trace (cc + devtools.timeline: ImageDecodeTask / Decode Image / ...), so a probe
  *  can say whether the game asks for, and decodes, the same pictures again round over round. */
 const IMG_CENSUS = flag('img-census');
+let censusFailed = false;
 const imgCensus = { round: 0, seen: new Map(), reqs: new Map(), decodes: new Map(), decodeMs: new Map() };
+const MEM_INFRA = flag('mem-infra');
 const IMG_TRACE_CATS = ['cc', 'devtools.timeline', 'disabled-by-default-devtools.timeline', 'blink'];
+/** --mem-infra (with --img-census): Chrome's own memory-infra dump at every probe, top allocators per process (MB). */
+const memInfra = { procName: new Map(), last: null };
+const allocMB = (a) => { const v = a?.attrs?.size?.value; return v ? parseInt(v, 16) / 1048576 : 0; };
+function foldMemDump(ev) {
+  const by = {};
+  for (const e of ev) {
+    const al = e.args?.dumps?.allocators; if (!al) continue;
+    const proc = memInfra.procName.get(e.pid) || String(e.pid);
+    const o = (by[proc + ':' + e.pid] ||= {});
+    for (const [k, v] of Object.entries(al)) { if (/^(global|shared_memory)\//.test(k)) continue; const depth = k.split('/').length; if (depth > (/^(partition_alloc|cc|blink_gc|blink_objects|gpu|skia)\//.test(k) ? 3 : 1)) continue; const mb = allocMB(v); if (mb >= 2) o[k] = Math.round(mb * 10) / 10; }
+  }
+  return by;
+}
 const IMG_RE = /[.](png|webp|jpe?g|avif|gif|svg)([?#]|$)/i;
 const FROM = Number(arg('from', '9')); // the first MEASURED round: everything before it is fast-forwarded
 const TO = Number(arg('to', '14')); // the last measured round
@@ -689,9 +710,20 @@ async function playScenes(c) {
       // ReportEvents delivers only on Tracing.end: end this round's decode trace (its events land in the counters), then
       // start the next round's.
       if (imgCensus.tracing) {
-        const done = new Promise((res) => { imgCensus.onComplete = res; setTimeout(res, 20_000); });
+        const done = new Promise((res) => { imgCensus.onComplete = res; setTimeout(res, 180_000); });
         await c.send('Tracing.end').catch(() => {});
         await done;
+        // --mem-infra: a SEPARATE, memory-only trace for one light dump (in the decode trace it stalled the page).
+        if (MEM_INFRA) {
+          imgCensus.memEvents = [];
+          await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['disabled-by-default-memory-infra', '__metadata'], memoryDumpConfig: { triggers: [] } } }).catch((e) => log('   mem trace failed ' + e));
+          await c.send('Tracing.requestMemoryDump', { deterministic: true, levelOfDetail: 'light' }).then((x) => { if (!x?.success) log('   memory dump not taken'); }).catch((e) => log('   memory dump failed ' + e));
+          const memDone = new Promise((res) => { imgCensus.onComplete = res; setTimeout(res, 30_000); });
+          await c.send('Tracing.end').catch(() => {});
+          await memDone;
+          live.memInfra = foldMemDump(imgCensus.memEvents); imgCensus.memEvents = null;
+          log(`   MEMINFRA r${r}: ${JSON.stringify(live.memInfra)}`);
+        }
         await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: IMG_TRACE_CATS } }).catch(() => {});
       }
       const reqs = [...imgCensus.reqs.entries()];
@@ -924,7 +956,7 @@ async function measureOnce(dist, runIdx) {
       void (local ? c.send('Fetch.continueRequest', { requestId: p.requestId }) : c.send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'BlockedByClient' })).catch(() => {});
     });
     if (IMG_CENSUS && !TRACE && !GPU_TRACE) {
-      c.on('Tracing.dataCollected', (p) => { for (const e of p.value) { if (!/decod/i.test(e.name || '') || (e.ph !== 'X' && e.ph !== 'B')) continue; const k = e.name; imgCensus.decodes.set(k, (imgCensus.decodes.get(k) || 0) + 1); if (e.dur) imgCensus.decodeMs.set(k, (imgCensus.decodeMs.get(k) || 0) + e.dur / 1000); } });
+      c.on('Tracing.dataCollected', (p) => { for (const e of p.value) { if (e.ph === 'M' && e.name === 'process_name') memInfra.procName.set(e.pid, e.args?.name); if (e.ph === 'v' && imgCensus.memEvents) imgCensus.memEvents.push(e); if (!/decod/i.test(e.name || '') || (e.ph !== 'X' && e.ph !== 'B')) continue; const k = e.name; imgCensus.decodes.set(k, (imgCensus.decodes.get(k) || 0) + 1); if (e.dur) imgCensus.decodeMs.set(k, (imgCensus.decodeMs.get(k) || 0) + e.dur / 1000); } });
       await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: IMG_TRACE_CATS } });
       imgCensus.tracing = true;
       c.on('Tracing.tracingComplete', () => { const f = imgCensus.onComplete; imgCensus.onComplete = null; f?.(); });
@@ -1300,6 +1332,19 @@ for (let i = 0; i < schedule.length; i++) {
       log(['   SOAK (after a full GC at the end of each game; a column that climbs game over game is buildup):', ...rows].join('\n'));
       fs.writeFileSync(path.join(OUT, `soak-run${i + 1}-${n}.txt`), [...rows, ''].join('\n'));
     }
+    // --img-census: the image re-decode guard (R-PERF-MEDALLION-MASK-01): late rounds must ask for almost no pictures
+    // and the renderer must not creep. A FAIL exits 3.
+    if (IMG_CENSUS && raw.probe?.length) {
+      const cRows = raw.probe.filter((p) => p.imgCensus).map((p) => ({ r: p.r, reqs: p.imgCensus.reqs, decodes: p.imgCensus.decodes?.ImageDecodeTask ?? 0, rendererMB: p.mem?.process?.renderer?.privMB ?? null, gpuMB: p.mem?.process?.['gpu-process']?.privMB ?? null, decodedKB: p.imgs?.kb ?? null }));
+      const table = ['   IMAGE CENSUS (per round: image requests that missed the memory cache, decode tasks, process memory):',
+        '   round  reqs  decodes  renderer MB  gpu MB  decoded-body KB (cumulative)',
+        ...cRows.map((x) => `   ${String(x.r).padStart(5)} ${String(x.reqs).padStart(5)} ${String(x.decodes).padStart(8)} ${String(x.rendererMB ?? '?').padStart(12)} ${String(x.gpuMB ?? '?').padStart(7)} ${String(x.decodedKB ?? '?').padStart(10)}`)];
+      const v = imageCensusVerdict(cRows, { maxReqsPerRound: flag('lite-art') ? LITE_CENSUS_REQS : 25, ...(arg('renderer-limit', '') ? { maxRendererMBPerRound: Number(arg('renderer-limit')) } : {}) });
+      table.push(`   ${v.line}`);
+      log(table.join('\n'));
+      fs.writeFileSync(path.join(OUT, `img-census-run${i + 1}-${n}.txt`), `${table.join('\n')}\n`);
+      if (!v.ok) censusFailed = true;
+    }
     if (a.missed.length) { failed++; log(`   missed: ${a.missed.join(', ')}`); }
     if (a.hiddenFrames) log(`   WARNING: ${a.hiddenFrames} frame(s) inside a scene ran while the page was hidden (dropped from the report). Keep the window visible.`);
     log(`   display ~${Math.round(a.hz)} Hz, ${Object.values(a.scenes).reduce((s, x) => s + x.frames, 0)} frames`);
@@ -1315,4 +1360,4 @@ log('\n' + text + '\n');
 log(`Report: ${path.join(OUT, 'report.txt')}`);
 if (BLIND) log(`Blind: the key (which of X / Y is which build) is in ${path.join(OUT, 'key.json')}`);
 else log(`Key: ${names.map((n) => `${n} = ${blind[n].label}`).join('   ')}`);
-process.exit(failed ? 1 : 0);
+process.exit(failed ? 1 : censusFailed ? 3 : 0);

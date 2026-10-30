@@ -131,3 +131,48 @@ export function budgetVerdict(s: FoldedScene | undefined, hz: number, headless: 
   if (hz < MIN_BUDGET_HZ) return `n/a (${Math.round(hz)} Hz display)`;
   return s.worst.med <= budget * BUDGET_SLACK && s.overBudget.med === 0 ? 'PASS' : 'FAIL';
 }
+
+/** One `--img-census` probe row: image requests that missed Blink's memory cache this round, and process memory. */
+export interface ImageCensusRow {
+  r: number;
+  /** Image requests that reached the network stack since the previous probe. */
+  reqs: number;
+  /** Image decode tasks the renderer ran since the previous probe (the trace's `ImageDecodeTask`), when traced. */
+  decodes?: number;
+  /** Private memory of the renderer process(es), MB. */
+  rendererMB?: number | null;
+}
+
+/**
+ * THE IMAGE RE-DECODE GUARD (R-PERF-MEDALLION-MASK-01, 2026-10-30). Once the boot gate and the first shop have loaded
+ * the art, a round should ask the network stack for almost no pictures: a picture asked for again is fetched and
+ * decoded again (the medallion tint mask did that ~300 times a round). From `fromRound` on, the WORST round's request
+ * count must stay at or under `maxReqsPerRound` (desktop 25; the phone art path streams art by design, see
+ * LITE_CENSUS_REQS). The renderer's private memory slope (least squares, MB a round, so one GC-timing spike cannot
+ * move it) is always REPORTED; it only gates when `maxRendererMBPerRound` is passed, because today's remaining creep
+ * is not image memory (the 2026-10-30 memory-infra breakdown: the SFX cache filling to its cap, Blink's own heaps).
+ */
+/** The phone art path's request ceiling: its bounded LRU drops art on purpose, so the next <img> reloads it. */
+export const LITE_CENSUS_REQS = 150;
+export function imageCensusVerdict(rows: readonly ImageCensusRow[], opts: { fromRound?: number; maxReqsPerRound?: number; maxRendererMBPerRound?: number } = {}): { ok: boolean; line: string; maxReqs: number; slopeMB: number | null } {
+  const from = opts.fromRound ?? 3;
+  const maxReqs = opts.maxReqsPerRound ?? 25;
+  const maxSlope = opts.maxRendererMBPerRound ?? Infinity;
+  const late = rows.filter((x) => x.r >= from);
+  if (late.length < 2) return { ok: true, line: `image census: too few rounds from r${from} to judge`, maxReqs: 0, slopeMB: null };
+  const worst = late.reduce((m, x) => Math.max(m, x.reqs), 0);
+  const mem = late.filter((x) => typeof x.rendererMB === 'number') as (ImageCensusRow & { rendererMB: number })[];
+  let slope: number | null = null;
+  if (mem.length >= 3) {
+    const mx = mem.reduce((s, x) => s + x.r, 0) / mem.length;
+    const my = mem.reduce((s, x) => s + x.rendererMB, 0) / mem.length;
+    const num = mem.reduce((s, x) => s + (x.r - mx) * (x.rendererMB - my), 0);
+    const den = mem.reduce((s, x) => s + (x.r - mx) ** 2, 0);
+    slope = den ? num / den : 0;
+  }
+  const reqOk = worst <= maxReqs;
+  const memOk = slope === null || slope <= maxSlope;
+  const ok = reqOk && memOk;
+  const line = `image census r${from}+: worst round ${worst} image requests (limit ${maxReqs})${slope === null ? '' : `, renderer ${slope >= 0 ? '+' : ''}${slope.toFixed(1)} MB/round${Number.isFinite(maxSlope) ? ` (limit ${maxSlope})` : ' (reported)'}`}: ${ok ? 'PASS' : 'FAIL'}`;
+  return { ok, line, maxReqs: worst, slopeMB: slope };
+}

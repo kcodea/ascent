@@ -198,3 +198,4 @@ html:root[data-lobby-rail="medallion"] .lobbyseat.dead.foe.ghost { opacity: 1; }
 .lobbyscout.lrv-scout-medallion .lrvc-dmg { justify-self: end; }
 .lobbyscout.lrv-scout-medallion .lrvc-runes { display: flex; gap: calc(5 * var(--lfont)); padding-top: calc(7 * var(--lfont)); border-top: 1px solid var(--ui-divider); }
 .lobbyscout.lrv-scout-medallion .lrvc-runes .lobbyscout-socket { width: calc(25 * var(--lrow)); height: calc(25 * var(--lrow)); }
+.lobbyscout.lrv-scout-medallion .lrvc-nofights { font-size: calc(14 * var(--lfont)); font-style: normal; }

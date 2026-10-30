@@ -866,6 +866,8 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
           ) : <span className="lrvc-none">No intel yet</span>}
         </div>
         {badges}
+        {/* Early in a game (no fight with anyone yet) the card says so in one line, so the divider never dangles. */}
+        {results.length === 0 && <div className="lrvc-none lrvc-nofights">No fights yet</div>}
         {results.length > 0 && (
           <div className="lrvc-fights" aria-label="Last fights">
             {results.map((r) => (

@@ -9028,8 +9028,9 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "passive",
-        "phase": "both",
-        "phaseBasis": "derived:phaseRegistry"
+        "phase": "shop",
+        "phaseBasis": "derived:phaseRegistry",
+        "note": "combat side excused: no-surface"
       }
     ],
     "effects": [
@@ -9110,9 +9111,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "teamPassedCard",
-        "phase": "both",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "trigger 'teamPassedCard' not in TRIGGER_PHASES — phase unknown"
+        "phase": "shop",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [

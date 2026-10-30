@@ -107,6 +107,11 @@ export const CHANNEL_OF_TRIGGER: Readonly<Record<string, string>> = {
   shopRefreshed: 'shop-refresh',
   starformGained: 'stat-change', // the Starform (shop token) grew — a stat-change moment on a shop body (2026-09-12)
   starformRemoved: 'consume', // the Starform left the shop: consumed / collapsed / dismissed — a consume-shaped departure
+  // DUOS-ONLY CARDS (2026-10-30, R-DUOS-CARDS-01): a pass is a card leaving for the teammate's hand (card-gain on their
+  // side); a teammate's sale is a sale.
+  passedCard: 'card-gain',
+  teamPassedCard: 'card-gain',
+  teammateSold: 'sell',
   heroPower: 'hero-power',
 };
 

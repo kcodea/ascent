@@ -4224,10 +4224,6 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
 
-  /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
-   *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).
-   *  Golden doubles the per-proc amount. */
-  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   // ── DUOS-ONLY CARDS (owner design 2026-10-30, R-DUOS-CARDS-01): the combat halves of the team primitives (an Echo,
   // a combat Shout re-fire, a combat cast). One arena body each; the combat adapter carries both halves to settle. ──
   teamGainMaxGold: (ctx, self, params, payload) => {
@@ -4256,6 +4252,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.giftTeammateTripleReward(combatArena(ctx, self), params);
   },
 
+  /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
+   *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).
+   *  Golden doubles the per-proc amount. */
+  // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
   deathrattleBuffImps: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     ARENA_EFFECTS.deathrattleBuffImps(combatArena(ctx, self), params);

@@ -8,13 +8,14 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { createVersusRun, duosRoundDigest, duosWireOf, HEROES, reduce, versusDuosStartingVitals, type PreparedCombatSide, type RunState } from '@game/sim';
+import { createVersusRun, duosMemberView, duosRoundDigest, duosWireOf, HEROES, reduce, versusDuosStartingVitals, type PreparedCombatSide, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { engineContentRevision, resolveVersusDuosRound, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { DUOS_HISTORY_MAX_BYTES, parseDuosHistory } from '@game/sim/versus/duosHistory';
 import { DISCONNECT_GRACE_MS, newRoomState, RoomCore, turnSeconds, type CoreDeps, type CoreEffects, type CoreState } from '../src/core/roomCore';
 import { DUOS_TEAM_FX_CAP, duosTeamFxRefusal, type GSeat } from '../src/core/groupMatch';
+import { poolFor } from '@game/content';
 
 interface Case { name: string; matchSeed: number; round: number; p1: PreparedCombatSide; p2: PreparedCombatSide }
 const FIXTURE = JSON.parse(readFileSync(fileURLToPath(new URL('../../../packages/sim/src/versus/fixtures/parity.v1.json', import.meta.url)), 'utf8')) as { cases: Case[] };
@@ -325,6 +326,58 @@ describe('Duos room (Cloudflare) — Duos cards batch A: BOTH TEAMMATES through 
     expect(b.upgradeCost).toBe(mate.upgradeCost - 1);
     expect(b.hand.length).toBe(Math.min(10, gifts.length));
     expect(b.hand.some((c) => CARD_INDEX[c.cardId]?.spell && CARD_INDEX[c.cardId]?.tier === 1)).toBe(true);
+  });
+});
+
+describe('Duos room (Cloudflare) — Duos runes: a combat gift reaches the teammate MID-FIGHT (R-DUOS-RUNES-02)', () => {
+  it('BOTH TEAMMATES: an Echoing Results gift from the fight is sent while the round is in combat and lands in the run of the teammate during the fight, once', async () => {
+    const h = await inShop();
+    // p1 = Ann: Echoing Results + a board of seven different Echo minions; p2 (her teammate Bob) is empty, so Ann's board
+    // fights first whatever the seeded order. The foes are the strong fixture board.
+    const echoes = poolFor('set2').buyable.filter((c) => c.effects.some((e) => e.on === 'onDeath') && !c.effects.some((e) => e.do.toLowerCase().includes('summon')) && !c.keywords.includes('R')).slice(0, 7);
+    let ann: RunState = { ...createVersusRun(11, 'warden', 'set2', DUOS), embers: 10, hand: [], board: echoes.map((c, i) => ({ uid: `e${i}`, cardId: c.id, tribe: c.tribe, attack: c.attack, health: c.health, keywords: [...c.keywords], golden: false })) };
+    ann = reduce(ann, { type: 'devGrant', kind: 'rune', id: 'rune_echoing_results' });
+    let bob: RunState = { ...createVersusRun(12, 'warden', 'set2', DUOS), hand: [], board: [] };
+    ann = reduce(ann, { type: 'faceOmen', deferFight: true });
+    bob = reduce(bob, { type: 'faceOmen', deferFight: true });
+    await lockAll(h, [ann.pendingCombatSide!, bob.pendingCombatSide!, STRONG, STRONG]);
+    expect(h.g.phase).toBe('combat');
+    // Each seat lands ITS view of the one fight (the same resolver the room ran: parity).
+    const vitals = { a: versusDuosStartingVitals(h.seat('p1').hero, h.seat('p2').hero, h.g.options), b: versusDuosStartingVitals(h.seat('p3').hero, h.seat('p4').hero, h.g.options) };
+    const ref = resolveVersusDuosRound({ matchSeed: h.g.seed, round: 1, sides: { p1: ann.pendingCombatSide!, p2: bob.pendingCombatSide!, p3: STRONG, p4: STRONG }, vitals });
+    expect(h.core.state.group!.rounds[1]!.digest).toBe(duosRoundDigest(ref));
+    ann = reduce(ann, { type: 'landCombat', fight: { result: duosMemberView(ref.aResult, ref.first.a === 'p1' ? 0 : 1), damageTaken: 0 } });
+    bob = reduce(bob, { type: 'landCombat', fight: { result: duosMemberView(ref.aResult, ref.first.a === 'p2' ? 0 : 1), damageTaken: 0 } });
+    const gifts = ann.duos!.outbox.filter((e) => e.combatIdx != null);
+    expect(gifts.length).toBe(2);
+    // Ann's client sends each at its beat: the Worker takes a team row while the ROUND IS IN COMBAT, for the teammate only.
+    for (const e of gifts) {
+      const row = await h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: e.seq, card: duosWireOf(e) });
+      expect(row).toMatchObject({ from_seat: 'p1', to_seat: 'p2', status: 'sent' });
+      // A retry (a reconnect re-sending it) is the same row, never a second gift.
+      expect(await h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: e.seq, card: duosWireOf(e) })).toEqual(row);
+    }
+    expect(h.g.phase).toBe('combat');
+    // Bob pulls and lands them while HIS run is still in the fight: two minions in his hand, mid-combat.
+    const before = bob.hand.length;
+    for (let pass = 0; pass < 2; pass++) {
+      for (const r of await h.op(U[1], 'duos_passes', { matchId: h.id, from: 1 })) {
+        bob = reduce(bob, { type: 'receivePass', from: r.from_seat, seq: r.seq, card: r.card });
+      }
+    }
+    expect(bob.phase).toBe('combat');
+    expect(bob.hand.length).toBe(before + 2);
+    expect(bob.hand.slice(before).every((c) => !CARD_INDEX[c.cardId]!.spell)).toBe(true);
+    // Settle on Ann's run queues nothing more (the real-time path already sent them).
+    const n = ann.duos!.outbox.length;
+    expect(reduce(ann, { type: 'settleCombat' }).duos!.outbox.length).toBe(n);
+  });
+
+  it('Salesman of the Year: a GOLDEN sold minion travels as `sale` and the Worker takes it (the one exception); a golden drag pass is still refused', async () => {
+    const h = await inShop();
+    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 5 });
+    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: { cardId: HERO_IDS[0], passFrom: 'hand', golden: true } })).rejects.toThrow('golden');
+    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 2, card: { cardId: HERO_IDS[0], passFrom: 'sale', golden: true } })).resolves.toMatchObject({ to_seat: 'p2', status: 'sent' });
   });
 });
 

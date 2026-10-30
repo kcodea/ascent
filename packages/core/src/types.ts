@@ -1071,6 +1071,7 @@ export type EffectFactoryId =
   | 'passedSpellGetCopy' // `passedCard` (`spellOnly`, `oncePerTurn`): get a copy of the passed Shop Spell (Galfagan)
   | 'demonConsumesShop' // `passedCard`: a random friendly Demon consumes a random Shop minion; gilded = double stats (Proxus)
   | 'spellBuffTeamLeftmost' // cast: your AND your teammate's left-most minion +attack/+health, spell power folded (Broshake)
+  | 'megamimicCopy' // Megamimic (Duos rune token): passive marker. At every Start of Combat it becomes an exact combat-only copy of the teammate's highest-Health minion (`core/combat/megamimic.ts`, read by `simulate`)
   | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
 
 export interface EffectDef {
@@ -1876,6 +1877,9 @@ export type QuestReward =
   /** Summit Passage: raise the Shop tier by `by` right now, FREE, honouring the run's ceiling (including a
    *  Tier 7 unlocked in the same `multi` reward). */
   | { kind: 'upgradeShopTier'; by: number }
+  /** DUOS-ONLY RUNES (owner design 2026-10-30, R-DUOS-RUNES-01): arm one of the Duos rune engines (`sim/duosRunes.ts`).
+   *  `per` / `cap` are the meter runes' threshold and per-turn cap; `uses` the per-turn or per-game allowance. */
+  | { kind: 'duosRune'; rune: 'spellTheory' | 'teammateSynergy' | 'salesman' | 'shoutfulBounty' | 'echoingResults' | 'playingCatch'; per?: number; cap?: number; uses?: number }
   | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
@@ -2266,6 +2270,12 @@ export interface QuestCombatMods {
    *  ticks. Every combat Shout fire (`battlecryTriggered`) advances them; a trip pays through `handGrants`
    *  (a random Shop spell, never an Ale — `grantSpell`; or one of `grantOneOf`) and the fight reports the final
    *  ticks back (`CombatCarryBacks.shoutMeters`) so the run's ONE counter continues into the next shop. */
+  /** DUOS RUNES (owner 2026-10-30, R-DUOS-RUNES-01): "When you trigger 2 Shouts / 3 Echoes, give your teammate a random
+   *  spell / minion (N per turn)". Carried INTO the fight with the shop's tick and this turn's payouts, so the ONE
+   *  counter continues across phases: every Shout fire (`battlecryTriggered`) / Echo fire (`bumpDeathrattles`) advances
+   *  it, a trip sends `gift` to the teammate through `sendTeam` (real time, a `teamSend` event), at most `cap` per turn.
+   *  The final tick and payouts ride `ShoutCarry.duosMeters` home. */
+  duosMeters?: { sourceId: string; meter: 'shout' | 'echo'; per: number; tick: number; cap: number; paid: number; gift: TeamEffect }[];
   shoutMeters?: { sourceId: string; per: number; tick: number; grantSpell?: number; grantOneOf?: string[];
     /** Rune of the Whelps (2026-10-07): these exact card ids to hand on a trip (the shop's `grantCards`). */
     grantCards?: string[];
@@ -2866,6 +2876,9 @@ export interface RuneDef {
    * text tagger has no Spirit pattern (owner 2026-10-03: "categorize it as a dragon and/or spirit rune").
    */
   synergy?: readonly string[];
+  /** DUOS-ONLY RUNE (owner design 2026-10-30, R-DUOS-RUNES-01): offered only by a Duos run's forge (Versus Duos, Ranked
+   *  Duos), the rune twin of `CardDef.duos`. Every other run's forge, grant and listing filters it out. */
+  duos?: boolean;
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown
@@ -3297,6 +3310,11 @@ export type CombatEvent = (
   // TAG-TEAM (Versus Duos, owner 2026-10-25, R-DUOS-TAGTEAM-01): `side`'s board (team member `member`) is wiped and its
   // fight is over; the reserve steps in next. Emitted once per fallen board, before its `tagIn`. Presentation beat.
   | { type: 'boardFallen'; side: Side; member: number }
+  // DUOS REAL-TIME TEAM EFFECT (R-DUOS-RUNES-02): `side`'s board (team member `member`) just sent its teammate the team
+  // effect at `idx` of that member's `ShoutCarry.teamEffects` (an Antsy Echo, a Shoutful Bounty gift). The sender's
+  // client ships it when its replay reaches this event, so the teammate sees the card arrive mid-fight. Presentation
+  // marker: it changes no unit, rides the beat of the trigger that caused it (no step of its own).
+  | { type: 'teamSend'; side: Side; member: number; idx: number }
   // ...and `side`'s RESERVE board (team member `member`, its own run) steps in: `minions` is the board as it enters
   // (instantiated, run-wide auras folded, before its Start of Combat, which follows as ordinary events). The replay
   // replaces that side's board with these bodies (the fallen board's dead are gone).
@@ -4042,7 +4060,9 @@ export type TeamEffect =
   /** A card for the teammate's hand: exactly one of `cardId` (that card), `randomSpellTier` (a random Shop Spell of
    *  that tier from the receiver's pool) or `mateTribe` (a random minion of the receiver's most common type, up to
    *  their Shop tier) or `randomMinion` (a random legal minion up to their Shop tier). `count` copies (default 1). */
-  | { kind: 'gift'; cardId?: string; randomSpellTier?: number; mateTribe?: boolean; randomMinion?: boolean; count?: number }
+  | { kind: 'gift'; cardId?: string; randomSpellTier?: number; mateTribe?: boolean; randomMinion?: boolean;
+      /** A random Shop Spell up to the receiver's Shop tier, never an Ale (Shoutful Bounty, the Chorus convention). */
+      randomSpell?: boolean; count?: number }
   /** Gold for the teammate, now (their current Gold; a Gold gain like any other). */
   | { kind: 'gold'; amount: number }
   /** A Triple Reward for the teammate (their run's own Gild reward path, every modifier it has). */
@@ -4051,12 +4071,20 @@ export type TeamEffect =
   | { kind: 'sold'; cardId: string; attack: number; health: number }
   /** Broshake (Duos batch A): +attack/+health to the run's LEFT-MOST board minion, permanently (the sender's spell
    *  power already folded in). `cardId` names the source for the buff breakdown. */
-  | { kind: 'buffLeftmost'; attack: number; health: number; cardId?: string };
+  | { kind: 'buffLeftmost'; attack: number; health: number; cardId?: string }
+  /** PLAYING CATCH (Duos rune, R-DUOS-RUNES-01): the sender's rune gives the TEAM `amount` more free manual passes
+   *  each round. The receiver adds it to its own count of the team's allowance. */
+  | { kind: 'catch'; amount: number };
 
 export interface ShoutCarry {
   /** DUOS: team effects a combat body produced (`sendTeam`): `self` lands on this side's run at settle, `mate` is
-   *  sent to the teammate. A served (recorded) side's carry is never applied, so it sends nothing. */
+   *  sent to the teammate. A served (recorded) side's carry is never applied, so it sends nothing. The `mate` half is
+   *  REAL TIME (R-DUOS-RUNES-02): each one is announced by a `teamSend` event at the moment it happened (its index in
+   *  this list), the receiving client is sent it when the replay reaches that beat, and settle is the fallback. */
   teamEffects?: { effect: TeamEffect; self: boolean; mate: boolean }[];
+  /** DUOS RUNES (Shoutful Bounty, Echoing Results): the meters after this fight (`QuestCombatMods.duosMeters`), so the
+   *  run's ONE counter continues into the next shop: the tick toward the next gift and the gifts paid this turn. */
+  duosMeters?: { sourceId: string; tick: number; paid: number }[];
   /** Nimbus: extra casts banked on the next Shop spell (`nextSpellExtraCasts`). */
   nextSpellExtraCasts?: number;
   /** Sugarnova: +A/+H banked on the next Shop spell (`nextSpellBonus`). */

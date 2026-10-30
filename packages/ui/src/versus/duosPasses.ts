@@ -50,6 +50,26 @@ function session(matchId: string, me: VersusGroupSeat): DuosSession {
 
 const dispatch = (a: Parameters<ReturnType<typeof useGame.getState>['dispatch']>[0]): void => useGame.getState().dispatch(a);
 
+/**
+ * REAL-TIME COMBAT TEAM EFFECTS (R-DUOS-RUNES-02). A fight's gifts to my teammate were queued on my outbox when it LANDED
+ * (`combatIdx`), and each is HELD until my replay reaches its `teamSend` beat (`duosReleaseCombatFx`, from the combat
+ * sync), so my teammate sees the card arrive at that moment of the fight. Once the fight is over (settled, skipped, a
+ * reload into the next shop) nothing is held: the settle path is the fallback. One outbox entry each, shipped once.
+ */
+const releasedFx = { wave: -1, idx: new Set<number>() };
+const heldForReplay = (run: RunState, e: { wave: number; combatIdx?: number }): boolean =>
+  e.combatIdx != null && run.phase === 'combat' && !run.combatSettled && e.wave === run.wave
+  && !(releasedFx.wave === e.wave && releasedFx.idx.has(e.combatIdx));
+
+/** The replay reached these carry indices of my board's team effects: ship them now. */
+export function duosReleaseCombatFx(idx: readonly number[]): void {
+  const run = useGame.getState().run;
+  if (releasedFx.wave !== run.wave) { releasedFx.wave = run.wave; releasedFx.idx = new Set(); }
+  let fresh = false;
+  for (const i of idx) if (!releasedFx.idx.has(i)) { releasedFx.idx.add(i); fresh = true; }
+  if (fresh && ses) duosAfterRun(ses.matchId, ses.me, run);
+}
+
 /** After every committed change of my run: send new passes and report my hand room. */
 export function duosAfterRun(matchId: string, me: VersusGroupSeat, run: RunState): void {
   if (!run.duos || run.mode !== 'versus') return;
@@ -59,6 +79,7 @@ export function duosAfterRun(matchId: string, me: VersusGroupSeat, run: RunState
     const idx = e.seq;
     if (idx < s.firstNew && !s.seqOf.has(idx)) continue; // sent before (in an earlier session of this match)
     if (s.shipped.has(idx) || e.refunded || s.inFlight.has(idx)) continue;
+    if (heldForReplay(run, e)) continue; // a mid-fight gift waits for its beat (R-DUOS-RUNES-02)
     const seq = seqFor(s, idx);
     s.inFlight.add(idx);
     // A SPELL's pass (Handout, R-DUOS-CARDS-01): the minion streams from where it stood into the teammate portrait. This

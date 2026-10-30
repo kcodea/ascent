@@ -68,6 +68,8 @@ drag pass costs Gold; an effect pass is free. Recipe and the list of primitives:
 Batch A (`docs/devlog/2026-10-30-duos-cards-batch-a.md`) added: per-turn caps (`oncePerTurn` / `perTurn: N`, live
 "N left this turn"), the own-trigger guard (`guard: 'self' | 'rally'`, `selfObtain` for "when you buy or Discover this"),
 and a `buffLeftmost` team effect. A Shop Rally and a buy are BROADCAST to the board, so an own-trigger team card needs the guard.
+Duos-only RUNES carry `duos: true` (only a Duos forge offers them; engines in `sim/duosRunes.ts`). A combat team effect is
+real time by construction: call `sendTeam` and the `teamSend` event + outbox hold do the rest (`docs/devlog/2026-10-30-duos-runes.md`).
 
 ## Art
 

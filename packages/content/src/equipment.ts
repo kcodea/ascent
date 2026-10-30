@@ -589,7 +589,21 @@ export const ROYAL_EDICT: EquipmentDefinition = {
   gildedParams: { attack: 4, health: 4, count: 3, extra: 2 },
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS, STAR_DESTROYER, CALIBRATION_WRENCH, DRAGONS_EGG, SPELL_GENERATOR, JAR_OF_SECRETS, ROYAL_EDICT];
+/** GOLD GIFTER — the Gold Gifts Duos rune (owner design 2026-10-30, R-DUOS-RUNES-01): "Equip Gold Gifter (1): Give your
+ *  teammate 3 gold." The "(1)" is the Gold cost (the Equip convention); one use per turn like every Equipment. The Gold
+ *  rides the team channel (`giftTeammateGold`, landed by the teammate's run, a Gold gain like any other). Never gilded
+ *  (a rune grants it). An Amplified use triggers twice: 6 Gold. */
+export const GOLD_GIFTER: EquipmentDefinition = {
+  id: 'gold_gifter',
+  name: 'Gold Gifter',
+  text: 'Give your teammate **3 Gold**.',
+  baseCost: 1,
+  targetMode: 'none',
+  effectId: 'giftTeammateGold',
+  params: { amount: 3 },
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS, STAR_DESTROYER, CALIBRATION_WRENCH, DRAGONS_EGG, SPELL_GENERATOR, JAR_OF_SECRETS, ROYAL_EDICT, GOLD_GIFTER];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

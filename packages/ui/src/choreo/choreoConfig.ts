@@ -70,6 +70,8 @@ export interface ChoreoConfig {
   boardFallen: number;
   /** VERSUS DUOS: the teammate's board flying in (`.unit.tagin`, staggered) before the fight goes on. */
   tagIn: number;
+  /** DUOS: a real-time team effect marker (`teamSend`, R-DUOS-RUNES-02). Zero: it is a network cue, never a pause. */
+  teamSend: number;
   // Overlay lifetimes (divide by combatSpeed only, not by `speed`).
   /** How long a combat damage/heal float lingers before it clears (ms; keep ≥ the floatup CSS anim). */
   floatMs: number;
@@ -102,6 +104,7 @@ const DEFAULTS: ChoreoConfig = {
   pummelTrigger: 460, // = dmg (see the field doc) — a leading crossing reads like the hit it rode in on
   bankedCast: 620, // ×speed 1.5 ≈ 930ms: the cast preview fades in (150) and lingers before the effect behind it lands
   boardFallen: 380, // ×speed 1.5 ≈ 570ms: the last death settles and the "steps in" plate rises
+  teamSend: 0, // a network marker (the gift ships to the teammate), never a pause
   tagIn: 640, // ×speed 1.5 ≈ 960ms: seven bodies fly in on a 60 ms stagger (the CSS fly-in is 0.52 s) and land
   // overlay lifetimes (ms)
   floatMs: 1500, deathFloatMs: 1000, finalHold: 900,

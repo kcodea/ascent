@@ -110,7 +110,7 @@ export function synthesizeLobby(seed: number, manifest: ExperimentManifest, iden
   const minionsByTier = new Map<number, string[]>();
   for (const c of pool.buyable) { const t = Number(c.tier); if (!minionsByTier.has(t)) minionsByTier.set(t, []); minionsByTier.get(t)!.push(c.id); }
   const spells = pool.spells.map((c) => c.id);
-  const runes = RUNES.filter((r) => !r.sets || r.sets.includes(setId)).filter((r) => !r.tribes || r.tribes.some((t) => tribes.includes(t))).map((r) => r.id);
+  const runes = RUNES.filter((r) => !r.duos && (!r.sets || r.sets.includes(setId))).filter((r) => !r.tribes || r.tribes.some((t) => tribes.includes(t))).map((r) => r.id);
 
   const seats: Seat[] = seatHeroes.map((heroId, i) => {
     const hero = HEROES.find((h) => h.id === heroId)!;

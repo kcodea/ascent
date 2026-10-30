@@ -53,4 +53,21 @@ export const DUOS_NEUTRAL: readonly CardDef[] = [
     text: 'When you buy or **Discover** this, your teammate gets a copy.',
     goldenText: 'When you buy or **Discover** this, your teammate gets **2** copies.',
   },
+  {
+    // THE MEGAMIMED RUNE's token (owner design 2026-10-30, R-DUOS-RUNES-03): "Start of combat, transform into an exact
+    // copy of your teammate's highest health minion." Never in the Shop (`token`). At every Start of Combat `simulate`
+    // swaps it for a combat-only copy of the teammate's highest-Health minion on their locked board (ties seeded); the
+    // run keeps the 1/1, so the next fight copies again (core `megamimic.ts`). A passive marker only.
+    id: 'duo_megamimic',
+    name: 'Megamimic',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    token: true,
+    duos: true,
+    effects: [{ on: 'passive', do: 'megamimicCopy' }],
+    text: "**Start of Combat:** transform into an exact copy of your teammate's highest Health minion.",
+  },
 ];

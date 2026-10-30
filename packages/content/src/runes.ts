@@ -2096,6 +2096,50 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'grant', cards: ['dm_ruinouslord'] },
     sets: ['set2'],
   },
+  // ── DUOS-ONLY RUNES (owner design 2026-10-30, R-DUOS-RUNES-01): offered only by a Duos run's forge (`duos: true`;
+  // Versus Duos + Ranked Duos). The engines live in `sim/duosRunes.ts`. Append only (forge order seeds offers). ──
+  {
+    id: 'rune_spell_theory',
+    name: 'Spell Theory',
+    cost: 2,
+    duos: true,
+    text: 'When you **Pass** a spell, get a copy of it. **(Once per turn)**',
+    reward: { kind: 'duosRune', rune: 'spellTheory' },
+  },
+  {
+    id: 'rune_gold_gifts',
+    name: 'Gold Gifts',
+    cost: 1,
+    duos: true,
+    text: '**Equip Gold Gifter (1):** give your teammate **3 Gold**.',
+    reward: { kind: 'runeEquip', equipmentId: 'gold_gifter' },
+  },
+  {
+    id: 'rune_teammate_synergy',
+    name: 'Teammate Synergy',
+    cost: 2,
+    duos: true,
+    text: 'When you **Gild** a minion, give your teammate a **Triple Reward**. **(3 per game)**',
+    previewCards: ['discoverspell'], // text names it: the forge hover shows the card
+    reward: { kind: 'duosRune', rune: 'teammateSynergy', uses: 3 },
+  },
+  {
+    id: 'rune_passable',
+    name: 'Passable',
+    cost: 1,
+    duos: true,
+    text: 'Get a **Handout**. Repeat at **Start of Turn**.',
+    previewCards: ['duo_handout'],
+    reward: { kind: 'recurringGrant', cards: ['duo_handout'] },
+  },
+  {
+    id: 'rune_playing_catch',
+    name: 'Playing Catch',
+    cost: 2,
+    duos: true,
+    text: 'Your first **3** passes as a team each round are free.',
+    reward: { kind: 'duosRune', rune: 'playingCatch', uses: 3 },
+  },
 ];
 
 /**
@@ -4305,6 +4349,44 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'The first **Dragon** you **Sell** each turn gives its **Whisper** stat bonuses to your left-most **Dragon** permanently.',
     reward: { kind: 'combatFlag', flag: 'runeBequeathedSecrets' },
     sets: ['set3'],
+  },
+  // ── DUOS-ONLY EPIC RUNES (owner design 2026-10-30, R-DUOS-RUNES-01). Append only. ──
+  {
+    id: 'rune_shoutful_bounty',
+    name: 'Shoutful Bounty',
+    cost: 4,
+    epic: true,
+    duos: true,
+    text: 'When you trigger **2** Shouts, give your teammate a random spell. **(Three per turn)**',
+    reward: { kind: 'duosRune', rune: 'shoutfulBounty', per: 2, cap: 3 },
+  },
+  {
+    id: 'rune_echoing_results',
+    name: 'Echoing Results',
+    cost: 3,
+    epic: true,
+    duos: true,
+    text: 'When you trigger **3** Echoes, give your teammate a random minion. **(Two per turn)**',
+    reward: { kind: 'duosRune', rune: 'echoingResults', per: 3, cap: 2 },
+  },
+  {
+    id: 'rune_salesman_of_the_year',
+    name: 'Salesman of the Year',
+    cost: 3,
+    epic: true,
+    duos: true,
+    text: 'The first **2** minions you sell each turn **Pass** to your teammate.',
+    reward: { kind: 'duosRune', rune: 'salesman', uses: 2 },
+  },
+  {
+    id: 'rune_megamimed',
+    name: 'Megamimed',
+    cost: 4,
+    epic: true,
+    duos: true,
+    text: 'Get a **Megamimic**.',
+    previewCards: ['duo_megamimic'],
+    reward: { kind: 'grant', cards: ['duo_megamimic'] },
   },
 ];
 

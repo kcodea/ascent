@@ -1,3 +1,4 @@
+import { megamimicBoard } from './megamimic';
 import type {
   BoardMinion,
   CardDef,
@@ -174,6 +175,15 @@ export function simulate(
   // so a 1v1 / group / lobby fight is byte-identical.
   const reserveOf: Partial<Record<Side, CombatReserve>> = { ...config.reserve }; // a copy: a step-in spends its entry
   const hasReserve = !!(reserveOf.player || reserveOf.enemy);
+  // MEGAMIMIC (Duos rune token, R-DUOS-RUNES-03): each side's first board copies its TEAMMATE's (the reserve's) locked
+  // board, and a reserve that steps in copies the first board as it was locked (`lockedFirst`). Tie-break order.
+  const lockedFirst: Record<Side, BoardMinion[]> = { player, enemy };
+  if (hasReserve) {
+    const mimicked: Record<Side, BoardMinion[]> = { player, enemy };
+    for (const s of SIDES) mimicked[s] = megamimicBoard(lockedFirst[s], config.reserve?.[s]?.board, rng, cards);
+    player = mimicked.player;
+    enemy = mimicked.enemy;
+  }
   /** Which team member's board a side is fighting with: 0 = its first board, 1 = its reserve (after `stepIn`). */
   const activeMember: Record<Side, number> = { player: 0, enemy: 0 };
   /** Does either side's RESERVE hold a mod? Widens a registration-time gate so a listener the reserve needs exists
@@ -449,6 +459,26 @@ export function simulate(
   const copyShoutMeters = (side: Side): NonNullable<QuestCombatMods['shoutMeters']> =>
     (modsFor(side).shoutMeters ?? []).map((m) => ({ ...m, grantOneOf: m.grantOneOf ? [...m.grantOneOf] : undefined, grantCards: m.grantCards ? [...m.grantCards] : undefined, buff: m.buff ? { ...m.buff } : undefined }));
   const shoutMeters: Record<Side, ReturnType<typeof copyShoutMeters>> = sideReset(() => ({ player: copyShoutMeters('player'), enemy: copyShoutMeters('enemy') }));
+  /** DUOS RUNES (R-DUOS-RUNES-01): Shoutful Bounty / Echoing Results, copied in with the shop's tick and this turn's
+   *  payouts (the ONE cross-phase counter). A trip sends the gift to the teammate at once (`sendTeam`: a `teamSend`
+   *  event, real time), at most `cap` per turn; the final state rides `ShoutCarry.duosMeters` home. Symmetric. */
+  const copyDuosMeters = (side: Side): NonNullable<QuestCombatMods['duosMeters']> =>
+    (modsFor(side).duosMeters ?? []).map((m) => ({ ...m, gift: { ...m.gift } }));
+  const duosMeters: Record<Side, ReturnType<typeof copyDuosMeters>> = sideReset(() => ({ player: copyDuosMeters('player'), enemy: copyDuosMeters('enemy') }));
+  const tickDuosMeters = (side: Side, meter: 'shout' | 'echo', n: number): void => {
+    for (const m of duosMeters[side]) {
+      if (m.meter !== meter || m.per <= 0) continue;
+      for (let i = 0; i < n; i++) {
+        // At the turn's cap the meter keeps counting but parks one short of a trip (the shop's rule).
+        if (m.paid >= m.cap) { m.tick = Math.min(m.tick + 1, m.per - 1); continue; }
+        m.tick += 1;
+        if (m.tick < m.per) continue;
+        m.tick -= m.per;
+        m.paid += 1;
+        ctx.sendTeam?.(m.gift, false, true, side);
+      }
+    }
+  };
   // THE CROSS-PHASE SHOUT TALLY (balance 9/23): every Shout FIRE on a side counts, and the side's "when you trigger
   // N Shouts" rune meters tick with it — paying mid-fight through `handGrants` (a random Shop spell, never an Ale,
   // from the side's own pool at its tier; or one of the named cards), exactly what the shop pays on a trip. The
@@ -497,6 +527,7 @@ export function simulate(
   bus.on('battlecryTriggered', (payload) => {
     const { side } = payload as { side: Side };
     shoutFires[side] += 1;
+    if (duosMeters[side].length > 0) tickDuosMeters(side, 'shout', 1);
     const sideState = stateOf(side);
     for (const meter of shoutMeters[side]) {
       meter.tick += 1;
@@ -1241,6 +1272,7 @@ export function simulate(
     if (n <= 0) return;
     deathrattlesFired[side] += n;
     for (let i = 0; i < n; i++) questEventsFor[side].push({ step: stepN, kind: 'deathrattle', tribes: [] });
+    if (duosMeters[side].length > 0) tickDuosMeters(side, 'echo', n);
     checkPendingQuests(side);
   };
   // Rally (on-attack) triggers — the `rally` objective + live-tick timeline. Each fire (base + doubler
@@ -2054,7 +2086,11 @@ export function simulate(
     // settle, where the side's own run lands its half and queues its teammate's. Symmetric: each side carries its own.
     sendTeam: (effect, toSelf, toMate, side) => {
       if (!toSelf && !toMate) return;
-      (shoutCarry[side].teamEffects ??= []).push({ effect: { ...effect }, self: toSelf, mate: toMate });
+      const list = (shoutCarry[side].teamEffects ??= []);
+      list.push({ effect: { ...effect }, self: toSelf, mate: toMate });
+      // REAL TIME (R-DUOS-RUNES-02): the teammate's half is announced at this moment, on the beat of the trigger that
+      // caused it (no step of its own), so the sender's client ships it when the replay gets here.
+      if (toMate) emit({ type: 'teamSend', side, member: activeMember[side], idx: list.length - 1 });
     },
     grantFodderBuff: (attack, health, side) => {
       fodderBuffGain[side].attack += attack;
@@ -7085,7 +7121,9 @@ export function simulate(
       fodderGrants: fodderGrants[side] > 0 ? fodderGrants[side] : undefined,
       fodderSchedule: fodderSchedule[side].some((n) => n > 0) ? fodderSchedule[side] : undefined,
       deferredBattlecries: deferredBattlecries[side].length > 0 ? deferredBattlecries[side] : undefined,
-      shoutCarry: Object.keys(shoutCarry[side]).length > 0 ? { ...shoutCarry[side] } : undefined,
+      shoutCarry: Object.keys(shoutCarry[side]).length > 0 || duosMeters[side].length > 0
+        ? { ...shoutCarry[side], ...(duosMeters[side].length > 0 ? { duosMeters: duosMeters[side].map((m) => ({ sourceId: m.sourceId, tick: m.tick, paid: m.paid })) } : {}) }
+        : undefined,
       maxGoldGain: maxGoldGain[side] > 0 ? maxGoldGain[side] : undefined,
       bonusGold: bonusGoldGain[side] > 0 ? bonusGoldGain[side] : undefined,
       freeRolls: freeRollGrants[side] > 0 ? freeRollGrants[side] : undefined,
@@ -7180,6 +7218,7 @@ export function simulate(
     const sideBoards = { [s]: res.board, [other]: [] } as unknown as Record<Side, BoardMinion[]>;
     const sideMods = { [s]: res.state.questMods ?? {}, [other]: {} } as unknown as Record<Side, QuestCombatMods>;
     const imps = { [s]: { attack: res.state.impAtk, health: res.state.impHp }, [other]: { attack: 0, health: 0 } } as unknown as Record<Side, { attack: number; health: number }>;
+    sideBoards[s] = megamimicBoard(sideBoards[s], lockedFirst[s], rng, cards); // Megamimic: the teammate's locked board
     const open = applyBankedOpeners(sideBoards, sideMods, imps, cards);
     if (open.boards[s].length === 0) return;
     const fallen = activeMember[s];

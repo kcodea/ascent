@@ -389,7 +389,7 @@ export function packageById(id: string): StrategyPackage {
 // ── rune affinity ──────────────────────────────────────────────────────────────────────────────────────────
 
 /** Is this rune offerable at all in `setId` (the forge's own `sets` gate)? */
-export const runeInSet = (rune: RuneDef, setId: SetId): boolean => !rune.sets || rune.sets.includes(setId);
+export const runeInSet = (rune: RuneDef, setId: SetId): boolean => !rune.duos && (!rune.sets || rune.sets.includes(setId)); // Duos-only runes never in a lobby build
 
 /**
  * How well a rune serves a package, in [0, 1]: 1 when a synergy tag matches the package's own tags, 0.7 when

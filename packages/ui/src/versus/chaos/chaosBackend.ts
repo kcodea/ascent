@@ -1,15 +1,11 @@
 /**
- * VERSUS CHAOS HARNESS: THE BACKEND SEAM (what the match runner needs of a server, on either host).
+ * VERSUS CHAOS HARNESS: THE BACKEND SEAM (what the match runner needs of a server).
  *
- * The runner (`chaosMatch.ts`) and its invariants are the same for both hosts; only these reads and knobs differ:
- *  - `ChaosServer` (`chaosServer.ts`): the Supabase path. PGlite + the real migrations + the real `versus-resolve`
- *    handlers, a fake Realtime bus, the clients on the real Supabase adapter (`makeVersusRemote`).
- *  - `CfChaosServer` (`cfChaosServer.ts`): the Cloudflare path. The real room rules (`workers/versus` RoomCore + the
- *    group engine) inside a Node mirror of the Durable Object shell, the clients on the real Cloudflare transport
- *    (`makeCfVersusRemote` behind the cutover router) over fake WebSockets.
- *
- * Every read answers in the SAME shape on both hosts (the SQL rows' fields), so a scenario's invariants judge the two
- * hosts by one rule and the two result tables compare cell by cell.
+ * `CfChaosServer` (`cfChaosServer.ts`) is the one host (R-VERSUS-CF-ONLY-01: Versus runs on Cloudflare only; the
+ * Supabase host and its matrix were retired 2026-10-29): the real room rules (`workers/versus` RoomCore + the group
+ * engine) inside a Node mirror of the Durable Object shell, the clients on the real Cloudflare transport
+ * (`makeCfVersusRemote`) over fake WebSockets. Reads answer in the original SQL rows' shapes (the runner's invariants
+ * were written against them).
  */
 import type { ChaosMode } from './chaosMatch';
 
@@ -54,7 +50,7 @@ export interface ServerSnap {
 export type Vitals = Record<string, { health: number; armor: number }>;
 
 export interface ChaosBackend {
-  readonly kind: 'supabase' | 'cf';
+  readonly kind: 'cf';
   readonly resolverLog: ResolverCall[];
   readonly resolverChaos: ResolverChaos;
   /** Every resolver answer (the runner narrates them). */
@@ -67,11 +63,11 @@ export interface ChaosBackend {
   idle(): boolean;
 
   // ── chaos knobs ──
-  /** Hold the match for `ms` (Supabase: the match row lock; Cloudflare: the room object is busy). */
+  /** Hold the match for `ms` (the room object is busy). */
   holdMatch(matchId: string, ms: number): void;
   holding(matchId: string): boolean;
-  /** Realtime dies for `ms` (0 = until the end). Supabase: the Realtime service. Cloudflare: one socket carries pushes and
-   *  requests, so the analogue is the room object restarting (a deploy / eviction): every socket drops at once. */
+  /** Realtime dies for `ms` (0 = until the end). One socket carries pushes and requests, so this is the room object
+   *  restarting (a deploy / eviction): every socket drops at once. */
   killRealtime(ms: number): string;
   /** Is the push path up (the `realtime` invariant only judges while it is)? */
   realtimeUp(): boolean;

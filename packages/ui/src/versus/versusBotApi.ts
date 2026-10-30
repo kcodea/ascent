@@ -6,8 +6,8 @@
  * own seat (`projectGroupMatch` / `projectGroupRounds`, exactly the projection a person's client plays through), so the
  * driver is the same code in every mode. The Duos pass calls ride along for the bot's teammate role.
  *
- * Pure plumbing over an injected remote (the browser passes the bot's own `makeVersusRemote`; the PGlite test passes
- * one backed by the real SQL). Nothing here holds a timer.
+ * Pure plumbing over an injected remote (the browser passes the bot's own Worker transport, `makeCfVersusRemote`).
+ * Nothing here holds a timer.
  */
 import type { PreparedCombatSide, VersusGroupSeat, VersusSeatScout } from '@game/sim';
 import { isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';

@@ -2,9 +2,10 @@
  * VERSUS TEST BOTS — the browser host (owner 2026-10-14; dev / test builds only, see `versusTestToolsEnabled`).
  *
  * Up to THREE bots (owner 2026-10-25: "id like the ability to test the various mechanics with bots", so Group and Duos
- * can be played alone): one per bot slot, each a second Supabase client in this tab with its OWN anonymous session
- * persisted under its own storage key (slot 1 keeps the original key, so the existing Test Bot account is reused), so
- * every bot holds its own seat. Each joins the room as a player through the normal RPCs, moves to the seat the host
+ * can be played alone): one per bot slot, each with its OWN anonymous account (a second Supabase auth client in this tab,
+ * persisted under its own storage key; slot 1 keeps the original key, so the existing Test Bot account is reused) and
+ * its own transport to the Versus Worker (`makeCfVersusRemote`, R-VERSUS-CF-ONLY-01), so every bot holds its own seat.
+ * Each joins the room as a player through the same room calls a person makes, moves to the seat the host
  * picked, registers itself as this host's test bot (2026-10-25-versus-test-bots.sql: no XP, and the dev tuner may force
  * a table of only your bots), and runs `VersusBotDriver` on timers with small random gaps: never in a render, never on
  * the shop's interaction path. They leave the room when you leave or the room closes.
@@ -16,7 +17,8 @@ import { create } from 'zustand';
 import { currentUserId } from '../identity';
 import { VersusBotDriver, type BotStepResult, type VersusBotHooks } from './versusBotDriver';
 import { makeBotMatchApi, type BotMatchApi } from './versusBotApi';
-import { makeVersusRemote, type VersusRemote, type VersusRole } from './versusRemote';
+import { makeVersusRecords, versusWorkerUrl, VersusError, type VersusRemote, type VersusRole } from './versusRemote';
+import { makeCfVersusRemote } from './versusCfRemote';
 import { heroSelectFrame, newPublisher, nextHeroSelectMessage, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
 import { SPECTATE_KEY_EVENT } from './spectate';
 import { versusServerNow } from './versusStore';
@@ -84,9 +86,14 @@ function hostFor(slot: VersusBotSlot): BotHost | null {
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
   if (!url || !key) return null;
   const client = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: storageKeyOf(slot), detectSessionInUrl: false } });
-  const remote = makeVersusRemote(() => client);
   // The adapter projects group matches from the bot's own seat (`userId`, set once signed in).
-  const h: BotHost = { slot, client, remote, userId: null, api: null as unknown as BotMatchApi, driver: null, timer: null, pub: null, lastRun: null, keyWanted: false };
+  const h: BotHost = { slot, client, remote: null as unknown as VersusRemote, userId: null, api: null as unknown as BotMatchApi, driver: null, timer: null, pub: null, lastRun: null, keyWanted: false };
+  // The bot plays on the same Worker as this tab, as its own account (the Worker reads the bot's own access token).
+  const remote = makeCfVersusRemote({
+    baseUrl: versusWorkerUrl(), getClient: () => client, currentUserId: () => h.userId,
+    makeError: (code, message) => new VersusError(code, message), records: makeVersusRecords(() => client),
+  });
+  h.remote = remote;
   h.api = makeBotMatchApi(remote, () => h.userId);
   hosts.set(slot, h);
   return h;

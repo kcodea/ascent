@@ -1148,8 +1148,13 @@ and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
 
 The hardening gate before ASCENT faces a public (non-friend-scale) audience.
 
+- **Retire the last of the Supabase Versus host (after `supabase functions delete versus-resolve`).** Delete
+  `supabase/functions/versus-resolve/`, `versus:bundle` and the `bundle` / `remote` modes of `versus:parity`; later,
+  once no pre-2026-10-29 build is in use, drop `versus_host_config` and the Supabase room / match functions (never the
+  data tables). Order and waits: `docs/versus-cf-cutover.md` "Retiring the Supabase host".
+
 - **Versus Shop turns are not server-checked (cheating gap, MUST FIX before go-live; owner 2026-10-25).**
-  `versus-resolve` only resolves fights: it takes each player's locked board on trust and never checks how the
+  The Versus Worker (Cloudflare, the only host since 2026-10-29) only resolves fights: it takes each player's locked board on trust and never checks how the
   Shop produced it. So Gold, buys, sells, rolls, level-ups, hero power and Duos card passes (1 Gold each,
   charged by the sender's own client) can all be faked by a modified client, in 1v1, Group and Duos alike.
   The server does enforce shop phase, the clock, the lock, teammate-only, exactly-once and a per-round cap on
@@ -1158,8 +1163,8 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
   server replays it deterministically from the match's pinned seed/state (the sim is deterministic) and
   refuses a turn whose rebuilt board does not match, falling back to the player's last valid board. Covers
   Gold, passes, shop odds and card effects in every Versus mode, and is the same idea as the C4 replay audit for
-  rated runs. Cost: medium-large (bundle the shop reducer into the Edge Function, per-round server CPU,
-  extend `versus:parity` to shop turns).
+  rated runs. Cost: medium-large (run the shop reducer in the room Durable Object, per-round server CPU,
+  a parity check for shop turns).
 
 - **Decide whether `main` should actually be protected.** It is not, and apparently never has been: no
   classic branch protection (the API 404s) and no rulesets — verified 2026-08-05, when a

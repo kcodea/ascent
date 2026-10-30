@@ -21,7 +21,7 @@ import {
 import type { VersusDuosPassRow, VersusMatch, VersusPrivate, VersusRoom, VersusRoundRow } from './versusRemote';
 import type { PreparedCombatSide, VersusSeatScout } from '@game/sim';
 
-/** The slice of the Versus API the bot uses (the browser passes `makeVersusRemote(botClient)`). */
+/** The slice of the Versus API the bot uses (the browser passes the bot's own Worker transport). */
 export interface VersusBotApi {
   room(roomId: string): Promise<VersusRoom | null>;
   pressGate(roomId: string): Promise<unknown>;

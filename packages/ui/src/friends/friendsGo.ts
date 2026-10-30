@@ -8,7 +8,7 @@
 import { normalizeVersusOptions, VERSUS_MODE_SEATS } from '@game/sim';
 import { isPreRun, PAGES_CLOSED, useGame } from '../store';
 import { createRoom, enterDuosParty, isDuosParty, joinRoom, leaveRoom, openVersus, useVersus } from '../versus/versusStore';
-import { versusRemote, versusRoomRef, type VersusRoom } from '../versus/versusRemote';
+import { versusRoomRef, type VersusRoom } from '../versus/versusRemote';
 import { defaultPartyName } from '../versus/playParty';
 import { defaultRoomName } from '../versus/VersusTitle';
 import { decodeRoomRef } from '../versus/versusHost';
@@ -23,9 +23,10 @@ import type { Friend, FriendInvite } from './friendsRemote';
 /** Open Versus and enter a room (as a player: into the room's hand, a seat one drag away; or in the stands). */
 export async function goToVersusRoom(ref: string, as: 'player' | 'spectator', area: 'versus' | 'duos' = 'versus'): Promise<boolean> {
   if (!versusEnabled()) { flashFriends('Versus is not available on this build.'); return false; }
-  // THE CUTOVER (R-VERSUS-CF-CUTOVER-01): an invite / Watch id / Live Games row names a Cloudflare room `cf:<id>`.
+  // Every room is on the Versus Worker (R-VERSUS-CF-ONLY-01): an invite / Watch id / Live Games row names it `cf:<id>`.
+  // A bare id is a retired Supabase room from an older client: it is gone, so say so instead of trying it.
   const { roomId, host } = decodeRoomRef(ref);
-  versusRemote.noteRoomHost(roomId, host);
+  if (host !== 'cf') { flashFriends('That room has closed.'); return false; }
   let vs = useVersus.getState();
   // A party invite while I wait in my own party (nothing started there, so leaving is free): swap parties
   // (R-RANKED-DUOS-SPLIT-01). Any other room I hold stays mine until I leave it.

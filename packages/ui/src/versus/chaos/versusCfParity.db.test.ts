@@ -1,21 +1,22 @@
 // @vitest-environment jsdom
 /**
- * VERSUS BACKEND PARITY (fix/versus-cf-duos-parity, owner reports 2026-10-28 from live Duos on the Cloudflare host:
- * "the duo game starts with the 1v1 ui on the right", "when the game ends it just breaks the lobby"). The SAME scripted
- * match per mode is played on BOTH hosts through the REAL client (the chaos harness: `chaosClient.ts`), and what each
- * client SHOWS is recorded at every step and compared host against host:
+ * VERSUS: WHAT EACH SCREEN SHOWS, AND THE RESULT REACHES SUPABASE (fix/versus-cf-duos-parity, owner reports 2026-10-28 from
+ * live Duos on the Cloudflare host: "the duo game starts with the 1v1 ui on the right", "when the game ends it just breaks
+ * the lobby"). A scripted match per mode is played through the REAL client (the chaos harness: `chaosClient.ts`) on the
+ * Cloudflare room (the one host since 2026-10-29, R-VERSUS-CF-ONLY-01), and what each client SHOWS is recorded at every
+ * step and pinned:
  *
  *   layout   the rail area: the 1v1 opponent block only in a 1v1, the rail in every group mode (R-VERSUS-RAIL-LAYOUT-01);
  *   rail     how many seats the rail holds once the first shop is on screen (Ranked Duos: all four teams);
  *   pills    which turn states the End Turn / End Combat gem went through (ready / fightReady / leave ...);
  *   end      how each player's screen leaves the match (the fight, the knockout / stats, back to the room);
- *   result   (Cloudflare) the room's result reaches Supabase: every persistence job the room queued is run through the
- *            REAL writer (`versus_cf_persist`, every Versus migration on PGlite) and the finished match row lands
+ *   result   the room's result reaches Supabase: every persistence job the room queued is run through the REAL writer
+ *            (`versus_cf_persist`, every Versus migration on PGlite) and the finished match row lands
  *            (R-VERSUS-CF-PERSIST-01: a Ranked Duos result once never landed at all).
  *
- * The two hosts draw different heroes and boards (each server seeds its own), so the comparison is of the SHAPE of what
- * the screen does, never the numbers a fight produced (the chaos matrices judge those against each host's own truth).
- * Hero power STATE is recorded for the report only (the hero power button is being reworked separately).
+ * The shapes are pinned from the 2026-10-29 run (until then this file also required the Supabase host to show the same
+ * shapes for the same match, cell by cell). Hero power STATE is recorded for the report only (the hero power button is
+ * being reworked separately).
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { PGlite } from '@electric-sql/pglite';
@@ -24,7 +25,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fitFinishRow, rankedFinishWire, RANKED_FINISH_BUDGET, type PersistJob } from '@game/versus-cf/core';
 import { CfChaosServer } from './cfChaosServer';
-import { ChaosServer } from './chaosServer';
+import { bootVersusRecordsDb } from './writerDb';
 import { runChaos, type ChaosHarness, type ChaosMode } from './chaosMatch';
 import type { ChaosBackend } from './chaosBackend';
 import { versusDuelLayout } from '../../LobbyPanel';
@@ -92,35 +93,33 @@ async function play(server: ChaosBackend, mode: ChaosMode): Promise<{ shapes: Sh
   }
 }
 
-/** One host's shapes merged over its clients (the hosts seat players in the same order). */
+/** The shapes merged over the clients. */
 const merged = (shapes: Shape[]) => ({
   layouts: [...new Set(shapes.flatMap((x) => [...x.layouts]))].sort(),
   // The full table (a Ranked Duos table holds only the live pair for a moment, until its recorded teams are seated).
   railSeats: Math.max(0, ...shapes.flatMap((x) => [...x.railSeats])),
   pills: [...new Set(shapes.flatMap((x) => [...x.pills]))].sort(),
-  // Each player's final screen, as a multiset (WHO is knocked out first depends on the boards each host dealt).
+  // Each player's final screen, as a multiset (WHO is knocked out first depends on the boards dealt).
   end: shapes.map((x) => x.end.at(-1) ?? null).sort(),
   heroPower: [...new Set(shapes.flatMap((x) => [...x.heroPower]))].sort(),
 });
 
 const root = join(__dirname, '../../../../..');
-const supa = new ChaosServer(() => Date.now());
 const cf = new CfChaosServer();
-const results: Record<string, { supabase?: ReturnType<typeof merged>; cf?: ReturnType<typeof merged>; jobs?: PersistJob[] }> = {};
+const results: Record<string, { cf?: ReturnType<typeof merged>; jobs?: PersistJob[] }> = {};
 
-beforeAll(async () => {
-  await supa.boot();
-}, 180_000);
-afterAll(async () => { await supa.close(); });
+const PILLS = ['fight', 'fightReady', 'foeReady', 'intro', 'leave', 'locked', 'ready', 'shop', 'waiting'];
+/** What every mode's screens show (pinned 2026-10-29, when the Supabase host was retired). */
+const EXPECTED: Partial<Record<ChaosMode, Omit<ReturnType<typeof merged>, 'heroPower'>>> = {
+  duel: { layouts: ['duel'], railSeats: 2, pills: PILLS, end: ['off-run|room|stats:1|ko:0|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-'] },
+  group3: { layouts: ['rail'], railSeats: 4, pills: PILLS, end: ['off-run|room|stats:0|ko:1|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-'] },
+  duos: { layouts: ['rail'], railSeats: 4, pills: PILLS, end: ['off-run|room|stats:1|ko:0|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-'] },
+  ranked_duos: { layouts: ['rail'], railSeats: 8, pills: PILLS, end: ['off-run|room|stats:1|ko:0|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-'] },
+};
 
-describe('Versus: the same match on Supabase and on Cloudflare shows the same screens', () => {
+describe('Versus: each mode shows its own screens, start to end', () => {
   for (const mode of MODES) {
-    it(`${mode}: Supabase`, async () => {
-      const r = await play(supa, mode);
-      expect(r.complete, r.violations.join('\n')).toBe(true);
-      (results[mode] ??= {}).supabase = merged(r.shapes);
-    }, 900_000);
-    it(`${mode}: Cloudflare, and the two hosts agree`, async () => {
+    it(`${mode}`, async () => {
       cf.install();
       try {
         const r = await play(cf, mode);
@@ -131,36 +130,36 @@ describe('Versus: the same match on Supabase and on Cloudflare shows the same sc
       } finally {
         cf.uninstall();
       }
-      const { supabase: a, cf: b } = results[mode]!;
-      if (process.env.PARITY_LOG) console.log(mode, JSON.stringify({ supabase: a, cf: b }, null, 1));
-      expect(a, 'the Supabase half of this mode did not run').toBeDefined();
-      // The rail area: the 1v1 block only in a 1v1, the rail in every group mode, on both hosts.
-      expect(b!.layouts).toEqual(a!.layouts);
-      expect(b!.layouts).toEqual([mode === 'duel' ? 'duel' : 'rail']);
-      expect(b!.railSeats).toEqual(a!.railSeats);
-      expect(b!.pills).toEqual(a!.pills);
-      // Every player's screen leaves the match the same way.
-      expect(b!.end).toEqual(a!.end);
-      expect(b!.heroPower).toEqual(a!.heroPower);
+      const b = results[mode]!.cf!;
+      if (process.env.PARITY_LOG) console.log(mode, JSON.stringify(b));
+      // The rail area: the 1v1 block only in a 1v1, the rail in every group mode.
+      expect(b.layouts).toEqual([mode === 'duel' ? 'duel' : 'rail']);
+      const want = EXPECTED[mode]!;
+      expect(b.layouts).toEqual(want.layouts);
+      expect(b.railSeats).toEqual(want.railSeats);
+      expect(b.pills).toEqual(want.pills);
+      // Every player's screen leaves the match the way it always did.
+      expect(b.end).toEqual(want.end);
     }, 900_000);
   }
 });
 
-// ── the Cloudflare room's result reaches Supabase (the real writer, on the Supabase harness's own PGlite) ───────────────
+// ── the Cloudflare room's result reaches Supabase (the real writer, on PGlite with every Versus migration) ──────────────
 const WRITER = ['2026-11-04-versus-cf-writer.sql', '2026-11-05-versus-cf-writer-group.sql', '2026-11-06-versus-cf-writer-duos.sql', '2026-11-07-versus-cf-ranked.sql', '2026-11-13-duos-match-history.sql'];
 const SECRET = 'parity-writer-secret-not-real';
 
 describe('Cloudflare: every finished match persists through versus_cf_persist (R-VERSUS-CF-PERSIST-01)', () => {
   let db: PGlite;
   beforeAll(async () => {
-    db = supa.db;
-    // The writer hashes its key with pgcrypto's digest(); the harness's PGlite has no pgcrypto, and sha256() is the same.
+    db = await bootVersusRecordsDb();
+    // The writer hashes its key with pgcrypto's digest(); PGlite has no pgcrypto, and sha256() is the same.
     await db.exec(`create schema if not exists extensions;
       create or replace function extensions.digest(t text, alg text) returns bytea language sql immutable as $$ select sha256(convert_to(t, 'UTF8')) $$;
       grant usage on schema extensions to anon, authenticated, service_role;`);
     for (const f of WRITER) await db.exec(readFileSync(join(root, 'supabase/migrations', f), 'utf8').replace(/create extension if not exists pgcrypto[^;]*;/i, ''));
     await db.query('insert into public.versus_cf_writer_keys (key_hash, note) values ($1, $2) on conflict do nothing', [createHash('sha256').update(SECRET).digest('hex'), 'parity']);
   }, 180_000);
+  afterAll(async () => { await db?.close(); });
 
   for (const mode of MODES) {
     it(`${mode}: the room's jobs land, and the match is stored complete`, async () => {

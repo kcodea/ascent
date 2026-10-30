@@ -50,6 +50,9 @@ const rankedRun = (): RunState => {
 };
 
 beforeEach(() => {
+  // These cases pin the Supabase listing path, which a game still takes when its Worker cannot be reached (R-LIVE-CF-01);
+  // the Worker path is `liveCf.test.ts`.
+  pubMod.setLivePublishUrlForTests(() => null);
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
   identity.setIdentity({ userId: 'u-player', isAnonymous: true } as never);
   vi.stubGlobal('requestAnimationFrame', (f: FrameRequestCallback) => { f(0); return 0; });

@@ -7,9 +7,10 @@
  * (a room that is gone answers 404; a browser only sees a dropped socket, so the client retried for ever). Duo + Play is
  * the one entry that first READS the room the account still holds (`myRoomId` → `room`) before opening a party, so an
  * account whose Cloudflare room list still named a room no socket could open waited on that read for ever, with no error
- * and no way out but Back. These tests drive the REAL Cloudflare transport through the REAL cutover router:
- *  - a room socket that never opens fails at the deadline; creating a room then falls back to Supabase (the router's
- *    existing "Cloudflare unreachable" rule), so a Worker problem never blocks the party;
+ * and no way out but Back. These tests drive the REAL Cloudflare transport:
+ *  - a room socket that never opens fails at the deadline with `timeout`, and NOTHING else is tried (Versus is Cloudflare
+ *    only, R-VERSUS-CF-ONLY-01: before 2026-10-29 the cutover router made a Supabase room here instead); the party door
+ *    then says the connection failed, with Try again;
  *  - Duo + Play gives up after its own deadline with a reason and Try again, never an endless "Opening";
  *  - losing the party while its door is on screen says so (Try again), instead of an endless "Opening".
  */
@@ -32,10 +33,8 @@ const { DuosDoor } = await import('./VersusTitle');
 const { enterDuosParty, leaveRoom, useVersus, DUOS_OPEN_DEADLINE_MS } = await import('./versusStore');
 const { versusRemote, VersusError } = await import('./versusRemote');
 const { makeCfVersusRemote, VERSUS_CF_CONNECT_TIMEOUT_MS } = await import('./versusCfRemote');
-const { makeRoutedVersusRemote } = await import('./versusRouter');
-const { makeRoomHostMemory } = await import('./versusHost');
+const { createDuosParty } = await import('./versusStore');
 type Room = import('./versusRemote').VersusRoom;
-type Remote = import('./versusRemote').VersusRemote;
 
 const RANKED = { v: 1 as const, mode: 'ranked_duos' as const, modifiers: [] };
 const party = (id: string): Room =>
@@ -77,27 +76,35 @@ describe('Ranked Duos on the Cloudflare host never hangs (R-VERSUS-CF-CONNECT-01
     setIdentity(null);
   });
 
-  it('a party created on Cloudflare whose socket never opens falls back to Supabase at the deadline (real transport + router)', async () => {
+  it('a party whose room socket never opens fails at the deadline, and no other backend is tried (R-VERSUS-CF-ONLY-01)', async () => {
     // The Worker answers the create (the room exists) but its socket is refused on every attempt.
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(String(url).endsWith('/rooms') ? party('cf-room') : { roomId: null }), { status: 200 })));
+    const fetchMock = vi.fn(async (url: string) => new Response(JSON.stringify(String(url).endsWith('/rooms') ? party('cf-room') : { roomId: null }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
     vi.stubGlobal('WebSocket', RefusedSocket);
     const cf = makeCfVersusRemote({ baseUrl: 'http://worker', getClient: () => null, currentUserId: () => 'kev', makeError: (c, m) => new VersusError(c, m) });
-    const supaCreate = vi.fn(async () => party('supa-room'));
-    const supabase = { createRoom: supaCreate } as unknown as Remote;
-    const routed = makeRoutedVersusRemote({
-      supabase, cf, memory: makeRoomHostMemory(null),
-      readConfig: async () => ({ duel: 'cf', group: 'cf', duos: 'cf', ranked_duos: 'cf' }),
-    });
-    const w = watch(routed.createRoom("Kev's party", { displayName: 'Kev', profile: {}, setId: 'set1', contentRevision: 'c' }, RANKED));
+    const w = watch(cf.createRoom("Kev's party", { displayName: 'Kev', profile: {}, setId: 'set1', contentRevision: 'c' }, RANKED));
     await vi.advanceTimersByTimeAsync(VERSUS_CF_CONNECT_TIMEOUT_MS - 1_000);
     expect(w.state()).toBe('pending'); // still trying to open the room's socket
     expect(RefusedSocket.made).toBeGreaterThan(1);
     await vi.advanceTimersByTimeAsync(2_000);
-    // Before the fix this stayed pending for ever (Duo + Play's "Opening your party..." never ended).
-    expect(w.state()).toBe('resolved');
-    expect(w.value()?.id).toBe('supa-room');
-    expect(routed.hostOf('supa-room')).toBe('supabase');
-    expect(supaCreate).toHaveBeenCalledWith("Kev's party", expect.anything(), RANKED);
+    // Before R-VERSUS-CF-CONNECT-01 this stayed pending for ever; before R-VERSUS-CF-ONLY-01 the router then made a
+    // Supabase room. Now it is a plain failure, and every request went to the Worker.
+    expect(w.state()).toBe('rejected:timeout');
+    expect(fetchMock.mock.calls.every(([u]) => String(u).startsWith('http://worker'))).toBe(true);
+  });
+
+  it('the party door shows the failure with Try again when the Worker cannot open the party', async () => {
+    setIdentity({ userId: 'kev' } as never);
+    const create = vi.spyOn(versusRemote, 'createRoom').mockRejectedValue(new VersusError('timeout'));
+    act(() => { useGame.getState().setTitleView('versus'); });
+    useVersus.setState({ room: null, screen: 'browser', area: 'duos', error: null } as never);
+    await act(async () => { await createDuosParty("Kev's party"); });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(useVersus.getState()).toMatchObject({ room: null, error: 'Connection problem. Try again.' });
+    const view = mount(<DuosDoor />);
+    expect(view.container.querySelector('[role="alert"] button')?.textContent).toBe('Try again');
+    view.unmount();
+    act(() => { useGame.getState().setTitleView('modes'); });
   });
 
   it('Duo + Play stuck on reading the held room gives up with a reason and Try again (the door never waits forever)', async () => {

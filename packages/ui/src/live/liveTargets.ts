@@ -5,8 +5,8 @@
  *   `<run id>`             a lobby game (ranked, casual or Practice): the live watch screen (`watchLiveGame`)
  *   `versus:<ref>`         a Versus match (1v1, Group, Versus Duos): the room's stands, in the Versus area
  *   `duos:<ref>`           a Ranked Duos team: the party's stands, in the Duos area
- * `<ref>` is a room reference: the bare id for a Supabase room, `cf:<id>` for a Cloudflare room (`versusHost.ts`), so the
- * router sends the join to the right host. Pure.
+ * `<ref>` is a room reference: `cf:<id>` for a room on the Versus Worker (`versusHost.ts`); a bare id is a retired
+ * Supabase room an older client listed, which Watch reports as ended. Pure.
  */
 import type { LiveGameRow } from './liveRemote';
 import { parseGameStatus, type FriendGameStatus } from '../friends/gameStatus';

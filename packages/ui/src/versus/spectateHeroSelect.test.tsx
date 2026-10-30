@@ -214,6 +214,8 @@ describe('Live Games: a ranked Hero Select is listed and watched (R-SPECTATE-HER
   }
 
   beforeEach(() => {
+    // The Supabase listing path (a game's fallback when its Worker cannot be reached, R-LIVE-CF-01).
+    pubMod.setLivePublishUrlForTests(() => null);
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
     identity.setIdentity({ userId: 'u-player', isAnonymous: true } as never);
   });

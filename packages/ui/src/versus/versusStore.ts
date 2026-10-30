@@ -170,22 +170,6 @@ useVersus.subscribe((st, prev) => {
 export async function setRoomOptions(next: VersusRoomOptions): Promise<void> {
   const room = get().room;
   if (!room) return;
-  // THE CUTOVER (R-VERSUS-CF-CUTOVER-01): a room never changes backend, and Cloudflare only plays the modes the switch
-  // has moved there. A Cloudflare room switching to a mode still on Supabase is remade there when the host is alone in
-  // it (nobody to strand); with others in it, the change is refused with a plain reason.
-  if (next.mode !== (room.options?.mode ?? 'duel') && versusRemote.hostOf(room.id) === 'cf' && versusRemote.hostForMode(next.mode) !== 'cf' && room.status === 'open') {
-    const me = currentUserId();
-    if (room.members.some((m) => m.userId !== me)) { flashError(ERROR_TEXT.mode_other_host!); return; }
-    try {
-      let moved = await versusRemote.createRoom(room.name, myIdentity(), next);
-      try { moved = await versusRemote.takeSeat(moved.id, 'spectator'); } catch { /* opens seated */ }
-      try { await versusRemote.leaveRoom(room.id); } catch { /* the old room idles out */ }
-      enterRoom(moved);
-    } catch (e) {
-      flashError(errorText(e));
-    }
-    return;
-  }
   try {
     set({ room: await versusRemote.setOptions(room.id, next), error: null });
   } catch (e) {
@@ -203,7 +187,6 @@ const ERROR_TEXT: Record<string, string> = {
   seats_full: 'Every player seat is taken. You can watch instead.',
   spectators_full: 'The stands are full.',
   version_mismatch: 'That room is on a different game version. Update to join it.',
-  mode_other_host: 'This mode needs a new room. Make one from the Versus menu.',
   seat_taken: 'That seat was just taken.',
   need_two_players: 'You need an opponent to start.',
   need_three_players: 'You need three or four players to start.',
@@ -476,7 +459,7 @@ function subscribe(matchId: string | null): void {
     scheduleRefresh(what);
   }, (event, payload) => {
     // LIVE PINGS (R-PING-01..03): a teammate's, a mentor's or a watched player's ping, and who is mentoring. The
-    // Cloudflare room routes them; over Supabase the receiver re-checks the same rule.
+    // room routes them.
     if (receivePingEvent(event, payload)) return;
     // A player's emote: the other player shows it on its foe; a SPECTATOR shows both players' where the watched seat's
     // screen does (R-SPECTATE-EMOTE-02). Never both: a seated client is a player.
@@ -891,8 +874,8 @@ async function onMatch(match: VersusMatch): Promise<void> {
       const rec = groupRecord(get().lastMatch?.myCosmetics ?? null);
       if (rec) set({ lastMatch: rec });
     }
-    // A Cloudflare room writes its stands' watch record itself (R-LIVE-CF-XP-01): this spectator sends no beat for it.
-    if (match.room_id && versusRemote.hostOf(match.room_id) === 'cf') markServerRecordedWatch(match.group ? 'group' : 'versus', match.id);
+    // The room writes its stands' watch record itself (R-LIVE-CF-XP-01): this spectator sends no beat for it.
+    if (match.room_id) markServerRecordedWatch(match.group ? 'group' : 'versus', match.id);
     spectateSync(match, get().rounds);
     return;
   }

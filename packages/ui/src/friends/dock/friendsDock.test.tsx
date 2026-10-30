@@ -37,14 +37,14 @@ vi.mock('../../stage', async (importOriginal) => ({
 vi.mock('../../versus/versusFlag', () => ({ versusEnabled: () => true }));
 vi.mock('../../versus/versusStore', async (importOriginal) => {
   const orig = await importOriginal<typeof import('../../versus/versusStore')>();
-  const room = (id: string, mode: string, host?: string) => ({
-    id, status: 'open', host, options: { v: 1, mode, modifiers: [] }, members: [{ userId: '00000000-0000-0000-0000-000000000001', role: 'p1', displayName: 'Me' }],
+  const room = (id: string, mode: string) => ({
+    id, status: 'open', options: { v: 1, mode, modifiers: [] }, members: [{ userId: '00000000-0000-0000-0000-000000000001', role: 'p1', displayName: 'Me' }],
   });
   return {
     ...orig,
     openVersus: vi.fn(() => undefined),
-    createRoom: vi.fn(async (name: string) => { net.created.push(name); orig.useVersus.setState({ room: room('new-room', 'duel', (globalThis as { __host?: string }).__host) as never }); }),
-    enterDuosParty: vi.fn(async (name: string) => { net.parties.push(name); orig.useVersus.setState({ room: room('new-party', 'ranked_duos', (globalThis as { __host?: string }).__host) as never }); }),
+    createRoom: vi.fn(async (name: string) => { net.created.push(name); orig.useVersus.setState({ room: room('new-room', 'duel') as never }); }),
+    enterDuosParty: vi.fn(async (name: string) => { net.parties.push(name); orig.useVersus.setState({ room: room('new-party', 'ranked_duos') as never }); }),
     joinRoom: vi.fn(async (id: string, as: string) => { net.joined.push([id, as]); orig.useVersus.setState({ room: { ...room(id, 'duel'), status: 'in_game' } as never }); }),
   };
 });
@@ -104,7 +104,6 @@ beforeEach(() => {
   setInviteProofSourceForTests(async (room, to, kind) => `proof:${room}:${to}:${kind}`);
   lists = 0; invites = []; harmed = [];
   Object.assign(net, { live: true, failWatch: false, created: [], parties: [], watched: [], joined: [], replaysEnded: 0 });
-  (globalThis as { __host?: string }).__host = undefined;
   list = {
     ...emptyList(),
     friends: [
@@ -363,29 +362,24 @@ describe('the friend menu actions', () => {
   it('Invite to lobby, not in a room: makes a NEW room first (the normal create flow), then invites into it', async () => {
     expect(await inviteToRoom('u-amy', 'versus')).toBe(true);
     expect(net.created).toEqual(["Me's room"]);
-    expect(invites).toEqual([{ to: 'u-amy', kind: 'versus_room', target: 'new-room', proof: null }]);
-  });
-
-  it('…on a Cloudflare room: the invite carries the room\'s proof', async () => {
-    (globalThis as { __host?: string }).__host = 'cf';
-    expect(await inviteToRoom('u-amy', 'versus')).toBe(true);
+    // Every room is on the Versus Worker (R-VERSUS-CF-ONLY-01): `cf:<room>`, with the room's signed proof.
     expect(invites).toEqual([{ to: 'u-amy', kind: 'versus_room', target: 'cf:new-room', proof: 'proof:new-room:u-amy:versus_room' }]);
   });
 
   it('Invite to Duos, not in a party: makes my party (Duo + Play), then invites; already in one: invites to it, no new party', async () => {
     expect(await inviteToRoom('u-amy', 'duos')).toBe(true);
     expect(net.parties).toEqual(["Me's party"]);
-    expect(invites.at(-1)).toMatchObject({ kind: 'duos_party', target: 'new-party' });
+    expect(invites.at(-1)).toMatchObject({ kind: 'duos_party', target: 'cf:new-party' });
     expect(await inviteToRoom('u-bob', 'duos')).toBe(true);
     expect(net.parties).toHaveLength(1);
-    expect(invites.at(-1)).toMatchObject({ to: 'u-bob', kind: 'duos_party', target: 'new-party' });
+    expect(invites.at(-1)).toMatchObject({ to: 'u-bob', kind: 'duos_party', target: 'cf:new-party' });
   });
 
   it('already in an open Versus room: invites to it (no new room); mid-game: refused, nothing made, nothing sent', async () => {
     useVersus.setState({ room: { id: 'room-9', status: 'open', options: { v: 1, mode: 'duel', modifiers: [] }, members: [] } as never });
     expect(await inviteToRoom('u-amy', 'versus')).toBe(true);
     expect(net.created).toEqual([]);
-    expect(invites.at(-1)).toMatchObject({ kind: 'versus_room', target: 'room-9' });
+    expect(invites.at(-1)).toMatchObject({ kind: 'versus_room', target: 'cf:room-9' });
     inRun();
     invites = [];
     expect(await inviteToRoom('u-amy', 'versus')).toBe(false);
@@ -394,23 +388,19 @@ describe('the friend menu actions', () => {
     expect(useFriends.getState().flash).toBe(`${FINISH_FIRST}.`);
   });
 
-  it('Invite to spectate: my live game (no proof), my Supabase Versus room, my Cloudflare Ranked Duos room (proof, kind spectate)', async () => {
+  it('Invite to spectate: my live game (no proof), my Ranked Duos room (the room proof, kind spectate)', async () => {
     inRun();
     expect(await inviteToSpectate('u-amy')).toBe(true);
     expect(invites.at(-1)).toEqual({ to: 'u-amy', kind: 'spectate', target: 'live:run-me', proof: null });
     setIdentity({ userId: ME, displayName: 'Me', anonymous: false, email: 'a@b.c' });
-    // A Cloudflare Ranked Duos match of mine: `duos:cf:<room>`, with the room's proof for kind spectate.
+    // A Ranked Duos match of mine: `duos:cf:<room>`, with the room's proof for kind spectate.
     useVersus.setState({
-      room: { id: 'room-v', host: 'cf', status: 'in_game', options: { v: 1, mode: 'ranked_duos', modifiers: [] },
+      room: { id: 'room-v', status: 'in_game', options: { v: 1, mode: 'ranked_duos', modifiers: [] },
         members: [{ userId: ME, role: 'p1', displayName: 'Me' }, { userId: 'u-x', role: 'p2', displayName: 'X' }] } as never,
       match: { id: 'm1', phase: 'shop', round: 2 } as never,
     });
     expect(await inviteToSpectate('u-amy')).toBe(true);
     expect(invites.at(-1)).toEqual({ to: 'u-amy', kind: 'spectate', target: 'duos:cf:room-v', proof: 'proof:room-v:u-amy:spectate' });
-    // The same match on Supabase: `duos:<room>`, no proof (Postgres checks it).
-    useVersus.setState({ room: { ...useVersus.getState().room!, host: 'supabase' } as never });
-    expect(await inviteToSpectate('u-amy')).toBe(true);
-    expect(invites.at(-1)).toEqual({ to: 'u-amy', kind: 'spectate', target: 'duos:room-v', proof: null });
     useVersus.setState({ room: null, match: null });
     useGame.setState({ showTitle: true });
     expect(await inviteToSpectate('u-amy')).toBe(false); // no game of mine

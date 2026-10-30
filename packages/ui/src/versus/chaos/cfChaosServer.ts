@@ -53,7 +53,7 @@ import {
 } from '@game/sim/versus/server';
 import type { ChaosBackend, ResolverAction, ResolverCall, ResolverChaos, ServerSnap, Vitals } from './chaosBackend';
 import type { ChaosMode } from './chaosMatch';
-import { throttleSlot, type ChaosNet } from './fakeSupabase';
+import { throttleSlot, type ChaosNet } from './chaosNet';
 
 export const CF_CHAOS_URL = 'http://cf-chaos.invalid';
 

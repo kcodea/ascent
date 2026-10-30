@@ -1,18 +1,16 @@
 /**
- * VERSUS ON CLOUDFLARE — the DEV transport (spike, 2026-10-28; design: docs/design/2026-10-28-versus-cloudflare.md).
- *
- * The same `VersusRemote` surface the Versus store already calls, served by a room Durable Object over one WebSocket
- * instead of Supabase RPCs + Postgres Changes, so the existing Versus UI runs unchanged against `npm run versus:cf:dev`.
- * OFF unless asked for: a dev build (or a browser with the Versus test tools on) opened with `?versusHost=cf` (kept for
- * the tab in sessionStorage; `?versusHost=supabase` turns it off). The Supabase path stays the default and is untouched.
+ * VERSUS ON CLOUDFLARE: the game's one Versus transport (R-VERSUS-CF-ONLY-01, owner 2026-10-29; design:
+ * docs/design/2026-10-28-versus-cloudflare.md). Every mode (1v1, Group, Versus Duos, Ranked Duos) is a room Durable
+ * Object on the Versus Worker, reached over one WebSocket.
  *
  * How the calls map:
- *   - every room/match write is a request on the room socket (answered with the same row json the SQL returned);
+ *   - every room/match write is a request on the room socket (answered with the same row json the original SQL returned);
  *   - every room/match READ is answered from the pushes the room already sent (no round trip): the store's
- *     "something changed, read it again" wake-ups (`subscribeRoom`) now arrive WITH the new rows;
+ *     "something changed, read it again" wake-ups (`subscribeRoom`) arrive WITH the new rows;
  *   - `finalize` is a no-op: the room resolves the fight itself the moment the round closes, and pushes it;
- *   - the room list, my room and room creation are plain HTTP on the Worker.
- * 1v1 only: every Group / Duos / Ranked Duos call refuses with `cf_unsupported` (reads answer "nothing").
+ *   - the room list, my room and room creation are plain HTTP on the Worker;
+ *   - the RECORDS that live in Supabase (team names, a settled ranked result, the leaderboard, the dev bot flag) go to
+ *     `deps.records`.
  *
  * Auth: the game's Supabase access token when signed in (the Worker verifies it); otherwise, against a dev Worker
  * (`DEV_AUTH=1`), a dev token naming this browser's account id.
@@ -25,6 +23,7 @@ import { VersusCfClient, VersusCfError, versusCfHttp } from '@game/versus-cf/cli
 import { VERSUS_CF_PROTOCOL, type VersusCfPush } from '@game/versus-cf/protocol';
 import type {
   VersusDuosPassRow,
+  VersusRecords,
   RankedDuosRoundRow,
   RankedDuosTableRaw,
   RankedDuosTeamRead,
@@ -48,14 +47,15 @@ export const VERSUS_CF_DEFAULT_URL = 'http://127.0.0.1:8787';
 /**
  * THE ROOM SOCKET NEVER HANGS (R-VERSUS-CF-CONNECT-01, live 2026-10-29: Duo + Play sat on "Opening your party..." for
  * good on the Cloudflare host). Opening a room's socket waits at most this long for the room's hello; past it the call
- * fails with `timeout` (the cutover router then makes a NEW room on Supabase; a read or join shows its error).
+ * fails with `timeout`, which the screen shows with Try again (never a room on another backend, R-VERSUS-CF-ONLY-01).
  */
 export const VERSUS_CF_CONNECT_TIMEOUT_MS = 10_000;
 /** The deployed Worker for THIS build's engine (`workers/versus/scripts/deploy.ts` names it the same way). */
 export const versusCfLiveUrl = (rev: string = contentRevision()): string =>
   `https://ascent-versus-v${VERSUS_CF_PROTOCOL}-${rev}.team-ascent.workers.dev`;
 
-/** Is the Cloudflare transport selected for this tab? Dev builds (or the Versus test tools) only. */
+/** Did this dev tab pick a Worker of its own (`?versusHost=cf` / `cf-live`, `?versusCfUrl=`)? Dev builds (or the Versus
+ *  test tools) only. Every build talks to a Worker either way; this only says the tab chose which one. */
 export function versusCfSelected(): boolean {
   try {
     const devOk = import.meta.env.DEV || localStorage.getItem('ascent.versus') === '1';
@@ -65,7 +65,7 @@ export function versusCfSelected(): boolean {
     if (host === 'cf') sessionStorage.setItem(HOST_KEY, 'cf');
     // `cf-live`: the deployed Worker that carries THIS build's engine (versioned by content revision).
     if (host === 'cf-live') { sessionStorage.setItem(HOST_KEY, 'cf'); sessionStorage.setItem(URL_KEY, versusCfLiveUrl()); }
-    if (host === 'supabase') sessionStorage.removeItem(HOST_KEY);
+    if (host === 'off') sessionStorage.removeItem(HOST_KEY);
     const url = q.get('versusCfUrl');
     if (url && (/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url) || /^https:\/\/[a-z0-9-]+\.team-ascent\.workers\.dev$/.test(url))) sessionStorage.setItem(URL_KEY, url);
     return sessionStorage.getItem(HOST_KEY) === 'cf';
@@ -88,7 +88,7 @@ function workerUrl(): string {
 }
 
 export interface CfRemoteDeps {
-  /** The Worker to talk to (the cutover router passes the build's own Worker); default: the dev tab's pick. */
+  /** The Worker to talk to (the game passes the build's own Worker); default: the dev tab's pick. */
   baseUrl?: string;
   getClient: () => SupabaseClient | null;
   currentUserId: () => string | null;
@@ -97,8 +97,8 @@ export interface CfRemoteDeps {
   /** DEV ONLY: with no backend configured (no Supabase session, no account id), give this tab a throwaway account id so
    *  the store can tell which seat is its own. Never used when a real identity exists. */
   adoptDevIdentity?: (userId: string) => void;
-  /** The Supabase adapter, for what is not room state (the Duos leaderboard, team names, a ranked result: Supabase rows). */
-  fallback?: VersusRemote;
+  /** The Supabase-held records (the Duos leaderboard, team names, a ranked result, the dev bot flag): not room state. */
+  records?: VersusRecords;
 }
 
 /** A throwaway account id for this TAB (each headless test player is its own tab). */
@@ -274,11 +274,11 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
      *  `friends_invite` refuses a Cloudflare invite without that proof. */
     inviteProof: async (id: string, to: string, kind: string) => (await req<{ proof: string }>(id, 'invite_proof', { to, kind })).proof,
     // Not room state: the Supabase rows (team names, the leaderboard, a settled ranked result) are read where they live.
-    setTeamName: (partner: string, name: string) => (deps.fallback ? deps.fallback.setTeamName(partner, name) : unsupported()),
-    duosResult: async (matchId: string) => (deps.fallback ? deps.fallback.duosResult(matchId) : null),
-    duosTeam: async (a: string, b: string) => (deps.fallback ? deps.fallback.duosTeam(a, b) : null),
-    duosLeaderboard: async (limit?: number, offset?: number) => (deps.fallback ? deps.fallback.duosLeaderboard(limit, offset) : []),
-    duosTeamsOf: async (userId: string) => (deps.fallback ? deps.fallback.duosTeamsOf(userId) : []),
+    setTeamName: (partner: string, name: string) => (deps.records ? deps.records.setTeamName(partner, name) : unsupported()),
+    duosResult: async (matchId: string) => (deps.records ? deps.records.duosResult(matchId) : null),
+    duosTeam: async (a: string, b: string) => (deps.records ? deps.records.duosTeam(a, b) : null),
+    duosLeaderboard: async (limit?: number, offset?: number) => (deps.records ? deps.records.duosLeaderboard(limit, offset) : []),
+    duosTeamsOf: async (userId: string) => (deps.records ? deps.records.duosTeamsOf(userId) : []),
     async createRoom(name: string, me: VersusIdentity, options?: VersusRoomOptions | null) {
       const r = await http<VersusRoom>('/rooms', {
         method: 'POST', body: { name, display: me.displayName, profile: me.profile, setId: me.setId, contentRevision: me.contentRevision, protocol: VERSUS_PROTOCOL, options: options ?? null },
@@ -412,7 +412,7 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     duosAnswerPass: (id: string, fromSeat: VersusGroupSeat, seq: number, landed: boolean) =>
       mreq<VersusDuosPassRow>('duos_answer_pass', { matchId: id, fromSeat, seq, landed }),
     duosPasses: (id: string, fromRound: number) => mreq<VersusDuosPassRow[]>('duos_passes', { matchId: id, from: fromRound }),
-    testBotRegister: unsupported,
+    testBotRegister: (host: string, slot: number) => (deps.records ? deps.records.testBotRegister(host, slot) : unsupported()),
     devSetVitals: unsupported,
     devSkipShop: unsupported,
     /** The room resolved the round itself when it closed; nothing to ask for. */

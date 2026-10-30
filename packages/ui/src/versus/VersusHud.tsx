@@ -27,7 +27,6 @@ import { sfx } from '../sfx';
 import { versusReadyLabel, versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, versusTurnReady, type VersusTurn } from './versusTurn';
 import { markFlow } from './flowTiming';
 import { SpectatorBar } from './SpectatorBar';
-import { useDuosLivePublisher } from './duosLive';
 import { emitPressCue } from '../pressCue';
 import { endTurnStalled } from './versusReliability';
 import { versusFightWaitHeld } from './versusHooks';
@@ -232,8 +231,6 @@ export const VERSUS_SLOW_NOTE = 'The fight is on its way';
  *    3, 2, 1.
  */
 export function VersusHud() {
-  // RANKED DUOS: the team's Live Games row (first seat only; R-RANKED-DUOS-PARTY-01).
-  useDuosLivePublisher();
   const match = useVersus((s) => s.match);
   const mode = useGame((s) => s.run.mode);
   const phase = useGame((s) => s.run.phase);

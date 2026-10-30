@@ -1,92 +1,76 @@
-# Versus cutover: Supabase → Cloudflare, one mode at a time
+# Versus on Cloudflare (the only host)
 
-Owner decision 2026-10-28 (design: [`design/2026-10-28-versus-cloudflare.md`](design/2026-10-28-versus-cloudflare.md)).
-This is the runbook for moving a Versus mode onto the Cloudflare Worker and back, with no downtime. Rule:
-`R-VERSUS-CF-CUTOVER-01`.
+Owner decision 2026-10-28 (design: [`design/2026-10-28-versus-cloudflare.md`](design/2026-10-28-versus-cloudflare.md)):
+live Versus moved from Supabase SQL functions to Cloudflare Durable Objects. Owner 2026-10-29: "why are we using
+supabase for versus instead of cloudflare? stop doing that". Since then **every Versus mode (1v1, Group, Versus Duos,
+Ranked Duos) and live-game spectating runs on the Versus Worker only** (`R-VERSUS-CF-ONLY-01`). There is no per-mode
+switch to flip and no Supabase fallback: a Worker problem is fixed forward on Cloudflare, never by sending a mode back.
+
+This file keeps its old name because migrations and devlogs link to it. The cutover history (the switch, the router,
+the one-mode-at-a-time flip) is in [`devlog/2026-10-28-versus-cf-cutover.md`](devlog/2026-10-28-versus-cf-cutover.md)
+and the retirement in [`devlog/2026-10-29-retire-supabase-versus.md`](devlog/2026-10-29-retire-supabase-versus.md).
 
 ## How it works
 
 | Piece | Where | What it does |
 |---|---|---|
-| **The switch** | `public.versus_host_config` (one row per mode: `duel`, `group`, `duos`, `ranked_duos`, and since 2026-11-10 `lobby_live`; host `supabase` or `cf`) — `supabase/migrations/2026-11-05-versus-host-config.sql`, `2026-11-10-lobby-live-cf.sql` | Decides where **new** rooms of that mode are created (`lobby_live`: where a new live lobby / Practice game publishes its spectator stream). Nothing else. Every mode starts on `supabase`. |
-| **The client's read** | `versus_host_config()` RPC, read once at launch and at most every 30 s while creating rooms (`packages/ui/src/versus/versusHost.ts`) | Tiny jsonb. Only builds that carry a Worker URL read it at all. A failed read = everything on Supabase. |
-| **The router** | `packages/ui/src/versus/versusRouter.ts` (the game's `versusRemote`) | Sends each call to the room's host. A room keeps the host it was created on **for life**; the client remembers it across a reload. |
-| **The Worker URL** | `VITE_VERSUS_CF_URL`, baked in by `npm run release:web -- --versus-cf` | A build with no URL (or a URL for a different content revision) is Supabase-only whatever the switch says. |
-| **Room lists** | Both backends, merged in the client | Supabase rooms from `versus_list_rooms` as today; Cloudflare rooms from the Worker's own `GET /rooms` (its directory object). |
-| **Invites / Watch / Live Games** | Room reference `cf:<room id>` for a Cloudflare room, the bare id for a Supabase room | `friends_invite` accepts `cf:<uuid>` with the room's signed proof (checked at send, R-VERSUS-CF-INVITE-01); the Friends "Watch" id and a Live Games `duos:` row carry the same prefix. A Cloudflare Ranked Duos room writes its own Live Games row (`duos:cf:<room>`, R-VERSUS-CF-LIVE-01). |
+| **The adapter** | `packages/ui/src/versus/versusRemote.ts` (`versusRemote`) over `versusCfRemote.ts` | Every room and match call goes to the Worker: writes on the room socket, reads answered from its pushes, the room list / my room / create as HTTP. A Worker that cannot be reached is an error the screen shows with Try again. |
+| **The Worker URL** | `VITE_VERSUS_CF_URL`, baked in by `npm run release:web` | Trusted only when it is exactly the Worker for the build's own content revision (`embeddedCfUrl`); otherwise the build talks to the Worker named after its own engine (`ascent-versus-v<protocol>-<content>`). A dev build talks to `npm run versus:cf:dev` (127.0.0.1:8787). |
+| **Records** | Supabase, through the Worker's key-gated writer (`versus_cf_persist`, `versus_cf_live`, `spectate_cf_beat`, `lobby_live_cf`) | Results, rounds, history, ratings, Live Games rows and spectator XP land in the same tables as always; the client reads team names, a settled ranked result and the Duos leaderboard there (`makeVersusRecords`). |
+| **Room references** | `cf:<room id>` | Every invite, Friends "Watch" id and Live Games row names the room `cf:<id>`. A bare id is a retired Supabase room from an older client: the client says "That room has closed." instead of trying it. |
 | **Origin allowlist** | `ALLOWED_ORIGINS` in `workers/versus/wrangler.toml` | `https://ascent-game-web.netlify.app` + localhost dev ports. Deploy-time override: `VERSUS_ALLOWED_ORIGINS`. |
 
 **Why the Worker lists its own rooms (not a registry table in Supabase):** the Worker already keeps every live room in
 its directory object (`workers/versus/src/directory.ts`, `GET /rooms`). Reading it costs zero Supabase egress and needs
-no new write path from Cloudflare into Postgres (the only Cloudflare → Supabase write stays the limited result writer,
-`versus_cf_persist`). A registry table would add a write per room state change plus a second Realtime/poll read for
-every room list, which is exactly the egress we are trying to shed.
+no new write path from Cloudflare into Postgres.
 
-**What a room does during a flip:**
-- Flip a mode to `cf`: rooms of that mode created from then on (within 30 s) go to Cloudflare. Supabase rooms already
-  open or playing finish on Supabase.
-- Flip it back (rollback): new rooms go to Supabase at once (within 30 s). Cloudflare rooms finish on Cloudflare.
-- A Cloudflare room whose host switches it to a mode still on Supabase is remade on Supabase when the host is alone in
-  it; with others in the room the change is refused ("This mode needs a new room. Make one from the Versus menu.").
-- A Cloudflare create that fails on the network falls back to a Supabase room, so a Worker outage never blocks play.
+## Releasing
 
-## One-time setup (before the first flip)
-
-1. Apply `supabase/migrations/2026-11-04-versus-cf-writer.sql` (the result writer; PR #2369).
-2. Apply `supabase/migrations/2026-11-05-versus-host-config.sql` (the switch + `cf:` invites). Safe on its own: every
-   mode starts on `supabase`, and builds without a Worker never read it.
-   Then apply `supabase/migrations/2026-11-08-versus-cf-live-games-invites.sql` (Live Games rows from Cloudflare Ranked
-   Duos rooms, and the signed invite check). Safe on its own: a Supabase invite is checked as before, and a call without
-   the new `p_proof` argument still resolves.
-3. Ship a pack that carries the Worker:
-   ```
-   npm run release:web -- --versus-cf
-   ```
-   (needs `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` in the environment). It deploys the Worker for that exact
-   commit **first** (`npm run versus:cf:deploy -- --persist`, named `ascent-versus-v<protocol>-<content>`), checks
-   its `/health` answers that engine, gives a NEW Worker its result-writer secret (`writer-secret.mjs`; it prints one
-   `insert into public.versus_cf_writer_keys ...` line: run it on Supabase before flipping, or that Worker's matches
-   leave no records), then builds the zip with the Worker URL baked in. Upload the zip as usual and do
-   the usual versus-resolve redeploy (CLAUDE.md "Releasing"): Supabase rooms still need it.
-   Without `--versus-cf` the zip is Supabase-only (today's behaviour).
-
-## Flip a mode (no build, no deploy)
-
-```sql
--- Move 1v1 to Cloudflare:
-update public.versus_host_config set host = 'cf', updated_at = now(), note = 'cutover 1v1' where mode = 'duel';
-
--- Check:
-select public.versus_host_config();
+```
+npm run release:web
 ```
 
-Run it with the Supabase CLI against project `zcwhbejpqcdcfdpfxeza`. Only flip a mode whose Cloudflare port has
-shipped in the live pack (today: `duel` only; Group, Duos and Ranked Duos are still being ported). The live clients
-pick it up within 30 s.
+(needs `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` in the environment). It deploys the Worker for that exact commit
+**first** (`npm run versus:cf:deploy -- --persist`), checks its `/health` answers that engine, gives a NEW Worker its
+result-writer secret (`writer-secret.mjs`; it prints one `insert into public.versus_cf_writer_keys ...` line: run it on
+Supabase before uploading the zip, or that Worker's matches leave no records), deploys the friends hub when its code
+changed, then builds the zip with the Worker URL baked in. Nothing else is deployed for Versus. `--versus-cf` (the old
+opt-in flag) is still accepted and changes nothing; `--versus-cf-no-persist` is for test packs only.
 
-## Roll back (instant)
+**Desktop builds** (`scripts/release-desktop.mjs`) do not deploy a Worker. A desktop build talks to the Worker named
+after its own content revision, so ship one only for a commit whose Worker a web release already deployed.
 
-```sql
-update public.versus_host_config set host = 'supabase', updated_at = now(), note = 'rollback' where mode = 'duel';
-```
+## Retiring the Supabase host (2026-10-29)
 
-New rooms go to Supabase within 30 s; Cloudflare rooms already playing finish there and their records land in the
-same tables (`versus_matches` / `versus_rounds`), so XP and records stay continuous. Everything back at once:
+What changed in the client (chore/retire-supabase-versus): the cutover router, the per-mode switch read, the Supabase
+room / match adapter, its Realtime channel and the Supabase Ranked Duos Live Games heartbeat are gone. The server half
+is `supabase/migrations/2026-11-14-retire-supabase-versus.sql`.
 
-```sql
-update public.versus_host_config set host = 'supabase', updated_at = now(), note = 'rollback all';
-```
+**Order, and how long to wait:**
 
-## Dev and test
+1. Upload the first pack built from a commit that has this change. `index.html` is served no-cache, so any reload or new
+   visit runs the new build at once.
+2. **Wait about 24 hours.** Only a tab left open from before the upload still runs the old code. That old code makes a
+   Supabase room in one case only: its Cloudflare create failed on the network (every mode was already on `cf`). Until
+   step 3 such a room still works end to end, because the old Supabase server is still there.
+3. Run the two check queries at the top of the migration (no Supabase-hosted match still playing), then apply
+   `2026-11-14-retire-supabase-versus.sql`. From then on an old tab whose Worker create fails sees its generic
+   "Connection problem. Try again." (the server answers `versus_moved`), and no Supabase room can be made at all. The
+   switch stays, pinned to `cf`: an old client treats a failed read of it as "everything on Supabase", so it must keep
+   answering until no pre-retirement build is in use.
+4. Once the same check queries stay at 0 (a Supabase match can last at most about two hours, and the migration's last
+   sweep ended every silent one), delete the Edge Function:
+   `npx --yes supabase@2.120.0 functions delete versus-resolve --project-ref zcwhbejpqcdcfdpfxeza`. An old tab still in
+   a Supabase match after that would freeze at the round's close (its resolver is gone); the check queries are what
+   rule that out.
+5. Follow-up PR (after step 4): delete `supabase/functions/versus-resolve/`, `npm run versus:bundle`
+   (`packages/tools/src/versus-bundle.ts`) and the `bundle` / `remote` modes of `npm run versus:parity` (keep its
+   `generate`, which builds the sim's parity fixture). Later still, once no pre-retirement build is in use: drop
+   `versus_host_config` and its read, and the Supabase room / match functions. Never drop the data tables (results,
+   rounds, history, ratings).
 
-- `?versusRoute=duel:cf,group:supabase` (or `*:cf`; `off` clears it) in a dev build or with the Versus test tools on:
-  a per-mode override for this tab. `?versusHost=cf` / `cf-live` still sends every mode to Cloudflare, and
-  `?versusCfUrl=` picks the Worker.
-- `npm test` covers the routing (`packages/ui/src/versus/versusRouter.test.ts`) and the origin list
-  (`workers/versus/test/origins.test.ts`).
-- **Acceptance gate before a flip: the chaos matrix on Cloudflare** (`packages/ui/src/versus/chaos/versusChaosCf.test.ts`;
-  `npm test` runs its smoke, `CHAOS_FULL=1 npx vitest run versusChaosCf` the whole matrix in ~8 minutes). Same scenarios
-  and invariants as the Supabase matrix; results and open items in `docs/devlog/2026-10-28-versus-chaos-cf.md`.
+**Old desktop builds** never carried a Worker URL, so they are Supabase-only for Versus: after step 3 they cannot make a
+Versus room, and after step 4 a Supabase match on them cannot finish. Ship a new desktop build first if any are in use.
 
 ## Origin allowlist
 
@@ -94,64 +78,49 @@ Default (`workers/versus/wrangler.toml`): `https://ascent-game-web.netlify.app,h
 To add a custom domain without a code change, deploy with the list in the environment:
 
 ```
-VERSUS_ALLOWED_ORIGINS="https://ascent-game-web.netlify.app,https://play.example.com,http://localhost:*,http://127.0.0.1:*" npm run release:web -- --versus-cf
+VERSUS_ALLOWED_ORIGINS="https://ascent-game-web.netlify.app,https://play.example.com,http://localhost:*,http://127.0.0.1:*" npm run release:web
 ```
 
 `deploy.ts` validates each entry (https origins, or http on localhost / 127.0.0.1) and echoes the list.
 
-## Live Games and invites (2026-11-08)
+## Live Games and invites
 
-- **Live Games** (owner 2026-10-28: every game is a live game): a Cloudflare room writes its own row (`versus:cf:<room>`
-  for 1v1 / Group / Versus Duos, `duos:cf:<room>` for Ranked Duos) through the key-gated `versus_cf_live`, only when the
-  listing changes (start, round, phase, end) plus a 2-minute keep-alive; the row stays listed 4 minutes past its last
-  write and is removed at the end. Supabase Versus rooms are listed by a server trigger on the match rows (no client
-  traffic). Watch from Live Games or Friends joins the room on its own host.
-- **Invites**: the client asks its room for a proof (`invite_proof` on the room socket); the room runs the Supabase
-  checks (open, I am in it, they are not) and signs `<exp>.<hmac>` with the sha256 of its writer secret (the value
-  `versus_cf_writer_keys` holds, so nothing new to provision); `friends_invite` refuses a `cf:` invite without a valid
-  proof (`room_check`). A Worker with no writer secret answers `invites_unavailable`.
+- **Live Games** (owner 2026-10-28: every game is a live game): a room writes its own row (`versus:cf:<room>` for 1v1 /
+  Group / Versus Duos, `duos:cf:<room>` for Ranked Duos) through the key-gated `versus_cf_live`, only when the listing
+  changes (start, round, phase, end) plus a 2-minute keep-alive; the row stays listed 4 minutes past its last write and
+  is removed at the end. Watch from Live Games or Friends joins the room on the Worker.
+- **Invites**: the client asks its room for a proof (`invite_proof` on the room socket); the room runs the checks (open,
+  I am in it, they are not) and signs `<exp>.<hmac>` with the sha256 of its writer secret (the value
+  `versus_cf_writer_keys` holds); `friends_invite` refuses a `cf:` invite without a valid proof (`room_check`). A Worker
+  with no writer secret answers `invites_unavailable`.
 
-## Lobby and Practice spectating: `lobby_live` (2026-11-10)
+## Lobby and Practice spectating
 
-Owner 2026-10-29: "build the cloudflare spectating for lobby and practice too so it's all uniform" (R-LIVE-CF-01). With
-`lobby_live` on `cf`, a NEW live lobby or Practice game publishes to its own Durable Object on the Worker
-(`VersusLiveGame`, `GET /live/<game>/ws`) instead of the Supabase heartbeat / broadcast channel / `lobby_live_frames`.
-The object writes the game's Live Games row itself through the key-gated `lobby_live_cf` (on a change plus a 2-minute
-keep-alive, `live_host = 'cf:<content revision>'`, removed at the end); watchers reach the game on that Worker. A game
-keeps its host for life, so a flip (either way) moves only new games. A player whose Worker does not answer within 6 s
-publishes that game on Supabase instead (the heartbeat takes the row back).
+Owner 2026-10-29: "build the cloudflare spectating for lobby and practice too so it's all uniform" (R-LIVE-CF-01). A new
+live lobby or Practice game publishes to its own Durable Object on the Worker (`VersusLiveGame`,
+`GET /live/<game>/ws`); the object writes the game's Live Games row itself through the key-gated `lobby_live_cf` (on a
+change plus a 2-minute keep-alive, `live_host = 'cf:<content revision>'`, removed at the end); watchers reach the game
+on that Worker. The client no longer reads the switch for this. A player whose Worker does not answer within 6 s still
+lists that one game through the Supabase listing (heartbeat, broadcast channel, `lobby_live_frames`): the game itself
+is unaffected either way.
 
-**Spectator XP on Cloudflare (R-LIVE-CF-XP-01).** Every Cloudflare watch now earns spectator XP: the Versus room (any
-mode) and the live game object beat their stands' watch record through the key-gated `spectate_cf_beat` (same accrual
-rule and caps as `spectate_beat`; one call per object every 30 s for all its watchers). This closes the gap this runbook
-used to list ("watching a Cloudflare match earns no spectator XP"). It needs the migration applied and a Worker deployed
-with `--persist` (PERSIST on) whose writer key is registered.
+**Spectator XP (R-LIVE-CF-XP-01).** The Versus room (any mode) and the live game object beat their stands' watch record
+through the key-gated `spectate_cf_beat` (same accrual rule and caps as `spectate_beat`; one call per object every
+30 s for all its watchers). It needs a Worker deployed with `--persist` whose writer key is registered.
 
-### Cutover steps for `lobby_live`
+Check: start a Practice game in one browser, Watch it from Live Games in another (Claudebot accounts). The row's
+`live_host` is `cf:<rev>` (`select game_id, live_host, live_until from public.lobby_live_games;`); during the watch,
+`select * from public.spectate_sessions where run_id like 'watch:lobby:%' order by last_seen_at desc limit 5;` shows
+the watcher's time growing every 30 s.
 
-1. Apply `supabase/migrations/2026-11-10-lobby-live-cf.sql` (after 2026-11-08). Safe on its own: `lobby_live` starts
-   on `supabase`; the heartbeat, watch and listing behave as before for every Supabase game; older clients read the
-   listing without the new column. It also turns on spectator XP for Cloudflare Versus watches as soon as a Worker
-   carrying this code is live.
-2. Ship a pack with the Worker: `npm run release:web -- --versus-cf` (deploys the Worker with the new `VersusLiveGame`
-   class: Durable Object migration tag `v2`, applied by the deploy). Do the usual versus-resolve redeploy. Make sure
-   the printed `insert into public.versus_cf_writer_keys ...` line was run for this Worker (no key = no Live Games row
-   and no spectator XP from it; watching itself still works).
-3. Flip:
-   ```sql
-   update public.versus_host_config set host = 'cf', updated_at = now(), note = 'cutover lobby_live' where mode = 'lobby_live';
-   select public.versus_host_config();
-   ```
-   Clients pick it up within 30 s (read at launch, cached 30 s); games already running keep their host.
-4. Check: start a Practice game in one browser, Watch it from Live Games in another (Claudebot accounts). The row's
-   `live_host` is `cf:<rev>` (`select game_id, live_host, live_until from public.lobby_live_games;`); during the watch,
-   `select * from public.spectate_sessions where run_id like 'watch:lobby:%' order by last_seen_at desc limit 5;`
-   shows the watcher's time growing every 30 s.
-5. Roll back (instant): `update public.versus_host_config set host = 'supabase', updated_at = now(), note = 'rollback lobby_live' where mode = 'lobby_live';`
-   New games publish on Supabase within 30 s; Cloudflare games finish where they are.
+## Dev and test
 
-Dev: `?versusRoute=lobby_live:cf` (or `?versusHost=cf` for everything) against `npm run versus:cf:dev`.
-
-## Still open (not in this plumbing)
-
-- **A rollout percentage** (`cf:<percent>` in the design doc) is not built; the switch is all or nothing per mode.
+- A dev build talks to `npm run versus:cf:dev`. `?versusHost=cf-live` picks the deployed Worker for this build's
+  engine, `?versusCfUrl=<url>` any allowed Worker (dev builds, or with the Versus test tools on); `?versusHost=off`
+  clears the pick.
+- `npm test` covers the Cloudflare-only contract (`packages/ui/src/versus/versusCfOnly.test.ts`), the connect deadline
+  (`rankedDuosPartyCf.test.tsx`), the origin list (`workers/versus/test/origins.test.ts`), what every mode's screens
+  show plus the result writer (`packages/ui/src/versus/chaos/versusCfParity.db.test.ts`) and the chaos smoke.
+- **The chaos matrix** (`packages/ui/src/versus/chaos/versusChaosCf.test.ts`; `npm test` runs its smoke,
+  `CHAOS_FULL=1 npx vitest run versusChaosCf` the whole matrix in about 8 minutes). Known failures live in
+  `chaosKnownCf.ts`.

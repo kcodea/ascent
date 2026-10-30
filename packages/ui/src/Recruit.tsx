@@ -215,6 +215,7 @@ import { getEquipFxConfig } from './equipFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS, DARK_RUBY_CONSUME_DELAY_MS } from './choreo/channels/rubyLanded';
 import { chooseOneHeldSlot } from './chooseOneHold';
+import { chooseKey, questOfferKey } from './pings/pingKeys';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor, castFxReplacesTendril } from './choreo/bindings';
@@ -10261,7 +10262,7 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                   const srcUid = grant?.sourceUids.find((u) => run.board.some((b) => b.uid === u));
                   const src = CARD_INDEX[run.board.find((b) => b.uid === srcUid)?.cardId ?? ''];
                   return eq.chooseOne.map((opt, i) => (
-                    <div className="disc-slot" data-pick-sfx key={i} style={{ '--c': `var(--t-${src?.tribe ?? 'neutral'})` } as CSSProperties}>
+                    <div className="disc-slot" data-pick-sfx key={i} style={{ '--c': `var(--t-${src?.tribe ?? 'neutral'})` } as CSSProperties} data-ping={chooseKey(eq.id, i)}>
                       <Card
                         card={{
                           // Each branch wears its OWN illustration (owner 2026-08-31), passed explicitly
@@ -10296,7 +10297,7 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                 const coBonusA = c.spell ? spellBonus - (c.gift ? (run.nextSpellBonus?.attack ?? 0) : 0) : 0;
                 const coBonusH = c.spell ? spellBonusH - (c.gift ? (run.nextSpellBonus?.health ?? 0) : 0) : 0;
                 return (c.chooseOne ?? []).map((opt, i) => (
-                  <div className="disc-slot" data-pick-sfx key={i} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
+                  <div className="disc-slot" data-pick-sfx key={i} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties} data-ping={chooseKey(c.id, i)}>
                     <Card
                       // The option's own text IS the card's text here — the whole point of showing two cards is
                       // that each reads as the thing it would become. Stats come from the live instance when
@@ -10390,6 +10391,7 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
               chooseBothKey: chooseBothActive(run, undefined, c) ? `disc:${i}` : undefined };
           })}
           onPick={(i) => dispatch({ type: 'discover', index: i })}
+          pingSet="disc"
           occasion={discoverOccasion(run)}
           speed={replaySpeed}
           burstRef={discoverBurstRef}
@@ -10482,7 +10484,7 @@ const QuestOverlay = memo(function QuestOverlay({ overlaysHeld, questOffer, ques
             <div className="disc-cards quest-ov-cards">
               {questOffer.map((id, i) => {
                 const q = QUEST_INDEX[id];
-                return q ? <QuestCard key={id} quest={q} onBuy={() => dispatch({ type: 'buyQuest', index: i })} /> : null;
+                return q ? <QuestCard key={id} quest={q} onBuy={() => dispatch({ type: 'buyQuest', index: i })} pingKey={questOfferKey(id)} /> : null;
               })}
             </div>
             <span className="disc-gem disc-gem-bot" aria-hidden="true" />
@@ -10516,6 +10518,7 @@ const PowerOverlay = memo(function PowerOverlay({ overlaysHeld, powerOffer, occa
           ids={powerOffer.heroIds}
           cards={cards}
           onPick={(i) => dispatch({ type: 'pickPower', index: i })}
+          pingSet="pow"
           occasion={occasion}
           speed={replaySpeed}
           burstRef={burstRef}
@@ -10594,6 +10597,7 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
             dispatch({ type: 'buyRune', index: i });
           }}
           onReroll={() => dispatch({ type: 'rerollRuneforge' })}
+          pingable
         />
       )}
     </>

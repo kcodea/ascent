@@ -11290,6 +11290,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
   {
+    id: 'R-PING-08',
+    title: 'Pings land on every choosable or inspectable spot, by a semantic key every viewer shares',
+    statement:
+      'Beyond play-zone cards and the five shop buttons, a ping may land on a UI SPOT: an element carrying a `data-ping` key built by `packages/ui/src/pings/pingKeys.ts` (a Discover option `disc:<i>:<cardId>:<offer signature>`, a hero-power Discover option `pow:...`, a Choose One option, an Ancient, a Quest Shop offer, a Runeforge offer, an equipped rune, the quest tracker, the second hero power, the Equipment slot, the hero portrait, a lobby rail row, the Duos teammate portrait). It travels as `{ t: "ui", k }` and each viewer finds the same key on its own layout, never a position. A spot takes Check, X and Question only. A right-click opens the fan; a double right-click reaches the spot’s own right-click (a card option’s Inspect, the scout pin, the emotes). Spots marked `data-ping-own` (the portrait, the rail rows) keep their own right-click for the player on their own screen, and the player’s phone hold on a choice option stays its Inspect; a teammate or mentor gets the fan there, and on the watch screen their tap on an option inspects it. The ping clears when its spot leaves the screen (the offer closed, the option was taken, a new offer opened under new keys). An older client or server drops the unknown target kind, so the change is safe to ship ahead of a Worker deploy.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: 'mentors/players should be able to ping discover card options, runes etc as well. please fix that' },
+      { kind: 'code', ref: 'packages/ui/src/pings/pingKeys.ts; packages/ui/src/pings/PingLayer.tsx uiSpotOf / spotYields / openCardPingMenu / pingAnchorOf; workers/versus/src/pings.ts PING_UI_KEY parseTarget' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-30 (feat/pings-discover-runes). Before, a right-click on a Discover option or a rune always inspected at once and nothing outside the play zones and shop buttons could be pinged.',
+    example: "Sam mentors Ann. Ann's Discover offers three Dragons; Sam right-clicks the middle one and picks Check. Ann sees the check on her middle option; when she takes a card the check goes.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pingSpots.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
     id: 'R-VERSUS-CF-CONNECT-01',
     title: 'Versus on Cloudflare: opening a room never hangs; Duo + Play always ends in a party or a reason',
     statement:

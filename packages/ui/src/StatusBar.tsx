@@ -48,6 +48,7 @@ import { openEmoteMenu } from './emotes/emoteRuntime';
 import { useFitRefPopup, type RefPopupPos } from './useFitRefPopup';
 import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { publicArt } from './phoneArt';
+import { PING_EQUIP, PING_HERO, PING_HEROPOWER2 } from './pings/pingKeys';
 
 
 /** Shrink a pill's TEXT to fit its box (owner note 2026-07-16: no ellipsis — "Lord of the Risen" should
@@ -867,6 +868,8 @@ export function StatusBar() {
           <div
             ref={portraitRef}
             className={`f${buffRows.length ? ' hasbuffs' : ''}${buffsOpen ? ' buffsopen' : ''}`}
+            // LIVE PINGS (R-PING-08): a teammate or mentor pings the hero; the player's own right-click stays the emotes.
+            data-ping={PING_HERO} data-ping-own="" data-ping-at="tiny"
             onClick={() => { if (buffRows.length) setBuffsOpen((o) => !o); }}
             // EMOTES (owner 2026-10-13): right-click YOUR portrait for the emote menu. The browser menu is suppressed
             // here only; the left click (Buffs) and the hero power button are untouched. One rect read per open.
@@ -1185,7 +1188,7 @@ export function StatusBar() {
               {/* The SAME `.hpwrap` wrapper the main power uses — its absolutely-positioned pill / centre /
                   cost only pick up their styling under `.hpwrap`, so without it the second power's tracker
                   rendered as bare static text (owner bug 2026-08-25). Keeps the two powers 1:1. */}
-              <div className="hpwrap">
+              <div className="hpwrap" data-ping={PING_HEROPOWER2}>
               <button
                 className={`heropowerbtn${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}`}
                 data-spec="heropower2" // the spectator cursor / hover anchor
@@ -1254,7 +1257,7 @@ export function StatusBar() {
         )}
         {hasEquip && selectedEquip && selectedEquipDef && (
           <div className={`heropanel equipslot entering${equipArmed ? ' armed' : equipReady ? ' ready' : ''}${equipUses === 0 ? ' spent' : ''}`}>
-            <div className="hpwrap">
+            <div className="hpwrap" data-ping={PING_EQUIP}>
               {/* THE FRAME (owner art 2026-08-28: "add the equipment frame around the equipment"). A sibling
                   of the button rather than a background ON it: the button is a square box whose art is
                   clipped to a circle, and a frame painted as its background would be clipped with it. As a

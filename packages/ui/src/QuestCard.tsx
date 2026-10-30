@@ -43,7 +43,7 @@ function cardViewOf(id: string): CardView | null {
  * Hovering a quest that grants a named minion/spell floats a full preview of that card (reusing the Card hover
  * popup), so the player sees exactly what they'll get.
  */
-export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef; onBuy: () => void; readOnly?: boolean }) {
+export function QuestCard({ quest, onBuy, readOnly = false, pingKey }: { quest: QuestDef; onBuy: () => void; readOnly?: boolean; /** LIVE PINGS (R-PING-08): the Quest Shop offer's ping key; omitted where it is not an offer. */ pingKey?: string }) {
   const c = quest.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${quest.tribe})`;
   const art = questArt(quest.id);
   // One preview per card (owner report 2026-10-23): a grant + a recurring grant of the same card preview it once.
@@ -83,6 +83,7 @@ export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef;
     <button
       className={`questcard${art ? ' has-art' : ''}${readOnly ? ' readonly' : ''}`}
       data-spec={`quest:${quest.id}`} // the spectator cursor / hover anchor (versus/cursorSpace.ts)
+      data-ping={readOnly ? undefined : pingKey}
       style={{ '--c': c } as CSSProperties}
       onClick={readOnly ? undefined : onBuy}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}

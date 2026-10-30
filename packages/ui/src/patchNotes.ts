@@ -59,7 +59,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-30',
     changes: [
       { category: 'Balance', text: 'Duos: three more Duos-only cards.', details: [
-        'Disco (Tier 5 spell): Discover a minion. Your teammate gets the other options.',
+        'Disco (Tier 5 spell): Discover a minion. Your teammate gets the ones you skip.',
         "Matchmaker (Tier 3): Shout: Discover a minion of your teammate's most common type and pass it to them.",
         'CueBee (Tier 4): Whisper: Pass. Each turn you get a free Pass. Aim it at a Shop minion or one of yours to send it to your teammate.',
       ] },

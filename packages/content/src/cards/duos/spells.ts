@@ -95,6 +95,6 @@ export const DUOS_SPELLS_DISCOVER_PASS: readonly CardDef[] = [
     cost: 4,
     duos: true,
     effects: [{ on: 'cast', do: 'discoverRestToTeammate' }],
-    text: '**Discover** a minion. Your teammate gets the other options.',
+    text: '**Discover** a minion. Your teammate gets the ones you skip.',
   },
 ];

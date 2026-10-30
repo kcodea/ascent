@@ -15,7 +15,7 @@ import { useGame } from '../store';
 import { playArrival, playSpellPass } from './passLob';
 import { notePassRefused } from './duosPassUi';
 import { sfx } from '../sfx';
-import { ownRunWhileWatching, teammateViewOf } from './spectate';
+import { ownRunWhileWatching, setMateFrameHook, teammateViewOf } from './spectate';
 import { VersusError, versusRemote, type VersusDuosPassRow } from './versusRemote';
 
 /** Server refusals that mean "this pass will never be recorded": refund it now. */
@@ -127,6 +127,8 @@ export function duosNoteMate(run: RunState = useGame.getState().run): void {
     if ((had[k] ?? -1) !== (tribes[k] ?? -1)) { dispatch({ type: 'noteMateTribes', tribes }); return; }
   }
 }
+
+setMateFrameHook(() => duosNoteMate());
 
 /** My teammate's seat (Duos teams: p1 + p2, p3 + p4). */
 const mateOf = (me: VersusGroupSeat): VersusGroupSeat => ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as Record<string, VersusGroupSeat>)[me] ?? me;

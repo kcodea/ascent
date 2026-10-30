@@ -68,6 +68,7 @@ export const PLAY_EXCUSED: Readonly<Record<string, string>> = {
   sp3_tidebud: 'buffs a random OTHER Spirit on board and one in hand; the clean-token board and hand hold no Spirit',
   sp3_gatheringguide: 'Discovers only if you control ANOTHER Spirit; the clean-token board has none',
   sp3_luminary: 'buffs 3 random OTHER Spirits; the clean-token board has none',
+  duo_matchmaker: 'Discovers and passes only in a DUOS run (it needs a teammate); the fixture run is not a Duos seat',
   // (Solburn, ce3_coronadevotee, left this list 2026-10-13: its Collapse is a Sell now, not a Shout.)
 };
 

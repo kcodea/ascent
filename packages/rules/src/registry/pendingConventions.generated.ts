@@ -440,11 +440,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-shout",
-    "title": "'shout' family · 70 cards",
-    "statement": "All 70 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'shout' family · 71 cards",
+    "statement": "All 71 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "62 effect factories across 70 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Hawg · Black Belt Brian · Buddy Buddy · The Great Attractor · Plummet · Rocket Power · Star Seed · Sugarnova · Wishing Star · Cinderwing Matron · … and 58 more",
+    "currentBehaviour": "63 effect factories across 71 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Hawg · Black Belt Brian · Buddy Buddy · The Great Attractor · Plummet · Rocket Power · Star Seed · Sugarnova · Wishing Star · Cinderwing Matron · … and 59 more",
     "example": "Pennycat follows the 'shout' convention — its trigger fires on onPlay. its printed numbers double when the card is gilded.",
     "contentIds": [
       "alley",
@@ -477,6 +477,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "dm_butcher",
       "dm_malphas",
       "dm_tormentor",
+      "duo_matchmaker",
       "duo_richmond",
       "dw3_beergutbud",
       "dw_dorrin",
@@ -622,11 +623,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-spellCast",
-    "title": "'spellCast' family · 104 cards",
-    "statement": "All 104 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'spellCast' family · 106 cards",
+    "statement": "All 106 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "113 effect factories across 104 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · Members: Black Hole · Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Consume · Copycat · Crescendo · Cupcakes · … and 92 more",
+    "currentBehaviour": "114 effect factories across 106 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · Members: Black Hole · Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Consume · Copycat · Crescendo · Cupcakes · … and 94 more",
     "example": "Black Hole follows the 'spellCast' convention — its trigger fires on cast. three copies of it never combine into a golden one, so it has no gilded form at all.",
     "contentIds": [
       "accretion",
@@ -646,9 +647,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       "devour",
       "displacement",
       "duo_broshake",
+      "duo_disco",
       "duo_handout",
       "duo_sharewealth",
       "duo_tribebundle",
+      "duo_w_pass",
       "elevationritual",
       "emberpouch",
       "executionersedge",
@@ -932,7 +935,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "420 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "422 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -2615,11 +2618,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-startOfTurn",
-    "title": "Trigger: the turn starts · 7 cards",
-    "statement": "All 7 of these fire on one trigger: the turn starts. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: the turn starts · 8 cards",
+    "statement": "All 8 of these fire on one trigger: the turn starts. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "4 effect factories across 7 cards dispatch on 'startOfTurn' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Bait Brood: \"Whisper: Give a minion +3/+5 and Taunt.\" · Members: Bait Brood · Gardener · Hatcher · Well Watcher · Shelly · Quill · Tolan",
+    "currentBehaviour": "4 effect factories across 8 cards dispatch on 'startOfTurn' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Bait Brood: \"Whisper: Give a minion +3/+5 and Taunt.\" · Members: Bait Brood · Gardener · Hatcher · Well Watcher · Shelly · Quill · Tolan · CueBee",
     "example": "Bait Brood fires when the turn starts, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "d3_baitbrood",
@@ -2628,7 +2631,8 @@ export const CONVENTION_PENDING: GameRule[] = [
       "d3_wellwatcher",
       "d3_whispwarder",
       "d4_galas",
-      "d4_tolan"
+      "d4_tolan",
+      "duo_cuebee"
     ]
   },
   {

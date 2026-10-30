@@ -20,6 +20,7 @@ import { contentRevision } from '@game/content';
 import { VERSUS_PROTOCOL } from '@game/sim';
 import { supabaseClient } from '../remoteBoards';
 import { currentUserId } from '../identity';
+import { resyncLobbyChat } from '../lobbyChat/lobbyChatStore';
 
 /** How long a first open may take before the Worker counts as unreachable. */
 export const CF_OPEN_TIMEOUT_MS = 6000;
@@ -77,7 +78,8 @@ const browserSocket = (opts: CfSocketOptions): CfLiveSocket => {
     hello: () => opts.hello,
     onHello: (d) => opts.onHello(d as LiveHelloAnswer),
     onPush: (m) => opts.onPush(m as unknown as LivePush),
-    onStatus: (s, d) => { if (s === 'dead') opts.onDead(d ?? 'closed'); },
+    // LOBBY CHAT (R-LOBBY-CHAT-02): every (re)connect catches the game's chat up on what was said while it was down.
+    onStatus: (s, d) => { if (s === 'dead') opts.onDead(d ?? 'closed'); else if (s === 'open') resyncLobbyChat(); },
     wake: (fn) => { window.addEventListener('online', fn); return () => window.removeEventListener('online', fn); },
   });
   return {

@@ -21,6 +21,7 @@ import type { CombatResult } from '@game/core';
 import { contentRevision } from '@game/content';
 import { VersusCfClient, VersusCfError, versusCfHttp } from '@game/versus-cf/client';
 import { VERSUS_CF_PROTOCOL, type VersusCfPush } from '@game/versus-cf/protocol';
+import { resyncLobbyChat } from '../lobbyChat/lobbyChatStore';
 import type {
   VersusDuosPassRow,
   VersusRecords,
@@ -224,6 +225,8 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
       baseUrl: base, roomId: id, token, versusProtocol: VERSUS_PROTOCOL, contentRevision: contentRevision(),
       connectTimeoutMs: VERSUS_CF_CONNECT_TIMEOUT_MS,
       ws: (url, protocols) => new WebSocket(url, protocols) as never, onPush,
+      // LOBBY CHAT (R-LOBBY-CHAT-02): every (re)connect catches the room's chat up on what was said while it was down.
+      onStatus: (st) => { if (st === 'open') resyncLobbyChat(); },
       // The network is back: reconnect now, not after the backoff (R-VERSUS-CF-RECONNECT-01).
       wake: (fn) => {
         if (typeof window === 'undefined') return () => undefined;

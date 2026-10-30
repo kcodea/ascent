@@ -58,6 +58,16 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Systems', text: 'Lobby chat now works like your friend chats: emotes, replies, and a panel you can move, resize and pin.', details: [
+        'Press the emote button next to Send to add an emote to your message.',
+        'Reply to any message. Your answer shows a small quote of it. Press the quote to jump back to the original.',
+        'Drag the lobby chat by its title and resize it from its edges and corners. It remembers where you left it.',
+        'Pinned, it stays up while you play. Unpin it and it folds away when you click the game.',
+        'The new message count clears as soon as you look at the chat.',
+        'If your connection drops, the messages you missed show up when it comes back.',
+        'On phones the lobby chat stays in its place, with emotes and replies.',
+      ] },
+      { category: 'Systems', text: 'Emotes in chat are now 20% bigger, in friend chats and lobby chat.' },
       { category: 'Systems', text: 'Six new painted backdrops: Sky Colosseum, Cozy, Dwarven Arena, Cloud Island, Frozen Arena and Dunes Arena.', details: [
         'Pick one in Settings under Board backdrop. Hover an option to preview it.',
       ] },

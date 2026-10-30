@@ -37,6 +37,7 @@ import {
   cleanDmBody, DM_MAX_CHARS, DM_REPLY_SNIPPET, HUB_PROTOCOL, HUB_SOCKET_PATH, type DmReplyPreview, type DmRow, type HubHelloAnswer, type HubPeer, type HubPush,
 } from '@game/versus-cf/hub';
 import { currentUserId } from '../../identity';
+import { pageSeen } from '../../chat/pageSeen';
 import { supabaseClient } from '../../remoteBoards';
 import { useGame } from '../../store';
 import { friendsHubUrl, isLocalHub } from './hubUrl';
@@ -371,12 +372,8 @@ function merge(list: DmMsg[], rows: DmMsg[]): DmMsg[] {
   return out.sort((a, b) => (a.state === 'sending' || a.state === 'failed' ? 1 : 0) - (b.state === 'sending' || b.state === 'failed' ? 1 : 0) || a.at.localeCompare(b.at));
 }
 
-/** The page is in front of me: visible, and focused where the browser can tell. */
-export function pageSeen(): boolean {
-  if (typeof document === 'undefined') return true;
-  if (document.visibilityState === 'hidden') return false;
-  return typeof document.hasFocus !== 'function' || document.hasFocus();
-}
+/** The page is in front of me: visible, and focused where the browser can tell (the shared chat rule). */
+export { pageSeen };
 
 /** I am looking at this conversation right now (the chat window is open on its tab, pinned or not, and the page is seen). */
 export function viewing(friendId: string): boolean {

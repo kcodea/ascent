@@ -10863,12 +10863,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-DM-EMOTE-01',
     title: 'Chat messages show the game\x27s own emotes small and inline (a little bigger when a message is only emotes); the composer has an emote picker of my emote menu',
     statement:
-      'A direct message names an emote with a token in its text, ":<emote id>:" (for example ":emote_hi:"), so nothing new is stored and the hub and SQL are unchanged. A token shows as the emote\x27s painted bubble only when it names a live emote of the game\x27s set whose art is in this build; anything else (a typo, a retired emote, plain colons) shows as the text it is, and an older game shows the token text. Inline the bubble is about one and a half lines high; a message of one to three emotes and nothing else shows them about 1.6 times bigger. The new-message toast shows them small too and its label reads each emote by name. The composer has an emote button (the Zen Brian bubble) beside Send that opens a compact picker in the hover-panel plate with the emotes of my emote menu (the in-game set, no cooldown in chat); picking one puts its token where I was typing, with a space either side, and closes the picker. Escape or a press outside closes the picker without closing the chat window. No browser tooltips (alt text and aria-labels name each emote), the game\x27s cursor, nothing animates.',
+      'A direct message names an emote with a token in its text, ":<emote id>:" (for example ":emote_hi:"), so nothing new is stored and the hub and SQL are unchanged. A token shows as the emote\x27s painted bubble only when it names a live emote of the game\x27s set whose art is in this build; anything else (a typo, a retired emote, plain colons) shows as the text it is, and an older game shows the token text. Inline the bubble is 1.8 times the text height (20% larger since 2026-10-30, R-CHAT-EMOTE-SIZE-01); a message of one to three emotes and nothing else shows them 1.6 times bigger again (2.88 times the text height). The new-message toast shows them small too and its label reads each emote by name. The composer has an emote button (the Zen Brian bubble) beside Send that opens a compact picker in the hover-panel plate with the emotes of my emote menu (the in-game set, no cooldown in chat); picking one puts its token where I was typing, with a space either side, and closes the picker. Escape or a press outside closes the picker without closing the chat window. No browser tooltips (alt text and aria-labels name each emote), the game\x27s cursor, nothing animates.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: 'emotes in chat (they should probably be shrunk down)' },
-      { kind: 'code', ref: 'packages/ui/src/friends/dm/chatEmotes.ts, packages/ui/src/friends/dm/DmConversation.tsx (DmBody, EmoteButton), packages/ui/src/friends/dm/DmToast.tsx, packages/ui/src/friends/dm/dm.css' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dm/chatEmotes.ts, packages/ui/src/chat/ChatMessage.tsx (ChatBody), packages/ui/src/chat/ChatComposer.tsx (EmoteButton), packages/ui/src/friends/dm/DmToast.tsx, packages/ui/src/friends/dm/dm.css' },
     ],
     currentBehaviour: 'Built 2026-10-30 (feat/chat-unread-emotes-replies). Before: messages were plain text only.',
     example: 'Ann types "gg", presses the emote button and picks Good Choice: the box reads "gg :emote_good_choice: " and Gus sees "gg" followed by the small Good Choice bubble. Gus answers with Hi alone, which shows a little bigger.',
@@ -11897,6 +11897,36 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'New on 2026-10-30 (feat/spectator-group-chat).',
     example: 'Ann plays a Practice game while Bo and Cy watch. Bo types "nice roll" in the lobby chat on the left side of the screen. Ann and Cy see it at once; Dee, who starts watching a minute later, sees it too.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/lobbyChat.test.ts', 'workers/versus/test/it/live.it.ts', 'packages/ui/src/lobbyChat/lobbyChat.test.tsx'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-LOBBY-CHAT-02',
+    title: 'Lobby chat has the same quality of life as direct messages, from the same components: emotes, replies, a movable, resizable, pinnable panel, read when seen, and catch-up after a reconnect',
+    statement:
+      "The lobby chat uses the direct messages' own message row, composer and window frame (packages/ui/src/chat/), never a copy. EMOTES: the composer's emote button and picker, and emote tokens shown inline, as in R-DM-EMOTE-01. REPLIES: every stored message has Reply; the composer shows the 'Replying to <name>' bar; the post names the original (`replyTo`) and the game's object stamps the quote from its own backlog (who wrote it, their name, the first 140 characters), never from the payload; an original no longer in the backlog leaves the answer without a quote; pressing a quote scrolls to the original and flashes it once. Replies are live only, like every lobby chat message. THE PANEL: moved by its header, resized from the gold grips on its edges and corners (kept inside the screen), its place and size remembered on this device under its own key (separate from the DM window's), opening at today's place on the left edge. PIN: pinned by default (it stays up while I play, as before); unpinned, a press outside it folds it back to its button (the press still reaches the game). Collapsing to the button with its unread count is unchanged. READ WHEN SEEN (as R-DM-READ-01): a message counts as unread unless the panel is open and the page is visible and focused; coming back to the page, a press or focus in the panel, typing, or sending clears the count; while open, an unread count shows in the header. CATCH-UP: when the game's socket reconnects, the client asks the backlog again with the newest message it holds (`since`); the object answers only what came after it (the whole backlog when that message is gone) and the client merges by id, so nothing sent while it was down is missed and nothing shows twice. Muting stays per sender, this game, my screen. A PHONE keeps the compact fixed panel (no move, resize or pin); emotes and replies work there. Backward compatible both ways: an older client ignores `reply` and `since`; an older Worker ignores `replyTo` (no quote) and `since` (the whole backlog, merged by id). Reporting a lobby chat message is not offered (messages have no server record). Nothing runs per frame: rows are memoised, a drag writes only the frame's transform.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: "lobby chat needs the same quality of life that dm's have" },
+      { kind: 'code', ref: 'packages/ui/src/chat/ (ChatRow, ChatComposer, ChatFrame, chatGeom), packages/ui/src/lobbyChat/LobbyChatPanel.tsx, packages/ui/src/lobbyChat/lobbyChatStore.ts (noteLobbyChatSeen, resyncLobbyChat), workers/versus/src/lobbyChat.ts (reply, since)' },
+    ],
+    currentBehaviour: 'Built 2026-10-30 (feat/lobby-chat-qol). Before: the lobby chat panel was fixed in place, plain text with no emote picker or replies, counted unread only while collapsed, and missed messages sent while its socket was down.',
+    example: 'Bo watches Ann play and drags the lobby chat up beside the board, then widens it. Ann asks "who wants to duo next?"; Bo presses Reply, picks the Hi emote and sends. Everyone sees his answer with the small quote of her question above it. Bo\x27s wifi drops for ten seconds; when it is back, the two messages Cy sent meanwhile appear once, in order.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyChat/lobbyChat.test.tsx', 'workers/versus/test/lobbyChat.test.ts', 'packages/ui/src/friends/dm/dm.test.tsx', 'packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-CHAT-EMOTE-SIZE-01',
+    title: 'Emotes in chat are 20% larger (direct messages and lobby chat), with tidy rows',
+    statement:
+      'In every chat (direct messages and the lobby chat) an inline emote is 1.8 times the text height (was 1.5) and a message of only one to three emotes shows them at 2.88 times (was 2.4). An inline emote never changes its line\x27s height: its vertical margins keep its box at the bubble\x27s line height, and the part that reaches past the line stays inside the bubble\x27s padding, so nothing is clipped. Its height is fixed, so nothing reflows when the image loads. The small emotes in a quote, the reply bar and the new-message toast keep their sizes.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: 'emotes in chats should be 20% larger as well' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dm/dm.css (.dm-emote, .dm-bubble.solo .dm-emote)' },
+    ],
+    currentBehaviour: 'Built 2026-10-30 (feat/lobby-chat-qol). Before: inline 1.5 times the text height, alone 2.4 times.',
+    example: 'Ann sends "gg :emote_hi:": the Hi bubble sits in the line a fifth bigger than before, and the line is no taller than a line of plain words.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyChat/lobbyChat.test.tsx'], lastVerifiedAt: '2026-10-30' },
   },
   {
     id: 'R-DUOS-CARDS-01',

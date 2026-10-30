@@ -373,7 +373,7 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
     const name = role === 'player' ? core.meta.info?.name ?? 'Player' : core.watchers.get(a.userId)?.display_name ?? 'Spectator';
     const sender: LobbyChatSender = { userId: a.userId, role, name, guest: !!a.guest };
     if (event === LOBBY_CHAT_SYNC_EVENT) {
-      this.send(ws, JSON.stringify({ t: 'bc', event, payload: this.chat.sync(sender), from: a.userId } satisfies LivePush));
+      this.send(ws, JSON.stringify({ t: 'bc', event, payload: this.chat.sync(sender, payload), from: a.userId } satisfies LivePush));
       return;
     }
     const r = this.chat.post(sender, payload, Date.now());

@@ -10,6 +10,7 @@ import { SET2_TOKENS } from './cards/set2/tokens';
 import { ENEMY } from './cards/set1/enemy';
 import { SETS, poolFor, DUOS_CARDS } from './sets';
 import { EQUIPMENT_INDEX } from './equipment';
+import { DUOS_WHISPERS } from './cards/duos';
 
 export * from './sets';
 export { HENCHMEN } from './cards/henchmen';
@@ -17,7 +18,7 @@ export { GIFTS, GIFT_IDS } from './cards/gifts'; // a card class of its own — 
 export { SET3_HAND_SPELLS } from './cards/set3/handSpells';
 /** Every Whisper, in declaration order: the pool "get a random Whisper" draws from (Jar of Secrets, Woozy), before the
  *  tier gate and the run's set narrow it (`rollableWhisperIds`). A new Whisper joins it by being added to `SET3_WHISPERS`. */
-export const WHISPER_IDS: readonly string[] = RAW_SET3_WHISPERS.filter((c) => c.whisper).map((c) => c.id);
+export const WHISPER_IDS: readonly string[] = [...RAW_SET3_WHISPERS, ...DUOS_WHISPERS].filter((c) => c.whisper).map((c) => c.id);
 export { REVELER_IDS } from './cards/set3/spirits'; // the Reveler class (Flame / Tide / Grove) other Spirits name // card-minted Gifts (Tower Shield, Clue) — member of no set, not in GIFT_IDS
 export { ARCHIVED_CARDS } from './cards/archive'; // resolvable by id, member of no set — see the archive contract
 
@@ -50,6 +51,8 @@ const RAW_ALL_CARDS: CardDef[] = [
   ...RAW_SET3_WHISPERS,
   // DUOS-ONLY cards (owner design 2026-10-30): member of no set manifest; `duosPoolFor` adds them to a Duos run's pool.
   ...DUOS_CARDS,
+  // DUOS Whispers (CueBee's Pass): granted Gift-class spells, member of no pool (not even the Duos one).
+  ...DUOS_WHISPERS,
 ].filter((card, i, arr) => arr.findIndex((c) => c.id === card.id) === i); // a shared card appears once
 
 /**

@@ -88,7 +88,7 @@ describe('the batch is Set 3 content', () => {
   });
 
   it('the Whisper pool grows by Well of Dragons and Seed (granted, never drawable)', () => {
-    expect([...WHISPER_IDS]).toEqual(['w4_tome', 'w4_runebind', 'w3_ripple', 'w3_wellofdragons', 'w3_seed', 'w3_bait', 'w3_clutch', 'w3_wardingcall']);
+    expect([...WHISPER_IDS]).toEqual(['w4_tome', 'w4_runebind', 'w3_ripple', 'w3_wellofdragons', 'w3_seed', 'w3_bait', 'w3_clutch', 'w3_wardingcall', 'duo_w_pass']); // + CueBee's Pass (Duos, 2026-10-30)
     for (const id of ['w3_wellofdragons', 'w3_seed', 'w3_bait', 'w3_clutch', 'w3_wardingcall']) expect(poolFor('set3').all.some((c) => c.id === id), id).toBe(false);
   });
 });

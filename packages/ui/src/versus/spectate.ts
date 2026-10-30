@@ -169,6 +169,10 @@ export function leaveTeammate(): void {
 export function ownRunWhileWatching(): RunState | null {
   return useSpectate.getState().teammate && snapshot?.run ? snapshot.run as RunState : null;
 }
+/** DUOS (Matchmaker, R-DUOS-CARDS-05): called on every teammate frame a player receives. Registered by `duosPasses.ts` (a
+ *  hook, not an import: duosPasses already imports this module and the store, so the reverse import would be a cycle). */
+let mateFrameHook: (() => void) | null = null;
+export function setMateFrameHook(fn: (() => void) | null): void { mateFrameHook = fn; }
 /** A teammate's latest cached view (the pass drag reads their hand, R-DUOS-PASS-01). */
 export const teammateViewOf = (seat: VersusGroupSeat): VersusSpectatorView | null => rx[seat].view;
 
@@ -402,6 +406,8 @@ export function receiveSpectate(payload: unknown): void {
   rx[msg.seat] = next;
   // VERSUS DUOS: my teammate's tier-ups and End of Turn, for their bottom-right portrait (R-DUOS-MATE-SIGNALS-01).
   if (asPlayer && msg.kind !== 'hero') noteMateFrame(msg.seat, prevView, next.view, msg.acts);
+  // Matchmaker reads my teammate's board: my run records it when it changed (a no-op unless such a card is held).
+  if (asPlayer && msg.kind !== 'hero') mateFrameHook?.();
   // The player's own odds for this fight (their probe's result): the stands' Summary shows exactly these.
   const od = parseWireOdds(msg.od);
   if (od) { const cur = useSpectate.getState().odds ?? {}; if (cur[msg.seat]?.w !== od.w || cur[msg.seat]?.o.win !== od.o.win) useSpectate.setState({ odds: { ...cur, [msg.seat]: od } }); }

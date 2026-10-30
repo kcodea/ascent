@@ -48,7 +48,7 @@ describe('Doc Bot — entry paths: sites', () => {
   });
 
   it('the scan sees the load-bearing chokepoints', () => {
-    for (const key of ['reducer.ts#buy#hand', 'reducer.ts#play#board', 'reducer.ts#takeDiscoverPick#hand', 'recruit.ts#conjureToHand#hand', 'recruit.ts#mintHandSpells#hand']) {
+    for (const key of ['reducer.ts#buy#hand', 'reducer.ts#play#board', 'reducer.ts#takeDiscoverPickCore#hand', 'recruit.ts#conjureToHand#hand', 'recruit.ts#mintHandSpells#hand']) {
       expect(audit.sites.some((s) => s.key === key), `${key} must be a scanned site`).toBe(true);
       expect(ENTRY_SITES[key]).toBeTruthy();
     }

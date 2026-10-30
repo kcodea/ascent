@@ -4009,6 +4009,28 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     passMinionToTeammate(ctx.state, self);
   },
 
+  /** Disco — cast: Discover a minion (up to your Shop tier); the options you do not take go to your teammate
+   *  (`discoverDuos: 'rest'`, resolved by `takeDiscoverPick`). */
+  discoverRestToTeammate: (ctx) => {
+    queueDiscover(ctx.state, { kind: 'minion', tier: ctx.state.tier, duos: 'rest' });
+  },
+
+  /** Matchmaker — Shout: Discover a minion of your teammate's most common type (read from `duos.mateTribes`, ties a
+   *  seeded pick) from the set's Duos pool up to your Shop tier, and PASS the pick to them (`discoverDuos: 'pass'`).
+   *  Gilded: twice. Outside a Duos run (no teammate) nothing happens. */
+  discoverMateTribePass: (ctx, self) => {
+    const state = ctx.state;
+    if (!state.duos) return;
+    for (let i = 0; i < gold(self); i++) {
+      const rng = makeRng(state.rngCursor);
+      const tribe = mostCommonMateTribe(state, rng);
+      state.rngCursor = rng.state();
+      const ids = mateTribeDiscoverIds(state, tribe);
+      if (ids.length === 0) continue;
+      queueDiscover(state, { kind: 'pool', ids, duos: 'pass' });
+    }
+  },
+
   /** Brian's Pal — a passive marker `duosPassCost` reads (never dispatched). */
   duosFirstPassFree: () => {},
 
@@ -5322,6 +5344,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       mintWhisper(ctx.state, str(params.cardId), 1, gold(self), hatcherTier(self), true);
       return;
     }
+    // `goldenCopies` (CueBee's Pass, R-DUOS-CARDS-05): a Gilded granter hands over 2 plain copies instead of a doubled one.
+    if (params.goldenCopies === true) { mintWhisper(ctx.state, str(params.cardId), gold(self), 1, undefined, true); return; }
     mintWhisper(ctx.state, str(params.cardId), 1, gold(self), undefined, true); // the OWNER's grant: never tier-gated
   },
 
@@ -11014,6 +11038,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     // Rune of the Astral Draft: the pick will cast an additional time — stamped on the OPEN offer and consumed by
     // `takeDiscoverPick`, the same per-offer channel `discoverKeywords` uses.
     state.discoverExtraCasts = spec.extraCasts;
+    state.discoverDuos = undefined; // a Duos rider is a minion Discover's only
     ancientNoteDiscoverOpened(state, undefined); // ANCIENTS: a spell Discover carries no Ancient origin
   } else if (spec.kind === 'pool') {
     // Discover from an explicit card-id pool (Second Path). Offer up to 3 distinct, real cards.
@@ -11035,6 +11060,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     state.discoverLockGold = undefined;
     state.discoverLockWave = spec.lockWave; // Re-Pete x Ancient of Fortune: the pick is locked until next turn
     state.discoverBorrowed = spec.borrowed; // Rival's Reflection never borrows; kept generic
+    state.discoverDuos = spec.duos; // DUOS (Matchmaker): the pick passes to the teammate
     ancientNoteDiscoverOpened(state, spec.ancientTag); // ANCIENTS × Quillen: Bonds' second Archive Discover
   } else {
     offerDiscover(state, spec.tier, {
@@ -11049,8 +11075,8 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     // Disco Dan's Setlist: carry the lock tier onto the open offer so the resolved pick becomes a
     // locked hand card (only set if the offer actually opened). Hourglass Reserve (`lockWave`) + Funeral on Loan
     // (`borrowed`) ride the same lifecycle.
-    if (state.discover) { state.discoverLockTier = spec.lockTier; state.discoverGolden = spec.golden; state.discoverLockGold = spec.lockGold; state.discoverLockWave = spec.lockWave; state.discoverBorrowed = spec.borrowed; state.discoverSetStats = spec.setStats; }
-    else { state.discoverLockTier = undefined; state.discoverGolden = undefined; state.discoverLockGold = undefined; state.discoverLockWave = undefined; state.discoverBorrowed = undefined; state.discoverSetStats = undefined; }
+    if (state.discover) { state.discoverLockTier = spec.lockTier; state.discoverGolden = spec.golden; state.discoverLockGold = spec.lockGold; state.discoverLockWave = spec.lockWave; state.discoverBorrowed = spec.borrowed; state.discoverSetStats = spec.setStats; state.discoverDuos = spec.duos; }
+    else { state.discoverLockTier = undefined; state.discoverGolden = undefined; state.discoverLockGold = undefined; state.discoverLockWave = undefined; state.discoverBorrowed = undefined; state.discoverSetStats = undefined; state.discoverDuos = undefined; }
     // ANCIENTS: the offer's origin (a Triple Reward / Keshi's Crown / Disco Dan's Death Discover); Keshi × Genesis may
     // turn a Crown offer's options into Tier 7 minions here, the one place a spec becomes an offer.
     ancientNoteDiscoverOpened(state, spec.ancientTag);
@@ -17449,6 +17475,54 @@ export function mostCommonTribe(state: RunState, rng: Rng): Tribe | null {
   return tied.length === 1 ? tied[0]! : tied[rng.int(tied.length)]!;
 }
 
+/**
+ * MATCHMAKER (R-DUOS-CARDS-05): "your teammate's most common type", read on the SENDER's run. The sender cannot see the
+ * teammate's run, so it reads `duos.mateTribes`: the teammate's board as this run last saw it (minions per tribe of
+ * THEIR run, recorded by the `noteMateTribes` action, so a replay reproduces it). Most minions wins; TIES (owner
+ * 2026-10-30: "50/50") a seeded uniform pick among the tied; never seen (or an empty board) ties every tribe listed,
+ * falling back to this run's own tribes. RNG is drawn only on a tie. Null only with no tribe at all.
+ */
+export function mostCommonMateTribe(state: RunState, rng: Rng): Tribe | null {
+  const seen = state.duos?.mateTribes ?? {};
+  let tribes = (Object.keys(seen) as Tribe[]).filter((t) => t !== 'neutral' && TRIBES.includes(t));
+  if (tribes.length === 0) tribes = (state.tribes ?? []).filter((t) => t !== 'neutral');
+  if (tribes.length === 0) return null;
+  let best = -1;
+  let tied: Tribe[] = [];
+  for (const t of tribes) {
+    const n = Math.max(0, Math.floor(seen[t] ?? 0));
+    if (n > best) { best = n; tied = [t]; } else if (n === best) tied.push(t);
+  }
+  return tied.length === 1 ? tied[0]! : tied[rng.int(tied.length)]!;
+}
+
+/** Matchmaker's Discover pool: every buyable minion of `tribe` in the run's (Duos) set pool, up to the Shop tier. Not
+ *  narrowed to THIS run's tribes: the teammate's run rolled its own, and their type is what the card names. */
+function mateTribeDiscoverIds(state: RunState, tribe: Tribe | null): string[] {
+  if (!tribe) return [];
+  const cap = Math.min(state.tier, discoverElevateCeiling(state));
+  return poolOf(state).buyable.filter((c) => !c.spell && !c.token && c.tier <= cap && defIsTribe(c, tribe, state)).map((c) => c.id);
+}
+
+/** The teammate's board as minions per tribe of their run (`tribes`), through the shared tribe predicate (an All-types
+ *  minion counts for each). Pure; the client feeds it from the teammate's live frame (`noteMateTribes`). */
+export function mateTribeCounts(board: readonly BoardCard[], tribes: readonly Tribe[]): Partial<Record<Tribe, number>> {
+  const out: Partial<Record<Tribe, number>> = {};
+  for (const t of tribes) {
+    if (t === 'neutral') continue;
+    out[t] = board.filter((c) => !!c && typeof c.cardId === 'string' && !!CARD_INDEX[c.cardId] && isTribe(c, t)).length;
+  }
+  return out;
+}
+
+/** Does this run hold a card that reads the teammate's board (Matchmaker), in hand or on board? The client only feeds
+ *  `noteMateTribes` while one is held, so an ordinary Duos run records nothing extra. */
+export function runReadsMateTribes(state: Pick<RunState, 'hand' | 'board' | 'duos'>): boolean {
+  if (!state.duos) return false;
+  const reads = (c: BoardCard): boolean => !!CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'discoverMateTribePass');
+  return state.hand.some(reads) || state.board.some(reads);
+}
+
 /** Board watchers on a pass: `passedCard` (only when THIS run passed; `spellOnly` = a Shop Spell only) and
  *  `teamPassedCard` (either teammate). `oncePerTurn` latches per instance and effect. */
 export function fireTeamPassTriggers(state: RunState, info: { mine: boolean; cardId: string }): void {
@@ -17540,9 +17614,12 @@ export function passMinionToTeammate(state: RunState, target: BoardCard): boolea
  * THE EFFECT PASS (owner 2026-10-30: "effects that pass cards do not cost any gold ... only manual passing costs 1 gold
  * baseline"): pass a card that has ALREADY left the run (`from` names where it was, for a refund) to the teammate, FREE.
  * Every effect-driven pass goes through here: Handout, CueBee's Pass, Matchmaker's Discover-then-pass, and a "your first
- * minions sold each turn pass to your teammate" rune (call it with the sold body, `from: 'board'`). It obeys the manual
- * rules: a Golden card is never passed (returns false; the caller keeps it), a full teammate hand refuses it (the server
- * / their run; the refund puts it back), and it counts as a pass for every pass watcher (Hitchhiker, Roo, Galfagan).
+ * minions sold each turn pass to your teammate" rune (call it with the sold body, `from: 'board'`). A Golden card is never
+ * passed (returns false; the caller keeps it) unless the effect says so (`opts.allowGolden`, Salesman of the Year). A
+ * FULL teammate hand never refuses it (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01: "if your teammate's hand is full,
+ * they get the card once there is space in their hand"): their run lands it and holds it in `duos.waiting` until there
+ * is room. It counts as a pass for every pass watcher (Hitchhiker, Roo, Galfagan). Only the server's other refusals
+ * (the teammate left, away) return it: a board minion to the board, a Shop minion to the Shop.
  */
 export function effectPassCard(state: RunState, card: BoardCard, from: 'board' | 'shop' | 'hand', index: number,
   /** `allowGolden`: the ONE explicit exception to the no-golden rule, Salesman of the Year's sold minion (owner
@@ -17555,7 +17632,7 @@ export function effectPassCard(state: RunState, card: BoardCard, from: 'board' |
 }
 
 /** A gift's cards into this run's hand; returns how many landed (0 = a full hand refused it). */
-function landTeamGift(state: RunState, g: Extract<TeamEffect, { kind: 'gift' }>): number {
+function landTeamGift(state: RunState, g: Extract<TeamEffect, { kind: 'gift' }>, key: string): number {
   const count = Math.min(10, Math.max(1, Math.floor(g.count ?? 1)));
   let pool: CardDef[] = [];
   if (g.cardId) {
@@ -17574,9 +17651,33 @@ function landTeamGift(state: RunState, g: Extract<TeamEffect, { kind: 'gift' }>)
     state.rngCursor = rng.state();
     pool = t ? legalRandomMinionPool(state, { maxTier: state.tier }).filter((c) => defIsTribe(c, t, state)) : [];
   }
+  if (pool.length === 0) return 0;
+  // A GIFT NEVER GOES MISSING (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01: "they get the card once there is space in
+  // their hand"): what fits lands now (the ordinary conjure, behind anything already waiting), the rest is picked NOW
+  // from this run's pool and RNG and waits in `duos.waiting` with the effect passes, in order.
+  const waiting = state.duos?.waiting?.length ?? 0;
+  const room = waiting > 0 ? 0 : Math.max(0, handCap(state) - reservedHandSlots(state) - state.hand.length);
   const before = state.hand.length;
-  conjureToHand(state, pool, count);
-  return state.hand.length - before;
+  if (room > 0) conjureToHand(state, pool, Math.min(count, room));
+  const landed = state.hand.length - before;
+  const rest = count - landed;
+  if (rest > 0 && state.duos) {
+    const rng = makeRng(state.rngCursor);
+    for (let i = 0; i < rest; i++) {
+      const def = pool[rng.int(pool.length)]!;
+      const cb = cardBuff(state, def.id);
+      const card: BoardCard = {
+        uid: `w${i}`, cardId: def.id, tribe: def.tribe,
+        attack: def.attack + cb.attack + undeadBuyBonus(state, def),
+        health: def.health + cb.health + buyHealthAura(state, def),
+        keywords: [...def.keywords], golden: false,
+      };
+      takeFromPool(state, def.id);
+      (state.duos.waiting ??= []).push({ key: `${key}#${i}`, card, gift: true });
+    }
+    state.rngCursor = rng.state();
+  }
+  return count;
 }
 
 /**
@@ -17592,7 +17693,7 @@ export function receiveTeamEffect(state: RunState, from: string, seq: number, ef
   const d = s.duos!;
   const amt = (v: unknown): number => Math.min(10, Math.max(0, Math.floor(typeof v === 'number' ? v : 0)));
   if (effect.kind === 'gift') {
-    if (landTeamGift(s, effect) === 0) { d.refused.push(key); return s; }
+    if (landTeamGift(s, effect, key) === 0) { d.refused.push(key); return s; }
   } else if (effect.kind === 'sold') {
     const stat = (v: unknown): number => Math.max(0, Math.floor(typeof v === 'number' && Number.isFinite(v) ? v : 0));
     fireTeammateSold(s, { cardId: String(effect.cardId), attack: stat(effect.attack), health: stat(effect.health) });

@@ -64,7 +64,11 @@ Cards that exist only in Versus Duos / Ranked Duos live in `cards/duos/<tribe>.t
 APPENDED to `DUOS_CARDS` (never in a set manifest). `duosPoolFor` adds them to any set whose tribes include theirs
 (neutrals and spells: every set). Team effects use the primitives in `recruit.ts` / `ARENA_EFFECTS` (`giftTeammate`,
 `teamGainMaxGold`, `effectPassCard`, the `passedCard` / `teamPassedCard` / `teammateSold` triggers). Only the manual
-drag pass costs Gold; an effect pass is free. Recipe and the list of primitives: `docs/devlog/2026-10-30-duos-cards-foundation.md`.
+drag pass costs Gold; an effect pass is free, never refused for a full hand (it waits on the teammate's run,
+`duos.waiting`), and takes a Golden card only with `effectPassCard(..., { allowGolden: true })`. A Discover can carry a
+Duos rider (`DiscoverSpec.duos`: `'rest'` gifts the options not taken, `'pass'` passes the pick). A Duos Whisper goes in
+`cards/duos/whispers.ts` (`DUOS_WHISPERS`), never in `DUOS_CARDS`. Recipe and the list of primitives:
+`docs/devlog/2026-10-30-duos-cards-foundation.md` and `docs/devlog/2026-10-30-duos-cards-discover-pass.md`.
 Batch A (`docs/devlog/2026-10-30-duos-cards-batch-a.md`) added: per-turn caps (`oncePerTurn` / `perTurn: N`, live
 "N left this turn"), the own-trigger guard (`guard: 'self' | 'rally'`, `selfObtain` for "when you buy or Discover this"),
 and a `buffLeftmost` team effect. A Shop Rally and a buy are BROADCAST to the board, so an own-trigger team card needs the guard.

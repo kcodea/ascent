@@ -10,12 +10,12 @@
  *  - HAND ROOM: my free hand slots, reported whenever they change, so the server refuses a pass to a full hand up front.
  * Network only off the hot path: nothing here runs per frame; a shop click never waits on it.
  */
-import { duosWireOf, handCap, type BoardCard, type RunState, type VersusGroupSeat } from '@game/sim';
+import { duosWaitingCount, duosWireOf, handCap, mateTribeCounts, runReadsMateTribes, type BoardCard, type RunState, type VersusGroupSeat } from '@game/sim';
 import { useGame } from '../store';
 import { playArrival, playSpellPass } from './passLob';
 import { notePassRefused } from './duosPassUi';
 import { sfx } from '../sfx';
-import { ownRunWhileWatching } from './spectate';
+import { ownRunWhileWatching, setMateFrameHook, teammateViewOf } from './spectate';
 import { VersusError, versusRemote, type VersusDuosPassRow } from './versusRemote';
 
 /** Server refusals that mean "this pass will never be recorded": refund it now. */
@@ -99,13 +99,39 @@ export function duosAfterRun(matchId: string, me: VersusGroupSeat, run: RunState
       // Anything else (offline, a blip): the next run change retries it.
     }).finally(() => s.inFlight.delete(idx));
   }
+  duosNoteMate(run);
   // My free hand slots, when they changed.
-  const room = Math.max(0, handCap(run) - run.hand.length);
+  // Effect passes still waiting for room (R-DUOS-EFFECT-PASS-QUEUE-01) take theirs first, so a drag pass is refused up front.
+  const room = Math.max(0, handCap(run) - run.hand.length - duosWaitingCount(run));
   if (room !== s.room) {
     s.room = room;
     void versusRemote.duosHandRoom(matchId, room).catch(() => { if (ses === s) s.room = null; });
   }
 }
+
+/**
+ * MATCHMAKER (R-DUOS-CARDS-05): my run's record of my teammate's board (minions per tribe of their run), from their
+ * live frame. Dispatched (`noteMateTribes`, a recorded action, so a replay reproduces the Shout's pick) only when it
+ * CHANGED and only while my run holds a card that reads it, so an ordinary Duos game records nothing extra. Called
+ * after my run changes and when a frame of theirs arrives. Never while my screen shows their run.
+ */
+export function duosNoteMate(run: RunState = useGame.getState().run): void {
+  if (!ses || run.mode !== 'versus' || !runReadsMateTribes(run) || ownRunWhileWatching()) return;
+  const mate = mateOf(ses.me);
+  const view = teammateViewOf(mate) as unknown as { board?: unknown; tribes?: unknown } | null;
+  if (!view || !Array.isArray(view.board) || !Array.isArray(view.tribes)) return;
+  const tribes = mateTribeCounts(view.board as BoardCard[], view.tribes as RunState['tribes']);
+  const had = run.duos?.mateTribes ?? {};
+  const keys = new Set([...Object.keys(had), ...Object.keys(tribes)]) as Set<keyof typeof tribes>;
+  for (const k of keys) {
+    if ((had[k] ?? -1) !== (tribes[k] ?? -1)) { dispatch({ type: 'noteMateTribes', tribes }); return; }
+  }
+}
+
+setMateFrameHook(() => duosNoteMate());
+
+/** My teammate's seat (Duos teams: p1 + p2, p3 + p4). */
+const mateOf = (me: VersusGroupSeat): VersusGroupSeat => ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as Record<string, VersusGroupSeat>)[me] ?? me;
 
 const seqFor = (s: DuosSession, idx: number): number => s.seqOf.get(idx) ?? s.base + (idx - s.firstNew);
 const idxFor = (s: DuosSession, seq: number): number | null => {

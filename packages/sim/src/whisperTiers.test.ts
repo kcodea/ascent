@@ -23,7 +23,8 @@ const tierOf = (id: string): number => CARD_INDEX[id]!.tier;
 /** Falx was archived 2026-10-27 (owner), so its Whisper Ripple has no LIVE owner: Tier 1 by the no-owner rule, and never
  *  rolled by a set-scoped source (its only owner is in no set). Every other Whisper still has a live owner. */
 const ARCHIVED = new Set(ARCHIVED_CARDS.map((c) => c.id));
-const ROLLABLE = WHISPER_IDS.filter((id) => id !== 'w3_ripple');
+// CueBee's Pass (Duos, R-DUOS-CARDS-05): its owner is only in a DUOS pool, so a plain set 3 run never rolls it.
+const ROLLABLE = WHISPER_IDS.filter((id) => id !== 'w3_ripple' && id !== 'duo_w_pass');
 const quiet: BoardSnapshot = { v: 1, wave: 1, heroId: 'indy', resolve: 30, tier: 1, triples: 0, tribes: [], threat: 'glass', power: 1, minions: [{ cardId: 'sandbag', attack: 0, health: 300, keywords: [] }], seed: 1, origin: 'self' };
 const nextTurn = (s: RunState): RunState => {
   const served = { ...s, servedBoards: { ...(s.servedBoards ?? {}), [s.wave]: { ...quiet, wave: s.wave } } } as RunState;
@@ -84,6 +85,7 @@ describe('R-WHISPER-TIER-01: every Whisper has the tier of the Whisper minion th
     expect(table).toEqual({
       // Ripple: 1 since Falx was archived (2026-10-27); Warding Call: 4 since Whispwarder moved to Tier 4 (2026-10-27).
       w4_tome: 1, w4_runebind: 2, w3_ripple: 1, w3_wellofdragons: 5, w3_seed: 1, w3_bait: 2, w3_clutch: 4, w3_wardingcall: 4,
+      duo_w_pass: 4, // CueBee's Pass (Duos, 2026-10-30): CueBee is Tier 4
     });
   });
 });

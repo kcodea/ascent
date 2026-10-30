@@ -1282,18 +1282,26 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   exactly once: the restored run lines its passes up with the server by card (and the pass it last arrived through)
   and round, then replays the round's passes both ways in the order the server recorded them, so a card passed back
   and forth (A to B to A) lands once per pass and every pass is paid once.
-- **Duos-only cards** (owner 2026-10-30; R-DUOS-CARDS-01..04). Some minions and Shop Spells exist only in Duos runs
+- **Duos-only cards** (owner 2026-10-30; R-DUOS-CARDS-01..05, R-DUOS-EFFECT-PASS-QUEUE-01). Some minions and Shop Spells exist only in Duos runs
   (Versus Duos and Ranked Duos). They join a run's pool when their tribe is one of the set's tribes (neutrals and spells
   always), then the run's tribe roll narrows them like any card. **Only the manual pass costs Gold** (the drag, 1 Gold;
-  Brian's Pal frees the first each turn): a pass made by a card or spell (Handout) is free, follows the same rules (never
-  a Golden minion, a full hand sends it back) and counts as a pass for "when you pass" / "when your team passes" cards on
+  Brian's Pal frees the first each turn): a pass made by a card or spell (Handout, CueBee's Pass, Matchmaker) is free,
+  never takes a Golden minion (unless its effect says so), and is **never refused for a full hand** (owner 2026-10-30: "if
+  your teammate's hand is full, they get the card once there is space in their hand"): it waits on their run and lands,
+  in order, as soon as an action of theirs makes room (their portrait shows "Hand full: N cards waiting"); a Shop minion
+  passed that way has left the Shop for good. It counts as a pass for "when you pass" / "when your team passes" cards on
   both teammates' boards. A **team effect** ("give your team +1 max Gold", "give your teammate a Gold Pouch") lands on
   your run at once and on your teammate's run through their own game, which makes any random pick with its own board,
-  pool and seed; a gift their full hand cannot take is lost. A disconnected teammate gets it when they return; a teammate
+  pool and seed; a card gift their full hand cannot take yet waits for room (see below), never lost. A disconnected teammate gets it when they return; a teammate
   who left or is out gets nothing. An effect from combat (an Echo) is sent **in real time** (R-DUOS-RUNES-02): the fight
   marks the moment (`teamSend`), the sender's client sends it when its replay reaches that beat and the card lands in the
   teammate's hand mid-fight; settle only sends what never went out (a disconnect mid-fight), never twice. "Your teammate's
-  most common type" is the run tribe with the most minions on their board; a tie is a seeded 50/50.
+  most common type" is the run tribe with the most minions on their board; a tie is a seeded 50/50. A sender's card that names it
+  (Matchmaker) reads the teammate's board as the sender's game last saw it (the recorded `noteMateTribes`, fed from the
+  teammate's live frame while such a card is held). **Disco** gives the teammate the Discover options you did not take;
+  **Matchmaker** passes its Discover pick; **CueBee** is a neutral Whisper granter whose Whisper, Pass, aims at a Shop
+  minion or one of yours. A card a teammate GIVES you (a gift: Disco's options, Antsy, Toot Toot, Tribe Bundle, a Gold
+  Pouch, a rune's gift) waits for room like an effect pass, never lost.
 - **Duos-only runes** (owner 2026-10-30; R-DUOS-RUNES-01..03). `RuneDef.duos`: only a Duos run's Runeforge (and a granted
   random rune) offers them. Basic: **Spell Theory** (2: passing a spell gets you a copy, once per turn), **Gold Gifts** (1:
   Equip Gold Gifter (1), the (1) is its Gold cost: your teammate gets 3 Gold), **Teammate Synergy** (2: each Gild gives your

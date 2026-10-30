@@ -381,6 +381,74 @@ describe('Duos room (Cloudflare) — Duos runes: a combat gift reaches the teamm
   });
 });
 
+describe('Duos room (Cloudflare) — effect passes wait for hand room; Disco / Matchmaker / CueBee (R-DUOS-EFFECT-PASS-QUEUE-01, R-DUOS-CARDS-05)', () => {
+  const run = (seed: number, hand: string[] = [], board: string[] = []): RunState => {
+    const r = createVersusRun(seed, 'warden', 'set2', DUOS);
+    const mk = (id: string, i: number, p: string) => ({ uid: `${p}${i}`, cardId: id, tribe: CARD_INDEX[id]!.tribe, attack: CARD_INDEX[id]!.attack, health: CARD_INDEX[id]!.health, keywords: [], golden: false });
+    return { ...r, embers: 10, hand: hand.map((id, i) => mk(id, i, 'h')), board: board.map((id, i) => mk(id, i, 'm')) };
+  };
+  const filler = Object.values(CARD_INDEX).find((c) => c && !c.spell && !c.token && c.tier === 1 && !c.duos && c.effects.length === 0)!.id;
+  /** The teammate pulls the team's rows, lands each on their run, and answers the server. */
+  async function pull(h: Awaited<ReturnType<typeof inShop>>, user: string, b: RunState): Promise<RunState> {
+    for (const r of await h.op(user, 'duos_passes', { matchId: h.id, from: 1 })) {
+      if (r.to_seat !== 'p2' || r.status !== 'sent') continue;
+      b = reduce(b, { type: 'receivePass', from: r.from_seat, seq: r.seq, card: r.card });
+      const key = `${r.from_seat}:${r.seq}`;
+      await h.op(user, 'duos_answer_pass', { matchId: h.id, fromSeat: r.from_seat, seq: r.seq, landed: b.duos!.received.includes(key) });
+    }
+    return b;
+  }
+
+  it('owner 2026-10-30 ("they get the card once there is space in their hand"): an effect pass to a FULL hand is accepted, lands, and waits', async () => {
+    const h = await inShop();
+    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 0 });
+    // A drag pass to a full hand is still refused up front; CueBee's Pass is not.
+    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 0, card: { cardId: filler, passFrom: 'hand' } })).rejects.toThrow('hand_full');
+    let a = reduce(run(11, ['duo_cuebee']), { type: 'play', uid: 'h0' });
+    const pass = a.hand.find((c) => c.cardId === 'duo_w_pass')!;
+    const offer = a.shop.find((o) => !CARD_INDEX[o.cardId]?.spell)!;
+    a = reduce(a, { type: 'play', uid: pass.uid, targetUid: offer.uid });
+    const e = a.duos!.outbox.at(-1)!;
+    expect(e).toMatchObject({ via: 'spell', from: 'shop', card: { cardId: offer.cardId } });
+    await h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: e.seq, card: duosWireOf(e) });
+    let b: RunState = { ...run(12, Array.from({ length: 10 }, () => filler)) };
+    b = await pull(h, U[1], b);
+    expect(b.hand).toHaveLength(10);
+    expect(b.duos!.waiting!.map((w) => w.card.cardId)).toEqual([offer.cardId]);
+    expect((await h.op(U[1], 'duos_passes', { matchId: h.id, from: 1 }))[0].status).toBe('landed');
+    // The receiver plays a card: the waiting pass lands in that very action.
+    b = reduce(b, { type: 'play', uid: b.hand[0]!.uid });
+    expect(b.hand.at(-1)).toMatchObject({ cardId: offer.cardId, passKey: `p1:${e.seq}` });
+    expect(b.duos!.waiting).toBeUndefined();
+  });
+
+  it('BOTH TEAMMATES: Disco gives the teammate the 2 options not taken; Matchmaker passes its pick (their most common type)', async () => {
+    const h = await inShop();
+    let a = reduce(run(11, ['duo_disco']), { type: 'play', uid: 'h0' });
+    const opts = [...a.discover!];
+    a = reduce(a, { type: 'discover', index: 0 });
+    expect(a.hand.map((c) => c.cardId)).toEqual([opts[0]]);
+    // Matchmaker: my run saw my teammate's board as 3 of one of their tribes.
+    let b: RunState = run(12);
+    const tribe = b.tribes.find((t) => t !== 'neutral')!;
+    a = reduce(a, { type: 'noteMateTribes', tribes: { [tribe]: 3 } });
+    a = reduce({ ...a, hand: [...a.hand, { uid: 'mm', cardId: 'duo_matchmaker', tribe: 'neutral', attack: 3, health: 2, keywords: [], golden: false }] }, { type: 'play', uid: 'mm' });
+    const offered = [...a.discover!];
+    for (const id of offered) expect(CARD_INDEX[id]!.tribe === tribe || CARD_INDEX[id]!.tribe2 === tribe || !!CARD_INDEX[id]!.universalTribe).toBe(true);
+    a = reduce(a, { type: 'discover', index: 0 });
+    for (const e of a.duos!.outbox) await h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: e.seq, card: duosWireOf(e) });
+    b = await pull(h, U[1], b);
+    expect(b.hand.map((c) => c.cardId).sort()).toEqual([opts[1], opts[2], offered[0]].sort());
+  });
+
+  it('a Salesman of the Year sale pass (Golden included) also skips the hand-room refusal; a Golden spell pass is refused', async () => {
+    const h = await inShop();
+    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 0 });
+    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: { cardId: filler, golden: true, passFrom: 'spell' } })).rejects.toThrow('golden');
+    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 2, card: { cardId: filler, golden: true, passFrom: 'sale' } })).resolves.toMatchObject({ to_seat: 'p2' });
+  });
+});
+
 describe('Duos room (Cloudflare) — mendArmor, dropRestore, resolver failure', () => {
   it('a Mend report raises the TEAM pool, and both teammates show it', async () => {
     const h = await inShop();

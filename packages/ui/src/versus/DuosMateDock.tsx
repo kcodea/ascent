@@ -185,6 +185,9 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     return `${m.round}|${m.phase}|${s.readyRound === m.round || m.p1_ready ? 1 : 0}|${row?.ready ? 1 : 0}`;
   });
   const myWave = useGame((s) => s.run.wave);
+  // EFFECT PASSES WAITING FOR MY HAND ROOM (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01): a count pill by the portrait,
+  // so a card on its way is never a surprise. A number selector (stable), never while I watch my teammate.
+  const waiting = useGame((s) => (watching || heroSelect ? 0 : s.run.duos?.waiting?.length ?? 0));
   const myPhase = useGame((s) => s.run.phase);
   const working = useMemo(() => {
     if (!roundKey) return false;
@@ -311,6 +314,11 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
       <span className="duosdock-cap hudpill-name">{watching ? (heroSelect ? 'Back to your heroes' : 'Back to your board') : away ? 'Away' : 'Teammate'}</span>
       <span className="duosdock-name hudpill-name">{face.name}</span>
       {shownNote && <span key={shownNote + (note ?? '')} className="duosdock-note hudpill-name">{shownNote}</span>}
+      {!shownNote && waiting > 0 && (
+        <span className="duosdock-note duosdock-waiting hudpill-name" aria-label={`${waiting} passed ${waiting === 1 ? 'card is' : 'cards are'} waiting for room in your hand.`}>
+          {waiting === 1 ? 'Hand full: 1 card waiting' : `Hand full: ${waiting} cards waiting`}
+        </span>
+      )}
     </div>
     {inCombat && geo?.hero && <DuosTagIn on={tagged} hero={geo.hero} art={face.art} frame={frame} name={face.name} working={working} />}
     </>

@@ -76,3 +76,25 @@ export const DUOS_SPELLS: readonly CardDef[] = [
     text: 'Give your teammate a minion of their **most common type**.',
   },
 ];
+
+/** The Discover + pass batch (2026-10-30, R-DUOS-CARDS-05): a list of its own, APPENDED at the end of `DUOS_CARDS`, so
+ *  no earlier Duos pool position moves (pool order seeds the Shop). */
+export const DUOS_SPELLS_DISCOVER_PASS: readonly CardDef[] = [
+  {
+    // "Discover a minion. Your teammate gets the other 2 options." A plain minion Discover up to your Shop tier; the
+    // options you did not take go to your teammate's hand as gifts (`discoverDuos: 'rest'`, landed by their run, a full
+    // hand refuses the ones it cannot hold). Deterministic: the offer comes from your run's RNG.
+    id: 'duo_disco',
+    name: 'Disco',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 4,
+    duos: true,
+    effects: [{ on: 'cast', do: 'discoverRestToTeammate' }],
+    text: '**Discover** a minion. Your teammate gets the ones you skip.',
+  },
+];

@@ -26,7 +26,7 @@ function previewIds(rune: RuneDef): string[] {
 }
 
 /** Card names that double as MECHANIC words in rune text — a text hit on these is the keyword, not the card. */
-const KEYWORD_NAMED_CARDS = new Set(['consume', 'growth', 'mend', 'quicksale']);
+const KEYWORD_NAMED_CARDS = new Set(['consume', 'growth', 'mend', 'quicksale', 'duo_w_pass']); // CueBee's Whisper "Pass" is also the Duos keyword
 
 /** Whole-word, plural-tolerant name match ("Imps", "Gold Pouches") that does NOT hit substrings ("Improves"). */
 const nameHits = (text: string, name: string): boolean =>

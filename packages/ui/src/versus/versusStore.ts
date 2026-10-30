@@ -33,6 +33,7 @@ import { ServerClock, shopClockAt } from './versusClock';
 import { installVersusEmotes, receiveVersusEmote, receiveWatchedEmote, setVersusEmoteSeatMap, uninstallVersusEmotes, VERSUS_EMOTE_EVENT } from './versusEmotes';
 import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from './spectatorEmotes';
 import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
+import { receiveLobbyChatEvent, setLobbyChatSession } from '../lobbyChat/lobbyChatStore';
 import type { PingMode } from '@game/versus-cf/pings';
 import { installVersusHandlers, releaseVersusFightWait, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
@@ -428,6 +429,7 @@ function stopSession(): void {
   if (session.wake != null) window.clearTimeout(session.wake);
   session.channel?.close();
   setPingSession('versus', null);
+  setLobbyChatSession('versus', null);
   session.unsubRun?.();
   session.unsubGates();
   session.unsubHero();
@@ -461,6 +463,8 @@ function subscribe(matchId: string | null): void {
     // LIVE PINGS (R-PING-01..03): a teammate's, a mentor's or a watched player's ping, and who is mentoring. The
     // room routes them.
     if (receivePingEvent(event, payload)) return;
+    // LOBBY CHAT (R-LOBBY-CHAT-01): the room's one chat, for the seats and the stands alike.
+    if (receiveLobbyChatEvent(event, payload)) return;
     // A player's emote: the other player shows it on its foe; a SPECTATOR shows both players' where the watched seat's
     // screen does (R-SPECTATE-EMOTE-02). Never both: a seated client is a player.
     if (event === VERSUS_EMOTE_EVENT) {
@@ -490,6 +494,8 @@ function subscribe(matchId: string | null): void {
     mode: () => pingModeOf(get().match?.options?.mode ?? get().room?.options?.mode),
     gameKey: `versus:${roomId}:${matchId ?? ''}`,
   });
+  // LOBBY CHAT (R-LOBBY-CHAT-01): one chat per room, through every match in it (a channel swap re-syncs, keeping it).
+  setLobbyChatSession('versus', { send: (e, p) => ch.send(e, p), gameKey: `versus:${roomId}`, me: currentUserId() });
   // A channel swap mid-match keeps the emote transport on the live channel.
   const seat = mySeat();
   if (seat && useGame.getState().run.mode === 'versus') installVersusEmotes(emoteSeatOf(get().match) ?? seat, session.channel.send);

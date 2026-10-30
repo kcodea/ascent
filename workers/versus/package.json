@@ -9,6 +9,7 @@
     "./client": "./src/client.ts",
     "./live": "./src/liveProtocol.ts",
     "./pings": "./src/pings.ts",
+    "./lobbyChat": "./src/lobbyChat.ts",
     "./hub": "./src/hubProtocol.ts",
     "./core": "./src/core/roomCore.ts",
     "./core/storage": "./src/core/storage.ts"

@@ -1,0 +1,43 @@
+/* LOBBY CHAT (R-LOBBY-CHAT-01): a small panel in the dock's dark panel look (`.vspanel`), messages and composer in the
+   chat window's look (dm.css), the list on the game's gold scrollbar (`GameScroll`). It sits on the LEFT EDGE, in the open strip between the Tavern Up button and the emote
+   wheel: left of the shop frame, above my hero, below the stands' chips (screenshots 2026-10-30 at 1600x900 and
+   1280x720). Over the game, under the Friends dock (480+) and the menus (Settings 500).
+   Motion: one-shot transform + opacity on expand; nothing loops. No cursor rules: the global gauntlet paints every
+   button (CLAUDE.md). */
+
+.lchat, .lchat-pill { position: fixed; z-index: 470; left: 12px; top: calc(var(--lvh, 100vh) * 0.3); }
+
+.lchat-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: #f0d089;
+  background: linear-gradient(180deg, rgba(13, 22, 40, 0.94), rgba(9, 15, 29, 0.96)); border: 1.5px solid rgba(196, 160, 92, 0.55);
+  box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.7); }
+.lchat-pill:hover { border-color: rgba(240, 208, 137, 0.85); }
+
+.lchat.vspanel { width: min(272px, calc(var(--lvw, 100vw) * 0.17)); height: min(270px, calc(var(--lvh, 100vh) * 0.29)); min-width: 200px; max-width: none;
+  box-sizing: border-box; padding: 0; display: flex; flex-direction: column; text-align: left; overflow: hidden; border-radius: 14px; border-width: 1.5px;
+  animation: lchatin 0.18s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes lchatin { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+
+.lchat-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 12px; border-bottom: 1px solid rgba(196, 160, 92, 0.25); }
+.lchat-title { font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #f0d089; }
+.lchat-unmute { font-size: 11.5px; font-weight: 700; font-family: var(--font-ui); }
+.lchat-hide { margin-left: auto; width: 26px; height: 26px; padding: 0; display: grid; place-items: center; border-radius: 8px;
+  font-family: var(--font-ui); font-weight: 900; font-size: 16px; line-height: 1; color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
+.lchat-hide:hover { color: #f0d089; border-color: rgba(240, 208, 137, 0.6); }
+
+.lchat-list-wrap { flex: 1 1 auto; min-height: 0; }
+.lchat-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; padding: 8px 8px 4px; }
+.lchat-empty { margin: auto; font-family: var(--font-ui); font-weight: 700; font-size: 12.5px; color: rgba(255, 255, 255, 0.5); }
+.lchat .dm-bubble { font-size: 13px; padding: 5px 9px; }
+.lchat-name { margin: 0 4px 1px; font-family: var(--font-ui); font-weight: 800; font-size: 11.5px; color: rgba(255, 255, 255, 0.7); }
+.lchat-name.player { color: #f0d089; }
+
+.lchat-compose { flex: none; padding: 6px 8px 8px; border-top: 1px solid rgba(196, 160, 92, 0.18); }
+.lchat .fdock-input.acctinput { font-size: 13px; padding: 6px 10px; }
+.lchat .dm-send.lb-btn { padding: 0 14px; }
+
+/* A phone: the strip is narrower; the panel keeps a usable minimum and the list scrolls. */
+html[data-phone-layout] .lchat.vspanel { min-width: 180px; height: calc(var(--lvh, 100vh) * 0.4); }
+
+@media (prefers-reduced-motion: reduce) { .lchat.vspanel { animation-duration: 0.01s; } }

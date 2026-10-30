@@ -10797,6 +10797,36 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
   {
+    id: 'R-DM-CHAT-03',
+    title: 'The chat window\x27s resize grips are easy to see: a gold ridged grip in the bottom-right corner, and every edge and corner lights gold on hover',
+    statement:
+      'On a desktop the chat window\x27s bottom-right corner shows a gold grip (three diagonal ridges, about 20 px, in the panel\x27s gold), a little brighter while the window is hovered and brightest on the grip itself or while resizing. Hovering the window shows a faint gold line on every edge; hovering any of the eight grips lights the gold line on the panel\x27s rim under it in full (an edge lights that edge, a corner a gold bracket on its two edges), so edge resizing is found too. Hover changes opacity only (one-shot, nothing loops), the cursors stay the gauntlet, and a phone shows no grips (it has no resize, R-DM-CHAT-02).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: 'make the adjustment way more obvious, it\x27s too hard to see' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dm/dm.css (.dmchat-rs)' },
+    ],
+    currentBehaviour: 'Built 2026-10-30 (feat/chat-scrollbar-style). Before: the corner grip was two faint 8 px strokes and the edges showed nothing.',
+    example: 'Ann hovers the chat\x27s right edge: a gold line lights along it, so she drags it out to widen the window. The bottom-right corner always shows its gold ridges.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-UI-SCROLLBAR-01',
+    title: 'Scroll areas in the friends dock and the chat show the game\x27s gold scroll bar, never the native OS bar',
+    statement:
+      'The chat\x27s message list, its tab strip, the Friends dock\x27s lists (Friends, Requests, Blocked) and the invite panel\x27s friend list hide the native scrollbar (it forces the OS arrow cursor) and draw the game\x27s own (GameScroll): a slim rounded gold thumb on a faint dark track, no arrow buttons, shown only while the content overflows. Dragging the thumb scrolls (the open gauntlet over it, the closed hand while held); pressing the track jumps the thumb there and keeps dragging; wheel, trackpad and touch scrolling are unchanged. A touch screen shows no bar. Cost: sizes are measured only when the view or its content changes size (ResizeObserver), a scroll writes the thumb\x27s transform only (a passive listener), a press reads the track\x27s rect once; nothing loops.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: 'any way you can make the scroll bar look more in our style' },
+      { kind: 'code', ref: 'packages/ui/src/GameScroll.tsx, packages/ui/src/gameScroll.css, packages/ui/src/friends/dm/DmConversation.tsx, packages/ui/src/friends/dm/ChatWindow.tsx, packages/ui/src/friends/dock/FriendsDock.tsx, packages/ui/src/friends/RoomInvitePanel.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-30 (feat/chat-scrollbar-style). Before: the chat\x27s message list and the friends list showed the grey OS scrollbar with arrow buttons.',
+    example: 'Ann scrolls back through a long chat: a gold thumb rides the right edge; she drags it to the top to read the first message, then clicks low on the track to jump back down.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/GameScroll.test.tsx', 'packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
     id: 'R-FRIENDS-MENU-01',
     title: 'Right-click (or a long press) on a friend opens a menu: Spectate, Invite to lobby, Invite to Duos, Invite to spectate, only the ones that make sense now',
     statement:

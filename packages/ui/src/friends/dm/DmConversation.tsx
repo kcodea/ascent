@@ -11,6 +11,7 @@
  *    The hub reconnecting: a line says the messages will send when it is back.
  */
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { GameScroll } from '../../GameScroll';
 import { sfx } from '../../sfx';
 import { useGame } from '../../store';
 import { useFriendsPrefs } from '../friendsPrefs';
@@ -98,10 +99,10 @@ export function DmConversation({ friend }: { friend: Friend }): JSX.Element {
   }
   return (
     <>
-      <div className="fdock-convo" role="log" aria-label="Conversation" aria-live="polite" ref={listRef}
+      <GameScroll className="fdock-convo" outerClassName="fdock-convo-wrap" role="log" aria-label="Conversation" aria-live="polite" viewRef={listRef}
         onScroll={(e) => { const el = e.currentTarget; atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24; }}>
         {body}
-      </div>
+      </GameScroll>
       {hub === 'down' && <div className="dm-status" role="status">{DM_RECONNECTING_TEXT}</div>}
       <Composer friend={friend} available={hub !== 'off'} onSent={() => { atBottom.current = true; }} />
     </>

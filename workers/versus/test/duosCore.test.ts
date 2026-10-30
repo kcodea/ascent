@@ -64,7 +64,7 @@ async function inShop(d?: CoreDeps): Promise<H> {
   for (let i = 0; i < 4; i++) await h.op(U[i], 'register_offer', { matchId: h.id, offer: HERO_IDS.slice(i * 3, i * 3 + 3) });
   for (const u of U) await h.op(u, 'pick_hero', { matchId: h.id, index: 0 });
   for (const u of U) await h.op(u, 'intro_done', { matchId: h.id });
-  expect(h.g.shop_deadline).toBe(h.now + turnSeconds(1) * 1000);
+  expect(h.g.shop_deadline).toBe(h.now + turnSeconds(1, 'duos') * 1000);
   return h;
 }
 

@@ -58,6 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Systems', text: 'Versus turns are 15% longer. Duos turns are 30% longer.', details: [
+        'Versus and Versus Group: every turn clock is 15% longer. Round 1 is 24 seconds, round 12 is 92.',
+        'Versus Duos and Ranked Duos: every turn clock is 30% longer. Round 1 is 27 seconds, round 12 is 104.',
+        'Lobby and Practice turns are unchanged.',
+      ] },
       { category: 'Balance', text: 'Duos: 12 more Duos-only cards.', details: [
         'Antsy (Tier 1 Beast): Echo: give your teammate a random Tier 1 Shop Spell.',
         'Roo (Tier 2 Kobold): when you pass a card, get 2 Rubies.',

@@ -34,6 +34,7 @@ import {
   VERSUS_LIMITS,
   VERSUS_MISSED_ROUNDS_FORFEIT,
   VERSUS_PAUSE_GRACE_SECONDS,
+  versusTurnSeconds,
   VERSUS_PROTOCOL,
   VERSUS_SPECTATOR_CAP,
   type VersusFinalizeStore,
@@ -322,9 +323,10 @@ export function seededPick(seed: number, label: string, n: number): number {
   return (h >>> 0) % n;
 }
 
-/** `versus_turn_seconds`: the round's shop length. */
-export function turnSeconds(round: number): number {
-  return Math.max(21, Math.min(80, 18 + (round - 1) * 4 + (round >= 6 ? 6 : 0)) + (round >= 12 ? 12 : 0));
+/** `versus_turn_seconds`: the round's shop length for the room's mode (the 1v1 here; the group modes read the same
+ *  `versusTurnSeconds` in groupMatch). Owner 2026-10-30: +15% Versus / Group, +30% Duos / Ranked Duos. */
+export function turnSeconds(round: number, mode: string = 'duel'): number {
+  return versusTurnSeconds(round, mode);
 }
 
 function emptyEffects(): CoreEffects {

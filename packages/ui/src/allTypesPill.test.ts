@@ -87,6 +87,8 @@ const ART_PENDING = new Set<string>([
   // SET 3 DRAGONS: NONE LEFT (Matriarch arted in the 2026-10-16 re-wire: "re-wire the set 3 dragon art").
   // Owner Set 3 list 2026-10-27: Studious Steven, Choosey Dragon, Riftwalker and Beer Gut Bud are authored ahead of their art.
   'd3_studioussteven', 'd3_choosey', 'd3_riftwalker', 'dw3_beergutbud',
+  // Owner design 2026-10-30: Scroll Drake (placeholder name) ships ahead of its art.
+  'd3_scrolldrake',
 ]);
 
 describe('art coverage for live cards', () => {

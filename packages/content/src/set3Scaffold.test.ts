@@ -89,6 +89,7 @@ describe('set 3 scaffold', () => {
       'd3_vellum', // the T7 Summit Dragon (owner 2026-10-23), appended after the file's token
       'd3_nitrogen', // owner 2026-10-23, appended
       'd3_studioussteven', 'd3_choosey', 'd3_riftwalker', // owner Set 3 list 2026-10-27, appended
+      'd3_scrolldrake', // owner design 2026-10-30 (Dragon/Spirit spell-shop aura), appended
       'd2_chorus', 'd2_transcendence', 'd2_flutterdrake', // the three carried Set 2 Dragons (2026-10-15), by reference
     ]);
     // The set-1 Undead NOT on the roster stay out (owner confirmation 2026-09-09), still resolvable.

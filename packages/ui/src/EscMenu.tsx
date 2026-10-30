@@ -24,7 +24,7 @@ import { getAnnouncerVolume, isAnnouncerMuted, setAnnouncerVolume, toggleAnnounc
 import { getMasterVolume, isMasterMuted, setMasterVolume, toggleMasterMute } from './audio/master';
 import { useGame } from './store';
 import { FPS_CAP_OPTIONS, fpsCapLabel } from './fpsCap';
-import { BACKDROPS, BACKDROP_IDS, getBackdrop, setBackdrop, type BackdropId } from './backdrop';
+import { BACKDROPS, BACKDROP_IDS, getBackdrop, setBackdrop, type BackdropId, backdropThumbUrl } from './backdrop';
 import { perfThresholds } from './perfMonitor';
 import { Icon } from './Icon';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
@@ -238,7 +238,7 @@ export function SettingsPanel() {
             labelledBy="esc-backdrop-label"
             columns={2}
             value={backdrop}
-            options={BACKDROP_IDS.map((id) => ({ value: id, label: BACKDROPS[id].label }))}
+            options={BACKDROP_IDS.map((id) => ({ value: id, label: BACKDROPS[id].label, thumb: backdropThumbUrl(id) }))}
             onChange={(id) => { if (id !== backdrop) { setBackdropPick(id); setBackdrop(id); sfx.pulse(); } }}
           />
         </div>
@@ -411,7 +411,8 @@ function ToggleRow({ label, note, on, onToggle }: {
   );
 }
 
-export interface SettingOption<T> { value: T; label: string; dim?: boolean }
+/** `thumb`: a small preview image shown beside the open list for the hovered (else the chosen) option. */
+export interface SettingOption<T> { value: T; label: string; dim?: boolean; thumb?: string }
 
 /** A pick-one dropdown in the panel's navy/gold (owner ask 2026-10-08: "a dropdown select rather than a bunch of
  *  buttons"). Hand-rolled rather than a native `<select>`, whose OS popup would break the game's look and drop the
@@ -432,9 +433,15 @@ export function SettingSelect<T extends string | number>({ value, options, onCha
   const listRef = useRef<HTMLDivElement>(null);
   const listId = useId();
   const current = options.find((o) => o.value === value) ?? options[0]!;
+  // THUMBNAIL PREVIEW (owner 2026-10-30): the option under the pointer (or focused), else the chosen one.
+  const [hovered, setHovered] = useState<T | null>(null);
+  const hasThumbs = options.some((o) => o.thumb);
+  const shown = (hovered !== null ? options.find((o) => o.value === hovered) : undefined) ?? current;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) { setHovered(null); return; }
+    // Warm every preview as the list opens, so the first hover shows at once (they are ~15 KB each).
+    for (const o of options) if (o.thumb) { const img = new Image(); img.decoding = 'async'; img.src = o.thumb; }
     const away = (e: PointerEvent): void => {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -491,11 +498,19 @@ export function SettingSelect<T extends string | number>({ value, options, onCha
               aria-selected={o.value === value}
               className={`escselect-opt${o.value === value ? ' on' : ''}${o.dim ? ' dim' : ''}`}
               onPointerDown={() => pick(o.value)}
+              onPointerEnter={hasThumbs ? () => setHovered(o.value) : undefined}
+              onFocus={hasThumbs ? () => setHovered(o.value) : undefined}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(o.value); } }}
             >
               {o.label}
             </button>
           ))}
+        </div>
+      )}
+      {open && hasThumbs && shown.thumb && (
+        <div className="escselect-thumb" aria-hidden="true">
+          <img decoding="sync" src={shown.thumb} alt="" draggable={false} />
+          <span className="escselect-thumb-l">{shown.label}</span>
         </div>
       )}
     </div>

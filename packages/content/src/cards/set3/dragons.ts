@@ -10,7 +10,7 @@ export const SET3_DRAGONS: readonly CardDef[] = [
   {
     // T1 3/1. Whisper: Tome. Gilded: its Tome is worth double (+2/+2, improving by +2/+2 every 4 spells).
     id: 'd4_galas',
-    name: 'Galas',
+    name: 'Quill',
     tribe: 'dragon',
     tier: 1,
     attack: 3,
@@ -240,7 +240,7 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     // T5 7/5: "Whisper: Give a minion Ward." Grants the Whisper Warding Call; the Ward lasts until the start of your next
     // turn (`whisperKeywords`; a Hum keeps it). Gilded: its Warding Call gives Resilient Ward instead.
     id: 'd3_whispwarder',
-    name: 'Whispwarder',
+    name: 'Shelly',
     tribe: 'dragon',
     tier: 4, // T5 -> T4 (owner Set 3 balance 2026-10-27: "whispwarder -> T4"); stats unchanged
     attack: 7,
@@ -319,7 +319,7 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     // No right neighbour, nothing is cast; a neutral neighbour has no type, so it yields nothing (the spell's own rule).
     // Gilded: two genuine casts. Names the spell and lets its hover preview carry it (the named-spell exception).
     id: 'd3_choosey',
-    name: 'Choosey Dragon',
+    name: 'Picky Dragon',
     tribe: 'dragon',
     tier: 3,
     attack: 3,

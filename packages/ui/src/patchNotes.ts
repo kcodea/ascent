@@ -58,6 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Balance', text: 'Three Dragons have new names. They work just as before.', details: [
+        'Galas is now Quill.',
+        'Whispwarder is now Shelly.',
+        'Choosey Dragon is now Picky Dragon.',
+      ] },
       { category: 'Systems', text: 'Fixed chat saying messages are not available when they were.', details: [
         'Chat now connects on every version of the game that can reach it.',
         'If the chat connection drops for good, it tries again on its own a moment later. Messages you typed meanwhile still send.',

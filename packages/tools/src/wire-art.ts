@@ -140,6 +140,10 @@ const ALIASES: Record<string, string> = {
   amplifiedagnus: 'n3_agnus',
   // Owner 2026-10-29 ("wire the new art for set 3 dragons"): Choosey Dragon's master is filed as Choosey.png.
   choosey: 'd3_choosey',
+  // Owner rename 2026-10-29 (Galas -> Quill, Whispwarder -> Shelly; ids + art unchanged): the masters on disk carry
+  // the PRE-rename names. (Choosey Dragon -> Picky Dragon rides the `choosey` alias above.)
+  galas: 'd4_galas',
+  whispwarder: 'd3_whispwarder',
   // Owner pick 2026-10-29 between two masters for one card: the `2` file is the CHOSEN base art here, not a
   // variant slot (full-stem aliases resolve before the `<Name>2` convention). The losing files are in the set-3 skip list.
   coincounter2: 'dw3_coincounter',

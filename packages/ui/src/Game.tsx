@@ -58,6 +58,7 @@ import { PatchNotesPage } from './PatchNotesPage';
 import { GameMenu, handleEscape, openMenu } from './GameMenu';
 import { setFxScene, type FxScene } from './fx/fxBudget';
 import { installPerfBench } from './perfBench';
+import { LobbyChatPanel } from './lobbyChat/LobbyChatPanel';
 import { ensureDefsReady } from './fx/playDef';
 import { installNoNativeTooltips } from './noNativeTooltips';
 import { BugReportModal } from './bug-report/BugReportModal';
@@ -716,6 +717,9 @@ export function Game() {
           every screen (title, menus, hero select, every game mode, spectating, replays), so open / closed, the tab and
           an open message survive every screen change. The friends list rises out of it, a friend's direct message
           beside it. Mounted after the menu pages so it paints over them. */}
+      {/* LOBBY CHAT (R-LOBBY-CHAT-01): the game's own chat, for its players and its stands, on the left edge. Before the dock so
+          the dock paints over it. Renders nothing outside a game that has one. */}
+      <LobbyChatPanel />
       <FriendsDock />
       {/* A direct message whose conversation is not open (R-DM-03): a small toast above the Friends button. */}
       <DmToast />

@@ -29,6 +29,7 @@ import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
 import { spectateSinkFor, WatchReporter, type SpectateSink } from './spectate';
 import { roomWatchKey, roomWatchOf, type RoomWatch } from './core/roomWatch';
 import { PING_CLEAR_EVENT, PING_CLEAR_RATE, PING_EVENT, PING_MENTOR_EVENT, PingRateLimiter, routePing, routePingClear, routePingMentor, withMentor, type PingMode, type PingRoomView, type PingSeat } from './pings';
+import { GUEST_HEADER, LOBBY_CHAT_EVENT, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_STORAGE_KEY, LOBBY_CHAT_SYNC_EVENT, LobbyChat, type LobbyChatSender } from './lobbyChat';
 import {
   parseClientMessage,
   VERSUS_CF_CLOSE,
@@ -52,6 +53,8 @@ interface Attachment {
   hello: boolean;
   /** When this socket opened (the newest socket of an account wins). */
   at: number;
+  /** A guest account (stamped by the Worker): reads the lobby chat, never posts (R-LOBBY-CHAT-01). */
+  guest?: boolean;
 }
 
 /** Per-room counters (DEV `/rooms/<id>/metrics`; the measurement script reads them). */
@@ -96,6 +99,8 @@ export class VersusRoom extends DurableObject<RoomEnv> {
   private pingMentors: { matchId: string | null; mentors: Partial<Record<PingSeat, string>> } = { matchId: null, mentors: {} };
   private readonly pingLimit = new PingRateLimiter();
   private readonly pingClearLimit = new PingRateLimiter(PING_CLEAR_RATE);
+  /** LOBBY CHAT (R-LOBBY-CHAT-01): the room's chat (every seat and the stands), read from storage on first use. */
+  private chat: LobbyChat | null = null;
   private readonly metrics: RoomMetrics = { msgsIn: 0, msgsOut: 0, bytesIn: 0, bytesOut: 0, resolveMs: [], alarms: 0, wakes: 0 };
 
   constructor(ctx: DurableObjectState, env: RoomEnv) {
@@ -241,7 +246,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       const [client, server] = [pair[0], pair[1]];
       this.ctx.acceptWebSocket(server, [userId]);
       const at = Date.now();
-      server.serializeAttachment({ userId, hello: false, at } satisfies Attachment);
+      server.serializeAttachment({ userId, hello: false, at, guest: req.headers.get(GUEST_HEADER) === '1' } satisfies Attachment);
       // One live socket per account per room: an older one (a reload, a second tab) is closed as replaced.
       for (const ws of this.ctx.getWebSockets(userId)) {
         if (ws !== server && this.att(ws).at <= at) {
@@ -273,6 +278,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     if (msg.t === 'bc') {
       if (!a.hello) return;
       if (msg.event === PING_EVENT || msg.event === PING_MENTOR_EVENT || msg.event === PING_CLEAR_EVENT) { await this.relayPing(ws, a.userId, msg.event, msg.payload); return; }
+      if (msg.event === LOBBY_CHAT_EVENT || msg.event === LOBBY_CHAT_SYNC_EVENT) { await this.lobbyChat(ws, a, msg.event, msg.payload); return; }
       // Relay (spectator frames, cursors, emotes): to every other member's sockets, never back to the sender.
       const out = JSON.stringify({ t: 'bc', event: msg.event, payload: msg.payload, from: a.userId } satisfies VersusCfPush);
       for (const other of this.liveSockets()) if (other !== ws && this.att(other).hello) this.send(other, out);
@@ -373,6 +379,39 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       const o = this.att(other);
       if (other !== ws && o.hello && to.has(o.userId)) this.send(other, out);
     }
+  }
+
+  /**
+   * LOBBY CHAT (owner 2026-10-30: "should include everyone in the game ... including the player"; R-LOBBY-CHAT-01): one
+   * chat per room, for every seated player and the stands. A post is stamped (`LobbyChat.post`: members only, never a
+   * guest, rate limited) and goes to every member's socket, the sender's too (its confirmation). A sync answers the
+   * backlog to the asking socket only. The backlog is mirrored to storage without holding any outgoing game frame for
+   * the write (`allowUnconfirmed`); the room's storage goes when it closes.
+   */
+  private async lobbyChat(ws: CfWebSocket, a: Attachment, event: string, payload: unknown): Promise<void> {
+    const core = await this.load();
+    if (!core) return;
+    if (!this.chat) {
+      const chat = new LobbyChat();
+      chat.load(await this.ctx.storage.get(LOBBY_CHAT_STORAGE_KEY));
+      this.chat ??= chat;
+    }
+    const mem = core.state.room.members.find((m) => m.userId === a.userId);
+    const sender: LobbyChatSender = {
+      userId: a.userId, role: !mem ? null : mem.role === 'spectator' ? 'spectator' : 'player', name: mem?.displayName ?? 'Player', guest: !!a.guest,
+    };
+    if (event === LOBBY_CHAT_SYNC_EVENT) {
+      this.send(ws, JSON.stringify({ t: 'bc', event, payload: this.chat.sync(sender), from: a.userId } satisfies VersusCfPush));
+      return;
+    }
+    const r = this.chat.post(sender, payload, Date.now());
+    if (!r.ok) {
+      this.send(ws, JSON.stringify({ t: 'bc', event: LOBBY_CHAT_REFUSED_EVENT, payload: { cid: r.cid ?? null, reason: r.reason }, from: a.userId } satisfies VersusCfPush));
+      return;
+    }
+    void this.ctx.storage.put(LOBBY_CHAT_STORAGE_KEY, this.chat.backlog(), { allowUnconfirmed: true }).catch(() => undefined);
+    const out = JSON.stringify({ t: 'bc', event, payload: r.msg, from: a.userId } satisfies VersusCfPush);
+    for (const other of this.liveSockets()) if (this.att(other).hello) this.send(other, out);
   }
 
   /** When this socket's keep-alive goes stale: its last ping (the runtime's auto-response stamp) or its open, + 15 s. */
@@ -591,6 +630,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       await this.ctx.storage.deleteAll();
       await this.ctx.storage.deleteAlarm();
       this.core = null;
+      this.chat = null;
     }
   }
 

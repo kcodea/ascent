@@ -58,6 +58,13 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Systems', text: 'New lobby chat: everyone in a game can chat, players and spectators alike.', details: [
+        'It sits on the left side of a Versus room, or of a lobby or Practice game while someone watches.',
+        'Collapse it to a small button. A red count shows new messages.',
+        'Mute anyone in the chat. Only you stop seeing them, for that game.',
+        'Sign in to send. Guests can read along.',
+        'Settings has a switch to hide lobby chat entirely. The bad word filter covers it too.',
+      ] },
       { category: 'Systems', text: 'Chat: message alerts now clear as soon as you look at the conversation.', details: [
         'Coming back to the game with a chat open on that friend clears its alert.',
         'Clicking into the chat window or sending a reply clears it too. You no longer need to reopen the chat.',

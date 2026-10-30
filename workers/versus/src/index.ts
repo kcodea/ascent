@@ -23,6 +23,7 @@ import { VERSUS_CF_BEARER_PREFIX, VERSUS_CF_PROTOCOL, VERSUS_CF_ROUTES } from '.
 import { INTERNAL_USER_HEADER, VersusRoom, type RoomEnv } from './room';
 import { LIVE_GAME_HEADER, LIVE_USER_HEADER, VersusLiveGame } from './liveGame';
 import { LIVE_GAME_ID } from './liveProtocol';
+import { GUEST_HEADER } from './lobbyChat';
 
 export { VersusRoom, VersusDirectory, VersusLiveGame };
 
@@ -67,6 +68,7 @@ export default {
       // The verified user rides an internal header (the object is only reachable through this Worker).
       const headers = new Headers(req.headers);
       headers.set(INTERNAL_USER_HEADER, caller.userId);
+      headers.set(GUEST_HEADER, caller.anonymous ? '1' : '0'); // always set: a client's own header never survives
       const res = await stub.fetch(new Request(req, { headers }));
       // A room that is gone (closed and forgotten) answers 404. If the directory still says the caller is in it (its
       // closing write was lost), that stale claim would refuse every new room with `already_in_room` and point `/me/room`
@@ -85,6 +87,7 @@ export default {
       const headers = new Headers(req.headers);
       headers.set(LIVE_USER_HEADER, caller.userId);
       headers.set(LIVE_GAME_HEADER, gameId);
+      headers.set(GUEST_HEADER, caller.anonymous ? '1' : '0');
       return stub.fetch(new Request(req, { headers }));
     }
     if (!caller) return json(401, { error: 'not_signed_in' });

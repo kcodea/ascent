@@ -228,3 +228,62 @@ describe('LIVE PINGS end to end in workerd: promote, then the mentor pings (R-PI
     for (const p of [a, b, s, t]) p.client!.close();
   });
 });
+
+describe('LOBBY CHAT end to end in workerd (R-LOBBY-CHAT-01)', () => {
+  const chat = (e: { pushes: LivePush[] }, id?: string): boolean => e.pushes.some((m) => m.t === 'bc' && m.event === 'lobby_chat' && (!id || (m.payload as { cid?: string }).cid === id));
+
+  it('a live game: the player and every watcher get each post, stamped; a late joiner syncs the backlog; a guest reads only; a flood is cut', async () => {
+    const game = `run-${crypto.randomUUID()}`;
+    const pub = new End(game, 'publish', undefined, 'Claudebot1');
+    await pub.connect();
+    await pub.req('listing', listing);
+    const w1 = new End(game, 'watch', undefined, 'Claudebot2');
+    const w2 = new End(game, 'watch', undefined, 'Claudebot3');
+    await w1.connect();
+    await w2.connect();
+    // A watcher posts: the player, the other watcher and the sender itself (its confirmation) all get it, stamped.
+    const hits = [pub, w1, w2].map((e) => e.next((m) => m.t === 'bc' && m.event === 'lobby_chat'));
+    w1.client.broadcast('lobby_chat', { cid: 'c1', body: '  nice   roll ' });
+    for (const h of await Promise.all(hits)) expect(h).toMatchObject({ payload: { cid: 'c1', body: 'nice roll', from: w1.userId, name: 'Claudebot2', role: 'spectator' } });
+    // The player posts too.
+    const back = w2.next((m) => m.t === 'bc' && m.event === 'lobby_chat' && (m.payload as { role?: string }).role === 'player');
+    pub.client.broadcast('lobby_chat', { cid: 'c2', body: 'thanks' });
+    expect(await back).toMatchObject({ payload: { body: 'thanks', name: 'Claudebot1', from: pub.userId } });
+    // A late joiner (a guest) asks for the backlog: both messages, and it may not post.
+    const g = new End(game, 'watch', undefined, 'Claudebot4.guest'); // a dev token ending `.guest` is a guest
+    await g.connect();
+    const sync = g.next((m) => m.t === 'bc' && m.event === 'lobby_chat_sync');
+    g.client.broadcast('lobby_chat_sync', {});
+    const s = (await sync) as { payload: { msgs: { body: string }[]; canSend: boolean } };
+    expect(s.payload.canSend).toBe(false);
+    expect(s.payload.msgs.map((m) => m.body)).toEqual(['nice roll', 'thanks']);
+    const refused = g.next((m) => m.t === 'bc' && m.event === 'lobby_chat_refused');
+    g.client.broadcast('lobby_chat', { cid: 'g1', body: 'hi' });
+    expect(await refused).toMatchObject({ payload: { cid: 'g1', reason: 'guest' } });
+    // A flood: the burst (5) passes, the rest are refused as too fast.
+    for (let i = 0; i < 8; i++) w2.client.broadcast('lobby_chat', { cid: `f${i}`, body: `spam ${i}` });
+    await w2.next((m) => m.t === 'bc' && m.event === 'lobby_chat_refused');
+    await sleep(400);
+    expect(chat(pub, 'f4')).toBe(true);
+    expect(chat(pub, 'f5')).toBe(false);
+    expect(chat(pub, 'g1')).toBe(false);
+    for (const e of [pub, w1, w2, g]) e.client.close();
+  });
+
+  it('a Versus room: both seated players and the stands share one chat', async () => {
+    const { a, b, roomId } = await toRoundOne(base);
+    const s = new Player(base, crypto.randomUUID(), 'Claudebot3');
+    await s.connect(roomId);
+    await s.req('join', { as: 'spectator', display: s.name, profile: {}, content: CONTENT, protocol: VERSUS_PROTOCOL });
+    const hits = [a, b, s].map((p) => p.next((m) => m.t === 'bc' && m.event === 'lobby_chat'));
+    s.client!.broadcast('lobby_chat', { cid: 's1', body: 'gl hf' });
+    for (const h of await Promise.all(hits)) expect(h.msg).toMatchObject({ payload: { body: 'gl hf', role: 'spectator', name: 'Claudebot3', from: s.userId } });
+    const toS = s.next((m) => m.t === 'bc' && m.event === 'lobby_chat' && (m.payload as { role?: string }).role === 'player');
+    a.client!.broadcast('lobby_chat', { cid: 'a1', body: 'ty' });
+    expect((await toS).msg).toMatchObject({ payload: { body: 'ty', from: a.userId } });
+    const sync = b.next((m) => m.t === 'bc' && m.event === 'lobby_chat_sync');
+    b.client!.broadcast('lobby_chat_sync', {});
+    expect((await sync).msg).toMatchObject({ payload: { canSend: true, msgs: [{ body: 'gl hf' }, { body: 'ty' }] } });
+    for (const p of [a, b, s]) p.client!.close();
+  });
+});

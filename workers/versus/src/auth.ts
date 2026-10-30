@@ -80,7 +80,8 @@ export async function verifyCaller(token: string | null | undefined, env: AuthEn
   if (!token) return null;
   if (env.DEV_AUTH === '1' && token.startsWith('dev.')) {
     const userId = token.slice(4).split('.')[0] ?? '';
-    return UUID.test(userId) ? { userId, anonymous: false, dev: true } : null;
+    // A dev token ending `.guest` is a guest (the lobby chat's read-only seat, R-LOBBY-CHAT-01).
+    return UUID.test(userId) ? { userId, anonymous: token.endsWith('.guest'), dev: true } : null;
   }
   const parts = token.split('.');
   if (parts.length !== 3) return null;

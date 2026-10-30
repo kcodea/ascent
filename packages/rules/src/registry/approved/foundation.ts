@@ -11847,4 +11847,19 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Late in a Dwarf game, Shout and Echo medallions fire on every card in every fight. Before, each fire reloaded the Shout picture; a round asked for about 300 pictures it already had. Now a round asks for about 10.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/mechMedallion.test.ts', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
+  {
+    id: 'R-LOBBY-CHAT-01',
+    title: 'Every game has a lobby chat for everyone in it: the players and the spectators',
+    statement:
+      "A Versus room (every seated player and everyone in the stands) and a live lobby or Practice game on Cloudflare (its player and everyone watching) each have ONE lobby chat, carried on the game's own socket and run by its Durable Object. Messages are live only: the object keeps the last 100 in memory and its own storage for the game's life (a late joiner gets them), never in Postgres. Only a member of the game may post, never a guest (guests read). At most 1 message a second per sender, bursts of 5, on the object and the client. Bodies are cleaned and bounded like direct messages (500 characters). The sender's name and role are the object's, never the payload's. A reader may mute a sender (that game, their own screen), and a Settings switch (on by default) hides lobby chat entirely. Chat events are separate relays that never hold or delay a game frame, and a client only shows the chat once the object answers its backlog request, so an older Worker or a Supabase-hosted game never shows a dead panel.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30 (owner idea)', quote: 'spectator group chats within a game' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30 (owner ruling)', quote: 'spectator group chat can be lobby chat, and should include everyone in the game i think including the player' },
+    ],
+    currentBehaviour: 'New on 2026-10-30 (feat/spectator-group-chat).',
+    example: 'Ann plays a Practice game while Bo and Cy watch. Bo types "nice roll" in the lobby chat on the left side of the screen. Ann and Cy see it at once; Dee, who starts watching a minute later, sees it too.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/lobbyChat.test.ts', 'workers/versus/test/it/live.it.ts', 'packages/ui/src/lobbyChat/lobbyChat.test.tsx'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

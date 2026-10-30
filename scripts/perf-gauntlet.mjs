@@ -98,6 +98,14 @@ const ROUND_PROBE = flag('round-probe');
 const SNAP_ROUNDS = new Set(arg('snap', '').split(',').filter(Boolean).map(Number)); // --round-probe --snap 2,14: heap snapshots at those rounds' probes // --games N: N games back to back in one page (the soak)
 let soakRows = [];
 let probeRows = [];
+/** --img-census (with --round-probe; image re-decode hunt, 2026-10-29): every image REQUEST that reached the network
+ *  stack (a miss in Blink's memory cache: a refetch, a revalidation or a first load), counted per round by URL, plus the
+ *  renderer's image DECODES from a light trace (cc + devtools.timeline: ImageDecodeTask / Decode Image / ...), so a probe
+ *  can say whether the game asks for, and decodes, the same pictures again round over round. */
+const IMG_CENSUS = flag('img-census');
+const imgCensus = { round: 0, seen: new Map(), reqs: new Map(), decodes: new Map(), decodeMs: new Map() };
+const IMG_TRACE_CATS = ['cc', 'devtools.timeline', 'disabled-by-default-devtools.timeline', 'blink'];
+const IMG_RE = /[.](png|webp|jpe?g|avif|gif|svg)([?#]|$)/i;
 const FROM = Number(arg('from', '9')); // the first MEASURED round: everything before it is fast-forwarded
 const TO = Number(arg('to', '14')); // the last measured round
 const FF_ACTION_MS = Number(arg('ff-ms', '40')); // the pause between the bot's shop actions
@@ -677,6 +685,26 @@ async function playScenes(c) {
     live.store = await d.ev(`(() => { const st = window.__bench.store.getState(); const size = (v) => { try { return JSON.stringify(v)?.length || 0; } catch { return -1; } }; const top = Object.entries(st).filter(([, v]) => typeof v !== 'function').map(([k, v]) => [k, size(v)]).sort((a, b) => b[1] - a[1]).slice(0, 8); const run = st.run ? Object.entries(st.run).map(([k, v]) => [k, size(v)]).sort((a, b) => b[1] - a[1]).slice(0, 8) : []; return { top, run }; })()`).catch(() => null);
     // Images: distinct image URLs fetched so far and their encoded KB (the decoded-image working set grows with it).
     live.imgs = await d.ev(`(() => { const r = performance.getEntriesByType('resource').filter((e) => /[.](png|webp|jpe?g|avif|svg)([?]|$)/.test(e.name)); return { urls: new Set(r.map((e) => e.name)).size, kb: Math.round(r.reduce((n, e) => n + (e.decodedBodySize || 0), 0) / 1024), live: document.images.length }; })()`).catch(() => null);
+    if (IMG_CENSUS) {
+      // ReportEvents delivers only on Tracing.end: end this round's decode trace (its events land in the counters), then
+      // start the next round's.
+      if (imgCensus.tracing) {
+        const done = new Promise((res) => { imgCensus.onComplete = res; setTimeout(res, 20_000); });
+        await c.send('Tracing.end').catch(() => {});
+        await done;
+        await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: IMG_TRACE_CATS } }).catch(() => {});
+      }
+      const reqs = [...imgCensus.reqs.entries()];
+      let again = 0;
+      for (const [u, n] of reqs) { if (imgCensus.seen.has(u)) again += n; else again += n - 1; imgCensus.seen.set(u, (imgCensus.seen.get(u) || 0) + n); }
+      const top = reqs.sort((a, b) => b[1] - a[1]).slice(0, 12).map(([u, n]) => `${n}x ${u.split('/').pop().slice(0, 48)}`);
+      const decodes = Object.fromEntries([...imgCensus.decodes.entries()].sort((a, b) => b[1] - a[1]));
+      const decodeMs = Object.fromEntries([...imgCensus.decodeMs.entries()].map(([k, v]) => [k, Math.round(v)]));
+      live.imgCensus = { reqs: reqs.reduce((n, [, x]) => n + x, 0), distinct: reqs.length, again, decodes, decodeMs, top, art: await d.ev(`window.__artMem ? window.__artMem() : null`).catch(() => null) };
+      log(`   IMG r${r}: ${JSON.stringify(live.imgCensus)}`);
+      imgCensus.reqs = new Map(); imgCensus.decodes = new Map(); imgCensus.decodeMs = new Map();
+      if (!flag('audio')) live.mem = await memProbe(c, `r${r}`);
+    }
     live.tex = await d.ev(`(() => { const app = window.__bench.pixiFx && window.__bench.pixiFx.app; const t = app && app.renderer && app.renderer.texture; const gc = app && app.renderer && app.renderer.textureGC; return t ? { managed: (t.managedTextures || []).length, glTextures: Object.keys(t._glTextures || {}).length } : null; })()`).catch(() => null);
     if (SNAP_ROUNDS.has(r)) {
       const file = path.join(OUT, `heap-r${r}.heapsnapshot`);
@@ -890,12 +918,22 @@ async function measureOnce(dist, runIdx) {
     await c.send('Fetch.enable', { patterns: [{ urlPattern: '*' }] });
     c.on('Fetch.requestPaused', (p) => {
       const local = /^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(p.request.url) || /^(data|blob):/.test(p.request.url) || netAllowed(p.request);
+      if (IMG_CENSUS && IMG_RE.test(p.request.url)) { const u = p.request.url.replace(/^https?:\/\/[^/]+/, ''); const b = imgCensus.reqs; b.set(u, (b.get(u) || 0) + 1); }
       if (!local) blockedNet.add(p.request.method + ' ' + p.request.url.replace(/[?#].*$/, '').slice(0, 120));
       else if (netAllowed(p.request)) netLog.push([Math.round(Date.now()), p.request.method, p.request.url.replace(/[?#].*$/, '').slice(0, 140)]);
       void (local ? c.send('Fetch.continueRequest', { requestId: p.requestId }) : c.send('Fetch.failRequest', { requestId: p.requestId, errorReason: 'BlockedByClient' })).catch(() => {});
     });
+    if (IMG_CENSUS && !TRACE && !GPU_TRACE) {
+      c.on('Tracing.dataCollected', (p) => { for (const e of p.value) { if (!/decod/i.test(e.name || '') || (e.ph !== 'X' && e.ph !== 'B')) continue; const k = e.name; imgCensus.decodes.set(k, (imgCensus.decodes.get(k) || 0) + 1); if (e.dur) imgCensus.decodeMs.set(k, (imgCensus.decodeMs.get(k) || 0) + e.dur / 1000); } });
+      await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: IMG_TRACE_CATS } });
+      imgCensus.tracing = true;
+      c.on('Tracing.tracingComplete', () => { const f = imgCensus.onComplete; imgCensus.onComplete = null; f?.(); });
+    }
     await c.send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE });
     if (flag('perf-timings')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('ascent.perf', '1'); } catch {}` });
+    // --lite-art: the PHONE art path on this desktop page (phoneArt.ts override): the downscaled copies and the bounded
+    // decoded-image LRU (LITE_KEEP_BYTES), so the phone's art memory can be read round over round.
+    if (flag('lite-art')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('ascent.artMode', 'lite'); } catch {}` });
     if (ROUND_PROBE) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: TIMER_CENSUS });
     if (flag('audio')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: AUDIO_CENSUS });
     // --css "<rules>": an extra stylesheet, to test what a CSS change would buy before changing the source.

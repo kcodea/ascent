@@ -23,7 +23,7 @@ const S3 = ['kobold', 'dwarf', 'undead', 'spirit', 'dragon'] as const; // Celest
 /** The static pool for a set: `sets` scope + at least one tribe of the set's roster (the run-time gates minus the
  *  per-run tribe roll, hero and duplicate filters). */
 const staticPool = (setId: SetId, tribes: readonly string[]) =>
-  [...RUNES, ...EPIC_RUNES].filter((r) => (!r.sets || r.sets.includes(setId)) && (!r.tribes || r.tribes.some((t) => tribes.includes(t))));
+  [...RUNES, ...EPIC_RUNES].filter((r) => !r.duos && (!r.sets || r.sets.includes(setId)) && (!r.tribes || r.tribes.some((t) => tribes.includes(t))));
 
 /** A Set 3 ORIGINAL (batch 2, 2026-09-16 onward): scoped to set3 alone. The carryover pins below exclude these. */
 const isOriginal = (r: { sets?: readonly string[] }): boolean => r.sets?.length === 1 && r.sets[0] === 'set3';

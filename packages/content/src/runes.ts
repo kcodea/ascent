@@ -4375,7 +4375,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 3,
     epic: true,
     duos: true,
-    text: 'The first **2** minions you sell each turn **Pass** to your teammate.',
+    text: 'The first **2** minions you **Sell** each turn **Pass** to your teammate.',
     reward: { kind: 'duosRune', rune: 'salesman', uses: 2 },
   },
   {

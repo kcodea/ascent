@@ -151,7 +151,7 @@ const PARKED_BY_SWAP: readonly string[] = ['rune_soul_script', 'rune_star_tap', 
 
 const LISTED: string[] = Object.values(OWNER_LIST).flatMap((g) => [...Object.values(g.basic), ...Object.values(g.epic)]);
 const LIVE = [...RUNES, ...EPIC_RUNES];
-const inSet3 = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.includes('set3');
+const inSet3 = (r: { sets?: readonly string[]; duos?: boolean }): boolean => !r.duos && (!r.sets || r.sets.includes('set3')); // Duos-only runes: a Duos forge's only
 
 /** Runes that were Set-3-only before the list: leaving Set 3 leaves them offered in NO set (`sets: []`), not
  *  archived. The owner decides whether to archive or re-home them. */
@@ -212,7 +212,7 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {
-    const out = LIVE.filter((r) => !LISTED.includes(r.id));
+    const out = LIVE.filter((r) => !LISTED.includes(r.id) && !r.duos); // Duos-only runes: every set's Duos forge, by design
     for (const r of out) {
       expect(inSet3(r), `${r.id} left set 3`).toBe(false);
       expect(RUNE_INDEX[r.id], `${r.id} still resolves`).toBe(r);

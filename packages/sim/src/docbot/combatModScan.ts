@@ -81,6 +81,7 @@ const OBJECT_ARMS: Record<string, unknown> = {
   shoutEdgeBuff: { attack: 2, health: 2 },                    // Twin Sun Oath on a combat Shout (R-SHOUT-TRIGGER-01)
   shoutEdgeTribeBuff: { tribe: 'beast', attack: 2, health: 2 }, // Drake Skull on a combat Shout (the fixture's Pennycat is a Beast)
   runeHeldStrength: { attack: 3, health: 3, copies: 1 }, // the captured left-most-hand-card stats (owner rework 2026-08-27)
+  duosMeters: [{ sourceId: 'rune_shoutful_bounty', meter: 'shout', per: 1, tick: 0, cap: 3, paid: 0, gift: { kind: 'gift', randomSpell: true } }], // Duos runes (R-DUOS-RUNES-01): a combat Shout trips it, a team gift through sendTeam
   shoutMeters: [{ sourceId: 'rune_chorus', per: 1, tick: 0, grantSpell: 1 }], // balance 9/23: the cross-phase Shout tally — pays a hand grant on a combat Shout
   ancientUndying: { uids: ['pS1'], war: true, regainRise: true, label: 'Ancient of War' }, // Risen x Death / War: the Undying body by sourceUid
   ancientSummonExtra: 1, // Risen x Genesis: extra copies per combat summon (a count, not a flag)
@@ -136,7 +137,7 @@ export function namedCardsFor(key: string): string[] {
 /** Mods that only act when a Shout is TRIGGERED IN COMBAT — the generic fight stages none. The pair: a tanky
  *  Pennycat (Battlecry: summon a Stray) beside a fragile Ryme (Echo: re-fire neighbours' Battlecries), so the
  *  carried War Drum / Warm Embers charges (owner ruling 2026-08-26) have a combat Shout to land on. */
-const SHOUT_STAGE_KEYS = new Set(['ancientShoutBuffsCard', 'warDrumExtra', 'shoutDoubleCharges', 'encoreExtra', 'shoutExtraAlways', 'warmEmbersFirst', 'shoutEdgeBuff', 'shoutEdgeTribeBuff', 'shoutMeters']);
+const SHOUT_STAGE_KEYS = new Set(['ancientShoutBuffsCard', 'warDrumExtra', 'shoutDoubleCharges', 'encoreExtra', 'shoutExtraAlways', 'warmEmbersFirst', 'shoutEdgeBuff', 'shoutEdgeTribeBuff', 'shoutMeters', 'duosMeters']);
 const shoutStageBodies = (): BoardMinion[] => [bm('alley', 'pW0', 1, 30), bm('ryme', 'pW1', 1, 1, ['T'])];
 
 /** Mods that only act on a TIER 7 minion (Brackus × War copies one); the generic fight has none. Stages one sturdy

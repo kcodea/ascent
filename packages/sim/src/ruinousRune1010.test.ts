@@ -38,7 +38,7 @@ type Dmg = Extract<CombatEvent, { type: 'dmg' }>;
 describe('Rune of the Ruinous: the roster', () => {
   it('a Basic (RUNES, appended last), 3 Gold, Set 2 only, Demon-gated, granting Ruinous Lord', () => {
     const r = RUNE_INDEX['rune_ruinous']!;
-    expect(RUNES[RUNES.length - 1]!.id, 'appended at the very end of RUNES').toBe('rune_ruinous');
+    expect(RUNES.filter((r) => !r.duos).at(-1)!.id, 'appended at the very end of RUNES (the Duos-only runes came later)').toBe('rune_ruinous');
     expect(EPIC_RUNES.some((x) => x.id === 'rune_ruinous')).toBe(false);
     expect([r.name, r.cost, !!r.epic, r.tribes, r.sets, r.text]).toEqual(['Ruinous', 3, false, ['demon'], ['set2'], 'Get a **Ruinous Lord**.']);
     expect(r.reward).toEqual({ kind: 'grant', cards: ['dm_ruinouslord'] });

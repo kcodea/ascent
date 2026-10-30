@@ -92,6 +92,10 @@ export const PATCH_NOTES: PatchNote[] = [
         'The bottom right corner has a gold grip.',
         'Hover any edge or corner and it lights up gold, so you can see where to drag.',
       ] },
+      { category: 'Systems', text: 'Long games stay smoother. The game no longer reloads the keyword icons on your cards every time one of them fires.', details: [
+        'Each keyword icon is now loaded once per session, not again each time its card triggers or is drawn.',
+        'Late in a game this was hundreds of extra image loads every round, and the memory they used kept growing. It grew fastest on phones.',
+      ] },
     ],
   },
   {

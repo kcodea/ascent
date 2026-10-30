@@ -3236,14 +3236,16 @@ img.tierbadge.tierstars,
 .cgem > .cgem-img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; transform: scale(calc(var(--cgem-art-scale, 1) * var(--cgem-art-mech, 1))) rotate(var(--cgem-art-rot, 0deg)); filter: grayscale(var(--cgem-desat, 71%)); }
 .card.compact .cgem > .cgem-img { width: 100%; height: 100%; }
 /* Art TINT overlay (🎖️ Medallions tuner: Tint colour + amount) — a colour wash the SHAPE of the art, so it
-   colours the glyph and not the box. `--cgem-artsrc` is set inline per card to the same art URL so the mask
-   matches; `--cgem-tint-amt` defaults to 0, making it inert so untinted art is untouched. Static paint (no loop),
+   colours the glyph and not the box. The mask IMAGE comes from `.cgem-tint[data-art=…]`, one stylesheet rule per
+   art (mechMedallionMaskCss): never an inline url() custom property, which re-fetched and re-decoded the art for
+   every medallion that mounted (R-PERF-MEDALLION-MASK-01); `--cgem-tint-amt` defaults to 0, making it inert so untinted art is untouched. Static paint (no loop),
    scaled with the art so it tracks the Art-inset dial. */
 .cgem > .cgem-tint {
   position: absolute; inset: 0; pointer-events: none;
   background: var(--cgem-tint, #ffd24a);
-  -webkit-mask: var(--cgem-artsrc) center / contain no-repeat;
-  mask: var(--cgem-artsrc) center / contain no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   opacity: var(--cgem-tint-amt, 0);
   /* Blend the tint into the art. Default `normal` = a flat wash (global tuner tint); a per-mechanic tint can
      pick `multiply` etc. for a darker sheen (Execute → red). `.cgem` is its own stacking context (z-index), so

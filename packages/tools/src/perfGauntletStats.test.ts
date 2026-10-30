@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { budgetVerdict, foldRuns, framesByScene, median, refreshInterval, sceneStats, winner, type SceneStats } from './perfGauntletStats';
+import { LITE_CENSUS_REQS, budgetVerdict, foldRuns, imageCensusVerdict, framesByScene, median, refreshInterval, sceneStats, winner, type SceneStats } from './perfGauntletStats';
 
 // R-PERF-GAUNTLET-01: the rules the perf gauntlet judges by (scripts/perf-gauntlet.mjs).
 
@@ -64,5 +64,36 @@ describe('perf gauntlet judging (R-PERF-GAUNTLET-01)', () => {
     expect(budgetVerdict(hitch, 360, false)).toBe('FAIL');
     expect(budgetVerdict(smooth, 60, false)).toBe('n/a (60 Hz display)');
     expect(budgetVerdict(smooth, 360, true)).toBe('n/a (headless)');
+  });
+});
+
+describe('imageCensusVerdict (R-PERF-MEDALLION-MASK-01)', () => {
+  const rows = (reqs: number[], mem: number[]) => reqs.map((n, i) => ({ r: i + 1, reqs: n, rendererMB: mem[i] }));
+  it('passes a flat game: few late requests, flat renderer memory', () => {
+    const v = imageCensusVerdict(rows([1800, 4, 1, 1, 2, 1], [930, 1290, 1300, 1295, 1302, 1299]));
+    expect(v.ok).toBe(true);
+    expect(v.maxReqs).toBe(2);
+  });
+  it('fails the medallion re-fetch: ~300 requests a round', () => {
+    const v = imageCensusVerdict(rows([1833, 251, 323, 302, 364, 327], [933, 1296, 1324, 1349, 1382, 1516]));
+    expect(v.ok).toBe(false);
+    expect(v.line).toContain('FAIL');
+  });
+  it('reports the renderer slope, and gates on it only when asked', () => {
+    const r = rows([1800, 3, 3, 3, 3, 3, 3], [900, 1300, 1330, 1360, 1390, 1420, 1450]);
+    const v = imageCensusVerdict(r);
+    expect(v.ok).toBe(true);
+    expect(v.slopeMB).toBeCloseTo(30, 0);
+    expect(v.line).toContain('+30.0 MB/round (reported)');
+    expect(imageCensusVerdict(r, { maxRendererMBPerRound: 12 }).ok).toBe(false);
+  });
+  it('the phone path has its own request ceiling', () => {
+    const r = rows([1534, 82, 84, 99, 108, 85], []);
+    expect(imageCensusVerdict(r).ok).toBe(false);
+    expect(imageCensusVerdict(r, { maxReqsPerRound: LITE_CENSUS_REQS }).ok).toBe(true);
+    expect(imageCensusVerdict(rows([1542, 273, 402, 407, 461], []), { maxReqsPerRound: LITE_CENSUS_REQS }).ok).toBe(false);
+  });
+  it('the boot round and round 2 never count', () => {
+    expect(imageCensusVerdict(rows([1800, 900, 2, 2], [100, 900, 1000, 1001])).ok).toBe(true);
   });
 });

@@ -1016,6 +1016,31 @@ subscribe to a row that a heartbeat rewrites (R-NET-REALTIME-01); read a round o
 (R-NET-ROUNDS-01); a launch read of an append-only table keeps its last answer and asks for newer rows
 (R-NET-CACHE-01). Numbers: `docs/devlog/2026-10-26-supabase-egress.md`.
 
+## 3m. Image memory over a game, 2026-10-30: never put a `url()` in an inline custom property
+
+Owner, via the lead: performance degrades over a game, worse on phones. Numbers and method:
+`docs/devlog/2026-10-30-image-redecode-creep.md`.
+
+- **A `url()` that reaches a property through `var()` from an INLINE style is a new image value on every element.**
+  The medallion tint overlay set `--cgem-artsrc: url("…")` per card and the stylesheet masked with
+  `var(--cgem-artsrc)`. Every medallion that mounted (and a trigger pulse remounts one) asked the network stack for
+  the picture again: ~300 requests a round for the same 10 medallions, each fetched and decoded again. A literal
+  `url()` in a stylesheet rule is one value shared by every element it matches and is loaded once. Pick the image
+  with a class or data attribute (`.cgem-tint[data-art=…]`, `mechMedallionMaskCss`), never an inline url var.
+  (`--plate-frost-mask` on the frosted plate still uses the old pattern; it is rare and was not seen in the census.)
+- **Count the requests, not the bytes.** `performance.getEntriesByType('resource')` only sees loads that missed
+  Blink's memory cache, so a climbing `decodedBodySize` sum with a flat distinct-URL count is a re-fetch loop.
+  `npm run perf:gauntlet -- --round-probe --img-census` prints it per round with the URLs, the renderer's image
+  decode tasks (a light trace) and process memory, and FAILS (exit 3) when a round from 3 on asks for more than 25
+  images (150 with `--lite-art`, the phone art path, whose LRU drops art on purpose). `--mem-infra` adds Chrome's
+  own allocator dump per probe, which is how to split renderer memory into images (`web_cache`, `discardable`,
+  `cc`), audio (`partition_alloc/partitions/array_buffer`), Blink (`blink_gc`, `partition_alloc/partitions/buffer`)
+  and WebGL before guessing.
+- **Desktop renderer growth that is left is not images.** After the fix, `web_cache` (156 MB), `discardable`, the
+  `cc` tile memory and the GPU process's shared images are flat or bounded; the renderer still grows (~34 MB a round
+  headless, seed 424242), in `partition_alloc/partitions/buffer` (in steps), the SFX cache filling to its cap
+  (`array_buffer`, R-AUDIO-MEMORY-02) and `blink_gc`. See the devlog for the per-allocator table.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.

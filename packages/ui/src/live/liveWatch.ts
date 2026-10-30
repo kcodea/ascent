@@ -24,7 +24,7 @@ import { installSpectatorEmotes, onUnknownSpectatorEmote, receiveSpectatorEmote,
 import { receiveWatchedEmote, resetWatchedEmotes, VERSUS_EMOTE_EVENT } from '../versus/versusEmotes';
 import { liveRemote, LiveError, type LiveGameRow, type LiveRemote } from './liveRemote';
 import { endWatchedGame, startSpectatorBeat, stopSpectatorBeat } from './spectatorEnd';
-import { cfErrorCode, openCfWatcher, type CfWatcher, type LiveRow, type LiveWatcher } from './liveCf';
+import { cfErrorCode, diagnoseCfOpen, openCfWatcher, type CfOpenDiagnosis, type CfWatcher, type LiveRow, type LiveWatcher } from './liveCf';
 import { lobbyLiveWatchUrl } from '../versus/versusRemote';
 import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
 
@@ -138,6 +138,13 @@ const ERRORS: Record<string, string> = {
   game_ended: 'That game has just ended.',
   own_game: 'That is your own game.',
   not_deployed: 'Live games are not available yet.',
+  // R-LIVE-WATCH-REACH-01: a genuine failure says why (never one catch-all "could not reach").
+  version_mismatch: 'This game is on a different version. Reload to update.',
+  not_signed_in: 'Sign in again to watch. Reload the game and try again.',
+  signed_out: 'Sign in again to watch. Reload the game and try again.',
+  offline: 'You are offline. Check your connection and try again.',
+  server_down: 'The game server did not answer. Try again in a moment.',
+  unreachable: 'Could not reach that game. Try again.',
 };
 const errorText = (e: unknown): string => ERRORS[(e as LiveError).code] ?? 'Could not watch that game. Try again.';
 
@@ -215,6 +222,13 @@ function installWatchPings(s: NonNullable<typeof session>, gameId: string): void
 let watchUrlFor: (liveHost: string) => string = lobbyLiveWatchUrl;
 /** Tests: where a Cloudflare game is reached. */
 export function setLiveWatchUrlForTests(fn: ((liveHost: string) => string) | null): void { watchUrlFor = fn ?? lobbyLiveWatchUrl; }
+let diagnose: (baseUrl: string) => Promise<CfOpenDiagnosis> = diagnoseCfOpen;
+/** Tests: why an open failed. */
+export function setLiveWatchDiagnoseForTests(fn: ((baseUrl: string) => Promise<CfOpenDiagnosis>) | null): void { diagnose = fn ?? diagnoseCfOpen; }
+/** A Watch whose socket times out tries once more before it gives up (R-LIVE-WATCH-REACH-01). */
+export const CF_WATCH_ATTEMPTS = 2;
+/** Bumped by every Watch and Leave: a slow open that a newer one overtook is dropped. */
+let watchSeq = 0;
 
 /** The other people in the stands, pushed by the game's object (never me: by my identity, and by the account the
  *  object knows me as, R-SPECTATE-HUD-02). */
@@ -231,37 +245,50 @@ async function watchOnCf(gameId: string, liveHost: string): Promise<boolean> {
   const s: NonNullable<typeof session> = { gameId, channel: null, poll: null, seatsUnsub: null, seats: null, fellowsAt: 0, polls: 0, cf: null };
   let key: unknown = null;
   let myId: string | null = null;
-  let opened: Awaited<ReturnType<typeof openCfWatcher>>;
-  try {
-    opened = await openCfWatcher(watchUrlFor(liveHost), gameId, myWatcherIdentity(), {
-      onBroadcast: (event, payload) => onGameBroadcast(s, event, payload),
-      onRow: (row) => { if (session === s) useLiveWatch.setState({ game: row as LiveGameRow }); },
-      onWatchers: (list) => { if (session === s) cfFellows(list, myId); },
-      onEnd: (end) => {
-        if (session !== s || useLiveWatch.getState().ended) return;
-        if (end.abandoned) { leaveLiveGame(true); useLiveWatch.setState({ error: 'That game has ended.' }); return; }
-        const last = (end.row ?? useLiveWatch.getState().game) as LiveGameRow | null;
-        if (last) gameEnded(s, { ...last, phase: 'end', placement: end.placement });
-      },
-      onDead: () => {
-        // The socket is gone for good (the game's object let everyone go, or refused me): back to the list.
-        if (session !== s || useLiveWatch.getState().ended) return;
-        leaveLiveGame(true);
-        useLiveWatch.setState({ error: 'That game has ended.' });
-      },
-    });
-  } catch (e) {
-    const code = cfErrorCode(e);
-    useLiveWatch.setState({ error: code === 'unreachable' ? 'Could not reach that game. Try again.' : errorText({ code }) });
+  const seq = ++watchSeq;
+  const url = watchUrlFor(liveHost);
+  const open = (): ReturnType<typeof openCfWatcher> => openCfWatcher(url, gameId, myWatcherIdentity(), {
+    onBroadcast: (event, payload) => onGameBroadcast(s, event, payload),
+    onRow: (row) => { if (session === s) useLiveWatch.setState({ game: row as LiveGameRow }); },
+    onWatchers: (list) => { if (session === s) cfFellows(list, myId); },
+    onEnd: (end) => {
+      if (session !== s || useLiveWatch.getState().ended) return;
+      if (end.abandoned) { leaveLiveGame(true); useLiveWatch.setState({ error: 'That game has ended.' }); return; }
+      const last = (end.row ?? useLiveWatch.getState().game) as LiveGameRow | null;
+      if (last) gameEnded(s, { ...last, phase: 'end', placement: end.placement });
+    },
+    onDead: () => {
+      // The socket is gone for good (the game's object let everyone go, or refused me): back to the list.
+      if (session !== s || useLiveWatch.getState().ended) return;
+      leaveLiveGame(true);
+      useLiveWatch.setState({ error: 'That game has ended.' });
+    },
+  });
+  let opened: Awaited<ReturnType<typeof openCfWatcher>> | null = null;
+  let code = 'unreachable';
+  // A timeout may be a blip: one more try. A refusal (full, ended, own game, version) is final at once.
+  for (let attempt = 1; attempt <= CF_WATCH_ATTEMPTS && !opened; attempt++) {
+    try { opened = await open(); } catch (e) {
+      code = cfErrorCode(e);
+      if (code !== 'unreachable') break;
+    }
+  }
+  if (seq !== watchSeq) { opened?.watcher.close(); return false; } // a newer Watch (or a Leave) took over meanwhile
+  if (!opened) {
+    // Still unreachable: find out why (offline, the server down, a refused sign-in) and say so.
+    if (code === 'unreachable') code = await diagnose(url).catch(() => 'unreachable' as const);
+    if (seq !== watchSeq) return false;
+    useLiveWatch.setState({ error: errorText({ code }) });
     return false;
   }
-  key = opened.hello.key;
-  myId = opened.hello.userId ?? null;
-  const row = opened.hello.row as (LiveRow & LiveGameRow) | null;
-  if (!row) { opened.watcher.close(); useLiveWatch.setState({ error: errorText({ code: 'no_game' }) }); return false; }
+  const got = opened;
+  key = got.hello.key;
+  myId = got.hello.userId ?? null;
+  const row = got.hello.row as (LiveRow & LiveGameRow) | null;
+  if (!row) { got.watcher.close(); useLiveWatch.setState({ error: errorText({ code: 'no_game' }) }); return false; }
   resetWatchedEmotes();
-  s.cf = opened.watcher;
-  s.channel = { send: (e, p) => opened.watcher.send(e, p), close: () => opened.watcher.close() };
+  s.cf = got.watcher;
+  s.channel = { send: (e, p) => got.watcher.send(e, p), close: () => got.watcher.close() };
   session = s;
   installSpectateIo({
     // The object's cached keyframe (the hello's), then whatever the player sends on a key request.
@@ -276,7 +303,7 @@ async function watchOnCf(gameId: string, liveHost: string): Promise<boolean> {
   installWatchPings(s, gameId);
   useSpectate.setState({ name: row.display_name });
   useLiveWatch.setState({ game: row, joining: true });
-  cfFellows(opened.hello.watchers ?? [], myId);
+  cfFellows(got.hello.watchers ?? [], myId);
   liveSync(gameId);
   s.channel.send(SPECTATE_KEY_EVENT, {}); // a keyframe now, if the player is already publishing
   // The watch record is written by the game's object (R-LIVE-CF-XP-01): no beat from here.
@@ -329,6 +356,7 @@ function gameEnded(s: NonNullable<typeof session>, row: LiveGameRow): void {
 
 /** Leave the game (Leave, the Esc menu, the end). `back`: return to the Live games list. */
 export function leaveLiveGame(back = true): void {
+  watchSeq++;
   const s = session;
   if (!s) return;
   session = null;

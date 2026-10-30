@@ -11684,4 +11684,33 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Sam plays on a laptop whose sound card runs at 96 kHz. Before, the first click on the title decoded every sound in the game, about 488 MB, and kept it all. Now the mode home holds about 200 MB, and a late game stays under about 300 MB, because the sounds of cards that left the game are let go.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/desktopSfxMemory.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-LIVE-WATCH-REACH-01',
+    title: 'Watch reaches a live game on the deployed Worker of its engine, retries one timeout, and a failure says why',
+    statement:
+      'A live lobby or Practice game listed with `live_host: cf:<rev>` is watched on the deployed Worker named after '
+      + '`<rev>` (`versusCfLiveUrl(rev)`), from every build: a listed row is only ever written by a deployed Worker, so a '
+      + 'dev build never sends the watch to its own local `wrangler dev`, and a pack (whose own Worker is that same URL) is '
+      + 'unchanged. Only a dev tab that explicitly picked a Worker keeps its pick. The watcher\'s own engine does not matter: '
+      + 'the game\'s object refuses a watcher only on the live wire protocol, never on content revision. When the socket '
+      + 'does not open within 6 s, Watch tries once more; a refusal (full, ended, own game, version) is final at once. '
+      + 'If it still does not open, two plain reads of the Worker say why: no network (offline), no `/health` answer '
+      + '(the game server did not answer), `/me/room` refusing the token (sign in again), else could not reach that game. '
+      + 'A protocol mismatch says "This game is on a different version. Reload to update." A newer Watch overtakes a '
+      + 'slower one still opening.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30 (Live Games, a ranked game, Watch)', quote: 'i keep getting this error trying to spectate. why?' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusRemote.ts (lobbyLiveWatchUrl), packages/ui/src/live/liveWatch.ts (watchOnCf, CF_WATCH_ATTEMPTS), packages/ui/src/live/liveCf.ts (diagnoseCfOpen)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-30 (fix/live-watch-unreachable). Before, a dev build on the same engine as the game routed '
+      + 'the watch to 127.0.0.1:8787, which nothing served: the browser saw each refused connection as a dropped socket, '
+      + 'the client retried until the 6 s deadline, and every Watch ended "Could not reach that game. Try again." Any other '
+      + 'refused upgrade (a rejected sign-in, say) read the same way. The deployed Worker itself answered watchers on '
+      + 'the same and on another engine (probed live 2026-10-30).',
+    example: 'Kev runs the game from a dev server on the same engine as the live pack and presses Watch on IonLime\'s ranked game. Before, it always said it could not reach the game. Now it opens on the live Worker. With his network off, it says he is offline.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusCfOnly.test.ts', 'packages/ui/src/live/liveCf.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

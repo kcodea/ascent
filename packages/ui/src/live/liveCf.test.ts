@@ -264,6 +264,92 @@ describe('the watcher on Cloudflare (R-LIVE-CF-01, R-LIVE-CF-XP-01)', () => {
     expect(watchMod.useLiveWatch.getState().error).toBe('That game has 20 watchers already.');
   });
 
+  // R-LIVE-WATCH-REACH-01 (owner 2026-10-30: "i keep getting this error trying to spectate. why?").
+  it('a socket that times out once is tried again: the second try opens the watch', async () => {
+    const obj = fakeObject('g-blip');
+    const pub = obj.make({ baseUrl: '', gameId: 'g-blip', hello: { role: 'publish' }, onHello: () => undefined, onPush: () => undefined, onDead: () => undefined });
+    await pub.connect();
+    await pub.request('listing', { name: 'Blip Bea', hero: 'warden', round: 2, phase: 'shop' });
+    let tries = 0;
+    cfMod.setCfLiveSocketForTests((o) => {
+      tries += 1;
+      if (o.hello.role === 'watch' && tries === 1) return { connect: () => new Promise(() => undefined), request: async () => null as never, broadcast: () => undefined, close: () => undefined };
+      return obj.make(o);
+    });
+    watchMod.setLiveWatchRemoteForTests(countingRemote().r);
+    watchMod.setLiveWatchUrlForTests(() => 'http://worker');
+    const diag = vi.fn(async () => 'server_down' as const);
+    watchMod.setLiveWatchDiagnoseForTests(diag);
+    identity.setIdentity({ userId: 'u-watcher', isAnonymous: true } as never);
+    const p = watchMod.watchLiveGame('g-blip', { live_host: 'cf:rev' });
+    await vi.advanceTimersByTimeAsync(cfMod.CF_OPEN_TIMEOUT_MS + 10);
+    expect(await p).toBe(true);
+    expect(tries).toBe(2);
+    expect(diag).not.toHaveBeenCalled();
+    expect(watchMod.useLiveWatch.getState().error).toBeNull();
+    watchMod.leaveLiveGame(false);
+    watchMod.setLiveWatchDiagnoseForTests(null);
+  });
+
+  it('a socket that never opens says WHY after the retry (offline / server down / signed out), never one catch-all', async () => {
+    const hang = () => ({ connect: () => new Promise<void>(() => undefined), request: async () => null as never, broadcast: () => undefined, close: () => undefined });
+    watchMod.setLiveWatchRemoteForTests(countingRemote().r);
+    watchMod.setLiveWatchUrlForTests(() => 'http://worker');
+    const cases = [
+      ['server_down', 'The game server did not answer. Try again in a moment.'],
+      ['signed_out', 'Sign in again to watch. Reload the game and try again.'],
+      ['offline', 'You are offline. Check your connection and try again.'],
+      ['unreachable', 'Could not reach that game. Try again.'],
+    ] as const;
+    for (const [why, text] of cases) {
+      let tries = 0;
+      cfMod.setCfLiveSocketForTests(() => { tries += 1; return hang(); });
+      const asked: string[] = [];
+      watchMod.setLiveWatchDiagnoseForTests(async (url) => { asked.push(url); return why; });
+      const p = watchMod.watchLiveGame('g-gone', { live_host: 'cf:rev' });
+      await vi.advanceTimersByTimeAsync(2 * cfMod.CF_OPEN_TIMEOUT_MS + 10);
+      expect(await p).toBe(false);
+      expect(tries, why).toBe(2);
+      expect(asked).toEqual(['http://worker']);
+      expect(watchMod.useLiveWatch.getState().error).toBe(text);
+    }
+    watchMod.setLiveWatchDiagnoseForTests(null);
+  });
+
+  it('a refusal is final at once (no retry, no diagnosis); a protocol mismatch says reload', async () => {
+    const { VersusCfError } = await import('@game/versus-cf/client');
+    let tries = 0;
+    cfMod.setCfLiveSocketForTests(() => { tries += 1; return { connect: async () => { throw new VersusCfError('version_mismatch'); }, request: async () => null as never, broadcast: () => undefined, close: () => undefined }; });
+    watchMod.setLiveWatchRemoteForTests(countingRemote().r);
+    watchMod.setLiveWatchUrlForTests(() => 'http://worker');
+    const diag = vi.fn(async () => 'server_down' as const);
+    watchMod.setLiveWatchDiagnoseForTests(diag);
+    expect(await watchMod.watchLiveGame('g-old', { live_host: 'cf:rev' })).toBe(false);
+    expect(tries).toBe(1);
+    expect(diag).not.toHaveBeenCalled();
+    expect(watchMod.useLiveWatch.getState().error).toBe('This game is on a different version. Reload to update.');
+    watchMod.setLiveWatchDiagnoseForTests(null);
+  });
+
+  it('the diagnosis reads the Worker: no /health = server down; /me/room 401 = signed out; both fine = unreachable', async () => {
+    const answer = (health: number | null, me: number) => vi.fn(async (url: string) => {
+      if (String(url).endsWith('/health')) { if (health == null) throw new TypeError('Failed to fetch'); return new Response('{}', { status: health }); }
+      return new Response('{}', { status: me });
+    });
+    vi.stubGlobal('fetch', answer(null, 200));
+    expect(await cfMod.diagnoseCfOpen('https://w.example/')).toBe('server_down');
+    vi.stubGlobal('fetch', answer(503, 200));
+    expect(await cfMod.diagnoseCfOpen('https://w.example')).toBe('server_down');
+    const f = answer(200, 401);
+    vi.stubGlobal('fetch', f);
+    expect(await cfMod.diagnoseCfOpen('https://w.example')).toBe('signed_out');
+    expect((f.mock.calls as unknown as [string][]).map(([u]) => u)).toEqual(['https://w.example/health', 'https://w.example/me/room']);
+    vi.stubGlobal('fetch', answer(200, 200));
+    expect(await cfMod.diagnoseCfOpen('https://w.example')).toBe('unreachable');
+    vi.stubGlobal('navigator', { onLine: false });
+    expect(await cfMod.diagnoseCfOpen('https://w.example')).toBe('offline');
+  });
+
   it('a friend\'s Watch (no row in hand): Supabase answers other_host, the row names the Worker', async () => {
     const obj = fakeObject('g2');
     cfMod.setCfLiveSocketForTests(obj.make);

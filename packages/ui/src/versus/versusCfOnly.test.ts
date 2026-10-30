@@ -13,7 +13,7 @@ import { contentRevision } from '@game/content';
 const rpc = vi.fn(async () => ({ data: null, error: null }));
 vi.mock('../remoteBoards', async (orig) => ({ ...(await orig<typeof import('../remoteBoards')>()), supabaseClient: () => ({ rpc, from: () => { throw new Error('no table reads'); }, auth: { getSession: async () => ({ data: { session: null } }) } }) }));
 
-const { versusRemote, versusRoomRef, lobbyLivePublishUrl, VersusError } = await import('./versusRemote');
+const { versusRemote, versusRoomRef, lobbyLivePublishUrl, lobbyLiveWatchUrl, VersusError } = await import('./versusRemote');
 const { decodeRoomRef, embeddedCfUrl } = await import('./versusHost');
 const { versusCfLiveUrl, versusCfDevUrl } = await import('./versusCfRemote');
 
@@ -44,6 +44,14 @@ describe('R-VERSUS-CF-ONLY-01: Versus is Cloudflare only', () => {
   it('live lobby / Practice games publish to the Worker (no switch read)', () => {
     expect(lobbyLivePublishUrl()).toBe(versusCfDevUrl());
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('R-LIVE-WATCH-REACH-01: a listed game is watched on the deployed Worker of ITS engine, even from a dev build on the same engine', () => {
+    // This test build is a dev build (its own Worker would be local `wrangler dev`): a listed row was written by a
+    // deployed Worker, so the watch must go there, never to 127.0.0.1:8787 (owner 2026-10-30: "i keep getting this error").
+    expect(lobbyLiveWatchUrl(`cf:${contentRevision()}`)).toBe(versusCfLiveUrl(contentRevision()));
+    expect(lobbyLiveWatchUrl('cf:7a0e7dc6')).toBe('https://ascent-versus-v1-7a0e7dc6.team-ascent.workers.dev');
+    expect(lobbyLiveWatchUrl(`cf:${contentRevision()}`)).not.toBe(versusCfDevUrl());
   });
 
   it('a pack trusts only the Worker URL of its own engine (anything else: the Worker named after its engine)', () => {

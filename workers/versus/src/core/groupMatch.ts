@@ -47,13 +47,18 @@ const PASS_CARD_BYTES = 16_384;
  */
 export const DUOS_TEAM_FX_CAP = 60;
 /**
- * THE ONE SWITCH for gifts to a teammate who is not playing live right now (left the party, on auto, paused away, or
- * out): false = the team effect is refused and SKIPPED (the sender loses nothing; it never left their run). true = it
- * is recorded anyway and lands when their client next pulls the team's rows (a reconnect). Owner call pending
- * (2026-10-30, the lead: "default = skip gifts to a recorded teammate"). In Ranked Duos the only teammate is the live
- * partner (the recorded teams are opponents), so this covers a partner who dropped.
+ * WHERE A TEAM EFFECT GOES (owner 2026-10-30: "duos requires 2 live players"; a Duos teammate is always a live player in
+ * the room, recorded duo snapshots are only ever opponents):
+ *  - teammate connected: delivered now;
+ *  - teammate DISCONNECTED (on auto, or the match paused for them; their last board fights on auto): recorded anyway and
+ *    landed on their run when their client reconnects and pulls the team's rows (`replayRestore` lands every unanswered
+ *    row in the server's order);
+ *  - teammate LEFT the party for good or OUT of the match: skipped (`no_teammate`; the sender loses nothing).
+ * A card pass keeps its own rule (refused while the teammate is away).
  */
-export const DUOS_TEAM_FX_TO_ABSENT_TEAMMATE = false;
+export function duosTeamFxRefusal(mate: Pick<GSeatRow, 'eliminated_round' | 'left_at'>): 'no_teammate' | null {
+  return mate.eliminated_round != null || mate.left_at != null ? 'no_teammate' : null;
+}
 
 /** A team's shared pool and its fate (`versus_group_teams`). */
 export interface GTeam {
@@ -779,10 +784,13 @@ export class GroupEngine {
     if (this.row(seat!).eliminated_round != null) this.h.fail('locked');
     const mate = mateOf(seat!);
     const mr = this.row(mate);
-    // (A partner who LEFT a Ranked Duos party counts as away for a team effect; a card pass keeps its old rule.)
-    const mateAway = mr.auto || (teamFx && mr.left_at != null) || (m.paused_at != null && m.paused_seat === mate);
-    if (mr.eliminated_round != null && !(teamFx && DUOS_TEAM_FX_TO_ABSENT_TEAMMATE)) this.h.fail('no_teammate');
-    if (mateAway && !(teamFx && DUOS_TEAM_FX_TO_ABSENT_TEAMMATE)) this.h.fail('teammate_away');
+    if (teamFx) {
+      const why = duosTeamFxRefusal(mr);
+      if (why) this.h.fail(why);
+    } else {
+      if (mr.eliminated_round != null) this.h.fail('no_teammate');
+      if (mr.auto || (m.paused_at != null && m.paused_seat === mate)) this.h.fail('teammate_away');
+    }
     if (!teamFx) {
       const inFlight = Object.values(all).flat().filter((p) => p.to_seat === mate && p.status === 'sent' && p.card.passFrom !== 'team').length;
       if (mr.hand_room != null && mr.hand_room - inFlight <= 0) this.h.fail('hand_full');

@@ -3974,12 +3974,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Richmond — Shout: you AND your teammate gain +amount max Gold (Gold Font's permanent route on both runs). */
   teamGainMaxGold: (ctx, self, params) => {
-    ARENA_EFFECTS.teamGainMaxGold(shopArena(ctx.state, self), params);
+    ARENA_EFFECTS.teamGainMaxGold(shopArena(ctx.state, self ?? untargetedCastSelf()), params);
   },
 
   /** Spencer — Echo: upgrading the Shop costs `amount` less for you AND your teammate. */
   teamUpgradeDiscount: (ctx, self, params) => {
-    ARENA_EFFECTS.teamUpgradeDiscount(shopArena(ctx.state, self), params);
+    ARENA_EFFECTS.teamUpgradeDiscount(shopArena(ctx.state, self ?? untargetedCastSelf()), params);
   },
 
   /** Give your teammate a card (Share the Wealth's Gold Pouch). `fromPayload: 'spell'` gifts the spell that fired the
@@ -3988,7 +3988,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const from = params.fromPayload;
     const id = from === 'spell' ? (payload.spellDef?.id ?? payload.spellId) : from === 'card' ? payload.cardId : undefined;
     if (from && !id) return;
-    ARENA_EFFECTS.giftTeammate(shopArena(ctx.state, self), params, id);
+    ARENA_EFFECTS.giftTeammate(shopArena(ctx.state, self ?? untargetedCastSelf()), params, id);
+  },
+
+  /** Give your teammate Gold / a Triple Reward (Duos runes). */
+  giftTeammateGold: (ctx, self, params) => {
+    ARENA_EFFECTS.giftTeammateGold(shopArena(ctx.state, self ?? untargetedCastSelf()), params);
+  },
+  giftTeammateTripleReward: (ctx, self, params) => {
+    ARENA_EFFECTS.giftTeammateTripleReward(shopArena(ctx.state, self ?? untargetedCastSelf()), params);
   },
 
   /** Handout — cast: pass the targeted minion (a Shop offer or one of yours) to your teammate, free. */
@@ -17306,6 +17314,12 @@ export function setStatsValue(params: Record<string, unknown> | undefined, shopT
   return { attack: num(p.attack, 20), health: num(p.health, 20), stepped };
 }
 
+/** An UNTARGETED cast has no body (`self` is absent): the team bodies read `self.golden` only, and a spell is never
+ *  Gilded, so they see a plain stand-in. */
+function untargetedCastSelf(): BoardCard {
+  return { uid: 'cast', cardId: 'cast', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false };
+}
+
 // ══ DUOS-ONLY CARDS: the team primitives (owner design 2026-10-30, R-DUOS-CARDS-01) ═══════════════════════════════════
 //
 // How a team effect travels: the SENDER's run applies its own half at once and queues the teammate's half on the pass
@@ -17380,7 +17394,7 @@ function duosOnceOk(state: RunState, card: BoardCard, eff: EffectDef): boolean {
 
 /**
  * HANDOUT / CueBee's Pass: pass `target` (a Shop minion or one of yours) to the teammate, free. A Golden minion is never
- * passed (R-DUOS-PASS-07) and a spell offer is not a minion. Fires the pass watchers like a drag pass. Outside a Duos run
+ * passed (owner 2026-10-30) and a spell offer is not a minion. Fires the pass watchers like a drag pass. Outside a Duos run
  * nothing happens. Returns whether it passed.
  */
 export function passMinionToTeammate(state: RunState, target: BoardCard): boolean {
@@ -17388,6 +17402,7 @@ export function passMinionToTeammate(state: RunState, target: BoardCard): boolea
   const si = state.shop.findIndex((o) => o.uid === target.uid);
   if (si >= 0) {
     const offer = state.shop[si]!;
+    // (A Shop offer is not yet yours: it leaves the row and passes as it stands.)
     const def = CARD_INDEX[offer.cardId];
     if (!def || def.spell || def.ruby || offer.golden) return false;
     state.shop.splice(si, 1);
@@ -17395,15 +17410,26 @@ export function passMinionToTeammate(state: RunState, target: BoardCard): boolea
       uid: target.uid, cardId: target.cardId, tribe: def.tribe, attack: target.attack, health: target.health,
       keywords: [...target.keywords], golden: false, ...(offer.buffs?.length ? { buffs: structuredClone(offer.buffs) } : {}),
     };
-    recordSpellPass(state, card, 'shop', si);
-  } else {
-    const bi = state.board.findIndex((c) => c.uid === target.uid);
-    if (bi < 0) return false;
-    const [card] = state.board.splice(bi, 1);
-    if (!card) return false;
-    recordSpellPass(state, card, 'board', bi);
+    return effectPassCard(state, card, 'shop', si);
   }
-  fireTeamPassTriggers(state, { mine: true, cardId: target.cardId });
+  const bi = state.board.findIndex((c) => c.uid === target.uid);
+  if (bi < 0) return false;
+  const [card] = state.board.splice(bi, 1);
+  return !!card && effectPassCard(state, card, 'board', bi);
+}
+
+/**
+ * THE EFFECT PASS (owner 2026-10-30: "effects that pass cards do not cost any gold ... only manual passing costs 1 gold
+ * baseline"): pass a card that has ALREADY left the run (`from` names where it was, for a refund) to the teammate, FREE.
+ * Every effect-driven pass goes through here: Handout, CueBee's Pass, Matchmaker's Discover-then-pass, and a "your first
+ * minions sold each turn pass to your teammate" rune (call it with the sold body, `from: 'board'`). It obeys the manual
+ * rules: a Golden card is never passed (returns false; the caller keeps it), a full teammate hand refuses it (the server
+ * / their run; the refund puts it back), and it counts as a pass for every pass watcher (Hitchhiker, Roo, Galfagan).
+ */
+export function effectPassCard(state: RunState, card: BoardCard, from: 'board' | 'shop', index: number): boolean {
+  if (!state.duos || card.golden) return false;
+  if (!recordSpellPass(state, card, from, index)) return false;
+  fireTeamPassTriggers(state, { mine: true, cardId: card.cardId });
   return true;
 }
 
@@ -17416,6 +17442,8 @@ function landTeamGift(state: RunState, g: Extract<TeamEffect, { kind: 'gift' }>)
     if (d) pool = [d];
   } else if (typeof g.randomSpellTier === 'number') {
     pool = runSpells(state).filter((c) => c.tier === g.randomSpellTier);
+  } else if (g.randomMinion) {
+    pool = legalRandomMinionPool(state, { maxTier: state.tier });
   } else if (g.mateTribe) {
     const rng = makeRng(state.rngCursor);
     const t = mostCommonTribe(state, rng);
@@ -17444,6 +17472,10 @@ export function receiveTeamEffect(state: RunState, from: string, seq: number, ef
   } else if (effect.kind === 'sold') {
     const stat = (v: unknown): number => Math.max(0, Math.floor(typeof v === 'number' && Number.isFinite(v) ? v : 0));
     fireTeammateSold(s, { cardId: String(effect.cardId), attack: stat(effect.attack), health: stat(effect.health) });
+  } else if (effect.kind === 'gold') {
+    gainGold(s, amt(effect.amount));
+  } else if (effect.kind === 'tripleReward') {
+    // Landed by the reducer (`grantGoldenDiscover`, the run's one Gild reward path) right after this records the key.
   } else if (effect.kind === 'maxGold' || effect.kind === 'upgradeDiscount') {
     applyOwnTeamEffect(s, { kind: effect.kind, amount: amt(effect.amount) });
   }

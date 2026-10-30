@@ -4245,6 +4245,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (m && m !== self) return;
     ARENA_EFFECTS.giftTeammate(combatArena(ctx, self), params);
   },
+  giftTeammateGold: (ctx, self, params, payload) => {
+    const m = (payload as Partial<MinionPayload> | undefined)?.minion;
+    if (m && m !== self) return;
+    ARENA_EFFECTS.giftTeammateGold(combatArena(ctx, self), params);
+  },
+  giftTeammateTripleReward: (ctx, self, params, payload) => {
+    const m = (payload as Partial<MinionPayload> | undefined)?.minion;
+    if (m && m !== self) return;
+    ARENA_EFFECTS.giftTeammateTripleReward(combatArena(ctx, self), params);
+  },
 
   deathrattleBuffImps: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;

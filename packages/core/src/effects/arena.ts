@@ -641,8 +641,22 @@ export const ARENA_EFFECTS = {
     const id = cardId ?? (typeof params.cardId === 'string' ? params.cardId : undefined);
     const tier = typeof params.randomSpellTier === 'number' ? params.randomSpellTier : undefined;
     const mateTribe = params.mateTribe === true;
-    if (!id && tier == null && !mateTribe) return;
-    arena.sendTeam({ kind: 'gift', ...(id ? { cardId: id } : tier != null ? { randomSpellTier: tier } : { mateTribe: true }), count }, false, true);
+    const randomMinion = params.randomMinion === true;
+    if (!id && tier == null && !mateTribe && !randomMinion) return;
+    const what = id ? { cardId: id } : tier != null ? { randomSpellTier: tier } : mateTribe ? { mateTribe: true } : { randomMinion: true };
+    arena.sendTeam({ kind: 'gift', ...what, count }, false, true);
+  },
+
+  /** Give your TEAMMATE `amount` Gold (Gilded doubles). */
+  giftTeammateGold(arena: EffectArena, params: Record<string, unknown>): void {
+    const amount = (typeof params.amount === 'number' ? params.amount : 1) * (arena.self.golden ? 2 : 1);
+    if (amount > 0) arena.sendTeam({ kind: 'gold', amount }, false, true);
+  },
+
+  /** Give your TEAMMATE a Triple Reward (`count`, Gilded doubles). */
+  giftTeammateTripleReward(arena: EffectArena, params: Record<string, unknown>): void {
+    const count = (typeof params.count === 'number' ? params.count : 1) * (arena.self.golden ? 2 : 1);
+    if (count > 0) arena.sendTeam({ kind: 'tripleReward', count }, false, true);
   },
 
   /** Herald of the Divide — whenever a Battlecry fires on your side, THIS body grows (golden doubles). */

@@ -150,6 +150,9 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   // Wording is the owner's verbatim (2026-09-18).
   { id: 'starform', name: 'Starform', aliases: ['Starforms'], section: 'tokens', icon: 'star', def: 'A minion that occupies a Shop slot and stays in place until purchased or destroyed. Purchasing a Starform grants stats to the left-most Celestial.' },
   { id: 'collapse', name: 'Collapse', aliases: ['Collapses'], section: 'tokens', icon: 'skull', def: "Grant 50% of your Starform's stats to 3 Celestials and destroy it." },
+  // DUOS-ONLY CARDS (owner design 2026-10-30, R-DUOS-CARDS-01): the Duos verb (Handout, CueBee). The lower-case phrases
+  // ("passes a card", "first pass each turn") raise it too, so every pass card explains it.
+  { id: 'pass', name: 'Pass', aliases: [], section: 'build', icon: 'gift', detectRe: /\bpass(?:es)? (?:a card|each turn)\b/, def: "Give a card to your teammate. It goes to their hand. Golden minions can't be passed." },
 ];
 
 /** Glossary entries that can raise a hover pill (everything but the Compendium-only rows). */

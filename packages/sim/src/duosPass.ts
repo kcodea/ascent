@@ -137,7 +137,7 @@ export function applyDuosPass(s: RunState, uid: string, spendGold: (s: RunState,
 
 /**
  * A SPELL's pass (Handout, R-DUOS-CARDS-01: "Pass a minion"): `card` has ALREADY left the Shop or the board; this
- * records it on the outbox, free (the spell is the price). A Golden minion is never passed (R-DUOS-PASS-07): the
+ * records it on the outbox, free (the spell is the price). A Golden minion is never passed (owner 2026-10-30): the
  * caller refuses it before removing anything. Returns false outside a Duos run.
  */
 export function recordSpellPass(s: RunState, card: BoardCard, from: 'board' | 'shop', index: number): boolean {

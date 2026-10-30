@@ -1063,6 +1063,8 @@ export type EffectFactoryId =
   | 'passTargetMinion' // cast: pass the targeted Shop or board minion to your teammate, free (Handout; CueBee's Pass)
   | 'duosFirstPassFree' // passive marker: your first pass each turn costs no Gold (Brian's Pal). Read by `duosPassCost`
   | 'teamPassBuffSelf' // `passedCard` / `teamPassedCard`: this gains +attack/+health permanently (Hitchhiker)
+  | 'giftTeammateGold' // give your teammate `amount` Gold (Duos runes). Both phases (combat: lands at settle)
+  | 'giftTeammateTripleReward' // give your teammate a Triple Reward (Duos runes). Both phases
   | 'teammateSoldGainStats' // `teammateSold`: this gains the sold minion's stats (`oncePerTurn`; gilded doubles) (Hippie Hulk)
   | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
 
@@ -4034,8 +4036,12 @@ export type TeamEffect =
   | { kind: 'upgradeDiscount'; amount: number }
   /** A card for the teammate's hand: exactly one of `cardId` (that card), `randomSpellTier` (a random Shop Spell of
    *  that tier from the receiver's pool) or `mateTribe` (a random minion of the receiver's most common type, up to
-   *  their Shop tier). `count` copies (default 1). */
-  | { kind: 'gift'; cardId?: string; randomSpellTier?: number; mateTribe?: boolean; count?: number }
+   *  their Shop tier) or `randomMinion` (a random legal minion up to their Shop tier). `count` copies (default 1). */
+  | { kind: 'gift'; cardId?: string; randomSpellTier?: number; mateTribe?: boolean; randomMinion?: boolean; count?: number }
+  /** Gold for the teammate, now (their current Gold; a Gold gain like any other). */
+  | { kind: 'gold'; amount: number }
+  /** A Triple Reward for the teammate (their run's own Gild reward path, every modifier it has). */
+  | { kind: 'tripleReward'; count: number }
   /** The sender sold a minion (Hippie Hulk's trigger on the receiver). */
   | { kind: 'sold'; cardId: string; attack: number; health: number };
 

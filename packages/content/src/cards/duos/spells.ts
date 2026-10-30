@@ -7,7 +7,7 @@ import type { CardDef } from '@game/core';
 export const DUOS_SPELLS: readonly CardDef[] = [
   {
     // "Pass a minion." Aimed at a Shop minion OR one of yours (`target: 'any'`); it goes to your teammate's hand at no
-    // extra Gold (the spell is the price). A Golden minion can never be passed (`targetNoGolden`, R-DUOS-PASS-07).
+    // extra Gold (the spell is the price). A Golden minion can never be passed (`targetNoGolden`, owner 2026-10-30).
     id: 'duo_handout',
     name: 'Handout',
     tribe: 'neutral',

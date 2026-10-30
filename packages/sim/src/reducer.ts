@@ -1462,6 +1462,10 @@ function reduceCore(state: RunState, action: Action): RunState {
     // DUOS-ONLY CARDS (R-DUOS-CARDS-01): a TEAM EFFECT rides the pass channel (`passFrom: 'team'`); this run resolves it.
     if (isDuosTeamWire(action.card)) {
       const fx = receiveTeamEffect(state, action.from, action.seq, action.card.team);
+      // A Triple Reward from the teammate: this run's own Gild reward path (every modifier it carries).
+      if (fx !== state && action.card.team.kind === 'tripleReward' && fx.duos!.received.includes(`${action.from}:${action.seq}`)) {
+        for (let i = 0; i < Math.min(5, Math.max(1, Math.floor(action.card.team.count))); i++) grantGoldenDiscover(fx);
+      }
       if (fx !== state && fx.phase === 'recruit' && fx.hand.length > state.hand.length) checkTriples(fx);
       return fx;
     }

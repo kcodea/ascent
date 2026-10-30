@@ -15,7 +15,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (120) — NOT owner questions
+## Doc Bot verification backlog (122) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
@@ -24,6 +24,8 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - Kindled Sprite ("Rally: gain +1 Attack permanently for every Spirit played this turn.") — needs a staged scenario Doc Bot cannot build yet
 - combat mod ancientWar — ANCIENT OF WAR (proof of concept, owner 2026-09-25): whenever a friendly minion dies, this side's GILDED minions gain +attack/+health, permanently (carried back as `permaGain`). Player-only; never snapshotted.
 - combat mod ancientBonds — ANCIENT OF BONDS × Warden (proof of concept, owner 2026-09-26): whenever one of this side's WARDED minions gains stats, a random OTHER Warded friendly minion gains +attack Attack. The grant never re-triggers it (guarded). Combat-only like every combat gain (Engraved keeps it). Player-only; never snapshotted.
+- combat mod ancientGildedEcho — ANCIENT OF DEATH × Midas (owner 2026-10-27): "Gilded minions gain Echo: Get a Gold Pouch". A GILDED body summoned in the fight carries the graft too (the board's own Gilded bodies bring it from the Shop). Player-only; never snapshotted.
+- combat mod ancientGildedBonds — ANCIENT OF BONDS × Midas (owner 2026-10-27): whenever one of this side's GILDED minions gains stats, every OTHER living Gilded friendly minion gains +attack/+health. The grant never re-triggers it (guarded). Combat-only like every combat gain (Engraved keeps it). Player-only; never snapshotted.
 - combat mod ancientEdgeShouts — ANCIENT OF TIME × the Auctioneer (owner 2026-09-26): Start of Combat, trigger this side's left-most and right-most living minions with a Shout (once when they are the same minion), through the shared combat Shout path (`fireShout`), so every Shout watcher and tally hears them. Player-only; never snapshotted.
 - combat mod ancientShoutAdjacent — ANCIENT OF BONDS × the Auctioneer (owner 2026-09-26): whenever one of this side's Shouts triggers (`battlecryTriggered`), the living minions next to the Shouting minion gain +attack/+health, right then. Combat-only like every combat gain (Engraved keeps it). Player-only; never snapshotted.
 - combat mod ancientUndying — ANCIENTS × Lord of the Risen: the run-board uids of the minions Undying marked for this fight (`tempReborn`), matched against each combat body's `sourceUid`. `regainRise` (Death): the body regains Rise right after its first Rise, once per combat (a BLUE Rise). `war` (War): every Rise of the body returns it with double Attack and it attacks immediately (a RED Rise). Player-only; never snapshotted.

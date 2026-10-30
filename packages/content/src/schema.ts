@@ -78,6 +78,8 @@ export const EffectFactoryIdSchema = z.enum([
   'duosFirstPassFree',
   'teamPassBuffSelf',
   'teammateSoldGainStats',
+  'giftTeammateGold',
+  'giftTeammateTripleReward',
   'giftTierAboveMinion',
   'giftSecondCalling',
   'giftPartingGifts',

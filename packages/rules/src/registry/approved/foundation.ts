@@ -12055,4 +12055,59 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'In a dev build on the title, the corner row reads gear, book, question mark, Friends, then a gear square: the dev tuner. Kevin minimizes the Scene Builder in the sandbox and an anvil square appears just left of it. He opens Career: Friends drops to the corner and the two dev squares sit right beside it.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/devCorner.test.tsx'], lastVerifiedAt: '2026-10-30' },
   },
+  {
+    id: 'R-DUOS-RUNES-01',
+    title: 'The nine Duos runes are offered only in Duos, and do what they print',
+    statement:
+      'Spell Theory, Gold Gifts, Teammate Synergy, Passable and Playing Catch (Basic) and Shoutful Bounty, Echoing Results, '
+      + 'Salesman of the Year and Megamimed (Epic) are offered only by a Versus Duos or Ranked Duos forge. Effect passes are free; '
+      + 'Playing Catch frees the team\x27s first 3 MANUAL passes each round (Brian\x27s Pal spends first, so one pass never uses both). '
+      + 'Salesman of the Year sells the minion (Gold paid) AND passes it, Golden included: the one exception to "Golden minions '
+      + 'cannot be passed". Shoutful Bounty and Echoing Results count Shouts and Echoes in the Shop and in combat on one counter.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-10-30 (duos-runes spec)', quote: 'it only costs 1g to pass if it is manually passed by dropping on the teammate portrait' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'correct, but golden minions DO get passed in this case.' },
+      { kind: 'code', ref: 'packages/sim/src/duosRunes.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-30.',
+    example: 'Amy owns Salesman of the Year and sells a Golden minion: she gets its Gold and her teammate gets the Golden minion.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosRunes.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-RUNES-02',
+    title: 'A team gift made in combat reaches the teammate in real time, once',
+    statement:
+      'A gift for the teammate that happens during a fight (an Echoing Results or Shoutful Bounty trip, a combat Echo or Shout of a '
+      + 'Duos card) is sent when the replay reaches that moment, so the card appears in the teammate\x27s hand mid-fight with its usual '
+      + 'arrival. It is queued once when the fight lands; settle only sends what was never sent (a disconnect mid-fight), and a '
+      + 'reconnect or a retry never delivers it twice.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-10-30 (duos-runes spec)', quote: 'needs to work in combat + recruit and show the cards in real time' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts sendTeam (teamSend event); packages/sim/src/reducer.ts landDeferredFight; packages/ui/src/versus/duosPasses.ts heldForReplay' },
+    ],
+    currentBehaviour: 'Built 2026-10-30.',
+    example: 'Amy\x27s third Echo dies mid-fight: her teammate Bob sees a random minion fly into his hand at that moment, not after the fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosRunes.test.ts', 'workers/versus/test/duosCore.test.ts', 'packages/ui/src/versus/duosTeamSend.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-RUNES-03',
+    title: 'Megamimic copies the teammate\x27s highest Health minion at every Start of Combat',
+    statement:
+      'At every Start of Combat a Megamimic becomes an exact copy (stats, keywords, Gilded, per-minion state) of the highest Health '
+      + 'minion on the teammate\x27s board as it was locked for that round; ties are a seeded random pick; another Megamimic is never '
+      + 'copied. The copy is combat-only: the run keeps the 1/1 and copies again next fight. With no teammate board it fights as itself.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-10-30 (duos-runes spec)', quote: 'Start of combat, transform into an exact copy of your teammate\x27s highest health minion.' },
+      { kind: 'code', ref: 'packages/core/src/combat/megamimic.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-30.',
+    example: 'Bob\x27s biggest minion is a 12/30: Amy\x27s Megamimic fights as that 12/30 this round, and is a 1/1 again in her Shop.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosRunes.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

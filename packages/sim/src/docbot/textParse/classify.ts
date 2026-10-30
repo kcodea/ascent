@@ -62,6 +62,9 @@ export const KNOWN_TEXT_MISMATCH: Readonly<Record<string, KnownTextMismatch>> = 
   // (d4_whisp's "When you cast a Whisper on a Dragon" pin left 2026-10-23: Whisp was archived, so the sweep no longer reads it.)
   // Set 3 list 2026-10-27: Zapdash rides Impossible Todd's summon marker with a `rubies` rider, and with the rider Gilded doubles the
   // Rubies (2 -> 4), never the Golems. The text is right; the extracted contract still assumes Todd's gild (x2 bodies).
+  // Duos runes (2026-10-30, R-DUOS-RUNES-03): the Megamimic's "Start of Combat: transform into ..." is a passive marker that
+  // `simulate` applies to the board before it is instantiated (core megamimic.ts), not a `startOfCombat` factory.
+  duo_megamimic: { taxonomy: 'wrong-trigger', kind: 'parser-limitation', why: "Megamimic's \"Start of Combat: transform into an exact copy of your teammate's highest Health minion\" is the passive `megamimicCopy` marker read by `simulate` (core/combat/megamimic.ts) before the board is instantiated; there is no startOfCombat factory to match" },
   k3_zapdash: { taxonomy: 'wrong-gilded-amount', kind: 'draft-contract-gap', why: "Zapdash's Gilded text keeps ONE Gemheart Golem and doubles the Rubies (owner 2026-10-27, Geode Guardian's convention; `dealtDamageSummonToken` with a `rubies` rider, simulate.ts noteDamageDealt); the extracted contract reads the marker's Todd gild (x2 bodies) and does not know the rider" },
 };
 

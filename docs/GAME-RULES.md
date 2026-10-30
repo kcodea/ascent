@@ -1290,8 +1290,23 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   both teammates' boards. A **team effect** ("give your team +1 max Gold", "give your teammate a Gold Pouch") lands on
   your run at once and on your teammate's run through their own game, which makes any random pick with its own board,
   pool and seed; a gift their full hand cannot take is lost. A disconnected teammate gets it when they return; a teammate
-  who left or is out gets nothing. An effect from combat (an Echo) is sent when the fight settles. "Your teammate's most
-  common type" is the run tribe with the most minions on their board; a tie is a seeded 50/50.
+  who left or is out gets nothing. An effect from combat (an Echo) is sent **in real time** (R-DUOS-RUNES-02): the fight
+  marks the moment (`teamSend`), the sender's client sends it when its replay reaches that beat and the card lands in the
+  teammate's hand mid-fight; settle only sends what never went out (a disconnect mid-fight), never twice. "Your teammate's
+  most common type" is the run tribe with the most minions on their board; a tie is a seeded 50/50.
+- **Duos-only runes** (owner 2026-10-30; R-DUOS-RUNES-01..03). `RuneDef.duos`: only a Duos run's Runeforge (and a granted
+  random rune) offers them. Basic: **Spell Theory** (2: passing a spell gets you a copy, once per turn), **Gold Gifts** (1:
+  Equip Gold Gifter (1), the (1) is its Gold cost: your teammate gets 3 Gold), **Teammate Synergy** (2: each Gild gives your
+  teammate a Triple Reward, 3 per game), **Passable** (1: a Handout now and every Start of Turn), **Playing Catch** (2: the
+  team's first 3 MANUAL passes each round are free, shared by both teammates; Brian's Pal's free pass is spent first, so one
+  pass never uses both). Epic: **Shoutful Bounty** (4: every 2 Shouts, a random Shop Spell up to the teammate's tier, never
+  an Ale, three per turn), **Echoing Results** (3: every 3 Echoes, a random minion up to their tier, two per turn); both are
+  ONE counter across the Shop and combat, at the cap the meter keeps counting but parks one short of a trip.
+  **Salesman of the Year** (3: the first 2 minions you sell each turn are sold, Gold paid, AND passed to your teammate,
+  **Golden included**, owner 2026-10-30: "golden minions DO get passed in this case"; the one exception to the no-Golden
+  rule). **Megamimed** (4: a **Megamimic**, a T6 1/1 token; at every Start of Combat it becomes an exact combat-only copy
+  of the highest Health minion on the teammate's locked board, ties seeded, never another Megamimic; no teammate board =
+  it fights as itself).
 - **Your teammate's hero choices** (owner 2026-10-26: "in duos, the teammate's hero options should be visible as well";
   R-DUOS-HEROSELECT-01). On Hero Select your teammate's portrait sits bottom right, as in game (their picked hero once they
   have one, else their profile picture). Click it to see their Hero Select live over yours, read

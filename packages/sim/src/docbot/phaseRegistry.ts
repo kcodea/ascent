@@ -157,6 +157,7 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
 
   // ── implemented outside the map on the RECRUIT side ──
   gainEmbers: { phase: 'recruit', kind: 'outside-map', why: 'special-cased in castSpell (recruit.ts ~8405: the gainEmbers override) so the printed value can fold in bonuses' },
+  megamimicCopy: { phase: 'combat', kind: 'no-surface', why: 'Megamimic (Duos rune token, 2026-10-30): a passive MARKER; simulate swaps the body for a copy of the highest-Health minion on the teammate board before the fight (core megamimic.ts). Combat-only' },
   duosFirstPassFree: { phase: 'combat', kind: 'no-surface', why: "Brian's Pal (Duos, 2026-10-30): a passive MARKER the manual pass price reads (duosPass.ts duosPassCost); passing never happens in combat" },
   whisperKeepOnThis: { phase: 'recruit', kind: 'outside-map', why: 'Hum (Set 3, 2026-10-15): a passive MARKER the Shop Whisper cast path reads (recruit.ts castSpell -> keepWhispersOnHum); the combat map holds a stub' },
   whisperEchoOnDragon: { phase: 'recruit', kind: 'outside-map', why: 'Set 4 Whisp: a passive MARKER the Shop cast path reads (recruit.ts castSpell -> whisperEchoOnDragons); the combat map holds a stub because a Whisper is never cast in combat' },

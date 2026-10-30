@@ -40,6 +40,7 @@ export const RESULT_TYPES = new Set<CombatEvent['type']>([
  *  rally-summoned token, the Stealth reveal — none of which change the attack's own damage numbers.) */
 const WINDUP_ABSORB = new Set<CombatEvent['type']>([
   'buff', 'rally', 'summon', 'reveal', 'improve', 'spellcast', 'questTrigger', 'toHand', 'handBuff', 'keyword', 'keywordLost',
+  'teamSend', // DUOS (R-DUOS-RUNES-02): a team gift a Rally sent (Toot Toot) is a consequence of the swing, like a toHand
 ]);
 
 export interface Beat {

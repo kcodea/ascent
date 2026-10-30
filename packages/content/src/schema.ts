@@ -76,6 +76,7 @@ export const EffectFactoryIdSchema = z.enum([
   'giftTeammate',
   'passTargetMinion',
   'duosFirstPassFree',
+  'megamimicCopy',
   'teamPassBuffSelf',
   'teammateSoldGainStats',
   'giftTeammateGold',
@@ -871,6 +872,14 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('recurringGrant'), cards: z.array(z.string().min(1)).min(1), everyTurns: z.number().int().positive().optional() }).strict(),
   // Hero quest rewards (Fi / Coran, 2026-08-21).
   z.object({ kind: z.literal('grantRune'), rarity: z.enum(['basic', 'epic']) }).strict(),
+  // DUOS-ONLY RUNES (owner design 2026-10-30, R-DUOS-RUNES-01): arm a Duos rune engine (`sim/duosRunes.ts`).
+  z.object({
+    kind: z.literal('duosRune'),
+    rune: z.enum(['spellTheory', 'teammateSynergy', 'salesman', 'shoutfulBounty', 'echoingResults', 'playingCatch']),
+    per: z.number().int().positive().optional(),
+    cap: z.number().int().positive().optional(),
+    uses: z.number().int().positive().optional(),
+  }).strict(),
   z.object({ kind: z.literal('freeFirstBuy') }).strict(),
   z.object({ kind: z.literal('tier7Access') }).strict(),
   z.object({ kind: z.literal('gildCopies'), copies: z.number().int().min(2).max(3) }).strict(),
@@ -1121,6 +1130,7 @@ export const RuneDefSchema = z.object({
   previewCards: z.array(z.string().min(1)).optional(),
   tribes: z.array(TribeSchema).readonly().optional(),
   synergy: z.array(z.string().min(1)).readonly().optional(), // explicit forge-synergy tags (Rune of Drakko, 2026-10-03)
+  duos: z.boolean().optional(), // DUOS-ONLY rune: offered only by a Duos run's forge (R-DUOS-RUNES-01)
 }).strict();
 
 export const QuestDefSchema = z.object({

@@ -6,6 +6,7 @@ export * from './effects/arena';
 export * from './combat/minion';
 export * from './combat/side';
 export * from './combat/simulate';
+export * from './combat/megamimic'; // Duos rune token (R-DUOS-RUNES-03)
 export * from './combat/bankedOpeners';
 export * from './combat/fuzz';
 export * from './presentation/types';

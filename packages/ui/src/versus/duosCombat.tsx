@@ -16,6 +16,21 @@ import type { CombatEvent, CombatResult } from '@game/core';
 import { useVersus } from './versusStore';
 import { useSpectate } from './spectate';
 import { duosCombatAt, type DuosCombatNow } from './versusGroupView';
+import { duosReleaseCombatFx } from './duosPasses';
+
+/**
+ * DUOS REAL-TIME TEAM EFFECTS (R-DUOS-RUNES-02): the carry indices of MY board's team effects whose `teamSend` beat the
+ * replay has reached (`events` through `through`). Pure. `member` = my board's team member in this fight.
+ */
+export function teamSendsReached(events: readonly CombatEvent[], through: number, member: number): number[] {
+  const out: number[] = [];
+  const end = Math.min(through, events.length);
+  for (let i = 0; i < end; i++) {
+    const e = events[i]!;
+    if (e.type === 'teamSend' && e.side === 'player' && e.member === member) out.push(e.idx);
+  }
+  return out;
+}
 
 interface DuosCombatState {
   /** The rail seat id of the board the opponent side is fighting with right now (null = the forced opponent). */
@@ -45,4 +60,13 @@ export function useDuosCombatSync(combat: CombatResult | undefined, events: read
     const now = duosCombatAt(combat, raw, seat, events, processedEnd);
     if (!cur.on || cur.foeSeatId !== now.foeSeatId || cur.selfSeatId !== now.selfSeatId || cur.tag?.at !== now.tag?.at || cur.tag?.kind !== now.tag?.kind) useDuosCombat.setState({ ...now, on: true });
   }, [combat, events, processedEnd, fighting, seat, raw]);
+  // REAL TIME (owner: "show the cards in real time"): each gift my board sent mid-fight is shipped to my teammate the
+  // moment the replay reaches its beat. Only my own seat (a spectator sends nothing). Cheap: one scan per beat, and only
+  // for a fight that carries a team effect at all.
+  const hasSends = !!combat?.playerShoutCarry?.teamEffects?.some((t) => t.mate);
+  useEffect(() => {
+    if (!fighting || !combat || !viewer || !hasSends) return;
+    const idx = teamSendsReached(events, processedEnd, combat.duosMember ?? 0);
+    if (idx.length > 0) duosReleaseCombatFx(idx);
+  }, [combat, events, processedEnd, fighting, viewer, hasSends]);
 }

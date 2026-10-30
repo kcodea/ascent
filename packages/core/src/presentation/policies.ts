@@ -243,6 +243,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:giftTeammate:cast': { policy: 'ownBeat', family: 'spellCast' }, // Share the Wealth (the teammate's half lands on their run)
   'factory:passTargetMinion:cast': { policy: 'ownBeat', family: 'spellCast' }, // Handout (the pass stream plays from the minion)
   'factory:duosFirstPassFree:passive': { policy: 'passive', family: 'passive' }, // Brian's Pal: read by the pass price, never a beat
+  'factory:megamimicCopy:passive': { policy: 'passive', family: 'passive' }, // Megamimic: simulate copies the teammate's board before the fight (megamimic.ts), never a beat
   'factory:teamPassBuffSelf:teamPassedCard': { policy: 'ownBeat', family: 'economy' }, // Hitchhiker
   // ── DUOS-ONLY CARDS, batch A (owner design 2026-10-30) ──
   'factory:giftTeammate:onDeath': { policy: 'ownBeat', family: 'echo' }, // Antsy (the teammate's half lands on their run)
@@ -595,6 +596,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
 
   // ── RUNES — bucketed by reward mechanics ──
   'rune:rune_abomination:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  'rune:rune_megamimed:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // Duos rune: a Megamimic to hand
   'rune:rune_action:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_adventuring:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_aftermarket:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -830,6 +832,15 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_living_treasure:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_long_shift:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_happy_birthday:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  // DUOS-ONLY RUNES (owner design 2026-10-30, R-DUOS-RUNES-01)
+  'rune:rune_spell_theory:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_gold_gifts:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // rune-owned Equipment: Gold Gifter
+  'rune:rune_teammate_synergy:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_passable:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_playing_catch:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_shoutful_bounty:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_echoing_results:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_salesman_of_the_year:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_merry_christmas:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_lorekeeping:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_mastery:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

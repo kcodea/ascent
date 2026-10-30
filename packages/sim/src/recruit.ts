@@ -9,6 +9,7 @@ import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
 import { duosDraft, queueTeamEffect, recordSpellPass } from './duosPass';
+import { duosCatchFromMate, duosOnGild, duosOnPassed, duosSaleShouldPass } from './duosRunes';
 import { runTallyUnions, tribeUnionKey, tribeUnionPlaysOf } from './runTally';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -1537,6 +1538,7 @@ export const NO_COPY_SPELLS: ReadonlySet<string> = NO_COPY_SPELL_IDS; // ONE set
 /** A minion became Gilded this run: ticks the Ancients' gild count (Bonds). A no-op outside an Ancients run. */
 export function noteGilded(state: RunState | undefined): void {
   if (state?.ancientsEnabled && state.ancients) state.ancients.gilds = (state.ancients.gilds ?? 0) + 1;
+  duosOnGild(state); // Teammate Synergy (Duos rune, R-DUOS-RUNES-01): a Triple Reward for the teammate
 }
 
 /** Gild `card`. Pass `state` when this is a NEW gild (it ticks the run's gild count); a restore of an already-gilded
@@ -4009,6 +4011,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Brian's Pal — a passive marker `duosPassCost` reads (never dispatched). */
   duosFirstPassFree: () => {},
+
+  /** Megamimic — a passive marker `simulate` reads (core `megamimic.ts`); nothing happens in the Shop. */
+  megamimicCopy: () => {},
 
   /** Hitchhiker — `teamPassedCard`: this gains +attack/+health permanently (a Shop buff). Gilded doubles. */
   teamPassBuffSelf: (ctx, self, params) => {
@@ -12612,6 +12617,14 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
   if (t && t !== 'neutral') state.tradeInTribe = t;
   }
   bankSpoils(state, sold);
+  // SALESMAN OF THE YEAR (Duos rune, R-DUOS-RUNES-01; owner 2026-10-30: "correct, but golden minions DO get passed in
+  // this case"): the first 2 minions sold each turn are ALSO passed to the teammate (the sale above paid its Gold). An
+  // effect pass (free), Golden included by this rune's explicit exception. A passed body went to the teammate, so it is
+  // not returned to the pool.
+  if (state.duos && duosSaleShouldPass(state) && effectPassCard(state, sold, 'hand', -1, { via: 'sale', allowGolden: true })) {
+    procRuneId(state, 'rune_salesman_of_the_year');
+    return;
+  }
   // Return the copies to the shared pool (a golden ate three). Tokens aren't pooled → ignored.
   returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
 }
@@ -17439,6 +17452,7 @@ export function mostCommonTribe(state: RunState, rng: Rng): Tribe | null {
 /** Board watchers on a pass: `passedCard` (only when THIS run passed; `spellOnly` = a Shop Spell only) and
  *  `teamPassedCard` (either teammate). `oncePerTurn` latches per instance and effect. */
 export function fireTeamPassTriggers(state: RunState, info: { mine: boolean; cardId: string }): void {
+  if (info.mine) duosOnPassed(state, info.cardId); // Spell Theory (Duos rune): a copy of a spell you pass
   const def0 = CARD_INDEX[info.cardId];
   const spell = !!def0?.spell && !def0.ruby;
   for (const card of [...state.board]) {
@@ -17530,9 +17544,12 @@ export function passMinionToTeammate(state: RunState, target: BoardCard): boolea
  * rules: a Golden card is never passed (returns false; the caller keeps it), a full teammate hand refuses it (the server
  * / their run; the refund puts it back), and it counts as a pass for every pass watcher (Hitchhiker, Roo, Galfagan).
  */
-export function effectPassCard(state: RunState, card: BoardCard, from: 'board' | 'shop', index: number): boolean {
-  if (!state.duos || card.golden) return false;
-  if (!recordSpellPass(state, card, from, index)) return false;
+export function effectPassCard(state: RunState, card: BoardCard, from: 'board' | 'shop' | 'hand', index: number,
+  /** `allowGolden`: the ONE explicit exception to the no-golden rule, Salesman of the Year's sold minion (owner
+   *  2026-10-30, R-DUOS-RUNES-01); `via: 'sale'` marks that pass (a refusal returns nothing: the sale was paid). */
+  opts?: { allowGolden?: boolean; via?: 'sale' }): boolean {
+  if (!state.duos || (card.golden && !opts?.allowGolden)) return false;
+  if (!recordSpellPass(state, card, from, index, opts?.via ?? 'spell')) return false;
   fireTeamPassTriggers(state, { mine: true, cardId: card.cardId });
   return true;
 }
@@ -17546,6 +17563,9 @@ function landTeamGift(state: RunState, g: Extract<TeamEffect, { kind: 'gift' }>)
     if (d) pool = [d];
   } else if (typeof g.randomSpellTier === 'number') {
     pool = runSpells(state).filter((c) => c.tier === g.randomSpellTier);
+  } else if (g.randomSpell) {
+    // Shoutful Bounty: a random Shop Spell up to the receiver's Shop tier, never an Ale (the Chorus convention).
+    pool = runSpells(state).filter((c) => c.tier <= state.tier && !c.ruby && !ALE_IDS.includes(c.id));
   } else if (g.randomMinion) {
     pool = legalRandomMinionPool(state, { maxTier: state.tier });
   } else if (g.mateTribe) {
@@ -17587,6 +17607,8 @@ export function receiveTeamEffect(state: RunState, from: string, seq: number, ef
     const stat = (v: unknown): number => Math.min(100_000, Math.max(0, Math.floor(typeof v === 'number' && Number.isFinite(v) ? v : 0)));
     const id = typeof effect.cardId === 'string' && CARD_INDEX[effect.cardId] ? effect.cardId : undefined;
     applyOwnTeamEffect(s, { kind: 'buffLeftmost', attack: stat(effect.attack), health: stat(effect.health), ...(id ? { cardId: id } : {}) });
+  } else if (effect.kind === 'catch') {
+    duosCatchFromMate(s, amt(effect.amount)); // Playing Catch: the teammate's rune frees the team's passes
   }
   d.received.push(key);
   return s;

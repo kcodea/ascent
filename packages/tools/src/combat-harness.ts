@@ -72,6 +72,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ☣ ${n(ev.target)} spends its Venomous`;
     case 'boardFallen':
       return `   ✖ ${ev.side}'s board ${ev.member + 1} has fallen`;
+    case 'teamSend':
+      return `   ⇢ ${ev.side}'s board ${ev.member + 1} sends its teammate a gift`;
     case 'tagIn':
       return `   ⇄ ${ev.side}'s board ${ev.member + 1} steps in (${ev.minions.map((m) => m.name).join(', ')})`;
     case 'summon':

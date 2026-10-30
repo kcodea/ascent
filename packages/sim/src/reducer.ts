@@ -35,6 +35,7 @@ import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
 import { applyDuosPass, isDuosTeamWire, queueTeamEffect, receiveDuosPass, refundDuosPass } from './duosPass';
 import { applyOwnTeamEffect, fireSelfObtained, fireTeamPassTriggers, receiveTeamEffect } from './recruit';
+import { advanceDuosMeters, armDuosRune, duosMetersMods, settleDuosMeters } from './duosRunes';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
@@ -1277,6 +1278,8 @@ export function reduce(state: RunState, action: Action): RunState {
     applyShoutsForShopBuff(next, next.lastShoutFires ?? 0);
     applyShoutsForEndlessVerse(next, next.lastShoutFires ?? 0);
     advanceRuneThresholds(next, 'shout', next.lastShoutFires ?? 0); // Rune of the Chorus / Merchant's Chorus / Hoardcalling
+    advanceDuosMeters(next, 'shout', next.lastShoutFires ?? 0); // Shoutful Bounty (Duos rune, R-DUOS-RUNES-01)
+    advanceDuosMeters(next, 'echo', next.lastEchoFires ?? 0); // Echoing Results (Duos rune): a Shop Echo counts too
     if ((next.lastShoutFires ?? 0) > 0) bumpAuthorsHand(next, 'shout', next.lastShoutFires!); // Author's Hand Shout half
     // Rune of Ancestral Roar (balance 9/23): the turn's Shout-FIRE count, spent by the End-of-Turn lump.
     if ((next.lastShoutFires ?? 0) > 0) next.shoutFiresThisTurn = (next.shoutFiresThisTurn ?? 0) + next.lastShoutFires!;
@@ -4917,6 +4920,13 @@ function landDeferredFight(s: RunState, fight: DeferredFight): void {
   s.lastCombat = fight.result;
   enterCombat(s, prep);
   s.pendingCombatSide = undefined;
+  // DUOS REAL-TIME TEAM EFFECTS (R-DUOS-RUNES-02; owner: "needs to work in combat + recruit and show the cards in real
+  // time"): the fight's gifts to the teammate are queued the moment it LANDS, each tagged with its carry index, and the
+  // client ships each one when its replay reaches that `teamSend` beat (or once the fight is over, a reconnect or a
+  // skip). Settle then skips them, so a gift is sent exactly once whatever the playback did.
+  if (s.duos) {
+    (fight.result.playerShoutCarry?.teamEffects ?? []).forEach((t, i) => { if (t.mate) queueTeamEffect(s, t.effect, i); });
+  }
   const left = Math.max(0, fight.damageTaken);
   const fromArmor = Math.min(s.armor, left);
   s.armor -= fromArmor;
@@ -5280,10 +5290,13 @@ function settleCombat(s: RunState, result: CombatResult): void {
     if (c.conductorBuff) s.conductorBuff = (s.conductorBuff ?? 0) + c.conductorBuff; // Conductor: the improvement keeps (owner 2026-10-24)
     // DUOS-ONLY CARDS (R-DUOS-CARDS-01): a combat body's team effects (an Echo, a combat Shout re-fire, a combat cast).
     // This run's half lands now; the teammate's half queues on the pass channel. Outside Duos the teammate half drops.
-    for (const t of c.teamEffects ?? []) {
+    // A mate half already queued when the fight LANDED (the real-time path, R-DUOS-RUNES-02) is never queued twice.
+    const early = new Set((s.duos?.outbox ?? []).filter((e) => e.wave === s.wave && e.combatIdx != null).map((e) => e.combatIdx!));
+    (c.teamEffects ?? []).forEach((t, i) => {
       if (t.self) applyOwnTeamEffect(s, t.effect);
-      if (t.mate) queueTeamEffect(s, t.effect);
-    }
+      if (t.mate && !early.has(i)) queueTeamEffect(s, t.effect);
+    });
+    settleDuosMeters(s, c); // Shoutful Bounty / Echoing Results: the fight's final tick + payouts come home
     for (const b of c.runShopBuffs ?? []) applyRunShopBuff(s, b.attack, b.health, b.source, b.cardId); // Contract Butcher / Malphas
     for (const id of c.shopSpellHalves ?? []) applyShopSpellHalf(s, id); // Storm Chaser's split Veinstorm (owner 2026-10-10)
     // Set 3 Whispers (Whaloo, 2026-10-14): Runebind cast in combat improved PERMANENTLY. The carry holds the fight's END
@@ -6476,6 +6489,8 @@ export function runeforgePool(s: RunState): string[] {
   return set
     .filter((rn) => !rn.requiresDoublePower || canDouble)
     .filter((rn) => !rn.sets || rn.sets.includes(runSet))
+    // DUOS-ONLY RUNES (R-DUOS-RUNES-01): only a Duos run's forge (Versus Duos, Ranked Duos) offers them.
+    .filter((rn) => !rn.duos || !!s.duos)
     // TRIBE GATE (owner 2026-09-10): a rune whose text names a tribe on the board is offered only when that tribe
     // is one of the run's rolled tribes — a "your Dragons" rune in a Dragon-less run is dead weight in a forge slot.
     .filter((rn) => !rn.tribes || rn.tribes.some((t) => s.tribes.includes(t)))
@@ -7441,6 +7456,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       s.minionCostOverride = r.cost; // Merchant's Mark / Coran's Merchant's Road: shop minions cost this much
       break;
     // ── Hero quest rewards (Fi / Coran, 2026-08-21) ──
+    case 'duosRune':
+      armDuosRune(s, r); // DUOS-ONLY RUNES (R-DUOS-RUNES-01): the engines in `duosRunes.ts`
+      break;
     case 'grantRune': {
       // Spare Forge / Runic Passage: a random rune of that rarity, handed over outright — no forge, no pick,
       // no Gold. It goes through the SAME apply-then-own path a BOUGHT rune takes (`case 'buyRune'`), so a
@@ -7452,6 +7470,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       const runSet = setIdOf(s);
       const pool = (r.rarity === 'epic' ? EPIC_RUNES : RUNES)
         .filter((rn) => !rn.sets || rn.sets.includes(runSet))
+        .filter((rn) => !rn.duos || !!s.duos) // Duos-only runes: a Duos run only (R-DUOS-RUNES-01)
         .filter((rn) => !owned.has(rn.id));
       if (pool.length === 0) break; // owns every rune of the rarity — a no-op beats granting a duplicate
       const rng = makeRng(s.rngCursor);
@@ -8137,6 +8156,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // Chorus / Hoardcalling). Only meters whose payout a fight can deliver (a hand grant) are threaded; a
     // shop-only payout (the Merchant's Chorus' this-turn Shop buff) stays a shop meter.
     shoutMeters: shoutMetersFor(s),
+    duosMeters: duosMetersMods(s), // Shoutful Bounty / Echoing Results (Duos runes): the one counter, carried in
     // Sable: the bond only carries into the fight it was forged for (it "lasts 1 turn", combat included).
     soulbind: s.sableBond && s.sableBond.wave === s.wave ? { a: s.sableBond.a, b: s.sableBond.b } : undefined,
     flashPick: hasPower(s, 'firstOrLast') ? s.flashPick : undefined,

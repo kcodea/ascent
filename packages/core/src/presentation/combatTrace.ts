@@ -95,6 +95,7 @@ export const COMBAT_TRACE_COVERAGE: Record<CombatEvent['type'], CombatTraceCover
   venomLost: { source: 'never', target: 'always', amount: 'never', note: 'venom spent by the target itself' },
   summon: { source: 'sometimes', target: 'always', amount: 'never', note: 'summoner uid when stamped; target = the summoned minion (uid + cardId); board index in detail' },
   boardFallen: { source: 'never', target: 'never', amount: 'never', note: 'tag-team (Versus Duos): a side board is wiped and its reserve steps in next; side + member in detail' },
+  teamSend: { source: 'never', target: 'never', amount: 'never', note: 'Duos real-time team effect: the side member sent its teammate carry entry idx (side + member + idx in detail)' },
   tagIn: { source: 'never', target: 'never', amount: 'sometimes', note: 'tag-team (Versus Duos): the reserve board steps in; amount = how many bodies, side + member in detail' },
   ascend: { source: 'never', target: 'always', amount: 'never', note: 'self-transform; the destination cardId in detail (into)' },
   buff: { source: 'always', target: 'always', amount: 'never', note: 'source is a display LABEL, not a uid (the emit sites pass names) — carried as label, never coerced to a uid; attack/health in detail (two-axis, no single amount)' },
@@ -153,6 +154,8 @@ function project(e: CombatEvent): Pick<CombatSemanticEvent, 'source' | 'target' 
       return defined({ ...(e.source ? { source: { uid: e.source } } : {}), target: { uid: e.target }, detail: { keyword: e.keyword } });
     case 'boardFallen':
       return defined({ detail: det({ side: e.side, member: e.member }) });
+    case 'teamSend':
+      return defined({ detail: det({ side: e.side, member: e.member, idx: e.idx }) });
     case 'tagIn':
       return defined({ amount: e.minions.length, detail: det({ side: e.side, member: e.member }) });
     case 'summon':

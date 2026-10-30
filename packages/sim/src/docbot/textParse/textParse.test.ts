@@ -197,7 +197,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-10-30 (Duos cards batch A, 12 cards): 161 -> 172, CONSCIOUSLY. The same Duos vocabulary ("your teammate", "pass a card",
 // "your team's Shops") plus Salandaman's Spear Warden tally line; the behaviour is pinned by
 // packages/sim/src/duosCardsBatchA.test.ts.
-const UNRESOLVED_CAP = 172;
+// 2026-10-30 (Duos-only runes: Spell Theory, Teammate Synergy, Playing Catch, Shoutful Bounty, Echoing Results, Salesman
+// of the Year; R-DUOS-RUNES-01): 172 -> 178, CONSCIOUSLY. The same Duos vocabulary ("your teammate", "Pass", "as a team");
+// the behaviour is pinned by packages/sim/src/duosRunes.test.ts.
+const UNRESOLVED_CAP = 178;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

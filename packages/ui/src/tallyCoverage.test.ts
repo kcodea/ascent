@@ -119,6 +119,21 @@ const armedRun = (): RunState => ({
   runeThresholds: [],
 } as unknown as RunState);
 
+/** The Duos-only runes (R-DUOS-RUNES-01) keep their engines on the run's Duos record: arm every one. */
+const duosArmed = (run: RunState): RunState => ({
+  ...run,
+  duos: {
+    outbox: [], received: [], refused: [],
+    runes: {
+      spellTheory: 1, synergyLeft: 3, salesman: 2, catchOwn: 3,
+      meters: [
+        { sourceId: 'rune_shoutful_bounty', meter: 'shout', per: 2, tick: 0, cap: 3, paid: 0 },
+        { sourceId: 'rune_echoing_results', meter: 'echo', per: 3, tick: 0, cap: 2, paid: 0 },
+      ],
+    },
+  },
+});
+
 describe('runes with a threshold show a tally', () => {
   const all = [...RUNES, ...EPIC_RUNES];
 
@@ -134,7 +149,7 @@ describe('runes with a threshold show a tally', () => {
       if (!THRESHOLD.test(r.text) || NOT_A_METER[r.id]) continue;
       // A `runeThreshold` reward is metered generically off `runeThresholds`; the rest need a branch.
       if (r.reward.kind === 'runeThreshold') continue;
-      if (!runeTally(run, r.id)) missing.push(`${r.id} — "${r.text.slice(0, 60)}"`);
+      if (!runeTally(r.duos ? duosArmed(run) : run, r.id)) missing.push(`${r.id} — "${r.text.slice(0, 60)}"`);
     }
     expect(missing, 'add a branch to runeTally (or an entry to NOT_A_METER with the reason)').toEqual([]);
   });

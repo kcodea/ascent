@@ -48,7 +48,13 @@ export function grantWhisperFrom(state: RunState, granter: BoardCard): void {
   const stepping = instanceEffects(granter).some((e) => e.do === 'grantWhisper' && e.params?.tierStep === true);
   // Hatcher: the copy handed over on play is the CURRENT tier (no tick: a tick is a Start of Turn on the board).
   // The OWNER's grant (owner 2026-10-16): never tier-gated, so a Tier 5 Dragon on a Tier 4 board still grants its Whisper.
-  for (const id of whisperGrantsOf(granter)) mintWhisper(state, id, 1, granter.golden ? 2 : 1, stepping ? hatcherTier(granter) : undefined, true);
+  for (const e of instanceEffects(granter)) {
+    if (e.do !== 'grantWhisper' || typeof e.params?.cardId !== 'string') continue;
+    const id = e.params.cardId as string;
+    // `goldenCopies` (CueBee's Pass, R-DUOS-CARDS-05): a Gilded granter hands over 2 plain copies instead of a doubled one.
+    if (e.params.goldenCopies === true) { mintWhisper(state, id, granter.golden ? 2 : 1, 1, undefined, true); continue; }
+    mintWhisper(state, id, 1, granter.golden ? 2 : 1, stepping ? hatcherTier(granter) : undefined, true);
+  }
 }
 
 /** Rule 1: the granting minion was just played from hand. */

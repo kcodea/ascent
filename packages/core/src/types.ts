@@ -1072,6 +1072,8 @@ export type EffectFactoryId =
   | 'demonConsumesShop' // `passedCard`: a random friendly Demon consumes a random Shop minion; gilded = double stats (Proxus)
   | 'spellBuffTeamLeftmost' // cast: your AND your teammate's left-most minion +attack/+health, spell power folded (Broshake)
   | 'megamimicCopy' // Megamimic (Duos rune token): passive marker. At every Start of Combat it becomes an exact combat-only copy of the teammate's highest-Health minion (`core/combat/megamimic.ts`, read by `simulate`)
+  | 'discoverRestToTeammate' // cast: Discover a minion; your teammate gets the other options as gifts (Disco). Shop only (a Discover)
+  | 'discoverMateTribePass' // Shout: Discover a minion of your teammate's most common type and pass it to them (Matchmaker). Combat: a random one, gifted at settle
   | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
 
 export interface EffectDef {

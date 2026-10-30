@@ -38,6 +38,7 @@ import type { VersusMatch, VersusRoundRow } from './versusRemote';
 import { endWatchedGame, startSpectatorBeat, stopSpectatorBeat } from '../live/spectatorEnd';
 import { roundResultFor } from './versusGroupView';
 import { noteMateFrame, resetDuosMateSignals } from './duosMateSignals';
+import { duosNoteMate } from './duosPasses';
 
 /** The broadcast event a spectator sends when it needs a fresh keyframe (a gap it could not repair from the table). */
 export const SPECTATE_KEY_EVENT = 'spectate_key';
@@ -402,6 +403,8 @@ export function receiveSpectate(payload: unknown): void {
   rx[msg.seat] = next;
   // VERSUS DUOS: my teammate's tier-ups and End of Turn, for their bottom-right portrait (R-DUOS-MATE-SIGNALS-01).
   if (asPlayer && msg.kind !== 'hero') noteMateFrame(msg.seat, prevView, next.view, msg.acts);
+  // Matchmaker reads my teammate's board: my run records it when it changed (a no-op unless such a card is held).
+  if (asPlayer && msg.kind !== 'hero') duosNoteMate();
   // The player's own odds for this fight (their probe's result): the stands' Summary shows exactly these.
   const od = parseWireOdds(msg.od);
   if (od) { const cur = useSpectate.getState().odds ?? {}; if (cur[msg.seat]?.w !== od.w || cur[msg.seat]?.o.win !== od.o.win) useSpectate.setState({ odds: { ...cur, [msg.seat]: od } }); }

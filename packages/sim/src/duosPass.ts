@@ -20,7 +20,7 @@
  *    and the 1 Gold is given back (the Gold-spent tallies too: the pass was never paid), exactly once.
  */
 import { CARD_INDEX } from '@game/content';
-import type { TeamEffect } from '@game/core';
+import type { TeamEffect, Tribe } from '@game/core';
 import { handCap, type BoardCard, type RunState } from './state';
 import { duosCatchBump, duosCatchLeft, type DuosRuneState } from './duosRunes';
 
@@ -75,6 +75,14 @@ export interface DuosRunState {
   freePassWave?: number;
   /** The Duos runes' state (`duosRunes.ts`). */
   runes?: DuosRuneState;
+  /** Matchmaker (R-DUOS-CARDS-05): the teammate's board as this run last saw it, minions per tribe of THEIR run
+   *  (`noteMateTribes`). Absent = never seen (every tribe ties). */
+  mateTribes?: Partial<Record<Tribe, number>>;
+  /** EFFECT PASSES WAITING FOR HAND ROOM (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01: "if your teammate's hand is
+   *  full, they get the card once there is space in their hand"). An effect pass (`passFrom: 'spell'`) that arrives to
+   *  a full hand is LANDED (answered, the sender keeps nothing back) and waits here, in arrival order; `landWaitingPasses`
+   *  moves each into the hand the moment there is room (after any action). Persisted with the run, so a reload keeps it. */
+  waiting?: { key: string; card: BoardCard }[];
 }
 
 /** A team-effect entry's placeholder card (it never lands anywhere). */
@@ -218,6 +226,16 @@ export function receiveDuosPass(state: RunState, from: string, seq: number, card
   if (state.duos.received.includes(key) || state.duos.refused.includes(key)) return state;
   const s = duosDraft(state);
   const duos = s.duos!;
+  // AN EFFECT PASS IS NEVER REFUSED FOR A FULL HAND (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01): it is landed (the
+  // sender is told it arrived) and waits for room, behind any effect pass already waiting (in order).
+  // An effect pass travels as `spell` (Handout, CueBee's Pass, Matchmaker) or `sale` (Salesman of the Year).
+  const pf = (card as { passFrom?: unknown }).passFrom;
+  const effectPass = pf === 'spell' || pf === 'sale';
+  if (effectPass && (s.hand.length >= handCap(s) || (duos.waiting?.length ?? 0) > 0)) {
+    duos.received.push(key);
+    (duos.waiting ??= []).push({ key, card: landedCard(card) });
+    return s;
+  }
   if (s.hand.length >= handCap(s)) {
     duos.refused.push(key);
     return s;
@@ -230,6 +248,36 @@ export function receiveDuosPass(state: RunState, from: string, seq: number, card
   // My teammate's Playing Catch pass of THIS round: one of the team's free passes is gone (R-DUOS-RUNES-01).
   if (typeof teamCatch === 'number') duosCatchBump(s, 1, teamCatch);
   s.hand.push({ ...landed, uid: `b${s.uidSeq++}`, passKey: key });
+  return s;
+}
+
+/** A wire card as it waits / lands: the transport's markers (`passFrom`, `team`, `teamCatch`) never ride into the hand. */
+function landedCard(card: BoardCard): BoardCard {
+  const { passFrom: _f, team: _t, teamCatch: _g, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown };
+  void _f; void _t; void _g;
+  return landed;
+}
+
+/** How many effect passes are waiting for hand room (the "waiting" pill, the hand room this run reports). */
+export function duosWaitingCount(s: Pick<RunState, 'duos'>): number {
+  return s.duos?.waiting?.length ?? 0;
+}
+
+/**
+ * Land WAITING effect passes into the hand while there is room (R-DUOS-EFFECT-PASS-QUEUE-01), in arrival order. Pure:
+ * `state` itself when nothing can land, else a fresh draft. The reducer runs it after every action, so a card lands the
+ * moment a play, sale, pass or the turn's flip makes room; deterministic (a function of the run alone).
+ */
+export function landWaitingPasses(state: RunState): RunState {
+  const w = state.duos?.waiting;
+  if (!w?.length || state.hand.length >= handCap(state)) return state;
+  const s = duosDraft(state);
+  const d = s.duos!;
+  while (d.waiting!.length > 0 && s.hand.length < handCap(s)) {
+    const next = d.waiting!.shift()!;
+    s.hand.push({ ...next.card, uid: `b${s.uidSeq++}`, passKey: next.key });
+  }
+  if (d.waiting!.length === 0) d.waiting = undefined;
   return s;
 }
 

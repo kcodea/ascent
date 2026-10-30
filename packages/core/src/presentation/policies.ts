@@ -242,6 +242,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:teamGainMaxGold:onPlay': { policy: 'ownBeat', family: 'shout' }, // Richmond
   'factory:giftTeammate:cast': { policy: 'ownBeat', family: 'spellCast' }, // Share the Wealth (the teammate's half lands on their run)
   'factory:passTargetMinion:cast': { policy: 'ownBeat', family: 'spellCast' }, // Handout (the pass stream plays from the minion)
+  'factory:discoverRestToTeammate:cast': { policy: 'ownBeat', family: 'spellCast' }, // Disco (the two options left over go to the teammate)
+  'factory:discoverMateTribePass:onPlay': { policy: 'ownBeat', family: 'shout' }, // Matchmaker (the pick passes to the teammate)
   'factory:duosFirstPassFree:passive': { policy: 'passive', family: 'passive' }, // Brian's Pal: read by the pass price, never a beat
   'factory:megamimicCopy:passive': { policy: 'passive', family: 'passive' }, // Megamimic: simulate copies the teammate's board before the fight (megamimic.ts), never a beat
   'factory:teamPassBuffSelf:teamPassedCard': { policy: 'ownBeat', family: 'economy' }, // Hitchhiker

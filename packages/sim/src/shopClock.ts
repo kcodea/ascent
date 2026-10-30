@@ -58,7 +58,8 @@ export const SHOP_CLOCK_POLICY: Record<Action['type'], 'open' | 'locked'> = {
   rerollRuneforge: 'open',
   pickAncient: 'open',
   closeScout: 'open',
-  receivePass: 'open', // VERSUS DUOS: a teammate's pass lands whenever it arrives
+  receivePass: 'open',
+  noteMateTribes: 'open', // DUOS: the teammate's board as last seen (Matchmaker); bookkeeping, never a Shop action // VERSUS DUOS: a teammate's pass lands whenever it arrives
   passRefunded: 'open', // VERSUS DUOS: a refused pass comes back whenever the refusal arrives
   // Automatic transitions, display-only previews, the clock's own ticks, dev tooling.
   shopClockExpired: 'open',

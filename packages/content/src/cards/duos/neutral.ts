@@ -71,3 +71,42 @@ export const DUOS_NEUTRAL: readonly CardDef[] = [
     text: "**Start of Combat:** transform into an exact copy of your teammate's highest Health minion.",
   },
 ];
+
+/** The Discover + pass batch (2026-10-30, R-DUOS-CARDS-05): a list of its own, APPENDED at the end of `DUOS_CARDS`, so
+ *  no earlier Duos pool position moves (pool order seeds the Shop). */
+export const DUOS_NEUTRAL_DISCOVER_PASS: readonly CardDef[] = [
+  {
+    // "Shout: Discover a minion of your teammate's most common type and pass it to them." The type is read from the
+    // teammate's board as this run last saw it (`duos.mateTribes`, recorded by `noteMateTribes`; ties a seeded 50/50).
+    // The options come from the set's Duos pool (any tribe of the set, up to your Shop tier); the pick is an EFFECT
+    // pass (free, counts as a pass). In combat (a Shout re-fire) it gives the teammate a random minion of their most
+    // common type at settle instead (no Discover or pass mid-fight). Gilded: Discover twice.
+    id: 'duo_matchmaker',
+    name: 'Matchmaker',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 3,
+    health: 2,
+    keywords: [],
+    duos: true,
+    effects: [{ on: 'onPlay', do: 'discoverMateTribePass' }],
+    text: "**Shout:** **Discover** a minion of your teammate's most common type and **Pass** it to them.",
+    goldenText: "**Shout:** **Discover** a minion of your teammate's most common type and **Pass** it to them. Do this twice.",
+  },
+  {
+    // "Whisper: Pass." The NEUTRAL Whisper granter (the Dragon Whisper system, `grantWhisper`): a free Pass in hand on
+    // play and every Start of Turn while on the board; it vanishes at End of Turn and counts as a spell cast.
+    // `goldenCopies`: Gilded hands over 2 Passes (a Pass has no magnitude to double).
+    id: 'duo_cuebee',
+    name: 'CueBee',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    duos: true,
+    effects: [{ on: 'startOfTurn', do: 'grantWhisper', params: { cardId: 'duo_w_pass', goldenCopies: true } }],
+    text: '**Whisper:** **Pass** a minion in the Shop or on your board.',
+    goldenText: '**Whisper:** **Pass** a minion in the Shop or on your board. Get 2.',
+  },
+];

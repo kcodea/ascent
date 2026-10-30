@@ -58,6 +58,16 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Balance', text: 'Duos: three more Duos-only cards.', details: [
+        'Disco (Tier 5 spell): Discover a minion. Your teammate gets the other options.',
+        "Matchmaker (Tier 3): Shout: Discover a minion of your teammate's most common type and pass it to them.",
+        'CueBee (Tier 4): Whisper: Pass. Each turn you get a free Pass. Aim it at a Shop minion or one of yours to send it to your teammate.',
+      ] },
+      { category: 'Systems', text: "Duos: a card passed by a card or spell now waits if your teammate's hand is full.", details: [
+        'It lands in their hand as soon as they have room. It never comes back to you.',
+        'Their portrait shows how many cards are waiting.',
+        'Dragging a card onto your teammate still needs room in their hand.',
+      ] },
       { category: 'Systems', text: 'Pings now work on Discover options, runes and more, not just cards and shop buttons.', details: [
         'Right-click a Discover, Choose One, hero power or Quest Shop option to ping it. Right-click it twice to inspect it.',
         'Runeforge runes, your runes, your quests, a second hero power and Equipment take pings too.',

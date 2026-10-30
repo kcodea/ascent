@@ -11984,8 +11984,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Only a manual pass costs Gold; a pass by a card or spell is free and still counts as a pass',
     statement:
       'Dragging a card onto your teammate\x27s portrait costs 1 Gold (Brian\x27s Pal makes the first one each turn free). A pass made by '
-      + 'an effect (Handout and every later "pass" card or rune) costs no Gold. Every pass obeys the same rules: a Golden minion is '
-      + 'never passed, and a full teammate hand sends it back. Every pass, manual or not, triggers "when you pass" and "when your team '
+      + 'an effect (Handout and every later "pass" card or rune) costs no Gold. A Golden minion is never passed (an effect that '
+      + 'says otherwise is the one exception). A full teammate hand sends a MANUAL pass back; an effect's pass waits for room '
+      + '(R-DUOS-EFFECT-PASS-QUEUE-01). Every pass, manual or not, triggers "when you pass" and "when your team '
       + 'passes" cards, on the sender\x27s board at once and on the receiver\x27s when it lands.',
     domain: 'foundation',
     status: 'approved',
@@ -11993,7 +11994,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'only manual passing costs 1 gold baseline' },
       { kind: 'code', ref: 'packages/sim/src/duosPass.ts duosPassCost; packages/sim/src/recruit.ts effectPassCard' },
     ],
-    currentBehaviour: 'Built 2026-10-30.',
+    currentBehaviour: 'Built 2026-10-30. Effect passes stopped coming back for a full hand the same day (R-DUOS-EFFECT-PASS-QUEUE-01).',
     example: 'Ann casts Handout on a Shop minion: no extra Gold, it goes to Amy, and both their Hitchhikers grow.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCards.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
@@ -12173,5 +12174,46 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'compositor decode requests a round (seed 424242, desktop), almost all for pictures the pipe already held.',
     example: 'A shop roll mounts seven cards. Before, each of their art, frame and plate images asked for a decode of a picture already decoded at boot. Now they just show.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/artDecodeOnce.test.tsx', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-EFFECT-PASS-QUEUE-01',
+    title: 'A card passed by an effect waits for room in a full hand; it is never sent back',
+    statement:
+      'When a card or spell passes a card to your teammate (Handout, CueBee's Pass, Matchmaker, every pass rune) and their hand '
+      + 'is full, the card is not refused and does not come back. It waits, and lands in their hand the moment they have room (after '
+      + 'they play, sell or pass a card, or the turn turns over), in the order it was passed. A Shop minion passed this way has left '
+      + 'the Shop for good. A waiting card survives a reload. Their portrait shows how many cards are waiting. A MANUAL pass (a drag '
+      + 'onto the portrait) keeps its rule: a full hand refuses it and the Gold comes back.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: "if your teammate's hand is full, they get the card once there is space in their hand" },
+      { kind: 'code', ref: 'packages/sim/src/duosPass.ts receiveDuosPass / landWaitingPasses; packages/sim/src/reducer.ts reduce; workers/versus/src/core/groupMatch.ts pass' },
+    ],
+    currentBehaviour: 'Built 2026-10-30. The waiting card lands after any action of the receiver that makes room.',
+    example: 'Amy holds 10 cards when Ann casts CueBee's Pass on a Shop minion. The minion leaves Ann's Shop; Amy's portrait says "Hand full: 1 card waiting". Amy plays a card and the passed minion drops into her hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCardsDiscoverPass.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-CARDS-05',
+    title: 'Disco, Matchmaker and CueBee: Discover for the team, and a Whisper that passes',
+    statement:
+      'Disco: Discover a minion up to your Shop tier; the options you did not take go to your teammate's hand (a full hand loses '
+      + 'them, like any gift). Matchmaker: its Shout Discovers a minion of your teammate's most common type and passes your pick to '
+      + 'them (free, a pass for every pass trigger). The type is read from your teammate's board as your game last saw it; a tie is a '
+      + 'seeded 50/50; never seen, it picks among your own tribes. The options come from the set's Duos pool, any tribe the set has, '
+      + 'up to your Shop tier. Gilded Matchmaker does it twice. Re-fired in combat it gives your teammate a random minion of their most '
+      + 'common type when the fight is settled. CueBee: a Whisper granter like the Dragons. You get a free Pass on play and every Start '
+      + 'of Turn while it is on your board; it fades at End of Turn and counts as a spell cast. Pass aims at a Shop minion or one of '
+      + 'yours (never a Golden one) and passes it, free. Gilded CueBee gives 2 Passes.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'Disco - T5 4 cost Discover a minion. Your teammate gets the other 2 options.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts takeDiscoverPick (discoverDuos); packages/sim/src/recruit.ts discoverMateTribePass / mostCommonMateTribe; packages/content/src/cards/duos/whispers.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-30. The teammate's board reaches the sender's run through the recorded noteMateTribes action, fed by the client from the teammate's live frame while a Matchmaker is held.',
+    example: 'Amy's board is three Beasts and a Dragon. Ann plays Matchmaker, picks a Beast from the three offered, and it lands in Amy's hand. Both Hitchhikers grow.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCardsDiscoverPass.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
 ];

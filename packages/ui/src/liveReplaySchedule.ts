@@ -46,7 +46,7 @@ export type LiveReplayStep =
 export const AUTOMATIC_ACTIONS: ReadonlySet<string> = new Set([
   'landCombat', 'settleCombat', 'resolveShopDeath', 'shopClockExpired', 'sellWindowExpired',
   'combatEscalationPreview', 'combatSpellPowerPreview', 'combatSpellCastPreview', 'combatFriendlyDeathPreview',
-  'combatBladeAttackPreview', 'combatScoutPreview', 'receivePass', 'passRefunded',
+  'combatBladeAttackPreview', 'combatScoutPreview', 'receivePass', 'passRefunded', 'noteMateTribes',
 ]);
 
 /** Build the step list. Frames are matched to actions in order: a shopDelta whose `cause` is the action's type, the

@@ -4266,6 +4266,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ALE_GIFTS_THIS_FIGHT.set(self, used + 1);
     ARENA_EFFECTS.giftTeammate(combatArena(ctx, self), { count: 1 }, spellId);
   },
+  /** Matchmaker re-fired in COMBAT (R-DUOS-CARDS-05): no Discover and no pass mid-fight (the Discover-in-combat ruling,
+   *  2026-08-04: a random pick), so the teammate gets a random minion of THEIR most common type, landed at settle by
+   *  their run (`giftTeammate` with `mateTribe`). Gilded: two. */
+  discoverMateTribePass: (ctx, self, _params, payload) => {
+    const m = (payload as Partial<MinionPayload> | undefined)?.minion;
+    if (m && m !== self) return;
+    ARENA_EFFECTS.giftTeammate(combatArena(ctx, self), { mateTribe: true, count: 1 });
+  },
 
   /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
    *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).

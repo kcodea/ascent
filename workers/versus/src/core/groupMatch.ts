@@ -788,7 +788,10 @@ export class GroupEngine {
       if (mr.eliminated_round != null) this.h.fail('no_teammate');
       if (mr.auto || (m.paused_at != null && m.paused_seat === mate)) this.h.fail('teammate_away');
     }
-    if (!teamFx) {
+    // An EFFECT pass (`'spell'`: Handout, CueBee's Pass, Matchmaker; `'sale'`: Salesman of the Year) is never refused for a full hand (owner 2026-10-30,
+    // R-DUOS-EFFECT-PASS-QUEUE-01: "they get the card once there is space in their hand"): the receiver's run holds it
+    // until there is room. Only the manual drag keeps the hand-room refusal.
+    if (!teamFx && c?.passFrom !== 'spell' && c?.passFrom !== 'sale') {
       const inFlight = Object.values(all).flat().filter((p) => p.to_seat === mate && p.status === 'sent' && p.card.passFrom !== 'team').length;
       if (mr.hand_room != null && mr.hand_room - inFlight <= 0) this.h.fail('hand_full');
     }

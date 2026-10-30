@@ -38,6 +38,7 @@
  * THE FRIENDS HUB (direct messages + live presence, one stable Worker `ascent-hub` for every build): `--versus-cf` also
  * runs `npm run hub:deploy`, which deploys the hub ONLY when its code changed (never per content revision), checks its
  * /health, gives a newly persisting hub its writer secret, and bakes the stable hub URL (`VITE_FRIENDS_HUB_URL`).
+ * A pack cut WITHOUT the flag still uses the live hub on the Netlify origin (R-DM-HUB-URL-01, packages/ui/src/friends/dm/hubUrl.ts).
  */
 import { execFileSync, execSync } from 'node:child_process';
 import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';

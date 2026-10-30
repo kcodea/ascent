@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-29',
     changes: [
+      { category: 'Systems', text: 'Fixed chat saying messages are not available when they were.', details: [
+        'Chat now connects on every version of the game that can reach it.',
+        'If the chat connection drops for good, it tries again on its own a moment later. Messages you typed meanwhile still send.',
+      ] },
       { category: 'Systems', text: 'The Friends button moves to the bottom right corner and opens into your Friends list.', details: [
         'It sits with the corner buttons, just left of Rules, on every screen.',
         'Press it and the list grows out of the button. Press it again and the list folds back in.',

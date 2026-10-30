@@ -31,7 +31,7 @@ import { FriendsDock } from '../dock/FriendsDock';
 import { openDm, resetDockForTests, useFriendsDock } from '../dock/dockStore';
 import type { DmRemote, DmUnread } from './dmRemote';
 import {
-  DM_ERROR_TEXT, DM_UNAVAILABLE_TEXT, liveFriend, loadOlder, openConversation, resetDmForTests, retryDm, sendDm, setDmDepsForTests,
+  DM_ERROR_TEXT, DM_UNAVAILABLE_TEXT, HUB_RESTART_MS, liveFriend, loadOlder, openConversation, resetDmForTests, retryDm, sendDm, setDmDepsForTests,
   startDirectMessages, useDm, type HubHandlers,
 } from './dmStore';
 import { DmToast } from './DmToast';
@@ -203,6 +203,59 @@ describe('sending (R-DM-01, R-DM-05)', () => {
     stop = startDirectMessages();
     expect(useDm.getState().hub).toBe('off');
     expect(sendDm(AMY, 'hi')).toBe(DM_UNAVAILABLE_TEXT);
+  });
+});
+
+describe('a hub that died comes back (R-DM-HUB-URL-01)', () => {
+  it('a socket closed for good is replaced after a short wait, and a waiting message still goes', async () => {
+    let opened = 0;
+    stop?.();
+    resetDmForTests();
+    setDmDepsForTests({ factory: (h) => { opened += 1; return factory(h); }, remote });
+    stop = startDirectMessages();
+    await flush();
+    expect(opened).toBe(1);
+    vi.useFakeTimers();
+    try {
+      hub.down = true;
+      act(() => hub.h!.onStatus('dead', 'closed'));
+      expect(useDm.getState().hub).toBe('off');
+      expect(sendDm(AMY, 'still there?')).toBeNull();
+      expect(convo(AMY)!.msgs[0]!.state).toBe('sending');
+      act(() => { vi.advanceTimersByTime(HUB_RESTART_MS); });
+      expect(opened).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+    hub.down = false;
+    await flush();
+    hub.reconnect();
+    await flush();
+    expect(useDm.getState().hub).toBe('open');
+    expect(hub.sent.filter((s) => s.op === 'send').map((s) => s.args.body)).toEqual(['still there?']);
+    expect(convo(AMY)!.msgs[0]!.state).toBeUndefined();
+  });
+
+  it('an old client the hub no longer speaks to, or a game replaced by a newer one, stays off', async () => {
+    for (const why of ['version_mismatch', 'replaced']) {
+      let opened = 0;
+      stop?.();
+      resetDmForTests();
+      setDmDepsForTests({ factory: (h) => { opened += 1; return factory(h); }, remote });
+      stop = startDirectMessages();
+      await flush();
+      vi.useFakeTimers();
+      try {
+        // The refused hello (a plain error) may land before the close that says why: still final.
+        act(() => hub.h!.onStatus('dead', 'unavailable'));
+        act(() => hub.h!.onStatus('dead', why));
+        act(() => { vi.advanceTimersByTime(HUB_RESTART_MS * 4); });
+      } finally {
+        vi.useRealTimers();
+      }
+      expect(opened).toBe(1);
+      expect(useDm.getState().hub).toBe('off');
+    }
   });
 });
 

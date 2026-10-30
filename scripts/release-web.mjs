@@ -27,15 +27,15 @@
  *
  * Nothing here touches the primary checkout's branch, files or node_modules.
  *
- * VERSUS ON CLOUDFLARE (opt-in, docs/versus-cf-cutover.md): `npm run release:web -- --versus-cf` also deploys the
- * Versus Worker for this exact commit (`npm run versus:cf:deploy -- --persist`, from the release worktree; the Worker is
- * named after its content revision, so rooms on an older Worker finish there), checks its /health answers this build's
- * engine, and bakes its URL into the bundle (`VITE_VERSUS_CF_URL`). Without the flag the build carries NO Worker URL
- * and every Versus room stays on Supabase whatever the server's switch says. `--versus-cf-no-persist` deploys with the
- * result writer off (test packs only: Cloudflare matches would leave no records). Needs CLOUDFLARE_API_TOKEN and
- * CLOUDFLARE_ACCOUNT_ID in the environment; neither is ever printed.
+ * VERSUS IS CLOUDFLARE ONLY (R-VERSUS-CF-ONLY-01, owner 2026-10-29; docs/versus-cf-cutover.md): every pack deploys the
+ * Versus Worker for this exact commit FIRST (`npm run versus:cf:deploy -- --persist`, from the release worktree; the
+ * Worker is named after its content revision, so rooms on an older Worker finish there), checks its /health answers
+ * this build's engine, and bakes its URL into the bundle (`VITE_VERSUS_CF_URL`). There is no Supabase Versus server to
+ * redeploy any more (the Supabase Edge Function is retired). `--versus-cf-no-persist` deploys with the result writer
+ * off (test packs only: matches would leave no records). `--versus-cf` is still accepted (it was the opt-in flag) and
+ * changes nothing. Needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment; neither is ever printed.
  *
- * THE FRIENDS HUB (direct messages + live presence, one stable Worker `ascent-hub` for every build): `--versus-cf` also
+ * THE FRIENDS HUB (direct messages + live presence, one stable Worker `ascent-hub` for every build): every pack also
  * runs `npm run hub:deploy`, which deploys the hub ONLY when its code changed (never per content revision), checks its
  * /health, gives a newly persisting hub its writer secret, and bakes the stable hub URL (`VITE_FRIENDS_HUB_URL`).
  * A pack cut WITHOUT the flag still uses the live hub on the Netlify origin (R-DM-HUB-URL-01, packages/ui/src/friends/dm/hubUrl.ts).
@@ -52,11 +52,11 @@ const die = (msg) => { console.error(`\n✗ ${msg}\n`); process.exit(1); };
 const step = (msg) => console.log(`\n• ${msg}`);
 const git = (gitArgs, cwd = ROOT) => execFileSync('git', gitArgs, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
 const run = (cmd, cwd, env = process.env) => { console.log(`  $ ${cmd}`); execSync(cmd, { cwd, stdio: 'inherit', env }); };
-const VERSUS_CF = process.argv.includes('--versus-cf');
 const VERSUS_CF_PERSIST = !process.argv.includes('--versus-cf-no-persist');
 const WORKER_URL = /https:\/\/ascent-versus-v(\d+)-([0-9a-z]+)\.team-ascent\.workers\.dev/;
-if (VERSUS_CF && (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID)) {
-  die('--versus-cf needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment');
+// Every pack ships its Versus Worker (R-VERSUS-CF-ONLY-01): a pack without one would have no Versus at all.
+if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID) {
+  die('release:web deploys the Versus Worker: it needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment');
 }
 
 // ── 1. the commit ─────────────────────────────────────────────────────────────────────────────────────────
@@ -94,10 +94,10 @@ console.log(`  ✓ HEAD ${short}, tree clean`);
 // ── 3–4. install + build, inside the worktree ──────────────────────────────────────────────────────────────
 step('npm ci (lockfile-exact dependencies)');
 run('npm ci --no-audit --no-fund', WT);
-// ── 3b. (opt-in) the Versus Worker for this commit, BEFORE the site: a new site must never meet a missing Worker ─────
+// ── 3b. the Versus Worker for this commit, BEFORE the site: a new site must never meet a missing Worker ───────────────
 let workerUrl = null;
 let workerRev = null;
-if (VERSUS_CF) {
+{
   step(`deploying the Versus Worker for ${sha.slice(0, 9)}${VERSUS_CF_PERSIST ? '' : ' (result writer OFF)'}`);
   // deploy.ts echoes only its own summary and wrangler's URL / version lines, never a key.
   const cmd = `npm run versus:cf:deploy -- ${VERSUS_CF_PERSIST ? '--persist' : ''}`.trim();
@@ -135,16 +135,16 @@ if (VERSUS_CF) {
     try { secrets = execSync(`npx wrangler secret list --name ${name}`, { cwd: workerDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch { /* treated as missing */ }
     if (secrets.includes('VERSUS_WRITER_SECRET')) console.log('  ✓ result writer secret already set on this Worker');
     else {
-      console.log('  this Worker has no result writer secret yet: setting one (run the SQL line it prints BEFORE flipping a mode)');
+      console.log('  this Worker has no result writer secret yet: setting one (run the SQL line it prints BEFORE uploading the zip)');
       run(`node scripts/writer-secret.mjs ${name}`, workerDir);
     }
   }
 }
 
-// ── 3c. (opt-in) THE FRIENDS HUB: one stable Worker for every build, deployed only when its own code changed ─────────
+// ── 3c. THE FRIENDS HUB: one stable Worker for every build, deployed only when its own code changed ─────────────────
 let hubUrl = null;
 let hubNote = '';
-if (VERSUS_CF) {
+{
   step('the friends hub (deployed only when its code changed)');
   const cmd = `npm run hub:deploy -- ${VERSUS_CF_PERSIST ? '--persist' : ''}`.trim();
   console.log(`  $ ${cmd}`);
@@ -183,7 +183,7 @@ if (VERSUS_CF) {
 }
 
 step('building the web bundle');
-// The Worker URL is baked in ONLY with --versus-cf; a stray value in the shell never leaks into a plain pack.
+// The Worker URL baked in is the one deployed above; a stray value in the shell never leaks into the pack.
 const buildEnv = { ...process.env };
 delete buildEnv.VITE_VERSUS_CF_URL;
 delete buildEnv.VITE_FRIENDS_HUB_URL;
@@ -264,11 +264,8 @@ console.log(`
   Do it from the SITE's Deploys tab; dropping it on the main Sites list creates a NEW site with a new URL.
 
   Then check the title screen badge reads "v${version} · ${short}". Anything else means an older build is live.
-${workerUrl ? `
-  VERSUS WORKER: ${workerUrl} (content ${workerRev}) is live and baked into this zip.
-  Which modes use it is the server switch (docs/versus-cf-cutover.md); every mode stays on Supabase until it is flipped.
-  The Supabase Versus server (versus-resolve) still needs its usual redeploy from this commit (CLAUDE.md "Releasing").
+
+  VERSUS WORKER: ${workerUrl} (content ${workerRev}) is live and baked into this zip. Every Versus mode plays on it;
+  there is nothing else to deploy for Versus.
   FRIENDS HUB: ${hubUrl} ${hubNote}.
-` : `
-  This zip carries no Versus Worker: every Versus room stays on Supabase (pass --versus-cf to ship one).
-`}`);
+`);

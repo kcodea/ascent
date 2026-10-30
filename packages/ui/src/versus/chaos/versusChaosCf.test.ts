@@ -1,19 +1,17 @@
 // @vitest-environment jsdom
 /**
- * THE VERSUS CHAOS MATRIX ON CLOUDFLARE: the cutover's acceptance gate (owner decision 2026-10-28: live Versus moves
- * from Supabase to Durable Objects behind a per-mode switch). The same scenarios (`chaosScenarios.ts`) and the same
- * invariants (`chaosMatch.ts`) as the Supabase matrix (`versusChaos.db.test.ts`), so the two tables compare cell by cell;
- * only the host differs: the REAL room rules (`workers/versus` RoomCore) in a mirror of the Durable Object shell on the
- * fake clock (`cfChaosServer.ts`, which says why not Miniflare), and every client on the REAL cutover router + Cloudflare
- * transport (`chaosClient.ts`'s transport switch).
+ * THE VERSUS CHAOS MATRIX (owner bar: Versus must be "spotless"). Versus runs on Cloudflare only (R-VERSUS-CF-ONLY-01;
+ * the Supabase matrix was retired with the Supabase host 2026-10-29). The scenarios (`chaosScenarios.ts`) and invariants
+ * (`chaosMatch.ts`) run on the REAL room rules (`workers/versus` RoomCore) in a mirror of the Durable Object shell on the
+ * fake clock (`cfChaosServer.ts`, which says why not Miniflare), every client on the REAL Cloudflare transport
+ * (`chaosClient.ts`).
  *
  * RUNNING IT
  *   - `npm test` runs the SMOKE subset below (CI).
- *   - `CHAOS_FULL=1 npx vitest run versusChaosCf` runs the whole matrix; `CHAOS_ONLY=<regex>` picks cells (it also
- *     matches the Supabase file: add `versusChaosCf` to the vitest filter to run only this one); `CHAOS_LOG=<file>`
+ *   - `CHAOS_FULL=1 npx vitest run versusChaosCf` runs the whole matrix; `CHAOS_ONLY=<regex>` picks cells ; `CHAOS_LOG=<file>`
  *     streams each match's narrative; `CHAOS_TABLE=<file>` appends one `cell<TAB>result` line per cell.
  *
- * KNOWN FAILURES live in `chaosKnownCf.ts` (its own ledger: a Cloudflare finding is not a Supabase one).
+ * KNOWN FAILURES live in `chaosKnownCf.ts`.
  */
 import { appendFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';

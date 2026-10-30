@@ -4,15 +4,10 @@
  * Each client is its own module graph (`vi.resetModules()` + dynamic import): its own `useGame` main store, its own
  * `versusStore` session controller, its own `versusRemote` and its own identity and ranked-gate controller.
  *
- * THE TRANSPORT follows the backend under test (`chaosBackend.ts`):
- *  - Supabase: `versusRemote` is the real cutover router with no Worker (`cf: null`) over the real Supabase adapter
- *    (`makeVersusRemote`) on this client's `FakeSupabase`;
- *  - Cloudflare: `versusRemote` is the real cutover router (`makeRoutedVersusRemote`) with every mode switched to
- *    Cloudflare, over the real Cloudflare transport (`makeCfVersusRemote`, the real `VersusCfClient`), whose WebSocket and
- *    fetch are this client's fake network into `CfChaosServer`. Its Supabase side answers only the record reads the
- *    router sends there (Duos results, teams; none exist in the harness); any other call that reaches it is a leak and
- *    is recorded as an error. Nothing is shared between clients but the fake clock, the server and the
- * realtime bus, exactly as in a lobby of browser tabs.
+ * THE TRANSPORT is the game's own (R-VERSUS-CF-ONLY-01): `versusRemote` is the real Cloudflare transport
+ * (`makeCfVersusRemote`, the real `VersusCfClient`), whose WebSocket and fetch are this client's fake network into
+ * `CfChaosServer`. Its records side (Duos results, teams: Supabase rows, none exist in the harness) answers "none".
+ * Nothing is shared between clients but the fake clock and the server, exactly as in a lobby of browser tabs.
  *
  * The `ChaosClient.tick()` UI DRIVER plays the parts of the screen the store relies on (and only those, through the same
  * exported functions the components call):
@@ -31,9 +26,8 @@ import { fileURLToPath } from 'node:url';
 import type { RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import type { ChaosBackend } from './chaosBackend';
-import type { ChaosServer } from './chaosServer';
 import type { CfChaosServer } from './cfChaosServer';
-import { ChaosNet, FakeSupabase } from './fakeSupabase';
+import { ChaosNet } from './chaosNet';
 
 type StoreMod = typeof import('../versusStore');
 type GameMod = typeof import('../../store');
@@ -91,8 +85,6 @@ function rngOf(seed: number): () => number {
 
 export class ChaosClient {
   readonly net: ChaosNet;
-  /** The Supabase transport (null on Cloudflare). */
-  readonly fake: FakeSupabase | null;
   store!: StoreMod;
   game!: GameMod;
   turn!: TurnMod;
@@ -119,16 +111,15 @@ export class ChaosClient {
 
   constructor(readonly opts: ChaosClientOptions, private readonly backend: ChaosBackend) {
     this.net = new ChaosNet(opts.name);
-    this.fake = backend.kind === 'supabase' ? new FakeSupabase(opts.user, backend as ChaosServer, this.net, (backend as ChaosServer).bus) : null;
-    if (backend.kind === 'cf') (backend as CfChaosServer).register(opts.user, this.net);
+    (backend as CfChaosServer).register(opts.user, this.net);
     this.rng = rngOf(opts.seed);
   }
 
   /** The last failed call (diagnostics for a setup step that failed). */
   private lastError(): string {
-    return (this.fake ? this.fake.lastError : this.cfErrors.at(-1)) ?? 'no RPC error';
+    return this.cfErrors.at(-1) ?? 'no RPC error';
   }
-  /** Cloudflare: calls that leaked to the Supabase side of the router, and failed calls (diagnostics). */
+  /** Failed calls (diagnostics). */
   private readonly cfErrors: string[] = [];
 
   get hidden(): boolean { return this.net.state.hiddenSince != null; }
@@ -136,16 +127,14 @@ export class ChaosClient {
   /** Build this client's own module graph. Call one client at a time (module mocks are per import). */
   async build(): Promise<void> {
     vi.resetModules();
-    const fake = this.fake;
     const net = this.net;
     const drop = new Set(this.opts.dropCombatReady ?? []);
-    const cf = this.backend.kind === 'cf' ? (this.backend as CfChaosServer) : null;
+    const cf = this.backend as CfChaosServer;
     const user = this.opts.user;
     const cfErrors = this.cfErrors;
-    const errors = this.errors;
     vi.doMock(here('../versusRemote.ts'), async (orig) => {
       const real = await orig<typeof import('../versusRemote')>();
-      const remote = cf ? await cfRemote(real, cf, user, cfErrors, errors) : await supabaseRemote(real, fake!);
+      const remote = await cfRemote(real, cf, user, cfErrors);
       // DROP A combatReady: the call "goes out" and is lost (no server effect, no answer: a timeout to the caller).
       const combatReady = remote.combatReady;
       const groupCombatReady = remote.groupCombatReady;
@@ -450,47 +439,18 @@ export class ChaosClient {
   }
 }
 
-/**
- * THE SUPABASE TRANSPORT: the game's adapter is the cutover ROUTER (R-VERSUS-CF-CUTOVER-01); with no Worker in the build
- * (`cf: null`) every call takes the Supabase path exactly as a build without a Worker does, and the router's own surface
- * (`hostOf`, `noteRoomHost`, ...) is the real one (#2378).
- */
-async function supabaseRemote(real: typeof import('../versusRemote'), fake: FakeSupabase) {
-  const { makeRoutedVersusRemote } = await import('../versusRouter');
-  const { DEFAULT_HOST_CONFIG, makeRoomHostMemory } = await import('../versusHost');
-  return makeRoutedVersusRemote({
-    supabase: real.makeVersusRemote(() => fake as never), cf: null, readConfig: async () => ({ ...DEFAULT_HOST_CONFIG }), memory: makeRoomHostMemory(null),
-  });
-}
-
-/**
- * THE CLOUDFLARE TRANSPORT SWITCH: the game's cutover router with every mode on Cloudflare (what a flipped switch
- * serves), over the real Cloudflare adapter. Its Supabase side is a stub: the record reads the router sends to
- * Supabase answer "none", the lists answer empty, and any other call is a LEAK (recorded as an error).
- */
-async function cfRemote(real: typeof import('../versusRemote'), cf: CfChaosServer, user: string, cfErrors: string[], errors: string[]) {
+/** The game's Cloudflare transport over this client's fake network. Its records side answers "none" (no Duos results or
+ *  teams exist in the harness). */
+async function cfRemote(real: typeof import('../versusRemote'), cf: CfChaosServer, user: string, cfErrors: string[]) {
   const { makeCfVersusRemote } = await import('../versusCfRemote');
-  const { makeRoutedVersusRemote, VERSUS_ROUTES } = await import('../versusRouter');
-  const cfSide = makeCfVersusRemote({
+  return makeCfVersusRemote({
     baseUrl: cf.baseUrl, getClient: () => null, currentUserId: () => user,
     makeError: (code, message) => { cfErrors.push(`${code}${message ? `: ${message}` : ''}`); return new real.VersusError(code, message); },
-  });
-  const quiet: Record<string, unknown> = {
-    listRooms: async () => [], openRooms: async () => ({ open: 0, seatOpen: 0, duosOpen: 0 }), myRoomId: async () => null,
-    duosResult: async () => null, duosTeam: async () => null, duosLeaderboard: async () => [], duosTeamsOf: async () => [],
-  };
-  const supabaseSide: Record<string, unknown> = {};
-  for (const name of Object.keys(VERSUS_ROUTES)) {
-    supabaseSide[name] = quiet[name] ?? (async () => {
-      errors.push(`leak: ${name} went to Supabase on a Cloudflare match`);
-      throw new real.VersusError('no_backend');
-    });
-  }
-  const all = { duel: 'cf', group: 'cf', duos: 'cf', ranked_duos: 'cf' } as const;
-  const { makeRoomHostMemory } = await import('../versusHost');
-  return makeRoutedVersusRemote({
-    supabase: supabaseSide as never, cf: cfSide, readConfig: async () => ({ ...all }), memory: makeRoomHostMemory(null),
-    warn: (msg) => cfErrors.push(msg),
+    records: {
+      setTeamName: async () => { throw new real.VersusError('no_backend'); },
+      duosResult: async () => null, duosTeam: async () => null, duosLeaderboard: async () => [], duosTeamsOf: async () => [],
+      testBotRegister: async () => null,
+    },
   });
 }
 

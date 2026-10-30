@@ -129,8 +129,3 @@ export const SCENARIOS: ScenarioDef[] = [
   },
 ];
 
-/** The CI subset: one clean match per family of mode, and the cheapest chaos that guards the reported bugs. */
-export const SMOKE: string[] = [
-  'baseline/duel', 'baseline/group3', 'baseline/duos', 'baseline/ranked_duos',
-  'emptyAll/duel', 'dropRestore/duel', 'resolverFail3/group3', 'mendArmor/duos',
-];

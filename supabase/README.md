@@ -164,6 +164,11 @@ pool keeps the crate sealed; equip checks ownership). Logic in `_shared/progress
 `_shared/progressionCosmetics.ts`, both **GENERATED** by `npm run progression:shared`. Deploy:
 `npx supabase functions deploy progression-inventory`. Runbook: `docs/devlog/2026-09-28-progression-crates.md`.
 
+> **RETIRED 2026-10-29 (R-VERSUS-CF-ONLY-01).** Versus runs on the Cloudflare Worker only (`workers/versus`); nothing
+> calls `versus-resolve` any more and it is no longer redeployed. It stays deployed only until the owner deletes it
+> (`supabase functions delete versus-resolve`, after the builds without the Supabase fallback are live); its source,
+> `versus:bundle` and the parity tool's `bundle` / `remote` modes go in the same follow-up. The notes below are history.
+
 ## `functions/versus-resolve` — Versus's authoritative fight (2026-10-13)
 
 Versus (real-time 1v1) resolves each round's fight ONCE on the server and hands both players their own side of

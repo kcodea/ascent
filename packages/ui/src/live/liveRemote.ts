@@ -129,10 +129,6 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
         return rpc<number>('lobby_live_heartbeat', args);
       }
     },
-    /** RANKED DUOS (2026-11-01-ranked-duos-party.sql): the team's first seat registers / refreshes its team's row
-     *  (`duos:<room>`); the server names it and reads the team's medal. Returns the watcher count (0 = not listed). */
-    duosHeartbeat: (roomId: string, round: number, phase: 'hero' | 'shop' | 'combat' | 'end') =>
-      rpc<number>('lobby_live_duos_heartbeat', { p_room: roomId, p_round: round, p_phase: phase }),
     end: (gameId: string, placement: number | null) => rpc<void>('lobby_live_end', { p_game: gameId, p_placement: placement }),
     publishFrame: (gameId: string, seq: number, round: number, frame: unknown) =>
       rpc<void>('lobby_live_publish_frame', { p_game: gameId, p_seq: seq, p_round: round, p_frame: frame }),

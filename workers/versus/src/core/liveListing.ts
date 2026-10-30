@@ -39,7 +39,7 @@ export interface LiveListing {
 /** Re-send the same row this long after the last write (the SQL keeps a Cloudflare row visible for 4 minutes). */
 export const LIVE_REFRESH_MS = 120_000;
 
-/** The listing phase of a match phase (`duosLivePhase` in the client). `complete` is no listing at all. */
+/** The listing phase of a match phase (the client's retired Supabase publisher had the same rule). `complete` is no listing at all. */
 export function livePhase(p: string): 'hero' | 'shop' | 'combat' | null {
   if (p === 'complete') return null;
   return p === 'hero_select' ? 'hero' : p === 'combat' ? 'combat' : 'shop';

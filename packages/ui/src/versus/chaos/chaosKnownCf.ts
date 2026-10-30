@@ -1,6 +1,6 @@
 /**
  * WHAT FAILS ON THE CLOUDFLARE ROOM TODAY, per matrix cell (`scenario/mode`) and invariant, with the cause. The same
- * contract as `chaosKnown.ts` (the Supabase ledger): `versusChaosCf.test.ts` passes a cell only when its violations are
+ * contract as the retired Supabase ledger had: `versusChaosCf.test.ts` passes a cell only when its violations are
  * exactly these, so a fix fails its cell with "fixed: ... delete its KNOWN entry" and the fix PR edits this file.
  * Filled from a full-matrix run (CHAOS_FULL=1).
  */

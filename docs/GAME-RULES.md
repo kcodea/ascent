@@ -984,8 +984,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 
 ## Versus (real-time 1v1, owner rulings 2026-10-13; R-VERSUS-HEALTH-01, R-VERSUS-HEARTS-01, R-VERSUS-RANK-01, R-VERSUS-TIMEOUT-01, R-VERSUS-PAUSE-01, R-VERSUS-POOL-01, R-VERSUS-LOBBY-UI-01, R-VERSUS-PLAYER-CARD-01)
 
-> Built on `feat/versus-phase0`; the mode's door on the mode picker stays behind `versusEnabled()` until the
-> Versus migration (`supabase/migrations/2026-10-13-versus.sql`) and the `versus-resolve` finalize deploy are live.
+> Built on `feat/versus-phase0` (public since 2026-10-14). **Where it runs (R-VERSUS-CF-ONLY-01, owner 2026-10-29):**
+> every Versus mode (1v1, Group, Versus Duos, Ranked Duos) is hosted on the Versus Worker (Cloudflare Durable Objects),
+> and only there. The rules below were first built as Supabase SQL + the `versus-resolve` Edge Function; the Worker
+> plays them unchanged and writes every result into the same Supabase tables, which is where history, records and
+> ratings are read. A Worker that cannot be reached shows "Connection problem. Try again."; no mode ever falls back to
+> Supabase. Runbook: [`versus-cf-cutover.md`](versus-cf-cutover.md).
 
 - **Rooms are continuous.** A player creates a room and takes Player 1; another joins as Player 2 (atomically);
   anyone may join the stands (up to 20 spectators, always on, the host cannot turn it off). While a room is Open,

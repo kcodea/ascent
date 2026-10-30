@@ -1,18 +1,18 @@
 /**
- * VERSUS — the Supabase adapter (RPC + Realtime). No React, no store: every call returns plain data or throws a
- * `VersusError` with the SQL's error code (`raise exception '<code>'`), and every subscription hands back an
- * unsubscribe function. The rows are the truth; Realtime only says "something changed, read it again"
- * (blueprint 4). See supabase/migrations/2026-10-13-versus.sql for every RPC this wraps.
+ * VERSUS: the adapter's types and the game's one adapter (`versusRemote`, the Versus Worker on Cloudflare). No React, no
+ * store: every call returns plain data or throws a `VersusError` with the server's error code, and every subscription
+ * hands back an unsubscribe function. The row shapes are the ones the original SQL defined
+ * (supabase/migrations/2026-10-13-versus.sql onward); the Worker answers in the same shapes and writes its results into
+ * those tables through its limited writer, which is where every history / record screen reads them.
  */
-import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { ownSeatPerspective, VERSUS_PROTOCOL, type RankResult, type HeroReroll, type PreparedCombatSide, type VersusGroupSeat, type VersusRoomOptions, type VersusSeat, type VersusSeatScout } from '@game/sim';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { type RankResult, type HeroReroll, type PreparedCombatSide, type VersusGroupSeat, type VersusRoomOptions, type VersusSeat, type VersusSeatScout } from '@game/sim';
 import type { BoardMinion, CombatResult } from '@game/core';
 import { supabaseClient } from '../remoteBoards';
 import { currentUserId, setIdentity } from '../identity';
 import { makeCfVersusRemote, versusCfDevUrl, versusCfLiveUrl, versusCfSelected } from './versusCfRemote';
-import { devLobbyLiveOverride, devRouteOverride, embeddedCfUrl, encodeRoomRef, makeHostConfigReader, makeRoomHostMemory, type VersusHost } from './versusHost';
+import { embeddedCfUrl, encodeRoomRef } from './versusHost';
 import { contentRevision } from '@game/content';
-import { makeRoutedVersusRemote, type RoutedVersusRemote } from './versusRouter';
 
 export type VersusRoomStatus = 'open' | 'sealed' | 'in_game';
 /** A room role: a player seat (p3 / p4 only in a group room, R-VERSUS-GROUP-01) or the stands. */
@@ -50,8 +50,6 @@ export interface VersusRoom {
   options_changed_at?: string | null;
   /** RANKED DUOS (2026-11-01-ranked-duos-party.sql): the party is listed for the host's friends only. */
   friends_only?: boolean;
-  /** THE CUTOVER (R-VERSUS-CF-CUTOVER-01): the backend the room lives on, stamped by the router (absent = Supabase). */
-  host?: VersusHost;
   members: VersusMember[];
   serverNow: string;
 }
@@ -74,8 +72,6 @@ export interface VersusRoomSummary {
   options?: VersusRoomOptions | null;
   /** RANKED DUOS: a friends-only party (listed only to the host's friends). */
   friendsOnly?: boolean;
-  /** THE CUTOVER: which backend lists the room (the router merges both lists). */
-  host?: VersusHost;
 }
 
 export interface VersusMatch {
@@ -411,24 +407,175 @@ export interface VersusIdentity {
 }
 
 /**
- * The adapter over ONE Supabase client. The game's own session uses `versusRemote` (the app client); the dev test bot
- * (`versusBot.ts`) builds a second one over its own client and anonymous session, so it plays through exactly the
- * same RPCs, tables and Edge Function as a person (no server shortcut).
+ * THE VERSUS ADAPTER (Cloudflare only since 2026-10-29, R-VERSUS-CF-ONLY-01): every room and match call is served by the
+ * room's Durable Object on the Versus Worker (`makeCfVersusRemote`). The few RECORD reads and writes that live in
+ * Supabase (a Duos team's name, its ranked result, the leaderboard, a player's teams, the dev bot flag) go through
+ * `makeVersusRecords`, whichever room produced them.
  */
-export function makeVersusRemote(getClient: () => SupabaseClient | null) {
+export interface VersusRemote {
+  listRooms: () => Promise<VersusRoomSummary[]>;
+  /** How many rooms I could join right now (open, fresh, my version, not mine): two integers, no rows
+   *  (2026-10-17-versus-open-rooms.sql, R-VERSUS-OPEN-ROOMS-01). The menus' "2 open" indicator. */
+  openRooms: (contentRevision: string) => Promise<{
+      open: number;
+      seatOpen: number;
+      duosOpen?: number;
+  }>;
+  /** The host keeps the party to friends (or lists it). */
+  setFriendsOnly: (roomId: string, on: boolean) => Promise<VersusRoom>;
+  /** FRIEND INVITES (R-VERSUS-CF-INVITE-01): the room's signed check for an invite (`friends_invite` needs it). */
+  inviteProof: (roomId: string, to: string, kind: string) => Promise<string | null>;
+  /** Name my team with `partner` (blank = the default "Name1 & Name2"). */
+  setTeamName: (partner: string, name: string) => Promise<{
+      id: string;
+      name: string | null;
+  }>;
+  /** My team's result for one match (RLS: only the two teammates read it), as the rank screen reads a result. */
+  duosResult(matchId: string): Promise<RankResult | null>;
+  /** The pair's team row (name), or null before the pair has played or named itself. */
+  duosTeam(a: string, b: string): Promise<{
+      id: string;
+      name: string | null;
+  } | null>;
+  /** The Duos leaderboard: teams by division then points (this season). */
+  duosLeaderboard: (limit?: number, offset?: number) => Promise<DuosLeaderboardRow[]>;
+  /** A player's Duos teams (the Career). */
+  duosTeamsOf: (userId: string) => Promise<DuosTeamOfRow[]>;
+  createRoom: (name: string, me: VersusIdentity, options?: VersusRoomOptions | null) => Promise<VersusRoom>;
+  /** The host sets the room's options while it is Open (R-VERSUS-OPTIONS-01; 2026-10-24-versus-group.sql). */
+  setOptions: (roomId: string, options: VersusRoomOptions) => Promise<VersusRoom>;
+  joinRoom: (roomId: string, as: "player" | "spectator", me: VersusIdentity) => Promise<VersusRoom>;
+  takeSeat: (roomId: string, role: VersusRole) => Promise<VersusRoom>;
+  leaveRoom: (roomId: string) => Promise<{
+      left: boolean;
+  }>;
+  startGame: (roomId: string) => Promise<VersusRoom>;
+  pressGate: (roomId: string) => Promise<VersusRoom>;
+  reconcileRoom: (roomId: string) => Promise<VersusRoom>;
+  /** `seen` (2026-10-27-versus-egress.sql): the room members' last heartbeats, sent only while the match is paused. */
+  heartbeat: (roomId: string) => Promise<{
+      serverNow: string;
+      match?: VersusMatch;
+      groupMatch?: VersusGroupMatchRaw;
+      seen?: Record<string, string>;
+  }>;
+  room(roomId: string): Promise<VersusRoom | null>;
+  /** The room this account is a member of, if any (a returning player rejoins it). */
+  myRoomId(userId: string): Promise<string | null>;
+  match(matchId: string): Promise<VersusMatch | null>;
+  myPrivate(matchId: string): Promise<VersusPrivate | null>;
+  rounds(matchId: string, fromRound?: number): Promise<VersusRoundRow[]>;
+  /** My newest LOCKED submission with a checkpoint (the reconnect restore point). */
+  myLatestCheckpoint(matchId: string): Promise<VersusOwnSubmission | null>;
+  registerOffer: (matchId: string, offer: string[]) => Promise<VersusMatch>;
+  pickHero: (matchId: string, index: number) => Promise<VersusMatch>;
+  /** Spend my one hero re-roll on `slot`. The SERVER draws the replacement from `candidates` with the match seed. */
+  rerollHero: (matchId: string, slot: number, candidates: string[]) => Promise<VersusRerollResult>;
+  /** A candidate or the lock. `scout` is my public state for the opponent's scout card, recorded on the round once it
+   *  is fought (2026-10-14-versus-scout.sql). A server without that migration takes the submit without it. */
+  submit(matchId: string, round: number, seq: number, side: PreparedCombatSide, final: boolean, checkpoint: string | null, scout?: VersusSeatScout | null): Promise<VersusMatch>;
+  /** My game start (Hero Select ceremony + Good Luck) has played out; round 1's clock starts when both have. */
+  introDone: (matchId: string) => Promise<VersusMatch>;
+  combatReady: (matchId: string, round: number) => Promise<VersusMatch>;
+  forfeit: (matchId: string) => Promise<VersusMatch>;
+  unpause: (matchId: string) => Promise<VersusMatch>;
+  /** Back from a disconnect: start the 3-2-1 that resumes the match (`resume_at`). */
+  requestResume: (matchId: string) => Promise<VersusMatch>;
+  reconcile: (matchId: string) => Promise<VersusMatch>;
+  /** 1v1 (R-VERSUS-READY-01): take back my End Turn while the clock is above 0:00 (`versus_unready`). */
+  unready: (matchId: string, round: number, seq: number) => Promise<VersusMatch>;
+  publishFrame: (matchId: string, seq: number, round: number, frame: unknown) => Promise<void>;
+  latestFrames(matchId: string): Promise<{
+      seat: VersusSeat;
+      seq: number;
+      round: number;
+      frame: unknown;
+  }[]>;
+  groupMatch(matchId: string): Promise<VersusGroupMatchRaw | null>;
+  groupRounds(matchId: string, fromRound?: number): Promise<VersusGroupRoundRaw[]>;
+  groupMyPrivate(matchId: string): Promise<VersusPrivate | null>;
+  groupMyLatestCheckpoint(matchId: string): Promise<VersusOwnSubmission | null>;
+  groupRegisterOffer: (matchId: string, offer: string[]) => Promise<VersusGroupMatchRaw>;
+  groupPickHero: (matchId: string, index: number) => Promise<VersusGroupMatchRaw>;
+  groupRerollHero: (matchId: string, slot: number, candidates: string[]) => Promise<{
+      match: VersusGroupMatchRaw;
+      offer: string[];
+      reroll: HeroReroll;
+  }>;
+  groupSubmit: (matchId: string, round: number, seq: number, side: PreparedCombatSide, final: boolean, checkpoint: string | null, scout?: VersusSeatScout | null) => Promise<VersusGroupMatchRaw>;
+  groupIntroDone: (matchId: string) => Promise<VersusGroupMatchRaw>;
+  groupCombatReady: (matchId: string, round: number) => Promise<VersusGroupMatchRaw>;
+  groupForfeit: (matchId: string) => Promise<VersusGroupMatchRaw>;
+  groupUnpause: (matchId: string) => Promise<VersusGroupMatchRaw>;
+  groupRequestResume: (matchId: string) => Promise<VersusGroupMatchRaw>;
+  groupReconcile: (matchId: string) => Promise<VersusGroupMatchRaw>;
+  groupPublishFrame: (matchId: string, seq: number, round: number, frame: unknown) => Promise<void>;
+  groupLatestFrames(matchId: string): Promise<{
+      seat: VersusGroupSeat;
+      seq: number;
+      round: number;
+      frame: unknown;
+  }[]>;
+  /** VERSUS DUOS: ask the resolver to settle a Duos round (`finalize_duos`, idempotent server-side). */
+  finalizeDuos(matchId: string, round: number, contentRevision: string): Promise<void>;
+  /** RANKED DUOS: settle a round (`finalize_ranked_duos`: seats the table first if needed; idempotent server-side). */
+  finalizeRankedDuos(matchId: string, round: number, contentRevision: string): Promise<void>;
+  /** RANKED DUOS: seat the recorded teams once both heroes are locked (`seat_ranked_duos`, idempotent server-side). */
+  seatRankedDuos(matchId: string, contentRevision: string): Promise<void>;
+  /** RANKED DUOS: the recorded teams, their names and heroes and this round's boards (one small read per shop). */
+  rankedTable: (matchId: string) => Promise<RankedDuosTableRaw>;
+  /** RANKED DUOS: the four teams' rows (pools, placements). */
+  rankedTeams(matchId: string): Promise<RankedDuosTeamRead[]>;
+  /** RANKED DUOS: committed rounds from `fromRound`: every team's pool, every fight's result, and the live team's own fight
+   *  in full (owner Q11: the other pairing is a result only, so only one full fight per round is ever read). */
+  rankedRounds(matchId: string, fromRound?: number): Promise<RankedDuosRoundRow[]>;
+  /** VERSUS GROUP / DUOS / RANKED DUOS (R-VERSUS-READY-01): take back my End Turn while the clock is above 0:00
+   *  (`versus_group_unready`). `seq` fences out a re-lock still in flight from before the press. Answers the match row
+   *  (group json, Ranked Duos json for that mode). */
+  groupUnready: (matchId: string, round: number, seq: number) => Promise<VersusGroupMatchRaw>;
+  /** VERSUS DUOS: record a pass to my teammate (exactly once per seq; the run already paid the Gold). */
+  duosPass: (matchId: string, round: number, seq: number, card: unknown) => Promise<VersusDuosPassRow>;
+  /** VERSUS DUOS: my free hand slots (the server refuses a pass to a full hand: "Pass is refused if hand is full"). */
+  duosHandRoom: (matchId: string, room: number) => Promise<void>;
+  /** VERSUS DUOS: my run's answer to a teammate's pass: it landed, or my full hand refused it. */
+  duosAnswerPass: (matchId: string, fromSeat: VersusGroupSeat, seq: number, landed: boolean) => Promise<VersusDuosPassRow>;
+  /** VERSUS DUOS: my team's passes from `fromRound` on (RLS: only the two teammates read them). */
+  duosPasses(matchId: string, fromRound: number): Promise<VersusDuosPassRow[]>;
+  /** The calling (anonymous) bot account names the host whose browser drives it. */
+  testBotRegister: (host: string, slot: number) => Promise<unknown>;
+  /** DEV: set a living seat's Health and Armor (Duos: its team's pool). Host only, every other seat one of the host's bots. */
+  devSetVitals: (matchId: string, seat: VersusGroupSeat, health: number, armor: number) => Promise<VersusGroupMatchRaw>;
+  /** DEV: the shop clock jumps to 5 seconds. */
+  devSkipShop: (matchId: string) => Promise<VersusGroupMatchRaw>;
+  /** Settle a group round. The Worker resolves every round itself the moment it closes, so this is a no-op kept for the
+   *  store's one code path. */
+  finalizeGroup(matchId: string, round: number, contentRevision: string): Promise<void>;
+  /** Settle a `resolving` round (a no-op on the Worker, which resolves the round itself). */
+  finalize(matchId: string, round: number, contentRevision: string): Promise<void>;
+  /** The room's wake-ups: "something changed, read it again" (the room's socket pushes the new rows with it), plus the
+   *  match's BROADCAST events (spectator deltas, emotes). Answers a sender on the room and its close. */
+  subscribeRoom(roomId: string, matchId: string | null, onChange: (what: "room" | "members" | "match" | "rounds" | "passes", row?: Record<string, unknown>) => void, onBroadcast?: (event: string, payload: unknown) => void): {
+      send: (event: string, payload: unknown) => void;
+      close: () => Promise<unknown>;
+  };
+}
+
+/** The Supabase-held RECORDS the Versus screens read and write (the rest of `VersusRemote` is the Worker's). */
+export type VersusRecords = Pick<VersusRemote, 'setTeamName' | 'duosResult' | 'duosTeam' | 'duosLeaderboard' | 'duosTeamsOf' | 'testBotRegister'>;
+
+/** The records over ONE Supabase client (the game's own, or a dev bot's). */
+export function makeVersusRecords(getClient: () => SupabaseClient | null): VersusRecords {
   const db = (): SupabaseClient => {
     const c = getClient();
     if (!c) throw new VersusError('no_backend');
     return c;
   };
   async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
-    // NO CALL HANGS FOREVER (R-VERSUS-RELIABLE-05): supabase-js has no fetch timeout of its own, and the ready calls go out
-    // one at a time (`inOrder`), so one hung request used to block every later End Turn. Aborted at
-    // `VERSUS_RPC_TIMEOUT_MS`, it fails as an ordinary `network` error (the server orders submissions by seq anyway).
+    // NO CALL HANGS FOREVER (R-VERSUS-RELIABLE-05): supabase-js has no fetch timeout of its own.
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), VERSUS_RPC_TIMEOUT_MS);
     try {
-      // rows: every Versus RPC returns ONE jsonb value (a row object or a room list capped by the room count), never a table (R-NET-01).
+      // rows: every records RPC returns ONE jsonb value or a list capped by its own limit, never a table (R-NET-01).
       const { data, error } = await db().rpc(fn, args).abortSignal(abort.signal);
       if (error) fail(abort.signal.aborted ? { message: 'network' } : error);
       return data as T;
@@ -436,409 +583,36 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
       clearTimeout(timer);
     }
   }
-  /** Channels this client is still leaving, by topic: a re-open of the same topic waits for the leave (R-VERSUS-RELIABLE-01). */
-  const leaving = new Map<string, Promise<unknown>>();
   return {
-
-  listRooms: () => rpc<VersusRoomSummary[]>('versus_list_rooms'),
-  /** How many rooms I could join right now (open, fresh, my version, not mine): two integers, no rows
-   *  (2026-10-17-versus-open-rooms.sql, R-VERSUS-OPEN-ROOMS-01). The menus' "2 open" indicator. */
-  openRooms: (contentRevision: string) =>
-    rpc<{ open: number; seatOpen: number; duosOpen?: number }>('versus_open_rooms', { p_protocol: VERSUS_PROTOCOL, p_content: contentRevision }),
-  // ── RANKED DUOS (phase 3) ──────────────────────────────────────────────────────────────────────────────────────
-  /** The host keeps the party to friends (or lists it). */
-  setFriendsOnly: (roomId: string, on: boolean) => rpc<VersusRoom>('versus_set_friends_only', { p_room: roomId, p_on: on }),
-  /** FRIEND INVITES (R-VERSUS-CF-INVITE-01): a Supabase room needs no proof (`friends_invite` checks the room in SQL). */
-  inviteProof: async (_roomId: string, _to: string, _kind: string): Promise<string | null> => null,
-  /** Name my team with `partner` (blank = the default "Name1 & Name2"). */
-  setTeamName: (partner: string, name: string) => rpc<{ id: string; name: string | null }>('duos_team_set_name', { p_partner: partner, p_name: name }),
-  /** My team's result for one match (RLS: only the two teammates read it), as the rank screen reads a result. */
-  async duosResult(matchId: string): Promise<RankResult | null> {
-    // rows: at most one row per team per match (primary key team_id + match_id) (R-NET-01).
-    const { data, error } = await db().from('duos_rank_results').select('*').eq('match_id', matchId).limit(1);
-    if (error) fail(error);
-    const r = (data as Record<string, unknown>[] | null)?.[0];
-    return r ? duosRankResultOfRow(r) : null;
-  },
-  /** The pair's team row (name), or null before the pair has played or named itself. */
-  async duosTeam(a: string, b: string): Promise<{ id: string; name: string | null } | null> {
-    const [lo, hi] = a < b ? [a, b] : [b, a];
-    // rows: at most one (unique user_lo + user_hi) (R-NET-01).
-    const { data, error } = await db().from('duos_teams').select('id, name').eq('user_lo', lo).eq('user_hi', hi).limit(1);
-    if (error) fail(error);
-    return ((data as { id: string; name: string | null }[] | null) ?? [])[0] ?? null;
-  },
-  /** The Duos leaderboard: teams by division then points (this season). */
-  duosLeaderboard: (limit = 50, offset = 0) => rpc<DuosLeaderboardRow[]>('duos_leaderboard', { p_limit: limit, p_offset: offset }),
-  /** A player's Duos teams (the Career). */
-  duosTeamsOf: (userId: string) => rpc<DuosTeamOfRow[]>('duos_teams_of', { p_user: userId }),
-  createRoom: (name: string, me: VersusIdentity, options?: VersusRoomOptions | null) =>
-    rpc<VersusRoom>('versus_create_room', {
-      p_name: name, p_display: me.displayName, p_profile: me.profile, p_set_id: me.setId, p_content: me.contentRevision, p_protocol: VERSUS_PROTOCOL,
-      ...(options ? { p_options: options } : {}),
-    }),
-  /** The host sets the room's options while it is Open (R-VERSUS-OPTIONS-01; 2026-10-24-versus-group.sql). */
-  setOptions: (roomId: string, options: VersusRoomOptions) => rpc<VersusRoom>('versus_set_options', { p_room: roomId, p_options: options }),
-  joinRoom: (roomId: string, as: 'player' | 'spectator', me: VersusIdentity) =>
-    rpc<VersusRoom>('versus_join_room', { p_room: roomId, p_as: as, p_display: me.displayName, p_profile: me.profile, p_content: me.contentRevision, p_protocol: VERSUS_PROTOCOL }),
-  takeSeat: (roomId: string, role: VersusRole) => rpc<VersusRoom>('versus_take_seat', { p_room: roomId, p_role: role }),
-  leaveRoom: (roomId: string) => rpc<{ left: boolean }>('versus_leave_room', { p_room: roomId }),
-  startGame: (roomId: string) => rpc<VersusRoom>('versus_start_game', { p_room: roomId }),
-  pressGate: (roomId: string) => rpc<VersusRoom>('versus_press_gate', { p_room: roomId }),
-  reconcileRoom: (roomId: string) => rpc<VersusRoom>('versus_reconcile_room', { p_room: roomId }),
-  /** `seen` (2026-10-27-versus-egress.sql): the room members' last heartbeats, sent only while the match is paused. */
-  heartbeat: (roomId: string) => rpc<{ serverNow: string; match?: VersusMatch; groupMatch?: VersusGroupMatchRaw; seen?: Record<string, string> }>('versus_heartbeat', { p_room: roomId }),
-
-  async room(roomId: string): Promise<VersusRoom | null> {
-    const { data, error } = await db().from('versus_rooms').select('*').eq('id', roomId).maybeSingle();
-    if (error) fail(error);
-    if (!data) return null;
-    // rows: a room holds at most 22 members (2 seats + 20 spectators, enforced in SQL) (R-NET-01).
-    const { data: members, error: e2 } = await db().from('versus_members').select('user_id, role, display_name, profile, last_seen_at, joined_at').eq('room_id', roomId).order('joined_at');
-    if (e2) fail(e2);
-    return {
-      ...(data as Omit<VersusRoom, 'members' | 'serverNow'>),
-      members: (members ?? []).map((m) => ({ userId: m.user_id, role: m.role, displayName: m.display_name, profile: m.profile ?? {}, lastSeenAt: m.last_seen_at })),
-      serverNow: new Date().toISOString(),
-    } as VersusRoom;
-  },
-  /** The room this account is a member of, if any (a returning player rejoins it). */
-  async myRoomId(userId: string): Promise<string | null> {
-    // rows: one row at most (unique index on user_id) (R-NET-01).
-    const { data, error } = await db().from('versus_members').select('room_id').eq('user_id', userId).maybeSingle();
-    if (error) fail(error);
-    return (data as { room_id: string } | null)?.room_id ?? null;
-  },
-  async match(matchId: string): Promise<VersusMatch | null> {
-    const { data, error } = await db().from('versus_matches').select('*').eq('id', matchId).maybeSingle();
-    if (error) fail(error);
-    return (data as VersusMatch | null) ?? null;
-  },
-  async myPrivate(matchId: string): Promise<VersusPrivate | null> {
-    const { data, error } = await db().from('versus_seat_private').select('*').eq('match_id', matchId).maybeSingle();
-    if (error) fail(error);
-    return (data as VersusPrivate | null) ?? null;
-  },
-  async rounds(matchId: string, fromRound = 1): Promise<VersusRoundRow[]> {
-    // rows: a match has one row per round and ends long before 1,000 rounds (the lobby cap is off from round 15; the slowest is a draw run) (R-NET-01).
-    const { data, error } = await db().from('versus_rounds').select('*').eq('match_id', matchId).gte('round', fromRound).order('round');
-    if (error) fail(error);
-    // THE ONE READ of stored rounds: p2's result in p2's own perspective, whichever resolver stored it (a round stored
-    // by the old mirror has its event sides unflipped: summons on the wrong row, live bug 2026-10-14).
-    return ((data as VersusRoundRow[]) ?? []).map((r) => (r.p2_result ? { ...r, p2_result: ownSeatPerspective(r.p2_result as CombatResult) } : r));
-  },
-  /** My newest LOCKED submission with a checkpoint (the reconnect restore point). */
-  async myLatestCheckpoint(matchId: string): Promise<VersusOwnSubmission | null> {
-    const { data, error } = await db().from('versus_submissions').select('round, final, candidate_seq, checkpoint')
-      .eq('match_id', matchId).eq('final', true).not('checkpoint', 'is', null).order('round', { ascending: false }).limit(1).maybeSingle();
-    if (error) fail(error);
-    return (data as VersusOwnSubmission | null) ?? null;
-  },
-
-  registerOffer: (matchId: string, offer: string[]) => rpc<VersusMatch>('versus_register_offer', { p_match: matchId, p_offer: offer }),
-  pickHero: (matchId: string, index: number) => rpc<VersusMatch>('versus_pick_hero', { p_match: matchId, p_index: index }),
-  /** Spend my one hero re-roll on `slot`. The SERVER draws the replacement from `candidates` with the match seed. */
-  rerollHero: (matchId: string, slot: number, candidates: string[]) =>
-    rpc<VersusRerollResult>('versus_reroll_hero', { p_match: matchId, p_slot: slot, p_candidates: candidates }),
-  /** A candidate or the lock. `scout` is my public state for the opponent's scout card, recorded on the round once it
-   *  is fought (2026-10-14-versus-scout.sql). A server without that migration takes the submit without it. */
-  async submit(matchId: string, round: number, seq: number, side: PreparedCombatSide, final: boolean, checkpoint: string | null, scout?: VersusSeatScout | null): Promise<VersusMatch> {
-    const base = { p_match: matchId, p_round: round, p_seq: seq, p_side: side, p_final: final, p_checkpoint: checkpoint };
-    if (!scout) return rpc<VersusMatch>('versus_submit', base);
-    try {
-      return await rpc<VersusMatch>('versus_submit', { ...base, p_scout: scout });
-    } catch (e) {
-      if ((e as VersusError).code !== 'not_deployed') throw e;
-      return rpc<VersusMatch>('versus_submit', base);
-    }
-  },
-  /** My game start (Hero Select ceremony + Good Luck) has played out; round 1's clock starts when both have. */
-  introDone: (matchId: string) => rpc<VersusMatch>('versus_intro_done', { p_match: matchId }),
-  combatReady: (matchId: string, round: number) => rpc<VersusMatch>('versus_combat_ready', { p_match: matchId, p_round: round }),
-  forfeit: (matchId: string) => rpc<VersusMatch>('versus_forfeit', { p_match: matchId }),
-  unpause: (matchId: string) => rpc<VersusMatch>('versus_unpause', { p_match: matchId }),
-  /** Back from a disconnect: start the 3-2-1 that resumes the match (`resume_at`). */
-  requestResume: (matchId: string) => rpc<VersusMatch>('versus_request_resume', { p_match: matchId }),
-  reconcile: (matchId: string) => rpc<VersusMatch>('versus_reconcile', { p_match: matchId }),
-  /** 1v1 (R-VERSUS-READY-01): take back my End Turn while the clock is above 0:00 (`versus_unready`). */
-  unready: (matchId: string, round: number, seq: number) => rpc<VersusMatch>('versus_unready', { p_match: matchId, p_round: round, p_seq: seq }),
-  publishFrame: (matchId: string, seq: number, round: number, frame: unknown) =>
-    rpc<void>('versus_publish_frame', { p_match: matchId, p_seq: seq, p_round: round, p_frame: frame }),
-  async latestFrames(matchId: string): Promise<{ seat: VersusSeat; seq: number; round: number; frame: unknown }[]> {
-    // rows: at most two rows per match, one per seat (primary key match_id + seat) (R-NET-01).
-    const { data, error } = await db().from('versus_spectator_frames').select('seat, seq, round, frame').eq('match_id', matchId);
-    if (error) fail(error);
-    return (data as { seat: VersusSeat; seq: number; round: number; frame: unknown }[]) ?? [];
-  },
-
-  // ── VERSUS GROUP (R-VERSUS-GROUP-01, 2026-10-24-versus-group.sql): the 3-4 player match's tables and RPCs. ──────
-  async groupMatch(matchId: string): Promise<VersusGroupMatchRaw | null> {
-    // The match row and its seats are read TOGETHER (DUOS FLOW 2026-10-26: one round trip, not two, between a commit and
-    // the fight on screen).
-    const [{ data, error }, { data: seats, error: e2 }] = await Promise.all([
-      db().from('versus_group_matches').select('*').eq('id', matchId).maybeSingle(),
-      // rows: at most four rows, one per seat (primary key match_id + seat) (R-NET-01).
-      db().from('versus_group_seats').select('*').eq('match_id', matchId).order('seat'),
-    ]);
-    if (error) fail(error);
-    if (!data) return null;
-    if (e2) fail(e2);
-    return { ...(data as Omit<VersusGroupMatchRaw, 'seats'>), seats: ((seats ?? []) as Record<string, unknown>[]).map(groupSeatOfRow) };
-  },
-  async groupRounds(matchId: string, fromRound = 1): Promise<VersusGroupRoundRaw[]> {
-    // Rounds and their fights in ONE round trip (DUOS FLOW 2026-10-26).
-    const [{ data, error }, { data: fights, error: e2 }] = await Promise.all([
-      // rows: one row per round; a group match ends long before 1,000 rounds (uncapped damage from round 15) (R-NET-01).
-      db().from('versus_group_rounds').select('round, vitals, eliminated').eq('match_id', matchId).gte('round', fromRound).order('round'),
-      // rows: at most two fights per round (R-NET-01).
-      db().from('versus_group_fights').select('*').eq('match_id', matchId).gte('round', fromRound).order('round').order('fight'),
-    ]);
-    if (error) fail(error);
-    if (!data?.length) return [];
-    if (e2) fail(e2);
-    const byRound = new Map<number, VersusGroupFightRow[]>();
-    for (const f of (fights ?? []) as VersusGroupFightRow[]) byRound.set(f.round, [...(byRound.get(f.round) ?? []), f]);
-    return (data as { round: number; vitals: VersusGroupRoundRaw['vitals'] | null; eliminated: VersusGroupSeat[] }[])
-      .map((r) => ({ round: r.round, vitals: r.vitals ?? {}, eliminated: r.eliminated ?? [], fights: byRound.get(r.round) ?? [] }))
-      .filter((r) => r.fights.length > 0);
-  },
-  async groupMyPrivate(matchId: string): Promise<VersusPrivate | null> {
-    const { data, error } = await db().from('versus_group_seat_private').select('*').eq('match_id', matchId).maybeSingle();
-    if (error) fail(error);
-    return (data as VersusPrivate | null) ?? null;
-  },
-  async groupMyLatestCheckpoint(matchId: string): Promise<VersusOwnSubmission | null> {
-    const { data, error } = await db().from('versus_group_submissions').select('round, final, candidate_seq, checkpoint')
-      .eq('match_id', matchId).eq('final', true).not('checkpoint', 'is', null).order('round', { ascending: false }).limit(1).maybeSingle();
-    if (error) fail(error);
-    return (data as VersusOwnSubmission | null) ?? null;
-  },
-  groupRegisterOffer: (matchId: string, offer: string[]) => rpc<VersusGroupMatchRaw>('versus_group_register_offer', { p_match: matchId, p_offer: offer }),
-  groupPickHero: (matchId: string, index: number) => rpc<VersusGroupMatchRaw>('versus_group_pick_hero', { p_match: matchId, p_index: index }),
-  groupRerollHero: (matchId: string, slot: number, candidates: string[]) =>
-    rpc<{ match: VersusGroupMatchRaw; offer: string[]; reroll: HeroReroll }>('versus_group_reroll_hero', { p_match: matchId, p_slot: slot, p_candidates: candidates }),
-  groupSubmit: (matchId: string, round: number, seq: number, side: PreparedCombatSide, final: boolean, checkpoint: string | null, scout?: VersusSeatScout | null) =>
-    rpc<VersusGroupMatchRaw>('versus_group_submit', { p_match: matchId, p_round: round, p_seq: seq, p_side: side, p_final: final, p_checkpoint: checkpoint, p_scout: scout ?? null }),
-  groupIntroDone: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_group_intro_done', { p_match: matchId }),
-  groupCombatReady: (matchId: string, round: number) => rpc<VersusGroupMatchRaw>('versus_group_combat_ready', { p_match: matchId, p_round: round }),
-  groupForfeit: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_group_forfeit', { p_match: matchId }),
-  groupUnpause: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_group_unpause', { p_match: matchId }),
-  groupRequestResume: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_group_request_resume', { p_match: matchId }),
-  groupReconcile: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_group_reconcile', { p_match: matchId }),
-  groupPublishFrame: (matchId: string, seq: number, round: number, frame: unknown) =>
-    rpc<void>('versus_group_publish_frame', { p_match: matchId, p_seq: seq, p_round: round, p_frame: frame }),
-  async groupLatestFrames(matchId: string): Promise<{ seat: VersusGroupSeat; seq: number; round: number; frame: unknown }[]> {
-    // rows: at most four rows per match, one per seat (primary key match_id + seat) (R-NET-01).
-    const { data, error } = await db().from('versus_group_spectator_frames').select('seat, seq, round, frame').eq('match_id', matchId);
-    if (error) fail(error);
-    return (data as { seat: VersusGroupSeat; seq: number; round: number; frame: unknown }[]) ?? [];
-  },
-  /** VERSUS DUOS: ask the resolver to settle a Duos round (`finalize_duos`, idempotent server-side). */
-  async finalizeDuos(matchId: string, round: number, contentRevision: string): Promise<void> {
-    const { error } = await db().functions.invoke('versus-resolve', {
-      body: { action: 'finalize_duos', protocol: VERSUS_PROTOCOL, contentRevision, matchId, round },
-    });
-    if (error) throw new VersusError('finalize_failed', (error as Error).message);
-  },
-  /** RANKED DUOS: settle a round (`finalize_ranked_duos`: seats the table first if needed; idempotent server-side). */
-  async finalizeRankedDuos(matchId: string, round: number, contentRevision: string): Promise<void> {
-    const { error } = await db().functions.invoke('versus-resolve', {
-      body: { action: 'finalize_ranked_duos', protocol: VERSUS_PROTOCOL, contentRevision, matchId, round },
-    });
-    if (error) throw new VersusError('finalize_failed', (error as Error).message);
-  },
-  /** RANKED DUOS: seat the recorded teams once both heroes are locked (`seat_ranked_duos`, idempotent server-side). */
-  async seatRankedDuos(matchId: string, contentRevision: string): Promise<void> {
-    const { error } = await db().functions.invoke('versus-resolve', {
-      body: { action: 'seat_ranked_duos', protocol: VERSUS_PROTOCOL, contentRevision, matchId },
-    });
-    if (error) throw new VersusError('seat_failed', (error as Error).message);
-  },
-  /** RANKED DUOS: the recorded teams, their names and heroes and this round's boards (one small read per shop). */
-  rankedTable: (matchId: string) => rpc<RankedDuosTableRaw>('versus_ranked_duos_table', { p_match: matchId }),
-  /** RANKED DUOS: the four teams' rows (pools, placements). */
-  async rankedTeams(matchId: string): Promise<RankedDuosTeamRead[]> {
-    // rows: four rows, one per team (primary key match_id + team) (R-NET-01).
-    const { data, error } = await db().from('versus_group_teams').select('team, health, armor, eliminated_round, placement, served_kind').eq('match_id', matchId).order('team');
-    if (error) fail(error);
-    return (data as RankedDuosTeamRead[]) ?? [];
-  },
-  /** RANKED DUOS: committed rounds from `fromRound`: every team's pool, every fight's result, and the live team's own fight
-   *  in full (owner Q11: the other pairing is a result only, so only one full fight per round is ever read). */
-  async rankedRounds(matchId: string, fromRound = 1): Promise<RankedDuosRoundRow[]> {
-    // Rounds and their fights in ONE round trip (DUOS FLOW 2026-10-26).
-    const [{ data, error }, { data: fights, error: e2 }] = await Promise.all([
-      // rows: one row per round, a match ends by round 60 at the latest (R-NET-01).
-      db().from('versus_group_rounds').select('round, vitals').eq('match_id', matchId).gte('round', fromRound).order('round'),
-      // rows: at most two fights per round (R-NET-01); only the live team's carries `live_result`.
-      db().from('versus_ranked_duos_fights')
-        .select('round, fight, a_team, b_team, ghost, chair, outcome, loser, damage, first, live_result')
-        .eq('match_id', matchId).gte('round', fromRound).order('round').order('fight'),
-    ]);
-    if (error) fail(error);
-    if (!data?.length) return [];
-    if (e2) fail(e2);
-    const byRound = new Map<number, RankedDuosFightRow[]>();
-    for (const f of (fights ?? []) as RankedDuosFightRow[]) byRound.set(f.round, [...(byRound.get(f.round) ?? []), f]);
-    return (data as { round: number; vitals: Record<string, { health: number; armor: number }> | null }[])
-      .map((r) => ({ round: r.round, vitals: r.vitals ?? {}, fights: byRound.get(r.round) ?? [] }))
-      .filter((r) => r.fights.length > 0);
-  },
-  /** VERSUS GROUP / DUOS / RANKED DUOS (R-VERSUS-READY-01): take back my End Turn while the clock is above 0:00
-   *  (`versus_group_unready`). `seq` fences out a re-lock still in flight from before the press. Answers the match row
-   *  (group json, Ranked Duos json for that mode). */
-  groupUnready: (matchId: string, round: number, seq: number) =>
-    rpc<VersusGroupMatchRaw>('versus_group_unready', { p_match: matchId, p_round: round, p_seq: seq }),
-  /** VERSUS DUOS: record a pass to my teammate (exactly once per seq; the run already paid the Gold). */
-  duosPass: (matchId: string, round: number, seq: number, card: unknown) =>
-    rpc<VersusDuosPassRow>('versus_duos_pass', { p_match: matchId, p_round: round, p_seq: seq, p_card: card }),
-  /** VERSUS DUOS: my free hand slots (the server refuses a pass to a full hand: "Pass is refused if hand is full"). */
-  duosHandRoom: (matchId: string, room: number) => rpc<void>('versus_duos_hand_room', { p_match: matchId, p_room: room }),
-  /** VERSUS DUOS: my run's answer to a teammate's pass: it landed, or my full hand refused it. */
-  duosAnswerPass: (matchId: string, fromSeat: VersusGroupSeat, seq: number, landed: boolean) =>
-    rpc<VersusDuosPassRow>('versus_duos_answer_pass', { p_match: matchId, p_from_seat: fromSeat, p_seq: seq, p_landed: landed }),
-  /** VERSUS DUOS: my team's passes from `fromRound` on (RLS: only the two teammates read them). */
-  async duosPasses(matchId: string, fromRound: number): Promise<VersusDuosPassRow[]> {
-    // rows: at most 10 passes per seat per round (VERSUS_DUOS_PASS_CAP), two seats, read from `fromRound` (R-NET-01);
-    // a reload reads from round 1, so the cap leaves room for a long match.
-    const { data, error } = await db().from('versus_duos_passes').select('match_id, round, from_seat, to_seat, seq, card, status, created_at')
-      .eq('match_id', matchId).gte('round', fromRound).order('seq').limit(600);
-    if (error) fail(error);
-    return (data as VersusDuosPassRow[]) ?? [];
-  },
-  // ── DEV / TEST TOOLS (2026-10-25-versus-test-bots.sql): the host's test bots and the Duos dev tuner. ────────────
-  /** The calling (anonymous) bot account names the host whose browser drives it. */
-  testBotRegister: (host: string, slot: number) => rpc<unknown>('versus_test_bot_register', { p_host: host, p_slot: slot }),
-  /** DEV: set a living seat's Health and Armor (Duos: its team's pool). Host only, every other seat one of the host's bots. */
-  devSetVitals: (matchId: string, seat: VersusGroupSeat, health: number, armor: number) =>
-    rpc<VersusGroupMatchRaw>('versus_dev_set_vitals', { p_match: matchId, p_seat: seat, p_health: health, p_armor: armor }),
-  /** DEV: the shop clock jumps to 5 seconds. */
-  devSkipShop: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_dev_skip_shop', { p_match: matchId }),
-
-  /** Ask the resolver to settle a group round (`finalize_group`, idempotent server-side). */
-  async finalizeGroup(matchId: string, round: number, contentRevision: string): Promise<void> {
-    const { error } = await db().functions.invoke('versus-resolve', {
-      body: { action: 'finalize_group', protocol: VERSUS_PROTOCOL, contentRevision, matchId, round },
-    });
-    if (error) throw new VersusError('finalize_failed', (error as Error).message);
-  },
-
-  /** Ask the resolver to settle a `resolving` round (idempotent server-side; any member may ask). */
-  async finalize(matchId: string, round: number, contentRevision: string): Promise<void> {
-    const { error } = await db().functions.invoke('versus-resolve', {
-      body: { action: 'finalize', protocol: VERSUS_PROTOCOL, contentRevision, matchId, round },
-      timeout: VERSUS_RESOLVE_TIMEOUT_MS, // a cold resolver answers in ~11 s; past this the call is dead (R-VERSUS-RELIABLE-05)
-    });
-    if (error) throw new VersusError('finalize_failed', (error as Error).message);
-  },
-
-  /**
-   * One Realtime channel per room: row changes on the room, its current match and that match's rounds (each just a
-   * wake-up), plus the match's BROADCAST events (spectator deltas, emotes). `onBroadcast` receives `{ event, payload }`.
-   * NOT the room's members (R-NET-REALTIME-01, perf 2026-10-26): every member's 4-second heartbeat rewrote its row, and
-   * each rewrite went to every subscriber (~0.9 KB x members x subscribers per beat, the biggest Versus egress line).
-   * Every membership change that matters (join, leave, seat move, knockout, prune) bumps the ROOM's revision, which is
-   * the wake-up; presence while a match is paused comes back on the heartbeat.
-   *
-   * ONE TOPIC PER MATCH, AND IT HEALS ITSELF (R-VERSUS-RELIABLE-01; audit 2026-10-27). The topic names the match
-   * (`versusTopic`), so a match's channel never shares a topic with the room's or the previous match's, and a late leave
-   * answer or close for an old join can never land on it; a re-open of the same topic waits for any channel still on it
-   * (`RealtimeClient.channel()` hands back an existing channel of the same topic). The join's status is watched: an
-   * error, a timeout or a close we did not ask for re-opens the channel with a backoff (1 s, doubling to 30 s). Before,
-   * nothing watched it, so a channel the server closed stayed dead and the client ran on the 4 s heartbeat and the 12 s
-   * polls alone. A re-join reports the rows as changed, since anything that happened while it was down never arrived.
-   */
-  subscribeRoom(roomId: string, matchId: string | null, onChange: (what: 'room' | 'members' | 'match' | 'rounds' | 'passes', row?: Record<string, unknown>) => void,
-    onBroadcast?: (event: string, payload: unknown) => void): { send: (event: string, payload: unknown) => void; close: () => Promise<unknown> } {
-    const c = db();
-    const topic = versusTopic(roomId, matchId);
-    let ch: RealtimeChannel | null = null;
-    let closed = false;
-    let tries = 0;
-    let joinedOnce = false;
-    let retry: ReturnType<typeof setTimeout> | null = null;
-    /** Drop a channel (ours, or a stale one left on this topic) and wait for its leave. */
-    const drop = (x: RealtimeChannel): Promise<unknown> => {
-      const p: Promise<unknown> = Promise.resolve().then(() => c.removeChannel(x)).catch(() => undefined).finally(() => { if (leaving.get(topic) === p) leaving.delete(topic); });
-      leaving.set(topic, p);
-      return p;
-    };
-    const build = (): void => {
-      if (closed) return;
-      let next = c.channel(topic, { config: { broadcast: { self: false } } })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_rooms', filter: `id=eq.${roomId}` }, () => onChange('room'));
-      if (matchId) {
-        // A match id lives in exactly one of the two match tables (1v1 or group): listening on both costs nothing.
-        next = next
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_matches', filter: `id=eq.${matchId}` }, () => onChange('match'))
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'))
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_group_matches', filter: `id=eq.${matchId}` }, () => onChange('match'))
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_group_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'))
-          // VERSUS DUOS: a teammate's pass (RLS lets only the team see the row, so only the teammates wake).
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_duos_passes', filter: `match_id=eq.${matchId}` }, (p: { new?: Record<string, unknown> }) => onChange('passes', p.new));
-      }
-      if (onBroadcast) next = next.on('broadcast', { event: '*' }, (msg: { event: string; payload: unknown }) => onBroadcast(msg.event, msg.payload));
-      const mine = next;
-      ch = mine;
-      mine.subscribe((status) => {
-        if (closed || ch !== mine) return;
-        if (status === 'SUBSCRIBED') {
-          tries = 0;
-          // Back after a drop: whatever changed meanwhile never arrived, so read the rows again.
-          if (joinedOnce) { onChange('room'); if (matchId) { onChange('match'); onChange('rounds'); } }
-          joinedOnce = true;
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          heal();
-        }
-      });
-    };
-    const heal = (): void => {
-      if (closed || retry) return;
-      const wait = Math.min(SUB_RETRY_MAX_MS, SUB_RETRY_BASE_MS * 2 ** Math.min(tries, 8));
-      tries += 1;
-      retry = setTimeout(() => {
-        retry = null;
-        const old = ch;
-        if (closed) return;
-        // realtime-js re-joins an errored channel by itself when the socket comes back: a joined one is left alone.
-        if (old && old.state === 'joined') { tries = 0; return; }
-        ch = null;
-        void (old ? drop(old) : Promise.resolve()).then(build);
-      }, wait);
-    };
-    // Open once nothing of this topic is left on the client: a leave in flight (ours), or any other stale channel.
-    const ready = (async () => {
-      await leaving.get(topic);
-      // (A test double of the client may not implement the channel list; then there is nothing stale to wait on.)
-      for (const stale of (typeof c.getChannels === 'function' ? c.getChannels() : []).filter((x) => x.topic === `realtime:${topic}`)) await drop(stale);
-    })();
-    void ready.then(build).catch(() => undefined);
-    return {
-      send: (event, payload) => { if (ch) void ch.send({ type: 'broadcast', event, payload }); },
-      close: () => {
-        closed = true;
-        if (retry) { clearTimeout(retry); retry = null; }
-        const x = ch;
-        ch = null;
-        // Not built yet (still waiting on a stale leave): nothing of ours to leave.
-        return x ? drop(x) : ready;
-      },
-    };
-  },
+    /** Name my team with `partner` (blank = the default "Name1 & Name2"). */
+    setTeamName: (partner: string, name: string) => rpc<{ id: string; name: string | null }>('duos_team_set_name', { p_partner: partner, p_name: name }),
+    /** My team's result for one match (RLS: only the two teammates read it), as the rank screen reads a result. */
+    async duosResult(matchId: string): Promise<RankResult | null> {
+      // rows: at most one row per team per match (primary key team_id + match_id) (R-NET-01).
+      const { data, error } = await db().from('duos_rank_results').select('*').eq('match_id', matchId).limit(1);
+      if (error) fail(error);
+      const r = (data as Record<string, unknown>[] | null)?.[0];
+      return r ? duosRankResultOfRow(r) : null;
+    },
+    /** The pair's team row (name), or null before the pair has played or named itself. */
+    async duosTeam(a: string, b: string): Promise<{ id: string; name: string | null } | null> {
+      const [lo, hi] = a < b ? [a, b] : [b, a];
+      // rows: at most one (unique user_lo + user_hi) (R-NET-01).
+      const { data, error } = await db().from('duos_teams').select('id, name').eq('user_lo', lo).eq('user_hi', hi).limit(1);
+      if (error) fail(error);
+      return ((data as { id: string; name: string | null }[] | null) ?? [])[0] ?? null;
+    },
+    /** The Duos leaderboard: teams by division then points (this season). */
+    duosLeaderboard: (limit = 50, offset = 0) => rpc<DuosLeaderboardRow[]>('duos_leaderboard', { p_limit: limit, p_offset: offset }),
+    /** A player's Duos teams (the Career). */
+    duosTeamsOf: (userId: string) => rpc<DuosTeamOfRow[]>('duos_teams_of', { p_user: userId }),
+    /** DEV: the calling (anonymous) bot account names the host whose browser drives it (2026-10-25-versus-test-bots.sql). */
+    testBotRegister: (host: string, slot: number) => rpc<unknown>('versus_test_bot_register', { p_host: host, p_slot: slot }),
   };
 }
 
-export type VersusRemote = ReturnType<typeof makeVersusRemote>;
-
-/** The room's Realtime topic for one match (or the room before its first match): see `subscribeRoom`. */
-export const versusTopic = (roomId: string, matchId: string | null): string => `versus:${roomId}:${matchId ?? 'room'}`;
-/** Every Versus RPC is aborted after this long (R-VERSUS-RELIABLE-05). */
+/** Every Versus records RPC is aborted after this long (R-VERSUS-RELIABLE-05). */
 export const VERSUS_RPC_TIMEOUT_MS = 8000;
-/** The resolver call's own limit: a cold start answers in ~11 s (measured 2026-10-26). */
-export const VERSUS_RESOLVE_TIMEOUT_MS = 20_000;
-/** The Realtime re-open backoff (R-VERSUS-RELIABLE-01). */
-const SUB_RETRY_BASE_MS = 1000;
-const SUB_RETRY_MAX_MS = 30_000;
 
 /** A `versus_group_seats` table row in the RPC json's camelCase shape. */
 export function groupSeatOfRow(r: Record<string, unknown>): VersusGroupSeatRow {
@@ -879,66 +653,39 @@ export interface DuosLeaderboardRow { teamId: string; name: string | null; divis
 export interface DuosTeamOfRow { teamId: string; name: string | null; partner: DuosPlayerCard | null; division: number; points: number; games: number }
 
 /**
- * The game's adapter: the CUTOVER ROUTER over Supabase and Cloudflare (R-VERSUS-CF-CUTOVER-01, docs/versus-cf-cutover.md).
- * Cloudflare is reachable only when this build carries the Worker for its own engine (`VITE_VERSUS_CF_URL`, set by
- * `npm run release:web -- --versus-cf`), or a dev tab asked for one (`?versusHost=cf` / `cf-live`, `?versusRoute=`).
- * Without either, every call goes to Supabase exactly as before, and the switch is never even read.
+ * The game's adapter: the Versus Worker, and nothing else (owner 2026-10-29: "why are we using supabase for versus instead
+ * of cloudflare? stop doing that"; R-VERSUS-CF-ONLY-01). The Worker is the one the pack baked in (`VITE_VERSUS_CF_URL`,
+ * set by `npm run release:web`) when it is this build's own engine, else the deployed Worker named after this build's
+ * engine; a dev build talks to `npm run versus:cf:dev` (or the Worker a dev tab picked with `?versusCfUrl=` /
+ * `?versusHost=cf-live`). A Worker that cannot be reached is an error the screens show with Try again, never a room on
+ * another backend.
  */
 const devCf = versusCfSelected();
-const devRoute = devRouteOverride();
-// `?versusRoute=lobby_live:cf` alone (a dev tab trying live games on the Worker) also points the build at the dev Worker.
-const devLive = devLobbyLiveOverride();
-const cfUrl = devCf || devRoute || devLive ? versusCfDevUrl() : embeddedCfUrl(import.meta.env.VITE_VERSUS_CF_URL);
-/** The per-mode switch (`versus_host_config()`, 2026-11-05-versus-host-config.sql): one tiny jsonb, cached 30 s. */
-const hostConfig = makeHostConfigReader(async () => {
-  const c = supabaseClient();
-  if (!c) return null;
-  // rows: one jsonb object of four short strings (one per mode), never a table (R-NET-01).
-  const { data, error } = await c.rpc('versus_host_config');
-  if (error) throw error;
-  return data;
-});
-const safeStorage = (): Storage | null => { try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; } };
+const cfUrl: string = devCf ? versusCfDevUrl() : embeddedCfUrl(import.meta.env.VITE_VERSUS_CF_URL) ?? (import.meta.env.DEV ? versusCfDevUrl() : versusCfLiveUrl());
 
-const supabaseRemote = makeVersusRemote(supabaseClient);
-export const versusRemote: RoutedVersusRemote = makeRoutedVersusRemote({
-  supabase: supabaseRemote,
-  cf: cfUrl
-    ? makeCfVersusRemote({
-      baseUrl: cfUrl, getClient: supabaseClient, currentUserId, makeError: (code, message) => new VersusError(code, message),
-      adoptDevIdentity: devCf ? (userId) => setIdentity({ userId, displayName: 'Dev', anonymous: true, email: null }) : undefined,
-      // Ranked Duos: the Supabase-only rows (a ranked result, team names, the leaderboard) are read where they live.
-      fallback: supabaseRemote,
-    })
-    : null,
-  readConfig: () => hostConfig.get(),
-  // `?versusHost=cf` keeps its old meaning (every mode on Cloudflare); `?versusRoute=` sets single modes.
-  override: () => (devCf ? { duel: 'cf', group: 'cf', duos: 'cf', ranked_duos: 'cf' } : devRoute),
-  memory: makeRoomHostMemory(safeStorage()),
-  warn: (msg) => console.warn(msg),
+export const versusRemote: VersusRemote = makeCfVersusRemote({
+  baseUrl: cfUrl, getClient: supabaseClient, currentUserId, makeError: (code, message) => new VersusError(code, message),
+  adoptDevIdentity: devCf || import.meta.env.DEV ? (userId) => setIdentity({ userId, displayName: 'Dev', anonymous: true, email: null }) : undefined,
+  // The Supabase-held records (a Duos team's name and ranked result, the leaderboard) are read where they live.
+  records: makeVersusRecords(supabaseClient),
 });
-export type { VersusHost };
-/** A room as it travels in an invite / a Watch id / a Live Games row: `cf:<id>` for a Cloudflare room, else the bare id. */
-export const versusRoomRef = (room: Pick<VersusRoom, 'id' | 'host'>): string => encodeRoomRef(room.id, room.host ?? versusRemote.hostOf(room.id));
-// The switch is read once at launch when this build can reach Cloudflare (never otherwise: no egress added).
-if (cfUrl) void versusRemote.warmConfig();
+/** The Worker this tab plays Versus on (the dev test bots join the same one). */
+export const versusWorkerUrl = (): string => cfUrl;
+/** A room as it travels in an invite / a Watch id / a Live Games row: `cf:<id>` (every room is on the Worker). */
+export const versusRoomRef = (room: Pick<VersusRoom, 'id'>): string => encodeRoomRef(room.id);
 
 /**
- * LIVE GAMES ON CLOUDFLARE (R-LIVE-CF-01): the Worker a NEW live lobby / Practice game publishes to, or null (Supabase).
- * Cloudflare only when this build carries its own Worker and the switch's `lobby_live` says so (a dev tab:
- * `?versusRoute=lobby_live:cf`, or `?versusHost=cf` for everything). Synchronous: the switch as last read (it is read at
- * launch), so a game's start is never held up by a network call.
+ * LIVE GAMES ON CLOUDFLARE (R-LIVE-CF-01): the Worker a NEW live lobby / Practice game publishes to: this build's own
+ * Worker (the server switch is no longer read, R-VERSUS-CF-ONLY-01).
  */
-export function lobbyLivePublishUrl(): string | null {
-  if (!cfUrl) return null;
-  const host = devCf ? 'cf' : devLive ?? hostConfig.peekLobbyLive();
-  return host === 'cf' ? cfUrl : null;
+export function lobbyLivePublishUrl(): string {
+  return cfUrl;
 }
 
 /** The Worker that hosts a game whose row says `cf:<content revision>`: this build's own Worker for its own engine (or a
  *  dev tab's pick), else the deployed Worker named after that engine. */
 export function lobbyLiveWatchUrl(liveHost: string): string {
   const rev = liveHost.startsWith('cf:') ? liveHost.slice(3) : liveHost;
-  if (cfUrl && (devCf || devRoute || devLive || rev === contentRevision())) return cfUrl;
+  if (devCf || rev === contentRevision()) return cfUrl;
   return versusCfLiveUrl(rev);
 }

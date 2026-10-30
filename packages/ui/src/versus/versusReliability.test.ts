@@ -12,7 +12,7 @@ import {
   beatFresh, BEAT_FRESH_MS, closedByMeOf, combatReadyOwed, createResolverFlight, createWakeGate, duelLeader, endTurnStalled, finalizeAsk,
   finalizeBackstopMs, FINALIZE_BACKSTOP_MS, FINALIZE_JITTER_MS, groupLeader,
 } from './versusReliability';
-import { makeVersusRemote, VersusError, VERSUS_RPC_TIMEOUT_MS } from './versusRemote';
+import { makeVersusRecords, VersusError, VERSUS_RPC_TIMEOUT_MS } from './versusRemote';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 afterEach(() => { vi.useRealTimers(); });
@@ -117,7 +117,7 @@ describe('R-VERSUS-RELIABLE-03: a waking tab sends its heartbeat first', () => {
 });
 
 describe('R-VERSUS-RELIABLE-05: lost calls recover', () => {
-  it('no Versus RPC hangs forever: a request with no answer fails as `network` at 8 s', async () => {
+  it('no Versus records RPC hangs forever: a request with no answer fails as `network` at 8 s', async () => {
     vi.useFakeTimers();
     let aborted = false;
     const fakeClient = {
@@ -127,8 +127,8 @@ describe('R-VERSUS-RELIABLE-05: lost calls recover', () => {
         }),
       }),
     } as unknown as SupabaseClient;
-    const remote = makeVersusRemote(() => fakeClient);
-    const p = remote.heartbeat('r1');
+    const remote = makeVersusRecords(() => fakeClient);
+    const p = remote.duosTeamsOf('u1');
     const seen = p.then(() => 'answered', (e: unknown) => (e as VersusError).code);
     await vi.advanceTimersByTimeAsync(VERSUS_RPC_TIMEOUT_MS - 1);
     expect(aborted).toBe(false);
@@ -140,8 +140,8 @@ describe('R-VERSUS-RELIABLE-05: lost calls recover', () => {
   it('a quick answer is unaffected (and its timer is cleared)', async () => {
     vi.useFakeTimers();
     const fakeClient = { rpc: () => ({ abortSignal: () => Promise.resolve({ data: { ok: 1 }, error: null }) }) } as unknown as SupabaseClient;
-    const remote = makeVersusRemote(() => fakeClient);
-    await expect(remote.heartbeat('r1')).resolves.toEqual({ ok: 1 });
+    const remote = makeVersusRecords(() => fakeClient);
+    await expect(remote.duosTeamsOf('u1')).resolves.toEqual({ ok: 1 });
     expect(vi.getTimerCount()).toBe(0);
   });
 

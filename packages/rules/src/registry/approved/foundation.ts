@@ -9737,7 +9737,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-26 (Ranked Duos phase 3 entry point)', quote: "i think we should add a toggle above 'play' that says solo/duo. if duo is selected it then puts you into a room specific for duo's where you can invite a friend" },
       { kind: 'owner-chat', ref: 'Owner Q6, 2026-10-26', quote: 'Listed by default, friends-only toggle' },
-      { kind: 'code', ref: 'supabase/migrations/2026-11-01-ranked-duos-party.sql; packages/ui/src/versus/playParty.tsx; packages/ui/src/versus/DuosParty.tsx; packages/ui/src/versus/DuosBoards.tsx; packages/ui/src/versus/duosLive.ts' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-01-ranked-duos-party.sql; packages/ui/src/versus/playParty.tsx; packages/ui/src/versus/DuosParty.tsx; packages/ui/src/versus/DuosBoards.tsx; workers/versus/src/core/liveListing.ts (the room writes the team Live Games row)' },
     ],
     currentBehaviour: 'Built 2026-10-26 on feat/ranked-duos-p3.',
     example: 'Kevin picks Duo, presses Play, confirms, and lands in his own party; he invites Lemon, who accepts and takes the second seat. Kevin sets Friends only, so Ionlime never sees the party. After the game both see 2nd of 4, +11.',
@@ -10482,9 +10482,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27 (versus client reliability)', quote: 'Versus 1v1, Group (3-4), Versus Duos and Ranked Duos need to be spotless experiences' },
       { kind: 'code', ref: 'packages/ui/src/versus/versusRemote.ts (subscribeRoom, versusTopic)' },
     ],
-    currentBehaviour: 'Built 2026-10-27 (fix/versus-client-reliability). The audit named a same-topic swap handing back a leaving channel; against the shipped realtime-js 2.108.2 the leave closes locally at once, so that exact path did not reproduce in the fake-server test. What did reproduce: a channel the server closed was never re-opened (nothing watched the join status), leaving the client on the 4 s heartbeat and 12 s polls.',
+    currentBehaviour: 'Built 2026-10-27 (fix/versus-client-reliability). The audit named a same-topic swap handing back a leaving channel; against the shipped realtime-js 2.108.2 the leave closes locally at once, so that exact path did not reproduce in the fake-server test. What did reproduce: a channel the server closed was never re-opened (nothing watched the join status), leaving the client on the 4 s heartbeat and 12 s polls. SUPERSEDED 2026-10-29 (R-VERSUS-CF-ONLY-01): the Supabase Realtime channel is gone with the Supabase host; the room pushes ride its own socket on the Worker, which reconnects by itself and never hangs an open (R-VERSUS-CF-CONNECT-01). Its Realtime test was retired with the code.',
     example: 'The Realtime server closes the match channel mid-round: one second later the client joins again and re-reads the match and its rounds, so the fight still arrives on the wake-up, not the next poll.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRealtime.test.ts'], lastVerifiedAt: '2026-10-27' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosPartyCf.test.tsx', 'workers/versus/test/clientConnect.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
   {
     id: 'R-VERSUS-RELIABLE-02',
@@ -10596,9 +10596,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28 (Versus to Cloudflare)', quote: 'switch modes over one at a time with no downtime and instant rollback' },
       { kind: 'code', ref: 'packages/ui/src/versus/versusRouter.ts, packages/ui/src/versus/versusHost.ts, supabase/migrations/2026-11-05-versus-host-config.sql' },
     ],
-    currentBehaviour: 'Built 2026-10-28 (feat/versus-cf-cutover). Every mode on Supabase until the owner flips one (docs/versus-cf-cutover.md).',
-    example: 'The owner flips duel to cf: the next 1v1 room is a Cloudflare room. He flips it back mid-match: that match finishes on Cloudflare, and the next new 1v1 room is on Supabase.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRouter.test.ts', 'packages/ui/src/versus/versusCutoverStore.test.ts', 'workers/versus/test/origins.test.ts'], lastVerifiedAt: '2026-10-28' },
+    currentBehaviour: 'Built 2026-10-28 (feat/versus-cf-cutover); every mode was flipped to cf by 2026-10-29. SUPERSEDED 2026-10-29 by R-VERSUS-CF-ONLY-01 (chore/retire-supabase-versus): the switch and the router are gone, every room is on the Worker, and the client reads no switch. What still holds: a room reference that leaves the client is `cf:<id>`, and a build trusts only the Worker URL of its own engine.',
+    example: 'Historical: the owner flipped duel to cf and the next 1v1 room was a Cloudflare room. Today every new room of every mode is a Cloudflare room, with no switch to flip.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusCfOnly.test.ts', 'workers/versus/test/origins.test.ts'], lastVerifiedAt: '2026-10-29' },
   },  {
     id: 'R-VERSUS-CF-LIVE-01',
     title: 'A Cloudflare match is on Live Games and in Friends exactly like a Supabase one, in every mode; the room writes its own Live Games row, throttled',
@@ -10609,11 +10609,11 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28 (Versus to Cloudflare, gaps after the Ranked Duos port)', quote: 'a Cloudflare match must show in Live Games (and Friends "In a game" + Watch) exactly like a Supabase one, for EVERY mode' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28', quote: 'throttled to keep Supabase egress low (write on start/round change/end only, not per frame)' },
-      { kind: 'code', ref: 'workers/versus/src/core/liveListing.ts, workers/versus/src/live.ts, workers/versus/src/room.ts (syncLive), packages/ui/src/versus/duosLive.ts (publishesOwnRow), supabase/migrations/2026-11-08-versus-cf-live-games-invites.sql' },
+      { kind: 'code', ref: 'workers/versus/src/core/liveListing.ts, workers/versus/src/live.ts, workers/versus/src/room.ts (syncLive), packages/ui/src/versus/versusRemote.ts (versusRoomRef), supabase/migrations/2026-11-08-versus-cf-live-games-invites.sql' },
     ],
     currentBehaviour: 'Built 2026-10-28 (fix/versus-cf-livegames-invites). Live once the owner applies 2026-11-08-versus-cf-live-games-invites.sql and a mode is flipped to cf.',
     example: 'A Cloudflare Versus Group game in round 3 shows "Ann vs Bob vs Cat", "Versus Group", "Round 3 · Shop" on Live Games; Watch lands in the room on the Worker. Ten people joining the stands cause no write; the move to combat causes one.',
-    enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveInvite.test.ts', 'workers/versus/test/cfLiveInvite.db.test.ts', 'packages/ui/src/versus/versusRouter.test.ts', 'packages/ui/src/friends/friends.test.tsx'], lastVerifiedAt: '2026-10-28' },
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveInvite.test.ts', 'workers/versus/test/cfLiveInvite.db.test.ts', 'packages/ui/src/versus/versusCfOnly.test.ts', 'packages/ui/src/friends/friends.test.tsx'], lastVerifiedAt: '2026-10-28' },
   },
   {
     id: 'R-VERSUS-CF-INVITE-01',
@@ -10628,7 +10628,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Built 2026-10-28 (fix/versus-cf-livegames-invites). Needs 2026-11-08-versus-cf-live-games-invites.sql applied and a Worker that carries its writer secret.',
     example: 'Ann is in an open Cloudflare 1v1 room and invites Cat: the room signs it and the invite goes out. Once the match starts, the room answers "That room is not open." and nothing is sent; a forged or two-minute-old proof is refused by the server.',
-    enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveInvite.test.ts', 'workers/versus/test/cfLiveInvite.db.test.ts', 'workers/versus/test/it/room.it.ts', 'packages/ui/src/friends/friends.test.tsx', 'packages/ui/src/versus/versusRouter.test.ts'], lastVerifiedAt: '2026-10-28' },
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveInvite.test.ts', 'workers/versus/test/cfLiveInvite.db.test.ts', 'workers/versus/test/it/room.it.ts', 'packages/ui/src/friends/friends.test.tsx', 'packages/ui/src/versus/versusCfOnly.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
   {
     id: 'R-LIVE-ALL-GAMES-01',
@@ -11200,8 +11200,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'Opening a Cloudflare room\x27s socket waits at most 10 s for the room\x27s hello, then fails with `timeout` (a refused upgrade, a '
       + 'socket that never answers, a fatal close before the hello and a socket replaced by a newer room all fail the open instead of '
-      + 'leaving it pending). A room CREATE that times out is made on Supabase instead (the cutover router\x27s "Cloudflare unreachable" '
-      + 'rule); a read, join or leave shows its error. Duo + Play has its own 20 s deadline: past it the Ranked Duos door shows "Your party '
+      + 'leaving it pending). A room CREATE that times out shows its error like a read, join or leave does '
+      + '(since 2026-10-29 there is no other host to try, R-VERSUS-CF-ONLY-01; before, the cutover router made the room on Supabase). Duo + Play has its own 20 s deadline: past it the Ranked Duos door shows "Your party '
       + 'did not open. Try again." with Try again (Back is the Modes crumb), and losing the party while its door is on screen shows "Your '
       + 'party closed." So "Opening your party..." only ever shows while an open is in flight. The Worker drops a caller\x27s directory '
       + 'claim on a room that answers its socket with 404 (gone), so a lost closing write can no longer refuse every new room with '
@@ -11615,5 +11615,30 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'top of the ~50 MB it holds: CI\x27s phone walk peaked at 90 MB of audio on the mode home (budget 80).',
     example: 'Ann plays three lobby games in a row on her phone. The announcer speaks about 60 lines a game, each a different file. Before, every one of them stayed decoded until she closed the tab. Now only the last few are kept, so her third game holds the same audio as her first.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/audioMemory.test.ts', 'packages/ui/src/phonePlayMemory.test.ts', '.github/workflows/phone-budgets.yml'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-VERSUS-CF-ONLY-01',
+    title: 'Versus is Cloudflare only: every room on the Worker, no switch, no Supabase fallback',
+    statement:
+      'Every Versus room and match (1v1, Group, Versus Duos, Ranked Duos) is created and played on the Versus Worker (Cloudflare '
+      + 'Durable Objects). The client reads no per-mode switch and carries no Supabase room code: a Worker that cannot be reached is '
+      + 'a plain failure that the screen shows with Try again ("Connection problem. Try again."; Duo + Play: its own deadline and '
+      + 'Try again), never a room made on another backend. Every room reference that leaves the client is `cf:<id>`; a bare id (a '
+      + 'retired Supabase room from an older client) is reported as "That room has closed." instead of tried. Supabase keeps only '
+      + 'the RECORDS the Worker writes through its limited writer (results, rounds, history, ratings, Live Games rows, spectator '
+      + 'XP) and the record reads the screens make (team names, a settled ranked result, the Duos leaderboard). Every pack '
+      + '(`npm run release:web`) deploys the Worker for its own commit first and bakes its URL in; a build with no trusted URL '
+      + 'talks to the Worker named after its own engine. Live lobby / Practice games publish to the Worker too (no switch read); '
+      + 'a game whose Worker does not answer is still listed through the Supabase listing for that game (R-LIVE-CF-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-29', quote: 'why are we using supabase for versus instead of cloudflare? stop doing that' },
+      { kind: 'owner-chat', ref: 'Kevin, standing rule (via the lead)', quote: 'never switch modes back to Supabase; fix forward on Cloudflare' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusRemote.ts (versusRemote, makeVersusRecords), packages/ui/src/versus/versusCfRemote.ts, packages/ui/src/versus/versusHost.ts, packages/ui/src/friends/friendsGo.ts (goToVersusRoom), scripts/release-web.mjs, supabase/migrations/2026-11-14-retire-supabase-versus.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-29 (chore/retire-supabase-versus). Before: the cutover router (R-VERSUS-CF-CUTOVER-01) read versus_host_config and, when a Cloudflare create timed out, silently made the room on Supabase, where the versus-resolve Edge Function settled its rounds; every pack had to redeploy that function. The server half (switch pinned to cf, Supabase room creation refused, the versus-sweep job unscheduled) is live once 2026-11-14-retire-supabase-versus.sql is applied.',
+    example: 'The Worker is down when Kev presses Create room: the room screen says "Connection problem. Try again." and no room is made anywhere. Ann accepts an old invite that names a bare room id from before the move: "That room has closed."',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusCfOnly.test.ts', 'packages/ui/src/versus/rankedDuosPartyCf.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
 ];

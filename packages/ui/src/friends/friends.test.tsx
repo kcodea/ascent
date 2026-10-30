@@ -109,7 +109,8 @@ describe('presence: what the beat reports', () => {
     setIdentity({ userId: ME, displayName: 'Me', anonymous: false, email: 'a@b.c' });
     const room = { id: 'room-1', status: 'in_game', options: { mode: 'duos' }, members: [{ userId: ME, role: 'p1', displayName: 'Me', profile: {}, lastSeenAt: '' }] } as unknown as VersusRoom;
     useVersus.setState({ room, match: { phase: 'shop', round: 3 } as never });
-    expect(presenceNow()).toMatchObject({ status: 'in_game', mode: 'versus_duos', watchKind: 'versus', watchId: 'room-1', game: { round: 3, phase: 'shop', vs: 'Me vs ' } });
+    // Every room is on the Versus Worker (R-VERSUS-CF-ONLY-01): the watch target names it `cf:`.
+    expect(presenceNow()).toMatchObject({ status: 'in_game', mode: 'versus_duos', watchKind: 'versus', watchId: 'cf:room-1', game: { round: 3, phase: 'shop', vs: 'Me vs ' } });
     useVersus.setState({ room: { ...room, status: 'open' }, match: null });
     expect(presenceNow()).toEqual({ status: 'online', mode: 'versus_room', watchKind: null, watchId: null, activity: { v: 1, act: 'versus_room', mode: 'versus_duos', players: 1, max: 4 } });
   });
@@ -118,7 +119,7 @@ describe('presence: what the beat reports', () => {
     setIdentity({ userId: ME, displayName: 'Me', anonymous: false, email: 'a@b.c' });
     const want = { duel: 'versus_1v1', group: 'versus_group', duos: 'versus_duos', ranked_duos: 'ranked_duos' } as const;
     for (const [mode, presence] of Object.entries(want)) {
-      const room = { id: 'room-cf', host: 'cf', status: 'in_game', options: { mode }, members: [{ userId: ME, role: 'p1', displayName: 'Me', profile: {}, lastSeenAt: '' }] } as unknown as VersusRoom;
+      const room = { id: 'room-cf', status: 'in_game', options: { mode }, members: [{ userId: ME, role: 'p1', displayName: 'Me', profile: {}, lastSeenAt: '' }] } as unknown as VersusRoom;
       useVersus.setState({ room, match: { phase: 'shop' } as never });
       expect(presenceNow(), mode).toMatchObject({ status: 'in_game', mode: presence, watchKind: 'versus', watchId: 'cf:room-cf' });
     }

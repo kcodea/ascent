@@ -72,7 +72,7 @@ export interface ChaosScenario {
 /** What the scenario's chaos can do (handed to every event). */
 export interface ChaosHarness {
   clients: ChaosClient[];
-  /** The host under test (Supabase or Cloudflare; `chaosBackend.ts`). */
+  /** The host under test (the Cloudflare room mirror; `chaosBackend.ts`). */
   server: ChaosBackend;
   now(): number;
   /** Network off for `ms` (the player is gone). */
@@ -92,8 +92,8 @@ export interface ChaosHarness {
 }
 
 const LEASE_MS = 12_000;
-/** latePause: a gone player must have paused the match this long after leaving (Supabase: the 14 s lease and a reconcile;
- *  Cloudflare: the 15 s stale keep-alive and the 3 s grace). Judged only for absences that outlast it by a second. */
+/** latePause: a gone player must have paused the match this long after leaving (the 15 s stale keep-alive and the 3 s
+ *  grace). Judged only for absences that outlast it by a second. */
 const LATE_PAUSE_MS = 20_000;
 const STEP_MS = 100;
 

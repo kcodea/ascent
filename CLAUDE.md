@@ -167,29 +167,18 @@ a rule in a skill stops being true, fix it in the same PR as the behaviour chang
 - `npm run build:web` — production build (the CI gate + what players actually run)
 - `npm run dev` — live dev server
 
-## Releasing: every Netlify package ships Versus with it (owner ruling 2026-10-20)
+## Releasing: every Netlify package ships its Versus Worker (Versus is Cloudflare only)
 
-**Whenever you pack the Netlify zip (`npm run release:web`), redeploy the Versus server from the SAME commit in the
-same step.** The versus-resolve Edge Function refuses any match whose game data differs from its own, so a build that
-goes live without its matching Versus server freezes every Versus match at "both ready" (hit 2026-10-20: three matches
-lost after #2177/#2178 went live un-redeployed). `release:web` builds `origin/main`; run these from a checkout sitting
-on exactly the commit the zip names (the badge sha), never a dirty or different tree:
+**`npm run release:web` deploys the Cloudflare Versus Worker for the SAME commit first, then builds the zip with its
+URL baked in.** Every Versus mode (1v1, Group, Duos, Ranked Duos) and live-game spectating runs on that Worker
+(R-VERSUS-CF-ONLY-01, owner 2026-10-29: "why are we using supabase for versus instead of cloudflare? stop doing
+that"). It needs `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` in the environment, checks the Worker's `/health`
+answers this build's engine, and sets a new Worker's result-writer secret (run the one SQL line it prints before
+uploading). Tell the owner the zip AND the Worker URL / content revision in the same message.
 
-1. `npm run versus:bundle`, and note the `content <rev>` it prints.
-2. `npx --yes supabase@2.120.0 functions deploy versus-resolve --project-ref zcwhbejpqcdcfdpfxeza --use-api`
-3. `npm run versus:parity -- remote https://zcwhbejpqcdcfdpfxeza.supabase.co/functions/v1/versus-resolve`
-   (must be all cases byte-identical).
-4. Tell the owner the zip AND the Versus content revision in the same message.
-
-If the bundle's revision is unchanged from what's deployed, say so and skip the deploy. Versus only matches once
-the Netlify upload is live too, so the owner should upload promptly; until then the old live client is the one out of
-step. No other trigger for a Versus deploy is needed: merges alone never change what players run.
-
-**Versus on Cloudflare (opt-in until the owner says otherwise):** `npm run release:web -- --versus-cf` also deploys the
-Cloudflare Versus Worker for the same commit FIRST, checks its `/health`, sets a new Worker's result-writer secret (run
-the one SQL line it prints), and bakes the Worker URL into the zip. A zip packed without the flag is Supabase-only. The
-steps above (versus-resolve) still apply either way. Which modes use Cloudflare is the server switch, never the pack:
-runbook + flip/rollback SQL in [`docs/versus-cf-cutover.md`](docs/versus-cf-cutover.md).
+There is **no Supabase Versus server to redeploy**: the `versus-resolve` Edge Function and the per-mode switch are
+retired, and no mode ever goes back to Supabase (fix forward on Cloudflare). Supabase keeps only the records the
+Worker writes (results, history, ratings, Live Games rows). Runbook: [`docs/versus-cf-cutover.md`](docs/versus-cf-cutover.md).
 
 ## Collaboration (2 devs — Kevin + Mike, both using Claude Code)
 

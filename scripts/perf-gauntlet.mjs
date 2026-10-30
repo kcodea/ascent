@@ -214,6 +214,7 @@ async function launch(profile, cdpPort) {
     `--window-size=${W},${H}`, '--window-position=0,0',
   ];
   if (HEADLESS) flags.unshift('--headless=new');
+  if (flag('audio')) flags.push('--autoplay-policy=no-user-gesture-required');
   if (GPU) flags.push('--enable-gpu', '--use-angle=d3d11', '--ignore-gpu-blocklist', '--enable-gpu-rasterization');
   const proc = spawn(chromePath(), [...flags, 'about:blank'], { stdio: 'ignore' });
   let ws;
@@ -279,6 +280,24 @@ const TIMER_CENSUS = `(() => {
   window.requestAnimationFrame = (cb) => { rafCalls++; return raf(cb); };
   window.__pgTimers = () => { const by = {}; for (const v of iv.values()) by[v] = (by[v] || 0) + 1; return { intervals: iv.size, timeouts: to.size, rafCalls, byInterval: by }; };
   window.__pgSlowTimeouts = () => slow;
+})();`;
+
+/** --audio (with --round-probe; audio memory pass, 2026-10-29): REAL audio. Chrome runs with
+ *  --autoplay-policy=no-user-gesture-required (output stays muted), and every AudioBuffer the page decodes or creates
+ *  is held by a WeakRef, tagged by what fetched its bytes (announcer / sfx / other), so the probe (after a full GC)
+ *  reads the decoded bytes still ALIVE, round over round: length x channels x 4 per buffer. */
+const AUDIO_CENSUS = `(() => {
+  const tagOf = new WeakMap(); const live = []; let made = 0, madeBytes = 0;
+  const kind = (u) => u.includes('/announcer/') ? 'announcer' : ['.mp3', '.wav', '.mp4', '.ogg'].some((e) => u.split(/[?#]/)[0].endsWith(e)) ? 'sfx' : 'other';
+  const f0 = window.fetch.bind(window);
+  window.fetch = (input, init) => f0(input, init).then((res) => { const u = typeof input === 'string' ? input : (input && input.url) || ''; const ab0 = res.arrayBuffer.bind(res); res.arrayBuffer = () => ab0().then((ab) => { tagOf.set(ab, kind(u)); return ab; }); return res; });
+  const hold = (b, tag) => { if (b) { live.push([new WeakRef(b), tag]); made++; madeBytes += b.length * b.numberOfChannels * 4; } return b; };
+  if (window.BaseAudioContext) {
+    const P = BaseAudioContext.prototype; const dec = P.decodeAudioData; const cb = P.createBuffer;
+    P.decodeAudioData = function (ab, ok, bad) { const tag = tagOf.get(ab) || 'other'; return dec.call(this, ab).then((b) => { hold(b, 'dec:' + tag); ok && ok(b); return b; }, (e) => { bad && bad(e); throw e; }); };
+    P.createBuffer = function (...a) { return hold(cb.apply(this, a), 'created'); };
+  }
+  window.__pgAudio = () => { const by = {}; let n = 0, bytes = 0; for (let i = live.length - 1; i >= 0; i--) { const b = live[i][0].deref(); if (!b) { live.splice(i, 1); continue; } const k = live[i][1]; const x = b.length * b.numberOfChannels * 4; (by[k] ||= { n: 0, mb: 0 }); by[k].n++; by[k].mb += x / 1048576; n++; bytes += x; } for (const v of Object.values(by)) v.mb = +v.mb.toFixed(1); return { liveMB: +(bytes / 1048576).toFixed(1), live: n, madeMB: +(madeBytes / 1048576).toFixed(1), made, by }; };
 })();`;
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -588,6 +607,7 @@ async function playScenes(c) {
     live.gate = await d.ev(`(async () => { const b = window.__bench; if (!b.gateFx) return 'n/a'; const g = await b.gateFx(); if (!g.__counted) { g.__counted = {}; for (const m of ['slam', 'land', 'portal', 'edgeBloom', 'shudder', 'gather', 'ambient', 'shatter', 'warm', 'clear', 'release']) { const orig = g[m].bind(g); g[m] = (...x) => { g.__counted[m] = (g.__counted[m] || 0) + 1; return orig(...x); }; } } const calls = JSON.stringify(g.__counted); const app = g.app; return app ? 'particles ' + g.particles.length + ', ambient ' + (g.ambientAt ? 'ON' : 'off') + ', ticker ' + (app.ticker.started ? 'on' : 'off') + ', canvas ' + app.canvas.style.visibility + (g.particles[0] ? ', p0 age ' + Math.round(g.particles[0].age) + '/life ' + Math.round(g.particles[0].life) + ' alpha ' + (g.particles[0].sp.alpha ?? '?').toFixed?.(2) : '') + ', tick lastTime ' + Math.round(app.ticker.lastTime) + ' now ' + Math.round(performance.now()) + ' dMS ' + app.ticker.deltaMS.toFixed(1) + ' count ' + app.ticker.count + ' requestId ' + app.ticker._requestId + ' calls ' + calls : 'no app'; })()`).catch((e) => 'err ' + String(e).slice(0, 60));
     // The degradation hunt (2026-10-29): timers, the store's biggest slices and the FX renderer's textures, per round.
     live.timers = await d.ev(`window.__pgTimers ? window.__pgTimers() : null`).catch(() => null);
+    if (flag('audio')) { live.audio = await d.ev(`window.__pgAudio ? window.__pgAudio() : null`).catch(() => null); log(`   AUDIO r${r}: ${JSON.stringify(live.audio)}`); }
     // --perf-timings: the in-game perf monitor's measured spans (autosave, commit:*, store:set, render:*, fx:*), summed
     // per wave from its 1 s buckets, so the bookkeeping paths can be read round over round.
     if (flag('perf-timings')) live.perfT = await d.ev(`(() => {
@@ -817,6 +837,7 @@ async function measureOnce(dist, runIdx) {
     await c.send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE });
     if (flag('perf-timings')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('ascent.perf', '1'); } catch {}` });
     if (ROUND_PROBE) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: TIMER_CENSUS });
+    if (flag('audio')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: AUDIO_CENSUS });
     // --css "<rules>": an extra stylesheet, to test what a CSS change would buy before changing the source.
     if (arg('css', '')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `document.addEventListener('DOMContentLoaded', () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(arg('css', ''))}; document.head.appendChild(s); });` });
     await c.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });

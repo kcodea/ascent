@@ -8,7 +8,8 @@
  * 120.5 MB of AudioBuffers within one second of the press at a 96 kHz context, about 60 MB at an iPhone's 48 kHz,
  * the biggest single allocation Play causes, landing in the same second as the mode home's layers and art. A phone now:
  *
- *  1. decodes ONE clip at a time (`serialQueue`), starting a moment after the press, so no burst lands with Play;
+ *  1. decodes ONE clip at a time (`pacedQueue`; paced since R-AUDIO-MEMORY-01), starting a moment after
+ *     the press, so no burst lands with Play;
  *  2. keeps each clip MONO (`phoneMono`; a phone speaker is close to mono anyway): half the bytes;
  *  3. no longer fetches the ~430 per-card, per-hero and FX clips at the first touch.
  *
@@ -78,14 +79,42 @@ export function phoneMono(channels: readonly Float32Array[]): Float32Array {
 /** Decoded size of a buffer in bytes (float32 PCM). */
 export const audioBufferBytes = (b: { length: number; numberOfChannels: number }): number => b.length * b.numberOfChannels * 4;
 
-/** A queue that runs one async job at a time, in order. A failed job never stops the ones behind it. */
-export function serialQueue(): <T>(job: () => Promise<T>) => Promise<T> {
-  let tail: Promise<unknown> = Promise.resolve();
-  return <T>(job: () => Promise<T>): Promise<T> => {
-    const run = tail.then(job, job);
-    tail = run.catch(() => undefined);
-    return run;
+/**
+ * PACED DECODES (R-AUDIO-MEMORY-01, audio memory pass 2026-10-29). A phone folds every stereo clip to mono, so each
+ * decode leaves a stereo AudioBuffer behind as garbage: twice the bytes of the clip it keeps. Decoded back to back,
+ * the bank's ~130 clips piled ~40 MB of that garbage on top of the ~50 MB it holds before the collector caught up
+ * (CI's phone walk peaked at 90 MB of audio on the mode home; 85 MB here at 4x CPU throttle and a 44.1 kHz context).
+ * A short pause after each decode gives the collector idle time to take it, so the garbage never piles up.
+ */
+export const PHONE_DECODE_GAP_MS = 50;
+
+/**
+ * A queue that runs one async job at a time, waiting `gapMs` after each one before the next. An URGENT job (a clip a
+ * play is asking for right now) goes ahead of every waiting non-urgent one (the bank, the prewarm) and skips the
+ * pause, so pacing the bank never delays a sound the player is waiting on. A failed job never stops the ones behind
+ * it.
+ */
+export function pacedQueue(gapMs: number, wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))): <T>(job: () => Promise<T>, urgent?: boolean) => Promise<T> {
+  const jobs: { urgent: boolean; run: () => Promise<void> }[] = [];
+  let running = false;
+  const pump = async (): Promise<void> => {
+    running = true;
+    while (jobs.length) {
+      const j = jobs.shift()!;
+      await j.run();
+      if (jobs.length && !jobs[0]!.urgent && gapMs > 0) await wait(gapMs);
+    }
+    running = false;
   };
+  return <T>(job: () => Promise<T>, urgent = false): Promise<T> => new Promise<T>((res, rej) => {
+    const entry = { urgent, run: (): Promise<void> => Promise.resolve().then(job).then(res, rej) };
+    if (urgent) {
+      let i = 0;
+      while (i < jobs.length && jobs[i]!.urgent) i++;
+      jobs.splice(i, 0, entry);
+    } else jobs.push(entry);
+    if (!running) void pump();
+  });
 }
 
 /**

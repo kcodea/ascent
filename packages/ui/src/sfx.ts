@@ -27,7 +27,7 @@ import { familyOf } from './audio/clipFamily';
 import { requestAssetTask } from './artPreload';
 import type { Lane } from './assetQueue';
 import { LITE_ART } from './phoneArt';
-import { audioBufferBytes, createPlayStats, PHONE_AUDIO_LRU_BYTES, PHONE_AUDIO_MAX_RATE, PHONE_AUDIO_PREFETCH_DELAY_MS, phoneDecodeRate, phoneMono, serialQueue } from './audio/phoneAudio';
+import { audioBufferBytes, createPlayStats, PHONE_AUDIO_LRU_BYTES, PHONE_AUDIO_MAX_RATE, PHONE_AUDIO_PREFETCH_DELAY_MS, PHONE_DECODE_GAP_MS, pacedQueue, phoneDecodeRate, phoneMono } from './audio/phoneAudio';
 import type { ClipIndex, PrewarmScene } from './audio/clipIndex';
 import { crumb, crumbOnce, registerCrashProbe } from './crashLog';
 import { createPickPressLatch } from './pickPressLatch';
@@ -409,8 +409,8 @@ function loadSample(name: string, lane: Lane = 'now'): void {
       fetch(src)
         .then((r) => r.arrayBuffer())
         .then((ab) => {
-          void phoneDecode(() => phoneDecodeCtx(a).decodeAudioData(ab))
-            .then((buf) => { keepBuffer(name, monoCopy(a, buf)); loadingSamples.delete(name); }, fail);
+          void phoneDecode(() => phoneDecodeCtx(a).decodeAudioData(ab)
+            .then((buf) => { keepBuffer(name, monoCopy(a, buf)); loadingSamples.delete(name); }, fail), lane === 'now');
         }, fail));
     return;
   }
@@ -461,8 +461,10 @@ export async function importFxSound(file: File): Promise<{ id: string; label: st
  * keeps everything, as before.
  */
 export const LITE_AUDIO_BYTES = PHONE_AUDIO_LRU_BYTES;
-/** A phone decodes one clip at a time (R-TOUCH-PLAY-MEMORY-01): no burst of decodes in flight together. */
-const phoneDecode = serialQueue();
+/** A phone decodes one clip at a time (R-TOUCH-PLAY-MEMORY-01): no burst of decodes in flight together. Paced
+ *  (R-AUDIO-MEMORY-01): a short pause after each, so the stereo garbage each mono fold leaves is collected before the
+ *  next lands; a clip a play is asking for (`lane: 'now'`) jumps the queue and skips the pause. */
+const phoneDecode = pacedQueue(PHONE_DECODE_GAP_MS);
 /** A phone decodes at the context's own rate (R-TOUCH-AUDIO-QUALITY-01), so a play needs no second resample. Only a
  *  context above 48 kHz decodes through an OfflineAudioContext at 48 kHz (decodeAudioData resamples to its context's
  *  rate, with a proper filter); the live context plays a buffer of any rate. */
@@ -519,6 +521,7 @@ function keepBuffer(name: string, buf: AudioBuffer): void {
     if (liteAudioBytes <= LITE_AUDIO_BYTES) break;
     if (k === name || isPhoneResident(k)) continue;
     buffers.delete(k);
+    reversedBuffers.delete(k); // its reversed copy goes with it (R-AUDIO-MEMORY-01): it must not outlive the clip
     liteAudioBytes -= audioBufferBytes(b);
   }
 }

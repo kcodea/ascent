@@ -764,6 +764,8 @@ export class GroupEngine {
     const c = card as Record<string, unknown> | null;
     if (!Number.isInteger(seq) || (seq as number) < 0 || !c || typeof c !== 'object' || Array.isArray(c) || typeof c.cardId !== 'string'
       || jsonBytes(c) > PASS_CARD_BYTES || c.passFrom !== 'hand') this.h.fail('bad_card');
+    // NO GOLDENS (owner 2026-10-30: "Golden minions CANNOT be passed"). The client refuses it too; this is the guard.
+    if (c!.golden === true) this.h.fail('golden');
     const mine = (all[round as number] ?? []).filter((p) => p.from_seat === seat).length;
     if (mine >= DUOS_PASS_CAP) this.h.fail('too_many_passes');
     const row: GPass = {

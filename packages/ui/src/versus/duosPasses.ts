@@ -19,7 +19,7 @@ import { ownRunWhileWatching } from './spectate';
 import { VersusError, versusRemote, type VersusDuosPassRow } from './versusRemote';
 
 /** Server refusals that mean "this pass will never be recorded": refund it now. */
-const REFUSALS = new Set(['hand_full', 'locked', 'not_shop', 'deadline_passed', 'no_teammate', 'too_many_passes', 'bad_card', 'not_duos', 'teammate_away']);
+const REFUSALS = new Set(['hand_full', 'locked', 'not_shop', 'deadline_passed', 'no_teammate', 'too_many_passes', 'bad_card', 'golden', 'not_duos', 'teammate_away']);
 
 /** A pass came back (the card and the Gold are mine again): say so on the teammate's portrait, with the deny sound, so
  *  a card reappearing is never a silent surprise (phase-3 live test, 2026-10-25). */

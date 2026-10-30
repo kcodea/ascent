@@ -87,7 +87,9 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
   /** END COMBAT (replay done): no strike sfx/vfx, a clean one-shot SHINE covers the dim to lit relight while the shop
    *  fades back in. Its pulse and the relight play on a click, and on a spectator's replay of one (`pressCue.ts`). */
   const playRelight = (): void => {
-    sfx.pulse();
+    // A microtask, so the pulse starts AFTER End Combat's hard stop (R-COMBAT-HARDSTOP-01) has cut the fight's sounds,
+    // whichever of the two runs first (the click below, or the press cue's listeners in any order).
+    queueMicrotask(() => sfx.pulse());
     setRelighting(true);
     window.setTimeout(() => setRelighting(false), 700);
   };

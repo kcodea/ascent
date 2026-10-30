@@ -11968,4 +11968,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Amy has two Dragons and two Kobolds: a "minion of her most common type" is a Dragon or a Kobold, half the time each.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCards.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
+  {
+    id: 'R-COMBAT-HARDSTOP-01',
+    title: 'Pressing End Combat / Return to Shop stops everything from the fight at once',
+    statement:
+      'The moment the player presses the End Combat / Return to Shop gem, nothing from the fight is heard or seen any '
+      + 'more: every sound it started (a hero attack, a beat, a voice line, an announcer line, a sound still scheduled '
+      + 'to start) is cut within a few milliseconds, the hero strike still playing is stopped without landing again, '
+      + 'the replay stops advancing, the effects still drawing are cleared, and until the shop (or the end screen) is '
+      + 'shown no new fight sound or effect can start. The gem\'s own sound, the return transition, the end-of-game '
+      + 'gate and the placement tone still play, and the shop\'s own sounds and effects play as normal once it is '
+      + 'shown. The result is unchanged: a blow that was stopped before it landed is still applied when the fight is '
+      + 'left. This holds for every way of leaving (the shop, the end of the game, a Versus room, a replay, the watch '
+      + 'screen) and for every combat sound or effect, including ones added later.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-30 (End Combat gem)', quote: 'there are certain sounds and whatnot that still occur once the end combat / return to shop gem is hit. for example, when a hero\'s attack animation starts, you can hear it in the background while the return to shop animation happens. how can we ensure that absolutely everything stops the moment that gem is clicked?' },
+      { kind: 'code', ref: 'packages/ui/src/combatHardStop.ts (hardStopCombat, releaseCombatHold); combatHold.ts; sfx.ts (epoch gains, hardStopSfx, heldBack); fx/fxBudget.ts retireTransientPlays; fx/playDef.ts hold; Recruit.tsx stopFightNow / endCombat; EndTurnButton.tsx playRelight' },
+    ],
+    currentBehaviour: 'Since 2026-10-30. Before, a WIN\'s gem was ready while the winner\'s hero strike was still playing, and the strike, its sounds and any late combat timer kept going until the return transition fully covered the screen.',
+    example: 'You win round 5 and press the gem as your hero winds up its Inferno attack: the fireball\'s roar stops at the click, the return transition plays with only its own sound, and the opponent still takes the damage.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatHardStop.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

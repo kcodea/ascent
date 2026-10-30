@@ -2,6 +2,7 @@
 import { Container, type Renderer } from 'pixi.js';
 import { perfMonitor } from '../perfMonitor';
 import { pixiFx } from '../pixiFx';
+import { combatHeld } from '../combatHold';
 import { driveLayerHeads, type FxAnchors } from './anchors';
 import { partsUsedByLayers, withUnitParts, type UnitElementLike } from './anchorParts';
 import type { FxDef, FxSlot } from './def';
@@ -550,6 +551,9 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
   //
   // Free when the monitor is off — `measure` is a bare passthrough with no clock reads (see perfMonitor).
   if (FX_LEDGER_ON) fxRequest(`def:${id}`); // the FX ledger (R-PHONE-PERFLOG-01); its outcome is noted in playDefInner
+  // THE COMBAT HARD STOP (R-COMBAT-HARDSTOP-01): after End Combat / Return to Shop is pressed, nothing from the fight
+  // may draw, so a late combat timer finds no effect to start (released before the shop is shown, combatHold.ts).
+  if (combatHeld()) return null;
   return perfMonitor.measure(`fx:${id}`, () => playDefInner(id, anchors, opts));
 }
 
@@ -770,6 +774,7 @@ function playDefInner(
   // `onDone` is being sequenced on, so none of the three may be trimmed (see `fxBudget.ts`'s header).
   unregisterPlay = registerLivePlay({
     id, load, retire, protected: opts.loop === true || follow !== undefined || opts.onDone !== undefined,
+    persistent: opts.loop === true || follow !== undefined,
     bornAt: performance.now(), rampMs: rampMsOf(def), key: opts.dedupeKey,
   });
 

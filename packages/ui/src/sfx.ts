@@ -38,6 +38,7 @@ import { getBuffFxConfig } from './buffFxConfig';
 import { buildAudioFilterChain, curveVaries, applyAudioCurve, reverbImpulse, type FxFilterCtx } from './fx/audioFilters';
 import { getGoodLuckIntroConfig, goodLuckTail } from './goodLuck/goodLuckIntroConfig';
 import { masterOutput } from './audio/master';
+import { combatHeld } from './combatHold';
 import { createSkipWhir, type SkipWhir } from './audio/skipWhir';
 import { scheduleTailFade, scheduleSkipFade, SKIP_FADE_S, type TailOpts } from './audio/tailFade';
 
@@ -237,7 +238,56 @@ function applyComp(node: DynamicsCompressorNode, c: CompConfig): void {
 /** The node a category's sounds connect to: its bus input (if built), else the master limiter, else destination. */
 function busInput(a: AudioContext, category: string): AudioNode {
   const b = busNodes.get(busOf(cfg, category));
-  return b ? b.input : (master ?? masterOutput(a));
+  return epochInput(a, b ? b.input : (master ?? masterOutput(a)));
+}
+
+/* ── THE COMBAT HARD STOP (R-COMBAT-HARDSTOP-01, owner 2026-10-30) ────────────────────────────────────────────────
+   Every sound reaches its bus through an EPOCH gain: one small GainNode per bus, shared by every voice started in the
+   current epoch. `hardStopSfx()` (the End Combat / Return to Shop gem) fades the whole epoch to silence in a few ms
+   and opens a fresh one, so EVERYTHING already playing or already scheduled on the audio clock (a delayed cue, a
+   reverb tail, a hero-attack voice, an FX layer's sound) is cut at the click, with no call site having to keep a
+   handle, while anything started after it (the wipe, the shop) plays on the new epoch untouched. One extra node per
+   bus per fight: no per-frame cost. The hold (combatHold.ts) then drops NEW non-`ui` sounds until the shop is back. */
+let epochGains = new Map<AudioNode, GainNode>();
+/** The fade that cuts an epoch: short enough to read as a stop, long enough not to click. */
+export const HARD_STOP_FADE_S = 0.025;
+function epochInput(a: AudioContext, target: AudioNode): AudioNode {
+  let g = epochGains.get(target);
+  if (!g) {
+    g = a.createGain();
+    g.connect(target);
+    epochGains.set(target, g);
+  }
+  return g;
+}
+/** A new sound of this category is dropped while the combat hold is on: everything but the `ui` bus (the gem's own
+ *  pulse, the return wipe, the end gate and the placement tone ride `ui`). */
+function heldBack(category: string): boolean {
+  return combatHeld() && busOf(cfg, category) !== 'ui';
+}
+/** Cut every sound the fight started (see above), stop a Skip's whir, and cancel the announcer's queue + line. Does
+ *  not touch the Skip mute bus or the music. Safe with no AudioContext (nothing has played yet). */
+export function hardStopSfx(): void {
+  skipWhir?.stop();
+  skipWhir = null;
+  const a = ctx;
+  const old = epochGains;
+  epochGains = new Map();
+  if (a && old.size) {
+    const t = a.currentTime;
+    for (const g of old.values()) {
+      g.gain.cancelScheduledValues(t);
+      g.gain.setValueAtTime(g.gain.value, t);
+      g.gain.linearRampToValueAtTime(0, t + HARD_STOP_FADE_S);
+    }
+    // Let go of the old epoch once it is silent: its voices end into nothing and are collected.
+    setTimeout(() => { for (const g of old.values()) { try { g.disconnect(); } catch { /* already */ } } }, HARD_STOP_FADE_S * 1000 + 200);
+  }
+  for (const cb of stopHooks) { try { cb(); } catch { /* a hook must never break the stop */ } }
+}
+/** Test/diagnostic: how many epoch gains the current epoch holds (one per bus a sound has used). */
+export function epochGainCount(): number {
+  return epochGains.size;
 }
 
 /** Callbacks for the moment the AudioContext first exists (perf 2026-10-10): the FX sound layer uses it to
@@ -610,7 +660,7 @@ function firstCardClip(): string | undefined {
  *  used to stagger a token's clip after the summon cue. `onNodes` hands back the live source+gain so the caller
  *  can later fade/stop a long clip (see `stopTurnCharge`) — Web Audio sources are otherwise fire-and-forget. */
 function playSample(name: string, category: string, delay = 0, onNodes?: (nodes: PlayNodes) => void, slice?: ClipSlice): boolean {
-  if (isHidden() || audioSuspended) return false; // backgrounded, or hard-muted by a Skip-combat fade
+  if (isHidden() || audioSuspended || heldBack(category)) return false; // backgrounded, hard-muted by a Skip-combat fade, or held by the combat hard stop
   const a = audio();
   if (!a || muted) return false;
   const buf = buffers.get(name);
@@ -797,7 +847,7 @@ export interface SfxHandle { stop: () => void; }
  * out (natural end) or the skip fade has landed, so nothing piles up. Returns null when nothing was queued.
  */
 function playTailedSample(name: string, category: string, vol: number, delay: number, tail: TailOpts, slice?: ClipSlice, rate = 1, reverse = false): SfxHandle | null {
-  if (isHidden() || audioSuspended) return null;
+  if (isHidden() || audioSuspended || heldBack(category)) return null;
   const a = audio();
   if (!a || muted) return null;
   const buf = buffers.get(name);
@@ -903,7 +953,7 @@ function brownNoise(a: AudioContext): AudioBuffer {
  * `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no Web Audio).
  */
 export function playRumble(category: string, o: { gain: number; buildMs: number; holdMs: number; tailMs: number; lowHz: number; highHz: number; delayMs?: number }): SfxHandle | null {
-  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  if (isHidden() || audioSuspended || heldBack(category) || !(o.gain > 0)) return null;
   const a = audio();
   if (!a || muted) return null;
   const src = a.createBufferSource();
@@ -954,7 +1004,7 @@ export function playRumble(category: string, o: { gain: number; buildMs: number;
  * whose `stop()` fades it in `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no Web Audio).
  */
 export function playSwirlTone(category: string, o: { gain: number; buildMs: number; lowHz: number; highHz: number; delayMs?: number }): SfxHandle | null {
-  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  if (isHidden() || audioSuspended || heldBack(category) || !(o.gain > 0)) return null;
   const a = audio();
   if (!a || muted) return null;
   const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
@@ -1008,7 +1058,7 @@ export function playSwirlTone(category: string, o: { gain: number; buildMs: numb
  * fades it in `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no Web Audio).
  */
 export function playSteelHum(category: string, o: { gain: number; buildMs: number; hz: number; rise: number; delayMs?: number }): SfxHandle | null {
-  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  if (isHidden() || audioSuspended || heldBack(category) || !(o.gain > 0)) return null;
   const a = audio();
   if (!a || muted) return null;
   const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
@@ -1067,7 +1117,7 @@ export function playSteelHum(category: string, o: { gain: number; buildMs: numbe
  * was queued (muted, hidden, suspended, no Web Audio).
  */
 export function playRageTone(category: string, o: { gain: number; buildMs: number; lowHz: number; highHz: number; delayMs?: number }): SfxHandle | null {
-  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  if (isHidden() || audioSuspended || heldBack(category) || !(o.gain > 0)) return null;
   const a = audio();
   if (!a || muted) return null;
   const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
@@ -1135,7 +1185,7 @@ function crackleBuffer(a: AudioContext): AudioBuffer {
  * it in `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no Web Audio).
  */
 export function playEmberCrackle(category: string, o: { gain: number; durMs: number; delayMs?: number }): SfxHandle | null {
-  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  if (isHidden() || audioSuspended || heldBack(category) || !(o.gain > 0)) return null;
   const a = audio();
   if (!a || muted) return null;
   const src = a.createBufferSource();
@@ -1215,7 +1265,7 @@ export function warmPoisonSynths(): void {
  * Web Audio).
  */
 export function playAcidSizzle(category: string, o: { gain: number; durMs: number; delayMs?: number }): SfxHandle | null {
-  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  if (isHidden() || audioSuspended || heldBack(category) || !(o.gain > 0)) return null;
   const a = audio();
   if (!a || muted) return null;
   const src = a.createBufferSource();
@@ -1264,7 +1314,7 @@ export function playAcidSizzle(category: string, o: { gain: number; durMs: numbe
  * `category`'s fader. Returns a handle whose `stop()` fades it in `SKIP_FADE_S`; null when nothing was queued.
  */
 export function playToxicFizz(category: string, o: { gain: number; buildMs: number; lowHz: number; highHz: number; delayMs?: number }): SfxHandle | null {
-  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  if (isHidden() || audioSuspended || heldBack(category) || !(o.gain > 0)) return null;
   const a = audio();
   if (!a || muted) return null;
   const bufs = poisonBuffers(a);
@@ -1331,7 +1381,7 @@ function whiteNoise(a: AudioContext): AudioBuffer {
  * `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no Web Audio).
  */
 export function playFrostWind(category: string, o: { gain: number; buildMs: number; tailMs: number; lowHz: number; highHz: number; delayMs?: number }): SfxHandle | null {
-  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  if (isHidden() || audioSuspended || heldBack(category) || !(o.gain > 0)) return null;
   const a = audio();
   if (!a || muted) return null;
   const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
@@ -1386,7 +1436,7 @@ export function playFrostWind(category: string, o: { gain: number; buildMs: numb
  * silence, on `category`'s fader. Returns a handle whose `stop()` fades it in `SKIP_FADE_S`; null when nothing was queued.
  */
 export function playIceCrackle(category: string, o: { gain: number; durMs: number; delayMs?: number }): SfxHandle | null {
-  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  if (isHidden() || audioSuspended || heldBack(category) || !(o.gain > 0)) return null;
   const a = audio();
   if (!a || muted) return null;
   const src = a.createBufferSource();
@@ -1432,7 +1482,7 @@ export function playIceCrackle(category: string, o: { gain: number; durMs: numbe
  * `stop()` fades it in `SKIP_FADE_S`; null when nothing was queued (muted, hidden, suspended, no Web Audio).
  */
 export function playHolyChoir(category: string, o: { gain: number; hz: number; buildMs: number; holdMs: number; tailMs: number; rise: number; delayMs?: number }): SfxHandle | null {
-  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  if (isHidden() || audioSuspended || heldBack(category) || !(o.gain > 0)) return null;
   const a = audio();
   if (!a || muted) return null;
   const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
@@ -1504,7 +1554,7 @@ export function playHolyChoir(category: string, o: { gain: number; hz: number; b
  * until the owner supplies one. Returns a handle whose `stop()` fades it in `SKIP_FADE_S`; null when nothing was queued.
  */
 export function playBellStrike(category: string, o: { gain: number; hz: number; decayMs: number; delayMs?: number }): SfxHandle | null {
-  if (isHidden() || audioSuspended || !(o.gain > 0)) return null;
+  if (isHidden() || audioSuspended || heldBack(category) || !(o.gain > 0)) return null;
   const a = audio();
   if (!a || muted) return null;
   const t0 = a.currentTime + Math.max(0, o.delayMs ?? 0) / 1000;
@@ -1623,7 +1673,7 @@ interface ToneOpts {
 // The synth `vol` is the oscillator's OWN level (unaffected by category gain — those scale the sourced clips);
 // only the ROUTING goes through the category's bus. The master-gain node applies the Settings-slider volume.
 function tone({ freq, dur, type = 'sine', vol = 0.18, slideTo, delay = 0, category = 'ui' }: ToneOpts): void {
-  if (isHidden() || audioSuspended) return; // backgrounded, or hard-muted by a Skip-combat fade
+  if (isHidden() || audioSuspended || heldBack(category)) return; // backgrounded, hard-muted by a Skip-combat fade, or held
   const a = audio();
   if (!a || muted) return;
   const t0 = a.currentTime + delay;
@@ -2523,7 +2573,7 @@ function reversedBuffer(a: AudioContext, name: string, buf: AudioBuffer): AudioB
  * `Math.random` for per-fire variance is fine here (this file is UI, not the seeded engine).
  */
 export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle | null {
-  if (isHidden() || audioSuspended) return null;
+  if (isHidden() || audioSuspended || (combatHeld() && (opts.bus ?? 'combat') !== 'ui')) return null;
   const a = audio();
   if (!a || muted || !clip) return null;
   const buf = buffers.get(clip);
@@ -2538,7 +2588,7 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   const gainJit = opts.gainVar ? 1 - Math.random() * opts.gainVar : 1; // only DOWN, so it never exceeds the set level
   const level = Math.max(0, (opts.gain ?? 1) * gainJit);
   const g = a.createGain();
-  const busIn = busNodes.get(opts.bus ?? 'combat')?.input ?? master ?? masterOutput(a);
+  const busIn = epochInput(a, busNodes.get(opts.bus ?? 'combat')?.input ?? master ?? masterOutput(a));
   const t0 = a.currentTime + Math.max(0, (opts.delayMs ?? 0) / 1000);
   const offset = Math.max(0, (opts.startOffsetMs ?? 0) / 1000);
   const endTrim = Math.max(0, (opts.endOffsetMs ?? 0) / 1000);

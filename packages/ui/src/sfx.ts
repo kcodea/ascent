@@ -237,8 +237,13 @@ function applyComp(node: DynamicsCompressorNode, c: CompConfig): void {
 
 /** The node a category's sounds connect to: its bus input (if built), else the master limiter, else destination. */
 function busInput(a: AudioContext, category: string): AudioNode {
+  return epochInput(a, busTarget(a, category));
+}
+/** The STABLE node a category's bus feeds (its bus input, else the master limiter, else destination): what
+ *  `busInput` wraps in the current hard-stop epoch. The shared tail reverbs are keyed by it (they outlive epochs). */
+function busTarget(a: AudioContext, category: string): AudioNode {
   const b = busNodes.get(busOf(cfg, category));
-  return epochInput(a, b ? b.input : (master ?? masterOutput(a)));
+  return b ? b.input : (master ?? masterOutput(a));
 }
 
 /* ── THE COMBAT HARD STOP (R-COMBAT-HARDSTOP-01, owner 2026-10-30) ────────────────────────────────────────────────
@@ -837,6 +842,41 @@ function playWipeLayer(l: WipeLayer): void {
 /** A tailed play with every dial off: the clip's own end, no reverb (the old behaviour, for bare calls). */
 const NO_TAIL: TailOpts = { fadeOutMs: 0, reverbMix: 0, reverbSec: 0 };
 
+/**
+ * ONE SHARED REVERB PER (destination bus, tail length) for the soft-tail voice (R-PERF-SHARED-TAIL-REVERB-01, perf
+ * degradation hunt 2026-10-30: "performance degrades over a game, worse on phones"). A ConvolverNode costs ~40-60 MB
+ * of renderer memory at a 96 kHz context (its partitioned impulse plus FFT and accumulation buffers) and ~6 ms of main
+ * thread to build (the impulse is partitioned and FFT'd when its `buffer` is set). The falling gate's crank used to build
+ * FOUR of them on every fight, right as the gate lifted (each crank layer has a 40% reverb): a 155 MB allocate-and-free
+ * and ~25 ms of main thread on every combat start. Convolution is linear, so the sum of every play's send through ONE
+ * convolver is exactly the sum of their separate tails: each play keeps its own send (level, envelope, mix) and the
+ * shared node, built once, rings into the same bus the play's dry signal goes to.
+ */
+const sharedTailReverbs = new WeakMap<AudioNode, Map<number, { conv: ConvolverNode; out: AudioNode | null }>>();
+/** The shared convolver for `bus` (a STABLE bus node, `busTarget`) and this tail length, ringing into `out` (the
+ *  bus's CURRENT hard-stop epoch input, R-COMBAT-HARDSTOP-01). A hard stop leaves the node ringing into the silenced old
+ *  epoch, so a stopped fight's tails are cut with everything else; the next play re-points it at the live epoch. */
+export function sharedTailReverb(a: AudioContext, bus: AudioNode, seconds: number, out: AudioNode = bus): ConvolverNode {
+  let byLen = sharedTailReverbs.get(bus);
+  if (!byLen) { byLen = new Map(); sharedTailReverbs.set(bus, byLen); }
+  let e = byLen.get(seconds);
+  if (!e) {
+    const conv = a.createConvolver();
+    conv.buffer = reverbImpulse(a, seconds, 0.55); // cached per (length, damping, rate)
+    if (LITE_ART) crumbOnce('reverb built');
+    e = { conv, out: null };
+    byLen.set(seconds, e);
+  }
+  if (e.out !== out) {
+    if (e.out) { try { e.conv.disconnect(); } catch { /* already */ } }
+    e.conv.connect(out);
+    e.out = out;
+  }
+  return e.conv;
+}
+/** Tests: how many shared tail reverbs exist for a destination. */
+export const sharedTailReverbCount = (dest: AudioNode): number => sharedTailReverbs.get(dest)?.size ?? 0;
+
 /** A handle on a scheduled clip, so a skipped moment can silence a sound it had already queued. */
 export interface SfxHandle { stop: () => void; }
 
@@ -863,17 +903,17 @@ function playTailedSample(name: string, category: string, vol: number, delay: nu
   level.gain.value = effectiveGain(cfg, category, name) * vol;
   const env = a.createGain();
   const out = a.createGain();
-  src.connect(level).connect(env).connect(out).connect(busInput(a, category));
+  const dest = busInput(a, category);
+  src.connect(level).connect(env).connect(out).connect(dest);
   const nodes: AudioNode[] = [src, level, env, out];
   const reverbSec = Math.max(0, tail.reverbSec);
+  // The reverb send: this play's own (post-envelope) level into the ONE shared convolver for its bus and tail length.
+  let send: GainNode | null = null;
   if (tail.reverbMix > 0 && reverbSec > 0) {
-    const send = a.createGain();
+    send = a.createGain();
     send.gain.value = tail.reverbMix;
-    const conv = a.createConvolver();
-    conv.buffer = reverbImpulse(a, reverbSec, 0.55); // cached per (length, damping, rate): built once
-    if (LITE_ART) crumbOnce('reverb built');
-    env.connect(send).connect(conv).connect(out);
-    nodes.push(send, conv);
+    env.connect(send).connect(sharedTailReverb(a, busTarget(a, category), reverbSec, dest));
+    nodes.push(send); // only the send is this play's: the shared convolver is never disconnected
   }
   const when = a.currentTime + Math.max(0, delay);
   const offset = slice ? Math.max(0, slice.offset) : 0;
@@ -902,6 +942,7 @@ function playTailedSample(name: string, category: string, vol: number, delay: nu
       stopped = true;
       try {
         const landAt = scheduleSkipFade(out.gain, a.currentTime);
+        if (send) scheduleSkipFade(send.gain, a.currentTime); // the send fades with the voice (the shared tail rings out)
         src.onended = null;
         src.stop(landAt + 0.01);
       } catch { /* already stopped */ }
@@ -1962,7 +2003,12 @@ export const sfx = {
   /** Fetch + decode the falling gate's clips now (Recruit, on mount), so the first End Turn of a session is not silent. */
   warmWipeGate: (): void => {
     for (const ls of [...Object.values(WIPE_GATE_LAYERS), ...Object.values(VISTA_TRIP_LAYERS)]) for (const l of ls) loadSample(l.clip);
-    onAudioContextReady((a) => { reverbImpulse(a, WIPE_CRANK_REVERB_SEC, 0.55); }); // the crank's tail, built once now
+    // The crank's tail: its impulse AND its shared convolver(s), one per bus the crank layers play on, built once now
+    // (R-PERF-SHARED-TAIL-REVERB-01) so no fight ever builds one as the gate lifts.
+    onAudioContextReady((a) => {
+      reverbImpulse(a, WIPE_CRANK_REVERB_SEC, 0.55);
+      for (const l of WIPE_GATE_LAYERS.crank) if (l.reverb) sharedTailReverb(a, busTarget(a, l.category ?? l.clip), WIPE_CRANK_REVERB_SEC, busInput(a, l.category ?? l.clip));
+    });
   },
   warmGate: (): void => { for (const clip of [...Object.values(GATE_CLIP), 'combatStart', 'gatehum', 'placelow']) loadSample(clip); }, // + the End Turn cue "Yes" plays, the hum, and the end-of-match tone
   /**

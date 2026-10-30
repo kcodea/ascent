@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LITE_CENSUS_REQS, budgetVerdict, foldRuns, imageCensusVerdict, framesByScene, median, refreshInterval, sceneStats, winner, type SceneStats } from './perfGauntletStats';
+import { LITE_CENSUS_REQS, budgetVerdict, bufferGrowthVerdict, foldRuns, imageCensusVerdict, framesByScene, median, refreshInterval, sceneStats, winner, type SceneStats } from './perfGauntletStats';
 
 // R-PERF-GAUNTLET-01: the rules the perf gauntlet judges by (scripts/perf-gauntlet.mjs).
 
@@ -108,5 +108,20 @@ describe('imageCensusVerdict: script decodes (R-PERF-ART-DECODE-ONCE-01)', () =>
   });
   it('rows without a decode count are not judged on it', () => {
     expect(imageCensusVerdict(rows([1800, 3, 3, 3], [])).line).not.toContain('script decodes');
+  });
+});
+
+describe('bufferGrowthVerdict (R-PERF-SHARED-TAIL-REVERB-01)', () => {
+  const rows = (mb: number[]) => mb.map((bufferMB, i) => ({ r: i + 1, bufferMB }));
+  it('fails the reverb pool growing in 60 MB steps (seed 424242, main before the fix)', () => {
+    const v = bufferGrowthVerdict(rows([737, 1049, 1067, 1082, 1098, 1213, 1213, 1273, 1274, 1273, 1273, 1333, 1333, 1333]));
+    expect(v.ok).toBe(false);
+    expect(v.line).toContain('FAIL');
+  });
+  it('passes a flat buffer partition', () => {
+    expect(bufferGrowthVerdict(rows([60, 62, 61, 63, 62, 61, 64, 62])).ok).toBe(true);
+  });
+  it('too few rounds is not judged', () => {
+    expect(bufferGrowthVerdict(rows([100, 900])).ok).toBe(true);
   });
 });

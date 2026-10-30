@@ -4,7 +4,7 @@
  * impulse reuses it (buffer already set). Loops and untimed plays never pool.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildAudioFilterChain, prewarmConvolvers, reverbSpecsOf } from './audioFilters';
+import { CONVOLVER_POOL_MAX, buildAudioFilterChain, prewarmConvolvers, reverbSpecsOf } from './audioFilters';
 
 interface Node { kind: string; buffer: unknown; normalize: boolean; gain: { value: number; setValueCurveAtTime(): void }; connect(d: Node): Node; disconnect(d?: Node): void }
 function fakeContext() {
@@ -60,6 +60,23 @@ describe('reverb convolver pool', () => {
     vi.advanceTimersByTime(10000);
     buildAudioFilterChain(a, reverb, { t0: 0, durSec: 0.5, oneShot: true });
     expect(made()).toBe(3);
+  });
+});
+
+// R-PERF-SHARED-TAIL-REVERB-01 (perf degradation hunt 2026-10-30): a burst that outruns the pool builds extra nodes
+// (~60 MB each at 96 kHz), and the pool used to KEEP up to 8 of them per impulse, so the renderer grew in ~60 MB steps
+// over a game. Now at most CONVOLVER_POOL_MAX (2 on desktop) idle nodes per impulse are kept; the rest are let go.
+describe('reverb pool never grows over a game', () => {
+  it('a burst of overlapping plays builds what it needs, but only CONVOLVER_POOL_MAX are kept idle', () => {
+    vi.useFakeTimers();
+    const { a, made } = fakeContext();
+    expect(CONVOLVER_POOL_MAX).toBe(2);
+    for (let i = 0; i < 6; i++) buildAudioFilterChain(a, reverb, { t0: 0, durSec: 0.5, oneShot: true });
+    expect(made()).toBe(6);
+    vi.advanceTimersByTime(5000);
+    // A second burst of six: only the two pooled nodes are reused; four are built again (the burst's extras were let go).
+    for (let i = 0; i < 6; i++) buildAudioFilterChain(a, reverb, { t0: 0, durSec: 0.5, oneShot: true });
+    expect(made()).toBe(10);
   });
 });
 

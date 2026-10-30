@@ -288,7 +288,13 @@ const CONVOLVER_RELEASE_PAD_S = 0.5;
  *  buffers, measured at ~70 MB of renderer memory per node for these 1.5-4.2 s tails (the six pre-warmed nodes were
  *  ~440 MB in mobile-emulated Chrome). A phone keeps at most ONE idle node per impulse and pre-warms none: its first
  *  reverb'd fire of each impulse builds one (the ~6 ms main-thread cost this pool exists to hide). Desktop unchanged. */
-const CONVOLVER_POOL_MAX = LITE_ART ? 1 : 8;
+/** DESKTOP (perf degradation hunt 2026-10-30, R-PERF-SHARED-TAIL-REVERB-01): the idle pool per impulse was 8, and every
+ *  burst of overlapping reverb'd fires that outran it built a node (~60 MB each at a 96 kHz context) that then STAYED in
+ *  the pool: the renderer grew in ~60 MB steps over a game (rounds 5, 7 and 11 of the seed-424242 bench). Two idle nodes
+ *  per impulse (what `prewarmConvolvers` builds) cover the common overlap; a node built past that is let go once its
+ *  tail has rung out, so the pool never grows over a game (A/B 2026-10-30: renderer 488 MB lower by round 14, combat
+ *  and End Turn main-thread work no worse). Exported for its test. */
+export const CONVOLVER_POOL_MAX = LITE_ART ? 1 : 2;
 const convolverPools = new WeakMap<BaseAudioContext, Map<string, ConvolverNode[]>>();
 const pooledConvolvers = new WeakSet<ConvolverNode>();
 function impulseKeyOf(a: BaseAudioContext, size: number, damping: number): string {

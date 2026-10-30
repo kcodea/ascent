@@ -513,7 +513,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'pass',
     topic: 'keywords',
     q: 'What does Pass do?',
-    a: "It gives a card to your **teammate** in Duos. It goes to their hand. Dragging a card onto their portrait costs **1 Gold**. A card or spell that passes for you is **free**. A **Golden** minion can't be passed, and a full hand sends the card back to you.",
+    a: "It gives a card to your **teammate** in Duos. It goes to their hand. Dragging a card onto their portrait costs **1 Gold**. A card or spell that passes for you is **free**. A **Golden** minion can't be passed. If their hand is full, a dragged card comes back to you, but a card passed for you waits and lands as soon as they have room.",
     aliases: ['passing', 'pass a card', 'duos pass', 'give teammate'],
     covers: [{ keyword: 'pass', fp: '16a21f76' }],
   },

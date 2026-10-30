@@ -4267,7 +4267,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.giftTeammate(combatArena(ctx, self), { count: 1 }, spellId);
   },
   /** Matchmaker re-fired in COMBAT (R-DUOS-CARDS-05): no Discover and no pass mid-fight (the Discover-in-combat ruling,
-   *  2026-08-04: a random pick), so the teammate gets a random minion of THEIR most common type, landed at settle by
+   *  2026-08-04: a random pick), so the teammate gets a random minion of THEIR most common type, sent in real time (R-DUOS-RUNES-02) and landed by
    *  their run (`giftTeammate` with `mateTribe`). Gilded: two. */
   discoverMateTribePass: (ctx, self, _params, payload) => {
     const m = (payload as Partial<MinionPayload> | undefined)?.minion;

@@ -441,11 +441,11 @@ describe('Duos room (Cloudflare) — effect passes wait for hand room; Disco / M
     expect(b.hand.map((c) => c.cardId).sort()).toEqual([opts[1], opts[2], offered[0]].sort());
   });
 
-  it('golden: an effect pass is refused unless the effect says it passes Golden minions (`passGolden`)', async () => {
+  it('a Salesman of the Year sale pass (Golden included) also skips the hand-room refusal; a Golden spell pass is refused', async () => {
     const h = await inShop();
+    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 0 });
     await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: { cardId: filler, golden: true, passFrom: 'spell' } })).rejects.toThrow('golden');
-    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 2, card: { cardId: filler, golden: true, passFrom: 'hand', passGolden: true } })).rejects.toThrow('golden');
-    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 3, card: { cardId: filler, golden: true, passFrom: 'spell', passGolden: true } })).resolves.toMatchObject({ to_seat: 'p2' });
+    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 2, card: { cardId: filler, golden: true, passFrom: 'sale' } })).resolves.toMatchObject({ to_seat: 'p2' });
   });
 });
 

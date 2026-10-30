@@ -82,7 +82,7 @@ export interface DuosRunState {
    *  full, they get the card once there is space in their hand"). An effect pass (`passFrom: 'spell'`) that arrives to
    *  a full hand is LANDED (answered, the sender keeps nothing back) and waits here, in arrival order; `landWaitingPasses`
    *  moves each into the hand the moment there is room (after any action). Persisted with the run, so a reload keeps it. */
-  waiting?: { key: string; card: BoardCard }[];
+  waiting?: { key: string; card: BoardCard; gift?: true }[];
 }
 
 /** A team-effect entry's placeholder card (it never lands anywhere). */
@@ -275,7 +275,8 @@ export function landWaitingPasses(state: RunState): RunState {
   const d = s.duos!;
   while (d.waiting!.length > 0 && s.hand.length < handCap(s)) {
     const next = d.waiting!.shift()!;
-    s.hand.push({ ...next.card, uid: `b${s.uidSeq++}`, passKey: next.key });
+    // A gift's card is not a pass (no pass key: it never travelled as a card); an effect pass keeps the key it came by.
+    s.hand.push({ ...next.card, uid: `b${s.uidSeq++}`, ...(next.gift ? {} : { passKey: next.key }) });
   }
   if (d.waiting!.length === 0) d.waiting = undefined;
   return s;

@@ -2848,11 +2848,11 @@ rider that fires only when the Ruby's **target is a Kobold** (dual-tribe and All
 
 ### Whisper: a spell a card grants, temporary in hand and in what it gives (Set 3 since 2026-10-14; owner 2026-10-13; R-WHISPER-01, R-WHISPER-02)
 
-> The Whisper Dragons (Galas, Tolan, Tamby, Whisp) and their Whispers were authored for Set 4 and MOVED to **Set 3**
+> The Whisper Dragons (Quill, formerly Galas; Tolan, Tamby, Whisp) and their Whispers were authored for Set 4 and MOVED to **Set 3**
 > on 2026-10-14 (owner: "move our current set 4 dragons to set 3"); Dragon is now a Set 3 tribe. Ids are unchanged
 > (`d4_*`, `w4_*`). Set 3 is **disabled**: these play only in the Scene Builder until the owner flips it on.
 
-A **Whisper** is a spell a card **grants**. The minion's text prints what it does after "**Whisper:**" (Galas: "Give
+A **Whisper** is a spell a card **grants**. The minion's text prints what it does after "**Whisper:**" (Quill: "Give
 a friendly minion +1/+1. Improves every 4 spells cast this game.", its Whisper is **Tome**; Tolan: "Give a friendly
 minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover preview shows the Whisper card itself.
 
@@ -2962,7 +2962,7 @@ Owner additions the same day (R-WHISPER-12..14):
 - **Hatcher** (T4 5/4): "**Whisper:** Get a random **Tier 1** **Dragon**. Improves every turn." Its Whisper (name
   pending, "Clutch" for now) gets a Dragon of exactly that tier from the run's pool. Tier 1 on play, one tier higher each
   Start of Turn it spends on the board (not in hand), up to Tier 6. Gilded: get 2.
-- **Whispwarder** (T5 7/5): "**Whisper:** Give a minion **Ward**." Its Whisper, **Warding Call**: Ward until your next
+- **Shelly** (formerly Whispwarder; T4 7/5 since 2026-10-27): "**Whisper:** Give a minion **Ward**." Its Whisper, **Warding Call**: Ward until your next
   turn; a Hum keeps it. Gilded: Resilient Ward instead.
 
 ### Set 3 Dragon runes, Basic (owner 2026-10-21; R-DRAGON-RUNES-BASIC-01)

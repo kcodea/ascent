@@ -210,7 +210,7 @@ describe('CHOOSEY DRAGON: Rally: Cast Tribes Choice on the minion to the right o
   const casts = (r: Fight, src: string) => r.events.filter((e) => e.type === 'sc' && e.source === src && e.spellId === 'tribeschoice');
 
   it('is a Set 3 T3 3/4 Rally Dragon naming the existing Tribes Choice spell', () => {
-    expect(CARD_INDEX['d3_choosey']).toMatchObject({ name: 'Choosey Dragon', tribe: 'dragon', tier: 3, attack: 3, health: 4, keywords: ['RL'] });
+    expect(CARD_INDEX['d3_choosey']).toMatchObject({ name: 'Picky Dragon', tribe: 'dragon', tier: 3, attack: 3, health: 4, keywords: ['RL'] });
     expect(CARD_INDEX['tribeschoice']!.name).toBe('Tribes Choice');
     expect(poolFor('set3').buyable.some((c) => c.id === 'd3_choosey')).toBe(true);
   });

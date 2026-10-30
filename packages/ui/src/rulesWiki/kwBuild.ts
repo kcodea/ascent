@@ -409,7 +409,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'whisper',
     topic: 'keywords',
     q: 'What is a Whisper?',
-    a: "A spell a minion gives you. **Galas** gives you a Tome and **Tolan** gives you a Runebind: one the moment you play them, and a new one at the start of every turn they are still on your board. **Drag it onto a friendly minion** to cast it. If you do not cast it, it **fades at End of Turn**. It counts as a spell cast, but it is not a Shop spell.",
+    a: "A spell a minion gives you. **Quill** gives you a Tome and **Tolan** gives you a Runebind: one the moment you play them, and a new one at the start of every turn they are still on your board. **Drag it onto a friendly minion** to cast it. If you do not cast it, it **fades at End of Turn**. It counts as a spell cast, but it is not a Shop spell.",
     aliases: ['whispers', 'tome', 'runebind'],
     seeAlso: ['whisper-stats'],
     covers: [{ keyword: 'whisper', fp: '51461a06' }],

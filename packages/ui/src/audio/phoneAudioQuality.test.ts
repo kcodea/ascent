@@ -1,7 +1,8 @@
 /**
  * R-TOUCH-AUDIO-QUALITY-01 (owner 2026-10-23, a real iPhone: "the sound effects were all terrible/not loaded"). A phone
  * decodes at the context's own rate (not 32 kHz), folds to mono without cancelling a wide clip, decodes the clips a game
- * needs ahead of their first play, and sizes its LRU for a game's working set. Desktop is untouched.
+ * needs ahead of their first play, and sizes its LRU for a game's working set. (Desktop shares the resident bank, the
+ * LRU and the prewarm since R-AUDIO-MEMORY-02: audio/desktopSfxMemory.test.ts.)
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -198,18 +199,5 @@ describe('phone prewarm from the store', () => {
     vi.advanceTimersByTime(PREWARM_SETTLE_MS);
     expect(prewarmSpy).toHaveBeenCalledTimes(2);
     expect((prewarmSpy.mock.calls[1] as unknown[])[0]).toMatchObject({ cardIds: ['a', 'z', 'b', 'c'] });
-  });
-});
-
-describe('desktop is untouched', () => {
-  it('every new path is behind the phone flag', () => {
-    const s = read('sfx.ts');
-    expect(s).toContain("if (!LITE_ART) { for (const name of clipNamesInBank()) loadSample(name, 'audio'); return; }"); // desktop: the whole bank, the audio lane, as before
-    expect(s).not.toMatch(/^import (?!type )[^;]*from '\.\/audio\/clipIndex';/m); // desktop never loads the clip index (only a type import)
-    expect(s).toMatch(/requestAssetTask\(key, lane, \(\) =>\n {4}fetch\(src\)\n {6}\.then\(\(r\) => r\.arrayBuffer\(\)\)\n {6}\.then\(\(ab\) => a\.decodeAudioData\(ab\)\)\n {6}\.then\(\(buf\) => \{ keepBuffer\(name, buf\);/);
-    expect(s).toContain('export function prewarmSfx(scene: PrewarmScene): number {\n  if (!LITE_ART) return 0;');
-    expect(s).toContain('function touchBuffer(name: string, buf: AudioBuffer): void {\n  if (!LITE_ART || isPhoneResident(name)) return;');
-    expect(s).toContain('if (!LITE_ART || isPhoneResident(name)) return;\n  liteAudioBytes');
-    expect(read('Game.tsx')).toContain('const unsubSfxPrewarm = LITE_ART ? useGame.subscribe((st) => syncPhoneSfxPrewarm(st)) : () => {};');
   });
 });

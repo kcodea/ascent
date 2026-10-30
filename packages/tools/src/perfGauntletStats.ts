@@ -139,6 +139,9 @@ export interface ImageCensusRow {
   reqs: number;
   /** Image decode tasks the renderer ran since the previous probe (the trace's `ImageDecodeTask`), when traced. */
   decodes?: number;
+  /** Script decode requests the compositor queued since the previous probe (`img.decode()`: the trace's
+   *  `LayerTreeHost::QueueImageDecode`), when traced. */
+  queuedDecodes?: number;
   /** Private memory of the renderer process(es), MB. */
   rendererMB?: number | null;
 }
@@ -151,10 +154,12 @@ export interface ImageCensusRow {
  * LITE_CENSUS_REQS). The renderer's private memory slope (least squares, MB a round, so one GC-timing spike cannot
  * move it) is always REPORTED; it only gates when `maxRendererMBPerRound` is passed, because today's remaining creep
  * is not image memory (the 2026-10-30 memory-infra breakdown: the SFX cache filling to its cap, Blink's own heaps).
+ * Script decode requests (`img.decode()`, R-PERF-ART-DECODE-ONCE-01) must stay at or under `maxQueuedDecodesPerRound`
+ * (default 100) when the trace counted them: art the pipe already holds is never decoded again on load.
  */
 /** The phone art path's request ceiling: its bounded LRU drops art on purpose, so the next <img> reloads it. */
 export const LITE_CENSUS_REQS = 150;
-export function imageCensusVerdict(rows: readonly ImageCensusRow[], opts: { fromRound?: number; maxReqsPerRound?: number; maxRendererMBPerRound?: number } = {}): { ok: boolean; line: string; maxReqs: number; slopeMB: number | null } {
+export function imageCensusVerdict(rows: readonly ImageCensusRow[], opts: { fromRound?: number; maxReqsPerRound?: number; maxRendererMBPerRound?: number; maxQueuedDecodesPerRound?: number } = {}): { ok: boolean; line: string; maxReqs: number; slopeMB: number | null } {
   const from = opts.fromRound ?? 3;
   const maxReqs = opts.maxReqsPerRound ?? 25;
   const maxSlope = opts.maxRendererMBPerRound ?? Infinity;
@@ -170,9 +175,11 @@ export function imageCensusVerdict(rows: readonly ImageCensusRow[], opts: { from
     const den = mem.reduce((s, x) => s + (x.r - mx) ** 2, 0);
     slope = den ? num / den : 0;
   }
-  const reqOk = worst <= maxReqs;
+  const maxQueued = opts.maxQueuedDecodesPerRound ?? 100;
+  const queued = late.some((x) => typeof x.queuedDecodes === 'number') ? late.reduce((m, x) => Math.max(m, x.queuedDecodes ?? 0), 0) : null;
+  const reqOk = worst <= maxReqs && (queued === null || queued <= maxQueued);
   const memOk = slope === null || slope <= maxSlope;
   const ok = reqOk && memOk;
-  const line = `image census r${from}+: worst round ${worst} image requests (limit ${maxReqs})${slope === null ? '' : `, renderer ${slope >= 0 ? '+' : ''}${slope.toFixed(1)} MB/round${Number.isFinite(maxSlope) ? ` (limit ${maxSlope})` : ' (reported)'}`}: ${ok ? 'PASS' : 'FAIL'}`;
+  const line = `image census r${from}+: worst round ${worst} image requests (limit ${maxReqs})${queued === null ? '' : `, worst round ${queued} script decodes (limit ${maxQueued})`}${slope === null ? '' : `, renderer ${slope >= 0 ? '+' : ''}${slope.toFixed(1)} MB/round${Number.isFinite(maxSlope) ? ` (limit ${maxSlope})` : ' (reported)'}`}: ${ok ? 'PASS' : 'FAIL'}`;
   return { ok, line, maxReqs: worst, slopeMB: slope };
 }

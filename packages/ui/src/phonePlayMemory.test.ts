@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { audioBufferBytes, downmixToMono, PHONE_AUDIO_PREFETCH_DELAY_MS, serialQueue } from './audio/phoneAudio';
+import { audioBufferBytes, downmixToMono, PHONE_AUDIO_PREFETCH_DELAY_MS, pacedQueue } from './audio/phoneAudio';
 import { beginSession, describeCrumb, lastStep, pushCrumb, type CrashLogStore } from './crashLog';
 
 const src = (f: string): string => fs.readFileSync(path.join(__dirname, f), 'utf8');
@@ -27,8 +27,8 @@ describe('phone audio memory', () => {
     expect(after / before).toBeCloseTo(1 / 2, 5);
   });
 
-  it('the serial queue runs one job at a time, in order, past a failure', async () => {
-    const q = serialQueue();
+  it('the decode queue runs one job at a time, in order, past a failure', async () => {
+    const q = pacedQueue(0);
     let running = 0; let peak = 0; const order: number[] = [];
     const job = (n: number, fail = false) => () => new Promise<number>((res, rej) => {
       running++; peak = Math.max(peak, running);
@@ -43,7 +43,8 @@ describe('phone audio memory', () => {
   it('sfx.ts wires the phone path: delayed prefetch, serial decode, mono copy, only the resident bank up front', () => {
     const s = src('sfx.ts');
     expect(s).toContain('setTimeout(prefetchSamples, LITE_ART ? PHONE_AUDIO_PREFETCH_DELAY_MS : 0)');
-    expect(s).toContain('phoneDecode(() => phoneDecodeCtx(a).decodeAudioData(ab))');
+    expect(s).toContain('phoneDecode(() => phoneDecodeCtx(a).decodeAudioData(ab)');
+    expect(s).toContain('pacedQueue(PHONE_DECODE_GAP_MS)');
     expect(s).toContain('keepBuffer(name, monoCopy(a, buf))');
     expect(s).toContain('for (const name of clipNamesInBank()) if (isPhoneResident(name)) loadSample(name, PHONE_SFX_LANE);');
     expect(s).not.toContain('sfx-fetch:');

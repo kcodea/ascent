@@ -55,6 +55,8 @@ import {
 import { runeTally } from './runeTally';
 import { DEFAULT_SLIDER, sliderToGain } from './audio/volumeCurve';
 import { masterLevel, masterOutput, onMasterChange } from './audio/master';
+import { createLineCache } from './audio/lineCache';
+import { audioBufferBytes } from './audio/phoneAudio';
 import { ANNOUNCER_CHANCE, announcerEventChance, announcerEventOffset, announcerEventVolume, announcerLineGain } from './announcerConfig';
 import { isMusicWanted, isWatchScreen, MUSIC_FADE_MS, MUSIC_START_DELAY_MS, type MusicStateLike } from './music';
 import { COMBAT_MOMENT_EVENTS, COMBAT_SPECIAL_EVENTS, finalMoments, newCombatScan, scanCombat, type CombatScan, type FrameAt, type UnitStats } from './announcerCombat';
@@ -797,7 +799,23 @@ export function setAnnouncerAudioContextProvider(provider: () => AudioContext | 
   ctxProvider = provider;
 }
 let graph: { ctx: AudioContext; level: GainNode } | null = null;
-const buffers = new Map<string, Promise<AudioBuffer | null>>();
+/** Decoded lines: held while loading or sounding, then only a few recent ones (R-AUDIO-MEMORY-01, audio/lineCache.ts).
+ *  Was a Map that kept every line it ever decoded, for the page's life. */
+let lineCtx: AudioContext | null = null;
+const lines = createLineCache<AudioBuffer>(
+  (url) => {
+    const ctx = lineCtx;
+    if (!ctx) return Promise.resolve(null);
+    return fetch(url)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((bytes) => ctx.decodeAudioData(bytes));
+  },
+  audioBufferBytes,
+);
+/** Decoded announcer audio held right now, in MB (the measuring scripts read it). */
+export function announcerDecodedMB(): number {
+  return lines.bytes() / 1048576;
+}
 /** Elements on the no-context path that are currently sounding, each with its event multiplier (their `volume`
  *  follows the level). */
 const liveElements = new Map<HTMLAudioElement, number>();
@@ -825,24 +843,13 @@ function applyElementVolumes(): void {
 }
 onMasterChange(applyElementVolumes);
 
-function loadBuffer(ctx: AudioContext, url: string): Promise<AudioBuffer | null> {
-  let p = buffers.get(url);
-  if (!p) {
-    p = fetch(url)
-      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
-      .then((bytes) => ctx.decodeAudioData(bytes))
-      .catch(() => null);
-    buffers.set(url, p);
-  }
-  return p;
-}
-
 async function playDefault(url: string, onEnded: () => void, gain = 1): Promise<AnnouncerHandle | null> {
   const ctx = ctxProvider();
   if (ctx) {
     const out = ensureGraph(ctx);
-    const buf = await loadBuffer(ctx, url);
-    if (!buf) return null;
+    lineCtx = ctx;
+    const buf = await lines.acquire(url);
+    if (!buf) { lines.release(url); return null; }
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const g = ctx.createGain();
@@ -852,8 +859,11 @@ async function playDefault(url: string, onEnded: () => void, gain = 1): Promise<
     src.connect(g);
     g.connect(out);
     let live = true;
-    src.onended = () => { if (live) { live = false; try { src.disconnect(); g.disconnect(); } catch { /* ignore */ } onEnded(); } };
-    src.start();
+    let held = true;
+    /** The line is done with its buffer: it joins the recent set (or is dropped). Once, however it ends. */
+    const letGo = (): void => { if (held) { held = false; lines.release(url); } };
+    src.onended = () => { letGo(); if (live) { live = false; try { src.disconnect(); g.disconnect(); } catch { /* ignore */ } onEnded(); } };
+    try { src.start(); } catch (e) { letGo(); throw e; }
     return {
       stop(fadeMs) {
         if (!live) return;

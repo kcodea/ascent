@@ -11574,4 +11574,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'IonLime and Orangez (team CITRUS) finish 2nd of 4 in Ranked Duos at Gold II and gain 11 points. In Recent Games > Duos, IonLime sees "2nd, CITRUS, Cia with Orangez, +11"; opening it shows both boards, and the lobby lists Goats 1st, CITRUS 2nd (Out R9), then the other two teams. Picking Goats\x27 Ann shows her board.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/cfWriter.db.test.ts', 'workers/versus/test/duosCore.test.ts', 'workers/versus/test/rankedCore.test.ts', 'packages/ui/src/versus/chaos/versusCfParity.db.test.ts', 'packages/ui/src/duosHistory/duosHistory.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
+  {
+    id: 'R-AUDIO-MEMORY-01',
+    title: 'Decoded audio stays bounded: announcer lines are let go after they play, and a phone paces its decodes',
+    statement:
+      'The announcer holds a decoded line only while it loads or plays, and after that keeps at most a few recent lines '
+      + '(6 lines and 6 MB), the least recently used dropped first; a line still sounding is never dropped, and a file '
+      + 'that failed to load is remembered by name only. However many lines a game (or a session of games) speaks, its '
+      + 'decoded audio stays under that cap. On a phone (the lite art path) the sound bank decodes one clip at a time '
+      + 'with a short pause after each, so the stereo copy each mono fold leaves behind is collected before the next '
+      + 'lands; a clip a play is waiting on goes ahead of the bank and skips the pause. When a phone drops an on-demand '
+      + 'clip from its cache, the clip\x27s reversed copy goes with it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (top priority)', quote: 'Performance degrades over the course of a game. It degrades massively by end game, causing major hitching and jank' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'smooth early, hitchy late, worse on phones' },
+      { kind: 'code', ref: 'packages/ui/src/audio/lineCache.ts (createLineCache, ANNOUNCER_LINE_CACHE); packages/ui/src/announcer.ts (playDefault); packages/ui/src/audio/phoneAudio.ts (pacedQueue, PHONE_DECODE_GAP_MS); packages/ui/src/sfx.ts (phoneDecode, keepBuffer); scripts/perf-gauntlet.mjs (--audio)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-29 (perf/audio-memory). Before: the announcer kept every line it ever decoded for the page\x27s '
+      + 'life (its no-repeat bag makes nearly every line a new file, 0.4 to 1.5 MB each), so a game added about 0.5 MB a '
+      + 'round in a bot Practice game (8.8 MB by round 14, perf:gauntlet --round-probe --audio) and more in a chatty lobby, '
+      + 'carried into the next game. A phone decoded its ~130-clip bank back to back, and the stereo garbage piled up on '
+      + 'top of the ~50 MB it holds: CI\x27s phone walk peaked at 90 MB of audio on the mode home (budget 80).',
+    example: 'Ann plays three lobby games in a row on her phone. The announcer speaks about 60 lines a game, each a different file. Before, every one of them stayed decoded until she closed the tab. Now only the last few are kept, so her third game holds the same audio as her first.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/audioMemory.test.ts', 'packages/ui/src/phonePlayMemory.test.ts', '.github/workflows/phone-budgets.yml'], lastVerifiedAt: '2026-10-29' },
+  },
 ];

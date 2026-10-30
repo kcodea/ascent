@@ -487,6 +487,9 @@ npm run perf:gauntlet -- --round-probe --round-scenes --from 2 --to 14 --headles
                                               # process / viz / cc trace per matching scene (DrawAndSwap, render passes,
                                               # raster, thread busy) into gpu-run*.json; --layers: compositor layer census
                                               # per probe. Draw calls (all WebGL contexts) are counted at every mark.
+                                              # --audio: REAL audio (autoplay allowed, output muted); every probe prints
+                                              # the decoded AudioBuffer MB still alive after a full GC, split by what
+                                              # fetched it (announcer / sfx / created). Climbing = an audio cache leak.
                                               # --url <origin>: drive a running server instead (the DEV server:
                                               # VITE_PERF_BENCH=1 npx vite --port N, never 5173). --allow-net <regex>: let
                                               # matching reads through (GET); --allow-write <regex>: the only writes that pass.

@@ -22,6 +22,16 @@
  *    itself, or when its card moves (dragged, sold, played: owner 2026-10-29), on the sender's and the receiver's screen
  *    alike (a `ping_clear` on the stream). It also goes when its target leaves the screen (the shop closes for the fight). Only pings for the screen on display show (mine, or the watched / teammate's seat).
  *
+ *  - UI SPOTS (owner 2026-10-30: "mentors/players should be able to ping discover card options, runes etc as well";
+ *    R-PING-08): every other choosable or inspectable thing carries a semantic `data-ping` key (`pingKeys.ts`): the
+ *    Discover / hero-power Discover / Choose One / Ancient / Quest Shop / Runeforge options, the equipped runes, the quest
+ *    tracker, the second hero power, the Equipment slot, the hero portrait, the lobby rail rows and the Duos teammate
+ *    portrait. They take the top arc (Check, X, Question). A double right-click reaches the spot's OWN right-click (a card
+ *    option's Inspect, a rail row's scout pin, the portrait's emotes). A spot marked `data-ping-own` (the portrait, the
+ *    rail rows) keeps its own right-click for the PLAYER on their own screen (no fan there); a teammate or mentor pings
+ *    it. On a phone, the player's own hold on a choice option still opens its Inspect (R-TOUCH-TAPSELECT-01); a teammate
+ *    or mentor's hold opens the fan, and their tap on an option inspects it (they cannot pick it anyway).
+ *
  * No per-frame work: the marks are DOM nodes with CSS one-shots; the anchor check is `isConnected` plus a query, 4 Hz.
  */
 import { memo, useEffect, useRef, useState, type CSSProperties } from 'react';
@@ -32,7 +42,7 @@ import { dragStore } from '../dragStore';
 import { playDef } from '../fx/playDef';
 import { sfx } from '../sfx';
 import { rectToStage, stageHost, stageViewport, toStage, type StageRect } from '../stage';
-import { isSelectOption, setCardHoldGate } from '../touchInput';
+import { isSelectOption, lastPointerWasTouch, noteContextTaken, setCardHoldGate, setOptionTapInspectGate } from '../touchInput';
 import { useSpectate } from '../versus/spectate';
 import { pingSrc, PING_LOOK } from './pingArt';
 import { clearMyPingOn, clearPing, clearPingsOnCard, expirePings, forgetPing, myPingOn, myPingSeat, pingContext, sendPing, usePings, type ShownPing } from './pingRuntime';
@@ -66,31 +76,53 @@ const boxOf = (el: Element): StageRect | null => {
   try { return rectToStage(el.getBoundingClientRect()); } catch { return null; }
 };
 
+/** Elements whose `data-ping` never counts: hover popups, drag ghosts and Inspect copies (not the real UI). */
+const SPOT_SKIP = '.cardref, .replay-dragghost, .dragcard, .castprev-layer, .inspect-ov';
+
+/** The UI spot (R-PING-08) at or above `el`: its `data-ping` key and element, or null. */
+export function uiSpotOf(el: Element | null | undefined): { k: string; el: HTMLElement } | null {
+  const hit = el && typeof el.closest === 'function' ? el.closest<HTMLElement>('[data-ping]') : null;
+  const k = hit?.getAttribute('data-ping');
+  if (!hit || !k || hit.closest(SPOT_SKIP)) return null;
+  return { k, el: hit };
+}
+
 /**
- * A card's right-click. Opens the ping menu and answers true, or answers false and the caller inspects at once: no pings
- * here, not a play-zone card, a choice option, or a card being dragged.
+ * Does this spot keep its OWN right-click for me here (no fan)? Where I may not ping at all; and for the PLAYER on their
+ * own screen: a spot marked `data-ping-own` (the portrait's emotes, a rail row's scout pin), and on a phone a choice
+ * option (its hold is its Inspect, R-TOUCH-TAPSELECT-01). Pure; exported for tests.
  */
-export function openCardPingMenu(e: { clientX: number; clientY: number; currentTarget: Element }, uid: string | null | undefined, inspect: () => void): boolean {
-  if (!uid) return false;
-  const el = e.currentTarget;
-  if (el.closest('.dragcard') || isSelectOption(el)) return false;
-  const zone = cardZoneOf(el);
-  if (!zone) return false;
-  const target: PingTarget = { t: 'card', uid, zone };
+export function spotYields(spot: { el: Element }, ctx: { role: string } | null, touch: boolean = lastPointerWasTouch()): boolean {
+  if (!ctx) return true;
+  if (ctx.role !== 'self') return false;
+  if (spot.el.hasAttribute('data-ping-own')) return true;
+  return touch && isSelectOption(spot.el.querySelector('.card, .runecard') ?? spot.el);
+}
+
+const targetKey = (t: PingTarget): string => (t.t === 'card' ? `c:${t.zone}:${t.uid}` : t.t === 'button' ? `b:${t.id}` : `u:${t.k}`);
+
+/**
+ * A right-click on a ping target (a card, a button or a UI spot). Answers true when it was taken here (the fan opened, my
+ * ping was cleared, or a double opened `inspect`); false when it belongs to whatever the target does on its own (the
+ * second right-click of a double on a spot with no `inspect`, or no pings here at all).
+ */
+function rightClickTarget(e: { clientX: number; clientY: number }, target: PingTarget, el: Element, inspect: (() => void) | null): boolean {
   // My own ping on it (R-PING-07) counts even where I could not ping now (a mentor just demoted keeps their own marks).
   const own = myPingOn(target);
   if (!own && !pingContext()) return false;
   const now = Date.now();
-  const key = `${zone}:${uid}`;
-  // The SECOND right-click of a double on the same card: the fan goes at once and Inspect opens.
+  const key = targetKey(target);
+  // The SECOND right-click of a double on the same target: the fan goes at once and Inspect opens (a spot with no
+  // Inspect of ours: its own right-click runs).
   if (lastCardRightClick && lastCardRightClick.key === key && now - lastCardRightClick.at <= PING_DOUBLE_MS) {
     lastCardRightClick = null;
     closePingMenu();
+    if (!inspect) return false;
     inspect();
     return true;
   }
   lastCardRightClick = { key, at: now };
-  // A single right-click on a card carrying MY ping clears it (no fan). It still counts as the first of a double, so a
+  // A single right-click on a target carrying MY ping clears it (no fan). It still counts as the first of a double, so a
   // second right-click within PING_DOUBLE_MS inspects as always.
   if (own) {
     closePingMenu();
@@ -100,6 +132,23 @@ export function openCardPingMenu(e: { clientX: number; clientY: number; currentT
   usePingMenu.setState({ open: { x: toStage(e.clientX), y: toStage(e.clientY), box: boxOf(el), target, inspect } });
   sfx.tick();
   return true;
+}
+
+/**
+ * A card's right-click. Opens the ping menu and answers true, or answers false and the caller inspects at once: no pings
+ * here, a card outside the play zones that is not in a UI spot (R-PING-08), or a card being dragged.
+ */
+export function openCardPingMenu(e: { clientX: number; clientY: number; currentTarget: Element }, uid: string | null | undefined, inspect: () => void): boolean {
+  const el = e.currentTarget;
+  if (el.closest('.dragcard')) return false;
+  const zone = cardZoneOf(el);
+  if (zone) return uid && !isSelectOption(el) ? rightClickTarget(e, { t: 'card', uid, zone }, el, inspect) : false;
+  // A choice option (a Discover, hero-power Discover, Choose One...): its UI spot.
+  const spot = uiSpotOf(el);
+  if (!spot) return false;
+  const target: PingTarget = { t: 'ui', k: spot.k };
+  if (!myPingOn(target) && spotYields(spot, pingContext())) return false;
+  return rightClickTarget(e, target, spot.el, inspect);
 }
 
 /** Does the play-zone card under `el` carry MY ping (R-PING-07)? */
@@ -231,12 +280,25 @@ function PingMenu({ at }: { at: PingMenuState }): JSX.Element {
 /** The element a ping sits on, or null while it is off screen. */
 export function pingAnchorOf(target: PingTarget, root: ParentNode = document): HTMLElement | null {
   if (target.t === 'button') return root.querySelector<HTMLElement>(`[data-spec="${target.id}"]`);
+  if (target.t === 'ui') {
+    // The key passed the wire rule (no quotes or backslashes), so it is safe inside the attribute selector.
+    for (const el of Array.from(root.querySelectorAll<HTMLElement>(`[data-ping="${target.k}"]`))) if (!el.closest(SPOT_SKIP)) return el;
+    return null;
+  }
   const uid = target.uid.replace(/["\\]/g, '');
   return root.querySelector<HTMLElement>(`[data-zone="${ZONE_ATTR[target.zone]}"] .card[data-uid="${uid}"]`);
 }
 
 /** How often a mark checks its card is still where it was (no layout read). */
 export const PING_ANCHOR_CHECK_MS = 250;
+
+/** A spot may ask for its mark on its left edge, smaller (`data-ping-at="left"`: a thin rail row, where a mark on the top
+ *  edge would cover the row above), or just smaller (`small`: a rune or quest badge; `tiny`: the hero portrait, which
+ *  the HUD draws scaled up). */
+const spotSide = (el: HTMLElement): string => {
+  const at = el.getAttribute('data-ping-at');
+  return at === 'left' ? ' pm-left' : at === 'small' ? ' pm-small' : at === 'tiny' ? ' pm-tiny' : '';
+};
 
 const caption = (p: ShownPing): string | null => (p.mine ? null : p.role === 'mentor' ? 'Mentor' : p.name ?? null);
 
@@ -273,7 +335,8 @@ const PingMark = memo(function PingMark({ p }: { p: ShownPing }): JSX.Element | 
         setEl((cur) => (cur === here ? cur : here));
       } else {
         const here = el && el.isConnected ? el : pingAnchorOf(t);
-        // The shop's buttons left the screen (the fight began): the ping on them is done.
+        // The shop's buttons left the screen (the fight began), or a UI spot did (the Discover closed, the option was
+        // taken, the next offer opened under a new key): the ping on it is done.
         if (!here && seen.current) { forgetPing(p.key); return; }
         setEl((cur) => (cur === here ? cur : here));
       }
@@ -284,7 +347,7 @@ const PingMark = memo(function PingMark({ p }: { p: ShownPing }): JSX.Element | 
   const cap = caption(p);
   const dismiss = (e: React.SyntheticEvent): void => { e.preventDefault(); e.stopPropagation(); clearPing(p.key); };
   return createPortal(
-    <span className={`ping-mark pm-${p.target.t}${p.mine ? ' mine' : ''} pr-${p.role}`} role="status"
+    <span className={`ping-mark pm-${p.target.t}${p.mine ? ' mine' : ''} pr-${p.role}${spotSide(el)}`} role="status"
       aria-label={`${cap ? `${cap} pinged` : 'Ping'}: ${PING_LOOK[p.kind].label}. Click to clear.`}
       style={{ '--ping-fade-at': `${Math.max(0, PING_LIFE_MS - PING_FADE_MS - (Date.now() - p.at))}ms`, '--ping-fade': `${PING_FADE_MS}ms` } as CSSProperties}>
       {/* Cleared on the CLICK (or right-click), never on the press: removed at the press, the release's click would land
@@ -320,8 +383,24 @@ export function PingLayer(): JSX.Element {
   useEffect(() => {
     // The shop buttons' right-click (a card's own handler runs first and opens its menu).
     const onCtx = (e: MouseEvent): void => {
+      const t = e.target as Element | null;
       // The Friends dock, its friend menu and a pinned chat window own their right-click (they can sit over the shop buttons).
-      if ((e.target as Element | null)?.closest?.('.card, .ping-menu, .ping-mark, .fdock-stack, .fdock-catch, .dmchat-at, .frmenu-at, .frmenu-catch')) return;
+      if (t?.closest?.('.ping-menu, .ping-mark, .fdock-stack, .fdock-catch, .dmchat-at, .frmenu-at, .frmenu-catch')) return;
+      const body = document.body.classList;
+      if (body.contains('dragging') || body.contains('aiming')) return; // there a right-click cancels the drag / aim
+      // A UI SPOT (R-PING-08) that is not a card (a card's own handler takes it, `openCardPingMenu`), unless a shop
+      // button sits inside it: the innermost wins.
+      const spot = t?.closest?.('.card') ? null : uiSpotOf(t);
+      const btnEl = t?.closest?.('[data-spec]');
+      const innerBtn = !!btnEl && (PING_BUTTONS as readonly string[]).includes(btnEl.getAttribute('data-spec') ?? '') && (!spot || spot.el.contains(btnEl));
+      if (spot && !innerBtn) {
+        const target: PingTarget = { t: 'ui', k: spot.k };
+        if (!myPingOn(target) && spotYields(spot, pingContext())) return;
+        // Taken: the spot's own right-click (a scout pin, the emotes, a rune's phone Inspect) does not also run.
+        if (rightClickTarget(e, target, spot.el, null)) { e.preventDefault(); e.stopPropagation(); noteContextTaken(); }
+        return;
+      }
+      if (t?.closest?.('.card')) return;
       // (The button hit test only runs while a ping could be opened or cleared here: no rect reads otherwise.)
       if (!pingContext() && !usePings.getState().list.some((p) => p.mine && p.target.t === 'button')) return;
       const hit = pingButtonAt(e.target, e.clientX, e.clientY);
@@ -337,6 +416,9 @@ export function PingLayer(): JSX.Element {
     // A phone's hold on a play-zone card opens the menu while pings are available (else a card hold does nothing).
     // (A hold on a card carrying MY ping clears it, R-PING-07: that fires too, even where I could not ping now.)
     setCardHoldGate((el) => !!cardZoneOf(el) && !el.closest('.dragcard') && (!!pingContext() || hasMyPingOnCard(el)));
+    // On the watch screen a tap on a choice option inspects it (a teammate or mentor cannot pick it, and their hold
+    // there opens the fan, R-PING-08).
+    setOptionTapInspectGate(() => useSpectate.getState().active);
     // Moving a pinged card (a drag of it) clears its ping.
     let dragUid: string | null = null;
     const offDrag = dragStore.subscribe(() => {
@@ -345,7 +427,7 @@ export function PingLayer(): JSX.Element {
       dragUid = uid;
       if (uid) clearPingsOnCard(String(uid));
     });
-    return () => { window.removeEventListener('contextmenu', onCtx, true); setCardHoldGate(null); offDrag(); closePingMenu(); };
+    return () => { window.removeEventListener('contextmenu', onCtx, true); setCardHoldGate(null); setOptionTapInspectGate(null); offDrag(); closePingMenu(); };
   }, []);
   return (
     <>

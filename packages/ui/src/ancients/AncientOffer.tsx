@@ -10,6 +10,7 @@ import { ancientRevealBurst, ancientRevealSpark } from './ancientsSmoke';
 import { toStage } from '../stage';
 import '../discoverEntrance/discoverEntrance.css';
 import './ancients.css';
+import { ancientKey } from '../pings/pingKeys';
 
 /**
  * THE ANCIENTS' REVEAL: its own emergence, not the standard Discover entrance (owner 2026-09-25: "make the discover
@@ -279,7 +280,7 @@ function Reveal({ gated, closing, offer, heroId, seq, onPick }: { gated: boolean
         <OfferBanner title="An Ancient Awakens" />
         <div className="disc-cards anc-cards">
           {offer.map((id, i) => (
-            <div className="disc-slot anc-slot" key={id} style={{ '--anc-c': ancientColor(id) } as CSSProperties}>
+            <div className="disc-slot anc-slot" key={id} style={{ '--anc-c': ancientColor(id) } as CSSProperties} data-ping={ancientKey(id, i)}>
               <button type="button" className="anc-card" disabled={!landed[i]}
                 aria-label={`${ANCIENTS[id].name}: ${ancientOfferText(heroId, id).replace(/\*\*/g, '')}`}
                 onClick={(e) => { if (landed[i] && !closing && !picked.current) { picked.current = e.currentTarget; onPick(id, e.currentTarget); } }}>

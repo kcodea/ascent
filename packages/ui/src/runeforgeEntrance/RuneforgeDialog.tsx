@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { RUNE_INDEX } from '@game/content';
 import { Icon } from '../Icon';
 import { RuneCard, runeAccentTribe } from '../RuneCard';
+import { forgeKey } from '../pings/pingKeys';
 import { prefersReducedMotion, runEntrance, type EntranceHandle } from './entrance';
 import './runeforgeEntrance.css';
 import './runeforgeLook.css';
@@ -99,9 +100,11 @@ export interface RuneforgeDialogProps {
   speed?: number;
   /** Extra class on the overlay (the sandbox preview's stacking). */
   className?: string;
+  /** LIVE PINGS (R-PING-08): each offer carries its ping key (the live forge; the sandbox preview omits it). */
+  pingable?: boolean;
 }
 
-export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, duplicating, onBuy, onReroll, occasion, speed, className }: RuneforgeDialogProps): JSX.Element {
+export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, duplicating, onBuy, onReroll, occasion, speed, className, pingable }: RuneforgeDialogProps): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<EntranceHandle | null>(null);
   const shownRef = useRef<string | null>(null);
@@ -171,7 +174,7 @@ export function RuneforgeDialog({ offer, epic, embers, discounts, rerollSpent, d
             const liveCost = Math.max(0, rune.cost - (discounts?.[i] ?? 0));
             return (
               // `--rfe-z`: each tablet stacks above the one to its left, so a cost coin is never under a neighbour.
-              <div className="rfe-slot" key={id} data-rfe-index={i} style={{ '--rfe-z': i + 1 } as CSSProperties}>
+              <div className="rfe-slot" key={id} data-rfe-index={i} style={{ '--rfe-z': i + 1 } as CSSProperties} data-ping={pingable ? forgeKey(id, i) : undefined}>
                 <RuneCard
                   rune={rune} cost={liveCost} affordable={embers >= liveCost} pickSfx
                   duplicating={duplicating}

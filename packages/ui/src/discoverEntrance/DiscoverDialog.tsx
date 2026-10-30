@@ -2,6 +2,7 @@ import { useRef, type CSSProperties, type HTMLAttributes, type PointerEvent as R
 import { Card, type CardView } from '../Card';
 import { useOfferEntrance, type OfferEntrance } from './useOfferEntrance';
 import { OfferBanner } from './OfferBanner';
+import { discKey, powKey } from '../pings/pingKeys';
 import './discoverEntrance.css';
 
 /**
@@ -26,6 +27,9 @@ export interface DiscoverDialogProps {
   /** What opened this Discover, for the banner's "From X" subtitle. Omitted (no subtitle) while the run state
    *  records no Discover source: see `offerSource.ts`. */
   source?: string | null;
+  /** LIVE PINGS (R-PING-08): which offer the options are pinged as (`disc` a card Discover, `pow` a hero-power
+   *  Discover). Omitted (the tuner's sandbox): the options carry no ping key. */
+  pingSet?: 'disc' | 'pow';
   /** The dialog's accessible name. Default "Discover a card"; the hero-power Discover names itself. */
   label?: string;
   /** Draw every option as the FULL plated card (art, name and rules text) whatever the compact-cards setting, as
@@ -35,7 +39,7 @@ export interface DiscoverDialogProps {
   className?: string;
 }
 
-export function DiscoverDialog({ cards, ids, onPick, occasion, speed, burstRef, source, label, full, className }: DiscoverDialogProps): JSX.Element {
+export function DiscoverDialog({ cards, ids, onPick, occasion, speed, burstRef, source, label, full, className, pingSet }: DiscoverDialogProps): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const entrance = useOfferEntrance(rootRef, occasion, { openCue: true, speed });
   return (
@@ -57,7 +61,8 @@ export function DiscoverDialog({ cards, ids, onPick, occasion, speed, burstRef, 
         <OfferBanner title="Discover" source={source} />
         <div className="disc-cards">
           {cards.map((card, i) => (
-            <div className="disc-slot" data-pick-sfx key={`${ids[i] ?? card.cardId}-${i}`} style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}>
+            <div className="disc-slot" data-pick-sfx key={`${ids[i] ?? card.cardId}-${i}`} style={{ '--c': `var(--t-${card.tribe})` } as CSSProperties}
+              data-ping={pingSet === 'disc' ? discKey(ids, i) : pingSet === 'pow' ? powKey(ids, i) : undefined}>
               {/* The entrance owns the arrival, so the card's own mount-pop is off (it would compound the flight). */}
               <Card card={card} suppressPop forceFull={full} plated={full} onClick={() => { if (entrance.canPick(i)) onPick(i); }} />
               <OfferSheen />

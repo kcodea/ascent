@@ -90,7 +90,9 @@ export function tapInspectAllowed(el: Element): boolean {
   if (b.contains('aiming') || b.contains('dragging')) return false;
   const card = el.closest('.card, .runecard');
   if (!card) return false;
-  if (isSelectOption(card)) return false; // a choice's tap PICKS it (R-TOUCH-TAPSELECT-01); its Inspect is a hold
+  // A choice's tap PICKS it (R-TOUCH-TAPSELECT-01); its Inspect is a hold. On the watch screen (a teammate, a mentor)
+  // nothing can be picked and the hold opens the ping fan, so there the tap inspects (R-PING-08).
+  if (isSelectOption(card) && !optionTapInspectGate?.()) return false;
   return !card.parentElement?.closest('button, [role="button"], a[href]');
 }
 /**
@@ -114,6 +116,13 @@ export function holdFiresOn(target: Element): boolean {
   return !!cardHoldGate?.(target);
 }
 let cardHoldGate: ((card: Element) => boolean) | null = null;
+let optionTapInspectGate: (() => boolean) | null = null;
+/** The ping layer says when a TAP on a choice option inspects it instead of picking it (the watch screen; null: never). */
+export function setOptionTapInspectGate(fn: (() => boolean) | null): void { optionTapInspectGate = fn; }
+let ctxTaken = false;
+/** A capture-phase right-click handler took the long-press's synthetic `contextmenu` and stopped it (the ping layer on a
+ *  UI spot), so the document never sees it: count it as handled all the same (no hover-face fallback). */
+export function noteContextTaken(): void { ctxTaken = true; }
 /** The ping layer says which card holds open its menu (null: none). */
 export function setCardHoldGate(fn: ((card: Element) => boolean) | null): void { cardHoldGate = fn; }
 /** Click `el` as the commit it always was (the Inspect view's Pick), past the tap-to-inspect above. */
@@ -362,8 +371,9 @@ export function installTouchInput(): () => void {
     // browser menu, so `dispatchEvent`'s own return value would say "handled" for anything.
     const cm = synth(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, composed: true, button: 2, buttons: 2, clientX: x, clientY: y }));
     synthTook = false;
+    ctxTaken = false;
     target.dispatchEvent(cm);
-    let took = synthTook;
+    let took = synthTook || ctxTaken;
     // 2. No right-click here: open its HOVER face, held until the next touch lands elsewhere (like a tap's).
     if (!took && target.closest(HOVER_FACE)) {
       markChain(target);

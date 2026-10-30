@@ -188,3 +188,23 @@ describe('a shop button takes the fan top three only (owner pick 2026-10-29)', (
     for (const kind of ['pass', 'sell']) expect(routePing(duel, 'ann', ping({ kind, target: { t: 'button', id: 'endturn' } })).ok).toBe(false);
   });
 });
+
+describe('a UI spot: a Discover option, a rune, the rail... (R-PING-08, owner 2026-10-30)', () => {
+  const ui = (k: string) => ({ t: 'ui', k });
+  it('routes by its semantic key to the same audience; a mentor ping still reaches only the player', () => {
+    const r = routePing(duel, 'ann', ping({ target: ui('disc:1:alleycat:abc12') }));
+    expect(r.ok && r.ping.target).toEqual({ t: 'ui', k: 'disc:1:alleycat:abc12' });
+    expect(r.ok && r.to.sort()).toEqual(['sam', 'tia']);
+    const m = routePing(livePingRoom('ann', ['sam', 'tia'], 'sam'), 'sam', ping({ target: ui('forge:0:rune_wealth') }));
+    expect(m.ok && m.ping.role).toBe('mentor');
+    expect(m.ok && m.to).toEqual(['ann']);
+    expect(routePingClear(duel, 'ann', { owner: 'p1', target: ui('rail:s3') })?.to.sort()).toEqual(['sam', 'tia']);
+  });
+  it('takes the top three only, and a malformed key (a selector, quotes, too long) is dropped', () => {
+    for (const kind of ['check', 'x', 'question']) expect(routePing(duel, 'ann', ping({ kind, target: ui('hero') })).ok).toBe(true);
+    for (const kind of ['pass', 'sell']) expect(routePing(duel, 'ann', ping({ kind, target: ui('hero') })).ok).toBe(false);
+    for (const k of ['', 'a"]', 'x y', '1abc', '[data-spec]', 'k'.repeat(65), 42]) expect(routePing(duel, 'ann', ping({ target: { t: 'ui', k } })).ok).toBe(false);
+    // An unknown target kind (a newer client's) is dropped as malformed, never guessed at.
+    expect(routePing(duel, 'ann', ping({ target: { t: 'spot', k: 'hero' } })).ok).toBe(false);
+  });
+});

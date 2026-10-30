@@ -31,6 +31,7 @@ import { VersusFoe } from './versus/VersusFoe';
 import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/guides';
 import { ownsMine, useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
+import { railKey } from './pings/pingKeys';
 
 /** The max-damage readout on the rail's top edge: "Max dmg 5", or "No cap" once the round is uncapped. It is this
  *  round's LOSS CAP (`roundLossCap`): the most Health a loss can cost. Labelled since 2026-10-09 (owner: "a bit clearer
@@ -496,6 +497,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
             <div
               key={seat.id}
               data-seat={seat.id}
+              // LIVE PINGS (R-PING-08): a teammate or mentor pings a seat; the player's own right-click stays the scout pin.
+              data-ping={railKey(seat.id)} data-ping-own="" data-ping-at="left"
               className={`lobbyseat${inTeam ? ' inteam' : ''}${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === duosMate ? ' mate' : ''}`}
               {...(seat.id === duosMate ? { 'aria-label': `${seat.label}, your teammate. Click to watch their board.` } : {})}
               // Hover scouting works on EVERY seat, yours included (owner ask 2026-09-24: "add the same mouseover

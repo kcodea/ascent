@@ -38,6 +38,7 @@ import { useDuosPassNote } from './duosPassUi';
 import { prewarmPassFx } from './passLob';
 import { enterTeammateView, exitTeammateView } from './teammateView';
 import { useVersus } from './versusStore';
+import { PING_MATE } from '../pings/pingKeys';
 import { useSpectate } from './spectate';
 import { useDuosCombat } from './duosCombat';
 import { useOwnHeroPick } from '../hero-select/ownHeroPick';
@@ -267,6 +268,9 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     <div
       className={`duosdock${geo ? ' placed' : ''}${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${tagged ? ' tagged' : ''}${heroSelect ? ' hsdock' : ''}${passOver ? ` pass-${passOver}` : ''}${working ? ' working' : ''}`}
       style={style}
+      // LIVE PINGS (R-PING-08): the teammate portrait (the pass slot) takes a ping. It is the TEAMMATE on your screen and
+      // your own portrait while you watch theirs: the same person, on both screens.
+      data-ping={PING_MATE}
       {...(back ? {
         role: 'button',
         tabIndex: 0,

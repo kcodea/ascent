@@ -155,8 +155,10 @@ export function pingContext(): { owner: PingSeat; role: PingRole } | null {
   return { owner: mine, role: 'self' };
 }
 
-const sameTarget = (a: PingTarget, b: PingTarget): boolean =>
-  a.t === 'card' ? b.t === 'card' && a.uid === b.uid && a.zone === b.zone : b.t === 'button' && a.id === b.id;
+export const sameTarget = (a: PingTarget, b: PingTarget): boolean =>
+  a.t === 'card' ? b.t === 'card' && a.uid === b.uid && a.zone === b.zone
+    : a.t === 'button' ? b.t === 'button' && a.id === b.id
+      : b.t === 'ui' && a.k === b.k;
 
 function show(p: Omit<ShownPing, 'key' | 'at'>, key: string): void {
   const now = clock();
@@ -244,7 +246,7 @@ const myName = (): string => (useGame.getState().playerName ?? '').trim();
 export function sendPing(kind: PingKind, target: PingTarget): boolean {
   const ctx = pingContext();
   if (!ctx) return false;
-  if (target.t === 'button' && !PING_BUTTON_KINDS.includes(kind)) return false; // a button takes the top three only
+  if (target.t !== 'card' && !PING_BUTTON_KINDS.includes(kind)) return false; // a button or UI spot takes the top three only
   const me = currentUserId() ?? 'me';
   if (!sendLimit.allow(me, clock())) return false;
   seq += 1;

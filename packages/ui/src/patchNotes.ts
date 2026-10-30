@@ -58,6 +58,13 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Systems', text: 'Pings now work on Discover options, runes and more, not just cards and shop buttons.', details: [
+        'Right-click a Discover, Choose One, hero power or Quest Shop option to ping it. Right-click it twice to inspect it.',
+        'Runeforge runes, your runes, your quests, a second hero power and Equipment take pings too.',
+        'A teammate or mentor can also ping your hero portrait, the lobby rail and the Duos teammate portrait.',
+        'Everyone sees the ping on the same option on their own screen. It goes when the option does.',
+        'Pings here use Check, X and Question.',
+      ] },
       { category: 'Systems', text: 'Lobby chat now works like your friend chats: emotes, replies, and a panel you can move, resize and pin.', details: [
         'Press the emote button next to Send to add an emote to your message.',
         'Reply to any message. Your answer shows a small quote of it. Press the quote to jump back to the original.',

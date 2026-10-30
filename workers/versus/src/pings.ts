@@ -29,7 +29,7 @@ export const PING_SEATS: readonly PingSeat[] = ['p1', 'p2', 'p3', 'p4'];
 export type PingKind = 'check' | 'x' | 'question' | 'pass' | 'sell';
 export const PING_KINDS: readonly PingKind[] = ['check', 'x', 'question', 'pass', 'sell'];
 
-/** The pings a shop BUTTON takes (owner pick 2026-10-29: the fan's top three; no Pass or Sell on a button). */
+/** The pings a shop BUTTON or a UI spot takes (owner pick 2026-10-29: the fan's top three; no Pass or Sell on a button). */
 export const PING_BUTTON_KINDS: readonly PingKind[] = ['check', 'x', 'question'];
 
 /** The shop buttons a ping may land on (their `data-spec` names in the UI). */
@@ -39,8 +39,22 @@ export const PING_BUTTONS: readonly PingButton[] = ['upgrade', 'refresh', 'freez
 export type PingZone = 'shop' | 'board' | 'hand';
 export const PING_ZONES: readonly PingZone[] = ['shop', 'board', 'hand'];
 
-/** What a ping lands on: a card by its instance uid (it follows the card if it moves), or a shop button. */
-export type PingTarget = { t: 'card'; uid: string; zone: PingZone } | { t: 'button'; id: PingButton };
+/**
+ * A UI SPOT's key (owner 2026-10-30: "mentors/players should be able to ping discover card options, runes etc as well"):
+ * any other choosable or inspectable thing on screen, named by a SEMANTIC key its element carries as `data-ping`, never
+ * by a position, so every viewer finds it on their own layout. The keys (the UI's `pings/pingKeys.ts` builds them):
+ * `disc:<i>:<cardId>:<offer>` a Discover option, `pow:<i>:<heroId>:<offer>` a hero-power Discover option,
+ * `choose:<i>:<id>` a Choose One option, `anc:<i>:<id>` an Ancient, `qoffer:<questId>` a Quest Shop offer,
+ * `forge:<i>:<runeId>` a Runeforge offer, `rune:<i>:<runeId>` an equipped rune, `quest:<questId>` the quest tracker,
+ * `heropower2` / `equip` / `hero` the HUD, `rail:<seatId>` a lobby rail row, `mate` the Duos teammate portrait.
+ * When the key's element leaves the screen (the Discover closed, the option was taken) the ping goes with it.
+ */
+export const PING_UI_KEY = /^[a-z][A-Za-z0-9_:.-]{0,63}$/;
+
+/** What a ping lands on: a card by its instance uid (it follows the card if it moves), a shop button, or a UI spot by
+ *  its key. An older client drops a target kind it does not know (its `parseTarget` answers null), so a new kind is
+ *  safe to send. */
+export type PingTarget = { t: 'card'; uid: string; zone: PingZone } | { t: 'button'; id: PingButton } | { t: 'ui'; k: string };
 
 export type PingRole = 'self' | 'mate' | 'mentor';
 
@@ -99,6 +113,11 @@ function parseTarget(raw: unknown): PingTarget | null {
     if (!(PING_BUTTONS as readonly unknown[]).includes(b.id)) return null;
     return { t: 'button', id: b.id as PingButton };
   }
+  if (t?.t === 'ui') {
+    const u = t as { k?: unknown };
+    if (typeof u.k !== 'string' || !PING_UI_KEY.test(u.k)) return null;
+    return { t: 'ui', k: u.k };
+  }
   return null;
 }
 
@@ -111,8 +130,8 @@ export function parsePing(payload: unknown): PingMessage | null {
   if (!isSeat(p.owner)) return null;
   const target = parseTarget(p.target);
   if (!target) return null;
-  // A shop button takes Check, X or Question only (owner pick 2026-10-29: "only the top three").
-  if (target.t === 'button' && !(PING_BUTTON_KINDS as readonly string[]).includes(p.kind as string)) return null;
+  // A shop button (and a UI spot) takes Check, X or Question only (owner pick 2026-10-29: "only the top three").
+  if (target.t !== 'card' && !(PING_BUTTON_KINDS as readonly string[]).includes(p.kind as string)) return null;
   const from = typeof p.from === 'string' && ID.test(p.from) ? p.from : '';
   const role = p.role === 'self' || p.role === 'mate' || p.role === 'mentor' ? p.role : undefined;
   const out: PingMessage = { id: p.id, kind: p.kind as PingKind, owner: p.owner, target, from };

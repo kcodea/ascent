@@ -19,6 +19,7 @@ import { liveRuneText } from './runeText';
 import { usePlayerRuneLive } from './useRuneLive';
 import { playDef } from './fx/playDef';
 import { sfx } from './sfx';
+import { questKey, runeKey } from './pings/pingKeys';
 import './runeSheenConfig'; // side-effect: reflects the --rsh-* rune-sheen vars at load
 // Public-folder art carries the BASE_URL (itch serves from a CDN sub-path; a root-absolute '/frames/…' 404s):
 // `publicArt()` adds it, and on a phone picks the build's smaller copy (phoneArt.ts).
@@ -201,6 +202,7 @@ export function QuestBadges() {
             key={`${id}#${i}`}
             data-source-id={id}
             data-spec={`rune:${i}:${id}`} // the spectator cursor / hover anchor (versus/cursorSpace.ts)
+            data-ping={runeKey(id, i)} data-ping-at="small" // LIVE PINGS (R-PING-08)
             data-eot-effect={rune.reward?.kind === 'recurringEndOfTurn' ? rune.reward.effect : undefined}
             style={{ ...arrivalVars, '--rt': `var(--t-${runeAccentTribe(rune)})` } as React.CSSProperties}
           >
@@ -257,7 +259,7 @@ export function QuestBadges() {
           // Compound objectives (The Author's Hand) have no single count — the tip lists each part's own line.
           const compound = def.objective.event === 'authorsHand' || def.objective.event === 'compound';
           return (
-            <div className="questbadge pending" style={{ '--c': cP } as CSSProperties} key={aq.questId} data-spec={`questpending:${aq.questId}`}>
+            <div className="questbadge pending" style={{ '--c': cP } as CSSProperties} key={aq.questId} data-spec={`questpending:${aq.questId}`} data-ping={questKey(aq.questId)} data-ping-at="small">
               <div className="questbadge-inner">
                 {art ? (
                   <img decoding="sync" className="questbadge-art" src={art} alt="" aria-hidden />
@@ -313,7 +315,7 @@ export function QuestBadges() {
         // scaling countdown) — folded from the run state so the tooltip shows what it's producing NOW.
         const liveTxt = questRewardLiveText(r, questRewardLiveOf(run, r));
         return (
-          <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId} data-source-id={aq.questId} data-spec={`questbadge:${aq.questId}`} data-eot-effect={r.kind === 'recurringEndOfTurn' ? r.effect : undefined}>
+          <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId} data-source-id={aq.questId} data-spec={`questbadge:${aq.questId}`} data-ping={questKey(aq.questId)} data-ping-at="small" data-eot-effect={r.kind === 'recurringEndOfTurn' ? r.effect : undefined}>
             {/* Keyed on the pulse count → remounts + replays the scale-punch bounce (a quest's own "self-buff")
                 each time it completes / re-fires / triggers in combat. The glow ring rides inside, in lockstep. */}
             <div className="questbadge-inner" key={pulse} data-pulse={pulse}>

@@ -8,7 +8,7 @@ import { SET3_HAND_SPELLS } from './cards/set3/handSpells';
 import { SET3_WHISPERS as RAW_SET3_WHISPERS } from './cards/set3/whispers';
 import { SET2_TOKENS } from './cards/set2/tokens';
 import { ENEMY } from './cards/set1/enemy';
-import { SETS, poolFor } from './sets';
+import { SETS, poolFor, DUOS_CARDS } from './sets';
 import { EQUIPMENT_INDEX } from './equipment';
 
 export * from './sets';
@@ -48,6 +48,8 @@ const RAW_ALL_CARDS: CardDef[] = [
   // Set 3 WHISPERS (Tome, Runebind; authored for Set 4, moved 2026-10-14): Gift-class spells a card GRANTS, reachable only through that card. Appended
   // last so no earlier position in this list moves.
   ...RAW_SET3_WHISPERS,
+  // DUOS-ONLY cards (owner design 2026-10-30): member of no set manifest; `duosPoolFor` adds them to a Duos run's pool.
+  ...DUOS_CARDS,
 ].filter((card, i, arr) => arr.findIndex((c) => c.id === card.id) === i); // a shared card appears once
 
 /**
@@ -109,6 +111,7 @@ const TOKEN_REF_EFFECTS = new Set(['deathrattleSummon', 'battlecrySummon', 'onFr
 /** Effect ids whose params carry a card id (a granted/transformed card that must exist in the pool), by param key.
  *  (The CardDef-level `ascendInto` transform target is checked separately — it's a field, not an effect param.) */
 const CARD_REF_EFFECTS: Record<string, string> = {
+  giftTeammate: 'cardId', // DUOS: a named gift must exist (its other shapes are a random pick: optional below)
   spellCastTransform: 'into',
   deathrattleGrantCardToHand: 'cardId',
   avengeGrantSpell: 'cardId',
@@ -165,7 +168,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
  *  · `getRubies` — no `rubyId` mints the PLAIN Ruby, which is what almost every caller wants (Chipwick).
  *    Naming one (Facetbound Martyr's Warding Ruby) is the exception, and naming a MISSING one still throws.
  */
-const CARD_REF_OPTIONAL = new Set<string>(['getRubies']);
+const CARD_REF_OPTIONAL = new Set<string>(['getRubies', 'giftTeammate']);
 
 
 

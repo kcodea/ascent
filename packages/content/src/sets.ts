@@ -16,6 +16,7 @@ import { SET2_BEASTS } from './cards/set2/beasts';
 import { SET2_SPELLS } from './cards/set2/spells';
 import { SET3_CARDS, SET3_DWARVES, SET3_UNDEAD, SET3_NEUTRAL, SET3_SPIRITS, SET3_SPELLS, SET3_DRAGONS } from './cards/set3';
 import { SET4_CARDS, SET4_SPELLS } from './cards/set4';
+import { DUOS_CARDS } from './cards/duos';
 
 /**
  * SET 3's SHARED SPELL POOL (owner list 2026-08-03: "they will be there no matter what") — the neutral spell
@@ -492,3 +493,33 @@ export function poolFor(setId: SetId): CardPool {
   resolved.set(setId, pool);
   return pool;
 }
+
+/**
+ * A DUOS run's pool (owner design 2026-10-30, R-DUOS-CARDS-01): the set's own pool, then every Duos-only card
+ * (`cards/duos/`) whose tribe is one of the set's tribes, APPENDED in `DUOS_CARDS` order, so the set's own positions
+ * never move. Neutrals and spells join every set. Membership is BY TRIBE, never by a set list (owner 2026-10-30: "this
+ * is for set 2 right now. but cards that sit in tribes in both will carry into set 3/4 etc"). A dual-type card joins
+ * when either of its tribes is in the set. The run's own tribe roll then narrows it like every other card
+ * (`inRunTribes`). Pure + memoized; the ONE place a Duos pool is built (the client run, replays, the Worker).
+ */
+export function duosPoolFor(setId: SetId): CardPool {
+  const hit = resolvedDuos.get(setId);
+  if (hit) return hit;
+  const base = poolFor(setId);
+  const def = SETS[setId] ?? SETS.set1;
+  const tribes = new Set<string>(def.tribes);
+  const fits = (c: CardDef): boolean =>
+    c.tribe === 'neutral' || tribes.has(c.tribe) || (!!c.tribe2 && tribes.has(c.tribe2));
+  const seen = new Set(base.all.map((c) => c.id));
+  const all = [...base.all, ...DUOS_CARDS.filter((c) => fits(c) && !seen.has(c.id))];
+  const pool: CardPool = {
+    setId: base.setId,
+    all,
+    buyable: all.filter((c) => !c.token && !c.spell),
+    spells: all.filter((c) => c.spell && !c.token),
+  };
+  resolvedDuos.set(setId, pool);
+  return pool;
+}
+const resolvedDuos = new Map<SetId, CardPool>();
+export { DUOS_CARDS };

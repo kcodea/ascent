@@ -11880,4 +11880,74 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann plays a Practice game while Bo and Cy watch. Bo types "nice roll" in the lobby chat on the left side of the screen. Ann and Cy see it at once; Dee, who starts watching a minute later, sees it too.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/lobbyChat.test.ts', 'workers/versus/test/it/live.it.ts', 'packages/ui/src/lobbyChat/lobbyChat.test.tsx'], lastVerifiedAt: '2026-10-30' },
   },
+  {
+    id: 'R-DUOS-CARDS-01',
+    title: 'Duos-only cards appear only in Duos runs, joined to a set by tribe',
+    statement:
+      'A Duos-only minion or Shop Spell can be drawn only in a Duos run (Versus Duos and Ranked Duos). It joins the run\x27s pool when '
+      + 'its tribe is one of the set\x27s tribes; neutral ones and spells join every set. The run\x27s own tribe roll then narrows it like '
+      + 'any other card. No other run (lobby, Practice, Versus 1v1 or Group) ever sees one.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'this is for set 2 right now. but cards that sit in tribes in both will carry into set 3/4 etc' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts duosPoolFor; packages/sim/src/cardPool.ts poolOf' },
+    ],
+    currentBehaviour: 'Built 2026-10-30 (foundation PR). Richmond (a Dragon) is in Set 2 and Set 3 Duos runs, not Set 4.',
+    example: 'A Set 2 Versus Duos run can roll Richmond in its Shop; a Set 2 lobby run never can.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCards.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-CARDS-02',
+    title: 'A team effect lands on your run at once and on your teammate\x27s run through their own game',
+    statement:
+      'When a card gives "your team" something (max Gold, a cheaper Shop upgrade), your half happens at once. Your teammate\x27s half, and '
+      + 'anything given only to your teammate (a card, Gold, a Triple Reward), is sent to them and resolved by their game: a random pick '
+      + 'uses their board, their pool and their seed. A gift their full hand cannot take is lost, and you get nothing back. A teammate who '
+      + 'disconnected still gets it when they come back. A teammate who left the party or is out of the match gets nothing. A combat '
+      + 'effect (an Echo) sends its gift when the fight is settled.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'duos requires 2 live players' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts receiveTeamEffect; workers/versus/src/core/groupMatch.ts duosTeamFxRefusal' },
+    ],
+    currentBehaviour: 'Built 2026-10-30. Combat gifts land at settle, not mid-fight (an open question for the owner).',
+    example: 'Ann plays Richmond: her max Gold goes up now; Amy\x27s goes up when the effect reaches her game a moment later.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCards.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-CARDS-03',
+    title: 'Only a manual pass costs Gold; a pass by a card or spell is free and still counts as a pass',
+    statement:
+      'Dragging a card onto your teammate\x27s portrait costs 1 Gold (Brian\x27s Pal makes the first one each turn free). A pass made by '
+      + 'an effect (Handout and every later "pass" card or rune) costs no Gold. Every pass obeys the same rules: a Golden minion is '
+      + 'never passed, and a full teammate hand sends it back. Every pass, manual or not, triggers "when you pass" and "when your team '
+      + 'passes" cards, on the sender\x27s board at once and on the receiver\x27s when it lands.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'only manual passing costs 1 gold baseline' },
+      { kind: 'code', ref: 'packages/sim/src/duosPass.ts duosPassCost; packages/sim/src/recruit.ts effectPassCard' },
+    ],
+    currentBehaviour: 'Built 2026-10-30.',
+    example: 'Ann casts Handout on a Shop minion: no extra Gold, it goes to Amy, and both their Hitchhikers grow.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCards.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-CARDS-04',
+    title: '"Your teammate\x27s most common type" breaks ties with a seeded 50/50',
+    statement:
+      'The teammate\x27s most common type is the run tribe with the most minions on their board. When two or more tie (an empty board '
+      + 'ties them all), one is picked at random with the game\x27s seed, so a replay picks the same.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: '50/50' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts mostCommonTribe' },
+    ],
+    currentBehaviour: 'Built 2026-10-30.',
+    example: 'Amy has two Dragons and two Kobolds: a "minion of her most common type" is a Dragon or a Kobold, half the time each.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCards.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

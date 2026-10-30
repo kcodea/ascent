@@ -6,7 +6,7 @@ import type { RankAtStart } from './rankAtStart';
 import type { HeroReroll } from './heroReroll';
 import { makeRng } from '@game/core';
 import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, RubyRider, Tribe } from '@game/core';
-import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, LEGACY_CARD_IDS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, LEGACY_CARD_IDS, RUNES, SETS, activeSet, duosPoolFor, poolFor, type SetId } from '@game/content';
 import { CONFIG, HENCHMEN_ARCHIVED, activeRift, riftBonusArmor, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero, powerDiscoverPool, type PowerLatch } from './heroes';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -135,6 +135,8 @@ export interface CardBuff {
 export interface BoardCard {
   uid: string;
   cardId: string;
+  /** DUOS-ONLY CARDS (R-DUOS-CARDS-01): a "(Once per turn)" team trigger's latch, effect id -> the turn it fired. */
+  duosOnce?: Record<string, number>;
   /**
    * DEALER'S OWN LATCH — how many more Choose One cards this body will make resolve BOTH branches
    * (owner ruling 2026-08-31).
@@ -3156,7 +3158,7 @@ export function runTribesForSeed(seed: number, setId: SetId = activeSet().id): T
   return selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)), SETS[setId]?.tribes ?? PLAYABLE_TRIBES);
 }
 
-export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: RunMode = 'ascent', line: number = CONFIG.defaultLine, setId: SetId = activeSet().id, tribesOverride?: readonly Tribe[]): RunState {
+export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: RunMode = 'ascent', line: number = CONFIG.defaultLine, setId: SetId = activeSet().id, tribesOverride?: readonly Tribe[], opts?: { duos?: boolean }): RunState {
   // Draw the run's active tribes from the PINNED set's roster (set 1's five, set 2's Kobolds) — never the
   // global list, so a set-2 tribe can't leak into a set-1 run and vice-versa. `tribesOverride` (a Practice game
   // with picked tribes, `practiceRunTribes`) replaces the roll outright; the roll has its own RNG stream, so
@@ -3225,7 +3227,9 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     threat: selectThreat(1, makeRng(mixSeed(seed, 1, TAG.THREAT))),
     tribes,
     rngCursor: mixSeed(seed, 0, TAG.SHOP),
-    pool: stockPool(tribes, poolFor(setId).buyable),
+    // A DUOS seat's run (R-DUOS-CARDS-01) stocks the Duos cards too, so its opening Shop can already offer one.
+    pool: stockPool(tribes, (opts?.duos ? duosPoolFor(setId) : poolFor(setId)).buyable),
+    ...(opts?.duos ? { duos: { outbox: [], received: [], refused: [] } } : {}),
     uidSeq: 0,
     pendingTavern: [],
     cardBuffs: {},
@@ -3363,7 +3367,7 @@ export function deserialize(json: string, opts: { turnRemaining?: number } = {})
   // written before sets existed was played on set 1, by definition.
   state.setId = parsed.setId ?? 'set1';
   // pre-pool saves: stock for the run's own tribes, from the set the run is pinned to (not the live one)
-  if (!parsed.pool) state.pool = stockPool(state.tribes, poolFor(state.setId ?? 'set1').buyable);
+  if (!parsed.pool) state.pool = stockPool(state.tribes, (state.duos ? duosPoolFor(state.setId ?? 'set1') : poolFor(state.setId ?? 'set1')).buyable);
   // createRun seeds hero run-START Discovers into the defaults skeleton (Disco Dan's Setlist opens a Tier 6
   // Discover + queues Tier 4 / Tier 2 behind it). Those are a fresh-run ACTION, not a field default — but
   // JSON.stringify drops `undefined`, so a save that already resolved them omits the `discover` /

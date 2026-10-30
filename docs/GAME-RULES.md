@@ -1279,6 +1279,16 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   exactly once: the restored run lines its passes up with the server by card (and the pass it last arrived through)
   and round, then replays the round's passes both ways in the order the server recorded them, so a card passed back
   and forth (A to B to A) lands once per pass and every pass is paid once.
+- **Duos-only cards** (owner 2026-10-30; R-DUOS-CARDS-01..04). Some minions and Shop Spells exist only in Duos runs
+  (Versus Duos and Ranked Duos). They join a run's pool when their tribe is one of the set's tribes (neutrals and spells
+  always), then the run's tribe roll narrows them like any card. **Only the manual pass costs Gold** (the drag, 1 Gold;
+  Brian's Pal frees the first each turn): a pass made by a card or spell (Handout) is free, follows the same rules (never
+  a Golden minion, a full hand sends it back) and counts as a pass for "when you pass" / "when your team passes" cards on
+  both teammates' boards. A **team effect** ("give your team +1 max Gold", "give your teammate a Gold Pouch") lands on
+  your run at once and on your teammate's run through their own game, which makes any random pick with its own board,
+  pool and seed; a gift their full hand cannot take is lost. A disconnected teammate gets it when they return; a teammate
+  who left or is out gets nothing. An effect from combat (an Echo) is sent when the fight settles. "Your teammate's most
+  common type" is the run tribe with the most minions on their board; a tie is a seeded 50/50.
 - **Your teammate's hero choices** (owner 2026-10-26: "in duos, the teammate's hero options should be visible as well";
   R-DUOS-HEROSELECT-01). On Hero Select your teammate's portrait sits bottom right, as in game (their picked hero once they
   have one, else their profile picture). Click it to see their Hero Select live over yours, read

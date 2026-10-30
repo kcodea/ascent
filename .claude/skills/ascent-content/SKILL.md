@@ -58,6 +58,14 @@ Excluding is one id in `MIMIC_EXCLUDED` / `VOID_EXCLUDED`; the shared kind-level
 - **All-types cards** (`universalTribe: true`) must NOT restate "counts as all tribes" in their text; the ALL
   pill says it. They print `tribe: 'neutral'` in data and count as every tribe via the shared tribe helpers.
 
+## Duos-only cards
+
+Cards that exist only in Versus Duos / Ranked Duos live in `cards/duos/<tribe>.ts`, carry `duos: true`, and are
+APPENDED to `DUOS_CARDS` (never in a set manifest). `duosPoolFor` adds them to any set whose tribes include theirs
+(neutrals and spells: every set). Team effects use the primitives in `recruit.ts` / `ARENA_EFFECTS` (`giftTeammate`,
+`teamGainMaxGold`, `effectPassCard`, the `passedCard` / `teamPassedCard` / `teammateSold` triggers). Only the manual
+drag pass costs Gold; an effect pass is free. Recipe and the list of primitives: `docs/devlog/2026-10-30-duos-cards-foundation.md`.
+
 ## Art
 
 Masters live outside the repo (`C:/Game Assets/Ascent Art/…`). Copy a master to

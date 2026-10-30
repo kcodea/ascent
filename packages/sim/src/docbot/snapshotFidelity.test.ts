@@ -91,6 +91,7 @@ function boardCardExemplar(): Required<BoardCard> {
     clearanceBuy: true, // Frank × Ancients: a Clearance minion — shop-only, see the registry
     crownReward: true, // Keshi × Ancients: a Crown Triple Reward (a hand spell token) — shop-only, see the registry
     chooseBothLeft: 1, // Dealer's own latch — per instance, so a snapshot has to carry it
+    duosOnce: { teamPassBuffSelf: 3 }, // Duos-only cards: a once-per-turn team trigger latch — shop-only, see the registry
     passKey: 'p2:3', // Versus Duos: the pass key it arrived through (restore identity only) — shop-only, see the registry
     keywords: ['DS'] as Keyword[],
     golden: true,

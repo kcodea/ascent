@@ -44,13 +44,13 @@ export function createVersusRun(
   options?: VersusRoomOptions | null,
   duosMateHeroId?: string | null,
 ): RunState {
-  const run = createRun(runSeed, heroId, 'versus', undefined, setId);
   const opts = normalizeVersusOptions(options);
-  const rift = versusOptionsRift(opts);
   // VERSUS DUOS (R-DUOS-PASS-01): a Duos seat's run can pass cards to its teammate. RANKED DUOS passes the same way
-  // (owner 2026-10-26) and plays on the same team pool.
+  // (owner 2026-10-26) and plays on the same team pool. Stamped AT CREATION (not after): a Duos run's pool holds the
+  // Duos-only cards (R-DUOS-CARDS-01), so its stock and opening Shop must be drawn from that pool.
   const duos = opts.mode === 'duos' || opts.mode === 'ranked_duos';
-  if (duos) run.duos = { outbox: [], received: [], refused: [] };
+  const run = createRun(runSeed, heroId, 'versus', undefined, setId, undefined, duos ? { duos: true } : undefined);
+  const rift = versusOptionsRift(opts);
   if (rift) {
     const bonus = riftBonusArmor(rift, run.mode);
     run.rift = rift;

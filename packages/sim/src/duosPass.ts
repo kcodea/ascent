@@ -20,33 +20,86 @@
  *    and the 1 Gold is given back (the Gold-spent tallies too: the pass was never paid), exactly once.
  */
 import { CARD_INDEX } from '@game/content';
+import type { TeamEffect } from '@game/core';
 import { handCap, type BoardCard, type RunState } from './state';
 
 /** The Gold a pass costs the sender. Pinned against `VERSUS_DUOS_PASS_GOLD` (versus/duos.ts) by test. */
 export const DUOS_PASS_GOLD = 1;
 /** Board slots (the run's board cap). */
 const BOARD_MAX = 7;
+/** The placeholder `cardId` a TEAM EFFECT entry travels under (it carries no card; `team` says what it does). Never a
+ *  real card id, never lands in a hand. */
+export const DUOS_TEAM_WIRE_ID = '__team';
 
 export interface DuosOutboxEntry {
   seq: number;
   wave: number;
+  /** The card that left. A TEAM EFFECT entry (`team`) carries a placeholder (`DUOS_TEAM_WIRE_ID`, uid `team<seq>`). */
   card: BoardCard;
-  /** Where it left from, and at which index (a refund puts it back there when it can). Always 'hand' since the
-   *  hand-only ruling (2026-10-25); 'board' survives only in older checkpoints. */
-  from: 'hand' | 'board';
+  /** Where it left from, and at which index (a refund puts it back there when it can). 'hand' for a drag pass (the
+   *  hand-only ruling, 2026-10-25; 'board' survives in older checkpoints). A SPELL pass (Handout, R-DUOS-CARDS-01)
+   *  can take a 'board' minion or a 'shop' one. */
+  from: 'hand' | 'board' | 'shop';
   index: number;
   /** The teammate's full hand refused it: the card and the Gold came back. */
   refunded?: true;
+  /** The Gold this pass cost (refunded exactly). Absent = `DUOS_PASS_GOLD` (an older checkpoint). 0 for a free pass
+   *  (Brian's Pal), a spell's pass and a team effect. */
+  paid?: number;
+  /** A pass a SPELL made (Handout): free, from the Shop or the board. Travels as `passFrom: 'spell'`. */
+  via?: 'spell';
+  /** DUOS-ONLY CARDS (R-DUOS-CARDS-01): this entry is a TEAM EFFECT, not a card. Travels as `passFrom: 'team'`. */
+  team?: TeamEffect;
 }
 
 /** The run's Duos state (present only on a Duos seat's run). */
 export interface DuosRunState {
-  /** Passes this run SENT, in order (`seq` = index). */
+  /** Passes this run SENT, in order (`seq` = index). Team effects ride the same list (`team`). */
   outbox: DuosOutboxEntry[];
   /** Every received pass key (`<fromSeat>:<seq>`) that LANDED. */
   received: string[];
   /** Every received pass key the full hand REFUSED. */
   refused: string[];
+  /** Brian's Pal (R-DUOS-CARDS-01): free passes spent this turn, and the turn they were counted on. */
+  freePassesUsed?: number;
+  freePassWave?: number;
+}
+
+/** A team-effect entry's placeholder card (it never lands anywhere). */
+export function duosTeamCard(seq: number): BoardCard {
+  return { uid: `team${seq}`, cardId: DUOS_TEAM_WIRE_ID, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false };
+}
+
+/** Is this wire card a TEAM EFFECT (`passFrom: 'team'`) rather than a card? */
+export function isDuosTeamWire(card: unknown): card is BoardCard & { passFrom: 'team'; team: TeamEffect } {
+  const c = card as { passFrom?: unknown; team?: unknown } | null;
+  return !!c && c.passFrom === 'team' && !!c.team && typeof c.team === 'object';
+}
+
+/**
+ * BRIAN'S PAL (owner 2026-10-30, R-DUOS-CARDS-01): "Your first pass each turn is free." The free passes a turn allows:
+ * every `duosFirstPassFree` marker on the board adds its `passes` (Gilded doubles). Copies stack.
+ */
+export function duosFreePassesOf(s: Pick<RunState, 'board'>): number {
+  let n = 0;
+  for (const c of s.board) {
+    const def = CARD_INDEX[c.cardId];
+    for (const e of def?.effects ?? []) {
+      if (e.do !== 'duosFirstPassFree') continue;
+      const p = typeof e.params?.passes === 'number' ? e.params.passes : 1;
+      n += p * (c.golden ? 2 : 1);
+    }
+  }
+  return n;
+}
+
+/** The Gold the NEXT drag pass costs right now: 0 while Brian's Pal has a free pass left this turn, else
+ *  `DUOS_PASS_GOLD`. The one price: the refusal check, the charge and the UI all read it. */
+export function duosPassCost(s: RunState): number {
+  const d = s.duos;
+  if (!d) return DUOS_PASS_GOLD;
+  const used = d.freePassWave === s.wave ? (d.freePassesUsed ?? 0) : 0;
+  return used < duosFreePassesOf(s) ? 0 : DUOS_PASS_GOLD;
 }
 
 /** Why `uid` cannot be passed right now (null = it can). `mateHandFull` is the teammate's live hand state when the
@@ -60,7 +113,7 @@ export function duosPassBlocked(s: RunState, uid: string, mateHandFull = false):
   // NO GOLDENS (owner 2026-10-30: "Golden minions CANNOT be passed").
   if (card.golden) return 'golden';
   if (mateHandFull) return 'hand_full';
-  if (s.embers < DUOS_PASS_GOLD) return 'gold';
+  if (s.embers < duosPassCost(s)) return 'gold';
   return null;
 }
 
@@ -69,11 +122,37 @@ export function applyDuosPass(s: RunState, uid: string, spendGold: (s: RunState,
   if (duosPassBlocked(s, uid)) return false;
   const duos = s.duos!;
   const index = s.hand.findIndex((c) => c.uid === uid);
+  const cost = duosPassCost(s);
   const card = s.hand.splice(index, 1)[0];
   if (!card) return false;
-  spendGold(s, DUOS_PASS_GOLD);
-  duos.outbox.push({ seq: duos.outbox.length, wave: s.wave, card: structuredClone(card), from: 'hand', index });
+  if (cost > 0) spendGold(s, cost);
+  else {
+    // A Brian's Pal free pass: count it against this turn's allowance.
+    if (duos.freePassWave !== s.wave) { duos.freePassWave = s.wave; duos.freePassesUsed = 0; }
+    duos.freePassesUsed = (duos.freePassesUsed ?? 0) + 1;
+  }
+  duos.outbox.push({ seq: duos.outbox.length, wave: s.wave, card: structuredClone(card), from: 'hand', index, paid: cost });
   return true;
+}
+
+/**
+ * A SPELL's pass (Handout, R-DUOS-CARDS-01: "Pass a minion"): `card` has ALREADY left the Shop or the board; this
+ * records it on the outbox, free (the spell is the price). A Golden minion is never passed (owner 2026-10-30): the
+ * caller refuses it before removing anything. Returns false outside a Duos run.
+ */
+export function recordSpellPass(s: RunState, card: BoardCard, from: 'board' | 'shop', index: number): boolean {
+  const duos = s.duos;
+  if (!duos) return false;
+  duos.outbox.push({ seq: duos.outbox.length, wave: s.wave, card: structuredClone(card), from, index, paid: 0, via: 'spell' });
+  return true;
+}
+
+/** Queue a TEAM EFFECT for the teammate (R-DUOS-CARDS-01). The receiving run resolves it. No-op outside Duos. */
+export function queueTeamEffect(s: RunState, effect: TeamEffect): void {
+  const duos = s.duos;
+  if (!duos) return;
+  const seq = duos.outbox.length;
+  duos.outbox.push({ seq, wave: s.wave, card: duosTeamCard(seq), from: 'hand', index: -1, paid: 0, team: structuredClone(effect) });
 }
 
 /**
@@ -88,8 +167,16 @@ export function duosWireCard(card: BoardCard): BoardCard & { passFrom: 'hand' } 
   return { ...rest, passFrom: 'hand' };
 }
 
+/** An outbox ENTRY as it travels: a drag pass as `duosWireCard` (`passFrom: 'hand'`), a spell's pass as
+ *  `passFrom: 'spell'`, a team effect as `passFrom: 'team'` with its `team` payload (R-DUOS-CARDS-01). */
+export function duosWireOf(e: DuosOutboxEntry): BoardCard & { passFrom: 'hand' | 'spell' | 'team'; team?: TeamEffect } {
+  if (e.team) return { ...e.card, passFrom: 'team', team: structuredClone(e.team) };
+  const wire = duosWireCard(e.card);
+  return e.via === 'spell' ? { ...wire, passFrom: 'spell' } : wire;
+}
+
 /** A fresh draft that shares the two large read-only structures (the reducer's own carve-out). */
-function draft(state: RunState): RunState {
+export function duosDraft(state: RunState): RunState {
   const { lastCombat, servedBoards, ...rest } = state;
   const s = structuredClone(rest) as RunState;
   s.lastCombat = lastCombat;
@@ -100,10 +187,10 @@ function draft(state: RunState): RunState {
 /** The receiver's half: a fresh draft, or `state` itself when the pass is not for this run or already answered. A
  *  full hand refuses it. Any phase: a pass sent at the end of the shop can arrive while the fight is on. */
 export function receiveDuosPass(state: RunState, from: string, seq: number, card: BoardCard): RunState {
-  if (!state.duos || !card || typeof card.cardId !== 'string' || !CARD_INDEX[card.cardId]) return state;
+  if (!state.duos || !card || typeof card.cardId !== 'string' || !CARD_INDEX[card.cardId] || isDuosTeamWire(card)) return state;
   const key = `${from}:${seq}`;
   if (state.duos.received.includes(key) || state.duos.refused.includes(key)) return state;
-  const s = draft(state);
+  const s = duosDraft(state);
   const duos = s.duos!;
   if (s.hand.length >= handCap(s)) {
     duos.refused.push(key);
@@ -111,7 +198,8 @@ export function receiveDuosPass(state: RunState, from: string, seq: number, card
   }
   duos.received.push(key);
   // The transport's marker (`passFrom`, the server's hand-only check) never rides into the hand.
-  const { passFrom: _f, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown };
+  const { passFrom: _f, team: _t, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown };
+  void _t;
   void _f;
   s.hand.push({ ...landed, uid: `b${s.uidSeq++}`, passKey: key });
   return s;
@@ -121,16 +209,28 @@ export function receiveDuosPass(state: RunState, from: string, seq: number, card
 export function refundDuosPass(state: RunState, seq: number): RunState {
   const entry = state.duos?.outbox[seq];
   if (!entry || entry.refunded) return state;
-  const s = draft(state);
+  const s = duosDraft(state);
   const e = s.duos!.outbox[seq]!;
   e.refunded = true;
-  // Back where it was when there is room (a board card to its slot), else to the hand.
+  // A TEAM EFFECT refused (the teammate away, a full hand for a gift): nothing left this run, nothing comes back.
+  if (e.team) return s;
+  // Back where it was when there is room (a board card to its slot), else to the hand. A SHOP minion a spell passed
+  // goes back to the Shop row while the Shop is open (never into the hand: the spell never bought it).
   const back = structuredClone(e.card);
   if (e.from === 'board' && s.board.length < BOARD_MAX) s.board.splice(Math.min(e.index, s.board.length), 0, back);
-  else s.hand.splice(e.from === 'hand' ? Math.min(e.index, s.hand.length) : s.hand.length, 0, back);
-  // The pass was never paid: the Gold and the Gold-spent tallies of its turn come back.
-  s.embers += DUOS_PASS_GOLD;
-  s.goldSpent = Math.max(0, (s.goldSpent ?? 0) - DUOS_PASS_GOLD);
-  if (e.wave === s.wave) s.goldSpentThisTurn = Math.max(0, (s.goldSpentThisTurn ?? 0) - DUOS_PASS_GOLD);
+  else if (e.from === 'shop' && s.phase === 'recruit') {
+    const def = CARD_INDEX[back.cardId];
+    const atk = back.attack - (def?.attack ?? back.attack), hp = back.health - (def?.health ?? back.health);
+    s.shop.splice(Math.min(e.index, s.shop.length), 0, { uid: back.uid, cardId: back.cardId, ...(atk ? { atk } : {}), ...(hp ? { hp } : {}) });
+  } else s.hand.splice(e.from === 'hand' ? Math.min(e.index, s.hand.length) : s.hand.length, 0, back);
+  // The pass was never paid: the Gold and the Gold-spent tallies of its turn come back (a free pass: its allowance).
+  const paid = e.paid ?? DUOS_PASS_GOLD;
+  if (paid > 0) {
+    s.embers += paid;
+    s.goldSpent = Math.max(0, (s.goldSpent ?? 0) - paid);
+    if (e.wave === s.wave) s.goldSpentThisTurn = Math.max(0, (s.goldSpentThisTurn ?? 0) - paid);
+  } else if (!e.via && s.duos!.freePassWave === e.wave && e.wave === s.wave) {
+    s.duos!.freePassesUsed = Math.max(0, (s.duos!.freePassesUsed ?? 0) - 1);
+  }
   return s;
 }

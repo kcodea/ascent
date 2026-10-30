@@ -36,7 +36,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ARCHIVED_CARDS, CARD_INDEX, ENEMY, EPIC_RUNES, EQUIPMENT, GIFT_IDS, QUEST_DEFS, RUNES, SETS } from '@game/content';
+import { ARCHIVED_CARDS, CARD_INDEX, DUOS_CARDS, ENEMY, EPIC_RUNES, EQUIPMENT, GIFT_IDS, QUEST_DEFS, RUNES, SETS } from '@game/content';
 import { RUBY_TYPE_IDS, type CardDef, type RuneDef } from '@game/core';
 import { HEROES } from '../heroes';
 import { reduce } from '../reducer';
@@ -209,7 +209,8 @@ function deepMentions(v: unknown, id: string): boolean {
 /** Every card that belongs to NO set — reachable only through some non-shop path — with every path that
  *  names it. Enemy filler and archived cards are excluded (never reachable in a run). */
 export function entryWorklist(): EntryWorkItem[] {
-  const inSet = new Set(Object.values(SETS).flatMap((s) => s.own.map((c) => c.id)));
+  // DUOS-ONLY cards (R-DUOS-CARDS-01) are Shop-drawable in a Duos run (`duosPoolFor`), so they count as in a set.
+  const inSet = new Set([...Object.values(SETS).flatMap((s) => s.own.map((c) => c.id)), ...DUOS_CARDS.map((c) => c.id)]);
   const excluded = new Set([...ENEMY.map((c) => c.id), ...ARCHIVED_CARDS.map((c) => c.id)]);
   const active = Object.values(CARD_INDEX).filter((c): c is CardDef => !!c && inSet.has(c.id));
   const sources = ENTRY_SITE_FILES.map((rel) => ({ rel, lines: readFileSync(join(ROOT, rel), 'utf8').split('\n') }));

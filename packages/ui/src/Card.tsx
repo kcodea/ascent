@@ -15,7 +15,7 @@ import { perfMonitor } from './perfMonitor';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
 import { resolveMech } from './mechIcon';
 import type { GrantedTrigger } from './grantedTriggers';
-import { mechMedallionArtRotate, mechMedallionArtScale, mechMedallionArtTint, mechMedallionSrc } from './mechMedallion';
+import { mechMedallionArtId, mechMedallionArtRotate, mechMedallionArtScale, mechMedallionArtTint, mechMedallionSrc } from './mechMedallion';
 import { epicMedallionSrc, isEpicUnit } from './epicMedallion';
 import { crossedUp, tierOf } from './choreo/statMilestones';
 import { fireStatMilestone } from './fx/statMilestone';
@@ -1361,12 +1361,12 @@ export const Card = memo(function Card({
                 2026-09-23 — Elderhorn / Orivax carried both Choose One + epic). */}
             {mech && !isEpicUnit(card.cardId) && (() => {
               // PNG art → the hybrid img PLUS a same-shape tint overlay (🎖️ Medallions tuner; inert at amount 0).
-              // `--cgem-artsrc` masks the overlay to this exact art. SVG-glyph mechanics keep the plain <Icon>.
+              // `data-art` picks the overlay's mask (one stylesheet rule per art, R-PERF-MEDALLION-MASK-01: never an inline url()). SVG-glyph mechanics keep the plain <Icon>.
               const medSrc = mechMedallionSrc(mech.id);
               const medTint = mechMedallionArtTint(mech.id); // per-mechanic colour sheen (Execute → red multiply)
               return (
                 <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{medSrc
-                  ? <><FadeImg className="cgem-img" src={medSrc} alt="" aria-hidden="true" style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg` } as CSSProperties} /><span className="cgem-tint" style={{ '--cgem-artsrc': `url("${medSrc}")`, '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg`, ...(medTint ? { '--cgem-tint': medTint.color, '--cgem-tint-amt': medTint.amt, '--cgem-tint-blend': medTint.blend } : {}) } as CSSProperties} aria-hidden="true" /></>
+                  ? <><FadeImg className="cgem-img" src={medSrc} alt="" aria-hidden="true" style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg` } as CSSProperties} /><span className="cgem-tint" data-art={mechMedallionArtId(mech.id) ?? undefined} style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg`, ...(medTint ? { '--cgem-tint': medTint.color, '--cgem-tint-amt': medTint.amt, '--cgem-tint-blend': medTint.blend } : {}) } as CSSProperties} aria-hidden="true" /></>
                   : <Icon name={mech.glyph} />}</span>
               );
             })()}

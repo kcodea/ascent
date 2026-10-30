@@ -27,6 +27,7 @@ import { endWatchedGame, startSpectatorBeat, stopSpectatorBeat } from './spectat
 import { cfErrorCode, diagnoseCfOpen, openCfWatcher, type CfOpenDiagnosis, type CfWatcher, type LiveRow, type LiveWatcher } from './liveCf';
 import { lobbyLiveWatchUrl } from '../versus/versusRemote';
 import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
+import { receiveLobbyChatEvent, setLobbyChatSession } from '../lobbyChat/lobbyChatStore';
 
 export interface LiveWatchState {
   /** The game being watched (its listing row), or null. */
@@ -207,6 +208,8 @@ function onGameBroadcast(s: NonNullable<typeof session>, event: string, payload:
   // LIVE PINGS (R-PING-02/03): the player's own pings show on the watched screen; a mentor ping reaches only the
   // player (the receiver drops it here); who is mentoring shows on the stands.
   if (receivePingEvent(event, payload)) return;
+  // LOBBY CHAT (R-LOBBY-CHAT-01): the player's and the stands' messages (Cloudflare only).
+  if (receiveLobbyChatEvent(event, payload)) return;
   if (event === 'spectate') { receiveSpectate(payload); if (useSpectate.getState().active) useLiveWatch.setState({ joining: false }); }
   else if (event === SPECTATE_CURSOR_EVENT) receiveSpectatorCursor(payload);
   else if (event === SPECTATOR_EMOTE_EVENT) receiveSpectatorEmote(payload);
@@ -301,6 +304,7 @@ async function watchOnCf(gameId: string, liveHost: string): Promise<boolean> {
   const me = currentUserId();
   if (me) installSpectatorEmotes(me, s.channel.send);
   installWatchPings(s, gameId);
+  setLobbyChatSession('livewatch', { send: (e, p) => opened.watcher.send(e, p), gameKey: `lobby:${gameId}`, me: myId ?? currentUserId() });
   useSpectate.setState({ name: row.display_name });
   useLiveWatch.setState({ game: row, joining: true });
   cfFellows(got.hello.watchers ?? [], myId);
@@ -370,6 +374,7 @@ export function leaveLiveGame(back = true): void {
   if (!s.cf) s.channel?.send(SPECTATE_BYE_EVENT, {});
   s.channel?.close();
   setPingSession('livewatch', null);
+  setLobbyChatSession('livewatch', null);
   uninstallSpectatorEmotes();
   setWatchers([]);
   if (!s.cf) void remote.unwatch(s.gameId).catch(() => undefined);

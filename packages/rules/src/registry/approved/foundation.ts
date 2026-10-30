@@ -11841,5 +11841,41 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms since 2026-10-30 (fix/endscreen-fit), checked at 2000x1077 in the dev Rank Screen preview with an 8-line breakdown. Before, the overlay scrolled and Match Details sat below the bottom edge.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/endscreenFit.test.ts'], lastVerifiedAt: '2026-10-30' },
+    id: 'R-PERF-MEDALLION-MASK-01',
+    title: 'The keyword medallion on a card loads its picture once per session, never again each time it mounts or fires',
+    statement:
+      'The tint overlay on the mechanic medallion of a card takes its mask from one stylesheet rule per medallion art '
+      + '(`.cgem-tint[data-art=...]`, a literal url()), never from an inline custom property holding a url(). Once the '
+      + 'boot gate and the first shop have loaded the art, a desktop round asks the network stack for at most 25 '
+      + 'pictures (a phone, whose art cache drops art on purpose, at most 150), so no picture is fetched and decoded '
+      + 'again round after round.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29/30 (top priority)', quote: 'performance degrades over a game, worse on phones' },
+      { kind: 'code', ref: 'packages/ui/src/mechMedallion.ts (mechMedallionArtId, mechMedallionMaskCss, installMechMedallionMasks); packages/ui/src/Card.tsx (.cgem-tint data-art); packages/ui/src/styles.css (.cgem > .cgem-tint); packages/tools/src/perfGauntletStats.ts (imageCensusVerdict); scripts/perf-gauntlet.mjs (--img-census, --lite-art, --mem-infra)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-30 (perf/image-redecode-creep). Before, every medallion that mounted (and every trigger '
+      + 'pulse remounts one) resolved `--cgem-artsrc: url(...)` through var(), a fresh image value each time, so the '
+      + 'page asked for the same 10 medallion pictures 250 to 370 times a round from round 2 on (1,833 then ~300 a '
+      + 'round, seed 424242 desktop; ~400 a round on the phone path), each one fetched and decoded again.',
+    example: 'Late in a Dwarf game, Shout and Echo medallions fire on every card in every fight. Before, each fire reloaded the Shout picture; a round asked for about 300 pictures it already had. Now a round asks for about 10.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/mechMedallion.test.ts', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-LOBBY-CHAT-01',
+    title: 'Every game has a lobby chat for everyone in it: the players and the spectators',
+    statement:
+      "A Versus room (every seated player and everyone in the stands) and a live lobby or Practice game on Cloudflare (its player and everyone watching) each have ONE lobby chat, carried on the game's own socket and run by its Durable Object. Messages are live only: the object keeps the last 100 in memory and its own storage for the game's life (a late joiner gets them), never in Postgres. Only a member of the game may post, never a guest (guests read). At most 1 message a second per sender, bursts of 5, on the object and the client. Bodies are cleaned and bounded like direct messages (500 characters). The sender's name and role are the object's, never the payload's. A reader may mute a sender (that game, their own screen), and a Settings switch (on by default) hides lobby chat entirely. Chat events are separate relays that never hold or delay a game frame, and a client only shows the chat once the object answers its backlog request, so an older Worker or a Supabase-hosted game never shows a dead panel.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30 (owner idea)', quote: 'spectator group chats within a game' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30 (owner ruling)', quote: 'spectator group chat can be lobby chat, and should include everyone in the game i think including the player' },
+    ],
+    currentBehaviour: 'New on 2026-10-30 (feat/spectator-group-chat).',
+    example: 'Ann plays a Practice game while Bo and Cy watch. Bo types "nice roll" in the lobby chat on the left side of the screen. Ann and Cy see it at once; Dee, who starts watching a minute later, sees it too.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/lobbyChat.test.ts', 'workers/versus/test/it/live.it.ts', 'packages/ui/src/lobbyChat/lobbyChat.test.tsx'], lastVerifiedAt: '2026-10-30' },
   },
 ];

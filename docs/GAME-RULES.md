@@ -1459,6 +1459,21 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   lobby / Practice Cloudflare live object route each ping (and each clear) to its audience only and drop the rest; over
   a Supabase broadcast channel the receiver re-checks the same rule.
 
+## Lobby chat (owner 2026-10-30; R-LOBBY-CHAT-01)
+
+- **Who.** Every game on Cloudflare has ONE chat for everyone in it: a Versus room's seated players and its stands; a
+  live lobby / Practice game's player and everyone watching. It sits on the left edge, collapsible to a small
+  "Lobby chat" button with an unread count. A lone player nobody watches sees no panel.
+- **Live only.** The game's Durable Object keeps the last 100 messages for the game's life (a late joiner gets them);
+  nothing is written to Supabase. A Versus room keeps one chat through every match in it.
+- **Limits.** Signed-in members only post (guests read). 1 message a second per sender, bursts of 5. 500 characters,
+  cleaned like direct messages. The name and role (player / spectator) are the server's.
+- **Reader controls.** Mute a sender (that game, your screen only). The bad word filter covers it. Settings has a
+  **Lobby chat** switch (on by default) that hides it entirely.
+- **Never the game's cost.** Chat relays are separate, small `bc` events; the backlog write never holds a game frame. A
+  client only shows the chat once the object answers its backlog request (`lobby_chat_sync`), so an older Worker or a
+  Supabase-hosted game shows nothing.
+
 ## Friends (owner 2026-10-26; R-FRIENDS-01, R-FRIENDS-02, R-FRIENDS-03, R-FRIENDS-04, R-FRIENDS-05)
 
 The owner (2026-10-26): yes to a friends list that shows online players, to simplify invites (Versus rooms now, the

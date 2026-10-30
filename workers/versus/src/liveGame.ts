@@ -23,6 +23,7 @@ import type { PersistEnv } from './persist';
 import { VERSUS_CF_CLOSE, VERSUS_CF_PING, VERSUS_CF_PONG, VERSUS_CF_STALE_MS, VERSUS_CF_SUBPROTOCOL, parseClientMessage } from './protocol';
 import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
 import { spectateSinkFor, WatchReporter, type SpectateSink } from './spectate';
+import { GUEST_HEADER, LOBBY_CHAT_EVENT, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_STORAGE_KEY, LOBBY_CHAT_SYNC_EVENT, LobbyChat, type LobbyChatSender } from './lobbyChat';
 import { livePingRoom, PING_CLEAR_EVENT, PING_CLEAR_RATE, PING_EVENT, PING_MENTOR_EVENT, PingRateLimiter, routePing, routePingClear, routePingMentor } from './pings';
 
 export const LIVE_GAME_HEADER = 'X-Live-Game';
@@ -36,6 +37,8 @@ interface Attachment {
   userId: string;
   role: LiveRole | null;
   at: number;
+  /** A guest account (stamped by the Worker): reads the lobby chat, never posts (R-LOBBY-CHAT-01). */
+  guest?: boolean;
 }
 
 /** Counters for the DEV metrics route and the measurement test. */
@@ -88,6 +91,8 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
   private pingMentor: string | null = null;
   private readonly pingLimit = new PingRateLimiter();
   private readonly pingClearLimit = new PingRateLimiter(PING_CLEAR_RATE);
+  /** LOBBY CHAT (R-LOBBY-CHAT-01): the game's chat, read from storage on its first use after a wake. */
+  private chat: LobbyChat | null = null;
   private readonly metrics: LiveMetrics = { msgsIn: 0, msgsOut: 0, bytesIn: 0, bytesOut: 0, rowWrites: 0, beatWrites: 0, beats: 0 };
 
   constructor(ctx: DurableObjectState, env: LiveEnv) {
@@ -169,7 +174,7 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
     const [client, server] = [pair[0], pair[1]];
     this.ctx.acceptWebSocket(server, [userId]);
     const at = Date.now();
-    server.serializeAttachment({ userId, role: null, at } satisfies Attachment);
+    server.serializeAttachment({ userId, role: null, at, guest: req.headers.get(GUEST_HEADER) === '1' } satisfies Attachment);
     // One live socket per account per game: an older one (a reload, a second tab) is closed as replaced.
     for (const ws of this.ctx.getWebSockets(userId)) {
       if (ws !== server && this.att(ws).at <= at) { try { ws.close(VERSUS_CF_CLOSE.replaced, 'replaced'); } catch { /* closing */ } }
@@ -201,6 +206,7 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
     if (msg.t === 'bc') {
       if (!core || !a.role) return;
       if (msg.event === PING_EVENT || msg.event === PING_MENTOR_EVENT || msg.event === PING_CLEAR_EVENT) { await this.relayPing(core, ws, a.userId, msg.event, msg.payload); return; }
+      if (msg.event === LOBBY_CHAT_EVENT || msg.event === LOBBY_CHAT_SYNC_EVENT) { await this.lobbyChat(core, ws, a, msg.event, msg.payload); return; }
       // Relay to everyone else in this game (the player's stream to the stands; a watcher's emote, key request or
       // goodbye to the player and the other watchers), never back to the sender.
       const out = JSON.stringify({ t: 'bc', event: msg.event, payload: msg.payload, from: a.userId } satisfies LivePush);
@@ -351,6 +357,35 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
     }
   }
 
+  /**
+   * LOBBY CHAT (owner 2026-10-30; R-LOBBY-CHAT-01): the player and everyone in the stands share one chat. A post is
+   * stamped (`LobbyChat.post`: members only, never a guest, rate limited) and goes to every socket in the game, the
+   * sender's too (its confirmation). A sync answers the backlog to the asking socket only. The backlog is mirrored to
+   * this object's storage without holding any outgoing frame for the write (`allowUnconfirmed`).
+   */
+  private async lobbyChat(core: LiveCore, ws: CfWebSocket, a: Attachment, event: string, payload: unknown): Promise<void> {
+    if (!this.chat) {
+      const chat = new LobbyChat();
+      chat.load(await this.ctx.storage.get(LOBBY_CHAT_STORAGE_KEY));
+      this.chat ??= chat;
+    }
+    const role = a.role === 'publish' && a.userId === core.meta.owner ? 'player' : a.role === 'watch' && core.watchers.has(a.userId) ? 'spectator' : null;
+    const name = role === 'player' ? core.meta.info?.name ?? 'Player' : core.watchers.get(a.userId)?.display_name ?? 'Spectator';
+    const sender: LobbyChatSender = { userId: a.userId, role, name, guest: !!a.guest };
+    if (event === LOBBY_CHAT_SYNC_EVENT) {
+      this.send(ws, JSON.stringify({ t: 'bc', event, payload: this.chat.sync(sender), from: a.userId } satisfies LivePush));
+      return;
+    }
+    const r = this.chat.post(sender, payload, Date.now());
+    if (!r.ok) {
+      this.send(ws, JSON.stringify({ t: 'bc', event: LOBBY_CHAT_REFUSED_EVENT, payload: { cid: r.cid ?? null, reason: r.reason }, from: a.userId } satisfies LivePush));
+      return;
+    }
+    void this.ctx.storage.put(LOBBY_CHAT_STORAGE_KEY, this.chat.backlog(), { allowUnconfirmed: true }).catch(() => undefined);
+    const out = JSON.stringify({ t: 'bc', event, payload: r.msg, from: a.userId } satisfies LivePush);
+    for (const other of this.liveSockets()) if (this.att(other).role) this.send(other, out);
+  }
+
   /** An account's last socket is gone. */
   private async dropped(core: LiveCore, userId: string, now: number): Promise<void> {
     const beat = core.watchers.has(userId) ? core.beatFor(userId) : null;
@@ -388,6 +423,7 @@ export class VersusLiveGame extends DurableObject<LiveEnv> {
       this.core = null;
       this.loaded = false;
       this.key = null;
+      this.chat = null;
       return;
     }
     // An ended game: anyone still connected is let go after the end has had its moment.

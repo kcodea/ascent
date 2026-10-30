@@ -59,6 +59,13 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-30',
     changes: [
       { category: 'Systems', text: 'The end-of-game rank screen now fits on screen. A long Account XP breakdown scrolls inside its box, and your level bar always shows.' },
+      { category: 'Systems', text: 'New lobby chat: everyone in a game can chat, players and spectators alike.', details: [
+        'It sits on the left side of a Versus room, or of a lobby or Practice game while someone watches.',
+        'Collapse it to a small button. A red count shows new messages.',
+        'Mute anyone in the chat. Only you stop seeing them, for that game.',
+        'Sign in to send. Guests can read along.',
+        'Settings has a switch to hide lobby chat entirely. The bad word filter covers it too.',
+      ] },
       { category: 'Systems', text: 'Chat: message alerts now clear as soon as you look at the conversation.', details: [
         'Coming back to the game with a chat open on that friend clears its alert.',
         'Clicking into the chat window or sending a reply clears it too. You no longer need to reopen the chat.',
@@ -92,6 +99,10 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: "The chat window's resize grip is much easier to see.", details: [
         'The bottom right corner has a gold grip.',
         'Hover any edge or corner and it lights up gold, so you can see where to drag.',
+      ] },
+      { category: 'Systems', text: 'Long games stay smoother. The game no longer reloads the keyword icons on your cards every time one of them fires.', details: [
+        'Each keyword icon is now loaded once per session, not again each time its card triggers or is drawn.',
+        'Late in a game this was hundreds of extra image loads every round, and the memory they used kept growing. It grew fastest on phones.',
       ] },
     ],
   },

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { MECH_MEDALLION_PNGS, mechMedallionArtScale, mechMedallionSrc } from './mechMedallion';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { MECH_MEDALLION_PNGS, mechMedallionArtId, mechMedallionArtScale, mechMedallionMaskCss, mechMedallionSrc } from './mechMedallion';
 
 describe('mechMedallionSrc', () => {
   it('returns a webp URL for a wired mechanic', () => {
@@ -33,5 +35,32 @@ describe('mechMedallionArtScale', () => {
   it('defaults to 1 for a mechanic with no correction', () => {
     expect(mechMedallionArtScale('echo')).toBe(1);
     expect(mechMedallionArtScale('nonsense')).toBe(1);
+  });
+});
+
+// R-PERF-MEDALLION-MASK-01 (perf degradation hunt 2026-10-30): the tint overlay's mask url() lives in ONE stylesheet rule
+// per art, never in an inline custom property (which re-fetched + re-decoded the art for every medallion that mounted).
+describe('medallion tint mask (R-PERF-MEDALLION-MASK-01)', () => {
+  it('the mask sheet holds one literal url() rule for every medallion art, aliases included', () => {
+    const css = mechMedallionMaskCss('/');
+    for (const id of MECH_MEDALLION_PNGS) {
+      const art = mechMedallionArtId(id)!;
+      expect(css).toContain(`.cgem-tint[data-art="${art}"]{-webkit-mask-image:url("/medallions/${art}.webp");mask-image:url("/medallions/${art}.webp")}`);
+    }
+    expect(mechMedallionArtId('overflow')).toBe('watcher');
+    expect(mechMedallionArtId('taunt')).toBeNull();
+    expect(css.match(/data-art="watcher"/g)).toHaveLength(1);
+  });
+  it('no component sets the overlay mask through an inline url(), and the stylesheet never reads it from a var()', () => {
+    for (const f of ['Card.tsx', 'MedallionTuner.tsx']) {
+      const src = readFileSync(join(__dirname, f), 'utf8');
+      expect(src).not.toMatch(/--cgem-artsrc/);
+      expect(src).toMatch(/className="cgem-tint" data-art=/);
+    }
+    const css = readFileSync(join(__dirname, 'styles.css'), 'utf8');
+    const rule = /\.cgem > \.cgem-tint \{[^}]*\}/.exec(css)?.[0] ?? '';
+    expect(rule).not.toBe('');
+    expect(rule).not.toMatch(/mask(?:-image)?\s*:\s*var\(/);
+    expect(rule).not.toMatch(/url\(/);
   });
 });

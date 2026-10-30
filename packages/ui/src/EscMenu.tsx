@@ -30,6 +30,7 @@ import { Icon } from './Icon';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from './versus/spectatorEmotes';
 import { setFilterMessages, setShowActivity, useFriendsPrefs } from './friends/friendsPrefs';
+import { setLobbyChatEnabled, useLobbyChat } from './lobbyChat/lobbyChatStore';
 import { isTouchDevice, touchText } from './touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from './touchUi';
 import { PHONE_DIAG_FLAGS, PHONE_GPU, activeDiagLabel, saveDiagFlags, storedDiagFlags, type PhoneDiagFlags } from './phoneDiag';
@@ -103,6 +104,7 @@ export function SettingsPanel() {
   const spectatorEmotesOn = useSpectatorEmotePrefs((s) => s.on);
   const showActivity = useFriendsPrefs((s) => s.showActivity);
   const filterMessages = useFriendsPrefs((s) => s.filterMessages);
+  const lobbyChatOn = useLobbyChat((s) => s.enabled);
   const setShowOpponentSkins = useGame((s) => s.setShowOpponentSkins);
   const fpsCap = useGame((s) => s.fpsCap);
   const setFpsCap = useGame((s) => s.setFpsCap);
@@ -203,6 +205,13 @@ export function SettingsPanel() {
           on={spectatorEmotesOn}
           onToggle={() => { setSpectatorEmotesOn(!spectatorEmotesOn); sfx.pulse(); }}
         />
+        {/* LOBBY CHAT (owner 2026-10-30, R-LOBBY-CHAT-01): off hides the game's chat entirely. Saved on this device. */}
+        <ToggleRow
+          label="Lobby chat"
+          note="The chat for everyone in a game: players and spectators. Off hides it."
+          on={lobbyChatOn}
+          onToggle={() => { setLobbyChatEnabled(!lobbyChatOn); sfx.pulse(); }}
+        />
         </div>
         <div className="esccol">
         {/* FRIENDS (owner 2026-10-29, R-FRIENDS-ACTIVITY-01): what friends see on my row. Saved on this device. */}
@@ -216,7 +225,7 @@ export function SettingsPanel() {
         {/* DIRECT MESSAGES (R-DM-04): masks swear words and slurs in messages I read. Saved on this device. */}
         <ToggleRow
           label="Filter bad words in messages"
-          note="Hides swear words and slurs in messages from friends."
+          note="Hides swear words and slurs in messages from friends and in lobby chat."
           on={filterMessages}
           onToggle={() => { setFilterMessages(!filterMessages); sfx.pulse(); }}
         />

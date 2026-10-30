@@ -34,6 +34,7 @@ import { openCfPublisher, type CfListing, type CfPublisher, type LiveWatcher } f
 import { lobbyLivePublishUrl } from '../versus/versusRemote';
 import { currentRankOf } from '../rank/rankSource';
 import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
+import { receiveLobbyChatEvent, setLobbyChatCompany, setLobbyChatSession } from '../lobbyChat/lobbyChatStore';
 import { lobbyStatusNow, type FriendGameStatus } from '../friends/gameStatus';
 
 export const LIVE_HEARTBEAT_MS = 15_000;
@@ -167,6 +168,8 @@ function onBroadcast(l: Live, event: string, payload?: unknown): void {
   // LIVE PINGS (R-PING-02): my mentor's pings, and who is mentoring (the receiver re-checks the rule: a Supabase
   // broadcast channel cannot).
   if (receivePingEvent(event, payload)) return;
+  // LOBBY CHAT (R-LOBBY-CHAT-01): my stands' messages (Cloudflare only: the object runs the chat).
+  if (receiveLobbyChatEvent(event, payload)) return;
   // A watcher's emote: it pops from their chip in my "Spectating" indicator (R-SPECTATE-EMOTE-01). Only a watcher in my
   // stands (the watcher rows) can emote; the receiver throttles it on its own clock.
   if (event === SPECTATOR_EMOTE_EVENT) { receiveSpectatorEmote(payload); return; }
@@ -287,6 +290,8 @@ function cfStands(l: Live, list: LiveWatcher[]): void {
   if (live !== l) return;
   setWatcherList(list.slice(0, 20).map((w) => ({ id: w.user_id, name: w.display_name ?? '', profile: w.profile ?? null })));
   setWatchers(l, list.length);
+  // The lobby chat shows only while someone watches (a lone player sees no panel).
+  setLobbyChatCompany(list.length > 0);
 }
 
 /** Open the game on the Worker; if it cannot be reached, publish this game on Supabase instead (for its whole life). */
@@ -304,12 +309,16 @@ function startCf(l: Live, url: string): void {
       l.channel = null;
       stopPublishing(l);
       setWatcherList([]);
+      setLobbyChatSession('lobbylive', null);
     },
   }).then((cf) => {
     if (live !== l) { void cf.end(null).catch(() => undefined).finally(() => cf.close()); return; }
     l.cf = cf;
     l.host = 'cf';
     l.channel = { send: (e, p) => cf.send(e, p), close: () => cf.close() };
+    // LOBBY CHAT (R-LOBBY-CHAT-01): the player and the stands share the game's chat, on this socket.
+    setLobbyChatSession('lobbylive', { send: (e, p) => cf.send(e, p), gameKey: `lobby:${l.gameId}`, me: currentUserId() });
+    setLobbyChatCompany((early?.length ?? 0) > 0);
     if (early) cfStands(l, early);
     beat();
   }).catch(() => {
@@ -346,6 +355,7 @@ function stop(ended: number | null | 'abandon'): void {
   live = null;
   if (l.timer != null) window.clearInterval(l.timer);
   setPingSession('lobbylive', null);
+  setLobbyChatSession('lobbylive', null);
   stopPublishing(l);
   frames.cancel(); // a publish still waiting for idle time belongs to the game that just stopped
   setWatcherList([]);

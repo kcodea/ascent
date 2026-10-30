@@ -59,6 +59,9 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-30',
     changes: [
       { category: 'Systems', text: 'The end-of-game rank screen now fits on screen. A long Account XP breakdown scrolls inside its box, and your level bar always shows.' },
+      { category: 'Systems', text: 'Duos: Golden minions can no longer be passed to your teammate.', details: [
+        "Drag one over your teammate's portrait and it shows why. Let go and it stays in your hand. No Gold is spent.",
+      ] },
       { category: 'Systems', text: 'New lobby chat: everyone in a game can chat, players and spectators alike.', details: [
         'It sits on the left side of a Versus room, or of a lobby or Practice game while someone watches.',
         'Collapse it to a small button. A red count shows new messages.',

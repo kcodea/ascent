@@ -51,11 +51,14 @@ export interface DuosRunState {
 
 /** Why `uid` cannot be passed right now (null = it can). `mateHandFull` is the teammate's live hand state when the
  *  caller knows it (the UI, from the teammate's frame). The UI shows the refusal from this. */
-export function duosPassBlocked(s: RunState, uid: string, mateHandFull = false): 'not_duos' | 'phase' | 'no_card' | 'board' | 'gold' | 'hand_full' | null {
+export function duosPassBlocked(s: RunState, uid: string, mateHandFull = false): 'not_duos' | 'phase' | 'no_card' | 'board' | 'golden' | 'gold' | 'hand_full' | null {
   if (!s.duos) return 'not_duos';
   if (s.phase !== 'recruit') return 'phase';
   // HAND ONLY (owner 2026-10-25: "you aren't supposed to be able to pass a card off your board, only from hand").
-  if (!s.hand.some((c) => c.uid === uid)) return s.board.some((c) => c.uid === uid) ? 'board' : 'no_card';
+  const card = s.hand.find((c) => c.uid === uid);
+  if (!card) return s.board.some((c) => c.uid === uid) ? 'board' : 'no_card';
+  // NO GOLDENS (owner 2026-10-30: "Golden minions CANNOT be passed").
+  if (card.golden) return 'golden';
   if (mateHandFull) return 'hand_full';
   if (s.embers < DUOS_PASS_GOLD) return 'gold';
   return null;

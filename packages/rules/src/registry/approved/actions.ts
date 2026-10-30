@@ -76,6 +76,26 @@ export const ACTIONS_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusClockLock.test.ts', 'packages/ui/src/versus/versusBot.db.test.ts'], lastVerifiedAt: '2026-10-16' },
   },
   {
+    id: 'R-VERSUS-TURN-TIME-01',
+    title: 'Versus turns are 15% longer than the lobby schedule; Duos and Ranked Duos turns are 30% longer',
+    statement:
+      'Every Versus shop clock is the lobby round schedule (`standardTurnSeconds`: 21, 22, 26, 30, 34, 44 ... 92 s) times '
+      + 'a per-mode percent, rounded half up to whole seconds: Versus 1v1 and Versus Group x1.15, Versus Duos and Ranked '
+      + 'Duos x1.30 (instead of the 15%, not on top). Rounds 1-15: 1v1 / Group 24, 25, 30, 35, 39, 51, 55, 60, 64, 69, '
+      + '74, 92, 97, 101, 106; Duos 27, 29, 34, 39, 44, 57, 62, 68, 73, 78, 83, 104, 109, 114, 120. ONE function '
+      + '(`versusTurnSeconds`) answers it: the Worker stamps every shop deadline with it for the match mode, and the HUD '
+      + 'shows it before a deadline exists, so the face matches the server. Hero Select, the intro cap, combat, pause '
+      + 'grace and the Ranked Duos overtime are unchanged. Lobby, Practice and the solo modes keep the plain schedule.',
+    domain: 'actions',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-30 (Versus clock length)', quote: "let's do a 15% increase in versus/group and a 30% increase for duos" },
+      { kind: 'code', ref: 'packages/sim/src/versus/constants.ts (VERSUS_TURN_PERCENT, versusTurnSeconds); workers/versus/src/core/roomCore.ts turnSeconds; workers/versus/src/core/groupMatch.ts openShop / startClock; packages/ui/src/versus/VersusHud.tsx useVersusRecruit' },
+    ],
+    currentBehaviour: 'Conforms (2026-10-30). Before, every Versus mode used the plain lobby schedule.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusTurnSeconds.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
     id: 'R-TRANSFORM-01',
     title: 'Strange Revision: transform a minion into a random minion of the tier above it, keeping its current stats',
     statement:

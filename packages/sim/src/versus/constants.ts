@@ -3,6 +3,7 @@
  * SQL migration and the client all read the same values (the SQL copies are named next to each constant, and
  * `versusConstants.test.ts` pins them against the migration text).
  */
+import type { VersusMode } from './options';
 
 /** (Hearts are gone since 2026-10-26: each player plays on their hero's Health and Armor, the lobby's damage and cap.
  *  R-VERSUS-HEALTH-01, `vitals.ts`. Old matches keep their `*_hearts` columns for the record.) */
@@ -25,6 +26,27 @@ export const VERSUS_INTRO_CAP_SECONDS = 45;
 export const VERSUS_COMBAT_VIEW_CAP_SECONDS = 90;
 /** Seconds without a heartbeat before a seat counts as disconnected (the lease). */
 export const VERSUS_LEASE_SECONDS = 12;
+
+/**
+ * MORE TIME IN VERSUS (owner 2026-10-30, R-VERSUS-TURN-TIME-01): "let's do a 15% increase in versus/group and a 30%
+ * increase for duos". Each mode's shop clock is the lobby's standard schedule times this percent (Duos: 130 INSTEAD of
+ * 115, not on top). Whole percents so the scaling is exact integer math (a float 1.15 would round 30 s to 34, not 35).
+ */
+export const VERSUS_TURN_PERCENT: Readonly<Record<VersusMode, number>> = { duel: 115, group: 115, duos: 130, ranked_duos: 130 };
+
+/**
+ * A Versus round's shop length in whole seconds: the ONE source the Worker's deadlines (`roomCore` 1v1,
+ * `groupMatch` group / Duos / Ranked Duos) and the client's pre-deadline face read. The base is the lobby schedule
+ * (`standardTurnSeconds` in packages/ui/src/turnClock.ts, pinned equal by `versusTurnSeconds.test.ts`): +4 s a round
+ * from 18 s, +6 s from round 6, capped at 80 s, +12 s from round 12, floored at 21 s. Then the mode's percent,
+ * rounded half up to whole seconds. An unknown mode reads as the 1v1.
+ */
+export function versusTurnSeconds(round: number, mode: unknown): number {
+  const base = Math.max(21, Math.min(80, 18 + (round - 1) * 4 + (round >= 6 ? 6 : 0)) + (round >= 12 ? 12 : 0));
+  const pct = typeof mode === 'string' && Object.prototype.hasOwnProperty.call(VERSUS_TURN_PERCENT, mode)
+    ? VERSUS_TURN_PERCENT[mode as VersusMode] : VERSUS_TURN_PERCENT.duel;
+  return Math.floor((base * pct + 50) / 100);
+}
 
 /**
  * The wire protocol version. Bump it when a payload shape changes so an older client or an older deployed

@@ -9,7 +9,7 @@
 import { contentRevision } from '@game/content';
 import { canonicalDigest, canonicalJson, digestOf } from './canonical';
 import { emptyVersusSide, preparedSideError, resolveVersusFight, versusChair, versusCombatSeed, versusSideOrEmpty, type VersusFightInput, type VersusFightResult } from './combat';
-import { VERSUS_COMBAT_VIEW_CAP_SECONDS, VERSUS_GATE_SECONDS, VERSUS_HERO_SELECT_SECONDS, VERSUS_INTRO_CAP_SECONDS, VERSUS_LIMITS, VERSUS_MISSED_ROUNDS_FORFEIT, VERSUS_PAUSE_GRACE_SECONDS, VERSUS_PROTOCOL, VERSUS_SPECTATOR_CAP } from './constants';
+import { VERSUS_COMBAT_VIEW_CAP_SECONDS, VERSUS_GATE_SECONDS, VERSUS_HERO_SELECT_SECONDS, VERSUS_INTRO_CAP_SECONDS, VERSUS_LIMITS, VERSUS_MISSED_ROUNDS_FORFEIT, VERSUS_PAUSE_GRACE_SECONDS, VERSUS_PROTOCOL, VERSUS_SPECTATOR_CAP, versusTurnSeconds } from './constants';
 import { handleVersusFinalize, versusFightDigest, versusFightPayload, type VersusFinalizeStore } from './finalize';
 import { reportedVitals, versusArmorFloorMax, versusFreshSide, versusStartingVitals } from './vitals';
 import { resolveVersusGroupRound, versusGroupPairings, type VersusGroupRoundInput, type VersusGroupRoundResult } from './group';
@@ -29,6 +29,8 @@ export { versusFreshSide };
 // Edge Function's behaviour is unchanged.
 export { reportedVitals, versusArmorFloorMax, versusStartingVitals };
 export { VERSUS_COMBAT_VIEW_CAP_SECONDS, VERSUS_GATE_SECONDS, VERSUS_HERO_SELECT_SECONDS, VERSUS_INTRO_CAP_SECONDS, VERSUS_MISSED_ROUNDS_FORFEIT, VERSUS_PAUSE_GRACE_SECONDS, VERSUS_SPECTATOR_CAP };
+// MORE TIME IN VERSUS (owner 2026-10-30): the per-mode shop clock the Worker's deadlines read.
+export { versusTurnSeconds };
 export type { VersusFightInput, VersusFightResult, VersusFinalizeStore };
 // VERSUS GROUP (owner 2026-10-24): the 3-4 player round's resolver, its finalize handler and the room options check.
 export { handleVersusGroupFinalize, resolveVersusGroupRound, versusGroupPairings, normalizeVersusOptions, versusOptionsError };

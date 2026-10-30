@@ -25,6 +25,7 @@ import {
   VERSUS_LIMITS,
   VERSUS_MISSED_ROUNDS_FORFEIT,
   VERSUS_PAUSE_GRACE_SECONDS,
+  versusTurnSeconds,
   type VersusDuosFinalizeStore,
   type VersusGroupFinalizeStore,
 } from '@game/sim/versus/server';
@@ -261,10 +262,6 @@ function seededPick(seed: number, label: string, n: number): number {
   return (h >>> 0) % n;
 }
 
-function turnSeconds(round: number): number {
-  return Math.max(21, Math.min(80, 18 + (round - 1) * 4 + (round >= 6 ? 6 : 0)) + (round >= 12 ? 12 : 0));
-}
-
 /** A new group match for the seated members (in seat order). */
 export function newGroupState(host: GroupHost, room: { id: string; set_id: string; content_revision: string; protocol: number; options: Record<string, unknown> },
   seated: { seat: GSeat; userId: string; name: string }[]): GroupState {
@@ -454,7 +451,7 @@ export class GroupEngine {
     m.phase = 'shop';
     m.round = round;
     m.shop_starts_at = first ? null : now;
-    m.shop_deadline = first ? null : now + turnSeconds(round) * 1000;
+    m.shop_deadline = first ? null : now + versusTurnSeconds(round, m.options.mode) * 1000;
     m.intro_deadline = first ? now + VERSUS_INTRO_CAP_SECONDS * 1000 : null;
     m.combat_deadline = null;
     for (const seat of GSEATS) {
@@ -477,7 +474,7 @@ export class GroupEngine {
     if (m.phase !== 'shop' || m.shop_deadline != null) return;
     const now = this.h.now();
     m.shop_starts_at = now;
-    m.shop_deadline = now + turnSeconds(m.round) * 1000;
+    m.shop_deadline = now + versusTurnSeconds(m.round, m.options.mode) * 1000;
     m.intro_deadline = null;
     this.touch();
   }

@@ -1040,8 +1040,11 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Game start, 1:1 with a lobby game.** The full ceremony, the launch, then the Good Luck intro. Round 1's clock
   starts when both players' intros have played out (or 45 seconds after the heroes lock, so a stuck client cannot
   stall it). There is no countdown anywhere.
-- **Rounds.** Both players shop at the same time on the normal round-by-round timer (`standardTurnSeconds`, no Gold
-  Fuse), counted down from one server deadline that nothing pauses locally. **End Turn is a ready signal, not a lock**
+- **Rounds.** Both players shop at the same time on the normal round-by-round timer made longer for Versus (no Gold
+  Fuse; owner 2026-10-30: "let's do a 15% increase in versus/group and a 30% increase for duos", R-VERSUS-TURN-TIME-01):
+  `standardTurnSeconds` x1.15 in Versus 1v1 and Group, x1.30 in Versus Duos and Ranked Duos, rounded to whole seconds
+  (`versusTurnSeconds`; 1v1 rounds 1-15: 24, 25, 30, 35, 39, 51, 55, 60, 64, 69, 74, 92, 97, 101, 106; Duos: 27, 29,
+  34, 39, 44, 57, 62, 68, 73, 78, 83, 104, 109, 114, 120), counted down from one server deadline that nothing pauses locally. **End Turn is a ready signal, not a lock**
   (owner 2026-10-26: "it's a ready signal, not a 'i cant do anything anymore'"; R-VERSUS-READY-01, every Versus mode):
   the gem shows pressed with "Players ready 1/2" (then 2/2), and while the clock is above 0:00 you can still buy, sell,
   roll, play, tier up, re-order, freeze and inspect, and you stay ready. Every change after End Turn is sent again as

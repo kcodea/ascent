@@ -71,7 +71,7 @@ async function inShop(svc: RankedService = new LocalRankedService()): Promise<H>
   expect(h.r.r.seated_at).not.toBeNull();
   await h.op(U1, 'intro_done', { matchId: h.id });
   await h.op(U2, 'intro_done', { matchId: h.id });
-  expect(h.g.shop_deadline).toBe(h.now + turnSeconds(1) * 1000);
+  expect(h.g.shop_deadline).toBe(h.now + turnSeconds(1, 'ranked_duos') * 1000);
   return h;
 }
 
@@ -116,7 +116,7 @@ describe('Ranked Duos room (Cloudflare) — the close (R-RANKED-DUOS-GATE-01)', 
     const h = await inShop();
     await lock(h, U1, STRONG);
     await h.op(U2, 'submit', { matchId: h.id, round: 1, seq: 1, side: structuredClone(MID), final: false, checkpoint: null });
-    await h.advance(turnSeconds(1) * 1000 + 1000);
+    await h.advance(turnSeconds(1, 'ranked_duos') * 1000 + 1000);
     expect(h.g.phase).toBe('shop'); // past 0:00, still open for the teammate
     await h.advance(30_000);
     expect(h.g.phase).toBe('combat');

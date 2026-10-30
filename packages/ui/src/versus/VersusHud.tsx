@@ -16,13 +16,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RunState } from '@game/sim';
 import { useGame } from '../store';
 import { useScreenSwapped, useSwapRef } from '../screenSwap';
-import { standardTurnSeconds, turnClock } from '../turnClock';
+import { turnClock } from '../turnClock';
 import { displaySeconds, shopClockAt } from './versusClock';
 import { driveVersusClock, nextObserveMs } from './versusClockFx';
 import { expireVersusShop, lockTurn, unreadyTurn, mySeat, rereadVersusMatch, resumeMatch, unpauseMatch, useVersus, useVersusPaused, versusRemainingMs, versusServerNow, versusShopRemainingMs, type VersusState } from './versusStore';
 import type { VersusMatch } from './versusRemote';
 import { ownRunWhileWatching, useSpectate } from './spectate';
-import { VERSUS_LEASE_SECONDS } from '@game/sim';
+import { VERSUS_LEASE_SECONDS, versusTurnSeconds } from '@game/sim';
 import { sfx } from '../sfx';
 import { versusReadyLabel, versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, versusTurnReady, type VersusTurn } from './versusTurn';
 import { markFlow } from './flowTiming';
@@ -154,8 +154,9 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
     if (!versus || run.phase !== 'recruit') return undefined;
     if (!live) {
       // This round's fight is being resolved: the clock stays where it stopped. The next shop is not open yet (or
-      // round 1 before the intros): its full turn.
-      if (match?.round !== run.wave || !deadline) turnClock.set(standardTurnSeconds(run.wave));
+      // round 1 before the intros): its full turn, the mode's own length (owner 2026-10-30: +15% / Duos +30%), the
+      // same `versusTurnSeconds` the Worker stamps the deadline with, so the face never jumps when the clock starts.
+      if (match?.round !== run.wave || !deadline) turnClock.set(versusTurnSeconds(run.wave, match?.options?.mode ?? useVersus.getState().room?.options?.mode));
       return undefined;
     }
     // The clock's cues and the 20 s charge glyph ride this same deadline (R-VERSUS-TIMER-FX-01): `driveVersusClock`

@@ -67,7 +67,7 @@ async function inShop(n: 3 | 4, d?: CoreDeps): Promise<H> {
   for (let i = 0; i < n; i++) await h.op(U[i], 'pick_hero', { matchId: h.id, index: 0 });
   expect(h.g.phase).toBe('shop');
   for (let i = 0; i < n; i++) await h.op(U[i], 'intro_done', { matchId: h.id });
-  expect(h.g.shop_deadline).toBe(h.now + turnSeconds(1) * 1000);
+  expect(h.g.shop_deadline).toBe(h.now + turnSeconds(1, 'group') * 1000);
   return h;
 }
 
@@ -120,7 +120,7 @@ describe('Group room (Cloudflare) — timer / emptyAll / emptyOne / mendArmor', 
   it('nobody presses End Turn: 0:00 + 250 ms closes the round; candidates promoted, absent boards empty (emptyAll never halts)', async () => {
     const h = await inShop(4);
     await h.op(U[1], 'submit', { matchId: h.id, round: 1, seq: 4, side: structuredClone(MID), final: false, checkpoint: null });
-    await h.advance(turnSeconds(1) * 1000 + SHOP_GRACE_MS);
+    await h.advance(turnSeconds(1, 'group') * 1000 + SHOP_GRACE_MS);
     expect(h.g.phase).toBe('combat');
     expect(h.core.state.group!.subs.p2!.source).toBe('deadline');
     expect(h.core.state.group!.subs.p1!.source).toBe('empty');

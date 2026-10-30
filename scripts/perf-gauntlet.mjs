@@ -970,6 +970,8 @@ async function measureOnce(dist, runIdx) {
     if (flag('audio')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: AUDIO_CENSUS });
     // --css "<rules>": an extra stylesheet, to test what a CSS change would buy before changing the source.
     if (arg('css', '')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `document.addEventListener('DOMContentLoaded', () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(arg('css', ''))}; document.head.appendChild(s); });` });
+    // --init-js "<code>": run before any page script (test what a JS change would buy, or stub an API, before changing the source).
+    if (arg('init-js', '')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: arg('init-js') });
     await c.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
     // --cpu-throttle N: Chrome's CPU throttling (4 = DevTools' "4x slowdown", a mid-range phone's main thread).
     if (Number(arg('cpu-throttle', '0')) > 1) await c.send('Emulation.setCPUThrottlingRate', { rate: Number(arg('cpu-throttle')) });

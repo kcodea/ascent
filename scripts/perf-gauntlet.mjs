@@ -1335,7 +1335,7 @@ for (let i = 0; i < schedule.length; i++) {
     // --img-census: the image re-decode guard (R-PERF-MEDALLION-MASK-01): late rounds must ask for almost no pictures
     // and the renderer must not creep. A FAIL exits 3.
     if (IMG_CENSUS && raw.probe?.length) {
-      const cRows = raw.probe.filter((p) => p.imgCensus).map((p) => ({ r: p.r, reqs: p.imgCensus.reqs, decodes: p.imgCensus.decodes?.ImageDecodeTask ?? 0, rendererMB: p.mem?.process?.renderer?.privMB ?? null, gpuMB: p.mem?.process?.['gpu-process']?.privMB ?? null, decodedKB: p.imgs?.kb ?? null }));
+      const cRows = raw.probe.filter((p) => p.imgCensus).map((p) => ({ r: p.r, reqs: p.imgCensus.reqs, decodes: p.imgCensus.decodes?.ImageDecodeTask ?? 0, queuedDecodes: p.imgCensus.decodes ? (p.imgCensus.decodes['LayerTreeHost::QueueImageDecode'] ?? 0) : undefined, rendererMB: p.mem?.process?.renderer?.privMB ?? null, gpuMB: p.mem?.process?.['gpu-process']?.privMB ?? null, decodedKB: p.imgs?.kb ?? null }));
       const table = ['   IMAGE CENSUS (per round: image requests that missed the memory cache, decode tasks, process memory):',
         '   round  reqs  decodes  renderer MB  gpu MB  decoded-body KB (cumulative)',
         ...cRows.map((x) => `   ${String(x.r).padStart(5)} ${String(x.reqs).padStart(5)} ${String(x.decodes).padStart(8)} ${String(x.rendererMB ?? '?').padStart(12)} ${String(x.gpuMB ?? '?').padStart(7)} ${String(x.decodedKB ?? '?').padStart(10)}`)];

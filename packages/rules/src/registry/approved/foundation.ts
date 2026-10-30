@@ -12110,4 +12110,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Bob\x27s biggest minion is a 12/30: Amy\x27s Megamimic fights as that 12/30 this round, and is a 1/1 again in her Shop.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosRunes.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
+  {
+    id: 'R-PERF-ART-DECODE-ONCE-01',
+    title: 'Card art the art pipe already decoded is never decoded again when its image loads',
+    statement:
+      'When an art image (a card art, frame or plate, or any FadeImg) loads and its URL is already decoded by the art '
+      + 'pipe, it shows at once: it does not ask the browser to decode the picture again. Only art the pipe has not '
+      + 'decoded yet waits on decode() before it shows, so no art ever paints undecoded.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30 (top priority perf hunt)', quote: 'do the cheap cleanup of the ~1,300 redundant image decode() calls per round' },
+      { kind: 'code', ref: 'packages/ui/src/artPreload.ts (useArtFade onLoad); packages/ui/src/FadeImg.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-30 (perf/art-decode-once). Before, every art image load called img.decode(): about 1,300 '
+      + 'compositor decode requests a round (seed 424242, desktop), almost all for pictures the pipe already held.',
+    example: 'A shop roll mounts seven cards. Before, each of their art, frame and plate images asked for a decode of a picture already decoded at boot. Now they just show.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/artDecodeOnce.test.tsx', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

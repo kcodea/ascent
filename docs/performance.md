@@ -1036,6 +1036,11 @@ Owner, via the lead: performance degrades over a game, worse on phones. Numbers 
   own allocator dump per probe, which is how to split renderer memory into images (`web_cache`, `discardable`,
   `cc`), audio (`partition_alloc/partitions/array_buffer`), Blink (`blink_gc`, `partition_alloc/partitions/buffer`)
   and WebGL before guessing.
+- **Never decode() art the pipe already decoded** (R-PERF-ART-DECODE-ONCE-01, 2026-10-30). `useArtFade` used to call
+  `img.decode()` on every art image's load event: ~1,300 compositor decode requests a round (the trace's
+  `LayerTreeHost::QueueImageDecode`) and 200-700 ms of decode-worker time, for pictures the boot gate already held. A
+  ready URL now settles at once (the element paints with `decoding="sync"`, so never blank); only art the pipe has not
+  decoded waits on decode(). `--img-census` fails a round over 100 script decodes.
 - **Desktop renderer growth that is left is not images.** After the fix, `web_cache` (156 MB), `discardable`, the
   `cc` tile memory and the GPU process's shared images are flat or bounded; the renderer still grows (~34 MB a round
   headless, seed 424242), in `partition_alloc/partitions/buffer` (in steps), the SFX cache filling to its cap

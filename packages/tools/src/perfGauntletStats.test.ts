@@ -97,3 +97,16 @@ describe('imageCensusVerdict (R-PERF-MEDALLION-MASK-01)', () => {
     expect(imageCensusVerdict(rows([1800, 900, 2, 2], [100, 900, 1000, 1001])).ok).toBe(true);
   });
 });
+
+describe('imageCensusVerdict: script decodes (R-PERF-ART-DECODE-ONCE-01)', () => {
+  const rows = (reqs: number[], queued: number[]) => reqs.map((n, i) => ({ r: i + 1, reqs: n, queuedDecodes: queued[i] }));
+  it('fails ~1,300 img.decode() requests a round, passes the decode-once build', () => {
+    const before = imageCensusVerdict(rows([1833, 21, 8, 11, 8], [2131, 1487, 1419, 1381, 1374]));
+    expect(before.ok).toBe(false);
+    expect(before.line).toContain('1419 script decodes (limit 100)');
+    expect(imageCensusVerdict(rows([1828, 19, 6, 10, 11], [1820, 0, 0, 0, 0])).ok).toBe(true);
+  });
+  it('rows without a decode count are not judged on it', () => {
+    expect(imageCensusVerdict(rows([1800, 3, 3, 3], [])).line).not.toContain('script decodes');
+  });
+});

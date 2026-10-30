@@ -314,9 +314,12 @@ export function useArtFade(url: string | undefined): {
     ref,
     onLoad: (e) => {
       const img = e.currentTarget;
-      // decode() on a loaded <img> resolves once its pixels are ready to paint; never gate on it failing.
-      if (typeof img.decode === 'function') img.decode().then(settle, settle);
-      else settle();
+      // A URL the pipe already decoded settles at once (R-PERF-ART-DECODE-ONCE-01): the element paints with
+      // `decoding="sync"`, so it can never show blank, and asking the compositor to decode it AGAIN cost ~1,300
+      // decode requests a round (one per card image mount) for pictures it already held. Only art the pipe has not
+      // decoded yet waits on decode(), which resolves once its pixels are ready to paint (never gated on failing).
+      if (artReady(url) || typeof img.decode !== 'function') settle();
+      else img.decode().then(settle, settle);
     },
     // NEVER mark a broken element ready (that was the blank oval): hide it, and have the pipe fetch the URL again.
     onError: () => {

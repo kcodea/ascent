@@ -10800,7 +10800,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-DM-CHAT-03',
     title: 'The chat window\x27s resize grips are easy to see: a gold ridged grip in the bottom-right corner, and every edge and corner lights gold on hover',
     statement:
-      'On a desktop the chat window\x27s bottom-right corner shows a gold grip (three diagonal ridges, about 15 px, in the panel\x27s gold), a little brighter while the window is hovered and brightest on the grip itself or while resizing. Hovering any of the eight grips lights a gold line on the panel\x27s rim under it (an edge lights that edge, a corner a gold bracket on its two edges), so edge resizing is found too. Hover changes opacity only (one-shot, nothing loops), the cursors stay the gauntlet, and a phone shows no grips (it has no resize, R-DM-CHAT-02).',
+      'On a desktop the chat window\x27s bottom-right corner shows a gold grip (three diagonal ridges, about 20 px, in the panel\x27s gold), a little brighter while the window is hovered and brightest on the grip itself or while resizing. Hovering any of the eight grips lights a gold line on the panel\x27s rim under it (an edge lights that edge, a corner a gold bracket on its two edges), so edge resizing is found too. Hover changes opacity only (one-shot, nothing loops), the cursors stay the gauntlet, and a phone shows no grips (it has no resize, R-DM-CHAT-02).',
     domain: 'foundation',
     status: 'approved',
     evidence: [

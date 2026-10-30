@@ -75,7 +75,7 @@ export function useGameScrollbar(view: RefObject<HTMLElement>, track: RefObject<
     const measure = (): void => {
       const m = y ? thumbMetrics(v.clientHeight, v.scrollHeight, t.clientHeight) : thumbMetrics(v.clientWidth, v.scrollWidth, t.clientWidth);
       metrics.current = m;
-      o.classList.toggle('over', !!m);
+      o.classList.toggle('gscroll-over', !!m);
       if (!m) return;
       if (y) th.style.height = `${m.size}px`; else th.style.width = `${m.size}px`;
       paint();
@@ -114,7 +114,7 @@ export function useGameScrollbar(view: RefObject<HTMLElement>, track: RefObject<
     const scale = len > 0 && screenLen > 0 ? screenLen / len : 1;
     drag.current = { id: e.pointerId, start: y ? e.clientY : e.clientX, scroll: y ? v.scrollTop : v.scrollLeft, perPx: m.travel > 0 ? m.range / (m.travel * scale) : 0 };
     try { el.setPointerCapture(e.pointerId); } catch { /* the pointer already went */ }
-    outer.current?.classList.add('dragging');
+    outer.current?.classList.add('gscroll-held');
     const move = (ev: PointerEvent): void => {
       const d = drag.current;
       if (!d || ev.pointerId !== d.id) return;
@@ -123,7 +123,7 @@ export function useGameScrollbar(view: RefObject<HTMLElement>, track: RefObject<
     const up = (ev: PointerEvent): void => {
       if (drag.current && ev.pointerId !== drag.current.id) return;
       drag.current = null;
-      outer.current?.classList.remove('dragging');
+      outer.current?.classList.remove('gscroll-held');
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', up);
       el.removeEventListener('pointercancel', up);

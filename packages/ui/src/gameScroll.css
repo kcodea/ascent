@@ -7,21 +7,23 @@
 .gscroll-view::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .gscroll-y > .gscroll-view { flex: 1 1 auto; min-height: 0; }
 .gscroll-x > .gscroll-view { flex: 1 1 auto; min-width: 0; }
-.gscroll-track { position: absolute; display: none; z-index: 3; border-radius: 999px; background: rgba(0, 0, 0, 0.32);
-  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.14); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; touch-action: none; }
+.gscroll-track { position: absolute; visibility: hidden; pointer-events: none; z-index: 3; border-radius: 999px; background: rgba(0, 0, 0, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.14); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; touch-action: none; user-select: none; }
 .gscroll-y > .gscroll-track { top: 4px; bottom: 4px; right: 1px; width: 7px; }
 .gscroll-x > .gscroll-track { left: 4px; right: 4px; bottom: 0; height: 5px; }
-.gscroll.over > .gscroll-track { display: block; }
+/* Hidden, not removed, while the content fits: the track keeps its length so the first measure can read it. */
+.gscroll.gscroll-over > .gscroll-track { visibility: visible; pointer-events: auto; }
 /* Room for the bar beside the content, only while there is one. */
-.gscroll-y.over > .gscroll-view { padding-right: 12px; }
+.gscroll-y.gscroll-over > .gscroll-view { padding-right: 12px; }
 .gscroll-thumb { position: absolute; left: 0; top: 0; border-radius: 999px; background: rgba(196, 160, 92, 0.6);
   box-shadow: inset 0 1px 0 rgba(255, 240, 200, 0.35); transition: background-color 0.12s ease;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; }
 .gscroll-y .gscroll-thumb { width: 100%; }
 .gscroll-x .gscroll-thumb { height: 100%; }
 .gscroll:hover > .gscroll-track > .gscroll-thumb { background: rgba(214, 178, 108, 0.78); }
-.gscroll-track > .gscroll-thumb:hover, .gscroll.dragging > .gscroll-track > .gscroll-thumb { background: #f0d089; }
-.gscroll.dragging, .gscroll.dragging * { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; user-select: none; }
-html[data-touch-ui] .gscroll.over > .gscroll-track { display: none; }
-html[data-touch-ui] .gscroll-y.over > .gscroll-view { padding-right: 0; }
+.gscroll-track > .gscroll-thumb:hover, .gscroll.gscroll-held > .gscroll-track > .gscroll-thumb { background: #f0d089; }
+/* Held: the closed hand on the bar only (the pointer is captured there; no universal cursor rule, see .drag-cursor-veil). */
+.gscroll.gscroll-held > .gscroll-track, .gscroll.gscroll-held > .gscroll-track > .gscroll-thumb { cursor: url('/cursors/hand_closed.svg') 13 12, grabbing; }
+html[data-touch-ui] .gscroll.gscroll-over > .gscroll-track { display: none; }
+html[data-touch-ui] .gscroll-y.gscroll-over > .gscroll-view { padding-right: 0; }
 @media (prefers-reduced-motion: reduce) { .gscroll-thumb { transition: none; } }

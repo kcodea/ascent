@@ -829,9 +829,10 @@ describe('the chat window moves, resizes and pins (R-DM-CHAT-02)', () => {
     const css = readFileSync(join(__dirname, '..', 'dm', 'dm.css'), 'utf8');
     const rule = (sel: string): string => new RegExp(`${sel.replace(/[.:>]/g, (c) => `\\${c}`)} \\{([^}]*)\\}`).exec(css)?.[1] ?? '';
     const grip = rule('.dmchat-rs-se::after');
-    expect(grip).toMatch(/width: 1[4-8]px; height: 1[4-8]px/);
+    expect(grip).toMatch(/width: (1[4-9]|2[0-2])px; height: (1[4-9]|2[0-2])px/);
     expect(grip).toMatch(/linear-gradient\(135deg[^)]*#f0d089/);
-    expect(rule('.dmchat-rs:hover::before')).toContain('opacity: 1');
+    expect(rule('.dmchat-at > .dmchat-rs:hover::before')).toContain('opacity: 1');
+    expect(rule('.dmchat-at:hover > .dmchat-rs::before')).toMatch(/opacity: 0.[1-5]/);
     expect(rule('.dmchat-at > .dmchat-rs-se:hover::after, .dmchat-at.sizing > .dmchat-rs-se::after')).toContain('opacity: 1');
     // Hover changes opacity only (one-shot, compositor): no paint property transitions on the grips.
     for (const m of css.matchAll(/\.dmchat-rs[^{]*\{([^}]*)\}/g)) if (/transition/.test(m[1])) expect(m[1]).toMatch(/transition: opacity/);

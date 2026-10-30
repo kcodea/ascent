@@ -97,31 +97,33 @@ html[data-touch-ui][data-touch-small] .dmchat-at.phone > .dmchat.vspanel { --dmc
 .dmchat-rs-ne { top: -6px; right: -6px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nesw-resize; }
 .dmchat-rs-sw { bottom: -6px; left: -6px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nesw-resize; }
 .dmchat-rs-nw { top: -6px; left: -6px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nwse-resize; }
-.dmchat-rs-se { bottom: -6px; right: -6px; width: 26px; height: 26px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nwse-resize; }
+.dmchat-rs-se { bottom: -6px; right: -6px; width: 30px; height: 30px; cursor: url('/cursors/gauntlet_open.svg') 6 2, nwse-resize; }
 /* THE GRIPS, made easy to see (owner 2026-10-30: "make the adjustment way more obvious, it's too hard to see",
-   R-DM-CHAT-03). The bottom-right corner carries the classic grip: three gold diagonal ridges, 16px, in the panel's gold,
-   brighter while the window is hovered and brightest on the grip itself. Every edge and corner lights a gold line
-   along the panel's rim while hovered (or held), so edge resizing is found too. All one-shot opacity changes on
-   static paint; nothing loops. Desktop only (a phone has no grips). */
-.dmchat-rs-se::after { content: ''; position: absolute; right: 11px; bottom: 11px; width: 15px; height: 15px; pointer-events: none;
-  background: linear-gradient(135deg, transparent 0 44%, #f0d089 44% 54%, transparent 54% 64%, #f0d089 64% 74%, transparent 74% 84%, #f0d089 84%);
-  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6)); opacity: 0.7; transition: opacity 0.12s ease; }
-.dmchat-at:hover > .dmchat-rs-se::after { opacity: 0.88; }
+   R-DM-CHAT-03). The bottom-right corner carries the classic grip: three gold diagonal ridges, 20px, in the panel's gold,
+   brighter while the window is hovered and brightest on the grip itself. Hovering the window shows a faint gold line on
+   every edge (so edge resizing is found too); hovering a grip lights its edge, or a corner's two edges as a bracket, in
+   full. All one-shot opacity changes on static paint; nothing loops. Desktop only (a phone has no grips). */
+.dmchat-rs-se::after { content: ''; position: absolute; right: 10px; bottom: 10px; width: 20px; height: 20px; pointer-events: none;
+  background: linear-gradient(135deg, transparent 0 40%, #f0d089 40% 51%, transparent 51% 62%, #f0d089 62% 73%, transparent 73% 84%, #f0d089 84%);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.7)); opacity: 0.85; transition: opacity 0.12s ease; }
+.dmchat-at:hover > .dmchat-rs-se::after { opacity: 0.95; }
 .dmchat-at > .dmchat-rs-se:hover::after, .dmchat-at.sizing > .dmchat-rs-se::after { opacity: 1; }
-/* The rim light: a 2px gold line on the panel's border under the hovered grip. */
+/* The rim light: a 3px gold line on the panel's border under the grip. */
 .dmchat-rs::before { content: ''; position: absolute; pointer-events: none; opacity: 0; transition: opacity 0.12s ease;
-  background: rgba(240, 208, 137, 0.9); box-shadow: 0 0 6px rgba(240, 208, 137, 0.55); border-radius: 2px; }
-.dmchat-rs:hover::before { opacity: 1; }
-.dmchat-rs-n::before, .dmchat-rs-s::before { left: 0; right: 0; height: 2px; }
-.dmchat-rs-n::before { top: 5px; } .dmchat-rs-s::before { top: 3px; }
-.dmchat-rs-e::before, .dmchat-rs-w::before { top: 0; bottom: 0; width: 2px; }
-.dmchat-rs-w::before { left: 5px; } .dmchat-rs-e::before { left: 3px; }
+  background: #ffe2a6; box-shadow: 0 0 10px 1px rgba(240, 208, 137, 0.75); border-radius: 3px; }
+.dmchat-at:hover > .dmchat-rs::before { opacity: 0.3; }
+.dmchat-at > .dmchat-rs:hover::before { opacity: 1; }
+.dmchat-rs-n::before, .dmchat-rs-s::before { left: 0; right: 0; height: 3px; }
+.dmchat-rs-n::before { top: 4px; } .dmchat-rs-s::before { top: 3px; }
+.dmchat-rs-e::before, .dmchat-rs-w::before { top: 0; bottom: 0; width: 3px; }
+.dmchat-rs-w::before { left: 4px; } .dmchat-rs-e::before { left: 3px; }
 /* A corner lights its two edges as a gold bracket. */
-.dmchat-rs-ne::before, .dmchat-rs-se::before, .dmchat-rs-sw::before, .dmchat-rs-nw::before { width: 20px; height: 20px; background: none; box-shadow: none; border: 0 solid rgba(240, 208, 137, 0.95); }
-.dmchat-rs-nw::before { left: 6px; top: 6px; border-left-width: 2px; border-top-width: 2px; border-top-left-radius: 16px; }
-.dmchat-rs-ne::before { right: 6px; top: 6px; border-right-width: 2px; border-top-width: 2px; border-top-right-radius: 16px; }
-.dmchat-rs-sw::before { left: 6px; bottom: 6px; border-left-width: 2px; border-bottom-width: 2px; border-bottom-left-radius: 16px; }
-.dmchat-rs-se::before { right: 6px; bottom: 6px; border-right-width: 2px; border-bottom-width: 2px; border-bottom-right-radius: 16px; }
+.dmchat-rs-ne::before, .dmchat-rs-se::before, .dmchat-rs-sw::before, .dmchat-rs-nw::before { width: 28px; height: 28px; background: none; box-shadow: none; border: 0 solid #ffe2a6;
+  filter: drop-shadow(0 0 4px rgba(240, 208, 137, 0.8)); }
+.dmchat-rs-nw::before { left: 5px; top: 5px; border-left-width: 3px; border-top-width: 3px; border-top-left-radius: 16px; }
+.dmchat-rs-ne::before { right: 5px; top: 5px; border-right-width: 3px; border-top-width: 3px; border-top-right-radius: 16px; }
+.dmchat-rs-sw::before { left: 5px; bottom: 5px; border-left-width: 3px; border-bottom-width: 3px; border-bottom-left-radius: 16px; }
+.dmchat-rs-se::before { right: 5px; bottom: 5px; border-right-width: 3px; border-bottom-width: 3px; border-bottom-right-radius: 16px; }
 /* The resize outline: where the window will land, drawn while a grip is held (the window commits its size on release). */
 .dmchat-ghost { position: fixed; left: 0; top: 0; z-index: 494; display: none; box-sizing: border-box; border: 2px dashed rgba(240, 208, 137, 0.85);
   border-radius: 18px; background: rgba(240, 208, 137, 0.06); pointer-events: none; }

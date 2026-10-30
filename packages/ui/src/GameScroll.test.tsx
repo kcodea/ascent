@@ -60,7 +60,7 @@ describe('<GameScroll>', () => {
     expect(view.getAttribute('role')).toBe('log');
     expect(view.getAttribute('aria-label')).toBe('Conversation');
     const outer = ui.container.querySelector<HTMLElement>('.gscroll.my-wrap')!;
-    expect(outer.classList.contains('over')).toBe(true);
+    expect(outer.classList.contains('gscroll-over')).toBe(true);
     const thumb = ui.container.querySelector<HTMLElement>('.gscroll-thumb')!;
     expect(thumb.style.height).toBe('150px');
     // A scroll writes the thumb's transform.
@@ -70,7 +70,7 @@ describe('<GameScroll>', () => {
     ui.unmount();
     sizes.content = 200;
     ui = mount(<GameScroll className="my-list"><p>hi</p></GameScroll>);
-    expect(ui.container.querySelector('.gscroll')!.classList.contains('over')).toBe(false);
+    expect(ui.container.querySelector('.gscroll')!.classList.contains('gscroll-over')).toBe(false);
   });
 
   it('a press on the track jumps there', () => {

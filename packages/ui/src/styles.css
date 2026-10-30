@@ -8282,6 +8282,19 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    (the page scrolls, not the panel). */
 /* `#root` so it beats the touch UI's own panel heights (touchUi.css), which were written for the old modal. */
 #root .lbpage.set-page .escpanel { align-self: center; max-height: none; overflow: visible; flex: none; margin: 0 auto 24px; }
+/* TWO COLUMNS on the page (owner 2026-10-30: "i need the settings menu to be contained within the bounds of my screen
+   without scrolling", "its when i have advanced controls selected, it pushes everythign down"): the sections split into
+   two side-by-side columns (EscMenu.tsx .esccol), about half the height, so the page fits a 16:9 screen even with
+   Advanced Controls open. The panel widens to hold them (each column keeps roughly the old single-column width less
+   the gap). R-SETTINGS-FIT-01. */
+#root .lbpage.set-page .escpanel {
+  /* Full-size contents again (owner 2026-10-30: "with that in mind, can we re-increase the sizing of the elements inside?"):
+     the two columns leave the room the 0.8 shrink of 2026-10-28 was buying. */
+  --esc-k: 1;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 44px; align-items: start;
+  width: min(calc(1460px / var(--esc-k, 0.8)), calc(82 * var(--vw, 1vw) / var(--esc-k, 0.8)));
+}
+#root .lbpage.set-page .esccol { min-width: 0; }
 /* A HOP between two sidebar hosts (the store's `goTo`): the destination mounts as the source unmounts, in one
    store write, so the hosts' page-level `fadein` re-faded the sidebar and showed the title through it on every
    hop (review 2026-09-21). The host mounted BY the sidebar wears `.hop` (`SidebarHost` — see MenuSidebar.tsx)

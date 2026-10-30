@@ -527,3 +527,6 @@ html[data-touch-ui][data-phone-gpu] :is(.lobbyrail, .lobbyrailhead) { will-chang
 /* PAINTED BACKDROPS ON TOUCH (2026-10-29): a phone or tablet draws the 1600x900 copy of a painted (cover) backdrop, not
    the 2560 one: ~5.5 MB of decoded image instead of ~14, which keeps the phone image budget. backdrop.ts writes both. */
 html[data-touch-ui][data-bd-fit='cover'] .boardbg-tex { --bd-img: var(--bd-img-sm); }
+
+/* The Settings page's two columns (R-SETTINGS-FIT-01) are a desktop layout: on touch the panel keeps its one 900px column. */
+html[data-touch-ui] #root .lbpage.set-page .escpanel { display: block; }

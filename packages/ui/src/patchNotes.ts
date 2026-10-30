@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Systems', text: 'Settings now fits on one screen: its sections sit in two columns at full size, even with Advanced Controls open.' },
       { category: 'Systems', text: 'The Board backdrop list in Settings is now two columns and scrolls on its own, without moving the rest of Settings.' },
       { category: 'Balance', text: 'New Dragon in Set 3: Scrollz.', details: [
         'Scrollz is a Tier 3 3/4 Dragon and Spirit.',

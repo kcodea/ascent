@@ -11843,6 +11843,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/settingsFit.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
   {
+    id: 'R-ENDSCREEN-FIT-01',
+    title: 'The end-of-game rank screen fits the window; only the Account XP breakdown scrolls',
+    statement:
+      'The rank screen at the end of a game never scrolls as a whole page: everything on it stays on screen at its full size. '
+      + 'When there is not room for every Account XP line, the breakdown (the XP lines and the Aether earned) shrinks and '
+      + 'scrolls inside its box. The box heading and the level bar under it never scroll away.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-30 (board cutout)', quote: 'at the end of the game, i noticed that not all elements can fit onto the screen as well, causing the same full screen scroll experience, we want to always avoid that where possible' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-30 (board cutout)', quote: 'how about we shrink the height of the Account XP breakdown screen, and if there are too many details to fit, that box gets a scroll ?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-30 (board cutout)', quote: 'the level bar should not be INSIDE that box. it should always be visible' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.heroselect.rankend, .rankend-panel, .acctxp-scroll); packages/ui/src/progression/ProgressionPostgame.tsx (.acctxp-scroll)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-30 (fix/endscreen-fit), checked at 2000x1077 in the dev Rank Screen preview with an 8-line breakdown. Before, the overlay scrolled and Match Details sat below the bottom edge.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/endscreenFit.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
     id: 'R-PERF-MEDALLION-MASK-01',
     title: 'The keyword medallion on a card loads its picture once per session, never again each time it mounts or fires',
     statement:

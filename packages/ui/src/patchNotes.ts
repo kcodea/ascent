@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Systems', text: 'The end-of-game rank screen now fits on screen. A long Account XP breakdown scrolls inside its box, and your level bar always shows.' },
       { category: 'Balance', text: 'Duos: the first Duos-only cards. They only show up in Versus Duos and Ranked Duos.', details: [
         'Hitchhiker (Tier 1): when your team passes a card, it gains +1/+2.',
         "Brian's Pal (Tier 2): your first pass each turn is free.",

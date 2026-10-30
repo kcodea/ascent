@@ -530,3 +530,6 @@ html[data-touch-ui][data-bd-fit='cover'] .boardbg-tex { --bd-img: var(--bd-img-s
 
 /* The Settings page's two columns (R-SETTINGS-FIT-01) are a desktop layout: on touch the panel keeps its one 900px column. */
 html[data-touch-ui] #root .lbpage.set-page .escpanel { display: block; }
+
+/* A touch device has no hover, so the Settings backdrop preview (.escselect-thumb) stays hidden there. */
+html[data-touch-ui] .escselect-thumb { display: none; }

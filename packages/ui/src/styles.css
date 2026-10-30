@@ -8087,6 +8087,14 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    menu to scroll, not just the menu"): capped height, its own scrollbar, and a wheel at its end never carries on into
    the Settings page. Two columns when the select asks (the Board backdrop list), right-aligned to the row's end and as
    wide as its labels need. */
+/* THE HOVER PREVIEW (owner 2026-10-30: "when hovering each background option in the settings, can you have a little
+   thumbnail preview of the background?"): beside the open list, to the right of the select, the hovered option's
+   16:9 thumbnail (else the chosen one's) with its name. Static image, swapped on hover; no animation. */
+.escselect-thumb { position: absolute; top: calc(100% + 6px); left: calc(100% + 14px); z-index: 3; width: 260px; pointer-events: none;
+  border-radius: 10px; overflow: hidden; border: 1.5px solid rgba(196, 160, 92, 0.6); background: #0b1427;
+  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.14), 0 14px 30px -10px rgba(0, 0, 0, 0.75); animation: escselin 0.12s ease-out; }
+.escselect-thumb img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.escselect-thumb-l { display: block; padding: 6px 10px 7px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #f4eee2; }
 .escselect-list.cols2 { display: grid; grid-template-columns: repeat(2, minmax(170px, 1fr)); align-content: start; left: auto; right: 0; width: max-content; }
 .escselect-opt { text-align: left; padding: 7px 10px; border-radius: 7px; border: none; background: transparent; color: #f4eee2; font-family: var(--font-ui); font-weight: 700; font-size: 16px; }
 .escselect-opt:hover, .escselect-opt:focus-visible { background: rgba(196, 160, 92, 0.14); }

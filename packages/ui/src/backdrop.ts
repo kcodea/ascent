@@ -123,6 +123,8 @@ export const BACKDROPS = {
 export type BackdropId = keyof typeof BACKDROPS;
 export const BACKDROP_IDS = Object.keys(BACKDROPS) as BackdropId[];
 export const DEFAULT_BACKDROP: BackdropId = 'castle';
+/** A backdrop's small 16:9 preview (400x225, apps/web/public), shown when its Settings option is hovered (owner 2026-10-30). */
+export function backdropThumbUrl(id: BackdropId): string { return `/backdrop-thumb-${id}.webp`; }
 export const BACKDROP_KEY = 'ascent.backdrop';
 
 export function isBackdropId(v: unknown): v is BackdropId {

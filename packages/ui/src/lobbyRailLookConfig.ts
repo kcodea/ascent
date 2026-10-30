@@ -49,6 +49,14 @@ export interface LobbyRailLookConfig {
   // Look: the frame + row treatment (Gem plate or the Classic bitmap backplate)
   look: LobbyRailLook;
 
+  // Medallions (C), the owner's pick 2026-10-30: position + fit dials (only the C rail reads them)
+  medX: number;        // px — nudge the rail + its header + Guides tab right (+) / left (−)
+  medY: number;        // px — nudge them down (+) / up (−)
+  medScale: number;    // × the medallions and their text
+  medGap: number;      // × the space between medallions
+  medBacking: number;  // opacity — the dark backing behind the column (0 = none)
+  medHp: number;       // × the Health / Armor pill size
+
   // Portrait
   faceScale: number;   // × the 18·lrow portrait cell (scales cell + image together)
   faceRadius: number;  // % — 50 = circle, 0 = square
@@ -117,6 +125,13 @@ const DEFAULTS: LobbyRailLookConfig = {
   // only reach Classic; the size, spacing, corner and pulse dials reach both.
   look: 'gem',
 
+  medX: 0,
+  medY: 0,
+  medScale: 1,
+  medGap: 1,
+  medBacking: 0.55,
+  medHp: 1.3,
+
   faceScale: 1.74,
   faceRadius: 50,
 
@@ -171,9 +186,16 @@ export { DEFAULTS as LOBBY_RAIL_LOOK_DEFAULTS };
 const RANGES: Record<
   'faceScale' | 'faceRadius' | 'nameScale' | 'railPad' | 'seatPad' | 'rowGap' | 'railRadius' | 'seatRadius'
   | 'healthScale' | 'barThick' | 'dmgScale' | 'hpShift'
-  | 'foeRing' | 'foeGlow' | 'foeSpread' | 'foeBar' | 'foePulseDur' | 'foePulseMin',
+  | 'foeRing' | 'foeGlow' | 'foeSpread' | 'foeBar' | 'foePulseDur' | 'foePulseMin'
+  | 'medX' | 'medY' | 'medScale' | 'medGap' | 'medBacking' | 'medHp',
   [number, number, number]
 > = {
+  medX: [-300, 300, 1],
+  medY: [-300, 300, 1],
+  medScale: [0.6, 1.6, 0.01],
+  medGap: [0, 4, 0.05],
+  medBacking: [0, 1, 0.01],
+  medHp: [0.7, 2.2, 0.05],
   faceScale: [0.5, 2, 0.01],
   faceRadius: [0, 50, 1],
   nameScale: [0.7, 2.2, 0.05],
@@ -233,6 +255,12 @@ export function applyLobbyRailLookVars(): void {
   if (typeof document === 'undefined') return;
   document.documentElement.setAttribute('data-lobby-rail', cfg.look);
   const s = document.documentElement.style;
+  s.setProperty('--rvc-x', String(cfg.medX));
+  s.setProperty('--rvc-y', String(cfg.medY));
+  s.setProperty('--rvc-scale', String(cfg.medScale));
+  s.setProperty('--rvc-gap', String(cfg.medGap));
+  s.setProperty('--rvc-bg', String(cfg.medBacking));
+  s.setProperty('--rvc-hp', String(cfg.medHp));
   s.setProperty('--lby-face', String(cfg.faceScale));
   s.setProperty('--lby-face-rad', String(cfg.faceRadius));
   s.setProperty('--lby-name-size', String(cfg.nameScale));
@@ -302,6 +330,13 @@ const col = (
   ({ key, label, group, hint, kind: 'color', min: 0, max: 0, step: 0 });
 
 const controls: TunerControl<Extract<keyof LobbyRailLookConfig, string>>[] = [
+  // FIRST (owner 2026-10-30: "give me some tuning settings at the top of the tuner for positioning"). C only.
+  r('medX', 'Move left / right', 'Medallions (C)', 'px', 'Nudges the Medallions rail, its header and its Guides tab sideways. Positive = right.'),
+  r('medY', 'Move up / down', 'Medallions (C)', 'px', 'Nudges the Medallions rail, its header and its Guides tab. Positive = down.'),
+  r('medScale', 'Medallion size', 'Medallions (C)', '×', 'Scales the portrait medallions and the names and health beside them.'),
+  r('medGap', 'Gap between medallions', 'Medallions (C)', '×', 'The space between one medallion and the next.'),
+  r('medBacking', 'Backing opacity', 'Medallions (C)', 'opacity', 'How dark the panel behind the medallions is. 0 = no backing at all.'),
+  r('medHp', 'Health / Armor size', 'Medallions (C)', '×', 'Size of the heart + Armor pill beside each medallion.'),
   {
     key: 'look', label: 'Lobby rail', group: 'Look', kind: 'select', options: LOBBY_RAIL_LOOKS, optionLabels: LOOK_LABELS,
     hint: 'Current: the shipped Gem plate. A Plaque / B Ledger / C Medallions: the three candidate designs under owner review (also ?rail=a|b|c|current). Classic: the copper backplate image with the solid blue / red rows. The colour dials below only reach Classic. Live.',

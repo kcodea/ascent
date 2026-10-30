@@ -121,10 +121,14 @@ html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"]) .lobbyrailh
 html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"]) .lobbyrailhead:not(.guidesview) .lobbymax svg { width: 1em; height: 1em; color: var(--ui-heart); }
 html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"]) .lobbyrailhead:not(.guidesview) > .herotip.lobbymax-tip { right: 0; }
 
+/* PHONES: the phone layouts enlarge the rail's names and health (phoneLayout.css / touchUi.css); A and C size their
+   plaques and medallions off this factor so the portraits grow with the text there. */
+html[data-phone-layout] .lobbyrail, html[data-touch-ui][data-phone-zoom] .lobbyrail { --rv-ph: 1.35; }
+
 /* ═══ A · PLAQUE ════════════════════════════════════════════════════════════════════════════════════════════════ */
 html:root[data-lobby-rail="plaque"] .lobbyrail {
-  --rv-face: calc(42 * var(--lrow));
-  --rv-row: calc(46 * var(--lrow));
+  --rv-face: calc(42 * var(--lrow) * var(--rv-ph, 1));
+  --rv-row: calc(46 * var(--lrow) * var(--rv-ph, 1));
   height: auto; padding: calc(250 * var(--rvk)) calc(140 * var(--rvk)) calc(165 * var(--rvk)) calc(175 * var(--rvk));
 }
 /* The banner: two lines in one plate, the round in the title face over "5 left · ♥ Max dmg 10". */
@@ -164,10 +168,10 @@ html:root[data-lobby-rail="plaque"] .lobbyseat:not(.dead) .lobbyface {
 html:root[data-lobby-rail="plaque"] .lobbyseat:not(.dead) .lobbynameline { grid-column: 1 / -1; grid-row: 1; min-width: 0; }
 html:root[data-lobby-rail="plaque"] .lobbyseat:not(.dead) .lobbyname {
   font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.02em; line-height: 1.1;
-  font-size: calc(16.5 * var(--lfont) * var(--lby-name-size, 1.5) / 1.5); text-decoration: none;
+  font-size: calc(16.5 * var(--lfont) * var(--lby-name-size, 1.5) / 1.5 * var(--rv-ph, 1)); text-decoration: none;
   color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
 }
-html:root[data-lobby-rail="plaque"] .lobbyseat:not(.dead) .lobbyhp { grid-column: 1; grid-row: 2; font-size: calc(14 * var(--lfont) * var(--lby-hp-size, 1.45) / 1.45); }
+html:root[data-lobby-rail="plaque"] .lobbyseat:not(.dead) .lobbyhp { grid-column: 1; grid-row: 2; font-size: calc(14 * var(--lfont) * var(--lby-hp-size, 1.45) / 1.45 * var(--rv-ph, 1)); }
 /* The health bar: a slim inlay along the plate's foot. */
 html:root[data-lobby-rail="plaque"] .lobbyseat:not(.dead) .lobbybar {
   position: absolute; grid-area: auto; left: calc(var(--rv-face) * 0.64 + 1 * var(--lrow)); right: calc(6 * var(--lrow)); bottom: calc(1.6 * var(--lrow));
@@ -177,7 +181,7 @@ html:root[data-lobby-rail="plaque"] .lobbyseat:is(.you.foe.ghost.dead, *)::befor
 /* The shop tier: the opponent pill's cream Tier number, on the ring's lower left. */
 html:root[data-lobby-rail="plaque"] .lrv-tier {
   position: absolute; z-index: 3; left: -6%; bottom: 2%; min-width: 34%; height: 34%; padding: 0 0.2em; box-sizing: border-box;
-  display: grid; place-items: center; border-radius: 999px; font-size: calc(10.5 * var(--lfont) * 1.25); font-weight: 900; line-height: 1;
+  display: grid; place-items: center; border-radius: 999px; font-size: calc(10.5 * var(--lfont) * 1.25 * var(--rv-ph, 1)); font-weight: 900; line-height: 1;
   color: var(--ink, #2a1d08); background: linear-gradient(180deg, #fff, #f3ead4); border: 1px solid var(--gold); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 /* YOUR plaque: the lit plate (the Gem hover plate + edge), the name in gold, a soft gold halo. Static. */
@@ -258,17 +262,28 @@ html:root[data-lobby-rail="ledger"] .lobbyseat.dead .lobbyplace { display: none;
 html:root[data-lobby-rail="ledger"] .lobbyseat.dead .lrv-medal { right: -30%; bottom: -18%; width: 68%; height: 68%; }
 
 /* ═══ C · MEDALLIONS ════════════════════════════════════════════════════════════════════════════════════════════ */
+/* OWNER TUNING (2026-10-30, the owner's pick: "the medallions style the most ... we need to adjust it further"): the
+   🎨 Lobby Rail Look tuner's top section "Medallions (C)" pushes --rvc-* onto :root:
+     --rvc-x / --rvc-y   nudge the rail, its header and its Guides tab (stage px; a `translate`, so the staged slide-away
+                         `transform` still composes and nothing else moves)
+     --rvc-scale         medallion + text scale         --rvc-gap   the space between medallions (x)
+     --rvc-bg            the backing's opacity (0 = none) --rvc-hp    the Health / Armor pill size (x)
+   The fallbacks here are the shipped values, so the look holds with no tuner. */
+html:root[data-lobby-rail="medallion"] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) {
+  translate: calc(var(--rvc-x, 0) * 1px) calc(var(--rvc-y, 0) * 1px);
+}
 html:root[data-lobby-rail="medallion"] .lobbyrail {
-  --rv-face: calc(40 * var(--lrow));
-  --rv-dead: calc(20 * var(--lrow));
+  --rv-m: calc(var(--rv-ph, 1) * var(--rvc-scale, 1));
+  --rv-face: calc(40 * var(--lrow) * var(--rv-m));
+  --rv-dead: calc(20 * var(--lrow) * var(--rv-m));
   height: auto; overflow: visible; border: 0; box-shadow: none;
   padding: calc(14 * var(--lu)) calc(10 * var(--lu)) calc(22 * var(--lu)) calc(15 * var(--lu));
   border-radius: calc(60 * var(--lu));
   /* The minimal frame: a soft dark column with a gold hairline, fading out at the foot under the painted divider. */
   background:
     url('/frames/name-divider.webp') 50% calc(100% - 7 * var(--lu)) / 86% calc(9 * var(--lu)) no-repeat,
-    linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-bot) 88%, transparent), color-mix(in srgb, var(--ui-plate-bot) 72%, transparent));
-  outline: 1px solid color-mix(in srgb, var(--ui-edge-main) 55%, transparent); outline-offset: -4px;
+    linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-bot) calc(88% * var(--rvc-bg, 0.55)), transparent), color-mix(in srgb, var(--ui-plate-bot) calc(72% * var(--rvc-bg, 0.55)), transparent));
+  outline: 1px solid color-mix(in srgb, var(--ui-edge-main) calc(55% * min(1, var(--rvc-bg, 0.55) + 0.3)), transparent); outline-offset: -4px;
 }
 html:root[data-lobby-rail="medallion"] .lobbyrail::before,
 html:root[data-lobby-rail="medallion"] .lobbyrail::after { content: none; }
@@ -276,14 +291,20 @@ html:root[data-lobby-rail="medallion"] .lobbyrail::after { content: none; }
 html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) {
   flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: 0.9em; row-gap: calc(2 * var(--lu));
   padding: 0 0 calc(4 * var(--lu));
+  /* Readable over any board art (owner 2026-10-30: "the text above the rail also needs to have a shadow under it"). */
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.95), 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.75);
 }
+html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) > :is(.lobbyround, .lrv-left, .lobbymax) {
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.95), 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.75);
+}
+html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) .lobbymax svg { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); }
 html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) > .lobbyround {
   flex: 0 0 100%; text-align: center; font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.16em;
   font-size: calc(21 * var(--lfont)); color: var(--ui-title);
   padding-bottom: calc(7 * var(--lu)); background: url('/frames/name-divider.webp') 50% 100% / 92% calc(6 * var(--lu)) no-repeat;
 }
 html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) > :is(.lrv-left, .lobbymax) {
-  font-size: calc(10.5 * var(--lfont)); font-weight: 900; letter-spacing: 0.08em; color: var(--ui-muted);
+  font-size: calc(10.5 * var(--lfont)); font-weight: 900; letter-spacing: 0.08em; color: var(--ui-text);
 }
 html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) .lobbymax {
   align-self: auto; transform: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--ui-text);
@@ -291,7 +312,7 @@ html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) .lobbymax
 html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) .lobbymax svg { width: 1em; height: 1em; }
 html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) > .herotip.lobbymax-tip { right: 0; }
 
-html:root[data-lobby-rail="medallion"] .lobbyseats { flex: none; gap: calc(6 * var(--lrow)); }
+html:root[data-lobby-rail="medallion"] .lobbyseats { flex: none; gap: calc(6 * var(--lrow) * var(--rvc-gap, 1)); }
 /* A seat: the medallion, the name and the health pill beside it. No box. (`:is(.you.foe.ghost.dead, *)` lifts the
    rule over the Gem rail's state rules, which paint the row boxes.) */
 html:root[data-lobby-rail="medallion"] .lobbyseat:is(.you.foe.ghost.dead, *) {
@@ -307,10 +328,10 @@ html:root[data-lobby-rail="medallion"] .lobbyseat .lobbyface {
 html:root[data-lobby-rail="medallion"] .lobbyseat .lobbynameline { grid-column: 2; grid-row: 1; align-self: end; }
 html:root[data-lobby-rail="medallion"] .lobbyseat .lobbyname {
   font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.02em; line-height: 1.1;
-  font-size: calc(16 * var(--lfont) * var(--lby-name-size, 1.5) / 1.5); color: var(--ui-text);
+  font-size: calc(16 * var(--lfont) * var(--lby-name-size, 1.5) / 1.5 * var(--rv-m)); color: var(--ui-text);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6);
 }
-html:root[data-lobby-rail="medallion"] .lobbyseat:not(.dead) .lobbyhp { grid-column: 2; grid-row: 2; font-size: calc(14 * var(--lfont) * var(--lby-hp-size, 1.45) / 1.45); }
+html:root[data-lobby-rail="medallion"] .lobbyseat:not(.dead) .lobbyhp { grid-column: 2; grid-row: 2; font-size: calc(14 * var(--lfont) * var(--lby-hp-size, 1.45) / 1.45 * var(--rv-m) * var(--rvc-hp, 1.3)); }
 html:root[data-lobby-rail="medallion"] .lobbyseat:not(.dead) .lobbybar {
   grid-column: 2; grid-row: 3; height: calc(1.6 * var(--lrow)); width: 88%; border-radius: 99px; align-self: start;
 }
@@ -328,11 +349,11 @@ html:root[data-lobby-rail="medallion"] .lobbyseat.foe.ghost .lobbyname { color: 
 /* THE FALLEN: the medallion shrinks and greys, the medal hung on it, the name small and struck through. */
 html:root[data-lobby-rail="medallion"] .lobbyseat.dead {
   grid-template-columns: var(--rv-dead) minmax(0, 1fr); grid-template-rows: auto; column-gap: calc(4 * var(--lrow));
-  padding-left: calc((var(--rv-face) - var(--rv-dead)) / 2); opacity: 0.7;
+  padding-left: calc((var(--rv-face) - var(--rv-dead)) / 2); opacity: 0.85;
 }
 html:root[data-lobby-rail="medallion"] .lobbyseat.dead .lobbyface { grid-row: 1; width: var(--rv-dead); height: var(--rv-dead); }
 html:root[data-lobby-rail="medallion"] .lobbyseat.dead .lobbynameline { grid-row: 1; align-self: center; }
-html:root[data-lobby-rail="medallion"] .lobbyseat.dead .lobbyname { font-size: calc(13.5 * var(--lfont)); color: var(--ui-muted); text-decoration: line-through; }
+html:root[data-lobby-rail="medallion"] .lobbyseat.dead .lobbyname { font-size: calc(13.5 * var(--lfont) * var(--rv-m)); color: var(--ui-muted); text-decoration: line-through; }
 html:root[data-lobby-rail="medallion"] .lobbyseat.dead .lobbyplace { display: none; }
 html:root[data-lobby-rail="medallion"] .lobbyseat.dead .lrv-medal { right: -30%; bottom: -16%; width: 62%; height: 62%; }
 html:root[data-lobby-rail="medallion"] .lobbyseat.dead.foe.ghost { opacity: 1; }
@@ -385,3 +406,21 @@ html:root[data-lobby-rail="medallion"] .lobbyseat.dead.foe.ghost { opacity: 1; }
 .lobbyscout.lrv-scout-medallion .lrv-scoutface { width: calc(40 * var(--lrow)); height: calc(40 * var(--lrow)); }
 .lobbyscout.lrv-scout-medallion .lrv-scoutwho { align-items: center; padding-bottom: calc(7 * var(--lu));
   background: url('/frames/name-divider.webp') 50% 100% / 90% calc(5 * var(--lu)) no-repeat; }
+/* C's card carries the seat's Health + Armor pill under the name: the rail's own Gem pill, at the rail's tuned size. */
+.lobbyscout.lrv-scout-medallion .lrv-scouthp {
+  align-self: center; display: inline-flex; align-items: center; gap: 0.18em; width: max-content; margin-top: calc(4 * var(--lu));
+  padding: 0.12em 0.42em 0.12em 0.3em; line-height: 1.1; border: 1px solid transparent; border-radius: 0.42em;
+  font-size: calc(14 * var(--lfont) * var(--rvc-hp, 1.3)); font-weight: 800;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 1px 4px -1px rgba(0, 0, 0, 0.6);
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); font-variant-numeric: tabular-nums;
+}
+.lobbyscout.lrv-scout-medallion .lrv-scouthp > svg { width: 0.95em; height: 0.95em; color: var(--ui-heart); }
+.lobbyscout.lrv-scout-medallion .lrv-scouthp .lobbyarmor {
+  display: inline-flex; align-items: center; gap: 0.1em; margin-left: 0.22em; padding: 0.08em 0.3em 0.08em 0.18em; font-size: 0.86em; line-height: 1;
+  border-radius: 0.33em; border: 1px solid var(--ui-armor-edge); background: var(--ui-armor); color: var(--ui-armor-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(0, 0, 0, 0.2); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.lobbyscout.lrv-scout-medallion .lrv-scouthp .lobbyarmor svg { width: 0.95em; height: 0.95em; color: var(--ui-armor-icon); }
+/* The card's medallion (your Gold ring, their Default ring), a size up. */
+.lobbyscout.lrv-scout-medallion .lrv-scoutface { width: calc(44 * var(--lrow)); height: calc(44 * var(--lrow)); }

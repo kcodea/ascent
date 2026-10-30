@@ -729,6 +729,9 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
   // OWNER REVIEW (2026-10-30): the card dresses to match the rail variant on screen; A and C put the seat's ringed
   // portrait in the card's header.
   const railVariant = useRailVariant();
+  // C (Medallions) also carries the seat's Health + Armor pill under the name; your own reads the run, as your row does.
+  const myPools = useGame((st) => (seat.id === 's0' ? `${st.run.resolve}|${st.run.armor}` : ''));
+  const [hpNow, armorNow] = myPools ? myPools.split('|').map(Number) as [number, number] : [seat.resolve, seat.armor];
   const headFace = railVariant === 'plaque' || railVariant === 'medallion' ? (() => {
     const ring = resolveImageFrame(seat.id === 's0' ? 'gold' : 'default');
     const src = heroPortrait(seat.heroId, seat.id === 's0' ? runSkins : opponentSkins(showOppSkins, seat.cosmetics));
@@ -752,6 +755,12 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
       <span className="lrv-scoutwho">
         <span className="lobbyscout-name">{seat.label}</span>
         <span className="lobbyscout-hero"><b>Hero:</b> {heroName}</span>
+        {railVariant === 'medallion' && seat.alive && (
+          <span className="lobbyhp lrv-scouthp" aria-label={`Health ${Math.max(0, hpNow)}${armorNow > 0 ? `, Armor ${armorNow}` : ''}`}>
+            <Icon name="heartPill" />{Math.max(0, hpNow)}
+            {armorNow > 0 && <span className="lobbyarmor"><Icon name="shield" />{armorNow}</span>}
+          </span>
+        )}
       </span>
     </div>
   ) : (

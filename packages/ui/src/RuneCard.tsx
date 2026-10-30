@@ -152,14 +152,12 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
       // offer buys it, as a click does; a HOLD (the long-press right-click) opens its enlarged view (RuneInspect), whose
       // Pick buys it. So an offer you cannot afford stays pressable on a touch device (to hold and read it), never buyable.
       onClick={pickSfx || affordable ? (e) => {
-        if (useGame.getState().replaying) {
-          // THE WATCH SCREEN on a phone (R-PING-08): a teammate or mentor cannot buy, and their hold opens the ping fan, so
-          // a tap opens the enlarged view instead.
-          if (pickSfx && useSpectate.getState().active && lastPointerWasTouch()) {
-            openRuneInspect({ rune, cost, duplicating, affordable: false, pick: () => {} });
-          }
-          return;
+        // THE WATCH SCREEN on a phone (R-PING-08): a teammate or mentor cannot buy, and their hold opens the ping fan, so
+        // a tap opens the enlarged view instead.
+        if (useGame.getState().replaying && pickSfx && useSpectate.getState().active && lastPointerWasTouch()) {
+          openRuneInspect({ rune, cost, duplicating, affordable: false, pick: () => {} });
         }
+        if (useGame.getState().replaying) return;
         if (affordable) onBuy(e.currentTarget);
       } : undefined}
       onContextMenu={pickSfx ? (e) => {

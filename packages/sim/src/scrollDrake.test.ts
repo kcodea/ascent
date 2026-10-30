@@ -30,7 +30,7 @@ const rowSpells = (s: RunState): number => s.shop.filter((o) => isSpell(o.cardId
 const D = CARD_INDEX[SCROLL_DRAKE_ID]!;
 const drake = (uid = 'dk', golden = false): BoardCard => body(uid, SCROLL_DRAKE_ID, { golden });
 
-describe('Scroll Drake — the card', () => {
+describe('Scrollz — the card', () => {
   it('is a Set 3 Dragon/Spirit, Tier 3, drawable from the Set 3 pool only', () => {
     expect(D).toMatchObject({ tribe: 'dragon', tribe2: 'spirit', tier: 3 });
     expect(poolFor('set3').buyable.some((c) => c.id === SCROLL_DRAKE_ID)).toBe(true);
@@ -40,7 +40,7 @@ describe('Scroll Drake — the card', () => {
   });
 });
 
-describe('Scroll Drake — PRICE (spellCostReduction)', () => {
+describe('Scrollz — PRICE (spellCostReduction)', () => {
   it('-1 per plain copy, -2 Gilded, stacking across copies and with the stored discount', () => {
     expect(spellCostReduction(run({ board: [] }))).toBe(0);
     expect(spellCostReduction(run({ board: [drake()] }))).toBe(1);
@@ -87,7 +87,7 @@ describe('Scroll Drake — PRICE (spellCostReduction)', () => {
   });
 });
 
-describe('Scroll Drake — OFFERS: one spell in the row in place of a minion', () => {
+describe('Scrollz — OFFERS: one spell in the row in place of a minion', () => {
   for (const tier of [1, 2, 3, 4, 5, 6]) {
     it(`tier ${tier}: same total offers, one minion traded for a spell`, () => {
       const plain = run({ tier, board: [], shop: [] });
@@ -152,7 +152,7 @@ describe('Scroll Drake — OFFERS: one spell in the row in place of a minion', (
   });
 });
 
-describe('Scroll Drake — freeze, kept offers, the Starform', () => {
+describe('Scrollz — freeze, kept offers, the Starform', () => {
   it('a Layaway-kept spell already fills the quota: no second extra spell', () => {
     const spellId = poolFor('set3').spells[0]!.id;
     const s = run({ board: [drake()], shop: [{ uid: 'k', cardId: spellId, kept: true }] });

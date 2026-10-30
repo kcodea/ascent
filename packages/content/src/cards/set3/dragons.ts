@@ -358,7 +358,7 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     //    spell however many copies (or a Gilded one) you have.
     // NAME + STATS ARE PLACEHOLDERS (owner to set). No art wired.
     id: 'd3_scrolldrake',
-    name: 'Scroll Drake',
+    name: 'Scrollz',
     tribe: 'dragon',
     tribe2: 'spirit',
     tier: 3,

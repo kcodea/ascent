@@ -278,9 +278,9 @@ export const ECONOMY_RULES: GameRule[] = [
   },
   {
     id: 'R-SCROLL-DRAKE-01',
-    title: 'Scroll Drake: Shop spells cost less, and every Shop roll trades one minion for a spell',
+    title: 'Scrollz: Shop spells cost less, and every Shop roll trades one minion for a spell',
     statement:
-      'While a Scroll Drake (Set 3, Tier 3 Dragon/Spirit) is on your board, every Shop spell costs 1 less per copy '
+      'While a Scrollz (Set 3, Tier 3 Dragon/Spirit) is on your board, every Shop spell costs 1 less per copy '
       + '(2 less Gilded), stacking with every other spell discount and floored at 0. The discount is a live board read '
       + '(`spellCostReduction`), so it applies the moment the Drake is played and ends the moment it is sold or '
       + 'destroyed, on every price surface. Every Shop roll (turn start, every refresh, a frozen top-up) serves ONE '

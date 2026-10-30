@@ -58,8 +58,8 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
-      { category: 'Balance', text: 'New Dragon in Set 3: Scroll Drake.', details: [
-        'Scroll Drake is a Tier 3 3/4 Dragon and Spirit.',
+      { category: 'Balance', text: 'New Dragon in Set 3: Scrollz.', details: [
+        'Scrollz is a Tier 3 3/4 Dragon and Spirit.',
         'While it is on your board, Shop spells cost 1 less. Gilded, they cost 2 less.',
         'Each Shop also offers a second spell in place of one minion, so the Shop never gets bigger.',
       ] },

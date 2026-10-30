@@ -67,6 +67,10 @@ export const PATCH_NOTES: PatchNote[] = [
         'Share the Wealth (Tier 3 spell): gain +1 max Gold and give your teammate a Gold Pouch.',
         'Only dragging a card onto your teammate costs Gold. Cards that pass for you are free.',
       ] },
+      { category: 'Systems', text: 'Pressing the gem to leave a fight now stops every sound and effect from it at once.', details: [
+        'Your hero\'s attack, voice lines and any late combat sound no longer play on behind the return to the shop.',
+        'The fight\'s result is unchanged.',
+      ] },
       { category: 'Systems', text: 'Duos: Golden minions can no longer be passed to your teammate.', details: [
         "Drag one over your teammate's portrait and it shows why. Let go and it stays in your hand. No Gold is spent.",
       ] },

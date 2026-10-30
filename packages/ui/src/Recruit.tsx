@@ -245,6 +245,7 @@ import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGate
 import { Unit } from './Unit';
 import { computeFrame, useCombatReplay } from './useCombatReplay';
 import { endCombatReady } from './endCombatGate';
+import { hardStopCombat, releaseCombatHold } from './combatHardStop';
 import { retryImport } from './retryImport';
 import { CHARGE_SECONDS, chargeElapsed, shopClockStep, standardTurnSeconds, turnClock, turnClockMayTick, turnClockReset, useTurnClockRunning, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
@@ -2382,6 +2383,9 @@ export function Recruit() {
   /** The hero attack in flight (Classic or a cosmetic style), held in a REF because the effect's deps (`replay.frame`)
    *  keep changing after the replay ends: it is cancelled only when combat actually ends, and on unmount. */
   const blastRef = useRef<HeroAttackHandle | null>(null);
+  // THE COMBAT HARD STOP (R-COMBAT-HARDSTOP-01): set at the End Combat press; freezes the replay's beat clock so no
+  // further beat of the fight plays behind the return wipe. Cleared when the fight is left.
+  const [combatHalted, setCombatHalted] = useState(false);
   const endTurnPendingRef = useRef(false); // the end-of-turn beat sequence is playing before combat
   /** +padding between the LAST End-of-Turn beat and the combat curtain (owner ask 2026-08-29) — the final
    *  proc gets a breath before the blue sweeps. Turns with NO beats skip it (their fast paths dispatch
@@ -3212,7 +3216,7 @@ export function Recruit() {
   // (perf 2026-09-17) — same order, same bodies — so they land in the commit where the row moves even when
   // that commit was a drag decision that never re-rendered `Recruit`. The refs above are theirs to write.
 
-  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen || versusPaused, rampEnabled });
+  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen || versusPaused || combatHalted, rampEnabled });
   // THE VISTA'S WARM-UP (R-PRESENT-36; wipeMachine.ts `vistaWarmClassFor`): the moment a fight's replay ends, while it
   // still sits on screen (End Combat only opens now), the return trip's hold and dive play once, unseen, behind the
   // game, so the compositor has drawn every layer at every scale the trip needs. Once per fight. A press during it ends
@@ -3554,8 +3558,26 @@ export function Recruit() {
   // committed behind them; if not, the blue sweep plays as always and commits it at full cover (below). Every other
   // fight is untouched: nothing is resolved at the press. See rankedGate/endGameGate.ts.
   const wipeExitRef = useSwapRef(false, swapped);
+  /** Stop everything from the fight at once (R-COMBAT-HARDSTOP-01). Reads refs only, so it is stable. */
+  const stopFightNow = useCallback((): void => {
+    const strike = blastRef.current;
+    if (strike) {
+      blastRef.current = null;
+      strike.cancel(); // its voices, DOM numbers, camera and Pixi scene; never lands the blow
+      spectatorStrikeLanded(); // the watch screen's hold on this blow lets go (a no-op off it)
+    }
+    document.body.classList.remove('duel-attacker-player', 'duel-attacker-opp', 'duel-striking');
+    setCombatHalted(true);
+    hardStopCombat();
+  }, []);
   const endCombat = useCallback((): void => {
     if (wipeExitRef.current) return; // already leaving — ignore a double-click
+    // THE HARD STOP (R-COMBAT-HARDSTOP-01, owner 2026-10-30: "absolutely everything stops the moment that gem is
+    // clicked"). The hero strike (a WIN's gem is ready while your hero is still swinging) is cancelled with its
+    // voices, DOM and Pixi scene; the replay's clock freezes; then `hardStopCombat` cuts every sound the fight started,
+    // retires its FX and HOLDS new combat sounds / FX until the shop is shown (released at full cover, below). The
+    // blow that never landed is still settled by `resolveCombat` (it settles first when `combatSettled` is false).
+    stopFightNow();
     // VERSUS (owner 2026-10-14): End Combat tells the server this player is back, but the fight stays on screen until
     // the next shop opens for both (the other presses, or their 5 s run out); `useVersusRecruit` then leaves it.
     if (!sandboxReplay && !spectating) {
@@ -3569,6 +3591,7 @@ export function Recruit() {
       if (versusMatchEndsAtPress(st.run) && gateMotionAllowed()) {
         void requestRankedGate(() => {
           pixiFx.clearParticles();
+          releaseCombatHold(); // the room's own sounds + FX play from here
           finishVersusMatch();
           wipeExitRef.current = false;
         }, 'end');
@@ -3581,6 +3604,7 @@ export function Recruit() {
             // Behind the shut doors: drop the fight's lingering particles, then land the result. The phase flips
             // to the end of the game, so the end screen mounts out of sight and the doors open on it.
             pixiFx.clearParticles();
+            releaseCombatHold(); // the end screen's own sounds + FX play from here
             useGame.getState().commitPresentationAction();
             wipeExitRef.current = false;
             // THE PLACEMENT TONE (owner 2026-10-13): the result's sound (one for 1st to 4th, one for 5th to 8th),
@@ -3592,7 +3616,7 @@ export function Recruit() {
       }
     }
     setWipe('primeOut'); // one parked-circle frame, then the exit bloom (see the wipe hold effect)
-  }, [sandboxReplay, spectating]);
+  }, [sandboxReplay, spectating, stopFightNow]);
   // A SPECTATOR (owner 2026-10-15: every animation the player gets): the watched player's End Combat runs this SAME
   // exit (the curtain), cued by the watch screen (versus/spectate.ts), whose shop swap waits for its full cover.
   const watchScreen = useSpectate((s) => s.active);
@@ -3603,6 +3627,8 @@ export function Recruit() {
     // The old `combatout` crossfade also faded the FX canvas; without it, long-lived combat particles could
     // outlive the fight and drift over the revealed shop. Kill them here, out of sight under the full blue.
     pixiFx.clearParticles();
+    // The hard stop's hold ends here, BEFORE the shop is committed: the shop's own mount sounds + FX must play.
+    releaseCombatHold();
     // THE WATCH SCREEN: nothing resolves here; the watched player's shop swaps in now, under the full cover.
     if (useSpectate.getState().active) { spectatorFightCovered(); return; }
     // SANDBOX REPLAY: leave the phase, resolve NOTHING. `resolveCombat`'s own guard is only
@@ -3832,8 +3858,12 @@ export function Recruit() {
 
   // Reset the loss sequence when leaving combat (ready for the next fight).
   useEffect(() => {
-    if (!fighting) { blastRef.current?.cancel(); blastRef.current = null; document.body.classList.remove('duel-attacker-player', 'duel-attacker-opp', 'duel-striking'); useGame.getState().setOppDmgDealt(0); lossSeqRef.current = false; setLossPhase(null); }
+    if (!fighting) { blastRef.current?.cancel(); blastRef.current = null; document.body.classList.remove('duel-attacker-player', 'duel-attacker-opp', 'duel-striking'); useGame.getState().setOppDmgDealt(0); lossSeqRef.current = false; setLossPhase(null); setCombatHalted(false); }
+    // Backstop for the hard stop's hold (R-COMBAT-HARDSTOP-01): every exit releases it before the shop is shown; this
+    // covers a path that left the fight some other way, and a new fight never starts held.
+    releaseCombatHold();
   }, [fighting]);
+  useEffect(() => () => releaseCombatHold(), []); // leaving the run mid-press never strands the hold
 
   // Returning to recruit after a fight. The warband re-mounts (it was combat Units) and re-enters
   // via the base `cardpop` — a single mount animation, so it can't re-fire from a class toggle (the

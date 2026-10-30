@@ -68,6 +68,9 @@ export interface FxLivePlay {
   /** The play's DEDUPE key (`PlayDefOptions.dedupeKey`, e.g. the hand card it pops): at most one live play of a
    *  def per key. Absent = never deduped. */
   readonly key?: string;
+  /** A caller-owned PERSISTENT play (a loop, or one following its source): the combat hard stop leaves it to its
+   *  owner. Absent = a one-shot. */
+  readonly persistent?: boolean;
 }
 
 /** The live totals a cap is checked against. Injectable so the policy is testable without a renderer. */
@@ -446,6 +449,25 @@ export function retireLivePlays(): number {
     }
   }
   return snapshot.length;
+}
+
+/**
+ * THE COMBAT HARD STOP (R-COMBAT-HARDSTOP-01): retire every ONE-SHOT play now (a combat moment's burst, trail or
+ * impact still drawing), leaving the caller-owned persistent ones (loops, followers) to their owners. Same
+ * snapshot-then-retire shape as `retireLivePlays`. Returns how many it retired.
+ */
+export function retireTransientPlays(): number {
+  const going = plays.filter((p) => !p.persistent);
+  if (going.length === 0) return 0;
+  for (let i = plays.length - 1; i >= 0; i--) if (!plays[i]!.persistent) plays.splice(i, 1);
+  for (const p of going) {
+    try {
+      p.retire();
+    } catch (e) {
+      console.error(`[fx] retiring play '${p.id}' at the combat hard stop threw, skipping it:`, e);
+    }
+  }
+  return going.length;
 }
 
 /** A read-only snapshot for the DEV console handle (`window.__fx.budget.live()`). */

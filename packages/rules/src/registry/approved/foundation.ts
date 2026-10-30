@@ -11469,7 +11469,7 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-OPP-PORTRAIT-ONCE-01',
-    title: 'The opponent's portrait drops in once per fight, exists once, and leaves with the fight',
+    title: "The opponent's portrait drops in once per fight, exists once, and leaves with the fight",
     statement:
       'In every mode with a foe portrait, exactly one opponent portrait (with its name, Health, rune slots and shadow) is on screen during a fight. '
       + 'It drops in once as the fight starts and does not replay its entrance while the fight plays, and it is gone when you are back in the Shop. '
@@ -11481,8 +11481,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'fix/phone-hero-shade-blobs' },
       { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (CombatOpponent and OpponentHand keys); packages/ui/src/CombatOpponent.tsx' },
     ],
-    currentBehaviour: 'Since 2026-10-29 (fix/phone-hero-shade-blobs). Before, CombatOpponent and its sibling OpponentHand were both keyed on the bare screenId (perf/duos-swap-no-remount). React lost track of the portrait's portal under the duplicate sibling key, so every combat render mounted another portrait into the stage and none was removed: about 250 copies after one fight, their stacked drop shadows a solid black disc that stayed into the Shop.',
-    example: 'You end turn and LazerLemon's portrait drops in at the top right once. The fight plays, you return to the Shop, and the top right shows the standings again with no portrait and no dark circle.',
+    currentBehaviour: "Since 2026-10-29 (fix/phone-hero-shade-blobs). Before, CombatOpponent and its sibling OpponentHand were both keyed on the bare screenId (perf/duos-swap-no-remount). React lost track of the portrait's portal under the duplicate sibling key, so every combat render mounted another portrait into the stage and none was removed: about 250 copies after one fight, their stacked drop shadows a solid black disc that stayed into the Shop.",
+    example: "You end turn and LazerLemon's portrait drops in at the top right once. The fight plays, you return to the Shop, and the top right shows the standings again with no portrait and no dark circle.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatOpponentOnce.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
   {

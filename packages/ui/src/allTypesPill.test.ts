@@ -54,6 +54,7 @@ const ART_PENDING = new Set<string>([
   // DUOS-ONLY CARDS, batch A (2026-10-30): no art yet.
   'duo_antsy', 'duo_salandaman', 'duo_bratworst', 'duo_spencer', 'duo_roo', 'duo_toottoot', 'duo_proxus', 'duo_hippiehulk',
   'duo_galfagan', 'duo_monstrocity', 'duo_broshake', 'duo_tribebundle', 'duo_megamimic',
+  'duo_disco', 'duo_matchmaker', 'duo_cuebee', 'duo_w_pass', // the Discover + pass batch (2026-10-30), same placeholder rule
   // GIFTS: NONE LEFT — Grand Larceny's master landed 2026-09-18 (the Gifts folder is a `wire-art` job now).
   // SET 3 SPELLS (2026-09-10): no masters yet for the new rows of the spell sheet (Accretion + Grave Robbery
   // landed 2026-09-13; `SharedSpirit - Copy.png` is a duplicate export and stays unmatched on purpose).

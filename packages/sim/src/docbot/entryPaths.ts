@@ -87,7 +87,7 @@ export const ENTRY_SITES: Readonly<Record<string, EntrySiteEntry>> = {
   'reducer.ts#conjurePlainCopy#hand': { kind: 'hero-grant', why: "Re-Pete / Gorr's plain copy of a held card (conjured, no pool take)" },
   'reducer.ts#drakkoQuestBuy#hand': { kind: 'quest-grant', why: 'the Drakko buy-trigger quest: a copy of the bought Shout minion' },
   'reducer.ts#chronosQuestBuy#hand': { kind: 'quest-grant', why: 'the Chronos buy-trigger quest: a copy of the bought End-of-Turn minion' },
-  'reducer.ts#takeDiscoverPick#hand': { kind: 'discover', why: 'the Discover pick — every Discover (hero, rune, spell, Gift) lands through this one site' },
+  'reducer.ts#takeDiscoverPickCore#hand': { kind: 'discover', why: 'the Discover pick — every Discover (hero, rune, spell, Gift) lands through this one site' },
   'reducer.ts#buy#hand': { kind: 'shop-buy', why: 'the shop: the right-hand spell slot, a minion offer, a restored/borrowed body' },
   'reducer.ts#play#board': { kind: 'play', why: 'hand → board' },
   'reducer.ts#rollRefrainReturn#hand': { kind: 'return-to-hand', why: 'Refrain bounces the played Shout body back to hand (the one hand write the play case had; hoisted into a helper 2026-09-18 so an aimed Shout rolls after its aim)' },

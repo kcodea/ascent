@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Systems', text: 'The Board backdrop list in Settings is now two columns and scrolls on its own, without moving the rest of Settings.' },
       { category: 'Balance', text: 'New Dragon in Set 3: Scrollz.', details: [
         'Scrollz is a Tier 3 3/4 Dragon and Spirit.',
         'While it is on your board, Shop spells cost 1 less. Gilded, they cost 2 less.',

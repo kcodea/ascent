@@ -221,6 +221,7 @@ export function SettingsPanel() {
           <span className="evl" id="esc-backdrop-label">Board backdrop</span>
           <SettingSelect
             labelledBy="esc-backdrop-label"
+            columns={2}
             value={backdrop}
             options={BACKDROP_IDS.map((id) => ({ value: id, label: BACKDROPS[id].label }))}
             onChange={(id) => { if (id !== backdrop) { setBackdropPick(id); setBackdrop(id); sfx.pulse(); } }}
@@ -401,11 +402,13 @@ export interface SettingOption<T> { value: T; label: string; dim?: boolean }
  *  gauntlet cursor. The list opens under the trigger, inside the panel (no portal: the panel already lives in the
  *  stage). Closes on a pick, on Escape, and on a press anywhere outside it (a CAPTURE listener, because the panel
  *  stops pointerdown from bubbling). Keyboard: arrows move between options, Enter / Space picks. */
-export function SettingSelect<T extends string | number>({ value, options, onChange, labelledBy }: {
+export function SettingSelect<T extends string | number>({ value, options, onChange, labelledBy, columns }: {
   value: T;
   options: SettingOption<T>[];
   onChange: (v: T) => void;
   labelledBy?: string;
+  /** Lay a long list out in two columns (the Board backdrop list, owner 2026-10-30). */
+  columns?: 2;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -464,7 +467,7 @@ export function SettingSelect<T extends string | number>({ value, options, onCha
         <svg className="escchev" viewBox="0 0 16 16" aria-hidden><path d="M3.5 6l4.5 4.5L12.5 6" /></svg>
       </button>
       {open && (
-        <div className="escselect-list" role="listbox" id={listId} aria-labelledby={labelledBy} ref={listRef} onKeyDown={onListKey}>
+        <div className={`escselect-list${columns === 2 ? ' cols2' : ''}`} role="listbox" id={listId} aria-labelledby={labelledBy} ref={listRef} onKeyDown={onListKey}>
           {options.map((o) => (
             <button
               key={String(o.value)}

@@ -401,7 +401,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       userId: a.userId, role: !mem ? null : mem.role === 'spectator' ? 'spectator' : 'player', name: mem?.displayName ?? 'Player', guest: !!a.guest,
     };
     if (event === LOBBY_CHAT_SYNC_EVENT) {
-      this.send(ws, JSON.stringify({ t: 'bc', event, payload: this.chat.sync(sender), from: a.userId } satisfies VersusCfPush));
+      this.send(ws, JSON.stringify({ t: 'bc', event, payload: this.chat.sync(sender, payload), from: a.userId } satisfies VersusCfPush));
       return;
     }
     const r = this.chat.post(sender, payload, Date.now());

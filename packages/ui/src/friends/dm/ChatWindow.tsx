@@ -22,15 +22,17 @@
  *    barely dims.
  *  - A PHONE keeps the full-screen window: no move, no resize, no pin (a pinned full-screen window would hide the game).
  *
+ * The frame (move, resize, grips, the remembered place) and the pin are the shared chat window parts (`../../chat/`),
+ * which the lobby chat panel uses too (R-LOBBY-CHAT-02).
+ *
  * COST: a drag moves the frame by `transform` only, written straight to the element (no React render, no layout read);
  * a resize draws a ghost outline and commits the size once, on release. Messages arriving re-render this window only,
  * never the game. Motion: one-shot transform + opacity on open; nothing loops. Cursors: the gauntlet (CLAUDE.md).
  */
-import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { GameScroll } from '../../GameScroll';
-import { Icon } from '../../Icon';
 import { sfx } from '../../sfx';
-import { onStageChange, stageViewport, toStage } from '../../stage';
+import { ChatFrame, ChatPinButton, phoneChat } from '../../chat/ChatFrame';
 import { closeChatTab, closeDm, openDm, swallowNextClick, useFriendsDock } from '../dock/dockStore';
 import { useFriendMenu } from '../FriendMenu';
 import { FriendGame, FriendPortrait, handleOf, statusText } from '../friendBits';
@@ -39,17 +41,8 @@ import { useFriends, useFriendsListLoop } from '../friendsStore';
 import { DmConversation, dmEmotePickerOpen } from './DmConversation';
 import { liveFriend, markRead, noteDmSeen, useDm } from './dmStore';
 import { FriendActions } from '../dock/FriendsDock';
-import {
-  CHAT_EDGES, clampChatGeom, defaultChatGeom, moveChatGeom, resizeChatGeom, setChatGeom, setChatPinned, useChatWindow, type ChatEdge, type ChatGeom,
-} from './chatWindowPrefs';
+import { defaultChatGeom, DM_CHAT_LIMITS, dmChatPrefs, setChatPinned, useChatWindow } from './chatWindowPrefs';
 import './dm.css';
-
-/** A phone: the full-screen window (dm.css), no move / resize / pin. Read from the stage's own flags (no layout read). */
-const phoneChat = (): boolean => typeof document !== 'undefined'
-  && document.documentElement.hasAttribute('data-touch-ui') && document.documentElement.hasAttribute('data-touch-small');
-
-/** A press that travels this far (stage px) on the strip / header is a move, not a click. */
-const MOVE_SLOP = 5;
 
 const low = (s: string): string => s.toLowerCase();
 
@@ -79,7 +72,6 @@ export function ChatWindow({ inGame = false, conversation }: { inGame?: boolean;
   const friends = useFriends((s) => s.list?.friends ?? null);
   const unread = useDm((s) => s.unread);
   const peers = useDm((s) => s.peers);
-  const saved = useChatWindow((s) => s.geom);
   const pinPref = useChatWindow((s) => s.pinned);
   const phone = phoneChat();
   const pinned = pinPref && !phone;
@@ -88,15 +80,6 @@ export function ChatWindow({ inGame = false, conversation }: { inGame?: boolean;
   const tabs = useMemo(() => chatTabOrder(session, unread, friends), [session, unread, friends]);
   const active = dmWith ? friends?.find((f) => low(f.userId) === low(dmWith)) ?? null : null;
   const live = useMemo(() => (active ? liveFriend(active, peers) : null), [active, peers]);
-
-  // The view the window keeps inside: read on open and on a stage change (a window resize, a rotation), never per frame.
-  const [view, setView] = useState(stageViewport);
-  useEffect(() => {
-    if (!dmWith) return undefined;
-    setView(stageViewport());
-    return onStageChange(() => setView(stageViewport()));
-  }, [dmWith]);
-  const geom = useMemo(() => clampChatGeom(saved ?? defaultChatGeom(view.w, view.h), view.w, view.h), [saved, view]);
 
   // Escape closes the unpinned window (capture: the same press must not also open the Esc menu underneath). Pinned, it
   // is left alone: Escape is the game's again.
@@ -113,64 +96,12 @@ export function ChatWindow({ inGame = false, conversation }: { inGame?: boolean;
     return () => window.removeEventListener('keydown', onKey, true);
   }, [dmWith, pinned]);
 
-  // MOVE / RESIZE: one gesture at a time, held in a ref (no state while the pointer moves).
-  const frame = useRef<HTMLDivElement>(null);
-  const ghost = useRef<HTMLDivElement>(null);
-  const gesture = useRef<{ id: number; edge: ChatEdge | null; sx: number; sy: number; start: ChatGeom; live: boolean; el: Element; last: ChatGeom | null } | null>(null);
-  const begin = (e: ReactPointerEvent, edge: ChatEdge | null): void => {
-    // A press that never became a drag (released outside the window) is simply replaced.
-    if (phone || e.button !== 0 || gesture.current?.live) return;
-    if (!edge && (e.target as Element).closest('input, textarea, .dmchat-rs')) return;
-    gesture.current = { id: e.pointerId, edge, sx: e.clientX, sy: e.clientY, start: geom, live: false, el: e.currentTarget, last: null };
-    if (edge) { e.preventDefault(); e.stopPropagation(); goLive(e.pointerId); }
-  };
-  const goLive = (pointerId: number): void => {
-    const g = gesture.current!;
-    g.live = true;
-    try { g.el.setPointerCapture(pointerId); } catch { /* the pointer already went */ }
-    frame.current?.classList.add(g.edge ? 'sizing' : 'moving');
-    const gh = ghost.current;
-    if (g.edge && gh) place(gh, g.start, true);
-  };
-  const onMove = (e: ReactPointerEvent): void => {
-    const g = gesture.current;
-    if (!g || g.id !== e.pointerId) return;
-    const dx = toStage(e.clientX - g.sx);
-    const dy = toStage(e.clientY - g.sy);
-    if (!g.live) {
-      if (Math.abs(dx) < MOVE_SLOP && Math.abs(dy) < MOVE_SLOP) return;
-      goLive(e.pointerId);
-    }
-    if (g.edge) {
-      g.last = resizeChatGeom(g.start, g.edge, dx, dy, view.w, view.h);
-      if (ghost.current) place(ghost.current, g.last, true);
-    } else {
-      g.last = moveChatGeom(g.start, dx, dy, view.w, view.h);
-      if (frame.current) frame.current.style.transform = `translate(${g.last.x}px, ${g.last.y}px)`;
-    }
-  };
-  const end = (e: ReactPointerEvent): void => {
-    const g = gesture.current;
-    if (!g || g.id !== e.pointerId) return;
-    gesture.current = null;
-    if (!g.live) return;
-    try { g.el.releasePointerCapture(e.pointerId); } catch { /* gone */ }
-    frame.current?.classList.remove('moving', 'sizing');
-    if (ghost.current) ghost.current.classList.remove('on');
-    // The release must not also press the tab or button the drag began on.
-    swallowNextClick();
-    if (g.last && e.type === 'pointerup') setChatGeom(g.last);
-    if (frame.current) frame.current.style.transform = '';
-  };
-
   if (!dmWith) return null;
   const closeTab = (id: string): void => {
     sfx.pulse();
     if ((unread[low(id)] ?? 0) > 0) void markRead(id);
     closeChatTab(id, tabs);
   };
-  const pos = { '--dmx': `${geom.x}px`, '--dmy': `${geom.y}px`, '--dmw': `${geom.w}px`, '--dmh': `${geom.h}px` } as CSSProperties;
-  const drag = phone ? {} : { onPointerDown: (e: ReactPointerEvent) => begin(e, null) };
   return (
     <>
       {!pinned && (
@@ -180,46 +111,28 @@ export function ChatWindow({ inGame = false, conversation }: { inGame?: boolean;
       )}
       {/* A press or focus anywhere in the window says I am looking at it: what arrived while I was away is read
           (R-DM-READ-01; no write when nothing is unread). */}
-      <div ref={frame} className={`dmchat-at${pinned ? ' pinned' : ''}${phone ? ' phone' : ''}`} style={pos}
-        onPointerDownCapture={noteDmSeen} onFocusCapture={noteDmSeen}
-        onPointerMove={onMove} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}>
-        <section className="dmchat vspanel" role="dialog" aria-label="Messages">
-          <div className="dmchat-top" {...drag}>
-            <GameScroll axis="x" className="dmchat-tabs" outerClassName="dmchat-tabs-wrap" role="tablist" aria-label="Conversations">
-              {tabs.map((id) => {
-                const f = friends?.find((x) => x.userId === id);
-                return f ? <ChatTab key={id} f={f} on={low(id) === low(dmWith)} unread={unread[low(id)] ?? 0} onClose={closeTab} /> : null;
-              })}
-            </GameScroll>
-            {!phone && (
-              <button type="button" className={`fdock-x dmchat-pin pressable gtip gtip-down gtip-end${pinned ? ' on' : ''}`} aria-pressed={pinned}
-                data-tip={pinned ? 'Unpin' : 'Pin open while you play'}
-                aria-label={pinned ? 'Unpin the chat' : 'Pin the chat open while you play'}
-                onClick={() => { sfx.pulse(); setChatPinned(!pinned); }}>
-                <Icon name="pin" />
+      <ChatFrame prefs={dmChatPrefs} limits={DM_CHAT_LIMITS} defaultGeom={defaultChatGeom} phone={phone} pinned={pinned} className="dmchat-at"
+        frameProps={{ onPointerDownCapture: noteDmSeen, onFocusCapture: noteDmSeen }}>
+        {(drag) => (
+          <section className="dmchat vspanel" role="dialog" aria-label="Messages">
+            <div className="dmchat-top" {...drag}>
+              <GameScroll axis="x" className="dmchat-tabs" outerClassName="dmchat-tabs-wrap" role="tablist" aria-label="Conversations">
+                {tabs.map((id) => {
+                  const f = friends?.find((x) => x.userId === id);
+                  return f ? <ChatTab key={id} f={f} on={low(id) === low(dmWith)} unread={unread[low(id)] ?? 0} onClose={closeTab} /> : null;
+                })}
+              </GameScroll>
+              {!phone && <ChatPinButton pinned={pinned} onToggle={setChatPinned} what="the chat" />}
+              <button type="button" className="fdock-x dmchat-close pressable" aria-label="Close messages" onClick={() => { sfx.pulse(); closeDm(); }}>
+                <span aria-hidden="true">✕</span>
               </button>
-            )}
-            <button type="button" className="fdock-x dmchat-close pressable" aria-label="Close messages" onClick={() => { sfx.pulse(); closeDm(); }}>
-              <span aria-hidden="true">✕</span>
-            </button>
-          </div>
-          {live ? <ChatPane f={live} conversation={conversation} pinned={pinned} drag={drag} /> : <div className="fdock-convo-empty dmchat-wait">{friends ? 'This conversation is not available.' : 'Finding your friends…'}</div>}
-        </section>
-        {!phone && CHAT_EDGES.map((edge) => (
-          <div key={edge} className={`dmchat-rs dmchat-rs-${edge}`} aria-hidden="true" onPointerDown={(e) => begin(e, edge)} />
-        ))}
-      </div>
-      {!phone && <div ref={ghost} className="dmchat-ghost" aria-hidden="true" />}
+            </div>
+            {live ? <ChatPane f={live} conversation={conversation} pinned={pinned} drag={drag} /> : <div className="fdock-convo-empty dmchat-wait">{friends ? 'This conversation is not available.' : 'Finding your friends…'}</div>}
+          </section>
+        )}
+      </ChatFrame>
     </>
   );
-}
-
-/** The resize outline at a geometry (transform + size on one empty box; nothing else lays out). */
-function place(el: HTMLElement, g: ChatGeom, on: boolean): void {
-  el.style.transform = `translate(${g.x}px, ${g.y}px)`;
-  el.style.width = `${g.w}px`;
-  el.style.height = `${g.h}px`;
-  if (on) el.classList.add('on');
 }
 
 const ChatTab = memo(function ChatTab({ f, on, unread, onClose }: { f: Friend; on: boolean; unread: number; onClose: (id: string) => void }) {

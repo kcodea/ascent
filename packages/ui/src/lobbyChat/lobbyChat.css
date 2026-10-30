@@ -1,43 +1,62 @@
-/* LOBBY CHAT (R-LOBBY-CHAT-01): a small panel in the dock's dark panel look (`.vspanel`), messages and composer in the
-   chat window's look (dm.css), the list on the game's gold scrollbar (`GameScroll`). It sits on the LEFT EDGE, in the open strip between the Tavern Up button and the emote
-   wheel: left of the shop frame, above my hero, below the stands' chips (screenshots 2026-10-30 at 1600x900 and
-   1280x720). Over the game, under the Friends dock (480+) and the menus (Settings 500).
-   Motion: one-shot transform + opacity on expand; nothing loops. No cursor rules: the global gauntlet paints every
-   button (CLAUDE.md). */
+/* LOBBY CHAT (R-LOBBY-CHAT-01 / -02): a small panel in the dock's dark panel look (`.vspanel`), messages and composer in
+   the chat window's look (dm.css, the shared chat parts), the list on the game's gold scrollbar (`GameScroll`).
+   THE FRAME is the chat window's (`.dmchat-at`, dm.css: placed by transform from `--dmx` / `--dmy`, sized by `--dmw` /
+   `--dmh`, the gold grips on its rim); `.lchat-at` puts it on the lobby chat's layer. Its default place is the LEFT EDGE,
+   in the open strip between the Tavern Up button and the emote wheel (screenshots 2026-10-30 at 1600x900 and 1280x720).
+   Over the game, under the Friends dock (480+) and the menus (Settings 500), pinned or not.
+   Motion: one-shot transform + opacity on expand; nothing loops. Cursors: gauntlet images only (CLAUDE.md). */
 
-.lchat, .lchat-pill { position: fixed; z-index: 470; left: 12px; top: calc(var(--lvh, 100vh) * 0.3); }
+.dmchat-at.lchat-at, .dmchat-at.lchat-at.pinned { z-index: 470; }
 
-.lchat-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px;
+.lchat-pill { position: fixed; z-index: 470; left: 12px; top: calc(var(--lvh, 100vh) * 0.3);
+  display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px;
   font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: #f0d089;
   background: linear-gradient(180deg, rgba(13, 22, 40, 0.94), rgba(9, 15, 29, 0.96)); border: 1.5px solid rgba(196, 160, 92, 0.55);
   box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.7); }
 .lchat-pill:hover { border-color: rgba(240, 208, 137, 0.85); }
 
-.lchat.vspanel { width: min(272px, calc(var(--lvw, 100vw) * 0.17)); height: min(270px, calc(var(--lvh, 100vh) * 0.29)); min-width: 200px; max-width: none;
+.lchat.vspanel { width: 100%; height: 100%; min-width: 0; max-width: none;
   box-sizing: border-box; padding: 0; display: flex; flex-direction: column; text-align: left; overflow: hidden; border-radius: 14px; border-width: 1.5px;
   animation: lchatin 0.18s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.dmchat-at.lchat-at.pinned > .lchat.vspanel { border-color: rgba(196, 160, 92, 0.75); }
 @keyframes lchatin { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
 
-.lchat-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 12px; border-bottom: 1px solid rgba(196, 160, 92, 0.25); }
+/* A PHONE: no move / resize / pin; the compact panel at its fixed place (as before R-LOBBY-CHAT-02). */
+.dmchat-at.lchat-at.phone { transform: none; left: 12px; top: calc(var(--lvh, 100vh) * 0.3);
+  width: min(272px, calc(var(--lvw, 100vw) * 0.17)); height: min(270px, calc(var(--lvh, 100vh) * 0.29)); min-width: 200px; }
+html[data-phone-layout] .dmchat-at.lchat-at.phone { min-width: 180px; height: calc(var(--lvh, 100vh) * 0.4); }
+
+.lchat-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; border-bottom: 1px solid rgba(196, 160, 92, 0.25); }
+/* MOVE: the header is the handle (the open gauntlet; the closed hand while moving, dm.css). */
+.lchat-at:not(.phone) .lchat-head { cursor: url('/cursors/gauntlet_open.svg') 6 2, move; touch-action: none; }
 .lchat-title { font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #f0d089; }
 .lchat-unmute { font-size: 11.5px; font-weight: 700; font-family: var(--font-ui); }
-.lchat-hide { margin-left: auto; width: 26px; height: 26px; padding: 0; display: grid; place-items: center; border-radius: 8px;
+.lchat-tools { margin-left: auto; flex: none; display: flex; align-items: center; gap: 6px; }
+.lchat-hide, .lchat-pin.dmchat-pin.fdock-x { width: 26px; height: 26px; margin: 0; padding: 0; display: grid; place-items: center; border-radius: 8px;
   font-family: var(--font-ui); font-weight: 900; font-size: 16px; line-height: 1; color: rgba(255, 255, 255, 0.75);
   background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); }
-.lchat-hide:hover { color: #f0d089; border-color: rgba(240, 208, 137, 0.6); }
+.lchat-pin.dmchat-pin.fdock-x svg { width: 14px; height: 14px; }
+.lchat-pin.dmchat-pin.fdock-x.on { color: #241705; background: linear-gradient(180deg, #f0d089, #c99d4e); border-color: #f0d089; }
+.lchat-hide:hover, .lchat-pin.dmchat-pin.fdock-x:not(.on):hover { color: #f0d089; border-color: rgba(240, 208, 137, 0.6); }
 
 .lchat-list-wrap { flex: 1 1 auto; min-height: 0; }
 .lchat-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; padding: 8px 8px 4px; }
 .lchat-empty { margin: auto; font-family: var(--font-ui); font-weight: 700; font-size: 12.5px; color: rgba(255, 255, 255, 0.5); }
 .lchat .dm-bubble { font-size: 13px; padding: 5px 9px; }
+.lchat .dm-quote { font-size: 11.5px; }
 .lchat-name { margin: 0 4px 1px; font-family: var(--font-ui); font-weight: 800; font-size: 11.5px; color: rgba(255, 255, 255, 0.7); }
 .lchat-name.player { color: #f0d089; }
 
-.lchat-compose { flex: none; padding: 6px 8px 8px; border-top: 1px solid rgba(196, 160, 92, 0.18); }
+.lchat-compose { flex: none; padding: 6px 8px 8px; border-top: 1px solid rgba(196, 160, 92, 0.18); gap: 6px; }
 .lchat .fdock-input.acctinput { font-size: 13px; padding: 6px 10px; }
-.lchat .dm-send.lb-btn { padding: 0 14px; }
-
-/* A phone: the strip is narrower; the panel keeps a usable minimum and the list scrolls. */
-html[data-phone-layout] .lchat.vspanel { min-width: 180px; height: calc(var(--lvh, 100vh) * 0.4); }
+.lchat .dm-send.lb-btn { padding: 0 12px; }
+.lchat .dm-replybar-text { font-size: 12px; }
+/* The emote button, compact; its picker spans the composer (the panel is narrow and clips what leaves it). */
+.lchat .dm-emotewrap { position: static; }
+.lchat .dm-emotebtn { width: 34px; padding: 3px; border-radius: 8px; }
+.lchat .dm-emotebtn img { max-height: 26px; }
+.lchat .dm-emotes.atip { left: 6px; right: 6px; bottom: calc(100% + 4px); width: auto; max-width: none; box-sizing: border-box; }
+.lchat .dm-emotes-grid { max-height: 150px; overflow-y: auto; gap: 4px; }
+.lchat .dm-emote-pick.emote-pick { height: 44px; padding: 3px; }
 
 @media (prefers-reduced-motion: reduce) { .lchat.vspanel { animation-duration: 0.01s; } }

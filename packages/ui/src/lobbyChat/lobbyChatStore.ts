@@ -13,15 +13,26 @@
  *  - THE READER'S OWN CONTROLS: Mute a sender (this game only, this device), the swear filter (the DM setting), and the
  *    Settings switch that hides lobby chat entirely (`setLobbyChatEnabled`, on by default, saved on this device).
  *
+ *  - READ WHEN SEEN (owner 2026-10-30, R-LOBBY-CHAT-02: "lobby chat needs the same quality of life that dm's have", the
+ *    DMs' R-DM-READ-01 rule): a message counts as unread unless the panel is open AND the page is visible and focused.
+ *    Coming back to the page (visibilitychange / focus), pressing or focusing into the panel, typing or sending clears
+ *    the count (`noteLobbyChatSeen`).
+ *  - REPLIES (R-LOBBY-CHAT-02): a send may answer a stored message (`replyTo`); the object stamps the quote. Mine shows
+ *    the quote while it is sending; the object's echo then decides (an older Worker sends none).
+ *  - CATCH-UP (R-LOBBY-CHAT-02): when the game's socket comes back (`resyncLobbyChat`, called on every reconnect), the
+ *    sync is asked again with `since` (the newest stored message held here); the answer is merged by id, so what was
+ *    sent while the socket was down appears once, in order, and counts as unread when I was not looking.
+ *
  * COST: messages are tiny and rare next to the game's own frames; a message re-renders the chat panel only (its own
  * store), never the game. Nothing here runs per frame.
  */
 import { create } from 'zustand';
 import {
   LOBBY_CHAT_BACKLOG, LOBBY_CHAT_EVENT, LOBBY_CHAT_RATE, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_SYNC_EVENT, parseLobbyChatMsg, parseLobbyChatSync,
-  type LobbyChatMsg, type LobbyChatRefusal,
+  LOBBY_CHAT_REPLY_SNIPPET, type LobbyChatMsg, type LobbyChatRefusal,
 } from '@game/versus-cf/lobbyChat';
 import { cleanDmBody } from '@game/versus-cf/hub';
+import { pageSeen } from '../chat/pageSeen';
 
 export { LOBBY_CHAT_MAX_CHARS } from '@game/versus-cf/lobbyChat';
 
@@ -64,7 +75,7 @@ export interface LobbyChatState {
   /** Someone else is here to chat with (a lone player with nobody watching sees no panel). */
   company: boolean;
   msgs: ShownChatMsg[];
-  /** Messages from others that arrived while the panel was collapsed. */
+  /** Messages from others that arrived while I was not looking (the panel collapsed, or the page away). */
   unread: number;
   /** The panel is expanded (kept on this device). */
   open: boolean;
@@ -86,17 +97,34 @@ interface Session {
   gameKey: string;
 }
 let session: Session | null = null;
+/** Coming back to the page reads what arrived while I was away (installed while a session is). */
+let unSeen: (() => void) | null = null;
+function watchSeen(on: boolean): void {
+  if (!on) { unSeen?.(); unSeen = null; return; }
+  if (unSeen || typeof document === 'undefined' || typeof window === 'undefined') return;
+  const onSeen = (): void => noteLobbyChatSeen();
+  document.addEventListener('visibilitychange', onSeen);
+  window.addEventListener('focus', onSeen);
+  unSeen = () => { document.removeEventListener('visibilitychange', onSeen); window.removeEventListener('focus', onSeen); };
+}
 let seq = 0;
 /** The sync is asked again until it is answered (a relay sent while the socket is still opening is dropped). */
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 const SYNC_RETRY_MS = 2_000;
 const SYNC_TRIES = 15;
 let synced = false;
+/** The newest message the object stamped that I hold (a catch-up asks only for what came after it). */
+function lastStoredId(): string | null {
+  const msgs = useLobbyChat.getState().msgs;
+  for (let i = msgs.length - 1; i >= 0; i--) if (!msgs[i]!.state && !msgs[i]!.id.startsWith('local:')) return msgs[i]!.id;
+  return null;
+}
 function askSync(s: Session, tries: number): void {
   if (syncTimer != null) clearTimeout(syncTimer);
   syncTimer = null;
   if (session !== s || synced) return;
-  s.send(LOBBY_CHAT_SYNC_EVENT, {});
+  const since = useLobbyChat.getState().available ? lastStoredId() : null;
+  s.send(LOBBY_CHAT_SYNC_EVENT, since ? { since } : {});
   if (tries > 1) syncTimer = setTimeout(() => askSync(s, tries - 1), SYNC_RETRY_MS);
 }
 let bucket = { tokens: LOBBY_CHAT_RATE.burst as number, at: 0 };
@@ -115,6 +143,7 @@ export function setLobbyChatSession(owner: string, next: { send: Session['send']
   if (!next) {
     if (session?.owner !== owner) return;
     session = null;
+    watchSeen(false);
     if (syncTimer != null) { clearTimeout(syncTimer); syncTimer = null; }
     useLobbyChat.setState(fresh(null, null));
     return;
@@ -123,6 +152,17 @@ export function setLobbyChatSession(owner: string, next: { send: Session['send']
   session = { owner, send: next.send, gameKey: next.gameKey };
   if (!same) { bucket = { tokens: LOBBY_CHAT_RATE.burst, at: 0 }; useLobbyChat.setState(fresh(next.gameKey, next.me?.toLowerCase() ?? null)); }
   else if (next.me) useLobbyChat.setState({ me: next.me.toLowerCase() });
+  synced = false;
+  watchSeen(true);
+  askSync(session, SYNC_TRIES);
+}
+
+/**
+ * The game's socket came back (every reconnect calls this): catch up on what was sent while it was down. Only once
+ * this game's chat is known (`available`); the first connect's own sync is the session install's.
+ */
+export function resyncLobbyChat(): void {
+  if (!session || !useLobbyChat.getState().available) return;
   synced = false;
   askSync(session, SYNC_TRIES);
 }
@@ -134,9 +174,21 @@ export function setLobbyChatCompany(on: boolean): void {
 
 const isMine = (m: LobbyChatMsg, me: string | null): boolean => !!me && m.from.toLowerCase() === me;
 
+/** I am looking at the chat right now: the panel is open and the page is in front of me. */
+const viewing = (s: LobbyChatState): boolean => s.open && s.enabled && pageSeen();
+
 function counts(s: LobbyChatState, m: LobbyChatMsg): boolean {
-  return !isMine(m, s.me) && !s.muted[m.from.toLowerCase()] && !(s.open && s.enabled);
+  return !isMine(m, s.me) && !s.muted[m.from.toLowerCase()] && !viewing(s);
 }
+
+/** Something says I am looking at the open panel (the page came back, a press, focus or typing in it): read it. */
+export function noteLobbyChatSeen(): void {
+  const s = useLobbyChat.getState();
+  if (s.unread && viewing(s)) useLobbyChat.setState({ unread: 0 });
+}
+
+/** A message that can be answered: a stored one (not one still sending or failed). */
+export const canReplyToLobby = (m: ShownChatMsg): boolean => !m.state && !m.id.startsWith('local:');
 
 /** One event off the game's stream: true when it was a lobby chat event (consumed). */
 export function receiveLobbyChatEvent(event: string, payload: unknown): boolean {
@@ -158,12 +210,18 @@ export function receiveLobbyChatEvent(event: string, payload: unknown): boolean 
     if (!sync || !session) return true; // an older Worker relays another client's request: not an answer
     synced = true;
     const s = useLobbyChat.getState();
-    const known = new Set(sync.msgs.map((m) => m.id));
-    // Keep what the backlog lacks (my unconfirmed sends, anything newer), in order after it.
-    const keep = s.msgs.filter((m) => !known.has(m.id));
+    // Merge by id (a full backlog, or a catch-up of what came after `since`): what I hold stays, what is new joins it in
+    // the object's order, and a send of mine whose echo was lost while I was away is confirmed by its stored copy.
     const had = new Set(s.msgs.map((m) => m.id));
-    const fresh_ = sync.msgs.filter((m) => !had.has(m.id) && counts(s, m)).length;
-    useLobbyChat.setState({ available: true, canSend: sync.canSend, msgs: [...sync.msgs, ...keep], unread: s.available ? s.unread + fresh_ : 0 });
+    const stored = s.msgs.filter((m) => !m.state && !m.id.startsWith('local:'));
+    const incoming = sync.msgs.filter((m) => !had.has(m.id));
+    const confirmed = new Set(incoming.filter((m) => m.cid && isMine(m, s.me)).map((m) => m.cid!));
+    const pending = s.msgs.filter((m) => (m.state || m.id.startsWith('local:')) && !(m.cid && confirmed.has(m.cid)));
+    const merged = [...stored, ...incoming].sort((x, y) => x.at - y.at);
+    const msgs = [...merged, ...pending];
+    if (msgs.length > LOBBY_CHAT_BACKLOG + 20) msgs.splice(0, msgs.length - LOBBY_CHAT_BACKLOG);
+    const fresh_ = incoming.filter((m) => counts(s, m)).length;
+    useLobbyChat.setState({ available: true, canSend: sync.canSend, msgs, unread: s.available ? s.unread + fresh_ : 0 });
     return true;
   }
   if (event === LOBBY_CHAT_REFUSED_EVENT) {
@@ -178,8 +236,11 @@ export function receiveLobbyChatEvent(event: string, payload: unknown): boolean 
   return false;
 }
 
-/** Send `raw`: null when it went (or there was nothing to send), else the reason to show under the composer. */
-export function sendLobbyChat(raw: string): string | null {
+/**
+ * Send `raw` (`replyTo`: the stored message it answers): null when it went (or there was nothing to send), else the
+ * reason to show under the composer. Sending says I am looking (it reads the panel).
+ */
+export function sendLobbyChat(raw: string, replyTo: ShownChatMsg | null = null): string | null {
   const body = cleanDmBody(raw);
   if (body == null) return raw.trim() ? LOBBY_CHAT_ERROR_TEXT.malformed : null;
   const s = useLobbyChat.getState();
@@ -192,9 +253,12 @@ export function sendLobbyChat(raw: string): string | null {
   bucket.tokens -= 1;
   seq += 1;
   const cid = `lc${seq.toString(36)}${Math.floor(now % 1e6).toString(36)}`;
+  const answers = replyTo && canReplyToLobby(replyTo) ? replyTo : null;
   const local: ShownChatMsg = { id: `local:${cid}`, cid, from: s.me ?? 'me', name: 'You', role: 'spectator', body, at: now, state: 'sending' };
-  useLobbyChat.setState({ msgs: [...s.msgs, local] });
-  session.send(LOBBY_CHAT_EVENT, { cid, body });
+  if (answers) local.reply = { id: answers.id, from: answers.from, name: answers.name, body: [...answers.body].slice(0, LOBBY_CHAT_REPLY_SNIPPET).join('') };
+  useLobbyChat.setState({ msgs: [...s.msgs, local], ...(viewing(s) ? { unread: 0 } : {}) });
+  // `replyTo` only when set: an older Worker never sees the field.
+  session.send(LOBBY_CHAT_EVENT, answers ? { cid, body, replyTo: answers.id } : { cid, body });
   return null;
 }
 
@@ -203,7 +267,8 @@ export function retryLobbyChat(cid: string): void {
   const m = useLobbyChat.getState().msgs.find((x) => x.cid === cid && x.state === 'failed');
   if (!m) return;
   useLobbyChat.setState({ msgs: useLobbyChat.getState().msgs.filter((x) => x !== m) });
-  sendLobbyChat(m.body);
+  const orig = m.reply ? useLobbyChat.getState().msgs.find((x) => x.id === m.reply!.id) ?? null : null;
+  sendLobbyChat(m.body, orig);
 }
 
 export function setLobbyChatOpen(open: boolean): void {

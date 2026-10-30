@@ -1501,6 +1501,13 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Never the game's cost.** Chat relays are separate, small `bc` events; the backlog write never holds a game frame. A
   client only shows the chat once the object answers its backlog request (`lobby_chat_sync`), so an older Worker or a
   Supabase-hosted game shows nothing.
+- **Same quality of life as direct messages (R-LOBBY-CHAT-02).** The DM chat's own row, composer and window frame
+  (`packages/ui/src/chat/`): the emote picker and inline emotes; Reply with a quote (stamped by the object from its own
+  backlog, never the payload) that jumps to the original; move by the header, resize from the grips, its own remembered
+  place on this device; pinned by default (unpinned, a press outside folds it to its button). Unread counts unless the
+  panel is open AND the page is seen (coming back, a press, typing or sending clears it). A reconnect asks the backlog
+  again with `since` (the newest message held) and merges by id. Phones keep the compact fixed panel. No Report (no
+  server record).
 
 ## Friends (owner 2026-10-26; R-FRIENDS-01, R-FRIENDS-02, R-FRIENDS-03, R-FRIENDS-04, R-FRIENDS-05)
 

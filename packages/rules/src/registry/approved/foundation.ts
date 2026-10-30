@@ -11745,4 +11745,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Kev runs the game from a dev server on the same engine as the live pack and presses Watch on IonLime\'s ranked game. Before, it always said it could not reach the game. Now it opens on the live Worker. With his network off, it says he is offline.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusCfOnly.test.ts', 'packages/ui/src/live/liveCf.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
+  {
+    id: 'R-ESCSELECT-SCROLL-01',
+    title: 'A Settings dropdown list scrolls inside itself; the Board backdrop list is two columns',
+    statement:
+      'An open dropdown list in the Settings (Esc) menu never grows past a capped height: a longer list scrolls inside '
+      + 'itself, and scrolling it to its end never carries on into the Settings page behind it. The Board backdrop list '
+      + 'lays its options out in two columns.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-30 (board cutout)', quote: 'the select dropdown needs a scroll. it causes the entire settings menu to scroll, not just the menu. can you have it have multiple columns as well? 2 columns?' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.escselect-list, .escselect-list.cols2); packages/ui/src/EscMenu.tsx (SettingSelect columns)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-30 (feat/backdrop-list-columns). Before, the list had no height cap, so the 18 backdrops ran past the panel and the whole Settings page had to scroll to reach them.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/escSelectScroll.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

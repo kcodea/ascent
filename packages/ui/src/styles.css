@@ -8078,8 +8078,14 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 .escselect-trigger:hover, .escselect.open .escselect-trigger { border-color: #e8c877; }
 .escselect-trigger:focus-visible, .escselect-opt:focus-visible { outline: 2px solid #f0d089; outline-offset: 2px; }
 .escselect-list { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 3; display: flex; flex-direction: column; gap: 2px; padding: 5px; border-radius: 10px;
+  max-height: min(420px, calc(60 * var(--vh, 1vh))); overflow-y: auto; overscroll-behavior: contain; /* R-ESCSELECT-SCROLL-01 */
   background: linear-gradient(180deg, #13203a, #0b1427); border: 1.5px solid rgba(196, 160, 92, 0.6); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.14), 0 14px 30px -10px rgba(0, 0, 0, 0.75); animation: escselin 0.12s ease-out; }
 @keyframes escselin { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+/* A long list SCROLLS INSIDE ITSELF (owner 2026-10-30: "the select dropdown needs a scroll. it causes the entire settings
+   menu to scroll, not just the menu"): capped height, its own scrollbar, and a wheel at its end never carries on into
+   the Settings page. Two columns when the select asks (the Board backdrop list), right-aligned to the row's end and as
+   wide as its labels need. */
+.escselect-list.cols2 { display: grid; grid-template-columns: repeat(2, minmax(170px, 1fr)); align-content: start; left: auto; right: 0; width: max-content; }
 .escselect-opt { text-align: left; padding: 7px 10px; border-radius: 7px; border: none; background: transparent; color: #f4eee2; font-family: var(--font-ui); font-weight: 700; font-size: 16px; }
 .escselect-opt:hover, .escselect-opt:focus-visible { background: rgba(196, 160, 92, 0.14); }
 .escselect-opt.on { color: #241705; background: linear-gradient(180deg, #f0d089, #c99d4e); }

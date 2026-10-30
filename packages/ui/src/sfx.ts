@@ -237,8 +237,13 @@ function applyComp(node: DynamicsCompressorNode, c: CompConfig): void {
 
 /** The node a category's sounds connect to: its bus input (if built), else the master limiter, else destination. */
 function busInput(a: AudioContext, category: string): AudioNode {
+  return epochInput(a, busTarget(a, category));
+}
+/** The STABLE node a category's bus feeds (its bus input, else the master limiter, else destination): what
+ *  `busInput` wraps in the current hard-stop epoch. The shared tail reverbs are keyed by it (they outlive epochs). */
+function busTarget(a: AudioContext, category: string): AudioNode {
   const b = busNodes.get(busOf(cfg, category));
-  return epochInput(a, b ? b.input : (master ?? masterOutput(a)));
+  return b ? b.input : (master ?? masterOutput(a));
 }
 
 /* ── THE COMBAT HARD STOP (R-COMBAT-HARDSTOP-01, owner 2026-10-30) ────────────────────────────────────────────────
@@ -847,19 +852,27 @@ const NO_TAIL: TailOpts = { fadeOutMs: 0, reverbMix: 0, reverbSec: 0 };
  * convolver is exactly the sum of their separate tails: each play keeps its own send (level, envelope, mix) and the
  * shared node, built once, rings into the same bus the play's dry signal goes to.
  */
-const sharedTailReverbs = new WeakMap<AudioNode, Map<number, ConvolverNode>>();
-export function sharedTailReverb(a: AudioContext, dest: AudioNode, seconds: number): ConvolverNode {
-  let byLen = sharedTailReverbs.get(dest);
-  if (!byLen) { byLen = new Map(); sharedTailReverbs.set(dest, byLen); }
-  let conv = byLen.get(seconds);
-  if (!conv) {
-    conv = a.createConvolver();
+const sharedTailReverbs = new WeakMap<AudioNode, Map<number, { conv: ConvolverNode; out: AudioNode | null }>>();
+/** The shared convolver for `bus` (a STABLE bus node, `busTarget`) and this tail length, ringing into `out` (the
+ *  bus's CURRENT hard-stop epoch input, R-COMBAT-HARDSTOP-01). A hard stop leaves the node ringing into the silenced old
+ *  epoch, so a stopped fight's tails are cut with everything else; the next play re-points it at the live epoch. */
+export function sharedTailReverb(a: AudioContext, bus: AudioNode, seconds: number, out: AudioNode = bus): ConvolverNode {
+  let byLen = sharedTailReverbs.get(bus);
+  if (!byLen) { byLen = new Map(); sharedTailReverbs.set(bus, byLen); }
+  let e = byLen.get(seconds);
+  if (!e) {
+    const conv = a.createConvolver();
     conv.buffer = reverbImpulse(a, seconds, 0.55); // cached per (length, damping, rate)
     if (LITE_ART) crumbOnce('reverb built');
-    conv.connect(dest);
-    byLen.set(seconds, conv);
+    e = { conv, out: null };
+    byLen.set(seconds, e);
   }
-  return conv;
+  if (e.out !== out) {
+    if (e.out) { try { e.conv.disconnect(); } catch { /* already */ } }
+    e.conv.connect(out);
+    e.out = out;
+  }
+  return e.conv;
 }
 /** Tests: how many shared tail reverbs exist for a destination. */
 export const sharedTailReverbCount = (dest: AudioNode): number => sharedTailReverbs.get(dest)?.size ?? 0;
@@ -899,7 +912,7 @@ function playTailedSample(name: string, category: string, vol: number, delay: nu
   if (tail.reverbMix > 0 && reverbSec > 0) {
     send = a.createGain();
     send.gain.value = tail.reverbMix;
-    env.connect(send).connect(sharedTailReverb(a, dest, reverbSec));
+    env.connect(send).connect(sharedTailReverb(a, busTarget(a, category), reverbSec, dest));
     nodes.push(send); // only the send is this play's: the shared convolver is never disconnected
   }
   const when = a.currentTime + Math.max(0, delay);
@@ -1994,7 +2007,7 @@ export const sfx = {
     // (R-PERF-SHARED-TAIL-REVERB-01) so no fight ever builds one as the gate lifts.
     onAudioContextReady((a) => {
       reverbImpulse(a, WIPE_CRANK_REVERB_SEC, 0.55);
-      for (const l of WIPE_GATE_LAYERS.crank) if (l.reverb) sharedTailReverb(a, busInput(a, l.category ?? l.clip), WIPE_CRANK_REVERB_SEC);
+      for (const l of WIPE_GATE_LAYERS.crank) if (l.reverb) sharedTailReverb(a, busTarget(a, l.category ?? l.clip), WIPE_CRANK_REVERB_SEC, busInput(a, l.category ?? l.clip));
     });
   },
   warmGate: (): void => { for (const clip of [...Object.values(GATE_CLIP), 'combatStart', 'gatehum', 'placelow']) loadSample(clip); }, // + the End Turn cue "Yes" plays, the hum, and the end-of-match tone

@@ -40,11 +40,22 @@ describe('the soft-tail voice shares one reverb per (bus, tail length)', () => {
     expect(convolvers()).toBe(3);
   });
 
+  it('a hard stop (a new epoch) re-points the SAME node at the live epoch: one node for the whole session', () => {
+    const { a, convolvers, bus } = fakeCtx();
+    const stable = bus(); const epoch1 = bus(); const epoch2 = bus();
+    const c1 = sharedTailReverb(a, stable, 1.2, epoch1);
+    expect((c1 as unknown as { outs: unknown[] }).outs).toEqual([epoch1]);
+    const c2 = sharedTailReverb(a, stable, 1.2, epoch2); // the next fight, after R-COMBAT-HARDSTOP-01 opened a new epoch
+    expect(c2).toBe(c1);
+    expect(convolvers()).toBe(1);
+    expect((c2 as unknown as { outs: unknown[] }).outs).toEqual([epoch2]); // no longer ringing into the cut epoch
+  });
+
   it('playTailedSample builds no convolver of its own (it sends into the shared one)', () => {
     const src = fs.readFileSync(path.join(__dirname, '..', 'sfx.ts'), 'utf8');
     const body = src.slice(src.indexOf('function playTailedSample('), src.indexOf('export function playTailedClip('));
     expect(body.length).toBeGreaterThan(200);
     expect(body).not.toContain('createConvolver');
-    expect(body).toContain('sharedTailReverb(a, dest, reverbSec)');
+    expect(body).toContain('sharedTailReverb(a, busTarget(a, category), reverbSec, dest)');
   });
 });

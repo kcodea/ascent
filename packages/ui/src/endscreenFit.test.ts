@@ -22,6 +22,7 @@ describe('the end-of-game rank screen fits the window', () => {
     for (const line of [
       '.heroselect.rankend { overflow: hidden; }',
       '.rankend .endbox { max-height: 100%; min-height: 0; }',
+      '.rankend .endbox { zoom: calc(var(--hs-zoom) * 0.9); }', // 10% smaller, still scaled by the screen (owner 2026-10-30)
       '.rankend-panel { max-height: 100%; min-height: 0; }',
       '.rankend-panel > * { flex-shrink: 0; }',
       '.rankend-panel > .acctxp { flex-shrink: 1; min-height: 0; }',

@@ -13715,6 +13715,9 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
    R-ENDSCREEN-FIT-01. */
 .heroselect.rankend { overflow: hidden; }
 .rankend .endbox { max-height: 100%; min-height: 0; }
+/* 10% smaller than the shared overlay size (owner 2026-10-30: "can we size everything down by 10% now?"). It rides
+   --hs-zoom, which already follows the stage height, so it scales with the screen at every size. */
+.rankend .endbox { zoom: calc(var(--hs-zoom) * 0.9); }
 .rankend-panel { max-height: 100%; min-height: 0; }
 .rankend-panel > * { flex-shrink: 0; }
 .rankend-panel > .acctxp { flex-shrink: 1; min-height: 0; }

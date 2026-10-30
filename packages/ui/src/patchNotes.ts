@@ -124,6 +124,10 @@ export const PATCH_NOTES: PatchNote[] = [
         'Your hero\'s attack, voice lines and any late combat sound no longer play on behind the return to the shop.',
         'The fight\'s result is unchanged.',
       ] },
+      { category: 'Systems', text: 'Fights start more smoothly, and the game uses less memory the longer you play.', details: [
+        'The sound of the gate lifting no longer sets up its echo from scratch at the start of every fight. It sounds the same.',
+        'Sound effects with an echo no longer keep piling up memory over a long game.',
+      ] },
       { category: 'Systems', text: 'Duos: Golden minions can no longer be passed to your teammate.', details: [
         "Drag one over your teammate's portrait and it shows why. Let go and it stays in your hand. No Gold is spent.",
       ] },

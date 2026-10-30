@@ -64,6 +64,8 @@
  *                                                  and write <out>/raw-run*.json, so one scene can be read round over round
  *   npm run perf:gauntlet -- --cpu-throttle 4         Chrome CPU throttling (DevTools' 4x: a mid-range phone's main thread)
  *   npm run perf:gauntlet -- --css "<rules>"         inject CSS (test what a CSS change would buy before making it)
+ *   npm run perf:gauntlet -- --init-js "<code>"      run JS before any page script (stub an API to A/B what it costs, e.g.
+ *                                                  createConvolver for the reverb memory hunt, docs/performance.md §3m)
  *   npm run perf:gauntlet -- --hold 60               keep the page open after the walk (CDP on port+1) to inspect it
  *   A run that loses a scene is run again once (--no-retry turns that off).
  *   npm run perf:gauntlet -- --headless         no window (main-thread numbers only; frame intervals are not real)
@@ -81,7 +83,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { LITE_CENSUS_REQS, budgetVerdict, foldRuns, framesByScene, imageCensusVerdict, median, refreshInterval, sceneStats, winner } from '../packages/tools/src/perfGauntletStats.ts';
+import { LITE_CENSUS_REQS, budgetVerdict, bufferGrowthVerdict, foldRuns, framesByScene, imageCensusVerdict, median, refreshInterval, sceneStats, winner } from '../packages/tools/src/perfGauntletStats.ts';
 
 const args = process.argv.slice(2);
 const arg = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : d; };
@@ -1346,6 +1348,13 @@ for (let i = 0; i < schedule.length; i++) {
       log(table.join('\n'));
       fs.writeFileSync(path.join(OUT, `img-census-run${i + 1}-${n}.txt`), `${table.join('\n')}\n`);
       if (!v.ok) censusFailed = true;
+      // --mem-infra: the Blink buffer partition (where reverb convolvers live) must not grow round over round.
+      if (MEM_INFRA) {
+        const bRows = raw.probe.filter((p) => p.memInfra).map((p) => { const ren = Object.entries(p.memInfra).find(([k]) => k.startsWith('Renderer')); return { r: p.r, bufferMB: ren ? Math.round(ren[1]['partition_alloc/partitions/buffer'] ?? 0) : NaN }; });
+        const bv = bufferGrowthVerdict(bRows);
+        log('   ' + bv.line + '  [' + bRows.map((x) => x.bufferMB).join(' ') + ']');
+        if (!bv.ok) censusFailed = true;
+      }
     }
     if (a.missed.length) { failed++; log(`   missed: ${a.missed.join(', ')}`); }
     if (a.hiddenFrames) log(`   WARNING: ${a.hiddenFrames} frame(s) inside a scene ran while the page was hidden (dropped from the report). Keep the window visible.`);

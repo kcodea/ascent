@@ -1041,10 +1041,20 @@ Owner, via the lead: performance degrades over a game, worse on phones. Numbers 
   `LayerTreeHost::QueueImageDecode`) and 200-700 ms of decode-worker time, for pictures the boot gate already held. A
   ready URL now settles at once (the element paints with `decoding="sync"`, so never blank); only art the pipe has not
   decoded waits on decode(). `--img-census` fails a round over 100 script decodes.
-- **Desktop renderer growth that is left is not images.** After the fix, `web_cache` (156 MB), `discardable`, the
+- **Desktop renderer growth that is left (#2462) is not images.** After the fix, `web_cache` (156 MB), `discardable`, the
   `cc` tile memory and the GPU process's shared images are flat or bounded; the renderer still grows (~34 MB a round
   headless, seed 424242), in `partition_alloc/partitions/buffer` (in steps), the SFX cache filling to its cap
   (`array_buffer`, R-AUDIO-MEMORY-02) and `blink_gc`. See the devlog for the per-allocator table.
+- **A Web Audio ConvolverNode is ~60 MB of renderer memory at a 96 kHz context** (R-PERF-SHARED-TAIL-REVERB-01,
+  2026-10-30; `docs/devlog/2026-10-30-reverb-convolver-memory.md`). Its partitioned impulse and FFT buffers live in
+  Blink's `partition_alloc/partitions/buffer`, and building one costs ~6 ms of main thread. That was the whole
+  "buffer grows in 60 MB steps" mystery: stubbing `createConvolver` kept the partition at ~60 MB all game. Never build
+  one per play. A voice whose tail is linear after the send (the soft-tail voice) shares ONE convolver per (bus, tail
+  length), built when audio starts: the falling gate's four reverb crank layers used to build four on every fight (a
+  155 MB allocate-and-free and ~25 ms of main thread as the gate lifted). The effect-layer pool keeps at most 2 idle
+  nodes per impulse (it kept up to 8, so its high-water mark stayed resident). To find this kind of thing: a
+  memory-infra dump every second beside the game state (the watcher in the devlog), then A/B a stubbed API with
+  `perf:gauntlet --init-js`.
 
 ## 4. Established anti-patterns (don't reintroduce these)
 

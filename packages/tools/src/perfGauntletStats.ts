@@ -183,3 +183,23 @@ export function imageCensusVerdict(rows: readonly ImageCensusRow[], opts: { from
   const line = `image census r${from}+: worst round ${worst} image requests (limit ${maxReqs})${queued === null ? '' : `, worst round ${queued} script decodes (limit ${maxQueued})`}${slope === null ? '' : `, renderer ${slope >= 0 ? '+' : ''}${slope.toFixed(1)} MB/round${Number.isFinite(maxSlope) ? ` (limit ${maxSlope})` : ' (reported)'}`}: ${ok ? 'PASS' : 'FAIL'}`;
   return { ok, line, maxReqs: worst, slopeMB: slope };
 }
+
+/**
+ * THE BLINK BUFFER GUARD (R-PERF-SHARED-TAIL-REVERB-01, 2026-10-30). The renderer's `partition_alloc/partitions/buffer`
+ * (Chrome's memory-infra; `perf:gauntlet --img-census --mem-infra` reads it every round) is where a Web Audio
+ * ConvolverNode keeps its partitioned impulse and FFT buffers, ~60 MB each at a 96 kHz context: the reverb pool grew it
+ * in 60 MB steps over a game. From `fromRound` on its least-squares slope must stay at or under `maxMBPerRound` (8).
+ */
+export function bufferGrowthVerdict(rows: ReadonlyArray<{ r: number; bufferMB: number }>, opts: { fromRound?: number; maxMBPerRound?: number } = {}): { ok: boolean; line: string; slopeMB: number | null } {
+  const from = opts.fromRound ?? 3;
+  const max = opts.maxMBPerRound ?? 8;
+  const late = rows.filter((x) => x.r >= from && Number.isFinite(x.bufferMB));
+  if (late.length < 3) return { ok: true, line: `buffer partition: too few rounds from r${from} to judge`, slopeMB: null };
+  const mx = late.reduce((s, x) => s + x.r, 0) / late.length;
+  const my = late.reduce((s, x) => s + x.bufferMB, 0) / late.length;
+  const num = late.reduce((s, x) => s + (x.r - mx) * (x.bufferMB - my), 0);
+  const den = late.reduce((s, x) => s + (x.r - mx) ** 2, 0);
+  const slope = den ? num / den : 0;
+  const ok = slope <= max;
+  return { ok, slopeMB: slope, line: `buffer partition r${from}+: ${late[0]!.bufferMB} -> ${late[late.length - 1]!.bufferMB} MB, ${slope >= 0 ? '+' : ''}${slope.toFixed(1)} MB/round (limit ${max}): ${ok ? 'PASS' : 'FAIL'}` };
+}

@@ -12174,4 +12174,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A shop roll mounts seven cards. Before, each of their art, frame and plate images asked for a decode of a picture already decoded at boot. Now they just show.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/artDecodeOnce.test.tsx', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
+  {
+    id: 'R-PERF-SHARED-TAIL-REVERB-01',
+    title: 'A fight never builds reverb nodes as it starts, and the reverb pool never grows over a game',
+    statement:
+      'The soft-tail voice (the falling gate, the Discover entrance cues) sends every reverb play into ONE shared '
+      + 'convolver per bus and tail length, built once when audio starts, never one per play. The effect sound layers keep '
+      + 'at most 2 idle convolvers per reverb impulse on desktop (1 on a phone); a node built past that during a burst is '
+      + 'let go once its tail has rung out. The sound is unchanged: convolution is linear, so a shared node rings exactly '
+      + 'the sum of the separate tails.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29/30 (top priority)', quote: 'performance degrades over a game, worse on phones' },
+      { kind: 'code', ref: 'packages/ui/src/sfx.ts (sharedTailReverb, playTailedSample, warmWipeGate); packages/ui/src/fx/audioFilters.ts (CONVOLVER_POOL_MAX)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-30 (perf/renderer-buffer-growth). Before, each of the four reverb crank layers built a new '
+      + 'ConvolverNode on every fight as the gate lifted (a 155 MB allocate-and-free and about 25 ms of main thread on '
+      + 'every combat start at a 96 kHz context), and the effect pool kept up to 8 idle nodes per impulse, about 60 MB '
+      + 'each, so the renderer grew in 60 MB steps over a game.',
+    example: 'Every End Turn drops the gate and winches it back up with a reverb crank. Before, each fight built four reverb nodes for it, about 155 MB, and threw them away 3 s later. Now the crank sends into one reverb built when the game starts.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/sharedTailReverb.test.ts', 'packages/ui/src/fx/convolverPool.test.ts', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

@@ -129,7 +129,7 @@ const DEFAULTS: LobbyRailLookConfig = {
   medY: 0,
   medScale: 1,
   medGap: 1,
-  medBacking: 0.55,
+  medBacking: 0.92, // owner 2026-10-30: "more opacity, like not transparent"
   medHp: 1.3,
 
   faceScale: 1.74,
@@ -223,6 +223,9 @@ let cfg: LobbyRailLookConfig = (() => {
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
     const merged: LobbyRailLookConfig = { ...DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<LobbyRailLookConfig>) : {}) };
+    // The first cut's backing default (0.55) was saved into every config written since; the owner meant MORE opaque
+    // (2026-10-30), so a save still sitting on that untouched old default takes the new one.
+    if (merged.medBacking === 0.55) merged.medBacking = DEFAULTS.medBacking;
     // `?rail=a|b|c|current` (owner review 2026-10-30) picks the look and remembers it, like the tuner's select.
     const q = RAIL_PARAM[(new URLSearchParams(window.location.search).get('rail') ?? '').toLowerCase()];
     if (q) {
@@ -335,7 +338,7 @@ const controls: TunerControl<Extract<keyof LobbyRailLookConfig, string>>[] = [
   r('medY', 'Move up / down', 'Medallions (C)', 'px', 'Nudges the Medallions rail, its header and its Guides tab. Positive = down.'),
   r('medScale', 'Medallion size', 'Medallions (C)', '×', 'Scales the portrait medallions and the names and health beside them.'),
   r('medGap', 'Gap between medallions', 'Medallions (C)', '×', 'The space between one medallion and the next.'),
-  r('medBacking', 'Backing opacity', 'Medallions (C)', 'opacity', 'How dark the panel behind the medallions is. 0 = no backing at all.'),
+  r('medBacking', 'Backing opacity', 'Medallions (C)', 'opacity', 'How solid the panel behind the medallions is. 1 = fully opaque, 0 = no backing at all.'),
   r('medHp', 'Health / Armor size', 'Medallions (C)', '×', 'Size of the heart + Armor pill beside each medallion.'),
   {
     key: 'look', label: 'Lobby rail', group: 'Look', kind: 'select', options: LOBBY_RAIL_LOOKS, optionLabels: LOOK_LABELS,

@@ -267,7 +267,7 @@ html:root[data-lobby-rail="ledger"] .lobbyseat.dead .lrv-medal { right: -30%; bo
      --rvc-x / --rvc-y   nudge the rail, its header and its Guides tab (stage px; a `translate`, so the staged slide-away
                          `transform` still composes and nothing else moves)
      --rvc-scale         medallion + text scale         --rvc-gap   the space between medallions (x)
-     --rvc-bg            the backing's opacity (0 = none) --rvc-hp    the Health / Armor pill size (x)
+     --rvc-bg            the backing's opacity (1 = solid, owner wants it near solid) --rvc-hp    the Health / Armor pill size (x)
    The fallbacks here are the shipped values, so the look holds with no tuner. */
 html:root[data-lobby-rail="medallion"] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) {
   translate: calc(var(--rvc-x, 0) * 1px) calc(var(--rvc-y, 0) * 1px);
@@ -282,8 +282,8 @@ html:root[data-lobby-rail="medallion"] .lobbyrail {
   /* The minimal frame: a soft dark column with a gold hairline, fading out at the foot under the painted divider. */
   background:
     url('/frames/name-divider.webp') 50% calc(100% - 7 * var(--lu)) / 86% calc(9 * var(--lu)) no-repeat,
-    linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-bot) calc(88% * var(--rvc-bg, 0.55)), transparent), color-mix(in srgb, var(--ui-plate-bot) calc(72% * var(--rvc-bg, 0.55)), transparent));
-  outline: 1px solid color-mix(in srgb, var(--ui-edge-main) calc(55% * min(1, var(--rvc-bg, 0.55) + 0.3)), transparent); outline-offset: -4px;
+    linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-bot) calc(100% * var(--rvc-bg, 0.92)), transparent), color-mix(in srgb, var(--ui-plate-bot) calc(96% * var(--rvc-bg, 0.92)), transparent));
+  outline: 1px solid color-mix(in srgb, var(--ui-edge-main) 60%, transparent); outline-offset: -4px;
 }
 html:root[data-lobby-rail="medallion"] .lobbyrail::before,
 html:root[data-lobby-rail="medallion"] .lobbyrail::after { content: none; }
@@ -399,7 +399,7 @@ html:root[data-lobby-rail="medallion"] .lobbyseat.dead.foe.ghost { opacity: 1; }
 /* C: minimal: a dark hairline plate, the big medallion over the name, centred. */
 .lobbyscout.lrv-scout-medallion {
   border: 1px solid color-mix(in srgb, var(--ui-edge-main) 60%, transparent); border-radius: calc(14 * var(--lu));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ui-plate-mid) 96%, transparent), color-mix(in srgb, var(--ui-plate-bot) 98%, transparent));
+  background: linear-gradient(180deg, var(--ui-plate-mid), var(--ui-plate-bot));
   box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.85);
 }
 .lobbyscout.lrv-scout-medallion .lrv-scouthead { flex-direction: column; text-align: center; gap: calc(4 * var(--lu)); }

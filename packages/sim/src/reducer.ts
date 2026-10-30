@@ -33,8 +33,8 @@ import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpel
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
-import { applyDuosPass, isDuosTeamWire, queueTeamEffect, receiveDuosPass, refundDuosPass } from './duosPass';
-import { applyOwnTeamEffect, fireSelfObtained, fireTeamPassTriggers, receiveTeamEffect } from './recruit';
+import { applyDuosPass, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass } from './duosPass';
+import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, receiveTeamEffect } from './recruit';
 import { advanceDuosMeters, armDuosRune, duosMetersMods, settleDuosMeters } from './duosRunes';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -626,6 +626,45 @@ const QUEST_TICK_EVENTS: Partial<Record<Action['type'], QuestObjectiveEvent>> = 
  *  owner ruling 2026-08-08). Returns false when the pick can't resolve (bad index / unknown card); the
  *  full hand is a legitimate forfeit and still counts as taken. */
 function takeDiscoverPick(s: RunState, index: number): boolean {
+  // DUOS-ONLY CARDS (R-DUOS-CARDS-05): the open Discover's Duos rider, consumed by this pick (each open sets its own).
+  const rider = s.discoverDuos;
+  s.discoverDuos = undefined;
+  // Matchmaker: the pick is PASSED to the teammate (an effect pass: free, counts as a pass) instead of joining the hand.
+  if (rider === 'pass' && s.duos) {
+    const passed = takeDiscoverPickAsPass(s, index);
+    if (passed !== null) return passed;
+  }
+  const options = [...(s.discover ?? [])];
+  const ok = takeDiscoverPickCore(s, index);
+  // Disco: every option NOT taken goes to the teammate's hand (a gift each, landed and resolved by their run).
+  if (ok && rider === 'rest') {
+    options.forEach((other, i) => { if (i !== index && CARD_INDEX[other]) queueTeamEffect(s, { kind: 'gift', cardId: other, count: 1 }); });
+  }
+  return ok;
+}
+
+/** Matchmaker's pick, passed: the discovered minion is built as a hand pick would be (this run's card buffs, the pool
+ *  copy taken) and goes out through THE effect pass. Null = not passable (a spell / Ruby option, a Gilded Discover: a
+ *  Golden card is never passed): the caller hands it over normally instead. */
+function takeDiscoverPickAsPass(s: RunState, index: number): boolean | null {
+  const id = s.discover?.[index];
+  const def = id ? CARD_INDEX[id] : undefined;
+  if (!def) return false;
+  if (def.spell || def.ruby || s.discoverGolden) return null;
+  const card: BoardCard = {
+    uid: `b${s.uidSeq++}`,
+    cardId: def.id,
+    tribe: def.tribe,
+    ...conjuredStats(s, def, cardBuff(s, def.id)),
+    keywords: [...def.keywords],
+    golden: false,
+  };
+  takeFromPool(s, def.id);
+  if (!effectPassCard(s, card, 'hand', s.hand.length)) { s.uidSeq--; return null; }
+  return true;
+}
+
+function takeDiscoverPickCore(s: RunState, index: number): boolean {
   const id = s.discover?.[index];
   const def = id ? CARD_INDEX[id] : undefined;
   if (!def) return false;
@@ -725,6 +764,7 @@ function autoResolveEotDiscovers(s: RunState): void {
     s.discover = undefined;
     s.discoverLockTier = undefined; s.discoverLockGold = undefined; s.discoverLockWave = undefined;
     s.discoverBorrowed = undefined; s.discoverGolden = undefined; s.discoverSetStats = undefined; s.discoverExtraCasts = undefined;
+    s.discoverDuos = undefined;
   };
   let guard = 0;
   while ((s.discover?.length || (s.discoverQueue?.length ?? 0) > 0) && guard++ < 20) {
@@ -958,7 +998,14 @@ export function reduce(state: RunState, action: Action): RunState {
     settlePendingDeath(settled);
     state = settled;
   }
-  const next = reduceCore(state, action);
+  let next = reduceCore(state, action);
+  // DUOS (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01: "they get the card once there is space in their hand"): an
+  // effect pass waiting on a full hand lands the moment this action made room. Before the hand diff below, so a landed
+  // card is a card added to the hand like any other; a landed copy can complete a triple in the Shop.
+  if (next.duos?.waiting?.length) {
+    const landed = landWaitingPasses(next);
+    if (landed !== next) { next = landed; if (next.phase === 'recruit') checkTriples(next); }
+  }
   // THE POST-BUFF PHASE (owner 2026-10-18): a refresh's stat MULTIPLIERS (Rune of the Embers) resolve here, after
   // EVERYTHING the action did — so they double the final value, never a value an additive buff then tops up. Ahead
   // of the boundary diffs below on purpose: Starform growth, the "give Shop minions stats" tally and the rest must
@@ -1462,6 +1509,17 @@ function reduceCore(state: RunState, action: Action): RunState {
   // A finished run (loss or victory) takes no more actions — restart goes through the store.
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
   // VERSUS DUOS (R-DUOS-PASS-01): a teammate's pass lands whatever the phase or modal (it waits for room / the Shop).
+  // DUOS-ONLY CARDS (R-DUOS-CARDS-05): the teammate's board as this run last saw it (Matchmaker reads it). A shallow
+  // update: nothing else on the run moves, so no draft is cloned. Counts are clamped (they come from the client).
+  if (action.type === 'noteMateTribes') {
+    if (!state.duos || !action.tribes || typeof action.tribes !== 'object') return state;
+    const tribes: Partial<Record<Tribe, number>> = {};
+    for (const [t, n] of Object.entries(action.tribes)) {
+      if (!(TRIBES as readonly string[]).includes(t) || t === 'neutral') continue;
+      tribes[t as Tribe] = Math.min(7, Math.max(0, Math.floor(typeof n === 'number' && Number.isFinite(n) ? n : 0)));
+    }
+    return { ...state, duos: { ...state.duos, mateTribes: tribes } };
+  }
   if (action.type === 'receivePass') {
     // DUOS-ONLY CARDS (R-DUOS-CARDS-01): a TEAM EFFECT rides the pass channel (`passFrom: 'team'`); this run resolves it.
     if (isDuosTeamWire(action.card)) {
@@ -2205,7 +2263,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         // repeat reads the Whisper's value afresh (Runebind improves between them). Its multiplier rides the cast.
         if (def.whisper) {
           const whisperTarget = def.target ? s.board.find((c) => c.uid === action.targetUid) : undefined;
-          if (def.target && !whisperTarget) return state; // aimed with no friendly target -> fizzle, kept in hand
+          // An `any` Whisper (CueBee's Pass, R-DUOS-CARDS-05) may also aim at a Shop MINION, as an `any` Shop spell does.
+          const whisperOffer = def.target === 'any' && !whisperTarget ? s.shop.find((o) => o.uid === action.targetUid && !CARD_INDEX[o.cardId]?.spell && !o.starform) : undefined;
+          if (def.target && !whisperTarget && !whisperOffer) return state; // aimed with no target -> fizzle, kept in hand
+          // `targetNoGolden` (Pass: a Golden minion can never be passed): refused, kept in hand.
+          if (def.targetNoGolden && (whisperTarget?.golden || whisperOffer?.golden)) return state;
           // Ripple (Falx, 2026-10-14) only fires on a minion with a Shout: any other target is refused, kept in hand (the
           // Resonance precedent above, and the aim UI's `whisperTargetLegal`).
           if (whisperTarget && !whisperTargetLegal(def, whisperTarget)) return state;
@@ -2222,6 +2284,12 @@ function reduceCore(state: RunState, action: Action): RunState {
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
           withWhisperMult(card.whisperMult ?? 1, () => {
+            // A Shop-offer Whisper resolves on the offer (`castSpellOnOffer`, the `any` Shop-spell path), once per cast
+            // while the offer is still there (a Pass takes it out of the Shop, so a repeat has nothing to land on).
+            if (whisperOffer) {
+              for (let n = 0; n < whisperCasts && s.shop.includes(whisperOffer); n++) castSpellOnOffer(s, def, whisperOffer);
+              return;
+            }
             for (let n = 0; n < whisperCasts; n++) {
               if (whisperTarget && !s.board.includes(whisperTarget)) break;
               // Every cast here is a cast FROM HAND: Lasting Words and Twin Tongues hook it (sim/whisper.ts).
@@ -3899,6 +3967,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.discoverKeywords = undefined;
       s.discoverExtraCasts = undefined;
       s.discoverIntoShopUid = undefined;
+      s.discoverDuos = undefined;
       // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
       // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
       // (offerDiscover/offerSpellDiscover leave `discover` unset) — keep draining the rest so the queue

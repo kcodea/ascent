@@ -86,6 +86,8 @@ export const EffectFactoryIdSchema = z.enum([
   'passedSpellGetCopy',
   'demonConsumesShop',
   'spellBuffTeamLeftmost',
+  'discoverRestToTeammate',
+  'discoverMateTribePass',
   'giftTierAboveMinion',
   'giftSecondCalling',
   'giftPartingGifts',

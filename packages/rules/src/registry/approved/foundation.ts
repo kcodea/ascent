@@ -2082,8 +2082,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice tribes, enemy pool)', quote: 'they can use the full set, the tribe surge is just for the player' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice screen)', quote: "practice tribe surge should only have the active set's tribes." },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice screen, follow-up)', quote: "yeah let's change tribe surge to that tribe's cards plus neutral cards, and all spells associated, but make it multi select. so i can choose demons + dragons and have demons/dragons/neutrals in the game. reword 'none' to 'Normal'" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice screen)', quote: "practice tribe surge should only have the active set\x27s tribes." },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (Practice screen, follow-up)', quote: "yeah let\x27s change tribe surge to that tribe\x27s cards plus neutral cards, and all spells associated, but make it multi select. so i can choose demons + dragons and have demons/dragons/neutrals in the game. reword 'none' to 'Normal'" },
       { kind: 'code', ref: 'packages/sim/src/practiceTribes.ts (options, toggle, practiceRunTribes); packages/sim/src/lobby/runLobby.ts createLobbyRun; packages/sim/src/cardPool.ts poolOf; packages/core/src/tribeGate.ts inRunTribes; packages/ui/src/PracticeOptions.tsx' },
     ],
     currentBehaviour:
@@ -2397,7 +2397,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (level crates + catalog brief)', quote: "let's just do 15 titles to start. we'll start creating assets for the catalog as well." },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-27 (level crates + catalog brief)', quote: "let\x27s just do 15 titles to start. we\x27ll start creating assets for the catalog as well." },
       { kind: 'code', ref: 'COSMETICS / COSMETIC_CATEGORY_DEFS in packages/progression/src/cosmetics.ts; cosmetic_categories + cosmetic_catalog seeds and equip_title in supabase/migrations/2026-09-28-progression-crates.sql; packages/ui/src/progression/CollectionScreen.tsx' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. Title names are placeholders for the owner to rename (ids stay).',
@@ -2492,8 +2492,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: "let's use these 2 black belt brian skins as our first 2 skin concepts" },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: "let's use these 2 hero skins as our first 2 hero skin concepts" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: "let\x27s use these 2 black belt brian skins as our first 2 skin concepts" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: "let\x27s use these 2 hero skins as our first 2 hero skin concepts" },
       { kind: 'code', ref: 'packages/ui/src/skins/skinArt.ts (heroPortrait / minionSkinMap / the Card context); packages/sim/src/snapshot.ts (scopeCosmetics); packages/sim/src/lobby/snapshotSeats.ts + runLobby.ts (seat cosmetics); packages/ui/src/store.ts (recordRunCosmetics)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-28: Sheriff Brian, Glitch Brian, Grandmaster Brian and Sketchbook Brian (Black Belt Brian), Clocktower Voss (Bellringer Voss), the batch-2 minion skins (R-PROG-SKINS-07), Surf Day Albus, Bath Day Warden (placeholder names).',
@@ -2535,7 +2535,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (skins v1 brief)', quote: 'we need to have the ability to remove any rewards from the game if we want to as well' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (catalog sync ruling)', quote: "yeah let's do option 2 then to make it automated when i add skins" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (catalog sync ruling)', quote: "yeah let\x27s do option 2 then to make it automated when i add skins" },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (isCosmeticLive / parseServerCatalogState, which reads admin_off); supabase/migrations/2026-09-28-progression-skins.sql (admin_off, the four one-line switches in its header, the effective state in progression_crate_pool / equip_cosmetic / progression_profile_json); packages/ui/src/progression/collectionModel.ts (albumOf)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The Chest Shop\x27s client pool (crateShop.ts eligibleForCrate / availableFocusCategories, 2026-10-19 final review) honours the server switches too, as the SQL pool always did: a switched-off item is not counted, and a switched-off category offers no focus chip and is never priced, so the shop never quotes what the server refuses (crateShop.test.ts, CrateShop.test.tsx).',
@@ -2556,7 +2556,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (catalog sync ruling)', quote: "yeah let's do option 2 then to make it automated when i add skins" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (catalog sync ruling)', quote: "yeah let\x27s do option 2 then to make it automated when i add skins" },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (catalogSyncPayload / catalogHash); packages/progression/src/inventory.ts (syncCatalogOnce); supabase/functions/progression-inventory/index.ts; supabase/migrations/2026-09-28-progression-skins.sql (sync_cosmetic_catalog)' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. Takes effect once the owner pastes the skins SQL and deploys progression-inventory.',
@@ -2710,10 +2710,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (skin rarity folders)', quote: "i also put all these skins into rarity folders which is how i'll do it from now on" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (skin rarity folders)', quote: "i also put all these skins into rarity folders which is how i\x27ll do it from now on" },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-01 (skin rarity folders)', quote: 'correct their rarities as such' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (skins batch 8)', quote: "ive also added many skins to the game's collections. can you add those all in" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (skins batch 8)', quote: "ive also added many skins to the game\x27s collections. can you add those all in" },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-07 (skins batch 9)', quote: 'yes add the new art to the catalog' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS skin rarities); packages/tools/src/wire-art.ts (SKIN_RARITY_DIRS)' },
     ],
@@ -2779,7 +2779,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (skins batch 8)', quote: "ive also added many skins to the game's collections. can you add those all in" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (skins batch 8)', quote: "ive also added many skins to the game\x27s collections. can you add those all in" },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 8); packages/ui/src/art/skins/*.webp' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-03. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
@@ -2868,7 +2868,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: "let's just get the normal xp related achievements in for now though." },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: "let\x27s just get the normal xp related achievements in for now though." },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: 'we need set 2 achievements because that is the active set right now.' },
       { kind: 'code', ref: 'packages/progression/src/achievements.ts (ACHIEVEMENTS, rewards.titleId, hidden)' },
     ],
@@ -2890,7 +2890,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: "let's just get the normal xp related achievements in for now though." },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: "let\x27s just get the normal xp related achievements in for now though." },
       { kind: 'code', ref: 'supabase/migrations/2026-09-28-achievements.sql (settle_progression step 7b, sync_achievement_catalog); packages/progression/src/achievements.ts evaluateAchievements' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-28.',
@@ -2909,7 +2909,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: `we'll need an achievements tab in career next to practice. most should show, with their reward, but the hidden ones will be blurred or say "Hidden"` },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (achievements batch 1 brief)', quote: `we\x27ll need an achievements tab in career next to practice. most should show, with their reward, but the hidden ones will be blurred or say "Hidden"` },
       { kind: 'code', ref: 'packages/ui/src/progression/AchievementsTab.tsx; packages/ui/src/progression/achievementsModel.ts; packages/ui/src/progression/ProgressionPostgame.tsx; packages/ui/src/Career.tsx' },
     ],
     currentBehaviour: 'Conforms, built 2026-09-28. The 3 Career showcase slots are a follow-up.',
@@ -3145,7 +3145,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Arcana hero attack)', quote: "let's branch out and make one more attack animation, same setup as the last 2, but let's make like a magic one called arcana. tier 1 attack will be s clean pixi ribbon arc'd and lobbed from hero location. tier 2 attack will be 2 of those. tier 3 attack will be barrage of 5 of those. tier 4 attack will be a swirl of them over the opponent hero frame and then they explode and ribbon/pixi blast outward" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Arcana hero attack)', quote: "let\x27s branch out and make one more attack animation, same setup as the last 2, but let\x27s make like a magic one called arcana. tier 1 attack will be s clean pixi ribbon arc\x27d and lobbed from hero location. tier 2 attack will be 2 of those. tier 3 attack will be barrage of 5 of those. tier 4 attack will be a swirl of them over the opponent hero frame and then they explode and ribbon/pixi blast outward" },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Arcana review)', quote: 'arcana looks so god damn good' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_arcana); packages/ui/src/heroArcana/ (heroArcanaConfig arcanaPlan / arcanaCues / ribbonMotions, heroArcana playHeroArcana, heroArcanaScene); the shared core in packages/ui/src/heroAttack/' },
     ],
@@ -4449,7 +4449,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (portrait frames batch 5, Kevin)', quote: 'added more skins' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (portrait frames batch 6, Kevin)', quote: 'i added more frames, please put them in the game' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (frames batch 7)', quote: "ive also added many skins to the game's collections. can you add those all in" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-03 (frames batch 7)', quote: "ive also added many skins to the game\x27s collections. can you add those all in" },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (frames batch 8, Mike)', quote: 'i added a skin just to test to make sure this process works. lets wire it up' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (frames batch 9, Mike)', quote: 'wire them up' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portraitFrame items, portrait_frame category, GLOBAL_EQUIP_SLOTS, portraitFrameOf); supabase/migrations/2026-10-01-portrait-frames.sql (equip_cosmetic)' },
@@ -5329,7 +5329,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner decision relayed by the coordinator, 2026-10-11 (card-size art proposal)', quote: "just fix the 24 and then let's wrap up" },
+      { kind: 'owner-chat', ref: 'Owner decision relayed by the coordinator, 2026-10-11 (card-size art proposal)', quote: "just fix the 24 and then let\x27s wrap up" },
       { kind: 'fix-pr', ref: 'PR fix/oversized-art-512 (2026-10-11)' },
       { kind: 'code', ref: 'scripts/optimize-art.mjs MAX / MAX_BY_DIR; packages/tools/src/wire-art.ts ART_PX' },
     ],
@@ -6272,7 +6272,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (rail audit call 5: watchers lacked the watched game\'s recordings)', quote: "how big of a fix is it? if it's not that hard yes fix it. spectators should get as close to 1:1 experience as a player" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (rail audit call 5: watchers lacked the watched game\'s recordings)', quote: "how big of a fix is it? if it\x27s not that hard yes fix it. spectators should get as close to 1:1 experience as a player" },
       { kind: 'fix-pr', ref: 'PR fix/spectator-recorded-seats (2026-10-16): setWatchedSeatRuns + driverFor; liveWatch fetches the seats by seed; refreshSpectatorSeats' },
       { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts setWatchedSeatRuns / driverFor; packages/ui/src/live/liveWatch.ts watchSeatRecordings; packages/ui/src/live/liveRemote.ts seatRecordings' },
     ],
@@ -6298,7 +6298,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (layered plates)', quote: 'i want the darkening png to sit behind the frame, so there can be effects that can encroach over into the brown area without getting darketing over it' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (layered plates)', quote: 'going forward i think its better to do it this way, with the layers, and we can create different bottom layers. if i dont specify, just default to the brown one' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (interior fit)', quote: 'the thumbnails are showing gaps on the interior and the frame on the rightside' },
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (interior fit)', quote: "magma's interior needs to nudge down" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-15 (interior fit)', quote: "magma\x27s interior needs to nudge down" },
       { kind: 'code', ref: 'packages/ui/src/cardPlate/cardPlateLook.ts (layered, interior, frameX, interiorSx/Sy/Y, thumb); packages/ui/src/styles.css (.plate-interior anchored to the plate box, .plate-frame in the text panel); packages/ui/src/Card.tsx; scripts/build-card-plate.mjs (--fit)' },
     ],
     currentBehaviour: 'Conforms as of 2026-10-15: every plate added since is layered (Aquarium Rocks, Amethyst and Bamboo are single images).',
@@ -6583,7 +6583,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-15, with a screenshot of the LazerLemon (Xerox) scout card showing SHOP TIER 2', quote: 'shop tier here is incorrect please fix this' },
-      { kind: 'fix-pr', ref: "PR fix/seat-hover-shop-tier (2026-10-15): seatScoutIntel reads the seat's board for the current round; LobbyPanel uses it for every opponent card" },
+      { kind: 'fix-pr', ref: "PR fix/seat-hover-shop-tier (2026-10-15): seatScoutIntel reads the seat\x27s board for the current round; LobbyPanel uses it for every opponent card" },
       { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts seatScoutIntel / boardIntel; packages/ui/src/LobbyPanel.tsx (rail rows)' },
     ],
     currentBehaviour: "Conforms from 2026-10-15. Before, every non-foe card printed seat.intel from settle: the previous round's tier, or older for the seat you last fought.",
@@ -6606,7 +6606,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16, after R-LOBBY-SCOUT-01', quote: 'can you have an agent look at the lobby rail info and make sure that it is accurate? the tier pill being wrong has me wondering if the rest of it is wrong too' },
-      { kind: 'fix-pr', ref: "PR fix/lobby-rail-accuracy (2026-10-16): lobbyRailView / railSeatIntel; the next opponent's card follows the stand-in rule; rows clamp health at 0; the full-table harness" },
+      { kind: 'fix-pr', ref: "PR fix/lobby-rail-accuracy (2026-10-16): lobbyRailView / railSeatIntel; the next opponent\x27s card follows the stand-in rule; rows clamp health at 0; the full-table harness" },
       { kind: 'code', ref: 'packages/sim/src/lobby/railView.ts; packages/ui/src/LobbyPanel.tsx' },
     ],
     currentBehaviour: "Conforms from 2026-10-16. Audited field by field: the table's numbers were already right. Two gaps fixed: a watcher's next-opponent card could print a generated stand-in's board, and the wipeout guard's revived winner could print negative Resolve.",
@@ -6627,7 +6627,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16, ruling 1 (fallen seat history lists its ghost fights, e.g. Ravenz out R11 showing R13-R15)', quote: 'no keep' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16, ruling 2 (Practice unlimited health: float and history show the hit)', quote: 'show hit' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16, ruling 3 (what the Gilded number counts)', quote: 'gilded made this game' },
-      { kind: 'owner-chat', ref: "Kevin via the coordinator, 2026-10-16, ruling 4 (scout cards show each opponent's end-of-shop board)", quote: 'yes' },
+      { kind: 'owner-chat', ref: "Kevin via the coordinator, 2026-10-16, ruling 4 (scout cards show each opponent\x27s end-of-shop board)", quote: 'yes' },
       { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts seatResults / seatScoutIntel / boardIntel (triples); packages/ui/src/LobbyPanel.tsx (scout card labels)' },
     ],
     currentBehaviour: 'Conforms (owner-confirmed 2026-10-16). Only change: the Gilded stat label "gilded units" became "gilded made".',
@@ -6647,7 +6647,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (Leaderboard screenshot: only the YOU row had a frame)', quote: 'the player frames they have equipped arent showing here and they should' },
-      { kind: 'fix-pr', ref: "fix/player-list-frames (2026-10-16): fetchPortraitLoadouts reads hero_skin + portrait_frame; Rankings and RecentGames pass each row's frameId" },
+      { kind: 'fix-pr', ref: "fix/player-list-frames (2026-10-16): fetchPortraitLoadouts reads hero_skin + portrait_frame; Rankings and RecentGames pass each row\x27s frameId" },
     ],
     currentBehaviour: "Conforms as of 2026-10-16. Before, the Leaderboard read only the hero_skin slot and passed no frame, so every other player showed the default gold ring; Recent Games showed neither the recorded frame nor the recorded skin.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/ladderPages.test.tsx'], lastVerifiedAt: '2026-10-16' },
@@ -6693,7 +6693,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16', quote: 'spectators should show as cards in hand so you can mouse over to view their cards too' },
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16', quote: "use versuspng2 for the background now. you'll have to add your own text / vs. here etc now" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16', quote: "use versuspng2 for the background now. you\x27ll have to add your own text / vs. here etc now" },
       { kind: 'code', ref: 'packages/ui/src/versus/VersusRoom.tsx (SpectatorFan, Seat); packages/ui/src/versus/versus.css (.vsbench, .vsbcard, .vsmark, .vsvignette)' },
     ],
     currentBehaviour: 'Conforms as of 2026-10-16 (feat/versus-room-v2). Before, spectators were portrait rings in eight painted bench slots with a +N chip.',
@@ -6860,8 +6860,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus bench)', quote: "add a bench/hand area in the bottom so it's slightly more obvious that players in the 'hand' are spectators" },
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus bench edge)', quote: "fade the box up a bit so it's less of a hard line" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus bench)', quote: "add a bench/hand area in the bottom so it\x27s slightly more obvious that players in the 'hand' are spectators" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus bench edge)', quote: "fade the box up a bit so it\x27s less of a hard line" },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus bench, after #2196)', quote: 'versus spectator area looks terrible. clean that up then otherwise we\'re good to go i think.' },
     ],
     currentBehaviour: 'Before, a dark navy panel band sat behind the spectator cards, reading as a muddy box with dead space round them.',
@@ -7164,7 +7164,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner, 2026-10-29', quote: "Make it so mobile only loads in landscape so it doesn't require a rotate" },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-29', quote: "Make it so mobile only loads in landscape so it doesn\x27t require a rotate" },
       { kind: 'code', ref: 'packages/ui/src/sideways.ts (turned frame + wrapped geometry APIs); stage.ts (turned fit + transform); orientationLock.ts (Android lock); apps/web/index.html (turned splash); apps/web/public/manifest.webmanifest (orientation: landscape)' },
     ],
     currentBehaviour: 'Conforms as of 2026-10-29 (feat/mobile-landscape-only). Before, a phone held upright showed the "Rotate your device" prompt.',
@@ -7418,7 +7418,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner, 2026-10-22 (iPhone, the page crashes at Play / hero pick after #2151, #2158, #2160, #2163, #2166)', quote: "I still can't even play it because of the crashing" },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-22 (iPhone, the page crashes at Play / hero pick after #2151, #2158, #2160, #2163, #2166)', quote: "I still can\x27t even play it because of the crashing" },
       { kind: 'code', ref: 'packages/ui/src/stage.ts (zoomedStage, zoomGeometryIsStandard); phoneDiag.ts (gamexf); touchUi.css; hero-select/HeroLaunchCurtain.tsx (setLaunchCovered); hero-select/heroCeremony.css; scripts/phone-run-memory.mjs (npm run perf:phone-run)' },
     ],
     currentBehaviour:
@@ -8043,7 +8043,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner, 2026-10-21', quote: "clicking into gauntlet, learn, and versus all have a glitchy flash of the 'play modes' before entering their view. practice does a quick fade out/in of the full ui. I don't want the full fade out/in, but i want the janky flash of the old ui gone, too. it should be a clean, seamless menu shift going into the different views." },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-21', quote: "clicking into gauntlet, learn, and versus all have a glitchy flash of the 'play modes' before entering their view. practice does a quick fade out/in of the full ui. I don\x27t want the full fade out/in, but i want the janky flash of the old ui gone, too. it should be a clean, seamless menu shift going into the different views." },
       { kind: 'code', ref: 'packages/ui/src/MenuViewSwap.tsx; packages/ui/src/Title.tsx (the .mp-shell host); packages/ui/src/styles.css (the mode screen view swap block)' },
     ],
     currentBehaviour:
@@ -9609,7 +9609,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner, 2026-10-26', quote: "in duos, the teammate's hero options should be visible as well" },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26', quote: "in duos, the teammate\x27s hero options should be visible as well" },
       { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts (watchTeammateHero, leaveTeammateHero, matePick); packages/ui/src/versus/teammateView.tsx (enterTeammateHeroView, exitTeammateHeroView); packages/ui/src/versus/DuosMateDock.tsx (heroSelect); packages/ui/src/hero-select/HeroSelectWatch.tsx' },
     ],
     currentBehaviour: 'Built 2026-10-26 (feat/hero-select-spectate). A suggestion / ping on a hero of a teammate is a later step (owner 2026-10-26).',
@@ -9753,7 +9753,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-26 (Ranked Duos phase 3 entry point)', quote: "i think we should add a toggle above 'play' that says solo/duo. if duo is selected it then puts you into a room specific for duo's where you can invite a friend" },
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-26 (Ranked Duos phase 3 entry point)', quote: "i think we should add a toggle above 'play' that says solo/duo. if duo is selected it then puts you into a room specific for duo\x27s where you can invite a friend" },
       { kind: 'owner-chat', ref: 'Owner Q6, 2026-10-26', quote: 'Listed by default, friends-only toggle' },
       { kind: 'code', ref: 'supabase/migrations/2026-11-01-ranked-duos-party.sql; packages/ui/src/versus/playParty.tsx; packages/ui/src/versus/DuosParty.tsx; packages/ui/src/versus/DuosBoards.tsx; workers/versus/src/core/liveListing.ts (the room writes the team Live Games row)' },
     ],
@@ -9799,7 +9799,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-27', quote: 'the duo ranked lobby should just have an invite player option and then start game and a back button to get back to the play screen' },
-      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-27', quote: "you shouldn't lose mmr for leaving that lobby" },
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-27', quote: "you shouldn\x27t lose mmr for leaving that lobby" },
       { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-27', quote: 'make the team naming more obvious in lobby' },
       { kind: 'code', ref: 'supabase/migrations/2026-11-02-ranked-duos-party-split.sql; packages/ui/src/versus/VersusRoom.tsx (party chrome); packages/ui/src/versus/versusStore.ts (openVersus, enterDuosParty, leaveDuosParty, rejoinMyRoom); packages/ui/src/versus/VersusTitle.tsx (DuosDoor); packages/ui/src/Title.tsx (duos / duos-party views)' },
     ],
@@ -9903,7 +9903,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (iPhone 15/16/17 Pro class, live Netlify build 792caa34a)', quote: "Lots of animations aren't showing on phone, and general performance is abysmal. How do we optimize this??" },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (iPhone 15/16/17 Pro class, live Netlify build 792caa34a)', quote: "Lots of animations aren\x27t showing on phone, and general performance is abysmal. How do we optimize this??" },
       { kind: 'code', ref: 'packages/ui/src/phonePerfLog.ts; fxLedger.ts; perfLogFlag.ts; PerfLogReadout.tsx; crashLog.ts (trackWebGl, webglSnapshot); fx/playDef.ts (ledger outcomes); pixiFx.ts (ledgerWrapMethods); pixiStageFollow.ts (trackPixiApp); Game.tsx (installPerfLog)' },
     ],
     currentBehaviour: 'Conforms from 2026-10-26 (perf/phone-fx-and-frames). Before, a phone reported only crashes: frame times, context losses and dropped effects were invisible without a Mac.',
@@ -9922,7 +9922,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (iPhone 15/16/17 Pro class, live Netlify build 792caa34a)', quote: "Lots of animations aren't showing on phone, and general performance is abysmal. How do we optimize this??" },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (iPhone 15/16/17 Pro class, live Netlify build 792caa34a)', quote: "Lots of animations aren\x27t showing on phone, and general performance is abysmal. How do we optimize this??" },
       { kind: 'code', ref: 'packages/ui/src/pixiAppSafety.ts (watchContextLoss onRecover, CONTEXT_RECOVER_MS); pixiFx.ts (scheduleRebuild, ctxLost); wipeFx.ts / rankedGate/gateFx.ts (recover)' },
     ],
     currentBehaviour: 'Conforms from 2026-10-26 (perf/phone-fx-fixes). Before, after a loss and restore a particle burst drew only its ring (measured in Chromium as an iPhone).',
@@ -9940,7 +9940,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (iPhone 15/16/17 Pro class, live Netlify build 792caa34a)', quote: "Lots of animations aren't showing on phone, and general performance is abysmal. How do we optimize this??" },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (iPhone 15/16/17 Pro class, live Netlify build 792caa34a)', quote: "Lots of animations aren\x27t showing on phone, and general performance is abysmal. How do we optimize this??" },
       { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (PHONE_CHARGE_PAINT_MS); touchUi.css (R-PHONE-RUN-PAINT-01 block)' },
     ],
     currentBehaviour: 'Conforms from 2026-10-26 (perf/phone-fx-fixes).',
@@ -10966,7 +10966,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner ask 2026-10-28 (Supabase cleanup, P1.2)', quote: "scope out a massive supabase clean up so that we're running really cleanly across the board." },
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-28 (Supabase cleanup, P1.2)', quote: "scope out a massive supabase clean up so that we\x27re running really cleanly across the board." },
       { kind: 'code', ref: 'packages/ui/src/progression/progressionRemote.ts fetchProgressionConfig + fetchServerCatalogState; progressionStore.ts refreshServerCatalog; supabase/migrations/2026-11-07-catalog-state-hash.sql' },
     ],
     currentBehaviour: 'Conforms from 2026-10-28. Before, every probe sent four single-column progression_config reads and the full 458-row catalog (~31 KB), ~87,000 times in 16 days.',
@@ -11191,7 +11191,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (spectator + emote cleanup)', quote: "Need to clean up spectators and their emotes. It's cluttered and emotes cover each other. They are also kinda small. Emotes are too. Also, mirrored emotes on the lobby rail come out backwards so text doesn't work" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (spectator + emote cleanup)', quote: "Need to clean up spectators and their emotes. It\x27s cluttered and emotes cover each other. They are also kinda small. Emotes are too. Also, mirrored emotes on the lobby rail come out backwards so text doesn\x27t work" },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (follow-up)', quote: 'The emote and spectator area looks a bit better but emotes should eclipse the players icon a bit more and be more vertically aligned and sized appropriately to the portraits' },
       { kind: 'code', ref: 'packages/ui/src/emotes/emoteBubble.ts (fitToPortrait, settleBubble, bubblesOverlap, placementFor); emotes/emotes.css; versus/WatchersBadge.tsx; versus/SpectatorHud.tsx; versus/versus.css' },
     ],
@@ -11222,7 +11222,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: "Duos: teammates ping each other live (the ping appears on the target on the teammate's screen, and on your own as a confirmation). Opponents never see pings." },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: "Duos: teammates ping each other live (the ping appears on the target on the teammate\x27s screen, and on your own as a confirmation). Opponents never see pings." },
     ],
     currentBehaviour: 'New on 2026-10-29.',
     example: "Amy watches Ann's board in the teammate view and pings Sell on Ann's Pup: a Sell bubble pops on that Pup on Ann's screen.",
@@ -11237,7 +11237,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: 'i want a player to be able to promote a spectator to a mentor, which allows the mentor to use live pings for the player to help guide them through a game' },
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: "Spectators who aren't mentors cannot ping." },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: "Spectators who aren\x27t mentors cannot ping." },
     ],
     currentBehaviour: 'New on 2026-10-29. Over the Supabase live channel the sender of a broadcast cannot be authenticated, so a forged from field is only stopped by the Cloudflare room and the coming Cloudflare live object.',
     example: 'Sam is watching Ann. Ann clicks his plate: it reads Mentor, and his right-click on her shop opens the ping menu. His pings show on her screen only.',
@@ -11251,7 +11251,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: "Right clicking replaces the inspect, so we'll need to add an inspect option in the ping wheel so players can inspect a card still" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: "Right clicking replaces the inspect, so we\x27ll need to add an inspect option in the ping wheel so players can inspect a card still" },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: 'Right clicking opens the menu then left clicking away should close the menu.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (follow-up)', quote: 'remove the magnifying glass ping, change it so that double right clicking inspects' },
     ],
@@ -11282,7 +11282,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: "spectators should be able to clear their pings/players in general should be able to clear their own pings on friends boards etc too by right clicking the minion/button etc once. that'll clear it" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: "spectators should be able to clear their pings/players in general should be able to clear their own pings on friends boards etc too by right clicking the minion/button etc once. that\x27ll clear it" },
       { kind: 'code', ref: 'packages/ui/src/pings/pingRuntime.ts myPingOn / clearMyPingOn; packages/ui/src/pings/PingLayer.tsx openCardPingMenu, the shop-button contextmenu, the phone hold gate; workers/versus/src/pings.ts routePingClear' },
     ],
     currentBehaviour: 'Conforms since 2026-10-29 (fix/right-click-clears-own-ping). Before, a right-click on a pinged target always opened the fan; only a click on the small ping mark itself cleared it.',
@@ -11423,7 +11423,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (spectated cursor idle)', quote: "can we make it so the a spectated player's mouse doesnt go invisible when it isnt moving?" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (spectated cursor idle)', quote: "can we make it so the a spectated player\x27s mouse doesnt go invisible when it isnt moving?" },
       { kind: 'code', ref: 'packages/ui/src/versus/cursorSource.ts (no idle hide; pointerout hide); packages/ui/src/versus/SpectatorCursor.tsx (the sleeping loop keeps the hand)' },
     ],
     currentBehaviour: 'Fixed 2026-10-29 (fix/spectate-cursor-idle). Before, the player sent a hide after 4 s without a move, and the watcher hid the hand 1.2 s after its last message anyway. A replay recorded before the fix still holds those idle hides.',
@@ -11921,7 +11921,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: "lobby chat needs the same quality of life that dm's have" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: "lobby chat needs the same quality of life that dm\x27s have" },
       { kind: 'code', ref: 'packages/ui/src/chat/ (ChatRow, ChatComposer, ChatFrame, chatGeom), packages/ui/src/lobbyChat/LobbyChatPanel.tsx, packages/ui/src/lobbyChat/lobbyChatStore.ts (noteLobbyChatSeen, resyncLobbyChat), workers/versus/src/lobbyChat.ts (reply, since)' },
     ],
     currentBehaviour: 'Built 2026-10-30 (feat/lobby-chat-qol). Before: the lobby chat panel was fixed in place, plain text with no emote picker or replies, counted unread only while collapsed, and missed messages sent while its socket was down.',
@@ -11984,8 +11984,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Only a manual pass costs Gold; a pass by a card or spell is free and still counts as a pass',
     statement:
       'Dragging a card onto your teammate\x27s portrait costs 1 Gold (Brian\x27s Pal makes the first one each turn free). A pass made by '
-      + 'an effect (Handout and every later "pass" card or rune) costs no Gold. Every pass obeys the same rules: a Golden minion is '
-      + 'never passed, and a full teammate hand sends it back. Every pass, manual or not, triggers "when you pass" and "when your team '
+      + 'an effect (Handout and every later "pass" card or rune) costs no Gold. A Golden minion is never passed (an effect that '
+      + 'says otherwise is the one exception). A full teammate hand sends a MANUAL pass back; an effect\x27s pass waits for room '
+      + '(R-DUOS-EFFECT-PASS-QUEUE-01). Every pass, manual or not, triggers "when you pass" and "when your team '
       + 'passes" cards, on the sender\x27s board at once and on the receiver\x27s when it lands.',
     domain: 'foundation',
     status: 'approved',
@@ -11993,7 +11994,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'only manual passing costs 1 gold baseline' },
       { kind: 'code', ref: 'packages/sim/src/duosPass.ts duosPassCost; packages/sim/src/recruit.ts effectPassCard' },
     ],
-    currentBehaviour: 'Built 2026-10-30.',
+    currentBehaviour: 'Built 2026-10-30. Effect passes stopped coming back for a full hand the same day (R-DUOS-EFFECT-PASS-QUEUE-01).',
     example: 'Ann casts Handout on a Shop minion: no extra Gold, it goes to Amy, and both their Hitchhikers grow.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCards.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
@@ -12196,5 +12197,46 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'each, so the renderer grew in 60 MB steps over a game.',
     example: 'Every End Turn drops the gate and winches it back up with a reverb crank. Before, each fight built four reverb nodes for it, about 155 MB, and threw them away 3 s later. Now the crank sends into one reverb built when the game starts.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/sharedTailReverb.test.ts', 'packages/ui/src/fx/convolverPool.test.ts', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-EFFECT-PASS-QUEUE-01',
+    title: 'A card passed by an effect waits for room in a full hand; it is never sent back',
+    statement:
+      'When a card or spell passes a card to your teammate (Handout, CueBee\x27s Pass, Matchmaker, every pass rune) and their hand '
+      + 'is full, the card is not refused and does not come back. It waits, and lands in their hand the moment they have room (after '
+      + 'they play, sell or pass a card, or the turn turns over), in the order it was passed. A Shop minion passed this way has left '
+      + 'the Shop for good. A waiting card survives a reload. Their portrait shows how many cards are waiting. A MANUAL pass (a drag '
+      + 'onto the portrait) keeps its rule: a full hand refuses it and the Gold comes back.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: "if your teammate\x27s hand is full, they get the card once there is space in their hand" },
+      { kind: 'code', ref: 'packages/sim/src/duosPass.ts receiveDuosPass / landWaitingPasses; packages/sim/src/reducer.ts reduce; workers/versus/src/core/groupMatch.ts pass' },
+    ],
+    currentBehaviour: 'Built 2026-10-30. The waiting card lands after any action of the receiver that makes room.',
+    example: 'Amy holds 10 cards when Ann casts CueBee\x27s Pass on a Shop minion. The minion leaves Ann\x27s Shop; Amy\x27s portrait says "Hand full: 1 card waiting". Amy plays a card and the passed minion drops into her hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCardsDiscoverPass.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-CARDS-05',
+    title: 'Disco, Matchmaker and CueBee: Discover for the team, and a Whisper that passes',
+    statement:
+      'Disco: Discover a minion up to your Shop tier; the options you did not take go to your teammate\x27s hand (a full hand loses '
+      + 'them, like any gift). Matchmaker: its Shout Discovers a minion of your teammate\x27s most common type and passes your pick to '
+      + 'them (free, a pass for every pass trigger). The type is read from your teammate\x27s board as your game last saw it; a tie is a '
+      + 'seeded 50/50; never seen, it picks among your own tribes. The options come from the set\x27s Duos pool, any tribe the set has, '
+      + 'up to your Shop tier. Gilded Matchmaker does it twice. Re-fired in combat it gives your teammate a random minion of their most '
+      + 'common type when the fight is settled. CueBee: a Whisper granter like the Dragons. You get a free Pass on play and every Start '
+      + 'of Turn while it is on your board; it fades at End of Turn and counts as a spell cast. Pass aims at a Shop minion or one of '
+      + 'yours (never a Golden one) and passes it, free. Gilded CueBee gives 2 Passes.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'Disco - T5 4 cost Discover a minion. Your teammate gets the other 2 options.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts takeDiscoverPick (discoverDuos); packages/sim/src/recruit.ts discoverMateTribePass / mostCommonMateTribe; packages/content/src/cards/duos/whispers.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-30. The teammate\x27s board reaches the sender\x27s run through the recorded noteMateTribes action, fed by the client from the teammate\x27s live frame while a Matchmaker is held.',
+    example: 'Amy\x27s board is three Beasts and a Dragon. Ann plays Matchmaker, picks a Beast from the three offered, and it lands in Amy\x27s hand. Both Hitchhikers grow.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCardsDiscoverPass.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
 ];

@@ -524,11 +524,14 @@ export const DEFAULT_PRACTICE_CONFIG: PracticeConfig = {
 
 export type DiscoverSpec =
   | { kind: 'spell'; extraCasts?: number } // `extraCasts` (Rune of the Astral Draft): the pick is stamped to cast that many more times
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle' | 'equip'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number }; ancientTag?: DiscoverAncientTag }
+  | { kind: 'minion'; duos?: DiscoverDuos; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle' | 'equip'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number }; ancientTag?: DiscoverAncientTag }
   // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions; Rival's Reflection).
   // `spells` (Re-Pete x Ancient of Fortune, owner 2026-10-02: "Offer spells too"): spells in `ids` are offered too.
   // `lockWave`: the pick is locked in hand until that wave (Hourglass Reserve's `lockedUntilWave`).
-  | { kind: 'pool'; ids: string[]; borrowed?: boolean; spells?: boolean; lockWave?: number; ancientTag?: DiscoverAncientTag };
+  | { kind: 'pool'; ids: string[]; duos?: DiscoverDuos; borrowed?: boolean; spells?: boolean; lockWave?: number; ancientTag?: DiscoverAncientTag };
+/** DUOS-ONLY CARDS (R-DUOS-CARDS-05): what a Duos Discover does besides the pick. `rest` (Disco): the options NOT taken
+ *  go to the teammate as gifts. `pass` (Matchmaker): the pick itself is passed to the teammate (an effect pass). */
+export type DiscoverDuos = 'rest' | 'pass';
 /** ANCIENTS: where a Discover came from, for the pairings that treat its pick specially (`AncientDiscoverTag`). Only set
  *  on an Ancients run. */
 export type DiscoverAncientTag = 'triple' | 'crown' | 'archive' | 'discoDeath' | 'discoGenesis';
@@ -2704,6 +2707,9 @@ export interface RunState {
    *  If the offer is gone by the time the pick lands (bought or rerolled behind a queued Discover), the pick
    *  falls back to the hand rather than vanishing. */
   discoverIntoShopUid?: string;
+  /** DUOS-ONLY CARDS (R-DUOS-CARDS-05): the OPEN Discover's Duos rider (`DiscoverDuos`). Same one-shot lifecycle as
+   *  `discoverLockTier`: set by `openDiscover` from the spec, consumed by `takeDiscoverPick`. */
+  discoverDuos?: DiscoverDuos;
   /** Rune of the Summit: armed on purchase; `runeSummitTick` counts shops opened since, and every 2nd one
    *  opens a Tier 7 Discover. A COUNTER rather than a per-turn flag because the cadence is every-other-turn
    *  — `recurringEndOfTurn` fires every turn and could not express it. */
@@ -2949,6 +2955,10 @@ export type Action =
   | { type: 'receivePass'; from: string; seq: number; card: BoardCard }
   /** VERSUS DUOS: the teammate's full hand refused my pass `seq`: the card and its 1 Gold come back, once. */
   | { type: 'passRefunded'; seq: number }
+  /** DUOS-ONLY CARDS (R-DUOS-CARDS-05): what this run last saw of the teammate's board, as minions per tribe of THEIR
+   *  run (`mateTribeCounts`). Fed by the client from the teammate's live frame whenever it changes while a card that
+   *  reads it is held (Matchmaker); recorded, so a replay reproduces the Shout's pick. Accepted in any phase. */
+  | { type: 'noteMateTribes'; tribes: Partial<Record<Tribe, number>> }
   | { type: 'roll' }
   | { type: 'freeze' }
   | { type: 'upgrade' }
@@ -3393,6 +3403,7 @@ export function deserialize(json: string, opts: { turnRemaining?: number } = {})
   state.discoverBorrowed = parsed.discoverBorrowed;
   state.discoverSetStats = parsed.discoverSetStats;
   state.discoverIntoShopUid = parsed.discoverIntoShopUid;
+  state.discoverDuos = parsed.discoverDuos;
   // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
   // (golden Black Belt Brian) into the new queue as that many spell specs.
   if (parsed.pendingSpellDiscovers && parsed.pendingSpellDiscovers > 0) {

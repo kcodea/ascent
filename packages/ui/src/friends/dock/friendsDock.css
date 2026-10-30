@@ -86,7 +86,7 @@ html[data-phone-layout]:not([data-phone-menus]) .fdock-panel.vspanel { width: 30
 .fdock-bar .fdock-title { padding-left: 4px; }
 .fdock-btnroom { flex: none; width: calc(var(--fdock-cb) / var(--fdock-z)); height: calc(var(--fdock-cb) / var(--fdock-z)); margin-left: 4px; }
 .fdock-bar .fdock-me { margin-left: auto; }
-.fdock-list > :is(.fdock-rows, .fdock-empty) { flex: 1 1 auto; }
+.fdock-list > :is(.fdock-rows-wrap, .fdock-empty) { flex: 1 1 auto; }
 .fdock-list > .fdock-empty { display: flex; flex-direction: column; justify-content: center; }
 
 .fdock-head { display: flex; align-items: baseline; gap: 10px; margin: 0 2px 8px; }
@@ -134,7 +134,8 @@ html[data-phone-layout]:not([data-phone-menus]) .fdock-panel.vspanel { width: 30
 .fdock-x:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
 /* Bottom-aligned by its content (`.dm-list` margin-top: auto), never `justify-content: flex-end`, which would make the
    oldest messages unreachable once the list overflows. */
-.fdock-convo { flex: 1 1 auto; min-height: 120px; margin: 10px 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
+.fdock-convo-wrap { flex: 1 1 auto; min-height: 120px; margin: 10px 0; }
+.fdock-convo { overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
 .fdock-convo > .fdock-convo-empty { margin: auto 0; }
 .fdock-convo-empty { text-align: center; padding: 12px; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.5); }
 .fdock-compose { display: flex; }

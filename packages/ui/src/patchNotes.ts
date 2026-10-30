@@ -70,6 +70,15 @@ export const PATCH_NOTES: PatchNote[] = [
         'If the first try times out, Watch tries once more on its own.',
         'When it still fails, it tells you why: you are offline, the server is down, or you need to sign in again.',
       ] },
+      { category: 'Systems', text: "Chat and the Friends list have a gold scroll bar in the game's style.", details: [
+        'The grey bar with arrows is gone. A slim gold bar shows when there is more to scroll.',
+        'Drag it to scroll, or click the bar to jump there. The mouse wheel works as before.',
+        'On a phone, swipe the list as before.',
+      ] },
+      { category: 'Systems', text: "The chat window's resize grip is much easier to see.", details: [
+        'The bottom right corner has a gold grip.',
+        'Hover any edge or corner and it lights up gold, so you can see where to drag.',
+      ] },
     ],
   },
   {
@@ -123,7 +132,7 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Twelve new painted backdrops to put behind the board, and the castle courtyard is the new default.', details: [
         'Pick one in Settings under Board backdrop: Castle, Runic Slate, Cosmic Energy, Dark Sanctum, Temple, Stone Courtyard, Koi Pond, Fresh Pond, Bamboo Forest, Treasure Hoard, Celestial or Autumn Fire.',
         'Each is one painted scene that fills your whole screen, ultrawide monitors included, and stays sharp on 4K screens.',
-        'If you already chose a backdrop, you keep it. Oak planks and the other patterns are still there too.',
+        'Everyone starts on the castle courtyard once. Oak planks and the other patterns are still in Settings if you want to switch back.',
         'Soft dark shadows now sit behind your portrait and your opponent\'s portrait, so they stand out on a bright backdrop.',
       ] },
       { category: 'Systems', text: 'Patch Notes is now a page like Settings, with the menu sidebar beside it.', details: [

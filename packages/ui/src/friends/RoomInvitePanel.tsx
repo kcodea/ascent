@@ -5,6 +5,7 @@
  * members who are not friends yet, with Add friend (the players you are playing with). The friends list is read while
  * the panel is open (the shared 60 s loop, R-FRIENDS-05).
  */
+import { GameScroll } from '../GameScroll';
 import { sfx } from '../sfx';
 import { versusRoomRef, type VersusRoom } from '../versus/versusRemote';
 import { inviteFriend, relationOf, useFriends, useFriendsListLoop } from './friendsStore';
@@ -33,7 +34,7 @@ export function RoomInvitePanel({ room, me, onClose }: { room: VersusRoom; me: s
         <div className="vspanel-title">Invite friends</div>
         {!open && <div className="vspanel-body">Invites open again when this match ends.</div>}
         {flash && <div className="fr-flash fr-flash-inline" role="status">{flash}</div>}
-        <div className="fr-roomlist">
+        <GameScroll className="fr-roomlist" outerClassName="fr-roomlist-wrap">
           {!list ? <div className="vspanel-body">Finding your friends…</div>
             : friends.length === 0 ? <div className="vspanel-body">No friends to invite yet. Add friends with the Friends button, bottom left.</div>
             : friends.map((f) => {
@@ -50,7 +51,7 @@ export function RoomInvitePanel({ room, me, onClose }: { room: VersusRoom; me: s
                 </div>
               );
             })}
-        </div>
+        </GameScroll>
         {others.length > 0 && (
           <>
             <div className="fr-sh fr-sh-panel">In this room</div>

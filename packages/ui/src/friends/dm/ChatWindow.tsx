@@ -27,6 +27,7 @@
  * never the game. Motion: one-shot transform + opacity on open; nothing loops. Cursors: the gauntlet (CLAUDE.md).
  */
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { GameScroll } from '../../GameScroll';
 import { Icon } from '../../Icon';
 import { sfx } from '../../sfx';
 import { onStageChange, stageViewport, toStage } from '../../stage';
@@ -181,12 +182,12 @@ export function ChatWindow({ inGame = false, conversation }: { inGame?: boolean;
         onPointerMove={onMove} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}>
         <section className="dmchat vspanel" role="dialog" aria-label="Messages">
           <div className="dmchat-top" {...drag}>
-            <div className="dmchat-tabs" role="tablist" aria-label="Conversations">
+            <GameScroll axis="x" className="dmchat-tabs" outerClassName="dmchat-tabs-wrap" role="tablist" aria-label="Conversations">
               {tabs.map((id) => {
                 const f = friends?.find((x) => x.userId === id);
                 return f ? <ChatTab key={id} f={f} on={low(id) === low(dmWith)} unread={unread[low(id)] ?? 0} onClose={closeTab} /> : null;
               })}
-            </div>
+            </GameScroll>
             {!phone && (
               <button type="button" className={`fdock-x dmchat-pin pressable gtip gtip-down gtip-end${pinned ? ' on' : ''}`} aria-pressed={pinned}
                 data-tip={pinned ? 'Unpin' : 'Pin open while you play'}
@@ -256,7 +257,7 @@ function ChatPane({ f, conversation, pinned, drag }: { f: Friend; conversation?:
           <FriendActions f={f} compact />
         </div>
       </header>
-      {conversation ? <div className="fdock-convo" role="log" aria-label="Conversation">{conversation(f)}</div> : <DmConversation friend={f} />}
+      {conversation ? <GameScroll className="fdock-convo" outerClassName="fdock-convo-wrap" role="log" aria-label="Conversation">{conversation(f)}</GameScroll> : <DmConversation friend={f} />}
     </div>
   );
 }

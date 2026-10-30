@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Systems', text: 'The end-of-game rank screen now fits on screen. A long Account XP breakdown scrolls inside its box, and your level bar always shows.' },
       { category: 'Systems', text: 'Chat: message alerts now clear as soon as you look at the conversation.', details: [
         'Coming back to the game with a chat open on that friend clears its alert.',
         'Clicking into the chat window or sending a reply clears it too. You no longer need to reopen the chat.',

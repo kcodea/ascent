@@ -129,6 +129,9 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
         <span className="acctxp-eyebrow">Account XP</span>
         <span className="acctxp-total">{xpText(result.xp.total + result.achievementXp)}</span>
       </div>
+      {/* THE BREAKDOWN SCROLLS, THE BAR DOES NOT (owner 2026-10-30): when the end screen is short of room this part shrinks
+          and scrolls inside the box; the heading above and the level bar below always show. */}
+      <div className="acctxp-scroll">
       <ul className="acctxp-lines" aria-label="XP breakdown">
         {lines.map((l) => (
           <li key={l.key} className={`acctxp-line ${l.key}`}><span>{l.label}</span><b>{xpText(l.xp)}</b></li>
@@ -149,6 +152,7 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
           )}
         </div>
       )}
+      </div>
       <div className="acctxp-barrow">
         <span className={`acctxp-level${phase === 'levelup' || (done && crossed && animate) ? ' up' : ''}`} aria-label={`Level ${shown.level}`}>
           <span className="acctxp-level-l">Lv</span>{shown.level}

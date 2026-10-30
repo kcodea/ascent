@@ -13707,6 +13707,18 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .heroselect.rankend.rankend-exit { z-index: 480; pointer-events: none; animation: none; }
 .rankend-panel.leaving .rankend-continue { opacity: 0.85; }
 .rankend .endbox { margin: auto; }
+/* THE RANK SCREEN NEVER SCROLLS AS A PAGE (owner 2026-10-30: "at the end of the game, i noticed that not all elements can
+   fit onto the screen ... we want to always avoid that"; "shrink the height of the Account XP breakdown screen, and if
+   there are too many details to fit, that box gets a scroll"). The overlay stops scrolling; the column is capped at the
+   overlay's height, everything in it keeps its size, and only the Account XP box gives up height: its breakdown
+   (.acctxp-scroll) shrinks and scrolls inside the box while the heading and the level bar stay in view.
+   R-ENDSCREEN-FIT-01. */
+.heroselect.rankend { overflow: hidden; }
+.rankend .endbox { max-height: 100%; min-height: 0; }
+.rankend-panel { max-height: 100%; min-height: 0; }
+.rankend-panel > * { flex-shrink: 0; }
+.rankend-panel > .acctxp { flex-shrink: 1; min-height: 0; }
+.rankend-panel > .acctxp > :not(.acctxp-scroll) { flex-shrink: 0; }
 .rankend-panel { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .rankend-place { display: flex; flex-direction: column; align-items: center; line-height: 0.92; will-change: transform, opacity; }
 .rankend-place-text { font-family: var(--font-disp, var(--font-ui)); font-weight: 900; font-size: clamp(64px, calc(11 * var(--vh, 1vh)), 132px); letter-spacing: -0.01em;
@@ -13767,6 +13779,10 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .acctxp-eyebrow { font-weight: 900; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; }
 .acctxp-total { font-weight: 900; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; color: #8ff0a4; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8); }
 .acctxp-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+/* The breakdown (XP lines + Aether): its own scroll when the box is short of room (the rank screen, R-ENDSCREEN-FIT-01). */
+.acctxp-scroll { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: rgba(196, 160, 92, 0.55) transparent; }
+.acctxp-scroll > * { flex-shrink: 0; }
 .acctxp-line { display: flex; justify-content: space-between; gap: 12px; font-weight: 700; font-size: 15px; color: rgba(255, 246, 228, 0.82); }
 .acctxp-line b { font-weight: 900; font-variant-numeric: tabular-nums; color: #fff6e4; }
 .acctxp.animated .acctxp-line { animation: acctxp-in 0.3s ease-out both; }

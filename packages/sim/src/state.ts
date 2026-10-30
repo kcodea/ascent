@@ -137,6 +137,10 @@ export interface BoardCard {
   cardId: string;
   /** DUOS-ONLY CARDS (R-DUOS-CARDS-01): a "(Once per turn)" team trigger's latch, effect id -> the turn it fired. */
   duosOnce?: Record<string, number>;
+  /** DUOS-ONLY CARDS (batch A): how many times a capped team trigger fired THIS turn (effect id -> count), beside
+   *  `duosOnce`'s turn stamp. "(Twice per turn)" (Bratworst Buck) caps at 2; the live text reads it ("1 left this
+   *  turn"). Cleared at the turn boundary with the other per-turn latches. */
+  duosUses?: Record<string, number>;
   /**
    * DEALER'S OWN LATCH — how many more Choose One cards this body will make resolve BOTH branches
    * (owner ruling 2026-08-31).

@@ -123,6 +123,7 @@ const richBag = (id: string): LiveTextParams => ({
   whisperImprove: { w4_runebind: 4 }, /* Set 4: Tolan's Runebind improved twice (2026-10-13) */
   whisperCastsUsed: 1, /* Whaloo's per-combat cap counting down (Set 3, 2026-10-14) */
   whisperKeptThisTurn: 1, /* Hum's keeps left this turn (Set 3, 2026-10-15) */
+  duosUsesThisTurn: 1, /* Duos batch A: Galfagan / Hippie Hulk / Bratworst uses left this turn */
   attacksMade: 1, /* Immune Iggy's immune swings counting down (Set 3, 2026-10-15) */
   whisperTick: 2, /* Hatcher's Whisper tier (Set 3, 2026-10-15) */
 });

@@ -216,6 +216,7 @@ export function auditFireSites(): FireSiteAudit {
 /** `onAttack` factories that emit nothing on ANY staged path. Each needs a reason a reader can check against
  *  the staging (`fight()` below); a factory that starts emitting makes its entry stale and fails the lane. */
 export const FIRE_UNOBSERVED: Readonly<Record<string, string>> = {
+  giftTeammate: 'Toot Toot (Duos) sends a team gift through `sendTeam`, carried to settle on the side ShoutCarry; it emits no combat event and the staged side is not a Duos seat',
   onAttackStripKeywords: 'Tauntbreaker strips keywords from the body it HITS; the staged dummy carries none',
   onFriendlyAttackBuffTribe: 'Raptor reacts to a friendly BEAST attacking; the reference rallier is a Dragon and the Beast filler never swings',
   rallySummonRandomTribeFromHand: 'Seedling summons from HAND; combat sides carry no hand',

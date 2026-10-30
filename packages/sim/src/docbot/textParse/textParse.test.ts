@@ -194,7 +194,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-10-30 (Duos-only cards: Hitchhiker, Brian's Pal, Richmond, Handout, Share the Wealth): 156 -> 161, CONSCIOUSLY. The
 // Duos vocabulary ("your team", "your teammate", "Pass", "passes a card") has no grammar rule yet; the behaviour is pinned by
 // packages/sim/src/duosCards.test.ts.
-const UNRESOLVED_CAP = 161;
+// 2026-10-30 (Duos cards batch A, 12 cards): 161 -> 172, CONSCIOUSLY. The same Duos vocabulary ("your teammate", "pass a card",
+// "your team's Shops") plus Salandaman's Spear Warden tally line; the behaviour is pinned by
+// packages/sim/src/duosCardsBatchA.test.ts.
+const UNRESOLVED_CAP = 172;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

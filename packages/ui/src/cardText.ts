@@ -1668,6 +1668,25 @@ export function humKeepText(cardId: string, golden: boolean, kept: number | unde
   return `${src} {{(${Math.max(0, cap - kept)} left this turn)}}`;
 }
 
+/**
+ * DUOS-ONLY CARDS (batch A): a "(Once per turn)" / "(Twice per turn)" team trigger (Galfagan, Hippie Hulk, Bratworst
+ * Buck) counts down LIVE once it has fired this turn: the printed cap becomes "(N left this turn)" in green. `uses` = this
+ * copy's uses this turn (`BoardCard.duosUses`, cleared at the turn boundary); 0 / undefined = the printed text. Null for
+ * every card without a Duos per-turn cap.
+ */
+export function duosTurnCapText(cardId: string, golden: boolean, uses: number | undefined): string | null {
+  const def = CARD_INDEX[cardId];
+  if (!def?.duos) return null;
+  const eff = def.effects.find((e) => (typeof e.params?.perTurn === 'number' && e.params.perTurn > 0) || e.params?.oncePerTurn === true);
+  if (!eff) return null;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  if (!uses) return src;
+  const cap = typeof eff.params?.perTurn === 'number' ? eff.params.perTurn : 1;
+  const m = /\*\*\((?:Once|Twice|\d+ times) per turn\)\*\*/.exec(src);
+  if (!m) return src;
+  return src.replace(m[0], `{{(${Math.max(0, cap - uses)} left this turn)}}`);
+}
+
 /** SEED (Gardener's Whisper, Set 3 2026-10-15): the granted Drake Pup Echo a body carries, as a blue note with its
  *  stack count (owner: "Echo: Summon a 3/3 Drake Pup with Taunt (x12)"). Empty for 0 stacks. */
 export function seedEchoNote(stacks: number | undefined): string {

@@ -3978,13 +3978,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Spencer — Echo: upgrading the Shop costs `amount` less for you AND your teammate. */
-  teamUpgradeDiscount: (ctx, self, params) => {
+  teamUpgradeDiscount: (ctx, self, params, payload) => {
+    if (!duosOwnTrigger(self, params, payload)) return;
     ARENA_EFFECTS.teamUpgradeDiscount(shopArena(ctx.state, self ?? untargetedCastSelf()), params);
   },
 
   /** Give your teammate a card (Share the Wealth's Gold Pouch). `fromPayload: 'spell'` gifts the spell that fired the
-   *  trigger (a "when you cast X, give your teammate a copy" card); `'card'` the card in the payload. */
+   *  trigger (a "when you cast X, give your teammate a copy" card); `'card'` the card in the payload. `guard` /
+   *  `selfObtain` (Antsy's Echo, Toot Toot's Rally, Monstrocity's buy) fire only on this body's OWN trigger. */
   giftTeammate: (ctx, self, params, payload) => {
+    if (!duosOwnTrigger(self, params, payload)) return;
     const from = params.fromPayload;
     const id = from === 'spell' ? (payload.spellDef?.id ?? payload.spellId) : from === 'card' ? payload.cardId : undefined;
     if (from && !id) return;
@@ -4014,6 +4017,59 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const h = num(params.health, 1) * gold(self);
     if (a <= 0 && h <= 0) return;
     addBuff(self, nameOf(self), a, h);
+  },
+
+  // ── DUOS-ONLY CARDS, batch A (owner design 2026-10-30): each card's own block. ──
+
+  /** BRATWORST BUCK — "When you cast a Dwarven Ale, give your teammate a copy. (Twice per turn)". A `spellCast` watcher:
+   *  only an Ale (`ALE_IDS`) wakes it, any caster. Each cast spends one of the turn's uses (`perTurn`, per instance);
+   *  the copy is the cast Ale's id, landed on the teammate's run (`giftTeammate`). Gilded sends 2 copies. Combat half:
+   *  `spellResolved` in simulate.ts (its own budget per fight). */
+  aleCastGiftTeammate: (ctx, self, params, payload) => {
+    const id = payload.spellDef?.id ?? payload.spellId;
+    if (!id || !ALE_IDS.includes(id)) return;
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
+    if (!spendDuosTurnUse(ctx.state, self, 'aleCastGiftTeammate', num(params.perTurn, 2))) return;
+    ARENA_EFFECTS.giftTeammate(shopArena(ctx.state, self), { count: 1 }, id);
+  },
+
+  /** GALFAGAN — "When you pass a Shop Spell, get a copy of it. (Once per turn)". A `passedCard` watcher (`oncePerTurn`
+   *  latches in the dispatcher). Only a Shop-POOL spell counts (`isShopPoolSpell`: a Ruby, a Clue or a token is not). The copy
+   *  is a fresh card of the same id into your hand. Gilded gets 2. */
+  passedSpellGetCopy: (ctx, self, params, payload) => {
+    const def = payload.cardId ? CARD_INDEX[payload.cardId] : undefined;
+    if (!def || !isShopPoolSpell(def, poolOf(ctx.state).all)) return;
+    conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
+  },
+
+  /** PROXUS — "When you pass a card, a Demon consumes a minion in the Shop." A random friendly Demon (this one
+   *  included: it is a Demon) eats a random Shop minion through the shared consume (`consumeShopMinion`, every consume
+   *  watcher hears it). Gilded: the Demon gains DOUBLE the stats (the Demon tribe's Gilded consume rider). No Demon or
+   *  no Shop minion: nothing. */
+  demonConsumesShop: (ctx, self) => {
+    const state = ctx.state;
+    if (!state.board.some((c) => c.uid === self.uid)) return;
+    const eaters = state.board.filter((c) => isTribe(c, 'demon'));
+    const edible = state.shop.map((_, i) => i).filter((i) => { const d = CARD_INDEX[state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
+    if (eaters.length === 0 || edible.length === 0) return;
+    const rng = makeRng(state.rngCursor);
+    const eater = eaters[rng.int(eaters.length)]!;
+    const pick = edible[rng.int(edible.length)]!;
+    state.rngCursor = rng.state();
+    consumeShopMinion(state, eater, pick, gold(self));
+  },
+
+  /** BROSHAKE — "Give you and your teammate's left-most minion +3/+5." Your left-most minion now, your teammate's when
+   *  it lands on their run (`buffLeftmost`). Spell power folds in (the caster's, sent as the amount). */
+  spellBuffTeamLeftmost: (ctx, self, params) => {
+    let attack = num(params.attack, 0);
+    let health = num(params.health, 0);
+    if (attack > 0 || health > 0) {
+      attack += spellAttackBonus(ctx.state);
+      health += spellHealthBonus(ctx.state);
+    }
+    if (attack <= 0 && health <= 0) return;
+    shopArena(ctx.state, self ?? untargetedCastSelf()).sendTeam({ kind: 'buffLeftmost', attack, health, cardId: 'duo_broshake' }, true, true);
   },
 
   /** Hippie Hulk — `teammateSold`: this gains the sold minion's stats (Gilded doubles). Once per turn via the dispatcher's
@@ -11546,7 +11602,7 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   // Set 3 flat stat spells (2026-09-10) — Aspect's Blessing (both branches), Shared Spirit, Star Crash, Hand Soap:
   // each printed "+A/+H" is a grant that folds spell power on both stats, so each greens.
   const flat3 = allEffectsOf(def).filter((e) => e.on === 'cast'
-    && ['spellBuffRandomHand', 'spellBuffRandomBoardAndHand', 'spellBuffTargetAndRandomFriendly', 'spellBuffLeftmostHandMinion'].includes(e.do));
+    && ['spellBuffRandomHand', 'spellBuffRandomBoardAndHand', 'spellBuffTargetAndRandomFriendly', 'spellBuffLeftmostHandMinion', 'spellBuffTeamLeftmost'].includes(e.do)); // + Broshake (Duos)
   if (flat3.length > 0) {
     let t = def.text;
     for (const e of flat3) {
@@ -13505,6 +13561,7 @@ export function applyOnBuy(state: RunState, bought: BoardCard): void {
     }
   }
   fire(ctx, 'onBuy', { minion: bought });
+  fireSelfObtained(state, bought); // DUOS (Monstrocity): "When you buy this"
 }
 
 /** A Demon's stat multiplier when it eats Fodder (Voracious Imp = 2, golden = 3). */
@@ -17314,6 +17371,28 @@ export function setStatsValue(params: Record<string, unknown> | undefined, shopT
   return { attack: num(p.attack, 20), health: num(p.health, 20), stepped };
 }
 
+/** A Duos team body with `guard` ('self' = its own Echo, 'rally' = its own Rally) or `selfObtain` (its own buy /
+ *  Discover) fires only when the trigger's minion is THIS body: a shop Rally and a buy are broadcast to the board. */
+function duosOwnTrigger(self: BoardCard | undefined, params: Record<string, unknown>, payload: { minion?: BoardCard } | undefined): boolean {
+  if (params.guard !== 'self' && params.guard !== 'rally' && params.selfObtain !== true) return true;
+  const m = payload?.minion;
+  return !!self && !!m && (m === self || m.uid === self.uid);
+}
+
+/**
+ * MONSTROCITY — "When you buy or Discover this, your teammate gets a copy." The obtained card's OWN `selfObtain`
+ * effects, fired by the buy (`applyOnBuy`) and by a Discover pick that lands in hand (`takeDiscoverPick`). The board's
+ * `onBuy` broadcast offers other buys to a Monstrocity already on the board; its guard refuses them.
+ */
+export function fireSelfObtained(state: RunState, card: BoardCard): void {
+  const def = CARD_INDEX[card.cardId];
+  if (!def) return;
+  for (const eff of def.effects) {
+    if (eff.on !== 'onBuy' || eff.params?.selfObtain !== true) continue;
+    RECRUIT_FACTORIES[eff.do]?.(makeContext(state), card, eff.params ?? {}, { minion: card });
+  }
+}
+
 /** An UNTARGETED cast has no body (`self` is absent): the team bodies read `self.golden` only, and a spell is never
  *  Gilded, so they see a plain stand-in. */
 function untargetedCastSelf(): BoardCard {
@@ -17332,6 +17411,11 @@ function untargetedCastSelf(): BoardCard {
 export function applyOwnTeamEffect(state: RunState, effect: TeamEffect): void {
   if (effect.kind === 'maxGold') state.maxGoldBonus = (state.maxGoldBonus ?? 0) + effect.amount;
   else if (effect.kind === 'upgradeDiscount') state.upgradeCost = Math.max(CONFIG.upgradeCostFloor ?? 0, state.upgradeCost - effect.amount);
+  else if (effect.kind === 'buffLeftmost') {
+    // Broshake (batch A): this run's left-most board minion, permanently (a Shop buff). An empty board: nothing.
+    const target = state.board[0];
+    if (target && (effect.attack > 0 || effect.health > 0)) addBuff(target, CARD_INDEX[effect.cardId ?? '']?.name ?? 'Teammate', effect.attack, effect.health);
+  }
 }
 
 /**
@@ -17383,12 +17467,32 @@ export function fireTeammateSold(state: RunState, sold: { cardId: string; attack
   }
 }
 
-/** "(Once per turn)" on a team trigger (`params.oncePerTurn`): true the first time this turn, latching it. */
+/** "(Once per turn)" on a team trigger (`params.oncePerTurn`), or "(Twice per turn)" (`params.perTurn: 2`): true while
+ *  this instance has a use left this turn, spending one. */
 function duosOnceOk(state: RunState, card: BoardCard, eff: EffectDef): boolean {
-  if (eff.params?.oncePerTurn !== true) return true;
-  const seen = card.duosOnce?.[eff.do];
-  if (seen === state.wave) return false;
-  card.duosOnce = { ...(card.duosOnce ?? {}), [eff.do]: state.wave };
+  const cap = duosTurnCap(eff);
+  if (cap == null) return true;
+  return spendDuosTurnUse(state, card, eff.do, cap);
+}
+
+/** The per-turn cap a Duos team trigger prints (`oncePerTurn` = 1, `perTurn` = N), or null when uncapped. */
+export function duosTurnCap(eff: Pick<EffectDef, 'params'>): number | null {
+  const p = eff.params;
+  if (typeof p?.perTurn === 'number' && p.perTurn > 0) return p.perTurn;
+  return p?.oncePerTurn === true ? 1 : null;
+}
+
+/** This instance's uses of a capped Duos trigger THIS turn (a stale stamp from an earlier turn reads 0). */
+export function duosTurnUses(state: Pick<RunState, 'wave'>, card: BoardCard, key: string): number {
+  return card.duosOnce?.[key] === state.wave ? (card.duosUses?.[key] ?? 0) : 0;
+}
+
+/** Spend one per-turn use of `key` on `card` (stamped with this turn); false when `cap` is already spent. */
+function spendDuosTurnUse(state: RunState, card: BoardCard, key: string, cap: number): boolean {
+  const used = duosTurnUses(state, card, key);
+  if (used >= cap) return false;
+  card.duosOnce = { ...(card.duosOnce ?? {}), [key]: state.wave };
+  card.duosUses = { ...(card.duosUses ?? {}), [key]: used + 1 };
   return true;
 }
 
@@ -17478,6 +17582,11 @@ export function receiveTeamEffect(state: RunState, from: string, seq: number, ef
     // Landed by the reducer (`grantGoldenDiscover`, the run's one Gild reward path) right after this records the key.
   } else if (effect.kind === 'maxGold' || effect.kind === 'upgradeDiscount') {
     applyOwnTeamEffect(s, { kind: effect.kind, amount: amt(effect.amount) });
+  } else if (effect.kind === 'buffLeftmost') {
+    // Broshake: the stats carry the sender's spell power, so they are clamped wide (still finite, never negative).
+    const stat = (v: unknown): number => Math.min(100_000, Math.max(0, Math.floor(typeof v === 'number' && Number.isFinite(v) ? v : 0)));
+    const id = typeof effect.cardId === 'string' && CARD_INDEX[effect.cardId] ? effect.cardId : undefined;
+    applyOwnTeamEffect(s, { kind: 'buffLeftmost', attack: stat(effect.attack), health: stat(effect.health), ...(id ? { cardId: id } : {}) });
   }
   d.received.push(key);
   return s;

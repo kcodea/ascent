@@ -8,7 +8,7 @@ import {
   cryptDrakeText, drunkenOafText, aleTierText, sellDiscoverTierText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, vaultkeeperText, improvingRubyGrantText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, sellImproveText, rubyCastGainText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
-  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText, whisperGranterText, whisperCasterText, attackImmuneText, humKeepText, seedEchoNote } from './cardText';
+  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText, whisperGranterText, whisperCasterText, attackImmuneText, humKeepText, duosTurnCapText, seedEchoNote } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
  *  (0) for a not-yet-owned shop / Discover preview — those helpers then fall back to the printed text. */
@@ -120,6 +120,8 @@ export interface LiveTextParams {
   whisperTick?: number;
   /** HUM (Set 3, 2026-10-15): Whispers it has already kept this turn (its live "N left this turn"). */
   whisperKeptThisTurn?: number;
+  /** DUOS-ONLY CARDS (batch A): this copy's uses of its "(Once / Twice per turn)" team trigger this turn. */
+  duosUsesThisTurn?: number;
   /** IMMUNE IGGY (Set 3, 2026-10-15, combat): this body's swings so far this fight (its live immune countdown). */
   attacksMade?: number;
   /** FRANK × ANCIENT OF FORTUNE: this Clearance minion's CURRENT sell value (owner 2026-09-30: "just add sells for 2g if
@@ -226,6 +228,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
             whisperCasterText(c.id, p.golden, p.whisperCastsUsed) ?? // Whaloo: its per-combat cap counts down live in combat
             attackImmuneText(c.id, p.golden, p.attacksMade) ?? // Immune Iggy: its immune swings count down live in combat
             humKeepText(c.id, p.golden, p.whisperKeptThisTurn) ?? // Hum: the keeps left this turn
+            duosTurnCapText(c.id, p.golden, p.duosUsesThisTurn) ?? // Duos: Galfagan / Hippie Hulk / Bratworst uses left this turn
             transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
@@ -400,6 +403,7 @@ export function instView(
     grantedRallyShout: !!inst.grantedEffects?.some((e) => e.do === 'rallyTriggerOwnShout'), // Auctioneer × War
     seedEchoes: (inst.seedEchoes ?? 0) + (inst.seedEchoesTemp ?? 0), // Seed: the Drake Pup Echo stacks (permanent + this turn's)
     whisperKeptThisTurn: inst.whisperKeptThisTurn, // Hum: the keeps left this turn
+    duosUsesThisTurn: inst.duosUses ? Object.values(inst.duosUses).reduce((a, b) => a + b, 0) : undefined, // Duos: uses left this turn
     whisperTick: inst.whisperTick, // Hatcher: its Whisper's current tier
     clearanceSellGold: clearanceSellGoldOf(inst, live?.sellState), // Frank × Fortune: "Sells for 2 Gold."
     keywords: shownKeywords, // a granted Rise leads the text (owner 2026-09-26)

@@ -65,6 +65,9 @@ APPENDED to `DUOS_CARDS` (never in a set manifest). `duosPoolFor` adds them to a
 (neutrals and spells: every set). Team effects use the primitives in `recruit.ts` / `ARENA_EFFECTS` (`giftTeammate`,
 `teamGainMaxGold`, `effectPassCard`, the `passedCard` / `teamPassedCard` / `teammateSold` triggers). Only the manual
 drag pass costs Gold; an effect pass is free. Recipe and the list of primitives: `docs/devlog/2026-10-30-duos-cards-foundation.md`.
+Batch A (`docs/devlog/2026-10-30-duos-cards-batch-a.md`) added: per-turn caps (`oncePerTurn` / `perTurn: N`, live
+"N left this turn"), the own-trigger guard (`guard: 'self' | 'rally'`, `selfObtain` for "when you buy or Discover this"),
+and a `buffLeftmost` team effect. A Shop Rally and a buy are BROADCAST to the board, so an own-trigger team card needs the guard.
 
 ## Art
 

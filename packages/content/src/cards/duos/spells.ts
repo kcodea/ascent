@@ -42,4 +42,37 @@ export const DUOS_SPELLS: readonly CardDef[] = [
     ],
     text: 'Gain **+1 max Gold**. Give your teammate a **Gold Pouch**.',
   },
+  {
+    // BROSHAKE — "Give you and your teammate's left-most minion +3/+5". Your left-most board minion now, your
+    // teammate's when it lands on their run (`spellBuffTeamLeftmost`, a `buffLeftmost` team effect). Spell power folds
+    // in (the caster's). Permanent, like every Shop buff.
+    id: 'duo_broshake',
+    name: 'Broshake',
+    tribe: 'neutral',
+    tier: 2,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    duos: true,
+    effects: [{ on: 'cast', do: 'spellBuffTeamLeftmost', params: { attack: 3, health: 5 } }],
+    text: "Give your **left-most** minion and your teammate's **left-most** minion **+3/+5**.",
+  },
+  {
+    // TRIBE BUNDLE — "Give your teammate a minion of their most common type". Resolved on the RECEIVER's board (ties a
+    // seeded 50/50, R-DUOS-CARDS-04), rolled from their pool up to their Shop tier (`giftTeammate` `mateTribe`).
+    id: 'duo_tribebundle',
+    name: 'Tribe Bundle',
+    tribe: 'neutral',
+    tier: 2,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    duos: true,
+    effects: [{ on: 'cast', do: 'giftTeammate', params: { mateTribe: true } }],
+    text: 'Give your teammate a minion of their **most common type**.',
+  },
 ];

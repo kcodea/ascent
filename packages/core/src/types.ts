@@ -1066,6 +1066,11 @@ export type EffectFactoryId =
   | 'giftTeammateGold' // give your teammate `amount` Gold (Duos runes). Both phases (combat: lands at settle)
   | 'giftTeammateTripleReward' // give your teammate a Triple Reward (Duos runes). Both phases
   | 'teammateSoldGainStats' // `teammateSold`: this gains the sold minion's stats (`oncePerTurn`; gilded doubles) (Hippie Hulk)
+  // ── DUOS-ONLY CARDS, batch A (owner design 2026-10-30) ──
+  | 'aleCastGiftTeammate' // `spellCast` (Ale only): give your teammate a copy of the cast Ale, `perTurn` times a turn (Bratworst Buck). Both phases
+  | 'passedSpellGetCopy' // `passedCard` (`spellOnly`, `oncePerTurn`): get a copy of the passed Shop Spell (Galfagan)
+  | 'demonConsumesShop' // `passedCard`: a random friendly Demon consumes a random Shop minion; gilded = double stats (Proxus)
+  | 'spellBuffTeamLeftmost' // cast: your AND your teammate's left-most minion +attack/+health, spell power folded (Broshake)
   | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
 
 export interface EffectDef {
@@ -4043,7 +4048,10 @@ export type TeamEffect =
   /** A Triple Reward for the teammate (their run's own Gild reward path, every modifier it has). */
   | { kind: 'tripleReward'; count: number }
   /** The sender sold a minion (Hippie Hulk's trigger on the receiver). */
-  | { kind: 'sold'; cardId: string; attack: number; health: number };
+  | { kind: 'sold'; cardId: string; attack: number; health: number }
+  /** Broshake (Duos batch A): +attack/+health to the run's LEFT-MOST board minion, permanently (the sender's spell
+   *  power already folded in). `cardId` names the source for the buff breakdown. */
+  | { kind: 'buffLeftmost'; attack: number; health: number; cardId?: string };
 
 export interface ShoutCarry {
   /** DUOS: team effects a combat body produced (`sendTeam`): `self` lands on this side's run at settle, `mate` is

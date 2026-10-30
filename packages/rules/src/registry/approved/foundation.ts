@@ -11841,6 +11841,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms since 2026-10-30 (fix/endscreen-fit), checked at 2000x1077 in the dev Rank Screen preview with an 8-line breakdown. Before, the overlay scrolled and Match Details sat below the bottom edge.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/endscreenFit.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
     id: 'R-PERF-MEDALLION-MASK-01',
     title: 'The keyword medallion on a card loads its picture once per session, never again each time it mounts or fires',
     statement:

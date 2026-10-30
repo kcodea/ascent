@@ -30,6 +30,7 @@ export interface LobbyRailTuner2Config {
   anchor: Lr2Anchor;
   railX: number; railY: number; railScale: number;
   headX: number; headY: number; headFont: number; headGap: number; headShadow: number;
+  tabX: number; tabY: number; tabScale: number;
   medSize: number; ringSize: number; medGap: number; medCol: number; nameFont: number; nameX: number; nameY: number;
   hpScale: number; hpX: number; hpY: number; hpFont: number;
   deadScale: number; deadOpacity: number; deadGap: number;
@@ -42,7 +43,8 @@ type NumKey = Exclude<keyof LobbyRailTuner2Config, 'anchor'>;
 export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   anchor: 'right',
   railX: 0, railY: 0, railScale: 1,
-  headX: 0, headY: 0, headFont: 1, headGap: 0.9, headShadow: 1,
+  headX: 0, headY: 0, headFont: 1, headGap: 0.9, headShadow: 1.6, // shadow raised 2026-10-30 (owner: "slightly clearer")
+  tabX: 0, tabY: 0, tabScale: 1,
   medSize: 40, ringSize: 1, medGap: 6, medCol: 1, nameFont: 16, nameX: 0, nameY: 0,
   hpScale: 1, hpX: 0, hpY: 0, hpFont: 18,
   deadScale: 0.5, deadOpacity: 0.85, deadGap: 6,
@@ -60,7 +62,10 @@ const NUM: Record<NumKey, { v: string; group: string; label: string; unit?: Tune
   headY: { v: '--lr2-head-y', group: 'Header (Round / left / max dmg)', label: 'Move up / down', unit: 'px', min: -200, max: 200, step: 1, hint: 'Moves the header text. Positive = down.' },
   headFont: { v: '--lr2-head-font', group: 'Header (Round / left / max dmg)', label: 'Text size', unit: '×', min: 0.5, max: 2.5, step: 0.01, hint: 'Size of ROUND and of the LEFT / MAX DMG line.' },
   headGap: { v: '--lr2-head-gap', group: 'Header (Round / left / max dmg)', label: 'Gap', min: 0, max: 3, step: 0.05, hint: 'Space between "N LEFT" and "MAX DMG", in letter widths.' },
-  headShadow: { v: '--lr2-head-shadow', group: 'Header (Round / left / max dmg)', label: 'Shadow strength', unit: 'opacity', min: 0, max: 1, step: 0.01, hint: 'How dark the shadow under the header text is. 0 = none.' },
+  headShadow: { v: '--lr2-head-shadow', group: 'Header (Round / left / max dmg)', label: 'Shadow strength', unit: '×', min: 0, max: 3, step: 0.05, hint: 'How strong the shadow under the header text is. 0 = none; past 1 it spreads wider and darker.' },
+  tabX: { v: '--lr2-tab-x', group: 'Guides button', label: 'Move left / right', unit: 'px', min: -400, max: 400, step: 1, hint: 'Moves the Guides / Opponents button from its spot on the left edge of the rail. Positive = right.' },
+  tabY: { v: '--lr2-tab-y', group: 'Guides button', label: 'Move up / down', unit: 'px', min: -300, max: 800, step: 1, hint: 'Moves the Guides / Opponents button. Positive = down.' },
+  tabScale: { v: '--lr2-tab-scale', group: 'Guides button', label: 'Size', unit: '×', min: 0.5, max: 2.5, step: 0.01, hint: 'Scales the button: its plate and both icons together.' },
   medSize: { v: '--lr2-med-size', group: 'Medallion', label: 'Size', min: 16, max: 80, step: 0.5, hint: 'Diameter of each living seat\'s portrait medallion.' },
   ringSize: { v: '--lr2-ring-size', group: 'Medallion', label: 'Ring size', unit: '×', min: 0.8, max: 1.4, step: 0.005, hint: 'Grows the painted ring round the portrait (a bigger ring reads as a thicker rim).' },
   medGap: { v: '--lr2-med-gap', group: 'Medallion', label: 'Gap between medallions', min: 0, max: 30, step: 0.5, hint: 'Vertical space between one living seat and the next.' },
@@ -115,17 +120,17 @@ let cfg: LobbyRailTuner2Config = load();
 
 export const getLobbyRailTuner2 = (): LobbyRailTuner2Config => cfg;
 
-/** Every value onto `:root`, one var per control. The two size overrides write the CSS that "0 = automatic" means. */
+/** Every value onto `:root`, one var per control. The two size overrides are REMOVED at 0 ("automatic"), so the sheet's
+ *  fallback (the rail's own width x the scale / auto height) applies: a var holding `var(--lr-w)` would be resolved on
+ *  :root, where `--lr-w` does not exist, and silently fall back unscaled. */
 export function applyLobbyRailTuner2(): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   root.setAttribute('data-lr2-anchor', cfg.anchor);
   for (const k of Object.keys(NUM) as NumKey[]) {
     const v = cfg[k];
-    const css = k === 'bgW' ? (v > 0 ? `${v}px` : 'calc(var(--lr-w) * var(--lr2-scale, 1))')
-      : k === 'bgH' ? (v > 0 ? `${v}px` : 'auto')
-      : String(v);
-    root.style.setProperty(NUM[k].v, css);
+    if ((k === 'bgW' || k === 'bgH') && v <= 0) { root.style.removeProperty(NUM[k].v); continue; }
+    root.style.setProperty(NUM[k].v, k === 'bgW' || k === 'bgH' ? `${v}px` : String(v));
   }
 }
 

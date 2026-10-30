@@ -16,7 +16,7 @@
 
 /* ── Position: the rail, its header and its Guides tab move together; the header has its own nudge on top. A
    `translate` (not `transform`), so the staged slide-away transform still composes. ── */
-html:root[data-lobby-rail="medallion"] :is(.lobbyrail, .lobbyrailtab) {
+html:root[data-lobby-rail="medallion"] .lobbyrail {
   translate: calc(var(--lr2-rail-x, 0) * 1px) calc(var(--lr2-rail-y, 0) * 1px);
 }
 html:root[data-lobby-rail="medallion"] .lobbyrailhead {
@@ -24,10 +24,20 @@ html:root[data-lobby-rail="medallion"] .lobbyrailhead {
 }
 /* LEFT ANCHOR: the rail, header and tab hang from the stage's left edge instead (the tab on the rail's right side). */
 html:root[data-lobby-rail="medallion"][data-lr2-anchor="left"] :is(.lobbyrail, .lobbyrailhead) { right: auto; left: 10px; }
-html:root[data-lobby-rail="medallion"][data-lr2-anchor="left"] .lobbyrailtab { right: auto; left: calc(10px + var(--lr2-bg-w, var(--lr-w)) - 2px); scale: -1 1; }
+html:root[data-lobby-rail="medallion"][data-lr2-anchor="left"] .lobbyrailtab { right: auto; left: calc(10px + var(--lr2-bg-w, calc(var(--lr-w) * var(--lr2-scale, 1))) - 2px); scale: -1 1; }
 html:root[data-lobby-rail="medallion"][data-lr2-anchor="left"] .lobbyrailtab > * { scale: -1 1; }
-/* The Guides tab sits a fixed step under the rail's top (its stock formula assumes Classic's row heights). */
-html:root[data-lobby-rail="medallion"] .lobbyrailtab:not(.guidesview) { top: calc(var(--lby-top, 13.5%) + var(--lby-y, -3) * var(--lu) + 30 * var(--lu)); }
+/* THE GUIDES TAB (owner 2026-10-30: "add a tuner for the guide button position and size"). Its stock placement is
+   a formula of Classic's row heights and widths, so on this rail it is re-anchored to the C rail's own box: its right
+   edge on the rail's left edge (the rail's right + its width, which follows the width override and the overall
+   scale), its top a fixed step under the rail's top. Tuner 2 then nudges it (with the rail's own move) and sizes it:
+   the size scales the tab's cell + padding units, so the plate and both icons grow together. */
+html:root[data-lobby-rail="medallion"] .lobbyrailtab:not(.guidesview) {
+  --ltab-cell: calc(42 * var(--lu) * var(--lr2-tab-scale, 1));
+  --ltab-pad: calc(5 * var(--lu) * var(--lr2-tab-scale, 1));
+  right: calc(var(--lr-right) + var(--lr2-bg-w, calc(var(--lr-w) * var(--lr2-scale, 1))) - 2px);
+  top: calc(var(--lby-top, 13.5%) + var(--lby-y, -3) * var(--lu) + 30 * var(--lu));
+  translate: calc((var(--lr2-rail-x, 0) + var(--lr2-tab-x, 0)) * 1px) calc((var(--lr2-rail-y, 0) + var(--lr2-tab-y, 0)) * 1px);
+}
 
 /* ── The backing ── */
 html:root[data-lobby-rail="medallion"] .lobbyrail {
@@ -35,7 +45,7 @@ html:root[data-lobby-rail="medallion"] .lobbyrail {
   --f: calc(var(--lfont) * var(--rv-ph, 1) * var(--lr2-scale, 1));
   --rv-face: calc(var(--lr2-med-size, 40) * var(--k));
   --rv-dead: calc(var(--rv-face) * var(--lr2-dead-scale, 0.5));
-  width: var(--lr2-bg-w, var(--lr-w)); height: var(--lr2-bg-h, auto); max-height: none;
+  width: var(--lr2-bg-w, calc(var(--lr-w) * var(--lr2-scale, 1))); height: var(--lr2-bg-h, auto); max-height: none;
   overflow: visible; border: 0; box-shadow: none;
   padding: calc(9 * var(--k) * var(--lr2-bg-pad, 1)) calc(7 * var(--k) * var(--lr2-bg-pad, 1)) calc(14 * var(--k) * var(--lr2-bg-pad, 1)) calc(10 * var(--k) * var(--lr2-bg-pad, 1));
   border-radius: calc(var(--lr2-bg-radius, 47) * 1px);
@@ -50,8 +60,14 @@ html:root[data-lobby-rail="medallion"] .lobbyrail::after { content: none; }
 /* ── The header: ROUND in the title face over the painted divider, "N LEFT" and the max damage beneath, all with a
    shadow for any board art behind them. ── */
 html:root[data-lobby-rail="medallion"] .lobbyrailhead:not(.guidesview) {
-  --lr2-sh: 0 1px 0 rgba(0, 0, 0, calc(0.95 * var(--lr2-head-shadow, 1))), 0 2px 4px rgba(0, 0, 0, calc(0.9 * var(--lr2-head-shadow, 1))), 0 0 10px rgba(0, 0, 0, calc(0.75 * var(--lr2-head-shadow, 1)));
-  width: var(--lr2-bg-w, var(--lr-w));
+  /* Shadow strength (owner 2026-10-30: "add more shadow str for the text above"): past 1 the layers stop gaining
+     opacity and spread instead, plus a tight dark halo, so the text keeps a crisp edge as it gets clearer. */
+  --lr2-shs: var(--lr2-head-shadow, 1.6);
+  --lr2-sh: 0 1px 0 rgba(0, 0, 0, min(1, calc(0.95 * var(--lr2-shs)))),
+    0 0 calc(2px * var(--lr2-shs)) rgba(0, 0, 0, min(1, calc(0.7 * var(--lr2-shs)))),
+    0 2px calc(4px * var(--lr2-shs)) rgba(0, 0, 0, min(1, calc(0.9 * var(--lr2-shs)))),
+    0 0 calc(10px * var(--lr2-shs)) rgba(0, 0, 0, min(1, calc(0.75 * var(--lr2-shs))));
+  width: var(--lr2-bg-w, calc(var(--lr-w) * var(--lr2-scale, 1)));
   flex-wrap: wrap; justify-content: center; align-items: baseline;
   column-gap: calc(var(--lr2-head-gap, 0.9) * 1em); row-gap: calc(2 * var(--lu)); padding: 0 0 calc(4 * var(--lu));
   font-size: calc(10.5 * var(--lfont) * var(--lr2-head-font, 1) * var(--lr2-scale, 1));

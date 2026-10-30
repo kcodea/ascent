@@ -23,6 +23,7 @@ type NumKey = keyof typeof LR2_VARS;
 const TARGET: Record<NumKey, string> = {
   railX: '.lobbyrail', railY: '.lobbyrail', railScale: '.lobbyrail',
   headX: '.lobbyrailhead', headY: '.lobbyrailhead', headFont: '.lobbyrailhead', headGap: '.lobbyrailhead', headShadow: '.lobbyrailhead',
+  tabX: '.lobbyrailtab', tabY: '.lobbyrailtab', tabScale: '.lobbyrailtab',
   medSize: '.lobbyrail', ringSize: '.pframe-box', medGap: '.lobbyseat + .lobbyseat', medCol: '.lobbyseat', nameFont: '.lobbyname',
   nameX: '.lobbynameline', nameY: '.lobbynameline',
   hpScale: '.lobbyhp', hpX: '.lobbyhp', hpY: '.lobbyhp', hpFont: '.lobbyhp',

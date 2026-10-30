@@ -8677,9 +8677,13 @@ export function Recruit() {
       {run.godMode && !inCombat && !eotAnimating && !heroSelecting && !introPlaying && !overlayOpen && <Suspense fallback={null}><GodModePanel /></Suspense>}
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
-      <CombatOpponent key={screenId} />
+      {/* Sibling keys MUST differ (R-OPP-PORTRAIT-ONCE-01): this and OpponentHand once both used the bare screenId, and
+          React's duplicate-key reconcile then lost track of the portrait's portal, so every combat render mounted ANOTHER
+          foe portrait (its entrance replaying) and none was ever removed: hundreds of stacked drop shadows, a black disc
+          that carried into the Shop (owner report 2026-10-29). */}
+      <CombatOpponent key={`opp:${screenId}`} />
       {/* The foe's hand, face down, left of its runes (R-OPP-HAND-01): the count, the mid-fight grants, the greys. */}
-      <OpponentHand key={screenId} events={replay.replayEvents} through={replay.processedEnd} summoned={replay.enemyHandSummonedShown} live={inCombat} />
+      <OpponentHand key={`opphand:${screenId}`} events={replay.replayEvents} through={replay.processedEnd} summoned={replay.enemyHandSummonedShown} live={inCombat} />
       {run.mode === 'versus' && <VersusHud />}
       {/* Who is watching this player (Versus or a live ranked lobby game): top left, R-SPECTATE-WATCHERS-01. */}
       <WatchersBadge />

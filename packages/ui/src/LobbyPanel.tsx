@@ -12,7 +12,9 @@ import { LOBBY_KO_MS, aliveSet, newlyKnockedOut, playLobbyKnockoutOnSeats } from
 import { questArt, runeArt } from './art';
 import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
 import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
-import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
+import { resolveImageFrame, resolvePortraitFrame, type ResolvedFrame } from './portraitFrame/portraitFrameConfig';
+import { medalOf } from './leaderboardData';
+import { useRailVariant, type RailVariant } from './lobbyRailVariant';
 import { liveRuneText } from './runeText';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
@@ -31,6 +33,27 @@ import { VersusFoe } from './versus/VersusFoe';
 import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/guides';
 import { ownsMine, useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
+// OWNER REVIEW (2026-10-30): the three candidate rail designs (lobbyRailVariant.ts). Their stylesheet is loaded in a DEV
+// build only: in production this branch is dead code, so the file is never bundled and the rail is exactly today's.
+if (import.meta.env.DEV) void import('./lobbyRailVariants.css');
+
+/** OWNER REVIEW (2026-10-30): a variant's portrait ring when the seat has no cosmetic frame of its own: the painted
+ *  Default ring (the Career / ladder ring), and the Gold ring on YOUR portrait in A and C. Current keeps today's face. */
+function variantRing(variant: RailVariant, isYou: boolean, own: ResolvedFrame | null): ResolvedFrame | null {
+  if (own || variant === 'current') return own;
+  return resolveImageFrame(isYou && variant !== 'ledger' ? 'gold' : 'default');
+}
+
+/** A fallen seat's place medal in the variant rails: the ladder's medallion (`.lb-medal`, LadderBits), small. */
+function PlaceMedal({ place }: { place: number }): JSX.Element {
+  const tier = medalOf(place);
+  return (
+    <span className={`lb-medal ${tier} lrv-medal`} aria-label={`Finished ${place}`}>
+      {tier !== 'plain' && <Icon name="crown" />}
+      <span className="lb-medal-n">{place}</span>
+    </span>
+  );
+}
 
 /** The max-damage readout on the rail's top edge: "Max dmg 5", or "No cap" once the round is uncapped. It is this
  *  round's LOSS CAP (`roundLossCap`): the most Health a loss can cost. Labelled since 2026-10-09 (owner: "a bit clearer
@@ -99,6 +122,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // opponent skins" is off).
   const runSkins = useRunSkins();
   const showOppSkins = useGame((st) => st.showOpponentSkins);
+  // OWNER REVIEW (2026-10-30): which rail design is on screen ('current' in production, always).
+  const variant = useRailVariant();
+  const rv = variant !== 'current';
+  const myTier = useGame((st) => st.run.tier);
   // The portrait-frames tuner's rings for the seat faces (null = today's plain round face).
   const selfFrame = usePortraitFrame('self', frameIdOf(runSkins)); // your seat: the frame recorded on this run
   const oppFrame = usePortraitFrame('opp');
@@ -391,6 +418,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The round's loss cap (the run's own table: the Gauntlet has its own, see `roundLossCap`). Infinity = uncapped.
   const cap = rail.lossCap;
   const capTip = maxDamageTip(cap);
+  const leftLabel = showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : versusDuel ? '' : `${versus ? rail.left - (lobby.seats.some((x) => x.id === VERSUS_COPY_SEAT_ID) ? 1 : 0) : rail.left} left`;
 
   return (
     <>
@@ -403,6 +431,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     {/* VERSUS draws its Round plate on the opponent's block (versus/VersusFoe.tsx); the Guides view keeps this header. */}
     {!(versusDuel && !showGuides) && <div className={`lobbyrailhead${railMods}`}>
       <span className="lobbyround">{showGuides ? 'Guides' : `Round ${rail.round}`}</span>
+      {/* OWNER REVIEW variants: the seats-left count joins the round header as one banner. */}
+      {rv && !showGuides && leftLabel && <span className="lrv-left">{leftLabel}</span>}
       {versusDuel && showGuides && (
         <button type="button" className="mdd-close pressable vsdrawer-close" aria-label="Close build guides" onClick={closeVsGuides}>
           <span aria-hidden="true">✕</span>
@@ -466,7 +496,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
     {!(versusDuel && !showGuides) && <div className={`lobbyrail${railMods}`} style={{ '--lby-n': railRows } as React.CSSProperties}>
       <div className="lobbyhead">
-        <span className="lobbyalive">{showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : versusDuel ? '' : `${versus ? rail.left - (lobby.seats.some((x) => x.id === VERSUS_COPY_SEAT_ID) ? 1 : 0) : rail.left} left`}</span>
+        <span className="lobbyalive">{leftLabel}</span>
       </div>
 
       {showGuides ? (
@@ -511,13 +541,25 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                 // An opponent seat wears its recorded portrait frame (through "Show opponent cosmetics", owner
                 // 2026-10-01), else the tuner's opponent ring. `oppFrame` keeps the rail subscribed to tuner writes.
                 const seatFrameId = isYou ? null : frameIdOf(opponentSkins(showOppSkins, seat.cosmetics));
-                const frame = isYou ? selfFrame : seatFrameId ? resolvePortraitFrame('opp', seatFrameId) : oppFrame;
+                const frame = variantRing(variant, isYou, isYou ? selfFrame : seatFrameId ? resolvePortraitFrame('opp', seatFrameId) : oppFrame);
+                // OWNER REVIEW variants: A wears the seat's shop tier on the portrait (yours live, the next foe's from
+                // its prepared board, the rest as of their last fight: reading every seat's current board is a
+                // prepare per seat, which the rail must never pay). B and C mark the next foe with crossed swords.
+                const tier = variant === 'plaque' && row.alive ? (isYou ? myTier : isFoe ? foeIntel?.tier : seat.intel?.tier) : undefined;
+                const extras = rv ? (
+                  <>
+                    {tier ? <span className="lrv-tier" aria-label={`Shop tier ${tier}`}>{tier}</span> : null}
+                    {isFoe && variant !== 'plaque' && <span className={`lrv-swords${isGhost ? ' ghost' : ''}`} aria-label="Your next opponent"><Icon name="sword" /><Icon name="sword" /></span>}
+                    {!row.alive && row.placement ? <PlaceMedal place={row.placement} /> : null}
+                  </>
+                ) : null;
                 // With a tuner frame on, the face moves into a `.lobbyface` host (it keeps the grid seat + size)
                 // that carries the ring; without one the markup is exactly what it always was.
                 return frame ? (
                   <span className="lobbyface lobbyface-host pf-on" style={frame.hostStyle}>
                     <FadeImg className="lobbyface-img" src={src} alt="" />
                     <PortraitFrame frame={frame} />
+                    {extras}
                   </span>
                 ) : <FadeImg className="lobbyface" src={src} alt="" />;
               })()}
@@ -552,6 +594,16 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
             </div>
           );
         };
+        // OWNER REVIEW A (Plaque): the fallen leave the column for one compact strip of small portraits under it.
+        if (!duosMate && variant === 'plaque') {
+          const fallen = rows.filter((row) => !row.alive);
+          return (
+            <>
+              {rows.filter((row) => row.alive).map((row) => seatRow(row))}
+              {fallen.length > 0 && <div className="lrv-fallen">{fallen.map((row) => seatRow(row))}</div>}
+            </>
+          );
+        }
         if (!duosMate) return rows.map((row) => seatRow(row));
         // VERSUS DUOS / RANKED DUOS (owner 2026-10-27: "tie the teammates together better by putting them into chunkier
         // rail slots as a team"; R-DUOS-RAIL-TEAM-01): one slot per team, both members inside it, the team's name over
@@ -674,6 +726,19 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
   // VERSUS: a seat with no runes yet says so instead of drawing three empty sockets. (The fight log reads damage, as
   // in a lobby game, since 2026-10-26: R-VERSUS-HEALTH-01.)
   const versusCard = useGame((st) => st.run.mode === 'versus');
+  // OWNER REVIEW (2026-10-30): the card dresses to match the rail variant on screen; A and C put the seat's ringed
+  // portrait in the card's header.
+  const railVariant = useRailVariant();
+  const headFace = railVariant === 'plaque' || railVariant === 'medallion' ? (() => {
+    const ring = resolveImageFrame(seat.id === 's0' ? 'gold' : 'default');
+    const src = heroPortrait(seat.heroId, seat.id === 's0' ? runSkins : opponentSkins(showOppSkins, seat.cosmetics));
+    return ring ? (
+      <span className="lrv-scoutface lobbyface-host pf-on" style={ring.hostStyle} aria-hidden="true">
+        <FadeImg className="lobbyface-img" src={src} alt="" />
+        <PortraitFrame frame={ring} />
+      </span>
+    ) : null;
+  })() : null;
   // Shared reads + building blocks; each layout below arranges the SAME data differently.
   const heroName = getHero(seat.heroId).name;
   const tribe = intel?.topTribe;
@@ -681,7 +746,15 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
   const tribeCount = intel?.topTribeCount;
   const tribeText = tribeCount ? `${tribeLabel} ×${tribeCount}` : tribeLabel;
   const tribeColor = tribe ? `var(--t-${tribe})` : 'var(--t-neutral)';
-  const head = (
+  const head = headFace ? (
+    <div className="lobbyscout-head lrv-scouthead">
+      {headFace}
+      <span className="lrv-scoutwho">
+        <span className="lobbyscout-name">{seat.label}</span>
+        <span className="lobbyscout-hero"><b>Hero:</b> {heroName}</span>
+      </span>
+    </div>
+  ) : (
     <div className="lobbyscout-head">
       <span className="lobbyscout-name">{seat.label}</span>
       <span className="lobbyscout-hero"><b>Hero:</b> {heroName}</span>
@@ -845,7 +918,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
   // of <body> no rail ancestor can clip or re-anchor it. The clamp (above) keeps it on-screen; z-index keeps it
   // in front.
   return createPortal(
-    <div ref={cardRef} className={`lobbyscout lobbyscout--v${variant}${pinned ? ' pinned' : ''}`} role={pinned ? 'dialog' : 'tooltip'}
+    <div ref={cardRef} className={`lobbyscout lobbyscout--v${variant}${pinned ? ' pinned' : ''}${railVariant !== 'current' ? ` lrv-scout lrv-scout-${railVariant}` : ''}`} role={pinned ? 'dialog' : 'tooltip'}
       aria-label={pinned ? `${seat.label} scouting report` : undefined}
       style={clamp
         ? { top: clamp.top, right: clamp.right }

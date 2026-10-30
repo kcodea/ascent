@@ -25,11 +25,23 @@ import type { TunerControl, TunerSpec } from './tunerSchema';
 /** The rail's two looks (owner ask 2026-10-02: "is this a png? how can you modernize/clean this up?"). `gem` is the
  *  CSS Gem plate frame themed by the shared `--ui-*` tokens; `classic` is the bitmap backplate. Stamped on `<html>` as
  *  `data-lobby-rail`; lobbyRail.css paints Gem for anything but "classic", so production needs no JS for it. */
-export const LOBBY_RAIL_LOOKS = ['gem', 'classic'] as const;
+export const LOBBY_RAIL_LOOKS = ['gem', 'plaque', 'ledger', 'medallion', 'classic'] as const;
 export type LobbyRailLook = (typeof LOBBY_RAIL_LOOKS)[number];
+/** OWNER REVIEW (2026-10-30, branch feat/lobby-rail-variants): three candidate rail designs, A / B / C, beside the
+ *  shipped one ("Current"). DEV only: production always plays DEFAULTS.look ('gem'), the variants' CSS is only loaded
+ *  in a dev build (lobbyRailVariants.css), and `?rail=a|b|c|current` picks one from the URL. Delete the losers (and
+ *  this note) once the owner picks. */
 const LOOK_LABELS: Record<LobbyRailLook, string> = {
-  gem: 'Gem plate (shipped)',
+  gem: 'Current (Gem plate, shipped)',
+  plaque: 'A: Plaque',
+  ledger: 'B: Ledger',
+  medallion: 'C: Medallions',
   classic: 'Classic (the copper backplate)',
+};
+/** `?rail=` values (DEV): the letters the owner compares by, plus the look names. */
+const RAIL_PARAM: Record<string, LobbyRailLook> = {
+  a: 'plaque', b: 'ledger', c: 'medallion', current: 'gem', gem: 'gem', classic: 'classic',
+  plaque: 'plaque', ledger: 'ledger', medallion: 'medallion',
 };
 const isLook = (v: unknown): v is LobbyRailLook => typeof v === 'string' && (LOBBY_RAIL_LOOKS as readonly string[]).includes(v);
 
@@ -189,6 +201,13 @@ let cfg: LobbyRailLookConfig = (() => {
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
     const merged: LobbyRailLookConfig = { ...DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<LobbyRailLookConfig>) : {}) };
+    // `?rail=a|b|c|current` (owner review 2026-10-30) picks the look and remembers it, like the tuner's select.
+    const q = RAIL_PARAM[(new URLSearchParams(window.location.search).get('rail') ?? '').toLowerCase()];
+    if (q) {
+      const next = { ...merged, look: q };
+      try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* storage unavailable: this page load only */ }
+      return next;
+    }
     return isLook(merged.look) ? merged : { ...merged, look: DEFAULTS.look };
   } catch {
     return { ...DEFAULTS };
@@ -198,6 +217,15 @@ let cfg: LobbyRailLookConfig = (() => {
 export function getLobbyRailLookConfig(): LobbyRailLookConfig {
   return cfg;
 }
+
+/** The look's subscribers (the rail's React side reads the look to pick its variant markup). Notified on every
+ *  write; production never writes, so it never notifies. */
+const lookListeners = new Set<() => void>();
+export function subscribeLobbyRailLook(fn: () => void): () => void {
+  lookListeners.add(fn);
+  return () => { lookListeners.delete(fn); };
+}
+export const getLobbyRailLook = (): LobbyRailLook => cfg.look;
 
 /** Push every value onto `:root` as `--lby-*`. Each `.lobbyseat` / `.lobbyrail` rule reads these WITH a fallback,
  *  so a missing var (production, or a stale save) renders the shipped look rather than a broken one. */
@@ -250,12 +278,14 @@ export function setLobbyRailLookValue(key: keyof LobbyRailLookConfig, value: num
   cfg = { ...cfg, [key]: value };
   applyLobbyRailLookVars();
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
+  for (const fn of lookListeners) fn();
 }
 
 export function resetLobbyRailLookConfig(): void {
   cfg = { ...DEFAULTS };
   applyLobbyRailLookVars();
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+  for (const fn of lookListeners) fn();
 }
 
 /** A range control from RANGES; a colour control needs no range. */
@@ -273,8 +303,8 @@ const col = (
 
 const controls: TunerControl<Extract<keyof LobbyRailLookConfig, string>>[] = [
   {
-    key: 'look', label: 'Lobby rail look', group: 'Look', kind: 'select', options: LOBBY_RAIL_LOOKS, optionLabels: LOOK_LABELS,
-    hint: 'Gem plate: a CSS frame and rows painted from the UI Theme, crisp at any height. Classic: the copper backplate image with the solid blue / red rows. The colour dials below only reach Classic. Live.',
+    key: 'look', label: 'Lobby rail', group: 'Look', kind: 'select', options: LOBBY_RAIL_LOOKS, optionLabels: LOOK_LABELS,
+    hint: 'Current: the shipped Gem plate. A Plaque / B Ledger / C Medallions: the three candidate designs under owner review (also ?rail=a|b|c|current). Classic: the copper backplate image with the solid blue / red rows. The colour dials below only reach Classic. Live.',
     min: 0, max: 0, step: 0,
   },
   r('faceScale', 'Portrait size', 'Portrait', '×', 'Hero portrait size — scales the portrait and its column together.'),

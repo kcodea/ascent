@@ -14,7 +14,7 @@ import { warmSharpArt } from './fullResArt';
 import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
 import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
-import { useDockCfg } from './lobbyRailVariant';
+import { useDockCfg, useSliceLabel } from './lobbyRailVariant';
 import { useDockedRail } from './useDockedRail';
 import type { DockPanel, Pt } from './lobbyRailDockedLayout';
 import { liveRuneText } from './runeText';
@@ -25,13 +25,13 @@ import { useGame } from './store';
 import { useScreenSwapped, useSwapRef } from './screenSwap';
 import { stageHost, stageViewport, toStage } from './stage';
 import { useSpectate } from './versus/spectate';
-import { useVersus } from './versus/versusStore';
+import { mySeat, useVersus } from './versus/versusStore';
+import { parseRailStatusKey, railStatusKey, versusRailStatuses } from './versus/versusRailStatus';
 import { groupDuosRailRows } from './versus/versusGroupView';
-import { duosRailTeams, duosTeamHealthRow } from './versus/duosRailTeams';
+import { duosRailTeamOf, duosRailTeams, duosTeamHealthRow } from './versus/duosRailTeams';
 import { isRankedDuosRaw, rankedTeamLabels } from './versus/rankedDuosView';
 import { enterTeammateView } from './versus/teammateView';
 import { LobbyGuides } from './guides/LobbyGuides';
-import { VersusFoe } from './versus/VersusFoe';
 import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/guides';
 import { ownsMine, useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
@@ -48,30 +48,39 @@ function outlineClip(pts: readonly Pt[]): string {
 
 /** DOCKED: a player name clamped to the rail's line count WITH an ellipsis (owner 2026-10-31: names past 2 lines end in
  *  "…", never a silent cut). CSS `line-clamp` sets the lines; if the browser clamps without drawing the ellipsis (current
- *  Chrome's flow-root clamp), this trims the text to fit and adds it. Measured once when the name changes, never per frame. */
+ *  Chrome's flow-root clamp), this trims the text to fit and adds it. Measured when the name changes or its box does, never per frame. */
 function ClampedName({ text }: { text: string }): JSX.Element {
   // The text is written by the effect alone (React renders no children here), so the measuring writes never fight React.
   const ref = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.textContent = text;
-    if (el.scrollHeight <= el.clientHeight + 1) return;
-    let lo = 0, hi = text.length;
-    while (lo < hi) {
-      const mid = Math.ceil((lo + hi) / 2);
-      el.textContent = `${text.slice(0, mid).trimEnd()}…`;
-      if (el.scrollHeight <= el.clientHeight + 1) lo = mid; else hi = mid - 1;
-    }
-    el.textContent = `${text.slice(0, lo).trimEnd()}…`;
+    let unfit = false; // the last fit found no box
+    const fit = (): void => {
+      el.textContent = text;
+      unfit = el.clientHeight === 0;
+      // Not laid out yet (the rail mounted hidden, e.g. under the game-start curtain): leave the whole name and fit it
+      // once it has a box (below). Trimming against a zero box cut every name down to a bare "…" (a 1v1 found it).
+      // (+2: scrollHeight rounds up and clientHeight down, so two 14.55px lines read 30 over 29; a cut line is ~15px.)
+      if (el.clientHeight === 0 || el.scrollHeight <= el.clientHeight + 2) return;
+      let lo = 0, hi = text.length;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        el.textContent = `${text.slice(0, mid).trimEnd()}…`;
+        if (el.scrollHeight <= el.clientHeight + 2) lo = mid; else hi = mid - 1;
+      }
+      el.textContent = `${text.slice(0, lo).trimEnd()}…`;
+    };
+    fit();
+    // Re-fit only when the name gets its first box or its WIDTH changes (the slice resized): a layout event, never a
+    // frame. Its height follows its own line count, so a height change alone is not a trigger (no fit -> resize loop).
+    if (typeof ResizeObserver === 'undefined') return;
+    let w = el.clientWidth;
+    const ro = new ResizeObserver(() => { if (unfit || el.clientWidth !== w) { w = el.clientWidth; fit(); } });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [text]);
   return <span ref={ref} className="lrv-name-t" aria-label={text} />;
-}
-
-/** DOCKED: a slice's outline with its cut edge moved IN by `d` px (the left contour's cut points; the straight edges stay),
- *  so a child clipped by it keeps an even gap from the cut. */
-function insetOutline(pts: readonly Pt[], d: number, w: number): Pt[] {
-  return pts.map(([x, y]) => [x > 0.5 && x < w * 0.8 ? x + d : x, y] as Pt);
 }
 
 /** DOCKED: the gold edge drawn along a slice's outline (or, `ring`, the next foe's breathing red ring). */
@@ -90,8 +99,9 @@ export function maxDamageLabel(cap: number): string {
   return Number.isFinite(cap) ? `Max dmg ${cap}` : 'No cap';
 }
 
-/** VERSUS: does the rail area show the 1v1 opponent block (`VersusFoe`) instead of the rail? Only a real 1v1: two seats
- *  and not a group match (R-VERSUS-RAIL-LAYOUT-01: a Ranked Duos table before its recorded teams are seated has two). */
+/** VERSUS: is this a real 1v1 (two seats and not a group match; R-VERSUS-RAIL-LAYOUT-01: a Ranked Duos table before its
+ *  recorded teams are seated has two)? It used to pick the 1v1 opponent block over the rail; every Versus mode is the rail
+ *  now (R-RAIL-DOCKED-ALLMODES-01), and the clients' parity checks still classify a match by it. */
 export function versusDuelLayout(versus: boolean, seats: number, groupMatch: boolean): boolean {
   return versus && seats <= 2 && !groupMatch;
 }
@@ -138,8 +148,6 @@ let railViewMemo: { run: string; view: RailView } = { run: '', view: 'opponents'
  *  localStorage (a per-viewer convenience: it falls back to the default whenever storage is unavailable). Default
  *  SIMPLE, because the wide rail covers End Turn and part of Refresh. */
 const GUIDES_MODE_KEY = 'ascent.guidesMode';
-/** VERSUS: the Guides drawer's slide (`.lobbyrail.vsdrawer`, versus.css). */
-const VS_DRAWER_MS = 220;
 /** How long the bottom-right Guides panel takes to sink back into its button (guidesdockout, lobbyGuides.css). */
 const GUIDES_CLOSE_MS = 160;
 function readGuidesMode(): GuidesMode {
@@ -169,6 +177,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const showOppSkins = useGame((st) => st.showOpponentSkins);
   // THE DOCKED RAIL (owner 2026-10-31): its dials (Lobby Rail Tuner 2 in DEV; DOCK_DEFAULTS in production).
   const dockCfg = useDockCfg();
+  // What each docked slice's label says (Tuner 2 "Slice label"; production: the player's name).
+  const sliceLabel = useSliceLabel();
   const railRef = useRef<HTMLDivElement>(null);
   // The portrait-frames tuner's rings for the seat faces (null = today's plain round face).
   const selfFrame = usePortraitFrame('self', frameIdOf(runSkins)); // your seat: the frame recorded on this run
@@ -207,10 +217,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const setId = useGame((st) => st.run.setId);
   const runTribes = useGame((st) => st.run.tribes);
   const guidesOn = useGame((st) => st.run.mode !== 'tutorial');
-  // VERSUS (owner 2026-10-14): its rail sits at the middle of the right side, not the top (`.vsplace`).
-  // VERSUS GROUP (owner 2026-10-24, R-VERSUS-GROUP-03): a 3-4 player match uses the ranked rail as it is (its seats in
-  // the rail's place, the Guides tab), so only a 1v1 lobby (two seats) takes the Versus placement and drawer.
-  const versusRail = useGame((st) => st.run.mode === 'versus' && (st.run.lobby?.seats.length ?? 0) <= 2);
+  // EVERY MODE ON THE RAIL (owner 2026-10-31: "I think we should move all modes to this rail type. 1v1, even 3 and 4 player
+  // group games"; R-RAIL-DOCKED-ALLMODES-01): a Versus 1v1 is the rail like every other mode (you and the opponent as two
+  // slices). The 1v1 opponent block, its middle-right placement and its Guides drawer are retired; the Guides tab flips
+  // the rail as in a lobby game.
   // The guide list is a SNAPSHOT of the guides store, retaken each time the Guides view opens (below), never a
   // subscription: a refresh that lands while the player is reading must not move a card under them. It is retaken
   // in a LAYOUT effect, before paint, so a refresh that landed while the view was closed never shows as a
@@ -253,7 +263,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   useEffect(() => { railViewMemo = { run: runKey, view }; }, [runKey, view]);
   const showGuides = guidesOn && view === 'guides';
   // Only the Versus 1v1 drawer still turns the RAIL to its Guides face; everywhere else the guides are the corner panel.
-  const versusDuelView = versusRail;
+  // R-RAIL-DOCKED-ALLMODES-01: no mode shows the guides on the rail any more (the 1v1 drawer went with the opponent block);
+  // every mode opens them from the Guides corner.
+  const versusDuelView = false as boolean;
   const railGuides = showGuides && versusDuelView;
   // The corner panel sinks back into its button before it unmounts (`gdClosing` holds it on screen for that).
   const [gdClosing, setGdClosing] = useState(false);
@@ -268,31 +280,6 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     // Same three arrays and account as last time = the same snapshot object, so nothing re-renders.
     setGuideSnap((cur) => (cur.list === next.list && cur.mine === next.mine && cur.bookmarked === next.bookmarked && cur.uid === next.uid ? cur : next));
   }, [showGuides]);
-  // VERSUS GUIDES DRAWER (owner 2026-10-14: the rail tab "is a botch job"): no rail to flip, so the guides open from the
-  // opponent block's Guides plate as a drawer over the right side (the rail's own Guides face, sliding in), closed by
-  // its ✕, the plate again, or Esc. `vsClosing` holds it on screen for its slide out.
-  const [vsClosing, setVsClosing] = useState(false);
-  const closeVsGuides = useCallback((): void => {
-    setVsClosing(true);
-    window.setTimeout(() => { setVsClosing(false); setView('opponents'); }, VS_DRAWER_MS);
-  }, []);
-  const toggleVsGuides = (): void => {
-    setHovered(null);
-    setPinned(null);
-    setSwap(null);
-    if (view === 'guides') closeVsGuides(); else setView('guides');
-  };
-  useEffect(() => {
-    if (!versusRail || !showGuides || vsClosing) return undefined;
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      e.stopImmediatePropagation(); // the Esc menu does not open under it
-      closeVsGuides();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [versusRail, showGuides, vsClosing, closeVsGuides]);
   // THE CORNER BUTTON: open grows the panel out of it; close sinks it back in (then it unmounts).
   const toggleView = (): void => {
     setHovered(null);
@@ -347,7 +334,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     document.addEventListener('pointerdown', onDown, true);
     return () => document.removeEventListener('pointerdown', onDown, true);
   }, [showGuides, mode, railGuides]);
-  const railMods = `${railGuides ? ` guidesview guides-${mode}` : ''}${swap ? ` swap-${swap}` : ''}${versusRail && view !== 'guides' ? ' vsplace' : ''}${versusRail && showGuides ? ` vsdrawer${vsClosing ? ' closing' : ''}` : ''}`;
+  const railMods = `${railGuides ? ` guidesview guides-${mode}` : ''}${swap ? ` swap-${swap}` : ''}`;
   const openScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
     if (staged) return;
     const b = e.currentTarget.getBoundingClientRect();
@@ -468,15 +455,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // damage, "N left", the row order (living by Resolve + Armor, ties in seat order; the fallen by placement), each
   // row's health and placement, and the next-opponent / ghost marks. `railAccuracy.test.ts` plays real lobbies and
   // checks every field against what each round actually did. Your own row reads the RUN, which takes your hit the
-  // moment the fight settles (owner report 2026-08-25), in VERSUS too. A VERSUS 1v1 shows the opponent's block (their
-  // Health + Armor, owner 2026-10-14); your own pools sit under your hero. VERSUS GROUP (R-VERSUS-GROUP-03): the ranked
-  // rail with every player (you included) on their Health + Armor, the Copy in the last slot while one is in play.
-  // A 1v1 (two seats) keeps its one-opponent block (`versusDuel`).
-  // A GROUP match (Group, Duos, Ranked Duos) is never the 1v1 block, whatever its seat count: a Ranked Duos table holds
-  // only the live pair until the recorded teams are seated, and showing the teammate as "the opponent" read as the 1v1
-  // screen (owner report 2026-10-28, R-VERSUS-RAIL-LAYOUT-01).
-  const groupMatch = useVersus((st) => versus && !!st.match?.group);
-  const versusDuel = versusDuelLayout(versus, lobby.seats.length, groupMatch);
+  // moment the fight settles (owner report 2026-08-25), in VERSUS too. Every Versus mode (1v1, Group, Duos, Ranked Duos)
+  // is the rail with every player (you included) on their Health + Armor, the Copy in the last slot while one is in play
+  // (R-VERSUS-GROUP-03, R-RAIL-DOCKED-ALLMODES-01).
   // VERSUS DUOS (R-DUOS-01): the teammate's row (always s1), kept next to yours. A click opens their live screen
   // (R-DUOS-VIEW-01), a second way in beside the bottom-right teammate portrait (the pass target, DuosMateDock).
   const duosMate = useVersus((st) => (versus && st.match?.group?.duos?.mate && st.match.group.me ? 's1' : null));
@@ -484,21 +465,40 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const rankedRaw = useVersus((st) => (versus && st.match?.group && isRankedDuosRaw(st.match.group.raw) ? st.match.group.raw : null));
   const rankedMe = useVersus((st) => st.match?.group?.me ?? null);
   const teamLabels = useMemo(() => (rankedRaw && rankedMe ? rankedTeamLabels(rankedRaw, rankedMe, rankedRaw.servedTeamNames ?? {}) : null), [rankedRaw, rankedMe]);
-  const rail = lobbyRailView(lobby, { opponent: playerOpponent(lobby), ...(versusDuel ? { hideSelf: true } : { self: { resolve: myResolve, armor: myArmor } }) });
+  // EVERY DUOS VIEW (a spectator too, who has no teammate of their own): the table is in teams, so the docked slices are
+  // grouped per team. `mateId`: the viewed player's teammate's slice (s1), drawn distinct.
+  const duosTeams = useVersus((st) => versus && !!st.match?.group?.duos);
+  const mateId = duosMate ?? (duosTeams ? 's1' : null);
+  // What each Versus player is doing (Locked in / Ready / Away / Disconnected), on their own docked slice
+  // (versusRailStatus.ts). One string per change, so the rail re-renders only when a state flips.
+  const statusKey = useVersus((st) => {
+    if (!versus) return '';
+    const sp = useSpectate.getState();
+    const viewer = st.match?.group ? st.match.group.me ?? (sp.active ? sp.seat : null) : mySeat(st.match) ?? (sp.active ? sp.seat : null);
+    return railStatusKey(versusRailStatuses(st.match, viewer));
+  });
+  const statuses = useMemo(() => parseRailStatusKey(statusKey), [statusKey]);
+  const rail = lobbyRailView(lobby, { opponent: playerOpponent(lobby), self: { resolve: myResolve, armor: myArmor } });
   const next = rail.opponent;
   const foe = next?.seat ?? null;
   // The foe's board is already prepared by `playerOpponent`, so reading it is free, and the imminent opponent has
   // CURRENT intel even on round 1. Every card reads the round you are IN, by one rule (`railSeatIntel`).
   const foeIntel: SeatIntel | undefined = foe ? railSeatIntel(lobby, foe, next) : undefined;
   // VERSUS DUOS: team rows grouped (you next to your teammate), never split by Health.
-  const rows = duosMate ? groupDuosRailRows(rail.rows) : rail.rows;
+  const rows = duosMate || duosTeams ? groupDuosRailRows(rail.rows) : rail.rows;
   // THE DOCKED RAIL (owner 2026-10-31): the seats laid out on the board's right side, measured off the board's own Refresh
   // / gem / Gold (useDockedRail). It needs that HUD on screen and room beside it; anywhere it cannot (the Guides view, a Duos
   // team rail, the Versus 1v1 block, a board without its HUD) the rail is the Gem rail (lobbyRail.css), as before.
   const liveIds = useMemo(() => rows.filter((r) => r.alive).map((r) => r.id), [rows]);
   const deadIds = useMemo(() => rows.filter((r) => !r.alive).map((r) => r.id), [rows]);
-  const dockWanted = !duosMate && !versusDuel && !railGuides;
-  const dock = useDockedRail(dockWanted, railRef, liveIds, deadIds, dockCfg, staged);
+  // R-RAIL-DOCKED-ALLMODES-01: Duos and Ranked Duos dock too, laid out in teams (`teamOf`: each slice's team, the pairs
+  // side by side; Ranked Duos keeps a gap above every team for its name). With no room to dock, a Duos table keeps its
+  // team slots on the Gem rail.
+  const dockWanted = !railGuides;
+  const teamOf = useMemo(() => (duosTeams ? [...liveIds, ...deadIds].map(duosRailTeamOf) : undefined), [duosTeams, liveIds, deadIds]);
+  const dock = useDockedRail(dockWanted, railRef, liveIds, deadIds, dockCfg, staged, teamOf, !!teamLabels);
+  // A team's ONE Health pool shows once (R-DUOS-RAIL-TEAM-01, docked too): on its last slice, the pair's foot.
+  const teamBarIds = useMemo(() => (dock?.teams ? new Set(dock.teams.map((t) => t.ids[t.ids.length - 1]!)) : null), [dock]);
   const rv = !!dock;
   // Docked's class on the rail, its header and its tab (lobbyRailDocked.css keys off it).
   const vMod = rv ? ' lrv-docked' : '';
@@ -541,15 +541,14 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     flipPrev.current = next;
     flipKey.current = key;
   }, [rv, railGuides, rowsKey, dock]);
-  // The rail's height in seat rows (`--lby-n`): VERSUS's head-to-head card takes three; its Guides view takes the
-  // lobby's full eight, so the guides read exactly as in a lobby game.
-  const railRows = versusDuel ? (showGuides ? 8 : 3) : rows.length;
+  // The rail's height in seat rows (`--lby-n`).
+  const railRows = rows.length;
 
   // The round's loss cap (the run's own table: the Gauntlet has its own, see `roundLossCap`). Infinity = uncapped.
   const cap = rail.lossCap;
   const capTip = maxDamageTip(cap);
   const guideCountLabel = `${guideCount} guide${guideCount === 1 ? '' : 's'}`;
-  const leftLabel = railGuides ? guideCountLabel : versusDuel ? '' : `${versus ? rail.left - (lobby.seats.some((x) => x.id === VERSUS_COPY_SEAT_ID) ? 1 : 0) : rail.left} left`;
+  const leftLabel = railGuides ? guideCountLabel : `${versus ? rail.left - (lobby.seats.some((x) => x.id === VERSUS_COPY_SEAT_ID) ? 1 : 0) : rail.left} left`;
 
   return (
     <>
@@ -559,8 +558,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         is a scroll container and would clip anything placed outside its box. `.lobbyrailhead` is absolutely
         positioned off the rail's own `right` / `top` / `width` (styles.css), so it takes no layout space and
         moves nothing. */}
-    {/* VERSUS draws its Round plate on the opponent's block (versus/VersusFoe.tsx); the Guides view keeps this header. */}
-    {!(versusDuel && !showGuides) && <div className={`lobbyrailhead${railMods}${vMod}${dock?.wrap ? ' lrv-wrap' : ''}`} style={{
+    <div className={`lobbyrailhead${railMods}${vMod}${dock?.wrap ? ' lrv-wrap' : ''}`} style={{
       ...(dock ? {
         left: dock.head.x, top: dock.head.y, width: dock.head.w, height: dock.head.h, '--dk-s': dock.s, '--mx': `${dock.head.midX}px`,
         ...(dock.wrap ? { '--tah': `${dock.wrap.topH}px`, '--bx': `${dock.wrap.bandX}px` } : {}),
@@ -575,12 +573,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
       <span className="lobbyround">{railGuides ? 'Guides' : rv ? <><span className="lr-word">Round</span> <span className="lr-num">{rail.round}</span></> : `Round ${rail.round}`}</span>
       {/* Docked: the seats-left count joins the round slice (shown in its Slight eclipse / Level layouts). */}
       {rv && !railGuides && leftLabel && <span className="lrv-left">{leftLabel}</span>}
-      {versusDuel && showGuides && (
-        <button type="button" className="mdd-close pressable vsdrawer-close" aria-label="Close build guides" onClick={closeVsGuides}>
-          <span aria-hidden="true">✕</span>
-        </button>
-      )}
-      {/* VERSUS reads the lobby's own cap (R-VERSUS-HEALTH-01); a 1v1's opponent block carries it too (VersusFoe). */}
+      {/* VERSUS reads the lobby's own cap (R-VERSUS-HEALTH-01). */}
       {/* Max loss: the most Health a loss this round can cost. Hover explains it with the live number, in the
           game's standard HUD tip panel (`.herotip`, the hero-power / Equipment hover), not the small `.gtip`
           bubble: owner 2026-10-02, "fix this tooltip, it's unreadable". */}
@@ -593,17 +586,17 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         <b>{capTip.title}</b>
         <span className="herotip-rule">{capTip.rule}</span>
       </span>
-    </div>}
+    </div>
     {/* THE GUIDES CORNER (owner 2026-10-31, R-GUIDES-CORNER-01): the Guides square in the bottom-right cluster (above the
         Settings gear) and the panel that grows UP out of it. The rail's old Guides / Opponents tab is gone. Not in the
-        Tutorial, nor in a Versus 1v1 (its opponent block keeps the Guides plate and drawer). */}
-    {guidesOn && !versusRail && (
+        Tutorial. Every Versus mode has it too since the 1v1 opponent block was retired (R-RAIL-DOCKED-ALLMODES-01). */}
+    {guidesOn && (
       <button type="button" className={`guidesbtn gtip${showGuides ? ' on' : ''}`} data-tip={showGuides ? undefined : 'Guides'}
         aria-label={showGuides ? 'Close build guides' : 'Open build guides'} aria-pressed={showGuides} aria-expanded={showGuides} onClick={toggleView}>
         <Icon name={showGuides ? 'chevron' : 'book'} />
       </button>
     )}
-    {guidesOn && !versusRail && !staged && (showGuides || gdClosing) && (
+    {guidesOn && !staged && (showGuides || gdClosing) && (
       <div className={`guidesdock guides-${mode}${showGuides ? '' : ' closing'}`} role="region" aria-label="Build guides"
         style={gdFloor !== null ? ({ '--gd-bottom': `${gdFloor}px` } as React.CSSProperties) : undefined}>
         <div className="guidesdock-head">
@@ -615,37 +608,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         </div>
       </div>
     )}
-    {/* VERSUS (owner 2026-10-14): no rail panel on the Opponents view. The opponent's hero block floats where the rail
-        stands (versus/VersusFoe.tsx), mirroring your own; its Round header and the Guides tab stay. */}
-    {versusDuel && lobby.seats[1] && (() => {
-      const foeSeat = lobby.seats[1]!;
-      const foeSkins = opponentSkins(showOppSkins, foeSeat.cosmetics);
-      const foeFrameId = frameIdOf(foeSkins);
-      return (
-        <>
-          <VersusFoe
-            foe={foeSeat}
-            art={heroPortrait(foeSeat.heroId, foeSkins)}
-            frame={resolvePortraitFrame('opp', foeFrameId ?? 'default', 'socket')}
-            round={lobby.round}
-            cap={cap}
-            capPop={capPop}
-            onGuides={toggleVsGuides}
-            guidesOpen={showGuides && !vsClosing}
-            faceProps={{
-              onMouseEnter: (e) => openScout(e, foeSeat.id),
-              onMouseLeave: () => setHovered((h) => (h?.id === foeSeat.id ? null : h)),
-              onClick: (e) => pinScout(e, foeSeat.id),
-              onContextMenu: (e) => pinScout(e, foeSeat.id),
-            }}
-          />
-          {!staged && !showGuides && hovered?.id === foeSeat.id && pinned?.id !== foeSeat.id && <ScoutCard lobby={lobby} seat={foeSeat} intel={foeIntel} at={hovered} />}
-          {!staged && !showGuides && pinned?.id === foeSeat.id && <ScoutCard lobby={lobby} seat={foeSeat} intel={foeIntel} at={pinned} pinned />}
-        </>
-      );
-    })()}
     {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
-    {!(versusDuel && !showGuides) && <div ref={railRef} className={`lobbyrail${railMods}${vMod}`} style={{
+    <div ref={railRef} className={`lobbyrail${railMods}${vMod}`} style={{
       '--lby-n': railRows,
     } as React.CSSProperties}>
       <div className="lobbyhead">
@@ -690,7 +654,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               data-seat={seat.id}
               // LIVE PINGS (R-PING-08): a teammate or mentor pings a seat; the player's own right-click stays the scout pin.
               data-ping={railKey(seat.id)} data-ping-own="" data-ping-at="left"
-              className={`lobbyseat${inTeam ? ' inteam' : ''}${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === duosMate ? ' mate' : ''}`}
+              className={`lobbyseat${inTeam ? ' inteam' : ''}${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === mateId ? ' mate' : ''}`}
               {...(seat.id === duosMate ? { 'aria-label': `${seat.label}, your teammate. Click to watch their board.` } : {})}
               // Hover scouting works on EVERY seat, yours included (owner ask 2026-09-24: "add the same mouseover
               // for self as we have for enemies"). Pinning stays opponent-only; the owner asked for the hover.
@@ -723,8 +687,16 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                   {isFoe && row.alive && <span className={`lrv-vs${isGhost ? ' ghost' : ''}`} aria-label="Your next opponent"><Icon name="sword" /><Icon name="sword" /></span>}
                   {/* No standing medal or crown (owner 2026-10-31: the order says it); the player's NAME sits over the faded
                       side of the art instead. */}
-                  <span className="lrv-name"><ClampedName text={seat.label} /></span>
-                  {row.alive ? (<span className="lrv-barclip" style={dp?.cut ? { clipPath: outlineClip(insetOutline(dp.outline, 4 * dock!.s, dp.w)) } : undefined}>
+                  {/* The slice's label (Tuner 2 "Slice label"): the player's name (default), the hero's name, or none. Same
+                      font, alignment and 2-line ellipsis either way; the fallen follow it too. */}
+                  {sliceLabel !== 'none' && <span className="lrv-name"><ClampedName text={sliceLabel === 'hero' ? getHero(seat.heroId)?.name ?? seat.label : seat.label} /></span>}
+                  {/* VERSUS: what this player is doing, when it matters (versusRailStatus.ts). Keyed by the label, so each
+                      change pops in once. Your own is on your End Turn gem. */}
+                  {!isYou && row.alive && statuses[seat.id] && (
+                    <span key={statuses[seat.id]!.label} className={`lrv-status ${statuses[seat.id]!.tone}`}>{statuses[seat.id]!.label}</span>
+                  )}
+                  {/* A DUOS team's shared pool is drawn once, on the pair's last slice; the other slice carries no bar. */}
+                  {row.alive && teamBarIds && !teamBarIds.has(seat.id) ? null : row.alive ? (<span className="lrv-barclip">
                     <span className="lrv-bar" role="img" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
                       <span className="lrv-bar-hp" style={{ transform: `scaleX(${hpFrac})` }} />
                       {armFrac > 0 && <span className="lrv-bar-arm" style={{ transform: `translateX(${((armEnd - armFrac) * 100).toFixed(2)}%) scaleX(${armFrac})` }} />}
@@ -788,6 +760,34 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
             </div>
           );
         };
+        // DOCKED: every slice placed by the layout; a Duos table also gets one plate per team round its pair, under the
+        // slices, and (Ranked Duos) each team's name in the gap above it.
+        if (dock) {
+          const membersOf = (ids: readonly string[]): typeof rows => rows.filter((r) => ids.includes(r.id));
+          return (
+            <>
+              {dock.teams?.map((t) => {
+                const members = membersOf(t.ids);
+                const mod = `${members.some((m) => m.you) ? ' you' : ''}${members.some((m) => m.next) ? ' foe' : ''}${members.some((m) => m.alive) ? '' : ' dead'}`;
+                return (
+                  <div key={`team${t.team}`} className={`lrv-team${mod}`} data-team={t.team} aria-hidden="true"
+                    style={{ left: t.x, top: t.y, width: t.w, height: t.h, '--dk-s': dock.s } as React.CSSProperties} />
+                );
+              })}
+              {dock.teams?.map((t) => {
+                const members = membersOf(t.ids);
+                const label = members.map((m) => teamLabels?.[m.id]).find(Boolean) ?? null;
+                if (!label) return null;
+                const mod = `${members.some((m) => m.you) ? ' you' : ''}${members.some((m) => m.alive) ? '' : ' dead'}`;
+                return (
+                  <span key={`tname${t.team}`} className={`lrv-teamname${mod}`} aria-label={`Team ${label}`}
+                    style={{ left: t.x + (dockById.get(t.ids[0]!)?.topX ?? 0), top: t.labelY, maxWidth: t.w * 0.9, '--dk-s': dock.s } as React.CSSProperties}>{label}</span>
+                );
+              })}
+              {rows.map((row) => seatRow(row))}
+            </>
+          );
+        }
         if (!duosMate) return rows.map((row) => seatRow(row));
         // VERSUS DUOS / RANKED DUOS (owner 2026-10-27: "tie the teammates together better by putting them into chunkier
         // rail slots as a team"; R-DUOS-RAIL-TEAM-01): one slot per team, both members inside it, the team's name over
@@ -825,7 +825,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         })()}
       </div>
       )}
-    </div>}
+    </div>
     </>
   );
 });
@@ -1045,6 +1045,9 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
             </span>
           )}
         </div>
+        {/* VERSUS (owner 2026-10-31: "their hero, tier, gilded made, top tribe, runes, last fights vs you"): the hero under the
+            name. A lobby card keeps the owner's lobby list. */}
+        {versusCard && <div className="lrv-sc-hero">{heroName}</div>}
         <div className="lrv-sc-chips">
           <span className="lrv-sc-chip"><i>Shop tier</i><b><Icon name="up" />{intel ? intel.tier : '—'}</b></span>
           <span className="lrv-sc-chip"><i>Gilded made</i><b><Icon name="star" />{intel ? intel.triples : '—'}</b></span>

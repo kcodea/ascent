@@ -1051,9 +1051,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **The lobby screens, 1:1** (owner 2026-10-14). A match is played on the ordinary lobby UI: the shop, the rail,
   the combat scene (opponent portrait, name, skin, board, hero attack, round label, Fight Recap), scouting, End Turn,
   the clock, the Esc menu, emotes, the announcer and the music. The only differences: two seats with the same
-  opponent every round; no seat rail: the **opponent's hero block** floats on the right like your own (portrait, name,
-  their Health box, what they are doing, their shop tier; the scout card on hover), with the Round plate, the round's
-  **Max dmg** beside it and the Guides tab; no "N left"; server timers with no Gold Fuse; the room; no rank; no Pre-emptive
+  opponent every round; the rail holds just the two of you (two docked slices, R-RAIL-DOCKED-ALLMODES-01; the separate
+  opponent's hero block was retired 2026-10-31), the opponent's slice showing what they are doing; server timers with no Gold Fuse; the room; no rank; no Pre-emptive
   Assault. The announcer skips the lines about the 8-seat table, placement and rank (its Health, Armor and damage lines
   speak, as in a lobby game).
 - **Start.** Only the host presses Start, and only with both seats filled. The room seals (no player-seat changes)
@@ -1680,19 +1679,27 @@ Ranked Duos party).
 - **The lobby rail, docked** (owner 2026-10-31, R-RAIL-DOCKED-01): in a lobby game the rail is a stack of slices against the
   board's right side. A round slice tied into the Refresh button shows the round and the max damage; below it, one slice
   per seat (all the same height, in standing order) runs down to the Gold coin's foot. The Refresh button, the End Turn
-  gem and the Gold coin cut clean shapes out of the slices beside them. Each slice shows the hero art fading to the right,
-  the player's name and a Health bar (red Health, a steel-blue Armor chunk, out of the seat's max Health). Your slice is
+  gem and the Gold coin cut clean shapes out of the slices beside them. Each slice is filled with the hero art (owner pick
+  2026-10-31, "Full art": no name on the slice; the hover card names the player) and a Health bar (red Health, a steel-blue Armor chunk, out of the seat's max Health). Your slice is
   edged in gold; your next opponent's is red, glowing, with crossed swords. A knocked-out seat keeps its slice, greyed
   with a skull, so the stack never moves. Hovering a slice opens a compact scout card (name, Health and Armor, shop tier,
-  Gilded made, top tribe, runes, last three fights). Where the rail cannot dock (the Versus 1v1 Guides drawer, a Duos team rail, the
-  Versus 1v1 block) it is the Gem rail. The rail sits under the board's HUD, so their tooltips draw over it, and only the
+  Gilded made, top tribe, runes, last three fights). Where the rail cannot dock (a board without its HUD) it is the
+  Gem rail.
+  **Every mode** (owner 2026-10-31: "move all modes to this rail type. 1v1, even 3 and 4 player group games";
+  R-RAIL-DOCKED-ALLMODES-01): Versus 1v1 (two slices), Group (3-4), Versus Duos and Ranked Duos dock too. A Duos table is
+  laid out in teams: each pair side by side with a wider gap between teams, a plate round each pair (a gold bracket for
+  yours, red for the next foe's), the team's shared Health bar once on the pair's last slice, the teammate's slice in pale
+  gold (a click opens their board; passing stays a drag onto the teammate portrait), and in Ranked Duos each team's name in
+  the gap above it. Each other Versus player's state shows on their slice as a small pill: Locked in (the shop), Ready
+  (after the fight), Away, Disconnected. The Versus hover card adds the hero's name. Slices never grow past the max slice
+  height, so a 1v1 or a small group is a short stack under the round slice. The rail sits under the board's HUD, so their tooltips draw over it, and only the
   slices take the pointer (R-RAIL-DOCKED-CLICKTHROUGH-01). Presentation only.
 - **Guides** (owner ask 2026-10-09; moved 2026-10-31, R-GUIDES-CORNER-01: "the guides button likely needs a new home
   entirely, like in the bottom right and have it expand upwards"): a **Guides** square in the bottom-right cluster
   (stacked just above the Settings gear, beside the Compendium) grows a panel UP out of itself, over the rail column
   up to the round header (in Duos its foot sits above the teammate portrait), and sinks it back on a second press or
   Escape; the rail itself always shows the table (no Guides tab on it any more). The list scrolls inside with the
-  game's scrollbar. A Versus 1v1 keeps its own Guides plate and drawer on the opponent block. The panel holds short
+  game's scrollbar. Every Versus mode, a 1v1 included, uses the same corner (R-RAIL-DOCKED-ALLMODES-01). The panel holds short
   BUILD GUIDES (data in `packages/ui/src/guides/guides.ts`, one card per build line). Only guides for the run's
   pinned set and for tribes in this lobby show; neutral guides always show. A guide opens in place to its **Core** and
   **Enablers** minions (board portraits with the normal hover preview). Each card wears its signature card's art and

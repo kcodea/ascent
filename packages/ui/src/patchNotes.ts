@@ -84,7 +84,7 @@ export const PATCH_NOTES: PatchNote[] = [
         'Hovering your Health no longer lights your portrait behind it.',
       ] },
       { category: 'Systems', text: 'The lobby rail is rebuilt: player slices set into the right side of the board.', details: [
-        'Each player has a slice with their hero art and name. The Refresh button, the End Turn gem and the Gold coin sit snugly in cut-outs.',
+        'Each player has a slice filled with their hero art. Hover it for their name. The Refresh button, the End Turn gem and the Gold coin sit snugly in cut-outs.',
         'A Health bar on every slice: red for Health, steel blue for Armor.',
         'Your slice is edged in gold. The player you fight next glows red, with crossed swords.',
         'Knocked-out players stay in their slice, greyed out with a skull, so the rail never jumps around.',
@@ -105,6 +105,15 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Every hero in a lobby is now unique.', details: [
         'Versus, Group and Duos: no two players are offered the same hero, and a re-roll never gives you a hero someone else has.',
         'Lobbies and Ranked Duos already worked this way: every seat at the table plays a different hero.',
+      ] },
+      { category: 'Systems', text: 'Versus: every mode now uses the new player rail beside the board.', details: [
+        'The hero art fills each slice. Hover a slice to see the player.',
+        '1v1 shows you and your opponent as two slices. The separate opponent block is gone.',
+        'Group games show every player. Players who are out stay in place, greyed out.',
+        'Duos and Ranked Duos group each team together, with the shared Health bar once per team.',
+        'Each slice shows when a player has locked in, is away or has disconnected.',
+        'Click your teammate to view their board. Drag cards onto their portrait to pass, as before.',
+        'Hover a player to see their hero, shop tier, Gilded made, top tribe, runes and last fights.',
       ] },
       { category: 'Systems', text: 'New painted icons across the menus, with a soft glow when you hover them.', details: [
         'Play, Career, Collection, Leaderboard, Recent Games, Live Games, Patch Notes and Settings, in the side menu and on the title screen.',

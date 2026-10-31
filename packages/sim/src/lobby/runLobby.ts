@@ -1172,6 +1172,9 @@ function practiceSeatOptions(mode: 'lobby' | 'practice', config: PracticeConfig 
 export function createLobbyRun(
   seed: number, heroId: string, rules: Partial<LobbyRules> = {}, mode: 'lobby' | 'practice' = 'lobby',
   practiceConfig?: PracticeConfig, setId?: SetId, seatOpts?: LobbySeatOptions,
+  /** `duos`: a DUOS-style run (`state.duos` + the Duos pool, exactly as `createRun(..., { duos: true })`). Only the
+   *  Scene Builder's Duos toggle asks for it (DEV, R-SB-DUOS-01); every real Duos run is a Versus run. */
+  runOpts?: { duos?: boolean },
 ): RunState {
   // PRACTICE is a lobby too since 2026-07-31 — same 8 seats, same recorded opponents (reads the shared pool;
   // writes nothing back), same flow. Its extra rules (invulnerability, the round-15 curtain, the shop-timer
@@ -1191,7 +1194,7 @@ export function createLobbyRun(
   // `setId` argument (the Scene Builder, tests seating another set's recorded runs) keeps the table of before.
   const devSet = mode === 'practice' && setId === undefined && pinnedSet !== activeSet().id;
   const picked = mode === 'practice' && practiceConfig ? normalizePracticeTribes(practiceConfig.tribes, pinnedSet) : [];
-  const run = createRun(seed, heroId, mode, undefined, pinnedSet, picked.length > 0 ? picked : undefined);
+  const run = createRun(seed, heroId, mode, undefined, pinnedSet, picked.length > 0 ? picked : undefined, runOpts?.duos ? { duos: true } : undefined);
   // The run pins its set at creation; the lobby seats from the SAME set, so a set-2 run never faces a seat
   // driven by a set-1 recording (whose bodies are cards this run cannot otherwise see).
   // BOTS opponents: seat seven authored, scaling omen boards instead of recorded player runs.

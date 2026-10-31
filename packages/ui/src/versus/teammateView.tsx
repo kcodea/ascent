@@ -26,6 +26,7 @@ import { perfMonitor } from '../perfMonitor';
 import { PHONE_GPU } from '../phoneDiag';
 import { flushSpectateRender, leaveTeammate, leaveTeammateHero, useSpectate, watchTeammate, watchTeammateHero } from './spectate';
 import { useVersus } from './versusStore';
+import { localMate } from './localMate';
 
 /**
  * THE SWAP: A CROSS-FADE (owner 2026-10-25: "The teammate view swap animation is really ugly" and "The flip to teammate
@@ -186,6 +187,14 @@ export function exitTeammateHeroView(): void {
 
 /** Open my teammate's live screen (Duos, in the shop, from my own board; on Hero Select, their hero choices). */
 export function enterTeammateView(): void {
+  // THE SCENE BUILDER'S PLACEHOLDER TEAMMATE (DEV, R-SB-DUOS-01): the same swap and cross-fade, onto their local run.
+  const lm = localMate();
+  if (lm) {
+    if (lm.viewing() || useGame.getState().run.phase !== 'recruit' || useGame.getState().presentationTx) return;
+    sfx.tick();
+    turn(() => { lm.enter(); document.body.classList.add('duos-viewing'); });
+    return;
+  }
   const v = useVersus.getState();
   if (ownVersusHeroSelect()) { enterTeammateHeroView(); return; }
   const mate = v.match?.group?.duos?.mate;
@@ -205,6 +214,13 @@ export function enterTeammateView(): void {
 
 /** Back to my own board. */
 export function exitTeammateView(): void {
+  const lm = localMate();
+  if (lm) {
+    if (!lm.viewing()) return;
+    sfx.tick();
+    turn(() => { lm.exit(); document.body.classList.remove('duos-viewing'); });
+    return;
+  }
   if (useSpectate.getState().teammateHero) { exitTeammateHeroView(); return; }
   if (!useSpectate.getState().teammate) return;
   sfx.tick();

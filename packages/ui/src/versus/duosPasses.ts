@@ -17,6 +17,7 @@ import { notePassRefused } from './duosPassUi';
 import { sfx } from '../sfx';
 import { ownRunWhileWatching, setMateFrameHook, teammateViewOf } from './spectate';
 import { VersusError, versusRemote, type VersusDuosPassRow } from './versusRemote';
+import { localMate } from './localMate';
 
 /** Server refusals that mean "this pass will never be recorded": refund it now. */
 const REFUSALS = new Set(['hand_full', 'locked', 'not_shop', 'deadline_passed', 'no_teammate', 'too_many_passes', 'bad_card', 'golden', 'not_duos', 'teammate_away']);
@@ -64,6 +65,9 @@ const heldForReplay = (run: RunState, e: { wave: number; combatIdx?: number }): 
 /** The replay reached these carry indices of my board's team effects: ship them now. */
 export function duosReleaseCombatFx(idx: readonly number[]): void {
   const run = useGame.getState().run;
+  // The Scene Builder's placeholder teammate (DEV, R-SB-DUOS-01): its local team channel ships them.
+  const lm = localMate();
+  if (lm) { lm.releaseCombatFx(run.wave, idx); return; }
   if (releasedFx.wave !== run.wave) { releasedFx.wave = run.wave; releasedFx.idx = new Set(); }
   let fresh = false;
   for (const i of idx) if (!releasedFx.idx.has(i)) { releasedFx.idx.add(i); fresh = true; }

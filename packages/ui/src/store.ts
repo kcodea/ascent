@@ -138,6 +138,7 @@ import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug
 import { parseBugScenario } from './bug-report/bugScenario';
 import { spectatorTapOn, tapAct, tapEndTurn } from './versus/spectateTap';
 import { holdUntilVersusFight, versusAction, versusAfterCommit, versusFreeze, versusLand, versusRefuses } from './versus/versusHooks';
+import { localMateRefuses } from './versus/localMate';
 import { HALL_VISIBLE } from './hallFlag';
 import { openDockOn } from './friends/dock/dockStore';
 
@@ -770,6 +771,11 @@ interface GameStore {
    *  creation). Never read outside the Scene Builder, so no lobby / practice / normal run can carry Ancients. */
   sbAncients: boolean;
   setSbAncients: (on: boolean) => void;
+  /** SANDBOX ONLY (dev). DUOS (owner ask 2026-10-31, R-SB-DUOS-01): the sandbox run is started as a Duos-style run
+   *  (`state.duos` + the Duos pool) with a placeholder teammate held locally (`sbDuos.ts`, the DEV chunk). Persisted;
+   *  flipping it relaunches the rig (the pool is stocked at creation). */
+  sbDuos: boolean;
+  setSbDuos: (on: boolean) => void;
   /** SANDBOX ONLY (dev). Click-to-edit is armed: a click on a board minion opens the unit editor instead of
    *  starting a drag / a buy. A MODE rather than a modifier because a bare click already means something on
    *  both rows, and the rig has to leave normal play intact — the shop phase is where some of the
@@ -994,6 +1000,10 @@ function loadSbRules(): SandboxRules {
   try { return localStorage.getItem(SB_RULES_KEY) === 'normal' ? 'normal' : 'god'; } catch { return 'god'; }
 }
 const SB_ANCIENTS_KEY = 'ascent.sb.ancients';
+const SB_DUOS_KEY = 'ascent.sb.duos';
+function loadSbDuos(): boolean {
+  try { return localStorage.getItem(SB_DUOS_KEY) === '1'; } catch { return false; }
+}
 function loadSbAncients(): boolean {
   try { return localStorage.getItem(SB_ANCIENTS_KEY) !== '0'; } catch { return true; }
 }
@@ -2564,6 +2574,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // telemetry) or fights the player. The combat ARENA still animates (it reacts to `run`, not to dispatch).
     if (get().replaying) return;
     if (versusRefuses(get().run, action)) return; // VERSUS: a paused match (or a held shop) takes no input
+    if (localMateRefuses(action)) return; // SCENE BUILDER DUOS (dev): the placeholder teammate's screen never ends a turn
     // VERSUS (R-VERSUS-EARLY-EOT-01): an End Turn started at the round's close commits once its fight is in.
     if (holdUntilVersusFight(get().run, action, () => get().dispatch(action))) return;
     action = versusAction(get().run, action); // VERSUS: End Turn parks the side for the server
@@ -2635,6 +2646,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     if (s.replaying) return null;
     if (s.presentationTx) return s.presentationTx; // already prepared — never resolve twice
     if (versusRefuses(s.run, action)) return null; // VERSUS: a paused match takes no End Turn either
+    if (localMateRefuses(action)) return null; // SCENE BUILDER DUOS (dev): nor the placeholder teammate's screen
     action = versusAction(s.run, action); // VERSUS: End Turn parks the side for the server
     const prepared = prepareActionWithPresentation(s.run, action);
     // SPECTATORS (owner 2026-10-15): the End Turn press and the beats it is about to play, tapped NOW so the stands
@@ -2940,7 +2952,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // GOD rules start on 999 Gold (the panel keeps it topped up); NORMAL rules start on the real opening Gold.
       const level = botLevel ?? s.sbBotLevel;
       const config: PracticeConfig = { opponents: 'bots', botDifficulty: level, health: 'unlimited', timeMult: 1, tribes: [] };
-      const base = createLobbyRun(randomSeed(), heroId, {}, 'practice', config, setId);
+      const base = createLobbyRun(randomSeed(), heroId, {}, 'practice', config, setId, undefined, s.sbDuos ? { duos: true } : undefined);
       const plain: RunState = { ...base, sandbox: true, tier: 1, ...(s.sbRules === 'god' ? { embers: 999 } : {}) };
       // ANCIENTS (owner ruling 2026-09-25): Scene Builder + Set 3 only, behind the rig's toggle.
       const run: RunState = recordRunCosmetics(s.sbAncients && setId === 'set3' ? enableAncients(plain, ancientMeterOverride()) : plain);
@@ -2972,6 +2984,13 @@ export const useGame = create<GameStore>((rawSet, get) => {
   setSbAncients: (on) => {
     try { localStorage.setItem(SB_ANCIENTS_KEY, on ? '1' : '0'); } catch { /* ignore */ }
     set({ sbAncients: on });
+    const run = get().run;
+    if (run?.sandbox) get().startSceneBuilder(run.heroId, run.setId);
+  },
+  sbDuos: loadSbDuos(),
+  setSbDuos: (on) => {
+    try { localStorage.setItem(SB_DUOS_KEY, on ? '1' : '0'); } catch { /* ignore */ }
+    set({ sbDuos: on });
     const run = get().run;
     if (run?.sandbox) get().startSceneBuilder(run.heroId, run.setId);
   },

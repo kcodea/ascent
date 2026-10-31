@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { duosPassBlocked, handCap, type RunState } from '@game/sim';
 import { teammateViewOf } from './spectate';
 import { useVersus } from './versusStore';
+import { localMate } from './localMate';
 
 /** The refusal shown on the teammate's portrait (player text: short, plain, no em dashes). */
 const REASON_TEXT: Record<string, string> = {
@@ -22,6 +23,8 @@ const REASON_TEXT: Record<string, string> = {
 
 /** Is my teammate's hand full, by their live frame (unknown = not full; the server checks too). */
 export function mateHandFull(): boolean {
+  const lm = localMate();
+  if (lm) return lm.handFull(); // the Scene Builder's placeholder teammate (DEV, R-SB-DUOS-01)
   const mate = useVersus.getState().match?.group?.duos?.mate;
   const view = mate ? teammateViewOf(mate) : null;
   const hand = view && Array.isArray((view as unknown as { hand?: unknown }).hand) ? (view as unknown as { hand: unknown[] }).hand : null;
@@ -31,6 +34,7 @@ export function mateHandFull(): boolean {
 
 /** My teammate is away: disconnected past the grace (their seat plays on auto), or the match is paused for them. */
 export function mateAway(): boolean {
+  if (localMate()) return false; // the Scene Builder's placeholder teammate is always there
   const g = useVersus.getState().match?.group;
   const mate = g?.duos?.mate;
   if (!g || !mate) return false;
@@ -40,7 +44,7 @@ export function mateAway(): boolean {
 
 /** Why `uid` cannot be passed right now, as the portrait says it (null = it can). */
 export function duosPassRefusal(run: RunState, uid: string): string | null {
-  if (!useVersus.getState().match?.group?.duos?.mate) return REASON_TEXT.not_duos!;
+  if (!localMate() && !useVersus.getState().match?.group?.duos?.mate) return REASON_TEXT.not_duos!;
   // A teammate who dropped out (their board plays on auto) cannot take a card: it would wait on the server, with my
   // Gold paid, until they came back (phase-3 live test, 2026-10-25). The server refuses it too.
   if (mateAway()) return REASON_TEXT.teammate_away!;

@@ -17,6 +17,7 @@ import { useVersus } from './versusStore';
 import { useSpectate } from './spectate';
 import { duosCombatAt, type DuosCombatNow } from './versusGroupView';
 import { duosReleaseCombatFx } from './duosPasses';
+import { localMate } from './localMate';
 
 /**
  * DUOS REAL-TIME TEAM EFFECTS (R-DUOS-RUNES-02): the carry indices of MY board's team effects whose `teamSend` beat the
@@ -65,7 +66,8 @@ export function useDuosCombatSync(combat: CombatResult | undefined, events: read
   // for a fight that carries a team effect at all.
   const hasSends = !!combat?.playerShoutCarry?.teamEffects?.some((t) => t.mate);
   useEffect(() => {
-    if (!fighting || !combat || !viewer || !hasSends) return;
+    // A seated player, or the Scene Builder's placeholder team (DEV, R-SB-DUOS-01: the local channel ships them).
+    if (!fighting || !combat || (!viewer && !localMate()) || !hasSends) return;
     const idx = teamSendsReached(events, processedEnd, combat.duosMember ?? 0);
     if (idx.length > 0) duosReleaseCombatFx(idx);
   }, [combat, events, processedEnd, fighting, viewer, hasSends]);

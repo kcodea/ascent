@@ -12360,4 +12360,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Kev runs the dev server and presses Create room. Before, it said "Connection problem. Try again." Now the room opens on the live Worker for that engine, signed in as him. If his branch is ahead of the last pack, it says the game server is not deployed yet.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusCfOnly.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
+  {
+    id: 'R-SB-DUOS-01',
+    title: 'Scene Builder Duos: a placeholder teammate held locally, the real pass and team-effect paths, the Duos pool and runes',
+    statement:
+      'DEV ONLY (the Scene Builder, stripped from production). The rig\x27s Duos toggle relaunches the sandbox as a Duos-style run (the run '
+      + 'carries its Duos state and stocks the set\x27s Duos pool, the same `duosPoolFor` a Duos match stocks from) with a placeholder '
+      + 'teammate: a second run held in the browser, seeded off yours, with another hero, your tribes and your set. There is no Worker: a '
+      + 'local team channel carries every pass and team effect both ways through the same run actions a match uses (`receivePass`, '
+      + '`passRefunded`, `noteMateTribes`) and mirrors the Worker\x27s refusals (no Golden card except a Salesman sale, a manual pass to a '
+      + 'full hand refused and refunded, an effect pass waiting for room, the per-round caps). A combat team effect is held until its replay '
+      + 'beat. The real Duos teammate portrait sits bottom right: drag a hand card onto it to pass, click it (or Tab / Esc) to swap to their '
+      + 'board with the same cross-fade. Their board is live: every Scene Builder tool edits their run while you look, and a drag onto your '
+      + 'own portrait passes to you. Their run never fights: End Turn (or the clock) on their screen takes you back to your own board. The '
+      + 'Teammate section\x27s tuner makes them pass you a picked card (their hand, then their real drag pass), a random hand card, or a '
+      + 'random board minion (an effect pass), sell a minion, and fill or empty their hand. The library adds the Duos-only minions and spells '
+      + '(tagged duos) and the rune list the Duos runes only while Duos is on.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31 (Scene Builder Duos)', quote: 'scene builder needs a duo toggle which gives a placeholder teammate to view their board and pass things to' },
+      { kind: 'code', ref: 'packages/ui/src/sbDuos.ts; packages/ui/src/sbDuosChannel.ts; packages/ui/src/versus/localMate.ts; packages/ui/src/SceneBuilder.tsx; packages/sim/src/lobby/runLobby.ts (createLobbyRun runOpts.duos)' },
+    ],
+    currentBehaviour: 'Built 2026-10-31 (feat/scene-builder-duos). The teammate\x27s turn never advances (their run does not fight; tag-team combat is out of scope for the rig).',
+    example: 'Kev turns Duos on in the Scene Builder, puts Hitchhiker on his board and types Handout in the Teammate box: his placeholder teammate passes it, it streams out of their portrait into his hand, and Hitchhiker grows. He drags it back onto their portrait, clicks it, and sees it in their hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/sbDuosChannel.test.ts', 'packages/ui/src/sbDuos.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
 ];

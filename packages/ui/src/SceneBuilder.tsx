@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
-import { runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
+import { getHero, handCap, runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
 import { buildQaScenario, reproCommandFor, scenarioFileName, scenarioFileText, QA_SCENARIO_FIXTURE_DIR } from './qaScenarioBridge';
 import type { Keyword } from '@game/core';
 import { useGame } from './store';
@@ -11,7 +11,10 @@ import { StatBadgeField, CountStepper } from './StatBadgeField';
 import { SceneBuilderPreview, type SbPreviewTarget } from './SceneBuilderPreview';
 import { toStage } from './stage';
 import { HeroPicker, HeroPickerTrigger } from './SceneBuilderHeroPicker';
-import { archivedCardRows, archivedRuneRows, cardRowsFor, matches, runeRowsFor, searchTerms, type CardRow, type RuneRow } from './cardSearch';
+import { archivedCardRows, archivedRuneRows, cardRowsFor, duosCardRowsFor, matches, runeRowsFor, searchTerms, type CardRow, type RuneRow } from './cardSearch';
+import { DuosMateDock } from './versus/DuosMateDock';
+import { TeammateFrame, enterTeammateView, exitTeammateView, useTeammateViewKeys } from './versus/teammateView';
+import { installSbDuos, sbMateClear, sbMateFillHand, sbMatePasses, sbMateSells, uninstallSbDuos, useSbDuos, SB_MATE_NAME } from './sbDuos';
 import { Icon } from './Icon';
 import { useDevCornerSlot } from './friends/dock/FriendsDock';
 import './sceneBuilder.css';
@@ -111,6 +114,10 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const sbBotLevel = useGame((s) => s.sbBotLevel);
   const sbAncients = useGame((s) => s.sbAncients);
   const setSbAncients = useGame((s) => s.setSbAncients);
+  // DUOS (owner ask 2026-10-31, R-SB-DUOS-01): the toggle relaunches the rig as a Duos-style run; the placeholder
+  // teammate (`sbDuos.ts`) lives while it is on and the run carries `duos`.
+  const sbDuos = useGame((s) => s.sbDuos);
+  const setSbDuos = useGame((s) => s.setSbDuos);
   const { panelRef, headerPointerDown, panelStyle, raise } = useDraggablePanel('scenebuilder');
   // Library tab (minions / spells / runes share the search box + list) and the per-section fold state (remembered).
   const [lib, setLib] = useState<LibTab>('minions');
@@ -242,14 +249,17 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const pool = useMemo(() => poolFor(setId), [setId]);
 
   // The set pool (tokens excluded) plus RUBIES + GIFTS, which join the Spells tab labelled by class (cardSearch.ts).
-  const all = useMemo<CardRow[]>(() => (libArchived ? archivedCardRows() : cardRowsFor(setId)), [libArchived, setId]);
+  // DUOS ON: the Duos-only minions and spells this set's Duos pool adds join the list (tagged "duos").
+  const duosOn = sbDuos && !!run?.duos;
+  const all = useMemo<CardRow[]>(() => (libArchived ? archivedCardRows() : duosOn ? duosCardRowsFor(setId) : cardRowsFor(setId)), [libArchived, setId, duosOn]);
 
   // SET SCOPING (owner ask 2026-09-16): only the runes THIS set can forge — the same `sets` rule the Runeforge
   // applies (`runeforgePool`: absent = every set) — so a Set 3-only rune never shows up in a Set 2 sandbox. The
   // tribe gate is deliberately NOT applied here: a tribe-gated rune of the set is exactly what you come here to
   // test without rolling the tribe first. `isNew` marks the Set 3-original batch (`sets: ['set3']` alone, the
   // 2026-09-16 sheet) with a NEW tag; searching "new" lists them.
-  const allRunes = useMemo<RuneRow[]>(() => (libArchived ? archivedRuneRows() : runeRowsFor(setId)), [libArchived, setId]);
+  // Duos-only runes (R-DUOS-RUNES-01) only with Duos on: a Duos rune never applies to a run without `duos`.
+  const allRunes = useMemo<RuneRow[]>(() => (libArchived ? archivedRuneRows() : runeRowsFor(setId).filter((r) => duosOn || !r.duos)), [libArchived, setId, duosOn]);
   const setName = SETS[setId]?.name ?? setId;
   /** The picker: "Archived" flips the library only; a real set leaves the archive view and, when it differs from
    *  the run's set, restarts the sandbox on it (the same restart the picker always did). */
@@ -397,6 +407,15 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
             <div className="sb-mini sb-note">you can't be eliminated under either rule set</div>
             {/* ANCIENTS (proof of concept, owner 2026-09-25): Set 3 only. The toggle relaunches the rig (the meter is
                 stamped on the run at creation); the meter row drives the REAL reducer (`ancientSetMeter`). */}
+            {/* DUOS (owner ask 2026-10-31, R-SB-DUOS-01): relaunches the rig as a Duos-style run with a placeholder
+                teammate held locally (no Worker). Its tools live in the Teammate section below. */}
+            <div className="sb-ancients">
+              <button type="button" className={`sb-seg-btn sb-anc-toggle${sbDuos ? ' on' : ''}`} aria-pressed={sbDuos}
+                onClick={() => setSbDuos(!sbDuos)}
+                aria-description="Play this sandbox as Duos with a placeholder teammate: their portrait bottom right, passing, team effects and the Duos-only cards and runes (restarts the sandbox)">
+                ✦ Duos {sbDuos ? 'on' : 'off'}
+              </button>
+            </div>
             {setId === 'set3' && (
               <div className="sb-ancients">
                 <button type="button" className={`sb-seg-btn sb-anc-toggle${sbAncients ? ' on' : ''}`} aria-pressed={sbAncients}
@@ -445,6 +464,8 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               </div>
             </div>
           </Sec>
+
+          {duosOn && <SbTeammate all={all} folded={folded} onFold={fold} />}
 
           {/* ENEMY — what the top row shows, click-to-edit, and the pinned dummies. Both toggles are
               sandbox-only and neither changes run state, so the shop is exactly as you left it when you
@@ -530,6 +551,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                   <span className={`sb-t sb-t${c.tier}`}>{c.tier}</span>
                   <span className="sb-name">{c.name}</span>
                   {c.kind && <span className={`sb-tag ${c.kind}`}>{c.kind}</span>}
+                  {c.duos && <span className="sb-tag duos">duos</span>}
                   {c.archived && <span className="sb-tag archived">(archived)</span>}
                 </button>
               )) : runeResults.map((r) => (
@@ -539,6 +561,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                   <span className="sb-name">{r.name}</span>
                   {r.epic && <span className="sb-tag">epic</span>}
                   {r.isNew && <span className="sb-tag new">new</span>}
+                  {r.duos && <span className="sb-tag duos">duos</span>}
                   {r.archived && <span className="sb-tag archived">(archived)</span>}
                 </button>
               ))}
@@ -618,9 +641,88 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
       <HeroPicker heroId={run?.heroId ?? 'warden'} showAncients={setId === 'set3'} anchor={() => heroBtnRef.current?.closest<HTMLElement>('.scenebuilder') ?? null}
         triggerRef={heroBtnRef} onPick={(id) => startSceneBuilder(id, setId)} onClose={closeHeroPicker} />
     )}
+    {duosOn && <SbDuosHud />}
     {/* The library's floating preview — mounted ONCE here (not per row); null until a row is hovered/focused. */}
     <SceneBuilderPreview target={collapsed || minimized ? null : preview} run={run} />
     </>
+  );
+}
+
+/**
+ * THE PLACEHOLDER TEAMMATE ON SCREEN (R-SB-DUOS-01): the real Duos HUD pieces, fed by the local seam. Mounting it turns the
+ * local team on (`installSbDuos`); unmounting (Duos off, the rig closed) takes you back to your board and drops it. The
+ * portrait keeps one identity across the swap (`key="dock"`), exactly as `VersusHud` mounts it.
+ */
+function SbDuosHud(): JSX.Element | null {
+  useEffect(() => { installSbDuos(); return () => uninstallSbDuos(); }, []);
+  const viewing = useSbDuos((s) => s.viewing);
+  const ready = useSbDuos((s) => s.other !== null);
+  const phase = useGame((s) => s.run.phase);
+  useTeammateViewKeys(ready);
+  if (!ready || (phase !== 'recruit' && phase !== 'combat')) return null;
+  if (viewing) return <><TeammateFrame /><DuosMateDock key="dock" watching /></>;
+  return <DuosMateDock key="dock" watching={false} inCombat={phase === 'combat'} />;
+}
+
+/**
+ * THE TEAMMATE SECTION (R-SB-DUOS-01): who they are, their hand and board at a glance, the view swap, and the tuner
+ * buttons that make the teammate act on you through the real paths: pass you a picked card (their hand, then their
+ * drag pass), a random card of their hand, or a random board minion (an effect pass); sell a minion (Hippie Hulk's
+ * trigger); fill or empty their hand (the full-hand refusal and the waiting queue).
+ */
+function SbTeammate({ all, folded, onFold }: { all: readonly CardRow[]; folded: Record<string, boolean>; onFold: (id: string, closed: boolean) => void }): JSX.Element {
+  const viewing = useSbDuos((s) => s.viewing);
+  const note = useSbDuos((s) => s.note);
+  // The teammate's run, wherever it is (the store while you view it, held aside otherwise).
+  const aside = useSbDuos((s) => (s.viewing ? null : s.other));
+  const storeRun = useGame((s) => s.run);
+  const m = viewing ? storeRun : aside;
+  const [q, setQ] = useState('');
+  const terms = useMemo(() => searchTerms(q), [q]);
+  const hits = useMemo(() => (terms.length === 0 ? [] : all.filter((c) => !c.kind && matches(c.hay, terms)).slice(0, 6)), [all, terms]);
+  const top = hits[0];
+  const waiting = m?.duos?.waiting?.length ?? 0;
+  return (
+    <Sec id="teammate" title="Teammate" folded={folded} onFold={onFold}
+      right={m ? <span className="sb-count">{SB_MATE_NAME} · {getHero(m.heroId).name}</span> : undefined}>
+      {m && (
+        <div className="sb-mini sb-note">hand {m.hand.length} / {handCap(m)} · board {m.board.length} / {MAX_BOARD}{waiting ? ` · ${waiting} waiting` : ''} · {m.embers} gold</div>
+      )}
+      <button className="sb-btn sb-primary sb-wide" disabled={!viewing && storeRun.phase !== 'recruit'}
+        onClick={() => (viewing ? exitTeammateView() : enterTeammateView())}
+        aria-description={viewing ? 'Back to your own board (Esc)' : 'Swap to your teammate board: every Scene Builder tool then edits their run (Tab peeks)'}>
+        {viewing ? 'Back to your board' : 'View their board'}
+      </button>
+      <div className="sb-sub">Teammate passes to you</div>
+      <input className="sb-search" placeholder="Card to pass… ↵ passes top match" value={q} onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && top) { e.preventDefault(); sbMatePasses({ kind: 'card', cardId: top.id }); e.currentTarget.select(); } }}
+        aria-label="Search any card, Duos-only ones included. Enter makes your teammate pass the top match to you through their real pass" />
+      {hits.length > 0 && (
+        <div className="sb-results sb-results-short">
+          {hits.map((c) => (
+            <button key={c.id} className="sb-card" onClick={() => sbMatePasses({ kind: 'card', cardId: c.id })} aria-label={`Your teammate passes you ${c.name}`}>
+              <span className={`sb-t sb-t${c.tier}`}>{c.tier}</span>
+              <span className="sb-name">{c.name}</span>
+              {c.duos && <span className="sb-tag duos">duos</span>}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="sb-two">
+        <button className="sb-btn" onClick={() => sbMatePasses({ kind: 'hand' })} aria-description="Your teammate drag-passes a random card from their hand (1 Gold, theirs)">random from hand</button>
+        <button className="sb-btn" onClick={() => sbMatePasses({ kind: 'board' })} aria-description="Your teammate passes a random board minion as an effect pass (free, like Handout)">random from board</button>
+      </div>
+      <div className="sb-sub">Teammate acts</div>
+      <div className="sb-two">
+        <button className="sb-btn" onClick={() => sbMateSells(top?.spell ? undefined : top?.id)} aria-description="Your teammate sells a random board minion (Hippie Hulk). With an empty board, the card in the search above is placed and sold">sells a minion</button>
+        <button className="sb-btn" disabled={!top} onClick={() => { if (top) sbMateFillHand(top.id); }} aria-description="Fill your teammate hand with the card in the search above (test a full hand)">fill their hand</button>
+      </div>
+      <div className="sb-two">
+        <button className="sb-btn" onClick={() => sbMateClear('hand')} aria-description="Empty your teammate hand">empty their hand</button>
+        <button className="sb-btn" onClick={() => sbMateClear('board')} aria-description="Empty your teammate board">empty their board</button>
+      </div>
+      {note && <div className="sb-mini">{note}</div>}
+    </Sec>
   );
 }
 

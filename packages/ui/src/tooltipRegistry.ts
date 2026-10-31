@@ -57,6 +57,7 @@ export const PAINT_EXCEPTIONS = [
   '.lobbyscout.lrv-scout-ledger',
   '.lobbyscout.lrv-scout-medallion',
   '.lobbyscout.lrv-scout-cards',
+  '.lobbyscout.lrv-scout-tiles',
 ] as const;
 
 /**

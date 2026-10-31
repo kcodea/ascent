@@ -25,7 +25,7 @@ import type { TunerControl, TunerSpec } from './tunerSchema';
 /** The rail's two looks (owner ask 2026-10-02: "is this a png? how can you modernize/clean this up?"). `gem` is the
  *  CSS Gem plate frame themed by the shared `--ui-*` tokens; `classic` is the bitmap backplate. Stamped on `<html>` as
  *  `data-lobby-rail`; lobbyRail.css paints Gem for anything but "classic", so production needs no JS for it. */
-export const LOBBY_RAIL_LOOKS = ['gem', 'plaque', 'ledger', 'medallion', 'cards', 'classic'] as const;
+export const LOBBY_RAIL_LOOKS = ['gem', 'plaque', 'ledger', 'medallion', 'cards', 'tiles', 'classic'] as const;
 export type LobbyRailLook = (typeof LOBBY_RAIL_LOOKS)[number];
 /** OWNER REVIEW (2026-10-30, branch feat/lobby-rail-variants): three candidate rail designs, A / B / C, beside the
  *  shipped one ("Current"). DEV only: production always plays DEFAULTS.look ('gem'), the variants' CSS is only loaded
@@ -37,12 +37,13 @@ const LOOK_LABELS: Record<LobbyRailLook, string> = {
   ledger: 'B: Ledger',
   medallion: 'C: Medallions',
   cards: 'D: Medallion cards',
+  tiles: 'E: Tiles',
   classic: 'Classic (the copper backplate)',
 };
 /** `?rail=` values (DEV): the letters the owner compares by, plus the look names. */
 const RAIL_PARAM: Record<string, LobbyRailLook> = {
-  a: 'plaque', b: 'ledger', c: 'medallion', d: 'cards', current: 'gem', gem: 'gem', classic: 'classic',
-  plaque: 'plaque', ledger: 'ledger', medallion: 'medallion', cards: 'cards',
+  a: 'plaque', b: 'ledger', c: 'medallion', d: 'cards', e: 'tiles', current: 'gem', gem: 'gem', classic: 'classic',
+  plaque: 'plaque', ledger: 'ledger', medallion: 'medallion', cards: 'cards', tiles: 'tiles',
 };
 const isLook = (v: unknown): v is LobbyRailLook => typeof v === 'string' && (LOBBY_RAIL_LOOKS as readonly string[]).includes(v);
 
@@ -196,7 +197,7 @@ const RANGES: Record<
 };
 
 const KEY = 'ascent.lobbyRailLook';
-const D_DEFAULT_KEY = 'ascent.lobbyRailLook.dDefault';
+const D_DEFAULT_KEY = 'ascent.lobbyRailLook.eDefault';
 
 let cfg: LobbyRailLookConfig = (() => {
   if (!import.meta.env.DEV) return { ...DEFAULTS };
@@ -210,11 +211,11 @@ let cfg: LobbyRailLookConfig = (() => {
       try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* storage unavailable: this page load only */ }
       return next;
     }
-    // D is the dev toggle's new default (owner review 2026-10-30): once per browser, switch to it; the choice is
+    // E is the dev toggle's new default (was D) (owner review 2026-10-30): once per browser, switch to it; the choice is
     // remembered after that like any other.
     if (localStorage.getItem(D_DEFAULT_KEY) !== '1') {
       localStorage.setItem(D_DEFAULT_KEY, '1');
-      const next = { ...merged, look: 'cards' as const };
+      const next = { ...merged, look: 'tiles' as const };
       localStorage.setItem(KEY, JSON.stringify(next));
       return next;
     }

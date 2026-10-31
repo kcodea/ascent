@@ -11,7 +11,7 @@ import { LR2_DEFAULTS, LR2_SPEC, LR2_VARS, getLobbyRailTuner2, resetLobbyRailTun
  * of its target, is in the PR's verification notes: jsdom does not resolve `calc()` / `var()`.)
  */
 const SRC = __dirname;
-const sheet = readFileSync(join(SRC, 'lobbyRailMedallions.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+const sheet = (readFileSync(join(SRC, 'lobbyRailMedallions.css'), 'utf8') + readFileSync(join(SRC, 'lobbyRailTiles.css'), 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '');
 const rules = [...sheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ sel: m[1]!.trim(), body: m[2]! }));
 const walk = (d: string): string[] => readdirSync(d).flatMap((n) => {
   const p = join(d, n);
@@ -21,6 +21,7 @@ const walk = (d: string): string[] => readdirSync(d).flatMap((n) => {
 type NumKey = keyof typeof LR2_VARS;
 /** Which element each control must reach: a fragment of the selector of the rule that reads its var. */
 const TARGET: Record<NumKey, string> = {
+  eTile: '.lobbyseat', eGap: '.lobbyseats', eRailW: '.lobbyrail', eRailPad: '.lobbyrail', eSlide: '.lobbyseat.foe', eBadge: '.lrv-rank', eHp: '.lrv-tilehp',
   railX: '.lobbyrail', railY: '.lobbyrail', railScale: '.lobbyrail',
   phoneY: '.lobbyrail', phoneScale: '.lobbyrail',
   headX: '.lobbyrailhead', headY: '.lobbyrailhead', headFont: '.lobbyrailhead', headGap: '.lobbyrailhead', headShadow: '.lobbyrailhead',
@@ -40,7 +41,7 @@ describe('Lobby Rail Tuner 2', () => {
   it('has a control for every var, and every control writes its own var onto :root', () => {
     const keys = Object.keys(LR2_VARS) as NumKey[];
     expect(new Set(Object.values(LR2_VARS)).size, 'one var per control').toBe(keys.length);
-    expect(LR2_SPEC.controls.map((c) => c.key).sort()).toEqual(['anchor', 'dHp', ...keys].sort());
+    expect(LR2_SPEC.controls.map((c) => c.key).sort()).toEqual(['anchor', 'dHp', 'eNames', ...keys].sort());
     for (const k of keys) {
       const c = LR2_SPEC.controls.find((x) => x.key === k)!;
       const before = document.documentElement.style.getPropertyValue(LR2_VARS[k]);

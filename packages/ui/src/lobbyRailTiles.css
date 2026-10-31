@@ -1,0 +1,174 @@
+/* ── E · TILES (owner 2026-10-30: "try one taking inspiration from hearthstone bg") — DEV ONLY, driven by Lobby Rail Tuner 2 ──
+   The layout IDEA of a reference rail, in our own art and UI vocabulary (no borrowed assets, no code-drawn props):
+     - one narrow column in the Compendium's painted gold frame (`/frames/compendium-frame.webp`, as A / B / the rank card)
+     - a compact SQUARE portrait tile per seat, stacked tightly in standing order, inside a thin Gem gold edge
+     - the standing number on the ladder's medallion (`.lb-medal`) at each tile's top-left; the leader also wears the
+       crown glyph (Icon `crown`) on top
+     - Health + Armor as YOUR hero's own Health plaque (lobbyRailMedallions.css `.lrv-hpplaque`) on the tile's foot
+     - your tile in the lit gold edge; your next opponent's tile slides out toward the board and breathes red (the
+       compositor-only pulse of C / D); the fallen darkened and grey with the skull glyph (Icon `skull`), in place order
+     - names on hover (the original scout card); Tuner 2 "Names on tiles" adds a small label beside each tile
+   Every dimension reads a `--lr2-*` var (lobbyRailTuner2Config.ts); fallbacks = the tuner's defaults.
+   PERFORMANCE: static paint; the only loop is the foe tile's ring (opacity + scale on `::after`, `lr2FoePulse`).
+   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/* ── Position: rail, header and Guides tab move together (a `translate`, so the staged slide-away still composes). ── */
+html:root[data-lobby-rail="tiles"] .lobbyrail {
+  --k: calc(var(--lrow) * var(--rv-ph, 1) * var(--lr2-scale, 1));
+  --f: calc(var(--lfont) * var(--rv-ph, 1) * var(--lr2-scale, 1));
+  --rvk: calc(0.07 * var(--lu) * var(--rv-ph, 1) * var(--lr2-scale, 1));
+  --e-dir: -1; /* the board is to the rail's LEFT */
+  translate: calc(var(--lr2-rail-x, 0) * 1px) calc(var(--lr2-rail-y, 0) * 1px);
+  width: calc(var(--lr2-e-w, 60) * var(--k)); height: auto; max-height: none; overflow: visible;
+  border: 0; border-radius: 0; background: none; box-shadow: none;
+  padding: calc(var(--lr2-e-pad, 9) * var(--k)) 0;
+}
+html:root[data-lobby-rail="tiles"][data-lr2-anchor="left"] .lobbyrail { right: auto; left: 10px; --e-dir: 1; }
+/* The frame: a dark plate inset to the middle of the painted rails, and the painted 9-slice over the tiles. */
+html:root[data-lobby-rail="tiles"] .lobbyrail::before {
+  content: ''; position: absolute; z-index: -1; inset: calc(60 * var(--rvk)); border: 0; border-radius: calc(90 * var(--rvk));
+  background: linear-gradient(180deg, var(--ui-plate-mid), var(--ui-plate-bot));
+  box-shadow: 0 calc(6 * var(--lu)) calc(18 * var(--lu)) -6px rgba(0, 0, 0, 0.85);
+}
+html:root[data-lobby-rail="tiles"] .lobbyrail::after {
+  content: ''; position: absolute; z-index: 4; inset: 0; left: 0; bottom: 0; width: auto; height: auto; transform: none;
+  pointer-events: none; background: none;
+  border: calc(270 * var(--rvk)) solid transparent; border-image: url('/frames/compendium-frame.webp') 270 stretch;
+}
+
+/* ── Header: centred over the column, a line each (the column is narrow), with a shadow for any board art. ── */
+html:root[data-lobby-rail="tiles"] .lobbyrail:not(.guidesview) > .lobbyhead { display: none; }
+html:root[data-lobby-rail="tiles"] .lobbyrailhead:not(.guidesview) {
+  --lrow: calc(var(--lu) * var(--lby-row, 1.91)); /* the header does not define the row unit the rail's width is in */
+  --lr2-shs: var(--lr2-head-shadow, 3);
+  --lr2-sh: 0 1px 0 rgba(0, 0, 0, min(1, calc(0.95 * var(--lr2-shs)))), 0 0 calc(2px * var(--lr2-shs)) rgba(0, 0, 0, min(1, calc(0.7 * var(--lr2-shs)))),
+    0 2px calc(4px * var(--lr2-shs)) rgba(0, 0, 0, min(1, calc(0.9 * var(--lr2-shs)))), 0 0 calc(10px * var(--lr2-shs)) rgba(0, 0, 0, min(1, calc(0.75 * var(--lr2-shs))));
+  width: max-content; right: calc(var(--lr-right) + var(--lr2-e-w, 60) * var(--lrow) * var(--rv-ph, 1) * var(--lr2-scale, 1) / 2);
+  translate: calc(50% + (var(--lr2-rail-x, 0) + var(--lr2-head-x, 0)) * 1px) calc((var(--lr2-rail-y, 0) + var(--lr2-head-y, 0)) * 1px);
+  flex-direction: column; align-items: center; gap: calc(var(--lr2-head-gap, 1.9) * 0.15em); padding: 0 0 calc(5 * var(--lu));
+  font-size: calc(10.5 * var(--lfont) * var(--lr2-head-font, 1.29) * var(--lr2-scale, 1)); text-shadow: var(--lr2-sh);
+}
+html:root[data-lobby-rail="tiles"] .lobbyrailhead:not(.guidesview) > .lobbyround {
+  font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.12em; font-size: 1.7em; color: var(--ui-title); text-shadow: var(--lr2-sh);
+}
+html:root[data-lobby-rail="tiles"] .lobbyrailhead:not(.guidesview) > :is(.lrv-left, .lobbymax) {
+  font-size: 1em; font-weight: 900; letter-spacing: 0.08em; color: var(--ui-text); text-shadow: var(--lr2-sh);
+}
+html:root[data-lobby-rail="tiles"] .lobbyrailhead:not(.guidesview) .lobbymax {
+  align-self: auto; transform: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+}
+html:root[data-lobby-rail="tiles"] .lobbyrailhead:not(.guidesview) .lobbymax svg { width: 1em; height: 1em; color: var(--ui-heart); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); }
+html:root[data-lobby-rail="tiles"] .lobbyrailhead:not(.guidesview) > .herotip.lobbymax-tip { right: 50%; translate: 50% 0; font-size: initial; text-shadow: none; }
+html:root[data-lobby-rail="tiles"][data-lr2-anchor="left"] .lobbyrailhead:not(.guidesview) { right: auto; left: calc(10px + var(--lr2-e-w, 60) * var(--lrow) * var(--rv-ph, 1) * var(--lr2-scale, 1) / 2); translate: calc(-50% + (var(--lr2-rail-x, 0) + var(--lr2-head-x, 0)) * 1px) calc((var(--lr2-rail-y, 0) + var(--lr2-head-y, 0)) * 1px); }
+
+/* ── The Guides tab: on the column's board side, under its top; Tuner 2 moves and sizes it. ── */
+html:root[data-lobby-rail="tiles"] .lobbyrailtab:not(.guidesview) {
+  --ltab-cell: calc(42 * var(--lu) * var(--lr2-tab-scale, 0.75));
+  --ltab-pad: calc(5 * var(--lu) * var(--lr2-tab-scale, 0.75));
+  right: calc(var(--lr-right) + var(--lr2-e-w, 60) * var(--lrow) * var(--rv-ph, 1) * var(--lr2-scale, 1) - 2px);
+  top: calc(var(--lby-top, 13.5%) + var(--lby-y, -3) * var(--lu) + 30 * var(--lu));
+  translate: calc((var(--lr2-rail-x, 0) + var(--lr2-tab-x, 0)) * 1px) calc((var(--lr2-rail-y, 0) + var(--lr2-tab-y, 268)) * 1px);
+}
+html:root[data-lobby-rail="tiles"][data-lr2-anchor="left"] .lobbyrailtab:not(.guidesview) { right: auto; left: calc(10px + var(--lr2-e-w, 60) * var(--lrow) * var(--rv-ph, 1) * var(--lr2-scale, 1) - 2px); scale: -1 1; }
+html:root[data-lobby-rail="tiles"][data-lr2-anchor="left"] .lobbyrailtab > * { scale: -1 1; }
+
+/* ── Phones: the extra up/down of Tuner 2 "Phones only". ── */
+html:root[data-phone-layout][data-lobby-rail="tiles"] .lobbyrail, html:root[data-touch-ui][data-phone-zoom][data-lobby-rail="tiles"] .lobbyrail {
+  translate: calc(var(--lr2-rail-x, 0) * 1px) calc((var(--lr2-rail-y, 0) + var(--lr2-phone-y, -76)) * 1px);
+}
+html:root[data-phone-layout][data-lobby-rail="tiles"] .lobbyrailhead:not(.guidesview), html:root[data-touch-ui][data-phone-zoom][data-lobby-rail="tiles"] .lobbyrailhead:not(.guidesview) {
+  translate: calc(50% + (var(--lr2-rail-x, 0) + var(--lr2-head-x, 0)) * 1px) calc((var(--lr2-rail-y, 0) + var(--lr2-phone-y, -76) + var(--lr2-head-y, 0)) * 1px);
+}
+html:root[data-phone-layout][data-lobby-rail="tiles"] .lobbyrailtab:not(.guidesview), html:root[data-touch-ui][data-phone-zoom][data-lobby-rail="tiles"] .lobbyrailtab:not(.guidesview) {
+  translate: calc((var(--lr2-rail-x, 0) + var(--lr2-tab-x, 0)) * 1px) calc((var(--lr2-rail-y, 0) + var(--lr2-phone-y, -76) + var(--lr2-tab-y, 268)) * 1px);
+}
+
+/* ── The tiles. (`:is(.you.foe.ghost.dead, *)` lifts these over the Gem rail's state rules, which paint row boxes.) ── */
+html:root[data-lobby-rail="tiles"] .lobbyseats { flex: none; display: flex; flex-direction: column; align-items: center; gap: calc(var(--lr2-e-gap, 4) * var(--k)); position: relative; z-index: 5; }
+html:root[data-lobby-rail="tiles"] .lobbyseat:is(.you.foe.ghost.dead, *) {
+  position: relative; flex: none; display: block; margin: 0; padding: 0; opacity: 1;
+  width: calc(var(--lr2-e-tile, 40) * var(--k)); height: calc(var(--lr2-e-tile, 40) * var(--k));
+  background: none; border: 0; box-shadow: none; border-radius: calc(4 * var(--k)); color: var(--ui-text);
+}
+html:root[data-lobby-rail="tiles"] .lobbyseat:is(.you.foe.ghost.dead, *)::before { content: none; }
+/* The portrait, cropped square inside a thin Gem gold edge. */
+html:root[data-lobby-rail="tiles"] .lrv-tileart {
+  position: absolute; inset: 0; overflow: hidden; border-radius: inherit;
+  border: calc(1.2 * var(--k)) solid transparent;
+  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: 0 calc(1 * var(--k)) calc(4 * var(--k)) rgba(0, 0, 0, 0.6);
+}
+html:root[data-lobby-rail="tiles"] .lrv-tileart > .lobbyface {
+  display: block; width: 100%; height: 100%; object-fit: cover; border-radius: calc(3 * var(--k)); grid-area: auto; filter: none;
+}
+/* YOUR tile: the lit gold edge, a soft gold glow. Static. */
+html:root[data-lobby-rail="tiles"] .lobbyseat.you .lrv-tileart {
+  border-width: calc(1.8 * var(--k));
+  background: var(--ui-plate) padding-box, var(--ui-hover-edge) border-box;
+  box-shadow: 0 0 calc(5 * var(--k)) color-mix(in srgb, var(--ui-title) 60%, transparent), 0 calc(1 * var(--k)) calc(4 * var(--k)) rgba(0, 0, 0, 0.6);
+}
+/* THE NEXT FOE: its tile slides out toward the board, and a red ring breathes round it (a STATIC ring + glow on
+   `::after`; only its opacity and a slight scale loop, compositor only). A ghost pairing breathes teal. */
+html:root[data-lobby-rail="tiles"] .lobbyseat.foe:is(.you.foe.ghost.dead, *) { translate: calc(var(--lr2-e-slide, 12) * var(--e-dir, -1) * 1px) 0; z-index: 2; }
+html:root[data-lobby-rail="tiles"] .lobbyseat.foe:is(.you.foe.ghost.dead, *)::after {
+  --lr2-pc: var(--ui-heart);
+  content: ''; position: absolute; z-index: 1; inset: calc(-1.5 * var(--k)); border-radius: calc(5 * var(--k)); pointer-events: none;
+  box-shadow: 0 0 0 calc(var(--lr2-pulse-ring, 1.4) * var(--k)) color-mix(in srgb, var(--lr2-pc) 90%, #fff),
+    0 0 calc(9 * var(--k) * var(--lr2-pulse-glow, 1)) calc(3 * var(--k) * var(--lr2-pulse-glow, 1)) color-mix(in srgb, var(--lr2-pc) 70%, transparent);
+  will-change: opacity, transform;
+  animation: lr2FoePulse calc(var(--lr2-pulse-period, 1.1) * 1s) ease-in-out infinite;
+}
+html:root[data-lobby-rail="tiles"] .lobbyseat.foe.ghost:is(.you.foe.ghost.dead, *)::after { --lr2-pc: var(--ui-ghost); }
+@media (prefers-reduced-motion: reduce) {
+  html:root[data-lobby-rail="tiles"] .lobbyseat.foe:is(.you.foe.ghost.dead, *)::after { animation: none; opacity: var(--lr2-pulse-max, 1); transform: none; }
+}
+/* The standing: the ladder's medallion on the top-left corner (1 / 2 / 3 gold / silver / bronze, the rest the Gem coin). */
+html:root[data-lobby-rail="tiles"] .lrv-rank {
+  position: absolute; z-index: 3; left: calc(-0.32 * var(--lr2-e-badge, 13) * var(--k)); top: calc(-0.28 * var(--lr2-e-badge, 13) * var(--k));
+  width: calc(var(--lr2-e-badge, 13) * var(--k)); height: calc(var(--lr2-e-badge, 13) * var(--k));
+  font-size: calc(var(--lr2-e-badge, 13) * 0.62 * var(--k)); line-height: 1;
+}
+html:root[data-lobby-rail="tiles"] .lrv-rank.plain {
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75); border: 1px solid transparent;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+/* The leader's crown, centred on the tile's top edge. */
+html:root[data-lobby-rail="tiles"] .lrv-crown {
+  position: absolute; z-index: 3; left: 50%; top: calc(-0.36 * var(--lr2-e-tile, 40) * var(--k)); translate: -50% 0;
+  width: calc(0.5 * var(--lr2-e-tile, 40) * var(--k)); height: calc(0.5 * var(--lr2-e-tile, 40) * var(--k));
+  color: var(--ui-title); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)); pointer-events: none;
+}
+html:root[data-lobby-rail="tiles"] .lrv-crown > svg { width: 100%; height: 100%; }
+/* Health + Armor: the hero plaque on the tile's foot (the plaque's look lives in lobbyRailMedallions.css). */
+html:root[data-lobby-rail="tiles"] .lobbyseat:not(.dead) .lobbyhp.lrv-hpplaque.lrv-tilehp {
+  position: absolute; z-index: 3; left: 50%; bottom: calc(-0.24 * var(--lr2-e-hp, 16) * var(--k)); translate: -50% 0;
+  font-size: calc(var(--lr2-e-hp, 16) * var(--f) * 0.95); padding: 0.16em 0.4em 0.16em 0.3em; grid-area: auto;
+}
+/* THE FALLEN: darkened and grey, the skull on the tile's foot, the standing badge muted. */
+html:root[data-lobby-rail="tiles"] .lobbyseat.dead .lrv-tileart > .lobbyface { filter: grayscale(1) brightness(0.42); }
+html:root[data-lobby-rail="tiles"] .lobbyseat.dead .lrv-tileart { background: var(--ui-plate) padding-box, color-mix(in srgb, var(--ui-edge-deep) 70%, #000) border-box; }
+html:root[data-lobby-rail="tiles"] .lrv-skull {
+  position: absolute; z-index: 3; left: 50%; bottom: 6%; translate: -50% 0; width: 46%; height: 46%;
+  color: var(--ui-text); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); pointer-events: none;
+}
+html:root[data-lobby-rail="tiles"] .lrv-skull > svg { width: 100%; height: 100%; }
+html:root[data-lobby-rail="tiles"] .lobbyseat.dead .lrv-rank { opacity: 0.85; }
+html:root[data-lobby-rail="tiles"] .lobbyseat.dead.foe.ghost .lrv-tileart > .lobbyface { filter: grayscale(0.6) brightness(0.7); }
+/* Names: hidden (the hover card names the seat) unless Tuner 2 "Names on tiles" is on: a small label beside the tile,
+   on the board side, vertically centred. */
+html:root[data-lobby-rail="tiles"] .lobbyseat .lobbynameline { display: none; }
+html:root[data-lobby-rail="tiles"][data-lr2-e-names="on"] .lobbyseat .lobbynameline {
+  display: block; position: absolute; top: 50%; right: calc(100% + 6 * var(--k)); translate: 0 -50%; width: max-content; max-width: calc(80 * var(--k));
+  pointer-events: none; text-align: right;
+}
+html:root[data-lobby-rail="tiles"][data-lr2-e-names="on"][data-lr2-anchor="left"] .lobbyseat .lobbynameline { right: auto; left: calc(100% + 6 * var(--k)); text-align: left; }
+html:root[data-lobby-rail="tiles"][data-lr2-e-names="on"] .lobbyseat .lobbyname {
+  font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(12 * var(--f)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 1);
+}
+html:root[data-lobby-rail="tiles"][data-lr2-e-names="on"] .lobbyseat.you .lobbyname { color: var(--ui-title); }
+html:root[data-lobby-rail="tiles"][data-lr2-e-names="on"] .lobbyseat.dead .lobbyname { color: var(--ui-muted); text-decoration: line-through; }
+/* Phones: the narrow column has room to spare on a landscape phone, so its tiles draw a third larger there (times the
+   Tuner 2 phone size). */
+html:root[data-phone-layout][data-lobby-rail="tiles"] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab), html:root[data-touch-ui][data-phone-zoom][data-lobby-rail="tiles"] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --rv-ph: calc(var(--lr2-phone-scale, 1.1) * 1.3); }

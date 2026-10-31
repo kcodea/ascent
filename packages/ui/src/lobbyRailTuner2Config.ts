@@ -27,11 +27,16 @@ export const LR2_ANCHORS = ['right', 'left'] as const;
 /** D's Health layout (owner 2026-10-30): the plaque beside the portrait, or over its lower rim like your hero's. */
 export const LR2_DHP = ['beside', 'overlap'] as const;
 export type Lr2DHp = (typeof LR2_DHP)[number];
+/** E's optional name label beside each tile (owner 2026-10-30; default off: names live on the hover card). */
+export const LR2_ENAMES = ['off', 'on'] as const;
+export type Lr2ENames = (typeof LR2_ENAMES)[number];
 export type Lr2Anchor = (typeof LR2_ANCHORS)[number];
 
 export interface LobbyRailTuner2Config {
   anchor: Lr2Anchor;
   dHp: Lr2DHp;
+  eNames: Lr2ENames;
+  eTile: number; eGap: number; eRailW: number; eRailPad: number; eSlide: number; eBadge: number; eHp: number;
   railX: number; railY: number; railScale: number;
   phoneY: number; phoneScale: number;
   headX: number; headY: number; headFont: number; headGap: number; headShadow: number;
@@ -45,12 +50,14 @@ export interface LobbyRailTuner2Config {
   pulseRing: number; pulseGlow: number; pulseMin: number; pulseMax: number; pulsePeriod: number;
   cardW: number; cardX: number; cardY: number; cardFont: number;
 }
-type NumKey = Exclude<keyof LobbyRailTuner2Config, 'anchor' | 'dHp'>;
+type NumKey = Exclude<keyof LobbyRailTuner2Config, 'anchor' | 'dHp' | 'eNames'>;
 
 /** The owner's tune of 2026-10-30 ("the below settings are the best for this rail"), plus D's card dials. */
 export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   anchor: 'right',
   dHp: 'beside',
+  eNames: 'off',
+  eTile: 40, eGap: 4, eRailW: 60, eRailPad: 9, eSlide: 12, eBadge: 13, eHp: 16,
   railX: -6, railY: 76, railScale: 1,
   phoneY: -76, phoneScale: 1.1,
   headX: 0, headY: 0, headFont: 1.29, headGap: 1.9, headShadow: 3,
@@ -67,6 +74,13 @@ export const LR2_DEFAULTS: LobbyRailTuner2Config = {
 
 /** Each numeric control's var, its range and what it means. The var names are the contract with the stylesheet. */
 const NUM: Record<NumKey, { v: string; group: string; label: string; unit?: TunerUnit; min: number; max: number; step: number; hint: string }> = {
+  eTile: { v: '--lr2-e-tile', group: 'Tiles (E)', label: 'Tile size', min: 16, max: 70, step: 0.5, hint: 'E: the size of each square portrait tile.' },
+  eGap: { v: '--lr2-e-gap', group: 'Tiles (E)', label: 'Tile gap', min: 0, max: 20, step: 0.25, hint: 'E: the space between tiles.' },
+  eRailW: { v: '--lr2-e-w', group: 'Tiles (E)', label: 'Rail width', min: 24, max: 120, step: 0.5, hint: 'E: the width of the framed column (the tiles stay centred in it).' },
+  eRailPad: { v: '--lr2-e-pad', group: 'Tiles (E)', label: 'Rail padding', min: 0, max: 30, step: 0.25, hint: 'E: the space above the first tile and below the last.' },
+  eSlide: { v: '--lr2-e-slide', group: 'Tiles (E)', label: 'Opponent slide-out', unit: 'px', min: 0, max: 60, step: 0.5, hint: 'E: how far your next opponent’s tile slides out toward the board.' },
+  eBadge: { v: '--lr2-e-badge', group: 'Tiles (E)', label: 'Standing badge size', min: 6, max: 30, step: 0.25, hint: 'E: the size of the standing number on each tile’s corner.' },
+  eHp: { v: '--lr2-e-hp', group: 'Tiles (E)', label: 'Health chip size', min: 6, max: 24, step: 0.25, hint: 'E: the size of the Health / Armor plaque on each tile’s foot.' },
   railX: { v: '--lr2-rail-x', group: 'Rail position', label: 'Move left / right', unit: 'px', min: -800, max: 800, step: 1, hint: 'Moves the whole rail (with its header and Guides tab). Positive = right.' },
   railY: { v: '--lr2-rail-y', group: 'Rail position', label: 'Move up / down', unit: 'px', min: -400, max: 600, step: 1, hint: 'Moves the whole rail (with its header and Guides tab). Positive = down.' },
   railScale: { v: '--lr2-scale', group: 'Rail position', label: 'Overall scale', unit: '×', min: 0.5, max: 2, step: 0.01, hint: 'Scales everything on the rail: medallions, text, pills, spacing and the backing.' },
@@ -124,6 +138,7 @@ export const LR2_VARS: Readonly<Record<NumKey, string>> = Object.fromEntries(Obj
 const KEY = 'ascent.lobbyRailTuner2';
 const isAnchor = (v: unknown): v is Lr2Anchor => v === 'right' || v === 'left';
 const isDHp = (v: unknown): v is Lr2DHp => v === 'beside' || v === 'overlap';
+const isENames = (v: unknown): v is Lr2ENames => v === 'off' || v === 'on';
 
 function load(): LobbyRailTuner2Config {
   try {
@@ -132,6 +147,7 @@ function load(): LobbyRailTuner2Config {
     const out: LobbyRailTuner2Config = { ...LR2_DEFAULTS };
     if (isAnchor(o.anchor)) out.anchor = o.anchor;
     if (isDHp(o.dHp)) out.dHp = o.dHp;
+    if (isENames(o.eNames)) out.eNames = o.eNames;
     // 1.7 was the lean card's width; the restored original card's width is a multiple of its own (1 = as shipped).
     if (o.cardW === 1.7) delete o.cardW;
     for (const k of Object.keys(NUM) as NumKey[]) {
@@ -155,6 +171,7 @@ export function applyLobbyRailTuner2(): void {
   const root = document.documentElement;
   root.setAttribute('data-lr2-anchor', cfg.anchor);
   root.setAttribute('data-lr2-dhp', cfg.dHp);
+  root.setAttribute('data-lr2-e-names', cfg.eNames);
   for (const k of Object.keys(NUM) as NumKey[]) {
     const v = cfg[k];
     if ((k === 'bgW' || k === 'bgH') && v <= 0) { root.style.removeProperty(NUM[k].v); continue; }
@@ -168,6 +185,7 @@ function save(): void {
 export function setLobbyRailTuner2(key: keyof LobbyRailTuner2Config, value: number | string): void {
   if (key === 'anchor') { if (!isAnchor(value)) return; cfg = { ...cfg, anchor: value }; }
   else if (key === 'dHp') { if (!isDHp(value)) return; cfg = { ...cfg, dHp: value }; }
+  else if (key === 'eNames') { if (!isENames(value)) return; cfg = { ...cfg, eNames: value }; }
   else if (typeof value === 'number' && Number.isFinite(value)) cfg = { ...cfg, [key]: Math.min(NUM[key].max, Math.max(NUM[key].min, value)) };
   else return;
   applyLobbyRailTuner2();
@@ -180,6 +198,11 @@ export function resetLobbyRailTuner2(): void {
 }
 
 const controls: TunerControl<Extract<keyof LobbyRailTuner2Config, string>>[] = [
+  {
+    key: 'eNames', label: 'Names on tiles', group: 'Tiles (E)', kind: 'select', options: LR2_ENAMES,
+    optionLabels: { off: 'Off (names on hover)', on: 'On (a small label beside each tile)' },
+    hint: 'E only. Off: the name shows on the hover card. On: a small name label beside each tile, toward the board.', min: 0, max: 0, step: 0,
+  },
   {
     key: 'anchor', label: 'Anchor side', group: 'Rail position', kind: 'select', options: LR2_ANCHORS,
     optionLabels: { right: 'Right edge (shipped)', left: 'Left edge' },
@@ -195,6 +218,9 @@ const controls: TunerControl<Extract<keyof LobbyRailTuner2Config, string>>[] = [
     return { key: k, label: d.label, group: d.group, unit: d.unit, hint: d.hint, min: d.min, max: d.max, step: d.step };
   }),
 ];
+// Each group renders once, in the order its first control is declared (the panel only merges ADJACENT controls).
+const GROUP_ORDER = [...new Set(controls.map((c) => c.group))];
+controls.sort((x, y) => GROUP_ORDER.indexOf(x.group) - GROUP_ORDER.indexOf(y.group));
 
 export const LR2_SPEC: TunerSpec<LobbyRailTuner2Config> = {
   id: 'lobbyrailtuner2',            // FROZEN — indexes this panel's dragged position in localStorage

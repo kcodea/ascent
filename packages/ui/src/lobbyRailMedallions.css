@@ -164,22 +164,22 @@ html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbysea
 /* ── THE SCOUT CARD (C and D): the ORIGINAL card (owner 2026-10-30: the lean card "looks significantly worse than before"),
    its layout untouched, dressed to match the rail: solid plate, gold hairline, the name in the title face over the
    painted divider. Width, offset and text scale from Tuner 2 (width is a multiple of the original card's width). ── */
-.lobbyscout.lrv-scout-medallion, .lobbyscout.lrv-scout-cards {
+.lobbyscout.lrv-scout-medallion, .lobbyscout.lrv-scout-cards, .lobbyscout.lrv-scout-tiles {
   border: 1px solid color-mix(in srgb, var(--ui-edge-main) 60%, transparent); border-radius: calc(14 * var(--lu));
   background: linear-gradient(180deg, var(--ui-plate-mid), var(--ui-plate-bot));
   box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.85);
 }
-.lobbyscout.lrv-scout-medallion, .lobbyscout.lrv-scout-cards {
+.lobbyscout.lrv-scout-medallion, .lobbyscout.lrv-scout-cards, .lobbyscout.lrv-scout-tiles {
   --lfont: calc(var(--lu) * var(--lby-font, 0.9) * var(--lr2-card-font, 1));
   --lrow: calc(var(--lu) * var(--lby-row, 1.91) * var(--lr2-card-font, 1));
   width: calc(112 * var(--lu) * var(--sc-w, 2.6) * var(--lr2-card-w, 1));
   translate: calc(var(--lr2-card-x, 0) * 1px) calc(var(--lr2-card-y, 0) * 1px);
 }
-.lobbyscout.lrv-scout-medallion .lobbyscout-head, .lobbyscout.lrv-scout-cards .lobbyscout-head {
+.lobbyscout.lrv-scout-medallion .lobbyscout-head, .lobbyscout.lrv-scout-cards .lobbyscout-head, .lobbyscout.lrv-scout-tiles .lobbyscout-head {
   padding-bottom: calc(9 * var(--lu)); background: url('/frames/name-divider.webp') 50% 100% / 100% calc(5 * var(--lu)) no-repeat;
 }
-.lobbyscout.lrv-scout-medallion .lobbyscout-name, .lobbyscout.lrv-scout-cards .lobbyscout-name { font-family: var(--font-title), sans-serif; letter-spacing: 0.02em; color: var(--ui-title); }
-.lobbyscout.lrv-scout-medallion .lobbyscout-stats, .lobbyscout.lrv-scout-cards .lobbyscout-stats { border-top: 0; padding-top: 0; }
+.lobbyscout.lrv-scout-medallion .lobbyscout-name, .lobbyscout.lrv-scout-cards .lobbyscout-name, .lobbyscout.lrv-scout-tiles .lobbyscout-name { font-family: var(--font-title), sans-serif; letter-spacing: 0.02em; color: var(--ui-title); }
+.lobbyscout.lrv-scout-medallion .lobbyscout-stats, .lobbyscout.lrv-scout-cards .lobbyscout-stats, .lobbyscout.lrv-scout-tiles .lobbyscout-stats { border-top: 0; padding-top: 0; }
 
 /* ═══ D · MEDALLION CARDS (owner 2026-10-30: "put the portrait and name on separate lines so we can more easily fit the
    full name of players ... we dont need the health bar ... re-add the card style"). C's sheet above, plus: each LIVING
@@ -228,7 +228,7 @@ html:root[data-lobby-rail="cards"] .lobbyseat.dead:is(.you.foe.ghost.dead, *) {
 /* D's cards sit closer than C's medallions: their own gap (Tuner 2 "Card gap"). */
 html:root[data-lobby-rail="cards"] .lobbyseat + .lobbyseat:not(.dead):is(.you.foe.ghost.dead, *) { margin-top: calc(var(--lr2-seat-gap, 3) * var(--k)); }
 /* The card's name wraps instead of cutting off (owner: fit the full name). */
-.lobbyscout.lrv-scout-medallion .lobbyscout-name, .lobbyscout.lrv-scout-cards .lobbyscout-name { white-space: normal; overflow-wrap: anywhere; }
+.lobbyscout.lrv-scout-medallion .lobbyscout-name, .lobbyscout.lrv-scout-cards .lobbyscout-name, .lobbyscout.lrv-scout-tiles .lobbyscout-name { white-space: normal; overflow-wrap: anywhere; }
 /* PHONES (Tuner 2 "Phones only"): the rail, header and tab take an extra vertical move on a phone (the desktop move would
    push eight seats off a landscape phone), and the phone size factor is the tuner's (C and D alike). */
 html:root[data-phone-layout] .lobbyrail, html:root[data-touch-ui][data-phone-zoom] .lobbyrail { --rv-ph: var(--lr2-phone-scale, 1.1); }
@@ -249,7 +249,7 @@ html:root[data-touch-ui][data-phone-zoom]:is([data-lobby-rail="medallion"], [dat
    own Health plaque (the same markup and Gem classes, `hudpill-hp` + `hudpill-arm`, healthPills.css), scaled to the rail:
    the Gem plate with its gold edge, ring and bevel and the filigree studs at each end; heart + number, then the steel
    Armor chip, both segments one height and the numbers on one centre line. Size is Tuner 2's Health number size. ═══ */
-html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbyseat:not(.dead) .lobbyhp.lrv-hpplaque {
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"], [data-lobby-rail="tiles"]) .lobbyseat:not(.dead) .lobbyhp.lrv-hpplaque {
   position: relative; display: inline-flex; align-items: center; gap: 0.2em; width: max-content; margin: 0;
   padding: 0.24em 0.55em 0.24em 0.42em; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums;
   border: 1px solid transparent; border-radius: 0.45em;
@@ -257,23 +257,23 @@ html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbysea
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 2px 6px -2px rgba(0, 0, 0, 0.66);
   color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
 }
-html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque > svg { flex: none; width: 1em; height: 1em; color: var(--ui-heart); }
-html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque .hpval { display: inline-flex; align-items: center; line-height: 1; }
-html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque .armval.hudpill-arm {
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"], [data-lobby-rail="tiles"]) .lrv-hpplaque > svg { flex: none; width: 1em; height: 1em; color: var(--ui-heart); }
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"], [data-lobby-rail="tiles"]) .lrv-hpplaque .hpval { display: inline-flex; align-items: center; line-height: 1; }
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"], [data-lobby-rail="tiles"]) .lrv-hpplaque .armval.hudpill-arm {
   display: inline-flex; align-items: center; gap: 0.12em; margin-left: 0.35em; padding: 0.14em 0.32em 0.14em 0.2em;
   font-size: 0.78em; line-height: 1; border-radius: 0.3em;
 }
-html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque .armval svg { display: block; width: 1em; height: 1em; }
-html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque .hp-armplus { display: none; }
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"], [data-lobby-rail="tiles"]) .lrv-hpplaque .armval svg { display: block; width: 1em; height: 1em; }
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"], [data-lobby-rail="tiles"]) .lrv-hpplaque .hp-armplus { display: none; }
 /* The filigree studs at each end, as on the hero's own Health plaque. Static. */
-html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque::before,
-html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque::after {
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"], [data-lobby-rail="tiles"]) .lrv-hpplaque::before,
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"], [data-lobby-rail="tiles"]) .lrv-hpplaque::after {
   content: ''; position: absolute; top: 50%; width: 0.28em; height: 0.28em; pointer-events: none;
   background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
   transform: translateY(-50%) rotate(45deg);
 }
-html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque::before { left: -0.17em; }
-html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque::after { right: -0.17em; }
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"], [data-lobby-rail="tiles"]) .lrv-hpplaque::before { left: -0.17em; }
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"], [data-lobby-rail="tiles"]) .lrv-hpplaque::after { right: -0.17em; }
 
 /* ═══ D · OVERLAP LAYOUT (Tuner 2 "D health layout: Overlap"; owner 2026-10-30: "centering the portrait with the
    health/armor eclipsing the portrait like the player's"): the portrait centred on the card, the plaque over its lower

@@ -38,6 +38,7 @@ import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-r
 if (import.meta.env.DEV) {
   void import('./lobbyRailVariants.css');
   void import('./lobbyRailMedallions.css'); // C, every dimension driven by Lobby Rail Tuner 2
+  void import('./lobbyRailTiles.css'); // E, the same
   void import('./lobbyRailTuner2Config'); // applies Tuner 2's saved values before the panel is ever opened
 }
 
@@ -526,6 +527,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
           // for the seat you fought). Read only for a hovered / pinned card, so the rail pays nothing otherwise.
           const scoutOpen = !staged && !isYou && (hovered?.id === seat.id || pinned?.id === seat.id);
           const intel = !scoutOpen ? undefined : isFoe ? foeIntel : railSeatIntel(lobby, seat, next);
+          // E (Tiles): the standing shown on the tile. The living in rail order (strongest first), the fallen their place.
+          const tileRank = variant === 'tiles' ? (row.alive ? rows.filter((r) => r.alive).findIndex((r) => r.id === row.id) + 1 : row.placement) : undefined;
           return (
             <div
               key={seat.id}
@@ -540,6 +543,30 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               onClick={isYou ? undefined : seat.id === duosMate ? () => enterTeammateView() : (e) => pinScout(e, seat.id)}
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
             >
+              {variant === 'tiles' && !inTeam ? (
+                // E · TILES (owner 2026-10-30, inspired by a reference rail): a square portrait tile; the standing
+                // number on the ladder's medallion at its top-left (the leader's carries the crown); Health + Armor as
+                // the hero plaque on its foot; the fallen dark with a skull. The name is on hover (the scout card), or
+                // on the tile with Tuner 2's "Names on tiles".
+                <>
+                  <span className="lrv-tileart" aria-hidden="true">
+                    <FadeImg className="lobbyface" src={heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics))} alt="" />
+                  </span>
+                  {tileRank ? (
+                    <span className={`lb-medal ${medalOf(tileRank)} lrv-rank`} aria-label={`Standing ${tileRank}`}>
+                      <span className="lb-medal-n">{tileRank}</span>
+                    </span>
+                  ) : null}
+                  {row.alive && tileRank === 1 && <span className="lrv-crown" aria-label="Leader"><Icon name="crown" /></span>}
+                  {row.alive ? (
+                    <span className="lobbyhp hudpill-hp lrv-hpplaque lrv-tilehp" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
+                      <Icon name="heartPill" />
+                      <span className="hpval">{live.resolve}{live.armor > 0 && <b className="armval hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{live.armor}</b>}</span>
+                    </span>
+                  ) : <span className="lrv-skull" aria-label="Knocked out"><Icon name="skull" /></span>}
+                  <span className="lobbynameline"><span className="lobbyname">{seat.label}</span></span>
+                </>
+              ) : (<>
               {(() => {
                 const src = heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics));
                 // An opponent seat wears its recorded portrait frame (through "Show opponent cosmetics", owner
@@ -596,6 +623,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                   <span style={{ width: `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%` }} />
                 </span>
               )}
+              </>)}
               {!staged && hovered?.id === seat.id && pinned?.id !== seat.id && (isYou
                 ? <SelfScoutCard lobby={lobby} seat={seat} at={hovered} />
                 : <ScoutCard lobby={lobby} seat={seat} intel={intel} at={hovered} />)}

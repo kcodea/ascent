@@ -58,6 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-31',
     changes: [
+      { category: 'Systems', text: 'The lobby rail is rebuilt: player slices set into the right side of the board.', details: [
+        'Each player has a slice with their hero art and name. The Refresh button, the End Turn gem and the Gold coin sit snugly in cut-outs.',
+        'A Health bar on every slice: red for Health, steel blue for Armor.',
+        'Your slice is edged in gold. The player you fight next glows red, with crossed swords.',
+        'Knocked-out players stay in their slice, greyed out with a skull, so the rail never jumps around.',
+        'Round and max damage sit beside the Refresh button.',
+        'Hover a slice for a compact card: Health and Armor, shop tier, Gilded made, top tribe, runes and the last three fights.',
+      ] },
       { category: 'Systems', text: 'Right-click a card to inspect it again. Hold right-click to ping.', details: [
         'A quick right-click opens the big view of a card, the same as outside a game. No more double right-click.',
         'Hold right-click for a moment on a card, a shop button, a Discover option or a rune to open the ping fan.',

@@ -1,0 +1,394 @@
+/* ── THE LOBBY RAIL: DOCKED (owner 2026-10-31, through a day of review: "almost made it look built into the board, cut out
+   around the gem", "I think they need to be stacked", "i loved the cutout slices", "the slices and everything looks
+   great") ───────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   The rail is a stack of slices against the board's right rail; the Refresh pill, the End Turn gem and the Gold coin cut
+   clean shapes out of the slices beside them. Boxes and outlines come from `lobbyRailDockedLayout.ts`, measured off the
+   board once per layout change and written inline (left / top / width / height, `--ph` slice height, `--dk-s` board
+   scale, `--fx` where the foot starts clear of a cut, `--bx` where the top edge does, `--skx` the fallen skulls' column);
+   a cut slice's portrait takes its outline as a `clip-path`, and its gold edge is an SVG stroke along the same outline
+   (LobbyPanel `SliceEdge`). Where the rail cannot dock (the Guides view, a Duos team rail, the Versus 1v1 block, a board
+   without its HUD) LobbyPanel falls back to the Gem rail (lobbyRail.css).
+   Every value reads a `--lr2-*` var with the shipped value as its fallback; Lobby Rail Tuner 2 (DEV) writes them.
+   The rail element is a full-size, click-through layer over its containing block (`inset: 0`); only the slices take the
+   pointer. The staged slide-away (`.app.staged .lobbyrail`, a `transform`) still carries the whole layer off.
+   PERFORMANCE: static paint; the one loop is the next foe's ring (opacity + a slight scale, its own layer); a fill change
+   and the reflow when the order changes are one-shot transforms.
+   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+
+
+/* STACKING (owner 2026-10-31: "all the mouseover stuff will need to go over the rail"): the docked layer and its round
+   slice sit just UNDER the board's HUD pieces (Refresh, End Turn, Gold, Tier, Freeze, hero power: `z-index: 41`, each its
+   own stacking context holding its tooltip), so every board hover and tooltip draws over the slices. Still above the
+   board's own rows (z auto). `lobbyRailDockedClickThrough.test.ts` holds the order. */
+html:root .lobbyrail.lrv-docked:not(.guidesview), html:root .lobbyrailhead.lrv-docked:not(.guidesview) { z-index: 40; }
+html:root .lobbyrail.lrv-docked:not(.guidesview) {
+  inset: 0; width: auto; height: auto; max-height: none; min-height: 0; padding: 0; margin: 0;
+  border: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible; pointer-events: none;
+}
+html:root .lobbyrail.lrv-docked:not(.guidesview)::before, html:root .lobbyrail.lrv-docked:not(.guidesview)::after { content: none; }
+html:root .lobbyrail.lrv-docked:not(.guidesview) > .lobbyhead { display: none; }
+/* The seats wrapper spans the whole layer, so it must stay click-through: `.lobbyrail > *` (styles.css) turns pointer
+   events back on for every direct child of the rail (R-RAIL-DOCKED-CLICKTHROUGH-01). Only the slices take the pointer. */
+html:root .lobbyrail.lrv-docked .lobbyseats { position: absolute; inset: 0; display: block; overflow: visible; padding: 0; margin: 0; pointer-events: none; }
+
+/* A SLICE: the portrait cropped to the face, a soft dark foot for the bar, the gold edge drawn along its outline. */
+html:root .lobbyrail.lrv-docked .lobbyseat:is(.you.foe.ghost.dead, *) {
+  --rim: calc(3px * var(--dk-s, 1));
+  position: absolute; z-index: 1; display: block; margin: 0; padding: 0; opacity: 1; pointer-events: auto;
+  background: none; border: 0; box-shadow: none; border-radius: 0; color: var(--ui-text); translate: none;
+}
+html:root .lobbyrail.lrv-docked .lobbyseat:is(.you.foe.ghost.dead, *)::before,
+html:root .lobbyrail.lrv-docked .lobbyseat:is(.you.foe.ghost.dead, *)::after { content: none; }
+html:root .lobbyrail.lrv-docked .lobbyseat .lobbynameline { display: none; }
+html:root .lobbyrail.lrv-docked .lobbyseat { filter: drop-shadow(0 calc(2px * var(--dk-s, 1)) calc(4px * var(--dk-s, 1)) rgba(0, 0, 0, 0.75)); }
+html:root .lobbyrail.lrv-docked .lrv-tileart { border-radius: 0; background: var(--ui-plate); }
+html:root .lobbyrail.lrv-docked .lrv-tileart > .lobbyface { border-radius: 0; }
+html:root .lobbyrail.lrv-docked .lobbyseat:not(.dead) .lrv-tileart::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, transparent 50%, rgba(6, 3, 8, 0.75) 100%);
+}
+/* The Health bar's size base: the slice; it sits inside the edge, from where the foot is clear of a cut. */
+html:root .lobbyrail.lrv-docked .lobbyseat { --bar-base: var(--ph); --bar-w: var(--pw); }
+html:root .lobbyrail.lrv-docked .lobbyseat .lrv-bar { bottom: calc(var(--rim) + 1px); left: calc(var(--rim) + 1px + var(--bi)); right: calc(var(--rim) + 1px + var(--bi)); }
+/* On a cut slice the bar runs as far left as the slice does: its wrapper takes the slice's outline, moved in by a small
+   even clearance, as its clip (owner 2026-10-31: the bar must not sit "boxed off" after the cut), so its left end
+   follows the gem's diamond or the coin's arc. */
+html:root .lobbyrail.lrv-docked .lrv-barclip { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+
+/* THE GOLD EDGE along the outline (a crisp dark keyline under it, so it holds on any board art). */
+html:root .lrv-docked svg.lrv-edge { position: absolute; z-index: 2; left: 0; top: 0; width: 100%; height: 100%; margin: 0; overflow: visible; pointer-events: none; }
+html:root .lrv-docked svg.lrv-edge polygon { fill: none; stroke: var(--ui-edge-main); stroke-width: var(--rim, 3px); stroke-linejoin: round; }
+html:root .lrv-docked svg.lrv-edge:not(.lrv-foering) { filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)); }
+
+/* SLICE ART & NAME (owner 2026-10-31: "have their art start on the left side and fade it out and have the player name on
+   the right side maybe? This could buy us a bit more art space so it's not so horizontally stretched", then "i want to
+   try a few things with the art/name etc"). Every value is a Tuner 2 "Slice art & name" control. Static paint: the fade
+   is a mask on the art, drawn once.
+     left    (default) the art on the left `--lr2-art-w`% of the slice, at a natural crop, fading into the plate to the
+             right; the name over the faded side
+     full    the art across the whole slice (the earlier look)
+     right   the mirror of left
+     center  a centred portrait fading out both sides */
+html:root .lobbyrail.lrv-docked .lobbyseat {
+  --aw: calc(var(--lr2-art-w, 58) * 1%);
+  --f0: calc(var(--lr2-fade-start, 40) * 1%);
+  --f1: calc(min(100, var(--lr2-fade-start, 40) + var(--lr2-fade-len, 60)) * 1%);
+  --fe: rgba(0, 0, 0, calc(1 - var(--lr2-fade-str, 1)));
+}
+html:root .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
+  position: absolute; top: 0; bottom: 0; left: 0; width: var(--aw); height: 100%;
+  object-position: calc(var(--lr2-art-fx, 50) * 1%) calc(var(--lr2-art-fy, 24) * 1%);
+  transform: scale(var(--lr2-art-zoom, 1)); transform-origin: calc(var(--lr2-art-fx, 50) * 1%) calc(var(--lr2-art-fy, 24) * 1%);
+  -webkit-mask-image: linear-gradient(90deg, #000 var(--f0), var(--fe) var(--f1)); mask-image: linear-gradient(90deg, #000 var(--f0), var(--fe) var(--f1));
+  filter: brightness(var(--lr2-art-bright, 1));
+}
+html:root[data-lr2-art="full"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface { width: 100%; -webkit-mask-image: none; mask-image: none; }
+html:root[data-lr2-art="right"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
+  left: auto; right: 0;
+  -webkit-mask-image: linear-gradient(270deg, #000 var(--f0), var(--fe) var(--f1)); mask-image: linear-gradient(270deg, #000 var(--f0), var(--fe) var(--f1));
+}
+html:root[data-lr2-art="center"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
+  left: calc((100% - var(--aw)) / 2);
+  -webkit-mask-image: linear-gradient(90deg, var(--fe) 0%, #000 calc(var(--lr2-fade-len, 60) * 0.5%), #000 calc(100% - var(--lr2-fade-len, 60) * 0.5%), var(--fe) 100%);
+  mask-image: linear-gradient(90deg, var(--fe) 0%, #000 calc(var(--lr2-fade-len, 60) * 0.5%), #000 calc(100% - var(--lr2-fade-len, 60) * 0.5%), var(--fe) 100%);
+}
+/* The slice's plate behind the art: a soft warm-dark gradient so the faded side reads as part of the slice. */
+html:root .lobbyrail.lrv-docked .lrv-tileart { background: linear-gradient(90deg, var(--ui-plate-mid, var(--ui-plate)), var(--ui-plate-bot, var(--ui-plate))); }
+/* The foe's art keeps its brightness lift on top of the tuner's. */
+html:root .lobbyrail.lrv-docked .lobbyseat.foe:not(.dead) .lrv-tileart > .lobbyface { filter: brightness(calc(var(--lr2-art-bright, 1) * 1.12)) saturate(1.1); }
+/* THE NAME, over the faded side, clear of the bar. */
+html:root .lobbyrail.lrv-docked .lrv-name {
+  --ns: var(--lr2-name-shadow, 1);
+  /* ONE alignment line for every name (owner 2026-10-31: "The names all need to be aligned vertically"): the same right
+     edge on every slice, and the block CENTRED on the same midline (the middle of the space above the bar), so a 1-line
+     and a 2-line name share it; a cut never moves it, and the fallen (no bar) use the same midline. */
+  position: absolute; z-index: 3; bottom: auto;
+  top: calc((var(--ph) - var(--bar-base) * var(--lr2-bar-h, 22) / 100 - var(--rim, 3px)) / 2);
+  left: calc(var(--aw) * 0.62); right: calc(9px * var(--dk-s, 1));
+  text-align: right; pointer-events: none;
+  translate: calc(var(--lr2-name-x, 0) * 1px) calc(-50% + var(--lr2-name-y, 0) * 1px);
+  font-family: var(--font-title), sans-serif; font-weight: var(--lr2-name-weight, 800);
+  font-size: calc(var(--lr2-name-size, 13) * var(--dk-s, 1) * 1px); line-height: 1.12; letter-spacing: 0.02em; color: var(--ui-text);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, min(1, calc(0.95 * var(--ns)))), 0 0 calc(4px * var(--ns)) rgba(0, 0, 0, min(1, calc(0.85 * var(--ns)))), 0 0 calc(9px * var(--ns)) rgba(0, 0, 0, min(1, calc(0.6 * var(--ns))));
+  overflow-wrap: anywhere;
+}
+/* The clamp lives on an inner span (an absolutely placed box is blockified, which drops the legacy clamp), so a name past
+   "Name max lines" ends in an ellipsis. */
+html:root .lobbyrail.lrv-docked .lrv-name { display: block; }
+html:root .lobbyrail.lrv-docked .lrv-name-t {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lr2-name-lines, 2); overflow: hidden; text-overflow: ellipsis;
+}
+html:root .lobbyrail.lrv-docked .lobbyseat.you .lrv-name { color: var(--ui-title); }
+html:root .lobbyrail.lrv-docked .lobbyseat.foe .lrv-name { color: color-mix(in srgb, var(--ui-heart) 35%, #fff); }
+html:root[data-lr2-name-side="left"] .lobbyrail.lrv-docked .lrv-name { left: calc(var(--fx, 0px) + 9px * var(--dk-s, 1)); right: calc(var(--aw) * 0.62); text-align: left; }
+html:root[data-lr2-name-side="left"]:not([data-lr2-art="right"]) .lobbyrail.lrv-docked .lrv-name { right: 40%; }
+html:root[data-lr2-art="right"]:not([data-lr2-name-side="left"]) .lobbyrail.lrv-docked .lrv-name { left: calc(var(--fx, 0px) + 9px * var(--dk-s, 1)); right: calc(var(--aw) * 0.62); text-align: left; }
+html:root[data-lr2-name="off"] .lobbyrail.lrv-docked .lrv-name { display: none; }
+/* The fallen: the art grey and dark (over the tuner's brightness), the name muted. */
+html:root .lobbyrail.lrv-docked .lobbyseat.dead .lrv-tileart > .lobbyface { filter: grayscale(1) brightness(calc(var(--lr2-art-bright, 1) * 0.5)); }
+html:root .lobbyrail.lrv-docked .lobbyseat.dead .lrv-name { color: var(--ui-muted); left: calc(max(calc(var(--aw) * 0.3), calc(var(--skx, 0px) + var(--ph) * 0.36)) + var(--ph) * 0.36); }
+
+/* YOU: the lit gold edge, thicker, a soft gold glow. Static. */
+html:root .lobbyrail.lrv-docked .lobbyseat.you svg.lrv-edge:not(.lrv-foering) { filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 calc(5px * var(--dk-s, 1)) var(--ui-title)); }
+html:root .lobbyrail.lrv-docked .lobbyseat.you svg.lrv-edge:not(.lrv-foering) polygon { stroke: #ffe7a6; stroke-width: calc(4px * var(--dk-s, 1)); }
+/* THE NEXT FOE (owner 2026-10-31: "the current target needs to be way more obvious"): a thick bright red edge along its
+   whole outline (cuts included), a strong red glow outside it that breathes (the glow is drawn once on its own layer;
+   only its opacity and a slight scale animate), the crossed swords on its corner, and a slightly brighter portrait.
+   A ghost pairing: teal. */
+html:root .lobbyrail.lrv-docked .lobbyseat.foe:not(.dead) { z-index: 3; }
+html:root .lobbyrail.lrv-docked .lobbyseat.foe svg.lrv-edge:not(.lrv-foering) polygon { stroke: color-mix(in srgb, var(--ui-heart) 80%, #fff); stroke-width: calc(4.5px * var(--dk-s, 1)); }
+html:root .lobbyrail.lrv-docked .lobbyseat.foe.ghost svg.lrv-edge:not(.lrv-foering) polygon { stroke: color-mix(in srgb, var(--ui-ghost) 85%, #fff); }
+html:root .lobbyrail.lrv-docked svg.lrv-foering {
+  --lr2-pc: var(--ui-heart);
+  z-index: 3; transform-origin: 50% 50%; will-change: opacity, transform;
+  filter: drop-shadow(0 0 calc(5px * var(--dk-s, 1) * var(--lr2-pulse-glow, 1)) var(--lr2-pc)) drop-shadow(0 0 calc(12px * var(--dk-s, 1) * var(--lr2-pulse-glow, 1)) var(--lr2-pc));
+  animation: lr2FoePulse calc(var(--lr2-pulse-period, 1.1) * 1s) ease-in-out infinite;
+}
+html:root .lobbyrail.lrv-docked .lobbyseat.ghost svg.lrv-foering { --lr2-pc: var(--ui-ghost); }
+html:root .lobbyrail.lrv-docked svg.lrv-foering polygon { stroke: color-mix(in srgb, var(--lr2-pc) 90%, #fff); stroke-width: calc(var(--lr2-pulse-ring, 1.4) * 3.2px * var(--dk-s, 1)); }
+/* The crossed swords (the rail's long-standing next-foe mark, Icon `sword` twice) on a red Gem chip, top-right. */
+html:root .lobbyrail.lrv-docked .lrv-vs {
+  --v: calc(30px * var(--dk-s, 1));
+  position: absolute; z-index: 4; top: calc(-0.3 * var(--v)); right: calc(-0.3 * var(--v)); width: var(--v); height: var(--v);
+  display: grid; place-items: center; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--ui-heart) 70%, #fff), var(--ui-heart) 60%, color-mix(in srgb, var(--ui-heart) 60%, #000));
+  box-shadow: 0 0 0 calc(1.5px * var(--dk-s, 1)) #fff3e0, 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+html:root .lobbyrail.lrv-docked .lrv-vs.ghost { background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--ui-ghost) 70%, #fff), var(--ui-ghost) 60%, color-mix(in srgb, var(--ui-ghost) 60%, #000)); }
+html:root .lobbyrail.lrv-docked .lrv-vs > svg { grid-area: 1 / 1; width: 70%; height: 70%; color: #fff; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6)); }
+html:root .lobbyrail.lrv-docked .lrv-vs > svg:last-child { transform: scaleX(-1); }
+@media (prefers-reduced-motion: reduce) {
+  html:root .lobbyrail.lrv-docked svg.lrv-foering { animation: none; opacity: var(--lr2-pulse-max, 1); transform: none; }
+}
+
+/* THE FALLEN keep their slice (owner 2026-10-31: "Ghosts should stay in the rail now as they are"): the portrait grey and
+   dark (the shared rule), the skull over it, the place medal on the corner, no bar, the edge a muted bronze. */
+html:root .lobbyrail.lrv-docked .lobbyseat.dead svg.lrv-edge polygon { stroke: color-mix(in srgb, var(--ui-edge-deep) 80%, #000); }
+html:root .lobbyrail.lrv-docked .lobbyseat.dead .lrv-tileart::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; background: rgba(8, 6, 12, 0.35);
+}
+/* The skull on the LEFT, over the hero art, in one column down every fallen slice (`--skx` = the deepest cut on the rail,
+   so no slice's cut moves its skull out of line). */
+html:root .lobbyrail.lrv-docked .lobbyseat.dead .lrv-skull {
+  left: max(calc(var(--aw) * 0.3), calc(var(--skx, 0px) + var(--ph) * 0.36)); top: 50%; translate: -50% -50%;
+  width: auto; height: 60%; aspect-ratio: 1;
+}
+
+/* THE ROUND SLICE, first in the stack: the same width and gold edge as the seat slices (cut round the Refresh pill), Round N over "N left · Max dmg". */
+html:root .lobbyrailhead.lrv-docked:not(.guidesview) {
+  --lr2-shs: var(--lr2-head-shadow, 3);
+  --lr2-sh: 0 1px 0 rgba(0, 0, 0, min(1, calc(0.95 * var(--lr2-shs)))), 0 0 calc(2px * var(--lr2-shs)) rgba(0, 0, 0, min(1, calc(0.7 * var(--lr2-shs))));
+  --rim: calc(3px * var(--dk-s, 1));
+  right: auto; bottom: auto; margin: 0; padding: 0 calc(6px * var(--dk-s, 1)) 0 calc(var(--mx, 0px) + 6px * var(--dk-s, 1)); box-sizing: border-box; transform-origin: 50% 50%;
+  translate: calc(var(--lr2-head-x, 0) * 1px) calc(var(--lr2-head-y, 0) * 1px);
+  display: flex; flex-wrap: wrap; align-content: center; justify-content: center; column-gap: 0.55em; row-gap: 0.15em;
+  font-size: calc(10.5px * var(--dk-s, 1) * var(--lr2-dk-head-font, 1)); line-height: 1; text-shadow: var(--lr2-sh);
+  border: 0; border-radius: 0; box-shadow: none; background: none;
+  filter: drop-shadow(0 calc(2px * var(--dk-s, 1)) calc(4px * var(--dk-s, 1)) rgba(0, 0, 0, 0.75));
+}
+html:root .lobbyrailhead.lrv-docked:not(.guidesview) > svg.lrv-edge { position: absolute; z-index: 1; }
+html:root .lobbyrailhead.lrv-docked:not(.guidesview) > .lrv-headbg {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, var(--ui-plate-top, var(--ui-plate-mid)), var(--ui-plate-bot));
+}
+html:root .lobbyrailhead.lrv-docked:not(.guidesview) { isolation: isolate; }
+/* TIED INTO THE PILL (Below, the default; owner 2026-10-31: "I don't want it to go over the refresh button, maybe just
+   tie into it. You can remove the x left text. We just need round x and max dmg text"): the round slice is the pill's
+   height, beside it, its left edge cut round the pill's rounded end. ROUND N over the max damage, centred in the space
+   right of the cut (`--bx` how far the pill bites in). "N left" is not shown here. */
+html:root .lobbyrailhead.lrv-docked.lrv-wrap:not(.guidesview) {
+  flex-direction: column; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 0.38em;
+  padding: 0 calc(6px * var(--dk-s, 1)) 0 calc(var(--bx) + 2px * var(--dk-s, 1));
+}
+html:root .lobbyrailhead.lrv-docked.lrv-wrap:not(.guidesview) > .lrv-left { display: none; }
+html:root .lobbyrailhead.lrv-docked.lrv-wrap:not(.guidesview) > .lobbyround { flex-basis: auto; font-size: 1.24em; white-space: nowrap; }
+html:root .lobbyrailhead.lrv-docked.lrv-wrap:not(.guidesview) > .lobbymax { font-size: 0.86em; white-space: nowrap; }
+
+/* THE GUIDES TAB under the stack, at its right edge. */
+html:root .lobbyrailtab.lrv-docked:not(.guidesview) {
+  --ltab-cell: calc(42px * 0.82 * var(--dk-s, 1) * var(--lr2-tab-scale, 0.75));
+  --ltab-pad: calc(5px * 0.82 * var(--dk-s, 1) * var(--lr2-tab-scale, 0.75));
+  right: auto; bottom: auto; margin: 0;
+  translate: calc(var(--lr2-tab-x, 0) * 1px) calc(var(--lr2-tab-y, 0) * 1px);
+}
+
+/* THE BOARD PIECES' HIT AREAS MATCH THEIR SHAPES while the docked rail is on (owner 2026-10-31: "we'll need to better cut
+   out the end turn diamond too so it doesnt mouseover while moused over an opponent"). The End Turn gem and the Refresh
+   pill sit above the rail (z 41, so their tooltips draw over it) and their boxes overlapped the slices beside their cuts.
+   Each button now takes the pointer only through a shaped `::after` (a pseudo-element hit counts as the button itself,
+   so :hover, the click, focus and touch all still work); its own box and its art are click-through. The Gold coin is
+   already a circle (`border-radius: 50%` clips its hit area). `lobbyRailDockedClickThrough.test.ts` holds this. */
+/* (pointer-events is inherited, and none of these pieces' children set their own, so the wrappers alone are enough; no
+   `*` rule, which would key a whole-subtree restyle on the class: R-PHONE-DRAG-02.) */
+html.rail-docked .etbwrap, html.rail-docked .rfbwrap { pointer-events: none; }
+html.rail-docked .etbwrap::after, html.rail-docked .rfbwrap::after { content: ''; position: absolute; inset: 0; pointer-events: auto; }
+html.rail-docked .etbwrap::after { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+html.rail-docked .rfbwrap::after { border-radius: 999px; }
+
+/* ═══ SHARED PIECES: the portrait, the Health bar, the fallen, the pulse, the hover card ═══ */
+
+/* THE PORTRAIT: fills its tile / panel, faces kept in frame. */
+.lrv-docked .lrv-tileart { position: absolute; inset: 0; overflow: hidden; }
+.lrv-docked .lrv-tileart > .lobbyface {
+  display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 26%; border-radius: 0; grid-area: auto; filter: none;
+}
+/* THE HEALTH BAR (owner 2026-10-31, in turn: "make the health bars chunkier ... A grey overlay ... should represent
+   armor", "more satisfying instead of pill like", "smooth and a bit chunkier ... The armor can be ... a grey blue", then
+   "the health bars can still be improved"): a bar set into the slice's foot (Tuner 2 "Bar height" / "Bar overlap" /
+   "Bar width inset"), Health in red, Armor as a steel-blue chunk at its right end, a crisp seam between them. Two styles
+   (Tuner 2 "Bar style"):
+     gloss   (default) a bevelled gold rim, a recessed track, glossy fills (a bright top band, a soft lower shade), a soft
+             glow at the red's leading edge
+     smooth  the earlier, calmer bar: a flat gold rim and softer fills
+   The numbers are on the hover card. Static paint; the fills are `transform` only (scaleX / translateX), so a change plays
+   once as a short transition and nothing loops. `--bar-base` is the slice's height (set per rail). */
+.lrv-docked .lrv-bar {
+  --bh: max(8px, calc(var(--bar-base) * var(--lr2-bar-h, 22) / 100));
+  --bi: calc(var(--bar-w, 100px) * var(--lr2-bar-inset, 0) / 100);
+  --rim: max(1.5px, calc(var(--bh) * 0.13));
+  position: absolute; z-index: 3; bottom: 0; left: var(--bi); right: var(--bi); height: var(--bh);
+  translate: 0 calc(var(--lr2-bar-overlap, 0) * 1%);
+  overflow: hidden; pointer-events: none; border-radius: calc(var(--bh) * 0.18);
+  border: var(--rim) solid transparent;
+  background: linear-gradient(180deg, #040205 0%, #110a10 45%, #1d131a 100%) padding-box,
+    linear-gradient(180deg, #fff0bf 0%, #e3b55c 30%, #9a6a24 62%, #d9a54d 85%, #6e4a17 100%) border-box;
+  box-shadow: 0 1px 0 rgba(255, 236, 190, 0.25), 0 2px 5px rgba(0, 0, 0, 0.9);
+}
+/* The track's recess (static), over the fills' edges. */
+.lrv-docked .lrv-bar::after {
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
+  box-shadow: inset 0 2px 3px -1px rgba(0, 0, 0, 0.85), inset 0 -1px 1px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+.lrv-docked .lrv-bar > span {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: 0 50%;
+  transition: transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.lrv-docked .lrv-bar-hp {
+  background:
+    linear-gradient(180deg, rgba(255, 225, 225, 0.75) 0%, rgba(255, 200, 200, 0.42) 18%, rgba(255, 160, 160, 0.06) 46%, transparent 52%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(180deg, #ff5465 0%, #e8203d 42%, #b70f2c 74%, #7c0719 100%);
+}
+.lrv-docked .lrv-bar-arm {
+  background:
+    linear-gradient(180deg, rgba(235, 245, 255, 0.8) 0%, rgba(215, 232, 255, 0.42) 18%, rgba(190, 215, 250, 0.06) 46%, transparent 52%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(180deg, #b6cdea 0%, #7d9cc6 42%, #54739e 74%, #30476b 100%);
+}
+/* The seam: a crisp dark line at the red / steel join. */
+.lrv-docked .lrv-bar-seam { z-index: 1; }
+.lrv-docked .lrv-bar-seam::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: max(1.5px, calc(var(--bh) * 0.1)); translate: -50% 0; background: rgba(6, 3, 8, 0.9); box-shadow: 1px 0 0 rgba(255, 255, 255, 0.18); }
+/* The leading edge of the red: a soft warm glow just inside its end. */
+.lrv-docked .lrv-bar-lead { z-index: 2; }
+.lrv-docked .lrv-bar-lead::before {
+  content: ''; position: absolute; top: 8%; bottom: 8%; right: 100%; width: max(4px, calc(var(--bh) * 0.7));
+  background: linear-gradient(90deg, transparent, rgba(255, 190, 170, 0.55)); border-radius: 0 40% 40% 0;
+}
+/* SMOOTH: the calmer bar. */
+html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar { border-radius: calc(var(--bh) * 0.16); background: linear-gradient(180deg, #050307 0%, #120b11 50%, #1e141b 100%) padding-box, var(--ui-edge) border-box; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.85); }
+html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-hp { background: linear-gradient(180deg, transparent 12%, rgba(255, 190, 190, 0.55) 22%, rgba(255, 160, 160, 0.18) 42%, transparent 52%), linear-gradient(180deg, #ff4f5e 0%, #e0203a 40%, #b5102c 72%, #74081b 100%); }
+html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-arm { background: linear-gradient(180deg, transparent 12%, rgba(225, 238, 255, 0.6) 22%, rgba(200, 222, 255, 0.18) 42%, transparent 52%), linear-gradient(180deg, #a9c3e3 0%, #7393bd 40%, #4f6d97 72%, #2f4568 100%); }
+html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
+@media (prefers-reduced-motion: reduce) { .lrv-docked .lrv-bar > span { transition: none; } }
+
+/* THE FALLEN: grey and dark, the skull over the portrait. */
+.lrv-docked .lobbyseat.dead .lrv-tileart > .lobbyface { filter: grayscale(1) brightness(0.45); }
+.lrv-docked .lobbyseat.dead.foe.ghost .lrv-tileart > .lobbyface { filter: grayscale(0.6) brightness(0.72); }
+.lrv-docked .lrv-skull {
+  position: absolute; z-index: 3; left: 50%; top: 50%; translate: -50% -50%; width: 52%; height: 52%;
+  color: var(--ui-text); opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); pointer-events: none;
+}
+.lrv-docked .lrv-skull > svg { display: block; width: 100%; height: 100%; }
+
+/* THE NEXT FOE's breath: opacity and a slight scale only (compositor). Reduced motion: a steady ring. */
+@keyframes lr2FoePulse {
+  0%, 100% { opacity: var(--lr2-pulse-min, 0.3); transform: scale(0.985); }
+  50% { opacity: var(--lr2-pulse-max, 1); transform: scale(1.02); }
+}
+
+/* THE HOVER CARD (both rails; owner 2026-10-31, the 10/10 pass: compact and tight). The owner's list in his order:
+   name with the Health / Armor numbers, one 3-up chip row (Shop tier, Gilded, Top tribe), small rune sockets, and one
+   tight row per fight. The original scout card's solid shell. Width / offset / scale: Tuner 2. */
+.lobbyscout.lrv-scout {
+  --lfont: calc(var(--lu) * var(--lby-font, 0.9) * var(--lr2-card-font, 1));
+  --c: calc(var(--lu) * 1.3 * var(--lr2-card-font, 1));
+  --lfont: calc(var(--lu) * var(--lby-font, 0.9) * 1.3 * var(--lr2-card-font, 1));
+  width: calc(300 * var(--lu) * var(--lr2-card-w, 1));
+  padding: calc(10 * var(--c)) calc(11 * var(--c));
+  translate: calc(var(--lr2-card-x, 0) * 1px) calc(var(--lr2-card-y, 0) * 1px);
+  border: 1.5px solid transparent; border-radius: calc(8 * var(--c));
+  background: linear-gradient(180deg, var(--ui-plate-mid), var(--ui-plate-bot)) padding-box, var(--ui-edge) border-box;
+  box-shadow: 0 8px 22px -6px rgba(0, 0, 0, 0.9);
+  display: flex; flex-direction: column; gap: calc(8 * var(--c));
+}
+.lobbyscout.lrv-scout > * { margin: 0; }
+.lobbyscout.lrv-scout .lrv-sc-top {
+  display: flex; align-items: center; justify-content: space-between; gap: calc(8 * var(--c));
+  padding-bottom: calc(7 * var(--c)); background: url('/frames/name-divider.webp') 50% 100% / 100% calc(4 * var(--c)) no-repeat;
+}
+.lobbyscout.lrv-scout .lobbyscout-name {
+  font-family: var(--font-title), sans-serif; font-size: calc(15 * var(--lfont)); letter-spacing: 0.02em; color: var(--ui-title);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lobbyscout.lrv-scout .lrv-sc-hp { flex: none; display: inline-flex; align-items: center; gap: calc(7 * var(--c)); font-size: calc(13 * var(--lfont)); font-weight: 900; font-variant-numeric: tabular-nums; }
+.lobbyscout.lrv-scout .lrv-sc-hp > span { display: inline-flex; align-items: center; gap: 0.2em; }
+.lobbyscout.lrv-scout .lrv-sc-hp svg { width: 1.1em; height: 1.1em; }
+.lobbyscout.lrv-scout .lrv-sc-heart { color: var(--ui-text); }
+.lobbyscout.lrv-scout .lrv-sc-heart svg { color: var(--ui-heart); }
+.lobbyscout.lrv-scout .lrv-sc-arm { color: #c9d8ee; }
+.lobbyscout.lrv-scout .lrv-sc-arm svg { color: #7f9cc6; }
+.lobbyscout.lrv-scout .lrv-sc-chips { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: calc(5 * var(--c)); }
+.lobbyscout.lrv-scout .lrv-sc-chip {
+  display: flex; flex-direction: column; align-items: center; gap: calc(3 * var(--c)); min-width: 0;
+  padding: calc(5 * var(--c)) calc(4 * var(--c)); border-radius: calc(5 * var(--c));
+  background: color-mix(in srgb, var(--ui-chip-bg) 85%, transparent); box-shadow: inset 0 0 0 1px var(--ui-divider);
+}
+.lobbyscout.lrv-scout .lrv-sc-chip > i { font-style: normal; font-size: calc(8.5 * var(--lfont)); font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ui-muted); white-space: nowrap; }
+.lobbyscout.lrv-scout .lrv-sc-chip > b {
+  display: inline-flex; align-items: center; gap: 0.25em; font-size: calc(13 * var(--lfont)); font-weight: 900; color: var(--ui-text);
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.lobbyscout.lrv-scout .lrv-sc-chip > b svg { width: 0.95em; height: 0.95em; color: var(--ui-title); flex: none; }
+.lobbyscout.lrv-scout .lrv-sc-runes { display: flex; align-items: center; gap: calc(6 * var(--c)); }
+.lobbyscout.lrv-scout :is(.lrv-sc-runes > i, .lrv-sc-none) { font-style: normal; font-size: calc(10 * var(--lfont)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ui-muted); }
+.lobbyscout.lrv-scout .lrv-sc-runes > i { margin-right: auto; }
+.lobbyscout.lrv-scout .lrv-sc-socket {
+  position: relative; display: inline-grid; place-items: center; width: calc(24 * var(--c)); height: calc(24 * var(--c)); border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-edge-main) 35%, transparent);
+}
+.lobbyscout.lrv-scout .lrv-sc-socket.filled { box-shadow: 0 0 0 1.5px var(--ui-edge-main), 0 1px 3px rgba(0, 0, 0, 0.7); }
+.lobbyscout.lrv-scout .lrv-sc-socket > img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.lobbyscout.lrv-scout .lrv-sc-socket > svg { width: 60%; height: 60%; color: var(--ui-title); }
+.lobbyscout.lrv-scout .lrv-sc-socket > .questbadge-tip { display: none; }
+.lobbyscout.lrv-scout.pinned .lrv-sc-socket:hover > .questbadge-tip { display: flex; }
+.lobbyscout.lrv-scout .lrv-sc-fights { display: flex; flex-direction: column; gap: calc(4 * var(--c)); }
+.lobbyscout.lrv-scout .lrv-sc-none { text-transform: none; letter-spacing: 0; font-size: calc(12 * var(--lfont)); font-weight: 700; text-align: center; padding: calc(4 * var(--c)) 0; }
+.lobbyscout.lrv-scout .lrv-sc-fight {
+  display: grid; grid-template-columns: calc(24 * var(--c)) minmax(0, 1fr) auto auto; align-items: center; gap: calc(7 * var(--c));
+  padding: calc(3 * var(--c)) calc(6 * var(--c)) calc(3 * var(--c)) calc(3 * var(--c)); border-radius: calc(5 * var(--c));
+  background: color-mix(in srgb, var(--ui-chip-bg) 70%, transparent); font-size: calc(11.5 * var(--lfont)); font-weight: 800;
+}
+.lobbyscout.lrv-scout .lrv-sc-foe { width: calc(24 * var(--c)); height: calc(24 * var(--c)); border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 1px var(--ui-edge-main); }
+.lobbyscout.lrv-scout .lrv-sc-vs { color: var(--ui-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lobbyscout.lrv-scout .lrv-sc-out {
+  display: inline-grid; place-items: center; width: calc(18 * var(--c)); height: calc(18 * var(--c)); border-radius: calc(4 * var(--c));
+  font-weight: 900; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.lobbyscout.lrv-scout .lrv-sc-fight.win .lrv-sc-out { background: #2f9e57; }
+.lobbyscout.lrv-scout .lrv-sc-fight.lose .lrv-sc-out { background: #c62f43; }
+.lobbyscout.lrv-scout .lrv-sc-fight.draw .lrv-sc-out { background: #6b7180; }
+.lobbyscout.lrv-scout .lrv-sc-dmg { min-width: 2.2em; text-align: right; font-variant-numeric: tabular-nums; font-weight: 900; }
+.lobbyscout.lrv-scout .lrv-sc-fight.win .lrv-sc-dmg { color: #7fe0a0; }
+.lobbyscout.lrv-scout .lrv-sc-fight.lose .lrv-sc-dmg { color: #ff8a96; }
+.lobbyscout.lrv-scout .lrv-sc-fight.draw .lrv-sc-dmg { color: var(--ui-muted); }
+
+/* The round slice's text. */
+.lobbyrailhead.lrv-docked:not(.guidesview) > .lobbyround {
+  font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.12em; font-size: 1.7em; color: var(--ui-title); text-shadow: var(--lr2-sh);
+}
+.lobbyrailhead.lrv-docked:not(.guidesview) > :is(.lrv-left, .lobbymax) {
+  font-size: 1em; font-weight: 900; letter-spacing: 0.08em; color: var(--ui-text); text-shadow: var(--lr2-sh); text-transform: uppercase;
+}
+.lobbyrailhead.lrv-docked:not(.guidesview) .lobbymax {
+  align-self: auto; transform: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+}
+.lobbyrailhead.lrv-docked:not(.guidesview) .lobbymax svg { width: 1em; height: 1em; color: var(--ui-heart); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); }
+.lobbyrailhead.lrv-docked:not(.guidesview) > .herotip.lobbymax-tip { right: 50%; translate: 50% 0; font-size: initial; text-shadow: none; }

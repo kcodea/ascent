@@ -14,6 +14,9 @@ import { warmSharpArt } from './fullResArt';
 import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
 import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
+import { useDockCfg } from './lobbyRailVariant';
+import { useDockedRail } from './useDockedRail';
+import type { DockPanel, Pt } from './lobbyRailDockedLayout';
 import { liveRuneText } from './runeText';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
@@ -33,6 +36,52 @@ import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/g
 import { ownsMine, useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 import { railKey } from './pings/pingKeys';
+import './lobbyRailDocked.css'; // the Docked rail (owner 2026-10-31): slices set into the board's right side
+// Lobby Rail Tuner 2 (DEV only): applies its saved values before the panel is ever opened. Production never loads it and
+// renders the shipped defaults (the sheet's fallbacks + DOCK_DEFAULTS).
+if (import.meta.env.DEV) void import('./lobbyRailTuner2Config');
+
+/** DOCKED (owner review 2026-10-31): a slice's outline as a `clip-path`. */
+function outlineClip(pts: readonly Pt[]): string {
+  return `polygon(${pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(', ')})`;
+}
+
+/** DOCKED: a player name clamped to the rail's line count WITH an ellipsis (owner 2026-10-31: names past 2 lines end in
+ *  "…", never a silent cut). CSS `line-clamp` sets the lines; if the browser clamps without drawing the ellipsis (current
+ *  Chrome's flow-root clamp), this trims the text to fit and adds it. Measured once when the name changes, never per frame. */
+function ClampedName({ text }: { text: string }): JSX.Element {
+  // The text is written by the effect alone (React renders no children here), so the measuring writes never fight React.
+  const ref = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.textContent = text;
+    if (el.scrollHeight <= el.clientHeight + 1) return;
+    let lo = 0, hi = text.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      el.textContent = `${text.slice(0, mid).trimEnd()}…`;
+      if (el.scrollHeight <= el.clientHeight + 1) lo = mid; else hi = mid - 1;
+    }
+    el.textContent = `${text.slice(0, lo).trimEnd()}…`;
+  }, [text]);
+  return <span ref={ref} className="lrv-name-t" aria-label={text} />;
+}
+
+/** DOCKED: a slice's outline with its cut edge moved IN by `d` px (the left contour's cut points; the straight edges stay),
+ *  so a child clipped by it keeps an even gap from the cut. */
+function insetOutline(pts: readonly Pt[], d: number, w: number): Pt[] {
+  return pts.map(([x, y]) => [x > 0.5 && x < w * 0.8 ? x + d : x, y] as Pt);
+}
+
+/** DOCKED: the gold edge drawn along a slice's outline (or, `ring`, the next foe's breathing red ring). */
+function SliceEdge({ p, ring }: { p: DockPanel; ring?: boolean }): JSX.Element {
+  return (
+    <svg className={`lrv-edge${ring ? ' lrv-foering' : ''}`} aria-hidden="true" width={p.w} height={p.h} viewBox={`0 0 ${p.w.toFixed(1)} ${p.h.toFixed(1)}`}>
+      <polygon points={p.outline.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')} />
+    </svg>
+  );
+}
 
 /** The max-damage readout on the rail's top edge: "Max dmg 5", or "No cap" once the round is uncapped. It is this
  *  round's LOSS CAP (`roundLossCap`): the most Health a loss can cost. Labelled since 2026-10-09 (owner: "a bit clearer
@@ -101,6 +150,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // opponent skins" is off).
   const runSkins = useRunSkins();
   const showOppSkins = useGame((st) => st.showOpponentSkins);
+  // THE DOCKED RAIL (owner 2026-10-31): its dials (Lobby Rail Tuner 2 in DEV; DOCK_DEFAULTS in production).
+  const dockCfg = useDockCfg();
+  const railRef = useRef<HTMLDivElement>(null);
   // The portrait-frames tuner's rings for the seat faces (null = today's plain round face).
   const selfFrame = usePortraitFrame('self', frameIdOf(runSkins)); // your seat: the frame recorded on this run
   const oppFrame = usePortraitFrame('opp');
@@ -386,6 +438,55 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const foeIntel: SeatIntel | undefined = foe ? railSeatIntel(lobby, foe, next) : undefined;
   // VERSUS DUOS: team rows grouped (you next to your teammate), never split by Health.
   const rows = duosMate ? groupDuosRailRows(rail.rows) : rail.rows;
+  // THE DOCKED RAIL (owner 2026-10-31): the seats laid out on the board's right side, measured off the board's own Refresh
+  // / gem / Gold (useDockedRail). It needs that HUD on screen and room beside it; anywhere it cannot (the Guides view, a Duos
+  // team rail, the Versus 1v1 block, a board without its HUD) the rail is the Gem rail (lobbyRail.css), as before.
+  const liveIds = useMemo(() => rows.filter((r) => r.alive).map((r) => r.id), [rows]);
+  const deadIds = useMemo(() => rows.filter((r) => !r.alive).map((r) => r.id), [rows]);
+  const dockWanted = !duosMate && !versusDuel && !showGuides;
+  const dock = useDockedRail(dockWanted, railRef, liveIds, deadIds, dockCfg, staged);
+  const rv = !!dock;
+  // Docked's class on the rail, its header and its tab (lobbyRailDocked.css keys off it).
+  const vMod = rv ? ' lrv-docked' : '';
+  // The board pieces beside the rail take the pointer only through their own shapes while it is docked (R-RAIL-DOCKED-
+  // CLICKTHROUGH-01, lobbyRailDocked.css `html.rail-docked`).
+  useEffect(() => {
+    if (!rv) return;
+    document.documentElement.classList.add('rail-docked');
+    return () => { document.documentElement.classList.remove('rail-docked'); };
+  }, [rv]);
+  const dockById = useMemo(() => new Map<string, DockPanel>((dock?.panels ?? []).map((p) => [p.id, p])), [dock]);
+  // The fallen's skulls line up in ONE column (owner 2026-10-31: "have the skull on the left over the hero all aligned"),
+  // clear of the deepest cut any FALLEN slice has, so a cut never pushes one skull out of line.
+  const skullX = useMemo(() => Math.max(0, ...(dock?.panels ?? []).filter((p) => p.dead).map((p) => p.midX)), [dock]);
+  // THE REFLOW (owner 2026-10-31: the fallen consolidate and the living grow): when the table's order or its living /
+  // fallen split changes, each seat glides from where it stood to its new place ONCE (a FLIP: transform only, short).
+  // Rects are read only on that change, never per frame.
+  const flipPrev = useRef(new Map<string, DOMRect>());
+  const flipKey = useRef('');
+  const rowsKey = rows.map((r) => `${r.id}${r.alive ? '' : 'x'}`).join(',');
+  useLayoutEffect(() => {
+    const layer = railRef.current;
+    if (!rv || showGuides || !layer) { flipPrev.current = new Map(); flipKey.current = ''; return; }
+    const key = rowsKey;
+    const animate = flipKey.current !== '' && flipKey.current !== key && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const next = new Map<string, DOMRect>();
+    layer.querySelectorAll<HTMLElement>('.lobbyseat[data-seat]').forEach((el) => {
+      const id = el.dataset.seat!;
+      const r = el.getBoundingClientRect();
+      next.set(id, r);
+      const p = flipPrev.current.get(id);
+      if (!animate || !p || r.width <= 0 || r.height <= 0) return;
+      if (Math.abs(p.left - r.left) < 1 && Math.abs(p.top - r.top) < 1 && Math.abs(p.width - r.width) < 1) return;
+      const k = el.offsetWidth ? r.width / el.offsetWidth : 1;
+      el.animate([
+        { transformOrigin: '0 0', transform: `translate(${(p.left - r.left) / k}px, ${(p.top - r.top) / k}px) scale(${p.width / r.width}, ${p.height / r.height})` },
+        { transformOrigin: '0 0', transform: 'none' },
+      ], { duration: 340, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+    });
+    flipPrev.current = next;
+    flipKey.current = key;
+  }, [rv, showGuides, rowsKey, dock]);
   // The rail's height in seat rows (`--lby-n`): VERSUS's head-to-head card takes three; its Guides view takes the
   // lobby's full eight, so the guides read exactly as in a lobby game.
   const railRows = versusDuel ? (showGuides ? 8 : 3) : rows.length;
@@ -393,6 +494,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The round's loss cap (the run's own table: the Gauntlet has its own, see `roundLossCap`). Infinity = uncapped.
   const cap = rail.lossCap;
   const capTip = maxDamageTip(cap);
+  const leftLabel = showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : versusDuel ? '' : `${versus ? rail.left - (lobby.seats.some((x) => x.id === VERSUS_COPY_SEAT_ID) ? 1 : 0) : rail.left} left`;
 
   return (
     <>
@@ -403,8 +505,21 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         positioned off the rail's own `right` / `top` / `width` (styles.css), so it takes no layout space and
         moves nothing. */}
     {/* VERSUS draws its Round plate on the opponent's block (versus/VersusFoe.tsx); the Guides view keeps this header. */}
-    {!(versusDuel && !showGuides) && <div className={`lobbyrailhead${railMods}`}>
-      <span className="lobbyround">{showGuides ? 'Guides' : `Round ${rail.round}`}</span>
+    {!(versusDuel && !showGuides) && <div className={`lobbyrailhead${railMods}${vMod}${dock?.wrap ? ' lrv-wrap' : ''}`} style={{
+      ...(dock ? {
+        left: dock.head.x, top: dock.head.y, width: dock.head.w, height: dock.head.h, '--dk-s': dock.s, '--mx': `${dock.head.midX}px`,
+        ...(dock.wrap ? { '--tah': `${dock.wrap.topH}px`, '--bx': `${dock.wrap.bandX}px` } : {}),
+      } : {}),
+    } as React.CSSProperties}>
+      {/* DOCKED: the round slice's plate (clipped to its outline) and its gold edge along that outline, cut round the
+          Refresh pill. The edge is a sibling of the clipped plate, so the stroke is never clipped in half. */}
+      {dock && <span className="lrv-headbg" aria-hidden="true" style={dock.head.cut ? { clipPath: outlineClip(dock.head.outline) } : undefined} />}
+      {dock && <SliceEdge p={dock.head} />}
+      {/* The candidate rails split the word from the number (the wrapped round slice can set them apart); the text reads
+          the same. */}
+      <span className="lobbyround">{showGuides ? 'Guides' : rv ? <><span className="lr-word">Round</span> <span className="lr-num">{rail.round}</span></> : `Round ${rail.round}`}</span>
+      {/* Docked: the seats-left count joins the round slice (shown in its Slight eclipse / Level layouts). */}
+      {rv && !showGuides && leftLabel && <span className="lrv-left">{leftLabel}</span>}
       {versusDuel && showGuides && (
         <button type="button" className="mdd-close pressable vsdrawer-close" aria-label="Close build guides" onClick={closeVsGuides}>
           <span aria-hidden="true">✕</span>
@@ -428,8 +543,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         clips its children), placed off the rail's own position + height vars (guides/lobbyGuides.css). Two stacked
         glyphs, the current view's lit, so the tab always says which face is showing. */}
     {guidesOn && !versusDuel && (
-      <button type="button" className={`lobbyrailtab gtip${railMods}`}
-        style={{ '--lby-n': railRows } as React.CSSProperties}
+      <button type="button" className={`lobbyrailtab gtip${railMods}${vMod}`}
+        style={{ '--lby-n': railRows, ...(dock ? { left: dock.tab.x, top: dock.tab.y, '--dk-s': dock.s } : {}) } as React.CSSProperties}
         aria-label={showGuides ? 'Show opponents' : 'Show build guides'} aria-pressed={showGuides}
         data-tip={showGuides ? 'Opponents' : 'Guides'} onClick={toggleView}>
         <span className={`lobbyrailtab-cell${showGuides ? '' : ' on'}`}><Icon name="sword" /></span>
@@ -466,9 +581,11 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
       );
     })()}
     {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
-    {!(versusDuel && !showGuides) && <div className={`lobbyrail${railMods}`} style={{ '--lby-n': railRows } as React.CSSProperties}>
+    {!(versusDuel && !showGuides) && <div ref={railRef} className={`lobbyrail${railMods}${vMod}`} style={{
+      '--lby-n': railRows,
+    } as React.CSSProperties}>
       <div className="lobbyhead">
-        <span className="lobbyalive">{showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : versusDuel ? '' : `${versus ? rail.left - (lobby.seats.some((x) => x.id === VERSUS_COPY_SEAT_ID) ? 1 : 0) : rail.left} left`}</span>
+        <span className="lobbyalive">{leftLabel}</span>
       </div>
 
       {showGuides ? (
@@ -494,6 +611,15 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
           // for the seat you fought). Read only for a hovered / pinned card, so the rail pays nothing otherwise.
           const scoutOpen = !staged && !isYou && (hovered?.id === seat.id || pinned?.id === seat.id);
           const intel = !scoutOpen ? undefined : isFoe ? foeIntel : railSeatIntel(lobby, seat, next);
+          // `dp`: this seat's docked slice (its box, outline and where its foot and top run clear of a cut).
+          const dp = dock ? dockById.get(seat.id) : undefined;
+          // THE HEALTH BAR (owner 2026-10-31: "make the health bars chunkier ... A grey overlay of a portion of the right side
+          // of the health bar should represent armor, based on the number of armor compared to the 30 hp"): red = Health
+          // over the seat's max Health (30 in a lobby), grey = Armor over the same max, sitting just right of the red; when
+          // the two together pass the max, the grey sits over the right end of the bar (on top of the red).
+          const hpFrac = Math.max(0, Math.min(1, live.resolve / maxHp));
+          const armFrac = Math.max(0, Math.min(1, live.armor / maxHp));
+          const armEnd = Math.min(1, hpFrac + armFrac);
           return (
             <div
               key={seat.id}
@@ -509,7 +635,43 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               // Left OR right click pins the card (and clicking a different seat switches to it) — owner ask 2026-08-31.
               onClick={isYou ? undefined : seat.id === duosMate ? () => enterTeammateView() : (e) => pinScout(e, seat.id)}
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
+              style={dp ? {
+                left: dp.x, top: dp.y, width: dp.w, height: dp.h,
+                '--pw': `${dp.w}px`, '--ph': `${dp.h}px`, '--dk-s': dock!.s, '--fx': `${dp.footX}px`, '--bx': `${dp.topX}px`, '--skx': `${skullX}px`,
+              } as React.CSSProperties : undefined}
             >
+              {dp && !inTeam ? (
+                // DOCKED / TILES (owner 2026-10-31: "large icons and an eclipsed health bar on the portrait"): the
+                // portrait fills the panel; the standing on the ladder's medallion at its top-left (the leader also wears
+                // the crown); a chunky Health bar eclipsing the portrait's foot, Armor a grey chunk at its right end (the
+                // numbers are on the hover card); the fallen grey with a skull, in the compact strip.
+                // Docked slices beside the Refresh pill, the gem or the Gold coin are cut round it (owner 2026-10-31: "i
+                // loved the cutout slices"): the portrait takes the slice's outline as its clip, and the gold edge (and
+                // the next foe's red ring) is drawn along the same outline, so every cut reads as finished.
+                <>
+                  <span className="lrv-tileart" aria-hidden="true" style={dp?.cut ? { clipPath: outlineClip(dp.outline) } : undefined}>
+                    <FadeImg className="lobbyface" src={heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics))} alt="" />
+                  </span>
+                  {dp && <SliceEdge p={dp} />}
+                  {dp && !dp.dead && isFoe && <SliceEdge p={dp} ring />}
+                  {/* The target (owner 2026-10-31: "the current target needs to be way more obvious"): the crossed swords
+                      the rail has always used for the next foe, on the slice's top-right corner. */}
+                  {isFoe && row.alive && <span className={`lrv-vs${isGhost ? ' ghost' : ''}`} aria-label="Your next opponent"><Icon name="sword" /><Icon name="sword" /></span>}
+                  {/* No standing medal or crown (owner 2026-10-31: the order says it); the player's NAME sits over the faded
+                      side of the art instead. */}
+                  <span className="lrv-name"><ClampedName text={seat.label} /></span>
+                  {row.alive ? (<span className="lrv-barclip" style={dp?.cut ? { clipPath: outlineClip(insetOutline(dp.outline, 4 * dock!.s, dp.w)) } : undefined}>
+                    <span className="lrv-bar" role="img" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
+                      <span className="lrv-bar-hp" style={{ transform: `scaleX(${hpFrac})` }} />
+                      {armFrac > 0 && <span className="lrv-bar-arm" style={{ transform: `translateX(${((armEnd - armFrac) * 100).toFixed(2)}%) scaleX(${armFrac})` }} />}
+                      {/* The hairline between red and grey: its own full-width layer moved to the seam (translate only). */}
+                      {armFrac > 0 && <span className="lrv-bar-seam" style={{ transform: `translateX(${((armEnd - armFrac) * 100).toFixed(2)}%)` }} />}
+                      {/* The Health fill's leading edge: a soft glow at the end of the red (its own layer, translate only). */}
+                      {hpFrac > 0 && <span className="lrv-bar-lead" style={{ transform: `translateX(${(hpFrac * 100).toFixed(2)}%)` }} />}
+                    </span>
+                  </span>) : <span className="lrv-skull" aria-label="Knocked out"><Icon name="skull" /></span>}
+                </>
+              ) : (<>
               {(() => {
                 const full = heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics));
                 // R-PHONE-HERO-SHARP-01: on a phone the rail's face is ~60 device px, so it loads the 160 px thumbnail
@@ -552,11 +714,12 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                   <span style={{ width: `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%` }} />
                 </span>
               )}
+              </>)}
               {!staged && hovered?.id === seat.id && pinned?.id !== seat.id && (isYou
-                ? <SelfScoutCard lobby={lobby} seat={seat} at={hovered} />
-                : <ScoutCard lobby={lobby} seat={seat} intel={intel} at={hovered} />)}
+                ? <SelfScoutCard lobby={lobby} seat={seat} at={hovered} hp={live} compact={rv} />
+                : <ScoutCard lobby={lobby} seat={seat} intel={intel} at={hovered} hp={live} compact={rv} />)}
               {!staged && pinned?.id === seat.id && (
-                <ScoutCard lobby={lobby} seat={seat} intel={intel} at={pinned} pinned />
+                <ScoutCard lobby={lobby} seat={seat} intel={intel} at={pinned} pinned hp={live} compact={rv} />
               )}
             </div>
           );
@@ -608,18 +771,19 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
  * only records intel for seats it prepares, and your board is the run itself). Subscribes to the run only while
  * mounted, i.e. only while your seat is hovered, so the rail pays nothing for it otherwise.
  */
-function SelfScoutCard({ lobby, seat, at }: { lobby: RunLobby; seat: LobbySeatState; at: { top: number; right: number } }): JSX.Element {
+function SelfScoutCard({ lobby, seat, at, hp, compact }: { lobby: RunLobby; seat: LobbySeatState; at: { top: number; right: number }; hp?: { alive: boolean; resolve: number; armor: number }; compact?: boolean }): JSX.Element {
   const run = useGame((st) => st.run);
   const intel = useMemo(() => {
     const snap = snapshotBoard(run);
     return boardIntel({ minions: snap.minions, tier: snap.tier, snapshot: snap }, lobby.round);
   }, [run, lobby.round]);
-  return <ScoutCard lobby={lobby} seat={seat} intel={intel} at={at} />;
+  return <ScoutCard lobby={lobby} seat={seat} intel={intel} at={at} hp={hp} compact={compact} />;
 }
 
 const TRIBE_LABEL: Record<string, string> = {
   beast: 'Beasts', dragon: 'Dragons', undead: 'Undead', mech: 'Mechs',
   demon: 'Demons', kobold: 'Kobolds', dwarf: 'Dwarves', neutral: 'Neutral',
+  celestial: 'Celestials', spirit: 'Spirits',
 };
 
 // DEV-only scout-card layout A/B/C compare (owner is choosing a formatting direction). The chosen variant
@@ -640,8 +804,12 @@ const OUTCOME_LABEL: Record<string, string> = { win: 'WON', lose: 'LOST', draw: 
  * Rendered ONLY while hovered rather than always-mounted-and-hidden — eight of these permanently in the tree,
  * each mapping the encounter log, is work the shop phase does not need to do every frame.
  */
-function ScoutCard({ lobby, seat, intel, at, pinned }: {
+function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
   lobby: RunLobby; seat: LobbySeatState; intel?: SeatIntel; at: { top: number; right: number };
+  /** The seat's Health + Armor as the rail shows them (the Docked card prints the numbers the bar draws). */
+  hp?: { alive: boolean; resolve: number; armor: number };
+  /** The Docked rail's compact card (owner 2026-10-31). */
+  compact?: boolean;
   /** Pinned (clicked) rather than hovered: it takes pointer events so its rune/quest badges can be hovered for
    *  their own tooltips. Dismissed by clicking outside (handled in LobbyPanel), not a corner ×. */
   pinned?: boolean;
@@ -781,7 +949,57 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
 
   // ── The three candidate layouts (owner picked V1; the others stay for reference). Same data, different form. ──
   let body: JSX.Element;
-  if (variant === 2) {
+  if (compact) {
+    // THE DOCKED CARD (owner 2026-10-31): the owner's list in his order ("player name, shop tier, number of gilded
+    // minions, their most common tribe x, their rune slots, and then the past 3 combat results"), plus the Health / Armor
+    // numbers the bar draws. Compact: a header line, one 3-up chip row, small rune sockets, one tight row per fight.
+    // Gilded = Gilded units MADE this game (owner ruling 2026-10-31; R-LOBBY-RAIL-02 (3)).
+    const sockets = [0, 1, 2].map((i) => {
+      const rune = runeIds[i] ? RUNE_INDEX[runeIds[i]!] : null;
+      const rart = rune ? runeArt(rune.id) : null;
+      return (
+        <span className={`lrv-sc-socket${rune ? ' filled' : ''}`} key={i}>
+          {rune && (rart ? <img decoding="sync" src={rart} alt="" aria-hidden /> : <Icon name="sc" />)}
+          {rune && (
+            <span className="questbadge-tip" role="tooltip">
+              <b>{rune.name}</b>
+              <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(liveRuneText(rune.id, rune.text, intel?.runeLive)) }} />
+              <span className="questbadge-tip-state">Rune · active</span>
+            </span>
+          )}
+        </span>
+      );
+    });
+    body = (
+      <>
+        <div className="lrv-sc-top">
+          <span className="lobbyscout-name">{seat.label}</span>
+          {hp?.alive && (
+            <span className="lrv-sc-hp" aria-label={`Health ${hp.resolve}, Armor ${hp.armor}`}>
+              <span className="lrv-sc-heart"><Icon name="heartPill" />{hp.resolve}</span>
+              <span className="lrv-sc-arm"><Icon name="armor" />{hp.armor}</span>
+            </span>
+          )}
+        </div>
+        <div className="lrv-sc-chips">
+          <span className="lrv-sc-chip"><i>Shop tier</i><b><Icon name="up" />{intel ? intel.tier : '—'}</b></span>
+          <span className="lrv-sc-chip"><i>Gilded made</i><b><Icon name="star" />{intel ? intel.triples : '—'}</b></span>
+          <span className="lrv-sc-chip lrv-sc-tribe"><i>Top tribe</i><b style={tribe ? { color: tribeColor } : undefined}>{tribeCount ? tribeText : '—'}</b></span>
+        </div>
+        <div className="lrv-sc-runes"><i>Runes</i>{versusCard && runeIds.length === 0 ? <span className="lrv-sc-none">None yet</span> : sockets}</div>
+        <div className="lrv-sc-fights">
+          {results.length === 0 ? <span className="lrv-sc-none">No fights yet</span> : results.map((r) => (
+            <div className={`lrv-sc-fight ${r.outcome}`} key={r.round}>
+              {r.foeHeroId ? <img decoding="sync" className="lrv-sc-foe" src={faceOf(r)} alt="" /> : <span className="lrv-sc-foe" />}
+              <span className="lrv-sc-vs">vs {r.foeLabel}</span>
+              <span className="lrv-sc-out">{r.outcome === 'win' ? 'W' : r.outcome === 'lose' ? 'L' : 'D'}</span>
+              <span className="lrv-sc-dmg">{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  } else if (variant === 2) {
     // V2 — identity banner (dominant tribe front + centre) + a thin meta line, history given its own titled block.
     body = (
       <>
@@ -854,7 +1072,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
   // of <body> no rail ancestor can clip or re-anchor it. The clamp (above) keeps it on-screen; z-index keeps it
   // in front.
   return createPortal(
-    <div ref={cardRef} className={`lobbyscout lobbyscout--v${variant}${pinned ? ' pinned' : ''}`} role={pinned ? 'dialog' : 'tooltip'}
+    <div ref={cardRef} className={`lobbyscout lobbyscout--v${variant}${pinned ? ' pinned' : ''}${compact ? ' lrv-scout' : ''}`} role={pinned ? 'dialog' : 'tooltip'}
       aria-label={pinned ? `${seat.label} scouting report` : undefined}
       style={clamp
         ? { top: clamp.top, right: clamp.right }
@@ -865,7 +1083,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
       onClick={pinned ? (e) => e.stopPropagation() : undefined}
       onContextMenu={pinned ? (e) => { e.preventDefault(); e.stopPropagation(); } : undefined}>
       {/* DEV-only A/B/C layout switch — corner chip, cycles + persists the chosen variant. */}
-      {import.meta.env.DEV && (
+      {import.meta.env.DEV && !compact && (
         <button className="lobbyscout-variant" onClick={(e) => { e.stopPropagation(); cycleVariant(); }}
           aria-description="Cycle scout-card layout (dev only)">V{variant}</button>
       )}

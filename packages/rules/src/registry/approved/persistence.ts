@@ -449,7 +449,7 @@ export const PERSISTENCE_RULES: GameRule[] = [
       'Conforms as of 2026-09-28 (the feature PR). The record is built in the deferred run-end blocks, BEFORE the '
       + 'play-out of the fight ledger, from the same driver call the lobby used to field each board '
       + '(prepare(round) ?? finalBoard()). It is compact (card id, stats, Gilded, keywords, identity and the baked '
-      + 'live text; about 4 to 6 KB for a full table, capped at 16 KB) and rides existing JSON: the ranked '
+      + 'live text; about 4 to 6 KB for a full table, capped at 16 KB; 24 KB since R-MATCH-BUFFS-01 added the buff breakdown) and rides existing JSON: the ranked '
       + 'run_history entry and the replay payload of the practice row, so no migration. Seats still standing when you '
       + 'went out have no placement yet and read as Top N / Still in; the lobby is not played out for them. '
       + 'Generated seats carry their handle and are not tagged; the Practice bot table is tagged Bot. Titles are '
@@ -1150,5 +1150,28 @@ export const PERSISTENCE_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Client half conforms from this PR. Server half waits: the lead applies 2026-11-09-security-reads-need-session.sql one release after the client ships (older builds then retry their first boot reads once signed in).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/securityGrants.db.test.ts', 'packages/ui/src/sessionFirstReads.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
+  {
+    id: 'R-MATCH-BUFFS-01',
+    title: 'A Match History board keeps each card\'s buff breakdown, biggest first',
+    statement:
+      'Right-click Inspect on a card in a stored Match History board shows the same Buffs list the game shows in a '
+      + 'run: where the card\'s stats came from. The list is ordered biggest buff first, so if it is cut the player '
+      + 'still sees the buffs that matter most. A card keeps at most five rows: past that, the four biggest stay and '
+      + 'the rest are grouped into one "N more" row carrying their combined stats, so the list still adds up. When '
+      + 'the saved record runs out of room, other players\' breakdowns go first, then card text, then your own '
+      + 'breakdown. A record saved before this shows no Buffs list.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-31 (Match History inspect)', quote: 'in these out of game views, you can see their stats, but not the individual buffs when inspecting. is it possible to see that breakdown with inspect otuside of game?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-31 (Match History inspect)', quote: 'we should probably order the buffs from largest to smallest, so when they do get cut off with a "more", the player sees the most relevant buffs' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/matchDetails.ts (compactBuffs, compactMinion, parseBuffs, the size ladder in buildMatchDetails); packages/ui/src/Inspect.tsx (the MORE_BUFFS_SOURCE row)' },
+    ],
+    currentBehaviour:
+      'Conforms from this PR (2026-10-31). Before it, compactMinion dropped buffs from every stored board. The record '
+      + 'budget rose from 16 KB to 24 KB (run_history.entry has no server size check). The in-game Buffs list is '
+      + 'unchanged: it is not capped and keeps its own order.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/matchDetails.test.ts', 'packages/ui/src/matchDetails/matchBuffsInspect.test.tsx'], lastVerifiedAt: '2026-10-31' },
   },
 ];

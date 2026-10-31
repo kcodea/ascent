@@ -64,6 +64,11 @@ export const PATCH_NOTES: PatchNote[] = [
         'The small faces in the lobby list use a smaller image, so phones use less memory.',
       ] },
       { category: 'Systems', text: "Golden minions can now be passed from your hand. Spells that pass a minion still can't target golden ones." },
+      { category: 'Systems', text: 'Match History: right-click a card to see where its stats came from.', details: [
+        'The Buffs list you see in a game now shows on the boards in Match History too.',
+        'The biggest buffs come first. If a card has a lot of them, the smallest are grouped into one "more" line.',
+        'Only games played from now on have it.',
+      ] },
     ],
   },
   {

@@ -4,7 +4,7 @@ import { registerOpponents } from '../opponents';
 import { createRunLobby, driverFor, type RunLobby } from './runLobby';
 import { createPracticeBotLobby } from './practiceBots';
 import {
-  MATCH_DETAILS_MAX_BYTES, buildMatchDetails, matchDetailsBytes, matchEndRound, orderMatchSeats, parseMatchDetails, seatBoardRound,
+  BUFF_ROW_CAP, MATCH_DETAILS_MAX_BYTES, MORE_BUFFS_SOURCE, buildMatchDetails, compactBuffs, matchDetailsBytes, matchEndRound, orderMatchSeats, parseMatchDetails, seatBoardRound,
   type MatchDetails, type MatchSeat,
 } from './matchDetails';
 
@@ -126,13 +126,13 @@ describe('buildMatchDetails', () => {
     expect(buildMatchDetails(lobby, input(8)).knockedOutBy).toBe('s4');
   });
 
-  it('carries the seat owner\'s recorded skins, compacts the minions and drops the inspect breakdown', () => {
+  it('carries the seat owner\'s recorded skins, compacts the minions and keeps the inspect breakdown (R-MATCH-BUFFS-01)', () => {
     const lobby = lobbyAt(4, {});
     const d = buildMatchDetails(lobby, input(1));
     const skye = d.seats.find((s) => s.name === 'Skye')!;
     expect(skye.cosmetics).toEqual({ heroSkinByHeroId: { albus: 'skin_albus_1' } });
     const m = skye.board!.minions[0]!;
-    expect(m.buffs).toBeUndefined();
+    expect(m.buffs).toEqual([{ source: 'x', attack: 1, health: 1, count: 1 }]);
     expect(m.text).toContain('Live text');
     expect(skye.board!.minions[1]).toMatchObject({ cardId: 'blackbelt', golden: true, keywords: ['taunt'] });
     expect(d.seats.find((s) => s.name === 'Olde')!.cosmetics).toBeUndefined();
@@ -199,6 +199,68 @@ describe('scoreboard order', () => {
   it('you standing at the end (a win, or Practice\'s curtain): you first, then anyone still standing, then the rest', () => {
     const order = orderMatchSeats([seat('s1', 3, 0), seat('s0', 1, 20), seat('s2', undefined, 3), seat('s3', 2, 0)], 's0', false).map((s) => s.id);
     expect(order).toEqual(['s0', 's2', 's3', 's1']);
+  });
+});
+
+describe('buff breakdown on stored boards (R-MATCH-BUFFS-01, owner 2026-10-31)', () => {
+  const row = (source: string, attack: number, health: number, count = 1) => ({ source, attack, health, count });
+
+  it('sorts biggest first and keeps a short list as-is', () => {
+    expect(compactBuffs([row('Small', 1, 0), row('Big', 20, 0, 20), row('Mid', 3, 3)])).toEqual([
+      row('Big', 20, 0, 20), row('Mid', 3, 3), row('Small', 1, 0),
+    ]);
+    expect(compactBuffs(undefined)).toBeUndefined();
+    expect(compactBuffs([])).toBeUndefined();
+  });
+
+  it('past the cap, the biggest rows stay and the rest fold into one "N more" row that keeps the totals', () => {
+    const many = [row('a', 1, 1), row('b', 50, 50, 5), row('c', 2, 0), row('d', 10, 10, 2), row('e', 0, 3), row('f', 30, 0), row('g', 5, 5)];
+    const out = compactBuffs(many)!;
+    expect(out).toHaveLength(BUFF_ROW_CAP);
+    expect(out.slice(0, BUFF_ROW_CAP - 1).map((b) => b.source)).toEqual(['b', 'f', 'd', 'g']);
+    expect(out[BUFF_ROW_CAP - 1]).toEqual({ source: MORE_BUFFS_SOURCE, attack: 3, health: 4, count: 3 });
+    const sum = (rows: { attack: number; health: number }[]) => rows.reduce((n, b) => [n[0]! + b.attack, n[1]! + b.health], [0, 0]);
+    expect(sum(out)).toEqual(sum(many));
+  });
+
+  it('survives a save and read back, and junk rows from another build are dropped', () => {
+    const d = buildMatchDetails(lobbyAt(4, {}), { ...input(1), selfBoard: { tier: 4, minions: [{ cardId: 'pack', attack: 30, health: 9, buffs: [row('Striker', 20, 0, 20), row('Spirit Fire', 1, 1)] }] } });
+    const back = parseMatchDetails(JSON.parse(JSON.stringify(d)))!;
+    expect(back.seats.find((s) => s.self)!.board!.minions[0]!.buffs).toEqual([row('Striker', 20, 0, 20), row('Spirit Fire', 1, 1)]);
+    const junk = parseMatchDetails({ v: 1, seats: [{ id: 's0', heroId: 'cia', board: { round: 3, tier: 2, minions: [
+      { cardId: 'pack', attack: 2, health: 2, buffs: [{ source: 'ok', attack: 1, health: 1, count: 2 }, { attack: 1 }, 'x'] },
+      { cardId: 'pack', attack: 2, health: 2, buffs: 'nope' },
+    ] } }] })!;
+    expect(junk.seats[0]!.board!.minions[0]!.buffs).toEqual([row('ok', 1, 1, 2)]);
+    expect(junk.seats[0]!.board!.minions[1]!.buffs).toBeUndefined();
+  });
+
+  it('over the size budget, other seats lose their buffs before card text, and yours go last', () => {
+    // Long labels on every row of every minion push a full table over budget.
+    const fat = (id: string) => Array.from({ length: 9 }, (_, i) => row(`${id} source ${i}`.padEnd(48, '.'), 100 + i, 100 + i, 99));
+    const lobby = lobbyAt(12, {});
+    const restore: (() => void)[] = [];
+    for (const seat of lobby.seats) {
+      const drv = driverFor(seat, lobby.setId);
+      if (!drv) continue;
+      const orig = drv.prepare;
+      drv.prepare = (r: number) => {
+        const b = orig.call(drv, r);
+        return b ? { ...b, minions: Array.from({ length: 7 }, (_, i) => ({ cardId: 'pack', attack: 9, health: 9, text: 'T'.repeat(280), buffs: fat(seat.id + i) })) } : b;
+      };
+      restore.push(() => { drv.prepare = orig; });
+    }
+    try {
+      const selfMinions = Array.from({ length: 7 }, (_, i) => ({ cardId: 'pack', attack: 9, health: 9, buffs: fat('me' + i) }));
+      const d = buildMatchDetails(lobby, { ...input(1), selfBoard: { tier: 4, minions: selfMinions } });
+      expect(matchDetailsBytes(d)).toBeLessThanOrEqual(MATCH_DETAILS_MAX_BYTES);
+      expect(d.seats.find((s) => s.self)!.board!.minions[0]!.buffs).toHaveLength(BUFF_ROW_CAP);
+      const other = d.seats.find((s) => !s.self && s.board && s.board.minions.length)!;
+      expect(other.board!.minions[0]!.buffs).toBeUndefined();
+      expect(other.board!.minions[0]!.text).toBe('T'.repeat(280)); // text outlived the other seats' buffs
+    } finally {
+      for (const r of restore) r();
+    }
   });
 });
 

@@ -187,7 +187,7 @@ describe('R-TOUCH-TAPSELECT-01: a tap on a choice option picks it; a hold inspec
   });
   it('Card.tsx falls through to its own click for a choice; RuneCard buys on a tap and opens RuneInspect on a touch hold', () => {
     const cardSrc = readFileSync(join(__dirname, 'Card.tsx'), 'utf8');
-    // Right-click opens the ping menu in a game (which carries Inspect, R-PING-04), else inspects at once.
+    // A mouse right-click reaching the card inspects (a hold pings first, R-PING-09); a phone long-press opens the ping menu in a game.
     expect(cardSrc).toMatch(/onContextMenu=\{\(e\) => \{\s*e\.preventDefault\(\);[\s\S]{0,400}?inspectCard\([\s\S]{0,200}?openCardPingMenu\(e,[\s\S]{0,120}?else inspect\(\);/);
     const rune = readFileSync(join(__dirname, 'RuneCard.tsx'), 'utf8');
     expect(rune).not.toContain('tapInspectAllowed');

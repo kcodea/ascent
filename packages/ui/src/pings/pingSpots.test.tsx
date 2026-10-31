@@ -19,7 +19,7 @@ import { useGame } from '../store';
 import { useSpectate } from '../versus/spectate';
 import { setWatchers } from '../versus/watchers';
 import { receivePing, receivePingEvent, resetPingRuntimeForTests, sendPing, setMyMentor, setPingClockForTests, setPingSession, usePings } from './pingRuntime';
-import { openCardPingMenu, pingAnchorOf, resetPingDoubleForTests, spotYields, uiSpotOf, usePingMenu } from './PingLayer';
+import { openCardPingMenu, PING_HOLD_MS, pingAnchorOf, pingHold, resetPingDoubleForTests, spotYields, uiSpotOf, usePingMenu } from './PingLayer';
 import { discKey, forgeKey, offerSig, pingKey, powKey, railKey, runeKey } from './pingKeys';
 
 let now = 1_000_000;
@@ -71,18 +71,19 @@ describe('the keys (R-PING-08)', () => {
 });
 
 describe('pinging a Discover option (owner 2026-10-30)', () => {
-  it('the player: right-click opens the fan on the option, the ping goes out as a ui target, a double right-click inspects', () => {
+  it('the player: a right-click hold opens the fan on the option, the ping goes out as a ui target, a quick right-click inspects', () => {
     session('p1');
     discover();
     const inspect = vi.fn();
-    expect(openCardPingMenu({ clientX: 5, clientY: 5, currentTarget: optCard(1) }, null, inspect)).toBe(true);
+    // A quick mouse right-click on the option is its Inspect (R-PING-09): no fan.
+    expect(openCardPingMenu({ clientX: 5, clientY: 5, currentTarget: optCard(1) }, null, inspect, false)).toBe(false);
+    expect(usePingMenu.getState().open).toBeNull();
+    expect(pingHold(optCard(1), 5, 5)).toBe(true);
     const k = discKey(OFFER, 1)!;
     expect(usePingMenu.getState().open?.target).toEqual({ t: 'ui', k });
-    expect(usePingMenu.getState().open?.inspect).toBe(inspect);
-    // The double: the fan goes at once and the card's Inspect opens.
-    now += 100;
-    expect(openCardPingMenu({ clientX: 5, clientY: 5, currentTarget: optCard(1) }, null, inspect)).toBe(true);
-    expect(inspect).toHaveBeenCalledTimes(1);
+    // Touch is unchanged: the player's own phone hold on an option stays its Inspect (R-TOUCH-TAPSELECT-01).
+    usePingMenu.setState({ open: null });
+    expect(openCardPingMenu({ clientX: 5, clientY: 5, currentTarget: optCard(1) }, null, inspect, true)).toBe(false);
     expect(usePingMenu.getState().open).toBeNull();
     // The fan takes the top three only.
     expect(sendPing('sell', { t: 'ui', k })).toBe(false);
@@ -98,7 +99,7 @@ describe('pinging a Discover option (owner 2026-10-30)', () => {
     useSpectate.setState({ active: true, seat: 'p1' });
     receivePingEvent(PING_MENTOR_EVENT, { seat: 'p1', mentor: 'me', name: 'Me' });
     discover();
-    expect(openCardPingMenu({ clientX: 5, clientY: 5, currentTarget: optCard(2) }, null, () => undefined)).toBe(true);
+    expect(pingHold(optCard(2), 5, 5)).toBe(true);
     const target = usePingMenu.getState().open!.target;
     expect(sendPing('question', target)).toBe(true);
     const wire = sent.at(-1)!.p as Record<string, unknown>;
@@ -123,12 +124,12 @@ describe('pinging a Discover option (owner 2026-10-30)', () => {
   it('where pings are off (the menus, a plain spectator) a right-click on an option inspects at once, as before', () => {
     discover();
     useGame.setState({ showTitle: true });
-    expect(openCardPingMenu({ clientX: 5, clientY: 5, currentTarget: optCard(0) }, null, () => undefined)).toBe(false);
+    expect(pingHold(optCard(0), 5, 5)).toBe(false);
     useGame.setState({ showTitle: false });
     session(null, 'lobby');
     useGame.setState({ replaying: true });
     useSpectate.setState({ active: true, seat: 'p1' });
-    expect(openCardPingMenu({ clientX: 5, clientY: 5, currentTarget: optCard(0) }, null, () => undefined)).toBe(false);
+    expect(pingHold(optCard(0), 5, 5)).toBe(false);
   });
 
   it('an Inspect copy or a hover popup of an option is never a spot', () => {
@@ -158,7 +159,7 @@ describe('spots that keep their own right-click (R-PING-08)', () => {
     expect(spotYields(spot('.questbadge'), null, false)).toBe(true); // no pings here at all
   });
 
-  it('the layer: right-click on a rune badge opens the fan and stops the spot\'s own handler; a double lets it through', async () => {
+  it('the layer: a right-click HOLD on a rune badge opens the fan and stops the spot\'s own handler; a quick right-click lets it through', async () => {
     const { act } = await import('react');
     const { createRoot } = await import('react-dom/client');
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -171,14 +172,32 @@ describe('spots that keep their own right-click (R-PING-08)', () => {
     document.body.appendChild(host);
     const root = createRoot(host);
     act(() => root.render(<PingLayer />));
-    const fire = (): MouseEvent => { const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 1, clientY: 1 }); act(() => { document.querySelector('.questbadge-inner')!.dispatchEvent(ev); }); return ev; };
+    const inner = document.querySelector('.questbadge-inner')!;
+    const press = (type: string): void => {
+      const ev = new MouseEvent(type, { bubbles: true, cancelable: true, button: 2, clientX: 1, clientY: 1 });
+      Object.defineProperty(ev, 'pointerType', { value: 'mouse' });
+      act(() => { inner.dispatchEvent(ev); });
+    };
+    const fire = (): MouseEvent => { const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 1, clientY: 1 }); act(() => { inner.dispatchEvent(ev); }); return ev; };
+    vi.useFakeTimers();
+    // The hold: the fan opens once PING_HOLD_MS passes, and the release's contextmenu never reaches the spot.
+    press('pointerdown');
+    act(() => { vi.advanceTimersByTime(PING_HOLD_MS); });
+    expect(usePingMenu.getState().open?.target).toEqual({ t: 'ui', k: 'rune:0:rune_wealth' });
+    press('pointerup');
     const a = fire();
     expect(a.defaultPrevented).toBe(true);
     expect(own).not.toHaveBeenCalled();
-    expect(usePingMenu.getState().open?.target).toEqual({ t: 'ui', k: 'rune:0:rune_wealth' });
-    fire(); // the double: the fan closes and the spot's own right-click runs
+    // A quick right-click (released early): the spot's own right-click runs, and no fan.
+    act(() => { usePingMenu.setState({ open: null }); });
+    press('pointerdown');
+    act(() => { vi.advanceTimersByTime(PING_HOLD_MS - 100); });
+    press('pointerup');
+    fire();
+    act(() => { vi.advanceTimersByTime(PING_HOLD_MS); });
     expect(usePingMenu.getState().open).toBeNull();
     expect(own).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
     // A ping on it renders INSIDE the spot (so it rides the layout of each screen), and goes when the spot does.
     act(() => { sendPing('x', { t: 'ui', k: 'rune:0:rune_wealth' }); });
     expect(document.querySelector('.runebadge .ping-mark.pm-ui')).not.toBeNull();

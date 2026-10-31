@@ -58,6 +58,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-31',
     changes: [
+      { category: 'Systems', text: 'Right-click a card to inspect it again. Hold right-click to ping.', details: [
+        'A quick right-click opens the big view of a card, the same as outside a game. No more double right-click.',
+        'Hold right-click for a moment on a card, a shop button, a Discover option or a rune to open the ping fan.',
+        'Holding right-click on your own ping clears it. Clicking the ping still works too.',
+        'On a phone nothing changes: tap to inspect, tap and hold to ping.',
+      ] },
       { category: 'Systems', text: 'New painted icons across the menus, with a soft glow when you hover them.', details: [
         'Play, Career, Collection, Leaderboard, Recent Games, Live Games, Patch Notes and Settings, in the side menu and on the title screen.',
         'The same icons head each of those pages.',

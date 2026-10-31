@@ -28,7 +28,9 @@
   display: flex; align-items: flex-start; justify-content: center; flex-wrap: wrap;
   gap: calc(26 * var(--u, 1px));
   max-width: 94vw;
-  --lhr-px: calc(var(--lhr-size, 150) * var(--u, 1px));
+  /* The tuned size, shrunk when the row would not fit: N portraits (plus their gaps and the name width) across 92% of the
+     window, and never taller than 34% of it (a landscape phone). Static per play: nothing here animates. */
+  --lhr-px: min(calc(var(--lhr-size, 185) * var(--u, 1px)), calc(92vw / var(--lhr-n, 8) - 46 * var(--u, 1px)), 34vh);
 }
 .lhr.many .lhr-stage { gap: calc(18 * var(--u, 1px)); }
 
@@ -48,7 +50,7 @@
     0 calc(10 * var(--u, 1px)) calc(28 * var(--u, 1px)) rgba(0, 0, 0, 0.6);
 }
 /* YOU, highlighted: a touch bigger and a brighter gold ring, so your own hero reads apart from the ones you face. */
-.lhr-card.you { --lhr-px: calc(var(--lhr-size, 150) * 1.16 * var(--u, 1px)); }
+.lhr-card.you { --lhr-px: min(calc(var(--lhr-size, 185) * 1.16 * var(--u, 1px)), calc(92vw / var(--lhr-n, 8) * 1.08 - 40 * var(--u, 1px)), 38vh); }
 .lhr-card.you .lhr-face .lb-heroframe.big .hero {
   box-shadow: 0 0 0 calc(2 * var(--u, 1px)) rgba(20, 30, 50, 0.9), 0 0 0 calc(5 * var(--u, 1px)) #e8c877,
     0 0 calc(26 * var(--u, 1px)) rgba(232, 200, 119, 0.45), 0 calc(10 * var(--u, 1px)) calc(28 * var(--u, 1px)) rgba(0, 0, 0, 0.6);
@@ -81,9 +83,9 @@
 .lhr-team { display: flex; gap: calc(10 * var(--u, 1px)); }
 
 /* THE 1v1: two heroes facing off, bigger, with the word between them. */
-.lhr-stage.duel { align-items: center; gap: calc(70 * var(--u, 1px)); --lhr-px: calc(var(--lhr-size, 150) * 1.55 * var(--u, 1px)); }
+.lhr-stage.duel { align-items: center; gap: calc(70 * var(--u, 1px)); --lhr-px: min(calc(var(--lhr-size, 185) * 1.5 * var(--u, 1px)), 30vw, 46vh); }
 .lhr-stage.duel .lhr-card.you { margin: 0; }
-.lhr-stage.duel .lhr-card.you { --lhr-px: calc(var(--lhr-size, 150) * 1.55 * var(--u, 1px)); }
+.lhr-stage.duel .lhr-card.you { --lhr-px: min(calc(var(--lhr-size, 185) * 1.5 * var(--u, 1px)), 30vw, 46vh); }
 .lhr-stage.duel .lhr-hero { font-size: calc(20 * var(--u, 1px)); }
 .lhr-stage.duel .lhr-name { font-size: calc(16 * var(--u, 1px)); }
 .lhr-vs {

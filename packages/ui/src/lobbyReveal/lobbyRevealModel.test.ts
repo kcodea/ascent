@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LHR_DEFAULTS } from './lobbyRevealConfig';
 import {
-  arcKeyframes, revealEntries, revealLayoutFor, revealPhaseAt, revealTargetSelectors, revealTimeline, shouldPlayLobbyReveal,
+  arcKeyframes, flightOrder, revealEntries, revealLayoutFor, revealPhaseAt, revealTargetSelectors, revealTimeline, shouldPlayLobbyReveal,
   spectatorShouldReveal, SPECTATOR_REVEAL_WINDOW_MS,
 } from './lobbyRevealModel';
 
@@ -124,5 +124,12 @@ describe('the stands', () => {
     expect(spectatorShouldReveal(1000, 1000 + SPECTATOR_REVEAL_WINDOW_MS + 1, r)).toBe(false);
     expect(spectatorShouldReveal(1000, 2000, run({ phase: 'combat' }))).toBe(false);
     expect(spectatorShouldReveal(1000, 2000, r, false)).toBe(false);
+  });
+});
+
+describe('the take-off order', () => {
+  it('builds the rail top down, whatever the line-up order; a portrait with no slot goes last', () => {
+    const r = (top: number, left = 0) => ({ top, left, width: 10, height: 10 });
+    expect(flightOrder([r(300), null, r(100), r(200), r(100, 50)])).toEqual([3, 4, 0, 2, 1]);
   });
 });

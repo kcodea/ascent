@@ -110,8 +110,10 @@ export function revealShowSelectorFor(layout: RevealLayout): string | null {
   return layout === 'teams' ? '.lobbyteamslot' : null;
 }
 
-/** Inside a slot, the portrait the flight lands ON: the rail row's face (every rail look), the 1v1 block's disc. */
-export const REVEAL_FACE_SELECTOR = '.lobbyface, .lrv-tileart, .combatopp-portrait';
+/** Inside a slot, the art the flight lands ON, tried in order: the rail row's face (`.lobbyface`: the Gem rail's round
+ *  face, or the Docked slice's ART area, the left part of the slice with the face-focused crop that fades right), then
+ *  the Tiles art box, then the 1v1 block's disc. */
+export const REVEAL_FACE_SELECTORS = ['.lobbyface', '.lrv-tileart', '.combatopp-portrait'] as const;
 
 /** The round slice, which settles in last (the rail's round header; the 1v1's Round plate). */
 export const REVEAL_HEAD_SELECTORS = ['.lobbyrailhead', '.vsfoe-roundline'] as const;
@@ -196,6 +198,16 @@ export function arcKeyframes(from: Rect, to: Rect, arc: number, steps = 14): Key
     out.push({ offset: i / n, transform: `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${s.toFixed(4)})` });
   }
   return out;
+}
+
+/** Each portrait's take-off slot (0 = first): by its landing slot's position on screen, top to bottom, then left to
+ *  right, so the rail builds in its own order. A portrait with no slot on screen goes last. */
+export function flightOrder(to: readonly (Rect | null)[]): number[] {
+  const idx = to.map((r, i) => ({ i, y: r ? r.top : Infinity, x: r ? r.left : Infinity }));
+  idx.sort((a, b) => a.y - b.y || a.x - b.x || a.i - b.i);
+  const rank = new Array<number>(to.length);
+  idx.forEach((e, k) => { rank[e.i] = k; });
+  return rank;
 }
 
 export function easeInOutCubic(t: number): number {

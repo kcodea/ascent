@@ -44,7 +44,7 @@ export interface LobbyRevealConfig {
  *  flight and settle. About 3.3 s from the curtain lifting to a built rail. */
 export const LHR_DEFAULTS: LobbyRevealConfig = {
   dimOpacity: 0.72,
-  portraitSize: 150,
+  portraitSize: 185,
   startDelayMs: 250,
   entranceMs: 380,
   revealStaggerMs: 60,

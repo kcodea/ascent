@@ -10,7 +10,7 @@ import { useSpectate } from '../versus/spectate';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
 import { getLobbyRevealConfig, LHR_REPLAY_EVENT } from './lobbyRevealConfig';
 import {
-  arcKeyframes, REVEAL_FACE_SELECTOR, REVEAL_HEAD_SELECTORS, revealHidesSlot, revealShowSelectorFor, revealTargetSelectors, revealTimeline, spectatorShouldReveal,
+  arcKeyframes, flightOrder, REVEAL_FACE_SELECTORS, REVEAL_HEAD_SELECTORS, revealHidesSlot, revealShowSelectorFor, revealTargetSelectors, revealTimeline, spectatorShouldReveal,
   type Rect, type RevealEntry,
 } from './lobbyRevealModel';
 import { lobbyReveal, lobbyRevealEnabled, useLobbyRevealActive, useLobbyRevealSeq, type RevealPlay } from './lobbyRevealStore';
@@ -228,15 +228,22 @@ export function LobbyReveal(): JSX.Element | null {
       const o = { left: rr.left, top: rr.top, k: root.offsetWidth ? rr.width / root.offsetWidth : 1 };
       const from = faces.map((f) => (f ? rectIn(f.getBoundingClientRect(), o) : null));
       // Each portrait lands on the slot's FACE (the rail row's portrait), not the middle of the whole row.
-      const to = targets.slot.map((s) => (s ? rectIn((s.querySelector<HTMLElement>(REVEAL_FACE_SELECTOR) ?? s).getBoundingClientRect(), o) : null));
+      const faceIn = (s: HTMLElement): HTMLElement => {
+        for (const sel of REVEAL_FACE_SELECTORS) { const el = s.querySelector<HTMLElement>(sel); if (el) return el; }
+        return s;
+      };
+      const to = targets.slot.map((s) => (s ? rectIn(faceIn(s).getBoundingClientRect(), o) : null));
       const now = t.dimOutAt - offset;
       if (c.whooshGain > 0) {
         sfx.ceremony('woosh1', c.whooshGain);
         if (n > 3 && !reduced) at(t.flyAt[Math.floor(n / 2)]! - offset - now, () => sfx.ceremony('woosh2', c.whooshGain * 0.8));
       }
+      // The rail builds TOP DOWN: the take-off order is the slots' order on screen, not the line-up's.
+      const order = flightOrder(to);
       cards.forEach((card, i) => {
-        const delay = Math.max(0, t.flyAt[i]! - offset - now);
-        const land = Math.max(0, t.landAt[i]! - offset - now);
+        const k = order[i]!;
+        const delay = Math.max(0, t.flyAt[k]! - offset - now);
+        const land = Math.max(0, t.landAt[k]! - offset - now);
         const f = from[i], d = to[i], face = faces[i];
         const showEl = targets.show[i] ?? null;
         if (reduced || !f || !d || d.width <= 0) {
@@ -281,7 +288,7 @@ export function LobbyReveal(): JSX.Element | null {
   const play = lobbyReveal.play();
   if (!play) return null;
   const c = getLobbyRevealConfig();
-  const vars = { '--lhr-dim': String(c.dimOpacity), '--lhr-size': String(c.portraitSize) } as CSSProperties;
+  const vars = { '--lhr-dim': String(c.dimOpacity), '--lhr-size': String(c.portraitSize), '--lhr-n': String(Math.max(2, play.entries.length)) } as CSSProperties;
   const st = useGame.getState();
   const seats = st.run?.lobby?.seats ?? [];
   const skinsOf = (e: RevealEntry) => (e.you && !play.spectator ? runSkins : opponentSkins(showOppSkins, seats.find((s) => s.id === e.seatId)?.cosmetics));

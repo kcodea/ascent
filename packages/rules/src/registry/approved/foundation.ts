@@ -1811,6 +1811,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-LOBBY-REVEAL-01',
+    title: 'Game start shows every hero in the game, flown to the rail, before the Good Luck words and before any clock',
+    statement:
+      'After Start Game in a lobby, Practice or any Versus match, every hero in the game is shown centre stage with its '
+      + 'player name (you highlighted; Duos teammates side by side; a 1v1 as two heroes facing off). Each portrait then flies '
+      + 'to its rail slot (in a 1v1, to the opponent block and your own portrait), and the slot appears as it lands. The '
+      + 'Good Luck words play after it, and the shop clock holds until they are over. A click, Esc or any key skips to '
+      + 'the words. In Versus the round-1 clock is the server\x27s and starts only when every player\x27s intro is over, so '
+      + 'a skip ends only that screen\x27s visuals. Spectators who watched the Hero Select see it; late joiners do not. '
+      + 'Never in the Scene Builder, God Mode, the tutorial, a Gauntlet or a replay. Settings "Lobby reveal" turns it off. '
+      + 'Presentation only: transform / opacity animations, layout read once at take-off.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31', quote: 'all the heroes in the lobby are shown and then all portraits fly over and build the rail' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31', quote: 'The hero reveal animation should happen before any timers obviously' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyReveal/ (LobbyReveal.tsx, lobbyRevealModel.ts, lobbyRevealStore.ts); packages/ui/src/goodLuck/GoodLuckIntro.tsx (waits while the reveal plays); packages/ui/src/hero-select/HeroLaunchCurtain.tsx (begins it); packages/ui/src/versus/versusStore.ts ackIntro (unchanged: acks when Good Luck ends)' },
+    ],
+    currentBehaviour: 'Built 2026-10-31 (feat/lobby-hero-reveal).',
+    example: 'Kev presses Start Game in Practice: seven opponents and his own hero stand in a line with their player names, then each flies to its rail row, the round header settles, and the Good Luck words play before his first turn timer starts.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyReveal/LobbyReveal.test.tsx', 'packages/ui/src/lobbyReveal/lobbyRevealModel.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
+  {
     id: 'R-PRESENT-18',
     title: 'A combat replay always reaches its end: a rewatch or a Skip of any fight, a zero-event fight included, finishes and hands back',
     statement:

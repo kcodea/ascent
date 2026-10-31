@@ -170,3 +170,20 @@ describe('the lobby reveal', () => {
     expect(lobbyReveal.isActive()).toBe(false);
   });
 });
+
+describe('Versus: the shared round-1 start accounts for the reveal', () => {
+  it('the client acks its intro only once the Good Luck intro is over, which waits behind the reveal', async () => {
+    // The Worker starts round 1's shop deadline when EVERY player has acked (or at VERSUS_INTRO_CAP_SECONDS). The ack
+    // waits on the Good Luck store, and that store stays active for the whole reveal (pinned above), so the shared start
+    // already sits after every client's reveal. A local skip ends only that screen's visuals.
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const src = readFileSync(join(__dirname, '..', 'versus', 'versusStore.ts'), 'utf8');
+    const ack = src.slice(src.indexOf('function ackIntro('), src.indexOf('function driveRun('));
+    expect(ack).toContain('goodLuckIntro.isActive()');
+    expect(ack).toContain('mx.introDone(matchId)');
+    const { VERSUS_INTRO_CAP_SECONDS } = await import('@game/sim');
+    const t = revealTimeline(LHR_DEFAULTS, 8, false);
+    expect(t.endAt / 1000 + 3).toBeLessThan(VERSUS_INTRO_CAP_SECONDS); // reveal + the Good Luck words, well inside the cap
+  });
+});

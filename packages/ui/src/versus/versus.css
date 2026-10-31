@@ -872,6 +872,9 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
 html.duos-vt::view-transition-group(root) { animation-duration: 130ms; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
 html.duos-vt::view-transition-old(root), html.duos-vt::view-transition-new(root) { animation-duration: 130ms;
   animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+/* The pointer is on the portrait you just clicked while the fade runs, and the transition hit-tests `html` (R-CURSOR-ROOT-01):
+   the open gauntlet, the portrait's own cursor, so nothing changes under the hand. */
+html.duos-vt { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 
 /* THE VERSUS BOTS + DUOS DEV TUNER (DEV only, the dev menu's panel): the dev panel's own pieces, laid out as rows of
    small buttons. The game's gauntlet cursor on every control (the dev panel button class sets a bare pointer). */

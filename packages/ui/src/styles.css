@@ -238,6 +238,12 @@ body { background: #160f08; }
 /* The CANVAS behind everything (R-TOUCH-FILL-01): anything the OS paints outside the page (an iOS safe-area margin
    the viewport did not cover, an overscroll edge) shows the backdrops' own navy, never a black bar. Static paint. */
 html { background: #0a1730; }
+/* THE ROOT CARRIES THE GAME CURSOR TOO (owner bug 2026-10-31, R-CURSOR-ROOT-01). Whenever the pointer lands on the
+   document element itself, the cursor is `html`'s, and `body`'s gauntlet does not reach it (cursor inherits down, not
+   up). A View Transition makes that happen for its whole run: the browser hit-tests the document element while the
+   ::view-transition snapshots cover the page, so the teammate swap showed the OS arrow, and it stayed until the mouse
+   moved. Static (never toggled here). */
+html { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* gauntlet opens over anything grabbable/clickable */
 .card, .btn, button, .climb, .skip, [role="button"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 /* Scroll areas hide the NATIVE scrollbar and scroll by wheel/trackpad. A native scrollbar (even a styled

@@ -63,30 +63,43 @@ describe('the stage and the slots, per mode', () => {
 
 describe('the timeline (the sequence state machine)', () => {
   const t = revealTimeline(LHR_DEFAULTS, 8, false);
-  it('entrances, then the hold, then staggered flights, each landing a flight later, then the round slice', () => {
+  it('entrances, the sweep inside the hold, the round slice, ALL portraits fly at once, then the locks top to bottom', () => {
     expect(t.enterAt[0]).toBe(LHR_DEFAULTS.startDelayMs);
     expect(t.enterAt[7]! - t.enterAt[0]!).toBe(7 * LHR_DEFAULTS.revealStaggerMs);
     expect(t.fullAt).toBe(t.enterAt[7]! + LHR_DEFAULTS.entranceMs);
-    // The round slice opens FIRST, as the line-up ends; the first portrait leaves once it has settled.
+    // The magic sweep crosses the row during the hold, and ends before anything leaves.
+    expect(t.sweepAt).toBe(t.fullAt + LHR_DEFAULTS.sweepDelayMs);
+    expect(t.sweepAt + LHR_DEFAULTS.sweepMs).toBeLessThanOrEqual(t.headAt);
+    // The round slice opens FIRST; the portraits leave once it has settled.
     expect(t.headAt).toBe(t.fullAt + LHR_DEFAULTS.holdMs);
     expect(t.dimOutAt).toBe(t.headAt);
     expect(t.flyAt[0]).toBe(t.headAt + LHR_DEFAULTS.headSettleMs);
-    for (let i = 0; i < 8; i++) expect(t.landAt[i]! - t.flyAt[i]!).toBe(LHR_DEFAULTS.flyMs);
-    expect(t.endAt).toBe(t.landAt[7]! + LHR_DEFAULTS.impactMs + Math.max(LHR_DEFAULTS.expandMs, LHR_DEFAULTS.landMs));
+    // A group flight: every portrait is in the air together (the last leaves before the first parks).
+    expect(t.flyAt[7]!).toBeLessThan(t.landAt[0]!);
+    for (let k = 0; k < 8; k++) expect(t.landAt[k]! - t.flyAt[k]!).toBe(LHR_DEFAULTS.flyMs);
+    // A beat once they are all parked, then the cascade top to bottom, overlapping (each lock outlasts the stagger).
+    expect(t.lockAt[0]).toBe(t.landAt[7]! + LHR_DEFAULTS.lockBeatMs);
+    for (let k = 1; k < 8; k++) expect(t.lockAt[k]! - t.lockAt[k - 1]!).toBe(LHR_DEFAULTS.lockStaggerMs);
+    expect(LHR_DEFAULTS.expandMs).toBeGreaterThan(LHR_DEFAULTS.lockStaggerMs);
+    expect(t.endAt).toBe(t.lockAt[7]! + Math.round(LHR_DEFAULTS.impactMs * 0.4) + Math.max(LHR_DEFAULTS.expandMs, LHR_DEFAULTS.landMs));
   });
 
-  it('stays short: under 2.5 s on stage, the flights one at a time (each a clear step apart) in about 3 s', () => {
-    expect(t.headAt).toBeLessThanOrEqual(2500);
-    expect(t.endAt - t.headAt).toBeLessThanOrEqual(3200);
-    expect(t.flyAt[1]! - t.flyAt[0]!).toBeGreaterThanOrEqual(180);
+  it('stays snappy: about 2.5 s on stage, then 1.4-1.8 s from the flights to the last lock', () => {
+    expect(t.headAt).toBeLessThanOrEqual(2600);
+    const span = t.lockAt[7]! - t.flyAt[0]!;
+    expect(span).toBeGreaterThanOrEqual(1400);
+    expect(span).toBeLessThanOrEqual(1800);
+    expect(t.lockAt[1]! - t.lockAt[0]!).toBeGreaterThanOrEqual(90);
+    expect(t.lockAt[1]! - t.lockAt[0]!).toBeLessThanOrEqual(110);
   });
 
-  it('walks idle → reveal → round → fly → done', () => {
+  it('walks idle → reveal → round → fly → lock → done', () => {
     expect(revealPhaseAt(-1, t)).toBe('idle');
     expect(revealPhaseAt(0, t)).toBe('reveal');
-    expect(revealPhaseAt(t.fullAt, t)).toBe('reveal');
+    expect(revealPhaseAt(t.sweepAt, t)).toBe('reveal');
     expect(revealPhaseAt(t.headAt, t)).toBe('round');
     expect(revealPhaseAt(t.flyAt[0]!, t)).toBe('fly');
+    expect(revealPhaseAt(t.lockAt[0]!, t)).toBe('lock');
     expect(revealPhaseAt(t.endAt, t)).toBe('done');
   });
 
@@ -95,6 +108,7 @@ describe('the timeline (the sequence state machine)', () => {
     expect(new Set(r.enterAt).size).toBe(1);
     expect(new Set(r.flyAt).size).toBe(1);
     expect(r.flyAt).toEqual(r.landAt);
+    expect(r.lockAt).toEqual(r.landAt);
     expect(r.endAt).toBeLessThanOrEqual(LHR_DEFAULTS.startDelayMs + 1300);
   });
 });

@@ -1,14 +1,18 @@
 import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { getHero } from '@game/sim';
 import { useGame } from '../store';
-import { playTailedClip } from '../sfx';
+import { playTailedClip, sfx } from '../sfx';
+import { canPlayDefs, playDef } from '../fx/playDef';
 import { LbHeroFrame } from '../LadderBits';
 import { heroPortrait, opponentSkins, useRunSkins } from '../skins/skins';
 import { frameIdOf } from '../portraitFrame/PortraitFrame';
 import { artReady, requestArt, whenArtReady } from '../artPreload';
 import { useSpectate } from '../versus/spectate';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
-import { getLobbyRevealConfig, LHR_REPLAY_EVENT, REVEAL_LINEUP_LAYERS, REVEAL_WHOOSH_CLIPS } from './lobbyRevealConfig';
+import {
+  getLobbyRevealConfig, LHR_REPLAY_EVENT, REVEAL_ALL_CLIPS, REVEAL_FLIGHT_WHOOSH, REVEAL_LINEUP_WHOOSH, REVEAL_LOCK_SHIMMER,
+  REVEAL_LOCK_THUD_GAIN, REVEAL_LOCK_THUDS, REVEAL_SWEEP_SHIMMER, type RevealSoundLayer,
+} from './lobbyRevealConfig';
 import {
   arcKeyframes, flightOrder, REVEAL_FACE_SELECTORS, REVEAL_HEAD_SELECTORS, REVEAL_TOKEN_HEAD, REVEAL_TOKEN_RAIL, revealHidesSlot, revealShowSelectorFor,
   revealTargetSelectors, revealTimeline, revealTokensFor, spectatorShouldReveal, type Rect, type RevealEntry,
@@ -172,6 +176,10 @@ export function LobbyReveal(): JSX.Element | null {
     const faces = cards.map((el) => el.querySelector<HTMLElement>('.lhr-face'));
     const labels = cards.map((el) => el.querySelector<HTMLElement>('.lhr-labels'));
     const flashes = cards.map((el) => root.querySelector<HTMLElement>(`.lhr-flash[data-seat="${el.dataset.seat ?? ''}"]`));
+    const frames = cards.map((el) => el.querySelector<HTMLElement>('.lb-heroframe'));
+    const glints = cards.map((el) => el.querySelector<HTMLElement>('.lhr-glint > span'));
+    // Decode every clip now, under the launch curtain, so the first lock's thud is never late (the audio caps keep it).
+    if (!reduced) sfx.warmClips(REVEAL_ALL_CLIPS);
     const rootBox = (): { left: number; top: number; k: number } => {
       const rr = root.getBoundingClientRect();
       return { left: rr.left, top: rr.top, k: root.offsetWidth ? rr.width / root.offsetWidth : 1 };
@@ -200,85 +208,129 @@ export function LobbyReveal(): JSX.Element | null {
       });
     };
 
-    // TAKE-OFF: one read pass (every portrait, every slot and its art), then every flight scheduled at once from those
-    // numbers, one portrait at a time down the rail.
+    // One soft sound from the bank, through the soft-tail voice on the hero-select fader.
+    const sound = (l: RevealSoundLayer, gain: number, delayMs: number, rate?: number): void => {
+      if (gain <= 0 || reduced) return;
+      playTailedClip(l.clip, 'ceremony', {
+        gain: l.gain * gain, delayMs: Math.max(0, delayMs), startMs: l.startMs, lenMs: l.lenMs, rate: rate ?? l.rate,
+        tail: { fadeOutMs: l.fadeOutMs ?? 0, reverbMix: 0, reverbSec: 0.5 },
+      });
+    };
+    const fxOk = !reduced && canPlayDefs();
+    const centre = (r: DOMRect): { x: number; y: number } => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+
+    // THE MAGIC SWEEP (owner 2026-10-31: "a magic trail that slides across the heroes after the reveal"): a band of light
+    // crosses the whole row left to right; each portrait catches a shine (a glint band across its face) and a few
+    // sparkles (the Discover entrance's `discover-glint`) as it passes, with the owner's shimmer. ONE layout read (the
+    // card centres, for the sparkles' anchors and each glint's moment), then everything is scheduled.
+    const sweep = (offset: number): void => {
+      const now = t.sweepAt - offset;
+      sound(REVEAL_SWEEP_SHIMMER, c.revealSoundGain, 0);
+      const stage = root.querySelector<HTMLElement>('.lhr-stage');
+      const band = root.querySelector<HTMLElement>('.lhr-sweep');
+      push(anim(band, [
+        { opacity: 0, transform: 'translateX(-110%)' },
+        { opacity: 1, offset: 0.15 },
+        { opacity: 1, offset: 0.85 },
+        { opacity: 0, transform: 'translateX(330%)' },
+      ], { duration: Math.max(1, c.sweepMs), easing: 'cubic-bezier(0.45, 0, 0.35, 1)' }));
+      const sr = stage?.getBoundingClientRect();
+      const rects = faces.map((f) => f?.getBoundingClientRect() ?? null);
+      cards.forEach((_, i) => {
+        const r = rects[i];
+        if (!r || !sr || sr.width <= 0) return;
+        const frac = Math.max(0, Math.min(1, (r.left + r.width / 2 - sr.left) / sr.width));
+        const when = Math.round(c.sweepMs * (0.12 + 0.76 * frac)) - (t.sweepAt - offset - now);
+        const glint = glints[i];
+        push(anim(glint, [{ transform: 'translateX(-130%)', opacity: 0 }, { opacity: 1, offset: 0.3 }, { transform: 'translateX(130%)', opacity: 0 }],
+          { duration: 420, delay: Math.max(0, when - 120), easing: 'ease-in-out' }));
+        if (fxOk) {
+          const p = centre(r);
+          at(when, () => { playDef('discover-glint', { source: p, target: p, cursor: p }, { intensity: 0.7 }); });
+        }
+      });
+    };
+
+    // THE GROUP FLIGHT (owner 2026-10-31: "they fly over into place and then 'lock in'"): one read pass (every portrait,
+    // every slot and its art), then every portrait flies AT ONCE, a breath apart, on the same gentle bow so a left-to-right
+    // row fans into a top-to-bottom column with no crossings; each shrinks ahead of its path so neighbours never overlap
+    // mid-air. They park, round, on their slices' art.
+    let from: (Rect | null)[] = [];
+    let to: (Rect | null)[] = [];
+    let slice: (Rect | null)[] = [];
+    let artScreen: ({ x: number; y: number } | null)[] = [];
     const takeOff = (offset: number): void => {
       targets = findTargets(play); // a slot that remounted is picked up here, with the same single read pass below
       const o = rootBox();
-      const from = faces.map((f) => (f ? rectIn(f.getBoundingClientRect(), o) : null));
-      const to = artRects(o);
-      const slice = targets.show.map((s) => (s ? rectIn(s.getBoundingClientRect(), o) : null));
-      const now = t.headAt - offset;
+      from = faces.map((f) => (f ? rectIn(f.getBoundingClientRect(), o) : null));
+      const art = targets.slot.map((s) => (s ? faceIn(s).getBoundingClientRect() : null));
+      to = art.map((r) => (r ? rectIn(r, o) : null));
+      artScreen = art.map((r) => (r ? centre(r) : null));
+      slice = targets.show.map((s) => (s ? rectIn(s.getBoundingClientRect(), o) : null));
+      const now = t.flyAt[0]! - offset;
+      sound(REVEAL_FLIGHT_WHOOSH, c.whooshGain, 0);
       cards.forEach((card, i) => {
         const k = rank[i]!;
-        const entry = play.entries[i]!;
         const delay = Math.max(0, t.flyAt[k]! - offset - now);
-        const hit = Math.max(0, t.landAt[k]! - offset - now);
         const f = from[i], d = to[i], face = faces[i];
-        const showEl = targets.show[i] ?? null;
-        const tokens = revealTokensFor(entry, play.layout);
-        if (c.whooshGain > 0 && !reduced) playTailedClip(REVEAL_WHOOSH_CLIPS[k % REVEAL_WHOOSH_CLIPS.length]!, 'ceremony', { gain: c.whooshGain, delayMs: delay });
         if (reduced || !f || !d || d.width <= 0) {
-          // No slot on screen (or reduced motion): the portrait fades where it stands, its slot fades in.
-          push(anim(card, [{ opacity: 1 }, { opacity: 0 }], { duration: reduced ? 300 : c.landMs || 200, delay, easing: 'ease-in', fill: 'forwards' }));
-          at(delay, () => { land(tokens); push(anim(showEl, [{ opacity: 0 }], { duration: 300, easing: 'ease-out' })); });
+          // No slot on screen (or reduced motion): the portrait fades where it stands; its slot fades in at its lock.
+          push(anim(card, [{ opacity: 1 }, { opacity: 0 }], { duration: reduced ? 300 : 200, delay, easing: 'ease-in', fill: 'forwards' }));
           return;
         }
-        push(anim(labels[i], [{ opacity: 1 }, { opacity: 0 }], { duration: 160, delay, easing: 'ease-in', fill: 'forwards' }));
-        // The flight, then THE HIT on the same element: a squash to 1.06, a give to 0.98, settle (owner 2026-10-31: "have
-        // it look like they hit the rail and expand into their slots").
-        const imp = Math.max(0, c.impactMs);
-        const total = c.flyMs + imp;
-        const p = total > 0 ? c.flyMs / total : 1;
-        const path: Keyframe[] = arcKeyframes(f, d, c.arcHeight).map((kf) => ({ ...kf, offset: (kf.offset as number) * p }));
-        if (imp > 0) {
-          const last = String(path[path.length - 1]!.transform);
-          const s1 = Number(/scale\(([-\d.]+)\)/.exec(last)?.[1] ?? 1);
-          const at1 = (s: number): string => last.replace(/scale\([-\d.]+\)/, `scale(${(s1 * s).toFixed(4)})`);
-          path.push({ offset: p + (1 - p) * 0.35, transform: at1(1.06) }, { offset: p + (1 - p) * 0.7, transform: at1(0.98) }, { offset: 1, transform: at1(1) });
-        }
-        push(anim(face, path, { duration: total, delay, easing: 'linear', fill: 'forwards' }));
-        // The portrait crossfades into the slice art as the slice opens under it.
-        push(anim(face, [{ opacity: 1 }, { opacity: 0 }], { duration: Math.max(1, c.landMs), delay: hit + Math.round(imp * 0.5), easing: 'ease-out', fill: 'forwards' }));
-        // The gold flash on the slice edge at the hit (a static edge, opacity only), placed once here.
-        const fl = flashes[i];
-        const sr = slice[i];
-        if (fl && sr && imp > 0) {
-          fl.style.transform = `translate(${sr.left.toFixed(1)}px, ${sr.top.toFixed(1)}px)`;
-          fl.style.width = `${sr.width.toFixed(1)}px`;
-          fl.style.height = `${sr.height.toFixed(1)}px`;
-          push(anim(fl, [{ opacity: 0 }, { opacity: 1, offset: 0.25 }, { opacity: 0 }], { duration: imp + c.expandMs, delay: hit, easing: 'ease-out' }));
-        }
-        at(hit + Math.round(imp * 0.35), () => {
-          // THE EXPAND: the slice opens out of the impact point, from the portrait's width to its own (scaleX, the origin
-          // at the hit), revealing its frame, name and bar. The same for every slice; a Duos team slot opens with its
-          // FIRST member, and the second lands into it already open.
-          const opening = showEl && !tokens.every((tk) => landed.has(tk));
-          land(tokens);
-          if (!opening || !showEl) return;
-          const w0 = sr && sr.width > 0 ? Math.min(1, (d.height * 1.0) / sr.width) : 0.3;
-          const ox = sr && sr.width > 0 ? `${(((d.left + d.width / 2 - sr.left) / sr.width) * 100).toFixed(1)}%` : '15%';
-          push(anim(showEl, [
-            { opacity: 0, transform: `scaleX(${w0.toFixed(3)})`, transformOrigin: `${ox} 50%` },
-            { opacity: 1, transform: `scaleX(${(w0 + (1 - w0) * 0.4).toFixed(3)})`, transformOrigin: `${ox} 50%`, offset: 0.3 },
-            { opacity: 1, transform: 'scaleX(1)', transformOrigin: `${ox} 50%` },
-          ], { duration: Math.max(1, c.expandMs), easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' }));
-        });
+        push(anim(labels[i], [{ opacity: 1 }, { opacity: 0 }], { duration: 140, delay, easing: 'ease-in', fill: 'forwards' }));
+        push(anim(face, arcKeyframes(f, d, c.arcHeight, 16, 2.4), { duration: Math.max(1, c.flyMs), delay, easing: 'linear', fill: 'forwards' }));
       });
+    };
+
+    // THE LOCK-IN CASCADE, top to bottom, overlapping (owner 2026-10-31: "'lock in' and build their slices sequentially
+    // from the top somewhat quickly and satisfying"): each portrait snaps (1.08, 0.97, 1 on its frame, inside the parked
+    // flight transform), its slice edge flashes gold with a small sparkle pop, the owner's thud lands with a light shimmer,
+    // and the slice EXPANDS out of the portrait (scaleX, the origin at the portrait) while the portrait crossfades into
+    // the slice art. Same for every slice; a Duos team slot opens with its FIRST member.
+    const lockIn = (i: number, offset: number): void => {
+      const k = rank[i]!;
+      const entry = play.entries[i]!;
+      const tokens = revealTokensFor(entry, play.layout);
+      const showEl = targets.show[i] ?? null;
+      const d = to[i], sr = slice[i];
+      const opening = !!showEl && !tokens.every((tk) => landed.has(tk));
+      land(tokens);
+      sound({ clip: REVEAL_LOCK_THUDS[k % REVEAL_LOCK_THUDS.length]!, gain: REVEAL_LOCK_THUD_GAIN, fadeOutMs: 250 }, c.lockSoundGain, 0);
+      sound(REVEAL_LOCK_SHIMMER, c.lockSoundGain, 20, (REVEAL_LOCK_SHIMMER.rate ?? 1) + 0.03 * k);
+      if (reduced || !d || d.width <= 0) {
+        if (opening) push(anim(showEl, [{ opacity: 0 }], { duration: 300, easing: 'ease-out' }));
+        return;
+      }
+      const imp = Math.max(1, c.impactMs);
+      push(anim(frames[i], [{ transform: 'scale(1)' }, { transform: 'scale(1.08)', offset: 0.3 }, { transform: 'scale(0.97)', offset: 0.65 }, { transform: 'scale(1)' }],
+        { duration: imp, easing: 'ease-out' }));
+      const fl = flashes[i];
+      if (fl && sr) {
+        fl.style.transform = `translate(${sr.left.toFixed(1)}px, ${sr.top.toFixed(1)}px)`;
+        fl.style.width = `${sr.width.toFixed(1)}px`;
+        fl.style.height = `${sr.height.toFixed(1)}px`;
+        push(anim(fl, [{ opacity: 0 }, { opacity: 1, offset: 0.2 }, { opacity: 0 }], { duration: imp + c.expandMs, delay: Math.round(imp * 0.3), easing: 'ease-out' }));
+      }
+      const p = artScreen[i];
+      if (fxOk && p) playDef('hero-power-spark', { source: p, target: p, cursor: p }, { intensity: 0.6 });
+      // The portrait crossfades into the slice art as the slice opens under it.
+      push(anim(faces[i], [{ opacity: 1 }, { opacity: 0 }], { duration: Math.max(1, c.landMs), delay: Math.round(imp * 0.45), easing: 'ease-out', fill: 'forwards' }));
+      if (!opening || !showEl) return;
+      const w0 = sr && sr.width > 0 ? Math.min(1, d.height / sr.width) : 0.3;
+      const ox = sr && sr.width > 0 ? `${(((d.left + d.width / 2 - sr.left) / sr.width) * 100).toFixed(1)}%` : '15%';
+      push(anim(showEl, [
+        { opacity: 0, transform: `scaleX(${w0.toFixed(3)})`, transformOrigin: `${ox} 50%` },
+        { opacity: 1, transform: `scaleX(${(w0 + (1 - w0) * 0.45).toFixed(3)})`, transformOrigin: `${ox} 50%`, offset: 0.3 },
+        { opacity: 1, transform: 'scaleX(1)', transformOrigin: `${ox} 50%` },
+      ], { duration: Math.max(1, c.expandMs), delay: Math.round(imp * 0.3), easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)', fill: 'backwards' }));
+      void offset;
     };
 
     const begin = (offset: number): void => {
       if (dead) return;
       const o = Math.max(0, t.enterAt[0]! - offset);
-      // A light whoosh and a shine (owner 2026-10-31), never the Hero Select stinger; lobbyRevealConfig.ts lists the choice.
-      if (c.revealSoundGain > 0) {
-        for (const l of REVEAL_LINEUP_LAYERS) {
-          playTailedClip(l.clip, 'ceremony', {
-            gain: l.gain * c.revealSoundGain, delayMs: o + l.delayMs, startMs: l.startMs, lenMs: l.lenMs, rate: l.rate,
-            tail: { fadeOutMs: l.fadeOutMs ?? 0, reverbMix: 0, reverbSec: 0.5 },
-          });
-        }
-      }
+      sound(REVEAL_LINEUP_WHOOSH, c.revealSoundGain, o);
       cards.forEach((el, i) => {
         const delay = Math.max(0, t.enterAt[rank[i]!]! - offset);
         push(reduced
@@ -286,15 +338,17 @@ export function LobbyReveal(): JSX.Element | null {
           : anim(el, [{ opacity: 0, transform: 'translateY(28px) scale(0.86)' }, { opacity: 1, transform: 'none' }],
             { duration: c.entranceMs, delay, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1.08)', fill: 'both' }));
       });
-      // The duel's VS leaves with the names, as the flights start.
+      if (!reduced) at(t.sweepAt - offset, () => sweep(offset));
+      // The duel's VS leaves as the round slice opens.
       push(anim(root.querySelector('.lhr-vs'), [{ opacity: 1 }, { opacity: 0 }], { duration: 200, delay: Math.max(0, t.dimOutAt - offset), easing: 'ease-in', fill: 'forwards' }));
-      // The dim lifts with the flights, so the rail builds on the live board.
-      const flightSpan = reduced ? 300 : Math.max(200, t.headAt - t.dimOutAt);
-      push(anim(dimRef.current, [{ opacity: 1 }, { opacity: 0 }], { duration: flightSpan, delay: Math.max(0, t.dimOutAt - offset), easing: 'ease-in-out', fill: 'forwards' }));
+      // The dim lifts from the round slice to the last lock, so the rail builds on the live board.
+      const lastLock = t.lockAt.length ? t.lockAt[t.lockAt.length - 1]! : t.endAt;
+      const dimSpan = reduced ? 300 : Math.max(200, lastLock - t.dimOutAt);
+      push(anim(dimRef.current, [{ opacity: 1 }, { opacity: 0 }], { duration: dimSpan, delay: Math.max(0, t.dimOutAt - offset), easing: 'ease-in-out', fill: 'forwards' }));
 
       // THE ROUND SLICE FIRST (owner 2026-10-31: "the round button should be the first piece to appear, then the heroes
       // slot in"): it opens out of the Refresh pill (scaleX from its left edge, where it ties into the pill) as the
-      // line-up ends; the first portrait leaves as it settles. Same clean expand as the seat slices.
+      // line-up ends; the portraits leave as it settles.
       at(t.headAt - offset, () => {
         land([REVEAL_TOKEN_RAIL, REVEAL_TOKEN_HEAD]);
         for (const sel of REVEAL_HEAD_SELECTORS) {
@@ -307,8 +361,9 @@ export function LobbyReveal(): JSX.Element | null {
               { opacity: 1, transform: 'scaleX(1)', transformOrigin: '0% 50%' },
             ], { duration: Math.max(1, c.headSettleMs), easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' }));
         }
-        takeOff(offset);
       });
+      at((t.flyAt[0] ?? t.headAt) - offset, () => takeOff(offset));
+      cards.forEach((_, i) => { at(t.lockAt[rank[i]!]! - offset, () => lockIn(i, offset)); });
       at(t.endAt - offset, () => finish(false));
     };
 
@@ -364,6 +419,8 @@ export function LobbyReveal(): JSX.Element | null {
     return (
       <div className={`lhr-card${e.you ? ' you' : ''}`} key={e.seatId} data-seat={e.seatId}>
         <div className="lhr-face">
+          {/* The sweep's shine across this face: a soft light band moved by transform, clipped to the disc. */}
+          <span className="lhr-glint" aria-hidden="true"><span /></span>
           <LbHeroFrame heroId={e.heroId} size="big" side={e.you ? 'self' : 'opp'} art={heroPortrait(e.heroId, skins)} frameId={e.you ? frameIdOf(runSkins) : frameIdOf(skins)} />
         </div>
         <div className="lhr-labels">
@@ -381,17 +438,18 @@ export function LobbyReveal(): JSX.Element | null {
       const last = teams[teams.length - 1];
       if (last && last[0]!.team === e.team) last.push(e); else teams.push([e]);
     }
-    stage = <div className="lhr-stage teams">{teams.map((tm) => <div className="lhr-team" key={tm[0]!.seatId}>{tm.map(card)}</div>)}</div>;
+    stage = <div className="lhr-stage teams">{teams.map((tm) => <div className="lhr-team" key={tm[0]!.seatId}>{tm.map(card)}</div>)}<span className="lhr-sweep" aria-hidden="true" /></div>;
   } else if (play.layout === 'duel') {
     stage = (
       <div className="lhr-stage duel">
         {card(play.entries[0]!)}
         <div className="lhr-vs" aria-hidden="true">VS</div>
         {play.entries[1] && card(play.entries[1])}
+        <span className="lhr-sweep" aria-hidden="true" />
       </div>
     );
   } else {
-    stage = <div className="lhr-stage">{play.entries.map(card)}</div>;
+    stage = <div className="lhr-stage">{play.entries.map(card)}<span className="lhr-sweep" aria-hidden="true" /></div>;
   }
 
   return (

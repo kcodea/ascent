@@ -43,17 +43,17 @@ html[data-lhr]:not([data-lhr~='t3']) .lobbyteamslot[data-team='3'] { opacity: 0 
   display: flex; align-items: flex-start; justify-content: center;
   gap: calc(20 * var(--u, 1px));
   /* The row keeps clear of the board's HUD on both sides (owner: "fit cleanly without overlapping each other or the
-     HUD"): N portraits across 78% of the window, never taller than a third of it (a landscape phone). Every portrait the
+     HUD"): N portraits across 80% of the window, never taller than a third of it (a landscape phone). Every portrait the
      SAME size (owner: "they should all be the same size, the players shouldnt be larger"). */
   max-width: calc(0.84 * var(--lvw, 100vw));
-  --lhr-px: min(calc(var(--lhr-size, 185) * var(--u, 1px)), calc(0.78 * var(--lvw, 100vw) / var(--lhr-n, 8) - 44 * var(--u, 1px)), calc(0.32 * var(--lvh, 100dvh)));
+  --lhr-px: min(calc(var(--lhr-size, 205) * var(--u, 1px)), calc(0.8 * var(--lvw, 100vw) / var(--lhr-n, 8) - 28 * var(--u, 1px)), calc(0.34 * var(--lvh, 100dvh)));
 }
-.lhr.many .lhr-stage { gap: calc(16 * var(--u, 1px)); }
+.lhr.many .lhr-stage { gap: calc(12 * var(--u, 1px)); }
 
 .lhr-card {
   position: relative;
   display: flex; flex-direction: column; align-items: center;
-  width: calc(var(--lhr-px) + 24 * var(--u, 1px));
+  width: calc(var(--lhr-px) + 16 * var(--u, 1px));
   opacity: 0; /* the entrance's `fill: both` owns it from its first frame; this is the no-WAAPI resting state */
   will-change: transform, opacity;
 }
@@ -99,7 +99,7 @@ html[data-lhr]:not([data-lhr~='t3']) .lobbyteamslot[data-team='3'] { opacity: 0 
 /* THE 1v1: two heroes facing off, bigger, with the word between them. */
 .lhr-stage.duel {
   align-items: center; gap: calc(70 * var(--u, 1px));
-  --lhr-px: min(calc(var(--lhr-size, 185) * 1.5 * var(--u, 1px)), calc(0.3 * var(--lvw, 100vw)), calc(0.46 * var(--lvh, 100dvh)));
+  --lhr-px: min(calc(var(--lhr-size, 205) * 1.4 * var(--u, 1px)), calc(0.3 * var(--lvw, 100vw)), calc(0.46 * var(--lvh, 100dvh)));
 }
 .lhr-stage.duel .lhr-hero { font-size: calc(20 * var(--u, 1px)); }
 .lhr-stage.duel .lhr-name { font-size: calc(16 * var(--u, 1px)); }
@@ -119,3 +119,22 @@ html[data-lhr]:not([data-lhr~='t3']) .lobbyteamslot[data-team='3'] { opacity: 0 
 }
 /* The 1v1 lands on round portraits. */
 .lhr.duel .lhr-flash { border-radius: 50%; }
+
+/* THE MAGIC SWEEP (owner 2026-10-31: "a magic trail that slides across the heroes after the reveal"): a soft band of warm
+   light crossing the row (transform + opacity only, static gradient paint), and on each face a brighter glint band that
+   passes as the sweep reaches it, clipped to the disc. The sparkles are the Discover entrance's `discover-glint` (Pixi). */
+.lhr-sweep {
+  position: absolute; top: -14%; bottom: -4%; left: 0; width: 30%;
+  pointer-events: none; opacity: 0; will-change: transform, opacity;
+  background:
+    radial-gradient(ellipse 45% 55% at 50% 40%, rgba(255, 238, 196, 0.30), rgba(255, 220, 150, 0) 70%),
+    linear-gradient(100deg, rgba(255, 226, 160, 0) 15%, rgba(255, 232, 175, 0.14) 50%, rgba(255, 226, 160, 0) 85%);
+}
+.lhr-glint {
+  position: absolute; inset: 0; z-index: 3; border-radius: 50%; overflow: hidden; pointer-events: none;
+}
+.lhr-glint > span {
+  position: absolute; top: -10%; bottom: -10%; left: 30%; width: 40%;
+  opacity: 0; transform: translateX(-130%); will-change: transform, opacity;
+  background: linear-gradient(100deg, rgba(255, 246, 220, 0) 0%, rgba(255, 246, 220, 0.7) 50%, rgba(255, 246, 220, 0) 100%);
+}

@@ -133,11 +133,15 @@ export interface RevealTimeline {
   enterAt: number[];
   /** The line-up is complete. */
   fullAt: number;
-  /** Each portrait's take-off, by stage index. */
+  /** The magic sweep starts across the line-up (the shimmer sound with it). */
+  sweepAt: number;
+  /** Each portrait's take-off, by its RAIL rank (0 = the top slice). They all fly together, a breath apart. */
   flyAt: number[];
-  /** Each portrait reaching its slot: the impact, then the slice expands (`landAt + impactMs`). */
+  /** Each portrait parked on its slice's art, by rail rank. */
   landAt: number[];
-  /** The dim starts lifting (with the first take-off). */
+  /** Each slice LOCKS IN, by rail rank, top to bottom: the snap, the flash, the thud, then the slice expands. */
+  lockAt: number[];
+  /** The dim starts lifting (as the round slice opens). */
   dimOutAt: number;
   /** The round slice opens (FIRST, as the line-up ends; the flights follow once it has settled). */
   headAt: number;
@@ -146,41 +150,48 @@ export interface RevealTimeline {
 }
 
 /**
- * The beats for `n` portraits. Under reduced motion there is no rise and no flight: the line-up fades in as one, holds
- * briefly, fades out while the rail fades in, so the whole thing stays a calm ~1.2 s.
+ * The beats for `n` portraits (owner 2026-10-31: "they fly over into place and then 'lock in' and build their slices
+ * sequentially from the top somewhat quickly and satisfying"):
+ *   entrances  →  the magic sweep during the hold  →  the round slice opens  →  every portrait flies at once (a breath
+ *   apart) and parks on its slice  →  a beat  →  the slices lock in top to bottom, overlapping, quick.
+ * Under reduced motion there is no rise, sweep or flight: one fade in, a short hold, one fade out as the rail fades in.
  */
 export function revealTimeline(c: LobbyRevealConfig, n: number, reduced: boolean): RevealTimeline {
   const count = Math.max(0, n);
   const start = Math.max(0, c.startDelayMs);
+  const all = (t: number): number[] => Array.from({ length: count }, () => t);
   if (reduced) {
     const fade = 300;
     const fullAt = start + fade;
     const out = fullAt + Math.min(Math.max(0, c.holdMs), 600);
-    const all = (t: number): number[] => Array.from({ length: count }, () => t);
-    return { enterAt: all(start), fullAt, flyAt: all(out), landAt: all(out), dimOutAt: out, headAt: out, endAt: out + fade };
+    return { enterAt: all(start), fullAt, sweepAt: fullAt, flyAt: all(out), landAt: all(out), lockAt: all(out), dimOutAt: out, headAt: out, endAt: out + fade };
   }
   const entrance = Math.max(0, c.entranceMs);
   const enterAt = Array.from({ length: count }, (_, i) => start + i * Math.max(0, c.revealStaggerMs));
   const fullAt = (count ? enterAt[count - 1]! : start) + entrance;
-  const takeoff = fullAt + Math.max(0, c.holdMs);
+  const sweepAt = fullAt + Math.max(0, c.sweepDelayMs);
+  const takeoff = Math.max(fullAt + Math.max(0, c.holdMs), sweepAt + Math.max(0, c.sweepMs));
   // THE ROUND SLICE FIRST (owner 2026-10-31: "the round button should be the first piece to appear, then the heroes slot
-  // in"): it opens out of the Refresh pill as the line-up ends, and the first portrait leaves as it settles.
+  // in"): it opens out of the Refresh pill as the line-up ends, and the portraits leave as it settles.
   const headAt = takeoff;
   const firstFly = headAt + Math.max(0, c.headSettleMs);
-  const flyAt = Array.from({ length: count }, (_, i) => firstFly + i * Math.max(0, c.flyStaggerMs));
+  const flyAt = Array.from({ length: count }, (_, k) => firstFly + k * Math.max(0, c.flyStaggerMs));
   const fly = Math.max(1, c.flyMs);
   const landAt = flyAt.map((t) => t + fly);
-  const lastLand = count ? landAt[count - 1]! : firstFly;
-  const endAt = lastLand + Math.max(0, c.impactMs ?? 0) + Math.max(0, c.expandMs ?? 0, c.landMs);
-  return { enterAt, fullAt, flyAt, landAt, dimOutAt: takeoff, headAt, endAt };
+  const parked = count ? landAt[count - 1]! : firstFly;
+  const lockAt = Array.from({ length: count }, (_, k) => parked + Math.max(0, c.lockBeatMs) + k * Math.max(0, c.lockStaggerMs));
+  const lastLock = count ? lockAt[count - 1]! : parked;
+  const endAt = lastLock + Math.round(Math.max(0, c.impactMs) * 0.4) + Math.max(0, c.expandMs, c.landMs);
+  return { enterAt, fullAt, sweepAt, flyAt, landAt, lockAt, dimOutAt: takeoff, headAt, endAt };
 }
 
-/** Where the sequence is at `t` ms. The overlay's state machine: idle → reveal → round (the round slice opens) → fly
- *  (the portraits, one at a time) → done. */
-export type RevealPhase = 'idle' | 'reveal' | 'round' | 'fly' | 'done';
+/** Where the sequence is at `t` ms. The overlay's state machine: idle → reveal (with the sweep) → round (the round slice
+ *  opens) → fly (all at once) → lock (top to bottom) → done. */
+export type RevealPhase = 'idle' | 'reveal' | 'round' | 'fly' | 'lock' | 'done';
 export function revealPhaseAt(t: number, tl: RevealTimeline): RevealPhase {
   if (t < 0) return 'idle';
   if (t >= tl.endAt) return 'done';
+  if (tl.lockAt.length && t >= tl.lockAt[0]!) return 'lock';
   if (tl.flyAt.length && t >= tl.flyAt[0]!) return 'fly';
   if (t >= tl.headAt) return 'round';
   return 'reveal';
@@ -189,13 +200,13 @@ export function revealPhaseAt(t: number, tl: RevealTimeline): RevealPhase {
 export interface Rect { left: number; top: number; width: number; height: number }
 
 /**
- * One flight as WAAPI keyframes: a quadratic arc from the stage portrait's centre to the slot's centre, bowed UP by
- * `arc` px (a flight to a slot lower on screen still lifts first), the portrait shrinking to the slot's size on the way
- * (a uniform scale, the smaller of the slot's two ratios, so a round face fits a rectangular slice). Sampled into
- * `steps` keyframes with the ease already applied to the PATH parameter, so the animation itself runs linear and the
- * motion is one smooth curve. Transform only: compositor work, no layout or paint per frame.
+ * One flight as WAAPI keyframes: a quadratic curve from the stage portrait's centre to the slot's art centre, bowed by
+ * `arc` px (the SAME bow for every portrait, so curves from a left-to-right row to a top-to-bottom column, ranked alike,
+ * fan in without crossing: owner 2026-10-31, "there are some pass through issues"). The portrait shrinks to the slot's
+ * size AHEAD of the path (`scaleLead`), so neighbours flying side by side never overlap mid-air. Sampled into `steps`
+ * keyframes with the ease applied to the path parameter, run linear. Transform only.
  */
-export function arcKeyframes(from: Rect, to: Rect, arc: number, steps = 14): Keyframe[] {
+export function arcKeyframes(from: Rect, to: Rect, arc: number, steps = 14, scaleLead = 1): Keyframe[] {
   const fx = from.left + from.width / 2, fy = from.top + from.height / 2;
   const tx = to.left + to.width / 2, ty = to.top + to.height / 2;
   const s1 = from.width > 0 && from.height > 0 ? Math.min(to.width / from.width, to.height / from.height) : 1;
@@ -208,7 +219,8 @@ export function arcKeyframes(from: Rect, to: Rect, arc: number, steps = 14): Key
     const a = (1 - u) * (1 - u), b = 2 * (1 - u) * u, c = u * u;
     const x = a * fx + b * cx + c * tx - fx;
     const y = a * fy + b * cy + c * ty - fy;
-    const s = 1 + (s1 - 1) * u;
+    const us = scaleLead > 1 ? 1 - Math.pow(1 - u, scaleLead) : u;
+    const s = 1 + (s1 - 1) * us;
     out.push({ offset: i / n, transform: `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${s.toFixed(4)})` });
   }
   return out;

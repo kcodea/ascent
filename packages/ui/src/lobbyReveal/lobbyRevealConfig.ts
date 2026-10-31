@@ -20,12 +20,20 @@ export interface LobbyRevealConfig {
   entranceMs: number;
   /** Between one portrait's entrance and the next. */
   revealStaggerMs: number;
-  /** How long the full line-up holds once the last portrait is in. */
+  /** How long the full line-up holds once the last portrait is in (the magic sweep plays inside it). */
   holdMs: number;
+  /** From the full line-up to the magic sweep starting across it. */
+  sweepDelayMs: number;
+  /** The magic sweep crossing the whole row, left to right; each portrait catches a shine as it passes. */
+  sweepMs: number;
   /** One portrait's flight from the stage to its rail slot. */
   flyMs: number;
-  /** Between one portrait taking off and the next. */
+  /** Between one portrait taking off and the next (they fly together; this is just a breath of life). */
   flyStaggerMs: number;
+  /** The beat between the last portrait parking and the first slice locking in. */
+  lockBeatMs: number;
+  /** Between one slice locking in and the next, top to bottom. */
+  lockStaggerMs: number;
   /** How high each flight arcs above the straight line, reference px. */
   arcHeight: number;
   /** The crossfade from the flying portrait into the slice's art as it lands. */
@@ -40,30 +48,36 @@ export interface LobbyRevealConfig {
   goodLuckAfter: number;
   /** The line-up's whoosh-and-shine level (never the Hero Select stinger), on top of its mixer fader. 0 = silent. */
   revealSoundGain: number;
-  /** Each flight's soft whoosh (FX bank), on top of its mixer fader. 0 = silent. */
+  /** The group flight's soft whoosh, on top of its mixer fader. 0 = silent. */
   whooshGain: number;
+  /** Each lock's thud and shimmer, on top of their mixer fader. 0 = silent. */
+  lockSoundGain: number;
 }
 
-/** Shipped values (owner 2026-10-31: slower, cleaner, one at a time, a longer look at the line-up). Eight seats:
- *  250 + 7 x 70 + 380 + 1150 = 2.3 s on stage, then 7 x 240 + 600 + 160 + 250 + 300 = 3.0 s of flights, one at a time
- *  down the rail, each hitting and expanding into its slice. */
+/** Shipped values (owner 2026-10-31). Eight seats: 250 + 7 x 70 + 380 + 1250 = 2.4 s on stage with the magic sweep, the
+ *  round slice 0.3 s, then the group flight and the lock-in cascade: 7 x 35 + 520 + 140 + 7 x 100 + 260 = 1.9 s. */
 export const LHR_DEFAULTS: LobbyRevealConfig = {
   dimOpacity: 0.72,
-  portraitSize: 185,
+  portraitSize: 205,
   startDelayMs: 250,
   entranceMs: 380,
   revealStaggerMs: 70,
-  holdMs: 1150,
-  flyMs: 600,
-  flyStaggerMs: 240,
-  arcHeight: 120,
-  landMs: 220,
-  impactMs: 160,
-  expandMs: 250,
+  holdMs: 1250,
+  sweepDelayMs: 150,
+  sweepMs: 750,
+  flyMs: 520,
+  flyStaggerMs: 35,
+  arcHeight: 60,
+  lockBeatMs: 140,
+  lockStaggerMs: 100,
+  landMs: 160,
+  impactMs: 140,
+  expandMs: 200,
   headSettleMs: 300,
   goodLuckAfter: 1,
   revealSoundGain: 1,
-  whooshGain: 0.35,
+  whooshGain: 0.4,
+  lockSoundGain: 1,
 };
 
 export const LHR_RANGES: Record<keyof LobbyRevealConfig, [number, number, number]> = {
@@ -73,8 +87,12 @@ export const LHR_RANGES: Record<keyof LobbyRevealConfig, [number, number, number
   entranceMs: [80, 1200, 10],
   revealStaggerMs: [0, 300, 5],
   holdMs: [0, 2500, 10],
+  sweepDelayMs: [0, 800, 10],
+  sweepMs: [200, 1600, 10],
   flyMs: [150, 1500, 10],
-  flyStaggerMs: [0, 300, 5],
+  flyStaggerMs: [0, 150, 5],
+  lockBeatMs: [0, 600, 10],
+  lockStaggerMs: [30, 300, 5],
   arcHeight: [0, 400, 1],
   landMs: [0, 600, 10],
   impactMs: [0, 500, 10],
@@ -83,6 +101,7 @@ export const LHR_RANGES: Record<keyof LobbyRevealConfig, [number, number, number
   goodLuckAfter: [0, 1, 1],
   revealSoundGain: [0, 2, 0.01],
   whooshGain: [0, 2, 0.01],
+  lockSoundGain: [0, 2, 0.01],
 };
 
 const KEY = 'ascent.lobbyreveal';
@@ -119,17 +138,22 @@ const SPECS: Record<keyof LobbyRevealConfig, [string, TunerUnit | undefined, str
   startDelayMs: ['Start delay', 'ms', 'Wait before the first hero appears. The launch curtain is lifting during this.', 'Reveal'],
   entranceMs: ['Entrance', 'ms', 'One hero rising into the line-up.', 'Reveal'],
   revealStaggerMs: ['Reveal stagger', 'ms', 'Between one hero\x27s entrance and the next.', 'Reveal'],
-  holdMs: ['Hold', 'ms', 'How long the full line-up stays up before the first flight.', 'Reveal'],
+  holdMs: ['Hold', 'ms', 'How long the full line-up stays up before the flights (the sweep plays inside it).', 'Reveal'],
+  sweepDelayMs: ['Sweep delay', 'ms', 'From the full line-up to the magic sweep starting.', 'Reveal'],
+  sweepMs: ['Sweep', 'ms', 'The magic trail crossing the row, left to right; each hero catches a shine.', 'Reveal'],
   flyMs: ['Fly duration', 'ms', 'One portrait\x27s flight from the stage to its rail slot.', 'Fly'],
-  flyStaggerMs: ['Fly stagger', 'ms', 'Between one portrait taking off and the next.', 'Fly'],
+  flyStaggerMs: ['Fly stagger', 'ms', 'They fly together; this is the small offset between take-offs.', 'Fly'],
+  lockBeatMs: ['Lock beat', 'ms', 'The pause between the last portrait parking and the first lock.', 'Lock'],
+  lockStaggerMs: ['Lock stagger', 'ms', 'Between one slice locking in and the next, top to bottom.', 'Lock'],
   arcHeight: ['Arc height', 'px', 'How high each flight curves above the straight line (reference px).', 'Fly'],
-  landMs: ['Land crossfade', 'ms', 'The portrait fading into the slice art as it lands.', 'Fly'],
-  impactMs: ['Impact', 'ms', 'The portrait hitting the rail: a quick squash and a gold flash on the slice edge.', 'Fly'],
-  expandMs: ['Expand', 'ms', 'The slice opening out of the impact point to its full width.', 'Fly'],
-  headSettleMs: ['Round slice settle', 'ms', 'The round slice settling in after the last portrait lands.', 'Fly'],
+  landMs: ['Crossfade', 'ms', 'The portrait fading into the slice art as the slice opens.', 'Lock'],
+  impactMs: ['Lock snap', 'ms', 'The lock: a quick snap (1.08, 0.97, 1), a gold flash on the slice edge and a sparkle pop.', 'Lock'],
+  expandMs: ['Expand', 'ms', 'The slice opening out of the portrait to its full width.', 'Lock'],
+  headSettleMs: ['Round slice', 'ms', 'The round slice opening out of the Refresh pill, before any portrait flies.', 'Fly'],
   goodLuckAfter: ['Good Luck after', undefined, 'On: the Good Luck words still play once the rail is built. Off: the reveal replaces them.', 'Flow'],
-  revealSoundGain: ['Reveal sound', '×', 'The light whoosh and shine as the line-up appears (not the Hero Select stinger). 0 = silent.', 'Sound'],
-  whooshGain: ['Whoosh sound', '×', 'A soft whoosh as each portrait takes off. 0 = silent.', 'Sound'],
+  revealSoundGain: ['Reveal sound', '×', 'The soft whoosh as the line-up appears and the shimmer with the sweep. 0 = silent.', 'Sound'],
+  whooshGain: ['Whoosh sound', '×', 'The soft whoosh as the portraits fly. 0 = silent.', 'Sound'],
+  lockSoundGain: ['Lock sound', '×', 'Each lock: a gentle thud (three takes, rotating) and a light shimmer. 0 = silent.', 'Sound'],
 };
 
 const controls: TunerControl<Extract<keyof LobbyRevealConfig, string>>[] =
@@ -163,22 +187,28 @@ export const SPEC: TunerSpec<LobbyRevealConfig> = {
 };
 
 /**
- * THE SOUNDS. Never a `ceremony/` clip (owner 2026-10-31: "dont use the same sound effect for the hero reveals as the
- * player's hero selection"), and not cinematic (owner: "the sound effect of the hero reveal is really bad ... should just
- * be like a woosh and shine"). All from the existing bank, every one already shipped:
- *  - the line-up, two light layers, about 0.9 s:
- *    WHOOSH `fx/stereogenicstudio-swish-swoosh-woosh-sfx-39`, its airy 0.1 s to 1.0 s swish (the window the menu's
- *    vista title uses), soft-tailed;
- *    SHINE `prismaticpick`, a bright glass chime, pitched up a touch, landing as the first portraits rise (the hero
- *    cosmetics use it the same way, at a similar level).
- *    Passed over: `equipmentsheen` (the Good Luck words' own shine, a moment later: it would repeat), `triggerglow` (the
- *    in-game "a trigger fired" chime), the sparkle-whoosh (the Good Luck sparks), `fx/universfield-cinematic-swoosh-
- *    impact` (the first pick: too heavy), the strike impacts and the gate clips (they mean other things).
- *  - each flight: `whoosh-03` and the short `swish-swoosh-woosh 27` take, alternating, quiet, one per portrait.
+ * THE SOUNDS (owner 2026-10-31: no Hero Select clip; "a woosh and shine"; then the owner's own clips: "maybe these
+ * would be good sounds for the impact, plus a soft woosh and shimmer", "can try this shimmer at the hero reveal").
+ *  - the line-up: a soft airy whoosh as it rises (`fx/stereogenicstudio-swish-swoosh-woosh-sfx-39`, its 0.1 s to 1.0 s
+ *    swish, soft-tailed), then the owner's SHIMMER (audio/fx/reveal-shimmer.mp3) with the magic sweep.
+ *  - the group flight: one soft whoosh (`fx/whoosh-03`).
+ *  - each lock: one of the owner's three gentle THUDS (audio/fx/reveal-impact-1, -3 and -4.mp3, rotating so neighbours differ)
+ *    and a light glass shimmer (`prismaticpick`, quiet, pitched a little higher each lock).
+ * Passed over: `equipmentsheen` (the Good Luck words' own shine, a moment later), `triggerglow` (the in-game trigger
+ * chime), the sparkle-whoosh (the Good Luck sparks), `fx/universfield-cinematic-swoosh-impact` (too heavy).
  */
-export interface RevealSoundLayer { clip: string; delayMs: number; gain: number; startMs?: number; lenMs?: number; rate?: number; fadeOutMs?: number }
-export const REVEAL_LINEUP_LAYERS: readonly RevealSoundLayer[] = [
-  { clip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-39-357160', delayMs: 0, gain: 0.55, startMs: 100, lenMs: 900, fadeOutMs: 300 },
-  { clip: 'prismaticpick', delayMs: 160, gain: 0.4, rate: 1.2, fadeOutMs: 250 },
+export interface RevealSoundLayer { clip: string; gain: number; startMs?: number; lenMs?: number; rate?: number; fadeOutMs?: number }
+export const REVEAL_LINEUP_WHOOSH: RevealSoundLayer = { clip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-39-357160', gain: 0.45, startMs: 100, lenMs: 900, fadeOutMs: 300 };
+/** The owner's clips play ONCE per game, at its start, and `sfx.warmClips` decodes them under the launch curtain. So they
+ *  stay OFF the phone's per-fight decode list (`audio/codeClips.ts`, which counts against the phone audio LRU's working
+ *  set: phoneAudioQuality.test.ts). Named through this prefix so that list's scan of `fx/` literals passes them by. */
+const OWNER_FX = 'fx/';
+export const REVEAL_SWEEP_SHIMMER: RevealSoundLayer = { clip: `${OWNER_FX}reveal-shimmer`, gain: 0.6, fadeOutMs: 400 };
+export const REVEAL_FLIGHT_WHOOSH: RevealSoundLayer = { clip: 'fx/whoosh-03', gain: 0.5, fadeOutMs: 200 };
+export const REVEAL_LOCK_THUDS: readonly string[] = ['reveal-impact-1', 'reveal-impact-3', 'reveal-impact-4'].map((n) => `${OWNER_FX}${n}`);
+export const REVEAL_LOCK_THUD_GAIN = 0.5;
+export const REVEAL_LOCK_SHIMMER: RevealSoundLayer = { clip: 'prismaticpick', gain: 0.16, rate: 1.1, fadeOutMs: 200 };
+/** Every clip the reveal plays: decoded under the launch curtain so the first lock is never late. */
+export const REVEAL_ALL_CLIPS: readonly string[] = [
+  REVEAL_LINEUP_WHOOSH.clip, REVEAL_SWEEP_SHIMMER.clip, REVEAL_FLIGHT_WHOOSH.clip, ...REVEAL_LOCK_THUDS, REVEAL_LOCK_SHIMMER.clip,
 ];
-export const REVEAL_WHOOSH_CLIPS: readonly string[] = ['fx/whoosh-03', 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3'];

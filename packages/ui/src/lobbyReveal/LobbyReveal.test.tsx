@@ -192,18 +192,35 @@ describe('the owner\x27s game-start rulings (2026-10-31)', () => {
     expect(lobbyReveal.isActive()).toBe(true);
   });
 
-  it('the reveal never plays a Hero Select (ceremony) sound: a light whoosh and a shine, quiet per-flight whooshes', async () => {
-    const { REVEAL_LINEUP_LAYERS, REVEAL_WHOOSH_CLIPS } = await import('./lobbyRevealConfig');
-    const clips = [...REVEAL_LINEUP_LAYERS.map((l) => l.clip), ...REVEAL_WHOOSH_CLIPS];
+  it('the sounds: never a Hero Select (ceremony) clip; the owner\x27s shimmer with the sweep and his thuds on the locks', async () => {
+    snd.clip.mockClear();
+    snd.ceremony.mockClear();
+    const cfg = await import('./lobbyRevealConfig');
+    const clips = cfg.REVEAL_ALL_CLIPS;
     for (const clip of clips) expect(clip.startsWith('ceremony/')).toBe(false);
     // Not heavy, and not the Good Luck words' own shine (it plays a moment later).
     expect(clips).not.toContain('fx/universfield-cinematic-swoosh-impact-454392');
     expect(clips).not.toContain('equipmentsheen');
+    // The owner's clips (2026-10-31), shipped in the bank.
+    expect(cfg.REVEAL_SWEEP_SHIMMER.clip).toBe('fx/reveal-shimmer');
+    expect(cfg.REVEAL_LOCK_THUDS).toEqual(['fx/reveal-impact-1', 'fx/reveal-impact-3', 'fx/reveal-impact-4']);
+    const { existsSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    for (const c of [cfg.REVEAL_SWEEP_SHIMMER.clip, ...cfg.REVEAL_LOCK_THUDS]) expect(existsSync(join(__dirname, '..', 'audio', `${c}.mp3`)), c).toBe(true);
+    vi.useFakeTimers();
     railDom();
     m = mount(<><LobbyReveal /><GoodLuckIntro /></>);
     act(gameStart);
+    act(() => { vi.advanceTimersByTime(revealTimeline(LHR_DEFAULTS, 4, false).endAt + 20); });
     expect(snd.ceremony).not.toHaveBeenCalled();
-    for (const l of REVEAL_LINEUP_LAYERS) expect(snd.clip).toHaveBeenCalledWith(l.clip, expect.any(String), expect.anything());
+    const played = snd.clip.mock.calls.map((x) => (x as unknown[])[0]);
+    expect(played).toContain(cfg.REVEAL_LINEUP_WHOOSH.clip);
+    expect(played).toContain('fx/reveal-shimmer');
+    expect(played).toContain(cfg.REVEAL_FLIGHT_WHOOSH.clip);
+    // One thud per lock, rotating so neighbours differ.
+    const thuds = played.filter((c) => String(c).startsWith('fx/reveal-impact-'));
+    expect(thuds).toHaveLength(4);
+    for (let i = 1; i < thuds.length; i++) expect(thuds[i]).not.toBe(thuds[i - 1]);
   });
 
   it('a turn-1 Discover (Disco Dan, a hero quest) waits for the reveal AND the Good Luck words: the shop holds every offer', async () => {

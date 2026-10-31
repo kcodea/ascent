@@ -100,9 +100,10 @@ that, which is why the lead's query treats a missing cron row as a failure.
 **The hub's fetches.** `hub.wrangler.toml` carries `global_fetch_strictly_public`, so the hub can fetch the Versus
 Worker's `/health` (a workers.dev fetch to another Worker on the same account is otherwise refused).
 
-### Turning on pool parity and the session check (for the PR that ships them)
+### Turning on pool parity and the session check
 
-The checks are already written; they are `n/a` until the hub says the thing exists.
+The pool mirror and the game session are on `main` (#2493), but the hub does not advertise them yet: the mirror has no
+`digest` method, and the session switch is off. The checks are written and stay `n/a` until the hub advertises the capability.
 
 1. **Pool mirror.** Give the `PoolMirror` Durable Object (bound as `POOL`, named `global`) a method
    `digest(params: PoolParams | null): Promise<PoolDigest>`. `params` null: every run in the mirror's index, in run id
@@ -113,5 +114,5 @@ The checks are already written; they are `n/a` until the hub says the thing exis
    `pool_runs_boards` equals `ops.pool_digest` byte for byte.
 2. **Session.** Add `HUB_CAP.session` to `HUB_CAPS` once `session_cf_flush` is live. The probe already reads
    `session_cf_writes` and the `ops.events` `write_rejected` rows when they exist.
-3. **The cron.** `hubWorker.ts` `scheduled` dispatches on `event.cron`. Add the mirror's `*/5 * * * *` to the same
-   `crons` list in `hub.wrangler.toml` and a branch for it in the one handler.
+3. **The cron.** Already shared: `crons = ["*/5 * * * *", "17 6 * * *"]`, and `hubWorker.ts` `scheduled` runs the health
+   check at `HEALTH_CRON` and the mirror's sync on every other tick.

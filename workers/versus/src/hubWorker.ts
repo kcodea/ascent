@@ -66,11 +66,10 @@ const SESSION_PATH = /^\/session\/([^/]{1,240})\/(ws|save|park|table|write|rate|
  *  deployed without `--persist` never takes a game: its flushes would go nowhere. */
 const sessionLive = (env: HubWorkerEnv): boolean => env.SESSION_MODE === 'on' && (env.PERSIST === '1' || env.DEV_AUTH === '1');
 const poolOf = (env: HubWorkerEnv): PoolMirror => env.POOL.get(env.POOL.idFromName('global')) as unknown as PoolMirror;
-/** The pool mirror, duck-typed: reached only once the hub advertises `pool_mirror` (see `HUB_CAPS`). */
-const poolDigestOf = (env: HubWorkerEnv): PoolDigestSource | null => {
-  const ns = (env as { POOL?: DurableObjectNamespace<PoolDigestSource> }).POOL;
-  return ns && HUB_CAPS.includes(HUB_CAP.poolMirror) ? (ns.get(ns.idFromName('global')) as unknown as PoolDigestSource) : null;
-};
+/** The pool mirror's digest (R-OPS-HEALTH-01), typed as the health check sees it: reached only once the hub advertises
+ *  `pool_mirror` (`HUB_CAPS`), which is when `PoolMirror` carries `digest(params)`. */
+const poolDigestOf = (env: HubWorkerEnv): PoolDigestSource | null =>
+  HUB_CAPS.includes(HUB_CAP.poolMirror) ? (poolOf(env) as unknown as PoolDigestSource) : null;
 
 /** A digest is cheap to ask for and costs the mirror a pass over its boards: one per params per isolate per 5 minutes. */
 const digestCache = new Map<string, { at: number; value: Promise<PoolDigest> }>();

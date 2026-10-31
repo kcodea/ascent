@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Systems', text: 'Friends: requests and invites now show up the moment they are sent.', details: [
+        'A new friend shows online right away.',
+        'Live Games lists games from every version of the game.',
+      ] },
       { category: 'Systems', text: 'Compendium: a new Duos toggle next to Gilded shows the Duos-only cards too.', details: [
         'Turn it on to add the Duos cards, Whispers and runes to the book, beside the regular ones.',
         'Each one wears a small Duos tag. The usual filters still apply, and Gilded works with it.',

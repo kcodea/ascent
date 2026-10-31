@@ -8,7 +8,7 @@
  *   - `DmBackend`: where messages are stored and friendships are read. Supabase in production (`dmStore.ts`); a memory
  *     backend for the tests and a local `wrangler dev`.
  */
-import { cleanDmBody, DM_RATE, DM_REPLY_SNIPPET, isUuid, type DmRow, type DmSendError } from '../hubProtocol';
+import { cleanDmBody, DM_RATE, DM_REPLY_SNIPPET, isUuid, type DmRow, type DmSendError, type HubPresence } from '../hubProtocol';
 
 export class DmError extends Error {
   constructor(public readonly code: DmSendError) {
@@ -56,6 +56,11 @@ export interface DmBackend {
   send(from: string, msg: SendCheck): Promise<DmRow>;
   /** My accepted friends (nobody blocked either way). */
   friendsOf(user: string): Promise<string[]>;
+  /**
+   * Mirror my live presence into storage (null: offline), R-FRIENDS-HUB-LIVE-01. The hub is the live source; the row is
+   * what the server-side invite check and an older client's friends list read. Absent: nothing is mirrored.
+   */
+  mirrorPresence?(user: string, presence: HubPresence | null): Promise<void>;
 }
 
 /**
@@ -102,6 +107,19 @@ export class MemoryDmBackend implements DmBackend {
 
   async friendsOf(user: string): Promise<string[]> {
     return [...(this.friends.get(user) ?? [])].filter((f) => !this.blocked(user, f));
+  }
+
+  /** Forget a friendship (tests: a removal). */
+  unfriend(a: string, b: string): void {
+    this.friends.get(a)?.delete(b);
+    this.friends.get(b)?.delete(a);
+  }
+
+  /** The presence mirror's writes, newest last (tests). */
+  readonly mirrored: { user: string; presence: HubPresence | null }[] = [];
+  async mirrorPresence(user: string, presence: HubPresence | null): Promise<void> {
+    this.mirrored.push({ user, presence });
+    if (this.mirrored.length > 200) this.mirrored.shift();
   }
 }
 

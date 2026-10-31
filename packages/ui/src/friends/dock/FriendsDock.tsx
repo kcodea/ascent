@@ -113,7 +113,12 @@ export function FriendsDock(): JSX.Element | null {
 export function DockShell({ conversation, guest = false, inGame = false, slot = '' }: { conversation?: (friend: Friend) => ReactNode; guest?: boolean; inGame?: boolean; slot?: '' | 'corner' } = {}): JSX.Element {
   const phase = useFriendsDock((s) => s.phase);
   const dmWith = useFriendsDock((s) => s.dmWith);
-  const online = useFriends((s) => (guest ? 0 : s.inbox?.online ?? 0));
+  // Friends online: the list with the hub's live presence laid over it (R-FRIENDS-HUB-LIVE-01: nothing polls it any more),
+  // else the inbox's count from the last read.
+  const friendsList = useFriends((s) => s.list);
+  const livePeers = useDm((s) => s.peers);
+  const inboxOnline = useFriends((s) => s.inbox?.online ?? 0);
+  const online = guest ? 0 : friendsList ? liveFriends(friendsList.friends, livePeers).filter((f) => f.status !== 'offline').length : inboxOnline;
   const requests = useFriends((s) => (guest ? 0 : s.inbox?.incoming ?? 0));
   const unread = useDm((s) => (guest ? 0 : totalUnread(s.unread)));
   const open = phase !== 'closed';

@@ -70,10 +70,20 @@ interface CfResponseInit extends ResponseInit {
   webSocket?: CfWebSocket | null;
 }
 
+interface ExecutionContext {
+  waitUntil(promise: Promise<unknown>): void;
+}
+
 declare module 'cloudflare:workers' {
   export abstract class DurableObject<Env = unknown> {
     protected ctx: DurableObjectState;
     protected env: Env;
     constructor(ctx: DurableObjectState, env: Env);
+  }
+  /** A named entrypoint (RPC over a service binding; never reachable from the internet). */
+  export abstract class WorkerEntrypoint<Env = unknown> {
+    protected ctx: ExecutionContext;
+    protected env: Env;
+    constructor(ctx: ExecutionContext, env: Env);
   }
 }

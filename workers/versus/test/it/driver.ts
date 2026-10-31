@@ -3,7 +3,9 @@
  * both drive the local Worker through this). It is NOT the game client: it sends the same messages the game's dev
  * transport sends, with fixture boards, and records when each push arrived.
  */
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unstable_startWorker } from 'wrangler';
 import { HEROES, type PreparedCombatSide } from '@game/sim';
@@ -22,20 +24,23 @@ export async function startLocalWorker(): Promise<{ url: string; dispose: () => 
   const worker = await unstable_startWorker({
     config: fileURLToPath(new URL('../../wrangler.toml', import.meta.url)),
     // A TEST writer secret (persistence stays off: no PERSIST, no Supabase URL), so the room can sign invite proofs.
-    bindings: { DEV_AUTH: { type: 'plain_text', value: '1' }, VERSUS_WRITER_SECRET: { type: 'plain_text', value: IT_WRITER_SECRET } },
-    dev: { server: { port: 0 }, inspector: false, persist: false, logLevel: (process.env.VERSUS_CF_LOG as never) ?? 'error' } as never,
+    // No hub beside it: the directory half is off (`LIVE_DIR_OFF`), and a dev registry of its own lets the `LIVE_DIR`
+    // service binding start unconnected instead of failing the runtime. `liveDir.it.ts` runs a hub with a shared registry.
+    bindings: { DEV_AUTH: { type: 'plain_text', value: '1' }, VERSUS_WRITER_SECRET: { type: 'plain_text', value: IT_WRITER_SECRET }, LIVE_DIR_OFF: { type: 'plain_text', value: '1' } },
+    dev: { server: { port: 0 }, inspector: false, persist: false, registry: mkdtempSync(join(tmpdir(), 'ascent-versus-it-')), logLevel: (process.env.VERSUS_CF_LOG as never) ?? 'error' } as never,
   });
   await worker.ready;
   const url = String(await worker.url).replace(/\/$/, '');
   return { url, dispose: () => worker.dispose() };
 }
 
-/** THE FRIENDS HUB's own Worker (`hub.wrangler.toml`), local, dev tokens on, nothing stored. */
-export async function startHubWorker(): Promise<{ url: string; dispose: () => Promise<void> }> {
+/** THE FRIENDS HUB's own Worker (`hub.wrangler.toml`), local, dev tokens on, nothing stored. `registry`: a dev registry
+ *  folder shared with Versus Workers started alongside, so their `LIVE_DIR` service binding reaches this hub. */
+export async function startHubWorker(registry?: string): Promise<{ url: string; dispose: () => Promise<void> }> {
   const worker = await unstable_startWorker({
     config: fileURLToPath(new URL('../../hub.wrangler.toml', import.meta.url)),
     bindings: { DEV_AUTH: { type: 'plain_text', value: '1' } },
-    dev: { server: { port: 0 }, inspector: false, persist: false, logLevel: (process.env.VERSUS_CF_LOG as never) ?? 'error' } as never,
+    dev: { server: { port: 0 }, inspector: false, persist: false, logLevel: (process.env.VERSUS_CF_LOG as never) ?? 'error', ...(registry ? { registry } : {}) } as never,
   });
   await worker.ready;
   const url = String(await worker.url).replace(/\/$/, '');

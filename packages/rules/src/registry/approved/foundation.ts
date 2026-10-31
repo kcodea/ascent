@@ -9472,7 +9472,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (friends list scope)', quote: 'yes to adding a friends list that shows online players, to simplify invites' },
       { kind: 'code', ref: 'packages/ui/src/friends/friendsStore.ts (startFriendsPresence, useFriendsListLoop, syncInviteSub); supabase/migrations/2026-10-28-friends.sql (friends_beat, friends_list, the player_presence policy)' },
     ],
-    currentBehaviour: 'Built 2026-10-26 (feat/friends-list). New: there was no friends list before.',
+    currentBehaviour: 'SUPERSEDED 2026-10-30 by R-FRIENDS-HUB-LIVE-01: presence and the inbox ride the friends hub, with no periodic client call. Built 2026-10-26 (feat/friends-list). New: there was no friends list before.',
     example: 'Ann leaves the game on the main menu for an hour with three friends: about 60 small calls, no list reads unless she opens Friends.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.test.tsx', 'packages/ui/src/friends/friends.db.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
@@ -9487,7 +9487,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-28 (bug report)', quote: 'Mike\'s friends list showed me OFFLINE while I had the game open' },
       { kind: 'code', ref: 'packages/ui/src/friends/friendsStore.ts (BEAT_HIDDEN_MS, BEAT_MAX_BACKOFF_MS, startFriendsPresence onVis/onPageHide/onPageShow); packages/ui/src/friends/friendsRemote.ts (leave); supabase/migrations/2026-11-09-friends-presence-window.sql (friends__stale 300 s)' },
     ],
-    currentBehaviour: 'Fixed 2026-10-28 (fix/friends-presence-gap). Before: 120 s hidden beats, a 10 min failure backoff and a 180 s window; prod showed an online player\'s last beat 196 s old, so friends saw them Offline.',
+    currentBehaviour: 'SUPERSEDED in part 2026-10-30 by R-FRIENDS-HUB-LIVE-01: the open game\x27s presence row is the friends hub\x27s mirror (a keep-alive every 2.5 minutes while a game is connected, inside the same 300 s window), and a closed game reads Offline when its last hub socket closes. Fixed 2026-10-28 (fix/friends-presence-gap). Before: 120 s hidden beats, a 10 min failure backoff and a 180 s window; prod showed an online player\'s last beat 196 s old, so friends saw them Offline.',
     example: 'Ann alt-tabs to another window for an hour with the game open: Bob sees her online the whole time (about 60 small calls). She closes the tab: Bob sees her Offline on his next list read.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.test.tsx', 'packages/ui/src/friends/friends.db.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
@@ -12255,8 +12255,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'is on an older version. It cannot be watched." The watcher never polls. On the server, once '
       + '`2026-11-17-retire-supabase-live.sql` is applied, the Supabase heartbeat, end and keyframe writes answer '
       + '`live_moved` and the Supabase watch answers `other_host` for a listed game (an old client follows it to the Worker). '
-      + 'The Live Games listing itself is still READ from Supabase (`lobby_live_games`, written only by the Worker) until '
-      + 'a version-independent Cloudflare directory replaces it (docs/versus-cf-cutover.md).',
+      + 'The Live Games listing itself is read from the friends hub\x27s version-independent directory since R-LIVE-DIR-01 '
+      + '(2026-10-30); it was read from Supabase (`lobby_live_games`) before.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -12270,5 +12270,69 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'every 10 s; a friend\x27s Watch always tried the Supabase join first and was sent on by `other_host`.',
     example: 'The Worker is briefly down when Ann starts a Practice game. Her game plays normally but is not on Live Games. Twenty seconds later the Worker is back; her next retry opens the socket and the game is listed. Bob presses Watch on her from his friends list: his client reads her row and joins her on the Worker.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/liveCf.test.ts', 'packages/ui/src/live/liveGames.test.ts', 'packages/sim/src/lobby/lobbyLiveRetire.db.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-LIVE-DIR-01',
+    title: 'Live Games is one Cloudflare directory on the friends hub: every content revision registers into it, players read it there, never Supabase',
+    statement:
+      'Every Versus room (1v1, Group, Versus Duos, Ranked Duos) and every live lobby or Practice game, on the Versus Worker of '
+      + 'ANY content revision, registers its Live Games row in ONE directory object on the version-independent friends hub '
+      + 'Worker (`ascent-hub`, `LiveDirectory`), through a service binding to the hub\x27s `LiveDirectoryWriter` entrypoint '
+      + '(Worker to Worker; there is no public write route). It writes only when its listing changes (it appears, a round, '
+      + 'a phase, the hero, the players, the privacy) plus a 2-minute keep-alive, never per frame or per spectator; a row is '
+      + 'listed 4 minutes past its last write and removed at the end. The Live Games page (every 10 s while open), the menu '
+      + 'glow count (every 45 s on a menu) and a friend\x27s Watch row read the hub over HTTP and are answered from the '
+      + 'directory\x27s memory: no Supabase read. The directory keeps what the SQL listing did: one live game per player, '
+      + 'the order (division, then points, then rating, best first), the spectator count, a Ranked Duos row\x27s team name '
+      + 'and medal (rating 100 x division + points), and friends-only Versus rooms listed only to the host and the host\x27s '
+      + 'friends (the reader\x27s friends come from the reader\x27s own friends hub, cached 2 minutes, asked only when such a '
+      + 'row is listed; the glow counts a friends-only room for its host only). Ranks and team names are looked up by the '
+      + 'directory once per player or team per 10 minutes (`live_dir_meta`); when that cannot be read the writer\x27s values '
+      + 'stand. A guest reads the public rows. Until `2026-11-19-retire-supabase-live-list.sql` the Workers also keep '
+      + 'writing the Supabase row for clients from before this change; after it the Supabase writer answers `retired` and '
+      + 'each object stops calling it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'I want us to make cloudflare work as our source for live information and action like spectating' },
+      { kind: 'code', ref: 'workers/versus/src/liveDirectory.ts, workers/versus/src/core/liveDirCore.ts, workers/versus/src/liveDirProtocol.ts, workers/versus/src/liveDirSink.ts, workers/versus/src/hubWorker.ts (LiveDirectoryWriter, /live/*), workers/versus/wrangler.toml ([[services]] LIVE_DIR), packages/ui/src/live/liveRemote.ts, supabase/migrations/2026-11-18-live-directory.sql, supabase/migrations/2026-11-19-retire-supabase-live-list.sql' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-30 (feat/cf-live-directory). Before, each Worker wrote its rows into Supabase '
+      + '(`lobby_live_cf` / `versus_cf_live`) and every client read `lobby_live_games` from Supabase: a page every 10 s, a '
+      + 'head-only count every 45 s, one row per friend Watch. The per-revision Versus Worker could not list other '
+      + 'revisions\x27 games, so the list could not move to it.',
+    example: 'Ann plays Practice on yesterday\x27s build and Bob a ranked game on today\x27s: both register in the hub\x27s one directory, so Cat\x27s Live Games shows both, Bob first (higher medal). Dan hosts a friends-only Versus room: Cat, his friend, sees it; Eve does not.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/liveDirCore.test.ts', 'workers/versus/test/it/liveDir.it.ts', 'packages/ui/src/live/liveAllGames.test.ts', 'packages/ui/src/friends/liveDirectorySql.db.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-FRIENDS-HUB-LIVE-01',
+    title: 'Friends presence, requests and invites arrive live over the friends hub; the client never polls Supabase for them',
+    statement:
+      'A signed-in client sends its presence to its friends hub socket when it settles on something new (1.5 s settle, at '
+      + 'most every 5 s, only when the coarse activity moved; the privacy switch is unchanged) and nothing periodic: no '
+      + '`friends_beat`, no Offline beat on close, no Realtime subscription. The hub tells connected friends at once and '
+      + 'mirrors the presence into Supabase itself (`hub_presence_cf`): on a change (at most every 5 s), every 2.5 minutes '
+      + 'while a game is connected, and Offline when the last game closes, so the server-side invite check and older '
+      + 'clients keep reading it. My inbox (friends, requests, open invites) is read from Supabase (`friends_list`) once '
+      + 'when I sign in or my hub socket (re)opens, and then only when the hub pushes `inbox`: sending, accepting, '
+      + 'declining or cancelling a request, removing, blocking or unblocking a friend, and sending an invite each `nudge` '
+      + 'the other player\x27s hub (hub protocol 3; the oldest supported client stays 1), which pushes `inbox` to their open '
+      + 'games; reads are coalesced to one now and one trailing per 3 s. A `friends` nudge also makes both hubs re-read '
+      + 'their friends, so a new friend shows online at once and a removed one drops away. Nudges are rate limited (10 per '
+      + '10 s) and carry no data (a forged one can only cause one extra read). Storage (friendships, requests, blocks, '
+      + 'invites, messages, the presence row) stays in Supabase.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'I want us to make cloudflare work as our source for live information and action like spectating' },
+      { kind: 'code', ref: 'packages/ui/src/friends/friendsStore.ts (onPresenceSettled, nudgeInbox, setHubNotifier), packages/ui/src/friends/dm/dmStore.ts (inbox push, nudge), workers/versus/src/hub.ts (nudge, nudged, refreshFriends, flushMirror), workers/versus/src/core/presenceMirror.ts, workers/versus/src/hubProtocol.ts (HUB_PROTOCOL 3), supabase/migrations/2026-11-18-live-directory.sql (hub_presence_cf), supabase/migrations/2026-11-19-retire-supabase-live-list.sql' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-30 (feat/cf-live-directory). Before, every client called `friends_beat` every 60 s, visible '
+      + 'or hidden (presence write + inbox read), plus a change beat, an Offline beat on close, and a Realtime '
+      + 'subscription on `friend_invites`; a request or invite reached a friend on their next beat (up to a minute).',
+    example: 'Ann sends Bob a friend request: Bob\x27s Requests count goes up the moment it is stored, with no poll. Ann invites Bob to her room: his invite notice shows at once. Ann leaves her game on the menu for an hour: her client makes no Supabase call; her hub writes her presence row about 24 times.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.test.tsx', 'packages/ui/src/friends/friendsBeatBudget.test.ts', 'packages/ui/src/friends/dm/dm.test.tsx', 'workers/versus/test/presenceMirror.test.ts', 'workers/versus/test/it/liveDir.it.ts', 'packages/ui/src/friends/liveDirectorySql.db.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
 ];

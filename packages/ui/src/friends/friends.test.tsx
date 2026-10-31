@@ -2,10 +2,11 @@
 /**
  * FRIENDS in the client (owner 2026-10-26; R-FRIENDS-01..05), with the network faked:
  *  - presence: what I am doing (menu, a ranked game with its Live Games watch target, Practice, a Versus match) is what
- *    the beat reports;
- *  - the beat (egress, R-FRIENDS-05): one call after boot, then every 60 s visible or hidden, at once on a status
- *    change (never faster than every 5 s), never for a guest, stopped for good by an undeployed server; the invite
- *    wake-up is subscribed only for an account with friends and a visible tab;
+ *    goes to the friends hub;
+ *  - presence and inbox on the hub (egress, R-FRIENDS-05, R-FRIENDS-HUB-LIVE-01): no periodic call at all; one inbox read
+ *    after boot, then only when the hub says it changed (coalesced); a status change is sent once it settles (never
+ *    faster than every 5 s); my friend actions and invites nudge the other player; never for a guest; an undeployed
+ *    server stops it for good; no Realtime subscription, no Offline beat;
  *  - the Friends panel (the dock, which took over the old Friends page): guests get the Sign in state; friends online
  *    first; Watch only on a watchable game; Invite only while I am in an open Versus room and the friend is online;
  *    Requests with a count; no title= anywhere;
@@ -29,10 +30,10 @@ import { setIdentity } from '../identity';
 import { useVersus } from '../versus/versusStore';
 import type { VersusRoom } from '../versus/versusRemote';
 import {
-  BEAT_HIDDEN_MS, BEAT_MAX_BACKOFF_MS, BEAT_VISIBLE_MS, inviteFriend, presenceNow, registerInviteHandler, resetFriendsForTests, setFriendsRemoteForTests,
-  setInviteProofSourceForTests, startFriendsPresence, useFriends,
+  acceptRequest, CHANGE_SETTLE_MS, INBOX_MIN_GAP_MS, inviteFriend, nudgeInbox, onPresenceSettled, PRESENCE_MIN_GAP_MS, presenceNow, registerInviteHandler,
+  resetFriendsForTests, setFriendsRemoteForTests, setHubNotifier, setInviteProofSourceForTests, startFriendsPresence, useFriends,
 } from './friendsStore';
-import { FriendsError, type BeatAnswer, type Friend, type FriendInvite, type FriendsList, type FriendsRemote, type PresenceReport } from './friendsRemote';
+import { FriendsError, friendsRemote, type Friend, type FriendInvite, type FriendsList, type FriendsRemote, type PresenceReport } from './friendsRemote';
 import { statusText } from './friendBits';
 import { FriendsDock } from './dock/FriendsDock';
 import { openDock, resetDockForTests, useFriendsDock } from './dock/dockStore';
@@ -43,15 +44,13 @@ const ME = '00000000-0000-0000-0000-000000000001';
 const card = (id: string, author: string) => ({ userId: id, author, discriminator: '1234', avatar: null, favoriteHero: null, frame: null, skin: null });
 const friend = (id: string, author: string, extra: Partial<Friend> = {}): Friend => ({ ...card(id, author), status: 'offline', lastSeen: null, ...extra });
 
-interface Fake { beats: PresenceReport[]; leaves: number; subs: number; closes: number; list: FriendsList; beatAnswer: BeatAnswer; fail: string | null; responded: Array<[string, boolean]> }
+interface Fake { lists: number; list: FriendsList; fail: string | null; responded: Array<[string, boolean]> }
 let fake: Fake;
 function fakeRemote(): FriendsRemote {
   const r = {
-    beat: async (p: PresenceReport) => { fake.beats.push(p); if (fake.fail) throw new FriendsError(fake.fail); return fake.beatAnswer; },
-    leave: () => { fake.leaves++; return true; },
-    list: async () => fake.list,
+    list: async () => { fake.lists++; if (fake.fail) throw new FriendsError(fake.fail); return fake.list; },
+    respond: async () => ({}),
     respondInvite: async (id: string, accept: boolean) => { fake.responded.push([id, accept]); return { status: accept ? 'accepted' : 'declined', kind: 'versus_room', target: 'room-1', from: 'x' }; },
-    subscribeInvites: () => { fake.subs++; return { channel: null, close: () => { fake.closes++; } }; },
   };
   return r as unknown as FriendsRemote;
 }
@@ -69,7 +68,7 @@ const flush = async (): Promise<void> => { await act(async () => { await Promise
 
 beforeEach(() => {
   resetFriendsForTests();
-  fake = { beats: [], leaves: 0, subs: 0, closes: 0, list: emptyList(), beatAnswer: { friends: 0, online: 0, incoming: 0, invites: [], serverNow: new Date().toISOString() }, fail: null, responded: [] };
+  fake = { lists: 0, list: emptyList(), fail: null, responded: [] };
   setFriendsRemoteForTests(fakeRemote());
   Object.assign(net, { remote: true, live: true });
   setHidden(false);
@@ -132,142 +131,106 @@ describe('presence: what the beat reports', () => {
   });
 });
 
-describe('the beat (egress)', () => {
-  it('beats once after boot, then every 60 s visible and hidden', async () => {
+describe('presence and inbox on the friends hub (egress, R-FRIENDS-HUB-LIVE-01)', () => {
+  const sends = (): PresenceReport[] => {
+    const got: PresenceReport[] = [];
+    onPresenceSettled((p) => got.push(p));
+    return got;
+  };
+
+  it('no periodic call: one inbox read after boot, then nothing for an hour, visible or hidden', async () => {
     vi.useFakeTimers();
-    fake.beatAnswer = { ...fake.beatAnswer, friends: 2 };
+    const sent = sends();
     const stop = startFriendsPresence();
-    expect(fake.beats).toHaveLength(0);
+    expect(fake.lists).toBe(0);
     await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
-    expect(fake.beats).toHaveLength(1);
-    await act(async () => { await vi.advanceTimersByTimeAsync(BEAT_VISIBLE_MS - 1000); });
-    expect(fake.beats).toHaveLength(1);
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
-    expect(fake.beats).toHaveLength(2);
+    expect(fake.lists).toBe(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(30 * 60_000); });
     act(() => setHidden(true));
-    await act(async () => { await vi.advanceTimersByTimeAsync(BEAT_VISIBLE_MS); });
-    // The beat already queued lands once, then the hidden pace takes over.
-    const n = fake.beats.length;
-    await act(async () => { await vi.advanceTimersByTimeAsync(BEAT_HIDDEN_MS - 1000); });
-    expect(fake.beats.length).toBe(n);
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
-    expect(fake.beats.length).toBe(n + 1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(30 * 60_000); });
+    expect(fake.lists).toBe(1);
+    expect(sent).toHaveLength(0); // nothing changed: nothing is sent
     stop();
   });
 
-  // R-FRIENDS-PRESENCE-GAP-01 (owner 2026-10-28): "Mike's friends list showed me offline while I had the game open".
-  describe('the open game never reads Offline (the 300 s window)', () => {
-    const WINDOW_MS = 300_000;
-    /** The longest gap between beats while a hidden tab stays open, each timer firing up to a minute late (Chrome's
-     *  intensive throttling), must stay inside the server's window. */
-    it('every pace (hidden, friendless, a failing retry) lands inside the window even a minute late', () => {
-      expect(BEAT_HIDDEN_MS + 60_000).toBeLessThan(WINDOW_MS);
-      expect(BEAT_MAX_BACKOFF_MS + 60_000).toBeLessThan(WINDOW_MS);
-      expect(180_000 + 60_000).toBeLessThan(WINDOW_MS); // the friendless pace
-    });
-
-    it('failures back off, but a retry never waits longer than the cap', async () => {
-      vi.useFakeTimers();
-      fake.beatAnswer = { ...fake.beatAnswer, friends: 2 };
-      fake.fail = 'network';
-      const stop = startFriendsPresence();
-      await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
-      for (let i = 0; i < 6; i++) await act(async () => { await vi.advanceTimersByTimeAsync(BEAT_MAX_BACKOFF_MS); });
-      expect(fake.beats.length).toBe(7); // one at boot, then one per cap, never stretched to minutes
-      stop();
-    });
-
-    it('going hidden beats once (the hidden clock starts fresh); a quick hide right after a beat does not', async () => {
-      vi.useFakeTimers();
-      fake.beatAnswer = { ...fake.beatAnswer, friends: 2 };
-      const stop = startFriendsPresence();
-      await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
-      expect(fake.beats).toHaveLength(1);
-      act(() => setHidden(true));
-      await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
-      expect(fake.beats).toHaveLength(1); // the last beat is fresh
-      act(() => setHidden(false));
-      await act(async () => { await vi.advanceTimersByTimeAsync(40_000); });
-      act(() => setHidden(true));
-      await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
-      expect(fake.beats).toHaveLength(2);
-      await act(async () => { await vi.advanceTimersByTimeAsync(BEAT_HIDDEN_MS); });
-      expect(fake.beats).toHaveLength(3);
-      stop();
-    });
-
-    it('closing the page sends one Offline beat and stops; back from the cache it beats again', async () => {
-      vi.useFakeTimers();
-      fake.beatAnswer = { ...fake.beatAnswer, friends: 2 };
-      const stop = startFriendsPresence();
-      await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
-      act(() => setHidden(true));
-      act(() => { window.dispatchEvent(new Event('pagehide')); });
-      expect(fake.leaves).toBe(1);
-      await act(async () => { await vi.advanceTimersByTimeAsync(5 * BEAT_HIDDEN_MS); });
-      expect(fake.beats).toHaveLength(1); // no online beat races the Offline one
-      const back = new Event('pageshow') as PageTransitionEvent;
-      Object.defineProperty(back, 'persisted', { value: true });
-      act(() => { window.dispatchEvent(back); });
-      await act(async () => { await vi.advanceTimersByTimeAsync(10); });
-      expect(fake.beats).toHaveLength(2);
-      stop();
-    });
-
-    it('a guest never sends the Offline beat', () => {
-      account(true);
-      const stop = startFriendsPresence();
-      act(() => { window.dispatchEvent(new Event('pagehide')); });
-      expect(fake.leaves).toBe(0);
-      stop();
-    });
-  });
-
-  it('a status change beats at once (after a short settle), never faster than every 5 s', async () => {
+  it('the hub saying my inbox changed reads it once; a burst is one read now and one after the gap', async () => {
     vi.useFakeTimers();
-    fake.beatAnswer = { ...fake.beatAnswer, friends: 1 };
     const stop = startFriendsPresence();
     await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
-    expect(fake.beats).toHaveLength(1);
+    expect(fake.lists).toBe(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(INBOX_MIN_GAP_MS); });
+    act(() => { nudgeInbox(); nudgeInbox(); nudgeInbox(); });
+    await flush();
+    expect(fake.lists).toBe(2);
+    act(() => { nudgeInbox(); nudgeInbox(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(INBOX_MIN_GAP_MS); });
+    expect(fake.lists).toBe(3);
+    await act(async () => { await vi.advanceTimersByTimeAsync(10 * INBOX_MIN_GAP_MS); });
+    expect(fake.lists).toBe(3);
+    // The read fills the inbox (requests and invites) the dock and the invite notice show.
+    expect(useFriends.getState().inbox).toMatchObject({ friends: 0, incoming: 0, invites: [] });
+    stop();
+  });
+
+  it('a status change is sent once it settles, never faster than every 5 s; flipping straight back sends nothing', async () => {
+    vi.useFakeTimers();
+    const sent = sends();
+    const stop = startFriendsPresence();
     const run = useGame.getState().run;
     act(() => { useGame.setState({ showTitle: false, run: { ...run, mode: 'practice', phase: 'recruit' } }); });
-    await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
-    expect(fake.beats).toHaveLength(1); // the 5 s floor
-    await act(async () => { await vi.advanceTimersByTimeAsync(1100); });
-    expect(fake.beats).toHaveLength(2);
-    expect(fake.beats[1]).toMatchObject({ status: 'in_game', mode: 'practice' });
+    await act(async () => { await vi.advanceTimersByTimeAsync(CHANGE_SETTLE_MS); });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ status: 'in_game', mode: 'practice' });
+    act(() => { useGame.setState({ showTitle: true }); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(CHANGE_SETTLE_MS); });
+    expect(sent).toHaveLength(1); // the 5 s floor
+    await act(async () => { await vi.advanceTimersByTimeAsync(PRESENCE_MIN_GAP_MS); });
+    expect(sent).toHaveLength(2);
+    act(() => { useGame.setState({ showTitle: false }); });
+    act(() => { useGame.setState({ showTitle: true }); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(2 * PRESENCE_MIN_GAP_MS); });
+    expect(sent).toHaveLength(2);
     stop();
   });
 
-  it('never beats for a guest or without a backend; an undeployed server stops it for good', async () => {
+  it('my friend actions and invites nudge the other player through the hub', async () => {
+    const F = '00000000-0000-0000-0000-000000000002';
+    const nudged: Array<[string, string]> = [];
+    setHubNotifier((to, kind) => nudged.push([to, kind]));
+    setFriendsRemoteForTests({ ...fakeRemote(), invite: async () => ({ id: 'i', kind: 'versus_room', target: 'room-1', expiresAt: '' }) } as unknown as FriendsRemote);
+    setInviteProofSourceForTests(async () => null);
+    await acceptRequest(F);
+    await inviteFriend(F, 'versus_room', 'room-1');
+    expect(nudged).toEqual([[F, 'friends'], [F, 'invite']]);
+  });
+
+  it('never for a guest or without a backend; an undeployed server stops it for good', async () => {
     vi.useFakeTimers();
     account(true);
+    const sent = sends();
     let stop = startFriendsPresence();
-    await act(async () => { await vi.advanceTimersByTimeAsync(5 * BEAT_VISIBLE_MS); });
-    expect(fake.beats).toHaveLength(0);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5 * 60_000); });
+    act(() => { nudgeInbox(); });
+    expect(fake.lists).toBe(0);
+    expect(sent).toHaveLength(0);
     stop();
     account(false);
     fake.fail = 'not_deployed';
     stop = startFriendsPresence();
-    await act(async () => { await vi.advanceTimersByTimeAsync(10 * BEAT_VISIBLE_MS); });
-    expect(fake.beats).toHaveLength(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    expect(fake.lists).toBe(1);
     expect(useFriends.getState().deployed).toBe(false);
+    act(() => { nudgeInbox(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(10 * INBOX_MIN_GAP_MS); });
+    expect(fake.lists).toBe(1);
     stop();
   });
 
-  it('the invite wake-up is on only for an account with friends and a visible tab', async () => {
-    vi.useFakeTimers();
-    const stop = startFriendsPresence();
-    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
-    expect(fake.subs).toBe(0); // no friends yet
-    fake.beatAnswer = { ...fake.beatAnswer, friends: 1 };
-    await act(async () => { await vi.advanceTimersByTimeAsync(180_000); });
-    expect(fake.subs).toBe(1);
-    act(() => setHidden(true));
-    expect(fake.closes).toBe(1);
-    act(() => setHidden(false));
-    expect(fake.subs).toBe(2);
-    stop();
+  it('no Supabase poll, Realtime subscription or Offline beat is left in the client', () => {
+    const r = friendsRemote as unknown as Record<string, unknown>;
+    expect(r.beat).toBeUndefined();
+    expect(r.leave).toBeUndefined();
+    expect(r.subscribeInvites).toBeUndefined();
   });
 });
 

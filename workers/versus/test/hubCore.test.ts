@@ -81,7 +81,7 @@ describe('replies (protocol 2, R-DM-REPLY-01)', () => {
     expect(checkSend(ANN, { cid: CID, to: BOB, body: 'yes', replyTo: ORIG.toUpperCase() }).replyTo).toBe(ORIG);
     expect(checkSend(ANN, { cid: CID, to: BOB, body: 'yes', replyTo: 'nope' }).replyTo).toBeNull();
     expect(checkSend(ANN, { cid: CID, to: BOB, body: 'yes' }).replyTo).toBeNull();
-    expect(HUB_PROTOCOL).toBe(2);
+    expect(HUB_PROTOCOL).toBeGreaterThanOrEqual(2); // 3 (R-FRIENDS-HUB-LIVE-01) added nudges on top
     expect(HUB_PROTOCOL_MIN).toBe(1); // old clients keep working: they never send it and ignore it on rows
   });
 

@@ -11,6 +11,7 @@
     "./pings": "./src/pings.ts",
     "./lobbyChat": "./src/lobbyChat.ts",
     "./hub": "./src/hubProtocol.ts",
+    "./liveDir": "./src/liveDirProtocol.ts",
     "./core": "./src/core/roomCore.ts",
     "./core/storage": "./src/core/storage.ts"
   },

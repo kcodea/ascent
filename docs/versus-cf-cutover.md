@@ -16,7 +16,8 @@ and the retirement in [`devlog/2026-10-29-retire-supabase-versus.md`](devlog/202
 |---|---|---|
 | **The adapter** | `packages/ui/src/versus/versusRemote.ts` (`versusRemote`) over `versusCfRemote.ts` | Every room and match call goes to the Worker: writes on the room socket, reads answered from its pushes, the room list / my room / create as HTTP. A Worker that cannot be reached is an error the screen shows with Try again. |
 | **The Worker URL** | `VITE_VERSUS_CF_URL`, baked in by `npm run release:web` | Trusted only when it is exactly the Worker for the build's own content revision (`embeddedCfUrl`); otherwise the build talks to the Worker named after its own engine (`ascent-versus-v<protocol>-<content>`). A dev build talks to `npm run versus:cf:dev` (127.0.0.1:8787). |
-| **Records** | Supabase, through the Worker's key-gated writer (`versus_cf_persist`, `versus_cf_live`, `spectate_cf_beat`, `lobby_live_cf`) | Results, rounds, history, ratings, Live Games rows and spectator XP land in the same tables as always; the client reads team names, a settled ranked result and the Duos leaderboard there (`makeVersusRecords`). |
+| **Records** | Supabase, through the Worker's key-gated writer (`versus_cf_persist`, `spectate_cf_beat`; `versus_cf_live` / `lobby_live_cf` only until the list retirement) | Results, rounds, history, ratings and spectator XP land in the same tables as always; the client reads team names, a settled ranked result and the Duos leaderboard there (`makeVersusRecords`). |
+| **Live Games** | the friends hub's directory (`ascent-hub`, `LiveDirectory`) | Every revision's rooms and live games register there through the `LIVE_DIR` service binding; players read the list, the glow count and one row from the hub (R-LIVE-DIR-01). |
 | **Room references** | `cf:<room id>` | Every invite, Friends "Watch" id and Live Games row names the room `cf:<id>`. A bare id is a retired Supabase room from an older client: the client says "That room has closed." instead of trying it. |
 | **Origin allowlist** | `ALLOWED_ORIGINS` in `workers/versus/wrangler.toml` | `https://ascent-game-web.netlify.app` + localhost dev ports. Deploy-time override: `VERSUS_ALLOWED_ORIGINS`. |
 
@@ -85,10 +86,11 @@ VERSUS_ALLOWED_ORIGINS="https://ascent-game-web.netlify.app,https://play.example
 
 ## Live Games and invites
 
-- **Live Games** (owner 2026-10-28: every game is a live game): a room writes its own row (`versus:cf:<room>` for 1v1 /
-  Group / Versus Duos, `duos:cf:<room>` for Ranked Duos) through the key-gated `versus_cf_live`, only when the listing
-  changes (start, round, phase, end) plus a 2-minute keep-alive; the row stays listed 4 minutes past its last write and
-  is removed at the end. Watch from Live Games or Friends joins the room on the Worker.
+- **Live Games** (owner 2026-10-28: every game is a live game): a room registers its own row (`versus:cf:<room>` for 1v1 /
+  Group / Versus Duos, `duos:cf:<room>` for Ranked Duos) in the hub's directory (and, until the list retirement, in
+  Supabase through the key-gated `versus_cf_live`), only when the listing changes (start, round, phase, end) plus a
+  2-minute keep-alive; the row stays listed 4 minutes past its last write and is removed at the end. Watch from Live
+  Games or Friends joins the room on the Worker.
 - **Invites**: the client asks its room for a proof (`invite_proof` on the room socket); the room runs the checks (open,
   I am in it, they are not) and signs `<exp>.<hmac>` with the sha256 of its writer secret (the value
   `versus_cf_writer_keys` holds); `friends_invite` refuses a `cf:` invite without a valid proof (`room_check`). A Worker
@@ -123,31 +125,68 @@ Check: start a Practice game in one browser, Watch it from Live Games in another
 `select * from public.spectate_sessions where run_id like 'watch:lobby:%' order by last_seen_at desc limit 5;` shows
 the watcher's time growing every 30 s.
 
-## What still reads Supabase for live information (audit 2026-10-30)
+## Live Games and friends on the hub (R-LIVE-DIR-01, R-FRIENDS-HUB-LIVE-01; 2026-10-30)
 
-Results, history, ratings, snapshots, DMs and Duos teams are storage and stay in Supabase. The live paths:
+Owner 2026-10-30: "I want us to make cloudflare work as our source for live information and action like spectating".
+Since feat/cf-live-directory every LIVE read and push runs on Cloudflare; Supabase keeps the storage.
 
-| Path | What it does | Where | Status |
-|---|---|---|---|
-| Lobby / Practice publish + watch | the stream, keyframe, stands, end, chat, pings | Worker (`VersusLiveGame`) | Cloudflare only (R-LIVE-CF-ONLY-01) |
-| Versus rooms, room list, open-room counts, my room, Ranked Duos parties | every room and match op | Worker (`VersusRoom`, `VersusDirectory`) | Cloudflare only (R-VERSUS-CF-ONLY-01) |
-| Friends presence overlay, DMs | live presence of connected friends, messages | friends hub (`ascent-hub`) | Cloudflare (messages stored in Supabase) |
-| Spectator XP record | the watch record of a Cloudflare watch | the Worker writes `spectate_cf_beat` | Cloudflare is the witness; Supabase stores it |
-| **Live Games list** | one page of `lobby_live_games` every 10 s while the page is open | Supabase read (rows written by the Worker) | remains |
-| **Live Games glow count** | a head-only count every 45 s while a menu is on screen | Supabase read | remains |
-| **A friend's Watch** | one row read per Watch, for `live_host` | Supabase read | remains |
-| **`friends_beat`** | my presence row and my inbox (friends, requests, invites), every 60 s | Supabase RPC | remains |
-| **The invite wake-up** | Realtime `postgres_changes` on `friend_invites` addressed to me | Supabase Realtime | remains |
+**The directory.** The Versus Worker is deployed per content revision, so its own directory only knows its own
+revision's games. Live Games spans every revision, so it lives on the one stable Worker, `ascent-hub`: a
+`LiveDirectory` Durable Object (`global`). Every Versus Worker reaches it through a service binding
+(`[[services]] binding = "LIVE_DIR" service = "ascent-hub" entrypoint = "LiveDirectoryWriter"` in `wrangler.toml`):
+Worker to Worker, no secret, no public write route. The same `LiveSlot` that wrote the Supabase row decides when a
+write is due (a listing change, the 2-minute keep-alive), so the directory sees a few small writes per game per round.
+Players read `GET /live/games?page=N`, `GET /live/count` and `GET /live/game/<id>` on the hub with their token (a guest's
+too), answered from the directory's memory. It ports the SQL: one live game per player, the rank order, the spectator
+count, Ranked Duos team name and medal, and friends-only rooms seen only by the host and the host's friends (asked of the
+reader's own friends hub, cached 2 minutes, only when such a row is listed). Ranks and team names are looked up by the
+hub through `live_dir_meta` once per id per 10 minutes; the writer's own values stand when that read fails.
 
-**Why the list is not on Cloudflare yet, and the follow-up.** The Versus Worker is deployed per content revision, so its
-directory object only knows its own revision's rooms and games; the list spans every revision. A Cloudflare list needs a
-version-independent directory: a `LiveDirectory` object on the `ascent-hub` Worker that every revision's live-game and
-room objects register into (a key-gated internal write, as `lobby_live_cf` is today), read by Live Games, the glow count
-and a friend's Watch. It must also take over what SQL does on the way in: the rank and rating sort (the listing would
-carry them, as the live listing already sends division and points), the Ranked Duos team name and medal, and the
-friends-only visibility of a private room (the hub would need the reader's friends). Then `lobby_live_cf` /
-`versus_cf_live` stop writing and the table can retire. Presence (`friends_beat`) and the invite wake-up move to the hub
-after that: the hub already carries live presence; it would also need to push invites and the inbox counts.
+**Friends.** Presence goes over the hub socket when it settles (no periodic call); the hub pushes it to connected friends
+and MIRRORS it into `player_presence` (`hub_presence_cf`: on a change, every 2.5 minutes while connected, Offline at
+the last close), which `friends__online` (the invite check) and older clients read. A friend request, accept, decline,
+cancel, removal, block, unblock or invite makes the sender's client `nudge` the other player's hub (hub protocol 3; the
+oldest client stays 1); their hub pushes `inbox` and their client reads `friends_list` once. No `friends_beat`, no
+Realtime subscription on `friend_invites`.
+
+| Path | Where now |
+|---|---|
+| Lobby / Practice publish + watch, Versus rooms, room list, open-room counts, Ranked Duos parties | Versus Worker |
+| Live Games list, glow count, a friend's Watch row | hub `LiveDirectory` (HTTP) |
+| Friends presence (live), DMs, request / invite notifications | hub socket (`FriendHub`) |
+| Presence row (`player_presence`) | Supabase storage, written by the hub's mirror |
+| Friendships, requests, blocks, invites, DMs, results, ratings, snapshots, Duos teams, spectator XP record | Supabase storage |
+
+**What is left on Supabase is storage.** The client reads it only on an event: `friends_list` at sign-in, on a hub
+(re)connect, on an `inbox` push and while a friends surface is open (60 s, as before); DM history when a conversation
+opens; seat recordings when a watch starts. The hub writes the presence mirror and reads friends (at most every 2
+minutes per connected account) and ranks (per id per 10 minutes).
+
+### Cutover order
+
+1. **Before the pack:** apply `supabase/migrations/2026-11-18-live-directory.sql` (`hub_presence_cf`, `live_dir_meta`,
+   `player_presence.source`, `friends_beat` stamping `beat`). It is additive: every older client keeps working.
+   It must be in before the pack: the new clients do not beat, so without the mirror their presence row goes stale and
+   `friends_invite` would refuse invites to them (`not_online`).
+2. **The pack** (`npm run release:web`): the hub deploys FIRST now (its code changed: the directory, the mirror,
+   protocol 3), then the Versus Worker for the commit (its `LIVE_DIR` binding names the hub's entrypoint, so the hub
+   must exist first), then the site. The hub's writer key is the one it already has (`ascent-hub`); nothing to run.
+   From this upload: new Workers write their rows to the hub AND Supabase; new clients read the list from the hub.
+3. **For about 24 hours both run side by side.** An old tab still reads the Supabase list (new Workers keep writing it)
+   and still beats (the hub's mirror and its beat write the same row). Known gaps in this window, all ending when the
+   old tabs reload: a game on a Worker deployed before this change (an old tab's Practice game, a match still finishing
+   on an old revision) is listed only in Supabase, so new clients do not see it; an old tab's friend request or invite
+   reaches a new client when the new client next reads its list (opening Friends, a hub reconnect), not instantly.
+4. **About 24 hours later:** run the two check queries at the top of
+   `supabase/migrations/2026-11-19-retire-supabase-live-list.sql` (beats in the last 15 minutes should be 0), then apply
+   it. The Worker listing writers answer `retired` (each Worker object stops calling them), `lobby_live_games` is
+   emptied and unreadable, `friends_beat` is refused (`beat_moved`), `friend_invites` leaves the Realtime publication,
+   and a `live:` spectate invite no longer looks for a Supabase row. No table is dropped.
+5. **Later (a follow-up PR):** delete the Supabase halves from the Worker (`SupabaseRowSink`, `TeeLiveSink`) and drop
+   `lobby_live_games` and its functions once no Worker from before the retirement is still running.
+
+**Desktop builds** have no hub (the hub refuses the `app://` origin, as the Versus Worker does): they get no live
+presence, no inbox pushes and no Live Games list, as they already had no Versus and no DMs.
 
 ## Dev and test
 

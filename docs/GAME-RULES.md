@@ -1474,6 +1474,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Never affects the player.** With no one watching the player's client sends its listing up the game's socket on a
   round or phase change (and every 15 s) and nothing else. While watched it publishes off the render path (idle time,
   coalesced). Spectating never touches the run, its timing, uploads, rating or placement.
+- **The list is on Cloudflare too** (R-LIVE-DIR-01, 2026-10-30): every version's games register in one directory on the
+  friends hub, which the list, the menu glow and a friend's Watch read. Friends-only Versus rooms show only to the host
+  and the host's friends, as before.
 - **Cloudflare is the only live host** (owner 2026-10-30: "Remove fallback for spectating. I want us to make cloudflare
   work as our source for live information and action like spectating"; R-LIVE-CF-ONLY-01). Every lobby and Practice
   game publishes to its own object on the Versus Worker, and every Watch (Live Games, a friend's Watch, a spectate
@@ -1558,7 +1561,9 @@ Ranked Duos party).
   (about 520) so a friend's whole game line shows (round and step, place, Health, Tier, who they fight); touch screens
   keep the compact one.
 - **Presence.** Online = on a menu (including a Versus room between matches); In a game = playing; Offline = nothing
-  heard for 5 minutes (or the game was closed). Only you and your friends can read your presence. It is never broadcast.
+  heard for 5 minutes (or the game was closed). Only you and your friends can read your presence. It travels over the
+  friends hub (R-FRIENDS-HUB-LIVE-01): a change reaches your connected friends at once, and the hub keeps the stored row
+  current itself (the invite check reads it).
 - **What a friend is doing** (owner 2026-10-29, R-FRIENDS-ACTIVITY-01). Online, the row names the screen: Main menu,
   Choosing a mode, Tutorial, Browsing Career / the Leaderboard / the Hall of Champions / Recent Games / Live Games,
   Collection, Compendium, Patch Notes, Settings, Friends, Hero Select (with its mode), Setting up Practice, Looking for a
@@ -1604,13 +1609,14 @@ Ranked Duos party).
   entries that make sense show. Invite to spectate is invite kind `spectate`, target `live:<game>` (a lobby / Practice
   game on Live Games), `versus:<room>` or `duos:<room>` (a Cloudflare room as `cf:<id>`, signed by the room like room
   invites); `friends_invite` checks the game is mine and running. Accept drops the friend straight into watching.
-- **Cost (egress).** One small presence call (it also answers requests and invites) every 60 s while the tab is
-  visible or hidden, on a status change once the screen has settled for 1.5 s (rapid hops send one call, a flip
-  straight back sends none; at most every 5 s), every 3 minutes with no friends. Only the coarse activity sends a call:
-  Health, Armor, tier and place ride along, and a lobby End Turn never sends one of its own. A typical session measured
-  92 calls an hour (80 before the activity; 62 with the setting off); the
-  friends list is read only while a friends surface is open, every 60 s, never while hidden; the only Realtime
-  subscription is invites addressed to you, only with at least one friend and a visible tab.
+- **Cost (egress; R-FRIENDS-HUB-LIVE-01, 2026-10-30).** Nothing periodic. A status change goes to the friends hub once
+  the screen has settled for 1.5 s (rapid hops send once, a flip straight back sends nothing; at most every 5 s); only
+  the coarse activity sends: Health, Armor, tier and place ride along, and a lobby End Turn never sends one of its own.
+  Requests and invites arrive live: the sender's game tells your hub, and your game reads your inbox once. The inbox is
+  also read when you sign in and when the hub reconnects; the friends list is read while a friends surface is open,
+  every 60 s, never while hidden. The hub writes the stored presence row (a change, else every 2.5 minutes while a game
+  is open, Offline at the close). A typical 35-minute session measured 1 Supabase call (46 before, the 60 s beat).
+  No Realtime subscription.
 
 ## Health & economy
 

@@ -23,16 +23,28 @@ SUPABASE_URL = "https://zcwhbejpqcdcfdpfxeza.supabase.co"
 # "1" accepts `dev.<userId>.<name>` bearer tokens (local only). Never set in prod.
 DEV_AUTH = "0"
 ALLOWED_ORIGINS = "https://ascent-game-web.netlify.app,http://localhost:*,http://127.0.0.1:*"
-# Messages are stored only when "1" (and HUB_WRITER_SECRET is set and the direct-messages migration applied).
+# Messages are stored only when "1" (and HUB_WRITER_SECRET is set and the direct-messages migration applied). The same
+# switch turns on the presence mirror (`hub_presence_cf`) and the Live Games rank lookup (`live_dir_meta`), both in
+# supabase/migrations/2026-11-18-live-directory.sql.
 PERSIST = "0"
 
 [[durable_objects.bindings]]
 name = "HUB"
 class_name = "FriendHub"
 
+[[durable_objects.bindings]]
+# LIVE GAMES (2026-10-30, R-LIVE-DIR-01): ONE object (`global`) listing every live game of every content revision. The
+# Versus Workers write it through the `LiveDirectoryWriter` entrypoint (a service binding), players read it over HTTP.
+name = "LIVE_DIR"
+class_name = "LiveDirectory"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["FriendHub"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["LiveDirectory"]
 
 [observability]
 enabled = true

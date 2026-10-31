@@ -24,6 +24,7 @@ import type { RankedService } from './core/rankedMatch';
 import { rankedServiceFor } from './rankedService';
 import { liveListingOf } from './core/liveListing';
 import { LIVE_STORAGE_KEY, liveSinkFor, LiveSlot } from './live';
+import type { LiveDirWriterEnv } from './liveDirSink';
 import { signInviteProof } from './invites';
 import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
 import { spectateSinkFor, WatchReporter, type SpectateSink } from './spectate';
@@ -43,7 +44,7 @@ import {
   type VersusCfRequest,
 } from './protocol';
 
-export interface RoomEnv extends PersistEnv {
+export interface RoomEnv extends PersistEnv, LiveDirWriterEnv {
   DIRECTORY: DurableObjectNamespace<VersusDirectory>;
   DEV_AUTH?: string;
 }

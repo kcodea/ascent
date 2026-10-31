@@ -11,9 +11,18 @@
  *     and blocks), then pushed to my friend's hub (`deliver`), which pushes it to every game they have open. A friend
  *     with no game open reads it from Supabase the next time they open the conversation (offline delivery).
  *
+ *   - INBOX NUDGES (protocol 3, R-FRIENDS-HUB-LIVE-01): `nudge` says I changed something about a player (a friend
+ *     request, an invite); their hub pushes `inbox` to their open games, which re-read their inbox from Supabase once.
+ *     This replaced the 60 s `friends_beat` poll and the Realtime invite subscription. A `friends` nudge also makes both
+ *     hubs re-read their friends, so a new friend appears online at once and a removed one drops away.
+ *   - THE PRESENCE MIRROR: the hub writes my presence into `player_presence` (`hub_presence_cf`) on a change, every
+ *     `HUB_PRESENCE_REFRESH_MS` while I am connected, and offline at my last close. The hub is the live source; the row
+ *     is what the server-side invite check (`friends__online`) and an older client's friends list read.
+ *
  * COST: nothing ticks while nobody is connected. While a game is open: keep-alive pings are answered by the runtime
  * without waking the object; one sweep alarm a minute closes dead sockets (a half-open phone connection never sends a
- * close). Supabase sees one write per message sent and one friends read per hello (at most every 2 minutes).
+ * close). Supabase sees one write per message sent, one friends read per hello (at most every 2 minutes), and the
+ * presence mirror (a change, else one write every 2.5 minutes while connected).
  *
  * HIBERNATION: the account id, my presence and the connected friends are in storage; every socket carries its
  * attachment. The rate limit lives in memory (a wake resets it, which only ever errs generous; Postgres keeps a
@@ -21,10 +30,11 @@
  */
 import { DurableObject } from 'cloudflare:workers';
 import { checkSend, DmError, DmRateLimiter, MemoryDmBackend, type DmBackend } from './core/hubCore';
+import { PresenceMirror } from './core/presenceMirror';
 import { dmBackendFor } from './dmStore';
 import {
-  cleanPresence, HUB_FRIENDS_TTL_MS, HUB_MAX_SOCKETS, HUB_PROTOCOL, HUB_PROTOCOL_MIN, HUB_STALE_MS, HUB_SWEEP_MS, isUuid,
-  type DmRow, type HubHelloAnswer, type HubPeer, type HubPresence, type HubPush,
+  cleanPresence, HUB_FRIENDS_TTL_MS, HUB_MAX_SOCKETS, HUB_NUDGE_RATE, HUB_PROTOCOL, HUB_PROTOCOL_MIN, HUB_STALE_MS, HUB_SWEEP_MS,
+  isNudgeKind, isUuid, type DmRow, type HubHelloAnswer, type HubNudgeKind, type HubPeer, type HubPresence, type HubPush,
 } from './hubProtocol';
 import type { HubStoreEnv } from './dmStore';
 import { VERSUS_CF_CLOSE, VERSUS_CF_PING, VERSUS_CF_PONG, VERSUS_CF_SUBPROTOCOL, parseClientMessage } from './protocol';
@@ -58,6 +68,8 @@ export class FriendHub extends DurableObject<HubEnv> {
   private loaded = false;
   private readonly backend: DmBackend;
   private readonly limiter = new DmRateLimiter();
+  private readonly nudgeLimiter = new DmRateLimiter(HUB_NUDGE_RATE.count, HUB_NUDGE_RATE.windowMs);
+  private readonly mirror = new PresenceMirror();
   private readonly buckets = new WeakMap<CfWebSocket, Bucket>();
 
   constructor(ctx: DurableObjectState, env: HubEnv) {
@@ -70,7 +82,8 @@ export class FriendHub extends DurableObject<HubEnv> {
 
   private async load(): Promise<void> {
     if (this.loaded) return;
-    const got = await this.ctx.storage.get<unknown>(['me', 'presence', 'peers']);
+    const got = await this.ctx.storage.get<unknown>(['me', 'presence', 'peers', 'mirror']);
+    this.mirror.restore(got.get('mirror') as { sentKey: string; at: number } | undefined);
     this.me = (got.get('me') as string | undefined) ?? this.me;
     this.presence = (got.get('presence') as HubPresence | undefined) ?? null;
     const peers = (got.get('peers') as HubPeer[] | undefined) ?? [];
@@ -150,8 +163,13 @@ export class FriendHub extends DurableObject<HubEnv> {
     const args = (msg.args ?? {}) as Record<string, unknown>;
     try {
       switch (msg.op as string) {
-        case 'hello': answer(true, await this.hello(ws, a, args)); return;
-        case 'presence': await this.setPresence(cleanPresence(args.presence)); answer(true, null); return;
+        case 'hello': answer(true, await this.hello(ws, a, args)); await this.flushMirror(); return;
+        case 'presence': await this.setPresence(cleanPresence(args.presence)); answer(true, null); await this.flushMirror(); return;
+        case 'nudge': {
+          if (!a.hello) { answer(false, 'not_ready'); return; }
+          answer(true, await this.nudge(args, now));
+          return;
+        }
         case 'send': {
           if (!a.hello) { answer(false, 'not_ready'); return; }
           answer(true, await this.sendDm(ws, args, now));
@@ -182,6 +200,7 @@ export class FriendHub extends DurableObject<HubEnv> {
     ws.serializeAttachment({ ...a, hello: true } satisfies Attachment);
     const presence = cleanPresence(args.presence) ?? this.presence ?? { status: 'online' };
     this.presence = presence;
+    this.mirror.want(presence);
     await this.ctx.storage.put('presence', presence);
     // The first open game: tell every friend I am here, and hear back from the ones who are too.
     if (!wasOnline) await this.fanOut(await this.friendIds(true), presence, true);
@@ -190,8 +209,9 @@ export class FriendHub extends DurableObject<HubEnv> {
     return { protocol: HUB_PROTOCOL, me: this.me!, peers: [...this.peers.values()], now: new Date().toISOString() };
   }
 
-  /** Tell `targets` my presence (null: offline). `learn`: keep who answered as connected (my going-online round). */
-  private async fanOut(targets: string[], presence: HubPresence | null, learn: boolean): Promise<void> {
+  /** Tell `targets` my presence (null: offline). `learn`: keep who answered as connected (my going-online round).
+   *  `show`: also push each friend learned this way to my open games (a friend made while I was already online). */
+  private async fanOut(targets: string[], presence: HubPresence | null, learn: boolean, show = false): Promise<void> {
     if (!targets.length || !this.me) return;
     const at = Date.now();
     const me = this.me;
@@ -206,16 +226,57 @@ export class FriendHub extends DurableObject<HubEnv> {
     if (!learn || !settled) return;
     for (const s of settled) {
       if (s.status !== 'fulfilled') continue;
-      if (s.value.theirs) this.peers.set(s.value.id, { userId: s.value.id, presence: s.value.theirs, at });
-      else this.peers.delete(s.value.id);
+      if (s.value.theirs) {
+        const peer: HubPeer = { userId: s.value.id, presence: s.value.theirs, at };
+        this.peers.set(s.value.id, peer);
+        if (show) this.pushAll(JSON.stringify({ t: 'peer', peer } satisfies HubPush));
+      } else this.peers.delete(s.value.id);
     }
     await this.savePeers();
+  }
+
+  private pushAll(text: string, except?: CfWebSocket): void {
+    for (const ws of this.openSockets(except)) this.send(ws, text);
+  }
+
+  /**
+   * My friends may have changed (a `friends` nudge, sent or received): read them again. A friend who is gone drops off my
+   * games' lists (pushed offline); a new one hears I am here and, when they are connected too, shows up at once.
+   */
+  private async refreshFriends(): Promise<void> {
+    if (!this.me) return;
+    const before = new Set(this.friends?.ids ?? []);
+    const ids = await this.friendIds(true);
+    const now = new Set(ids);
+    let changed = false;
+    for (const id of [...this.peers.keys()]) {
+      if (now.has(id)) continue;
+      this.peers.delete(id);
+      changed = true;
+      this.pushAll(JSON.stringify({ t: 'peer', peer: { userId: id, presence: null, at: Date.now() } } satisfies HubPush));
+    }
+    if (changed) await this.savePeers();
+    if (!this.openSockets().length) return;
+    const fresh = ids.filter((id) => !before.has(id) && !this.peers.has(id));
+    if (fresh.length) await this.fanOut(fresh, this.presence ?? { status: 'online' }, true, true);
+  }
+
+  /** `nudge` (protocol 3): tell a player's hub their inbox changed because of me. */
+  private async nudge(args: Record<string, unknown>, now: number): Promise<boolean> {
+    const me = this.me!;
+    const to = typeof args.to === 'string' ? args.to.toLowerCase() : '';
+    if (!isUuid(to) || to === me || !isNudgeKind(args.kind)) throw new DmError('bad_target');
+    if (!this.nudgeLimiter.take(now)) throw new DmError('rate_limited');
+    const kind = args.kind;
+    if (kind === 'friends') await this.refreshFriends().catch(() => undefined);
+    try { return await this.hub(to).nudged(me, kind); } catch { return false; }
   }
 
   private async setPresence(p: HubPresence | null): Promise<void> {
     if (!p || !this.openSockets().length) return;
     const same = JSON.stringify(p) === JSON.stringify(this.presence);
     this.presence = p;
+    this.mirror.want(p);
     await this.ctx.storage.put('presence', p);
     if (same) return;
     // Connected friends hear it; a friend added since the last read hears it too (and may answer that they are here).
@@ -256,6 +317,27 @@ export class FriendHub extends DurableObject<HubEnv> {
     return this.presence ?? { status: 'online' };
   }
 
+  /** Someone changed something in my inbox (protocol 3): my open games re-read it. True when one is open. */
+  async nudged(from: string, kind: HubNudgeKind): Promise<boolean> {
+    await this.load();
+    if (!isUuid(from) || !isNudgeKind(kind)) return false;
+    const open = this.openSockets();
+    if (!open.length) return false;
+    if (kind === 'friends') await this.refreshFriends().catch(() => undefined);
+    const push = JSON.stringify({ t: 'inbox', kind } satisfies HubPush);
+    for (const ws of open) this.send(ws, push);
+    return true;
+  }
+
+  /** My friends (the live directory asks, to show me a friend's friends-only room). Cached `HUB_FRIENDS_TTL_MS`. */
+  async friendsFor(userId: string): Promise<string[]> {
+    await this.load();
+    const id = userId.toLowerCase();
+    if (!isUuid(id)) return [];
+    if (this.me !== id) { this.me = id; this.friends = null; await this.ctx.storage.put('me', id); }
+    return this.friendIds();
+  }
+
   /** A message to me, already stored: pushed to my open games. */
   async deliver(row: DmRow): Promise<boolean> {
     await this.load();
@@ -283,7 +365,19 @@ export class FriendHub extends DurableObject<HubEnv> {
     const peers = [...this.peers.keys()];
     this.peers.clear();
     await this.savePeers();
+    this.mirror.want(null);
     await this.fanOut(peers, null, false);
+    await this.flushMirror(gone);
+  }
+
+  /** Write my presence into Supabase when the mirror says one is owed (never throws: a failure retries on the alarm). */
+  private async flushMirror(gone?: CfWebSocket): Promise<void> {
+    const me = this.me;
+    if (!me || !this.backend.mirrorPresence) return;
+    if (await this.mirror.flush(Date.now(), (p) => this.backend.mirrorPresence!(me, p), this.openSockets(gone).length > 0)) {
+      await this.ctx.storage.put('mirror', this.mirror.snapshot());
+    }
+    await this.arm(gone);
   }
 
   /** The sweep: dead sockets are closed (and, when none is left, I go offline). */
@@ -300,13 +394,31 @@ export class FriendHub extends DurableObject<HubEnv> {
       }
     }
     if (closed) await this.maybeOffline();
+    else {
+      // A woken hub wants again what is true now: my stored presence while a game is open, else Offline once.
+      if (this.mirror.idle) {
+        if (this.openSockets().length) this.mirror.want(this.presence ?? { status: 'online' });
+        else if (!this.mirror.sentOffline) this.mirror.want(null);
+      }
+      await this.flushMirror();
+    }
     await this.arm();
   }
 
-  private async arm(): Promise<void> {
-    if (!this.ctx.getWebSockets().some((ws) => ws.readyState === 1)) return;
+  /** One alarm: the dead-socket sweep while a socket is open, and a presence mirror write that is owed. */
+  private async arm(gone?: CfWebSocket): Promise<void> {
+    const now = Date.now();
+    const sockets = this.ctx.getWebSockets().some((ws) => ws !== gone && ws.readyState === 1);
+    const mirrorAt = this.backend.mirrorPresence ? this.mirror.nextAt(now, sockets) : null;
+    if (!sockets && mirrorAt == null) return;
+    const want = Math.min(sockets ? now + HUB_SWEEP_MS : Infinity, mirrorAt ?? Infinity);
     const cur = await this.ctx.storage.getAlarm();
-    if (cur == null || cur < Date.now()) await this.ctx.storage.setAlarm(Date.now() + HUB_SWEEP_MS);
+    if (cur == null || cur < now || cur > want + 500) await this.ctx.storage.setAlarm(Math.max(now + 250, want));
+  }
+
+  /** Tests and the DEV route: what the presence mirror has written. */
+  mirrorSnapshot(): { sentKey: string; at: number } {
+    return this.mirror.snapshot();
   }
 
   private send(ws: CfWebSocket, text: string): void {

@@ -53,6 +53,9 @@ export interface CfLiveSocket {
 export interface CfSocketOptions {
   baseUrl: string;
   gameId: string;
+  /** The socket's path: the Versus Worker's `/live/<game>/ws`, or a session game's `/session/<game>/ws` on the hub
+   *  (R-SESSION-CF-01). Absent = the Versus Worker's. */
+  path?: string;
   hello: Record<string, unknown>;
   onHello: (a: LiveHelloAnswer) => void;
   onPush: (m: LivePush) => void;
@@ -72,7 +75,7 @@ async function token(): Promise<string> {
 
 const browserSocket = (opts: CfSocketOptions): CfLiveSocket => {
   const c = new VersusCfClient({
-    baseUrl: opts.baseUrl, roomId: opts.gameId, path: liveCfSocketPath(opts.gameId), token,
+    baseUrl: opts.baseUrl, roomId: opts.gameId, path: opts.path ?? liveCfSocketPath(opts.gameId), token,
     versusProtocol: VERSUS_PROTOCOL, contentRevision: contentRevision(),
     ws: (url, protocols) => new WebSocket(url, protocols) as unknown as WebSocketLike,
     hello: () => opts.hello,
@@ -130,9 +133,9 @@ export interface CfPublisherHandlers {
   onDead?: (reason: string) => void;
 }
 
-export async function openCfPublisher(baseUrl: string, gameId: string, h: CfPublisherHandlers): Promise<CfPublisher> {
+export async function openCfPublisher(baseUrl: string, gameId: string, h: CfPublisherHandlers, path?: string): Promise<CfPublisher> {
   const sock = makeSocket({
-    baseUrl, gameId,
+    baseUrl, gameId, ...(path ? { path } : {}),
     hello: { protocol: LIVE_CF_PROTOCOL, role: 'publish', contentRevision: contentRevision() },
     // After every (re)connect the stands as they are now.
     onHello: (a) => h.onWatchers(a.watchers ?? []),
@@ -168,10 +171,10 @@ export interface CfWatcherHandlers {
 }
 
 /** Join a game's stands. Resolves with the hello (the row, the keyframe, the stands); rejects with the refusal's code. */
-export async function openCfWatcher(baseUrl: string, gameId: string, me: { name: string; profile: Record<string, unknown> }, h: CfWatcherHandlers): Promise<{ watcher: CfWatcher; hello: LiveHelloAnswer }> {
+export async function openCfWatcher(baseUrl: string, gameId: string, me: { name: string; profile: Record<string, unknown> }, h: CfWatcherHandlers, path?: string): Promise<{ watcher: CfWatcher; hello: LiveHelloAnswer }> {
   let first: LiveHelloAnswer | null = null;
   const sock = makeSocket({
-    baseUrl, gameId,
+    baseUrl, gameId, ...(path ? { path } : {}),
     hello: { protocol: LIVE_CF_PROTOCOL, role: 'watch', name: me.name, profile: me.profile },
     onHello: (a) => {
       if (!first) { first = a; return; }

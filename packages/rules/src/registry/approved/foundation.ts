@@ -12407,4 +12407,60 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Kev turns Duos on in the Scene Builder, puts Hitchhiker on his board and types Handout in the Teammate box: his placeholder teammate passes it, it streams out of their portrait into his hand, and Hitchhiker grows. He drags it back onto their portrait, clicks it, and sees it in their hand.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/sbDuosChannel.test.ts', 'packages/ui/src/sbDuos.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
+  {
+    id: 'R-SESSION-CF-01',
+    title: 'A lobby or Practice game started with the session on is held by a Durable Object on the friends hub: its live host and its session; Supabase is written once, when due',
+    statement:
+      'When the hub\x27s switch is on (`SESSION_MODE`, read once per page at `/session/config`), a ranked, casual or Practice lobby game '
+      + 'is a SESSION game for its whole life (decided the first time it is asked, kept per game id across reloads; a game never moves '
+      + 'between paths). Its one Durable Object (`GameSession`, on the stable `ascent-hub` Worker, never per content revision) is: '
+      + '(1) THE LIVE HOST: the live game protocol on `/session/<game>/ws` (spectating, the keyframe for a late joiner, the lobby chat, '
+      + 'pings and mentor, the watch record for the spectators\x27 XP), listed ONCE in the hub\x27s Live Games directory with '
+      + '`live_host = session`; any build may publish (watchers render projections) and a watcher of any build reaches it on the hub; '
+      + 'the table\x27s seat recordings are read from the session, not Supabase. (2) THE SESSION: the per-round cloud save is held there '
+      + '(never written to Supabase during play) and written to `saved_runs` only when the player parks the game (Save & Quit), has '
+      + 'had no live socket for 60 s, or has sent no save for 10 minutes; the opponents\x27 fight-ledger keys are pinned at the start; '
+      + 'the run-end writes (boards, fight ledger, Career row, telemetry) are kept once per key and flushed in ONE key-gated call '
+      + '(`session_cf_flush`) once the game has ended and the writes have been quiet 8 s (45 s with no end seen); the rank request is '
+      + 'checked exactly as `submit-rating` checks it plus: the run must be this game, and the PINNED table is settled (never keys sent '
+      + 'at the end), and it settles inside a flush with every write held so far, writes first; a retried rate request gets the same '
+      + 'answer. The flush writes only as the player (`user_id` is the session\x27s verified owner, only columns the client may insert, '
+      + 'each write once by key and by the table\x27s own idempotency key). NO DATA LOSS: any session call that cannot be answered '
+      + '(unreachable, refused) is made the old way by the client at once (Supabase direct, the durable outbox, the rank queue). '
+      + 'Progression, the replay upload to Storage and the Practice game row stay on the client.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-31', quote: 'Is it possible to just have ranked solos run on cloudflare too so that we aren\x27t read writing in real time? Can we offload that to cloudflare' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-31', quote: 'This then changes spectating for those games I assume so make sure that fix is in scope too' },
+      { kind: 'code', ref: 'workers/versus/src/session.ts, workers/versus/src/core/sessionCore.ts, workers/versus/src/liveHost.ts, packages/ui/src/session/*, supabase/migrations/2026-11-20-game-session-cf.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-31 (feat/ranked-solo-cf), OFF until the hub is deployed with `--session on`. Before: the per-round save was a `put_saved_run` per shop phase for signed-in players (130-225 KB each), the run-end writes were four client inserts plus the `submit-rating` Edge Function, and the live socket was on the Versus Worker of the game\x27s revision.',
+    example: 'Ann, signed in, plays a ranked game. Her saves go to her game\x27s session each round and nothing reaches Supabase. She places 3rd: her boards, fights and Career row are written with her rating settle in one call, her telemetry in a second, eight seconds later. Bob watches her from Live Games; his screen joins her session on the hub.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/sessionCore.test.ts', 'workers/versus/test/sessionCf.db.test.ts', 'workers/versus/test/it/session.it.ts', 'packages/ui/src/session/session.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
+  {
+    id: 'R-POOL-MIRROR-01',
+    title: 'With the session on, the opponent pool is served from the hub\x27s mirror, exactly as Supabase would serve it',
+    statement:
+      'The hub keeps ONE copy of the eligible opponent pool (`PoolMirror`): each run\x27s index row (what the draw filters on, numerics as '
+      + 'their exact text, its content rev) and its boards as the database\x27s own jsonb text, fetched through `pool_runs_boards` '
+      + 'itself. A cron syncs it every 5 minutes: one version hash when nothing changed, else the index and the boards of only the runs '
+      + 'whose rev moved; a run that left the pool is dropped; a failed sync leaves the last whole copy. The client\x27s pool fetch '
+      + '(`pool_runs_sample_keys`, `pool_runs_boards`) asks the hub first: the keys answer is `pool_runs__pick` ported line for line '
+      + '(exact decimal comparisons, the same md5 hash for a seeded draw, uniform otherwise) over the runs whose boards are held, each '
+      + 'row carrying the rev of the boards held, and the boards answer is byte-identical to Supabase\x27s. A cold mirror or an '
+      + 'unreachable hub answers nothing and the client reads Supabase, as before. Seat selection, `boardAt` and the per-run cache '
+      + 'are unchanged (R-LOBBY-08, R-EGRESS-05): a seat serves exactly its recorded round.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-31', quote: 'Is it possible to just have ranked solos run on cloudflare too so that we aren\x27t read writing in real time? Can we offload that to cloudflare' },
+      { kind: 'owner-chat', ref: 'Kevin, 2026-10-17 (the serving bar)', quote: 'we need the game serving integrity to be literally perfect' },
+      { kind: 'code', ref: 'workers/versus/src/core/poolPick.ts, workers/versus/src/core/poolMirrorCore.ts, workers/versus/src/poolMirror.ts, packages/ui/src/remoteBoards.ts (poolApi)' },
+    ],
+    currentBehaviour: 'Built 2026-10-31 (feat/ranked-solo-cf), used only while the session switch is on. A run newly in the pool reaches the mirror within 5 minutes.',
+    example: 'Ann opens the game. Her pool sample comes from the hub: the same draw rules, and every board exactly as the database holds it. Her cache already has most runs, so only two new runs\x27 boards cross the wire, and none of it touches Supabase.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/sessionCf.db.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
 ];

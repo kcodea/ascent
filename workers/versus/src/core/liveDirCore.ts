@@ -65,7 +65,8 @@ export function cleanPut(raw: unknown): LiveDirPut {
   const mode = r.mode == null ? null : (r.mode as LiveDirMode);
   if (mode != null && !MODES.has(mode)) throw new LiveDirError('bad_mode');
   const host = r.live_host == null ? null : String(r.live_host);
-  if (host != null && !/^cf:[0-9A-Za-z._-]{1,64}$/.test(host)) throw new LiveDirError('bad_row');
+  // `cf:<revision>`: a game on that revision's Versus Worker; `session`: a game hosted by its session on this hub (R-SESSION-CF-01).
+  if (host != null && host !== 'session' && !/^cf:[0-9A-Za-z._-]{1,64}$/.test(host)) throw new LiveDirError('bad_row');
   return {
     game_id: game, user_id: user,
     display_name: text(r.display_name, 40) || (mode === 'ranked_duos' ? 'Duo' : 'Player'),

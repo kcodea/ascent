@@ -12,6 +12,13 @@
  *   GET /live/count          the menu glow's count
  *   GET /live/game/<id>      one game's row (a friend's Watch), or null
  *   GET /live/metrics        DEV only: the directory's counters (the tests)
+ *   GET /session/config      THE GAME SESSION (R-SESSION-CF-01): `{ enabled, protocol }`, the cutover switch (no auth)
+ *   GET /session/<game>/ws   a session-hosted game's live socket (the live game protocol; `live_host = 'session'`)
+ *   * /session/<game>/<op>  the game's session: save, park, table, write, rate, clear, seats, state (`session.ts`)
+ *   POST /pool/keys          THE POOL MIRROR (R-POOL-MIRROR-01): the `pool_runs_sample_keys` draw, from the mirror
+ *   POST /pool/boards        `pool_runs_boards`, from the mirror (503 while the mirror is cold: the client asks Supabase)
+ *
+ * The cron (`scheduled`, every 5 minutes) keeps the pool mirror in step with Supabase.
  *
  * The directory's WRITES are not routes: the Versus Workers call the `LiveDirectoryWriter` entrypoint below through a
  * service binding (`LIVE_DIR` in `wrangler.toml`), which the public internet cannot reach.
@@ -27,15 +34,32 @@ import { LiveDirectory, type LiveDirEnv } from './liveDirectory';
 import { LIVE_DIR_ROUTES } from './liveDirProtocol';
 import { originAllowed } from './origins';
 import { VERSUS_CF_BEARER_PREFIX } from './protocol';
+import { GameSession, SESSION_OP_HEADER, type SessionEnv } from './session';
+import { PoolMirror } from './poolMirror';
+import { SESSION_GAME_ID, SESSION_PROTOCOL, SESSION_ROUTES } from './sessionProtocol';
+import { LIVE_GAME_HEADER, LIVE_USER_HEADER } from './liveHost';
+import { GUEST_HEADER } from './lobbyChat';
 
-export { FriendHub, LiveDirectory };
+export { FriendHub, LiveDirectory, GameSession, PoolMirror };
 
-export interface HubWorkerEnv extends HubEnv, LiveDirEnv, AuthEnv {
+export interface HubWorkerEnv extends HubEnv, LiveDirEnv, AuthEnv, SessionEnv {
   HUB: DurableObjectNamespace<FriendHub>;
+  /** One object per lobby / Practice game (R-SESSION-CF-01). */
+  SESSION: DurableObjectNamespace<GameSession>;
+  /** The pool mirror (`global`, R-POOL-MIRROR-01). */
+  POOL: DurableObjectNamespace<PoolMirror>;
+  /** THE SESSION SWITCH: "on" = new games use the session (clients read it at `/session/config`). Anything else = off. */
+  SESSION_MODE?: string;
   ALLOWED_ORIGINS?: string;
   /** The hub's source hash, set by `scripts/deploy-hub.ts` (a redeploy is skipped when it is unchanged). */
   HUB_CODE?: string;
 }
+
+const SESSION_PATH = /^\/session\/([^/]{1,240})\/(ws|save|park|table|write|rate|clear|seats|state|metrics)$/;
+/** The session is on only when switched on AND its writes can land (persistence on; a local dev hub records them). A hub
+ *  deployed without `--persist` never takes a game: its flushes would go nowhere. */
+const sessionLive = (env: HubWorkerEnv): boolean => env.SESSION_MODE === 'on' && (env.PERSIST === '1' || env.DEV_AUTH === '1');
+const poolOf = (env: HubWorkerEnv): PoolMirror => env.POOL.get(env.POOL.idFromName('global')) as unknown as PoolMirror;
 
 /** The one directory object. */
 const directoryOf = (env: LiveDirEnv): LiveDirectory => env.LIVE_DIR.get(env.LIVE_DIR.idFromName('global')) as unknown as LiveDirectory;
@@ -63,11 +87,65 @@ export default {
     const json = (status: number, body: unknown, extra: Record<string, string> = {}): Response =>
       new Response(JSON.stringify(body), { status, headers: { ...headers, ...extra, 'Content-Type': 'application/json' } });
     if (req.method === 'OPTIONS') {
-      return new Response(null, { headers: { ...headers, 'Access-Control-Allow-Methods': 'GET, OPTIONS', 'Access-Control-Allow-Headers': 'authorization' } });
+      return new Response(null, { headers: { ...headers, 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, content-type' } });
     }
     if (url.pathname === HUB_HEALTH_PATH) return json(200, { hub: HUB_PROTOCOL, min: HUB_PROTOCOL_MIN, code: env.HUB_CODE ?? 'dev' });
 
     // ── LIVE GAMES (the directory) ──
+    // ── THE GAME SESSION + THE POOL MIRROR (R-SESSION-CF-01, R-POOL-MIRROR-01) ──
+    if (url.pathname === SESSION_ROUTES.config) {
+      return json(200, { enabled: sessionLive(env), protocol: SESSION_PROTOCOL }, { 'Cache-Control': 'no-store' });
+    }
+    if (url.pathname === '/pool/status') {
+      // The mirror at a glance (no auth, no pool data): the cutover runbook's check that it synced.
+      return json(200, await poolOf(env).status(), { 'Cache-Control': 'no-store' });
+    }
+    if (url.pathname === SESSION_ROUTES.poolMetrics) {
+      return env.DEV_AUTH === '1' ? json(200, await poolOf(env).metricsSnapshot()) : json(404, { error: 'not_found' });
+    }
+    if (url.pathname === '/pool/dev-load' && req.method === 'POST') {
+      if (env.DEV_AUTH !== '1') return json(404, { error: 'not_found' });
+      const b = (await req.json().catch(() => null)) as { runs?: unknown; boards?: unknown } | null;
+      if (!b || !Array.isArray(b.runs) || !Array.isArray(b.boards)) return json(400, { error: 'bad_body' });
+      return json(200, await poolOf(env).devLoad(b.runs as never, b.boards as never));
+    }
+        if (url.pathname === SESSION_ROUTES.poolKeys || url.pathname === SESSION_ROUTES.poolBoards) {
+      if (req.method !== 'POST') return json(405, { error: 'bad_method' });
+      const caller = await verifyCaller(bearerOf(req, VERSUS_CF_BEARER_PREFIX), env);
+      if (!caller) return json(401, { error: 'not_signed_in' });
+      let body: Record<string, unknown>;
+      try { body = (await req.json()) as Record<string, unknown>; } catch { return json(400, { error: 'bad_body' }); }
+      const pool = poolOf(env);
+      const out = url.pathname === SESSION_ROUTES.poolKeys ? await pool.keys(body) : await pool.boards(body.ids);
+      if (out === 'bad') return json(400, { error: 'bad_ids' });
+      if (out == null) return json(503, { error: 'mirror_cold' });
+      return new Response(out, { status: 200, headers: { ...headers, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+    }
+    const sm = SESSION_PATH.exec(url.pathname);
+    if (sm) {
+      let gameId = '';
+      try { gameId = decodeURIComponent(sm[1]!); } catch { /* bad escape */ }
+      if (!SESSION_GAME_ID.test(gameId)) return json(400, { error: 'bad_game' });
+      const op = sm[2]!;
+      const stub = env.SESSION.get(env.SESSION.idFromName(`session:${gameId}`));
+      if (op === 'metrics' && env.DEV_AUTH !== '1') return json(404, { error: 'not_found' });
+      const caller = op === 'metrics' ? null : await verifyCaller(bearerOf(req, VERSUS_CF_BEARER_PREFIX), env);
+      if (!caller && op !== 'metrics') return op === 'ws' ? new Response('unauthorized', { status: 401 }) : json(401, { error: 'not_signed_in' });
+      const fwd = new Headers(req.headers);
+      fwd.set(LIVE_GAME_HEADER, gameId);
+      fwd.delete(LIVE_USER_HEADER);
+      if (caller) fwd.set(LIVE_USER_HEADER, caller.userId);
+      fwd.set(GUEST_HEADER, caller?.anonymous ? '1' : '0'); // always set: a client's own header never survives
+      if (op !== 'ws') fwd.set(SESSION_OP_HEADER, op); else fwd.delete(SESSION_OP_HEADER);
+      const res = await stub.fetch(new Request(req, { headers: fwd }));
+      if (op === 'ws') return res;
+      // CORS on the object's answer (it is made inside the object, which never sees the Origin rules).
+      const out = new Response(res.body, res);
+      for (const [k, v] of Object.entries(headers)) out.headers.set(k, v);
+      out.headers.set('Cache-Control', 'no-store');
+      return out;
+    }
+
     if (url.pathname === '/live/metrics') {
       return env.DEV_AUTH === '1' ? json(200, await directoryOf(env).metricsSnapshot()) : json(404, { error: 'not_found' });
     }
@@ -99,5 +177,10 @@ export default {
     const fwd = new Headers(req.headers);
     fwd.set(HUB_USER_HEADER, caller.userId);
     return env.HUB.get(env.HUB.idFromName(hubName(caller.userId))).fetch(new Request(req, { headers: fwd }));
+  },
+
+  /** The cron (`hub.wrangler.toml` [triggers]): keep the pool mirror in step with Supabase. */
+  async scheduled(_event: unknown, env: HubWorkerEnv, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(poolOf(env).sync().then((r) => { if (!r.ok && r.error !== 'no_source') console.warn(JSON.stringify({ ev: 'pool_mirror_cron', ...r })); }));
   },
 };

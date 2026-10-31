@@ -5,7 +5,7 @@
  *    machinery: no course clock, no local elimination (the server match owns Health, Armor and knockouts), no rank, no
  *    uploads (the UI gates key on mode), and `poolOf` drops every attack-first card (R-VERSUS-POOL-01).
  *  - `versusHeroOffer`: the seat's hidden three, from its PRIVATE hero seed (server-pinned, owner-only), so the
- *    opponent cannot see or predict it (ruling 3; duplicates across seats allowed).
+ *    opponent cannot see or predict it (ruling 3). Since 2026-10-31 no two seats share a hero (`heroOffers.ts`).
  *  - `versusAutoResolve`: the timeout policy (ruling 7). Every open decision gets a deterministic RANDOM LEGAL
  *    answer from the match/round/seat seed; nothing is cancelled unless no legal answer exists.
  *  - `buildVersusCandidate`: the lock candidate. Runs on a CLONE (never the live run, so End of Turn can never
@@ -20,6 +20,7 @@ import { modalOpen } from '../recruit';
 import { createRun, mixSeed, runTribesForSeed, type Action, type PreparedCombatSide, type RunState } from '../state';
 import { riftBonusArmor } from '../config';
 import { VERSUS_HERO_OFFER_SIZE } from './constants';
+import { versusHeroShuffle } from './heroOffers';
 import type { VersusGroupSeat } from './group';
 import { normalizeVersusOptions, versusOptionsRift, type VersusRoomOptions } from './options';
 import { versusDuosStartingVitals } from './vitals';
@@ -67,15 +68,11 @@ export function createVersusRun(
   return run;
 }
 
-/** The seat's three heroes: a seeded shuffle of the heroes this run's tribes allow. */
+/** The seat's three heroes: a seeded shuffle of the heroes this run's tribes allow. Since 2026-10-31 the ROOM deals
+ *  the offers (`versusDisjointHeroOffers`, unique heroes per lobby) and the client reads them from its private row;
+ *  this is the one-seat deal, kept for a row with no offer yet. */
 export function versusHeroOffer(heroSeed: number, runSeed: number, setId: SetId): string[] {
-  const ids = playableHeroes(runTribesForSeed(runSeed, setId)).map((h) => h.id);
-  const rng = makeRng(mixSeed(heroSeed, 0x4e50));
-  for (let i = ids.length - 1; i > 0; i--) {
-    const j = Math.floor(rng.next() * (i + 1));
-    [ids[i], ids[j]] = [ids[j]!, ids[i]!];
-  }
-  return ids.slice(0, VERSUS_HERO_OFFER_SIZE);
+  return versusHeroShuffle(heroSeed, runSeed, setId).slice(0, VERSUS_HERO_OFFER_SIZE);
 }
 
 /** THE HERO RE-ROLL in Versus (owner 2026-10-15, R-HERO-REROLL-01): the heroes the seat's one re-roll may draw, i.e.

@@ -13,6 +13,7 @@
 import { useEffect, useState } from 'react';
 import { getHero, rankLabel } from '@game/sim';
 import { Icon } from '../Icon';
+import { MenuMedal } from '../menuIcons';
 import { LbHeroFrame } from '../LadderBits';
 import { MenuSidebar, SidebarHost } from '../MenuSidebar';
 import { refuseInGame } from '../gameMenuParts';
@@ -77,7 +78,7 @@ export function LiveGames(): JSX.Element | null {
       <MenuSidebar current="live" />
       <div className="lbtopbar">
         <div className="lbtitle">
-          <Icon name="sword" />
+          <MenuMedal name="live" />
           <div>
             <div className="esch disp">Live Games</div>
             <div className="lbsub">Games being played right now. Watch any of them live.</div>

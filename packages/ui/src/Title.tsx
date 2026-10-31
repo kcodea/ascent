@@ -530,7 +530,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             </button>
           )}
           <button className="menubtn" onClick={() => { sfx.pulse(); openPatchNotes(); }} data-tip="Gameplay changes by date">
-            <span className="mbicon"><Icon name="clock" /></span>
+            <span className="mbicon"><MenuMedal name="patchnotes" /></span>
             <span className="mblabel">Patch Notes</span>
           </button>
           {/* DEV-ONLY: the Scene Builder is a dev sandbox stripped from the player build (the prod menu is Play ·

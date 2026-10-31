@@ -148,7 +148,7 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
     { dest: 'live', label: 'Live Games', icon: <MenuMedal name="live" /> },
     // No Friends plaque any more (owner 2026-10-29, R-FRIENDS-DOCK-02): the global Friends dock, bottom left, is it.
     // PATCH NOTES is a page like the others (owner 2026-10-29, R-PATCHNOTES-PAGE-01), on the menus and in a game.
-    { dest: 'patchnotes', label: 'Patch Notes', icon: <Icon name="clock" /> },
+    { dest: 'patchnotes', label: 'Patch Notes', icon: <MenuMedal name="patchnotes" /> },
   ];
 
   const plaque = (it: Item, extra = '', badge: ReactNode = null): JSX.Element => {

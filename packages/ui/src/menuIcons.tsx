@@ -9,7 +9,7 @@
  * crest (1em, so each surface's existing `.mbicon .crest` font-size rules size them too, via `.menumedal`).
  * They don't take `currentColor`, so hover/active tint changes leave them as painted.
  */
-export type MenuMedalName = 'play' | 'career' | 'collection' | 'leaderboard' | 'recent' | 'live' | 'settings';
+export type MenuMedalName = 'play' | 'career' | 'collection' | 'leaderboard' | 'recent' | 'live' | 'settings' | 'glossary' | 'patchnotes';
 export const MenuMedal = ({ name }: { name: MenuMedalName }) => (
   <img
     className="menumedal"

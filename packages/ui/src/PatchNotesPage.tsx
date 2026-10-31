@@ -10,7 +10,7 @@
  */
 import { lazy, Suspense } from 'react';
 import { useGame } from './store';
-import { Icon } from './Icon';
+import { MenuMedal } from './menuIcons';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { retryImport } from './retryImport';
 
@@ -24,7 +24,7 @@ export function PatchNotesPage() {
       <MenuSidebar current="patchnotes" />
       <div className="lbtopbar">
         <div className="lbtitle">
-          <Icon name="clock" />
+          <MenuMedal name="patchnotes" />
           <span className="esch disp">Patch Notes</span>
         </div>
       </div>

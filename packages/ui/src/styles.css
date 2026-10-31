@@ -8165,6 +8165,7 @@ html[data-phone-layout]:not([data-phone-menus]) .cornerdev { --cd-cb: var(--pl-c
 .lbback:hover { border-color: var(--acc); color: var(--acc); }
 .lbtitle { display: flex; align-items: center; gap: 12px; }
 .lbtitle svg { width: 30px; height: 30px; color: var(--acc); flex: none; }
+.lbtitle .menumedal { font-size: 34px; flex: none; } /* a page heading's painted medallion (menuIcons.tsx) */
 .lbtitle .esch { color: #fff; font-size: 26px; text-align: left; line-height: 1.05; }
 .lbsub { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; color: rgba(232, 200, 119, 0.85); }
 .lbscroll { flex: 1; overflow-y: auto; padding: 8px 30px 40px; display: flex; flex-direction: column; gap: 14px; }

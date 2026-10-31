@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getHero } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
+import { MenuMedal } from './menuIcons';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, displayHandle } from './store';
 import { peekSocial, putSocial, useSocial } from './socialCache';
@@ -193,7 +194,7 @@ export function Rankings() {
       <MenuSidebar current="rankings" />
       <div className="lbtopbar">
         <div className="lbtitle">
-          <Icon name="crown" />
+          <MenuMedal name="leaderboard" />
           <div>
             <div className="esch disp">Leaderboard</div>
             <div className="lbsub">{duosTab ? `Top ${DUOS_ROWS} Ranked Duos teams` : `Top ${RANKED_ROWS} players by MMR`}</div>

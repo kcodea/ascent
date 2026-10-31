@@ -12563,4 +12563,47 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'and if the next recorded run in the draw is a Myra run it is skipped for the one after it.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusHeroOffers.test.ts', 'workers/versus/test/uniqueHeroes.test.ts', 'packages/sim/src/lobby/strengthBands.test.ts', 'packages/sim/src/lobby/seatRotation.test.ts', 'packages/sim/src/versus/rankedDuos.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
+  {
+    id: 'R-RAIL-DOCKED-CLICKTHROUGH-01',
+    title: 'The Docked lobby rail never blocks the board: only its seat slices take the pointer',
+    statement:
+      'The Docked rail lays a full-size layer over the board. Every part of it that spans the board, the layer itself and '
+      + 'its seats wrapper, is click-through, so shop, board and hand cards can be clicked, bought and dragged under it; only '
+      + 'the seat slices (hover / pin scouting) take the pointer. The rail sits under the board HUD (Refresh, End Turn, Gold, '
+      + 'Tier, Freeze, hero power), so their tooltips draw over it, and while it is docked the End Turn gem and the Refresh '
+      + 'pill take the pointer only through their own shapes (a diamond, a pill), so hovering a slice beside them never '
+      + 'opens their tooltips.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31, on feat/lobby-rail-tiles', quote: 'i cant interact with anything in scene builder right now, like i cant buy cards etc.' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyRailDocked.css (.lobbyseats pointer-events: none; styles.css `.lobbyrail > *` turns direct children back on)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-31. The seats wrapper filled the layer and inherited `pointer-events: auto` from `.lobbyrail > *`, so it ate every click on the board.',
+    example: 'Kev drags a shop card onto his board in the Scene Builder and it is bought; hovering the opponent slice beside the End Turn gem opens the scout card of that opponent, not the End your turn tip of the gem.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailDockedClickThrough.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
+  {
+    id: 'R-RAIL-DOCKED-01',
+    title: 'The lobby rail is docked into the board: one slice per seat, cut round the board pieces, the fallen in place',
+    statement:
+      'In a lobby game the rail is a stack of slices against the board’s right side: a round slice tied into the Refresh '
+      + 'pill (Round N and the max damage), then one slice per seat from just under the pill to the Gold coin’s foot, all '
+      + 'the same height. The Refresh pill, the End Turn gem and the Gold coin cut clean shapes out of the slices beside '
+      + 'them. Each slice shows the hero art fading out to the right, the player’s name and a Health bar (red Health, a '
+      + 'steel-blue Armor chunk, both out of the seat’s max Health); your slice is edged in gold and your next opponent’s '
+      + 'in red with a breathing glow and crossed swords. A knocked-out seat keeps its slice, greyed with a skull, so a '
+      + 'knockout never moves the stack (the rail order is still the standing). Hovering a slice opens the compact scout card: '
+      + 'name, Health and Armor, shop tier, Gilded made, top tribe, runes, last three fights. Where the rail cannot dock (the '
+      + 'Guides view, a Duos team rail, the Versus 1v1 block) it is the Gem rail as before. Presentation only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-31 (a day of owner review on feat/lobby-rail-tiles)', quote: 'the rail is good to merge' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyRailDockedLayout.ts; packages/ui/src/useDockedRail.ts; packages/ui/src/lobbyRailDocked.css; packages/ui/src/LobbyPanel.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-31 (feat/lobby-rail-tiles). Replaces the Gem rail’s seat rows in the lobby. The owner tunes it in the DEV Lobby Rail Tuner 2; the shipped values are DOCK_DEFAULTS and the sheet’s fallbacks.',
+    example: 'Round 9, three players out: the three fallen slices sit greyed at the bottom of the stack with their skulls in one column, the five living slices above them unchanged, and the slice beside the End Turn gem is cut round its diamond.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailDockedLayout.test.ts', 'packages/ui/src/lobbyRailTuner2.test.ts', 'packages/ui/src/lobbyRailDockedClickThrough.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
 ];

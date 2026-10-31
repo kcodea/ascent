@@ -50,6 +50,8 @@ export const PAINT_EXCEPTIONS = [
   // ...and the same End Combat label in the Gem plate HUD look (healthPills.css), matching the Skip / Summary buttons.
   ':root[data-hp-look="gem"] .etbwrap.ready .etb-tip',
   '.kwbox[data-kw="rebirth"]',
+  // The Docked rail's compact scout card (owner 2026-10-31, lobbyRailDocked.css).
+  '.lobbyscout.lrv-scout',
 ] as const;
 
 /**

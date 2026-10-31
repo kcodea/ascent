@@ -1648,6 +1648,16 @@ Ranked Duos party).
   it was 20 through round 15 before). The lobby applies the same cap (`roundLossCap`, which falls back to
   `lossDamageCap` when a mode sets no table of its own) — so a lobby that runs long is uncapped for every
   round from 15 on, not just a "finale". The lobby rail prints the cap above its top edge, next to the round.
+- **The lobby rail, docked** (owner 2026-10-31, R-RAIL-DOCKED-01): in a lobby game the rail is a stack of slices against the
+  board's right side. A round slice tied into the Refresh button shows the round and the max damage; below it, one slice
+  per seat (all the same height, in standing order) runs down to the Gold coin's foot. The Refresh button, the End Turn
+  gem and the Gold coin cut clean shapes out of the slices beside them. Each slice shows the hero art fading to the right,
+  the player's name and a Health bar (red Health, a steel-blue Armor chunk, out of the seat's max Health). Your slice is
+  edged in gold; your next opponent's is red, glowing, with crossed swords. A knocked-out seat keeps its slice, greyed
+  with a skull, so the stack never moves. Hovering a slice opens a compact scout card (name, Health and Armor, shop tier,
+  Gilded made, top tribe, runes, last three fights). Where the rail cannot dock (the Guides view, a Duos team rail, the
+  Versus 1v1 block) it is the Gem rail. The rail sits under the board's HUD, so their tooltips draw over it, and only the
+  slices take the pointer (R-RAIL-DOCKED-CLICKTHROUGH-01). Presentation only.
 - **Rail guides** (owner ask 2026-10-09): a tab on the lobby rail's left edge flips the rail between the opponents and
   short BUILD GUIDES (data in `packages/ui/src/guides/guides.ts`, one card per build line). Only guides for the run's
   pinned set and for tribes in this lobby show; neutral guides always show. A guide opens in place to its **Core** and

@@ -672,7 +672,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
               style={dp ? {
                 left: dp.x, top: dp.y, width: dp.w, height: dp.h,
-                '--pw': `${dp.w}px`, '--ph': `${dp.h}px`, '--dk-s': dock!.s, '--fx': `${dp.footX}px`, '--mx': `${dp.midX}px`, '--bx': `${dp.topX}px`, '--skx': `${skullX}px`,
+                '--pw': `${dp.w}px`, '--ph': `${dp.h}px`, '--dk-s': dock!.s, '--fx': `${dp.footX}px`, '--mx': `${dp.midX}px`, '--hx': `${dock!.numX}px`, '--bx': `${dp.topX}px`, '--skx': `${skullX}px`,
               } as React.CSSProperties : undefined}
             >
               {dp && !inTeam ? (

@@ -133,11 +133,12 @@ html:root:is(:not([data-lr2-art]), [data-lr2-art="navy"]) .lobbyrail.lrv-docked 
 }
 
 /* HEALTH NUMBERS (owner 2026-10-31: "the health bar is impossible to know what it actually means, right? can we make that a
-   number?"; "i want number and armor number left in the navy blue"): Health, with Armor under it, on the slice's left, just
-   clear of the deepest cut along its middle (`--mx`). Tuner 2 "Show Health as" picks numbers (default), the bar, or both. */
+   number?"; "i want number and armor number left in the navy blue"; "have all the hp and armor in the same column"): Health,
+   with Armor under it, on the slice's left, in ONE column for every slice: just clear of the deepest middle cut of any slice
+   in the stack (`--hx`, the layout's `numX`). Tuner 2 "Show Health as" picks numbers (default), the bar, or both. */
 html:root .lobbyrail.lrv-docked .lrv-hpnum {
   position: absolute; z-index: 3; top: 50%;
-  left: calc(max(var(--mx, 0px), var(--fx, 0px)) + 10px * var(--dk-s, 1) + var(--lr2-hpnum-x, 0) * 1px);
+  left: calc(var(--hx, var(--mx, 0px)) + 10px * var(--dk-s, 1) + var(--lr2-hpnum-x, 0) * 1px);
   translate: 0 calc(-50% + var(--lr2-hpnum-y, 0) * 1px);
   display: flex; flex-direction: column; align-items: flex-start; gap: calc(2px * var(--dk-s, 1));
   font-family: var(--font-title), sans-serif; font-weight: 900; line-height: 1; pointer-events: none;

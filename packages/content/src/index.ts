@@ -16,6 +16,8 @@ export * from './sets';
 export { HENCHMEN } from './cards/henchmen';
 export { GIFTS, GIFT_IDS } from './cards/gifts'; // a card class of its own — member of no set (see gifts.ts)
 export { SET3_HAND_SPELLS } from './cards/set3/handSpells';
+/** The Duos-only Whispers (CueBee's Pass): granted, never drawn. The Compendium's Duos toggle lists them under Gifts. */
+export { DUOS_WHISPERS };
 /** Every Whisper, in declaration order: the pool "get a random Whisper" draws from (Jar of Secrets, Woozy), before the
  *  tier gate and the run's set narrow it (`rollableWhisperIds`). A new Whisper joins it by being added to `SET3_WHISPERS`. */
 export const WHISPER_IDS: readonly string[] = [...RAW_SET3_WHISPERS, ...DUOS_WHISPERS].filter((c) => c.whisper).map((c) => c.id);

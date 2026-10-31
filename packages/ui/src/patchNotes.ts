@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-30',
     changes: [
+      { category: 'Systems', text: 'Compendium: a new Duos toggle next to Gilded shows the Duos-only cards too.', details: [
+        'Turn it on to add the Duos cards, Whispers and runes to the book, beside the regular ones.',
+        'Each one wears a small Duos tag. The usual filters still apply, and Gilded works with it.',
+      ] },
       { category: 'Balance', text: 'Duos: three more Duos-only cards.', details: [
         'Disco (Tier 5 spell): Discover a minion. Your teammate gets the ones you skip.',
         "Matchmaker (Tier 3): Shout: Discover a minion of your teammate's most common type and pass it to them.",

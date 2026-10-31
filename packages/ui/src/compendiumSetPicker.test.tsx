@@ -105,7 +105,7 @@ describe('Compendium set picker', () => {
   it('the Runes tab has a NEUTRAL pill: exactly the untribed runes, ORed with the tribe pills, scoped to the picked set', () => {
     const click = (el: Element | null | undefined): void => { act(() => { (el as HTMLElement).click(); }); };
     const runeCount = (): number => m.container.querySelectorAll('.book-grid .book-cell').length;
-    const setRunes = (id: SetId) => [...RUNES, ...EPIC_RUNES].filter((r) => !r.sets || r.sets.includes(id));
+    const setRunes = (id: SetId) => [...RUNES, ...EPIC_RUNES].filter((r) => !r.duos && (!r.sets || r.sets.includes(id))); // Duos-only runes ride the Duos toggle (off)
     click(m.container.querySelector('.book-rail .book-cat[aria-label="Runes"]'));
     const pills = (): HTMLElement[] => [...m.container.querySelectorAll<HTMLElement>('.book-runetribe:not(.book-runeforge)')];
     const neutralPill = (): HTMLElement => pills().find((b) => b.getAttribute('aria-label') === 'Runes with no tribe')!;
@@ -142,7 +142,7 @@ describe('Compendium set picker', () => {
     const click = (el: Element | null | undefined): void => { act(() => { (el as HTMLElement).click(); }); };
     const runeCount = (): number => m.container.querySelectorAll('.book-grid .book-cell').length;
     const id = activeSet().id;
-    const inSet = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.includes(id);
+    const inSet = (r: { sets?: readonly string[]; duos?: boolean }): boolean => !r.duos && (!r.sets || r.sets.includes(id)); // Duos toggle off
     click(m.container.querySelector('.book-rail .book-cat[aria-label="Runes"]'));
     const forge = (label: string): HTMLElement => m.container.querySelector<HTMLElement>(`.book-runeforge[aria-label="${label}"]`)!;
     const basicN = RUNES.filter(inSet).length;
@@ -207,7 +207,7 @@ describe('Compendium set picker is dev-only', () => {
       // The Runes tab's tribe pills are the active set's tribes, then Neutral.
       act(() => { (m.container.querySelector('.book-rail .book-cat[aria-label="Runes"]') as HTMLElement).click(); });
       expect(m.container.querySelectorAll('.book-runetribe:not(.book-runeforge)')).toHaveLength(live.tribes.length + 1);
-      const setRunes = [...RUNES, ...EPIC_RUNES].filter((r) => !r.sets || r.sets.includes(live.id));
+      const setRunes = [...RUNES, ...EPIC_RUNES].filter((r) => !r.duos && (!r.sets || r.sets.includes(live.id))); // Duos toggle off
       expect(m.container.querySelectorAll('.book-grid .book-cell').length).toBe(setRunes.length);
     } finally { m.unmount(); }
   });

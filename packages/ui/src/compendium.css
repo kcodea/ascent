@@ -196,6 +196,10 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .book-gilded { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 9px; border-radius: 7px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
 /* The Gilded toggle wears the game's painted crown (`frames/gilded.webp`, the golden cards' crown). */
 .book-gilded-ico { flex: none; width: 24px; height: 24px; background: url('/frames/gilded.webp') 50% 50% / contain no-repeat; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+/* The DUOS toggle (owner ask 2026-10-30) is the Gilded toggle without the crown, so it keeps even side padding. */
+.book-duos { padding: 0 14px; }
+/* The gallery's "Duos" tag on a Duos-only card or rune: the set picker's LIVE pill, pinned to the cell's top edge. */
+.book-cell > .book-duos-tag { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); z-index: 4; pointer-events: none; }
 
 /* The chart: centred on the WINDOW, not on the space left beside the chips (owner ask 2026-09-18). Bars stack by
    tribe (data colours); every frame around them is a theme token. Each bar sits in a dark track so an empty tier

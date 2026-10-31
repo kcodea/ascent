@@ -493,6 +493,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const foeIntel: SeatIntel | undefined = foe ? railSeatIntel(lobby, foe, next) : undefined;
   // VERSUS DUOS: team rows grouped (you next to your teammate), never split by Health.
   const rows = duosMate || duosTeams ? groupDuosRailRows(rail.rows) : rail.rows;
+  // THE PLACEMENT COLUMN (owner 2026-10-31: "a slender column that displays the players placement with 1-8"): the living by
+  // their place in the stack (strongest first), the fallen by the place they finished.
+  const rankOf = new Map(rows.map((r, i) => [r.id, r.alive ? i + 1 : r.placement ?? i + 1]));
   // THE DOCKED RAIL (owner 2026-10-31): the seats laid out on the board's right side, measured off the board's own Refresh
   // / gem / Gold (useDockedRail). It needs that HUD on screen and room beside it; anywhere it cannot (the Guides view, a Duos
   // team rail, the Versus 1v1 block, a board without its HUD) the rail is the Gem rail (lobbyRail.css), as before.
@@ -672,7 +675,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
               style={dp ? {
                 left: dp.x, top: dp.y, width: dp.w, height: dp.h,
-                '--pw': `${dp.w}px`, '--ph': `${dp.h}px`, '--dk-s': dock!.s, '--fx': `${dp.footX}px`, '--bx': `${dp.topX}px`, '--skx': `${skullX}px`,
+                '--pw': `${dp.w}px`, '--ph': `${dp.h}px`, '--dk-s': dock!.s, '--fx': `${dp.footX}px`, '--mx': `${dp.midX}px`, '--hx': `${dock!.numX}px`, '--bx': `${dp.topX}px`, '--skx': `${skullX}px`,
               } as React.CSSProperties : undefined}
             >
               {dp && !inTeam ? (
@@ -688,6 +691,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                     <FadeImg className="lobbyface" src={railSliceFace(heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics)), dp)} alt="" />
                   </span>
                   {dp && <SliceEdge p={dp} />}
+                  {/* The placement, its own small navy box floating just right of the slice (owner 2026-10-31). */}
+                  <span className="lrv-rank" aria-label={`Place ${rankOf.get(seat.id)}`}>{rankOf.get(seat.id)}</span>
                   {dp && !dp.dead && isFoe && <SliceEdge p={dp} ring />}
                   {/* The target (owner 2026-10-31: "the current target needs to be way more obvious"): the crossed swords
                       the rail has always used for the next foe, on the slice's top-right corner. */}
@@ -696,14 +701,27 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                       side of the art instead. */}
                   {/* The slice's label (Tuner 2 "Slice label"): the player's name (default), the hero's name, or none. Same
                       font, alignment and 2-line ellipsis either way; the fallen follow it too. */}
-                  {sliceLabel !== 'none' && <span className="lrv-name"><ClampedName text={sliceLabel === 'hero' ? getHero(seat.heroId)?.name ?? seat.label : seat.label} /></span>}
+                  {(sliceLabel !== 'none' || isYou) && (
+                    <span className="lrv-name">
+                      {sliceLabel !== 'none' && <ClampedName text={sliceLabel === 'hero' ? getHero(seat.heroId)?.name ?? seat.label : seat.label} />}
+                      {/* Your own slice says YOU under the name (owner 2026-10-31). */}
+                      {isYou && <span className="lrv-you">You</span>}
+                    </span>
+                  )}
                   {/* VERSUS: what this player is doing, when it matters (versusRailStatus.ts). Keyed by the label, so each
                       change pops in once. Your own is on your End Turn gem. */}
                   {!isYou && row.alive && statuses[seat.id] && (
                     <span key={statuses[seat.id]!.label} className={`lrv-status ${statuses[seat.id]!.tone}`}>{statuses[seat.id]!.label}</span>
                   )}
                   {/* A DUOS team's shared pool is drawn once, on the pair's last slice; the other slice carries no bar. */}
-                  {row.alive && teamBarIds && !teamBarIds.has(seat.id) ? null : row.alive ? (<span className="lrv-barclip" style={dp?.cut ? { clipPath: outlineClip(insetOutline(dp.outline, 4 * dock!.s, dp.w)) } : undefined}>
+                  {row.alive && teamBarIds && !teamBarIds.has(seat.id) ? null : row.alive ? (<>
+                    {/* HEALTH NUMBERS (owner 2026-10-31: "can we make that a number?"): Health, Armor under it, on the navy
+                        side. Tuner 2 "Show Health as" picks these (default), the bar below, or both. */}
+                    <span className="lrv-hpnum" role="img" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
+                      <span className="lrv-hpn-hp"><Icon name="heartPill" />{live.resolve}</span>
+                      {live.armor > 0 && <span className="lrv-hpn-arm"><Icon name="shield" />{live.armor}</span>}
+                    </span>
+                    <span className="lrv-barclip" style={dp?.cut ? { clipPath: outlineClip(insetOutline(dp.outline, 4 * dock!.s, dp.w)) } : undefined}>
                     <span className="lrv-bar" role="img" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
                       <span className="lrv-bar-hp" style={{ transform: `scaleX(${hpFrac})` }} />
                       {armFrac > 0 && <span className="lrv-bar-arm" style={{ transform: `translateX(${((armEnd - armFrac) * 100).toFixed(2)}%) scaleX(${armFrac})` }} />}
@@ -712,7 +730,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                       {/* The Health fill's leading edge: a soft glow at the end of the red (its own layer, translate only). */}
                       {hpFrac > 0 && <span className="lrv-bar-lead" style={{ transform: `translateX(${(hpFrac * 100).toFixed(2)}%)` }} />}
                     </span>
-                  </span>) : <span className="lrv-skull" aria-label="Knocked out"><Icon name="skull" /></span>}
+                  </span></>) : <span className="lrv-skull" aria-label="Knocked out"><Icon name="skull" /></span>}
                 </>
               ) : (<>
               {(() => {
@@ -924,6 +942,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
   const versusCard = useGame((st) => st.run.mode === 'versus');
   // Shared reads + building blocks; each layout below arranges the SAME data differently.
   const heroName = getHero(seat.heroId).name;
+  const heroPower = getHero(seat.heroId)?.power;
   const tribe = intel?.topTribe;
   const tribeLabel = tribe ? TRIBE_LABEL[tribe] : 'Mixed';
   const tribeCount = intel?.topTribeCount;
@@ -1029,7 +1048,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
       const rune = runeIds[i] ? RUNE_INDEX[runeIds[i]!] : null;
       const rart = rune ? runeArt(rune.id) : null;
       return (
-        <span className={`lrv-sc-socket${rune ? ' filled' : ''}`} key={i}>
+        <span className={`lrv-sc-socket${rune ? ' filled' : i === 2 ? ' third' : ''}`} key={i}>
           {rune && (rart ? <img decoding="sync" src={rart} alt="" aria-hidden /> : <Icon name="sc" />)}
           {rune && (
             <span className="questbadge-tip" role="tooltip">
@@ -1052,15 +1071,22 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
             </span>
           )}
         </div>
-        {/* VERSUS (owner 2026-10-31: "their hero, tier, gilded made, top tribe, runes, last fights vs you"): the hero under the
-            name. A lobby card keeps the owner's lobby list. */}
-        {versusCard && <div className="lrv-sc-hero">{heroName}</div>}
+        {/* THE HERO AND ITS POWER under the name, in every mode (owner 2026-10-31: "we need the hero name and description of
+            what the hero power does here"). The power's STATIC text, as the combat foe's power tip shows it: we do not
+            simulate another player's run state, so there is no live number to fold in. */}
+        <div className="lrv-sc-hero">{heroName}</div>
+        {heroPower && (
+          <div className="lrv-sc-power">
+            <b>{heroPower.name}{heroPower.passive ? ' · Passive' : ''}</b>
+            <span dangerouslySetInnerHTML={{ __html: mdBold(heroPower.text) }} />
+          </div>
+        )}
         <div className="lrv-sc-chips">
           <span className="lrv-sc-chip"><i>Shop tier</i><b><Icon name="up" />{intel ? intel.tier : '—'}</b></span>
           <span className="lrv-sc-chip"><i>Gilded made</i><b><Icon name="star" />{intel ? intel.triples : '—'}</b></span>
           <span className="lrv-sc-chip lrv-sc-tribe"><i>Top tribe</i><b style={tribe ? { color: tribeColor } : undefined}>{tribeCount ? tribeText : '—'}</b></span>
         </div>
-        <div className="lrv-sc-runes"><i>Runes</i>{versusCard && runeIds.length === 0 ? <span className="lrv-sc-none">None yet</span> : sockets}</div>
+        <div className="lrv-sc-runes"><i>Runes</i>{versusCard && runeIds.length === 0 ? <span className="lrv-sc-none">None yet</span> : <span className="lrv-sc-sockets">{sockets}</span>}</div>
         <div className="lrv-sc-fights">
           {results.length === 0 ? <span className="lrv-sc-none">No fights yet</span> : results.map((r) => (
             <div className={`lrv-sc-fight ${r.outcome}`} key={r.round}>

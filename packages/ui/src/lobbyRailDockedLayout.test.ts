@@ -40,7 +40,7 @@ describe('docked rail layout', () => {
       expect(p.x).toBeGreaterThan(railX); // never over the play area
       expect(p.x + p.w).toBeLessThanOrEqual(A.view.right - 1);
       expect(p.y).toBeGreaterThan(L.head.y + L.head.h - 0.01); // under the round slice
-      expect(p.y + p.h).toBeLessThanOrEqual(A.gold.bottom + 0.5);
+      expect(p.y + p.h).toBeLessThanOrEqual((A.gold.top + A.gold.bottom) / 2 + ((A.gold.right - A.gold.left) / 2) * 1.21 + 0.5);
     }
     expect(L.head.x).toBeCloseTo(x, 5);
     expect(L.head.y).toBeGreaterThan(A.view.top);
@@ -68,7 +68,7 @@ describe('docked rail layout', () => {
   });
 
   it('Slight eclipse: the first slice tucks under the pill\'s foot, a shallow cut on its top-left only', () => {
-    const E = dockedLayout(A, ids(8), [], { ...DOCK_DEFAULTS, topMode: 'eclipse' })!;
+    const E = dockedLayout(A, ids(8), [], { ...DOCK_DEFAULTS, topMode: 'eclipse', eclipse: 0.22 })!;
     const p1 = E.panels[0]!;
     expect(p1.y).toBeGreaterThan(A.refresh.top + (A.refresh.bottom - A.refresh.top) / 2);
     expect(p1.y).toBeLessThan(A.refresh.bottom);

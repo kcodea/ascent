@@ -54,7 +54,7 @@ describe('the Docked rail in every mode: layout', () => {
     expect(L.teams?.map((t) => t.team)).toEqual([0, 2, 1, 3]);
     const last = L.panels[7]!;
     expect(last.dead).toBe(true);
-    expect(last.y + last.h).toBeLessThanOrEqual(Math.max(A.gold.bottom, A.gem.bottom) + 0.5);
+    expect(last.y + last.h).toBeLessThanOrEqual(Math.max((A.gold.top + A.gold.bottom) / 2 + ((A.gold.right - A.gold.left) / 2) * 1.21, A.gem.bottom) + 0.5);
     for (let i = 1; i < 8; i++) expect(apart(L.panels[i - 1]!, L.panels[i]!)).toBe(true);
   });
 });

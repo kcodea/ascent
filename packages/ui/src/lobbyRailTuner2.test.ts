@@ -26,6 +26,9 @@ type NumKey = keyof typeof LR2_VARS;
 const TARGET: Partial<Record<NumKey, string>> = {
   dkHeadFont: '.lobbyrailhead.lrv-docked',
   barH: '.lrv-bar', barOverlap: '.lrv-bar', barInset: '.lrv-bar',
+  rankW: '.lrv-docked .lobbyseat', rankGap: '.lrv-docked .lobbyseat',
+  navyArtW: '.lobbyface', navyFade: '.lobbyface',
+  hpNumSize: '.lrv-hpn-hp', armNumSize: '.lrv-hpn-arm', hpNumX: '.lrv-hpnum', hpNumY: '.lrv-hpnum',
   artZoom: '.lobbyface', artFx: '.lobbyface', artFy: '.lobbyface', artW: '.lrv-docked .lobbyseat', fadeStart: '.lrv-docked .lobbyseat', fadeLen: '.lrv-docked .lobbyseat', fadeStr: '.lrv-docked .lobbyseat', artBright: '.lobbyface',
   nameSize: '.lrv-name', nameWeight: '.lrv-name', nameLines: '.lrv-name', nameX: '.lrv-name', nameY: '.lrv-name', nameShadow: '.lrv-name',
   headX: '.lobbyrailhead', headY: '.lobbyrailhead', headShadow: '.lobbyrailhead',
@@ -47,7 +50,7 @@ describe('Lobby Rail Tuner 2', () => {
   it('has a control for every value, and every control writes its own var onto :root', () => {
     const keys = Object.keys(LR2_VARS) as NumKey[];
     expect(new Set(Object.values(LR2_VARS)).size, 'one var per control').toBe(keys.length);
-    expect(LR2_SPEC.controls.map((c) => c.key).sort()).toEqual(['barStyle', 'dkTop', 'artLayout', 'nameSide', 'nameShow', 'nameText', ...keys].sort());
+    expect(LR2_SPEC.controls.map((c) => c.key).sort()).toEqual(['barStyle', 'hpShow', 'navyColor', 'dkTop', 'artLayout', 'nameSide', 'nameShow', 'nameText', ...keys].sort());
     for (const k of keys) {
       const c = LR2_SPEC.controls.find((x) => x.key === k)!;
       const before = document.documentElement.style.getPropertyValue(LR2_VARS[k]);
@@ -58,6 +61,16 @@ describe('Lobby Rail Tuner 2', () => {
     }
     setLobbyRailTuner2('barStyle', 'smooth');
     expect(document.documentElement.getAttribute('data-lr2-bar')).toBe('smooth');
+    // Health as numbers / bar / both (owner 2026-10-31: "can we make that a number?"); the navy plate's colour.
+    expect(document.documentElement.getAttribute('data-lr2-hp')).toBe('number');
+    setLobbyRailTuner2('hpShow', 'both');
+    expect(document.documentElement.getAttribute('data-lr2-hp')).toBe('both');
+    setLobbyRailTuner2('hpShow', 'nonsense');
+    expect(getLobbyRailTuner2().hpShow).toBe('both');
+    setLobbyRailTuner2('navyColor', '#112244');
+    expect(document.documentElement.style.getPropertyValue('--lr2-navy')).toBe('#112244');
+    setLobbyRailTuner2('navyColor', 'red');
+    expect(getLobbyRailTuner2().navyColor).toBe('#112244');
     setLobbyRailTuner2('artLayout', 'center');
     expect(document.documentElement.getAttribute('data-lr2-art')).toBe('center');
     setLobbyRailTuner2('nameSide', 'left');
@@ -66,16 +79,16 @@ describe('Lobby Rail Tuner 2', () => {
     expect(document.documentElement.getAttribute('data-lr2-name')).toBe('off');
     // Slice label (owner 2026-10-31: "hero name in the lobby rail as text instead of player name"): reaches the rail's store,
     // is persisted, and an unknown value is refused.
-    expect(getSliceLabel()).toBe('none'); // the shipped default (owner's Full art pick)
+    expect(getSliceLabel()).toBe('hero'); // the shipped default (owner 2026-10-31: "this is perfect")
     setLobbyRailTuner2('nameText', 'hero');
     expect(getSliceLabel()).toBe('hero');
-    expect(JSON.parse(localStorage.getItem('ascent.lobbyRailTuner2.v2') ?? '{}').nameText).toBe('hero');
+    expect(JSON.parse(localStorage.getItem('ascent.lobbyRailTuner2.v3') ?? '{}').nameText).toBe('hero');
     setLobbyRailTuner2('nameText', 'nonsense');
     expect(getLobbyRailTuner2().nameText).toBe('hero');
     setLobbyRailTuner2('nameText', 'none');
     expect(getSliceLabel()).toBe('none');
     resetLobbyRailTuner2();
-    expect(getSliceLabel()).toBe('none'); // the shipped default (owner's Full art pick)
+    expect(getSliceLabel()).toBe('hero'); // the shipped default
     // The owner's two trial presets (2026-10-31), one click each.
     const preset = (label: string): void => LR2_SPEC.actions!.find((a) => a.label === label)!.run(null);
     preset('Preset: Full art');
@@ -83,6 +96,8 @@ describe('Lobby Rail Tuner 2', () => {
     preset('Preset: 75% fade + hero name');
     expect([getLobbyRailTuner2().artLayout, getSliceLabel()]).toEqual(['fade75', 'hero']);
     expect(document.documentElement.getAttribute('data-lr2-art')).toBe('fade75');
+    preset('Preset: Navy + numbers');
+    expect([getLobbyRailTuner2().artLayout, getLobbyRailTuner2().hpShow, getSliceLabel()]).toEqual(['navy', 'number', 'hero']);
     resetLobbyRailTuner2();
     expect(getLobbyRailTuner2()).toEqual(LR2_DEFAULTS);
   });
@@ -97,9 +112,13 @@ describe('Lobby Rail Tuner 2', () => {
       expect(readers.some((r) => r.sel.includes(target!)), `${v} (${k}) must reach ${target}; read by: ${readers.map((r) => r.sel).join(' | ')}`).toBe(true);
     }
     expect(sheet).toContain('[data-lr2-bar="smooth"]');
-    for (const a of ['left', 'full', 'right', 'center', 'fade75']) expect(sheet).toContain(`[data-lr2-art="${a}"]`);
+    for (const a of ['navy', 'left', 'full', 'right', 'center', 'fade75']) expect(sheet).toContain(`[data-lr2-art="${a}"]`);
     expect(sheet).toContain('[data-lr2-name-side="left"]');
     expect(sheet).toContain('[data-lr2-name="off"]');
+    // The shipped look (no attribute in production) is the navy plate with the Health numbers, the bar hidden.
+    expect(sheet).toContain(':is(:not([data-lr2-art]), [data-lr2-art="navy"])');
+    expect(sheet).toContain(':is(:not([data-lr2-hp]), [data-lr2-hp="number"]) .lobbyrail.lrv-docked .lrv-barclip { display: none; }');
+    expect(sheet).toContain('[data-lr2-hp="bar"] .lobbyrail.lrv-docked .lrv-hpnum { display: none; }');
   });
 
   it('every layout dial moves the docked layout', () => {

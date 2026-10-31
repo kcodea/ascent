@@ -28,8 +28,8 @@ export function useDockCfg(): DockCfg {
  */
 export const SLICE_LABELS = ['player', 'hero', 'none'] as const;
 export type SliceLabel = (typeof SLICE_LABELS)[number];
-// The shipped default (owner pick 2026-10-31, the "Full art" look): no label; the hover card carries the names.
-let sliceLabel: SliceLabel = 'none';
+// The shipped default (owner pick 2026-10-31, "this is perfect"): the hero's name on each slice.
+let sliceLabel: SliceLabel = 'hero';
 const labelListeners = new Set<() => void>();
 export function setSliceLabel(next: SliceLabel): void {
   if (next === sliceLabel) return;

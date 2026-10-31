@@ -61,6 +61,7 @@ const CODE_NAMES: Record<string, string> = {
   'odds:deferred': 'the combat-odds probe',
   autosave: 'the autosave',
   'run:start': 'starting a new game (the lobby and its seats)',
+  'ranked:table': 'picking the ranked table before hero select',
   'lobby:warm-seat': "building one opponent seat's driver ahead of its round",
   'store:set': 'the store update (Zustand set + subscribers)',
   'commit:actionRing': 'the bug-report action ring (record)',

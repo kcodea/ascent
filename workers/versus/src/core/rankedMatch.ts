@@ -22,12 +22,16 @@ import {
   type RankedDuosSeatStore,
 } from '@game/sim/versus/server';
 import { buildDuosHistory, duosBoardOfSide, duosBoardOfSnapshot, type DuosHistoryRecord } from '@game/sim/versus/duosHistory';
-import { GroupEngine, GSEATS, type GOutReason, type GroupHost, type GroupState, type GSeat, type GSeatRow } from './groupMatch';
+import { VERSUS_HERO_SELECT_SECONDS } from '@game/sim/versus/server';
+import { dealGroupOffers, GroupEngine, GSEATS, type GOutReason, type GroupHost, type GroupState, type GSeat, type GSeatRow } from './groupMatch';
 
 const SHOP_GRACE_MS = 250;
 const OVERTIME_MS = 30_000;
 const ABANDON_MS = 10 * 60_000;
 const SEAT_RETRY_MS = 5_000;
+/** OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): how long the party waits for its table before its heroes are dealt
+ *  the old way (no table yet, so nothing to exclude; the table is then seated after Hero Select, around the picks). */
+export const RANKED_DEAL_FALLBACK_MS = 12_000;
 export const RANKED_SERVED = ['b', 'c', 'd'] as const;
 
 /** One recorded team member served at the table (`versus_ranked_duos_served`). */
@@ -93,6 +97,12 @@ export interface RankedExtra {
   /** Asked the shell for the team / the table and not answered yet (runtime-ish, kept to avoid double asks). */
   team_asked: boolean;
   seat_retry_at: number | null;
+  /** OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): while set, the party's offers are not dealt yet
+   *  (the table is being seated); at this time they are dealt the old way. Null / absent = dealt (and every older match). */
+  deal_by?: number | null;
+  /** How the party's offers were dealt: 'table' = around the seated table (opponents first), 'fallback' = the table
+   *  was late, dealt with nothing excluded. Absent on older matches. */
+  dealt?: 'table' | 'fallback';
   teams: RankedTeam[];
   rounds: Record<number, RankedRound>;
 }
@@ -192,7 +202,7 @@ export class RankedEngine extends GroupEngine {
   override alarms(): (number | null)[] {
     const m = this.m;
     if (!this.running()) return [];
-    const out: (number | null)[] = [this.r.seat_retry_at];
+    const out: (number | null)[] = [this.r.seat_retry_at, this.r.deal_by ?? null];
     if (m.phase === 'hero_select') out.push(m.hero_deadline);
     else if (m.phase === 'shop') out.push(m.shop_deadline == null ? m.intro_deadline : this.closeAt());
     else if (m.phase === 'combat') out.push(m.combat_deadline);
@@ -202,8 +212,39 @@ export class RankedEngine extends GroupEngine {
 
   // ── hero select: a clock pick never lands on the teammate's hero (GroupEngine's unique pick, R-VERSUS-UNIQUE-HEROES-01) ──
 
+  /** OPPONENTS FIRST: the party's heroes are not dealt yet (the table is being seated). */
+  dealing(): boolean { return this.r.deal_by != null; }
+
+  /** Deal the party's two offers, around the seated table's heroes when there is one, and start the Hero Select clock. */
+  private dealOffers(how: 'table' | 'fallback'): void {
+    if (!this.dealing()) return;
+    const held = how === 'table' ? new Set((this.g.served ?? []).map((x) => x.hero)) : undefined;
+    dealGroupOffers(this.g, held);
+    for (const s of this.m.seats) this.rh.touchPriv(s.seat);
+    this.r.deal_by = null;
+    this.r.dealt = how;
+    this.m.hero_deadline = this.rh.now() + VERSUS_HERO_SELECT_SECONDS * 1000;
+    this.rh.event('dealt', { how });
+    this.touch();
+  }
+
+  override registerOffer(userId: string, offer: unknown): void {
+    if (this.dealing()) return; // the room deals Ranked Duos' heroes itself, after the table
+    super.registerOffer(userId, offer);
+  }
+
+  override pickHero(userId: string, index: unknown): void {
+    if (this.dealing()) this.rh.fail('not_dealt');
+    super.pickHero(userId, index);
+  }
+
+  override reroll(userId: string, slot: unknown, candidates: unknown): { offer: string[]; reroll: { slot: number; from: string; to: string } } {
+    if (this.dealing()) this.rh.fail('not_dealt');
+    return super.reroll(userId, slot, candidates);
+  }
+
   protected override maybeStart(): void {
-    if (this.m.phase !== 'hero_select') return;
+    if (this.m.phase !== 'hero_select' || this.dealing()) return;
     super.maybeStart();
     if (this.m.phase !== 'hero_select' && this.r.seated_at == null) this.askSeat();
   }
@@ -220,16 +261,24 @@ export class RankedEngine extends GroupEngine {
     if (this.r.seated_at != null || !this.running()) return;
     const m = this.m;
     let names: Record<string, string> = {};
+    // OPPONENTS FIRST: seated before the party has heroes (no live hero to skip). A table chosen that way is DROPPED if
+    // the offers were dealt the old way meanwhile (the fallback), since it may hold a hero the party was dealt; the
+    // retry after Hero Select then seats around the picks, as before.
+    const first = this.dealing();
     const store: RankedDuosSeatStore = {
       match: async () => ({ id: m.id, phase: m.phase, seed: m.seed, set_id: m.set_id, options: m.options as never, ranked_team: this.r.ranked_team, seated_at: null }),
       liveHeroes: async () => this.liveSeats().sort((a, b) => a.seat.localeCompare(b.seat)).map((s) => s.hero),
       teamDivision: async () => this.r.division,
       soloSample: async (args) => (await service.soloSample(args)) as never,
       duoSample: async (args) => { const x = await service.duoSample(args); names = x.names; return x.rows as never; },
-      commit: async ({ p_table }) => { this.seatTable(p_table as Record<string, unknown>, names); return { seated: true }; },
+      commit: async ({ p_table }) => {
+        if (first && !this.dealing()) return { seated: false };
+        this.seatTable(p_table as Record<string, unknown>, names);
+        return { seated: true };
+      },
       log: (msg, detail) => console.warn(msg, detail),
     };
-    const res = await handleRankedDuosSeat(m.seats[0]!.user_id, { matchId: m.id }, store);
+    const res = await handleRankedDuosSeat(m.seats[0]!.user_id, { matchId: m.id, ...(first ? { opponentsFirst: true } : {}) }, store);
     if (res.status !== 200) throw new Error(`seat ${res.status} ${JSON.stringify(res.body)}`);
   }
 
@@ -255,6 +304,8 @@ export class RankedEngine extends GroupEngine {
     this.r.seat_retry_at = null;
     if (table.unrated === true) this.r.unrated = 'generated';
     this.touch();
+    // OPPONENTS FIRST: the table is in, so the party's heroes are dealt around it now.
+    this.dealOffers('table');
     // A round that was already waiting on the table resolves now.
     if (this.m.phase === 'resolving') this.pending = true;
   }
@@ -503,7 +554,9 @@ export class RankedEngine extends GroupEngine {
       this.placeTeam(this.livingRanked(), 'abandoned');
       return;
     }
-    if (this.r.seated_at == null && this.r.seat_retry_at != null && now >= this.r.seat_retry_at && m.heroes_revealed) this.askSeat();
+    // OPPONENTS FIRST: the table is late, so the party's heroes are dealt the old way (it seats after Hero Select).
+    if (this.dealing() && now >= (this.r.deal_by ?? 0)) this.dealOffers('fallback');
+    if (this.r.seated_at == null && this.r.seat_retry_at != null && now >= this.r.seat_retry_at && (m.heroes_revealed || this.dealing())) this.askSeat();
     if (m.phase === 'hero_select' && now >= (m.hero_deadline ?? 0)) this.maybeStart();
     else if (m.phase === 'shop' && m.shop_deadline == null) {
       if (now >= (m.intro_deadline ?? 0)) this.startClock(); else this.maybeClock();
@@ -634,9 +687,11 @@ export function rankedFinishWire(row: Record<string, unknown>): Record<string, u
 }
 
 /** A new Ranked Duos state: the group match (2 live seats, team a) + the four teams; recorded teams are seated later. */
-export function rankedExtra(): RankedExtra {
+export function rankedExtra(now?: number): RankedExtra {
   return {
     ranked_team: null, team_name: null, division: 0, seated_at: null, unrated: null, team_asked: false, seat_retry_at: null,
+    // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): a new match deals its party's heroes after the table (or by then).
+    ...(now != null ? { deal_by: now + RANKED_DEAL_FALLBACK_MS } : {}),
     teams: ['a', 'b', 'c', 'd'].map((team) => ({
       team, health: null, armor: null, eliminated_round: null, out_reason: null, placement: null,
       served_kind: null, duo_run_id: null, recorded_order: null, name: null,

@@ -895,14 +895,21 @@ async function onMatch(match: VersusMatch): Promise<void> {
   // VERSUS DUOS: my teammate's hero choices are only there while Hero Select is (R-DUOS-HEROSELECT-01).
   if (match.phase !== 'hero_select' && !myHeroSelectOnScreen()) leaveTeammateHero();
 
-  if (!get().priv || get().priv!.match_id !== match.id) {
+  // RANKED DUOS, OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): the room seats the three recorded
+  // teams first and only then deals the party's heroes around them, so my row may come with no offer yet. Never roll
+  // or register one myself there: ask again on the next match update until the room's deal is in (the gate's crystal
+  // holds meanwhile, `heroSelectReady`).
+  const rankedDeal = !!match.group && isRankedDuosRaw(match.group.raw);
+  const awaitingDeal = rankedDeal && match.phase === 'hero_select' && !get().heroOffer && get().priv?.match_id === match.id;
+  if (!get().priv || get().priv!.match_id !== match.id || awaitingDeal) {
     const priv = await mx.myPrivate(match.id).catch(() => null);
     if (priv) {
       // The server's row is the truth once registered: after a re-roll (R-HERO-REROLL-01) it is no longer the seeded three.
       const registered = priv.hero_offer && priv.hero_offer.length === 3 ? priv.hero_offer : null;
-      const offer = registered ?? versusHeroOffer(Number(priv.hero_seed), Number(priv.run_seed), match.set_id as SetId);
-      set({ priv, heroOffer: offer, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, rerollPending: false });
-      if (!priv.hero_offer) void mx.registerOffer(match.id, offer).catch(() => undefined);
+      const offer = registered ?? (rankedDeal ? null : versusHeroOffer(Number(priv.hero_seed), Number(priv.run_seed), match.set_id as SetId));
+      if (awaitingDeal) { if (offer) set({ priv, heroOffer: offer }); }
+      else set({ priv, heroOffer: offer, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, rerollPending: false });
+      if (!priv.hero_offer && offer) void mx.registerOffer(match.id, offer).catch(() => undefined);
     }
   }
   if (match.round > 0) await loadRounds(match);

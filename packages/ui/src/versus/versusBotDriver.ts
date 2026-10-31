@@ -265,6 +265,8 @@ export class VersusBotDriver {
     if (!this.priv) {
       this.priv = await this.api.myPrivate(m.id);
       if (!this.priv) return 'idle';
+      // RANKED DUOS, OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the room deals after it seats the table; wait for it.
+      if (!this.priv.hero_offer && m.options?.mode === 'ranked_duos') { this.priv = null; return 'idle'; }
       // The room deals the offers (R-VERSUS-UNIQUE-HEROES-01): its row is the truth; the seeded three only for a row
       // with none (a match from before the room dealt them).
       this.offer = this.priv.hero_offer?.length === 3 ? [...this.priv.hero_offer] : versusHeroOffer(Number(this.priv.hero_seed), Number(this.priv.run_seed), m.set_id as SetId);

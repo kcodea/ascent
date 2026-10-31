@@ -66,6 +66,14 @@ behaviour from a legacy symbol.**
   entry is RESUMED by `startLobby`, never re-rolled. A new door that opens the ranked hero select must go through
   `startLobby`, and a new door OUT of it must choose: `abandonRankedEntry` (costs an 8th) or `openTitle` (keeps
   the entry owed).
+  **Opponents first** (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): `startLobby` picks the TABLE before the offer
+  (`createLobbyTable`, no hero reserved), deals the three from the heroes no seat holds (`rankedHeroOffer`; the re-roll
+  pool too, `heroRerollPoolOf`), and stores the table on the entry (`RankedEntry.table`); `pickHero` seats the player in
+  it (`createLobbyRun` `seatOpts.table` -> `seatPlayerAtTable`, `RunLobby.opponentsFirst`). The deal is prepared in idle
+  time while the confirmation is open (`prepareRankedDeal`); a pool still loading waits on `rankedEntryPoolGate` over
+  the shut gate. The game session pins the table's keys at "Yes" (`gameSession.ts pinEntryTable`). Never re-pick a
+  stored table; an entry without one keeps the old order. Ranked Duos does the same in the Worker (`deal_by`,
+  `dealOffers`). Practice is unchanged.
 - Lobby state is serializable; runtime seat drivers are reconstructed from serializable metadata.
 - Missing snapshot data degrades deterministically — fill the seat, never shrink the table.
 - **A save carries its seats' boards** (R-LOBBY-SERVE-01, 2026-10-17): `lobbySeatRecordings` (each recorded seat's run,

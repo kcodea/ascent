@@ -7,10 +7,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { HEROES, type PreparedCombatSide } from '@game/sim';
-import { engineContentRevision, VERSUS_PROTOCOL } from '@game/sim/versus/server';
+import { engineContentRevision, VERSUS_HERO_SELECT_SECONDS, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { parseDuosHistory } from '@game/sim/versus/duosHistory';
 import { DISCONNECT_GRACE_MS, newRoomState, RoomCore, turnSeconds, type CoreDeps, type CoreEffects, type CoreState } from '../src/core/roomCore';
-import { memberBoard, type RankedService } from '../src/core/rankedMatch';
+import { memberBoard, RANKED_DEAL_FALLBACK_MS, type RankedService } from '../src/core/rankedMatch';
 import { LocalRankedService } from '../src/rankedService';
 import { stateFromEntries, valueOfKey } from '../src/core/storage';
 
@@ -59,16 +59,16 @@ async function inShop(svc: RankedService = new LocalRankedService()): Promise<H>
   await h.op(U1, 'start');
   await h.op(U1, 'gate');
   await h.op(U2, 'gate');
+  // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the gates ask for the team AND the table; the heroes come after it.
   expect(h.log.at(-1)!.ranked.team).toBe(true);
+  expect(h.log.at(-1)!.ranked.seat).toBe(true);
   h.log.push(h.core.rankedSetTeam(await svc.ensureTeam(U1, U2), h.now));
-  await h.op(U1, 'register_offer', { matchId: h.id, offer: HERO_IDS.slice(0, 3) });
-  await h.op(U2, 'register_offer', { matchId: h.id, offer: HERO_IDS.slice(3, 6) });
+  h.log.push(await h.core.rankedSeat(svc, h.now));
+  expect(h.r.r.seated_at).not.toBeNull();
+  expect(h.r.r.dealt).toBe('table');
   await h.op(U1, 'pick_hero', { matchId: h.id, index: 0 });
   await h.op(U2, 'pick_hero', { matchId: h.id, index: 0 });
   expect(h.g.phase).toBe('shop');
-  expect(h.log.at(-1)!.ranked.seat).toBe(true);
-  h.log.push(await h.core.rankedSeat(svc, h.now));
-  expect(h.r.r.seated_at).not.toBeNull();
   await h.op(U1, 'intro_done', { matchId: h.id });
   await h.op(U2, 'intro_done', { matchId: h.id });
   expect(h.g.shop_deadline).toBe(h.now + turnSeconds(1, 'ranked_duos') * 1000);
@@ -195,7 +195,7 @@ describe('Ranked Duos room (Cloudflare) — absence, leaving, the end', () => {
     expect(places).toEqual([...places].sort((a, b) => a - b));
   });
 
-  it('the table could not be seated yet: the round waits in resolving and resolves once it is', async () => {
+  it('the table could not be seated yet: the heroes are dealt the old way when it is late, the round waits in resolving and resolves once it is', async () => {
     const h = new H();
     h.core.connect(U1, h.now);
     h.core.connect(U2, h.now);
@@ -203,7 +203,15 @@ describe('Ranked Duos room (Cloudflare) — absence, leaving, the end', () => {
     await h.op(U1, 'start');
     await h.op(U1, 'gate');
     await h.op(U2, 'gate');
-    for (const [u, i] of [[U1, 0], [U2, 3]] as const) await h.op(u, 'register_offer', { matchId: h.id, offer: HERO_IDS.slice(i, i + 3) });
+    // OPPONENTS FIRST: no table yet = no heroes yet; a self-registered offer is ignored and a pick is refused.
+    await h.op(U1, 'register_offer', { matchId: h.id, offer: HERO_IDS.slice(0, 3) });
+    expect(h.r.g.priv.p1!.hero_offer).toBeNull();
+    await expect(h.op(U1, 'pick_hero', { matchId: h.id, index: 0 })).rejects.toThrow('not_dealt');
+    expect(h.g.hero_deadline).toBeNull();
+    await h.advance(RANKED_DEAL_FALLBACK_MS);
+    expect(h.r.r.dealt).toBe('fallback');
+    expect(h.r.g.priv.p1!.hero_offer).toHaveLength(3);
+    expect(h.g.hero_deadline).toBe(h.now + VERSUS_HERO_SELECT_SECONDS * 1000);
     for (const u of [U1, U2]) await h.op(u, 'pick_hero', { matchId: h.id, index: 0 });
     for (const u of [U1, U2]) await h.op(u, 'intro_done', { matchId: h.id });
     await lock(h, U1, MID);

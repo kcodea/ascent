@@ -1057,11 +1057,15 @@ export class RoomCore {
     const r = this.state.room;
     this.clearMatchKeys();
     this.state.match = null;
-    this.state.group = newGroupState(this.groupHost(), r, seated.map((m) => ({ seat: m.role, userId: m.userId, name: m.displayName })));
-    if (r.options.mode === 'ranked_duos') {
-      this.state.group.ranked = rankedExtra();
+    // RANKED DUOS, OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): the three recorded teams are seated
+    // FIRST (the shell asks for the team, then the table), and the party's heroes are dealt around them.
+    const ranked = r.options.mode === 'ranked_duos';
+    this.state.group = newGroupState(this.groupHost(), r, seated.map((m) => ({ seat: m.role, userId: m.userId, name: m.displayName })), { deferOffers: ranked });
+    if (ranked) {
+      this.state.group.ranked = rankedExtra(this.now);
       for (const s of this.state.group.match.seats) s.team = 'a';
       this.fx.ranked.team = true;
+      this.fx.ranked.seat = true;
     }
     const g = this.grp!;
     for (const s of g.m.seats) { this.fx.priv.add(s.seat); }

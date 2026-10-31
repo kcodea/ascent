@@ -67,3 +67,33 @@ describe('the pick guards', () => {
     expect(uniqueAutoHeroIndex(['a', 'b', 'c'], 2, new Set(['a', 'b', 'c']))).toBe(2); // nothing free: unchanged
   });
 });
+
+describe('OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): Ranked Duos deals the party around its seated table', () => {
+  it('no dealt hero is one the table holds, the two offers stay disjoint, and nothing excluded is the deal of before', () => {
+    for (let base = 1; base <= 1000; base++) {
+      const seats = seatsFor(base, 2);
+      const plain = versusDisjointHeroOffers(seats, 'set2');
+      expect(versusDisjointHeroOffers(seats, 'set2', new Set())).toEqual(plain);
+      const ids = playableHeroes().map((h) => h.id);
+      const table = new Set(Array.from({ length: 6 }, (_, k) => ids[(base * 7 + k * 5) % ids.length]!));
+      const offers = versusDisjointHeroOffers(seats, 'set2', table);
+      const all = offers.flat();
+      expect(all).toHaveLength(6);
+      expect(new Set(all).size).toBe(6);
+      for (const h of all) expect(table.has(h), h).toBe(false);
+      offers.forEach((o, i) => {
+        const allowed = new Set(playableHeroes(runTribesForSeed(seats[i]!.runSeed, 'set2')).map((h) => h.id));
+        for (const h of o) expect(allowed.has(h)).toBe(true);
+      });
+    }
+  });
+
+  it('a list with too few free heroes falls back to held ones rather than dealing fewer than three', () => {
+    const [s] = seatsFor(3, 1);
+    const shuffle = versusHeroShuffle(s!.heroSeed, s!.runSeed, 'set2');
+    const exclude = new Set(shuffle.slice(2));
+    const [offer] = versusDisjointHeroOffers([s!], 'set2', exclude);
+    expect(offer).toHaveLength(3);
+    expect(offer!.slice(0, 2)).toEqual(shuffle.slice(0, 2));
+  });
+});

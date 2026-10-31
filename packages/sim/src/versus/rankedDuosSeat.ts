@@ -108,8 +108,12 @@ export async function handleRankedDuosSeat(
   if ((m.options?.mode ?? '') !== 'ranked_duos') return { status: 409, body: { error: 'not_ranked_duos' } };
   if (m.seated_at) return { status: 200, body: { seated: true, already: true } };
   if (m.phase === 'complete') return { status: 409, body: { error: 'match_over' } };
-  const heroes = await store.liveHeroes(matchId);
-  if (heroes.length !== 2 || heroes.some((h) => !h)) return { status: 409, body: { error: 'heroes_not_locked' } };
+  // OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): the Cloudflare room seats the table BEFORE the
+  // party's offers are dealt (`opponentsFirst`), so no live hero is held yet and every hero is open to the table; the
+  // offers are then dealt around it. Without the flag, the table waits for both heroes, exactly as before.
+  const opponentsFirst = body.opponentsFirst === true;
+  const heroes = opponentsFirst ? [] : await store.liveHeroes(matchId);
+  if (!opponentsFirst && (heroes.length !== 2 || heroes.some((h) => !h))) return { status: 409, body: { error: 'heroes_not_locked' } };
 
   const band = strengthBandForDivision(await store.teamDivision(m.ranked_team));
   const seed = Number(m.seed) >>> 0;

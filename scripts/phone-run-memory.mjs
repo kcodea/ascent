@@ -331,6 +331,17 @@ try {
     await sleep(wait);
     await sample(label, ok);
   }
+  // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the ranked table is picked at "Yes", before hero select, so the
+  // offline pool gate ("Play anyway") is offered over the shut gate now, not after the hero pick. Take it, then the held
+  // crystal shatters onto hero select.
+  let anywayAtGate = false;
+  for (let i = 0; i < 120; i++) {
+    if (await evaluate(c, `!!document.querySelector('.herocard.big')`)) break;
+    if (!anywayAtGate && await tap(c, 'Play anyway')) { anywayAtGate = true; console.log('   (opponent pool unreachable offline: took Play anyway at the gate)'); }
+    await sleep(500);
+  }
+  // The wait's panel sat over the crystal, so a press made under it never reached it: press it now if still armed.
+  if (await evaluate(c, `!!document.querySelector('.rgate.is-armed .rgate-crystal')`)) await tap(c, '.rgate.is-armed .rgate-crystal');
   await sleep(4000);
   await sample('heroselect');
   await snap('heroselect');

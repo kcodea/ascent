@@ -20,6 +20,8 @@ import { HeroSelect } from './HeroSelect';
 import { VersusHeroSelectPause } from './versus/VersusHud';
 import { HeroSelectWatch } from './hero-select/HeroSelectWatch';
 import { HeroLaunchCurtain } from './hero-select/HeroLaunchCurtain';
+import { PoolWaitPanel } from './opponentPool/PoolWaitPanel';
+import { rankedEntryPoolGate } from './opponentPool/lobbyPoolGate';
 import { GoodLuckIntro } from './goodLuck/GoodLuckIntro';
 import { RuneforgeEntrancePreview } from './runeforgeEntrance/RuneforgeEntrancePreview';
 import { DiscoverEntrancePreview } from './discoverEntrance/DiscoverEntrancePreview';
@@ -704,6 +706,9 @@ export function Game() {
           them on hero select. Mounted here, after the Title and the picker, because it must outlive the Title:
           the swap happens behind the shut doors. Renders nothing between gates. */}
       <RankedGate />
+      {/* OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): "Finding opponents..." over the shut gate when the ranked table
+          is picked before hero select and the pool is still loading. Renders nothing while idle (the usual case). */}
+      <PoolWaitPanel gate={rankedEntryPoolGate} overGate />
       {/* THE IN-GAME MENU (R-ESC-SIDEBAR-01): the sidebar over the dimmed game. Before the pages, so a page opened from
           it paints over it, and `.gmenu ~ .lbpage` (styles.css) draws those pages over the game without their backdrop. */}
       <GameMenu />

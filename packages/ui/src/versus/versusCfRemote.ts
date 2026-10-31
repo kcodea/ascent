@@ -206,7 +206,11 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
       // VERSUS DUOS: a pass to or from my teammate (only the two teammates receive it, as the table's RLS).
       for (const l of listeners) l.onChange('passes', msg.row);
     } else if (msg.t === 'priv') {
+      const had = !!priv?.hero_offer;
       priv = msg.priv as unknown as VersusPrivate;
+      // RANKED DUOS, OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the room's deal can land after the match row that
+      // announced it (the match push goes out first), so a newly dealt offer is announced as a match change too.
+      if (!had && priv?.hero_offer) for (const l of listeners) l.onChange('match');
     } else if (msg.t === 'bc') {
       for (const l of listeners) l.onBroadcast?.(msg.event, msg.payload);
     } else if (msg.t === 'closed') {

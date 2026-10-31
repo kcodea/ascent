@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { createHash, createHmac } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { HEROES, type PreparedCombatSide } from '@game/sim';
+import type { PreparedCombatSide } from '@game/sim';
 import { engineContentRevision, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { newRoomState, RoomCore, type CoreDeps, type CoreState } from '../src/core/roomCore';
 import { LIVE_REFRESH_MS, liveKeyOf, liveListingOf, type LiveListing } from '../src/core/liveListing';
@@ -31,7 +31,6 @@ const U4 = '44444444-4444-4444-8444-444444444444';
 const TEAM = '99999999-9999-4999-8999-999999999999';
 const ROOM = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaac';
 const T0 = Date.UTC(2026, 9, 28, 12, 0, 0);
-const HERO_IDS = HEROES.slice(0, 6).map((h) => h.id);
 const JOIN = { as: 'player', display: 'Two', profile: {}, content: engineContentRevision(), protocol: VERSUS_PROTOCOL };
 
 function deps(): CoreDeps {
@@ -67,12 +66,11 @@ async function ranked(toShop: boolean): Promise<H> {
   await h.op(U1, 'gate');
   await h.op(U2, 'gate');
   h.core.rankedSetTeam(await svc.ensureTeam(U1, U2), h.now);
+  // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the table is seated, then the party's heroes are dealt around it.
+  await h.core.rankedSeat(svc, h.now);
   if (!toShop) return h;
-  await h.op(U1, 'register_offer', { matchId: h.g.id, offer: HERO_IDS.slice(0, 3) });
-  await h.op(U2, 'register_offer', { matchId: h.g.id, offer: HERO_IDS.slice(3, 6) });
   await h.op(U1, 'pick_hero', { matchId: h.g.id, index: 0 });
   await h.op(U2, 'pick_hero', { matchId: h.g.id, index: 0 });
-  await h.core.rankedSeat(svc, h.now);
   await h.op(U1, 'intro_done', { matchId: h.g.id });
   await h.op(U2, 'intro_done', { matchId: h.g.id });
   return h;

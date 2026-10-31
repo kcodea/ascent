@@ -266,16 +266,18 @@ function seededPick(seed: number, label: string, n: number): number {
   return (h >>> 0) % n;
 }
 
-/** A new group match for the seated members (in seat order). */
+/** A new group match for the seated members (in seat order). `deferOffers` (RANKED DUOS, OPPONENTS FIRST, owner
+ *  2026-10-31, R-RANKED-OPPONENTS-FIRST-01): no offers and no Hero Select clock yet; the Ranked engine deals them
+ *  (`dealGroupOffers`) once its table is seated, around the table's heroes. */
 export function newGroupState(host: GroupHost, room: { id: string; set_id: string; content_revision: string; protocol: number; options: Record<string, unknown> },
-  seated: { seat: GSeat; userId: string; name: string }[]): GroupState {
+  seated: { seat: GSeat; userId: string; name: string }[], opts: { deferOffers?: boolean } = {}): GroupState {
   const now = host.now();
   const id = host.uuid();
   const seats = [...seated].sort((a, b) => GSEATS.indexOf(a.seat) - GSEATS.indexOf(b.seat));
   const match: GMatch = {
     id, room_id: room.id, seed: host.random31(), set_id: room.set_id, content_revision: room.content_revision, protocol: room.protocol,
     options: normalizeVersusOptions(room.options) as unknown as Record<string, unknown>, phase: 'hero_select', revision: 1, round: 0,
-    seat_count: seats.length, heroes_revealed: false, hero_deadline: now + VERSUS_HERO_SELECT_SECONDS * 1000, shop_starts_at: null,
+    seat_count: seats.length, heroes_revealed: false, hero_deadline: opts.deferOffers ? null : now + VERSUS_HERO_SELECT_SECONDS * 1000, shop_starts_at: null,
     shop_deadline: null, intro_deadline: null, combat_deadline: null, paused_seat: null, paused_at: null, pause_grace_until: null,
     resume_at: null, winner_seat: null, end_reason: null, created_at: now, updated_at: now, completed_at: null,
     seats: seats.map((s) => ({
@@ -294,9 +296,17 @@ export function newGroupState(host: GroupHost, room: { id: string; set_id: strin
   }
   // UNIQUE HEROES PER LOBBY (owner 2026-10-31, R-VERSUS-UNIQUE-HEROES-01): the room deals every seat's three, so no two
   // players (teammates or not) are ever offered the same hero. Stored on the private rows, the clients' truth.
-  const offers = versusDisjointHeroOffers(seats.map((s) => ({ heroSeed: priv[s.seat]!.hero_seed, runSeed: priv[s.seat]!.run_seed })), room.set_id as SetId);
-  seats.forEach((s, i) => { priv[s.seat]!.hero_offer = offers[i]!; });
-  return { match, priv, subs: {}, lastLocked: {}, lastCheckpoint: {}, rounds: {} };
+  const g: GroupState = { match, priv, subs: {}, lastLocked: {}, lastCheckpoint: {}, rounds: {} };
+  if (!opts.deferOffers) dealGroupOffers(g);
+  return g;
+}
+
+/** Deal every seat's three (UNIQUE HEROES PER LOBBY), never a hero in `exclude` (OPPONENTS FIRST: the seated table's).
+ *  Stored on the private rows, the clients' truth. */
+export function dealGroupOffers(g: GroupState, exclude?: ReadonlySet<string>): void {
+  const seats = g.match.seats;
+  const offers = versusDisjointHeroOffers(seats.map((s) => ({ heroSeed: g.priv[s.seat]!.hero_seed, runSeed: g.priv[s.seat]!.run_seed })), g.match.set_id as SetId, exclude);
+  seats.forEach((s, i) => { g.priv[s.seat]!.hero_offer = offers[i]!; });
 }
 
 export class GroupEngine {

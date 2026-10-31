@@ -77,6 +77,8 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const heroReroll = watch ? watchReroll : ownReroll;
   const pendingSeed = useGame((s) => s.pendingSeed);
   const practiceDraft = useGame((s) => s.practiceDraft);
+  // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): a ranked entry's re-roll draws from the heroes its table leaves free.
+  const rankedEntry = useGame((s) => s.rankedEntry);
   const rerollHero = useGame((s) => s.rerollHero);
   const versusCanReroll = useVersus((s) => mode === 'versus' && !!choices && versusRerollCandidates(s).length > 0);
   const versusRerollPending = useVersus((s) => s.rerollPending);
@@ -86,8 +88,8 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const mateTaken = useSpectate((s) => (rankedDuos && !watch ? s.matePick ?? null : null));
   const soloCanReroll = useMemo(
     () => !!choices && mode !== 'versus' && !heroReroll
-      && heroRerollCandidates(choices, heroRerollPoolOf({ pendingMode: mode, pendingSeed, practiceDraft })).length > 0,
-    [choices, mode, heroReroll, pendingSeed, practiceDraft],
+      && heroRerollCandidates(choices, heroRerollPoolOf({ pendingMode: mode, pendingSeed, practiceDraft, rankedEntry })).length > 0,
+    [choices, mode, heroReroll, pendingSeed, practiceDraft, rankedEntry],
   );
   // The swap plays for the re-roll the player just pressed (never for one restored with a resumed ranked entry): the
   // slot is armed on press, and `animatedReroll` remembers the last re-roll already shown.

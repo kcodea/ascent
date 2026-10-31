@@ -5,6 +5,7 @@ import { playTailedClip, sfx } from '../sfx';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { LbHeroFrame } from '../LadderBits';
 import { heroPortrait, opponentSkins, useRunSkins } from '../skins/skins';
+import { revealLineupFace } from '../railFaceArt';
 import { frameIdOf } from '../portraitFrame/PortraitFrame';
 import { artReady, requestArt, whenArtReady } from '../artPreload';
 import { useSpectate } from '../versus/spectate';
@@ -421,7 +422,7 @@ export function LobbyReveal(): JSX.Element | null {
         <div className="lhr-face">
           {/* The sweep's shine across this face: a soft light band moved by transform, clipped to the disc. */}
           <span className="lhr-glint" aria-hidden="true"><span /></span>
-          <LbHeroFrame heroId={e.heroId} size="big" side={e.you ? 'self' : 'opp'} art={heroPortrait(e.heroId, skins)} frameId={e.you ? frameIdOf(runSkins) : frameIdOf(skins)} />
+          <LbHeroFrame heroId={e.heroId} size="big" side={e.you ? 'self' : 'opp'} art={revealLineupFace(heroPortrait(e.heroId, skins), play)} frameId={e.you ? frameIdOf(runSkins) : frameIdOf(skins)} />
         </div>
         <div className="lhr-labels">
           <div className="lhr-hero">{getHero(e.heroId)?.name ?? ''}</div>
@@ -465,7 +466,7 @@ export function LobbyReveal(): JSX.Element | null {
   );
 
   function portraitOf(e: RevealEntry): string | undefined {
-    return heroPortrait(e.heroId, skinsOf(e));
+    return revealLineupFace(heroPortrait(e.heroId, skinsOf(e)), play);
   }
 }
 

@@ -319,6 +319,11 @@ Source: `packages/sim/src/lobby/gauntlet.ts`, `packages/sim/src/lobby/gauntlet.t
 - The record is saved with the match (`run_history.entry.match` for Ranked, `practice_games.replay.match` for
   Practice; both existing JSON columns) so the Career's match history shows it again under each match's **Lobby**
   button. Older matches say the details were not recorded.
+- **Buffs on inspect** (R-MATCH-BUFFS-01, owner 2026-10-31): each stored card keeps its buff breakdown, so
+  right-click Inspect shows the same **Buffs** list as in a run. Rows are ordered biggest first (total stat swing);
+  past five, the four biggest stay and the rest fold into one **"N more"** row with their combined stats. Over the
+  record's 24 KB budget, other seats' breakdowns go first, then card text, then yours. Records saved before this
+  show no list.
 
 Source: `packages/sim/src/lobby/matchDetails.ts`, `packages/ui/src/store.ts` (`matchDetailsOf`),
 `packages/ui/src/matchDetails/`.

@@ -931,6 +931,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
   const versusCard = useGame((st) => st.run.mode === 'versus');
   // Shared reads + building blocks; each layout below arranges the SAME data differently.
   const heroName = getHero(seat.heroId).name;
+  const heroPower = getHero(seat.heroId)?.power;
   const tribe = intel?.topTribe;
   const tribeLabel = tribe ? TRIBE_LABEL[tribe] : 'Mixed';
   const tribeCount = intel?.topTribeCount;
@@ -1059,9 +1060,16 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
             </span>
           )}
         </div>
-        {/* VERSUS (owner 2026-10-31: "their hero, tier, gilded made, top tribe, runes, last fights vs you"): the hero under the
-            name. A lobby card keeps the owner's lobby list. */}
-        {versusCard && <div className="lrv-sc-hero">{heroName}</div>}
+        {/* THE HERO AND ITS POWER under the name, in every mode (owner 2026-10-31: "we need the hero name and description of
+            what the hero power does here"). The power's STATIC text, as the combat foe's power tip shows it: we do not
+            simulate another player's run state, so there is no live number to fold in. */}
+        <div className="lrv-sc-hero">{heroName}</div>
+        {heroPower && (
+          <div className="lrv-sc-power">
+            <b>{heroPower.name}{heroPower.passive ? ' · Passive' : ''}</b>
+            <span dangerouslySetInnerHTML={{ __html: mdBold(heroPower.text) }} />
+          </div>
+        )}
         <div className="lrv-sc-chips">
           <span className="lrv-sc-chip"><i>Shop tier</i><b><Icon name="up" />{intel ? intel.tier : '—'}</b></span>
           <span className="lrv-sc-chip"><i>Gilded made</i><b><Icon name="star" />{intel ? intel.triples : '—'}</b></span>

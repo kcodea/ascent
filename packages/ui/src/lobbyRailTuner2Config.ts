@@ -60,7 +60,7 @@ export interface LobbyRailTuner2Config {
   artZoom: number; artFx: number; artFy: number; artW: number; fadeStart: number; fadeLen: number; fadeStr: number; artBright: number;
   nameSize: number; nameWeight: number; nameLines: number; nameX: number; nameY: number; nameShadow: number;
   // Docked: the layout (JS) ...
-  dkEclipse: number; dkPanelMax: number; dkGap: number; dkOffset: number; dkTopShift: number; dkEdge: number; dkNotch: number; dkCoinPad: number; dkRefreshPad: number; dkHeadH: number; dkMaxW: number;
+  dkEclipse: number; dkPanelMax: number; dkGap: number; dkOffset: number; dkTopShift: number; dkEdge: number; dkNotch: number; dkCoinPad: number; dkRefreshPad: number; dkGemPad: number; dkBottom: number; dkHeadH: number; dkMaxW: number;
   // ... and its paint (CSS).
   dkHeadFont: number;
   // The Health bar (both rails).
@@ -83,7 +83,7 @@ export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   dkTop: DOCK_DEFAULTS.topMode,
   dkEclipse: DOCK_DEFAULTS.eclipse,
   dkPanelMax: DOCK_DEFAULTS.panelMax, dkGap: DOCK_DEFAULTS.gap, dkOffset: DOCK_DEFAULTS.offset, dkTopShift: DOCK_DEFAULTS.topShift,
-  dkEdge: DOCK_DEFAULTS.edge, dkNotch: DOCK_DEFAULTS.notch, dkCoinPad: DOCK_DEFAULTS.coinPad, dkRefreshPad: DOCK_DEFAULTS.refreshPad, dkHeadH: DOCK_DEFAULTS.headH, dkMaxW: DOCK_DEFAULTS.maxW,
+  dkEdge: DOCK_DEFAULTS.edge, dkNotch: DOCK_DEFAULTS.notch, dkCoinPad: DOCK_DEFAULTS.coinPad, dkRefreshPad: DOCK_DEFAULTS.refreshPad, dkGemPad: DOCK_DEFAULTS.gemPad, dkBottom: DOCK_DEFAULTS.bottomShift, dkHeadH: DOCK_DEFAULTS.headH, dkMaxW: DOCK_DEFAULTS.maxW,
   dkHeadFont: 1,
   barH: 22, barOverlap: 0, barInset: 0,
   headX: 1, headY: 0, headShadow: 0,
@@ -93,7 +93,7 @@ export const LR2_DEFAULTS: LobbyRailTuner2Config = {
 
 /** The docked layout dials and the `DockCfg` field each feeds. */
 export const LR2_LAYOUT: Readonly<Partial<Record<NumKey, Exclude<keyof DockCfg, 'topMode'>>>> = {
-  dkEclipse: 'eclipse', dkPanelMax: 'panelMax', dkGap: 'gap', dkOffset: 'offset', dkTopShift: 'topShift', dkEdge: 'edge', dkNotch: 'notch', dkCoinPad: 'coinPad', dkRefreshPad: 'refreshPad', dkHeadH: 'headH', dkMaxW: 'maxW',
+  dkEclipse: 'eclipse', dkPanelMax: 'panelMax', dkGap: 'gap', dkOffset: 'offset', dkTopShift: 'topShift', dkEdge: 'edge', dkNotch: 'notch', dkCoinPad: 'coinPad', dkRefreshPad: 'refreshPad', dkGemPad: 'gemPad', dkBottom: 'bottomShift', dkHeadH: 'headH', dkMaxW: 'maxW',
 };
 
 interface NumDef { v: string; group: string; label: string; unit?: TunerUnit; min: number; max: number; step: number; hint: string }
@@ -109,6 +109,8 @@ const NUM: Record<NumKey, NumDef> = {
   dkMaxW: { v: '--lr2-dk-max-w', group: D, label: 'Max slice width', unit: 'px', min: 120, max: 500, step: 1, hint: 'Docked: the widest a slice may be.' },
   dkEdge: { v: '--lr2-dk-edge', group: D, label: 'Margin from screen edges', unit: 'px', min: 0, max: 80, step: 0.5, hint: 'Docked: the margin kept from the window’s top, right and bottom edges.' },
   dkRefreshPad: { v: '--lr2-dk-refresh-pad', group: D, label: 'Extra Refresh clearance', unit: 'px', min: -10, max: 30, step: 0.5, hint: 'Docked: extra gap round the Refresh pill only, on top of Cut clearance.' },
+  dkGemPad: { v: '--lr2-dk-gem-pad', group: D, label: 'Extra gem clearance', unit: 'px', min: -10, max: 30, step: 0.5, hint: 'Docked: extra gap round the End Turn gem only, on top of Cut clearance.' },
+  dkBottom: { v: '--lr2-dk-bottom', group: D, label: 'Stack bottom', unit: 'px', min: -60, max: 80, step: 0.5, hint: 'Docked: where the player slices end, from the foot of the Gold coin’s ring (+ = lower, so taller slices). The round slice never moves.' },
   dkCoinPad: { v: '--lr2-dk-coin-pad', group: D, label: 'Extra coin clearance', unit: 'px', min: -10, max: 30, step: 0.5, hint: 'Docked: extra gap round the Gold coin only, on top of Cut clearance.' },
   dkNotch: { v: '--lr2-dk-notch', group: D, label: 'Cut clearance', unit: 'px', min: 0, max: 30, step: 0.5, hint: 'Docked: the even gap kept between the Refresh pill, the gem or the Gold coin and the slice cut round it.' },
 

@@ -56,6 +56,13 @@ export interface DockCfg {
   /** Extra clearance round the Refresh pill only, on top of `notch`, board px (owner 2026-10-31: "can you do the same for the
    *  refresh clearance?"). */
   refreshPad: number;
+  /** Extra clearance round the End Turn gem only, on top of `notch`, board px (owner 2026-10-31: "the padding near the
+   *  diamond isnt enough. how can we adjust that without changing everything else?"). */
+  gemPad: number;
+  /** Where the player stack ends, board px from the Gold coin ring's visible foot (+ lower). The round slice never moves
+   *  (owner 2026-10-31: "stretch the 8 hero sections a bit taller ... to better match the bottom of the coin corner? i dont
+   *  want to change the round info section at all"). */
+  bottomShift: number;
   /** From the board's right rail (the gem's centre line) to the slices' left edge, board px. */
   offset: number;
   /** Moves the first player's slice up (−) or down (+) from level with the Refresh pill, board px. */
@@ -69,7 +76,7 @@ export interface DockCfg {
 }
 
 // The owner's pick (2026-10-31, "i like these values").
-export const DOCK_DEFAULTS: DockCfg = { topMode: 'below', eclipse: 0, panelMax: 83, gap: 4, notch: 4.5, coinPad: 6, refreshPad: 7.5, offset: 24, topShift: 0, edge: 0, headH: 30, maxW: 250 };
+export const DOCK_DEFAULTS: DockCfg = { topMode: 'below', eclipse: 0, panelMax: 83, gap: 4, notch: 4.5, coinPad: 6, refreshPad: 7.5, gemPad: 4, bottomShift: 0, offset: 24, topShift: 0, edge: 0, headH: 30, maxW: 250 };
 
 /** The gem's 1080p height (`.etb-base`), the board-scale reference. */
 export const GEM_REF_H = 166;
@@ -213,7 +220,9 @@ export function dockedLayout(a: DockAnchors, live: readonly string[], dead: read
   const L = railX + cfg.offset * s;
   const R = Math.min(a.view.right - edge, L + cfg.maxW * s);
   const T = a.view.top + edge;
-  const B = Math.min(a.view.bottom - edge, Math.max(a.gold.bottom, a.gem.bottom));
+  // The stack's foot: the Gold coin's visible ring (the bronze ring, 1.21 x the coin's radius, below), plus Tuner 2 "Stack bottom".
+  const ringFoot = (a.gold.top + a.gold.bottom) / 2 + ((a.gold.right - a.gold.left) / 2) * 1.21;
+  const B = Math.min(a.view.bottom - edge, Math.max(ringFoot, a.gem.bottom) + cfg.bottomShift * s);
   if (R - L < 110 * s || B - T < 260 * s) return null;
   const W = R - L;
 
@@ -230,7 +239,7 @@ export function dockedLayout(a: DockAnchors, live: readonly string[], dead: read
   const coinR = ((a.gold.right - a.gold.left) / 2) * 1.21;
   const shapes: Shape[] = [
     { kind: 'circle', cx: a.refresh.right - 0.387 * ph, cy: (a.refresh.top + a.refresh.bottom) / 2 + 0.018 * ph, rx: pillR + clr + cfg.refreshPad * s, ry: pillR + clr + cfg.refreshPad * s },
-    { kind: 'diamond', cx: railX, cy: (a.gem.top + a.gem.bottom) / 2, rx: (a.gem.right - a.gem.left) / 2 + clr * Math.SQRT2, ry: gemH / 2 + clr * Math.SQRT2 },
+    { kind: 'diamond', cx: railX, cy: (a.gem.top + a.gem.bottom) / 2, rx: (a.gem.right - a.gem.left) / 2 + (clr + cfg.gemPad * s) * Math.SQRT2, ry: gemH / 2 + (clr + cfg.gemPad * s) * Math.SQRT2 },
     { kind: 'circle', cx: (a.gold.left + a.gold.right) / 2, cy: (a.gold.top + a.gold.bottom) / 2, rx: coinR + clr + cfg.coinPad * s, ry: coinR + clr + cfg.coinPad * s },
   ];
 

@@ -61,6 +61,7 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Player rail: Health and Armor are now shown as numbers on each player, with the hero art on the right.', details: [
         'Each player shows their exact Health, with Armor underneath, on a dark blue panel that fades into their hero art.',
         'The hero art now takes up the right side of each player instead of the whole panel.',
+        "Hovering a player now shows their hero and what its Hero Power does.",
       ] },
       { category: 'Systems', text: 'Game start: see who you are facing. Every hero in the game is shown with its player name, then flies to the rail.', details: [
         'Plays after you press Start Game, before the Good Luck words and before any timer starts.',

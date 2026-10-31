@@ -16,7 +16,7 @@ import { DUOS_CONFIRM_TEXT, DUOS_CONFIRM_TITLE, RANKED_CONFIRM_EXIT_MS, RANKED_C
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { warmRankedGate } from './rankedGate/RankedGate';
 import { requestRankedGate } from './rankedGate/rankedGateController';
-import { Crest, IconChest, IconHelm } from './menuIcons';
+import { Crest, IconHelm, MenuMedal } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
 import { startReplay } from './replay/replayPlayer';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
@@ -253,7 +253,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // its sheen, so a tip on the plaque itself is inert by the tooltip rule. No native `title=` on the title.
   const playPlaque = (
     <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { crumb('play pressed'); sfx.pulse(); setTitleView('modes'); }}>
-      <span className="mbicon"><Crest /></span>
+      <span className="mbicon"><MenuMedal name="play" /></span>
       <span className="mblabel">{txt.play}</span>
       {vsTip && <VsOpenBadge n={vsOpen} paused={!focused} />}
     </button>
@@ -488,7 +488,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           {savedRun && (
             <div className="continuerow">
               <button className="menubtn active" onClick={() => { sfx.pulse(); continueRun(); }} data-tip="Resume your run in progress">
-                <span className="mbicon"><Crest /></span>
+                <span className="mbicon"><MenuMedal name="play" /></span>
                 {/* Label over note (owner 2026-10-18, "continue text is cut off"): side by side, the round line
                     ran past the gold plaque's right edge. Stacked, it can never clip. */}
                 <span className="mbstack">
@@ -518,12 +518,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               one plaque. It opens your Career page; that page's sidebar carries the other three. The helm is the
               Career glyph the sidebar still wears, so the destination reads the same on both. */}
           <button className="menubtn" onClick={() => { sfx.pulse(); openCareer(); }} data-tip="Your Career, the Leaderboard, the Hall of Champions and Recent Games">
-            <span className="mbicon"><IconHelm /></span>
+            <span className="mbicon"><MenuMedal name="career" /></span>
             <span className="mblabel">Social</span>
           </button>
           {collectionOn && (
             <button className={`menubtn${newRewards ? ' hasnew' : ''}`} onClick={() => { sfx.pulse(); openCollection(); }} data-tip={newRewards ? 'New rewards are waiting in your Collection' : 'Open your chests and wear your titles'}>
-              <span className="mbicon"><IconChest /></span>
+              <span className="mbicon"><MenuMedal name="collection" /></span>
               <span className="mblabel">Collection</span>
               {newRewards && <NewPill />}
               {sealedCrates > 0 && <span className="mbnote" aria-label={`${sealedCrates} sealed ${sealedCrates === 1 ? 'chest' : 'chests'}`}>{sealedCrates} sealed</span>}

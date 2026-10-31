@@ -36,8 +36,8 @@ const BASE = import.meta.env.BASE_URL;
  * gems, FX sprites, the crate) rides the `set` lane.
  */
 const PUBLIC_CHROME_ORDER: readonly RegExp[] = [
-  // 1. the title + menus
-  /^(?:cursors\/|homescreen\.webp|backdrops\/|frames\/title-logo|fx\/crystal-fuse)/,
+  // 1. the title + menus (incl. the painted menu medallions, menu/)
+  /^(?:cursors\/|homescreen\.webp|backdrops\/|menu\/|frames\/title-logo|fx\/crystal-fuse)/,
   // 2. the shop: board, card frames, tier stars, keyword medallions, the first stat-milestone disc, the shop
   //    buttons (every state they mount with, e.g. the cracked gem sits hidden in the DOM), the opponent rail
   /^(?:playingboard(?:-combat)?\.webp|opponents-backplate\.webp|(?:opp-)?rune-slot-|medallions\/|frames\/(?:rune-|milestone-(?:atk|hp)-1\.|oval-(?!.*gilded)|taunt-(?!.*(?:gilded|shield))|spell-|tier-stars-|tierplate\.|desc-backbox|end_button|freeze_|refresh_button|tavernup_|heropowerbutton))/,

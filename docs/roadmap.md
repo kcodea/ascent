@@ -443,6 +443,13 @@ offsets in `styles.css`).
 
 ## Next
 
+- **Live information on Cloudflare: the Live Games list, then presence** (owner 2026-10-30: "I want us to make
+  cloudflare work as our source for live information"; R-LIVE-CF-ONLY-01 moved publishing and watching). Still on
+  Supabase: the Live Games list, its glow count and a friend's Watch row lookup (`lobby_live_games`, written only by the
+  Worker), `friends_beat` and the invite Realtime wake-up. Plan: a version-independent `LiveDirectory` object on the
+  `ascent-hub` Worker that every revision's live-game and room objects register into; then presence and invite pushes
+  on the hub. Audit table and design notes: `docs/versus-cf-cutover.md`, "What still reads Supabase for live information".
+
 - **Account progression, after crates** (MVP 2026-09-27 and level crates + the 15-title catalog 2026-09-28, see
   `docs/devlog/2026-09-27-account-progression-mvp.md` and `docs/devlog/2026-09-28-progression-crates.md`; the owner
   runs each runbook). Hero + minion skins shipped 2026-09-28 (the first four, the opponent toggle, the kill switch,

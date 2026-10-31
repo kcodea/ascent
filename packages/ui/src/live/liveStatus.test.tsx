@@ -3,15 +3,15 @@
  * A LIVE GAME AT A GLANCE (owner 2026-10-29: "give live games the same granularity that friends show"; R-LIVE-STATUS-01).
  *  - the row's status is the Friends shape, read with the friends' own formatters: a lobby game's sent status (the step
  *    and whom it fights, place, Health + Armor, tier), else what the row itself says (Versus, Ranked Duos, older rows);
- *  - the player's listing carries that status on both hosts (the Supabase heartbeat, the Cloudflare listing), and a
- *    server without the new argument is asked once, then never again;
+ *  - the player's listing (up the game's Cloudflare socket) carries that status;
  *  - the Live Games page draws it with `FriendGame` (no title= tooltips).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createLobbyRun, type RunState } from '@game/sim';
-import type { LiveGameRow, LiveRemote } from './liveRemote';
+import type { LiveGameRow } from './liveRemote';
+import { fakeLiveObject } from './liveFakeObject';
 import { stepText, gameStatusChips, type FriendGameStatus } from '../friends/gameStatus';
 
 vi.hoisted(() => { (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true; HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
@@ -24,7 +24,7 @@ vi.mock('./liveRemote', async (orig) => {
 });
 
 const { liveGameStatusOf } = await import('./liveTargets');
-const { makeLiveRemote } = await import('./liveRemote');
+const cfMod = await import('./liveCf');
 const { useGame } = await import('../store');
 const identity = await import('../identity');
 const pubMod = await import('./livePublisher');
@@ -67,42 +67,27 @@ describe('the row at a glance (R-LIVE-STATUS-01)', () => {
   });
 });
 
-describe('the listing carries it (both hosts)', () => {
+describe('the listing carries it', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
     identity.setIdentity({ userId: 'u-player', isAnonymous: true } as never);
   });
-  afterEach(() => { vi.useRealTimers(); identity.setIdentity(null); });
+  afterEach(() => { vi.useRealTimers(); identity.setIdentity(null); cfMod.setCfLiveSocketForTests(null); pubMod.setLivePublishUrlForTests(null); });
 
-  it('the Supabase heartbeat sends my lobby game status (the friends builder), riding the beats that go anyway', async () => {
-    const heartbeat = vi.fn(async (_: { status?: FriendGameStatus | null }) => 0);
-    const fake = { heartbeat, end: vi.fn(async () => undefined), watchers: vi.fn(async () => []), channel: vi.fn(() => ({ channel: null as never, send: vi.fn(), close: vi.fn() })) };
-    pubMod.setLiveRemoteForTests(fake as unknown as LiveRemote);
-    pubMod.setLivePublishUrlForTests(() => null);
+  it('the listing up the game socket carries my lobby game status (the friends builder), riding the beats that go anyway', async () => {
+    const obj = fakeLiveObject('g');
+    cfMod.setCfLiveSocketForTests(obj.make);
+    pubMod.setLivePublishUrlForTests(() => 'http://worker');
     const off = pubMod.installLivePublisher();
     const base = createLobbyRun(77, 'warden');
     const run = { ...base, mode: 'practice', lobby: { ...base.lobby!, unrated: undefined } } as RunState;
     useGame.setState({ run, replaying: false, showTitle: false, playerName: 'Ann' });
-    for (let i = 0; i < 6; i++) await Promise.resolve();
-    expect(heartbeat).toHaveBeenCalledTimes(1);
-    const st = heartbeat.mock.calls[0]![0].status!;
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    expect(obj.ops('listing')).toHaveLength(1);
+    const st = (obj.ops('listing')[0]!.args as { status: FriendGameStatus }).status;
     expect(st).toMatchObject({ v: 1, mode: 'practice', round: run.wave, phase: 'shop', health: run.resolve, tier: run.tier });
     expect(st.place).toEqual({ rank: expect.any(Number), left: run.lobby!.seats.filter((s) => s.alive).length });
     off();
-    pubMod.setLivePublishUrlForTests(null);
-  });
-
-  it('a server without p_status: refused once, then the heartbeat goes without it for the session', async () => {
-    const calls: Record<string, unknown>[] = [];
-    const client = { rpc: async (_fn: string, args: Record<string, unknown>) => {
-      calls.push(args);
-      return 'p_status' in args ? { data: null, error: { code: 'PGRST202', message: 'no function' } } : { data: 3, error: null };
-    } };
-    const r = makeLiveRemote(() => client as never);
-    const game = { gameId: 'g', name: 'Ann', heroId: 'warden', cosmetics: null, round: 2, phase: 'shop' as const, status: sent() };
-    expect(await r.heartbeat(game)).toBe(3);
-    expect(await r.heartbeat(game)).toBe(3);
-    expect(calls.map((c) => 'p_status' in c)).toEqual([true, false, false]);
   });
 });
 

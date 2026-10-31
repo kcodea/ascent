@@ -11139,7 +11139,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-LIVE-CF-01',
     title: 'Lobby and Practice spectating runs on Cloudflare like Versus: one live game object per game, chosen by the switch, a game keeps its host for life',
     statement:
-      'When the switch `versus_host_config` says `lobby_live: cf` (default supabase) and the build carries its Worker, a NEW live lobby or Practice game publishes to its own Durable Object on the Worker over one WebSocket: the player\x27s listing, keyframe, stream and end go up the socket; up to 20 watchers (one socket per account, a reconnect never counts twice) get the row, the cached keyframe and the stands in the hello, then the stream, the row as it changes, the stands and the end, pushed (nothing polled); emotes, cursors and key requests relay both ways as on Supabase. Only the game\x27s first publisher may publish, list or end it, never watch it. The object writes the Live Games row through the key-gated `lobby_live_cf` (event-driven: on a change plus a 2-minute keep-alive, removed at the end; never the service role) and no frame ever reaches Postgres. The row carries `live_host: cf:<content revision>`, so a watcher reaches that game\x27s Worker, and the Supabase watch refuses it (`other_host`). A game keeps its host for life: flipping the switch moves only new games. A Worker that cannot be reached within 6 s leaves that game on the Supabase path (the heartbeat takes its row back). A player gone 60 s ends the game as abandoned; an idle object forgets itself. Spectator end behaviour is unchanged.',
+      'When the switch `versus_host_config` says `lobby_live: cf` (default supabase) and the build carries its Worker, a NEW live lobby or Practice game publishes to its own Durable Object on the Worker over one WebSocket: the player\x27s listing, keyframe, stream and end go up the socket; up to 20 watchers (one socket per account, a reconnect never counts twice) get the row, the cached keyframe and the stands in the hello, then the stream, the row as it changes, the stands and the end, pushed (nothing polled); emotes, cursors and key requests relay both ways as on Supabase. Only the game\x27s first publisher may publish, list or end it, never watch it. The object writes the Live Games row through the key-gated `lobby_live_cf` (event-driven: on a change plus a 2-minute keep-alive, removed at the end; never the service role) and no frame ever reaches Postgres. The row carries `live_host: cf:<content revision>`, so a watcher reaches that game\x27s Worker, and the Supabase watch refuses it (`other_host`). A game keeps its host for life: flipping the switch moves only new games. SUPERSEDED in part 2026-10-30 by R-LIVE-CF-ONLY-01: there is no switch read and no Supabase path; a Worker that cannot be reached is retried in the background and the game is not watchable until it answers. A player gone 60 s ends the game as abandoned; an idle object forgets itself. Spectator end behaviour is unchanged.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -12239,5 +12239,36 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-30. The teammate\x27s board reaches the sender\x27s run through the recorded noteMateTribes action, fed by the client from the teammate\x27s live frame while a Matchmaker is held.',
     example: 'Amy\x27s board is three Beasts and a Dragon. Ann plays Matchmaker, picks a Beast from the three offered, and it lands in Amy\x27s hand. Both Hitchhikers grow.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCardsDiscoverPass.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-LIVE-CF-ONLY-01',
+    title: 'Live games are Cloudflare only: every lobby and Practice game publishes and is watched on its Worker, with no Supabase fallback',
+    statement:
+      'Every live lobby or Practice game publishes to its own object on this build\x27s Versus Worker, and nothing else: the client '
+      + 'sends no Supabase heartbeat, joins no Supabase broadcast channel, writes no Supabase keyframe and calls no Supabase '
+      + 'watcher function. A Worker that does not answer within 6 s is tried again in the background after 5, 10, 20, 40 s, '
+      + 'then every 60 s, for as long as the game lasts (one console line, not one per try); until it answers the game is '
+      + 'simply not watchable and the game itself is unaffected. A game that ends before the Worker answered sends nothing. '
+      + 'Every Watch joins the game on the Worker its listing row names (`live_host: cf:<rev>`): Live Games passes the row; '
+      + 'a friend\x27s Watch or an accepted spectate invite reads the row, and with no row yet tries this build\x27s own Worker. A '
+      + 'lobby row with no `live_host` (listed by an older build on the retired path) is not watchable and says "That game '
+      + 'is on an older version. It cannot be watched." The watcher never polls. On the server, once '
+      + '`2026-11-17-retire-supabase-live.sql` is applied, the Supabase heartbeat, end and keyframe writes answer '
+      + '`live_moved` and the Supabase watch answers `other_host` for a listed game (an old client follows it to the Worker). '
+      + 'The Live Games listing itself is still READ from Supabase (`lobby_live_games`, written only by the Worker) until '
+      + 'a version-independent Cloudflare directory replaces it (docs/versus-cf-cutover.md).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'Remove fallback for spectating. I want us to make cloudflare work as our source for live information and action like spectating' },
+      { kind: 'code', ref: 'packages/ui/src/live/livePublisher.ts (startCf, liveRetryDelay), packages/ui/src/live/liveWatch.ts (watchLiveGame, liveHostOf), packages/ui/src/live/liveRemote.ts (reads only), supabase/migrations/2026-11-17-retire-supabase-live.sql' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-30 (chore/cf-only-live-spectate). Before, a player whose Worker did not answer within 6 s '
+      + 'published that game on Supabase for its whole life (heartbeat every 15 s, a Realtime broadcast channel, keyframes in '
+      + '`lobby_live_frames`), and a watcher of such a game polled `lobby_live_watch_as` every 5 s and beat `spectate_beat` '
+      + 'every 10 s; a friend\x27s Watch always tried the Supabase join first and was sent on by `other_host`.',
+    example: 'The Worker is briefly down when Ann starts a Practice game. Her game plays normally but is not on Live Games. Twenty seconds later the Worker is back; her next retry opens the socket and the game is listed. Bob presses Watch on her from his friends list: his client reads her row and joins her on the Worker.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/liveCf.test.ts', 'packages/ui/src/live/liveGames.test.ts', 'packages/sim/src/lobby/lobbyLiveRetire.db.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
 ];

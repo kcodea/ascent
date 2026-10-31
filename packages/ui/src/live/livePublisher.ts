@@ -1,19 +1,21 @@
 /**
- * LIVE RANKED LOBBY GAMES, the PLAYER's side (owner-approved 2026-10-15). While the player is in a RATED lobby game,
- * the game is listed (`lobby_live_games`): a heartbeat every 15 s (and on every round / phase change) refreshes the
- * row and answers how many people are watching. Only while that is above zero does anything else run: the game's
- * broadcast channel, the spectator projection (the Versus protocol: keyframes, deltas, action tags, the fight result,
- * the cursor), all coalesced into the idle-time deferred writer. With nobody watching it costs one tiny RPC every 15 s
- * and nothing per frame or per click. Spectating never touches the run, its timing, uploads or rating.
+ * LIVE LOBBY GAMES, the PLAYER's side (owner-approved 2026-10-15). While the player is in a lobby game, the game is
+ * listed: its listing goes up the game's socket on every round / phase change (and every 15 s), and the stands come
+ * down it the moment they change. Only while someone watches does anything else run: the spectator projection (the
+ * Versus protocol: keyframes, deltas, action tags, the fight result, the cursor), all coalesced into the idle-time
+ * deferred writer. With nobody watching nothing is sent per frame or per click. Spectating never touches the run, its
+ * timing, uploads or rating.
  *
  * Every lobby game since 2026-10-28 (owner: "all games should show as live games"; R-LIVE-ALL-GAMES-01): ranked, casual
  * and Practice (`liveModeOf`), never a sandbox, God Mode or a replay. Always listed for now; a "hide my game" setting
  * would gate `eligible` (the one seam).
  *
- * TWO HOSTS (2026-10-29, R-LIVE-CF-01): when the switch's `lobby_live` says Cloudflare (and this build carries its
- * Worker), a NEW game publishes over one WebSocket to its Durable Object (`liveCf.ts`) instead: the listing, keyframes,
- * stream and end go up the socket, the stands come down it the moment they change, and Supabase sees nothing from this
- * client. A Worker that cannot be reached falls back to the Supabase path for that game. A game keeps its host for life.
+ * CLOUDFLARE ONLY (R-LIVE-CF-01, R-LIVE-CF-ONLY-01; owner 2026-10-30: "Remove fallback for spectating. I want us to make
+ * cloudflare work as our source for live information and action like spectating"): every game publishes over one
+ * WebSocket to its Durable Object on this build's Worker (`liveCf.ts`). The listing, keyframes, stream and end go up the
+ * socket; Supabase sees nothing from this client (the object writes the Live Games row itself). A Worker that does not
+ * answer is tried again in the background with backoff (`LIVE_RETRY_MS`, doubling to `LIVE_RETRY_MAX_MS`); until it
+ * answers the game is simply not watchable. The game itself never notices either way.
  */
 import { lobbyIsUnrated, rankedRunIdOf, type RunState } from '@game/sim';
 import { createDeferredWriter } from '../idleWork';
@@ -24,12 +26,11 @@ import { useOwnHeroPick } from '../hero-select/ownHeroPick';
 import { combatBeatFor, hasPendingActs, setSpectatorTap, takeActs, takeOdds, takeOverlay } from '../versus/spectateTap';
 import { SPECTATE_KEY_EVENT } from '../versus/spectate';
 import { SPECTATE_BYE_EVENT } from '../versus/spectateTap';
-import { anonymousWatchers, setWatchers as setWatcherList } from '../versus/watchers';
+import { setWatchers as setWatcherList } from '../versus/watchers';
 import { receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT } from '../versus/spectatorEmotes';
 import { subscribeSentEmotes } from '../emotes/emoteTransport';
 import { PLAYER_SEAT } from '../emotes/emoteRuntime';
 import { VERSUS_EMOTE_EVENT, type VersusEmoteMessage } from '../versus/versusEmotes';
-import { liveRemote, type LiveRemote } from './liveRemote';
 import { openCfPublisher, type CfListing, type CfPublisher, type LiveWatcher } from './liveCf';
 import { lobbyLivePublishUrl } from '../versus/versusRemote';
 import { currentRankOf } from '../rank/rankSource';
@@ -38,6 +39,9 @@ import { receiveLobbyChatEvent, setLobbyChatCompany, setLobbyChatSession } from 
 import { lobbyStatusNow, type FriendGameStatus } from '../friends/gameStatus';
 
 export const LIVE_HEARTBEAT_MS = 15_000;
+/** A Worker that did not answer is tried again after this long, doubling each time up to `LIVE_RETRY_MAX_MS`. */
+export const LIVE_RETRY_MS = 5_000;
+export const LIVE_RETRY_MAX_MS = 60_000;
 
 /** Is this run a ranked lobby game the listing may show? The ONE gate (a hide setting would join it here). Only while
  *  the player is IN it: a game parked on the title screen (Save & Continue, the menu) is not live. */
@@ -61,9 +65,6 @@ export function liveModeOf(run: RunState): 'ranked' | 'casual' | 'practice' | nu
 
 const phaseOf = (run: RunState): 'shop' | 'combat' => (run.phase === 'combat' ? 'combat' : 'shop');
 
-/** The server refused the 'hero' phase (`bad_phase`: 2026-10-26-lobby-live-hero-select.sql not applied yet): Hero Select
- *  is not listed for the rest of the session (one refused call, never one every 15 s), and the game lists from its shop. */
-let heroPhaseRefused = false;
 type LiveStoreSlice = { replaying: boolean; showTitle?: boolean; heroChoices?: string[] | null; pendingMode?: string; rankedEntry?: { runId: string } | null; heroReroll?: unknown };
 /**
  * HERO SELECT IS LIVE TOO (owner 2026-10-26: "hero select should be spectatable"; R-SPECTATE-HEROSELECT-01): the ranked
@@ -71,7 +72,7 @@ type LiveStoreSlice = { replaying: boolean; showTitle?: boolean; heroChoices?: s
  * the pick) is listed and watched like the rest of the game. The game id while the player is on it, else null.
  */
 export function liveHeroSelectGameId(st: LiveStoreSlice): string | null {
-  if (heroPhaseRefused || st.replaying || st.showTitle || st.pendingMode !== 'lobby' || !st.heroChoices?.length || !st.rankedEntry?.runId) return null;
+  if (st.replaying || st.showTitle || st.pendingMode !== 'lobby' || !st.heroChoices?.length || !st.rankedEntry?.runId) return null;
   return st.rankedEntry.runId;
 }
 /** The Hero Select frame I send (my three, my pick, my re-roll), or null. */
@@ -94,22 +95,20 @@ interface Live {
   channel: { send: (e: string, p: unknown) => void; close: () => void } | null;
   fightSent: unknown;
   keyWanted: boolean;
-  /** The last heartbeat a watcher's arrival asked for (throttled). */
-  askedAt: number;
   /** Stops forwarding my emotes to the stands (set only while someone watches). */
   emotesOff: (() => void) | null;
-  /** LIVE GAMES ON CLOUDFLARE (R-LIVE-CF-01): 'cf' once the game's socket is open ('connecting' until then); 'supabase'
-   *  for the Supabase path (the default, and the fallback when the Worker cannot be reached). */
-  host: 'supabase' | 'connecting' | 'cf';
+  /** The game's socket (R-LIVE-CF-01): 'cf' once it is open; 'connecting' until then, and between background retries
+   *  while the Worker does not answer; 'quiet' once another tab took the game. */
+  host: 'connecting' | 'cf' | 'quiet';
   cf: CfPublisher | null;
+  /** Failed opens in a row, and the background retry waiting to run. */
+  fails: number;
+  retry: number | null;
 }
 let live: Live | null = null;
-let remote: LiveRemote = liveRemote;
-/** For the tests: a fake network. */
-export function setLiveRemoteForTests(r: LiveRemote): void { remote = r; }
-let publishUrl: () => string | null = lobbyLivePublishUrl;
-/** For the tests: where a new game publishes (null: Supabase). */
-export function setLivePublishUrlForTests(fn: (() => string | null) | null): void { publishUrl = fn ?? lobbyLivePublishUrl; }
+let publishUrl: () => string = lobbyLivePublishUrl;
+/** For the tests: the Worker a new game publishes to. */
+export function setLivePublishUrlForTests(fn: (() => string) | null): void { publishUrl = fn ?? lobbyLivePublishUrl; }
 
 /** MY GAME AT A GLANCE (R-LIVE-STATUS-01): the Friends status of my lobby game (the step and whom I fight, place, Health,
  *  Armor, tier), sent with the listing so the Live Games row shows what a friend's row shows. Null on Hero Select (the
@@ -137,80 +136,37 @@ function cfListing(l: Live): CfListing {
 
 function beat(): void {
   const l = live;
-  if (!l) return;
-  if (l.host === 'connecting') return; // the listing goes out the moment the socket opens
-  if (l.host === 'cf') {
-    // Cloudflare: the listing up the socket (no Supabase call); the stands arrive as pushes, the count here is a check.
-    void l.cf?.listing(cfListing(l)).then((n) => { if (live === l) setWatchers(l, n); }).catch(() => undefined);
-    return;
-  }
-  const run = useGame.getState().run;
-  const g = useGame.getState();
-  // On Hero Select the row's hero is my pick once made, else the first offered (the list says "Picking a hero").
-  const frame = l.hero ? myHeroFrame(g) : null;
-  void remote.heartbeat({
-    gameId: l.gameId, name: g.playerName || 'Player', heroId: frame ? frame.picked ?? frame.offer[0]! : run.heroId,
-    cosmetics: frame ? currentRunCosmetics() ?? null : run.cosmetics ?? currentRunCosmetics() ?? null,
-    round: frame ? 1 : run.wave, phase: frame ? 'hero' : phaseOf(run),
-    mode: frame ? null : liveModeOf(run) === 'ranked' ? null : liveModeOf(run) as 'casual' | 'practice' | null,
-    status: myStatus(l),
-  }).then((n) => { if (live === l) setWatchers(l, Number(n) || 0); }).catch((e: unknown) => {
-    if (frame && (e as { code?: string })?.code === 'bad_phase') { heroPhaseRefused = true; if (live === l) stop('abandon'); }
-  });
+  if (!l || l.host !== 'cf') return; // the listing goes out the moment the socket opens
+  // The listing up the socket; the stands arrive as pushes, the count here is a check.
+  void l.cf?.listing(cfListing(l)).then((n) => { if (live === l) setWatchers(l, n); }).catch(() => undefined);
 }
 
-/** A watcher's arrival is HEARD at once (owner ask 2026-10-15: no 15 s wait to start). The game's channel is joined
- *  for LISTENING when the game is listed (a passive subscription: nothing is sent on it while unwatched); a joining
- *  watcher asks it for a keyframe, and a game not yet publishing answers with an immediate heartbeat (throttled), whose
- *  watcher count starts publishing. */
-const ASK_THROTTLE_MS = 2000;
+/** The game's socket: my mentor's pings, the stands' chat and emotes, and a watcher asking for a keyframe. A watcher's
+ *  arrival and departure come as pushed stands (`cfStands`), never as a recount from here. */
 function onBroadcast(l: Live, event: string, payload?: unknown): void {
-  // LIVE PINGS (R-PING-02): my mentor's pings, and who is mentoring (the receiver re-checks the rule: a Supabase
-  // broadcast channel cannot).
+  // LIVE PINGS (R-PING-02): my mentor's pings, and who is mentoring (the receiver re-checks the rule).
   if (receivePingEvent(event, payload)) return;
-  // LOBBY CHAT (R-LOBBY-CHAT-01): my stands' messages (Cloudflare only: the object runs the chat).
+  // LOBBY CHAT (R-LOBBY-CHAT-01): my stands' messages (the object runs the chat).
   if (receiveLobbyChatEvent(event, payload)) return;
   // A watcher's emote: it pops from their chip in my "Spectating" indicator (R-SPECTATE-EMOTE-01). Only a watcher in my
   // stands (the watcher rows) can emote; the receiver throttles it on its own clock.
   if (event === SPECTATOR_EMOTE_EVENT) { receiveSpectatorEmote(payload); return; }
-  // A watcher LEAVING: an immediate heartbeat recounts the stands (the "Spectating" indicator drops them now).
-  // On Cloudflare the object already pushed the new stands.
-  if (event === SPECTATE_BYE_EVENT) { if (l.host === 'supabase') beat(); return; }
+  if (event === SPECTATE_BYE_EVENT) return; // the object already pushed the new stands
   if (event !== SPECTATE_KEY_EVENT) return;
   if (l.pub) { l.keyWanted = true; frames.schedule(undefined); }
-  if (l.host !== 'supabase') return; // Cloudflare: the watcher's arrival was pushed, nothing to recount
-  // A joining watcher asks for a keyframe: a heartbeat (throttled) recounts the stands, so a game not publishing yet
-  // starts, and the indicator shows the newcomer at once.
-  const now = Date.now();
-  if (now - l.askedAt < ASK_THROTTLE_MS) return;
-  l.askedAt = now;
-  beat();
-}
-
-/** The stands changed (a recount moved): read who is watching for the top-left indicator (R-SPECTATE-WATCHERS-01).
- *  Only on a change of count, so it is one small read per join / leave. An older server gives no identities: plain
- *  "Spectator" plates, one per watcher. */
-function readWatchers(l: Live, n: number): void {
-  if (n <= 0) { setWatcherList([]); return; }
-  if (l.host !== 'supabase') return; // Cloudflare: the stands come pushed with their identities (`cfStands`)
-  void remote.watchers(l.gameId).then((rows) => {
-    if (live !== l) return;
-    setWatcherList(rows ? rows.slice(0, 20).map((r) => ({ id: r.user_id, name: r.display_name ?? '', profile: r.profile ?? null })) : anonymousWatchers(n));
-  }).catch(() => { if (live === l) setWatcherList(anonymousWatchers(n)); });
 }
 
 function setWatchers(l: Live, n: number): void {
   const was = l.watchers;
   l.watchers = n;
-  if (n !== was) readWatchers(l, n);
   if (n > 0 && !l.pub) {
-    if (!l.channel) l.channel = remote.channel(l.gameId, (event, payload) => onBroadcast(l, event, payload));
+    if (!l.channel) return; // no socket (another tab took the game): nothing to publish on
     l.pub = newPublisher('p1');
     l.keyWanted = true;
     syncTap(l);
     // MY EMOTES REACH THE STANDS (owner 2026-10-22: "spectators arent seeing when a player emotes";
-    // R-SPECTATE-EMOTE-02): each one I say goes out at once on the game's channel, the Versus wire message as seat
-    // `p1`. Only while watched; the channel never echoes to me (`self: false`), so my own bubble still shows once.
+    // R-SPECTATE-EMOTE-02): each one I say goes out at once on the game's socket, the Versus wire message as seat
+    // `p1`. Only while watched; the object never echoes to me, so my own bubble still shows once.
     const ch = l.channel;
     l.emotesOff = subscribeSentEmotes((m) => {
       if (live !== l || !l.pub || m.seat !== PLAYER_SEAT) return;
@@ -232,7 +188,7 @@ function syncTap(l: Live): void {
   else setSpectatorTap(false, null, null);
 }
 
-/** Stop publishing (nobody watching any more): the channel stays joined, listening for the next watcher. */
+/** Stop publishing (nobody watching any more): the socket stays open, listening for the next watcher. */
 function stopPublishing(l: Live): void {
   setSpectatorTap(false, null, null);
   l.emotesOff?.();
@@ -254,7 +210,7 @@ const frames = createDeferredWriter<undefined>(() => {
     if (!hm) return;
     hm.m = l.gameId;
     l.channel.send('spectate', hm);
-    storeKey(l, hm.seq, 0, hm);
+    storeKey(l, hm);
     return;
   }
   const run = useGame.getState().run;
@@ -276,13 +232,12 @@ const frames = createDeferredWriter<undefined>(() => {
   // Where the fight is, on a broadcast keyframe while it plays (never the persisted copy): R-SPECTATE-JOIN-01.
   const cb = msg.kind === 'key' ? combatBeatFor(run) : null;
   l.channel.send('spectate', cb ? { ...msg, cb } : msg);
-  if (msg.kind === 'key') storeKey(l, msg.seq, msg.round, msg);
+  if (msg.kind === 'key') storeKey(l, msg);
 }, 250);
 
-/** The keyframe a late joiner opens on: the object's memory on Cloudflare, `lobby_live_frames` on Supabase. */
-function storeKey(l: Live, seq: number, round: number, frame: unknown): void {
-  if (l.cf) l.cf.key(frame);
-  else void remote.publishFrame(l.gameId, seq, round, frame).catch(() => undefined);
+/** The keyframe a late joiner opens on: kept in the game's object. */
+function storeKey(l: Live, frame: unknown): void {
+  l.cf?.key(frame);
 }
 
 /** The stands pushed by the Cloudflare object (identities included): the indicator and the publish gate at once. */
@@ -294,8 +249,13 @@ function cfStands(l: Live, list: LiveWatcher[]): void {
   setLobbyChatCompany(list.length > 0);
 }
 
-/** Open the game on the Worker; if it cannot be reached, publish this game on Supabase instead (for its whole life). */
+/** The wait before the next try after `fails` failed opens in a row: 5, 10, 20, 40 s, then every 60 s. */
+export const liveRetryDelay = (fails: number): number => Math.min(LIVE_RETRY_MAX_MS, LIVE_RETRY_MS * 2 ** Math.max(0, fails - 1));
+
+/** Open the game on the Worker. One that does not answer is tried again in the background, with backoff, for as long as
+ *  the game lasts; there is no other host (R-LIVE-CF-ONLY-01). */
 function startCf(l: Live, url: string): void {
+  l.retry = null;
   // The hello's stands arrive before the socket is handed over (a resumed game may already be watched): held until then.
   let early: LiveWatcher[] | null = null;
   void openCfPublisher(url, l.gameId, {
@@ -305,6 +265,7 @@ function startCf(l: Live, url: string): void {
     // re-opened, so two tabs never take the game from each other in turn.
     onDead: () => {
       if (live !== l || l.host !== 'cf') return;
+      l.host = 'quiet';
       l.cf = null;
       l.channel = null;
       stopPublishing(l);
@@ -313,6 +274,7 @@ function startCf(l: Live, url: string): void {
     },
   }).then((cf) => {
     if (live !== l) { void cf.end(null).catch(() => undefined).finally(() => cf.close()); return; }
+    l.fails = 0;
     l.cf = cf;
     l.host = 'cf';
     l.channel = { send: (e, p) => cf.send(e, p), close: () => cf.close() };
@@ -323,28 +285,20 @@ function startCf(l: Live, url: string): void {
     beat();
   }).catch(() => {
     if (live !== l) return;
-    console.warn('live games: the Worker could not be reached; this game is listed on Supabase');
-    startSupabase(l);
-    beat();
+    // Not watchable for now: try again later. Nothing goes anywhere else.
+    l.fails += 1;
+    if (l.fails === 1) console.warn('live games: the Worker did not answer; this game is not watchable until it does');
+    l.retry = window.setTimeout(() => { if (live === l) startCf(l, url); }, liveRetryDelay(l.fails));
   });
 }
 
-function startSupabase(l: Live): void {
-  l.host = 'supabase';
-  l.channel = remote.channel(l.gameId, (event, payload) => onBroadcast(l, event, payload)); // listening only, until someone watches
-}
-
 function start(gameId: string, hero: boolean): void {
-  const l: Live = { gameId, hero, watchers: 0, timer: null, lastKey: '', pub: null, channel: null, fightSent: null, keyWanted: false, askedAt: 0, emotesOff: null, host: 'supabase', cf: null };
+  const l: Live = { gameId, hero, watchers: 0, timer: null, lastKey: '', pub: null, channel: null, fightSent: null, keyWanted: false, emotesOff: null, host: 'connecting', cf: null, fails: 0, retry: null };
   live = l;
   l.timer = window.setInterval(beat, LIVE_HEARTBEAT_MS);
-  // The host is chosen once, here, for the game's whole life (R-LIVE-CF-01).
-  const url = publishUrl();
-  if (url) { l.host = 'connecting'; startCf(l, url); }
-  else startSupabase(l);
+  startCf(l, publishUrl());
   // LIVE PINGS (R-PING-01/02): I am the game's one player (`p1`). My own pings reach the stands only while someone
-  // watches (nothing is sent unwatched), on whichever host carries the game (Cloudflare object or Supabase channel);
-  // my mentor's arrive through `onBroadcast`.
+  // watches (nothing is sent unwatched), on the game's socket; my mentor's arrive through `onBroadcast`.
   setPingSession('lobbylive', { send: (e, p) => { if (live === l && l.pub && l.channel) l.channel.send(e, p); }, seat: () => 'p1', mode: () => 'lobby', gameKey: `lobby:${gameId}` });
   // the first beat is the round / phase key change in the subscriber (one registration, not two)
 }
@@ -354,23 +308,19 @@ function stop(ended: number | null | 'abandon'): void {
   if (!l) return;
   live = null;
   if (l.timer != null) window.clearInterval(l.timer);
+  if (l.retry != null) window.clearTimeout(l.retry);
   setPingSession('lobbylive', null);
   setLobbyChatSession('lobbylive', null);
   stopPublishing(l);
   frames.cancel(); // a publish still waiting for idle time belongs to the game that just stopped
   setWatcherList([]);
   const placement = ended === 'abandon' ? null : ended;
-  if (l.cf) {
-    // Cloudflare: the end goes up the socket (the object writes the last watch beats, then tells the stands), then close.
-    const cf = l.cf;
-    l.cf = null;
-    l.channel = null;
-    void cf.end(placement).catch(() => undefined).finally(() => cf.close());
-    return;
-  }
-  l.channel?.close();
   l.channel = null;
-  if (l.host === 'supabase') void remote.end(l.gameId, placement).catch(() => undefined);
+  if (!l.cf) return; // never reached the Worker (or another tab holds it): nothing of mine is listed
+  // The end goes up the socket (the object writes the last watch beats, then tells the stands), then close.
+  const cf = l.cf;
+  l.cf = null;
+  void cf.end(placement).catch(() => undefined).finally(() => cf.close());
 }
 
 /** Watch the store: register a ranked lobby game, follow it, end it. Installed once at boot. */
@@ -413,5 +363,5 @@ export function installLivePublisher(): () => void {
 }
 
 /** For the tests: the live state. */
-export const liveState = (): { gameId: string; watchers: number; publishing: boolean; host: Live['host'] } | null =>
-  live ? { gameId: live.gameId, watchers: live.watchers, publishing: !!live.pub, host: live.host } : null;
+export const liveState = (): { gameId: string; watchers: number; publishing: boolean; host: Live['host']; fails: number } | null =>
+  live ? { gameId: live.gameId, watchers: live.watchers, publishing: !!live.pub, host: live.host, fails: live.fails } : null;

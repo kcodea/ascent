@@ -1,28 +1,27 @@
 /**
- * LIVE RANKED LOBBY GAMES, the WATCHER's session (owner-approved 2026-10-15). Watching a game reuses the Versus watch
- * screen whole (`versus/spectate.ts`): the real lobby shop and combat from the player's side, view only (the replay
- * viewer's render-only mode), the action animations, the live cursor, right-click inspect. This file joins the game
- * (`lobby_live_watch`, cap 20), opens its broadcast channel, feeds the frames in, keeps the watcher seat warm, and
- * follows the listing row. Leave goes back to the Live games list at once. When the game ENDS (owner 2026-10-24,
- * R-SPECTATE-END-01) the game's end gate closes over the watch screen and opens on the Play menu with the player's
- * placement and the XP for watching it (`spectatorEnd.ts`); the watch record that XP is judged on beats from here.
+ * LIVE LOBBY GAMES, the WATCHER's session (owner-approved 2026-10-15). Watching a game reuses the Versus watch screen
+ * whole (`versus/spectate.ts`): the real lobby shop and combat from the player's side, view only (the replay viewer's
+ * render-only mode), the action animations, the live cursor, right-click inspect. Leave goes back to the Live games list
+ * at once. When the game ENDS (owner 2026-10-24, R-SPECTATE-END-01) the game's end gate closes over the watch screen and
+ * opens on the Play menu with the player's placement and the XP for watching it (`spectatorEnd.ts`).
  *
- * TWO HOSTS (2026-10-29, R-LIVE-CF-01): a game whose row says `live_host: cf:<rev>` is watched on the Worker instead
- * (`liveCf.ts`): one socket carries the join (cap 20), the keyframe, the stream, the row as it changes, the stands and
- * the end; nothing is polled, and the watch record is written by the game's object (R-LIVE-CF-XP-01), so this client
- * sends no beat. The host is the game's, for its whole life: a flip of the switch never moves a watch.
+ * CLOUDFLARE ONLY (R-LIVE-CF-01, R-LIVE-CF-ONLY-01; owner 2026-10-30: "Remove fallback for spectating. I want us to make
+ * cloudflare work as our source for live information and action like spectating"): a game is watched on the Worker that
+ * hosts it (`liveCf.ts`). One socket carries the join (cap 20), the keyframe, the stream, the row as it changes, the
+ * stands and the end; nothing is polled, and the watch record is written by the game's object (R-LIVE-CF-XP-01), so
+ * this client sends no beat and calls no Supabase function. There is no Supabase watch path any more.
  */
 import { create } from 'zustand';
+import { contentRevision } from '@game/content';
 import { playerRunsFrom, resetLobbyDrivers, runKeyOf, setWatchedSeatRuns, type RunLobby } from '@game/sim';
 import { useGame } from '../store';
 import { installSpectateIo, liveSync, receiveSpectate, receiveSpectatorCursor, refreshSpectatorSeats, SPECTATE_KEY_EVENT, useSpectate } from '../versus/spectate';
-import { SPECTATE_BYE_EVENT, SPECTATE_CURSOR_EVENT } from '../versus/spectateTap';
+import { SPECTATE_CURSOR_EVENT } from '../versus/spectateTap';
 import { myWatcherIdentity, othersInStands, setWatchers } from '../versus/watchers';
-import { supabaseClient } from '../remoteBoards';
 import { currentUserId } from '../identity';
-import { installSpectatorEmotes, onUnknownSpectatorEmote, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from '../versus/spectatorEmotes';
+import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from '../versus/spectatorEmotes';
 import { receiveWatchedEmote, resetWatchedEmotes, VERSUS_EMOTE_EVENT } from '../versus/versusEmotes';
-import { liveRemote, LiveError, type LiveGameRow, type LiveRemote } from './liveRemote';
+import { liveRemote, type LiveGameRow, type LiveRemote } from './liveRemote';
 import { endWatchedGame, startSpectatorBeat, stopSpectatorBeat } from './spectatorEnd';
 import { cfErrorCode, diagnoseCfOpen, openCfWatcher, type CfOpenDiagnosis, type CfWatcher, type LiveRow, type LiveWatcher } from './liveCf';
 import { lobbyLiveWatchUrl } from '../versus/versusRemote';
@@ -40,55 +39,19 @@ export interface LiveWatchState {
 }
 export const useLiveWatch = create<LiveWatchState>(() => ({ game: null, ended: null, joining: false, error: null }));
 
-/** Watcher heartbeat / listing poll. */
-export const LIVE_WATCH_POLL_MS = 5000;
-
-let remote: LiveRemote = liveRemote;
-export function setLiveWatchRemoteForTests(r: LiveRemote): void { remote = r; }
+/** The listing read (a friend's Watch looks up which Worker hosts the game) and the seat recordings (boards). */
+let remote: Pick<LiveRemote, 'game' | 'seatRecordings'> = liveRemote;
+export function setLiveWatchRemoteForTests(r: Pick<LiveRemote, 'game' | 'seatRecordings'> | null): void { remote = r ?? liveRemote; }
 
 let session: {
-  gameId: string; channel: { send: (e: string, p: unknown) => void; close: () => void } | null; poll: number | null;
+  gameId: string; channel: { send: (e: string, p: unknown) => void; close: () => void } | null;
   /** Stops waiting for the game's first lobby (`watchSeatRecordings`). */
   seatsUnsub: (() => void) | null;
   /** The watched game's seats, so leaving evicts the drivers built from its recordings. */
   seats: RunLobby['seats'] | null;
-  /** When the other watchers were last read (`readFellows`), and how many polls since. */
-  fellowsAt: number;
-  polls: number;
-  /** LIVE GAMES ON CLOUDFLARE: the game's socket (null on the Supabase path). */
+  /** The game's socket. */
   cf: CfWatcher | null;
 } | null = null;
-
-/** The auth session's user id (the id `lobby_live_watch_as` wrote my row under), or null. Never throws. */
-async function mySessionId(): Promise<string | null> {
-  try { return (await supabaseClient()?.auth.getSession())?.data.session?.user.id ?? null; } catch { return null; }
-}
-
-/** Re-read the other watchers every few polls (they join and leave), and at most this often on an unknown emote. */
-const FELLOWS_EVERY_POLLS = 3;
-const FELLOWS_ASK_MS = 3000;
-
-/**
- * THE OTHER PEOPLE IN THE STANDS (R-SPECTATE-EMOTE-01): my top-left row lists them, and a fellow spectator's emote pops
- * from their chip. Read from the watcher rows (`lobby_live_watchers`, which a current watcher of the game may read once
- * `2026-10-16-lobby-live-fellow-watchers.sql` is applied); without it the read is refused and the row shows only me
- * (the player still sees every spectator's emote). Never from a broadcast.
- */
-async function readFellows(s: NonNullable<typeof session>): Promise<void> {
-  s.fellowsAt = Date.now();
-  try {
-    const rows = await remote.watchers(s.gameId);
-    if (session !== s) return;
-    // ME, by every id that is me here: the identity AND the auth session the watch call ran under (the row is keyed
-    // by that one), so my own row is never drawn again among the others (R-SPECTATE-HUD-02).
-    const authId = await mySessionId();
-    if (session !== s) return;
-    const all = (rows ?? []).map((r) => ({ id: r.user_id, name: r.display_name ?? '', profile: r.profile ?? null }));
-    setWatchers(othersInStands(all, [currentUserId(), authId]).slice(0, 20));
-  } catch {
-    // An older server (only the player may read its watchers): the row shows only me.
-  }
-}
 
 /** The watched game's recorded-seat run keys this client cannot drive from its own pool. Pure; exported for tests. */
 export function missingSeatRunKeys(lobby: Pick<RunLobby, 'seats' | 'setId'>): string[] {
@@ -103,8 +66,8 @@ export function missingSeatRunKeys(lobby: Pick<RunLobby, 'seats' | 'setId'>): st
  * player", R-SPECTATE-SEATS-01). The first lobby that arrives names every seat for the whole game. Any recorded seat
  * whose run this client's pool lacks is fetched ONCE, by seed, and handed to the sim (`setWatchedSeatRuns`, kept apart
  * from the watcher's own pool), then the screen re-reads the seats (`refreshSpectatorSeats`). One read per watch, off
- * the render path; nothing is sent on the game's channel and the player's client does nothing new. A failed read
- * leaves the seats as they were (their recorded reads).
+ * the render path; nothing is sent on the game's socket and the player's client does nothing new. A failed read leaves
+ * the seats as they were (their recorded reads).
  */
 function watchSeatRecordings(s: NonNullable<typeof session>): void {
   // Only the WATCHED game's screen counts (`spectatorRunOf` names it `spectate:<game>:p1`), never the run the watcher
@@ -138,7 +101,8 @@ const ERRORS: Record<string, string> = {
   no_game: 'That game has just ended.',
   game_ended: 'That game has just ended.',
   own_game: 'That is your own game.',
-  not_deployed: 'Live games are not available yet.',
+  // A game listed by an older build that published it elsewhere (R-LIVE-CF-ONLY-01).
+  old_host: 'That game is on an older version. It cannot be watched.',
   // R-LIVE-WATCH-REACH-01: a genuine failure says why (never one catch-all "could not reach").
   version_mismatch: 'This game is on a different version. Reload to update.',
   not_signed_in: 'Sign in again to watch. Reload the game and try again.',
@@ -147,68 +111,40 @@ const ERRORS: Record<string, string> = {
   server_down: 'The game server did not answer. Try again in a moment.',
   unreachable: 'Could not reach that game. Try again.',
 };
-const errorText = (e: unknown): string => ERRORS[(e as LiveError).code] ?? 'Could not watch that game. Try again.';
+const errorText = (e: { code?: string }): string => ERRORS[e.code ?? ''] ?? 'Could not watch that game. Try again.';
 
 /**
- * Watch a live game. Resolves once joined (the screen opens on the player's first frame). `hint`: the game's listing row
- * when the caller has it (Live Games), so a Cloudflare game goes straight to its Worker. Without one (a friend's Watch),
- * the Supabase join is tried first and a Cloudflare game answers `other_host`, whose row then names its Worker.
+ * Where a game is watched: the Worker its listing row names (`live_host: cf:<rev>`). `hint`: the row, when the caller has
+ * it (Live Games). Without one (a friend's Watch, an accepted spectate invite) the row is read; a game with no row yet
+ * (its first listing write is still on its way) is looked for on this build's own Worker. A row with no `live_host` was
+ * listed by an older build on the retired Supabase path: it cannot be watched. Null = not watchable (the error is set).
+ */
+async function liveHostOf(gameId: string, hint?: Pick<LiveGameRow, 'live_host'> | null): Promise<string | null> {
+  if (hint?.live_host) return hint.live_host;
+  const row = hint ?? (await remote.game(gameId).catch(() => null));
+  if (row && !row.live_host) { useLiveWatch.setState({ error: errorText({ code: 'old_host' }) }); return null; }
+  return row?.live_host ?? `cf:${contentRevision()}`;
+}
+
+/**
+ * Watch a live game. Resolves once joined (the screen opens on the player's first frame).
  */
 export async function watchLiveGame(gameId: string, hint?: Pick<LiveGameRow, 'live_host'> | null): Promise<boolean> {
   leaveLiveGame(false);
   useLiveWatch.setState({ error: null, ended: null });
-  if (hint?.live_host) return watchOnCf(gameId, hint.live_host);
-  let row: LiveGameRow;
-  try {
-    // With my name and portrait, for the player's "Spectating" indicator (R-SPECTATE-WATCHERS-01).
-    const me = myWatcherIdentity();
-    row = await remote.watchAs(gameId, me.name, me.profile);
-  } catch (e) {
-    if ((e as LiveError).code === 'other_host') {
-      const r = await remote.game(gameId).catch(() => null);
-      if (r?.live_host) return watchOnCf(gameId, r.live_host);
-    }
-    useLiveWatch.setState({ error: errorText(e) });
-    return false;
-  }
-  resetWatchedEmotes();
-  const s: NonNullable<typeof session> = { gameId, channel: null, poll: null, seatsUnsub: null, seats: null, fellowsAt: 0, polls: 0, cf: null };
-  session = s;
-  installSpectateIo({
-    latestFrames: async (id) => { const f = await remote.latestFrame(id); return f ? [{ seat: 'p1' as const, frame: f }] : []; },
-    requestKey: () => s.channel?.send(SPECTATE_KEY_EVENT, {}),
-    loadRounds: () => undefined,
-    lobbyFor: () => undefined,
-    // Leave and the end return to the Live games list.
-    returnTo: () => ({ titleView: 'menu', showLiveGames: true }),
-  });
-  // A fellow spectator's emote pops from their chip in my top-left row (R-SPECTATE-EMOTE-01); the PLAYER's own emote,
-  // forwarded by their publisher, rises from their hero portrait, as on their screen (R-SPECTATE-EMOTE-02).
-  s.channel = remote.channel(gameId, (event, payload) => onGameBroadcast(s, event, payload));
-  // My own emotes go out on this channel, as me; a sender I do not know yet re-reads the stands (throttled).
-  const me = currentUserId();
-  if (me) installSpectatorEmotes(me, s.channel.send);
-  installWatchPings(s, gameId);
-  onUnknownSpectatorEmote(() => { if (Date.now() - s.fellowsAt > FELLOWS_ASK_MS) void readFellows(s); });
-  useSpectate.setState({ name: row.display_name });
-  useLiveWatch.setState({ game: row, joining: true });
-  liveSync(gameId);
-  s.channel.send(SPECTATE_KEY_EVENT, {}); // a keyframe now, if the player is already publishing
-  s.poll = window.setInterval(() => void follow(s), LIVE_WATCH_POLL_MS);
-  // The watch record for the XP of watching it to the end (R-PROG-SPECTATE-XP-01).
-  startSpectatorBeat('lobby', gameId);
-  watchSeatRecordings(s);
-  void readFellows(s);
-  return true;
+  const seq = watchSeq;
+  const host = await liveHostOf(gameId, hint);
+  if (seq !== watchSeq || !host) return false; // a newer Watch (or a Leave) took over meanwhile
+  return watchOnCf(gameId, host);
 }
 
-/** The game's channel handler (both hosts): the player's stream, cursor and emotes, and the other spectators' emotes. */
+/** The game's socket handler: the player's stream, cursor and emotes, and the other spectators' emotes. */
 function onGameBroadcast(s: NonNullable<typeof session>, event: string, payload: unknown): void {
   if (session !== s) return;
   // LIVE PINGS (R-PING-02/03): the player's own pings show on the watched screen; a mentor ping reaches only the
   // player (the receiver drops it here); who is mentoring shows on the stands.
   if (receivePingEvent(event, payload)) return;
-  // LOBBY CHAT (R-LOBBY-CHAT-01): the player's and the stands' messages (Cloudflare only).
+  // LOBBY CHAT (R-LOBBY-CHAT-01): the player's and the stands' messages.
   if (receiveLobbyChatEvent(event, payload)) return;
   if (event === 'spectate') { receiveSpectate(payload); if (useSpectate.getState().active) useLiveWatch.setState({ joining: false }); }
   else if (event === SPECTATE_CURSOR_EVENT) receiveSpectatorCursor(payload);
@@ -216,8 +152,8 @@ function onGameBroadcast(s: NonNullable<typeof session>, event: string, payload:
   else if (event === VERSUS_EMOTE_EVENT && useSpectate.getState().active) receiveWatchedEmote(payload, useSpectate.getState().seat);
 }
 
-/** As a spectator I hold no seat; if the player makes me their mentor I may ping their screen (R-PING-03). Sent on
- *  whichever host carries the game (the Cloudflare object stamps and routes it; Supabase relies on the receiver). */
+/** As a spectator I hold no seat; if the player makes me their mentor I may ping their screen (R-PING-03). Sent on the
+ *  game's socket (the object stamps and routes it). */
 function installWatchPings(s: NonNullable<typeof session>, gameId: string): void {
   setPingSession('livewatch', { send: (e, p) => { if (session === s) s.channel?.send(e, p); }, seat: () => null, mode: () => 'lobby', gameKey: `lobby:${gameId}` });
 }
@@ -241,11 +177,11 @@ function cfFellows(list: LiveWatcher[], me: string | null): void {
 }
 
 /**
- * WATCH ON CLOUDFLARE (R-LIVE-CF-01): the same watch screen, fed by the game's socket. The join, the row, the keyframe
- * and the stands come with the hello; the end comes pushed (after the object wrote the watch record for it).
+ * WATCH ON CLOUDFLARE (R-LIVE-CF-01): the watch screen, fed by the game's socket. The join, the row, the keyframe and the
+ * stands come with the hello; the end comes pushed (after the object wrote the watch record for it).
  */
 async function watchOnCf(gameId: string, liveHost: string): Promise<boolean> {
-  const s: NonNullable<typeof session> = { gameId, channel: null, poll: null, seatsUnsub: null, seats: null, fellowsAt: 0, polls: 0, cf: null };
+  const s: NonNullable<typeof session> = { gameId, channel: null, seatsUnsub: null, seats: null, cf: null };
   let key: unknown = null;
   let myId: string | null = null;
   const seq = ++watchSeq;
@@ -299,12 +235,16 @@ async function watchOnCf(gameId: string, liveHost: string): Promise<boolean> {
     requestKey: () => s.channel?.send(SPECTATE_KEY_EVENT, {}),
     loadRounds: () => undefined,
     lobbyFor: () => undefined,
+    // Leave and the end return to the Live games list.
     returnTo: () => ({ titleView: 'menu', showLiveGames: true }),
   });
+  // A fellow spectator's emote pops from their chip in my top-left row (R-SPECTATE-EMOTE-01); the PLAYER's own emote,
+  // forwarded by their publisher, rises from their hero portrait, as on their screen (R-SPECTATE-EMOTE-02). The stands
+  // come pushed with every change, so an unknown sender needs no re-read.
   const me = currentUserId();
   if (me) installSpectatorEmotes(me, s.channel.send);
   installWatchPings(s, gameId);
-  setLobbyChatSession('livewatch', { send: (e, p) => opened.watcher.send(e, p), gameKey: `lobby:${gameId}`, me: myId ?? currentUserId() });
+  setLobbyChatSession('livewatch', { send: (e, p) => got.watcher.send(e, p), gameKey: `lobby:${gameId}`, me: myId ?? currentUserId() });
   useSpectate.setState({ name: row.display_name });
   useLiveWatch.setState({ game: row, joining: true });
   cfFellows(got.hello.watchers ?? [], myId);
@@ -316,39 +256,12 @@ async function watchOnCf(gameId: string, liveHost: string): Promise<boolean> {
   return true;
 }
 
-/** Keep the watcher seat warm and follow the game's row: its end, or its disappearance. */
-/** Failed follows in a row (R-NET-BACKOFF-01): after a failure the next ones wait 10, 20, 40 s (capped at 60 s). */
-let followFails = 0;
-let followNextAt = 0;
-async function follow(s: NonNullable<typeof session>): Promise<void> {
-  if (session !== s) return;
-  if (Date.now() < followNextAt) return;
-  if (useSpectate.getState().active) useLiveWatch.setState({ joining: false });
-  if (++s.polls % FELLOWS_EVERY_POLLS === 0) void readFellows(s);
-  try {
-    const me = myWatcherIdentity();
-    const row = await remote.watchAs(s.gameId, me.name, me.profile);
-    if (session !== s) return;
-    followFails = 0;
-    followNextAt = 0;
-    useLiveWatch.setState({ game: row });
-    if (row.phase === 'end' && !useLiveWatch.getState().ended) gameEnded(s, row);
-  } catch (e) {
-    if (session !== s) return;
-    followFails++;
-    followNextAt = Date.now() + Math.min(60_000, LIVE_WATCH_POLL_MS * 2 ** followFails);
-    // Gone (abandoned, or silent past a minute): back to the list with a word why.
-    if ((e as LiveError).code === 'no_game') { leaveLiveGame(true); useLiveWatch.setState({ error: 'That game has ended.' }); }
-  }
-}
-
 /**
  * THE GAME ENDED for its player (owner 2026-10-24): the end gate shuts over the watch screen and opens on the Play menu
  * with their placement and the XP for watching it (R-SPECTATE-END-01). Behind the doors the session is left for the menu.
  */
 function gameEnded(s: NonNullable<typeof session>, row: LiveGameRow): void {
   useLiveWatch.setState({ ended: row });
-  if (s.poll != null) { window.clearInterval(s.poll); s.poll = null; }
   void endWatchedGame({
     kind: 'lobby', target: s.gameId, name: row.display_name, placement: row.placement ?? null,
     leave: () => {
@@ -364,20 +277,16 @@ export function leaveLiveGame(back = true): void {
   const s = session;
   if (!s) return;
   session = null;
-  if (s.poll != null) window.clearInterval(s.poll);
   stopSpectatorBeat();
   s.seatsUnsub?.();
   setWatchedSeatRuns(null);
   if (s.seats) resetLobbyDrivers(s.seats);
-  // Tell the player at once (their indicator drops me on its next heartbeat, asked for now instead of in 15 s). On
-  // Cloudflare the closing socket tells the game's object, which tells the player.
-  if (!s.cf) s.channel?.send(SPECTATE_BYE_EVENT, {});
+  // The closing socket tells the game's object, which tells the player at once.
   s.channel?.close();
   setPingSession('livewatch', null);
   setLobbyChatSession('livewatch', null);
   uninstallSpectatorEmotes();
   setWatchers([]);
-  if (!s.cf) void remote.unwatch(s.gameId).catch(() => undefined);
   liveSync(null); // stops the watch screen (restoring through `returnTo`)
   installSpectateIo(null);
   useSpectate.setState({ name: null });
@@ -385,5 +294,5 @@ export function leaveLiveGame(back = true): void {
   if (back && !useGame.getState().showLiveGames) useGame.setState({ showTitle: true, titleView: 'menu', showLiveGames: true });
 }
 
-/** Watching a live ranked lobby game right now (the bar, the Esc menu's Leave). */
+/** Watching a live lobby game right now (the bar, the Esc menu's Leave). */
 export const isWatchingLive = (): boolean => session !== null;

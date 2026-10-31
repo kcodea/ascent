@@ -1,14 +1,16 @@
 /**
- * LIVE RANKED LOBBY GAMES, the network seam (owner-approved 2026-10-15; SQL: `2026-10-15-lobby-live.sql`). The listing
- * table, the watcher RPCs, the latest keyframe, and one Realtime BROADCAST channel per game (`lobbylive:<game id>`)
- * that carries the spectator deltas, action tags and cursor (the Versus protocol, `versus/spectatorView.ts`).
+ * LIVE GAMES, the Supabase READS that remain (owner-approved 2026-10-15). Since R-LIVE-CF-ONLY-01 (2026-10-30) nothing
+ * here writes, joins, watches or subscribes: every live game publishes and is watched on the Versus Worker
+ * (`liveCf.ts`), and the Worker writes each game's Live Games row itself (`lobby_live_cf` / `versus_cf_live`). What is
+ * left is reading that listing (the Live Games page, the menu glow, the one row a friend's Watch looks up) and the
+ * watched game's seat recordings (boards, which are storage). Moving the listing itself onto Cloudflare is the planned
+ * follow-up (docs/versus-cf-cutover.md, "What still reads Supabase").
  */
-import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import type { BoardSnapshot } from '@game/sim';
 import { supabaseClient } from '../remoteBoards';
 import { fetchAllRows } from '../supabaseRows';
-import type { FriendGameStatus } from '../friends/gameStatus';
 
 /** One live game as the listing shows it (public columns only; never run state). */
 export interface LiveGameRow {
@@ -31,8 +33,9 @@ export interface LiveGameRow {
   mode?: LiveGameMode | null;
   /** The players' line of a Versus match ("Ann vs Bob", "Ann & Bob vs Cat & Dan"). */
   players?: string | null;
-  /** LIVE GAMES ON CLOUDFLARE (R-LIVE-CF-01; 2026-11-10-lobby-live-cf.sql): `cf:<content revision>` when the game is
-   *  published on the Worker (watch it there), null / absent for the Supabase path. */
+  /** LIVE GAMES ON CLOUDFLARE (R-LIVE-CF-01; 2026-11-10-lobby-live-cf.sql): `cf:<content revision>`, the Worker that hosts
+   *  the game (watch it there). Null / absent on a lobby row only from an older build on the retired Supabase path
+   *  (R-LIVE-CF-ONLY-01): such a game cannot be watched. */
   live_host?: string | null;
   /** A LIVE GAME AT A GLANCE (R-LIVE-STATUS-01; 2026-11-13-lobby-live-status.sql): the lobby player's game status in the
    *  Friends shape (`FriendGameStatus`: the step and whom it fights, place, Health, Armor, tier). Read through
@@ -61,9 +64,6 @@ const BASE_COLS = 'game_id, display_name, hero_id, cosmetics, division_index, ra
 const missingColumn = (e: { code?: string } | null | undefined): boolean => e?.code === '42703' || e?.code === 'PGRST204';
 
 export function makeLiveRemote(getClient: () => SupabaseClient | null) {
-  let watchAsMissing = false;
-  /** The heartbeat's `p_status` is not on this server (2026-11-13): sent without it from then on. */
-  let statusArgMissing = false;
   /** The newest columns this server has: 3 = `status` too (2026-11-13), 2 = `live_host` too (2026-11-10), 1 = `mode` /
    *  `players` (2026-11-08), 0 = the original listing. A server without a migration is read with the columns it has
    *  from then on. */
@@ -84,12 +84,6 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
     if (!c) throw new LiveError('no_backend');
     return c;
   };
-  async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
-    // rows: every lobby_live_* RPC returns a scalar, nothing, or one row (the watched game).
-    const { data, error } = await db().rpc(fn, args);
-    if (error) fail(error);
-    return data as T;
-  }
   return {
     /** The live games, the best rank first (medal and division, then points, then rating). One page. */
     async list(page = 0): Promise<LiveGameRow[]> {
@@ -110,62 +104,6 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
     async game(gameId: string): Promise<LiveGameRow | null> {
       return (await read<LiveGameRow | null>((c) => db().from('lobby_live_games').select(c).eq('game_id', gameId).maybeSingle())) ?? null;
     },
-    /** The player registers / refreshes its game; returns the live watcher count. */
-    /** `mode`: a casual or Practice lobby game (R-LIVE-ALL-GAMES-01); omitted for a ranked one, so a server without the
-     *  2026-11-08 migration still takes the ranked call unchanged. */
-    /** `status`: the game at a glance (R-LIVE-STATUS-01), sent only to a server with the 2026-11-13 migration (one refused
-     *  call, then never again this session). */
-    async heartbeat(game: { gameId: string; name: string; heroId: string; cosmetics: RunCosmeticSnapshot | null; round: number; phase: 'hero' | 'shop' | 'combat' | 'end'; mode?: 'casual' | 'practice' | null; status?: FriendGameStatus | null }): Promise<number> {
-      const args = {
-        p_game: game.gameId, p_name: game.name, p_hero: game.heroId, p_cosmetics: game.cosmetics, p_round: game.round, p_phase: game.phase,
-        ...(game.mode ? { p_mode: game.mode } : {}),
-      };
-      if (statusArgMissing || !game.status) return rpc<number>('lobby_live_heartbeat', args);
-      try {
-        return await rpc<number>('lobby_live_heartbeat', { ...args, p_status: game.status });
-      } catch (e) {
-        if ((e as LiveError).code !== 'not_deployed') throw e;
-        statusArgMissing = true;
-        return rpc<number>('lobby_live_heartbeat', args);
-      }
-    },
-    end: (gameId: string, placement: number | null) => rpc<void>('lobby_live_end', { p_game: gameId, p_placement: placement }),
-    publishFrame: (gameId: string, seq: number, round: number, frame: unknown) =>
-      rpc<void>('lobby_live_publish_frame', { p_game: gameId, p_seq: seq, p_round: round, p_frame: frame }),
-    async latestFrame(gameId: string): Promise<unknown | null> {
-      const { data, error } = await db().from('lobby_live_frames').select('frame').eq('game_id', gameId).maybeSingle();
-      if (error) fail(error);
-      return (data as { frame: unknown } | null)?.frame ?? null;
-    },
-    watch: (gameId: string) => rpc<LiveGameRow>('lobby_live_watch', { p_game: gameId }),
-    /**
-     * Watch (or refresh) WITH the watcher's identity, so the player's top-left indicator can show who it is
-     * (R-SPECTATE-WATCHERS-01; SQL `2026-10-15-lobby-live-watcher-identity.sql`). A server without that migration
-     * answers `not_deployed`, and the plain `watch` is used instead (the player then sees a plain "Spectator").
-     */
-    async watchAs(gameId: string, name: string, profile: Record<string, unknown>): Promise<LiveGameRow> {
-      // A server without the identity RPC answers not_deployed once; every later poll goes straight to the plain watch
-      // (it used to ask the missing function first on every 5 s poll: one error per poll, R-NET-BACKOFF-01).
-      if (watchAsMissing) return rpc<LiveGameRow>('lobby_live_watch', { p_game: gameId });
-      try {
-        return await rpc<LiveGameRow>('lobby_live_watch_as', { p_game: gameId, p_name: name, p_profile: profile });
-      } catch (e) {
-        if ((e as LiveError).code !== 'not_deployed') throw e;
-        watchAsMissing = true;
-        return rpc<LiveGameRow>('lobby_live_watch', { p_game: gameId });
-      }
-    },
-    /** The PLAYER's own game's live watchers (name + profile), or null on a server without the identity migration. */
-    async watchers(gameId: string): Promise<{ user_id: string; display_name: string; profile: Record<string, unknown> | null }[] | null> {
-      try {
-        // rows: at most 20 (the watcher cap, enforced in SQL) (R-NET-01).
-        return (await rpc<{ user_id: string; display_name: string; profile: Record<string, unknown> | null }[] | null>('lobby_live_watchers', { p_game: gameId })) ?? [];
-      } catch (e) {
-        if ((e as LiveError).code === 'not_deployed') return null;
-        throw e;
-      }
-    },
-    unwatch: (gameId: string) => rpc<void>('lobby_live_unwatch', { p_game: gameId }),
     /**
      * EVERY board of the runs with these seeds (R-SPECTATE-SEATS-01): the watched game's recorded seats, which the
      * watcher's own pool (sampled for the watcher's rank) usually lacks. Every patch: the run is whatever the player's
@@ -177,14 +115,6 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
         .in('seed', seeds).order('id', { ascending: true }).range(from, to));
       if (res.error || !res.data) fail(res.error);
       return res.data.map((r) => r.snapshot).filter((s): s is BoardSnapshot => !!s);
-    },
-    /** The game's broadcast channel (both ends). */
-    channel(gameId: string, onBroadcast: (event: string, payload: unknown) => void): { channel: RealtimeChannel; send: (event: string, payload: unknown) => void; close: () => void } {
-      const c = db();
-      const ch = c.channel(`lobbylive:${gameId}`, { config: { broadcast: { self: false } } })
-        .on('broadcast', { event: '*' }, (msg: { event: string; payload: unknown }) => onBroadcast(msg.event, msg.payload));
-      ch.subscribe();
-      return { channel: ch, send: (event, payload) => { void ch.send({ type: 'broadcast', event, payload }); }, close: () => { void c.removeChannel(ch); } };
     },
   };
 }

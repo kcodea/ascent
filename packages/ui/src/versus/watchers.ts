@@ -3,9 +3,9 @@
  * joins? it can show their portrait and name and say spectating?"; R-SPECTATE-WATCHERS-01).
  *
  * The PLAYER's list of the people spectating their game, for the top-left indicator (`WatchersBadge`). Fed from the
- * watcher rows only, never from anything a spectator broadcasts: Versus from the room's `versus_members` (role
- * 'spectator'), a live ranked lobby game from `lobby_live_watchers` (its display name and profile, via the
- * `lobby_live_watchers` RPC). Set only when the list CHANGES (join / leave), so the indicator re-renders on that alone.
+ * server's own stands, never from anything a spectator broadcasts: Versus from the room's members (role 'spectator'), a
+ * live lobby game from the stands its Cloudflare object pushes (display name and profile). Set only when the list
+ * CHANGES (join / leave), so the indicator re-renders on that alone.
  */
 import { create } from 'zustand';
 import { currentRunCosmetics, useGame } from '../store';

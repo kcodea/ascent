@@ -1471,9 +1471,15 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   works. Joining mid-game lands on the current moment. Leave (or the Esc menu) returns to the list. When the game ends
   the player's placement shows for a few seconds, then the list.
 - **At most 20 watchers** per game. You cannot watch your own game.
-- **Never affects the player.** With no one watching the player's client sends one small heartbeat every 15 s and
-  nothing else. While watched it publishes off the render path (idle time, coalesced). Spectating never touches the
-  run, its timing, uploads, rating or placement.
+- **Never affects the player.** With no one watching the player's client sends its listing up the game's socket on a
+  round or phase change (and every 15 s) and nothing else. While watched it publishes off the render path (idle time,
+  coalesced). Spectating never touches the run, its timing, uploads, rating or placement.
+- **Cloudflare is the only live host** (owner 2026-10-30: "Remove fallback for spectating. I want us to make cloudflare
+  work as our source for live information and action like spectating"; R-LIVE-CF-ONLY-01). Every lobby and Practice
+  game publishes to its own object on the Versus Worker, and every Watch (Live Games, a friend's Watch, a spectate
+  invite) joins it there. If the Worker does not answer, the game is simply not watchable for now: the player's client
+  tries again in the background (after 5, 10, 20, 40 s, then every minute) and nothing is sent anywhere else. A game
+  listed by an older build on the retired Supabase path says "That game is on an older version. It cannot be watched."
 
 ## Live pings and mentors (owner 2026-10-29; R-PING-01..05)
 

@@ -212,18 +212,10 @@ html:root .lobbyrailtab.lrv-docked:not(.guidesview) {
   translate: calc(var(--lr2-tab-x, 0) * 1px) calc(var(--lr2-tab-y, 0) * 1px);
 }
 
-/* THE BOARD PIECES' HIT AREAS MATCH THEIR SHAPES while the docked rail is on (owner 2026-10-31: "we'll need to better cut
-   out the end turn diamond too so it doesnt mouseover while moused over an opponent"). The End Turn gem and the Refresh
-   pill sit above the rail (z 41, so their tooltips draw over it) and their boxes overlapped the slices beside their cuts.
-   Each button now takes the pointer only through a shaped `::after` (a pseudo-element hit counts as the button itself,
-   so :hover, the click, focus and touch all still work); its own box and its art are click-through. The Gold coin is
-   already a circle (`border-radius: 50%` clips its hit area). `lobbyRailDockedClickThrough.test.ts` holds this. */
-/* (pointer-events is inherited, and none of these pieces' children set their own, so the wrappers alone are enough; no
-   `*` rule, which would key a whole-subtree restyle on the class: R-PHONE-DRAG-02.) */
-html.rail-docked .etbwrap, html.rail-docked .rfbwrap { pointer-events: none; }
-html.rail-docked .etbwrap::after, html.rail-docked .rfbwrap::after { content: ''; position: absolute; inset: 0; pointer-events: auto; }
-html.rail-docked .etbwrap::after { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
-html.rail-docked .rfbwrap::after { border-radius: 999px; }
+/* THE BOARD PIECES' HIT AREAS MATCH THEIR SHAPES (owner 2026-10-31: "we'll need to better cut out the end turn diamond
+   too so it doesnt mouseover while moused over an opponent"). The End Turn gem and the Refresh pill sit above the rail
+   (z 41) and their boxes overlapped the slices beside their cuts. Since R-HIT-SHAPE-01 every board piece takes the
+   pointer only through its drawn shape in EVERY layout, not just Docked: see hitShapes.css. */
 
 /* ═══ SHARED PIECES: the portrait, the Health bar, the fallen, the pulse, the hover card ═══ */
 

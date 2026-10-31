@@ -6,6 +6,7 @@ import './touchUi.css'; // THE TOUCH UI: every rule keyed off html[data-touch-ui
 import './phoneMenus.css'; // THE PHONE MENUS: each menu page laid out for a phone (html[data-touch-small][data-page-scale], R-PHONE-MENUS-03)
 import './phoneLayout.css'; // THE PHONE LAYOUT: html[data-phone-layout] only (a phone in landscape, R-PHONE-LAYOUT-01)
 import './runeCard.css'; // the forge card: rune cards + rune rack badges (owner reference 2026-10-07)
+import './hitShapes.css'; // SHAPED HIT AREAS: every HUD control takes the pointer only through its drawn shape (R-HIT-SHAPE-01)
 import './tooltipConfig';
 import './boardEdgeConfig'; // side-effect: apply the ultrawide edge-blend vars (dev: persisted tune; prod: DEFAULTS)
 import './healthPillConfig'; // side-effect: stamp the health-pill look on <html> (dev: persisted pick; prod: DEFAULT)

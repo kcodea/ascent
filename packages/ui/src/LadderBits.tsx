@@ -10,6 +10,7 @@ import { Icon } from './Icon';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import type { PortraitSide } from './portraitFrame/portraitFrameConfig';
 import { medalOf } from './leaderboardData';
+import { MenuMedal, type MenuMedalName } from './menuIcons';
 import { MinionSkins, useOpponentSkins } from './skins/skins';
 
 /**
@@ -69,12 +70,16 @@ export function LbTeam({ board, empty = 'No board recorded' }: { board: BoardSna
   );
 }
 
-/** The rank medallion: a gold / silver / bronze coin for the podium, a plain numeral beyond. */
+/** The painted podium trophies (owner art 2026-10-31). A tier without art yet keeps the coin + crown. */
+const PODIUM_ART: Partial<Record<ReturnType<typeof medalOf>, MenuMedalName>> = { gold: 'first', bronze: 'third' };
+
+/** The rank medallion: the painted trophy (its numeral painted on) for the podium, a plain numeral beyond. */
 export function LbMedallion({ rank }: { rank: number }) {
   const tier = medalOf(rank);
+  const art = PODIUM_ART[tier];
   return (
-    <span className={`lb-medal ${tier}`} aria-label={`Rank ${rank}`}>
-      {tier !== 'plain' && <Icon name="crown" />}
+    <span className={`lb-medal ${tier}`} data-art={art ? '' : undefined} aria-label={`Rank ${rank}`}>
+      {art ? <MenuMedal name={art} className="lb-medal-art" /> : tier !== 'plain' && <Icon name="crown" />}
       <span className="lb-medal-n">{rank}</span>
     </span>
   );

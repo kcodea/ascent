@@ -8694,6 +8694,11 @@ html[data-bl="game"] .devmenu { left: calc(var(--bl-l) + var(--bl-cb) * 1.25); b
 .lb-medal.silver svg { color: #dfe6ee; }
 .lb-medal.bronze { background: linear-gradient(160deg, #f0b98a, #c07a3e 55%, #7d4a1f); }
 .lb-medal.bronze svg { color: #e6a066; }
+/* Painted podium trophy (owner art 2026-10-31): the art carries the numeral, so the coin and the text step aside
+   (the number stays in the DOM for screen readers). */
+.lb-medal[data-art] { background: none; box-shadow: none; }
+.lb-medal[data-art] .lb-medal-n { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.lb-medal-art { width: 125%; height: 125%; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)); }
 
 /* Final-team tiles: 7 fixed slots, each the REAL card rendered at `--tile-cw` and scaled down with a
    transform (compositor-only) inside a box pre-sized to the scaled footprint. `--tile-s` steps UP on wide

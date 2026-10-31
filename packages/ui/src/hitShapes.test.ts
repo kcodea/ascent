@@ -92,8 +92,8 @@ describe('every HUD control takes the pointer only through its shape (R-HIT-SHAP
   });
 
   it('a dragged card drops through every hit layer', () => {
-    expect(bodyOf('body.dragging :is(.tvbwrap, .frzwrap, .rfbwrap, .etbwrap)::after, body.dragging :is(.tvbwrap, .frzwrap, .rfbwrap, .etbwrap) :is(.tvb-cost, .tvb-tierpill, .frz-pill, .rfb-cost)')).toMatch(/pointer-events:\s*none/);
-    expect(bodyOf('body.dragging .statusbar .heropanel .heropowerbtn :is(.hpb-artwrap, .hpb-glow)')).toMatch(/pointer-events:\s*none/);
+    expect(bodyOf('body.dragging .tvbwrap::after, body.dragging .frzwrap::after, body.dragging .rfbwrap::after, body.dragging .etbwrap::after, body.dragging .tvbwrap .tvb-cost, body.dragging .tvbwrap .tvb-tierpill, body.dragging .frzwrap .frz-pill, body.dragging .rfbwrap .rfb-cost')).toMatch(/pointer-events:\s*none/);
+    expect(bodyOf('body.dragging .statusbar .heropanel .heropowerbtn .hpb-artwrap, body.dragging .statusbar .heropanel .heropowerbtn .hpb-glow')).toMatch(/pointer-events:\s*none/);
     expect(bodyOf('body.dragging .statusbar .hero .hpbox')).toMatch(/pointer-events:\s*none/);
   });
 

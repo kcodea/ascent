@@ -13,24 +13,33 @@
    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 
 /* ── Position: rail, header and Guides tab move together (a `translate`, so the staged slide-away still composes). ── */
+/* THE GUIDES VIEW (owner 2026-10-30: "how do the guides look/work with this"): the narrow tile column is the
+   OPPONENTS face only. Flipping to Guides gives the rail back its normal width, plate and Guides layout (the Gem rail,
+   lobbyRail.css + guides/lobbyGuides.css, which sized everything there for that width), while the rail, its header
+   and its tab keep Tuner 2's move, so the panel opens where the column stands rather than jumping. */
+html:root[data-lobby-rail="tiles"] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab).guidesview {
+  translate: calc(var(--lr2-rail-x, 0) * 1px) calc(var(--lr2-rail-y, 0) * 1px);
+}
 html:root[data-lobby-rail="tiles"] .lobbyrail {
   --k: calc(var(--lrow) * var(--rv-ph, 1) * var(--lr2-scale, 1));
   --f: calc(var(--lfont) * var(--rv-ph, 1) * var(--lr2-scale, 1));
   --rvk: calc(0.07 * var(--lu) * var(--rv-ph, 1) * var(--lr2-scale, 1));
   --e-dir: -1; /* the board is to the rail's LEFT */
   translate: calc(var(--lr2-rail-x, 0) * 1px) calc(var(--lr2-rail-y, 0) * 1px);
+}
+html:root[data-lobby-rail="tiles"] .lobbyrail:not(.guidesview) {
   width: calc(var(--lr2-e-w, 60) * var(--k)); height: auto; max-height: none; overflow: visible;
   border: 0; border-radius: 0; background: none; box-shadow: none;
   padding: calc(var(--lr2-e-pad, 9) * var(--k)) 0;
 }
 html:root[data-lobby-rail="tiles"][data-lr2-anchor="left"] .lobbyrail { right: auto; left: 10px; --e-dir: 1; }
 /* The frame: a dark plate inset to the middle of the painted rails, and the painted 9-slice over the tiles. */
-html:root[data-lobby-rail="tiles"] .lobbyrail::before {
+html:root[data-lobby-rail="tiles"] .lobbyrail:not(.guidesview)::before {
   content: ''; position: absolute; z-index: -1; inset: calc(60 * var(--rvk)); border: 0; border-radius: calc(90 * var(--rvk));
   background: linear-gradient(180deg, var(--ui-plate-mid), var(--ui-plate-bot));
   box-shadow: 0 calc(6 * var(--lu)) calc(18 * var(--lu)) -6px rgba(0, 0, 0, 0.85);
 }
-html:root[data-lobby-rail="tiles"] .lobbyrail::after {
+html:root[data-lobby-rail="tiles"] .lobbyrail:not(.guidesview)::after {
   content: ''; position: absolute; z-index: 4; inset: 0; left: 0; bottom: 0; width: auto; height: auto; transform: none;
   pointer-events: none; background: none;
   border: calc(270 * var(--rvk)) solid transparent; border-image: url('/frames/compendium-frame.webp') 270 stretch;
@@ -172,3 +181,8 @@ html:root[data-lobby-rail="tiles"][data-lr2-e-names="on"] .lobbyseat.dead .lobby
 /* Phones: the narrow column has room to spare on a landscape phone, so its tiles draw a third larger there (times the
    Tuner 2 phone size). */
 html:root[data-phone-layout][data-lobby-rail="tiles"] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab), html:root[data-touch-ui][data-phone-zoom][data-lobby-rail="tiles"] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --rv-ph: calc(var(--lr2-phone-scale, 1.1) * 1.3); }
+/* The Guides view on a phone: the rail, its header and its tab take the same phone move. */
+html:root[data-phone-layout][data-lobby-rail="tiles"] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab).guidesview,
+html:root[data-touch-ui][data-phone-zoom][data-lobby-rail="tiles"] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab).guidesview {
+  translate: calc(var(--lr2-rail-x, 0) * 1px) calc((var(--lr2-rail-y, 0) + var(--lr2-phone-y, -76)) * 1px);
+}

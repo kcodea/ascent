@@ -14,7 +14,8 @@
  */
 import { LIVE_REFRESH_MS, liveKeyOf, type LiveListing } from './core/liveListing';
 import { HubRoomSink, liveDirOf, TeeLiveSink, type LiveDirWriterEnv } from './liveDirSink';
-import { persistBackoffMs, type PersistEnv } from './persist';
+import { persistBackoffMs } from './backoff';
+import type { PersistEnv } from './persist';
 
 export interface LiveSink<R = LiveListing> {
   readonly live: boolean;

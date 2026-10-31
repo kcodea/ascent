@@ -27,6 +27,10 @@ ALLOWED_ORIGINS = "https://ascent-game-web.netlify.app,http://localhost:*,http:/
 # switch turns on the presence mirror (`hub_presence_cf`) and the Live Games rank lookup (`live_dir_meta`), both in
 # supabase/migrations/2026-11-18-live-directory.sql.
 PERSIST = "0"
+# THE GAME SESSION SWITCH (R-SESSION-CF-01, 2026-10-31): "on" = a new lobby / Practice game is hosted and buffered by a
+# GameSession object here (clients read it at GET /session/config). "off" = every client keeps the old path. Flipped by a
+# hub deploy (`npm run hub:deploy -- --force --session on|off`, docs/versus-cf-cutover.md), never by a code change.
+SESSION_MODE = "off"
 
 [[durable_objects.bindings]]
 name = "HUB"
@@ -38,6 +42,22 @@ class_name = "FriendHub"
 name = "LIVE_DIR"
 class_name = "LiveDirectory"
 
+[[durable_objects.bindings]]
+# THE GAME SESSION (2026-10-31, R-SESSION-CF-01): one object per lobby / Practice game: its live host (spectating, the
+# listing, chat, pings) and its session (the cloud save, the table, the run-end writes, the rating), flushed to Supabase
+# when due (`session.ts`). NEVER rename: a new name is a new, empty namespace (every game in flight would lose its session).
+name = "SESSION"
+class_name = "GameSession"
+
+[[durable_objects.bindings]]
+# THE POOL MIRROR (2026-10-31, R-POOL-MIRROR-01): ONE object (`global`) holding the opponent pool exactly as Supabase
+# serves it; the cron below keeps it in step.
+name = "POOL"
+class_name = "PoolMirror"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["FriendHub"]
@@ -45,6 +65,10 @@ new_sqlite_classes = ["FriendHub"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["LiveDirectory"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["GameSession", "PoolMirror"]
 
 [observability]
 enabled = true

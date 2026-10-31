@@ -33,6 +33,7 @@ import { createOutbox, idbOutboxStore, type Outbox, type OutboxItem, type Outbox
 import { careerTotalsOf } from './runHistory';
 import { matchLength } from './activePlayClock';
 import { loadStoredReplay, storeReplay } from './replayStorage';
+import { knownSessionGame, lastSessionGame, mirrorRpc, prefetchSessionConfig, sessionCall } from './session/sessionRemote';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -378,12 +379,23 @@ function runOutbox(): Outbox {
   if (outboxSingleton) return outboxSingleton;
   const ob = createOutbox({
     store: idbOutboxStore(),
-    async send(table, rows, conflict) {
+    async send(table, rows, conflict, item) {
       const c = client();
       if (!c) return { error: { message: 'no backend' } };
       const put = (rs: Record<string, unknown>[]) => (conflict
         ? c.from(table).upsert(rs, { onConflict: conflict, ignoreDuplicates: true })
         : c.from(table).insert(rs));
+      // THE GAME SESSION (R-SESSION-CF-01): a session game's run-end write goes to its session on the hub, which writes
+      // it to Supabase with the game's other end writes, once. The replay still goes to Storage from here first (the
+      // Worker holds no Storage credential). Anything but a clean accept (unreachable, refused) sends it directly below,
+      // exactly as before: the rows are idempotent on their own keys, so a write the session also lands is stored once.
+      if (item?.session) {
+        const viaSession = table === 'run_telemetry' ? (await withStoredReplay(c, rows)) ?? rows : rows;
+        const sent = await sessionCall(item.session, 'write', {
+          item: { key: item.key, kind: item.kind, table, rows: viaSession.map(({ user_id: _u, ...r }) => r), ...(conflict ? { conflict } : {}) },
+        });
+        if (sent && sent.status === 200) return { error: null };
+      }
       // REPLAYS IN STORAGE (R-REPLAY-STORAGE-01, replayStorage.ts): a telemetry row's replay goes to the `replays` bucket
       // and the row carries the pointer + head instead. ANY failure of that variant (no bucket / column yet, refused,
       // offline) falls straight back to the inline row in this same send, so the outbox's missing-column handling only
@@ -445,7 +457,8 @@ async function submitRunWrite(
 ): Promise<void> {
   if (!remoteEnabled() || rows.length === 0) return;
   try {
-    await runOutbox().submit({ kind, key, table, rows, ...(conflict ? { conflict } : {}), ...(offline || !currentUserId() ? { userId: null } : {}) });
+    const session = !offline && currentUserId() ? lastSessionGame() : null;
+    await runOutbox().submit({ kind, key, table, rows, ...(conflict ? { conflict } : {}), ...(offline || !currentUserId() ? { userId: null } : {}), ...(session ? { session } : {}) });
   } catch { /* storage trouble: the send above already went out when it could; never disrupt the end screen */ }
 }
 
@@ -520,6 +533,9 @@ const currentPoolBand = (): StrengthBand | null => {
   try { return (poolBandProvider ?? bandFallback)(); } catch { return null; }
 };
 
+/** What the pool mirror answered this session (R-POOL-MIRROR-01; the measurement probe and the tests read it). */
+export const poolMirrorStats = { keys: 0, boards: 0, fallbacks: 0 };
+
 /** DEV: what the per-run pool cache did this session (`window.__ascentPoolCache`). */
 export const poolRunCacheStats: DeltaStats = { calls: 0, runs: 0, hits: 0, fetched: 0, fallbacks: 0 };
 
@@ -530,11 +546,23 @@ function poolApi(c: SupabaseClient): PoolApi {
   // sample on a server without the delta SQL.
   const sample = cachedSample({
     async keys(args, signal) {
+      // THE POOL MIRROR (R-POOL-MIRROR-01): with the session switch on, the hub answers the same draw from its copy of
+      // the pool (no Supabase read). A cold or unreachable mirror falls through to Supabase, as before.
+      if (await prefetchSessionConfig()) {
+        const m = await mirrorRpc<never>('keys', args as unknown as Record<string, unknown>);
+        if (!m.error) { poolMirrorStats.keys += 1; return m; }
+        poolMirrorStats.fallbacks += 1;
+      }
       // rows: one per RUN (at most p_limit, the RPC caps itself at 300): ids, strengths and the content rev, no boards.
       const res = await c.rpc('pool_runs_sample_keys', args).abortSignal(signal);
       return { data: (res.data ?? null) as never, error: err(res.error) };
     },
     async boards(ids, signal) {
+      if (await prefetchSessionConfig()) {
+        const m = await mirrorRpc<never>('boards', { ids });
+        if (!m.error) { poolMirrorStats.boards += 1; return m; }
+        poolMirrorStats.fallbacks += 1;
+      }
       // rows: one per id asked for (POOL_BOARDS_CHUNK = 100 at a time; the RPC refuses more than 300).
       const res = await c.rpc('pool_runs_boards', { p_ids: ids }).abortSignal(signal);
       return { data: (res.data ?? null) as never, error: err(res.error) };
@@ -1549,6 +1577,15 @@ export async function submitRating(req: RankSubmitRequest): Promise<RankSubmitOu
     // settle time and applies the top-4 bonus itself; the client never sends a strength or a bonus.
     ...(req.seatKeys && req.seatKeys.length > 0 ? { seatKeys: req.seatKeys } : {}),
   };
+  // THE GAME SESSION (R-SESSION-CF-01): a session game's finish is settled by its session (the same checks as
+  // `submit-rating`, the table pinned at the start, the settle inside the game's one flush). An abandon (settled later,
+  // from the title) and anything the session cannot answer go to the Edge Function, as before.
+  if (req.kind !== 'abandon' && knownSessionGame(req.runId)) {
+    const a = await sessionCall<Record<string, unknown>>(req.runId, 'rate', { req: body }, { timeoutMs: RANK_SUBMIT_TIMEOUT_MS });
+    if (a && a.status === 200) return parseSubmitResponse(a.body);
+    if (a && (a.status === 400 || a.status === 409) && typeof a.body?.error === 'string' && a.body.error !== 'version_mismatch') return { status: 'rejected', reason: String(a.body.error) };
+    if (a && (a.status === 401 || a.status === 429)) return { status: 'retryable', reason: String(a.body?.error ?? `http_${a.status}`) };
+  }
   try {
     const timeout = new Promise<{ timedOut: true }>((resolve) => setTimeout(() => resolve({ timedOut: true }), RANK_SUBMIT_TIMEOUT_MS));
     const call = c.functions.invoke('submit-rating', { body }) as Promise<{ data: unknown; error: unknown }>;

@@ -33,6 +33,9 @@ export interface LiveMeta {
   publisherGoneAt: number | null;
   /** The last time anyone was connected or anything happened. */
   activeAt: number;
+  /** The Live Games `live_host` when it is not this Worker's `cf:<revision>`: `session` for a game hosted by the friends
+   *  hub's game session (R-SESSION-CF-01). Absent on the Versus Worker. */
+  host?: string;
 }
 
 /** The Live Games row the object writes (`lobby_live_cf`); rank, medal and rating are read in SQL. */
@@ -201,7 +204,7 @@ export class LiveCore {
       game_id: m.gameId, display_name: i.name, hero_id: i.hero, cosmetics: i.cosmetics,
       division_index: i.division ?? 0, rank_points: i.points ?? 0, rating: i.rating ?? 0,
       round: i.round, phase: m.end ? 'end' : i.phase, placement: m.end?.placement ?? null, spectators: this.watchers.size,
-      started_at: new Date(m.startedAt).toISOString(), mode: i.mode === 'ranked' ? null : i.mode, live_host: liveHostOf(m.contentRevision),
+      started_at: new Date(m.startedAt).toISOString(), mode: i.mode === 'ranked' ? null : i.mode, live_host: m.host ?? liveHostOf(m.contentRevision),
       status: i.status ?? null,
     };
   }
@@ -213,7 +216,7 @@ export class LiveCore {
     if (!i || !m.owner || m.end) return null;
     return {
       game: m.gameId, user: m.owner, name: i.name, hero: i.hero, cosmetics: i.cosmetics, round: i.round, phase: i.phase,
-      mode: i.mode === 'ranked' ? null : i.mode, spectators: this.watchers.size, host: liveHostOf(m.contentRevision),
+      mode: i.mode === 'ranked' ? null : i.mode, spectators: this.watchers.size, host: m.host ?? liveHostOf(m.contentRevision),
       status: i.status ?? null,
       started_at: new Date(m.startedAt).toISOString(), division: i.division ?? 0, points: i.points ?? 0, rating: i.rating ?? 0,
     };

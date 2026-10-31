@@ -10,6 +10,10 @@
  *   --persist  store messages (only after supabase/migrations/2026-11-12-direct-messages.sql is applied and
  *              `node scripts/writer-secret.mjs ascent-hub` has set HUB_WRITER_SECRET and its key row is inserted).
  *   --dry-run  bundle and check only; nothing is uploaded.
+ *   --session on|off  THE GAME SESSION SWITCH (R-SESSION-CF-01): new lobby / Practice games use the session (on) or the
+ *              old path (off). Without it the live hub's current setting is KEPT (read from `/session/config`), so a
+ *              routine pack never flips it; a hub that does not answer counts as off. Changing it deploys even when the
+ *              code is unchanged.
  *
  * Prints `hub: deployed <url> <hash>` or `hub: unchanged <url> <hash>` (the release script reads it), plus wrangler's URL
  * and version lines only. `VERSUS_CF_ENV_FILE` points at another apps/web/.env (the release worktree's).
@@ -54,6 +58,17 @@ export function hubCodeHash(files: string[] = hubSources()): string {
   return h.digest('hex').slice(0, 16);
 }
 
+/** The live hub's session switch ('on' / 'off'), or null when it does not answer (an older hub: off). */
+async function liveSession(): Promise<'on' | 'off' | null> {
+  try {
+    const res = await fetch(`${FRIENDS_HUB_LIVE_URL}/session/config`);
+    if (!res.ok) return null;
+    return ((await res.json()) as { enabled?: unknown }).enabled === true ? 'on' : 'off';
+  } catch {
+    return null;
+  }
+}
+
 async function liveHash(): Promise<string | null> {
   try {
     const res = await fetch(`${FRIENDS_HUB_LIVE_URL}${HUB_HEALTH_PATH}`);
@@ -75,8 +90,13 @@ async function main(): Promise<void> {
   const flag = (f: string): boolean => process.argv.includes(`--${f}`);
   const hash = hubCodeHash();
   const dry = flag('dry-run');
-  if (!dry && !flag('force') && (await liveHash()) === hash) {
-    console.log(`hub: unchanged ${FRIENDS_HUB_LIVE_URL} ${hash}`);
+  const at = process.argv.indexOf('--session');
+  const asked = at >= 0 ? process.argv[at + 1] : undefined;
+  if (asked !== undefined && asked !== 'on' && asked !== 'off') { console.error('--session takes on or off'); process.exit(2); }
+  const current = await liveSession();
+  const session = asked ?? current ?? 'off';
+  if (!dry && !flag('force') && session === (current ?? 'off') && (await liveHash()) === hash) {
+    console.log(`hub: unchanged ${FRIENDS_HUB_LIVE_URL} ${hash} (session ${session})`);
     return;
   }
   const origins = process.env.VERSUS_ALLOWED_ORIGINS?.trim();
@@ -86,10 +106,11 @@ async function main(): Promise<void> {
     '--var', 'DEV_AUTH:0',
     '--var', `PERSIST:${flag('persist') ? '1' : '0'}`,
     '--var', `HUB_CODE:${hash}`,
+    '--var', `SESSION_MODE:${session}`,
     ...(origins ? ['--var', `ALLOWED_ORIGINS:${origins}`] : []),
     ...(dry ? ['--dry-run', '--outdir', 'dist-hub'] : []),
   ];
-  console.log(`deploying ascent-hub ${hash}${dry ? ' (dry run)' : ''}`);
+  console.log(`deploying ascent-hub ${hash} (session ${session})${dry ? ' (dry run)' : ''}`);
   const r = spawnSync('npx', args, { cwd: workerDir, encoding: 'utf8', shell: process.platform === 'win32', env: { ...process.env, WRANGLER_SEND_METRICS: 'false' } });
   const out = `${r.stdout ?? ''}\n${r.stderr ?? ''}`;
   for (const line of out.split('\n')) {

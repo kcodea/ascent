@@ -83,6 +83,12 @@ function ClampedName({ text }: { text: string }): JSX.Element {
   return <span ref={ref} className="lrv-name-t" aria-label={text} />;
 }
 
+/** DOCKED: a slice's outline with its cut edge moved IN by `d` px (the left contour's cut points; the straight edges stay),
+ *  so a child clipped by it keeps an even gap from the cut. */
+function insetOutline(pts: readonly Pt[], d: number, w: number): Pt[] {
+  return pts.map(([x, y]) => [x > 0.5 && x < w * 0.8 ? x + d : x, y] as Pt);
+}
+
 /** DOCKED: the gold edge drawn along a slice's outline (or, `ring`, the next foe's breathing red ring). */
 function SliceEdge({ p, ring }: { p: DockPanel; ring?: boolean }): JSX.Element {
   return (
@@ -696,7 +702,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                     <span key={statuses[seat.id]!.label} className={`lrv-status ${statuses[seat.id]!.tone}`}>{statuses[seat.id]!.label}</span>
                   )}
                   {/* A DUOS team's shared pool is drawn once, on the pair's last slice; the other slice carries no bar. */}
-                  {row.alive && teamBarIds && !teamBarIds.has(seat.id) ? null : row.alive ? (<span className="lrv-barclip">
+                  {row.alive && teamBarIds && !teamBarIds.has(seat.id) ? null : row.alive ? (<span className="lrv-barclip" style={dp?.cut ? { clipPath: outlineClip(insetOutline(dp.outline, 4 * dock!.s, dp.w)) } : undefined}>
                     <span className="lrv-bar" role="img" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
                       <span className="lrv-bar-hp" style={{ transform: `scaleX(${hpFrac})` }} />
                       {armFrac > 0 && <span className="lrv-bar-arm" style={{ transform: `translateX(${((armEnd - armFrac) * 100).toFixed(2)}%) scaleX(${armFrac})` }} />}

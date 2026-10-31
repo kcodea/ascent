@@ -12764,19 +12764,21 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-RAIL-DOCKED-BAR-01',
-    title: 'A docked Health bar is never cut: it starts past the Refresh / gem / coin cut, so its fill is the real Health',
+    title: 'A docked Health bar follows the cut, and its fill is the real Health past the cut',
     statement:
-      'On a Docked slice cut by the End Turn gem or the Gold coin, the Health bar (track and fill) starts where the slice’s '
-      + 'foot is clear of the cut. The visible fill over the visible bar is the seat’s Health over its max Health on every '
-      + 'slice, cut or not; no part of the fill ever sits under a board piece.',
+      'On a Docked slice cut by the End Turn gem or the Gold coin, the Health bar’s track runs under the cut and is clipped '
+      + 'to the slice’s outline, so its left end follows the cut. The red under the cut is a fixed lead-in; the Health and '
+      + 'Armor fills start where the slice’s foot is clear of the cut, so the red past the cut over the bar past the cut '
+      + 'is the seat’s Health over its max Health on every slice, cut or not.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Lead for Kevin, 2026-10-31', quote: 'on cut slices the bar’s FILL must be measured from the bar’s visible left end (after the cut)' },
-      { kind: 'code', ref: 'packages/ui/src/lobbyRailDocked.css (.lobbyseat .lrv-bar left: var(--fx)), packages/ui/src/LobbyPanel.tsx (--fx = DockPanel.footX)' },
+      { kind: 'owner-chat', ref: 'Kevin, 2026-10-31', quote: 'i liked how they looked adhered to the cutout' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyRailDocked.css (.lobbyseat .lrv-bar > span left: var(--fx)), packages/ui/src/LobbyPanel.tsx (lrv-barclip outline clip, --fx = DockPanel.footX)' },
     ],
-    currentBehaviour: 'Conforms from 2026-10-31. The bar ran under the cut (clipped to the slice outline), so beside the coin the start of the red was hidden and a healthy player read as nearly dead.',
-    example: 'Ozzie sits beside the Gold coin on 9 of 30 Health: their bar starts right of the coin’s cut and shows 30% red.',
+    currentBehaviour: 'Conforms from 2026-10-31. First the bar ran under the cut with its fill measured from the hidden start, so a healthy player beside the coin read as nearly dead; then (#2504) it was squared off past the cut, losing the cut-hugging look.',
+    example: 'Ozzie sits beside the Gold coin on 9 of 30 Health: the bar’s end hugs the coin’s arc, and the red past the arc fills 30% of the bar past the arc.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailDockedModes.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
 ];

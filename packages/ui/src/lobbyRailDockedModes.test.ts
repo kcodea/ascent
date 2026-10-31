@@ -109,13 +109,19 @@ describe('the Docked rail in every mode: Versus player state on the slice', () =
 });
 
 describe('the Docked Health bar on a cut slice (R-RAIL-DOCKED-BAR-01)', () => {
-  // Lead 2026-10-31: the Gold coin's cut hid the start of the red, so a player beside the coin read as nearly dead. The bar
-  // now starts where the slice's foot is clear of any cut (`footX`, the CSS `--fx`), so the visible fill over the visible
-  // bar is exactly Health / max.
+  // Lead 2026-10-31: the Gold coin's cut hid the start of the red, so a player beside the coin read as nearly dead. Owner
+  // 2026-10-31: the bar must still follow the cut ("adhered to the cutout"). So the track runs under the cut, clipped to the
+  // slice's outline, and the scaled fills start where the foot is clear of the cut (`footX`, the CSS `--fx`): the visible
+  // fill past the cut over the bar past the cut is exactly Health / max.
   const css = readFileSync(join(__dirname, 'lobbyRailDocked.css'), 'utf8');
-  it('the bar rule starts the bar at --fx (past the cut)', () => {
-    const rule = css.split('}').find((r) => r.includes('.lobbyseat .lrv-bar {') && r.includes('left:'))!;
-    expect(rule).toMatch(/left:\s*calc\(var\(--fx, 0px\)/);
+  const tsx = readFileSync(join(__dirname, 'LobbyPanel.tsx'), 'utf8');
+  it('the track follows the cut (outline clip), the fills start at --fx', () => {
+    const bar = css.split('}').find((r) => r.includes('.lobbyseat .lrv-bar {') && r.includes('left:'))!;
+    expect(bar).toMatch(/left:\s*calc\(var\(--rim\)/);
+    const fills = css.split('}').find((r) => r.includes('.lobbyseat .lrv-bar > span {'))!;
+    expect(fills).toMatch(/left:\s*var\(--fx, 0px\)/);
+    expect(fills).toMatch(/width:\s*calc\(100% - var\(--fx, 0px\)\)/);
+    expect(tsx).toMatch(/className="lrv-barclip" style=\{dp\?\.cut \? \{ clipPath: outlineClip\(insetOutline\(/);
   });
   it.each([['8 seats', ids(8)], ['4 seats', ids(4)], ['2 seats', ids(2)]])('%s: no cut reaches into the bar band right of footX; fill / visible bar = Health / max', (_n, live) => {
     const L = dockedLayout(A, live, [])!;

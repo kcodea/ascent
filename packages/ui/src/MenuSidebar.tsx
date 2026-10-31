@@ -215,7 +215,7 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
         aria-current={current === 'settings' ? 'page' : undefined}
         onClick={() => { sfx.pulse(); if (current !== 'settings') goTo('settings'); }}
       >
-        <span className="mbicon"><Icon name="gear" /></span>
+        <span className="mbicon"><MenuMedal name="settings" /></span>
         <span className="mblabel">{txt.settings}</span>
       </button>
     </aside>

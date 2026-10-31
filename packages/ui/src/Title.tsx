@@ -549,7 +549,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             </button>
           )}
           <button className="menubtn" onClick={onSettings}>
-            <span className="mbicon"><Icon name="gear" /></span>
+            <span className="mbicon"><MenuMedal name="settings" /></span>
             <span className="mblabel">{txt.settings}</span>
           </button>
         </nav>

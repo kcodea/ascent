@@ -3937,6 +3937,15 @@ body.modalup .app { z-index: auto; }
    4-class `.dragcard.willplay .card.compact .cglow` above on specificity rather than source order. */
 .dragcard.willplay .card.compact.plated .plateglow { opacity: 1; }
 .dragcard.willplay .card.compact.plated .cglow { opacity: 0; }
+/* …and that glow is GEM BLUE (owner 2026-10-31, R-PLAYLINE-01): `willplay` is now set only past the minion COMMIT line,
+   so blue means "let go and it plays". Between the react and commit lines the warband makes room but the card stays
+   unlit, and a release springs it back to hand. Re-points the hover-glow vars on the drag card only, so the same
+   layers just change colour. PERF: the filter is STATIC (painted once on the toggle); only opacity transitions. */
+.dragcard.willplay {
+  --hg-line-col: #7fd8ff;
+  --hg-bloom-filter: drop-shadow(0 0 3px rgba(40, 150, 255, 0.95)) drop-shadow(0 0 3px rgba(40, 150, 255, 0.95))
+    drop-shadow(0 0 6px rgba(40, 150, 255, 0.9));
+}
 /* Magnetic: an electric crackle while a Magnetic card hovers a friendly Mech (.electric, the floating drag
    card) and on the host Mech as it's welded (.electrify — drop + Combinator's End of Turn). PERF: a STATIC
    cyan halo on a ::before whose OPACITY breathes — compositor-only, zero per-frame paint. This was an animated
@@ -15129,3 +15138,18 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .playparty-btn + .playparty-btn { border-left: 1px solid rgba(196, 160, 92, 0.3); }
 .playparty-btn:hover { color: #fff; }
 .playparty-btn.on { color: #241705; background: linear-gradient(180deg, #f0d089, #c99d4e); }
+
+/* DEV Drag Feel tuner: the hand-drag line guides (R-PLAYLINE-01). Hidden unless the panel's "Show play lines"
+   toggle puts `playline-preview` on the body. Static, never animated; click-through so dragging still works. */
+.playline-guides { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 99990; }
+body.playline-preview .playline-guides { display: block; }
+.playline-guide { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed var(--plg, #fff); }
+.playline-guide span {
+  position: absolute; left: 12px; bottom: 3px; padding: 1px 6px; border-radius: 3px;
+  font: 600 12px/1.4 system-ui, sans-serif; color: #111; background: var(--plg, #fff); white-space: nowrap;
+}
+.playline-guide.react { --plg: #ffd34d; }
+.playline-guide.commit { --plg: #5cc4ff; }
+.playline-guide.commit span { left: auto; right: 12px; }
+.playline-guide.spell { --plg: #c08cff; }
+.playline-guide.spell span { left: 50%; transform: translateX(-50%); }

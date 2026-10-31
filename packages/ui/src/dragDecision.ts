@@ -72,6 +72,10 @@ export interface DragDecisionInput {
   /** Lower cast/aim line for SPELLS (targeted, untargeted, Ruby). Defaults to `playFloor` when omitted, so a
    *  spell arms/reorders on the same line as a minion unless a distinct (lower) spell line is supplied. */
   spellFloor?: number;
+  /** The COMMIT line for a hand MINION: a release plays it only above this line. `playFloor` is where the warband
+   *  starts making room; between the two the card previews but a release sends it back to hand. Defaults to
+   *  `playFloor` (one line, the old behaviour); never sits below it (the higher of the two wins). */
+  commitFloor?: number;
   collapseY: number;
   boardMax: number;
   board: readonly MagTarget[];
@@ -89,6 +93,21 @@ export interface DragDecision {
   shopGapIndex: number;
   gapIndex: number;
   handGapIndex: number;
+  /** A hand minion that WILL PLAY if released right now: past the commit line with a slot open (or a magnetize
+   *  target). Drives the blue "release to play" glow on the floating card. */
+  willCommit: boolean;
+}
+
+/** The commit line actually used: never nearer the hand (larger screen y) than the react line, so a release can
+ *  never play a card the warband has not made room for. */
+export function effectiveCommitFloor(playFloor: number, commitFloor: number | undefined): number {
+  return Math.min(playFloor, commitFloor ?? playFloor);
+}
+
+/** True when a hand MINION released at `y` plays (instead of returning to hand). Shared by the decision (glow)
+ *  and the drop handler in `Recruit`, so the blue glow and the release always agree (R-PLAYLINE-01). */
+export function handMinionCommits(y: number, playFloor: number, commitFloor: number | undefined): boolean {
+  return y < effectiveCommitFloor(playFloor, commitFloor);
 }
 
 /** How far into a card the cursor must reach (fraction of width) before the insertion point moves past it: insert
@@ -138,6 +157,7 @@ export const NO_DRAG_DECISION: DragDecision = {
   shopGapIndex: -1,
   gapIndex: -1,
   handGapIndex: -1,
+  willCommit: false,
 };
 
 /** A targeted spell dragged from the hand enters "aiming" only once its centre is ABOVE the play floor — below
@@ -230,7 +250,10 @@ export function deriveDragDecision(inp: DragDecisionInput): DragDecision {
   const overHandReorder = draggingHand && y >= handFloor;
   const handGapIndex = overHandReorder ? geo.handIndexAt(dragCx, drag.uid) : -1;
 
-  return { wouldMagnetize, castTargetUid, overWarband, collapsedLift, shopGapIndex, gapIndex, handGapIndex };
+  const willCommit =
+    draggingHand && !isSpell && (overWarband || wouldMagnetize) && handMinionCommits(y, playFloor, inp.commitFloor);
+
+  return { wouldMagnetize, castTargetUid, overWarband, collapsedLift, shopGapIndex, gapIndex, handGapIndex, willCommit };
 }
 
 /** True when two decisions would render identically — the gate `flushMove` uses to skip a no-op `setDrag`. */
@@ -242,6 +265,33 @@ export function dragDecisionEqual(a: DragDecision, b: DragDecision): boolean {
     a.collapsedLift === b.collapsedLift &&
     a.shopGapIndex === b.shopGapIndex &&
     a.gapIndex === b.gapIndex &&
-    a.handGapIndex === b.handGapIndex
+    a.handGapIndex === b.handGapIndex &&
+    a.willCommit === b.willCommit
   );
+}
+
+/** A measured zone box (screen px), the subset of a DOMRect the play lines read. */
+export interface LineRect { top: number; bottom: number; height: number }
+
+/** The three hand-drag lines, as screen y (smaller = higher up): where the warband REACTS to a hand minion, where a
+ *  release COMMITS it (already clamped, see `effectiveCommitFloor`), and where a spell ARMS. ONE function feeds both
+ *  the drag (`Recruit`) and the Drag Feel tuner's guide lines, so what the guides show is what the drag does. */
+export function handDragLines(
+  wb: LineRect | undefined,
+  hand: LineRect | undefined,
+  tavern: LineRect | undefined,
+  feel: { playLine: number; playCommitLine: number; spellLine: number },
+): { react: number; commit: number; spell: number } {
+  if (wb && hand) {
+    const gap = hand.top - wb.bottom;
+    const react = wb.bottom + feel.playLine * gap;
+    return {
+      react,
+      commit: effectiveCommitFloor(react, wb.bottom + feel.playCommitLine * gap),
+      spell: wb.bottom + feel.spellLine * gap,
+    };
+  }
+  // Hand unmeasured: the old fixed line, 10% of the play area up from the warband's bottom (or play anywhere).
+  const react = wb ? wb.bottom - 0.1 * (tavern ? wb.bottom - tavern.top : wb.height) : Infinity;
+  return { react, commit: react, spell: react };
 }

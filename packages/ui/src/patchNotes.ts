@@ -121,6 +121,11 @@ export const PATCH_NOTES: PatchNote[] = [
         'The Friends button and the Compendium Glossary tab have their own new icons.',
       ] },
       { category: 'Systems', text: 'Fixed the cursor after viewing your teammate.' },
+      { category: 'Systems', text: 'Playing a minion from your hand is more forgiving: it glows blue when letting go will play it.', details: [
+        'Your warband still makes room as soon as you lift a minion toward it.',
+        'Let go before the blue glow and the minion goes back to your hand.',
+        'Right-click while dragging any card from your hand to put it back.',
+      ] },
       { category: 'Systems', text: 'Hero art is sharper on phones.', details: [
         "Hero select, the hero pick, your portrait and the foe's portrait in combat now use the full size art.",
         'The small faces in the lobby list use a smaller image, so phones use less memory.',

@@ -138,4 +138,23 @@ export const ACTIONS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-10-10). Was a Tier 6 spell that always set 20/20.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/spellBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
+  {
+    id: 'R-PLAYLINE-01',
+    title: 'A hand minion plays only past the commit line; the warband reacts earlier; blue means it will play; right-click cancels',
+    statement:
+      'Dragging a minion from the hand uses TWO lines. Past the lower react line the warband opens a slot to make room. '
+      + 'A release plays the minion only once it is past the higher commit line too (or on a Magnetic target past it); '
+      + 'a release between the two lines springs the card back to its own hand slot, with no play and no hand reorder. '
+      + 'The dragged card glows blue exactly when a release would play it, so the glow and the drop always agree '
+      + '(one shared check). The commit line is never nearer the hand than the react line. Right-clicking while '
+      + 'dragging any card from the hand (minion or spell) drops it back into the hand.',
+    domain: 'actions',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-31 (drop zone misplays)', quote: 'can we have it glow green when in the playable zone? i want to do 1, but right clicking should also pull it back to hand' },
+      { kind: 'code', ref: 'packages/ui/src/dragDecision.ts handMinionCommits / willCommit; packages/ui/src/Recruit.tsx commitFloorRef + applyDrop + onCtx; packages/ui/src/dragFeel.ts playCommitLine; styles.css .dragcard.willplay' },
+    ],
+    currentBehaviour: 'Conforms (2026-10-31). Before this one line (playLine) set both the react point and the release-to-play point, so lowering it for an earlier react shrank the cancel area and caused misplays. The right-click cancel is wired in the drag session handler and is not pinned by an automated test (PARTIAL).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/dragDecision.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
 ];

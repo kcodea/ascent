@@ -53,6 +53,11 @@ export interface DragFeel {
    *  eye and can sit well below 0. Minions ONLY — the spell cast line is separate. Falls back to a fixed line
    *  when the hand is unmeasured. */
   playLine: number;
+  /** Minion COMMIT line — same units as `playLine`. The warband REACTS (opens the slot) at `playLine`, but a
+   *  release only PLAYS the minion once it is past this line too; a release between the two sends it back to
+   *  hand. The dragged card glows blue once it is past this line, so "it will play" is always visible. Never
+   *  sits nearer the hand than `playLine` (the nearer of the two is ignored). Minions ONLY. */
+  playCommitLine: number;
   /** Hand hover-pop FLOOR, as a fraction of the card height (--ch). Together with `handPop` it sets the pop:
    *  `translateY(--ch · (handFloor − handPop))`. This value is the resting line; higher = the card sits lower
    *  (bottom nearer the play-field floor). Reflected to the `--hand-floor` CSS var. */
@@ -99,9 +104,11 @@ const DEFAULTS: DragFeel = {
   magSlideMs: 390,
   magWeldLeadMs: 130,
   collapseY: 50,    // owner-tuned 2026-08-10: lift a bit more before the row fills the gap (was 20)
-  spellLine: 0,     // owner-tuned 2026-09-14
-  playLine: -3,     // owner-tuned 2026-10-28 (was -2): LOWER = the warband opens the slot sooner (reacts with less drag
+  spellLine: -1,    // owner-tuned 2026-10-31 (was 0)
+  playLine: -4,     // owner-tuned 2026-10-31 (was -3): LOWER = the warband opens the slot sooner (reacts with less drag
                     // up). Owner set this well below the old slider floor for a very eager make-room.
+  playCommitLine: 2.6, // owner-tuned 2026-10-31: the release-to-play line, split off playLine so the early react no longer
+                      // shrinks the cancel area. Tuned against the Drag Feel panel's guide lines.
   handFloor: 0,     // owner-tuned 2026-07-20: no floor offset — the pop lift alone places the card
   handPop: 0.22,    // owner-tuned 2026-08-12: a gentler upward pop (× --ch) (was 0.53)
   shGrow: 1.08,     // owner-tuned: shadow a touch bigger than the card face while lifted
@@ -129,8 +136,9 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   magSlideMs: [100, 600, 10],
   magWeldLeadMs: [0, 300, 10],
   collapseY: [0, 200, 5],
-  spellLine: [0, 1, 0.02],
+  spellLine: [-4, 1, 0.02],
   playLine: [-4, 1, 0.02],
+  playCommitLine: [-4, 4, 0.02],
   handFloor: [0, 1.5, 0.01],
   handPop: [0, 3, 0.01],
   shGrow: [0.8, 1.6, 0.01],
@@ -160,6 +168,7 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   collapseY: 'Vertical distance (px) you must lift a card out of its row before the others slide in to fill the gap.',
   spellLine: 'How far a SPELL must be lifted from the hand before it arms (0 = up at the warband; 1 = right at the hand’s top edge). Higher = less drag to cast. Spells only — minions unchanged.',
   playLine: 'The line a MINION must clear before it plays and the warband opens a slot to make room. LOWER = the warband reacts SOONER (opens the slot with less drag up); higher = later. Can sit well below 0. Minions only.',
+  playCommitLine: 'The line a MINION must be past for a RELEASE to play it (same scale as the play line). Between the two lines the warband makes room, but letting go sends the card back to hand. The card glows blue once it is past this line. Minions only.',
   handFloor: 'Where a hovered hand card’s BOTTOM lands (× card height). Works against the pop lift. Higher = the card sits lower.',
   handPop: 'How far a hovered hand card POPS UP (× card height). Height-independent lift (replaces the old -100% self-height term). Higher = pops further up.',
   shGrow: 'Drag shadow SIZE while a card is lifted (scale). Bigger = the card reads as higher off the table.',
@@ -189,7 +198,7 @@ const KEY = 'ascent.dragfeel';
  * Forget the bump and step 3 silently doesn't happen for anyone who has ever touched the tuner — which is the
  * exact bug this comment exists to prevent, so `dragFeel.test.ts` fails if `DEFAULTS` changes without it.
  */
-export const DRAG_DEFAULTS_VERSION = 12;
+export const DRAG_DEFAULTS_VERSION = 14;
 
 /** Shape actually written to localStorage: the values plus the defaults-version they were tuned against. */
 type SavedDragFeel = Partial<DragFeel> & { __v?: number };

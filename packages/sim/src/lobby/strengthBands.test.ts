@@ -204,6 +204,31 @@ describe('seat selection inside a band', () => {
     expect(lobby.poolAtStart?.band).toEqual({ requested: { min: 20, max: 100 }, used: null, widenings: 2 });
   });
 
+  it('UNIQUE HEROES FALLBACK (owner 2026-10-31): in-band runs on a held hero are passed over for the next run with a different hero, then the band widens', () => {
+    // Inside 0-20: ten runs, all on ONE hero (ten players), plus one on the player's own hero. Just outside (25): six
+    // runs on six other heroes. Only one same-hero run can sit, the player's hero never does, so one widening step
+    // seats the six others. No generated seat, all eight heroes different, and the same seed gives the same table.
+    const same = HEROES[0]!;
+    const mine = HEROES[1]!;
+    registerOpponentRuns([
+      ...Array.from({ length: 10 }, (_, i) => run(`S${i}`, same, 500 + i, 10, `s${i}`)),
+      run('Mine', mine, 520, 10, 'm0'),
+      ...HEROES.slice(2, 8).map((h, i) => run(`W${i}`, h, 600 + i, 25, `w${i}`)),
+    ]);
+    for (const seed of [1, 2, 3, 11, 4242]) {
+      const lobby = createRunLobby(seed, mine, {}, 'set1', { strengthBand: { min: 0, max: 20 } });
+      resetLobbyDrivers(lobby.seats);
+      const heroes = lobby.seats.map((s) => s.heroId);
+      expect(new Set(heroes).size, heroes.join(',')).toBe(8);
+      expect(lobby.seats.filter((s) => s.kind === 'snapshot').length).toBe(7);
+      expect(heroes.filter((h) => h === same).length).toBe(1);
+      expect(lobby.poolAtStart?.band).toEqual({ requested: { min: 0, max: 20 }, used: { min: 0, max: 30 }, widenings: 1 });
+      const again = createRunLobby(seed, mine, {}, 'set1', { strengthBand: { min: 0, max: 20 } });
+      resetLobbyDrivers(again.seats);
+      expect(again.seats.map((s) => s.runKey ?? s.heroId)).toEqual(lobby.seats.map((s) => s.runKey ?? s.heroId));
+    }
+  });
+
   it('falls back to generated seats only after the band is fully widened', () => {
     registerOpponentRuns(HEROES.slice(0, 3).map((h, i) => run(`Q${i}`, h, 300 + i, 95, `q${i}`)));
     const lobby = createRunLobby(5, 'zz-none', {}, 'set1', { strengthBand: { min: 0, max: 30 } });

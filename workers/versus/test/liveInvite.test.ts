@@ -102,7 +102,8 @@ describe('Live Games listing of a Cloudflare room (R-VERSUS-CF-LIVE-01)', () => 
     const h = await ranked(false);
     expect(liveListingOf(h.state)).toMatchObject({ room: ROOM, p1: U1, mode: 'ranked_duos', team: TEAM, players: 'One & Two', phase: 'hero', round: 1 });
     const s = await ranked(true);
-    expect(liveListingOf(s.state)).toMatchObject({ phase: 'shop', round: 1, hero: HERO_IDS[0] });
+    // The hero the room dealt into p1's first slot (R-VERSUS-UNIQUE-HEROES-01: the room deals the offers).
+    expect(liveListingOf(s.state)).toMatchObject({ phase: 'shop', round: 1, hero: s.state.group!.priv.p1!.hero_offer![0] });
     await lock(s, U1);
     await lock(s, U2);
     expect(liveListingOf(s.state)).toMatchObject({ phase: 'combat', round: 1 });

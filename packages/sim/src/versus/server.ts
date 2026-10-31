@@ -19,6 +19,7 @@ import { resolveVersusDuosRound, type VersusDuosRoundInput, type VersusDuosRound
 import { duosFightPayload, duosRoundDigest, handleVersusDuosFinalize, type VersusDuosFinalizeStore } from './duosFinalize';
 import { handleRankedDuosSeat, type RankedDuosSeatStore } from './rankedDuosSeat';
 import { handleRankedDuosFinalize, type RankedDuosFinalizeStore } from './rankedDuosFinalize';
+import { uniqueAutoHeroIndex, versusDisjointHeroOffers, versusRerollCandidatesFree } from './heroOffers';
 
 export { canonicalDigest, canonicalJson, digestOf, emptyVersusSide, preparedSideError, versusSideOrEmpty, resolveVersusFight, versusChair, versusCombatSeed, VERSUS_LIMITS, VERSUS_PROTOCOL };
 export { handleVersusFinalize };
@@ -40,6 +41,8 @@ export { handleVersusDuosFinalize, resolveVersusDuosRound };
 export type { VersusDuosFinalizeStore, VersusDuosRoundInput, VersusDuosRoundResult };
 // RANKED DUOS (owner 2026-10-26): the table seating (`seat_ranked_duos`).
 export { handleRankedDuosSeat, handleRankedDuosFinalize };
+// UNIQUE HEROES PER LOBBY (R-VERSUS-UNIQUE-HEROES-01): the room deals disjoint offers and keeps picks unique.
+export { uniqueAutoHeroIndex, versusDisjointHeroOffers, versusRerollCandidatesFree };
 export type { RankedDuosSeatStore, RankedDuosFinalizeStore };
 
 /** The content identity this engine was built from (FNV over every card, rune and quest definition). */

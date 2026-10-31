@@ -37,8 +37,12 @@ import {
   versusTurnSeconds,
   VERSUS_PROTOCOL,
   VERSUS_SPECTATOR_CAP,
+  uniqueAutoHeroIndex,
+  versusDisjointHeroOffers,
+  versusRerollCandidatesFree,
   type VersusFinalizeStore,
 } from '@game/sim/versus/server';
+import type { SetId } from '@game/content';
 import { GroupEngine, GSEATS, newGroupState, teamSeats, teamOf, type GPass, type GroupHost, type GroupState, type GSeat } from './groupMatch';
 import { rankedExtra, RankedEngine, type RankedHost, type RankedService } from './rankedMatch';
 export { fitFinishRow, rankedFinishWire, RANKED_FINISH_BUDGET, wireSeat } from './rankedMatch';
@@ -1105,8 +1109,11 @@ export class RoomCore {
         match_id: id, seat, user_id: mem.userId, hero_seed: this.deps.random31(), run_seed: this.deps.random31(),
         hero_offer: null, hero_index: null, hero_auto: false, hero_reroll: null,
       };
-      this.touchPriv(seat);
     }
+    // UNIQUE HEROES PER LOBBY (owner 2026-10-31, R-VERSUS-UNIQUE-HEROES-01): the room deals both offers, so the two
+    // players are never offered the same hero. Stored on the private rows, which the clients read as the truth.
+    const offers = versusDisjointHeroOffers(SEATS.map((s) => ({ heroSeed: this.state.priv[s]!.hero_seed, runSeed: this.state.priv[s]!.run_seed })), r.set_id as SetId);
+    SEATS.forEach((s, i) => { this.state.priv[s]!.hero_offer = offers[i]!; this.touchPriv(s); });
     // A new match starts clean: the previous one's rounds and boards are already persisted (or still queued).
     for (const n of Object.keys(this.state.rounds)) this.fx.dirty.add(`round:${n}`);
     this.state.rounds = {};
@@ -1144,6 +1151,10 @@ export class RoomCore {
     }
     const p = this.state.priv[seat]!;
     if (p.hero_index == null) {
+      // A hero the other player holds is refused (R-VERSUS-UNIQUE-HEROES-01; dealt offers never overlap, so this
+      // only guards an offer registered before the room dealt them).
+      const hero = p.hero_offer?.[index as number];
+      if (hero && this.heldHeroes(seat).has(hero)) fail('hero_taken');
       p.hero_index = index as number;
       this.touchPriv(seat);
     }
@@ -1164,12 +1175,35 @@ export class RoomCore {
     const c = Array.isArray(candidates) ? (candidates as unknown[]) : [];
     if (c.length < 1 || c.length > 128 || c.some((x) => typeof x !== 'string' || x.length === 0 || x.length > 32)
       || new Set(c).size !== c.length || c.some((x) => p.hero_offer!.includes(x as string))) fail('bad_candidates');
-    const to = c[seededPick(m.seed, `hero-reroll:${seat}`, c.length)] as string;
+    // Never onto a hero the other player was dealt or holds (R-VERSUS-UNIQUE-HEROES-01). Nothing filtered = the draw
+    // of before, exactly.
+    const free = versusRerollCandidatesFree(c as string[], this.offeredHeroes(seat));
+    if (free.length === 0) fail('bad_candidates');
+    const to = free[seededPick(m.seed, `hero-reroll:${seat}`, free.length)] as string;
     const from = p.hero_offer![slot as number];
     p.hero_offer = p.hero_offer!.map((h, i) => (i === slot ? to : h));
     p.hero_reroll = { slot: slot as number, from, to };
     this.touchPriv(seat);
     return { match: MATCH_JSON, offer: [...p.hero_offer], reroll: { ...p.hero_reroll } };
+  }
+
+  /** The heroes the OTHER seats picked (manual or automatic). */
+  private heldHeroes(seat: string): Set<string> {
+    const out = new Set<string>();
+    for (const s of SEATS) {
+      if (s === seat) continue;
+      const q = this.state.priv[s];
+      const h = q?.hero_offer && q.hero_index != null ? q.hero_offer[q.hero_index] : undefined;
+      if (h) out.add(h);
+    }
+    return out;
+  }
+
+  /** Every hero the OTHER seats were dealt (their whole offers). */
+  private offeredHeroes(seat: string): Set<string> {
+    const out = new Set<string>();
+    for (const s of SEATS) if (s !== seat) for (const h of this.state.priv[s]?.hero_offer ?? []) out.add(h);
+    return out;
   }
 
   /** `versus__maybe_start`: both picked (or the deadline): reveal the heroes and open round 1's shop. */
@@ -1181,7 +1215,8 @@ export class RoomCore {
     for (const s of SEATS) {
       const p = this.state.priv[s]!;
       if (p.hero_index == null) {
-        p.hero_index = seededPick(m.seed, `hero:${s}`, 3);
+        // Never the other player's hero (R-VERSUS-UNIQUE-HEROES-01): the seeded index, else the first free one.
+        p.hero_index = uniqueAutoHeroIndex(p.hero_offer ?? [], seededPick(m.seed, `hero:${s}`, 3), this.heldHeroes(s));
         p.hero_auto = true;
         this.touchPriv(s);
       }

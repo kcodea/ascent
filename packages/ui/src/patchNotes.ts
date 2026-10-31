@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-31',
     changes: [
+      { category: 'Systems', text: 'Every hero in a lobby is now unique.', details: [
+        'Versus, Group and Duos: no two players are offered the same hero, and a re-roll never gives you a hero someone else has.',
+        'Lobbies and Ranked Duos already worked this way: every seat at the table plays a different hero.',
+      ] },
       { category: 'Systems', text: 'New painted icons across the menus, with a soft glow when you hover them.', details: [
         'Play, Career, Collection, Leaderboard, Recent Games, Live Games, Patch Notes and Settings, in the side menu and on the title screen.',
         'The same icons head each of those pages.',

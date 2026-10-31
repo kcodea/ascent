@@ -47,9 +47,12 @@ medal + division — see *Ranked ladder* below).
   every other run equally likely; when the pool lacks enough players, generated seats fill the rest. **Your own
   runs sit at your table like anyone else's, under the same cap of 4** (owner 2026-09-30: *"this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this"*;
   until then your own runs were left out). A player is their account (`boards.user_id`), else their display name.
-  **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13): a run on a hero already
-  seated — or on the player's hero — is passed over for the next run in the shuffle, and generated seats never
-  repeat a hero either.
+  **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13, reaffirmed for every mode 2026-10-31,
+  R-VERSUS-UNIQUE-HEROES-01): a run on a hero already seated — or on the player's hero — is passed over for the next run
+  in the shuffle (then the band widens step by step, then generated seats on fresh heroes), and generated seats never
+  repeat a hero either. The player picks from an unconstrained offer and the seats are chosen around that pick. Measured
+  2026-10-31 on the live pool (433 runs, 51 heroes): about half of all lobbies pass over one same-hero run, and the rule
+  never forced an extra widening or a generated seat.
 - **An eligible run covers the rounds it will be asked for** (2026-09-29, R-LOBBY-07): at least 4 recorded
   waves, the first at wave 1 or 2, never more than one wave missing in a row, and no board above a plausible
   shop tier for its wave (the all-in tavern-up curve + 2). Such a run is skipped. A generated seat's recording
@@ -1037,7 +1040,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   player's "ready"; it holds until both are in, then shatters onto Hero Select. If the 30 second window runs out the
   doors open quietly and the room returns to Open.
 - **Hero Select, 20 seconds.** The ordinary Hero Select screen with the shop's clock and no Back button. Each player
-  gets three heroes from a private seed; offers are hidden and may repeat across seats. The pick locks the moment a
+  gets three heroes, hidden from the others. **Every hero in a game is unique** (owner 2026-10-31,
+  R-VERSUS-UNIQUE-HEROES-01: "build unique heroes per lobby rule"; 1v1, Group, Duos and the Ranked Duos party alike): the
+  room deals every seat's three when the match is created, so no hero is ever offered to two players. Each seat keeps its
+  own seeded order of the heroes its run's tribes allow; slot by slot the seats take turns (the first seat rotating each
+  slot), each taking the next hero nobody was dealt. A pick of a hero another player holds is refused (`hero_taken`), a
+  re-roll never lands on a hero another player was dealt, and a clock pick never takes a held hero. The pick locks the moment a
   hero is chosen and stays hidden until both are in. One re-roll per player per match, drawn by the server and
   hidden from the opponent (R-HERO-REROLL-01, see "Hero select: one re-roll"). No pick in time: a random one of the three, and the screen
   plays the ordinary ceremony for it. Once both heroes are locked, a finished ceremony starts the game on its own

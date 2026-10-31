@@ -4,6 +4,7 @@ export * from './canonical';
 export * from './combat';
 export { carryAsPlayerFields, flipEventSides, mirrorForEnemySeat, ownSeatPerspective, swapTagTeam } from './mirror';
 export * from './run';
+export * from './heroOffers';
 export * from './lobbyView';
 export * from './options';
 export * from './group';

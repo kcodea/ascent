@@ -26,10 +26,14 @@ import {
   VERSUS_MISSED_ROUNDS_FORFEIT,
   VERSUS_PAUSE_GRACE_SECONDS,
   versusTurnSeconds,
+  uniqueAutoHeroIndex,
+  versusDisjointHeroOffers,
+  versusRerollCandidatesFree,
   type VersusDuosFinalizeStore,
   type VersusGroupFinalizeStore,
 } from '@game/sim/versus/server';
 import { buildDuosHistory, duosBoardOfSide, type DuosHistoryRecord } from '@game/sim/versus/duosHistory';
+import type { SetId } from '@game/content';
 
 /** VERSUS DUOS (2v2 tag-team, owner 2026-10-25, R-DUOS-01): seats 1-2 are team a, 3-4 team b. */
 export type GTeamId = 'a' | 'b';
@@ -288,6 +292,10 @@ export function newGroupState(host: GroupHost, room: { id: string; set_id: strin
   for (const s of seats) {
     priv[s.seat] = { match_id: id, seat: s.seat, user_id: s.userId, hero_seed: host.random31(), run_seed: host.random31(), hero_offer: null, hero_index: null, hero_auto: false, hero_reroll: null };
   }
+  // UNIQUE HEROES PER LOBBY (owner 2026-10-31, R-VERSUS-UNIQUE-HEROES-01): the room deals every seat's three, so no two
+  // players (teammates or not) are ever offered the same hero. Stored on the private rows, the clients' truth.
+  const offers = versusDisjointHeroOffers(seats.map((s) => ({ heroSeed: priv[s.seat]!.hero_seed, runSeed: priv[s.seat]!.run_seed })), room.set_id as SetId);
+  seats.forEach((s, i) => { priv[s.seat]!.hero_offer = offers[i]!; });
   return { match, priv, subs: {}, lastLocked: {}, lastCheckpoint: {}, rounds: {} };
 }
 
@@ -401,8 +409,34 @@ export class GroupEngine {
     if (!Number.isInteger(index) || (index as number) < 0 || (index as number) > 2) this.h.fail('bad_index');
     if (this.h.now() >= (this.m.hero_deadline ?? 0)) { this.maybeStart(); this.h.fail('hero_deadline_passed'); }
     const p = this.g.priv[seat!]!;
-    if (p.hero_index == null) { p.hero_index = index as number; this.h.touchPriv(seat!); }
+    if (p.hero_index == null) {
+      // A hero another player holds is refused (R-VERSUS-UNIQUE-HEROES-01; dealt offers never overlap, so this only
+      // guards an offer registered before the room dealt them).
+      const hero = p.hero_offer?.[index as number];
+      if (hero && this.heldHeroes(seat!).has(hero)) this.h.fail('hero_taken');
+      p.hero_index = index as number;
+      this.h.touchPriv(seat!);
+    }
     this.maybeStart();
+  }
+
+  /** The heroes the OTHER seats picked (manual or automatic). */
+  protected heldHeroes(seat: GSeat): Set<string> {
+    const out = new Set<string>();
+    for (const s of this.m.seats) {
+      if (s.seat === seat) continue;
+      const q = this.g.priv[s.seat];
+      const h = q?.hero_offer && q.hero_index != null ? q.hero_offer[q.hero_index] : undefined;
+      if (h) out.add(h);
+    }
+    return out;
+  }
+
+  /** Every hero the OTHER seats were dealt (their whole offers). */
+  private offeredHeroes(seat: GSeat): Set<string> {
+    const out = new Set<string>();
+    for (const s of this.m.seats) if (s.seat !== seat) for (const h of this.g.priv[s.seat]?.hero_offer ?? []) out.add(h);
+    return out;
   }
 
   reroll(userId: string, slot: unknown, candidates: unknown): { offer: string[]; reroll: { slot: number; from: string; to: string } } {
@@ -418,7 +452,11 @@ export class GroupEngine {
     const c = Array.isArray(candidates) ? (candidates as unknown[]) : [];
     if (c.length < 1 || c.length > 128 || c.some((x) => typeof x !== 'string' || x.length === 0 || x.length > 32)
       || new Set(c).size !== c.length || c.some((x) => p.hero_offer!.includes(x as string))) this.h.fail('bad_candidates');
-    const to = c[seededPick(this.m.seed, `hero-reroll:${seat}`, c.length)] as string;
+    // Never onto a hero another player was dealt or holds (R-VERSUS-UNIQUE-HEROES-01). Nothing filtered = the draw of
+    // before, exactly.
+    const free = versusRerollCandidatesFree(c as string[], this.offeredHeroes(seat!));
+    if (free.length === 0) this.h.fail('bad_candidates');
+    const to = free[seededPick(this.m.seed, `hero-reroll:${seat}`, free.length)] as string;
     const from = p.hero_offer![slot as number]!;
     p.hero_offer = p.hero_offer!.map((x, i) => (i === slot ? to : x));
     p.hero_reroll = { slot: slot as number, from, to };
@@ -434,7 +472,9 @@ export class GroupEngine {
     if (this.h.now() < (m.hero_deadline ?? 0) && waiting) return;
     for (const s of m.seats) {
       const p = this.g.priv[s.seat]!;
-      if (p.hero_index == null) { p.hero_index = seededPick(m.seed, `hero:${s.seat}`, 3); p.hero_auto = true; this.h.touchPriv(s.seat); }
+      // Never another player's hero (R-VERSUS-UNIQUE-HEROES-01; this also covers the Duos teammate): the seeded
+      // index, else the first free one.
+      if (p.hero_index == null) { p.hero_index = uniqueAutoHeroIndex(p.hero_offer ?? [], seededPick(m.seed, `hero:${s.seat}`, 3), this.heldHeroes(s.seat)); p.hero_auto = true; this.h.touchPriv(s.seat); }
       s.hero = p.hero_offer ? p.hero_offer[p.hero_index] ?? null : null;
     }
     m.heroes_revealed = true;

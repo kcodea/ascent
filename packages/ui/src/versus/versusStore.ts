@@ -204,7 +204,7 @@ const ERROR_TEXT: Record<string, string> = {
   server_not_deployed: "This build's game server isn't deployed yet. Run the pack or select a local server.",
   // RANKED DUOS (phase 3)
   friends_only: 'That party is for the host\'s friends.',
-  hero_taken: 'Your teammate picked that hero.',
+  hero_taken: 'Another player has that hero.', // every hero in a game is unique (R-VERSUS-UNIQUE-HEROES-01)
   room_not_sealed: 'The game is already starting.',
   team_in_game: 'Rename your team between games.',
   party_slow: 'Your party did not open. Try again.',
@@ -1803,7 +1803,7 @@ export async function pickVersusHero(index: number): Promise<void> {
   }
 }
 /** A pick refused for one of these never lands, however often it is sent. */
-const HERO_PICK_FINAL = new Set(['wrong_phase', 'hero_deadline_passed', 'bad_index', 'not_a_player', 'already_picked']);
+const HERO_PICK_FINAL = new Set(['wrong_phase', 'hero_deadline_passed', 'bad_index', 'not_a_player', 'already_picked', 'hero_taken']);
 export const HERO_PICK_RETRIES = 4;
 const HERO_PICK_RETRY_MS = 600;
 

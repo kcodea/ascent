@@ -265,7 +265,9 @@ export class VersusBotDriver {
     if (!this.priv) {
       this.priv = await this.api.myPrivate(m.id);
       if (!this.priv) return 'idle';
-      this.offer = versusHeroOffer(Number(this.priv.hero_seed), Number(this.priv.run_seed), m.set_id as SetId);
+      // The room deals the offers (R-VERSUS-UNIQUE-HEROES-01): its row is the truth; the seeded three only for a row
+      // with none (a match from before the room dealt them).
+      this.offer = this.priv.hero_offer?.length === 3 ? [...this.priv.hero_offer] : versusHeroOffer(Number(this.priv.hero_seed), Number(this.priv.run_seed), m.set_id as SetId);
       if (!this.priv.hero_offer) await this.api.registerOffer(m.id, this.offer);
       return 'acted';
     }
@@ -284,7 +286,7 @@ export class VersusBotDriver {
     if (this.run) return this.run;
     if (!this.priv) this.priv = await this.api.myPrivate(m.id);
     if (!this.priv) return null;
-    const offer = this.offer ?? versusHeroOffer(Number(this.priv.hero_seed), Number(this.priv.run_seed), m.set_id as SetId);
+    const offer = this.offer ?? (this.priv.hero_offer?.length === 3 ? this.priv.hero_offer : versusHeroOffer(Number(this.priv.hero_seed), Number(this.priv.run_seed), m.set_id as SetId));
     const hero = (this.seat === 'p1' ? m.p1_hero : m.p2_hero) ?? offer[this.priv.hero_index ?? 0] ?? offer[0]!;
     // The match's pinned options (a modifier's rift; Duos gives the run its pass state), as a person's client builds it.
     // Duos: the run carries the team's shared pool (R-DUOS-HEALTH-01), from both heroes.

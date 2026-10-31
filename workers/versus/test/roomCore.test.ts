@@ -108,10 +108,17 @@ describe('Versus Room (Cloudflare) — rooms and the gate', () => {
     await h.op(U2, 'gate');
     expect(h.core.state.room.status).toBe('in_game');
     expect(h.m.phase).toBe('hero_select');
-    // The offer is private: it never rides the match row.
-    await h.op(U1, 'register_offer', { matchId: h.id, offer: HERO_IDS.slice(0, 3) });
-    expect(JSON.stringify(h.core.matchJson())).not.toContain(HERO_IDS[0]);
+    // The room dealt both offers (R-VERSUS-UNIQUE-HEROES-01), onto the private rows only: never on the match row.
+    const o1 = h.core.state.priv.p1!.hero_offer!;
+    const o2 = h.core.state.priv.p2!.hero_offer!;
+    expect(o1).toHaveLength(3);
+    expect(o2).toHaveLength(3);
     expect(h.log.at(-1)!.priv.has('p1')).toBe(true);
+    const row = JSON.stringify(h.core.matchJson());
+    for (const hero of [...o1, ...o2]) expect(row).not.toContain(`"${hero}"`);
+    // A client's own registration never replaces the dealt offer.
+    await h.op(U1, 'register_offer', { matchId: h.id, offer: HERO_IDS.slice(0, 3) });
+    expect(h.core.state.priv.p1!.hero_offer).toEqual(o1);
     expect(h.log.at(-1)!.match).toBe(false);
   });
 

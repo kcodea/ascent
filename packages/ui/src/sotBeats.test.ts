@@ -162,7 +162,8 @@ describe('the Shop plays the beats after the wipe (source pins)', () => {
   it('the turn timer waits for the wipe and the beats; the offers wait for the beats', () => {
     expect(RECRUIT).toContain("transitionPlaying: wipe !== 'idle',");
     expect(RECRUIT).not.toContain('startOfTurnPlaying: sotPlaying,');
-    expect(RECRUIT).toContain("const overlaysHeld = !inCombat && (wipe !== 'idle' || sotPlaying);");
+    // (…and, since 2026-10-31, for the game-start reveal and Good Luck words: R-LOBBY-REVEAL-01.)
+    expect(RECRUIT).toContain("const overlaysHeld = !inCombat && (wipe !== 'idle' || sotPlaying || introHold);");
   });
 
   it('leaving the Shop resets the holds ONLY when something is queued or playing (the coveredOut race)', () => {

@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-31',
+    changes: [
+      { category: 'Systems', text: "Golden minions can now be passed from your hand. Spells that pass a minion still can't target golden ones." },
+    ],
+  },
+  {
     date: '2026-10-30',
     changes: [
       { category: 'Systems', text: 'Friends: requests and invites now show up the moment they are sent.', details: [

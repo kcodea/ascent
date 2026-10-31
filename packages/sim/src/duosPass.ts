@@ -134,14 +134,15 @@ export function duosFreeKind(s: RunState): 'pal' | 'catch' | null {
 
 /** Why `uid` cannot be passed right now (null = it can). `mateHandFull` is the teammate's live hand state when the
  *  caller knows it (the UI, from the teammate's frame). The UI shows the refusal from this. */
-export function duosPassBlocked(s: RunState, uid: string, mateHandFull = false): 'not_duos' | 'phase' | 'no_card' | 'board' | 'golden' | 'gold' | 'hand_full' | null {
+export function duosPassBlocked(s: RunState, uid: string, mateHandFull = false): 'not_duos' | 'phase' | 'no_card' | 'board' | 'gold' | 'hand_full' | null {
   if (!s.duos) return 'not_duos';
   if (s.phase !== 'recruit') return 'phase';
   // HAND ONLY (owner 2026-10-25: "you aren't supposed to be able to pass a card off your board, only from hand").
   const card = s.hand.find((c) => c.uid === uid);
   if (!card) return s.board.some((c) => c.uid === uid) ? 'board' : 'no_card';
-  // NO GOLDENS (owner 2026-10-30: "Golden minions CANNOT be passed").
-  if (card.golden) return 'golden';
+  // A GOLDEN minion MAY be passed from hand (owner 2026-10-31, R-DUOS-PASS-GOLDEN-MANUAL-01: "gilded minions can be
+  // passed from hand but not targeted by spells that pass"). This REVISES the 2026-10-30 no-golden rule for the manual
+  // pass; a pass SPELL still cannot target one (`targetNoGolden`, `effectPassCard`).
   if (mateHandFull) return 'hand_full';
   if (s.embers < duosPassCost(s)) return 'gold';
   return null;
@@ -169,8 +170,8 @@ export function applyDuosPass(s: RunState, uid: string, spendGold: (s: RunState,
 
 /**
  * A SPELL's pass (Handout, R-DUOS-CARDS-01: "Pass a minion"): `card` has ALREADY left the Shop or the board; this
- * records it on the outbox, free (the spell is the price). A Golden minion is never passed (owner 2026-10-30): the
- * caller refuses it before removing anything. Returns false outside a Duos run.
+ * records it on the outbox, free (the spell is the price). A pass spell never targets a Golden minion (owner
+ * 2026-10-31: "not targeted by spells that pass"): the caller refuses it before removing anything. Returns false outside a Duos run.
  */
 export function recordSpellPass(s: RunState, card: BoardCard, from: 'board' | 'shop' | 'hand', index: number, via: 'spell' | 'sale' = 'spell'): boolean {
   const duos = s.duos;

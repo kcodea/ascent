@@ -1274,7 +1274,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   Turn (it is a ready signal, below) and closes when the clock runs out. **A pass to a full hand is refused** (owner: "Pass is refused if hand is full"): the drag shows
   the refusal and the card stays yours, and you are not charged. If the teammate's hand fills up while the pass is on
   its way, it is refused when it arrives and the card and the Gold come back to you. Arriving is "a card added to your
-  hand" like any other. Runes, Equipment, quests and the Starform cannot be passed.
+  hand" like any other. Runes, Equipment, quests and the Starform cannot be passed. **A Golden minion CAN be passed from
+  hand** (owner 2026-10-31, R-DUOS-PASS-GOLDEN-MANUAL-01: "gilded minions can be passed from hand but not targeted by
+  spells that pass"; this revises the 2026-10-30 no-Golden rule): it costs 1 Gold like any card and arrives Golden.
 - **Leaving, conceding, disconnects.** Leaving or conceding puts the whole team out. A disconnect pauses as in Group
   (30 s, then the absent player's last locked board plays on auto); three auto rounds in a row put the team out. A
   teammate who is away cannot be passed to: their portrait reads "Away" and a drop is refused ("Your teammate is away").
@@ -1286,7 +1288,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   (Versus Duos and Ranked Duos). They join a run's pool when their tribe is one of the set's tribes (neutrals and spells
   always), then the run's tribe roll narrows them like any card. **Only the manual pass costs Gold** (the drag, 1 Gold;
   Brian's Pal frees the first each turn): a pass made by a card or spell (Handout, CueBee's Pass, Matchmaker) is free,
-  never takes a Golden minion (unless its effect says so), and is **never refused for a full hand** (owner 2026-10-30: "if
+  never takes a Golden minion (unless its effect says so: a pass spell that TARGETS, Handout or CueBee's Pass, can never
+  target a Golden minion, on the board or in the Shop; it gets no target glow and a drop on it snaps the spell back), and is **never refused for a full hand** (owner 2026-10-30: "if
   your teammate's hand is full, they get the card once there is space in their hand"): it waits on their run and lands,
   in order, as soon as an action of theirs makes room (their portrait shows "Hand full: N cards waiting"); a Shop minion
   passed that way has left the Shop for good. It counts as a pass for "when you pass" / "when your team passes" cards on
@@ -1311,8 +1314,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   an Ale, three per turn), **Echoing Results** (3: every 3 Echoes, a random minion up to their tier, two per turn); both are
   ONE counter across the Shop and combat, at the cap the meter keeps counting but parks one short of a trip.
   **Salesman of the Year** (3: the first 2 minions you sell each turn are sold, Gold paid, AND passed to your teammate,
-  **Golden included**, owner 2026-10-30: "golden minions DO get passed in this case"; the one exception to the no-Golden
-  rule). **Megamimed** (4: a **Megamimic**, a T6 1/1 token; at every Start of Combat it becomes an exact combat-only copy
+  **Golden included**, owner 2026-10-30: "golden minions DO get passed in this case"; an untargeted effect pass that
+  carries a Golden minion). **Megamimed** (4: a **Megamimic**, a T6 1/1 token; at every Start of Combat it becomes an exact combat-only copy
   of the highest Health minion on the teammate's locked board, ties seeded, never another Megamimic; no teammate board =
   it fights as itself).
 - **Your teammate's hero choices** (owner 2026-10-26: "in duos, the teammate's hero options should be visible as well";

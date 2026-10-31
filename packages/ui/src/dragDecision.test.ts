@@ -180,6 +180,15 @@ describe('spell cast', () => {
     expect(aim(50, true), 'an ordinary offer is never a friendly target').toBeNull();
     expect(aim(150, false), 'a plain friendly spell keeps its board-only aim').toBeNull();
   });
+  it('a pass spell never targets a Golden minion (`castRefuses`, R-DUOS-PASS-GOLDEN-MANUAL-01)', () => {
+    const geo = gridGeo({ warband: ['m0', 'g1'], shop: ['o0', 'go'] });
+    const refuses = (uid: string): boolean => uid === 'g1' || uid === 'go';
+    const aim = (x: number, y: number, castRefuses?: (uid: string) => boolean) =>
+      deriveDragDecision(input({ drag: drag({ source: 'hand', view: anySpell }), x, y, playFloor: 400, geo, castRefuses })).castTargetUid;
+    expect(aim(150, 100), 'control: without the refusal the Golden minion is a target').toBe('g1');
+    expect(aim(150, 100, refuses), 'a Golden board minion is no target').toBeNull();
+    expect(aim(50, 100, refuses), 'a plain minion still is').toBe('m0');
+  });
   it('computeCastingSpell matches the aim boundary', () => {
     const d = drag({ source: 'hand', view: friendlySpell });
     expect(computeCastingSpell(d, 399, 400)).toBe(true);

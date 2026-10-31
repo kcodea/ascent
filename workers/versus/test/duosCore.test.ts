@@ -199,8 +199,8 @@ describe('Duos room (Cloudflare) — passing (R-DUOS-PASS-01)', () => {
     for (let s = 2; s <= 10; s++) await h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: s, card: card() });
     await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 11, card: card() })).rejects.toThrow('too_many_passes');
     await expect(h.op(U[2], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: { cardId: 'x', passFrom: 'board' } })).rejects.toThrow('bad_card');
-    // "Golden minions CANNOT be passed" (owner 2026-10-30, R-DUOS-PASS-NO-GOLDEN-01): the server refuses one a client sends anyway.
-    await expect(h.op(U[2], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: { ...card(), golden: true } })).rejects.toThrow('golden');
+    // A pass SPELL never carries a Golden minion (owner 2026-10-31, R-DUOS-PASS-GOLDEN-MANUAL-01): the server refuses one a client sends anyway.
+    await expect(h.op(U[2], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: { ...card(), passFrom: 'spell', golden: true } })).rejects.toThrow('golden');
     h.core.disconnect(U[3], h.now);
     await h.advance(DISCONNECT_GRACE_MS);
     await expect(h.op(U[2], 'duos_pass', { matchId: h.id, round: 1, seq: 2, card: card() })).rejects.toThrow('teammate_away');
@@ -373,11 +373,12 @@ describe('Duos room (Cloudflare) — Duos runes: a combat gift reaches the teamm
     expect(reduce(ann, { type: 'settleCombat' }).duos!.outbox.length).toBe(n);
   });
 
-  it('Salesman of the Year: a GOLDEN sold minion travels as `sale` and the Worker takes it (the one exception); a golden drag pass is still refused', async () => {
+  it('"gilded minions can be passed from hand but not targeted by spells that pass" (R-DUOS-PASS-GOLDEN-MANUAL-01): a GOLDEN drag pass and a Golden sale pass go through; a Golden spell pass is refused', async () => {
     const h = await inShop();
     await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 5 });
-    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: { cardId: HERO_IDS[0], passFrom: 'hand', golden: true } })).rejects.toThrow('golden');
+    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: { cardId: HERO_IDS[0], passFrom: 'hand', golden: true } })).resolves.toMatchObject({ to_seat: 'p2', status: 'sent' });
     await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 2, card: { cardId: HERO_IDS[0], passFrom: 'sale', golden: true } })).resolves.toMatchObject({ to_seat: 'p2', status: 'sent' });
+    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 3, card: { cardId: HERO_IDS[0], passFrom: 'spell', golden: true } })).rejects.toThrow('golden');
   });
 });
 

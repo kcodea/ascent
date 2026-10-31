@@ -11,7 +11,7 @@ import { combatSide } from '@game/core';
 import type { BoardMinion, CombatResult } from '@game/core';
 import { reduce } from '../reducer';
 import { handCap, type BoardCard, type PreparedCombatSide, type RunState } from '../state';
-import { DUOS_PASS_GOLD, duosPassBlocked } from '../duosPass';
+import { DUOS_PASS_GOLD, duosPassBlocked, duosWireOf } from '../duosPass';
 import { canonicalJson } from './canonical';
 import {
   duosMateOf, duosRandomFirst, duosMemberOf, duosMemberView, duosTeamOf, duosTeamSeats, resolveVersusDuosRound, versusDuosCombatSeed,
@@ -223,12 +223,15 @@ describe('passing a card (R-DUOS-PASS-01: "passing should cost 1 gold")', () => 
     expect(duosPassBlocked(run, 'h1')).toBeNull();
   });
 
-  it('"Golden minions CANNOT be passed" (R-DUOS-PASS-NO-GOLDEN-01): a golden in hand is refused, no Gold spent', () => {
+  it('"gilded minions can be passed from hand" (R-DUOS-PASS-GOLDEN-MANUAL-01): a golden in hand passes, 1 Gold, and travels golden', () => {
     const base = duosRun();
     const run = { ...base, hand: [{ ...base.hand[0]!, golden: true }] };
-    expect(duosPassBlocked(run, 'h1')).toBe('golden');
-    expect(reduce(run, { type: 'passCard', uid: 'h1' })).toBe(run);
-    expect(duosPassBlocked(base, 'h1')).toBeNull(); // the same card, not golden, passes
+    expect(duosPassBlocked(run, 'h1')).toBeNull();
+    const a = reduce(run, { type: 'passCard', uid: 'h1' });
+    expect(a.hand.some((c) => c.uid === 'h1')).toBe(false);
+    expect(a.embers).toBe(run.embers - DUOS_PASS_GOLD);
+    expect(a.duos!.outbox.at(-1)).toMatchObject({ from: 'hand', card: { uid: 'h1', golden: true } });
+    expect(duosWireOf(a.duos!.outbox.at(-1)!)).toMatchObject({ passFrom: 'hand', golden: true });
   });
 
   it('"you should be able to pass cards back to your teammate": ping-pong A->B->A->B, 1 Gold each time', () => {

@@ -225,7 +225,8 @@ export type SbMatePass = { kind: 'card'; cardId: string } | { kind: 'hand' } | {
 /**
  * TEAMMATE PASSES TO YOU. Every route is the teammate run's own pass (`passCard`, or `passMinionToTeammate` for a board
  * minion) and then the local channel: your run receives it through `receivePass`, so it counts as a pass on both sides
- * (Hitchhiker, Spell Theory, Brian's Pal) and obeys every refusal (a full hand, a Golden card).
+ * (Hitchhiker, Spell Theory, Brian's Pal) and obeys every refusal (a full hand; a pass spell never takes a Golden
+ * minion, R-DUOS-PASS-GOLDEN-MANUAL-01, while the hand pass may carry one).
  */
 export function sbMatePasses(what: SbMatePass): void {
   const mate = sbMateRun();
@@ -252,7 +253,7 @@ export function sbMatePasses(what: SbMatePass): void {
     uid = made.card.uid;
     edit('p2', (r) => ({ ...r, uidSeq: made.run.uidSeq, hand: [...r.hand, made.card] }));
   } else {
-    uid = pick(mate.hand.filter((c) => !c.golden))?.uid;
+    uid = pick(mate.hand)?.uid; // a Golden card may be passed from hand (owner 2026-10-31)
     if (!uid) { say('Their hand has nothing to pass'); return; }
   }
   // Their drag pass costs them its Gold: top them up so the dev button never stalls on it.
@@ -260,7 +261,7 @@ export function sbMatePasses(what: SbMatePass): void {
   const cost = duosPassCost(live);
   if (live.embers < cost) edit('p2', (r) => ({ ...r, embers: cost }));
   const why = duosPassBlocked(runOf('p2'), uid);
-  if (why) { say(why === 'golden' ? 'Golden cards cannot be passed' : `Refused: ${why}`); return; }
+  if (why) { say(`Refused: ${why}`); return; }
   const card = runOf('p2').hand.find((c) => c.uid === uid) as BoardCard;
   act('p2', { type: 'passCard', uid });
   say(`Passed ${CARD_INDEX[card.cardId]?.name ?? card.cardId}`);

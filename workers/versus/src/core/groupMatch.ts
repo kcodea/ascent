@@ -801,11 +801,11 @@ export class GroupEngine {
     const okFrom = c?.passFrom === 'hand' || c?.passFrom === 'spell' || c?.passFrom === 'sale' || (teamFx && !!c?.team && typeof c.team === 'object' && !Array.isArray(c.team));
     if (!Number.isInteger(seq) || (seq as number) < 0 || !c || typeof c !== 'object' || Array.isArray(c) || typeof c.cardId !== 'string'
       || jsonBytes(c) > PASS_CARD_BYTES || !okFrom) this.h.fail('bad_card');
-    // NO GOLDENS (owner 2026-10-30: "Golden minions CANNOT be passed"). The client refuses it too; this is the guard.
-    // Every pass: the manual drag and an effect's pass (Handout) alike.
-    // The ONE exception: Salesman of the Year's sold minion (owner 2026-10-30: "golden minions DO get passed in this
-    // case"), which travels as `passFrom: 'sale'`.
-    if (c!.golden === true && c!.passFrom !== 'sale') this.h.fail('golden');
+    // GOLDENS (owner 2026-10-31, R-DUOS-PASS-GOLDEN-MANUAL-01: "gilded minions can be passed from hand but not targeted
+    // by spells that pass"). The MANUAL drag (`'hand'`) may carry a Golden minion, and so may Salesman of the Year's
+    // sold minion (`'sale'`, owner 2026-10-30: "golden minions DO get passed in this case"). A pass SPELL's minion
+    // (`'spell'`: Handout, CueBee's Pass, Matchmaker) is never Golden: the client refuses the target; this is the guard.
+    if (c!.golden === true && c!.passFrom === 'spell') this.h.fail('golden');
     const sameKind = (p: GPass): boolean => p.from_seat === seat && (p.card.passFrom === 'team') === teamFx;
     const mine = (all[round as number] ?? []).filter(sameKind).length;
     if (mine >= (teamFx ? DUOS_TEAM_FX_CAP : DUOS_PASS_CAP)) this.h.fail('too_many_passes');

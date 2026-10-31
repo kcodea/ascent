@@ -2,6 +2,10 @@ import {
   DRAG_DEFAULTS_VERSION, DRAG_RANGES,
   getDragFeel, hasLocalDragOverride, resetDragFeel, setDragValue, type DragFeel,
 } from './dragFeel';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { handDragLines } from './dragDecision';
+import { stageHost, toStage } from './stage';
 import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
@@ -41,6 +45,7 @@ const SPECS: Record<keyof DragFeel, [string, TunerUnit | undefined, string, stri
   handPop:       ['Hand card pop', '×', 'How far a hovered hand card pops up, as a multiple of card height.', 'Row behaviour'],
 
   playLine:      ['Minion play line', '×', 'The line a MINION must clear before it plays and the warband opens a slot to make room. LOWER = the warband reacts SOONER (opens the slot with less drag up); higher = later. Can sit well below 0. Minions only.', 'Play & cast lines'],
+  playCommitLine:['Minion commit line', '×', 'The line a MINION must be past for letting go to PLAY it. Between this and the play line the warband makes room, but a release sends the card back to hand. The card glows blue past this line. Never nearer the hand than the play line.', 'Play & cast lines'],
   spellLine:     ['Spell cast line', '×', 'How far a SPELL must be lifted from the hand before it arms. 0 = up at the warband (a long drag); 1 = right at the hand’s top edge. Higher = less drag to cast. Spells only — minions unchanged.', 'Play & cast lines'],
 
   magSlideMs:    ['Magnet slide', 'ms', 'How long an Attachment takes to slide onto its host.', 'Attachment'],
@@ -58,7 +63,7 @@ const ORDER: (keyof DragFeel)[] = [
   'tiltGain', 'tiltEase', 'tiltMax', 'perspective', 'staticRotate',
   'recenter', 'recenterAfter', 'handGrabY', 'snapMs',
   'collapseY', 'handFloor', 'handPop',
-  'playLine', 'spellLine',
+  'playLine', 'playCommitLine', 'spellLine',
   'magSlideMs', 'magWeldLeadMs',
   'shGrow', 'shLift', 'shBlur', 'shFade',
 ];
@@ -80,6 +85,12 @@ export const SPEC: TunerSpec<DragFeel> = {
   reset: resetDragFeel,
   controls,
   toggles: [{
+    id: 'pll',
+    label: 'Show play lines',
+    hint: 'Draws the three hand-drag lines across the board: where the warband makes room (react), where letting go plays a minion (commit, blue glow), and where a spell arms. Measured from the cursor. They move live as you drag the sliders.',
+    bodyClass: 'playline-preview',
+    defaultOn: true,
+  }, {
     id: 'dsh',
     label: 'Preview drag shadow',
     hint: 'Pins the drag shadow onto every resting card so the four shadow sliders can be tuned — you cannot hold a card and a slider at once. Preview only; nothing is saved.',
@@ -88,6 +99,47 @@ export const SPEC: TunerSpec<DragFeel> = {
   }],
 };
 
+/** The guide lines (R-PLAYLINE-01). Drawn from the SAME `handDragLines` the drag uses, so a line here is exactly
+ *  where the drag flips. DEV tool, mounted only while the panel is open: it re-measures the three zones a few times
+ *  a second (sliders, resizes and layout shifts all show up) rather than per frame. Hidden unless the
+ *  "Show play lines" toggle is on (`body.playline-preview`). */
+function PlayLineGuides(): JSX.Element | null {
+  const [ys, setYs] = useState<{ react: number; commit: number; spell: number } | null>(null);
+  useEffect(() => {
+    const measure = (): void => {
+      const rect = (z: string) => document.querySelector<HTMLElement>(`[data-zone="${z}"]`)?.getBoundingClientRect();
+      const wb = rect('warband');
+      if (!wb) { setYs(null); return; }
+      const next = handDragLines(wb, rect('hand'), rect('tavern'), getDragFeel());
+      setYs((prev) => (prev && prev.react === next.react && prev.commit === next.commit && prev.spell === next.spell ? prev : next));
+    };
+    measure();
+    const id = window.setInterval(measure, 150);
+    return () => window.clearInterval(id);
+  }, []);
+  if (!ys) return null;
+  const line = (kind: string, y: number, label: string) =>
+    Number.isFinite(y) ? (
+      <div key={kind} className={`playline-guide ${kind}`} style={{ top: toStage(y) }}>
+        <span>{label}</span>
+      </div>
+    ) : null;
+  // The commit line sits ON the react line when they coincide; draw it last so the blue one stays visible.
+  return createPortal(
+    <div className="playline-guides" aria-hidden="true">
+      {line('spell', ys.spell, 'Spell arms')}
+      {line('react', ys.react, 'Warband makes room')}
+      {line('commit', ys.commit, 'Release plays (blue)')}
+    </div>,
+    stageHost(),
+  );
+}
+
 export function DragTuner(): JSX.Element {
-  return <TunerPanel spec={SPEC} />;
+  return (
+    <>
+      <TunerPanel spec={SPEC} />
+      <PlayLineGuides />
+    </>
+  );
 }

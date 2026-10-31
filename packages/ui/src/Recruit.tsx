@@ -67,7 +67,7 @@ import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from '
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
 import { buildShopViews, type ShopViewCacheEntry } from './shopViewCache';
-import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, NO_DRAG_DECISION, INSERT_FRAC, indexFromSlots, reorderIndexFromSlots, type DragGeo, type DragDecision } from './dragDecision';
+import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, handDragLines, handMinionCommits, NO_DRAG_DECISION, INSERT_FRAC, indexFromSlots, reorderIndexFromSlots, type DragGeo, type DragDecision } from './dragDecision';
 import { dragStore, useDragSlice, type DragSnapshot, type DragState } from './dragStore';
 import { QuestCard } from './QuestCard';
 import { RuneforgeDialog } from './runeforgeEntrance/RuneforgeDialog';
@@ -4094,6 +4094,9 @@ export function Recruit() {
   // A SPELL arms on its own, LOWER line (closer to the hand) than a minion's play floor — so casting doesn't
   // need a long drag up. Set alongside playFloor from the live `spellLine` knob. Fallback = playFloor.
   const spellFloorRef = useSwapRef(Infinity, swapped);
+  // A hand MINION's COMMIT line (R-PLAYLINE-01): the warband makes room at `playFloorRef`, but a release only
+  // PLAYS the card above this (higher) line; between the two it goes back to hand. From the `playCommitLine` knob.
+  const commitFloorRef = useSwapRef(Infinity, swapped);
   /** `castAimRef` mirrors the move flush's `castingSpell` / `castTargetUid` so the same flush can keep the
    *  spell aim line exact every frame. `defId` picks the aim EFFECT for this cast: a Ruby dragged from hand plays
    *  `ruby-target`; everything else leaves it undefined so `setAimLine` uses its default (`spell-target`).
@@ -4740,26 +4743,16 @@ export function Recruit() {
       }
       return null;
     };
-    // Minimum play height for a HAND minion: release above this line plays it, below (nearer the hand) cancels
-    // back to hand. Sit it 10% of the play area (tavern top → warband bottom) up from the warband's bottom, so
-    // the low band by the hand no longer counts as playable. Fallback = Infinity (play anywhere) if unmeasured.
     const wbRect = zoneRects.find((z) => z.zone === 'warband')?.r;
     const tvRect = zoneRects.find((z) => z.zone === 'tavern')?.r;
     const handRect = zoneRects.find((z) => z.zone === 'hand')?.r;
-    // A hand MINION plays (and the warband opens a slot to make room) once its centre clears this line. It
-    // rides `getDragFeel().playLine` off the warband/hand rects; LOWER playLine = the warband reacts sooner
-    // (opens the slot with less drag up). Falls back to the old "10% up into the play area" line only when the
-    // hand is unmeasured.
-    playFloorRef.current = wbRect && handRect
-      ? wbRect.bottom + getDragFeel().playLine * (handRect.top - wbRect.bottom)
-      : wbRect
-        ? wbRect.bottom - 0.1 * (tvRect ? wbRect.bottom - tvRect.top : wbRect.height)
-        : Infinity;
-    // Spells arm on a lower line: slide it from the warband's bottom (spellLine 0) down toward the hand's top
-    // (spellLine 1) — higher = less drag to cast. Falls back to the minion play floor if the hand is unmeasured.
-    spellFloorRef.current = wbRect && handRect
-      ? wbRect.bottom + getDragFeel().spellLine * (handRect.top - wbRect.bottom)
-      : playFloorRef.current;
+    // The three lines come from ONE helper (`handDragLines`), the same one the Drag Feel tuner draws its guides with.
+    // LOWER playLine = the warband reacts sooner; `playCommitLine` is where a release actually plays (R-PLAYLINE-01);
+    // `spellLine` is where a spell arms (higher = less drag to cast).
+    const lines = handDragLines(wbRect, handRect, tvRect, getDragFeel());
+    playFloorRef.current = lines.react;
+    commitFloorRef.current = lines.commit;
+    spellFloorRef.current = lines.spell;
     // For a spell drag (targeting a friendly minion / any offer), cache the candidate card rects up front:
     // the board/shop don't shift during a spell drag, so targeting hit-tests these instead of elementFromPoint.
     const measureCards = (sel: string): { uid: string; r: DOMRect }[] =>
@@ -4857,7 +4850,7 @@ export function Recruit() {
     const gateGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt, starformUidAt };
     const decOf = (d0: DragState | null, x: number, y: number, z: Zone | null, magSlide = dragStore.get().magSlide): DragDecision =>
       deriveDragDecision({
-        drag: d0, x, y, overZone: z, magSlide, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current,
+        drag: d0, x, y, overZone: z, magSlide, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current, commitFloor: commitFloorRef.current,
         collapseY: toScreen(getDragFeel().collapseY) /* owner-tuned layout px vs a screen-px lift (stage.ts) */, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
         asksChoiceFirst: asksFirst, aimsStarform: !!d0 && aimsStarform, castRefuses,
       });
@@ -5015,7 +5008,9 @@ export function Recruit() {
       // transforms) so a hand-play / board-reorder / shop-reorder commit can FLIP each neighbour from where it
       // actually sits to its final slot — no jump when a fast "land it far over" release outran the throttled
       // preview, and no replay of the dragged card's whole move.
-      const handMinionDrop = d.source === 'hand' && !d.view.spell && !d.view.ruby && zone === 'warband';
+      // A hand minion released between the react and commit lines goes back to hand (R-PLAYLINE-01): not a play.
+      const handMinionDrop = d.source === 'hand' && !d.view.spell && !d.view.ruby && zone === 'warband'
+        && handMinionCommits(e.clientY, playFloorRef.current, commitFloorRef.current);
       const boardReorderDrop = d.source === 'board' && zone === 'warband';
       const shopReorderDrop = d.source === 'shop' && zone === 'tavern' && d.uid !== run.spell?.uid;
       // A SELL (board→tavern) re-centres the WARBAND; a BUY (shop→hand) re-centres the TAVERN. During the
@@ -5059,6 +5054,7 @@ export function Recruit() {
       // first "lands", then slides in (left→right) with electricity, and only then merges.
       const magIdx =
         d.source === 'hand' && d.view.keywords.includes('M') && zone === 'warband'
+          && handMinionCommits(e.clientY, playFloorRef.current, commitFloorRef.current)
           ? warbandIndexAt(e.clientX - d.ox + d.w / 2)
           : -1;
       const magMech = magIdx >= 0 ? run.board[magIdx] : undefined;
@@ -5113,7 +5109,8 @@ export function Recruit() {
     // Right-click while aiming a spell cancels it (snaps back to the hand).
     const onCtx = (e: MouseEvent): void => {
       const cur = dragStore.get().drag;
-      if (cur?.view.spell || cur?.view.ruby) {
+      // Right-click drops ANY card lifted from the hand back into its slot (R-PLAYLINE-01; spells always did).
+      if (cur?.source === 'hand' || cur?.view.spell || cur?.view.ruby) {
         e.preventDefault();
         cancelDragTrace(); // an aborted aim never labels a later action
         endSession();
@@ -8439,6 +8436,12 @@ export function Recruit() {
     // Flip is captured here EXCLUDING the dragged card, so it just appears in its new slot — no replay of the
     // drag. A drop on its own slot is a no-op (it settles back in place). Spells use their own LOWER line, so
     // they only reorder when dropped down near the hand — lifted a little clear of it already arms the cast.
+    // A hand MINION released past the react line but short of the commit line (R-PLAYLINE-01) goes back to its
+    // OWN slot: the player changed their mind, so it must not reorder the hand or play. The green glow was off.
+    if (d.source === 'hand' && !d.view.spell && !d.view.ruby && y < playFloorRef.current
+      && !handMinionCommits(y, playFloorRef.current, commitFloorRef.current)) {
+      return false; // the snap-back springs it home, like any refused drop
+    }
     if (d.source === 'hand' && y >= (d.view.spell || d.view.ruby ? spellFloorRef.current : playFloorRef.current)) {
       const from = run.hand.findIndex((c) => c.uid === d.uid);
       const to = prevHandGapRef.current >= 0 ? prevHandGapRef.current : handIndexAt(cx, d.uid);
@@ -9984,8 +9987,8 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
 
 const selectOverlayDrag = (s: DragSnapshot) => ({
   drag: s.drag, castingSpell: s.castingSpell, snapping: s.snapping, magSlide: s.magSlide, passOver: s.passOver,
-  wouldMagnetize: s.decision.wouldMagnetize, overWarband: s.decision.overWarband, castTargetUid: s.decision.castTargetUid,
-  overZone: s.overZone, sellTop: s.sellTop, buyTop: s.buyTop, touch: s.touch,
+  wouldMagnetize: s.decision.wouldMagnetize, castTargetUid: s.decision.castTargetUid,
+  willCommit: s.decision.willCommit, overZone: s.overZone, sellTop: s.sellTop, buyTop: s.buyTop, touch: s.touch,
 });
 
 /**
@@ -9997,7 +10000,7 @@ const selectOverlayDrag = (s: DragSnapshot) => ({
 const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, hasPendingTarget }: {
   timeUp: boolean; heroArmed: boolean; equipArmed: boolean; hasPendingTarget: boolean;
 }) {
-  const { drag, castingSpell, snapping, magSlide, passOver, wouldMagnetize, overWarband, castTargetUid, overZone, sellTop, buyTop, touch } = useDragSlice(selectOverlayDrag);
+  const { drag, castingSpell, snapping, magSlide, passOver, wouldMagnetize, castTargetUid, willCommit, overZone, sellTop, buyTop, touch } = useDragSlice(selectOverlayDrag);
   // A viewer (replay / spectator) aims nothing of their own (R-SPECTATE-AIM-01).
   const viewing = useGame((st) => !!st.replaySession || st.replaying);
   // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
@@ -10165,7 +10168,7 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
       {drag?.active && !drag.ghost && !castingSpell && createPortal((
         <div
           ref={dragCardRef}
-          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}${drag.source === 'hand' ? ' fromhand' : ''}${passOver && drag.source === 'hand' ? ` pass-${passOver}` : ''}`}
+          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${willCommit ? ' willplay' : ''}${drag.source === 'hand' ? ' fromhand' : ''}${passOver && drag.source === 'hand' ? ` pass-${passOver}` : ''}`}
           style={{
             width: toStage(drag.w), // drag geometry is screen px -> stage (stage.ts)
             height: toStage(drag.h),

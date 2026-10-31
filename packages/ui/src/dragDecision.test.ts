@@ -3,6 +3,9 @@ import {
   deriveDragDecision,
   dragDecisionEqual,
   computeCastingSpell,
+  effectiveCommitFloor,
+  handDragLines,
+  handMinionCommits,
   NO_DRAG_DECISION,
   type DragDecisionInput,
   type DragGeo,
@@ -307,5 +310,64 @@ describe('dragDecisionEqual (the flushMove gate)', () => {
     const b = deriveDragDecision(input({ x: 150, overZone: 'warband', geo: gridGeo({ warband: ['a', 'b', 'c'] }) }));
     expect(a.gapIndex).not.toBe(b.gapIndex);
     expect(dragDecisionEqual(a, b)).toBe(false);
+  });
+});
+
+// R-PLAYLINE-01 (owner 2026-10-31): the warband REACTS at the play line, but a release only PLAYS a hand minion
+// past the higher COMMIT line; between the two it returns to hand. `willCommit` is the green "will play" glow and
+// must agree with the drop (both read `handMinionCommits`). Screen y grows downward: smaller y = higher up.
+describe('commit line (R-PLAYLINE-01)', () => {
+  const hand = (y: number, extra: Partial<DragDecisionInput> = {}) =>
+    deriveDragDecision(input({ drag: drag({ source: 'hand' }), y, playFloor: 400, commitFloor: 300, ...extra }));
+  it('between the react and commit lines the warband makes room but the card does not glow (no play)', () => {
+    const d = hand(350);
+    expect(d.overWarband).toBe(true);
+    expect(d.gapIndex).toBeGreaterThanOrEqual(0);
+    expect(d.willCommit).toBe(false);
+    expect(handMinionCommits(350, 400, 300)).toBe(false);
+  });
+  it('past the commit line it glows and a release plays', () => {
+    expect(hand(250).willCommit).toBe(true);
+    expect(handMinionCommits(250, 400, 300)).toBe(true);
+  });
+  it('below the react line nothing previews and nothing glows', () => {
+    const d = hand(450);
+    expect(d.overWarband).toBe(false);
+    expect(d.willCommit).toBe(false);
+  });
+  it('a commit line set nearer the hand than the react line is clamped to the react line', () => {
+    expect(effectiveCommitFloor(400, 480)).toBe(400);
+    expect(hand(350, { commitFloor: 480 }).willCommit).toBe(true);
+    expect(handMinionCommits(420, 400, 480)).toBe(false);
+  });
+  it('no commit line supplied = the old single line', () => {
+    expect(deriveDragDecision(input({ drag: drag({ source: 'hand' }), y: 350, playFloor: 400 })).willCommit).toBe(true);
+  });
+  it('a full board never glows', () => {
+    expect(hand(250, { board: [{ cardId: '1' }, { cardId: '2' }], boardMax: 2 }).willCommit).toBe(false);
+  });
+  it('spells and board drags never glow green', () => {
+    const spell = deriveDragDecision(input({ drag: drag({ source: 'hand', view: view({ spell: true } as Partial<CardView>) }), y: 250, playFloor: 400, commitFloor: 300 }));
+    expect(spell.willCommit).toBe(false);
+    expect(deriveDragDecision(input({ drag: drag({ source: 'board' }), y: 250, commitFloor: 300 })).willCommit).toBe(false);
+  });
+  it('a change in willCommit alone is a visible change (the move flush must re-render for the glow)', () => {
+    expect(dragDecisionEqual(hand(350), hand(250))).toBe(false);
+  });
+});
+
+describe('handDragLines (the drag and the tuner guides share it)', () => {
+  const wb = { top: 300, bottom: 600, height: 300 };
+  const hand = { top: 700, bottom: 900, height: 200 };
+  it('places each line off the warband bottom by its knob × the warband→hand gap, commit clamped above react', () => {
+    const l = handDragLines(wb, hand, undefined, { playLine: 0.5, playCommitLine: -1, spellLine: 0.25 });
+    expect(l).toEqual({ react: 650, commit: 500, spell: 625 });
+    expect(handDragLines(wb, hand, undefined, { playLine: 0, playCommitLine: 0.8, spellLine: 0 }).commit).toBe(600);
+  });
+  it('without a measured hand all three fall back to the old fixed line', () => {
+    const l = handDragLines(wb, undefined, { top: 0, bottom: 200, height: 200 }, { playLine: 0, playCommitLine: 0, spellLine: 0 });
+    expect(l.react).toBe(540);
+    expect(l.commit).toBe(540);
+    expect(l.spell).toBe(540);
   });
 });

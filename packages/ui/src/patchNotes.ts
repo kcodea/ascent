@@ -59,6 +59,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-31',
     changes: [
       { category: 'Systems', text: 'New painted icons for Play, Career, Collection, Leaderboard, Recent Games and Live Games in the menus.' },
+      { category: 'Systems', text: 'Fixed the cursor after viewing your teammate.' },
       { category: 'Systems', text: 'Hero art is sharper on phones.', details: [
         "Hero select, the hero pick, your portrait and the foe's portrait in combat now use the full size art.",
         'The small faces in the lobby list use a smaller image, so phones use less memory.',

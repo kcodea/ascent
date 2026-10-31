@@ -42,6 +42,8 @@ html[data-phone-layout]:not([data-phone-menus]) :is(.fdock-btn, .fdock-stack, .d
 .fdock-btn.on { z-index: 487; border-color: rgba(240, 208, 137, 0.95); }
 .fdock-btn > svg { width: 62%; height: 62%; pointer-events: none; }
 html[data-touch-ui] .fdock-btn > svg { width: 56%; height: 56%; }
+/* The closed button's painted Friends medallion (menuIcons.tsx): sized like the gear's medallion beside it (30 of 40). */
+.fdock-btn > .menumedal { width: 75%; height: 75%; pointer-events: none; }
 /* The counts on the button's corners: friends online (the side menu's old green chip) top right, unread messages +
    friend requests waiting (the red chip) top left. Static; hidden while open (the title bar says it). */
 .fdock-chips { position: absolute; inset: -7px; pointer-events: none; }

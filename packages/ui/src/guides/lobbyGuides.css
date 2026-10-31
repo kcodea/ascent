@@ -1,72 +1,85 @@
-/* ── LOBBY RAIL GUIDES (owner ask 2026-10-09) ──────────────────────────────────────────────────────────────────
-   The tab on the rail's left edge and the Guides face of the rail (LobbyPanel.tsx + guides/LobbyGuides.tsx).
+/* ── LOBBY GUIDES (owner ask 2026-10-09; moved off the rail into the bottom-right Guides panel 2026-10-31) ────────
+   The bottom-right Guides button and its panel (LobbyPanel.tsx `GuidesCorner` + guides/LobbyGuides.tsx), and the rail's
+   Guides face, which only the Versus 1v1 drawer still uses.
 
    PERFORMANCE. No looping animation here. The view swap is a one-shot opacity + transform fade-in; a guide's
    expansion is a one-shot `grid-template-rows` 0fr -> 1fr transition (no height is ever measured); the chevron turn
    is a one-shot transform. The portraits are the memoized `Card`, fed stabilized views.
    CURSOR. Every control here is a `button`, so the global gauntlet rule paints it; nothing sets `cursor`. */
 
-/* ── The tab ───────────────────────────────────────────────────────────────────────────────────────────────── */
-/* A SIBLING of the rail (the Gem rail clips its children), placed off the rail's own expressions: its right edge on
-   the rail's left edge, vertically centred on the rail. The centre re-derives Classic's rail height (the same recipe
-   as `--lgem-h` in lobbyRail.css; Gem holds exactly that height), so both looks centre it. */
-.lobbyrailtab {
+/* ── THE GUIDES BUTTON + PANEL (owner 2026-10-31, R-GUIDES-CORNER-01: "the guides button likely needs a new home
+   entirely, like in the bottom right and have it expand upwards") ───────────────────────────────────────────────────
+   The rail's old Guides / Opponents tab is gone. A Guides square wearing the corner plaque (the gear / Compendium
+   look) sits in the bottom-right cluster, stacked just above the Settings gear, so the Compendium | Settings row and the
+   room left of it (the Duos teammate portrait, a full hand) keep their places. Pressing it grows the guides panel UP out
+   of it: its bottom-right corner on the button's top-right, scaling from that corner (transform + opacity, one-shot,
+   the Friends dock's motion); pressing it again (or Esc) sinks it back. The panel is the rail's own Gem plate, as wide as
+   the rail in Simple and `--lby-guide-w` times that in Detailed, and runs up to just under the round header, so it lies
+   over the rail column in one clean piece instead of clipping a few slices. Its list scrolls inside with the game's
+   scrollbar (GameScroll). It leaves while combat is staged and comes back on the view it left. */
+.guidesbtn, .guidesdock {
   --u: calc(var(--u-base) * var(--ui-scale, 0.96));
+  --gb-cb: calc(40 * var(--u)); --gb-r: calc(var(--edge-r) + 16px); --gb-b: calc(var(--edge-b) + 16px + var(--gb-cb) + 10px);
+}
+html[data-touch-ui] :is(.guidesbtn, .guidesdock) { --gb-cb: var(--touch-cb); }
+/* A phone in a game (the zoomed stage): above the gear's 66 px square on its design-x offset (touchUi.css). */
+html[data-touch-ui][data-phone-zoom] :is(.guidesbtn, .guidesdock) { --gb-cb: 66px; --gb-r: calc(var(--pz-bxr) + 1920px - 1897px);
+  --gb-b: calc(var(--pz-safe-b, var(--safe-b)) + 15px + 66px + 8px); }
+/* The phone layout's game screen (phoneLayout.css places the gear in bar px from the top left): the same, as offsets. */
+html[data-phone-layout]:not([data-phone-menus]) :is(.guidesbtn, .guidesdock) { --gb-cb: var(--pl-cb);
+  --gb-r: calc(var(--lvw, 100vw) - var(--bar-x) - 2725px * var(--scale) - var(--pl-cb));
+  --gb-b: calc(var(--lvh, 100vh) - var(--bar-y) - 1290px * var(--scale) + 8px); }
+.guidesbtn { position: fixed; right: var(--gb-r); bottom: var(--gb-b); z-index: 85;
+  width: var(--gb-cb); height: var(--gb-cb); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; color: #f0d089;
+  border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease, opacity 0.2s ease; }
+.guidesbtn:hover { border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); transform: translateY(-2px); }
+.guidesbtn:active, .guidesbtn:hover:active { transform: translateY(3px) scale(0.97); filter: brightness(0.9); transition-duration: 0.06s; }
+.guidesbtn.on { z-index: 66; border-color: rgba(240, 208, 137, 0.95); }
+.guidesbtn > svg { width: 62%; height: 62%; pointer-events: none; }
+html[data-touch-ui] .guidesbtn > svg { width: 56%; height: 56%; }
+.guidesbtn:focus-visible { outline: 2px solid var(--ui-title); outline-offset: 2px; }
+/* Combat: the button goes quiet and inert with the rail (the panel is not drawn then). */
+.app.staged .guidesbtn { opacity: 0; pointer-events: none; }
+
+.guidesdock {
   --lu: calc(var(--u) * var(--lby-scale, 0.82));
   --lrow: calc(var(--lu) * var(--lby-row, 1.91));
   --lfont: calc(var(--lu) * var(--lby-font, 0.9));
-  --ltab-cell: calc(42 * var(--lu));
-  --ltab-pad: calc(5 * var(--lu));
-  --ltab-h: calc(2 * var(--ltab-cell) + 2 * var(--ltab-pad) + 4px);
-  --ltab-rail-h: calc(
-    16 * var(--lu) * var(--lby-pad, 4.5)
-    + 11 * var(--lfont) * 1.4042 + 5 * var(--lu)
-    + var(--lby-n, 8) * (7 * var(--lrow) * var(--lby-seat-pad, 0.75) + 11 * var(--lfont) * var(--lby-name-size, 1.5) * 1.3622 + 18 * var(--lrow) * var(--lby-face, 1.74))
-    + (var(--lby-n, 8) - 1) * 2 * var(--lrow) * var(--lby-gap, 0.65)
-    - 0.41 * var(--lu));
-  position: absolute; z-index: 59; /* just under the rail, so the rail's edge sits over the tab's seam */
-  /* On the rail's LEFT edge, which the rightward growth never moves; in the Full guides view the rail grows LEFT by
-     (`--lby-guide-w` - 1) of its own (grown) width, and the tab rides out with it. Re-derives the rail's `--lr-w`. */
-  --lr-right0: calc((var(--lby-right, 0) - var(--lby-x, 2)) * var(--lu));
-  --lr-w0: calc(var(--lby-w, 251) * var(--lu));
-  --lr-right: max(calc(var(--lr-right0) - var(--lr-w0) * (var(--lby-wgrow, 1.3) - 1)), calc(10px + var(--edge-r) - var(--bar-x)));
-  --lr-w: calc(var(--lr-w0) + var(--lr-right0) - var(--lr-right));
-  right: calc(var(--lr-right0) + var(--lr-w0) + var(--lr-w) * (var(--ltab-wmul, 1) - 1) - 2px);
-  top: calc(var(--lby-top, 13.5%) + var(--lby-y, -3) * var(--lu) + var(--ltab-rail-h) / 2 - var(--ltab-h) / 2);
-  height: var(--ltab-h); width: calc(var(--ltab-cell) + 2 * var(--ltab-pad) + 4px);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
-  padding: var(--ltab-pad); margin: 0;
-  border: 1px solid transparent; border-right: none;
-  border-radius: calc(10 * var(--lu)) 0 0 calc(10 * var(--lu));
+  --gd-w: calc(var(--lby-w, 251) * var(--lu) * 1.08);
+  position: fixed; z-index: 65; right: var(--gb-r); bottom: calc(var(--gb-b) + var(--gb-cb) + 8px);
+  width: min(var(--gd-w), calc(var(--lvw, 100vw) - var(--gb-r) - 16px));
+  /* Up to just under the round header (the rail's top), never off the top of the screen. */
+  max-height: calc(var(--lvh, 100vh) - var(--gb-b) - var(--gb-cb) - 8px - max(calc(var(--lby-top, 13.5%) * 0.9), 12px));
+  height: calc(var(--lvh, 100vh) - var(--gb-b) - var(--gb-cb) - 8px - max(calc(var(--lby-top, 13.5%) * 0.9), 12px));
+  display: flex; flex-direction: column; box-sizing: border-box; padding: calc(10 * var(--lu)) calc(8 * var(--lu)) calc(8 * var(--lu));
+  border: 1px solid transparent; border-radius: calc(14 * var(--lu));
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), -2px 3px 8px -3px rgba(0, 0, 0, 0.65);
-  color: var(--ui-muted);
-  transition: transform 420ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms ease-out;
-}
-.lobbyrailtab-cell {
-  display: grid; place-items: center; width: var(--ltab-cell); height: var(--ltab-cell);
-  border-radius: calc(7 * var(--lu)); color: var(--ui-muted); opacity: 0.7;
-}
-.lobbyrailtab-cell svg { width: 66%; height: 66%; }
-/* The CURRENT view's glyph is lit: a gold glyph on a sunk chip. */
-.lobbyrailtab-cell.on {
-  opacity: 1; color: var(--ui-title);
-  background: color-mix(in srgb, var(--ui-chip-bg) 92%, transparent);
-  box-shadow: inset 0 0 0 1px var(--ui-edge-main), inset 0 1px 3px rgba(0, 0, 0, 0.55);
-}
-.lobbyrailtab:hover .lobbyrailtab-cell:not(.on) { opacity: 1; color: var(--ui-text); }
-.lobbyrailtab:focus-visible { outline: 2px solid var(--ui-title); outline-offset: 2px; }
-/* The tip opens to the tab's left, clear of the rail. */
-.lobbyrailtab.gtip[data-tip]::after { left: auto; right: calc(100% + 8px); bottom: auto; top: 50%; transform: translateY(-50%) translateX(4px); }
-.lobbyrailtab.gtip[data-tip]:hover::after, .lobbyrailtab.gtip[data-tip]:focus-visible::after { transform: translateY(-50%) translateX(0); }
-/* It leaves with the rail when combat stages (same curve as `.app.staged .lobbyrail`), and goes inert. */
-.app.staged .lobbyrailtab {
-  transform: translateX(calc(var(--lr-w) * var(--ltab-wmul, 1) * 1.15 + 100%)); opacity: 0; pointer-events: none;
-}
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 14px 34px -12px rgba(0, 0, 0, 0.8);
+  color: var(--ui-text); font-family: var(--font-ui);
+  transform-origin: 100% 100%; animation: guidesdockin 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.guidesdock.guides-full { --gd-w: calc(var(--lby-w, 251) * var(--lu) * 1.08 * var(--lby-guide-w, 1.55)); }
+.guidesdock.closing { animation: guidesdockout 0.16s cubic-bezier(0.5, 0, 0.75, 0) both; pointer-events: none; }
+@keyframes guidesdockin { from { opacity: 0; transform: scale(0.12); } 40% { opacity: 1; } }
+@keyframes guidesdockout { 60% { opacity: 1; } to { opacity: 0; transform: scale(0.12); } }
+@media (prefers-reduced-motion: reduce) { .guidesdock, .guidesdock.closing { animation-duration: 0.01s; } }
+/* Its head: "Guides" and the count, the round header's type. */
+.guidesdock-head { flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 0 calc(4 * var(--lu)) calc(8 * var(--lu));
+  border-bottom: 1px solid color-mix(in srgb, var(--ui-edge-main) 55%, transparent); margin-bottom: calc(8 * var(--lu)); }
+.guidesdock-title { font-weight: 900; font-size: calc(16 * var(--lfont) * 1.25); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-title);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
+.guidesdock-count { font-weight: 800; font-size: calc(11 * var(--lfont) * 1.3); color: var(--ui-muted); }
+.guidesdock > .lobbyview { flex: 1 1 0; min-height: 0; }
+.guidesdock.guides-simple .lobbyguide-unit { --lgu-s: min(var(--lby-guide-unit-simple, 0.5), var(--lgu-fit, 0.4)); }
+.guidesdock.guides-simple .lobbyguide-body { padding-left: calc(2 * var(--lrow)); padding-right: calc(2 * var(--lrow)); }
+.guidesdock.guides-simple .lobbyguide-unitrow { justify-content: center; }
+/* The build badge above the gear moves up out of the Guides square's way while it is on screen. */
+body:has(.guidesbtn) .version { bottom: calc(var(--edge-b) + 16px + 2 * (40 * var(--u)) + 17px); }
 
 /* ── The wide Guides rail (owner ask 2026-10-09: "expanding the rail out to the left so we can increase text +
    minion size") ─────────────────────────────────────────────────────────────────────────────────────────────────
-   In the Guides view the rail, its header and the tab take `--lby-guide-w` times the rail width (🪑 Lobby Rail →
+   In the Guides view (the Versus 1v1 drawer only, since 2026-10-31) the rail and its header take `--lby-guide-w` times the rail width (🪑 Lobby Rail →
    Guides → Expanded width). The rail is anchored by `right`, so it grows LEFT and its right edge never moves.
    It covers the board's right side (and the End Turn / Refresh controls behind it) while open: the player chose to
    open it, and the tab flips it back.
@@ -74,13 +87,12 @@
    footprint to its new one (origin: its right edge) while the new face fades in after it; the tab and the header
    slide from their old spot. Classes `swap-wide` / `swap-narrow` are set only by a toggle, never on mount. */
 .lobbyrail.guides-full, .lobbyrailhead.guides-full { width: calc(var(--lr-w) * var(--lby-guide-w, 1.55)); }
-.lobbyrailtab.guides-full { --ltab-wmul: var(--lby-guide-w, 1.55); }
 .lobbyrail.swap-wide { transform-origin: 100% 50%; animation: lobbyrailwiden 240ms cubic-bezier(0.2, 0.7, 0.2, 1); }
 .lobbyrail.swap-narrow { transform-origin: 100% 50%; animation: lobbyrailnarrow 220ms cubic-bezier(0.2, 0.7, 0.2, 1); }
 @keyframes lobbyrailwiden { from { transform: scaleX(calc(1 / var(--lby-guide-w, 1.55))); } to { transform: none; } }
 @keyframes lobbyrailnarrow { from { transform: scaleX(var(--lby-guide-w, 1.55)); } to { transform: none; } }
-.lobbyrailtab.swap-wide, .lobbyrailhead.swap-wide { animation: lobbytabwiden 240ms cubic-bezier(0.2, 0.7, 0.2, 1); }
-.lobbyrailtab.swap-narrow, .lobbyrailhead.swap-narrow { animation: lobbytabnarrow 220ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+.lobbyrailhead.swap-wide { animation: lobbytabwiden 240ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+.lobbyrailhead.swap-narrow { animation: lobbytabnarrow 220ms cubic-bezier(0.2, 0.7, 0.2, 1); }
 @keyframes lobbytabwiden { from { transform: translateX(calc((var(--lby-guide-w, 1.55) - 1) * var(--lr-w))); } to { transform: none; } }
 @keyframes lobbytabnarrow { from { transform: translateX(calc((1 - var(--lby-guide-w, 1.55)) * var(--lr-w))); } to { transform: none; } }
 

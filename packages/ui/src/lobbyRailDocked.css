@@ -204,14 +204,6 @@ html:root .lobbyrailhead.lrv-docked.lrv-wrap:not(.guidesview) > .lrv-left { disp
 html:root .lobbyrailhead.lrv-docked.lrv-wrap:not(.guidesview) > .lobbyround { flex-basis: auto; font-size: 1.24em; white-space: nowrap; }
 html:root .lobbyrailhead.lrv-docked.lrv-wrap:not(.guidesview) > .lobbymax { font-size: 0.86em; white-space: nowrap; }
 
-/* THE GUIDES TAB under the stack, at its right edge. */
-html:root .lobbyrailtab.lrv-docked:not(.guidesview) {
-  --ltab-cell: calc(42px * 0.82 * var(--dk-s, 1) * var(--lr2-tab-scale, 0.75));
-  --ltab-pad: calc(5px * 0.82 * var(--dk-s, 1) * var(--lr2-tab-scale, 0.75));
-  right: auto; bottom: auto; margin: 0;
-  translate: calc(var(--lr2-tab-x, 0) * 1px) calc(var(--lr2-tab-y, 0) * 1px);
-}
-
 /* THE BOARD PIECES' HIT AREAS MATCH THEIR SHAPES (owner 2026-10-31: "we'll need to better cut out the end turn diamond
    too so it doesnt mouseover while moused over an opponent"). The End Turn gem and the Refresh pill sit above the rail
    (z 41) and their boxes overlapped the slices beside their cuts. Since R-HIT-SHAPE-01 every board piece takes the

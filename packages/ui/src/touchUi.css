@@ -49,7 +49,6 @@ html[data-touch-ui] .bookbtn { right: calc(var(--edge-r) + 16px + var(--touch-cb
 
 /* ── The shop HUD: the small controls and pills (the big buttons are already finger-sized) ──────────────────────── */
 /* The rail's guide tab, grown out from the rail edge it hangs off. */
-html[data-touch-ui] .lobbyrailtab { scale: calc(var(--touch-k) * 1.1); transform-origin: 100% 50%; }
 /* The Practice timer-speed picker, grown out of the bar's left end. */
 html[data-touch-ui] .statcell .timermult { scale: calc(var(--touch-k) * 1.3); transform-origin: 100% 50%; }
 /* Name / cost pills: their own transform carries a tuned offset AND a scale, so the scale term is multiplied in place
@@ -231,7 +230,7 @@ html[data-touch-ui][data-phone-zoom] :is(.combatopp, .heropowerbtn.opp-power, .h
 /* Pieces anchored by the box's RIGHT or BOTTOM edge read the bar on that side (the box is not centred here). */
 html[data-touch-ui][data-phone-zoom] { --pz-bxr: calc(var(--lvw, 100vw) - var(--pz-bx) - 1920px); --pz-byb: calc(var(--lvh, 100dvh) - var(--pz-by) - 1080px); }
 html[data-touch-ui][data-phone-zoom] .goldpill { --bar-x: var(--pz-bxr); --bar-y: var(--pz-byb); }
-html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --bar-x: var(--pz-bxr); }
+html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --bar-x: var(--pz-bxr); }
 /* ONE PHONE, ONE GAME (owner 2026-10-24, R-PHONE-PARITY-01: "Pixel and iPhone should be 1:1 experience"): the bottom-edge
    pieces (the hand's resting line, the corner buttons, anything on `--edge-b`) sit on `--pz-safe-b`, the gesture strip at
    the same share of the screen on every phone (stage.ts `phoneBottomStrip`), never on the raw bottom inset each browser
@@ -242,13 +241,10 @@ html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailt
    - the hand: resting low, its plates running off the bottom edge, a finger pops a card up whole (below). */
 /* The lobby rail at the right, vertically centred in the shop view like desktop (below Refresh, right of End Turn), its
    Guides tab attached on its RIGHT side (owner 2026-10-24). */
-html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --lby-top: 214px; --lby-y: 0; --lby-scale: 0.72; }
+html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lby-top: 214px; --lby-y: 0; --lby-scale: 0.72; }
 /* …at the SAME distance from the right safe edge on every phone (R-PHONE-PARITY-01: a clamp to the box's edge left it 95
    layout px in on a Pixel, whose wider safe width leaves more room, and 56 on an iPhone). */
 html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lr-right: calc(56px + var(--edge-r) - var(--bar-x)); --lr-w: 222px; }
-html[data-touch-ui][data-phone-zoom] .lobbyrailtab { right: calc(56px + var(--edge-r) - var(--bar-x) - 4px); top: 368px; scale: -1 1; }
-html[data-touch-ui][data-phone-zoom] .lobbyrailtab > * { scale: -1 1; }
-html[data-touch-ui][data-phone-zoom] .app.staged .lobbyrailtab { transform: none; }
 /* help / Compendium / Settings: the BOTTOM-RIGHT corner like desktop (owner 2026-10-24), on the safe bottom and edge. */
 html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn) { --touch-cb: 66px; left: auto; top: auto; bottom: calc(var(--pz-safe-b, var(--safe-b)) + 15px); }
 html[data-touch-ui][data-phone-zoom] .gearbtn { right: calc(var(--pz-bxr) + 1920px - 1897px); }

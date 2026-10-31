@@ -195,7 +195,7 @@ function measureDock(): DockGeometry | null {
   const tiles = document.querySelectorAll<HTMLElement>('.lobbyseats > .lobbyseat');
   const foot = fitFoot(heroBox, {
     seats: tiles.length ? tiles[tiles.length - 1]!.getBoundingClientRect() : null,
-    coin: rect('.goldpill'), tab: rect('.lobbyrailtab'), book: rect('.bookbtn'), gear: rect('.gearbtn'), hand: rect('.zone > .row.hand'),
+    coin: rect('.goldpill'), tab: rect('.guidesbtn'), book: rect('.bookbtn'), gear: rect('.gearbtn'), hand: rect('.zone > .row.hand'),
   }, stage, toStage);
   return foot ?? fitDock(heroBox, hp?.getBoundingClientRect() ?? null, railEl()?.getBoundingClientRect() ?? null, stage, toStage);
 }

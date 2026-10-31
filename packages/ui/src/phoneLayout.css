@@ -128,7 +128,7 @@ html[data-phone-layout] .inspect-card .card.compact.plated .drawer { padding-lef
 /* ── The lobby rail: same rail, its names and Health about 9 pt (the tuner vars are set on the rail itself). ──── */
 /* Rail, its header and its Guides tab share one geometry: 12 ref px off the box's right edge (desktop clamps the
    growth to the window edge, which drifts with the aspect), its left edge clear of End Turn. */
-html[data-phone-layout] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --lby-w: 318; --lr-right: calc(12px * var(--scale)); --lby-y: 66; }
+html[data-phone-layout] :is(.lobbyrail, .lobbyrailhead) { --lby-w: 318; --lr-right: calc(12px * var(--scale)); --lby-y: 66; }
 html[data-phone-layout] .lobbyrail { --lby-name-size: 2.5; --lby-hp-size: 2.3; }
 
 /* ── The opponent in combat has its own lane, clear of the enemy row: the portrait block in the right column's top
@@ -200,7 +200,6 @@ html[data-phone-layout] .fr-odds-dmg-label { font-size: calc(16 * var(--u)); }
 html[data-phone-layout] .combatopp-tier { zoom: 1.45; }
 html[data-phone-layout] :is(.combatopp-name, .combatopp-hp) { zoom: 1.35; }
 html[data-phone-layout][data-touch-ui] .statcell .timermult { scale: calc(var(--touch-k) * 1.85); }
-html[data-phone-layout][data-touch-ui] .lobbyrailtab { scale: calc(var(--touch-k) * 1.6); }
 html[data-phone-layout][data-touch-ui] .escvol input[type='range'] { height: calc(36px * var(--touch-k)); }
 /* End Turn says what it does on desktop hover; on a phone its ready label is a 5 pt caption over the board. */
 html[data-phone-layout] .etbwrap .etb-tip { visibility: hidden; }

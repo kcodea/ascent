@@ -125,6 +125,8 @@ let railViewMemo: { run: string; view: RailView } = { run: '', view: 'opponents'
 const GUIDES_MODE_KEY = 'ascent.guidesMode';
 /** VERSUS: the Guides drawer's slide (`.lobbyrail.vsdrawer`, versus.css). */
 const VS_DRAWER_MS = 220;
+/** How long the bottom-right Guides panel takes to sink back into its button (guidesdockout, lobbyGuides.css). */
+const GUIDES_CLOSE_MS = 160;
 function readGuidesMode(): GuidesMode {
   try { return localStorage.getItem(GUIDES_MODE_KEY) === 'full' ? 'full' : 'simple'; } catch { return 'simple'; }
 }
@@ -181,9 +183,11 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     setHovered(null);
     setPinned(null);
   }, [staged]);
-  // THE GUIDES VIEW (owner ask 2026-10-09): the tab on the rail's left edge flips the rail between the table and the
-  // build guides for this game's set + tribes (guides/guides.ts). It rides the rail, so it is gone with it in combat
-  // and comes back on the view it left. Off in the Tutorial, whose coach marks point at the seats.
+  // THE GUIDES VIEW (owner ask 2026-10-09; moved 2026-10-31, R-GUIDES-CORNER-01: "the guides button likely needs a new
+  // home entirely, like in the bottom right and have it expand upwards"): the build guides for this game's set + tribes
+  // (guides/guides.ts) open from a Guides square in the bottom-right cluster, as a panel growing UP out of it; the rail
+  // itself always shows the table. Gone in combat, back on the view it left. Off in the Tutorial, whose coach marks point
+  // at the seats. The Versus 1v1 keeps its own drawer (the rail's Guides face, opened from the opponent block's plate).
   const runKey = useGame((st) => `${st.run.runId ?? ''}:${st.run.seed}`);
   const setId = useGame((st) => st.run.setId);
   const runTribes = useGame((st) => st.run.tribes);
@@ -233,6 +237,13 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   useEffect(() => { if (railViewMemo.run !== runKey) { setView('opponents'); setSwap(null); } }, [runKey]);
   useEffect(() => { railViewMemo = { run: runKey, view }; }, [runKey, view]);
   const showGuides = guidesOn && view === 'guides';
+  // Only the Versus 1v1 drawer still turns the RAIL to its Guides face; everywhere else the guides are the corner panel.
+  const versusDuelView = versusRail;
+  const railGuides = showGuides && versusDuelView;
+  // The corner panel sinks back into its button before it unmounts (`gdClosing` holds it on screen for that).
+  const [gdClosing, setGdClosing] = useState(false);
+  const gdTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(gdTimer.current), []);
   useLayoutEffect(() => {
     if (!showGuides) return;
     const next = snapGuides();
@@ -264,15 +275,39 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [versusRail, showGuides, vsClosing, closeVsGuides]);
+  // THE CORNER BUTTON: open grows the panel out of it; close sinks it back in (then it unmounts).
   const toggleView = (): void => {
     setHovered(null);
     setPinned(null);
-    setSwap(mode === 'full' ? (view === 'guides' ? 'narrow' : 'wide') : 'fade');
-    setView((v) => (v === 'guides' ? 'opponents' : 'guides'));
+    window.clearTimeout(gdTimer.current);
+    if (view === 'guides') {
+      setGdClosing(true);
+      gdTimer.current = window.setTimeout(() => setGdClosing(false), GUIDES_CLOSE_MS);
+      setView('opponents');
+    } else {
+      setGdClosing(false);
+      setView('guides');
+    }
   };
+  // Escape closes the corner panel (capture: the Esc menu does not open under it).
+  const closeOnEsc = showGuides && !versusDuelView;
+  useEffect(() => {
+    if (!closeOnEsc) return undefined;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      window.clearTimeout(gdTimer.current);
+      setGdClosing(true);
+      gdTimer.current = window.setTimeout(() => setGdClosing(false), GUIDES_CLOSE_MS);
+      setView('opponents');
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [closeOnEsc]);
   const setMode = (m: GuidesMode): void => {
     if (m === mode) return;
-    setSwap(m === 'full' ? 'wide' : 'narrow');
+    if (railGuides) setSwap(m === 'full' ? 'wide' : 'narrow');
     setModeState(m);
     try { localStorage.setItem(GUIDES_MODE_KEY, m); } catch { /* storage unavailable: the choice lasts this session */ }
   };
@@ -285,15 +320,15 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     if (!showGuides || mode !== 'full') return;
     const onDown = (e: Event): void => {
       const t = e.target;
-      if (t instanceof Element && t.closest('.lobbyrail, .lobbyrailtab, .lobbyrailhead, .vsfoe-guides')) return;
-      setSwap('narrow');
+      if (t instanceof Element && t.closest('.lobbyrail, .lobbyrailhead, .vsfoe-guides, .guidesdock, .guidesbtn')) return;
+      if (railGuides) setSwap('narrow');
       setModeState('simple');
       try { localStorage.setItem(GUIDES_MODE_KEY, 'simple'); } catch { /* storage unavailable: the choice lasts this session */ }
     };
     document.addEventListener('pointerdown', onDown, true);
     return () => document.removeEventListener('pointerdown', onDown, true);
-  }, [showGuides, mode]);
-  const railMods = `${showGuides ? ` guidesview guides-${mode}` : ''}${swap ? ` swap-${swap}` : ''}${versusRail && view !== 'guides' ? ' vsplace' : ''}${versusRail && showGuides ? ` vsdrawer${vsClosing ? ' closing' : ''}` : ''}`;
+  }, [showGuides, mode, railGuides]);
+  const railMods = `${railGuides ? ` guidesview guides-${mode}` : ''}${swap ? ` swap-${swap}` : ''}${versusRail && view !== 'guides' ? ' vsplace' : ''}${versusRail && showGuides ? ` vsdrawer${vsClosing ? ' closing' : ''}` : ''}`;
   const openScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
     if (staged) return;
     const b = e.currentTarget.getBoundingClientRect();
@@ -443,7 +478,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // team rail, the Versus 1v1 block, a board without its HUD) the rail is the Gem rail (lobbyRail.css), as before.
   const liveIds = useMemo(() => rows.filter((r) => r.alive).map((r) => r.id), [rows]);
   const deadIds = useMemo(() => rows.filter((r) => !r.alive).map((r) => r.id), [rows]);
-  const dockWanted = !duosMate && !versusDuel && !showGuides;
+  const dockWanted = !duosMate && !versusDuel && !railGuides;
   const dock = useDockedRail(dockWanted, railRef, liveIds, deadIds, dockCfg, staged);
   const rv = !!dock;
   // Docked's class on the rail, its header and its tab (lobbyRailDocked.css keys off it).
@@ -467,7 +502,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const rowsKey = rows.map((r) => `${r.id}${r.alive ? '' : 'x'}`).join(',');
   useLayoutEffect(() => {
     const layer = railRef.current;
-    if (!rv || showGuides || !layer) { flipPrev.current = new Map(); flipKey.current = ''; return; }
+    if (!rv || railGuides || !layer) { flipPrev.current = new Map(); flipKey.current = ''; return; }
     const key = rowsKey;
     const animate = flipKey.current !== '' && flipKey.current !== key && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const next = new Map<string, DOMRect>();
@@ -486,7 +521,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     });
     flipPrev.current = next;
     flipKey.current = key;
-  }, [rv, showGuides, rowsKey, dock]);
+  }, [rv, railGuides, rowsKey, dock]);
   // The rail's height in seat rows (`--lby-n`): VERSUS's head-to-head card takes three; its Guides view takes the
   // lobby's full eight, so the guides read exactly as in a lobby game.
   const railRows = versusDuel ? (showGuides ? 8 : 3) : rows.length;
@@ -494,7 +529,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The round's loss cap (the run's own table: the Gauntlet has its own, see `roundLossCap`). Infinity = uncapped.
   const cap = rail.lossCap;
   const capTip = maxDamageTip(cap);
-  const leftLabel = showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : versusDuel ? '' : `${versus ? rail.left - (lobby.seats.some((x) => x.id === VERSUS_COPY_SEAT_ID) ? 1 : 0) : rail.left} left`;
+  const guideCountLabel = `${guideCount} guide${guideCount === 1 ? '' : 's'}`;
+  const leftLabel = railGuides ? guideCountLabel : versusDuel ? '' : `${versus ? rail.left - (lobby.seats.some((x) => x.id === VERSUS_COPY_SEAT_ID) ? 1 : 0) : rail.left} left`;
 
   return (
     <>
@@ -517,9 +553,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
       {dock && <SliceEdge p={dock.head} />}
       {/* The candidate rails split the word from the number (the wrapped round slice can set them apart); the text reads
           the same. */}
-      <span className="lobbyround">{showGuides ? 'Guides' : rv ? <><span className="lr-word">Round</span> <span className="lr-num">{rail.round}</span></> : `Round ${rail.round}`}</span>
+      <span className="lobbyround">{railGuides ? 'Guides' : rv ? <><span className="lr-word">Round</span> <span className="lr-num">{rail.round}</span></> : `Round ${rail.round}`}</span>
       {/* Docked: the seats-left count joins the round slice (shown in its Slight eclipse / Level layouts). */}
-      {rv && !showGuides && leftLabel && <span className="lrv-left">{leftLabel}</span>}
+      {rv && !railGuides && leftLabel && <span className="lrv-left">{leftLabel}</span>}
       {versusDuel && showGuides && (
         <button type="button" className="mdd-close pressable vsdrawer-close" aria-label="Close build guides" onClick={closeVsGuides}>
           <span aria-hidden="true">✕</span>
@@ -539,17 +575,25 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         <span className="herotip-rule">{capTip.rule}</span>
       </span>
     </div>}
-    {/* THE VIEW TAB on the rail's left edge (owner ask 2026-10-09). A SIBLING of the rail like the header (the rail
-        clips its children), placed off the rail's own position + height vars (guides/lobbyGuides.css). Two stacked
-        glyphs, the current view's lit, so the tab always says which face is showing. */}
-    {guidesOn && !versusDuel && (
-      <button type="button" className={`lobbyrailtab gtip${railMods}${vMod}`}
-        style={{ '--lby-n': railRows, ...(dock ? { left: dock.tab.x, top: dock.tab.y, '--dk-s': dock.s } : {}) } as React.CSSProperties}
-        aria-label={showGuides ? 'Show opponents' : 'Show build guides'} aria-pressed={showGuides}
-        data-tip={showGuides ? 'Opponents' : 'Guides'} onClick={toggleView}>
-        <span className={`lobbyrailtab-cell${showGuides ? '' : ' on'}`}><Icon name="sword" /></span>
-        <span className={`lobbyrailtab-cell${showGuides ? ' on' : ''}`}><Icon name="book" /></span>
+    {/* THE GUIDES CORNER (owner 2026-10-31, R-GUIDES-CORNER-01): the Guides square in the bottom-right cluster (above the
+        Settings gear) and the panel that grows UP out of it. The rail's old Guides / Opponents tab is gone. Not in the
+        Tutorial, nor in a Versus 1v1 (its opponent block keeps the Guides plate and drawer). */}
+    {guidesOn && !versusRail && (
+      <button type="button" className={`guidesbtn gtip${showGuides ? ' on' : ''}`} data-tip={showGuides ? undefined : 'Guides'}
+        aria-label={showGuides ? 'Close build guides' : 'Open build guides'} aria-pressed={showGuides} aria-expanded={showGuides} onClick={toggleView}>
+        <Icon name={showGuides ? 'chevron' : 'book'} />
       </button>
+    )}
+    {guidesOn && !versusRail && !staged && (showGuides || gdClosing) && (
+      <div className={`guidesdock guides-${mode}${showGuides ? '' : ' closing'}`} role="region" aria-label="Build guides">
+        <div className="guidesdock-head">
+          <span className="guidesdock-title">Guides</span>
+          <span className="guidesdock-count">{guideCountLabel}</span>
+        </div>
+        <div className="lobbyview">
+          <LobbyGuides guides={guides} mine={myGuides} bookmarked={bookmarkedGuides} canEdit={canEditInRail} tribes={runTribes} runKey={runKey} mode={mode} onMode={setMode} />
+        </div>
+      </div>
     )}
     {/* VERSUS (owner 2026-10-14): no rail panel on the Opponents view. The opponent's hero block floats where the rail
         stands (versus/VersusFoe.tsx), mirroring your own; its Round header and the Guides tab stay. */}
@@ -588,7 +632,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         <span className="lobbyalive">{leftLabel}</span>
       </div>
 
-      {showGuides ? (
+      {railGuides ? (
         <div className={`lobbyview${swap ? ' lobbyview-in' : ''}`} key="guides">
           <LobbyGuides guides={guides} mine={myGuides} bookmarked={bookmarkedGuides} canEdit={canEditInRail} tribes={runTribes} runKey={runKey} mode={mode} onMode={setMode} />
         </div>

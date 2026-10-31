@@ -39,6 +39,7 @@
 import { memo, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { GameScroll } from '../../GameScroll';
 import { Icon } from '../../Icon';
+import { MenuMedal } from '../../menuIcons';
 import { remoteEnabled } from '../../remoteBoards';
 import { sfx } from '../../sfx';
 import { anyPageOpen, isPreRun, useGame } from '../../store';
@@ -164,7 +165,7 @@ export function DockShell({ conversation, guest = false, inGame = false, slot = 
       <button type="button" className={`fdock-btn gtip${open ? ' on' : ''}${corner}`} data-tip={open ? undefined : 'Friends'}
         aria-label={phase === 'open' ? `${label}. Collapse` : label} aria-expanded={phase === 'open'}
         onClick={() => { sfx.pulse(); toggleDock(); }}>
-        <Icon name={phase === 'open' ? 'chevron' : 'friends'} />
+        {phase === 'open' ? <Icon name="chevron" /> : <MenuMedal name="friends" />}
         {!open && (online > 0 || waiting > 0) && (
           <span className="fdock-chips" aria-hidden="true">
             {online > 0 && <span className="fdock-count">{online > 99 ? '99+' : online}</span>}

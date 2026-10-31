@@ -26,7 +26,7 @@ import { useGame } from './store';
 import { FPS_CAP_OPTIONS, fpsCapLabel } from './fpsCap';
 import { BACKDROPS, BACKDROP_IDS, getBackdrop, setBackdrop, type BackdropId, backdropThumbUrl } from './backdrop';
 import { perfThresholds } from './perfMonitor';
-import { Icon } from './Icon';
+import { MenuMedal } from './menuIcons';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from './versus/spectatorEmotes';
 import { setFilterMessages, setShowActivity, useFriendsPrefs } from './friends/friendsPrefs';
@@ -48,7 +48,7 @@ export function SettingsPage() {
       <MenuSidebar current="settings" />
       <div className="lbtopbar">
         <div className="lbtitle">
-          <Icon name="gear" />
+          <MenuMedal name="settings" />
           <span className="esch disp">Settings</span>
         </div>
       </div>

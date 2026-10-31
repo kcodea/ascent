@@ -8,7 +8,7 @@ import {
 import { tempHandle, useGame } from '../store';
 import { sfx } from '../sfx';
 import { MenuSidebar, SidebarHost } from '../MenuSidebar';
-import { IconChest } from '../menuIcons';
+import { MenuMedal } from '../menuIcons';
 import { CrateOpener, type CrateQueueItem } from './CrateOpener';
 import { chestFloorOf, chestTierOf, type ChestTier } from './crateFx/chestTiers';
 import { warmChestArt } from './crateFx/chestArt';
@@ -357,7 +357,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
         <>
       <div className="lbtopbar colls-top">
         <div className="lbtitle">
-          <IconChest />
+          <MenuMedal name="collection" />
           <div>
             <div className="esch disp">Collection</div>
             <div className="lbsub">Find, view and wear what you have earned</div>

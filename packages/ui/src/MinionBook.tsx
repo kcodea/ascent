@@ -680,7 +680,7 @@ export function MinionBook() {
                 aria-pressed={glossary}
                 aria-description="Glossary. Every keyword and trigger, defined."
               >
-                <Icon name="sc" /> Glossary
+                <img className="book-rules-ico" decoding="sync" src={`${import.meta.env.BASE_URL}menu/glossary.webp`} alt="" draggable={false} /> Glossary
               </button>
               <button
                 className={`book-gloss${guidesOn ? ' on' : ''}`}

@@ -6,6 +6,7 @@ import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from './matchDetails/matchDetailsText';
 import { Icon } from './Icon';
+import { MenuMedal } from './menuIcons';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { refuseInGame } from './gameMenuParts';
@@ -374,7 +375,7 @@ export function RecentGames(): JSX.Element | null {
       <MenuSidebar current="recent" />
       <div className="lbtopbar">
         <div className="lbtitle">
-          <Icon name="clock" />
+          <MenuMedal name="recent" />
           <div>
             <div className="esch disp">Recent Games</div>
             <div className="lbsub">{duos ? `Your last ${DUOS_ROWS} Duos games` : practice ? `The last ${FEED_ROWS} practice games across every player` : `The last ${FEED_ROWS} games across every player`}</div>

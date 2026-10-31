@@ -10,7 +10,7 @@ import { useSpectate } from '../versus/spectate';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
 import { getLobbyRevealConfig, LHR_REPLAY_EVENT } from './lobbyRevealConfig';
 import {
-  arcKeyframes, REVEAL_HEAD_SELECTORS, revealShowSelectorFor, revealTargetSelectors, revealTimeline, spectatorShouldReveal,
+  arcKeyframes, REVEAL_FACE_SELECTOR, REVEAL_HEAD_SELECTORS, revealHidesSlot, revealShowSelectorFor, revealTargetSelectors, revealTimeline, spectatorShouldReveal,
   type Rect, type RevealEntry,
 } from './lobbyRevealModel';
 import { lobbyReveal, lobbyRevealEnabled, useLobbyRevealActive, useLobbyRevealSeq, type RevealPlay } from './lobbyRevealStore';
@@ -67,7 +67,7 @@ function firstMatch(selectors: readonly string[]): HTMLElement | null {
 function findTargets(play: RevealPlay): { slot: (HTMLElement | null)[]; show: (HTMLElement | null)[]; heads: HTMLElement[] } {
   const showSel = revealShowSelectorFor(play.layout);
   const slot = play.entries.map((e) => firstMatch(revealTargetSelectors(e, play.layout)));
-  const show = slot.map((el) => (el && showSel ? (el.closest<HTMLElement>(showSel) ?? el) : el));
+  const show = slot.map((el, i) => (!el || !revealHidesSlot(play.entries[i]!, play.layout) ? null : showSel ? (el.closest<HTMLElement>(showSel) ?? el) : el));
   const heads = REVEAL_HEAD_SELECTORS.map((s) => document.querySelector<HTMLElement>(s)).filter((x): x is HTMLElement => !!x);
   return { slot, show, heads };
 }
@@ -203,6 +203,8 @@ export function LobbyReveal(): JSX.Element | null {
           : anim(el, [{ opacity: 0, transform: 'translateY(28px) scale(0.86)' }, { opacity: 1, transform: 'none' }],
             { duration: c.entranceMs, delay, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1.08)', fill: 'both' }));
       });
+      // The duel's VS leaves with the names, as the flights start.
+      push(anim(root.querySelector('.lhr-vs'), [{ opacity: 1 }, { opacity: 0 }], { duration: 200, delay: Math.max(0, t.dimOutAt - offset), easing: 'ease-in', fill: 'forwards' }));
       // The dim lifts with the flights, so the rail builds on the live board.
       const flightSpan = reduced ? 300 : Math.max(200, t.headAt - t.dimOutAt);
       push(anim(dimRef.current, [{ opacity: 1 }, { opacity: 0 }], { duration: flightSpan, delay: Math.max(0, t.dimOutAt - offset), easing: 'ease-in-out', fill: 'forwards' }));
@@ -225,7 +227,8 @@ export function LobbyReveal(): JSX.Element | null {
       const rr = root.getBoundingClientRect();
       const o = { left: rr.left, top: rr.top, k: root.offsetWidth ? rr.width / root.offsetWidth : 1 };
       const from = faces.map((f) => (f ? rectIn(f.getBoundingClientRect(), o) : null));
-      const to = targets.slot.map((s) => (s ? rectIn(s.getBoundingClientRect(), o) : null));
+      // Each portrait lands on the slot's FACE (the rail row's portrait), not the middle of the whole row.
+      const to = targets.slot.map((s) => (s ? rectIn((s.querySelector<HTMLElement>(REVEAL_FACE_SELECTOR) ?? s).getBoundingClientRect(), o) : null));
       const now = t.dimOutAt - offset;
       if (c.whooshGain > 0) {
         sfx.ceremony('woosh1', c.whooshGain);

@@ -99,10 +99,19 @@ export function revealTargetSelectors(entry: Pick<RevealEntry, 'seatId' | 'you'>
   return [`.lobbyrail .lobbyseat${seat}`];
 }
 
+/** Whether the slot is hidden until its portrait lands. Not your own hero portrait in a 1v1: it is the board's own
+ *  socketed portrait, and hiding it would leave the socket's dark hole on screen; the flight lands on it as it is. */
+export function revealHidesSlot(entry: Pick<RevealEntry, 'you'>, layout: RevealLayout): boolean {
+  return !(layout === 'duel' && entry.you);
+}
+
 /** What becomes visible when a portrait lands: a Duos team slot holds both rows, so it appears with the first of them. */
 export function revealShowSelectorFor(layout: RevealLayout): string | null {
   return layout === 'teams' ? '.lobbyteamslot' : null;
 }
+
+/** Inside a slot, the portrait the flight lands ON: the rail row's face (every rail look), the 1v1 block's disc. */
+export const REVEAL_FACE_SELECTOR = '.lobbyface, .lrv-tileart, .combatopp-portrait';
 
 /** The round slice, which settles in last (the rail's round header; the 1v1's Round plate). */
 export const REVEAL_HEAD_SELECTORS = ['.lobbyrailhead', '.vsfoe-roundline'] as const;

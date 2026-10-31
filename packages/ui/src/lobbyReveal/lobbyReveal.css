@@ -28,7 +28,7 @@
   display: flex; align-items: flex-start; justify-content: center; flex-wrap: wrap;
   gap: calc(26 * var(--u, 1px));
   max-width: 94vw;
-  --lhr-px: calc(var(--lhr-size, 132) * var(--u, 1px));
+  --lhr-px: calc(var(--lhr-size, 150) * var(--u, 1px));
 }
 .lhr.many .lhr-stage { gap: calc(18 * var(--u, 1px)); }
 
@@ -48,7 +48,7 @@
     0 calc(10 * var(--u, 1px)) calc(28 * var(--u, 1px)) rgba(0, 0, 0, 0.6);
 }
 /* YOU, highlighted: a touch bigger and a brighter gold ring, so your own hero reads apart from the ones you face. */
-.lhr-card.you { --lhr-px: calc(var(--lhr-size, 132) * 1.16 * var(--u, 1px)); }
+.lhr-card.you { --lhr-px: calc(var(--lhr-size, 150) * 1.16 * var(--u, 1px)); }
 .lhr-card.you .lhr-face .lb-heroframe.big .hero {
   box-shadow: 0 0 0 calc(2 * var(--u, 1px)) rgba(20, 30, 50, 0.9), 0 0 0 calc(5 * var(--u, 1px)) #e8c877,
     0 0 calc(26 * var(--u, 1px)) rgba(232, 200, 119, 0.45), 0 calc(10 * var(--u, 1px)) calc(28 * var(--u, 1px)) rgba(0, 0, 0, 0.6);
@@ -64,14 +64,14 @@
 /* The hero's name in the title face; the player's name on the game's name pill. */
 .lhr-hero {
   font-family: var(--title-font, 'Cinzel Decorative'), 'Cinzel Decorative', 'Outfit', serif;
-  font-weight: 700; font-size: calc(15 * var(--u, 1px)); line-height: 1.1; letter-spacing: 0.02em;
+  font-weight: 700; font-size: calc(18 * var(--u, 1px)); line-height: 1.1; letter-spacing: 0.02em;
   color: #f4e3b5; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8), 0 0 calc(10 * var(--u, 1px)) rgba(0, 0, 0, 0.7);
 }
 .lhr-name {
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   padding: calc(3 * var(--u, 1px)) calc(12 * var(--u, 1px)); border-radius: 999px;
-  font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u, 1px)); letter-spacing: 0.02em; line-height: 1.15;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u, 1px)); letter-spacing: 0.02em; line-height: 1.15;
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold);
   box-shadow: 0 calc(2 * var(--u, 1px)) calc(6 * var(--u, 1px)) -2px var(--shadow);
 }
@@ -81,9 +81,9 @@
 .lhr-team { display: flex; gap: calc(10 * var(--u, 1px)); }
 
 /* THE 1v1: two heroes facing off, bigger, with the word between them. */
-.lhr-stage.duel { align-items: center; gap: calc(70 * var(--u, 1px)); --lhr-px: calc(var(--lhr-size, 132) * 1.55 * var(--u, 1px)); }
+.lhr-stage.duel { align-items: center; gap: calc(70 * var(--u, 1px)); --lhr-px: calc(var(--lhr-size, 150) * 1.55 * var(--u, 1px)); }
 .lhr-stage.duel .lhr-card.you { margin: 0; }
-.lhr-stage.duel .lhr-card.you { --lhr-px: calc(var(--lhr-size, 132) * 1.55 * var(--u, 1px)); }
+.lhr-stage.duel .lhr-card.you { --lhr-px: calc(var(--lhr-size, 150) * 1.55 * var(--u, 1px)); }
 .lhr-stage.duel .lhr-hero { font-size: calc(20 * var(--u, 1px)); }
 .lhr-stage.duel .lhr-name { font-size: calc(16 * var(--u, 1px)); }
 .lhr-vs {

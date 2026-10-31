@@ -30,15 +30,18 @@ function walkRewardIds(r: QuestReward, out: (id: string) => void): void {
 
 const inSet = (setId: SetId) => (d: { sets?: readonly string[] }): boolean => !d.sets || d.sets.includes(setId);
 
-const runeRewardsBySet = new Map<SetId, readonly CardDef[]>();
-/** Every card a rune offered in `setId` (Basic or Epic forge) can hand you by name. Memoized; sets are immutable. */
-export function runeRewardCardsFor(setId: SetId): readonly CardDef[] {
-  const hit = runeRewardsBySet.get(setId);
+const runeRewardsBySet = new Map<string, readonly CardDef[]>();
+/** Every card a rune offered in `setId` (Basic or Epic forge) can hand you by name. Memoized; sets are immutable.
+ *  The Duos-only runes (`duos: true`, Megamimed's Megamimic) count only with `duos` on: the Compendium's Duos toggle
+ *  (owner ask 2026-10-30). Off, the book lists what a regular run's forge offers. */
+export function runeRewardCardsFor(setId: SetId, duos = false): readonly CardDef[] {
+  const key = `${setId}:${duos ? 'duos' : 'reg'}`;
+  const hit = runeRewardsBySet.get(key);
   if (hit) return hit;
   const ids = new Set<string>();
-  for (const rune of [...RUNES, ...EPIC_RUNES].filter(inSet(setId))) walkRewardIds(rune.reward, (id) => ids.add(forkedCardId(setId, id)));
+  for (const rune of [...RUNES, ...EPIC_RUNES].filter(inSet(setId)).filter((r) => duos || !r.duos)) walkRewardIds(rune.reward, (id) => ids.add(forkedCardId(setId, id)));
   const out = [...ids].map((id) => CARD_INDEX[id]).filter((c): c is CardDef => !!c);
-  runeRewardsBySet.set(setId, out);
+  runeRewardsBySet.set(key, out);
   return out;
 }
 

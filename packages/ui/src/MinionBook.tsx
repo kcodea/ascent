@@ -1,7 +1,7 @@
 import { Fragment, memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { inRunTribes, type CardDef, type Tribe } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
+import { CARD_INDEX, DUOS_WHISPERS, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, duosPoolFor, poolFor, type SetId } from '@game/content';
 import { questRewardCardsFor, runeRewardCardsFor } from './compendiumRewards';
 import { HEROES, chooseBothActive, rubyStatBonus, type RunState } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
@@ -53,6 +53,19 @@ const evolutionCardsFor = (buyable: readonly CardDef[]): CardDef[] => {
  *  their own left-rail section under Spells (owner ask 2026-09-18). Un-scoped: a random Gift draws from the whole
  *  class (`grantRandomGift`), and Happy Birthday has no set restriction. */
 const GIFT_IDS = new Set(GIFTS.map((c) => c.id));
+/** THE DUOS TOGGLE (owner ask 2026-10-30: "add a duos flag next to gilded in compendium to view duos cards in addition to
+ *  regular"). Off, the book is a regular run's codex. On, it reads the shown set's DUOS pool (`duosPoolFor`, the same
+ *  by-tribe rule a Duos run draws from), lists the Duos Whispers (CueBee's Pass) under Gifts, and the Duos-only runes in
+ *  the Runes tab and their cards in Rune Rewards. Every Duos-only thing wears a small "Duos" tag (`isDuosOnly`). */
+const DUOS_GIFTS: readonly CardDef[] = DUOS_WHISPERS;
+const DUOS_GIFT_IDS = new Set(DUOS_GIFTS.map((c) => c.id));
+const ALL_GIFT_IDS = new Set([...GIFT_IDS, ...DUOS_GIFT_IDS]);
+/** A card that exists only in a Duos run: a `duos` card (minions, spells, the Megamimic token) or a Duos Whisper. */
+export function isDuosOnly(c: CardDef): boolean {
+  return !!c.duos || DUOS_GIFT_IDS.has(c.id);
+}
+/** The gallery's "Duos" tag (the set picker's LIVE pill), so a Duos card reads apart from the regular ones. */
+const DuosTag = () => <span className="book-setpick-live book-duos-tag" aria-label="Duos only">Duos</span>;
 /** Cards that belong in the MINION gallery: buyable minions + evolution units. A card can *also* be a quest
  *  reward (Badgington is a normal Tier-4 Beast that Apex Hunt grants) — it then shows in BOTH its tribe and the
  *  Quest Rewards category. Membership sets keep those overlaps correct instead of hiding a real minion. */
@@ -74,10 +87,11 @@ export function rubyCardsFor(all: readonly CardDef[]): CardDef[] {
  *  `spells` is the Spells gallery's membership: the set's tavern spells plus its Rubies. */
 type PoolIds = { minions: Set<string>; spells: Set<string>; evolutions: CardDef[]; rubies: CardDef[] };
 const poolIdsBySet = new Map<string, PoolIds>();
-function poolIds(setId: Parameters<typeof poolFor>[0]): PoolIds {
-  const hit = poolIdsBySet.get(setId);
+function poolIds(setId: Parameters<typeof poolFor>[0], duos = false): PoolIds {
+  const key = `${setId}:${duos ? 'duos' : 'reg'}`;
+  const hit = poolIdsBySet.get(key);
   if (hit) return hit;
-  const p = poolFor(setId);
+  const p = duos ? duosPoolFor(setId) : poolFor(setId);
   const evolutions = evolutionCardsFor(p.buyable);
   const rubies = rubyCardsFor(p.all);
   const ids = {
@@ -86,7 +100,7 @@ function poolIds(setId: Parameters<typeof poolFor>[0]): PoolIds {
     evolutions,
     rubies,
   };
-  poolIdsBySet.set(setId, ids);
+  poolIdsBySet.set(key, ids);
   return ids;
 }
 
@@ -248,7 +262,8 @@ function refViewsFor(id: string, liveRun?: RunState): CardView[] | undefined {
 const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager }: { card: CardDef; gilded: boolean; liveRun?: RunState; eager: boolean }) {
   const view = useMemo(() => toView(card, gilded, liveRun), [card, gilded, liveRun]);
   const refs = useMemo(() => refViewsFor(card.id, liveRun), [card.id, liveRun]);
-  return <LazyCell eager={eager}>{() => <Card card={view} forceFull suppressPop plated refCards={refs} />}</LazyCell>;
+  const duosTag = isDuosOnly(card);
+  return <LazyCell eager={eager}>{() => <><Card card={view} forceFull suppressPop plated refCards={refs} />{duosTag && <DuosTag />}</>}</LazyCell>;
 });
 
 /** The Compendium subtitle while the Guides tab is up: what the chosen pill is showing. */
@@ -302,10 +317,13 @@ export function MinionBook() {
     () => Object.values(SETS).map((d) => ({ id: d.id, name: d.name, live: d.id === liveSetId })),
     [liveSetId],
   );
-  const pool = poolFor(setId);
-  const { minions: MINION_POOL_IDS, spells: SPELL_POOL_IDS, evolutions: EVOLUTION_CARDS, rubies: RUBIES } = poolIds(setId);
+  const [duos, setDuos] = useState(false); // THE DUOS TOGGLE: add the Duos-only cards to the book (see DUOS_GIFTS)
+  const pool = duos ? duosPoolFor(setId) : poolFor(setId);
+  const { minions: MINION_POOL_IDS, spells: SPELL_POOL_IDS, evolutions: EVOLUTION_CARDS, rubies: RUBIES } = poolIds(setId, duos);
+  const gifts: readonly CardDef[] = useMemo(() => (duos ? [...GIFTS, ...DUOS_GIFTS] : GIFTS), [duos]);
+  const giftIds = duos ? ALL_GIFT_IDS : GIFT_IDS;
   // The reward buckets of the SHOWN set (owner report 2026-10-26): only what that set's runes / quests can hand you.
-  const RUNE_REWARD_CARDS = runeRewardCardsFor(setId);
+  const RUNE_REWARD_CARDS = runeRewardCardsFor(setId, duos);
   const RUNE_REWARD_IDS = useMemo(() => new Set(RUNE_REWARD_CARDS.map((c) => c.id)), [RUNE_REWARD_CARDS]);
   const QUEST_REWARD_CARDS = questRewardCardsFor(setId);
   const QUEST_REWARD_IDS = useMemo(() => new Set(QUEST_REWARD_CARDS.map((x) => x.card.id)), [QUEST_REWARD_CARDS]);
@@ -385,16 +403,18 @@ export function MinionBook() {
       return pick ? artFor(pick.id) : undefined;
     };
     const m = new Map<Category, string | undefined>();
+    // The REGULAR pool always: the rail's art stays put when the Duos toggle flips.
+    const pool = poolFor(setId);
     for (const t of [...tribes, 'neutral' as Tribe]) m.set(t, best(pool.buyable.filter((c) => c.tribe === t && !c.spell)));
     m.set('spells', best(pool.spells));
     m.set('gifts', best(GIFTS));
-    m.set('runeRewards', best(RUNE_REWARD_CARDS));
-    const rune = [...RUNES, ...EPIC_RUNES].find((r) => (!r.sets || r.sets.includes(setId)) && !!runeArt(r.id));
+    m.set('runeRewards', best(runeRewardCardsFor(setId)));
+    const rune = [...RUNES, ...EPIC_RUNES].find((r) => !r.duos && (!r.sets || r.sets.includes(setId)) && !!runeArt(r.id));
     m.set('runes', rune ? runeArt(rune.id) : undefined);
     const hero = HEROES.find((h) => !h.wip && !!heroArt(h.id));
     m.set('heroes', hero ? heroArt(hero.id) : undefined);
     return m;
-  }, [pool, tribes, setId, RUNE_REWARD_CARDS]);
+  }, [tribes, setId]);
 
   // Heroes for the Heroes tab — every shippable hero (WIP ones are withheld, like the picker), searchable by
   // name or power. Not run-scoped (heroes aren't tribe-bound), same as the Runes tab.
@@ -422,8 +442,8 @@ export function MinionBook() {
     return [
       ...(basic ? [...RUNES].sort((a, b) => a.name.localeCompare(b.name)) : []),
       ...(epic ? [...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name)) : []),
-    ].filter((r) => setOk(r) && match(r) && tribeOk(r));
-  }, [searchQ, runeTribes, runeForges, setId]);
+    ].filter((r) => (duos || !r.duos) && setOk(r) && match(r) && tribeOk(r)); // Duos-only runes ride the Duos toggle
+  }, [searchQ, runeTribes, runeForges, setId, duos]);
 
   // The Compendium SUBSCRIBES to the guides store (unlike the rail's snapshot), and refreshes it when the tab opens.
   const guideList = useGuides((s) => s.list);
@@ -489,11 +509,11 @@ export function MinionBook() {
     // Rune rewards are not tribe-scoped (the Runeforge isn't tribe-bound; `grantRune` ignores the gate) but ARE
     // set-scoped (`runeRewardCardsFor`) — added like spells. The set's
     // Rubies ride with its spells (un-scoped too: Ruby spells are neutral, so a Ruby is findable in any run of it).
-    for (const c of [...minions, ...evolutions, ...pool.spells, ...RUBIES, ...rewards, ...RUNE_REWARD_CARDS, ...GIFTS]) {
+    for (const c of [...minions, ...evolutions, ...pool.spells, ...RUBIES, ...rewards, ...RUNE_REWARD_CARDS, ...gifts]) {
       if (!seen.has(c.id)) { seen.add(c.id); out.push(c); }
     }
     return out;
-  }, [tribes, pool, RUBIES, QUEST_REWARD_CARDS, RUNE_REWARD_CARDS]); // all per-set: they change only when the shown set does
+  }, [tribes, pool, RUBIES, QUEST_REWARD_CARDS, RUNE_REWARD_CARDS, gifts]); // all per-set (+ the Duos toggle): they change only when the shown set does
 
 
   const query = searchQ.trim().toLowerCase();
@@ -527,7 +547,7 @@ export function MinionBook() {
       return hits.filter((c) => {
         const tribeOk = tribeSel.length === 0 || tribeSel.includes(c.tribe) || (!!c.tribe2 && tribeSel.includes(c.tribe2));
         const poolOk = poolSel.length === 0
-          || (poolSel.includes('spells') && SPELL_POOL_IDS.has(c.id)) || (poolSel.includes('gifts') && GIFT_IDS.has(c.id))
+          || (poolSel.includes('spells') && SPELL_POOL_IDS.has(c.id)) || (poolSel.includes('gifts') && giftIds.has(c.id))
           || (poolSel.includes('rewards') && QUEST_REWARD_IDS.has(c.id)) || (poolSel.includes('runeRewards') && RUNE_REWARD_IDS.has(c.id));
         return tribeOk && poolOk;
       });
@@ -545,13 +565,13 @@ export function MinionBook() {
     return allCards.filter((c) => {
       if (kw && !kw.match(c)) return false;
       if (special) {
-        return (showRewards && QUEST_REWARD_IDS.has(c.id)) || (showSpells && SPELL_POOL_IDS.has(c.id)) || (showGifts && GIFT_IDS.has(c.id)) || (showRuneRewards && RUNE_REWARD_IDS.has(c.id));
+        return (showRewards && QUEST_REWARD_IDS.has(c.id)) || (showSpells && SPELL_POOL_IDS.has(c.id)) || (showGifts && giftIds.has(c.id)) || (showRuneRewards && RUNE_REWARD_IDS.has(c.id));
       }
       // Minion mode: buyable minions + evolutions only, narrowed by the selected tribes.
       if (!MINION_POOL_IDS.has(c.id)) return false;
       return tribeSel.length === 0 || tribeSel.includes(c.tribe) || (!!c.tribe2 && tribeSel.includes(c.tribe2));
     });
-  }, [allCards, cats, kw, query, ownGalleryTab, RUNE_REWARD_IDS, QUEST_REWARD_IDS, SPELL_POOL_IDS, MINION_POOL_IDS]); // (matchText derives from `query`, the listed dep)
+  }, [allCards, cats, kw, query, ownGalleryTab, RUNE_REWARD_IDS, QUEST_REWARD_IDS, SPELL_POOL_IDS, MINION_POOL_IDS, giftIds]); // (matchText derives from `query`, the listed dep)
 
   const filtered = useMemo(
     () => inCategory.filter((c) => tiers.size === 0 || tiers.has(c.tier)).sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)),
@@ -566,7 +586,7 @@ export function MinionBook() {
   // gallery reads as a tribe breakdown per tier, and a single-tribe filter paints its bars in that tribe's colour.
   // Spells / Gifts / rewards carry no tribe worth colouring: they stack as one segment in their rail colour.
   const stackColour = (c: CardDef): string => {
-    if (cats.has('gifts') && GIFT_IDS.has(c.id)) return '#ffd27a';
+    if (cats.has('gifts') && giftIds.has(c.id)) return '#ffd27a';
     if (cats.has('runeRewards') && RUNE_REWARD_IDS.has(c.id)) return '#c9a4ec';
     if (c.spell || c.ruby) return 'var(--acc)';
     return `var(--t-${c.tribe})`;
@@ -801,6 +821,17 @@ export function MinionBook() {
           >
             <span className="book-gilded-ico" aria-hidden="true" /> Gilded
           </button>
+          {/* DUOS (owner ask 2026-10-30: "add a duos flag next to gilded"): the Gilded toggle's twin. It adds the Duos-only
+              cards (and the Duos runes, on the Runes tab) to the book, so it stays live on the Runes tab. */}
+          <button
+            className={`book-gilded book-duos${duos ? ' on' : ''}`}
+            onClick={() => setDuos((d) => !d)}
+            aria-pressed={duos}
+            disabled={guidesOn || cats.has('quests') || cats.has('heroes')}
+            aria-description="Add the Duos-only cards to the book"
+          >
+            Duos
+          </button>
           <div className="book-chart" role="group" aria-label={`${chartNoun} by tier`}>
             {cats.has('runes') ? (
               /* Runes aren't tiered — the chart space carries the tribe filter instead (owner ask 2026-09-18). */
@@ -964,7 +995,7 @@ export function MinionBook() {
             <div className="book-grid is-runes" ref={setGridEl}>
               <LazyRootProvider root={gridEl}>
                 {runesToShow.map((r, i) => (
-                  <LazyCell key={r.id} eager={i < eagerN}>{() => <RuneCard rune={r} affordable onBuy={NOOP} />}</LazyCell>
+                  <LazyCell key={r.id} eager={i < eagerN}>{() => <><RuneCard rune={r} affordable onBuy={NOOP} />{r.duos && <DuosTag />}</>}</LazyCell>
                 ))}
               </LazyRootProvider>
             </div>

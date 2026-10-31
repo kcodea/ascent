@@ -2724,4 +2724,25 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: "Conforms as of 2026-10-26 (fix/compendium-rune-rewards-search). Before, the list walked every rune in the registry, so another set's rune rewards leaked into the shown set, and search matched only name and text.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumRuneRewards.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-COMPENDIUM-DUOS-TOGGLE-01',
+    title: 'The Compendium Duos toggle adds the Duos-only cards and runes to the book, tagged, alongside the regular ones',
+    statement:
+      'The Compendium has a Duos toggle right after Gilded, off by default. Off, the book lists only what a regular run '
+      + "can find: no Duos-only card, Whisper or rune (and so no Duos rune reward). On, the shown set's Duos pool "
+      + '(`duosPoolFor`, the same by-tribe rule a Duos run draws from: a Duos card joins a set by its tribe, neutrals, '
+      + 'All-type and spells join every set) is listed IN ADDITION to the regular cards and narrowed by the same set, '
+      + "tribe, tier and search filters; the Duos Whispers (CueBee's Pass) join Gifts; the Duos-only runes join the Runes "
+      + 'tab and their named cards (the Megamimic) join Rune Rewards. Every Duos-only card or rune wears a small Duos tag. '
+      + 'Gilded and Duos combine (the Duos cards show their Gilded form). The toggle is not remembered, the same as Gilded.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-30 (Compendium)', quote: 'add a duos flag next to gilded in compendium to view duos cards in addition to regular' },
+      { kind: 'code', ref: 'packages/ui/src/MinionBook.tsx (duos state, poolIds(setId, duos), isDuosOnly, DuosTag); packages/ui/src/compendiumRewards.ts (runeRewardCardsFor duos)' },
+    ],
+    contentIds: ['duo_monstrocity', 'duo_w_pass', 'duo_megamimic', 'rune_megamimed'],
+    currentBehaviour: 'Conforms as of 2026-10-30 (feat/compendium-duos-toggle). Before, Duos cards never showed in the book and the Duos-only runes leaked into every Runes tab.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumDuos.test.tsx'], lastVerifiedAt: '2026-10-30' },
+  },
 ];

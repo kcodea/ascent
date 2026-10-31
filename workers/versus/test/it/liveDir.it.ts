@@ -99,6 +99,21 @@ describe('the live directory spans every Versus Worker (R-LIVE-DIR-01)', () => {
     p1.close(); p2.close();
   });
 
+  it('the health check\'s reads (R-OPS-HEALTH-01): /health caps, the activity tally counts each new game once, no pool digest yet', async () => {
+    const health = (await get('/health', null)).body as { caps: string[] };
+    expect(health.caps).toEqual(['live_dir', 'activity']);
+    const before = (await get('/ops/activity', null)).body as { hours: Record<string, { practice: number }> };
+    const sum = (a: typeof before) => Object.values(a.hours).reduce((n, h) => n + h.practice, 0);
+    const g = `it-${crypto.randomUUID()}`;
+    const p = await publish(a, g, 'Claudebot3');
+    await listUntil((r) => r.some((x) => x.game_id === g));
+    await p.request('listing' as never, { name: 'Claudebot3', hero: 'warden', round: 3, phase: 'combat', mode: 'practice', division: 3, points: 10, rating: 1200 });
+    await sleep(500);
+    expect(sum((await get('/ops/activity', null)).body)).toBe(sum(before) + 1);
+    expect((await get('/ops/pool-digest', null)).status).toBe(404);
+    p.close();
+  });
+
   it('a running Versus match is listed as versus:cf:<room>', async () => {
     const { a: pa, b: pb, roomId } = await toRoundOne(a);
     const rows = await listUntil((r) => r.some((x) => x.game_id === `versus:cf:${roomId}`));

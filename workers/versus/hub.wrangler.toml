@@ -16,7 +16,9 @@
 name = "ascent-hub"
 main = "src/hubWorker.ts"
 compatibility_date = "2026-10-01"
-compatibility_flags = ["nodejs_compat"]
+# global_fetch_strictly_public (R-OPS-HEALTH-01): the daily health check fetches the Versus Worker's and the hub's own
+# public /health. Without it, a workers.dev fetch to another Worker on the same account is refused (error 1042).
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 
 [vars]
 SUPABASE_URL = "https://zcwhbejpqcdcfdpfxeza.supabase.co"
@@ -56,7 +58,9 @@ name = "POOL"
 class_name = "PoolMirror"
 
 [triggers]
-crons = ["*/5 * * * *"]
+# Every 5 minutes: the pool mirror's sync. 06:17 UTC: THE DAILY HEALTH CHECK (R-OPS-HEALTH-01; `HEALTH_CRON` in
+# src/health/healthProtocol.ts must match it). hubWorker.ts `scheduled` dispatches on the cron string.
+crons = ["*/5 * * * *", "17 6 * * *"]
 
 [[migrations]]
 tag = "v1"

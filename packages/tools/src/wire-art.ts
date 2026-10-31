@@ -503,6 +503,34 @@ const JOBS: Job[] = [
     dirs: ['.'], dest: 'packages/ui/src/art/spells', index: spellsByName, aliases: {},
   },
   {
+    // DUOS-ONLY art (owner 2026-10-30: "Wire all of the duos art. I have them in duos art folders"). Four folders, each
+    // the same strict name match into its usual destination. Duos cards are in CARD_INDEX like any other card.
+    label: 'duos minions', src: 'C:/Game Assets/Ascent Art/Duos Minions',
+    dirs: ['.'], dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+  },
+  {
+    label: 'duos spells', src: 'C:/Game Assets/Ascent Art/Duos Spells',
+    dirs: ['.'], dest: 'packages/ui/src/art/spells', index: spellsByName, aliases: SPELL_ALIASES,
+  },
+  {
+    // The rune emblems. `GoldGifter.png` here is the GOLD GIFTS rune's emblem (the rune grants the Gold Gifter
+    // Equipment; the Equipment's own icon is the different file in Duos Rune Rewards/, checked by hash 2026-10-30).
+    label: 'duos runes', src: 'C:/Game Assets/Ascent Art/Duos Runes',
+    dirs: ['.'], dest: 'packages/ui/src/art/runes', index: runesByName, aliases: { ...RUNE_ALIASES, goldgifter: 'rune_gold_gifts' },
+  },
+  {
+    // What the Duos runes GRANT: Megamimed's Megamimic token (a minion) ...
+    label: 'duos rune-reward minions', src: 'C:/Game Assets/Ascent Art/Duos Runes/Duos Rune Rewards',
+    dirs: ['.'], dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+    only: new Set(['megamimic']),
+  },
+  {
+    // ... and Gold Gifts' Gold Gifter Equipment (exact Equipment name).
+    label: 'duos rune-reward equipment', src: 'C:/Game Assets/Ascent Art/Duos Runes/Duos Rune Rewards',
+    dirs: ['.'], dest: 'packages/ui/src/art/equipment', index: equipmentByName, aliases: {},
+    only: new Set(['goldgifter']),
+  },
+  {
     // SKINS: hero and minion skins both land in art/skins/<cosmeticId>, keyed by the catalog (see SKIN_MASTERS).
     label: 'skins', src: 'C:/Game Assets/Ascent Art/Skins',
     // The masters sit in one sub-folder per RARITY (owner 2026-10-01); the folder is the skin's rarity (R-PROG-SKINS-11).

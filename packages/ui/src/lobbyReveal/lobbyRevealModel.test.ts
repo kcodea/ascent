@@ -37,9 +37,9 @@ describe('the stage and the slots, per mode', () => {
     expect(revealLayoutFor('versus', 8, { duos: true, group: true })).toBe('teams');
   });
 
-  it('a table: you stand in the middle, your opponents in seat order around you', () => {
+  it('a table: seat order (the overlay then lines it up in the rail\x27s top-to-bottom order)', () => {
     const e = revealEntries(seats(8), 'table');
-    expect(e.map((x) => x.seatId)).toEqual(['s1', 's2', 's3', 's0', 's4', 's5', 's6', 's7']);
+    expect(e.map((x) => x.seatId)).toEqual(['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7']);
     expect(e.filter((x) => x.you).map((x) => x.seatId)).toEqual(['s0']);
   });
 
@@ -70,13 +70,14 @@ describe('the timeline (the sequence state machine)', () => {
     expect(t.flyAt[0]).toBe(t.fullAt + LHR_DEFAULTS.holdMs);
     expect(t.dimOutAt).toBe(t.flyAt[0]);
     for (let i = 0; i < 8; i++) expect(t.landAt[i]! - t.flyAt[i]!).toBe(LHR_DEFAULTS.flyMs);
-    expect(t.headAt).toBe(t.landAt[7]! + LHR_DEFAULTS.landMs);
+    expect(t.headAt).toBe(t.landAt[7]! + LHR_DEFAULTS.impactMs + Math.max(LHR_DEFAULTS.expandMs, LHR_DEFAULTS.landMs));
     expect(t.endAt).toBe(t.headAt + LHR_DEFAULTS.headSettleMs);
   });
 
-  it('is short: the reveal under 2 s, the flight and settle under 2 s', () => {
-    expect(t.flyAt[0]).toBeLessThanOrEqual(2000);
-    expect(t.endAt - t.flyAt[0]!).toBeLessThanOrEqual(2000);
+  it('stays short: under 2.5 s on stage, the flights one at a time (each a clear step apart) in about 3 s', () => {
+    expect(t.flyAt[0]).toBeLessThanOrEqual(2500);
+    expect(t.endAt - t.flyAt[0]!).toBeLessThanOrEqual(3200);
+    expect(t.flyAt[1]! - t.flyAt[0]!).toBeGreaterThanOrEqual(180);
   });
 
   it('walks idle → reveal → fly → settle → done', () => {

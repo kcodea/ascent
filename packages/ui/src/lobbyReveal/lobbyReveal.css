@@ -1,20 +1,35 @@
 /* THE LOBBY REVEAL (owner ask 2026-10-31), see LobbyReveal.tsx.
    Perf contract: nothing here animates. Every motion is a WAAPI transform / opacity animation scheduled once by the
-   component; the dim is a STATIC gradient whose wrapper fades by opacity. Built from the game's own pieces: the in-run
-   hero frame (`LbHeroFrame`, the `.hero > .f > img.heroimg` markup, with the player's portrait-frame cosmetic), the name
-   pill (`hudpill-name`, so the Gem look applies) and the title font. No drawn props.
+   component; the dim is a STATIC gradient and the landing flash a STATIC gold edge, each faded by opacity. Built from the
+   game's own pieces: the in-run hero frame (`LbHeroFrame`, the `.hero > .f > img.heroimg` markup, with the player's
+   portrait-frame cosmetic), the name pill (`hudpill-name`, so the Gem look applies) and the title font. No drawn props.
    Stacking: the Good Luck intro's layer (above the board, its HUD and the main FX overlay), below the launch curtain
-   (z480) which lifts off it. */
+   (z480) which lifts off it. Sizes use the layout-viewport vars (`--lvw` / `--lvh`), never raw vw / vh (stageTripwire). */
 
 .lhr {
   position: fixed; inset: 0; z-index: 191;
   display: flex; align-items: center; justify-content: center;
-  pointer-events: auto; /* a click anywhere skips, and the shop under it takes no input until the reveal is over */
+  pointer-events: auto; /* unskippable: clicks land here and do nothing, so the shop takes no input until it is over */
 }
 
-/* What the reveal hid while the rail is built: a rail slot, a Duos team slot, the round slice. Opacity only (the
-   attribute is set once per element at the start and cleared as each one lands). */
-[data-lhr='wait'] { opacity: 0 !important; }
+/* THE HIDDEN RAIL (owner 2026-10-31: "it's showing the rail already here, which it shouldnt"). While the reveal plays,
+   <html data-lhr="on s0 s3 …"> lists what has landed; everything else of the rail is invisible until its own portrait
+   hits it. Every subject names a class, so a change to the attribute restyles only these elements. Opacity only. */
+html[data-lhr]:not([data-lhr~='rail']) .lobbyrail,
+html[data-lhr]:not([data-lhr~='head']) :is(.lobbyrailhead, .lobbyrailtab, .vsfoe-roundline),
+html[data-lhr]:not([data-lhr~='s0']) :is(.lobbyseat, .vsfoe-face)[data-seat='s0'],
+html[data-lhr]:not([data-lhr~='s1']) :is(.lobbyseat, .vsfoe-face)[data-seat='s1'],
+html[data-lhr]:not([data-lhr~='s2']) :is(.lobbyseat, .vsfoe-face)[data-seat='s2'],
+html[data-lhr]:not([data-lhr~='s3']) :is(.lobbyseat, .vsfoe-face)[data-seat='s3'],
+html[data-lhr]:not([data-lhr~='s4']) :is(.lobbyseat, .vsfoe-face)[data-seat='s4'],
+html[data-lhr]:not([data-lhr~='s5']) :is(.lobbyseat, .vsfoe-face)[data-seat='s5'],
+html[data-lhr]:not([data-lhr~='s6']) :is(.lobbyseat, .vsfoe-face)[data-seat='s6'],
+html[data-lhr]:not([data-lhr~='s7']) :is(.lobbyseat, .vsfoe-face)[data-seat='s7'],
+html[data-lhr]:not([data-lhr~='s8']) :is(.lobbyseat, .vsfoe-face)[data-seat='s8'],
+html[data-lhr]:not([data-lhr~='t0']) .lobbyteamslot[data-team='0'],
+html[data-lhr]:not([data-lhr~='t1']) .lobbyteamslot[data-team='1'],
+html[data-lhr]:not([data-lhr~='t2']) .lobbyteamslot[data-team='2'],
+html[data-lhr]:not([data-lhr~='t3']) .lobbyteamslot[data-team='3'] { opacity: 0 !important; }
 
 .lhr-dim { position: absolute; inset: 0; will-change: opacity; }
 .lhr-dim::after {
@@ -25,14 +40,15 @@
 
 .lhr-stage {
   position: relative;
-  display: flex; align-items: flex-start; justify-content: center; flex-wrap: wrap;
-  gap: calc(26 * var(--u, 1px));
-  max-width: 94vw;
-  /* The tuned size, shrunk when the row would not fit: N portraits (plus their gaps and the name width) across 92% of the
-     window, and never taller than 34% of it (a landscape phone). Static per play: nothing here animates. */
-  --lhr-px: min(calc(var(--lhr-size, 185) * var(--u, 1px)), calc(92vw / var(--lhr-n, 8) - 46 * var(--u, 1px)), 34vh);
+  display: flex; align-items: flex-start; justify-content: center;
+  gap: calc(20 * var(--u, 1px));
+  /* The row keeps clear of the board's HUD on both sides (owner: "fit cleanly without overlapping each other or the
+     HUD"): N portraits across 78% of the window, never taller than a third of it (a landscape phone). Every portrait the
+     SAME size (owner: "they should all be the same size, the players shouldnt be larger"). */
+  max-width: calc(0.84 * var(--lvw, 100vw));
+  --lhr-px: min(calc(var(--lhr-size, 185) * var(--u, 1px)), calc(0.78 * var(--lvw, 100vw) / var(--lhr-n, 8) - 44 * var(--u, 1px)), calc(0.32 * var(--lvh, 100dvh)));
 }
-.lhr.many .lhr-stage { gap: calc(18 * var(--u, 1px)); }
+.lhr.many .lhr-stage { gap: calc(16 * var(--u, 1px)); }
 
 .lhr-card {
   position: relative;
@@ -49,19 +65,16 @@
   box-shadow: 0 0 0 calc(2 * var(--u, 1px)) rgba(20, 30, 50, 0.9), 0 0 0 calc(4 * var(--u, 1px)) rgba(196, 160, 92, 0.55),
     0 calc(10 * var(--u, 1px)) calc(28 * var(--u, 1px)) rgba(0, 0, 0, 0.6);
 }
-/* YOU, highlighted: a touch bigger and a brighter gold ring, so your own hero reads apart from the ones you face. */
-.lhr-card.you { --lhr-px: min(calc(var(--lhr-size, 185) * 1.16 * var(--u, 1px)), calc(92vw / var(--lhr-n, 8) * 1.08 - 40 * var(--u, 1px)), 38vh); }
+/* YOU: the same size and baseline; only a brighter gold ring and a gold name pill set you apart. */
 .lhr-card.you .lhr-face .lb-heroframe.big .hero {
-  box-shadow: 0 0 0 calc(2 * var(--u, 1px)) rgba(20, 30, 50, 0.9), 0 0 0 calc(5 * var(--u, 1px)) #e8c877,
-    0 0 calc(26 * var(--u, 1px)) rgba(232, 200, 119, 0.45), 0 calc(10 * var(--u, 1px)) calc(28 * var(--u, 1px)) rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 0 calc(2 * var(--u, 1px)) rgba(20, 30, 50, 0.9), 0 0 0 calc(4 * var(--u, 1px)) #e8c877,
+    0 0 calc(18 * var(--u, 1px)) rgba(232, 200, 119, 0.4), 0 calc(10 * var(--u, 1px)) calc(28 * var(--u, 1px)) rgba(0, 0, 0, 0.6);
 }
-.lhr-card.you { margin: 0 calc(10 * var(--u, 1px)); }
 
 .lhr-labels {
   display: flex; flex-direction: column; align-items: center; gap: calc(6 * var(--u, 1px));
   margin-top: calc(14 * var(--u, 1px)); max-width: 100%;
 }
-.lhr-card.you .lhr-labels { margin-top: calc(22 * var(--u, 1px)); }
 
 /* The hero's name in the title face; the player's name on the game's name pill. */
 .lhr-hero {
@@ -77,15 +90,17 @@
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold);
   box-shadow: 0 calc(2 * var(--u, 1px)) calc(6 * var(--u, 1px)) -2px var(--shadow);
 }
+.lhr-card.you .lhr-name { border-color: #e8c877; box-shadow: 0 0 0 1px #e8c877, 0 calc(2 * var(--u, 1px)) calc(8 * var(--u, 1px)) -2px rgba(232, 200, 119, 0.6); }
 
 /* DUOS: teammates side by side, teams apart. */
-.lhr-stage.teams { gap: calc(54 * var(--u, 1px)); }
+.lhr-stage.teams { gap: calc(44 * var(--u, 1px)); }
 .lhr-team { display: flex; gap: calc(10 * var(--u, 1px)); }
 
 /* THE 1v1: two heroes facing off, bigger, with the word between them. */
-.lhr-stage.duel { align-items: center; gap: calc(70 * var(--u, 1px)); --lhr-px: min(calc(var(--lhr-size, 185) * 1.5 * var(--u, 1px)), 30vw, 46vh); }
-.lhr-stage.duel .lhr-card.you { margin: 0; }
-.lhr-stage.duel .lhr-card.you { --lhr-px: min(calc(var(--lhr-size, 185) * 1.5 * var(--u, 1px)), 30vw, 46vh); }
+.lhr-stage.duel {
+  align-items: center; gap: calc(70 * var(--u, 1px));
+  --lhr-px: min(calc(var(--lhr-size, 185) * 1.5 * var(--u, 1px)), calc(0.3 * var(--lvw, 100vw)), calc(0.46 * var(--lvh, 100dvh)));
+}
 .lhr-stage.duel .lhr-hero { font-size: calc(20 * var(--u, 1px)); }
 .lhr-stage.duel .lhr-name { font-size: calc(16 * var(--u, 1px)); }
 .lhr-vs {
@@ -94,3 +109,13 @@
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.8), 0 0 calc(18 * var(--u, 1px)) rgba(232, 200, 119, 0.5);
   margin-top: calc(-40 * var(--u, 1px));
 }
+
+/* THE HIT: a gold edge laid over the slice the portrait lands on (placed once at take-off), flashed by opacity. */
+.lhr-flash {
+  position: absolute; left: 0; top: 0; width: 0; height: 0;
+  pointer-events: none; opacity: 0; will-change: opacity;
+  border-radius: calc(6 * var(--u, 1px));
+  box-shadow: inset 0 0 0 calc(2 * var(--u, 1px)) #ffe39a, 0 0 calc(16 * var(--u, 1px)) rgba(255, 214, 120, 0.75);
+}
+/* The 1v1 lands on round portraits. */
+.lhr.duel .lhr-flash { border-radius: 50%; }

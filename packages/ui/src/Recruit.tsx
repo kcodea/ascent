@@ -2709,7 +2709,11 @@ export function Recruit() {
   // the start-of-combat beat waits for the entry reveal.
   // …and for the turn's Start of Turn beats (owner 2026-09-27, R-SOT-TIMER-01): an offer a Start-of-Turn source raised
   // (Rune of Fresh Pages' Discover, a quest turn's offer) opens once the beats have played, not over them.
-  const overlaysHeld = !inCombat && (wipe !== 'idle' || sotPlaying);
+  // …and for the game start (owner 2026-10-31: "have disco dan's discover come up AFTER the start game text"): a turn-1
+  // hero Discover, hero-quest offer or any other opening offer waits for the lobby reveal AND the Good Luck words (the
+  // reveal keeps that store active while it plays). The same signal holds the shop clock (`introPlaying` below).
+  const introHold = useGoodLuckIntroActive();
+  const overlaysHeld = !inCombat && (wipe !== 'idle' || sotPlaying || introHold);
   // A DISCOVER WAITS FOR THE DEATH IT FOLLOWS (owner 2026-09-18: Cage Breaker's Shout destroys a minion and opens a
   // Discover in the SAME commit, and the overlay used to land on top of the body before it had even begun to die).
   // Presentation only — the reducer's order is untouched (`run.discover` is set at once; the pending death settles on

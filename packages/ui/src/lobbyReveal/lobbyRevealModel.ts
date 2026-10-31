@@ -66,20 +66,14 @@ export function revealLayoutFor(mode: string | undefined, seats: number, opts: {
 
 /**
  * Who stands on the stage, left to right (owner 2026-10-31: "The goal of the animation is to show the player who they are
- * facing"). A table: your opponents in seat order with YOU in the middle of the line-up (highlighted), so the eye lands
- * on you and reads outward to who you face. A duel: you on the left, your opponent on the right. A Duos layout: team by
- * team, your team first, so teammates stand side by side.
+ * facing"). A table: seat order; the overlay then lines the cards up in the RAIL's top-to-bottom order (owner: "line it
+ * up so that left to right is top to bottom"), you highlighted wherever you stand. A duel: you on the left, your
+ * opponent on the right. A Duos layout: team by team, your team first, so teammates stand side by side.
  */
 export function revealEntries(seats: readonly RevealSeatSlice[], layout: RevealLayout): RevealEntry[] {
   const you = seats[0]?.id;
   const all = seats.map((s) => ({ seatId: s.id, heroId: s.heroId, label: s.label, you: s.id === you, team: layout === 'teams' ? revealTeamOf(s.id) : 0 }));
-  if (layout === 'duel') return all;
-  if (layout === 'table') {
-    const me = all.filter((e) => e.you);
-    const rest = all.filter((e) => !e.you);
-    const mid = Math.floor(rest.length / 2);
-    return [...rest.slice(0, mid), ...me, ...rest.slice(mid)];
-  }
+  if (layout !== 'teams') return all;
   const mine = you ? revealTeamOf(you) : 0;
   // A stable sort: teams in index order with mine first; inside a team, seat order.
   return all
@@ -97,6 +91,21 @@ export function revealTargetSelectors(entry: Pick<RevealEntry, 'seatId' | 'you'>
   const seat = `[data-seat="${entry.seatId}"]`;
   if (layout === 'duel') return entry.you ? ['.statusbar .hero .herolunge', `.lobbyrail .lobbyseat${seat}`] : [`.vsfoe-face${seat}`, `.lobbyrail .lobbyseat${seat}`];
   return [`.lobbyrail .lobbyseat${seat}`];
+}
+
+/**
+ * THE HIDDEN RAIL (owner 2026-10-31: "it's showing the rail already here, which it shouldnt"). While the reveal plays,
+ * `<html data-lhr="…">` lists what has landed; static rules (lobbyReveal.css) hide every seat slice, team slot, the rail
+ * panel, the round slice and the Guides tab whose token is not in it. An attribute on the root rather than on the slices
+ * themselves, because a rail slice can REMOUNT while the reveal plays (the Docked layout settles after the HUD's
+ * entrance) and a remounted element would have lost a per-element mark. Its restyle stays small: the rules' subjects
+ * all name a class, so Blink invalidates only those elements.
+ */
+export const REVEAL_TOKEN_RAIL = 'rail';
+export const REVEAL_TOKEN_HEAD = 'head';
+/** The token a landing adds: the seat id, plus its Duos team slot. */
+export function revealTokensFor(entry: Pick<RevealEntry, 'seatId' | 'team'>, layout: RevealLayout): string[] {
+  return layout === 'teams' ? [entry.seatId, `t${entry.team}`] : [entry.seatId];
 }
 
 /** Whether the slot is hidden until its portrait lands. Not your own hero portrait in a 1v1: it is the board's own
@@ -126,7 +135,7 @@ export interface RevealTimeline {
   fullAt: number;
   /** Each portrait's take-off, by stage index. */
   flyAt: number[];
-  /** Each portrait reaching its slot (the crossfade starts). */
+  /** Each portrait reaching its slot: the impact, then the slice expands (`landAt + impactMs`). */
   landAt: number[];
   /** The dim starts lifting (with the first take-off). */
   dimOutAt: number;
@@ -158,7 +167,7 @@ export function revealTimeline(c: LobbyRevealConfig, n: number, reduced: boolean
   const fly = Math.max(1, c.flyMs);
   const landAt = flyAt.map((t) => t + fly);
   const lastLand = count ? landAt[count - 1]! : takeoff;
-  const headAt = lastLand + Math.max(0, c.landMs);
+  const headAt = lastLand + Math.max(0, c.impactMs ?? 0) + Math.max(0, c.expandMs ?? 0, c.landMs);
   return { enterAt, fullAt, flyAt, landAt, dimOutAt: takeoff, headAt, endAt: headAt + Math.max(0, c.headSettleMs) };
 }
 

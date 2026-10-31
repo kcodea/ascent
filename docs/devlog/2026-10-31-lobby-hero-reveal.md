@@ -10,44 +10,57 @@ names". Rule: R-LOBBY-REVEAL-01. Branch `feat/lobby-hero-reveal`, built on the D
 Start Game → launch curtain → `pickHero` builds the run under the cover → the curtain begins the reveal, then the Good
 Luck intro → the curtain lifts onto the reveal:
 
-1. **Line-up** (~1.7 s for 8). The board is dimmed. Every hero of the game stands centre stage in the in-run hero frame
-   (`LbHeroFrame`, with the seat's portrait-frame cosmetic), the hero's name over the player's name pill. In a table, you
-   stand in the middle, a bit bigger with a brighter ring. Duos stand as pairs, your team first. A Versus 1v1 shows the two
-   heroes facing off with VS between them.
-2. **Fly** (~1.6 s). Each portrait flies on a quadratic arc to its slot's face, shrinking to fit. A rail row is
-   `.lobbyseat[data-seat]` in every rail look; a Duos team slot appears with its first member. In a 1v1 the foe lands on
-   the opponent block and you land on your own board portrait. The slot fades in under it, the dim lifts, and the round
-   slice settles last.
-3. **Good Luck**: the words play now. Their dim fades in, since the board is already lit, and the shop clock starts when
-   they go.
+1. **Line-up** (~2.3 s for 8). The board is dimmed and its rail is completely hidden. Every hero of the game stands
+   centre stage in the in-run hero frame (`LbHeroFrame`, with the seat's portrait-frame cosmetic), the hero's name over
+   the player's name pill. Every portrait is the same size; yours has only a gold ring and a gold pill. The line-up reads
+   left to right in the rail's top-to-bottom order (owner: "line it up so that left to right is top to bottom"). Duos
+   stand as pairs. A Versus 1v1 shows the two heroes facing off with VS between them.
+2. **Fly** (~3 s, one at a time down the rail, 240 ms apart). Each portrait flies on a quadratic arc to its slice's ART
+   (the Docked slice's face crop, the Gem rail's round face) and hits the rail: a squash (1.06 then 0.98) and a gold flash
+   on the slice edge. The slice then expands out of the impact point to its full width (scaleX, origin at the hit) while
+   the portrait crossfades into the slice art. The dim lifts as they go, and the round slice and the Guides tab settle
+   last. In a 1v1 the foe lands on the opponent block and you land on your own board portrait, which is never hidden.
+3. **Good Luck**: the words play now, in full. Their dim fades in, since the board is already lit. The shop clock and
+   every opening offer start when they go.
 
-## Where the clock is held (no new gate)
+## One gate for the clock and the opening offers
 `GoodLuckIntro` renders nothing while the reveal is active, but its store stays active. Recruit's clock gate
-(`turnClockMayTick`'s `introPlaying`) already reads that store, so the turn clock holds through the reveal with no
-change to Recruit. In **Versus** the round-1 shop deadline is the Worker's: it starts when every client has acked its
-intro, or at `VERSUS_INTRO_CAP_SECONDS` (45 s). `ackIntro` acks when the Good Luck store goes inactive, which is now after
-the reveal plus the words. So the shared start already accounts for the reveal, and **no Worker change was needed**. A
-local skip only ends that screen's visuals; the round still waits for the slowest client.
+(`turnClockMayTick`'s `introPlaying`) already read that store. Recruit's `overlaysHeld` now reads it too (owner: "have
+disco dan's discover come up AFTER the start game text"). That holds every opening offer until the words are over: a
+turn-1 hero Discover (Disco Dan, the Fi / Coran hero quests), quest, power, Runeforge, Choose One, scout and Ancients
+offers. In **Versus** the round-1 shop deadline is the Worker's: it starts when every client has acked its intro, or
+at `VERSUS_INTRO_CAP_SECONDS` (45 s). `ackIntro` acks when the Good Luck store goes inactive, which is now after the
+reveal plus the words. So the shared start already accounts for the reveal, and **no Worker change was needed**.
 
-## Skips, modes, safety
-- A click, Esc or any key skips to the Good Luck words. The capture-phase key listener keeps Esc from also opening the
-  menu. The dev tuner's "Good Luck after" off makes the reveal replace the words.
+## Nothing skips it (owner: "dont let the lobby hero reveal animation be skipped", "make the start game text unskippable")
+- Clicks land on the overlay and do nothing. Every key is swallowed while the reveal plays, so neither the shop's
+  hotkeys nor the Esc menu react. The Good Luck words swallow Esc and ignore clicks.
+- Leaving to the title is the only early end. A store-level safety timer (9 s) is a failsafe.
+- The dev tuner's "Good Luck after" off makes the reveal replace the words.
+
+## The hidden rail
+`<html data-lhr="on rail s0 s3 …">` lists what has landed, and static rules in `lobbyReveal.css` hide every seat slice,
+team slot, the rail panel, the round slice and the Guides tab not in it.
+- Why the root and not the slices: a slice can REMOUNT mid-reveal (the Docked layout settles after the HUD's entrance),
+  and a per-element mark would be lost. That is how the first build let the rail show behind the line-up.
+- Every rule's subject names a class, so an attribute change restyles only those elements.
+
+## Modes
 - Plays in a lobby, Practice and every Versus match on round 1. Never in the Scene Builder, God Mode (its table is
   hidden), the tutorial, a Gauntlet (no rail) or a replay. Settings → Board → "Lobby reveal" turns it off (saved on the
   device).
 - **Spectators**: armed when the stands showed the watched player's Hero Select, and fired when that screen turns into
   their opening shop within 4 s. A late joiner never saw the Hero Select, so they skip it.
-- A store-level safety timer (9 s) ends the reveal whatever happens, so nothing can wait on it forever.
-- Reduced motion: one fade in, a short hold, one fade out while the rail fades in.
+- Reduced motion: one fade in, a short hold, one fade out while the rail fades in. It is not skippable either.
 
 ## Performance
 - Every motion is a WAAPI transform or opacity animation scheduled up front. There is no per-frame JS.
-- The arc is pre-sampled into 14 keyframes with the ease on the path parameter, run linear.
-- Layout is read once at mount (to hide the slots, via a `data-lhr` attribute per element, never a body class) and once
-  at take-off (every stage portrait and every slot).
+- The arc is pre-sampled into keyframes with the ease on the path parameter, run linear.
+- Layout is read in two passes: once when the slots are on screen (the line-up's rail order), and once at take-off
+  (every stage portrait, every slot, every slot's art).
 - Portraits are art the boot gate has already decoded. The line-up waits at most 500 ms for any that are not.
 - Measured on the prod bundle (`VITE_PERF_BENCH=1`), headed Chrome, 240 Hz panel, a Practice start, frames from the
-  curtain lifting:
+  curtain lifting (the first build; the later revisions add only more of the same transform / opacity animations):
 
   | window | reveal ON 1x | reveal OFF 1x |
   |---|---|---|
@@ -58,11 +71,18 @@ local skip only ends that screen's visuals; the round still waits for the slowes
   reveal off. At 4x CPU throttle the whole game start is heavy in both builds (p95 60-350 ms), and turning the reveal
   on is no worse.
 
-## Sounds
-Reused from the hero-select ceremony, with no new assets: the reveal stinger (`ceremony/ceremonyrevealsound`) as the
-line-up rises, and `ceremony/woosh1` / `woosh2` at take-off and mid-flight. Gains are in the tuner.
+## Sounds (owner: "dont use the same sound effect for the hero reveals as the player's hero selection")
+Nothing from `ceremony/` (the Hero Select stinger and its whooshes); all from the FX bank, with no new assets.
+- **The line-up:** `fx/universfield-cinematic-swoosh-impact`, a cinematic swoosh into a low hit. Passed over:
+  `combatStart` and the gate clips (they already mean "the fight starts" and "the gate"), `heavy-rock-impact` and
+  `blue-impact-hit` (hero-attack strikes), `triple-impact` (the triple).
+- **Each flight:** a quiet `fx/whoosh-03` or `swish-swoosh-woosh 27`, alternating.
 
 ## Tuner
-DEV 🎬 "Lobby reveal" has controls for dim, portrait size, start delay, entrance, reveal stagger, hold, fly duration, fly
-stagger, arc height, land crossfade, round-slice settle, Good Luck after, and the two sound gains, plus ▶ Replay reveal.
+DEV 🎬 "Lobby reveal" has these controls, plus ▶ Replay reveal:
+- **Look:** dim, portrait size.
+- **Reveal:** start delay, entrance, reveal stagger, hold.
+- **Flight:** fly duration, fly stagger, arc height, land crossfade, impact, expand, round-slice settle.
+- **Other:** Good Luck after, the two sound gains.
+
 `window.__bench.lobbyReveal()` lets a bench build start it over a hand-set run.

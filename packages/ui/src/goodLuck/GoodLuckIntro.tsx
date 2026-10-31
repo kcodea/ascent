@@ -17,7 +17,8 @@ import './goodLuckIntro.css';
  *   →  a single shine sweeps the words left to right  →  hold  →  words + dim fade to the live board  →  end.
  *
  * `end()` releases the shop clock (Recruit's countdown gate reads the same store), so the turn starts at full
- * time on the first frame of the live board. Esc or a click anywhere skips straight there.
+ * time on the first frame of the live board. UNSKIPPABLE (owner 2026-10-31: "make the start game text unskippable"):
+ * a click or Esc does nothing while it plays (Esc is swallowed so the menu does not open under it). It is short.
  *
  * Perf contract: every animation is transform / opacity on a composited layer, scheduled up front through WAAPI
  * with delays, so there is no per-frame JS at all. The glow is a STATIC filter on the words, rasterized once.
@@ -94,14 +95,14 @@ export function GoodLuckIntro(): JSX.Element | null {
   useEffect(() => { if (active && showTitle) goodLuckIntro.end(); }, [active, showTitle]);
   useEffect(() => () => goodLuckIntro.end(), []);
 
-  // Esc skips. Capture phase + stopPropagation so the same press does not also open the Esc menu underneath.
+  // Unskippable: Esc is swallowed (capture phase + stopPropagation) so it neither ends the words nor opens the Esc menu
+  // underneath. Leaving to the title (above) and a dev replay are the only early ends.
   useEffect(() => {
     if (!active || waiting) return;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
       e.preventDefault();
       e.stopPropagation();
-      goodLuckIntro.end();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
@@ -187,8 +188,9 @@ export function GoodLuckIntro(): JSX.Element | null {
   } as CSSProperties;
 
   return (
-    // A click anywhere skips. No cursor rule here: the game's gauntlet (body default) stays in charge.
-    <div className="gli" style={vars} onPointerDown={() => goodLuckIntro.end()} role="presentation" key={seq}>
+    // Clicks land on this layer and do nothing (the words are unskippable). No cursor rule here: the game's gauntlet
+    // (body default) stays in charge.
+    <div className="gli" style={vars} role="presentation" key={seq}>
       <div className="gli-dim" ref={dimRef} />
       <div className="gli-stage" ref={stageRef}>
         <div className="gli-row">

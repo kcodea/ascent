@@ -12,9 +12,10 @@ import { beginLobbyRevealFor } from './beginLobbyReveal';
 import { LHR_DEFAULTS, resetLobbyRevealConfig, setLobbyRevealValue } from './lobbyRevealConfig';
 import { revealTimeline } from './lobbyRevealModel';
 
+const snd = vi.hoisted(() => ({ clip: vi.fn(() => null), ceremony: vi.fn() }));
 vi.mock('../sfx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../sfx')>();
-  return { ...actual, sfx: { ...actual.sfx, ceremony: vi.fn(), goodLuckShine: vi.fn(() => null), goodLuckSpark: vi.fn(() => null) } };
+  return { ...actual, playTailedClip: snd.clip, sfx: { ...actual.sfx, ceremony: snd.ceremony, goodLuckShine: vi.fn(() => null), goodLuckSpark: vi.fn(() => null) } };
 });
 
 // The boot gate decodes every portrait before a game can start; jsdom loads no images, so say they are ready.
@@ -44,7 +45,8 @@ function railDom(): HTMLElement {
   document.body.append(rail, head);
   return rail;
 }
-const waiting = (): number => document.querySelectorAll('[data-lhr="wait"]').length;
+/** What the hidden-rail attribute on <html> says has landed, or null when the rail is fully shown. */
+const landed = (): string | null => document.documentElement.getAttribute('data-lhr');
 const shopTurn = { recruitPhase: true, decisionOpen: false, heroSelecting: false, overlayOpen: false, introPlaying: false };
 
 beforeEach(() => {
@@ -79,15 +81,19 @@ describe('the lobby reveal', () => {
     expect(m.container.querySelector('.lhr-card.you')?.getAttribute('data-seat')).toBe('s0');
   });
 
-  it('hides the rail slots and the round slice while it builds them, and puts every one back at the end', () => {
+  it('hides the WHOLE rail while it builds it (nothing landed yet), and shows every part of it at the end', () => {
     vi.useFakeTimers();
     railDom();
     m = mount(<><LobbyReveal /><GoodLuckIntro /></>);
     act(gameStart);
-    expect(waiting()).toBe(5);
-    act(() => { vi.advanceTimersByTime(revealTimeline(LHR_DEFAULTS, 4, false).endAt + 20); });
+    expect(landed()).toBe('on'); // no seat, no rail panel, no round slice
+    const t = revealTimeline(LHR_DEFAULTS, 4, false);
+    act(() => { vi.advanceTimersByTime(t.dimOutAt + 50); });
+    expect(landed()).toMatch(/^on rail/); // the flights start: the panel; the round slice still hidden
+    expect(landed()).not.toContain('head');
+    act(() => { vi.advanceTimersByTime(t.endAt); });
     expect(lobbyReveal.isActive()).toBe(false);
-    expect(waiting()).toBe(0);
+    expect(landed()).toBeNull();
   });
 
   it('holds the Good Luck words (and so the shop clock) until it is over, then the words play', () => {
@@ -105,37 +111,12 @@ describe('the lobby reveal', () => {
     expect(goodLuckIntro.isActive()).toBe(true); // the words are up; the clock starts when they go
   });
 
-  it('a click skips it straight to the Good Luck words, with every slot back', () => {
-    railDom();
-    m = mount(<><LobbyReveal /><GoodLuckIntro /></>);
-    act(gameStart);
-    act(() => { (m!.container.querySelector('.lhr') as HTMLElement).dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
-    expect(lobbyReveal.isActive()).toBe(false);
-    expect(lobbyReveal.wasSkipped()).toBe(true);
-    expect(waiting()).toBe(0);
-    expect(m.container.querySelector('.gli-text')).not.toBeNull();
-  });
 
-  it('Esc or any key skips, and the press never reaches the Esc menu', () => {
-    railDom();
-    m = mount(<><LobbyReveal /><GoodLuckIntro /></>);
-    act(gameStart);
-    const menu = vi.fn();
-    window.addEventListener('keydown', menu);
-    act(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
-    window.removeEventListener('keydown', menu);
-    expect(lobbyReveal.isActive()).toBe(false);
-    expect(menu).not.toHaveBeenCalled();
-    // The same Esc did not also skip the words that follow.
-    expect(goodLuckIntro.isActive()).toBe(true);
-    act(gameStart);
-    act(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true })); });
-    expect(lobbyReveal.isActive()).toBe(false);
-  });
 
   it('"Good Luck after" off: the reveal replaces the words, and the clock is free when it ends', () => {
     vi.useFakeTimers();
     setLobbyRevealValue('goodLuckAfter', 0);
+    railDom();
     m = mount(<><LobbyReveal /><GoodLuckIntro /></>);
     act(gameStart);
     act(() => { vi.advanceTimersByTime(revealTimeline(LHR_DEFAULTS, 4, false).endAt + 20); });
@@ -150,7 +131,7 @@ describe('the lobby reveal', () => {
     act(gameStart);
     act(() => { vi.advanceTimersByTime(revealTimeline(LHR_DEFAULTS, 4, true).endAt + 20); });
     expect(lobbyReveal.isActive()).toBe(false);
-    expect(waiting()).toBe(0);
+    expect(landed()).toBeNull();
   });
 
   it('the Settings switch off: no reveal, the words play at once', () => {
@@ -185,5 +166,67 @@ describe('Versus: the shared round-1 start accounts for the reveal', () => {
     const { VERSUS_INTRO_CAP_SECONDS } = await import('@game/sim');
     const t = revealTimeline(LHR_DEFAULTS, 8, false);
     expect(t.endAt / 1000 + 3).toBeLessThan(VERSUS_INTRO_CAP_SECONDS); // reveal + the Good Luck words, well inside the cap
+  });
+});
+
+describe('the owner\x27s game-start rulings (2026-10-31)', () => {
+  it('the reveal cannot be skipped: a click, Esc or any key does nothing, and no key reaches the menu or the shop', () => {
+    railDom();
+    m = mount(<><LobbyReveal /><GoodLuckIntro /></>);
+    act(gameStart);
+    const menu = vi.fn();
+    window.addEventListener('keydown', menu);
+    act(() => { (m!.container.querySelector('.lhr') as HTMLElement).dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
+    for (const key of ['Escape', 'a', ' ', 'Enter']) act(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })); });
+    window.removeEventListener('keydown', menu);
+    expect(lobbyReveal.isActive()).toBe(true);
+    expect(menu).not.toHaveBeenCalled();
+    expect(m.container.querySelector('.gli')).toBeNull(); // the words still wait behind it
+  });
+
+  it('reduced motion: the short plain fade, still unskippable', () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('reduce'), media: q, addEventListener() {}, removeEventListener() {} }));
+    railDom();
+    m = mount(<><LobbyReveal /><GoodLuckIntro /></>);
+    act(gameStart);
+    act(() => { (m!.container.querySelector('.lhr') as HTMLElement).dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
+    expect(lobbyReveal.isActive()).toBe(true);
+  });
+
+  it('the reveal never plays a Hero Select (ceremony) sound: its own stinger and whooshes come from the FX bank', async () => {
+    const { REVEAL_STING_CLIP, REVEAL_WHOOSH_CLIPS } = await import('./lobbyRevealConfig');
+    for (const clip of [REVEAL_STING_CLIP, ...REVEAL_WHOOSH_CLIPS]) expect(clip.startsWith('ceremony/')).toBe(false);
+    railDom();
+    m = mount(<><LobbyReveal /><GoodLuckIntro /></>);
+    act(gameStart);
+    expect(snd.ceremony).not.toHaveBeenCalled();
+    expect(snd.clip).toHaveBeenCalledWith(REVEAL_STING_CLIP, expect.any(String), expect.anything());
+  });
+
+  it('a turn-1 Discover (Disco Dan, a hero quest) waits for the reveal AND the Good Luck words: the shop holds every offer', async () => {
+    // Recruit holds every offer overlay (Discover, quest, power, Runeforge, Choose One, scout, Ancients) on ONE flag,
+    // and that flag now folds in the Good Luck store, which stays active behind the reveal and until the words are over.
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const src = readFileSync(join(__dirname, '..', 'Recruit.tsx'), 'utf8');
+    expect(src).toMatch(/const introHold = useGoodLuckIntroActive\(\);\s*const overlaysHeld = !inCombat && \(wipe !== 'idle' \|\| sotPlaying \|\| introHold\);/);
+    for (const offer of ['run.discover', 'run.runeforgeOffer', 'run.chooseOne']) expect(src).toContain(`!overlaysHeld && ${offer}`);
+    // ...and the store is active from the curtain to the end of the words, through the reveal.
+    vi.useFakeTimers();
+    railDom();
+    m = mount(<><LobbyReveal /><GoodLuckIntro /></>);
+    act(gameStart);
+    expect(goodLuckIntro.isActive()).toBe(true);
+    act(() => { vi.advanceTimersByTime(revealTimeline(LHR_DEFAULTS, 4, false).endAt + 20); });
+    expect(lobbyReveal.isActive()).toBe(false);
+    expect(goodLuckIntro.isActive()).toBe(true); // the words are playing: offers still held
+  });
+
+
+  it('every portrait is the same size: yours is only highlighted, never bigger', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const css = readFileSync(join(__dirname, 'lobbyReveal.css'), 'utf8');
+    expect(css).not.toMatch(/\.lhr-card\.you[^{]*\{[^}]*--lhr-px/);
   });
 });

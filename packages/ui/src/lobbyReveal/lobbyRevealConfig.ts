@@ -28,35 +28,42 @@ export interface LobbyRevealConfig {
   flyStaggerMs: number;
   /** How high each flight arcs above the straight line, reference px. */
   arcHeight: number;
-  /** The crossfade from the flying portrait into the rail slot as it lands. */
+  /** The crossfade from the flying portrait into the slice's art as it lands. */
   landMs: number;
+  /** The hit: the portrait squashes on the rail (scale 1.06 then 0.98) and the slice edge flashes gold. */
+  impactMs: number;
+  /** The slice expanding out of the impact point to its full width (scaleX), revealing its frame, name and bar. */
+  expandMs: number;
   /** The round slice settling in after the last landing. */
   headSettleMs: number;
   /** 1 = the Good Luck words play after the reveal (as before it existed); 0 = the reveal replaces them. */
   goodLuckAfter: number;
-  /** The reveal stinger's level (the hero-select reveal sound), on top of its mixer fader. 0 = silent. */
+  /** The line-up's stinger level (an FX-bank swoosh-and-hit, never the Hero Select stinger), on top of its fader. */
   revealSoundGain: number;
-  /** The flight whoosh's level (the hero-select whoosh), on top of its mixer fader. 0 = silent. */
+  /** Each flight's soft whoosh (FX bank), on top of its mixer fader. 0 = silent. */
   whooshGain: number;
 }
 
-/** Shipped values. Eight seats: 250 + 7 x 60 + 380 + 650 = 1.7 s on stage, then 7 x 70 + 620 + 180 + 300 = 1.6 s of
- *  flight and settle. About 3.3 s from the curtain lifting to a built rail. */
+/** Shipped values (owner 2026-10-31: slower, cleaner, one at a time, a longer look at the line-up). Eight seats:
+ *  250 + 7 x 70 + 380 + 1150 = 2.3 s on stage, then 7 x 240 + 600 + 160 + 250 + 300 = 3.0 s of flights, one at a time
+ *  down the rail, each hitting and expanding into its slice. */
 export const LHR_DEFAULTS: LobbyRevealConfig = {
   dimOpacity: 0.72,
   portraitSize: 185,
   startDelayMs: 250,
   entranceMs: 380,
-  revealStaggerMs: 60,
-  holdMs: 650,
-  flyMs: 620,
-  flyStaggerMs: 70,
+  revealStaggerMs: 70,
+  holdMs: 1150,
+  flyMs: 600,
+  flyStaggerMs: 240,
   arcHeight: 120,
-  landMs: 180,
+  landMs: 220,
+  impactMs: 160,
+  expandMs: 250,
   headSettleMs: 300,
   goodLuckAfter: 1,
-  revealSoundGain: 0.8,
-  whooshGain: 0.7,
+  revealSoundGain: 0.7,
+  whooshGain: 0.35,
 };
 
 export const LHR_RANGES: Record<keyof LobbyRevealConfig, [number, number, number]> = {
@@ -70,6 +77,8 @@ export const LHR_RANGES: Record<keyof LobbyRevealConfig, [number, number, number
   flyStaggerMs: [0, 300, 5],
   arcHeight: [0, 400, 1],
   landMs: [0, 600, 10],
+  impactMs: [0, 500, 10],
+  expandMs: [0, 800, 10],
   headSettleMs: [0, 900, 10],
   goodLuckAfter: [0, 1, 1],
   revealSoundGain: [0, 2, 0.01],
@@ -114,11 +123,13 @@ const SPECS: Record<keyof LobbyRevealConfig, [string, TunerUnit | undefined, str
   flyMs: ['Fly duration', 'ms', 'One portrait\x27s flight from the stage to its rail slot.', 'Fly'],
   flyStaggerMs: ['Fly stagger', 'ms', 'Between one portrait taking off and the next.', 'Fly'],
   arcHeight: ['Arc height', 'px', 'How high each flight curves above the straight line (reference px).', 'Fly'],
-  landMs: ['Land crossfade', 'ms', 'The portrait fading into its rail slot as it lands.', 'Fly'],
+  landMs: ['Land crossfade', 'ms', 'The portrait fading into the slice art as it lands.', 'Fly'],
+  impactMs: ['Impact', 'ms', 'The portrait hitting the rail: a quick squash and a gold flash on the slice edge.', 'Fly'],
+  expandMs: ['Expand', 'ms', 'The slice opening out of the impact point to its full width.', 'Fly'],
   headSettleMs: ['Round slice settle', 'ms', 'The round slice settling in after the last portrait lands.', 'Fly'],
   goodLuckAfter: ['Good Luck after', undefined, 'On: the Good Luck words still play once the rail is built. Off: the reveal replaces them.', 'Flow'],
-  revealSoundGain: ['Reveal sound', '×', 'The hero-select reveal stinger as the line-up appears. 0 = silent.', 'Sound'],
-  whooshGain: ['Whoosh sound', '×', 'The hero-select whoosh as the portraits fly. 0 = silent.', 'Sound'],
+  revealSoundGain: ['Reveal sound', '×', 'The cinematic swoosh-and-hit as the line-up appears (not the Hero Select stinger). 0 = silent.', 'Sound'],
+  whooshGain: ['Whoosh sound', '×', 'A soft whoosh as each portrait takes off. 0 = silent.', 'Sound'],
 };
 
 const controls: TunerControl<Extract<keyof LobbyRevealConfig, string>>[] =
@@ -150,3 +161,15 @@ export const SPEC: TunerSpec<LobbyRevealConfig> = {
     },
   ],
 };
+
+/**
+ * THE SOUNDS (owner 2026-10-31: "dont use the same sound effect for the hero reveals as the player's hero selection, it's
+ * redundant"). Never a `ceremony/` clip (the Hero Select stinger and its whooshes). From the FX bank instead, every one
+ * already shipped and on the phone's decode list (`audio/codeClips.ts`):
+ *  - the line-up: `universfield-cinematic-swoosh-impact`, a cinematic swoosh into a low hit, the "here is who you face"
+ *    beat. Considered and passed over: `combatStart` and the gate clips (they already mean "the fight starts" and "the
+ *    gate"), `heavy-rock-impact` / `blue-impact-hit` (strike sounds from hero attacks), `triple-impact` (the triple).
+ *  - each flight: `whoosh-03` and the short `swish-swoosh-woosh 27` take, alternating, quiet, one per portrait.
+ */
+export const REVEAL_STING_CLIP = 'fx/universfield-cinematic-swoosh-impact-454392';
+export const REVEAL_WHOOSH_CLIPS: readonly string[] = ['fx/whoosh-03', 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3'];

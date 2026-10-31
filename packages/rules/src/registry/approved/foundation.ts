@@ -1788,7 +1788,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'The two Good Luck intro sounds (the shine and the spark sparkle) each fade to silence over their last few '
       + 'hundred ms (tunable, 300 ms shine / 350 ms spark by default) and carry a subtle reverb tail (wet 0.2, '
       + '0.7 s) that rings on after the clip ends. The intro ending on its own never stops them, so the tails ring '
-      + 'out over the live board. A skip (Esc, a click, a replay, leaving) fades whatever is still sounding in '
+      + 'out over the live board. An early end (a dev replay, leaving; Esc and clicks no longer skip the words since 2026-10-31, R-LOBBY-REVEAL-01) fades whatever is still sounding in '
       + 'about 120 ms rather than cutting it. Every node of a play is disconnected once its tail (or the skip '
       + 'fade) is done, so plays never pile up.',
     domain: 'foundation',
@@ -1817,9 +1817,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       'After Start Game in a lobby, Practice or any Versus match, every hero in the game is shown centre stage with its '
       + 'player name (you highlighted; Duos teammates side by side; a 1v1 as two heroes facing off). Each portrait then flies '
       + 'to its rail slot (in a 1v1, to the opponent block and your own portrait), and the slot appears as it lands. The '
-      + 'Good Luck words play after it, and the shop clock holds until they are over. A click, Esc or any key skips to '
-      + 'the words. In Versus the round-1 clock is the server\x27s and starts only when every player\x27s intro is over, so '
-      + 'a skip ends only that screen\x27s visuals. Spectators who watched the Hero Select see it; late joiners do not. '
+      + 'Good Luck words play after it, and the shop clock and every opening offer (a hero\x27s turn-1 Discover, a hero '
+      + 'quest) hold until they are over. Neither the reveal nor the words can be skipped. In Versus the round-1 clock '
+      + 'is the server\x27s and starts only when every player\x27s intro is over. Spectators who watched the Hero Select see it; late joiners do not. '
       + 'Never in the Scene Builder, God Mode, the tutorial, a Gauntlet or a replay. Settings "Lobby reveal" turns it off. '
       + 'Presentation only: transform / opacity animations, layout read once at take-off.',
     domain: 'foundation',

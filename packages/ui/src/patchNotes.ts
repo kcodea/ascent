@@ -60,8 +60,9 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: 'Game start: see who you are facing. Every hero in the game is shown with its player name, then flies to the rail.', details: [
         'Plays after you press Start Game, before the Good Luck words and before any timer starts.',
+        'Each portrait flies to its place on the rail, top to bottom, and its slot opens out of it.',
         'In Duos, teammates stand together. In a 1v1, the two heroes face off.',
-        'Click or press any key to skip it. In Versus the round still starts for everyone together.',
+        "The Good Luck words now always play in full, and a hero's first Discover waits until they are done.",
         'Turn it off in Settings, under Board: Lobby reveal.',
       ] },
       { category: 'Systems', text: 'The corner buttons moved. Bottom right now holds only the Compendium and Settings.', details: [

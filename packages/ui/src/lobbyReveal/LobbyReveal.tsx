@@ -1,17 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { getHero } from '@game/sim';
 import { useGame } from '../store';
-import { sfx } from '../sfx';
+import { playTailedClip } from '../sfx';
 import { LbHeroFrame } from '../LadderBits';
 import { heroPortrait, opponentSkins, useRunSkins } from '../skins/skins';
 import { frameIdOf } from '../portraitFrame/PortraitFrame';
 import { artReady, requestArt, whenArtReady } from '../artPreload';
 import { useSpectate } from '../versus/spectate';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
-import { getLobbyRevealConfig, LHR_REPLAY_EVENT } from './lobbyRevealConfig';
+import { getLobbyRevealConfig, LHR_REPLAY_EVENT, REVEAL_STING_CLIP, REVEAL_WHOOSH_CLIPS } from './lobbyRevealConfig';
 import {
-  arcKeyframes, flightOrder, REVEAL_FACE_SELECTORS, REVEAL_HEAD_SELECTORS, revealHidesSlot, revealShowSelectorFor, revealTargetSelectors, revealTimeline, spectatorShouldReveal,
-  type Rect, type RevealEntry,
+  arcKeyframes, flightOrder, REVEAL_FACE_SELECTORS, REVEAL_TOKEN_HEAD, REVEAL_TOKEN_RAIL, revealHidesSlot, revealShowSelectorFor,
+  revealTargetSelectors, revealTimeline, revealTokensFor, spectatorShouldReveal, type Rect, type RevealEntry,
 } from './lobbyRevealModel';
 import { lobbyReveal, lobbyRevealEnabled, useLobbyRevealActive, useLobbyRevealSeq, type RevealPlay } from './lobbyRevealStore';
 import { beginLobbyRevealFor } from './beginLobbyReveal';
@@ -19,31 +19,35 @@ import './lobbyReveal.css';
 
 /**
  * THE LOBBY REVEAL — the overlay (owner ask 2026-10-31: "after the player locks in a hero and hits start game ... all
- * the heroes in the lobby are shown and then all portraits fly over and build the rail").
+ * the heroes in the lobby are shown and then all portraits fly over and build the rail"; "The goal of the animation is
+ * to show the player who they are facing. Hero art and player names").
  *
  * Mounted once in Game, beside the Good Luck intro and under the launch curtain. Renders nothing until
  * `lobbyReveal.begin()`, then plays ONE pass:
  *
- *   the live first shop dimmed, every hero of this game rising into a line-up centre stage (in its in-run portrait
- *   frame, the hero's name over the player's)  →  hold  →  each portrait flies on an arc to its own rail slot, shrinking
- *   into it, the slot appearing under it as it lands ("build the rail") while the dim lifts  →  the round slice settles
- *   →  end, and the Good Luck intro takes over (it has been waiting, with the shop clock held, the whole time).
+ *   the live first shop dimmed and its rail COMPLETELY hidden; every hero of this game rising into a line-up centre stage
+ *   (in-run portrait frame, the hero's name over the player's), lined up LEFT TO RIGHT in the rail's TOP-TO-BOTTOM order
+ *   →  a long look  →  one at a time, top down, each portrait flies on an arc to its slice's art, HITS THE RAIL (a squash
+ *   and a gold flash on the slice edge) and the slice EXPANDS out of that point to its full width while the portrait
+ *   crossfades into the slice art; the dim lifts as they go  →  the round slice settles last  →  end, and the Good Luck
+ *   words take over (they have been waiting, with the shop clock and every opening offer held).
  *
- * A REAL PHASE BEFORE ROUND 1 (owner 2026-10-31: "The hero reveal animation should happen before any timers obviously"):
- * the run is built under it but nothing runs. The shop takes no input (this layer covers it) and the turn clock is held
- * (the Good Luck intro waits behind the reveal, and Recruit's clock gate already reads that intro). A click, Esc or any
- * key skips to the Good Luck words. Reduced motion: a plain fade in, a short hold, a fade out as the rail fades in.
+ * A REAL PHASE BEFORE ROUND 1 (owner 2026-10-31: "The hero reveal animation should happen before any timers
+ * obviously"): the run is built under it but nothing runs. The shop takes no input (this layer covers it), the turn
+ * clock and any turn-1 Discover wait (both read the Good Luck store, which stays active behind the reveal). UNSKIPPABLE
+ * (owner 2026-10-31: "dont let the lobby hero reveal animation be skipped"): clicks land on this layer and do nothing,
+ * and every key is swallowed while it plays, so neither the shop nor the Esc menu reacts. The store's 9 s safety timer
+ * is the only early end (a failsafe), besides leaving to the title.
  *
  * PERF CONTRACT: every motion is a WAAPI transform / opacity animation scheduled up front (no per-frame JS at all).
- * Layout is read exactly twice per play: the rail slots are hidden once on mount, and at take-off ONE pass reads every
- * stage portrait and every slot (cached for the whole flight). Portraits are art the boot gate already decoded; the
- * line-up waits (at most 500 ms) for any that are not, so nothing pops in. The dim is a static gradient faded by opacity.
+ * Layout is read in two passes per play: once when the slots are on screen (to line the cards up in rail order), and
+ * once at take-off (every stage portrait, every slot, every slot's art; cached for the whole flight). The hidden rail is
+ * one attribute on <html> with class-subject rules, updated once per landing. Portraits are art the boot gate already
+ * decoded; the line-up waits (at most 500 ms) for any that are not, so nothing pops in. The dim is a static gradient
+ * faded by opacity, the flash a static gold edge faded by opacity.
  */
 
-/** What the reveal hid, so the end (natural or skipped) can always put it back. */
-interface Hidden { el: HTMLElement; prev: string | null }
-
-const ATTR = 'data-lhr';
+const ROOT_ATTR = 'data-lhr';
 
 function prefersReducedMotion(): boolean {
   try { return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
@@ -63,32 +67,25 @@ function firstMatch(selectors: readonly string[]): HTMLElement | null {
   return null;
 }
 
-/** Each entry's landing slot, plus what to reveal there (a Duos team slot shows with its first member). */
-function findTargets(play: RevealPlay): { slot: (HTMLElement | null)[]; show: (HTMLElement | null)[]; heads: HTMLElement[] } {
+/** Each entry's landing slot, and what expands there (a Duos team slot expands with its first member). */
+function findTargets(play: RevealPlay): { slot: (HTMLElement | null)[]; show: (HTMLElement | null)[] } {
   const showSel = revealShowSelectorFor(play.layout);
   const slot = play.entries.map((e) => firstMatch(revealTargetSelectors(e, play.layout)));
   const show = slot.map((el, i) => (!el || !revealHidesSlot(play.entries[i]!, play.layout) ? null : showSel ? (el.closest<HTMLElement>(showSel) ?? el) : el));
-  const heads = REVEAL_HEAD_SELECTORS.map((s) => document.querySelector<HTMLElement>(s)).filter((x): x is HTMLElement => !!x);
-  return { slot, show, heads };
-}
-
-function hide(el: HTMLElement | null, into: Hidden[]): void {
-  if (!el || into.some((h) => h.el === el)) return;
-  into.push({ el, prev: el.getAttribute(ATTR) });
-  el.setAttribute(ATTR, 'wait');
-}
-
-function unhide(el: HTMLElement | null, into: Hidden[]): void {
-  if (!el) return;
-  const i = into.findIndex((h) => h.el === el);
-  if (i < 0) return;
-  const h = into[i]!;
-  into.splice(i, 1);
-  if (h.prev == null) el.removeAttribute(ATTR); else el.setAttribute(ATTR, h.prev);
+  return { slot, show };
 }
 
 const rectIn = (r: DOMRect, o: { left: number; top: number; k: number }): Rect =>
   ({ left: (r.left - o.left) / o.k, top: (r.top - o.top) / o.k, width: r.width / o.k, height: r.height / o.k });
+
+/** The landed set on <html>. `null` clears it (the rail is fully shown). */
+function setLanded(tokens: ReadonlySet<string> | null): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (!tokens) { root.removeAttribute(ROOT_ATTR); return; }
+  const v = ['on', ...tokens].join(' ');
+  if (root.getAttribute(ROOT_ATTR) !== v) root.setAttribute(ROOT_ATTR, v);
+}
 
 export function LobbyReveal(): JSX.Element | null {
   const active = useLobbyRevealActive();
@@ -99,7 +96,6 @@ export function LobbyReveal(): JSX.Element | null {
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const dimRef = useRef<HTMLDivElement | null>(null);
-  const hiddenRef = useRef<Hidden[]>([]);
 
   // DEV ▶ Replay from the tuner: replay over whatever board is up. Never from the title (nothing to build).
   useEffect(() => {
@@ -134,22 +130,22 @@ export function LobbyReveal(): JSX.Element | null {
 
   // Leaving to the title mid-reveal (or Game unmounting) must never strand anything held or hidden.
   useEffect(() => { if (active && showTitle) finish(true); }, [active, showTitle]);
-  useEffect(() => () => { restoreAll(hiddenRef.current); lobbyReveal.end(); }, []);
+  useEffect(() => () => { setLanded(null); lobbyReveal.end(); }, []);
 
-  // Click, Esc or any key skips. Capture phase, so the same press does not also open the Esc menu underneath.
+  // Unskippable: every key is swallowed while it plays (capture phase), so it neither skips nor reaches the shop's
+  // hotkeys or the Esc menu underneath.
   useEffect(() => {
     if (!active) return;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') return;
       e.preventDefault();
       e.stopPropagation();
-      finish(true);
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [active]);
 
-  // THE ONE PASS. A layout effect so the line-up is hidden and every animation scheduled before the first paint.
+  // THE ONE PASS. A layout effect so the rail is hidden and every animation scheduled before the first paint.
   useLayoutEffect(() => {
     if (!active) return;
     const play = lobbyReveal.play();
@@ -161,43 +157,124 @@ export function LobbyReveal(): JSX.Element | null {
     const t = revealTimeline(c, n, reduced);
     const timers: number[] = [];
     const anims: Animation[] = [];
-    const hidden = hiddenRef.current;
     let dead = false;
     const at = (ms: number, fn: () => void): void => { timers.push(window.setTimeout(() => { if (!dead) fn(); }, Math.max(0, ms))); };
     const push = (a: Animation | null): void => { if (a) anims.push(a); };
 
-    // Hide the rail's slots (and the round slice) so it can be built. The rail may mount a frame after the run is built
-    // (the curtain waits two frames before it lifts): one retry a frame until the line-up is complete.
-    let targets = findTargets(play);
-    const hideAll = (): boolean => {
-      targets = findTargets(play);
-      for (const el of targets.show) hide(el, hidden);
-      for (const el of targets.heads) hide(el, hidden);
-      return targets.slot.every(Boolean);
-    };
-    if (!hideAll()) {
-      let tries = 0;
-      const retry = (): void => {
-        if (dead || hideAll() || ++tries > 40) return;
-        requestAnimationFrame(retry);
-      };
-      requestAnimationFrame(retry);
-    }
+    // THE HIDDEN RAIL: everything waits for its own portrait (the 1v1's own board portrait is never hidden).
+    const landed = new Set<string>();
+    play.entries.forEach((e) => { if (!revealHidesSlot(e, play.layout)) for (const k of revealTokensFor(e, play.layout)) landed.add(k); });
+    setLanded(landed);
+    const land = (tokens: readonly string[]): void => { for (const k of tokens) landed.add(k); setLanded(landed); };
 
+    let targets = findTargets(play);
     const cards = Array.from(root.querySelectorAll<HTMLElement>('.lhr-card'));
     const faces = cards.map((el) => el.querySelector<HTMLElement>('.lhr-face'));
     const labels = cards.map((el) => el.querySelector<HTMLElement>('.lhr-labels'));
+    const flashes = cards.map((el) => root.querySelector<HTMLElement>(`.lhr-flash[data-seat="${el.dataset.seat ?? ''}"]`));
+    const rootBox = (): { left: number; top: number; k: number } => {
+      const rr = root.getBoundingClientRect();
+      return { left: rr.left, top: rr.top, k: root.offsetWidth ? rr.width / root.offsetWidth : 1 };
+    };
+    // Each portrait lands on the slot's ART (the Docked slice's face crop, the Gem rail's round face), not the whole row.
+    const faceIn = (s: HTMLElement): HTMLElement => {
+      for (const sel of REVEAL_FACE_SELECTORS) { const el = s.querySelector<HTMLElement>(sel); if (el) return el; }
+      return s;
+    };
+    const artRects = (o: { left: number; top: number; k: number }): (Rect | null)[] =>
+      targets.slot.map((s) => (s ? rectIn(faceIn(s).getBoundingClientRect(), o) : null));
 
-    // The line-up only starts once every portrait is decoded (the boot gate has normally done it already), so no frame
-    // ever shows a blank disc. Waits at most 500 ms; the cards sit invisible meanwhile.
-    const urls = play.entries.map((e) => portraitOf(e)).filter((u): u is string => !!u);
-    const ready = urls.every((u) => artReady(u));
+    // THE LINE-UP READS AS THE RAIL (owner 2026-10-31: "line it up so that left to right is top to bottom"): each card's
+    // place in the line-up is its slot's place in the rail, so the leftmost portrait flies to the top slice and the rail
+    // builds as one clean sequence. ONE layout read, once the slots are on screen (the rail may mount a frame or two
+    // after the run is built, under the curtain). The cards are invisible until then.
+    let rank = cards.map((_, i) => i);
+    const lineUp = (): void => {
+      if (play.layout === 'duel') return; // you on the left, your opponent on the right
+      rank = flightOrder(artRects(rootBox()));
+      cards.forEach((el, i) => { el.style.order = String(rank[i]); });
+      // Duos: a pair stays together; the pairs follow their top member's place.
+      root.querySelectorAll<HTMLElement>('.lhr-team').forEach((team) => {
+        const mine = cards.map((cd, i) => (team.contains(cd) ? rank[i]! : Infinity));
+        team.style.order = String(Math.min(...mine));
+      });
+    };
+
+    // TAKE-OFF: one read pass (every portrait, every slot and its art), then every flight scheduled at once from those
+    // numbers, one portrait at a time down the rail.
+    const takeOff = (offset: number): void => {
+      targets = findTargets(play); // a slot that remounted is picked up here, with the same single read pass below
+      const o = rootBox();
+      const from = faces.map((f) => (f ? rectIn(f.getBoundingClientRect(), o) : null));
+      const to = artRects(o);
+      const slice = targets.show.map((s) => (s ? rectIn(s.getBoundingClientRect(), o) : null));
+      const now = t.dimOutAt - offset;
+      cards.forEach((card, i) => {
+        const k = rank[i]!;
+        const entry = play.entries[i]!;
+        const delay = Math.max(0, t.flyAt[k]! - offset - now);
+        const hit = Math.max(0, t.landAt[k]! - offset - now);
+        const f = from[i], d = to[i], face = faces[i];
+        const showEl = targets.show[i] ?? null;
+        const tokens = revealTokensFor(entry, play.layout);
+        if (c.whooshGain > 0 && !reduced) playTailedClip(REVEAL_WHOOSH_CLIPS[k % REVEAL_WHOOSH_CLIPS.length]!, 'ceremony', { gain: c.whooshGain, delayMs: delay });
+        if (reduced || !f || !d || d.width <= 0) {
+          // No slot on screen (or reduced motion): the portrait fades where it stands, its slot fades in.
+          push(anim(card, [{ opacity: 1 }, { opacity: 0 }], { duration: reduced ? 300 : c.landMs || 200, delay, easing: 'ease-in', fill: 'forwards' }));
+          at(delay, () => { land(tokens); push(anim(showEl, [{ opacity: 0 }], { duration: 300, easing: 'ease-out' })); });
+          return;
+        }
+        push(anim(labels[i], [{ opacity: 1 }, { opacity: 0 }], { duration: 160, delay, easing: 'ease-in', fill: 'forwards' }));
+        // The flight, then THE HIT on the same element: a squash to 1.06, a give to 0.98, settle (owner 2026-10-31: "have
+        // it look like they hit the rail and expand into their slots").
+        const imp = Math.max(0, c.impactMs);
+        const total = c.flyMs + imp;
+        const p = total > 0 ? c.flyMs / total : 1;
+        const path: Keyframe[] = arcKeyframes(f, d, c.arcHeight).map((kf) => ({ ...kf, offset: (kf.offset as number) * p }));
+        if (imp > 0) {
+          const last = String(path[path.length - 1]!.transform);
+          const s1 = Number(/scale\(([-\d.]+)\)/.exec(last)?.[1] ?? 1);
+          const at1 = (s: number): string => last.replace(/scale\([-\d.]+\)/, `scale(${(s1 * s).toFixed(4)})`);
+          path.push({ offset: p + (1 - p) * 0.35, transform: at1(1.06) }, { offset: p + (1 - p) * 0.7, transform: at1(0.98) }, { offset: 1, transform: at1(1) });
+        }
+        push(anim(face, path, { duration: total, delay, easing: 'linear', fill: 'forwards' }));
+        // The portrait crossfades into the slice art as the slice opens under it.
+        push(anim(face, [{ opacity: 1 }, { opacity: 0 }], { duration: Math.max(1, c.landMs), delay: hit + Math.round(imp * 0.5), easing: 'ease-out', fill: 'forwards' }));
+        // The gold flash on the slice edge at the hit (a static edge, opacity only), placed once here.
+        const fl = flashes[i];
+        const sr = slice[i];
+        if (fl && sr && imp > 0) {
+          fl.style.transform = `translate(${sr.left.toFixed(1)}px, ${sr.top.toFixed(1)}px)`;
+          fl.style.width = `${sr.width.toFixed(1)}px`;
+          fl.style.height = `${sr.height.toFixed(1)}px`;
+          push(anim(fl, [{ opacity: 0 }, { opacity: 1, offset: 0.25 }, { opacity: 0 }], { duration: imp + c.expandMs, delay: hit, easing: 'ease-out' }));
+        }
+        at(hit + Math.round(imp * 0.35), () => {
+          // THE EXPAND: the slice opens out of the impact point, from the portrait's width to its own (scaleX, the origin
+          // at the hit), revealing its frame, name and bar. The same for every slice; a Duos team slot opens with its
+          // FIRST member, and the second lands into it already open.
+          const opening = showEl && !tokens.every((tk) => landed.has(tk));
+          land(tokens);
+          if (!opening || !showEl) return;
+          const w0 = sr && sr.width > 0 ? Math.min(1, (d.height * 1.0) / sr.width) : 0.3;
+          const ox = sr && sr.width > 0 ? `${(((d.left + d.width / 2 - sr.left) / sr.width) * 100).toFixed(1)}%` : '15%';
+          push(anim(showEl, [
+            { opacity: 0, transform: `scaleX(${w0.toFixed(3)})`, transformOrigin: `${ox} 50%` },
+            { opacity: 1, transform: `scaleX(${(w0 + (1 - w0) * 0.4).toFixed(3)})`, transformOrigin: `${ox} 50%`, offset: 0.3 },
+            { opacity: 1, transform: 'scaleX(1)', transformOrigin: `${ox} 50%` },
+          ], { duration: Math.max(1, c.expandMs), easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' }));
+        });
+      });
+    };
+
     const begin = (offset: number): void => {
       if (dead) return;
       const o = Math.max(0, t.enterAt[0]! - offset);
-      if (c.revealSoundGain > 0) at(o, () => sfx.ceremony('ceremonyrevealsound', c.revealSoundGain));
+      // NOT the Hero Select stinger (owner 2026-10-31: "dont use the same sound effect for the hero reveals as the
+      // player's hero selection"): a cinematic swoosh-and-hit from the FX bank (lobbyRevealConfig.ts lists the choice).
+      if (c.revealSoundGain > 0) playTailedClip(REVEAL_STING_CLIP, 'ceremony', { gain: c.revealSoundGain, delayMs: o });
       cards.forEach((el, i) => {
-        const delay = Math.max(0, t.enterAt[i]! - offset);
+        const delay = Math.max(0, t.enterAt[rank[i]!]! - offset);
         push(reduced
           ? anim(el, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay, easing: 'ease-out', fill: 'both' })
           : anim(el, [{ opacity: 0, transform: 'translateY(28px) scale(0.86)' }, { opacity: 1, transform: 'none' }],
@@ -209,78 +286,54 @@ export function LobbyReveal(): JSX.Element | null {
       const flightSpan = reduced ? 300 : Math.max(200, t.headAt - t.dimOutAt);
       push(anim(dimRef.current, [{ opacity: 1 }, { opacity: 0 }], { duration: flightSpan, delay: Math.max(0, t.dimOutAt - offset), easing: 'ease-in-out', fill: 'forwards' }));
 
-      at(t.dimOutAt - offset, () => takeOff(offset));
+      at(t.dimOutAt - offset, () => { land([REVEAL_TOKEN_RAIL]); takeOff(offset); });
       at(t.headAt - offset, () => {
-        for (const el of targets.heads) {
-          unhide(el, hidden);
+        land([REVEAL_TOKEN_HEAD]);
+        for (const sel of ['.lobbyrailhead', '.lobbyrailtab', '.vsfoe-roundline']) {
+          const el = document.querySelector(sel);
           push(reduced
             ? anim(el, [{ opacity: 0 }], { duration: 300, easing: 'ease-out' })
-            : anim(el, [{ opacity: 0, transform: 'translateY(-10px) scale(1.06)' }], { duration: c.headSettleMs || 1, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1.15)' }));
+            : anim(el, [{ opacity: 0, transform: 'translateY(-8px) scale(0.96)' }], { duration: c.headSettleMs || 1, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' }));
         }
       });
       at(t.endAt - offset, () => finish(false));
     };
 
-    // TAKE-OFF: one read pass (every portrait, every slot), then every flight scheduled at once from those numbers.
-    const takeOff = (offset: number): void => {
-      hideAll(); // a slot that mounted late is caught here, with the same single read pass below
-      const rr = root.getBoundingClientRect();
-      const o = { left: rr.left, top: rr.top, k: root.offsetWidth ? rr.width / root.offsetWidth : 1 };
-      const from = faces.map((f) => (f ? rectIn(f.getBoundingClientRect(), o) : null));
-      // Each portrait lands on the slot's FACE (the rail row's portrait), not the middle of the whole row.
-      const faceIn = (s: HTMLElement): HTMLElement => {
-        for (const sel of REVEAL_FACE_SELECTORS) { const el = s.querySelector<HTMLElement>(sel); if (el) return el; }
-        return s;
-      };
-      const to = targets.slot.map((s) => (s ? rectIn(faceIn(s).getBoundingClientRect(), o) : null));
-      const now = t.dimOutAt - offset;
-      if (c.whooshGain > 0) {
-        sfx.ceremony('woosh1', c.whooshGain);
-        if (n > 3 && !reduced) at(t.flyAt[Math.floor(n / 2)]! - offset - now, () => sfx.ceremony('woosh2', c.whooshGain * 0.8));
-      }
-      // The rail builds TOP DOWN: the take-off order is the slots' order on screen, not the line-up's.
-      const order = flightOrder(to);
-      cards.forEach((card, i) => {
-        const k = order[i]!;
-        const delay = Math.max(0, t.flyAt[k]! - offset - now);
-        const land = Math.max(0, t.landAt[k]! - offset - now);
-        const f = from[i], d = to[i], face = faces[i];
-        const showEl = targets.show[i] ?? null;
-        if (reduced || !f || !d || d.width <= 0) {
-          // No slot on screen (or reduced motion): the portrait just fades where it stands, its slot fades in.
-          push(anim(card, [{ opacity: 1 }, { opacity: 0 }], { duration: reduced ? 300 : c.landMs || 200, delay, easing: 'ease-in', fill: 'forwards' }));
-          at(delay, () => { unhide(showEl, hidden); push(anim(showEl, [{ opacity: 0 }], { duration: 300, easing: 'ease-out' })); });
-          return;
-        }
-        push(anim(labels[i], [{ opacity: 1 }, { opacity: 0 }], { duration: 160, delay, easing: 'ease-in', fill: 'forwards' }));
-        push(anim(face, arcKeyframes(f, d, c.arcHeight), { duration: c.flyMs, delay, easing: 'linear', fill: 'forwards' }));
-        // The crossfade: the flying portrait fades as the slot under it fades in.
-        push(anim(face, [{ opacity: 1 }, { opacity: 0 }], { duration: c.landMs || 1, delay: land, easing: 'ease-out', fill: 'forwards' }));
-        at(land, () => {
-          // A Duos team slot appears with its FIRST member; the second lands into it already shown.
-          if (showEl && hidden.some((h) => h.el === showEl)) {
-            unhide(showEl, hidden);
-            push(anim(showEl, [{ opacity: 0 }], { duration: Math.max(1, c.landMs), easing: 'ease-out' }));
-          }
-        });
-      });
+    // The line-up starts once every portrait is decoded (the boot gate has normally done it already, so no frame ever
+    // shows a blank disc) AND it stands in rail order. At most ~500 ms; the cards sit invisible meanwhile.
+    const urls = play.entries.map((e) => portraitOf(e)).filter((u): u is string => !!u);
+    const t0 = performance.now();
+    let waits = 2;
+    let started = false;
+    const ready = (): void => {
+      if (started || dead || --waits > 0) return;
+      started = true;
+      begin(Math.min(t.enterAt[0]!, performance.now() - t0));
     };
-
-    if (ready) begin(0);
+    const giveUp = (): void => { if (started || dead) return; waits = 1; ready(); };
+    if (urls.every((u) => artReady(u))) ready();
     else {
       for (const u of urls) requestArt(u, 'now');
-      const t0 = performance.now();
-      let started = false;
-      const go = (): void => { if (started) return; started = true; begin(Math.min(t.enterAt[0]!, performance.now() - t0)); };
-      void whenArtReady(urls).then(go);
-      at(500, go);
+      void whenArtReady(urls).then(ready);
     }
+    const found = (): boolean => { targets = findTargets(play); return targets.slot.every(Boolean); };
+    if (found()) { lineUp(); ready(); }
+    else {
+      let tries = 0;
+      const retry = (): void => {
+        if (dead) return;
+        if (found() || ++tries > 30) { lineUp(); ready(); return; }
+        requestAnimationFrame(retry);
+      };
+      requestAnimationFrame(retry);
+    }
+    at(500, giveUp);
 
     return () => {
       dead = true;
       for (const id of timers) window.clearTimeout(id);
       for (const a of anims) { try { a.cancel(); } catch { /* ignore */ } }
-      restoreAll(hidden);
+      setLanded(null);
     };
   }, [active, seq]);
 
@@ -329,11 +382,14 @@ export function LobbyReveal(): JSX.Element | null {
   }
 
   return (
-    // A click anywhere skips. No cursor rule here: the game's gauntlet (body default) stays in charge.
-    <div className={`lhr${play.entries.length > 6 ? ' many' : ''}`} style={vars} ref={rootRef} key={seq}
-      onPointerDown={() => finish(true)} role="presentation" aria-label="The players in this game">
+    // Clicks land on this layer and do nothing (the reveal is unskippable). No cursor rule here: the game's gauntlet
+    // (body default) stays in charge.
+    <div className={`lhr${play.entries.length > 6 ? ' many' : ''}${play.layout === 'duel' ? ' duel' : ''}`} style={vars} ref={rootRef} key={seq}
+      role="presentation" aria-label="The players in this game">
       <div className="lhr-dim" ref={dimRef} />
       {stage}
+      {/* The landing flashes: one static gold edge per seat, placed on its slice at take-off, faded by opacity. */}
+      {play.entries.map((e) => <div className="lhr-flash" key={`f${e.seatId}`} data-seat={e.seatId} aria-hidden="true" />)}
     </div>
   );
 
@@ -342,22 +398,17 @@ export function LobbyReveal(): JSX.Element | null {
   }
 }
 
-function restoreAll(hidden: Hidden[]): void {
-  for (const h of hidden.splice(0)) {
-    if (h.prev == null) h.el.removeAttribute(ATTR); else h.el.setAttribute(ATTR, h.prev);
-  }
-}
-
 /**
- * The reveal is over, played out or skipped. The Good Luck words play now (owner 2026-10-31: "the start game text should
- * happen after the animation is complete"; they have been waiting behind the reveal, and with them the shop clock), unless
- * the tuner's "Good Luck after" is off. Good Luck is told FIRST, so it never schedules a pass it would cancel a moment
- * later. In Versus the round-1 clock is the server's: it starts once EVERY player's intro is over (`ackIntro`), so a
- * skip here only ends this screen's visuals; the shared start still waits for the others.
+ * The reveal is over (played out, or cut short only by leaving to the title). The Good Luck words play now (owner 2026-10-31: "the start game text should
+ * happen after the animation is complete"; they have been waiting behind the reveal, and with them the shop clock and any
+ * turn-1 offer), unless the tuner's "Good Luck after" is off. Good Luck is told FIRST, so it never schedules a pass it
+ * would cancel a moment later. In Versus the round-1 clock is the server's: it starts once EVERY player's intro is over
+ * (`ackIntro`), so the shared start waits for the slowest player's reveal and words.
  */
 function finish(skip: boolean): void {
   if (!lobbyReveal.isActive()) return;
   const play = lobbyReveal.play();
   if (!play?.spectator && !getLobbyRevealConfig().goodLuckAfter) goodLuckIntro.end();
+  setLanded(null);
   lobbyReveal.end({ skip });
 }

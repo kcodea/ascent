@@ -49,6 +49,8 @@ export function installPerfBench(): void {
     // The Versus test bots (2026-10-25, the Duos swap measurement): a bench build seats its own bots, as the dev tuner does.
     bots: () => import('./versus/versusBot'),
     sim: () => import('@game/sim'),
+    // THE LOBBY REVEAL (2026-10-31): start it over a hand-set run (a Versus 1v1 screen offline) for a frame capture.
+    lobbyReveal: () => Promise.all([import('./lobbyReveal/beginLobbyReveal'), import('./lobbyReveal/lobbyRevealStore')]).then(([b, s]) => ({ ...b, ...s })),
     db: () => import('./remoteBoards').then((m) => m.supabaseClient()),
   };
 }

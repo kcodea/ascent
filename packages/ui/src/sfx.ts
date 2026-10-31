@@ -2257,6 +2257,8 @@ export const sfx = {
   },
   /** Start fetching the tick clip ahead of the count, so FIVE never falls back to the synth on a cold bank. */
   warmTurnTick: () => { for (let n = 1; n <= 5; n++) loadSample(turnTickClip(n)); },
+  /** THE LOBBY REVEAL (2026-10-31): decode its clips while the launch curtain covers the run build, so the first lock's thud is never late. */
+  warmClips: (names: readonly string[]): void => { for (const n of names) loadSample(n); },
   // The turn timer hits ZERO — the last instant the shop is usable (actions lock); syncs with the charge glyph's
   // completion flash. A heavier "end-turn explosion" than the charge build. Sourced "turnexplosion" clip; synth
   // boom fallback until it decodes. Drop the clip at `packages/ui/src/audio/turnexplosion.mp3`.

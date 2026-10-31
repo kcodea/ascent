@@ -68,23 +68,24 @@ describe('the Good Luck overlay', () => {
     expect(m.container.querySelector('.gli')).toBeNull();
   });
 
-  it('Esc skips straight to the game, and the press does not reach the Esc menu', () => {
+  // UNSKIPPABLE (owner 2026-10-31: "make the start game text unskippable").
+  it('Esc does not skip it, and the press does not reach the Esc menu either', () => {
     m = mount(<GoodLuckIntro />);
     act(() => goodLuckIntro.begin());
     const menu = vi.fn();
     window.addEventListener('keydown', menu);
     act(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
     window.removeEventListener('keydown', menu);
-    expect(goodLuckIntro.isActive()).toBe(false);
+    expect(goodLuckIntro.isActive()).toBe(true);
     expect(menu).not.toHaveBeenCalled();
   });
 
-  it('a click skips straight to the game', () => {
+  it('a click does not skip it', () => {
     m = mount(<GoodLuckIntro />);
     act(() => goodLuckIntro.begin());
     const el = m.container.querySelector('.gli') as HTMLElement;
     act(() => { el.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
-    expect(goodLuckIntro.isActive()).toBe(false);
+    expect(goodLuckIntro.isActive()).toBe(true);
   });
 
   it('leaving to the title never strands the clock held', () => {
@@ -118,19 +119,20 @@ describe('the Good Luck sounds (owner 2026-09-24: "it needs a sound effect")', (
     expect(snd.spark).not.toHaveBeenCalled();
   });
 
-  it('Esc stops both sounds (the queued shine never rings)', () => {
+  it('an early end (leaving to the title) stops both sounds (the queued shine never rings)', () => {
     m = mount(<GoodLuckIntro />);
     act(() => goodLuckIntro.begin());
-    act(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    act(() => useGame.setState({ showTitle: true }));
     expect(snd.stops.shine[0]).toHaveBeenCalledTimes(1);
     expect(snd.stops.spark[0]).toHaveBeenCalledTimes(1);
   });
 
-  it('a click stops them too', () => {
+  it('Esc and a click leave the sounds playing (nothing skips the words)', () => {
     m = mount(<GoodLuckIntro />);
     act(() => goodLuckIntro.begin());
+    act(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
     act(() => { (m!.container.querySelector('.gli') as HTMLElement).dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
-    expect(snd.stops.shine[0]).toHaveBeenCalledTimes(1);
+    expect(snd.stops.shine[0]).not.toHaveBeenCalled();
   });
 
   it('the natural end lets the shine ring out (no stop)', () => {

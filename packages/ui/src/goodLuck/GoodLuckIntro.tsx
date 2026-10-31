@@ -3,6 +3,7 @@ import { useGame } from '../store';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { sfx, type SfxHandle } from '../sfx';
 import { goodLuckIntro, useGoodLuckIntroActive, useGoodLuckIntroSeq } from './goodLuckIntroStore';
+import { useLobbyRevealActive } from '../lobbyReveal/lobbyRevealStore';
 import { GLI_DEFAULTS, GLI_REPLAY_EVENT, getGoodLuckIntroConfig, goodLuckTail, goodLuckTimeline } from './goodLuckIntroConfig';
 import './goodLuckIntro.css';
 
@@ -16,7 +17,8 @@ import './goodLuckIntro.css';
  *   →  a single shine sweeps the words left to right  →  hold  →  words + dim fade to the live board  →  end.
  *
  * `end()` releases the shop clock (Recruit's countdown gate reads the same store), so the turn starts at full
- * time on the first frame of the live board. Esc or a click anywhere skips straight there.
+ * time on the first frame of the live board. UNSKIPPABLE (owner 2026-10-31: "make the start game text unskippable"):
+ * a click or Esc does nothing while it plays (Esc is swallowed so the menu does not open under it). It is short.
  *
  * Perf contract: every animation is transform / opacity on a composited layer, scheduled up front through WAAPI
  * with delays, so there is no per-frame JS at all. The glow is a STATIC filter on the words, rasterized once.
@@ -60,6 +62,15 @@ export function GoodLuckIntro(): JSX.Element | null {
   const active = useGoodLuckIntroActive();
   const seq = useGoodLuckIntroSeq();
   const showTitle = useGame((s) => s.showTitle);
+  // THE LOBBY REVEAL (owner 2026-10-31: "the start game text should happen after the animation is complete"): while the
+  // heroes are shown and fly to the rail, the words wait (and the shop clock with them: this store stays active). They
+  // then play over a board the reveal has already brought back to light, so their dim fades IN instead of standing.
+  const revealing = useLobbyRevealActive();
+  const afterReveal = useRef(false);
+  const seenSeq = useRef(-1);
+  if (seenSeq.current !== seq) { seenSeq.current = seq; afterReveal.current = false; }
+  if (active && revealing) afterReveal.current = true;
+  const waiting = active && revealing;
 
   const dimRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -84,23 +95,23 @@ export function GoodLuckIntro(): JSX.Element | null {
   useEffect(() => { if (active && showTitle) goodLuckIntro.end(); }, [active, showTitle]);
   useEffect(() => () => goodLuckIntro.end(), []);
 
-  // Esc skips. Capture phase + stopPropagation so the same press does not also open the Esc menu underneath.
+  // Unskippable: Esc is swallowed (capture phase + stopPropagation) so it neither ends the words nor opens the Esc menu
+  // underneath. Leaving to the title (above) and a dev replay are the only early ends.
   useEffect(() => {
-    if (!active) return;
+    if (!active || waiting) return;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
       e.preventDefault();
       e.stopPropagation();
-      goodLuckIntro.end();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [active]);
+  }, [active, waiting]);
 
   // THE ONE PASS. Layout effect so every animation is scheduled before the overlay's first paint (the words must
   // never flash at full opacity for a frame). Keyed on `seq` so a replay restarts it cleanly.
   useLayoutEffect(() => {
-    if (!active) return;
+    if (!active || waiting) return;
     const c = getGoodLuckIntroConfig();
     const reduced = prefersReducedMotion();
     const t = goodLuckTimeline(c, reduced);
@@ -117,6 +128,8 @@ export function GoodLuckIntro(): JSX.Element | null {
     sounds.push(sfx.goodLuckShine(c.shineSoundGain, t.shineSoundAt, goodLuckTail(c, 'shine')));
 
     // The dim is already at full strength (static CSS), so the curtain lifts onto a dimmed board. It only fades OUT.
+    // After a lobby reveal the board is already lit: the dim fades in with the words instead.
+    if (afterReveal.current) anim(dimRef.current, [{ opacity: 0 }, { opacity: 1 }], { duration: c.fadeInMs, delay: t.inAt, easing: 'ease-out', fill: 'backwards' });
     anim(dimRef.current, [{ opacity: 1 }, { opacity: 0 }], { duration: c.fadeOutMs, delay: t.outAt, easing: 'ease-in', fill: 'forwards' });
 
     const stage = stageRef.current;
@@ -165,9 +178,9 @@ export function GoodLuckIntro(): JSX.Element | null {
       for (const id of timers) window.clearTimeout(id);
       if (!endedNaturally) for (const h of sounds) h?.stop();
     };
-  }, [active, seq]);
+  }, [active, seq, waiting]);
 
-  if (!active) return null;
+  if (!active || waiting) return null;
   const c = getGoodLuckIntroConfig();
   const vars = {
     '--gli-dim': String(c.dimOpacity),
@@ -175,8 +188,9 @@ export function GoodLuckIntro(): JSX.Element | null {
   } as CSSProperties;
 
   return (
-    // A click anywhere skips. No cursor rule here: the game's gauntlet (body default) stays in charge.
-    <div className="gli" style={vars} onPointerDown={() => goodLuckIntro.end()} role="presentation" key={seq}>
+    // Clicks land on this layer and do nothing (the words are unskippable). No cursor rule here: the game's gauntlet
+    // (body default) stays in charge.
+    <div className="gli" style={vars} role="presentation" key={seq}>
       <div className="gli-dim" ref={dimRef} />
       <div className="gli-stage" ref={stageRef}>
         <div className="gli-row">

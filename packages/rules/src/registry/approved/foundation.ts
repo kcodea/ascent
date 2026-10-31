@@ -1788,7 +1788,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'The two Good Luck intro sounds (the shine and the spark sparkle) each fade to silence over their last few '
       + 'hundred ms (tunable, 300 ms shine / 350 ms spark by default) and carry a subtle reverb tail (wet 0.2, '
       + '0.7 s) that rings on after the clip ends. The intro ending on its own never stops them, so the tails ring '
-      + 'out over the live board. A skip (Esc, a click, a replay, leaving) fades whatever is still sounding in '
+      + 'out over the live board. An early end (a dev replay, leaving; Esc and clicks no longer skip the words since 2026-10-31, R-LOBBY-REVEAL-01) fades whatever is still sounding in '
       + 'about 120 ms rather than cutting it. Every node of a play is disconnected once its tail (or the skip '
       + 'fade) is done, so plays never pile up.',
     domain: 'foundation',
@@ -1809,6 +1809,30 @@ export const FOUNDATION_RULES: GameRule[] = [
       refs: ['packages/ui/src/audio/tailFade.test.ts', 'packages/ui/src/goodLuck/GoodLuckIntro.test.tsx'],
       lastVerifiedAt: '2026-09-24',
     },
+  },
+  {
+    id: 'R-LOBBY-REVEAL-01',
+    title: 'Game start shows every hero in the game, flown to the rail, before the Good Luck words and before any clock',
+    statement:
+      'After Start Game in a lobby, Practice or any Versus match, every hero in the game is shown centre stage with its '
+      + 'player name (you highlighted; Duos teammates side by side; a 1v1 as two heroes facing off), in the rail\x27s top-to-bottom '
+      + 'order, and a light sweeps across them. The round slice opens, then every portrait flies to its slice together and the '
+      + 'slices lock in top to bottom (in a 1v1, to the opponent block and your own portrait); nothing of the rail shows before its portrait. The '
+      + 'Good Luck words play after it, and the shop clock and every opening offer (a hero\x27s turn-1 Discover, a hero '
+      + 'quest) hold until they are over. Neither the reveal nor the words can be skipped. In Versus the round-1 clock '
+      + 'is the server\x27s and starts only when every player\x27s intro is over. Spectators who watched the Hero Select see it; late joiners do not. '
+      + 'Never in the Scene Builder, God Mode, the tutorial, a Gauntlet or a replay. Settings "Lobby reveal" turns it off. '
+      + 'Presentation only: transform / opacity animations, layout read once at take-off.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31', quote: 'all the heroes in the lobby are shown and then all portraits fly over and build the rail' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31', quote: 'The hero reveal animation should happen before any timers obviously' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyReveal/ (LobbyReveal.tsx, lobbyRevealModel.ts, lobbyRevealStore.ts); packages/ui/src/goodLuck/GoodLuckIntro.tsx (waits while the reveal plays); packages/ui/src/hero-select/HeroLaunchCurtain.tsx (begins it); packages/ui/src/versus/versusStore.ts ackIntro (unchanged: acks when Good Luck ends)' },
+    ],
+    currentBehaviour: 'Built 2026-10-31 (feat/lobby-hero-reveal).',
+    example: 'Kev presses Start Game in Practice: seven opponents and his own hero stand in a line with their player names, then each flies to its rail row, the round header settles, and the Good Luck words play before his first turn timer starts.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyReveal/LobbyReveal.test.tsx', 'packages/ui/src/lobbyReveal/lobbyRevealModel.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
   {
     id: 'R-PRESENT-18',

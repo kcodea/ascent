@@ -94,7 +94,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The DOWN-RANK hit (owner-authored 2026-09-21): a shockwave off the crest, then a blue→orange shard fall as
   // the old crest drops — fired by the post-game rank timeline at every demotion beat (division and medal).
   'down-rank': ['rank/rankTimeline.ts'],
-  'hero-power-spark': ['StatusBar.tsx', 'pings/PingLayer.tsx'],
+  'hero-power-spark': ['StatusBar.tsx', 'lobbyReveal/LobbyReveal.tsx', 'pings/PingLayer.tsx'],
   'hero-power-target': ['Recruit.tsx'],
   'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'choreo/channels/impact.ts'],
   // IMMUNE WHILE ATTACKING (owner 2026-10-18): the shield's formation motes, its deflect sparks and its outward
@@ -137,7 +137,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // THE DISCOVER ENTRANCE (2026-09-25): the golden dust under each arriving Discover / Choose One option, and the glints
   // over its face.
   'discover-arrive': ['discoverEntrance/entrance.ts'],
-  'discover-glint': ['discoverEntrance/entrance.ts'],
+  // THE LOBBY REVEAL (2026-10-31): the sweep's glints over each line-up portrait, and the lock-in's sparkle pop.
+  'discover-glint': ['discoverEntrance/entrance.ts', 'lobbyReveal/LobbyReveal.tsx'],
   // THE RUNEFORGE ENTRANCE (2026-09-24): the dust puff under each landing rune tablet, the embers off the forge
   // floor as it opens, and the Epic forge's flare as its last tablet lands.
   'runeforge-embers': ['runeforgeEntrance/entrance.ts'],

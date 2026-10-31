@@ -114,7 +114,7 @@ describe('every HUD control takes the pointer only through its shape (R-HIT-SHAP
   });
 
   it('corner plaques: the hit covers the plaque AND its hard bottom edge, and counter-moves the hover lift (no edge flicker)', () => {
-    const sel = ':is(.gearbtn, .bookbtn, .rulesbtn, .fdock-btn)';
+    const sel = ':is(.gearbtn, .bookbtn, .guidesbtn, .fdock-btn)';
     expect(bodyOf(sel)).toMatch(/pointer-events:\s*none/);
     expect(bodyOf(`${sel}::before`)).toMatch(/inset:\s*-1\.5px -1\.5px calc\(-1\.5px - 4px\)/);
     // the plaque lifts 2px on hover and drops 3px on press (styles.css); the hit layer moves back by the same

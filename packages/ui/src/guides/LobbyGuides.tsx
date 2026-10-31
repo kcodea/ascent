@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { Tribe } from '@game/core';
+import { GameScroll } from '../GameScroll';
 import { Icon } from '../Icon';
 import { toStage } from '../stage';
 import { useGame } from '../store';
@@ -81,7 +82,8 @@ export const LobbyGuides = memo(function LobbyGuides({ guides, mine, bookmarked,
   }, [mode]);
   if (guides.length === 0 && mine.length === 0 && bookmarked.length === 0) return <div className="lobbyguides"><div className="lobbyguides-empty">No guides for this game yet.</div></div>;
   return (
-    <div className="lobbyguides" ref={listRef}>
+    // The game's own scrollbar (R-UI-SCROLLBAR-01; owner 2026-10-31: the corner panel "scrolls inside with the GameScroll bar").
+    <GameScroll className="lobbyguides" outerClassName="lobbyguides-wrap" viewRef={listRef}>
       <div className="lobbyguide-unitrow lobbyguides-probe" ref={probeRef} aria-hidden="true"><div className="lobbyguide-unit"><div className="lobbyguide-unitscale" /></div></div>
       {/* Data order keeps each tribe's builds together; the tribe itself is on each card (owner 2026-10-09: no group
           headings, "we reference the tribes in the card"). */}
@@ -101,7 +103,7 @@ export const LobbyGuides = memo(function LobbyGuides({ guides, mine, bookmarked,
         <GuideRow key={g.id} guide={g} tribes={tribes} open={open === g.id} full={mode === 'full'} onMode={onMode} editable={false}
           onToggle={() => { userOpened.current = open !== g.id; setOpen((o) => (o === g.id ? null : g.id)); }} />
       ))}
-    </div>
+    </GameScroll>
   );
 });
 

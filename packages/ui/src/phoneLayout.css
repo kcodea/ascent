@@ -128,7 +128,7 @@ html[data-phone-layout] .inspect-card .card.compact.plated .drawer { padding-lef
 /* ── The lobby rail: same rail, its names and Health about 9 pt (the tuner vars are set on the rail itself). ──── */
 /* Rail, its header and its Guides tab share one geometry: 12 ref px off the box's right edge (desktop clamps the
    growth to the window edge, which drifts with the aspect), its left edge clear of End Turn. */
-html[data-phone-layout] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --lby-w: 318; --lr-right: calc(12px * var(--scale)); --lby-y: 66; }
+html[data-phone-layout] :is(.lobbyrail, .lobbyrailhead) { --lby-w: 318; --lr-right: calc(12px * var(--scale)); --lby-y: 66; }
 html[data-phone-layout] .lobbyrail { --lby-name-size: 2.5; --lby-hp-size: 2.3; }
 
 /* ── The opponent in combat has its own lane, clear of the enemy row: the portrait block in the right column's top
@@ -149,13 +149,12 @@ html[data-phone-layout] .statusbar .hpbox { zoom: 1.25; }
 /* The help / Compendium / settings squares: a row in the bottom-right corner of the box (in hero select and the run;
    the menus keep their own corner, touchUi.css). */
 html[data-phone-layout] { --pl-cb: calc(140px * var(--scale)); }
-html[data-phone-layout]:not([data-phone-menus]) :is(.gearbtn, .bookbtn, .rulesbtn) { width: var(--pl-cb); height: var(--pl-cb); bottom: auto; right: auto; top: calc(var(--bar-y) + 1290px * var(--scale)); }
+html[data-phone-layout]:not([data-phone-menus]) :is(.gearbtn, .bookbtn) { width: var(--pl-cb); height: var(--pl-cb); bottom: auto; right: auto; top: calc(var(--bar-y) + 1290px * var(--scale)); }
 html[data-phone-layout]:not([data-phone-menus]) .gearbtn { left: calc(var(--bar-x) + 2725px * var(--scale)); }
 html[data-phone-layout]:not([data-phone-menus]) .bookbtn { left: calc(var(--bar-x) + 2570px * var(--scale)); }
-html[data-phone-layout]:not([data-phone-menus]) .rulesbtn { left: calc(var(--bar-x) + 2415px * var(--scale)); }
 /* The build label is on the title; in a game on a phone it would crowd the corner squares. */
 html[data-phone-layout]:not([data-phone-menus]) .version { display: none; }
-html[data-phone-layout]:not([data-phone-menus]) :is(.gearbtn, .bookbtn, .rulesbtn) img { width: calc(var(--pl-cb) * 0.75); height: calc(var(--pl-cb) * 0.75); }
+html[data-phone-layout]:not([data-phone-menus]) :is(.gearbtn, .bookbtn) img { width: calc(var(--pl-cb) * 0.75); height: calc(var(--pl-cb) * 0.75); }
 
 
 /* ── Hero select (the offer): each hero's power reads under its portrait without a tap (Hearthstone shows it the
@@ -201,7 +200,6 @@ html[data-phone-layout] .fr-odds-dmg-label { font-size: calc(16 * var(--u)); }
 html[data-phone-layout] .combatopp-tier { zoom: 1.45; }
 html[data-phone-layout] :is(.combatopp-name, .combatopp-hp) { zoom: 1.35; }
 html[data-phone-layout][data-touch-ui] .statcell .timermult { scale: calc(var(--touch-k) * 1.85); }
-html[data-phone-layout][data-touch-ui] .lobbyrailtab { scale: calc(var(--touch-k) * 1.6); }
 html[data-phone-layout][data-touch-ui] .escvol input[type='range'] { height: calc(36px * var(--touch-k)); }
 /* End Turn says what it does on desktop hover; on a phone its ready label is a 5 pt caption over the board. */
 html[data-phone-layout] .etbwrap .etb-tip { visibility: hidden; }
@@ -230,9 +228,8 @@ html[data-phone-layout] .colls-body { overflow-y: auto; }
 /* Its category tabs break between words only ("Attack Animations" was splitting mid-word), a size smaller to fit. */
 html[data-phone-layout] .colls-tab-name { overflow-wrap: normal; font-size: 11.5px; letter-spacing: 0.02em; }
 /* On a sidebar page the help / Compendium squares sit in the top-right corner, above the page, not over its content. */
-html[data-phone-layout][data-phone-sbpage] :is(.rulesbtn, .bookbtn) { bottom: auto; top: calc(var(--safe-t) + 6px * var(--touch-inv-s)); }
+html[data-phone-layout][data-phone-sbpage] .bookbtn { bottom: auto; top: calc(var(--safe-t) + 6px * var(--touch-inv-s)); }
 html[data-phone-layout][data-phone-sbpage] .bookbtn { right: calc(var(--safe-r) + 6px * var(--touch-inv-s)); }
-html[data-phone-layout][data-phone-sbpage] .rulesbtn { right: calc(var(--safe-r) + 44px * var(--touch-inv-s)); }
 /* The title's small links (Report a Problem) and build stamp: a finger-sized link and a readable stamp. */
 html[data-phone-layout] .titlefoot .titlesecondary button { font-size: 20px; padding: 14px 10px; }
 html[data-phone-layout] .titlefoot .titleversion { font-size: 18px; }

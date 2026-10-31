@@ -42,10 +42,10 @@ html[data-touch-ui] .dm-report { opacity: 0.8; }
   font-variant-numeric: tabular-nums; pointer-events: none; }
 .fdock-row .dm-unread { flex: none; margin-left: auto; }
 
-/* The toast: just above the Friends button, bottom right, its right edge on the button's (R-FRIENDS-DOCK-05; the slot
-   numbers are friendsDock.css's `--fdock-r` / `--fdock-b`). */
-.dm-toast.vspanel { position: fixed; z-index: 482; right: var(--fdock-r); bottom: calc(var(--fdock-b) + var(--fdock-cb) + 10px);
-  width: 320px; min-width: 0; max-width: calc(var(--lvw, 100vw) - 32px); box-sizing: border-box; padding: 10px 12px; display: flex; align-items: center; gap: 10px;
+/* The toast: just above the Friends button, bottom left, its left edge on the button's (R-CORNER-SPLIT-01; the row's
+   numbers are friendsDock.css's `--fdock-l` / `--fdock-b`). */
+.dm-toast.vspanel { position: fixed; z-index: 482; left: var(--fdock-l); bottom: calc(var(--fdock-b) + var(--fdock-cb) + 10px);
+  width: 320px; min-width: 0; max-width: calc(var(--lvw, 100vw) - var(--fdock-l) - 16px); box-sizing: border-box; padding: 10px 12px; display: flex; align-items: center; gap: 10px;
   text-align: left; animation: dmtoastin 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .dm-toast.vspanel:hover { border-color: rgba(240, 208, 137, 0.75); }
 @keyframes dmtoastin { from { opacity: 0; transform: translateY(12px); } }

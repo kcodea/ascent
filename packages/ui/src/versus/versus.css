@@ -712,12 +712,12 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
 
 /* A SPECTATOR'S OWN LOCAL PANELS (owner 2026-10-16, R-SPECTATE-LOCAL-01): the watch screen is `.app.viewing` (every
    button inert, so nothing the spectator presses reaches the watched game), but these are the SPECTATOR's own and
-   change nothing of the player's: their HUD, the lobby rail (flip to Guides, read and fold their guides, pin a seat's
-   scout card), Versus's Guides plate, and the fight's Summary pill + recap. While the rail is slid away (`.staged`) it
+   change nothing of the player's: their HUD, the lobby rail (pin a seat's scout card), the Guides button and its panel (read and fold their
+   guides), Versus's Guides plate, and the fight's Summary pill + recap. While the rail is slid away (`.staged`) it
    stays inert as for a player; the Versus Guides plate stays inert while its drawer is open, as for a player. */
 .app.viewing.spectating :is(.vsspec) :is(button, [role="button"]),
 .app.viewing.spectating:not(.staged) :is(.lobbyrail, .lobbyrailhead) :is(button, [role="button"]),
-.app.viewing.spectating:not(.staged) .lobbyrailtab,
+.app.viewing.spectating:not(.staged) :is(.guidesbtn, .guidesdock button, .guidesdock [role="button"]),
 .app.viewing.spectating:not(.staged) .vsfoe:not(.guides-open) .vsfoe-guides,
 .app.viewing.spectating .combatsummary,
 .app.viewing.spectating .fr-ov :is(button, [role="button"]) { pointer-events: auto; }

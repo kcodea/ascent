@@ -206,7 +206,7 @@ describe('R-PHONE-PARITY-01: Pixel and iPhone are one experience', () => {
   it('the bottom-edge pieces ride the shared strip in layout px, never the raw inset or screen px', () => {
     const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
     expect(css).toMatch(/\[data-phone-zoom\] \.zone\[data-zone='hand'\] \{ --bar-y: calc\(var\(--pz-safe-b, var\(--safe-b\)\) - 115px \+ 49px\);/);
-    expect(css).toMatch(/\[data-phone-zoom\] :is\(\.gearbtn, \.bookbtn, \.rulesbtn\) \{[^}]*bottom: calc\(var\(--pz-safe-b, var\(--safe-b\)\) \+ 15px\);/);
+    expect(css).toMatch(/\[data-phone-zoom\] :is\(\.gearbtn, \.bookbtn\) \{[^}]*bottom: calc\(var\(--pz-safe-b, var\(--safe-b\)\) \+ 15px\);/);
     expect(css).toContain('--edge-b: var(--pz-safe-b, var(--safe-b));');
     // the lobby rail: the same distance from the right safe edge on every phone (no clamp to the box edge)
     expect(css).toContain("html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lr-right: calc(56px + var(--edge-r) - var(--bar-x));");

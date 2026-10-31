@@ -82,20 +82,20 @@ body.dragging .statusbar .heropanel .heropowerbtn .hpb-artwrap, body.dragging .s
 .statusbar .hero .hpbox { pointer-events: auto; }
 body.dragging .statusbar .hero .hpbox { pointer-events: none; }
 
-/* ── 5. CORNER PLAQUES (Settings, Compendium, Rules, Friends) ───────────────────────────────────────────────────────
+/* ── 5. CORNER PLAQUES (Settings, Compendium, Guides, Friends) ───────────────────────────────────────────────────────
    Each is a rounded square drawn with a 4px hard bottom edge (a box-shadow, which never takes the pointer). The button
    itself is click-through and `::before` covers the rounded square AND its edge (the global `.gtip` bubble owns
    `::after`). On hover the plaque lifts 2px and on press it drops 3px: the hit layer moves back by the same amount, so
    the area under the pointer stays put. */
-:is(.gearbtn, .bookbtn, .rulesbtn, .fdock-btn) { pointer-events: none; }
-:is(.gearbtn, .bookbtn, .rulesbtn, .fdock-btn)::before {
+:is(.gearbtn, .bookbtn, .guidesbtn, .fdock-btn) { pointer-events: none; }
+:is(.gearbtn, .bookbtn, .guidesbtn, .fdock-btn)::before {
   content: ''; position: absolute; inset: -1.5px -1.5px calc(-1.5px - 4px); border-radius: calc(9 * var(--u) + 1.5px); pointer-events: auto;
   /* the plaque's own transition, so the two moves cancel at every instant of the lift, not just at its end */
   transition: translate 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .fdock-btn .fdock-count { pointer-events: auto; }
-:is(.gearbtn, .bookbtn, .rulesbtn, .fdock-btn):hover::before { translate: 0 2px; }
-:is(.gearbtn, .bookbtn, .rulesbtn, .fdock-btn):active::before { translate: 0 -3px; transition-duration: 0.06s; }
+:is(.gearbtn, .bookbtn, .guidesbtn, .fdock-btn):hover::before { translate: 0 2px; }
+:is(.gearbtn, .bookbtn, .guidesbtn, .fdock-btn):active::before { translate: 0 -3px; transition-duration: 0.06s; }
 
 /* ── 6. RUNE AND QUEST BADGES ───────────────────────────────────────────────────────────────────────────────────────
    The rune art is drawn 1.39x and masked back to a disc that ends at the badge's rim, but the <img> itself (a circle

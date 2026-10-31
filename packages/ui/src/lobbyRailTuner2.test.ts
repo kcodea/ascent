@@ -28,7 +28,6 @@ const TARGET: Partial<Record<NumKey, string>> = {
   artZoom: '.lobbyface', artFx: '.lobbyface', artFy: '.lobbyface', artW: '.lrv-docked .lobbyseat', fadeStart: '.lrv-docked .lobbyseat', fadeLen: '.lrv-docked .lobbyseat', fadeStr: '.lrv-docked .lobbyseat', artBright: '.lobbyface',
   nameSize: '.lrv-name', nameWeight: '.lrv-name', nameLines: '.lrv-name', nameX: '.lrv-name', nameY: '.lrv-name', nameShadow: '.lrv-name',
   headX: '.lobbyrailhead', headY: '.lobbyrailhead', headShadow: '.lobbyrailhead',
-  tabX: '.lobbyrailtab', tabY: '.lobbyrailtab', tabScale: '.lobbyrailtab',
   pulseRing: '.lrv-foering', pulseGlow: '.lrv-foering', pulseMin: '0%, 100%', pulseMax: '50%', pulsePeriod: '.lrv-foering',
   cardW: '.lobbyscout.lrv-scout', cardX: '.lobbyscout.lrv-scout', cardY: '.lobbyscout.lrv-scout', cardFont: '.lobbyscout.lrv-scout',
 };

@@ -9,8 +9,8 @@
  * that a variant overrides outright; on phones `phoneLayout.css` / `touchUi.css` re-declare `--lby-*` vars on the rail,
  * which shadows a `:root` value; and fixed multipliers fought the sliders. Tuner 2 fixes that by construction: ONE uniquely
  * named var per paint control (`--lr2-*`), nothing else in the codebase declares any of them, and every one is read by
- * exactly the rule that paints what the control names. The vars live on `:root` because the rail, its header, its Guides
- * tab and the hover card (portaled to <body>) all read them. `lobbyRailTuner2.test.ts` holds that contract, and that
+ * exactly the rule that paints what the control names. The vars live on `:root` because the rail, its header and the
+ * hover card (portaled to <body>) all read them. `lobbyRailTuner2.test.ts` holds that contract, and that
  * every layout dial moves the docked layout.
  *
  * Persistence: localStorage (try/catch), DEV only. Production never imports this module (LobbyPanel loads it under
@@ -48,7 +48,6 @@ export interface LobbyRailTuner2Config {
   // The Health bar (both rails).
   barH: number; barOverlap: number; barInset: number;
   headX: number; headY: number; headShadow: number;
-  tabX: number; tabY: number; tabScale: number;
   pulseRing: number; pulseGlow: number; pulseMin: number; pulseMax: number; pulsePeriod: number;
   cardW: number; cardX: number; cardY: number; cardFont: number;
 }
@@ -67,7 +66,6 @@ export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   dkHeadFont: 1,
   barH: 22, barOverlap: 0, barInset: 0,
   headX: 0, headY: 0, headShadow: 3,
-  tabX: 0, tabY: 0, tabScale: 0.75,
   pulseRing: 1.4, pulseGlow: 1.3, pulseMin: 0.3, pulseMax: 1, pulsePeriod: 1.1,
   cardW: 1, cardX: 0, cardY: 0, cardFont: 1,
 };
@@ -112,9 +110,6 @@ const NUM: Record<NumKey, NumDef> = {
   headX: { v: '--lr2-head-x', group: 'Header (Round / left / max dmg)', label: 'Move left / right', unit: 'px', min: -300, max: 300, step: 1, hint: 'Moves the header text. Positive = right.' },
   headY: { v: '--lr2-head-y', group: 'Header (Round / left / max dmg)', label: 'Move up / down', unit: 'px', min: -200, max: 200, step: 1, hint: 'Moves the header text. Positive = down.' },
   headShadow: { v: '--lr2-head-shadow', group: 'Header (Round / left / max dmg)', label: 'Shadow strength', unit: '×', min: 0, max: 5, step: 0.05, hint: 'How strong the shadow under the header text is. 0 = none.' },
-  tabX: { v: '--lr2-tab-x', group: 'Guides button', label: 'Move left / right', unit: 'px', min: -400, max: 400, step: 1, hint: 'Moves the Guides / Opponents button from its spot. Positive = right.' },
-  tabY: { v: '--lr2-tab-y', group: 'Guides button', label: 'Move up / down', unit: 'px', min: -300, max: 800, step: 1, hint: 'Moves the Guides / Opponents button. Positive = down.' },
-  tabScale: { v: '--lr2-tab-scale', group: 'Guides button', label: 'Size', unit: '×', min: 0.5, max: 2.5, step: 0.01, hint: 'Scales the button: its plate and both icons together.' },
   pulseRing: { v: '--lr2-pulse-ring', group: 'Opponent pulse', label: 'Ring thickness', min: 0, max: 6, step: 0.05, hint: 'The red ring round the player you fight next.' },
   pulseGlow: { v: '--lr2-pulse-glow', group: 'Opponent pulse', label: 'Glow strength', unit: '×', min: 0, max: 3, step: 0.05, hint: 'How far the red glow spreads.' },
   pulseMin: { v: '--lr2-pulse-min', group: 'Opponent pulse', label: 'Dimmest', unit: 'opacity', min: 0, max: 1, step: 0.01, hint: 'The pulse’s low point. Set it equal to Brightest for a steady ring.' },

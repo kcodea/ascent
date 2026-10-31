@@ -7312,20 +7312,24 @@ svg { width: 18px; height: 18px; }
 .gearbtn img { width: calc(30 * var(--u)); height: calc(30 * var(--u)); pointer-events: none; }
 /* The Compendium book, one gear-width + a 10px gap left of the gear (Game.tsx). Same plate as the gear so the
    pair reads as one cluster; the gold art sits inside. `.gtip` (the global hover bubble) names it. */
-.bookbtn, .rulesbtn { position: fixed; bottom: calc(var(--edge-b) + 16px); right: calc(var(--edge-r) + 16px + 40 * var(--u) + 10px); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 85;
+.bookbtn { position: fixed; bottom: calc(var(--edge-b) + 16px); right: calc(var(--edge-r) + 16px + 40 * var(--u) + 10px); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 85;
   /* The main-menu plaque look (owner 2026-09-29, matches .menubtn): navy fill, gold rim, inner bevel, a hard bottom edge. */
   border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease; }
-.bookbtn:hover, .rulesbtn:hover { border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); transform: translateY(-2px); }
-.bookbtn:active, .bookbtn:hover:active, .rulesbtn:active, .rulesbtn:hover:active { transform: translateY(3px) scale(0.97); filter: brightness(0.9); transition-duration: 0.06s;
+.bookbtn:hover { border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); transform: translateY(-2px); }
+.bookbtn:active, .bookbtn:hover:active { transform: translateY(3px) scale(0.97); filter: brightness(0.9); transition-duration: 0.06s;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 0 #0a1526, 0 4px 10px -6px rgba(0, 0, 0, 0.7); }
-.bookbtn img, .rulesbtn img { width: calc(30 * var(--u)); height: calc(30 * var(--u)); pointer-events: none; }
-/* Rules (the golden question mark) sits one more slot left of the book: gear · book · rules, right to left. */
-.rulesbtn { right: calc(var(--edge-r) + 16px + 2 * (40 * var(--u) + 10px)); }
+.bookbtn img { width: calc(30 * var(--u)); height: calc(30 * var(--u)); pointer-events: none; }
+/* NO RULES SQUARE any more (owner 2026-10-31, R-CORNER-SPLIT-01: "have the bottom right only show the compendium and
+   settings"): the Rules page is the Compendium's own Rules tab. */
 /* On the HOME SCREEN (owner 2026-09-29) the book and Rules sit above the title layer (z 450) so they show and
    take clicks there too; everywhere else they keep the gear's z 85. */
-body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451; }
+body:has(.titlescreen) .bookbtn { z-index: 451; }
+/* The title has no gear in the corner (its Settings is a menu plaque), so with Rules gone the book takes the corner itself
+   there rather than leaving a gap (R-CORNER-SPLIT-01). Touch screens: their own square size, the same corner. */
+body:has(.titlescreen) .bookbtn { right: calc(var(--edge-r) + 16px); }
+html[data-touch-ui] body:has(.titlescreen) .bookbtn { right: calc(var(--edge-r) + 16px); }
 /* Build badge — sits just above the gear (scales with --u so it clears the gear at any resolution box). */
 .version { position: fixed; right: calc(var(--edge-r) + 16px); bottom: calc(var(--edge-b) + 16px + 40 * var(--u) + 7px); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
 .version span { font-weight: 600; opacity: 0.7; }
@@ -7369,15 +7373,16 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    part of the same object family as the game rather than a bolted-on tool.
    ========================================================================================================== */
 /* THE DEV CORNER SQUARES (DEV only, owner 2026-10-30, R-DEV-CORNER-01: "put our dev tuner and dev scene builder tuner
-   buttons into a button like this, and put them in the bottom right"): the 🛠️ dev tuning menu and the minimized Scene
-   Builder wear the corner row's plaque (`.gearbtn` / `.bookbtn` / `.rulesbtn` / `.fdock-btn`: navy fill, gold rim,
-   inner bevel, hard bottom edge, the same lift on hover) at the row's size, and take the next squares LEFT of Friends:
-   gear 0, Compendium 1, Rules 2, Friends 3, dev tuner 4, Scene Builder 5. `--cd-slot` is set per button by
-   `useDevCornerSlot` (FriendsDock.tsx), so they close up when the Friends button is absent and step down to the corner
-   with it (slots 1 and 2) where the row is covered. No cursor rule: the global gauntlet paints every button (CLAUDE.md).
-   z 9990: dev tools stay reachable over every layer (curtainLadder.test.ts). */
-.cornerdev { --cd-cb: calc(40 * var(--u)); --cd-slot: 4; position: fixed; z-index: 9990;
-  right: calc(var(--edge-r) + 16px + var(--cd-slot) * (var(--cd-cb) + 10px)); bottom: calc(var(--edge-b) + 16px);
+   buttons into a button like this"; moved BOTTOM LEFT 2026-10-31, R-CORNER-SPLIT-01: "move the dev tool buttons to the
+   bottom left, right of the friends list"): the 🛠️ dev tuning menu and the minimized Scene Builder wear the corner
+   plaque (`.gearbtn` / `.bookbtn` / `.fdock-btn`: navy fill, gold rim, inner bevel, hard bottom edge, the same lift on
+   hover) and take the next squares RIGHT of Friends on the bottom-left row: Friends 0, dev tuner 1, Scene Builder 2.
+   The row's place and size are friendsDock.css's measured `--bl-l` / `--bl-b` / `--bl-cb` (bottomLeft.ts), so the
+   squares follow Friends on every screen and framing; `--cd-slot` is set per button by `useDevCornerSlot`
+   (FriendsDock.tsx), closing up when the Friends button is absent. No cursor rule: the global gauntlet paints every
+   button (CLAUDE.md). z 9990: dev tools stay reachable over every layer (curtainLadder.test.ts). */
+.cornerdev { --cd-cb: var(--bl-cb); --cd-slot: 1; position: fixed; z-index: 9990;
+  left: calc(var(--bl-l) + var(--cd-slot) * (var(--cd-cb) * 1.25)); bottom: var(--bl-b);
   width: var(--cd-cb); height: var(--cd-cb); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; color: #f0d089;
   border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
@@ -7385,18 +7390,16 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 .cornerdev:hover { border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); transform: translateY(-2px); }
 .cornerdev:active, .cornerdev:hover:active { transform: translateY(3px) scale(0.97); filter: brightness(0.9); transition-duration: 0.06s; }
 .cornerdev > svg { width: 62%; height: 62%; pointer-events: none; }
-html[data-touch-ui] .cornerdev { --cd-cb: var(--touch-cb); }
 html[data-touch-ui] .cornerdev > svg { width: 56%; height: 56%; }
-/* A phone in a game (the zoomed stage, touchUi.css): the row's 66 px squares, 74 px apart from the gear's 1897. */
-html[data-touch-ui][data-phone-zoom] .cornerdev { --cd-cb: 66px; right: calc(var(--pz-bxr) + 1920px - 1897px + var(--cd-slot) * 74px); bottom: calc(var(--pz-safe-b, var(--safe-b)) + 15px); }
-/* The phone layout's game screen (phoneLayout.css): the row in bar px from the top left, 155 px apart from the gear's 2725. */
-html[data-phone-layout]:not([data-phone-menus]) .cornerdev { --cd-cb: var(--pl-cb); right: auto; bottom: auto;
-  top: calc(var(--bar-y) + 1290px * var(--scale)); left: calc(var(--bar-x) + (2725px - var(--cd-slot) * 155px) * var(--scale)); }
+/* In a game the row is the corner left of your hero's Health plaque: the dev squares stack UP the edge from Friends
+   (a full hand fills the bottom edge to its right). */
+html[data-bl="game"] .cornerdev { left: var(--bl-l); bottom: calc(var(--bl-b) + var(--cd-slot) * var(--cd-cb) * 1.25); }
+html[data-bl="game"] .devmenu { left: calc(var(--bl-l) + var(--bl-cb) * 1.25); bottom: var(--bl-b); }
 /* Panels open: the tuner square's rim lights, and the count badge says how many. */
 .devmenu-btn.has-open { border-color: rgba(240, 208, 137, 0.95); }
 .devmenu-count { position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--acc); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 10px; line-height: 17px; text-align: center; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
 
-.devmenu { position: fixed; right: calc(var(--edge-r) + 16px + var(--cd-slot, 4) * (40 * var(--u) + 10px)); bottom: calc(var(--edge-b) + 16px + 40 * var(--u) + 10px); z-index: 9991;
+.devmenu { position: fixed; left: calc(var(--bl-l) + var(--cd-slot, 1) * var(--bl-cb) * 1.25); bottom: calc(var(--bl-b) + var(--bl-cb) + 10px); z-index: 9991;
   width: 296px; max-width: calc(var(--lvw, 100vw) - 24px);
   display: flex; flex-direction: column; max-height: min(calc(72 * var(--vh, 1vh)), 620px);
   background: var(--card); border: 2px solid var(--gold); border-radius: 14px; padding: 8px;

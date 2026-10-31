@@ -51,13 +51,13 @@ describe('watching my teammate: no plate up top', () => {
       }
       expect(ui.container.querySelectorAll('button')).toHaveLength(0);
       // The bottom-right portrait is mine while watching, and a click on it comes back.
-      expect(ui.container.querySelector('.duosdock.self .duosdock-name')?.textContent).toBe('Ann');
+      expect(ui.container.querySelector('.duosdock.self .duosdock-cap')?.textContent).toBe('Back to your board');
       act(() => { ui.container.querySelector('[data-duos-mate]')!.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
       expect(view.exitTeammateView).toHaveBeenCalledTimes(1);
     } finally { ui.unmount(); }
   });
 
-  it('clicking MY portrait anywhere (cap, disc or name pill) comes back; one tap is one swap; keyboard too', () => {
+  it('clicking MY portrait anywhere (cap or disc) comes back; one tap is one swap; keyboard too', () => {
     // Owner 2026-10-25: "Clicking your portrait should take you back to your board from viewing your teammates".
     const ui = mount(<><view.TeammateFrame /><DuosMateDock watching /></>);
     const pointerUp = (el: Element, pointerType: string): void => {
@@ -69,7 +69,7 @@ describe('watching my teammate: no plate up top', () => {
     try {
       const dock = ui.container.querySelector('.duosdock.self')!;
       expect(dock.getAttribute('role')).toBe('button');
-      for (const part of ['.duosdock-cap', '.duosdock-disc', '.duosdock-name']) {
+      for (const part of ['.duosdock-cap', '.duosdock-disc']) {
         vi.mocked(view.exitTeammateView).mockClear();
         act(() => { click(ui.container.querySelector(part)!); });
         expect(view.exitTeammateView).toHaveBeenCalledTimes(1);
@@ -92,8 +92,7 @@ describe('watching my teammate: no plate up top', () => {
     const ui = mount(<DuosMateDock watching={false} />);
     try {
       expect(ui.container.querySelector('.duosdock')!.getAttribute('role')).toBeNull();
-      act(() => { ui.container.querySelector('.duosdock-name')!.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
-      expect(view.enterTeammateView).not.toHaveBeenCalled();
+      expect(ui.container.querySelector('.duosdock-name')).toBeNull(); // no name pill (R-DUOS-DOCK-FOOT-01)
       act(() => { ui.container.querySelector('[data-duos-mate]')!.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
       expect(view.enterTeammateView).toHaveBeenCalledTimes(1);
       expect(view.exitTeammateView).not.toHaveBeenCalled();

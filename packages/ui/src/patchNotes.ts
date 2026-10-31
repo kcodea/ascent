@@ -58,6 +58,19 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-31',
     changes: [
+      { category: 'Systems', text: 'The corner buttons moved. Bottom right now holds only the Compendium and Settings.', details: [
+        'The Friends button is back in the bottom left. On menu pages it sits just above Settings.',
+        'In a game it sits in the corner beside your Health.',
+        'Rules now live in the Compendium, on its Rules tab.',
+      ] },
+      { category: 'Systems', text: 'Guides have a new button in the bottom right, above Settings.', details: [
+        'Press it and the guides list grows up out of the button. Press it again, or Esc, to close it.',
+        'The player list always shows the players now. It no longer flips to the guides.',
+      ] },
+      { category: 'Systems', text: 'Duos: your teammate portrait is bigger and easier to reach.', details: [
+        'It sits under the Gold coin, at the foot of the player list.',
+        'No more name or Teammate label on it. Drag a card onto it to pass, or click it to watch their board.',
+      ] },
       { category: 'Systems', text: "Buttons now respond exactly where they're drawn.", details: [
         'Tier up, Freeze, Refresh, End Turn, your hero powers, Equipment, runes, quests, the turn clock and the corner buttons light up and click only on their art, not on the empty box around them.',
         'The Tier and Freeze labels and the Gold cost chips now press their button too.',

@@ -94,8 +94,6 @@ export interface DockLayout {
   /** Below (the wrap): the height of the round slice's band above the pill, and how far the pill bites into the part
    *  beside it, px (the slice lays its text out in those two open areas). Absent in the other modes. */
   wrap?: { topH: number; bandX: number };
-  /** The Guides tab's top-left (under the stack). */
-  tab: { x: number; y: number };
 }
 
 interface Shape { kind: 'circle' | 'diamond'; cx: number; cy: number; rx: number; ry: number }
@@ -263,5 +261,5 @@ export function dockedLayout(a: DockAnchors, live: readonly string[], dead: read
     head = slice('__head', false, L, ht, W, Math.max(20 * s, hb - ht), L, shapes, 3 * s);
   }
 
-  return { s, panels, head, ...(wrap ? { wrap } : {}), tab: { x: R - 40 * s, y: B + 8 * s } };
+  return { s, panels, head, ...(wrap ? { wrap } : {}) };
 }

@@ -1247,7 +1247,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   and Start game appears for the host once three are seated.
 - **In the game** (R-VERSUS-GROUP-03). The 1v1 opponent block is replaced by the ordinary ranked lobby rail: one row
   per player (you included) on their Health and Armor with the round's Max dmg above it, your opponent this round marked, the players out below with
-  their placement, hover/pin scouting and the Guides tab. While the round has a copy fight a last row reads
+  their placement and hover/pin scouting; Guides open from the bottom-right Guides square. While the round has a copy fight a last row reads
   "Copy of <name>" (who is copied changes each round); when you face it, the fight names "Copy of <name>" and shows
   the copied board. The End Turn / End Combat pill counts every player still in ("Players ready 3/4"; "Everyone else
   is ready" when you are the last back). A pause names whoever disconnected. An emote shows on its sender's row.
@@ -1386,13 +1386,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   can fade out their frame from the bottom right, and fade it in eclipsing the player hero in the bottom left";
   R-DUOS-SLOTS-02): while your teammate's board fights on your side, their bottom-right portrait fades out and fades in
   over your own hero, a little up and to the right (a tag-team pair), and goes back when your own board steps in or the
-  fight ends. No "steps in" plate (owner 2026-10-26). **Your teammate's portrait** sits bottom right, the mirror of your
-  own hero bottom left: the same distance in from the corner, their portrait frame and their name pill, the same size
-  unless the lobby rail needs the room (owner 2026-10-26: "the teammate is behind the lobby rail, so we need to modify the
-  size/position of that a bit. we dont need the health there since we have it under the player frame and it's the
-  same"; R-DUOS-VIEW-05): it sits as low as your own Health box, has NO Health box of its own (the team's pool shows once,
-  under your hero), and shrinks only as much as it must to stay clear below the rail (the eight-row Ranked Duos rail is
-  the tall case). **Passing:** drag a
+  fight ends. No "steps in" plate (owner 2026-10-26). **Your teammate's portrait** sits bottom right at the lobby rail's foot
+  (owner 2026-10-31, R-DUOS-DOCK-FOOT-01: "larger and better positioned so that it's easier to see and access. you don't
+  need to have teammate name or anything on the portrait"): the largest disc, up to 80% of your own hero, that fits the
+  room right of a full hand, under the rail's last tile and the Gold coin and left of the Compendium / Settings pair, its
+  bottom on that pair's baseline. Their portrait frame, no "Teammate" cap and no name pill (only "Back to your board"
+  while you watch them, and "Away"), and NO Health box (R-DUOS-VIEW-05: the team's pool shows once, under your hero). **Passing:** drag a
   hand card onto it: it glows teal when the pass is allowed and shows a red ring with the reason when not; a refused
   drop springs back. On release the card dissolves where it was into arcane dust and a teal stream rises off it and curls
   into their portrait, which flashes and pops; one of your coins follows it in from your Gold. On their screen a stream
@@ -1586,23 +1585,26 @@ Ranked Duos party).
   yourself, no duplicates. Limits: 200 friends, 50 requests waiting, 20 requests an hour.
 - **Blocking.** Block ends any friendship or request between the two players and cancels their open invites; while it
   stands neither can request or invite the other (block wins). The blocked player is never told. Unblock lifts it.
-- **The Friends dock** (owner 2026-10-29, R-FRIENDS-DOCK-02 / -05; there is no Friends page or sidebar plaque any
-  more). ONE Friends button in the BOTTOM-RIGHT corner on every screen (title, every menu page, hero select, every game
-  mode, watching, replays), the same instance throughout, so open / closed, the tab and an open chat survive a screen
-  change. It is the fourth square of the corner row (gear, Compendium, Rules, Friends, right to left), with the same
-  plaque and size; where something covers that row (hero select, a side-menu page, the in-game menu, a phone's
-  side-menu screens) it sits in the corner itself. It
+- **The Friends dock** (owner 2026-10-29, R-FRIENDS-DOCK-02 / -05; moved back BOTTOM LEFT 2026-10-31, R-CORNER-SPLIT-01:
+  "put the friends list back in the bottom left, have the bottom right only show the compendium and settings"; there is
+  no Friends page or sidebar plaque). ONE Friends button in the BOTTOM-LEFT corner on every screen (title, every menu
+  page, hero select, every game mode, watching, replays), the same instance throughout, so open / closed, the tab and an
+  open chat survive a screen change. The bottom-right corner holds only the Compendium and the Settings gear (no Rules
+  square: Rules is the Compendium's own tab). Friends is square 0 of a bottom-left row (DEV builds add the dev tuner and
+  the minimized Scene Builder to its right), placed per screen by measuring what is there: on a side-menu page and in the
+  in-game menu just above the sidebar's Settings plaque; on the title just above the footer links; in a game in the
+  corner left of your hero and Health plaque, at the gear's size on its baseline (the dev squares stack up the edge
+  there); elsewhere the corner itself. It
   carries friends online (green) and unread messages + requests waiting (red). The button EXPANDS INTO the friends
-  list: one panel grows up and to the left out of it, the button staying put as the right end of the panel's title bar
-  (along its foot: Friends, the online count, your handle), now a collapse chevron; pressing it again sinks the panel
+  list: one panel grows up and to the right out of it, the button staying put as the left end of the panel's title bar
+  (along its foot: the button, Friends, the online count, your handle), now a collapse chevron; pressing it again sinks the panel
   back into the button. The panel has tabs: **Friends** (your own handle to share, Add by handle, then every friend: online first, then in a game,
   then offline with last seen), **Requests** (incoming Accept / Decline / Block, sent Cancel, with a count) and
   **Blocked** (Unblock; shown while someone is blocked). A friend in a game shows its mode (Ranked, Casual, Practice,
   Tutorial, Gauntlet, Versus 1v1 / Group / Duos, Ranked Duos) and Watch when it is watchable: a ranked lobby game
   through Live Games, a Versus match from their room's stands. A guest's button opens "Sign in to add friends." The
-  bottom-left placements (under the hero's Health plate in a game, the side menu's foot, above the title's footer
-  links: R-FRIENDS-DOCK-02 / -03 / -04) are gone, so nothing on the left (the side menu, the footer links, the hero
-  portrait) is ever covered. On a desktop the panel is wide
+  row's place is measured so nothing on the left (the side menu's plaques, the footer links, the hero portrait, a full
+  hand) is ever covered. On a desktop the panel is wide
   (about 520) so a friend's whole game line shows (round and step, place, Health, Tier, who they fight); touch screens
   keep the compact one.
 - **Presence.** Online = on a menu (including a Versus room between matches); In a game = playing; Offline = nothing
@@ -1682,15 +1684,20 @@ Ranked Duos party).
   the player's name and a Health bar (red Health, a steel-blue Armor chunk, out of the seat's max Health). Your slice is
   edged in gold; your next opponent's is red, glowing, with crossed swords. A knocked-out seat keeps its slice, greyed
   with a skull, so the stack never moves. Hovering a slice opens a compact scout card (name, Health and Armor, shop tier,
-  Gilded made, top tribe, runes, last three fights). Where the rail cannot dock (the Guides view, a Duos team rail, the
+  Gilded made, top tribe, runes, last three fights). Where the rail cannot dock (the Versus 1v1 Guides drawer, a Duos team rail, the
   Versus 1v1 block) it is the Gem rail. The rail sits under the board's HUD, so their tooltips draw over it, and only the
   slices take the pointer (R-RAIL-DOCKED-CLICKTHROUGH-01). Presentation only.
-- **Rail guides** (owner ask 2026-10-09): a tab on the lobby rail's left edge flips the rail between the opponents and
-  short BUILD GUIDES (data in `packages/ui/src/guides/guides.ts`, one card per build line). Only guides for the run's
+- **Guides** (owner ask 2026-10-09; moved 2026-10-31, R-GUIDES-CORNER-01: "the guides button likely needs a new home
+  entirely, like in the bottom right and have it expand upwards"): a **Guides** square in the bottom-right cluster
+  (stacked just above the Settings gear, beside the Compendium) grows a panel UP out of itself, over the rail column
+  up to the round header (in Duos its foot sits above the teammate portrait), and sinks it back on a second press or
+  Escape; the rail itself always shows the table (no Guides tab on it any more). The list scrolls inside with the
+  game's scrollbar. A Versus 1v1 keeps its own Guides plate and drawer on the opponent block. The panel holds short
+  BUILD GUIDES (data in `packages/ui/src/guides/guides.ts`, one card per build line). Only guides for the run's
   pinned set and for tribes in this lobby show; neutral guides always show. A guide opens in place to its **Core** and
   **Enablers** minions (board portraits with the normal hover preview). Each card wears its signature card's art and
   its tribe name in the tribe's colour. **Simple** (the default) keeps the rail's width and shows only the portraits;
-  the open card's **Detailed** button widens the rail to the left and adds the write-up (remembered per device). Every new game starts on the opponents. The guides ride the rail: gone in combat (the rail slides away),
+  the open card's **Detailed** button widens the panel to the left and adds the write-up (remembered per device). Every new game starts closed. Gone in combat (the button goes quiet, the panel is not drawn), back after it,
   absent in the Tutorial, the Gauntlet (no rail) and God Mode (no rail). Presentation only; no game effect.
 - **Gold** ("Embers"): start with **3**, **+1 per wave**, capped at **10**
   (`startEmbers: 3`, `embersPerWave: 1`, `embersCap: 10`).

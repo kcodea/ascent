@@ -12699,4 +12699,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'In a Duos shop Bob\x27s portrait sits under the Gold coin at the rail\x27s foot, about four fifths the size of Ann\x27s own hero, with nothing written on it. She drags a card onto it and it glows teal.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx', 'packages/ui/src/versus/teammateFrame.test.tsx'], lastVerifiedAt: '2026-10-31' },
   },
+  {
+    id: 'R-GUIDES-CORNER-01',
+    title: 'Build guides open from a Guides square in the bottom-right cluster, as a panel growing up out of it; the lobby rail has no Guides tab',
+    statement:
+      'In every run with lobby guides (not the Tutorial, not a Versus 1v1, which keeps its own Guides plate and drawer) a Guides square with the corner plaque sits in the bottom-right cluster, stacked just above the Settings gear (the Compendium | Settings row and the room left of it keep their places). '
+      + 'Pressing it grows the guides panel UP out of the button, its bottom-right corner on the button, scaling from that corner (one-shot transform + opacity); pressing it again or Escape sinks it back. The panel is as wide as the rail column (wider in Detailed), runs up to just under the round header and lies over the rail in one piece; '
+      + 'in Duos its foot sits just above the teammate portrait (measured once as it opens), so the portrait is never covered. The guide list scrolls inside with the game\x27s scrollbar. Combat hides the panel and quiets the button; the view returns after. '
+      + 'The rail itself always shows the table: the old Guides / Opponents tab, its per-look positions and its tuner controls are gone. A spectator opens their own guides the same way.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31', quote: 'the guides button likely needs a new home entirely, like in the bottom right and have it expand upwards' },
+      { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (guidesbtn, guidesdock, guidesFloor), packages/ui/src/guides/lobbyGuides.css, packages/ui/src/guides/LobbyGuides.tsx (GameScroll)' },
+    ],
+    currentBehaviour: 'Built 2026-10-31 (feat/corner-buttons-teammate). Before: a two-glyph tab on the rail\x27s edge flipped the whole rail between the table and the guides.',
+    example: 'Mid-shop Ann presses the book square above her gear: the guides grow up out of it over the player list; she opens Dragons, reads, presses the chevron and the list sinks back into the square.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/guides/lobbyGuidesRail.test.tsx', 'packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-31' },
+  },
 ];

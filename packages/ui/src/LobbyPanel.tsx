@@ -96,6 +96,21 @@ export function versusDuelLayout(versus: boolean, seats: number, groupMatch: boo
   return versus && seats <= 2 && !groupMatch;
 }
 
+/**
+ * Where the Guides panel's foot goes (stage px from the bottom): just above the Duos teammate portrait when one is on
+ * screen (its top + 10), else null (the CSS default: just above the Guides button). One layout read, on the press that
+ * opens the panel.
+ */
+export function guidesFloor(): number | null {
+  if (typeof document === 'undefined') return null;
+  const mate = document.querySelector<HTMLElement>('.duosdock:not(.self)');
+  const r = mate?.getBoundingClientRect();
+  if (!r || !(r.width > 0)) return null;
+  const host = stageHost().getBoundingClientRect();
+  const bottom = host.height > 0 ? host.top + host.height : window.innerHeight;
+  return toStage(bottom - r.top) + 10;
+}
+
 /** The hover tip on the max-damage readout, with the live number (owner ask 2026-10-02). */
 export function maxDamageTip(cap: number): { title: string; rule: string } {
   return Number.isFinite(cap)
@@ -243,6 +258,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The corner panel sinks back into its button before it unmounts (`gdClosing` holds it on screen for that).
   const [gdClosing, setGdClosing] = useState(false);
   const gdTimer = useRef(0);
+  // DUOS: the panel's foot sits above the teammate portrait (owner 2026-10-31: the panel must not cover it), read ONCE as
+  // it opens (a layout read on a press, never per frame). Null = just above the Guides button (the CSS default).
+  const [gdFloor, setGdFloor] = useState<number | null>(null);
   useEffect(() => () => window.clearTimeout(gdTimer.current), []);
   useLayoutEffect(() => {
     if (!showGuides) return;
@@ -286,6 +304,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
       setView('opponents');
     } else {
       setGdClosing(false);
+      setGdFloor(guidesFloor());
       setView('guides');
     }
   };
@@ -585,7 +604,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
       </button>
     )}
     {guidesOn && !versusRail && !staged && (showGuides || gdClosing) && (
-      <div className={`guidesdock guides-${mode}${showGuides ? '' : ' closing'}`} role="region" aria-label="Build guides">
+      <div className={`guidesdock guides-${mode}${showGuides ? '' : ' closing'}`} role="region" aria-label="Build guides"
+        style={gdFloor !== null ? ({ '--gd-bottom': `${gdFloor}px` } as React.CSSProperties) : undefined}>
         <div className="guidesdock-head">
           <span className="guidesdock-title">Guides</span>
           <span className="guidesdock-count">{guideCountLabel}</span>

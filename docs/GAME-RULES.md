@@ -1247,7 +1247,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   and Start game appears for the host once three are seated.
 - **In the game** (R-VERSUS-GROUP-03). The 1v1 opponent block is replaced by the ordinary ranked lobby rail: one row
   per player (you included) on their Health and Armor with the round's Max dmg above it, your opponent this round marked, the players out below with
-  their placement, hover/pin scouting and the Guides tab. While the round has a copy fight a last row reads
+  their placement and hover/pin scouting; Guides open from the bottom-right Guides square. While the round has a copy fight a last row reads
   "Copy of <name>" (who is copied changes each round); when you face it, the fight names "Copy of <name>" and shows
   the copied board. The End Turn / End Combat pill counts every player still in ("Players ready 3/4"; "Everyone else
   is ready" when you are the last back). A pause names whoever disconnected. An emote shows on its sender's row.
@@ -1684,15 +1684,20 @@ Ranked Duos party).
   the player's name and a Health bar (red Health, a steel-blue Armor chunk, out of the seat's max Health). Your slice is
   edged in gold; your next opponent's is red, glowing, with crossed swords. A knocked-out seat keeps its slice, greyed
   with a skull, so the stack never moves. Hovering a slice opens a compact scout card (name, Health and Armor, shop tier,
-  Gilded made, top tribe, runes, last three fights). Where the rail cannot dock (the Guides view, a Duos team rail, the
+  Gilded made, top tribe, runes, last three fights). Where the rail cannot dock (the Versus 1v1 Guides drawer, a Duos team rail, the
   Versus 1v1 block) it is the Gem rail. The rail sits under the board's HUD, so their tooltips draw over it, and only the
   slices take the pointer (R-RAIL-DOCKED-CLICKTHROUGH-01). Presentation only.
-- **Rail guides** (owner ask 2026-10-09): a tab on the lobby rail's left edge flips the rail between the opponents and
-  short BUILD GUIDES (data in `packages/ui/src/guides/guides.ts`, one card per build line). Only guides for the run's
+- **Guides** (owner ask 2026-10-09; moved 2026-10-31, R-GUIDES-CORNER-01: "the guides button likely needs a new home
+  entirely, like in the bottom right and have it expand upwards"): a **Guides** square in the bottom-right cluster
+  (stacked just above the Settings gear, beside the Compendium) grows a panel UP out of itself, over the rail column
+  up to the round header (in Duos its foot sits above the teammate portrait), and sinks it back on a second press or
+  Escape; the rail itself always shows the table (no Guides tab on it any more). The list scrolls inside with the
+  game's scrollbar. A Versus 1v1 keeps its own Guides plate and drawer on the opponent block. The panel holds short
+  BUILD GUIDES (data in `packages/ui/src/guides/guides.ts`, one card per build line). Only guides for the run's
   pinned set and for tribes in this lobby show; neutral guides always show. A guide opens in place to its **Core** and
   **Enablers** minions (board portraits with the normal hover preview). Each card wears its signature card's art and
   its tribe name in the tribe's colour. **Simple** (the default) keeps the rail's width and shows only the portraits;
-  the open card's **Detailed** button widens the rail to the left and adds the write-up (remembered per device). Every new game starts on the opponents. The guides ride the rail: gone in combat (the rail slides away),
+  the open card's **Detailed** button widens the panel to the left and adds the write-up (remembered per device). Every new game starts closed. Gone in combat (the button goes quiet, the panel is not drawn), back after it,
   absent in the Tutorial, the Gauntlet (no rail) and God Mode (no rail). Presentation only; no game effect.
 - **Gold** ("Embers"): start with **3**, **+1 per wave**, capped at **10**
   (`startEmbers: 3`, `embersPerWave: 1`, `embersCap: 10`).

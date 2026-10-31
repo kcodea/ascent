@@ -63,6 +63,10 @@ export const PATCH_NOTES: PatchNote[] = [
         'In a game it sits in the corner beside your Health.',
         'Rules now live in the Compendium, on its Rules tab.',
       ] },
+      { category: 'Systems', text: 'Guides have a new button in the bottom right, above Settings.', details: [
+        'Press it and the guides list grows up out of the button. Press it again, or Esc, to close it.',
+        'The player list always shows the players now. It no longer flips to the guides.',
+      ] },
       { category: 'Systems', text: 'Duos: your teammate portrait is bigger and easier to reach.', details: [
         'It sits under the Gold coin, at the foot of the player list.',
         'No more name or Teammate label on it. Drag a card onto it to pass, or click it to watch their board.',

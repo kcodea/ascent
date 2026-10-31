@@ -47,19 +47,22 @@ html[data-touch-ui] .guidesbtn > svg { width: 56%; height: 56%; }
   --lu: calc(var(--u) * var(--lby-scale, 0.82));
   --lrow: calc(var(--lu) * var(--lby-row, 1.91));
   --lfont: calc(var(--lu) * var(--lby-font, 0.9));
-  --gd-w: calc(var(--lby-w, 251) * var(--lu) * 1.08);
-  position: fixed; z-index: 65; right: var(--gb-r); bottom: calc(var(--gb-b) + var(--gb-cb) + 8px);
+  /* As wide as the rail column and its slices (so it lies over them in one piece, never half a slice). */
+  --gd-w: calc(var(--lby-w, 251) * var(--lu) * 1.5);
+  /* Its foot: just above the button, or (Duos) just above the teammate portrait, measured once on open (`--gd-bottom`,
+     LobbyPanel), so the portrait is never covered. */
+  --gd-b: var(--gd-bottom, calc(var(--gb-b) + var(--gb-cb) + 8px));
+  position: fixed; z-index: 65; right: var(--gb-r); bottom: var(--gd-b);
   width: min(var(--gd-w), calc(var(--lvw, 100vw) - var(--gb-r) - 16px));
   /* Up to just under the round header (the rail's top), never off the top of the screen. */
-  max-height: calc(var(--lvh, 100vh) - var(--gb-b) - var(--gb-cb) - 8px - max(calc(var(--lby-top, 13.5%) * 0.9), 12px));
-  height: calc(var(--lvh, 100vh) - var(--gb-b) - var(--gb-cb) - 8px - max(calc(var(--lby-top, 13.5%) * 0.9), 12px));
+  height: calc(var(--lvh, 100vh) - var(--gd-b) - max(calc(var(--lby-top, 13.5%) * 0.9), 12px));
   display: flex; flex-direction: column; box-sizing: border-box; padding: calc(10 * var(--lu)) calc(8 * var(--lu)) calc(8 * var(--lu));
   border: 1px solid transparent; border-radius: calc(14 * var(--lu));
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 14px 34px -12px rgba(0, 0, 0, 0.8);
   color: var(--ui-text); font-family: var(--font-ui);
   transform-origin: 100% 100%; animation: guidesdockin 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.guidesdock.guides-full { --gd-w: calc(var(--lby-w, 251) * var(--lu) * 1.08 * var(--lby-guide-w, 1.55)); }
+.guidesdock.guides-full { --gd-w: calc(var(--lby-w, 251) * var(--lu) * 1.5 * var(--lby-guide-w, 1.55)); }
 .guidesdock.closing { animation: guidesdockout 0.16s cubic-bezier(0.5, 0, 0.75, 0) both; pointer-events: none; }
 @keyframes guidesdockin { from { opacity: 0; transform: scale(0.12); } 40% { opacity: 1; } }
 @keyframes guidesdockout { 60% { opacity: 1; } to { opacity: 0; transform: scale(0.12); } }
@@ -76,6 +79,7 @@ html[data-touch-ui] .guidesbtn > svg { width: 56%; height: 56%; }
 .guidesdock.guides-simple .lobbyguide-unitrow { justify-content: center; }
 /* The build badge above the gear moves up out of the Guides square's way while it is on screen. */
 body:has(.guidesbtn) .version { bottom: calc(var(--edge-b) + 16px + 2 * (40 * var(--u)) + 17px); }
+body:has(.guidesdock) .version { opacity: 0; }
 
 /* ── The wide Guides rail (owner ask 2026-10-09: "expanding the rail out to the left so we can increase text +
    minion size") ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -135,7 +139,8 @@ body:has(.guidesbtn) .version { bottom: calc(var(--edge-b) + 16px + 2 * (40 * va
   display: flex; flex-direction: column; gap: calc(2 * var(--lrow) * var(--lby-gap, 0.65) * 1.4);
 }
 .lobbyguides::-webkit-scrollbar { width: 0; height: 0; display: none; }
-:root[data-lobby-rail="classic"] :is(.lobbyview, .lobbyguides) { flex: none; overflow: visible; }
+.lobbyguides-wrap { flex: 1 1 0; min-height: 0; }
+:root[data-lobby-rail="classic"] .lobbyrail :is(.lobbyview, .lobbyguides-wrap, .lobbyguides) { flex: none; overflow: visible; }
 .lobbyguides-empty { padding: calc(8 * var(--lu)); text-align: center; color: var(--ui-muted); font-size: calc(11 * var(--lfont) * 1.2); }
 
 /* ── A guide card: the opponent row's look ─────────────────────────────────────────────────────────────────── */

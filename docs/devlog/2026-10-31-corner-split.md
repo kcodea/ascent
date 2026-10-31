@@ -24,6 +24,17 @@ to see and access. you don't need to have teammate name or anything on the portr
   its 55% floor (that is why the portrait looked small); it remains the fallback. No "Teammate" cap, no name pill; the
   "Back to your board" cap (the way back while watching) and "Away" stay.
 
+## Guides moved to the corner (R-GUIDES-CORNER-01, owner add mid-PR)
+
+- "the guides button likely needs a new home entirely, like in the bottom right and have it expand upwards": a Guides
+  square (Icon `book`, the glyph the rail tab and the Compendium's Guides tab already use) is stacked ABOVE the gear, not
+  in the row, so the Compendium | Settings row and the teammate portrait's room stay as they were. Its panel
+  (`.guidesdock`, in LobbyPanel) grows up out of it, rail-column wide, up to the round header; in Duos its foot is
+  measured above the teammate portrait on open (`guidesFloor`). LobbyGuides now scrolls in a GameScroll.
+- The rail tab is gone everywhere: its JSX, `.lobbyrailtab` CSS in every look and framing, the Docked layout's `tab`
+  point and Tuner 2's three "Guides button" dials. Only the Versus 1v1 drawer still turns the rail to its Guides face
+  (`railGuides`); that path is untouched (another builder is moving Versus onto the rail).
+
 ## Measured (headless, dev server)
 
 1600x900: Friends 32 px in the corner left of the Health plaque; teammate disc 177 px (was 122) at x 1332-1509 with a

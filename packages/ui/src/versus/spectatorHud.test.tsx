@@ -217,7 +217,7 @@ describe('R-SPECTATE-CURSOR-02: the spectator HUD never swaps the OS cursor in',
 });
 
 describe('R-SPECTATE-LOCAL-01: a spectator uses their own rail, guides and Summary, locally', () => {
-  it('flips the rail to their guides and pins a scout card without sending anything', () => {
+  it('opens their guides from the corner and pins a scout card without sending anything', () => {
     const sends = vi.fn();
     const io = { latestFrames: vi.fn(async () => []), requestKey: sends, loadRounds: vi.fn(), lobbyFor: vi.fn(() => undefined) };
     sp.installSpectateIo(io);
@@ -225,12 +225,12 @@ describe('R-SPECTATE-LOCAL-01: a spectator uses their own rail, guides and Summa
     const run = createLobbyRun(5151, 'warden');
     act(() => { useGame.setState({ run, combatStaged: false, replaying: true }); sp.useSpectate.setState({ active: true }); });
     ui = mount(<LobbyPanel lobby={run.lobby!} />);
-    const tab = ui.container.querySelector('.lobbyrailtab')!;
+    const tab = ui.container.querySelector('.guidesbtn')!;
     click(tab);
-    expect(ui.container.querySelector('.lobbyrail')!.classList.contains('guidesview')).toBe(true);
+    expect(ui.container.querySelector('.guidesdock')).not.toBeNull();
     // read only: no Edit button on any guide
     expect(ui.container.querySelector('.lobbyguide-editbtn')).toBeNull();
-    click(ui.container.querySelector('.lobbyrailtab')!);
+    click(ui.container.querySelector('.guidesbtn')!);
     const seat = [...ui.container.querySelectorAll('.lobbyseat')].find((s) => !s.classList.contains('you'))!;
     click(seat);
     expect(document.body.querySelector('.lobbyscout.pinned')).not.toBeNull();
@@ -239,7 +239,7 @@ describe('R-SPECTATE-LOCAL-01: a spectator uses their own rail, guides and Summa
     expect(space.anchorOf(seat)).toBeNull();
     // and the CSS lets these (and only the spectator's own panels) take a press on the inert watch screen
     const css = readFileSync(join(__dirname, 'versus.css'), 'utf8');
-    for (const sel of ['.lobbyrailtab', '.combatsummary', '.vsfoe:not(.guides-open) .vsfoe-guides', ':is(.lobbyrail, .lobbyrailhead) :is(button']) {
+    for (const sel of [':is(.guidesbtn, .guidesdock button, .guidesdock [role="button"])', '.combatsummary', '.vsfoe:not(.guides-open) .vsfoe-guides', ':is(.lobbyrail, .lobbyrailhead) :is(button']) {
       expect(css).toContain(sel);
     }
     act(() => { useGame.setState({ replaying: false }); sp.useSpectate.setState({ active: false }); });

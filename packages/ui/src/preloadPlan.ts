@@ -1,7 +1,7 @@
 import type { CardDef } from '@game/core';
 import { CARD_INDEX, poolFor, RUNE_INDEX, SETS, type SetId } from '@game/content';
 import { poolOf, type RunState } from '@game/sim';
-import { ART_URL_GROUPS, artFor } from './art';
+import { ART_URL_GROUPS, artFor, heroThumb } from './art';
 import { ART_ALIAS } from './artAlias';
 import { requestArtList } from './artPreload';
 import { LITE_ART, phonePublicUrl } from './phoneArt';
@@ -229,6 +229,9 @@ export function startBackgroundArt(): void {
 function streamLiteRest(gatedSets: ReadonlySet<SetId>, pub: ReturnType<typeof splitPublicArt>): void {
   crumb('art stream start');
   plan('early', vals(ART_URL_GROUPS.hero));
+  // The lobby rail's hero thumbnails (R-PHONE-HERO-SHARP-01): ~4 KB each, so the rail's faces are in the cache when
+  // the first Shop opens.
+  plan('early', vals(ART_URL_GROUPS.hero).flatMap((u) => { const t = heroThumb(u); return t && t !== u ? [t] : []; }));
   plan('early', vals(ART_URL_GROUPS.power));
   plan('early', pub.play);
   const setRest: string[] = [];

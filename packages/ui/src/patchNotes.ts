@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-31',
     changes: [
+      { category: 'Systems', text: 'Hero art is sharper on phones.', details: [
+        "Hero select, the hero pick, your portrait and the foe's portrait in combat now use the full size art.",
+        'The small faces in the lobby list use a smaller image, so phones use less memory.',
+      ] },
       { category: 'Systems', text: "Golden minions can now be passed from your hand. Spells that pass a minion still can't target golden ones." },
     ],
   },

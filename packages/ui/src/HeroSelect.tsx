@@ -3,6 +3,7 @@ import { mdBold } from './Card';
 import { getHero, activeRift, heroTip, heroRerollCandidates, SHOW_HERO_TIPS, type HeroReroll } from '@game/sim';
 import { RiftPill } from './RiftPill';
 import { heroPowerArt } from './art';
+import { SharpImg } from './SharpImg';
 import { FadeImg } from './FadeImg';
 import { heroPortrait, useLiveLoadout } from './skins/skins';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
@@ -301,8 +302,8 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                 >
                   <div className={`hcframe${pfClass(frame)}`} style={frame?.hostStyle}>
                     <div className="hcname hudpill-name">{hero.name}</div>
-                    {art ? <FadeImg className={`hcframe-art${swapHere ? ' hcswap-in' : ''}`} src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
-                    {oldArt && <img decoding="sync" className="hcframe-art hcswap-out" src={oldArt} alt="" draggable={false} aria-hidden="true" />}
+                    {art ? <SharpImg fade className={`hcframe-art${swapHere ? ' hcswap-in' : ''}`} src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
+                    {oldArt && <SharpImg className="hcframe-art hcswap-out" src={oldArt} alt="" draggable={false} aria-hidden="true" />}
                     {swapHere && <span className="rfb-shine hcswap-shine" aria-hidden="true" />}
                     {powArt && <FadeImg className="hcframe-pow" src={powArt} alt="" draggable={false} aria-hidden="true" />}
                     {/* PRACTICE-ONLY heroes (owner ask 2026-08-23): withheld from Play while they are reworked.

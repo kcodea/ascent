@@ -10,7 +10,8 @@
  * back (the popped hand card, when the finger lifts) so the originals can be dropped again. Desktop and any build
  * without phone copies: a no-op.
  */
-import { LITE_ART, fullResUrl } from './phoneArt';
+import { LITE_ART, fullResUrl, type PhoneArtManifest } from './phoneArt';
+import { requestArt, useArtReady } from './artPreload';
 
 const ATTR = 'data-lowsrc';
 
@@ -44,4 +45,29 @@ export function upgradeImages(root: Element | null, lite: boolean = LITE_ART): (
     }
     swapped.length = 0;
   };
+}
+
+/**
+ * THE BIG HERO SLOTS ON A PHONE (owner 2026-10-31: "Hero art in mobile is blurry", R-PHONE-HERO-SHARP-01). Hero select's
+ * cards, the hero pick ceremony, your portrait, the combat foe's and the wipe poster's face draw a hero at about
+ * 260-630 device px, past what the 384 px phone copy holds (see `phoneArt.ts`). This returns the 512 px master for
+ * such a slot once it has decoded, and the phone copy until then (never an empty frame). The master goes through the
+ * art pipe in the `now` lane, so it decodes into the phone's bounded keep (LITE_KEEP_BYTES) like every on-screen image.
+ * Desktop and any URL that is not a phone copy: returned unchanged, no work.
+ */
+export function useSharpArt(url: string | undefined, lite: boolean = LITE_ART, manifest?: PhoneArtManifest | null): string | undefined {
+  const full = lite && url ? (manifest === undefined ? fullResUrl(url) : fullResUrl(url, manifest)) : url;
+  const sharp = full !== url ? full : undefined;
+  const ready = useArtReady(sharp);
+  return sharp && ready ? sharp : url;
+}
+
+/** Warm (fetch only on a phone) the masters of portraits that are about to be shown big: the lobby's seats, whose
+ *  faces become the combat foe's portrait. A no-op on desktop. */
+export function warmSharpArt(urls: Iterable<string | undefined>, lite: boolean = LITE_ART, manifest?: PhoneArtManifest | null): void {
+  if (!lite) return;
+  for (const u of urls) {
+    const full = u ? (manifest === undefined ? fullResUrl(u) : fullResUrl(u, manifest)) : u;
+    if (full && full !== u) requestArt(full, 'early');
+  }
 }

@@ -9,7 +9,8 @@ import {
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { floatLobbyDamageOnSeats, roundDamageFloats, whenCurtainDown } from './lobbyDamageFx';
 import { LOBBY_KO_MS, aliveSet, newlyKnockedOut, playLobbyKnockoutOnSeats } from './lobbyKnockoutFx';
-import { questArt, runeArt } from './art';
+import { heroThumb, questArt, runeArt } from './art';
+import { warmSharpArt } from './fullResArt';
 import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
 import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
@@ -510,7 +511,12 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
             >
               {(() => {
-                const src = heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics));
+                const full = heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics));
+                // R-PHONE-HERO-SHARP-01: on a phone the rail's face is ~60 device px, so it loads the 160 px thumbnail
+                // (desktop: unchanged), and the seat's 512 px master is fetched (not decoded) ahead of the fight, where
+                // it becomes the combat foe's portrait.
+                const src = heroThumb(full);
+                warmSharpArt([full]);
                 // An opponent seat wears its recorded portrait frame (through "Show opponent cosmetics", owner
                 // 2026-10-01), else the tuner's opponent ring. `oppFrame` keeps the rail subscribed to tuner writes.
                 const seatFrameId = isYou ? null : frameIdOf(opponentSkins(showOppSkins, seat.cosmetics));

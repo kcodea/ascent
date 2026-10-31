@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Plugin } from 'vite';
-import { PHONE_ART_DIR, PHONE_ART_VERSION, PHONE_ASSET_CAPS, PHONE_CSS_VARS, phonePublicCap, type PhoneArtManifest } from '../../packages/ui/src/phoneArt';
+import { PHONE_ART_DIR, PHONE_ART_VERSION, PHONE_ASSET_CAPS, PHONE_CSS_VARS, PHONE_THUMB_CAPS, PHONE_THUMB_DIR, phonePublicCap, type PhoneArtManifest } from '../../packages/ui/src/phoneArt';
 
 /**
  * PHONE ART COPIES (owner 2026-10-18: "the iPhone crashes a lot"). A production build writes a downscaled copy of the
@@ -11,6 +11,8 @@ import { PHONE_ART_DIR, PHONE_ART_VERSION, PHONE_ASSET_CAPS, PHONE_CSS_VARS, pho
  *
  *   bundled art  `packages/ui/src/art/<dir>/x.webp` → `assets/x-HASH.webp`  ⇒ copy `assets/m1/x-HASH.webp`
  *   public art   `apps/web/public/frames/y.webp`    → `frames/y.webp`       ⇒ copy `m1/frames/y.webp`
+ *   hero thumbs  `packages/ui/src/art/heroes/x.webp` → also `assets/t1/x-HASH.webp` (PHONE_THUMB_CAPS, the lobby rail's
+ *                tiny faces; R-PHONE-HERO-SHARP-01)
  *
  * A file gets a copy only when it is LARGER than its cap (`PHONE_ASSET_CAPS` / `phonePublicCap`), and a public file
  * only when no stylesheet names it (a CSS url() cannot be switched per device, so a copy would just be a second
@@ -38,12 +40,15 @@ export function planPhoneArt(
   assets: ReadonlyArray<{ key: string; width: number; height: number }>,
   pub: ReadonlyArray<{ key: string; width: number; height: number }>,
   cssText: string,
-): { manifest: PhoneArtManifest; assets: PhoneArtCandidate[]; pub: PhoneArtCandidate[] } {
+): { manifest: PhoneArtManifest; assets: PhoneArtCandidate[]; pub: PhoneArtCandidate[]; thumbs: PhoneArtCandidate[] } {
   const a: PhoneArtCandidate[] = [];
+  const t: PhoneArtCandidate[] = [];
   for (const f of assets) {
     const dir = /^art\/([^/]+)\/[^/]+\.(?:webp|png)$/i.exec(f.key)?.[1];
     const cap = dir ? PHONE_ASSET_CAPS[dir] : undefined;
     if (cap && Math.max(f.width, f.height) > cap) a.push({ ...f, cap });
+    const tcap = dir ? PHONE_THUMB_CAPS[dir] : undefined;
+    if (tcap && Math.max(f.width, f.height) > tcap) t.push({ ...f, cap: tcap });
   }
   const p: PhoneArtCandidate[] = [];
   for (const f of pub) {
@@ -54,7 +59,10 @@ export function planPhoneArt(
     if (!CSS_OVERRIDDEN.has(f.key) && cssText.includes(base)) continue;
     p.push({ ...f, cap });
   }
-  return { manifest: { dir: PHONE_ART_DIR, assets: a.map((x) => x.key).sort(), public: p.map((x) => x.key).sort() }, assets: a, pub: p };
+  return {
+    manifest: { dir: PHONE_ART_DIR, assets: a.map((x) => x.key).sort(), public: p.map((x) => x.key).sort(), thumbDir: PHONE_THUMB_DIR, thumbs: t.map((x) => x.key).sort() },
+    assets: a, pub: p, thumbs: t,
+  };
 }
 
 async function dims(file: string): Promise<{ width: number; height: number }> {
@@ -98,7 +106,7 @@ export function phoneArtPlugin(opts: { uiSrc: string; publicDir: string; publicA
     async config() {
       if (!enabled) return { define: { __PHONE_ART__: 'null' } };
       const assets: Array<{ key: string; width: number; height: number }> = [];
-      for (const dir of Object.keys(PHONE_ASSET_CAPS)) {
+      for (const dir of new Set([...Object.keys(PHONE_ASSET_CAPS), ...Object.keys(PHONE_THUMB_CAPS)])) {
         const abs = path.join(opts.uiSrc, 'art', dir);
         if (!existsSync(abs)) continue;
         for (const f of readdirSync(abs)) {
@@ -118,6 +126,8 @@ export function phoneArtPlugin(opts: { uiSrc: string; publicDir: string; publicA
     async generateBundle(_out, bundle) {
       if (!plan) return;
       const caps = new Map(plan.assets.map((a) => [a.key, a.cap] as const));
+      const thumbCaps = new Map(plan.thumbs.map((a) => [a.key, a.cap] as const));
+      const thumbMatched = new Set<string>();
       const jobs: Array<{ fileName: string; source: Buffer; cap: number; ext: string }> = [];
       const seen = new Set<string>();
       const matched = new Set<string>();
@@ -127,14 +137,21 @@ export function phoneArtPlugin(opts: { uiSrc: string; publicDir: string; publicA
           const posix = orig.split('\\').join('/');
           const i = posix.lastIndexOf('packages/ui/src/');
           const key = i >= 0 ? posix.slice(i + 'packages/ui/src/'.length) : posix;
+          const base = item.fileName.slice(item.fileName.lastIndexOf('/') + 1);
+          const ext = path.extname(item.fileName).toLowerCase();
+          const src = (): Buffer => (typeof item.source === 'string' ? Buffer.from(item.source) : Buffer.from(item.source));
           const cap = caps.get(key);
-          if (!cap) continue;
-          matched.add(key);
-          const fileName = `assets/${PHONE_ART_DIR}/${item.fileName.slice(item.fileName.lastIndexOf('/') + 1)}`;
-          if (seen.has(fileName)) continue;
-          seen.add(fileName);
-          const src = typeof item.source === 'string' ? Buffer.from(item.source) : Buffer.from(item.source);
-          jobs.push({ fileName, source: src, cap, ext: path.extname(item.fileName).toLowerCase() });
+          if (cap) {
+            matched.add(key);
+            const fileName = `assets/${PHONE_ART_DIR}/${base}`;
+            if (!seen.has(fileName)) { seen.add(fileName); jobs.push({ fileName, source: src(), cap, ext }); }
+          }
+          const tcap = thumbCaps.get(key);
+          if (tcap) {
+            thumbMatched.add(key);
+            const fileName = `assets/${PHONE_THUMB_DIR}/${base}`;
+            if (!seen.has(fileName)) { seen.add(fileName); jobs.push({ fileName, source: src(), cap: tcap, ext }); }
+          }
         }
       }
       for (const p of plan.pub) {
@@ -148,7 +165,7 @@ export function phoneArtPlugin(opts: { uiSrc: string; publicDir: string; publicA
         outBytes += out.length;
         this.emitFile({ type: 'asset', fileName: j.fileName, source: out });
       });
-      const missing = plan.assets.filter((a) => !matched.has(a.key)).length;
+      const missing = plan.assets.filter((a) => !matched.has(a.key)).length + plan.thumbs.filter((a) => !thumbMatched.has(a.key)).length;
       // Every key in the manifest must have produced a file (a lookup can only point at a file that exists). Bundled
       // art Vite never emitted (an unused glob entry is still emitted, so this means a path mismatch) fails the build.
       if (missing > 0) this.error(`[phone-art] ${missing} manifest entries produced no copy: the source-path match is broken`);

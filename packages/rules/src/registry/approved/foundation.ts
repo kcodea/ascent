@@ -7649,6 +7649,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/tapInspect.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
+    id: 'R-PHONE-HERO-SHARP-01',
+    title: 'On a phone each hero portrait loads the image size its slot is drawn at',
+    statement:
+      'A phone draws hero art at very different sizes, so each slot loads its own variant. The big slots (the hero select '
+      + 'cards, the hero pick ceremony, your portrait, the combat foe\x27s portrait, the wipe poster\x27s face) load the '
+      + '512 px master once it has decoded, and show the 384 px phone copy until then, so they never blink empty. The lobby '
+      + 'rail\x27s faces (about 60 device px) load a 160 px thumbnail, and the rail fetches each seat\x27s master ahead of '
+      + 'the fight. Every other slot keeps the 384 px copy. Desktop is unchanged (it always draws the masters).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-31', quote: 'Hero art in mobile is blurry' },
+      { kind: 'code', ref: 'packages/ui/src/phoneArt.ts (PHONE_THUMB_CAPS, phoneThumbAssetUrl); apps/web/phoneArtPlugin.ts; packages/ui/src/art.ts (heroThumb); packages/ui/src/fullResArt.ts (useSharpArt, warmSharpArt); packages/ui/src/SharpImg.tsx' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-31 (fix/mobile-hero-art-sharp). Before, an iPhone (852 x 393 @3x) drew the 384 px copy at 307 device px for your portrait, 296 for the combat foe, 261 in hero select and 632 in the hero pick ceremony, while the rail drew it at 59.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroArtSharp.test.tsx', 'apps/web/phoneArtPlugin.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
+  {
     id: 'R-PHONE-ZOOM-02',
     title: 'A phone run frames the game as large as its housed pieces and the lobby rail allow',
     statement:

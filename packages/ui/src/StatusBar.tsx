@@ -16,6 +16,7 @@ import type { Keyword } from '@game/core';
 import { equipmentArtFor } from './art';
 import { heroPowerArt, questArt, runeArt } from './art';
 import { heroPortrait, useRunSkins } from './skins/skins';
+import { useSharpArt } from './fullResArt';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
@@ -218,7 +219,8 @@ export function StatusBar() {
   // SKINS: your portrait (the combat hero too: it is the lunge target) wears the skin recorded on this run.
   const ownSkins = useRunSkins();
   const runSkins = ownSkins;
-  const heroImg = heroPortrait(hero.id, runSkins);
+  // R-PHONE-HERO-SHARP-01: a phone draws this ~300 device px, so it loads the 512 px master once decoded.
+  const heroImg = useSharpArt(heroPortrait(hero.id, runSkins));
   // The portrait frame RECORDED on this run, like the skin (owner 2026-10-01), else the portrait-frames tuner's ring
   // (null = today's look). The disc host is `.herolunge`, so the ring lunges too. `socket`: the owner-tuned seat over
   // the board's baked socket, used here only (SOCKET_FIT).

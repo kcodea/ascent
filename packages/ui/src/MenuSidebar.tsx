@@ -30,7 +30,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type
 import { Icon } from './Icon';
 import { phoneLayoutOn } from './stage';
 import { isPhone } from './deviceClass';
-import { Crest, IconChest, IconHelm, IconTrophy } from './menuIcons';
+import { MenuMedal } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
 import { sfx } from './sfx';
 import { navClockNow, useGame, type MenuDest } from './store';
@@ -137,15 +137,15 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
   const vsOpen = useVersusOpenRooms();
 
   const progress: Item[] = [
-    { dest: 'career', label: txt.career, icon: <IconHelm /> },
-    ...(collectionOn ? [{ dest: 'collection' as const, label: 'Collection', icon: <IconChest /> }] : []),
+    { dest: 'career', label: txt.career, icon: <MenuMedal name="career" /> },
+    ...(collectionOn ? [{ dest: 'collection' as const, label: 'Collection', icon: <MenuMedal name="collection" /> }] : []),
   ];
   const community: Item[] = [
-    { dest: 'rankings', label: txt.leaderboard, icon: <IconTrophy /> },
+    { dest: 'rankings', label: txt.leaderboard, icon: <MenuMedal name="leaderboard" /> },
     // The Hall of Champions is hidden for now (owner 2026-10-16, hallFlag.ts): one switch brings the plaque back.
     ...(HALL_VISIBLE ? [{ dest: 'hall' as const, label: txt.champions, icon: <Icon name="crown" /> }] : []),
-    { dest: 'recent', label: 'Recent Games', icon: <Icon name="clock" /> },
-    { dest: 'live', label: 'Live Games', icon: <Icon name="sword" /> },
+    { dest: 'recent', label: 'Recent Games', icon: <MenuMedal name="recent" /> },
+    { dest: 'live', label: 'Live Games', icon: <MenuMedal name="live" /> },
     // No Friends plaque any more (owner 2026-10-29, R-FRIENDS-DOCK-02): the global Friends dock, bottom left, is it.
     // PATCH NOTES is a page like the others (owner 2026-10-29, R-PATCHNOTES-PAGE-01), on the menus and in a game.
     { dest: 'patchnotes', label: 'Patch Notes', icon: <Icon name="clock" /> },
@@ -174,7 +174,7 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
 
   // Play opens the mode screen. SOLO / DUO lives on its Ranked card now (owner 2026-10-26, R-RANKED-DUOS-MODECARD-01),
   // so this plaque never starts a game itself, whichever side is picked.
-  const play = inGame ? <ResumeButton /> : plaque({ dest: 'modes', label: txt.play, icon: <Crest /> }, ' sb-play', vsOpen > 0 ? <VsOpenBadge n={vsOpen} paused={!focused} /> : null);
+  const play = inGame ? <ResumeButton /> : plaque({ dest: 'modes', label: txt.play, icon: <MenuMedal name="play" /> }, ' sb-play', vsOpen > 0 ? <VsOpenBadge n={vsOpen} paused={!focused} /> : null);
   const playWarn = savedRun ? withAbandonWarning('New run. Replaces your saved run.', savedRun) : null;
   const vsTip = vsOpen > 0 ? versusRoomsTip(vsOpen) : null;
   const playTip = inGame ? null : playWarn && vsTip ? `${playWarn} ${vsTip}.` : playWarn ?? vsTip;

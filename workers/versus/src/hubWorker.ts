@@ -5,7 +5,8 @@
  * once, and Live Games lists every build's games. It carries no game engine (nothing from @game/sim), only the hub and
  * the directory; old and new clients coexist through the hub protocol's versioning (`hubProtocol.ts`).
  *
- *   GET /health              `{ hub, min, code }`: the protocol range and the source hash the deploy script compares (no auth)
+ *   GET /health              `{ hub, min, code, caps }`: the protocol range, the source hash the deploy script compares, and
+ *                            the capabilities the daily health check keys on (`HUB_CAPS`; no auth)
  *   GET /hub/ws              my hub's WebSocket (Supabase token in the subprotocol; accounts only)
  *   GET /live/games?page=N   LIVE GAMES (R-LIVE-DIR-01): one page of the directory, best rank first (any signed-in caller,
  *                            guests too: Live Games was readable by guests on Supabase)
@@ -17,8 +18,11 @@
  *   * /session/<game>/<op>  the game's session: save, park, table, write, rate, clear, seats, state (`session.ts`)
  *   POST /pool/keys          THE POOL MIRROR (R-POOL-MIRROR-01): the `pool_runs_sample_keys` draw, from the mirror
  *   POST /pool/boards        `pool_runs_boards`, from the mirror (503 while the mirror is cold: the client asks Supabase)
+ *   GET /ops/activity        THE HEALTH CHECK (R-OPS-HEALTH-01): new live listings per hour, last 48 h (counts only; no auth)
+ *   GET /ops/pool-digest     the pool mirror's digest (`?p=<params json>`), 404 until the hub advertises `pool_mirror`
  *
- * The cron (`scheduled`, every 5 minutes) keeps the pool mirror in step with Supabase.
+ * The cron (`scheduled`) keeps the pool mirror in step with Supabase every 5 minutes, and once a day (`HEALTH_CRON`)
+ * runs the health check (`health/hubHealth.ts`), which it records in Supabase (`ops.health_checks`).
  *
  * The directory's WRITES are not routes: the Versus Workers call the `LiveDirectoryWriter` entrypoint below through a
  * service binding (`LIVE_DIR` in `wrangler.toml`), which the public internet cannot reach.
@@ -29,7 +33,7 @@
 import { WorkerEntrypoint } from 'cloudflare:workers';
 import { bearerOf, verifyCaller, type AuthEnv } from './auth';
 import { FriendHub, HUB_USER_HEADER, hubName, type HubEnv } from './hub';
-import { HUB_HEALTH_PATH, HUB_PROTOCOL, HUB_PROTOCOL_MIN, HUB_SOCKET_PATH } from './hubProtocol';
+import { FRIENDS_HUB_LIVE_URL, HUB_HEALTH_PATH, HUB_PROTOCOL, HUB_PROTOCOL_MIN, HUB_SOCKET_PATH } from './hubProtocol';
 import { LiveDirectory, type LiveDirEnv } from './liveDirectory';
 import { LIVE_DIR_ROUTES } from './liveDirProtocol';
 import { originAllowed } from './origins';
@@ -39,10 +43,12 @@ import { PoolMirror } from './poolMirror';
 import { SESSION_GAME_ID, SESSION_PROTOCOL, SESSION_ROUTES } from './sessionProtocol';
 import { LIVE_GAME_HEADER, LIVE_USER_HEADER } from './liveHost';
 import { GUEST_HEADER } from './lobbyChat';
+import { HEALTH_CRON, HUB_CAP, OPS_ROUTES, type PoolDigest } from './health/healthProtocol';
+import { digestParams, HUB_CAPS, hubHealthDeps, runAndRecord, type HealthEnv, type PoolDigestSource } from './health/hubHealth';
 
 export { FriendHub, LiveDirectory, GameSession, PoolMirror };
 
-export interface HubWorkerEnv extends HubEnv, LiveDirEnv, AuthEnv, SessionEnv {
+export interface HubWorkerEnv extends HubEnv, LiveDirEnv, AuthEnv, SessionEnv, HealthEnv {
   HUB: DurableObjectNamespace<FriendHub>;
   /** One object per lobby / Practice game (R-SESSION-CF-01). */
   SESSION: DurableObjectNamespace<GameSession>;
@@ -60,6 +66,13 @@ const SESSION_PATH = /^\/session\/([^/]{1,240})\/(ws|save|park|table|write|rate|
  *  deployed without `--persist` never takes a game: its flushes would go nowhere. */
 const sessionLive = (env: HubWorkerEnv): boolean => env.SESSION_MODE === 'on' && (env.PERSIST === '1' || env.DEV_AUTH === '1');
 const poolOf = (env: HubWorkerEnv): PoolMirror => env.POOL.get(env.POOL.idFromName('global')) as unknown as PoolMirror;
+/** The pool mirror's digest (R-OPS-HEALTH-01), typed as the health check sees it: reached only once the hub advertises
+ *  `pool_mirror` (`HUB_CAPS`), which is when `PoolMirror` carries `digest(params)`. */
+const poolDigestOf = (env: HubWorkerEnv): PoolDigestSource | null =>
+  HUB_CAPS.includes(HUB_CAP.poolMirror) ? (poolOf(env) as unknown as PoolDigestSource) : null;
+
+/** A digest is cheap to ask for and costs the mirror a pass over its boards: one per params per isolate per 5 minutes. */
+const digestCache = new Map<string, { at: number; value: Promise<PoolDigest> }>();
 
 /** The one directory object. */
 const directoryOf = (env: LiveDirEnv): LiveDirectory => env.LIVE_DIR.get(env.LIVE_DIR.idFromName('global')) as unknown as LiveDirectory;
@@ -89,7 +102,29 @@ export default {
     if (req.method === 'OPTIONS') {
       return new Response(null, { headers: { ...headers, 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'authorization, content-type' } });
     }
-    if (url.pathname === HUB_HEALTH_PATH) return json(200, { hub: HUB_PROTOCOL, min: HUB_PROTOCOL_MIN, code: env.HUB_CODE ?? 'dev' });
+    if (url.pathname === HUB_HEALTH_PATH) return json(200, { hub: HUB_PROTOCOL, min: HUB_PROTOCOL_MIN, code: env.HUB_CODE ?? 'dev', caps: HUB_CAPS });
+
+    // ── THE HEALTH CHECK's reads (R-OPS-HEALTH-01): counts and hashes only, no auth ──
+    if (url.pathname === OPS_ROUTES.activity) {
+      return json(200, await directoryOf(env).activity(), { 'Cache-Control': 'max-age=60' });
+    }
+    if (url.pathname === OPS_ROUTES.poolDigest) {
+      const pool = poolDigestOf(env);
+      if (!pool) return json(404, { error: 'not_found' });
+      const params = digestParams(url.searchParams.get('p'));
+      if (params === 'bad') return json(400, { error: 'bad_params' });
+      const key = JSON.stringify(params);
+      const hit = digestCache.get(key);
+      const now = Date.now();
+      if (!hit || now - hit.at > 5 * 60_000) {
+        digestCache.set(key, { at: now, value: pool.digest(params) });
+        if (digestCache.size > 16) digestCache.delete(digestCache.keys().next().value as string);
+      }
+      try { return json(200, await digestCache.get(key)!.value, { 'Cache-Control': 'no-store' }); } catch (e) {
+        digestCache.delete(key);
+        return json(503, { error: 'digest_failed', detail: String(e).slice(0, 200) });
+      }
+    }
 
     // ── LIVE GAMES (the directory) ──
     // ── THE GAME SESSION + THE POOL MIRROR (R-SESSION-CF-01, R-POOL-MIRROR-01) ──
@@ -179,8 +214,16 @@ export default {
     return env.HUB.get(env.HUB.idFromName(hubName(caller.userId))).fetch(new Request(req, { headers: fwd }));
   },
 
-  /** The cron (`hub.wrangler.toml` [triggers]): keep the pool mirror in step with Supabase. */
-  async scheduled(_event: unknown, env: HubWorkerEnv, ctx: ExecutionContext): Promise<void> {
+  /**
+   * The cron (`hub.wrangler.toml` [triggers]). One handler for every schedule, dispatched on `event.cron`: the daily
+   * health check (R-OPS-HEALTH-01) at `HEALTH_CRON`, the pool mirror's sync on every other tick.
+   */
+  async scheduled(event: { cron: string }, env: HubWorkerEnv, ctx: ExecutionContext): Promise<void> {
+    if (event.cron === HEALTH_CRON) {
+      const deps = hubHealthDeps(env, FRIENDS_HUB_LIVE_URL, { activity: () => directoryOf(env).activity(), pool: poolDigestOf(env) });
+      ctx.waitUntil(runAndRecord(env, deps));
+      return;
+    }
     ctx.waitUntil(poolOf(env).sync().then((r) => { if (!r.ok && r.error !== 'no_source') console.warn(JSON.stringify({ ev: 'pool_mirror_cron', ...r })); }));
   },
 };

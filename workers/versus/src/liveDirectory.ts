@@ -19,6 +19,8 @@
  */
 import { DurableObject } from 'cloudflare:workers';
 import { LiveDirCore, cleanPut, type DirEntry, type DirReader } from './core/liveDirCore';
+import { ACTIVITY_PREFIX, ActivityTally } from './core/liveActivity';
+import type { ActivityHour, HubActivity } from './health/healthProtocol';
 import { LIVE_DIR_META_TTL_MS, type LiveDirPut, type LiveDirRank, type LiveDirRow } from './liveDirProtocol';
 import type { HubStoreEnv } from './dmStore';
 
@@ -73,6 +75,8 @@ export interface LiveDirMetrics {
 
 export class LiveDirectory extends DurableObject<LiveDirEnv> {
   private readonly core = new LiveDirCore();
+  /** New listings per hour (R-OPS-HEALTH-01: the health check's "were games played?"). */
+  private readonly activityTally = new ActivityTally();
   private loaded = false;
   private meta: LiveMetaSource;
   private readonly ranks = new Map<string, { rank: LiveDirRank; at: number }>();
@@ -90,6 +94,8 @@ export class LiveDirectory extends DurableObject<LiveDirEnv> {
     if (this.loaded) return;
     const rows = await this.ctx.storage.list<DirEntry>({ prefix: ROW_PREFIX });
     for (const [k, e] of rows) this.core.entries.set(k.slice(ROW_PREFIX.length), e);
+    const act = await this.ctx.storage.list<ActivityHour>({ prefix: ACTIVITY_PREFIX });
+    for (const [k, h] of act) this.activityTally.hours.set(k.slice(ACTIVITY_PREFIX.length), h);
     this.loaded = true;
   }
 
@@ -130,10 +136,18 @@ export class LiveDirectory extends DurableObject<LiveDirEnv> {
     const p = cleanPut(raw);
     const now = Date.now();
     const rank = await this.rankFor(p, now);
+    const fresh = !this.core.entries.has(p.game_id);
     const removed = this.core.put(p, rank, now);
     this.metrics.puts++;
     const entry = this.core.entries.get(p.game_id)!;
     await this.ctx.storage.put(ROW_PREFIX + p.game_id, entry);
+    if (fresh) {
+      // Counted once per game (its keep-alives are not new), one small write per hour's value.
+      const hour = this.activityTally.note(p, now);
+      await this.ctx.storage.put(ACTIVITY_PREFIX + hour, this.activityTally.hours.get(hour));
+      const old = this.activityTally.prune(now);
+      if (old.length) await this.ctx.storage.delete(old.map((k) => ACTIVITY_PREFIX + k));
+    }
     if (removed.length) await this.ctx.storage.delete(removed.map((id) => ROW_PREFIX + id));
     await this.arm();
     return { ok: true };
@@ -181,6 +195,12 @@ export class LiveDirectory extends DurableObject<LiveDirEnv> {
     const now = Date.now();
     this.metrics.reads++;
     return this.core.game(gameId, await this.readerOf(userId, now), now);
+  }
+
+  /** The health check's activity read (`GET /ops/activity`, and the hub's cron in-process). Counts only. */
+  async activity(): Promise<HubActivity> {
+    await this.load();
+    return this.activityTally.snapshot(Date.now());
   }
 
   async metricsSnapshot(): Promise<LiveDirMetrics & { rows: number }> {

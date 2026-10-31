@@ -142,6 +142,7 @@
     "versus:cf:deploy": "npm run deploy -w @game/versus-cf --",
     "hub:dev": "npm run hub:dev -w @game/versus-cf",
     "hub:deploy": "npm run hub:deploy -w @game/versus-cf --",
+    "health": "npm run health -w @game/versus-cf --",
     "versus:soak": "tsx packages/tools/src/versus-soak.ts",
     "strength": "tsx packages/tools/src/strength/cli.ts",
     "plates:build": "node scripts/build-card-plate.mjs"

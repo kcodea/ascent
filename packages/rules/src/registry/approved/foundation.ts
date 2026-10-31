@@ -12480,4 +12480,32 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann opens the game. Her pool sample comes from the hub: the same draw rules, and every board exactly as the database holds it. Her cache already has most runs, so only two new runs\x27 boards cross the wire, and none of it touches Supabase.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/sessionCf.db.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
+  {
+    id: 'R-OPS-HEALTH-01',
+    title: 'A daily health check compares the Cloudflare pool copy with Supabase, confirms the hub and Versus Worker are up, and confirms end-of-game writes arrive',
+    statement:
+      'Once a day (06:17 UTC) the friends hub\x27s cron runs the health check and appends one row per check to Supabase '
+      + '`ops.health_checks` through the key-gated `ops_health_record` (the hub\x27s own writer secret, never the service role). '
+      + '`npm run health` runs the same checks on demand from a dev machine (Supabase through the CLI login; `--record` also '
+      + 'appends them). The checks: the hub answers `/health` with a sane protocol range and a deploy hash; the current '
+      + 'versioned Versus Worker (named by the site\x27s `release.json`, else the revision live lobby games ran on, else the newest '
+      + 'Cloudflare match) answers `/health` with its own name\x27s protocol and revision; the hub\x27s pool mirror matches '
+      + 'Supabase byte for byte (one sha256 over every run\x27s id, key, rev and boards-text hash, for the whole pool and for one '
+      + 'seeded `pool_runs_sample_keys` draw), naming the runs that differ; when games were listed in the last 24 hours (the '
+      + 'Live Games directory\x27s hourly tally of new listings), run_history, boards and lobby_fights rows (lobby), Cloudflare '
+      + 'versus_matches rows (Versus) and duos_match_history rows (Duos) arrived in the same window; the game session\x27s flush '
+      + 'rejected no writes; the hub\x27s writer key is accepted. A check whose subject is not deployed (the hub does not '
+      + 'advertise the capability in `/health` `caps`, or its SQL is not applied) or a quiet day is `n/a`, never a failure. The '
+      + 'lead reads `select * from ops.health_status` at session start: no cron row in 26 hours, or any failing check, is a '
+      + 'problem to look at.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-31', quote: 'a small daily health check that compares the Cloudflare pool copy against Supabase, confirms the hub is up, and confirms the end-of-game writes are arriving' },
+      { kind: 'code', ref: 'workers/versus/src/health/healthCore.ts; workers/versus/src/health/hubHealth.ts; workers/versus/src/core/liveActivity.ts; workers/versus/scripts/health.ts; supabase/migrations/2026-11-21-ops-health-checks.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-31 (feat/cf-health-check). Pool parity and the session flush are n/a until the hub advertises `pool_mirror` (PoolMirror needs a `digest(params)` method) / `session` (`HUB_CAPS` in workers/versus/src/health/hubHealth.ts).',
+    example: 'The session flush starts failing on a Tuesday afternoon. Players finish 40 lobby games, the directory lists them, but no run_history rows land. At 06:17 UTC on Wednesday the hub records writes.lobby as fail with missing [run_history], and the lead\x27s first query of the day shows it.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/healthCore.test.ts', 'workers/versus/test/liveActivity.test.ts', 'workers/versus/test/opsHealth.db.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
 ];

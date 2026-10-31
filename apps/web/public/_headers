@@ -12,6 +12,9 @@
   Cache-Control: no-cache
 /index.html
   Cache-Control: no-cache
+# The release record (scripts/release-web.mjs): the daily health check reads it, so it must never be stale.
+/release.json
+  Cache-Control: no-cache
 
 # Public-folder art keeps its filename across edits (no hash), so it is NOT immutable: fresh for an hour, then
 # served from cache instantly while the browser re-checks in the background (a replaced frame lands one visit later).

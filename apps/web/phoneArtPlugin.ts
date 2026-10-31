@@ -31,6 +31,9 @@ const CSS_OVERRIDDEN = new Set(PHONE_CSS_VARS.map(([, rel]) => rel));
 
 export interface PhoneArtCandidate { key: string; width: number; height: number; cap: number }
 
+/** Pure: `cssText` without its comments. Exported for its test. */
+export const stripCssComments = (cssText: string): string => cssText.replace(/\/\*[\s\S]*?\*\//g, ' ');
+
 /**
  * Pure: which files get a phone copy. `assets` are bundled art keyed by their path under `packages/ui/src/`
  * (`art/minions/x.webp`); `pub` are public paths (`frames/y.webp`). `cssText` is every stylesheet the UI ships.
@@ -50,13 +53,17 @@ export function planPhoneArt(
     const tcap = dir ? PHONE_THUMB_CAPS[dir] : undefined;
     if (tcap && Math.max(f.width, f.height) > tcap) t.push({ ...f, cap: tcap });
   }
+  // Only what a stylesheet actually NAMES counts (R-PHONE-CSS-COMMENT-01): a file mentioned in a CSS comment (a traced
+  // hit shape's source, a measured aspect) is not a url() the browser loads, and treating it as one silently dropped
+  // the phone copies of the End Turn, Tier-up, Refresh and Freeze buttons (+8 MB decoded on phones, 2026-10-31).
+  const css = stripCssComments(cssText);
   const p: PhoneArtCandidate[] = [];
   for (const f of pub) {
     if (!/\.(?:webp|png|jpe?g)$/i.test(f.key)) continue;
     const cap = phonePublicCap(f.key);
     if (!cap || Math.max(f.width, f.height) <= cap) continue;
     const base = f.key.slice(f.key.lastIndexOf('/') + 1);
-    if (!CSS_OVERRIDDEN.has(f.key) && cssText.includes(base)) continue;
+    if (!CSS_OVERRIDDEN.has(f.key) && css.includes(base)) continue;
     p.push({ ...f, cap });
   }
   return {

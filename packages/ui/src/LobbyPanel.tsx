@@ -11,6 +11,7 @@ import { floatLobbyDamageOnSeats, roundDamageFloats, whenCurtainDown } from './l
 import { LOBBY_KO_MS, aliveSet, newlyKnockedOut, playLobbyKnockoutOnSeats } from './lobbyKnockoutFx';
 import { heroThumb, questArt, runeArt } from './art';
 import { warmSharpArt } from './fullResArt';
+import { railSliceFace } from './railFaceArt';
 import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
 import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
@@ -678,7 +679,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                 // the next foe's red ring) is drawn along the same outline, so every cut reads as finished.
                 <>
                   <span className="lrv-tileart" aria-hidden="true" style={dp?.cut ? { clipPath: outlineClip(dp.outline) } : undefined}>
-                    <FadeImg className="lobbyface" src={heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics))} alt="" />
+                    <FadeImg className="lobbyface" src={railSliceFace(heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics)), dp)} alt="" />
                   </span>
                   {dp && <SliceEdge p={dp} />}
                   {dp && !dp.dead && isFoe && <SliceEdge p={dp} ring />}

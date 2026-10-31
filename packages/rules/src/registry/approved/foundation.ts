@@ -7679,7 +7679,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'A phone draws hero art at very different sizes, so each slot loads its own variant. The big slots (the hero select '
       + 'cards, the hero pick ceremony, your portrait, the combat foe\x27s portrait, the wipe poster\x27s face) load the '
       + '512 px master once it has decoded, and show the 384 px phone copy until then, so they never blink empty. The lobby '
-      + 'rail\x27s faces (about 60 device px) load a 160 px thumbnail, and the rail fetches each seat\x27s master ahead of '
+      + 'rail\x27s faces load a small thumbnail (256 px since the Docked rail, R-PHONE-RAIL-THUMB-01), and the rail fetches each seat\x27s master ahead of '
       + 'the fight. Every other slot keeps the 384 px copy. Desktop is unchanged (it always draws the masters).',
     domain: 'foundation',
     status: 'approved',
@@ -12778,5 +12778,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-31. The bar ran under the cut (clipped to the slice outline), so beside the coin the start of the red was hidden and a healthy player read as nearly dead.',
     example: 'Ozzie sits beside the Gold coin on 9 of 30 Health: their bar starts right of the coin’s cut and shows 30% red.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailDockedModes.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
+  {
+    id: 'R-PHONE-RAIL-THUMB-01',
+    title: 'On a phone the lobby rail and the eight-seat reveal share one right-sized thumbnail per hero, and no button loses its phone copy to a CSS comment',
+    statement:
+      'A phone keeps its decoded images under the phone budget (140 MB, CI phone-budgets) without blurring hero art. The '
+      + 'Docked rail\x27s slices (about 230 device px across on an iPhone) and the line-up of a lobby reveal with seven or '
+      + 'more players (about 210) load the 256 px hero thumbnail, the same file, so each hero decodes once; a slice taller '
+      + 'than wide, a smaller line-up and the duel draw bigger faces and keep the 384 px copy. A public image a stylesheet '
+      + 'only mentions in a comment still gets its phone copy: only a real url() blocks it. Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Lead for Kevin, 2026-10-31', quote: 'bring the peak back under budget WITHOUT making hero art blurry again or dropping visuals' },
+      { kind: 'code', ref: 'packages/ui/src/railFaceArt.ts (railSliceFace, revealLineupFace); packages/ui/src/phoneArt.ts (PHONE_THUMB_CAPS, PHONE_THUMB_DIR); apps/web/phoneArtPlugin.ts (stripCssComments)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-31 (fix/phone-image-budget): the phone walk\x27s peak decoded images went from 141.8-148 MB to 132.6 MB. Before, the Docked rail drew eight 384 px copies (the classic rail\x27s thumbnail was not carried over), the reveal eight more, and the shaped hit areas\x27 stylesheet named the End Turn, Tier-up and Refresh art in comments, which dropped their phone copies (+6 MB; Freeze had lost its copy the same way).',
+    example: 'On an iPhone in an eight-player lobby, the reveal lines up eight 256 px faces, each flies onto its slice showing that same image, and the End Turn gem loads its 512 px phone copy, not the 1001 px original.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/railFaceArt.test.ts', 'apps/web/phoneArtPlugin.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
 ];

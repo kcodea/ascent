@@ -2,7 +2,7 @@
 /**
  * R-PHONE-HERO-SHARP-01 (owner 2026-10-31: "Hero art in mobile is blurry"). On a phone a hero portrait loads the
  * variant its DISPLAY SLOT needs: the big slots (hero select, the pick ceremony, your portrait, the combat foe, the wipe
- * poster) the 512 px master once decoded (the 384 px copy until then), the lobby rail's tiny faces a 160 px thumbnail.
+ * poster) the 512 px master once decoded (the 384 px copy until then), the lobby rail's tiny faces a 256 px thumbnail.
  * Desktop never changes.
  */
 import { readFileSync } from 'node:fs';
@@ -24,10 +24,10 @@ const MANIFEST: PhoneArtManifest = {
 const ORIG = 'https://x.test/assets/indy-AbC123.webp';
 const COPY = 'https://x.test/assets/m1/indy-AbC123.webp';
 
-describe('the tiny slots: a 160 px thumbnail', () => {
-  it('only heroes and their skins get one, at 160 px, in its own versioned folder', () => {
-    expect(PHONE_THUMB_CAPS).toEqual({ heroes: 160, skins: 160 });
-    expect(PHONE_THUMB_DIR).toBe('t1');
+describe('the rail slots: a 256 px thumbnail', () => {
+  it('only heroes and their skins get one, at 256 px (the Docked slice, R-PHONE-RAIL-THUMB-01), in its own versioned folder', () => {
+    expect(PHONE_THUMB_CAPS).toEqual({ heroes: 256, skins: 256 });
+    expect(PHONE_THUMB_DIR).toBe('t2');
   });
 
   it('a phone gets the thumbnail for a file the build thumbnailed; anything else gets none', () => {

@@ -76,12 +76,19 @@ export function phonePublicCap(rel: string): number | null {
  *     for the hero pick ceremony's portrait: the 384 px copy was only 1.1-1.5x that (0.6x in the ceremony), and a
  *     second resample of an already downscaled, re-encoded copy reads soft.
  * So the BIG slots load the 512 px master (`useSharpArt`, which keeps the copy on screen until the master has
- * decoded) and the lobby rail loads a 160 px thumbnail (`heroThumb` in art.ts). Every other slot keeps the 384 copy.
+ * decoded) and the lobby rail loads a small thumbnail (`heroThumb` in art.ts). Every other slot keeps the 384 copy.
  * The thumbnails save more decoded memory than the big slots add (see the PR / devlog for the numbers).
+ *
+ * 256 px since the DOCKED rail (R-PHONE-RAIL-THUMB-01, 2026-10-31): its Full art look covers a ~198 x 59 stage px slice
+ * with the square portrait, ~230 device px across on an iPhone, past what a 160 px thumbnail holds; the eight-seat
+ * lobby reveal's line-up (~210 device px) loads the same file, so the two share one decode.
  */
-export const PHONE_THUMB_DIR = `t${PHONE_ART_VERSION}`;
+export const PHONE_THUMB_VERSION = 2;
+/** Bump PHONE_THUMB_VERSION when a thumbnail cap changes: a thumbnail keeps its original's hashed name, so the folder must
+ *  change or a phone's HTTP cache would keep serving the old size. */
+export const PHONE_THUMB_DIR = `t${PHONE_THUMB_VERSION}`;
 /** Longest side (px) of the THUMBNAIL copy of bundled art, by folder. Only hero portraits (and their skins) have one. */
-export const PHONE_THUMB_CAPS: Readonly<Record<string, number>> = { heroes: 160, skins: 160 };
+export const PHONE_THUMB_CAPS: Readonly<Record<string, number>> = { heroes: 256, skins: 256 };
 
 // ─── detection ──────────────────────────────────────────────────────────────────────────────────────────────────────
 

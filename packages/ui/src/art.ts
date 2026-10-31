@@ -39,9 +39,10 @@ function indexArt(modules: ArtModules, thumbs?: Map<string, string>): Record<str
 const HERO_THUMBS = new Map<string, string>();
 /**
  * THE TINY-SLOT VARIANT of a hero portrait (owner 2026-10-31: "Hero art in mobile is blurry", R-PHONE-HERO-SHARP-01): on
- * a phone, the 160 px thumbnail of a hero / skin portrait for a slot drawn at about 60 device px (the lobby rail's eight
- * faces), so the eight cost ~0.8 MB decoded instead of ~4.7 MB. Any URL without a thumbnail (desktop, an avatar, a card
- * art fallback, a build without thumbnails) comes back unchanged.
+ * a phone, the 256 px thumbnail of a hero / skin portrait for the lobby rail's eight faces (the Docked slices are ~230
+ * device px across, R-PHONE-RAIL-THUMB-01) and the eight-seat reveal's line-up, so the eight cost ~2 MB decoded instead
+ * of ~4.7 MB. Any URL without a thumbnail (desktop, an avatar, a card art fallback, a build without thumbnails) comes
+ * back unchanged.
  */
 export const heroThumb = (url: string | undefined): string | undefined => (url ? HERO_THUMBS.get(url) ?? url : url);
 

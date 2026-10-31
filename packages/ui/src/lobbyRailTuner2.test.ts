@@ -22,10 +22,12 @@ type NumKey = keyof typeof LR2_VARS;
 /** Which element each control must reach: a fragment of the selector of the rule that reads its var. */
 const TARGET: Record<NumKey, string> = {
   railX: '.lobbyrail', railY: '.lobbyrail', railScale: '.lobbyrail',
+  phoneY: '.lobbyrail', phoneScale: '.lobbyrail',
   headX: '.lobbyrailhead', headY: '.lobbyrailhead', headFont: '.lobbyrailhead', headGap: '.lobbyrailhead', headShadow: '.lobbyrailhead',
   tabX: '.lobbyrailtab', tabY: '.lobbyrailtab', tabScale: '.lobbyrailtab',
   medSize: '.lobbyrail', ringSize: '.pframe-box', medGap: '.lobbyseat + .lobbyseat', medCol: '.lobbyseat', nameFont: '.lobbyname',
   nameX: '.lobbynameline', nameY: '.lobbynameline',
+  seatPad: '.lobbyseat', seatGap: '.lobbyseat + .lobbyseat', seatRadius: '.lobbyseat', faceNameGap: '.lobbyseat', nameLines: '.lobbyname',
   hpScale: '.lobbyhp', hpX: '.lobbyhp', hpY: '.lobbyhp', hpFont: '.lobbyhp',
   deadScale: '.lobbyrail', deadOpacity: '.lobbyseat.dead', deadGap: '.lobbyseat.dead',
   bgOpacity: '.lobbyrail', bgPad: '.lobbyrail', bgRadius: '.lobbyrail', bgW: '.lobbyrail', bgH: '.lobbyrail',

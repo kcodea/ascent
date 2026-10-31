@@ -29,9 +29,11 @@ export type Lr2Anchor = (typeof LR2_ANCHORS)[number];
 export interface LobbyRailTuner2Config {
   anchor: Lr2Anchor;
   railX: number; railY: number; railScale: number;
+  phoneY: number; phoneScale: number;
   headX: number; headY: number; headFont: number; headGap: number; headShadow: number;
   tabX: number; tabY: number; tabScale: number;
   medSize: number; ringSize: number; medGap: number; medCol: number; nameFont: number; nameX: number; nameY: number;
+  seatPad: number; seatGap: number; seatRadius: number; faceNameGap: number; nameLines: number;
   hpScale: number; hpX: number; hpY: number; hpFont: number;
   deadScale: number; deadOpacity: number; deadGap: number;
   bgOpacity: number; bgPad: number; bgRadius: number; bgW: number; bgH: number;
@@ -40,17 +42,20 @@ export interface LobbyRailTuner2Config {
 }
 type NumKey = Exclude<keyof LobbyRailTuner2Config, 'anchor'>;
 
+/** The owner's tune of 2026-10-30 ("the below settings are the best for this rail"), plus D's card dials. */
 export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   anchor: 'right',
-  railX: 0, railY: 0, railScale: 1,
-  headX: 0, headY: 0, headFont: 1, headGap: 0.9, headShadow: 1.6, // shadow raised 2026-10-30 (owner: "slightly clearer")
-  tabX: 0, tabY: 0, tabScale: 1,
-  medSize: 40, ringSize: 1, medGap: 6, medCol: 1, nameFont: 16, nameX: 0, nameY: 0,
-  hpScale: 1, hpX: 0, hpY: 0, hpFont: 18,
+  railX: -6, railY: 76, railScale: 1,
+  phoneY: -76, phoneScale: 1.1,
+  headX: 0, headY: 0, headFont: 1.29, headGap: 1.9, headShadow: 3,
+  tabX: 0, tabY: 268, tabScale: 0.75,
+  medSize: 36.5, ringSize: 1, medGap: 8.5, medCol: 0.98, nameFont: 17.5, nameX: 0, nameY: 0,
+  seatPad: 4, seatGap: 3, seatRadius: 8, faceNameGap: 2.5, nameLines: 2,
+  hpScale: 1.19, hpX: 0, hpY: 0, hpFont: 18,
   deadScale: 0.5, deadOpacity: 0.85, deadGap: 6,
-  bgOpacity: 0.92, bgPad: 1, bgRadius: 47, bgW: 0, bgH: 0,
-  pulseRing: 1.3, pulseGlow: 1, pulseMin: 0.3, pulseMax: 1, pulsePeriod: 1.6,
-  cardW: 1.7, cardX: 0, cardY: 0, cardFont: 1,
+  bgOpacity: 1, bgPad: 1, bgRadius: 42, bgW: 0, bgH: 0,
+  pulseRing: 1.4, pulseGlow: 1, pulseMin: 0.63, pulseMax: 1, pulsePeriod: 1.1,
+  cardW: 1, cardX: 0, cardY: 0, cardFont: 1,
 };
 
 /** Each numeric control's var, its range and what it means. The var names are the contract with the stylesheet. */
@@ -58,21 +63,28 @@ const NUM: Record<NumKey, { v: string; group: string; label: string; unit?: Tune
   railX: { v: '--lr2-rail-x', group: 'Rail position', label: 'Move left / right', unit: 'px', min: -800, max: 800, step: 1, hint: 'Moves the whole rail (with its header and Guides tab). Positive = right.' },
   railY: { v: '--lr2-rail-y', group: 'Rail position', label: 'Move up / down', unit: 'px', min: -400, max: 600, step: 1, hint: 'Moves the whole rail (with its header and Guides tab). Positive = down.' },
   railScale: { v: '--lr2-scale', group: 'Rail position', label: 'Overall scale', unit: '×', min: 0.5, max: 2, step: 0.01, hint: 'Scales everything on the rail: medallions, text, pills, spacing and the backing.' },
+  phoneY: { v: '--lr2-phone-y', group: 'Phones only', label: 'Extra up / down', unit: 'px', min: -400, max: 400, step: 1, hint: 'Added to the rail’s move on a phone only (a phone screen is far shorter). Negative = up.' },
+  phoneScale: { v: '--lr2-phone-scale', group: 'Phones only', label: 'Size on phones', unit: '×', min: 0.6, max: 1.8, step: 0.01, hint: 'How much bigger the rail draws on a phone than on a desktop.' },
   headX: { v: '--lr2-head-x', group: 'Header (Round / left / max dmg)', label: 'Move left / right', unit: 'px', min: -300, max: 300, step: 1, hint: 'Moves the header text. Positive = right.' },
   headY: { v: '--lr2-head-y', group: 'Header (Round / left / max dmg)', label: 'Move up / down', unit: 'px', min: -200, max: 200, step: 1, hint: 'Moves the header text. Positive = down.' },
   headFont: { v: '--lr2-head-font', group: 'Header (Round / left / max dmg)', label: 'Text size', unit: '×', min: 0.5, max: 2.5, step: 0.01, hint: 'Size of ROUND and of the LEFT / MAX DMG line.' },
   headGap: { v: '--lr2-head-gap', group: 'Header (Round / left / max dmg)', label: 'Gap', min: 0, max: 3, step: 0.05, hint: 'Space between "N LEFT" and "MAX DMG", in letter widths.' },
-  headShadow: { v: '--lr2-head-shadow', group: 'Header (Round / left / max dmg)', label: 'Shadow strength', unit: '×', min: 0, max: 3, step: 0.05, hint: 'How strong the shadow under the header text is. 0 = none; past 1 it spreads wider and darker.' },
+  headShadow: { v: '--lr2-head-shadow', group: 'Header (Round / left / max dmg)', label: 'Shadow strength', unit: '×', min: 0, max: 5, step: 0.05, hint: 'How strong the shadow under the header text is. 0 = none; past 1 it spreads wider and darker.' },
   tabX: { v: '--lr2-tab-x', group: 'Guides button', label: 'Move left / right', unit: 'px', min: -400, max: 400, step: 1, hint: 'Moves the Guides / Opponents button from its spot on the left edge of the rail. Positive = right.' },
   tabY: { v: '--lr2-tab-y', group: 'Guides button', label: 'Move up / down', unit: 'px', min: -300, max: 800, step: 1, hint: 'Moves the Guides / Opponents button. Positive = down.' },
   tabScale: { v: '--lr2-tab-scale', group: 'Guides button', label: 'Size', unit: '×', min: 0.5, max: 2.5, step: 0.01, hint: 'Scales the button: its plate and both icons together.' },
   medSize: { v: '--lr2-med-size', group: 'Medallion', label: 'Size', min: 16, max: 80, step: 0.5, hint: 'Diameter of each living seat\'s portrait medallion.' },
   ringSize: { v: '--lr2-ring-size', group: 'Medallion', label: 'Ring size', unit: '×', min: 0.8, max: 1.4, step: 0.005, hint: 'Grows the painted ring round the portrait (a bigger ring reads as a thicker rim).' },
-  medGap: { v: '--lr2-med-gap', group: 'Medallion', label: 'Gap between medallions', min: 0, max: 30, step: 0.5, hint: 'Vertical space between one living seat and the next.' },
+  medGap: { v: '--lr2-med-gap', group: 'Medallion', label: 'Gap between medallions', min: 0, max: 30, step: 0.5, hint: 'C: vertical space between one living seat and the next. D: the space from each medallion to its Health pill (D spaces its cards with Card gap).' },
   medCol: { v: '--lr2-med-col', group: 'Medallion', label: 'Column width', unit: '×', min: 0.8, max: 2, step: 0.01, hint: 'Width of the medallion column, so the names and pills sit further right.' },
   nameFont: { v: '--lr2-name-font', group: 'Medallion', label: 'Name size', min: 8, max: 32, step: 0.5, hint: 'Size of the player names.' },
   nameX: { v: '--lr2-name-x', group: 'Medallion', label: 'Name left / right', unit: 'px', min: -60, max: 60, step: 0.5, hint: 'Nudges every name sideways.' },
   nameY: { v: '--lr2-name-y', group: 'Medallion', label: 'Name up / down', unit: 'px', min: -40, max: 40, step: 0.5, hint: 'Nudges every name up or down.' },
+  seatPad: { v: '--lr2-seat-pad', group: 'Cards (D)', label: 'Card padding', min: 0, max: 16, step: 0.25, hint: 'Space inside each seat card, round the portrait, Health and name.' },
+  seatGap: { v: '--lr2-seat-gap', group: 'Cards (D)', label: 'Card gap', min: 0, max: 20, step: 0.25, hint: 'Vertical space between one card and the next.' },
+  seatRadius: { v: '--lr2-seat-radius', group: 'Cards (D)', label: 'Card corner radius', unit: 'px', min: 0, max: 40, step: 0.5, hint: 'Rounding of each seat card.' },
+  faceNameGap: { v: '--lr2-face-name-gap', group: 'Cards (D)', label: 'Portrait to name gap', min: 0, max: 16, step: 0.25, hint: 'Space between the portrait line and the name line.' },
+  nameLines: { v: '--lr2-name-lines', group: 'Cards (D)', label: 'Name max lines', min: 1, max: 3, step: 1, hint: 'How many lines a long name may wrap to before it is cut.' },
   hpScale: { v: '--lr2-hp-scale', group: 'Health / Armor plate', label: 'Plate scale', unit: '×', min: 0.5, max: 2.5, step: 0.01, hint: 'Scales the whole heart + Armor plate (box and text together).' },
   hpX: { v: '--lr2-hp-x', group: 'Health / Armor plate', label: 'Left / right', unit: 'px', min: -80, max: 80, step: 0.5, hint: 'Moves the plate relative to its medallion.' },
   hpY: { v: '--lr2-hp-y', group: 'Health / Armor plate', label: 'Up / down', unit: 'px', min: -60, max: 60, step: 0.5, hint: 'Moves the plate relative to its medallion.' },
@@ -90,7 +102,7 @@ const NUM: Record<NumKey, { v: string; group: string; label: string; unit?: Tune
   pulseMin: { v: '--lr2-pulse-min', group: 'Opponent pulse', label: 'Dimmest', unit: 'opacity', min: 0, max: 1, step: 0.01, hint: 'The pulse\'s low point. Set it equal to Brightest for a steady ring.' },
   pulseMax: { v: '--lr2-pulse-max', group: 'Opponent pulse', label: 'Brightest', unit: 'opacity', min: 0, max: 1, step: 0.01, hint: 'The pulse\'s high point.' },
   pulsePeriod: { v: '--lr2-pulse-period', group: 'Opponent pulse', label: 'Period', unit: 's', min: 0.4, max: 5, step: 0.05, hint: 'Seconds for one full breath.' },
-  cardW: { v: '--lr2-card-w', group: 'Hover card', label: 'Width', unit: '×', min: 1, max: 3, step: 0.01, hint: 'Width of the scouting card.' },
+  cardW: { v: '--lr2-card-w', group: 'Hover card', label: 'Width', unit: '×', min: 0.6, max: 1.8, step: 0.01, hint: 'Width of the scouting card, as a multiple of the original card.' },
   cardX: { v: '--lr2-card-x', group: 'Hover card', label: 'Left / right', unit: 'px', min: -300, max: 300, step: 1, hint: 'Moves the card from where it opens.' },
   cardY: { v: '--lr2-card-y', group: 'Hover card', label: 'Up / down', unit: 'px', min: -300, max: 300, step: 1, hint: 'Moves the card from where it opens.' },
   cardFont: { v: '--lr2-card-font', group: 'Hover card', label: 'Text + icon scale', unit: '×', min: 0.6, max: 2, step: 0.01, hint: 'Scales the card\'s text, portraits and runes.' },
@@ -107,6 +119,8 @@ function load(): LobbyRailTuner2Config {
     const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
     const out: LobbyRailTuner2Config = { ...LR2_DEFAULTS };
     if (isAnchor(o.anchor)) out.anchor = o.anchor;
+    // 1.7 was the lean card's width; the restored original card's width is a multiple of its own (1 = as shipped).
+    if (o.cardW === 1.7) delete o.cardW;
     for (const k of Object.keys(NUM) as NumKey[]) {
       const v = o[k];
       if (typeof v === 'number' && Number.isFinite(v)) out[k] = Math.min(NUM[k].max, Math.max(NUM[k].min, v));

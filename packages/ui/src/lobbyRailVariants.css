@@ -28,59 +28,59 @@
    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 
 /* ═══ SHARED BY A / B / C ═══════════════════════════════════════════════════════════════════════════════════════ */
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lobbyrail {
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbyrail {
   /* The painted frame's scale: source px x --rvk = screen px (the Compendium's own --bf-s, sized for a narrow rail). */
   --rvk: calc(0.125 * var(--lu));
 }
 /* The seats-left count moved into the header banner (LobbyPanel renders `.lrv-left` there); the Guides view keeps its
    own count line. */
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lobbyrail:not(.guidesview) > .lobbyhead { display: none; }
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbyrail:not(.guidesview) > .lobbyhead { display: none; }
 /* Every portrait now wears a painted ring (the face host): drop the Gem rail's square crop and let the ring overhang. */
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lobbyface-host { overflow: visible; }
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lobbyface-host > .lobbyface-img { border-radius: 50%; }
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbyface-host { overflow: visible; }
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbyface-host > .lobbyface-img { border-radius: 50%; }
 
 /* The Gem health pill (the hero Health pill's plate, edge, bevel), compact: heart + number, then the steel Armor chip. */
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lobbyseat:not(.dead) .lobbyhp {
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbyseat:not(.dead) .lobbyhp {
   justify-self: start; align-self: center; display: inline-flex; align-items: center; gap: 0.18em; width: max-content;
   padding: 0.12em 0.42em 0.12em 0.3em; margin: 0; line-height: 1.1; border: 1px solid transparent; border-radius: 0.42em;
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 1px 4px -1px rgba(0, 0, 0, 0.6);
   color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); font-variant-numeric: tabular-nums;
 }
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lobbyseat:not(.dead) .lobbyhp > svg { width: 0.95em; height: 0.95em; color: var(--ui-heart); }
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lobbyseat:not(.dead) .lobbyarmor {
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbyseat:not(.dead) .lobbyhp > svg { width: 0.95em; height: 0.95em; color: var(--ui-heart); }
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbyseat:not(.dead) .lobbyarmor {
   margin-left: 0.22em; padding: 0.08em 0.3em 0.08em 0.18em; font-size: 0.86em;
 }
 
 /* The fallen seat's place medal: the ladder's medallion (`.lb-medal`), coin-sized, hung on the portrait's foot.
    Places 4 to 8 are the plain numeral, given the Gem plate so it reads as a coin; 1 to 3 keep gold / silver / bronze. */
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lrv-medal {
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-medal {
   position: absolute; z-index: 3; right: -8%; bottom: -8%; width: 46%; height: 46%; min-width: 15px; min-height: 15px;
   font-size: calc(9 * var(--lfont) * 1.25); line-height: 1; filter: none;
 }
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lrv-medal.plain {
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-medal.plain {
   color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75); border: 1px solid transparent;
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   box-shadow: var(--ui-bevel), 0 1px 3px rgba(0, 0, 0, 0.6);
 }
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lrv-medal svg { top: -45%; width: 60%; height: 60%; }
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-medal svg { top: -45%; width: 60%; height: 60%; }
 /* The fallen portrait greys; the medal keeps its colour. (The Gem rule greys only the face image.) */
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lobbyseat.dead .pframe { filter: grayscale(1) brightness(0.8); }
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbyseat.dead .pframe { filter: grayscale(1) brightness(0.8); }
 
 /* The next foe's CROSSED SWORDS (B and C): the rail tab's sword glyph twice, one mirrored, on a small red Gem coin
    pinned to the portrait's top-left. Static. A ghost pairing takes the teal. */
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lrv-swords {
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-swords {
   position: absolute; z-index: 3; left: -10%; top: -10%; width: 44%; height: 44%; min-width: 15px; min-height: 15px;
   display: grid; place-items: center; border-radius: 50%; border: 1px solid transparent;
   background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--ui-heart) 75%, #fff), var(--ui-heart) 55%, color-mix(in srgb, var(--ui-heart) 60%, #000)) padding-box, var(--ui-edge) border-box;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.35);
   color: #fff; pointer-events: none;
 }
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lrv-swords > svg {
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-swords > svg {
   grid-area: 1 / 1; width: 70%; height: 70%; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6));
 }
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lrv-swords > svg + svg { scale: -1 1; }
-html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"]) .lrv-swords.ghost {
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-swords > svg + svg { scale: -1 1; }
+html:root:is([data-lobby-rail="plaque"], [data-lobby-rail="ledger"], [data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-swords.ghost {
   background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--ui-ghost) 75%, #fff), var(--ui-ghost) 55%, color-mix(in srgb, var(--ui-ghost) 60%, #000)) padding-box, var(--ui-edge) border-box;
 }
 

@@ -849,58 +849,9 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
 
   // ── The three candidate layouts (owner picked V1; the others stay for reference). Same data, different form. ──
   let body: JSX.Element;
-  if (railVariant === 'medallion') {
-    // C · MEDALLIONS (owner 2026-10-30: "make the mouse over window way cleaner and less redundant info"). The rail
-    // already shows the portrait, the name and the Health / Armor, so the card carries only what scouting needs: the
-    // hero, the shop tier, the build, the last three fights (face, W / L / D, damage) and the runes they own.
-    const ownedRunes = runeIds.map((id) => RUNE_INDEX[id]!).filter(Boolean);
-    body = (
-      <>
-        <div className="lrvc-head">
-          <span className="lrvc-hero">{heroName}</span>
-          {intel ? (
-            <span className="lrvc-tags">
-              <span className="lrvc-tag" aria-label={`Shop tier ${intel.tier}`}>Tier {intel.tier}</span>
-              <span className="lrvc-tag lrvc-build" style={{ '--c': tribeColor } as React.CSSProperties}>{tribeText}</span>
-            </span>
-          ) : <span className="lrvc-none">No intel yet</span>}
-        </div>
-        {badges}
-        {/* Early in a game (no fight with anyone yet) the card says so in one line, so the divider never dangles. */}
-        {results.length === 0 && <div className="lrvc-none lrvc-nofights">No fights yet</div>}
-        {results.length > 0 && (
-          <div className="lrvc-fights" aria-label="Last fights">
-            {results.map((r) => (
-              <div className={`lrvc-fight ${r.outcome}`} key={r.round} aria-label={`Round ${r.round}: ${OUTCOME_LABEL[r.outcome] ?? ''} vs ${r.foeLabel}`}>
-                {r.foeHeroId
-                  ? <img decoding="sync" className="lrvc-foe" src={faceOf(r)} alt="" />
-                  : <span className="lrvc-foe lrvc-foename">{r.foeLabel}</span>}
-                <span className="lrvc-out">{r.outcome === 'win' ? 'W' : r.outcome === 'lose' ? 'L' : 'D'}</span>
-                <span className="lrvc-dmg">{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {ownedRunes.length > 0 && (
-          <div className="lrvc-runes" aria-label="Runes">
-            {ownedRunes.map((rune) => {
-              const rart = runeArt(rune.id);
-              return (
-                <div className="lobbyscout-socket filled" key={rune.id}>
-                  {rart ? <img decoding="sync" className="lobbyscout-socketart" src={rart} alt="" aria-hidden /> : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
-                  <div className="questbadge-tip" role="tooltip">
-                    <b>{rune.name}</b>
-                    <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(liveRuneText(rune.id, rune.text, intel?.runeLive)) }} />
-                    <span className="questbadge-tip-state">Rune · active</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </>
-    );
-  } else if (variant === 2) {
+  // OWNER REVIEW (2026-10-30): C and D use the ORIGINAL card below (owner: the lean card "looks significantly worse than
+  // before"), dressed by the rail's sheet. Its layout switch (`variant`) is the old DEV V1/V2/V3 chip.
+  if (variant === 2) {
     // V2 — identity banner (dominant tribe front + centre) + a thin meta line, history given its own titled block.
     body = (
       <>

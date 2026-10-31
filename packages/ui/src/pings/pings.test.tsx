@@ -32,7 +32,14 @@ import {
   useMentors,
   usePings,
 } from './pingRuntime';
-import { cardZoneOf, fanOptions, fanPositions, openCardPingMenu, PING_DOUBLE_MS, pingAnchorOf, resetPingDoubleForTests, usePingMenu } from './PingLayer';
+import { cardZoneOf, fanOptions, fanPositions, openCardPingMenu, PING_DOUBLE_MS, PING_HOLD_MS, pingAnchorOf, pingHold, resetPingDoubleForTests, usePingMenu } from './PingLayer';
+
+/** A right-button pointer event (jsdom has no PointerEvent constructor: a MouseEvent carrying a `pointerType`). */
+function mouse(type: string, el: Element, pointerType = 'mouse', x = 1, y = 1): void {
+  const ev = new MouseEvent(type, { bubbles: true, cancelable: true, button: 2, clientX: x, clientY: y });
+  Object.defineProperty(ev, 'pointerType', { value: pointerType });
+  el.dispatchEvent(ev);
+}
 
 let now = 1_000_000;
 const sent: { e: string; p: unknown }[] = [];
@@ -197,10 +204,10 @@ describe('mentors (R-PING-03)', () => {
     const card = document.querySelector('.card')!;
     const inspect = vi.fn();
     // Not promoted yet: right-click inspects at once.
-    expect(openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: card }, '31', inspect)).toBe(false);
+    expect(pingHold(card, 10, 10)).toBe(false);
     // The player promotes me (their mentor message reaches the stands).
     receivePingEvent(PING_MENTOR_EVENT, { seat: 'p1', mentor: 'me', name: 'Me' });
-    expect(openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: card }, '31', inspect)).toBe(true);
+    expect(pingHold(card, 10, 10)).toBe(true);
     expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid: '31', zone: 'board' });
     expect(sendPing('check', { t: 'card', uid: '31', zone: 'board' })).toBe(true);
     const out = sent.find((x) => x.e === PING_EVENT)!.p as PingMessage;
@@ -253,7 +260,7 @@ describe('pinging on the watch screen as it really is (`replaying` set by specta
       <div data-zone="hand"><div class="row hand"><div class="card" data-uid="h1"></div></div></div>`;
     for (const [uid, zone] of [['t1', 'shop'], ['w1', 'board'], ['h1', 'hand']] as const) {
       const el = document.querySelector(`[data-uid="${uid}"]`)!;
-      expect(openCardPingMenu({ clientX: 5, clientY: 5, currentTarget: el }, uid, () => undefined)).toBe(true);
+      expect(pingHold(el, 5, 5)).toBe(true);
       expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid, zone });
       usePingMenu.setState({ open: null });
     }
@@ -326,20 +333,23 @@ describe('the layer (R-PING-04/05)', () => {
     expect(pingAnchorOf({ t: 'card', uid: '9', zone: 'board' })).toBeNull();
   });
 
-  it('right-click opens the menu on a play-zone card, else inspects straight away', () => {
+  it('a right-click HOLD opens the menu on a play-zone card; a quick mouse right-click always inspects (R-PING-09)', () => {
     board();
     const inspect = vi.fn();
     const shop = document.querySelector('[data-uid="7"]')!;
-    expect(openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: shop }, '7', inspect)).toBe(true);
+    // A quick mouse right-click that reaches the card is its Inspect, even where pings are on.
+    expect(openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: shop }, '7', inspect, false)).toBe(false);
+    expect(usePingMenu.getState().open).toBeNull();
+    expect(pingHold(shop, 10, 10)).toBe(true);
     expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid: '7', zone: 'shop' });
     const discover = document.querySelector('[data-uid="13"]')!;
-    expect(openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: discover }, '13', inspect)).toBe(false);
+    expect(pingHold(discover, 10, 10)).toBe(false);
     useGame.setState({ showTitle: true }); // the menus / Compendium
-    expect(openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: shop }, '7', inspect)).toBe(false);
+    expect(pingHold(shop, 10, 10)).toBe(false);
     expect(cardZoneOf(document.querySelector('[data-uid="11"]')!)).toBe('hand');
   });
 
-  it('a DOUBLE right-click on a card inspects (owner 2026-10-29): the fan goes at once, no menu is left open', () => {
+  it('a PHONE double long-press on a card still inspects (touch unchanged by R-PING-09): the fan goes at once, no menu is left open', () => {
     board();
     const inspect = vi.fn();
     const shop = document.querySelector('[data-uid="7"]')!;
@@ -347,25 +357,25 @@ describe('the layer (R-PING-04/05)', () => {
     const at = { clientX: 10, clientY: 10 };
     const t0 = Date.now();
     const clock = vi.spyOn(Date, 'now').mockReturnValue(t0);
-    expect(openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect)).toBe(true);
+    expect(openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect, true)).toBe(true);
     expect(usePingMenu.getState().open).not.toBeNull();
     expect(inspect).not.toHaveBeenCalled();
     clock.mockReturnValue(t0 + 200);
-    expect(openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect)).toBe(true);
+    expect(openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect, true)).toBe(true);
     expect(inspect).toHaveBeenCalledTimes(1);
     expect(usePingMenu.getState().open).toBeNull();
     // Too slow: the second right-click opens the fan again, no Inspect.
     clock.mockReturnValue(t0 + 1000);
-    openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect);
+    openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect, true);
     clock.mockReturnValue(t0 + 1000 + PING_DOUBLE_MS + 1);
-    openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect);
+    openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect, true);
     expect(inspect).toHaveBeenCalledTimes(1);
     expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid: '7', zone: 'shop' });
     // A second right-click on ANOTHER card is a new fan, not a double.
     clock.mockReturnValue(t0 + 5000);
-    openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect);
+    openCardPingMenu({ ...at, currentTarget: shop }, '7', inspect, true);
     clock.mockReturnValue(t0 + 5100);
-    openCardPingMenu({ ...at, currentTarget: hand }, '11', inspect);
+    openCardPingMenu({ ...at, currentTarget: hand }, '11', inspect, true);
     expect(inspect).toHaveBeenCalledTimes(1);
     expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid: '11', zone: 'hand' });
     clock.mockRestore();
@@ -464,30 +474,26 @@ describe('a single right-click on a target carrying MY ping clears it (R-PING-07
       <button data-spec="upgrade"></button>`;
   }
   const clears = (): unknown[] => sent.filter((x) => x.e === PING_CLEAR_EVENT).map((x) => x.p);
-  const rc = (uid: string, inspect = vi.fn()): boolean => openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: document.querySelector(`[data-uid="${uid}"]`)! }, uid, inspect);
+  /** A mouse HOLD on the card (R-PING-09): what a single right-click did before. */
+  const rc = (uid: string, _inspect = vi.fn()): boolean => pingHold(document.querySelector(`[data-uid="${uid}"]`)!, 10, 10);
 
-  it('the player, on their own board: one right-click clears it everywhere, no fan; a quick second right-click still inspects', () => {
+  it('the player, on their own board: one hold clears it everywhere, no fan; a quick right-click still inspects', () => {
     board();
     session('p1', 'duos');
-    const t0 = Date.now();
-    const clock = vi.spyOn(Date, 'now').mockReturnValue(t0);
     sendPing('check', { t: 'card', uid: '9', zone: 'board' });
     const inspect = vi.fn();
+    // A QUICK right-click on my pinged card is its Inspect (R-PING-09): the ping stays.
+    expect(openCardPingMenu({ clientX: 10, clientY: 10, currentTarget: document.querySelector('[data-uid="9"]')! }, '9', inspect, false)).toBe(false);
+    expect(usePings.getState().list).toHaveLength(1);
+    // The HOLD clears it.
     expect(rc('9', inspect)).toBe(true);
     expect(usePings.getState().list).toHaveLength(0);
     expect(usePingMenu.getState().open).toBeNull();
     expect(inspect).not.toHaveBeenCalled();
     expect(clears()).toEqual([{ owner: 'p1', target: { t: 'card', uid: '9', zone: 'board' } }]);
-    // The second right-click of a double (same card, within PING_DOUBLE_MS) inspects, as always.
-    clock.mockReturnValue(t0 + PING_DOUBLE_MS - 50);
-    expect(rc('9', inspect)).toBe(true);
-    expect(inspect).toHaveBeenCalledTimes(1);
-    expect(usePingMenu.getState().open).toBeNull();
-    // With no ping on it any more, a later right-click opens the fan.
-    clock.mockReturnValue(t0 + 2000);
+    // With no ping on it any more, the next hold opens the fan.
     expect(rc('9', inspect)).toBe(true);
     expect(usePingMenu.getState().open?.target).toEqual({ t: 'card', uid: '9', zone: 'board' });
-    clock.mockRestore();
   });
 
   it('someone ELSE\'s ping on the target (here my teammate\'s) is not mine: the right-click opens the fan and the ping stays', () => {
@@ -551,7 +557,7 @@ describe('a single right-click on a target carrying MY ping clears it (R-PING-07
     expect(rc('9', inspect)).toBe(false);
   });
 
-  it('a shop button: one right-click on a button carrying my ping clears it, no fan; with none it opens the fan; a phone hold clears', async () => {
+  it('a shop button: a hold on a button carrying my ping clears it, no fan; with none it opens the fan; a phone hold clears', async () => {
     const { act } = await import('react');
     const { createRoot } = await import('react-dom/client');
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -563,15 +569,25 @@ describe('a single right-click on a target carrying MY ping clears it (R-PING-07
     const root = createRoot(host);
     act(() => root.render(<PingLayer />));
     const btn = document.querySelector('[data-spec="upgrade"]')!;
-    const fire = (): MouseEvent => { const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 1, clientY: 1 }); act(() => { btn.dispatchEvent(ev); }); return ev; };
+    vi.useFakeTimers();
+    // A Windows mouse hold: press, held past PING_HOLD_MS, release, then the release's contextmenu.
+    const hold = (): MouseEvent => {
+      act(() => { mouse('pointerdown', btn); });
+      act(() => { vi.advanceTimersByTime(PING_HOLD_MS); });
+      act(() => { mouse('pointerup', btn); });
+      const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 1, clientY: 1 });
+      act(() => { btn.dispatchEvent(ev); });
+      return ev;
+    };
     act(() => { sendPing('check', { t: 'button', id: 'upgrade' }); });
-    const ev = fire();
+    const ev = hold();
     expect(ev.defaultPrevented).toBe(true);
     expect(usePings.getState().list).toHaveLength(0);
     expect(usePingMenu.getState().open).toBeNull();
     expect(clears()).toEqual([{ owner: 'p1', target: { t: 'button', id: 'upgrade' } }]);
-    fire();
+    hold();
     expect(usePingMenu.getState().open?.target).toEqual({ t: 'button', id: 'upgrade' });
+    vi.useRealTimers();
     // Phone: a hold on a card carrying my ping fires (it clears), even where no ping could be opened.
     act(() => { usePingMenu.setState({ open: null }); sendPing('x', { t: 'card', uid: '9', zone: 'board' }); });
     act(() => { useGame.setState({ run: { ...useGame.getState().run, phase: 'combat' } }); });

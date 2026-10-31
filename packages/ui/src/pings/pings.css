@@ -3,6 +3,8 @@
    the menu's buttons get the gauntlet from the global button rule. */
 
 /* ── the fan: placed bubbles ── */
+/* While the fan is open the card's hover reveal steps aside (a held right-press never reaches the card's own handler). */
+body.ping-open .cardref { visibility: hidden !important; }
 .ping-bubbles { position: fixed; inset: 0; z-index: 960; pointer-events: none; }
 .ping-bub {
   position: absolute; width: 84px; height: 84px; margin: -42px 0 0 -42px; padding: 0;

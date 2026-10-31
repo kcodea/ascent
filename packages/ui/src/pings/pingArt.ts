@@ -7,8 +7,8 @@
  */
 import type { PingKind } from '@game/versus-cf/pings';
 
-// The owner's magnifier bubble (`inspect.webp`) stays in the folder, unused: Inspect left the fan for a double right-click
-// (owner 2026-10-29), so it is kept out of the bundle.
+// The owner's magnifier bubble (`inspect.webp`) stays in the folder, unused: Inspect left the fan (owner 2026-10-29; a quick right-click inspects since
+// 2026-10-31), so it is kept out of the bundle.
 const PING_URLS = import.meta.glob(['../art/pings/*.webp', '!../art/pings/inspect.webp'], { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 
 /** The painted icon of a ping, or undefined when its file is missing. */

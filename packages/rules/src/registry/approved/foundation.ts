@@ -11245,18 +11245,19 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PING-04',
-    title: 'Right-click (a phone: long-press) opens the ping fan; a double right-click inspects; elsewhere right-click still inspects at once',
+    title: 'Holding right-click (a phone: long-press) opens the ping fan; a quick right-click inspects; elsewhere right-click still inspects at once',
     statement:
-      'On a shop, board or hand card in a game where the viewer may ping, right-click (or a long-press on a phone) opens the ping fan: Check, X, Question in an arc above the card and Pass (left) and Sell (right) below it. A DOUBLE right-click on a card (a second right-click on the same card within 350 ms) closes the fan at once and opens Inspect; a phone keeps tap-to-inspect. A shop button gets Check, X and Question only (no bottom arc), and a button ping of any other kind is refused by the shared rule. A left-click away or Escape closes it. Where pings are not available (menus, the Compendium, a replay, a Discover or Choose One option, a spectator who is not a mentor) right-click on a card inspects at once as before, and a phone hold on a card still does nothing (a tap inspects).',
+      'On a shop, board or hand card in a game where the viewer may ping, HOLDING right-click (R-PING-09) or a long-press on a phone opens the ping fan: Check, X, Question in an arc above the card and Pass (left) and Sell (right) below it. A quick right-click on a card inspects it (R-PING-09, owner 2026-10-31; from 2026-10-29 it took a double right-click); a phone keeps tap-to-inspect, and a phone double long-press on a card still inspects. A shop button gets Check, X and Question only (no bottom arc), and a button ping of any other kind is refused by the shared rule. A left-click away or Escape closes it. Where pings are not available (menus, the Compendium, a replay, a Discover or Choose One option, a spectator who is not a mentor) right-click on a card inspects at once as before, and a phone hold on a card still does nothing (a tap inspects).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: "Right clicking replaces the inspect, so we\x27ll need to add an inspect option in the ping wheel so players can inspect a card still" },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (live pings + mentors)', quote: 'Right clicking opens the menu then left clicking away should close the menu.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29 (follow-up)', quote: 'remove the magnifying glass ping, change it so that double right clicking inspects' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-31 (right-click inspect, hold to ping)', quote: 'i want right click to be inspect (currently its double right click) and a held right click to be ping. is that doable?' },
     ],
-    currentBehaviour: 'New on 2026-10-29. The menu is the fan (owner pick 2026-10-29): Check, X, Question in an arc above the target; on a card, Pass and Sell below it. A shop button gets the top three only. Inspect left the fan the same day for a double right-click.',
-    example: 'Double right-click a board minion: the fan flashes away and the usual Inspect view opens.',
+    currentBehaviour: 'New on 2026-10-29. The menu is the fan (owner pick 2026-10-29): Check, X, Question in an arc above the target; on a card, Pass and Sell below it. A shop button gets the top three only. Inspect left the fan the same day for a double right-click, and became a quick right-click on 2026-10-31 (R-PING-09).',
+    example: 'Right-click a board minion: the usual Inspect view opens. Hold right-click on it instead: the fan opens.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
   {
@@ -11276,24 +11277,24 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PING-07',
-    title: 'One right-click on a target clears your own ping there, for every sender',
+    title: 'One right-click hold on a target clears your own ping there, for every sender',
     statement:
-      'A single right-click (a phone: long-press) on a shop card, board minion, hand card or shop button that carries a ping YOU placed clears that ping instead of opening the fan. It works for every sender: a player on their own screen, a Duos teammate on their mate’s screen, and a mentor on the watched player’s screen; a spectator whose mentor role ended can still clear their own leftover ping on their own screen. The clear is sent as the usual `ping_clear`, so it goes from every screen that showed the ping (the receiver, the teammate, the stands); the Versus room and the lobby live object accept it from the player, the teammate and the mentor. A right-click on a target with someone else’s ping, or none, opens the fan as before. It counts as the first click of a double: a second right-click on the same card within 350 ms inspects it.',
+      'A right-click HOLD (R-PING-09; a phone: long-press) on a shop card, board minion, hand card or shop button that carries a ping YOU placed clears that ping instead of opening the fan. It works for every sender: a player on their own screen, a Duos teammate on their mate’s screen, and a mentor on the watched player’s screen; a spectator whose mentor role ended can still clear their own leftover ping on their own screen. The clear is sent as the usual `ping_clear`, so it goes from every screen that showed the ping (the receiver, the teammate, the stands); the Versus room and the lobby live object accept it from the player, the teammate and the mentor. A hold on a target with someone else’s ping, or none, opens the fan as before. A quick right-click on it inspects, ping or not (R-PING-09).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: "spectators should be able to clear their pings/players in general should be able to clear their own pings on friends boards etc too by right clicking the minion/button etc once. that\x27ll clear it" },
       { kind: 'code', ref: 'packages/ui/src/pings/pingRuntime.ts myPingOn / clearMyPingOn; packages/ui/src/pings/PingLayer.tsx openCardPingMenu, the shop-button contextmenu, the phone hold gate; workers/versus/src/pings.ts routePingClear' },
     ],
-    currentBehaviour: 'Conforms since 2026-10-29 (fix/right-click-clears-own-ping). Before, a right-click on a pinged target always opened the fan; only a click on the small ping mark itself cleared it.',
-    example: "Ann, watching her Duos mate Amy, pinged Question on Amy's minion. Ann right-clicks that minion once: the question mark goes from Ann's and Amy's screens and the stands.",
+    currentBehaviour: 'Conforms since 2026-10-29 (fix/right-click-clears-own-ping). Before, a right-click on a pinged target always opened the fan; only a click on the small ping mark itself cleared it. Since 2026-10-31 (R-PING-09) the mouse gesture is a hold, not a single right-click.',
+    example: "Ann, watching her Duos mate Amy, pinged Question on Amy's minion. Ann holds right-click on that minion: the question mark goes from Ann's and Amy's screens and the stands.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pings.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
   {
     id: 'R-PING-08',
     title: 'Pings land on every choosable or inspectable spot, by a semantic key every viewer shares',
     statement:
-      'Beyond play-zone cards and the five shop buttons, a ping may land on a UI SPOT: an element carrying a `data-ping` key built by `packages/ui/src/pings/pingKeys.ts` (a Discover option `disc:<i>:<cardId>:<offer signature>`, a hero-power Discover option `pow:...`, a Choose One option, an Ancient, a Quest Shop offer, a Runeforge offer, an equipped rune, the quest tracker, the second hero power, the Equipment slot, the hero portrait, a lobby rail row, the Duos teammate portrait). It travels as `{ t: "ui", k }` and each viewer finds the same key on its own layout, never a position. A spot takes Check, X and Question only. A right-click opens the fan; a double right-click reaches the spot’s own right-click (a card option’s Inspect, the scout pin, the emotes). Spots marked `data-ping-own` (the portrait, the rail rows) keep their own right-click for the player on their own screen, and the player’s phone hold on a choice option stays its Inspect; a teammate or mentor gets the fan there, and on the watch screen their tap on an option inspects it. The ping clears when its spot leaves the screen (the offer closed, the option was taken, a new offer opened under new keys). An older client or server drops the unknown target kind, so the change is safe to ship ahead of a Worker deploy.',
+      'Beyond play-zone cards and the five shop buttons, a ping may land on a UI SPOT: an element carrying a `data-ping` key built by `packages/ui/src/pings/pingKeys.ts` (a Discover option `disc:<i>:<cardId>:<offer signature>`, a hero-power Discover option `pow:...`, a Choose One option, an Ancient, a Quest Shop offer, a Runeforge offer, an equipped rune, the quest tracker, the second hero power, the Equipment slot, the hero portrait, a lobby rail row, the Duos teammate portrait). It travels as `{ t: "ui", k }` and each viewer finds the same key on its own layout, never a position. A spot takes Check, X and Question only. Holding right-click opens the fan; a quick right-click reaches the spot’s own right-click (a card option’s Inspect, the scout pin, the emotes) (R-PING-09). Spots marked `data-ping-own` (the portrait, the rail rows) keep their own right-click for the player on their own screen, and the player’s phone hold on a choice option stays its Inspect; a teammate or mentor gets the fan there, and on the watch screen their tap on an option inspects it. The ping clears when its spot leaves the screen (the offer closed, the option was taken, a new offer opened under new keys). An older client or server drops the unknown target kind, so the change is safe to ship ahead of a Worker deploy.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -11301,7 +11302,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/pings/pingKeys.ts; packages/ui/src/pings/PingLayer.tsx uiSpotOf / spotYields / openCardPingMenu / pingAnchorOf; workers/versus/src/pings.ts PING_UI_KEY parseTarget' },
     ],
     currentBehaviour: 'Conforms since 2026-10-30 (feat/pings-discover-runes). Before, a right-click on a Discover option or a rune always inspected at once and nothing outside the play zones and shop buttons could be pinged.',
-    example: "Sam mentors Ann. Ann's Discover offers three Dragons; Sam right-clicks the middle one and picks Check. Ann sees the check on her middle option; when she takes a card the check goes.",
+    example: "Sam mentors Ann. Ann's Discover offers three Dragons; Sam holds right-click on the middle one and picks Check. Ann sees the check on her middle option; when she takes a card the check goes.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/pingSpots.test.tsx', 'workers/versus/test/pings.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
   {
@@ -12385,5 +12386,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-31 (feat/scene-builder-duos). The teammate\x27s turn never advances (their run does not fight; tag-team combat is out of scope for the rig).',
     example: 'Kev turns Duos on in the Scene Builder, puts Hitchhiker on his board and types Handout in the Teammate box: his placeholder teammate passes it, it streams out of their portrait into his hand, and Hitchhiker grows. He drags it back onto their portrait, clicks it, and sees it in their hand.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/sbDuosChannel.test.ts', 'packages/ui/src/sbDuos.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
+  {
+    id: 'R-PING-09',
+    title: 'A quick right-click inspects; holding right-click for 300 ms pings',
+    statement:
+      'With a mouse, a right-click released before 300 ms is the target\x27s own right-click everywhere: on a card (shop, board, hand, '
+      + 'a fight, a Discover or other choice option, a stored board) it opens Inspect, on a spot with its own right-click (the portrait\x27s '
+      + 'emotes, a rail row\x27s scout pin) it does that, and on a shop button it does nothing. Holding the right button down for 300 ms on a '
+      + 'ping target, where the viewer may ping, opens the ping fan there instead (or clears the viewer\x27s own ping on it, R-PING-07), and the '
+      + 'release that follows never also inspects. A quick Inspect opens on the release, exactly when a right-click always fired on Windows; '
+      + 'where the browser fires right-click on the press (macOS, Linux) it waits for the release. Where no ping is possible (the menus, the '
+      + 'Compendium, a replay, a spectator who is not a mentor) nothing changes: right-click inspects at once. Touch is untouched: a tap '
+      + 'inspects and a long-press opens the fan. The hold is one timer per right-press, with no per-frame work.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-31 (right-click inspect, hold to ping)', quote: 'i want right click to be inspect (currently its double right click) and a held right click to be ping. is that doable?' },
+      { kind: 'code', ref: 'packages/ui/src/pings/PingLayer.tsx installRightHold / pingHold / holdTargetAt / openCardPingMenu (feat/hold-right-click-ping)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-31 (feat/hold-right-click-ping). From 2026-10-29 a single right-click opened the fan and a double right-click inspected.',
+    example: 'Ann right-clicks a shop minion: its Inspect view opens. She holds right-click on it instead: after a beat the ping fan opens, and letting go leaves the fan up with no Inspect behind it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/rightHold.test.tsx', 'packages/ui/src/pings/pings.test.tsx', 'packages/ui/src/pings/pingSpots.test.tsx'], lastVerifiedAt: '2026-10-31' },
   },
 ];

@@ -1,17 +1,19 @@
 /**
  * LIVE PINGS, on screen (owner design 2026-10-29; R-PING-01..05).
  *
- *  - THE MENU (`PingMenu`): right-click (a phone: long-press, which `touchInput.ts` turns into the same right-click) on a
- *    shop card, a board minion, a hand card, or a shop button (Tavern Up, Refresh, Freeze, the hero power, End Turn)
- *    opens it. A DOUBLE right-click on a card inspects it (owner 2026-10-29: "remove the magnifying glass ping, change it
- *    so that double right clicking inspects"): the first opens the fan, a second on the same card within
- *    `PING_DOUBLE_MS` closes it at once and opens Inspect. A phone keeps its tap-to-inspect. Where pings are not
- *    available (outside a game, a replay, a spectator who is not a mentor) a card's right-click goes STRAIGHT to Inspect
- *    as before. A left-click away or Escape closes the menu.
- *    CLEARING MY OWN PING (owner 2026-10-29, R-PING-07): a SINGLE right-click (a phone: long-press) on a card or shop
- *    button that carries a ping I placed clears it everywhere instead of opening the fan, for every sender (the player,
- *    a Duos teammate, a mentor). It counts as the first of a double, so a quick second right-click still inspects.
- *    Someone else's ping (or none) opens the fan as before.
+ *  - THE MENU (`PingMenu`): HOLDING the right mouse button for `PING_HOLD_MS` (a phone: long-press, which
+ *    `touchInput.ts` turns into a right-click) on a shop card, a board minion, a hand card, or a shop button (Tavern Up,
+ *    Refresh, Freeze, the hero power, End Turn) opens it. A QUICK right-click is the target's own right-click, so a card
+ *    INSPECTS (owner 2026-10-31, R-PING-09: "i want right click to be inspect ... and a held right click to be ping").
+ *    The quick click is decided on RELEASE (`installRightHold`): Windows fires `contextmenu` on release anyway, so a
+ *    quick Inspect opens exactly when it always did; where the browser fires it on the PRESS (macOS, Linux) it is held
+ *    back and replayed on the release. A phone keeps its tap-to-inspect, and its long-press still opens the fan (with
+ *    the older double long-press to inspect). Where pings are not available (outside a game, a replay, a spectator who
+ *    is not a mentor) nothing arms the hold, and right-click behaves exactly as before. A left-click away or Escape
+ *    closes the menu.
+ *    CLEARING MY OWN PING (owner 2026-10-29, R-PING-07): a HOLD (a phone: long-press) on a card or shop button that
+ *    carries a ping I placed clears it everywhere instead of opening the fan, for every sender (the player, a Duos
+ *    teammate, a mentor). Someone else's ping (or none) opens the fan as before.
  *    THE FAN (owner pick 2026-10-29, the only layout): on a card, the TOP arc is Check, X, Question (left to right) and
  *    the BOTTOM row is Pass (left) and Sell (right). A shop button gets the top arc only (Check, X, Question). The
  *    bubbles pop in with a staggered one-shot.
@@ -26,8 +28,8 @@
  *    R-PING-08): every other choosable or inspectable thing carries a semantic `data-ping` key (`pingKeys.ts`): the
  *    Discover / hero-power Discover / Choose One / Ancient / Quest Shop / Runeforge options, the equipped runes, the quest
  *    tracker, the second hero power, the Equipment slot, the hero portrait, the lobby rail rows and the Duos teammate
- *    portrait. They take the top arc (Check, X, Question). A double right-click reaches the spot's OWN right-click (a card
- *    option's Inspect, a rail row's scout pin, the portrait's emotes). A spot marked `data-ping-own` (the portrait, the
+ *    portrait. They take the top arc (Check, X, Question). A quick right-click reaches the spot's OWN right-click (a card
+ *    option's Inspect, a rail row's scout pin, the portrait's emotes); a hold pings it. A spot marked `data-ping-own` (the portrait, the
  *    rail rows) keeps its own right-click for the PLAYER on their own screen (no fan there); a teammate or mentor pings
  *    it. On a phone, the player's own hold on a choice option still opens its Inspect (R-TOUCH-TAPSELECT-01); a teammate
  *    or mentor's hold opens the fan, and their tap on an option inspects it (they cannot pick it anyway).
@@ -102,9 +104,10 @@ export function spotYields(spot: { el: Element }, ctx: { role: string } | null, 
 const targetKey = (t: PingTarget): string => (t.t === 'card' ? `c:${t.zone}:${t.uid}` : t.t === 'button' ? `b:${t.id}` : `u:${t.k}`);
 
 /**
- * A right-click on a ping target (a card, a button or a UI spot). Answers true when it was taken here (the fan opened, my
- * ping was cleared, or a double opened `inspect`); false when it belongs to whatever the target does on its own (the
- * second right-click of a double on a spot with no `inspect`, or no pings here at all).
+ * A PHONE long-press on a ping target (a card, a button or a UI spot; `touchInput.ts` fires it as a right-click). Answers
+ * true when it was taken here (the fan opened, my ping was cleared, or a double opened `inspect`); false when it belongs
+ * to whatever the target does on its own (the second long-press of a double on a spot with no `inspect`, or no pings
+ * here at all). A MOUSE never comes here: its hold is `pingHold`, its quick right-click the target's own.
  */
 function rightClickTarget(e: { clientX: number; clientY: number }, target: PingTarget, el: Element, inspect: (() => void) | null): boolean {
   // My own ping on it (R-PING-07) counts even where I could not ping now (a mentor just demoted keeps their own marks).
@@ -135,10 +138,13 @@ function rightClickTarget(e: { clientX: number; clientY: number }, target: PingT
 }
 
 /**
- * A card's right-click. Opens the ping menu and answers true, or answers false and the caller inspects at once: no pings
- * here, a card outside the play zones that is not in a UI spot (R-PING-08), or a card being dragged.
+ * A card's right-click. A MOUSE right-click that reaches the card is a QUICK one (a hold was taken by `installRightHold`
+ * before it got here), so it answers false and the caller inspects (R-PING-09). A phone long-press opens the ping menu
+ * and answers true, or answers false and the caller inspects at once: no pings here, a card outside the play zones that
+ * is not in a UI spot (R-PING-08), or a card being dragged. `touch` is the input that fired it (a parameter for tests).
  */
-export function openCardPingMenu(e: { clientX: number; clientY: number; currentTarget: Element }, uid: string | null | undefined, inspect: () => void): boolean {
+export function openCardPingMenu(e: { clientX: number; clientY: number; currentTarget: Element }, uid: string | null | undefined, inspect: () => void, touch: boolean = lastPointerWasTouch()): boolean {
+  if (!touch) return false;
   const el = e.currentTarget;
   if (el.closest('.dragcard')) return false;
   const zone = cardZoneOf(el);
@@ -147,8 +153,143 @@ export function openCardPingMenu(e: { clientX: number; clientY: number; currentT
   const spot = uiSpotOf(el);
   if (!spot) return false;
   const target: PingTarget = { t: 'ui', k: spot.k };
-  if (!myPingOn(target) && spotYields(spot, pingContext())) return false;
+  if (!myPingOn(target) && spotYields(spot, pingContext(), touch)) return false;
   return rightClickTarget(e, target, spot.el, inspect);
+}
+
+// ── the mouse hold (owner 2026-10-31, R-PING-09) ──────────────────────────────────────────────────────────────
+
+/**
+ * How long the right mouse button must stay down to PING instead of the quick right-click (Inspect). A deliberate
+ * quick click is well under 150 ms, so 300 ms leaves room for a slow one and still reads as an intentional hold (the
+ * phone long-press is 350 ms).
+ */
+export const PING_HOLD_MS = 300;
+
+/** The press, the release and the contextmenu never belong to these: they own their right-click outright. */
+const HOLD_SKIP = '.ping-menu, .ping-mark, .fdock-stack, .fdock-catch, .dmchat-at, .frmenu-at, .frmenu-catch';
+
+/**
+ * The ping target a mouse right-press at `start` (screen px `x`, `y`) would hold on, and the element its fan frames, or
+ * null. The same targets a phone long-press reaches: a play-zone card (not a choice option, not a drag ghost), a UI spot
+ * that does not keep its own right-click for me here (`spotYields`, mouse), or a shop button. Pure DOM reads; exported
+ * for tests.
+ */
+export function holdTargetAt(start: Element | null, x: number, y: number): { target: PingTarget; el: Element } | null {
+  if (!start || typeof start.closest !== 'function' || start.closest(HOLD_SKIP)) return null;
+  const card = start.closest('.card');
+  if (card) {
+    if (card.closest('.dragcard')) return null;
+    const zone = cardZoneOf(card);
+    if (zone) {
+      const uid = card.getAttribute('data-uid');
+      return uid && !isSelectOption(card) ? { target: { t: 'card', uid, zone }, el: card } : null;
+    }
+  }
+  // A UI spot (a card option's or anything else's), unless a shop button sits inside it: the innermost wins.
+  const spot = uiSpotOf(start);
+  const btnEl = card ? null : start.closest('[data-spec]');
+  const innerBtn = !!btnEl && (PING_BUTTONS as readonly string[]).includes(btnEl.getAttribute('data-spec') ?? '') && (!spot || spot.el.contains(btnEl));
+  if (spot && !innerBtn) {
+    const target: PingTarget = { t: 'ui', k: spot.k };
+    return myPingOn(target) || !spotYields(spot, pingContext(), false) ? { target, el: spot.el } : null;
+  }
+  if (card) return null;
+  const hit = pingButtonAt(start, x, y);
+  return hit ? { target: { t: 'button', id: hit.id }, el: hit.el } : null;
+}
+
+/**
+ * The HOLD has passed `PING_HOLD_MS` on `start`: clear my own ping there (R-PING-07), or open the fan. Answers true when
+ * it was taken (the release's right-click is then swallowed); false leaves the release to the target's own right-click.
+ */
+export function pingHold(start: Element | null, x: number, y: number): boolean {
+  const body = document.body.classList;
+  if (body.contains('dragging') || body.contains('aiming')) return false; // there a right-click cancels the drag / aim
+  const hit = holdTargetAt(start, x, y);
+  if (!hit) return false;
+  const own = myPingOn(hit.target);
+  if (own) {
+    closePingMenu();
+    clearPing(own.key);
+    return true;
+  }
+  if (!pingContext()) return false;
+  usePingMenu.setState({ open: { x: toStage(x), y: toStage(y), box: boxOf(hit.el), target: hit.target, inspect: null } });
+  sfx.tick();
+  return true;
+}
+
+/** Could a hold do anything here (open a fan, or clear a ping of mine)? Gates the timer: no game, no timer. */
+const holdCouldAct = (): boolean => !!pingContext() || usePings.getState().list.some((p) => p.mine);
+
+/**
+ * The mouse right-button hold. A press arms ONE timer (no per-frame work; nothing at all where no ping is possible).
+ * Released before `PING_HOLD_MS`: a quick right-click, the target's own (Inspect). Held past it: `pingHold`, and the
+ * `contextmenu` the release fires (Windows) is swallowed so the card does not also inspect. Where the browser fires
+ * `contextmenu` on the PRESS (macOS, Linux), it is held back while the press is undecided and replayed on a quick
+ * release. A finger never arms it (`touchInput.ts` owns the long-press). Answers the uninstaller.
+ */
+export function installRightHold(): () => void {
+  let timer = 0;
+  let down = false;
+  let took = false;
+  let swallowUntil = 0;
+  let replaying = false;
+  let early: { el: Element; x: number; y: number } | null = null; // a press-time contextmenu, held back
+  const stop = (): void => { if (timer) { window.clearTimeout(timer); timer = 0; } };
+  const onDown = (e: PointerEvent): void => {
+    if (e.button !== 2 || e.pointerType === 'touch') return;
+    stop();
+    down = false; took = false; swallowUntil = 0; early = null;
+    const start = e.target as Element | null;
+    if (start?.closest?.(HOLD_SKIP) || !holdCouldAct()) return;
+    down = true;
+    const x = e.clientX, y = e.clientY;
+    timer = window.setTimeout(() => {
+      timer = 0;
+      if (!down) return;
+      took = pingHold(start, x, y);
+      if (took) early = null;
+    }, PING_HOLD_MS);
+  };
+  const onUp = (e: PointerEvent): void => {
+    if (e.button !== 2 || !down) return;
+    down = false;
+    stop();
+    // Held: the release's contextmenu (Windows fires it right after this) is the hold's, not a quick right-click.
+    if (took) { took = false; swallowUntil = performance.now() + 500; return; }
+    const ev = early;
+    early = null;
+    if (ev && ev.el.isConnected) {
+      replaying = true;
+      try { ev.el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, composed: true, button: 2, clientX: ev.x, clientY: ev.y })); }
+      finally { replaying = false; }
+    }
+  };
+  const onCancel = (): void => { stop(); down = false; took = false; early = null; };
+  const onCtx = (e: MouseEvent): void => {
+    if (replaying || lastPointerWasTouch()) return;
+    const swallow = (): void => { e.preventDefault(); e.stopImmediatePropagation(); };
+    // The press is still undecided (the browser fired contextmenu on the press): decide it on the release.
+    if (down && timer) { early = { el: e.target as Element, x: e.clientX, y: e.clientY }; swallow(); return; }
+    if (down && took) { swallow(); return; }
+    if (swallowUntil && performance.now() <= swallowUntil) { swallowUntil = 0; swallow(); }
+  };
+  const cap = { capture: true } as const;
+  window.addEventListener('pointerdown', onDown, cap);
+  window.addEventListener('pointerup', onUp, cap);
+  window.addEventListener('pointercancel', onCancel, cap);
+  window.addEventListener('blur', onCancel);
+  window.addEventListener('contextmenu', onCtx, cap);
+  return () => {
+    stop();
+    window.removeEventListener('pointerdown', onDown, cap);
+    window.removeEventListener('pointerup', onUp, cap);
+    window.removeEventListener('pointercancel', onCancel, cap);
+    window.removeEventListener('blur', onCancel);
+    window.removeEventListener('contextmenu', onCtx, cap);
+  };
 }
 
 /** Does the play-zone card under `el` carry MY ping (R-PING-07)? */
@@ -158,7 +299,8 @@ function hasMyPingOnCard(el: Element): boolean {
   return !!zone && !!uid && !!myPingOn({ t: 'card', uid, zone });
 }
 
-/** Two right-clicks on the same card within this long are a double right-click: Inspect. */
+/** A PHONE's two long-presses on the same card within this long are a double: Inspect (a mouse inspects on a quick
+ *  right-click instead, R-PING-09). */
 export const PING_DOUBLE_MS = 350;
 /** The last right-click that opened a card's fan (kept apart from the menu, which a right press closes first). */
 let lastCardRightClick: { key: string; at: number } | null = null;
@@ -257,6 +399,12 @@ function choose(at: PingMenuState, id: PingKind): void {
 function PingMenu({ at }: { at: PingMenuState }): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
   useCloseOnAway(ref);
+  // The fan, not the card's hover reveal (a held mouse press never reaches the card's own handler, which hid it before):
+  // one body class while it is open, `pings.css` hides `.cardref` under it.
+  useEffect(() => {
+    document.body.classList.add('ping-open');
+    return () => document.body.classList.remove('ping-open');
+  }, []);
   const { top, bottom } = fanOptions(at.target.t === 'card');
   const opts = [...top, ...bottom];
   const pts = clampGroup(fanPositions({ top: top.length, bottom: bottom.length }, at), PING_BUBBLE / 2, stageViewport());
@@ -381,8 +529,13 @@ function PingMarks(): JSX.Element {
 export function PingLayer(): JSX.Element {
   const open = usePingMenu((s) => s.open);
   useEffect(() => {
-    // The shop buttons' right-click (a card's own handler runs first and opens its menu).
+    // The mouse hold (R-PING-09). Installed FIRST: its capture listener must see a held press's contextmenu before
+    // anything below, and swallow it.
+    const offHold = installRightHold();
+    // A PHONE long-press on a shop button or a UI spot (a card's own handler runs first and opens its menu). A mouse
+    // right-click that gets here is a quick one, the target's own (its hold went through `installRightHold`).
     const onCtx = (e: MouseEvent): void => {
+      if (!lastPointerWasTouch()) return;
       const t = e.target as Element | null;
       // The Friends dock, its friend menu and a pinned chat window own their right-click (they can sit over the shop buttons).
       if (t?.closest?.('.ping-menu, .ping-mark, .fdock-stack, .fdock-catch, .dmchat-at, .frmenu-at, .frmenu-catch')) return;
@@ -427,7 +580,7 @@ export function PingLayer(): JSX.Element {
       dragUid = uid;
       if (uid) clearPingsOnCard(String(uid));
     });
-    return () => { window.removeEventListener('contextmenu', onCtx, true); setCardHoldGate(null); setOptionTapInspectGate(null); offDrag(); closePingMenu(); };
+    return () => { offHold(); window.removeEventListener('contextmenu', onCtx, true); setCardHoldGate(null); setOptionTapInspectGate(null); offDrag(); closePingMenu(); };
   }, []);
   return (
     <>

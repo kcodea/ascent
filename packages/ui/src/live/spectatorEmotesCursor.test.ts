@@ -4,7 +4,7 @@
  * emotes, i think only the player sees the emotes" / "i dont think spectators can see player mouse behavior in combat
  * (or emotes) which would be nice to see"). Pinned against a fake network:
  *  - R-SPECTATE-EMOTE-02: a live ranked game's publisher forwards the player's own emote on the game's channel while
- *    watched (never when nobody watches); a watcher shows it on the watched player's portrait (`s0`); a Versus spectator
+ *    watched (never when nobody watches; pinned against the in-memory live game object); a watcher shows it on the watched player's portrait (`s0`); a Versus spectator
  *    shows both players' (the watched seat on the portrait, the other on the foe); a player never takes this path, and
  *    the speaker's own bubble is delivered exactly once (no echo, no double).
  *  - R-REPLAY-EMOTE-01: the stream records every emote shown on the player's screen (never a spectator chip) and a
@@ -19,7 +19,7 @@ import {
 } from '@game/sim';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { LiveRemote } from './liveRemote';
+import { fakeLiveObject } from './liveFakeObject';
 
 vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
 
@@ -27,6 +27,7 @@ const { useGame } = await import('../store');
 const identity = await import('../identity');
 const pubMod = await import('./livePublisher');
 const watchMod = await import('./liveWatch');
+const cfMod = await import('./liveCf');
 const { useSpectate } = await import('../versus/spectate');
 const transport = await import('../emotes/emoteTransport');
 const vEmotes = await import('../versus/versusEmotes');
@@ -36,23 +37,11 @@ const sp = await import('../versus/spectate');
 const { SpectatorCursor } = await import('../versus/SpectatorCursor');
 const hover = await import('../versus/spectatorHover');
 
-function fakeRemote(watchers: () => number) {
+/** A watcher on the object that records what reaches the stands. */
+function standsOn(obj: ReturnType<typeof fakeLiveObject>) {
   const sent: { event: string; payload: any }[] = [];
-  let onBroadcast: ((e: string, p: unknown) => void) | null = null;
-  const r = {
-    heartbeat: vi.fn(async () => watchers()),
-    end: vi.fn(async () => undefined),
-    publishFrame: vi.fn(async () => undefined),
-    latestFrame: vi.fn(async () => null as unknown),
-    watch: vi.fn(async (id: string) => ({ game_id: id, display_name: 'Claudebot1', hero_id: 'warden', cosmetics: null, division_index: 9, rank_points: 50, rating: 1600, round: 3, phase: 'shop', placement: null, spectators: 1, started_at: '' })),
-    watchAs: vi.fn(async (id: string) => r.watch(id)),
-    watchers: vi.fn(async () => [] as { user_id: string; display_name: string; profile: Record<string, unknown> | null }[] | null),
-    unwatch: vi.fn(async () => undefined),
-    list: vi.fn(async () => []),
-    game: vi.fn(async () => null),
-    channel: vi.fn((_: string, cb: (e: string, p: unknown) => void) => { onBroadcast = cb; return { channel: null as never, send: (event: string, payload: unknown) => sent.push({ event, payload }), close: vi.fn() }; }),
-  };
-  return { r: r as unknown as LiveRemote & typeof r, sent, push: (e: string, p: unknown) => onBroadcast?.(e, p) };
+  const sock = obj.raw('watch', { name: 'Claudebot2' }, (m) => { if (m.t === 'bc') sent.push({ event: m.event, payload: m.payload }); });
+  return { sock, sent };
 }
 const flush = async (): Promise<void> => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
 const rankedRun = (): RunState => {
@@ -69,13 +58,17 @@ beforeEach(() => {
   vEmotes.resetWatchedEmotes();
   transport.setEmoteTransport(null);
 });
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); identity.setIdentity(null); useSpectate.setState({ active: false, seat: 'p1' }); });
+afterEach(() => {
+  vi.useRealTimers(); vi.unstubAllGlobals(); identity.setIdentity(null); useSpectate.setState({ active: false, seat: 'p1' });
+  cfMod.setCfLiveSocketForTests(null); pubMod.setLivePublishUrlForTests(null); watchMod.setLiveWatchUrlForTests(null);
+});
 
 describe('R-SPECTATE-EMOTE-02: the live game forwards the player\'s emotes to the stands', () => {
   it('only while watched; once per emote; the speaker sees their own bubble exactly once', async () => {
-    let watching = 0;
-    const net = fakeRemote(() => watching);
-    pubMod.setLiveRemoteForTests(net.r);
+    const obj = fakeLiveObject('g');
+    cfMod.setCfLiveSocketForTests(obj.make);
+    pubMod.setLivePublishUrlForTests(() => 'http://worker');
+    const net = standsOn(obj);
     const off = pubMod.installLivePublisher();
     useGame.setState({ run: rankedRun(), replaying: false, showTitle: false });
     await flush();
@@ -86,8 +79,7 @@ describe('R-SPECTATE-EMOTE-02: the live game forwards the player\'s emotes to th
     expect(net.sent.filter((s) => s.event === vEmotes.VERSUS_EMOTE_EVENT)).toEqual([]);
     expect(heard).toHaveLength(1);
     // a watcher: the next emote goes out once, as the Versus wire message for seat p1
-    watching = 1;
-    vi.advanceTimersByTime(pubMod.LIVE_HEARTBEAT_MS);
+    await net.sock.connect();
     await flush();
     expect(pubMod.liveState()?.publishing).toBe(true);
     transport.sendEmote(own('cheer'));
@@ -98,8 +90,7 @@ describe('R-SPECTATE-EMOTE-02: the live game forwards the player\'s emotes to th
     transport.deliverEmote({ ...own('wave'), seat: 's3' });
     expect(net.sent.filter((s) => s.event === vEmotes.VERSUS_EMOTE_EVENT)).toHaveLength(1);
     // the stands empty: forwarding stops
-    watching = 0;
-    vi.advanceTimersByTime(pubMod.LIVE_HEARTBEAT_MS);
+    net.sock.close();
     await flush();
     transport.sendEmote(own('cheer'));
     expect(net.sent.filter((s) => s.event === vEmotes.VERSUS_EMOTE_EVENT)).toHaveLength(1);
@@ -110,10 +101,16 @@ describe('R-SPECTATE-EMOTE-02: the live game forwards the player\'s emotes to th
 
 describe('R-SPECTATE-EMOTE-02: a spectator shows the watched player\'s emotes', () => {
   it('live watching: the player\'s emote rises from the watched portrait (s0), throttled per seat', async () => {
-    const net = fakeRemote(() => 0);
-    watchMod.setLiveWatchRemoteForTests(net.r);
+    const obj = fakeLiveObject('game-e');
+    const pub = obj.raw('publish');
+    await pub.connect();
+    await pub.request('listing', { name: 'Claudebot1', hero: 'warden', round: 3, phase: 'shop' });
+    cfMod.setCfLiveSocketForTests(obj.make);
+    watchMod.setLiveWatchUrlForTests(() => 'http://worker');
+    const net = { push: (e: string, p: unknown) => pub.broadcast(e, p) };
+    identity.setIdentity({ userId: 'u-watcher', isAnonymous: true } as never);
     useGame.setState({ replaying: false, showTitle: true });
-    expect(await watchMod.watchLiveGame('game-e')).toBe(true);
+    expect(await watchMod.watchLiveGame('game-e', { live_host: 'cf:rev' })).toBe(true);
     useSpectate.setState({ active: true, seat: 'p1' });
     const heard: EmoteMessage[] = [];
     const unhear = transport.subscribeEmotes((m) => heard.push(m));

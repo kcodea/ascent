@@ -100,9 +100,19 @@ Owner 2026-10-29: "build the cloudflare spectating for lobby and practice too so
 live lobby or Practice game publishes to its own Durable Object on the Worker (`VersusLiveGame`,
 `GET /live/<game>/ws`); the object writes the game's Live Games row itself through the key-gated `lobby_live_cf` (on a
 change plus a 2-minute keep-alive, `live_host = 'cf:<content revision>'`, removed at the end); watchers reach the game
-on that Worker. The client no longer reads the switch for this. A player whose Worker does not answer within 6 s still
-lists that one game through the Supabase listing (heartbeat, broadcast channel, `lobby_live_frames`): the game itself
-is unaffected either way.
+on that Worker. The client no longer reads the switch for this.
+
+**No fallback (R-LIVE-CF-ONLY-01; owner 2026-10-30: "Remove fallback for spectating. I want us to make cloudflare work as
+our source for live information and action like spectating").** The Supabase live path is gone from the client: no
+heartbeat, no broadcast channel, no `lobby_live_frames`, no watcher RPCs, no watch poll. A player whose Worker does not
+answer is retried in the background (5, 10, 20, 40 s, then every 60 s); until it answers the game is not watchable, and
+the game itself never notices. A friend's Watch (no row in hand) reads the game's listing row for its `live_host`, or,
+with no row yet, tries this build's own Worker. A lobby row with no `live_host` (an older build on the retired path) says
+"That game is on an older version. It cannot be watched." The server half is
+`supabase/migrations/2026-11-17-retire-supabase-live.sql`: run it about 24 hours after the first pack with this change is
+live (its check query is at the top). From then an old tab's Supabase heartbeat is refused (`live_moved`, which it
+ignores: its game is just not listed) and its Supabase watch answers `other_host`, which its friend Watch already follows
+to the Worker. Nothing on the Worker changed.
 
 **Spectator XP (R-LIVE-CF-XP-01).** The Versus room (any mode) and the live game object beat their stands' watch record
 through the key-gated `spectate_cf_beat` (same accrual rule and caps as `spectate_beat`; one call per object every
@@ -112,6 +122,32 @@ Check: start a Practice game in one browser, Watch it from Live Games in another
 `live_host` is `cf:<rev>` (`select game_id, live_host, live_until from public.lobby_live_games;`); during the watch,
 `select * from public.spectate_sessions where run_id like 'watch:lobby:%' order by last_seen_at desc limit 5;` shows
 the watcher's time growing every 30 s.
+
+## What still reads Supabase for live information (audit 2026-10-30)
+
+Results, history, ratings, snapshots, DMs and Duos teams are storage and stay in Supabase. The live paths:
+
+| Path | What it does | Where | Status |
+|---|---|---|---|
+| Lobby / Practice publish + watch | the stream, keyframe, stands, end, chat, pings | Worker (`VersusLiveGame`) | Cloudflare only (R-LIVE-CF-ONLY-01) |
+| Versus rooms, room list, open-room counts, my room, Ranked Duos parties | every room and match op | Worker (`VersusRoom`, `VersusDirectory`) | Cloudflare only (R-VERSUS-CF-ONLY-01) |
+| Friends presence overlay, DMs | live presence of connected friends, messages | friends hub (`ascent-hub`) | Cloudflare (messages stored in Supabase) |
+| Spectator XP record | the watch record of a Cloudflare watch | the Worker writes `spectate_cf_beat` | Cloudflare is the witness; Supabase stores it |
+| **Live Games list** | one page of `lobby_live_games` every 10 s while the page is open | Supabase read (rows written by the Worker) | remains |
+| **Live Games glow count** | a head-only count every 45 s while a menu is on screen | Supabase read | remains |
+| **A friend's Watch** | one row read per Watch, for `live_host` | Supabase read | remains |
+| **`friends_beat`** | my presence row and my inbox (friends, requests, invites), every 60 s | Supabase RPC | remains |
+| **The invite wake-up** | Realtime `postgres_changes` on `friend_invites` addressed to me | Supabase Realtime | remains |
+
+**Why the list is not on Cloudflare yet, and the follow-up.** The Versus Worker is deployed per content revision, so its
+directory object only knows its own revision's rooms and games; the list spans every revision. A Cloudflare list needs a
+version-independent directory: a `LiveDirectory` object on the `ascent-hub` Worker that every revision's live-game and
+room objects register into (a key-gated internal write, as `lobby_live_cf` is today), read by Live Games, the glow count
+and a friend's Watch. It must also take over what SQL does on the way in: the rank and rating sort (the listing would
+carry them, as the live listing already sends division and points), the Ranked Duos team name and medal, and the
+friends-only visibility of a private room (the hub would need the reader's friends). Then `lobby_live_cf` /
+`versus_cf_live` stop writing and the table can retire. Presence (`friends_beat`) and the invite wake-up move to the hub
+after that: the hub already carries live presence; it would also need to push invites and the inbox counts.
 
 ## Dev and test
 

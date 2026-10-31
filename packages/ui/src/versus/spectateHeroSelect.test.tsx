@@ -21,7 +21,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createLobbyRun, createVersusRun, HEROES, type RunState } from '@game/sim';
-import type { LiveRemote } from '../live/liveRemote';
+import { fakeLiveObject } from '../live/liveFakeObject';
 import { mount, type Mounted } from '../renderedText.mount';
 
 vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
@@ -33,6 +33,7 @@ const view = await import('./spectatorView');
 const { HeroSelect } = await import('../HeroSelect');
 const { setOwnHeroPick } = await import('../hero-select/ownHeroPick');
 const pubMod = await import('../live/livePublisher');
+const cfMod = await import('../live/liveCf');
 await import('./teammateView'); // the launch curtain closes the teammate's choices (its store subscription)
 
 const OFFER = HEROES.filter((h) => !h.practiceOnly).slice(0, 3).map((h) => h.id);
@@ -199,45 +200,36 @@ describe('the screen: the real Hero Select, read only', () => {
 });
 
 describe('Live Games: a ranked Hero Select is listed and watched (R-SPECTATE-HEROSELECT-01)', () => {
-  function fakeRemote(watchers: () => number) {
+  /** The game's object, with a watcher recording what the player sends. */
+  function objectWithStands(id: string) {
+    const obj = fakeLiveObject(id);
     const sent: { event: string; payload: any }[] = [];
-    let onBroadcast: ((e: string, p: unknown) => void) | null = null;
-    const r = {
-      heartbeat: vi.fn(async (_g: { phase: string; heroId: string }) => watchers()),
-      end: vi.fn(async () => undefined),
-      publishFrame: vi.fn(async () => undefined),
-      latestFrame: vi.fn(async () => null as unknown),
-      watchers: vi.fn(async () => null),
-      channel: vi.fn((_: string, cb: (e: string, p: unknown) => void) => { onBroadcast = cb; return { send: (event: string, payload: unknown) => sent.push({ event, payload }), close: vi.fn() }; }),
-    };
-    return { r: r as unknown as LiveRemote & typeof r, sent, push: (e: string, p: unknown) => onBroadcast?.(e, p) };
+    const sock = obj.raw('watch', { name: 'Claudebot2' }, (m) => { if (m.t === 'bc') sent.push({ event: m.event, payload: m.payload }); });
+    cfMod.setCfLiveSocketForTests(obj.make);
+    return { obj, sock, sent };
   }
 
   beforeEach(() => {
-    // The Supabase listing path (a game's fallback when its Worker cannot be reached, R-LIVE-CF-01).
-    pubMod.setLivePublishUrlForTests(() => null);
+    pubMod.setLivePublishUrlForTests(() => 'http://worker');
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
     identity.setIdentity({ userId: 'u-player', isAnonymous: true } as never);
   });
-  afterEach(() => { vi.useRealTimers(); identity.setIdentity(null); });
+  afterEach(() => { vi.useRealTimers(); identity.setIdentity(null); cfMod.setCfLiveSocketForTests(null); pubMod.setLivePublishUrlForTests(null); });
 
   it('lists the game from Hero Select, sends and stores the screen while watched, and the pick flows into the same game', async () => {
-    let watching = 0;
-    const net = fakeRemote(() => watching);
-    pubMod.setLiveRemoteForTests(net.r);
+    const net = objectWithStands('rank-1');
     const off = pubMod.installLivePublisher();
     useGame.setState({ heroChoices: [...OFFER], pendingMode: 'lobby', rankedEntry: { runId: 'rank-1', seed: 77, heroChoices: [...OFFER], at: 'now' }, showTitle: false, replaying: false });
     await flush();
     expect(pubMod.liveState()?.gameId).toBe('rank-1');
-    expect(net.r.heartbeat).toHaveBeenLastCalledWith(expect.objectContaining({ gameId: 'rank-1', phase: 'hero', round: 1, heroId: OFFER[0] }));
+    expect(net.obj.ops('listing').at(-1)!.args).toMatchObject({ phase: 'hero', round: 1, hero: OFFER[0] });
     expect(net.sent).toEqual([]); // nobody watching: nothing sent
-    watching = 1;
-    net.push('spectate_key', {});
+    await net.sock.connect();
     await vi.advanceTimersByTimeAsync(400);
     const hero = net.sent.filter((s) => s.event === 'spectate' && s.payload.kind === 'hero');
     expect(hero).toHaveLength(1);
     expect(hero[0]!.payload).toMatchObject({ m: 'rank-1', hero: { offer: OFFER, picked: null, mode: 'lobby' } });
-    expect(net.r.publishFrame).toHaveBeenCalledWith('rank-1', hero[0]!.payload.seq, 0, hero[0]!.payload); // stored for late joiners
+    expect(net.obj.key).toEqual(hero[0]!.payload); // stored for late joiners
     // the pick shows live
     act(() => setOwnHeroPick(OFFER[1]!));
     await vi.advanceTimersByTimeAsync(400);
@@ -249,7 +241,7 @@ describe('Live Games: a ranked Hero Select is listed and watched (R-SPECTATE-HER
     useGame.setState({ run: rated, heroChoices: null, rankedEntry: null });
     setOwnHeroPick(null);
     await vi.advanceTimersByTimeAsync(400);
-    expect(net.r.end).not.toHaveBeenCalled();
+    expect(net.obj.ops('end')).toHaveLength(0);
     expect(pubMod.liveState()?.gameId).toBe('rank-1');
     const next = net.sent.filter((s) => s.event === 'spectate').at(-1)!;
     expect(next.payload.kind).toBe('key');
@@ -258,15 +250,14 @@ describe('Live Games: a ranked Hero Select is listed and watched (R-SPECTATE-HER
   });
 
   it('backing out of a ranked Hero Select delists it', async () => {
-    const net = fakeRemote(() => 0);
-    pubMod.setLiveRemoteForTests(net.r);
+    const net = objectWithStands('rank-2');
     const off = pubMod.installLivePublisher();
     useGame.setState({ heroChoices: [...OFFER], pendingMode: 'lobby', rankedEntry: { runId: 'rank-2', seed: 78, heroChoices: [...OFFER], at: 'now' }, showTitle: false, replaying: false });
     await flush();
     expect(pubMod.liveState()?.gameId).toBe('rank-2');
     useGame.setState({ heroChoices: null, rankedEntry: null, showTitle: true });
     await flush();
-    expect(net.r.end).toHaveBeenCalledWith('rank-2', null);
+    expect(net.obj.ops('end').at(-1)).toMatchObject({ args: { placement: null } });
     expect(pubMod.liveState()).toBeNull();
     off();
   });
@@ -276,22 +267,5 @@ describe('Live Games: a ranked Hero Select is listed and watched (R-SPECTATE-HER
     expect(pubMod.liveHeroSelectGameId({ replaying: false, showTitle: false, heroChoices: OFFER, pendingMode: 'lobby', rankedEntry: null })).toBeNull();
     expect(pubMod.liveHeroSelectGameId({ replaying: true, showTitle: false, heroChoices: OFFER, pendingMode: 'lobby', rankedEntry: { runId: 'x' } })).toBeNull();
     expect(pubMod.liveHeroSelectGameId({ replaying: false, showTitle: false, heroChoices: OFFER, pendingMode: 'lobby', rankedEntry: { runId: 'x' } })).toBe('x');
-  });
-
-  // (Last in the file: it turns the hero phase off for the module's session.)
-  it('a server without the migration refuses the hero phase once; Hero Select is then not listed again this session', async () => {
-    const { LiveError } = await import('../live/liveRemote');
-    const net = fakeRemote(() => 0);
-    net.r.heartbeat.mockImplementation(async (g: { phase: string }) => { if (g.phase === 'hero') throw new LiveError('bad_phase'); return 0; });
-    pubMod.setLiveRemoteForTests(net.r);
-    const off = pubMod.installLivePublisher();
-    useGame.setState({ heroChoices: [...OFFER], pendingMode: 'lobby', rankedEntry: { runId: 'rank-3', seed: 79, heroChoices: [...OFFER], at: 'now' }, showTitle: false, replaying: false });
-    await flush();
-    expect(net.r.heartbeat).toHaveBeenCalledTimes(1);
-    expect(pubMod.liveHeroSelectGameId(useGame.getState())).toBeNull();
-    vi.advanceTimersByTime(pubMod.LIVE_HEARTBEAT_MS * 3);
-    await flush();
-    expect(net.r.heartbeat.mock.calls.filter(([g]) => g.phase === 'hero')).toHaveLength(1); // never every 15 s
-    off();
   });
 });

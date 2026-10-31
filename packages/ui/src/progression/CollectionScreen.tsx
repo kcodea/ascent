@@ -8,7 +8,7 @@ import {
 import { tempHandle, useGame } from '../store';
 import { sfx } from '../sfx';
 import { MenuSidebar, SidebarHost } from '../MenuSidebar';
-import { MenuMedal } from '../menuIcons';
+import { MenuMedal, type MenuMedalName } from '../menuIcons';
 import { CrateOpener, type CrateQueueItem } from './CrateOpener';
 import { chestFloorOf, chestTierOf, type ChestTier } from './crateFx/chestTiers';
 import { warmChestArt } from './crateFx/chestArt';
@@ -845,6 +845,14 @@ const CAT_PATHS: Readonly<Record<CosmeticCategory, string>> = {
   card_plate: 'M7 2h10l2 3v15l-2 2H7l-2-2V5l2-3zm1 4v6h8V6H8zm0 8v2h8v-2H8zm0 3v1h5v-1H8z',
 };
 
+/** The painted category medallions (owner art 2026-10-31). A category without art yet keeps its flat glyph. */
+const CAT_ART: Partial<Record<CosmeticCategory, MenuMedalName>> = {
+  hero_skin: 'heroes', minion_skin: 'minions', title: 'titles', hero_attack: 'attacks', portrait_frame: 'frames', announcer: 'announcers',
+  emote: 'emotes', card_plate: 'plates',
+};
+
 function CategoryIcon({ category }: { category: CosmeticCategory }): JSX.Element {
+  const art = CAT_ART[category];
+  if (art) return <MenuMedal name={art} className="colls-caticon" />;
   return <svg className="colls-caticon" viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d={CAT_PATHS[category]} /></svg>;
 }

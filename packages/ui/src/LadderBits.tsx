@@ -70,8 +70,8 @@ export function LbTeam({ board, empty = 'No board recorded' }: { board: BoardSna
   );
 }
 
-/** The painted podium trophies (owner art 2026-10-31). A tier without art yet keeps the coin + crown. */
-const PODIUM_ART: Partial<Record<ReturnType<typeof medalOf>, MenuMedalName>> = { gold: 'first', bronze: 'third' };
+/** The painted podium trophies (owner art 2026-10-31). */
+const PODIUM_ART: Partial<Record<ReturnType<typeof medalOf>, MenuMedalName>> = { gold: 'first', silver: 'second', bronze: 'third' };
 
 /** The rank medallion: the painted trophy (its numeral painted on) for the podium, a plain numeral beyond. */
 export function LbMedallion({ rank }: { rank: number }) {

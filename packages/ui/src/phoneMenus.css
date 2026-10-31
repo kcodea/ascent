@@ -241,6 +241,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tab {
   flex: none; flex-direction: row; gap: calc(6 * var(--pt)); min-height: calc(40 * var(--pt)); padding: calc(4 * var(--pt)) calc(12 * var(--pt)) calc(4 * var(--pt)) calc(10 * var(--pt)); border-radius: calc(20 * var(--pt));
 }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tab .colls-caticon { width: calc(16 * var(--pt)); height: calc(16 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tab img.colls-caticon { width: calc(22 * var(--pt)); height: calc(22 * var(--pt)); margin: calc(-3 * var(--pt)) 0; }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tab-name { font-size: calc(12 * var(--pt)); letter-spacing: 0.02em; white-space: nowrap; overflow-wrap: normal; }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tab-count { font-size: calc(11 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tab-soon { font-size: calc(10 * var(--pt)); }

@@ -66,6 +66,9 @@ img.colls-lock { object-fit: contain; flex: none; filter: drop-shadow(0 1px 2px 
   box-shadow: inset 0 0 0 1px rgba(255, 224, 138, 0.25), 0 8px 18px -10px rgba(0, 0, 0, 0.8); }
 .colls-tab.locked { background: rgba(4, 9, 20, 0.5); border-style: dashed; }
 .colls-tab.locked .colls-caticon { color: rgba(232, 200, 119, 0.4); }
+img.colls-caticon { object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
+.colls-tab.locked img.colls-caticon { opacity: 0.45; }
+.colls-tab img.colls-caticon { width: 38px; height: 38px; margin: -5px 0; }
 .colls-tab.locked .colls-tab-name { color: rgba(255, 246, 228, 0.55); }
 .colls-tab.locked.on { border-style: solid; }
 .colls-tab-new { position: absolute; top: -8px; right: -6px; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px; display: grid; place-items: center;

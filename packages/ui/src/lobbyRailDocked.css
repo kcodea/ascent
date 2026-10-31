@@ -49,11 +49,21 @@ html:root .lobbyrail.lrv-docked .lobbyseat:not(.dead) .lrv-tileart::after {
 }
 /* The Health bar's size base: the slice; it sits inside the edge, from where the foot is clear of a cut. */
 html:root .lobbyrail.lrv-docked .lobbyseat { --bar-base: var(--ph); --bar-w: var(--pw); }
-/* THE BAR STARTS WHERE THE FOOT IS CLEAR OF A CUT (`--fx`, 0 on an uncut slice; R-RAIL-DOCKED-BAR-01, lead 2026-10-31:
-   the coin cut hid the start of the red, so a player beside the coin read as nearly dead). The whole bar, track and fill,
-   sits right of the cut, so its fill is Health over the VISIBLE bar's length on every slice. */
-html:root .lobbyrail.lrv-docked .lobbyseat .lrv-bar { bottom: calc(var(--rim) + 1px); left: calc(var(--fx, 0px) + var(--rim) + 1px + var(--bi)); right: calc(var(--rim) + 1px + var(--bi)); }
-/* The bar's wrapper (no clip: the bar itself starts clear of any cut, above). */
+/* THE BAR FOLLOWS THE CUT, ITS FILL STARTS PAST IT (R-RAIL-DOCKED-BAR-01; owner 2026-10-31: "i liked how they looked
+   adhered to the cutout"). The track runs the slice's full width and its wrapper takes the slice's outline (inset) as its
+   clip, so its left end follows the gem's diamond or the coin's arc. The red under the cut (left of `--fx`, where the
+   foot is clear of it; 0 on an uncut slice) is a fixed lead-in; the scaled fills start at `--fx`, so the red past the cut
+   over the bar past the cut is exactly Health / max (the coin's cut used to hide the start of the red). */
+html:root .lobbyrail.lrv-docked .lobbyseat .lrv-bar { bottom: calc(var(--rim) + 1px); left: calc(var(--rim) + 1px + var(--bi)); right: calc(var(--rim) + 1px + var(--bi)); }
+html:root .lobbyrail.lrv-docked .lobbyseat .lrv-bar > span { left: var(--fx, 0px); width: calc(100% - var(--fx, 0px)); }
+html:root .lobbyrail.lrv-docked .lobbyseat .lrv-bar::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--fx, 0px); pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 225, 225, 0.75) 0%, rgba(255, 200, 200, 0.42) 18%, rgba(255, 160, 160, 0.06) 46%, transparent 52%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(180deg, #ff5465 0%, #e8203d 42%, #b70f2c 74%, #7c0719 100%);
+}
+html:root[data-lr2-bar="smooth"] .lobbyrail.lrv-docked .lobbyseat .lrv-bar::before { background: linear-gradient(180deg, #ff4f5e 0%, #e0203a 40%, #b5102c 72%, #74081b 100%); }
+/* The bar's wrapper: the slice's outline, moved in by a small even clearance, as its clip (set inline on a cut slice). */
 html:root .lobbyrail.lrv-docked .lrv-barclip { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 
 /* THE GOLD EDGE along the outline (a crisp dark keyline under it, so it holds on any board art). */

@@ -13,6 +13,7 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import { gauntletStage } from '@game/content';
 import { Icon } from '../Icon';
+import { MenuMedal } from '../menuIcons';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import {
@@ -80,7 +81,7 @@ export function StageSelect() {
               <span className="gslot-num">{n}</span>
               <span className="gslot-emblem-slot" aria-hidden="true">
                 {state === 'locked'
-                  ? <span className="gslot-emblem gslot-lock"><Icon name="lock" /></span>
+                  ? <span className="gslot-emblem gslot-lock"><MenuMedal name="padlock" className="gslot-lockimg" /></span>
                   : !hidden && !art && stage?.tribe
                     ? <span className="gslot-emblem"><Icon name={TRIBE_ICON[stage.tribe]} /></span>
                     : hidden && !art ? <span className="gslot-emblem gslot-soon"><Icon name="clock" /></span> : null}

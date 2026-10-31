@@ -828,7 +828,8 @@ function ComingSoon({ category }: { category: CosmeticCategory }): JSX.Element {
 // ── Glyphs ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 function LockGlyph(): JSX.Element {
-  return <svg className="colls-lock" viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1zm2 0h6V7a3 3 0 0 0-6 0v3z" /></svg>;
+  // The painted padlock medallion (owner art 2026-10-31); every `.colls-lock` size rule still sizes it.
+  return <MenuMedal name="padlock" className="colls-lock" />;
 }
 
 const CAT_PATHS: Readonly<Record<CosmeticCategory, string>> = {

@@ -114,6 +114,7 @@ import { refPopupLeft } from './refPreviewPlacement';
 import { useFitRefPopup, type RefPopupPos } from './useFitRefPopup';
 import { detectCardKeywords } from './detectCardKeywords';
 import { Icon } from './Icon';
+import { MenuMedal } from './menuIcons';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
 import { useGame } from './store';
@@ -1117,7 +1118,7 @@ export const Card = memo(function Card({
       {/* Disco Dan's Setlist lock — a padlock ribbon across a greyed card, captioned with the tier it unlocks at. */}
       {locked && (
         <span className="cardlock" aria-label={`Locked${lockLabel ? ` until ${lockLabel}` : ''}`}>
-          <span className="cardlock-ico" aria-hidden="true">🔒</span>{lockLabel ? <b>{lockLabel}</b> : null}
+          <MenuMedal name="padlock" className="cardlock-ico" />{lockLabel ? <b>{lockLabel}</b> : null}
         </span>
       )}
       {/* Funeral on Loan — the "On Loan" text above the card (owner 2026-10-13). Its smoke is the Pixi loop. */}

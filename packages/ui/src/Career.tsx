@@ -15,7 +15,7 @@ import { RuneEmblem } from './RuneEmblem';
 import { heroPortrait, opponentSkins } from './skins/skins';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
-import { GildedCrown, ReplayEye } from './menuIcons';
+import { GildedCrown, MenuMedal, ReplayEye } from './menuIcons';
 import { HeroPortraitRing } from './portraitFrame/HeroPortraitRing';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { recordText } from './leaderboardData';
@@ -701,17 +701,17 @@ export function Career() {
           <div className="cv2-colhead cv2-center-head">
             <div className="cv2-tabs" role="tablist" aria-label="Career view">
               <button type="button" role="tab" className={`cv2-tab${tab === 'history' ? ' on' : ''}`} aria-selected={tab === 'history'} onClick={() => pickTab('history')}>
-                <Icon name="clock" />Match History
+                <MenuMedal name="patchnotes" className="tabmedal" />Match History
               </button>
               <button type="button" role="tab" className={`cv2-tab${tab === 'heroes' ? ' on' : ''}`} aria-selected={tab === 'heroes'} onClick={() => pickTab('heroes')}>
-                <Icon name="taunt" />Heroes
+                <MenuMedal name="heroes" className="tabmedal" />Heroes
               </button>
               <button type="button" role="tab" className={`cv2-tab${tab === 'practice' ? ' on' : ''}`} aria-selected={tab === 'practice'} onClick={() => pickTab('practice')}>
-                <Icon name="target" />Practice
+                <MenuMedal name="equip" className="tabmedal" />Practice
               </button>
               {achievementsOn && (
                 <button type="button" role="tab" className={`cv2-tab${tab === 'achievements' ? ' on' : ''}`} aria-selected={tab === 'achievements'} onClick={() => pickTab('achievements')}>
-                  <Icon name="star" />Achievements
+                  <MenuMedal name="avenge" className="tabmedal" />Achievements
                 </button>
               )}
             </div>

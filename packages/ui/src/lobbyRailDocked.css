@@ -81,16 +81,16 @@ html:root .lrv-docked svg.lrv-edge:not(.lrv-foering) { filter: drop-shadow(0 0 1
      right   the mirror of left
      center  a centred portrait fading out both sides */
 html:root .lobbyrail.lrv-docked .lobbyseat {
-  --aw: calc(var(--lr2-art-w, 58) * 1%);
-  --f0: calc(var(--lr2-fade-start, 40) * 1%);
-  --f1: calc(min(100, var(--lr2-fade-start, 40) + var(--lr2-fade-len, 60)) * 1%);
+  --aw: calc(var(--lr2-art-w, 20) * 1%);
+  --f0: calc(var(--lr2-fade-start, 0) * 1%);
+  --f1: calc(min(100, var(--lr2-fade-start, 0) + var(--lr2-fade-len, 100)) * 1%);
   --fe: rgba(0, 0, 0, calc(1 - var(--lr2-fade-str, 1)));
 }
 html:root .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
   /* The art's shared placement; each layout below sets its width, side and fade. */
   position: absolute; top: 0; bottom: 0; left: 0; width: 100%; height: 100%;
-  object-position: calc(var(--lr2-art-fx, 50) * 1%) calc(var(--lr2-art-fy, 24) * 1%);
-  transform: scale(var(--lr2-art-zoom, 1)); transform-origin: calc(var(--lr2-art-fx, 50) * 1%) calc(var(--lr2-art-fy, 24) * 1%);
+  object-position: calc(var(--lr2-art-fx, 0) * 1%) calc(var(--lr2-art-fy, 21) * 1%);
+  transform: scale(var(--lr2-art-zoom, 1.04)); transform-origin: calc(var(--lr2-art-fx, 0) * 1%) calc(var(--lr2-art-fy, 21) * 1%);
   filter: brightness(var(--lr2-art-bright, 1));
 }
 /* NAVY is the shipped look (owner 2026-10-31: "i want number and armor number left in the navy blue, fades into the hero
@@ -98,9 +98,9 @@ html:root .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
    fading in from a navy plate over its first `--lr2-navy-fade`%. Production sets no `data-lr2-art`, so the
    `:not([data-lr2-art])` arm IS production. Static mask. */
 html:root:is(:not([data-lr2-art]), [data-lr2-art="navy"]) .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
-  left: auto; right: 0; width: calc(var(--lr2-navy-art-w, 60) * 1%);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 35) * 1%));
-  mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 35) * 1%));
+  left: auto; right: 0; width: calc(var(--lr2-navy-art-w, 59) * 1%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 61) * 1%));
+  mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 61) * 1%));
 }
 /* LEFT FADE (the earlier default, Tuner 2): the art on the left `--aw` of the slice, fading into the plate. */
 html:root[data-lr2-art="left"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
@@ -122,8 +122,8 @@ html:root[data-lr2-art="right"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface 
 }
 html:root[data-lr2-art="center"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
   left: calc((100% - var(--aw)) / 2);
-  -webkit-mask-image: linear-gradient(90deg, var(--fe) 0%, #000 calc(var(--lr2-fade-len, 60) * 0.5%), #000 calc(100% - var(--lr2-fade-len, 60) * 0.5%), var(--fe) 100%);
-  mask-image: linear-gradient(90deg, var(--fe) 0%, #000 calc(var(--lr2-fade-len, 60) * 0.5%), #000 calc(100% - var(--lr2-fade-len, 60) * 0.5%), var(--fe) 100%);
+  -webkit-mask-image: linear-gradient(90deg, var(--fe) 0%, #000 calc(var(--lr2-fade-len, 100) * 0.5%), #000 calc(100% - var(--lr2-fade-len, 100) * 0.5%), var(--fe) 100%);
+  mask-image: linear-gradient(90deg, var(--fe) 0%, #000 calc(var(--lr2-fade-len, 100) * 0.5%), #000 calc(100% - var(--lr2-fade-len, 100) * 0.5%), var(--fe) 100%);
 }
 /* The slice's plate behind the art: a soft warm-dark gradient so the faded side reads as part of the slice. */
 html:root .lobbyrail.lrv-docked .lrv-tileart { background: linear-gradient(90deg, var(--ui-plate-mid, var(--ui-plate)), var(--ui-plate-bot, var(--ui-plate))); }
@@ -138,7 +138,7 @@ html:root:is(:not([data-lr2-art]), [data-lr2-art="navy"]) .lobbyrail.lrv-docked 
    in the stack (`--hx`, the layout's `numX`). Tuner 2 "Show Health as" picks numbers (default), the bar, or both. */
 html:root .lobbyrail.lrv-docked .lrv-hpnum {
   position: absolute; z-index: 3; top: 50%;
-  left: calc(var(--hx, var(--mx, 0px)) + 10px * var(--dk-s, 1) + var(--lr2-hpnum-x, 0) * 1px);
+  left: calc(var(--hx, var(--mx, 0px)) + 10px * var(--dk-s, 1) + var(--lr2-hpnum-x, -7) * 1px);
   translate: 0 calc(-50% + var(--lr2-hpnum-y, 0) * 1px);
   display: flex; flex-direction: column; align-items: flex-start; gap: calc(2px * var(--dk-s, 1));
   font-family: var(--font-title), sans-serif; font-weight: 900; line-height: 1; pointer-events: none;
@@ -147,9 +147,9 @@ html:root .lobbyrail.lrv-docked .lrv-hpnum {
 }
 html:root .lobbyrail.lrv-docked .lrv-hpnum > span { display: inline-flex; align-items: center; gap: 0.2em; }
 html:root .lobbyrail.lrv-docked .lrv-hpnum svg { width: 0.82em; height: 0.82em; flex: none; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)); }
-html:root .lobbyrail.lrv-docked .lrv-hpn-hp { font-size: calc(var(--lr2-hpnum-size, 24) * var(--dk-s, 1) * 1px); color: #fff; }
+html:root .lobbyrail.lrv-docked .lrv-hpn-hp { font-size: calc(var(--lr2-hpnum-size, 24.5) * var(--dk-s, 1) * 1px); color: #fff; }
 html:root .lobbyrail.lrv-docked .lrv-hpn-hp svg { color: var(--ui-heart); }
-html:root .lobbyrail.lrv-docked .lrv-hpn-arm { font-size: calc(var(--lr2-armnum-size, 15) * var(--dk-s, 1) * 1px); color: #c4d6ef; }
+html:root .lobbyrail.lrv-docked .lrv-hpn-arm { font-size: calc(var(--lr2-armnum-size, 14) * var(--dk-s, 1) * 1px); color: #c4d6ef; }
 html:root:is(:not([data-lr2-hp]), [data-lr2-hp="number"]) .lobbyrail.lrv-docked .lrv-barclip { display: none; }
 html:root[data-lr2-hp="bar"] .lobbyrail.lrv-docked .lrv-hpnum { display: none; }
 /* The foe's art keeps its brightness lift on top of the tuner's. */
@@ -199,11 +199,11 @@ html:root .lobbyrail.lrv-docked .lobbyseat.foe.ghost svg.lrv-edge:not(.lrv-foeri
 html:root .lobbyrail.lrv-docked svg.lrv-foering {
   --lr2-pc: var(--ui-heart);
   z-index: 3; transform-origin: 50% 50%; will-change: opacity, transform;
-  filter: drop-shadow(0 0 calc(5px * var(--dk-s, 1) * var(--lr2-pulse-glow, 1)) var(--lr2-pc)) drop-shadow(0 0 calc(12px * var(--dk-s, 1) * var(--lr2-pulse-glow, 1)) var(--lr2-pc));
-  animation: lr2FoePulse calc(var(--lr2-pulse-period, 1.1) * 1s) ease-in-out infinite;
+  filter: drop-shadow(0 0 calc(5px * var(--dk-s, 1) * var(--lr2-pulse-glow, 3)) var(--lr2-pc)) drop-shadow(0 0 calc(12px * var(--dk-s, 1) * var(--lr2-pulse-glow, 3)) var(--lr2-pc));
+  animation: lr2FoePulse calc(var(--lr2-pulse-period, 2.2) * 1s) ease-in-out infinite;
 }
 html:root .lobbyrail.lrv-docked .lobbyseat.ghost svg.lrv-foering { --lr2-pc: var(--ui-ghost); }
-html:root .lobbyrail.lrv-docked svg.lrv-foering polygon { stroke: color-mix(in srgb, var(--lr2-pc) 90%, #fff); stroke-width: calc(var(--lr2-pulse-ring, 1.4) * 3.2px * var(--dk-s, 1)); }
+html:root .lobbyrail.lrv-docked svg.lrv-foering polygon { stroke: color-mix(in srgb, var(--lr2-pc) 90%, #fff); stroke-width: calc(var(--lr2-pulse-ring, 1.95) * 3.2px * var(--dk-s, 1)); }
 /* The crossed swords (the rail's long-standing next-foe mark, Icon `sword` twice) on a red Gem chip, top-right. */
 html:root .lobbyrail.lrv-docked .lrv-vs {
   --v: calc(30px * var(--dk-s, 1));
@@ -234,11 +234,11 @@ html:root .lobbyrail.lrv-docked .lobbyseat.dead .lrv-skull {
 
 /* THE ROUND SLICE, first in the stack: the same width and gold edge as the seat slices (cut round the Refresh pill), Round N over "N left · Max dmg". */
 html:root .lobbyrailhead.lrv-docked:not(.guidesview) {
-  --lr2-shs: var(--lr2-head-shadow, 3);
+  --lr2-shs: var(--lr2-head-shadow, 0);
   --lr2-sh: 0 1px 0 rgba(0, 0, 0, min(1, calc(0.95 * var(--lr2-shs)))), 0 0 calc(2px * var(--lr2-shs)) rgba(0, 0, 0, min(1, calc(0.7 * var(--lr2-shs))));
   --rim: calc(3px * var(--dk-s, 1));
   right: auto; bottom: auto; margin: 0; padding: 0 calc(6px * var(--dk-s, 1)) 0 calc(var(--mx, 0px) + 6px * var(--dk-s, 1)); box-sizing: border-box; transform-origin: 50% 50%;
-  translate: calc(var(--lr2-head-x, 0) * 1px) calc(var(--lr2-head-y, 0) * 1px);
+  translate: calc(var(--lr2-head-x, 1) * 1px) calc(var(--lr2-head-y, 0) * 1px);
   display: flex; flex-wrap: wrap; align-content: center; justify-content: center; column-gap: 0.55em; row-gap: 0.15em;
   font-size: calc(10.5px * var(--dk-s, 1) * var(--lr2-dk-head-font, 1)); line-height: 1; text-shadow: var(--lr2-sh);
   border: 0; border-radius: 0; box-shadow: none; background: none;
@@ -342,7 +342,7 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
 
 /* THE NEXT FOE's breath: opacity and a slight scale only (compositor). Reduced motion: a steady ring. */
 @keyframes lr2FoePulse {
-  0%, 100% { opacity: var(--lr2-pulse-min, 0.3); transform: scale(0.985); }
+  0%, 100% { opacity: var(--lr2-pulse-min, 0.53); transform: scale(0.985); }
   50% { opacity: var(--lr2-pulse-max, 1); transform: scale(1.02); }
 }
 

@@ -74,11 +74,11 @@ type NumKey = Exclude<keyof LobbyRailTuner2Config, SelKey>;
 
 export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   barStyle: 'gloss', hpShow: 'number', navyColor: LR2_NAVY_DEFAULT,
-  // The shipped look (owner 2026-10-31): the navy plate with the Health numbers, the art on the right 60%, no slice label.
-  navyArtW: 60, navyFade: 35,
-  hpNumSize: 24, armNumSize: 15, hpNumX: 0, hpNumY: 0,
+  // The shipped look (owner pick 2026-10-31, "i like these values"): the navy plate with the Health numbers, the art on the right, no slice label.
+  navyArtW: 59, navyFade: 61,
+  hpNumSize: 24.5, armNumSize: 14, hpNumX: -7, hpNumY: 0,
   artLayout: 'navy', nameSide: 'right', nameShow: 'on', nameText: 'none',
-  artZoom: 1, artFx: 50, artFy: 24, artW: 58, fadeStart: 40, fadeLen: 60, fadeStr: 1, artBright: 1,
+  artZoom: 1.04, artFx: 0, artFy: 21, artW: 20, fadeStart: 0, fadeLen: 100, fadeStr: 1, artBright: 1,
   nameSize: 13, nameWeight: 800, nameLines: 2, nameX: 0, nameY: 0, nameShadow: 1,
   dkTop: DOCK_DEFAULTS.topMode,
   dkEclipse: DOCK_DEFAULTS.eclipse,
@@ -86,8 +86,8 @@ export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   dkEdge: DOCK_DEFAULTS.edge, dkNotch: DOCK_DEFAULTS.notch, dkCoinPad: DOCK_DEFAULTS.coinPad, dkRefreshPad: DOCK_DEFAULTS.refreshPad, dkHeadH: DOCK_DEFAULTS.headH, dkMaxW: DOCK_DEFAULTS.maxW,
   dkHeadFont: 1,
   barH: 22, barOverlap: 0, barInset: 0,
-  headX: 0, headY: 0, headShadow: 3,
-  pulseRing: 1.4, pulseGlow: 1.3, pulseMin: 0.3, pulseMax: 1, pulsePeriod: 1.1,
+  headX: 1, headY: 0, headShadow: 0,
+  pulseRing: 1.95, pulseGlow: 3, pulseMin: 0.53, pulseMax: 1, pulsePeriod: 2.2,
   cardW: 1, cardX: 0, cardY: 0, cardFont: 1,
 };
 

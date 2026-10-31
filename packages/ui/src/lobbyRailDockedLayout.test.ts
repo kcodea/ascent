@@ -68,7 +68,7 @@ describe('docked rail layout', () => {
   });
 
   it('Slight eclipse: the first slice tucks under the pill\'s foot, a shallow cut on its top-left only', () => {
-    const E = dockedLayout(A, ids(8), [], { ...DOCK_DEFAULTS, topMode: 'eclipse' })!;
+    const E = dockedLayout(A, ids(8), [], { ...DOCK_DEFAULTS, topMode: 'eclipse', eclipse: 0.22 })!;
     const p1 = E.panels[0]!;
     expect(p1.y).toBeGreaterThan(A.refresh.top + (A.refresh.bottom - A.refresh.top) / 2);
     expect(p1.y).toBeLessThan(A.refresh.bottom);

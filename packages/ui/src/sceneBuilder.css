@@ -208,3 +208,9 @@
    names the real set the run stays on. */
 .scenebuilder .sb-tag.archived { color: var(--ui-muted); }
 .scenebuilder .sb-archived-note { color: var(--ui-title); }
+
+/* DUOS (owner ask 2026-10-31, R-SB-DUOS-01): Duos-only rows wear a ghost-tinted tag; the Teammate
+   section's picked-card matches are a short list; its view button spans the row. */
+.scenebuilder .sb-tag.duos { color: var(--ui-ghost); }
+.scenebuilder .sb-results.sb-results-short { max-height: calc(150 * var(--u)); }
+.scenebuilder .sb-wide { width: 100%; }

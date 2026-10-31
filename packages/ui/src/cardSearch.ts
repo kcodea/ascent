@@ -1,4 +1,4 @@
-import { ARCHIVED_CARDS, ARCHIVED_RUNES, CARD_INDEX, GIFTS, RUNES, EPIC_RUNES, poolFor, type SetId } from '@game/content';
+import { ARCHIVED_CARDS, ARCHIVED_RUNES, CARD_INDEX, GIFTS, RUNES, EPIC_RUNES, duosPoolFor, poolFor, type SetId } from '@game/content';
 
 /**
  * Card + rune search shared by the DEV Scene Builder and the player-facing God Mode panel (owner 2026-10-08).
@@ -6,8 +6,8 @@ import { ARCHIVED_CARDS, ARCHIVED_RUNES, CARD_INDEX, GIFTS, RUNES, EPIC_RUNES, p
  * runes / epic runes. Archived content is never listed by the set lists (poolFor covers set manifests only); the
  * Scene Builder's "Archived" library view reads `archivedCardRows` / `archivedRuneRows` instead (owner ask 2026-10-10).
  */
-export type CardRow = { id: string; name: string; tier: number; spell: boolean; tribe: string; tribe2?: string; hay: string; kind?: 'ruby' | 'gift'; archived?: true };
-export type RuneRow = { id: string; name: string; cost: number; epic: boolean; isNew: boolean; hay: string; archived?: true };
+export type CardRow = { id: string; name: string; tier: number; spell: boolean; tribe: string; tribe2?: string; hay: string; kind?: 'ruby' | 'gift'; archived?: true; duos?: true };
+export type RuneRow = { id: string; name: string; cost: number; epic: boolean; isNew: boolean; hay: string; archived?: true; duos?: true };
 
 /** Everything a row can be matched on, lowercased once. Searching the card's TEXT (not just its name/tribe) is
  *  what makes keyword queries work — "avenge", "deathrattle", "taunt", "magnetic" all live in the rules text or
@@ -59,11 +59,28 @@ export function runeRowsFor(setId: SetId): RuneRow[] {
     .map((r) => {
       const isNew = !!r.sets && r.sets.length === 1 && (r.sets[0] === 'set3' || r.sets[0] === 'set4'); // set4: the Celestial runes moved there 2026-10-14
       return {
-        id: r.id, name: r.name, cost: r.cost, epic: !!r.epic, isNew,
-        hay: hay(r.name, r.id, r.text, r.reward?.kind, r.epic ? 'epic' : 'basic', isNew ? 'new' : ''),
+        id: r.id, name: r.name, cost: r.cost, epic: !!r.epic, isNew, ...(r.duos ? { duos: true as const } : {}),
+        hay: hay(r.name, r.id, r.text, r.reward?.kind, r.epic ? 'epic' : 'basic', isNew ? 'new' : '', r.duos ? 'duos' : ''),
       };
     })
     .sort((a, b) => Number(a.epic) - Number(b.epic) || a.name.localeCompare(b.name));
+}
+
+const duosCache = new Map<SetId, CardRow[]>();
+
+/** THE SCENE BUILDER WITH DUOS ON (DEV, R-SB-DUOS-01): the set's rows plus the Duos-only minions and spells this set's
+ *  Duos pool adds (`duosPoolFor`: by tribe membership, neutrals and spells always, the same function a real Duos run
+ *  stocks from), each flagged `duos` and searchable by "duos". Sorted tier, then name; cached per set. */
+export function duosCardRowsFor(setId: SetId): CardRow[] {
+  const hit = duosCache.get(setId);
+  if (hit) return hit;
+  const base = cardRowsFor(setId);
+  const seen = new Set(base.map((r) => r.id));
+  const extra = duosPoolFor(setId).all.filter((c) => !c.token && !seen.has(c.id))
+    .map((c): CardRow => { const r = cardRow(c); return { ...r, duos: true, hay: `${r.hay} duos` }; });
+  const rows = [...base, ...extra].sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
+  duosCache.set(setId, rows);
+  return rows;
 }
 
 let archivedCards: CardRow[] | null = null;

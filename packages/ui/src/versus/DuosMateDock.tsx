@@ -38,6 +38,7 @@ import { useDuosPassNote } from './duosPassUi';
 import { prewarmPassFx } from './passLob';
 import { enterTeammateView, exitTeammateView } from './teammateView';
 import { useVersus } from './versusStore';
+import { useLocalMate } from './localMate';
 import { PING_MATE } from '../pings/pingKeys';
 import { useSpectate } from './spectate';
 import { useDuosCombat } from './duosCombat';
@@ -143,7 +144,12 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   const myPick = useOwnHeroPick((s) => (heroSelect ? s.heroId : null));
   // Whose face: my teammate on my board, me while I watch them. One primitive key, so the dock only re-renders when
   // the face, its name or its cosmetics change.
-  const key = useVersus((s) => {
+  // THE SCENE BUILDER'S PLACEHOLDER TEAMMATE (DEV, R-SB-DUOS-01): no match, so the faces come from the local seam.
+  const localKey = useLocalMate((s) => {
+    const f = watching ? s.me : s.mate;
+    return f && !heroSelect ? JSON.stringify([f.hero, f.name, null, null]) : null;
+  });
+  const versusKey = useVersus((s) => {
     const g = s.match?.group;
     const d = g?.duos;
     if (!g?.me || !d) return null;
@@ -156,6 +162,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     const avatar = heroSelect && !hero && typeof profile?.avatar === 'string' ? profile.avatar : null;
     return JSON.stringify([hero, row.name, cos ?? null, avatar]);
   });
+  const key = versusKey ?? localKey;
   // My teammate dropped out (their board plays on auto): the portrait says so before any drag.
   const away = useVersus((s) => {
     const g = s.match?.group;

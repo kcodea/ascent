@@ -11,15 +11,15 @@ import { join } from 'node:path';
 import { contentRevision } from '@game/content';
 
 const rpc = vi.fn(async () => ({ data: null, error: null }));
-vi.mock('../remoteBoards', async (orig) => ({ ...(await orig<typeof import('../remoteBoards')>()), supabaseClient: () => ({ rpc, from: () => { throw new Error('no table reads'); }, auth: { getSession: async () => ({ data: { session: null } }) } }) }));
+vi.mock('../remoteBoards', async (orig) => ({ ...(await orig<typeof import('../remoteBoards')>()), supabaseClient: () => ({ rpc, from: () => { throw new Error('no table reads'); }, auth: { getSession: async () => ({ data: { session: { access_token: 'real-jwt' } } }) } }) }));
 
-const { versusRemote, versusRoomRef, lobbyLivePublishUrl, lobbyLiveWatchUrl, VersusError } = await import('./versusRemote');
+const { versusRemote, versusRoomRef, lobbyLivePublishUrl, lobbyLiveWatchUrl, VersusError, versusWorkerUrl, devWorkerMissing, resetDevWorkerProbeForTests } = await import('./versusRemote');
 const { decodeRoomRef, embeddedCfUrl } = await import('./versusHost');
 const { versusCfLiveUrl, versusCfDevUrl } = await import('./versusCfRemote');
 
 const me = { displayName: 'Kev', profile: {}, setId: 'set1', contentRevision: contentRevision() };
 
-afterEach(() => { vi.unstubAllGlobals(); rpc.mockClear(); });
+afterEach(() => { vi.unstubAllGlobals(); rpc.mockClear(); resetDevWorkerProbeForTests(); });
 
 describe('R-VERSUS-CF-ONLY-01: Versus is Cloudflare only', () => {
   it('a room is created on the Worker; a Worker that cannot be reached fails, and Supabase is never asked', async () => {
@@ -30,9 +30,40 @@ describe('R-VERSUS-CF-ONLY-01: Versus is Cloudflare only', () => {
       expect(err, mode).toBeInstanceOf(VersusError);
     }
     expect(fetchMock).toHaveBeenCalled();
-    for (const [url] of fetchMock.mock.calls as unknown as [string][]) expect(String(url).startsWith(versusCfDevUrl())).toBe(true);
+    for (const [url] of fetchMock.mock.calls as unknown as [string][]) expect(String(url).startsWith(versusCfLiveUrl(contentRevision()))).toBe(true);
     // Not the switch (versus_host_config), not a Supabase room (versus_create_room): nothing at all.
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('R-VERSUS-DEV-DEPLOYED-01: a dev build with no Worker pick plays on the DEPLOYED Worker of its engine, with the real token', async () => {
+    // Owner 2026-10-31: on the dev server Versus "Create room" and Ranked Duos both showed "Connection problem. Try again."
+    // (a dev build with no pick targeted local `wrangler dev`, 127.0.0.1:8787, which nothing served).
+    expect(versusWorkerUrl()).toBe(versusCfLiveUrl(contentRevision()));
+    expect(versusWorkerUrl()).not.toBe(versusCfDevUrl());
+    const calls: { url: string; auth: string | null }[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url: String(url), auth: new Headers(init?.headers).get('Authorization') });
+      if (String(url).endsWith('/health')) return new Response(JSON.stringify({ cfProtocol: 1 }), { status: 200 });
+      throw new TypeError('Failed to fetch');
+    }));
+    // The Worker answers /health, so a failed call is a plain connection problem (and the probe is not repeated).
+    for (let i = 0; i < 2; i++) {
+      const err = await versusRemote.createRoom('Room', me, { v: 1, mode: 'ranked_duos', modifiers: [] } as never).then(() => null, (e: unknown) => e);
+      expect((err as InstanceType<typeof VersusError>).code).toBe('network');
+    }
+    const post = calls.filter((c) => c.url.endsWith('/rooms'));
+    expect(post).toHaveLength(2);
+    // The signed-in player's Supabase token, never the dev-identity token a deployed Worker refuses.
+    for (const c of post) expect(c.auth).toBe('Bearer real-jwt');
+    expect(calls.filter((c) => c.url.endsWith('/health'))).toHaveLength(1);
+  });
+
+  it('R-VERSUS-DEV-DEPLOYED-01: an engine with no deployed Worker says so plainly, not "Connection problem"', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+    const err = await versusRemote.createRoom('Room', me, { v: 1, mode: 'duel', modifiers: [] } as never).then(() => null, (e: unknown) => e);
+    expect((err as InstanceType<typeof VersusError>).code).toBe('server_not_deployed');
+    expect(await devWorkerMissing('https://x.team-ascent.workers.dev', (async () => new Response('', { status: 404 })) as typeof fetch)).toBe('server_not_deployed');
+    expect(await devWorkerMissing('https://x.team-ascent.workers.dev', (async () => new Response('{}', { status: 200 })) as typeof fetch)).toBeNull();
   });
 
   it('room references always name the Worker; a bare id is a retired Supabase room', () => {

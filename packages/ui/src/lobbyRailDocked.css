@@ -87,12 +87,20 @@ html:root .lobbyrail.lrv-docked .lobbyseat {
   --fe: rgba(0, 0, 0, calc(1 - var(--lr2-fade-str, 1)));
 }
 html:root .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
-  /* FULL ART is the shipped look (owner pick 2026-10-31: "i like the full art look"): the art across the whole slice, no
-     fade. Production sets no `data-lr2-art`, so this base rule IS production; the other layouts are Tuner 2 options. */
+  /* The art's shared placement; each layout below sets its width, side and fade. */
   position: absolute; top: 0; bottom: 0; left: 0; width: 100%; height: 100%;
   object-position: calc(var(--lr2-art-fx, 50) * 1%) calc(var(--lr2-art-fy, 24) * 1%);
   transform: scale(var(--lr2-art-zoom, 1)); transform-origin: calc(var(--lr2-art-fx, 50) * 1%) calc(var(--lr2-art-fy, 24) * 1%);
   filter: brightness(var(--lr2-art-bright, 1));
+}
+/* NAVY is the shipped look (owner 2026-10-31: "i want number and armor number left in the navy blue, fades into the hero
+   portrait, which only takes up the right most 60% of space"): the art on the right `--lr2-navy-art-w`% of the slice,
+   fading in from a navy plate over its first `--lr2-navy-fade`%. Production sets no `data-lr2-art`, so the
+   `:not([data-lr2-art])` arm IS production. Static mask. */
+html:root:is(:not([data-lr2-art]), [data-lr2-art="navy"]) .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
+  left: auto; right: 0; width: calc(var(--lr2-navy-art-w, 60) * 1%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 35) * 1%));
+  mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 35) * 1%));
 }
 /* LEFT FADE (the earlier default, Tuner 2): the art on the left `--aw` of the slice, fading into the plate. */
 html:root[data-lr2-art="left"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
@@ -119,6 +127,30 @@ html:root[data-lr2-art="center"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface
 }
 /* The slice's plate behind the art: a soft warm-dark gradient so the faded side reads as part of the slice. */
 html:root .lobbyrail.lrv-docked .lrv-tileart { background: linear-gradient(90deg, var(--ui-plate-mid, var(--ui-plate)), var(--ui-plate-bot, var(--ui-plate))); }
+/* The navy plate (Tuner 2 "Navy: plate colour"): a touch lighter at the top, deeper toward the art. */
+html:root:is(:not([data-lr2-art]), [data-lr2-art="navy"]) .lobbyrail.lrv-docked .lrv-tileart {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--lr2-navy, #0d1a36) 82%, #3a5a9a) 0%, var(--lr2-navy, #0d1a36) 55%, color-mix(in srgb, var(--lr2-navy, #0d1a36) 70%, #000) 100%);
+}
+
+/* HEALTH NUMBERS (owner 2026-10-31: "the health bar is impossible to know what it actually means, right? can we make that a
+   number?"; "i want number and armor number left in the navy blue"): Health, with Armor under it, on the slice's left, just
+   clear of the deepest cut along its middle (`--mx`). Tuner 2 "Show Health as" picks numbers (default), the bar, or both. */
+html:root .lobbyrail.lrv-docked .lrv-hpnum {
+  position: absolute; z-index: 3; top: 50%;
+  left: calc(max(var(--mx, 0px), var(--fx, 0px)) + 10px * var(--dk-s, 1) + var(--lr2-hpnum-x, 0) * 1px);
+  translate: 0 calc(-50% + var(--lr2-hpnum-y, 0) * 1px);
+  display: flex; flex-direction: column; align-items: flex-start; gap: calc(2px * var(--dk-s, 1));
+  font-family: var(--font-title), sans-serif; font-weight: 900; line-height: 1; pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.85);
+}
+html:root .lobbyrail.lrv-docked .lrv-hpnum > span { display: inline-flex; align-items: center; gap: 0.2em; }
+html:root .lobbyrail.lrv-docked .lrv-hpnum svg { width: 0.82em; height: 0.82em; flex: none; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)); }
+html:root .lobbyrail.lrv-docked .lrv-hpn-hp { font-size: calc(var(--lr2-hpnum-size, 24) * var(--dk-s, 1) * 1px); color: #fff; }
+html:root .lobbyrail.lrv-docked .lrv-hpn-hp svg { color: var(--ui-heart); }
+html:root .lobbyrail.lrv-docked .lrv-hpn-arm { font-size: calc(var(--lr2-armnum-size, 15) * var(--dk-s, 1) * 1px); color: #c4d6ef; }
+html:root:is(:not([data-lr2-hp]), [data-lr2-hp="number"]) .lobbyrail.lrv-docked .lrv-barclip { display: none; }
+html:root[data-lr2-hp="bar"] .lobbyrail.lrv-docked .lrv-hpnum { display: none; }
 /* The foe's art keeps its brightness lift on top of the tuner's. */
 html:root .lobbyrail.lrv-docked .lobbyseat.foe:not(.dead) .lrv-tileart > .lobbyface { filter: brightness(calc(var(--lr2-art-bright, 1) * 1.12)) saturate(1.1); }
 /* THE NAME, over the faded side, clear of the bar. */
@@ -249,7 +281,7 @@ html:root .lobbyrailhead.lrv-docked.lrv-wrap:not(.guidesview) > .lobbymax { font
      gloss   (default) a bevelled gold rim, a recessed track, glossy fills (a bright top band, a soft lower shade), a soft
              glow at the red's leading edge
      smooth  the earlier, calmer bar: a flat gold rim and softer fills
-   The numbers are on the hover card. Static paint; the fills are `transform` only (scaleX / translateX), so a change plays
+   Off by default since the Health numbers (Tuner 2 "Show Health as"). Static paint; the fills are `transform` only (scaleX / translateX), so a change plays
    once as a short transition and nothing loops. `--bar-base` is the slice's height (set per rail). */
 .lrv-docked .lrv-bar {
   --bh: max(8px, calc(var(--bar-base) * var(--lr2-bar-h, 22) / 100));

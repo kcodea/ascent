@@ -27,7 +27,10 @@ export const LR2_BAR_STYLES = ['gloss', 'smooth'] as const;
  *  name on the right side"; "i want to try a few things with the art/name etc"). */
 // `fade75` (owner 2026-10-31: "can we add a 75% art into a fade option and try hero names as the text with that"): the art
 // across the left 75% at full strength, fading into the plate over the last quarter.
-export const LR2_ART_LAYOUTS = ['left', 'full', 'right', 'center', 'fade75'] as const;
+// `navy` (owner 2026-10-31: "i want number and armor number left in the navy blue, fades into the hero portrait, which only
+// takes up the right most 60% of space"): a dark navy plate on the left carrying the Health numbers, the art on the right
+// `--lr2-navy-art-w`% fading in from it. The shipped look.
+export const LR2_ART_LAYOUTS = ['navy', 'left', 'full', 'right', 'center', 'fade75'] as const;
 export type Lr2ArtLayout = (typeof LR2_ART_LAYOUTS)[number];
 export const LR2_NAME_SIDES = ['right', 'left'] as const;
 export type Lr2NameSide = (typeof LR2_NAME_SIDES)[number];
@@ -37,12 +40,23 @@ export type Lr2NameShow = (typeof LR2_NAME_SHOW)[number];
 
 export type Lr2BarStyle = (typeof LR2_BAR_STYLES)[number];
 
+/** How a slice shows Health (owner 2026-10-31: "the health bar is impossible to know what it actually means, right? can we
+ *  make that a number?"): the numbers (default), the bar, or both. */
+export const LR2_HP_SHOW = ['number', 'bar', 'both'] as const;
+export type Lr2HpShow = (typeof LR2_HP_SHOW)[number];
+/** The navy plate's colour (a #rrggbb). */
+export const LR2_NAVY_DEFAULT = '#0d1a36';
+
 export interface LobbyRailTuner2Config {
   barStyle: Lr2BarStyle;
+  hpShow: Lr2HpShow;
+  navyColor: string;
   dkTop: DockTopMode;
   artLayout: Lr2ArtLayout; nameSide: Lr2NameSide; nameShow: Lr2NameShow;
   /** What the slice's label says: the player's name, the hero's name, or nothing (owner 2026-10-31). */
   nameText: SliceLabel;
+  navyArtW: number; navyFade: number;
+  hpNumSize: number; armNumSize: number; hpNumX: number; hpNumY: number;
   artZoom: number; artFx: number; artFy: number; artW: number; fadeStart: number; fadeLen: number; fadeStr: number; artBright: number;
   nameSize: number; nameWeight: number; nameLines: number; nameX: number; nameY: number; nameShadow: number;
   // Docked: the layout (JS) ...
@@ -55,13 +69,15 @@ export interface LobbyRailTuner2Config {
   pulseRing: number; pulseGlow: number; pulseMin: number; pulseMax: number; pulsePeriod: number;
   cardW: number; cardX: number; cardY: number; cardFont: number;
 }
-type SelKey = 'barStyle' | 'dkTop' | 'artLayout' | 'nameSide' | 'nameShow' | 'nameText';
+type SelKey = 'barStyle' | 'hpShow' | 'navyColor' | 'dkTop' | 'artLayout' | 'nameSide' | 'nameShow' | 'nameText';
 type NumKey = Exclude<keyof LobbyRailTuner2Config, SelKey>;
 
 export const LR2_DEFAULTS: LobbyRailTuner2Config = {
-  barStyle: 'gloss',
-  // The shipped look (owner pick 2026-10-31: "i like the full art look"): Full width art, no slice label.
-  artLayout: 'full', nameSide: 'right', nameShow: 'on', nameText: 'none',
+  barStyle: 'gloss', hpShow: 'number', navyColor: LR2_NAVY_DEFAULT,
+  // The shipped look (owner 2026-10-31): the navy plate with the Health numbers, the art on the right 60%, no slice label.
+  navyArtW: 60, navyFade: 35,
+  hpNumSize: 24, armNumSize: 15, hpNumX: 0, hpNumY: 0,
+  artLayout: 'navy', nameSide: 'right', nameShow: 'on', nameText: 'none',
   artZoom: 1, artFx: 50, artFy: 24, artW: 58, fadeStart: 40, fadeLen: 60, fadeStr: 1, artBright: 1,
   nameSize: 13, nameWeight: 800, nameLines: 2, nameX: 0, nameY: 0, nameShadow: 1,
   dkTop: DOCK_DEFAULTS.topMode,
@@ -81,7 +97,7 @@ export const LR2_LAYOUT: Readonly<Partial<Record<NumKey, Exclude<keyof DockCfg, 
 };
 
 interface NumDef { v: string; group: string; label: string; unit?: TunerUnit; min: number; max: number; step: number; hint: string }
-const D = 'Docked: layout', DP = 'Docked: look', SA = 'Slice art & name', HB = 'Health bar';
+const D = 'Docked: layout', DP = 'Docked: look', SA = 'Slice art & name', HN = 'Health numbers', HB = 'Health bar';
 /** Each numeric control's var (or layout field), its range and what it means. The var names are the contract with the sheets. */
 const NUM: Record<NumKey, NumDef> = {
   dkPanelMax: { v: '--lr2-dk-panel-max', group: D, label: 'Max slice height', unit: 'px', min: 50, max: 260, step: 1, hint: 'Docked: the tallest a slice may be (matters on a short table, e.g. a 4-player Versus group).' },
@@ -94,6 +110,12 @@ const NUM: Record<NumKey, NumDef> = {
   dkEdge: { v: '--lr2-dk-edge', group: D, label: 'Margin from screen edges', unit: 'px', min: 0, max: 80, step: 0.5, hint: 'Docked: the margin kept from the window’s top, right and bottom edges.' },
   dkNotch: { v: '--lr2-dk-notch', group: D, label: 'Cut clearance', unit: 'px', min: 0, max: 30, step: 0.5, hint: 'Docked: the even gap kept between the Refresh pill, the gem or the Gold coin and the slice cut round it.' },
 
+  navyArtW: { v: '--lr2-navy-art-w', group: SA, label: 'Navy: art width', unit: '%', min: 30, max: 100, step: 1, hint: 'Navy layout: how much of the slice, from the right, the hero art covers.' },
+  navyFade: { v: '--lr2-navy-fade', group: SA, label: 'Navy: fade length', unit: '%', min: 0, max: 100, step: 1, hint: 'Navy layout: how far into the art (a share of its width) the fade from the navy plate runs.' },
+  hpNumSize: { v: '--lr2-hpnum-size', group: HN, label: 'Health size', unit: 'px', min: 10, max: 44, step: 0.5, hint: 'The Health number’s size (board px at 1080p).' },
+  armNumSize: { v: '--lr2-armnum-size', group: HN, label: 'Armor size', unit: 'px', min: 8, max: 36, step: 0.5, hint: 'The Armor number’s size (board px at 1080p).' },
+  hpNumX: { v: '--lr2-hpnum-x', group: HN, label: 'Move left / right', unit: 'px', min: -60, max: 120, step: 0.5, hint: 'Nudges the numbers sideways from just clear of the slice’s cut.' },
+  hpNumY: { v: '--lr2-hpnum-y', group: HN, label: 'Move up / down', unit: 'px', min: -40, max: 40, step: 0.5, hint: 'Nudges the numbers up or down from the slice’s middle.' },
   artZoom: { v: '--lr2-art-zoom', group: SA, label: 'Art crop zoom', unit: '×', min: 0.6, max: 2.5, step: 0.01, hint: 'Zooms the hero art inside its area (1 = fills it).' },
   artFx: { v: '--lr2-art-fx', group: SA, label: 'Art focal X', unit: '%', min: 0, max: 100, step: 1, hint: 'Which part of the art stays in view, left (0) to right (100).' },
   artFy: { v: '--lr2-art-fy', group: SA, label: 'Art focal Y', unit: '%', min: 0, max: 100, step: 1, hint: 'Which part of the art stays in view, top (0) to bottom (100). Faces sit near 20-30.' },
@@ -128,8 +150,10 @@ const NUM: Record<NumKey, NumDef> = {
 /** For the contract test: every numeric control's var. */
 export const LR2_VARS: Readonly<Record<NumKey, string>> = Object.fromEntries(Object.entries(NUM).map(([k, d]) => [k, d.v])) as Record<NumKey, string>;
 
-const KEY = 'ascent.lobbyRailTuner2.v2';
+const KEY = 'ascent.lobbyRailTuner2.v3'; // v3: the navy layout + Health numbers became the default
 const isBarStyle = (v: unknown): v is Lr2BarStyle => v === 'gloss' || v === 'smooth';
+const isHpShow = (v: unknown): v is Lr2HpShow => (LR2_HP_SHOW as readonly unknown[]).includes(v);
+const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
 const isArt = (v: unknown): v is Lr2ArtLayout => (LR2_ART_LAYOUTS as readonly unknown[]).includes(v);
 const isSide = (v: unknown): v is Lr2NameSide => v === 'right' || v === 'left';
 const isShow = (v: unknown): v is Lr2NameShow => v === 'on' || v === 'off';
@@ -142,6 +166,8 @@ function load(): LobbyRailTuner2Config {
     const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
     const out: LobbyRailTuner2Config = { ...LR2_DEFAULTS };
     if (isBarStyle(o.barStyle)) out.barStyle = o.barStyle;
+    if (isHpShow(o.hpShow)) out.hpShow = o.hpShow;
+    if (isHex(o.navyColor)) out.navyColor = o.navyColor;
     if (isArt(o.artLayout)) out.artLayout = o.artLayout;
     if (isSide(o.nameSide)) out.nameSide = o.nameSide;
     if (isShow(o.nameShow)) out.nameShow = o.nameShow;
@@ -175,6 +201,8 @@ export function applyLobbyRailTuner2(): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   root.setAttribute('data-lr2-bar', cfg.barStyle);
+  root.setAttribute('data-lr2-hp', cfg.hpShow);
+  root.style.setProperty('--lr2-navy', cfg.navyColor);
   root.setAttribute('data-lr2-art', cfg.artLayout);
   root.setAttribute('data-lr2-name-side', cfg.nameSide);
   root.setAttribute('data-lr2-name', cfg.nameShow);
@@ -186,6 +214,8 @@ function save(): void {
 }
 export function setLobbyRailTuner2(key: keyof LobbyRailTuner2Config, value: number | string): void {
   if (key === 'barStyle') { if (!isBarStyle(value)) return; cfg = { ...cfg, barStyle: value }; }
+  else if (key === 'hpShow') { if (!isHpShow(value)) return; cfg = { ...cfg, hpShow: value }; }
+  else if (key === 'navyColor') { if (!isHex(value)) return; cfg = { ...cfg, navyColor: value }; }
   else if (key === 'artLayout') { if (!isArt(value)) return; cfg = { ...cfg, artLayout: value }; }
   else if (key === 'nameSide') { if (!isSide(value)) return; cfg = { ...cfg, nameSide: value }; }
   else if (key === 'nameShow') { if (!isShow(value)) return; cfg = { ...cfg, nameShow: value }; }
@@ -209,13 +239,22 @@ const controls: TunerControl<Extract<keyof LobbyRailTuner2Config, string>>[] = [
     hint: 'Docked: where the first player’s slice sits against the Refresh pill. The stack re-fits down to the coin.', min: 0, max: 0, step: 0,
   },
   {
+    key: 'hpShow', label: 'Show Health as', group: HN, kind: 'select', options: LR2_HP_SHOW,
+    optionLabels: { number: 'Numbers (Health + Armor; default)', bar: 'Bar only', both: 'Numbers and bar' },
+    hint: 'Docked: Health and Armor as numbers on the slice’s left, the bar along its foot, or both.', min: 0, max: 0, step: 0,
+  },
+  {
+    key: 'navyColor', label: 'Navy: plate colour', group: SA, kind: 'color',
+    hint: 'Navy layout: the colour of the plate the numbers sit on (it fades into the art).', min: 0, max: 0, step: 0,
+  },
+  {
     key: 'barStyle', label: 'Bar style', group: HB, kind: 'select', options: LR2_BAR_STYLES,
     optionLabels: { gloss: 'Gloss (bevelled gold rim, glossy fills; default)', smooth: 'Smooth (flat rim, softer fills)' },
     hint: 'The Health bar set into the slice’s foot. Gloss: a bevelled gold rim, glossy red and steel-blue fills, a glow at the red’s leading edge. Smooth: the earlier, calmer bar.', min: 0, max: 0, step: 0,
   },
   {
     key: 'artLayout', label: 'Art layout', group: SA, kind: 'select', options: LR2_ART_LAYOUTS,
-    optionLabels: { left: 'Left fade (art left, fading right)', full: 'Full width (the art across the slice; default)', right: 'Right fade (art right, fading left)', center: 'Centered portrait (fading both sides)', fade75: '75% fade (full art over 75%, fading over the last quarter)' },
+    optionLabels: { navy: 'Navy (numbers on a navy plate, art on the right; default)', left: 'Left fade (art left, fading right)', full: 'Full width (the art across the slice)', right: 'Right fade (art right, fading left)', center: 'Centered portrait (fading both sides)', fade75: '75% fade (full art over 75%, fading over the last quarter)' },
     hint: 'Docked: where the hero art sits in each slice and how it fades into the plate.', min: 0, max: 0, step: 0,
   },
   {
@@ -237,7 +276,7 @@ const controls: TunerControl<Extract<keyof LobbyRailTuner2Config, string>>[] = [
   }),
 ];
 // Each group renders once, in the order its first control is declared (the panel only merges ADJACENT controls).
-const GROUP_ORDER = [D, DP, SA, HB, ...new Set(controls.map((c) => c.group))].filter((g, i, a) => a.indexOf(g) === i);
+const GROUP_ORDER = [D, DP, SA, HN, HB, ...new Set(controls.map((c) => c.group))].filter((g, i, a) => a.indexOf(g) === i);
 controls.sort((x, y) => GROUP_ORDER.indexOf(x.group) - GROUP_ORDER.indexOf(y.group));
 
 export const LR2_SPEC: TunerSpec<LobbyRailTuner2Config> = {
@@ -254,6 +293,7 @@ export const LR2_SPEC: TunerSpec<LobbyRailTuner2Config> = {
   // The owner's trial combos (2026-10-31: "I think I like the full hero art but can we add a 75% art into a fade option and
   // try hero names as the text with that"), one click each. They set only the art layout and the slice label.
   actions: [
+    { label: 'Preset: Navy + numbers', hint: 'Art layout Navy, Health as numbers, Slice label None.', run: () => { setLobbyRailTuner2('artLayout', 'navy'); setLobbyRailTuner2('hpShow', 'number'); setLobbyRailTuner2('nameText', 'none'); } },
     { label: 'Preset: Full art', hint: 'Art layout Full width, Slice label None.', run: () => { setLobbyRailTuner2('artLayout', 'full'); setLobbyRailTuner2('nameText', 'none'); } },
     { label: 'Preset: 75% fade + hero name', hint: 'Art layout 75% fade, Slice label Hero name.', run: () => { setLobbyRailTuner2('artLayout', 'fade75'); setLobbyRailTuner2('nameText', 'hero'); } },
   ],

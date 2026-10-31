@@ -672,7 +672,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
               style={dp ? {
                 left: dp.x, top: dp.y, width: dp.w, height: dp.h,
-                '--pw': `${dp.w}px`, '--ph': `${dp.h}px`, '--dk-s': dock!.s, '--fx': `${dp.footX}px`, '--bx': `${dp.topX}px`, '--skx': `${skullX}px`,
+                '--pw': `${dp.w}px`, '--ph': `${dp.h}px`, '--dk-s': dock!.s, '--fx': `${dp.footX}px`, '--mx': `${dp.midX}px`, '--bx': `${dp.topX}px`, '--skx': `${skullX}px`,
               } as React.CSSProperties : undefined}
             >
               {dp && !inTeam ? (
@@ -703,7 +703,14 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                     <span key={statuses[seat.id]!.label} className={`lrv-status ${statuses[seat.id]!.tone}`}>{statuses[seat.id]!.label}</span>
                   )}
                   {/* A DUOS team's shared pool is drawn once, on the pair's last slice; the other slice carries no bar. */}
-                  {row.alive && teamBarIds && !teamBarIds.has(seat.id) ? null : row.alive ? (<span className="lrv-barclip" style={dp?.cut ? { clipPath: outlineClip(insetOutline(dp.outline, 4 * dock!.s, dp.w)) } : undefined}>
+                  {row.alive && teamBarIds && !teamBarIds.has(seat.id) ? null : row.alive ? (<>
+                    {/* HEALTH NUMBERS (owner 2026-10-31: "can we make that a number?"): Health, Armor under it, on the navy
+                        side. Tuner 2 "Show Health as" picks these (default), the bar below, or both. */}
+                    <span className="lrv-hpnum" role="img" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
+                      <span className="lrv-hpn-hp"><Icon name="heartPill" />{live.resolve}</span>
+                      {live.armor > 0 && <span className="lrv-hpn-arm"><Icon name="shield" />{live.armor}</span>}
+                    </span>
+                    <span className="lrv-barclip" style={dp?.cut ? { clipPath: outlineClip(insetOutline(dp.outline, 4 * dock!.s, dp.w)) } : undefined}>
                     <span className="lrv-bar" role="img" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
                       <span className="lrv-bar-hp" style={{ transform: `scaleX(${hpFrac})` }} />
                       {armFrac > 0 && <span className="lrv-bar-arm" style={{ transform: `translateX(${((armEnd - armFrac) * 100).toFixed(2)}%) scaleX(${armFrac})` }} />}
@@ -712,7 +719,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                       {/* The Health fill's leading edge: a soft glow at the end of the red (its own layer, translate only). */}
                       {hpFrac > 0 && <span className="lrv-bar-lead" style={{ transform: `translateX(${(hpFrac * 100).toFixed(2)}%)` }} />}
                     </span>
-                  </span>) : <span className="lrv-skull" aria-label="Knocked out"><Icon name="skull" /></span>}
+                  </span></>) : <span className="lrv-skull" aria-label="Knocked out"><Icon name="skull" /></span>}
                 </>
               ) : (<>
               {(() => {

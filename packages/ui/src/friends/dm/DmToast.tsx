@@ -6,9 +6,7 @@
  * presses that land on it; the game underneath keeps playing. Motion: one-shot transform + opacity.
  */
 import { sfx } from '../../sfx';
-import { useGame } from '../../store';
 import { openDm, useFriendsDock } from '../dock/dockStore';
-import { dockCorner } from '../dock/FriendsDock';
 import { useFriendsPrefs } from '../friendsPrefs';
 import { FriendPortrait, handleOf } from '../friendBits';
 import { useFriends } from '../friendsStore';
@@ -24,15 +22,13 @@ export function DmToast(): JSX.Element | null {
   // Its conversation is on screen in the chat window (R-DM-CHAT-01): no toast.
   const open = useFriendsDock((s) => !!toast && !!s.dmWith && s.dmWith.toLowerCase() === toast.from);
   const filter = useFriendsPrefs((s) => s.filterMessages);
-  // The toast rides above the Friends button, wherever its slot is (FriendsDock `dockCorner`).
-  const slot = useGame(dockCorner);
   if (!toast || open || !friend) return null;
   // The label reads each emote by its name; the toast shows it small, as the conversation does (R-DM-EMOTE-01).
   const plain = dmPlainText(toast.body);
   const said = filter ? maskProfanity(plain) : plain;
   const go = (): void => { sfx.pulse(); dismissDmToast(); openDm(friend.userId); };
   return (
-    <div key={toast.id} role="button" tabIndex={0} className={`dm-toast vspanel${slot ? ` ${slot}` : ''}`} aria-label={`New message from ${handleOf(friend)}: ${said}. Open the conversation.`}
+    <div key={toast.id} role="button" tabIndex={0} className="dm-toast vspanel" aria-label={`New message from ${handleOf(friend)}: ${said}. Open the conversation.`}
       onClick={go} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }}>
       <span className="fdock-portrait"><FriendPortrait card={friend} /></span>
       <span className="dm-toast-text">

@@ -57,7 +57,7 @@ import type { Friend, FriendInvite, FriendsList, FriendsRemote, InviteKind } fro
 import { PAGES_CLOSED } from '../../store';
 import { acceptSpectateInvite, FINISH_FIRST, friendMenuEntries, inviteToRoom, inviteToSpectate, runFriendMenu, type FriendMenuContext } from '../friendsGo';
 import { FriendMenu, openFriendMenu, useFriendMenu } from '../FriendMenu';
-import { dockCorner, FriendsDock } from './FriendsDock';
+import { FriendsDock } from './FriendsDock';
 import { chatTabOrder } from '../dm/ChatWindow';
 import { useDm } from '../dm/dmStore';
 import {
@@ -127,13 +127,13 @@ describe('the dock (R-FRIENDS-DOCK-01)', () => {
     ui = mount(<FriendsDock />);
     expect(q('.fdock-btn')?.getAttribute('aria-label')).toBe('Friends, 2 online'); // the title
     expect(q('.fdock-count')?.textContent).toBe('2');
-    expect(q('.fdock-btn')?.className).toBe('fdock-btn gtip'); // slot 3, left of Rules
+    expect(q('.fdock-btn')?.className).toBe('fdock-btn gtip'); // one plaque on every screen (bottomLeft.ts places it)
     act(() => { useGame.setState({ showTitle: true, showCareer: true }); });
-    expect(q('.fdock-btn.corner')).not.toBeNull(); // a ladder page covers the corner row: the corner itself
+    expect(q('.fdock-btn')).not.toBeNull(); // a ladder page
     act(() => { useGame.setState({ showCareer: false, showTitle: false, heroChoices: [] as never }); });
-    expect(q('.fdock-btn.corner')).not.toBeNull(); // hero select lies over the row too
+    expect(q('.fdock-btn')).not.toBeNull(); // hero select
     act(() => inRun());
-    expect(q('.fdock-btn')?.className).toBe('fdock-btn gtip'); // a game: slot 3 again, the same plaque as the row
+    expect(q('.fdock-btn')?.className).toBe('fdock-btn gtip'); // a game
     act(() => { useGame.setState({ account: { userId: ME, email: null, anonymous: true, discriminator: null } }); });
     expect(q('.fdock-btn')?.getAttribute('aria-label')).toBe('Friends'); // a guest: no counts
     click(q('.fdock-btn'));
@@ -484,37 +484,26 @@ describe('Remove friend and Block live in the menu, never on the row (R-FRIENDS-
   });
 });
 
-describe('placement: bottom right, the fourth square of the corner row (R-FRIENDS-DOCK-05)', () => {
-  // jsdom has no layout: the headless screenshot pass (devlog 2026-10-29-friends-dock-bottom-right) measured these at
-  // 1280x720, 1920x1080, 1191x1147 and a phone; this pins the contract so a later edit cannot quietly move it again.
+describe('placement: bottom LEFT, square 0 of the bottom-left row (R-CORNER-SPLIT-01)', () => {
+  // jsdom has no layout: the headless screenshot pass (devlog 2026-10-31-corner-split) measured the row on the title, a
+  // menu page, the in-game menu, a game and a phone; these pin the contract (bottomLeft.ts measures, the CSS reads).
   const css = readFileSync(join(__dirname, 'friendsDock.css'), 'utf8');
   const styles = readFileSync(join(__dirname, '..', '..', 'styles.css'), 'utf8');
-  it('the button anchors RIGHT and BOTTOM on the corner row\'s own numbers, one slot left of Rules, never left', () => {
-    expect(css).toContain('.fdock-btn, .fdock-stack, .dm-toast { --fdock-cb: calc(40 * var(--u)); --fdock-slot: 3; --fdock-pad: 6px;');
-    expect(css).toContain('--fdock-r: calc(var(--edge-r) + 16px + var(--fdock-slot) * (var(--fdock-cb) + 10px)); --fdock-b: calc(var(--edge-b) + 16px); }');
-    expect(css).toMatch(/\.fdock-btn \{ position: fixed; right: var\(--fdock-r\); bottom: var\(--fdock-b\);/);
-    expect(css).not.toMatch(/\.fdock-(btn|stack) \{[^}]*left:/);
-    // The row it joins: gear 0, Compendium 1, Rules 2 (each 40u + 10 px, 16 px in), so slot 3 is the next square.
-    expect(styles).toContain('.rulesbtn { right: calc(var(--edge-r) + 16px + 2 * (40 * var(--u) + 10px)); }');
-    // The dev squares (dev builds only, R-DEV-CORNER-01) queue up after it: slot 4 and 5 on the same numbers.
-    expect(styles).toContain('right: calc(var(--edge-r) + 16px + var(--cd-slot) * (var(--cd-cb) + 10px)); bottom: calc(var(--edge-b) + 16px);');
+  it("the button anchors LEFT and BOTTOM on the row's measured numbers, falling back to the corner itself", () => {
+    expect(css).toContain(':root { --bl-l: calc(var(--edge-l) + 16px); --bl-b: calc(var(--edge-b) + 16px); --bl-cb: calc(40 * var(--u)); }');
+    expect(css).toContain('.fdock-btn, .fdock-stack, .dm-toast { --fdock-cb: var(--bl-cb); --fdock-pad: 6px; --fdock-l: var(--bl-l); --fdock-b: var(--bl-b); }');
+    expect(css).toMatch(/\.fdock-btn \{ position: fixed; left: var\(--fdock-l\); bottom: var\(--fdock-b\);/);
+    expect(css).not.toMatch(/\.fdock-(btn|stack) \{[^}]*right:/);
+    expect(css).not.toMatch(/\.corner|--fdock-slot|--fdock-r/);
+    // The dev squares (dev builds only, R-DEV-CORNER-01) follow it on the same numbers.
+    expect(styles).toContain('left: calc(var(--bl-l) + var(--cd-slot) * (var(--cd-cb) * 1.25)); bottom: var(--bl-b);');
+    // The bottom-right row is only the Compendium and the gear now: no Rules square.
+    expect(styles).not.toMatch(/\.rulesbtn/);
   });
-  it('it takes the corner itself where the row is covered: hero select, a side-menu page, the in-game menu', () => {
-    const base = { ...PAGES_CLOSED, gameMenuOpen: false, heroChoices: null } as Parameters<typeof dockCorner>[0];
-    expect(dockCorner(base)).toBe('');
-    expect(dockCorner({ ...base, heroChoices: [] as never })).toBe('corner');
-    for (const page of ['showCareer', 'showRankings', 'showLeaderboard', 'showRecentGames', 'showLiveGames', 'showCollection', 'settingsOpen', 'showPatchNotes'] as const) {
-      expect(dockCorner({ ...base, [page]: true })).toBe('corner');
-    }
-    expect(dockCorner({ ...base, gameMenuOpen: true })).toBe('corner');
-    expect(css).toContain(':is(.fdock-btn, .fdock-stack, .dm-toast).corner { --fdock-slot: 0; }');
-    // A phone in a game: the zoomed row's own design offsets (touchUi.css: gear 1897, book 1823, rules 1749; 66 px).
-    expect(css).toContain('--fdock-r: calc(var(--pz-bxr) + 1920px - 1675px); --fdock-b: calc(var(--pz-safe-b, var(--safe-b)) + 15px); }');
-  });
-  it('the panel grows out of the button: its bottom-right corner on the button\'s, scaling from that corner, never past the window', () => {
-    expect(css).toMatch(/\.fdock-stack \{ position: fixed; z-index: 486; right: calc\(var\(--fdock-r\) - var\(--fdock-pad\)\); bottom: calc\(var\(--fdock-b\) - var\(--fdock-pad\)\);/);
-    expect(css).toMatch(/\.fdock-stack \{[^}]*transform-origin: 100% 100%;/);
-    expect(css).toMatch(/max-width: calc\(var\(--lvw, 100vw\) - var\(--fdock-r\) - 12px\)/);
+  it("the panel grows out of the button: its bottom-left corner on the button's, scaling from that corner, never past the window", () => {
+    expect(css).toMatch(/\.fdock-stack \{ position: fixed; z-index: 486; left: calc\(var\(--fdock-l\) - var\(--fdock-pad\)\); bottom: calc\(var\(--fdock-b\) - var\(--fdock-pad\)\);/);
+    expect(css).toMatch(/\.fdock-stack \{[^}]*transform-origin: 0 100%;/);
+    expect(css).toMatch(/max-width: calc\(var\(--lvw, 100vw\) - var\(--fdock-l\) - 12px\)/);
     // One-shot transform + opacity only, both ways; nothing loops.
     expect(css).toContain('@keyframes fdockin { from { opacity: 0; transform: scale(0.12); } 40% { opacity: 1; } }');
     expect(css).toContain('@keyframes fdockout { 60% { opacity: 1; } to { opacity: 0; transform: scale(0.12); } }');
@@ -539,7 +528,7 @@ describe('placement: bottom right, the fourth square of the corner row (R-FRIEND
 });
 
 describe('the button expands into the list (R-FRIENDS-DOCK-05: "expand into the list/collapse back down")', () => {
-  it('open: one panel whose title bar runs along its foot and ends in the room the button sits in; the button turns into a collapse chevron', async () => {
+  it('open: one panel whose title bar runs along its foot and starts in the room the button sits in; the button turns into a collapse chevron', async () => {
     inRun();
     ui = mount(<FriendsDock />);
     const btn = q('.fdock-btn')!;
@@ -548,7 +537,7 @@ describe('the button expands into the list (R-FRIENDS-DOCK-05: "expand into the 
     await flush();
     const panel = q('.fdock-stack > .fdock-list')!;
     expect(panel.lastElementChild?.classList.contains('fdock-bar')).toBe(true); // the title bar is the panel's foot
-    expect([...panel.lastElementChild!.children].map((c) => c.className)).toEqual(['fdock-title', 'fdock-sub', 'fdock-me', 'fdock-btnroom']);
+    expect([...panel.lastElementChild!.children].map((c) => c.className)).toEqual(['fdock-btnroom', 'fdock-title', 'fdock-sub', 'fdock-me']);
     expect(q('.fdock-btn')?.getAttribute('aria-label')).toBe('Friends, 2 online. Collapse');
     expect(q('.fdock-btn')?.getAttribute('aria-expanded')).toBe('true');
     expect(q('.fdock-btn .fdock-chips')).toBeNull(); // the bar says it

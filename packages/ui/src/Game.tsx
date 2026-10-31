@@ -54,7 +54,6 @@ import { Inspect } from './Inspect';
 import { RuneInspect } from './RuneInspect';
 import { MinionBook } from './MinionBook';
 import compendiumBookArt from './compendium-book.png';
-import rulesQuestionArt from './rules-question.png';
 import settingsArt from './settings-medallion.png';
 import { SettingsPage } from './EscMenu';
 import { PatchNotesPage } from './PatchNotesPage';
@@ -179,7 +178,6 @@ export function Game() {
   const bugScenarioLoaded = useGame((s) => s.bugScenario !== null);
   const showBook = useGame((s) => s.showBook);
   const toggleBook = useGame((s) => s.toggleBook);
-  const openRules = useGame((s) => s.openRules);
   // Recruit stays mounted across phases (combat plays out in place), so its closures/refs live for the whole
   // run. Starting a NEW run (pickHero / newRun → a fresh seed+hero) must give it a clean slate — otherwise a
   // callback captured under the previous run lingers (e.g. Disco Dan's locked-hand check false-locking a
@@ -637,14 +635,11 @@ export function Game() {
       {/* A Runeforge offer's tap-to-inspect view (touch only, R-TOUCH-TAPINSPECT-01): renders nothing until a finger opens it. */}
       <RuneInspect />
       </OwnSkins>
-      {/* THE CORNER BUTTONS (owner asks 2026-09-28/29), right to left beside the gear: the golden book (Compendium, the
-          mouse twin of the Tab key) and the golden question mark (the Compendium opened straight onto its Rules page).
-          Hidden during hero select, like Tab; shown on the home screen too (styles.css). Hover names each one. */}
-      {!heroPicking && (
-        <button className="rulesbtn gtip" data-tip="Rules" onClick={openRules} aria-label="Rules">
-          <img decoding="sync" src={rulesQuestionArt} alt="" draggable={false} />
-        </button>
-      )}
+      {/* THE CORNER BUTTONS, bottom right: ONLY the Compendium and Settings (owner 2026-10-31, R-CORNER-SPLIT-01: "have the
+          bottom right only show the compendium and settings"). The golden book (the mouse twin of the Tab key) beside the
+          gear; the old golden question mark is gone, its Rules page is the Compendium's own Rules tab. Friends and the dev
+          squares live bottom left (FriendsDock, bottomLeft.ts). Hidden during hero select, like Tab; shown on the home
+          screen too (styles.css). Hover names each one. */}
       {!heroPicking && (
         <button className="bookbtn gtip" data-tip="Compendium" onClick={toggleBook} aria-label="Compendium">
           <img decoding="sync" src={compendiumBookArt} alt="" draggable={false} />

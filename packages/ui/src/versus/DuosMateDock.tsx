@@ -23,6 +23,13 @@
  *  - while you watch them it is YOU: click or tap anywhere on it (cap, disc or name) to come back to your board. With
  *    no plate up top (owner 2026-10-25) it is the only on-screen way back (Esc and letting go of Tab work too).
  * A pass drops INTO this disc (`passLob.playDrop`), and a pass to you rises OUT of it (`playArrival`).
+ *
+ * LARGER, CLEANER, AT THE RAIL'S FOOT (owner 2026-10-31, R-DUOS-DOCK-FOOT-01: "the teammate portrait needs to be updated
+ * and cleaned up/larger and better positioned so that it's easier to see and access. you don't need to have teammate name
+ * or anything on the portrait since we know it's our teammate"): no "Teammate" cap and no name pill. The disc sits in the
+ * bottom-right room under the lobby rail's foot and the Gold coin, right of a full hand, clear of the rail's tab and the
+ * Compendium / Settings pair, its bottom on the corner row's baseline, as large as that room allows (up to
+ * `DOCK_FOOT_MAX` of your own hero disc; `fitFoot`). Only the "Back to your board" cap (while you watch them: the way back) and "Away" stay.
  */
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { parseCosmeticSnapshot } from '@game/progression';
@@ -66,6 +73,71 @@ export const DOCK_CAP_SHARE = 28 / 252;
 export const DOCK_MIN_SHARE = 0.55;
 /** The gap kept between the rail's bottom and the top of the dock's cap (stage px). */
 export const DOCK_RAIL_GAP = 10;
+/** At the rail's foot the disc grows up to this share of your own hero disc. */
+export const DOCK_FOOT_MAX = 0.8;
+/** Below this share of your hero disc the foot is too cramped: the dock falls back to `fitDock`'s place. */
+export const DOCK_FOOT_MIN = 0.4;
+
+/** What sits around the rail's foot (screen px): the last rail tile, the Gold coin, the rail's tab, the Compendium, the
+ *  gear and the hand's row (a full hand reaches almost to the coin, so the disc stays right of it). */
+export interface FootBoxes { seats: Box | null; coin: Box | null; tab: Box | null; book: Box | null; gear: Box | null; hand?: Box | null }
+
+/** How far a hand card's frame spills past its row's box (stage px). */
+export const DOCK_HAND_SPILL = 44;
+
+/**
+ * AT THE RAIL'S FOOT (pure; owner 2026-10-31, R-DUOS-DOCK-FOOT-01). The largest disc (up to `DOCK_FOOT_MAX` of your own
+ * hero disc) in the bottom-right room: right of the hand's row (`DOCK_HAND_SPILL` for the cards' frames), its bottom on
+ * the gear's baseline, touching none of the rail's last tile, the Gold coin, the rail's tab, the Compendium or the gear
+ * (each kept `DOCK_RAIL_GAP` clear, the cap's overhang included above the disc). It hugs the hand's side and grows up
+ * into the room under the coin. Null when a piece is missing or the room is under `DOCK_FOOT_MIN` of your disc (`fitDock`
+ * then places it). All in stage px after `stageLen`.
+ */
+export function fitFoot(hero: Box | null, foot: FootBoxes, stage: Box, stageLen: (px: number) => number): DockGeometry | null {
+  const ok = (b: Box | null | undefined): b is Box => !!b && b.width > 0 && b.height > 0;
+  const { seats, coin, tab, book, gear, hand } = foot;
+  if (!ok(hero) || !ok(coin) || !ok(gear)) return null;
+  const gap = DOCK_RAIL_GAP;
+  // Stage-px rects, grown by the gap.
+  const box = (b: Box) => ({ l: stageLen(b.left - stage.left) - gap, t: stageLen(b.top - stage.top) - gap, r: stageLen(b.left + b.width - stage.left) + gap, b: stageLen(b.top + b.height - stage.top) + gap });
+  const blocks = [seats, coin, tab, book, gear].filter(ok).map(box);
+  const base = stageLen(gear.top + gear.height - stage.top);
+  const fenceL = ok(hand) ? stageLen(hand.left + hand.width - stage.left) + DOCK_HAND_SPILL : stageLen(coin.left - stage.left);
+  const fenceR = stageLen(stage.width) - gap;
+  const heroD = stageLen(hero.width);
+  const clear = (cx: number, cy: number, r: number, capTop: number): boolean => blocks.every((k) => {
+    // The cap's strip above the disc, then the disc itself.
+    if (capTop < cy - r && k.b > capTop && k.t < cy - r && k.r > cx - r * 0.5 && k.l < cx + r * 0.5) return false;
+    const dx = Math.max(k.l - cx, 0, cx - k.r);
+    const dy = Math.max(k.t - cy, 0, cy - k.b);
+    return dx * dx + dy * dy >= r * r;
+  });
+  const fits = (r: number): { cx: number; cy: number } | null => {
+    const cy = base - r;
+    if (cy - r - 2 * r * DOCK_CAP_SHARE < 0) return null;
+    // Slide right from the hand's side until it clears (coarse steps, then the first clear spot).
+    for (let cx = fenceL + r; cx + r <= fenceR; cx += 4) if (clear(cx, cy, r, cy - r - 2 * r * DOCK_CAP_SHARE)) return { cx, cy };
+    return null;
+  };
+  // The largest radius that fits (bisection: fitting is monotone in r for this room).
+  let lo = 0;
+  let hi = (heroD * DOCK_FOOT_MAX) / 2;
+  let at = fits(hi);
+  if (at) lo = hi;
+  else {
+    for (let i = 0; i < 14; i++) {
+      const mid = (lo + hi) / 2;
+      const f = fits(mid);
+      if (f) { lo = mid; at = f; } else hi = mid;
+    }
+  }
+  if (!at || 2 * lo < heroD * DOCK_FOOT_MIN) return null;
+  const d = 2 * lo;
+  return {
+    d, right: stageLen(stage.width) - (at.cx + lo), bottom: stageLen(stage.height) - base,
+    hero: { left: stageLen(hero.left - stage.left), bottom: stageLen(stage.top + stage.height - (hero.top + hero.height)), d: heroD },
+  };
+}
 
 /**
  * CLEAR OF THE RAIL (pure; owner 2026-10-26, R-DUOS-VIEW-05). From your hero disc's mirror (`mirrorOfHero`): no Health box
@@ -117,7 +189,15 @@ function measureDock(): DockGeometry | null {
   if (typeof document === 'undefined') return null;
   const art = document.querySelector<HTMLElement>('.statusbar .hero .heroimg') ?? document.querySelector<HTMLElement>('.statusbar .hero .f');
   const hp = document.querySelector<HTMLElement>('.statusbar .hero .hpbox');
-  return fitDock(art?.getBoundingClientRect() ?? null, hp?.getBoundingClientRect() ?? null, railEl()?.getBoundingClientRect() ?? null, stageBox(stageHost().getBoundingClientRect()), toStage);
+  const stage = stageBox(stageHost().getBoundingClientRect());
+  const heroBox = art?.getBoundingClientRect() ?? null;
+  const rect = (sel: string): Box | null => document.querySelector<HTMLElement>(sel)?.getBoundingClientRect() ?? null;
+  const tiles = document.querySelectorAll<HTMLElement>('.lobbyseats > .lobbyseat');
+  const foot = fitFoot(heroBox, {
+    seats: tiles.length ? tiles[tiles.length - 1]!.getBoundingClientRect() : null,
+    coin: rect('.goldpill'), tab: rect('.lobbyrailtab'), book: rect('.bookbtn'), gear: rect('.gearbtn'), hand: rect('.zone > .row.hand'),
+  }, stage, toStage);
+  return foot ?? fitDock(heroBox, hp?.getBoundingClientRect() ?? null, railEl()?.getBoundingClientRect() ?? null, stage, toStage);
 }
 
 /**
@@ -318,8 +398,9 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
           {disc}
         </div>
       )}
-      <span className="duosdock-cap hudpill-name">{watching ? (heroSelect ? 'Back to your heroes' : 'Back to your board') : away ? 'Away' : 'Teammate'}</span>
-      <span className="duosdock-name hudpill-name">{face.name}</span>
+      {/* No "Teammate" cap and no name pill (owner 2026-10-31, R-DUOS-DOCK-FOOT-01: "you don't need to have teammate name
+          or anything on the portrait since we know it's our teammate"). Only the way back while watching, and "Away". */}
+      {(watching || away) && <span className="duosdock-cap hudpill-name">{watching ? (heroSelect ? 'Back to your heroes' : 'Back to your board') : 'Away'}</span>}
       {shownNote && <span key={shownNote + (note ?? '')} className="duosdock-note hudpill-name">{shownNote}</span>}
       {!shownNote && waiting > 0 && (
         <span className="duosdock-note duosdock-waiting hudpill-name" aria-label={`${waiting} passed ${waiting === 1 ? 'card is' : 'cards are'} waiting for room in your hand.`}>

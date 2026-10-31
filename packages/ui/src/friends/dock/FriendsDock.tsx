@@ -1,24 +1,21 @@
 /**
- * THE FRIENDS DOCK: ONE global dock, BOTTOM RIGHT, on every screen (owner 2026-10-29, R-FRIENDS-DOCK-05: "move the
- * friends thing to the bottom right instead i guess because this looks super sloppy how this looks. i want the friend
- * button to like expand into the list/collapse back down"; after R-FRIENDS-DOCK-02's bottom-left dock and
- * R-FRIENDS-DOCK-03 / -04's per-menu slots).
+ * THE FRIENDS DOCK: ONE global dock, BOTTOM LEFT, on every screen (owner 2026-10-31, R-CORNER-SPLIT-01: "put the friends
+ * list back in the bottom left, have the bottom right only show the compendium and settings"; after R-FRIENDS-DOCK-05's
+ * bottom-right square, which kept the expand-into-the-list motion this dock still has).
  *
  * WHERE: mounted ONCE in `Game` (never per screen), so it is the same instance on the title, every menu page, hero
  * select, every game mode, spectating and replays: open or closed, the tab and an open message all survive a screen
- * change. The button is the fourth square of the bottom-right corner row, one slot left of Rules (gear, Compendium,
- * Rules, Friends, right to left), wearing the same plaque at the same size on every screen (`friendsDock.css` has the
- * slot per framing). Where that row is covered it takes the corner itself (`dockCorner`): hero select, a side-menu
- * page and the in-game menu all lie over the whole row, and a phone's side-menu screens lift Rules and the Compendium to
- * the top.
+ * change. The button is square 0 of the bottom-left row (the dev squares follow it in a DEV build), placed per screen by
+ * `bottomLeft.ts` (measured: above the sidebar's Settings plaque on a page or the in-game menu, above the title's footer
+ * links, right of your hero portrait in a game, the corner elsewhere), wearing the corner plaque.
  *
  * THE PIECES:
  *  - `DockShell`: the corner button (online count, top right; unread messages + friend requests waiting, the red chip,
  *    top left), the open / close motion, and closing on a press outside or Escape. The panel mounts only while open
  *    (closed = one button, no list read).
- *  - ONE PANEL that grows out of the button: its bottom-right corner sits on the button's, it rises up and to the left,
- *    and the button stays where it was as the right end of the panel's title bar (the bar runs along the panel's foot:
- *    "Friends", the online count, my handle, then the button, now showing a collapse chevron). Pressing it again sinks
+ *  - ONE PANEL that grows out of the button: its bottom-left corner sits on the button's, it rises up and to the right,
+ *    and the button stays where it was as the left end of the panel's title bar (the bar runs along the panel's foot:
+ *    the button, now showing a collapse chevron, then "Friends", the online count, my handle). Pressing it again sinks
  *    the panel back into the button.
  *  - `FriendsPanel`: what the old Friends page did, in tabs (the Career page's `.cv2-tabs` pill): Friends (Add by
  *    handle, then every friend: online, in a game, then offline with last seen; a click opens the chat window, right-
@@ -42,7 +39,7 @@ import { Icon } from '../../Icon';
 import { MenuMedal } from '../../menuIcons';
 import { remoteEnabled } from '../../remoteBoards';
 import { sfx } from '../../sfx';
-import { anyPageOpen, isPreRun, useGame } from '../../store';
+import { isPreRun, useGame } from '../../store';
 import { useVersus } from '../../versus/versusStore';
 import { versusRoomRef } from '../../versus/versusRemote';
 import {
@@ -56,6 +53,7 @@ import type { Friend, FriendCard } from '../friendsRemote';
 import { closeDock, closeDockNow, openDm, setDockTab, swallowNextClick, toggleDock, useFriendsDock, type DockTab } from './dockStore';
 import { ChatWindow } from '../dm/ChatWindow';
 import { liveFriends, totalUnread, useDm } from '../dm/dmStore';
+import { useBottomLeftAnchor } from './bottomLeft';
 import '../friends.css';
 import './friendsDock.css';
 
@@ -66,14 +64,6 @@ export function dockFriends(list: readonly Friend[] | null | undefined): Friend[
   return list ? sortFriends(list) : [];
 }
 
-/**
- * Which slot of the corner row the button takes (friendsDock.css): '' = slot 3, left of Rules; 'corner' = slot 0, the
- * corner itself, while something lies over the whole row (hero select, a side-menu page, the in-game menu). One string,
- * so the dock re-renders only when it changes.
- */
-export const dockCorner = (s: Pick<GameState, 'showCareer' | 'showRankings' | 'showLeaderboard' | 'showRecentGames' | 'showLiveGames' | 'showCollection' | 'settingsOpen' | 'showPatchNotes' | 'gameMenuOpen' | 'heroChoices'>): '' | 'corner' =>
-  (anyPageOpen(s) || s.gameMenuOpen || s.heroChoices !== null ? 'corner' : '');
-
 /** Whether the dock's button is on screen: a backend, and either a guest or a server with friends deployed. */
 function useDockShown(): boolean {
   const guest = useGame((s) => !s.account.userId || s.account.anonymous);
@@ -82,17 +72,15 @@ function useDockShown(): boolean {
 }
 
 /**
- * THE DEV CORNER SQUARES (DEV only, R-DEV-CORNER-01): the corner-row slot of the FIRST dev square (the dev tuner; the
- * minimized Scene Builder takes the next one). They queue up left of Friends: slot 4 beside it, 3 when there is no
- * Friends button, and down at the corner with it (1, or 0 without it) where the row is covered (`dockCorner`).
+ * THE DEV CORNER SQUARES (DEV only, R-DEV-CORNER-01, moved bottom left by R-CORNER-SPLIT-01): the bottom-left row slot of
+ * the FIRST dev square (the dev tuner; the minimized Scene Builder takes the next one). They queue up right of Friends:
+ * slot 1 beside it, 0 when there is no Friends button.
  */
-export const devCornerSlot = (dockShown: boolean, corner: '' | 'corner'): number => (corner ? 0 : 3) + (dockShown ? 1 : 0);
+export const devCornerSlot = (dockShown: boolean): number => (dockShown ? 1 : 0);
 
 /** `devCornerSlot` for the live screen (styles.css `.cornerdev` reads it as `--cd-slot`). */
 export function useDevCornerSlot(): number {
-  const shown = useDockShown();
-  const corner = useGame(dockCorner);
-  return devCornerSlot(shown, corner);
+  return devCornerSlot(useDockShown());
 }
 
 /** The dock, on every screen. Nothing without a backend, or once the server said friends are not deployed. */
@@ -102,16 +90,17 @@ export function FriendsDock(): JSX.Element | null {
   const guest = !userId || anonymous;
   // In a run (or a replay / a watched game) the chat's veil barely dims (the game keeps running underneath).
   const inGame = useGame((s) => !isPreRun(s) || s.replaying);
-  const slot = useGame(dockCorner);
   const shown = useDockShown();
+  // The bottom-left row's place on this screen (also places the dev squares, so it runs with or without the button).
+  useBottomLeftAnchor();
   // A different identity (a sign-in, a sign-out, a guest saved): whatever was open belonged to the other one.
   useEffect(() => { closeDockNow(); }, [userId, anonymous]);
   if (!shown) return null;
-  return <DockShell guest={guest} inGame={inGame} slot={slot} />;
+  return <DockShell guest={guest} inGame={inGame} />;
 }
 
 /** The shell: the corner button, the panel that grows out of it, outside-press and Escape. */
-export function DockShell({ conversation, guest = false, inGame = false, slot = '' }: { conversation?: (friend: Friend) => ReactNode; guest?: boolean; inGame?: boolean; slot?: '' | 'corner' } = {}): JSX.Element {
+export function DockShell({ conversation, guest = false, inGame = false }: { conversation?: (friend: Friend) => ReactNode; guest?: boolean; inGame?: boolean } = {}): JSX.Element {
   const phase = useFriendsDock((s) => s.phase);
   const dmWith = useFriendsDock((s) => s.dmWith);
   // Friends online: the list with the hub's live presence laid over it (R-FRIENDS-HUB-LIVE-01: nothing polls it any more),
@@ -124,7 +113,6 @@ export function DockShell({ conversation, guest = false, inGame = false, slot = 
   const unread = useDm((s) => (guest ? 0 : totalUnread(s.unread)));
   const open = phase !== 'closed';
   const waiting = unread + requests;
-  const corner = slot ? ` ${slot}` : '';
 
   // Escape closes the list (capture: the same press must not also open the Esc menu underneath).
   useEffect(() => {
@@ -155,14 +143,14 @@ export function DockShell({ conversation, guest = false, inGame = false, slot = 
           onContextMenu={(e) => { e.preventDefault(); closeDock(); }} />
       )}
       {open && (
-        <div className={`fdock-stack${phase === 'closing' ? ' closing' : ''}${corner}`}>
+        <div className={`fdock-stack${phase === 'closing' ? ' closing' : ''}`}>
           {guest ? <GuestPanel /> : <FriendsPanel active={phase === 'open'} selected={dmWith} />}
         </div>
       )}
       {!guest && <ChatWindow inGame={inGame} conversation={conversation} />}
-      {/* The button: closed, the corner square with its counts; open, the right end of the panel's title bar showing a
+      {/* The button: closed, the corner square with its counts; open, the left end of the panel's title bar showing a
           collapse chevron (the panel grows out of it and sinks back into it). */}
-      <button type="button" className={`fdock-btn gtip${open ? ' on' : ''}${corner}`} data-tip={open ? undefined : 'Friends'}
+      <button type="button" className={`fdock-btn gtip${open ? ' on' : ''}`} data-tip={open ? undefined : 'Friends'}
         aria-label={phase === 'open' ? `${label}. Collapse` : label} aria-expanded={phase === 'open'}
         onClick={() => { sfx.pulse(); toggleDock(); }}>
         {phase === 'open' ? <Icon name="chevron" /> : <MenuMedal name="friends" />}
@@ -261,13 +249,13 @@ export function FriendsPanel({ active, selected }: { active: boolean; selected: 
   );
 }
 
-/** The panel's title bar, along its foot: the title and its details, then the room the corner button sits in. */
+/** The panel's title bar, along its foot: the room the corner button sits in, then the title and its details. */
 function PanelBar({ children }: { children?: ReactNode }): JSX.Element {
   return (
     <div className="fdock-head fdock-bar">
+      <span className="fdock-btnroom" aria-hidden="true" />
       <span className="fdock-title">Friends</span>
       {children}
-      <span className="fdock-btnroom" aria-hidden="true" />
     </div>
   );
 }

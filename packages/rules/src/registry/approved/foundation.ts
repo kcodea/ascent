@@ -9903,7 +9903,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26', quote: 'the teammate is behind the lobby rail, so we need to modify the size/position of that a bit. we dont need the health there since we have it under the player frame and it\x27s the same.' },
       { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (fitDock, measureDock); packages/ui/src/versus/versus.css' },
     ],
-    currentBehaviour: 'Built 2026-10-26 (fix/duos-ready-flow-portraits). Before, it mirrored the hero exactly with a team Health box under it, and the Ranked Duos rail covered it.',
+    currentBehaviour: 'Built 2026-10-26 (fix/duos-ready-flow-portraits). Before, it mirrored the hero exactly with a team Health box under it, and the Ranked Duos rail covered it. SUPERSEDED 2026-10-31 (feat/corner-buttons-teammate, R-DUOS-DOCK-FOOT-01): with the Docked rail the old fit measured the full-screen rail layer and always shrank the disc to its 55% floor; the disc now fills the room at the rail\x27s foot, with no cap or name.',
     example: 'In Ranked Duos the eight-row rail ends low on the right: the teammate portrait drops to the Health box line and shrinks a little so its "Teammate" cap sits just under the rail.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
@@ -10816,7 +10816,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-29', quote: 'move the friends thing to the bottom right instead i guess because this looks super sloppy how this looks. i want the friend button to like expand into the list/collapse back down. can you improve this?' },
       { kind: 'code', ref: 'packages/ui/src/friends/dock/FriendsDock.tsx (DockShell, PanelBar, dockCorner), packages/ui/src/friends/dock/friendsDock.css, packages/ui/src/friends/dm/DmToast.tsx, packages/ui/src/friends/dm/dm.css, packages/ui/src/MenuSidebar.tsx, packages/ui/src/Title.tsx' },
     ],
-    currentBehaviour: 'Built 2026-10-29 (feat/friends-dock-bottom-right). Before: the button sat bottom left (in a game tucked under the hero\x27s Health plate, on the side-menu pages at the rail\x27s foot, on the title above the footer links), and its panel floated to the right of the menu column, detached from the button.',
+    currentBehaviour: 'Built 2026-10-29 (feat/friends-dock-bottom-right). Before: the button sat bottom left (in a game tucked under the hero\x27s Health plate, on the side-menu pages at the rail\x27s foot, on the title above the footer links), and its panel floated to the right of the menu column, detached from the button. SUPERSEDED 2026-10-31 (feat/corner-buttons-teammate, R-CORNER-SPLIT-01): the button moved back to the bottom LEFT; the expand-into-the-list motion stays, mirrored (up and to the right).',
     example: 'Mid-shop Ann sees the Friends button just left of Rules with a green 3. She presses it: the list grows up and to the left out of the button, whose square now ends the list\x27s title bar ("FRIENDS 3 online Ann#1111") with a chevron. She presses the chevron and the list folds back into the button. On Career the button sits in the very corner.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx', 'packages/ui/src/MenuSidebar.test.tsx'], lastVerifiedAt: '2026-10-29' },
   },
@@ -12136,7 +12136,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30 (screenshot of the bottom-right corner row on the title)', quote: 'can you put our dev tuner and dev scene builder tuner buttons into a button like this, and put them in the bottom right' },
       { kind: 'code', ref: 'packages/ui/src/DevMenu.tsx, packages/ui/src/SceneBuilder.tsx (SceneBuilderDock), packages/ui/src/friends/dock/FriendsDock.tsx (devCornerSlot, useDevCornerSlot), packages/ui/src/styles.css (.cornerdev)' },
     ],
-    currentBehaviour: 'Built 2026-10-30 (feat/dev-buttons-corner-row). Before: the dev tuner was a round emoji button floating at slot 4 on the old bar offsets, and the minimized Scene Builder a round emoji button floating at a stale offset, neither matching the row.',
+    currentBehaviour: 'Built 2026-10-30 (feat/dev-buttons-corner-row). Before: the dev tuner was a round emoji button floating at slot 4 on the old bar offsets, and the minimized Scene Builder a round emoji button floating at a stale offset, neither matching the row. SUPERSEDED 2026-10-31 (feat/corner-buttons-teammate, R-CORNER-SPLIT-01): the dev squares moved to the bottom-left row, right of Friends.',
     example: 'In a dev build on the title, the corner row reads gear, book, question mark, Friends, then a gear square: the dev tuner. Kevin minimizes the Scene Builder in the sandbox and an anvil square appears just left of it. He opens Career: Friends drops to the corner and the two dev squares sit right beside it.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/devCorner.test.tsx'], lastVerifiedAt: '2026-10-30' },
   },
@@ -12660,5 +12660,43 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann presses Play and "Yes". Her table is Bob on Warden, Cat on Myra and five others. Her three heroes are Indy, Keshi and Bram, '
       + 'never Warden or Myra, and her re-roll cannot land on them either. She picks Keshi and sits at exactly that table.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/opponentsFirst.test.ts', 'packages/ui/src/rank/opponentsFirst.test.tsx', 'packages/ui/src/heroReroll.test.tsx', 'packages/sim/src/versus/versusHeroOffers.test.ts', 'workers/versus/test/rankedOpponentsFirst.test.ts', 'workers/versus/test/rankedCore.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
+  {
+    id: 'R-CORNER-SPLIT-01',
+    title: 'The bottom-right corner holds only the Compendium and Settings; Friends (and, in a DEV build, the dev squares beside it) live bottom left, placed per screen so they never cover what that screen keeps there',
+    statement:
+      'Bottom right, on every screen: only the Compendium (the book) and the Settings gear. There is no Rules square; the Rules page is the Compendium\x27s own Rules tab. On the title, which has no gear in the corner, the book takes the corner itself. '
+      + 'Bottom left: the Friends button, then (DEV builds only) the dev tuner and the minimized Scene Builder as the next squares to its right, all with the corner plaque. The row\x27s place is MEASURED per screen, once per screen change and on a resize (never per frame): '
+      + 'on a side-menu page and in the in-game menu it sits inside the sidebar just above the Settings plaque, left edges aligned; on the title just above the footer links, left edges aligned; '
+      + 'in a game in the corner left of the player\x27s hero portrait and Health plaque, on the gear\x27s baseline at the gear\x27s size (there the dev squares stack up the edge from it, because a full hand fills the bottom edge from the hero to the Gold coin); '
+      + 'anywhere else (hero select, a Versus room) the corner itself. Every framing (desktop, a scaled stage, the phone zoom, the phone layout) uses the same measurement. '
+      + 'The Friends list still grows out of its button and sinks back into it (R-FRIENDS-DOCK-05\x27s motion), now up and to the right, the button at the LEFT end of the panel\x27s title bar; the new-message toast rises just above the button, left-aligned with it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31', quote: 'the bottom right buttons need to change. put the friends list back in the bottom left, have the bottom right only show the compendium and settings. move the dev tool buttons to the bottom left, right of the friends list.' },
+      { kind: 'code', ref: 'packages/ui/src/friends/dock/bottomLeft.ts (blAnchor, useBottomLeftAnchor), packages/ui/src/friends/dock/FriendsDock.tsx, packages/ui/src/friends/dock/friendsDock.css, packages/ui/src/friends/dm/dm.css, packages/ui/src/styles.css (.cornerdev, .bookbtn), packages/ui/src/Game.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-31 (feat/corner-buttons-teammate). Before: the bottom-right corner row held (right to left) the gear, the Compendium, Rules, Friends and, in a DEV build, the dev tuner and the Scene Builder square.',
+    example: 'On Career, Ann\x27s Friends button sits in the side menu just above Settings; in her game it is in the corner left of her Health plaque, and the bottom right shows only the book and the gear.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/bottomLeft.test.ts', 'packages/ui/src/friends/dock/friendsDock.test.tsx', 'packages/ui/src/devCorner.test.tsx'], lastVerifiedAt: '2026-10-31' },
+  },
+  {
+    id: 'R-DUOS-DOCK-FOOT-01',
+    title: 'Duos: the teammate portrait is larger, sits at the lobby rail\x27s foot, and carries no "Teammate" cap and no name',
+    statement:
+      'The teammate portrait (Versus Duos, Ranked Duos, the Scene Builder\x27s Duos) is the largest disc, up to 80% of the player\x27s own hero disc, that fits the bottom-right room: right of a full hand\x27s row (its cards\x27 frames included), its bottom on the corner row\x27s baseline, '
+      + 'and clear (10 stage px) of the lobby rail\x27s last tile, the Gold coin, the rail\x27s tab, the Compendium and the gear. It re-fits on a resize or when the rail changes size, never per frame; where that room is missing or too small it falls back to R-DUOS-VIEW-05\x27s place. '
+      + 'It shows no "Teammate" cap and no name pill (the name stays in its accessible label). Only "Back to your board" / "Back to your heroes" (while watching your teammate, the way back) and "Away" (a teammate on auto) still show as a cap. '
+      + 'Its ring and frame, the click to watch, the drag-to-pass target with its teal / red states and reasons, the waiting-cards pill, pings and the gauntlet cursor are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31', quote: 'the teammate portrait needs to be updated and cleaned up/larger and better positioned so that it\x27s easier to see and access. you don\x27t need to have teammate name or anything on the portrait since we know it\x27s our teammate.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (fitFoot, measureDock)' },
+    ],
+    currentBehaviour: 'Built 2026-10-31 (feat/corner-buttons-teammate). Before: the disc sat bottom right above the corner row with a "TEAMMATE" cap and a name pill, and under the Docked rail its fit read the rail\x27s full-screen layer, so it always shrank to 55% of the player\x27s hero.',
+    example: 'In a Duos shop Bob\x27s portrait sits under the Gold coin at the rail\x27s foot, about four fifths the size of Ann\x27s own hero, with nothing written on it. She drags a card onto it and it glows teal.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx', 'packages/ui/src/versus/teammateFrame.test.tsx'], lastVerifiedAt: '2026-10-31' },
   },
 ];

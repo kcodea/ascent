@@ -18,7 +18,7 @@ const { useVersus } = await import('./versusStore');
 const { dragStore } = await import('../dragStore');
 const view = await import('./teammateView');
 const { playDrop, playEmerge, playArrival, isPassArrival, mateDoor, coinPoses, catchFrames } = await import('./passLob');
-const { mirrorOfHero, fitDock, DOCK_CAP_SHARE, DOCK_MIN_SHARE, DOCK_RAIL_GAP } = await import('./DuosMateDock');
+const { mirrorOfHero, fitDock, fitFoot, DOCK_CAP_SHARE, DOCK_MIN_SHARE, DOCK_RAIL_GAP, DOCK_FOOT_MAX, DOCK_HAND_SPILL } = await import('./DuosMateDock');
 const { useDuosCombat } = await import('./duosCombat');
 
 const seat = (s: string, userId: string, name: string, hero: string) => ({ seat: s, userId, name, hero });
@@ -44,7 +44,10 @@ describe('the teammate portrait, bottom right', () => {
     try {
       const hold = ui.container.querySelector('[data-duos-mate]');
       expect(hold).not.toBeNull();
-      expect(ui.container.querySelector('.duosdock-name')?.textContent).toBe('Bob');
+      // No name pill and no "Teammate" cap (R-DUOS-DOCK-FOOT-01); the name lives in the label for screen readers.
+      expect(ui.container.querySelector('.duosdock-name')).toBeNull();
+      expect(ui.container.querySelector('.duosdock-cap')).toBeNull();
+      expect(hold!.getAttribute('aria-label')).toContain('Bob, your teammate');
       expect(ui.container.querySelector('.duosdock-disc')).not.toBeNull();
       act(() => { hold!.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
       expect(view.enterTeammateView).toHaveBeenCalledTimes(1);
@@ -56,7 +59,8 @@ describe('the teammate portrait, bottom right', () => {
     const ui = mount(<DuosMateDock watching />);
     try {
       expect(ui.container.querySelector('.duosdock.self')).not.toBeNull();
-      expect(ui.container.querySelector('.duosdock-name')?.textContent).toBe('Ann');
+      expect(ui.container.querySelector('.duosdock-name')).toBeNull();
+      expect(ui.container.querySelector('.duosdock-cap')?.textContent).toBe('Back to your board'); // the way back stays
       act(() => { ui.container.querySelector('[data-duos-mate]')!.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
       expect(view.exitTeammateView).toHaveBeenCalledTimes(1);
     } finally { ui.unmount(); }
@@ -219,8 +223,9 @@ describe('the teammate portrait, bottom right', () => {
     const ui = mount(<DuosMateDock watching={false} inCombat />);
     try {
       expect(ui.container.querySelector('.duosdock.combat')).not.toBeNull();
-      expect(ui.container.querySelector('.duosdock-name')?.textContent).toBe('Bob');
+      expect(ui.container.querySelector('.duosdock-name')).toBeNull();
       const hold = ui.container.querySelector('[data-duos-mate]')!;
+      expect(hold.getAttribute('aria-label')).toBe('Bob, your teammate.');
       expect(hold.getAttribute('role')).toBeNull();
       act(() => { hold.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
       expect(view.enterTeammateView).not.toHaveBeenCalled();
@@ -228,5 +233,39 @@ describe('the teammate portrait, bottom right', () => {
       expect(ui.container.querySelector('.duosdock')?.className).not.toContain('pass-');
       expect(ui.container.querySelector('.duosdock-note')).toBeNull();
     } finally { ui.unmount(); }
+  });
+});
+
+describe(`R-DUOS-DOCK-FOOT-01: larger, at the rail's foot (owner 2026-10-31: "larger and better positioned so that it's easier to see and access")`, () => {
+  // The 1920x1080 layout the headless pass measured: hero disc 266, Gold coin, the rail's last tile and tab, the
+  // Compendium + gear pair, and a full hand's row.
+  const stage = { left: 0, top: 0, width: 1920, height: 1080 };
+  const id = (v: number): number => v;
+  const b = (left: number, top: number, width: number, height: number) => ({ left, top, width, height });
+  const hero = b(38, 712, 266, 266);
+  const foot = { seats: b(1610, 716, 198, 59), coin: b(1535, 662, 113, 113), tab: b(1768, 784, 36, 61), book: b(1817, 1026, 38, 38), gear: b(1866, 1026, 38, 38), hand: b(366, 770, 1188, 254) };
+  const blocks = [foot.seats, foot.coin, foot.tab, foot.book, foot.gear];
+  it("fills the room right of the hand, its bottom on the gear's baseline, touching nothing around it", () => {
+    const g = fitFoot(hero, foot, stage, id)!;
+    expect(g).not.toBeNull();
+    const cx = 1920 - g.right - g.d / 2;
+    const cy = 1080 - g.bottom - g.d / 2;
+    expect(1080 - g.bottom).toBeCloseTo(1064, 6); // the gear's bottom
+    expect(cx - g.d / 2).toBeGreaterThanOrEqual(366 + 1188 + DOCK_HAND_SPILL - 0.01); // clear of a full hand
+    for (const k of blocks) {
+      const dx = Math.max(k.left - cx, 0, cx - (k.left + k.width));
+      const dy = Math.max(k.top - cy, 0, cy - (k.top + k.height));
+      expect(Math.hypot(dx, dy)).toBeGreaterThanOrEqual(g.d / 2 + DOCK_RAIL_GAP - 0.01);
+    }
+    expect(g.d).toBeGreaterThan(266 * 0.6); // larger than the old rail-squeezed disc (0.55 of yours)
+    expect(g.d).toBeLessThanOrEqual(266 * DOCK_FOOT_MAX + 0.01);
+  });
+  it('with room to spare it stops at DOCK_FOOT_MAX of your own disc; missing pieces fall back to fitDock (null)', () => {
+    const open = fitFoot(hero, { ...foot, seats: null, tab: null, coin: b(1535, 400, 113, 113) }, stage, id)!;
+    expect(open.d).toBeCloseTo(266 * DOCK_FOOT_MAX, 6);
+    expect(fitFoot(hero, { ...foot, coin: null }, stage, id)).toBeNull();
+    expect(fitFoot(null, foot, stage, id)).toBeNull();
+    // No room at all (the hand's row reaches the stage edge): null, never a speck.
+    expect(fitFoot(hero, { ...foot, hand: b(366, 770, 1500, 254) }, stage, id)).toBeNull();
   });
 });

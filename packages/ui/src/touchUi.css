@@ -43,10 +43,9 @@ html[data-touch-ui] .escpanel { --esc-k: 1; width: min(900px, calc(94 * var(--vw
 
 /* ── The corner buttons (? / book / settings): bigger squares, still edge-anchored, still in a row ────────────── */
 html[data-touch-ui] { --touch-cb: calc(40 * var(--u) * var(--touch-k) * 1.35); }
-html[data-touch-ui] .gearbtn, html[data-touch-ui] .bookbtn, html[data-touch-ui] .rulesbtn { width: var(--touch-cb); height: var(--touch-cb); }
-html[data-touch-ui] .gearbtn img, html[data-touch-ui] .bookbtn img, html[data-touch-ui] .rulesbtn img { width: calc(var(--touch-cb) * 0.75); height: calc(var(--touch-cb) * 0.75); }
+html[data-touch-ui] .gearbtn, html[data-touch-ui] .bookbtn { width: var(--touch-cb); height: var(--touch-cb); }
+html[data-touch-ui] .gearbtn img, html[data-touch-ui] .bookbtn img { width: calc(var(--touch-cb) * 0.75); height: calc(var(--touch-cb) * 0.75); }
 html[data-touch-ui] .bookbtn { right: calc(var(--edge-r) + 16px + var(--touch-cb) + 10px); }
-html[data-touch-ui] .rulesbtn { right: calc(var(--edge-r) + 16px + 2 * (var(--touch-cb) + 10px)); }
 
 /* ── The shop HUD: the small controls and pills (the big buttons are already finger-sized) ──────────────────────── */
 /* The rail's guide tab, grown out from the rail edge it hangs off. */
@@ -251,10 +250,9 @@ html[data-touch-ui][data-phone-zoom] .lobbyrailtab { right: calc(56px + var(--ed
 html[data-touch-ui][data-phone-zoom] .lobbyrailtab > * { scale: -1 1; }
 html[data-touch-ui][data-phone-zoom] .app.staged .lobbyrailtab { transform: none; }
 /* help / Compendium / Settings: the BOTTOM-RIGHT corner like desktop (owner 2026-10-24), on the safe bottom and edge. */
-html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn, .rulesbtn) { --touch-cb: 66px; left: auto; top: auto; bottom: calc(var(--pz-safe-b, var(--safe-b)) + 15px); }
+html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn) { --touch-cb: 66px; left: auto; top: auto; bottom: calc(var(--pz-safe-b, var(--safe-b)) + 15px); }
 html[data-touch-ui][data-phone-zoom] .gearbtn { right: calc(var(--pz-bxr) + 1920px - 1897px); }
 html[data-touch-ui][data-phone-zoom] .bookbtn { right: calc(var(--pz-bxr) + 1920px - 1823px); }
-html[data-touch-ui][data-phone-zoom] .rulesbtn { right: calc(var(--pz-bxr) + 1920px - 1749px); }
 /* Your Health / Armor plate rides 20 px up onto the ring's lower rim (the phone framing's bottom bound, PHONE_ART_BOTTOM). */
 html[data-touch-ui][data-phone-zoom] .statusbar .hero .hpbox { translate: 0 -6.5px; } /* the hero is drawn at 3.1x, so 6.5 local px = 20 box px */
 /* THE HAND (owner 2026-10-24: "they can sit lower and pop up cleanly when highlighted"). The real cards, full plates and
@@ -381,9 +379,8 @@ html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .colls-body { ove
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .colls-tab-name { overflow-wrap: normal; font-size: 11.5px; letter-spacing: 0.02em; }
 /* On a sidebar page the help / Compendium squares sit in the top band, left of the profile strip's Career link (the
    bottom corner is page content, and the sidebar has no spare height on every phone). */
-html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] :is(.rulesbtn, .bookbtn) { bottom: auto; left: auto; top: calc(var(--safe-t) + 26px); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] .bookbtn { bottom: auto; left: auto; top: calc(var(--safe-t) + 26px); }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] .bookbtn { right: calc(var(--safe-r) + 420px); }
-html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] .rulesbtn { right: calc(var(--safe-r) + 430px + var(--touch-cb)); }
 /* The title's small links (Report a Problem) and build stamp: a finger-sized link and a readable stamp. */
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .titlefoot .titlesecondary button { font-size: 20px; padding: 14px 10px; }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .titlefoot .titleversion { font-size: 18px; }
@@ -473,7 +470,7 @@ html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .titlemenu { top:
 @media (hover: none) and (pointer: coarse) {
   /* Practice is the one mode page that scrolls on a phone: its help / Compendium squares step away there rather than
      float over its options (both stay on the Play page and in a game). */
-  html[data-touch-ui][data-touch-small]:not([data-phone-layout]):has(.mpview[data-view='practice']:not(.mpv-out)) :is(.rulesbtn, .bookbtn) { visibility: hidden; }
+  html[data-touch-ui][data-touch-small]:not([data-phone-layout]):has(.mpview[data-view='practice']:not(.mpv-out)) .bookbtn { visibility: hidden; }
   /* A Shop card's Inspect carries a Buy pill at the screen's foot: the card rides higher and a touch smaller so its tribe
      label clears the pill and the home indicator. */
   html[data-touch-ui][data-touch-small]:has(.disc-toggle.inspect-act) .inspect-card { scale: calc(var(--touch-inspect) * 0.9); translate: 0 calc(-11 * var(--vh, 1vh)); }

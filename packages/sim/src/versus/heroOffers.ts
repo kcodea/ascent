@@ -15,7 +15,7 @@
 import { makeRng } from '@game/core';
 import type { SetId } from '@game/content';
 import { playableHeroes } from '../heroes';
-import { mixSeed, runTribesForSeed } from '../state';
+import { mixSeed, runTribesForSeed } from '../runTribes';
 import { VERSUS_HERO_OFFER_SIZE } from './constants';
 
 /** A seat's whole seeded hero order: the heroes its run's tribes allow, shuffled from its private hero seed. The

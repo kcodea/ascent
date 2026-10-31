@@ -216,3 +216,171 @@ html:root .lobbyrailtab.lrv-docked:not(.guidesview) {
    too so it doesnt mouseover while moused over an opponent"). The End Turn gem and the Refresh pill sit above the rail
    (z 41) and their boxes overlapped the slices beside their cuts. Since R-HIT-SHAPE-01 every board piece takes the
    pointer only through its drawn shape in EVERY layout, not just Docked: see hitShapes.css. */
+
+/* ═══ SHARED PIECES: the portrait, the Health bar, the fallen, the pulse, the hover card ═══ */
+
+/* THE PORTRAIT: fills its tile / panel, faces kept in frame. */
+.lrv-docked .lrv-tileart { position: absolute; inset: 0; overflow: hidden; }
+.lrv-docked .lrv-tileart > .lobbyface {
+  display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 26%; border-radius: 0; grid-area: auto; filter: none;
+}
+/* THE HEALTH BAR (owner 2026-10-31, in turn: "make the health bars chunkier ... A grey overlay ... should represent
+   armor", "more satisfying instead of pill like", "smooth and a bit chunkier ... The armor can be ... a grey blue", then
+   "the health bars can still be improved"): a bar set into the slice's foot (Tuner 2 "Bar height" / "Bar overlap" /
+   "Bar width inset"), Health in red, Armor as a steel-blue chunk at its right end, a crisp seam between them. Two styles
+   (Tuner 2 "Bar style"):
+     gloss   (default) a bevelled gold rim, a recessed track, glossy fills (a bright top band, a soft lower shade), a soft
+             glow at the red's leading edge
+     smooth  the earlier, calmer bar: a flat gold rim and softer fills
+   The numbers are on the hover card. Static paint; the fills are `transform` only (scaleX / translateX), so a change plays
+   once as a short transition and nothing loops. `--bar-base` is the slice's height (set per rail). */
+.lrv-docked .lrv-bar {
+  --bh: max(8px, calc(var(--bar-base) * var(--lr2-bar-h, 22) / 100));
+  --bi: calc(var(--bar-w, 100px) * var(--lr2-bar-inset, 0) / 100);
+  --rim: max(1.5px, calc(var(--bh) * 0.13));
+  position: absolute; z-index: 3; bottom: 0; left: var(--bi); right: var(--bi); height: var(--bh);
+  translate: 0 calc(var(--lr2-bar-overlap, 0) * 1%);
+  overflow: hidden; pointer-events: none; border-radius: calc(var(--bh) * 0.18);
+  border: var(--rim) solid transparent;
+  background: linear-gradient(180deg, #040205 0%, #110a10 45%, #1d131a 100%) padding-box,
+    linear-gradient(180deg, #fff0bf 0%, #e3b55c 30%, #9a6a24 62%, #d9a54d 85%, #6e4a17 100%) border-box;
+  box-shadow: 0 1px 0 rgba(255, 236, 190, 0.25), 0 2px 5px rgba(0, 0, 0, 0.9);
+}
+/* The track's recess (static), over the fills' edges. */
+.lrv-docked .lrv-bar::after {
+  content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
+  box-shadow: inset 0 2px 3px -1px rgba(0, 0, 0, 0.85), inset 0 -1px 1px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+.lrv-docked .lrv-bar > span {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 100%; transform-origin: 0 50%;
+  transition: transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.lrv-docked .lrv-bar-hp {
+  background:
+    linear-gradient(180deg, rgba(255, 225, 225, 0.75) 0%, rgba(255, 200, 200, 0.42) 18%, rgba(255, 160, 160, 0.06) 46%, transparent 52%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(180deg, #ff5465 0%, #e8203d 42%, #b70f2c 74%, #7c0719 100%);
+}
+.lrv-docked .lrv-bar-arm {
+  background:
+    linear-gradient(180deg, rgba(235, 245, 255, 0.8) 0%, rgba(215, 232, 255, 0.42) 18%, rgba(190, 215, 250, 0.06) 46%, transparent 52%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(180deg, #b6cdea 0%, #7d9cc6 42%, #54739e 74%, #30476b 100%);
+}
+/* The seam: a crisp dark line at the red / steel join. */
+.lrv-docked .lrv-bar-seam { z-index: 1; }
+.lrv-docked .lrv-bar-seam::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: max(1.5px, calc(var(--bh) * 0.1)); translate: -50% 0; background: rgba(6, 3, 8, 0.9); box-shadow: 1px 0 0 rgba(255, 255, 255, 0.18); }
+/* The leading edge of the red: a soft warm glow just inside its end. */
+.lrv-docked .lrv-bar-lead { z-index: 2; }
+.lrv-docked .lrv-bar-lead::before {
+  content: ''; position: absolute; top: 8%; bottom: 8%; right: 100%; width: max(4px, calc(var(--bh) * 0.7));
+  background: linear-gradient(90deg, transparent, rgba(255, 190, 170, 0.55)); border-radius: 0 40% 40% 0;
+}
+/* SMOOTH: the calmer bar. */
+html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar { border-radius: calc(var(--bh) * 0.16); background: linear-gradient(180deg, #050307 0%, #120b11 50%, #1e141b 100%) padding-box, var(--ui-edge) border-box; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.85); }
+html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-hp { background: linear-gradient(180deg, transparent 12%, rgba(255, 190, 190, 0.55) 22%, rgba(255, 160, 160, 0.18) 42%, transparent 52%), linear-gradient(180deg, #ff4f5e 0%, #e0203a 40%, #b5102c 72%, #74081b 100%); }
+html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-arm { background: linear-gradient(180deg, transparent 12%, rgba(225, 238, 255, 0.6) 22%, rgba(200, 222, 255, 0.18) 42%, transparent 52%), linear-gradient(180deg, #a9c3e3 0%, #7393bd 40%, #4f6d97 72%, #2f4568 100%); }
+html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
+@media (prefers-reduced-motion: reduce) { .lrv-docked .lrv-bar > span { transition: none; } }
+
+/* THE FALLEN: grey and dark, the skull over the portrait. */
+.lrv-docked .lobbyseat.dead .lrv-tileart > .lobbyface { filter: grayscale(1) brightness(0.45); }
+.lrv-docked .lobbyseat.dead.foe.ghost .lrv-tileart > .lobbyface { filter: grayscale(0.6) brightness(0.72); }
+.lrv-docked .lrv-skull {
+  position: absolute; z-index: 3; left: 50%; top: 50%; translate: -50% -50%; width: 52%; height: 52%;
+  color: var(--ui-text); opacity: 0.9; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); pointer-events: none;
+}
+.lrv-docked .lrv-skull > svg { display: block; width: 100%; height: 100%; }
+
+/* THE NEXT FOE's breath: opacity and a slight scale only (compositor). Reduced motion: a steady ring. */
+@keyframes lr2FoePulse {
+  0%, 100% { opacity: var(--lr2-pulse-min, 0.3); transform: scale(0.985); }
+  50% { opacity: var(--lr2-pulse-max, 1); transform: scale(1.02); }
+}
+
+/* THE HOVER CARD (both rails; owner 2026-10-31, the 10/10 pass: compact and tight). The owner's list in his order:
+   name with the Health / Armor numbers, one 3-up chip row (Shop tier, Gilded, Top tribe), small rune sockets, and one
+   tight row per fight. The original scout card's solid shell. Width / offset / scale: Tuner 2. */
+.lobbyscout.lrv-scout {
+  --lfont: calc(var(--lu) * var(--lby-font, 0.9) * var(--lr2-card-font, 1));
+  --c: calc(var(--lu) * 1.3 * var(--lr2-card-font, 1));
+  --lfont: calc(var(--lu) * var(--lby-font, 0.9) * 1.3 * var(--lr2-card-font, 1));
+  width: calc(300 * var(--lu) * var(--lr2-card-w, 1));
+  padding: calc(10 * var(--c)) calc(11 * var(--c));
+  translate: calc(var(--lr2-card-x, 0) * 1px) calc(var(--lr2-card-y, 0) * 1px);
+  border: 1.5px solid transparent; border-radius: calc(8 * var(--c));
+  background: linear-gradient(180deg, var(--ui-plate-mid), var(--ui-plate-bot)) padding-box, var(--ui-edge) border-box;
+  box-shadow: 0 8px 22px -6px rgba(0, 0, 0, 0.9);
+  display: flex; flex-direction: column; gap: calc(8 * var(--c));
+}
+.lobbyscout.lrv-scout > * { margin: 0; }
+.lobbyscout.lrv-scout .lrv-sc-top {
+  display: flex; align-items: center; justify-content: space-between; gap: calc(8 * var(--c));
+  padding-bottom: calc(7 * var(--c)); background: url('/frames/name-divider.webp') 50% 100% / 100% calc(4 * var(--c)) no-repeat;
+}
+.lobbyscout.lrv-scout .lobbyscout-name {
+  font-family: var(--font-title), sans-serif; font-size: calc(15 * var(--lfont)); letter-spacing: 0.02em; color: var(--ui-title);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lobbyscout.lrv-scout .lrv-sc-hp { flex: none; display: inline-flex; align-items: center; gap: calc(7 * var(--c)); font-size: calc(13 * var(--lfont)); font-weight: 900; font-variant-numeric: tabular-nums; }
+.lobbyscout.lrv-scout .lrv-sc-hp > span { display: inline-flex; align-items: center; gap: 0.2em; }
+.lobbyscout.lrv-scout .lrv-sc-hp svg { width: 1.1em; height: 1.1em; }
+.lobbyscout.lrv-scout .lrv-sc-heart { color: var(--ui-text); }
+.lobbyscout.lrv-scout .lrv-sc-heart svg { color: var(--ui-heart); }
+.lobbyscout.lrv-scout .lrv-sc-arm { color: #c9d8ee; }
+.lobbyscout.lrv-scout .lrv-sc-arm svg { color: #7f9cc6; }
+.lobbyscout.lrv-scout .lrv-sc-chips { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: calc(5 * var(--c)); }
+.lobbyscout.lrv-scout .lrv-sc-chip {
+  display: flex; flex-direction: column; align-items: center; gap: calc(3 * var(--c)); min-width: 0;
+  padding: calc(5 * var(--c)) calc(4 * var(--c)); border-radius: calc(5 * var(--c));
+  background: color-mix(in srgb, var(--ui-chip-bg) 85%, transparent); box-shadow: inset 0 0 0 1px var(--ui-divider);
+}
+.lobbyscout.lrv-scout .lrv-sc-chip > i { font-style: normal; font-size: calc(8.5 * var(--lfont)); font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ui-muted); white-space: nowrap; }
+.lobbyscout.lrv-scout .lrv-sc-chip > b {
+  display: inline-flex; align-items: center; gap: 0.25em; font-size: calc(13 * var(--lfont)); font-weight: 900; color: var(--ui-text);
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.lobbyscout.lrv-scout .lrv-sc-chip > b svg { width: 0.95em; height: 0.95em; color: var(--ui-title); flex: none; }
+.lobbyscout.lrv-scout .lrv-sc-runes { display: flex; align-items: center; gap: calc(6 * var(--c)); }
+.lobbyscout.lrv-scout :is(.lrv-sc-runes > i, .lrv-sc-none) { font-style: normal; font-size: calc(10 * var(--lfont)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ui-muted); }
+.lobbyscout.lrv-scout .lrv-sc-runes > i { margin-right: auto; }
+.lobbyscout.lrv-scout .lrv-sc-socket {
+  position: relative; display: inline-grid; place-items: center; width: calc(24 * var(--c)); height: calc(24 * var(--c)); border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-edge-main) 35%, transparent);
+}
+.lobbyscout.lrv-scout .lrv-sc-socket.filled { box-shadow: 0 0 0 1.5px var(--ui-edge-main), 0 1px 3px rgba(0, 0, 0, 0.7); }
+.lobbyscout.lrv-scout .lrv-sc-socket > img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.lobbyscout.lrv-scout .lrv-sc-socket > svg { width: 60%; height: 60%; color: var(--ui-title); }
+.lobbyscout.lrv-scout .lrv-sc-socket > .questbadge-tip { display: none; }
+.lobbyscout.lrv-scout.pinned .lrv-sc-socket:hover > .questbadge-tip { display: flex; }
+.lobbyscout.lrv-scout .lrv-sc-fights { display: flex; flex-direction: column; gap: calc(4 * var(--c)); }
+.lobbyscout.lrv-scout .lrv-sc-none { text-transform: none; letter-spacing: 0; font-size: calc(12 * var(--lfont)); font-weight: 700; text-align: center; padding: calc(4 * var(--c)) 0; }
+.lobbyscout.lrv-scout .lrv-sc-fight {
+  display: grid; grid-template-columns: calc(24 * var(--c)) minmax(0, 1fr) auto auto; align-items: center; gap: calc(7 * var(--c));
+  padding: calc(3 * var(--c)) calc(6 * var(--c)) calc(3 * var(--c)) calc(3 * var(--c)); border-radius: calc(5 * var(--c));
+  background: color-mix(in srgb, var(--ui-chip-bg) 70%, transparent); font-size: calc(11.5 * var(--lfont)); font-weight: 800;
+}
+.lobbyscout.lrv-scout .lrv-sc-foe { width: calc(24 * var(--c)); height: calc(24 * var(--c)); border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 1px var(--ui-edge-main); }
+.lobbyscout.lrv-scout .lrv-sc-vs { color: var(--ui-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lobbyscout.lrv-scout .lrv-sc-out {
+  display: inline-grid; place-items: center; width: calc(18 * var(--c)); height: calc(18 * var(--c)); border-radius: calc(4 * var(--c));
+  font-weight: 900; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.lobbyscout.lrv-scout .lrv-sc-fight.win .lrv-sc-out { background: #2f9e57; }
+.lobbyscout.lrv-scout .lrv-sc-fight.lose .lrv-sc-out { background: #c62f43; }
+.lobbyscout.lrv-scout .lrv-sc-fight.draw .lrv-sc-out { background: #6b7180; }
+.lobbyscout.lrv-scout .lrv-sc-dmg { min-width: 2.2em; text-align: right; font-variant-numeric: tabular-nums; font-weight: 900; }
+.lobbyscout.lrv-scout .lrv-sc-fight.win .lrv-sc-dmg { color: #7fe0a0; }
+.lobbyscout.lrv-scout .lrv-sc-fight.lose .lrv-sc-dmg { color: #ff8a96; }
+.lobbyscout.lrv-scout .lrv-sc-fight.draw .lrv-sc-dmg { color: var(--ui-muted); }
+
+/* The round slice's text. */
+.lobbyrailhead.lrv-docked:not(.guidesview) > .lobbyround {
+  font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.12em; font-size: 1.7em; color: var(--ui-title); text-shadow: var(--lr2-sh);
+}
+.lobbyrailhead.lrv-docked:not(.guidesview) > :is(.lrv-left, .lobbymax) {
+  font-size: 1em; font-weight: 900; letter-spacing: 0.08em; color: var(--ui-text); text-shadow: var(--lr2-sh); text-transform: uppercase;
+}
+.lobbyrailhead.lrv-docked:not(.guidesview) .lobbymax {
+  align-self: auto; transform: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+}
+.lobbyrailhead.lrv-docked:not(.guidesview) .lobbymax svg { width: 1em; height: 1em; color: var(--ui-heart); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); }
+.lobbyrailhead.lrv-docked:not(.guidesview) > .herotip.lobbymax-tip { right: 50%; translate: 50% 0; font-size: initial; text-shadow: none; }

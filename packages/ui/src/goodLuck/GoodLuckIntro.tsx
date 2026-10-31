@@ -3,6 +3,7 @@ import { useGame } from '../store';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { sfx, type SfxHandle } from '../sfx';
 import { goodLuckIntro, useGoodLuckIntroActive, useGoodLuckIntroSeq } from './goodLuckIntroStore';
+import { useLobbyRevealActive } from '../lobbyReveal/lobbyRevealStore';
 import { GLI_DEFAULTS, GLI_REPLAY_EVENT, getGoodLuckIntroConfig, goodLuckTail, goodLuckTimeline } from './goodLuckIntroConfig';
 import './goodLuckIntro.css';
 
@@ -60,6 +61,15 @@ export function GoodLuckIntro(): JSX.Element | null {
   const active = useGoodLuckIntroActive();
   const seq = useGoodLuckIntroSeq();
   const showTitle = useGame((s) => s.showTitle);
+  // THE LOBBY REVEAL (owner 2026-10-31: "the start game text should happen after the animation is complete"): while the
+  // heroes are shown and fly to the rail, the words wait (and the shop clock with them: this store stays active). They
+  // then play over a board the reveal has already brought back to light, so their dim fades IN instead of standing.
+  const revealing = useLobbyRevealActive();
+  const afterReveal = useRef(false);
+  const seenSeq = useRef(-1);
+  if (seenSeq.current !== seq) { seenSeq.current = seq; afterReveal.current = false; }
+  if (active && revealing) afterReveal.current = true;
+  const waiting = active && revealing;
 
   const dimRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -86,7 +96,7 @@ export function GoodLuckIntro(): JSX.Element | null {
 
   // Esc skips. Capture phase + stopPropagation so the same press does not also open the Esc menu underneath.
   useEffect(() => {
-    if (!active) return;
+    if (!active || waiting) return;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
       e.preventDefault();
@@ -95,12 +105,12 @@ export function GoodLuckIntro(): JSX.Element | null {
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [active]);
+  }, [active, waiting]);
 
   // THE ONE PASS. Layout effect so every animation is scheduled before the overlay's first paint (the words must
   // never flash at full opacity for a frame). Keyed on `seq` so a replay restarts it cleanly.
   useLayoutEffect(() => {
-    if (!active) return;
+    if (!active || waiting) return;
     const c = getGoodLuckIntroConfig();
     const reduced = prefersReducedMotion();
     const t = goodLuckTimeline(c, reduced);
@@ -117,6 +127,8 @@ export function GoodLuckIntro(): JSX.Element | null {
     sounds.push(sfx.goodLuckShine(c.shineSoundGain, t.shineSoundAt, goodLuckTail(c, 'shine')));
 
     // The dim is already at full strength (static CSS), so the curtain lifts onto a dimmed board. It only fades OUT.
+    // After a lobby reveal the board is already lit: the dim fades in with the words instead.
+    if (afterReveal.current) anim(dimRef.current, [{ opacity: 0 }, { opacity: 1 }], { duration: c.fadeInMs, delay: t.inAt, easing: 'ease-out', fill: 'backwards' });
     anim(dimRef.current, [{ opacity: 1 }, { opacity: 0 }], { duration: c.fadeOutMs, delay: t.outAt, easing: 'ease-in', fill: 'forwards' });
 
     const stage = stageRef.current;
@@ -165,9 +177,9 @@ export function GoodLuckIntro(): JSX.Element | null {
       for (const id of timers) window.clearTimeout(id);
       if (!endedNaturally) for (const h of sounds) h?.stop();
     };
-  }, [active, seq]);
+  }, [active, seq, waiting]);
 
-  if (!active) return null;
+  if (!active || waiting) return null;
   const c = getGoodLuckIntroConfig();
   const vars = {
     '--gli-dim': String(c.dimOpacity),

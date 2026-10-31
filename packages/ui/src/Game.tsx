@@ -23,6 +23,7 @@ import { HeroLaunchCurtain } from './hero-select/HeroLaunchCurtain';
 import { PoolWaitPanel } from './opponentPool/PoolWaitPanel';
 import { rankedEntryPoolGate } from './opponentPool/lobbyPoolGate';
 import { GoodLuckIntro } from './goodLuck/GoodLuckIntro';
+import { LobbyReveal } from './lobbyReveal/LobbyReveal';
 import { RuneforgeEntrancePreview } from './runeforgeEntrance/RuneforgeEntrancePreview';
 import { DiscoverEntrancePreview } from './discoverEntrance/DiscoverEntrancePreview';
 import { WipePreview } from './WipePreview';
@@ -690,6 +691,9 @@ export function Game() {
           the curtain right after pickHero on a lobby / Practice start. Self-gates on its own store; it holds the
           shop clock while it plays. Mounted just before the curtain, which lifts off it. */}
       <GoodLuckIntro />
+      {/* THE LOBBY REVEAL (owner ask 2026-10-31): every hero of the game centre stage, then flown to the rail, before the
+          Good Luck words (which wait behind it, holding the clock). Self-gates on its own store; begun by the curtain. */}
+      <LobbyReveal />
       {/* DEV: the Runeforge entrance tuner's sandbox forge (▶ Play). Renders nothing until a Play is pressed. */}
       <RuneforgeEntrancePreview />
       {/* DEV: the Discover entrance tuner's sandbox Discover (▶ Play). Renders nothing until Play is pressed. */}

@@ -31,6 +31,7 @@ import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from './versus/spectatorEmotes';
 import { setFilterMessages, setShowActivity, useFriendsPrefs } from './friends/friendsPrefs';
 import { setLobbyChatEnabled, useLobbyChat } from './lobbyChat/lobbyChatStore';
+import { setLobbyRevealEnabled, useLobbyRevealEnabled } from './lobbyReveal/lobbyRevealStore';
 import { isTouchDevice, touchText } from './touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from './touchUi';
 import { PHONE_DIAG_FLAGS, PHONE_GPU, activeDiagLabel, saveDiagFlags, storedDiagFlags, type PhoneDiagFlags } from './phoneDiag';
@@ -105,6 +106,7 @@ export function SettingsPanel() {
   const showActivity = useFriendsPrefs((s) => s.showActivity);
   const filterMessages = useFriendsPrefs((s) => s.filterMessages);
   const lobbyChatOn = useLobbyChat((s) => s.enabled);
+  const lobbyRevealOn = useLobbyRevealEnabled();
   const setShowOpponentSkins = useGame((s) => s.setShowOpponentSkins);
   const fpsCap = useGame((s) => s.fpsCap);
   const setFpsCap = useGame((s) => s.setFpsCap);
@@ -242,6 +244,13 @@ export function SettingsPanel() {
             onChange={(id) => { if (id !== backdrop) { setBackdropPick(id); setBackdrop(id); sfx.pulse(); } }}
           />
         </div>
+        {/* THE LOBBY REVEAL (owner 2026-10-31): the game-start line-up of every hero, flown to the rail. Saved on this device. */}
+        <ToggleRow
+          label="Lobby reveal"
+          note="Shows every player's hero at the start of a game, then builds the rail."
+          on={lobbyRevealOn}
+          onToggle={() => { setLobbyRevealEnabled(!lobbyRevealOn); sfx.pulse(); }}
+        />
         <div className="escsec">Performance</div>
         {/* EFFECTS FRAME CAP (owner ask 2026-09-04; a dropdown named "Max Frame Rate" since 2026-10-08). Caps the Pixi
             effects + GSAP clocks ONLY — CSS (hover, drag, fly-ins, floats, the wipe) runs at the display refresh and the

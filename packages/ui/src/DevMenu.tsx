@@ -96,6 +96,7 @@ import { BuffDrawerTuner } from './BuffDrawerTuner';
 import { ReplayRailTuner } from './ReplayRailTuner';
 import { HeroCeremonyTuner } from './HeroCeremonyTuner';
 import { GoodLuckIntroTuner } from './GoodLuckIntroTuner';
+import { LobbyRevealTuner } from './LobbyRevealTuner';
 import { RuneforgeEntranceTuner } from './RuneforgeEntranceTuner';
 import { DiscoverEntranceTuner } from './DiscoverEntranceTuner';
 import { CrateFxTuner } from './CrateFxTuner';
@@ -202,6 +203,7 @@ const GROUPS: Group[] = [
       { key: 'replayrail', icon: '🎞️', label: 'Replay Rail', C: ReplayRailTuner, hint: 'The replay round rail + metrics dock' },
       { key: 'heroceremony', icon: '🎭', label: 'Hero Ceremony', C: HeroCeremonyTuner, hint: 'The hero-select ceremony timeline — every delay and duration from click to Start Game', alt: 'hero select ceremony timing' },
       { key: 'goodluckintro', icon: '🍀', label: 'Good Luck intro', C: GoodLuckIntroTuner, hint: 'The game-start intro after Start Game: the dim, the Good Luck words, the sparks and the shine, and how long each lasts. Has a ▶ replay button', alt: 'good luck intro game start dim text sparks shine clock' },
+      { key: 'lobbyreveal', icon: '🎬', label: 'Lobby reveal', C: LobbyRevealTuner, hint: 'The game-start line-up after Start Game: every hero of the game shown, then flown to its rail slot. Reveal stagger, hold, fly duration, arc height and stagger, the landing, sounds. Has a ▶ Replay reveal button', alt: 'lobby reveal heroes line up fly rail build game start portraits arc stagger versus' },
       { key: 'book', icon: '📖', label: 'Compendium Palette', C: BookTuner, hint: 'Colours and scale of the card browser' },
       { key: 'runeforgelook', icon: '🔨', label: 'Runeforge Look', C: RuneforgeLookTuner, hint: 'The title plaque, Gold pill, rune tablets, footer buttons and minimize toggle — placement, size, and every colour, including the Epic variant', alt: 'rune forge tablet card kicker cost coin medallion epic' },
       { key: 'screenwipe', icon: '🌀', label: 'Screen wipe', C: ScreenWipeTuner, hint: 'The combat and shop transition: bloom and reveal durations, easing and tail speed, the wide-screen ellipse stretch, and the glowing edge (ring and leading halo). Has a ▶ Play button', alt: 'screen wipe curtain transition bloom combat shop ultrawide ellipse ring halo easing' },

@@ -3,6 +3,7 @@ import { useGame } from '../store';
 import { ceremonyTiming } from './heroCeremonyTiming';
 import { registerLaunchController, type HeroLaunchRequest } from './heroLaunchController';
 import { goodLuckIntro, shouldPlayGoodLuckIntro } from '../goodLuck/goodLuckIntroStore';
+import { beginLobbyRevealFor } from '../lobbyReveal/beginLobbyReveal';
 import { lobbyPoolGate } from '../opponentPool/lobbyPoolGate';
 import { poolNeededFor } from '../opponentPool/poolGate';
 import { PoolWaitPanel } from '../opponentPool/PoolWaitPanel';
@@ -133,7 +134,11 @@ export function HeroLaunchCurtain() {
         // is still opaque, so the overlay is already dimming the board by the time the reveal below lifts.
         const st = useGame.getState();
         const started = !versusStart || st.run.mode === 'versus'; // a Versus match that ended at Hero Select starts nothing
-        if (started && shouldPlayGoodLuckIntro(st.run, { replaying: st.replaySession != null })) goodLuckIntro.begin();
+        const replaying = st.replaySession != null;
+        // THE LOBBY REVEAL (owner 2026-10-31): every hero of the game shown, then flown to the rail, BEFORE the Good
+        // Luck words and the clock. Begun first, so the intro's first render already waits behind it.
+        if (started) beginLobbyRevealFor(st.run, { replaying });
+        if (started && shouldPlayGoodLuckIntro(st.run, { replaying })) goodLuckIntro.begin();
       } catch (err) {
         // §19 "run construction throws": don't strand the player on a black screen. We log and reveal —
         // heroChoices is untouched on a throw, so the picker is still there underneath. (The blueprint's

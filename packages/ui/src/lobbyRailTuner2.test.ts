@@ -78,7 +78,7 @@ describe('Lobby Rail Tuner 2', () => {
     expect(document.documentElement.getAttribute('data-lr2-name')).toBe('off');
     // Slice label (owner 2026-10-31: "hero name in the lobby rail as text instead of player name"): reaches the rail's store,
     // is persisted, and an unknown value is refused.
-    expect(getSliceLabel()).toBe('none'); // the shipped default (owner's Full art pick)
+    expect(getSliceLabel()).toBe('hero'); // the shipped default (owner 2026-10-31: "this is perfect")
     setLobbyRailTuner2('nameText', 'hero');
     expect(getSliceLabel()).toBe('hero');
     expect(JSON.parse(localStorage.getItem('ascent.lobbyRailTuner2.v3') ?? '{}').nameText).toBe('hero');
@@ -87,7 +87,7 @@ describe('Lobby Rail Tuner 2', () => {
     setLobbyRailTuner2('nameText', 'none');
     expect(getSliceLabel()).toBe('none');
     resetLobbyRailTuner2();
-    expect(getSliceLabel()).toBe('none'); // the shipped default (owner's Full art pick)
+    expect(getSliceLabel()).toBe('hero'); // the shipped default
     // The owner's two trial presets (2026-10-31), one click each.
     const preset = (label: string): void => LR2_SPEC.actions!.find((a) => a.label === label)!.run(null);
     preset('Preset: Full art');
@@ -96,7 +96,7 @@ describe('Lobby Rail Tuner 2', () => {
     expect([getLobbyRailTuner2().artLayout, getSliceLabel()]).toEqual(['fade75', 'hero']);
     expect(document.documentElement.getAttribute('data-lr2-art')).toBe('fade75');
     preset('Preset: Navy + numbers');
-    expect([getLobbyRailTuner2().artLayout, getLobbyRailTuner2().hpShow, getSliceLabel()]).toEqual(['navy', 'number', 'none']);
+    expect([getLobbyRailTuner2().artLayout, getLobbyRailTuner2().hpShow, getSliceLabel()]).toEqual(['navy', 'number', 'hero']);
     resetLobbyRailTuner2();
     expect(getLobbyRailTuner2()).toEqual(LR2_DEFAULTS);
   });

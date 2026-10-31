@@ -98,9 +98,9 @@ html:root .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
    fading in from a navy plate over its first `--lr2-navy-fade`%. Production sets no `data-lr2-art`, so the
    `:not([data-lr2-art])` arm IS production. Static mask. */
 html:root:is(:not([data-lr2-art]), [data-lr2-art="navy"]) .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
-  left: auto; right: 0; width: calc(var(--lr2-navy-art-w, 59) * 1%);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 61) * 1%));
-  mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 61) * 1%));
+  left: auto; right: 0; width: calc(var(--lr2-navy-art-w, 73) * 1%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 63) * 1%));
+  mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 63) * 1%));
 }
 /* LEFT FADE (the earlier default, Tuner 2): the art on the left `--aw` of the slice, fading into the plate. */
 html:root[data-lr2-art="left"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
@@ -166,7 +166,7 @@ html:root .lobbyrail.lrv-docked .lrv-name {
   text-align: right; pointer-events: none;
   translate: calc(var(--lr2-name-x, 0) * 1px) calc(-50% + var(--lr2-name-y, 0) * 1px);
   font-family: var(--font-title), sans-serif; font-weight: var(--lr2-name-weight, 800);
-  font-size: calc(var(--lr2-name-size, 13) * var(--dk-s, 1) * 1px); line-height: 1.12; letter-spacing: 0.02em; color: var(--ui-text);
+  font-size: calc(var(--lr2-name-size, 15) * var(--dk-s, 1) * 1px); line-height: 1.12; letter-spacing: 0.02em; color: var(--ui-text);
   text-shadow: 0 1px 0 rgba(0, 0, 0, min(1, calc(0.95 * var(--ns)))), 0 0 calc(4px * var(--ns)) rgba(0, 0, 0, min(1, calc(0.85 * var(--ns)))), 0 0 calc(9px * var(--ns)) rgba(0, 0, 0, min(1, calc(0.6 * var(--ns))));
   overflow-wrap: anywhere;
 }
@@ -176,7 +176,12 @@ html:root .lobbyrail.lrv-docked .lrv-name { display: block; }
 html:root .lobbyrail.lrv-docked .lrv-name-t {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lr2-name-lines, 2); overflow: hidden; text-overflow: ellipsis;
 }
-html:root .lobbyrail.lrv-docked .lobbyseat.you .lrv-name { color: var(--ui-title); }
+html:root .lobbyrail.lrv-docked .lobbyseat.you .lrv-name { color: #fff; }
+/* "YOU" under your hero's name (owner 2026-10-31: "a blue/teal glow around the player card with a "YOU" under the hero name"). */
+html:root .lobbyrail.lrv-docked .lrv-you {
+  display: block; margin-top: calc(1px * var(--dk-s, 1));
+  font-size: 0.72em; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; color: #5fe6ee;
+}
 html:root .lobbyrail.lrv-docked .lobbyseat.foe .lrv-name { color: color-mix(in srgb, var(--ui-heart) 35%, #fff); }
 html:root[data-lr2-name-side="left"] .lobbyrail.lrv-docked .lrv-name { left: calc(var(--fx, 0px) + 9px * var(--dk-s, 1)); right: calc(var(--aw) * 0.62); text-align: left; }
 html:root[data-lr2-name-side="left"]:not([data-lr2-art="right"]) .lobbyrail.lrv-docked .lrv-name { right: 40%; }
@@ -187,8 +192,9 @@ html:root .lobbyrail.lrv-docked .lobbyseat.dead .lrv-tileart > .lobbyface { filt
 html:root .lobbyrail.lrv-docked .lobbyseat.dead .lrv-name { color: var(--ui-muted); left: calc(max(calc(var(--aw) * 0.3), calc(var(--skx, 0px) + var(--ph) * 0.36)) + var(--ph) * 0.36); }
 
 /* YOU: the lit gold edge, thicker, a soft gold glow. Static. */
-html:root .lobbyrail.lrv-docked .lobbyseat.you svg.lrv-edge:not(.lrv-foering) { filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 calc(5px * var(--dk-s, 1)) var(--ui-title)); }
-html:root .lobbyrail.lrv-docked .lobbyseat.you svg.lrv-edge:not(.lrv-foering) polygon { stroke: #ffe7a6; stroke-width: calc(4px * var(--dk-s, 1)); }
+/* YOU: a bright teal edge with a teal glow (owner 2026-10-31: "a blue/teal glow around the player card"). Static. */
+html:root .lobbyrail.lrv-docked .lobbyseat.you svg.lrv-edge:not(.lrv-foering) { filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 calc(6px * var(--dk-s, 1)) #2fd3e0) drop-shadow(0 0 calc(12px * var(--dk-s, 1)) rgba(47, 211, 224, 0.55)); }
+html:root .lobbyrail.lrv-docked .lobbyseat.you svg.lrv-edge:not(.lrv-foering) polygon { stroke: #8ef3f8; stroke-width: calc(4px * var(--dk-s, 1)); }
 /* THE NEXT FOE (owner 2026-10-31: "the current target needs to be way more obvious"): a thick bright red edge along its
    whole outline (cuts included), a strong red glow outside it that breathes (the glow is drawn once on its own layer;
    only its opacity and a slight scale animate), the crossed swords on its corner, and a slightly brighter portrait.
@@ -350,12 +356,12 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
    name with the Health / Armor numbers, one 3-up chip row (Shop tier, Gilded, Top tribe), small rune sockets, and one
    tight row per fight. The original scout card's solid shell. Width / offset / scale: Tuner 2. */
 .lobbyscout.lrv-scout {
-  --lfont: calc(var(--lu) * var(--lby-font, 0.9) * var(--lr2-card-font, 1));
-  --c: calc(var(--lu) * 1.3 * var(--lr2-card-font, 1));
-  --lfont: calc(var(--lu) * var(--lby-font, 0.9) * 1.3 * var(--lr2-card-font, 1));
-  width: calc(300 * var(--lu) * var(--lr2-card-w, 1));
+  --lfont: calc(var(--lu) * var(--lby-font, 0.9) * var(--lr2-card-font, 1.39));
+  --c: calc(var(--lu) * 1.3 * var(--lr2-card-font, 1.39));
+  --lfont: calc(var(--lu) * var(--lby-font, 0.9) * 1.3 * var(--lr2-card-font, 1.39));
+  width: calc(300 * var(--lu) * var(--lr2-card-w, 1.8));
   padding: calc(10 * var(--c)) calc(11 * var(--c));
-  translate: calc(var(--lr2-card-x, 0) * 1px) calc(var(--lr2-card-y, 0) * 1px);
+  translate: calc(var(--lr2-card-x, -9) * 1px) calc(var(--lr2-card-y, 0) * 1px);
   border: 1.5px solid transparent; border-radius: calc(8 * var(--c));
   background: linear-gradient(180deg, var(--ui-plate-mid), var(--ui-plate-bot)) padding-box, var(--ui-edge) border-box;
   box-shadow: 0 8px 22px -6px rgba(0, 0, 0, 0.9);

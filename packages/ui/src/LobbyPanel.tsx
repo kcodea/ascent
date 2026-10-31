@@ -696,7 +696,13 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                       side of the art instead. */}
                   {/* The slice's label (Tuner 2 "Slice label"): the player's name (default), the hero's name, or none. Same
                       font, alignment and 2-line ellipsis either way; the fallen follow it too. */}
-                  {sliceLabel !== 'none' && <span className="lrv-name"><ClampedName text={sliceLabel === 'hero' ? getHero(seat.heroId)?.name ?? seat.label : seat.label} /></span>}
+                  {(sliceLabel !== 'none' || isYou) && (
+                    <span className="lrv-name">
+                      {sliceLabel !== 'none' && <ClampedName text={sliceLabel === 'hero' ? getHero(seat.heroId)?.name ?? seat.label : seat.label} />}
+                      {/* Your own slice says YOU under the name (owner 2026-10-31). */}
+                      {isYou && <span className="lrv-you">You</span>}
+                    </span>
+                  )}
                   {/* VERSUS: what this player is doing, when it matters (versusRailStatus.ts). Keyed by the label, so each
                       change pops in once. Your own is on your End Turn gem. */}
                   {!isYou && row.alive && statuses[seat.id] && (

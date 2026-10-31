@@ -74,12 +74,12 @@ type NumKey = Exclude<keyof LobbyRailTuner2Config, SelKey>;
 
 export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   barStyle: 'gloss', hpShow: 'number', navyColor: LR2_NAVY_DEFAULT,
-  // The shipped look (owner pick 2026-10-31, "i like these values"): the navy plate with the Health numbers, the art on the right, no slice label.
-  navyArtW: 59, navyFade: 61,
+  // The shipped look (owner pick 2026-10-31, "i like these values"): the navy plate with the Health numbers, the art on the right, the hero's name on each slice.
+  navyArtW: 73, navyFade: 63,
   hpNumSize: 24.5, armNumSize: 14, hpNumX: -7, hpNumY: 0,
-  artLayout: 'navy', nameSide: 'right', nameShow: 'on', nameText: 'none',
+  artLayout: 'navy', nameSide: 'right', nameShow: 'on', nameText: 'hero',
   artZoom: 1.04, artFx: 0, artFy: 21, artW: 20, fadeStart: 0, fadeLen: 100, fadeStr: 1, artBright: 1,
-  nameSize: 13, nameWeight: 800, nameLines: 2, nameX: 0, nameY: 0, nameShadow: 1,
+  nameSize: 15, nameWeight: 800, nameLines: 2, nameX: 0, nameY: 0, nameShadow: 1,
   dkTop: DOCK_DEFAULTS.topMode,
   dkEclipse: DOCK_DEFAULTS.eclipse,
   dkPanelMax: DOCK_DEFAULTS.panelMax, dkGap: DOCK_DEFAULTS.gap, dkOffset: DOCK_DEFAULTS.offset, dkTopShift: DOCK_DEFAULTS.topShift,
@@ -88,7 +88,7 @@ export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   barH: 22, barOverlap: 0, barInset: 0,
   headX: 1, headY: 0, headShadow: 0,
   pulseRing: 1.95, pulseGlow: 3, pulseMin: 0.53, pulseMax: 1, pulsePeriod: 2.2,
-  cardW: 1, cardX: 0, cardY: 0, cardFont: 1,
+  cardW: 1.8, cardX: -9, cardY: 0, cardFont: 1.39,
 };
 
 /** The docked layout dials and the `DockCfg` field each feeds. */
@@ -297,7 +297,7 @@ export const LR2_SPEC: TunerSpec<LobbyRailTuner2Config> = {
   // The owner's trial combos (2026-10-31: "I think I like the full hero art but can we add a 75% art into a fade option and
   // try hero names as the text with that"), one click each. They set only the art layout and the slice label.
   actions: [
-    { label: 'Preset: Navy + numbers', hint: 'Art layout Navy, Health as numbers, Slice label None.', run: () => { setLobbyRailTuner2('artLayout', 'navy'); setLobbyRailTuner2('hpShow', 'number'); setLobbyRailTuner2('nameText', 'none'); } },
+    { label: 'Preset: Navy + numbers', hint: 'Art layout Navy, Health as numbers, Slice label Hero name.', run: () => { setLobbyRailTuner2('artLayout', 'navy'); setLobbyRailTuner2('hpShow', 'number'); setLobbyRailTuner2('nameText', 'hero'); } },
     { label: 'Preset: Full art', hint: 'Art layout Full width, Slice label None.', run: () => { setLobbyRailTuner2('artLayout', 'full'); setLobbyRailTuner2('nameText', 'none'); } },
     { label: 'Preset: 75% fade + hero name', hint: 'Art layout 75% fade, Slice label Hero name.', run: () => { setLobbyRailTuner2('artLayout', 'fade75'); setLobbyRailTuner2('nameText', 'hero'); } },
   ],

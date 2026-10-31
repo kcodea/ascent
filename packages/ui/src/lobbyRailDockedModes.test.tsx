@@ -73,9 +73,8 @@ describe('the Docked rail in every mode', () => {
     expect(c.querySelector('.lobbyrailhead.lrv-docked .lobbymax')?.textContent).toBe('Max dmg 5');
     // Each slice has its own Health bar.
     expect(c.querySelectorAll('.lobbyseat .lrv-bar')).toHaveLength(2);
-    // THE SHIPPED LOOK (owner pick 2026-10-31, "Full art"): the hero art, no label on the slice; each slice is still told
-    // apart by its marks (your gold edge, the next foe's swords) and the hover card carries the names.
-    expect(c.querySelectorAll('.lrv-name')).toHaveLength(0);
+    // THE SHIPPED LOOK (owner 2026-10-31, "this is perfect"): each slice carries its hero's name.
+    expect(c.querySelectorAll('.lrv-name')).toHaveLength(2);
     expect(c.querySelectorAll('.lrv-tileart .lobbyface')).toHaveLength(2);
     expect(c.querySelector('[data-seat="s1"] .lrv-vs')).not.toBeNull();
   });
@@ -114,10 +113,15 @@ describe('the Docked rail in every mode', () => {
       const c = show(run, match);
       const labels = [...c.querySelectorAll('.lrv-name-t')].map((e) => e.getAttribute('aria-label'));
       expect(labels).toEqual(expect.arrayContaining(run.lobby!.seats.map((x) => getHero(x.heroId).name)));
+      // Your slice: the teal edge and YOU under your hero's name (owner 2026-10-31).
+      expect(c.querySelector('.lobbyseat.you .lrv-you')?.textContent).toBe('You');
+      expect(c.querySelectorAll('.lrv-you')).toHaveLength(1);
       act(() => { setSliceLabel('none'); });
-      expect(c.querySelectorAll('.lrv-name')).toHaveLength(0);
+      // No label on any slice, but your own still says YOU (owner 2026-10-31).
+      expect(c.querySelectorAll('.lrv-name-t')).toHaveLength(0);
+      expect([...c.querySelectorAll('.lrv-name')].map((e) => e.textContent)).toEqual(['You']);
       act(() => { setSliceLabel('player'); });
       expect([...c.querySelectorAll('.lrv-name-t')].map((e) => e.getAttribute('aria-label'))).toEqual(expect.arrayContaining(run.lobby!.seats.map((x) => x.label)));
-    } finally { setSliceLabel('none'); }
+    } finally { setSliceLabel('hero'); }
   });
 });

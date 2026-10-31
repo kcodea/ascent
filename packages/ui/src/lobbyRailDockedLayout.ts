@@ -76,7 +76,7 @@ export interface DockCfg {
 }
 
 // The owner's pick (2026-10-31, "i like these values").
-export const DOCK_DEFAULTS: DockCfg = { topMode: 'below', eclipse: 0, panelMax: 83, gap: 4, notch: 4.5, coinPad: 6, refreshPad: 7.5, gemPad: 4, bottomShift: 0, offset: 24, topShift: 0, edge: 0, headH: 30, maxW: 250 };
+export const DOCK_DEFAULTS: DockCfg = { topMode: 'below', eclipse: 0, panelMax: 83, gap: 5.5, notch: 4.5, coinPad: 12.5, refreshPad: 7.5, gemPad: 6, bottomShift: 0, offset: 24, topShift: 0, edge: 0, headH: 30, maxW: 250 };
 
 /** The gem's 1080p height (`.etb-base`), the board-scale reference. */
 export const GEM_REF_H = 166;

@@ -196,9 +196,9 @@ describe('Versus server bundle — core + content only', () => {
     });
     const inputs = Object.keys(res.metafile!.inputs);
     // Pure DATA modules are allowed (the hero table, the rift table, the loss cap: R-VERSUS-HEALTH-01; and for the RANKED
-    // DUOS seating, 2026-10-26: the ranked bands, the Duos rank table, generated handles); never the reducer, the run
+    // DUOS seating, 2026-10-26: the ranked bands, the Duos rank table, generated handles; and the run's tribe roll, `runTribes`, for the room's hero deal, 2026-10-31); never the reducer, the run
     // state or any UI. Named one by one so nothing else slips in.
-    const allowed = /sim[\\/]src[\\/](config|heroes|lossCap|rank|lobbyStrength|boardSide|lobby[\\/](strengthBands|seatCap|handles))\.ts$/;
+    const allowed = /sim[\\/]src[\\/](config|heroes|lossCap|rank|lobbyStrength|boardSide|runTribes|lobby[\\/](strengthBands|seatCap|handles))\.ts$/;
     const leaked = inputs.filter((p) => /packages[\/](sim[\/]src[\/](?!versus[\/])|ui[\/])/.test(p) && !allowed.test(p));
     expect(leaked).toEqual([]);
   }, 60_000);

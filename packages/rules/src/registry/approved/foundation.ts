@@ -1815,8 +1815,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Game start shows every hero in the game, flown to the rail, before the Good Luck words and before any clock',
     statement:
       'After Start Game in a lobby, Practice or any Versus match, every hero in the game is shown centre stage with its '
-      + 'player name (you highlighted; Duos teammates side by side; a 1v1 as two heroes facing off). Each portrait then flies '
-      + 'to its rail slot (in a 1v1, to the opponent block and your own portrait), and the slot appears as it lands. The '
+      + 'player name (you highlighted; Duos teammates side by side; a 1v1 as two heroes facing off), in the rail\x27s top-to-bottom '
+      + 'order, and a light sweeps across them. The round slice opens, then every portrait flies to its slice together and the '
+      + 'slices lock in top to bottom (in a 1v1, to the opponent block and your own portrait); nothing of the rail shows before its portrait. The '
       + 'Good Luck words play after it, and the shop clock and every opening offer (a hero\x27s turn-1 Discover, a hero '
       + 'quest) hold until they are over. Neither the reveal nor the words can be skipped. In Versus the round-1 clock '
       + 'is the server\x27s and starts only when every player\x27s intro is over. Spectators who watched the Hero Select see it; late joiners do not. '

@@ -206,12 +206,15 @@ export interface Rect { left: number; top: number; width: number; height: number
  * size AHEAD of the path (`scaleLead`), so neighbours flying side by side never overlap mid-air. Sampled into `steps`
  * keyframes with the ease applied to the path parameter, run linear. Transform only.
  */
-export function arcKeyframes(from: Rect, to: Rect, arc: number, steps = 14, scaleLead = 1): Keyframe[] {
+export function arcKeyframes(from: Rect, to: Rect, arc: number, steps = 14, scaleLead = 1, fan = false): Keyframe[] {
   const fx = from.left + from.width / 2, fy = from.top + from.height / 2;
   const tx = to.left + to.width / 2, ty = to.top + to.height / 2;
   const s1 = from.width > 0 && from.height > 0 ? Math.min(to.width / from.width, to.height / from.height) : 1;
-  // The control point: midway, lifted by `arc` above the higher of the two ends.
-  const cx = (fx + tx) / 2, cy = Math.min(fy, ty) - Math.max(0, arc);
+  // The control point: midway, lifted by `arc` above the higher of the two ends. FAN (the group flight): near the start
+  // column, at the slot's own height, so each portrait first spreads to its row and then slides in along it; a
+  // left-to-right row ranked to a top-to-bottom column then never crosses or overlaps on the way.
+  const cx = fan ? fx + (tx - fx) * 0.18 : (fx + tx) / 2;
+  const cy = fan ? ty - Math.max(0, arc) * 0.25 : Math.min(fy, ty) - Math.max(0, arc);
   const out: Keyframe[] = [];
   const n = Math.max(2, Math.round(steps));
   for (let i = 0; i <= n; i++) {

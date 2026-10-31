@@ -125,6 +125,16 @@ describe('a flight', () => {
     expect(y).toBeCloseTo(320 - 560, 1);
     expect(s).toBeCloseTo(40 / 120, 3);
   });
+  it('the group flight fans: a row ranked to a column never crosses (each portrait reaches its own row early)', () => {
+    const row = [0, 1, 2, 3].map((i) => ({ left: 400 + i * 200, top: 500, width: 150, height: 150 }));
+    const col = [0, 1, 2, 3].map((i) => ({ left: 1700, top: 250 + i * 70, width: 60, height: 60 }));
+    const paths = row.map((r, i) => arcKeyframes(r, col[i]!, 60, 20, 3.2, true).map((f) => {
+      const [x, y] = parse(f); return { x: x! + r.left + 75, y: y! + r.top + 75 };
+    }));
+    // At every sample, the portraits keep their rail order top to bottom.
+    for (let s = 1; s < 20; s++) for (let i = 1; i < 4; i++) expect(paths[i]![s]!.y).toBeGreaterThanOrEqual(paths[i - 1]![s]!.y - 0.01);
+  });
+
   it('arcs above the straight line, and is transform only', () => {
     const minY = Math.min(...k.map((f) => parse(f)[1]!));
     expect(minY).toBeLessThan(320 - 560 - 20);

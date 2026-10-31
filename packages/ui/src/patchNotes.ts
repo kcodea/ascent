@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: 'Game start: see who you are facing. Every hero in the game is shown with its player name, then flies to the rail.', details: [
         'Plays after you press Start Game, before the Good Luck words and before any timer starts.',
-        'Each portrait flies to its place on the rail, top to bottom, and its slot opens out of it.',
+        'A shimmer of light sweeps across the heroes. Then they fly to the rail together and lock into their slots, top to bottom.',
         'In Duos, teammates stand together. In a 1v1, the two heroes face off.',
         "The Good Luck words now always play in full, and a hero's first Discover waits until they are done.",
         'Turn it off in Settings, under Board: Lobby reveal.',

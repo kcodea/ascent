@@ -10,17 +10,27 @@ names". Rule: R-LOBBY-REVEAL-01. Branch `feat/lobby-hero-reveal`, built on the D
 Start Game → launch curtain → `pickHero` builds the run under the cover → the curtain begins the reveal, then the Good
 Luck intro → the curtain lifts onto the reveal:
 
-1. **Line-up** (~2.3 s for 8). The board is dimmed and its rail is completely hidden. Every hero of the game stands
-   centre stage in the in-run hero frame (`LbHeroFrame`, with the seat's portrait-frame cosmetic), the hero's name over
-   the player's name pill. Every portrait is the same size; yours has only a gold ring and a gold pill. The line-up reads
-   left to right in the rail's top-to-bottom order (owner: "line it up so that left to right is top to bottom"). Duos
-   stand as pairs. A Versus 1v1 shows the two heroes facing off with VS between them.
-2. **Round slice, then fly** (~3 s). The ROUND slice opens first, out of the Refresh pill (owner: "the round button should
-   be the first piece to appear, then the heroes slot in"). Then one portrait at a time down the rail, 240 ms apart. Each portrait flies on a quadratic arc to its slice's ART
-   (the Docked slice's face crop, the Gem rail's round face) and hits the rail: a squash (1.06 then 0.98) and a gold flash
-   on the slice edge. The slice then expands out of the impact point to its full width (scaleX, origin at the hit) while
-   the portrait crossfades into the slice art. The dim lifts as they go. The Guides tab is not part of the sequence (it is
-   moving to a new home), and nothing appears at the end. In a 1v1 the foe lands on the opponent block and you land on your own board portrait, which is never hidden.
+1. **Line-up and sweep** (~2.4 s for 8). The board is dimmed and its rail is completely hidden. Every hero of the game
+   stands centre stage in the in-run hero frame (`LbHeroFrame`, with the seat's portrait-frame cosmetic), the hero's name
+   over the player's name pill.
+   - Every portrait is the same size; yours has only a gold ring and a gold pill.
+   - The line-up reads left to right in the rail's top-to-bottom order (owner: "line it up so that left to right is top to
+     bottom"). Duos stand as pairs. A Versus 1v1 shows the two heroes facing off with VS between them.
+   - During the hold a MAGIC SWEEP crosses the row (owner: "a magic trail that slides across the heroes"). A band of soft
+     light moves left to right; each face catches a glint band and a few `discover-glint` sparkles as it passes, with the
+     owner's shimmer.
+2. **Round slice, group flight, lock-in** (owner: "they fly over into place and then 'lock in' and build their slices
+   sequentially from the top somewhat quickly and satisfying"):
+   - The ROUND slice opens first, out of the Refresh pill.
+   - Every portrait then flies at once, 35 ms apart. Each takes a FAN curve: it reaches its own row early, then slides in
+     along it, so a left-to-right row ranked to a top-to-bottom column never crosses. Each shrinks ahead of its path, so
+     neighbours do not overlap mid-air. They park, round, on their slices' art.
+   - After a 140 ms beat the slices LOCK IN top to bottom, 100 ms apart and overlapping. Each lock has a snap (1.08, 0.97,
+     1 on the frame), a gold edge flash, a `hero-power-spark` pop, one of the owner's thuds with a light shimmer, and the
+     slice expanding out of the portrait (scaleX, origin at the portrait) while the portrait crossfades into the slice art.
+   - Flights to the last lock take ~1.6 s. The dim lifts across it. In a 1v1 the foe lands on the opponent block and you
+     land on your own board portrait, which is never hidden. The Guides tab is not part of the sequence (it is moving to a
+     new home), and nothing appears at the end.
 3. **Good Luck**: the words play now, in full. Their dim fades in, since the board is already lit. The shop clock and
    every opening offer start when they go.
 
@@ -72,20 +82,27 @@ team slot, the rail panel and the round slice not in it.
   reveal off. At 4x CPU throttle the whole game start is heavy in both builds (p95 60-350 ms), and turning the reveal
   on is no worse.
 
-## Sounds (owner: "dont use the same sound effect for the hero reveals as the player's hero selection", then "should just be like a woosh and shine")
-Nothing from `ceremony/`; all from the existing bank, no new assets.
-- **The line-up** (~0.9 s): a light whoosh (`fx/stereogenicstudio-swish-swoosh-woosh-sfx-39`, 0.1 s to 1.0 s, soft
-  tail) and a shine (`prismaticpick`, a bright glass chime, pitched up a touch, 160 ms in).
-- **Passed over:** `equipmentsheen` (the Good Luck words' own shine, a moment later), `triggerglow` (the in-game trigger
-  chime), the sparkle-whoosh (the Good Luck sparks), and the first pick, `fx/universfield-cinematic-swoosh-impact` (the
-  owner found it heavy).
-- **Each flight:** a quiet `fx/whoosh-03` or `swish-swoosh-woosh 27`, alternating.
+## Sounds
+Owner: "dont use the same sound effect for the hero reveals as the player's hero selection", then "a woosh and shine",
+then his own clips. Nothing comes from `ceremony/`.
+- **Line-up:** a soft airy whoosh as it rises (`fx/stereogenicstudio-swish-swoosh-woosh-sfx-39`, 0.1 s to 1.0 s), then
+  the owner's shimmer (`audio/fx/reveal-shimmer.mp3`) with the sweep.
+- **Group flight:** one soft `fx/whoosh-03`.
+- **Each lock:** one of the owner's three gentle thuds (`audio/fx/reveal-impact-1`, `-3`, `-4`), rotating so neighbours
+  differ, plus a quiet `prismaticpick` glass shimmer pitched a little higher each lock.
+- **Warming:** all of these are decoded under the launch curtain (`sfx.warmClips`).
+- **Kept off the phone's per-fight decode list:** the owner's clips are not in `audio/codeClips.ts`, whose phone LRU
+  working set (`phoneAudioQuality.test.ts`) had no headroom left. They play once per game, so `warmClips` covers them.
+- **Passed over:** `equipmentsheen` (the Good Luck words' own shine), `triggerglow` (the in-game trigger chime), the
+  sparkle-whoosh (the Good Luck sparks), and `fx/universfield-cinematic-swoosh-impact` (the owner: too heavy).
 
 ## Tuner
 DEV 🎬 "Lobby reveal" has these controls, plus ▶ Replay reveal:
 - **Look:** dim, portrait size.
 - **Reveal:** start delay, entrance, reveal stagger, hold.
-- **Flight:** fly duration, fly stagger, arc height, land crossfade, impact, expand, round-slice settle.
+- **Reveal sweep:** sweep delay, sweep.
+- **Flight:** round slice, fly duration, fly stagger, arc height.
+- **Lock:** lock beat, lock stagger, lock snap, expand, crossfade, lock sound.
 - **Other:** Good Luck after, the two sound gains.
 
 `window.__bench.lobbyReveal()` lets a bench build start it over a hand-set run.

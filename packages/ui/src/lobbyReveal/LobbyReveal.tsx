@@ -279,7 +279,7 @@ export function LobbyReveal(): JSX.Element | null {
           return;
         }
         push(anim(labels[i], [{ opacity: 1 }, { opacity: 0 }], { duration: 140, delay, easing: 'ease-in', fill: 'forwards' }));
-        push(anim(face, arcKeyframes(f, d, c.arcHeight, 16, 2.4), { duration: Math.max(1, c.flyMs), delay, easing: 'linear', fill: 'forwards' }));
+        push(anim(face, arcKeyframes(f, d, c.arcHeight, 18, 3.2, true), { duration: Math.max(1, c.flyMs), delay, easing: 'linear', fill: 'forwards' }));
       });
     };
 

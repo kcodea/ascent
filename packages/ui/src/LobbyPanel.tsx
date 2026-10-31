@@ -493,6 +493,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const foeIntel: SeatIntel | undefined = foe ? railSeatIntel(lobby, foe, next) : undefined;
   // VERSUS DUOS: team rows grouped (you next to your teammate), never split by Health.
   const rows = duosMate || duosTeams ? groupDuosRailRows(rail.rows) : rail.rows;
+  // THE PLACEMENT COLUMN (owner 2026-10-31: "a slender column that displays the players placement with 1-8"): the living by
+  // their place in the stack (strongest first), the fallen by the place they finished.
+  const rankOf = new Map(rows.map((r, i) => [r.id, r.alive ? i + 1 : r.placement ?? i + 1]));
   // THE DOCKED RAIL (owner 2026-10-31): the seats laid out on the board's right side, measured off the board's own Refresh
   // / gem / Gold (useDockedRail). It needs that HUD on screen and room beside it; anywhere it cannot (the Guides view, a Duos
   // team rail, the Versus 1v1 block, a board without its HUD) the rail is the Gem rail (lobbyRail.css), as before.
@@ -688,6 +691,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                     <FadeImg className="lobbyface" src={railSliceFace(heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics)), dp)} alt="" />
                   </span>
                   {dp && <SliceEdge p={dp} />}
+                  {/* The placement, its own small navy box floating just right of the slice (owner 2026-10-31). */}
+                  <span className="lrv-rank" aria-label={`Place ${rankOf.get(seat.id)}`}>{rankOf.get(seat.id)}</span>
                   {dp && !dp.dead && isFoe && <SliceEdge p={dp} ring />}
                   {/* The target (owner 2026-10-31: "the current target needs to be way more obvious"): the crossed swords
                       the rail has always used for the next foe, on the slice's top-right corner. */}
@@ -1043,7 +1048,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
       const rune = runeIds[i] ? RUNE_INDEX[runeIds[i]!] : null;
       const rart = rune ? runeArt(rune.id) : null;
       return (
-        <span className={`lrv-sc-socket${rune ? ' filled' : ''}`} key={i}>
+        <span className={`lrv-sc-socket${rune ? ' filled' : i === 2 ? ' third' : ''}`} key={i}>
           {rune && (rart ? <img decoding="sync" src={rart} alt="" aria-hidden /> : <Icon name="sc" />)}
           {rune && (
             <span className="questbadge-tip" role="tooltip">
@@ -1081,7 +1086,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
           <span className="lrv-sc-chip"><i>Gilded made</i><b><Icon name="star" />{intel ? intel.triples : '—'}</b></span>
           <span className="lrv-sc-chip lrv-sc-tribe"><i>Top tribe</i><b style={tribe ? { color: tribeColor } : undefined}>{tribeCount ? tribeText : '—'}</b></span>
         </div>
-        <div className="lrv-sc-runes"><i>Runes</i>{versusCard && runeIds.length === 0 ? <span className="lrv-sc-none">None yet</span> : sockets}</div>
+        <div className="lrv-sc-runes"><i>Runes</i>{versusCard && runeIds.length === 0 ? <span className="lrv-sc-none">None yet</span> : <span className="lrv-sc-sockets">{sockets}</span>}</div>
         <div className="lrv-sc-fights">
           {results.length === 0 ? <span className="lrv-sc-none">No fights yet</span> : results.map((r) => (
             <div className={`lrv-sc-fight ${r.outcome}`} key={r.round}>

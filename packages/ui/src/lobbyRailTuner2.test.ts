@@ -26,6 +26,7 @@ type NumKey = keyof typeof LR2_VARS;
 const TARGET: Partial<Record<NumKey, string>> = {
   dkHeadFont: '.lobbyrailhead.lrv-docked',
   barH: '.lrv-bar', barOverlap: '.lrv-bar', barInset: '.lrv-bar',
+  rankW: '.lrv-docked .lobbyseat', rankGap: '.lrv-docked .lobbyseat',
   navyArtW: '.lobbyface', navyFade: '.lobbyface',
   hpNumSize: '.lrv-hpn-hp', armNumSize: '.lrv-hpn-arm', hpNumX: '.lrv-hpnum', hpNumY: '.lrv-hpnum',
   artZoom: '.lobbyface', artFx: '.lobbyface', artFy: '.lobbyface', artW: '.lrv-docked .lobbyseat', fadeStart: '.lrv-docked .lobbyseat', fadeLen: '.lrv-docked .lobbyseat', fadeStr: '.lrv-docked .lobbyseat', artBright: '.lobbyface',

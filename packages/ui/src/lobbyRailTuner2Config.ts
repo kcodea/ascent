@@ -56,6 +56,7 @@ export interface LobbyRailTuner2Config {
   /** What the slice's label says: the player's name, the hero's name, or nothing (owner 2026-10-31). */
   nameText: SliceLabel;
   navyArtW: number; navyFade: number;
+  rankW: number; rankGap: number;
   hpNumSize: number; armNumSize: number; hpNumX: number; hpNumY: number;
   artZoom: number; artFx: number; artFy: number; artW: number; fadeStart: number; fadeLen: number; fadeStr: number; artBright: number;
   nameSize: number; nameWeight: number; nameLines: number; nameX: number; nameY: number; nameShadow: number;
@@ -76,6 +77,7 @@ export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   barStyle: 'gloss', hpShow: 'number', navyColor: LR2_NAVY_DEFAULT,
   // The shipped look (owner pick 2026-10-31, "i like these values"): the navy plate with the Health numbers, the art on the right, the hero's name on each slice.
   navyArtW: 73, navyFade: 63,
+  rankW: 22, rankGap: 4,
   hpNumSize: 24.5, armNumSize: 14, hpNumX: -7, hpNumY: 0,
   artLayout: 'navy', nameSide: 'right', nameShow: 'on', nameText: 'hero',
   artZoom: 1.04, artFx: 0, artFy: 21, artW: 20, fadeStart: 0, fadeLen: 100, fadeStr: 1, artBright: 1,
@@ -116,6 +118,8 @@ const NUM: Record<NumKey, NumDef> = {
 
   navyArtW: { v: '--lr2-navy-art-w', group: SA, label: 'Navy: art width', unit: '%', min: 30, max: 100, step: 1, hint: 'Navy layout: how much of the slice, from the right, the hero art covers.' },
   navyFade: { v: '--lr2-navy-fade', group: SA, label: 'Navy: fade length', unit: '%', min: 0, max: 100, step: 1, hint: 'Navy layout: how far into the art (a share of its width) the fade from the navy plate runs.' },
+  rankW: { v: '--lr2-rank-w', group: SA, label: 'Placement column width', unit: 'px', min: 0, max: 60, step: 0.5, hint: 'Docked: the slender navy box right of each slice showing its place, 1 to 8.' },
+  rankGap: { v: '--lr2-rank-gap', group: SA, label: 'Placement gap', unit: 'px', min: 0, max: 30, step: 0.5, hint: 'Docked: the space between each slice and its placement box.' },
   hpNumSize: { v: '--lr2-hpnum-size', group: HN, label: 'Health size', unit: 'px', min: 10, max: 44, step: 0.5, hint: 'The Health number’s size (board px at 1080p).' },
   armNumSize: { v: '--lr2-armnum-size', group: HN, label: 'Armor size', unit: 'px', min: 8, max: 36, step: 0.5, hint: 'The Armor number’s size (board px at 1080p).' },
   hpNumX: { v: '--lr2-hpnum-x', group: HN, label: 'Move left / right', unit: 'px', min: -60, max: 120, step: 0.5, hint: 'Nudges the numbers sideways from just clear of the slice’s cut.' },

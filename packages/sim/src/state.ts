@@ -15,42 +15,10 @@ import { rollCiaEnchants, rollShop, stockPool } from './shop';
 import { selectThreat, type ThreatId } from './threats';
 import type { BoardSnapshot } from './snapshot';
 
-/**
- * Tags that separate the run's RNG streams. The shop stream advances with the
- * player's rolls (its cursor lives in RunState); the threat/enemy/combat streams
- * are derived purely from (seed, wave) so they're identical every time a wave is
- * re-resolved — which is why the recruit-phase preview matches the actual fight.
- */
-export const TAG = { THREAT: 1, ENEMY: 2, SHOP: 3, COMBAT: 4, TRIBES: 5, MAGNET: 6, ODDS: 7, GILD: 8, QUEST: 9 } as const;
-
-/** The playable (non-neutral) tribes. Grows as tribes are added; a run draws 5 of them. */
-export const PLAYABLE_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
-export const TRIBES_PER_RUN = 5;
-
-/**
- * Pick a run's active tribes (handoff: only 5 tribes appear in a run at once) from `roster` — the PINNED
- * set's tribe list, so a set-2 run draws Kobolds and a set-1 run never can. Neutral glue is always available
- * on top. With exactly 5 playable tribes in set 1 this returns all of them (shuffled); it bounds the pool once
- * more are added. A smaller roster (set 2's single `kobold` today) simply returns those.
- */
-export function selectRunTribes(rng: Rng, roster: readonly Tribe[] = PLAYABLE_TRIBES): Tribe[] {
-  const pool = [...roster];
-  const picks: Tribe[] = [];
-  while (picks.length < TRIBES_PER_RUN && pool.length > 0) {
-    picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
-  }
-  return picks;
-}
-
-/** Deterministic 32-bit mix of a seed and a few small integers (FNV-1a style). */
-export function mixSeed(...parts: number[]): number {
-  let h = 0x811c9dc5 | 0;
-  for (const part of parts) {
-    h = Math.imul(h ^ (part | 0), 0x01000193);
-    h ^= h >>> 13;
-  }
-  return h | 0;
-}
+// The seed / tribe derivations live in `./runTribes` (dependency-light, so the Versus server bundle can deal hero
+// offers without the run state, R-VERSUS-UNIQUE-HEROES-01). Re-exported here, unchanged.
+export { TAG, PLAYABLE_TRIBES, TRIBES_PER_RUN, selectRunTribes, mixSeed, runTribesForSeed } from './runTribes';
+import { TAG, PLAYABLE_TRIBES, selectRunTribes, mixSeed, runTribesForSeed } from './runTribes';
 
 /** The four run-wide tribe-aura channels the Aura Wash FX can announce (see `RunState.auraFx`).
  *  `demon` = the Imp aura; `mech` = the Magnetic/Attachment aura. */
@@ -3166,11 +3134,7 @@ export const metLine = (status: LineStatus): boolean =>
  * it. Pinned exactly like the default: once set here, everything downstream reads `RunState.setId` through
  * `poolOf(state)`, so a sandbox set-2 run never touches set 1's pool or seeds.
  */
-/** The tribes a run created from `seed` on `setId` rolls: THE derivation `createRun` uses, exported so the hero
- *  offer can be filtered by the upcoming run's tribes BEFORE the run exists (TRIBE GATE, owner 2026-09-10). */
-export function runTribesForSeed(seed: number, setId: SetId = activeSet().id): Tribe[] {
-  return selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)), SETS[setId]?.tribes ?? PLAYABLE_TRIBES);
-}
+
 
 export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: RunMode = 'ascent', line: number = CONFIG.defaultLine, setId: SetId = activeSet().id, tribesOverride?: readonly Tribe[], opts?: { duos?: boolean }): RunState {
   // Draw the run's active tribes from the PINNED set's roster (set 1's five, set 2's Kobolds) — never the

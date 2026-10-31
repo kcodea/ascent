@@ -200,28 +200,12 @@ export class RankedEngine extends GroupEngine {
     return out;
   }
 
-  // ── hero select: a clock pick never lands on the teammate's hero ────────────────────────────────────────────────
+  // ── hero select: a clock pick never lands on the teammate's hero (GroupEngine's unique pick, R-VERSUS-UNIQUE-HEROES-01) ──
 
   protected override maybeStart(): void {
-    const m = this.m;
-    if (m.phase !== 'hero_select') return;
-    const waiting = this.stillIn().some((s) => this.g.priv[s.seat]!.hero_index == null);
-    if (this.rh.now() < (m.hero_deadline ?? 0) && waiting) return;
-    const picked = (s: GSeat): string | null => { const p = this.g.priv[s]!; return p.hero_offer && p.hero_index != null ? p.hero_offer[p.hero_index] ?? null : null; };
-    for (const s of m.seats) {
-      const p = this.g.priv[s.seat]!;
-      if (p.hero_index != null) continue;
-      p.hero_index = seededPick(m.seed, `hero:${s.seat}`, 3);
-      p.hero_auto = true;
-      const other = picked(s.seat === 'p1' ? 'p2' : 'p1');
-      if (other && p.hero_offer && p.hero_offer[p.hero_index] === other) {
-        const k = p.hero_offer.findIndex((h) => h !== other);
-        if (k >= 0) p.hero_index = k;
-      }
-      this.rh.touchPriv(s.seat);
-    }
+    if (this.m.phase !== 'hero_select') return;
     super.maybeStart();
-    if (this.r.seated_at == null) this.askSeat();
+    if (this.m.phase !== 'hero_select' && this.r.seated_at == null) this.askSeat();
   }
 
   private askSeat(): void {
@@ -647,15 +631,6 @@ export function fitFinishRow(row: Record<string, unknown>, budget = RANKED_FINIS
 /** A queued `ranked_finish` row made wire-safe at write time (a job queued by an older build still lands). */
 export function rankedFinishWire(row: Record<string, unknown>): Record<string, unknown> {
   return Array.isArray(row.seats) ? { ...row, seats: (row.seats as Record<string, unknown>[]).map(wireSeat) } : row;
-}
-
-function seededPick(seed: number, label: string, n: number): number {
-  let h = 0x811c9dc5;
-  for (const ch of `${seed}:${label}`) {
-    h ^= ch.charCodeAt(0);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0) % n;
 }
 
 /** A new Ranked Duos state: the group match (2 live seats, team a) + the four teams; recorded teams are seated later. */

@@ -12532,4 +12532,35 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann right-clicks a shop minion: its Inspect view opens. She holds right-click on it instead: after a beat the ping fan opens, and letting go leaves the fan up with no Inspect behind it.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/rightHold.test.tsx', 'packages/ui/src/pings/pings.test.tsx', 'packages/ui/src/pings/pingSpots.test.tsx'], lastVerifiedAt: '2026-10-31' },
   },
+  {
+    id: 'R-VERSUS-UNIQUE-HEROES-01',
+    title: 'Every hero in a game is unique, in every mode: Versus rooms deal disjoint hero offers and refuse a held hero',
+    statement:
+      'No two players or seats in one game ever play the same hero, in any mode. LOBBY (ranked, casual, Practice with players) and '
+      + 'Practice bots: unchanged since 2026-09-13, all eight seats wear different heroes, the player\x27s included: a recorded run on a held '
+      + 'hero is passed over for the next run in the shuffle (then the band widens step by step, then generated seats on fresh heroes). '
+      + 'RANKED DUOS: the recorded teams avoid both live heroes and each other (all eight unique). VERSUS (1v1, Group, Duos, Ranked Duos '
+      + 'party): the ROOM deals every seat\x27s three heroes when the match is created, so no hero is ever offered to two players. Each seat '
+      + 'keeps its own seeded order of the heroes its run\x27s tribes allow (the one `versusHeroOffer` drew from); slot by slot the seats take '
+      + 'turns, the first seat rotating each slot, and each takes the next hero nobody was dealt. A seat alone is dealt exactly the old '
+      + 'three. The deal is a pure function of the seats\x27 stored hero and run seeds. The server refuses a pick of a hero another player '
+      + 'holds (hero_taken), a re-roll never lands on a hero another player was dealt, and a clock pick takes its seeded hero unless it is '
+      + 'held, then the first free one. Snapshot serving is unchanged: recordings are served exactly as recorded.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-31', quote: 'build unique heroes per lobby rule' },
+      { kind: 'code', ref: 'packages/sim/src/versus/heroOffers.ts (versusDisjointHeroOffers, versusRerollCandidatesFree, uniqueAutoHeroIndex); workers/versus/src/core/roomCore.ts (createMatch deal, pickHero, rerollHero, maybeStart); workers/versus/src/core/groupMatch.ts (newGroupState deal, pickHero, reroll, maybeStart; RankedEngine inherits it); packages/sim/src/lobby/runLobby.ts (createRunLobby, unchanged); packages/sim/src/versus/rankedDuosSeating.ts (unchanged)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-31 (feat/unique-heroes-per-lobby) once the Worker ships with the next pack. Before, each Versus client drew its '
+      + 'own three from its private seed and registered them, so two players could be offered (and, outside a Duos team, pick) the same '
+      + 'hero. Matches created before the deploy keep their registered offers; the pick refusal and the unique clock pick still hold for them. '
+      + 'The lobby and Ranked Duos seating already conformed. Pool check 2026-10-31 (433 eligible set2 runs, 51 heroes, 1000 lobbies a band): '
+      + 'about half the lobbies pass over one same-hero run, and the rule never forced an extra band widening or a generated seat.',
+    example: 'Ann, Bob and Cat open a Group room. Ann is offered Warden, Myra and Risen; Bob and Cat are offered six other heroes, none of '
+      + 'those three. Bob re-rolls a slot: he never gets Warden. In a ranked lobby Ann picks Myra: none of her seven opponents is on Myra, '
+      + 'and if the next recorded run in the draw is a Myra run it is skipped for the one after it.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusHeroOffers.test.ts', 'workers/versus/test/uniqueHeroes.test.ts', 'packages/sim/src/lobby/strengthBands.test.ts', 'packages/sim/src/lobby/seatRotation.test.ts', 'packages/sim/src/versus/rankedDuos.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
 ];

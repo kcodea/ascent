@@ -175,6 +175,11 @@ html:root .lobbyrail.lrv-docked .lrv-rank {
 html:root .lobbyrail.lrv-docked .lobbyseat.you .lrv-rank { color: #fff; }
 html:root .lobbyrail.lrv-docked .lobbyseat.foe .lrv-rank { color: color-mix(in srgb, var(--ui-heart) 35%, #fff); }
 html:root .lobbyrail.lrv-docked .lobbyseat.dead .lrv-rank { color: var(--ui-muted); }
+/* THE PODIUM (owner 2026-10-31: "lets have first hued gold, second silver and third bronze"): places 1-3 tint the number and
+   the box's rim, over the per-state colours above. Static. */
+html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="1"] { color: #ffd45e; border-color: #f2c14e; }
+html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="2"] { color: #e3e9f1; border-color: #b9c3cf; }
+html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="3"] { color: #e8a065; border-color: #b8743f; }
 /* The foe's art keeps its brightness lift on top of the tuner's. */
 html:root .lobbyrail.lrv-docked .lobbyseat.foe:not(.dead) .lrv-tileart > .lobbyface { filter: brightness(calc(var(--lr2-art-bright, 1) * 1.12)) saturate(1.1); }
 /* THE NAME, over the faded side, clear of the bar. */

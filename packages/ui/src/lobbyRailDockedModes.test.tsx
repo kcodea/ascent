@@ -116,6 +116,8 @@ describe('the Docked rail in every mode', () => {
       // Your slice: the teal edge and YOU under your hero's name (owner 2026-10-31).
       expect(c.querySelector('.lobbyseat.you .lrv-you')?.textContent).toBe('You');
       expect(c.querySelectorAll('.lrv-you')).toHaveLength(1);
+      // The placement box carries its place, so places 1-3 take the podium colours (owner 2026-10-31).
+      expect([...c.querySelectorAll('.lrv-rank')].map((e) => e.getAttribute('data-place')).sort()).toEqual(['1', '2']);
       act(() => { setSliceLabel('none'); });
       // No label on any slice, but your own still says YOU (owner 2026-10-31).
       expect(c.querySelectorAll('.lrv-name-t')).toHaveLength(0);

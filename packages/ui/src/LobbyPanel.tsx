@@ -692,7 +692,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                   </span>
                   {dp && <SliceEdge p={dp} />}
                   {/* The placement, its own small navy box floating just right of the slice (owner 2026-10-31). */}
-                  <span className="lrv-rank" aria-label={`Place ${rankOf.get(seat.id)}`}>{rankOf.get(seat.id)}</span>
+                  <span className="lrv-rank" data-place={rankOf.get(seat.id)} aria-label={`Place ${rankOf.get(seat.id)}`}>{rankOf.get(seat.id)}</span>
                   {dp && !dp.dead && isFoe && <SliceEdge p={dp} ring />}
                   {/* The target (owner 2026-10-31: "the current target needs to be way more obvious"): the crossed swords
                       the rail has always used for the next foe, on the slice's top-right corner. */}

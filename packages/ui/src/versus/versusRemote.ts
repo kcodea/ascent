@@ -656,16 +656,37 @@ export interface DuosTeamOfRow { teamId: string; name: string | null; partner: D
  * The game's adapter: the Versus Worker, and nothing else (owner 2026-10-29: "why are we using supabase for versus instead
  * of cloudflare? stop doing that"; R-VERSUS-CF-ONLY-01). The Worker is the one the pack baked in (`VITE_VERSUS_CF_URL`,
  * set by `npm run release:web`) when it is this build's own engine, else the deployed Worker named after this build's
- * engine; a dev build talks to `npm run versus:cf:dev` (or the Worker a dev tab picked with `?versusCfUrl=` /
- * `?versusHost=cf-live`). A Worker that cannot be reached is an error the screens show with Try again, never a room on
- * another backend.
+ * engine. A dev build does the same: the DEPLOYED Worker of its own engine, as a pack (R-VERSUS-DEV-DEPLOYED-01, owner
+ * 2026-10-31: Versus "Create room" and Ranked Duos on the dev server both showed "Connection problem. Try again."; a dev
+ * build with no pick used to target local `wrangler dev`, which nothing served). Only a dev tab that PICKED a Worker
+ * (`?versusHost=cf` for `npm run versus:cf:dev`, `?versusCfUrl=`, `?versusHost=cf-live`) talks to that one, and only
+ * there is the dev-identity token used (a deployed Worker refuses it; a signed-in tab sends its real Supabase token).
+ * A Worker that cannot be reached is an error the screens show with Try again, never a room on another backend.
  */
 const devCf = versusCfSelected();
-const cfUrl: string = devCf ? versusCfDevUrl() : embeddedCfUrl(import.meta.env.VITE_VERSUS_CF_URL) ?? (import.meta.env.DEV ? versusCfDevUrl() : versusCfLiveUrl());
+const cfUrl: string = devCf ? versusCfDevUrl() : embeddedCfUrl(import.meta.env.VITE_VERSUS_CF_URL) ?? versusCfLiveUrl();
+
+/**
+ * R-VERSUS-DEV-DEPLOYED-01: a dev build ahead of the last pack has no deployed Worker for its engine. When a call fails
+ * without the Worker answering, its `/health` is probed (a success is remembered, so a reachable Worker is probed once)
+ * and a missing Worker says so plainly instead of "Connection problem".
+ */
+let workerSeen = false;
+export async function devWorkerMissing(url: string = cfUrl, f: typeof fetch = fetch): Promise<string | null> {
+  if (workerSeen) return null;
+  try {
+    const res = await f(`${url.replace(/\/$/, '')}/health`);
+    if (res.ok) { workerSeen = true; return null; }
+  } catch { /* no answer at all: a workers.dev name with no Worker behind it answers without CORS */ }
+  return 'server_not_deployed';
+}
+/** For the tests. */
+export function resetDevWorkerProbeForTests(): void { workerSeen = false; }
 
 export const versusRemote: VersusRemote = makeCfVersusRemote({
   baseUrl: cfUrl, getClient: supabaseClient, currentUserId, makeError: (code, message) => new VersusError(code, message),
-  adoptDevIdentity: devCf || import.meta.env.DEV ? (userId) => setIdentity({ userId, displayName: 'Dev', anonymous: true, email: null }) : undefined,
+  adoptDevIdentity: devCf ? (userId) => setIdentity({ userId, displayName: 'Dev', anonymous: true, email: null }) : undefined,
+  whyUnreachable: import.meta.env.DEV && !devCf ? () => devWorkerMissing() : undefined,
   // The Supabase-held records (a Duos team's name and ranked result, the leaderboard) are read where they live.
   records: makeVersusRecords(supabaseClient),
 });
@@ -679,7 +700,9 @@ export const versusRoomRef = (room: Pick<VersusRoom, 'id'>): string => encodeRoo
  * Worker (the server switch is no longer read, R-VERSUS-CF-ONLY-01).
  */
 export function lobbyLivePublishUrl(): string {
-  return cfUrl;
+  // A dev build with no Worker pick does not list its games on the deployed Worker (R-VERSUS-DEV-DEPLOYED-01 moved only
+  // its Versus rooms there): its Live Games publish still targets local `wrangler dev`, as before.
+  return devCf || !import.meta.env.DEV ? cfUrl : versusCfDevUrl();
 }
 
 /**

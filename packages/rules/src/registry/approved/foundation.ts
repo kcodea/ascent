@@ -12335,4 +12335,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann sends Bob a friend request: Bob\x27s Requests count goes up the moment it is stored, with no poll. Ann invites Bob to her room: his invite notice shows at once. Ann leaves her game on the menu for an hour: her client makes no Supabase call; her hub writes her presence row about 24 times.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.test.tsx', 'packages/ui/src/friends/friendsBeatBudget.test.ts', 'packages/ui/src/friends/dm/dm.test.tsx', 'workers/versus/test/presenceMirror.test.ts', 'workers/versus/test/it/liveDir.it.ts', 'packages/ui/src/friends/liveDirectorySql.db.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
+  {
+    id: 'R-VERSUS-DEV-DEPLOYED-01',
+    title: 'A dev build plays Versus on the deployed Worker of its engine, with the real sign-in, and says when that Worker is missing',
+    statement:
+      'A dev build (`npm run dev`) that did not pick a Worker plays every Versus mode (1v1, Group, Versus Duos, Ranked Duos '
+      + 'party and lobby) on the DEPLOYED Worker named after its own content revision (`versusCfLiveUrl()`), exactly as a '
+      + 'pack does. Only a dev tab that picked a Worker (`?versusHost=cf` for local `wrangler dev`, `?versusCfUrl=`, '
+      + '`?versusHost=cf-live`) talks to that pick, and only then may the dev-identity token stand in for a sign-in; '
+      + 'otherwise the player\'s real Supabase access token is sent. When a call fails without the Worker answering, the '
+      + 'dev build probes `/health` (a success is remembered): no answer shows "This build\'s game server isn\'t deployed '
+      + 'yet. Run the pack or select a local server." instead of "Connection problem. Try again." A dev build\'s own Live '
+      + 'Games publish is unchanged (local unless a Worker was picked).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-31 (dev server on 5173, Versus Create room and Ranked Duos)', quote: 'Connection problem. Try again.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusRemote.ts (cfUrl, devWorkerMissing, lobbyLivePublishUrl), packages/ui/src/versus/versusCfRemote.ts (whyUnreachable)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-31 (fix/dev-versus-uses-deployed-worker). Before, a dev build with no pick targeted local '
+      + '`wrangler dev` (127.0.0.1:8787), which nothing served, so every Versus room failed as "Connection problem. Try '
+      + 'again." and a `wrangler tail` of the deployed Worker saw no request at all.',
+    example: 'Kev runs the dev server and presses Create room. Before, it said "Connection problem. Try again." Now the room opens on the live Worker for that engine, signed in as him. If his branch is ahead of the last pack, it says the game server is not deployed yet.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusCfOnly.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
 ];

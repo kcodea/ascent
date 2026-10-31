@@ -200,6 +200,8 @@ const ERROR_TEXT: Record<string, string> = {
   no_room: 'That room is gone.',
   network: 'Connection problem. Try again.',
   not_deployed: 'Versus is not open on the server yet.',
+  // R-VERSUS-DEV-DEPLOYED-01 (dev builds only): this build's engine has no deployed Worker yet.
+  server_not_deployed: "This build's game server isn't deployed yet. Run the pack or select a local server.",
   // RANKED DUOS (phase 3)
   friends_only: 'That party is for the host\'s friends.',
   hero_taken: 'Your teammate picked that hero.',

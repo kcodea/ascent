@@ -100,6 +100,9 @@ export interface CfRemoteDeps {
   adoptDevIdentity?: (userId: string) => void;
   /** The Supabase-held records (the Duos leaderboard, team names, a ranked result, the dev bot flag): not room state. */
   records?: VersusRecords;
+  /** DEV ONLY (R-VERSUS-DEV-DEPLOYED-01): a call that failed without the Worker answering asks this why; a code (the
+   *  build's Worker is not deployed) replaces the plain `network` failure. */
+  whyUnreachable?: () => Promise<string | null>;
 }
 
 /** A throwaway account id for this TAB (each headless test player is its own tab). */
@@ -136,7 +139,10 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
   const committedOf = (m: { phase: string; round: number }): number => (m.phase === 'combat' || m.phase === 'complete' ? m.round : m.round - 1);
   const listeners = new Set<{ onChange: (what: Change, row?: Record<string, unknown>) => void; onBroadcast?: (event: string, payload: unknown) => void }>();
 
-  const err = (e: unknown): never => {
+  const err = async (e: unknown): Promise<never> => {
+    if (e instanceof VersusCfError && !/^(timeout|closed|http_404)$/.test(e.code)) throw deps.makeError(e.code);
+    const why = deps.whyUnreachable ? await deps.whyUnreachable().catch(() => null) : null;
+    if (why) throw deps.makeError(why);
     if (e instanceof VersusCfError) throw deps.makeError(e.code);
     throw deps.makeError('network', (e as Error)?.message);
   };

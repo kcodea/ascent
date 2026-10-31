@@ -59,6 +59,7 @@ import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCard
 import { UnitEditor } from './UnitEditor';
 import { Card, type CardView } from './Card';
 import { equipmentBranchArtFor } from './art';
+import { SharpImg } from './SharpImg';
 import { MinionSkins, heroPortrait, opponentSkins, seatCosmetics, useCombatFoeSkins, useOpponentSkins } from './skins/skins';
 import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
@@ -8632,7 +8633,7 @@ export function Recruit() {
                   ? gFace.art
                     ? <img decoding="sync" className="wipevs-face wipevs-cardart" src={gFace.art} alt="" draggable={false} />
                     : <span className="wipevs-face wipevs-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
-                  : <img decoding="sync" className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />;
+                  : <SharpImg className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />;
                 // The foe's recorded portrait frame (through "Show opponent cosmetics", owner 2026-10-01) wins; else
                 // the tuner's opponent ring (`foeFrame` also keeps this subscribed to tuner writes). With a frame on,
                 // the face sits in a disc-sized host that carries the ring; without one the markup is unchanged.

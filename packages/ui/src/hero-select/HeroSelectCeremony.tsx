@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type MutableRefObject } from 'react';
 import { getHero, heroTip, SHOW_HERO_TIPS } from '@game/sim';
 import { heroPortrait, useLiveLoadout } from '../skins/skins';
+import { useSharpArt } from '../fullResArt';
 import { Icon } from '../Icon';
 import { sfx } from '../sfx';
 import {
@@ -105,7 +106,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
   const source = state.sourceRect!;
   const hero = getHero(heroId);
   const loadout = useLiveLoadout();
-  const art = heroPortrait(heroId, loadout);
+  // R-PHONE-HERO-SHARP-01: the ceremony draws the champion ~630 device px on a phone: the 512 px master once decoded.
+  const art = useSharpArt(heroPortrait(heroId, loadout));
   // The portrait-frames tuner's ring swaps the heroportrait ring the champion snaps into (null = today's ring).
   const frame = usePortraitFrame('self');
   const tip = heroTip(heroId);

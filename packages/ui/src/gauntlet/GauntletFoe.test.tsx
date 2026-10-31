@@ -163,7 +163,8 @@ describe('Now Facing in a Gauntlet (Recruit source pin — the wipe is too deep 
     expect(block).toMatch(/foePortrait\(run\.gauntletStage/);
     expect(block).toMatch(/<img decoding="sync" className="wipevs-face wipevs-cardart" src=\{gFace\.art\}/);
     expect(block).toMatch(/<span className="wipevs-face wipevs-emblem"><Icon name=\{tribe \? TRIBE_ICON\[tribe\]/);
-    expect(block).toMatch(/:\s*<img decoding="sync" className="wipevs-face" src=\{heroPortrait\(foe\.seat\.heroId/);
+    // The lobby face is a SharpImg (R-PHONE-HERO-SHARP-01: the 512 px master on a phone).
+    expect(block).toMatch(/:\s*<SharpImg className="wipevs-face" src=\{heroPortrait\(foe\.seat\.heroId/);
   });
 });
 

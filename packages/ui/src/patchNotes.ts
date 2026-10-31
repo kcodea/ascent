@@ -58,7 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-31',
     changes: [
-      { category: 'Systems', text: 'New painted icons for Play, Career, Collection, Leaderboard, Recent Games and Live Games in the menus.' },
+      { category: 'Systems', text: 'New painted icons across the menus, with a soft glow when you hover them.', details: [
+        'Play, Career, Collection, Leaderboard, Recent Games, Live Games, Patch Notes and Settings, in the side menu and on the title screen.',
+        'The same icons head each of those pages.',
+        'The Friends button and the Compendium Glossary tab have their own new icons.',
+      ] },
       { category: 'Systems', text: 'Fixed the cursor after viewing your teammate.' },
       { category: 'Systems', text: 'Hero art is sharper on phones.', details: [
         "Hero select, the hero pick, your portrait and the foe's portrait in combat now use the full size art.",

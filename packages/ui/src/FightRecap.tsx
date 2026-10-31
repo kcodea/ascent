@@ -6,6 +6,7 @@ import { heroPortrait, opponentSkins, seatCosmetics, useMinionSkinMap } from './
 import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { useGame } from './store';
 import { Icon } from './Icon';
+import { ReplayEye } from './menuIcons';
 import { combatGainItems, oddsRecap, type GainItem } from './fightRecapData';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
@@ -228,7 +229,7 @@ export const FightRecap = memo(function FightRecap({ result, combatOdds, lastCom
         <footer className="fr-foot">
           {onWatchReplay && (
             <button className="fr-btn ghost" onClick={onWatchReplay}>
-              <Icon name="eye" />
+              <ReplayEye />
               Watch replay
             </button>
           )}

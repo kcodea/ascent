@@ -6892,6 +6892,11 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .crest { width: 1em; height: 1em; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 /* The painted menu medallions (menuIcons.tsx MenuMedal): crest-sized, so they pick up each .mbicon size rule. */
 .menumedal { display: block; width: 1em; height: 1em; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
+/* The painted 1st-place crown (GildedCrown) takes the box its container gave the flat crown it replaced; the
+   Replay button's Watcher eye (ReplayEye) sits inline with the label, a touch larger than the text, without
+   growing the button (negative block margins). Owner 2026-10-31. */
+.gildedcrown { display: block; flex: none; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
+.replayeye { display: inline-block; width: 1.7em; height: 1.7em; object-fit: contain; vertical-align: middle; margin: -0.5em 0.3em -0.5em -0.25em; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 /* A warm glow under the medallion on hover (owner 2026-10-31). A STATIC radial gradient on .mbicon::before, faded in
    by opacity + transform only (compositor-only, no repaint). `isolation` keeps the z-index:-1 glow inside the icon
    box, under the medallion but above the plaque face. */
@@ -8982,7 +8987,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-tiles { display: flex; flex-direction: column; gap: 10px; align-self: stretch; margin-top: 16px; }
 .cv2-stat { display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(196, 160, 92, 0.3); text-align: left; }
 .cv2-stat-ico { grid-row: 1 / span 2; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: rgba(196, 160, 92, 0.16); color: #f0c977; }
-.cv2-stat-ico svg { width: 22px; height: 22px; }
+.cv2-stat-ico svg, .cv2-stat-ico .gildedcrown { width: 22px; height: 22px; }
 .cv2-stat-v { font-family: var(--font-ui); font-weight: 900; font-size: 26px; line-height: 1.05; color: #fff; font-variant-numeric: tabular-nums; }
 .cv2-stat-l { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.62); margin-top: 2px; }
 
@@ -14298,7 +14303,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc .gc-place.top4 { color: #7fe8ac; }
 .gc .gc-place.lost { color: #ff9a9a; }
 .gc .gc-place.none { color: rgba(255, 255, 255, 0.4); }
-.gc-crown svg { width: 26px; height: 26px; color: #ffd76a; display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)); }
+.gc-crown svg, .gc-crown .gildedcrown { width: 26px; height: 26px; color: #ffd76a; display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)); }
 .gc-hero { grid-area: hero; display: flex; align-items: center; gap: 12px; min-width: 0; }
 .gc-hero .lb-heroframe .hero { width: 64px; height: 64px; padding: 3px; }
 .gc-heroid { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -14686,7 +14691,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gs-item.on { border-color: rgba(255, 217, 138, 0.85); background: linear-gradient(90deg, color-mix(in srgb, var(--band) 24%, transparent), rgba(22, 34, 58, 0.96) 150px); }
 .gs-place { display: flex; align-items: center; gap: 3px; font-family: var(--font-ui); font-weight: 900; font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; }
 .gs-place.won { color: #ffd76a; } .gs-place.top4 { color: #7fe8ac; } .gs-place.lost { color: #ff9a9a; } .gs-place.none { color: rgba(255, 255, 255, 0.4); }
-.gs-crown svg { width: 15px; height: 15px; display: block; }
+.gs-crown svg, .gs-crown .gildedcrown { width: 15px; height: 15px; display: block; }
 .gs-portrait { display: grid; place-items: center; }
 .gs-portrait .lb-heroframe .hero { width: 48px; height: 48px; padding: 2px; }
 .gs-portrait .cv2-heroframe, .gs-portrait .cv2-heroframe.small { --ring: 48px; }

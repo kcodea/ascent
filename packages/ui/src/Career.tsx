@@ -15,6 +15,7 @@ import { RuneEmblem } from './RuneEmblem';
 import { heroPortrait, opponentSkins } from './skins/skins';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
+import { GildedCrown, ReplayEye } from './menuIcons';
 import { HeroPortraitRing } from './portraitFrame/HeroPortraitRing';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { recordText } from './leaderboardData';
@@ -156,7 +157,7 @@ function FinalTeam({ board }: { board: BoardSnapshot }) {
 function StatTile({ label, value, icon }: { label: string; value: string; icon?: string }) {
   return (
     <div className="cv2-stat">
-      {icon && <span className="cv2-stat-ico"><Icon name={icon} /></span>}
+      {icon && <span className="cv2-stat-ico">{icon === 'crown' ? <GildedCrown /> : <Icon name={icon} />}</span>}
       <span className="cv2-stat-v">{value}</span>
       <span className="cv2-stat-l">{label}</span>
     </div>
@@ -241,7 +242,7 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
           onClick={() => onWatch(run)}
           aria-label={watchable ? 'Watch this run’s replay' : 'No replay stored for this run'}
         >
-          <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
+          <ReplayEye />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
         </button>
       </>}
       meta={<div className="cv2-row-meta">
@@ -320,7 +321,7 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
             onClick={onWatch}
             aria-label="Watch this practice game’s replay"
           >
-            <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
+            <ReplayEye />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
           </button>
         )}
       </>}

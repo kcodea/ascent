@@ -12,7 +12,7 @@
  * Up / Down move the selection while the list has focus. The host owns the data and the detail node; this is layout.
  */
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
-import { Icon } from './Icon';
+import { GildedCrown } from './menuIcons';
 import { bandOf, placeText, type GameBand } from './GameCard';
 import { GameRank } from './gameRank';
 
@@ -72,7 +72,7 @@ export function GameSplit({ items, selected, onPick, detail, label, className = 
               onClick={() => { if (!on) onPick(it.key); }}
             >
               <span className={`gs-place ${band}`}>
-                {band === 'won' && <span className="gs-crown" aria-hidden><Icon name="crown" /></span>}
+                {band === 'won' && <span className="gs-crown" aria-hidden><GildedCrown /></span>}
                 {placeText(it.place)}
               </span>
               <span className="gs-portrait">{it.portrait}</span>

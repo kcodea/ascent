@@ -9,11 +9,29 @@
  * crest (1em, so each surface's existing `.mbicon .crest` font-size rules size them too, via `.menumedal`).
  * They don't take `currentColor`, so hover/active tint changes leave them as painted.
  */
-export type MenuMedalName = 'play' | 'career' | 'collection' | 'leaderboard' | 'recent' | 'live' | 'settings' | 'glossary' | 'patchnotes' | 'friends';
-export const MenuMedal = ({ name }: { name: MenuMedalName }) => (
+export type MenuMedalName = 'play' | 'career' | 'collection' | 'leaderboard' | 'recent' | 'live' | 'settings' | 'glossary' | 'patchnotes' | 'friends' | 'watcher';
+export const MenuMedal = ({ name, className = 'menumedal' }: { name: MenuMedalName; className?: string }) => (
   <img
-    className="menumedal"
+    className={className}
     src={`${import.meta.env.BASE_URL}menu/${name}.webp`}
+    alt=""
+    aria-hidden="true"
+    draggable={false}
+    decoding="sync"
+  />
+);
+
+/** The Replay button's eye: the painted Watcher medallion, inline with the button's label (owner 2026-10-31). */
+export const ReplayEye = () => <MenuMedal name="watcher" className="replayeye" />;
+
+/**
+ * The 1st-place crown: the painted gilded crown (the Compendium Gilded toggle's art, `frames/gilded.webp`), on every
+ * "won the lobby" mark (owner 2026-10-31). Sized by its container like the flat icon it replaced.
+ */
+export const GildedCrown = () => (
+  <img
+    className="gildedcrown"
+    src={`${import.meta.env.BASE_URL}frames/gilded.webp`}
     alt=""
     aria-hidden="true"
     draggable={false}

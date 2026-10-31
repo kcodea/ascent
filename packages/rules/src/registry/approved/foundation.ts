@@ -9090,22 +9090,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx', 'packages/ui/src/versus/duosPassesRestore.test.ts', 'packages/ui/src/versus/duosPassRelease.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
-    id: 'R-DUOS-PASS-NO-GOLDEN-01',
-    title: 'Versus Duos passing: a Golden minion can never be passed',
+    id: 'R-DUOS-PASS-GOLDEN-MANUAL-01',
+    title: 'Versus Duos passing: a Golden minion can be passed from hand, but a pass spell can never target one',
     statement:
-      'In Versus Duos a Golden minion in hand cannot be passed to the teammate. Dragged over the teammate portrait it shows the red ring '
-      + 'and "Golden minions cannot be passed", and a release there refuses it: the card stays, no Gold is spent. The run refuses the '
-      + 'pass (duosPassBlocked returns golden) and the server refuses any pass whose card is golden (code golden), so a client cannot '
-      + 'get around it. Non-golden cards pass as before (R-DUOS-PASS-01).',
+      'In Versus Duos a Golden minion in hand CAN be passed to the teammate with the manual pass (drag it onto the teammate portrait): '
+      + 'it costs 1 Gold like any card (free with Brian\x27s Pal or Playing Catch) and lands Golden in the teammate\x27s hand. An effect that '
+      + 'TARGETS a minion to pass it (Handout, CueBee\x27s Pass) can never target a Golden minion, on the board or in the Shop: a Golden '
+      + 'minion gets no target glow, a release on it snaps the spell back to hand unspent, the run refuses the cast (targetNoGolden), and '
+      + 'the server refuses any spell pass whose card is golden (code golden). Untargeted effect passes keep their own rules: Salesman of '
+      + 'the Year still passes a Golden sold minion; Matchmaker\x27s Discover pick and the Monstrocity / Disco gifts are unchanged. '
+      + 'Supersedes R-DUOS-PASS-NO-GOLDEN-01 (2026-10-30, "Golden minions CANNOT be passed").',
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: 'Duos note -> Golden minions CANNOT be passed.' },
-      { kind: 'code', ref: 'fix/duos-no-golden-pass: packages/sim/src/duosPass.ts (duosPassBlocked golden); packages/ui/src/versus/duosPassUi.ts (golden reason text); packages/ui/src/versus/duosPasses.ts + versusBotDriver.ts (golden is a refusal); workers/versus/src/core/groupMatch.ts (pass: golden)' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31 (revises the 2026-10-30 "Golden minions CANNOT be passed")', quote: 'Duos rule clarification- gilded minions can be passed from hand but not targeted by spells that pass' },
+      { kind: 'code', ref: 'fix/duos-golden-manual-pass: packages/sim/src/duosPass.ts (duosPassBlocked no longer refuses golden); workers/versus/src/core/groupMatch.ts (pass: golden only for passFrom spell); packages/ui/src/sbDuosChannel.ts (the same guard locally); packages/ui/src/Recruit.tsx + dragDecision.ts (castRefuses: no target glow on a Golden minion for a targetNoGolden spell); packages/ui/src/versus/duosPassUi.ts (golden refusal text removed)' },
     ],
-    currentBehaviour: 'Changed 2026-10-30 (fix/duos-no-golden-pass). Before, a Golden minion in hand could be passed like any other card. Passes already recorded keep what they did.',
-    example: 'Ann has a Golden minion in hand and 3 Gold. She drags it over Bob\x27s portrait: a red ring and "Golden minions cannot be passed". She lets go: it springs back to her hand and she still has 3 Gold.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
+    currentBehaviour: 'Changed 2026-10-31 (fix/duos-golden-manual-pass). From 2026-10-30 to 2026-10-31 a Golden minion could not be passed at all (manual drag refused with "Golden minions cannot be passed"). Passes already recorded keep what they did.',
+    example: 'Ann has a Golden minion in hand and 3 Gold. She drags it onto Bob\x27s portrait: it goes to Bob\x27s hand, still Golden, and she has 2 Gold. She then casts Handout: her Golden board minion does not light up as a target, and dropping the spell on it puts Handout back in her hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/duosCardsDiscoverPass.test.ts', 'workers/versus/test/duosCore.test.ts', 'packages/ui/src/sbDuosChannel.test.ts', 'packages/ui/src/dragDecision.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
   {
     id: 'R-DUOS-DEVTUNER-01',

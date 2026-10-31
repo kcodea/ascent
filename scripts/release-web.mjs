@@ -42,7 +42,7 @@
  * A pack cut WITHOUT the flag still uses the live hub on the Netlify origin (R-DM-HUB-URL-01, packages/ui/src/friends/dm/hubUrl.ts).
  */
 import { execFileSync, execSync } from 'node:child_process';
-import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -197,6 +197,9 @@ run('npm run build:web', WT, buildEnv);
 const dist = path.join(WT, 'apps', 'web', 'dist');
 const indexHtml = path.join(dist, 'index.html');
 if (!existsSync(indexHtml)) die('apps/web/dist/index.html was not produced');
+// THE RELEASE RECORD (R-OPS-HEALTH-01): which Versus Worker and hub this pack talks to, next to index.html, so the daily
+// health check (workers/versus/src/health/) checks the Worker the live site actually uses. Tiny, public, no secrets.
+writeFileSync(path.join(dist, 'release.json'), `${JSON.stringify({ sha: short, contentRevision: workerRev, versusWorker: workerUrl, hub: hubUrl, builtAt: new Date().toISOString() })}\n`);
 
 // ── 5. verify the build is this commit, and is internally complete ────────────────────────────────────────
 step('verifying the build');

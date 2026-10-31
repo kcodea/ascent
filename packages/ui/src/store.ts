@@ -115,6 +115,8 @@ import { initIdentity, currentIdentity, currentUserId as currentProgressionUserI
 import { createAccountStartupGate } from './identityGate';
 import { createCloudSave, deviceId, noteLocalClear, noteLocalSave, runKeyOf, type CloudRow, type CloudRowMeta } from './cloudSave';
 import { supabaseCloudSaveApi } from './cloudSaveRemote';
+import { sessionCloudSaveApi } from './session/sessionCloudSave';
+import { setSessionSeatProvider } from './session/seatProvider';
 import { notifyTutorialActions } from './tutorial/actionBus';
 import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
 import { beginCourseFresh } from './tutorial/tutorialProfile';
@@ -1287,13 +1289,16 @@ function cloudUserId(): string | null {
   return id && !id.anonymous ? id.userId : null;
 }
 const cloudSave = createCloudSave({
-  api: supabaseCloudSaveApi(supabaseClient, cloudUserId),
+  // A SESSION game's per-round save goes to its session on the hub (R-SESSION-CF-01); every other call is Supabase's.
+  api: sessionCloudSaveApi(supabaseCloudSaveApi(supabaseClient, cloudUserId)),
   userId: cloudUserId,
   readLocal: () => { try { return localStorage.getItem(SAVE_KEY); } catch { return null; } },
   seatRuns: () => seatRunsFor(useGame.getState().savedRun),
   seatHybrids: () => seatRecordingsFor(useGame.getState().savedRun)?.hybrids,
   onMoved: (current) => onCloudMoved(current),
 });
+// THE GAME SESSION's table pin (R-SESSION-CF-01) sends the same bundle the save carries.
+setSessionSeatProvider((run) => { const r = seatRecordingsFor(run); return r ? { runs: r.runs, hybrids: r.hybrids } : undefined; });
 /** Tests: the live sync service. */
 export const cloudSaveForTests = (): typeof cloudSave => cloudSave;
 /**

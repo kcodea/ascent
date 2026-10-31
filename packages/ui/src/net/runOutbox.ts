@@ -44,6 +44,10 @@ export interface OutboxItem {
   lastError?: string;
   /** Reported to the server's failure log already (once per item). */
   reported?: boolean;
+  /** THE GAME SESSION (R-SESSION-CF-01): the session game this write belongs to. The sender hands it to that session
+   *  first (which flushes it to Supabase with the game's other end writes) and sends it directly only when the session
+   *  cannot take it. Absent = straight to Supabase, as before. */
+  session?: string;
 }
 
 export interface SendError { code?: string; message?: string; status?: number }
@@ -58,7 +62,7 @@ export interface OutboxStore {
 export interface OutboxDeps {
   store: OutboxStore;
   /** Send rows to a table: an upsert ignoring duplicates on `conflict`, or a plain insert without it. */
-  send(table: string, rows: Record<string, unknown>[], conflict: string | undefined): Promise<SendResult>;
+  send(table: string, rows: Record<string, unknown>[], conflict: string | undefined, item?: OutboxItem): Promise<SendResult>;
   /** Server failure log (`report_write_failure`); best-effort, must never throw. */
   report(kind: string, key: string, error: string, detail: Record<string, unknown>): Promise<void>;
   currentUserId(): string | null;
@@ -145,7 +149,7 @@ export function createOutbox(deps: OutboxDeps): Outbox {
         const conflict = item.conflict && !keyless.has(item.table) ? item.conflict : undefined;
         const rows = rowsFor(item, userId);
         let res: SendResult;
-        try { res = await deps.send(item.table, rows, conflict); } catch (e) { res = { error: { message: String(e) } }; }
+        try { res = await deps.send(item.table, rows, conflict, item); } catch (e) { res = { error: { message: String(e) } }; }
         if (!res.error) { await deps.store.remove(item.key); return 'sent'; }
         const v = classify(res.error);
         if (v.kind === 'done') { await deps.store.remove(item.key); return 'sent'; }

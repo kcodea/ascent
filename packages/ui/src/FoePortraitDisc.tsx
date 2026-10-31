@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useSharpArt } from './fullResArt';
 import type { Tribe } from '@game/core';
 import { Icon } from './Icon';
 import { PortraitFrame, pfClass } from './portraitFrame/PortraitFrame';
@@ -31,6 +32,10 @@ export function FoePortraitDisc({
   /** Versus Duos: who this face is. A new key remounts the art so the new player's face fades in (`.duosswap`). */
   artKey?: string;
 }): JSX.Element {
+  // R-PHONE-HERO-SHARP-01: a hero face here is drawn ~300 device px on a phone: the 512 px master once decoded. The
+  // Gauntlet's card art keeps its own copy.
+  const sharp = useSharpArt(gauntlet ? undefined : art);
+  const shown = gauntlet ? art : sharp;
   return (
     <div
       className={`combatopp-portrait${extraClass}${pfClass(frame)}`}
@@ -38,8 +43,8 @@ export function FoePortraitDisc({
       onClick={onClick}
       role={role}
     >
-      {art
-        ? <img key={artKey} decoding="sync" className={`combatopp-img${gauntlet ? ' combatopp-cardart' : ''}${artKey ? ' duosswap' : ''}`} src={art} alt="" draggable={false} />
+      {shown
+        ? <img key={artKey} decoding="sync" className={`combatopp-img${gauntlet ? ' combatopp-cardart' : ''}${artKey ? ' duosswap' : ''}`} src={shown} alt="" draggable={false} />
         : gauntlet
         ? <span className="combatopp-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
         : <Icon name="anvil" />}

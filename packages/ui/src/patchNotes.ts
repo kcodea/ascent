@@ -64,6 +64,18 @@ export const PATCH_NOTES: PatchNote[] = [
         'Holding right-click on your own ping clears it. Clicking the ping still works too.',
         'On a phone nothing changes: tap to inspect, tap and hold to ping.',
       ] },
+      { category: 'Systems', text: 'New painted icons for Play, Career, Collection, Leaderboard, Recent Games and Live Games in the menus.' },
+      { category: 'Systems', text: 'Fixed the cursor after viewing your teammate.' },
+      { category: 'Systems', text: 'Hero art is sharper on phones.', details: [
+        "Hero select, the hero pick, your portrait and the foe's portrait in combat now use the full size art.",
+        'The small faces in the lobby list use a smaller image, so phones use less memory.',
+      ] },
+      { category: 'Systems', text: "Golden minions can now be passed from your hand. Spells that pass a minion still can't target golden ones." },
+      { category: 'Systems', text: 'Match History: right-click a card to see where its stats came from.', details: [
+        'The Buffs list you see in a game now shows on the boards in Match History too.',
+        'The biggest buffs come first. If a card has a lot of them, the smallest are grouped into one "more" line.',
+        'Only games played from now on have it.',
+      ] },
     ],
   },
   {

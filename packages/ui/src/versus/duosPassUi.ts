@@ -14,7 +14,6 @@ const REASON_TEXT: Record<string, string> = {
   hand_full: 'Their hand is full',
   gold: 'You need 1 Gold',
   board: 'Pass from your hand',
-  golden: 'Golden minions cannot be passed',
   phase: 'Passing is closed',
   no_card: 'Passing is closed',
   not_duos: 'Passing is closed',

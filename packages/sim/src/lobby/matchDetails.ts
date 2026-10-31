@@ -1,4 +1,4 @@
-import type { BoardMinion, Keyword, Tribe } from '@game/core';
+import type { BoardMinion, Keyword, MinionBuff, Tribe } from '@game/core';
 import { parseCosmeticSnapshot, type RunCosmeticSnapshot } from '@game/progression';
 import type { BoardSnapshot } from '../snapshot';
 import { driverFor, type LobbySeatState, type RunLobby } from './runLobby';
@@ -28,15 +28,54 @@ import { parseRuneLiveState, runeLiveStateOfSnapshot, type RuneLiveState } from 
 /** Bump only on a BREAKING shape change; `parseMatchDetails` drops anything it cannot read. */
 export const MATCH_DETAILS_VERSION = 1;
 
-/** Hard cap on the serialized record (bytes of JSON). A full 8-seat table measures ~5-9 KB; past this the card
- *  text is dropped first (the card still renders its printed text), then boards are trimmed. */
-export const MATCH_DETAILS_MAX_BYTES = 16_000;
+/** Hard cap on the serialized record (bytes of JSON). A full 8-seat table measures ~5-9 KB without buffs; the capped
+ *  buff breakdown (R-MATCH-BUFFS-01) adds up to ~15 KB more on a late-game table. Past the cap, other seats' buffs go
+ *  first, then the card text (the card still renders its printed text), then your own buffs, then boards are trimmed.
+ *  A client-side budget: `run_history.entry` has no server size check. */
+export const MATCH_DETAILS_MAX_BYTES = 24_000;
 
 /** Longest baked card text kept per minion. Live scaling text is short; anything longer is junk. */
 const TEXT_CAP = 280;
 const BOARD_CAP = 7;
 const SEAT_CAP = 8;
 const RUNE_CAP = 12;
+
+/** Most buff rows a stored card keeps (R-MATCH-BUFFS-01). Past this, the biggest {@link BUFF_ROW_CAP} - 1 rows stay and
+ *  the rest fold into ONE {@link MORE_BUFFS_SOURCE} row, so the panel still adds up to the card's stats. */
+export const BUFF_ROW_CAP = 5;
+/** The `source` of the folded "N more" row on a stored card; its `count` is how many sources it folds. */
+export const MORE_BUFFS_SOURCE = '__more__';
+/** Longest buff source label kept (they are card / rune / hero names). */
+const BUFF_SOURCE_CAP = 48;
+
+/** How big a buff row reads: its total stat swing. Ties keep their recorded order. */
+const buffSize = (b: MinionBuff): number => Math.abs(b.attack) + Math.abs(b.health);
+
+/**
+ * A card's buff breakdown, made small enough to store (R-MATCH-BUFFS-01, owner 2026-10-31): sorted biggest first, so
+ * when the list is cut the player still sees the buffs that matter most, and capped at {@link BUFF_ROW_CAP} rows with
+ * the remainder summed into one "N more" row.
+ */
+export function compactBuffs(buffs: readonly MinionBuff[] | undefined): MinionBuff[] | undefined {
+  if (!buffs || buffs.length === 0) return undefined;
+  const rows = buffs
+    .filter((b) => b && typeof b.source === 'string' && Number.isFinite(b.attack) && Number.isFinite(b.health))
+    .map((b) => ({ source: b.source.slice(0, BUFF_SOURCE_CAP), attack: b.attack, health: b.health, count: Number.isFinite(b.count) ? b.count : 1 }))
+    .map((b, i) => ({ b, i }))
+    .sort((x, y) => buffSize(y.b) - buffSize(x.b) || x.i - y.i)
+    .map((x) => x.b);
+  if (rows.length === 0) return undefined;
+  if (rows.length <= BUFF_ROW_CAP) return rows;
+  const kept = rows.slice(0, BUFF_ROW_CAP - 1);
+  const rest = rows.slice(BUFF_ROW_CAP - 1);
+  kept.push({
+    source: MORE_BUFFS_SOURCE,
+    attack: rest.reduce((n, b) => n + b.attack, 0),
+    health: rest.reduce((n, b) => n + b.health, 0),
+    count: rest.length,
+  });
+  return kept;
+}
 const ID_RE = /^[A-Za-z0-9_.:-]{1,64}$/;
 
 /** One seat's board at the recorded moment: the fields a card needs to render, nothing the engine needs. */
@@ -139,8 +178,9 @@ export function seatBoardRound(seat: Pick<LobbySeatState, 'alive' | 'eliminatedR
   return seat.eliminatedRound !== undefined && seat.eliminatedRound < endRound ? seat.eliminatedRound : endRound;
 }
 
-/** Keep only what a card renders (`storedCardView`), capping text. The inspect breakdown (`buffs`) is dropped. */
-function compactMinion(m: BoardMinion, keepText: boolean): BoardMinion {
+/** Keep only what a card renders (`storedCardView`), capping text, plus the inspect breakdown (`buffs`) sorted and
+ *  capped by {@link compactBuffs} when `keepBuffs` (R-MATCH-BUFFS-01). */
+function compactMinion(m: BoardMinion, keepText: boolean, keepBuffs: boolean): BoardMinion {
   const out: BoardMinion = { cardId: m.cardId, attack: m.attack, health: m.health };
   if (m.golden) out.golden = true;
   if (m.keywords && m.keywords.length) out.keywords = [...m.keywords] as Keyword[];
@@ -151,6 +191,10 @@ function compactMinion(m: BoardMinion, keepText: boolean): BoardMinion {
     if (typeof m.text === 'string' && m.text) out.text = m.text.slice(0, TEXT_CAP);
     if (typeof m.goldenText === 'string' && m.goldenText) out.goldenText = m.goldenText.slice(0, TEXT_CAP);
   }
+  if (keepBuffs) {
+    const buffs = compactBuffs(m.buffs);
+    if (buffs) out.buffs = buffs;
+  }
   return out;
 }
 
@@ -158,8 +202,8 @@ function runesOf(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((id): id is string => typeof id === 'string' && ID_RE.test(id)).slice(0, RUNE_CAP) : [];
 }
 
-function boardOf(minions: readonly BoardMinion[], tier: number, round: number, keepText: boolean, runes?: readonly string[], snap?: Pick<BoardSnapshot, 'wildHuntGrown' | 'questMods'> | null): MatchBoard {
-  const out: MatchBoard = { round, tier, minions: minions.slice(0, BOARD_CAP).map((m) => compactMinion(m, keepText)) };
+function boardOf(minions: readonly BoardMinion[], tier: number, round: number, keepText: boolean, keepBuffs: boolean, runes?: readonly string[], snap?: Pick<BoardSnapshot, 'wildHuntGrown' | 'questMods'> | null): MatchBoard {
+  const out: MatchBoard = { round, tier, minions: minions.slice(0, BOARD_CAP).map((m) => compactMinion(m, keepText, keepBuffs)) };
   const r = runesOf(runes);
   if (r.length) out.runes = r;
   if (r.length && snap) {
@@ -214,7 +258,8 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
   const encounter = lobby.encounters.find((e) => e.round === endRound && e.fought && (e.a === me.id || e.b === me.id));
   const knockedOutBy = eliminated && encounter ? (encounter.a === me.id ? encounter.b : encounter.a) : undefined;
 
-  const build = (keepText: boolean): MatchDetails => {
+  // Which seats keep their buff breakdown: everyone, only you, or nobody (the size ladder below steps down).
+  const build = (keepText: boolean, buffs: 'all' | 'self' | 'none'): MatchDetails => {
     const seats: MatchSeat[] = lobby.seats.slice(0, SEAT_CAP).map((seat) => {
       const isSelf = seat.id === me.id;
       const placement = isSelf ? input.placement : seat.placement;
@@ -237,7 +282,7 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
       if (seat.eliminatedRound !== undefined) out.eliminatedRound = seat.eliminatedRound;
       if (!seat.alive) { out.health = 0; out.armor = 0; }
       if (isSelf) {
-        if (input.selfBoard) out.board = boardOf(input.selfBoard.minions, input.selfBoard.tier, endRound, keepText, input.selfBoard.runes, input.selfBoard);
+        if (input.selfBoard) out.board = boardOf(input.selfBoard.minions, input.selfBoard.tier, endRound, keepText, buffs !== 'none', input.selfBoard.runes, input.selfBoard);
         const c = parseCosmeticSnapshot(input.selfCosmetics);
         if (c) out.cosmetics = c;
         const st = pctOf(input.selfStrength?.value);
@@ -247,7 +292,7 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
       } else {
         const round = seatBoardRound(seat, endRound);
         const b = fieldedBoard(lobby, seat, round);
-        if (b) out.board = boardOf(b.minions, b.tier, round, keepText, b.snapshot?.runes, b.snapshot);
+        if (b) out.board = boardOf(b.minions, b.tier, round, keepText, buffs === 'all', b.snapshot?.runes, b.snapshot);
         const c = parseCosmeticSnapshot(seat.cosmetics ?? b?.snapshot?.cosmetics);
         if (c) out.cosmetics = c;
         // The run's pool strength, frozen here (a recorded seat's boards all carry it, stamped at pool load).
@@ -263,8 +308,11 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
     };
   };
 
-  let details = build(true);
-  if (matchDetailsBytes(details) > MATCH_DETAILS_MAX_BYTES) details = build(false);
+  // Over budget, drop detail in this order: other seats' buffs, then card text, then your own buffs.
+  let details = build(true, 'all');
+  if (matchDetailsBytes(details) > MATCH_DETAILS_MAX_BYTES) details = build(true, 'self');
+  if (matchDetailsBytes(details) > MATCH_DETAILS_MAX_BYTES) details = build(false, 'self');
+  if (matchDetailsBytes(details) > MATCH_DETAILS_MAX_BYTES) details = build(false, 'none');
   // Last resort (never measured in practice): trim boards from the back of the table until it fits.
   for (let i = details.seats.length - 1; i >= 0 && matchDetailsBytes(details) > MATCH_DETAILS_MAX_BYTES; i--) {
     const s = details.seats[i]!;
@@ -300,7 +348,25 @@ function parseMinion(v: unknown): BoardMinion | null {
   if (Array.isArray(o.addedTribes)) m.addedTribes = o.addedTribes.filter((t): t is Tribe => typeof t === 'string');
   if (str(o.text)) m.text = str(o.text)!.slice(0, TEXT_CAP);
   if (str(o.goldenText)) m.goldenText = str(o.goldenText)!.slice(0, TEXT_CAP);
+  const buffs = parseBuffs(o.buffs);
+  if (buffs) m.buffs = buffs;
   return m;
+}
+
+/** A stored buff breakdown read back: well-formed rows only, re-capped (a record from another build is untrusted). */
+function parseBuffs(v: unknown): MinionBuff[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const rows: MinionBuff[] = [];
+  for (const r of v.slice(0, BUFF_ROW_CAP)) {
+    if (!r || typeof r !== 'object') continue;
+    const o = r as Record<string, unknown>;
+    const source = str(o.source);
+    const attack = num(o.attack);
+    const health = num(o.health);
+    if (!source || attack === undefined || health === undefined) continue;
+    rows.push({ source: source.slice(0, BUFF_SOURCE_CAP), attack, health, count: num(o.count) ?? 1 });
+  }
+  return rows.length ? rows : undefined;
 }
 
 function parseBoard(v: unknown): MatchBoard | null {

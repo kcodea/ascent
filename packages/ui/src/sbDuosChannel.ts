@@ -71,7 +71,7 @@ export function sbWorkerRefusal(e: DuosOutboxEntry, to: RunState, ledger: SbLedg
   const wire = duosWireOf(e);
   const team = wire.passFrom === 'team';
   if (!team && wire.passFrom !== 'spell' && wire.passFrom !== 'sale' && sbHandRoom(to) <= 0) return 'hand_full';
-  if (!team && wire.golden === true && wire.passFrom !== 'sale') return 'golden';
+  if (!team && wire.golden === true && wire.passFrom === 'spell') return 'golden'; // R-DUOS-PASS-GOLDEN-MANUAL-01
   const rowKey = `${e.wave}:${team ? 'team' : 'card'}`;
   if ((ledger.rows[from].get(rowKey) ?? 0) >= (team ? SB_TEAM_FX_CAP : VERSUS_DUOS_PASS_CAP)) return 'too_many_passes';
   return null;

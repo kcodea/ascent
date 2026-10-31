@@ -1,7 +1,7 @@
 import type { CardDef } from '@game/core';
 import { CARD_INDEX, poolFor, RUNE_INDEX, SETS, type SetId } from '@game/content';
 import { poolOf, type RunState } from '@game/sim';
-import { ART_URL_GROUPS, artFor } from './art';
+import { ART_URL_GROUPS, artFor, heroThumb } from './art';
 import { ART_ALIAS } from './artAlias';
 import { requestArtList } from './artPreload';
 import { LITE_ART, phonePublicUrl } from './phoneArt';
@@ -36,8 +36,8 @@ const BASE = import.meta.env.BASE_URL;
  * gems, FX sprites, the crate) rides the `set` lane.
  */
 const PUBLIC_CHROME_ORDER: readonly RegExp[] = [
-  // 1. the title + menus
-  /^(?:cursors\/|homescreen\.webp|backdrops\/|frames\/title-logo|fx\/crystal-fuse)/,
+  // 1. the title + menus (incl. the painted menu medallions, menu/)
+  /^(?:cursors\/|homescreen\.webp|backdrops\/|menu\/|frames\/title-logo|fx\/crystal-fuse)/,
   // 2. the shop: board, card frames, tier stars, keyword medallions, the first stat-milestone disc, the shop
   //    buttons (every state they mount with, e.g. the cracked gem sits hidden in the DOM), the opponent rail
   /^(?:playingboard(?:-combat)?\.webp|opponents-backplate\.webp|(?:opp-)?rune-slot-|medallions\/|frames\/(?:rune-|milestone-(?:atk|hp)-1\.|oval-(?!.*gilded)|taunt-(?!.*(?:gilded|shield))|spell-|tier-stars-|tierplate\.|desc-backbox|end_button|freeze_|refresh_button|tavernup_|heropowerbutton))/,
@@ -229,6 +229,9 @@ export function startBackgroundArt(): void {
 function streamLiteRest(gatedSets: ReadonlySet<SetId>, pub: ReturnType<typeof splitPublicArt>): void {
   crumb('art stream start');
   plan('early', vals(ART_URL_GROUPS.hero));
+  // The lobby rail's hero thumbnails (R-PHONE-HERO-SHARP-01): ~4 KB each, so the rail's faces are in the cache when
+  // the first Shop opens.
+  plan('early', vals(ART_URL_GROUPS.hero).flatMap((u) => { const t = heroThumb(u); return t && t !== u ? [t] : []; }));
   plan('early', vals(ART_URL_GROUPS.power));
   plan('early', pub.play);
   const setRest: string[] = [];

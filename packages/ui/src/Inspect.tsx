@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { bareRuneLabel } from '@game/content';
+import { MORE_BUFFS_SOURCE } from '@game/sim';
 import { Card } from './Card';
 import { KeywordDefs } from './KeywordDefs';
 import { resolveMech } from './mechIcon';
@@ -69,9 +70,12 @@ export function Inspect() {
             <div className="ib-title">Buffs</div>
             {inspect.buffs.map((b, i) => (
               <div className="ib-row" key={`${b.source}-${i}`}>
-                <span className="ib-src">{bareRuneLabel(b.source)} <em>×{b.count}</em></span>
+                {/* A stored board (Match History) folds its smallest buffs into one "N more" row (R-MATCH-BUFFS-01). */}
+                {b.source === MORE_BUFFS_SOURCE
+                  ? <span className="ib-src">{b.count} more</span>
+                  : <span className="ib-src">{bareRuneLabel(b.source)} <em>×{b.count}</em></span>}
                 {/* A stat-less row is a granted ability (Seed's Drake Pup Echo, Set 3), not a +0/+0 buff. */}
-                <span className="ib-amt">{b.attack === 0 && b.health === 0 ? 'Echo' : `${signed(b.attack)}/${signed(b.health)}`}</span>
+                <span className="ib-amt">{b.attack === 0 && b.health === 0 && b.source !== MORE_BUFFS_SOURCE ? 'Echo' : `${signed(b.attack)}/${signed(b.health)}`}</span>
               </div>
             ))}
           </div>

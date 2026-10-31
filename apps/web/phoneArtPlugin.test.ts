@@ -42,6 +42,13 @@ describe('planPhoneArt', () => {
     expect(v.pub.map((x) => x.cap)).toEqual([1280]);
   });
 
+  it('hero portraits (and skins) ALSO get a 160 px thumbnail for the lobby rail; nothing else does (R-PHONE-HERO-SHARP-01)', () => {
+    expect(manifest.thumbs).toEqual(['art/heroes/warden.webp']);
+    expect(manifest.thumbDir).toBe('t1');
+    const t = planPhoneArt([{ key: 'art/skins/skin_x_1.webp', width: 512, height: 512 }, { key: 'art/heroes/tiny.webp', width: 120, height: 120 }], [], '');
+    expect(t.thumbs.map((x) => [x.key, x.cap])).toEqual([['art/skins/skin_x_1.webp', 160]]);
+  });
+
   it('the copies live in their own versioned folder', () => {
     expect(manifest.dir).toBe('m1');
   });

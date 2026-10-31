@@ -238,6 +238,12 @@ body { background: #160f08; }
 /* The CANVAS behind everything (R-TOUCH-FILL-01): anything the OS paints outside the page (an iOS safe-area margin
    the viewport did not cover, an overscroll edge) shows the backdrops' own navy, never a black bar. Static paint. */
 html { background: #0a1730; }
+/* THE ROOT CARRIES THE GAME CURSOR TOO (owner bug 2026-10-31, R-CURSOR-ROOT-01). Whenever the pointer lands on the
+   document element itself, the cursor is `html`'s, and `body`'s gauntlet does not reach it (cursor inherits down, not
+   up). A View Transition makes that happen for its whole run: the browser hit-tests the document element while the
+   ::view-transition snapshots cover the page, so the teammate swap showed the OS arrow, and it stayed until the mouse
+   moved. Static (never toggled here). */
+html { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* gauntlet opens over anything grabbable/clickable */
 .card, .btn, button, .climb, .skip, [role="button"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 /* Scroll areas hide the NATIVE scrollbar and scroll by wheel/trackpad. A native scrollbar (even a styled
@@ -6875,6 +6881,8 @@ body:has(.titlescreen) .version { visibility: hidden; }
 
 /* Shared crest gem — used in the logo, rank chip, and the Play button. */
 .crest { width: 1em; height: 1em; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
+/* The painted menu medallions (menuIcons.tsx MenuMedal): crest-sized, so they pick up each .mbicon size rule. */
+.menumedal { display: block; width: 1em; height: 1em; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 
 /* ACCOUNT CORNER (owner ask 2026-09-21) — the player's portrait LARGE in the game's gold portrait ring
    (`.portring`, the same treatment the Career page + rank screen wear), top-right of the title; the NAME plate
@@ -7063,7 +7071,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .menubtn .mbicon, .menubtn .mblabel, .menubtn .mbnote { position: relative; z-index: 1; }
 .menubtn .mbicon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; color: #d9b86a; }
 .menubtn .mbicon svg { width: 26px; height: 26px; }
-.menubtn .mbicon .crest { font-size: 26px; }
+.menubtn .mbicon .crest, .menubtn .mbicon .menumedal { font-size: 26px; }
 .mblabel { font-family: var(--font-ui); font-weight: 800; font-size: 24px; letter-spacing: 0.14em; text-transform: uppercase; }
 /* Continue's run context (hero · round) — small, right-aligned. */
 .mbnote { margin-left: auto; font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.03em; opacity: 0.82; white-space: nowrap; }
@@ -8221,7 +8229,7 @@ html[data-phone-layout]:not([data-phone-menus]) .cornerdev { --cd-cb: var(--pl-c
 .sbbtn > * { position: relative; z-index: 1; }
 .sbbtn .mbicon { display: grid; place-items: center; width: 28px; height: 28px; flex: none; color: #d9b86a; transition: color 0.14s ease; }
 .sbbtn .mbicon svg { width: 22px; height: 22px; }
-.sbbtn .mbicon .crest { font-size: 22px; }
+.sbbtn .mbicon .crest, .sbbtn .mbicon .menumedal { font-size: 22px; }
 .sbbtn .mblabel { font-size: 15px; letter-spacing: 0.08em; line-height: 1.1; white-space: normal; }
 .sbbtn:hover { border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); }
 .sbbtn:hover .mbicon { color: #f2d698; }
@@ -8244,7 +8252,7 @@ html[data-phone-layout]:not([data-phone-menus]) .cornerdev { --cd-cb: var(--pl-c
    the current page, so it wears the blue current-page plaque instead and the picker's own Play keeps the gold. */
 .sbbtn.sb-play { min-height: 64px; margin-bottom: 4px; }
 .sbbtn.sb-play .mblabel { font-size: 20px; letter-spacing: 0.14em; font-weight: 900; }
-.sbbtn.sb-play .mbicon .crest { font-size: 26px; }
+.sbbtn.sb-play .mbicon .crest, .sbbtn.sb-play .mbicon .menumedal { font-size: 26px; }
 .sbbtn.sb-play:not(.active) { background: var(--cta-face); border-color: var(--cta-edge); color: var(--cta-ink);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 0 rgba(120, 70, 10, 0.25), 0 4px 0 var(--cta-depth), 0 9px 18px -9px rgba(0, 0, 0, 0.7); }
 .sbbtn.sb-play:not(.active):hover { border-color: var(--cta-edge); filter: brightness(1.06); }
@@ -14229,7 +14237,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lbscroll > .lb-state svg { width: 46px; height: 46px; padding: 12px; box-sizing: content-box; border-radius: 50%; background: rgba(0, 0, 0, 0.3); box-shadow: inset 0 0 0 1.5px rgba(196, 160, 92, 0.45); }
 .titlenav .menubtn.active { padding: 22px 24px; }
 .titlenav .menubtn.active .mblabel { font-size: 30px; letter-spacing: 0.16em; }
-.titlenav .menubtn.active .mbicon .crest { font-size: 32px; }
+.titlenav .menubtn.active .mbicon .crest, .titlenav .menubtn.active .mbicon .menumedal { font-size: 32px; }
 
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
    THE GAME CARD (GameCard.tsx, 2026-10-16): one card for a finished game, on the Career and on Recent Games.
@@ -14611,7 +14619,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .titlenav .menubtn.active { padding: 24px 28px; }
 .titlenav .menubtn.active .mblabel { font-size: 34px; letter-spacing: 0.16em; }
 .titlenav .menubtn.active .mbicon { width: 42px; height: 42px; }
-.titlenav .menubtn.active .mbicon .crest { font-size: 34px; }
+.titlenav .menubtn.active .mbicon .crest, .titlenav .menubtn.active .mbicon .menumedal { font-size: 34px; }
 /* CONTINUE stacks its round line UNDER the label (owner 2026-10-18, "continue text is cut off"). The row is the
    menu column minus the trash button, so the big label plus a right-aligned note overflowed the plaque and the
    note was clipped by its overflow: hidden. Stacked, the note is small muted ink on the gold and wraps rather

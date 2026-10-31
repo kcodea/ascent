@@ -27,6 +27,10 @@ export interface PhoneArtManifest {
   assets: string[];
   /** Public paths that have a copy, relative to the site root (`frames/oval-beast.webp`). */
   public: string[];
+  /** Bundled art that ALSO has a small THUMBNAIL copy in `thumbDir` (hero portraits for the tiny slots, R-PHONE-HERO-SHARP-01).
+   *  Optional: a build from before thumbnails had none. */
+  thumbDir?: string;
+  thumbs?: string[];
 }
 declare const __PHONE_ART__: PhoneArtManifest | null | undefined;
 
@@ -63,6 +67,21 @@ export function phonePublicCap(rel: string): number | null {
   if (/^collection\/(?:chest_[a-z]+|crate)_(?:body|lid)\.webp$/.test(rel)) return 512;
   return null;
 }
+
+/**
+ * HERO ART PER DISPLAY SLOT ON A PHONE (owner 2026-10-31, R-PHONE-HERO-SHARP-01: "Hero art in mobile is blurry").
+ * Measured on an iPhone (852 x 393 @3x, page scale ~0.37) and a Pixel (915 x 412 @2.625): the hero art is drawn at
+ *   - ~60 device px in the lobby rail (eight at once, the whole run): the 384 px copy was 6.5x more than it needs;
+ *   - ~260-340 in hero select, ~300 for your portrait and the combat foe's, ~335 for the wipe poster's face, and ~630
+ *     for the hero pick ceremony's portrait: the 384 px copy was only 1.1-1.5x that (0.6x in the ceremony), and a
+ *     second resample of an already downscaled, re-encoded copy reads soft.
+ * So the BIG slots load the 512 px master (`useSharpArt`, which keeps the copy on screen until the master has
+ * decoded) and the lobby rail loads a 160 px thumbnail (`heroThumb` in art.ts). Every other slot keeps the 384 copy.
+ * The thumbnails save more decoded memory than the big slots add (see the PR / devlog for the numbers).
+ */
+export const PHONE_THUMB_DIR = `t${PHONE_ART_VERSION}`;
+/** Longest side (px) of the THUMBNAIL copy of bundled art, by folder. Only hero portraits (and their skins) have one. */
+export const PHONE_THUMB_CAPS: Readonly<Record<string, number>> = { heroes: 160, skins: 160 };
 
 // ─── detection ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -131,6 +150,7 @@ export const PIXI_ANTIALIAS: boolean = !LITE_ART;
 const MANIFEST: PhoneArtManifest | null = typeof __PHONE_ART__ !== 'undefined' ? __PHONE_ART__ ?? null : null;
 let assetSet: Set<string> | null = null;
 let publicSet: Set<string> | null = null;
+let thumbSet: Set<string> | null = null;
 
 /** Normalise a glob key (`./art/minions/x.webp`, `../art/frames/y.webp`) to a path under `packages/ui/src/`. */
 export function normaliseArtKey(key: string): string {
@@ -161,6 +181,23 @@ export function phoneAssetUrl(
     if (manifest === MANIFEST) assetSet = set;
   }
   return set.has(normaliseArtKey(globKey)) ? toPhoneAssetUrl(url, manifest.dir) : url;
+}
+
+/** The thumbnail copy's URL for bundled art, or undefined when it has none (desktop, no thumb, a build without them).
+ *  Pure given its inputs; exported (with explicit args) for its test. */
+export function phoneThumbAssetUrl(
+  globKey: string,
+  url: string,
+  lite: boolean = LITE_ART,
+  manifest: PhoneArtManifest | null = MANIFEST,
+): string | undefined {
+  if (!lite || !manifest?.thumbs || !manifest.thumbDir) return undefined;
+  let set = manifest === MANIFEST ? thumbSet : null;
+  if (!set) {
+    set = new Set(manifest.thumbs);
+    if (manifest === MANIFEST) thumbSet = set;
+  }
+  return set.has(normaliseArtKey(globKey)) ? toPhoneAssetUrl(url, manifest.thumbDir) : undefined;
 }
 
 /** The URL to load for a PUBLIC image, `rel` relative to the site root (`frames/oval-beast.webp`). */

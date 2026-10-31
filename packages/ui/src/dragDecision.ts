@@ -59,6 +59,9 @@ export interface DragDecisionInput {
   aimsStarform?: boolean;
   /** See `computeCastingSpell` — a Choose One that will ask before it aims never enters aim mode. */
   asksChoiceFirst?: boolean;
+  /** A target the dragged spell may NOT take (a Golden minion for a `targetNoGolden` spell: Handout, CueBee's Pass,
+   *  R-DUOS-PASS-GOLDEN-TARGET-01). It never becomes the cast target, so it gets no target glow. */
+  castRefuses?: (uid: string) => boolean;
   drag: DragLike | null;
   /** The pointer position to evaluate the decision at (the exact cursor, or the last committed point). */
   x: number;
@@ -191,9 +194,10 @@ export function deriveDragDecision(inp: DragDecisionInput): DragDecision {
   // Casting a targeted spell: the friendly minion (or, for `any`, tavern offer) under the cursor IS the target.
   // A friendly Celestial-aimed spell (Star Crash) may also land on the STARFORM offer — `aimsStarform` is set by
   // the drag start from the same sim gate the reducer reads (`starformSpellAimsToken`).
-  const castTargetUid = castingSpell
+  const castRaw = castingSpell
     ? geo.boardUidAt(x, y) ?? (drag.view.target === 'any' ? geo.shopUidAt(x, y) : inp.aimsStarform ? (geo.starformUidAt?.(x, y) ?? null) : null)
     : null;
+  const castTargetUid = castRaw && inp.castRefuses?.(castRaw) ? null : castRaw;
 
   const overWarband =
     !!drag.active &&

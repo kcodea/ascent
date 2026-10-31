@@ -59,6 +59,7 @@ import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCard
 import { UnitEditor } from './UnitEditor';
 import { Card, type CardView } from './Card';
 import { equipmentBranchArtFor } from './art';
+import { SharpImg } from './SharpImg';
 import { MinionSkins, heroPortrait, opponentSkins, seatCosmetics, useCombatFoeSkins, useOpponentSkins } from './skins/skins';
 import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
@@ -4825,6 +4826,11 @@ export function Recruit() {
     // A Ruby (or ruby-themed spell) cast from hand gets its own aim effect (`ruby-target`); anything else uses the default.
     const castDefId = playsRubyAim(CARD_INDEX[drag.view.cardId]) ? RUBY_AIM_DEF_ID : undefined;
     const aimsStarform = starformSpellAimsToken(CARD_INDEX[drag.view.cardId] ?? {});
+    // A `targetNoGolden` spell (Handout, CueBee's Pass; owner 2026-10-31, R-DUOS-PASS-GOLDEN-TARGET-01: golden minions
+    // are "not targeted by spells that pass") never takes a Golden minion as its target: no target glow, no cast.
+    const goldenUids = CARD_INDEX[drag.view.cardId]?.targetNoGolden
+      ? new Set([...run.board, ...run.shop].filter((c) => c.golden).map((c) => c.uid)) : null;
+    const castRefuses = goldenUids ? (uid: string): boolean => goldenUids.has(uid) : undefined;
     // Move handling has TWO rates, deliberately.
     //
     // rAF-coalescing alone caps re-renders at the REFRESH rate — which is 60/s on a 60Hz panel but 240/s on
@@ -4849,7 +4855,7 @@ export function Recruit() {
       deriveDragDecision({
         drag: d0, x, y, overZone: z, magSlide, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current,
         collapseY: toScreen(getDragFeel().collapseY) /* owner-tuned layout px vs a screen-px lift (stage.ts) */, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
-        asksChoiceFirst: asksFirst, aimsStarform: !!d0 && aimsStarform,
+        asksChoiceFirst: asksFirst, aimsStarform: !!d0 && aimsStarform, castRefuses,
       });
     /** Publish a decision point: the drag at (x, y), the zone, the decision and the cast state — one store write,
      *  so the subscribers see one consistent snapshot — and carry each row's live gap to the next flush so
@@ -8469,7 +8475,8 @@ export function Recruit() {
           if (tTier === undefined || tTier > maxTier) return false; // invalid target → snap back, no cast
         }
         // Displacement: can't trade away a golden (triple). A golden target → snap back WITHOUT consuming the spell.
-        if (CARD_INDEX[d.view.cardId]?.targetNoGolden && run.board.find((c) => c.uid === targetUid)?.golden) return false;
+        // Handout / CueBee's Pass: a Golden minion is no target, on the board or in the Shop (R-DUOS-PASS-GOLDEN-TARGET-01).
+        if (CARD_INDEX[d.view.cardId]?.targetNoGolden && [...run.board, ...run.shop].find((c) => c.uid === targetUid)?.golden) return false;
         if (d.view.cardId === 'devour') {
           // Capture the devoured minion's centre BEFORE the cast removes it, then fling its stats over.
           const el = document.querySelector(`[data-zone="warband"] .row.warband .card[data-uid="${targetUid}"]`);
@@ -8626,7 +8633,7 @@ export function Recruit() {
                   ? gFace.art
                     ? <img decoding="sync" className="wipevs-face wipevs-cardart" src={gFace.art} alt="" draggable={false} />
                     : <span className="wipevs-face wipevs-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
-                  : <img decoding="sync" className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />;
+                  : <SharpImg className="wipevs-face" src={heroPortrait(foe.seat.heroId, opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board)))} alt="" draggable={false} />;
                 // The foe's recorded portrait frame (through "Show opponent cosmetics", owner 2026-10-01) wins; else
                 // the tuner's opponent ring (`foeFrame` also keeps this subscribed to tuner writes). With a frame on,
                 // the face sits in a disc-sized host that carries the ring; without one the markup is unchanged.
@@ -9270,6 +9277,7 @@ export const selectTavernDrag = (s: DragSnapshot) => ({
 export const selectWarbandDrag = (s: DragSnapshot) => ({
   dragActive: s.drag?.active === true, dragUid: s.drag?.uid, dragSource: s.drag?.source,
   viewerDrag: s.drag?.active === true && s.drag.ghost !== true,
+  dragCardId: s.drag?.view.cardId,
   castingSpell: s.castingSpell, castTargetUid: s.decision.castTargetUid, aimTargetUid: s.aimTargetUid,
   gapIndex: s.decision.gapIndex, collapsedLift: s.decision.collapsedLift,
   dropok: s.decision.overWarband || s.decision.wouldMagnetize, magTargetUid: s.magTargetUid,
@@ -9391,7 +9399,7 @@ const TavernRow = memo(function TavernRow({
                 card={shopViews.get(o.uid)!}
                 refCards={refViewsByUid.get(o.uid)}
                 dragging={viewerDrag}
-                highlight={(heroArmed && heroTargetsTavern) || (castingSpell && (dragTarget === 'any' || (!!o.starform && starformSpellAimsToken(CARD_INDEX[dragCardId ?? ''] ?? {}))))}
+                highlight={(heroArmed && heroTargetsTavern) || (castingSpell && !(o.golden && CARD_INDEX[dragCardId ?? '']?.targetNoGolden) && (dragTarget === 'any' || (!!o.starform && starformSpellAimsToken(CARD_INDEX[dragCardId ?? ''] ?? {}))))}
                 targeted={(heroArmed && heroTargetsTavern && aimTargetUid === o.uid) || castTargetUid === o.uid}
                 tripleReady={tripleReadyUids.has(o.uid)}
                 contraband={o.contraband}
@@ -9438,7 +9446,9 @@ const WarbandRow = memo(function WarbandRow({
   electrifyUids: ReadonlySet<string>; karwindFlameUids: ReadonlySet<string>;
   returningFromCombat: boolean; hasPendingTarget: boolean; onCardPointerDown: (e: ReactPointerEvent) => void;
 }) {
-  const { dragActive, viewerDrag, dragUid, dragSource, castingSpell, castTargetUid, aimTargetUid, gapIndex, collapsedLift, dropok, magTargetUid } = useDragSlice(selectWarbandDrag);
+  const { dragActive, viewerDrag, dragUid, dragSource, dragCardId, castingSpell, castTargetUid, aimTargetUid, gapIndex, collapsedLift, dropok, magTargetUid } = useDragSlice(selectWarbandDrag);
+  // A `targetNoGolden` spell (Handout, CueBee's Pass) lights no Golden minion (R-DUOS-PASS-GOLDEN-TARGET-01).
+  const castNoGolden = castingSpell && !!CARD_INDEX[dragCardId ?? '']?.targetNoGolden;
   const draggingBoard = dragActive && dragSource === 'board';
   const isDragging = (uid: string): boolean => dragActive && dragUid === uid;
   // The dragged card STAYS in the row (rendered invisible via `dimmed`) so its slot holds the row width —
@@ -9498,7 +9508,7 @@ const WarbandRow = memo(function WarbandRow({
                     card={boardViews.get(m.uid)!}
                     refCards={refViewsByUid.get(m.uid)}
                     dragging={viewerDrag}
-                    highlight={heroArmed || castingSpell || isPendingTarget(m.uid)}
+                    highlight={heroArmed || (castingSpell && !(castNoGolden && m.golden)) || isPendingTarget(m.uid)}
                     targeted={((heroArmed || isPendingTarget(m.uid)) && aimTargetUid === m.uid) || castTargetUid === m.uid}
                     soulbound={soulboundUids.has(m.uid)}
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}

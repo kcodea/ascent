@@ -123,6 +123,7 @@ import { installTouchKeyboard } from './touchKeyboard';
 import { OwnSkins, RunSkins } from './skins/skins';
 import { CloudMovedModal } from './CloudMovedModal';
 import { installLivePublisher } from './live/livePublisher';
+import { installGameSession } from './session/gameSession';
 import { LiveGames } from './live/LiveGames';
 import { LiveJoining, LiveWatchBar } from './live/LiveWatchBar';
 import { SpectatorEndNotice } from './live/SpectatorEndNotice';
@@ -228,6 +229,9 @@ export function Game() {
   // LIVE RANKED LOBBY GAMES (2026-10-15): list the player's ranked lobby game and publish to its watchers (only while
   // someone watches; see live/livePublisher.ts).
   useEffect(() => installLivePublisher(), []);
+  // THE GAME SESSION (R-SESSION-CF-01): a lobby / Practice game's per-round save, table and end writes go to its session on
+  // the hub when the switch is on.
+  useEffect(() => installGameSession(), []);
   // PHONE CRASH REPORTS (R-TOUCH-CRASH-REPORT-01): a crash the crash log found on this load is sent to Supabase once, on
   // idle a few seconds after mount. A no-op on desktop (unless ?crashlog=1) and without a backend.
   useEffect(() => scheduleCrashReportUpload(() => {

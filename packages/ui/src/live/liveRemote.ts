@@ -17,6 +17,7 @@ import { LIVE_DIR_ROUTES } from '@game/versus-cf/liveDir';
 import { supabaseClient } from '../remoteBoards';
 import { fetchAllRows } from '../supabaseRows';
 import { friendsHubUrl } from '../friends/dm/hubUrl';
+import { sessionPath } from '@game/versus-cf/session';
 import { hubToken } from '../friends/dm/hubToken';
 
 /** One live game as the listing shows it (public columns only; never run state). */
@@ -122,8 +123,16 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null, access: L
      * EVERY board of the runs with these seeds (R-SPECTATE-SEATS-01): the watched game's recorded seats, which the
      * watcher's own pool (sampled for the watcher's rank) usually lacks. Storage, so Supabase.
      */
-    async seatRecordings(seeds: number[]): Promise<BoardSnapshot[]> {
+    async seatRecordings(seeds: number[], via?: { sessionGame: string }): Promise<BoardSnapshot[]> {
       if (seeds.length === 0) return [];
+      // A SESSION game (R-SESSION-CF-01): its session holds the table's recordings (pinned at the start). Only a session
+      // that has none (an older client, a guest's table pin that never landed) falls through to the storage read below.
+      if (via?.sessionGame) {
+        const got = await dir<{ boards?: BoardSnapshot[] } | null>(sessionPath(via.sessionGame, 'seats')).catch(() => null);
+        const want = new Set(seeds);
+        const boards = (got?.boards ?? []).filter((b) => b && want.has(Number(b.seed)));
+        if (boards.length) return boards;
+      }
       const res = await fetchAllRows<{ snapshot: BoardSnapshot }>((from, to) => db().from('boards').select('snapshot')
         .in('seed', seeds).order('id', { ascending: true }).range(from, to));
       if (res.error || !res.data) fail(res.error);

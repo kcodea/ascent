@@ -3,6 +3,24 @@
  * (`MenuSidebar.tsx`), so the same destination always wears the same icon wherever it is offered.
  */
 
+/**
+ * The painted menu medallions (owner art, `Reference Art/Medallions`, 2026-10-31): full-colour 128 px webps in
+ * `public/menu/`, worn by the menu sidebar and the title's plaques for the same destinations. Sized like the
+ * crest (1em, so each surface's existing `.mbicon .crest` font-size rules size them too, via `.menumedal`).
+ * They don't take `currentColor`, so hover/active tint changes leave them as painted.
+ */
+export type MenuMedalName = 'play' | 'career' | 'collection' | 'leaderboard' | 'recent' | 'live';
+export const MenuMedal = ({ name }: { name: MenuMedalName }) => (
+  <img
+    className="menumedal"
+    src={`${import.meta.env.BASE_URL}menu/${name}.webp`}
+    alt=""
+    aria-hidden="true"
+    draggable={false}
+    decoding="sync"
+  />
+);
+
 /** The crest gem — the Play / Continue mark (also the logo's gem). */
 export const Crest = () => (
   <svg viewBox="0 0 24 24" className="crest" aria-hidden="true">

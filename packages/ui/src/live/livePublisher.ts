@@ -33,6 +33,7 @@ import { PLAYER_SEAT } from '../emotes/emoteRuntime';
 import { VERSUS_EMOTE_EVENT, type VersusEmoteMessage } from '../versus/versusEmotes';
 import { openCfPublisher, type CfListing, type CfPublisher, type LiveWatcher } from './liveCf';
 import { lobbyLivePublishUrl } from '../versus/versusRemote';
+import { sessionGame, sessionLiveTarget } from '../session/sessionRemote';
 import { currentRankOf } from '../rank/rankSource';
 import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
 import { receiveLobbyChatEvent, setLobbyChatCompany, setLobbyChatSession } from '../lobbyChat/lobbyChatStore';
@@ -109,6 +110,16 @@ let live: Live | null = null;
 let publishUrl: () => string = lobbyLivePublishUrl;
 /** For the tests: the Worker a new game publishes to. */
 export function setLivePublishUrlForTests(fn: (() => string) | null): void { publishUrl = fn ?? lobbyLivePublishUrl; }
+
+/** Where a game publishes: a SESSION game (R-SESSION-CF-01) on its session on the hub (`/session/<game>/ws`, listed with
+ *  `live_host = 'session'`), every other game on this build's Versus Worker. Decided once per game. */
+function publishTarget(gameId: string): { url: string; path?: string } {
+  if (sessionGame(gameId)) {
+    const t = sessionLiveTarget(gameId);
+    if (t) return t;
+  }
+  return { url: publishUrl() };
+}
 
 /** MY GAME AT A GLANCE (R-LIVE-STATUS-01): the Friends status of my lobby game (the step and whom I fight, place, Health,
  *  Armor, tier), sent with the listing so the Live Games row shows what a friend's row shows. Null on Hero Select (the
@@ -252,13 +263,13 @@ function cfStands(l: Live, list: LiveWatcher[]): void {
 /** The wait before the next try after `fails` failed opens in a row: 5, 10, 20, 40 s, then every 60 s. */
 export const liveRetryDelay = (fails: number): number => Math.min(LIVE_RETRY_MAX_MS, LIVE_RETRY_MS * 2 ** Math.max(0, fails - 1));
 
-/** Open the game on the Worker. One that does not answer is tried again in the background, with backoff, for as long as
+/** Open the game on the Worker (or, for a session game, on its session on the hub). One that does not answer is tried again in the background, with backoff, for as long as
  *  the game lasts; there is no other host (R-LIVE-CF-ONLY-01). */
-function startCf(l: Live, url: string): void {
+function startCf(l: Live, target: { url: string; path?: string }): void {
   l.retry = null;
   // The hello's stands arrive before the socket is handed over (a resumed game may already be watched): held until then.
   let early: LiveWatcher[] | null = null;
-  void openCfPublisher(url, l.gameId, {
+  void openCfPublisher(target.url, l.gameId, {
     onWatchers: (list) => { if (l.cf) cfStands(l, list); else early = list; },
     onBroadcast: (event, payload) => { if (live === l) onBroadcast(l, event, payload); },
     // Another tab took the game (or the object let it go): this one goes quiet for the rest of the game. It is not
@@ -272,7 +283,7 @@ function startCf(l: Live, url: string): void {
       setWatcherList([]);
       setLobbyChatSession('lobbylive', null);
     },
-  }).then((cf) => {
+  }, target.path).then((cf) => {
     if (live !== l) { void cf.end(null).catch(() => undefined).finally(() => cf.close()); return; }
     l.fails = 0;
     l.cf = cf;
@@ -288,7 +299,7 @@ function startCf(l: Live, url: string): void {
     // Not watchable for now: try again later. Nothing goes anywhere else.
     l.fails += 1;
     if (l.fails === 1) console.warn('live games: the Worker did not answer; this game is not watchable until it does');
-    l.retry = window.setTimeout(() => { if (live === l) startCf(l, url); }, liveRetryDelay(l.fails));
+    l.retry = window.setTimeout(() => { if (live === l) startCf(l, target); }, liveRetryDelay(l.fails));
   });
 }
 
@@ -296,7 +307,7 @@ function start(gameId: string, hero: boolean): void {
   const l: Live = { gameId, hero, watchers: 0, timer: null, lastKey: '', pub: null, channel: null, fightSent: null, keyWanted: false, emotesOff: null, host: 'connecting', cf: null, fails: 0, retry: null };
   live = l;
   l.timer = window.setInterval(beat, LIVE_HEARTBEAT_MS);
-  startCf(l, publishUrl());
+  startCf(l, publishTarget(gameId));
   // LIVE PINGS (R-PING-01/02): I am the game's one player (`p1`). My own pings reach the stands only while someone
   // watches (nothing is sent unwatched), on the game's socket; my mentor's arrive through `onBroadcast`.
   setPingSession('lobbylive', { send: (e, p) => { if (live === l && l.pub && l.channel) l.channel.send(e, p); }, seat: () => 'p1', mode: () => 'lobby', gameKey: `lobby:${gameId}` });

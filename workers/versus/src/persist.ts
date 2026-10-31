@@ -74,8 +74,7 @@ export function sinkFor(env: PersistEnv): PersistSink {
   return new LocalSink();
 }
 
-/** Retry schedule: 1 s, 2 s, 4 s ... capped at 60 s. */
-export const persistBackoffMs = (attempt: number): number => Math.min(60_000, 1000 * 2 ** Math.max(0, attempt));
+export { persistBackoffMs } from './backoff';
 
 /** Failed attempts before a job is set aside (`dead:<key>`): about 8 minutes on the backoff above. */
 export const PERSIST_DEAD_AFTER = 10;

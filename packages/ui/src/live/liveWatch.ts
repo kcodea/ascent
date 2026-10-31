@@ -25,6 +25,8 @@ import { liveRemote, type LiveGameRow, type LiveRemote } from './liveRemote';
 import { endWatchedGame, startSpectatorBeat, stopSpectatorBeat } from './spectatorEnd';
 import { cfErrorCode, diagnoseCfOpen, openCfWatcher, type CfOpenDiagnosis, type CfWatcher, type LiveRow, type LiveWatcher } from './liveCf';
 import { lobbyLiveWatchUrl } from '../versus/versusRemote';
+import { friendsHubUrl } from '../friends/dm/hubUrl';
+import { SESSION_LIVE_HOST, sessionSocketPath } from '../session/sessionRemote';
 import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
 import { receiveLobbyChatEvent, setLobbyChatSession } from '../lobbyChat/lobbyChatStore';
 
@@ -51,6 +53,8 @@ let session: {
   seats: RunLobby['seats'] | null;
   /** The game's socket. */
   cf: CfWatcher | null;
+  /** The game's `live_host` (`cf:<rev>`, or `session` for a game hosted by its session on the hub, R-SESSION-CF-01). */
+  host?: string;
 } | null = null;
 
 /** The watched game's recorded-seat run keys this client cannot drive from its own pool. Pure; exported for tests. */
@@ -80,7 +84,7 @@ function watchSeatRecordings(s: NonNullable<typeof session>): void {
     if (missing.length === 0) return true;
     const want = new Set(missing);
     const seeds = [...new Set(missing.map((k) => Number(k.slice(k.lastIndexOf('|') + 1))).filter(Number.isFinite))];
-    void remote.seatRecordings?.(seeds).then((boards) => {
+    void remote.seatRecordings?.(seeds, s.host === SESSION_LIVE_HOST ? { sessionGame: s.gameId } : undefined).then((boards) => {
       if (session !== s) return;
       setWatchedSeatRuns(boards.filter((b) => want.has(runKeyOf(b))));
       resetLobbyDrivers(lobby.seats); // drop the stand-ins already built for those seats
@@ -159,6 +163,9 @@ function installWatchPings(s: NonNullable<typeof session>, gameId: string): void
 }
 
 let watchUrlFor: (liveHost: string) => string = lobbyLiveWatchUrl;
+let sessionWatchUrl: () => string | null = friendsHubUrl;
+/** Tests: where a session-hosted game is reached (the hub). */
+export function setSessionWatchUrlForTests(fn: (() => string | null) | null): void { sessionWatchUrl = fn ?? friendsHubUrl; }
 /** Tests: where a Cloudflare game is reached. */
 export function setLiveWatchUrlForTests(fn: ((liveHost: string) => string) | null): void { watchUrlFor = fn ?? lobbyLiveWatchUrl; }
 let diagnose: (baseUrl: string) => Promise<CfOpenDiagnosis> = diagnoseCfOpen;
@@ -181,11 +188,14 @@ function cfFellows(list: LiveWatcher[], me: string | null): void {
  * stands come with the hello; the end comes pushed (after the object wrote the watch record for it).
  */
 async function watchOnCf(gameId: string, liveHost: string): Promise<boolean> {
-  const s: NonNullable<typeof session> = { gameId, channel: null, seatsUnsub: null, seats: null, cf: null };
+  const s: NonNullable<typeof session> = { gameId, channel: null, seatsUnsub: null, seats: null, cf: null, host: liveHost };
   let key: unknown = null;
   let myId: string | null = null;
   const seq = ++watchSeq;
-  const url = watchUrlFor(liveHost);
+  // A SESSION game (R-SESSION-CF-01) is hosted on the hub (one stable Worker for every build), on its session's socket.
+  const onSession = liveHost === SESSION_LIVE_HOST;
+  const url = onSession ? (sessionWatchUrl() ?? '') : watchUrlFor(liveHost);
+  const path = onSession ? sessionSocketPath(gameId) : undefined;
   const open = (): ReturnType<typeof openCfWatcher> => openCfWatcher(url, gameId, myWatcherIdentity(), {
     onBroadcast: (event, payload) => onGameBroadcast(s, event, payload),
     onRow: (row) => { if (session === s) useLiveWatch.setState({ game: row as LiveGameRow }); },
@@ -202,7 +212,7 @@ async function watchOnCf(gameId: string, liveHost: string): Promise<boolean> {
       leaveLiveGame(true);
       useLiveWatch.setState({ error: 'That game has ended.' });
     },
-  });
+  }, path);
   let opened: Awaited<ReturnType<typeof openCfWatcher>> | null = null;
   let code = 'unreachable';
   // A timeout may be a blip: one more try. A refusal (full, ended, own game, version) is final at once.

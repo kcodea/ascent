@@ -132,11 +132,12 @@ describe('local team channel parity with the Worker path (R-SB-DUOS-01)', () => 
     expect(runs.p1.duos!.outbox[0]!.refunded).toBeUndefined();
   });
 
-  it('a Golden card is refused (the Worker\'s golden guard); a sale\'s pass is the one exception', () => {
+  it('a Golden card passes from hand and by a sale; a pass SPELL\'s Golden is refused (the Worker\'s golden guard, R-DUOS-PASS-GOLDEN-MANUAL-01)', () => {
     const ann = sbRun(11);
     const e = { seq: 0, wave: 1, card: card(filler(1)[0]!.cardId, 'g', true), from: 'hand' as const, index: 0, paid: 1 };
-    expect(sbWorkerRefusal(e, sbRun(12), newSbLedger(), 'p1')).toBe('golden');
+    expect(sbWorkerRefusal(e, sbRun(12), newSbLedger(), 'p1')).toBeNull();
     expect(sbWorkerRefusal({ ...e, via: 'sale' as const }, sbRun(12), newSbLedger(), 'p1')).toBeNull();
+    expect(sbWorkerRefusal({ ...e, via: 'spell' as const }, sbRun(12), newSbLedger(), 'p1')).toBe('golden');
     void ann;
   });
 

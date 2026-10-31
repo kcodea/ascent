@@ -244,3 +244,58 @@ html:root[data-phone-layout]:is([data-lobby-rail="medallion"], [data-lobby-rail=
 html:root[data-touch-ui][data-phone-zoom]:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbyrailtab:not(.guidesview) {
   translate: calc((var(--lr2-rail-x, 0) + var(--lr2-tab-x, 0)) * 1px) calc((var(--lr2-rail-y, 0) + var(--lr2-phone-y, -76) + var(--lr2-tab-y, 0)) * 1px);
 }
+
+/* ═══ THE HEALTH / ARMOR PLAQUE (C and D; owner 2026-10-30: "make the health and armor pill cleaner looking"): YOUR hero's
+   own Health plaque (the same markup and Gem classes, `hudpill-hp` + `hudpill-arm`, healthPills.css), scaled to the rail:
+   the Gem plate with its gold edge, ring and bevel and the filigree studs at each end; heart + number, then the steel
+   Armor chip, both segments one height and the numbers on one centre line. Size is Tuner 2's Health number size. ═══ */
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lobbyseat:not(.dead) .lobbyhp.lrv-hpplaque {
+  position: relative; display: inline-flex; align-items: center; gap: 0.2em; width: max-content; margin: 0;
+  padding: 0.24em 0.55em 0.24em 0.42em; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums;
+  border: 1px solid transparent; border-radius: 0.45em;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 2px 6px -2px rgba(0, 0, 0, 0.66);
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque > svg { flex: none; width: 1em; height: 1em; color: var(--ui-heart); }
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque .hpval { display: inline-flex; align-items: center; line-height: 1; }
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque .armval.hudpill-arm {
+  display: inline-flex; align-items: center; gap: 0.12em; margin-left: 0.35em; padding: 0.14em 0.32em 0.14em 0.2em;
+  font-size: 0.78em; line-height: 1; border-radius: 0.3em;
+}
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque .armval svg { display: block; width: 1em; height: 1em; }
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque .hp-armplus { display: none; }
+/* The filigree studs at each end, as on the hero's own Health plaque. Static. */
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque::before,
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque::after {
+  content: ''; position: absolute; top: 50%; width: 0.28em; height: 0.28em; pointer-events: none;
+  background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transform: translateY(-50%) rotate(45deg);
+}
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque::before { left: -0.17em; }
+html:root:is([data-lobby-rail="medallion"], [data-lobby-rail="cards"]) .lrv-hpplaque::after { right: -0.17em; }
+
+/* ═══ D · OVERLAP LAYOUT (Tuner 2 "D health layout: Overlap"; owner 2026-10-30: "centering the portrait with the
+   health/armor eclipsing the portrait like the player's"): the portrait centred on the card, the plaque over its lower
+   rim exactly as on your hero portrait, the full name centred on the line below. States (pulse, gold, red) unchanged. ═══ */
+/* Three rows: the portrait, the plaque (pulled UP over the portrait's rim by a negative margin, so the layout keeps
+   room for whatever still hangs below it and the name never sits under it), then the name. */
+html:root[data-lobby-rail="cards"][data-lr2-dhp="overlap"] .lobbyseat:not(.dead):is(.you.foe.ghost.dead, *) {
+  grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; row-gap: 0; justify-items: center;
+}
+html:root[data-lobby-rail="cards"][data-lr2-dhp="overlap"] .lobbyseat:not(.dead) .lobbyface {
+  grid-column: 1; grid-row: 1; justify-self: center;
+  width: calc(var(--lr2-ov-face, 46) * var(--k)); height: calc(var(--lr2-ov-face, 46) * var(--k));
+}
+html:root[data-lobby-rail="cards"][data-lr2-dhp="overlap"] .lobbyseat:not(.dead) .lobbyhp.lrv-hpplaque {
+  grid-column: 1; grid-row: 2; justify-self: center; z-index: 3;
+  /* The plaque is ~1.5em tall; "Plaque overlap" is how much of it hangs BELOW the rim (0 = all of it over the portrait). */
+  margin-top: calc(-1.5em * (1 - var(--lr2-ov-y, 55) / 100));
+  transform-origin: 50% 50%; scale: calc(var(--lr2-hp-scale, 1) * var(--lr2-ov-scale, 1.15));
+  translate: calc(var(--lr2-hp-x, 0) * 1px) calc(var(--lr2-hp-y, 0) * 1px);
+}
+html:root[data-lobby-rail="cards"][data-lr2-dhp="overlap"] .lobbyseat:not(.dead) .lobbynameline {
+  grid-column: 1; grid-row: 3; justify-self: stretch; justify-content: center; text-align: center;
+  margin-top: calc(var(--lr2-ov-name-gap, 7) * var(--k));
+}
+html:root[data-lobby-rail="cards"][data-lr2-dhp="overlap"] .lobbyseat:not(.dead) .lobbyname { text-align: center; }

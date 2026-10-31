@@ -24,15 +24,20 @@
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 export const LR2_ANCHORS = ['right', 'left'] as const;
+/** D's Health layout (owner 2026-10-30): the plaque beside the portrait, or over its lower rim like your hero's. */
+export const LR2_DHP = ['beside', 'overlap'] as const;
+export type Lr2DHp = (typeof LR2_DHP)[number];
 export type Lr2Anchor = (typeof LR2_ANCHORS)[number];
 
 export interface LobbyRailTuner2Config {
   anchor: Lr2Anchor;
+  dHp: Lr2DHp;
   railX: number; railY: number; railScale: number;
   phoneY: number; phoneScale: number;
   headX: number; headY: number; headFont: number; headGap: number; headShadow: number;
   tabX: number; tabY: number; tabScale: number;
   medSize: number; ringSize: number; medGap: number; medCol: number; nameFont: number; nameX: number; nameY: number;
+  ovScale: number; ovY: number; ovFace: number; ovNameGap: number;
   seatPad: number; seatGap: number; seatRadius: number; faceNameGap: number; nameLines: number;
   hpScale: number; hpX: number; hpY: number; hpFont: number;
   deadScale: number; deadOpacity: number; deadGap: number;
@@ -40,16 +45,18 @@ export interface LobbyRailTuner2Config {
   pulseRing: number; pulseGlow: number; pulseMin: number; pulseMax: number; pulsePeriod: number;
   cardW: number; cardX: number; cardY: number; cardFont: number;
 }
-type NumKey = Exclude<keyof LobbyRailTuner2Config, 'anchor'>;
+type NumKey = Exclude<keyof LobbyRailTuner2Config, 'anchor' | 'dHp'>;
 
 /** The owner's tune of 2026-10-30 ("the below settings are the best for this rail"), plus D's card dials. */
 export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   anchor: 'right',
+  dHp: 'beside',
   railX: -6, railY: 76, railScale: 1,
   phoneY: -76, phoneScale: 1.1,
   headX: 0, headY: 0, headFont: 1.29, headGap: 1.9, headShadow: 3,
   tabX: 0, tabY: 268, tabScale: 0.75,
   medSize: 36.5, ringSize: 1, medGap: 8.5, medCol: 0.98, nameFont: 17.5, nameX: 0, nameY: 0,
+  ovScale: 1.1, ovY: 45, ovFace: 30, ovNameGap: 1.5,
   seatPad: 4, seatGap: 3, seatRadius: 8, faceNameGap: 2.5, nameLines: 2,
   hpScale: 1.19, hpX: 0, hpY: 0, hpFont: 18,
   deadScale: 0.5, deadOpacity: 0.85, deadGap: 6,
@@ -80,6 +87,10 @@ const NUM: Record<NumKey, { v: string; group: string; label: string; unit?: Tune
   nameFont: { v: '--lr2-name-font', group: 'Medallion', label: 'Name size', min: 8, max: 32, step: 0.5, hint: 'Size of the player names.' },
   nameX: { v: '--lr2-name-x', group: 'Medallion', label: 'Name left / right', unit: 'px', min: -60, max: 60, step: 0.5, hint: 'Nudges every name sideways.' },
   nameY: { v: '--lr2-name-y', group: 'Medallion', label: 'Name up / down', unit: 'px', min: -40, max: 40, step: 0.5, hint: 'Nudges every name up or down.' },
+  ovScale: { v: '--lr2-ov-scale', group: 'Cards (D): Health over the portrait', label: 'Plaque scale', unit: '×', min: 0.5, max: 2, step: 0.01, hint: 'Overlap layout: the size of the Health / Armor plaque on the portrait rim.' },
+  ovY: { v: '--lr2-ov-y', group: 'Cards (D): Health over the portrait', label: 'Plaque overlap', unit: '%', min: -50, max: 150, step: 1, hint: 'Overlap layout: how much of the plaque hangs below the portrait rim, in % of its height. 0 = all over the portrait, 100 = all below it.' },
+  ovFace: { v: '--lr2-ov-face', group: 'Cards (D): Health over the portrait', label: 'Portrait size', min: 16, max: 90, step: 0.5, hint: 'Overlap layout: the centred portrait size.' },
+  ovNameGap: { v: '--lr2-ov-name-gap', group: 'Cards (D): Health over the portrait', label: 'Name gap', min: 0, max: 30, step: 0.25, hint: 'Overlap layout: the space between the portrait (and its plaque) and the name.' },
   seatPad: { v: '--lr2-seat-pad', group: 'Cards (D)', label: 'Card padding', min: 0, max: 16, step: 0.25, hint: 'Space inside each seat card, round the portrait, Health and name.' },
   seatGap: { v: '--lr2-seat-gap', group: 'Cards (D)', label: 'Card gap', min: 0, max: 20, step: 0.25, hint: 'Vertical space between one card and the next.' },
   seatRadius: { v: '--lr2-seat-radius', group: 'Cards (D)', label: 'Card corner radius', unit: 'px', min: 0, max: 40, step: 0.5, hint: 'Rounding of each seat card.' },
@@ -112,6 +123,7 @@ export const LR2_VARS: Readonly<Record<NumKey, string>> = Object.fromEntries(Obj
 
 const KEY = 'ascent.lobbyRailTuner2';
 const isAnchor = (v: unknown): v is Lr2Anchor => v === 'right' || v === 'left';
+const isDHp = (v: unknown): v is Lr2DHp => v === 'beside' || v === 'overlap';
 
 function load(): LobbyRailTuner2Config {
   try {
@@ -119,6 +131,7 @@ function load(): LobbyRailTuner2Config {
     const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
     const out: LobbyRailTuner2Config = { ...LR2_DEFAULTS };
     if (isAnchor(o.anchor)) out.anchor = o.anchor;
+    if (isDHp(o.dHp)) out.dHp = o.dHp;
     // 1.7 was the lean card's width; the restored original card's width is a multiple of its own (1 = as shipped).
     if (o.cardW === 1.7) delete o.cardW;
     for (const k of Object.keys(NUM) as NumKey[]) {
@@ -141,6 +154,7 @@ export function applyLobbyRailTuner2(): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   root.setAttribute('data-lr2-anchor', cfg.anchor);
+  root.setAttribute('data-lr2-dhp', cfg.dHp);
   for (const k of Object.keys(NUM) as NumKey[]) {
     const v = cfg[k];
     if ((k === 'bgW' || k === 'bgH') && v <= 0) { root.style.removeProperty(NUM[k].v); continue; }
@@ -153,6 +167,7 @@ function save(): void {
 }
 export function setLobbyRailTuner2(key: keyof LobbyRailTuner2Config, value: number | string): void {
   if (key === 'anchor') { if (!isAnchor(value)) return; cfg = { ...cfg, anchor: value }; }
+  else if (key === 'dHp') { if (!isDHp(value)) return; cfg = { ...cfg, dHp: value }; }
   else if (typeof value === 'number' && Number.isFinite(value)) cfg = { ...cfg, [key]: Math.min(NUM[key].max, Math.max(NUM[key].min, value)) };
   else return;
   applyLobbyRailTuner2();
@@ -169,6 +184,11 @@ const controls: TunerControl<Extract<keyof LobbyRailTuner2Config, string>>[] = [
     key: 'anchor', label: 'Anchor side', group: 'Rail position', kind: 'select', options: LR2_ANCHORS,
     optionLabels: { right: 'Right edge (shipped)', left: 'Left edge' },
     hint: 'Which screen edge the rail hangs from. The moves below are measured from it.', min: 0, max: 0, step: 0,
+  },
+  {
+    key: 'dHp', label: 'D health layout', group: 'Rail position', kind: 'select', options: LR2_DHP,
+    optionLabels: { beside: 'Beside the portrait', overlap: 'Overlap (centred portrait, plaque on its rim)' },
+    hint: 'D only. Beside: portrait left, the Health plaque beside it. Overlap: portrait centred with the plaque over its lower rim, like your own hero portrait.', min: 0, max: 0, step: 0,
   },
   ...(Object.keys(NUM) as NumKey[]).map((k) => {
     const d = NUM[k];

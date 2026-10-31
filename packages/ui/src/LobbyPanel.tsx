@@ -575,7 +575,14 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                 {!inTeam && teamLabels?.[seat.id] && <span className="lobbyteam" aria-label={`Team ${teamLabels[seat.id]}`}>{teamLabels[seat.id]}</span>}
                 <span className="lobbyname">{seat.label}</span>
               </span>
-              {inTeam ? null : row.alive ? (
+              {inTeam ? null : row.alive && (variant === 'medallion' || variant === 'cards') ? (
+                // C / D (owner 2026-10-30: "make the health and armor pill cleaner"): YOUR hero's own Health plaque, its
+                // markup and Gem classes (`hudpill-hp` / `hudpill-arm`, healthPills.css), scaled down by the rail sheet.
+                <span className="lobbyhp hudpill-hp lrv-hpplaque">
+                  <Icon name="heartPill" />
+                  <span className="hpval">{live.resolve}{live.armor > 0 && <b className="armval hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{live.armor}</b>}</span>
+                </span>
+              ) : row.alive ? (
                 <span className="lobbyhp">
                   {/* The health pill heart: its facet + gloss show in the Gem rail and hide in Classic (lobbyRail.css). */}
                   <Icon name="heartPill" />{live.resolve}

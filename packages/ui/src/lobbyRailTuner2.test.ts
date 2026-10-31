@@ -27,6 +27,7 @@ const TARGET: Record<NumKey, string> = {
   tabX: '.lobbyrailtab', tabY: '.lobbyrailtab', tabScale: '.lobbyrailtab',
   medSize: '.lobbyrail', ringSize: '.pframe-box', medGap: '.lobbyseat + .lobbyseat', medCol: '.lobbyseat', nameFont: '.lobbyname',
   nameX: '.lobbynameline', nameY: '.lobbynameline',
+  ovScale: '.lrv-hpplaque', ovY: '.lrv-hpplaque', ovFace: '.lobbyface', ovNameGap: '.lobbynameline',
   seatPad: '.lobbyseat', seatGap: '.lobbyseat + .lobbyseat', seatRadius: '.lobbyseat', faceNameGap: '.lobbyseat', nameLines: '.lobbyname',
   hpScale: '.lobbyhp', hpX: '.lobbyhp', hpY: '.lobbyhp', hpFont: '.lobbyhp',
   deadScale: '.lobbyrail', deadOpacity: '.lobbyseat.dead', deadGap: '.lobbyseat.dead',
@@ -39,7 +40,7 @@ describe('Lobby Rail Tuner 2', () => {
   it('has a control for every var, and every control writes its own var onto :root', () => {
     const keys = Object.keys(LR2_VARS) as NumKey[];
     expect(new Set(Object.values(LR2_VARS)).size, 'one var per control').toBe(keys.length);
-    expect(LR2_SPEC.controls.map((c) => c.key).sort()).toEqual(['anchor', ...keys].sort());
+    expect(LR2_SPEC.controls.map((c) => c.key).sort()).toEqual(['anchor', 'dHp', ...keys].sort());
     for (const k of keys) {
       const c = LR2_SPEC.controls.find((x) => x.key === k)!;
       const before = document.documentElement.style.getPropertyValue(LR2_VARS[k]);
@@ -48,6 +49,8 @@ describe('Lobby Rail Tuner 2', () => {
       expect(getLobbyRailTuner2()[k as keyof LobbyRailTuner2Config]).toBe(next);
       expect(document.documentElement.style.getPropertyValue(LR2_VARS[k]), `${k} must change ${LR2_VARS[k]}`).not.toBe(before);
     }
+    setLobbyRailTuner2('dHp', 'overlap');
+    expect(document.documentElement.getAttribute('data-lr2-dhp')).toBe('overlap');
     setLobbyRailTuner2('anchor', 'left');
     expect(document.documentElement.getAttribute('data-lr2-anchor')).toBe('left');
     resetLobbyRailTuner2();
@@ -62,6 +65,7 @@ describe('Lobby Rail Tuner 2', () => {
     }
     // The anchor switch has its own rules.
     expect(sheet).toContain('[data-lr2-anchor="left"]');
+    expect(sheet).toContain('[data-lr2-dhp="overlap"]');
   });
 
   it('no stylesheet declares a Tuner 2 var, so nothing can shadow the tuner', () => {

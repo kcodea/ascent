@@ -11599,6 +11599,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateFade.test.ts'], lastVerifiedAt: '2026-10-29' },
   },
   {
+    id: 'R-CURSOR-ROOT-01',
+    title: 'The game cursor stays the gauntlet through the teammate swap',
+    statement:
+      'Clicking your teammate (or your own portrait, to come back) never shows the plain system arrow. While the cross-fade runs the cursor is the open gauntlet, and after it the gauntlet stays, whether or not you move the mouse. '
+      + 'The page root itself always carries the game cursor, so anything that leaves the pointer on the bare page shows the gauntlet too.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31', quote: 'clicking your teammate breaks the cursor for some reason, at least in scene builder. fix that' },
+      { kind: 'fix-pr', ref: 'fix/teammate-swap-cursor' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (html cursor); packages/ui/src/versus/versus.css (html.duos-vt cursor)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-31 (fix/teammate-swap-cursor). Before, `html` had no cursor of its own (`auto`). The desktop swap runs as a View Transition (R-DUOS-VIEW-SWAP-01), and while one runs the browser hit-tests the document element, not the page under the snapshots (reproduced in headless Chrome: every pointermove during the fade targeted `html`). So the swap showed the OS arrow, and it stayed until the mouse next moved. The phone ghost fade was not affected (its ghost takes no pointer events).',
+    example: "You click Bob's portrait and keep your hand still. The board fades into his and the cursor is the open gauntlet the whole time. Click your portrait to come back: the same.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/swapCursor.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
+  {
     id: 'R-OPP-PORTRAIT-ONCE-01',
     title: "The opponent's portrait drops in once per fight, exists once, and leaves with the fight",
     statement:

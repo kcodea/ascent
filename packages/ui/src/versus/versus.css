@@ -869,6 +869,9 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
 /* THE SAME SWAP AS A VIEW TRANSITION where the browser has one (R-DUOS-VIEW-SWAP-01): the old screen is a GPU snapshot and
    the cross-fade runs on the compositor. Only while `duos-vt` is on (teammateView.turnByViewTransition), so no other
    view transition is touched. 130 ms = FADE_MS. */
+/* The pointer is on the portrait you just clicked while the fade runs, and the transition hit-tests `html` (R-CURSOR-ROOT-01):
+   the open gauntlet, the portrait's own cursor, so nothing changes under the hand. */
+html.duos-vt { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 html.duos-vt::view-transition-group(root) { animation-duration: 130ms; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
 html.duos-vt::view-transition-old(root), html.duos-vt::view-transition-new(root) { animation-duration: 130ms;
   animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }

@@ -1496,7 +1496,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 
 - **Pings.** In any game a player may ping a shop card, a board minion or a hand card with **check, X, question, pass
   or sell**, and a shop button (Tavern Up, Refresh, Freeze, the hero power, End Turn) with **check, X or question**:
-  **hold right-click** for 300 ms, or press and hold on a phone (owner 2026-10-31, R-PING-09). The menu is a fan (owner
+  **hold right-click** for 170 ms, or press and hold on a phone (owner 2026-10-31, R-PING-09). The menu is a fan (owner
   pick 2026-10-29): Check, X, Question in an arc above the target; on a card, Pass (left) and Sell (right) below it. A
   **quick right-click** is the target's own right-click everywhere: on a card it inspects (a phone keeps
   tap-to-inspect), on a spot like the portrait or a rail row it does that spot's own thing. Holding right-click on a

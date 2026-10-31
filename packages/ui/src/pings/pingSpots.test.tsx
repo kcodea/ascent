@@ -191,7 +191,7 @@ describe('spots that keep their own right-click (R-PING-08)', () => {
     // A quick right-click (released early): the spot's own right-click runs, and no fan.
     act(() => { usePingMenu.setState({ open: null }); });
     press('pointerdown');
-    act(() => { vi.advanceTimersByTime(PING_HOLD_MS - 200); });
+    act(() => { vi.advanceTimersByTime(PING_HOLD_MS - 100); });
     press('pointerup');
     fire();
     act(() => { vi.advanceTimersByTime(PING_HOLD_MS); });

@@ -7,7 +7,7 @@ right click) and a held right click to be ping. is that doable?" Branch `feat/ho
 ## What
 
 - **`installRightHold`** (`packages/ui/src/pings/PingLayer.tsx`, installed by `PingLayer` before its own listener): a
-  mouse right-press arms ONE `setTimeout` of `PING_HOLD_MS` (300 ms), and only where a hold could act (`pingContext()`,
+  mouse right-press arms ONE `setTimeout` of `PING_HOLD_MS` (170 ms, owner-tuned from 300 after a playtest), and only where a hold could act (`pingContext()`,
   or a ping of mine on screen). Released early, nothing happens and the `contextmenu` reaches the target's own handler
   (a card's Inspect, a spot's scout pin / emotes). Held, `pingHold` opens the fan (or clears my own ping, R-PING-07) and
   the release's `contextmenu` is swallowed.

@@ -161,10 +161,10 @@ export function openCardPingMenu(e: { clientX: number; clientY: number; currentT
 
 /**
  * How long the right mouse button must stay down to PING instead of the quick right-click (Inspect). A deliberate
- * quick click is well under 150 ms, so 300 ms leaves room for a slow one and still reads as an intentional hold (the
+ * quick click is well under 150 ms; the owner tuned the hold to 170 ms (2026-10-31) so a ping feels immediate (the
  * phone long-press is 350 ms).
  */
-export const PING_HOLD_MS = 300;
+export const PING_HOLD_MS = 170;
 
 /** The press, the release and the contextmenu never belong to these: they own their right-click outright. */
 const HOLD_SKIP = '.ping-menu, .ping-mark, .fdock-stack, .fdock-catch, .dmchat-at, .frmenu-at, .frmenu-catch';

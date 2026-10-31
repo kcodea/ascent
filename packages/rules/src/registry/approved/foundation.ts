@@ -12483,11 +12483,11 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PING-09',
-    title: 'A quick right-click inspects; holding right-click for 300 ms pings',
+    title: 'A quick right-click inspects; holding right-click for 170 ms pings',
     statement:
-      'With a mouse, a right-click released before 300 ms is the target\x27s own right-click everywhere: on a card (shop, board, hand, '
+      'With a mouse, a right-click released before 170 ms is the target\x27s own right-click everywhere: on a card (shop, board, hand, '
       + 'a fight, a Discover or other choice option, a stored board) it opens Inspect, on a spot with its own right-click (the portrait\x27s '
-      + 'emotes, a rail row\x27s scout pin) it does that, and on a shop button it does nothing. Holding the right button down for 300 ms on a '
+      + 'emotes, a rail row\x27s scout pin) it does that, and on a shop button it does nothing. Holding the right button down for 170 ms on a '
       + 'ping target, where the viewer may ping, opens the ping fan there instead (or clears the viewer\x27s own ping on it, R-PING-07), and the '
       + 'release that follows never also inspects. A quick Inspect opens on the release, exactly when a right-click always fired on Windows; '
       + 'where the browser fires right-click on the press (macOS, Linux) it waits for the release. Where no ping is possible (the menus, the '
@@ -12497,9 +12497,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Mike, 2026-10-31 (right-click inspect, hold to ping)', quote: 'i want right click to be inspect (currently its double right click) and a held right click to be ping. is that doable?' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-31 (after playtesting the hold)', quote: 'looks amazing! change the hold to 170ms' },
       { kind: 'code', ref: 'packages/ui/src/pings/PingLayer.tsx installRightHold / pingHold / holdTargetAt / openCardPingMenu (feat/hold-right-click-ping)' },
     ],
-    currentBehaviour: 'Conforms since 2026-10-31 (feat/hold-right-click-ping). From 2026-10-29 a single right-click opened the fan and a double right-click inspected.',
+    currentBehaviour: 'Conforms since 2026-10-31 (feat/hold-right-click-ping); the hold was 300 ms until the owner playtested it the same day and asked for 170 ms. From 2026-10-29 a single right-click opened the fan and a double right-click inspected.',
     example: 'Ann right-clicks a shop minion: its Inspect view opens. She holds right-click on it instead: after a beat the ping fan opens, and letting go leaves the fan up with no Inspect behind it.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pings/rightHold.test.tsx', 'packages/ui/src/pings/pings.test.tsx', 'packages/ui/src/pings/pingSpots.test.tsx'], lastVerifiedAt: '2026-10-31' },
   },

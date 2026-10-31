@@ -43,7 +43,7 @@ export function measureDockAnchors(layer: HTMLElement): DockAnchors | null {
  * The docked layout for these seats, or null (not docked, the board's HUD not on screen, or no room: the caller falls
  * back to the tile column). `live` in standing order, `dead` in place order.
  */
-export function useDockedRail(on: boolean, layerRef: RefObject<HTMLElement | null>, live: readonly string[], dead: readonly string[], cfg: DockCfg, paused: boolean): DockLayout | null {
+export function useDockedRail(on: boolean, layerRef: RefObject<HTMLElement | null>, live: readonly string[], dead: readonly string[], cfg: DockCfg, paused: boolean, teamOf?: readonly number[], teamLead = false): DockLayout | null {
   const [anchors, setAnchors] = useState<DockAnchors | null>(null);
   useLayoutEffect(() => {
     if (!on || paused) return;
@@ -67,10 +67,10 @@ export function useDockedRail(on: boolean, layerRef: RefObject<HTMLElement | nul
       window.removeEventListener('resize', later);
     };
   }, [on, paused, layerRef]);
-  const liveKey = live.join(','), deadKey = dead.join(',');
+  const liveKey = live.join(','), deadKey = dead.join(','), teamKey = teamOf?.join(',') ?? '';
   return useMemo(
-    () => (on && anchors ? dockedLayout(anchors, live, dead, cfg) : null),
+    () => (on && anchors ? dockedLayout(anchors, live, dead, cfg, teamOf, teamLead) : null),
     // The id lists are keyed by their joined form (a new array each render must not re-run the layout).
-    [on, anchors, liveKey, deadKey, cfg],
+    [on, anchors, liveKey, deadKey, teamKey, teamLead, cfg],
   );
 }

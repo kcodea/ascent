@@ -18,14 +18,16 @@
  */
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 import { DOCK_DEFAULTS, DOCK_TOP_MODES, type DockCfg, type DockTopMode } from './lobbyRailDockedLayout';
-import { setDockCfg } from './lobbyRailVariant';
+import { SLICE_LABELS, setDockCfg, setSliceLabel, type SliceLabel } from './lobbyRailVariant';
 
 /** The Health bar's look (owner 2026-10-31: "Can the health bar look more satisfying instead of pill like"): flush and
  *  bevelled into the portrait's foot, with or without a faint tick every 5 Health. */
 export const LR2_BAR_STYLES = ['gloss', 'smooth'] as const;
 /** Docked slice content (owner 2026-10-31: "have their art start on the left side and fade it out and have the player
  *  name on the right side"; "i want to try a few things with the art/name etc"). */
-export const LR2_ART_LAYOUTS = ['left', 'full', 'right', 'center'] as const;
+// `fade75` (owner 2026-10-31: "can we add a 75% art into a fade option and try hero names as the text with that"): the art
+// across the left 75% at full strength, fading into the plate over the last quarter.
+export const LR2_ART_LAYOUTS = ['left', 'full', 'right', 'center', 'fade75'] as const;
 export type Lr2ArtLayout = (typeof LR2_ART_LAYOUTS)[number];
 export const LR2_NAME_SIDES = ['right', 'left'] as const;
 export type Lr2NameSide = (typeof LR2_NAME_SIDES)[number];
@@ -39,6 +41,8 @@ export interface LobbyRailTuner2Config {
   barStyle: Lr2BarStyle;
   dkTop: DockTopMode;
   artLayout: Lr2ArtLayout; nameSide: Lr2NameSide; nameShow: Lr2NameShow;
+  /** What the slice's label says: the player's name, the hero's name, or nothing (owner 2026-10-31). */
+  nameText: SliceLabel;
   artZoom: number; artFx: number; artFy: number; artW: number; fadeStart: number; fadeLen: number; fadeStr: number; artBright: number;
   nameSize: number; nameWeight: number; nameLines: number; nameX: number; nameY: number; nameShadow: number;
   // Docked: the layout (JS) ...
@@ -51,12 +55,13 @@ export interface LobbyRailTuner2Config {
   pulseRing: number; pulseGlow: number; pulseMin: number; pulseMax: number; pulsePeriod: number;
   cardW: number; cardX: number; cardY: number; cardFont: number;
 }
-type SelKey = 'barStyle' | 'dkTop' | 'artLayout' | 'nameSide' | 'nameShow';
+type SelKey = 'barStyle' | 'dkTop' | 'artLayout' | 'nameSide' | 'nameShow' | 'nameText';
 type NumKey = Exclude<keyof LobbyRailTuner2Config, SelKey>;
 
 export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   barStyle: 'gloss',
-  artLayout: 'left', nameSide: 'right', nameShow: 'on',
+  // The shipped look (owner pick 2026-10-31: "i like the full art look"): Full width art, no slice label.
+  artLayout: 'full', nameSide: 'right', nameShow: 'on', nameText: 'none',
   artZoom: 1, artFx: 50, artFy: 24, artW: 58, fadeStart: 40, fadeLen: 60, fadeStr: 1, artBright: 1,
   nameSize: 13, nameWeight: 800, nameLines: 2, nameX: 0, nameY: 0, nameShadow: 1,
   dkTop: DOCK_DEFAULTS.topMode,
@@ -128,6 +133,7 @@ const isBarStyle = (v: unknown): v is Lr2BarStyle => v === 'gloss' || v === 'smo
 const isArt = (v: unknown): v is Lr2ArtLayout => (LR2_ART_LAYOUTS as readonly unknown[]).includes(v);
 const isSide = (v: unknown): v is Lr2NameSide => v === 'right' || v === 'left';
 const isShow = (v: unknown): v is Lr2NameShow => v === 'on' || v === 'off';
+const isLabel = (v: unknown): v is SliceLabel => (SLICE_LABELS as readonly unknown[]).includes(v);
 const isTop = (v: unknown): v is DockTopMode => (DOCK_TOP_MODES as readonly unknown[]).includes(v);
 
 function load(): LobbyRailTuner2Config {
@@ -139,6 +145,7 @@ function load(): LobbyRailTuner2Config {
     if (isArt(o.artLayout)) out.artLayout = o.artLayout;
     if (isSide(o.nameSide)) out.nameSide = o.nameSide;
     if (isShow(o.nameShow)) out.nameShow = o.nameShow;
+    if (isLabel(o.nameText)) out.nameText = o.nameText;
     if (isTop(o.dkTop)) out.dkTop = o.dkTop;
     for (const k of Object.keys(NUM) as NumKey[]) {
       const v = o[k];
@@ -164,6 +171,7 @@ export function dockCfgOf(c: LobbyRailTuner2Config): DockCfg {
  *  dials into the docked layout. */
 export function applyLobbyRailTuner2(): void {
   setDockCfg(dockCfgOf(cfg));
+  setSliceLabel(cfg.nameText);
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   root.setAttribute('data-lr2-bar', cfg.barStyle);
@@ -181,6 +189,7 @@ export function setLobbyRailTuner2(key: keyof LobbyRailTuner2Config, value: numb
   else if (key === 'artLayout') { if (!isArt(value)) return; cfg = { ...cfg, artLayout: value }; }
   else if (key === 'nameSide') { if (!isSide(value)) return; cfg = { ...cfg, nameSide: value }; }
   else if (key === 'nameShow') { if (!isShow(value)) return; cfg = { ...cfg, nameShow: value }; }
+  else if (key === 'nameText') { if (!isLabel(value)) return; cfg = { ...cfg, nameText: value }; }
   else if (key === 'dkTop') { if (!isTop(value)) return; cfg = { ...cfg, dkTop: value }; }
   else if (typeof value === 'number' && Number.isFinite(value)) cfg = { ...cfg, [key]: Math.min(NUM[key].max, Math.max(NUM[key].min, value)) };
   else return;
@@ -206,7 +215,7 @@ const controls: TunerControl<Extract<keyof LobbyRailTuner2Config, string>>[] = [
   },
   {
     key: 'artLayout', label: 'Art layout', group: SA, kind: 'select', options: LR2_ART_LAYOUTS,
-    optionLabels: { left: 'Left fade (art left, fading right; default)', full: 'Full width (the art across the slice)', right: 'Right fade (art right, fading left)', center: 'Centered portrait (fading both sides)' },
+    optionLabels: { left: 'Left fade (art left, fading right)', full: 'Full width (the art across the slice; default)', right: 'Right fade (art right, fading left)', center: 'Centered portrait (fading both sides)', fade75: '75% fade (full art over 75%, fading over the last quarter)' },
     hint: 'Docked: where the hero art sits in each slice and how it fades into the plate.', min: 0, max: 0, step: 0,
   },
   {
@@ -216,6 +225,11 @@ const controls: TunerControl<Extract<keyof LobbyRailTuner2Config, string>>[] = [
   {
     key: 'nameShow', label: 'Show name', group: SA, kind: 'select', options: LR2_NAME_SHOW,
     optionLabels: { on: 'On', off: 'Off' }, hint: 'Docked: show the player name on each slice.', min: 0, max: 0, step: 0,
+  },
+  {
+    key: 'nameText', label: 'Slice label', group: SA, kind: 'select', options: SLICE_LABELS,
+    optionLabels: { player: 'Player name', hero: 'Hero name', none: 'None (default)' },
+    hint: 'Docked, every mode: what each slice says. The fallen follow it; the hover card always shows both names.', min: 0, max: 0, step: 0,
   },
   ...(Object.keys(NUM) as NumKey[]).map((k) => {
     const d = NUM[k];
@@ -237,6 +251,12 @@ export const LR2_SPEC: TunerSpec<LobbyRailTuner2Config> = {
   defaults: LR2_DEFAULTS,
   buttonsOnTop: true,
   copyLabel: 'Copy values (JSON)',
+  // The owner's trial combos (2026-10-31: "I think I like the full hero art but can we add a 75% art into a fade option and
+  // try hero names as the text with that"), one click each. They set only the art layout and the slice label.
+  actions: [
+    { label: 'Preset: Full art', hint: 'Art layout Full width, Slice label None.', run: () => { setLobbyRailTuner2('artLayout', 'full'); setLobbyRailTuner2('nameText', 'none'); } },
+    { label: 'Preset: 75% fade + hero name', hint: 'Art layout 75% fade, Slice label Hero name.', run: () => { setLobbyRailTuner2('artLayout', 'fade75'); setLobbyRailTuner2('nameText', 'hero'); } },
+  ],
   controls,
 };
 

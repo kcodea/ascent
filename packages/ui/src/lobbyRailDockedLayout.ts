@@ -94,7 +94,20 @@ export interface DockLayout {
   /** Below (the wrap): the height of the round slice's band above the pill, and how far the pill bites into the part
    *  beside it, px (the slice lays its text out in those two open areas). Absent in the other modes. */
   wrap?: { topH: number; bandX: number };
+  /** TEAMS (Versus Duos / Ranked Duos, owner 2026-10-31: "slices grouped per team"): one box per team, round its members'
+   *  slices, in stack order. Absent when the seats are not in teams. */
+  teams?: DockTeam[];
 }
+
+/** One team's members as one group in the stack: the box round their slices (the team plate is drawn on it). */
+export interface DockTeam {
+  team: number; ids: string[]; x: number; y: number; w: number; h: number;
+  /** The middle of the gap above the team (where its name sits). */
+  labelY: number;
+}
+
+/** The extra space between two teams' slices, board px (on top of the panel gap), so each pair reads as one group. */
+export const DOCK_TEAM_GAP = 12;
 
 interface Shape { kind: 'circle' | 'diamond'; cx: number; cy: number; rx: number; ry: number }
 
@@ -181,7 +194,7 @@ function slice(id: string, dead: boolean, x: number, y: number, w: number, h: nu
  * Lay the seats out. `live` in standing order, `dead` in place order. Returns null when the anchors leave no room (the
  * caller then falls back to the tile column).
  */
-export function dockedLayout(a: DockAnchors, live: readonly string[], dead: readonly string[], cfg: DockCfg = DOCK_DEFAULTS): DockLayout | null {
+export function dockedLayout(a: DockAnchors, live: readonly string[], dead: readonly string[], cfg: DockCfg = DOCK_DEFAULTS, teamOf?: readonly number[], teamLead = false): DockLayout | null {
   const gemH = a.gem.bottom - a.gem.top;
   if (!(gemH > 0)) return null;
   const s = gemH / GEM_REF_H;
@@ -218,10 +231,18 @@ export function dockedLayout(a: DockAnchors, live: readonly string[], dead: read
   // "Top player offset"), and the stack runs down to the coin's foot.
   const ids = [...live, ...dead];
   const n = Math.max(1, ids.length);
+  // TEAMS (`teamOf`, aligned with `ids`): a wider gap wherever the next slice belongs to another team. Teammates must be
+  // next to each other in `ids` (the caller groups them); a team that is split simply reads as two groups.
+  const teamAt = (i: number): number | undefined => teamOf?.[i];
+  // `teamLead` (Ranked Duos: every team carries its name): the first team gets the same wider gap above it, so every
+  // team's name sits in a gap of its own (`DockTeam.labelY`).
+  const lead = teamOf && teamLead ? 1 : 0;
+  const breaks = (teamOf ? ids.reduce((k, _, i) => (i > 0 && teamAt(i) !== teamAt(i - 1) ? k + 1 : k), 0) : 0) + lead;
+  const teamGap = DOCK_TEAM_GAP * s;
   const cy = (a.refresh.top + a.refresh.bottom) / 2 + cfg.topShift * s;
   // The pill's cut belongs to the first player alone: the second slice starts below the pill's foot (+ clearance), so the
   // pill never clips a corner off it. (Solved by a few fixed-point steps: the height depends on where the stack starts.)
-  const hAt = (top: number): number => Math.min(cfg.panelMax * s, (B - top - (n - 1) * gap) / n);
+  const hAt = (top: number): number => Math.min(cfg.panelMax * s, (B - top - (n - 1) * gap - breaks * teamGap) / n);
   const pillShape = shapes[0]!;
   const pillFoot = pillShape.cy + pillShape.ry + 0.5 * s; // the pill's visible foot + the clearance
   let y1: number;
@@ -239,7 +260,21 @@ export function dockedLayout(a: DockAnchors, live: readonly string[], dead: read
   const h = hAt(y1);
   if (!(h > 16 * s) || y1 < T) return null;
   const deadSet = new Set(dead);
-  const panels: DockPanel[] = ids.map((id, i) => slice(id, deadSet.has(id), L, y1 + i * (h + gap), W, h, L, shapes, 3 * s));
+  let extra = lead * teamGap;
+  const panels: DockPanel[] = ids.map((id, i) => {
+    if (i > 0 && teamOf && teamAt(i) !== teamAt(i - 1)) extra += teamGap;
+    return slice(id, deadSet.has(id), L, y1 + i * (h + gap) + extra, W, h, L, shapes, 3 * s);
+  });
+  let teams: DockTeam[] | undefined;
+  if (teamOf) {
+    teams = [];
+    panels.forEach((p, i) => {
+      const t = teamAt(i) ?? -1;
+      const cur = teams![teams!.length - 1];
+      if (cur && cur.team === t && i > 0 && teamAt(i - 1) === t) { cur.ids.push(p.id); cur.h = p.y + p.h - cur.y; }
+      else teams!.push({ team: t, ids: [p.id], x: p.x, y: p.y, w: p.w, h: p.h, labelY: p.y - (gap + teamGap) / 2 });
+    });
+  }
 
   // THE ROUND SLICE above the first player, clear of the Refresh pill (so it needs no cut), at its own height.
   // Eclipse / level: above the pill, clear of it. Below: beside the pill, centred on its band, cut round its rounded end
@@ -261,5 +296,5 @@ export function dockedLayout(a: DockAnchors, live: readonly string[], dead: read
     head = slice('__head', false, L, ht, W, Math.max(20 * s, hb - ht), L, shapes, 3 * s);
   }
 
-  return { s, panels, head, ...(wrap ? { wrap } : {}) };
+  return { s, panels, head, ...(wrap ? { wrap } : {}), ...(teams ? { teams } : {}) };
 }

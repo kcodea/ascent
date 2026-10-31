@@ -49,10 +49,11 @@ html:root .lobbyrail.lrv-docked .lobbyseat:not(.dead) .lrv-tileart::after {
 }
 /* The Health bar's size base: the slice; it sits inside the edge, from where the foot is clear of a cut. */
 html:root .lobbyrail.lrv-docked .lobbyseat { --bar-base: var(--ph); --bar-w: var(--pw); }
-html:root .lobbyrail.lrv-docked .lobbyseat .lrv-bar { bottom: calc(var(--rim) + 1px); left: calc(var(--rim) + 1px + var(--bi)); right: calc(var(--rim) + 1px + var(--bi)); }
-/* On a cut slice the bar runs as far left as the slice does: its wrapper takes the slice's outline, moved in by a small
-   even clearance, as its clip (owner 2026-10-31: the bar must not sit "boxed off" after the cut), so its left end
-   follows the gem's diamond or the coin's arc. */
+/* THE BAR STARTS WHERE THE FOOT IS CLEAR OF A CUT (`--fx`, 0 on an uncut slice; R-RAIL-DOCKED-BAR-01, lead 2026-10-31:
+   the coin cut hid the start of the red, so a player beside the coin read as nearly dead). The whole bar, track and fill,
+   sits right of the cut, so its fill is Health over the VISIBLE bar's length on every slice. */
+html:root .lobbyrail.lrv-docked .lobbyseat .lrv-bar { bottom: calc(var(--rim) + 1px); left: calc(var(--fx, 0px) + var(--rim) + 1px + var(--bi)); right: calc(var(--rim) + 1px + var(--bi)); }
+/* The bar's wrapper (no clip: the bar itself starts clear of any cut, above). */
 html:root .lobbyrail.lrv-docked .lrv-barclip { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 
 /* THE GOLD EDGE along the outline (a crisp dark keyline under it, so it holds on any board art). */
@@ -76,11 +77,25 @@ html:root .lobbyrail.lrv-docked .lobbyseat {
   --fe: rgba(0, 0, 0, calc(1 - var(--lr2-fade-str, 1)));
 }
 html:root .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
-  position: absolute; top: 0; bottom: 0; left: 0; width: var(--aw); height: 100%;
+  /* FULL ART is the shipped look (owner pick 2026-10-31: "i like the full art look"): the art across the whole slice, no
+     fade. Production sets no `data-lr2-art`, so this base rule IS production; the other layouts are Tuner 2 options. */
+  position: absolute; top: 0; bottom: 0; left: 0; width: 100%; height: 100%;
   object-position: calc(var(--lr2-art-fx, 50) * 1%) calc(var(--lr2-art-fy, 24) * 1%);
   transform: scale(var(--lr2-art-zoom, 1)); transform-origin: calc(var(--lr2-art-fx, 50) * 1%) calc(var(--lr2-art-fy, 24) * 1%);
-  -webkit-mask-image: linear-gradient(90deg, #000 var(--f0), var(--fe) var(--f1)); mask-image: linear-gradient(90deg, #000 var(--f0), var(--fe) var(--f1));
   filter: brightness(var(--lr2-art-bright, 1));
+}
+/* LEFT FADE (the earlier default, Tuner 2): the art on the left `--aw` of the slice, fading into the plate. */
+html:root[data-lr2-art="left"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
+  width: var(--aw);
+  -webkit-mask-image: linear-gradient(90deg, #000 var(--f0), var(--fe) var(--f1)); mask-image: linear-gradient(90deg, #000 var(--f0), var(--fe) var(--f1));
+}
+/* 75% FADE (owner 2026-10-31): the art across the slice, full strength over its left 75%, fading into the plate over the
+   last quarter; the label sits right, over the fade (`--aw` = the whole slice). Static mask. */
+html:root[data-lr2-art="fade75"] .lobbyrail.lrv-docked .lobbyseat { --aw: 100%; }
+/* The label starts at 42% (not over the fade alone, a quarter of the slice that cuts most hero names), right-aligned. */
+html:root[data-lr2-art="fade75"]:not([data-lr2-name-side="left"]) .lobbyrail.lrv-docked .lobbyseat:not(.dead) .lrv-name { left: 42%; }
+html:root[data-lr2-art="fade75"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
+  width: 100%; -webkit-mask-image: linear-gradient(90deg, #000 75%, var(--fe) 100%); mask-image: linear-gradient(90deg, #000 75%, var(--fe) 100%);
 }
 html:root[data-lr2-art="full"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface { width: 100%; -webkit-mask-image: none; mask-image: none; }
 html:root[data-lr2-art="right"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
@@ -376,3 +391,64 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
 }
 .lobbyrailhead.lrv-docked:not(.guidesview) .lobbymax svg { width: 1em; height: 1em; color: var(--ui-heart); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); }
 .lobbyrailhead.lrv-docked:not(.guidesview) > .herotip.lobbymax-tip { right: 50%; translate: 50% 0; font-size: initial; text-shadow: none; }
+
+/* ── EVERY MODE ON THE DOCKED RAIL (owner 2026-10-31: "I think we should move all modes to this rail type. 1v1, even 3
+   and 4 player group games") ───────────────────────────────────────────────────────────────────────────────────────
+   Versus 1v1 (you and the opponent as two slices, capped at "Max slice height", anchored under the Refresh pill), Group
+   (3-4 slices), Versus Duos and Ranked Duos (slices grouped per team). Static paint: the status pill's arrival is a
+   one-shot transform / opacity keyframe; nothing here loops. */
+
+/* VERSUS: what a player is doing (Locked in / Ready / Away / Disconnected), a small pill set on the slice's top edge,
+   left of the next foe's crossed swords. */
+html:root .lobbyrail.lrv-docked .lrv-status {
+  position: absolute; z-index: 4; top: calc(-7px * var(--dk-s, 1)); right: calc(28px * var(--dk-s, 1));
+  padding: calc(2px * var(--dk-s, 1)) calc(7px * var(--dk-s, 1)); border-radius: 999px; pointer-events: none; white-space: nowrap;
+  font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(9.5px * var(--dk-s, 1)); line-height: 1.1; letter-spacing: 0.04em;
+  color: #fff6df; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+  background: linear-gradient(180deg, var(--ui-plate-mid), var(--ui-plate-bot));
+  box-shadow: 0 0 0 calc(1.5px * var(--dk-s, 1)) var(--ui-title), 0 1px 3px rgba(0, 0, 0, 0.8);
+  animation: lrvStatusIn 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+html:root .lobbyrail.lrv-docked .lrv-status.away { color: #ffe1dc; box-shadow: 0 0 0 calc(1.5px * var(--dk-s, 1)) var(--ui-heart), 0 1px 3px rgba(0, 0, 0, 0.8); }
+@keyframes lrvStatusIn { from { opacity: 0; transform: translateY(-30%) scale(0.85); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { html:root .lobbyrail.lrv-docked .lrv-status { animation: none; } }
+
+/* DUOS: one plate per team round its pair, under the slices: a dark backing that fills the gap between the two (so the
+   pair reads as one piece) and a bracket down its right side. Your team's bracket is gold, the next foe's red, a team
+   that is out muted. Ranked Duos: the team's name in the gap above its pair (the layout keeps a gap above every team then), as a small
+   caps header; drawn over the slices (a sibling of the plates, not inside one). */
+html:root .lobbyrail.lrv-docked .lrv-team { --t: calc(1px * var(--dk-s, 1)); position: absolute; z-index: 0; pointer-events: none; }
+html:root .lobbyrail.lrv-docked .lrv-team::before {
+  content: ''; position: absolute; inset: calc(-3 * var(--t)) calc(-8 * var(--t)) calc(-3 * var(--t)) calc(-2 * var(--t));
+  border-radius: calc(5 * var(--t));
+  background: linear-gradient(180deg, rgba(10, 6, 12, 0.72), rgba(10, 6, 12, 0.6));
+  box-shadow: inset 0 0 0 var(--t) color-mix(in srgb, var(--ui-edge-deep) 70%, transparent);
+}
+html:root .lobbyrail.lrv-docked .lrv-team::after {
+  content: ''; position: absolute; top: calc(6 * var(--t)); bottom: calc(6 * var(--t)); right: calc(-7 * var(--t)); width: calc(4 * var(--t));
+  box-shadow: 0 0 0 var(--t) rgba(0, 0, 0, 0.7);
+  border-radius: 999px; background: var(--ui-edge-main);
+}
+html:root .lobbyrail.lrv-docked .lrv-team.you::after { background: linear-gradient(180deg, #ffe7a6, var(--ui-title)); }
+html:root .lobbyrail.lrv-docked .lrv-team.foe::after { background: color-mix(in srgb, var(--ui-heart) 80%, #fff); }
+html:root .lobbyrail.lrv-docked .lrv-team.dead { opacity: 0.6; }
+html:root .lobbyrail.lrv-docked .lrv-team.dead::after { background: color-mix(in srgb, var(--ui-edge-deep) 80%, #000); }
+html:root .lobbyrail.lrv-docked .lrv-teamname {
+  position: absolute; z-index: 5; translate: calc(4px * var(--dk-s, 1)) -50%; pointer-events: none;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(10.5px * var(--dk-s, 1)); line-height: 1.1;
+  letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--ui-text) 82%, transparent);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.95), 0 0 calc(4px * var(--dk-s, 1)) rgba(0, 0, 0, 0.9);
+}
+html:root .lobbyrail.lrv-docked .lrv-teamname.you { color: var(--ui-title); }
+html:root .lobbyrail.lrv-docked .lrv-teamname.dead { color: var(--ui-muted); }
+
+/* THE TEAMMATE (yours, or the watched player's): a pale gold edge, so the pair reads as yours without claiming your own
+   lit edge. A click opens their board (LobbyPanel `enterTeammateView`, a player only). */
+html:root .lobbyrail.lrv-docked .lobbyseat.mate:not(.dead) svg.lrv-edge:not(.lrv-foering) polygon { stroke: color-mix(in srgb, var(--ui-title) 55%, #fff); stroke-width: calc(3.5px * var(--dk-s, 1)); }
+html:root .lobbyrail.lrv-docked .lobbyseat.mate .lrv-name { color: color-mix(in srgb, var(--ui-title) 60%, #fff); }
+
+/* THE HOVER CARD in Versus: the hero under the name. */
+.lobbyscout.lrv-scout .lrv-sc-hero {
+  margin-top: calc(-4 * var(--c)); font-size: calc(11 * var(--lfont)); letter-spacing: 0.03em; color: var(--ui-muted);
+}

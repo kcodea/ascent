@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { LR2_DEFAULTS, LR2_LAYOUT, LR2_SPEC, LR2_VARS, dockCfgOf, getLobbyRailTuner2, resetLobbyRailTuner2, setLobbyRailTuner2, type LobbyRailTuner2Config } from './lobbyRailTuner2Config';
 import { dockedLayout, type DockAnchors } from './lobbyRailDockedLayout';
+import { getSliceLabel } from './lobbyRailVariant';
 
 /**
  * LOBBY RAIL TUNER 2's contract (owner 2026-10-30: "a lot of the tuner things dont seem to work"; 2026-10-31: "every
@@ -46,7 +47,7 @@ describe('Lobby Rail Tuner 2', () => {
   it('has a control for every value, and every control writes its own var onto :root', () => {
     const keys = Object.keys(LR2_VARS) as NumKey[];
     expect(new Set(Object.values(LR2_VARS)).size, 'one var per control').toBe(keys.length);
-    expect(LR2_SPEC.controls.map((c) => c.key).sort()).toEqual(['barStyle', 'dkTop', 'artLayout', 'nameSide', 'nameShow', ...keys].sort());
+    expect(LR2_SPEC.controls.map((c) => c.key).sort()).toEqual(['barStyle', 'dkTop', 'artLayout', 'nameSide', 'nameShow', 'nameText', ...keys].sort());
     for (const k of keys) {
       const c = LR2_SPEC.controls.find((x) => x.key === k)!;
       const before = document.documentElement.style.getPropertyValue(LR2_VARS[k]);
@@ -63,6 +64,25 @@ describe('Lobby Rail Tuner 2', () => {
     expect(document.documentElement.getAttribute('data-lr2-name-side')).toBe('left');
     setLobbyRailTuner2('nameShow', 'off');
     expect(document.documentElement.getAttribute('data-lr2-name')).toBe('off');
+    // Slice label (owner 2026-10-31: "hero name in the lobby rail as text instead of player name"): reaches the rail's store,
+    // is persisted, and an unknown value is refused.
+    expect(getSliceLabel()).toBe('none'); // the shipped default (owner's Full art pick)
+    setLobbyRailTuner2('nameText', 'hero');
+    expect(getSliceLabel()).toBe('hero');
+    expect(JSON.parse(localStorage.getItem('ascent.lobbyRailTuner2.v2') ?? '{}').nameText).toBe('hero');
+    setLobbyRailTuner2('nameText', 'nonsense');
+    expect(getLobbyRailTuner2().nameText).toBe('hero');
+    setLobbyRailTuner2('nameText', 'none');
+    expect(getSliceLabel()).toBe('none');
+    resetLobbyRailTuner2();
+    expect(getSliceLabel()).toBe('none'); // the shipped default (owner's Full art pick)
+    // The owner's two trial presets (2026-10-31), one click each.
+    const preset = (label: string): void => LR2_SPEC.actions!.find((a) => a.label === label)!.run(null);
+    preset('Preset: Full art');
+    expect([getLobbyRailTuner2().artLayout, getSliceLabel()]).toEqual(['full', 'none']);
+    preset('Preset: 75% fade + hero name');
+    expect([getLobbyRailTuner2().artLayout, getSliceLabel()]).toEqual(['fade75', 'hero']);
+    expect(document.documentElement.getAttribute('data-lr2-art')).toBe('fade75');
     resetLobbyRailTuner2();
     expect(getLobbyRailTuner2()).toEqual(LR2_DEFAULTS);
   });
@@ -77,7 +97,7 @@ describe('Lobby Rail Tuner 2', () => {
       expect(readers.some((r) => r.sel.includes(target!)), `${v} (${k}) must reach ${target}; read by: ${readers.map((r) => r.sel).join(' | ')}`).toBe(true);
     }
     expect(sheet).toContain('[data-lr2-bar="smooth"]');
-    for (const a of ['full', 'right', 'center']) expect(sheet).toContain(`[data-lr2-art="${a}"]`);
+    for (const a of ['left', 'full', 'right', 'center', 'fade75']) expect(sheet).toContain(`[data-lr2-art="${a}"]`);
     expect(sheet).toContain('[data-lr2-name-side="left"]');
     expect(sheet).toContain('[data-lr2-name="off"]');
   });

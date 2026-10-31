@@ -12717,4 +12717,42 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Mid-shop Ann presses the book square above her gear: the guides grow up out of it over the player list; she opens Dragons, reads, presses the chevron and the list sinks back into the square.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/guides/lobbyGuidesRail.test.tsx', 'packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-31' },
   },
+  {
+    id: 'R-RAIL-DOCKED-ALLMODES-01',
+    title: 'Every mode plays on the Docked rail: Versus 1v1, Group, Duos and Ranked Duos as slices',
+    statement:
+      'Every Versus mode lays its players out as Docked slices like a lobby game. A 1v1 is two '
+      + 'slices (you and the opponent) and draws no separate opponent block; a Group game one slice per player; Duos and '
+      + 'Ranked Duos group each team’s pair with a wider gap and one plate per team, draw the team’s shared Health bar '
+      + 'once (on the pair’s last slice), name each Ranked Duos team in the gap above it, and draw the teammate distinct '
+      + '(a click opens their board; passing stays a drag onto the teammate portrait). A slice never grows past the max '
+      + 'slice height. Each other player’s Versus state (Locked in, Ready, Away, Disconnected) shows on their own slice, '
+      + 'and the hover card adds the hero in Versus.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31', quote: 'I think we should move all modes to this rail type. 1v1, even 3 and 4 player group games.' },
+      { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (duosTeams, teamOf, statuses), packages/ui/src/lobbyRailDockedLayout.ts (teamOf / teamLead), packages/ui/src/versus/versusRailStatus.ts' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-31. Before it, a Versus 1v1 drew a separate opponent block, and a Duos table kept the Gem rail’s team slots.',
+    example: 'In a Versus 1v1, Kev sees his own slice and LazerLemon’s under the Refresh pill; when LazerLemon ends the turn, "Locked in" appears on her slice.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailDockedModes.test.tsx', 'packages/ui/src/lobbyRailDockedModes.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
+  {
+    id: 'R-RAIL-DOCKED-BAR-01',
+    title: 'A docked Health bar is never cut: it starts past the Refresh / gem / coin cut, so its fill is the real Health',
+    statement:
+      'On a Docked slice cut by the End Turn gem or the Gold coin, the Health bar (track and fill) starts where the slice’s '
+      + 'foot is clear of the cut. The visible fill over the visible bar is the seat’s Health over its max Health on every '
+      + 'slice, cut or not; no part of the fill ever sits under a board piece.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Lead for Kevin, 2026-10-31', quote: 'on cut slices the bar’s FILL must be measured from the bar’s visible left end (after the cut)' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyRailDocked.css (.lobbyseat .lrv-bar left: var(--fx)), packages/ui/src/LobbyPanel.tsx (--fx = DockPanel.footX)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-31. The bar ran under the cut (clipped to the slice outline), so beside the coin the start of the red was hidden and a healthy player read as nearly dead.',
+    example: 'Ozzie sits beside the Gold coin on 9 of 30 Health: their bar starts right of the coin’s cut and shows 30% red.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailDockedModes.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
 ];

@@ -50,7 +50,9 @@ medal + division — see *Ranked ladder* below).
   **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13, reaffirmed for every mode 2026-10-31,
   R-VERSUS-UNIQUE-HEROES-01): a run on a hero already seated — or on the player's hero — is passed over for the next run
   in the shuffle (then the band widens step by step, then generated seats on fresh heroes), and generated seats never
-  repeat a hero either. The player picks from an unconstrained offer and the seats are chosen around that pick. Measured
+  repeat a hero either. **Ranked picks the table FIRST** (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01, see the ranked
+  entry below): the seven seats are chosen at Play with no hero reserved, and the player's three are then dealt from the
+  heroes no seat holds. Practice still deals an unconstrained offer and chooses the seats around the pick. Measured
   2026-10-31 on the live pool (433 runs, 51 heroes): about half of all lobbies pass over one same-hero run, and the rule
   never forced an extra widening or a generated seat.
 - **An eligible run covers the rounds it will be asked for** (2026-09-29, R-LOBBY-07): at least 4 recorded
@@ -374,6 +376,25 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   been played and lost first. Closing the game on hero select is neither a penalty nor a reroll: the next launch
   reopens hero select on the **same heroes**. Backing out costs nothing when the game could not have been rated
   (offline, so the lobby would be all-generated). Source: `packages/ui/src/rank/rankedEntry.ts`.
+- **The opponents are chosen before your heroes** (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01: *"i want the players in
+  ranked modes to get their options technically after the opponents are chosen, so it forces more variety in hero
+  selection"*). "Yes" picks the seven seats first, by the usual rules (your medal's band and its widening, the 4-seat
+  owner cap, the seeded shuffle, generated seats for the rest), with every hero open to them (`createLobbyTable`). Your
+  three heroes, and the one re-roll, are then drawn only from the heroes none of the seven plays (and your run's tribes
+  allow). The table is stored on the ranked entry, so the hero you pick sits at exactly that table, and closing the game
+  on hero select reopens the same heroes at the same table. The table is usually dealt in idle time while the
+  confirmation is on screen, so "Yes" only commits it; a pool still loading at "Yes" shows "Finding opponents..." over
+  the shut gate (Cancel = back to the menu, nothing owed). With the game session on, the session pins the table's
+  opponent keys at that moment. **Fallback (flagged):** if the free heroes number fewer than three, the offer is topped
+  up with held ones; picking one of those re-picks the table the old way (seats skip your hero), so every hero stays
+  unique. It never happens with today's roster (1000 simulated entries: 0 top-ups). An entry made before this rule (no
+  table) keeps the old order, and a saved game never re-picks its table. Practice is unchanged. "Casual" is not a door
+  of its own: it is a lobby from this same Play that ended up unrated (offline, every seat generated), so it gets the
+  same order.
+  Measured (1000 entries, a 400-run pool skewed toward a few heroes): before, 30% of offers showed a hero already at
+  the table; after, none. The pool's most-seated hero went from 64 offers to 13, the rest of the roster picked up the
+  slack. Picking the table costs about 30 ms with a full pool (p90 43 ms), now paid before hero select instead of at the
+  hero pick.
 - **Leaving a rated game early costs Rating** (owner 2026-09-29, R-RANK-05; off from 2026-10-02 to 2026-10-11, on
   again with the confirmation above). Giving up an unfinished rated game (**Clear** on the title, starting any new
   game over it, or a cloud copy of another run adopted over it) settles it as a finish in the **lowest place still
@@ -1402,6 +1423,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   no switch: their Play opens the mode screen. Solo + the card's PLAY is the usual flow. Duo + PLAY asks the ranked
   confirmation, then puts you in YOUR PARTY: a two-seat room playing Ranked Duos with
   you in the first seat (back into it if you are already in one).
+- **The table is chosen before your heroes** (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01). When the game starts the
+  room seats the three recorded teams first (team rating, then the table, with no live hero to avoid), and only then
+  deals both teammates' three heroes, never one the six opponents play and never one the other teammate was offered.
+  The entry gate's crystal holds until the heroes are dealt; the 20 second Hero Select clock starts then. If the table
+  is not seated within 12 seconds the heroes are dealt the old way and the table is seated after Hero Select, around
+  the two picks (a table that arrives after that deal is dropped). Either way all eight heroes are unique.
 - **The party is its own place** (R-RANKED-DUOS-SPLIT-01; owner 2026-10-27: "lobby/versus modes need to stay separate
   from ranked modes ... the duo ranked lobby should just have an invite player option and then start game and a back
   button to get back to the play screen"; "make the team naming more obvious in lobby"). The party screen shows the

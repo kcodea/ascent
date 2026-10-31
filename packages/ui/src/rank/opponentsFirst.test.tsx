@@ -48,7 +48,8 @@ vi.mock('./rankSubmission', async (importOriginal) => {
   };
 });
 
-import { heroRerollPoolOf, useGame } from '../store';
+import { heroRerollPoolOf, prepareRankedDeal, useGame } from '../store';
+import { perfMonitor } from '../perfMonitor';
 import { loadRankedEntry, saveRankedEntry } from './rankedEntry';
 import { rankedEntryPoolGate } from '../opponentPool/lobbyPoolGate';
 
@@ -126,6 +127,23 @@ describe('ranked: the opponents are chosen before the hero offer', () => {
     expect(await done).toBe(true);
     expect(useGame.getState().rankedEntry?.table).toBeDefined();
     expect(useGame.getState().heroChoices).toHaveLength(3);
+  });
+
+  it('the table is dealt in idle time while the confirmation is open, so Play only commits it (no build on the gate)', async () => {
+    const spy = vi.spyOn(perfMonitor, 'measure');
+    const builds = () => spy.mock.calls.filter((c) => c[0] === 'ranked:table').length;
+    prepareRankedDeal();
+    await new Promise((r) => setTimeout(r, 5));
+    expect(builds()).toBe(1);
+    expect(useGame.getState().rankedEntry).toBeNull(); // nothing committed by the preparation
+    act(() => { void useGame.getState().startLobby(); });
+    expect(builds()).toBe(1);
+    expect(useGame.getState().rankedEntry?.table).toBeDefined();
+    // Spent: the next entry deals its own.
+    act(() => useGame.setState({ rankedEntry: null, heroChoices: null }));
+    act(() => { void useGame.getState().startLobby(); });
+    expect(builds()).toBe(2);
+    spy.mockRestore();
   });
 
   it('a cancelled wait commits nothing and owes nothing', async () => {

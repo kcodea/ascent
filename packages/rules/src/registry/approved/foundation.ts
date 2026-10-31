@@ -12627,4 +12627,38 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Kev moves the mouse from the board into the empty corner beside the Freeze diamond: nothing lights. He crosses the edge of the diamond and the gem lights at that pixel; the Freeze pill beside it lights it too.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/hitShapes.test.ts', 'packages/ui/src/lobbyRailDockedClickThrough.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
+  {
+    id: 'R-RANKED-OPPONENTS-FIRST-01',
+    title: 'Ranked picks the opponents before the hero offer: the offer and its re-roll never hold a seated hero',
+    statement:
+      'RANKED SOLO: the ranked confirmation\x27s "Yes" picks the seven seats FIRST (`createLobbyTable`: the same selection as '
+      + '`createRunLobby`, band and widening, the 4-seat owner cap, the seeded shuffle, the generated fill, the board probe, only no hero is '
+      + 'reserved for the player), then deals the three heroes from the run\x27s tribe-gated playable heroes that no seat holds '
+      + '(`rankedHeroOffer`); the one re-roll draws from the same free list. The table is stored on the ranked entry (`RankedEntry.table`), the '
+      + 'hero pick seats the player in exactly that table (`createLobbyRun` with `table`, `seatPlayerAtTable`), and the lobby is flagged '
+      + '`opponentsFirst`. The deal is prepared in idle time while the confirmation is open and only committed by "Yes"; a pool still loading '
+      + 'at "Yes" is waited for over the shut gate, and a cancelled wait commits nothing. With the game session on, its table (opponent keys) '
+      + 'is pinned at "Yes". FALLBACK: fewer than three free heroes = the offer is topped up with held ones (`toppedUp`, no early session '
+      + 'pin); a pick of one re-picks the table the old way, so all eight heroes stay unique. An entry with no table (made before this rule) '
+      + 'keeps the old order; saved runs never re-pick. RANKED DUOS: the room seats the three recorded teams at match creation (team, then '
+      + 'table, `opponentsFirst` seating with no live hero), then deals both party offers with `versusDisjointHeroOffers` excluding the six '
+      + 'served heroes; no offer, no clock and no pick (`not_dealt`) before that; a table later than 12 s deals the old way and is seated '
+      + 'after Hero Select around the picks (a table that lands after that deal is dropped). Practice is unchanged; a casual (unrated, '
+      + 'all-generated) lobby comes from the same Play door and gets the same order.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-31', quote: 'i want the players in ranked modes to get their options technically after the opponents are chosen, so it forces more variety in hero selection' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts (createLobbyTable, seatPlayerAtTable, lobbyTableHeroes, createLobbyRun table); packages/sim/src/lobby/opponentsFirst.ts (rankedHeroOffer, freeRankedHeroes); packages/ui/src/store.ts (startLobby, prepareRankedDeal, heroRerollPoolOf, pickHero); packages/ui/src/rank/rankedEntry.ts (table); packages/ui/src/session/gameSession.ts (pinEntryTable); packages/sim/src/versus/heroOffers.ts (exclude); packages/sim/src/versus/rankedDuosSeat.ts (opponentsFirst); workers/versus/src/core/rankedMatch.ts (deal_by, dealOffers, seat); workers/versus/src/core/groupMatch.ts (deferOffers, dealGroupOffers)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-31 (feat/ranked-opponents-first); Ranked Duos once the Worker ships with the next pack. Before, the player\x27s '
+      + 'offer was the whole tribe-gated roster and the seats were picked around the pick. Measured (1000 simulated entries, a 400-run pool '
+      + 'skewed toward a few heroes): offers showing a hero the table holds 300/1000 before, 0/1000 after; the pool\x27s most-seated hero went '
+      + 'from 64 offers to 13; 0 top-ups. Table pick ~30 ms (p50 28.6, p90 42.8 ms) with a full pool, ~240 ms with an empty one (seven generated '
+      + 'seats probed), moved from the hero pick to idle time before "Yes".',
+    example: 'Ann presses Play and "Yes". Her table is Bob on Warden, Cat on Myra and five others. Her three heroes are Indy, Keshi and Bram, '
+      + 'never Warden or Myra, and her re-roll cannot land on them either. She picks Keshi and sits at exactly that table.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/opponentsFirst.test.ts', 'packages/ui/src/rank/opponentsFirst.test.tsx', 'packages/ui/src/heroReroll.test.tsx', 'packages/sim/src/versus/versusHeroOffers.test.ts', 'workers/versus/test/rankedOpponentsFirst.test.ts', 'workers/versus/test/rankedCore.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
 ];

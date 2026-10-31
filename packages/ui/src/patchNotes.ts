@@ -77,6 +77,11 @@ export const PATCH_NOTES: PatchNote[] = [
         'Holding right-click on your own ping clears it. Clicking the ping still works too.',
         'On a phone nothing changes: tap to inspect, tap and hold to ping.',
       ] },
+      { category: 'Systems', text: 'In ranked, your hero options are rolled after your opponents are chosen, so every lobby has more variety.', details: [
+        'Ranked: your three heroes, and your re-roll, never include a hero one of your seven opponents is playing.',
+        'Ranked Duos: the three other teams are chosen first, then you and your teammate get heroes none of them play.',
+        'Practice works as before.',
+      ] },
       { category: 'Systems', text: 'Every hero in a lobby is now unique.', details: [
         'Versus, Group and Duos: no two players are offered the same hero, and a re-roll never gives you a hero someone else has.',
         'Lobbies and Ranked Duos already worked this way: every seat at the table plays a different hero.',

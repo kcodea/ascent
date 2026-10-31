@@ -30,9 +30,19 @@ export function versusHeroShuffle(heroSeed: number, runSeed: number, setId: SetI
   return ids;
 }
 
-/** Every seat's three heroes, dealt so no hero is offered twice (see the module note). `seats` in seat order. */
-export function versusDisjointHeroOffers(seats: readonly { heroSeed: number; runSeed: number }[], setId: SetId): string[][] {
-  const lists = seats.map((s) => versusHeroShuffle(s.heroSeed, s.runSeed, setId));
+/**
+ * Every seat's three heroes, dealt so no hero is offered twice (see the module note). `seats` in seat order.
+ *
+ * `exclude` (OPPONENTS FIRST, owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01: Ranked Duos seats its three recorded teams
+ * BEFORE the party's offers are dealt): heroes the table already holds, never dealt. Each seat's list simply loses them
+ * first, so with nothing excluded the deal is exactly the one of before. A list that runs out of free heroes falls back to
+ * the excluded ones (never with today's roster: the tribe gate leaves 20+ heroes, the table holds 6).
+ */
+export function versusDisjointHeroOffers(seats: readonly { heroSeed: number; runSeed: number }[], setId: SetId, exclude?: ReadonlySet<string>): string[][] {
+  const full = seats.map((s) => versusHeroShuffle(s.heroSeed, s.runSeed, setId));
+  const lists = exclude?.size
+    ? full.map((l) => [...l.filter((h) => !exclude.has(h)), ...l.filter((h) => exclude.has(h))])
+    : full;
   const offers: string[][] = seats.map(() => []);
   const dealt = new Set<string>();
   const n = seats.length;

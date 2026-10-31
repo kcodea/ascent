@@ -10,7 +10,7 @@ import { applyTitleAccountVars } from './titleAccountConfig';
 import { Icon } from './Icon';
 import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { sfx } from './sfx';
-import { anyPageOpen, useGame, tempHandle } from './store';
+import { anyPageOpen, prepareRankedDeal, useGame, tempHandle } from './store';
 import { abandonWarningOf, withAbandonWarning } from './rank/ratedRun';
 import { DUOS_CONFIRM_TEXT, DUOS_CONFIRM_TITLE, RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_TITLE, RANKED_CONFIRM_YES } from './rank/rankedEntry';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
@@ -200,6 +200,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     setConfirmKind(kind);
     setRankedConfirm('open');
     warmRankedGate(); // the gate "Yes" plays: its art, cues and FX layer are ready before the answer
+    // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the table is dealt in idle time while the card is read, so "Yes"
+    // only commits it (the build stays off the gate's animation).
+    if (kind === 'solo') prepareRankedDeal();
   };
   // "Yes, let's go." (owner 2026-10-12): the window leaves, the ranked gate slams shut over the mode picker, and
   // `startLobby` (the entry + hero select) runs BEHIND the shut doors, so they open on hero select. With no gate

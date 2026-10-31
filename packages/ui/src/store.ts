@@ -2907,13 +2907,10 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // loading = the gate's crystal holds while "Finding opponents..." shows over it (`rankedEntryPoolGate`); Cancel goes
     // back to the menu with nothing owed (no entry was committed yet).
     const deal = (): void => {
-      const seed = randomSeed();
-      const t0 = performance.now();
-      const table = perfMonitor.measure('ranked:table', () => createLobbyTable(seed, {}, activeSet().id, ratedSeatOptions(get().profile)));
-      resetLobbyDrivers(table.seats);
-      const { offer, toppedUp } = rankedHeroOffer(tribesForSeed(seed), lobbyTableHeroes(table), Math.random);
-      lastRankedTableMs = performance.now() - t0;
-      const entry: RankedEntry = { runId: mintRunId(), seed, heroChoices: offer, table, ...(toppedUp ? { toppedUp: true } : {}), at: new Date().toISOString() };
+      // Usually already dealt in idle time while the confirmation was on screen (`prepareRankedDeal`), so the gate's
+      // slam never carries the table's build; dealt here only when that is missing or stale.
+      const d = takePreparedDeal() ?? dealRankedTable(get().profile);
+      const entry: RankedEntry = { runId: mintRunId(), seed: d.seed, heroChoices: d.offer, table: d.table, ...(d.toppedUp ? { toppedUp: true } : {}), at: new Date().toISOString() };
       saveRankedEntry(entry);
       open(entry);
     };
@@ -3445,6 +3442,51 @@ function rankedTableFor(s: Pick<GameStore, 'rankedEntry' | 'pendingMode'>, seed:
 /** How long the last ranked table took to pick (ms), for the perf readout / tests. */
 let lastRankedTableMs = 0;
 export const lastRankedTableBuildMs = (): number => lastRankedTableMs;
+
+/** OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): one dealt table + offer, not yet committed to an entry. */
+interface RankedDeal { seed: number; table: RunLobby; offer: string[]; toppedUp: boolean; poolSize: number; bandKey: string; at: number }
+let preparedDeal: RankedDeal | null = null;
+const PREPARED_DEAL_TTL_MS = 120_000;
+const dealBandKey = (profile: Parameters<typeof lobbyBandFor>[0]): string => JSON.stringify(lobbyBandFor(profile) ?? null);
+
+/** Pick a ranked table and deal the offer around it (no entry yet). */
+function dealRankedTable(profile: Parameters<typeof lobbyBandFor>[0]): RankedDeal {
+  const seed = randomSeed();
+  const t0 = performance.now();
+  const table = perfMonitor.measure('ranked:table', () => createLobbyTable(seed, {}, activeSet().id, ratedSeatOptions(profile)));
+  resetLobbyDrivers(table.seats);
+  const { offer, toppedUp } = rankedHeroOffer(tribesForSeed(seed), lobbyTableHeroes(table), Math.random);
+  lastRankedTableMs = performance.now() - t0;
+  return { seed, table, offer, toppedUp, poolSize: OPPONENT_POOL.length, bandKey: dealBandKey(profile), at: Date.now() };
+}
+
+/** The prepared deal, once, if it still matches the pool and the player's band (else dropped). */
+function takePreparedDeal(): RankedDeal | null {
+  const d = preparedDeal;
+  preparedDeal = null;
+  if (!d) return null;
+  const fresh = Date.now() - d.at < PREPARED_DEAL_TTL_MS && d.poolSize === OPPONENT_POOL.length && d.bandKey === dealBandKey(useGame.getState().profile);
+  return fresh ? d : null;
+}
+
+/**
+ * OPPONENTS FIRST: deal the ranked table in IDLE time while the ranked confirmation is on screen (the Title calls this
+ * when it opens), so "Yes" only commits it. A table build is ~30 ms with a full pool (measured, 2026-10-31) and the gate
+ * that follows "Yes" is animating, so the build is kept off it. Nothing is committed: "No" just leaves it unused. A no-op
+ * while an entry is live or the pool is still loading (Play then deals once the pool lands).
+ */
+export function prepareRankedDeal(): void {
+  const run = (): void => {
+    const st = useGame.getState();
+    if (st.rankedEntry) return;
+    const loader = opponentPoolLoader();
+    if (loader && loader.state().status !== 'ready') return;
+    if (preparedDeal && Date.now() - preparedDeal.at < PREPARED_DEAL_TTL_MS && preparedDeal.poolSize === OPPONENT_POOL.length) return;
+    try { preparedDeal = dealRankedTable(st.profile); } catch { preparedDeal = null; }
+  };
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 400 });
+  else setTimeout(run, 0);
+}
 
 function ratedSeatOptions(profile: Parameters<typeof lobbyBandFor>[0]): LobbySeatOptions {
   const band = lobbyBandFor(profile);

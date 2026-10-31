@@ -67,12 +67,11 @@ async function ranked(toShop: boolean): Promise<H> {
   await h.op(U1, 'gate');
   await h.op(U2, 'gate');
   h.core.rankedSetTeam(await svc.ensureTeam(U1, U2), h.now);
+  // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the table is seated, then the party's heroes are dealt around it.
+  await h.core.rankedSeat(svc, h.now);
   if (!toShop) return h;
-  await h.op(U1, 'register_offer', { matchId: h.g.id, offer: HERO_IDS.slice(0, 3) });
-  await h.op(U2, 'register_offer', { matchId: h.g.id, offer: HERO_IDS.slice(3, 6) });
   await h.op(U1, 'pick_hero', { matchId: h.g.id, index: 0 });
   await h.op(U2, 'pick_hero', { matchId: h.g.id, index: 0 });
-  await h.core.rankedSeat(svc, h.now);
   await h.op(U1, 'intro_done', { matchId: h.g.id });
   await h.op(U2, 'intro_done', { matchId: h.g.id });
   return h;

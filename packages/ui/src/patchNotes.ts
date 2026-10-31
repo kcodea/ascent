@@ -58,6 +58,11 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-31',
     changes: [
+      { category: 'Systems', text: "Buttons now respond exactly where they're drawn.", details: [
+        'Tier up, Freeze, Refresh, End Turn, your hero powers, Equipment, runes, quests, the turn clock and the corner buttons light up and click only on their art, not on the empty box around them.',
+        'The Tier and Freeze labels and the Gold cost chips now press their button too.',
+        'Hovering your Health no longer lights your portrait behind it.',
+      ] },
       { category: 'Systems', text: 'The lobby rail is rebuilt: player slices set into the right side of the board.', details: [
         'Each player has a slice with their hero art and name. The Refresh button, the End Turn gem and the Gold coin sit snugly in cut-outs.',
         'A Health bar on every slice: red for Health, steel blue for Armor.',

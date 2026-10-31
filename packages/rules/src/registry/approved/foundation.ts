@@ -12606,4 +12606,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Round 9, three players out: the three fallen slices sit greyed at the bottom of the stack with their skulls in one column, the five living slices above them unchanged, and the slice beside the End Turn gem is cut round its diamond.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailDockedLayout.test.ts', 'packages/ui/src/lobbyRailTuner2.test.ts', 'packages/ui/src/lobbyRailDockedClickThrough.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
+  {
+    id: 'R-HIT-SHAPE-01',
+    title: 'Every HUD control takes the pointer only through its drawn shape',
+    statement:
+      'Every board and HUD control whose drawn shape is not its CSS box (the Tier-up orb with its cost chip and Tier pill, '
+      + 'Freeze, Refresh, End Turn, the hero powers and the Equipment slot, the foe power icon, the turn clock, the Health '
+      + 'plaque, the corner plaques, the rune and quest badges, the teammate portrait) takes the pointer only inside what is '
+      + 'drawn, in every mode and layout: hover turns on and off at the painted edge, a press lands only on the art, and the '
+      + 'empty corners of a box never take the hover of a neighbour. The box and the art are click-through and one static, shaped '
+      + 'hit layer takes the pointer (a polygon traced from the art, or a border-radius circle or pill). A control that lifts on '
+      + 'hover counter-moves its hit layer, so the edge never flickers. A dragged card drops through every hit layer.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-31', quote: 'make the other buttons as clean cut as you did with end turn so that mousing over them feels snappy and accurate' },
+      { kind: 'code', ref: 'packages/ui/src/hitShapes.css (traced by scripts/trace-hit-shape.mjs)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-31. Before, every art button took the pointer across its whole square box (a quarter to a third of the empty space round the Tier-up orb, Freeze and Refresh was live) while the parts of the art outside the box (the Tier and Freeze pills, cost chips, the bottom edge of the corner plaques, the clock rim) were dead; only the End Turn gem and Refresh pill were shaped, and only with the Docked rail on.',
+    example: 'Kev moves the mouse from the board into the empty corner beside the Freeze diamond: nothing lights. He crosses the edge of the diamond and the gem lights at that pixel; the Freeze pill beside it lights it too.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hitShapes.test.ts', 'packages/ui/src/lobbyRailDockedClickThrough.test.ts'], lastVerifiedAt: '2026-10-31' },
+  },
 ];

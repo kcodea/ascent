@@ -34,12 +34,13 @@ describe('Docked rail stays click-through over the board (R-RAIL-DOCKED-CLICKTHR
     expect(slice?.body).toMatch(/pointer-events:\s*auto/);
   });
 
-  it('the End Turn gem and the Refresh pill take the pointer only through their own shapes', () => {
-    const hit = rules.filter((r) => r.sel.includes('html.rail-docked'));
-    expect(hit.some((r) => /\.etbwrap(?!::)/.test(r.sel) && /pointer-events:\s*none/.test(r.body))).toBe(true);
-    expect(hit.some((r) => r.sel.includes('.etbwrap::after') && /polygon\(50% 0, 100% 50%, 50% 100%, 0 50%\)/.test(r.body))).toBe(true);
-    expect(hit.some((r) => r.sel.includes('::after') && /pointer-events:\s*auto/.test(r.body))).toBe(true);
-    expect(hit.some((r) => r.sel.includes('.rfbwrap::after') && /border-radius:\s*999px/.test(r.body))).toBe(true);
+  it('the End Turn gem and the Refresh pill take the pointer only through their own shapes (in every layout since R-HIT-SHAPE-01)', () => {
+    // The Docked-only rules moved to hitShapes.css and now hold in every rail look (hitShapes.test.ts holds the shapes).
+    const hit = readFileSync(join(__dirname, 'hitShapes.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(hit).toMatch(/:is\(\.tvbwrap, \.frzwrap, \.rfbwrap, \.etbwrap\) \{ pointer-events: none; \}/);
+    expect(hit).toMatch(/\.etbwrap::after \{ clip-path: polygon\(/);
+    expect(hit).toMatch(/\.rfbwrap::after \{ clip-path: polygon\(/);
+    expect(rules.some((r) => /\.(etbwrap|rfbwrap)/.test(r.sel)), 'no Docked-only copy left to drift').toBe(false);
   });
 
   it('sits under the board HUD, so every board hover and tooltip draws over the slices', () => {

@@ -1,0 +1,120 @@
+/* ── SHAPED HIT AREAS (R-HIT-SHAPE-01) ─────────────────────────────────────────────────────────────────────────────
+   Owner 2026-10-31: "make the other buttons as clean cut as you did with end turn so that mousing over them feels snappy
+   and accurate". Every board / HUD control whose drawn shape is not its CSS box takes the pointer ONLY through that
+   drawn shape: hover turns on and off at the painted edge, a press lands only on the art, and the empty corners of a
+   box never steal a neighbour's hover. In every mode and layout (this file is not keyed to any look or rail).
+
+   THE PATTERN. The control's own box and its art are click-through (`pointer-events: none`); one hit layer takes the
+   pointer, shaped like the art:
+     - a pseudo-element of the button (`::after`, or `::before` where `::after` is taken). A pseudo-element hit counts as
+       the button itself, so :hover, the click, focus on press, touch, the gauntlet cursor (inherited) and every
+       existing `.x:hover .y` rule keep working untouched;
+     - or a child that already has the shape (a `border-radius` circle / pill), which bubbles to the button the same way.
+   Diamonds and ornate rims are a `clip-path: polygon(...)` TRACED from the art's alpha by `scripts/trace-hit-shape.mjs`
+   (re-run it if the art changes; `hitShapes.test.ts` checks every polygon still covers its art file). Circles and pills
+   are `border-radius`, which Chrome, Safari and Firefox all hit-test.
+
+   STILL. Static shapes only: no animation, no per-frame work, nothing read from layout. A control that lifts or grows
+   on hover counter-moves its hit layer by the same amount, so the area under a resting pointer never moves away from it
+   (no hover flicker at the edge).
+
+   FOCUS. These pieces drop the rectangular browser ring; a keyboard focus glow is a `drop-shadow` on the art, which
+   follows the painted alpha exactly (the `.shopbtn` precedent). One-shot, never animated.
+
+   DRAGGING. A card dragged across the HUD drops through every hit layer, as the boxes always did (`body.dragging`).
+   ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/* ── 1. THE BOARD ART BUTTONS: Tier-up orb, Freeze, Refresh, End Turn ───────────────────────────────────────────────
+   The base art fills each button's box (`inset: 0`), so the traced polygon (in % of the art) maps onto `::after`
+   placed `inset: 0`. Refresh draws its art `object-fit: contain`, so its polygon was traced into the 170 x 72 box. The
+   label pills and cost chips are drawn as part of the button, so they take the pointer too, through their own
+   rounded boxes. */
+/* (`pointer-events` inherits and no piece inside sets its own except the ones re-enabled below, so the buttons alone
+   are enough; no `*` rule, which would key a whole-subtree restyle on the class: R-PHONE-DRAG-02.) */
+:is(.tvbwrap, .frzwrap, .rfbwrap, .etbwrap) { pointer-events: none; }
+:is(.tvbwrap, .frzwrap, .rfbwrap, .etbwrap)::after { content: ''; position: absolute; inset: 0; z-index: 7; pointer-events: auto; }
+/* frames/tavernup_base.webp, --grow 5 --tol 0.4 (the orb, its crest and its foot) */
+.tvbwrap::after { clip-path: polygon(95% 50.7%, 97.5% 52.3%, 98% 55.4%, 94.2% 68.9%, 91% 74.4%, 88.7% 76.7%, 84.3% 79.3%, 81.1% 82.8%, 71.7% 88.7%, 61.2% 93%, 56.6% 95.7%, 53.3% 98.6%, 51.4% 96.7%, 49.7% 97.8%, 47.9% 96.7%, 46% 98.8%, 44.3% 97.9%, 38.4% 92.1%, 32.9% 88.9%, 21.5% 83.8%, 12.9% 77.1%, 9.4% 75.6%, 6.9% 73.4%, 5.8% 70.4%, 5.7% 67%, 4.1% 58.1%, 2% 55.3%, 0.1% 53.9%, 0.2% 52.3%, 1.9% 50.7%, 5.7% 37.6%, 9.4% 29.4%, 16.2% 21.1%, 24.7% 14.1%, 28.9% 11.8%, 43% 7.1%, 49.7% 0.9%, 51.6% 0.5%, 55% 4.5%, 58.1% 7%, 65.9% 9.8%, 74.7% 14.1%, 79.8% 17.8%, 84.2% 22.2%, 87.8% 27.2%, 91.3% 33.7%, 93% 39.3%, 94.2% 45%, 94.2% 49.3%); }
+/* frames/freeze_base.webp, --grow 6 --tol 0.4 (the diamond) */
+.frzwrap::after { clip-path: polygon(99.8% 49.4%, 49.9% 100%, 0.2% 49.4%, 0% 47.9%, 2.7% 44.9%, 49.9% 0%, 95.8% 43.6%, 100% 47.9%); }
+/* frames/end_button_base.webp, --grow 6 --tol 0.4 (the diamond) */
+.etbwrap::after { clip-path: polygon(100% 49.9%, 49.7% 99.5%, 47.9% 99.5%, 0% 49.9%, 49.7% 0%, 67.4% 16.5%); }
+/* frames/refresh_button1.webp, --fit contain --box 170x72 --grow 3 --tol 0.4 (the pill) */
+.rfbwrap::after { clip-path: polygon(100% 49.9%, 99.5% 62.1%, 97.7% 69.7%, 95.2% 76.5%, 91.5% 81.8%, 89.3% 83.7%, 86.3% 84.6%, 50.5% 85.2%, 13.5% 84.6%, 10.6% 83.7%, 8.3% 81.8%, 4.7% 76.5%, 2.2% 69.7%, 0.4% 62.1%, 0% 49.9%, 0.4% 37.6%, 2.2% 30%, 4.7% 23.2%, 8.3% 17.9%, 10.6% 16%, 13.5% 15.1%, 49.9% 14.4%, 86.3% 15.1%, 89.3% 16%, 91.5% 17.9%, 95.2% 23.2%, 97.7% 30%, 99.5% 37.6%); }
+/* The drawn chips and label pills (rounded boxes: their own border-radius is the hit shape). */
+.tvbwrap :is(.tvb-cost, .tvb-tierpill), .frzwrap .frz-pill, .rfbwrap .rfb-cost { pointer-events: auto; }
+body.dragging :is(.tvbwrap, .frzwrap, .rfbwrap, .etbwrap)::after,
+body.dragging :is(.tvbwrap, .frzwrap, .rfbwrap, .etbwrap) :is(.tvb-cost, .tvb-tierpill, .frz-pill, .rfb-cost) { pointer-events: none; }
+/* Focus follows the art. */
+:is(.tvbwrap, .frzwrap, .rfbwrap, .etbwrap):focus { outline: none; }
+.tvbwrap:focus-visible .tvb-base, .frzwrap:focus-visible .frz-base, .rfbwrap:focus-visible .rfb-art, .etbwrap:focus-visible .etb-base {
+  filter: drop-shadow(0 0 2px #fff4d0) drop-shadow(0 0 calc(5 * var(--u)) var(--acc));
+}
+
+/* ── 2. THE HERO POWER BUTTONS (first and second power, the Equipment slot) ─────────────────────────────────────────
+   The panel, its wrapper and the square button box are click-through; the round art window (`.hpb-artwrap`, the circle
+   the art is clipped to, or the Equipment socket's rounded square) takes the pointer. In the Equipment looks the slot's
+   plate reaches past the art window (the socket's rim); the glow layer is sized to exactly that plate in every look
+   (equipSlot.css), so it is the slot's hit shape there. The power's NAME pill keeps its own hover (it was already
+   interactive), and the cost coin stays a readout. (The button's ::before / ::after are the READY ring and arc.) */
+.statusbar .heropanel, .statusbar .heropanel .hpwrap, .statusbar .heropanel .heropowerbtn { pointer-events: none; }
+.statusbar .heropanel .heropowerbtn .hpb-artwrap { pointer-events: auto; }
+/* `pointer-events` inherits, so the panel's other live pieces say so themselves: the first power's name pill and
+   Ancient pill (hovering them shows the power's tip, as before) and the Henchman chip. The Equipment rail turns
+   itself on while it is open (styles.css). */
+.statusbar .heropanel:not(.heropanel2):not(.equipslot) > :is(.hplabel, .anc-pill, .hmn-btn) { pointer-events: auto; }
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .statusbar .equipslot .heropowerbtn .hpb-glow { pointer-events: auto; }
+body.dragging .statusbar .heropanel .heropowerbtn :is(.hpb-artwrap, .hpb-glow) { pointer-events: none; }
+/* The foe's power icon (combat): its square box took the hover for its tip; the round art is the shape. */
+.heropowerbtn.opp-power { pointer-events: none; }
+.heropowerbtn.opp-power .hpb-artwrap { pointer-events: auto; }
+.statusbar .heropanel .heropowerbtn:focus { outline: none; }
+.statusbar .heropanel .heropowerbtn:focus-visible .hpb-artwrap { outline: 3px solid var(--acc); outline-offset: 2px; }
+
+/* ── 3. THE TURN CLOCK ──────────────────────────────────────────────────────────────────────────────────────────────
+   The visible plate is the strip around the cell (2px of rim: a 2px border in Classic, 1px edge + 1px padding in Gem),
+   so the cell's hit layer reaches out over that rim with the strip's own radius. */
+.statstrip > .statcell.time:only-child::after { content: ''; position: absolute; inset: -2px; border-radius: calc(13 * var(--u)); pointer-events: auto; }
+
+/* ── 4. HEALTH PLAQUE ───────────────────────────────────────────────────────────────────────────────────────────────
+   The plaque is drawn OVER the portrait's foot, so it holds the pointer there (a readout with no action of its own):
+   hovering it no longer lights the portrait or opens the Buffs panel through it. */
+.statusbar .hero .hpbox { pointer-events: auto; }
+body.dragging .statusbar .hero .hpbox { pointer-events: none; }
+
+/* ── 5. CORNER PLAQUES (Settings, Compendium, Rules, Friends) ───────────────────────────────────────────────────────
+   Each is a rounded square drawn with a 4px hard bottom edge (a box-shadow, which never takes the pointer). The button
+   itself is click-through and `::before` covers the rounded square AND its edge (the global `.gtip` bubble owns
+   `::after`). On hover the plaque lifts 2px and on press it drops 3px: the hit layer moves back by the same amount, so
+   the area under the pointer stays put. */
+:is(.gearbtn, .bookbtn, .rulesbtn, .fdock-btn) { pointer-events: none; }
+:is(.gearbtn, .bookbtn, .rulesbtn, .fdock-btn)::before {
+  content: ''; position: absolute; inset: -1.5px -1.5px calc(-1.5px - 4px); border-radius: calc(9 * var(--u) + 1.5px); pointer-events: auto;
+  /* the plaque's own transition, so the two moves cancel at every instant of the lift, not just at its end */
+  transition: translate 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fdock-btn .fdock-count { pointer-events: auto; }
+:is(.gearbtn, .bookbtn, .rulesbtn, .fdock-btn):hover::before { translate: 0 2px; }
+:is(.gearbtn, .bookbtn, .rulesbtn, .fdock-btn):active::before { translate: 0 -3px; transition-duration: 0.06s; }
+
+/* ── 6. RUNE AND QUEST BADGES ───────────────────────────────────────────────────────────────────────────────────────
+   The rune art is drawn 1.39x and masked back to a disc that ends at the badge's rim, but the <img> itself (a circle
+   1.39x the badge) took the pointer, so a ring of empty board around every rune lit its tip. The badge's own circle is
+   the shape; `::before` adds the thin dark ring round a rune badge (3px in all on an Epic, 1px otherwise), which is a
+   box-shadow and so could not take the pointer itself. A quest's step counter is drawn over the badge's top edge. */
+.questbadge .questbadge-art { pointer-events: none; }
+.questbadge.runebadge::before { content: ''; position: absolute; inset: -3px; border-radius: 50%; }
+.questbadge.runebadge.runebadge-epic::before { inset: -5px; }
+.questbadge .questbadge-step { pointer-events: auto; }
+/* On a touch screen the badges are about 23px across, so each one's hit circle grows to fill half the gap to its
+   neighbour (still a circle, still centred on the badge, never overlapping the next one): the biggest finger target the
+   rack has room for. */
+html[data-touch-ui] .questbadge::before { content: ''; position: absolute; border-radius: 50%; inset: calc(var(--qb-gap, 11) * var(--u) / -2 - 2px); }
+
+/* ── 7. THE TEAMMATE PORTRAIT (Duos) ────────────────────────────────────────────────────────────────────────────────
+   The round hold (`.duosdock-hold`, the disc) already takes the pointer as a circle. While you watch your teammate, the
+   whole dock becomes the way back and its SQUARE box took the pointer, corners included: now the dock box is
+   click-through and the disc, the cap and the name pill (already live in that state) are the button. Doubled classes
+   out-rank the viewing screen's `.app.viewing .duosdock.self[role="button"]` re-enable. */
+.duosdock.self.self, .app.viewing .duosdock.self.self[role="button"] { pointer-events: none; }
+.duosdock.self:not(.combat) .duosdock-hold { pointer-events: auto; }

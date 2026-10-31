@@ -52,6 +52,11 @@ paint it, or, when an element genuinely needs its own cursor, use the gauntlet U
 (`cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer`). Check any new button/overlay for this before
 shipping.
 
+**HUD controls take the pointer only through their drawn shape** (R-HIT-SHAPE-01): a board/HUD control whose art is not
+its CSS box (a gem, an orb, a pill with a chip) gets a static shaped hit layer in `packages/ui/src/hitShapes.css` (box
+and art `pointer-events: none`, one `::after` / child with a traced `clip-path: polygon()` or a `border-radius`). Trace
+art with `node scripts/trace-hit-shape.mjs`; `hitShapes.test.ts` checks every polygon still fits its art file.
+
 **The game is one scaled stage** (`packages/ui/src/stage.ts`, 2026-09-26). Below 1920×1080 it lays out AT
 1920×1080 inside `#stage` and one `transform: scale(s)` fits it to the window; at or above that `s === 1` and
 nothing changes. So: **portal / append into `stageHost()`, never `document.body`**; **no raw `vw`/`vh` or viewport

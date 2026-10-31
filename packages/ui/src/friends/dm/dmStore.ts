@@ -4,9 +4,11 @@
  *
  * THE HUB SOCKET (`startDirectMessages`, once at boot): while a signed-in ACCOUNT has the game open and this build
  * carries a Worker, one WebSocket to my friends hub (`workers/versus/src/hub.ts`). It carries:
- *   - my presence: sent at hello, and again whenever the presence beat (friendsStore) moved it (piggybacked on the beat's
- *     own settle, so no extra triggers); my connected friends' presence comes back live (`peer` pushes) and overrides
- *     the friends list's (60 s old at worst) status the moment it is newer;
+ *   - my presence: sent at hello, and again whenever it settles on something new (friendsStore's settle,
+ *     `onPresenceSettled`); my connected friends' presence comes back live (`peer` pushes) and overrides the friends
+ *     list's status the moment it is newer. The hub mirrors mine into Supabase itself (R-FRIENDS-HUB-LIVE-01);
+ *   - my inbox (protocol 3): `inbox` pushes (a friend request, an accept, an invite for me) make friendsStore re-read it
+ *     once, as does every (re)connect; my own friend actions and invites `nudge` the other player's hub;
  *   - messages: `send` (answered with the stored row), and `dm` pushes, a message to me (or from me, in another of my
  *     games) the moment it is stored.
  *
@@ -36,13 +38,12 @@ import { VersusCfClient, VersusCfError } from '@game/versus-cf/client';
 import {
   cleanDmBody, DM_MAX_CHARS, DM_REPLY_SNIPPET, HUB_PROTOCOL, HUB_SOCKET_PATH, type DmReplyPreview, type DmRow, type HubHelloAnswer, type HubPeer, type HubPush,
 } from '@game/versus-cf/hub';
-import { currentUserId } from '../../identity';
 import { pageSeen } from '../../chat/pageSeen';
-import { supabaseClient } from '../../remoteBoards';
 import { useGame } from '../../store';
-import { friendsHubUrl, isLocalHub } from './hubUrl';
+import { friendsHubUrl } from './hubUrl';
+import { hubToken } from './hubToken';
 import { useFriendsDock } from '../dock/dockStore';
-import { friendsAccount, presenceNow, refreshFriendsList, useFriends } from '../friendsStore';
+import { friendsAccount, notePresenceSent, nudgeInbox, onPresenceSettled, presenceNow, refreshFriendsList, setHubNotifier, useFriends } from '../friendsStore';
 import type { Friend, PresenceReport } from '../friendsRemote';
 import { parseActivity, parseGameStatus } from '../gameStatus';
 import { dmRemote, DM_PAGE, type DmRemote, type DmReportReason } from './dmRemote';
@@ -127,29 +128,7 @@ export interface HubHandlers {
 /** Opens the hub socket, or null when this build has no Worker. */
 export type HubFactory = (h: HubHandlers) => HubConn | null;
 
-/** The longest the hub waits for my access token before trying again (a stuck session read must never stall it for good). */
-export const HUB_TOKEN_TIMEOUT_MS = 8_000;
-
-async function hubToken(base: string): Promise<string> {
-  const c = supabaseClient();
-  if (c) {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    try {
-      const { data } = await Promise.race([
-        c.auth.getSession(),
-        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new VersusCfError('token_timeout')), HUB_TOKEN_TIMEOUT_MS); }),
-      ]);
-      if (data.session?.access_token) return data.session.access_token;
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
-  }
-  const me = currentUserId();
-  if (!me) throw new VersusCfError('not_signed_in');
-  // A dev token works only on a local dev hub (DEV_AUTH=1); the live hub would refuse it, so wait for a real session.
-  if (!isLocalHub(base)) throw new VersusCfError('not_signed_in');
-  return `dev.${me}.dev`;
-}
+export { HUB_TOKEN_TIMEOUT_MS } from './hubToken';
 
 const defaultFactory: HubFactory = (h) => {
   const base = friendsHubUrl();
@@ -206,9 +185,10 @@ function onHello(d: HubHelloAnswer): void {
   for (const p of d.peers ?? []) peers[p.userId.toLowerCase()] = { ...p, userId: p.userId.toLowerCase(), seenAt: now };
   set({ peers, hub: 'open' });
   flushOutbox();
-  // Unread counts: once per connection (a reconnect re-reads them: the socket may have missed pushes).
+  // Unread counts and my inbox: once per connection (a reconnect re-reads them: the socket may have missed pushes).
   hellos += 1;
   void loadUnread();
+  nudgeInbox();
 }
 
 function onPush(m: HubPush): void {
@@ -217,7 +197,9 @@ function onPush(m: HubPush): void {
     set({ peers: { ...get().peers, [id]: { ...m.peer, userId: id, seenAt: Date.now() } } });
     return;
   }
-  if (m.t === 'dm') receive(m.msg);
+  if (m.t === 'dm') { receive(m.msg); return; }
+  // Protocol 3 (R-FRIENDS-HUB-LIVE-01): a request or an invite for me changed. Read the inbox (coalesced).
+  if (m.t === 'inbox') nudgeInbox();
 }
 
 /**
@@ -260,8 +242,10 @@ function openHub(): void {
   let made: HubConn | null = null;
   const c = factory({
     hello: () => {
-      const p = presenceWire(presenceNow());
+      const now = presenceNow();
+      const p = presenceWire(now);
       lastPresenceKey = presenceKey(p);
+      notePresenceSent(now);
       return { protocol: HUB_PROTOCOL, presence: p, build: contentRevision() };
     },
     onHello, onPush,
@@ -294,7 +278,7 @@ function syncConnection(): void {
   openHub();
 }
 
-/** My presence moved (the beat answered): tell my friends through the hub, once per change. */
+/** My presence settled on something new: tell my friends through the hub, once per change. */
 function syncPresence(): void {
   if (!conn || get().hub !== 'open') return;
   const p = presenceWire(presenceNow());
@@ -314,7 +298,12 @@ export function startDirectMessages(): () => void {
   const unFriends = useFriends.subscribe((s, prev) => {
     if (s.deployed !== prev.deployed) syncConnection();
     if (s.list !== prev.list && s.list) listAt = Date.now();
-    if (s.inbox !== prev.inbox) syncPresence();
+  });
+  const unPresence = onPresenceSettled(() => syncPresence());
+  // My friend actions and invites tell the other player's hub (protocol 3; an older hub answers bad_op, ignored).
+  setHubNotifier((to, kind) => {
+    if (!conn || get().hub !== 'open') return;
+    conn.request('nudge', { to, kind }).catch(() => undefined);
   });
   // A conversation I am looking at is read the moment it opens.
   const unDock = useFriendsDock.subscribe((s, prev) => {
@@ -330,7 +319,8 @@ export function startDirectMessages(): () => void {
   syncConnection();
   return () => {
     started = false;
-    unGame(); unFriends(); unDock();
+    unGame(); unFriends(); unDock(); unPresence();
+    setHubNotifier(null);
     if (hasDom) {
       document.removeEventListener('visibilitychange', onSeen);
       window.removeEventListener('focus', onSeen);

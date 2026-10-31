@@ -39,6 +39,16 @@ class_name = "VersusDirectory"
 name = "LIVE"
 class_name = "VersusLiveGame"
 
+[[services]]
+# LIVE GAMES ON THE HUB (2026-10-30, R-LIVE-DIR-01): every room and live game registers its listing in the hub's ONE
+# directory, so Live Games spans every content revision. A service binding to the stable `ascent-hub` Worker's named
+# entrypoint: Worker to Worker, never reachable from the internet, no secret to hand out. The hub must be deployed FIRST
+# (release:web deploys it before this Worker). Without it (a local `versus:cf:dev` with no `hub:dev`) the writes are
+# skipped.
+binding = "LIVE_DIR"
+service = "ascent-hub"
+entrypoint = "LiveDirectoryWriter"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["VersusRoom", "VersusDirectory"]

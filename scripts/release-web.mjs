@@ -28,15 +28,16 @@
  * Nothing here touches the primary checkout's branch, files or node_modules.
  *
  * VERSUS IS CLOUDFLARE ONLY (R-VERSUS-CF-ONLY-01, owner 2026-10-29; docs/versus-cf-cutover.md): every pack deploys the
- * Versus Worker for this exact commit FIRST (`npm run versus:cf:deploy -- --persist`, from the release worktree; the
+ * Versus Worker for this exact commit before the site (`npm run versus:cf:deploy -- --persist`, from the release worktree; the
  * Worker is named after its content revision, so rooms on an older Worker finish there), checks its /health answers
  * this build's engine, and bakes its URL into the bundle (`VITE_VERSUS_CF_URL`). There is no Supabase Versus server to
  * redeploy any more (the Supabase Edge Function is retired). `--versus-cf-no-persist` deploys with the result writer
  * off (test packs only: matches would leave no records). `--versus-cf` is still accepted (it was the opt-in flag) and
  * changes nothing. Needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment; neither is ever printed.
  *
- * THE FRIENDS HUB (direct messages + live presence, one stable Worker `ascent-hub` for every build): every pack also
- * runs `npm run hub:deploy`, which deploys the hub ONLY when its code changed (never per content revision), checks its
+ * THE FRIENDS HUB (direct messages, live presence, inbox pushes and the Live Games directory; one stable Worker
+ * `ascent-hub` for every build): every pack runs `npm run hub:deploy` BEFORE the Versus Worker (whose LIVE_DIR service
+ * binding names the hub, R-LIVE-DIR-01), which deploys the hub ONLY when its code changed (never per content revision), checks its
  * /health, gives a newly persisting hub its writer secret, and bakes the stable hub URL (`VITE_FRIENDS_HUB_URL`).
  * A pack cut WITHOUT the flag still uses the live hub on the Netlify origin (R-DM-HUB-URL-01, packages/ui/src/friends/dm/hubUrl.ts).
  */
@@ -94,7 +95,50 @@ console.log(`  ✓ HEAD ${short}, tree clean`);
 // ── 3–4. install + build, inside the worktree ──────────────────────────────────────────────────────────────
 step('npm ci (lockfile-exact dependencies)');
 run('npm ci --no-audit --no-fund', WT);
-// ── 3b. the Versus Worker for this commit, BEFORE the site: a new site must never meet a missing Worker ───────────────
+// ── 3b. THE FRIENDS HUB FIRST: one stable Worker for every build, deployed only when its own code changed. It goes
+//    before the Versus Worker because that Worker's LIVE_DIR service binding names the hub's LiveDirectoryWriter
+//    entrypoint (R-LIVE-DIR-01): a Versus Worker deployed before the hub has it would not deploy. ─────────────────────
+let hubUrl = null;
+let hubNote = '';
+{
+  step('the friends hub (deployed only when its code changed)');
+  const cmd = `npm run hub:deploy -- ${VERSUS_CF_PERSIST ? '--persist' : ''}`.trim();
+  console.log(`  $ ${cmd}`);
+  let out;
+  try {
+    out = execSync(cmd, { cwd: WT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (e) {
+    console.log(String(e.stdout ?? ''));
+    die('the friends hub deploy failed (nothing was built; the live site is untouched)');
+  }
+  for (const line of out.split(/\r?\n/)) if (line.trim() && !line.startsWith('>')) console.log(`  ${line.trim()}`);
+  const m = /hub: (deployed|unchanged) (https:\/\/ascent-hub\.team-ascent\.workers\.dev) ([0-9a-f]+)/.exec(out);
+  if (!m) die('the hub deploy printed no "hub: deployed|unchanged <url> <hash>" line');
+  let health = null;
+  for (let i = 0; i < 10 && !health; i++) {
+    try {
+      const res = await fetch(`${m[2]}/health`);
+      if (res.ok) health = await res.json();
+    } catch { /* not routable yet */ }
+    if (!health) await new Promise((r) => setTimeout(r, 3000));
+  }
+  if (!health || health.code !== m[3]) die(`${m[2]}/health does not answer code ${m[3]}`);
+  hubUrl = m[2];
+  hubNote = `${m[1]} (code ${m[3]}, hub protocol ${health.hub}, oldest client ${health.min})`;
+  console.log(`  ✓ friends hub live: ${hubUrl} ${hubNote}`);
+  if (VERSUS_CF_PERSIST) {
+    const workerDir = path.join(WT, 'workers', 'versus');
+    let secrets = '';
+    try { secrets = execSync('npx wrangler secret list --name ascent-hub', { cwd: workerDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch { /* treated as missing */ }
+    if (secrets.includes('HUB_WRITER_SECRET')) console.log('  ✓ hub writer secret already set');
+    else {
+      console.log('  the hub has no writer secret yet: setting one (run the SQL line it prints, or messages are refused)');
+      run('node scripts/writer-secret.mjs ascent-hub', workerDir);
+    }
+  }
+}
+
+// ── 3c. the Versus Worker for this commit, BEFORE the site: a new site must never meet a missing Worker ───────────────
 let workerUrl = null;
 let workerRev = null;
 {
@@ -137,47 +181,6 @@ let workerRev = null;
     else {
       console.log('  this Worker has no result writer secret yet: setting one (run the SQL line it prints BEFORE uploading the zip)');
       run(`node scripts/writer-secret.mjs ${name}`, workerDir);
-    }
-  }
-}
-
-// ── 3c. THE FRIENDS HUB: one stable Worker for every build, deployed only when its own code changed ─────────────────
-let hubUrl = null;
-let hubNote = '';
-{
-  step('the friends hub (deployed only when its code changed)');
-  const cmd = `npm run hub:deploy -- ${VERSUS_CF_PERSIST ? '--persist' : ''}`.trim();
-  console.log(`  $ ${cmd}`);
-  let out;
-  try {
-    out = execSync(cmd, { cwd: WT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-  } catch (e) {
-    console.log(String(e.stdout ?? ''));
-    die('the friends hub deploy failed (nothing was built; the live site is untouched)');
-  }
-  for (const line of out.split(/\r?\n/)) if (line.trim() && !line.startsWith('>')) console.log(`  ${line.trim()}`);
-  const m = /hub: (deployed|unchanged) (https:\/\/ascent-hub\.team-ascent\.workers\.dev) ([0-9a-f]+)/.exec(out);
-  if (!m) die('the hub deploy printed no "hub: deployed|unchanged <url> <hash>" line');
-  let health = null;
-  for (let i = 0; i < 10 && !health; i++) {
-    try {
-      const res = await fetch(`${m[2]}/health`);
-      if (res.ok) health = await res.json();
-    } catch { /* not routable yet */ }
-    if (!health) await new Promise((r) => setTimeout(r, 3000));
-  }
-  if (!health || health.code !== m[3]) die(`${m[2]}/health does not answer code ${m[3]}`);
-  hubUrl = m[2];
-  hubNote = `${m[1]} (code ${m[3]}, hub protocol ${health.hub}, oldest client ${health.min})`;
-  console.log(`  ✓ friends hub live: ${hubUrl} ${hubNote}`);
-  if (VERSUS_CF_PERSIST) {
-    const workerDir = path.join(WT, 'workers', 'versus');
-    let secrets = '';
-    try { secrets = execSync('npx wrangler secret list --name ascent-hub', { cwd: workerDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch { /* treated as missing */ }
-    if (secrets.includes('HUB_WRITER_SECRET')) console.log('  ✓ hub writer secret already set');
-    else {
-      console.log('  the hub has no writer secret yet: setting one (run the SQL line it prints, or messages are refused)');
-      run('node scripts/writer-secret.mjs ascent-hub', workerDir);
     }
   }
 }

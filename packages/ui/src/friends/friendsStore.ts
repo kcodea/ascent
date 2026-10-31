@@ -1,27 +1,22 @@
 /**
- * FRIENDS — the client state (owner 2026-10-26; R-FRIENDS-01..05). Three pieces, all egress-safe (R-FRIENDS-05):
+ * FRIENDS — the client state (owner 2026-10-26; R-FRIENDS-01..05). Since R-FRIENDS-HUB-LIVE-01 (owner 2026-10-30: "I want
+ * us to make cloudflare work as our source for live information and action like spectating") every LIVE part runs on
+ * the friends hub (`workers/versus/src/hub.ts`, the socket `dm/dmStore.ts` holds); Supabase keeps the storage
+ * (friendships, requests, blocks, invites), read only when something changed:
  *
- *  1. THE PRESENCE BEAT (`startFriendsPresence`, once at boot): ONE call, `friends_beat`, writes my presence (online on a
- *     menu, in a game with its mode and a watch target) and answers my inbox (friends, friends online, requests waiting,
- *     open invites). Every 60 s, visible or hidden, at once (at most every 5 s) when my status changes, and every 180 s
- *     for an account with no friends yet (visible or hidden). Failures back off (doubling, but never past 90 s); an
- *     undeployed server stops it for the session. Guests and offline builds never beat.
- *     THE GAP (R-FRIENDS-PRESENCE-GAP-01, owner 2026-10-28: Mike saw me Offline with the game open): a row older than
- *     the server's window (300 s) reads Offline, and a hidden tab's timers are throttled (Chrome batches them to once a
- *     minute), so a 120 s hidden beat landed 196 s late. Every pace above stays well inside the window even when a
- *     throttled timer fires a minute late. Going hidden beats once (if the last beat is 30 s old) so the hidden clock
- *     starts fresh, and closing the page sends an Offline beat (keepalive) so a closed game reads Offline at once.
- *     Egress: visible 60 an hour (unchanged), hidden 60 an hour (was 30), plus one beat per close.
- *     THE ACTIVITY (R-FRIENDS-ACTIVITY-01, owner 2026-10-29): the beat also says which screen I am on and, in a game,
- *     the step. A change beats once the screen has settled (`CHANGE_SETTLE_MS`), only when the COARSE activity moved;
- *     "Show friends what I'm doing" off (`friendsPrefs.ts`) sends only Online, or In a game with its mode. Measured on
- *     a scripted 35-minute session (`friendsBeatBudget.test.ts`): 53 beats, against 46 before; 36 with the switch off.
- *  2. THE INVITE WAKE-UP: a Realtime subscription to INSERTs on `friend_invites` addressed to me (to_user filter + RLS),
- *     only for an account with at least one friend and only while the tab is visible. Each insert triggers one beat.
- *  3. THE FRIENDS LIST (`useFriendsListLoop`): the one batched `friends_list` read, only while a friends surface is open
- *     (the Friends dock, the room's invite panel), every 60 s while visible, nothing while hidden, backing off on errors.
- *
- * Nothing here is broadcast: presence is read by friends through the list, never pushed (R-NET-REALTIME-01).
+ *  1. MY PRESENCE (`startFriendsPresence`, once at boot): what I am doing, sent to the hub when it SETTLES
+ *     (`CHANGE_SETTLE_MS`, at most every `PRESENCE_MIN_GAP_MS`, only when the COARSE activity moved; R-FRIENDS-ACTIVITY-01).
+ *     "Show friends what I'm doing" off (`friendsPrefs.ts`) sends only Online, or In a game with its mode. The hub tells
+ *     my connected friends at once, and mirrors it into Supabase itself (for the server-side invite check and older
+ *     clients). There is NO periodic call: the old 60 s `friends_beat` is gone, and so is the Offline beat on close (the
+ *     hub sees my last socket close).
+ *  2. MY INBOX (friends, requests waiting, open invites): one `friends_list` read when I sign in or the hub socket (re)
+ *     opens, then only when the hub pushes `inbox` (a friend request, an accept, an invite for me: the sender's client
+ *     nudges my hub). Reads are coalesced (`INBOX_MIN_GAP_MS`). This replaced the Realtime subscription on
+ *     `friend_invites`. My own actions nudge the other player the same way (`setHubNotifier`).
+ *  3. THE FRIENDS LIST (`useFriendsListLoop`): the same `friends_list` read while a friends surface is open (the Friends
+ *     dock, the room's invite panel), every 60 s while visible, nothing while hidden, backing off on errors. Friends'
+ *     live presence is laid over it from the hub (`liveFriends`).
  */
 import { useEffect } from 'react';
 import { create } from 'zustand';
@@ -43,21 +38,17 @@ import {
   type InviteKind, type PresenceReport,
 } from './friendsRemote';
 
-export const BEAT_VISIBLE_MS = 60_000;
-export const BEAT_HIDDEN_MS = 60_000;
-export const BEAT_FRIENDLESS_MS = 180_000;
-export const BEAT_MIN_GAP_MS = 5_000;
-/** A change waits this long for the screen to settle before it beats (R-FRIENDS-ACTIVITY-01). */
+/** My presence is sent to the hub at most this often (a change inside the gap waits for it). */
+export const PRESENCE_MIN_GAP_MS = 5_000;
+/** A change waits this long for the screen to settle before it is sent (R-FRIENDS-ACTIVITY-01). */
 export const CHANGE_SETTLE_MS = 1_500;
-/** The longest a failing beat waits: with a minute of throttling on top it still lands inside the 300 s window. */
-export const BEAT_MAX_BACKOFF_MS = 90_000;
-/** Going hidden beats at once when the last beat is at least this old. */
-export const BEAT_ON_HIDE_MS = 30_000;
+/** Two inbox reads are at least this far apart (a burst of nudges is one read). */
+export const INBOX_MIN_GAP_MS = 3_000;
 export const LIST_MS = 60_000;
 export const LIST_MAX_BACKOFF_MS = 300_000;
 
 export interface FriendsState {
-  /** The last beat's answer (null until the first one). */
+  /** My inbox (friends, requests waiting, open invites), from the last `friends_list` read (null until the first). */
   inbox: BeatAnswer | null;
   /** The last friends_list answer (null until a friends surface opened once). */
   list: FriendsList | null;
@@ -259,7 +250,7 @@ function versusFoe(vmode: string, role: string | null, seats: readonly { role: s
   return lobby ? lobbyFoeName(lobby) : null;
 }
 
-/** What decides that a beat is owed: the coarse activity (never Health, Armor, tier or place on their own). */
+/** What decides that a presence send is owed: the coarse activity (never Health, Armor, tier or place on their own). */
 const presenceKey = (p: PresenceReport): string =>
   `${p.status}|${p.mode ?? ''}|${p.watchKind ?? ''}|${p.watchId ?? ''}|${gameCoarseKey(p.game ?? null)}|${activityKey(p.activity)}`;
 
@@ -295,101 +286,100 @@ export function lastSeenText(iso: string | null | undefined, now = Date.now()): 
   return `Last seen ${d} ${d === 1 ? 'day' : 'days'} ago`;
 }
 
-// ── the beat ─────────────────────────────────────────────────────────────────────────────────────────────
+// ── my presence, sent to the hub (R-FRIENDS-HUB-LIVE-01) ─────────────────────────────────────────────────
 
 let started = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let lastAt = -Infinity;
 let lastKey = '';
-let failures = 0;
-let inFlight = false;
-/** A change beat is armed (the settle is running). */
+/** A change send is armed (the settle is running). */
 let changePending = false;
-let invitesSub: { close: () => void } | null = null;
-let invitesSubFor = '';
-/** The page is being closed (pagehide): no more beats until it comes back from the back/forward cache. */
-let leaving = false;
 
 function clearTimer(): void { if (timer !== null) { clearTimeout(timer); timer = null; } }
-
-function nextDelay(): number {
-  const ib = get().inbox;
-  let d = pageHidden() ? BEAT_HIDDEN_MS : BEAT_VISIBLE_MS;
-  // An account with no friends and nothing waiting only needs to hear about new requests now and then.
-  if (ib && ib.friends === 0 && ib.incoming === 0) d = BEAT_FRIENDLESS_MS;
-  // A failure retries sooner or later, but never later than the cap (a quiet friendless pace is not lengthened).
-  if (failures > 0) d = Math.min(Math.max(d, BEAT_MAX_BACKOFF_MS), d * 2 ** failures);
-  return d;
-}
-
 function schedule(ms: number): void {
   clearTimer();
-  timer = setTimeout(() => { timer = null; void beatNow(); }, Math.max(0, ms));
+  timer = setTimeout(() => { timer = null; announce(); }, Math.max(0, ms));
 }
 
-/** Beat now (or as soon as the minimum gap allows). Resolves when the answer has landed. */
-export async function beatNow(): Promise<void> {
-  if (!get().deployed || !friendsAccount()) { syncInviteSub(); return; }
-  if (inFlight || leaving) return;
+/** Who hears my presence when it settles (the hub socket, `dm/dmStore.ts`). */
+type PresenceListener = (p: PresenceReport) => void;
+const presenceListeners = new Set<PresenceListener>();
+export function onPresenceSettled(f: PresenceListener): () => void {
+  presenceListeners.add(f);
+  return () => { presenceListeners.delete(f); };
+}
+
+/** My presence settled on something new: tell the listeners (the hub), never more often than the gap. */
+function announce(): void {
+  if (!started || !friendsAccount() || !get().deployed) return;
   const now = Date.now();
-  if (now - lastAt < BEAT_MIN_GAP_MS) { schedule(lastAt + BEAT_MIN_GAP_MS - now); return; }
-  const p = presenceNow();
+  if (now - lastAt < PRESENCE_MIN_GAP_MS) { schedule(lastAt + PRESENCE_MIN_GAP_MS - now); return; }
   changePending = false;
-  inFlight = true;
+  const p = presenceNow();
+  const key = presenceKey(p);
+  if (key === lastKey) return;
   lastAt = now;
-  lastKey = presenceKey(p);
-  try {
-    const answer = await remote.beat(p);
-    failures = 0;
-    set({ inbox: answer, skew: skewOf(answer.serverNow) });
-  } catch (e) {
-    if ((e as FriendsError)?.code === 'not_deployed' || (e as FriendsError)?.code === 'guest') {
-      if ((e as FriendsError).code === 'not_deployed') set({ deployed: false });
-      inFlight = false;
-      clearTimer();
-      syncInviteSub();
-      return;
-    }
-    failures++;
-  }
-  inFlight = false;
-  syncInviteSub();
-  if (started) schedule(nextDelay());
+  lastKey = key;
+  for (const f of presenceListeners) { try { f(p); } catch { /* a listener never stops the others */ } }
 }
 
 /**
- * My status may have changed: beat once it SETTLES (R-FRIENDS-ACTIVITY-01). Each change re-arms a short settle
- * (`CHANGE_SETTLE_MS`), so rapid screen flips (sidebar hops, a quick look at Settings) send one beat for where I land,
- * and flipping straight back sends none. Never faster than the beat's own gap, and never later than the regular
- * beat would have gone (a player hopping forever still beats on the normal pace).
+ * My status may have changed: send it once it SETTLES (R-FRIENDS-ACTIVITY-01). Each change re-arms a short settle
+ * (`CHANGE_SETTLE_MS`), so rapid screen flips (sidebar hops, a quick look at Settings) send once, for where I land,
+ * and flipping straight back sends nothing. Never faster than `PRESENCE_MIN_GAP_MS`.
  */
 function onMaybeChanged(): void {
-  if (!started || !friendsAccount()) { syncInviteSub(); return; }
+  if (!started || !friendsAccount()) return;
   const now = Date.now();
-  const periodicAt = Number.isFinite(lastAt) ? lastAt + nextDelay() : Infinity;
   if (presenceKey(presenceNow()) === lastKey) {
-    // Back where the last beat left me: the pending change beat is not owed any more.
-    if (changePending) { changePending = false; schedule(Number.isFinite(periodicAt) ? Math.max(0, periodicAt - now) : CHANGE_SETTLE_MS); }
+    // Back where the last send left me: the pending one is not owed any more.
+    if (changePending) { changePending = false; clearTimer(); }
     return;
   }
   changePending = true;
-  const at = Math.min(periodicAt, Math.max(now + CHANGE_SETTLE_MS, lastAt + BEAT_MIN_GAP_MS));
-  schedule(Math.max(0, at - now));
+  schedule(Math.max(now + CHANGE_SETTLE_MS, lastAt + PRESENCE_MIN_GAP_MS) - now);
 }
 
-/** The invite wake-up: on while an account with friends has the tab visible. */
-function syncInviteSub(): void {
-  const me = useGame.getState().account.userId;
-  const want = started && get().deployed && friendsAccount() && !pageHidden() && (get().inbox?.friends ?? 0) > 0 && !!me;
-  const key = want ? me! : '';
-  if (key === invitesSubFor) return;
-  invitesSub?.close();
-  invitesSub = null;
-  invitesSubFor = key;
-  if (!want) return;
-  try {
-    invitesSub = remote.subscribeInvites(me!, () => { lastAt = -Infinity; void beatNow(); });
-  } catch { invitesSub = null; }
+/** The presence the hub was last told about (the hub's hello sends the current one itself). */
+export function notePresenceSent(p: PresenceReport): void {
+  lastKey = presenceKey(p);
+  lastAt = Date.now();
+}
+
+// ── my inbox: read when the hub says it changed ──────────────────────────────────────────────────────────
+
+let inboxTimer: ReturnType<typeof setTimeout> | null = null;
+let inboxLastAt = -Infinity;
+let inboxInFlight = false;
+let inboxOwed = false;
+
+/**
+ * Something in my inbox may have changed (the hub pushed `inbox`, the hub socket (re)opened, I signed in): read it, as
+ * one `friends_list` call. A burst is coalesced into one read now and one trailing read (`INBOX_MIN_GAP_MS`).
+ */
+export function nudgeInbox(): void {
+  if (!started || !friendsAccount() || !get().deployed) return;
+  if (inboxInFlight) { inboxOwed = true; return; }
+  const wait = inboxLastAt + INBOX_MIN_GAP_MS - Date.now();
+  if (wait > 0) {
+    if (inboxTimer === null) inboxTimer = setTimeout(() => { inboxTimer = null; nudgeInbox(); }, wait);
+    return;
+  }
+  inboxLastAt = Date.now();
+  inboxInFlight = true;
+  void refreshFriendsList().finally(() => {
+    inboxInFlight = false;
+    if (inboxOwed) { inboxOwed = false; nudgeInbox(); }
+  });
+}
+
+/** Tell another player's hub their inbox changed because of me (`dm/dmStore.ts` registers the hub's nudge). */
+export type HubNotifier = (to: string, kind: 'friends' | 'invite') => void;
+let hubNotify: HubNotifier | null = null;
+export function setHubNotifier(f: HubNotifier | null): void { hubNotify = f; }
+function notify(to: string | null | undefined, kind: 'friends' | 'invite'): void {
+  if (!to || !hubNotify) return;
+  try { hubNotify(to, kind); } catch { /* best effort: they read it on their next list */ }
 }
 
 /** The store fields the activity reads (screens, overlays, the pick, the End Turn). */
@@ -399,16 +389,17 @@ const GAME_FIELDS = [
   'endTurnAnimating',
 ] as const;
 
-/** Start the presence beat (once, at boot). Returns a stop function (tests). */
+/** Start presence + inbox (once, at boot). Returns a stop function (tests). */
 export function startFriendsPresence(): () => void {
   if (started || typeof window === 'undefined') return () => undefined;
   started = true;
   const unGame = useGame.subscribe((s, prev) => {
     if (s.account.userId !== prev.account.userId || s.account.anonymous !== prev.account.anonymous) {
       // A new identity (sign in, sign out, a guest saved): start over at once.
-      lastAt = -Infinity; lastKey = ''; failures = 0;
+      lastAt = -Infinity; lastKey = ''; inboxLastAt = -Infinity; changePending = false;
+      clearTimer();
       set({ inbox: null, list: null });
-      if (friendsAccount()) schedule(0); else { clearTimer(); syncInviteSub(); }
+      nudgeInbox();
       return;
     }
     // Identity compares on the few fields the activity reads (no derivation on an unrelated store write).
@@ -425,46 +416,25 @@ export function startFriendsPresence(): () => void {
   const unPrefs = useFriendsPrefs.subscribe((s, prev) => {
     if (s.showActivity !== prev.showActivity || s.replayAuthor !== prev.replayAuthor) onMaybeChanged();
   });
-  const onVis = (): void => {
-    syncInviteSub();
-    if (leaving || !friendsAccount() || !get().deployed) return;
-    if (!pageHidden()) { if (Date.now() - lastAt >= nextDelay()) schedule(0); return; }
-    // Going hidden: start the hidden clock from a fresh beat. A short delay, so a page being CLOSED (hidden, then
-    // pagehide at once) sends only its Offline beat, never a racing online one.
-    if (Date.now() - lastAt >= BEAT_ON_HIDE_MS) schedule(1000);
-  };
-  const onPageHide = (): void => {
-    if (!friendsAccount() || !get().deployed) return;
-    leaving = true;
-    clearTimer();
-    try { remote.leave(); } catch { /* best effort */ }
-  };
-  const onPageShow = (e: PageTransitionEvent): void => {
-    if (!leaving) return;
-    leaving = false;
-    // Back from the back/forward cache: I am here again.
-    if (e.persisted && friendsAccount()) { lastAt = -Infinity; schedule(0); }
-  };
-  document.addEventListener('visibilitychange', onVis);
-  window.addEventListener('pagehide', onPageHide);
-  window.addEventListener('pageshow', onPageShow);
-  schedule(1500); // after boot settles (the session lands first)
+  // The first inbox read, after boot settles (the session lands first). The hub's hello asks too; they coalesce.
+  const boot = setTimeout(() => nudgeInbox(), 1500);
   return () => {
     started = false;
     clearTimer();
+    clearTimeout(boot);
+    if (inboxTimer !== null) { clearTimeout(inboxTimer); inboxTimer = null; }
     unGame(); unVs(); unLive(); unPrefs();
-    document.removeEventListener('visibilitychange', onVis);
-    window.removeEventListener('pagehide', onPageHide);
-    window.removeEventListener('pageshow', onPageShow);
-    invitesSub?.close(); invitesSub = null; invitesSubFor = '';
   };
 }
 
 /** Tests: forget the loop's memory. */
 export function resetFriendsForTests(): void {
   clearTimer();
-  started = false; lastAt = -Infinity; lastKey = ''; failures = 0; inFlight = false; leaving = false; changePending = false; resetFoeCacheForTests();
-  invitesSub?.close(); invitesSub = null; invitesSubFor = '';
+  if (inboxTimer !== null) { clearTimeout(inboxTimer); inboxTimer = null; }
+  started = false; lastAt = -Infinity; lastKey = ''; changePending = false; resetFoeCacheForTests();
+  inboxLastAt = -Infinity; inboxInFlight = false; inboxOwed = false;
+  presenceListeners.clear();
+  hubNotify = null;
   remote = friendsRemote;
   proofSource = defaultProofSource;
   set({ inbox: null, list: null, listFailed: false, deployed: true, busy: {}, flash: null, answered: {}, skew: 0 });
@@ -485,7 +455,7 @@ export async function refreshFriendsList(): Promise<void> {
   try {
     const list = await remote.list();
     listFails = 0;
-    // The list carries the same invites as the beat: keep the inbox in step without another call.
+    // The list carries the inbox (requests, invites): keep it in step without another call.
     const ib = get().inbox;
     set({
       list, listFailed: false,
@@ -540,12 +510,14 @@ export function flashFriends(msg: string | null): void {
   if (msg) flashTimer = setTimeout(() => { if (get().flash === msg) set({ flash: null }); }, 3500);
 }
 
-async function act<T>(id: string, run: () => Promise<T>, ok?: string): Promise<T | null> {
+async function act<T>(id: string, run: () => Promise<T>, ok?: string, nudge?: { kind: 'friends' | 'invite'; to: (r: T) => string | null | undefined }): Promise<T | null> {
   if (get().busy[id]) return null;
   set({ busy: { ...get().busy, [id]: true } });
   try {
     const r = await run();
     if (ok) flashFriends(ok);
+    // Their inbox changed: their hub tells their open games at once (R-FRIENDS-HUB-LIVE-01).
+    if (nudge) notify(nudge.to(r), nudge.kind);
     return r;
   } catch (e) {
     flashFriends(friendsErrorText(e));
@@ -562,28 +534,30 @@ async function act<T>(id: string, run: () => Promise<T>, ok?: string): Promise<T
 export async function addFriendByHandle(handle: string): Promise<boolean> {
   const h = handle.trim();
   if (!/^.{1,40}#[0-9]{4}$/.test(h)) { flashFriends(friendsErrorText(new FriendsError('bad_handle'))); return false; }
-  const r = await act(`handle:${h}`, () => remote.requestByHandle(h));
+  const r = await act(`handle:${h}`, () => remote.requestByHandle(h), undefined, { kind: 'friends', to: (x) => x.userId });
   if (r) flashFriends(r.status === 'accepted' ? 'You are now friends.' : 'Friend request sent.');
   return !!r;
 }
 export async function addFriend(userId: string): Promise<boolean> {
-  const r = await act(userId, () => remote.requestById(userId));
+  const r = await act(userId, () => remote.requestById(userId), undefined, { kind: 'friends', to: () => userId });
   if (r) flashFriends(r.status === 'accepted' ? 'You are now friends.' : 'Friend request sent.');
   return !!r;
 }
-export const acceptRequest = (userId: string): Promise<unknown> => act(userId, () => remote.respond(userId, true), 'You are now friends.');
-export const declineRequest = (userId: string): Promise<unknown> => act(userId, () => remote.respond(userId, false));
-export const cancelRequest = (userId: string): Promise<unknown> => act(userId, () => remote.cancel(userId));
-export const removeFriend = (userId: string): Promise<unknown> => act(userId, () => remote.remove(userId), 'Friend removed.');
-export const blockPlayer = (userId: string): Promise<unknown> => act(userId, () => remote.block(userId), 'Player blocked.');
-export const unblockPlayer = (userId: string): Promise<unknown> => act(userId, () => remote.unblock(userId), 'Player unblocked.');
+const theirs = (userId: string) => ({ kind: 'friends' as const, to: () => userId });
+export const acceptRequest = (userId: string): Promise<unknown> => act(userId, () => remote.respond(userId, true), 'You are now friends.', theirs(userId));
+export const declineRequest = (userId: string): Promise<unknown> => act(userId, () => remote.respond(userId, false), undefined, theirs(userId));
+export const cancelRequest = (userId: string): Promise<unknown> => act(userId, () => remote.cancel(userId), undefined, theirs(userId));
+export const removeFriend = (userId: string): Promise<unknown> => act(userId, () => remote.remove(userId), 'Friend removed.', theirs(userId));
+export const blockPlayer = (userId: string): Promise<unknown> => act(userId, () => remote.block(userId), 'Player blocked.', theirs(userId));
+export const unblockPlayer = (userId: string): Promise<unknown> => act(userId, () => remote.unblock(userId), 'Player unblocked.', theirs(userId));
 
 /**
  * THE INVITE API (Versus rooms now; the Ranked Duos party uses the same call with kind 'duos_party' and its party id).
  * The server checks the friendship, that the friend is online, and the target (a Versus room: one I am in and open).
  */
 export async function inviteFriend(userId: string, kind: InviteKind, target: string): Promise<boolean> {
-  const r = await act(`invite:${userId}`, async () => remote.invite(userId, kind, target, await inviteProofFor(userId, kind, target)), 'Invite sent.');
+  const r = await act(`invite:${userId}`, async () => remote.invite(userId, kind, target, await inviteProofFor(userId, kind, target)), 'Invite sent.',
+    { kind: 'invite', to: () => userId });
   return !!r;
 }
 
@@ -601,7 +575,7 @@ export function setInviteProofSourceForTests(f: typeof proofSource): void { proo
 export async function inviteProofFor(userId: string, kind: InviteKind, target: string): Promise<string | null> {
   let ref = target;
   if (kind === 'spectate') {
-    // A live lobby game is checked by Postgres itself (its Live Games row is mine); a Versus room by its host.
+    // A live lobby game needs no proof (its id is checked for form only since the Supabase list retired); a Versus room is checked by its host.
     const t = parseSpectateTarget(target);
     if (!t || t.host === 'live') return null;
     ref = t.id;

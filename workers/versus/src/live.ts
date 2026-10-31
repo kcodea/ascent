@@ -1,5 +1,7 @@
 /**
- * VERSUS ON CLOUDFLARE — the room's LIVE GAMES row (R-VERSUS-CF-LIVE-01; what is listed: `core/liveListing.ts`).
+ * VERSUS ON CLOUDFLARE — the room's LIVE GAMES row (R-VERSUS-CF-LIVE-01; what is listed: `core/liveListing.ts`). Since
+ * R-LIVE-DIR-01 the row goes to the friends hub's live directory (`liveDirSink.ts`), and to Supabase only until the
+ * retire migration.
  *
  * One "latest wins" slot, not a queue: only the newest listing matters, so a run of changes while Supabase is slow
  * collapses into one write, and the removal at the end can never be overtaken by an older upsert. A write is due when
@@ -11,6 +13,7 @@
  * re-sends an unchanged row nor sends a removal for a row it never wrote (a 1v1 room never writes at all).
  */
 import { LIVE_REFRESH_MS, liveKeyOf, type LiveListing } from './core/liveListing';
+import { HubRoomSink, liveDirOf, TeeLiveSink, type LiveDirWriterEnv } from './liveDirSink';
 import { persistBackoffMs, type PersistEnv } from './persist';
 
 export interface LiveSink<R = LiveListing> {
@@ -29,25 +32,54 @@ export class LocalLiveSink<R = LiveListing> implements LiveSink<R> {
   }
 }
 
-export class SupabaseLiveSink implements LiveSink {
+/**
+ * A key-gated Supabase listing writer (`versus_cf_live` for a room, `lobby_live_cf` for a live lobby game). Since the
+ * hub directory took the list over (R-LIVE-DIR-01) this only feeds clients from before it. Once the retire migration
+ * (`2026-11-19-retire-supabase-live-list.sql`) is applied the function answers `{ retired: true }` and writes nothing:
+ * the writer then stops for the object's life (no call per keep-alive into a retired function).
+ */
+export class SupabaseRowSink<R> implements LiveSink<R> {
   readonly live = true;
-  constructor(private readonly url: string, private readonly anonKey: string, private readonly secret: string) {}
+  /** The server said the Supabase listing is retired: every later write is skipped. */
+  retired = false;
+  constructor(
+    private readonly url: string,
+    private readonly anonKey: string,
+    private readonly secret: string,
+    private readonly fn: 'versus_cf_live' | 'lobby_live_cf',
+  ) {}
 
-  async write(roomId: string, row: LiveListing | null): Promise<void> {
-    const res = await fetch(`${this.url.replace(/\/$/, '')}/rest/v1/rpc/versus_cf_live`, {
+  async write(id: string, row: R | null): Promise<void> {
+    if (this.retired) return;
+    const res = await fetch(`${this.url.replace(/\/$/, '')}/rest/v1/rpc/${this.fn}`, {
       method: 'POST',
       headers: { apikey: this.anonKey, Authorization: `Bearer ${this.anonKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_key: this.secret, p_room: roomId, p_row: row }),
+      body: JSON.stringify(this.fn === 'versus_cf_live' ? { p_key: this.secret, p_room: id, p_row: row } : { p_key: this.secret, p_game: id, p_row: row }),
     });
-    if (!res.ok) throw new Error(`live ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const text = await res.text();
+    if (!res.ok) throw new Error(`${this.fn} ${res.status}: ${text.slice(0, 200)}`);
+    if (isRetired(text)) this.retired = true;
   }
 }
 
-export function liveSinkFor(env: PersistEnv): LiveSink {
+/** Did a Supabase listing writer answer that it is retired? */
+export function isRetired(body: string): boolean {
+  try { return (JSON.parse(body) as { retired?: unknown } | null)?.retired === true; } catch { return false; }
+}
+
+/** The Supabase half (or the local log, persistence off). */
+export function supabaseRowSinkFor<R>(env: PersistEnv, fn: 'versus_cf_live' | 'lobby_live_cf'): LiveSink<R> {
   if (env.PERSIST === '1' && env.SUPABASE_URL && env.SUPABASE_ANON_KEY && env.VERSUS_WRITER_SECRET) {
-    return new SupabaseLiveSink(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, env.VERSUS_WRITER_SECRET);
+    return new SupabaseRowSink<R>(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, env.VERSUS_WRITER_SECRET, fn);
   }
-  return new LocalLiveSink();
+  return new LocalLiveSink<R>();
+}
+
+/** A room's listing writer: the hub directory (R-LIVE-DIR-01) and, until the retire migration, the Supabase row. */
+export function liveSinkFor(env: PersistEnv & LiveDirWriterEnv): LiveSink {
+  const sb = supabaseRowSinkFor<LiveListing>(env, 'versus_cf_live');
+  const dir = liveDirOf(env);
+  return dir ? new TeeLiveSink(sb, new HubRoomSink(dir)) : sb;
 }
 
 /** The storage value: the key of the row the room last published (absent = nothing published). */

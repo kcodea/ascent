@@ -17,7 +17,8 @@
 import { DurableObject } from 'cloudflare:workers';
 import { engineContentRevision } from '@game/sim/versus/server';
 import { LiveCore, LiveError, lobbyListingKey, newLiveMeta, type LiveMeta, type LobbyListing } from './core/liveCore';
-import { LIVE_STORAGE_KEY, LiveSlot, LocalLiveSink, type LiveSink } from './live';
+import { LIVE_STORAGE_KEY, LiveSlot, supabaseRowSinkFor, type LiveSink } from './live';
+import { HubLobbySink, liveDirOf, TeeLiveSink, type LiveDirWriterEnv } from './liveDirSink';
 import { LIVE_CF_PROTOCOL, LIVE_MAX_KEY_CHARS, type LiveHello, type LiveHelloAnswer, type LivePush, type LiveRole } from './liveProtocol';
 import type { PersistEnv } from './persist';
 import { VERSUS_CF_CLOSE, VERSUS_CF_PING, VERSUS_CF_PONG, VERSUS_CF_STALE_MS, VERSUS_CF_SUBPROTOCOL, parseClientMessage } from './protocol';
@@ -29,7 +30,7 @@ import { livePingRoom, PING_CLEAR_EVENT, PING_CLEAR_RATE, PING_EVENT, PING_MENTO
 export const LIVE_GAME_HEADER = 'X-Live-Game';
 export const LIVE_USER_HEADER = 'X-Live-User';
 
-export interface LiveEnv extends PersistEnv {
+export interface LiveEnv extends PersistEnv, LiveDirWriterEnv {
   DEV_AUTH?: string;
 }
 
@@ -52,24 +53,16 @@ interface LiveMetrics {
   beats: number;
 }
 
-/** The Live Games row through `lobby_live_cf` (supabase/migrations/2026-11-10-lobby-live-cf.sql). */
-class LobbyLiveSink implements LiveSink<LobbyListing> {
-  readonly live = true;
-  constructor(private readonly url: string, private readonly anonKey: string, private readonly secret: string) {}
-  async write(gameId: string, row: LobbyListing | null): Promise<void> {
-    const res = await fetch(`${this.url.replace(/\/$/, '')}/rest/v1/rpc/lobby_live_cf`, {
-      method: 'POST',
-      headers: { apikey: this.anonKey, Authorization: `Bearer ${this.anonKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_key: this.secret, p_game: gameId, p_row: row }),
-    });
-    if (!res.ok) throw new Error(`lobby live ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  }
-}
-
-const lobbySinkFor = (env: PersistEnv): LiveSink<LobbyListing> =>
-  env.PERSIST === '1' && env.SUPABASE_URL && env.SUPABASE_ANON_KEY && env.VERSUS_WRITER_SECRET
-    ? new LobbyLiveSink(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, env.VERSUS_WRITER_SECRET)
-    : new LocalLiveSink<LobbyListing>();
+/**
+ * The Live Games row: the friends hub's live directory (R-LIVE-DIR-01) and, until the retire migration, the Supabase
+ * row through `lobby_live_cf` (supabase/migrations/2026-11-10-lobby-live-cf.sql; it answers `retired` after
+ * 2026-11-19-retire-supabase-live-list.sql, and the Supabase half stops).
+ */
+const lobbySinkFor = (env: LiveEnv): LiveSink<LobbyListing> => {
+  const sb = supabaseRowSinkFor<LobbyListing>(env, 'lobby_live_cf');
+  const dir = liveDirOf(env);
+  return dir ? new TeeLiveSink(sb, new HubLobbySink(dir)) : sb;
+};
 
 /** Storage key of the player's promoted mentor (LIVE PINGS, `relayPing`). */
 const PING_MENTOR_KEY = 'pingMentor';

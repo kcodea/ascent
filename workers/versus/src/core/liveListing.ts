@@ -34,6 +34,10 @@ export interface LiveListing {
   spectators: number;
   /** A friends-only Versus room's host: only the host and their friends see the row. */
   private_host: string | null;
+  /** Ranked Duos: the team's name and division as the room knows them (the hub directory's fallback when its own
+   *  lookup cannot be made; R-LIVE-DIR-01). Not part of the key. */
+  team_name?: string | null;
+  division?: number;
 }
 
 /** Re-send the same row this long after the last write (the SQL keeps a Cloudflare row visible for 4 minutes). */
@@ -74,7 +78,10 @@ export function liveListingOf(state: CoreState): LiveListing | null {
   const base = { room: room.id, p1: p1.user_id, hero: p1.hero ?? 'warden', round: Math.max(1, g.match.round), phase, spectators };
   if (g.ranked) {
     if (room.friends_only) return null;
-    return { ...base, mode: 'ranked_duos', team: g.ranked.ranked_team, players: line(seats.filter((s) => s.seat === 'p1' || s.seat === 'p2').map((s) => s.name).join(' & ')), private_host: null };
+    return {
+      ...base, mode: 'ranked_duos', team: g.ranked.ranked_team, players: line(seats.filter((s) => s.seat === 'p1' || s.seat === 'p2').map((s) => s.name).join(' & ')),
+      private_host: null, team_name: g.ranked.team_name, division: g.ranked.division,
+    };
   }
   const duos = g.match.options?.mode === 'duos';
   const players = duos

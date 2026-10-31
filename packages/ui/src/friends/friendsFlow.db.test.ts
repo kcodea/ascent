@@ -2,7 +2,8 @@
  * THE FRIENDS CLIENT against the real SQL (PGlite): `makeFriendsRemote` over a stand-in Supabase client whose `rpc`
  * runs the migration's functions as the signed-in player. Pins that every call's argument names match the SQL and that
  * the parsers read its answers: two accounts befriend each other by handle, see each other's presence, one invites the
- * other to a Versus room, the invite shows on the beat, is accepted, and a block ends it all (R-FRIENDS-01..05).
+ * other to a Versus room, the invite shows in the inbox (`list`), is accepted, and a block ends it all (R-FRIENDS-01..05).
+ * Presence is written the way the friends hub's mirror writes it (R-FRIENDS-HUB-LIVE-01: no client beat any more).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
@@ -45,6 +46,13 @@ function clientAs(who: string): SupabaseClient {
   } as unknown as SupabaseClient;
 }
 
+/** Bob's presence row, as the hub's mirror (`hub_presence_cf`) keeps it. */
+async function present(user: string, status: string, mode: string | null = null, wk: string | null = null, wid: string | null = null): Promise<void> {
+  await db.query(`insert into public.player_presence (user_id, status, mode, watch_kind, watch_id, updated_at) values ($1, $2, $3, $4, $5, now())
+    on conflict (user_id) do update set status = excluded.status, mode = excluded.mode, watch_kind = excluded.watch_kind,
+      watch_id = excluded.watch_id, updated_at = excluded.updated_at`, [user, status, mode, wk, wid]);
+}
+
 let ann: FriendsRemote;
 let bob: FriendsRemote;
 beforeAll(async () => {
@@ -62,8 +70,9 @@ afterAll(async () => { await db?.close(); });
 describe('the friends client on the real SQL', () => {
   it('request by handle, accept, presence, invite, accept the invite, block', async () => {
     expect(await ann.requestByHandle('Bob#2222')).toEqual({ status: 'sent', userId: BOB });
-    expect((await bob.beat({ status: 'online', mode: null, watchKind: null, watchId: null })).incoming).toBe(1);
+    await present(BOB, 'online');
     const bl = await bob.list();
+    expect(bl.incoming).toHaveLength(1);
     expect(bl.incoming[0]).toMatchObject({ userId: ANN, author: 'Ann', discriminator: '1111', favoriteHero: 'h1' });
     await bob.respond(ANN, true);
 
@@ -71,7 +80,7 @@ describe('the friends client on the real SQL', () => {
     expect(al.friends).toHaveLength(1);
     expect(al.friends[0]).toMatchObject({ userId: BOB, author: 'Bob', status: 'online', frame: 'frame_x' });
 
-    await bob.beat({ status: 'in_game', mode: 'ranked', watchKind: 'live', watchId: 'game-9' });
+    await present(BOB, 'in_game', 'ranked', 'live', 'game-9');
     expect((await ann.list()).friends[0]).toMatchObject({ status: 'in_game', mode: 'ranked', watchKind: 'live', watchId: 'game-9' });
 
     // Ann opens a Versus room and invites Bob: refused while he plays, sent once he is back on a menu.
@@ -81,11 +90,11 @@ describe('the friends client on the real SQL', () => {
     expect(refused).toBeInstanceOf(FriendsError);
     expect((refused as FriendsError).code).toBe('not_online');
     expect(friendsErrorText(refused)).toBe('That friend is not online right now.');
-    await bob.beat({ status: 'online', mode: null, watchKind: null, watchId: null });
+    await present(BOB, 'online');
     const inv = await ann.invite(BOB, 'versus_room', room);
-    const beat = await bob.beat({ status: 'online', mode: null, watchKind: null, watchId: null });
-    expect(beat.invites).toHaveLength(1);
-    expect(beat.invites[0]).toMatchObject({ id: inv.id, kind: 'versus_room', target: room, from: { userId: ANN, author: 'Ann' } });
+    const inbox = await bob.list();
+    expect(inbox.invites).toHaveLength(1);
+    expect(inbox.invites[0]).toMatchObject({ id: inv.id, kind: 'versus_room', target: room, from: { userId: ANN, author: 'Ann' } });
     expect(await bob.respondInvite(inv.id, true)).toEqual({ status: 'accepted', kind: 'versus_room', target: room, from: ANN });
     expect((await ann.list()).sent[0]).toMatchObject({ id: inv.id, status: 'accepted' });
 

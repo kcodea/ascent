@@ -28,7 +28,7 @@ import type { DmRow, HubPush } from '@game/versus-cf/hub';
 import { VersusCfError } from '@game/versus-cf/client';
 import { useGame } from '../../store';
 import { setIdentity } from '../../identity';
-import { resetFriendsForTests, setFriendsRemoteForTests, useFriends } from '../friendsStore';
+import { acceptRequest, resetFriendsForTests, setFriendsRemoteForTests, startFriendsPresence, useFriends } from '../friendsStore';
 import type { Friend, FriendsList, FriendsRemote } from '../friendsRemote';
 import { setFilterMessages } from '../friendsPrefs';
 import { FriendsDock } from '../dock/FriendsDock';
@@ -148,10 +148,7 @@ beforeEach(async () => {
   resetDmForTests();
   resetDockForTests();
   setFilterMessages(true);
-  setFriendsRemoteForTests({
-    beat: async () => ({ friends: 2, online: 1, incoming: 0, invites: [], serverNow: new Date().toISOString() }),
-    leave: () => true, list: async () => theList(), subscribeInvites: () => ({ channel: null, close: () => undefined }),
-  } as unknown as FriendsRemote);
+  setFriendsRemoteForTests({ list: async () => theList() } as unknown as FriendsRemote);
   setIdentity({ userId: ME, displayName: 'Me', anonymous: false, email: null });
   useGame.setState({ account: { ...useGame.getState().account, userId: ME, anonymous: false } });
   useFriends.setState({ list: theList() });
@@ -664,5 +661,20 @@ describe('replies (owner 2026-10-30, R-DM-REPLY-01)', () => {
     expect(q('.dm-msg.theirs .dm-quote')?.textContent).toContain('You');
     expect(q('.dm-msg.theirs .dm-quote')?.textContent).toContain('want to duo later?');
     click(q('.dm-msg.theirs .dm-quote')); // not loaded: nothing breaks
+  });
+});
+
+describe('the inbox rides the hub (protocol 3, R-FRIENDS-HUB-LIVE-01)', () => {
+  it('an inbox push reads the friends list once (no poll, no Realtime); my friend action nudges the other player', async () => {
+    let lists = 0;
+    setFriendsRemoteForTests({ list: async () => { lists++; return theList(); }, respond: async () => ({}) } as unknown as FriendsRemote);
+    const stopFriends = startFriendsPresence();
+    hub.push({ t: 'inbox', kind: 'invite' });
+    await flush();
+    expect(lists).toBe(1);
+    await acceptRequest(GUS);
+    await flush();
+    expect(hub.sent).toContainEqual({ op: 'nudge', args: { to: GUS, kind: 'friends' } });
+    stopFriends();
   });
 });

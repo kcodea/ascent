@@ -49,6 +49,12 @@ export interface LobbyListing {
   host: string;
   /** The game at a glance (R-LIVE-STATUS-01), or null. */
   status: Record<string, unknown> | null;
+  /** When the game started, and the player's own reported rank: the hub directory's start time and its fallback rank
+   *  (R-LIVE-DIR-01; the directory looks the rank up itself). Not part of the key. */
+  started_at?: string;
+  division?: number;
+  points?: number;
+  rating?: number;
 }
 
 export class LiveError extends Error {
@@ -209,6 +215,7 @@ export class LiveCore {
       game: m.gameId, user: m.owner, name: i.name, hero: i.hero, cosmetics: i.cosmetics, round: i.round, phase: i.phase,
       mode: i.mode === 'ranked' ? null : i.mode, spectators: this.watchers.size, host: liveHostOf(m.contentRevision),
       status: i.status ?? null,
+      started_at: new Date(m.startedAt).toISOString(), division: i.division ?? 0, points: i.points ?? 0, rating: i.rating ?? 0,
     };
   }
 

@@ -4,7 +4,7 @@
  *  - every Live Games row kind says what it is and its Watch goes to the right place: a lobby game (ranked / casual /
  *    Practice) to the watch screen, a Versus match (1v1, Group, Duos) to its room's stands in Versus, a Ranked Duos team
  *    to its party's stands in Duos, each on its own host (`cf:` = the Worker);
- *  - the listing read survives a server without the new columns (one retry, old columns from then on);
+ *  - the listing is read from the friends hub's live directory, never Supabase (R-LIVE-DIR-01);
  *  - the friend status: its typed shape, the parser (junk dropped), the place among those left, the Versus line, the text.
  */
 import { describe, expect, it } from 'vitest';
@@ -51,41 +51,34 @@ describe('Live Games rows of every kind (R-LIVE-ALL-GAMES-01)', () => {
     for (const m of ['versus_1v1', 'versus_group', 'versus_duos', null]) expect(watchAreaOf(m)).toBe('versus');
   });
 
-  it('a server without the new columns: the read retries once with the old ones and keeps them', async () => {
+  it('the list, the glow count and one row are read from the friends hub, never Supabase (R-LIVE-DIR-01)', async () => {
     const asked: string[] = [];
-    const q = (cols: string) => {
-      asked.push(cols);
-      const res = cols.includes('players') ? { data: null, error: { code: '42703', message: 'column lobby_live_games.mode does not exist' } } : { data: [{ game_id: 'run-1' }], error: null };
-      const chain: Record<string, unknown> = {};
-      for (const k of ['order', 'range', 'eq', 'neq']) chain[k] = () => chain;
-      chain.maybeSingle = () => Promise.resolve(res);
-      chain.then = (ok: (v: unknown) => unknown, bad: (e: unknown) => unknown) => Promise.resolve(res).then(ok, bad);
-      return chain;
-    };
-    const client = { from: () => ({ select: q }) } as never;
-    const remote = makeLiveRemote(() => client);
-    expect(await remote.list(0)).toEqual([{ game_id: 'run-1' }]);
-    expect(await remote.list(0)).toEqual([{ game_id: 'run-1' }]);
-    // Each newer column set is tried once (status, live_host, then mode / players), never again.
-    expect(asked.filter((c) => c.includes('players'))).toHaveLength(3);
+    const remote = makeLiveRemote(() => { throw new Error('Supabase must not be read'); }, {
+      base: () => 'http://127.0.0.1:8788',
+      token: async () => 'tok',
+      fetch: async (url, init) => {
+        asked.push(`${url} ${init.headers.Authorization}`);
+        const body = url.includes('/live/count') ? { count: 3 } : url.includes('/live/game/') ? { game_id: 'run 1' } : [{ game_id: 'run-1' }];
+        return { ok: true, status: 200, json: async () => body };
+      },
+    });
+    expect(await remote.list(2)).toEqual([{ game_id: 'run-1' }]);
+    expect(await remote.count()).toBe(3);
+    expect(await remote.game('run 1')).toEqual({ game_id: 'run 1' });
+    expect(asked).toEqual([
+      'http://127.0.0.1:8788/live/games?page=2 Bearer tok',
+      'http://127.0.0.1:8788/live/count Bearer tok',
+      'http://127.0.0.1:8788/live/game/run%201 Bearer tok',
+    ]);
   });
 
-  it('a server with mode / players but not yet live_host (R-LIVE-CF-01) keeps mode / players', async () => {
-    const asked: string[] = [];
-    const q = (cols: string) => {
-      asked.push(cols);
-      const res = cols.includes('live_host') ? { data: null, error: { code: '42703', message: 'column lobby_live_games.live_host does not exist' } } : { data: [{ game_id: 'run-1', mode: 'practice' }], error: null };
-      const chain: Record<string, unknown> = {};
-      for (const k of ['order', 'range', 'eq', 'neq']) chain[k] = () => chain;
-      chain.then = (ok: (v: unknown) => unknown, bad: (e: unknown) => unknown) => Promise.resolve(res).then(ok, bad);
-      return chain;
-    };
-    const remote = makeLiveRemote(() => ({ from: () => ({ select: q }) }) as never);
-    expect(await remote.list(0)).toEqual([{ game_id: 'run-1', mode: 'practice' }]);
-    expect(await remote.list(0)).toEqual([{ game_id: 'run-1', mode: 'practice' }]);
-    // status (R-LIVE-STATUS-01) and live_host are each tried once.
-    expect(asked.filter((c) => c.includes('live_host'))).toHaveLength(2);
-    expect(asked.at(-1)).toContain('players');
+  it('no hub on this page, a refused call or a dropped connection is an error the page shows (the glow reads 0)', async () => {
+    const off = makeLiveRemote(() => null, { base: () => null, token: async () => 't', fetch: async () => { throw new Error('unreached'); } });
+    await expect(off.list()).rejects.toMatchObject({ code: 'no_backend' });
+    const refused = makeLiveRemote(() => null, { base: () => 'http://h', token: async () => 't', fetch: async () => ({ ok: false, status: 401, json: async () => ({ error: 'not_signed_in' }) }) });
+    await expect(refused.count()).rejects.toMatchObject({ code: 'not_signed_in' });
+    const down = makeLiveRemote(() => null, { base: () => 'http://h', token: async () => 't', fetch: async () => { throw new TypeError('Failed to fetch'); } });
+    await expect(down.game('x')).rejects.toMatchObject({ code: 'network' });
   });
 });
 

@@ -4,7 +4,8 @@
  * in friends list like in main menu, browsing career, browsing leaderboard, watching a replay, and then better in game
  * granularity too".
  *  - derivation: every screen, overlay, room and game step reads from the stores already on this device;
- *  - the beat: a change waits for the screen to settle (rapid hops send one beat, a flip straight back sends none);
+ *  - the presence send (to the friends hub, R-FRIENDS-HUB-LIVE-01): a change waits for the screen to settle (rapid hops
+ *    send once, a flip straight back sends nothing);
  *  - privacy: "Show friends what I'm doing" off sends only Online, or In a game with its mode;
  *  - the row: short plain words, two lines, the rest in the hover; no em dash, no title=.
  */
@@ -24,7 +25,7 @@ import { setIdentity } from '../identity';
 import { useVersus } from '../versus/versusStore';
 import { useLiveWatch } from '../live/liveWatch';
 import type { VersusRoom } from '../versus/versusRemote';
-import { CHANGE_SETTLE_MS, presenceNow, resetFriendsForTests, setFriendsRemoteForTests, startFriendsPresence, useFriends } from './friendsStore';
+import { CHANGE_SETTLE_MS, notePresenceSent, onPresenceSettled, presenceNow, resetFriendsForTests, setFriendsRemoteForTests, startFriendsPresence, useFriends } from './friendsStore';
 import { noteReplayAuthor, setShowActivity, useFriendsPrefs } from './friendsPrefs';
 import { activityText, parseActivity, parseGameStatus, stepText, type FriendActivity } from './gameStatus';
 import { friendDetail, statusText } from './friendBits';
@@ -46,12 +47,9 @@ beforeEach(() => {
   resetFriendsForTests();
   beats = [];
   list = emptyList();
-  setFriendsRemoteForTests({
-    beat: async (p: PresenceReport) => { beats.push(p); return { friends: 2, online: 1, incoming: 0, invites: [], serverNow: new Date().toISOString() }; },
-    leave: () => true,
-    list: async () => list,
-    subscribeInvites: () => ({ channel: null, close: () => undefined }),
-  } as unknown as FriendsRemote);
+  setFriendsRemoteForTests({ list: async () => list } as unknown as FriendsRemote);
+  // What goes to the friends hub (the hub socket listens here; R-FRIENDS-HUB-LIVE-01).
+  onPresenceSettled((p) => beats.push(p));
   net.watching = false;
   setShowActivity(true);
   noteReplayAuthor(null);
@@ -203,57 +201,57 @@ describe('privacy: "Show friends what I am doing"', () => {
     expect(presenceNow()).toEqual({ status: 'in_game', mode: 'practice', watchKind: null, watchId: null });
   });
 
-  it('turning it off sends one beat with the private presence', async () => {
+  it('turning it off sends the private presence once', async () => {
     vi.useFakeTimers();
     const stop = startFriendsPresence();
     await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
-    expect(beats).toHaveLength(1);
-    expect(beats[0]!.activity).toEqual({ v: 1, act: 'menu' });
+    expect(beats).toHaveLength(0); // the hub's hello carries the first one
     act(() => setShowActivity(false));
     await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
-    expect(beats).toHaveLength(2);
-    expect(beats[1]).toEqual({ status: 'online', mode: null, watchKind: null, watchId: null });
+    expect(beats).toHaveLength(1);
+    expect(beats[0]).toEqual({ status: 'online', mode: null, watchKind: null, watchId: null });
     stop();
   });
 });
 
 describe('the settle (egress)', () => {
-  it('rapid screen hops send one beat for where I land; flipping straight back sends none', async () => {
+  it('rapid screen hops send once, for where I land; flipping straight back sends nothing', async () => {
     vi.useFakeTimers();
     const stop = startFriendsPresence();
     await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
     await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
-    expect(beats).toHaveLength(1);
+    expect(beats).toHaveLength(0);
     for (const page of ['showCareer', 'showRankings', 'showLiveGames', 'showCollection'] as const) {
       act(() => { useGame.setState({ ...CLOSED, [page]: true }); });
       await act(async () => { await vi.advanceTimersByTimeAsync(400); });
     }
-    expect(beats).toHaveLength(1); // still settling
+    expect(beats).toHaveLength(0); // still settling
     await act(async () => { await vi.advanceTimersByTimeAsync(CHANGE_SETTLE_MS); });
-    expect(beats).toHaveLength(2);
-    expect(beats[1]!.activity?.act).toBe('collection');
+    expect(beats).toHaveLength(1);
+    expect(beats[0]!.activity?.act).toBe('collection');
     // A quick look at Settings and straight back: nothing is owed.
     act(() => { useGame.setState({ settingsOpen: true }); });
     await act(async () => { await vi.advanceTimersByTimeAsync(600); });
     act(() => { useGame.setState({ settingsOpen: false }); });
     await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
-    expect(beats).toHaveLength(2);
-    // The regular beat still comes on time.
-    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
-    expect(beats).toHaveLength(3);
+    expect(beats).toHaveLength(1);
+    // Nothing periodic: the hub keeps the Supabase mirror alive itself.
+    await act(async () => { await vi.advanceTimersByTimeAsync(10 * 60_000); });
+    expect(beats).toHaveLength(1);
     stop();
   });
 
-  it('a lobby End Turn never sends a beat of its own', async () => {
+  it('a lobby End Turn never sends a presence of its own', async () => {
     vi.useFakeTimers();
     const run = useGame.getState().run;
     useGame.setState({ showTitle: false, run: { ...run, mode: 'practice', phase: 'recruit', wave: 2, lobby: { seats: [{ id: 's0', resolve: 20, armor: 0, alive: true }] } as never } });
     const stop = startFriendsPresence();
+    notePresenceSent(presenceNow()); // the hub's hello sent where I am
     await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
-    expect(beats).toHaveLength(1);
+    expect(beats).toHaveLength(0);
     act(() => { useGame.setState({ endTurnAnimating: true }); });
     await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
-    expect(beats).toHaveLength(1);
+    expect(beats).toHaveLength(0);
     stop();
   });
 });

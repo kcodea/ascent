@@ -12,7 +12,11 @@
  *   - `send` (a direct message): checked (friends only, not blocked, size, rate), stored in Supabase, then pushed to
  *     the friend's open games (`dm`) and to my own other games. The answer is the stored row.
  *
- * Pushes: `dm` (a message to or from me), `peer` (a friend came online, changed status, or went offline).
+ *   - `nudge` (protocol 3; `to`, `kind`): I changed something about a player (a friend request, an invite): their hub
+ *     pushes `inbox` to their open games, which re-read their inbox from Supabase once.
+ *
+ * Pushes: `dm` (a message to or from me), `peer` (a friend came online, changed status, or went offline), `inbox`
+ * (protocol 3: a request or an invite for me changed; re-read it).
  *
  * Dependency-free: no imports (the UI imports it).
  */
@@ -23,9 +27,12 @@
  * keep working: both sides IGNORE unknown fields and unknown push types. A change old clients cannot survive raises
  * `HUB_PROTOCOL_MIN` (the hub then refuses those clients at hello with close 4409). Never rename or reuse a field.
  */
-export const HUB_PROTOCOL = 2;
+export const HUB_PROTOCOL = 3;
 // 2 (2026-10-30, R-DM-REPLY-01): a `send` may carry `replyTo`, and a stored row may carry `replyTo` + `reply`. Optional
 // both ways: a protocol 1 client never sends it and ignores it on the rows it gets; the minimum stays 1.
+// 3 (2026-10-30, R-FRIENDS-HUB-LIVE-01): the `nudge` op and the `inbox` push (friend requests and invites arrive live,
+// replacing the 60 s `friends_beat` poll and the Realtime invite subscription). A protocol 1-2 client never sends a
+// nudge and ignores the push; an older hub answers a nudge `bad_op`, which the client ignores. The minimum stays 1.
 /** The oldest client protocol the hub still accepts. */
 export const HUB_PROTOCOL_MIN = 1;
 /** The deployed hub (one stable Worker, never per content revision). */
@@ -48,7 +55,25 @@ export const HUB_SWEEP_MS = 60_000;
 /** A socket with no keep-alive for this long is dead. */
 export const HUB_STALE_MS = 45_000;
 
-export type HubOp = 'hello' | 'presence' | 'send';
+/** The hub mirrors a connected account's presence into Supabase (`hub_presence_cf`) this often while nothing changes, so
+ *  the server-side "is this friend online" check (`friends__online`, 300 s window) and an older client's friends list
+ *  keep reading it right. A change is mirrored at once (at most every `HUB_PRESENCE_MIN_GAP_MS`). */
+export const HUB_PRESENCE_REFRESH_MS = 150_000;
+export const HUB_PRESENCE_MIN_GAP_MS = 5_000;
+/** Nudges per account per window (a nudge only makes the friend re-read their inbox, but it must never be a flood). */
+export const HUB_NUDGE_RATE = { count: 10, windowMs: 10_000 } as const;
+
+export type HubOp = 'hello' | 'presence' | 'send' | 'nudge';
+
+/**
+ * What a nudge says changed for its target (protocol 3). It carries no data: the target re-reads its inbox from Supabase
+ * (the storage), once, so a forged nudge can only cause one extra read.
+ *   - `friends`: a request was sent, accepted, declined, cancelled; a friend was removed, blocked or unblocked. Both hubs
+ *     also re-read their friends (so a new friend sees me online at once).
+ *   - `invite`: an invite (to a room, a party, or to spectate) was sent to them.
+ */
+export type HubNudgeKind = 'friends' | 'invite';
+export const isNudgeKind = (k: unknown): k is HubNudgeKind => k === 'friends' || k === 'invite';
 
 /**
  * A player's presence as friends see it: the Friends list's own shape (`PresenceReport` in the UI). Loose on purpose:
@@ -125,7 +150,9 @@ export interface HubSendArgs {
 
 export type HubPush =
   | { t: 'dm'; msg: DmRow }
-  | { t: 'peer'; peer: HubPeer };
+  | { t: 'peer'; peer: HubPeer }
+  /** Protocol 3: my inbox changed (`kind`); re-read it. */
+  | { t: 'inbox'; kind: HubNudgeKind };
 
 /**
  * Errors a `send` can answer (the client maps each to a sentence): bad_body (empty or too long), rate_limited,

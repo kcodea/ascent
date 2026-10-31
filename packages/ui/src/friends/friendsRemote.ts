@@ -3,13 +3,14 @@
  * or throws a `FriendsError` carrying the SQL's code (`raise exception '<code>'`). Every RPC lives in
  * supabase/migrations/2026-10-28-friends.sql.
  *
- * EGRESS (R-FRIENDS-05): the only periodic call is `beat` (presence + inbox in one, ~100 bytes of body when nothing is
- * waiting); the friends list is `list` (one batched read, only while a friends surface is open); the one Realtime
- * subscription is INSERTs on `friend_invites` filtered to rows addressed to me. Presence is never broadcast.
+ * EGRESS (R-FRIENDS-05, R-FRIENDS-HUB-LIVE-01): nothing here is periodic any more. Presence goes over the friends hub's
+ * socket (which mirrors it into Supabase itself), and the inbox is `list`, read when the hub says something changed
+ * (`friendsStore.ts`) or while a friends surface is open. The `friends_beat` poll and the Realtime subscription on
+ * `friend_invites` are gone.
  */
 import { parseActivity, parseGameStatus, type FriendActivity, type FriendGameStatus } from './gameStatus';
-import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { keepaliveRpc, supabaseClient } from '../remoteBoards';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { supabaseClient } from '../remoteBoards';
 
 export type PresenceStatus = 'online' | 'in_game' | 'offline';
 export type WatchKind = 'live' | 'versus';
@@ -73,6 +74,7 @@ export interface FriendsList {
   serverNow: string;
 }
 
+/** My inbox at a glance (the shape the retired `friends_beat` answered; filled from `friends_list` now). */
 export interface BeatAnswer {
   friends: number;
   online: number;
@@ -181,25 +183,7 @@ export function parseFriendsList(raw: unknown): FriendsList {
   };
 }
 
-export function parseBeat(raw: unknown): BeatAnswer {
-  const r = (raw ?? {}) as Record<string, unknown>;
-  return {
-    friends: Number(r.friends) || 0, online: Number(r.online) || 0, incoming: Number(r.incoming) || 0,
-    invites: arr(r.invites).map(inviteOf), serverNow: String(r.serverNow ?? ''),
-  };
-}
-
 export function makeFriendsRemote(getClient: () => SupabaseClient | null) {
-  let gameRefused = false;
-  // The player's access token, kept current by the auth client's own events, so the `pagehide` "I left" beat can be
-  // signed synchronously (a page being closed cannot await `getSession`). Subscribed once, on the first beat.
-  let token: string | null = null;
-  let watchingToken = false;
-  const watchToken = (c: SupabaseClient): void => {
-    if (watchingToken) return;
-    watchingToken = true;
-    try { c.auth.onAuthStateChange((_e, s) => { token = s?.access_token ?? null; }); } catch { /* a stand-in client */ }
-  };
   const db = (): SupabaseClient => {
     const c = getClient();
     if (!c) throw new FriendsError('no_backend');
@@ -212,26 +196,6 @@ export function makeFriendsRemote(getClient: () => SupabaseClient | null) {
     return data as T;
   }
   return {
-    async beat(p: PresenceReport): Promise<BeatAnswer> {
-      watchToken(db());
-      const base = { p_status: p.status, p_mode: p.mode, p_watch_kind: p.watchKind, p_watch_id: p.watchId };
-      // `p_game` only when there is one, and never again once a server without the 2026-11-08 SQL refused it: that
-      // server still takes the four-argument beat (a refused status must never stop presence).
-      // The activity (online) rides the same slot as the game status (in a game); a server without
-      // 2026-11-10-friends-activity.sql stores only an in-game status and drops the rest, never an error.
-      const detail = p.game ?? p.activity ?? null;
-      if (detail && !gameRefused) {
-        try {
-          return parseBeat(await rpc('friends_beat', { ...base, p_game: detail }));
-        } catch (e) {
-          if ((e as FriendsError).code !== 'not_deployed') throw e;
-          gameRefused = true;
-        }
-      }
-      return parseBeat(await rpc('friends_beat', base));
-    },
-    /** "I left": an Offline beat that survives the page closing (keepalive). False when it could not be sent. */
-    leave: (): boolean => !!token && keepaliveRpc('friends_beat', { p_status: 'offline' }, token),
     list: async (): Promise<FriendsList> => parseFriendsList(await rpc('friends_list')),
     requestByHandle: (handle: string) => rpc<{ status: 'sent' | 'accepted'; userId: string }>('friends_request', { p_user: null, p_handle: handle }),
     requestById: (userId: string) => rpc<{ status: 'sent' | 'accepted'; userId: string }>('friends_request', { p_user: userId, p_handle: null }),
@@ -248,14 +212,6 @@ export function makeFriendsRemote(getClient: () => SupabaseClient | null) {
     respondInvite: (id: string, accept: boolean) =>
       rpc<{ status: 'accepted' | 'declined'; kind: InviteKind; target: string; from: string }>('friends_invite_respond', { p_invite: id, p_accept: accept }),
     cancelInvite: (id: string) => rpc('friends_invite_cancel', { p_invite: id }),
-    /** A wake-up when an invite addressed to ME is inserted (RLS + the to_user filter: nobody else's rows). */
-    subscribeInvites(me: string, onInvite: () => void): { channel: RealtimeChannel; close: () => void } {
-      const c = db();
-      const ch = c.channel(`friends:${me}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friend_invites', filter: `to_user=eq.${me}` }, () => onInvite());
-      ch.subscribe();
-      return { channel: ch, close: () => { void c.removeChannel(ch); } };
-    },
   };
 }
 

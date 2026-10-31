@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 /**
- * THE BEAT BUDGET (owner 2026-10-29, R-FRIENDS-ACTIVITY-01): a scripted, typical hour-ish session (menus, a sidebar
- * browse with rapid hops, a 15-round ranked game, a replay, idle on the menu) driven through the real stores with the
- * network faked, counting `friends_beat` calls. The granular activity must stay egress-safe: it sends only when the
- * coarse activity changes, debounced, never per frame.
+ * THE PRESENCE BUDGET (owner 2026-10-29, R-FRIENDS-ACTIVITY-01; R-FRIENDS-HUB-LIVE-01): a scripted, typical hour-ish
+ * session (menus, a sidebar browse with rapid hops, a 15-round ranked game, a replay, idle on the menu) driven through
+ * the real stores with the network faked, counting what goes to the friends hub and every Supabase call. The granular
+ * activity must stay cheap: it sends only when the coarse activity changes, debounced, never per frame. Since the hub
+ * took presence over, Supabase sees ONE call for the whole session (the inbox read at boot): no 60 s beat, no Realtime.
  *
- * Measured before the granular activity (main at a0ab7bcbc): BASELINE_BEATS below. The bound allows the screen
- * changes the owner asked for and nothing more.
+ * Measured with the 60 s Supabase beat (main at a0ab7bcbc): BASELINE_BEATS below (periodic beats included).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
@@ -17,22 +17,25 @@ vi.mock('../live/livePublisher', async (importOriginal) => ({ ...(await importOr
 
 import { useGame } from '../store';
 import { useVersus } from '../versus/versusStore';
-import { resetFriendsForTests, setFriendsRemoteForTests, startFriendsPresence } from './friendsStore';
+import { onPresenceSettled, resetFriendsForTests, setFriendsRemoteForTests, startFriendsPresence } from './friendsStore';
 import { setShowActivity } from './friendsPrefs';
 import type { FriendsRemote, PresenceReport } from './friendsRemote';
 
 const ME = '00000000-0000-0000-0000-000000000001';
 let beats: PresenceReport[] = [];
+let supabaseCalls = 0;
 
 beforeEach(() => {
   resetFriendsForTests();
   beats = [];
-  setFriendsRemoteForTests({
-    beat: async (p: PresenceReport) => { beats.push(p); return { friends: 3, online: 1, incoming: 0, invites: [], serverNow: new Date().toISOString() }; },
-    leave: () => true,
-    list: async () => ({ friends: [], incoming: [], outgoing: [], blocked: [], invites: [], sent: [], serverNow: '' }),
-    subscribeInvites: () => ({ channel: null, close: () => undefined }),
-  } as unknown as FriendsRemote);
+  supabaseCalls = 0;
+  // Every Supabase call of the friends client is counted (any method).
+  setFriendsRemoteForTests(new Proxy({}, {
+    get: (_t, k) => (k === 'list'
+      ? async () => { supabaseCalls++; return { friends: [], incoming: [], outgoing: [], blocked: [], invites: [], sent: [], serverNow: '' }; }
+      : async () => { supabaseCalls++; return {}; }),
+  }) as unknown as FriendsRemote);
+  onPresenceSettled((p) => beats.push(p));
   useGame.setState({ account: { userId: ME, email: 'a@b.c', anonymous: false, discriminator: '1111' }, playerName: 'Me' });
   useVersus.setState({ room: null, match: null });
   useGame.setState({ showTitle: true, practiceSetupOpen: false, replaying: false, heroChoices: null, titleView: 'menu', settingsOpen: false });
@@ -84,12 +87,13 @@ async function typicalSession(): Promise<{ beats: number; ms: number }> {
 /** Measured on main before this change (a0ab7bcbc), same script: 46 beats in 35 min (80 an hour). */
 const BASELINE_BEATS = 46;
 
-describe('the beat budget (R-FRIENDS-ACTIVITY-01)', () => {
-  it('a typical session costs at most a quarter more beats than before (measured: 53, 92 an hour)', async () => {
+describe('the presence budget (R-FRIENDS-ACTIVITY-01, R-FRIENDS-HUB-LIVE-01)', () => {
+  it('a typical session sends only its changes to the hub, and Supabase sees one call in 35 minutes', async () => {
     const { beats: n, ms } = await typicalSession();
     const perHour = Math.round((n * 3_600_000) / ms);
-    console.log(`[beat budget] ${n} beats in ${Math.round(ms / 60_000)} min = ${perHour} per hour (baseline ${BASELINE_BEATS})`);
-    expect(n).toBeLessThanOrEqual(Math.ceil(BASELINE_BEATS * 1.25));
+    console.log(`[presence budget] ${n} sends in ${Math.round(ms / 60_000)} min = ${perHour} per hour (60 s beat baseline ${BASELINE_BEATS}); Supabase calls ${supabaseCalls}`);
+    expect(n).toBeLessThanOrEqual(BASELINE_BEATS);
+    expect(supabaseCalls).toBe(1);
     // Where it landed: every screen was reported, the hop through Live Games never was.
     const acts = beats.map((b) => b.activity?.act ?? b.game?.step ?? b.game?.phase ?? b.status);
     expect(acts).toEqual(expect.arrayContaining(['career', 'leaderboard', 'collection', 'recent', 'settings', 'patch_notes', 'compendium', 'replay', 'done']));
@@ -99,7 +103,7 @@ describe('the beat budget (R-FRIENDS-ACTIVITY-01)', () => {
   it('with "Show friends what I am doing" off, a session sends no more than the regular pace', async () => {
     setShowActivity(false);
     const { beats: n } = await typicalSession();
-    console.log(`[beat budget] private: ${n} beats`);
+    console.log(`[presence budget] private: ${n} sends`);
     expect(n).toBeLessThan(BASELINE_BEATS);
     expect(beats.every((b) => !b.game && !b.activity && !b.watchId)).toBe(true);
   });

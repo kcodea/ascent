@@ -9,12 +9,15 @@
  *     limit. The same (sender, client id) again answers the stored row, so a retry after a timeout never doubles it.
  *   - `dm_cf_friends(p_key, p_user)`: the account's accepted friends, nobody blocked either way (the hub's presence
  *     fan-out list, read at most every `HUB_FRIENDS_TTL_MS`).
+ *   - `hub_presence_cf(p_key, p_user, p_presence)`: the presence MIRROR (R-FRIENDS-HUB-LIVE-01). The hub is the live
+ *     source of presence; it keeps `player_presence` current (on a change, a slow keep-alive, offline at the last close)
+ *     for the server-side "is this friend online" invite check and for older clients' friends lists.
  *
  * Off (no writer secret, PERSIST not "1"): a DEV Worker uses the memory backend; any other Worker answers every send
  * `unavailable`, which the client shows as "Messages are not available right now" (never a silent drop).
  */
 import { DmError, dmErrorOf, MemoryDmBackend, type DmBackend, type SendCheck } from './core/hubCore';
-import { cleanReplyPreview, type DmRow } from './hubProtocol';
+import { cleanReplyPreview, type DmRow, type HubPresence } from './hubProtocol';
 
 /** The hub Worker's own settings (`hub.wrangler.toml`): its own writer secret, never the Versus Worker's. */
 export interface HubStoreEnv {
@@ -69,6 +72,12 @@ export class SupabaseDmBackend implements DmBackend {
   async friendsOf(user: string): Promise<string[]> {
     const r = await this.rpc('dm_cf_friends', { p_user: user });
     return Array.isArray(r) ? r.filter((x): x is string => typeof x === 'string').map((x) => x.toLowerCase()) : [];
+  }
+
+  /** `hub_presence_cf(p_key, p_user, p_presence)` (supabase/migrations/2026-11-18-live-directory.sql): the hub's mirror
+   *  of a connected account's presence into `player_presence` (null: offline). */
+  async mirrorPresence(user: string, presence: HubPresence | null): Promise<void> {
+    await this.rpc('hub_presence_cf', { p_user: user, p_presence: presence });
   }
 }
 

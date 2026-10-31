@@ -273,6 +273,9 @@ export class GameSession extends LiveGameHost<SessionEnv> {
       let body: Record<string, unknown>;
       try { body = JSON.parse(text) as Record<string, unknown>; } catch { return json(400, { error: 'bad_body' }); }
       if (body.protocol !== SESSION_PROTOCOL) return json(409, { error: 'version_mismatch', expected: SESSION_PROTOCOL });
+      // A production hub whose writes cannot land (deployed without persistence) takes nothing: the client then writes the
+      // old way at once (every session call falls back on a non-200), so nothing is held where it would be lost.
+      if (!this.flushSink.live && this.env.DEV_AUTH !== '1') return json(503, { error: 'session_off' });
       const s = (await this.loadSession(gameId))!;
       this.guest = req.headers.get(GUEST_HEADER) === '1';
       const res = await this.op(op, s, userId, body, now);

@@ -199,3 +199,74 @@ presence, no inbox pushes and no Live Games list, as they already had no Versus 
 - **The chaos matrix** (`packages/ui/src/versus/chaos/versusChaosCf.test.ts`; `npm test` runs its smoke,
   `CHAOS_FULL=1 npx vitest run versusChaosCf` the whole matrix in about 8 minutes). Known failures live in
   `chaosKnownCf.ts`.
+
+## The game session: ranked, casual and Practice on Cloudflare (R-SESSION-CF-01, R-POOL-MIRROR-01; 2026-10-31)
+
+Owner 2026-10-31: "Is it possible to just have ranked solos run on cloudflare too so that we aren't read writing in real
+time? Can we offload that to cloudflare" → "Do it". Design and audit: [`devlog/2026-10-31-ranked-session-cf.md`](devlog/2026-10-31-ranked-session-cf.md).
+
+**What it is.** With the hub's switch on, every new lobby / Practice game is a SESSION game. One Durable Object
+(`GameSession`, `workers/versus/src/session.ts`) on the stable `ascent-hub` Worker is both:
+- its live host: `/session/<game>/ws`, the same live protocol as `VersusLiveGame`, listed once in the hub directory with
+  `live_host = 'session'`;
+- its session: the per-round cloud save held in the object, the table pinned at the start, and the run-end writes and the
+  rating settle flushed to Supabase in one key-gated call (`session_cf_flush`) when due.
+
+The opponent pool is served from the hub's mirror (`PoolMirror`, synced every 5 minutes by the hub's cron). A game started
+while the switch is off (or by an older build) keeps the old path for its whole life.
+
+| Path | Session game | Any other game |
+|---|---|---|
+| Live socket, listing, chat, pings, spectator XP | hub `GameSession` (`live_host = session`) | Versus Worker `VersusLiveGame` (`cf:<rev>`) |
+| Per-round cloud save (signed in) | held in the session; `saved_runs` written on Save & Quit / 60 s with no live socket / 10 min with no save | `put_saved_run` every shop start |
+| Run-end boards, fights, Career, telemetry | session, then ONE `session_cf_flush` (rating settle inside, writes first) | client outbox → PostgREST |
+| Rank settle (finish) | session (`submit-rating`'s checks + this game + the pinned table) | `submit-rating` Edge Function |
+| Abandon settle, progression, Storage replay, Practice row, profile | client, as before | client |
+| Pool sample (keys + boards) | hub mirror (with the switch on, for every game) | Supabase RPCs |
+
+**No data loss.** Every session call that is not answered (unreachable, refused, or a hub deployed without persistence,
+which answers `session_off`) is made the old way by the client at once: Supabase direct, the durable outbox, or the rank
+queue. All of those writes are idempotent by key, so one the session also lands is stored once.
+
+### Cutover order
+
+1. **SQL first:** apply `supabase/migrations/2026-11-20-game-session-cf.sql`. It is additive: `session_cf_writes`,
+   `session_cf_flush`, `pool_mirror_version/index/boards`, all key-gated by the hub's existing writer key (`ascent-hub` in
+   `versus_cf_writer_keys`). Check:
+   `select proname from pg_proc where proname in ('session_cf_flush','pool_mirror_version','pool_mirror_index','pool_mirror_boards');`
+2. **The pack** (`npm run release:web`). The hub's code changed, so it deploys (with `--persist`), and the switch stays
+   OFF: `hub:deploy` keeps the live hub's setting, and an older hub counts as off. New `GameSession` / `PoolMirror`
+   classes come in by migration tag `v3`. Within 5 minutes the cron fills the mirror. Check
+   `curl https://ascent-hub.team-ascent.workers.dev/pool/status`: `ready: true`, `runs` about the eligible pool size
+   (`select count(*) from pool_runs where eligible`).
+3. **Flip:** `npm run hub:deploy -- --persist --session on` (it refuses `--session on` without `--persist`). Check
+   `curl .../session/config` answers `{"enabled":true,"protocol":1}`. Pages that load from now on start session games.
+4. **Watch the first games:**
+   - writes: `select user_id, game_id, tbl, status, at from session_cf_writes order by at desc limit 20;`
+   - settles: `select * from rank_results order by created_at desc limit 5;`
+   - saves: `select user_id, run_key, revision, updated_at from saved_runs order by updated_at desc limit 5;`
+   - rejected writes: `select * from ops.events where source = 'session' order by at desc limit 20;`
+   - Live Games shows those games, and Watch works from Live Games and Friends.
+5. **Rollback:** `npm run hub:deploy -- --persist --session off`. Pages that load afterwards start old-path games. A
+   session game already in progress keeps its session and flushes as normal; its tab remembers its choice.
+
+**Known gap (the cutover window only):** a client from before this change cannot watch a session-hosted game. It does not
+know `live_host = 'session'` and shows "Could not reach that game". It ends when old tabs reload (`index.html` is served
+no-cache).
+
+**Later (after about 14 days on, owner's call):** there is nothing to retire on Supabase. The old paths (`put_saved_run`,
+the outbox inserts, `submit-rating`) stay as the session's fallback and the abandon path. A follow-up may stop routing
+lobby games to `VersusLiveGame` once no old-path game is in use.
+
+### Dev and test
+
+- Local hub with the session on: `npx wrangler dev --config workers/versus/hub.wrangler.toml --port 8788 --var DEV_AUTH:1 --var SESSION_MODE:on`
+  (persistence off: the session records its flushes; `GET /session/<game>/metrics` shows them). A dev page reaches it
+  with `?hubUrl=http://127.0.0.1:8788` (and `?session=on|off|clear` forces the switch in a dev or test-tools build).
+- `POST /pool/dev-load` (DEV only) loads the mirror from rows a test read itself. `scripts/egress-game-probe.mjs
+  --session-hub <url>` does it and plays a whole game against the local hub.
+- Tests:
+  - `workers/versus/test/sessionCore.test.ts`
+  - `workers/versus/test/sessionCf.db.test.ts` (serving exactness and the flush)
+  - `workers/versus/test/it/session.it.ts` (`npm run versus:cf:test`)
+  - `packages/ui/src/session/session.test.ts`

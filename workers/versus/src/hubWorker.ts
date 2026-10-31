@@ -56,6 +56,9 @@ export interface HubWorkerEnv extends HubEnv, LiveDirEnv, AuthEnv, SessionEnv {
 }
 
 const SESSION_PATH = /^\/session\/([^/]{1,240})\/(ws|save|park|table|write|rate|clear|seats|state|metrics)$/;
+/** The session is on only when switched on AND its writes can land (persistence on; a local dev hub records them). A hub
+ *  deployed without `--persist` never takes a game: its flushes would go nowhere. */
+const sessionLive = (env: HubWorkerEnv): boolean => env.SESSION_MODE === 'on' && (env.PERSIST === '1' || env.DEV_AUTH === '1');
 const poolOf = (env: HubWorkerEnv): PoolMirror => env.POOL.get(env.POOL.idFromName('global')) as unknown as PoolMirror;
 
 /** The one directory object. */
@@ -91,12 +94,22 @@ export default {
     // ── LIVE GAMES (the directory) ──
     // ── THE GAME SESSION + THE POOL MIRROR (R-SESSION-CF-01, R-POOL-MIRROR-01) ──
     if (url.pathname === SESSION_ROUTES.config) {
-      return json(200, { enabled: env.SESSION_MODE === 'on', protocol: SESSION_PROTOCOL }, { 'Cache-Control': 'no-store' });
+      return json(200, { enabled: sessionLive(env), protocol: SESSION_PROTOCOL }, { 'Cache-Control': 'no-store' });
+    }
+    if (url.pathname === '/pool/status') {
+      // The mirror at a glance (no auth, no pool data): the cutover runbook's check that it synced.
+      return json(200, await poolOf(env).status(), { 'Cache-Control': 'no-store' });
     }
     if (url.pathname === SESSION_ROUTES.poolMetrics) {
       return env.DEV_AUTH === '1' ? json(200, await poolOf(env).metricsSnapshot()) : json(404, { error: 'not_found' });
     }
-    if (url.pathname === SESSION_ROUTES.poolKeys || url.pathname === SESSION_ROUTES.poolBoards) {
+    if (url.pathname === '/pool/dev-load' && req.method === 'POST') {
+      if (env.DEV_AUTH !== '1') return json(404, { error: 'not_found' });
+      const b = (await req.json().catch(() => null)) as { runs?: unknown; boards?: unknown } | null;
+      if (!b || !Array.isArray(b.runs) || !Array.isArray(b.boards)) return json(400, { error: 'bad_body' });
+      return json(200, await poolOf(env).devLoad(b.runs as never, b.boards as never));
+    }
+        if (url.pathname === SESSION_ROUTES.poolKeys || url.pathname === SESSION_ROUTES.poolBoards) {
       if (req.method !== 'POST') return json(405, { error: 'bad_method' });
       const caller = await verifyCaller(bearerOf(req, VERSUS_CF_BEARER_PREFIX), env);
       if (!caller) return json(401, { error: 'not_signed_in' });

@@ -14,6 +14,13 @@
  * Build:  VITE_EGRESS_METER=1 VITE_PERF_BENCH=1 npm run build:web
  * Run:    node scripts/egress-game-probe.mjs --mode ranked|practice --profile <dir> [--out result.json] [--max-rounds 40]
  *
+ * THE GAME SESSION (R-SESSION-CF-01): `--session-hub http://127.0.0.1:<port>` points the game at a LOCAL hub
+ * (`npx wrangler dev --config hub.wrangler.toml --port <port> --var DEV_AUTH:1 --var SESSION_MODE:on`, persistence off:
+ * the session's flushes are recorded in the object, never sent). The probe loads the hub's pool mirror from the live
+ * pool first (the hub's DEV `/pool/dev-load`: a local hub has no writer key to sync with), plays the game, and saves the
+ * session's own record of the game (`/session/<game>/metrics`: every flush it would have written) and the mirror's
+ * counters beside the call list.
+ *
  * Headless only, muted, one browser per run, closed at the end. Keep runs few (the pool read is real egress).
  */
 import fs from 'node:fs';
@@ -30,7 +37,9 @@ const NAME = arg('name', 'Claudebot9');
 const OUT = arg('out', '');
 const MODE = arg('mode', 'ranked');
 const MAX_ROUNDS = Number(arg('max-rounds', '40'));
-const QUERY = arg('query', '');
+const SESSION_HUB = arg('session-hub', '');
+const QUERY = arg('query', SESSION_HUB ? `?hubUrl=${encodeURIComponent(SESSION_HUB)}` : '');
+const APP_VERSION = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8')).version;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** RPCs that only READ (they go to the live backend). Anything else posted to /rest/v1/rpc is a write (canned). */
@@ -163,10 +172,11 @@ async function main() {
   const marks = [];
   const cannedBytes = [];
   try {
-    await ctx.addInitScript((name) => { try {
+    await ctx.addInitScript(([name, session]) => { try {
       if (!localStorage.getItem('ascent.playername')) localStorage.setItem('ascent.playername', name);
       localStorage.setItem('ascent.combatspeed', '5');
-    } catch { /* none */ } }, NAME);
+      if (session) localStorage.setItem('ascent.versus', '1'); // lets the page take a local hub (`?hubUrl=`)
+    } catch { /* none */ } }, [NAME, !!SESSION_HUB]);
     await ctx.route(/supabase\.co\//, async (route) => {
       const req = route.request();
       if (!isWrite(req.url(), req.method())) return route.continue();
@@ -176,6 +186,7 @@ async function main() {
     });
     const page = ctx.pages()[0] ?? await ctx.newPage();
     page.on('pageerror', (e) => log(`pageerror: ${e.message.slice(0, 200)}`));
+    page.on('console', (m) => { if ((m.type() === 'error' || m.type() === 'warning') && /session|live|pool|outbox|rank/i.test(m.text())) log(`console.${m.type()}: ${m.text().slice(0, 240)}`); });
     const cdp = await ctx.newCDPSession(page);
     await cdp.send('Network.enable');
     const wire = wireMeter(cdp);
@@ -191,6 +202,33 @@ async function main() {
 
     await page.goto(`http://127.0.0.1:${PORT}/${QUERY}`);
     await waitFor('!!window.__bench', 30000);
+    if (SESSION_HUB) {
+      // The local hub's pool mirror, loaded from the live pool (the reads the hub's sync would make), BEFORE the boot's
+      // pool fetch is counted: wait for a session, read, load, then reload the page so the count starts clean.
+      await waitFor(`(async () => !!(await (await window.__bench.db())?.auth.getSession())?.data.session)()`, 30000);
+      const loaded = await page.evaluate(async ([hub, prefix]) => {
+        const db = await window.__bench.db();
+        const { data: runs, error } = await db.from('pool_runs').select('id, author, hero_id, seed, user_id, wave_count, set_id, patch_prefix, pool_id, strength, strength_early, strength_late').eq('eligible', true).eq('patch_prefix', prefix);
+        if (error) return { error: error.message };
+        const ids = runs.map((r) => r.id);
+        const boards = [];
+        for (let i = 0; i < ids.length; i += 100) {
+          const { data, error: e2 } = await db.rpc('pool_runs_boards', { p_ids: ids.slice(i, i + 100) });
+          if (e2) return { error: e2.message };
+          for (const b of data) boards.push({ run_id: b.run_id, rev: b.rev, boards: JSON.stringify(b.boards) });
+        }
+        const rev = new Map(boards.map((b) => [b.run_id, b.rev]));
+        const num = (x) => (x == null ? null : String(x));
+        const index = runs.map((r) => ({ run_id: r.id, run_key: `${r.author}|${r.hero_id}|${r.seed}`, author: r.author, user_id: r.user_id, wave_count: r.wave_count, set_id: r.set_id, patch_prefix: r.patch_prefix, pool_id: r.pool_id, strength: num(r.strength), strength_early: num(r.strength_early), strength_late: num(r.strength_late), rev: rev.get(r.id) ?? '' }));
+        const res = await fetch(`${hub}/pool/dev-load`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ runs: index, boards }) });
+        return { status: res.status, body: await res.json(), bytes: JSON.stringify(boards).length };
+      }, [SESSION_HUB, `${APP_VERSION}+`]);
+      log(`pool mirror loaded: ${JSON.stringify(loaded)}`);
+      await page.evaluate(() => indexedDB.databases().then((dbs) => Promise.all(dbs.filter((d) => /pool/i.test(d.name ?? '')).map((d) => new Promise((r) => { const q = indexedDB.deleteDatabase(d.name); q.onsuccess = q.onerror = q.onblocked = r; })))));
+      wire.mark();
+      await page.goto(`http://127.0.0.1:${PORT}/${QUERY}`);
+      await waitFor('!!window.__bench', 30000);
+    }
     await sleep(12000);
     mark('boot');
 
@@ -259,7 +297,18 @@ async function main() {
     mark('end-of-game');
     await sleep(60000);
     mark('after-60s');
-    const result = { mode: MODE, name: NAME, rounds: round, marks, all: wire.all(), log: lines };
+    let session = null;
+    if (SESSION_HUB) {
+      const gameId = await ev(`${G}.run.runId ?? String(${G}.run.seed)`);
+      session = {
+        gameId,
+        metrics: await fetch(`${SESSION_HUB}/session/${encodeURIComponent(gameId)}/metrics`).then((r) => r.json()).catch((e) => ({ error: String(e) })),
+        pool: await fetch(`${SESSION_HUB}/pool/metrics`).then((r) => r.json()).catch((e) => ({ error: String(e) })),
+        decisions: await ev(`localStorage.getItem('ascent.session.games')`),
+      };
+      log(`session ${gameId}: ${JSON.stringify(session.metrics?.counters ?? session.metrics)} flushes ${session.metrics?.flushCalls?.length ?? '?'}; pool ${JSON.stringify(session.pool)}`);
+    }
+    const result = { mode: MODE, name: NAME, rounds: round, marks, all: wire.all(), session, log: lines };
     if (OUT) fs.writeFileSync(OUT, JSON.stringify(result, null, 1));
   } finally {
     await ctx.close();

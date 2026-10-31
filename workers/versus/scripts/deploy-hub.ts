@@ -36,8 +36,11 @@ export function hubSources(entry = join(workerDir, 'src/hubWorker.ts')): string[
     if (seen.has(file)) return;
     seen.add(file);
     const text = readFileSync(file, 'utf8');
-    for (const m of text.matchAll(/\bfrom\s+'(\.{1,2}\/[^']+)'/g)) {
-      const base = resolve(dirname(file), m[1]!);
+    // Only what the bundle carries: a type-only `import type` / `export type` is erased at build time, so it neither
+    // ships nor moves the hash (the session's live host reaches the room engine's TYPES that way, never its code).
+    for (const m of text.matchAll(/\b(import|export)\s+(type\s+)?[^;'"]*?\bfrom\s+'(\.{1,2}\/[^']+)'/g)) {
+      if (m[2]) continue;
+      const base = resolve(dirname(file), m[3]!);
       const next = [`${base}.ts`, join(base, 'index.ts')].find((f) => existsSync(f));
       if (next) walk(next);
     }
@@ -93,6 +96,7 @@ async function main(): Promise<void> {
   const at = process.argv.indexOf('--session');
   const asked = at >= 0 ? process.argv[at + 1] : undefined;
   if (asked !== undefined && asked !== 'on' && asked !== 'off') { console.error('--session takes on or off'); process.exit(2); }
+  if (asked === 'on' && !flag('persist') && !dry) { console.error('--session on needs --persist (a session must be able to write Supabase)'); process.exit(2); }
   const current = await liveSession();
   const session = asked ?? current ?? 'off';
   if (!dry && !flag('force') && session === (current ?? 'off') && (await liveHash()) === hash) {

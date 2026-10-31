@@ -46,7 +46,9 @@ const defaultAccess: SessionAccess = {
 };
 let access: SessionAccess = defaultAccess;
 /** Tests: where the hub is and how it is reached. */
-export function setSessionAccessForTests(a: SessionAccess | null): void { access = a ?? defaultAccess; enabled = null; configP = null; }
+export function setSessionAccessForTests(a: SessionAccess | null): void {
+  access = a ?? defaultAccess; enabled = null; configP = null; memory.clear(); byRunKey.clear(); lastGame = null;
+}
 
 // ── The switch ─────────────────────────────────────────────────────────────────────────────────────────────────────
 

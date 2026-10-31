@@ -91,6 +91,29 @@ export class PoolMirror extends DurableObject<PoolMirrorEnv> {
     return this.core.boardsJson(ids) ?? 'bad';
   }
 
+  /** DEV only (the hub route checks DEV_AUTH): load a mirror from rows a test fetched itself (a local hub has no writer
+   *  key to sync with). The same adoption as a sync: index + boards together. */
+  async devLoad(runs: MirrorRun[], boards: { run_id: number; rev: string; boards: string }[]): Promise<{ ok: true; runs: number }> {
+    await this.load();
+    const src: PoolSource = {
+      version: async () => `dev:${runs.length}:${boards.length}:${Date.now()}`,
+      index: async () => runs.map((r) => ({ ...r, run_id: Number(r.run_id) })),
+      boards: async (ids) => { const want = new Set(ids); return boards.filter((b) => want.has(Number(b.run_id))).map((b) => ({ run_id: Number(b.run_id), run_key: '', rev: b.rev, boards: b.boards })); },
+    };
+    await this.core.sync(src, async (changed, dropped, rs, version) => {
+      for (const [id, h] of changed) await this.ctx.storage.put(RUN_PREFIX + id, h);
+      if (dropped.length) await this.ctx.storage.delete(dropped.map((id) => RUN_PREFIX + id));
+      await this.ctx.storage.put('index', { version, runs: rs, syncedAt: Date.now() });
+    }, Date.now());
+    return { ok: true, runs: this.core.runs.length };
+  }
+
+  /** The mirror at a glance (the public status route: counts and times only). */
+  async status(): Promise<{ ready: boolean; runs: number; syncedAt: number | null; source: boolean }> {
+    await this.load();
+    return { ready: !this.core.cold, runs: this.core.runs.length, syncedAt: this.core.syncedAt || null, source: !!this.source };
+  }
+
   async metricsSnapshot(): Promise<Record<string, unknown>> {
     await this.load();
     return { ...this.core.metrics, runs: this.core.runs.length, held: this.core.held.size, version: this.core.version, syncedAt: this.core.syncedAt };

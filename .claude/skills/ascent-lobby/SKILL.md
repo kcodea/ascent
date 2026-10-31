@@ -92,6 +92,15 @@ behaviour from a legacy symbol.**
   Seat selection caps one player at `MAX_SEATS_PER_PLAYER` (4) seats, without weighting the shuffle. The player's
   OWN runs are seated like anyone else's under that same cap (owner 2026-09-30); nothing excludes them (the client
   sends `p_exclude_user: null`, and `excludeOwnerId` is gone).
+- **The game session + the pool mirror** (R-SESSION-CF-01, R-POOL-MIRROR-01, 2026-10-31): with the hub switch on
+  (`/session/config`), a lobby / Practice game is a SESSION game for life (`session/sessionRemote.ts` `sessionGame`, kept
+  per game id). Its Durable Object on the stable hub (`workers/versus/src/session.ts`) is its live host (`/session/<game>/ws`,
+  `live_host = 'session'`) AND holds its per-round cloud save, its pinned table (opponent keys + seat recordings) and its
+  run-end outbox writes + rating, flushed to Supabase in one key-gated `session_cf_flush`. Every session call that fails is
+  made the old way at once (no data loss). The pool sample's two reads come from the hub's mirror, which must stay
+  byte-identical to `pool_runs_boards` and draw exactly as `pool_runs__pick` (`core/poolPick.ts`; a change to the SQL draw
+  must change the port in the same PR: `workers/versus/test/sessionCf.db.test.ts` compares them). A new run-end write must
+  go through the outbox (`submitRunWrite`) to ride the session.
 - **Board strength + rank bands** (R-LOBBY-09, 2026-09-30): a board's raw strength is its seeded win rate against the
   frozen reference set (`lobby/boardStrength.ts`, `strengthReference.v1.json`), stored with the board; percentiles and
   a run's strength (`pool_runs.strength`: its board-percentile average RANKED among the runs, so bands hold their nominal share) are derived server-side. Since 2026-10-06 (R-LOBBY-13) each run

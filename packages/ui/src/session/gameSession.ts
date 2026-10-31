@@ -27,12 +27,12 @@ export function resetGameSessionForTests(): void { noteSessionGame(null); pinned
 
 const pinned = new Map<string, string>();
 
-/** Pin (or re-send) the table. Called once per shop phase at most; it sends only when the recordings changed shape (the
- *  seat counts) or in the first three rounds (while the opening shop phases build the generated recordings). Never
+/** Pin (or re-send) the table. Looked at once per shop phase at most; it sends only when the recordings changed shape (a
+ *  seat's run or a generated recording appeared or grew: the opening shop phases build the generated ones). Never
  *  serializes the recordings to decide. */
 function pinTable(run: RunState, gameId: string, mode: 'ranked' | 'casual' | 'practice'): void {
   const seats = sessionSeatsOf(run);
-  const print = `${seats?.runs.length ?? 0}|${seats?.hybrids.length ?? 0}|${Math.min(run.wave, 3)}`;
+  const print = `${(seats?.runs ?? []).map((r) => r.length).join(',')}|${(seats?.hybrids ?? []).map((h) => h.snaps?.length ?? 0).join(',')}`;
   if (pinned.get(gameId) === print) return;
   pinned.set(gameId, print);
   let seatKeys: string[] = [];

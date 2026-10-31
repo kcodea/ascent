@@ -14,7 +14,7 @@
  * One id from confirm to finish means the server (which settles a run id once) can never count an entry twice.
  * Pure + storage only, so the rule is tested without the store.
  */
-import { DEFAULT_LOBBY_RULES, isHeroReroll, type HeroReroll } from '@game/sim';
+import { DEFAULT_LOBBY_RULES, isHeroReroll, type HeroReroll, type RunLobby } from '@game/sim';
 
 const ENTRY_KEY = 'ascent.rankedentry';
 
@@ -28,6 +28,12 @@ export interface RankedEntry {
   /** THE HERO RE-ROLL (owner 2026-10-15, R-HERO-REROLL-01): the entry's one re-roll, once spent. It persists with the
    *  entry, so closing the game on hero select neither refunds the re-roll nor undoes it. Absent = unused. */
   heroReroll?: HeroReroll;
+  /** OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): the table picked at the confirmation, BEFORE the
+   *  offer (`createLobbyTable`), which `heroChoices` was then dealt around. The hero pick seats the player in exactly
+   *  this table. Absent on an entry made before this rule: that entry's table is picked at the hero pick, as before. */
+  table?: RunLobby;
+  /** The offer had to be topped up with heroes the table holds (fewer than three free; never with today's roster). */
+  toppedUp?: boolean;
   /** ISO time the player confirmed. */
   at: string;
 }
@@ -56,7 +62,17 @@ function isRankedEntry(x: unknown): x is RankedEntry {
     && typeof o.seed === 'number' && Number.isInteger(o.seed)
     && Array.isArray(o.heroChoices) && o.heroChoices.length > 0 && o.heroChoices.every((h) => typeof h === 'string')
     && typeof o.at === 'string'
-    && (o.heroReroll === undefined || isHeroReroll(o.heroReroll));
+    && (o.heroReroll === undefined || isHeroReroll(o.heroReroll))
+    && (o.table === undefined || isEntryTable(o.table, o.seed));
+}
+
+/** A stored table is the entry's own: same seed, eight seats, the player's seat first. */
+function isEntryTable(t: unknown, seed: number): boolean {
+  if (!t || typeof t !== 'object') return false;
+  const o = t as Record<string, unknown>;
+  return o.seed === seed && Array.isArray(o.seats) && o.seats.length > 1
+    && (o.seats[0] as { kind?: unknown } | undefined)?.kind === 'player'
+    && o.seats.every((x) => !!x && typeof (x as { heroId?: unknown }).heroId === 'string');
 }
 
 /**

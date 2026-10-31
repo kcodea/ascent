@@ -23,7 +23,7 @@ import { lastSessionGame, linkRunKey, noteSessionGame, prefetchSessionConfig, se
 
 
 /** Tests. */
-export function resetGameSessionForTests(): void { noteSessionGame(null); pinned.clear(); }
+export function resetGameSessionForTests(): void { noteSessionGame(null); pinned.clear(); entryPinned.clear(); }
 
 const pinned = new Map<string, string>();
 
@@ -44,11 +44,33 @@ function pinTable(run: RunState, gameId: string, mode: 'ranked' | 'casual' | 'pr
     .then((a) => { if (!a || a.status !== 200) pinned.delete(gameId); });
 }
 
+/** Ranked entries whose table was pinned at Play (OPPONENTS FIRST). */
+const entryPinned = new Set<string>();
+
+/**
+ * OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): a ranked table is picked at Play, before hero select,
+ * so the session pins its opponent keys at that same moment (the entry's run id IS the game id). The table the hero
+ * pick then seats is this one, so the keys the recruit pin sends later are the same (the session keeps the first). An
+ * offer that had to be topped up with held heroes is not pinned early: a pick of one of those re-picks the table.
+ */
+function pinEntryTable(): void {
+  const entry = useGame.getState().rankedEntry;
+  if (!entry?.table || entry.toppedUp || entryPinned.has(entry.runId) || !currentUserId()) return;
+  entryPinned.add(entry.runId);
+  if (!sessionGame(entry.runId)) return;
+  let seatKeys: string[] = [];
+  try { seatKeys = opponentFightKeys(entry.table, { reporterKey: '', patch: '' }); } catch { seatKeys = []; }
+  if (seatKeys.length === 0) return;
+  void sessionCall(entry.runId, 'table', { mode: 'ranked', seatKeys })
+    .then((a) => { if (!a || a.status !== 200) entryPinned.delete(entry.runId); });
+}
+
 export function installGameSession(): () => void {
   void prefetchSessionConfig();
   let lastKey = '';
   let lastTitle: boolean | undefined;
   const onChange = (): void => {
+    pinEntryTable();
     const st = useGame.getState();
     const run = st.run;
     // Only a new game, round or phase (or the title) matters: never per action.

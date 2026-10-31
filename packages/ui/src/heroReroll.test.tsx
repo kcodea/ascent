@@ -46,7 +46,7 @@ const rerollButtons = (): HTMLButtonElement[] => [...document.querySelectorAll<H
 
 describe('the hero re-roll (R-HERO-REROLL-01)', () => {
   it('Ranked: one press swaps exactly that slot for a seeded, never-offered hero from the tribe-gated pool; then it is gone', () => {
-    act(() => useGame.getState().startLobby());
+    act(() => { void useGame.getState().startLobby(); });
     const before = [...useGame.getState().heroChoices!];
     const seed = useGame.getState().pendingSeed!;
     ui = mount(<HeroSelect />);
@@ -54,13 +54,18 @@ describe('the hero re-roll (R-HERO-REROLL-01)', () => {
 
     act(() => rerollButtons()[1]!.click());
     const s = useGame.getState();
-    const pool = playableHeroes(runTribesForSeed(seed)).map((h) => h.id);
+    // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the pool is the tribe-gated roster minus the table's seven heroes.
+    const held = new Set(useGame.getState().rankedEntry!.table!.seats.slice(1).map((x) => x.heroId));
+    expect(held.size).toBe(7);
+    const pool = playableHeroes(runTribesForSeed(seed)).map((h) => h.id).filter((h) => !held.has(h));
+    expect(heroRerollPoolOf(useGame.getState())).toEqual(pool);
     // The draw is the seeded one, reproducible from the seed alone.
     expect(s.heroReroll).toEqual(rollHeroReroll(seed, before, 1, pool));
     expect(s.heroChoices![0]).toBe(before[0]);
     expect(s.heroChoices![2]).toBe(before[2]);
     expect(before).not.toContain(s.heroChoices![1]);
     expect(pool).toContain(s.heroChoices![1]);
+    expect(held.has(s.heroChoices![1]!)).toBe(false);
     // Gone: no control left, and a second call changes nothing.
     expect(rerollButtons()).toHaveLength(0);
     const after = s.heroChoices;
@@ -72,7 +77,7 @@ describe('the hero re-roll (R-HERO-REROLL-01)', () => {
     expect(entry.heroChoices).toEqual(after);
     expect(entry.heroReroll).toEqual(s.heroReroll);
     act(() => useGame.setState({ heroChoices: null, heroReroll: null }));
-    act(() => useGame.getState().startLobby()); // the live entry resumes
+    act(() => { void useGame.getState().startLobby(); }); // the live entry resumes
     expect(useGame.getState().heroChoices).toEqual(after);
     expect(useGame.getState().heroReroll).toEqual(s.heroReroll);
     expect(rerollButtons()).toHaveLength(0);

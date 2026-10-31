@@ -326,7 +326,7 @@ describe('SOLO / DUO lives on the Ranked card (owner 2026-10-26, R-RANKED-DUOS-M
 
 describe('after the confirmation, going back from hero select is an 8th', () => {
   const enter = (): RankedEntry => {
-    act(() => useGame.getState().startLobby());
+    act(() => { void useGame.getState().startLobby(); });
     ui = mount(<HeroSelect />);
     return useGame.getState().rankedEntry!;
   };
@@ -404,13 +404,13 @@ describe('closing the game on hero select keeps the same heroes (no reroll, no p
   });
 
   it('a live entry is RESUMED by the next Play: same id, same heroes, no second roll', () => {
-    act(() => useGame.getState().startLobby());
+    act(() => { void useGame.getState().startLobby(); });
     const first = useGame.getState().rankedEntry!;
     // The opponent wait was cancelled (or any door that is not Back): the title opens, the entry stays owed.
     act(() => useGame.getState().openTitle());
     expect(useGame.getState().rankedEntry).toEqual(first);
     expect(queued(), 'leaving that way is not an abandon').toHaveLength(0);
-    act(() => useGame.getState().startLobby());
+    act(() => { void useGame.getState().startLobby(); });
     const st = useGame.getState();
     expect(st.rankedEntry).toEqual(first);
     expect(st.heroChoices).toEqual(first.heroChoices);

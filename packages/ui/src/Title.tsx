@@ -15,7 +15,7 @@ import { abandonWarningOf, withAbandonWarning } from './rank/ratedRun';
 import { DUOS_CONFIRM_TEXT, DUOS_CONFIRM_TITLE, RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_TITLE, RANKED_CONFIRM_YES } from './rank/rankedEntry';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { warmRankedGate } from './rankedGate/RankedGate';
-import { requestRankedGate } from './rankedGate/rankedGateController';
+import { cancelRankedGate, requestRankedGate } from './rankedGate/rankedGateController';
 import { Crest, IconHelm, MenuMedal } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
 import { startReplay } from './replay/replayPlayer';
@@ -218,7 +218,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     closeRankedConfirm();
     // RANKED DUOS: "Yes" puts me in my party room (owner 2026-10-26); the gate plays when the party starts its game.
     if (confirmKind === 'duos') { void enterDuosParty(defaultPartyName(playerName)); return; }
-    void requestRankedGate(startLobby);
+    // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the table is picked behind the shut doors, before the offer. The
+    // crystal's press waits for it (instant when the pool is loaded); a wait the player cancels opens the doors quietly
+    // back onto the menu.
+    let dealt: Promise<boolean> = Promise.resolve(true);
+    void requestRankedGate(() => {
+      dealt = startLobby();
+      void dealt.then((ok) => { if (!ok) cancelRankedGate(); });
+    }, 'entry', { onPress: () => dealt });
   };
   // "No, go back." (or a press on the dimmed picker around the card): play the exit, then unmount.
   const closeRankedConfirm = (): void => {

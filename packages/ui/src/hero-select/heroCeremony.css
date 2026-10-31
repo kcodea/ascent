@@ -255,6 +255,8 @@
   position: fixed; inset: 0; z-index: 481;
   display: flex; align-items: center; justify-content: center; padding: 16px;
 }
+/* OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the ranked Play's wait sits over the shut ranked gate (z 700-701). */
+.pool-wait.pool-wait-over-gate { z-index: 720; }
 .pool-wait-card {
   max-width: calc(520 * var(--u, 1px)); width: 100%;
   padding: calc(24 * var(--u, 1px)) calc(28 * var(--u, 1px)); border-radius: calc(16 * var(--u, 1px));

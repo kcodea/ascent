@@ -171,6 +171,11 @@ export interface RunLobby {
    *  the rail's next-opponent mark and the combat scene name exactly who (or which Copy) the player fights. Display
    *  lobbies only; absent everywhere else. */
   forcedOpponent?: { round: number; seatId: string };
+  /** OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): this table was picked BEFORE the player's hero
+   *  (`createLobbyTable`, at the ranked Play), and the player's hero offer was then rolled from the heroes no seat
+   *  holds. The run flag that versions the order: absent = the table of before (picked after the hero, skipping it).
+   *  Bookkeeping only: the seats are stored, so a saved / replayed lobby never re-picks either way. */
+  opponentsFirst?: true;
 }
 
 /** Player-run boards available to a lobby when it was built (non-synthetic, this set only). */
@@ -430,18 +435,65 @@ export interface LobbySeatOptions {
    *  sandbox test environment"): seat NO recorded player run, only generated seats, each stamped with the lobby's set
    *  (`LobbySeatState.setId`) so its recording plays that set's pool. Absent / false = the selection of before. */
   setScopedBots?: boolean;
+  /** OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the table already picked at the ranked Play (`createLobbyTable`).
+   *  `createLobbyRun` seats the player in it (`seatPlayerAtTable`) instead of picking a table; when it cannot (an
+   *  opponent wears the picked hero, another seed or set) it picks the table the old way, so heroes stay unique.
+   *  Ignored by `createRunLobby` itself and by Practice. */
+  table?: RunLobby | null;
 }
 
 export function createRunLobby(seed: number, playerHeroId: string, rules: Partial<LobbyRules> = {}, setId?: SetId, opts: LobbySeatOptions = {}): RunLobby {
+  return seatRunLobby(seed, playerHeroId, rules, setId, opts);
+}
+
+/**
+ * OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): "i want the players in ranked modes to get their
+ * options technically after the opponents are chosen, so it forces more variety in hero selection". The ranked table,
+ * picked BEFORE the player has a hero: the same selection as `createRunLobby` (band, owner cap, the shuffle, the
+ * hybrid fill, the board probe), only no hero is reserved for the player, so every hero is open to the seats. The
+ * player's seat is a placeholder (`heroId: ''`) until `seatPlayerAtTable` puts the picked hero in it. The caller rolls
+ * the player's offer from the heroes this table leaves free (`lobbyTableHeroes`). Deterministic from the seed + pool,
+ * like `createRunLobby`.
+ */
+export function createLobbyTable(seed: number, rules: Partial<LobbyRules> = {}, setId?: SetId, opts: LobbySeatOptions = {}): RunLobby {
+  return { ...seatRunLobby(seed, null, rules, setId, opts), opponentsFirst: true };
+}
+
+/** The heroes the OPPONENT seats of a table wear (every seat but the player's). */
+export function lobbyTableHeroes(table: Pick<RunLobby, 'seats'>): Set<string> {
+  return new Set(table.seats.filter((s) => s.kind !== 'player').map((s) => s.heroId).filter((h) => h.length > 0));
+}
+
+/**
+ * Put the picked hero in a table's player seat (OPPONENTS FIRST). A fresh copy, the table handed in is never touched.
+ * Null when the table cannot take that hero: an opponent wears it (only possible when the offer had to be topped up
+ * with held heroes) or the table is for another seed / set. The caller then seats the table the old way.
+ */
+export function seatPlayerAtTable(table: RunLobby, heroId: string, seed: number, setId?: SetId): RunLobby | null {
+  if (table.seed !== seed || (table.setId ?? null) !== (setId ?? null) || !heroId) return null;
+  if (lobbyTableHeroes(table).has(heroId)) return null;
+  const me = table.seats[0];
+  if (!me || me.kind !== 'player') return null;
+  const seats = table.seats.map((s, i) => (i === 0
+    ? { ...s, heroId, armor: seatStartingArmor({ kind: 'player', heroId }, table.rules) }
+    : { ...s }));
+  return {
+    ...table, round: 1, seats, encounters: [], finished: false, rules: { ...table.rules },
+    ...(table.poolAtStart ? { poolAtStart: { ...table.poolAtStart, ...(table.poolAtStart.band ? { band: { ...table.poolAtStart.band } } : {}) } } : {}),
+    opponentsFirst: true,
+  };
+}
+
+function seatRunLobby(seed: number, playerHeroId: string | null, rules: Partial<LobbyRules>, setId: SetId | undefined, opts: LobbySeatOptions): RunLobby {
   const r: LobbyRules = lobbyRulesOf(rules);
   // `playableHeroes` (not the raw roster): a `practiceOnly` hero is off PLAY mode, and a rival seat in a rated
   // lobby is play mode — a hero the owner has pulled for rework should not be driving boards that feed the
   // ladder. Practice keeps them. Already-recorded snapshots that carry such a heroId still replay; this only
-  // governs newly GENERATED seats.
+  // governs newly GENERATED seats. With no player hero yet (OPPONENTS FIRST) every playable hero is open.
   const heroes = playableHeroes().filter((h) => h.id !== playerHeroId);
   const seats: LobbySeatState[] = [{
-    id: 's0', label: 'You', heroId: playerHeroId, kind: 'player', seed,
-    resolve: r.startingResolve, armor: seatStartingArmor({ kind: 'player', heroId: playerHeroId }, r), alive: true,
+    id: 's0', label: 'You', heroId: playerHeroId ?? '', kind: 'player', seed,
+    resolve: r.startingResolve, armor: playerHeroId ? seatStartingArmor({ kind: 'player', heroId: playerHeroId }, r) : r.startingArmor, alive: true,
   }];
   // Every seat must be able to FIELD A BOARD, or it silently sits rounds out and the table quietly shrinks —
   // measured at round 1, where a quarter of the fights never happened. Today's balance bot cannot play some
@@ -1198,9 +1250,11 @@ export function createLobbyRun(
   // The run pins its set at creation; the lobby seats from the SAME set, so a set-2 run never faces a seat
   // driven by a set-1 recording (whose bodies are cards this run cannot otherwise see).
   // BOTS opponents: seat seven authored, scaling omen boards instead of recorded player runs.
-  const lobby = practiceConfig?.opponents === 'bots'
+  // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): a ranked lobby whose table was picked at Play sits the player in it.
+  const atTable = mode === 'lobby' && seatOpts?.table ? seatPlayerAtTable(seatOpts.table, heroId, seed, run.setId) : null;
+  const lobby = atTable ?? (practiceConfig?.opponents === 'bots'
     ? createPracticeBotLobby(seed, heroId, practiceConfig.botDifficulty, rules)
-    : createRunLobby(seed, heroId, rules, run.setId, devSet ? { setScopedBots: true } : practiceSeatOptions(mode, practiceConfig, seatOpts));
+    : createRunLobby(seed, heroId, rules, run.setId, devSet ? { setScopedBots: true } : practiceSeatOptions(mode, practiceConfig, seatOpts)));
   const me = lobby.seats[0]!;
   // The seat's pools ARE the run's health, so the HUD and every health-aware effect read one number.
   me.resolve = run.resolve;

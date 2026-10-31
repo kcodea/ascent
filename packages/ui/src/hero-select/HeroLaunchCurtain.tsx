@@ -95,7 +95,11 @@ export function HeroLaunchCurtain() {
       // startup). Otherwise the panel shows "Finding opponents...", and an unreachable pool becomes an explicit
       // Retry / Play anyway / Back to menu choice instead of a silent all-bot table.
       const pre = useGame.getState();
-      if (poolNeededFor(pre.pendingMode, pre.practiceDraft)) {
+      // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): a ranked table picked at Play with no recorded seat (the pool
+      // was unreachable and the player chose Play anyway) needs no pool now, so it is not asked again.
+      const table = pre.pendingMode === 'lobby' && pre.rankedEntry?.seed === pre.pendingSeed ? pre.rankedEntry?.table : undefined;
+      const tableNeedsPool = !table || table.seats.some((x) => x.kind === 'snapshot');
+      if (poolNeededFor(pre.pendingMode, pre.practiceDraft) && tableNeedsPool) {
         // A Practice game draws the rank picked on its setup screen (R-PRACTICE-RANK-01), which may not be the rank
         // the pool was loaded for: wait for that rank's sample too (God Mode keeps the pool on hand, as before).
         const outcome = await lobbyPoolGate.run({ matchBand: pre.pendingMode === 'practice' && pre.practiceDraft.godMode !== true });

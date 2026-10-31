@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, rollHeroReroll, applyHeroReroll, type HeroReroll, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ReplayStream, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, practiceSetOf, isPracticeDevSetRun, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, resetLobbyDrivers, lobbySeatRuns, lobbyHybridRecordings, runKeyOfRun, parseLobbySeatRecordings, restoreLobbySeatRecordings, lobbyStandIns, type LobbySeatRecordings, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, rollHeroReroll, applyHeroReroll, type HeroReroll, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ReplayStream, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, practiceSetOf, isPracticeDevSetRun, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, resetLobbyDrivers, lobbySeatRuns, lobbyHybridRecordings, runKeyOfRun, parseLobbySeatRecordings, restoreLobbySeatRecordings, lobbyStandIns, type LobbySeatRecordings, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD, createLobbyTable, lobbyTableHeroes, rankedHeroOffer, freeRankedHeroes, type RunLobby } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -104,6 +104,7 @@ import type { GauntletSubmitOutcome } from './gauntlet/gauntletRemote';
 import { goldClockOf, goldClockReading, pinMedalAtStart } from './goldClock';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
+import { rankedEntryPoolGate } from './opponentPool/lobbyPoolGate';
 import { boardStrengthScorer, lobbyBandFor, pendingPracticeRank, poolBandFor, seatExclusionsFor, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
 import { normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, type LobbySeatOptions, type StrengthScore } from '@game/sim';
 import { withRecordedEmotes } from '@game/sim';
@@ -206,7 +207,7 @@ function rollHeroChoices(tribes?: readonly Tribe[]): string[] {
  * which IS their offer, so there is nothing new to draw and the control never appears. Versus is the server's
  * (`rerollVersusHero`) and returns [] here.
  */
-export function heroRerollPoolOf(s: Pick<GameStore, 'pendingMode' | 'pendingSeed' | 'practiceDraft'>): string[] {
+export function heroRerollPoolOf(s: Pick<GameStore, 'pendingMode' | 'pendingSeed' | 'practiceDraft'> & { rankedEntry?: RankedEntry | null }): string[] {
   const seed = s.pendingSeed;
   if (seed === undefined || s.pendingMode === 'versus') return [];
   if (s.pendingMode === 'practice') {
@@ -214,6 +215,9 @@ export function heroRerollPoolOf(s: Pick<GameStore, 'pendingMode' | 'pendingSeed
     return practiceHeroChoiceIds(effective.heroes, practiceRunTribes(seed, effective));
   }
   if (s.pendingMode === 'gauntlet') return practiceHeroChoiceIds('all', tribesForSeed(seed));
+  // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): a ranked entry's re-roll never lands on a hero its table holds.
+  const table = s.pendingMode === 'lobby' && s.rankedEntry?.seed === seed ? s.rankedEntry.table : undefined;
+  if (table) return freeRankedHeroes(tribesForSeed(seed), lobbyTableHeroes(table));
   return playableHeroes(tribesForSeed(seed)).map((h) => h.id);
 }
 
@@ -737,7 +741,9 @@ interface GameStore {
   startPractice: () => void;
   /** Title → Play, AFTER the ranked confirmation: commits a ranked entry (or resumes the live one, same heroes)
    *  and opens its hero picker. */
-  startLobby: () => void;
+  /** Resolves true once hero select is open (at once when the pool is loaded), false when the player cancelled the
+   *  wait for opponents (OPPONENTS FIRST, R-RANKED-OPPONENTS-FIRST-01). */
+  startLobby: () => Promise<boolean>;
   /** THE RANKED ENTRY (R-RANK-06, rank/rankedEntry.ts): the commitment made at the Play confirmation, live until
    *  a hero pick consumes it or `abandonRankedEntry` settles it. Null when no ranked hero select is owed. */
   rankedEntry: RankedEntry | null;
@@ -2796,7 +2802,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
         // Your own runs are seated like anyone else's (owner 2026-09-30). A PRACTICE game draws the band of the
         // Opponent Rank picked on its setup screen (R-PRACTICE-RANK-01; `createLobbyRun` reads it off the config, All
         // Ranks = none); God Mode keeps the pool on hand, as before.
-        mode === 'lobby' ? ratedSeatOptions(s.profile) : god ? {} : seatExclusionsFor(practiceStrengthBand(s.practiceDraft.rank), opponentPoolLoader()));
+        // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): a ranked entry's table (picked at Play) is the one it sits at.
+        mode === 'lobby' ? { ...ratedSeatOptions(s.profile), ...(rankedTableFor(s, seed) ? { table: rankedTableFor(s, seed) } : {}) } : god ? {} : seatExclusionsFor(practiceStrengthBand(s.practiceDraft.rank), opponentPoolLoader()));
       const run = god ? makeGodModeRun(built) : built;
       // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
       // — a retried settlement always names the same run. Practice (and every other mode) gets none.
@@ -2890,13 +2897,33 @@ export const useGame = create<GameStore>((rawSet, get) => {
   // the entry (ranked id + seed + hero offer, persisted) and opens its picker. An entry still live (a session
   // closed on hero select, or the opponent wait cancelled) is RESUMED, never re-rolled: same id, same heroes.
   startLobby: () => {
-    let entry = get().rankedEntry;
-    if (!entry) {
+    const open = (entry: RankedEntry): void => {
+      set({ showTitle: false, pendingMode: 'lobby', pendingSeed: entry.seed, heroChoices: entry.heroChoices, heroReroll: entry.heroReroll ?? null, rankedEntry: entry, avatarPickerOpen: false });
+    };
+    const live = get().rankedEntry;
+    if (live) { open(live); return Promise.resolve(true); }
+    // OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): the table is picked NOW, before the offer, so
+    // it needs the pool. Loaded (the usual case: it loads at startup) = dealt at once, behind the shut gate. Still
+    // loading = the gate's crystal holds while "Finding opponents..." shows over it (`rankedEntryPoolGate`); Cancel goes
+    // back to the menu with nothing owed (no entry was committed yet).
+    const deal = (): void => {
       const seed = randomSeed();
-      entry = { runId: mintRunId(), seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), at: new Date().toISOString() };
+      const t0 = performance.now();
+      const table = perfMonitor.measure('ranked:table', () => createLobbyTable(seed, {}, activeSet().id, ratedSeatOptions(get().profile)));
+      resetLobbyDrivers(table.seats);
+      const { offer, toppedUp } = rankedHeroOffer(tribesForSeed(seed), lobbyTableHeroes(table), Math.random);
+      lastRankedTableMs = performance.now() - t0;
+      const entry: RankedEntry = { runId: mintRunId(), seed, heroChoices: offer, table, ...(toppedUp ? { toppedUp: true } : {}), at: new Date().toISOString() };
       saveRankedEntry(entry);
-    }
-    set({ showTitle: false, pendingMode: 'lobby', pendingSeed: entry.seed, heroChoices: entry.heroChoices, heroReroll: entry.heroReroll ?? null, rankedEntry: entry, avatarPickerOpen: false });
+      open(entry);
+    };
+    const loader = opponentPoolLoader();
+    if (!loader || loader.state().status === 'ready') { deal(); return Promise.resolve(true); }
+    return rankedEntryPoolGate.run().then((outcome) => {
+      if (outcome === 'cancel' || get().rankedEntry) return !!get().rankedEntry;
+      deal();
+      return true;
+    });
   },
   abandonRankedEntry: () => {
     const entry = get().rankedEntry;
@@ -3410,6 +3437,15 @@ function settleAbandonedRun(abandoned: RunState | null | undefined): void {
 
 /** Seat selection for a RATED table (R-LOBBY-09): the band of the player's medal, minus the runs this session fetched
  *  only for another rank (a Practice game set to another rank, R-PRACTICE-RANK-01; or the rank before it changed). */
+/** OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the table the open ranked entry was dealt around, for this seed. */
+function rankedTableFor(s: Pick<GameStore, 'rankedEntry' | 'pendingMode'>, seed: number): RunLobby | null {
+  return s.pendingMode === 'lobby' && s.rankedEntry?.seed === seed ? s.rankedEntry.table ?? null : null;
+}
+
+/** How long the last ranked table took to pick (ms), for the perf readout / tests. */
+let lastRankedTableMs = 0;
+export const lastRankedTableBuildMs = (): number => lastRankedTableMs;
+
 function ratedSeatOptions(profile: Parameters<typeof lobbyBandFor>[0]): LobbySeatOptions {
   const band = lobbyBandFor(profile);
   return { strengthBand: band, ...seatExclusionsFor(band, opponentPoolLoader()) };

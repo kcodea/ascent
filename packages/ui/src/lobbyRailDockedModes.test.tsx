@@ -114,14 +114,14 @@ describe('the Docked rail in every mode', () => {
       const labels = [...c.querySelectorAll('.lrv-name-t')].map((e) => e.getAttribute('aria-label'));
       expect(labels).toEqual(expect.arrayContaining(run.lobby!.seats.map((x) => getHero(x.heroId).name)));
       // Your slice: the teal edge and YOU under your hero's name (owner 2026-10-31).
-      expect(c.querySelector('.lobbyseat.you .lrv-you')?.textContent).toBe('You');
+      expect(c.querySelector('.lobbyseat.you > .lrv-you')?.textContent).toBe('You');
       expect(c.querySelectorAll('.lrv-you')).toHaveLength(1);
       // The placement box carries its place, so places 1-3 take the podium colours (owner 2026-10-31).
       expect([...c.querySelectorAll('.lrv-rank')].map((e) => e.getAttribute('data-place')).sort()).toEqual(['1', '2']);
       act(() => { setSliceLabel('none'); });
-      // No label on any slice, but your own still says YOU (owner 2026-10-31).
-      expect(c.querySelectorAll('.lrv-name-t')).toHaveLength(0);
-      expect([...c.querySelectorAll('.lrv-name')].map((e) => e.textContent)).toEqual(['You']);
+      // No label on any slice; your own keeps its YOU chip (owner 2026-10-31).
+      expect(c.querySelectorAll('.lrv-name')).toHaveLength(0);
+      expect(c.querySelectorAll('.lobbyseat.you > .lrv-you')).toHaveLength(1);
       act(() => { setSliceLabel('player'); });
       expect([...c.querySelectorAll('.lrv-name-t')].map((e) => e.getAttribute('aria-label'))).toEqual(expect.arrayContaining(run.lobby!.seats.map((x) => x.label)));
     } finally { setSliceLabel('hero'); }

@@ -63,7 +63,7 @@ export const PATCH_NOTES: PatchNote[] = [
         'The hero art now takes up the right side of each player instead of the whole panel.',
         "Hovering a player now shows their hero and what its Hero Power does.",
         "Each player now shows their hero's name, and your own panel glows teal with YOU under your hero.",
-        "A small box beside each player shows their current place, 1 to 8, with 1st in gold, 2nd in silver and 3rd in bronze.",
+        "A small box beside each player shows their current place, 1 to 8. The 1st, 2nd and 3rd boxes are gold, silver and bronze.",
         "The hover card's rune slots are larger and centred.",
       ] },
       { category: 'Systems', text: 'Game start: see who you are facing. Every hero in the game is shown with its player name, then flies to the rail.', details: [

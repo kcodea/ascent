@@ -175,11 +175,15 @@ html:root .lobbyrail.lrv-docked .lrv-rank {
 html:root .lobbyrail.lrv-docked .lobbyseat.you .lrv-rank { color: #fff; }
 html:root .lobbyrail.lrv-docked .lobbyseat.foe .lrv-rank { color: color-mix(in srgb, var(--ui-heart) 35%, #fff); }
 html:root .lobbyrail.lrv-docked .lobbyseat.dead .lrv-rank { color: var(--ui-muted); }
-/* THE PODIUM (owner 2026-10-31: "lets have first hued gold, second silver and third bronze"): places 1-3 tint the number and
-   the box's rim, over the per-state colours above. Static. */
-html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="1"] { color: #ffd45e; border-color: #f2c14e; }
-html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="2"] { color: #e3e9f1; border-color: #b9c3cf; }
-html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="3"] { color: #e8a065; border-color: #b8743f; }
+/* THE PODIUM (owner 2026-10-31: "lets have first hued gold, second silver and third bronze", then "i want the background to be
+   gold silver and bronze, the number can be navy"): places 1-3 fill the box with a metal gradient and print the number in
+   navy, over the per-state colours above. Static paint. */
+html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank:is([data-place="1"], [data-place="2"], [data-place="3"]) {
+  color: var(--lr2-navy, #0d1a36); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="1"] { background: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 70%, #a8741a 100%); border-color: #fff0b0; }
+html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="2"] { background: linear-gradient(180deg, #ffffff 0%, #dfe5ec 38%, #b4bfcb 70%, #7f8b99 100%); border-color: #f4f7fa; }
+html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="3"] { background: linear-gradient(180deg, #f8d1ac 0%, #e09a5c 38%, #b8703a 70%, #7e4720 100%); border-color: #f6c79c; }
 /* The foe's art keeps its brightness lift on top of the tuner's. */
 html:root .lobbyrail.lrv-docked .lobbyseat.foe:not(.dead) .lrv-tileart > .lobbyface { filter: brightness(calc(var(--lr2-art-bright, 1) * 1.12)) saturate(1.1); }
 /* THE NAME, over the faded side, clear of the bar. */
@@ -205,10 +209,17 @@ html:root .lobbyrail.lrv-docked .lrv-name-t {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lr2-name-lines, 2); overflow: hidden; text-overflow: ellipsis;
 }
 html:root .lobbyrail.lrv-docked .lobbyseat.you .lrv-name { color: #fff; }
-/* "YOU" under your hero's name (owner 2026-10-31: "a blue/teal glow around the player card with a "YOU" under the hero name"). */
+/* YOU (owner 2026-10-31: "a blue/teal glow around the player card with a YOU", then "YOU in a circle in the top corner, just
+   like the now facing icon"): a round teal chip on your slice's top-right corner, sized and placed as the next foe's swords
+   (`.lrv-vs`). Static. */
 html:root .lobbyrail.lrv-docked .lrv-you {
-  display: block; margin-top: calc(1px * var(--dk-s, 1));
-  font-size: 0.72em; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; color: #5fe6ee;
+  --v: calc(30px * var(--dk-s, 1));
+  position: absolute; z-index: 4; top: calc(-0.3 * var(--v)); right: calc(-0.3 * var(--v)); width: var(--v); height: var(--v);
+  display: grid; place-items: center; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 50% 35%, #8ef3f8, #22b8c6 60%, #0e6c78);
+  box-shadow: 0 0 0 calc(1.5px * var(--dk-s, 1)) #eaffff, 0 1px 3px rgba(0, 0, 0, 0.8);
+  font-family: var(--font-title), sans-serif; font-weight: 900; font-size: calc(9px * var(--dk-s, 1)); letter-spacing: 0.04em;
+  text-transform: uppercase; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); line-height: 1;
 }
 html:root .lobbyrail.lrv-docked .lobbyseat.foe .lrv-name { color: color-mix(in srgb, var(--ui-heart) 35%, #fff); }
 html:root[data-lr2-name-side="left"] .lobbyrail.lrv-docked .lrv-name { left: calc(var(--fx, 0px) + 9px * var(--dk-s, 1)); right: calc(var(--aw) * 0.62); text-align: left; }

@@ -38,7 +38,7 @@ export interface LobbyRevealConfig {
   headSettleMs: number;
   /** 1 = the Good Luck words play after the reveal (as before it existed); 0 = the reveal replaces them. */
   goodLuckAfter: number;
-  /** The line-up's stinger level (an FX-bank swoosh-and-hit, never the Hero Select stinger), on top of its fader. */
+  /** The line-up's whoosh-and-shine level (never the Hero Select stinger), on top of its mixer fader. 0 = silent. */
   revealSoundGain: number;
   /** Each flight's soft whoosh (FX bank), on top of its mixer fader. 0 = silent. */
   whooshGain: number;
@@ -62,7 +62,7 @@ export const LHR_DEFAULTS: LobbyRevealConfig = {
   expandMs: 250,
   headSettleMs: 300,
   goodLuckAfter: 1,
-  revealSoundGain: 0.7,
+  revealSoundGain: 1,
   whooshGain: 0.35,
 };
 
@@ -128,7 +128,7 @@ const SPECS: Record<keyof LobbyRevealConfig, [string, TunerUnit | undefined, str
   expandMs: ['Expand', 'ms', 'The slice opening out of the impact point to its full width.', 'Fly'],
   headSettleMs: ['Round slice settle', 'ms', 'The round slice settling in after the last portrait lands.', 'Fly'],
   goodLuckAfter: ['Good Luck after', undefined, 'On: the Good Luck words still play once the rail is built. Off: the reveal replaces them.', 'Flow'],
-  revealSoundGain: ['Reveal sound', '×', 'The cinematic swoosh-and-hit as the line-up appears (not the Hero Select stinger). 0 = silent.', 'Sound'],
+  revealSoundGain: ['Reveal sound', '×', 'The light whoosh and shine as the line-up appears (not the Hero Select stinger). 0 = silent.', 'Sound'],
   whooshGain: ['Whoosh sound', '×', 'A soft whoosh as each portrait takes off. 0 = silent.', 'Sound'],
 };
 
@@ -163,13 +163,22 @@ export const SPEC: TunerSpec<LobbyRevealConfig> = {
 };
 
 /**
- * THE SOUNDS (owner 2026-10-31: "dont use the same sound effect for the hero reveals as the player's hero selection, it's
- * redundant"). Never a `ceremony/` clip (the Hero Select stinger and its whooshes). From the FX bank instead, every one
- * already shipped and on the phone's decode list (`audio/codeClips.ts`):
- *  - the line-up: `universfield-cinematic-swoosh-impact`, a cinematic swoosh into a low hit, the "here is who you face"
- *    beat. Considered and passed over: `combatStart` and the gate clips (they already mean "the fight starts" and "the
- *    gate"), `heavy-rock-impact` / `blue-impact-hit` (strike sounds from hero attacks), `triple-impact` (the triple).
+ * THE SOUNDS. Never a `ceremony/` clip (owner 2026-10-31: "dont use the same sound effect for the hero reveals as the
+ * player's hero selection"), and not cinematic (owner: "the sound effect of the hero reveal is really bad ... should just
+ * be like a woosh and shine"). All from the existing bank, every one already shipped:
+ *  - the line-up, two light layers, about 0.9 s:
+ *    WHOOSH `fx/stereogenicstudio-swish-swoosh-woosh-sfx-39`, its airy 0.1 s to 1.0 s swish (the window the menu's
+ *    vista title uses), soft-tailed;
+ *    SHINE `prismaticpick`, a bright glass chime, pitched up a touch, landing as the first portraits rise (the hero
+ *    cosmetics use it the same way, at a similar level).
+ *    Passed over: `equipmentsheen` (the Good Luck words' own shine, a moment later: it would repeat), `triggerglow` (the
+ *    in-game "a trigger fired" chime), the sparkle-whoosh (the Good Luck sparks), `fx/universfield-cinematic-swoosh-
+ *    impact` (the first pick: too heavy), the strike impacts and the gate clips (they mean other things).
  *  - each flight: `whoosh-03` and the short `swish-swoosh-woosh 27` take, alternating, quiet, one per portrait.
  */
-export const REVEAL_STING_CLIP = 'fx/universfield-cinematic-swoosh-impact-454392';
+export interface RevealSoundLayer { clip: string; delayMs: number; gain: number; startMs?: number; lenMs?: number; rate?: number; fadeOutMs?: number }
+export const REVEAL_LINEUP_LAYERS: readonly RevealSoundLayer[] = [
+  { clip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-39-357160', delayMs: 0, gain: 0.55, startMs: 100, lenMs: 900, fadeOutMs: 300 },
+  { clip: 'prismaticpick', delayMs: 160, gain: 0.4, rate: 1.2, fadeOutMs: 250 },
+];
 export const REVEAL_WHOOSH_CLIPS: readonly string[] = ['fx/whoosh-03', 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3'];

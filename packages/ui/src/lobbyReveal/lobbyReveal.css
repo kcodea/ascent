@@ -14,9 +14,9 @@
 
 /* THE HIDDEN RAIL (owner 2026-10-31: "it's showing the rail already here, which it shouldnt"). While the reveal plays,
    <html data-lhr="on s0 s3 …"> lists what has landed; everything else of the rail is invisible until its own portrait
-   hits it. Every subject names a class, so a change to the attribute restyles only these elements. Opacity only. */
+   hits it (the round slice first). The Guides tab is not part of it (owner: it is getting a new home). Every subject names a class, so a change to the attribute restyles only these elements. Opacity only. */
 html[data-lhr]:not([data-lhr~='rail']) .lobbyrail,
-html[data-lhr]:not([data-lhr~='head']) :is(.lobbyrailhead, .lobbyrailtab, .vsfoe-roundline),
+html[data-lhr]:not([data-lhr~='head']) :is(.lobbyrailhead, .vsfoe-roundline),
 html[data-lhr]:not([data-lhr~='s0']) :is(.lobbyseat, .vsfoe-face)[data-seat='s0'],
 html[data-lhr]:not([data-lhr~='s1']) :is(.lobbyseat, .vsfoe-face)[data-seat='s1'],
 html[data-lhr]:not([data-lhr~='s2']) :is(.lobbyseat, .vsfoe-face)[data-seat='s2'],

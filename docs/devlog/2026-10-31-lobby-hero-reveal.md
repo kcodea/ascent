@@ -15,11 +15,12 @@ Luck intro → the curtain lifts onto the reveal:
    the player's name pill. Every portrait is the same size; yours has only a gold ring and a gold pill. The line-up reads
    left to right in the rail's top-to-bottom order (owner: "line it up so that left to right is top to bottom"). Duos
    stand as pairs. A Versus 1v1 shows the two heroes facing off with VS between them.
-2. **Fly** (~3 s, one at a time down the rail, 240 ms apart). Each portrait flies on a quadratic arc to its slice's ART
+2. **Round slice, then fly** (~3 s). The ROUND slice opens first, out of the Refresh pill (owner: "the round button should
+   be the first piece to appear, then the heroes slot in"). Then one portrait at a time down the rail, 240 ms apart. Each portrait flies on a quadratic arc to its slice's ART
    (the Docked slice's face crop, the Gem rail's round face) and hits the rail: a squash (1.06 then 0.98) and a gold flash
    on the slice edge. The slice then expands out of the impact point to its full width (scaleX, origin at the hit) while
-   the portrait crossfades into the slice art. The dim lifts as they go, and the round slice and the Guides tab settle
-   last. In a 1v1 the foe lands on the opponent block and you land on your own board portrait, which is never hidden.
+   the portrait crossfades into the slice art. The dim lifts as they go. The Guides tab is not part of the sequence (it is
+   moving to a new home), and nothing appears at the end. In a 1v1 the foe lands on the opponent block and you land on your own board portrait, which is never hidden.
 3. **Good Luck**: the words play now, in full. Their dim fades in, since the board is already lit. The shop clock and
    every opening offer start when they go.
 
@@ -40,7 +41,7 @@ reveal plus the words. So the shared start already accounts for the reveal, and 
 
 ## The hidden rail
 `<html data-lhr="on rail s0 s3 …">` lists what has landed, and static rules in `lobbyReveal.css` hide every seat slice,
-team slot, the rail panel, the round slice and the Guides tab not in it.
+team slot, the rail panel and the round slice not in it.
 - Why the root and not the slices: a slice can REMOUNT mid-reveal (the Docked layout settles after the HUD's entrance),
   and a per-element mark would be lost. That is how the first build let the rail show behind the line-up.
 - Every rule's subject names a class, so an attribute change restyles only those elements.
@@ -71,11 +72,13 @@ team slot, the rail panel, the round slice and the Guides tab not in it.
   reveal off. At 4x CPU throttle the whole game start is heavy in both builds (p95 60-350 ms), and turning the reveal
   on is no worse.
 
-## Sounds (owner: "dont use the same sound effect for the hero reveals as the player's hero selection")
-Nothing from `ceremony/` (the Hero Select stinger and its whooshes); all from the FX bank, with no new assets.
-- **The line-up:** `fx/universfield-cinematic-swoosh-impact`, a cinematic swoosh into a low hit. Passed over:
-  `combatStart` and the gate clips (they already mean "the fight starts" and "the gate"), `heavy-rock-impact` and
-  `blue-impact-hit` (hero-attack strikes), `triple-impact` (the triple).
+## Sounds (owner: "dont use the same sound effect for the hero reveals as the player's hero selection", then "should just be like a woosh and shine")
+Nothing from `ceremony/`; all from the existing bank, no new assets.
+- **The line-up** (~0.9 s): a light whoosh (`fx/stereogenicstudio-swish-swoosh-woosh-sfx-39`, 0.1 s to 1.0 s, soft
+  tail) and a shine (`prismaticpick`, a bright glass chime, pitched up a touch, 160 ms in).
+- **Passed over:** `equipmentsheen` (the Good Luck words' own shine, a moment later), `triggerglow` (the in-game trigger
+  chime), the sparkle-whoosh (the Good Luck sparks), and the first pick, `fx/universfield-cinematic-swoosh-impact` (the
+  owner found it heavy).
 - **Each flight:** a quiet `fx/whoosh-03` or `swish-swoosh-woosh 27`, alternating.
 
 ## Tuner

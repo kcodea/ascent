@@ -8,9 +8,9 @@ import { frameIdOf } from '../portraitFrame/PortraitFrame';
 import { artReady, requestArt, whenArtReady } from '../artPreload';
 import { useSpectate } from '../versus/spectate';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
-import { getLobbyRevealConfig, LHR_REPLAY_EVENT, REVEAL_STING_CLIP, REVEAL_WHOOSH_CLIPS } from './lobbyRevealConfig';
+import { getLobbyRevealConfig, LHR_REPLAY_EVENT, REVEAL_LINEUP_LAYERS, REVEAL_WHOOSH_CLIPS } from './lobbyRevealConfig';
 import {
-  arcKeyframes, flightOrder, REVEAL_FACE_SELECTORS, REVEAL_TOKEN_HEAD, REVEAL_TOKEN_RAIL, revealHidesSlot, revealShowSelectorFor,
+  arcKeyframes, flightOrder, REVEAL_FACE_SELECTORS, REVEAL_HEAD_SELECTORS, REVEAL_TOKEN_HEAD, REVEAL_TOKEN_RAIL, revealHidesSlot, revealShowSelectorFor,
   revealTargetSelectors, revealTimeline, revealTokensFor, spectatorShouldReveal, type Rect, type RevealEntry,
 } from './lobbyRevealModel';
 import { lobbyReveal, lobbyRevealEnabled, useLobbyRevealActive, useLobbyRevealSeq, type RevealPlay } from './lobbyRevealStore';
@@ -29,7 +29,7 @@ import './lobbyReveal.css';
  *   (in-run portrait frame, the hero's name over the player's), lined up LEFT TO RIGHT in the rail's TOP-TO-BOTTOM order
  *   →  a long look  →  one at a time, top down, each portrait flies on an arc to its slice's art, HITS THE RAIL (a squash
  *   and a gold flash on the slice edge) and the slice EXPANDS out of that point to its full width while the portrait
- *   crossfades into the slice art; the dim lifts as they go  →  the round slice settles last  →  end, and the Good Luck
+ *   crossfades into the slice art; the dim lifts as they go (the ROUND slice opens first, before any portrait)  →  end, and the Good Luck
  *   words take over (they have been waiting, with the shop clock and every opening offer held).
  *
  * A REAL PHASE BEFORE ROUND 1 (owner 2026-10-31: "The hero reveal animation should happen before any timers
@@ -208,7 +208,7 @@ export function LobbyReveal(): JSX.Element | null {
       const from = faces.map((f) => (f ? rectIn(f.getBoundingClientRect(), o) : null));
       const to = artRects(o);
       const slice = targets.show.map((s) => (s ? rectIn(s.getBoundingClientRect(), o) : null));
-      const now = t.dimOutAt - offset;
+      const now = t.headAt - offset;
       cards.forEach((card, i) => {
         const k = rank[i]!;
         const entry = play.entries[i]!;
@@ -270,9 +270,15 @@ export function LobbyReveal(): JSX.Element | null {
     const begin = (offset: number): void => {
       if (dead) return;
       const o = Math.max(0, t.enterAt[0]! - offset);
-      // NOT the Hero Select stinger (owner 2026-10-31: "dont use the same sound effect for the hero reveals as the
-      // player's hero selection"): a cinematic swoosh-and-hit from the FX bank (lobbyRevealConfig.ts lists the choice).
-      if (c.revealSoundGain > 0) playTailedClip(REVEAL_STING_CLIP, 'ceremony', { gain: c.revealSoundGain, delayMs: o });
+      // A light whoosh and a shine (owner 2026-10-31), never the Hero Select stinger; lobbyRevealConfig.ts lists the choice.
+      if (c.revealSoundGain > 0) {
+        for (const l of REVEAL_LINEUP_LAYERS) {
+          playTailedClip(l.clip, 'ceremony', {
+            gain: l.gain * c.revealSoundGain, delayMs: o + l.delayMs, startMs: l.startMs, lenMs: l.lenMs, rate: l.rate,
+            tail: { fadeOutMs: l.fadeOutMs ?? 0, reverbMix: 0, reverbSec: 0.5 },
+          });
+        }
+      }
       cards.forEach((el, i) => {
         const delay = Math.max(0, t.enterAt[rank[i]!]! - offset);
         push(reduced
@@ -286,15 +292,22 @@ export function LobbyReveal(): JSX.Element | null {
       const flightSpan = reduced ? 300 : Math.max(200, t.headAt - t.dimOutAt);
       push(anim(dimRef.current, [{ opacity: 1 }, { opacity: 0 }], { duration: flightSpan, delay: Math.max(0, t.dimOutAt - offset), easing: 'ease-in-out', fill: 'forwards' }));
 
-      at(t.dimOutAt - offset, () => { land([REVEAL_TOKEN_RAIL]); takeOff(offset); });
+      // THE ROUND SLICE FIRST (owner 2026-10-31: "the round button should be the first piece to appear, then the heroes
+      // slot in"): it opens out of the Refresh pill (scaleX from its left edge, where it ties into the pill) as the
+      // line-up ends; the first portrait leaves as it settles. Same clean expand as the seat slices.
       at(t.headAt - offset, () => {
-        land([REVEAL_TOKEN_HEAD]);
-        for (const sel of ['.lobbyrailhead', '.lobbyrailtab', '.vsfoe-roundline']) {
+        land([REVEAL_TOKEN_RAIL, REVEAL_TOKEN_HEAD]);
+        for (const sel of REVEAL_HEAD_SELECTORS) {
           const el = document.querySelector(sel);
           push(reduced
             ? anim(el, [{ opacity: 0 }], { duration: 300, easing: 'ease-out' })
-            : anim(el, [{ opacity: 0, transform: 'translateY(-8px) scale(0.96)' }], { duration: c.headSettleMs || 1, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' }));
+            : anim(el, [
+              { opacity: 0, transform: 'scaleX(0.25)', transformOrigin: '0% 50%' },
+              { opacity: 1, transform: 'scaleX(0.55)', transformOrigin: '0% 50%', offset: 0.3 },
+              { opacity: 1, transform: 'scaleX(1)', transformOrigin: '0% 50%' },
+            ], { duration: Math.max(1, c.headSettleMs), easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' }));
         }
+        takeOff(offset);
       });
       at(t.endAt - offset, () => finish(false));
     };

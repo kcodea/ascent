@@ -139,7 +139,7 @@ export interface RevealTimeline {
   landAt: number[];
   /** The dim starts lifting (with the first take-off). */
   dimOutAt: number;
-  /** The round slice starts settling (after the last landing). */
+  /** The round slice opens (FIRST, as the line-up ends; the flights follow once it has settled). */
   headAt: number;
   /** The reveal is over: the overlay unmounts and hands on to the Good Luck intro (or the clock). */
   endAt: number;
@@ -163,21 +163,26 @@ export function revealTimeline(c: LobbyRevealConfig, n: number, reduced: boolean
   const enterAt = Array.from({ length: count }, (_, i) => start + i * Math.max(0, c.revealStaggerMs));
   const fullAt = (count ? enterAt[count - 1]! : start) + entrance;
   const takeoff = fullAt + Math.max(0, c.holdMs);
-  const flyAt = Array.from({ length: count }, (_, i) => takeoff + i * Math.max(0, c.flyStaggerMs));
+  // THE ROUND SLICE FIRST (owner 2026-10-31: "the round button should be the first piece to appear, then the heroes slot
+  // in"): it opens out of the Refresh pill as the line-up ends, and the first portrait leaves as it settles.
+  const headAt = takeoff;
+  const firstFly = headAt + Math.max(0, c.headSettleMs);
+  const flyAt = Array.from({ length: count }, (_, i) => firstFly + i * Math.max(0, c.flyStaggerMs));
   const fly = Math.max(1, c.flyMs);
   const landAt = flyAt.map((t) => t + fly);
-  const lastLand = count ? landAt[count - 1]! : takeoff;
-  const headAt = lastLand + Math.max(0, c.impactMs ?? 0) + Math.max(0, c.expandMs ?? 0, c.landMs);
-  return { enterAt, fullAt, flyAt, landAt, dimOutAt: takeoff, headAt, endAt: headAt + Math.max(0, c.headSettleMs) };
+  const lastLand = count ? landAt[count - 1]! : firstFly;
+  const endAt = lastLand + Math.max(0, c.impactMs ?? 0) + Math.max(0, c.expandMs ?? 0, c.landMs);
+  return { enterAt, fullAt, flyAt, landAt, dimOutAt: takeoff, headAt, endAt };
 }
 
-/** Where the sequence is at `t` ms. The overlay's state machine: idle → reveal → fly → settle → done. */
-export type RevealPhase = 'idle' | 'reveal' | 'fly' | 'settle' | 'done';
+/** Where the sequence is at `t` ms. The overlay's state machine: idle → reveal → round (the round slice opens) → fly
+ *  (the portraits, one at a time) → done. */
+export type RevealPhase = 'idle' | 'reveal' | 'round' | 'fly' | 'done';
 export function revealPhaseAt(t: number, tl: RevealTimeline): RevealPhase {
   if (t < 0) return 'idle';
   if (t >= tl.endAt) return 'done';
-  if (t >= tl.headAt) return 'settle';
-  if (t >= tl.dimOutAt) return 'fly';
+  if (tl.flyAt.length && t >= tl.flyAt[0]!) return 'fly';
+  if (t >= tl.headAt) return 'round';
   return 'reveal';
 }
 

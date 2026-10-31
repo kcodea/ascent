@@ -67,25 +67,26 @@ describe('the timeline (the sequence state machine)', () => {
     expect(t.enterAt[0]).toBe(LHR_DEFAULTS.startDelayMs);
     expect(t.enterAt[7]! - t.enterAt[0]!).toBe(7 * LHR_DEFAULTS.revealStaggerMs);
     expect(t.fullAt).toBe(t.enterAt[7]! + LHR_DEFAULTS.entranceMs);
-    expect(t.flyAt[0]).toBe(t.fullAt + LHR_DEFAULTS.holdMs);
-    expect(t.dimOutAt).toBe(t.flyAt[0]);
+    // The round slice opens FIRST, as the line-up ends; the first portrait leaves once it has settled.
+    expect(t.headAt).toBe(t.fullAt + LHR_DEFAULTS.holdMs);
+    expect(t.dimOutAt).toBe(t.headAt);
+    expect(t.flyAt[0]).toBe(t.headAt + LHR_DEFAULTS.headSettleMs);
     for (let i = 0; i < 8; i++) expect(t.landAt[i]! - t.flyAt[i]!).toBe(LHR_DEFAULTS.flyMs);
-    expect(t.headAt).toBe(t.landAt[7]! + LHR_DEFAULTS.impactMs + Math.max(LHR_DEFAULTS.expandMs, LHR_DEFAULTS.landMs));
-    expect(t.endAt).toBe(t.headAt + LHR_DEFAULTS.headSettleMs);
+    expect(t.endAt).toBe(t.landAt[7]! + LHR_DEFAULTS.impactMs + Math.max(LHR_DEFAULTS.expandMs, LHR_DEFAULTS.landMs));
   });
 
   it('stays short: under 2.5 s on stage, the flights one at a time (each a clear step apart) in about 3 s', () => {
-    expect(t.flyAt[0]).toBeLessThanOrEqual(2500);
-    expect(t.endAt - t.flyAt[0]!).toBeLessThanOrEqual(3200);
+    expect(t.headAt).toBeLessThanOrEqual(2500);
+    expect(t.endAt - t.headAt).toBeLessThanOrEqual(3200);
     expect(t.flyAt[1]! - t.flyAt[0]!).toBeGreaterThanOrEqual(180);
   });
 
-  it('walks idle → reveal → fly → settle → done', () => {
+  it('walks idle → reveal → round → fly → done', () => {
     expect(revealPhaseAt(-1, t)).toBe('idle');
     expect(revealPhaseAt(0, t)).toBe('reveal');
     expect(revealPhaseAt(t.fullAt, t)).toBe('reveal');
-    expect(revealPhaseAt(t.dimOutAt, t)).toBe('fly');
-    expect(revealPhaseAt(t.headAt, t)).toBe('settle');
+    expect(revealPhaseAt(t.headAt, t)).toBe('round');
+    expect(revealPhaseAt(t.flyAt[0]!, t)).toBe('fly');
     expect(revealPhaseAt(t.endAt, t)).toBe('done');
   });
 

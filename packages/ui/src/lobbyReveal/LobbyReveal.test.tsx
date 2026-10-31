@@ -89,8 +89,7 @@ describe('the lobby reveal', () => {
     expect(landed()).toBe('on'); // no seat, no rail panel, no round slice
     const t = revealTimeline(LHR_DEFAULTS, 4, false);
     act(() => { vi.advanceTimersByTime(t.dimOutAt + 50); });
-    expect(landed()).toMatch(/^on rail/); // the flights start: the panel; the round slice still hidden
-    expect(landed()).not.toContain('head');
+    expect(landed()).toBe('on rail head'); // the ROUND slice opens first, before any seat (owner 2026-10-31)
     act(() => { vi.advanceTimersByTime(t.endAt); });
     expect(lobbyReveal.isActive()).toBe(false);
     expect(landed()).toBeNull();
@@ -193,14 +192,18 @@ describe('the owner\x27s game-start rulings (2026-10-31)', () => {
     expect(lobbyReveal.isActive()).toBe(true);
   });
 
-  it('the reveal never plays a Hero Select (ceremony) sound: its own stinger and whooshes come from the FX bank', async () => {
-    const { REVEAL_STING_CLIP, REVEAL_WHOOSH_CLIPS } = await import('./lobbyRevealConfig');
-    for (const clip of [REVEAL_STING_CLIP, ...REVEAL_WHOOSH_CLIPS]) expect(clip.startsWith('ceremony/')).toBe(false);
+  it('the reveal never plays a Hero Select (ceremony) sound: a light whoosh and a shine, quiet per-flight whooshes', async () => {
+    const { REVEAL_LINEUP_LAYERS, REVEAL_WHOOSH_CLIPS } = await import('./lobbyRevealConfig');
+    const clips = [...REVEAL_LINEUP_LAYERS.map((l) => l.clip), ...REVEAL_WHOOSH_CLIPS];
+    for (const clip of clips) expect(clip.startsWith('ceremony/')).toBe(false);
+    // Not heavy, and not the Good Luck words' own shine (it plays a moment later).
+    expect(clips).not.toContain('fx/universfield-cinematic-swoosh-impact-454392');
+    expect(clips).not.toContain('equipmentsheen');
     railDom();
     m = mount(<><LobbyReveal /><GoodLuckIntro /></>);
     act(gameStart);
     expect(snd.ceremony).not.toHaveBeenCalled();
-    expect(snd.clip).toHaveBeenCalledWith(REVEAL_STING_CLIP, expect.any(String), expect.anything());
+    for (const l of REVEAL_LINEUP_LAYERS) expect(snd.clip).toHaveBeenCalledWith(l.clip, expect.any(String), expect.anything());
   });
 
   it('a turn-1 Discover (Disco Dan, a hero quest) waits for the reveal AND the Good Luck words: the shop holds every offer', async () => {

@@ -18,7 +18,7 @@ import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
 import { discoverElevateCeiling, legalRandomMinionPool, poolOf, randomTierCeiling } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
-import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool, swapPowerLatch } from './heroes';
+import { type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool, swapPowerLatch } from './heroes';
 import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude, recordShopDamage, isShopDamageRow } from './state';
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants, SCROLL_DRAKE_ID } from './shop';
@@ -1139,8 +1139,10 @@ export function dragonTamerCostOf(state: RunState): number {
  * discount was charged correctly but the pill still showed full price).
  */
 export function heroOfferPrice(state: RunState, offer: { cardId: string }): number | undefined {
-  const kind = getHero(state.heroId).power.kind;
-  if (kind === 'companyRate') {
+  // The WIELDED power, never the native one (R-HERO-POWER-REPLACED-01, owner 2026-11-01: "foreman flint played power
+  // shifter but dwarves still cost 2 for him"). Flint who shifts it away pays the normal price; a Mimic / Void / Power
+  // Shifter who gains Company Rate gets the flat 2.
+  if (hasPower(state, 'companyRate')) {
     const def = CARD_INDEX[offer.cardId];
     if (defIsTribe(def, 'dwarf', state)) return 2; // R-ALL-TYPES-EVERYWHERE-01: an All-types offer is a Dwarf
   }

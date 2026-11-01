@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-01',
     changes: [
+      { category: 'Balance', text: 'A replaced hero power now fully stops working, and the new one fully works.', details: [
+        'Foreman Flint: after Power Shifter replaces Company Rate, Dwarves cost their normal price.',
+        'Any hero who gains Company Rate from Power Shifter, Mimic or Void now pays 2 Gold for Dwarves.',
+      ] },
       { category: 'Systems', text: 'The big Play button, the Resume button and the Versus and Gauntlet tiles now use the painted Play medallion.' },
       { category: 'Systems', text: 'Achievements: the Career, Ranked, Heroes, Economy and Build, Combat and Collection categories now have painted icons.' },
     ],

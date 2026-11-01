@@ -2471,4 +2471,25 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-10-27' },
   },
+  {
+    id: "R-HERO-POWER-REPLACED-01",
+    title: "A replaced hero power stops working; the new power works",
+    statement:
+      "When a run's hero power is replaced (Power Shifter, Mimic's pick, Void's picks), the old power's passive effects end "
+      + "and the new power's apply, in every phase. Behaviour reads the WIELDED power in slot 0 and slot 1, never the hero's "
+      + "native power: Foreman Flint who Power Shifts Company Rate away pays the normal price for Dwarves, and any hero who "
+      + "gains Company Rate gets Dwarves at 2 Gold. The same holds for the Gild count, Juggler's Carnival Coin text, the bots' "
+      + "power choice and the Start of Turn hero beat's label. Native-keyed schedules documented in heroes.ts (Drakko's and "
+      + "Chronos' quests, Runesmith's / Guardian's forge and its discount, turn-1 identity setups) are listed for an owner "
+      + "ruling and are not changed by this rule.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-01 (Flint + Power Shifter)", quote: "foreman flint played power shifter but dwarves still cost 2 for him. please make sure when a hero replaces their hero power that their existing hero power gets replaced." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts heroOfferPrice; packages/sim/src/bots/policy.ts heroPowerAction; packages/sim/src/productionBots/visibleState.ts; packages/sim/src/reducer.ts heroSource; packages/ui/src/Recruit.tsx gildNeedOf / juggler / Auctioneer FX" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-01). Before: `heroOfferPrice` read `getHero(heroId).power`, so Flint kept 2-Gold Dwarves after a Power Shifter and an adopter of Company Rate never got them.",
+    example: "Flint casts Power Shifter and takes Nadja's power: a Dwarf in the Shop costs 3 Gold again.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroPowerReplaced.test.ts"], lastVerifiedAt: '2026-11-01' },
+  },
 ];

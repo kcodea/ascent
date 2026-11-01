@@ -233,6 +233,144 @@ export function playSpellPass(uid: string): void {
   });
 }
 
+// ── EVERY EFFECT SEND (R-DUOS-PASS-FLIGHT-01) ────────────────────────────────────────────────────────────────
+
+/**
+ * Owner 2026-11-01: "anytime a card passes something like this, or like disco, show the passing animation from the
+ * source card into the teammate's portrait, just like we do for handout. from the discover selection, the card(s) that
+ * is passed should fire that animation". Every card (or Gold) an effect sends my teammate streams from WHAT SENT IT
+ * into their portrait, the same look as Handout's.
+ *
+ * WHERE IT STARTS (pure, `passFlightOf`), from the outbox entry and its presentation-only `src`:
+ *  - a Discover option (`discover`): Matchmaker's pick, Disco's two other options, a Monstrocity picked from a Discover.
+ *    The option card itself dissolves there (it leaves: the Discover closes) and streams in.
+ *  - the card that left (a spell's or a sale's pass with no `src`: Handout, CueBee, Salesman of the Year): it dissolves
+ *    where it stood (`playSpellPass`, unchanged).
+ *  - the card that caused it and STAYS (`uid`: Antsy, Toot Toot, Bratworst Buck, Tribe Bundle, Share the Wealth): the
+ *    stream leaves that card. Only when the gift IS that card (a Monstrocity copy) does a copy of its face dissolve
+ *    there too: a random gift is the teammate's run's own pick, so this screen never knows its face.
+ *  - a rune badge (`rune`: Shoutful Bounty, Echoing Results, Teammate Synergy) or the Equipment slot (`equip`: Gold
+ *    Gifter).
+ *  - IN COMBAT (`combatIdx`): the combat unit that sent it (the fight's `teamSend` event names it), on that beat; a rune
+ *    meter's gift has no body, so its rune's badge, else my hero portrait.
+ * A drag pass (no `via`, no `team`) already played its own drop. A team effect that is not a card or Gold (max Gold, a
+ * discount, Broshake's buff, Playing Catch, a sale note) is not a send and plays nothing.
+ */
+export type PassFlight =
+  | { at: 'discover'; index: number }
+  | { at: 'card'; uid: string; leaves: boolean; face: boolean }
+  | { at: 'rune'; id: string }
+  | { at: 'equip'; id: string }
+  | { at: 'unit'; uid: string | null; rune: string | null };
+
+/** The outbox entry fields the mapping reads (a `DuosOutboxEntry`). */
+export interface PassFlightEntry {
+  card: { uid: string; cardId: string };
+  via?: 'spell' | 'sale';
+  team?: { kind: string; cardId?: string; randomSpell?: boolean; randomMinion?: boolean };
+  combatIdx?: number;
+  src?: { uid: string } | { discover: number } | { rune: string } | { equip: string };
+}
+
+/** Team effects that hand the teammate something (a card, Gold): the ones a stream carries. */
+const SENDS = new Set(['gift', 'gold', 'tripleReward']);
+
+/** Where a send's stream starts (pure). `combatUid`: the body the fight's `teamSend` named (combat entries only);
+ *  `cardIdOf`: the cardId of a card on my run (to tell a Monstrocity copy from a random gift). Null = nothing to fly. */
+export function passFlightOf(e: PassFlightEntry, combatUid?: string | null, cardIdOf?: (uid: string) => string | undefined): PassFlight | null {
+  if (e.team && !SENDS.has(e.team.kind)) return null;
+  if (!e.team && !e.via) return null; // a drag pass: its drop already played
+  if (e.combatIdx != null) {
+    const rune = e.team?.kind === 'gift' && !combatUid
+      ? (e.team.randomSpell ? 'rune_shoutful_bounty' : e.team.randomMinion ? 'rune_echoing_results' : null)
+      : null;
+    return { at: 'unit', uid: combatUid ?? null, rune };
+  }
+  const src = e.src;
+  if (src && 'discover' in src) return { at: 'discover', index: src.discover };
+  if (src && 'rune' in src) return { at: 'rune', id: src.rune };
+  if (src && 'equip' in src) return { at: 'equip', id: src.equip };
+  if (src && 'uid' in src) {
+    if (!e.team && src.uid === e.card.uid) return { at: 'card', uid: src.uid, leaves: true, face: true };
+    const gift = e.team?.kind === 'gift' ? e.team.cardId : undefined;
+    return { at: 'card', uid: src.uid, leaves: false, face: !!gift && cardIdOf?.(src.uid) === gift };
+  }
+  if (!e.team) return { at: 'card', uid: e.card.uid, leaves: true, face: true };
+  return null;
+}
+
+/** A send's stream from `el` into the teammate portrait: the card's own face dissolving there when `face` (a copy: the
+ *  element itself is left alone), else the stream alone. One layout read per element, at launch. */
+function streamFrom(el: HTMLElement, face: boolean): boolean {
+  const door = mateDoor();
+  if (!door) return false;
+  const r = el.getBoundingClientRect();
+  if (r.width <= 0) return false;
+  const card = face ? (el.closest<HTMLElement>('.card') ?? el) : null;
+  playDrop({
+    from: { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: el.offsetWidth, h: el.offsetHeight },
+    plate: card ? plateBox(card) : null, face: card, to: door.getBoundingClientRect(), coin: false, onLand: () => catchPulse(door),
+  });
+  return true;
+}
+
+const q = (sel: string): HTMLElement | null => document.querySelector<HTMLElement>(sel);
+const esc = (s: string): string => (typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(s) : s.replace(/"/g, '\\"'));
+const runeEl = (id: string): HTMLElement | null =>
+  q(`.questbadges .runebadge[data-source-id="${esc(id)}"]`) ?? q(`.statusbar .heropowerbtn[data-hero-rune="${esc(id)}"]`);
+
+/** The element a flight starts from right now, or null (pure over the DOM). */
+export function passFlightEl(f: PassFlight): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  switch (f.at) {
+    case 'discover': return q(`.discover-ov.dce .disc-cards > .disc-slot:nth-child(${f.index + 1}) .card`);
+    case 'card': return q(`.card[data-uid="${esc(f.uid)}"]`) ?? q(`.unit[data-uid="${esc(f.uid)}"]`);
+    case 'rune': return runeEl(f.id);
+    case 'equip': return q('.equipslot .heropowerbtn');
+    case 'unit': return (f.uid ? q(`.unit[data-uid="${esc(f.uid)}"]`) : null) ?? (f.rune ? runeEl(f.rune) : null) ?? q('.statusbar .hero .f');
+  }
+}
+
+/**
+ * Play one send's stream into the teammate portrait. Call it inside the commit that queued it (the source is still on
+ * screen: a Discover option, the card that left) or, in combat, at its `teamSend` beat. Returns whether it played.
+ */
+export function playPassFlight(f: PassFlight | null): boolean {
+  if (!f || typeof document === 'undefined') return false;
+  if (f.at === 'card' && f.leaves) { playSpellPass(f.uid); return true; }
+  const el = passFlightEl(f);
+  if (!el) return false;
+  return streamFrom(el, f.at === 'discover' || (f.at === 'card' && f.face));
+}
+
+/** IN COMBAT: the body each of my fight's `teamSend` beats named (carry index -> uid), noted by the combat sync as the
+ *  replay reaches them, read when the held entry ships on that beat. */
+const combatSenders = { wave: -1, uid: new Map<number, string | null>() };
+export function noteTeamSendSources(wave: number, events: readonly { type: string; side?: string; member?: number; idx?: number; uid?: string }[], through: number, member: number): void {
+  if (combatSenders.wave !== wave) { combatSenders.wave = wave; combatSenders.uid = new Map(); }
+  const end = Math.min(through, events.length);
+  for (let i = 0; i < end; i++) {
+    const e = events[i]!;
+    if (e.type === 'teamSend' && e.side === 'player' && e.member === member && e.idx != null && !combatSenders.uid.has(e.idx)) combatSenders.uid.set(e.idx, e.uid ?? null);
+  }
+}
+
+/** Sends already flown (a network retry ships an entry again: it streams once). */
+const flown = new Set<string>();
+
+/** One outbox entry of `run` (mine, on screen) is being sent now: stream it from its source, once. */
+export function playEntryFlight(e: PassFlightEntry & { seq: number; wave: number }, run: { seed: number; hand: readonly { uid: string; cardId: string }[]; board: readonly { uid: string; cardId: string }[]; shop: readonly { uid: string; cardId: string }[] }): boolean {
+  const key = `${run.seed}:${e.seq}`;
+  if (flown.has(key)) return false;
+  const combatUid = e.combatIdx != null && combatSenders.wave === e.wave ? combatSenders.uid.get(e.combatIdx) ?? null : null;
+  const cardIdOf = (uid: string): string | undefined =>
+    (run.hand.find((c) => c.uid === uid) ?? run.board.find((c) => c.uid === uid) ?? run.shop.find((c) => c.uid === uid))?.cardId;
+  const f = passFlightOf(e, combatUid, cardIdOf);
+  if (!f) return false;
+  flown.add(key);
+  return playPassFlight(f);
+}
+
 // ── RECEIVING ────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Hand cards whose entrance is a pass (no generic generated-card coalesce for them: the pass plays its own). */

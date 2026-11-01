@@ -33,7 +33,7 @@ import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpel
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
-import { applyDuosPass, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass } from './duosPass';
+import { applyDuosPass, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass, stampOutboxSrc, type DuosPassSource } from './duosPass';
 import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, receiveTeamEffect } from './recruit';
 import { advanceDuosMeters, armDuosRune, duosMetersMods, settleDuosMeters } from './duosRunes';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
@@ -626,6 +626,37 @@ const QUEST_TICK_EVENTS: Partial<Record<Action['type'], QuestObjectiveEvent>> = 
  *  owner ruling 2026-08-08). Returns false when the pick can't resolve (bad index / unknown card); the
  *  full hand is a legitimate forfeit and still counts as taken. */
 function takeDiscoverPick(s: RunState, index: number): boolean {
+  // A team gift the PICK itself caused (Monstrocity, "when you Discover this") streams from the option card, not from
+  // the new hand card that is not on screen yet (R-DUOS-PASS-FLIGHT-01). Presentation only.
+  const sent = s.duos?.outbox.length ?? 0;
+  const before = s.duos ? onScreenUids(s) : null;
+  const ok = takeDiscoverPickInner(s, index);
+  if (before) restampBornSrc(s, sent, before, { discover: index });
+  return ok;
+}
+
+/** The uids of every card on the screen right now (hand, board, Shop). */
+const onScreenUids = (s: RunState): Set<string> => new Set([...s.hand, ...s.board, ...s.shop].map((c) => c.uid));
+
+/** R-DUOS-PASS-FLIGHT-01 (presentation only): the TEAM GIFTS from `from` on whose `src` names nothing that was on
+ *  screen before the action (none, or a card the action itself made) start from `src` instead. A card pass keeps its
+ *  own (Matchmaker's option) or none (the card itself leaves from where it stood: Handout, CueBee). */
+function restampBornSrc(s: RunState, from: number, onScreen: ReadonlySet<string>, src: DuosPassSource): void {
+  const out = s.duos?.outbox;
+  if (!out) return;
+  for (let i = from; i < out.length; i++) {
+    if (!out[i]!.team) continue;
+    const cur = out[i]!.src;
+    if (!cur || ('uid' in cur && !onScreen.has(cur.uid))) out[i]!.src = src;
+  }
+}
+
+/** A play / buy: its sends start from the card acted on (a bought card takes a fresh uid; a bare cast names none). */
+function stampActedSrc(prev: RunState, next: RunState, uid: string): void {
+  restampBornSrc(next, prev.duos?.outbox.length ?? 0, onScreenUids(prev), { uid });
+}
+
+function takeDiscoverPickInner(s: RunState, index: number): boolean {
   // DUOS-ONLY CARDS (R-DUOS-CARDS-05): the open Discover's Duos rider, consumed by this pick (each open sets its own).
   const rider = s.discoverDuos;
   s.discoverDuos = undefined;
@@ -638,7 +669,8 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
   const ok = takeDiscoverPickCore(s, index);
   // Disco: every option NOT taken goes to the teammate's hand (a gift each, landed and resolved by their run).
   if (ok && rider === 'rest') {
-    options.forEach((other, i) => { if (i !== index && CARD_INDEX[other]) queueTeamEffect(s, { kind: 'gift', cardId: other, count: 1 }); });
+    // Each streams from its own option card on screen (R-DUOS-PASS-FLIGHT-01).
+    options.forEach((other, i) => { if (i !== index && CARD_INDEX[other]) queueTeamEffect(s, { kind: 'gift', cardId: other, count: 1 }, undefined, { discover: i }); });
   }
   return ok;
 }
@@ -660,7 +692,7 @@ function takeDiscoverPickAsPass(s: RunState, index: number): boolean | null {
     golden: false,
   };
   takeFromPool(s, def.id);
-  if (!effectPassCard(s, card, 'hand', s.hand.length)) { s.uidSeq--; return null; }
+  if (!effectPassCard(s, card, 'hand', s.hand.length, { src: { discover: index } })) { s.uidSeq--; return null; }
   return true;
 }
 
@@ -999,6 +1031,11 @@ export function reduce(state: RunState, action: Action): RunState {
     state = settled;
   }
   let next = reduceCore(state, action);
+  // DUOS (R-DUOS-PASS-FLIGHT-01): a send this play / buy queued streams from the card the player acted on, when its own
+  // stamp names nothing on screen (a bare cast, or a card this action gave a fresh uid). Presentation only.
+  if (next !== state && next.duos && (action.type === 'play' || action.type === 'buy')) {
+    stampActedSrc(state, next, action.uid);
+  }
   // DUOS (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01: "they get the card once there is space in their hand"): an
   // effect pass waiting on a full hand lands the moment this action made room. Before the hand diff below, so a landed
   // card is a card added to the hand like any other; a landed copy can complete a triple in the Shop.
@@ -3071,9 +3108,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       let fired = true;
       const fxMark = equipmentFxMark(s);
       const fire = (): void => { fired = fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers, action.clockSeconds, amplified); };
+      const sentBefore = s.duos?.outbox.length ?? 0;
       if (fireDef.useFxId) fire();
       else captureBuffFx(s, src, src ? 'minion' : 'spell', fire);
       if (!fired) return state;
+      // Gold Gifter's Gold streams from the Equipment slot that was pressed (R-DUOS-PASS-FLIGHT-01). Presentation only.
+      stampOutboxSrc(s, sentBefore, { equip: def.id }, true);
       // THE USE CUE(S). ONE per ACTIVATION for an Equipment whose def plays on the slot or on what it was aimed
       // at — the handoff's rule for repeats is that they "communicate repetition without replaying the full
       // animation", so a three-trigger Bloodpot is one travel, not three. But ONE PER FIRE for an Equipment whose

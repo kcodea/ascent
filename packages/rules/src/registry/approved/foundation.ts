@@ -12842,4 +12842,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Kevin concedes round 6 of a Ranked Duos game with Mike. His board plays on auto and Mike plays on. Kevin reloads: he lands on the main menu, not in the game. He opens the Scene Builder with Duos on: the teammate portrait is the placeholder, not Mike.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosConcede.test.tsx', 'workers/versus/test/rankedCore.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
+  {
+    id: 'R-DUOS-PASS-FLIGHT-01',
+    title: 'Every card or Gold an effect sends your teammate streams from its source into their portrait',
+    statement:
+      'Whenever a card, rune or Equipment sends your teammate something (a passed card, a gifted card, a Triple Reward, Gold), '
+      + 'the pass stream plays from what sent it into the teammate portrait, the same look as Handout. From a Discover, the '
+      + 'option card that goes to the teammate is the source: Matchmaker\x27s pick, Disco\x27s two other options. A card that '
+      + 'leaves (Handout, CueBee, Salesman of the Year) dissolves where it stood. A card that sends and stays (Antsy, Toot Toot, '
+      + 'Bratworst Buck, Monstrocity) is where the stream starts; a rune gift starts at its badge, Gold Gifter at the Equipment '
+      + 'slot. In combat it starts at the unit that sent it, on that beat. The receiver\x27s arrival is unchanged. Nothing plays '
+      + 'while your screen shows your teammate\x27s run, and a drag pass keeps its own drop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-01 (Matchmaker screenshot)', quote: 'from the discover selection, the card(s) that is passed should fire that animation' },
+      { kind: 'code', ref: 'packages/sim/src/duosPass.ts DuosOutboxEntry.src; packages/ui/src/versus/passLob.ts passFlightOf / playEntryFlight' },
+    ],
+    currentBehaviour: 'Built 2026-11-01. Before, only Handout-style spell passes and manual drags animated; Matchmaker and Disco sends were silent on the sender\x27s screen.',
+    example: 'Ann plays Disco and picks the middle option: the left and right option cards each dissolve and stream into Amy\x27s portrait.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/passFlight.test.ts', 'packages/sim/src/duosPassFlight.test.ts'], lastVerifiedAt: '2026-11-01' },
+  },
 ];

@@ -58,6 +58,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-01',
     changes: [
+      { category: 'Systems', text: 'Duos: every card, rune or Equipment that sends your teammate something now shows the pass stream from where it came from into their portrait.', details: [
+        'Matchmaker: the minion you pick streams from its Discover card.',
+        'Disco: the two options you did not take each stream from their Discover card.',
+        'Cards that give your teammate a card stream from the card that did it, rune gifts from the rune, and Gold Gifter from its slot.',
+        'In combat the stream leaves the minion that sent it, at that moment of the fight.',
+      ] },
       { category: 'Systems', text: 'Ranked Duos: passing a card to your teammate works again. Before, every pass came straight back.' },
       { category: 'Systems', text: "Duos: when a pass comes back, the note on your teammate's portrait now says why.", details: [
         'For example: the shop closed, time ran out, your teammate is out, or you hit the pass limit for the round.',

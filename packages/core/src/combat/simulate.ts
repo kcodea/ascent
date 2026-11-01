@@ -2084,13 +2084,13 @@ export function simulate(
     },
     // DUOS (owner design 2026-10-30, R-DUOS-CARDS-01): a team effect from a combat body rides the side's carry to
     // settle, where the side's own run lands its half and queues its teammate's. Symmetric: each side carries its own.
-    sendTeam: (effect, toSelf, toMate, side) => {
+    sendTeam: (effect, toSelf, toMate, side, srcUid) => {
       if (!toSelf && !toMate) return;
       const list = (shoutCarry[side].teamEffects ??= []);
       list.push({ effect: { ...effect }, self: toSelf, mate: toMate });
       // REAL TIME (R-DUOS-RUNES-02): the teammate's half is announced at this moment, on the beat of the trigger that
       // caused it (no step of its own), so the sender's client ships it when the replay gets here.
-      if (toMate) emit({ type: 'teamSend', side, member: activeMember[side], idx: list.length - 1 });
+      if (toMate) emit({ type: 'teamSend', side, member: activeMember[side], idx: list.length - 1, ...(srcUid ? { uid: srcUid } : {}) });
     },
     grantFodderBuff: (attack, health, side) => {
       fodderBuffGain[side].attack += attack;

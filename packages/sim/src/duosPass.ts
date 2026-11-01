@@ -60,6 +60,23 @@ export interface DuosOutboxEntry {
   combatIdx?: number;
   /** DUOS-ONLY CARDS (R-DUOS-CARDS-01): this entry is a TEAM EFFECT, not a card. Travels as `passFrom: 'team'`. */
   team?: TeamEffect;
+  /** PRESENTATION ONLY (owner 2026-11-01, R-DUOS-PASS-FLIGHT-01): what on the sender's screen sent this, so the pass
+   *  streams from there into the teammate portrait. Never read by gameplay, never sent over the wire. Absent = the
+   *  card itself (a spell's or a sale's pass leaves from where it stood; a drag pass already animated its drop). */
+  src?: DuosPassSource;
+}
+
+/** Where a pass or a team gift starts on the sender's screen (R-DUOS-PASS-FLIGHT-01): the card that caused it (`uid`:
+ *  a played spell, a Shout minion, a bought Monstrocity), a Discover option (`discover`, its index: Matchmaker's pick,
+ *  Disco's other options), a rune badge (`rune`) or an Equipment slot (`equip`). */
+export type DuosPassSource = { uid: string } | { discover: number } | { rune: string } | { equip: string };
+
+/** Stamp `src` on every outbox entry from `from` on (the ones the action just queued). `force` replaces a stamp an
+ *  inner path already set (an Equipment's press is its source, whatever body its effect ran as). */
+export function stampOutboxSrc(s: RunState, from: number, src: DuosPassSource, force = false): void {
+  const out = s.duos?.outbox;
+  if (!out) return;
+  for (let i = Math.max(0, from); i < out.length; i++) if (force || !out[i]!.src) out[i]!.src = src;
 }
 
 /** The run's Duos state (present only on a Duos seat's run). */
@@ -173,19 +190,19 @@ export function applyDuosPass(s: RunState, uid: string, spendGold: (s: RunState,
  * records it on the outbox, free (the spell is the price). A pass spell never targets a Golden minion (owner
  * 2026-10-31: "not targeted by spells that pass"): the caller refuses it before removing anything. Returns false outside a Duos run.
  */
-export function recordSpellPass(s: RunState, card: BoardCard, from: 'board' | 'shop' | 'hand', index: number, via: 'spell' | 'sale' = 'spell'): boolean {
+export function recordSpellPass(s: RunState, card: BoardCard, from: 'board' | 'shop' | 'hand', index: number, via: 'spell' | 'sale' = 'spell', src?: DuosPassSource): boolean {
   const duos = s.duos;
   if (!duos) return false;
-  duos.outbox.push({ seq: duos.outbox.length, wave: s.wave, card: structuredClone(card), from, index, paid: 0, via });
+  duos.outbox.push({ seq: duos.outbox.length, wave: s.wave, card: structuredClone(card), from, index, paid: 0, via, ...(src ? { src } : {}) });
   return true;
 }
 
 /** Queue a TEAM EFFECT for the teammate (R-DUOS-CARDS-01). The receiving run resolves it. No-op outside Duos. */
-export function queueTeamEffect(s: RunState, effect: TeamEffect, combatIdx?: number): void {
+export function queueTeamEffect(s: RunState, effect: TeamEffect, combatIdx?: number, src?: DuosPassSource): void {
   const duos = s.duos;
   if (!duos) return;
   const seq = duos.outbox.length;
-  duos.outbox.push({ seq, wave: s.wave, card: duosTeamCard(seq), from: 'hand', index: -1, paid: 0, team: structuredClone(effect), ...(combatIdx != null ? { combatIdx } : {}) });
+  duos.outbox.push({ seq, wave: s.wave, card: duosTeamCard(seq), from: 'hand', index: -1, paid: 0, team: structuredClone(effect), ...(combatIdx != null ? { combatIdx } : {}), ...(src ? { src } : {}) });
 }
 
 /**

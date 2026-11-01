@@ -108,7 +108,7 @@ export function advanceDuosMeters(s: RunState, meter: 'shout' | 'echo', n: numbe
       m.paid = paidNow(s, m) + 1;
       m.paidWave = s.wave;
       procRuneId(s, m.sourceId);
-      queueTeamEffect(s, giftOf(m));
+      queueTeamEffect(s, giftOf(m), undefined, { rune: m.sourceId });
     }
   }
 }
@@ -154,7 +154,7 @@ export function duosOnGild(s: RunState | undefined): void {
   if (!s || !d?.synergyLeft || d.synergyLeft <= 0) return;
   d.synergyLeft -= 1;
   procRuneId(s, 'rune_teammate_synergy');
-  queueTeamEffect(s, { kind: 'tripleReward', count: 1 });
+  queueTeamEffect(s, { kind: 'tripleReward', count: 1 }, undefined, { rune: 'rune_teammate_synergy' });
 }
 
 /** SALESMAN OF THE YEAR ("The first 2 minions you sell per turn pass to your teammate"): does THIS sale pass? Counts

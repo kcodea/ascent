@@ -3316,7 +3316,9 @@ export type CombatEvent = (
   // effect at `idx` of that member's `ShoutCarry.teamEffects` (an Antsy Echo, a Shoutful Bounty gift). The sender's
   // client ships it when its replay reaches this event, so the teammate sees the card arrive mid-fight. Presentation
   // marker: it changes no unit, rides the beat of the trigger that caused it (no step of its own).
-  | { type: 'teamSend'; side: Side; member: number; idx: number }
+  // `uid`: the body that sent it (Toot Toot's Rally, Antsy's Echo), where the sender's screen starts the pass's stream
+  // (R-DUOS-PASS-FLIGHT-01). Absent for a rune meter's gift (no body).
+  | { type: 'teamSend'; side: Side; member: number; idx: number; uid?: string }
   // ...and `side`'s RESERVE board (team member `member`, its own run) steps in: `minions` is the board as it enters
   // (instantiated, run-wide auras folded, before its Start of Combat, which follows as ordinary events). The replay
   // replaces that side's board with these bodies (the fallen board's dead are gone).
@@ -4518,7 +4520,7 @@ export interface CombatContext {
   growConductor(step: number, side: Side): void;
   /** DUOS (owner design 2026-10-30): a team effect from a combat body. `self` lands on this side's run at settle,
    *  `mate` goes to the teammate; both ride `ShoutCarry.teamEffects`. Optional: a context without it drops it. */
-  sendTeam?(effect: TeamEffect, self: boolean, mate: boolean, side: Side): void;
+  sendTeam?(effect: TeamEffect, self: boolean, mate: boolean, side: Side, srcUid?: string): void;
   /** Bane (combat, reacting to Ryme's battlecry replays): permanently enchant the Fodder card type run-wide
    *  by +atk/+hp (player only). Carried back via CombatResult.playerFodderBuffGain → `buffFodderRunWide`. */
   grantFodderBuff(attack: number, health: number, side: Side): void;

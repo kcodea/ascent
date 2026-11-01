@@ -475,7 +475,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       ctx.log({ type: 'improve', target: self.uid, amount: 0, display: step, conductor: step, side: self.side });
     },
     matriarchReps: () => ctx.matriarchRepsFor(self.side),
-    sendTeam: (effect, toSelf, toMate) => ctx.sendTeam?.(effect, toSelf, toMate, self.side),
+    sendTeam: (effect, toSelf, toMate) => ctx.sendTeam?.(effect, toSelf, toMate, self.side, self.uid),
     logSpellProgress: (amount) => ctx.log({ type: 'spellProgress', target: self.uid, amount }),
     logImprove: (amount) => ctx.log({ type: 'improve', target: self.uid, amount }),
     spellsThisTurn: () => ctx.spellsThisTurnFor(self.side),

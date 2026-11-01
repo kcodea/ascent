@@ -12,7 +12,7 @@
  */
 import { duosWaitingCount, duosWireOf, handCap, mateTribeCounts, runReadsMateTribes, type BoardCard, type RunState, type VersusGroupSeat } from '@game/sim';
 import { useGame } from '../store';
-import { playArrival, playSpellPass } from './passLob';
+import { playArrival, playEntryFlight } from './passLob';
 import { notePassRefused, passReturnedText } from './duosPassUi';
 import { sfx } from '../sfx';
 import { ownRunWhileWatching, setMateFrameHook, teammateViewOf } from './spectate';
@@ -88,9 +88,10 @@ export function duosAfterRun(matchId: string, me: VersusGroupSeat, run: RunState
     if (heldForReplay(run, e)) continue; // a mid-fight gift waits for its beat (R-DUOS-RUNES-02)
     const seq = seqFor(s, idx);
     s.inFlight.add(idx);
-    // A SPELL's pass (Handout, R-DUOS-CARDS-01): the minion streams from where it stood into the teammate portrait. This
-    // runs inside the store's commit, before React drops the card, so its element is still there to start from.
-    if (e.via === 'spell' && !ownRunWhileWatching()) playSpellPass(e.card.uid);
+    // EVERY EFFECT SEND (R-DUOS-PASS-FLIGHT-01; Handout's R-DUOS-CARDS-01): it streams from its source (the card that
+    // left, a Discover option, the card / rune / Equipment that sent it, or in combat the unit on its beat) into the
+    // teammate portrait. This runs inside the store's commit, before React drops the source, so it is still on screen.
+    if (!ownRunWhileWatching()) playEntryFlight(e, run);
     if (!e.team) lastRefusal = null;
     void versusRemote.duosPass(matchId, e.wave, seq, duosWireOf(e)).then(() => {
       s.shipped.add(idx);

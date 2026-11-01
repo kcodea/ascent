@@ -18,6 +18,8 @@ import { useSpectate } from './spectate';
 import { duosCombatAt, type DuosCombatNow } from './versusGroupView';
 import { duosReleaseCombatFx } from './duosPasses';
 import { localMate } from './localMate';
+import { noteTeamSendSources } from './passLob';
+import { useGame } from '../store';
 
 /**
  * DUOS REAL-TIME TEAM EFFECTS (R-DUOS-RUNES-02): the carry indices of MY board's team effects whose `teamSend` beat the
@@ -69,6 +71,9 @@ export function useDuosCombatSync(combat: CombatResult | undefined, events: read
     // A seated player, or the Scene Builder's placeholder team (DEV, R-SB-DUOS-01: the local channel ships them).
     if (!fighting || !combat || (!viewer && !localMate()) || !hasSends) return;
     const idx = teamSendsReached(events, processedEnd, combat.duosMember ?? 0);
-    if (idx.length > 0) duosReleaseCombatFx(idx);
+    if (idx.length === 0) return;
+    // Which body sent each one, so its stream leaves that unit on this beat (R-DUOS-PASS-FLIGHT-01).
+    noteTeamSendSources(useGame.getState().run.wave, events, processedEnd, combat.duosMember ?? 0);
+    duosReleaseCombatFx(idx);
   }, [combat, events, processedEnd, fighting, viewer, hasSends]);
 }

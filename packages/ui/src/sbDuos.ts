@@ -27,7 +27,7 @@ import { useGame } from './store';
 import { installLocalMate, useLocalMate, type LocalMateApi } from './versus/localMate';
 import { useSpectate } from './versus/spectate';
 import { exitTeammateView } from './versus/teammateView';
-import { playArrival, playSpellPass } from './versus/passLob';
+import { playArrival, playEntryFlight } from './versus/passLob';
 import { notePassRefused, passReturnedText } from './versus/duosPassUi';
 import { devCard } from './versus/duosDevTuner';
 import { sfx } from './sfx';
@@ -119,7 +119,8 @@ function pump(): void {
   } finally { pumping = false; }
 }
 
-/** The outbox length of the on-screen run last seen (to stream a spell's pass from the card before React drops it). */
+/** The outbox length of the on-screen run last seen (to stream each send from its source before React drops it:
+ *  R-DUOS-PASS-FLIGHT-01). */
 let seenOutbox = 0;
 function onStoreRun(run: RunState, prev: RunState): void {
   const st = useSbDuos.getState();
@@ -131,7 +132,8 @@ function onStoreRun(run: RunState, prev: RunState): void {
   syncTeam(run);
   const out = run.duos?.outbox ?? [];
   if (out.length < seenOutbox) seenOutbox = 0;
-  for (let i = seenOutbox; i < out.length; i++) if (out[i]!.via === 'spell') playSpellPass(out[i]!.card.uid);
+  // A fight's gifts wait for their `teamSend` beat (`releaseCombatFx`), like the match's.
+  for (let i = seenOutbox; i < out.length; i++) if (out[i]!.combatIdx == null) playEntryFlight(out[i]!, run);
   seenOutbox = out.length;
   if (run.duos) schedulePump();
 }
@@ -189,6 +191,9 @@ const api: LocalMateApi = {
   back: () => exitTeammateView(),
   viewing: () => useSbDuos.getState().viewing,
   releaseCombatFx: (wave, idx) => {
+    // Each gift streams from the unit that sent it, on its beat (R-DUOS-PASS-FLIGHT-01).
+    const run = useGame.getState().run;
+    for (const e of run.duos?.outbox ?? []) if (e.wave === wave && e.combatIdx != null && idx.includes(e.combatIdx)) playEntryFlight(e, run);
     releaseSbCombatFx(ledger, onScreenSeat(), wave, idx);
     schedulePump();
   },

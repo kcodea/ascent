@@ -8,7 +8,7 @@ import { ancientNadjaShopDeath } from './ancients'; // Nadja
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
-import { duosDraft, queueTeamEffect, recordSpellPass } from './duosPass';
+import { duosDraft, queueTeamEffect, recordSpellPass, type DuosPassSource } from './duosPass';
 import { duosCatchFromMate, duosOnGild, duosOnPassed, duosSaleShouldPass } from './duosRunes';
 import { runTallyUnions, tribeUnionKey, tribeUnionPlaysOf } from './runTally';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
@@ -352,7 +352,8 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     // DUOS (R-DUOS-CARDS-01): this run's half lands now; the teammate's half queues on the pass channel at once.
     sendTeam: (effect, toSelf, toMate) => {
       if (toSelf) applyOwnTeamEffect(state, effect);
-      if (toMate) queueTeamEffect(state, effect);
+      // The card that sent it is where its stream starts on screen (R-DUOS-PASS-FLIGHT-01; a bare cast has no body).
+      if (toMate) queueTeamEffect(state, effect, undefined, self.uid && self.uid !== 'cast' ? { uid: self.uid } : undefined);
     },
     matriarchReps: () => 1, // the legacy shop halves never applied Matriarch; preserved until ruled otherwise
     logSpellProgress: () => {}, // the live countdown re-derives from the instance field in the shop
@@ -17626,9 +17627,9 @@ export function passMinionToTeammate(state: RunState, target: BoardCard): boolea
 export function effectPassCard(state: RunState, card: BoardCard, from: 'board' | 'shop' | 'hand', index: number,
   /** `allowGolden`: the ONE explicit exception to the no-golden rule, Salesman of the Year's sold minion (owner
    *  2026-10-30, R-DUOS-RUNES-01); `via: 'sale'` marks that pass (a refusal returns nothing: the sale was paid). */
-  opts?: { allowGolden?: boolean; via?: 'sale' }): boolean {
+  opts?: { allowGolden?: boolean; via?: 'sale'; src?: DuosPassSource }): boolean {
   if (!state.duos || (card.golden && !opts?.allowGolden)) return false;
-  if (!recordSpellPass(state, card, from, index, opts?.via ?? 'spell')) return false;
+  if (!recordSpellPass(state, card, from, index, opts?.via ?? 'spell', opts?.src)) return false;
   fireTeamPassTriggers(state, { mine: true, cardId: card.cardId });
   return true;
 }

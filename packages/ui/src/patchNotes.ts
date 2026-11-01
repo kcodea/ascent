@@ -59,6 +59,13 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-01',
     changes: [
       { category: 'Systems', text: 'Phones: your hero portrait and the combat foe portrait are sharp again. Before, they could look blurry.' },
+      { category: 'Balance', text: 'Hero quests and forges now follow the hero power you hold.', details: [
+        'Drakko and Chronos: a quest stops counting once its power is replaced, and never pays out.',
+        'A hero who gains Drumline or Timelapse runs that quest, starting from zero.',
+        'Runesmith and Guardian: the turn 5 and turn 8 forge visits go to whoever holds the power on that turn.',
+        'Their cheaper rune prices also follow the power, including a second power held by Void.',
+        'Ancients: the bonus tied to a hero power follows that power too.',
+      ] },
       { category: 'Systems', text: 'Duos: every card, rune or Equipment that sends your teammate something now shows the pass stream from where it came from into their portrait.', details: [
         'Matchmaker: the minion you pick streams from its Discover card.',
         'Disco: the two options you did not take each stream from their Discover card.',

@@ -1854,6 +1854,10 @@ export interface RunState {
    *  (Guardian + Rune of the Epic Forge, owner 2026-09-22: "just book 2 runeforges") counts up here instead of
    *  sliding to the turn after purchase, so both open on turn 8. Cleared with `epicForgeWave`. */
   epicForgeCount?: number;
+  /** One of the forges in `epicForgeWave` is Runeguard's own power visit (Guardian's createRun booking, or an
+   *  adopter's). When it comes due and Runeguard is no longer held, that one visit is dropped (owner ruling
+   *  2026-11-01, R-HERO-POWER-REPLACED-02). Cleared (false) when the booking is consumed; absent on older saves. */
+  heroEpicForgeBooked?: boolean;
   /** The Epic Runeforges that have already opened THIS wave — one entry per forge, each the offer it showed —
    *  so a second forge on the same turn draws from its own seeded stream (turn + index) and avoids the runes
    *  the first one showed. Self-keyed by `wave` so a stale entry from an earlier turn is ignored. Persisted, so
@@ -3231,7 +3235,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
   // it (behind any quest offer). Cleared once it fires. A fresh run holds no other booking, so this is the
   // plain write; a booking made LATER (Rune of the Epic Forge, an adopted power) goes through the reducer's
   // `bookEpicForge`, which counts a second forge for the same turn instead of overwriting this one.
-  if (hero.power.kind === 'epicRuneforge') state.epicForgeWave = 8; // hero forge, one turn ahead of the system's 9
+  if (hero.power.kind === 'epicRuneforge') { state.epicForgeWave = 8; state.heroEpicForgeBooked = true; } // hero forge, one turn ahead of the system's 9
   // Croupier Ayse (Lucky Seat): queue the OPENING suit so her power button has art from turn 1 and the player
   // can see what the first payout will be. Seeded off the run's own cursor like every other pick.
   if (hero.power.kind === 'luckySeat') {

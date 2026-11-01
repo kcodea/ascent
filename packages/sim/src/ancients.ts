@@ -424,7 +424,7 @@ import { CARD_INDEX } from '@game/content';
 import { handCap, mixSeed, type DiscoverAncientTag, type BoardCard, type CommissionKind, type RunState, type ShopCard, type SotBeatFx } from './state';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { STARFORM_ID } from './starform';
-import { getHero, hasPower, type HeroPower } from './heroes';
+import { getHero, hasPower, wieldedPowerId, type HeroPower } from './heroes';
 import type { CombatResult } from '@game/core';
 import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, addOfferBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe, fireSummonBuffs, fireSummonOverflow, gainGold, hasDeathrattle } from './recruit';
 import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './config';
@@ -2034,6 +2034,9 @@ export interface AncientsState {
   /** The picked pairing's hero-power shape override (`AncientPairing.power`), stamped at the pick. Read by
    *  `activePowers` (heroes.ts), which cannot import this module without a cycle. */
   powerOverride?: AncientPowerOverride;
+  /** The hero id whose POWER the pairing (and `powerOverride`) was picked for: the slot-0 power at the pick. Absent on
+   *  saves from before 2026-11-01, read as the run's own hero (R-HERO-POWER-REPLACED-02). */
+  powerOverrideFor?: string;
   /** AUCTIONEER × FORTUNE: Gold banked by Shop Shouts on `wave` (the live power text prints it). */
   shoutGold?: { wave: number; gold: number };
   /** RISEN × FORTUNE: Gold the last combat's Rises banked for this turn (the live power text prints it). */
@@ -2250,6 +2253,7 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   a.picked = id;
   a.offer = undefined;
   a.pickSeq = (a.pickSeq ?? 0) + 1;
+  a.powerOverrideFor = ancientPairingHeroId(state); // the pairing belongs to the power held right now
   const shape = activeAncientPairing(state)?.power;
   if (shape) a.powerOverride = { ...shape };
   const extra = effectOf(state, 'copyMachineExtraCharge');
@@ -2273,10 +2277,19 @@ export function ancientOfferOpen(state: RunState): boolean {
   return !!live(state)?.offer?.length;
 }
 
-/** The picked Ancient's pairing for the current hero (undefined = none picked, or "Not written yet"). */
+/**
+ * The hero id whose pairing is in play: the hero whose POWER sits in slot 0 right now (owner ruling 2026-11-01,
+ * R-HERO-POWER-REPLACED-02: pairings follow the held power). Native heroes read their own id, as before. A Gildmaster
+ * who Power Shifts Gildcrafter away loses Gildmaster × War; a hero who gains Gildcrafter in slot 0 has it.
+ */
+export function ancientPairingHeroId(state: Pick<RunState, 'heroId' | 'adoptedPowerId' | 'mimicPowerId' | 'voidPowerIds'>): string {
+  return wieldedPowerId(state, 0) ?? state.heroId;
+}
+
+/** The picked Ancient's pairing for the power the run holds now (undefined = none picked, or "Not written yet"). */
 export function activeAncientPairing(state: RunState): AncientPairing | undefined {
   const a = live(state);
-  return a?.picked ? ancientPairingFor(state.heroId, a.picked) : undefined;
+  return a?.picked ? ancientPairingFor(ancientPairingHeroId(state), a.picked) : undefined;
 }
 
 function effectOf<K extends AncientEffect['do']>(state: RunState, kind: K): Extract<AncientEffect, { do: K }> | undefined {
@@ -4613,7 +4626,7 @@ export function ancientTripleRewardTwice(state: RunState): boolean {
 
 /** GILDMASTER × WAR: the hero power's whole-game use budget right now (the base `maxUses` plus Pummel's banked uses). */
 function powerMaxUses(state: RunState, a: AncientsState): number {
-  return a.powerOverride?.maxUses ?? getHero(state.heroId).power.maxUses ?? 0;
+  return a.powerOverride?.maxUses ?? getHero(ancientPairingHeroId(state)).power.maxUses ?? 0;
 }
 
 /** GILDMASTER × TIME: Start of Turn, a random non-Gilded friendly minion becomes Gilded, on its own beat (R-SOT-BEAT-01). */

@@ -19,7 +19,7 @@ import type { LobbyRules } from './lobby/types';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots, stampNewShopOffers } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
-import { DEFAULT_HERO_ID, activePowers, getHero, type HeroPowerKind, gildCopiesNeeded, hasPower, powerDiscoverPool, swapPowerLatch, powerLatchSpent, markPowerLatchSpent, wieldedPowerId } from './heroes';
+import { DEFAULT_HERO_ID, activePowers, getHero, type HeroPowerKind, gildCopiesNeeded, hasPower, powerDiscoverPool, swapPowerLatch, powerLatchSpent, markPowerLatchSpent, wieldedPowerId, powerHolderId } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
@@ -53,8 +53,7 @@ import { lossDamageCap } from './lossCap';
 /** The hero id whose Runeforge power the hero forge belongs to: the slot that wields it (a Mimic / Void / Power
  *  Shifter adopter), else the run's own hero. The forge's once-per-game charge is spent on THAT power's latch. */
 function runeforgeHolderId(s: RunState): string {
-  const slot = activePowers(s).findIndex((p) => p.kind === 'runeforge');
-  return (slot === 0 || slot === 1 ? wieldedPowerId(s, slot) : undefined) ?? s.heroId;
+  return powerHolderId(s, 'runeforge') ?? s.heroId;
 }
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -195,9 +194,16 @@ function gorrQuestBuy(s: RunState, card: CardDef): void {
 
 /** Drakko's quest: buy 5 Battlecry minions → get Drakko the Drummer (once per game). Progresses on every
  *  PAID Battlecry buy — the normal path AND a held-Displacement restore (which used to skip it); the
- *  reward lands in the hand if there's room. */
+ *  reward lands in the hand if there's room.
+ *
+ *  It follows the HELD power (owner ruling 2026-11-01, R-HERO-POWER-REPLACED-02): it counts only while Drumline is
+ *  wielded (either slot), so Drakko who Power Shifts it away stops counting and never pays out, and a Void holding
+ *  Drumline runs it. Progress lives on the run (`drakkoBuys`) and only moves while the power is held, so a hero who
+ *  gains it starts from 0 and a power found again resumes where IT left off (the anti-farm rule of
+ *  R-HERO-POWER-FRESH-01); completion spends the holder's own latch. */
 function drakkoQuestBuy(s: RunState, card: CardDef): void {
-  if (s.heroId !== 'drakko' || powerLatchSpent(s, s.heroId) || !hasBattlecry(card)) return;
+  const holder = powerHolderId(s, 'quest');
+  if (!holder || powerLatchSpent(s, holder) || !hasBattlecry(card)) return;
   s.drakkoBuys += 1;
   // 5 buys natively; Drakko × Ancient of Genesis needs one fewer per completion so far (5, 4, 3).
   if (s.drakkoBuys < ancientDrumlineNeed(s)) return;
@@ -216,13 +222,15 @@ function drakkoQuestBuy(s: RunState, card: CardDef): void {
   // Quest complete: it stops counting and arms nothing further, unless Drakko × Ancient of Genesis has completions left
   // (then it resets for the next one).
   if (ancientDrumlineComplete(s)) s.drakkoBuys = 0;
-  else markPowerLatchSpent(s, s.heroId); // Drakko's own latch, even if a Power Shifter moved another power into the slot
+  else markPowerLatchSpent(s, holder); // the holding slot's own latch, never the other slot's power
 }
 
 /** Chronos hero's Encore quest: buy 4 End-of-Turn minions → get a Chronos (once per game). Mirrors
- *  `drakkoQuestBuy` — progresses on every PAID buy of a minion that carries an End-of-Turn effect. */
+ *  `drakkoQuestBuy` — progresses on every PAID buy of a minion that carries an End-of-Turn effect, only while
+ *  Timelapse is held (R-HERO-POWER-REPLACED-02; `eotMinionBuys` starts at 0 for a hero who gains it). */
 function chronosQuestBuy(s: RunState, card: CardDef): void {
-  if (s.heroId !== 'chronoshero' || powerLatchSpent(s, s.heroId)) return;
+  const holder = powerHolderId(s, 'questChronos');
+  if (!holder || powerLatchSpent(s, holder)) return;
   if (!card.effects.some((e) => e.on === 'endOfTurn')) return;
   s.eotMinionBuys = (s.eotMinionBuys ?? 0) + 1;
   if ((s.eotMinionBuys ?? 0) < 4) return;
@@ -237,7 +245,7 @@ function chronosQuestBuy(s: RunState, card: CardDef): void {
       golden: false,
     });
   }
-  markPowerLatchSpent(s, s.heroId); // quest complete: Chronos' own latch, never a shifted-in power's
+  markPowerLatchSpent(s, holder); // quest complete: the holding slot's own latch, never the other slot's power
 }
 
 /** Keshi's Crown: every card acquired by a SHOP PURCHASE — including one made free by a discount or the
@@ -6087,7 +6095,9 @@ function advanceCombat(s: RunState): void {
   // player to buy ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once
   // the forge closes. The HERO forge is turn 5 — deliberately EARLIER than the universal system's turn-6 basic
   // forge, so a Runesmith is ahead of the curve rather than redundant with it (owner 2026-07-31).
-  const forge = s.mode !== 'tutorial' && hasPower(s, 'runeforge') && s.wave === 5 && !s.heroPowerSpent;
+  // Follows the HELD power (R-HERO-POWER-REPLACED-02): whoever holds Forgemaster on turn 5 (either slot) visits,
+  // on that power's own latch; Runesmith who shifted it away does not.
+  const forge = s.mode !== 'tutorial' && hasPower(s, 'runeforge') && s.wave === 5 && !powerLatchSpent(s, runeforgeHolderId(s));
   if (forge) {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
@@ -6137,7 +6147,12 @@ function advanceCombat(s: RunState): void {
   // 2026-09-22), which the start-of-turn sequencing below presents one after the other (behind any quest offer
   // / Runesmith forge). Never in a tutorial.
   if (s.mode !== 'tutorial' && s.epicForgeWave != null && s.wave >= s.epicForgeWave) {
-    s.pendingEpicRuneforge = pendingEpicForges(s) + (s.epicForgeCount ?? 1);
+    // Guardian's own visit follows the HELD power (R-HERO-POWER-REPLACED-02): when one of the forges booked here is
+    // the power's, and Runeguard is no longer wielded on the turn it comes due, that one visit is dropped. Any other
+    // booking for the turn (Rune of the Epic Forge) still opens.
+    const powerForgeDropped = heroEpicForgeBooked(s) && !hasPower(s, 'epicRuneforge') ? 1 : 0;
+    s.heroEpicForgeBooked = false;
+    s.pendingEpicRuneforge = pendingEpicForges(s) + Math.max(0, (s.epicForgeCount ?? 1) - powerForgeDropped);
     s.epicForgeWave = undefined;
     s.epicForgeCount = undefined;
   }
@@ -6755,8 +6770,9 @@ function drawRunes(ids: string[], n: number, rng: ReturnType<typeof makeRng>, av
  * means one consistent thing, and draws from the passed `rng` so replays hold.
  */
 function applyHeroForgeDiscount(s: RunState, rng: ReturnType<typeof makeRng>): void {
-  const kind = getHero(s.heroId).power.kind;
-  if (kind !== 'runeforge' && kind !== 'epicRuneforge') return;
+  // The HELD power, either slot (R-HERO-POWER-REPLACED-02): Runesmith / Guardian who shift the power away lose the
+  // discount, and anyone holding Forgemaster or Runeguard (Void's slot 1 included) has it.
+  if (!hasPower(s, 'runeforge') && !hasPower(s, 'epicRuneforge')) return;
   const span = s.runeforgeEpic ? [2, 3, 4] : [1, 2];
   s.runeforgeDiscounts = (s.runeforgeOffer ?? []).map((_, i) =>
     s.runeforgeDiscounts?.[i] ?? span[rng.int(span.length)]!);
@@ -6767,6 +6783,13 @@ function applyHeroForgeDiscount(s: RunState, rng: ReturnType<typeof makeRng>): v
 export function pendingEpicForges(s: Pick<RunState, 'pendingEpicRuneforge'>): number {
   const v = s.pendingEpicRuneforge as number | boolean | undefined;
   return typeof v === 'number' ? v : v ? 1 : 0;
+}
+
+/** Is one of the Epic forges booked in `epicForgeWave` Runeguard's own power visit (booked by `createRun` or an adoption)?
+ *  Saves from before 2026-11-01 carry no flag: a native Guardian whose booking is still ahead of (or on) turn 8 holds it. */
+function heroEpicForgeBooked(s: RunState): boolean {
+  if (s.heroEpicForgeBooked != null) return s.heroEpicForgeBooked;
+  return getHero(s.heroId).power.kind === 'epicRuneforge' && s.epicForgeWave === GUARDIAN_FORGE_WAVE && s.wave <= GUARDIAN_FORGE_WAVE;
 }
 
 /** Guardian's own Epic Runeforge turn — the literal `createRun` books (`epicForgeWave = 8`). `buyRune` reads it to
@@ -6955,7 +6978,7 @@ function seedAdoptedPower(s: RunState, heroId: string): void {
   // Guardian: book the Epic Runeforge — turn 8 as authored when that is still ahead, else the next turn
   // (an adopted power must never schedule a visit into the past, which would simply never open). Booked
   // BESIDE any forge the run already holds for that turn (Rune of the Epic Forge), never in its place.
-  if (kind === 'epicRuneforge') bookEpicForge(s, Math.max(GUARDIAN_FORGE_WAVE, s.wave + 1));
+  if (kind === 'epicRuneforge') { bookEpicForge(s, Math.max(GUARDIAN_FORGE_WAVE, s.wave + 1)); s.heroEpicForgeBooked = true; }
 }
 
 function openNextStartOfTurnModal(s: RunState): void {

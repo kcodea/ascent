@@ -2094,8 +2094,9 @@ export const HEROES_RULES: GameRule[] = [
       + "Second Calling) gives the arriving power ITS OWN spend state: its once-per-game latch and its whole-game use count. "
       + "A power the run never spent arrives ready, whatever the power it replaced had used. A power found AGAIN keeps what "
       + "it spent itself (a Mimic re-finding a used Masterwork gets no free Gild; Jenkins keeps his dig count). The per-turn "
-      + "charge re-arms on every arrival. A native passive that keeps running after a Power Shifter (Drakko's and Chronos' "
-      + "quests, Runesmith's forge) spends its own latch, never the shifted-in power's.",
+      + "charge re-arms on every arrival. A passive quest or forge (Drakko's and Chronos' quests, Runesmith's forge) spends "
+      + "the latch of the slot that holds it, never the other slot's power; since R-HERO-POWER-REPLACED-02 it only runs "
+      + "while held, so a shifted-away quest no longer progresses at all.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -2479,9 +2480,9 @@ export const HEROES_RULES: GameRule[] = [
       + "and the new power's apply, in every phase. Behaviour reads the WIELDED power in slot 0 and slot 1, never the hero's "
       + "native power: Foreman Flint who Power Shifts Company Rate away pays the normal price for Dwarves, and any hero who "
       + "gains Company Rate gets Dwarves at 2 Gold. The same holds for the Gild count, Juggler's Carnival Coin text, the bots' "
-      + "power choice and the Start of Turn hero beat's label. Native-keyed schedules documented in heroes.ts (Drakko's and "
-      + "Chronos' quests, Runesmith's / Guardian's forge and its discount, turn-1 identity setups) are listed for an owner "
-      + "ruling and are not changed by this rule.",
+      + "power choice and the Start of Turn hero beat's label. The passives first left native here (Drakko's and Chronos' "
+      + "quests, Runesmith's / Guardian's forge and its discount, Ancients pairings) follow the held power too since the "
+      + "owner's 2026-11-01 ruling: see R-HERO-POWER-REPLACED-02. Turn-1 identity setups stay native.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -2491,5 +2492,31 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: "Conforms (built 2026-11-01). Before: `heroOfferPrice` read `getHero(heroId).power`, so Flint kept 2-Gold Dwarves after a Power Shifter and an adopter of Company Rate never got them.",
     example: "Flint casts Power Shifter and takes Nadja's power: a Dwarf in the Shop costs 3 Gold again.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroPowerReplaced.test.ts"], lastVerifiedAt: '2026-11-01' },
+  },
+  {
+    id: "R-HERO-POWER-REPLACED-02",
+    title: "Hero quests, forges, forge discounts and Ancients pairings follow the held power",
+    statement:
+      "The passives that used to run on the hero's own clock follow the WIELDED power (slot 0 or Void's slot 1). "
+      + "Drakko's Drumline and Chronos' Timelapse count buys only while held: shifting the power away freezes progress and "
+      + "the quest never pays out; a hero who gains the power runs it from 0 (progress only moves while held, so a power "
+      + "found again resumes where it stopped) and completion spends the holding slot's own latch. Runesmith's turn-5 forge "
+      + "opens for whoever holds Forgemaster on turn 5, on that power's latch. Guardian's turn-8 Epic forge (booked at "
+      + "createRun or on adoption, flagged `heroEpicForgeBooked`) is dropped when Runeguard is not held on the turn it comes "
+      + "due; another booking for that turn (Rune of the Epic Forge) still opens. The every-forge discount applies while "
+      + "either power is held in either slot. Ancients pairings key on the hero whose power holds slot 0 "
+      + "(`ancientPairingHeroId`), and a pairing's power reshape applies only while the power it was picked for "
+      + "(`powerOverrideFor`) holds slot 0. Recorded replays are state replays and are unaffected; a save without "
+      + "`heroEpicForgeBooked` / `powerOverrideFor` reads as the native hero's.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-01 (follow-up to R-HERO-POWER-REPLACED-01)", quote: "please make sure when a hero replaces their hero power that their existing hero power gets replaced." },
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-01: owner ruling picking all four left-native exceptions (Drakko/Chronos quests, Runesmith/Guardian forge visits, the forge discount, Ancients pairings) to follow the held power" },
+      { kind: 'code', ref: "packages/sim/src/reducer.ts drakkoQuestBuy / chronosQuestBuy / advanceCombat forges / applyHeroForgeDiscount / heroEpicForgeBooked; packages/sim/src/heroes.ts powerHolderId / activePowers; packages/sim/src/ancients.ts ancientPairingHeroId" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-01). Before: the quests keyed on `heroId`, Guardian's booking opened regardless of the held power, the discount read the native power, and Ancients pairings read `heroId`.",
+    example: "Drakko at 4/5 Shout buys casts Power Shifter for Nadja's power: further Shout buys do nothing and Drakko never arrives.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroPowerHeldPassives.test.ts"], lastVerifiedAt: '2026-11-01' },
   },
 ];

@@ -1052,17 +1052,19 @@ export function gildCopiesNeeded(run: { heroId: string; runeTwinGilding?: boolea
  * Until these two heroes, "the hero's power" and `getHero(run.heroId).power` were the same thing, and ~130
  * sites read it directly. Mimic WIELDS a different hero's power each turn (`adoptedPowerId`) and Void wields
  * TWO for the run (`voidPowerIds`), so behaviour sites now ask `hasPower(run, kind)` / `activePowers(run)`
- * instead. `getHero(run.heroId).power` remains correct for IDENTITY sites — scheduling keyed to the native
- * hero (Fi/Coran's turn-1 quest, Runesmith's forge), beat identity, save/opponent keys — which is why the
- * accessor is additive rather than a rewrite of getHero.
+ * instead. `getHero(run.heroId).power` remains correct for IDENTITY sites — turn-1 setups keyed to the native
+ * hero (Fi/Coran's turn-1 quest, createRun's grants), beat identity, save/opponent keys — which is why the
+ * accessor is additive rather than a rewrite of getHero. Every passive that runs LATER follows the held power
+ * (owner rulings 2026-11-01, R-HERO-POWER-REPLACED-01 / -02): Drakko's and Chronos' buy quests, Runesmith's turn-5
+ * and Guardian's turn-8 forges, their forge discount and the Ancients pairings all ask what is wielded now.
  */
 interface PowerCarrier {
   heroId: string; adoptedPowerId?: string; mimicPowerId?: string; voidPowerIds?: string[];
-  /** ANCIENTS: a picked pairing may reshape the NATIVE power (Auctioneer: Time makes Pulse passive, Genesis makes
-   *  it an untargeted 2 Gold power). Stamped at the pick (`AncientsState.powerOverride`); read only when the run has
-   *  Ancients on, and never over an adopted power (the pairing belongs to the hero's own power). */
+  /** ANCIENTS: a picked pairing may reshape the power it was picked for (Auctioneer: Time makes Pulse passive, Genesis
+   *  makes it an untargeted 2 Gold power). Stamped at the pick (`AncientsState.powerOverride`, owned by
+   *  `powerOverrideFor`); read only when the run has Ancients on, and only while that power holds slot 0. */
   ancientsEnabled?: boolean;
-  ancients?: { powerOverride?: Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost' | 'oncePerGame' | 'usesPerTurn'>> };
+  ancients?: { powerOverride?: Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost' | 'oncePerGame' | 'usesPerTurn'>>; powerOverrideFor?: string };
 }
 
 /** One power's own spend state, filed under its hero id while it is out of a slot (`RunState.powerLatches`). */
@@ -1116,9 +1118,18 @@ export function wieldedPowerId(run: PowerCarrier, slot: 0 | 1): string | undefin
   return run.voidPowerIds?.[0] ?? run.adoptedPowerId ?? run.mimicPowerId ?? run.heroId;
 }
 
+/** The hero id whose power of `kind` is wielded right now (slot 0 first, then Void's slot 1), else undefined. The
+ *  passive quests and forges key their once-per-game latch on THIS id (R-HERO-POWER-REPLACED-02): a Void holding
+ *  Drumline in slot 1 completes it on slot 1's latch, and a power shifted away is simply not found. */
+export function powerHolderId(run: PowerCarrier, kind: HeroPowerKind): string | undefined {
+  const slot = activePowers(run).findIndex((p) => p.kind === kind);
+  return slot === 0 || slot === 1 ? wieldedPowerId(run, slot) : undefined;
+}
+
 /** Is `heroId`'s once-per-game latch set? Reads the live slot field when that power is in a slot, else its filed
- *  latch. For the NATIVE-keyed passives (Drakko's and Chronos' quests, Runesmith's forge) that keep running on the
- *  hero's own clock after a Power Shifter: they must read and write THEIR latch, never the one on the slot. */
+ *  latch (a power filed away by a swap keeps what IT spent, so finding it again never re-opens a finished quest).
+ *  The held-power passives (Drakko's and Chronos' quests, Runesmith's forge) pass `powerHolderId`, so they read and
+ *  write the latch of the slot that holds them, never another power's (R-HERO-POWER-FRESH-01). */
 export function powerLatchSpent(run: PowerCarrier & LatchCarrier, heroId: string): boolean {
   if (wieldedPowerId(run, 0) === heroId) return !!run.heroPowerSpent;
   if (wieldedPowerId(run, 1) === heroId) return !!run.heroPowerSpent2;
@@ -1126,7 +1137,7 @@ export function powerLatchSpent(run: PowerCarrier & LatchCarrier, heroId: string
 }
 
 /** Set `heroId`'s once-per-game latch (see `powerLatchSpent`): on the slot that holds it, else on its filed latch,
- *  so a native quest completing while another power is wielded never spends that other power (R-HERO-POWER-FRESH-01). */
+ *  so a quest completing in one slot never spends the power in the other (R-HERO-POWER-FRESH-01). */
 export function markPowerLatchSpent(run: PowerCarrier & LatchCarrier, heroId: string): void {
   if (wieldedPowerId(run, 0) === heroId) { run.heroPowerSpent = true; return; }
   if (wieldedPowerId(run, 1) === heroId) { run.heroPowerSpent2 = true; return; }
@@ -1138,17 +1149,21 @@ export function markPowerLatchSpent(run: PowerCarrier & LatchCarrier, heroId: st
  *  post-turn-4 Void. Before Mimic's first pick / Void's turn 4, the base placeholder power stands. */
 export function activePowers(run: PowerCarrier): HeroPower[] {
   const base = HERO_INDEX[run.heroId]?.power ?? HEROES[0]!.power;
+  // ANCIENTS: the pairing's reshape belongs to the POWER it was picked for (`powerOverrideFor`, absent on saves from
+  // before 2026-11-01 = the native power). It applies while that power holds slot 0, whoever holds it, and stops
+  // the moment another power replaces it (R-HERO-POWER-REPLACED-02).
+  const shape = run.ancientsEnabled ? run.ancients?.powerOverride : undefined;
+  const shapeFor = run.ancients?.powerOverrideFor ?? run.heroId;
+  const shaped = (id: string, p: HeroPower): HeroPower => (shape && id === shapeFor ? { ...p, ...shape } : p);
   // VOID's pair first: it is the only carrier that wields TWO, and Power Shifter replaces its slot 0 in place
   // (see `pickPower`) rather than collapsing the pair to one.
-  if (base.kind === 'voidTwin' && run.voidPowerIds?.length) return run.voidPowerIds.map((id) => getHero(id).power);
+  if (base.kind === 'voidTwin' && run.voidPowerIds?.length) return run.voidPowerIds.map((id, i) => (i === 0 ? shaped(id, getHero(id).power) : getHero(id).power));
   // An ADOPTED power replaces the native one for ANY hero — Mimic's per-turn disguise, or Power Shifter's
   // permanent swap on a hero who never had a Discover of their own. `mimicPowerId` is the pre-rename key,
   // read so a run saved between the two same-day merges keeps its disguise.
   const adopted = run.adoptedPowerId ?? run.mimicPowerId;
-  if (adopted && HERO_INDEX[adopted]) return [getHero(adopted).power];
-  const shape = run.ancientsEnabled ? run.ancients?.powerOverride : undefined;
-  if (shape) return [{ ...base, ...shape }];
-  return [base];
+  if (adopted && HERO_INDEX[adopted]) return [shaped(adopted, getHero(adopted).power)];
+  return [shaped(run.heroId, base)];
 }
 
 /** Does ANY currently-wielded power have this kind? The drop-in replacement for

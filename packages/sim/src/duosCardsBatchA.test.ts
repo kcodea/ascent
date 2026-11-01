@@ -85,12 +85,69 @@ describe('Antsy: "Echo: Give your teammate a random Tier 1 Shop Spell."', () => 
   });
 });
 
-describe('Salandaman: "Has +4/+4 for every Salandaman that died this game."', () => {
+describe("Salandaman: Has +4/+4 for each of your team's Salandamans that died this game.", () => {
   it('each death (any copy) grows the run-wide enchant; the survivor grows mid-fight', () => {
     const { after, events } = fight(seat({ board: [card('duo_salandaman', 's1'), card('duo_salandaman', 's2')], hand: [card('duo_salandaman', 'h1')] }), foe(30, 200));
     const deaths = events.filter((e) => e.type === 'death').length;
     expect(deaths).toBeGreaterThanOrEqual(2);
     expect(after.cardBuffs['duo_salandaman']).toEqual({ attack: 8, health: 8 });
+  });
+
+  // R-DUOS-SALANDAMAN-TEAM-01 (owner 2026-11-01: "this means it counts both sides game wide").
+  it('each of my deaths is sent to my teammate in real time (a teamSend beat per death), once', () => {
+    const { after, events } = fight(seat({ board: [card('duo_salandaman', 's1'), card('duo_salandaman', 's2', true)] }), foe(30, 200));
+    // Two deaths, a Gilded one included: still ONE death each.
+    expect(teamOut(after)).toEqual([{ kind: 'cardDeath', cardId: 'duo_salandaman', count: 1 }, { kind: 'cardDeath', cardId: 'duo_salandaman', count: 1 }]);
+    expect(events.filter((e) => e.type === 'teamSend')).toHaveLength(2);
+    // Queued when the fight landed (the real-time path), never again at settle.
+    expect(after.duos!.outbox.filter((e) => e.team).every((e) => e.combatIdx != null)).toBe(true);
+  });
+
+  it("my teammate's deaths grow MY Salandamans: board, hand (a Gilded copy too) and every future copy", () => {
+    const { after: ann } = fight(seat({ board: [card('duo_salandaman', 's1'), card('duo_salandaman', 's2')] }), foe(30, 200));
+    const bob0 = seat({ board: [card('duo_salandaman', 'b1')], hand: [card('duo_salandaman', 'h1', true)] }, 12);
+    const bob = ship(ann, 'p1', bob0);
+    expect(bob.cardBuffs['duo_salandaman']).toEqual({ attack: 8, health: 8 });
+    expect([bob.board[0]!.attack, bob.board[0]!.health]).toEqual([12, 12]);
+    expect([bob.hand[0]!.attack, bob.hand[0]!.health]).toEqual([16, 16]);
+    // A copy that lands twice (a retry, a reconnect) counts once.
+    expect(ship(ann, 'p1', bob)).toBe(bob);
+    // Then Bob's own death adds on top: the team's total.
+    const { after: bob2 } = fight(bob, foe(30, 200));
+    expect(bob2.cardBuffs['duo_salandaman']).toEqual({ attack: 12, health: 12 });
+  });
+
+  it("a teammate's death lands mid-fight too (any phase), and a non-team or unknown card counts nothing", () => {
+    const parked = reduce(seat({ board: [card('duo_salandaman', 'b1')] }, 12), { type: 'faceOmen', deferFight: true });
+    const wire = (cardId: string, seq: number) => ({ uid: `team${seq}`, cardId: '__team', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false, passFrom: 'team', team: { kind: 'cardDeath', cardId, count: 1 } }) as unknown as BoardCard;
+    const mid = reduce(parked, { type: 'receivePass', from: 'p1', seq: 0, card: wire('duo_salandaman', 0) });
+    expect(mid.cardBuffs['duo_salandaman']).toEqual({ attack: 4, health: 4 });
+    const knit = reduce(mid, { type: 'receivePass', from: 'p1', seq: 1, card: wire('knit', 1) });
+    expect(knit.cardBuffs['knit']).toBeUndefined();
+    const junk = reduce(knit, { type: 'receivePass', from: 'p1', seq: 2, card: wire('nope', 2) });
+    expect(junk.cardBuffs).toEqual(knit.cardBuffs);
+  });
+
+  it('Spear Warden stays a one-run tally: its deaths send nothing', () => {
+    const { after } = fight(seat({ board: [card('knit', 'k1'), card('knit', 'k2')] }), foe(30, 200));
+    expect(teamOut(after).filter((t) => t.kind === 'cardDeath')).toEqual([]);
+  });
+
+  it("TAG-TEAM: the first board's Salandaman deaths are on the teammate's board when it steps in", () => {
+    const sal = (uid: string): BoardMinion => ({ cardId: 'duo_salandaman', attack: 4, health: 4, sourceUid: uid }) as unknown as BoardMinion;
+    const result = simulate(
+      [sal('a1'), sal('a2')], foe(30, 400), makeRng(3), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 6 }),
+      { reserve: { player: { board: [sal('b1')], state: combatSide({ tier: 4 }) } } },
+    );
+    const tagIn = (result.events as { type: string; side?: string; minions?: { cardId: string; attack: number; health: number }[] }[])
+      .find((e) => e.type === 'tagIn' && e.side === 'player');
+    expect(tagIn).toBeDefined();
+    // Two of A's died (+8/+8): B's 4/4 steps in at 12/12.
+    expect(tagIn!.minions!.map((m) => [m.attack, m.health])).toEqual([[12, 12]]);
+    // B's own carry holds only B's own deaths: A's ride the team channel to B's run instead.
+    const members = result.tagTeam!.members.player!;
+    expect(members[0]!.cardBuffs).toEqual([{ cardId: 'duo_salandaman', attack: 8, health: 8 }]);
+    expect(members[1]!.cardBuffs ?? []).toEqual([{ cardId: 'duo_salandaman', attack: 4, health: 4 }]);
   });
 });
 

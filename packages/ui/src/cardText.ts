@@ -386,7 +386,7 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'summonBuffTribeAsym');
   if (!def || !eff) return null;
-  const p = eff.params as { attack?: number; health?: number } | undefined;
+  const p = eff.params as { attack?: number; health?: number; team?: boolean } | undefined;
   const g = golden ? 2 : 1;
   const a = (Number(p?.attack ?? 2) + summonBonus) * g;
   const h = (Number(p?.health ?? 4) + summonBonus) * g;
@@ -1160,7 +1160,7 @@ export function cardTypeTallyText(cardId: string, enchant: { attack: number; hea
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'cardDeathScaler');
   if (!def || !eff) return null;
-  const p = eff.params as { attack?: number; health?: number } | undefined;
+  const p = eff.params as { attack?: number; health?: number; team?: boolean } | undefined;
   const perA = Number(p?.attack ?? 1);
   const perH = Number(p?.health ?? 1);
   const per = perA > 0 ? perA : perH;
@@ -1168,7 +1168,10 @@ export function cardTypeTallyText(cardId: string, enchant: { attack: number; hea
   // Ceil, not floor: a save from before the 2026-09-18 rework carries +3/+2 stacks, which still mean "a death".
   const deaths = per > 0 ? Math.ceil(total / per) : 0;
   if (deaths <= 0) return null;
-  return `Has **{{+${enchant.attack}/+${enchant.health}}}** (+${perA}/+${perH} for every **${def.name}** that died this game; {{${deaths}}} so far).`;
+  // A TEAM tally (Salandaman, R-DUOS-SALANDAMAN-TEAM-01): the enchant already holds the teammate's deaths (their
+  // `cardDeath` team effects land on it), so the total and the count are the team's.
+  const which = p?.team ? `each of your team's **${def.name}s**` : `every **${def.name}**`;
+  return `Has **{{+${enchant.attack}/+${enchant.health}}}** (+${perA}/+${perH} for ${which} that died this game; {{${deaths}}} so far).`;
 }
 
 /**

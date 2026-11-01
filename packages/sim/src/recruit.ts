@@ -3735,17 +3735,27 @@ function noteShopCardDeath(state: RunState, destroyed: BoardCard): void {
   const eff = CARD_INDEX[destroyed.cardId]?.effects.find((e) => e.on === 'passive' && e.do === 'cardDeathScaler');
   if (!eff) return;
   const cardId = str(eff.params?.cardId) || destroyed.cardId;
-  const a = num(eff.params?.attack, 1);
-  const h = num(eff.params?.health, 1);
-  if (a === 0 && h === 0) return;
+  if (!growCardDeathTally(state, cardId, eff.params, 1, destroyed.uid)) return;
+  // TEAM-WIDE (Salandaman, R-DUOS-SALANDAMAN-TEAM-01): the teammate's run counts this death too. No-op outside Duos.
+  if (eff.params?.team === true) queueTeamEffect(state, { kind: 'cardDeath', cardId, count: 1 });
+}
+
+/** Grow `cardId`'s run-wide death tally by `deaths` deaths at the marker's per-death rate: the `cardBuffs` enchant
+ *  (every future copy) and every copy on the board and in hand now, except `skipUid` (the dying body). False = a 0/0
+ *  rate (nothing grew). One body for a Shop death and a teammate's death (`receiveTeamEffect`). */
+function growCardDeathTally(state: RunState, cardId: string, params: Record<string, unknown> | undefined, deaths: number, skipUid?: string): boolean {
+  const a = num(params?.attack, 1) * deaths;
+  const h = num(params?.health, 1) * deaths;
+  if (a === 0 && h === 0) return false;
   const source = CARD_INDEX[cardId]?.name ?? cardId;
   state.cardBuffs ??= {};
   const cur = (state.cardBuffs[cardId] ??= { attack: 0, health: 0 });
   cur.attack += a;
   cur.health += h;
   for (const c of [...state.board, ...state.hand]) {
-    if (c.cardId === cardId && c.uid !== destroyed.uid) addBuff(c, source, a, h);
+    if (c.cardId === cardId && c.uid !== skipUid) addBuff(c, source, a, h);
   }
+  return true;
 }
 
 /**
@@ -17713,6 +17723,13 @@ export function receiveTeamEffect(state: RunState, from: string, seq: number, ef
     applyOwnTeamEffect(s, { kind: 'buffLeftmost', attack: stat(effect.attack), health: stat(effect.health), ...(id ? { cardId: id } : {}) });
   } else if (effect.kind === 'catch') {
     duosCatchFromMate(s, amt(effect.amount)); // Playing Catch: the teammate's rune frees the team's passes
+  } else if (effect.kind === 'cardDeath') {
+    // Salandaman (R-DUOS-SALANDAMAN-TEAM-01): the teammate's copies died. Only a TEAM tally card counts, at THIS run's
+    // own per-death rate (the payload names the card and the count, never the size). Any phase, so it lands mid-fight.
+    const id = typeof effect.cardId === 'string' ? effect.cardId : '';
+    const eff = CARD_INDEX[id]?.effects.find((e) => e.on === 'passive' && e.do === 'cardDeathScaler' && e.params?.team === true);
+    const deaths = Math.min(10, Math.max(1, Math.floor(typeof effect.count === 'number' && Number.isFinite(effect.count) ? effect.count : 1)));
+    if (eff) growCardDeathTally(s, str(eff.params?.cardId) || id, eff.params, deaths);
   }
   d.received.push(key);
   return s;

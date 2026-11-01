@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-01',
     changes: [
+      { category: 'Balance', text: "Salandaman (Duos) now counts your whole team: it has +4/+4 for each of your team's Salandamans that died this game.", details: [
+        "A Salandaman that dies on your teammate's side now grows yours too, the moment it dies.",
+        "In a fight, your teammate's board steps in already carrying the Salandamans your board lost.",
+      ] },
       { category: 'Systems', text: 'Phones: your hero portrait and the combat foe portrait are sharp again. Before, they could look blurry.' },
       { category: 'Systems', text: 'Duos: every card, rune or Equipment that sends your teammate something now shows the pass stream from where it came from into their portrait.', details: [
         'Matchmaker: the minion you pick streams from its Discover card.',

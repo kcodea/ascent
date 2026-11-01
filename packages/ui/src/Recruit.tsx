@@ -355,7 +355,7 @@ const FLIP_SELECTOR = `${FLIP_SEL_TAVERN}, ${FLIP_SEL_WARBAND}`;
 /** How many copies make a gild: two under Rune of Twin Gilding or Midas' Touch, else three. Mirrors the sim's `need`
  *  (`gildCopiesNeeded`); the trail count comes from this rule, never from counting the uids that vanished. */
 function gildNeedOf(run: RunState): number {
-  return run.runeTwinGilding || getHero(run.heroId).power.kind === 'midasTouch' ? 2 : 3;
+  return gildCopiesNeeded(run); // the sim's rule: reads the WIELDED power (R-HERO-POWER-REPLACED-01)
 }
 
 /** A hand or warband card's on-screen centre, for the gild's trail sources — null when it isn't laid out. */
@@ -1146,7 +1146,7 @@ export function liveOptsFromRun(run: RunState): ShopViewOpts { // exported for t
     whisperImprove: run.whisperImprove, // Set 4: Tolan's live Runebind value on a Discover / fly-in
     // The rule notes and run-level text switches the hand and Discover printed and the Shop did not (2026-10-14 audit,
     // R-TEXT-SURFACES-01): every surface now reads them from this one builder.
-    juggler: getHero(run.heroId).power.kind === 'baldgecoin',
+    juggler: activePowers(run).some((p) => p.kind === 'baldgecoin'), // the wielded power, as `jugglerBuy` (R-HERO-POWER-REPLACED-01)
     runeFlags: runeTextFlagsOf(run),
     runeMammoth: !!run.questFlags?.runeMammoth,
     maxTier: maxTierFor(run.rift),
@@ -5260,7 +5260,9 @@ export function Recruit() {
         // the def's own layers all anchor `target`, so the click point — which can land anywhere on a card,
         // including its corner — is the wrong origin. `minionAt` already found the element, so its rect gives
         // the true centre for free.
-        const isAuctioneer = !equipArmed && useGame.getState().run.heroId === 'myra';
+        // The FIRED power's FX: the armed slot's wielded power, so a Mimic wearing Pulse gets it and an Auctioneer who
+        // shifted Pulse away does not (R-HERO-POWER-REPLACED-01).
+        const isAuctioneer = !equipArmed && activePowers(useGame.getState().run)[useGame.getState().heroArmedSlot]?.kind === 'replayBattlecry';
         if (isAuctioneer) {
           // The same selector `minionAt` used to FIND it, so the two cannot disagree about what a targetable
           // minion is. Falls back to the click point if the card has gone (it cannot have, on this frame —

@@ -19,7 +19,7 @@ import type { LobbyRules } from './lobby/types';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots, stampNewShopOffers } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
-import { DEFAULT_HERO_ID, activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool, swapPowerLatch, powerLatchSpent, markPowerLatchSpent, wieldedPowerId } from './heroes';
+import { DEFAULT_HERO_ID, activePowers, getHero, type HeroPowerKind, gildCopiesNeeded, hasPower, powerDiscoverPool, swapPowerLatch, powerLatchSpent, markPowerLatchSpent, wieldedPowerId } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
@@ -5809,7 +5809,9 @@ function advanceCombat(s: RunState): void {
   // START OF TURN BEATS (R-SOT-BEAT-01, owner 2026-09-27: "yes they all need their own beat"): every Start of Turn
   // source below runs through `recordSotBeat`, which DIFFS what it changed into its own beat on `sotBeatFx` for the
   // Shop to play after the return wipe. Read-only: nothing here draws from the RNG or changes what the source does.
-  const heroSource = (): SotBeatSource => ({ kind: 'hero', id: s.heroId, label: getHero(s.heroId).power.name });
+  // Labelled with the WIELDED power that fires (R-HERO-POWER-REPLACED-01): a Mimic wearing Chaos Bond shows "Chaos
+  // Bond", not "Mimicry". Falls back to the native power's name (Cassen's pending Commission keeps her label).
+  const heroSource = (kind?: HeroPowerKind): SotBeatSource => ({ kind: 'hero', id: s.heroId, label: (kind && activePowers(s).find((p) => p.kind === kind)?.name) || getHero(s.heroId).power.name });
   const runeSource = (id: string): SotBeatSource => ({ kind: 'rune', id, label: RUNE_INDEX[id]?.name ?? id });
   const runeKindSource = (kind: string): SotBeatSource => runeSource(s.runeIdByKind?.[kind] ?? kind);
   // Grow toward the cap (10) but never DROP maxEmbers — so Nadja / Mana Font bonuses that pushed it
@@ -5828,7 +5830,7 @@ function advanceCombat(s: RunState): void {
   if (s.tutorialShopScript) s.tutorialShopRoll = 0;
   // Cassen: a commission that has come due pays out as this shop opens. Checked AFTER the wave bump, so
   // `dueWave` names the turn the reward actually lands on.
-  if (s.commission && s.wave >= s.commission.dueWave) { const due = s.commission; recordSotBeat(s, heroSource(), () => payCommission(s, due)); }
+  if (s.commission && s.wave >= s.commission.dueWave) { const due = s.commission; recordSotBeat(s, heroSource('commission'), () => payCommission(s, due)); }
   // SET 4 WHISPERS (owner 2026-10-13, R-WHISPER-02): last turn's Whisper grants come off now — kept through the fight
   // that just resolved, gone before anything this turn reads the board. Engraved never kept them (combat gains only).
   expireWhisperBuffs(s);
@@ -6164,7 +6166,7 @@ function advanceCombat(s: RunState): void {
   // Chaos hero power: at the START of every 5th turn, add a Chaos Attachment token to the hand
   // (the checkTriples below also combines it if it completes a triple). The hero starts with one token
   // (createRun); this is the recurring grant — turns 5, 10, 15, …
-  if (hasPower(s, 'chaos') && s.wave % 5 === 0) recordSotBeat(s, heroSource(), () => {
+  if (hasPower(s, 'chaos') && s.wave % 5 === 0) recordSotBeat(s, heroSource('chaos'), () => {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && s.hand.length < handCap(s)) {
       const grantUid = `b${s.uidSeq++}`;
@@ -6188,13 +6190,13 @@ function advanceCombat(s: RunState): void {
   // Gildmaster: get a Goldcrafter (a spell that makes a friendly minion golden) at the START of every 4th
   // turn — turns 4, 8, 12, …. Conjured to hand (hand-cap-safe); a granted spell can't complete a triple.
   if (hasPower(s, 'recurringGoldcrafter') && s.wave % 4 === 0) {
-    recordSotBeat(s, heroSource(), () => conjureToHand(s, CARD_INDEX['goldcrafter'] ? [CARD_INDEX['goldcrafter']!] : [], 1));
+    recordSotBeat(s, heroSource('recurringGoldcrafter'), () => conjureToHand(s, CARD_INDEX['goldcrafter'] ? [CARD_INDEX['goldcrafter']!] : [], 1));
   }
   // KINDNESS — Great Presence (owner design 2026-08-26): Discover a Gift at the start of every 4th turn
   // (4, 8, 12, …), the same cadence Gildmaster's grant uses. Queued like the other start-of-turn Discovers,
   // so a quest offer or forge still takes priority.
   if (hasPower(s, 'greatPresence') && s.wave % 4 === 0) {
-    recordSotBeat(s, heroSource(), () => queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] }));
+    recordSotBeat(s, heroSource('greatPresence'), () => queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] }));
   }
   // Quest delayed rewards (Trail Rations' "repeat in 2 turns"): tick each pending grant down a turn and
   // re-apply the ones that come due — WITHOUT re-scheduling (allowRepeat=false) — here with the other

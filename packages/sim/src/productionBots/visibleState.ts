@@ -1,5 +1,5 @@
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
-import { activePowers, getHero } from '../heroes';
+import { activePowers, primaryPower } from '../heroes';
 import { offerBuyPrice, refreshCostOf, upgradeCostOf } from '../reducer';
 import { ancientEnchantedSpellCut } from '../ancients';
 import { effectiveTargetTribe, isTribe, offerBuyStats, spellAttackBonus, spellCostReduction, spellHealthBonus } from '../recruit';
@@ -185,7 +185,6 @@ function starformOf(s: RunState): BotStarformView | null {
 }
 
 export function toBotVisibleState(s: RunState): BotVisibleState {
-  const hero = getHero(s.heroId);
   const powers = powersOf(s);
   const economy: BotEconomyView = {
     gold: s.embers,
@@ -201,7 +200,7 @@ export function toBotVisibleState(s: RunState): BotVisibleState {
     resolve: s.resolve,
     armor: s.armor,
     powerReady: powers[0]?.ready ?? false,
-    powerKind: hero.power.kind,
+    powerKind: primaryPower(s).kind, // the wielded slot-0 power (R-HERO-POWER-REPLACED-01)
     powers,
   };
   const runCounters: BotRunCounters = {

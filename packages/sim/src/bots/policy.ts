@@ -13,7 +13,7 @@ import { CONFIG } from '../config';
 import { reduce } from '../reducer';
 import { refreshCostOf, upgradeCostOf } from '../reducer';
 import { spellCostReduction } from '../recruit';
-import { getHero } from '../heroes';
+import { primaryPower } from '../heroes';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { cardScore, type BotWeights } from './scoring';
 import type { BotPackage } from './packages';
@@ -105,7 +105,7 @@ const TARGETS_WORST = new Set<string>(['displace']);
  *  one happened to be an invalid target for the power (wrong tribe, already golden, already Warded, …),
  *  which silently skipped the power for the whole turn. Returns null only if nothing at all is legal. */
 function heroPowerAction(state: RunState, w: BotWeights, pkg?: BotPackage): Action | null {
-  const power = getHero(state.heroId).power;
+  const power = primaryPower(state); // the slot-0 power the action fires, not the native one (R-HERO-POWER-REPLACED-01)
   if (power.untargeted) {
     const a: Action = { type: 'heroPower' };
     return reduce(state, a) !== state ? a : null;
@@ -203,7 +203,7 @@ export function decide(state: RunState, w: BotWeights, b: BotBehaviour, pkg?: Bo
 
   // 2. EARLY hero power — only the economy/enabling kinds, so their gold/cards fuel THIS turn's buys. Buff
   //    powers wait for step 5b (a built board / a keeper to land on).
-  if (state.heroReady && EARLY_POWERS.has(getHero(state.heroId).power.kind)) {
+  if (state.heroReady && EARLY_POWERS.has(primaryPower(state).kind)) {
     const hp = heroPowerAction(state, w, pkg);
     if (hp) return hp;
   }
@@ -258,7 +258,7 @@ export function decide(state: RunState, w: BotWeights, b: BotBehaviour, pkg?: Bo
   }
 
   // 5a. LATE hero power — buff/board kinds fire now, after buying, on the best keeper (targeting fixed).
-  if (state.heroReady && !EARLY_POWERS.has(getHero(state.heroId).power.kind)) {
+  if (state.heroReady && !EARLY_POWERS.has(primaryPower(state).kind)) {
     const hp = heroPowerAction(state, w, pkg);
     if (hp) return hp;
   }

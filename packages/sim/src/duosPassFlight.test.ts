@@ -14,7 +14,7 @@ import { type BoardCard, type RunState } from './state';
 import { createVersusRun } from './versus/run';
 import type { VersusRoomOptions } from './versus/options';
 import { duosWireOf, queueTeamEffect, stampOutboxSrc } from './duosPass';
-import { duosOnGild } from './duosRunes';
+import { duosOnTripleReward } from './duosRunes';
 
 const DUOS: VersusRoomOptions = { v: 1, mode: 'duos', modifiers: [] };
 
@@ -66,7 +66,7 @@ describe('R-DUOS-PASS-FLIGHT-01: every effect send names its source on screen', 
 
   it('a rune\'s gift names the rune (Teammate Synergy)', () => {
     const s = seat({ duos: { outbox: [], received: [], refused: [], runes: { synergyLeft: 1 } } });
-    duosOnGild(s);
+    duosOnTripleReward(s, 3, false);
     expect(s.duos!.outbox[0]).toMatchObject({ team: { kind: 'tripleReward' }, src: { rune: 'rune_teammate_synergy' } });
   });
 

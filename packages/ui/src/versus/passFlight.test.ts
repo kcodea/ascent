@@ -50,9 +50,13 @@ describe('passFlightOf: where each send starts', () => {
 
   it('nothing to fly: a drag pass (its drop played already) and a team effect that is not a card or Gold', () => {
     expect(passFlightOf({ card: { uid: 'h1', cardId: 'x' } })).toBeNull();
-    for (const kind of ['maxGold', 'upgradeDiscount', 'buffLeftmost', 'catch', 'sold']) {
+    for (const kind of ['maxGold', 'upgradeDiscount', 'catch', 'sold', 'listen', 'mateGild']) {
       expect(passFlightOf(team({ kind }, { src: { uid: 'x' } }))).toBeNull();
     }
+  });
+
+  it('a buff for the teammate streams too: Buddy System from its rune badge (Duos batch 2)', () => {
+    expect(passFlightOf(team({ kind: 'buffLeftmost', attack: 3, health: 2, runeId: 'rune_buddy_system' } as never, { src: { rune: 'rune_buddy_system' } }))).toEqual({ at: 'rune', id: 'rune_buddy_system' });
   });
 });
 

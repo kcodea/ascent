@@ -625,11 +625,12 @@ export const ARENA_EFFECTS = {
     if (amount > 0) arena.sendTeam({ kind: 'maxGold', amount }, true, true);
   },
 
-  /** Spencer: "Reduce the cost of upgrading your team's Shops by 1." You AND your teammate. Gilded doubles. */
+  /** Spencer: "Reduce the cost of upgrading your team's Shops by 1." You AND your teammate. Gilded doubles.
+   *  `mateOnly` (Upgrade Assist, Duos batch 2: "Your teammate's next Shop upgrade costs 3 less"): the teammate only. */
   teamUpgradeDiscount(arena: EffectArena, params: Record<string, unknown>): void {
     const g = arena.self.golden ? 2 : 1;
     const amount = (typeof params.amount === 'number' ? params.amount : 1) * g;
-    if (amount > 0) arena.sendTeam({ kind: 'upgradeDiscount', amount }, true, true);
+    if (amount > 0) arena.sendTeam({ kind: 'upgradeDiscount', amount }, params.mateOnly !== true, true);
   },
 
   /** Give your TEAMMATE a card (Share the Wealth's Gold Pouch, Antsy's random Tier 1 Shop Spell, Toot Toot's minion

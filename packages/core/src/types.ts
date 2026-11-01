@@ -1073,6 +1073,7 @@ export type EffectFactoryId =
   | 'spellBuffTeamLeftmost' // cast: your AND your teammate's left-most minion +attack/+health, spell power folded (Broshake)
   | 'megamimicCopy' // Megamimic (Duos rune token): passive marker. At every Start of Combat it becomes an exact combat-only copy of the teammate's highest-Health minion (`core/combat/megamimic.ts`, read by `simulate`)
   | 'discoverRestToTeammate' // cast: Discover a minion; your teammate gets the other options as gifts (Disco). Shop only (a Discover)
+  | 'discoverSpellShareTeammate' // cast: Discover a spell; your teammate gets a copy of the pick (Double Down). Shop only (a Discover)
   | 'discoverMateTribePass' // Shout: Discover a minion of your teammate's most common type and pass it to them (Matchmaker). Combat: a random one, gifted at settle
   | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
 
@@ -1881,7 +1882,9 @@ export type QuestReward =
   | { kind: 'upgradeShopTier'; by: number }
   /** DUOS-ONLY RUNES (owner design 2026-10-30, R-DUOS-RUNES-01): arm one of the Duos rune engines (`sim/duosRunes.ts`).
    *  `per` / `cap` are the meter runes' threshold and per-turn cap; `uses` the per-turn or per-game allowance. */
-  | { kind: 'duosRune'; rune: 'spellTheory' | 'teammateSynergy' | 'salesman' | 'shoutfulBounty' | 'echoingResults' | 'playingCatch'; per?: number; cap?: number; uses?: number }
+  | { kind: 'duosRune'; rune: 'spellTheory' | 'teammateSynergy' | 'salesman' | 'shoutfulBounty' | 'echoingResults' | 'playingCatch'
+      /** Duos batch 2 (owner 2026-11-01). */
+      | 'handMeDowns' | 'buddySystem' | 'gildPact' | 'pepTalk'; per?: number; cap?: number; uses?: number }
   | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
@@ -2278,6 +2281,11 @@ export interface QuestCombatMods {
    *  it, a trip sends `gift` to the teammate through `sendTeam` (real time, a `teamSend` event), at most `cap` per turn.
    *  The final tick and payouts ride `ShoutCarry.duosMeters` home. */
   duosMeters?: { sourceId: string; meter: 'shout' | 'echo'; per: number; tick: number; cap: number; paid: number; gift: TeamEffect }[];
+  /** PEP TALK (Duos rune, owner 2026-11-01, R-DUOS-RUNES-04): "When you trigger a Shout, give your teammate's left-most
+   *  minion +2/+3." Armed on the HOLDER's side. In a tag-team fight, while the holder's board is fighting and its
+   *  teammate's board is still the waiting RESERVE, every Shout fire on that side gives the reserve's left-most minion
+   *  `attack`/`health`, combat-only, so it steps in already buffed (owner: "if you go second, they have the buff"). */
+  duosPepTalk?: { attack: number; health: number };
   shoutMeters?: { sourceId: string; per: number; tick: number; grantSpell?: number; grantOneOf?: string[];
     /** Rune of the Whelps (2026-10-07): these exact card ids to hand on a trip (the shop's `grantCards`). */
     grantCards?: string[];
@@ -4069,20 +4077,28 @@ export type TeamEffect =
       randomSpell?: boolean; count?: number }
   /** Gold for the teammate, now (their current Gold; a Gold gain like any other). */
   | { kind: 'gold'; amount: number }
-  /** A Triple Reward for the teammate (their run's own Gild reward path, every modifier it has). */
-  | { kind: 'tripleReward'; count: number }
+  /** A Triple Reward for the teammate (their run's own Gild reward path, every modifier it has). `tier`: the tier the
+   *  sender's reward was granted at (Teammate Synergy, owner 2026-11-01: the same reward), else the receiver's own.
+   *  `synergy`: sent by Teammate Synergy, so it never triggers the receiver's Teammate Synergy back (no ping-pong). */
+  | { kind: 'tripleReward'; count: number; tier?: number; synergy?: true }
   /** The sender sold a minion (Hippie Hulk's trigger on the receiver). */
   | { kind: 'sold'; cardId: string; attack: number; health: number }
   /** Broshake (Duos batch A): +attack/+health to the run's LEFT-MOST board minion, permanently (the sender's spell
    *  power already folded in). `cardId` names the source for the buff breakdown. */
-  | { kind: 'buffLeftmost'; attack: number; health: number; cardId?: string }
+  | { kind: 'buffLeftmost'; attack: number; health: number; cardId?: string; /** A Duos rune that sent it (Buddy System), naming the buff when no card did. */ runeId?: string }
   /** PLAYING CATCH (Duos rune, R-DUOS-RUNES-01): the sender's rune gives the TEAM `amount` more free manual passes
    *  each round. The receiver adds it to its own count of the team's allowance. */
   | { kind: 'catch'; amount: number }
   /** SALANDAMAN (owner 2026-11-01, R-DUOS-SALANDAMAN-TEAM-01): `count` copies of the sender's `cardId` (a `cardDeathScaler`
    *  card with `team: true`) DIED on the sender's side. The receiver grows its own run-wide tally for that card type by its
    *  OWN def's per-death amount (never the payload's), exactly as one of its own deaths would. */
-  | { kind: 'cardDeath'; cardId: string; count: number };
+  | { kind: 'cardDeath'; cardId: string; count: number }
+  /** DUOS BATCH 2 (owner 2026-11-01, R-DUOS-RUNES-04): the sender's rune needs to hear the receiver's Gilds (`gild`:
+   *  Gild Pact). The receiver remembers it and from then on tells the sender's run each time (`mateGild`). Carries no
+   *  gift. */
+  | { kind: 'listen'; what: 'gild' }
+  /** The teammate Gilded a minion (sent only while this run listens for it). */
+  | { kind: 'mateGild' };
 
 export interface ShoutCarry {
   /** DUOS: team effects a combat body produced (`sendTeam`): `self` lands on this side's run at settle, `mate` is

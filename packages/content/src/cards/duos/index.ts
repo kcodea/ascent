@@ -1,7 +1,7 @@
 import type { CardDef } from '@game/core';
 import { DUOS_DRAGONS } from './dragons';
 import { DUOS_NEUTRAL, DUOS_NEUTRAL_DISCOVER_PASS } from './neutral';
-import { DUOS_SPELLS, DUOS_SPELLS_DISCOVER_PASS } from './spells';
+import { DUOS_SPELLS, DUOS_SPELLS_BATCH2, DUOS_SPELLS_DISCOVER_PASS } from './spells';
 import { DUOS_BEASTS } from './beasts';
 import { DUOS_DWARVES } from './dwarves';
 import { DUOS_KOBOLDS } from './kobolds';
@@ -27,6 +27,8 @@ export const DUOS_CARDS: readonly CardDef[] = [
   ...DUOS_BEASTS, ...DUOS_DWARVES, ...DUOS_KOBOLDS, ...DUOS_DEMONS,
   // The Discover + pass batch (2026-10-30): Matchmaker, CueBee, Disco.
   ...DUOS_NEUTRAL_DISCOVER_PASS, ...DUOS_SPELLS_DISCOVER_PASS,
+  // Duos batch 2 (owner picks 2026-11-01): Double Down, Upgrade Assist.
+  ...DUOS_SPELLS_BATCH2,
 ];
 export { DUOS_DRAGONS, DUOS_NEUTRAL, DUOS_SPELLS, DUOS_BEASTS, DUOS_DWARVES, DUOS_KOBOLDS, DUOS_DEMONS };
 /** Duos Whispers (CueBee's Pass): granted, never drawable, so NOT in `DUOS_CARDS` (its spells join the Shop pool). */

@@ -91,8 +91,8 @@ describe('Basic Duos runes', () => {
     expect(bob.embers).toBe(5);
   });
 
-  it('Teammate Synergy: a Gild gives the teammate a Triple Reward, 3 per game', () => {
-    const id = plainMinion();
+  it('Teammate Synergy (reworked 2026-11-01): the Triple Reward a Gild pays gives the teammate one too, 3 per game', () => {
+    const id = poolFor('set2').buyable.find((c) => !c.spell && !c.chooseOne && c.effects.length === 0 && c.keywords.length === 0)!.id;
     let ann = rune(seat(), 'rune_teammate_synergy');
     expect(duosRuneTally(ann, 'rune_teammate_synergy')).toBe('3 left');
     let bob = seat({}, 12);
@@ -101,6 +101,9 @@ describe('Basic Duos runes', () => {
       ann = { ...ann, hand: [card(id, `a${k}`)], board: [card(id, `c${k}`)] };
       // The third copy arrives from the teammate: a landed pass runs the triple check (R-DUOS-PASS-06).
       ann = reduce(ann, { type: 'receivePass', from: 'p2', seq: 100 + k, card: { ...card(id, `x${k}`), passFrom: 'hand' } as BoardCard });
+      // Playing the Gilded copy pays its Triple Reward (the trigger since the 2026-11-01 rework).
+      const g = ann.hand.find((c) => c.golden)!;
+      ann = reduce({ ...ann, board: [] }, { type: 'play', uid: g.uid });
       const gifts = ann.duos!.outbox.slice(sent).filter((e) => e.team?.kind === 'tripleReward');
       expect(gifts).toHaveLength(k < 3 ? 1 : 0);
       bob = ship(ann, 'p1', bob, sent);

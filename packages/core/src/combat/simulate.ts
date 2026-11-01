@@ -529,6 +529,21 @@ export function simulate(
       if (!m.keywords.includes('EG')) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + sb.attack, health: (m.permaGain?.health ?? 0) + sb.health };
     }
   });
+  // PEP TALK (Duos rune, owner 2026-11-01, R-DUOS-RUNES-04: "When you trigger a Shout, give your teammate's left-most
+  // minion +2/+3"; "these types of triggers need to work in combat so if you go second, they have the buff"). The board
+  // FIGHTING holds the rune (its live mods); while its teammate's board is still the waiting RESERVE, every Shout fire on
+  // that side gives the reserve's left-most minion the buff, combat-only (a per-fight copy of the locked board; the run
+  // board never sees it), so it steps in already buffed. Symmetric: read per side, never by label.
+  if (hasReserve) {
+    bus.on('battlecryTriggered', (payload) => {
+      const { side } = payload as { side: Side };
+      const res = reserveOf[side];
+      const pep = modsFor(side).duosPepTalk;
+      if (!res || !pep || res.board.length === 0 || (pep.attack <= 0 && pep.health <= 0)) return;
+      const [first, ...rest] = res.board;
+      reserveOf[side] = { ...res, board: [{ ...first!, attack: first!.attack + pep.attack, health: first!.health + pep.health }, ...rest] };
+    });
+  }
   bus.on('battlecryTriggered', (payload) => {
     const { side } = payload as { side: Side };
     shoutFires[side] += 1;

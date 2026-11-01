@@ -272,8 +272,9 @@ export interface PassFlightEntry {
   src?: { uid: string } | { discover: number } | { rune: string } | { equip: string };
 }
 
-/** Team effects that hand the teammate something (a card, Gold): the ones a stream carries. */
-const SENDS = new Set(['gift', 'gold', 'tripleReward']);
+/** Team effects that hand the teammate something (a card, Gold, a buff): the ones a stream carries. `buffLeftmost`:
+ *  Buddy System's +3/+2 streams from its rune badge (Duos batch 2; Broshake's leaves with its spell, so it has no source). */
+const SENDS = new Set(['gift', 'gold', 'tripleReward', 'buffLeftmost']);
 
 /** Where a send's stream starts (pure). `combatUid`: the body the fight's `teamSend` named (combat entries only);
  *  `cardIdOf`: the cardId of a card on my run (to tell a Monstrocity copy from a random gift). Null = nothing to fly. */

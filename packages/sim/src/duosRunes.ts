@@ -57,6 +57,21 @@ export interface DuosRuneState {
   catchMate?: number;
   catchWave?: number;
   catchUsed?: number;
+  // ── DUOS BATCH 2 (owner picks 2026-11-01, R-DUOS-RUNES-04) ──
+  /** HAND-ME-DOWNS ("When you sell a minion, your teammate gets 1 Gold. (Twice per turn)"): copies held (each pays 1
+   *  Gold a sale), the paying sales a turn allows, and how many paid on turn `handMeDownsWave`. */
+  handMeDowns?: number;
+  handMeDownsCap?: number;
+  handMeDownsWave?: number;
+  handMeDownsUsed?: number;
+  /** BUDDY SYSTEM ("When you buy a minion, give your teammate's left-most minion +3/+2"): copies held. */
+  buddySystem?: number;
+  /** GILD PACT ("When your teammate Gilds a minion, you and your teammate each get 2 Gold Pouches"): copies held. */
+  gildPact?: number;
+  /** PEP TALK ("When your teammate triggers a Shout, give your left-most minion +2/+3"): copies held. */
+  pepTalk?: number;
+  /** What my TEAMMATE's runes need to hear from my run (their `listen` team effect): my Gilds. */
+  mateListens?: { gild?: true };
 }
 
 const runesOf = (s: RunState): DuosRuneState | null => (s.duos ? (s.duos.runes ??= {}) : null);
@@ -78,6 +93,19 @@ export function armDuosRune(s: RunState, r: { rune: string; per?: number; cap?: 
       queueTeamEffect(s, { kind: 'catch', amount: n });
       break;
     }
+    case 'handMeDowns':
+      d.handMeDowns = (d.handMeDowns ?? 0) + 1;
+      d.handMeDownsCap = Math.max(d.handMeDownsCap ?? 0, r.uses ?? 2);
+      break;
+    case 'buddySystem': d.buddySystem = (d.buddySystem ?? 0) + 1; break;
+    case 'gildPact':
+      d.gildPact = (d.gildPact ?? 0) + 1;
+      // The trigger is my TEAMMATE's Gild: their run learns to tell mine (the team channel, R-DUOS-RUNES-04).
+      queueTeamEffect(s, { kind: 'listen', what: 'gild' });
+      break;
+    case 'pepTalk':
+      d.pepTalk = (d.pepTalk ?? 0) + 1;
+      break;
     case 'shoutfulBounty':
     case 'echoingResults': {
       const shout = r.rune === 'shoutfulBounty';
@@ -147,14 +175,22 @@ export function duosOnPassed(s: RunState, cardId: string): void {
   conjureToHand(s, [def], d.spellTheory, true);
 }
 
-/** TEAMMATE SYNERGY ("When you gild a minion, give your teammate a triple reward. (3 per game)"): called by the one
- *  gild chokepoint (`noteGilded`: a triple and every other Gild). */
+/** Gild Pact on my TEAMMATE's run hears every Gild of mine (R-DUOS-RUNES-04), whatever made it: called by the one gild
+ *  chokepoint (`noteGilded`: a triple and every other Gild). */
 export function duosOnGild(s: RunState | undefined): void {
-  const d = s?.duos?.runes;
-  if (!s || !d?.synergyLeft || d.synergyLeft <= 0) return;
+  if (s?.duos?.runes?.mateListens?.gild) queueTeamEffect(s, { kind: 'mateGild' });
+}
+
+/** TEAMMATE SYNERGY (owner 2026-11-01, R-DUOS-RUNES-05: "when you get a triple reward, your teammate does too. (3 per
+ *  game)"): called by the one Triple Reward grant (`grantGoldenDiscover`) for every Triple Reward that LANDED in my hand,
+ *  whatever gave it. My teammate gets one at the same tier, streaming from the rune badge. A reward my teammate's
+ *  Teammate Synergy sent me (`fromSynergy`) never sends one back, so two copies never ping-pong. */
+export function duosOnTripleReward(s: RunState, tier: number, fromSynergy: boolean): void {
+  const d = s.duos?.runes;
+  if (fromSynergy || !d?.synergyLeft || d.synergyLeft <= 0) return;
   d.synergyLeft -= 1;
   procRuneId(s, 'rune_teammate_synergy');
-  queueTeamEffect(s, { kind: 'tripleReward', count: 1 }, undefined, { rune: 'rune_teammate_synergy' });
+  queueTeamEffect(s, { kind: 'tripleReward', count: 1, tier, synergy: true }, undefined, { rune: 'rune_teammate_synergy' });
 }
 
 /** SALESMAN OF THE YEAR ("The first 2 minions you sell per turn pass to your teammate"): does THIS sale pass? Counts
@@ -166,6 +202,54 @@ export function duosSaleShouldPass(s: RunState): boolean {
   if ((d.salesUsed ?? 0) >= d.salesman) return false;
   d.salesUsed = (d.salesUsed ?? 0) + 1;
   return true;
+}
+
+// ── DUOS BATCH 2 (owner picks 2026-11-01, R-DUOS-RUNES-04) ──────────────────────────────────────────────────────────
+
+/** My teammate's rune wants to hear `what` from my run (their `listen` team effect). */
+export function duosListen(s: RunState, what: unknown): void {
+  const d = runesOf(s);
+  if (!d || what !== 'gild') return;
+  d.mateListens = { ...(d.mateListens ?? {}), [what]: true };
+}
+
+/** HAND-ME-DOWNS: a minion sale. My teammate gets 1 Gold per copy, on the first `cap` sales each turn. */
+export function duosOnSoldHandMeDowns(s: RunState): void {
+  const d = s.duos?.runes;
+  if (!d?.handMeDowns) return;
+  if (d.handMeDownsWave !== s.wave) { d.handMeDownsWave = s.wave; d.handMeDownsUsed = 0; }
+  if ((d.handMeDownsUsed ?? 0) >= (d.handMeDownsCap ?? 2)) return;
+  d.handMeDownsUsed = (d.handMeDownsUsed ?? 0) + 1;
+  procRuneId(s, 'rune_hand_me_downs');
+  queueTeamEffect(s, { kind: 'gold', amount: d.handMeDowns }, undefined, { rune: 'rune_hand_me_downs' });
+}
+
+/** BUDDY SYSTEM: a minion bought. My teammate's left-most minion gets +3/+2 per copy, permanently (no limit). */
+export function duosOnBoughtBuddy(s: RunState): void {
+  const n = s.duos?.runes?.buddySystem ?? 0;
+  if (n <= 0) return;
+  procRuneId(s, 'rune_buddy_system');
+  queueTeamEffect(s, { kind: 'buffLeftmost', attack: 3 * n, health: 2 * n, runeId: 'rune_buddy_system' }, undefined, { rune: 'rune_buddy_system' });
+}
+
+/** PEP TALK, the Shop half: `n` Shout fires of mine this action give my teammate's left-most +2/+3 each (per copy),
+ *  permanently (a Shop trigger: the buff-permanence-by-phase rule), as one buff streaming from the rune badge. */
+export function duosPepTalkShop(s: RunState, n: number): void {
+  const b = pepTalkBuff(s);
+  if (!b || n <= 0) return;
+  procRuneId(s, 'rune_pep_talk');
+  queueTeamEffect(s, { kind: 'buffLeftmost', attack: b.attack * n, health: b.health * n, runeId: 'rune_pep_talk' }, undefined, { rune: 'rune_pep_talk' });
+}
+
+/** PEP TALK's buff per Shout I trigger: +2/+3 per copy held (null without the rune). */
+export function pepTalkBuff(s: Pick<RunState, 'duos'>): { attack: number; health: number } | null {
+  const n = s.duos?.runes?.pepTalk ?? 0;
+  return n > 0 ? { attack: 2 * n, health: 3 * n } : null;
+}
+
+/** COMBAT: Pep Talk rides into the fight on the holder's side (`QuestCombatMods.duosPepTalk`). */
+export function duosPepTalkMods(s: RunState): QuestCombatMods['duosPepTalk'] {
+  return pepTalkBuff(s) ?? undefined;
 }
 
 // ── PLAYING CATCH ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -209,6 +293,15 @@ export function duosRuneTally(s: RunState, runeId: string): string | null {
       const all = duosCatchAllowance(s);
       return all > 0 ? `${Math.max(0, all - duosCatchUsed(s))}/${all} free` : null;
     }
+    case 'rune_hand_me_downs':
+      return d.handMeDowns ? `${d.handMeDowns > 1 ? `${d.handMeDowns} Gold · ` : ''}${d.handMeDownsWave === s.wave ? Math.min(d.handMeDownsUsed ?? 0, d.handMeDownsCap ?? 2) : 0}/${d.handMeDownsCap ?? 2} this turn` : null;
+    // No limit and a fixed size: the badge speaks only when a second copy changed the printed number (the live-value rule).
+    case 'rune_buddy_system':
+      return (d.buddySystem ?? 0) > 1 ? `+${3 * d.buddySystem!}/+${2 * d.buddySystem!}` : null;
+    case 'rune_pep_talk':
+      return (d.pepTalk ?? 0) > 1 ? `+${2 * d.pepTalk!}/+${3 * d.pepTalk!}` : null;
+    case 'rune_gild_pact':
+      return (d.gildPact ?? 0) > 1 ? `${2 * d.gildPact!} Pouches` : null;
     case 'rune_shoutful_bounty':
     case 'rune_echoing_results': {
       const m = d.meters?.find((x) => x.sourceId === runeId);

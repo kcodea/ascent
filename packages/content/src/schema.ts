@@ -87,6 +87,7 @@ export const EffectFactoryIdSchema = z.enum([
   'demonConsumesShop',
   'spellBuffTeamLeftmost',
   'discoverRestToTeammate',
+  'discoverSpellShareTeammate',
   'discoverMateTribePass',
   'giftTierAboveMinion',
   'giftSecondCalling',
@@ -877,7 +878,8 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   // DUOS-ONLY RUNES (owner design 2026-10-30, R-DUOS-RUNES-01): arm a Duos rune engine (`sim/duosRunes.ts`).
   z.object({
     kind: z.literal('duosRune'),
-    rune: z.enum(['spellTheory', 'teammateSynergy', 'salesman', 'shoutfulBounty', 'echoingResults', 'playingCatch']),
+    rune: z.enum(['spellTheory', 'teammateSynergy', 'salesman', 'shoutfulBounty', 'echoingResults', 'playingCatch',
+      'handMeDowns', 'buddySystem', 'gildPact', 'pepTalk']),
     per: z.number().int().positive().optional(),
     cap: z.number().int().positive().optional(),
     uses: z.number().int().positive().optional(),

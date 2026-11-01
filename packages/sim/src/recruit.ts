@@ -9,7 +9,7 @@ import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
 import { duosDraft, queueTeamEffect, recordSpellPass, type DuosPassSource } from './duosPass';
-import { duosCatchFromMate, duosOnGild, duosOnPassed, duosSaleShouldPass } from './duosRunes';
+import { duosCatchFromMate, duosListen, duosOnGild, duosOnPassed, duosOnSoldHandMeDowns, duosSaleShouldPass } from './duosRunes';
 import { runTallyUnions, tribeUnionKey, tribeUnionPlaysOf } from './runTally';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -4026,6 +4026,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  (`discoverDuos: 'rest'`, resolved by `takeDiscoverPick`). */
   discoverRestToTeammate: (ctx) => {
     queueDiscover(ctx.state, { kind: 'minion', tier: ctx.state.tier, duos: 'rest' });
+  },
+
+  /** Double Down (Duos batch 2) — cast: Discover a spell (the plain Shop-spell Discover); you keep the pick and your
+   *  teammate gets a copy of it (`discoverDuos: 'copy'`, resolved by `takeDiscoverPick`). Outside Duos: a plain Discover. */
+  discoverSpellShareTeammate: (ctx) => {
+    queueDiscover(ctx.state, { kind: 'spell', ...(ctx.state.duos ? { duos: 'copy' as const } : {}) });
   },
 
   /** Matchmaker — Shout: Discover a minion of your teammate's most common type (read from `duos.mateTribes`, ties a
@@ -11051,7 +11057,8 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     // Rune of the Astral Draft: the pick will cast an additional time — stamped on the OPEN offer and consumed by
     // `takeDiscoverPick`, the same per-offer channel `discoverKeywords` uses.
     state.discoverExtraCasts = spec.extraCasts;
-    state.discoverDuos = undefined; // a Duos rider is a minion Discover's only
+    // A Duos rider on a spell Discover: Double Down's `copy` only (Disco / Matchmaker are minion Discovers).
+    state.discoverDuos = state.discover && spec.duos === 'copy' ? 'copy' : undefined;
     ancientNoteDiscoverOpened(state, undefined); // ANCIENTS: a spell Discover carries no Ancient origin
   } else if (spec.kind === 'pool') {
     // Discover from an explicit card-id pool (Second Path). Offer up to 3 distinct, real cards.
@@ -12486,6 +12493,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
   runeReturnCustomers(state, sold);
   // DUOS (R-DUOS-CARDS-01): the teammate hears every sale (`teammateSold`, Hippie Hulk), with the stats it sold at.
   if (state.duos) queueTeamEffect(state, { kind: 'sold', cardId: sold.cardId, attack: sold.attack, health: sold.health });
+  if (state.duos) duosOnSoldHandMeDowns(state); // Hand-Me-Downs (Duos rune, R-DUOS-RUNES-04): 1 Gold for the teammate
   // RUNE OF THE LAST WORD: the turn's first Dragon-with-a-Shout you sell fires its Shout on the way out — one
   // more use from a body you were cashing in anyway. `replayBattlecry` is the same path Myra's hero power and
   // every other Shout re-fire uses, so a targeted Shout auto-picks exactly as it does there.
@@ -17465,8 +17473,10 @@ export function applyOwnTeamEffect(state: RunState, effect: TeamEffect): void {
   else if (effect.kind === 'upgradeDiscount') state.upgradeCost = Math.max(CONFIG.upgradeCostFloor ?? 0, state.upgradeCost - effect.amount);
   else if (effect.kind === 'buffLeftmost') {
     // Broshake (batch A): this run's left-most board minion, permanently (a Shop buff). An empty board: nothing.
+    // Buddy System (Duos batch 2) sends it from a rune: the buff is named after the rune.
     const target = state.board[0];
-    if (target && (effect.attack > 0 || effect.health > 0)) addBuff(target, CARD_INDEX[effect.cardId ?? '']?.name ?? 'Teammate', effect.attack, effect.health);
+    const label = CARD_INDEX[effect.cardId ?? '']?.name ?? RUNE_INDEX[effect.runeId ?? '']?.name ?? 'Teammate';
+    if (target && (effect.attack > 0 || effect.health > 0)) addBuff(target, label, effect.attack, effect.health);
   }
 }
 
@@ -17693,6 +17703,19 @@ function landTeamGift(state: RunState, g: Extract<TeamEffect, { kind: 'gift' }>,
   return count;
 }
 
+/** MY TEAMMATE GILDED A MINION (their `mateGild`, sent while my runes listen; R-DUOS-RUNES-04). GILD PACT: 2 Gold
+ *  Pouches per copy for me (a gift that never goes missing) and the same for my teammate (sent back, streaming from the
+ *  rune badge). */
+function duosOnMateGild(s: RunState, key: string): void {
+  const pact = s.duos?.runes?.gildPact ?? 0;
+  if (pact > 0) {
+    const pouches: Extract<TeamEffect, { kind: 'gift' }> = { kind: 'gift', cardId: 'emberpouch', count: 2 * pact };
+    procRuneId(s, 'rune_gild_pact');
+    landTeamGift(s, pouches, `${key}#pact`);
+    queueTeamEffect(s, pouches, undefined, { rune: 'rune_gild_pact' });
+  }
+}
+
 /**
  * THE RECEIVER's half of a team effect (the `receivePass` action with a `passFrom: 'team'` payload): a fresh draft, or
  * `state` itself when it is not for this run or already answered. A gift with no room is REFUSED (recorded; the sender
@@ -17720,7 +17743,8 @@ export function receiveTeamEffect(state: RunState, from: string, seq: number, ef
     // Broshake: the stats carry the sender's spell power, so they are clamped wide (still finite, never negative).
     const stat = (v: unknown): number => Math.min(100_000, Math.max(0, Math.floor(typeof v === 'number' && Number.isFinite(v) ? v : 0)));
     const id = typeof effect.cardId === 'string' && CARD_INDEX[effect.cardId] ? effect.cardId : undefined;
-    applyOwnTeamEffect(s, { kind: 'buffLeftmost', attack: stat(effect.attack), health: stat(effect.health), ...(id ? { cardId: id } : {}) });
+    const runeId = typeof effect.runeId === 'string' && RUNE_INDEX[effect.runeId] ? effect.runeId : undefined;
+    applyOwnTeamEffect(s, { kind: 'buffLeftmost', attack: stat(effect.attack), health: stat(effect.health), ...(id ? { cardId: id } : {}), ...(runeId ? { runeId } : {}) });
   } else if (effect.kind === 'catch') {
     duosCatchFromMate(s, amt(effect.amount)); // Playing Catch: the teammate's rune frees the team's passes
   } else if (effect.kind === 'cardDeath') {
@@ -17730,6 +17754,10 @@ export function receiveTeamEffect(state: RunState, from: string, seq: number, ef
     const eff = CARD_INDEX[id]?.effects.find((e) => e.on === 'passive' && e.do === 'cardDeathScaler' && e.params?.team === true);
     const deaths = Math.min(10, Math.max(1, Math.floor(typeof effect.count === 'number' && Number.isFinite(effect.count) ? effect.count : 1)));
     if (eff) growCardDeathTally(s, str(eff.params?.cardId) || id, eff.params, deaths);
+  } else if (effect.kind === 'listen') {
+    duosListen(s, effect.what); // Gild Pact on the teammate's run: tell it my Gilds
+  } else if (effect.kind === 'mateGild') {
+    duosOnMateGild(s, key);
   }
   d.received.push(key);
   return s;

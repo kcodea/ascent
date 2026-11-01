@@ -104,7 +104,8 @@ describe('Doc Bot — text as oracle tranche 3 (printed economy)', () => {
     // (schedule — "In 2 turns"), gem_dividend (Ruby threshold), ashen_payroll (per-each in combat).
     // ornate_clock GRADUATED on 2026-09-22: its 2 Gold lives inside `scheduleRuneforge`, which
     // runeEconomySubjects now reads as an immediate leaf for the Epic branch, and the reducer now pays it.
-    expect(skipped.length, `runes mentioning a flat Gold gain that the grammar did not parse: ${skipped.join(', ')}`).toBeLessThanOrEqual(6);
+    // +2 → 8 on 2026-11-01: hand_me_downs + gild_pact (Duos batch 2) pay the TEAMMATE (a team effect), outside the grammar.
+    expect(skipped.length, `runes mentioning a flat Gold gain that the grammar did not parse: ${skipped.join(', ')}`).toBeLessThanOrEqual(8);
     expect(skipped, 'Ornate Clock is IN the oracle (its Gold is paid on resolve)').not.toContain('rune_ornate_clock');
   });
 

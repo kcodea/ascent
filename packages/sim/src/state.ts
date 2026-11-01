@@ -491,15 +491,16 @@ export const DEFAULT_PRACTICE_CONFIG: PracticeConfig = {
 };
 
 export type DiscoverSpec =
-  | { kind: 'spell'; extraCasts?: number } // `extraCasts` (Rune of the Astral Draft): the pick is stamped to cast that many more times
+  | { kind: 'spell'; extraCasts?: number; duos?: DiscoverDuos } // `extraCasts` (Rune of the Astral Draft): the pick is stamped to cast that many more times
   | { kind: 'minion'; duos?: DiscoverDuos; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle' | 'equip'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number }; ancientTag?: DiscoverAncientTag }
   // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions; Rival's Reflection).
   // `spells` (Re-Pete x Ancient of Fortune, owner 2026-10-02: "Offer spells too"): spells in `ids` are offered too.
   // `lockWave`: the pick is locked in hand until that wave (Hourglass Reserve's `lockedUntilWave`).
   | { kind: 'pool'; ids: string[]; duos?: DiscoverDuos; borrowed?: boolean; spells?: boolean; lockWave?: number; ancientTag?: DiscoverAncientTag };
 /** DUOS-ONLY CARDS (R-DUOS-CARDS-05): what a Duos Discover does besides the pick. `rest` (Disco): the options NOT taken
- *  go to the teammate as gifts. `pass` (Matchmaker): the pick itself is passed to the teammate (an effect pass). */
-export type DiscoverDuos = 'rest' | 'pass';
+ *  go to the teammate as gifts. `pass` (Matchmaker): the pick itself is passed to the teammate (an effect pass).
+ *  `copy` (Double Down, Duos batch 2): you keep the pick and the teammate gets a copy of it (a gift). */
+export type DiscoverDuos = 'rest' | 'pass' | 'copy';
 /** ANCIENTS: where a Discover came from, for the pairings that treat its pick specially (`AncientDiscoverTag`). Only set
  *  on an Ancients run. */
 export type DiscoverAncientTag = 'triple' | 'crown' | 'archive' | 'discoDeath' | 'discoGenesis';

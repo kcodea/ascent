@@ -35,7 +35,7 @@ import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
 import { applyDuosPass, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass, stampOutboxSrc, type DuosPassSource } from './duosPass';
 import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, receiveTeamEffect } from './recruit';
-import { advanceDuosMeters, armDuosRune, duosMetersMods, settleDuosMeters } from './duosRunes';
+import { advanceDuosMeters, armDuosRune, duosMetersMods, duosOnBoughtBuddy, duosOnTripleReward, duosPepTalkMods, duosPepTalkShop, settleDuosMeters } from './duosRunes';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
@@ -679,6 +679,12 @@ function takeDiscoverPickInner(s: RunState, index: number): boolean {
   if (ok && rider === 'rest') {
     // Each streams from its own option card on screen (R-DUOS-PASS-FLIGHT-01).
     options.forEach((other, i) => { if (i !== index && CARD_INDEX[other]) queueTeamEffect(s, { kind: 'gift', cardId: other, count: 1 }, undefined, { discover: i }); });
+  }
+  // Double Down (Duos batch 2, R-DUOS-CARDS-06): you keep the pick, the teammate gets a copy of it (a gift landed by their
+  // run), streaming from the option you took (R-DUOS-PASS-FLIGHT-01).
+  if (ok && rider === 'copy' && s.duos) {
+    const picked = options[index];
+    if (picked && CARD_INDEX[picked]) queueTeamEffect(s, { kind: 'gift', cardId: picked, count: 1 }, undefined, { discover: index });
   }
   return ok;
 }
@@ -1334,6 +1340,8 @@ export function reduce(state: RunState, action: Action): RunState {
         }
       }
       const boughtMinion = !!bdef && !bdef.spell && !bdef.ruby;
+      // BUDDY SYSTEM (Duos rune, R-DUOS-RUNES-04): every minion bought gives the teammate's left-most +3/+2 (no limit).
+      if (boughtMinion && next.duos) duosOnBoughtBuddy(next);
       // RUNE OF THE COLLECTOR (balance 9/23: "When you buy 3 minions in one turn, get a random copy of one."):
       // every THIRD minion bought this turn hands over a plain copy of one of the three that filled the meter,
       // chosen off the run cursor. A per-turn list, so "in one turn" is the whole rule — and a 6-buy turn pays
@@ -1372,6 +1380,7 @@ export function reduce(state: RunState, action: Action): RunState {
     advanceRuneThresholds(next, 'shout', next.lastShoutFires ?? 0); // Rune of the Chorus / Merchant's Chorus / Hoardcalling
     advanceDuosMeters(next, 'shout', next.lastShoutFires ?? 0); // Shoutful Bounty (Duos rune, R-DUOS-RUNES-01)
     advanceDuosMeters(next, 'echo', next.lastEchoFires ?? 0); // Echoing Results (Duos rune): a Shop Echo counts too
+    duosPepTalkShop(next, next.lastShoutFires ?? 0); // Pep Talk (Duos rune): my Shop Shouts buff my teammate's left-most
     if ((next.lastShoutFires ?? 0) > 0) bumpAuthorsHand(next, 'shout', next.lastShoutFires!); // Author's Hand Shout half
     // Rune of Ancestral Roar (balance 9/23): the turn's Shout-FIRE count, spent by the End-of-Turn lump.
     if ((next.lastShoutFires ?? 0) > 0) next.shoutFiresThisTurn = (next.shoutFiresThisTurn ?? 0) + next.lastShoutFires!;
@@ -1571,7 +1580,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       const fx = receiveTeamEffect(state, action.from, action.seq, action.card.team);
       // A Triple Reward from the teammate: this run's own Gild reward path (every modifier it carries).
       if (fx !== state && action.card.team.kind === 'tripleReward' && fx.duos!.received.includes(`${action.from}:${action.seq}`)) {
-        for (let i = 0; i < Math.min(5, Math.max(1, Math.floor(action.card.team.count))); i++) grantGoldenDiscover(fx);
+        const tr = action.card.team;
+        const tier = typeof tr.tier === 'number' && Number.isFinite(tr.tier) ? Math.min(7, Math.max(1, Math.floor(tr.tier))) : undefined;
+        for (let i = 0; i < Math.min(5, Math.max(1, Math.floor(tr.count))); i++) grantGoldenDiscover(fx, false, { tier, synergy: tr.synergy === true });
       }
       if (fx !== state && fx.phase === 'recruit' && fx.hand.length > state.hand.length) checkTriples(fx);
       return fx;
@@ -4304,7 +4315,7 @@ function resolveChooseOneSpell(
 
 /** Gildmaster × Ancient of Genesis: true while a Triple Reward's repeat is resolving (so the repeat never repeats). */
 let tripleRewardRepeating = false;
-function grantGoldenDiscover(s: RunState, crown = false): void {
+function grantGoldenDiscover(s: RunState, crown = false, duos?: { tier?: number; synergy?: boolean }): void {
   // MIDAS: his Gilds pay a Gold Pouch instead of the Triple Reward. Swapped HERE rather than at the call sites
   // because every Gild route funnels through this one function — doing it per-site would guarantee a missed
   // path (the `applySpellBought` lesson).
@@ -4321,14 +4332,14 @@ function grantGoldenDiscover(s: RunState, crown = false): void {
     procRuneId(s, 'rune_corrupted_tome');
     s.runeCorruptedTome = undefined;
     try {
-      for (let k = 0; k < runeStacksOf(s, 'rune_corrupted_tome'); k++) grantGoldenDiscover(s);
+      for (let k = 0; k < runeStacksOf(s, 'rune_corrupted_tome'); k++) grantGoldenDiscover(s, false, duos);
     } finally { s.runeCorruptedTome = true; }
   }
   // ANCIENT OF GENESIS × Gildmaster (owner 2026-10-09: EVERY Triple Reward): the reward triggers twice. The repeat is
   // guarded (module flag), so it never repeats itself; a Corrupted Tome extra above is a Triple Reward too and doubles.
   if (!tripleRewardRepeating && ancientTripleRewardTwice(s)) {
     tripleRewardRepeating = true;
-    try { grantGoldenDiscover(s); } finally { tripleRewardRepeating = false; }
+    try { grantGoldenDiscover(s, false, duos); } finally { tripleRewardRepeating = false; }
   }
   if (s.hand.length >= handCap(s)) return; // the hand cap — raised while the Runeforge is open (see handCap)
   s.hand.push({
@@ -4339,9 +4350,13 @@ function grantGoldenDiscover(s: RunState, crown = false): void {
     health: 1,
     keywords: [],
     golden: false,
-    grantedTier: s.tier, // freeze "peek one tier up" at the tier it was granted — taverning up later can't inflate it
+    // freeze "peek one tier up" at the tier it was granted — taverning up later can't inflate it. A teammate's Teammate
+    // Synergy reward carries the tier THEIR reward was granted at (the same reward, owner 2026-11-01).
+    grantedTier: duos?.tier ?? s.tier,
     ...(crown && s.ancientsEnabled ? { crownReward: true } : {}), // ANCIENT OF GENESIS × Keshi reads it (Ancients runs only)
   });
+  // TEAMMATE SYNERGY (Duos rune, R-DUOS-RUNES-05): every Triple Reward that landed, whatever gave it, gives my teammate one.
+  if (s.duos) duosOnTripleReward(s, duos?.tier ?? s.tier, !!duos?.synergy);
   ancientOnTripleReward(s); // ANCIENT OF FORTUNE × Braum: a Triple Reward got also gains 3 Gold (a no-op unless picked)
 }
 
@@ -8291,6 +8306,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // shop-only payout (the Merchant's Chorus' this-turn Shop buff) stays a shop meter.
     shoutMeters: shoutMetersFor(s),
     duosMeters: duosMetersMods(s), // Shoutful Bounty / Echoing Results (Duos runes): the one counter, carried in
+    duosPepTalk: duosPepTalkMods(s), // Pep Talk (Duos rune): my combat Shouts buff my waiting teammate's left-most
     // Sable: the bond only carries into the fight it was forged for (it "lasts 1 turn", combat included).
     soulbind: s.sableBond && s.sableBond.wave === s.wave ? { a: s.sableBond.a, b: s.sableBond.b } : undefined,
     flashPick: hasPower(s, 'firstOrLast') ? s.flashPick : undefined,

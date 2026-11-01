@@ -63,6 +63,15 @@ export const PATCH_NOTES: PatchNote[] = [
         "In a fight, your teammate's board steps in already carrying the Salandamans your board lost.",
       ] },
       { category: 'Systems', text: 'Phones: your hero portrait and the combat foe portrait are sharp again. Before, they could look blurry.' },
+      { category: 'Balance', text: 'Duos: two new spells, four new runes and a reworked one for you and your teammate.', details: [
+        'Double Down (Tier 5 spell): Discover a spell. You and your teammate each get a copy.',
+        'Upgrade Assist (Tier 4 spell): your teammate\'s next Shop upgrade costs 3 less.',
+        'Hand-Me-Downs (rune): when you sell a minion, your teammate gets 1 Gold. Twice per turn.',
+        'Buddy System (rune): when you buy a minion, your teammate\'s left-most minion gets +3/+2.',
+        'Gild Pact (rune): when your teammate Gilds a minion, you both get 2 Gold Pouches.',
+        'Pep Talk (rune): when you trigger a Shout, your teammate\'s left-most minion gets +2/+3. It works in combat too, so if you fight first your teammate steps in with the buff.',
+        'Teammate Synergy (rune) is reworked: when you get a Triple Reward, your teammate gets one too. 3 per game.',
+      ] },
       { category: 'Balance', text: 'Hero quests and forges now follow the hero power you hold.', details: [
         'Drakko and Chronos: a quest stops counting once its power is replaced, and never pays out.',
         'A hero who gains Drumline or Timelapse runs that quest, starting from zero.',

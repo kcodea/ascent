@@ -2,242 +2,53 @@
   "version": 1,
   "id": "amplified-release",
   "label": "Amplified: release",
-  "tags": [
-    "amplified",
-    "equipment",
-    "one-shot",
-    "lightning"
-  ],
-  "duration": 700,
+  "tags": ["amplified", "equipment", "one-shot"],
+  "duration": 900,
   "layers": [
     {
-      "name": "first discharge",
-      "primitive": "lightning",
-      "anchor": "source",
-      "at": 0,
-      "life": 210,
-      "params": {
-        "mode": "radiate",
-        "bolts": 7,
-        "radius": 170,
-        "travelMs": 40,
-        "dwellMs": 90,
-        "releaseMs": 80,
-        "chaos": 0.4,
-        "smooth": 0.15,
-        "detail": 4,
-        "taper": 0.6,
-        "branchChance": 0.2,
-        "branchSpread": 40,
-        "branchDepth": 1,
-        "width": 26,
-        "coreWidth": 2,
-        "glowStrength": 1,
-        "sparkle": 0.5,
-        "gain": 1.9,
-        "coreColor": 16777215,
-        "tipColor": 11066623,
-        "glowColor": 3111935,
-        "flicker": 24,
-        "decay": 0.26,
-        "blendMode": "normal"
-      }
-    },
-    {
-      "name": "first ring",
+      "name": "first trigger ring",
       "primitive": "shockwave",
       "anchor": "source",
       "at": 0,
-      "life": 440,
+      "life": 580,
       "params": {
         "rings": 1,
-        "speed": 2.2,
-        "thickness": 0.07,
-        "radius": 170,
-        "fade": 1.5,
-        "ease": 0.55,
-        "radiusCurve": [
-          [
-            0,
-            0.45
-          ],
-          [
-            1,
-            1
-          ]
-        ],
+        "speed": 1.7,
+        "thickness": 0.05,
+        "radius": 140,
+        "fade": 1.6,
+        "ease": 0.6,
+        "radiusCurve": [[0, 0.6], [1, 1]],
         "bands": 3,
-        "alpha": 1,
+        "alpha": 0.7,
         "blendMode": "normal",
-        "glow": 0.45,
-        "plateau": 0.32,
-        "erode": 0.55,
-        "palette": [
-          730224,
-          1925094,
-          5219327,
-          11065599
-        ]
+        "glow": 0.35,
+        "plateau": 0.3,
+        "erode": 0.2,
+        "palette": [1910932, 3111935, 8373503, 13428991]
       }
     },
     {
-      "name": "first sparks",
-      "primitive": "burst",
-      "anchor": "source",
-      "at": 0,
-      "life": 340,
-      "params": {
-        "count": 18,
-        "interval": 6000,
-        "spread": 1,
-        "speed": 260,
-        "speedVar": 0.5,
-        "drag": 0.86,
-        "gravity": 0,
-        "life": 300,
-        "emitShape": "ring",
-        "emitRadius": 70,
-        "orientToVelocity": true,
-        "shape": "shard",
-        "size": 9,
-        "sizeVar": 0.4,
-        "stretchX": 2,
-        "sizeCurve": [
-          [
-            0,
-            1
-          ],
-          [
-            1,
-            0
-          ]
-        ],
-        "coreBias": 0.85,
-        "bands": 3,
-        "plateau": 0.34,
-        "glow": 0.5,
-        "erode": 0,
-        "palette": [
-          1194636,
-          3111935,
-          8373503,
-          15398655
-        ]
-      }
-    },
-    {
-      "name": "second discharge",
-      "primitive": "lightning",
-      "anchor": "source",
-      "at": 170,
-      "life": 210,
-      "params": {
-        "mode": "radiate",
-        "bolts": 7,
-        "radius": 170,
-        "travelMs": 40,
-        "dwellMs": 90,
-        "releaseMs": 80,
-        "chaos": 0.4,
-        "smooth": 0.15,
-        "detail": 4,
-        "taper": 0.6,
-        "branchChance": 0.2,
-        "branchSpread": 40,
-        "branchDepth": 1,
-        "width": 26,
-        "coreWidth": 2,
-        "glowStrength": 1,
-        "sparkle": 0.5,
-        "gain": 1.9,
-        "coreColor": 16777215,
-        "tipColor": 11066623,
-        "glowColor": 3111935,
-        "flicker": 24,
-        "decay": 0.26,
-        "blendMode": "normal"
-      }
-    },
-    {
-      "name": "second ring",
+      "name": "second trigger ring",
       "primitive": "shockwave",
       "anchor": "source",
-      "at": 170,
-      "life": 440,
+      "at": 240,
+      "life": 580,
       "params": {
         "rings": 1,
-        "speed": 2.2,
-        "thickness": 0.07,
-        "radius": 170,
-        "fade": 1.5,
-        "ease": 0.55,
-        "radiusCurve": [
-          [
-            0,
-            0.45
-          ],
-          [
-            1,
-            1
-          ]
-        ],
+        "speed": 1.7,
+        "thickness": 0.05,
+        "radius": 140,
+        "fade": 1.6,
+        "ease": 0.6,
+        "radiusCurve": [[0, 0.6], [1, 1]],
         "bands": 3,
-        "alpha": 1,
+        "alpha": 0.7,
         "blendMode": "normal",
-        "glow": 0.45,
-        "plateau": 0.32,
-        "erode": 0.55,
-        "palette": [
-          730224,
-          1925094,
-          5219327,
-          11065599
-        ]
-      }
-    },
-    {
-      "name": "second sparks",
-      "primitive": "burst",
-      "anchor": "source",
-      "at": 170,
-      "life": 340,
-      "params": {
-        "count": 18,
-        "interval": 6000,
-        "spread": 1,
-        "speed": 260,
-        "speedVar": 0.5,
-        "drag": 0.86,
-        "gravity": 0,
-        "life": 300,
-        "emitShape": "ring",
-        "emitRadius": 70,
-        "orientToVelocity": true,
-        "shape": "shard",
-        "size": 9,
-        "sizeVar": 0.4,
-        "stretchX": 2,
-        "sizeCurve": [
-          [
-            0,
-            1
-          ],
-          [
-            1,
-            0
-          ]
-        ],
-        "coreBias": 0.85,
-        "bands": 3,
-        "plateau": 0.34,
-        "glow": 0.5,
-        "erode": 0,
-        "palette": [
-          1194636,
-          3111935,
-          8373503,
-          15398655
-        ]
+        "glow": 0.35,
+        "plateau": 0.3,
+        "erode": 0.2,
+        "palette": [1910932, 3111935, 8373503, 13428991]
       }
     }
   ]

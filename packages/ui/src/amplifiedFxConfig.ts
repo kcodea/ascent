@@ -1,44 +1,34 @@
 /**
  * THE AMPLIFIED LOOK (owner ask 2026-11-01: "redo the Amplified Equipment effect. Design a new one").
  *
- * One switch picks which looping def rides the Equipment slot while the selected Equipment is Amplified (its
- * next activation triggers TWICE). The owner picked an ENERGY / LIGHTNING direction: crackling arcane electricity
- * licking the slot, a charged, about-to-fire look. Three lightning takes, plus the original owner-authored ring
- * (`amplified-slot`, PR #1633) kept so before / after can be judged live:
+ * One switch picks how the Equipment slot says "your next use triggers twice". Owner direction after two rounds of
+ * drafts: "somewhat gentle and not over the top, just needs to say 'this is amplified' but not a crazy signal". So
+ * the new looks are calm CSS states on the slot, not Pixi effects:
  *
- *  - Twin snap   (`amplified-twin-snap`, the default): two arcs snap across the slot into an X (reads "x2"), then
- *    small arcs keep crackling along the frame until the next snap.
- *  - Corona      (`amplified-corona`): a tight crackling electric ring hugging the slot, sparks spitting off it and
- *    small forks licking out from its edges.
- *  - Rim crackle (`amplified-rim-crackle`): short forked arcs jump along the frame's edges at irregular beats.
- *  - Classic     (`amplified-slot`): the original ring of blue motes.
+ *  - Halo         (`halo`, the default): a soft electric-blue glow (the Amplified tally's blue) that slowly breathes
+ *    around the socket. A STATIC shadow on a `::before` whose OPACITY breathes (the `kwglow` pattern): compositor
+ *    only, no per-frame paint, and no Pixi at all.
+ *  - Halo + sheen (`halo-sheen`): the same halo, plus a faint glint that slowly travels along the frame's rim every
+ *    few seconds. A band moved by `transform` inside a rim-shaped mask: compositor only, never over the art.
+ *  - Classic      (`classic`): the original owner-authored Pixi ring (`amplified-slot`, PR #1633), kept so before
+ *    / after can be judged live.
  *
  * Same architecture as `equipLookConfig`: DEV-only localStorage, production always plays the baked DEFAULT. The
- * switch lives in the dev menu's Equipment Slot tuner. Which def each look plays is `useAmplifiedSlotFx`'s, by
- * literal id, so the FX library's direct-call scan can attribute every one of them.
+ * switch lives in the dev menu's Equipment Slot tuner.
  */
 import { useSyncExternalStore } from 'react';
 import type { TunerControl, TunerSpec } from './tunerSchema';
 
-export const AMPLIFIED_VARIANTS = ['twin-snap', 'corona', 'rim-crackle', 'classic'] as const;
+export const AMPLIFIED_VARIANTS = ['halo', 'halo-sheen', 'classic'] as const;
 export type AmplifiedVariant = (typeof AMPLIFIED_VARIANTS)[number];
 
-/** The looping def each look plays on the slot. */
-export const AMPLIFIED_LOOP_DEF: Record<AmplifiedVariant, string> = {
-  'twin-snap': 'amplified-twin-snap',
-  corona: 'amplified-corona',
-  'rim-crackle': 'amplified-rim-crackle',
-  classic: 'amplified-slot',
-};
-
-/** The one-shot played on the slot the moment an Amplified activation fires: two sharp discharges, two triggers. */
+/** The one-shot played on the slot the moment an Amplified activation fires: two soft rings, one per trigger. */
 export const AMPLIFIED_RELEASE_DEF = 'amplified-release';
 
 const LABELS: Record<AmplifiedVariant, string> = {
-  'twin-snap': 'A. Twin snap (default)',
-  corona: 'B. Corona',
-  'rim-crackle': 'C. Rim crackle',
-  classic: 'Classic (the old ring)',
+  halo: 'A. Breathing halo (default)',
+  'halo-sheen': 'B. Halo + rim sheen',
+  classic: 'Classic (the old Pixi ring)',
 };
 
 export interface AmplifiedFxConfig {
@@ -46,7 +36,7 @@ export interface AmplifiedFxConfig {
 }
 
 /** The baked look production plays. */
-const DEFAULTS: AmplifiedFxConfig = { variant: 'twin-snap' };
+const DEFAULTS: AmplifiedFxConfig = { variant: 'halo' };
 export { DEFAULTS as AMPLIFIED_FX_DEFAULTS };
 
 const KEY = 'ascent.amplifiedFx';
@@ -91,7 +81,7 @@ const subscribe = (l: () => void): (() => void) => {
   return () => { listeners.delete(l); };
 };
 
-/** The live look, for the slot's loop hook (a switch restarts the loop in the new look). */
+/** The live look, for the slot (StatusBar). */
 export function useAmplifiedVariant(): AmplifiedVariant {
   return useSyncExternalStore(subscribe, () => cfg.variant, () => cfg.variant);
 }
@@ -99,7 +89,7 @@ export function useAmplifiedVariant(): AmplifiedVariant {
 const controls: TunerControl<Extract<keyof AmplifiedFxConfig, string>>[] = [
   {
     key: 'variant', label: 'Amplified look', kind: 'select', options: AMPLIFIED_VARIANTS, optionLabels: LABELS,
-    hint: 'The loop on the Equipment slot while its next use triggers twice. Live: switch with an Amplified Equipment selected to compare. Classic is the old ring.',
+    hint: 'How the Equipment slot shows that its next use triggers twice. Live: switch with an Amplified Equipment selected to compare. Classic is the old Pixi ring.',
     min: 0, max: 0, step: 0,
   },
 ];

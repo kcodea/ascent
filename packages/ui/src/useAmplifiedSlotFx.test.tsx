@@ -4,7 +4,7 @@
  * play on equipment when amplified. it should only play when a usable equipment is equipped/selected. if an
  * equipment has 0 charges it should not show the animation."*
  *
- * The Amplified def (the DEV look switch's pick, `amplified-twin-echo` by default since 2026-11-01) is a LOOP — a looping player never retires on its own — so what is
+ * The owner-authored `amplified-slot` def is a LOOP — a looping player never retires on its own — so what is
  * pinned here is the caller-owned lifetime, driven through the real StatusBar + store so a change to how the
  * slot reads `run.equipment` fails here rather than passing against a stub:
  *
@@ -30,10 +30,6 @@ import { StatusBar } from './StatusBar';
 import { useGame } from './store';
 import { mount, type Mounted } from './renderedText.mount';
 import { AMPLIFIED_RETRY_FRAMES, AMPLIFIED_SLOT_SELECTOR } from './useAmplifiedSlotFx';
-import {
-  AMPLIFIED_FX_DEFAULTS, AMPLIFIED_LOOP_DEF, AMPLIFIED_RELEASE_DEF, AMPLIFIED_VARIANTS,
-  resetAmplifiedFxConfig, setAmplifiedVariant,
-} from './amplifiedFxConfig';
 
 type Point = { x: number; y: number };
 interface Play { id: string; anchors: { source: Point; target: Point; cursor: Point }; opts: { loop?: boolean; follow?: () => Point | null }; dispose: ReturnType<typeof vi.fn> }
@@ -51,11 +47,8 @@ vi.mock('./fx/playDef', () => ({
   canPlayDefs: () => canPlay,
   ensureDefsReady: () => Promise.resolve(),
 }));
-/** The default look's loop def — what every show/hide rule below expects to start. */
-const LOOP = AMPLIFIED_LOOP_DEF[AMPLIFIED_FX_DEFAULTS.variant];
-const LOOP_IDS = new Set<string>(Object.values(AMPLIFIED_LOOP_DEF));
-/** The Amplified loops started so far, in ANY look (a switch must never leave two running). */
-const plays = (): Play[] => fired.filter((p) => LOOP_IDS.has(p.id));
+/** The `amplified-slot` loops started so far. */
+const plays = (): Play[] => fired.filter((p) => p.id === 'amplified-slot');
 /** How many times each loop's caller-owned disposer has run. */
 const disposed = (): number[] => plays().map((p) => p.dispose.mock.calls.length);
 
@@ -126,16 +119,15 @@ afterEach(() => {
   ui.unmount();
   vi.restoreAllMocks();
   delete (document as { hidden?: boolean }).hidden;
-  resetAmplifiedFxConfig();
   // The store is a module singleton: put back every UI-overlay flag a test opened.
   useGame.setState({ showBook: false, bugReportOpen: false, showCareer: false, inspect: null });
 });
 
 describe('the Amplified loop — when it STARTS', () => {
-  it('starts ONE looping Amplified play, centred on the slot button, when the selected Equipment is Amplified and charged', () => {
+  it('starts ONE looping amplified-slot play, centred on the slot button, when the selected Equipment is Amplified and charged', () => {
     show(amplifiedRun());
     expect(document.querySelectorAll(AMPLIFIED_SLOT_SELECTOR).length, 'exactly one live slot button').toBe(1);
-    expect(plays().map((p) => p.id)).toEqual([LOOP]);
+    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
     const [p] = plays();
     expect(p!.opts.loop, 'a persistent marker, so the caller owns teardown').toBe(true);
     expect(p!.anchors.source).toEqual(centre());
@@ -149,14 +141,14 @@ describe('the Amplified loop — when it STARTS', () => {
     expect(plays()).toEqual([]);
     // A bonus charge granted mid-turn (Equipment Charger) puts a use back — and the glow with it.
     show(amplifiedRun({ available: spent(), bonusActivations: 1 }));
-    expect(plays().map((p) => p.id)).toEqual([LOOP]);
+    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
   });
 
   it('is about the SELECTED Equipment — another held Equipment being Amplified starts nothing until it is picked', () => {
     show(shopRun({ amplified: { titan_hammer: 1 } }));
     expect(plays()).toEqual([]);
     show(shopRun({ amplified: { titan_hammer: 1 }, selectedEquipmentId: 'titan_hammer' }));
-    expect(plays().map((p) => p.id)).toEqual([LOOP]);
+    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
   });
 
   it('starts nothing when the selected Equipment is not Amplified at all', () => {
@@ -177,19 +169,19 @@ describe('the Amplified loop — when it STARTS', () => {
     show(shopRun({ available: held, calibrationPending: 1, selectedEquipmentId: 'calibration_wrench' }));
     expect(plays(), 'the Wrench does not Amplify itself').toEqual([]);
     show(shopRun({ available: held, calibrationPending: 1, selectedEquipmentId: 'bloodpot' }));
-    expect(plays().map((p) => p.id)).toEqual([LOOP]);
+    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
   });
 
   it('starts for a permanently Amplified Equipment (Rune of Empty Hands)', () => {
     show(shopRun({}, { equipmentAmplifiedCards: ['e3_frank'] }));
-    expect(plays().map((p) => p.id)).toEqual([LOOP]);
+    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
   });
 
   it('starts nothing while a board-covering overlay is open, and starts once it closes', () => {
     show(amplifiedRun({}, { discover: ['alley', 'alley', 'alley'] }));
     expect(plays(), 'the FX canvas sits beneath the Discover').toEqual([]);
     show(amplifiedRun());
-    expect(plays().map((p) => p.id)).toEqual([LOOP]);
+    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
   });
 });
 
@@ -297,7 +289,7 @@ describe('the Amplified loop — UI-store overlays cover the slot too (review fi
     show(amplifiedRun(), { showBook: true });
     expect(plays()).toEqual([]);
     show(amplifiedRun(), { showBook: false });
-    expect(plays().map((p) => p.id)).toEqual([LOOP]);
+    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
   });
 });
 
@@ -308,7 +300,7 @@ describe('the Amplified loop — the "can\'t start yet" waits', () => {
     expect(plays(), 'no renderer yet: nothing fired').toEqual([]);
     canPlay = true;
     await frames(2); // the readiness promise resolves, then one frame to re-sync
-    expect(plays().map((p) => p.id)).toEqual([LOOP]);
+    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
   });
 
   it('a readiness wait whose condition went false in the meantime fires nothing', async () => {
@@ -326,7 +318,7 @@ describe('the Amplified loop — the "can\'t start yet" waits', () => {
     expect(plays()).toEqual([]);
     rect = { left: 100, top: 600, width: 128, height: 128 };
     await frames(2);
-    expect(plays().map((p) => p.id)).toEqual([LOOP]);
+    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
     expect(plays()[0]!.anchors.source).toEqual(centre());
   });
 
@@ -360,94 +352,5 @@ describe('the Amplified loop — follow reads a cache, re-measured on resize', (
     await frame();
     expect(follow()).toEqual(centre());
     expect(plays().length, 'a resize re-measures; it does not restart').toBe(1);
-  });
-});
-
-describe('the Amplified look switch (owner ask 2026-11-01: "Design a new one")', () => {
-  it('defaults to the twin echo, and every look names its own committed def', () => {
-    expect(AMPLIFIED_FX_DEFAULTS.variant).toBe('twin-echo');
-    expect(LOOP).toBe('amplified-twin-echo');
-    expect(new Set(Object.values(AMPLIFIED_LOOP_DEF)).size, 'no two looks share a def').toBe(AMPLIFIED_VARIANTS.length);
-    expect(AMPLIFIED_LOOP_DEF.classic, 'the original owner ring stays selectable').toBe('amplified-slot');
-  });
-
-  for (const variant of AMPLIFIED_VARIANTS) {
-    it(`the ${variant} look starts ITS def, under the same show rule`, () => {
-      act(() => { setAmplifiedVariant(variant); });
-      show(shopRun());
-      expect(plays(), 'not Amplified: nothing, in any look').toEqual([]);
-      show(amplifiedRun());
-      expect(plays().map((p) => p.id)).toEqual([AMPLIFIED_LOOP_DEF[variant]]);
-      expect(plays()[0]!.opts.loop).toBe(true);
-    });
-  }
-
-  it('a switch while the loop runs disposes it once and starts the new look once, on the same point', () => {
-    show(amplifiedRun());
-    act(() => { setAmplifiedVariant('twin-orbit'); });
-    expect(plays().map((p) => p.id)).toEqual([LOOP, 'amplified-twin-orbit']);
-    expect(disposed(), 'the old look is gone, the new one runs').toEqual([1, 0]);
-    expect(plays()[1]!.anchors.source).toEqual(centre());
-    act(() => { setAmplifiedVariant('twin-orbit'); });
-    expect(plays().length, 'picking the same look again restarts nothing').toBe(2);
-    show(amplifiedRun({}, { embers: 4 }));
-    expect(plays().length, 'nor does a re-render').toBe(2);
-    show(shopRun());
-    expect(disposed(), 'and it still stops when the Amplification ends').toEqual([1, 1]);
-  });
-
-  it('a switch while the loop is OFF starts nothing', () => {
-    show(shopRun());
-    act(() => { setAmplifiedVariant('rune-halo'); });
-    expect(plays()).toEqual([]);
-    show(amplifiedRun());
-    expect(plays().map((p) => p.id)).toEqual(['amplified-rune-halo']);
-  });
-});
-
-describe('the Amplified RELEASE (two pulses as the Amplified activation fires)', () => {
-  const releases = (): Play[] => fired.filter((p) => p.id === AMPLIFIED_RELEASE_DEF);
-  const useCue = (equipmentId: string): RunState['equipFx'] => [{ kind: 'use', uid: 'f', cardId: 'e3_frank', equipmentId }];
-
-  it('fires ONCE on the slot when the Amplified Equipment is used', () => {
-    show(amplifiedRun({}, { equipFxSeq: 1 }));
-    expect(releases(), 'mounting Amplified is not a release').toEqual([]);
-    // The press: the Amplification and the charge are spent, and the use cue arrives, in one action.
-    show(amplifiedRun({ amplified: {}, available: spent() }, { equipFxSeq: 2, equipFx: useCue('bloodpot') }));
-    expect(releases().length).toBe(1);
-    expect(releases()[0]!.anchors.source).toEqual(centre());
-    expect(releases()[0]!.opts?.loop, 'a one-shot').toBeFalsy();
-    show(amplifiedRun({ amplified: {}, available: spent() }, { equipFxSeq: 2, equipFx: useCue('bloodpot'), embers: 3 }));
-    expect(releases().length, 'a re-render of the same action does not release again').toBe(1);
-  });
-
-  it('fires nothing for a use of an Equipment that was NOT Amplified', () => {
-    show(shopRun({}, { equipFxSeq: 1 }));
-    show(shopRun({ available: spent() }, { equipFxSeq: 2, equipFx: useCue('bloodpot') }));
-    expect(releases()).toEqual([]);
-  });
-
-  it('fires nothing when the Amplification ends without a use, or for a use of ANOTHER Equipment', () => {
-    show(amplifiedRun({}, { equipFxSeq: 1 }));
-    show(amplifiedRun({}, { equipFxSeq: 2, equipFx: [{ kind: 'equip', uid: 's', cardId: 'e3_sculptor' }] }));
-    expect(releases(), 'an equip cue is not a use').toEqual([]);
-    show(amplifiedRun({}, { equipFxSeq: 3, equipFx: useCue('titan_hammer') }));
-    expect(releases(), 'the Hammer was not the Amplified one').toEqual([]);
-    show(shopRun({}, { equipFxSeq: 3 }));
-    expect(releases(), 'the stack spent with no use').toEqual([]);
-  });
-
-  it('a permanently Amplified Equipment (Rune of Empty Hands) releases on every use', () => {
-    show(shopRun({}, { equipmentAmplifiedCards: ['e3_frank'], equipFxSeq: 1 }));
-    show(shopRun({ bonusActivations: 1 }, { equipmentAmplifiedCards: ['e3_frank'], equipFxSeq: 2, equipFx: useCue('bloodpot') }));
-    show(shopRun({ bonusActivations: 1 }, { equipmentAmplifiedCards: ['e3_frank'], equipFxSeq: 3, equipFx: useCue('bloodpot') }));
-    expect(releases().length).toBe(2);
-  });
-
-  it('plays the same release whichever look is picked', () => {
-    act(() => { setAmplifiedVariant('rune-halo'); });
-    show(amplifiedRun({}, { equipFxSeq: 1 }));
-    show(amplifiedRun({ amplified: {}, available: spent() }, { equipFxSeq: 2, equipFx: useCue('bloodpot') }));
-    expect(releases().length).toBe(1);
   });
 });

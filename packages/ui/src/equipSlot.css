@@ -21,7 +21,7 @@
    NAMES. In the new looks the plate is a FIXED width and the name auto-shrinks to fit (`--eqn-fit`, measured once
    per name by EquipNamePlate.tsx), never below NAME_FIT_MIN of its base size; the ellipsis is only a last resort.
 
-   PERFORMANCE. Static paint only. Nothing here animates. The existing glow (`.hpb-glow`: a static shadow whose
+   PERFORMANCE. Static paint only, except the Amplified halo and sheen at the end (opacity / transform only). The existing glow (`.hpb-glow`: a static shadow whose
    OPACITY breathes), the one-shot sheen, the fade in / out and the Pixi Amplified loop are untouched; this file
    only reshapes the glow's box to hug each socket. */
 
@@ -175,3 +175,49 @@
 }
 :root[data-eq-look="tablet"] .statusbar .equipslot:is(.ready, .armed) .hplabel.eqname { background: none; color: var(--ui-title); }
 :root[data-eq-look="tablet"] .statusbar .equipslot .hplabel.sellwin { bottom: calc(100% + 28 * var(--u)); }
+
+/* ── AMPLIFIED (owner ask 2026-11-01) ───────────────────────────────────────────────────────────────────────────
+   "somewhat gentle and not over the top, just needs to say 'this is amplified' but not a crazy signal". StatusBar
+   mounts `.eq-amp` (and `.eq-amp-sheen` in the sheen look) only while the selected Equipment will Amplify and has a
+   charge, in the Shop, with nothing covering the slot (the same show rule the old Pixi loop used).
+
+   PERFORMANCE. Both loops are compositor-only, by the house rule (no looping paint property):
+    - the HALO is a STATIC blue shadow on `::before` whose OPACITY breathes (the `kwglow` pattern);
+    - the SHEEN is a glint band moved by `transform` inside a STATIC rim-shaped mask, so it only ever crosses the
+      frame's rim, never the art. */
+.equipslot .eq-amp {
+  /* z4: above the button's gold READY call (its halo layers sit at z1 / z3), so the blue still reads while the slot
+     shouts READY. It is only a rim line and an outer spill, so nothing lands on the art. */
+  position: absolute; z-index: 4; pointer-events: none;
+  inset: calc(-9 * var(--u)); border-radius: calc(34 * var(--u));
+}
+.equipslot .eq-amp::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 calc(3 * var(--u)) rgba(127, 196, 255, 1), 0 0 calc(20 * var(--u)) calc(7 * var(--u)) rgba(60, 140, 255, 0.9);
+  animation: eqampbreathe 3.6s ease-in-out infinite; will-change: opacity;
+}
+@keyframes eqampbreathe { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+
+.equipslot .eq-amp-sheen {
+  position: absolute; z-index: 5; pointer-events: none; overflow: hidden; box-sizing: border-box;
+  inset: calc(-9 * var(--u)); border-radius: calc(34 * var(--u)); padding: calc(9 * var(--u));
+  /* Only the rim ring shows: the full box minus the content box (the art's own square). */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.equipslot .eq-amp-sheen::before {
+  content: ''; position: absolute; top: -40%; left: 0; width: 34%; height: 180%; pointer-events: none;
+  background: linear-gradient(90deg, rgba(190, 228, 255, 0) 0%, rgba(210, 238, 255, 0.95) 50%, rgba(190, 228, 255, 0) 100%);
+  transform: translateX(-160%) rotate(24deg);
+  animation: eqampsheen 4.8s ease-in-out infinite; will-change: transform;
+}
+/* One slow pass across the rim in the first ~40% of the cycle, then a long rest. */
+@keyframes eqampsheen {
+  0% { transform: translateX(-160%) rotate(24deg); }
+  40%, 100% { transform: translateX(420%) rotate(24deg); }
+}
+
+/* Each housing look gives the glow its own outline (Classic and the Gem socket use the default above). */
+:root[data-eq-look="halo"] .equipslot :is(.eq-amp, .eq-amp-sheen) { inset: calc(-8 * var(--u)); border-radius: 50%; padding: calc(8 * var(--u)); }
+:root[data-eq-look="tablet"] .equipslot :is(.eq-amp, .eq-amp-sheen) { inset: calc(-6 * var(--u)); border-radius: calc(20 * var(--u)); padding: calc(6 * var(--u)); }

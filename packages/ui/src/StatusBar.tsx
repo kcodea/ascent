@@ -37,6 +37,7 @@ import { onPressCue } from './pressCue';
 import { useWatchedName } from './versus/spectate';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { useAmplifiedReleaseFx, useAmplifiedSlotFx } from './useAmplifiedSlotFx';
+import { useAmplifiedVariant } from './amplifiedFxConfig';
 import { DiceRoll } from './DiceRoll';
 import { diceSeed, type DieFace } from './diceRollTimeline';
 import { useGame } from './store';
@@ -362,7 +363,12 @@ export function StatusBar() {
     || run.runeforgeOffer || run.scoutedNextOpponent?.length);
   const uiCovering = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook
     || s.showBalance || s.bugReportOpen || !!s.inspect);
-  useAmplifiedSlotFx(hasEquip && equipAmplified > 0 && equipUses > 0 && run.phase === 'recruit' && !overlayCovering && !uiCovering);
+  // THE AMPLIFIED LOOK (owner ask 2026-11-01, "gentle ... just needs to say 'this is amplified'"): the SAME show rule
+  // drives whichever look the DEV switch picks. The default looks are a CSS state on the slot (`.eq-amp`, a breathing
+  // blue halo: static shadow, opacity-only breath); only Classic still plays the Pixi loop.
+  const ampVariant = useAmplifiedVariant();
+  const ampShow = hasEquip && equipAmplified > 0 && equipUses > 0 && run.phase === 'recruit' && !overlayCovering && !uiCovering;
+  useAmplifiedSlotFx(ampShow && ampVariant === 'classic');
   // THE RELEASE (owner ask 2026-11-01): the Amplified activation firing lets the charge go in two quick pulses on
   // the slot, one per trigger. Keyed on the Equipment that WAS Amplified and a fresh use cue for it.
   useAmplifiedReleaseFx(run.equipFxSeq, run.equipFx, hasEquip && equipAmplified > 0 && selectedEquipDef ? selectedEquipDef.id : null);
@@ -1274,6 +1280,10 @@ export function StatusBar() {
                 <img decoding="sync" className="equipframe" src={publicArt(`frames/equipment-frame.webp`)}
                      alt="" aria-hidden="true" draggable={false} />
               )}
+              {/* AMPLIFIED (owner ask 2026-11-01): a calm blue halo breathing round the socket, and in the sheen look a
+                  faint glint travelling the rim. Opacity / transform only (equipSlot.css); mounted only while it shows. */}
+              {ampShow && ampVariant !== 'classic' && <span className="eq-amp" data-testid="eq-amp" aria-hidden="true" />}
+              {ampShow && ampVariant === 'halo-sheen' && <span className="eq-amp-sheen" data-testid="eq-amp-sheen" aria-hidden="true" />}
               <button
                 type="button"
                 className={`heropowerbtn${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}
@@ -1314,7 +1324,7 @@ export function StatusBar() {
                   pool through ANY Equipment drops every one of them back to plain. */}
               {/* AMPLIFIED wins the colour: BLUE says "the next press triggers twice", which matters more than the
                   pool's green. `data-fx="equipment-amplified"` marks the tally for tooling; the owner's authored
-                  cue is the Amplified loop on the button itself (`useAmplifiedSlotFx`, 2026-09-22; the look is a DEV switch since 2026-11-01), which
+                  cue is the Amplified look on the slot itself (the `.eq-amp` halo since 2026-11-01; the Classic Pixi loop behind the DEV switch), which
                   adds the "and it has a charge to spend" half the colour alone does not carry. */}
               <span
                 className={`hpb-tally${equipAmplified > 0 ? ' amplified' : equipPool > 0 ? ' boosted' : ''}`}

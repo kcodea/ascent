@@ -30,14 +30,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'ale-bubbles': ['Recruit.tsx', 'choreo/score.ts'],
   // The persistent AMPLIFIED glow on the Equipment slot (owner-authored 2026-09-22): a looping, slot-centred play
   // started while the selected Equipment will Amplify AND has a charge to spend, fired by literal id from its hook.
-  // Since 2026-11-01 it is the Classic option of the DEV look switch.
   'amplified-slot': ['useAmplifiedSlotFx.ts'],
-  // The Amplified look redo (owner ask 2026-11-01): the release flourish (two pulses as an Amplified activation fires)
-  // and the three new loops the DEV switch picks between (`amplifiedFxConfig.ts`); `amplified-slot` above is Classic.
+  // The Amplified RELEASE (owner ask 2026-11-01): two soft rings on the slot as an Amplified activation fires.
   'amplified-release': ['useAmplifiedSlotFx.ts'],
-  'amplified-corona': ['useAmplifiedSlotFx.ts'],
-  'amplified-twin-snap': ['useAmplifiedSlotFx.ts'],
-  'amplified-rim-crackle': ['useAmplifiedSlotFx.ts'],
   // The Ancients PICK's impact on the hero power (2026-09-27): a ring + a few sparks in the Ancient's colour.
   'ancient-pick-impact': ['ancients/ancientsSmoke.ts'],
   // The Ancients reveal's spark (2026-09-27): each Ancient appears out of a point of its colour.

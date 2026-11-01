@@ -242,6 +242,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:teamGainMaxGold:onPlay': { policy: 'ownBeat', family: 'shout' }, // Richmond
   'factory:giftTeammate:cast': { policy: 'ownBeat', family: 'spellCast' }, // Share the Wealth (the teammate's half lands on their run)
   'factory:passTargetMinion:cast': { policy: 'ownBeat', family: 'spellCast' }, // Handout (the pass stream plays from the minion)
+  'factory:discoverSpellShareTeammate:cast': { policy: 'ownBeat', family: 'spellCast' }, // Double Down (the pick, and a copy for the teammate)
+  'factory:teamUpgradeDiscount:cast': { policy: 'ownBeat', family: 'spellCast' }, // Upgrade Assist (the teammate's next upgrade)
   'factory:discoverRestToTeammate:cast': { policy: 'ownBeat', family: 'spellCast' }, // Disco (the two options left over go to the teammate)
   'factory:discoverMateTribePass:onPlay': { policy: 'ownBeat', family: 'shout' }, // Matchmaker (the pick passes to the teammate)
   'factory:duosFirstPassFree:passive': { policy: 'passive', family: 'passive' }, // Brian's Pal: read by the pass price, never a beat
@@ -843,6 +845,11 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_shoutful_bounty:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_echoing_results:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_salesman_of_the_year:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  // DUOS BATCH 2 (owner 2026-11-01, R-DUOS-RUNES-04)
+  'rune:rune_hand_me_downs:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_buddy_system:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_gild_pact:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_pep_talk:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_merry_christmas:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_lorekeeping:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_mastery:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

@@ -12901,4 +12901,62 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-11-01 (fix/phone-hero-art-sharp). Before, on an iPhone (852 x 393 @3x) your portrait sat in a 98 x 116 stage px layer magnified 3.6x (about an 84 device px raster for a 307 device px drawing) and the combat foe portrait in a 112 stage px layer magnified 2.4x.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroArtLayer.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
+  {
+    id: 'R-DUOS-RUNES-04',
+    title: 'Duos batch 2 runes: Hand-Me-Downs, Buddy System, Gild Pact, Pep Talk',
+    statement:
+      'Duos-only runes. Hand-Me-Downs: your first 2 minion sales each turn each give your teammate 1 Gold. Buddy System: every '
+      + 'minion you buy gives your teammate\x27s left-most minion +3/+2 for good (no limit). Gild Pact: when your teammate Gilds a '
+      + 'minion, you and your teammate each get 2 Gold Pouches. Pep Talk: when you trigger a Shout, your teammate\x27s '
+      + 'left-most minion gets +2/+3 (no limit); a Shop Shout gives it for good, and in a tag-team fight where you fight first '
+      + 'your combat Shouts buff your teammate\x27s waiting left-most for that fight only, so it steps in with the buff. Gifts stream from the rune badge.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-01 (duos batch 2 picks)', quote: '+2/3 and no limit and these types of triggers need to work in combat so if you go second, they have the buff' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-01 (Pep Talk change)', quote: "change pep talk to 'when you trigger a shout' instead of your teammate" },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-01 (duos batch 2 picks)', quote: 'every minion you buy gives left most +3/2' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-01 (duos batch 2 picks)', quote: 'both players get 2 gold pouches' },
+      { kind: 'code', ref: 'packages/sim/src/duosRunes.ts; packages/sim/src/recruit.ts receiveTeamEffect (listen / mateGild); packages/core/src/combat/simulate.ts (Pep Talk on the reserve)' },
+    ],
+    currentBehaviour: 'Built 2026-11-01 (feat/duos-batch2).',
+    example: 'Bob holds Pep Talk and fights first for the team; his Ryme re-fires a Shout, so Amy\x27s left-most minion steps in with +2/+3 this fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosBatch2.test.ts'], lastVerifiedAt: '2026-11-01' },
+  },
+  {
+    id: 'R-DUOS-RUNES-05',
+    title: 'Teammate Synergy: when you get a Triple Reward, your teammate gets one too',
+    statement:
+      'Teammate Synergy (Duos rune, Basic, 2 Gold): every Triple Reward that lands in your hand, whatever gave it (a Gild, a '
+      + 'triple, a quest or another rune), gives your teammate a Triple Reward at the same tier, 3 per game. The badge shows the '
+      + 'uses left and the gift streams from the rune badge. A Triple Reward your teammate\x27s Teammate Synergy sent you never '
+      + 'sends one back, so two copies never loop. Before 2026-11-01 it fired on a Gild instead.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-01', quote: 'change it to be when you get a triple reward, your teammate does too. (3 per game)' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts grantGoldenDiscover; packages/sim/src/duosRunes.ts duosOnTripleReward' },
+    ],
+    currentBehaviour: 'Built 2026-11-01 (feat/duos-batch2). Before, it fired on a Gild of yours.',
+    example: 'Amy completes a quest that grants a Triple Reward at Tier 4: Bob gets a Tier 4 Triple Reward too. If Bob also holds Teammate Synergy, his does not send one back.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosBatch2.test.ts', 'packages/sim/src/duosRunes.test.ts'], lastVerifiedAt: '2026-11-01' },
+  },
+  {
+    id: 'R-DUOS-CARDS-06',
+    title: 'Double Down and Upgrade Assist (Duos-only spells)',
+    statement:
+      'Double Down (Tier 5, 4 Gold): Discover a spell; you keep the pick and your teammate gets a copy of it, streaming from the '
+      + 'option you took. Upgrade Assist (Tier 4, 2 Gold): your teammate\x27s current Shop upgrade price drops by 3, never below 0; '
+      + 'it stacks with Spencer. Both are in every set\x27s Duos pool and nowhere else.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-01 (duos batch 2 picks)', quote: 'Discover a spell. You and your teammate each get a copy.' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-01 (duos batch 2 picks)', quote: 'Your teammate\x27s next Shop upgrade costs 3 less.' },
+      { kind: 'code', ref: 'packages/content/src/cards/duos/spells.ts DUOS_SPELLS_BATCH2; packages/sim/src/reducer.ts takeDiscoverPickInner (copy rider)' },
+    ],
+    currentBehaviour: 'Built 2026-11-01 (feat/duos-batch2).',
+    example: 'Amy casts Double Down and takes the middle spell: it goes to her hand and a copy flies into Bob\x27s portrait.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosBatch2.test.ts'], lastVerifiedAt: '2026-11-01' },
+  },
 ];

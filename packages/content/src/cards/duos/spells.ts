@@ -98,3 +98,41 @@ export const DUOS_SPELLS_DISCOVER_PASS: readonly CardDef[] = [
     text: '**Discover** a minion. Your teammate gets the ones you skip.',
   },
 ];
+
+/** Duos batch 2 (owner picks 2026-11-01, R-DUOS-CARDS-06): a list of its own, APPENDED at the end of `DUOS_CARDS`, so no
+ *  earlier Duos pool position moves (pool order seeds the Shop). */
+export const DUOS_SPELLS_BATCH2: readonly CardDef[] = [
+  {
+    // "Discover a spell. You and your teammate each get a copy." A plain spell Discover (the Shop spells up to your
+    // tier); you keep the pick and your teammate gets a copy of it as a gift (`discoverDuos: 'copy'`), streaming from the
+    // option you took (R-DUOS-PASS-FLIGHT-01). Outside a Duos run it is a plain spell Discover.
+    id: 'duo_doubledown',
+    name: 'Double Down',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 4,
+    duos: true,
+    effects: [{ on: 'cast', do: 'discoverSpellShareTeammate' }],
+    text: '**Discover** a spell. You and your teammate each get a copy.',
+  },
+  {
+    // "Your teammate's next Shop upgrade costs 3 less." Spencer's team discount, teammate only (`mateOnly`): their
+    // run lowers its current upgrade price (floored at 0), so it stacks with Spencer and the turn's own drop.
+    id: 'duo_upgradeassist',
+    name: 'Upgrade Assist',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    duos: true,
+    effects: [{ on: 'cast', do: 'teamUpgradeDiscount', params: { amount: 3, mateOnly: true } }],
+    text: "Your teammate's next Shop upgrade costs **3** less.",
+  },
+];

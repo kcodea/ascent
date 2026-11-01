@@ -80,17 +80,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-numeral-01",
-    "title": "Wording: Gold vs g · 83 vs 2",
+    "title": "Wording: Gold vs g · 85 vs 2",
     "statement": "Money always prints as \"N Gold\" — never the \"Ng\" abbreviation. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"N Gold\" in 83 printed texts, \"Ng\" in 2. Approving picks \"N Gold\"; the LG-NUMERAL-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"N Gold\" in 85 printed texts, \"Ng\" in 2. Approving picks \"N Gold\"; the LG-NUMERAL-01 guide predicate then watches new text.",
     "cardText": "\"N Gold\" — Bone Taxer: \"Avenge (4): get 2 Gold next shop. Deathrattle: raise your maximum Gold by 1.\" · \"Ng\" — Trail Forager: \"Sells for 3g, plus 1g for every Beast you play.\"",
     "example": "Trail Forager would be re-worded to the \"N Gold\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-NUMERAL-01 (corpus survey: 83 vs 2)"
+        "ref": "textParse.wording · LG-NUMERAL-01 (corpus survey: 85 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -106,17 +106,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-position-01",
-    "title": "Wording: left-most vs leftmost · 75 vs 1",
+    "title": "Wording: left-most vs leftmost · 77 vs 1",
     "statement": "Positional words are hyphenated: \"left-most\" / \"right-most\", never \"leftmost\". — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"left-most\" in 75 printed texts, \"leftmost\" in 1. Approving picks \"left-most\"; the LG-POSITION-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"left-most\" in 77 printed texts, \"leftmost\" in 1. Approving picks \"left-most\"; the LG-POSITION-01 guide predicate then watches new text.",
     "cardText": "\"left-most\" — Echohorn: \"Rally: trigger your left-most Echo.\" · \"leftmost\" — Grave Body: \"Copy your leftmost Echo when summoned.\"",
     "example": "Grave Body would be re-worded to the \"left-most\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-POSITION-01 (corpus survey: 75 vs 1)"
+        "ref": "textParse.wording · LG-POSITION-01 (corpus survey: 77 vs 1)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -132,17 +132,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-trigger-01",
-    "title": "Wording: Shout vs Battlecry · 155 vs 40",
+    "title": "Wording: Shout vs Battlecry · 156 vs 40",
     "statement": "On-play triggers print \"Shout\" everywhere; every \"Battlecry\" in card text is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shout\" in 155 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shout\" in 156 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
     "cardText": "\"Shout\" — Dawnclaw: \"Taunt. Echo: trigger both adjacent minions' Shouts.\" · \"Battlecry\" — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\"",
     "example": "Pennycat would be re-worded to the \"Shout\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 155 vs 40)"
+        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 156 vs 40)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -226,17 +226,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-verb-01",
-    "title": "Wording: trigger vs fire/proc · 106 vs 2",
+    "title": "Wording: trigger vs fire/proc · 107 vs 2",
     "statement": "Effects \"trigger\" — never \"fire\" or \"proc\". The three straggler texts are updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"trigger\" in 106 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"trigger\" in 107 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
     "cardText": "\"trigger\" — Dawnclaw: \"Taunt. Echo: trigger both adjacent minions' Shouts.\" · \"fire/proc\" — Graverobber: \"Battlecry: Destroy a friendly minion (procs its Deathrattle), then add a random Shop spell of its tier to your hand.\"",
     "example": "Graverobber would be re-worded to the \"trigger\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 106 vs 2)"
+        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 107 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -279,17 +279,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-zone-01",
-    "title": "Wording: Shop vs tavern · 235 vs 9",
+    "title": "Wording: Shop vs tavern · 236 vs 9",
     "statement": "The buy row is always \"the Shop\" in text; every remaining \"tavern\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shop\" in 235 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shop\" in 236 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
     "cardText": "\"Shop\" — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · \"tavern\" — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\"",
     "example": "Korok, the Hungerer would be re-worded to the \"Shop\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 235 vs 9)"
+        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 236 vs 9)"
       }
     ],
     "sourceQueue": "textParse.wording",

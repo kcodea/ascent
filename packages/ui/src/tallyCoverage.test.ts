@@ -125,7 +125,7 @@ const duosArmed = (run: RunState): RunState => ({
   duos: {
     outbox: [], received: [], refused: [],
     runes: {
-      spellTheory: 1, synergyLeft: 3, salesman: 2, catchOwn: 3,
+      spellTheory: 1, synergyLeft: 3, salesman: 2, catchOwn: 3, handMeDowns: 1, handMeDownsCap: 2,
       meters: [
         { sourceId: 'rune_shoutful_bounty', meter: 'shout', per: 2, tick: 0, cap: 3, paid: 0 },
         { sourceId: 'rune_echoing_results', meter: 'echo', per: 3, tick: 0, cap: 2, paid: 0 },

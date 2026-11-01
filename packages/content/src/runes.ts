@@ -2119,7 +2119,9 @@ export const RUNES: RuneDef[] = [
     name: 'Teammate Synergy',
     cost: 2,
     duos: true,
-    text: 'When you **Gild** a minion, give your teammate a **Triple Reward**. **(3 per game)**',
+    // Owner 2026-11-01: "change it to be when you get a triple reward, your teammate does too. (3 per game)" (was: when
+    // you Gild a minion). Any Triple Reward you get counts; one this rune sent you never sends one back.
+    text: 'When you get a **Triple Reward**, your teammate gets one too. **(3 per game)**',
     previewCards: ['discoverspell'], // text names it: the forge hover shows the card
     reward: { kind: 'duosRune', rune: 'teammateSynergy', uses: 3 },
   },
@@ -2139,6 +2141,45 @@ export const RUNES: RuneDef[] = [
     duos: true,
     text: 'Your first **3** passes as a team each round are free.',
     reward: { kind: 'duosRune', rune: 'playingCatch', uses: 3 },
+  },
+  // ── DUOS BATCH 2 (owner picks 2026-11-01, R-DUOS-RUNES-04). Append only. ──
+  {
+    id: 'rune_hand_me_downs',
+    name: 'Hand-Me-Downs',
+    cost: 1,
+    duos: true,
+    text: 'When you **Sell** a minion, your teammate gets **1 Gold**. **(Twice per turn)**',
+    reward: { kind: 'duosRune', rune: 'handMeDowns', uses: 2 },
+  },
+  {
+    // Owner change 2026-11-01: "every minion you buy gives left most +3/2" (no limit).
+    id: 'rune_buddy_system',
+    name: 'Buddy System',
+    cost: 2,
+    duos: true,
+    text: "When you buy a minion, give your teammate's **left-most** minion **+3/+2**.",
+    reward: { kind: 'duosRune', rune: 'buddySystem' },
+  },
+  {
+    // Owner change 2026-11-01: "both players get 2 gold pouches".
+    id: 'rune_gild_pact',
+    name: 'Gild Pact',
+    cost: 2,
+    duos: true,
+    text: 'When your teammate **Gilds** a minion, you and your teammate each get **2 Gold Pouches**.',
+    previewCards: ['emberpouch'],
+    reward: { kind: 'duosRune', rune: 'gildPact' },
+  },
+  {
+    // Owner change 2026-11-01: "+2/3 and no limit and these types of triggers need to work in combat so if you go
+    // second, they have the buff", then "change pep talk to 'when you trigger a shout' instead of your teammate" (the
+    // target is the teammate's left-most). Shop: permanent. Combat (tag-team, you fight first): combat-only.
+    id: 'rune_pep_talk',
+    name: 'Pep Talk',
+    cost: 1,
+    duos: true,
+    text: "When you trigger a **Shout**, give your teammate's **left-most** minion **+2/+3**.",
+    reward: { kind: 'duosRune', rune: 'pepTalk' },
   },
 ];
 

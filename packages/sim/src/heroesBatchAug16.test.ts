@@ -8,9 +8,9 @@ const at = (over: Partial<RunState>): RunState =>
   ({ ...createRun(7), phase: 'recruit', ...over }) as RunState;
 
 describe('Emerald Warden — Vanguard', () => {
-  it('is an 8-armor passive', () => {
+  it('is a 3-armor passive', () => {
     const h = getHero('emeraldwarden');
-    expect([h.armor, h.power.kind, h.power.passive]).toEqual([8, 'vanguard', true]);
+    expect([h.armor, h.power.kind, h.power.passive]).toEqual([3, 'vanguard', true]); // owner balance 2026-11-01: 8 -> 3
   });
 
   it('hands you a minion of the tier you JUST reached, not the one you left', () => {

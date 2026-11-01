@@ -398,9 +398,9 @@ describe('Harlan — Buyout', () => {
 // Rascal's hero ID is `baggerben` — one hero, the id kept stable for saves/art while the display name is
 // "Rascal" (the same convention as `hermithank` → "Tradesman"). There is no separate Bagger Ben.
 describe('Rascal — All In (reworked)', () => {
-  it('is now 9 armor with two uses', () => {
+  it('is now 10 armor with two uses', () => {
     const h = getHero('baggerben');
-    expect([h.armor, h.power.kind, h.power.maxUses]).toEqual([9, 'allIn', 2]); // armor 6 -> 9 (2026-08-17)
+    expect([h.armor, h.power.kind, h.power.maxUses]).toEqual([10, 'allIn', 2]); // armor 6 -> 9 (2026-08-17), 9 -> 10 (2026-11-01)
     expect(h.power.oncePerGame ?? false, 'two uses, not one').toBe(false);
   });
 

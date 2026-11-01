@@ -100,8 +100,8 @@ describe('End-of-Turn upgrade discounts play the self buff burst on the Tier but
 
   it('Tradesman x Ancient of Time: the hero beat is no longer empty, and it targets the Tier button', () => {
     const before = ancientRun('hermithank', 'time', { upgradeCost: 7 });
-    const priceBefore = upgradeCostOf(before); // 7 + Frugal's 2
-    expect(priceBefore).toBe(9);
+    const priceBefore = upgradeCostOf(before); // 7 + Frugal's 1
+    expect(priceBefore).toBe(8);
     const { timeline } = eot(before);
     const hits = resourceBeats(timeline, 'upgradeCost');
     expect(hits).toHaveLength(1);
@@ -114,13 +114,13 @@ describe('End-of-Turn upgrade discounts play the self buff burst on the Tier but
   });
 
   it("the cut eats Frugal's surcharge, down to 0, and the beat carries the PRINTED price", () => {
-    // Running cost 2 (+2 Frugal = 4): Time's 3 empties the running cost and eats 1 of the +2 → 1 (ruling "down to 0").
+    // Running cost 2 (+1 Frugal = 3): Time's 3 empties the running cost and eats the +1 → 0 (ruling "down to 0").
     const low = eot(ancientRun('hermithank', 'time', { upgradeCost: 2 })).timeline;
     expect(resourceBeats(low, 'upgradeCost')[0]!.amount).toBe(-3);
     expect(finalProjection(low).resources.get('upgradeCost')).toBe(-3);
-    // Running cost 0 (price 2): only the surcharge is left to cut → 0, so the beat drops the price by 2, not 3.
+    // Running cost 0 (price 1): only the surcharge is left to cut → 0, so the beat drops the price by 1, not 3.
     const zero = eot(ancientRun('hermithank', 'time', { upgradeCost: 0 })).timeline;
-    expect(resourceBeats(zero, 'upgradeCost')[0]!.amount).toBe(-2);
+    expect(resourceBeats(zero, 'upgradeCost')[0]!.amount).toBe(-1);
   });
 
   it('the price is withheld until its beat, then drops (consequence lands with the FX, not before)', () => {

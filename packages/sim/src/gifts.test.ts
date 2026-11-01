@@ -78,9 +78,9 @@ describe('the Gift sources', () => {
     expect(offered.every((id) => GIFT_IDS.includes(id)), 'and every option is a Gift').toBe(true);
   });
 
-  it('Kindness carries 15 Armor and a passive Gift schedule', () => {
+  it('Kindness carries 11 Armor and a passive Gift schedule', () => {
     const h = HEROES.find((x) => x.id === 'kindness')!;
-    expect(h.armor).toBe(15);
+    expect(h.armor).toBe(11); // owner balance 2026-11-01: 15 -> 11
     expect([h.power.kind, h.power.passive]).toEqual(['greatPresence', true]);
   });
 

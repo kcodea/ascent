@@ -289,3 +289,17 @@ describe('Group room (Cloudflare) — resolverFail / hibernation / room options'
     await expect(h.op(U[0], 'start')).rejects.toThrow('need_three_players');
   });
 });
+
+describe('Group room (Cloudflare) — longer turns 6 and 9 (R-VERSUS-TURN-TIME-02)', () => {
+  it('the server deadline gives rounds 6 and 9 25 more seconds; 5 and 10 are unchanged', async () => {
+    const h = await inShop(4);
+    const lengths: number[] = [];
+    for (let round = 1; round <= 10; round++) {
+      expect(h.g.round).toBe(round);
+      lengths.push((h.g.shop_deadline! - h.now) / 1000);
+      await lockAll(h, [EMPTY, EMPTY, EMPTY, EMPTY]);
+      await readyAll(h);
+    }
+    expect(lengths).toEqual([24, 25, 30, 35, 39, 76, 55, 60, 89, 69]);
+  });
+});

@@ -85,7 +85,8 @@ export const ACTIONS_RULES: GameRule[] = [
       + '74, 92, 97, 101, 106; Duos 27, 29, 34, 39, 44, 57, 62, 68, 73, 78, 83, 104, 109, 114, 120. ONE function '
       + '(`versusTurnSeconds`) answers it: the Worker stamps every shop deadline with it for the match mode, and the HUD '
       + 'shows it before a deadline exists, so the face matches the server. Hero Select, the intro cap, combat, pause '
-      + 'grace and the Ranked Duos overtime are unchanged. Lobby, Practice and the solo modes keep the plain schedule.',
+      + 'grace and the Ranked Duos overtime are unchanged. Lobby, Practice and the solo modes keep the plain schedule. '
+      + '(Rounds 6 and 9 then add a flat 25 s on top: R-VERSUS-TURN-TIME-02.)',
     domain: 'actions',
     status: 'approved',
     evidence: [
@@ -94,6 +95,25 @@ export const ACTIONS_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms (2026-10-30). Before, every Versus mode used the plain lobby schedule.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusTurnSeconds.test.ts', 'workers/versus/test/duosCore.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-VERSUS-TURN-TIME-02',
+    title: 'Live modes: turns 6 and 9 last 25 seconds longer',
+    statement:
+      'In every live mode (Versus 1v1, Versus Group, Versus Duos, Ranked Duos) the shop clock of rounds 6 and 9 is the '
+      + 'scaled length of the mode (R-VERSUS-TURN-TIME-01) plus a flat 25 s, added after the percent. Rounds 1-10: 1v1 / '
+      + 'Group 24, 25, 30, 35, 39, 76, 55, 60, 89, 69; Duos / Ranked Duos 27, 29, 34, 39, 44, 82, 62, 68, 98, 78. It is '
+      + 'a named table (`LIVE_SHOP_BONUS_SECONDS`) inside `versusTurnSeconds`, so the Worker deadline and the HUD face '
+      + 'read the same number and the 0:00 lock never lands early. The ranked solo lobby, Practice and the solo modes '
+      + 'keep the plain schedule (`standardTurnSeconds`).',
+    domain: 'actions',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-01 (live turn length)', quote: 'Add 25 seconds to turn 6 and 9 in all live modes, aka all but ranked solos' },
+      { kind: 'code', ref: 'packages/sim/src/versus/constants.ts (LIVE_SHOP_BONUS_SECONDS, versusTurnSeconds)' },
+    ],
+    currentBehaviour: 'Conforms (2026-11-01). Before, rounds 6 and 9 had only the mode percent.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusTurnSeconds.test.ts', 'workers/versus/test/roomCore.test.ts', 'workers/versus/test/groupCore.test.ts', 'workers/versus/test/duosCore.test.ts', 'workers/versus/test/rankedCore.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
   {
     id: 'R-TRANSFORM-01',

@@ -35,17 +35,26 @@ export const VERSUS_LEASE_SECONDS = 12;
 export const VERSUS_TURN_PERCENT: Readonly<Record<VersusMode, number>> = { duel: 115, group: 115, duos: 130, ranked_duos: 130 };
 
 /**
+ * LONGER TURNS 6 AND 9 IN LIVE MODES (owner 2026-11-01, R-VERSUS-TURN-TIME-02): "Add 25 seconds to turn 6 and 9 in
+ * all live modes, aka all but ranked solos". Flat seconds added AFTER the mode's percent, in every Versus mode (1v1,
+ * Group, Duos, Ranked Duos). The ranked solo lobby, Practice and the solo modes never read this.
+ */
+export const LIVE_SHOP_BONUS_SECONDS: Readonly<Record<number, number>> = { 6: 25, 9: 25 };
+
+/**
  * A Versus round's shop length in whole seconds: the ONE source the Worker's deadlines (`roomCore` 1v1,
  * `groupMatch` group / Duos / Ranked Duos) and the client's pre-deadline face read. The base is the lobby schedule
  * (`standardTurnSeconds` in packages/ui/src/turnClock.ts, pinned equal by `versusTurnSeconds.test.ts`): +4 s a round
  * from 18 s, +6 s from round 6, capped at 80 s, +12 s from round 12, floored at 21 s. Then the mode's percent,
- * rounded half up to whole seconds. An unknown mode reads as the 1v1.
+ * rounded half up to whole seconds, then the live bonus (`LIVE_SHOP_BONUS_SECONDS`: +25 s on rounds 6 and 9).
+ * An unknown mode reads as the 1v1.
  */
 export function versusTurnSeconds(round: number, mode: unknown): number {
   const base = Math.max(21, Math.min(80, 18 + (round - 1) * 4 + (round >= 6 ? 6 : 0)) + (round >= 12 ? 12 : 0));
   const pct = typeof mode === 'string' && Object.prototype.hasOwnProperty.call(VERSUS_TURN_PERCENT, mode)
     ? VERSUS_TURN_PERCENT[mode as VersusMode] : VERSUS_TURN_PERCENT.duel;
-  return Math.floor((base * pct + 50) / 100);
+  const bonus = Object.prototype.hasOwnProperty.call(LIVE_SHOP_BONUS_SECONDS, round) ? LIVE_SHOP_BONUS_SECONDS[round]! : 0;
+  return Math.floor((base * pct + 50) / 100) + bonus;
 }
 
 /**

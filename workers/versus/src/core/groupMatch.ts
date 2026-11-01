@@ -328,6 +328,10 @@ export class GroupEngine {
 
   get m(): GMatch { return this.g.match; }
   get duos(): boolean { return this.m.options.mode === 'duos'; }
+  /** Can a seat pass cards to its teammate here? VERSUS DUOS and RANKED DUOS both (owner 2026-10-26: Ranked Duos "passes
+   *  the same way"; the SQL's `versus_duos__is` was `in ('duos', 'ranked_duos')`). The Cloudflare port read `duos` alone,
+   *  so every Ranked Duos pass came back `not_duos` (owner 2026-11-01, R-DUOS-PASS-RANKED-01). */
+  get teamPasses(): boolean { return this.duos || this.m.options.mode === 'ranked_duos'; }
   protected team(id: GTeamId): GTeam { return this.m.teams!.find((x) => x.team === id)!; }
   protected livingTeams(): number { return (this.m.teams ?? []).filter((x) => x.eliminated_round == null).length; }
   seatOf(userId: string): GSeat | null { return this.m.seats.find((s) => s.user_id === userId)?.seat ?? null; }
@@ -813,7 +817,7 @@ export class GroupEngine {
   /** `versus_duos_pass`: exactly once per seq; refused when the teammate's hand is full, they are away, or past the cap. */
   pass(userId: string, round: unknown, seq: unknown, card: unknown): GPass {
     const m = this.m;
-    if (!this.duos) this.h.fail('not_duos');
+    if (!this.teamPasses) this.h.fail('not_duos');
     const seat = this.seatOf(userId);
     if (!seat) this.h.fail('not_a_player');
     const all = this.g.passes ?? (this.g.passes = {});

@@ -28,7 +28,7 @@ import { installLocalMate, useLocalMate, type LocalMateApi } from './versus/loca
 import { useSpectate } from './versus/spectate';
 import { exitTeammateView } from './versus/teammateView';
 import { playArrival, playSpellPass } from './versus/passLob';
-import { notePassRefused } from './versus/duosPassUi';
+import { notePassRefused, passReturnedText } from './versus/duosPassUi';
 import { devCard } from './versus/duosDevTuner';
 import { sfx } from './sfx';
 import { deliverSbTeam, newSbLedger, releaseSbCombatFx, sbHandRoom, type SbLedger, type SbSeat } from './sbDuosChannel';
@@ -113,7 +113,7 @@ function pump(): void {
       if (ev.kind === 'landed' && ev.to === screen && !ev.triple) for (const uid of ev.uids) playArrival(uid);
       if (ev.kind === 'refused' && ev.from === screen && !ev.team) {
         sfx.deny?.();
-        notePassRefused(ev.reason === 'hand_full' ? 'Their hand was full. You got it back.' : 'Pass returned. You got it back.');
+        notePassRefused(passReturnedText(ev.reason));
       }
     }
   } finally { pumping = false; }

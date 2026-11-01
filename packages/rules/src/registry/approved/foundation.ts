@@ -12800,4 +12800,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'On an iPhone in an eight-player lobby, the reveal lines up eight 256 px faces, each flies onto its slice showing that same image, and the End Turn gem loads its 512 px phone copy, not the 1001 px original.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/railFaceArt.test.ts', 'apps/web/phoneArtPlugin.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
+  {
+    id: 'R-DUOS-PASS-RANKED-01',
+    title: 'Ranked Duos passes cards like Versus Duos, and a returned pass always says why',
+    statement:
+      'The manual pass (drag a hand card onto the teammate portrait) and every effect pass work in RANKED DUOS exactly as in Versus Duos: '
+      + 'the Cloudflare room accepts a pass when the match mode is duos OR ranked_duos (the SQL rule versus_duos__is), so a pass of any hand '
+      + 'card, a spell such as Lantern Light included, reaches the live teammate in the shop with Gold and time left. When a pass does come '
+      + 'back, the note on the teammate portrait names the real reason for every refusal code (hand full, teammate away or out, shop closed, '
+      + 'time ran out, pass limit, a card that cannot be passed, a Gilded minion targeted by a pass spell, you are out, passing off in this '
+      + 'mode); only an unknown code shows the generic "Pass returned. You got it back.", and the code is logged to the console for bug reports.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-01 (live build 8d8f71914, Ranked Duos on the Cloudflare Worker)', quote: 'duos keeps saying pass returned. why?' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-01', quote: 'i was just trying to pass a lantern light on both turns 1 and 2 with gold and time left, and he did not have a full hand' },
+      { kind: 'code', ref: 'fix/duos-pass-returned: workers/versus/src/core/groupMatch.ts (GroupEngine.teamPasses: duos or ranked_duos; pass() gated on it, was duos only); packages/ui/src/versus/duosPassUi.ts (passReturnedText); packages/ui/src/versus/duosPasses.ts + packages/ui/src/sbDuos.ts (the toast reads it, the code is logged)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-01 (fix/duos-pass-returned, ships with the next Worker pack). Before, the Cloudflare port of versus_duos_pass checked mode === duos alone, so every card pass in Ranked Duos was refused not_duos and refunded with the generic "Pass returned. You got it back." Versus Duos (four players) was not affected.',
+    example: 'Ann and Bob play Ranked Duos. On turn 1 Ann drags Lantern Light from her hand onto Bob\x27s portrait with 3 Gold: it lands in Bob\x27s hand and Ann has 2 Gold. Later the shop closes as she drops a card on him: it comes back with "Too late, the shop is closed. You got it back."',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/rankedCore.test.ts', 'packages/ui/src/versus/duosPassReturned.test.ts'], lastVerifiedAt: '2026-11-01' },
+  },
 ];

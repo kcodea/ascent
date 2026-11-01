@@ -86,14 +86,14 @@ html:root .lobbyrail.lrv-docked .lobbyseat {
   --f1: calc(min(100, var(--lr2-fade-start, 0) + var(--lr2-fade-len, 100)) * 1%);
   --fe: rgba(0, 0, 0, calc(1 - var(--lr2-fade-str, 1)));
   /* The placement box's width and its gap from the slice (Tuner 2 "Placement column width" / "Placement gap"). */
-  --rkw: calc(var(--lr2-rank-w, 22) * var(--dk-s, 1) * 1px);
-  --rkg: calc(var(--lr2-rank-gap, 4) * var(--dk-s, 1) * 1px);
+  --rkw: calc(var(--lr2-rank-w, 23.5) * var(--dk-s, 1) * 1px);
+  --rkg: calc(var(--lr2-rank-gap, 6.5) * var(--dk-s, 1) * 1px);
 }
 html:root .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
   /* The art's shared placement; each layout below sets its width, side and fade. */
   position: absolute; top: 0; bottom: 0; left: 0; width: 100%; height: 100%;
   object-position: calc(var(--lr2-art-fx, 0) * 1%) calc(var(--lr2-art-fy, 21) * 1%);
-  transform: scale(var(--lr2-art-zoom, 1.04)); transform-origin: calc(var(--lr2-art-fx, 0) * 1%) calc(var(--lr2-art-fy, 21) * 1%);
+  transform: scale(var(--lr2-art-zoom, 1.16)); transform-origin: calc(var(--lr2-art-fx, 0) * 1%) calc(var(--lr2-art-fy, 21) * 1%);
   filter: brightness(var(--lr2-art-bright, 1));
 }
 /* NAVY is the shipped look (owner 2026-10-31: "i want number and armor number left in the navy blue, fades into the hero
@@ -101,9 +101,9 @@ html:root .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
    fading in from a navy plate over its first `--lr2-navy-fade`%. Production sets no `data-lr2-art`, so the
    `:not([data-lr2-art])` arm IS production. Static mask. */
 html:root:is(:not([data-lr2-art]), [data-lr2-art="navy"]) .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
-  left: auto; right: 0; width: calc(var(--lr2-navy-art-w, 73) * 1%);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 63) * 1%));
-  mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 63) * 1%));
+  left: auto; right: 0; width: calc(var(--lr2-navy-art-w, 53) * 1%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 46) * 1%));
+  mask-image: linear-gradient(90deg, transparent 0%, #000 calc(var(--lr2-navy-fade, 46) * 1%));
 }
 /* LEFT FADE (the earlier default, Tuner 2): the art on the left `--aw` of the slice, fading into the plate. */
 html:root[data-lr2-art="left"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface {
@@ -141,7 +141,7 @@ html:root:is(:not([data-lr2-art]), [data-lr2-art="navy"]) .lobbyrail.lrv-docked 
    in the stack (`--hx`, the layout's `numX`). Tuner 2 "Show Health as" picks numbers (default), the bar, or both. */
 html:root .lobbyrail.lrv-docked .lrv-hpnum {
   position: absolute; z-index: 3; top: 50%;
-  left: calc(var(--hx, var(--mx, 0px)) + 10px * var(--dk-s, 1) + var(--lr2-hpnum-x, -7) * 1px);
+  left: calc(var(--hx, var(--mx, 0px)) + 10px * var(--dk-s, 1) + var(--lr2-hpnum-x, -15.5) * 1px);
   translate: 0 calc(-50% + var(--lr2-hpnum-y, 0) * 1px);
   display: flex; flex-direction: column; align-items: flex-start; gap: calc(2px * var(--dk-s, 1));
   font-family: var(--font-title), sans-serif; font-weight: 900; line-height: 1; pointer-events: none;
@@ -162,7 +162,7 @@ html:root[data-lr2-hp="bar"] .lobbyrail.lrv-docked .lrv-hpnum { display: none; }
    `--rkg` right of the slice, framed in the slice's gold. The text matches `.lrv-name` (font, size, weight, shadow, colour
    per state). Static paint. */
 html:root .lobbyrail.lrv-docked .lrv-rank {
-  --ns: var(--lr2-name-shadow, 1);
+  --ns: var(--lr2-name-shadow, 0.5);
   position: absolute; z-index: 2; top: 0; bottom: 0; left: calc(100% + var(--rkg)); width: var(--rkw); box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
   border: max(1px, calc(1.5px * var(--dk-s, 1))) solid var(--ui-edge-main);
@@ -188,7 +188,7 @@ html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="3"] { backgroun
 html:root .lobbyrail.lrv-docked .lobbyseat.foe:not(.dead) .lrv-tileart > .lobbyface { filter: brightness(calc(var(--lr2-art-bright, 1) * 1.12)) saturate(1.1); }
 /* THE NAME, over the faded side, clear of the bar. */
 html:root .lobbyrail.lrv-docked .lrv-name {
-  --ns: var(--lr2-name-shadow, 1);
+  --ns: var(--lr2-name-shadow, 0.5);
   /* ONE alignment line for every name (owner 2026-10-31: "The names all need to be aligned vertically"): the same right
      edge on every slice, and the block CENTRED on the same midline (the middle of the space above the bar), so a 1-line
      and a 2-line name share it; a cut never moves it, and the fallen (no bar) use the same midline. */
@@ -196,7 +196,7 @@ html:root .lobbyrail.lrv-docked .lrv-name {
   top: calc((var(--ph) - var(--bar-base) * var(--lr2-bar-h, 22) / 100 - var(--rim, 3px)) / 2);
   left: calc(var(--aw) * 0.62); right: calc(9px * var(--dk-s, 1));
   text-align: right; pointer-events: none;
-  translate: calc(var(--lr2-name-x, 0) * 1px) calc(-50% + var(--lr2-name-y, 0) * 1px);
+  translate: calc(var(--lr2-name-x, 2.5) * 1px) calc(-50% + var(--lr2-name-y, 27.5) * 1px);
   font-family: var(--font-title), sans-serif; font-weight: var(--lr2-name-weight, 800);
   font-size: calc(var(--lr2-name-size, 15) * var(--dk-s, 1) * 1px); line-height: 1.12; letter-spacing: 0.02em; color: var(--ui-text);
   text-shadow: 0 1px 0 rgba(0, 0, 0, min(1, calc(0.95 * var(--ns)))), 0 0 calc(4px * var(--ns)) rgba(0, 0, 0, min(1, calc(0.85 * var(--ns)))), 0 0 calc(9px * var(--ns)) rgba(0, 0, 0, min(1, calc(0.6 * var(--ns))));

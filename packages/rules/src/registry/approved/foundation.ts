@@ -12863,4 +12863,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann plays Disco and picks the middle option: the left and right option cards each dissolve and stream into Amy\x27s portrait.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/passFlight.test.ts', 'packages/sim/src/duosPassFlight.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
+  {
+    id: 'R-PHONE-HERO-LAYER-01',
+    title: 'On a phone your portrait and the combat foe portrait are rasterised at the size they are drawn',
+    statement:
+      'Your hero portrait and the combat foe portrait are laid out small and magnified by transforms (3.1 x 1.17 for '
+      + 'your tray, 2.4 for the foe). On a phone the browser can raster such a layer at its small laid-out size and '
+      + 'stretch it, which makes the art blurry even though a 512 px image is loaded. So on a phone both images are '
+      + 'laid out 4 times bigger, scaled back to the same drawn size, and kept in their own layer, so their raster is at '
+      + 'least as big as their drawn size. The drawn size, the frame and the pills do not move. Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-01', quote: 'Still seeing blurry hero art on mobile' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (html.lite-art .statusbar .hero .f .heroimg, html.lite-art .combatopp-img)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-11-01 (fix/phone-hero-art-sharp). Before, on an iPhone (852 x 393 @3x) your portrait sat in a 98 x 116 stage px layer magnified 3.6x (about an 84 device px raster for a 307 device px drawing) and the combat foe portrait in a 112 stage px layer magnified 2.4x.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroArtLayer.test.ts'], lastVerifiedAt: '2026-11-01' },
+  },
 ];

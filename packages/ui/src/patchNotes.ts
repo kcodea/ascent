@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-01',
     changes: [
+      { category: 'Systems', text: 'Phones: your hero portrait and the combat foe portrait are sharp again. Before, they could look blurry.' },
       { category: 'Systems', text: 'Duos: every card, rune or Equipment that sends your teammate something now shows the pass stream from where it came from into their portrait.', details: [
         'Matchmaker: the minion you pick streams from its Discover card.',
         'Disco: the two options you did not take each stream from their Discover card.',

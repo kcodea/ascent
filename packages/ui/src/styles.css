@@ -4400,6 +4400,22 @@ body.dragging .statusbar .hero { pointer-events: none; }
    (the pill lives inside, so it rides the portrait transform too). */
 .statusbar .hero .f { position: absolute; inset: calc(6 * var(--u)); width: auto; height: auto; overflow: visible; border-radius: 50%; transform: var(--hpn-portrait-t, translate(calc(0 * var(--u)), calc(-1 * var(--u))) scale(1.17)); }
 .statusbar .hero .f .heroimg { border-radius: inherit; }
+/* SHARP BIG HERO PORTRAITS ON A PHONE (owner 2026-11-01, R-PHONE-HERO-LAYER-01: "Still seeing blurry hero art on mobile").
+   Your portrait is laid out ~73 stage px wide and MAGNIFIED by transforms: the tray's `scale(3.1)` (.hero) x the
+   portrait's `scale(1.17)` (.f) = 3.6x; the combat foe's by `.combatopp`'s `scale(2.4)`. The tray is its own composited
+   layer on a phone (it overlaps the hero-power diamond's animated glow), and WebKit backs a layer at its LAYOUT size x the
+   page scale x the pixel density, not at its magnified size, then stretches it on the GPU: the 512 px master reached the
+   iPhone's screen as a ~84 px raster blown up 3.6x. So on a phone the image is laid out FOUR times bigger, scaled back
+   down by 1/4 (net size unchanged, the negative margins give its old box back to the flow), and given its OWN layer:
+   that layer's raster is 4x the old one, which covers both magnifications (3.6x, 2.4x) on any phone. Desktop (Chrome
+   rasterises at the screen scale) is untouched. The factor must stay >= panelScale x portraitScale and >= oppScale
+   (heroArtLayer.test.ts). */
+html.lite-art .statusbar .hero .f .heroimg, html.lite-art .combatopp-img {
+  width: 400%; height: 400%; max-width: none;
+  margin-right: -300%; margin-bottom: -300%; /* percent margins resolve against the (square) slot's width */
+  transform: scale(0.25); transform-origin: 0 0;
+  will-change: transform;
+}
 .statusbar .hero .f svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
 /* Hover affordance — the portrait darkens to a near-black scrim and spells out the click action (owner ask
    2026-08-14, replacing the old "Hero: <name>" tooltip). Clipped to the circle (its own overflow, since `.f`

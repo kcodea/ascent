@@ -229,7 +229,12 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     const f = watching ? s.me : s.mate;
     return f && !heroSelect ? JSON.stringify([f.hero, f.name, null, null]) : null;
   });
+  // THE SCENE BUILDER IS ITS OWN TABLE (R-RANKED-DUOS-CONCEDE-01, owner report 2026-11-01: "in scene builder it looked
+  // like i was still in a duos game with him"): while the local teammate is installed, a Versus match still held in the
+  // Versus store (one I conceded, watched, or left the screen of) never paints this portrait or its signals.
+  const local = useLocalMate((s) => s.me !== null || s.mate !== null);
   const versusKey = useVersus((s) => {
+    if (local) return null;
     const g = s.match?.group;
     const d = g?.duos;
     if (!g?.me || !d) return null;
@@ -242,11 +247,11 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     const avatar = heroSelect && !hero && typeof profile?.avatar === 'string' ? profile.avatar : null;
     return JSON.stringify([hero, row.name, cos ?? null, avatar]);
   });
-  const key = versusKey ?? localKey;
+  const key = local ? localKey : versusKey;
   // My teammate dropped out (their board plays on auto): the portrait says so before any drag.
   const away = useVersus((s) => {
     const g = s.match?.group;
-    if (watching || !g?.duos) return false;
+    if (local || watching || !g?.duos) return false;
     const row = g.raw.seats.find((x) => x.seat === g.duos!.mate);
     return !!row?.auto || (!!g.raw.paused_at && g.raw.paused_seat === g.duos.mate);
   });
@@ -258,7 +263,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   const tagged = useDuosCombat((st) => inCombat && !watching && !heroSelect && st.on && !!st.selfSeatId);
   // MY TEAMMATE'S SIGNALS (owner 2026-10-27, R-DUOS-MATE-SIGNALS-01): only while this portrait is THEIRS (on my board, in
   // the shop or the fight; never while I watch them, where their own screen shows it, nor at Hero Select).
-  const signals = !watching && !heroSelect;
+  const signals = !local && !watching && !heroSelect;
   const mate = useVersus((s) => (signals ? s.match?.group?.duos?.mate ?? null : null));
   // Their shop tiered up: the player's own tier-up burst over the disc (`shop-tier-up`, TavernUpButton's def).
   const tierPop = useDuosMateSignals((st) => (mate ? st.tierPop[mate] ?? 0 : 0));

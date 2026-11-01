@@ -445,6 +445,15 @@ export class RankedEngine extends GroupEngine {
     this.maybeResolve();
   }
 
+  /** A live player who conceded or left is done for good (R-RANKED-DUOS-CONCEDE-01, owner report 2026-11-01: "i
+   *  conceded ... i reloaded the game and it put me in a lobby where i faced opponents until the game ended"): their
+   *  board plays on auto, and nothing they send (a board, an unpause) is taken again. */
+  protected override requireLive(userId: string): GSeat {
+    const seat = super.requireLive(userId);
+    if (this.row(seat).left_at != null) this.rh.fail('left');
+    return seat;
+  }
+
   override returned(userId: string, by: string): void {
     const s = this.m.seats.find((x) => x.user_id === userId);
     if (!s || !this.running() || s.left_at != null || s.eliminated_round != null) return;

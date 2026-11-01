@@ -145,6 +145,22 @@ describe('Ranked Duos room (Cloudflare) — absence, leaving, the end', () => {
     expect(h.g.seats.find((s) => s.seat === 'p2')!.auto).toBe(false);
   });
 
+  it('a concede is for good (R-RANKED-DUOS-CONCEDE-01): the teammate plays on, and the conceder seat takes nothing again', async () => {
+    const h = await inShop();
+    await h.op(U1, 'forfeit', { matchId: h.id });
+    const p1 = h.g.seats.find((s) => s.seat === 'p1')!;
+    expect(p1.left_at).not.toBeNull();
+    expect(p1.auto).toBe(true);
+    expect(h.g.phase).toBe('shop'); // not over: my teammate is still in
+    expect((h.r.json().leftAt as Record<string, string>).p1).toBeTruthy(); // the client reads this to keep me out
+    // A reload: the client comes back and tries to play the seat again.
+    h.core.connect(U1, h.now);
+    expect(h.g.seats.find((s) => s.seat === 'p1')!.auto).toBe(true); // back is not un-conceded
+    await expect(lock(h, U1, STRONG)).rejects.toThrow('left');
+    await lock(h, U2, MID); // the teammate ends the turn: my board plays on auto
+    expect(h.g.phase).toBe('combat');
+  });
+
   it('both leave: the pair is placed, the match ends, and ONE ranked_finish job carries everything', async () => {
     const h = await inShop({ ensureTeam: async () => ({ teamId: TEAM, name: null, division: 0 }), soloSample: async () => [], duoSample: async () => ({ rows: [], names: {} }) });
     await lock(h, U1, STRONG);

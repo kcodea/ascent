@@ -4120,10 +4120,10 @@ describe('hero powers (@game/sim)', () => {
   });
 
 
-  it("Hermit Hank's minions cost 2 Gold and tavern-ups cost 2 more", () => {
+  it("Hermit Hank's minions cost 2 Gold and tavern-ups cost 1 more", () => {
     const s: RunState = { ...createRun(1, 'hermithank'), tier: 1, embers: 10 };
     expect(minionCostOf(s)).toBe(2);
-    expect(upgradeCostOf(s)).toBe(s.upgradeCost + 2);
+    expect(upgradeCostOf(s)).toBe(s.upgradeCost + 1);
     // A buy actually costs 2.
     let b: RunState = { ...createRun(1, 'hermithank'), embers: 10, shop: [{ uid: 'x', cardId: 'alley' }], hand: [] };
     b = reduce(b, { type: 'buy', uid: 'x' });
@@ -4294,7 +4294,7 @@ describe('PvE course + record (@game/sim)', () => {
     expect(getHero('cassen').armor).toBe(13);
     expect(getHero('darah').armor).toBe(18);
     expect(getHero('hermithank').armor).toBe(9); // Tradesman
-    expect(getHero('nadja').armor).toBe(17);
+    expect(getHero('nadja').armor).toBe(15); // owner balance 2026-11-01: 17 -> 15
     expect(getHero('robin').armor).toBe(4);
     expect(getHero('indy').armor).toBe(12);
     // …and the registry value is what the RUN actually starts with, not a separate constant.

@@ -58,6 +58,20 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-01',
     changes: [
+      { category: 'Balance', text: 'Hero balance: twelve heroes changed. Most start with less Armor, a few with more, and Tradesman tiers up for less.', details: [
+        'Guardian: Armor 10 to 6.',
+        'Emerald Warden: Armor 8 to 3.',
+        'Drakko: Armor 13 to 8.',
+        'Brackus: Armor 11 to 8.',
+        'Hunch: Armor 10 to 14.',
+        'Merrin: Armor 10 to 11.',
+        'Kindness: Armor 15 to 11.',
+        'Rascal: Armor 9 to 10.',
+        'Nadja: Armor 17 to 15.',
+        'Rayse: Armor 14 to 13.',
+        'Lord of the Risen: Armor 14 to 11.',
+        'Tradesman: Shop upgrades now cost 1 more, down from 2 more.',
+      ] },
       { category: 'Balance', text: "Salandaman (Duos) now counts your whole team: it has +4/+4 for each of your team's Salandamans that died this game.", details: [
         "A Salandaman that dies on your teammate's side now grows yours too, the moment it dies.",
         "In a fight, your teammate's board steps in already carrying the Salandamans your board lost.",

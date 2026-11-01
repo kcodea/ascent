@@ -27,21 +27,21 @@ let lobby: RunLobby | null = null;
 afterEach(() => { OPPONENT_POOL.length = 0; if (lobby) resetLobbyDrivers(lobby.seats); lobby = null; });
 
 describe("a recorded seat starts on its hero's own Armor", () => {
-  it('a recorded Brackus starts on 11 and a recorded Disco Dan on 14; the rail and the foe panel show it', () => {
-    expect(HERO_INDEX.brackus!.armor).toBe(11);
+  it('a recorded Brackus starts on 8 and a recorded Disco Dan on 14; the rail and the foe panel show it', () => {
+    expect(HERO_INDEX.brackus!.armor).toBe(8);
     expect(HERO_INDEX.discodan!.armor).toBe(14);
     registerOpponentRuns([runOf('Orangez', 'brackus', 1), runOf('IonLime', 'discodan', 2)]);
     lobby = createRunLobby(77, 'warden', { snapshotSeats: 2 }, SET);
     const brackus = lobby.seats.find((s) => s.kind === 'snapshot' && s.heroId === 'brackus')!;
     const disco = lobby.seats.find((s) => s.kind === 'snapshot' && s.heroId === 'discodan')!;
-    expect([brackus.resolve, brackus.armor]).toEqual([30, 11]);
+    expect([brackus.resolve, brackus.armor]).toEqual([30, 8]);
     expect([disco.resolve, disco.armor]).toEqual([30, 14]);
     // Every generated (hybrid) seat too: each on its own hero's Armor.
     for (const s of lobby.seats.filter((x) => x.kind === 'hybrid')) expect(s.armor, s.heroId).toBe(HERO_INDEX[s.heroId]!.armor);
     // The rail prints the seat's own pools.
     const rail = lobbyRailView(lobby);
     const row = (id: string) => rail.rows.find((r) => r.id === id)!;
-    expect([row(brackus.id).resolve, row(brackus.id).armor]).toEqual([30, 11]);
+    expect([row(brackus.id).resolve, row(brackus.id).armor]).toEqual([30, 8]);
     expect([row(disco.id).resolve, row(disco.id).armor]).toEqual([30, 14]);
     // The foe the player meets carries the same seat (the combat opponent panel reads seat.armor).
     const foe = lobbyOpponentBoard(lobby);
@@ -51,7 +51,7 @@ describe("a recorded seat starts on its hero's own Armor", () => {
   it('the player seat is its run (hero Armor), and createLobbyRun agrees with it', () => {
     const run = createLobbyRun(78, 'brackus', {}, 'lobby', undefined, SET);
     expect(run.lobby!.seats[0]!.armor).toBe(run.armor);
-    expect(run.armor).toBe(11);
+    expect(run.armor).toBe(8);
     resetLobbyDrivers(run.lobby!.seats);
   });
 });
@@ -65,7 +65,7 @@ describe('seats that play no hero keep the flat Armor', () => {
     for (const s of lobby.seats) expect(s.armor).toBe(3);
     // A lobby saved before the ruling (no seatArmor) reads as flat everywhere, so its bars stay full-width at start.
     expect(seatStartingArmor({ kind: 'snapshot', heroId: 'brackus' }, { startingArmor: 15 })).toBe(15);
-    expect(seatStartingArmor({ kind: 'snapshot', heroId: 'brackus' }, DEFAULT_LOBBY_RULES)).toBe(11);
+    expect(seatStartingArmor({ kind: 'snapshot', heroId: 'brackus' }, DEFAULT_LOBBY_RULES)).toBe(8);
     expect(seatStartingArmor({ kind: 'authored', heroId: 'brackus' }, DEFAULT_LOBBY_RULES)).toBe(15);
   });
 });

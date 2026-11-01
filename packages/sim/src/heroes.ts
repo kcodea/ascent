@@ -20,7 +20,7 @@ export type HeroPowerKind =
   | 'gainMaxMana' // Nadja: gain +1 max Gold permanently (id stays `gainMaxMana`)
   | 'grantWard' // Warden: spend Gold — give a friendly minion a permanent Ward (Divine Shield), then +5 Attack to every Warded minion (active, targeted)
   | 'scalingGold' // Bagger Ben: gain Gold now, the payout climbing +1 each turn (active, untargeted, once/game)
-  | 'cheapMinions' // Hermit Hank (passive): shop minions cost 2 Gold, but tavern-ups cost 2 more
+  | 'cheapMinions' // Hermit Hank (passive): shop minions cost 2 Gold, but tavern-ups cost 1 more
   | 'summitLock' // Brackus (passive): turn-1 Tier 7 Discover, locked until 70 Gold is spent this run
   | 'discoLock' // Disco Dan (passive): turn-1 sequential Discover T6→T4→T2, each locked in hand until that shop tier
   | 'questChronos' // Chronos (passive): buy 4 End-of-Turn minions → get a Chronos (resolved in the buy case)
@@ -238,7 +238,7 @@ export const HEROES: HeroDef[] = [
     name: 'Nadja',
     blurb: 'The well runs deeper each turn. More Gold, more room to scheme.',
     resolve: 30,
-    armor: 17, // owner balance 2026-08-17,
+    armor: 15, // owner balance 2026-11-01: 17 -> 15
     power: {
       name: 'Goldspring',
       kind: 'gainMaxMana',
@@ -268,7 +268,7 @@ export const HEROES: HeroDef[] = [
     name: 'Drakko',
     blurb: 'Every entrance is a downbeat. Buy enough, and he joins the band.',
     resolve: 30,
-    armor: 13,
+    armor: 8, // owner balance 2026-11-01: 13 -> 8
     power: {
       name: 'Drumline',
       kind: 'quest',
@@ -321,7 +321,7 @@ export const HEROES: HeroDef[] = [
     name: 'Lord of the Risen',
     blurb: 'Death is a rehearsal. Each turn, one soldier returns for an encore.',
     resolve: 30,
-    armor: 14, // owner balance 2026-08-17,
+    armor: 11, // owner balance 2026-11-01: 14 -> 11
     power: {
       name: 'Undying',
       kind: 'grantReborn',
@@ -363,7 +363,7 @@ export const HEROES: HeroDef[] = [
     name: 'Brackus',
     blurb: 'He shows you the summit on day one. Getting there is your problem.',
     resolve: 30,
-    armor: 11,
+    armor: 8, // owner balance 2026-11-01: 11 -> 8
     power: {
       name: 'Summit',
       kind: 'summitLock',
@@ -376,7 +376,7 @@ export const HEROES: HeroDef[] = [
     name: 'Rascal',
     blurb: 'The tip jar only ever grows. A little more set aside each turn.',
     resolve: 30,
-    armor: 9, // owner balance 2026-08-17
+    armor: 10, // owner balance 2026-11-01: 9 -> 10
     power: {
       name: 'All In',
       // Reworked off `scalingGold` onto its own kind (owner 2026-08-16): the payout now steps by 2 (not 1)
@@ -399,7 +399,7 @@ export const HEROES: HeroDef[] = [
       name: 'Frugal',
       kind: 'cheapMinions',
       passive: true,
-      text: 'Shop minions cost 2 Gold. Shop upgrades cost 2 more, and rerolls cost 2 Gold.',
+      text: 'Shop minions cost 2 Gold. Shop upgrades cost 1 more, and rerolls cost 2 Gold.',
     },
   },
   {
@@ -454,7 +454,7 @@ export const HEROES: HeroDef[] = [
     name: 'Guardian',
     blurb: 'Sworn to the forge. Its greater runes answer only to those who hold the line.',
     resolve: 30,
-    armor: 10, // owner balance 2026-08-17,
+    armor: 6, // owner balance 2026-11-01: 10 -> 6
     power: {
       name: 'Runeguard',
       kind: 'epicRuneforge',
@@ -545,7 +545,7 @@ export const HEROES: HeroDef[] = [
     name: 'Kindness',
     blurb: 'The best presents are the ones nobody had to ask for.',
     resolve: 30,
-    armor: 15,
+    armor: 11, // owner balance 2026-11-01: 15 -> 11
     power: {
       name: 'Great Presence',
       kind: 'greatPresence',
@@ -559,7 +559,7 @@ export const HEROES: HeroDef[] = [
     name: 'Merrin',
     blurb: 'There is always a spell in the other pocket.',
     resolve: 30,
-    armor: 10,
+    armor: 11, // owner balance 2026-11-01: 10 -> 11
     power: {
       name: 'Pocket Magic',
       kind: 'pocketMagic',
@@ -671,7 +671,7 @@ export const HEROES: HeroDef[] = [
     name: 'Hunch',
     blurb: 'He never forgets a page. He just waits for the price to drop.',
     resolve: 30,
-    armor: 10,
+    armor: 14, // owner balance 2026-11-01: 10 -> 14
     power: {
       name: 'Rounded Spellbook',
       kind: 'roundedSpellbook',
@@ -687,7 +687,7 @@ export const HEROES: HeroDef[] = [
     name: 'Emerald Warden',
     blurb: 'Every door she opens has something waiting on the other side.',
     resolve: 30,
-    armor: 8, // owner spec 2026-08-16 — a free minion per tavern-up is a lot of tempo, so the armor is thin
+    armor: 3, // owner balance 2026-11-01: 8 -> 3
     power: {
       name: 'Vanguard',
       kind: 'vanguard',
@@ -888,7 +888,7 @@ export const HEROES: HeroDef[] = [
     name: 'Rayse',
     blurb: 'Everything that grows through her garden comes out thorned.',
     resolve: 30,
-    armor: 14,
+    armor: 13, // owner balance 2026-11-01: 14 -> 13
     power: {
       name: 'Empowering Vines',
       kind: 'empoweringVines',

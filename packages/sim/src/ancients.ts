@@ -161,7 +161,7 @@
  *                                 combat summons): "Rally: gain N Gold next turn" (`rallyGoldNextTurn`). (War)
  *  · `refreshesCastSpell`         `ancientAfterRefresh`: every Nth Refresh casts the spell through `castSpell`. (Genesis)
  *  · `eotUpgradeDiscount`         a virtual recurring End-of-Turn entry (`ancientTradesUpgrade`): the FINAL upgrade price −N,
- *                                 Frugal's +2 included, down to 0 (`cutUpgradeCost` + `tradesSurchargeOff`). (Time)
+ *                                 Frugal's +1 included, down to 0 (`cutUpgradeCost` + `tradesSurchargeOff`). (Time)
  *  · `refreshUpgradeDiscount`     `ancientAfterRefresh`: every Refresh, the same −N on the final price. (Bonds)
  *  SOREN (Reclaim, `resummon`; owner pairings 2026-10-02). Reclaim = "Choose a friendly minion. At the start of combat,
  *  destroy it and resummon a copy when there is room." (free, once per turn). The Shop half MARKS the minion
@@ -1194,7 +1194,7 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
   },
   // TRADESMAN (hero id `hermithank`; owner pairings 2026-10-02, quoted above each entry). Frugal is PASSIVE: "Shop
-  // minions cost 2 Gold. Shop upgrades cost 2 more, and rerolls cost 2 Gold." So every pairing adds to it. "A
+  // minions cost 2 Gold. Shop upgrades cost 1 more, and rerolls cost 2 Gold." So every pairing adds to it. "A
   // Refresh" is every Shop refresh the Ancients meter counts (paid, free, a power's), never the turn-start roll.
   hermithank: {
     death: {
@@ -3395,8 +3395,8 @@ function tradesLassoLeft(state: RunState): number {
   return every - ((live(state)?.tradesRefreshes ?? 0) % every);
 }
 
-/** Frugal's surcharge on a Shop upgrade ("Shop upgrades cost 2 more"). The reducer's `upgradeCostOf` reads it too. */
-export const FRUGAL_UPGRADE_SURCHARGE = 2;
+/** Frugal's surcharge on a Shop upgrade ("Shop upgrades cost 1 more"). The reducer's `upgradeCostOf` reads it too. */
+export const FRUGAL_UPGRADE_SURCHARGE = 1; // owner balance 2026-11-01: 2 -> 1
 
 /** TRADESMAN × TIME / BONDS: Gold of Frugal's surcharge the discounts have eaten at the CURRENT tier (0 otherwise). */
 export function ancientUpgradeSurchargeOff(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'tier'>): number {
@@ -3422,7 +3422,7 @@ function tradesUpgradeText(state: RunState): string {
  * TIME / BONDS: knock `amount` off the upgrade price (owner ruling 2026-10-02: "Yes, down to 0"). The running cost goes
  * first (the Rune of Shopkeep mechanism, floored at `CONFIG.upgradeCostFloor`); whatever is left over then eats into
  * Frugal's surcharge, banked for this tier (`tradesSurchargeOff`, capped at the surcharge), so the FINAL price floors
- * at 0, never at Frugal's 2.
+ * at 0, never at Frugal's surcharge.
  */
 function cutUpgradeCost(state: RunState, amount: number): void {
   const want = state.upgradeCost - amount;

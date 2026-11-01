@@ -331,11 +331,11 @@ describe('passive-pricing stagers', () => {
     return 10 - reduce(s, { type: 'buy', uid: 'sx' } as Act).embers;
   };
 
-  it('Tradesman (cheapMinions): shop minions cost 2 Gold, and the tavern-up costs 2 more', () => {
+  it('Tradesman (cheapMinions): shop minions cost 2 Gold, and the tavern-up costs 1 more', () => {
     expect(buyCost('hermithank', 'pup')).toBe(2);
     expect(buyCost('warden', 'pup'), 'the control hero pays full price').toBeGreaterThan(2);
     const up = at('hermithank', { embers: 20, tier: 1, upgradeCost: 5 });
-    expect(20 - reduce(up, { type: 'upgrade' } as Act).embers, 'the +2 surcharge').toBe(7);
+    expect(20 - reduce(up, { type: 'upgrade' } as Act).embers, 'the +1 surcharge').toBe(6);
   });
 
   it('Foreman Flint (companyRate): Dwarves cost 2 Gold — non-Dwarves do not', () => {

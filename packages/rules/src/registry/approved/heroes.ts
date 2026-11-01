@@ -775,7 +775,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCTRADES-05',
     title: 'Tradesman × Ancient of Time: End of Turn, the Shop upgrade costs 3 less',
     statement:
-      "With the Ancient of Time, End of Turn (a virtual recurring entry, ancientTradesUpgrade, so End-of-Turn repeats and replays follow the one rule) knocks 3 off the FINAL upgrade price, Frugal's +2 surcharge included, down to 0: the running upgrade cost goes first (the Shopkeep mechanism, floored at CONFIG.upgradeCostFloor), and what is left over eats into the surcharge for the current tier (AncientsState.tradesSurchargeOff, capped at the surcharge, ignored once the tier changes, so the next tier pays the full +2 again). upgradeCostOf folds it in, so the button, the bots and the charge agree. The price never goes below 0. The power prints the live upgrade price.",
+      "With the Ancient of Time, End of Turn (a virtual recurring entry, ancientTradesUpgrade, so End-of-Turn repeats and replays follow the one rule) knocks 3 off the FINAL upgrade price, Frugal's +1 surcharge included, down to 0: the running upgrade cost goes first (the Shopkeep mechanism, floored at CONFIG.upgradeCostFloor), and what is left over eats into the surcharge for the current tier (AncientsState.tradesSurchargeOff, capped at the surcharge, ignored once the tier changes, so the next tier pays the full +1 again). upgradeCostOf folds it in, so the button, the bots and the charge agree. The price never goes below 0. The power prints the live upgrade price.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -790,7 +790,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCTRADES-06',
     title: 'Tradesman × Ancient of Bonds: every Refresh makes the Shop upgrade cost 1 less',
     statement:
-      "With the Ancient of Bonds, every Shop Refresh (paid, free, or a power's; never the turn-start roll) knocks 1 off the FINAL upgrade price, Frugal's +2 surcharge included, down to 0, the moment it happens: the running cost first (floored at CONFIG.upgradeCostFloor), then the surcharge for the current tier (AncientsState.tradesSurchargeOff, the same channel as Time). The price never goes below 0. The power prints the live upgrade price.",
+      "With the Ancient of Bonds, every Shop Refresh (paid, free, or a power's; never the turn-start roll) knocks 1 off the FINAL upgrade price, Frugal's +1 surcharge included, down to 0, the moment it happens: the running cost first (floored at CONFIG.upgradeCostFloor), then the surcharge for the current tier (AncientsState.tradesSurchargeOff, the same channel as Time). The price never goes below 0. The power prints the live upgrade price.",
     domain: 'heroes',
     status: 'approved',
     evidence: [

@@ -91,7 +91,7 @@ describe('Doc Bot — buy differentials (every distinct pricing rule)', () => {
     expect(reduce(s2, { type: 'buy', uid: 'o1' }).embers).toBe(s2.embers - CONFIG.minionCost);
   });
 
-  it("Tradesman (cheapMinions): minions 2, rerolls 2, tier-ups +2 — the hero's whole price sheet", () => {
+  it("Tradesman (cheapMinions): minions 2, rerolls 2, tier-ups +1 — the hero's whole price sheet", () => {
     const s = base(undefined, 'hermithank');
     const def = vanillaOf(s, 1);
     s.shop = [{ uid: 'o1', cardId: def.id }];
@@ -100,9 +100,9 @@ describe('Doc Bot — buy differentials (every distinct pricing rule)', () => {
     expect(refreshCostOf(s)).toBe(2);
     const rolled = reduce(s, { type: 'roll' });
     expect(rolled.embers).toBe(s.embers - 2);
-    expect(upgradeCostOf(s)).toBe(s.upgradeCost + 2);
+    expect(upgradeCostOf(s)).toBe(s.upgradeCost + 1);
     const upped = reduce(s, { type: 'upgrade' });
-    expect(upped.embers).toBe(s.embers - (s.upgradeCost + 2));
+    expect(upped.embers).toBe(s.embers - (s.upgradeCost + 1));
   });
 
   it('minionCostOverride (Merchant\'s Mark, via the REAL reward engine) reprices the default rule', () => {

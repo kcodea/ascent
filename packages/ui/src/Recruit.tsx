@@ -53,7 +53,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
-import { type Action, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
+import { type Action, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -4368,9 +4368,12 @@ export function Recruit() {
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   // Frank × Ancient of Fortune's "Sells for N Gold." line: only what `sellValueOf` reads (the picked Ancient, not the
   // whole meter state, so a meter tick does not rebuild every view).
+  // `heroId` here is the PAIRING's hero (the power held in slot 0), so a shifted-away pairing stops printing
+  // (R-HERO-POWER-REPLACED-02).
+  const pairingHeroId = ancientPairingHeroId(run);
   const sellState = useMemo(
-    () => ({ runeBartering: run.runeBartering, runeStacks: run.runeStacks, ancientsEnabled: run.ancientsEnabled, heroId: run.heroId, ancients: run.ancients?.picked ? ({ picked: run.ancients.picked } as RunState['ancients']) : undefined, sellBonusWindow: run.sellBonusWindow }),
-    [run.runeBartering, run.runeStacks, run.ancientsEnabled, run.heroId, run.ancients?.picked, run.sellBonusWindow],
+    () => ({ runeBartering: run.runeBartering, runeStacks: run.runeStacks, ancientsEnabled: run.ancientsEnabled, heroId: pairingHeroId, ancients: run.ancients?.picked ? ({ picked: run.ancients.picked } as RunState['ancients']) : undefined, sellBonusWindow: run.sellBonusWindow }),
+    [run.runeBartering, run.runeStacks, run.ancientsEnabled, pairingHeroId, run.ancients?.picked, run.sellBonusWindow],
   );
   const live = useMemo(
     () => handLiveOf(run, cardBuffsLive, sellState),

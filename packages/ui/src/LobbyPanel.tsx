@@ -692,7 +692,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                   </span>
                   {dp && <SliceEdge p={dp} />}
                   {/* The placement, its own small navy box floating just right of the slice (owner 2026-10-31). */}
-                  <span className="lrv-rank" aria-label={`Place ${rankOf.get(seat.id)}`}>{rankOf.get(seat.id)}</span>
+                  <span className="lrv-rank" data-place={rankOf.get(seat.id)} aria-label={`Place ${rankOf.get(seat.id)}`}>{rankOf.get(seat.id)}</span>
                   {dp && !dp.dead && isFoe && <SliceEdge p={dp} ring />}
                   {/* The target (owner 2026-10-31: "the current target needs to be way more obvious"): the crossed swords
                       the rail has always used for the next foe, on the slice's top-right corner. */}
@@ -701,13 +701,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                       side of the art instead. */}
                   {/* The slice's label (Tuner 2 "Slice label"): the player's name (default), the hero's name, or none. Same
                       font, alignment and 2-line ellipsis either way; the fallen follow it too. */}
-                  {(sliceLabel !== 'none' || isYou) && (
-                    <span className="lrv-name">
-                      {sliceLabel !== 'none' && <ClampedName text={sliceLabel === 'hero' ? getHero(seat.heroId)?.name ?? seat.label : seat.label} />}
-                      {/* Your own slice says YOU under the name (owner 2026-10-31). */}
-                      {isYou && <span className="lrv-you">You</span>}
-                    </span>
-                  )}
+                  {sliceLabel !== 'none' && <span className="lrv-name"><ClampedName text={sliceLabel === 'hero' ? getHero(seat.heroId)?.name ?? seat.label : seat.label} /></span>}
+                  {/* YOUR slice: YOU in a round teal chip on the top-right corner, the twin of the next foe's swords (owner 2026-10-31:
+                      "lets have the players YOU in a circle in the top corner, just like the now facing icon"). */}
+                  {isYou && <span className="lrv-you">You</span>}
                   {/* VERSUS: what this player is doing, when it matters (versusRailStatus.ts). Keyed by the label, so each
                       change pops in once. Your own is on your End Turn gem. */}
                   {!isYou && row.alive && statuses[seat.id] && (

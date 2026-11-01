@@ -76,12 +76,12 @@ type NumKey = Exclude<keyof LobbyRailTuner2Config, SelKey>;
 export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   barStyle: 'gloss', hpShow: 'number', navyColor: LR2_NAVY_DEFAULT,
   // The shipped look (owner pick 2026-10-31, "i like these values"): the navy plate with the Health numbers, the art on the right, the hero's name on each slice.
-  navyArtW: 73, navyFade: 63,
-  rankW: 22, rankGap: 4,
-  hpNumSize: 24.5, armNumSize: 14, hpNumX: -7, hpNumY: 0,
+  navyArtW: 53, navyFade: 46,
+  rankW: 23.5, rankGap: 6.5,
+  hpNumSize: 24.5, armNumSize: 14, hpNumX: -15.5, hpNumY: 0,
   artLayout: 'navy', nameSide: 'right', nameShow: 'on', nameText: 'hero',
-  artZoom: 1.04, artFx: 0, artFy: 21, artW: 20, fadeStart: 0, fadeLen: 100, fadeStr: 1, artBright: 1,
-  nameSize: 15, nameWeight: 800, nameLines: 2, nameX: 0, nameY: 0, nameShadow: 1,
+  artZoom: 1.16, artFx: 0, artFy: 21, artW: 20, fadeStart: 0, fadeLen: 100, fadeStr: 1, artBright: 1,
+  nameSize: 15, nameWeight: 800, nameLines: 2, nameX: 2.5, nameY: 27.5, nameShadow: 0.5,
   dkTop: DOCK_DEFAULTS.topMode,
   dkEclipse: DOCK_DEFAULTS.eclipse,
   dkPanelMax: DOCK_DEFAULTS.panelMax, dkGap: DOCK_DEFAULTS.gap, dkOffset: DOCK_DEFAULTS.offset, dkTopShift: DOCK_DEFAULTS.topShift,

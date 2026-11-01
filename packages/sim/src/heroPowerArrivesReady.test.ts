@@ -97,16 +97,19 @@ describe('whole-game use counts belong to their own power', () => {
   });
 });
 
-describe("a native quest finishing after a Power Shifter spends the quest, not the shifted-in power", () => {
-  it('Drakko shifts to Copy Machine, then completes his Battlecry quest: Copy Machine stays ready', () => {
+// R-HERO-POWER-REPLACED-02 (owner 2026-11-01): the quest follows the HELD power, so a shifted-away Drumline stops
+// counting. What this test still pins from R-HERO-POWER-FRESH-01: the buys never touch the shifted-in power's latch.
+describe("a shifted-away quest neither pays out nor spends the shifted-in power", () => {
+  it('Drakko shifts to Copy Machine, then buys 5 Battlecry minions: no Drakko, Copy Machine stays ready', () => {
     let s: RunState = { ...createRun(1, 'drakko'), phase: 'recruit', embers: 99, maxEmbers: 99, board: [body('a')], hand: [], shop: [], powerOffer: undefined, discover: undefined } as RunState;
     s = shift(s, 'xerox');
     for (let i = 0; i < 5; i++) {
       s = { ...s, shop: [{ uid: `x${i}`, cardId: 'alley' }] };
       s = reduce(s, { type: 'buy', uid: `x${i}` });
     }
-    expect(s.hand.some((c) => c.cardId === 'drummer'), 'the quest still pays out').toBe(true);
+    expect(s.hand.some((c) => c.cardId === 'drummer'), 'the quest stopped with its power').toBe(false);
+    expect(s.drakkoBuys, 'no progress while Drumline is not held').toBe(0);
     expect(s.heroPowerSpent, 'Copy Machine untouched').toBe(false);
-    expect(s.powerLatches?.drakko?.spent, "the quest's own latch").toBe(true);
+    expect(s.powerLatches?.drakko?.spent, "the quest's own latch stays open").toBeFalsy();
   });
 });

@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-01',
     changes: [
+      { category: 'Systems', text: "Player rail: pin a player's card (left or right click) and hover a rune to see what it does." },
       { category: 'Systems', text: 'The big Play button, the Resume button and the Versus and Gauntlet tiles now use the painted Play medallion.' },
       { category: 'Systems', text: 'Achievements: the Career, Ranked, Heroes, Economy and Build, Combat and Collection categories now have painted icons.' },
     ],

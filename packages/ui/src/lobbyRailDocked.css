@@ -449,8 +449,12 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
 .lobbyscout.lrv-scout .lrv-sc-socket.third { background: rgba(0, 0, 0, 0.18); box-shadow: none; border: 1.5px dotted rgba(200, 200, 210, 0.45); opacity: 0.7; }
 .lobbyscout.lrv-scout .lrv-sc-socket > img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .lobbyscout.lrv-scout .lrv-sc-socket > svg { width: 60%; height: 60%; color: var(--ui-title); }
-.lobbyscout.lrv-scout .lrv-sc-socket > .questbadge-tip { display: none; }
-.lobbyscout.lrv-scout.pinned .lrv-sc-socket:hover > .questbadge-tip { display: flex; }
+/* A rune's tip (owner 2026-11-01: "when hovering the runes ... i need it to show what the rune's mechanic is";
+   R-RAIL-SCOUT-RUNE-TIP-01): what it does, centred over its socket, on hover or a parked tap, in the PINNED card (left or
+   right click; the hover card ignores the pointer). The shared tip is transparent until a `.questbadge` is hovered, and
+   these sockets are not `.questbadge`s, so it is lit here. */
+.lobbyscout.lrv-scout .lrv-sc-socket > .questbadge-tip { display: none; left: 50%; right: auto; transform: translateX(-50%); }
+.lobbyscout.lrv-scout.pinned .lrv-sc-socket:is(:hover, .tt-on) > .questbadge-tip { display: flex; opacity: 1; }
 .lobbyscout.lrv-scout .lrv-sc-fights { display: flex; flex-direction: column; gap: calc(4 * var(--c)); }
 .lobbyscout.lrv-scout .lrv-sc-none { text-transform: none; letter-spacing: 0; font-size: calc(12 * var(--lfont)); font-weight: 700; text-align: center; padding: calc(4 * var(--c)) 0; }
 .lobbyscout.lrv-scout .lrv-sc-fight {

@@ -12800,4 +12800,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'On an iPhone in an eight-player lobby, the reveal lines up eight 256 px faces, each flies onto its slice showing that same image, and the End Turn gem loads its 512 px phone copy, not the 1001 px original.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/railFaceArt.test.ts', 'apps/web/phoneArtPlugin.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
+  {
+    id: 'R-RAIL-SCOUT-RUNE-TIP-01',
+    title: 'The lobby rail\x27s pinned scouting card shows what each rune does when its socket is hovered',
+    statement:
+      'On the Docked lobby rail, the PINNED scouting card (a left or right click on a slice) shows, for each rune the player '
+      + 'holds, the rune\x27s name and its current text over its socket while the socket is hovered (or tapped on a touch '
+      + 'screen). The card that opens on hover alone never takes the pointer, so it never blocks the board.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-01', quote: 'when hovering the runes in this hover view of the lobby rail, i need it to show what the rune\x27s mechanic is' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-01', quote: 'you could already pin wth right click' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyRailDocked.css (.lobbyscout.lrv-scout.pinned .lrv-sc-socket:is(:hover, .tt-on) > .questbadge-tip opacity 1), packages/ui/src/LobbyPanel.tsx (the socket tip, liveRuneText)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-01. Before, in the pinned card the tip was displayed but stayed transparent (the shared tip only lights under a quest badge), so no rune text ever showed.',
+    example: 'Mike right-clicks Rooks on the rail to pin the card and hovers the second rune socket: the rune\x27s name and what it does appear above it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailScoutRuneTip.test.ts'], lastVerifiedAt: '2026-11-01' },
+  },
 ];

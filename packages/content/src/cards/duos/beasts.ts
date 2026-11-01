@@ -23,9 +23,12 @@ export const DUOS_BEASTS: readonly CardDef[] = [
     goldenText: '**Echo:** Give your teammate **2** random **Tier 1** Shop Spells.',
   },
   {
-    // SALANDAMAN — "Has +4/+4 for each Salandaman that has died this game." Spear Warden's shape (`cardDeathScaler`):
-    // every Salandaman death (combat or Shop, any copy, a summoned one too) grows the run-wide `cardBuffs` enchant
-    // every copy wears now and every future copy is minted with. Permanent. The live text prints the total.
+    // SALANDAMAN — "has +4/+4 for each of your team's Salandaman's that have died this game" (owner 2026-11-01:
+    // "this means it counts both sides game wide"). Spear Warden's shape (`cardDeathScaler`): every Salandaman death
+    // (combat or Shop, any copy, a summoned one too) grows the run-wide `cardBuffs` enchant every copy wears now and
+    // every future copy is minted with. Permanent. `team: true` makes it TEAM-WIDE (R-DUOS-SALANDAMAN-TEAM-01): each
+    // death is also sent to the teammate (a `cardDeath` team effect, real time), and in a tag-team fight the
+    // teammate's board steps in already carrying the first board's deaths. The live text prints the total.
     id: 'duo_salandaman',
     name: 'Salandaman',
     tribe: 'beast',
@@ -34,7 +37,7 @@ export const DUOS_BEASTS: readonly CardDef[] = [
     health: 4,
     keywords: [],
     duos: true,
-    effects: [{ on: 'passive', do: 'cardDeathScaler', params: { cardId: 'duo_salandaman', attack: 4, health: 4 } }],
-    text: 'Has **+4/+4** for every **Salandaman** that died this game.',
+    effects: [{ on: 'passive', do: 'cardDeathScaler', params: { cardId: 'duo_salandaman', attack: 4, health: 4, team: true } }],
+    text: "Has **+4/+4** for each of your team's **Salandamans** that died this game.",
   },
 ];

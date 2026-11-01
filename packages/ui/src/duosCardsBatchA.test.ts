@@ -23,6 +23,14 @@ describe('Salandaman: its live total and death count, in place (Spear Warden\'s 
     expect(t).toContain('{{2}} so far');
     expect(liveCardText('duo_salandaman', { ...bag, cardBuffs: { duo_salandaman: { attack: 4, health: 4 } } }).text).toContain('{{1}} so far');
   });
+
+  // R-DUOS-SALANDAMAN-TEAM-01: the tally is the TEAM's (the teammate's deaths land on the same enchant), and says so.
+  it("prints the team wording, printed and live; Spear Warden keeps its own", () => {
+    expect(CARD_INDEX['duo_salandaman']!.text).toBe("Has **+4/+4** for each of your team's **Salandamans** that died this game.");
+    const t = cardTypeTallyText('duo_salandaman', { attack: 12, health: 12 })!;
+    expect(t).toBe("Has **{{+12/+12}}** (+4/+4 for each of your team's **Salandamans** that died this game; {{3}} so far).");
+    expect(cardTypeTallyText('knit', { attack: 4, health: 2 })).toContain('for every **Spear Warden** that died');
+  });
 });
 
 describe('the Duos "(Once / Twice per turn)" caps count down live', () => {

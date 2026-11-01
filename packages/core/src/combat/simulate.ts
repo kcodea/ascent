@@ -174,6 +174,11 @@ export function simulate(
   // at that moment, so each teammate's run settles with only what its own board did. No reserve = none of this runs,
   // so a 1v1 / group / lobby fight is byte-identical.
   const reserveOf: Partial<Record<Side, CombatReserve>> = { ...config.reserve }; // a copy: a step-in spends its entry
+  /** TEAM-WIDE death tallies (Salandaman, R-DUOS-SALANDAMAN-TEAM-01): per side, the per-card enchant the FIRST board's
+   *  team-tally deaths owe its reserve. Banked while the reserve waits; folded into the reserve's run context (and onto
+   *  its bodies) when it steps in, so the teammate's board fights at the size its run will be once the `cardDeath` team
+   *  effect lands. Never carried back from here: the teammate's run receives the effect itself. */
+  const mateCardGains: Record<Side, Record<string, { attack: number; health: number }>> = { player: {}, enemy: {} };
   const hasReserve = !!(reserveOf.player || reserveOf.enemy);
   // MEGAMIMIC (Duos rune token, R-DUOS-RUNES-03): each side's first board copies its TEAMMATE's (the reserve's) locked
   // board, and a reserve that steps in copies the first board as it was locked (`lockedFirst`). Tie-break order.
@@ -3410,6 +3415,17 @@ export function simulate(
     if (a === 0 && h === 0) return;
     for (const m of living(minion.side)) if (m.cardId === cardId) ctx.buff(m, a, h, minion.uid);
     ctx.grantCardBuff(cardId, a, h, minion.side);
+    // TEAM-WIDE (Salandaman, owner 2026-11-01: "this means it counts both sides game wide"; R-DUOS-SALANDAMAN-TEAM-01):
+    // the teammate's run counts this death too. Sent in real time (the `teamSend` beat), and banked for this side's
+    // reserve when the teammate's board has yet to step in, so it steps in already that much bigger.
+    if (p.team === true) {
+      ctx.sendTeam?.({ kind: 'cardDeath', cardId, count: 1 }, false, true, minion.side);
+      if (reserveOf[minion.side]) {
+        const g = (mateCardGains[minion.side][cardId] ??= { attack: 0, health: 0 });
+        g.attack += a;
+        g.health += h;
+      }
+    }
   }
 
   /**
@@ -7231,6 +7247,18 @@ export function simulate(
     emit({ type: 'boardFallen', side: s, member: fallen });
     // 2. The side's run context becomes the reserve's (a per-fight copy, as the opening does for both sides).
     const st: CombatSideState = { ...res.state, questMods: { ...res.state.questMods }, handMinions: cloneHand(res.state) };
+    // The first board's team-tally deaths (Salandaman): the reserve's run context carries them from here on, so a body
+    // built from base (a summon, a Rise) inherits them through `applyAuras`, like any prior per-card enchant.
+    const mateGains = mateCardGains[s];
+    mateCardGains[s] = {};
+    if (Object.keys(mateGains).length > 0) {
+      const cb: Record<string, { attack: number; health: number }> = { ...(st.cardBuffs ?? {}) };
+      for (const [id, g] of Object.entries(mateGains)) {
+        const cur = cb[id];
+        cb[id] = { attack: (cur?.attack ?? 0) + g.attack, health: (cur?.health ?? 0) + g.health };
+      }
+      st.cardBuffs = cb;
+    }
     if (s === 'player') playerState = st; else enemyState = st;
     activeMember[s] = fallen + 1;
     foeDeathsAtTag[s] = deaths[OTHER[s]];
@@ -7254,6 +7282,13 @@ export function simulate(
     boards[s].length = 0;
     for (const b of open.boards[s]) boards[s].push(instantiate(b, s, cards, mkUid));
     for (const m of boards[s]) applyAuras(m, false);
+    // Its run-board bodies already wear its OWN prior enchant; the first board's team-tally deaths go on top.
+    for (const m of boards[s]) {
+      const g = mateGains[m.cardId];
+      if (!g) continue;
+      if (g.attack > 0) m.attack += g.attack;
+      if (g.health > 0) { m.health += g.health; m.maxHealth += g.health; }
+    }
     syncUnityCombat(s, true);
     for (const m of boards[s]) if (m.sourceUid !== undefined) engraveKwStart[s].set(m.sourceUid, new Set(m.keywords));
     if (engraveKwStart[s].size > 0) {

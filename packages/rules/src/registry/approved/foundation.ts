@@ -12145,9 +12145,29 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-30', quote: 'like Spear Warden: real-time tally aura across all copies, incl. summoned' },
       { kind: 'code', ref: 'packages/content/src/cards/duos/beasts.ts duo_salandaman (cardDeathScaler)' },
     ],
-    currentBehaviour: 'Built 2026-10-30 (Duos cards batch A).',
+    currentBehaviour: 'Built 2026-10-30 (Duos cards batch A). WIDENED 2026-11-01 to the whole team (R-DUOS-SALANDAMAN-TEAM-01).',
     example: 'Two of Ann\x27s Salandamans die in a fight: every Salandaman she has, and every one she buys later, is +8/+8.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCardsBatchA.test.ts', 'packages/ui/src/duosCardsBatchA.test.ts'], lastVerifiedAt: '2026-10-30' },
+  },
+  {
+    id: 'R-DUOS-SALANDAMAN-TEAM-01',
+    title: 'Salandaman counts every Salandaman that died on your TEAM, yours and your teammate\x27s, the moment it dies',
+    statement:
+      'Salandaman has +4/+4 for each of your team\x27s Salandamans that died this game: a death on your side or on your '
+      + 'teammate\x27s side, in a fight or in the Shop, counts for both of you. A teammate\x27s death reaches your run as a '
+      + 'recorded team effect at the moment it happens (mid-fight too), and grows your Salandamans on board, in hand and every '
+      + 'one you get later, at your own card\x27s rate. In a tag-team fight the second board steps in already carrying the first '
+      + 'board\x27s Salandaman deaths. A Gilded Salandaman dying is one death. The card prints the team\x27s total and count.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-01', quote: 'has +4/+4 for each of your team\x27s Salandaman\x27s that have died this game.' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-01', quote: 'this means it counts both sides game wide' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts noteCardDeath + stepIn (mateCardGains); packages/sim/src/recruit.ts noteShopCardDeath, receiveTeamEffect (cardDeath); packages/ui/src/cardText.ts cardTypeTallyText' },
+    ],
+    currentBehaviour: 'Built 2026-11-01 (feat/salandaman-team-tally). Before, only your own Salandaman deaths counted.',
+    example: 'Bob\x27s two Salandamans die in his half of the fight. Ann\x27s Salandamans grow +8/+8 at once, her card reads 2 so far, and her own next death makes it 3.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCardsBatchA.test.ts', 'packages/ui/src/duosCardsBatchA.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
   {
     id: 'R-DEV-CORNER-01',

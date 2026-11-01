@@ -4078,7 +4078,11 @@ export type TeamEffect =
   | { kind: 'buffLeftmost'; attack: number; health: number; cardId?: string }
   /** PLAYING CATCH (Duos rune, R-DUOS-RUNES-01): the sender's rune gives the TEAM `amount` more free manual passes
    *  each round. The receiver adds it to its own count of the team's allowance. */
-  | { kind: 'catch'; amount: number };
+  | { kind: 'catch'; amount: number }
+  /** SALANDAMAN (owner 2026-11-01, R-DUOS-SALANDAMAN-TEAM-01): `count` copies of the sender's `cardId` (a `cardDeathScaler`
+   *  card with `team: true`) DIED on the sender's side. The receiver grows its own run-wide tally for that card type by its
+   *  OWN def's per-death amount (never the payload's), exactly as one of its own deaths would. */
+  | { kind: 'cardDeath'; cardId: string; count: number };
 
 export interface ShoutCarry {
   /** DUOS: team effects a combat body produced (`sendTeam`): `self` lands on this side's run at settle, `mate` is

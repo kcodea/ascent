@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-01',
     changes: [
+      { category: 'Balance', text: "Salandaman (Duos) now counts your whole team: it has +4/+4 for each of your team's Salandamans that died this game.", details: [
+        "A Salandaman that dies on your teammate's side now grows yours too, the moment it dies.",
+        "In a fight, your teammate's board steps in already carrying the Salandamans your board lost.",
+      ] },
       { category: 'Systems', text: 'Phones: your hero portrait and the combat foe portrait are sharp again. Before, they could look blurry.' },
       { category: 'Balance', text: 'Hero quests and forges now follow the hero power you hold.', details: [
         'Drakko and Chronos: a quest stops counting once its power is replaced, and never pays out.',

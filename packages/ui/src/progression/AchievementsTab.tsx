@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import { activeSet } from '@game/content';
 import { ACHIEVEMENT_CATEGORIES, UNIQUE_PLATE_REWARD_TEXT, type AchievementCategory } from '@game/progression';
 import { Icon } from '../Icon';
+import { MenuMedal, type MenuMedalName } from '../menuIcons';
 import { sfx } from '../sfx';
 import { remoteEnabled } from '../remoteBoards';
 import {
@@ -41,6 +42,10 @@ type Loaded = { userId: string; completions: AchievementCompletionRow[] | null; 
 const CATEGORY_ICONS: Readonly<Record<AchievementCategory, string>> = {
   career: 'crown', ranked: 'shield', heroes: 'taunt', economy: 'ember', mechanics: 'gear', runes: 'anvil', set2: 'paw',
   combat: 'sword', milestones: 'clock', collection: 'gift',
+};
+/** The painted category medallions (owner 2026-11-01). A category without art yet keeps its flat glyph above. */
+const CATEGORY_ART: Partial<Record<AchievementCategory, MenuMedalName>> = {
+  career: 'career', ranked: 'leaderboard', heroes: 'heroes', economy: 'spend', combat: 'attacks', collection: 'collection',
 };
 const TAB_KEY = 'ascent.career.achievements.cat';
 function loadCat(): AchievementCategory {
@@ -118,7 +123,7 @@ export function AchievementsTab({ userId, own, ownerName }: AchievementsTabProps
             className={`ach-cat${c.id === current.id ? ' on' : ''}${c.done === c.total && c.total > 0 ? ' full' : ''}`}
             onClick={() => pickCat(c.id)}
           >
-            <span className="ach-cat-ico"><Icon name={CATEGORY_ICONS[c.id]} /></span>
+            <span className="ach-cat-ico">{CATEGORY_ART[c.id] ? <MenuMedal name={CATEGORY_ART[c.id]!} /> : <Icon name={CATEGORY_ICONS[c.id]} />}</span>
             <span className="ach-cat-name">{c.label}</span>
             <span className="ach-cat-count">{c.done} / {c.total}</span>
           </button>

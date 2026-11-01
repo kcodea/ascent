@@ -925,7 +925,7 @@ export function Career() {
             page and more obvious ... dont push everything down much at all"): a small "Career" kicker, then the
             player's name large with the equipped title beside it in its rarity colour. Same for someone else's page. */}
         <div className="lbtitle cv2-namehead">
-          <Icon name="taunt" />
+          <MenuMedal name="career" />
           <div className="cv2-namehead-body">
             <div className="cv2-kicker">{viewing ? 'Career' : 'Your Career'}</div>
             <div className="cv2-nameline">

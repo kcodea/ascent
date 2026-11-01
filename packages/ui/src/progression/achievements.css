@@ -27,6 +27,7 @@
 .ach-cat:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
 .ach-cat-ico { display: inline-flex; width: 24px; height: 24px; color: var(--ach-gold); }
 .ach-cat-ico svg { width: 100%; height: 100%; }
+.ach-cat-ico .menumedal { width: 32px; height: 32px; margin: -4px; } /* painted medallion: a touch larger so it reads; the margin keeps the tile height */
 .ach-cat-name { font-weight: 900; font-size: 13px; letter-spacing: 0.04em; line-height: 1.1; text-transform: uppercase; max-width: 100%; overflow-wrap: anywhere; }
 .ach-cat-count { font-weight: 800; font-size: 13px; color: var(--ach-gold); font-variant-numeric: tabular-nums; }
 .ach-cat.on { background: linear-gradient(180deg, rgba(232, 200, 119, 0.24), rgba(120, 88, 36, 0.2)); border-color: var(--ach-gold);

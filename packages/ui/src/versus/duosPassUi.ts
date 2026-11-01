@@ -68,6 +68,26 @@ export function overMateFrame(r: { left: number; top: number; right: number; bot
 export const passOnRelease = (r: { left: number; top: number; right: number; bottom: number } | null, e: { type: string; clientX: number; clientY: number }): boolean =>
   !!r && e.type === 'pointerup' && overMateFrame(r, e.clientX, e.clientY);
 
+/** A pass the SERVER (or the teammate's run) gave back: the real reason, in plain short player text (owner 2026-11-01:
+ *  "duos keeps saying pass returned. why?"). Every refusal code has its own line; only an unknown code keeps the
+ *  generic text (R-DUOS-PASS-RANKED-01). */
+const RETURNED_TEXT: Record<string, string> = {
+  hand_full: 'Their hand was full. You got it back.',
+  teammate_away: 'Your teammate is away. You got it back.',
+  no_teammate: 'Your teammate is out. You got it back.',
+  locked: 'You are out of the game. You got it back.',
+  not_shop: 'Too late, the shop is closed. You got it back.',
+  deadline_passed: 'Too late, time ran out. You got it back.',
+  too_many_passes: 'Pass limit reached this round. You got it back.',
+  bad_card: "That card can't be passed. You got it back.",
+  golden: "Gilded minions can't be passed by spells. You got it back.",
+  not_duos: "You can't pass in this mode. You got it back.",
+};
+export const PASS_RETURNED_FALLBACK = 'Pass returned. You got it back.';
+export function passReturnedText(code: string): string {
+  return RETURNED_TEXT[code] ?? PASS_RETURNED_FALLBACK;
+}
+
 /** The latest refusal, for the portrait's note (keyed so the same reason twice shows twice). */
 export const useDuosPassNote = create<{ text: string | null; n: number }>(() => ({ text: null, n: 0 }));
 let noteTimer: number | null = null;

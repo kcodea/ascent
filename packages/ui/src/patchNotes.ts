@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-01',
     changes: [
+      { category: 'Systems', text: 'Ranked Duos: passing a card to your teammate works again. Before, every pass came straight back.' },
+      { category: 'Systems', text: "Duos: when a pass comes back, the note on your teammate's portrait now says why.", details: [
+        'For example: the shop closed, time ran out, your teammate is out, or you hit the pass limit for the round.',
+      ] },
       { category: 'Balance', text: 'A replaced hero power now fully stops working, and the new one fully works.', details: [
         'Foreman Flint: after Power Shifter replaces Company Rate, Dwarves cost their normal price.',
         'Any hero who gains Company Rate from Power Shifter, Mimic or Void now pays 2 Gold for Dwarves.',

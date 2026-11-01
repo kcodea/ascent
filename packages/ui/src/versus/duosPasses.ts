@@ -13,21 +13,23 @@
 import { duosWaitingCount, duosWireOf, handCap, mateTribeCounts, runReadsMateTribes, type BoardCard, type RunState, type VersusGroupSeat } from '@game/sim';
 import { useGame } from '../store';
 import { playArrival, playSpellPass } from './passLob';
-import { notePassRefused } from './duosPassUi';
+import { notePassRefused, passReturnedText } from './duosPassUi';
 import { sfx } from '../sfx';
 import { ownRunWhileWatching, setMateFrameHook, teammateViewOf } from './spectate';
 import { VersusError, versusRemote, type VersusDuosPassRow } from './versusRemote';
 import { localMate } from './localMate';
 
 /** Server refusals that mean "this pass will never be recorded": refund it now. */
-const REFUSALS = new Set(['hand_full', 'locked', 'not_shop', 'deadline_passed', 'no_teammate', 'too_many_passes', 'bad_card', 'golden', 'not_duos', 'teammate_away']);
+export const DUOS_PASS_REFUSALS: ReadonlySet<string> = new Set(['hand_full', 'locked', 'not_shop', 'deadline_passed', 'no_teammate', 'too_many_passes', 'bad_card', 'golden', 'not_duos', 'teammate_away']);
 
 /** A pass came back (the card and the Gold are mine again): say so on the teammate's portrait, with the deny sound, so
  *  a card reappearing is never a silent surprise (phase-3 live test, 2026-10-25). */
 function sayReturned(code: string): void {
   if (ownRunWhileWatching()) return;
+  // The code, for bug reports (the toast says it in player words).
+  console.warn(`[duos] pass returned: ${code || 'unknown'}`);
   sfx.deny?.();
-  notePassRefused(code === 'hand_full' ? 'Their hand was full. You got it back.' : code === 'teammate_away' ? 'Your teammate is away. You got it back.' : 'Pass returned. You got it back.');
+  notePassRefused(passReturnedText(code));
 }
 
 interface DuosSession {
@@ -94,7 +96,7 @@ export function duosAfterRun(matchId: string, me: VersusGroupSeat, run: RunState
       s.shipped.add(idx);
     }).catch((err: unknown) => {
       const code = err instanceof VersusError ? err.code : '';
-      if (REFUSALS.has(code)) {
+      if (DUOS_PASS_REFUSALS.has(code)) {
         s.shipped.add(idx);
         dispatch({ type: 'passRefunded', seq: idx });
         // A TEAM EFFECT (a gift, team max Gold) never took anything from me: nothing came back, so nothing to say.

@@ -241,6 +241,35 @@ describe('Ranked Duos room (Cloudflare) — absence, leaving, the end', () => {
   });
 });
 
+describe('Ranked Duos room (Cloudflare) — passing (R-DUOS-PASS-RANKED-01)', () => {
+  // Owner 2026-11-01: "duos keeps saying pass returned. why?" A plain turn-1 drag pass of a Shop Spell (Lantern Light)
+  // from hand, Gold and time left, the teammate's hand not full: the Cloudflare room refused it `not_duos`, because its
+  // pass gate read `mode === 'duos'` alone while Ranked Duos passes the same way (the SQL's `versus_duos__is`).
+  const lantern = { uid: 'L1', cardId: 'lanternlight', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false, passFrom: 'hand' };
+
+  it('a manual pass of a spell from hand reaches the live teammate, is answered, and the opponents never see it', async () => {
+    const h = await inShop();
+    await h.op(U2, 'duos_hand_room', { matchId: h.id, room: 5 });
+    const row = await h.op(U1, 'duos_pass', { matchId: h.id, round: 1, seq: 0, card: lantern });
+    expect(row).toMatchObject({ from_seat: 'p1', to_seat: 'p2', status: 'sent', round: 1 });
+    expect(h.core.passAudience(h.log.at(-1)!.passes[0]!).sort()).toEqual([U1, U2].sort());
+    const rows = await h.op(U2, 'duos_passes', { matchId: h.id, from: 1 });
+    expect(rows.map((r: { card: { cardId: string } }) => r.card.cardId)).toEqual(['lanternlight']);
+    expect((await h.op(U2, 'duos_answer_pass', { matchId: h.id, fromSeat: 'p1', seq: 0, landed: true })).status).toBe('landed');
+    // Turn 2 too (the owner's second refusal): the next round's pass goes through.
+    await lock(h, U1, STRONG);
+    await lock(h, U2, MID);
+    await h.op(U1, 'combat_ready', { matchId: h.id, round: 1 });
+    await h.op(U2, 'combat_ready', { matchId: h.id, round: 1 });
+    expect(h.g.phase).toBe('shop');
+    expect(h.g.round).toBe(2);
+    await expect(h.op(U2, 'duos_pass', { matchId: h.id, round: 2, seq: 0, card: { ...lantern, uid: 'L2' } })).resolves.toMatchObject({ from_seat: 'p2', to_seat: 'p1', round: 2 });
+    // The rest of the card-pass rules hold here as in Versus Duos.
+    await expect(h.op(U1, 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: lantern })).rejects.toThrow('not_shop');
+    await expect(h.op(U1, 'duos_pass', { matchId: h.id, round: 2, seq: 1, card: { cardId: 'lanternlight', passFrom: 'board' } })).rejects.toThrow('bad_card');
+  });
+});
+
 describe('memberBoard (versus_ranked_duos__member_board)', () => {
   it('serves the round\'s own board, the last one past the end, an empty one in a gap, nothing before the start', () => {
     const solo = { kind: 'solo', boards: [{ wave: 2, minions: [1] }, { wave: 4, minions: [2] }] };

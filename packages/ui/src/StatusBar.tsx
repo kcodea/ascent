@@ -36,7 +36,7 @@ import { sfx } from './sfx';
 import { onPressCue } from './pressCue';
 import { useWatchedName } from './versus/spectate';
 import { canPlayDefs, playDef } from './fx/playDef';
-import { useAmplifiedSlotFx } from './useAmplifiedSlotFx';
+import { useAmplifiedReleaseFx, useAmplifiedSlotFx } from './useAmplifiedSlotFx';
 import { DiceRoll } from './DiceRoll';
 import { diceSeed, type DieFace } from './diceRollTimeline';
 import { useGame } from './store';
@@ -363,6 +363,9 @@ export function StatusBar() {
   const uiCovering = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook
     || s.showBalance || s.bugReportOpen || !!s.inspect);
   useAmplifiedSlotFx(hasEquip && equipAmplified > 0 && equipUses > 0 && run.phase === 'recruit' && !overlayCovering && !uiCovering);
+  // THE RELEASE (owner ask 2026-11-01): the Amplified activation firing lets the charge go in two quick pulses on
+  // the slot, one per trigger. Keyed on the Equipment that WAS Amplified and a fresh use cue for it.
+  useAmplifiedReleaseFx(run.equipFxSeq, run.equipFx, hasEquip && equipAmplified > 0 && selectedEquipDef ? selectedEquipDef.id : null);
 
   /**
    * "EMPTY" — the Equipment ran out of uses (owner ask 2026-08-29).
@@ -1311,7 +1314,7 @@ export function StatusBar() {
                   pool through ANY Equipment drops every one of them back to plain. */}
               {/* AMPLIFIED wins the colour: BLUE says "the next press triggers twice", which matters more than the
                   pool's green. `data-fx="equipment-amplified"` marks the tally for tooling; the owner's authored
-                  cue is the `amplified-slot` loop on the button itself (`useAmplifiedSlotFx`, 2026-09-22), which
+                  cue is the Amplified loop on the button itself (`useAmplifiedSlotFx`, 2026-09-22; the look is a DEV switch since 2026-11-01), which
                   adds the "and it has a charge to spend" half the colour alone does not carry. */}
               <span
                 className={`hpb-tally${equipAmplified > 0 ? ' amplified' : equipPool > 0 ? ' boosted' : ''}`}

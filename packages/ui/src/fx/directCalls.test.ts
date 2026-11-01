@@ -162,7 +162,13 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'ale-bubbles',
       // 'amplified-slot' joined on 2026-09-22: the owner-authored Amplified glow, a looping play on the Equipment slot
       // button from `useAmplifiedSlotFx.ts` while the selected Equipment will Amplify and has a charge to spend.
+      'amplified-release',
+      'amplified-corona',
       'amplified-slot',
+      // 'amplified-twin-snap' / 'amplified-rim-crackle' / 'amplified-corona' / 'amplified-release' joined on 2026-11-01:
+      // the Amplified look redo (three loops behind a DEV switch, twin echo the default) and its release flourish.
+      'amplified-twin-snap',
+      'amplified-rim-crackle',
       // 'ancient-pick-impact' joined on 2026-09-27: the Ancients pick's ring + sparks on the hero power (`ancients/ancientsSmoke.ts`).
       'ancient-pick-impact',
       // 'ancient-reveal-spark' joined on 2026-09-27: the Ancients reveal's spark (`ancients/ancientsSmoke.ts`).

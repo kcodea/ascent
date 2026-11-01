@@ -58,6 +58,15 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-01',
     changes: [
+      {
+        category: 'Systems',
+        text: 'New look for Amplified Equipment.',
+        details: [
+          'While your selected Equipment is Amplified, two rings pulse out from its slot, one after the other.',
+          'When you use it, the slot lets go with two quick bursts: one for each time it triggers.',
+          'The new look is also much lighter on your device.',
+        ],
+      },
       { category: 'Balance', text: 'Hero balance: twelve heroes changed. Most start with less Armor, a few with more, and Tradesman tiers up for less.', details: [
         'Guardian: Armor 10 to 6.',
         'Emerald Warden: Armor 8 to 3.',

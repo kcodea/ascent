@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-01',
+    changes: [
+      { category: 'Systems', text: 'The big Play button, the Resume button and the Versus and Gauntlet tiles now use the painted Play medallion.' },
+    ],
+  },
+  {
     date: '2026-10-31',
     changes: [
       { category: 'Systems', text: 'New painted icons across the menus.', details: [

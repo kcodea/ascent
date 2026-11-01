@@ -16,7 +16,7 @@ import { useEffect, useId, useState, useSyncExternalStore } from 'react';
 import { useGame } from './store';
 import { sfx } from './sfx';
 import { Icon } from './Icon';
-import { Crest } from './menuIcons';
+import { MenuMedal } from './menuIcons';
 import { useTurnClockRunning, useTurnSeconds } from './turnClock';
 import { goldClockWaiting } from './goldClock';
 import { endReplay } from './replay/replayPlayer';
@@ -103,7 +103,7 @@ export function ResumeButton() {
   const close = useGame((s) => s.closeGameMenu);
   return (
     <button className="sbbtn sb-play msb-resume" onClick={() => { sfx.pulse(); close(); }}>
-      <span className="mbicon"><Crest /></span>
+      <span className="mbicon"><MenuMedal name="play" /></span>
       <span className="mblabel">Resume</span>
     </button>
   );

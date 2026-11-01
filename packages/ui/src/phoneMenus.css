@@ -111,7 +111,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] .msb .msb-gh { display: n
 html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn { min-height: calc(40 * var(--pt)); padding: calc(4 * var(--pt)) calc(8 * var(--pt)); gap: calc(7 * var(--pt)); border-radius: calc(8 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn .mbicon { width: calc(18 * var(--pt)); height: calc(18 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn .mbicon svg { width: calc(16 * var(--pt)); height: calc(16 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn .mbicon .crest { font-size: calc(16 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn .mbicon :is(.crest, .menumedal) { font-size: calc(16 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn .mblabel { font-size: calc(12 * var(--pt)); letter-spacing: 0.02em; white-space: nowrap; }
 /* The in-game LEAVE plaque (R-ESC-SIDEBAR-01) wraps instead: its armed label ("Tap again to quit") is longer than a
    page name and was clipped on a phone. */

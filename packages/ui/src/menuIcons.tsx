@@ -1,3 +1,5 @@
+import { publicArt } from './phoneArt';
+
 /**
  * The main-menu glyphs shared by the title screen's plaques (`Title.tsx`) and the ladder pages' menu sidebar
  * (`MenuSidebar.tsx`), so the same destination always wears the same icon wherever it is offered.
@@ -32,7 +34,7 @@ export const ReplayEye = () => <MenuMedal name="watcher" className="replayeye" /
 export const GildedCrown = () => (
   <img
     className="gildedcrown"
-    src={`${import.meta.env.BASE_URL}frames/gilded.webp`}
+    src={publicArt('frames/gilded.webp')}
     alt=""
     aria-hidden="true"
     draggable={false}

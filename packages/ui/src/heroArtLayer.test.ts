@@ -12,7 +12,8 @@ import { getHeroDuelConfig } from './heroDuelConfig';
  * rule's shape and that F covers the shipped magnifications.
  */
 const css = readFileSync(join(__dirname, 'styles.css'), 'utf8');
-const rule = /html\.lite-art :is\(\.statusbar \.hero \.f \.heroimg, \.combatopp-img\) \{([^}]*)\}/.exec(css)?.[1] ?? '';
+// Two plain selectors, not `:is(...)`: a pseudo-only subject behind a root class trips R-PHONE-DRAG-02's restyle check.
+const rule = /html\.lite-art \.statusbar \.hero \.f \.heroimg, html\.lite-art \.combatopp-img \{([^}]*)\}/.exec(css)?.[1] ?? '';
 const num = (re: RegExp): number => Number(re.exec(rule)?.[1] ?? NaN);
 
 describe('sharp big hero portraits on a phone (R-PHONE-HERO-LAYER-01)', () => {
@@ -47,6 +48,6 @@ describe('sharp big hero portraits on a phone (R-PHONE-HERO-LAYER-01)', () => {
 
   it('is phone-only: desktop keeps the plain image', () => {
     expect(css).not.toMatch(/(?<!html\.lite-art )\.statusbar \.hero \.f \.heroimg \{[^}]*will-change/);
-    expect(css).not.toMatch(/(?<!html\.lite-art :is\()\.combatopp-img \{[^}]*will-change/);
+    expect(css).not.toMatch(/(?<!html\.lite-art )\.combatopp-img \{[^}]*will-change/);
   });
 });

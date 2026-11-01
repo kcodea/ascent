@@ -4410,7 +4410,7 @@ body.dragging .statusbar .hero { pointer-events: none; }
    that layer's raster is 4x the old one, which covers both magnifications (3.6x, 2.4x) on any phone. Desktop (Chrome
    rasterises at the screen scale) is untouched. The factor must stay >= panelScale x portraitScale and >= oppScale
    (heroArtLayer.test.ts). */
-html.lite-art :is(.statusbar .hero .f .heroimg, .combatopp-img) {
+html.lite-art .statusbar .hero .f .heroimg, html.lite-art .combatopp-img {
   width: 400%; height: 400%; max-width: none;
   margin-right: -300%; margin-bottom: -300%; /* percent margins resolve against the (square) slot's width */
   transform: scale(0.25); transform-origin: 0 0;

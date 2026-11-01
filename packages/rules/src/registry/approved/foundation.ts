@@ -12876,7 +12876,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-01', quote: 'Still seeing blurry hero art on mobile' },
-      { kind: 'code', ref: 'packages/ui/src/styles.css (html.lite-art :is(.statusbar .hero .f .heroimg, .combatopp-img))' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (html.lite-art .statusbar .hero .f .heroimg, html.lite-art .combatopp-img)' },
     ],
     currentBehaviour: 'Conforms as of 2026-11-01 (fix/phone-hero-art-sharp). Before, on an iPhone (852 x 393 @3x) your portrait sat in a 98 x 116 stage px layer magnified 3.6x (about an 84 device px raster for a 307 device px drawing) and the combat foe portrait in a 112 stage px layer magnified 2.4x.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroArtLayer.test.ts'], lastVerifiedAt: '2026-11-01' },

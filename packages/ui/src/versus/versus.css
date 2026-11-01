@@ -598,6 +598,7 @@ html[data-touch-ui] .mdd-panel.vsoptions { zoom: var(--touch-p, 1); width: min(7
   transition: transform 0.12s ease;
 }
 .vsfoe-guides svg { width: calc(9 * var(--u)); height: calc(9 * var(--u)); }
+.vsfoe-guides .vsfoe-guides-ico { width: calc(12 * var(--u)); height: calc(12 * var(--u)); margin: calc(-2 * var(--u)) 0; object-fit: contain; }
 :root[data-hp-look="gem"] .vsfoe-guides.hudpill-name { color: var(--ui-title); }
 :root[data-hp-look="gem"] .vsfoe-guides.hudpill-name:hover,
 :root[data-hp-look="gem"] .vsfoe-guides.hudpill-name.on { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }

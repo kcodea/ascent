@@ -15,6 +15,7 @@ import { RuneEmblem } from './RuneEmblem';
 import { heroPortrait, opponentSkins } from './skins/skins';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
+import { GildedCrown, MenuMedal, ReplayEye } from './menuIcons';
 import { HeroPortraitRing } from './portraitFrame/HeroPortraitRing';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { recordText } from './leaderboardData';
@@ -156,7 +157,7 @@ function FinalTeam({ board }: { board: BoardSnapshot }) {
 function StatTile({ label, value, icon }: { label: string; value: string; icon?: string }) {
   return (
     <div className="cv2-stat">
-      {icon && <span className="cv2-stat-ico"><Icon name={icon} /></span>}
+      {icon && <span className="cv2-stat-ico">{icon === 'crown' ? <GildedCrown /> : <Icon name={icon} />}</span>}
       <span className="cv2-stat-v">{value}</span>
       <span className="cv2-stat-l">{label}</span>
     </div>
@@ -241,7 +242,7 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
           onClick={() => onWatch(run)}
           aria-label={watchable ? 'Watch this run’s replay' : 'No replay stored for this run'}
         >
-          <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
+          <ReplayEye />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
         </button>
       </>}
       meta={<div className="cv2-row-meta">
@@ -320,7 +321,7 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
             onClick={onWatch}
             aria-label="Watch this practice game’s replay"
           >
-            <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
+            <ReplayEye />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
           </button>
         )}
       </>}
@@ -700,17 +701,17 @@ export function Career() {
           <div className="cv2-colhead cv2-center-head">
             <div className="cv2-tabs" role="tablist" aria-label="Career view">
               <button type="button" role="tab" className={`cv2-tab${tab === 'history' ? ' on' : ''}`} aria-selected={tab === 'history'} onClick={() => pickTab('history')}>
-                <Icon name="clock" />Match History
+                <MenuMedal name="patchnotes" className="tabmedal" />Match History
               </button>
               <button type="button" role="tab" className={`cv2-tab${tab === 'heroes' ? ' on' : ''}`} aria-selected={tab === 'heroes'} onClick={() => pickTab('heroes')}>
-                <Icon name="taunt" />Heroes
+                <MenuMedal name="heroes" className="tabmedal" />Heroes
               </button>
               <button type="button" role="tab" className={`cv2-tab${tab === 'practice' ? ' on' : ''}`} aria-selected={tab === 'practice'} onClick={() => pickTab('practice')}>
-                <Icon name="target" />Practice
+                <MenuMedal name="equip" className="tabmedal" />Practice
               </button>
               {achievementsOn && (
                 <button type="button" role="tab" className={`cv2-tab${tab === 'achievements' ? ' on' : ''}`} aria-selected={tab === 'achievements'} onClick={() => pickTab('achievements')}>
-                  <Icon name="star" />Achievements
+                  <MenuMedal name="avenge" className="tabmedal" />Achievements
                 </button>
               )}
             </div>

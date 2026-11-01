@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getHero, type MatchDetails, type MatchSeat, type RuneLiveState } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from '../Icon';
+import { GildedCrown } from '../menuIcons';
 import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from '../portraitFrame/PortraitFrame';
 import { StoredTeam } from '../StoredTeam';
 import { RuneEmblem } from '../RuneEmblem';
@@ -125,7 +126,7 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
       {/* Health folds INTO the status tag ("Winner ♥25"), so a standing seat's row never squeezes its name (owner
           2026-10-16: "fix cut off name"). */}
       <span className={`mds-status${winner ? ' winner' : standing ? ' in' : ' out'}`}>
-        {winner && <Icon name="crown" />}{status.replace(/^Out in round /, 'Out R')}
+        {winner && <GildedCrown />}{status.replace(/^Out in round /, 'Out R')}
         {standing && (seat.health > 0 || seat.armor > 0) && (
           <span className="mds-hp" aria-hidden="true">
             <span className="mds-hp-v"><Icon name="heart" />{seat.health}</span>

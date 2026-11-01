@@ -156,6 +156,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .book-gloss.on::after { opacity: 1; }
 /* The Rules tab wears the owner's golden question mark (rules-question.png), not a glyph. */
 .book-rules-ico { width: 20px; height: 20px; pointer-events: none; }
+.book-guides-all { width: 18px; height: 18px; object-fit: contain; pointer-events: none; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6)); }
 
 .book-search { flex: 0 1 auto; height: 36px; width: min(240px, calc(16 * var(--vw, 1vw))); min-width: 120px; padding: 0 13px; font-size: 14px; }
 

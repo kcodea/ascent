@@ -58,6 +58,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-31',
     changes: [
+      { category: 'Systems', text: 'New painted icons across the menus.', details: [
+        'First place now wears the gilded crown, and every Replay button has the Watcher eye.',
+        'The Leaderboard top three show gold, silver and bronze trophies.',
+        'Career tabs, all eight Collection categories and every Guides button have their own icons.',
+        'Locked items, stages and cards now show a painted padlock.',
+      ] },
       { category: 'Systems', text: 'Player rail: Health and Armor are now shown as numbers on each player, with the hero art on the right.', details: [
         'Each player shows their exact Health, with Armor underneath, on a dark blue panel that fades into their hero art.',
         'The hero art now takes up the right side of each player instead of the whole panel.',

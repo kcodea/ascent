@@ -149,7 +149,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left :is(.
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles { flex: 1 1 0; min-width: 0; flex-wrap: nowrap; gap: calc(5 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat { flex: 1 1 0; min-width: 0; padding: calc(4 * var(--pt)) calc(5 * var(--pt)); grid-template-columns: minmax(0, 1fr); column-gap: 0; text-align: center; border-radius: calc(8 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-ico { display: none; }
-html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-ico svg { width: calc(14 * var(--pt)); height: calc(14 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-ico :is(svg, .gildedcrown) { width: calc(14 * var(--pt)); height: calc(14 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-v { font-size: calc(15 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-l { font-size: calc(9.5 * var(--pt)); letter-spacing: 0; white-space: normal; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.15; }
 /* Match History: the tabs, then the list beside the open game. */
@@ -160,12 +160,13 @@ html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-sec-sub { 
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-tabs { padding: calc(2 * var(--pt)); gap: calc(2 * var(--pt)); border-radius: calc(8 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-tabs > button { font-size: calc(12 * var(--pt)); padding: calc(7 * var(--pt)) calc(10 * var(--pt)); min-height: calc(34 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-tabs > button svg { width: calc(13 * var(--pt)); height: calc(13 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-tabs > button .tabmedal { width: calc(19 * var(--pt)); height: calc(19 * var(--pt)); margin: calc(-4 * var(--pt)) calc(-1 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-list { padding: 0 0 calc(4 * var(--pt)); gap: calc(8 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-list > .gsplit { grid-template-columns: calc(176 * var(--pt)) minmax(0, 1fr); gap: calc(8 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-list { gap: calc(4 * var(--pt)); padding: 0 calc(2 * var(--pt)) calc(6 * var(--pt)) 0; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-item { grid-template-columns: calc(34 * var(--pt)) calc(30 * var(--pt)) minmax(0, 1fr) auto; gap: calc(6 * var(--pt)); padding: calc(4 * var(--pt)) calc(8 * var(--pt)) calc(4 * var(--pt)) calc(10 * var(--pt)); min-height: calc(44 * var(--pt)); border-radius: calc(8 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-place { font-size: calc(14 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-crown svg { width: calc(9 * var(--pt)); height: calc(9 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-crown :is(svg, .gildedcrown) { width: calc(9 * var(--pt)); height: calc(9 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-portrait .lb-heroframe .hero { width: calc(30 * var(--pt)); height: calc(30 * var(--pt)); padding: 1px; }
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-portrait :is(.cv2-heroframe, .cv2-heroframe.small) { --ring: calc(30 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-title { font-size: calc(13 * var(--pt)); }
@@ -240,6 +241,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tab {
   flex: none; flex-direction: row; gap: calc(6 * var(--pt)); min-height: calc(40 * var(--pt)); padding: calc(4 * var(--pt)) calc(12 * var(--pt)) calc(4 * var(--pt)) calc(10 * var(--pt)); border-radius: calc(20 * var(--pt));
 }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tab .colls-caticon { width: calc(16 * var(--pt)); height: calc(16 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tab img.colls-caticon { width: calc(22 * var(--pt)); height: calc(22 * var(--pt)); margin: calc(-3 * var(--pt)) 0; }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tab-name { font-size: calc(12 * var(--pt)); letter-spacing: 0.02em; white-space: nowrap; overflow-wrap: normal; }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tab-count { font-size: calc(11 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tab-soon { font-size: calc(10 * var(--pt)); }
@@ -261,7 +263,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tile-r
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tile-name { font-size: calc(13.5 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page :is(.colls-tile-how, .colls-tile-for, .colls-tile-text) { font-size: calc(10.5 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tile-lock { top: calc(6 * var(--pt)); right: calc(6 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tile-lock .colls-lock { width: calc(11 * var(--pt)); height: calc(11 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tile-lock .colls-lock { width: calc(14 * var(--pt)); height: calc(14 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-nomatch { font-size: calc(13 * var(--pt)); }
 /* The side column: the chests and the picked item. */
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-side { gap: calc(8 * var(--pt)); -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; }

@@ -39,6 +39,8 @@ html[data-phone-layout]:not([data-phone-menus]) :is(.guidesbtn, .guidesdock) { -
 .guidesbtn.on { z-index: 66; border-color: rgba(240, 208, 137, 0.95); }
 .guidesbtn > svg { width: 62%; height: 62%; pointer-events: none; }
 html[data-touch-ui] .guidesbtn > svg { width: 56%; height: 56%; }
+/* The painted Guides medallion (owner art 2026-10-31), a touch larger than the flat glyph so it reads. */
+.guidesbtn > .guidesbtn-ico { width: 76%; height: 76%; object-fit: contain; pointer-events: none; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55)); }
 .guidesbtn:focus-visible { outline: 2px solid var(--ui-title); outline-offset: 2px; }
 /* Combat: the button goes quiet and inert with the rail (the panel is not drawn then). */
 .app.staged .guidesbtn { opacity: 0; pointer-events: none; }

@@ -6,7 +6,7 @@ import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from './matchDetails/matchDetailsText';
 import { Icon } from './Icon';
-import { MenuMedal } from './menuIcons';
+import { MenuMedal, ReplayEye } from './menuIcons';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { refuseInGame } from './gameMenuParts';
@@ -215,7 +215,7 @@ const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy
             disabled={!watchable || busy || unplayable}
             aria-label={watchable ? `Watch ${r.author || 'this player'}'s game` : 'No replay stored for this game'}
           >
-            <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : watchable ? 'Replay' : 'No replay'}
+            <ReplayEye />{busy ? 'Loading…' : unplayable ? 'No replay' : watchable ? 'Replay' : 'No replay'}
           </button>
         )}
         {/* The player's Career (the whole banner did this in the old list layout). */}

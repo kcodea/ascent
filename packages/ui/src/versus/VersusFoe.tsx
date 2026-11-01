@@ -22,6 +22,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { getHero, type LobbySeatState } from '@game/sim';
 import { FoePortraitDisc } from '../FoePortraitDisc';
 import { Icon } from '../Icon';
+import { MenuMedal } from '../menuIcons';
 import type { ResolvedFrame } from '../portraitFrame/portraitFrameConfig';
 import { useGame } from '../store';
 import { mySeat, useVersus } from './versusStore';
@@ -149,7 +150,7 @@ export const VersusFoe = memo(function VersusFoe({ foe, art, frame, round, cap, 
             from their own labelled plate, under the block, as a drawer (LobbyPanel). */}
         <button type="button" className={`vsfoe-guides hudpill-name${guidesOpen ? ' on' : ''}`} aria-pressed={guidesOpen}
           aria-label={guidesOpen ? 'Close build guides' : 'Open build guides'} onClick={onGuides}>
-          <Icon name="book" />Guides
+          <MenuMedal name="guides" className="vsfoe-guides-ico" />Guides
         </button>
       </div>
     </div>

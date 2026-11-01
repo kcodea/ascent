@@ -17,7 +17,7 @@
  * Static styling; the hover is a transform lift (styles.css "THE GAME CARD").
  */
 import type { HTMLAttributes, ReactNode } from 'react';
-import { Icon } from './Icon';
+import { GildedCrown } from './menuIcons';
 
 export type GameBand = 'won' | 'top4' | 'lost' | 'none';
 
@@ -67,7 +67,7 @@ export function GameCard({
     <Root {...rootProps} className={`gc gc-${band} ${className}`.trim()}>
       <div className="gc-body">
         <div className={`gc-place ${band} ${resultClass}`.trim()} aria-label={label}>
-          {band === 'won' && <span className="gc-crown" aria-hidden><Icon name="crown" /></span>}
+          {band === 'won' && <span className="gc-crown" aria-hidden><GildedCrown /></span>}
           <span className="gc-place-n">{placeText(place)}</span>
         </div>
         <div className="gc-hero">

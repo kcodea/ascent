@@ -12802,19 +12802,20 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-RAIL-SCOUT-RUNE-TIP-01',
-    title: 'The lobby rail\x27s scouting card shows what each rune does when its socket is hovered',
+    title: 'The lobby rail\x27s pinned scouting card shows what each rune does when its socket is hovered',
     statement:
-      'On the Docked lobby rail, the scouting card that opens beside a slice shows, for each rune the player holds, the rune\x27s '
-      + 'name and its current text over its socket while the socket is hovered (or tapped on a touch screen). This holds for the '
-      + 'card that opens on hover as well as the pinned one: moving the pointer from the slice onto its card keeps the card open.',
+      'On the Docked lobby rail, the PINNED scouting card (a left or right click on a slice) shows, for each rune the player '
+      + 'holds, the rune\x27s name and its current text over its socket while the socket is hovered (or tapped on a touch '
+      + 'screen). The card that opens on hover alone never takes the pointer, so it never blocks the board.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Mike, 2026-11-01', quote: 'when hovering the runes in this hover view of the lobby rail, i need it to show what the rune\x27s mechanic is' },
-      { kind: 'code', ref: 'packages/ui/src/lobbyRailDocked.css (.lobbyscout.lrv-scout pointer-events + ::after bridge; .lrv-sc-socket:is(:hover, .tt-on) > .questbadge-tip opacity 1), packages/ui/src/LobbyPanel.tsx (the socket tip, liveRuneText)' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-01', quote: 'you could already pin wth right click' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyRailDocked.css (.lobbyscout.lrv-scout.pinned .lrv-sc-socket:is(:hover, .tt-on) > .questbadge-tip opacity 1), packages/ui/src/LobbyPanel.tsx (the socket tip, liveRuneText)' },
     ],
-    currentBehaviour: 'Conforms from 2026-11-01. Before, the hover card ignored the pointer and closed as it was approached, and in the pinned card the tip was displayed but stayed transparent (the shared tip only lights under a quest badge), so no rune text ever showed.',
-    example: 'Mike hovers Rooks on the rail, moves onto the card and over the second rune socket: the rune\x27s name and what it does appear above it.',
+    currentBehaviour: 'Conforms from 2026-11-01. Before, in the pinned card the tip was displayed but stayed transparent (the shared tip only lights under a quest badge), so no rune text ever showed.',
+    example: 'Mike right-clicks Rooks on the rail to pin the card and hovers the second rune socket: the rune\x27s name and what it does appear above it.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailScoutRuneTip.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
 ];

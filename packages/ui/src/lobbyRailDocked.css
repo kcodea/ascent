@@ -407,15 +407,6 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
   display: flex; flex-direction: column; gap: calc(8 * var(--c));
 }
 .lobbyscout.lrv-scout > * { margin: 0; }
-/* THE HOVER CARD TAKES THE POINTER (owner 2026-11-01: "when hovering the runes in this hover view of the lobby rail, i need it
-   to show what the rune's mechanic is"; R-RAIL-SCOUT-RUNE-TIP-01): the card is a React child of the hovered slice (a portal),
-   so the pointer moving onto it keeps the slice hovered and the card open. An invisible strip on its right edge bridges the
-   gap to the slice (6px + the card's "Left / right" nudge), so the pointer never crosses empty space on the way over. */
-.lobbyscout.lrv-scout { pointer-events: auto; }
-.lobbyscout.lrv-scout::after {
-  content: ''; position: absolute; top: 0; bottom: 0; left: 100%;
-  width: max(0px, calc(6px - var(--lr2-card-x, -9) * 1px));
-}
 .lobbyscout.lrv-scout .lrv-sc-top {
   display: flex; align-items: center; justify-content: space-between; gap: calc(8 * var(--c));
   padding-bottom: calc(7 * var(--c)); background: url('/frames/name-divider.webp') 50% 100% / 100% calc(4 * var(--c)) no-repeat;
@@ -458,10 +449,12 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
 .lobbyscout.lrv-scout .lrv-sc-socket.third { background: rgba(0, 0, 0, 0.18); box-shadow: none; border: 1.5px dotted rgba(200, 200, 210, 0.45); opacity: 0.7; }
 .lobbyscout.lrv-scout .lrv-sc-socket > img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .lobbyscout.lrv-scout .lrv-sc-socket > svg { width: 60%; height: 60%; color: var(--ui-title); }
-/* A rune's tip: what it does, centred over its socket, on hover (hover card or pinned) or a parked tap. The shared tip is
-   transparent until a `.questbadge` is hovered, and these sockets are not `.questbadge`s, so it is lit here. */
+/* A rune's tip (owner 2026-11-01: "when hovering the runes ... i need it to show what the rune's mechanic is";
+   R-RAIL-SCOUT-RUNE-TIP-01): what it does, centred over its socket, on hover or a parked tap, in the PINNED card (left or
+   right click; the hover card ignores the pointer). The shared tip is transparent until a `.questbadge` is hovered, and
+   these sockets are not `.questbadge`s, so it is lit here. */
 .lobbyscout.lrv-scout .lrv-sc-socket > .questbadge-tip { display: none; left: 50%; right: auto; transform: translateX(-50%); }
-.lobbyscout.lrv-scout .lrv-sc-socket:is(:hover, .tt-on) > .questbadge-tip { display: flex; opacity: 1; }
+.lobbyscout.lrv-scout.pinned .lrv-sc-socket:is(:hover, .tt-on) > .questbadge-tip { display: flex; opacity: 1; }
 .lobbyscout.lrv-scout .lrv-sc-fights { display: flex; flex-direction: column; gap: calc(4 * var(--c)); }
 .lobbyscout.lrv-scout .lrv-sc-none { text-transform: none; letter-spacing: 0; font-size: calc(12 * var(--lfont)); font-weight: 700; text-align: center; padding: calc(4 * var(--c)) 0; }
 .lobbyscout.lrv-scout .lrv-sc-fight {

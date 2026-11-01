@@ -4,9 +4,9 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * R-RAIL-SCOUT-RUNE-TIP-01 (owner 2026-11-01: "when hovering the runes in this hover view of the lobby rail, i need it to
- * show what the rune's mechanic is"). The Docked rail's scouting card shows each rune's text over its socket on hover, in
- * the hover card as well as the pinned one. Two things broke it: the hover card ignored the pointer (so its runes could
- * not be hovered), and the shared `.questbadge-tip` is transparent until a `.questbadge` is hovered, which a socket is not.
+ * show what the rune's mechanic is"; "you could already pin wth right click"). The Docked rail's PINNED scouting card (left
+ * or right click) shows each rune's text over its socket on hover. It was displayed but transparent: the shared
+ * `.questbadge-tip` only lights under a `.questbadge`, which a socket is not.
  */
 const strip = (css: string): string => css.replace(/\/\*[\s\S]*?\*\//g, '');
 const docked = strip(readFileSync(join(__dirname, 'lobbyRailDocked.css'), 'utf8'));
@@ -21,19 +21,16 @@ describe('R-RAIL-SCOUT-RUNE-TIP-01: the rail card shows what a rune does on hove
     expect(base?.body).toMatch(/opacity:\s*0/);
   });
 
-  it('a hovered (or tapped) socket shows its tip, fully opaque, in the hover card and the pinned card alike', () => {
+  it('in the pinned card, a hovered (or tapped) socket shows its tip, fully opaque', () => {
     const lit = R.find((r) => r.sel.includes('.lrv-sc-socket') && r.sel.includes('.questbadge-tip') && /opacity:\s*1/.test(r.body));
     expect(lit, 'a rule lights the socket tip').toBeTruthy();
     expect(lit!.sel).toContain(':hover');
     expect(lit!.sel).toContain('.tt-on'); // a finger reaches it too (touchInput.ts parks a tap as .tt-on)
-    expect(lit!.sel).not.toContain('.pinned'); // not only once the card is pinned
+    expect(lit!.sel).toContain('.pinned'); // the pinned card is the one that takes the pointer
     expect(lit!.body).toMatch(/display:\s*flex/);
   });
 
-  it('the hover card takes the pointer, and a strip bridges the gap to the slice so moving onto it keeps it open', () => {
-    expect(R.some((r) => r.sel === '.lobbyscout.lrv-scout' && /pointer-events:\s*auto/.test(r.body))).toBe(true);
-    const bridge = R.find((r) => r.sel === '.lobbyscout.lrv-scout::after');
-    expect(bridge?.body).toMatch(/left:\s*100%/);
-    expect(bridge?.body).toMatch(/var\(--lr2-card-x/); // follows the card's left / right nudge
+  it('the plain hover card never takes the pointer, so it cannot block the board', () => {
+    expect(R.some((r) => r.sel === '.lobbyscout.lrv-scout' && /pointer-events:\s*auto/.test(r.body))).toBe(false);
   });
 });

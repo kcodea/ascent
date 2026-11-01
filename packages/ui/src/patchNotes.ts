@@ -72,6 +72,10 @@ export const PATCH_NOTES: PatchNote[] = [
         'Lord of the Risen: Armor 14 to 11.',
         'Tradesman: Shop upgrades now cost 1 more, down from 2 more.',
       ] },
+      { category: 'Systems', text: 'Turns 6 and 9 have 25 more seconds in Versus, Duos and Ranked Duos.', details: [
+        'This covers every live mode: Versus, Versus Group, Versus Duos and Ranked Duos.',
+        'The ranked solo lobby and Practice keep their usual turn times.',
+      ] },
       { category: 'Balance', text: "Salandaman (Duos) now counts your whole team: it has +4/+4 for each of your team's Salandamans that died this game.", details: [
         "A Salandaman that dies on your teammate's side now grows yours too, the moment it dies.",
         "In a fight, your teammate's board steps in already carrying the Salandamans your board lost.",

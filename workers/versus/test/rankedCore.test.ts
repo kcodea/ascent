@@ -298,3 +298,20 @@ describe('memberBoard (versus_ranked_duos__member_board)', () => {
     expect(memberBoard({ kind: 'generated' }, 2).form).toBe('none');
   });
 });
+
+describe('Ranked Duos room (Cloudflare) — longer turns 6 and 9 (R-VERSUS-TURN-TIME-02)', () => {
+  it('the server deadline gives rounds 6 and 9 25 more seconds; 5 and 10 are unchanged', async () => {
+    const h = await inShop();
+    const lengths: number[] = [];
+    for (let round = 1; round <= 10; round++) {
+      expect(h.g.round).toBe(round);
+      lengths.push((h.g.shop_deadline! - h.now) / 1000);
+      await lock(h, U1, STRONG);
+      await lock(h, U2, STRONG);
+      expect(h.g.phase).toBe('combat');
+      await h.op(U1, 'combat_ready', { matchId: h.id, round });
+      await h.op(U2, 'combat_ready', { matchId: h.id, round });
+    }
+    expect(lengths).toEqual([27, 29, 34, 39, 44, 82, 62, 68, 98, 78]);
+  });
+});

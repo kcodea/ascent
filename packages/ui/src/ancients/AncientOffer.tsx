@@ -1,5 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { ANCIENTS, ancientOfferText, type Action, type AncientId, type RunState } from '@game/sim';
+import { ANCIENTS, ancientOfferText, ancientPairingHeroId, type Action, type AncientId, type RunState } from '@game/sim';
 import { OfferBanner } from '../discoverEntrance/OfferBanner';
 import { AncientCard } from './AncientCard';
 import { playAwakenDemo, prefersReducedMotion, setAwakenStage, useAwakenStage } from './ancientsFx';
@@ -58,7 +58,7 @@ export const AncientOfferOverlay = memo(function AncientOfferOverlay({ held, run
   }, [realOffer, offerSeq]);
   if (!offer?.length || held || run.phase !== 'recruit') return null;
   if (!inReveal && !closing && !(timedOut === offerSeq && !demo)) return null;
-  return <Reveal key={`${stage.seq}`} gated={inReveal || closing} closing={closing} offer={offer} heroId={run.heroId} seq={demo ? stage.seq : offerSeq}
+  return <Reveal key={`${stage.seq}`} gated={inReveal || closing} closing={closing} offer={offer} heroId={ancientPairingHeroId(run)} seq={demo ? stage.seq : offerSeq}
     onPick={(id, el) => {
       // The slam measures the card where it was clicked, before anything re-renders; the awakening then closes
       // (the backdrop fades) in the same render as the pick lands in the run.

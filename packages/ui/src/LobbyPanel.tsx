@@ -21,6 +21,7 @@ import type { DockPanel, Pt } from './lobbyRailDockedLayout';
 import { liveRuneText } from './runeText';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
+import { MenuMedal } from './menuIcons';
 import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { useScreenSwapped, useSwapRef } from './screenSwap';
@@ -603,7 +604,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     {guidesOn && (
       <button type="button" className={`guidesbtn gtip${showGuides ? ' on' : ''}`} data-tip={showGuides ? undefined : 'Guides'}
         aria-label={showGuides ? 'Close build guides' : 'Open build guides'} aria-pressed={showGuides} aria-expanded={showGuides} onClick={toggleView}>
-        <Icon name={showGuides ? 'chevron' : 'book'} />
+        {showGuides ? <Icon name="chevron" /> : <MenuMedal name="guides" className="guidesbtn-ico" />}
       </button>
     )}
     {guidesOn && !staged && (showGuides || gdClosing) && (

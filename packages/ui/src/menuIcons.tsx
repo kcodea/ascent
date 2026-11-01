@@ -10,7 +10,7 @@
  * They don't take `currentColor`, so hover/active tint changes leave them as painted.
  */
 export type MenuMedalName = 'play' | 'career' | 'collection' | 'leaderboard' | 'recent' | 'live' | 'settings' | 'glossary' | 'patchnotes' | 'friends' | 'watcher' | 'avenge' | 'equip' | 'heroes' | 'padlock' | 'first' | 'third'
-  | 'minions' | 'titles' | 'attacks' | 'frames' | 'announcers' | 'second' | 'emotes' | 'plates';
+  | 'minions' | 'titles' | 'attacks' | 'frames' | 'announcers' | 'second' | 'emotes' | 'plates' | 'guides';
 export const MenuMedal = ({ name, className = 'menumedal' }: { name: MenuMedalName; className?: string }) => (
   <img
     className={className}

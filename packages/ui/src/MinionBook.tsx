@@ -688,7 +688,7 @@ export function MinionBook() {
                 aria-pressed={guidesOn}
                 aria-description="Guides. Build guides for this set, the same ones as the lobby rail."
               >
-                <Icon name="book" /> Guides
+                <img className="book-rules-ico" decoding="sync" src={`${import.meta.env.BASE_URL}menu/guides.webp`} alt="" draggable={false} /> Guides
               </button>
             </div>
           </div>
@@ -876,7 +876,7 @@ export function MinionBook() {
                   aria-pressed={guideTribes.size === 0}
                   aria-label="Every guide"
                 >
-                  <Icon name="book" />
+                  <img className="book-guides-all" decoding="sync" src={`${import.meta.env.BASE_URL}menu/guides.webp`} alt="" draggable={false} />
                   <span>All</span>
                 </button>
                 {[...tribes, 'neutral' as Tribe].map((t) => (

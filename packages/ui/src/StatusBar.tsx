@@ -164,6 +164,22 @@ function heroPowerTallyOf(
 }
 
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
+/**
+ * THE CHARGED DUST of the `charged` Amplified look (owner 2026-11-01: "need a bit more to it"): eight soft blue motes
+ * that rise off the slot's sides and top and fade. Positions are fractions of the glow box (just outside the frame),
+ * so none of them crosses the art; `dx` drifts each one outward, `d` staggers them. Transform / opacity only.
+ */
+const AMP_MOTES: { x: string; y: string; dx: string; d: string }[] = [
+  { x: '-3%', y: '80%', dx: '-1', d: '0s' },
+  { x: '103%', y: '72%', dx: '1', d: '-0.7s' },
+  { x: '-3%', y: '50%', dx: '-1', d: '-1.5s' },
+  { x: '103%', y: '44%', dx: '1', d: '-2.2s' },
+  { x: '30%', y: '-3%', dx: '-0.5', d: '-2.9s' },
+  { x: '-3%', y: '22%', dx: '-1', d: '-3.6s' },
+  { x: '70%', y: '-3%', dx: '0.5', d: '-4.3s' },
+  { x: '103%', y: '16%', dx: '1', d: '-5s' },
+];
+
 export function StatusBar() {
   const run = useGame((s) => s.run);
   // Practice's timer choice: the Gold Fuse's length (and so a parked fuse's Thymepiece reading) folds it in.
@@ -1282,8 +1298,22 @@ export function StatusBar() {
               )}
               {/* AMPLIFIED (owner ask 2026-11-01): a calm blue halo breathing round the socket, and in the sheen look a
                   faint glint travelling the rim. Opacity / transform only (equipSlot.css); mounted only while it shows. */}
-              {ampShow && ampVariant !== 'classic' && <span className="eq-amp" data-testid="eq-amp" aria-hidden="true" />}
-              {ampShow && ampVariant === 'halo-sheen' && <span className="eq-amp-sheen" data-testid="eq-amp-sheen" aria-hidden="true" />}
+              {ampShow && ampVariant !== 'classic' && (
+                <span className={`eq-amp-set ${ampVariant}`} data-testid="eq-amp" data-amp-look={ampVariant} aria-hidden="true">
+                  <span className="eq-amp" />
+                  <span className="eq-amp-ring" />
+                  <span className="eq-amp-sheen" />
+                  {ampVariant === 'charged' && (
+                    <span className="eq-amp-motes">
+                      {AMP_MOTES.map((m, i) => (
+                        <i key={i} style={{ '--mx': m.x, '--my': m.y, '--mdx': m.dx, '--md': m.d } as CSSProperties} />
+                      ))}
+                    </span>
+                  )}
+                </span>
+              )}
+              {/* The chip glint sits OUTSIDE the set: the set is its own stacking layer (z4), under the chip (z6). */}
+              {ampShow && ampVariant === 'twin-ring' && <span className="eq-amp-glint" aria-hidden="true"><i /><i /></span>}
               <button
                 type="button"
                 className={`heropowerbtn${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}

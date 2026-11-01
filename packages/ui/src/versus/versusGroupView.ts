@@ -70,6 +70,30 @@ export function foeIn(pairing: readonly VersusGroupPairing[], seat: VersusGroupS
 export const groupSeatOf = (raw: VersusGroupMatchRaw, userId: string | null): VersusGroupSeatRow | null =>
   (userId ? raw.seats.find((s) => s.userId === userId) : null) ?? null;
 
+/**
+ * THIS SEAT IS DONE PLAYING (R-RANKED-DUOS-CONCEDE-01, owner report 2026-11-01: "i conceded, but then ... i reloaded the
+ * game and it put me in a lobby where i faced opponents until the game ended"). Out of the table (`eliminatedRound`), or,
+ * in RANKED DUOS, gone from it for good: a concede or a leave there never knocks the team out (the teammate plays on
+ * with the conceder's board on auto), so the seat keeps no `eliminatedRound`, only its `leftAt` (on the seat row, or the
+ * match json's `leftAt` map). Either way the player never gets a run of this match again: they see it from the stands.
+ */
+export function groupSeatGone(raw: Pick<VersusGroupMatchRaw, 'leftAt'>, row: VersusGroupSeatRow): boolean {
+  return row.eliminatedRound != null || !!row.leftAt || !!raw.leftAt?.[row.seat];
+}
+
+/**
+ * Whose side a group match is seen from: mine while I hold a seat that still plays, or while my run of it is still on
+ * screen (`onScreen`: the deciding fight, the concede's end gate). A seat that is out, conceded or left for good
+ * (`groupSeatGone`, or `conceded` on this device before the server's answer landed) sees it as a spectator, so a reload
+ * never rebuilds a playable run of it (R-RANKED-DUOS-CONCEDE-01).
+ */
+export function groupViewerOf(raw: Pick<VersusGroupMatchRaw, 'seats' | 'leftAt'>, userId: string | null, onScreen: boolean, conceded: boolean): string | null {
+  const row = userId ? raw.seats.find((s) => s.userId === userId) ?? null : null;
+  if (!row) return null;
+  if ((groupSeatGone(raw, row) || conceded) && !onScreen) return null;
+  return userId;
+}
+
 /** The "Copy of X" name the client shows for a copied seat. */
 export const copyName = (name: string): string => `Copy of ${name}`;
 

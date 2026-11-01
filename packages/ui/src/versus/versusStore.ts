@@ -37,7 +37,8 @@ import { receiveLobbyChatEvent, setLobbyChatSession } from '../lobbyChat/lobbyCh
 import type { PingMode } from '@game/versus-cf/pings';
 import { installVersusHandlers, releaseVersusFightWait, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
-import { duosFirstAt, duosLobbySeatId, groupPairingAt, groupSeatOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
+import { duosFirstAt, duosLobbySeatId, groupPairingAt, groupSeatOf, groupViewerOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
+import { concededHere, markConceded } from './concededMatches';
 import { isRankedDuosRaw, rankedCloseIso, rankedRoundsAsGroup, RANKED_DUOS_TEAM_COUNT, withServedSeats, type RankedDuosContext } from './rankedDuosView';
 import type { RankedDuosRoundRow } from './versusRemote';
 import type { RankResult } from '@game/sim';
@@ -192,6 +193,7 @@ const ERROR_TEXT: Record<string, string> = {
   need_two_players: 'You need an opponent to start.',
   need_three_players: 'You need three or four players to start.',
   eliminated: 'You are out of this match. You can watch the rest.',
+  left: 'You left this match. Your teammate plays on. You can watch the rest.',
   bad_mode: 'That mode is not available.',
   bad_modifiers: 'That modifier is not available.',
   bad_role: 'That seat is not open in this mode.',
@@ -1144,11 +1146,7 @@ const duelIds = new Set<string>();
 /** Whose side a group match is seen from: mine while I hold a living seat, or my run of it is still on screen (the
  *  deciding fight); a player who is out and back in the room sees it as a spectator. */
 function groupViewer(raw: VersusGroupMatchRaw): string | null {
-  const me = currentUserId();
-  const row = groupSeatOf(raw, me);
-  if (!row) return null;
-  if (row.eliminatedRound != null && builtFor !== raw.id) return null;
-  return me;
+  return groupViewerOf(raw, currentUserId(), builtFor === raw.id, concededHere(raw.id));
 }
 
 /** The room's mode as the ping rules see it (teammates in Duos and the Ranked Duos party). */
@@ -1334,6 +1332,7 @@ function ensureRun(match: VersusMatch, seat: VersusSeat): void {
   const game = useGame.getState();
   if (builtFor === match.id && game.run.mode === 'versus') return;
   if (endGated.has(match.id)) return; // conceded / over: never rebuilt behind (or after) the end gate
+  if (concededHere(match.id)) return; // conceded before a reload (R-RANKED-DUOS-CONCEDE-01): never a run again
   const priv = get().priv;
   const offer = get().heroOffer;
   if (!priv || !offer) return;
@@ -1831,6 +1830,9 @@ export async function unpauseMatch(): Promise<void> {
 export async function forfeitMatch(): Promise<void> {
   const match = get().match;
   if (!match || match.phase === 'complete') return;
+  // Remembered across a reload (R-RANKED-DUOS-CONCEDE-01): a Ranked Duos match goes on for the teammate, so the room
+  // stays in game with my seat in it, and nothing may put me back in it as a player.
+  markConceded(match.id);
   playVersusEndGate(match.id);
   try { await onMatch(await mx.forfeit(match.id)); } catch (e) { set({ error: errorText(e) }); }
 }
@@ -2013,6 +2015,9 @@ export async function resumeVersusMatch(): Promise<void> {
     const room = await versusRemote.room(roomId);
     const role = room?.members.find((m) => m.userId === me)?.role;
     if (!room || room.status !== 'in_game' || !role || role === 'spectator') return;
+    // A match I conceded is over for me (R-RANKED-DUOS-CONCEDE-01): a Ranked Duos one runs on for my teammate, but a
+    // reload never drops me back into it.
+    if (concededHere(room.current_match_id)) return;
     enterRoom(room);
   } catch { /* no backend / offline: nothing to resume */ }
 }

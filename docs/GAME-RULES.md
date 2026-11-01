@@ -1468,6 +1468,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   have no time left"). If neither ends within 30 seconds of 0:00 the round goes anyway (an idle safeguard).
 - **Disconnects and leaving.** A teammate who drops or leaves has their last locked board fight for them on auto; the
   team is never put out for missed rounds. If both have left, the team is out at once in the lowest open place.
+  **Conceding** (the Esc menu) is leaving for good (R-RANKED-DUOS-CONCEDE-01): your board plays on auto for your
+  teammate, the server takes nothing more from your seat, and you watch the rest from the stands. A reload never puts
+  you back in that game as a player, and nothing of it follows you into another screen (the Scene Builder included).
 - **Opponents.** Recorded duo runs first, each served exactly as it played on that round number (both boards and its
   own fight order). Until there are enough, two solo runs from two DIFFERENT players are paired as a team (same
   round-by-round serving, ranked strength rules, a seeded 50/50 fight order). The team's own medal sets the strength

@@ -12821,4 +12821,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann and Bob play Ranked Duos. On turn 1 Ann drags Lantern Light from her hand onto Bob\x27s portrait with 3 Gold: it lands in Bob\x27s hand and Ann has 2 Gold. Later the shop closes as she drops a card on him: it comes back with "Too late, the shop is closed. You got it back."',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/rankedCore.test.ts', 'packages/ui/src/versus/duosPassReturned.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
+  {
+    id: 'R-RANKED-DUOS-CONCEDE-01',
+    title: 'Ranked Duos: a concede is for good; the teammate plays on, a reload never resumes the game, and nothing of it leaks into another screen',
+    statement:
+      'Conceding a Ranked Duos game (the Esc menu) leaves it for good. The team is not knocked out: the board of the conceder plays on auto and '
+      + 'the teammate plays on; if both have left, the team is placed at once. The server takes nothing more from a conceded seat (a submit or '
+      + 'an unpause is refused with `left`), and coming back online never takes it off auto. The client treats a seat that is out OR left for '
+      + 'good (its `leftAt`) as a spectator once its run is off screen, so the match is never projected or rebuilt as that player\x27s game. '
+      + 'The device remembers the concede across a reload: boot never re-enters a conceded match (though the room is still in game with the '
+      + 'seat of the conceder in it), and no run is built for it. A Duos match still held in the Versus store never paints the teammate portrait '
+      + 'of the Scene Builder: the local placeholder of the rig always wins.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-01 (live build 8d8f71914)', quote: 'i was in a duos ranked game w/ mike and i conceded, but then in scene builder it looked like i was still in a duos game with him and then i reloaded the game and it put me in a lobby where i faced opponents until the game ended? something very weird' },
+      { kind: 'code', ref: 'workers/versus/src/core/rankedMatch.ts (RankedEngine.requireLive); packages/ui/src/versus/versusGroupView.ts (groupSeatGone, groupViewerOf); packages/ui/src/versus/concededMatches.ts; packages/ui/src/versus/versusStore.ts (forfeitMatch, ensureRun, resumeVersusMatch); packages/ui/src/versus/DuosMateDock.tsx (local mate first)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-01 (fix/duos-concede-cleanup; the Worker half ships with the next hub deploy). Before, only a knocked-out seat counted as out, so a conceded Ranked Duos seat was still projected as a player: the Versus store kept the live match (the Scene Builder portrait showed the teammate), a reload re-entered the room at boot and rebuilt a playable run, and the server accepted the boards of that seat again.',
+    example: 'Kevin concedes round 6 of a Ranked Duos game with Mike. His board plays on auto and Mike plays on. Kevin reloads: he lands on the main menu, not in the game. He opens the Scene Builder with Duos on: the teammate portrait is the placeholder, not Mike.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosConcede.test.tsx', 'workers/versus/test/rankedCore.test.ts'], lastVerifiedAt: '2026-11-01' },
+  },
 ];

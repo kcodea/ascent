@@ -66,6 +66,7 @@ export const PATCH_NOTES: PatchNote[] = [
         'Foreman Flint: after Power Shifter replaces Company Rate, Dwarves cost their normal price.',
         'Any hero who gains Company Rate from Power Shifter, Mimic or Void now pays 2 Gold for Dwarves.',
       ] },
+      { category: 'Systems', text: 'Ranked Duos: conceding now ends your game for good. Your teammate plays on, and a reload no longer drops you back into that game.', details: ['Your board keeps fighting on auto for your teammate.', 'After a concede you watch the rest from the stands. Reloading takes you to the menu.', 'Nothing from a conceded game shows up in other screens any more.'] },
       { category: 'Systems', text: 'The big Play button, the Resume button and the Versus and Gauntlet tiles now use the painted Play medallion.' },
       { category: 'Systems', text: 'Achievements: the Career, Ranked, Heroes, Economy and Build, Combat and Collection categories now have painted icons.' },
     ],

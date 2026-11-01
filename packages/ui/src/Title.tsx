@@ -16,7 +16,7 @@ import { DUOS_CONFIRM_TEXT, DUOS_CONFIRM_TITLE, RANKED_CONFIRM_EXIT_MS, RANKED_C
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { warmRankedGate } from './rankedGate/RankedGate';
 import { cancelRankedGate, requestRankedGate } from './rankedGate/rankedGateController';
-import { Crest, IconHelm, MenuMedal } from './menuIcons';
+import { IconHelm, MenuMedal } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
 import { startReplay } from './replay/replayPlayer';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
@@ -333,7 +333,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                     Leaderboard; the card is just the door to the ranked lobby. */}
                 <div className="mcdesc">The ranked eight-seat lobby.</div>
                 {lastMode === 'play' && <span className="mclast">Last played</span>}
-                <span className="mcname mc-cta"><Crest /><span>Play</span></span>
+                <span className="mcname mc-cta"><MenuMedal name="play" /><span>Play</span></span>
               </div>
             </button>
             {/* SOLO / DUO (owner 2026-10-26; moved to the top right 2026-10-28): a sibling sharing the card's grid cell
@@ -341,10 +341,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <PlayPartyToggle className="mc-party" />
             <div className="mpside">
               {modeTile('practice', 'practice', 'Practice', 'More time and unlimited Health.', () => { rememberMode('practice'); sfx.pulse(); startPractice(); }, <IconHelm />)}
-              {versusEnabled() && modeTile('versus', 'versus', 'Versus', 'Real-time 1v1. Health and Armor, like a normal game. Unranked.', () => { rememberMode('versus'); sfx.pulse(); openVersus(); }, <Crest />)}
+              {versusEnabled() && modeTile('versus', 'versus', 'Versus', 'Real-time 1v1. Health and Armor, like a normal game. Unranked.', () => { rememberMode('versus'); sfx.pulse(); openVersus(); }, <MenuMedal name="play" />)}
             </div>
             <div className="mprow2">
-              {modeTile('gauntlet', 'gauntlet', 'Gauntlet', 'Survive 10 rounds against a hand-built foe.', () => { rememberMode('gauntlet'); sfx.pulse(); setTitleView('gauntlet'); }, <Crest />)}
+              {modeTile('gauntlet', 'gauntlet', 'Gauntlet', 'Survive 10 rounds against a hand-built foe.', () => { rememberMode('gauntlet'); sfx.pulse(); setTitleView('gauntlet'); }, <MenuMedal name="play" />)}
               {modeTile('learn', 'learn', 'Learn', 'The tutorial and techniques.', () => { sfx.pulse(); setTitleView('learn'); }, <IconHelm />)}
             </div>
           </div>

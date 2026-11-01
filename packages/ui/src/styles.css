@@ -9577,6 +9577,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   background: var(--cta-face); color: var(--cta-ink); border: 2px solid var(--cta-edge); text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(120, 70, 10, 0.25), 0 5px 0 var(--cta-depth), 0 14px 26px -10px rgba(0, 0, 0, 0.8); }
 .mcframe[data-mp] .mcname.mc-cta .crest { font-size: 34px; }
+.mcframe[data-mp] .mcname.mc-cta .menumedal { font-size: 40px; margin: -4px 0; } /* the painted Play medallion (owner 2026-11-01) */
 .modecard.mc-hero:active .mc-cta { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 0 var(--cta-depth), 0 6px 12px -8px rgba(0, 0, 0, 0.8); }
 /* ON THE RANKED CARD (owner 2026-10-26, moved to the top right 2026-10-28, R-RANKED-DUOS-MODECARD-01): a sibling
    sharing the card's grid cell, eclipsing its top-right edge (half on the art, half above it). The plate is fully
@@ -9701,6 +9702,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 
 .mcemblem { display: grid; place-items: center; width: 135px; height: 135px; }
 .mcemblem svg { width: 100%; height: 100%; color: #cfe0ff; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55)); }
+.mcemblem .menumedal { width: 100%; height: 100%; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55)); }
 .mcframe[data-mode='practice'] .mcemblem svg { color: #e6d6b4; }
 /* The rift emblem: the same transform-only conic swirl as the in-run Rift button. */
 .mcswirl {

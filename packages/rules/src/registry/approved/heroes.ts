@@ -2094,8 +2094,9 @@ export const HEROES_RULES: GameRule[] = [
       + "Second Calling) gives the arriving power ITS OWN spend state: its once-per-game latch and its whole-game use count. "
       + "A power the run never spent arrives ready, whatever the power it replaced had used. A power found AGAIN keeps what "
       + "it spent itself (a Mimic re-finding a used Masterwork gets no free Gild; Jenkins keeps his dig count). The per-turn "
-      + "charge re-arms on every arrival. A native passive that keeps running after a Power Shifter (Drakko's and Chronos' "
-      + "quests, Runesmith's forge) spends its own latch, never the shifted-in power's.",
+      + "charge re-arms on every arrival. A passive quest or forge (Drakko's and Chronos' quests, Runesmith's forge) spends "
+      + "the latch of the slot that holds it, never the other slot's power; since R-HERO-POWER-REPLACED-02 it only runs "
+      + "while held, so a shifted-away quest no longer progresses at all.",
     domain: 'heroes',
     status: 'approved',
     evidence: [

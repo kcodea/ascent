@@ -30,7 +30,10 @@ import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
 import { spectateSinkFor, WatchReporter, type SpectateSink } from './spectate';
 import { roomWatchKey, roomWatchOf, type RoomWatch } from './core/roomWatch';
 import { PING_CLEAR_EVENT, PING_CLEAR_RATE, PING_EVENT, PING_MENTOR_EVENT, PingRateLimiter, routePing, routePingClear, routePingMentor, withMentor, type PingMode, type PingRoomView, type PingSeat } from './pings';
-import { GUEST_HEADER, LOBBY_CHAT_EVENT, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_STORAGE_KEY, LOBBY_CHAT_SYNC_EVENT, LobbyChat, type LobbyChatSender } from './lobbyChat';
+import {
+  GUEST_HEADER, LOBBY_CHAT_EVENT, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_STORAGE_KEY, LOBBY_CHAT_SYNC_EVENT, LOBBY_CHAT_TEAMS_STORAGE_KEY, LobbyChat, lobbyChatChannelOf,
+  lobbyChatTeamAudience, lobbyChatTeamOf, LobbyTeamChats, type LobbyChatSender, type LobbyChatTeam,
+} from './lobbyChat';
 import {
   parseClientMessage,
   VERSUS_CF_CLOSE,
@@ -102,6 +105,8 @@ export class VersusRoom extends DurableObject<RoomEnv> {
   private readonly pingClearLimit = new PingRateLimiter(PING_CLEAR_RATE);
   /** LOBBY CHAT (R-LOBBY-CHAT-01): the room's chat (every seat and the stands), read from storage on first use. */
   private chat: LobbyChat | null = null;
+  /** TEAM CHAT (R-LOBBY-CHAT-TEAM-01): the current match's team chats (Duos / Ranked Duos), read from storage on first use. */
+  private teamChats: LobbyTeamChats | null = null;
   private readonly metrics: RoomMetrics = { msgsIn: 0, msgsOut: 0, bytesIn: 0, bytesOut: 0, resolveMs: [], alarms: 0, wakes: 0 };
 
   constructor(ctx: DurableObjectState, env: RoomEnv) {
@@ -401,8 +406,14 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     const sender: LobbyChatSender = {
       userId: a.userId, role: !mem ? null : mem.role === 'spectator' ? 'spectator' : 'player', name: mem?.displayName ?? 'Player', guest: !!a.guest,
     };
+    // TEAM CHAT (R-LOBBY-CHAT-TEAM-01): the team is the sender's SEAT's, never the payload's; a spectator has none.
+    const mode = core.state.room.options.mode;
+    const team = mem ? lobbyChatTeamOf(mode, mem.role) : null;
+    if (lobbyChatChannelOf(payload) === 'team') { await this.teamChat(core, ws, a, sender, team, event, payload); return; }
     if (event === LOBBY_CHAT_SYNC_EVENT) {
-      this.send(ws, JSON.stringify({ t: 'bc', event, payload: this.chat.sync(sender, payload), from: a.userId } satisfies VersusCfPush));
+      const sync = this.chat.sync(sender, payload);
+      if (team) sync.team = true;
+      this.send(ws, JSON.stringify({ t: 'bc', event, payload: sync, from: a.userId } satisfies VersusCfPush));
       return;
     }
     const r = this.chat.post(sender, payload, Date.now());
@@ -413,6 +424,40 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     void this.ctx.storage.put(LOBBY_CHAT_STORAGE_KEY, this.chat.backlog(), { allowUnconfirmed: true }).catch(() => undefined);
     const out = JSON.stringify({ t: 'bc', event, payload: r.msg, from: a.userId } satisfies VersusCfPush);
     for (const other of this.liveSockets()) if (this.att(other).hello) this.send(other, out);
+  }
+
+  /**
+   * TEAM CHAT (owner 2026-11-01; R-LOBBY-CHAT-TEAM-01): the sender's team's own chat, for the CURRENT match. A post goes
+   * ONLY to the sockets of members seated on the same team (the sender's too: its confirmation), never to the other
+   * team or the stands (a mentor is in the stands). A member with no team seat is refused (`not_member`) and its sync
+   * answered empty, so nothing of a team chat ever reaches it.
+   */
+  private async teamChat(core: RoomCore, ws: CfWebSocket, a: Attachment, sender: LobbyChatSender, team: LobbyChatTeam | null, event: string, payload: unknown): Promise<void> {
+    if (!this.teamChats) {
+      const chats = new LobbyTeamChats();
+      chats.load(await this.ctx.storage.get(LOBBY_CHAT_TEAMS_STORAGE_KEY));
+      this.teamChats ??= chats;
+    }
+    if (!team) {
+      const cid = (payload as { cid?: unknown } | null)?.cid;
+      if (event === LOBBY_CHAT_SYNC_EVENT) this.send(ws, JSON.stringify({ t: 'bc', event, payload: { msgs: [], canSend: false, channel: 'team' }, from: a.userId } satisfies VersusCfPush));
+      else this.send(ws, JSON.stringify({ t: 'bc', event: LOBBY_CHAT_REFUSED_EVENT, payload: { cid: typeof cid === 'string' ? cid : null, reason: 'not_member', channel: 'team' }, from: a.userId } satisfies VersusCfPush));
+      return;
+    }
+    const chat = this.teamChats.chat(core.state.room.current_match_id ?? null, team);
+    if (event === LOBBY_CHAT_SYNC_EVENT) {
+      this.send(ws, JSON.stringify({ t: 'bc', event, payload: chat.sync(sender, payload), from: a.userId } satisfies VersusCfPush));
+      return;
+    }
+    const r = chat.post(sender, payload, Date.now());
+    if (!r.ok) {
+      this.send(ws, JSON.stringify({ t: 'bc', event: LOBBY_CHAT_REFUSED_EVENT, payload: { cid: r.cid ?? null, reason: r.reason, channel: 'team' }, from: a.userId } satisfies VersusCfPush));
+      return;
+    }
+    void this.ctx.storage.put(LOBBY_CHAT_TEAMS_STORAGE_KEY, this.teamChats.stored(), { allowUnconfirmed: true }).catch(() => undefined);
+    const mates = new Set(lobbyChatTeamAudience(core.state.room.options.mode, core.state.room.members, team));
+    const out = JSON.stringify({ t: 'bc', event, payload: r.msg, from: a.userId } satisfies VersusCfPush);
+    for (const other of this.liveSockets()) { const o = this.att(other); if (o.hello && mates.has(o.userId)) this.send(other, out); }
   }
 
   /** When this socket's keep-alive goes stale: its last ping (the runtime's auto-response stamp) or its open, + 15 s. */

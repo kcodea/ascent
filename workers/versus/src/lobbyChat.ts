@@ -39,6 +39,21 @@
  * The backlog lives in the object's memory, mirrored to its own storage (a hibernation wake keeps it; the object's
  * storage goes with the game), never in Postgres.
  *
+ * TEAM CHAT (owner 2026-11-01: "in versus team modes, there should be a tab in lobby that has a team chat too";
+ * R-LOBBY-CHAT-TEAM-01). In Versus Duos (p1+p2 vs p3+p4) and Ranked Duos (the party room, p1+p2) each team has its own
+ * channel on the SAME socket, through the same events with `channel: 'team'`:
+ *
+ *   client -> object  `lobby_chat`        { cid, body, replyTo?, channel: 'team' }
+ *   object -> team    `lobby_chat`        LobbyChatMsg & { channel: 'team' }  ONLY to the sockets of the sender's team
+ *   client -> object  `lobby_chat_sync`   { since?, channel: 'team' }
+ *   object -> me      `lobby_chat_sync`   LobbyChatSync & { channel: 'team' }
+ *
+ * The object decides the team from the sender's SEAT (never the payload). A spectator (a mentor too) has no team and
+ * never receives or posts a team message. The lobby sync answer carries `team: true` when the asker holds a team seat;
+ * a client opens the Team tab only then, so it never sends a team message to an older Worker (which would post it to
+ * the lobby). Team chats belong to the CURRENT match (`LobbyTeamChats`): a new match starts them empty. A team
+ * message an older client receives shows in its lobby list (only teammates ever receive one).
+ *
  * Dependency-free apart from the DM body rule (the UI imports it as `@game/versus-cf/lobbyChat`).
  */
 import { cleanDmBody, DM_MAX_CHARS, DM_REPLY_SNIPPET } from './hubProtocol';
@@ -60,6 +75,24 @@ export const GUEST_HEADER = 'X-Versus-Guest';
 
 export type LobbyChatRole = 'player' | 'spectator';
 
+/** Which chat a message belongs to: the game's lobby (everyone) or the sender's team (R-LOBBY-CHAT-TEAM-01). */
+export type LobbyChatChannel = 'lobby' | 'team';
+/** A team in a team mode: Duos' p1+p2 is `a`, p3+p4 is `b`; a Ranked Duos party room is one team, `a`. */
+export type LobbyChatTeam = 'a' | 'b';
+/** The object's storage key for the current match's team chats. */
+export const LOBBY_CHAT_TEAMS_STORAGE_KEY = 'lobbyChatTeams';
+
+/** The channel a payload asks for (anything but `team` is the lobby). Pure. */
+export const lobbyChatChannelOf = (payload: unknown): LobbyChatChannel =>
+  (payload as { channel?: unknown } | null | undefined)?.channel === 'team' ? 'team' : 'lobby';
+
+/** The team a room member's seat is on in `mode`, or null (a spectator, a solo mode). Pure. */
+export function lobbyChatTeamOf(mode: unknown, role: unknown): LobbyChatTeam | null {
+  if (mode === 'duos') return role === 'p1' || role === 'p2' ? 'a' : role === 'p3' || role === 'p4' ? 'b' : null;
+  if (mode === 'ranked_duos') return role === 'p1' || role === 'p2' ? 'a' : null;
+  return null;
+}
+
 /** The quote a reply shows: the message it answers, who wrote it and the start of it. */
 export interface LobbyChatReply {
   id: string;
@@ -80,6 +113,8 @@ export interface LobbyChatMsg {
   cid?: string;
   /** The message this one answers (stamped by the object from its backlog). */
   reply?: LobbyChatReply;
+  /** Set on a team message (R-LOBBY-CHAT-TEAM-01); a lobby message carries none. */
+  channel?: 'team';
 }
 
 export interface LobbyChatSync {
@@ -87,6 +122,10 @@ export interface LobbyChatSync {
   canSend: boolean;
   /** Set when `msgs` is only what came after this id (a catch-up), not the whole backlog. */
   since?: string;
+  /** A team chat's answer (R-LOBBY-CHAT-TEAM-01). */
+  channel?: 'team';
+  /** On the LOBBY answer: the asker holds a team seat, so it has a team chat too. */
+  team?: boolean;
 }
 
 export type LobbyChatRefusal = 'guest' | 'rate' | 'malformed' | 'not_member';
@@ -129,6 +168,7 @@ export function parseLobbyChatMsg(raw: unknown): LobbyChatMsg | null {
   if (typeof m.cid === 'string' && CID.test(m.cid)) out.cid = m.cid;
   const reply = m.reply == null ? null : parseLobbyChatReply(m.reply);
   if (reply) out.reply = reply;
+  if (m.channel === 'team') out.channel = 'team';
   return out;
 }
 
@@ -139,6 +179,8 @@ export function parseLobbyChatSync(raw: unknown): LobbyChatSync | null {
   const msgs = p.msgs.slice(-LOBBY_CHAT_BACKLOG).map(parseLobbyChatMsg).filter((m): m is LobbyChatMsg => !!m);
   const out: LobbyChatSync = { msgs, canSend: p.canSend === true };
   if (typeof p.since === 'string' && CID.test(p.since)) out.since = p.since;
+  if (p.channel === 'team') out.channel = 'team';
+  if (p.team === true) out.team = true;
   return out;
 }
 
@@ -147,6 +189,9 @@ export class LobbyChat {
   private msgs: LobbyChatMsg[] = [];
   private readonly buckets = new Map<string, { tokens: number; at: number }>();
   private seq = 0;
+
+  /** `channel: 'team'`: a team's chat (its messages and its sync answers are stamped so). */
+  constructor(private readonly channel: LobbyChatChannel = 'lobby') {}
 
   /** Restore a stored backlog (a wake). */
   load(raw: unknown): void {
@@ -166,8 +211,11 @@ export class LobbyChat {
   sync(sender: Pick<LobbyChatSender, 'role' | 'guest'>, payload?: unknown): LobbyChatSync {
     const since = (payload as { since?: unknown } | null | undefined)?.since;
     const at = typeof since === 'string' ? this.msgs.findIndex((m) => m.id === since) : -1;
-    if (at >= 0) return { msgs: this.msgs.slice(at + 1), canSend: lobbyChatCanSend(sender), since: since as string };
-    return { msgs: this.backlog(), canSend: lobbyChatCanSend(sender) };
+    const out: LobbyChatSync = at >= 0
+      ? { msgs: this.msgs.slice(at + 1), canSend: lobbyChatCanSend(sender), since: since as string }
+      : { msgs: this.backlog(), canSend: lobbyChatCanSend(sender) };
+    if (this.channel === 'team') out.channel = 'team';
+    return out;
   }
 
   /** Take one send from `key`'s bucket at `now`. */
@@ -194,6 +242,7 @@ export class LobbyChat {
     this.seq += 1;
     const msg: LobbyChatMsg = { id: `${now.toString(36)}-${this.seq.toString(36)}`, from: sender.userId, name: clampName(sender.name), role: sender.role, body, at: now };
     if (cid) msg.cid = cid;
+    if (this.channel === 'team') msg.channel = 'team';
     // A reply: the quote is the object's own copy of the original (never the payload's), while it is still kept.
     const orig = typeof p?.replyTo === 'string' ? this.msgs.find((m) => m.id === p.replyTo) : undefined;
     if (orig) msg.reply = { id: orig.id, from: orig.from, name: orig.name, body: snippet(orig.body) };
@@ -201,4 +250,50 @@ export class LobbyChat {
     if (this.msgs.length > LOBBY_CHAT_BACKLOG) this.msgs.splice(0, this.msgs.length - LOBBY_CHAT_BACKLOG);
     return { ok: true, msg };
   }
+}
+
+/**
+ * THE CURRENT MATCH'S TEAM CHATS (R-LOBBY-CHAT-TEAM-01): one `LobbyChat('team')` per team, for one match. Asked for a
+ * different match, it forgets the old ones (a new match's team chat starts empty; a seat may now be on another team).
+ */
+export class LobbyTeamChats {
+  private matchId: string | null = null;
+  private readonly teams = new Map<LobbyChatTeam, LobbyChat>();
+
+  /** Restore what `stored()` wrote (a wake). */
+  load(raw: unknown): void {
+    this.teams.clear();
+    const r = raw as { matchId?: unknown; teams?: Record<string, unknown> } | null | undefined;
+    this.matchId = r && typeof r.matchId === 'string' ? r.matchId : null;
+    for (const t of ['a', 'b'] as const) {
+      const msgs = r?.teams?.[t];
+      if (!Array.isArray(msgs)) continue;
+      const c = new LobbyChat('team');
+      c.load(msgs);
+      this.teams.set(t, c);
+    }
+  }
+
+  /** `team`'s chat in match `matchId` (null: the room between matches). */
+  chat(matchId: string | null, team: LobbyChatTeam): LobbyChat {
+    if (matchId !== this.matchId) { this.teams.clear(); this.matchId = matchId; }
+    let c = this.teams.get(team);
+    if (!c) { c = new LobbyChat('team'); this.teams.set(team, c); }
+    return c;
+  }
+
+  /** What the object stores. */
+  stored(): { matchId: string | null; teams: Partial<Record<LobbyChatTeam, LobbyChatMsg[]>> } {
+    const teams: Partial<Record<LobbyChatTeam, LobbyChatMsg[]>> = {};
+    for (const [t, c] of this.teams) teams[t] = c.backlog();
+    return { matchId: this.matchId, teams };
+  }
+}
+
+/**
+ * Who receives a team message (R-LOBBY-CHAT-TEAM-01): the members SEATED on `team` in `mode`, never a spectator (a
+ * mentor too) or the other team. Pure (the room fans out to exactly these accounts' sockets).
+ */
+export function lobbyChatTeamAudience(mode: unknown, members: readonly { userId: string; role: string }[], team: LobbyChatTeam): string[] {
+  return members.filter((m) => lobbyChatTeamOf(mode, m.role) === team).map((m) => m.userId);
 }

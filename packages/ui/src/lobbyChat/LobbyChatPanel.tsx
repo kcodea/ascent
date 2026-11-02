@@ -10,6 +10,10 @@
  *    window frame (move by the header, resize from the gold grips, its own remembered place and size on this device,
  *    pin). Pinned (the default, today's behaviour) it stays up while I play; unpinned, a press outside it folds it back
  *    to the button. Its default place is today's: the left edge, between Tavern Up and the emote wheel.
+ *  - ONLY IN A GAME (owner 2026-11-01, R-LOBBY-CHAT-CLOSE-01): nothing on the title or the menus (a Versus room between
+ *    matches included). A Versus match's chat goes as its end gate shuts; a lobby game's when its socket closes at the end.
+ *  - TEAM CHAT (owner 2026-11-01, R-LOBBY-CHAT-TEAM-01): a Duos / Ranked Duos player's panel has two tabs, Lobby and
+ *    Team, each with its own unread count (the collapsed button shows both added up). A spectator has no Team tab.
  *  - Each message shows its sender's name (a player's in gold) and time. Someone else's carries Reply and Mute (this
  *    game, my screen only); a muted count in the header unmutes them all. The swear filter is the messages setting.
  *  - READ WHEN SEEN: what arrives while the panel is open and the page is in front of me is never unread; a press or
@@ -31,9 +35,10 @@ import { ChatRow, chatTime, isTouchUi, useQuoteJump, type ChatQuote } from '../c
 import { ChatComposer } from '../chat/ChatComposer';
 import { ChatFrame, ChatPinButton, phoneChat } from '../chat/ChatFrame';
 import { createChatPrefs, type ChatGeom, type ChatLimits } from '../chat/chatGeom';
+import { useGame } from '../store';
 import {
-  canReplyToLobby, LOBBY_CHAT_GUEST_TEXT, LOBBY_CHAT_MAX_CHARS, noteLobbyChatSeen, retryLobbyChat, sendLobbyChat, setLobbyChatMuted, setLobbyChatOpen, useLobbyChat,
-  type ShownChatMsg,
+  canReplyToLobby, LOBBY_CHAT_GUEST_TEXT, LOBBY_CHAT_MAX_CHARS, LOBBY_CHAT_TEAM_GONE_TEXT, lobbyChatTab, lobbyChatUnreadTotal, noteLobbyChatSeen, retryLobbyChat, sendLobbyChat,
+  setLobbyChatMuted, setLobbyChatOpen, setLobbyChatTab, useLobbyChat, type LobbyChatChannel, type ShownChatMsg,
 } from './lobbyChatStore';
 import '../friends/dm/dm.css';
 import './lobbyChat.css';
@@ -74,9 +79,13 @@ const Message = memo(function Message({ m, mine, me, filter, onReply, onQuote }:
 
 export function LobbyChatPanel(): JSX.Element | null {
   const show = useLobbyChat((s) => s.enabled && s.available && s.company);
+  // CLOSED OFF THE GAME SCREEN (owner 2026-11-01: "lobby chat should close after games end"; R-LOBBY-CHAT-CLOSE-01):
+  // the chat belongs to a game on screen (the shop, the fight, Hero Select, the watch screen). The title,
+  // the menus and a Versus room between matches never show it, even while the room's socket stays open.
+  const inGame = useGame((s) => !s.showTitle);
   const open = useLobbyChat((s) => s.open);
-  const unread = useLobbyChat((s) => s.unread);
-  if (!show) return null;
+  const unread = useLobbyChat(lobbyChatUnreadTotal);
+  if (!show || !inGame) return null;
   if (!open) {
     return (
       <button type="button" className="lchat-pill pressable" aria-label={unread ? `Open lobby chat, ${unread} new` : 'Open lobby chat'}
@@ -90,11 +99,16 @@ export function LobbyChatPanel(): JSX.Element | null {
 }
 
 function OpenPanel(): JSX.Element {
-  const msgs = useLobbyChat((s) => s.msgs);
+  const tab = useLobbyChat(lobbyChatTab);
+  const hasTeam = useLobbyChat((s) => s.team && s.teamAvailable);
+  const msgs = useLobbyChat((s) => (tab === 'team' ? s.teamMsgs : s.msgs));
   const me = useLobbyChat((s) => s.me);
   const muted = useLobbyChat((s) => s.muted);
-  const canSend = useLobbyChat((s) => s.canSend);
-  const unread = useLobbyChat((s) => s.unread);
+  const canSend = useLobbyChat((s) => (tab === 'team' ? s.teamCanSend : s.canSend));
+  const lobbyCanSend = useLobbyChat((s) => s.canSend);
+  const unread = useLobbyChat((s) => (tab === 'team' ? s.teamUnread : s.unread));
+  const lobbyUnread = useLobbyChat((s) => s.unread);
+  const teamUnread = useLobbyChat((s) => s.teamUnread);
   const filter = useFriendsPrefs((s) => s.filterMessages);
   const pinPref = lobbyChatPrefs.use((s) => s.pinned);
   const phone = phoneChat();
@@ -104,6 +118,8 @@ function OpenPanel(): JSX.Element {
   const frameEl = useRef<HTMLDivElement | null>(null);
   const atBottom = useRef(true);
   const [replyTo, setReplyTo] = useState<ShownChatMsg | null>(null);
+  // A reply answers a message of the tab it was started on: switching tabs drops it, and the list starts at the bottom.
+  useEffect(() => { setReplyTo(null); atBottom.current = true; }, [tab]);
   const shown = useMemo(() => msgs.filter((m) => !muted[low(m.from)]), [msgs, muted]);
   const mutedCount = Object.keys(muted).length;
   const last = shown[shown.length - 1];
@@ -111,7 +127,7 @@ function OpenPanel(): JSX.Element {
   useLayoutEffect(() => {
     const el = listRef.current;
     if (el && atBottom.current) el.scrollTop = el.scrollHeight;
-  }, [last?.id, last?.state, shown.length]);
+  }, [last?.id, last?.state, shown.length, tab]);
 
   // Unpinned: a press anywhere outside folds the panel back to its button (the press still reaches the game).
   useEffect(() => {
@@ -137,8 +153,26 @@ function OpenPanel(): JSX.Element {
       {(drag) => (
         <section className="lchat vspanel" aria-label="Lobby chat">
           <header className="lchat-head" {...drag}>
-            <span className="lchat-title">Lobby chat</span>
-            {unread > 0 && <span className="dm-unread lchat-unread" aria-label={`${unread} new`}>{unread > 99 ? '99+' : unread}</span>}
+            {hasTeam ? (
+              // TEAM CHAT (R-LOBBY-CHAT-TEAM-01): Lobby (everyone) and Team (my teammate and me), each with its own count.
+              // The Career page's tab pill (`.cv2-tabs`), as the Friends dock wears it. Like the DM window's tabs they sit on
+              // the move handle: a press that barely moves is still a click on the tab (`ChatFrame`).
+              <div className="cv2-tabs lchat-tabs" role="tablist" aria-label="Chat">
+                {([['lobby', 'Lobby', lobbyUnread], ['team', 'Team', teamUnread]] as [LobbyChatChannel, string, number][]).map(([id, label, n]) => (
+                  <button key={id} type="button" role="tab" className={`cv2-tab pressable${tab === id ? ' on' : ''}`} aria-selected={tab === id}
+                    aria-label={n ? `${label} chat, ${n} new` : `${label} chat`}
+                    onClick={() => { if (tab !== id) { sfx.pulse(); setLobbyChatTab(id); } }}>
+                    {label}
+                    {n > 0 && <span className="dm-unread lchat-unread" aria-hidden="true">{n > 99 ? '99+' : n}</span>}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <>
+                <span className="lchat-title">Lobby chat</span>
+                {unread > 0 && <span className="dm-unread lchat-unread" aria-label={`${unread} new`}>{unread > 99 ? '99+' : unread}</span>}
+              </>
+            )}
             {mutedCount > 0 && (
               <button type="button" className="dm-link lchat-unmute pressable" aria-label={`Unmute ${mutedCount} muted`}
                 onClick={() => { sfx.pulse(); for (const id of Object.keys(muted)) setLobbyChatMuted(id, false); }}>
@@ -161,12 +195,14 @@ function OpenPanel(): JSX.Element {
                   return <Message key={m.cid && mine ? m.cid : m.id} m={m} mine={mine} me={me} filter={filter} onReply={onReply} onQuote={onQuote} />;
                 })}
               </div>
-            ) : <div className="lchat-empty">No messages yet. Say hi.</div>}
+            ) : <div className="lchat-empty">{tab === 'team' ? 'Only your teammate sees this. Say hi.' : 'No messages yet. Say hi.'}</div>}
           </GameScroll>
-          <ChatComposer available={canSend} placeholder={canSend ? 'Message the lobby' : LOBBY_CHAT_GUEST_TEXT} maxChars={LOBBY_CHAT_MAX_CHARS} input={inputRef} filter={filter}
+          <ChatComposer available={canSend}
+            placeholder={canSend ? (tab === 'team' ? 'Message your team' : 'Message the lobby') : tab === 'team' && lobbyCanSend ? LOBBY_CHAT_TEAM_GONE_TEXT : LOBBY_CHAT_GUEST_TEXT}
+            maxChars={LOBBY_CHAT_MAX_CHARS} input={inputRef} filter={filter}
             reply={replyTo ? { name: me && low(replyTo.from) === me ? 'yourself' : replyTo.name, body: replyTo.body } : null}
             onCancelReply={() => setReplyTo(null)}
-            send={(text) => sendLobbyChat(text, replyTo)} onSent={() => { atBottom.current = true; setReplyTo(null); }} onType={noteLobbyChatSeen}
+            send={(text) => sendLobbyChat(text, replyTo, tab)} onSent={() => { atBottom.current = true; setReplyTo(null); }} onType={noteLobbyChatSeen}
             escape="blur" className="lchat-compose" inputClassName="lchat-input" />
         </section>
       )}

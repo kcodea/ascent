@@ -4,7 +4,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-  LOBBY_CHAT_BACKLOG, LOBBY_CHAT_MAX_CHARS, LOBBY_CHAT_RATE, LOBBY_CHAT_REPLY_SNIPPET, LobbyChat, lobbyChatCanSend, parseLobbyChatMsg, parseLobbyChatSync, type LobbyChatSender,
+  LOBBY_CHAT_BACKLOG, LOBBY_CHAT_MAX_CHARS, LOBBY_CHAT_RATE, LOBBY_CHAT_REPLY_SNIPPET, LobbyChat, lobbyChatCanSend, lobbyChatChannelOf, lobbyChatTeamAudience, lobbyChatTeamOf,
+  LobbyTeamChats, parseLobbyChatMsg, parseLobbyChatSync, type LobbyChatSender,
 } from '../src/lobbyChat';
 
 const T0 = Date.UTC(2026, 9, 30, 12, 0, 0);
@@ -100,5 +101,53 @@ describe('lobby chat replies and catch-up (R-LOBBY-CHAT-02)', () => {
     expect(all.since).toBeUndefined();
     expect(all.msgs).toHaveLength(4);
     expect(c.sync(fan, {}).msgs).toHaveLength(4);
+  });
+});
+
+describe('team chat (R-LOBBY-CHAT-TEAM-01)', () => {
+  const members = [
+    { userId: 'a1', role: 'p1' }, { userId: 'a2', role: 'p2' }, { userId: 'b1', role: 'p3' }, { userId: 'b2', role: 'p4' },
+    { userId: 'fan', role: 'spectator' },
+  ];
+
+  it('the team is the seat\'s: Duos p1+p2 vs p3+p4, Ranked Duos p1+p2; spectators and solo modes have none', () => {
+    expect(['p1', 'p2', 'p3', 'p4', 'spectator'].map((r) => lobbyChatTeamOf('duos', r))).toEqual(['a', 'a', 'b', 'b', null]);
+    expect(['p1', 'p2', 'p3', 'spectator'].map((r) => lobbyChatTeamOf('ranked_duos', r))).toEqual(['a', 'a', null, null]);
+    for (const mode of ['duel', 'group', 'lobby', undefined]) expect(lobbyChatTeamOf(mode, 'p1')).toBeNull();
+    expect(lobbyChatChannelOf({ channel: 'team' })).toBe('team');
+    expect(lobbyChatChannelOf({ channel: 'lobby' })).toBe('lobby');
+    expect(lobbyChatChannelOf(null)).toBe('lobby');
+  });
+
+  it('a team message reaches only the seats of that team: never the other team, never the stands', () => {
+    expect(lobbyChatTeamAudience('duos', members, 'a').sort()).toEqual(['a1', 'a2']);
+    expect(lobbyChatTeamAudience('duos', members, 'b').sort()).toEqual(['b1', 'b2']);
+    expect(lobbyChatTeamAudience('ranked_duos', members, 'a').sort()).toEqual(['a1', 'a2']);
+    expect(lobbyChatTeamAudience('group', members, 'a')).toEqual([]);
+  });
+
+  it('team messages and answers are stamped as team; a lobby message carries no channel', () => {
+    const team = new LobbyChat('team');
+    const r = team.post(player, { cid: 't1', body: 'push left', channel: 'lobby' }, T0);
+    expect(r).toMatchObject({ ok: true, msg: { channel: 'team', body: 'push left' } });
+    expect(r.ok && parseLobbyChatMsg(JSON.parse(JSON.stringify(r.msg)))?.channel).toBe('team');
+    expect(parseLobbyChatSync(JSON.parse(JSON.stringify(team.sync(player))))).toMatchObject({ channel: 'team', msgs: [{ body: 'push left' }] });
+    const lobby = new LobbyChat();
+    const l = lobby.post(player, { body: 'gl', channel: 'team' }, T0);
+    expect(l.ok && 'channel' in l.msg).toBe(false);
+    expect(parseLobbyChatSync({ msgs: [], canSend: true, team: true })).toMatchObject({ team: true });
+    expect('team' in parseLobbyChatSync({ msgs: [], canSend: true, team: 'yes' })!).toBe(false);
+  });
+
+  it('team chats belong to the current match: a new match starts them empty; a wake keeps them', () => {
+    const chats = new LobbyTeamChats();
+    chats.chat('m1', 'a').post(player, { body: 'a-side' }, T0);
+    chats.chat('m1', 'b').post(fan, { body: 'b-side' }, T0);
+    expect(chats.chat('m1', 'a').backlog().map((m) => m.body)).toEqual(['a-side']);
+    const woke = new LobbyTeamChats();
+    woke.load(JSON.parse(JSON.stringify(chats.stored())));
+    expect(woke.chat('m1', 'b').backlog()).toMatchObject([{ body: 'b-side', channel: 'team' }]);
+    expect(woke.chat('m2', 'a').backlog()).toEqual([]);
+    expect(woke.chat('m2', 'b').backlog()).toEqual([]);
   });
 });

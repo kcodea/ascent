@@ -1597,6 +1597,17 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   panel is open AND the page is seen (coming back, a press, typing or sending clears it). A reconnect asks the backlog
   again with `since` (the newest message held) and merges by id. Phones keep the compact fixed panel. No Report (no
   server record).
+- **Only in a game (owner 2026-11-01; R-LOBBY-CHAT-CLOSE-01).** The panel and its button show only while a game is on
+  screen (shop, fight, Hero Select, the watch screen). Never on the title, the menus or a Versus room between matches,
+  even while the room's socket stays open. A Versus match's chat goes as its end gate shuts; a lobby / Practice game's
+  when its socket closes at the end.
+- **Team chat (owner 2026-11-01; R-LOBBY-CHAT-TEAM-01).** In Versus Duos (p1+p2 vs p3+p4) and Ranked Duos (the party's
+  p1+p2) a seated player's panel has two tabs, **Lobby** (everyone) and **Team** (the two teammates), each with its own
+  unread count (the collapsed button adds them). Same socket and events with `channel: 'team'`; the room's Durable
+  Object picks the team from the sender's seat and sends a team message only to that team's seated members. Spectators
+  (mentors included) never see or post team chat. The lobby backlog answer says `team: true` to a teammate, and the
+  client opens the tab only after that, so an older Worker is never sent a team message. A team chat belongs to the
+  current match (a new match starts it empty). Same limits, mute, filter, replies and catch-up as the lobby chat.
 
 ## Friends (owner 2026-10-26; R-FRIENDS-01, R-FRIENDS-02, R-FRIENDS-03, R-FRIENDS-04, R-FRIENDS-05)
 

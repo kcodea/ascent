@@ -1,0 +1,100 @@
+/* ── THE LEADERBOARD ON THE APP SHELL (party home prototype, DEV only; PhLeaderboard.tsx). Tokens: ../../shell/shell.css.
+   Static paint: hover is a colour or a one-shot transform, nothing loops. Scoped to `.phl-page` under html[data-ph-shell]. ── */
+
+html[data-ph-shell] .phl-page .phl-pg { flex: 1; min-height: 0; }
+html[data-ph-shell] .phl-page .phk-pageactions { align-self: center; }
+html[data-ph-shell] .phl-page .phk-pagetabs { align-self: flex-end; margin-bottom: calc(-16 * var(--phu)); }
+html[data-ph-shell] .phl-page .phk-pagetabs .phk-tab { padding-bottom: calc(16 * var(--phu)); }
+.phl-count { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); text-shadow: var(--ph-shadow); white-space: nowrap; }
+
+/* ── THE PODIUM: three tall cards, 1st in the middle and tallest ── */
+.phl-podium { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: calc(16 * var(--phu)); }
+.phl-pod { position: relative; height: calc(300 * var(--phu)); }
+.phl-pod.p1 { height: calc(340 * var(--phu)); }
+.phl-podbtn { position: relative; display: flex; flex-direction: column; justify-content: flex-end; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; overflow: hidden; text-align: left; font: inherit; color: inherit;
+  background: var(--ph-navy); clip-path: var(--ph-clip); transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+.phl-podbtn:hover { transform: translateY(calc(-2 * var(--phu))); }
+.phl-podbtn::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.phl-pod.p1 .phl-podbtn::after { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
+.phl-pod.me .phl-podbtn::after, .phl-podbtn:hover::after { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
+.phl-podbtn:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold); outline-offset: calc(-2 * var(--phu)); }
+.phl-podart { position: absolute; inset: 0 0 auto 0; width: 100%; height: 80%; object-fit: cover; object-position: 50% 22%; pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, #000 45%, transparent 100%); mask-image: linear-gradient(180deg, #000 45%, transparent 100%); }
+.phl-podplace { position: absolute; top: calc(16 * var(--phu)); left: calc(16 * var(--phu)); }
+.phl-pod.p1 .phl-podplace .phk-place { width: calc(44 * var(--phu)); height: calc(44 * var(--phu)); font-size: var(--ph-t4); }
+.phl-you { position: absolute; top: calc(20 * var(--phu)); right: calc(20 * var(--phu)); }
+.phl-podwho { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: calc(4 * var(--phu)); padding: 0 calc(24 * var(--phu)); }
+.phl-podname { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phl-podhero { font-size: var(--ph-t2); font-weight: 700; color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+.phl-podfoot { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: calc(16 * var(--phu)); margin-top: calc(12 * var(--phu));
+  padding: calc(12 * var(--phu)) calc(24 * var(--phu)) calc(16 * var(--phu)); background: color-mix(in srgb, var(--ph-navy) 82%, transparent); box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair); }
+.phl-podrank { display: flex; align-items: center; gap: calc(8 * var(--phu)); min-width: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; }
+.phl-podrank .rankcrest { --ring: calc(36 * var(--phu)); flex: none; }
+.phl-podrank.none, .phl-rank.none { color: var(--ph-muted); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* Titles beside names: the TitleBadge, sized to the shell's meta type. */
+html[data-ph-shell] .phl-page .phl-title { --tb-fs: var(--ph-t1); flex: none; }
+
+/* A number with its unit under it. */
+.phl-num { display: flex; flex-direction: column; align-items: flex-end; gap: calc(2 * var(--phu)); }
+.phl-num b { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
+.phl-num.gold b { color: #fbe6a6; }
+.phl-num small { font-family: var(--ph-font); font-weight: 800; font-size: calc(10 * var(--phu)); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
+.phl-pod .phl-num b { font-size: var(--ph-t4); }
+
+/* ── THE TABLE: rail rows ── */
+.phl-table { --phl-cols: calc(36 * var(--phu)) calc(56 * var(--phu)) minmax(0, 1fr) calc(280 * var(--phu)) calc(88 * var(--phu)) calc(80 * var(--phu)) calc(16 * var(--phu));
+  flex: none; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
+.phl-table.duos { --phl-cols: calc(36 * var(--phu)) calc(112 * var(--phu)) minmax(0, 1fr) calc(280 * var(--phu)) calc(80 * var(--phu)); }
+.phl-head, .phl-rowbtn { display: grid; grid-template-columns: var(--phl-cols); align-items: center; column-gap: calc(16 * var(--phu)); }
+.phl-head { padding: 0 calc(16 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
+.phl-head .r { text-align: right; }
+.phl-row { position: relative; flex: none; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phl-row:hover:has(button) { background: var(--ph-plate-hover); }
+.phl-row.me { background: var(--ph-plate-hover); box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
+.phl-rowbtn { width: 100%; min-height: calc(72 * var(--phu)); margin: 0; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); border: 0; border-radius: 0; background: none; text-align: left; font: inherit; color: inherit; }
+.phl-rowbtn:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold); outline-offset: calc(-2 * var(--phu)); }
+.phl-thumb { position: relative; display: block; width: calc(56 * var(--phu)); height: calc(56 * var(--phu)); overflow: hidden; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phl-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
+.phl-pair { display: flex; gap: calc(0 * var(--phu)); }
+.phl-who { min-width: 0; display: flex; flex-direction: column; gap: calc(2 * var(--phu)); }
+.phl-name { display: flex; align-items: center; gap: calc(8 * var(--phu)); min-width: 0; overflow: hidden; white-space: nowrap; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phl-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ph-t1); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+.phl-go { font-family: var(--ph-font); font-size: var(--ph-t3); color: var(--ph-muted); }
+.phl-row:hover .phl-go { color: var(--ph-ink); }
+
+/* The rank cell: the shared RankBar, its type in the shell's fonts, the bar flat. */
+.phl-rank { min-width: 0; display: flex; align-items: center; }
+html[data-ph-shell] .phl-page .phl-rank .rankbar { gap: calc(12 * var(--phu)); }
+html[data-ph-shell] .phl-page .phl-rank .rankcrest-row { --ring: calc(40 * var(--phu)); }
+html[data-ph-shell] .phl-page .phl-rank .rankbar-label { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.1em; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+html[data-ph-shell] .phl-page .phl-rank .rankbar-track { width: calc(140 * var(--phu)); border-radius: 0; }
+html[data-ph-shell] .phl-page .phl-rank .rankbar-points { font-size: var(--ph-t1); color: var(--ph-muted); }
+
+/* Your standing, pinned to the foot of the view when you are not on the board. */
+.phl-mepin { position: sticky; bottom: 0; z-index: 2; flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr) calc(280 * var(--phu)) calc(88 * var(--phu)) auto; align-items: center; column-gap: calc(16 * var(--phu));
+  min-height: calc(64 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-plate-hover); box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), 0 calc(-8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4); clip-path: var(--ph-clip-s); }
+
+/* ── 1366: a narrower rank column ── */
+@media (max-width: 1500px) {
+  .phl-table { --phl-cols: calc(36 * var(--phu)) calc(56 * var(--phu)) minmax(0, 1fr) calc(240 * var(--phu)) calc(80 * var(--phu)) calc(72 * var(--phu)) calc(16 * var(--phu)); }
+  html[data-ph-shell] .phl-page .phl-rank .rankbar-track { width: calc(110 * var(--phu)); }
+  .phl-pod { height: calc(260 * var(--phu)); }
+  .phl-pod.p1 { height: calc(296 * var(--phu)); }
+}
+
+/* ── PHONE (landscape): the podium shorter, the table loses the bar and the chevron; every tap target stays 44 pt+. ── */
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-pod { height: calc(260 * var(--phu)); }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-pod.p1 { height: calc(290 * var(--phu)); }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-podfoot { grid-template-columns: minmax(0, 1fr) auto; padding: calc(10 * var(--phu)) calc(16 * var(--phu)) calc(12 * var(--phu)); }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-podfoot > .phl-num:last-child { display: none; }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-podwho { padding: 0 calc(16 * var(--phu)); }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-table { --phl-cols: calc(36 * var(--phu)) calc(48 * var(--phu)) minmax(0, 1fr) calc(200 * var(--phu)) calc(72 * var(--phu)) calc(64 * var(--phu)) 0; }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-table.duos { --phl-cols: calc(36 * var(--phu)) calc(96 * var(--phu)) minmax(0, 1fr) calc(200 * var(--phu)) calc(64 * var(--phu)); }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-thumb { width: calc(48 * var(--phu)); height: calc(48 * var(--phu)); }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-page .phl-rank .rankbar-track { display: none; }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-go { display: none; }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-mepin { grid-template-columns: auto minmax(0, 1fr) calc(200 * var(--phu)) auto; }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-mepin > .phl-sub { display: none; }
+
+@media (prefers-reduced-motion: reduce) { .phl-podbtn { transition: none; } }

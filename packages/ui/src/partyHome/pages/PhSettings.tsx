@@ -38,7 +38,7 @@ import { setLobbyRevealEnabled, useLobbyRevealEnabled } from '../../lobbyReveal/
 import { isTouchDevice, touchText } from '../../touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from '../../touchUi';
 import { PHONE_DIAG_FLAGS, PHONE_GPU, activeDiagLabel, saveDiagFlags, storedDiagFlags, type PhoneDiagFlags } from '../../phoneDiag';
-import { PhButton, PhPage, PhTabs } from '../kit';
+import { PhButton, PhPage, PhSwitch, PhTabs } from '../kit';
 import './phSettings.css';
 
 export type SettingsTab = 'game' | 'audio' | 'video' | 'social' | 'account';
@@ -268,19 +268,10 @@ function Row({ label, note, labelId, noteId, children }: { label: string; note?:
   );
 }
 
-/** An on/off setting: the owner's 2026-10-08 switch (OFF knob left on red, ON knob right on green) in the shell's dress,
- *  with the words On / Off beside it. */
+/** An on/off setting: the kit's switch (the owner's 2026-10-08 rule: off = knob left on red, on = knob right on green,
+ *  with the word On or Off on it), its name and note on the left. */
 function ToggleRow({ label, note, on, onToggle }: { label: string; note?: string; on: boolean; onToggle: () => void }) {
-  const id = useId();
-  return (
-    <Row label={label} note={note} labelId={`${id}l`} noteId={`${id}n`}>
-      <button type="button" role="switch" aria-checked={on} aria-labelledby={`${id}l`} aria-describedby={note ? `${id}n` : undefined}
-        className={`phs-switch${on ? ' is-on' : ''}`} onClick={onToggle}>
-        <span className="phs-switchtxt" aria-hidden="true">{on ? 'On' : 'Off'}</span>
-        <span className="phs-track" aria-hidden="true"><span className="phs-knob" /></span>
-      </button>
-    </Row>
-  );
+  return <div className="phs-row phs-togglerow"><PhSwitch checked={on} onChange={() => onToggle()} label={label} hint={note} /></div>;
 }
 
 function SliderRow({ label, note, aria, min, max, step, value, shown, onChange, onRelease, disabled }: {

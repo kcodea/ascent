@@ -32,6 +32,7 @@ import { PATCH_NOTES } from '../../patchNotes';
 import { matchesWords, patchEntries, PhPatchNotes } from './PhPatchNotes';
 import { PhSettings, SETTINGS_TABS } from './PhSettings';
 import { PhCompendium } from './PhCompendium';
+import { usePhShell } from '../shell/shellStore';
 
 const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
 const CLOSED = { showPatchNotes: false, settingsOpen: false, gameMenuOpen: false, showBook: false, showTitle: true } as const;
@@ -82,12 +83,12 @@ describe('the gate: shell pages only with the switch on, on the menus', () => {
     expect(ui.container.querySelector('.escpanel')).not.toBeNull();
   });
 
-  it('Compendium: the page under the nav with the switch on, on the menus; the window otherwise', async () => {
+  it('Compendium: registers its page with the shell route on the menus; the window otherwise', async () => {
     act(() => { setPartyHome(true); useGame.setState({ showBook: true } as never); });
     ui = mount(<MinionBook />);
-    await settle('.phc');
-    expect(ui.container.querySelector('.book-ov.phc-ov .phc .phc-book'), 'the page in the shell route').not.toBeNull();
-    expect(ui.container.querySelector('.book'), 'no ornate window').toBe(ui.container.querySelector('.phc-book'));
+    for (let i = 0; i < 300 && usePhShell.getState().compendiumPage !== PhCompendium; i++) await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    expect(usePhShell.getState().compendiumPage, 'the page the shell route (PhBookNav) mounts').toBe(PhCompendium);
+    expect(ui.container.querySelector('.book-ov'), 'no window on the menus').toBeNull();
     ui.unmount();
     act(() => { useGame.setState({ showTitle: false } as never); });
     ui = mount(<MinionBook />);
@@ -140,8 +141,7 @@ describe('Settings in the shell', () => {
     const out = new Set<string>();
     const read = (): void => {
       for (const b of root.querySelectorAll<HTMLButtonElement>('button[role="switch"]')) {
-        const id = b.getAttribute('aria-labelledby');
-        out.add((id ? document.getElementById(id)?.textContent : b.querySelector('.ebl')?.textContent) ?? '');
+        out.add(b.getAttribute('aria-label') ?? b.querySelector('.ebl')?.textContent ?? '');
       }
       for (const r of root.querySelectorAll<HTMLInputElement>('input[type="range"]')) out.add(r.getAttribute('aria-label') ?? '');
     };
@@ -161,15 +161,15 @@ describe('Settings in the shell', () => {
     expect(shell).toEqual(old);
   });
 
-  it('a switch writes the same store as before, and its note is outside the button', () => {
+  it('a switch (the kit PhSwitch: On / Off on it) writes the same store as before; its note is outside it', () => {
     act(() => { useGame.setState({ showOpponentSkins: true } as never); });
     ui = mount(<PhSettings initialTab="social" />);
-    const sw = [...ui.container.querySelectorAll<HTMLButtonElement>('button[role="switch"]')]
-      .find((b) => document.getElementById(b.getAttribute('aria-labelledby')!)?.textContent === 'Show opponent cosmetics')!;
+    const sw = [...ui.container.querySelectorAll<HTMLButtonElement>('button[role="switch"]')].find((b) => b.getAttribute('aria-label') === 'Show opponent cosmetics')!;
     expect(sw.getAttribute('aria-checked')).toBe('true');
-    const note = document.getElementById(sw.getAttribute('aria-describedby')!);
+    expect(sw.textContent, 'the word on the switch').toBe('On');
+    const note = sw.closest('.phs-row')?.querySelector('.phk-seghint');
     expect(note?.textContent).toMatch(/Your own cosmetics always show/);
-    expect(sw.contains(note)).toBe(false);
+    expect(sw.contains(note!)).toBe(false);
     click(sw);
     expect(useGame.getState().showOpponentSkins).toBe(false);
   });

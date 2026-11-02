@@ -38,11 +38,11 @@
 
 /* ── Header actions: the search well and the card-size stepper ── */
 .phc .book-search { box-sizing: border-box; width: calc(280 * var(--phu)); height: calc(40 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 0;
-  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s);
   font-family: var(--ph-body); font-weight: 600; font-size: var(--ph-t2); color: var(--ph-ink); }
 .phc .book-search:focus { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
 .phc .book-zoom { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); height: calc(40 * var(--phu)); padding: 0 calc(4 * var(--phu)); border: 0; border-radius: 0;
-  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+  background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
 .phc .book-zoom-btn { width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); border: 0; border-radius: 0; background: none; box-shadow: none; clip-path: var(--ph-clip-s);
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-text); }
 .phc .book-zoom-btn:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); transform: none; }
@@ -50,10 +50,10 @@
 
 /* ── The filter row: a plate; tier chips and Gilded / Duos as cut wells, the picked ones in podium gold ── */
 .phc .book-tiers { min-height: calc(80 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); gap: calc(8 * var(--phu)); background: var(--ph-plate);
-  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+  box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
 .phc .book-axislabel, .phc .book-chart-cap, .phc .book-railcap { font-family: var(--ph-font); font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
 .phc :is(.book-tier, .book-gilded, .book-runetribe, .book-kwchip, .book-setpick-btn) {
-  border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair);
+  border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-well); box-shadow: var(--ph-gild-s);
   font-family: var(--ph-font); color: var(--ph-text); text-shadow: var(--ph-shadow); }
 .phc :is(.book-tier, .book-gilded, .book-runetribe, .book-kwchip, .book-setpick-btn):hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); transform: none; }
 .phc :is(.book-tier, .book-gilded, .book-runetribe).on,
@@ -61,7 +61,7 @@
 .phc .book-tier { width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); font-size: var(--ph-t3); }
 .phc .book-gilded { height: calc(36 * var(--phu)); font-size: var(--ph-t1); letter-spacing: 0.12em; }
 /* A tribe pill keeps its tribe colour as a thin bar on its left edge (colour is a cue beside the name, never the only one). */
-.phc .book-runetribe { box-shadow: inset calc(3 * var(--phu)) 0 0 var(--c), inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.phc .book-runetribe { box-shadow: inset calc(3 * var(--phu)) 0 0 var(--c), var(--ph-gild-s); }
 .phc .book-tiers-div { background: var(--ph-hair); }
 .phc .book-bar-n { color: var(--ph-ink); font-family: var(--ph-font); }
 .phc .book-bar-t { font-family: var(--ph-font); color: var(--ph-muted); }
@@ -71,7 +71,7 @@
 /* ── The rail: one plate; each category a rail row, its art bleeding in from the right into the navy ── */
 .phc .book-main { gap: calc(16 * var(--phu)); }
 .phc .book-rail { width: calc(240 * var(--phu)); margin: 0; padding: calc(12 * var(--phu)) calc(8 * var(--phu)); gap: calc(4 * var(--phu)); border: 0; border-radius: 0;
-  background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); scrollbar-width: none; }
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); scrollbar-width: none; }
 .phc .book-railcap { padding: calc(4 * var(--phu)) calc(8 * var(--phu)); font-size: var(--ph-t1); color: var(--ui-title, #ffd98a); }
 .phc .book-railcap::after { background: var(--ph-hair); }
 .phc .book-cat { position: relative; height: calc(48 * var(--phu)); padding: 0 calc(12 * var(--phu)); gap: 0; border-radius: 0; clip-path: var(--ph-clip-s); overflow: hidden;
@@ -82,13 +82,13 @@
 .phc .book-catico { position: absolute; right: calc(12 * var(--phu)); width: calc(28 * var(--phu)); height: calc(28 * var(--phu)); border-radius: 0; box-shadow: none; background: none; }
 .phc .book-catlabel { position: relative; text-shadow: var(--ph-shadow); }
 .phc .book-cat:hover { transform: none; background: var(--ph-plate-hover); color: var(--ph-ink);
-  box-shadow: inset calc(3 * var(--phu)) 0 0 var(--c), inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+  box-shadow: inset calc(3 * var(--phu)) 0 0 var(--c), var(--ph-gild-s); }
 .phc .book-cat.on, .phc .book-cat.on:hover { color: var(--ph-ink); background: var(--ph-plate-hover);
   box-shadow: inset calc(4 * var(--phu)) 0 0 var(--c), inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
 .phc .book-cat.on :is(.book-catface, .book-catico) { box-shadow: none; }
 
 /* ── The gallery: a deep well beside the rail ── */
-.phc .book-main > :is(.book-grid, .bookguides, .book-empty) { margin: 0; border-radius: 0; clip-path: var(--ph-clip-s); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.phc .book-main > :is(.book-grid, .bookguides, .book-empty) { margin: 0; border-radius: 0; clip-path: var(--ph-clip-s); box-shadow: var(--ph-gild-s); }
 .phc .book-grid { background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 85%, #000), color-mix(in srgb, var(--ph-navy) 70%, #000)); }
 .phc .bookhero { border: 0; border-radius: 0; clip-path: var(--ph-clip); background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-hair); }
 .phc .bookhero-name { font-family: var(--ph-font); color: var(--ph-ink); }
@@ -97,14 +97,14 @@
 
 /* ── The codex panels: Glossary groups and the Rules list as navy plates ── */
 .phc .book-gloss-body { padding: 0 0 calc(8 * var(--phu)); gap: calc(16 * var(--phu)); }
-.phc :is(.gloss-group, .wiki-group) { border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.phc :is(.gloss-group, .wiki-group) { border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-plate); box-shadow: var(--ph-gild-s); }
 .phc :is(.gloss-grouphead, .wiki-grouphead) { font-family: var(--ph-font); font-weight: 900; color: var(--ui-title, #ffd98a); }
 .phc .gloss-row, .phc .wiki-q, .phc .wiki-item { border-radius: 0; }
 .phc .gloss-term { font-family: var(--ph-font); color: var(--ph-ink); }
 .phc .gloss-def { color: var(--ph-muted); }
-.phc .wiki-bar { background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
-.phc .wiki-search { border: 0; border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); color: var(--ph-ink); }
-.phc .wiki-chip { border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); color: var(--ph-text); }
+.phc .wiki-bar { background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.phc .wiki-search { border: 0; border-radius: 0; background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); color: var(--ph-ink); }
+.phc .wiki-chip { border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-well); box-shadow: var(--ph-gild-s); color: var(--ph-text); }
 .phc .wiki-chip.on { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: none; box-shadow: none; }
 .phc .wiki-q { font-family: var(--ph-font); }
 .phc .wiki-item.is-open .wiki-q { color: var(--ph-ink); }
@@ -118,24 +118,26 @@ html[data-touch-small] .phc .book-search { width: calc(200 * var(--phu)); }
 html[data-touch-small] .phc .book-grid { --ch: calc(360px * var(--book-zoom, 1)); }
 html[data-touch-small] .phc .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var(--phu)); }
 
-/* The shell's route: `.book-ov` sits under the top nav (shell.css); the page fills it. */
-.phc-ov { display: flex; place-items: stretch; animation: none; }
-.phc-ov > .phk-page { flex: 1; min-width: 0; }
 
 /* ── THE FANTASY PASS (owner 2026-11-02: "the Compendium is a natural fantasy tome"): captions and group heads in the title
    serif, warm parchment-white text, gilded edges and a warm lamplight on the plates, the cards' painted name divider under
    each glossary group. The painted card art in the rail and the cards themselves carry the rest. ── */
-.phc { --cp-warm: #f6e7c8; --cp-muted: #c8b896; --cp-serif: 'Cinzel', var(--font-title), serif; --ui-muted: var(--cp-muted); --ui-text: var(--cp-warm); }
 .phc :is(.book-tiers, .book-rail, :is(.gloss-group, .wiki-group), .wiki-bar) {
   background: radial-gradient(120% 70% at 0% 0%, rgba(255, 206, 120, 0.08), transparent 60%), var(--ph-plate);
-  box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) color-mix(in srgb, var(--ph-gold) 55%, transparent); }
-.phc .book-main > :is(.book-grid, .bookguides, .book-empty) { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) color-mix(in srgb, var(--ph-gold) 55%, transparent); }
+  box-shadow: var(--ph-gild); }
+.phc .book-main > :is(.book-grid, .bookguides, .book-empty) { box-shadow: var(--ph-gild); }
 .phc .book-grid { background: radial-gradient(80% 60% at 50% 0%, rgba(255, 206, 120, 0.06), transparent 70%), linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 85%, #000), color-mix(in srgb, var(--ph-navy) 70%, #000)); }
-.phc :is(.book-railcap, .gloss-grouphead, .wiki-grouphead) { font-family: var(--cp-serif); font-weight: 700; letter-spacing: 0.06em; text-transform: none; color: #fbe6a6; }
+.phc :is(.book-railcap, .gloss-grouphead, .wiki-grouphead) { font-family: var(--ph-font); font-weight: 700; letter-spacing: 0.06em; text-transform: none; color: #fbe6a6; }
 .phc .book-railcap { font-size: var(--ph-t2); }
 .phc :is(.gloss-grouphead, .wiki-grouphead) { font-size: calc(20 * var(--phu)); }
 .phc :is(.gloss-grouphead, .wiki-grouphead)::after { flex: none; width: calc(160 * var(--phu)); height: calc(10 * var(--phu)); background: url('/frames/name-divider.webp') 0 50% / 100% 100% no-repeat; opacity: 0.85; }
-.phc .book-catlabel { font-family: var(--cp-serif); font-weight: 700; letter-spacing: 0.02em; color: var(--cp-warm); }
-.phc .gloss-term, .phc .wiki-q, .phc .bookhero-name { font-family: var(--cp-serif); font-weight: 700; color: var(--cp-warm); }
-.phc .gloss-def { font-family: var(--font-body), sans-serif; color: var(--cp-muted); }
-.phc .book-search { font-family: var(--font-body), sans-serif; color: var(--cp-warm); }
+.phc .book-catlabel { font-family: var(--ph-font); font-weight: 700; letter-spacing: 0.02em; color: var(--ph-text); }
+.phc .gloss-term, .phc .wiki-q, .phc .bookhero-name { font-family: var(--ph-font); font-weight: 700; color: var(--ph-text); }
+.phc .gloss-def { font-family: var(--ph-body); color: var(--ph-muted); }
+.phc .book-search { font-family: var(--ph-body); color: var(--ph-text); }
+
+/* The page title never yields its width to the tabs and actions (a kit gap: `.phk-pagetitle` can shrink to 0). */
+.phc .phk-pagetitle { flex: none; }
+/* SHELL GAP (to upstream): `.ph-bookpage > :not(.ph-pagebd) { position: relative }` also un-pins the nav, so it drops a
+   nav-height down the page. Pin it back. */
+html .ph-bookpage > .ph-booknav { position: fixed; }

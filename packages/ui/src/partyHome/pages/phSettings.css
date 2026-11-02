@@ -8,7 +8,7 @@
 /* A section: the cut navy plate (behind), a title row, its rows. */
 .phs-sec { position: relative; isolation: isolate; flex: none; display: flex; flex-direction: column; padding: calc(8 * var(--phu)) 0 calc(8 * var(--phu)); }
 .phs-sec::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ph-plate); clip-path: var(--ph-clip-s);
-  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+  box-shadow: var(--ph-gild-s); }
 /* A section with an open dropdown rises over the sections after it, so its list is never covered. */
 .phs-sec:has(.escselect.open) { z-index: 2; }
 .phs-sechead { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); padding: calc(12 * var(--phu)) calc(24 * var(--phu)) calc(8 * var(--phu)); }
@@ -27,22 +27,9 @@
 .phs-note { max-width: calc(560 * var(--phu)); font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-muted); }
 .phs-ctl { display: flex; align-items: center; justify-content: flex-end; gap: calc(16 * var(--phu)); min-width: 0; }
 
-/* ── The switch, in the kit's dress: a cut well with a silver knob (off); the podium gold with a navy knob (on). The
-   words "On / Off" sit beside it, so state never rides on colour alone. ── */
-.phs-switch { display: inline-flex; align-items: center; gap: calc(12 * var(--phu)); height: calc(40 * var(--phu)); padding: 0 calc(4 * var(--phu)) 0 calc(8 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none; color: var(--ph-muted); }
-.phs-switchtxt { min-width: calc(28 * var(--phu)); text-align: right; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; text-shadow: var(--ph-shadow); }
-.phs-switch.is-on .phs-switchtxt, .phs-switch:hover .phs-switchtxt { color: var(--ph-ink); }
-.phs-track { position: relative; width: calc(56 * var(--phu)); height: calc(28 * var(--phu)); flex: none; clip-path: var(--ph-clip-s);
-  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-hair); }
-.phs-switch:hover .phs-track { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
-.phs-switch.is-on .phs-track { background: var(--ph-metal-gold); box-shadow: none; }
-.phs-knob { position: absolute; top: calc(5 * var(--phu)); left: calc(5 * var(--phu)); width: calc(18 * var(--phu)); height: calc(18 * var(--phu));
-  background: var(--ph-metal-silver); clip-path: var(--ph-clip-s); transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1); }
-.phs-switch.is-on .phs-knob { transform: translateX(calc(28 * var(--phu))); background: var(--ph-navy); }
-
 /* ── The slider: a thin well, the filled part gold up to the value (`--v`, set per change), a cut gold thumb. ── */
 .phs-range { -webkit-appearance: none; appearance: none; width: calc(280 * var(--phu)); height: calc(28 * var(--phu)); margin: 0; background: none; }
-.phs-range::-webkit-slider-runnable-track { height: calc(6 * var(--phu)); background: linear-gradient(90deg, var(--ph-gold) 0 var(--v, 0%), rgba(0, 0, 0, 0.55) var(--v, 0%) 100%); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.phs-range::-webkit-slider-runnable-track { height: calc(6 * var(--phu)); background: linear-gradient(90deg, var(--ph-gold) 0 var(--v, 0%), rgba(0, 0, 0, 0.55) var(--v, 0%) 100%); box-shadow: var(--ph-gild-s); }
 .phs-range::-moz-range-track { height: calc(6 * var(--phu)); background: linear-gradient(90deg, var(--ph-gold) 0 var(--v, 0%), rgba(0, 0, 0, 0.55) var(--v, 0%) 100%); }
 .phs-range::-webkit-slider-thumb { -webkit-appearance: none; width: calc(16 * var(--phu)); height: calc(24 * var(--phu)); margin-top: calc(-9 * var(--phu)); border: 0; background: var(--ph-metal-gold); clip-path: var(--ph-clip-s); }
 .phs-range::-moz-range-thumb { width: calc(16 * var(--phu)); height: calc(24 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-metal-gold); }
@@ -50,15 +37,15 @@
 .phs-range:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(4 * var(--phu)); }
 .phs-val { min-width: calc(48 * var(--phu)); text-align: right; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow, var(--ph-shadow)); font-variant-numeric: tabular-nums; }
 .phs-mute { min-width: calc(80 * var(--phu)); height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)); margin: 0; border: 0; border-radius: 0; clip-path: var(--ph-clip-s);
-  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
+  background: var(--ph-well); box-shadow: var(--ph-gild-s); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
 .phs-mute:hover { color: var(--ph-ink); }
 .phs-mute.on { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); box-shadow: none; }
-:is(.phs-switch, .phs-mute):focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(2 * var(--phu)); }
+.phs-mute:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(2 * var(--phu)); }
 
 /* ── The dropdown (EscMenu's SettingSelect, reused) in the shell's dress ── */
 .phs .escselect { min-width: calc(240 * var(--phu)); }
 .phs .escselect-trigger { height: calc(40 * var(--phu)); padding: 0 calc(12 * var(--phu)) 0 calc(16 * var(--phu)); gap: calc(12 * var(--phu)); border: 0; border-radius: 0; clip-path: var(--ph-clip-s);
-  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); text-shadow: var(--ph-shadow); }
+  background: var(--ph-well); box-shadow: var(--ph-gild-s); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); text-shadow: var(--ph-shadow); }
 .phs .escselect-trigger:hover, .phs .escselect.open .escselect-trigger { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
 .phs .escselect-trigger .escchev { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); }
 .phs .escselect-list { top: calc(100% + 4 * var(--phu)); gap: calc(2 * var(--phu)); padding: calc(4 * var(--phu)); border: 0; border-radius: 0;
@@ -77,33 +64,35 @@
 html[data-touch-small] .phs-row { gap: calc(16 * var(--phu)); }
 html[data-touch-small] .phs-range { width: calc(200 * var(--phu)); }
 html[data-touch-small] .phs-note { max-width: none; }
-@media (prefers-reduced-motion: reduce) { .phs-knob { transition: none; } }
 
 /* ── THE FANTASY PASS (owner 2026-11-02: "don't make it look techy/futuristic. we are a fantasy game"): not an OS panel.
    Section names in the title serif under the cards' painted name divider, setting names in the serif, warm notes, gilded
    section edges with a warm lamplight, and soft gold rules between rows (fading at both ends, never a hard grid). ── */
-.phs { --st-warm: #f6e7c8; --st-muted: #c8b896; --st-serif: 'Cinzel', var(--font-title), serif; }
 .phs-sec::before { background: radial-gradient(120% 70% at 0% 0%, rgba(255, 206, 120, 0.08), transparent 60%), var(--ph-plate);
-  box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) color-mix(in srgb, var(--ph-gold) 55%, transparent); }
+  box-shadow: var(--ph-gild); }
 .phs-sechead { position: relative; padding-bottom: calc(20 * var(--phu)); }
 .phs-sechead::after { content: ''; position: absolute; left: calc(16 * var(--phu)); bottom: calc(4 * var(--phu)); width: calc(220 * var(--phu)); height: calc(12 * var(--phu));
   background: url('/frames/name-divider.webp') 0 50% / 100% 100% no-repeat; opacity: 0.85; pointer-events: none; }
-.phs-sechead h2 { font-family: var(--st-serif); font-weight: 700; font-size: calc(20 * var(--phu)); letter-spacing: 0.06em; text-transform: none; color: #fbe6a6; }
-.phs-sechead p { color: var(--st-muted); }
-.phs-name { font-family: var(--st-serif); font-weight: 700; font-size: var(--ph-t3); letter-spacing: 0.02em; color: var(--st-warm); }
-.phs-note { font-family: var(--font-body), sans-serif; color: var(--st-muted); }
+.phs-sechead h2 { font-family: var(--ph-font); font-weight: 700; font-size: calc(20 * var(--phu)); letter-spacing: 0.06em; text-transform: none; color: #fbe6a6; }
+.phs-sechead p { color: var(--ph-muted); }
+.phs-name { font-family: var(--ph-font); font-weight: 700; font-size: var(--ph-t3); letter-spacing: 0.02em; color: var(--ph-text); }
+.phs-note { font-family: var(--ph-body); color: var(--ph-muted); }
 .phs-row + .phs-row { box-shadow: none; }
 .phs-row + .phs-row::before { content: ''; position: absolute; left: calc(24 * var(--phu)); right: calc(24 * var(--phu)); top: 0; height: calc(1 * var(--phu));
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ph-gold) 35%, transparent) 20%, color-mix(in srgb, var(--ph-gold) 35%, transparent) 80%, transparent); }
 .phs-row:hover { background: linear-gradient(90deg, rgba(255, 206, 120, 0.06), transparent 70%); }
-.phs-val { color: #fbe6a6; }
+.phs-val { font-family: var(--ph-name-font); color: #fbe6a6; }
 
-/* THE SWITCH, the owner's rule (2026-10-08: off = knob left on red, on = knob right on green) in the shell's dress: a cut navy
-   well with a gilded edge; the red / green is the fill, the knob a polished metal stud; the words On / Off beside it. */
-.phs-track { background: linear-gradient(180deg, #6e2424, #4a1519); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) color-mix(in srgb, var(--ph-gold) 55%, transparent); }
-.phs-switch:hover .phs-track { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
-.phs-switch.is-on .phs-track { background: linear-gradient(180deg, #3f9a5e, #22663e); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) color-mix(in srgb, var(--ph-gold) 55%, transparent); }
-.phs-knob { background: var(--ph-metal-silver); }
-.phs-switch.is-on .phs-knob { background: var(--ph-metal-gold); }
-.phs-switchtxt { color: var(--st-muted); }
-.phs-switch.is-on .phs-switchtxt { color: #bff0cf; }
+
+/* The kit's switch (PhSwitch) fills its row: its name and note read like every other row's. */
+.phs-togglerow { display: block; }
+.phs-togglerow .phk-switchrow { width: 100%; }
+.phs-togglerow .phk-switchlbl { font-family: var(--ph-font); font-weight: 700; font-size: var(--ph-t3); letter-spacing: 0.02em; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.phs-togglerow .phk-seghint { max-width: calc(560 * var(--phu)); font-family: var(--ph-body); font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-muted); }
+html[data-touch-small] .phs-togglerow .phk-seghint { max-width: none; }
+
+/* The page title never yields its width to the tabs (a kit gap: `.phk-pagetitle` can shrink to 0). */
+.phs .phk-pagetitle { flex: none; }
+/* The sliders take the kit slider's thumb (PhSlider: a round gold stud ringed in navy), so every slider in the shell matches. */
+.phs-range::-webkit-slider-thumb { width: calc(18 * var(--phu)); height: calc(18 * var(--phu)); margin-top: calc(-6 * var(--phu)); border-radius: 50%; clip-path: none; box-shadow: 0 0 0 calc(2 * var(--phu)) var(--ph-navy); }
+.phs-range::-moz-range-thumb { width: calc(18 * var(--phu)); height: calc(18 * var(--phu)); border-radius: 50%; }

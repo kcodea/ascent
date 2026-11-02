@@ -7,12 +7,14 @@
  * still the book's own (MinionBook.tsx); only the framing and the paint change (phCompendium.css). In a game, the book is
  * the overlay as before.
  *
- * `PhCompendium` is the page CONTENT (a `PhPage`). The shell mounts it in its Compendium route: MinionBook renders it in
- * `.book-ov`, which shell.css places under the top nav (PhBookNav lights the Compendium tab and closes the book on a hop).
+ * `PhCompendium` is the page CONTENT (a `PhPage`). Loading this module registers it with the shell's Compendium route
+ * (shellStore `setCompendiumPage`); PhBookNav mounts it under the top nav with the Compendium tab lit. MinionBook loads this
+ * module (and renders `PhCompendiumMount`, which is nothing) when the switch is on and the player is on the menus.
  */
 import { MinionBook, type CompendiumView } from '../../MinionBook';
 import { sfx } from '../../sfx';
 import { PhPage, PhTabs } from '../kit';
+import { setCompendiumPage } from '../shell/shellStore';
 import './phCompendium.css';
 
 const VIEWS: readonly { id: CompendiumView; label: string }[] = [
@@ -35,3 +37,8 @@ export function PhCompendium() {
     )} />
   );
 }
+
+setCompendiumPage(PhCompendium);
+
+/** What MinionBook mounts on the menus under the shell: nothing (the import above did the work). */
+export function PhCompendiumMount(): null { return null; }

@@ -59,6 +59,10 @@ export function roomJoin(r: Pick<VersusRoomSummary, 'status' | 'players' | 'maxP
 
 export const ROOM_STATUS: Record<string, string> = { open: 'Open', sealed: 'Starting', in_game: 'In game' };
 
+/** OFFLINE (critic round 4): the one friendly line when the room list cannot be read (no game server, no connection).
+ *  The same words as the party home's Versus offline message (shell builder, coordinated via the lead). */
+export const VERSUS_OFFLINE_TEXT = 'Versus is offline right now. Try again soon.';
+
 /** "2 of 4 seats" style count for a row (seat words for a screen reader too). */
 export const seatText = (r: Pick<VersusRoomSummary, 'players' | 'maxPlayers'>): string => `${r.players} of ${seatCap(r)} seats taken`;
 

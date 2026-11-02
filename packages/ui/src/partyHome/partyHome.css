@@ -2,11 +2,11 @@
    Built only from the shell tokens (shell/shell.css: `--phu`, `--ph-t1..t5`, `--ph-clip`, the metals) so it reads as the
    same app as the nav and every page under it. Valorant's party layout: nav, mode tabs, the party's tall cards in the
    centre, START bottom centre, friends docked right. Spacing is a strict 8 * --phu grid.
-   PERFORMANCE: static paint. Motion: the cards rise in once (transform / opacity), hover lifts (transform). No loops, no
-   live filters (the citadel backdrop is a pre-blurred 960 px file). No `cursor` here (the gauntlet rule paints it). */
+   PERFORMANCE: static paint. Motion: the stage and cards rise in once (transform / opacity), hover lifts (transform). No
+   loops, no live filters. No `cursor` here (the gauntlet rule paints it). */
 
 .ph { --fw: calc(368 * var(--phu)); position: absolute; inset: 0; z-index: 3; overflow: hidden;
-  display: grid; grid-template-rows: auto auto 1fr; grid-template-columns: 1fr var(--fw);
+  display: grid; grid-template-rows: auto auto 1fr; grid-template-columns: minmax(0, 1fr) var(--fw);
   font-family: var(--ph-body); color: var(--ph-text); background: var(--ph-navy); }
 .ph > .mbd { z-index: 0; }
 .ph > .ph-top { grid-column: 1 / -1; min-width: 0; }
@@ -17,65 +17,88 @@
     linear-gradient(180deg, rgba(6, 12, 28, 0.7) 0%, rgba(6, 12, 28, 0.2) 24%, rgba(6, 12, 28, 0.15) 60%, rgba(6, 12, 28, 0.85) 100%),
     radial-gradient(70% 70% at 45% 50%, transparent 0%, rgba(4, 8, 20, 0.5) 100%); }
 
-/* ── MODE TABS + the one line on the mode ── */
+/* ── MODE TABS + the one line on the mode (or why a tab is dimmed in a party) ── */
 .ph-modes { position: relative; z-index: 2; grid-column: 1; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(24 * var(--phu)) 0; min-width: 0; }
 .ph-modes .phk-tabs { max-width: 100%; }
-.ph-desc { font-size: var(--ph-t2); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+.ph-desc { padding: calc(4 * var(--phu)) calc(16 * var(--phu)); font-size: var(--ph-t2); font-weight: 600; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.ph-desc.locked { color: #fbe6a6; }
 
-/* ── THE STAGE: (team), cards, actions ── */
-.ph-stage { position: relative; z-index: 1; grid-column: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; gap: calc(16 * var(--phu));
-  padding: calc(16 * var(--phu)) calc(32 * var(--phu)) calc(32 * var(--phu) + var(--safe-b, 0px)) calc(32 * var(--phu) + var(--safe-l, 0px)); }
-.ph-team { display: flex; align-items: baseline; gap: calc(16 * var(--phu)); }
+/* ── THE STAGE: (team), cards + options, actions ── */
+.ph-stage { position: relative; z-index: 1; grid-column: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: calc(16 * var(--phu));
+  padding: calc(16 * var(--phu)) calc(48 * var(--phu)) calc(32 * var(--phu) + var(--safe-b, 0px)) calc(48 * var(--phu) + var(--safe-l, 0px));
+  animation: ph-fadein 0.2s ease both; }
+@keyframes ph-fadein { from { opacity: 0; } to { opacity: 1; } }
+.ph-team { display: flex; align-items: center; gap: calc(16 * var(--phu)); padding: calc(8 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-plate);
+  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
 .ph-teamlbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ph-muted); }
-.ph-teamname { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); letter-spacing: 0.04em; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.ph-teamname { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.06em; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.ph-rename { padding: 0 calc(8 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ui-title, #ffd98a); }
+.ph-rename:hover { color: var(--ph-ink); }
 
-.ph-cards { --gap: calc(24 * var(--phu)); container-type: size; flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; gap: var(--gap); }
-/* THE BANNER CARD: a tall card in the big cut. The outer box is the gold edge (the same cut), the inner the navy plate. */
-.ph-card { --ew: calc(2 * var(--phu)); --n: 1;
-  position: relative; flex: none; box-sizing: border-box; aspect-ratio: 0.56; padding: var(--ew); margin: 0; border: 0; border-radius: 0;
-  height: min(calc(640 * var(--phu)), 100cqh, calc((100cqw - (var(--n) - 1) * var(--gap)) / var(--n) / 0.56));
-  background: var(--ph-edge); clip-path: var(--ph-clip); color: inherit; text-align: left;
-  animation: ph-rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 50ms);
-  transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
-.ph-cards.n2 .ph-card { --n: 2; }
-.ph-cards.n3 .ph-card { --n: 3; }
-.ph-cards.n4 .ph-card { --n: 4; }
-.ph-card:hover { transform: translateY(calc(-4 * var(--phu))); }
+.ph-body { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; gap: calc(32 * var(--phu)); }
+.ph-cards { --gap: calc(24 * var(--phu)); container-type: size; flex: 1 1 0; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; gap: var(--gap); }
+.ph-cards.vs { --vsw: calc(64 * var(--phu)); }
+/* A card's box: sized to fit the space (height-bound, else width-bound across the party). */
+.ph-cardwrap { --n: 1; position: relative; flex: none; aspect-ratio: 0.56; container-type: inline-size;
+  height: min(calc(640 * var(--phu)), 100cqh, calc((100cqw - (var(--n) - 1) * var(--gap) - var(--vsw, 0px)) / var(--n) / 0.56));
+  animation: ph-rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 50ms); }
+.ph-cards.n2 .ph-cardwrap { --n: 2; }
+.ph-cards.n3 .ph-cardwrap { --n: 3; }
+.ph-cards.n4 .ph-cardwrap { --n: 4; }
+.ph-cardwrap.menu { z-index: 7; }
 @keyframes ph-rise { from { opacity: 0; transform: translateY(calc(24 * var(--phu))); } to { opacity: 1; transform: none; } }
+/* THE BANNER CARD: the big cut. The outer box is the gold edge (the same cut), the inner the navy plate. */
+.ph-card { --ew: calc(2 * var(--phu)); position: absolute; inset: 0; display: block; box-sizing: border-box; padding: var(--ew); margin: 0; border: 0; border-radius: 0;
+  background: var(--ph-edge); clip-path: var(--ph-clip); color: inherit; text-align: left; font: inherit;
+  transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
+.ph-card:hover, .ph-cardwrap.menu .ph-card { transform: translateY(calc(-6 * var(--phu))); }
 .ph-card-in { --cut-in: calc(var(--ph-cut) - var(--ew) * 0.6);
   position: relative; display: block; width: 100%; height: 100%; overflow: hidden; background: var(--ph-plate);
   clip-path: polygon(0 0, calc(100% - var(--cut-in)) 0, 100% var(--cut-in), 100% 100%, var(--cut-in) 100%, 0 calc(100% - var(--cut-in))); }
 .ph-art { position: absolute; left: 0; top: 0; width: 100%; height: 80%; object-fit: cover; object-position: 50% 18%;
   -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 100%); mask-image: linear-gradient(180deg, #000 55%, transparent 100%); }
-.ph-lead { position: absolute; top: calc(16 * var(--phu)); left: calc(16 * var(--phu)); width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); color: var(--pill-gold, #f6cf5a);
-  filter: drop-shadow(0 calc(1 * var(--phu)) calc(2 * var(--phu)) rgba(0, 0, 0, 0.9)); }
-.ph-lead svg { width: 100%; height: 100%; }
-/* The foot: fixed rows (name, sub, medal, state), so every card's lines align across the party. */
-.ph-foot { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-rows: auto calc(24 * var(--phu)) calc(40 * var(--phu)) auto; justify-items: center; align-items: center;
-  gap: calc(4 * var(--phu)); padding: 0 calc(16 * var(--phu)); text-align: center; }
-.ph-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.1; color: var(--ph-ink);
+.ph-lead { position: absolute; top: calc(16 * var(--phu)); left: calc(16 * var(--phu)); display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)) 0 calc(8 * var(--phu));
+  background: color-mix(in srgb, var(--ph-navy) 85%, transparent); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: #fbe6a6; }
+.ph-lead svg { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); color: var(--pill-gold, #f6cf5a); }
+/* The foot: name, then the medal tight under it, then title or level, then (others) the state strip. */
+.ph-foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(16 * var(--phu)) calc(24 * var(--phu)); text-align: center; }
+.ph-foot:has(.ph-state) { padding-bottom: 0; }
+.ph-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-font); font-weight: 900; font-size: min(var(--ph-t4), 9.5cqi); line-height: 1.1; color: var(--ph-ink);
   text-shadow: var(--ph-shadow), 0 calc(2 * var(--phu)) calc(8 * var(--phu)) rgba(0, 0, 0, 0.7); }
-.ph-card.rival .ph-name { color: var(--ph-foe); }
+.ph-rank { display: inline-flex; align-items: center; gap: calc(12 * var(--phu)); min-height: calc(40 * var(--phu)); font-family: var(--ph-font); font-weight: 900; font-size: min(var(--ph-t3), 7cqi); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.ph-rank .rankcrest { width: calc(40 * var(--phu)); height: calc(40 * var(--phu)); }
+.ph-muted { font-weight: 700; font-size: var(--ph-t2); color: var(--ph-muted); }
 .ph-sub { font-size: var(--ph-t2); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
 .ph-titlebadge { font-size: var(--ph-t2); }
-.ph-rank { display: inline-flex; align-items: center; gap: calc(16 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-text); text-shadow: var(--ph-shadow); }
-.ph-rank .rankcrest { width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); }
-/* The state strip: the card's foot under a gold hairline. Ready teal, In game gold. */
-.ph-state { justify-self: stretch; margin: calc(4 * var(--phu)) calc(-16 * var(--phu)) 0; padding: calc(12 * var(--phu)) 0; background: var(--ph-well); box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair);
+.ph-state { align-self: stretch; margin: 0 calc(-16 * var(--phu)); padding: calc(12 * var(--phu)) 0; background: var(--ph-well); box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair);
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.28em; text-transform: uppercase; text-align: center; color: var(--ph-muted); }
 .ph-state.s-ready { color: var(--ph-teal); }
 .ph-state.s-in_game { color: var(--pill-gold, #f6cf5a); }
-/* AN OPEN SEAT: the same cut, a faint edge, a see-through plate. */
-.ph-card.ph-open { background: color-mix(in srgb, var(--ph-gold) 40%, transparent); }
-.ph-open .ph-card-in { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); background: color-mix(in srgb, var(--ph-navy) 60%, transparent); }
+.ph-state.s-space { visibility: hidden; }
+/* AN OPEN SEAT: the same cut, a faint gold edge, a navy plate. */
+.ph-card.ph-open { background: color-mix(in srgb, var(--ph-gold) 45%, transparent); }
+.ph-open .ph-card-in { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); background: color-mix(in srgb, var(--ph-navy) 88%, transparent); }
 .ph-open:hover { background: var(--ph-edge); }
-.ph-open:hover .ph-card-in { background: color-mix(in srgb, var(--ph-navy) 78%, transparent); }
 .ph-plus { font-family: var(--ph-font); font-weight: 300; font-size: calc(64 * var(--phu)); line-height: 1; color: color-mix(in srgb, var(--ph-text) 70%, transparent); }
 .ph-openlbl { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+/* VERSUS DUOS: the VS mark between the two pairs. */
+.ph-vs { flex: none; width: var(--vsw); text-align: center; font-family: var(--font-disp, var(--font-title)); font-weight: 900; font-size: var(--ph-t4); letter-spacing: 0.08em; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
+/* A card's menu: a kit plate under the card's top edge. */
+.ph-cardmenu { position: absolute; top: calc(56 * var(--phu)); left: 50%; translate: -50% 0; z-index: 2; min-width: calc(220 * var(--phu)); display: flex; flex-direction: column; padding: calc(8 * var(--phu));
+  background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold), 0 calc(12 * var(--phu)) calc(32 * var(--phu)) rgba(0, 0, 0, 0.6); clip-path: var(--ph-clip-s);
+  animation: ph-pop 0.14s cubic-bezier(0.2, 0.9, 0.3, 1.1) both; }
+@keyframes ph-pop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+.ph-menuitem { display: flex; align-items: center; justify-content: space-between; gap: calc(16 * var(--phu)); min-height: calc(40 * var(--phu)); padding: 0 calc(12 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none;
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-text); text-align: left; }
+.ph-menuitem:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); }
+.ph-menuitem:disabled { color: var(--ph-muted); }
+.ph-soon { font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-muted); }
+.ph-menucatch { position: absolute; inset: 0; z-index: 6; }
 
 /* ── START + the side actions ── */
 .ph-actions { flex: none; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: calc(24 * var(--phu)); width: 100%; }
-.ph-side { display: flex; justify-content: flex-end; }
+.ph-side { display: flex; justify-content: flex-end; min-width: 0; }
 .ph-side-r { justify-content: flex-start; }
 /* START: the one strong accent. The podium gold in the big cut, navy letters. */
 .ph-start { position: relative; width: calc(384 * var(--phu)); height: calc(80 * var(--phu)); padding: 0; margin: 0; border: 0; border-radius: 0;
@@ -86,45 +109,37 @@
 .ph-start:hover:not(:disabled) { transform: scale(1.03); }
 .ph-start:active:not(:disabled) { transform: scale(0.98); }
 .ph-start:disabled { background: var(--ph-plate); color: var(--ph-muted); text-shadow: var(--ph-shadow); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-hair); }
-.ph-note { max-width: calc(320 * var(--phu)); font-size: var(--ph-t2); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
-.ph-error { position: absolute; bottom: calc(128 * var(--phu)); left: 50%; translate: -50% 0; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-plate);
+.ph-note { max-width: calc(320 * var(--phu)); font-size: var(--ph-t2); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.ph-err { position: absolute; bottom: calc(128 * var(--phu)); left: 50%; translate: -50% 0; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-plate);
   box-shadow: inset 0 0 0 1px var(--pill-red, #ff7a66); clip-path: var(--ph-clip-s); color: var(--pill-red, #ff7a66); font-size: var(--ph-t2); }
 
-/* ── THE FRIENDS COLUMN ── */
-.ph-friends { position: relative; z-index: 2; grid-column: 2; grid-row: 2 / 4; min-height: 0; display: flex; flex-direction: column; gap: calc(16 * var(--phu));
-  padding: calc(24 * var(--phu)) calc(16 * var(--phu) + var(--safe-r, 0px)) calc(24 * var(--phu) + var(--safe-b, 0px)) calc(16 * var(--phu));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 90%, transparent), color-mix(in srgb, var(--ph-navy) 96%, #000));
-  box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair); }
-.ph-fhead { display: flex; align-items: baseline; gap: calc(8 * var(--phu)); }
-.ph-ftitle { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
-.ph-fcount { font-size: var(--ph-t1); color: var(--ph-teal); }
-.ph-fclose { margin-left: auto; align-self: center; height: calc(40 * var(--phu)) !important; }
-.ph-fadd { display: flex; gap: calc(8 * var(--phu)); }
-.ph-finput { flex: 1; min-width: 0; height: calc(40 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair);
-  clip-path: var(--ph-clip-s); font-family: var(--ph-body); font-size: var(--ph-t2); color: var(--ph-ink); outline: none; }
-.ph-finput:focus { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
-.ph-finput::placeholder { color: var(--ph-muted); }
-.ph-frows { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
-.ph-friend.f-offline { opacity: 0.55; }
-.ph-fstatus { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
-.ph-fstatus > i { flex: none; width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); border-radius: 50%; background: #6f7a90; }
-.ph-friend.f-online .ph-fstatus > i { background: var(--ph-teal); }
-.ph-friend.f-online .ph-fstatus { color: #c8f8fb; }
-.ph-friend.f-in_game .ph-fstatus > i { background: var(--pill-gold, #f6cf5a); }
-.ph-friend.f-in_game .ph-fstatus { color: #fbe6a6; }
-.ph-fflash { font-size: var(--ph-t2); color: var(--ph-text); }
-.ph-friends .phk-empty { padding: calc(24 * var(--phu)) calc(8 * var(--phu)); }
+/* ── IN-PLACE MODE OPTIONS (ModeOptions.tsx): one kit section beside the cards; its body scrolls on its own ── */
+.ph-opts { flex: none; width: calc(440 * var(--phu)); max-height: 100%; min-height: 0; animation: ph-rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: 80ms; }
+.ph-opts > .phk-secbody { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; gap: calc(16 * var(--phu)); }
+.pho-rows { display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+.pho-god { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
+.pho-godrow { display: flex; flex-direction: column; gap: calc(2 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.pho-godrow > span:first-child { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
+.pho-godrow > span:last-child { font-size: var(--ph-t1); color: var(--ph-muted); }
+.pho-stages { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
+.pho-stage.off { opacity: 0.5; }
+.pho-stagenum { display: inline-grid; place-items: center; width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
+.pho-stage.sel .pho-stagenum { background: var(--ph-metal-gold); color: var(--ph-navy); box-shadow: none; }
+.pho-note { display: flex; align-items: center; gap: calc(16 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
+.pho-note > span { flex: 1; }
+.pho-hint { font-size: var(--ph-t1); color: var(--ph-muted); }
 
-/* ── PHONES (landscape): the friends column becomes a drawer from the right; the mode line drops ── */
-html[data-ph-shell][data-touch-small] .ph { grid-template-columns: 1fr; }
-html[data-ph-shell][data-touch-small] .ph-desc { display: none; }
-html[data-ph-shell][data-touch-small] .ph-modes { align-items: stretch; padding-top: calc(8 * var(--phu)); }
-html[data-ph-shell][data-touch-small] .ph-modes .phk-tab { font-size: calc(16 * var(--phu)); }
-html[data-ph-shell][data-touch-small] .ph-stage { padding-top: calc(8 * var(--phu)); padding-bottom: calc(16 * var(--phu) + var(--safe-b, 0px)); gap: calc(8 * var(--phu)); }
-html[data-ph-shell][data-touch-small] .ph-name { font-size: calc(24 * var(--phu)); }
-html[data-ph-shell][data-touch-small] .ph-start { height: calc(64 * var(--phu)); width: calc(320 * var(--phu)); }
-html[data-ph-shell][data-touch-small] .ph-friends.drawer { position: absolute; grid-row: auto; grid-column: auto; top: var(--ph-nav-h); right: 0; bottom: 0; width: calc(440 * var(--phu)); z-index: 5;
-  background: linear-gradient(180deg, var(--ph-navy), color-mix(in srgb, var(--ph-navy) 80%, #000)); box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair), calc(-16 * var(--phu)) 0 calc(32 * var(--phu)) rgba(0, 0, 0, 0.5);
-  animation: ph-drawer 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
-@keyframes ph-drawer { from { transform: translateX(100%); } to { transform: none; } }
-@media (prefers-reduced-motion: reduce) { .ph-card, .ph-friends.drawer { animation: none; } .ph-card, .ph-start { transition: none; } }
+/* ── COMPACT (phones, short windows: `html[data-ph-compact]`): one scrolling tab row, cards shrink to fit, START always
+   in view; the friends list is the nav's drawer ── */
+html[data-ph-compact] .ph { grid-template-columns: minmax(0, 1fr); }
+html[data-ph-compact] .ph-desc { display: none; }
+html[data-ph-compact] .ph-modes { align-items: stretch; padding: calc(8 * var(--phu)) 0 0; }
+html[data-ph-compact] .ph-modes .phk-tabs { justify-content: flex-start; padding: 0 calc(16 * var(--phu)); }
+html[data-ph-compact] .ph-stage { padding: calc(8 * var(--phu)) calc(24 * var(--phu) + var(--safe-r, 0px)) calc(12 * var(--phu) + var(--safe-b, 0px)) calc(24 * var(--phu) + var(--safe-l, 0px)); gap: calc(8 * var(--phu)); }
+html[data-ph-compact] .ph-team { padding: calc(4 * var(--phu)) calc(16 * var(--phu)); }
+html[data-ph-compact] .ph-name { font-size: min(calc(24 * var(--phu)), 9.5cqi); }
+html[data-ph-compact] .ph-start { height: calc(64 * var(--phu)); width: calc(320 * var(--phu)); }
+html[data-ph-compact] .ph-opts { width: calc(520 * var(--phu)); }
+@media (prefers-reduced-motion: reduce) { .ph-cardwrap, .ph-stage, .ph-opts, .ph-cardmenu { animation: none; } .ph-card, .ph-start { transition: none; } }

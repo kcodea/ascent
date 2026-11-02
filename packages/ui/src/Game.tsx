@@ -141,6 +141,9 @@ import { installFriendInvites } from './friends/friendsGo';
 // applies them too now that the DEV menu, their old importer, is DEV-only (the medallion circle came back).
 import './tunedDefaults';
 
+/** The party home prototype's Compendium nav (DEV only; lazy and null in production). */
+const PhBookNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhBookNav')) : null;
+
 /** The FX budget scene a run state is in (see `fxBudget.ts`): the Discover overlay, else the shop, else none. */
 function fxSceneOf(r: { discover?: unknown; phase?: string } | null | undefined): FxScene | null {
   return r?.discover ? 'discover' : r?.phase === 'recruit' ? 'shop' : null;
@@ -566,6 +569,8 @@ export function Game() {
       if (e.key !== 'Tab') return;
       const st = useGame.getState();
       if (st.heroChoices) return;
+      // THE PARTY HOME PROTOTYPE's SHELL (DEV switch): on the menus Tab moves keyboard focus (the Compendium is a nav tab).
+      if (document.documentElement.hasAttribute('data-ph-shell')) return;
       e.preventDefault();
       st.toggleBook();
     };
@@ -632,6 +637,8 @@ export function Game() {
           fixed, input-transparent layer serving the shop and the combat replay alike. */}
       {!preRun && <CastPreviewLayer />}
       {showBook && <MinionBook />}
+      {/* THE PARTY HOME PROTOTYPE (DEV): on the menus the Compendium is a page under the shell's top nav. */}
+      {showBook && preRun && PhBookNav && <Suspense fallback={null}><PhBookNav /></Suspense>}
       <Inspect />
       {/* A Runeforge offer's tap-to-inspect view (touch only, R-TOUCH-TAPINSPECT-01): renders nothing until a finger opens it. */}
       <RuneInspect />

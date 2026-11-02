@@ -21,10 +21,10 @@ describe('party home prototype', () => {
     const flag = here('./partyHomeFlag.ts');
     expect(flag).toMatch(/if \(!import\.meta\.env\.DEV\) return false;/);
     expect(here('../Title.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/PartyHome'\)\) : null/);
-    expect(here('../MenuSidebar.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/shell\/PhTopNav'\)/);
+    expect(here('../MenuSidebar.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/shell\/PhPageChrome'\)\)/);
   });
   it('keeps to the UI rules: no native tooltips, no bare cursor, no em dashes in player text, no looping animation', () => {
-    const tsx = [here('./PartyHome.tsx'), here('./kit/index.tsx'), here('./shell/PhTopNav.tsx')].join('\n');
+    const tsx = ['./PartyHome.tsx', './ModeOptions.tsx', './PhPrompts.tsx', './kit/index.tsx', './shell/PhTopNav.tsx', './shell/PhFriends.tsx'].map(here).join('\n');
     const css = [here('./partyHome.css'), here('./kit/kit.css'), here('./shell/shell.css')].join('\n');
     // A native tooltip is `title=` on an intrinsic (lower-case) element; the kit's own `title` props are fine.
     expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);

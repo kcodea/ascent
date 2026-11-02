@@ -48,8 +48,10 @@ html[data-ph-shell] {
   --ph-clip-s: polygon(0 0, calc(100% - var(--ph-cut-s)) 0, 100% var(--ph-cut-s), 100% 100%, var(--ph-cut-s) 100%, 0 calc(100% - var(--ph-cut-s)));
   --ph-nav-h: calc(64 * var(--phu));
 }
-/* Phones (landscape): screen points (`--pt`, phoneMenus.css), a little over half a point per desktop px. */
-html[data-ph-shell][data-touch-ui][data-touch-small][data-page-scale] { --phu: calc(var(--pt, 1px) * 0.62); }
+/* Short windows and phones: the unit also never exceeds a 600-unit-tall budget of the window, so the whole home (nav,
+   tabs, cards, START) always fits. Phones (landscape) use screen points (`--pt`, phoneMenus.css), about 0.6 pt a unit. */
+html[data-ph-shell] { --phu: min(1px, calc(100vh / 600)); }
+html[data-ph-shell][data-touch-ui][data-touch-small][data-page-scale] { --phu: min(calc(var(--pt, 1px) * 0.62), calc(100vh / 600)); }
 
 /* ── THE TOP NAV ── */
 .ph-top { position: relative; z-index: 6; display: flex; align-items: stretch; gap: calc(8 * var(--phu)); box-sizing: border-box;
@@ -83,11 +85,72 @@ html[data-ph-shell][data-touch-ui][data-touch-small][data-page-scale] { --phu: c
 .ph-iconbtn::after { left: calc(8 * var(--phu)) !important; right: calc(8 * var(--phu)) !important; }
 .ph-iconbtn .ph-navicon { width: calc(26 * var(--phu)); height: calc(26 * var(--phu)); }
 .ph-iconbtn:hover, .ph-iconbtn.on { color: var(--ph-ink); }
-html[data-ph-shell][data-touch-small] .ph-brand span, html[data-ph-shell][data-touch-small] .ph-navtab .ph-navicon, html[data-ph-shell][data-touch-small] .ph-lvbar { display: none; }
-html[data-ph-shell][data-touch-small] .ph-navtab { font-size: calc(16 * var(--phu)); }
+/* COMPACT (phones, short windows; `html[data-ph-compact]`, set with the shell): the tabs are icons only, each a 48 unit
+   square target; the wordmark and the XP bar drop. */
+html[data-ph-compact] .ph-brand span, html[data-ph-compact] .ph-navlbl, html[data-ph-compact] .ph-lvbar { display: none; }
+html[data-ph-compact] .ph-brand { padding-right: calc(12 * var(--phu)); }
+html[data-ph-compact] .ph-navtab { padding: 0; width: calc(56 * var(--phu)); justify-content: center; }
+html[data-ph-compact] .ph-navtab .ph-navicon { width: calc(30 * var(--phu)); height: calc(30 * var(--phu)); }
+html[data-ph-compact] .ph-navtab.on::after { left: calc(8 * var(--phu)); right: calc(8 * var(--phu)); }
 
 /* ── EVERY MENU PAGE UNDER THE SHELL: no left sidebar (MenuSidebar renders the top nav instead), content under the nav ── */
 html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { --sb-w: 0px !important; padding-top: var(--ph-nav-h) !important; }
 html[data-ph-shell] :is(.lbpage, .modepick.sb-host) > .ph-top { position: absolute; top: 0; left: 0; right: 0; }
 /* A hop between pages keeps the bar still: only the content under it fades. */
 html[data-ph-shell] :is(.lbpage, .modepick).hop > .ph-top, html[data-ph-shell] .lbpage > .ph-top { animation: none !important; }
+
+/* Every menu page under the shell paints the shell's one backdrop (PhPageChrome), a touch darker for reading. */
+.ph-pagebd { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.ph-pagebd .ph-veil { background: rgba(6, 12, 28, 0.55); }
+html[data-ph-shell] .lbpage.hop > .ph-pagebd, html[data-ph-shell] .modepick.hop > .ph-pagebd { animation: none !important; }
+
+/* THE COMPENDIUM under the shell: the book's layer starts below the pinned nav. */
+.ph-booknav { position: fixed; top: 0; left: 0; right: 0; z-index: 486; }
+html[data-ph-shell] .book-ov { top: var(--ph-nav-h); background: rgba(6, 12, 28, 0.88); }
+
+/* ONE PLACE FOR EVERYTHING: under the shell the old corner buttons (the Friends square, the Compendium book) are hidden
+   (the nav has both), and the DEV corner square shrinks into the bottom-left corner, clear of the player's controls. */
+html[data-ph-shell] :is(.fdock-btn, .fdock-stack, .fdock-catch, .bookbtn) { display: none !important; }
+html[data-ph-shell] .cornerdev { left: 8px !important; bottom: 8px !important; width: 28px; height: 28px; opacity: 0.6; }
+
+/* KEYBOARD FOCUS: a teal ring inside the element (an outline outside a cut shape would be clipped away). */
+html[data-ph-shell] :is(.ph-top, .ph, .phk-page, .ph-friends, .phk-dialog) :is(button, input, [role="button"], [role="tab"]):focus-visible {
+  outline: calc(2 * var(--phu)) solid var(--ph-teal); outline-offset: calc(-3 * var(--phu)); }
+
+/* ── THE ONE FRIENDS LIST (PhFriends.tsx): docked in the party home's right column, or a drawer under the nav ── */
+.ph-friends { position: relative; z-index: 2; min-height: 0; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); box-sizing: border-box;
+  padding: calc(24 * var(--phu)) calc(16 * var(--phu) + var(--safe-r, 0px)) calc(24 * var(--phu) + var(--safe-b, 0px)) calc(16 * var(--phu));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 90%, transparent), color-mix(in srgb, var(--ph-navy) 96%, #000));
+  box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair); font-family: var(--ph-body); color: var(--ph-text); }
+.ph > .ph-friends.docked { grid-column: 2; grid-row: 2 / 4; }
+.ph-friends.drawer { position: fixed; top: var(--ph-nav-h); right: 0; bottom: 0; width: min(calc(420 * var(--phu)), 92vw); z-index: 487;
+  background: linear-gradient(180deg, var(--ph-navy), color-mix(in srgb, var(--ph-navy) 80%, #000));
+  box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair), calc(-16 * var(--phu)) 0 calc(32 * var(--phu)) rgba(0, 0, 0, 0.5);
+  animation: ph-drawer 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
+@keyframes ph-drawer { from { transform: translateX(100%); } to { transform: none; } }
+/* The one-shot "look here" (an open seat pressed): a gold ring that fades out, opacity only. */
+.ph-fpulse { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--pill-gold, #f6cf5a); animation: ph-fpulse 0.9s ease-out both; }
+@keyframes ph-fpulse { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+.ph-fhead { display: flex; align-items: baseline; gap: calc(8 * var(--phu)); }
+.ph-ftitle { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.ph-fcount { font-size: var(--ph-t1); color: var(--ph-teal); }
+.ph-fclose { margin-left: auto; align-self: center; height: calc(40 * var(--phu)) !important; }
+.ph-fadd { display: flex; gap: calc(8 * var(--phu)); }
+.ph-finput { flex: 1; min-width: 0; height: calc(40 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair);
+  clip-path: var(--ph-clip-s); font-family: var(--ph-body); font-size: var(--ph-t2); color: var(--ph-ink); outline: none; }
+.ph-finput:focus { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
+.ph-finput::placeholder { color: var(--ph-muted); }
+.ph-frows { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+/* The row's right end (Invite, In party) sits on a navy fade, never on the busy portrait. */
+.ph-friend .phk-rowright { align-self: stretch; padding-left: calc(24 * var(--phu)); background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ph-navy) 92%, transparent) 30%); }
+.ph-friend.f-offline { opacity: 0.55; }
+.ph-fstatus { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
+.ph-fstatus > i { flex: none; width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); border-radius: 50%; background: #6f7a90; }
+.ph-friend.f-online .ph-fstatus > i { background: var(--ph-teal); }
+.ph-friend.f-online .ph-fstatus { color: #c8f8fb; }
+.ph-friend.f-in_game .ph-fstatus > i { background: var(--pill-gold, #f6cf5a); }
+.ph-friend.f-in_game .ph-fstatus { color: #fbe6a6; }
+.ph-fflash { font-size: var(--ph-t2); color: var(--ph-text); }
+.ph-fnote { font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
+.ph-friends .phk-empty { padding: calc(24 * var(--phu)) calc(8 * var(--phu)); }
+@media (prefers-reduced-motion: reduce) { .ph-friends.drawer, .ph-fpulse { animation: none; } }

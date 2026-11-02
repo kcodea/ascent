@@ -5,7 +5,7 @@
  * `slots` is how many banner cards the mode shows (you plus the open seats); `party` says whether the other seats are
  * TEAMMATES (Ranked Duos) or RIVALS (the Versus rooms) or there are none (solo modes). Pure data, so it is testable.
  */
-export type PartyModeId = 'ranked' | 'duos' | 'versus' | 'group' | 'vduos' | 'practice' | 'gauntlet' | 'learn' | 'scene';
+export type PartyModeId = 'ranked' | 'duos' | 'versus' | 'group' | 'vduos' | 'practice' | 'gauntlet' | 'learn';
 
 export interface PartyMode {
   id: PartyModeId;
@@ -20,6 +20,8 @@ export interface PartyMode {
   versus?: boolean;
   /** DEV builds only. */
   dev?: boolean;
+  /** Has in-place options (ModeOptions.tsx), shown in a panel beside the cards. */
+  options?: boolean;
   /** What is still a prototype stub for this mode (shown on screen, small). */
   stub?: string;
 }
@@ -27,16 +29,12 @@ export interface PartyMode {
 export const PARTY_MODES: readonly PartyMode[] = [
   { id: 'ranked', label: 'Ranked', desc: 'The ranked eight-seat lobby.', slots: 1, party: 'solo', ranked: true },
   { id: 'duos', label: 'Ranked Duos', desc: 'You and a teammate against three teams.', slots: 2, party: 'team', ranked: true, versus: true },
-  { id: 'versus', label: 'Versus 1v1', desc: 'Real-time 1v1 against a friend. Unranked.', slots: 2, party: 'rivals', ranked: false, versus: true,
-    stub: 'Prototype: Start opens the Versus rooms.' },
-  { id: 'group', label: 'Versus Group', desc: 'Three or four players, last one standing. Unranked.', slots: 4, party: 'rivals', ranked: false, versus: true,
-    stub: 'Prototype: Start opens the Versus rooms.' },
-  { id: 'vduos', label: 'Versus Duos', desc: 'Two teams of two, shared hearts. Unranked.', slots: 4, party: 'rivals', ranked: false, versus: true,
-    stub: 'Prototype: Start opens the Versus rooms.' },
-  { id: 'practice', label: 'Practice', desc: 'More time and unlimited Health.', slots: 1, party: 'solo', ranked: false },
-  { id: 'gauntlet', label: 'Gauntlet', desc: 'Survive 10 rounds against a hand-built foe.', slots: 1, party: 'solo', ranked: false },
+  { id: 'versus', label: 'Versus 1v1', desc: 'Real-time 1v1 against a friend. Unranked.', slots: 2, party: 'rivals', ranked: false, versus: true, options: true },
+  { id: 'group', label: 'Versus Group', desc: 'Three or four players, last one standing. Unranked.', slots: 4, party: 'rivals', ranked: false, versus: true, options: true },
+  { id: 'vduos', label: 'Versus Duos', desc: 'Two teams of two, shared hearts. Unranked.', slots: 4, party: 'rivals', ranked: false, versus: true, options: true },
+  { id: 'practice', label: 'Practice', desc: 'Practice your way. Nothing here is rated.', slots: 1, party: 'solo', ranked: false, options: true },
+  { id: 'gauntlet', label: 'Gauntlet', desc: 'Survive 10 rounds against a hand-built foe.', slots: 1, party: 'solo', ranked: false, options: true },
   { id: 'learn', label: 'Learn', desc: 'The tutorial and techniques.', slots: 1, party: 'solo', ranked: false },
-  { id: 'scene', label: 'Scene Builder', desc: 'A dev sandbox lobby against bots.', slots: 1, party: 'solo', ranked: false, dev: true },
 ];
 
 /** The tabs this build shows. */

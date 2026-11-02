@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { mdBold } from './Card';
 import { getHero, activeRift, heroTip, heroRerollCandidates, SHOW_HERO_TIPS, type HeroReroll } from '@game/sim';
 import { RiftPill } from './RiftPill';
@@ -25,6 +25,15 @@ import type { HeroSelectFrame } from './versus/spectatorView';
 import { setOwnHeroPick } from './hero-select/ownHeroPick';
 import { leaveTeammateHero, useSpectate } from './versus/spectate';
 import { isRankedDuosRaw } from './versus/rankedDuosView';
+import { partyHomeOn, usePartyHome } from './partyHome/partyHomeFlag';
+import { heroSelectEyebrow } from './hero-select/heroSelectEyebrow';
+
+/** THE PARTY HOME SKIN (party home prototype, DEV only; hero-select/HeroSelectPhSkin.tsx): the shell's backdrop and the
+ *  new look's stylesheet, loaded lazily so a production build never carries either. Fetched at once when the switch is
+ *  already on, so the screen never opens before its look has landed. */
+const loadPhSkin = () => import('./hero-select/HeroSelectPhSkin');
+const HeroSelectPhSkin = import.meta.env.DEV ? lazy(loadPhSkin) : null;
+if (import.meta.env.DEV && partyHomeOn()) void loadPhSkin();
 
 /**
  * A WATCHED Hero Select (owner 2026-10-26: "hero select should be spectatable"; R-SPECTATE-HEROSELECT-01, and the Duos
@@ -67,6 +76,9 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const ownMode = useGame((s) => s.pendingMode);
   const mode = watch ? watch.frame.mode : ownMode;
   const profile = useGame((s) => s.profile);
+  // THE PARTY HOME LOOK (DEV switch, off by default): the same screen and behaviour in the shell's language.
+  const ph = usePartyHome() && !!HeroSelectPhSkin;
+  const gauntletStage = useGame((s) => s.pendingGauntletStage);
   const [ceremony, dispatch] = useReducer(ceremonyReduce, CEREMONY_IDLE);
   // THE HERO RE-ROLL (owner 2026-10-15, R-HERO-REROLL-01): one per hero select, any slot. Solo modes draw it locally
   // (seeded, `rerollHero`); Versus asks the server (`rerollVersusHero`). The controls show only while it is unused AND
@@ -239,7 +251,8 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     : undefined;
 
   return (
-    <div className={`heroselect${active ? ' hsc-active' : ''}${watch ? ' hswatch' : ''}`} style={rootStyle} {...(watch ? { 'aria-label': 'Watching Hero Select' } : {})}>
+    <div className={`heroselect${active ? ' hsc-active' : ''}${watch ? ' hswatch' : ''}${ph ? ' phhs' : ''}`} style={rootStyle} {...(watch ? { 'aria-label': 'Watching Hero Select' } : {})}>
+      {ph && HeroSelectPhSkin && <Suspense fallback={null}><HeroSelectPhSkin /></Suspense>}
       {/* Return to the main menu (owner ask 2026-09-01) — the same `.hsback` chrome the Title's mode-pick
           wears, top-left. Hidden once a pick's ceremony is running: the launch is committing, and yanking
           the screen out from under the machine mid-choreography is not a state it handles. */}
@@ -251,16 +264,19 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
           onBlur={() => setAbandonArmed(false)}
           aria-description="This is a ranked lobby. Leaving now counts as an 8th place finish and costs MMR."
         >
-          {abandonArmed ? 'Abandon? Counts as 8th place' : '← Main Menu'}
+          {abandonArmed ? 'Abandon? Counts as 8th place' : ph ? <><span className="hsback-arrow" aria-hidden="true">‹</span>Back</> : '← Main Menu'}
         </button>
       ) : (
-        <button className="hsback" onPointerDown={() => { sfx.pulse(); openTitle(); }}>← Main Menu</button>
+        <button className="hsback" onPointerDown={() => { sfx.pulse(); openTitle(); }} {...(ph ? { 'aria-label': 'Back to the home screen' } : {})}>
+          {ph ? <><span className="hsback-arrow" aria-hidden="true">‹</span>Back</> : '← Main Menu'}
+        </button>
       ))}
       {/* THE TITLE (owner ask 2026-10-13): "Select Your Hero" IS the screen's heading now, in the Compendium's title
           treatment (the gold caps title over the painted name divider). The ASCENT lockup that sat above it is gone
           from this screen. It is the first thing in `.hsbox`, so it rides the picker's zoom and the title + heroes
           centre as one group; the run pills (Rating, Rift) sit under it as its subtitle row. */}
       <div className="hsbox">
+        {ph && <span className="hs-eyebrow">{heroSelectEyebrow({ mode, ranked: !watch && rankedEntry !== null, rankedDuos, gauntletStage, watching: !!watch })}</span>}
         <h1 className="hsprompt">Select Your Hero</h1>
         {/* Run-start telegraph for the scored non-lobby modes (Ascent, Rift): your Rating. A LOBBY telegraphs
             nothing here (owner ask 2026-08-22), Practice is unscored, and a GAUNTLET stage never moves your
@@ -302,6 +318,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                   {...(mateTaken === id ? { 'aria-label': `${hero.name}, your teammate's pick` } : {})}
                   onClick={onPick(id, i)}
                 >
+                  {ph && <span className="hcrod" aria-hidden="true" />}
                   <div className={`hcframe${pfClass(frame)}`} style={frame?.hostStyle}>
                     <div className="hcname hudpill-name">{hero.name}</div>
                     {art ? <SharpImg fade className={`hcframe-art${swapHere ? ' hcswap-in' : ''}`} src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
@@ -347,6 +364,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                       {power.unlockWave && power.unlockWave > 1 && <span className="hclock">Unlocks turn {power.unlockWave}</span>}
                     </div>
                   </div>
+                  {ph && <span className="hcfoot" aria-hidden="true" />}
                 </button>
               );
               // The Practice / Gauntlet browse grid sizes its cards as direct children of the row, and never has a
@@ -365,6 +383,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                         data-tip="Re-roll this hero. Once per hero select."
                       >
                         <Icon name="refresh" />
+                        {ph && <span className="hcreroll-lbl">Re-roll</span>}
                       </button>
                     )}
                   </div>

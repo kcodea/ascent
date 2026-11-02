@@ -9,6 +9,7 @@ import { poolNeededFor } from '../opponentPool/poolGate';
 import { PoolWaitPanel } from '../opponentPool/PoolWaitPanel';
 import { launchVersusHero, useVersusAwaitingPick } from '../versus/versusStore';
 import { PHONE_GPU } from '../phoneDiag';
+import { usePartyHome } from '../partyHome/partyHomeFlag';
 import { crumbLight, crumbTrail } from '../crashLog';
 
 /**
@@ -62,6 +63,8 @@ export function HeroLaunchCurtain() {
   const resolveRef = useRef<(() => void) | null>(null);
   const [versusWait, setVersusWait] = useState(false);
   const awaitingFoe = useVersusAwaitingPick();
+  // The party home look (DEV switch, off by default): the cover is the shell's navy, not the board's dark brown.
+  const ph = usePartyHome();
 
   // Register with the module seam for our whole lifetime. The ceremony reaches us only through
   // requestLaunch() — no prop drilling across the Game tree.
@@ -165,7 +168,7 @@ export function HeroLaunchCurtain() {
     <>
       <div
         ref={elRef}
-        className="hsc-curtain"
+        className={`hsc-curtain${ph ? ' ph' : ''}`}
         style={{ '--hsc-accent': req.accent } as CSSProperties}
         aria-hidden="true"
       />

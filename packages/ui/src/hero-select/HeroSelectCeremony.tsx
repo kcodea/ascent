@@ -20,6 +20,7 @@ import { rectToStage, stageViewport } from '../stage';
 import './heroCeremony.css';
 import { useGame } from '../store';
 import { useVersusHeroesRevealed } from '../versus/versusStore';
+import { usePartyHome } from '../partyHome/partyHomeFlag';
 import { crumbLight, crumbTrail } from '../crashLog';
 
 /** VERSUS: how long a finished ceremony waits on Start Game before starting on its own (both heroes locked). */
@@ -110,6 +111,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
   const art = useSharpArt(heroPortrait(heroId, loadout));
   // The portrait-frames tuner's ring swaps the heroportrait ring the champion snaps into (null = today's ring).
   const frame = usePortraitFrame('self');
+  // The party home look (DEV switch, off by default): the clone wears the card's banner (heroSelectPh.css).
+  const ph = usePartyHome();
   const tip = heroTip(heroId);
   const pi = phaseIndex(state.phase);
   const crossed = (p: HeroCeremonyPhase): boolean => pi >= phaseIndex(p);
@@ -421,7 +424,10 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
         style={{ left: source.left, top: source.top, width: source.width, height: source.height }}
         aria-hidden="true"
       >
-        <div className="herocard big hsc-clone-card" style={{ width: BIG_CARD_W, transform: `scale(${k})` }}>
+        {/* THE PARTY HOME LOOK (DEV switch): the clone is the same banner as its card (rod + foot), at the card's own
+            height (its text block is stretched to the tallest offer), so nothing jumps when it takes the card's place. */}
+        <div className="herocard big hsc-clone-card" style={{ width: BIG_CARD_W, transform: `scale(${k})`, ...(ph ? { minHeight: source.height / k } : {}) }}>
+          {ph && <span className="hcrod" aria-hidden="true" />}
           <div ref={frameRef} className="hcframe">
             <div className="hcname hudpill-name">{hero.name}</div>
             {art ? <img decoding="sync" className="hcframe-art" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
@@ -442,6 +448,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
               </div>
             )}
           </div>
+          {ph && <span className="hcfoot" aria-hidden="true" />}
         </div>
       </div>
 

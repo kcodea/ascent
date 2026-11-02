@@ -1,0 +1,218 @@
+/* ── HERO SELECT IN THE PARTY HOME's LANGUAGE (party home prototype, DEV only; HeroSelectPhSkin.tsx) ───────────────────────
+   Owner 2026-11-02: modern, whimsical, bubbly high fantasy. The screen after START wears the shell's backdrop, and each
+   hero offer is a BANNER like the party's (the painted rod across the top, the navy cloth with its gold side trim and a
+   glossy sheen, the swallowtail foot), the portrait fading into the cloth, the name in heavy rounded type over it. Pill
+   buttons (Back, Re-roll, Start Game on the painted START plaque). Every rule is scoped under `.heroselect.phhs`, so the
+   shipped screen (the switch off) is untouched.
+
+   The markup is the shipped screen's plus three decorative spans on each card (`.hcrod`, `.hcfoot`, rendered only in this
+   look), so the ceremony's clone (HeroSelectCeremony: the same markup) wears the same banner and dissolves its chrome
+   the same way.
+
+   PERFORMANCE: static paint. Hover is a one-shot transform (spring) and the existing opacity crossfades; the ceremony
+   keeps its transform / opacity choreography. No loops, no runtime filters or blurs (the board's blurred `::before` is
+   dropped here, which saves a full-screen blur). Images: the painted ornaments (a few KB each) and the hero art the
+   shipped screen already loads. */
+
+/* THE SHELL's TOKENS, for this screen. The shell defines them on `html[data-ph-shell]`, which is only set on the menus;
+   hero select is entered from them but is not one (Esc and Tab keep their in-run meaning), so it carries its own copy.
+   Inside `.hsbox` the box's zoom scales everything, so the unit is a plain px. (Kit gap: a `.ph-tokens` class would let
+   any screen opt in without a copy.) */
+.heroselect.phhs {
+  --phu: 1px;
+  --ph-navy: var(--pill-navy, #0d1a36);
+  --ph-gold: var(--pill-edge, #c8953f);
+  --ph-ink: #fff;
+  --ph-text: #fff6ea;
+  --ph-muted: #aebddb;
+  --ph-foe: var(--pill-foe, #ffb3bf);
+  --ph-gild: inset 0 0 0 1.5px color-mix(in srgb, var(--ph-gold) 85%, transparent), inset 0 2.5px 0 -1px rgba(255, 233, 176, 0.45), inset 0 -2.5px 0 -1px rgba(60, 36, 8, 0.6);
+  --ph-gild-s: inset 0 0 0 1px color-mix(in srgb, var(--ph-gold) 70%, transparent), inset 0 1.5px 0 -0.5px rgba(255, 233, 176, 0.3);
+  --ph-shadow: var(--pill-text-shadow);
+  --ph-plate: radial-gradient(120% 70% at 50% 0%, rgba(255, 206, 128, 0.11), rgba(255, 206, 128, 0) 62%), linear-gradient(180deg, color-mix(in srgb, var(--pill-navy-top, #1c2f58) 82%, transparent), color-mix(in srgb, var(--pill-navy-bot, #091226) 86%, transparent));
+  --ph-plate-hover: radial-gradient(120% 70% at 50% 0%, rgba(255, 214, 140, 0.18), rgba(255, 214, 140, 0) 62%), var(--pill-plate-hover);
+  --ph-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 55%);
+  --ph-font: var(--font-title, 'Outfit'), sans-serif;
+  --ph-body: var(--font-ui), sans-serif;
+  --ph-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* The banner's cloth (the party banner's navy, deep at the sides, lit through the middle fold). */
+  --hsph-cloth: linear-gradient(90deg, rgb(11 25 64) 0%, rgb(20 40 97) 45%, rgb(22 43 104) 55%, rgb(11 25 64) 100%);
+  background: var(--ph-navy);
+  color: var(--ph-text);
+}
+/* The shipped screen's blurred board is replaced by the shell's backdrop (no full-screen blur to paint). */
+.heroselect.phhs:not(.endscreen)::before { content: none; }
+.hsph-bd { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+/* A calm navy grade: dark at the top bar and the foot, open where the banners stand. Static. */
+.hsph-bd .ph-veil { background:
+  linear-gradient(180deg, rgba(6, 12, 28, 0.78) 0%, rgba(6, 12, 28, 0.35) 22%, rgba(6, 12, 28, 0.3) 62%, rgba(6, 12, 28, 0.88) 100%),
+  radial-gradient(70% 70% at 50% 50%, transparent 0%, rgba(4, 8, 20, 0.55) 100%); }
+
+/* ── BACK: a glossy navy pill, top left (the ranked one arms in the foe's red) ── */
+.heroselect.phhs .hsback { height: 46px; padding: 0 22px 0 16px; gap: 8px; border: 0; border-radius: 999px;
+  background: var(--ph-gloss), var(--ph-plate), var(--ph-navy); box-shadow: var(--ph-gild-s), 0 6px 18px -6px rgba(0, 0, 0, 0.7);
+  font-family: var(--ph-font); font-weight: 800; font-size: 18px; letter-spacing: 0.01em; color: var(--ph-text); text-shadow: var(--ph-shadow);
+  transition: translate 0.22s var(--ph-spring); }
+.heroselect.phhs .hsback:hover { translate: 0 -2px; color: var(--ph-ink); background: var(--ph-gloss), var(--ph-plate-hover); }
+.heroselect.phhs .hsback:active, .heroselect.phhs .hsback:hover:active { translate: 0 1px; transition-duration: 0.06s; }
+.heroselect.phhs .hsback:focus-visible { outline: none; box-shadow: var(--ph-gild-s), 0 0 0 2px rgba(255, 214, 110, 0.9), 0 0 16px rgba(255, 196, 70, 0.55); }
+.hsback-arrow { font-size: 28px; line-height: 1; margin-top: -4px; }
+.heroselect.phhs .hsback.armed, .heroselect.phhs .hsback.armed:hover { padding: 0 22px; color: #ffe1e5;
+  background: var(--ph-gloss), linear-gradient(180deg, #6e1a2a, #3c0b16); box-shadow: inset 0 0 0 1.5px var(--ph-foe), 0 0 18px rgba(255, 110, 130, 0.35); }
+
+/* ── THE HEADING: the mode as a gold eyebrow, the title in heavy rounded type, the painted divider under it ── */
+.heroselect.phhs .hs-eyebrow { display: inline-block; margin: 0 0 10px; padding: 5px 16px; border-radius: 999px;
+  background: rgba(6, 14, 38, 0.6); box-shadow: inset 0 0 0 1px rgba(255, 214, 120, 0.35);
+  font-family: var(--ph-font); font-weight: 800; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
+/* The mode line leaves with the title when a pick's ceremony starts (heroCeremony.css fades the title the same way). */
+.heroselect.phhs.hsc-active .hs-eyebrow { opacity: 0; transition: opacity 0.32s ease var(--hsc-header-delay, 80ms); pointer-events: none; }
+.heroselect.phhs .hsprompt { margin: 0 0 46px; padding: 0; font-family: var(--ph-font); font-weight: 900; font-size: 54px; line-height: 1.05;
+  letter-spacing: 0.005em; text-transform: none; color: var(--ph-ink);
+  text-shadow: var(--ph-shadow), 0 4px 22px rgba(0, 0, 0, 0.55); }
+.heroselect.phhs .hsprompt::after { width: 360px; height: 40px; margin: 6px auto 0; background: url('../partyHome/ornaments/divider.webp') 50% 50% / contain no-repeat; }
+.heroselect.phhs .hsprompt:has(+ .hsline), .heroselect.phhs .hsprompt:has(+ .riftpill) { margin-bottom: 18px; }
+.heroselect.phhs .hsbox > :is(.hsline, .riftpill):has(+ .hsrow) { margin-bottom: 40px; }
+.heroselect.phhs .hsline { padding: 6px 18px; border-radius: 999px; background: rgba(6, 14, 38, 0.6); box-shadow: inset 0 0 0 1px rgba(255, 214, 120, 0.35); }
+.heroselect.phhs .hsline-rat { font-family: var(--ph-font); font-weight: 800; font-size: 15px; letter-spacing: 0.06em; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.heroselect.phhs .hsbox:has(.hsrow.browse) .hsprompt { margin: clamp(6px, calc(1.2 * var(--vh, 1vh)), 12px) 0 18px; font-size: 40px; }
+.heroselect.phhs .hsbox:has(.hsrow.browse) .hsprompt::after { width: 280px; height: 30px; margin-top: 2px; }
+.heroselect.phhs .hsbox:has(.hsrow.browse) .hs-eyebrow { margin-top: 8px; }
+
+/* ── THE BANNER CARD ──
+   The card is a column: the portrait frame (the top of the cloth), the text block (the rest of the cloth), the foot. The
+   card is its own container, so the trim and the rod scale with the banner at every width (the browse grid's are wider).
+   Three offers stretch to the tallest one's text, so the three banners always hang level. */
+.heroselect.phhs .hsrow:not(.browse) { gap: 44px; }
+.heroselect.phhs .hcslot { align-self: stretch; }
+.heroselect.phhs .hcslot > .herocard.big { flex: 1 1 auto; }
+.heroselect.phhs .herocard.big { position: relative; container-type: inline-size; justify-content: flex-start; gap: 0; padding: 0; margin-top: 22px;
+  --trim: calc(100cqi * 13 / 720);
+  /* The gold trim is two strips OVER the cloth (never a gold plate under it, whose edge would show as a hairline wherever a
+     scaled box rounds to a fraction of a pixel). Defined here, where --trim is. */
+  --hsph-cloth-bg: linear-gradient(90deg, #8a5c14, #e9bf62) left top / var(--trim) 100% no-repeat, linear-gradient(270deg, #8a5c14, #e9bf62) right top / var(--trim) 100% no-repeat, var(--hsph-cloth);
+  transition: transform 0.24s var(--ph-spring); }
+.heroselect.phhs .herocard.big:hover { transform: translateY(-8px) scale(1.015); }
+.heroselect.phhs .herocard.big:active, .heroselect.phhs .herocard.big:hover:active { transform: translateY(2px) scale(0.985); filter: none; transition-duration: 0.07s; }
+.heroselect.phhs .herocard.big:focus-visible { outline: none; }
+.heroselect.phhs .herocard.big:focus-visible .hcframe::before { box-shadow: 0 0 0 2px rgba(255, 214, 110, 0.9), 0 0 18px rgba(255, 196, 70, 0.6); }
+/* The rod: snug on the top edge, its finials just past the cloth. Above the art and the name. */
+.hcrod { position: absolute; z-index: 5; left: calc(-1 * var(--hsph-rodover, 12px)); right: calc(-1 * var(--hsph-rodover, 12px)); top: 0;
+  aspect-ratio: 760 / 94; translate: 0 -62%; pointer-events: none; background: url('../partyHome/ornaments/banner-rod.webp') center / 100% 100% no-repeat; }
+/* The foot: the painted swallowtail with its tassel. It tucks up under the text block's last lines (its top is plain
+   cloth, the same navy), so there is no seam and the banner stays compact; the text draws over it. */
+.hcfoot { position: relative; z-index: 1; flex: none; display: block; width: 100%; aspect-ratio: 720 / 276; margin-top: calc(-100cqi * 64 / 720); pointer-events: none;
+  background: url('../partyHome/ornaments/banner-foot.webp') center top / 100% 100% no-repeat; }
+
+/* The portrait frame: the top of the cloth (its paint on `::before`, so the ceremony can dissolve the cloth and keep the
+   art), the portrait fading into it, a glossy sheen across the top. */
+.heroselect.phhs .herocard.big .hcframe { width: 100%; height: auto; aspect-ratio: 1 / 0.96; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none; isolation: isolate; }
+.heroselect.phhs .herocard.big .hcframe::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--hsph-cloth-bg); }
+.heroselect.phhs .herocard.big .hcframe::after { content: ''; position: absolute; z-index: 2; inset: 0 var(--trim) auto; height: 42%; pointer-events: none; background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0)); }
+.heroselect.phhs .herocard.big :is(.hcframe-art, .hcframe-pow) { inset: 0 var(--trim); width: calc(100% - 2 * var(--trim)); border-radius: 0; object-position: 50% 18%;
+  -webkit-mask-image: linear-gradient(180deg, #000 56%, transparent 97%); mask-image: linear-gradient(180deg, #000 56%, transparent 97%); }
+.heroselect.phhs .herocard.big .hcframe > svg { color: var(--ui-title, #ffd98a); }
+/* The name over the faded foot of the portrait, then the Health chip under it. */
+.heroselect.phhs .herocard.big .hcname.hudpill-name { top: auto; bottom: 46px; left: 50%; transform: translateX(-50%); z-index: 3; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis;
+  padding: 0; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  font-family: var(--ph-font); font-weight: 900; font-size: min(34px, 11.5cqi); line-height: 1.1; letter-spacing: 0.005em; color: var(--ph-ink);
+  text-shadow: var(--ph-shadow), 0 2px 10px rgba(0, 0, 0, 0.75); }
+.heroselect.phhs .herocard.big .hchp.hudpill-hp { top: auto; bottom: 8px; left: 50%; transform: translateX(-50%); z-index: 3; display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 14px 0 10px; margin: 0; border: 0; border-radius: 999px;
+  background: var(--ph-gloss), rgba(6, 14, 38, 0.72); box-shadow: inset 0 0 0 1px rgba(255, 214, 120, 0.45), 0 4px 10px -4px rgba(0, 0, 0, 0.7);
+  font-family: var(--ph-font); font-weight: 800; font-size: 19px; color: var(--ph-ink); text-shadow: var(--pill-num-shadow, 0 1px 0 #000); }
+.heroselect.phhs .herocard.big .hchp.hudpill-hp::before, .heroselect.phhs .herocard.big .hchp.hudpill-hp::after { content: none; }
+.heroselect.phhs .herocard.big .hchp svg { width: 20px; height: 20px; }
+.heroselect.phhs .herocard.big .hcarmor.hudpill-arm { display: inline-flex; align-items: center; gap: 2px; height: 22px; padding: 0 8px 0 6px; margin-left: 2px; border: 0; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12); box-shadow: inset 0 0 0 1px rgba(200, 215, 240, 0.4); font-size: 15px; font-weight: 800; color: #e6eeff; }
+.heroselect.phhs .herocard.big .hcarmor svg { width: 15px; height: 15px; }
+/* Practice-only + the teammate's pick: a chip high on the portrait (clear of the name and Health). */
+.heroselect.phhs .hcpractice { top: calc(100cqi * 0.1); bottom: auto; padding: 4px 12px; border: 0; border-radius: 999px; background: rgba(6, 14, 38, 0.82);
+  box-shadow: inset 0 0 0 1px rgba(255, 214, 120, 0.45); font-family: var(--ph-font); font-size: 11px; letter-spacing: 0.08em; color: #fbe6a6; }
+
+/* The text block: the rest of the cloth. At rest the difficulty chip (and tip) centred in it; on hover the power text.
+   The power text is IN FLOW (laid out while hidden), so the cloth always holds the longest line and never spills. */
+.heroselect.phhs .herocard.big .hcbelow { flex: 1 1 auto; position: relative; min-height: 72px; box-sizing: border-box; padding: 10px calc(var(--trim) + 16px) 0;
+  background: var(--hsph-cloth-bg); }
+.heroselect.phhs .herocard.big .hcbelow > .hcpw { position: relative; z-index: 2; inset: auto; top: auto; display: block; }
+.heroselect.phhs .herocard.big .hcbelow > .hcmeta { position: absolute; z-index: 2; inset: 0; }
+.heroselect.phhs .herocard.big .hcpw { font-family: var(--ph-body); font-weight: 600; font-size: 16.5px; line-height: 1.38; color: #e9eefc; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); }
+.heroselect.phhs .herocard.big .hcpw b { color: var(--ui-title, #ffd98a); font-family: var(--ph-font); font-weight: 900; }
+.heroselect.phhs .herocard.big .hcpw .hccost { color: #f6cf5a; }
+.heroselect.phhs .herocard.big .hcpw .hclock { margin-top: 8px; padding: 3px 12px; border: 0; border-radius: 999px; background: rgba(6, 14, 38, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(255, 214, 120, 0.4); font-family: var(--ph-font); color: #fbe6a6; }
+.heroselect.phhs .hcdiff { padding: 5px 16px; border: 0; border-radius: 999px; background: var(--ph-gloss), rgba(6, 14, 38, 0.72);
+  box-shadow: inset 0 0 0 1.5px currentColor, 0 4px 10px -4px rgba(0, 0, 0, 0.7); font-family: var(--ph-font); font-weight: 900; font-size: 14px; letter-spacing: 0.12em; }
+.heroselect.phhs .hctip { font-family: var(--ph-body); color: #e9eefc; }
+
+/* ── RE-ROLL: a glossy pill under the banner (the row is still reserved once it is spent) ── */
+.heroselect.phhs .hcreroll-slot { height: 50px; margin-top: 14px; }
+.heroselect.phhs .hcreroll { width: auto; height: 46px; padding: 0 20px 0 14px; display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 999px;
+  background: var(--ph-gloss), var(--ph-plate), var(--ph-navy); box-shadow: var(--ph-gild-s), 0 6px 16px -6px rgba(0, 0, 0, 0.7);
+  color: var(--ph-text); font-family: var(--ph-font); font-weight: 800; font-size: 17px; text-shadow: var(--ph-shadow);
+  transition: transform 0.22s var(--ph-spring); }
+.heroselect.phhs .hcreroll svg { width: 24px; height: 24px; color: var(--ui-title, #ffd98a); }
+.heroselect.phhs .hcreroll:hover { transform: translateY(-2px) scale(1.04); color: var(--ph-ink); background: var(--ph-gloss), var(--ph-plate-hover); }
+.heroselect.phhs .hcreroll:active { transform: scale(0.96); transition-duration: 0.06s; }
+.heroselect.phhs .hcreroll:focus-visible { outline: none; box-shadow: var(--ph-gild-s), 0 0 0 2px rgba(255, 214, 110, 0.9), 0 0 16px rgba(255, 196, 70, 0.55); }
+
+/* ── PRACTICE / GAUNTLET: the browse grid of banners (4 across). Room above each row for the rods. ── */
+.heroselect.phhs .hsrow.browse { row-gap: calc(var(--hs-gap) + 30px); padding-top: 32px; padding-left: calc(var(--hs-gap) / 2 + 12px); padding-right: calc(var(--hs-gap) / 2 + 12px);
+  max-height: min(calc(var(--hs-rowh) * 2 + var(--hs-gap) + 72px), calc(74 * var(--vh, 1vh))); }
+.heroselect.phhs .hsrow.browse { --hsph-rodover: min(10px, calc(var(--hs-gap) / 2 - 2px)); }
+.heroselect.phhs .hsrow.browse .herocard.big { margin-top: 0; }
+/* Five across on a desktop (a banner is taller than the old framed card), so two rows still show. */
+html:not([data-touch-ui]):not([data-phone-layout]) .heroselect.phhs .hsrow.browse { --hs-cols: 5; }
+.heroselect.phhs .hsrow.browse .herocard.big .hcbelow { min-height: 0; }
+.heroselect.phhs .hsrow.browse .herocard:hover { transform: translateY(-6px); }
+.heroselect.phhs .hsrow.browse .herocard.big .hcname.hudpill-name { font-size: min(32px, 9.5cqi); }
+
+/* ── THE CEREMONY in the same language: a navy scrim, the banner's chrome dissolving off the art, the name on a navy
+   band, Start Game on the painted START plaque. (Timing and motion are the shipped ceremony's.) ── */
+.heroselect.phhs .hsc-scrim { background: rgba(5, 10, 26, 0.6); }
+.heroselect.phhs .hsc-clone :is(.hcrod, .hcfoot) { transition: opacity calc(var(--hsc-transform-ms, 700ms) * 0.6) ease; }
+.heroselect.phhs .hsc-clone .hcframe::before, .heroselect.phhs .hsc-clone .hcframe::after { transition: opacity var(--hsc-transform-ms, 700ms) ease; }
+.heroselect.phhs .hsc-clone.hsc-chrome-out :is(.hcrod, .hcfoot) { opacity: 0; }
+.heroselect.phhs .hsc-clone.hsc-chrome-out .hcframe::before, .heroselect.phhs .hsc-clone.hsc-chrome-out .hcframe::after { opacity: 0; }
+.heroselect.phhs .hsc-plate::before { background: linear-gradient(90deg,
+  rgba(8, 16, 40, 0) 0,
+  rgba(8, 16, 40, 0.75) calc(var(--hsc-platefade, 400) * 0.4px * var(--scale, 1)),
+  rgba(10, 20, 50, 0.95) calc(var(--hsc-platefade, 400) * 1px * var(--scale, 1)),
+  rgba(10, 20, 50, 0.95) calc(100% - var(--hsc-platefade, 400) * 1px * var(--scale, 1)),
+  rgba(8, 16, 40, 0.75) calc(100% - var(--hsc-platefade, 400) * 0.4px * var(--scale, 1)),
+  rgba(8, 16, 40, 0) 100%); }
+.heroselect.phhs .hsc-name { font-family: var(--ph-font); font-weight: 900; letter-spacing: 0.01em; color: var(--ph-ink); text-shadow: var(--ph-shadow), 0 3px 14px rgba(0, 0, 0, 0.7); }
+.heroselect.phhs .hsc-power { font-family: var(--ph-font); color: var(--ui-title, #ffd98a); }
+/* START GAME: the gilded plaque, the word in dark ink (the party home's START). Hover: the springy grow. */
+.heroselect.phhs .hsc-start { box-sizing: border-box; width: 340px; height: calc(340px * 197 / 800); padding: 0 0 3px; justify-content: center; gap: 0; border: 0; border-radius: 0;
+  background: url('../partyHome/ornaments/start-plaque.webp') center / 100% 100% no-repeat; box-shadow: none;
+  font-family: var(--ph-font); font-weight: 900; font-size: 25px; letter-spacing: 0.12em; text-transform: uppercase; color: #2a1a06; text-shadow: 0 1px 0 rgba(255, 245, 210, 0.6);
+  transition: scale 0.22s var(--ph-spring); }
+.heroselect.phhs .hsc-start-orn { display: none; }
+.heroselect.phhs .hsc-start:hover:not(:disabled) { translate: none; scale: 1.06; color: #1c1004; background: url('../partyHome/ornaments/start-plaque.webp') center / 100% 100% no-repeat; }
+.heroselect.phhs .hsc-start:active:not(:disabled), .heroselect.phhs .hsc-start:hover:active:not(:disabled) { translate: none; scale: 0.96; transition-duration: 0.06s; }
+.heroselect.phhs .hsc-start:focus-visible { outline: none; scale: 1.04; filter: drop-shadow(0 0 10px rgba(255, 200, 80, 0.8)); }
+.heroselect.phhs .hsc-start:disabled { filter: grayscale(0.85) brightness(0.55); }
+
+/* THE LAUNCH CURTAIN (mounted in Game, outside the screen): the shell's deep navy with the hero's accent at its heart. */
+.hsc-curtain.ph { background: radial-gradient(60% 50% at 50% 46%, color-mix(in srgb, var(--hsc-accent, var(--acc)) 16%, transparent), transparent 75%), #060c1c; }
+
+/* ── THE CORNER BUTTONS (Friends, Settings) over this screen: round glossy orbs in the same language. ── */
+body:has(.heroselect.phhs) :is(.fdock-btn:not(.on), .gearbtn) { border-radius: 50%; border-color: rgba(255, 214, 120, 0.55);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 55%), linear-gradient(180deg, #1c2f58, #0b1630);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 6px 16px -6px rgba(0, 0, 0, 0.75); }
+
+/* PHONES (a short landscape screen): a shorter portrait crop and tighter heading, so three banners and their re-roll pills
+   fit without scrolling. The text block already stacks both faces there (touchUi.css / phoneLayout.css). */
+html[data-touch-ui][data-touch-small] .heroselect.phhs .hsrow:not(.browse) .herocard.big .hcframe { aspect-ratio: 1 / 0.78; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs .hsprompt { margin-bottom: 20px; font-size: 44px; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs .hsprompt::after { height: 30px; margin-top: 0; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs .hs-eyebrow { margin-bottom: 4px; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs .hcreroll-slot { margin-top: 6px; height: 48px; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs .herocard.big { margin-top: 16px; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs .hsrow.browse .herocard.big .hcframe { aspect-ratio: 1 / 0.8; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs .hsrow.browse .herocard.big .hcpw { font-size: 21px; line-height: 1.28; }
+
+@media (prefers-reduced-motion: reduce) {
+  .heroselect.phhs :is(.herocard.big, .hsback, .hcreroll, .hsc-start) { transition: none; }
+  .heroselect.phhs .herocard.big:hover { transform: none; }
+}

@@ -25,7 +25,8 @@
      shape          --ph-clip-banner (a banner with a pennant foot)
    PERFORMANCE: static paint. Hover is a colour or a one-shot transform. Nothing loops. */
 
-html[data-ph-shell] {
+/* `.ph-tokens`: the same tokens on any element, for a screen outside the shell (hero select) that cannot set the attribute. */
+html[data-ph-shell], .ph-tokens {
   --phu: 1px;
   --ph-navy: var(--pill-navy, #0d1a36);
   --ph-gold: var(--pill-edge, #c8953f);
@@ -82,7 +83,7 @@ html[data-ph-shell] {
 }
 /* Short windows and phones: the unit also never exceeds a 600-unit-tall budget of the window, so the whole home (nav,
    tabs, cards, START) always fits. Phones (landscape) use screen points (`--pt`, phoneMenus.css), about 0.6 pt a unit. */
-html[data-ph-shell] { --phu: min(1px, calc(var(--ph-h, var(--lvh, 100vh)) / 640)); }
+html[data-ph-shell], .ph-tokens { --phu: min(1px, calc(var(--ph-h, var(--lvh, 100vh)) / 640)); }
 html[data-ph-shell][data-ph-compact] { --phu: calc(var(--ph-h, var(--lvh, 100vh)) / 620); }
 
 /* ── THE TOP NAV ── */
@@ -233,3 +234,8 @@ html[data-ph-shell] .ph-top :is(.ph-navtab, .ph-iconbtn, .ph-brand) { letter-spa
 .ph-friends.drawer { border-radius: var(--ph-r-l) 0 0 var(--ph-r-l); }
 
 .ph-friends.embedded .ph-ftitle { display: none; }
+
+.ph-fhead { justify-content: space-between; }
+.ph-friends.embedded .ph-fhead { justify-content: flex-end; }
+/* The nav's tabs never hop either: a warm glow on hover. */
+.ph-navtab:hover { transform: none; text-shadow: var(--ph-shadow), 0 0 calc(10 * var(--phu)) rgba(255, 214, 120, 0.45); }

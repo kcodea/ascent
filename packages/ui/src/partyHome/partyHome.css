@@ -292,3 +292,56 @@ html[data-ph-compact] .ph { grid-template-columns: minmax(0, 1fr); }
 .ph-pair { position: relative; }
 .ph-pairlbl { position: absolute; left: 0; right: 0; bottom: calc(100% + 18 * var(--phu)); }
 .ph-side-r { gap: calc(12 * var(--phu)); align-items: center; }
+
+/* ── ROUND 4 ── */
+/* VERSUS: the opponent's banner wears the foe's red trim (the rod and foot warmed toward red). */
+.ph-cardwrap.rival .ph-card { background: linear-gradient(90deg, #6e1420 0%, #e2566a 22%, #ffb3bf 45%, #c63a4f 70%, #6e1420 100%); }
+.ph-cardwrap.rival .ph-rod, .ph-cardwrap.rival .ph-bfoot { filter: hue-rotate(-38deg) saturate(1.25); }
+.ph-cardwrap.rival .ph-name { color: var(--ph-foe); }
+/* Breathing room: the row keeps 32 units clear of the stage edges and the side panel. */
+.ph-cards { padding: 0 calc(32 * var(--phu)); box-sizing: border-box; }
+/* Chips and labels scale with the banner. */
+.ph-lead { height: auto; padding: calc(2.2 * 1cqi) calc(3 * 1cqi); gap: 1.6cqi; font-size: min(var(--ph-t1), 4.2cqi); }
+.ph-lead svg { width: min(calc(20 * var(--phu)), 5.5cqi); height: min(calc(20 * var(--phu)), 5.5cqi); }
+.ph-state { font-size: min(var(--ph-t2), 5cqi); padding: 2.5cqi 0; }
+.ph-openlbl { font-size: min(var(--ph-t3), 6cqi); }
+.ph-opensub { font-size: min(var(--ph-t2), 4.6cqi); }
+/* PHONES: the banners fill the row's height (the same size in every mode), and the row scrolls sideways when four do not
+   fit; a soft fade at the edges says there is more. */
+html[data-ph-compact] .ph-cards { overflow-x: auto; overflow-y: hidden; justify-content: safe center; scrollbar-width: none; padding: 0 calc(16 * var(--phu)); }
+html[data-ph-compact] .ph-cards::-webkit-scrollbar { display: none; }
+html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 56 * var(--phu)); }
+/* Phone mode tabs: one row that scrolls, with a fade at the right edge; the line centred. */
+html[data-ph-compact] .ph-modes .phk-tabs { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 48 * var(--phu)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 48 * var(--phu)), transparent); padding-right: calc(48 * var(--phu)); }
+html[data-ph-compact] .ph-desc { text-align: center; }
+html[data-ph-compact] .ph-modes .phk-tab { min-height: calc(72 * var(--phu)); }
+html[data-ph-compact] .phk-btn.s-s { height: calc(64 * var(--phu)); padding: 0 calc(24 * var(--phu)); font-size: var(--ph-t2); }
+/* Phone head slot: the team plate and the saved game stack (two rows, always reserved). */
+html[data-ph-compact] .ph-stagehead { height: calc(112 * var(--phu)); flex-direction: column; gap: calc(6 * var(--phu)); }
+/* The locked tab's toast: under the tabs, fades out by itself (opacity, one shot). */
+.ph-modes { position: relative; }
+.ph-toast { position: absolute; top: calc(100% + 4 * var(--phu)); left: 50%; translate: -50% 0; z-index: 5; padding: calc(8 * var(--phu)) calc(18 * var(--phu)); border-radius: 999px;
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s), 0 calc(8 * var(--phu)) calc(20 * var(--phu)) rgba(0, 0, 0, 0.5); font-size: var(--ph-t2); font-weight: 700; color: #ffe7a8; white-space: nowrap;
+  animation: ph-toast 2.6s ease both; pointer-events: none; }
+@keyframes ph-toast { 0% { opacity: 0; transform: translateY(-4px); } 8% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+/* A disabled START: the same gold jewel, dimmed. */
+.ph-start:disabled { filter: saturate(0.55) brightness(0.72); opacity: 0.85; color: #2a1a06; }
+/* The active mode tab never sits higher than the others. */
+.phk-tab.on, .phk-tab.on:hover { transform: none; }
+/* Gauntlet rows: number, then the foe in a small framed portrait, then the name; chips sit clear of any art. */
+.pho-stagelead { display: inline-flex; align-items: center; gap: calc(10 * var(--phu)); }
+.pho-stagelead .ph-fportrait { width: calc(40 * var(--phu)); height: calc(40 * var(--phu) * 135 / 128); }
+@media (prefers-reduced-motion: reduce) { .ph-toast { animation: none; } }
+/* PHONES: every unit of height goes to the banners. One slim head row (the saved game's Continue moves beside START). */
+html[data-ph-compact] .ph-stagehead { height: calc(56 * var(--phu)); flex-direction: row; }
+html[data-ph-compact] .ph-stagehead .ph-held { display: none; }
+html[data-ph-compact] .ph-team { padding: calc(2 * var(--phu)) calc(4 * var(--phu)) calc(2 * var(--phu)) calc(16 * var(--phu)); }
+html[data-ph-compact] .ph-team .phk-btn.s-s { height: calc(48 * var(--phu)); }
+html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 16 * var(--phu)); }
+html[data-ph-compact] .ph-stage { gap: calc(4 * var(--phu)); }
+.ph-phonecontinue { display: none; }
+html[data-ph-compact] .ph-phonecontinue { display: inline-flex; }
+html[data-ph-compact] .ph-pairlbl { display: none; }
+
+/* A STANDALONE banner (PhBanner `width`): its own fixed width outside a `.ph-cards` row; everything inside scales with it. */
+.ph-cardwrap.standalone, .ph-cards .ph-cardwrap.standalone, html[data-ph-compact] .ph-cardwrap.standalone { width: var(--bw); height: auto; aspect-ratio: 0.56; }

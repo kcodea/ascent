@@ -84,7 +84,7 @@ export function PhFriends({ docked, picker = false, embedded = false }: { docked
           return (
             <PhRow key={f.userId} className={`ph-friend f-${f.status}`} lead={<span className="ph-fportrait">{art && <img src={art} alt="" draggable={false} decoding="sync" />}</span>} title={f.author ?? handleOf(f)}
               sub={<span className="ph-fstatus"><i aria-hidden="true" />{statusText(f)}</span>}
-              onClick={demo ? undefined : () => { sfx.pulse(); openDm(f.userId); }} label={`Message ${handleOf(f)}`} right={right} />
+              onClick={() => { if (demo) return; sfx.pulse(); openDm(f.userId); }} label={`Message ${handleOf(f)}`} right={right} />
           );
         })}
       </div>
@@ -107,9 +107,9 @@ export function PhFriends({ docked, picker = false, embedded = false }: { docked
         )}
       </div>
       {(live || demo) && <AddFriend disabled={demo} />}
+      {(embedded || picker) && invite.reason && <div className="ph-fnote">{invite.reason}</div>}
       {flash && !demo && <div className="ph-fflash" role="status">{flash}</div>}
       {body}
-      {!versusRoom && invite.reason && <div className="ph-fnote">{invite.reason}</div>}
       {versusRoom && <div className="ph-fnote">Invites go to your Versus room, {versusRoom.name}.</div>}
     </aside>
     </>

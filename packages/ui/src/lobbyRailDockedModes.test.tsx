@@ -5,8 +5,9 @@
  * layout, so the measuring hook is replaced by the pure layout over a 1080p board):
  *  - Versus 1v1: two slices (you and the opponent), no separate opponent block, the opponent's state on its slice;
  *  - Versus Group: one slice per player with their state;
- *  - Versus Duos: the slices grouped per team (one plate each), the team's one Health bar per pair, the teammate's slice
- *    distinct and a click on it opens their board.
+ *  - Versus Duos: the slices grouped per team (one plate each), the team's Health on BOTH its slices, ONE placement box
+ *    per team spanning the pair, the teammate's slice distinct and a click on it opens their board; a seat's fight log
+ *    names the TEAM it fought (R-DUOS-RAIL-TEAM-02).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
@@ -88,21 +89,52 @@ describe('the Docked rail in every mode', () => {
     expect(c.querySelectorAll('.lrv-team')).toHaveLength(0);
   });
 
-  it('Versus Duos: slices grouped per team, one Health bar per pair, the teammate distinct; clicking them opens their board', () => {
+  it('Versus Duos: slices grouped per team, Health on both teammates, one place per team, the teammate distinct; clicking them opens their board', () => {
     const raw = { phase: 'shop', paused_at: null, paused_seat: null, options: { mode: 'duos' }, seats: ['p1', 'p2', 'p3', 'p4'].map((x) => seat(x)) };
     const c = show(versusRun(4), { phase: 'shop', round: 3, p1_user: 'me', group: { me: 'p1', raw, duos: { team: 'a', mate: 'p2', first: { a: 'p1', b: 'p3' } } } });
     expect(slices(c)).toHaveLength(4);
     const teams = [...c.querySelectorAll<HTMLElement>('.lrv-team')];
     expect(teams).toHaveLength(2);
     expect(teams.filter((t) => t.classList.contains('you'))).toHaveLength(1);
-    // The shared pool once per team: two bars for four players.
-    expect(c.querySelectorAll('.lobbyseat .lrv-bar')).toHaveLength(2);
+    // The shared pool on BOTH teammates (owner 2026-11-01: "health should show on both heroes in the rail").
+    expect(c.querySelectorAll('.lobbyseat .lrv-bar')).toHaveLength(4);
+    expect(slices(c).map((x) => !!x.querySelector('.lrv-hpnum'))).toEqual([true, true, true, true]);
+    // The placement column is per TEAM: no seat box, one team box per pair, spanning both slices, 1 then 2.
+    expect(c.querySelectorAll('.lobbyseat .lrv-rank')).toHaveLength(0);
+    const ranks = [...c.querySelectorAll<HTMLElement>('.lrv-teamrank')];
+    expect(ranks.map((r) => r.dataset.place)).toEqual(['1', '2']);
+    teams.forEach((t, i) => {
+      expect(ranks[i]!.style.top).toBe(t.style.top);
+      expect(ranks[i]!.style.height).toBe(t.style.height);
+    });
+    // Teammates sit next to each other, team by team (the stronger team first).
+    expect(slices(c).map((x) => Math.floor(Number(x.dataset.seat!.slice(1)) / 2))).toEqual(expect.arrayContaining([0, 1]));
+    const order = slices(c).map((x) => Math.floor(Number(x.dataset.seat!.slice(1)) / 2));
+    expect(order[0]).toBe(order[1]);
+    expect(order[2]).toBe(order[3]);
     const mate = c.querySelector<HTMLElement>('.lobbyseat.mate[data-seat="s1"]')!;
     expect(mate).not.toBeNull();
     act(() => { mate.click(); });
     expect(enterTeammateView).toHaveBeenCalledTimes(1);
     // No old team slots on the Docked rail.
     expect(c.querySelector('.lobbyteamslot')).toBeNull();
+  });
+
+  it("Versus Duos: a seat's fight log names the TEAM it fought, both faces, for the teammate who did not go first too", () => {
+    const raw = { phase: 'shop', paused_at: null, paused_seat: null, options: { mode: 'duos' }, seats: ['p1', 'p2', 'p3', 'p4'].map((x) => seat(x)) };
+    const run = versusRun(4);
+    // Round 2's one team fight: you (s0) went first against s2, and won for 4.
+    const lobby = { ...run.lobby!, encounters: [{ round: 2, a: 's0', b: 's2', outcome: 'win' as const, fought: true, damageToA: 0, damageToB: 4 }] };
+    const c = show({ ...run, lobby }, { phase: 'shop', round: 3, p1_user: 'me', group: { me: 'p1', raw, duos: { team: 'a', mate: 'p2', first: { a: 'p1', b: 'p3' } } } });
+    const [l2, l3] = [lobby.seats[2]!.label, lobby.seats[3]!.label];
+    act(() => { c.querySelector('.lobbyseat[data-seat="s1"]')!.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body })); });
+    const row = document.body.querySelector('.lobbyscout .lrv-sc-fight')!;
+    expect(row).not.toBeNull();
+    expect(row.classList.contains('team')).toBe(true);
+    expect(row.querySelector('.lrv-sc-vs')?.textContent).toBe(`vs ${l2} + ${l3}`);
+    expect(row.querySelectorAll('.lrv-sc-foes .lrv-sc-foe')).toHaveLength(2);
+    expect(row.querySelector('.lrv-sc-out')?.textContent).toBe('W');
+    expect(row.querySelector('.lrv-sc-dmg')?.textContent).toBe('+4');
   });
 
   it('the slice label follows Tuner 2 "Slice label" in every mode: player name, hero name, or none', () => {

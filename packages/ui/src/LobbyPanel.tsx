@@ -30,7 +30,7 @@ import { useSpectate } from './versus/spectate';
 import { mySeat, useVersus } from './versus/versusStore';
 import { parseRailStatusKey, railStatusKey, versusRailStatuses } from './versus/versusRailStatus';
 import { groupDuosRailRows } from './versus/versusGroupView';
-import { duosRailTeamOf, duosRailTeams, duosTeamHealthRow } from './versus/duosRailTeams';
+import { duosRailTeamOf, duosRailTeams, duosTeamHealthRow, duosTeamPlaces, duosTeamResults, type DuosFightFoe } from './versus/duosRailTeams';
 import { isRankedDuosRaw, rankedTeamLabels } from './versus/rankedDuosView';
 import { enterTeammateView } from './versus/teammateView';
 import { LobbyGuides } from './guides/LobbyGuides';
@@ -508,6 +508,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // THE PLACEMENT COLUMN (owner 2026-10-31: "a slender column that displays the players placement with 1-8"): the living by
   // their place in the stack (strongest first), the fallen by the place they finished.
   const rankOf = new Map(rows.map((r, i) => [r.id, r.alive ? i + 1 : r.placement ?? i + 1]));
+  // DUOS (owner 2026-11-01: "this should just show the teams with their medals together, so the top t2 would have a 1";
+  // R-DUOS-RAIL-TEAM-02): the column is per TEAM, the place of each team in the rail's team order (living teams by their
+  // shared pool, the fallen by where they finished), drawn once per team across both its slices.
+  const teamPlace = duosMate || duosTeams ? duosTeamPlaces(rows) : null;
   // THE DOCKED RAIL (owner 2026-10-31): the seats laid out on the board's right side, measured off the board's own Refresh
   // / gem / Gold (useDockedRail). It needs that HUD on screen and room beside it; anywhere it cannot (the Guides view, a Duos
   // team rail, the Versus 1v1 block, a board without its HUD) the rail is the Gem rail (lobbyRail.css), as before.
@@ -519,8 +523,6 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const dockWanted = !railGuides;
   const teamOf = useMemo(() => (duosTeams ? [...liveIds, ...deadIds].map(duosRailTeamOf) : undefined), [duosTeams, liveIds, deadIds]);
   const dock = useDockedRail(dockWanted, railRef, liveIds, deadIds, dockCfg, staged, teamOf, !!teamLabels);
-  // A team's ONE Health pool shows once (R-DUOS-RAIL-TEAM-01, docked too): on its last slice, the pair's foot.
-  const teamBarIds = useMemo(() => (dock?.teams ? new Set(dock.teams.map((t) => t.ids[t.ids.length - 1]!)) : null), [dock]);
   const rv = !!dock;
   // Docked's class on the rail, its header and its tab (lobbyRailDocked.css keys off it).
   const vMod = rv ? ' lrv-docked' : '';
@@ -703,8 +705,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                     <FadeImg className="lobbyface" src={railSliceFace(heroPortrait(seat.heroId, isYou ? runSkins : opponentSkins(showOppSkins, seat.cosmetics)), dp)} alt="" />
                   </span>
                   {dp && <SliceEdge p={dp} />}
-                  {/* The placement, its own small navy box floating just right of the slice (owner 2026-10-31). */}
-                  <span className="lrv-rank" data-place={rankOf.get(seat.id)} aria-label={`Place ${rankOf.get(seat.id)}`}>{rankOf.get(seat.id)}</span>
+                  {/* The placement, its own small navy box floating just right of the slice (owner 2026-10-31). A Duos
+                      table draws one per TEAM instead, across the pair (below, R-DUOS-RAIL-TEAM-02). */}
+                  {!dock?.teams && <span className="lrv-rank" data-place={rankOf.get(seat.id)} aria-label={`Place ${rankOf.get(seat.id)}`}>{rankOf.get(seat.id)}</span>}
                   {dp && !dp.dead && isFoe && <SliceEdge p={dp} ring />}
                   {/* The target (owner 2026-10-31: "the current target needs to be way more obvious"): the crossed swords
                       the rail has always used for the next foe, on the slice's top-right corner. */}
@@ -722,8 +725,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                   {!isYou && row.alive && statuses[seat.id] && (
                     <span key={statuses[seat.id]!.label} className={`lrv-status ${statuses[seat.id]!.tone}`}>{statuses[seat.id]!.label}</span>
                   )}
-                  {/* A DUOS team's shared pool is drawn once, on the pair's last slice; the other slice carries no bar. */}
-                  {row.alive && teamBarIds && !teamBarIds.has(seat.id) ? null : row.alive ? (<>
+                  {/* A DUOS team's shared pool shows on BOTH its slices (owner 2026-11-01: "health should show on both heroes
+                      in the rail"; R-DUOS-RAIL-TEAM-02): each member's row carries the team's pool. */}
+                  {row.alive ? (<>
                     {/* HEALTH NUMBERS (owner 2026-10-31: "can we make that a number?"): Health, Armor under it, on the navy
                         side. Tuner 2 "Show Health as" picks these (default), the bar below, or both. */}
                     <span className="lrv-hpnum" role="img" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
@@ -786,10 +790,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               )}
               </>)}
               {!staged && hovered?.id === seat.id && pinned?.id !== seat.id && (isYou
-                ? <SelfScoutCard lobby={lobby} seat={seat} at={hovered} hp={live} compact={rv} />
-                : <ScoutCard lobby={lobby} seat={seat} intel={intel} at={hovered} hp={live} compact={rv} />)}
+                ? <SelfScoutCard lobby={lobby} seat={seat} at={hovered} hp={live} compact={rv} teams={!!teamPlace} />
+                : <ScoutCard lobby={lobby} seat={seat} intel={intel} at={hovered} hp={live} compact={rv} teams={!!teamPlace} />)}
               {!staged && pinned?.id === seat.id && (
-                <ScoutCard lobby={lobby} seat={seat} intel={intel} at={pinned} pinned hp={live} compact={rv} />
+                <ScoutCard lobby={lobby} seat={seat} intel={intel} at={pinned} pinned hp={live} compact={rv} teams={!!teamPlace} />
               )}
             </div>
           );
@@ -816,6 +820,18 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                 return (
                   <span key={`tname${t.team}`} className={`lrv-teamname${mod}`} aria-label={`Team ${label}`}
                     style={{ left: t.x + (dockById.get(t.ids[0]!)?.topX ?? 0), top: t.labelY, maxWidth: t.w * 0.9, '--dk-s': dock.s } as React.CSSProperties}>{label}</span>
+                );
+              })}
+              {/* THE TEAM'S PLACE (R-DUOS-RAIL-TEAM-02): one placement box right of the pair, spanning both slices, in the
+                  podium metal for the top three teams. */}
+              {dock.teams?.map((t) => {
+                const members = membersOf(t.ids);
+                const place = teamPlace?.get(t.team);
+                if (place === undefined) return null;
+                const mod = `${members.some((m) => m.you) ? ' you' : ''}${members.some((m) => m.next) ? ' foe' : ''}${members.some((m) => m.alive) ? '' : ' dead'}`;
+                return (
+                  <span key={`trank${t.team}:${t.ids[0]}`} className={`lrv-rank lrv-teamrank${mod}`} data-place={place} data-team={t.team} aria-label={`Team place ${place}`}
+                    style={{ left: t.x + t.w, top: t.y, height: t.h, '--dk-s': dock.s } as React.CSSProperties}>{place}</span>
                 );
               })}
               {rows.map((row) => seatRow(row))}
@@ -869,13 +885,13 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
  * only records intel for seats it prepares, and your board is the run itself). Subscribes to the run only while
  * mounted, i.e. only while your seat is hovered, so the rail pays nothing for it otherwise.
  */
-function SelfScoutCard({ lobby, seat, at, hp, compact }: { lobby: RunLobby; seat: LobbySeatState; at: { top: number; right: number }; hp?: { alive: boolean; resolve: number; armor: number }; compact?: boolean }): JSX.Element {
+function SelfScoutCard({ lobby, seat, at, hp, compact, teams }: { lobby: RunLobby; seat: LobbySeatState; at: { top: number; right: number }; hp?: { alive: boolean; resolve: number; armor: number }; compact?: boolean; teams?: boolean }): JSX.Element {
   const run = useGame((st) => st.run);
   const intel = useMemo(() => {
     const snap = snapshotBoard(run);
     return boardIntel({ minions: snap.minions, tier: snap.tier, snapshot: snap }, lobby.round);
   }, [run, lobby.round]);
-  return <ScoutCard lobby={lobby} seat={seat} intel={intel} at={at} hp={hp} compact={compact} run={run} />;
+  return <ScoutCard lobby={lobby} seat={seat} intel={intel} at={at} hp={hp} compact={compact} run={run} teams={teams} />;
 }
 
 /**
@@ -955,7 +971,7 @@ const OUTCOME_LABEL: Record<string, string> = { win: 'WON', lose: 'LOST', draw: 
  * Rendered ONLY while hovered rather than always-mounted-and-hidden — eight of these permanently in the tree,
  * each mapping the encounter log, is work the shop phase does not need to do every frame.
  */
-function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run }: {
+function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run, teams }: {
   lobby: RunLobby; seat: LobbySeatState; intel?: SeatIntel; at: { top: number; right: number };
   /** The seat's whole run, when this client holds it (your own seat): the rune tips read every live value off it. */
   run?: RunState;
@@ -963,14 +979,22 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run }: {
   hp?: { alive: boolean; resolve: number; armor: number };
   /** The Docked rail's compact card (owner 2026-10-31). */
   compact?: boolean;
+  /** A Duos table (Versus Duos / Ranked Duos): the fight log reads the seat's TEAM fights, against the other team. */
+  teams?: boolean;
   /** Pinned (clicked) rather than hovered: it takes pointer events so its rune/quest badges can be hovered for
    *  their own tooltips. Dismissed by clicking outside (handled in LobbyPanel), not a corner ×. */
   pinned?: boolean;
 }): JSX.Element {
-  const results = seatResults(lobby, seat.id, 3);
+  // DUOS (R-DUOS-RAIL-TEAM-02, owner 2026-11-01: "the combat history should show the team that they fought, not an
+  // individual hero"): each row is the seat's team fight, naming both members of the team it fought.
+  const results: { round: number; foeLabel: string; foeHeroId: string; foeId: string; outcome: string; dealt: number; taken: number; foes?: DuosFightFoe[] }[] =
+    teams ? duosTeamResults(lobby, seat.id, 3) : seatResults(lobby, seat.id, 3);
   // SKINS: a fight-log face is that foe's seat; when the foe was YOU, it is your run's skin.
   const runSkins = useRunSkins();
   const showOppSkins = useGame((st) => st.showOpponentSkins);
+  // Every foe's face in a row: the team's two in a Duos fight, else the one foe.
+  const facesOf = (r: { foeId: string; foeHeroId: string; foes?: DuosFightFoe[] }): { id: string; heroId: string }[] =>
+    (r.foes?.length ? r.foes : r.foeHeroId ? [{ id: r.foeId, heroId: r.foeHeroId }] : []);
   const faceOf = (r: { foeId: string; foeHeroId: string }): string | undefined => heroPortrait(
     r.foeHeroId,
     r.foeId === 's0' ? runSkins : opponentSkins(showOppSkins, lobby.seats.find((x) => x.id === r.foeId)?.cosmetics),
@@ -1059,8 +1083,8 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run }: {
             <div className={`lobbyscout-row ${r.outcome}`} key={r.round}>
               <span className="lobbyscout-round">{r.round}</span>
               <span className="lobbyscout-vs">
-                {r.foeHeroId
-                  ? <img decoding="sync" className="lobbyscout-foeface" src={faceOf(r)} alt={r.foeLabel} />
+                {facesOf(r).length
+                  ? facesOf(r).map((f, k) => <img decoding="sync" className="lobbyscout-foeface" key={f.id} src={faceOf({ foeId: f.id, foeHeroId: f.heroId })} alt={k === 0 ? r.foeLabel : ''} />)
                   : <span className="lobbyscout-vslabel">vs {r.foeLabel}</span>}
               </span>
               {/* The outcome sits BETWEEN the portrait and the damage (owner ask 2026-08-31). */}
@@ -1142,8 +1166,10 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run }: {
         <div className="lrv-sc-runes"><i>Runes</i>{versusCard && runeIds.length === 0 ? <span className="lrv-sc-none">None yet</span> : <span className="lrv-sc-sockets">{sockets}</span>}</div>
         <div className="lrv-sc-fights">
           {results.length === 0 ? <span className="lrv-sc-none">No fights yet</span> : results.map((r) => (
-            <div className={`lrv-sc-fight ${r.outcome}`} key={r.round}>
-              {r.foeHeroId ? <img decoding="sync" className="lrv-sc-foe" src={faceOf(r)} alt="" /> : <span className="lrv-sc-foe" />}
+            <div className={`lrv-sc-fight ${r.outcome}${r.foes && r.foes.length > 1 ? ' team' : ''}`} key={r.round}>
+              {r.foes && r.foes.length > 1
+                ? <span className="lrv-sc-foes">{r.foes.map((f) => <img decoding="sync" className="lrv-sc-foe" key={f.id} src={faceOf({ foeId: f.id, foeHeroId: f.heroId })} alt="" />)}</span>
+                : r.foeHeroId ? <img decoding="sync" className="lrv-sc-foe" src={faceOf(r)} alt="" /> : <span className="lrv-sc-foe" />}
               <span className="lrv-sc-vs">vs {r.foeLabel}</span>
               <span className="lrv-sc-out">{r.outcome === 'win' ? 'W' : r.outcome === 'lose' ? 'L' : 'D'}</span>
               <span className="lrv-sc-dmg">{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>

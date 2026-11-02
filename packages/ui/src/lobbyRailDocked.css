@@ -185,6 +185,23 @@ html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank:is([data-place="1"], [data-
 html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="1"] { background: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 70%, #a8741a 100%); border-color: #fff0b0; }
 html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="2"] { background: linear-gradient(180deg, #ffffff 0%, #dfe5ec 38%, #b4bfcb 70%, #7f8b99 100%); border-color: #f4f7fa; }
 html:root .lobbyrail.lrv-docked .lobbyseat .lrv-rank[data-place="3"] { background: linear-gradient(180deg, #f8d1ac 0%, #e09a5c 38%, #b8703a 70%, #7e4720 100%); border-color: #f6c79c; }
+/* DUOS: ONE placement box per TEAM (owner 2026-11-01: "show the teams with their medals together"; R-DUOS-RAIL-TEAM-02), the
+   seat box's twin, spanning both slices of the pair. Placed by the layout (left = the pair's right edge, top + height = the
+   pair's), the same gap off the slices. Same states and podium metal as the seat box. Static paint. */
+html:root .lobbyrail.lrv-docked .lrv-teamrank {
+  --rkw: calc(var(--lr2-rank-w, 23.5) * var(--dk-s, 1) * 1px);
+  --rkg: calc(var(--lr2-rank-gap, 6.5) * var(--dk-s, 1) * 1px);
+  bottom: auto; margin-left: var(--rkg); pointer-events: none;
+}
+html:root .lobbyrail.lrv-docked .lrv-teamrank.you { color: #fff; }
+html:root .lobbyrail.lrv-docked .lrv-teamrank.foe { color: var(--pill-foe); }
+html:root .lobbyrail.lrv-docked .lrv-teamrank.dead { color: var(--ui-muted); }
+html:root .lobbyrail.lrv-docked .lrv-teamrank:is([data-place="1"], [data-place="2"], [data-place="3"]) {
+  color: var(--lr2-navy, #0d1a36); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+html:root .lobbyrail.lrv-docked .lrv-teamrank[data-place="1"] { background: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 70%, #a8741a 100%); border-color: #fff0b0; }
+html:root .lobbyrail.lrv-docked .lrv-teamrank[data-place="2"] { background: linear-gradient(180deg, #ffffff 0%, #dfe5ec 38%, #b4bfcb 70%, #7f8b99 100%); border-color: #f4f7fa; }
+html:root .lobbyrail.lrv-docked .lrv-teamrank[data-place="3"] { background: linear-gradient(180deg, #f8d1ac 0%, #e09a5c 38%, #b8703a 70%, #7e4720 100%); border-color: #f6c79c; }
 /* The foe's art keeps its brightness lift on top of the tuner's. */
 html:root .lobbyrail.lrv-docked .lobbyseat.foe:not(.dead) .lrv-tileart > .lobbyface { filter: brightness(calc(var(--lr2-art-bright, 1) * 1.12)) saturate(1.1); }
 /* THE NAME, over the faded side, clear of the bar. */
@@ -463,6 +480,9 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
 }
 .lobbyscout.lrv-scout .lrv-sc-foe { width: calc(24 * var(--c)); height: calc(24 * var(--c)); border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 1px var(--ui-edge-main); }
 .lobbyscout.lrv-scout .lrv-sc-vs { color: var(--ui-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* DUOS: a team fight's row shows both foes' faces, side by side (R-DUOS-RAIL-TEAM-02). */
+.lobbyscout.lrv-scout .lrv-sc-fight.team { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.lobbyscout.lrv-scout .lrv-sc-foes { display: inline-flex; gap: calc(2 * var(--c)); }
 .lobbyscout.lrv-scout .lrv-sc-out {
   display: inline-grid; place-items: center; width: calc(18 * var(--c)); height: calc(18 * var(--c)); border-radius: calc(4 * var(--c));
   font-weight: 900; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);

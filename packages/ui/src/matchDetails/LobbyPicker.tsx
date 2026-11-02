@@ -43,12 +43,20 @@ function seatOut(seat: MatchSeat, d: MatchDetails): string {
   const r = seat.self ? (d.eliminated ? seat.eliminatedRound ?? d.endRound : undefined) : seat.eliminatedRound;
   return r !== undefined ? `Out in round ${r}` : 'Still in';
 }
+/**
+ * WHOSE GAME THIS IS (R-LOBBY-PICKER-VIEWER-01). A recorded lobby marks the seat of the player who recorded it (`self`), and
+ * that is "you" ONLY when the viewer is that player (`own`). Viewing someone else's game (Recent Games, another player's
+ * Career), that seat is named by its recorded name, the same as every other seat.
+ */
+export const ownerNameOf = (d: MatchDetails): string => d.seats.find((s) => s.self)?.name || 'This player';
+export const seatName = (seat: MatchSeat, own: boolean): string => (seat.self && own ? 'You' : seat.name);
+
 /** The chip's hover tip: short plain sentences. */
-function seatTip(seat: MatchSeat, d: MatchDetails): string {
+function seatTip(seat: MatchSeat, d: MatchDetails, own: boolean): string {
   const parts = [`${seatOut(seat, d)}.`];
   if (typeof seat.strength === 'number') parts.push(`${GAME_STRENGTH_LABEL} ${seat.strength}.`);
   if (seat.health > 0) parts.push(`${seat.health} Health${seat.armor > 0 ? `, ${seat.armor} Armor` : ''}.`);
-  if (seat.id === d.knockedOutBy) parts.push('Knocked you out.');
+  if (seat.id === d.knockedOutBy) parts.push(own ? 'Knocked you out.' : `Knocked ${ownerNameOf(d)} out.`);
   return parts.join(' ');
 }
 
@@ -82,9 +90,11 @@ export function SeatRuneRow({ seat }: { seat: MatchSeat }) {
     : <div className="cv2-row-none cv2-norunes">No runes</div>;
 }
 
-/** "Showing: Your board" / "Showing: LazerLemon's board, knocked out in round 10" + "Back to yours". */
-export function ShowingLine({ seat, details, onBack }: { seat: MatchSeat | null; details: MatchDetails; onBack: () => void }) {
-  let what = 'Your board';
+/** "Showing: Your board" / "Showing: LazerLemon's board, knocked out in round 10" + "Back to yours". Someone else's game
+ *  (`own` false) reads "IonLime's board" and "Back to IonLime's" (R-LOBBY-PICKER-VIEWER-01). */
+export function ShowingLine({ seat, details, onBack, own = true }: { seat: MatchSeat | null; details: MatchDetails; onBack: () => void; own?: boolean }) {
+  const owner = ownerNameOf(details);
+  let what = own ? 'Your board' : `${owner}'s board`;
   if (seat) {
     const out = seatOut(seat, details);
     const round = seat.board?.round ?? details.endRound;
@@ -94,7 +104,7 @@ export function ShowingLine({ seat, details, onBack }: { seat: MatchSeat | null;
     <div className="lp-showing" aria-live="polite">
       <span className="lp-showing-l">Showing</span>
       <span className="lp-showing-v">{what}</span>
-      {seat && <button type="button" className="cv2-btn lp-back pressable" onClick={onBack}><span aria-hidden="true">‹</span>Back to yours</button>}
+      {seat && <button type="button" className="cv2-btn lp-back pressable" onClick={onBack}><span aria-hidden="true">‹</span>{own ? 'Back to yours' : `Back to ${owner}'s`}</button>}
       {!seat && <span className="lp-hint">Pick a player in the lobby below to see their board</span>}
     </div>
   );
@@ -133,9 +143,9 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
         return (
           <button
             type="button" key={seat.id} data-seat={seat.id} aria-pressed={on}
-            className={`lp-tile gtip lp-${bandOfPlace(seat, details)}${on ? ' on' : ''}${seat.self ? ' self' : ''}`}
-            data-tip={seatTip(seat, details)}
-            aria-label={`${seatPlace(seat, details)}, ${seat.self ? 'you' : seat.name}. ${seatTip(seat, details)}`}
+            className={`lp-tile gtip lp-${bandOfPlace(seat, details)}${on ? ' on' : ''}${seat.self && own ? ' self' : ''}`}
+            data-tip={seatTip(seat, details, own)}
+            aria-label={`${seatPlace(seat, details)}, ${seat.self && own ? 'you' : seat.name}. ${seatTip(seat, details, own)}`}
             onClick={(e) => {
               onPick(seat.self ? null : seat.id);
               // The board is above the lobby: bring it into view when the pick happens below the fold (nothing moves
@@ -145,10 +155,10 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
             }}
           >
             <span className="lp-tile-head">
-              <span className="lp-chip-portrait"><SeatPortrait heroId={seat.heroId} skins={seatSkinsOf(seat, own, showOpp)} self={!!seat.self} /></span>
+              <span className="lp-chip-portrait"><SeatPortrait heroId={seat.heroId} skins={seatSkinsOf(seat, own, showOpp)} self={!!seat.self && own} /></span>
               <span className="lp-chip-txt">
                 <span className="lp-chip-place">{seatPlace(seat, details)}<span className="lp-tile-out">{seatOut(seat, details).replace('Out in round ', 'Out R')}</span></span>
-                <span className="lp-chip-name">{seat.self ? 'You' : seat.name}</span>
+                <span className="lp-chip-name">{seatName(seat, own)}</span>
               </span>
               {seat.id === details.knockedOutBy && <span className="lp-ko" aria-hidden="true"><Icon name="sword" /></span>}
             </span>
@@ -169,7 +179,7 @@ export function useLobbyParts(details: MatchDetails | null | undefined, own: boo
   const { seat, pick } = useLobbySeat(details);
   if (!details) return { seat: null, lobby: none ?? null, extra: null, boardKey: undefined };
   const sel = seat?.id ?? null;
-  const showing = <ShowingLine seat={seat} details={details} onBack={() => pick(null)} />;
+  const showing = <ShowingLine seat={seat} details={details} onBack={() => pick(null)} own={own} />;
   return {
     seat,
     boardKey: seat?.id,

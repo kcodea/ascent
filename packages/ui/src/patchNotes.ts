@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: "Recent Games and other players' Careers: a game's lobby now names its player instead of calling them You, and the board line reads their name too. You still shows on your own games.",
+      },
+      {
+        category: 'Systems',
         text: 'The lobby rail shows shorter names for two heroes: Keshi the Protector is Keshi, and Lord of the Risen is Risen. Their full names still show everywhere else.',
       },
       {

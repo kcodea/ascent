@@ -13608,4 +13608,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-11-02 (feat/skins-batch-scribble). One name differs from its filename to pass the catalog name rules (cosmetics.test.ts): Scribble Drunk Daniel -> Scribble Daniel (20 characters max). Serverchef.png was matched to Cinderchef from its art (a tennis-playing dragon chef). Both are Claude\x27s calls for the owner to confirm. Reaches the database on the next deploy of progression-inventory.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-LOBBY-PICKER-VIEWER-01',
+    title: 'A recorded lobby calls its player You only when you are that player',
+    statement:
+      'A finished game\x27s lobby (the seat tiles under an open game, and the Showing line over its board) marks the seat of the player '
+      + 'who recorded the game. That seat reads You, and the board line Your board, only when the viewer is that player (their own Career '
+      + 'or their own row in Recent Games). Viewing anyone else\x27s game, that seat shows its recorded name like every other seat, the '
+      + 'board line reads "<name>\x27s board", Back returns to "<name>\x27s", and the seat that knocked them out says it knocked <name> out.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner critic via the lead, 2026-11-02', quote: 'viewing IonLime\x27s game labels the lobby winner "1st Winner You" and says "Showing Your board"' },
+      { kind: 'code', ref: 'packages/ui/src/matchDetails/LobbyPicker.tsx (seatName, ownerNameOf, ShowingLine own, LobbyTiles own)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-02 (fix/lobby-picker-you). Before: the recorded seat always read You and the board line Your board, whoever was viewing.',
+    example: 'VerdantBear35 opens IonLime\x27s win in Recent Games: the lobby\x27s first tile reads "1st Winner IonLime" and the board line "IonLime\x27s board". Opening his own game, his seat reads You.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/lobbyPickerViewer.test.tsx', 'packages/ui/src/ladderPages.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

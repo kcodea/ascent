@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New Legendary hero attack: Golazo. Your hero plays football and scores on the enemy hero.',
+        details: [
+          'A goal appears on the enemy hero, and every hit ends with the ball bulging the net.',
+          'Small hits are a volley after a few keepy-uppies.',
+          'Bigger hits are a corner kick. It can bend straight in, find a header, or go short for a one-two.',
+          'Big hits are a breakaway past defenders with stepovers, a nutmeg or a rainbow flick, and a slow-motion finish.',
+          'The biggest hits and knockouts are a bicycle kick in slow motion, a thunderbolt into the net and a knee slide.',
+          'With a referee whistle, the crowd and a commentator. Found in crates. Equip it in the Collection.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New Legendary hero attack: Charge the Mound. The hero being hit pitches, and your hero bats.',
         details: [
           'Small: a line drive straight back up the middle. Bonk.',

@@ -3055,7 +3055,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'attack_bleed ("Hemorrhage", Legendary, style bleed: R-PROG-ATTACK-21), joined the same day under the same fixed odds, '
       + 'making Legendary sixteen items at 0.3125% each and the thirteen attacks together 4.06%. The four Rare attacks '
       + '(attack_coin, attack_boomerang, attack_bubble, attack_backstab: R-PROG-ATTACK-28 to 32) made Rare seventeen items '
-      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29). The first attack BUILT at Ancient, attack_soul_stitch ("Soul Stitch", style stitch: R-PROG-ATTACK-34), made Ancient eleven items at 0.273% each (2026-10-02, under the 35/31/22/9/3 odds). Charge the Mound, attack_baseball (style baseball: R-PROG-ATTACK-36), joined Legendary on 2026-11-02 (Legendary 88 items, 0.102% each).',
+      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29). The first attack BUILT at Ancient, attack_soul_stitch ("Soul Stitch", style stitch: R-PROG-ATTACK-34), made Ancient eleven items at 0.273% each (2026-10-02, under the 35/31/22/9/3 odds). Charge the Mound, attack_baseball (style baseball: R-PROG-ATTACK-36), joined Legendary on 2026-11-02 (Legendary 88 items, 0.102% each). Golazo, attack_soccer (style soccer: R-PROG-ATTACK-37), joined Legendary on 2026-11-02 (Legendary 89 items, 0.101% each).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -4115,6 +4115,43 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-11-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBaseball/heroBaseball.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-PROG-ATTACK-37',
+    title: 'Golazo (attack_soccer, Legendary): the striking PORTRAIT plays football into a GOAL drawn on the struck hero: a volley / a corner kick (rolled) / a breakaway past defenders (rolled) / a slow-mo bicycle kick into an exploding net; the blow lands ONCE when the ball hits the net; the portrait is always restored',
+    statement:
+      'attack_soccer ("Golazo", a placeholder name; Legendary, crate, account-wide, style soccer): after the shared damage '
+      + 'formation (R-PROG-ATTACK-08) a referee\x27s whistle sounds and the striking hero\x27s own PORTRAIT moves (as the '
+      + 'Basketball\x27s does), with a GOAL (two posts, a crossbar and a net) drawn on the struck hero, flat 2D. Every blow ends '
+      + 'with the ball BULGING THE NET (it bursts out along the shot and springs back; the frame shakes). It escalates on the '
+      + 'shared tiers (thresholds 6 / 12 / 20; a knockout plays IV, R-PROG-ATTACK-20): I the volley (keepy-uppies where it '
+      + 'stands, a higher flick, a hop and a volley into the goal); II the corner kick (it jogs out to a CORNER FLAG on the '
+      + 'target\x27s goal line at the side with more room, sets the ball, steps back and strikes one of three corners rolled per '
+      + 'blow: the OLIMPICO, an inswinger that bends all the way in; an outswinger it sprints in to meet with a leaping '
+      + 'HEADER; or a SHORT CORNER rolled off the edge of the screen, the one-two back to it and a first-time curler); III the '
+      + 'breakaway (it dribbles up the pitch past DEFENDERS, dark tokens that lunge the wrong way and fall away, with one of '
+      + 'three skills rolled per blow: STEPOVERS, a NUTMEG that rolls the ball straight through the defender while the '
+      + 'portrait goes round, or a RAINBOW FLICK over its head; the clock eases into SLOW MOTION around the last touch and the '
+      + 'placed finish); IV the bicycle kick (keepy-uppies, a flick SKY HIGH, a sprint to the spot its shadow marks, a '
+      + 'crouch and a leap into a backward FLIP; upside down at the top, in deep SLOW MOTION (0.25x), the bicycle kick; the '
+      + 'clock eases back and runs a touch fast as a THUNDERBOLT with a fire trail rockets into the goal: the net bursts out, '
+      + 'the frame rings, an explosion, confetti, GOLAZO! and the crowd\x27s roar; then a knee slide and home). The '
+      + 'consequence (the damage, Armor, Resolve) lands exactly ONCE: when the ball hits the net; the keepy-uppies, the '
+      + 'corner, the cross, the one-two, the skills, the flick and the contact never land it or make the target react. Every '
+      + 'point the portrait visits is kept on screen and every shot lands on the struck hero\x27s centre. The striker is raised '
+      + 'over the target (the .duel-attacker-* z-order) for the whole attack, and its transform, opacity and z-order class are '
+      + 'restored exactly, and the ball, shadows, goal, flag and defenders hidden, on every exit (the end, finish, cancel, the '
+      + 'safety timer, an unmount). The variation is rolled from a stable per-blow seed (the run seed and the round), so a '
+      + 'replay rolls the same. The slow motion is a smooth ramp of the attack\x27s one clock that never reaches 0. No hit-stop '
+      + 'or freeze (R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02 (the soccer and baseball attacks, relayed by the coordinator)', quote: 'branch off and make 2 attack animations, a soccer one, and a baseball one. get creative and fun with them, like a corner kick for soccer then a breakaway etc.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_soccer); packages/ui/src/heroSoccer/ (soccerPlan / soccerCues / soccerGeo / goalLayout / poseSegs / soccerPose / soccerBall / defenderAt / goalAt / flagAt / soccerCameraAt, variantOf / soccerTimeScale / slowExtraMs, playHeroSoccer, HeroSoccerScene, heroSoccerTextures); packages/ui/src/audio/fx/soccer-*.mp3' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroSoccer/heroSoccer.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-02' },
   },
   {
     id: 'R-PROG-ATTACK-25',

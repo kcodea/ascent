@@ -82,6 +82,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The targeting banner now tells you what your pick will do.',
+        details: [
+          'Playing Baby Gastrid after spending 9 Gold reads "Select a Dwarf to grant +18 Health".',
+          'It works for Shouts, Choose One picks and two-step spells, and the number is always the one you will get right now.',
+          'The banner has a new navy and gold look.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New look for Amplified Equipment.',
         details: [
           'While your selected Equipment is Amplified, its slot glows a soft blue that slowly breathes.',

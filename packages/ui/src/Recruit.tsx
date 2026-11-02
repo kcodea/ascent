@@ -2,6 +2,7 @@ import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect
 import { catchPulse, isPassArrival, mateDoor, noteCastRelease, playDrop } from './versus/passLob';
 import { duosPassRefusal, notePassRefused, overMateFrame, passOnRelease } from './versus/duosPassUi';
 import { useDuosCombatSync } from './versus/duosCombat';
+import { targetPromptFor } from './targetPrompt';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { createOddsStepper } from './oddsStepper';
 import { compileTimeline } from './choreographer/compileTimeline';
@@ -5320,6 +5321,13 @@ export function Recruit() {
   // the Hero Power). Clicking off any warband minion is ignored (keep aiming); ending the turn first
   // auto-resolves on the carry in the reducer, so the play is never stranded.
   const pendingTarget = run.pendingTarget;
+  // The targeting pill's text: "Select a <noun> to <what the pick does>", read off the pending card's live view.
+  const pendingView = pendingTarget ? (boardViews.get(pendingTarget.uid) ?? handViews.get(pendingTarget.uid)) : undefined;
+  const pendingShown = pendingView ? (pendingView.golden ? (pendingView.goldenText ?? pendingView.text) : pendingView.text) : undefined;
+  const targetPromptSegs = useMemo(
+    () => (pendingTarget ? targetPromptFor(run, pendingShown, spellBonus, spellBonusH) : null),
+    [pendingTarget, run, pendingShown, spellBonus, spellBonusH],
+  );
   // Which board minions are valid picks for the pending targeted Battlecry — all friends for an
   // unrestricted pick (no targetTribe), or only the required tribe (never self) for a restricted one
   // (Toxin Tender → Undead).
@@ -8949,9 +8957,10 @@ export function Recruit() {
 
       {/* Targeted-Battlecry prompt: a played Toxin Tender waits for you to pick the friendly minion
           its grant lands on (click a warband minion; ending the turn auto-targets the carry). */}
-      {pendingTarget && !inCombat && (
+      {/* It says what the pick will DO, at its live value (owner ask 2026-11-01): "Select a Dwarf to grant +18 Health". */}
+      {pendingTarget && !inCombat && targetPromptSegs && (
         <div className="targetprompt" aria-live="polite">
-          Choose a minion for {CARD_INDEX[pendingTarget.cardId]?.name ?? 'this'}&rsquo;s Shout
+          {targetPromptSegs.map((seg, i) => (seg.tone ? <b key={i} className={`tp-${seg.tone}`}>{seg.t}</b> : <span key={i}>{seg.t}</span>))}
         </div>
       )}
 

@@ -57,12 +57,13 @@ import { withAbandonWarning } from '../rank/ratedRun';
 import { PhTopNav } from './shell/PhTopNav';
 import { PhBackdrop } from './shell/PhBackdrop';
 import { PhFriends } from './shell/PhFriends';
-import { addSampleInvite, clearSampleInvites, pulseFriends, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
-import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhLeaderBadge, PhTabs, phNum } from './kit';
+import { addSampleInvite, clearSampleInvites, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
+import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhField, PhLeaderBadge, PhTabs, phNum } from './kit';
 import { GauntletPanel, PracticePanel, VersusPanel, stagePlayable, useGauntletStages } from './ModeOptions';
 import { partyModeOf, partyModes, readPartyMode, rememberPartyMode, type PartyMode, type PartyModeId } from './partyModes';
 import { setPartyDemo, usePartyDemo } from './partyHomeFlag';
 import { SAMPLE_MATE_ID, sampleFriends, sampleHeroes } from './sample';
+import { playerVersusError } from './versusCopy';
 import './partyHome.css';
 
 /** One banner card's contents. */
@@ -166,6 +167,10 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const mode = partyModeOf(modeId);
   const pick = (id: PartyModeId): void => { sfx.pulse(); setLockNote(null); setPicked(id); rememberPartyMode(id); };
   const [lockNote, setLockNote] = useState<string | null>(null);
+  // A locked tab's reason shows as a brief toast under the tabs, then the line returns to the mode's description.
+  useEffect(() => { if (!lockNote) return undefined; const t = window.setTimeout(() => setLockNote(null), 2600); return () => window.clearTimeout(t); }, [lockNote]);
+  const [demoTeam, setDemoTeam] = useState<string | null>(null);
+  const [confirmOverwrite, setConfirmOverwrite] = useState<null | (() => void)>(null);
   const slots = Math.max(mode.slots, members.length);
   const open = slots - members.length;
 
@@ -195,6 +200,8 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       onStart = () => onRankedStart('duos', () => { void startGame(); });
       break;
     case 'versus': case 'group': case 'vduos': {
+      // Holding a room already: START returns to it (the plate above says so too).
+      if (versusRoom) { startLabel = 'Return'; onStart = () => openVersus('versus'); break; }
       // Host a room with the tab's mode and the picked modifier; the room screen opens only once the room exists.
       const vmode = mode.id === 'versus' ? 'duel' : mode.id === 'group' ? 'group' : 'duos';
       onStart = () => { void hostVersus({ v: 1, mode: vmode, modifiers: modifier ? [modifier] : [] } as VersusRoomOptions, playerName, mode.label); };
@@ -217,19 +224,33 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     case 'learn': onStart = () => startTutorial(LEARN_ASCENT); break;
   }
 
-  if (savedRun && !note && (mode.id === 'practice' || mode.id === 'gauntlet' || mode.id === 'learn' || mode.id === 'ranked')) {
-    note = withAbandonWarning('Start replaces your saved game.', savedRun);
+  // A saved game waiting: Start asks first (Ranked's own confirmation already names it).
+  if (savedRun && (mode.id === 'practice' || mode.id === 'gauntlet' || mode.id === 'learn')) {
+    const go = onStart;
+    onStart = () => setConfirmOverwrite(() => go);
   }
 
   // ── THE ONE FRIENDS LIST's Invite for this mode (shell/shellStore) ──
   const account = friendsAccount();
   const takesParty = mode.id === 'duos';
   const full = members.length + (demo ? sampleInvites.length : 0) >= mode.slots;
-  const canInvite = !full && (demo ? takesParty || mode.party === 'team' : takesParty && account && remoteEnabled() && !inGame);
+  const takesFriends = takesParty || mode.party === 'rivals';
+  const canInvite = !full && (demo ? takesFriends : takesFriends && account && remoteEnabled() && !inGame);
   const memberIds = members.map((m) => m.userId).filter((x): x is string => !!x && x !== me);
   const sendRef = useRef<(f: Friend) => void>(() => undefined);
   sendRef.current = (f: Friend): void => {
     if (demo) { sfx.pulse(); addSampleInvite(f.userId); return; }
+    if (mode.party === 'rivals') {
+      // Versus: host the room (with the rules set here) if none is held, then invite into it.
+      sfx.pulse();
+      const vmode = mode.id === 'versus' ? 'duel' : mode.id === 'group' ? 'group' : 'duos';
+      void (async () => {
+        let r = useVersus.getState().room;
+        if (!r || isDuosParty(r)) { await hostVersus({ v: 1, mode: vmode, modifiers: modifier ? [modifier] : [] } as VersusRoomOptions, playerName, mode.label, false); r = useVersus.getState().room; }
+        if (r && !isDuosParty(r)) await inviteFriend(f.userId, 'versus_room', versusRoomRef(r));
+      })();
+      return;
+    }
     if (!takesParty) return;
     sfx.pulse();
     void (async () => {
@@ -239,9 +260,9 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       if (r && isDuosParty(r)) await inviteFriend(f.userId, 'duos_party', versusRoomRef(r));
     })();
   };
-  const inviteReason = full && takesParty ? 'Your party is full.'
-    : takesParty ? null
-    : mode.party === 'rivals' ? 'Start hosts the room. Invite friends from it.' : `${mode.label} is solo. Pick Ranked Duos to play with a friend.`;
+  const inviteReason = full && takesFriends ? (takesParty ? 'Your party is full.' : 'Every seat is taken.')
+    : takesFriends ? null
+    : `${mode.label} is solo. Pick Ranked Duos to play with a friend.`;
   useEffect(() => {
     setPhInvite({ can: !!canInvite, reason: inviteReason, members: memberIds, modeLabel: mode.label, send: (f) => sendRef.current(f) });
   }, [canInvite, inviteReason, memberIds.join(','), mode.label]);
@@ -269,13 +290,12 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const friendsOpen = usePhShell((s) => s.friendsOpen);
   const onOpenSeat = (): void => {
     sfx.pulse();
-    if (!demo && (!remoteEnabled() || !account)) { pulseFriends(phone); setSeatNote(remoteEnabled() ? 'Sign in to invite friends.' : 'Invites need the online service.'); return; }
-    if (!canInvite) { pulseFriends(phone); setSeatNote(inviteReason); return; }
+    // The picker always opens: it lists who you can invite, or says plainly why not (signed out, offline, full).
     setPickerOpen(true);
   };
 
   const pair = duosRoom ? partyPair(duosRoom) : null;
-  const teamLabel = pair ? teamName ?? defaultTeamName(pair[0].name, pair[1].name) : demo && mode.id === 'duos' ? defaultTeamName(members[0]!.name, 'Mike') : null;
+  const teamLabel = pair ? teamName ?? defaultTeamName(pair[0].name, pair[1].name) : demo && mode.id === 'duos' ? demoTeam ?? defaultTeamName(members[0]!.name, 'Mike') : null;
 
   const cardMenu = (m: Member): { label: string; run?: () => void; soon?: boolean }[] => (m.self
     ? [{ label: 'Change portrait', run: () => openAvatarPicker() }, { label: 'View Career', run: () => goTo('career') }]
@@ -288,14 +308,16 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   // every name and medal line sits at the same height across the cards.
   const stateOf = (m: Member): 'show' | 'space' | 'none' => (!m.self || m.state === 'in_game' ? 'show' : members.length > 1 ? 'space' : 'none');
   const cards: JSX.Element[] = members.map((m, i) => (
-    <BannerCard key={m.key} m={m} i={i} phone={phone} leader={showLeader && m.leader} showState={stateOf(m)}
+    <BannerCard key={m.key} m={m} i={i} phone={phone} leader={showLeader && m.leader} showState={stateOf(m)} rival={mode.party === 'rivals' && !m.self && mode.id !== 'vduos'}
       menuOpen={menuFor === m.key} onToggleMenu={() => { sfx.pulse(); setMenuFor((k) => (k === m.key ? null : m.key)); }}
       menu={cardMenu(m)} onPick={(run) => { sfx.pulse(); setMenuFor(null); run(); }} />
   ));
   const pendingNames = demo ? sampleInvites.map((id) => sampleFriends().find((f) => f.userId === id)?.author ?? 'Friend') : [];
   for (let i = 0; i < open; i++) cards.push(<OpenSeat key={`open-${i}`} i={members.length + i} onOpen={onOpenSeat} pending={pendingNames[i] ?? null} />);
   // VERSUS DUOS: two pairs (your team, the rivals), split by the VS mark.
-  const row: JSX.Element[] = mode.id === 'vduos' && cards.length === 4
+  const row: JSX.Element[] = mode.id === 'versus' && cards.length === 2
+    ? [cards[0]!, <span key="vs" className="ph-vs" aria-hidden="true">VS</span>, cards[1]!]
+    : mode.id === 'vduos' && cards.length === 4
     ? [
         <div key="a" className="ph-pair"><span className="ph-pairlbl mine">Your team</span><div className="ph-pairrow">{cards.slice(0, 2)}</div></div>,
         <span key="vs" className="ph-vs" aria-hidden="true">VS</span>,
@@ -309,6 +331,8 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
         {inParty && !inGame && (
           <PhButton onClick={() => { sfx.pulse(); if (duosRoom) void leaveDuosParty(); else setPartyDemo(false); }}>Leave party</PhButton>
         )}
+        {/* On a phone the saved game's Continue sits here (the head row stays slim). */}
+        {savedRun && !inParty && <PhButton size="s" variant="primary" className="ph-phonecontinue" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>}
       </div>
       <button type="button" className="ph-start" disabled={!startOk} onClick={() => { if (!startOk) return; sfx.pulse(); onStart(); }}>
         <span>{startLabel}</span>
@@ -337,7 +361,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     <aside className={`ph-sidepanel${phone ? ' drawer' : ''}`} aria-label="Side panel">
       <div className="ph-sidetabs">
         <PhTabs label="Panel" value={tab} onChange={(t) => { sfx.pulse(); setSideTab(t); }}
-          tabs={[{ id: 'friends' as const, label: 'Friends' }, ...(settings ? [{ id: 'settings' as const, label: <span className="ph-settab">{settingsTitle}{tab === 'friends' && <i className="ph-tabdot" aria-label="Has settings" />}</span> }] : [])]} />
+          tabs={[{ id: 'friends' as const, label: 'Friends' }, ...(settings ? [{ id: 'settings' as const, label: <span className="ph-settab">{settingsTitle}</span> }] : [])]} />
         {phone && <button type="button" className="ph-iconbtn ph-fclose" aria-label="Close" onClick={() => { sfx.pulse(); setFriendsOpen(false); }}><Icon name="chevron" /></button>}
       </div>
       {tab === 'friends' ? <PhFriends docked embedded /> : settings}
@@ -352,7 +376,8 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       <div className="ph-modes">
         <PhTabs label="Mode" value={modeId} onChange={pick} onLocked={(_id, reason) => { sfx.deny(); setLockNote(reason); }}
           tabs={modes.map((m) => ({ id: m.id, label: <ModeLabel id={m.id} label={m.label} />, reason: lockReason(m) ?? undefined }))} />
-        <span className={`ph-desc${lockNote ? ' locked' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? mode.desc}</span>
+        <span className="ph-desc">{mode.desc}</span>
+        {lockNote && <span key={lockNote} className="ph-toast" role="status">{lockNote}</span>}
       </div>
 
       <main className="ph-stage" key={enterKey}>
@@ -363,7 +388,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
             <span className="ph-teamlbl">Your team</span>
             <span className="ph-teamname">{teamLabel}</span>
             {!inGame && (duosRoom ? account : demo) && (
-              <PhButton variant="plate" size="s" aria-label="Rename team" onClick={() => { sfx.pulse(); if (duosRoom) setNameOpen(true); }}>Rename</PhButton>
+              <PhButton variant="plate" size="s" aria-label="Rename team" onClick={() => { sfx.pulse(); setNameOpen(true); }}>Rename</PhButton>
             )}
           </div>
         )}
@@ -371,7 +396,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
           <div className="ph-held">
             {savedRun && (
               <div className="ph-heldrow">
-                <span className="ph-heldtxt"><b>Saved game</b><span>{titleContinueNote(savedRun.wave)}</span></span>
+                <span className="ph-heldtxt"><b>Saved game</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>
                 <PhButton variant="primary" size="s" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>
               </div>
             )}
@@ -387,7 +412,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
         </div>
         <div className={`ph-cards n${slots}${mode.id === 'vduos' ? ' vs' : ''}`} key={mode.id}>{row}</div>
         {actions}
-        {vsError && <div className="ph-err" role="alert">{vsError}</div>}
+        {vsError && <div className="ph-err" role="alert">{playerVersusError(vsError)}</div>}
       </main>
 
       {!phone && side}
@@ -396,6 +421,16 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       {menuFor && <div className="ph-menucatch" aria-hidden="true" onPointerDown={() => setMenuFor(null)} />}
       {pickerOpen && <InvitePicker onClose={() => setPickerOpen(false)} />}
       {nameOpen && duosRoom && <TeamNamePanel room={duosRoom} me={me} name={teamName} onSaved={setTeamName} onClose={() => setNameOpen(false)} />}
+      {nameOpen && !duosRoom && demo && <SampleRename name={teamLabel ?? ''} onSave={(n) => { setDemoTeam(n || null); setNameOpen(false); }} onClose={() => setNameOpen(false)} />}
+      {confirmOverwrite && savedRun && (
+        <PhDialog label="Replace your saved game?" eyebrow="Saved game" title="Start a new game?" onClose={() => setConfirmOverwrite(null)}
+          actions={<>
+            <PhButton variant="primary" size="l" onClick={() => { sfx.pulse(); const go = confirmOverwrite; setConfirmOverwrite(null); go(); }}>Start new game</PhButton>
+            <PhButton size="l" onClick={() => { sfx.pulse(); setConfirmOverwrite(null); }}>Keep it</PhButton>
+          </>}>
+          <p>{withAbandonWarning(`This replaces your saved game (${savedRunMode(savedRun)}, ${titleContinueNote(savedRun.wave)}).`, savedRun)}</p>
+        </PhDialog>
+      )}
       {duosRoom && <DuosResultOverlay />}
     </div>
   );
@@ -416,13 +451,33 @@ function ModeLabel({ id, label }: { id: PartyModeId; label: string }): JSX.Eleme
 }
 
 /** Versus: host a room, set its rules, then show the room screen. A failure stays on the home and says why. */
-async function hostVersus(options: VersusRoomOptions, playerName: string, modeLabel: string): Promise<void> {
+/** A saved run's mode, in player words. */
+function savedRunMode(run: { mode?: string } | null | undefined): string {
+  const m = run?.mode;
+  return m === 'lobby' ? 'Ranked' : m === 'practice' ? 'Practice' : m === 'tutorial' ? 'Learn' : m === 'gauntlet' ? 'Gauntlet' : m === 'versus' ? 'Versus' : 'Game';
+}
+
+/** The sample party's Rename: a small window with the team name field (DEV, no server). */
+function SampleRename({ name, onSave, onClose }: { name: string; onSave: (n: string) => void; onClose: () => void }): JSX.Element {
+  const [v, setV] = useState(name);
+  return (
+    <PhDialog label="Team name" eyebrow="Your team" title="Team name" onClose={onClose}
+      actions={<>
+        <PhButton variant="primary" size="l" onClick={() => { sfx.pulse(); onSave(v.trim()); }}>Save</PhButton>
+        <PhButton size="l" onClick={() => { sfx.pulse(); onClose(); }}>Cancel</PhButton>
+      </>}>
+      <PhField label="Name" value={v} maxLength={16} autoFocus onChange={(e) => setV(e.target.value)} hint="2 to 16 letters or numbers. Either teammate can rename between games." />
+    </PhDialog>
+  );
+}
+
+async function hostVersus(options: VersusRoomOptions, playerName: string, modeLabel: string, show = true): Promise<void> {
   const who = playerName.trim();
   await createRoom((who ? `${who}'s ${modeLabel}` : modeLabel).slice(0, 40));
   if (!useVersus.getState().room) return;
   await setRoomOptions(options);
   await takeSeat('p1'); // the host sits in the first seat (a room opens with its host in the stands)
-  openVersus('versus');
+  if (show) openVersus('versus');
 }
 
 /** The invite picker an open seat opens: the online friends with Invite (the one friends list, in a window). */
@@ -437,8 +492,8 @@ function InvitePicker({ onClose }: { onClose: () => void }): JSX.Element {
 
 /** A member's tall banner card: the portrait fading into navy, then name, medal, title or level, and (others) the state.
  *  Pressing it opens its small menu. */
-function BannerCard({ m, i, phone, leader, showState, menuOpen, onToggleMenu, menu, onPick }: {
-  m: Member; i: number; phone: boolean; leader: boolean; showState: 'show' | 'space' | 'none'; menuOpen: boolean; onToggleMenu: () => void;
+function BannerCard({ m, i, phone, leader, showState, rival, menuOpen, onToggleMenu, menu, onPick }: {
+  m: Member; i: number; phone: boolean; leader: boolean; showState: 'show' | 'space' | 'none'; rival?: boolean; menuOpen: boolean; onToggleMenu: () => void;
   menu: { label: string; run?: () => void; soon?: boolean }[]; onPick: (run: () => void) => void;
 }): JSX.Element {
   const art = phone ? heroThumb(m.art) : m.art;
@@ -453,7 +508,7 @@ function BannerCard({ m, i, phone, leader, showState, menuOpen, onToggleMenu, me
     </div>
   ) : null;
   return (
-    <PhBanner art={art} index={i} badge={leader ? <PhLeaderBadge /> : undefined} onClick={onToggleMenu} label={`${m.self ? 'You' : m.name}. Options`}
+    <PhBanner art={art} index={i} className={rival ? 'rival' : undefined} badge={leader ? <PhLeaderBadge /> : undefined} onClick={onToggleMenu} label={`${m.self ? 'You' : m.name}. Options`}
       haspopup expanded={menuOpen} overlay={overlay}>
             <PhBannerName>{m.name}</PhBannerName>
             <span className="ph-rank">

@@ -1,3 +1,4 @@
+import { partyHomeOn, setPartyHome } from './partyHome/partyHomeFlag';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from './Icon';
 import { useDevCornerSlot } from './friends/dock/FriendsDock';
@@ -407,6 +408,9 @@ export function DevMenu() {
     { id: 'perfscreen', icon: '📈', label: 'Perf Analytics',
       hint: 'Findings, per-phase breakdown, jank timeline and run-over-run comparison — plus a report to paste to Claude',
       run: () => { useGame.getState().openPerf(); } },
+    { id: 'partyhome', icon: '🎉', label: 'Party home (prototype)',
+      hint: 'The Valorant-style party home as the main screen: big party cards, mode tabs, Start, friends docked. Off by default; remembered on this machine',
+      run: () => setPartyHome(!partyHomeOn()), live: () => partyHomeOn() },
     { id: 'testfx', icon: '✨', label: 'Test FX', hint: 'Fire the spell-power flourish once on the board', run: () => pixiFx.test() },
     { id: 'testcrit', icon: '⚡', label: 'Test Crit', hint: 'Fire the critical-strike flourish once', run: () => pixiFx.testCrit() },
     { id: 'testflurry', icon: '🌬️', label: 'Test Flurry', hint: 'Fire the flurry wind-slash once', run: () => pixiFx.testFlurry() },

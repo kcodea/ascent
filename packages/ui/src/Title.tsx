@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AscentLogo } from './AscentLogo';
 import { LEARN_ASCENT } from '@game/sim';
 import { avatarSrc, modeArt } from './art';
@@ -43,6 +43,11 @@ import { scalarCaption } from './rank/rankFormat';
 import { crumb, crumbTrail } from './crashLog';
 import { MenuViewSwap } from './MenuViewSwap';
 import { PracticeOptions } from './PracticeOptions';
+import { usePartyHome } from './partyHome/partyHomeFlag';
+
+/** THE PARTY HOME PROTOTYPE (DEV only, owner 2026-11-02; partyHome/PartyHome.tsx). Lazy, and `null` in a production build,
+ *  so the shipped bundle never carries it. */
+const PartyHome = import.meta.env.DEV ? lazy(() => import('./partyHome/PartyHome')) : null;
 
 /** The mode screen's views (`MenuViewSwap`): the home, its sub-views, Practice's setup, and the Versus room's empty
  *  ground (the room is its own stage over it). */
@@ -113,6 +118,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // SOLO / DUO: the Ranked card's switch (playParty.tsx); its PLAY reads it.
   const party = usePlayParty();
   const practiceOpen = useGame((s) => s.practiceSetupOpen);
+  // THE PARTY HOME PROTOTYPE (DEV switch, off by default): it takes the main menu, the mode screen and the Duos party.
+  const partyHomeFlag = usePartyHome();
   // The portrait-frames tuner's ring for your own avatar corner (null = today's copper ring).
   const avatarFrame = usePortraitFrame('self');
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
@@ -161,6 +168,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const [rankedConfirm, setRankedConfirm] = useState<'open' | 'closing' | null>(null);
   // Which ranked door the confirmation answers: the solo lobby (Play) or the Ranked Duos play area (owner 2026-10-26).
   const [confirmKind, setConfirmKind] = useState<'solo' | 'duos'>('solo');
+  // The party home prototype's START (DEV): what "Yes" does instead of the default (a Duos party's leader starts its game).
+  const confirmThen = useRef<(() => void) | null>(null);
   const rankedCloseTimer = useRef<number | null>(null);
   useEffect(() => () => { if (rankedCloseTimer.current != null) window.clearTimeout(rankedCloseTimer.current); }, []);
   // A GUEST's portrait click opens the portrait sign-in gate, not the avatar picker (owner 2026-09-29: "don't let
@@ -195,8 +204,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // once before the real game, rather than dropping them in cold.
   const learnStatus = getCourseProgress(LEARN_ASCENT.id)?.status;
   const isNewPlayer = !learnStatus || learnStatus === 'not_started';
-  const openRankedConfirm = (kind: 'solo' | 'duos' = 'solo'): void => {
+  const openRankedConfirm = (kind: 'solo' | 'duos' = 'solo', then: (() => void) | null = null): void => {
     if (rankedCloseTimer.current != null) { window.clearTimeout(rankedCloseTimer.current); rankedCloseTimer.current = null; }
+    confirmThen.current = then;
     setConfirmKind(kind);
     setRankedConfirm('open');
     warmRankedGate(); // the gate "Yes" plays: its art, cues and FX layer are ready before the answer
@@ -219,6 +229,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     // plain menu click here. (The cinematic hit that played here on 2026-10-12 moved to the crystal's shatter.)
     sfx.combatStart();
     closeRankedConfirm();
+    const then = confirmThen.current;
+    confirmThen.current = null;
+    if (then) { then(); return; }
     // RANKED DUOS: "Yes" puts me in my party room (owner 2026-10-26); the gate plays when the party starts its game.
     if (confirmKind === 'duos') { void enterDuosParty(defaultPartyName(playerName)); return; }
     // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the table is picked behind the shut doors, before the offer. The
@@ -309,6 +322,15 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     : titleView === 'versus' && versusArea === 'duos' ? (versusScreen === 'room' ? 'duos-party' : 'duos')
     : titleView === 'versus' && versusScreen === 'room' ? 'versus-room'
     : titleView;
+  // THE PARTY HOME PROTOTYPE (DEV only): with the switch on, the main menu, the mode screen and the Ranked Duos party are
+  // all ONE screen (partyHome/PartyHome.tsx). Learn, Gauntlet, Practice's setup and the Versus rooms keep their views.
+  const partyView = !!PartyHome && partyHomeFlag && !practiceOpen
+    && (titleView === 'menu' || titleView === 'modes' || (titleView === 'versus' && versusArea === 'duos'));
+  const partyStart = (kind: 'solo' | 'duos', then?: () => void): void => {
+    crumb('party home start pressed');
+    if (kind === 'solo' && isNewPlayer) { setTutorialPrompt(true); return; }
+    openRankedConfirm(kind, then ?? null);
+  };
   // One view's content, the `.mpbox` beside the sidebar (`MenuViewSwap` also renders the outgoing one with it).
   const renderShellView = (v: ShellView): ReactNode => {
     switch (v) {
@@ -419,6 +441,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           current RANK in a badge beneath. Sign in / Sign out live in Settings now. Sizes + offsets are the
           👤 Title Account dev tuner's `--ta-*` vars (see titleAccountConfig.ts). No `data-tip` on `.portring`
           itself — its ::after IS the ring; the tip rides the wrapping button. */}
+      {partyView && PartyHome && (
+        <Suspense fallback={null}><PartyHome onSettings={onSettings} onRankedStart={partyStart} /></Suspense>
+      )}
+      {!partyView && <>
       <div className="titleaccount ta-card">
         {/* GUEST SIGN-IN (owner 2026-09-29): a slow-blinking "Sign in!" left of the portrait, guests only. */}
         <GuestSignInButton />
@@ -484,9 +510,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       </div>
 
+      </>}
       <PortraitSignInGate open={portraitGate} onClose={closePortraitGate} />
 
-      <div className="titlemenu">
+      {!partyView && <div className="titlemenu">
         {/* The lockup is shared with hero select — see `AscentLogo`. `.titlelogo` keeps ALL of this screen's
             sizing, offset and float (the 🏔️ tuner's `--title-*` vars); the component itself is markup only. */}
         <AscentLogo className="titlelogo" />
@@ -564,7 +591,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           </button>
         </nav>
 
-      </div>
+      </div>}
 
       {/* THE MODE SCREEN (owner 2026-10-21, R-MENU-VIEW-SWAP-01: "it should be a clean, seamless menu shift going into
           the different views"). ONE host for the mode home AND its views (Practice, Gauntlet, Learn, the Versus browser):
@@ -573,7 +600,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           only). Each view used to be its own full-screen host over the home: the home's content remounted and replayed
           its entrance under it while the new host faded in whole, which flashed the mode tiles through (Gauntlet, Learn,
           Versus); and Practice closed the whole title and mounted its own host, a full fade out and in. */}
-      {shellView && (
+      {shellView && !partyView && (
         <SidebarHost className="modepick sb-host mp-shell" role="dialog" aria-label={SHELL_LABEL[shellView]}>
           <MenuSidebar current="modes" />
           {/* The home is keyed on the nav stamp (owner 2026-10-16: "the cards dont fade/slide in when going to play
@@ -583,7 +610,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </SidebarHost>
       )}
       {/* VERSUS ROOM (versus/VersusRoom.tsx): its own arena stage over the mode screen (whose content is empty under it). */}
-      {(shellView === 'versus-room' || shellView === 'duos-party') && <VersusRoom />}
+      {(shellView === 'versus-room' || shellView === 'duos-party') && !partyView && <VersusRoom />}
 
       {/* TUTORIAL NUDGE — a new player who hits Play is offered the guided course first (owner 2026-08-17:
           the nudge lives here, not on an auto-popup). Either choice retires it: "Start Playing" records a
@@ -630,7 +657,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
       {/* The corner footer: the reporter and the other small links, then the build stamp. Bottom left, clear of the
           Compendium + help buttons in the bottom-right corner (they overlapped the stamp before). */}
-      <div className="titlefoot">
+      {!partyView && <div className="titlefoot">
         {/* Secondary links under the plaques: the reporter, the DEV balance report and the last replay. The
             Compendium link left here on 2026-09-21 (owner: "not important" on the title); it is still Tab. */}
         <div className="titlesecondary">
@@ -658,7 +685,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         {/* Version + the exact commit the bundle was built from (`*` = built on a dirty tree, so NOT that commit).
             This is how a player and `git log` agree on which build is running — read it off the exe. */}
         <div className="titleversion" aria-description={`built ${__BUILD_DATE__}`}>v{__APP_VERSION__} · {__BUILD_SHA__}{__BUILD_DIRTY__ ? '*' : ''}</div>
-      </div>
+      </div>}
     </div>
   );
 }

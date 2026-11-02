@@ -1,0 +1,235 @@
+/* ── THE PARTY HOME, A PROTOTYPE (owner 2026-11-02; DEV only, PartyHome.tsx) ─────────────────────────────────────────────
+   Style direction (owner, same day): the Docked lobby rail. Navy plates (`--pill-plate`), thin gold edges (`--pill-edge`),
+   clean-cut slices (cut corners, slanted ends), portrait art fading into navy, big bold white title-font names with the
+   rail's layered dark shadow (`--pill-text-shadow`), small muted secondary text, the podium gold on START, the teal YOU
+   chip. Valorant's menu + party layout: nav tabs across the top, mode tabs under them, the party's tall cards in the
+   centre, START bottom centre, friends docked on the right.
+
+   Every size is `N * var(--u)`: 1 px on desktop (the layout never goes below 1920 x 1080, stage.ts), screen points on a
+   phone (`--pt`, phoneMenus.css), where the cards take the height left between the bars.
+   PERFORMANCE: static paint. Motion is one-shot transform / opacity only (the cards rise in; hover lifts). No looping
+   animation, no backdrop-filter. No `cursor` here: the global rule paints the gauntlet (CLAUDE.md). */
+
+.ph {
+  --u: 1px;
+  --cut: calc(22 * var(--u));
+  --gold: var(--pill-edge, #c8953f);
+  --navy: var(--pill-navy, #0d1a36);
+  --teal: #2fd3e0;
+  --muted: color-mix(in srgb, var(--ui-muted, #c6b8d8) 55%, #9fb2d6);
+  --fw: calc(360 * var(--u)); /* the friends column */
+  position: absolute; inset: 0; z-index: 3; overflow: hidden;
+  display: grid; grid-template-rows: auto auto 1fr; grid-template-columns: 1fr var(--fw);
+  font-family: var(--font-ui), sans-serif; color: var(--pill-text, #fff1d6);
+  background: var(--navy);
+}
+.ph > .mbd { z-index: 0; }
+/* A calm navy grade over the painted hall: dark at the top and bottom bars, open in the middle where the cards stand. */
+.ph-veil { position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(6, 12, 28, 0.86) 0%, rgba(6, 12, 28, 0.35) 22%, rgba(6, 12, 28, 0.2) 55%, rgba(6, 12, 28, 0.9) 100%),
+    radial-gradient(70% 60% at 42% 52%, transparent 0%, rgba(4, 8, 20, 0.55) 100%); }
+
+/* ── THE NAV BAR ── */
+.ph-top { position: relative; z-index: 2; grid-column: 1 / -1; display: flex; align-items: stretch; gap: calc(8 * var(--u));
+  height: calc(68 * var(--u)); padding: 0 calc(20 * var(--u)) 0 calc(24 * var(--u) + var(--safe-l, 0px));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--navy) 92%, #000) 0%, color-mix(in srgb, var(--navy) 86%, transparent) 100%);
+  box-shadow: inset 0 calc(-1 * var(--u)) 0 color-mix(in srgb, var(--gold) 55%, transparent), 0 calc(6 * var(--u)) calc(18 * var(--u)) rgba(0, 0, 0, 0.45); }
+.ph-brand { display: flex; align-items: center; gap: calc(10 * var(--u)); padding: 0 calc(18 * var(--u)) 0 0; margin: 0; border: 0; background: none; color: #fff;
+  box-shadow: inset calc(-1 * var(--u)) 0 0 color-mix(in srgb, var(--gold) 30%, transparent); }
+.ph-brand img { width: calc(40 * var(--u)); height: calc(40 * var(--u)); object-fit: contain; }
+.ph-brand span { font-family: var(--title-font, var(--font-title)); font-weight: 800; font-size: calc(24 * var(--u)); letter-spacing: 0.12em; text-shadow: var(--pill-text-shadow); }
+.ph-nav { display: flex; align-items: stretch; gap: 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.ph-nav::-webkit-scrollbar { display: none; }
+.ph-navtab { position: relative; display: flex; align-items: center; gap: calc(8 * var(--u)); padding: 0 calc(16 * var(--u)); margin: 0; border: 0; border-radius: 0; background: none;
+  font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap;
+  color: var(--muted); text-shadow: var(--pill-text-shadow); }
+.ph-navtab:hover { color: #fff; }
+.ph-navtab.on { color: #fff; }
+.ph-navtab.on::after { content: ''; position: absolute; left: calc(12 * var(--u)); right: calc(12 * var(--u)); bottom: 0; height: calc(3 * var(--u));
+  background: linear-gradient(90deg, var(--ui-edge-deep, #7a571f), var(--ui-edge-hi, #ffe9b0), var(--ui-edge-deep, #7a571f)); }
+.ph-navicon { width: calc(24 * var(--u)); height: calc(24 * var(--u)); flex: none; }
+.ph-navicon svg, .ph-navicon img { width: 100%; height: 100%; }
+.ph-dot { width: calc(8 * var(--u)); height: calc(8 * var(--u)); border-radius: 50%; background: var(--pill-red, #ff7a66); box-shadow: 0 0 0 calc(1.5 * var(--u)) var(--navy); margin-left: calc(-4 * var(--u)); align-self: flex-start; margin-top: calc(18 * var(--u)); }
+.ph-wallet { margin-left: auto; display: flex; align-items: center; gap: calc(14 * var(--u)); padding-right: var(--safe-r, 0px); }
+.ph-coin, .ph-lv { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); height: calc(38 * var(--u)); padding: 0 calc(14 * var(--u));
+  background: var(--pill-well); box-shadow: inset 0 0 0 calc(1 * var(--u)) var(--pill-hair);
+  clip-path: polygon(calc(8 * var(--u)) 0, 100% 0, calc(100% - calc(8 * var(--u))) 100%, 0 100%); }
+.ph-coin b, .ph-lvnum { font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(19 * var(--u)); color: #fff; text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
+.ph-aether { width: calc(22 * var(--u)); height: calc(22 * var(--u)); }
+.ph-lvnum small { font-size: 0.62em; color: var(--muted); margin-right: calc(3 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; }
+.ph-lvbar { position: relative; width: calc(84 * var(--u)); height: calc(5 * var(--u)); background: rgba(0, 0, 0, 0.55); overflow: hidden; }
+.ph-lvbar > span { position: absolute; inset: 0; transform-origin: left; background: linear-gradient(90deg, var(--ui-edge-main, #c8953f), var(--pill-gold, #f6cf5a)); }
+.ph-iconbtn { display: grid; place-items: center; width: calc(42 * var(--u)); height: calc(42 * var(--u)); padding: 0; margin: 0; border: 0; border-radius: 0; background: none; color: var(--muted); }
+.ph-iconbtn:hover { color: #fff; }
+.ph-iconbtn svg { width: calc(20 * var(--u)); height: calc(20 * var(--u)); }
+
+/* ── THE MODE TABS ── */
+.ph-modes { position: relative; z-index: 2; grid-column: 1; display: flex; justify-content: center; gap: calc(4 * var(--u));
+  padding: calc(14 * var(--u)) calc(20 * var(--u)) 0; overflow-x: auto; scrollbar-width: none; }
+.ph-modes::-webkit-scrollbar { display: none; }
+.ph-mode { position: relative; flex: none; padding: calc(10 * var(--u)) calc(18 * var(--u)) calc(12 * var(--u)); margin: 0; border: 0; border-radius: 0;
+  background: color-mix(in srgb, var(--navy) 55%, transparent);
+  font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap;
+  color: var(--muted); text-shadow: var(--pill-text-shadow);
+  clip-path: polygon(calc(10 * var(--u)) 0, 100% 0, calc(100% - calc(10 * var(--u))) 100%, 0 100%); }
+.ph-mode:hover:not(:disabled) { color: #fff; background: color-mix(in srgb, var(--navy) 80%, transparent); }
+.ph-mode.on { color: #fff; background: var(--pill-plate); }
+.ph-mode.on::after { content: ''; position: absolute; left: calc(12 * var(--u)); right: calc(12 * var(--u)); bottom: 0; height: calc(3 * var(--u)); background: var(--pill-gold, #f6cf5a); }
+.ph-mode.locked { opacity: 0.4; }
+
+/* ── THE STAGE: heading, cards, actions ── */
+.ph-stage { position: relative; z-index: 1; grid-column: 1; min-height: 0; display: grid; grid-template-rows: auto 1fr auto; justify-items: center;
+  padding: calc(18 * var(--u)) calc(24 * var(--u)) calc(26 * var(--u) + var(--safe-b, 0px)) calc(24 * var(--u) + var(--safe-l, 0px)); }
+.ph-head { display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--u)); text-align: center; }
+.ph-eyebrow { font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ui-title, #ffd98a); text-shadow: var(--pill-text-shadow); }
+.ph-title { font-family: var(--font-disp, var(--font-title)); font-weight: 900; font-size: calc(40 * var(--u)); line-height: 1.05; letter-spacing: 0.04em; text-transform: uppercase; color: #fff; text-shadow: var(--pill-text-shadow); }
+.ph-desc { font-size: calc(15 * var(--u)); color: var(--muted); text-shadow: var(--pill-text-shadow); }
+.ph-chipbtn { margin: calc(4 * var(--u)) 0 0; padding: calc(4 * var(--u)) calc(12 * var(--u)); border: 0; border-radius: 0; background: var(--pill-plate);
+  box-shadow: inset 0 0 0 calc(1 * var(--u)) var(--gold); font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.1em; text-transform: uppercase; color: var(--pill-text); }
+.ph-chipbtn:hover { background: var(--pill-plate-hover); color: #fff; }
+.ph-chipbtn.on { box-shadow: inset 0 0 0 calc(1.5 * var(--u)) var(--teal); color: #fff; }
+
+.ph-cards { min-height: 0; height: 100%; width: 100%; display: flex; align-items: center; justify-content: center; gap: calc(26 * var(--u)); padding: calc(16 * var(--u)) 0; box-sizing: border-box; }
+/* THE BANNER CARD: a tall clean-cut card. The outer box is the gold edge (a gradient under the same cut), the inner box the
+   navy plate, inset by the edge width, so the edge follows the cut corners exactly. */
+.ph-card { --ew: calc(2 * var(--u));
+  position: relative; flex: none; height: min(calc(560 * var(--u)), 100%); aspect-ratio: 0.56; padding: var(--ew); margin: 0; border: 0; border-radius: 0; box-sizing: border-box;
+  background: linear-gradient(180deg, var(--ui-edge-hi, #ffe9b0) 0%, var(--gold) 30%, var(--ui-edge-deep, #7a571f) 70%, var(--gold) 100%);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+  color: inherit; text-align: left;
+  animation: ph-rise 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 60ms);
+  transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
+.ph-card:hover { transform: translateY(calc(-6 * var(--u))); }
+@keyframes ph-rise { from { opacity: 0; transform: translateY(calc(26 * var(--u))); } to { opacity: 1; transform: none; } }
+.ph-card-in { position: relative; display: block; width: 100%; height: 100%; overflow: hidden; background: var(--pill-plate);
+  clip-path: polygon(0 0, calc(100% - var(--cut) + var(--ew) * 0.6) 0, 100% calc(var(--cut) - var(--ew) * 0.6), 100% 100%, calc(var(--cut) - var(--ew) * 0.6) 100%, 0 calc(100% - var(--cut) + var(--ew) * 0.6)); }
+/* The portrait over the top of the card, fading into the navy where the name sits (a static mask). */
+.ph-art { position: absolute; left: 0; top: 0; width: 100%; height: 82%; object-fit: cover; object-position: 50% 18%;
+  -webkit-mask-image: linear-gradient(180deg, #000 52%, transparent 100%); mask-image: linear-gradient(180deg, #000 52%, transparent 100%); }
+/* YOU: the rail's teal chip, top left (the cut corner is top right), and the teal edge. */
+.ph-card.you { background: linear-gradient(180deg, #eaffff 0%, #8ef3f8 30%, #22b8c6 70%, #8ef3f8 100%); --ew: calc(3 * var(--u)); }
+.ph-you { position: absolute; top: calc(14 * var(--u)); left: calc(14 * var(--u)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); display: grid; place-items: center; border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, #8ef3f8, #22b8c6 60%, #0e6c78); box-shadow: 0 0 0 calc(1.5 * var(--u)) #eaffff, 0 calc(1 * var(--u)) calc(3 * var(--u)) rgba(0, 0, 0, 0.8);
+  font-family: var(--font-title), sans-serif; font-weight: 900; font-size: calc(12 * var(--u)); letter-spacing: 0.04em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+.ph-lead { position: absolute; top: calc(14 * var(--u)); right: calc(32 * var(--u)); width: calc(34 * var(--u)); height: calc(34 * var(--u)); display: grid; place-items: center;
+  color: var(--pill-gold, #f6cf5a); filter: drop-shadow(0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(0, 0, 0, 0.9)); }
+.ph-lead svg { width: 100%; height: 100%; }
+.ph-foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; gap: calc(6 * var(--u)); padding: 0 calc(16 * var(--u)) 0; text-align: center; }
+.ph-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(32 * var(--u)); line-height: 1.05; letter-spacing: 0.02em; color: #fff; text-shadow: var(--pill-text-shadow), 0 calc(2 * var(--u)) calc(10 * var(--u)) rgba(0, 0, 0, 0.7); }
+.ph-sub, .ph-muted { font-size: calc(14 * var(--u)); color: var(--muted); text-shadow: var(--pill-text-shadow); }
+.ph-titlebadge { font-size: calc(15 * var(--u)); }
+.ph-rank { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); min-height: calc(34 * var(--u)); font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(15 * var(--u)); color: var(--pill-text); text-shadow: var(--pill-text-shadow); }
+.ph-rank .rankcrest { width: calc(34 * var(--u)); height: calc(34 * var(--u)); }
+/* THE STATE STRIP: the card's foot, full width under a gold hairline. Ready = teal, In game = gold. */
+.ph-state { align-self: stretch; margin: calc(6 * var(--u)) calc(-16 * var(--u)) 0; padding: calc(10 * var(--u)) 0 calc(12 * var(--u)); text-align: center;
+  background: var(--pill-well); box-shadow: inset 0 calc(1 * var(--u)) 0 var(--pill-hair);
+  font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(15 * var(--u)); letter-spacing: 0.24em; text-transform: uppercase; color: var(--muted); }
+.ph-state.s-ready { color: #8ef3f8; }
+.ph-state.s-in_game { color: var(--pill-gold, #f6cf5a); }
+/* AN OPEN SEAT: the same cut, a faint edge and a see-through plate. */
+.ph-card.ph-open { background: color-mix(in srgb, var(--gold) 45%, transparent); }
+.ph-open .ph-card-in { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(6 * var(--u)); background: color-mix(in srgb, var(--navy) 62%, transparent); }
+.ph-open:hover { background: var(--gold); }
+.ph-open:hover .ph-card-in { background: color-mix(in srgb, var(--navy) 78%, transparent); }
+.ph-plus { font-family: var(--pill-font), sans-serif; font-weight: 300; font-size: calc(72 * var(--u)); line-height: 1; color: color-mix(in srgb, var(--pill-text) 70%, transparent); }
+.ph-openlbl { font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(20 * var(--u)); letter-spacing: 0.16em; text-transform: uppercase; color: #fff; text-shadow: var(--pill-text-shadow); }
+.ph-opensub { font-size: calc(13 * var(--u)); color: var(--muted); }
+
+/* ── START + the side actions ── */
+.ph-actions { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: calc(22 * var(--u)); width: 100%; }
+.ph-side { display: flex; flex-direction: column; align-items: flex-end; gap: calc(4 * var(--u)); }
+.ph-side-r { align-items: flex-start; }
+/* START: the one strong accent. The podium gold, navy letters, slanted clean-cut ends. */
+.ph-start { position: relative; width: calc(380 * var(--u)); height: calc(78 * var(--u)); padding: 0; margin: 0; border: 0; border-radius: 0;
+  background: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 70%, #a8741a 100%);
+  clip-path: polygon(calc(22 * var(--u)) 0, calc(100% - calc(22 * var(--u))) 0, 100% 50%, calc(100% - calc(22 * var(--u))) 100%, calc(22 * var(--u)) 100%, 0 50%);
+  font-family: var(--font-disp, var(--font-title)); font-weight: 900; font-size: calc(34 * var(--u)); letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+.ph-start > span { position: relative; z-index: 1; padding-left: 0.22em; }
+.ph-start::before { content: ''; position: absolute; inset: calc(3 * var(--u)) calc(24 * var(--u)); border-top: calc(1 * var(--u)) solid rgba(255, 255, 255, 0.55); pointer-events: none; }
+.ph-start:hover:not(:disabled) { transform: scale(1.03); }
+.ph-start:active:not(:disabled) { transform: scale(0.98); }
+.ph-start:disabled { background: var(--pill-plate); color: var(--muted); text-shadow: var(--pill-text-shadow); }
+.ph-start:disabled::before { border-top-color: var(--pill-hair); }
+.ph-plate { padding: calc(10 * var(--u)) calc(20 * var(--u)); margin: 0; border: 0; border-radius: 0; background: var(--pill-plate);
+  box-shadow: inset 0 0 0 calc(1.5 * var(--u)) var(--gold), var(--pill-outline);
+  clip-path: polygon(calc(10 * var(--u)) 0, 100% 0, calc(100% - calc(10 * var(--u))) 100%, 0 100%);
+  font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.14em; text-transform: uppercase; color: var(--pill-text); text-shadow: var(--pill-text-shadow); }
+.ph-plate:hover:not(:disabled) { background: var(--pill-plate-hover); color: #fff; }
+.ph-plate:disabled { opacity: 0.5; }
+.ph-note { font-size: calc(14 * var(--u)); color: var(--pill-text); text-shadow: var(--pill-text-shadow); }
+.ph-stub { color: var(--muted); font-style: italic; font-size: calc(13 * var(--u)); }
+.ph-error { position: absolute; bottom: calc(118 * var(--u)); left: 50%; translate: -50% 0; padding: calc(6 * var(--u)) calc(14 * var(--u)); background: var(--pill-plate); box-shadow: inset 0 0 0 1px var(--pill-red); color: var(--pill-red); font-size: calc(14 * var(--u)); }
+
+/* ── THE FRIENDS COLUMN ── */
+.ph-friends { position: relative; z-index: 2; grid-column: 2; grid-row: 2 / 4; min-height: 0; display: flex; flex-direction: column; gap: calc(10 * var(--u));
+  padding: calc(16 * var(--u)) calc(14 * var(--u) + var(--safe-r, 0px)) calc(16 * var(--u) + var(--safe-b, 0px)) calc(16 * var(--u));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--navy) 88%, transparent), color-mix(in srgb, var(--navy) 94%, #000));
+  box-shadow: inset calc(1 * var(--u)) 0 0 color-mix(in srgb, var(--gold) 55%, transparent), calc(-10 * var(--u)) 0 calc(28 * var(--u)) rgba(0, 0, 0, 0.45); }
+.ph-fhead { display: flex; align-items: baseline; gap: calc(10 * var(--u)); padding: 0 calc(2 * var(--u)) calc(6 * var(--u)); box-shadow: inset 0 calc(-1 * var(--u)) 0 var(--pill-hair); }
+.ph-ftitle { font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(18 * var(--u)); letter-spacing: 0.18em; text-transform: uppercase; color: #fff; text-shadow: var(--pill-text-shadow); }
+.ph-fcount { font-size: calc(13 * var(--u)); color: #8ef3f8; letter-spacing: 0.04em; }
+.ph-fhead .ph-iconbtn { margin-left: auto; align-self: center; }
+.ph-fadd { display: flex; gap: calc(8 * var(--u)); }
+.ph-finput { flex: 1; min-width: 0; height: calc(38 * var(--u)); padding: 0 calc(10 * var(--u)); border: 0; border-radius: 0; background: var(--pill-well); box-shadow: inset 0 0 0 calc(1 * var(--u)) var(--pill-hair);
+  font-family: var(--font-ui), sans-serif; font-size: calc(14 * var(--u)); color: #fff; outline: none; }
+.ph-finput:focus { box-shadow: inset 0 0 0 calc(1.5 * var(--u)) var(--gold); }
+.ph-finput::placeholder { color: var(--muted); }
+.ph-fsub { padding: 0 calc(16 * var(--u)); height: calc(38 * var(--u)); }
+.ph-frows { min-height: 0; flex: 1; display: flex; flex-direction: column; gap: calc(6 * var(--u)); overflow-y: auto; scrollbar-width: thin; overscroll-behavior: contain; }
+/* A FRIEND: a rail slice. The portrait bleeds in from the right and fades into the navy; the name sits left. */
+.ph-fslice { position: relative; flex: none; display: flex; align-items: center; height: calc(62 * var(--u)); background: var(--pill-plate);
+  box-shadow: inset 0 0 0 calc(1 * var(--u)) var(--pill-hair);
+  clip-path: polygon(0 0, calc(100% - calc(12 * var(--u))) 0, 100% calc(12 * var(--u)), 100% 100%, 0 100%); }
+.ph-fslice.f-offline { opacity: 0.6; }
+.ph-fmain { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 calc(12 * var(--u)); margin: 0; border: 0; border-radius: 0; background: none; color: inherit; text-align: left; }
+.ph-fmain:hover:not(:disabled) { background: rgba(255, 255, 255, 0.04); }
+.ph-fart { position: absolute; right: 0; top: 0; width: 46%; height: 100%; object-fit: cover; object-position: 50% 22%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 60%); mask-image: linear-gradient(90deg, transparent 0%, #000 60%); pointer-events: none; }
+.ph-fwho { position: relative; z-index: 1; display: flex; flex-direction: column; gap: calc(2 * var(--u)); min-width: 0; max-width: 62%; }
+.ph-fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(17 * var(--u)); color: #fff; text-shadow: var(--pill-text-shadow); }
+.ph-fstatus { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: calc(12 * var(--u)); color: var(--muted); text-shadow: var(--pill-text-shadow); }
+.ph-fstatus > i { flex: none; width: calc(7 * var(--u)); height: calc(7 * var(--u)); border-radius: 50%; background: #6f7a90; }
+.f-online .ph-fstatus > i { background: var(--teal); }
+.f-online .ph-fstatus { color: #bff7fa; }
+.f-in_game .ph-fstatus > i { background: var(--pill-gold, #f6cf5a); }
+.f-in_game .ph-fstatus { color: #fbe6a6; }
+.ph-finvite { position: absolute; right: calc(10 * var(--u)); z-index: 2; height: calc(30 * var(--u)); padding: 0 calc(12 * var(--u)); margin: 0; border: 0; border-radius: 0;
+  background: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 70%, #a8741a 100%); color: var(--navy);
+  clip-path: polygon(calc(7 * var(--u)) 0, 100% 0, calc(100% - calc(7 * var(--u))) 100%, 0 100%);
+  font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(12 * var(--u)); letter-spacing: 0.12em; text-transform: uppercase; }
+.ph-finvite:disabled { background: var(--pill-well); color: var(--muted); box-shadow: inset 0 0 0 1px var(--pill-hair); }
+.ph-fempty { display: flex; flex-direction: column; align-items: flex-start; gap: calc(10 * var(--u)); padding: calc(8 * var(--u)) calc(2 * var(--u)); font-size: calc(14 * var(--u)); color: var(--muted); }
+.ph-fflash { font-size: calc(13 * var(--u)); color: var(--pill-text); }
+.ph-fnote { font-size: calc(12 * var(--u)); color: var(--muted); font-style: italic; }
+
+/* ── THE PROTOTYPE'S OWN CONTROLS (DEV) ── */
+.ph-proto { position: absolute; z-index: 4; left: calc(18 * var(--u) + var(--safe-l, 0px)); top: calc(80 * var(--u)); display: flex; align-items: center; gap: calc(8 * var(--u)); }
+.ph-proto .ph-chipbtn { margin: 0; }
+.ph-proto-tag { padding: calc(4 * var(--u)) calc(8 * var(--u)); background: rgba(255, 122, 102, 0.18); box-shadow: inset 0 0 0 1px var(--pill-red, #ff7a66);
+  font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(11 * var(--u)); letter-spacing: 0.16em; text-transform: uppercase; color: var(--pill-red, #ff7a66); }
+
+/* Three or four cards: a touch narrower so they sit together with START. */
+.ph-cards.n3 .ph-card, .ph-cards.n4 .ph-card { height: min(calc(520 * var(--u)), 100%); }
+
+/* ── PHONES (landscape): screen points; the friends column becomes a drawer from the right ── */
+html[data-touch-ui][data-touch-small][data-page-scale] .ph, .ph.ph-phone { --u: calc(var(--pt, 1px) * 0.62); --fw: 0px; grid-template-columns: 1fr; }
+.ph.ph-phone .ph-top { height: calc(64 * var(--u)); }
+.ph.ph-phone .ph-brand span { display: none; }
+.ph.ph-phone .ph-navtab { padding: 0 calc(12 * var(--u)); font-size: calc(16 * var(--u)); }
+.ph.ph-phone .ph-navtab .ph-navicon { display: none; }
+.ph.ph-phone .ph-modes { justify-content: flex-start; padding-top: calc(8 * var(--u)); }
+.ph.ph-phone .ph-mode { font-size: calc(16 * var(--u)); padding: calc(10 * var(--u)) calc(18 * var(--u)) calc(12 * var(--u)); }
+.ph.ph-phone .ph-stage { padding-top: calc(6 * var(--u)); padding-bottom: calc(12 * var(--u) + var(--safe-b, 0px)); }
+.ph.ph-phone .ph-desc, .ph.ph-phone .ph-eyebrow { display: none; }
+.ph.ph-phone .ph-title { font-size: calc(26 * var(--u)); }
+.ph.ph-phone .ph-cards { padding: calc(8 * var(--u)) 0; gap: calc(16 * var(--u)); }
+.ph.ph-phone .ph-start { height: calc(66 * var(--u)); width: calc(320 * var(--u)); }
+.ph.ph-phone .ph-wallet .ph-lvbar { display: none; }
+.ph.ph-phone .ph-friends.drawer { position: absolute; top: calc(64 * var(--u)); right: 0; bottom: 0; width: calc(420 * var(--u)); grid-column: auto; grid-row: auto; z-index: 5;
+  animation: ph-drawer 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
+@keyframes ph-drawer { from { transform: translateX(100%); } to { transform: none; } }
+.ph.ph-phone .ph-proto { top: auto; bottom: calc(12 * var(--u) + var(--safe-b, 0px)); }
+@media (prefers-reduced-motion: reduce) { .ph-card, .ph.ph-phone .ph-friends.drawer { animation: none; } .ph-card, .ph-start { transition: none; } }

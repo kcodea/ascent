@@ -7457,6 +7457,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/phoneAudioQuality.test.ts', 'packages/ui/src/audio/codeClips.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
   {
+    id: 'R-AUDIO-PREWARM-ATTACKS-01',
+    title: 'Only the hero-attack styles in play are decoded ahead (yours and your opponent\x27s), never the whole roster\x27s clips',
+    statement:
+      'The fx clips named in code are split (audio/codeClips.ts, pinned by its scan test): the SHARED ones (named outside a '
+      + 'hero<Style>/ folder: entrances, the crate, the lobby reveal) are decoded ahead as before (R-TOUCH-AUDIO-QUALITY-01 '
+      + '(3)); each HERO-ATTACK STYLE\x27s own clips (named inside its hero<Style>/ folder) are decoded ahead only for the styles '
+      + 'in play this round: yours (your equipped hero attack) and your current opponent\x27s (its seat\x27s recorded cosmetic, '
+      + 'only while "Show opponent cosmetics" is on), resolved exactly as the fight resolves them (the DEV override included; '
+      + 'Classic has none). A change of equipped attack or opponent re-prewarms. A style not known ahead still sounds: its '
+      + 'runner asks for its own clips the moment it starts (AttackVoices.warm). The phone working-set budget counts the '
+      + 'shared clips plus the TWO LARGEST attack styles (a fight plays at most two), never every attack; the 40 MB cache and '
+      + 'its 90% ceiling are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Coordinator, 2026-11-02 (relaying the owner\x27s approval of the soccer attack)', quote: 'phones decode-ahead only the hero attack styles actually in play' },
+      { kind: 'code', ref: 'packages/ui/src/audio/codeClips.ts (CODE_FX_CLIPS, ATTACK_FX_CLIPS); packages/ui/src/audio/clipIndex.ts (forAttack, prewarmList attackStyles); packages/ui/src/audio/phonePrewarm.ts (attackStylesOf, sceneOf)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-02 (perf/phone-prewarm-equipped-attacks). Before, every hero attack\x27s clips were decoded ahead in every game, so each new attack ate into the phone working set whether anyone had it equipped or not.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/phoneAudioQuality.test.ts', 'packages/ui/src/audio/codeClips.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-TOUCH-GPU-MEMORY-01',
     title: 'A phone holds no WebGL effect context on the menus, and its menus keep no giant layers',
     statement:

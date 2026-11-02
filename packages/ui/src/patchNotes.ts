@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-02',
     changes: [
+      { category: 'Systems', text: 'Opening a chest now shows a picture of a card plate or portrait frame you find, like skins and emotes already did.' },
       {
         category: 'Systems',
         text: 'New Legendary hero attack: Charge the Mound. The hero being hit pitches, and your hero bats.',

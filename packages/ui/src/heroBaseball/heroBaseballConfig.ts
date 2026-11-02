@@ -510,7 +510,7 @@ export type BaseballCueKind =
 export interface BaseballCue { at: number; kind: BaseballCueKind; i: number }
 
 /** III: how long before the crash the slide whistle starts (the clip's length). */
-export const FALL_LEAD_MS = 860;
+export const FALL_LEAD_MS = 760;
 
 /** Every beat the runner fires, in time order. The blow lands on `impact`, once. */
 export function baseballCues(p: BaseballPlan): BaseballCue[] {
@@ -525,7 +525,7 @@ export function baseballCues(p: BaseballPlan): BaseballCue[] {
     }
     if (p.hopAt !== null) out.push({ at: p.hopAt, kind: 'hop', i: 0 });
     if (p.apexAt !== null) out.push({ at: p.apexAt, kind: 'twinkle', i: 0 });
-    // The slide whistle (about 0.88 s long) is timed so it bottoms out on the crash.
+    // The slide whistle (about 0.78 s long) is timed so it bottoms out on the crash.
     if (p.dropAt !== null) out.push({ at: Math.max(p.apexAt ?? p.dropAt, p.impactAt - FALL_LEAD_MS), kind: 'fall', i: 0 });
     if (p.batLandAt !== null) out.push({ at: p.batLandAt, kind: 'batland', i: 0 });
     if (p.beanAt !== null) out.push({ at: p.beanAt, kind: 'bean', i: 0 });

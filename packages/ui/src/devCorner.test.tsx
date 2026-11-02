@@ -2,26 +2,24 @@
 /**
  * THE DEV CORNER SQUARES (R-DEV-CORNER-01, owner 2026-10-30: "put our dev tuner and dev scene builder tuner buttons
  * into a button like this"; moved bottom left 2026-10-31, R-CORNER-SPLIT-01: "move the dev tool buttons to the bottom
- * left, right of the friends list"): in a DEV build the dev tuning menu and the minimized Scene Builder are squares of the
- * bottom-left row, after Friends, wearing the corner plaque. Pins:
+ * left, right of the friends list"): in a DEV build the dev tuning menu is a square of the bottom-left row, after Friends,
+ * wearing the corner plaque. The minimized Scene Builder's anvil square was retired 2026-11-02 (R-SB-PANEL-CLOSE-01): the
+ * panel minimizes to its own header bar, and after a close the dev menu's "Scene Builder" action brings it back. Pins:
  *  - the slot each takes (after Friends, closing up without it);
  *  - the plaque contract in styles.css (the row's size, offsets and look; no bare cursor; above every layer);
- *  - both buttons use it, with an aria-label and the game's hover bubble, never a native `title=`;
+ *  - the dev tuner uses it, with an aria-label and the game's hover bubble, never a native `title=`;
  *  - they stay DEV-only: Game.tsx loads DevMenu and the Scene Builder behind `import.meta.env.DEV` lazy imports.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act } from 'react';
-import { mount, type Mounted } from './renderedText.mount';
+import { describe, expect, it } from 'vitest';
 import { devCornerSlot } from './friends/dock/FriendsDock';
-import { SceneBuilderDock } from './SceneBuilder';
 
 const src = (f: string): string => readFileSync(join(__dirname, f), 'utf8');
 const styles = src('styles.css');
 
 describe('the dev squares queue up right of Friends on the bottom-left row (R-CORNER-SPLIT-01)', () => {
-  it('dev tuner at 1 and Scene Builder at 2, just right of Friends (0)', () => {
+  it('dev tuner at 1, just right of Friends (0)', () => {
     expect(devCornerSlot(true)).toBe(1);
   });
   it('close up one slot when there is no Friends button', () => {
@@ -57,21 +55,12 @@ describe('the corner plaque (styles.css .cornerdev)', () => {
   });
 });
 
-describe('both dev buttons use the square', () => {
-  let m: Mounted | null = null;
-  afterEach(() => { m?.unmount(); m = null; });
-  it('the minimized Scene Builder: the anvil square, a hover bubble and an aria-label, no native tooltip', () => {
-    const restore = vi.fn();
-    m = mount(<SceneBuilderDock onRestore={restore} />);
-    const btn = m.container.querySelector<HTMLButtonElement>('button.sb-dock.cornerdev.gtip');
-    expect(btn).not.toBeNull();
-    expect(btn!.getAttribute('aria-label')).toBe('Restore Scene Builder');
-    expect(btn!.getAttribute('data-tip')).toBe('Scene Builder');
-    expect(btn!.hasAttribute('title')).toBe(false);
-    expect(btn!.style.getPropertyValue('--cd-slot')).toMatch(/^[1-2]$/);
-    expect(btn!.querySelector('svg')).not.toBeNull();
-    act(() => { btn!.click(); });
-    expect(restore).toHaveBeenCalledTimes(1);
+describe('the dev tuner uses the square', () => {
+  it('the Scene Builder has no corner square any more (R-SB-PANEL-CLOSE-01): minimize is its header bar, the dev menu reopens it', () => {
+    const sb = src('SceneBuilder.tsx');
+    expect(sb).not.toContain('SceneBuilderDock');
+    expect(sb).not.toContain('sb-dock');
+    expect(src('DevMenu.tsx')).toContain("{ id: 'scenebuilder', icon: '🏗️', label: 'Scene Builder'");
   });
   it('the dev tuner: the gear square with the count badge, a hover bubble and an aria-label', () => {
     const dev = src('DevMenu.tsx');

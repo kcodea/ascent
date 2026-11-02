@@ -3,6 +3,7 @@ import { Icon } from './Icon';
 import { useDevCornerSlot } from './friends/dock/FriendsDock';
 import { DevPanelContext } from './useDraggablePanel';
 import { useGame } from './store';
+import { closeSceneBuilderPanel, openSceneBuilderPanel, useSbPanel } from './sceneBuilderPanel';
 import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
 import { CritFxTuner } from './CritFxTuner';
@@ -412,6 +413,16 @@ export function DevMenu() {
     { id: 'workbench', icon: '🎨', label: 'FX Workbench', hint: 'Author effects and bind them to combat moments', run: () => setWbOpen(true) },
     { id: 'uiedit', icon: '🎛️', label: 'UI Edit Mode', hint: 'Direct-manipulation editor for in-run UI',
       run: () => setUiEditMode(!isUiEditMode()), live: () => isUiEditMode() },
+    // The Scene Builder panel's way back after its ✕ (R-SB-PANEL-CLOSE-01): in a sandbox it shows / hides the panel
+    // (the run keeps going either way); on the title it starts a sandbox. Anywhere else it does nothing, so it can
+    // never throw away a run in flight.
+    { id: 'scenebuilder', icon: '🏗️', label: 'Scene Builder', hint: 'Show or hide the Scene Builder panel. On the title, starts a Scene Builder game',
+      run: () => {
+        const g = useGame.getState();
+        if (g.run.sandbox) { if (useSbPanel.getState().closed) openSceneBuilderPanel(); else closeSceneBuilderPanel(); }
+        else if (g.showTitle) { openSceneBuilderPanel(); g.startSceneBuilder(); }
+      },
+      live: () => !!useGame.getState().run.sandbox && !useSbPanel.getState().closed },
     { id: 'beatlab', icon: '🥁', label: 'Beat Lab', hint: 'Read-only viewer: the source-attributed trigger/consequence tree of the last action', run: () => setBlOpen(true) },
     { id: 'rulebook', icon: '📜', label: 'Rulebook Triage', hint: "The owner's ruling board — Doc Bot's queues as clickable Approve/Revise/Reject cards; clicks write decisions.json", run: () => setRbOpen(true) },
     { id: 'bugboard', icon: '🐛', label: 'Bug Board', hint: 'The bug inbox — triage player reports, hand-pick a stack, send the work order to Claude', run: () => setBugOpen(true) },

@@ -38,6 +38,7 @@ import { mount, type Mounted } from './renderedText.mount';
 import { SB_ARCHIVED_OPTION, SceneBuilder } from './SceneBuilder';
 import { foeSnapshotOf } from './sandboxEdit';
 import { useGame } from './store';
+import { closeSceneBuilderPanel, openSceneBuilderPanel, useSbPanel } from './sceneBuilderPanel';
 
 let ui: Mounted | null = null;
 const click = (el: Element | null | undefined): void => {
@@ -234,5 +235,63 @@ describe('the 2026-11-01 layout (owner: "modernize that while you are at it")', 
     other.focus();
     act(() => { other.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true })); });
     expect(document.activeElement).toBe(other);
+  });
+});
+
+/**
+ * THE HEADER'S CLOSE AND MINIMIZE (R-SB-PANEL-CLOSE-01, owner report 2026-11-02: *"scene builder's close button doesnt
+ * work. can you fix that? minimizing it actually closes it out instead of minimizing it to a bar, fix that too"*).
+ * Before: the ✕ only added a `.minimized` class whose `display: none` the modern layout's `display: flex` out-specified,
+ * so the panel stayed put while a corner square appeared. Now the ✕ unmounts the panel (CSS cannot keep it up), the
+ * run keeps going, the dev menu brings it back; the minimize control folds it to the header bar.
+ */
+describe('the header close and minimize controls', () => {
+  const panel = (): HTMLElement | null => ui!.container.querySelector<HTMLElement>('.scenebuilder');
+
+  it('✕ closes the panel for real (it leaves the DOM) and the sandbox run keeps going; reopening brings it back', () => {
+    const runBefore = useGame.getState().run;
+    const x = panel()!.querySelector<HTMLButtonElement>(':scope > .devpanel-close');
+    expect(x?.getAttribute('aria-label')).toBe('Close panel');
+    click(x);
+    expect(panel()).toBeNull();
+    expect(useSbPanel.getState().closed).toBe(true);
+    expect(useGame.getState().run).toBe(runBefore);
+    expect(useGame.getState().run.sandbox).toBe(true);
+    // No corner square stands in for it any more.
+    expect(document.querySelector('.sb-dock')).toBeNull();
+    act(() => { openSceneBuilderPanel(); });
+    expect(panel()).not.toBeNull();
+    expect(panel()!.querySelector(':scope > .devpanel-close')).not.toBeNull();
+  });
+
+  it('minimize folds the panel to its header bar (title + status chips, a labelled restore); restore opens it again', () => {
+    const min = panel()!.querySelector<HTMLButtonElement>('.sb-head .sb-collapse')!;
+    expect(min.getAttribute('aria-label')).toBe('Minimize the Scene Builder panel to a bar');
+    click(min);
+    const bar = panel()!;
+    expect(bar.classList.contains('collapsed')).toBe(true);
+    expect(bar.querySelector('.sb-head .sb-title')?.textContent).toBe('Scene Builder');
+    expect(bar.querySelectorAll('.sb-head .sb-chip')).toHaveLength(2);
+    expect(bar.querySelector('.sb-body')).toBeNull();
+    expect(useSbPanel.getState().closed).toBe(false);
+    const restore = bar.querySelector<HTMLButtonElement>('.sb-head .sb-collapse')!;
+    expect(restore.getAttribute('aria-label')).toBe('Restore the Scene Builder panel');
+    click(restore);
+    expect(panel()!.classList.contains('collapsed')).toBe(false);
+    expect(panel()!.querySelector('.sb-body')).not.toBeNull();
+  });
+
+  it('no header control carries a native title tooltip', () => {
+    for (const b of panel()!.querySelectorAll('.sb-head button, :scope > .devpanel-close')) {
+      expect(b.hasAttribute('title')).toBe(false);
+      expect(b.getAttribute('aria-label')).toBeTruthy();
+    }
+  });
+
+  it('leaving the sandbox resets the panel to open, so the next Scene Builder starts with it showing', () => {
+    act(() => { closeSceneBuilderPanel(); });
+    ui?.unmount();
+    ui = null;
+    expect(useSbPanel.getState().closed).toBe(false);
   });
 });

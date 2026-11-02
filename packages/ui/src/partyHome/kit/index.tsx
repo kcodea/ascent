@@ -16,7 +16,7 @@
  *
  * All static paint; no native tooltips (aria-label + the game's `data-tip`); no own cursor (the gauntlet rule paints it).
  */
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import '../shell/shell.css';
 import './kit.css';
@@ -275,6 +275,17 @@ export function PhSegmented<T extends string | number | null>({ label, hint, val
 export function PhDialog({ eyebrow, title, children, actions, onClose, closing, label }: {
   eyebrow?: ReactNode; title: ReactNode; children?: ReactNode; actions: ReactNode; onClose?: () => void; closing?: boolean; label: string;
 }) {
+  // Esc closes the window (and nothing under it).
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent): void => {
+      if (e.key !== 'Escape' || !closeRef.current) return;
+      e.preventDefault(); e.stopImmediatePropagation(); closeRef.current();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
   return (
     <div className={cx('phk-dialog', closing && 'closing')} role="dialog" aria-modal="true" aria-label={label}>
       <div className="phk-veil" onClick={onClose} aria-hidden="true" />
@@ -295,10 +306,11 @@ export function PhDialog({ eyebrow, title, children, actions, onClose, closing, 
 export function PhSwitch({ checked, onChange, label, hint, disabled, className }: {
   checked: boolean; onChange: (next: boolean) => void; label?: ReactNode; hint?: ReactNode; disabled?: boolean; className?: string;
 }) {
+  const hintId = useId();
   return (
     <div className={cx('phk-switchrow', disabled && 'off', className)}>
-      {(label || hint) && <span className="phk-switchtext">{label && <span className="phk-switchlbl">{label}</span>}{hint && <span className="phk-seghint">{hint}</span>}</span>}
-      <button type="button" role="switch" aria-checked={checked} disabled={disabled} className={cx('phk-switch', checked ? 'is-on' : 'is-off')}
+      {(label || hint) && <span className="phk-switchtext">{label && <span className="phk-switchlbl">{label}</span>}{hint && <span className="phk-seghint" id={hintId}>{hint}</span>}</span>}
+      <button type="button" role="switch" aria-checked={checked} disabled={disabled} className={cx('phk-switch', checked ? 'is-on' : 'is-off')} aria-describedby={hint ? hintId : undefined}
         aria-label={typeof label === 'string' ? label : undefined} onClick={() => { if (!disabled) onChange(!checked); }}>
         <span className="phk-switchknob" aria-hidden="true" />
         <span className="phk-switchword">{checked ? 'On' : 'Off'}</span>
@@ -308,20 +320,32 @@ export function PhSwitch({ checked, onChange, label, hint, disabled, className }
 }
 
 /** A slider: a native range input in the shell's look, the value shown at the right (`format` it). */
-export function PhSlider({ value, min, max, step = 1, onChange, label, format, disabled, className }: {
+export function PhSlider({ value, min, max, step = 1, onChange, onRelease, label, ariaLabel, format, disabled, muted, onMute, className }: {
   value: number; min: number; max: number; step?: number; onChange: (v: number) => void; label?: ReactNode;
+  /** Fires once when the drag (or key press) ends, with the final value (e.g. play a preview sound). */
+  onRelease?: (v: number) => void;
+  /** The input's accessible name (defaults to `label` when that is a string). */
+  ariaLabel?: string;
   format?: (v: number) => ReactNode; disabled?: boolean; className?: string;
+  /** A mute pairing: pass both and a Mute / Unmute button sits after the value (the slider dims while muted). */
+  muted?: boolean; onMute?: () => void;
 }) {
   const f = max > min ? (value - min) / (max - min) : 0;
+  const name = ariaLabel ?? (typeof label === 'string' ? label : undefined);
   return (
-    <label className={cx('phk-slider', disabled && 'off', className)}>
+    <div className={cx('phk-slider', disabled && 'off', muted && 'muted', className)}>
       {label && <span className="phk-switchlbl">{label}</span>}
       <span className="phk-sliderrow">
-        <input type="range" min={min} max={max} step={step} value={value} disabled={disabled} style={{ '--f': f } as React.CSSProperties}
-          onChange={(e) => onChange(Number(e.target.value))} />
+        <input type="range" min={min} max={max} step={step} value={value} disabled={disabled} aria-label={name} style={{ '--f': f } as React.CSSProperties}
+          onChange={(e) => onChange(Number(e.target.value))}
+          onPointerUp={(e) => onRelease?.(Number((e.target as HTMLInputElement).value))}
+          onKeyUp={(e) => onRelease?.(Number((e.target as HTMLInputElement).value))} />
         <span className="phk-sliderval">{format ? format(value) : value}</span>
+        {onMute && (
+          <button type="button" className={cx('phk-chip', 'phk-tchip', muted ? 't-foe' : 't-neutral')} aria-pressed={!!muted} onClick={onMute}>{muted ? 'Muted' : 'Mute'}</button>
+        )}
       </span>
-    </label>
+    </div>
   );
 }
 
@@ -330,7 +354,10 @@ export function PhSlider({ value, min, max, step = 1, onChange, label, format, d
  * section never cuts it off. Closes on a pick, a press outside, or Escape.
  */
 export function PhSelect<T extends string | number>({ value, options, onChange, label, disabled, className }: {
-  value: T; options: readonly { value: T; label: ReactNode }[]; onChange: (v: T) => void; label?: string; disabled?: boolean; className?: string;
+  value: T;
+  /** `thumb`: a small preview image left of the label. `disabled` + `reason`: dimmed, not pickable, the reason under it. */
+  options: readonly { value: T; label: ReactNode; thumb?: string; disabled?: boolean; reason?: string }[];
+  onChange: (v: T) => void; label?: string; disabled?: boolean; className?: string;
 }) {
   const [open, setOpen] = useState<{ left: number; top: number; width: number } | null>(null);
   const btn = useRef<HTMLButtonElement>(null);
@@ -349,14 +376,19 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
   return (
     <>
       <button ref={btn} type="button" className={cx('phk-select', className)} aria-haspopup="listbox" aria-expanded={!!open} aria-label={label} disabled={disabled} onClick={toggle}>
+        {cur?.thumb && <img className="phk-selthumb" src={cur.thumb} alt="" draggable={false} decoding="sync" />}
         <span className="phk-selectval">{cur?.label ?? ''}</span><span className="phk-selectcaret" aria-hidden="true">▾</span>
       </button>
       {open && createPortal(
         <div className="phk-selectlayer" onPointerDown={() => setOpen(null)}>
           <div className="phk-selectlist" role="listbox" aria-label={label} style={{ left: open.left, top: open.top, minWidth: open.width }} onPointerDown={(e) => e.stopPropagation()}>
             {options.map((o) => (
-              <button key={String(o.value)} type="button" role="option" aria-selected={o.value === value} className={cx('phk-moreitem', o.value === value && 'on')}
-                onClick={() => { setOpen(null); if (o.value !== value) onChange(o.value); }}>{o.label}</button>
+              <button key={String(o.value)} type="button" role="option" aria-selected={o.value === value} aria-disabled={o.disabled || undefined} disabled={o.disabled}
+                className={cx('phk-moreitem', 'phk-selopt', o.value === value && 'on')}
+                onClick={() => { if (o.disabled) return; setOpen(null); if (o.value !== value) onChange(o.value); }}>
+                {o.thumb && <img className="phk-selthumb" src={o.thumb} alt="" draggable={false} decoding="sync" />}
+                <span className="phk-seloptlbl">{o.label}{o.disabled && o.reason && <span className="phk-selreason">{o.reason}</span>}</span>
+              </button>
             ))}
           </div>
         </div>,

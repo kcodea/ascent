@@ -71,8 +71,8 @@ html[data-ph-shell] {
 }
 /* Short windows and phones: the unit also never exceeds a 600-unit-tall budget of the window, so the whole home (nav,
    tabs, cards, START) always fits. Phones (landscape) use screen points (`--pt`, phoneMenus.css), about 0.6 pt a unit. */
-html[data-ph-shell] { --phu: min(1px, calc(100vh / 600)); }
-html[data-ph-shell][data-touch-ui][data-touch-small][data-page-scale] { --phu: min(calc(var(--pt, 1px) * 0.62), calc(100vh / 600)); }
+html[data-ph-shell] { --phu: min(1px, calc(var(--ph-h, 100vh) / 640)); }
+html[data-ph-shell][data-ph-compact] { --phu: calc(var(--ph-h, 100vh) / 620); }
 
 /* ── THE TOP NAV ── */
 .ph-top { position: relative; z-index: 6; display: flex; align-items: stretch; gap: calc(8 * var(--phu)); box-sizing: border-box;
@@ -121,7 +121,8 @@ html[data-ph-shell] :is(.lbpage, .modepick.sb-host) > .ph-top { position: absolu
 html[data-ph-shell] :is(.lbpage, .modepick).hop > .ph-top, html[data-ph-shell] .lbpage > .ph-top { animation: none !important; }
 
 /* Every menu page under the shell paints the shell's one backdrop (PhPageChrome), a touch darker for reading. */
-.ph-pagebd { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.ph-pagebd { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { isolation: isolate; }
 .ph-pagebd .ph-veil { background: rgba(6, 12, 28, 0.55); }
 html[data-ph-shell] .lbpage.hop > .ph-pagebd, html[data-ph-shell] .modepick.hop > .ph-pagebd { animation: none !important; }
 
@@ -131,7 +132,7 @@ html[data-ph-shell] .book-ov { top: var(--ph-nav-h); background: rgba(6, 12, 28,
 /* A registered Compendium page (shellStore `compendiumPage`): a page host under the nav, over the menus. */
 .ph-bookpage { position: fixed; inset: 0; z-index: 480; display: flex; flex-direction: column; padding-top: var(--ph-nav-h); box-sizing: border-box; background: var(--ph-navy); }
 .ph-bookpage > .ph-pagebd { z-index: 0; }
-.ph-bookpage > :not(.ph-pagebd) { position: relative; z-index: 1; }
+.ph-bookpage > :not(.ph-pagebd):not(.ph-booknav) { position: relative; z-index: 1; }
 
 /* ONE PLACE FOR EVERYTHING: under the shell the old corner buttons (the Friends square, the Compendium book) are hidden
    (the nav has both), and the DEV corner square shrinks into the bottom-left corner, clear of the player's controls. */

@@ -46,7 +46,9 @@ export function PhTopNav({ current: given, friendsDocked = false, extra }: { cur
   const lv = progressionOn && mirror ? levelProgress(mirror.accountXp) : null;
   const txt = getTitleText();
   const current: PhNavCurrent = showBook ? 'compendium' : given;
+  // Lit on the home and on a legacy mode view (Versus rooms, ...); only the home itself makes Play a no-op.
   const home = current === 'home' || current === 'modes';
+  const atHome = current === 'home';
   // Aether: the balance once known; 0 in a DEV build without the online service (so the bar's layout reads as shipped).
   const aether = aetherOn && mirror ? mirror.aether ?? 0 : import.meta.env.DEV ? 0 : null;
 
@@ -69,7 +71,7 @@ export function PhTopNav({ current: given, friendsDocked = false, extra }: { cur
     setCollectionIntent(null);
     goTo(dest);
   };
-  const toHome = (): void => { if (home) return; sfx.pulse(); if (showBook) closeBook(); goTo('menu'); };
+  const toHome = (): void => { if (atHome) return; sfx.pulse(); if (showBook) closeBook(); goTo('menu'); };
   const onBook = (): void => { if (current === 'compendium') return; sfx.pulse(); toggleBook(); };
 
   return (
@@ -79,18 +81,18 @@ export function PhTopNav({ current: given, friendsDocked = false, extra }: { cur
           <img src={TITLE_LOGO_SRC} alt="" draggable={false} decoding="sync" />
           <span>{txt.wordmark}</span>
         </button>
-        <nav className="ph-nav" aria-label="Pages">
-          <button type="button" className={`ph-navtab${home ? ' on' : ''}`} aria-current={home ? 'page' : undefined} aria-label={txt.play} onClick={toHome}>
+        <nav className="ph-nav" aria-label="Pages" role="tablist">
+          <button type="button" role="tab" aria-selected={home} className={`ph-navtab${home ? ' on' : ''}`} aria-current={home ? 'page' : undefined} aria-label={txt.play} onClick={toHome}>
             <MenuMedal name="play" className="menumedal ph-navicon" /><span className="ph-navlbl">{txt.play}</span>
           </button>
           {tabs.map((t) => (
-            <button key={t.dest} type="button" className={`ph-navtab${current === t.dest ? ' on' : ''}`} aria-current={current === t.dest ? 'page' : undefined}
+            <button key={t.dest} type="button" role="tab" aria-selected={current === t.dest} className={`ph-navtab${current === t.dest ? ' on' : ''}`} aria-current={current === t.dest ? 'page' : undefined}
               aria-label={t.label} onClick={() => hop(t.dest)}>
               {t.icon}<span className="ph-navlbl">{t.label}</span>
               {t.dot && <i className="ph-dot" aria-hidden="true" />}
             </button>
           ))}
-          <button type="button" className={`ph-navtab${current === 'compendium' ? ' on' : ''}`} aria-current={current === 'compendium' ? 'page' : undefined}
+          <button type="button" role="tab" aria-selected={current === 'compendium'} className={`ph-navtab${current === 'compendium' ? ' on' : ''}`} aria-current={current === 'compendium' ? 'page' : undefined}
             aria-label="Compendium" onClick={onBook}>
             <MenuMedal name="glossary" className="menumedal ph-navicon" /><span className="ph-navlbl">Compendium</span>
           </button>

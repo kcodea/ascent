@@ -132,10 +132,23 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     const html = document.documentElement;
     html.toggleAttribute('data-ph-shell', shellOn);
     // COMPACT (phones, short windows): the shell's icon-only nav, one scrolling tab row and the friends drawer.
-    const compact = (): void => { html.toggleAttribute('data-ph-compact', shellOn && (isPhone() || window.innerHeight < 700)); };
-    compact();
-    window.addEventListener('resize', compact);
-    return () => { window.removeEventListener('resize', compact); html.removeAttribute('data-ph-shell'); html.removeAttribute('data-ph-compact'); };
+    // THE SHELL's SCALE (one rule on every device): the menus' own layout height, measured off the title screen (it fills
+    // the same box the menu pages do: the stage on a scaled desktop, the window on a phone's plain fit), so the unit never
+    // depends on how a device happens to scale. Measured on mount and on a resize, never per frame.
+    const ts = document.querySelector<HTMLElement>('.titlescreen');
+    const measure = (): void => {
+      const h = ts?.offsetHeight || window.innerHeight;
+      html.style.setProperty('--ph-h', `${h}px`);
+      html.toggleAttribute('data-ph-compact', shellOn && (isPhone() || h < 700));
+    };
+    measure();
+    const ro = typeof ResizeObserver === 'function' && ts ? new ResizeObserver(measure) : null;
+    ro?.observe(ts!);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro?.disconnect(); window.removeEventListener('resize', measure);
+      html.removeAttribute('data-ph-shell'); html.removeAttribute('data-ph-compact'); html.style.removeProperty('--ph-h');
+    };
   }, [shellOn]);
   // The portrait-frames tuner's ring for your own avatar corner (null = today's copper ring).
   const avatarFrame = usePortraitFrame('self');

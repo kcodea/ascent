@@ -81,7 +81,7 @@ export function PhFriends({ docked }: { docked: boolean }): JSX.Element {
       {pulse > 0 && <span key={pulse} className="ph-fpulse" aria-hidden="true" />}
       <div className="ph-fhead">
         <span className="ph-ftitle">Friends</span>
-        <span className="ph-fcount">{online} online</span>
+        {(demo || (live && list)) && <span className="ph-fcount">{online} online</span>}
         {!docked && (
           <button type="button" className="ph-iconbtn ph-fclose" aria-label="Close friends" onClick={() => { sfx.pulse(); setFriendsOpen(false); }}>
             <Icon name="chevron" />

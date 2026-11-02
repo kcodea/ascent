@@ -79,7 +79,7 @@ interface Member {
 /** COMPACT (phones, short windows): the same test Title.tsx uses for `html[data-ph-compact]`. The friends list becomes the
  *  nav's drawer and the cards use the phone thumbnails. */
 function useCompact(): boolean {
-  const test = (): boolean => isPhone() || window.innerHeight < 700;
+  const test = (): boolean => document.documentElement.hasAttribute('data-ph-compact') || isPhone();
   const [c, setC] = useState(test);
   useEffect(() => {
     const on = (): void => setC(test());
@@ -177,7 +177,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   switch (mode.id) {
     case 'ranked': onStart = () => onRankedStart('solo'); break;
     case 'duos':
-      if (demo && !duosRoom) { note = note ?? 'Sample party. Start does nothing.'; break; }
+      if (demo && !duosRoom) { onStart = () => onRankedStart('duos', () => undefined); break; }
       if (inGame) { startOk = false; startLabel = 'In game'; break; }
       if (!duosRoom || members.length < 2) { startOk = false; note = note ?? 'Invite a teammate to start.'; break; }
       if (!host) { startOk = false; startLabel = 'Waiting'; note = 'Your party leader starts the game.'; break; }

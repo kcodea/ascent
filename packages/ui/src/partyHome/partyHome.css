@@ -20,7 +20,7 @@
 /* ── MODE TABS + the one line on the mode (or why a tab is dimmed in a party) ── */
 .ph-modes { position: relative; z-index: 2; grid-column: 1; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(24 * var(--phu)) 0; min-width: 0; }
 .ph-modes .phk-tabs { max-width: 100%; }
-.ph-desc { padding: calc(4 * var(--phu)) calc(16 * var(--phu)); font-size: var(--ph-t2); font-weight: 600; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.ph-desc { max-width: 100%; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: calc(4 * var(--phu)) calc(16 * var(--phu)); font-size: var(--ph-t3); font-weight: 600; color: var(--ph-text); text-shadow: var(--ph-shadow); }
 .ph-desc.locked { color: #fbe6a6; }
 
 /* ── THE STAGE: (team), cards + options, actions ── */
@@ -37,10 +37,11 @@
 
 .ph-body { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; gap: calc(32 * var(--phu)); }
 .ph-cards { --gap: calc(24 * var(--phu)); container-type: size; flex: 1 1 0; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; gap: var(--gap); }
-.ph-cards.vs { --vsw: calc(64 * var(--phu)); }
+/* VERSUS DUOS: the VS mark is one more item in the row, so it takes its width plus one more gap. */
+.ph-cards.vs { --vsw: calc(64 * var(--phu) + var(--gap)); }
 /* A card's box: sized to fit the space (height-bound, else width-bound across the party). */
 .ph-cardwrap { --n: 1; position: relative; flex: none; aspect-ratio: 0.56; container-type: inline-size;
-  height: min(calc(640 * var(--phu)), 100cqh, calc((100cqw - (var(--n) - 1) * var(--gap) - var(--vsw, 0px)) / var(--n) / 0.56));
+  height: min(calc(720 * var(--phu)), 100cqh, calc((100cqw - (var(--n) - 1) * var(--gap) - var(--vsw, 0px)) / var(--n) / 0.56));
   animation: ph-rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 50ms); }
 .ph-cards.n2 .ph-cardwrap { --n: 2; }
 .ph-cards.n3 .ph-cardwrap { --n: 3; }
@@ -67,7 +68,7 @@
 .ph-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-name-font); font-weight: 900; font-size: min(var(--ph-t4), 9.5cqi); line-height: 1.1; color: var(--ph-ink);
   text-shadow: var(--ph-shadow), 0 calc(2 * var(--phu)) calc(8 * var(--phu)) rgba(0, 0, 0, 0.7); }
 .ph-rank { display: inline-flex; align-items: center; gap: calc(12 * var(--phu)); min-height: calc(40 * var(--phu)); font-family: var(--ph-font); font-weight: 900; font-size: min(var(--ph-t3), 7cqi); color: var(--ph-text); text-shadow: var(--ph-shadow); }
-.ph-rank .rankcrest { width: calc(40 * var(--phu)); height: calc(40 * var(--phu)); }
+.ph-rank .rankcrest { width: min(calc(40 * var(--phu)), 12cqi); height: min(calc(40 * var(--phu)), 12cqi); }
 .ph-muted { font-weight: 700; font-size: var(--ph-t2); color: var(--ph-muted); }
 .ph-sub { font-size: var(--ph-t2); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
 .ph-titlebadge { font-size: var(--ph-t2); }
@@ -78,7 +79,7 @@
 .ph-state.s-space { visibility: hidden; }
 /* AN OPEN SEAT: the same cut, a faint gold edge, a navy plate. */
 .ph-card.ph-open { background: color-mix(in srgb, var(--ph-gold) 45%, transparent); }
-.ph-open .ph-card-in { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); background: color-mix(in srgb, var(--ph-navy) 88%, transparent); }
+.ph-open .ph-card-in { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); background: var(--ph-plate); }
 .ph-open:hover { background: var(--ph-edge); }
 .ph-plus { font-family: var(--ph-font); font-weight: 300; font-size: calc(64 * var(--phu)); line-height: 1; color: color-mix(in srgb, var(--ph-text) 70%, transparent); }
 .ph-openlbl { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
@@ -135,7 +136,7 @@
 /* ── COMPACT (phones, short windows: `html[data-ph-compact]`): one scrolling tab row, cards shrink to fit, START always
    in view; the friends list is the nav's drawer ── */
 html[data-ph-compact] .ph { grid-template-columns: minmax(0, 1fr); }
-html[data-ph-compact] .ph-desc { display: none; }
+html[data-ph-compact] .ph-desc { font-size: var(--ph-t2); text-align: left; }
 html[data-ph-compact] .ph-modes { align-items: stretch; padding: calc(8 * var(--phu)) 0 0; }
 html[data-ph-compact] .ph-modes .phk-tabs { justify-content: flex-start; padding: 0 calc(16 * var(--phu)); }
 html[data-ph-compact] .ph-stage { padding: calc(8 * var(--phu)) calc(24 * var(--phu) + var(--safe-r, 0px)) calc(12 * var(--phu) + var(--safe-b, 0px)) calc(24 * var(--phu) + var(--safe-l, 0px)); gap: calc(8 * var(--phu)); }

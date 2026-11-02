@@ -22,8 +22,6 @@ export interface PartyMode {
   dev?: boolean;
   /** Has in-place options (ModeOptions.tsx), shown in a panel beside the cards. */
   options?: boolean;
-  /** What is still a prototype stub for this mode (shown on screen, small). */
-  stub?: string;
 }
 
 export const PARTY_MODES: readonly PartyMode[] = [

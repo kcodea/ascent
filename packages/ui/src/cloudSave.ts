@@ -100,6 +100,29 @@ export function noteLocalSave(runKey: string, now = Date.now()): void {
 /** The local save was removed (run end, Clear, an unloadable save): the lease goes with it. */
 export function noteLocalClear(): void { saveLease(null); }
 
+/**
+ * RUNS THAT ENDED ON THIS DEVICE (R-SESSION-CLEAR-01, player report 2026-11-02: "my game finished ... I refreshed and
+ * now I'm on round 13 again" / "it keeps looping"). A finished run is final, so its cloud row must never come back as
+ * Continue. The row's removal is asynchronous (a game session on the hub held it for a few seconds), and a title reconcile
+ * that read the row inside that window adopted the ended run into the slot: Continue, the same ending, the same row,
+ * a loop. So the run keys this device ended (or discarded) are kept here, apart from the lease (which the local clear
+ * drops), and the title never adopts one of them: it clears that row instead. Bounded, oldest first out.
+ */
+const ENDED_KEY = 'ascent.cloudsave.ended';
+const MAX_ENDED = 20;
+export function endedRunKeys(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(ENDED_KEY) ?? '[]') as unknown;
+    return Array.isArray(v) ? v.filter((k): k is string => typeof k === 'string') : [];
+  } catch { return []; }
+}
+export function noteRunEnded(runKey: string): void {
+  try {
+    const kept = endedRunKeys().filter((k) => k !== runKey);
+    localStorage.setItem(ENDED_KEY, JSON.stringify([...kept, runKey].slice(-MAX_ENDED)));
+  } catch { /* storage refused: the server-side clear still holds */ }
+}
+
 // ── The title decision (pure) ─────────────────────────────────────────────────────────────────────────────
 export type TitleDecision =
   | 'none'
@@ -157,7 +180,7 @@ export interface CloudSave {
   claim(): Promise<'ok' | 'moved' | 'offline' | 'inactive'>;
   /** The run in the slot ENDED (or was discarded): clear the cloud row. Captures the lease NOW (before the
    *  local clear removes it). */
-  endRun(): Promise<void>;
+  endRun(runKey?: string): Promise<void>;
   /** The title reconcile: fetch + decide (+ fetch the row when adopting). */
   checkAtTitle(localRunKey: string | null): Promise<{ decision: TitleDecision; row?: CloudRow }>;
   /** A cloud row was adopted into the local slot: this device now holds its revision (not yet claimed). */
@@ -260,9 +283,12 @@ export function createCloudSave(deps: CloudSaveDeps): CloudSave {
       if (now && now.runKey === lease.runKey) saveLease({ ...now, userId: uid, revision: res.revision });
       return 'ok' as const;
     }).then((r) => { if (r === 'offline') void svc.requestUpload(); return r; }),
-    endRun: () => {
+    endRun: (runKey) => {
       const uid = deps.userId();
       const lease = uid ? leaseFor(uid) : null;
+      // Remembered before anything else (guests too, and a run never synced): this run is over on this device.
+      const ended = runKey ?? loadLease()?.runKey;
+      if (ended) noteRunEnded(ended);
       return run(async () => {
         if (disabled || !uid || !lease || lease.revision === 0) return;
         const res = await deps.api.clear({ runKey: lease.runKey, expected: lease.revision });
@@ -277,6 +303,11 @@ export function createCloudSave(deps: CloudSaveDeps): CloudSave {
       if (meta === 'unavailable') return { decision: 'none' as TitleDecision };
       const decision = decideAtTitle(localRunKey, leaseFor(uid), meta);
       if (decision !== 'adopt') return { decision };
+      // A run that ENDED here is never adopted back (R-SESSION-CLEAR-01): its row outlived the end. Clear it now.
+      if (meta && endedRunKeys().includes(meta.runKey)) {
+        await deps.api.clear({ runKey: meta.runKey, expected: meta.revision });
+        return { decision: 'none' as TitleDecision };
+      }
       const row = await deps.api.fetchRow();
       if (!row || row === 'absent' || row === 'unavailable' || row.payload?.v !== 1 || typeof row.payload.save !== 'string') return { decision: 'none' as TitleDecision };
       return { decision, row };

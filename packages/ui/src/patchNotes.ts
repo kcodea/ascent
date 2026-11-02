@@ -58,6 +58,16 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-02',
     changes: [
+      { category: 'Systems', text: 'Opening a chest now shows a picture of a card plate or portrait frame you find, like skins and emotes already did.' },
+      {
+        category: 'Systems',
+        text: 'Fixed a finished game sometimes coming back as Continue on the main menu.',
+        details: [
+          'After a game ended, the menu could offer Continue at your last round. Playing it ended the same way and offered it again.',
+          'A game that has ended is now gone from Continue on every device the moment it ends.',
+          'Your rank result from that game was always counted once.',
+        ],
+      },
       {
         category: 'Systems',
         text: 'New Legendary hero attack: Golazo. Your hero plays football and scores on the enemy hero.',

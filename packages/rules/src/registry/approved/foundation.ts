@@ -10509,6 +10509,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateSignals.test.tsx'], lastVerifiedAt: '2026-10-27' },
   },
   {
+    id: 'R-DUOS-MATE-TRIPLE-01',
+    title: 'Duos: a Shop or hand card that completes your teammate\x27s triple is marked in teal',
+    statement:
+      'In Versus Duos and Ranked Duos, on the player\x27s own screen (never while they watch their teammate), a non-Golden Shop offer or '
+      + 'hand card is marked when the teammate is one copy short of Gilding it: the teammate holds two non-Golden copies on their board '
+      + 'and hand together (one under their own Gild-at-2 rules, Twin Gilding or Midas\x27 Touch). The mark is the own-triple hint '
+      + '(static ring, breathing glow, rising arrows) in the Duos pass teal; on a plated hand card the plate\x27s glow turns teal. It is '
+      + 'live: it follows the teammate\x27s frames, so it appears and clears the moment their pair forms or breaks. A Shop offer that '
+      + 'also completes the player\x27s OWN triple shows only the gold own-triple hint. Spells, Rubies and cards that never combine are '
+      + 'never marked. Animates opacity and transform only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live Duos play with Mike)', quote: 'this is referring to when a teammate has a pair, and the minion shows up in your shop. we need something that shows you can give that to your teammate for a triple.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/mateTriples.ts (mateTripleKey); packages/ui/src/versus/useMateTriples.ts; packages/ui/src/versus/duosMateSignals.ts (noteMateFrame); packages/ui/src/sbDuos.ts; packages/ui/src/Recruit.tsx (mateTripleUids); packages/ui/src/Card.tsx (.matetrip)' },
+    ],
+    currentBehaviour: 'Built 2026-11-02 (feat/duos-mate-flyin-triple). Before, nothing on the player\x27s screen said a Shop minion would complete the teammate\x27s pair.',
+    example: 'Bob holds two Alley Cats. A third shows up in Ann\x27s shop: it glows teal with teal arrows rising. Ann buys it and it keeps the teal glow in her hand until she passes it to Bob.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/mateTriples.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-DUOS-RAIL-TEAM-01',
     title: 'Duos: the lobby rail shows one slot per team',
     statement:
@@ -13198,6 +13219,28 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'second board (its beats in the compiled timeline carried the bare uid `m7` instead of the card).',
     example: 'My Mama Pup dies and its Echo pulses. My teammate\x27s Mama Pup steps in, dies, and its Echo pulses the same way.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/duosSecondBoardFx.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-DUOS-PASS-LATENCY-01',
+    title: 'A Duos pass lands in the teammate\x27s hand as soon as the server has it, even while they watch the sender',
+    statement:
+      'A card passed to the teammate (Versus Duos and Ranked Duos) lands in their hand the moment the room\x27s `pass` push reaches them: '
+      + 'the push carries the row and is applied at once, with no read or poll in the delivery path (the coalesced read that follows is '
+      + 'only a backstop, and a row applied twice lands once). A receiver who is WATCHING their teammate\x27s screen keeps the pushed rows '
+      + 'and lands them the instant they are back on their own screen (the watch screen holds the teammate\x27s render-only run, which '
+      + 'takes no actions), so the card is there when they return, never on the heartbeat\x27s 12 s backstop. A send that fails for a '
+      + 'transient reason (a timeout, a dropped socket) goes out again on a short timer (1 s, doubling to 8 s), not only on the sender\x27s '
+      + 'next run change; the server takes each seq once, so a retry never passes a card twice.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Player report via the coordinator, 2026-11-02 (live Versus Duos with the owner)', quote: 'so i watched you send over roomworks and it took like 8 seconds before it showed up in my hand' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02', quote: 'sometimes passes take literally 10 seconds' },
+      { kind: 'code', ref: 'fix/duos-pass-latency: packages/ui/src/versus/duosPasses.ts (duosPushed, duosBackFromMate, applyRows watch guard, retrySoon); packages/ui/src/versus/versusStore.ts (the room subscription hands the pushed row over; leaving the teammate view lands what came while watching)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-02 (fix/duos-pass-latency, client only). Before, the pushed row was only a wake: a read followed 50 ms later and landed the pass (~70 ms send to hand, measured locally), but a receiver watching their teammate had the pass "landed" on the teammate\x27s render-only run, which swallowed it, so it waited for the heartbeat\x27s every-third-beat backstop read (measured 2.7 s and 11.0 s). A failed send retried only on the sender\x27s next run change.',
+    example: 'Bob is watching Ann\x27s screen. Ann drags Roomworks onto his portrait. Bob clicks back to his own screen a second later: Roomworks drops into his hand right away (measured 7 to 12 ms after he is back, 9 to 23 ms on his own screen).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosPassLatency.test.ts'], lastVerifiedAt: '2026-11-02' },
   },
   {
     id: 'R-PROG-CRATE-06',

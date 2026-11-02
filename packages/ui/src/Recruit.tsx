@@ -284,6 +284,8 @@ import { noteSpectatorBeat, overlayMinOf, spectatorFightCovered, spectatorStrike
 import { useReplayStream } from './replay/replayStreamPlayer';
 import { notePlayerBeat, tapOdds, tapOverlay, tapSkipCombat } from './versus/spectateTap';
 import { WatchersBadge } from './versus/WatchersBadge';
+import { mateTripleIds } from './versus/mateTriples';
+import { useMateTripleKey } from './versus/useMateTriples';
 import { onPressCue } from './pressCue';
 
 /** GOD MODE panel (owner 2026-10-08) — its own chunk, fetched only when a God Mode run reaches the shop. */
@@ -4617,6 +4619,19 @@ export function Recruit() {
     }
     return out;
   }, [run.board, run.hand, run.shop, run.heroId, run.runeTwinGilding]);
+  // DUOS (owner 2026-11-02, R-DUOS-MATE-TRIPLE-01): "when a teammate has a pair, and the minion shows up in your shop. we
+  // need something that shows you can give that to your teammate for a triple." A shop offer or a held card my teammate
+  // is one copy short of a Gild on wears the triple hint tinted teal (`mateTriple`). My own triple hint wins on an offer
+  // that completes both. Empty (one shared set) outside Duos, so no other run renders anything new.
+  const mateTripleKey = useMateTripleKey();
+  const mateTripleUids = useMemo(() => {
+    if (!mateTripleKey) return NO_UIDS;
+    const ids = mateTripleIds(mateTripleKey);
+    const out = new Set<string>();
+    for (const o of run.shop) if (!o.golden && !tripleReadyUids.has(o.uid) && ids.has(o.cardId)) out.add(o.uid);
+    for (const c of run.hand) if (!c.golden && ids.has(c.cardId)) out.add(c.uid);
+    return out.size ? out : NO_UIDS;
+  }, [mateTripleKey, run.shop, run.hand, tripleReadyUids]);
 
   // A single stable pointer-down handler shared by every card: it reads the grabbed card's uid
   // + zone from the DOM and its view from this ref, so the handler's identity never changes
@@ -8804,7 +8819,7 @@ export function Recruit() {
         sbEnemyShown={sbTavernShowsEnemy && !!run.sandbox} sbEnemySnap={sbEnemySnap} sbEditMode={sbEditMode} onSbEnemyPointerDown={onSbEnemyPointerDown}
         displayShop={displayShop} heldUids={heldUids} shopOrder={shopOrder} shopViews={shopViews} refViewsByUid={refViewsByUid}
         heroArmed={heroArmed} heroTargetsTavern={heroTargetsTavern}
-        tripleReadyUids={tripleReadyUids} returningFromCombat={returningFromCombat} onCardPointerDown={onCardPointerDown}
+        tripleReadyUids={tripleReadyUids} mateTripleUids={mateTripleUids} returningFromCombat={returningFromCombat} onCardPointerDown={onCardPointerDown}
         spell={run.spell} spellView={spellView}
       />
       </PerfProfiler>
@@ -8826,6 +8841,7 @@ export function Recruit() {
         gambleHand={handRow} handOrder={handOrder} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
         handViews={handRowViews} fadeDelays={whisperFadeDelays} refViewsByUid={refViewsByUid} combatHandSummoned={combatHandSummoned}
         onCardPointerDown={onCardPointerDown} handPreviewViews={handPreviewShown} handPreviewSpent={handPreviewSpent}
+        mateTripleUids={mateTripleUids}
       />
       </PerfProfiler>
 
@@ -9337,7 +9353,7 @@ export const selectHandDrag = (s: DragSnapshot) => ({
 const TavernRow = memo(function TavernRow({
   frozen, replay, sbEnemyShown, sbEnemySnap, sbEditMode, onSbEnemyPointerDown, displayShop, heldUids, shopOrder,
   shopViews, refViewsByUid, heroArmed, heroTargetsTavern,
-  tripleReadyUids, returningFromCombat, onCardPointerDown, spell, spellView,
+  tripleReadyUids, mateTripleUids, returningFromCombat, onCardPointerDown, spell, spellView,
 }: {
   frozen: boolean; replay: ReturnType<typeof useCombatReplay> | null; sbEnemyShown: boolean;
   sbEnemySnap: BoardSnapshot | null; sbEditMode: boolean; onSbEnemyPointerDown: (e: React.PointerEvent) => void;
@@ -9347,6 +9363,8 @@ const TavernRow = memo(function TavernRow({
   shopViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>;
   heroArmed: boolean; heroTargetsTavern: boolean;
   tripleReadyUids: ReadonlySet<string>; returningFromCombat: boolean;
+  /** DUOS: offers my teammate is one copy short of a Gild on (R-DUOS-MATE-TRIPLE-01). */
+  mateTripleUids: ReadonlySet<string>;
   onCardPointerDown: (e: ReactPointerEvent) => void; spell: RunState['spell'];
   spellView: CardView | null;
 }) {
@@ -9446,6 +9464,7 @@ const TavernRow = memo(function TavernRow({
                 highlight={(heroArmed && heroTargetsTavern) || (castingSpell && !(o.golden && CARD_INDEX[dragCardId ?? '']?.targetNoGolden) && (dragTarget === 'any' || (!!o.starform && starformSpellAimsToken(CARD_INDEX[dragCardId ?? ''] ?? {}))))}
                 targeted={(heroArmed && heroTargetsTavern && aimTargetUid === o.uid) || castTargetUid === o.uid}
                 tripleReady={tripleReadyUids.has(o.uid)}
+                mateTriple={mateTripleUids.has(o.uid)}
                 contraband={o.contraband}
                 enchanted={o.enchanted}
                 suppressPop={returningFromCombat}
@@ -9578,10 +9597,15 @@ const WarbandRow = memo(function WarbandRow({
 
 /** The hand zone: the fanned hand + the grant previews. Memoized like the other rows; `handSlotW` is the drag's
  *  measured slot spacing passed as a value (it was read off a ref at render). */
+/** One shared empty uid set (a stable reference, so a memoized row sees no change). */
+const NO_UIDS: ReadonlySet<string> = new Set<string>();
+
 const HandRow = memo(function HandRow({
   gambleHand, handOrder, goldSpentRun, tier, wave, handViews, fadeDelays, refViewsByUid, combatHandSummoned,
-  onCardPointerDown, handPreviewViews, handPreviewSpent,
+  onCardPointerDown, handPreviewViews, handPreviewSpent, mateTripleUids,
 }: {
+  /** DUOS: held cards my teammate is one copy short of a Gild on (R-DUOS-MATE-TRIPLE-01). */
+  mateTripleUids: ReadonlySet<string>;
   /** Whispers dissipating at End of Turn: uid -> fade delay ms (`whisperDissipate.ts`). */
   fadeDelays: ReadonlyMap<string, number> | null;
   gambleHand: BoardCard[];
@@ -9655,6 +9679,7 @@ const HandRow = memo(function HandRow({
                 onPointerDown={onCardPointerDown}
                 locked={locked}
                 lockLabel={lockLabel}
+                mateTriple={mateTripleUids.has(m.uid)}
                 forceFull
                 plated
               />

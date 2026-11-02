@@ -10,10 +10,11 @@
 
 .lchat-pill { position: fixed; z-index: 470; left: 12px; top: calc(var(--lvh, 100vh) * 0.3);
   display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px;
-  font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: #f0d089;
-  background: linear-gradient(180deg, rgba(13, 22, 40, 0.94), rgba(9, 15, 29, 0.96)); border: 1.5px solid rgba(196, 160, 92, 0.55);
-  box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.7); }
-.lchat-pill:hover { border-color: rgba(240, 208, 137, 0.85); }
+  /* THE RAIL LOOK (owner 2026-11-01): the rail's navy plate, gold edge and text. Hover: the lit edge (static). */
+  font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: var(--pill-text); text-shadow: var(--pill-text-shadow);
+  background: var(--pill-plate); border: 1.5px solid var(--pill-edge);
+  box-shadow: var(--pill-outline), 0 10px 24px -10px rgba(0, 0, 0, 0.7); }
+.lchat-pill:hover { border-color: var(--pill-edge-hover); }
 
 .lchat.vspanel { width: 100%; height: 100%; min-width: 0; max-width: none;
   box-sizing: border-box; padding: 0; display: flex; flex-direction: column; text-align: left; overflow: hidden; border-radius: 14px; border-width: 1.5px;

@@ -45,9 +45,12 @@
   --atip-hl: var(--ui-hl);             /* keywords + numbers inside the body */
   --atip-divider: var(--ui-divider);
   /* Pill tags ("once per turn", "Rune · active") */
-  --atip-pill-bg: var(--ui-chip-bg);
-  --atip-pill-line: var(--ui-chip-edge);
-  --atip-pill-text: var(--ui-chip-text);
+  /* THE RAIL LOOK (owner 2026-11-01, every pill): the tip's pill tags wear the rail's navy plate, gold edge and text. */
+  --atip-pill-bg: var(--pill-plate);
+  --atip-pill-line: var(--pill-edge);
+  --atip-pill-text: var(--pill-text);
+  --atip-pill-font: var(--pill-font);
+  --atip-pill-shadow: var(--pill-text-shadow);
   /* The tuner's dials (tooltipConfig.ts), in ON-SCREEN px. Keep in sync with its DEFAULTS (the owner's dialled
      values, baked 2026-10-02). */
   --atip-title-size: 17px;
@@ -147,8 +150,8 @@
 .atip-pill, .herotip-live, .questbadge-tip-state, .runtrophy-tip-kind {
   display: inline-block; align-self: flex-start; padding: 0.15em 0.85em; border-radius: 999px;
   background: var(--atip-pill-bg); border: 1px solid var(--atip-pill-line); color: var(--atip-pill-text);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 1px 2px rgba(0, 0, 0, 0.4);
-  font-family: var(--font-ui); font-size: var(--atip-z-pill); font-weight: 800; line-height: 1.4;
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.95), 0 1px 2px rgba(0, 0, 0, 0.4); text-shadow: var(--atip-pill-shadow);
+  font-family: var(--atip-pill-font); font-size: var(--atip-z-pill); font-weight: 800; line-height: 1.4;
   letter-spacing: normal; text-transform: none; font-variant-numeric: tabular-nums;
 }
 /* A live value line (rune reward naming the spell you get): highlighted body, not a pill. */

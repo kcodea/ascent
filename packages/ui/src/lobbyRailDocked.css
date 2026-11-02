@@ -131,8 +131,9 @@ html:root[data-lr2-art="center"] .lobbyrail.lrv-docked .lrv-tileart > .lobbyface
 /* The slice's plate behind the art: a soft warm-dark gradient so the faded side reads as part of the slice. */
 html:root .lobbyrail.lrv-docked .lrv-tileart { background: linear-gradient(90deg, var(--ui-plate-mid, var(--ui-plate)), var(--ui-plate-bot, var(--ui-plate))); }
 /* The navy plate (Tuner 2 "Navy: plate colour"): a touch lighter at the top, deeper toward the art. */
+/* The plate is the shared rail pill plate (`--pill-plate`, uiTheme.css): every in-game pill wears it too (owner 2026-11-01). */
 html:root:is(:not([data-lr2-art]), [data-lr2-art="navy"]) .lobbyrail.lrv-docked .lrv-tileart {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--lr2-navy, #0d1a36) 82%, #3a5a9a) 0%, var(--lr2-navy, #0d1a36) 55%, color-mix(in srgb, var(--lr2-navy, #0d1a36) 70%, #000) 100%);
+  background: var(--pill-plate);
 }
 
 /* HEALTH NUMBERS (owner 2026-10-31: "the health bar is impossible to know what it actually means, right? can we make that a
@@ -146,13 +147,13 @@ html:root .lobbyrail.lrv-docked .lrv-hpnum {
   display: flex; flex-direction: column; align-items: flex-start; gap: calc(2px * var(--dk-s, 1));
   font-family: var(--font-title), sans-serif; font-weight: 900; line-height: 1; pointer-events: none;
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.85);
+  text-shadow: var(--pill-num-shadow);
 }
 html:root .lobbyrail.lrv-docked .lrv-hpnum > span { display: inline-flex; align-items: center; gap: 0.2em; }
 html:root .lobbyrail.lrv-docked .lrv-hpnum svg { width: 0.82em; height: 0.82em; flex: none; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)); }
 html:root .lobbyrail.lrv-docked .lrv-hpn-hp { font-size: calc(var(--lr2-hpnum-size, 24.5) * var(--dk-s, 1) * 1px); color: #fff; }
 html:root .lobbyrail.lrv-docked .lrv-hpn-hp svg { color: var(--ui-heart); }
-html:root .lobbyrail.lrv-docked .lrv-hpn-arm { font-size: calc(var(--lr2-armnum-size, 14) * var(--dk-s, 1) * 1px); color: #c4d6ef; }
+html:root .lobbyrail.lrv-docked .lrv-hpn-arm { font-size: calc(var(--lr2-armnum-size, 14) * var(--dk-s, 1) * 1px); color: var(--pill-armor); }
 html:root:is(:not([data-lr2-hp]), [data-lr2-hp="number"]) .lobbyrail.lrv-docked .lrv-barclip { display: none; }
 html:root[data-lr2-hp="bar"] .lobbyrail.lrv-docked .lrv-hpnum { display: none; }
 
@@ -165,15 +166,15 @@ html:root .lobbyrail.lrv-docked .lrv-rank {
   --ns: var(--lr2-name-shadow, 0.5);
   position: absolute; z-index: 2; top: 0; bottom: 0; left: calc(100% + var(--rkg)); width: var(--rkw); box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
-  border: max(1px, calc(1.5px * var(--dk-s, 1))) solid var(--ui-edge-main);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--lr2-navy, #0d1a36) 82%, #3a5a9a) 0%, var(--lr2-navy, #0d1a36) 55%, color-mix(in srgb, var(--lr2-navy, #0d1a36) 70%, #000) 100%);
-  box-shadow: 0 0 1px rgba(0, 0, 0, 0.95);
-  font-family: var(--font-title), sans-serif; font-weight: var(--lr2-name-weight, 800);
-  font-size: calc(var(--lr2-name-size, 15) * var(--dk-s, 1) * 1px); line-height: 1; color: var(--ui-text); font-variant-numeric: tabular-nums;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, min(1, calc(0.95 * var(--ns)))), 0 0 calc(4px * var(--ns)) rgba(0, 0, 0, min(1, calc(0.85 * var(--ns)))), 0 0 calc(9px * var(--ns)) rgba(0, 0, 0, min(1, calc(0.6 * var(--ns))));
+  border: max(1px, calc(1.5px * var(--dk-s, 1))) solid var(--pill-edge);
+  background: var(--pill-plate);
+  box-shadow: var(--pill-outline);
+  font-family: var(--pill-font), sans-serif; font-weight: var(--lr2-name-weight, 800);
+  font-size: calc(var(--lr2-name-size, 15) * var(--dk-s, 1) * 1px); line-height: 1; color: var(--pill-text); font-variant-numeric: tabular-nums;
+  text-shadow: var(--pill-text-shadow);
 }
 html:root .lobbyrail.lrv-docked .lobbyseat.you .lrv-rank { color: #fff; }
-html:root .lobbyrail.lrv-docked .lobbyseat.foe .lrv-rank { color: color-mix(in srgb, var(--ui-heart) 35%, #fff); }
+html:root .lobbyrail.lrv-docked .lobbyseat.foe .lrv-rank { color: var(--pill-foe); }
 html:root .lobbyrail.lrv-docked .lobbyseat.dead .lrv-rank { color: var(--ui-muted); }
 /* THE PODIUM (owner 2026-10-31: "lets have first hued gold, second silver and third bronze", then "i want the background to be
    gold silver and bronze, the number can be navy"): places 1-3 fill the box with a metal gradient and print the number in
@@ -198,8 +199,8 @@ html:root .lobbyrail.lrv-docked .lrv-name {
   text-align: right; pointer-events: none;
   translate: calc(var(--lr2-name-x, 2.5) * 1px) calc(-50% + var(--lr2-name-y, 27.5) * 1px);
   font-family: var(--font-title), sans-serif; font-weight: var(--lr2-name-weight, 800);
-  font-size: calc(var(--lr2-name-size, 15) * var(--dk-s, 1) * 1px); line-height: 1.12; letter-spacing: 0.02em; color: var(--ui-text);
-  text-shadow: 0 1px 0 rgba(0, 0, 0, min(1, calc(0.95 * var(--ns)))), 0 0 calc(4px * var(--ns)) rgba(0, 0, 0, min(1, calc(0.85 * var(--ns)))), 0 0 calc(9px * var(--ns)) rgba(0, 0, 0, min(1, calc(0.6 * var(--ns))));
+  font-size: calc(var(--lr2-name-size, 15) * var(--dk-s, 1) * 1px); line-height: 1.12; letter-spacing: 0.02em; color: var(--pill-text);
+  text-shadow: var(--pill-text-shadow);
   overflow-wrap: anywhere;
 }
 /* The clamp lives on an inner span (an absolutely placed box is blockified, which drops the legacy clamp), so a name past
@@ -221,7 +222,7 @@ html:root .lobbyrail.lrv-docked .lrv-you {
   font-family: var(--font-title), sans-serif; font-weight: 900; font-size: calc(9px * var(--dk-s, 1)); letter-spacing: 0.04em;
   text-transform: uppercase; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); line-height: 1;
 }
-html:root .lobbyrail.lrv-docked .lobbyseat.foe .lrv-name { color: color-mix(in srgb, var(--ui-heart) 35%, #fff); }
+html:root .lobbyrail.lrv-docked .lobbyseat.foe .lrv-name { color: var(--pill-foe); }
 html:root[data-lr2-name-side="left"] .lobbyrail.lrv-docked .lrv-name { left: calc(var(--fx, 0px) + 9px * var(--dk-s, 1)); right: calc(var(--aw) * 0.62); text-align: left; }
 html:root[data-lr2-name-side="left"]:not([data-lr2-art="right"]) .lobbyrail.lrv-docked .lrv-name { right: 40%; }
 html:root[data-lr2-art="right"]:not([data-lr2-name-side="left"]) .lobbyrail.lrv-docked .lrv-name { left: calc(var(--fx, 0px) + 9px * var(--dk-s, 1)); right: calc(var(--aw) * 0.62); text-align: left; }

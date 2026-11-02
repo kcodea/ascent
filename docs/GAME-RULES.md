@@ -1487,8 +1487,15 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   and the host's **friends only** switch are no longer on screen; the server keeps both (a friends-only party is
   listed, counted and joinable only for the host's friends and its members, and never shown on Live Games). The party
   uses the live rules.
-- **After a game** each teammate returns to the party and sees the team's place out of 4, its rating change and medal
-  on the ranked end sequence (the solo rank screen). The party stays together for the next game.
+- **After a game** (owner 2026-11-02, R-RANKED-DUOS-POSTGAME-01: "add a post game screen just like ranked solo's that
+  shows your team's ranked progress/xp etc same flow as solos"; "the continue then returns you to your duos party")
+  each teammate gets the solo ranked end screen over the party, in the solo order: the team's place out of 4, the
+  team's medal bar and points change (with the promotion / demotion moment), then the player's own Account XP (Aether
+  and the new-rewards line included). The team's name and both teammates' portraits and names head it. An unrated
+  table reads "Unrated" and still shows the XP. Match details opens the match stats (they never open over the
+  results). **Continue** closes it onto the party, which stays together for the next game. XP settles once per player
+  (`versus:<match>`); a request that reaches the server before the Worker's result has landed is retried for 3
+  minutes instead of dropped.
 - **Boards.** The Leaderboard has Solo | Duos tabs; Duos lists the top teams (team name, both players, medal, games).
   A player's Career shows their Ranked Duos teams (each with its partner, medal and games).
 - **Live Games.** A live team is one row (`duos:<room>`, published by its first seat): the team name, the first seat's

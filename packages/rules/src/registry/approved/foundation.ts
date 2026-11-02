@@ -13271,4 +13271,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-11-02. Before, only hero skins, minion skins (2026-09-29) and emotes (2026-10-15) showed art; a card plate or a portrait frame revealed with the nameplate alone.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/Crates.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-RANKED-DUOS-POSTGAME-01',
+    title: 'Ranked Duos: after a game both teammates get the solo ranked end screen, and Continue returns to the party',
+    statement:
+      'When a Ranked Duos game ends (my team is placed), each teammate sees the solo ranked end screen over the party: '
+      + 'the team\x27s place out of 4, the team\x27s medal bar and points change (the promotion / demotion moment included), '
+      + 'then that player\x27s own Account XP (and Aether, and the line pointing at new rewards), headed by the team\x27s name '
+      + 'and both teammates\x27 portraits and names. An unrated table reads "Unrated" and still shows the XP. The match '
+      + 'stats open only from its Match details button, never over it. Continue closes it onto the Duos party, where the '
+      + 'pair stays for the next game. Each player\x27s XP settles once (`versus:<match>`, deduped by the server); a request '
+      + 'refused because the Worker\x27s result has not landed yet (`source_not_found` / `not_terminal`) within 3 minutes of '
+      + 'the end is retried instead of dropped.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (Ranked Duos)', quote: 'add a post game screen just like ranked solo\x27s that shows your team\x27s ranked progress/xp etc same flow as solos' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (Ranked Duos)', quote: 'the continue then returns you to your duos party' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosParty.tsx (DuosResultOverlay, DuosResultTeam); packages/ui/src/versus/versusStore.ts (returnToRoom, duosResultTeam, loadDuosResult); packages/ui/src/progression/progressionQueue.ts (versusResultLanding)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (feat/ranked-duos-postgame). Before, the room opened the Versus match stats (z 560) over the '
+      + 'team\x27s rank screen (z 500), an unrated game showed no result screen at all, the rank screen had no Account XP, '
+      + 'and an XP request that beat the Worker\x27s result writer was dropped as a permanent refusal.',
+    example: 'Kevin and Lemon finish 2nd: both see "2ND", the team\x27s bar move +11, then their own Account XP; Continue puts them back on their party screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosPostgame.test.tsx', 'packages/ui/src/progression/progressionQueue.test.ts', 'packages/ui/src/versus/chaos/versusCfParity.db.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

@@ -120,8 +120,14 @@ export type VersusArea = 'versus' | 'duos';
 export const isDuosParty = (r: { options?: { mode?: string } | null } | null | undefined): boolean => r?.options?.mode === 'ranked_duos';
 /** The play area a room belongs to. */
 export const areaOfRoom = (r: { options?: { mode?: string } | null } | null | undefined): VersusArea => (isDuosParty(r) ? 'duos' : 'versus');
-/** My team's result for a finished Ranked Duos match (a RankResult-shaped row, team-owned). */
-export interface DuosResultView { matchId: string; placement: number; result: RankResult | null; teamName: string | null; pending: boolean }
+/** One teammate on the Ranked Duos post-game screen: who, their hero, and the cosmetics their portrait wears. */
+export interface DuosResultMember { userId: string; name: string; hero: string | null; cosmetics: RunCosmeticSnapshot | null; self: boolean }
+/** My team's result for a finished Ranked Duos match (a RankResult-shaped row, team-owned). `unrated` = the table had a
+ *  generated team (no rating moves; the screen says so, as solo's does). `team` = both of us, me first. */
+export interface DuosResultView {
+  matchId: string; placement: number; result: RankResult | null; teamName: string | null; pending: boolean;
+  unrated: boolean; team: DuosResultMember[];
+}
 
 export const useVersus = create<VersusState>(() => ({
   screen: 'browser', rooms: [], loading: false, error: null, room: null, match: null, priv: null, heroOffer: null,
@@ -1858,11 +1864,20 @@ export function returnToRoom(): void {
   } else if (match && seat) {
     set({ statsOpen: true }); // conceded at once: the record is built when the server confirms the result (`onMatch`)
   }
-  // RANKED DUOS: the team's rating change and medal, as the solo end screen shows them (R-RANKED-DUOS-RATING-01).
+  // RANKED DUOS POST-GAME (owner 2026-11-02, R-RANKED-DUOS-POSTGAME-01: "add a post game screen just like ranked solo's
+  // that shows your team's ranked progress/xp etc same flow as solos"): the team's place, its rating change and medal,
+  // then my Account XP, on the solo end screen's own sequence. It comes FIRST: the match stats wait behind its Match
+  // details button instead of opening over it, and its Continue returns to the party.
   if (match && seat && groupRaw && groupRaw.id === match.id && isRankedDuosRaw(groupRaw)) {
-    const mine = groupSeatOf(groupRaw, currentUserId());
+    const me = currentUserId();
+    const mine = groupSeatOf(groupRaw, me);
     const place = mine?.placement ?? (groupRaw.winner_seat ? 1 : null);
-    if (place != null && !groupRaw.unrated) void loadDuosResult(match.id, place, groupRaw.teamName ?? null);
+    if (place != null) {
+      const myCos = useGame.getState().run.mode === 'versus' ? useGame.getState().run.cosmetics ?? null : null;
+      const team = duosResultTeam(groupRaw, me, myCos, (uid) => parseCosmeticSnapshot(get().room?.members.find((m) => m.userId === uid)?.profile?.cosmetics) ?? null);
+      set({ statsOpen: false });
+      void loadDuosResult(match.id, place, groupRaw.teamName ?? null, { unrated: !!groupRaw.unrated, team });
+    }
   }
   builtFor = null;
   pendingPresent = null;
@@ -1995,16 +2010,35 @@ export async function saveTeamName(partner: string, name: string): Promise<strin
   return out.name ?? null;
 }
 
-/** Read my team's result for a finished Ranked Duos match (once; the server settles it in the round commit). */
-export async function loadDuosResult(matchId: string, placement: number, teamName: string | null): Promise<void> {
-  set({ duosResult: { matchId, placement, result: null, teamName, pending: true } });
+/** The two live teammates of a Ranked Duos match (seats p1 / p2), me first, for the post-game screen's team row. */
+export function duosResultTeam(
+  raw: Pick<VersusGroupMatchRaw, 'seats'>, me: string | null, myCos: RunCosmeticSnapshot | null,
+  cosOf: (userId: string) => RunCosmeticSnapshot | null,
+): DuosResultMember[] {
+  const live = raw.seats.filter((s) => s.seat === 'p1' || s.seat === 'p2');
+  return live
+    .map((s): DuosResultMember => ({ userId: s.userId, name: s.name, hero: s.hero, self: s.userId === me, cosmetics: s.userId === me ? myCos : cosOf(s.userId) }))
+    .sort((a, b) => Number(b.self) - Number(a.self));
+}
+
+/** Read my team's result for a finished Ranked Duos match (once; the server settles it in the round commit). An unrated
+ *  match has no result row to wait for: the screen shows "Unrated" at once, as solo's does. */
+export async function loadDuosResult(
+  matchId: string, placement: number, teamName: string | null,
+  opts: { unrated?: boolean; team?: DuosResultMember[] } = {},
+): Promise<void> {
+  const unrated = !!opts.unrated;
+  const team = opts.team ?? [];
+  const view = (result: RankResult | null, pending: boolean, place = placement): DuosResultView => ({ matchId, placement: place, result, teamName, pending, unrated, team });
+  if (unrated) { set({ duosResult: view(null, false) }); return; }
+  set({ duosResult: view(null, true) });
   for (let i = 0; i < 4; i++) {
     const row = await versusRemote.duosResult(matchId).catch(() => null);
     if (get().duosResult?.matchId !== matchId) return;
-    if (row) { set({ duosResult: { matchId, placement: row.placement, result: row, teamName, pending: false } }); return; }
+    if (row) { set({ duosResult: view(row, false, row.placement) }); return; }
     await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
   }
-  if (get().duosResult?.matchId === matchId) set({ duosResult: { matchId, placement, result: null, teamName, pending: false } });
+  if (get().duosResult?.matchId === matchId) set({ duosResult: view(null, false) });
 }
 
 export function closeDuosResult(): void {

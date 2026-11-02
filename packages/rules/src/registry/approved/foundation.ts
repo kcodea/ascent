@@ -11233,7 +11233,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-EMOTE-LAYOUT-01',
     title: 'Emote bubbles are never mirrored and never cover each other; the stands are one tidy column',
     statement:
-      'An emote bubble is the painted art with its words baked in, so it is NEVER mirrored. Beside your portrait and a spectator plate it opens to the right, as painted. Beside a face at the right edge (a lobby rail row, a Duos teammate row, the Versus foe block, the combat foe) it opens to the LEFT of the face, as painted. Every bubble FITS ITS PORTRAIT: it sits level with the portrait\'s middle, its near edge (the painted tail, or the frame\'s right end) overlaps the portrait by 30% of its width, and its width is a fixed multiple of the portrait\'s width per surface (your hero 1.15x, a rail face 3.1x, the foe 1.45x, a spectator ring 2.3x), never under 170 stage px, 1.2x on a phone. '
+      'An emote bubble is the painted art with its words baked in, so it is NEVER mirrored. Beside your portrait and a spectator plate it opens to the right, as painted. Beside a face at the right edge (a lobby rail row, a Duos teammate row, the Versus foe block, the combat foe) it opens to the LEFT of the face, as painted. Every bubble FITS ITS PORTRAIT: it sits level with the portrait\'s middle, its near edge (the painted tail, or the frame\'s right end) overlaps the portrait by 30% of its width, and its width is a fixed multiple of the portrait\'s width per surface (your hero 1.15x, a Gem rail face 3.1x, the foe 1.45x, a spectator ring 2.3x; a Docked rail seat is sized off its slice instead, R-EMOTE-RAIL-DOCKED-01), never under 170 stage px, 1.2x on a phone. '
       + 'No two live bubbles overlap: a new one slides up or down beside its speaker until it is clear of every other bubble (the player\'s own included); with no room it waits, one per speaker (the latest wins), goes up the moment a bubble leaves, and is dropped after 4 s rather than shown late. At most 9 bubbles show at once, at most 3 of them from spectators. '
       + 'The spectators (the player\'s Spectating indicator and a spectator\'s own top-left HUD) stand in ONE column at the top left: every plate the same size (88 px portrait, name under it, the Spectating tag), the same gap, at most three (two under a spectator\'s own plate) and then a "+N" chip; it never wraps into the tier gem or the timer. '
       + 'Placement reads layout once per bubble (never per frame); the bubble animates transform and opacity only.',
@@ -11247,6 +11247,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-10-29 (fix/spectator-emote-layout; portrait fit in fix/emote-portrait-fit, the same day). Before, a bubble at the right edge was drawn mirrored (its words read backwards), simultaneous bubbles stacked on top of each other and on the spectator plates, and the stands were a small wrapping row.',
     example: 'Three spectators and two rail neighbours emote at once: each spectator bubble overlaps the right edge of its own portrait ring, level with it, stacking down the stands column; the two rail bubbles overlap the left edge of their small faces at a size to match and sit apart; your own big bubble overlaps your hero portrait; every word reads the right way round.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/emotes/emoteLayout.test.ts', 'packages/ui/src/emotes/emotes.test.tsx', 'packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-29' },
+  },
+  {
+    id: 'R-EMOTE-RAIL-DOCKED-01',
+    title: 'A rail seat\x27s emote is about its slice\x27s height and sits beside the slice, covering nothing',
+    statement:
+      'On the Docked rail (every mode: lobby, Practice, Versus 1v1 and Group, Duos, Ranked Duos, and when spectating) a seat\x27s emote bubble '
+      + 'is sized off the seat\x27s SLICE, never off its portrait art: its height is 1.15x the slice\x27s height (so it tracks the rail\x27s scale on '
+      + 'every screen and neighbouring seats\x27 bubbles fit side by side), its width follows from the art, and it is never drawn under 36 screen '
+      + 'px tall (a phone). It sits level with the slice\x27s middle, wholly LEFT of the slice, toward the board, with a small gap, and moves '
+      + 'further left past anything of the rail\x27s column in its band (another slice such as a Duos teammate\x27s, the round slice, the Refresh '
+      + 'pill, the End Turn gem, the Gold coin), so it never covers a seat, hero art, the placement column or a board button. The art is '
+      + 'never mirrored and never drawn larger than its source. Where the rail cannot dock (the Gem rail fallback) R-EMOTE-LAYOUT-01\x27s '
+      + 'portrait fit still applies. Placement reads layout once per bubble; the pop animates transform and opacity only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-01 (rail emote size)', quote: 'emotes on the rail are massive and look bad. can you fix them?' },
+      { kind: 'code', ref: 'packages/ui/src/emotes/emoteBubble.ts (fitBesideSlice, DOCK_BUBBLE_TO_SLICE, DOCK_MIN_SCREEN_H, DOCK_OBSTACLES, placementFor)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-11-01 (fix/rail-emote-size). Before, a docked seat\x27s bubble was sized at 3.1x its portrait art\x27s width (the art spans most of a docked slice), so it came out about 470 x 300 stage px, five slices tall, over the board, the End Turn gem and other seats.',
+    example: 'At 1920 x 1080 a lobby slice is 245 x 61: a seat\x27s Good Choice bubble is 109 x 70, just left of its slice; beside the End Turn gem it stands left of the gem instead.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/emotes/emoteLayout.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
   {
     id: 'R-PING-01',

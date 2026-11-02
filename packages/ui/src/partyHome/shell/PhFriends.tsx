@@ -66,7 +66,7 @@ export function PhFriends({ docked }: { docked: boolean }): JSX.Element {
                   onClick={() => invite.send?.(f)}>{label}</PhButton>
               : undefined;
           return (
-            <PhRow key={f.userId} className={`ph-friend f-${f.status}`} art={art} title={f.author ?? handleOf(f)}
+            <PhRow key={f.userId} className={`ph-friend f-${f.status}`} lead={<span className="ph-fportrait">{art && <img src={art} alt="" draggable={false} decoding="sync" />}</span>} title={f.author ?? handleOf(f)}
               sub={<span className="ph-fstatus"><i aria-hidden="true" />{statusText(f)}</span>}
               onClick={demo ? undefined : () => { sfx.pulse(); openDm(f.userId); }} label={`Message ${handleOf(f)}`} right={right} />
           );

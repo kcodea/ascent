@@ -18,6 +18,7 @@
  */
 import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { rectToStage, stageHost } from '../../stage';
 import '../shell/shell.css';
 import './kit.css';
 
@@ -370,8 +371,10 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
   }, [open]);
   const toggle = (): void => {
     if (open) { setOpen(null); return; }
-    const r = btn.current?.getBoundingClientRect();
-    if (r) setOpen({ left: r.left, top: r.bottom + 4, width: r.width });
+    const b = btn.current?.getBoundingClientRect();
+    if (!b) return;
+    const r = rectToStage(b); // screen -> stage space (the layer lives in the stage)
+    setOpen({ left: r.left, top: r.bottom + 4, width: r.width });
   };
   return (
     <>
@@ -392,7 +395,7 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
             ))}
           </div>
         </div>,
-        document.body,
+        stageHost(),
       )}
     </>
   );
@@ -401,4 +404,46 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
 /** A search box in the shell's look (a well with the gold focus edge). Pass any input props. */
 export function PhSearch({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
   return <input type="search" spellCheck={false} autoComplete="off" {...rest} className={cx('phk-search', className)} />;
+}
+
+/** A profile / info plate: a small muted heading over its content (a career identity block, a details card). */
+export function PhPlate({ heading, children, className }: { heading?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <div className={cx('phk-plate', className)}>
+      {heading && <span className="phk-platehead">{heading}</span>}
+      {children}
+    </div>
+  );
+}
+
+/** A podium card (a leaderboard's top three): the placing crest, the portrait, the name, one line and one stat. */
+export function PhPodiumCard({ place, art, name, sub, stat, onClick, label }: {
+  place: number; art?: string; name: ReactNode; sub?: ReactNode; stat?: ReactNode; onClick?: () => void; label?: string;
+}) {
+  const body = (
+    <>
+      <PhPlace place={place} size="l" />
+      {art && <img className="phk-podart" src={art} alt="" draggable={false} decoding="sync" />}
+      <span className="phk-podname">{name}</span>
+      {sub && <span className="phk-podsub">{sub}</span>}
+      {stat && <span className="phk-podstat">{stat}</span>}
+    </>
+  );
+  return onClick
+    ? <button type="button" className={cx('phk-podium', `p-${place}`)} onClick={onClick} aria-label={label}>{body}</button>
+    : <div className={cx('phk-podium', `p-${place}`)}>{body}</div>;
+}
+
+/**
+ * A table row on a shared column grid: pass the same `cols` (a CSS grid-template-columns) to the header row (`head`) and
+ * every body row, so the columns line up. Cells are the children.
+ */
+export function PhGridRow({ cols, head, selected, onClick, label, className, children }: {
+  cols: string; head?: boolean; selected?: boolean; onClick?: () => void; label?: string; className?: string; children: ReactNode;
+}) {
+  const style = { gridTemplateColumns: cols } as React.CSSProperties;
+  if (onClick) {
+    return <button type="button" role="row" className={cx('phk-grow', selected && 'sel', 'press', className)} style={style} onClick={onClick} aria-label={label}>{children}</button>;
+  }
+  return <div role="row" className={cx('phk-grow', head && 'head', selected && 'sel', className)} style={style}>{children}</div>;
 }

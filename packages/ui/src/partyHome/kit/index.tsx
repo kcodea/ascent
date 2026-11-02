@@ -324,7 +324,7 @@ export function PhSwitch({ checked, onChange, label, hint, disabled, className }
 }
 
 /** A slider: a native range input in the shell's look, the value shown at the right (`format` it). */
-export function PhSlider({ value, min, max, step = 1, onChange, onRelease, label, ariaLabel, format, disabled, muted, onMute, className }: {
+export function PhSlider({ value, min, max, step = 1, onChange, onRelease, label, ariaLabel, format, disabled, muted, onMute, muteLabel, className }: {
   value: number; min: number; max: number; step?: number; onChange: (v: number) => void; label?: ReactNode;
   /** Fires once when the drag (or key press) ends, with the final value (e.g. play a preview sound). */
   onRelease?: (v: number) => void;
@@ -333,6 +333,8 @@ export function PhSlider({ value, min, max, step = 1, onChange, onRelease, label
   format?: (v: number) => ReactNode; disabled?: boolean; className?: string;
   /** A mute pairing: pass both and a Mute / Unmute button sits after the value (the slider dims while muted). */
   muted?: boolean; onMute?: () => void;
+  /** The mute button's accessible name (default "Mute <ariaLabel>" / "Unmute <ariaLabel>"). */
+  muteLabel?: string;
 }) {
   const f = max > min ? (value - min) / (max - min) : 0;
   const name = ariaLabel ?? (typeof label === 'string' ? label : undefined);
@@ -346,7 +348,8 @@ export function PhSlider({ value, min, max, step = 1, onChange, onRelease, label
           onKeyUp={(e) => onRelease?.(Number((e.target as HTMLInputElement).value))} />
         <span className="phk-sliderval">{format ? format(value) : value}</span>
         {onMute && (
-          <button type="button" className={cx('phk-chip', 'phk-tchip', muted ? 't-foe' : 't-neutral')} aria-pressed={!!muted} onClick={onMute}>{muted ? 'Muted' : 'Mute'}</button>
+          <button type="button" className={cx('phk-chip', 'phk-tchip', muted ? 't-foe' : 't-neutral')} aria-pressed={!!muted} onClick={onMute}
+            aria-label={muteLabel ?? (name ? `${muted ? 'Unmute' : 'Mute'} ${name}` : undefined)}>{muted ? 'Muted' : 'Mute'}</button>
         )}
       </span>
     </div>
@@ -357,45 +360,96 @@ export function PhSlider({ value, min, max, step = 1, onChange, onRelease, label
  * A dropdown select. The list opens in a layer on the page (a portal, placed from one measure on open), so a clipped
  * section never cuts it off. Closes on a pick, a press outside, or Escape.
  */
-export function PhSelect<T extends string | number>({ value, options, onChange, label, disabled, className }: {
+export function PhSelect<T extends string | number>({ value, options, onChange, label, disabled, className, previewSize }: {
   value: T;
-  /** `thumb`: a small preview image left of the label. `disabled` + `reason`: dimmed, not pickable, the reason under it. */
-  options: readonly { value: T; label: ReactNode; thumb?: string; disabled?: boolean; reason?: string }[];
+  /**
+   * `thumb`: a small image left of the label. `disabled` + `reason`: greyed, not pickable, the reason under it.
+   * `dim` + `reason`: dimmed but still pickable (e.g. "not unlocked on this account yet"). `preview`: a large image shown
+   * beside the list for the highlighted option (a backdrop picker).
+   */
+  options: readonly { value: T; label: ReactNode; thumb?: string; disabled?: boolean; dim?: boolean; reason?: string; preview?: string; text?: string }[];
   onChange: (v: T) => void; label?: string; disabled?: boolean; className?: string;
+  /** The preview's width in units (default 260). */
+  previewSize?: number;
 }) {
   const [open, setOpen] = useState<{ left: number; top: number; width: number } | null>(null);
+  const [hi, setHi] = useState(0);
+  const hiRef = useRef(0);
+  hiRef.current = hi;
   const btn = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const typed = useRef<{ s: string; at: number }>({ s: '', at: 0 });
   const cur = options.find((o) => o.value === value);
+  const pickable = (i: number): boolean => !!options[i] && !options[i]!.disabled;
+  const close = (focus = true): void => { setOpen(null); if (focus) btn.current?.focus(); };
+  const pick = (i: number): void => { const o = options[i]; if (!o || o.disabled) return; close(); if (o.value !== value) onChange(o.value); };
+  const step = (from: number, dir: 1 | -1): number => {
+    for (let i = from + dir; i >= 0 && i < options.length; i += dir) if (pickable(i)) return i;
+    return from;
+  };
+  const textOf = (o: { label: ReactNode; text?: string; value: T }): string => (o.text ?? (typeof o.label === 'string' ? o.label : String(o.value))).toLowerCase();
+  // The keyboard while the list is open: Up / Down / Home / End move, Enter picks, Esc closes, letters jump (typeahead).
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e: globalThis.KeyboardEvent): void => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(null); } };
+    const onKey = (e: globalThis.KeyboardEvent): void => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); setHi((h) => step(h, 1)); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => step(h, -1)); return; }
+      if (e.key === 'Home') { e.preventDefault(); setHi(step(-1, 1)); return; }
+      if (e.key === 'End') { e.preventDefault(); setHi(step(options.length, -1)); return; }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(hiRef.current); return; }
+      if (e.key.length === 1 && /\S/.test(e.key)) {
+        const now = Date.now();
+        typed.current = { s: (now - typed.current.at < 700 ? typed.current.s : '') + e.key.toLowerCase(), at: now };
+        const i = options.findIndex((o, k) => pickable(k) && textOf(o).startsWith(typed.current.s));
+        if (i >= 0) setHi(i);
+      }
+    };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [open]);
-  const toggle = (): void => {
-    if (open) { setOpen(null); return; }
+  }, [open, options]);
+  // Keep the highlighted option in view.
+  useEffect(() => { if (open) listRef.current?.querySelector<HTMLElement>(`[data-i="${hi}"]`)?.scrollIntoView?.({ block: 'nearest' }); }, [hi, open]);
+  const openList = (): void => {
     const b = btn.current?.getBoundingClientRect();
     if (!b) return;
     const r = rectToStage(b); // screen -> stage space (the layer lives in the stage)
+    const at = options.findIndex((o) => o.value === value);
+    setHi(at >= 0 ? at : step(-1, 1));
     setOpen({ left: r.left, top: r.bottom + 4, width: r.width });
   };
+  const toggle = (): void => { if (open) close(false); else openList(); };
+  const onBtnKey = (e: KeyboardEvent<HTMLButtonElement>): void => {
+    if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); openList(); }
+  };
+  const preview = open ? options[hi]?.preview : undefined;
+  const listId = useId();
   return (
     <>
-      <button ref={btn} type="button" className={cx('phk-select', className)} aria-haspopup="listbox" aria-expanded={!!open} aria-label={label} disabled={disabled} onClick={toggle}>
+      <button ref={btn} type="button" className={cx('phk-select', className)} aria-haspopup="listbox" aria-expanded={!!open} aria-controls={open ? listId : undefined}
+        aria-label={label} disabled={disabled} onClick={toggle} onKeyDown={onBtnKey}>
         {cur?.thumb && <img className="phk-selthumb" src={cur.thumb} alt="" draggable={false} decoding="sync" />}
         <span className="phk-selectval">{cur?.label ?? ''}</span><span className="phk-selectcaret" aria-hidden="true">▾</span>
       </button>
       {open && createPortal(
-        <div className="phk-selectlayer" onPointerDown={() => setOpen(null)}>
-          <div className="phk-selectlist" role="listbox" aria-label={label} style={{ left: open.left, top: open.top, minWidth: open.width }} onPointerDown={(e) => e.stopPropagation()}>
-            {options.map((o) => (
-              <button key={String(o.value)} type="button" role="option" aria-selected={o.value === value} aria-disabled={o.disabled || undefined} disabled={o.disabled}
-                className={cx('phk-moreitem', 'phk-selopt', o.value === value && 'on')}
-                onClick={() => { if (o.disabled) return; setOpen(null); if (o.value !== value) onChange(o.value); }}>
-                {o.thumb && <img className="phk-selthumb" src={o.thumb} alt="" draggable={false} decoding="sync" />}
-                <span className="phk-seloptlbl">{o.label}{o.disabled && o.reason && <span className="phk-selreason">{o.reason}</span>}</span>
-              </button>
-            ))}
+        <div className="phk-selectlayer" onPointerDown={() => close(false)}>
+          <div className="phk-selectwrap" style={{ left: open.left, top: open.top }} onPointerDown={(e) => e.stopPropagation()}>
+            <div ref={listRef} id={listId} className="phk-selectlist" role="listbox" aria-label={label} style={{ minWidth: open.width }}
+              aria-activedescendant={`${listId}-${hi}`}>
+              {options.map((o, i) => (
+                <button key={String(o.value)} id={`${listId}-${i}`} data-i={i} type="button" role="option" tabIndex={-1}
+                  aria-selected={o.value === value} aria-disabled={o.disabled || undefined} disabled={o.disabled}
+                  className={cx('phk-moreitem', 'phk-selopt', o.value === value && 'on', i === hi && 'hi', o.dim && 'dim')}
+                  onPointerEnter={() => { if (!o.disabled) setHi(i); }} onClick={() => pick(i)}>
+                  {o.thumb && <img className="phk-selthumb" src={o.thumb} alt="" draggable={false} decoding="sync" />}
+                  <span className="phk-seloptlbl">{o.label}{(o.disabled || o.dim) && o.reason && <span className="phk-selreason">{o.reason}</span>}</span>
+                </button>
+              ))}
+            </div>
+            {preview && (
+              <img className="phk-selpreview" src={preview} alt="" draggable={false} decoding="sync"
+                style={{ width: `calc(${previewSize ?? 260} * var(--phu))` } as React.CSSProperties} />
+            )}
           </div>
         </div>,
         stageHost(),

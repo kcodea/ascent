@@ -630,6 +630,13 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   // striking portrait plays ball: a jump shot, a fadeaway, a pull-up three, and a self alley-oop slammed into an explosion. Four tiers, so
   // Legendary like the others. The name is the builder's placeholder for the owner to rename (the id stays).
   heroAttack('attack_basketball', 'Nothing But Net', 'legendary', 'basketball'),
+  // Owner 2026-11-02: "baseball - have the opponent be the pitcher and the batter be the player dealing dmg. the final lvl
+  // 4/knockout should be the player getting struck by the ball and charging the mound and beating up the opponent in an
+  // over the top fast attack sequence". The struck hero pitches, the striker bats: a line drive back up the middle, a
+  // hot shot (a liner, a one-hop grounder or a foul tip that boomerangs), a moonshot that craters the pitcher, and IV: the
+  // batter is beaned, charges the mound and wins a dust-cloud brawl. Four tiers, so Legendary like the Basketball. The
+  // name is the builder's placeholder for the owner to rename (the id stays).
+  heroAttack('attack_baseball', 'Charge the Mound', 'legendary', 'baseball'),
   // Owner 2026-10-02: an "ancient" attack for the ANCIENT OF BONDS style: "this ancient binds things together and using
   // soulbindings". The owner picked the concept SOUL STITCH (stitching the target to you): crystal needles on violet soul
   // thread. I a needle pierces, the thread hangs taut, a tug and the snap; II three needles cross-stitch an X and the

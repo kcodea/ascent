@@ -33,6 +33,7 @@ import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
 import { playHeroBubble } from '../heroBubble/heroBubble';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
+import { playHeroBaseball } from '../heroBaseball/heroBaseball';
 import { playHeroStitch } from '../heroStitch/heroStitch';
 import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
 import { heroStrikeDamage, heroStrikeKnockout } from '../heroBlast/heroStrikeDamage';
@@ -91,6 +92,7 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     ['basketball', (o) => playHeroBasketball({ ...o, textures: null })],
     ['stitch', (o) => playHeroStitch({ ...o, textures: null })],
     ['bullettime', (o) => playHeroBulletTime({ ...o, textures: null })],
+    ['baseball', (o) => playHeroBaseball({ ...o, textures: null })],
   ];
 
   it('the cosmetic styles', () => {

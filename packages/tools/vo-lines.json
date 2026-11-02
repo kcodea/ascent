@@ -1099,6 +1099,48 @@
       "dest": "packages/ui/src/audio/fx",
       "duration": 0.5,
       "influence": 0.6
+    },
+    {
+      "id": "vo-baseball-crack",
+      "prompt": "a wooden baseball bat cracking a fastball, one sharp loud crack, outdoor ballpark, no crowd",
+      "dest": "packages/ui/src/audio/fx",
+      "duration": 1,
+      "influence": 0.6
+    },
+    {
+      "id": "vo-baseball-glove",
+      "prompt": "a baseball smacking into a leather catcher mitt, one deep pop, close up, dry",
+      "dest": "packages/ui/src/audio/fx",
+      "duration": 0.5,
+      "influence": 0.6
+    },
+    {
+      "id": "vo-baseball-bonk",
+      "prompt": "a cartoon bonk, a baseball bouncing off a head, hollow comedic knock, short",
+      "dest": "packages/ui/src/audio/fx",
+      "duration": 0.6,
+      "influence": 0.5
+    },
+    {
+      "id": "vo-baseball-fall",
+      "prompt": "a cartoon slide whistle falling from high to low, about one second, comedic",
+      "dest": "packages/ui/src/audio/fx",
+      "duration": 1,
+      "influence": 0.6
+    },
+    {
+      "id": "vo-baseball-charge",
+      "prompt": "a ballpark stadium organ playing the classic six note charge fanfare, bright, reverberant",
+      "dest": "packages/ui/src/audio/fx",
+      "duration": 2,
+      "influence": 0.5
+    },
+    {
+      "id": "vo-baseball-out",
+      "prompt": "a baseball umpire bellowing yer out with huge emphasis, gravelly voice, stadium echo",
+      "dest": "packages/ui/src/audio/fx",
+      "duration": 1.5,
+      "influence": 0.4
     }
   ],
   "designs": [

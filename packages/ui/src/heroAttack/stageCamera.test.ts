@@ -37,6 +37,7 @@ import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
 import { playHeroBubble } from '../heroBubble/heroBubble';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
+import { playHeroBaseball } from '../heroBaseball/heroBaseball';
 import { playHeroStitch } from '../heroStitch/heroStitch';
 import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
 
@@ -150,6 +151,7 @@ const STYLES: [string, Runner][] = [
   ['basketball', playHeroBasketball as Runner],
   ['stitch', playHeroStitch as Runner],
   ['bullettime', playHeroBulletTime as Runner],
+  ['baseball', playHeroBaseball as Runner],
 ];
 
 /** Styles whose camera only PUNCHES (a brief small zoom on each hit, no push-in): Backstab. */

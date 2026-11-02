@@ -29,11 +29,17 @@ export interface PhShellState {
   /** THE COMPENDIUM PAGE under the shell: a content component the Compendium builder registers (`setCompendiumPage`).
    *  While one is registered, the shell mounts it under the nav in place of the book's modal (nav tab lit). */
   compendiumPage: ComponentType | null;
+  /** The nav's Crates tab is the current page (the Collection page on its crate shop). */
+  crates: boolean;
+  /** Bumped by each Crates press, so a Collection page already open can switch to its shop. */
+  cratesSeq: number;
+  /** The sample party's sent invites (DEV, no backend): their ids show "Invited" and a pending seat. */
+  sampleInvites: readonly string[];
 }
 
 const NO_INVITE: PhInvite = { can: false, reason: null, members: [], modeLabel: '', send: null };
 
-export const usePhShell = create<PhShellState>(() => ({ friendsOpen: false, friendsPulse: 0, invite: NO_INVITE, collectionIntent: null, compendiumPage: null }));
+export const usePhShell = create<PhShellState>(() => ({ friendsOpen: false, friendsPulse: 0, invite: NO_INVITE, collectionIntent: null, compendiumPage: null, crates: false, cratesSeq: 0, sampleInvites: [] }));
 /** Register the Compendium's page content (call once at module load; null removes it). */
 export const setCompendiumPage = (c: ComponentType | null): void => usePhShell.setState({ compendiumPage: c });
 
@@ -49,3 +55,11 @@ export function takeCollectionIntent(): 'shop' | null {
   if (i) usePhShell.setState({ collectionIntent: null });
   return i;
 }
+
+/** The nav's Crates press: the Collection page opens on (or switches to) its crate shop; the Crates tab is lit. */
+export const openCrates = (): void => usePhShell.setState((s) => ({ crates: true, cratesSeq: s.cratesSeq + 1, collectionIntent: 'shop' }));
+export const leaveCrates = (): void => usePhShell.setState({ crates: false, collectionIntent: null });
+/** The Collection page reports when it leaves its crate shop by itself (its own back), so the nav lights Collection again. */
+export const setCratesView = (on: boolean): void => usePhShell.setState({ crates: on });
+export const addSampleInvite = (id: string): void => usePhShell.setState((s) => ({ sampleInvites: s.sampleInvites.includes(id) ? s.sampleInvites : [...s.sampleInvites, id] }));
+export const clearSampleInvites = (): void => usePhShell.setState({ sampleInvites: [] });

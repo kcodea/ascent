@@ -342,3 +342,6 @@ html[data-ph-compact] .ph-stage { gap: calc(4 * var(--phu)); }
 .ph-phonecontinue { display: none; }
 html[data-ph-compact] .ph-phonecontinue { display: inline-flex; }
 html[data-ph-compact] .ph-pairlbl { display: none; }
+
+/* A STANDALONE banner (PhBanner `width`): its own fixed width outside a `.ph-cards` row; everything inside scales with it. */
+.ph-cardwrap.standalone, .ph-cards .ph-cardwrap.standalone, html[data-ph-compact] .ph-cardwrap.standalone { width: var(--bw); height: auto; aspect-ratio: 0.56; }

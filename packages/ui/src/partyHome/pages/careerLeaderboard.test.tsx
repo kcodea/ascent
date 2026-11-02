@@ -13,7 +13,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { mount } from '../../renderedText.mount';
 import { PhCareer, type PhCareerProps } from './career/PhCareer';
-import { PhLeaderboard, type PhLeaderboardProps } from './leaderboard/PhLeaderboard';
+import { PhLeaderboard, teamLabel, type PhLeaderboardProps } from './leaderboard/PhLeaderboard';
+import type { DuosLeaderboardRow } from '../../versus/versusRemote';
 import type { RankedRow } from '../../Rankings';
 import type { HeroCareer } from '../../careerData';
 
@@ -57,6 +58,11 @@ describe('Career on the app shell', () => {
     expect(m.container.querySelector('.phk-eyebrow')?.textContent).toBe('Career');
     const tabs = [...m.container.querySelectorAll('.phk-pagetabs [role=tab]')].map((t) => t.textContent);
     expect(tabs).toEqual(['Match History', 'Heroes', 'Trends', 'Practice', 'Achievements']);
+    m.unmount();
+  });
+  it('shows the name in its own case (no forced capitals in the markup)', () => {
+    const m = mount(<PhCareer {...careerProps({ name: 'VerdantBear35' })} />);
+    expect(m.container.querySelector('.phk-pagehead h1')?.textContent).toBe('VerdantBear35');
     m.unmount();
   });
   it('keeps every profile number: level, the six career stats, the rank card', () => {
@@ -110,6 +116,21 @@ describe('Leaderboard on the app shell', () => {
     expect(m.container.querySelector('.phl-mepin')).toBeNull();
     m.render(<PhLeaderboard {...boardProps({ myId: 'zz', myRank: { divisionIndex: 3, points: 40 } })} />);
     expect(m.container.querySelector('.phl-mepin')?.textContent).toContain('Outside the top 10');
+    m.unmount();
+  });
+  it('names a Duos team without "Player & Player": its name, its players, or an unnamed team', () => {
+    const team = (name: string | null, a: string | null, b: string | null): DuosLeaderboardRow => ({
+      teamId: 't', name, division: 0, points: 0, demotionReady: false, games: 3,
+      players: [a ? { userId: 'a', name: a } : null, b ? { userId: 'b', name: b } : null],
+    } as unknown as DuosLeaderboardRow);
+    expect(teamLabel(team(null, null, null))).toEqual({ name: 'Unnamed team', sub: '3 games' });
+    expect(teamLabel(team('hilton hotels', null, null)).name).toBe('hilton hotels');
+    expect(teamLabel(team(null, 'Ann', null)).name).toBe('Ann and a partner');
+    expect(teamLabel(team(null, 'Ann', 'Bo')).sub).toBe('Ann and Bo');
+  });
+  it('says "Top players" when the board holds fewer than its size', () => {
+    const m = mount(<PhLeaderboard {...boardProps()} />);
+    expect(m.container.querySelector('.phl-count')?.textContent).toBe('Top players by MMR');
     m.unmount();
   });
   it('switches Solo / Duos through its tabs', () => {

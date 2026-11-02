@@ -3,7 +3,7 @@ import { GameSplit, type GameListItem } from './GameSplit';
 import { GameRank } from './gameRank';
 import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicker';
 import { RUNE_INDEX } from '@game/content';
-import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
+import { DEFAULT_HERO_ID, getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import type { BoardSnapshot } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
@@ -711,7 +711,8 @@ export function Career() {
     const own = !viewing;
     const shownLoadout = own ? pageLoadout : opponentSkins(showOppSkins, pageLoadout);
     const avatar = viewing ? (viewing.avatar ?? (viewedRank?.userId === viewing.userId ? viewedRank.avatar : null)) : playerAvatar;
-    const profileArt = (avatar && (own || showOppSkins) ? avatarSrc(avatar) : undefined) ?? heroPortrait(heroId, shownLoadout);
+    // Never an empty art window: a new account with no picture and no games wears the default hero (as the party card does).
+    const profileArt = (avatar && (own || showOppSkins) ? avatarSrc(avatar) : undefined) ?? heroPortrait(heroId, shownLoadout) ?? heroPortrait(DEFAULT_HERO_ID, null);
     const st = (title: string, b: string, action?: PhState['action'], busy?: boolean): PhState => ({ title, body: b, ...(action ? { action } : {}), ...(busy ? { busy } : {}) });
     let pageState: PhState | null = null;
     if (!remoteEnabled()) pageState = st('Career unavailable', 'This build has no backend configured, so there is no server record to show.');

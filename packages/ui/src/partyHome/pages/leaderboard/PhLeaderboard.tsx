@@ -27,7 +27,7 @@ import { heroPortrait, opponentSkins } from '../../../skins/skins';
 import { useSocial } from '../../../socialCache';
 import { displayHandle } from '../../../store';
 import { TitleBadge } from '../../../titles/TitleBadge';
-import { DUOS_RANKINGS_KEY, DUOS_ROWS, duosTeamLabel, loadDuosRankings } from '../../../versus/DuosBoards';
+import { DUOS_RANKINGS_KEY, duosTeamLabel, loadDuosRankings } from '../../../versus/DuosBoards';
 import type { DuosLeaderboardRow, DuosPlayerCard } from '../../../versus/versusRemote';
 import { PhChip, PhEmpty, PhPage, PhPlace, PhTabs } from '../../kit';
 import './phLeaderboard.css';
@@ -156,7 +156,17 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
   );
 }
 
-const handleOf = (c: DuosPlayerCard | null): string => (c ? displayHandle(c.name ?? 'Player', c.discriminator, c.userId) : 'Player');
+const handleOf = (c: DuosPlayerCard | null): string | null => (c?.name ? displayHandle(c.name, c.discriminator, c.userId) : null);
+/** A team with no name and no named players reads as an unnamed team, never "Player & Player". */
+export function teamLabel(r: DuosLeaderboardRow): { name: string; sub: string } {
+  const [a, b] = r.players;
+  const ha = handleOf(a), hb = handleOf(b);
+  const games = `${r.games} game${r.games === 1 ? '' : 's'}`;
+  if (r.name) return { name: r.name, sub: ha && hb ? `${ha} and ${hb}` : games };
+  if (ha && hb) return { name: duosTeamLabel(null, a, b), sub: `${ha} and ${hb}` };
+  if (ha || hb) return { name: `${ha ?? hb} and a partner`, sub: games };
+  return { name: 'Unnamed team', sub: games };
+}
 
 function DuosBoard({ myId }: { myId: string | null }) {
   const rows = useSocial<DuosLeaderboardRow[]>(DUOS_RANKINGS_KEY, loadDuosRankings) ?? null;
@@ -170,17 +180,22 @@ function DuosBoard({ myId }: { myId: string | null }) {
         const mine = !!myId && (a?.userId === myId || b?.userId === myId);
         const artA = heroThumb(heroPortrait(a?.hero, null));
         const artB = heroThumb(heroPortrait(b?.hero, null));
+        const label = teamLabel(r);
+        // No hero recorded for a player: the team's rank crest stands in, never an empty box.
+        const face = (art: string | undefined) => art
+          ? <span className="phl-thumb"><img src={art} alt="" draggable={false} decoding="sync" loading="lazy" /></span>
+          : <span className="phl-thumb crest"><RankCrest divisionIndex={r.division} size="row" /></span>;
         return (
           <div role="row" className={`phl-row${mine ? ' me' : ''}`} key={r.teamId}>
             <span className="phl-rowbtn static">
               <PhPlace place={i + 1} />
               <span className="phl-pair" aria-hidden="true">
-                <span className="phl-thumb">{artA && <img src={artA} alt="" draggable={false} decoding="sync" loading="lazy" />}</span>
-                <span className="phl-thumb">{artB && <img src={artB} alt="" draggable={false} decoding="sync" loading="lazy" />}</span>
+                {face(artA)}
+                {face(artB)}
               </span>
               <span className="phl-who">
-                <span className="phl-name">{duosTeamLabel(r.name, a, b)}{mine && <PhChip tone="gold">You</PhChip>}</span>
-                <span className="phl-sub">{handleOf(a)} and {handleOf(b)}</span>
+                <span className="phl-name">{label.name}{mine && <PhChip tone="gold">You</PhChip>}</span>
+                <span className="phl-sub">{label.sub}</span>
               </span>
               <RankCell rank={{ divisionIndex: r.division, points: r.points }} />
               <Num v={r.games} unit="Games" />
@@ -208,7 +223,7 @@ export function PhLeaderboard(p: PhLeaderboardProps) {
         eyebrow="Season ranked"
         title="Leaderboard"
         tabs={p.versusOn ? <PhTabs tabs={[{ id: 'solo', label: 'Solo' }, { id: 'duos', label: 'Duos' }]} value={p.board} onChange={p.onBoard} label="Leaderboard" /> : undefined}
-        actions={<span className="phl-count">{duos ? `Top ${DUOS_ROWS} teams` : `Top ${p.rowsShown} players by MMR`}</span>}
+        actions={<span className="phl-count">{duos ? 'Top Ranked Duos teams' : p.rows && p.rows.length > 0 && p.rows.length < p.rowsShown ? 'Top players by MMR' : `Top ${p.rowsShown} players by MMR`}</span>}
       >
         {body}
       </PhPage>

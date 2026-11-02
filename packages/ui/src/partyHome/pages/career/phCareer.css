@@ -2,8 +2,6 @@
    Static paint: hover is a colour or a one-shot transform, nothing loops. Every rule is scoped to `.phc-page` under
    `html[data-ph-shell]`, so the old Career (switch off) is untouched. ── */
 
-/* Over the shell's page backdrop (.ph-pagebd is absolutely positioned; an unpositioned page's plain text paints under its veil). */
-html[data-ph-shell] .phc-page > .phk-page { position: relative; z-index: 1; }
 /* The page fills the space under the nav; the body does not scroll as a whole on desktop: the profile column and the
    open view scroll on their own, so the tabs and the profile never leave the screen. */
 html[data-ph-shell] .phc-page .phc-pg { flex: 1; min-height: 0; }
@@ -16,9 +14,9 @@ html[data-ph-shell] .phc-page .phk-pagetitle h1 { max-width: calc(520 * var(--ph
 
 /* The equipped title beside the name: the rarity colour on a small cut chip (the shell's chip shape). */
 html[data-ph-shell] .phc-page .phc-titlechip { transform: none; height: calc(28 * var(--phu)); display: inline-flex; align-items: center; padding: 0 calc(12 * var(--phu)); border-radius: 0;
-  clip-path: var(--ph-clip-s); font-family: var(--ph-font); font-size: var(--ph-t1); letter-spacing: 0.14em; }
+  border-radius: var(--ph-r); font-family: var(--ph-font); font-size: var(--ph-t1); letter-spacing: 0.14em; }
 
-.phc-state { flex: 1; display: grid; place-items: center; min-height: calc(240 * var(--phu)); background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.phc-state { flex: 1; display: grid; place-items: center; min-height: calc(240 * var(--phu)); background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r); }
 
 /* ── The grid: the profile column, the open view ── */
 html[data-ph-shell] .phc-page .phc-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(360 * var(--phu)) minmax(0, 1fr); gap: calc(24 * var(--phu)); }
@@ -30,13 +28,13 @@ html[data-ph-shell]:not([data-touch-small]) .phc-profile { -webkit-mask-image: l
 .phc-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 
 /* The identity plate: the chosen portrait fading into the navy, the name and the favourite hero over its foot. */
-.phc-id { position: relative; flex: none; height: calc(240 * var(--phu)); overflow: hidden; background: var(--ph-navy); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip); }
+.phc-id { position: relative; flex: none; height: calc(240 * var(--phu)); overflow: hidden; background: var(--ph-navy); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-l); }
 .phc-idart { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; pointer-events: none;
   -webkit-mask-image: linear-gradient(180deg, #000 35%, transparent 100%); mask-image: linear-gradient(180deg, #000 35%, transparent 100%); }
 .phc-id::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: var(--ph-gild-s);
   background: linear-gradient(180deg, transparent 45%, color-mix(in srgb, var(--ph-navy) 80%, transparent) 100%); }
 .phc-idlv { position: absolute; z-index: 1; top: calc(16 * var(--phu)); left: calc(16 * var(--phu)); display: inline-flex; align-items: baseline; gap: calc(4 * var(--phu)); height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu));
-  align-items: center; background: var(--ph-metal-gold); color: var(--ph-navy); clip-path: var(--ph-clip-s); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); font-variant-numeric: tabular-nums; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+  align-items: center; background: var(--ph-metal-gold); color: var(--ph-navy); border-radius: var(--ph-r); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); font-variant-numeric: tabular-nums; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
 .phc-idlv small { font-size: var(--ph-t1); letter-spacing: 0.08em; text-transform: uppercase; }
 .phc-idwho { position: absolute; z-index: 1; left: calc(24 * var(--phu)); right: calc(24 * var(--phu)); bottom: calc(16 * var(--phu)); display: flex; flex-direction: column; gap: calc(4 * var(--phu)); }
 .phc-idname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-name-font, var(--ph-font)); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
@@ -44,7 +42,7 @@ html[data-ph-shell]:not([data-touch-small]) .phc-profile { -webkit-mask-image: l
 .phc-idfav span { margin-right: calc(4 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
 
 /* A profile card: the rail plate with a small heading. */
-.phc-card, .phc-acct { flex: none; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)); background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.phc-card, .phc-acct { flex: none; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)); background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r); }
 .phc-h { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); text-shadow: var(--ph-shadow); }
 .phc-stats { display: grid; grid-template-columns: 1fr 1fr; gap: calc(8 * var(--phu)); }
 .phc-stats .phk-stat { padding: calc(12 * var(--phu)) calc(16 * var(--phu)); min-width: 0; }
@@ -59,7 +57,7 @@ html[data-ph-shell] .phc-page .phc-acct .acctxp-track { height: calc(6 * var(--p
 html[data-ph-shell] .phc-page .phc-acct .acctxp-fill { border-radius: 0; background: var(--ph-metal-gold); box-shadow: none; }
 html[data-ph-shell] .phc-page .phc-acct :is(.cv2-btn, .cv2-acctlevel-save) { border-radius: 0; }
 html[data-ph-shell] .phc-page .phc-acct .cv2-btn { height: calc(32 * var(--phu)); padding: 0 calc(16 * var(--phu)); background: var(--ph-plate); color: var(--ph-text); border: 0; box-shadow: var(--ph-gild);
-  clip-path: var(--ph-clip-s); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
+  border-radius: var(--ph-r); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
 html[data-ph-shell] .phc-page .phc-acct .cv2-btn:hover { background: var(--ph-plate-hover); color: var(--ph-ink); }
 html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-save { font-size: var(--ph-t2); color: var(--ph-muted); border-top-color: var(--ph-hair); }
 
@@ -77,7 +75,7 @@ html[data-ph-shell] .phc-page .phc-duos .cv2-duocard-kicker { font-family: var(-
 html[data-ph-shell] .phc-page .phc-duos .cv2-duocard-count { color: var(--ph-muted); }
 html[data-ph-shell] .phc-page .phc-duos .cv2-duocard-name { font-family: var(--ph-name-font, var(--ph-font)); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 html[data-ph-shell] .phc-page .phc-duos .cv2-duocard-sub { font-size: var(--ph-t1); color: var(--ph-muted); }
-html[data-ph-shell] .phc-page .phc-duos .cv2-duocard-arrow { border: 0; border-radius: 0; background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); color: var(--ph-text); }
+html[data-ph-shell] .phc-page .phc-duos .cv2-duocard-arrow { border: 0; border-radius: 0; background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r); color: var(--ph-text); }
 html[data-ph-shell] .phc-page .phc-duos .cv2-duocard-arrow:hover { background: var(--ph-plate-hover); color: var(--ph-ink); }
 
 /* ── The open view ── */
@@ -94,7 +92,7 @@ html[data-ph-shell] .phc-page .phc-duos .cv2-duocard-arrow:hover { background: v
 html[data-ph-shell] .phc-page .phc-split { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0; gap: 0; }
 html[data-ph-shell] .phc-page .phc-split > .gsplit { flex: 1; min-height: 0; grid-template-columns: calc(320 * var(--phu)) minmax(0, 1fr); gap: calc(16 * var(--phu)); }
 html[data-ph-shell] .phc-page .gs-list { gap: calc(8 * var(--phu)); padding: 0 0 calc(8 * var(--phu)); }
-html[data-ph-shell] .phc-page .gs-item { border: 0; border-radius: 0; background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s);
+html[data-ph-shell] .phc-page .gs-item { border: 0; border-radius: 0; background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r);
   grid-template-columns: calc(52 * var(--phu)) calc(48 * var(--phu)) minmax(0, 1fr) auto; gap: calc(12 * var(--phu)); padding: calc(8 * var(--phu)) calc(12 * var(--phu)) calc(8 * var(--phu)) calc(16 * var(--phu)); min-height: calc(64 * var(--phu)); }
 html[data-ph-shell] .phc-page .gs-item::before { left: 0; top: 0; bottom: 0; width: calc(4 * var(--phu)); border-radius: 0; }
 html[data-ph-shell] .phc-page .gs-item:hover { background: var(--ph-plate-hover); }
@@ -104,23 +102,23 @@ html[data-ph-shell] .phc-page .gs-title { font-family: var(--ph-name-font, var(-
 html[data-ph-shell] .phc-page .gs-sub, html[data-ph-shell] .phc-page .gs-when { font-size: var(--ph-t1); color: var(--ph-muted); }
 html[data-ph-shell] .phc-page .gs-delta { font-family: var(--ph-font); font-size: var(--ph-t2); }
 html[data-ph-shell] .phc-page .gs-detail { padding: 0 0 calc(8 * var(--phu)); }
-html[data-ph-shell] .phc-page .gc.gc-detail, html[data-ph-shell] .phc-page .gc.gc-detail:hover { border: 0; border-radius: 0; background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip); }
+html[data-ph-shell] .phc-page .gc.gc-detail, html[data-ph-shell] .phc-page .gc.gc-detail:hover { border: 0; border-radius: 0; background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-l); }
 html[data-ph-shell] .phc-page .gc.gc-detail::before { left: 0; top: 0; bottom: 0; width: calc(4 * var(--phu)); border-radius: 0; }
 html[data-ph-shell] .phc-page .gc.gc-detail .gc-place { font-family: var(--ph-name-font, var(--ph-font)); }
 html[data-ph-shell] .phc-page .gc.gc-detail .gc-title, html[data-ph-shell] .phc-page .gc.gc-detail .gc-title > * { font-family: var(--ph-name-font, var(--ph-font)); font-size: var(--ph-t4); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
-html[data-ph-shell] .phc-page .gc.gc-detail .gc-actions .cv2-btn { height: calc(40 * var(--phu)); padding: 0 calc(24 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-plate); color: var(--ph-text); clip-path: var(--ph-clip-s);
+html[data-ph-shell] .phc-page .gc.gc-detail .gc-actions .cv2-btn { height: calc(40 * var(--phu)); padding: 0 calc(24 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-plate); color: var(--ph-text); border-radius: var(--ph-r);
   box-shadow: var(--ph-gild); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.14em; text-transform: uppercase; }
 html[data-ph-shell] .phc-page .gc.gc-detail .gc-actions .cv2-btn:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); }
 html[data-ph-shell] .phc-page .gc.gc-detail .gc-meta .cv2-meta-l { font-family: var(--ph-font); font-size: var(--ph-t1); letter-spacing: 0.14em; color: var(--ph-muted); }
 html[data-ph-shell] .phc-page .gc.gc-detail .gc-meta .cv2-meta-v { font-size: var(--ph-t2); color: var(--ph-text); }
 html[data-ph-shell] .phc-page .gc.gc-detail :is(.gc-meta, .gc-board, .cv2-lobby) { border-top-color: var(--ph-hair); }
-html[data-ph-shell] .phc-page .gc.gc-detail .gc-runes :is(.cv2-rune, .lb-rune) { border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-well); border-color: var(--ph-hair); }
+html[data-ph-shell] .phc-page .gc.gc-detail .gc-runes :is(.cv2-rune, .lb-rune) { border-radius: 0; border-radius: var(--ph-r); background: var(--ph-well); border-color: var(--ph-hair); }
 
 /* Heroes: Valorant's agent grid. Each card is the portrait fading into the navy with the numbers at its foot. */
 .phc-heroesview { min-height: 0; }
 .phc-herogrid { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(184 * var(--phu)), 1fr)); gap: calc(12 * var(--phu)); align-content: start; padding-bottom: calc(8 * var(--phu)); }
 .phc-hero { position: relative; display: flex; flex-direction: column; justify-content: flex-end; height: calc(260 * var(--phu)); margin: 0; padding: 0; border: 0; border-radius: 0; overflow: hidden; text-align: left; font: inherit; color: inherit;
-  background: var(--ph-navy); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip); transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+  background: var(--ph-navy); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-l); transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
 .phc-hero:hover { transform: translateY(calc(-2 * var(--phu))); }
 .phc-hero:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold); outline-offset: calc(-2 * var(--phu)); }
 .phc-heroart { position: absolute; inset: 0 0 auto 0; width: 100%; height: 78%; object-fit: cover; object-position: 50% 18%; pointer-events: none;
@@ -138,7 +136,7 @@ html[data-ph-shell] .phc-page .gc.gc-detail .gc-runes :is(.cv2-rune, .lb-rune) {
 
 /* Trends: the charts on one wide plate. */
 html[data-ph-shell] .phc-page .phc-trends { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; margin: 0; padding: calc(24 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-plate);
-  box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+  box-shadow: var(--ph-gild-s); border-radius: var(--ph-r); }
 
 /* The trend charts were drawn for a narrow column (their SVG text scales with the width): the focused chart keeps a
    readable width on the left, the four small charts fill the right as a 2 x 2, the legend runs under both. */
@@ -147,14 +145,14 @@ html[data-ph-shell] .phc-page .phc-trends > .ct-mmr-head { grid-column: 1; grid-
 html[data-ph-shell] .phc-page .phc-trends > .ct-focus { grid-column: 1; grid-row: 2; }
 html[data-ph-shell] .phc-page .phc-trends > .ct-grid2 { grid-column: 2; grid-row: 1 / 3; margin: 0; align-content: start; gap: calc(12 * var(--phu)); }
 html[data-ph-shell] .phc-page .phc-trends > .ct-legend { grid-column: 1 / -1; grid-row: 3; }
-html[data-ph-shell] .phc-page .phc-trends .ct-small { border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-well); box-shadow: var(--ph-gild-s); padding: calc(12 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-trends .ct-small { border-radius: 0; border-radius: var(--ph-r); background: var(--ph-well); box-shadow: var(--ph-gild-s); padding: calc(12 * var(--phu)); }
 html[data-ph-shell] .phc-page .phc-trends .ct-small svg { height: calc(96 * var(--phu)); max-height: none; }
 html[data-ph-shell] .phc-page .phc-trends :is(.cv2-trend-title, .ct-small-t) { font-family: var(--ph-font); letter-spacing: 0.16em; color: var(--ph-muted); }
 html[data-ph-shell] .phc-page .phc-trends :is(.cv2-trend-avg, .ct-small-v) { font-family: var(--ph-name-font, var(--ph-font)); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); }
 
 /* Achievements: its own list, scrolling inside the view. */
 html[data-ph-shell] .phc-page .phc-achview { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 0; }
-html[data-ph-shell] .phc-page .phc-achview :is(.ach-cat, .ach-tile, .ach-chip) { border-radius: 0; clip-path: var(--ph-clip-s); }
+html[data-ph-shell] .phc-page .phc-achview :is(.ach-cat, .ach-tile, .ach-chip) { border-radius: 0; border-radius: var(--ph-r); }
 html[data-ph-shell] .phc-page .phc-achview .ach-chip { min-height: calc(40 * var(--phu)); font-family: var(--ph-font); letter-spacing: 0.14em; }
 html[data-ph-shell] .phc-page .phc-achview .ach-chip.on { background: var(--ph-metal-gold); color: var(--ph-navy); }
 html[data-ph-shell] .phc-page .phc-achview .ach-tile-title, html[data-ph-shell] .phc-page .phc-achview .ach-cat-name { font-family: var(--ph-font); }
@@ -187,3 +185,20 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phc-page .phk-pagetitle h1
 html[data-ph-shell][data-touch-ui][data-touch-small] .phc-herogrid { grid-template-columns: repeat(auto-fill, minmax(calc(200 * var(--phu)), 1fr)); }
 
 @media (prefers-reduced-motion: reduce) { .phc-hero { transition: none; } }
+
+/* ── MODERN WHIMSICAL pass (owner 2026-11-02, critic round 4) ── */
+/* Names read in their own case; labels are sentence case with light tracking, not engraved capitals. */
+html[data-ph-shell] .phc-page .phk-pagetitle h1 { text-transform: none; letter-spacing: 0.01em; }
+html[data-ph-shell] .phc-page :is(.phc-h, .phc-sub, .phc-idfav span, .phc-stats .phk-statlbl, .phc-heronums > span, .cv2-acctlevel-label, .cv2-duocard-kicker, .ct-small-t, .cv2-trend-title, .gc-meta .cv2-meta-l) { text-transform: none; letter-spacing: 0.02em; }
+/* The account card's buttons, Replay, the title chip, the Lv badge: the kit's plump pills. */
+html[data-ph-shell] .phc-page :is(.phc-acct .cv2-btn, .gc.gc-detail .gc-actions .cv2-btn, .phc-titlechip, .phc-idlv, .phc-achview .ach-chip, .phc-duos .cv2-duocard-arrow) { border-radius: 999px; }
+html[data-ph-shell] .phc-page :is(.phc-acct .cv2-btn, .gc.gc-detail .gc-actions .cv2-btn) { text-transform: none; letter-spacing: 0.04em; transition: transform 0.18s var(--ph-spring); }
+html[data-ph-shell] .phc-page :is(.phc-acct .cv2-btn, .gc.gc-detail .gc-actions .cv2-btn):hover:not(:disabled) { transform: scale(1.05); }
+/* Ranked Duos renders nothing for a player with no team: its plate goes with it. */
+.phc-duos:empty { display: none; }
+/* Achievements: an open achievement reads as a quieter tile, not a repeated "Not yet completed" line. */
+html[data-ph-shell] .phc-page .phc-achview .ach-open { display: none; }
+html[data-ph-shell] .phc-page .phc-achview .ach-tile:not(.done) { opacity: 0.8; }
+html[data-ph-shell] .phc-page .phc-achview .ach-tile { border-radius: var(--ph-r); }
+html[data-ph-shell] .phc-page .phc-achview .ach-cat { border-radius: var(--ph-r); }
+@media (prefers-reduced-motion: reduce) { html[data-ph-shell] .phc-page :is(.phc-acct .cv2-btn, .gc.gc-detail .gc-actions .cv2-btn) { transition: none; } }

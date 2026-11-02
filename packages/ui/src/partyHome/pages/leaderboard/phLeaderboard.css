@@ -1,8 +1,6 @@
 /* ── THE LEADERBOARD ON THE APP SHELL (party home prototype, DEV only; PhLeaderboard.tsx). Tokens: ../../shell/shell.css.
    Static paint: hover is a colour or a one-shot transform, nothing loops. Scoped to `.phl-page` under html[data-ph-shell]. ── */
 
-/* Over the shell's page backdrop (.ph-pagebd is absolutely positioned; an unpositioned page's plain text paints under its veil). */
-html[data-ph-shell] .phl-page > .phk-page { position: relative; z-index: 1; }
 /* The page is the size container for the narrow-layout rules below (the stage scales the layout, so a viewport @media
    would see the window, R-STAGE tripwire). */
 html[data-ph-shell] .phl-page { container: phl / inline-size; }
@@ -17,7 +15,7 @@ html[data-ph-shell] .phl-page .phk-pagetabs .phk-tab { padding-bottom: calc(16 *
 .phl-pod { position: relative; height: calc(340 * var(--phu)); }
 .phl-pod.p1 { height: calc(384 * var(--phu)); }
 .phl-podbtn { position: relative; display: flex; flex-direction: column; justify-content: flex-end; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; overflow: hidden; text-align: left; font: inherit; color: inherit;
-  background: var(--ph-navy); clip-path: var(--ph-clip); transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+  background: var(--ph-navy); border-radius: var(--ph-r-l); transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
 .phl-podbtn:hover { transform: translateY(calc(-2 * var(--phu))); }
 .phl-podbtn::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: var(--ph-gild-s); }
 .phl-pod.p1 .phl-podbtn::after { box-shadow: var(--ph-gild); }
@@ -53,12 +51,12 @@ html[data-ph-shell] .phl-page .phl-title { --tb-fs: var(--ph-t1); flex: none; }
 .phl-head, .phl-rowbtn { display: grid; grid-template-columns: var(--phl-cols); align-items: center; column-gap: calc(16 * var(--phu)); }
 .phl-head { padding: 0 calc(16 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
 .phl-head .r { text-align: right; }
-.phl-row { position: relative; flex: none; background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.phl-row { position: relative; flex: none; background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r); }
 .phl-row:hover:has(button) { background: var(--ph-plate-hover); }
 .phl-row.me { background: var(--ph-plate-hover); box-shadow: var(--ph-gild); }
 .phl-rowbtn { width: 100%; min-height: calc(72 * var(--phu)); margin: 0; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); border: 0; border-radius: 0; background: none; text-align: left; font: inherit; color: inherit; }
 .phl-rowbtn:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold); outline-offset: calc(-2 * var(--phu)); }
-.phl-thumb { position: relative; display: block; width: calc(56 * var(--phu)); height: calc(56 * var(--phu)); overflow: hidden; background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.phl-thumb { position: relative; display: block; width: calc(56 * var(--phu)); height: calc(56 * var(--phu)); overflow: hidden; background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r); }
 .phl-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
 .phl-pair { display: flex; gap: calc(0 * var(--phu)); }
 .phl-who { min-width: 0; display: flex; flex-direction: column; gap: calc(2 * var(--phu)); }
@@ -77,7 +75,7 @@ html[data-ph-shell] .phl-page .phl-rank .rankbar-points { font-size: var(--ph-t1
 
 /* Your standing, pinned to the foot of the view when you are not on the board. */
 .phl-mepin { position: sticky; bottom: 0; z-index: 2; flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr) calc(280 * var(--phu)) calc(88 * var(--phu)) auto; align-items: center; column-gap: calc(16 * var(--phu));
-  min-height: calc(64 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-plate-hover); box-shadow: var(--ph-gild), 0 calc(-8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4); clip-path: var(--ph-clip-s); }
+  min-height: calc(64 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-plate-hover); box-shadow: var(--ph-gild), 0 calc(-8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4); border-radius: var(--ph-r); }
 
 /* ── 1366: a narrower rank column ── */
 @container phl (max-width: 1500px) {
@@ -100,3 +98,9 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phl-mepin { grid-template-
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-mepin > .phl-sub { display: none; }
 
 @media (prefers-reduced-motion: reduce) { .phl-podbtn { transition: none; } }
+
+/* ── MODERN WHIMSICAL pass (owner 2026-11-02, critic round 4): sentence-case labels, pill chips, crest fallbacks ── */
+html[data-ph-shell] .phl-page :is(.phl-head, .phl-num small, .phl-count) { text-transform: none; letter-spacing: 0.02em; }
+html[data-ph-shell] .phl-page .phk-pagetitle h1 { text-transform: none; letter-spacing: 0.01em; }
+.phl-thumb.crest { display: grid; place-items: center; overflow: visible; background: var(--ph-well); }
+.phl-thumb.crest .rankcrest { --ring: calc(40 * var(--phu)); }

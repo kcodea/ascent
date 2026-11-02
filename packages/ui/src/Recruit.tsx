@@ -2927,7 +2927,7 @@ export function Recruit() {
     const run = useGame.getState().run;
     const rack = rackRunes(run.ownedRunes ?? [], heroSlotRuneId(run));
     const occurrence = Math.max(0, rack.filter((r) => r === chosen.rune.id).length - 1);
-    useGame.getState().setRuneArrival({ runeId: chosen.rune.id, occurrence, phase });
+    useGame.getState().setRuneArrival({ runeId: chosen.rune.id, occurrence, phase, runKey: `${run.seed}:${run.heroId}` });
   }, []);
   const startRuneLockIn = useCallback((el: HTMLElement | null, chosenIndex: number): void => {
     const run = useGame.getState().run;

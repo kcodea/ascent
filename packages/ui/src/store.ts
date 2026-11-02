@@ -727,8 +727,8 @@ interface GameStore {
    * `seq` makes a repeat re-fire: buying the same rune twice in a run is legal (Rune of Duplication), and two
    * identical cue objects would otherwise read as "no change".
    */
-  runeArrival: { runeId: string; occurrence: number; phase: 'pending' | 'arrived'; seq: number } | null;
-  setRuneArrival: (a: { runeId: string; occurrence: number; phase: 'pending' | 'arrived' } | null) => void;
+  runeArrival: { runeId: string; occurrence: number; phase: 'pending' | 'arrived'; seq: number; runKey?: string } | null;
+  setRuneArrival: (a: { runeId: string; occurrence: number; phase: 'pending' | 'arrived'; runKey?: string } | null) => void;
   showTitle: boolean;
   /** The mode the next run will start in (set by startLobby/confirmPracticeSetup, read by pickHero). Only
    *  `lobby` or `practice` is ever set: pickHero builds a LOBBY run whatever this says (R-PERSIST-01). */

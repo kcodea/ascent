@@ -2770,4 +2770,26 @@ export const RUNES_RULES: GameRule[] = [
     example: 'Your seat holds Wild Hunt grown by 10 and Overtime at 5 of 12 Gold: hovering the Wild Hunt socket reads +12 Attack, the Overtime socket shows 5/12g, exactly as your rack does.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyScoutRuneTip.test.tsx'], lastVerifiedAt: '2026-11-01' },
   },
+  {
+    id: 'R-RUNE-ARRIVAL-ONCE-01',
+    title: "A bought rune's arrival plays once, never again on a swap, remount or another run's screen",
+    statement:
+      "When the Runeforge ceremony hands its rune over, the badge's arrival (the implosion, its sound and the art pop) "
+      + 'plays exactly once for that purchase. It never plays again when the badge row remounts: swapping to your Duos '
+      + "teammate's view and back, any number of times, a replay seek, or any other rebuild of the status bar. It never "
+      + "plays on another run's badges either (your teammate owning the same rune at the same slot). A NEW purchase "
+      + 'still plays its own arrival. Presentation only: the rune reward is granted once, by the buy, and nothing on a '
+      + 'view swap re-runs it.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-11-02 (live, Versus Duos)', quote: 'going back and forth sometimes causes runes to "trigger" as if they were just equipped' },
+      { kind: 'fix-pr', ref: 'PR fix/rune-arrival-replay (2026-11-02): the played-arrival memory moved from a component ref to module state keyed by run + seq; the cue carries its run' },
+      { kind: 'code', ref: 'packages/ui/src/useRuneArrivalFx.ts (playedArrivals, the returned cue); packages/ui/src/QuestBadges.tsx; packages/ui/src/Recruit.tsx cueRuneArrival' },
+    ],
+    contentIds: ['rune_ninefold_commerce'],
+    currentBehaviour: "Conforms as of 2026-11-02. Before, the store kept the last cue after it played and the badge row's \"already played\" memory died with each mount, so every teammate-view swap (the StatusBar is keyed on the run) replayed the last bought rune's arrival.",
+    example: 'Buy Ninefold Commerce, watch it arrive, then swap to your teammate and back five times: the arrival played once.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/runeArrivalReplay.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed: a rune you just bought no longer plays its arrival again when you swap to your teammate and back.',
+      },
+      {
+        category: 'Systems',
         text: 'New Legendary hero attack: Charge the Mound. The hero being hit pitches, and your hero bats.',
         details: [
           'Small: a line drive straight back up the middle. Bonk.',

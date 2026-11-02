@@ -114,7 +114,9 @@ const EXPECTED: Partial<Record<ChaosMode, Omit<ReturnType<typeof merged>, 'heroP
   duel: { layouts: ['duel'], railSeats: 2, pills: PILLS, end: ['off-run|room|stats:1|ko:0|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-'] },
   group3: { layouts: ['rail'], railSeats: 4, pills: PILLS, end: ['off-run|room|stats:0|ko:1|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-'] },
   duos: { layouts: ['rail'], railSeats: 4, pills: PILLS, end: ['off-run|room|stats:1|ko:0|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-'] },
-  ranked_duos: { layouts: ['rail'], railSeats: 8, pills: PILLS, end: ['off-run|room|stats:1|ko:0|duosResult:-', 'off-run|room|stats:1|ko:0|duosResult:-'] },
+  // RANKED DUOS (R-RANKED-DUOS-POSTGAME-01, 2026-11-02): both teammates land on the post-game screen (the solo ranked end
+  // screen; this harness's table is generated, so "Unrated"), the match stats closed behind its Match details button.
+  ranked_duos: { layouts: ['rail'], railSeats: 8, pills: PILLS, end: ['off-run|room|stats:0|ko:0|duosResult:shown', 'off-run|room|stats:0|ko:0|duosResult:shown'] },
 };
 
 describe('Versus: each mode shows its own screens, start to end', () => {

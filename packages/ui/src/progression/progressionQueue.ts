@@ -110,6 +110,22 @@ function recordAttempt(item: PendingProgression, error: string, now: number): nu
   return delay;
 }
 
+/**
+ * A VERSUS RESULT STILL LANDING (R-RANKED-DUOS-POSTGAME-01). A Versus game is played on the Versus Worker, and its result
+ * reaches the database through the Worker's writer a moment AFTER the clients hear the game is over (a Ranked Duos
+ * match is written once, whole, when it ends). An XP request sent in that gap is refused as `source_not_found` /
+ * `not_terminal`, which would otherwise be permanent and lose the game's XP. For this long after the game finished,
+ * those two refusals are retried with the usual backoff instead (the server dedupes by run id, so the game still
+ * settles exactly once); after it, they are final as before (a bot or a forced match is refused for good).
+ */
+export const VERSUS_SOURCE_GRACE_MS = 3 * 60_000;
+const VERSUS_LANDING = new Set(['source_not_found', 'not_terminal']);
+export function versusResultLanding(item: Pick<PendingProgression, 'mode' | 'at'>, outcome: ProgressionSubmitOutcome, now: number): boolean {
+  if (item.mode !== 'versus' || outcome.status !== 'rejected' || !VERSUS_LANDING.has(outcome.reason)) return false;
+  const at = Date.parse(item.at);
+  return Number.isFinite(at) && now - at < VERSUS_SOURCE_GRACE_MS;
+}
+
 let flushing: Promise<void> | null = null;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -138,7 +154,10 @@ export function flushPendingProgressions(onSettled: ProgressionSettleListener, o
         scheduleRetry(item.nextAttemptAt - now(), onSettled, opts);
         return; // oldest-first: a backing-off item holds the line until it is due
       }
-      const outcome = await submitProgression(item);
+      const answer = await submitProgression(item);
+      const outcome: ProgressionSubmitOutcome = versusResultLanding(item, answer, now())
+        ? { status: 'retryable', reason: answer.status === 'rejected' ? `landing:${answer.reason}` : 'landing' }
+        : answer;
       if (outcome.status === 'retryable') {
         const delay = recordAttempt(item, outcome.reason, now());
         onSettled(item, outcome);

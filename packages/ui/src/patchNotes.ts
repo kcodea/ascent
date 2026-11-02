@@ -91,6 +91,16 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Balance',
+        text: 'Ranked Duos now ends on the same results screen as ranked solo. Continue takes you back to your party.',
+        details: [
+          "You see your team's place out of 4, your team's rank bar and points change, then your own Account XP.",
+          'Your team name and both of your heroes sit at the top.',
+          'Match details opens the match stats. They no longer cover your results.',
+          'XP from a Versus or Duos game that was slow to save is now retried instead of lost.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'New Legendary hero attack: Charge the Mound. The hero being hit pitches, and your hero bats.',
         details: [

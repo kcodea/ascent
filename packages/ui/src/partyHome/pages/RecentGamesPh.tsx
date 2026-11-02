@@ -7,7 +7,7 @@
  *   HEADER   the title, whose games these are, and the Ranked / Practice / Duos tabs.
  *   STRIP    the games at a glance: games, average place, top 4 rate, wins, the most played hero (portrait fading into
  *            the navy) and the placement line, oldest to newest, every game a podium-coloured mark.
- *   FILTER   the hero chips (the shared HeroFilterChips, in the kit's chip shape).
+ *   FILTER   the heroes in this feed, most played first, as the kit's segmented row (the rest under More).
  *   SPLIT    LEFT the history: one rail slice per game, its placement in podium metal, a band edge (gold 1st, teal top 4,
  *            rose 5th to 8th), the player, the hero, the rank it was played at and when, the hero art fading in from
  *            the right. RIGHT the open game: a banner (placement, player, hero, record, rank, Replay + Career), the
@@ -18,7 +18,7 @@
  * PERFORMANCE: static paint (hover is a colour); only the open game's board mounts; the board's card FX stay still until
  * pointed at (the classic page's rule). Phone portraits are the 256 px thumbnails (`heroThumb`).
  */
-import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { MatchDetails } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
@@ -29,7 +29,6 @@ import { GameRank } from '../../gameRank';
 import { rankLabel } from '../../rank/types';
 import { StoredTeam } from '../../StoredTeam';
 import { LbRunes } from '../../LadderBits';
-import { HeroFilterChips } from '../../HeroFilterChips';
 import type { HeroCount } from '../../heroFilter';
 import { bandOf, placeText, type GameBand } from '../../GameCard';
 import { LobbyTiles, SeatBoard, SeatRuneRow, ShowingLine, useLobbySeat } from '../../matchDetails/LobbyPicker';
@@ -41,7 +40,7 @@ import { heroPortrait } from '../../skins/skins';
 import { DuosGameCard } from '../../duosHistory/DuosGameCard';
 import { duosBand, duosGameView, duosModeLabel, teamPlaceText, type DuosGameRow } from '../../duosHistory/duosHistoryData';
 import { practiceOpponentsText, summaryOf, type FeedRow, type RecentGamesTab } from '../../RecentGames';
-import { PhButton, PhChip, PhEmpty, PhPage, PhSection, PhTabs } from '../kit';
+import { PhButton, PhChip, PhEmpty, PhFact, PhPage, PhPlace, PhSection, PhSegmented, PhSelectList, PhStat, PhTabs } from '../kit';
 import './gamesPages.css';
 
 export interface KeyedRow { r: FeedRow; key: string; mine: boolean; skins: RunCosmeticSnapshot | null }
@@ -69,16 +68,15 @@ export function placeWords(place: number | null): string {
   return place === 1 ? 'Victory' : `${placeText(place)} place`;
 }
 
-/** A placement box in podium metal: the kit's `.phk-place`, with the metal only when the band earned it (a Duos team's
- *  2nd of 2 is a loss, so it stays navy). */
+/** A placement box: the kit's `PhPlace`, plain (no podium metal) when the band did not earn it (a Duos team's 2nd of 2 is
+ *  a loss). No placement: the same box with a dash. */
 function Place({ place, band, big }: { place: number | null; band: GameBand; big?: boolean }) {
-  const metal = place !== null && place >= 1 && place <= 3 && band !== 'lost';
-  return (
-    <span className={`phk-place rgp-place${big ? ' big' : ''}`} data-place={metal ? place : undefined} aria-hidden="true">
-      {place !== null && place > 0 ? place : '-'}
-    </span>
-  );
+  if (place === null || !(place > 0)) return <span className={`phk-place${big ? ' s-l' : ''}`} aria-label="No placement">-</span>;
+  return <PhPlace place={place} size={big ? 'l' : 'm'} plain={band === 'lost'} />;
 }
+
+/** How many hero options the filter shows before the rest fold into More ("All heroes" counts as one). */
+export const HERO_FILTER_MAX = 9;
 
 export function RecentGamesPh(p: RecentGamesPhProps) {
   const duos = p.tab === 'duos';
@@ -114,7 +112,16 @@ function StateBody({ state, tab, signedOut }: { state: RecentState; tab: RecentG
 function FeedBody(p: RecentGamesPhProps) {
   const practice = p.tab === 'practice';
   const filterBar = p.state === 'ready' || (p.heroFilter !== null && p.state !== 'offline')
-    ? <div className="rgp-filters" role="group" aria-label="Filter by hero"><span className="rgp-k" aria-hidden="true">Hero</span><HeroFilterChips counts={p.heroCounts} value={p.heroFilter} onChange={p.onHero} /></div>
+    ? (
+      <div className="rgp-filters">
+        <PhSegmented<string | null>
+          label="Hero" value={p.heroFilter} onPick={p.onHero} max={HERO_FILTER_MAX}
+          options={[{ value: null, label: 'All heroes' }, ...p.heroCounts.map((c) => ({
+            value: c.id, label: <>{getHero(c.id).name}<span className="rgp-n" aria-label={`, ${c.n} ${c.n === 1 ? 'game' : 'games'}`}>{c.n}</span></>,
+          }))]}
+        />
+      </div>
+    )
     : null;
   if (p.state !== 'ready') return <><StateBody state={p.state} tab={p.tab} />{filterBar}</>;
   if (p.rows.length === 0) {
@@ -160,10 +167,10 @@ const Strip = memo(function Strip({ rows, practice }: { rows: readonly KeyedRow[
   return (
     <section className="rgp-strip" aria-label={practice ? 'The latest practice games at a glance' : 'The latest games at a glance'}>
       <div className="rgp-stats">
-        <Stat label="Games" value={s.games} />
-        <Stat label="Avg place" value={s.avgPlace === null ? '-' : s.avgPlace.toFixed(1)} />
-        <Stat label="Top 4" value={s.top4 === null ? '-' : `${Math.round(s.top4 * 100)}%`} />
-        <Stat label="Wins" value={s.wins} tone="gold" />
+        <PhStat label="Games" value={s.games} />
+        <PhStat label="Avg place" value={s.avgPlace === null ? '-' : s.avgPlace.toFixed(1)} />
+        <PhStat label="Top 4" value={s.top4 === null ? '-' : `${Math.round(s.top4 * 100)}%`} />
+        <PhStat label="Wins" value={s.wins} tone="gold" />
       </div>
       <div className="rgp-most">
         {heroArt && <img className="rgp-mostart" src={heroArt} alt="" draggable={false} decoding="async" />}
@@ -178,17 +185,8 @@ const Strip = memo(function Strip({ rows, practice }: { rows: readonly KeyedRow[
   );
 });
 
-function Stat({ label, value, tone }: { label: string; value: string | number; tone?: 'gold' }) {
-  return (
-    <div className={`rgp-stat${tone ? ` t-${tone}` : ''}`}>
-      <span className="rgp-statval">{value}</span>
-      <span className="rgp-k">{label}</span>
-    </div>
-  );
-}
-
-/** The placement line: 1st at the top, 8th at the foot, the 4.5 split dashed; 1st a gold diamond, top 4 a teal dot, 5th
- *  to 8th a rose ring. Static SVG, built once per list. */
+/** The placement ledger: 1st at the top, 8th at the foot, a gilded rule at the 4.5 split; a win a gold diamond, the rest
+ *  of the top 4 a silver dot, 5th to 8th a bronze ring (the podium's metals). Static SVG, built once per list. */
 const Spark = memo(function Spark({ places }: { places: readonly number[] }) {
   const W = 560; const H = 96; const L = 34; const R = 8; const T = 9; const B = 9;
   const n = places.length;
@@ -222,33 +220,29 @@ export interface ListItem {
   rank?: number | null; delta?: number | null; art?: string; label: string;
 }
 
-/** The history: one rail slice per game. A listbox; Up / Down move the selection (silent: selection, not an action). */
+/** The history: one rail slice per game, in the kit's keyboard list (Up / Down / Home / End). */
 export const GameList = memo(function GameList({ items, selected, onPick, label }: {
   items: readonly ListItem[]; selected: string; onPick: (key: string) => void; label: string;
 }) {
+  // Keep the picked row in view when the pick comes from outside the list (a filter change). `nearest` never moves a
+  // visible row; the kit list scrolls its own keyboard moves.
+  // Scrolls only the list itself (scrollIntoView would also scroll the phone's page and hide the strip): one read per pick.
   const ref = useRef<HTMLDivElement | null>(null);
-  // Keep the picked row in view (a pick from the keyboard, or a filter change). `nearest` never moves a visible row.
   useEffect(() => {
-    const on = ref.current?.querySelector<HTMLElement>('.rgp-item.sel');
-    if (on && typeof on.scrollIntoView === 'function') on.scrollIntoView({ block: 'nearest' });
+    const box = ref.current;
+    const on = box?.querySelector<HTMLElement>('.rgp-item.sel')?.parentElement;
+    if (!box || !on) return;
+    const top = on.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+    if (top < box.scrollTop) box.scrollTop = top;
+    else if (top + on.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = top + on.offsetHeight - box.clientHeight;
   }, [selected]);
-  const onKey = (e: KeyboardEvent<HTMLDivElement>): void => {
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-    e.preventDefault();
-    const i = items.findIndex((it) => it.key === selected);
-    const next = items[Math.max(0, Math.min(items.length - 1, (i < 0 ? 0 : i) + (e.key === 'ArrowDown' ? 1 : -1)))];
-    if (next && next.key !== selected) onPick(next.key);
-  };
   return (
-    <div className="rgp-list" role="listbox" aria-label={label} ref={ref} tabIndex={0} onKeyDown={onKey}>
-      {items.map((it) => {
-        const on = it.key === selected;
-        return (
-          <button
-            type="button" role="option" aria-selected={on} key={it.key} tabIndex={-1} aria-label={it.label}
-            className={`phk-row rgp-item b-${it.band}${on ? ' sel' : ''}`}
-            onClick={() => { if (!on) onPick(it.key); }}
-          >
+    <div className="rgp-listwrap" ref={ref}>
+      <PhSelectList
+        className="rgp-list" label={label} items={items} keyOf={(it) => it.key} selected={selected}
+        onSelect={(it) => { if (it.key !== selected) onPick(it.key); }}
+        render={(it, on) => (
+          <div className={`phk-row rgp-item b-${it.band}${on ? ' sel' : ''}`} aria-label={it.label}>
             {it.art && <img className="phk-rowart rgp-itemart" src={it.art} alt="" draggable={false} decoding="async" loading="lazy" />}
             <Place place={it.place} band={it.band} />
             <span className="phk-rowwho">
@@ -260,9 +254,9 @@ export const GameList = memo(function GameList({ items, selected, onPick, label 
               {it.delta != null && it.delta !== 0 && <span className={`rgp-delta ${it.delta > 0 ? 'up' : 'down'}`}>{it.delta > 0 ? `+${it.delta}` : it.delta}</span>}
               {it.when && <span className="rgp-when">{it.when}</span>}
             </span>
-          </button>
-        );
-      })}
+          </div>
+        )}
+      />
     </div>
   );
 });
@@ -274,14 +268,10 @@ interface DetailProps {
   onOpen: (r: FeedRow, key: string) => void; onWatch: (e: MouseEvent, r: FeedRow, key: string) => void;
 }
 
-/** One fact tile: a small muted label over a white value. */
+/** One fact tile (the kit's), with the game's hover tip when it has one. */
 function Fact({ label, children, tip }: { label: string; children: React.ReactNode; tip?: string }) {
-  return (
-    <div className={`rgp-fact${tip ? ' gtip' : ''}`} data-tip={tip}>
-      <span className="rgp-k">{label}</span>
-      <span className="rgp-factv">{children}</span>
-    </div>
-  );
+  const tile = <PhFact label={label} value={children} />;
+  return tip ? <span className="gtip rgp-tip" data-tip={tip}>{tile}</span> : tile;
 }
 
 const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, opening, onOpen, onWatch }: DetailProps) {

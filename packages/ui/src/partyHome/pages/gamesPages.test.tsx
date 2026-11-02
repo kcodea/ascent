@@ -49,15 +49,15 @@ describe('Recent Games on the shell', () => {
     ui = mount(<RecentGamesPh {...props()} />);
     expect(q('.phk-pagetitle h1')?.textContent).toBe('Recent Games');
     expect(q('.rgp-scope')?.textContent).toBe('The last 100 games, every player');
-    expect(qa('.rgp-statval').map((n) => n.textContent)).toEqual(['3', '3.0', '67%', '1']);
+    expect(qa('.rgp-strip .phk-statval').map((n) => n.textContent)).toEqual(['3', '3.0', '67%', '1']);
     expect(q('.rgp-mostname')?.textContent).toBe(HEROES[0]!.name);
-    expect(qa('.rgp-filters .rg-chip').length).toBeGreaterThan(0);
+    expect(qa('.rgp-filters .phk-segbtn').map((b) => b.textContent)).toEqual(['All heroes', `${HEROES[0]!.name}2`, `${HEROES[1]!.name}1`]);
     expect(qa('.rgp-item').length).toBe(3);
-    expect(q('.rgp-item.sel')?.getAttribute('aria-selected')).toBe('true');
+    expect(q('.rgp-item.sel')?.parentElement?.getAttribute('aria-selected')).toBe('true');
     expect(q('.rgp-verdict')?.textContent).toBe('Victory');
     expect(q('.rgp-name')?.textContent).toBe('Player0');
     expect(q('.rgp-record')?.textContent).toMatch(/^9.3/);
-    expect(qa('.rgp-fact .rgp-k').map((n) => n.textContent)).toEqual(['Played', 'Length', 'Rounds', 'Game strength']);
+    expect(qa('.rgp-facts .phk-statlbl').map((n) => n.textContent)).toEqual(['Played', 'Length', 'Rounds', 'Game strength']);
   });
   it('wires the tabs, the list, Replay and Career to the page handlers', () => {
     const p = props();
@@ -66,6 +66,8 @@ describe('Recent Games on the shell', () => {
     expect(p.onTab).toHaveBeenCalledWith('practice');
     qa('.rgp-item')[1]!.click();
     expect(p.onPick).toHaveBeenCalledWith('k1');
+    qa('.rgp-filters .phk-segbtn')[1]!.click();
+    expect(p.onHero).toHaveBeenCalledWith(H[0]);
     const [replay, career] = qa('.rgp-bannerbtns .phk-btn');
     replay!.click();
     expect(p.onWatch).toHaveBeenCalledWith(expect.anything(), rows[0]!.r, 'k0');
@@ -75,7 +77,7 @@ describe('Recent Games on the shell', () => {
   it('moves through the history with Up / Down', () => {
     const p = props({ picked: 'k1' });
     ui = mount(<RecentGamesPh {...p} />);
-    q('.rgp-list')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    q('.phk-selist')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     expect(p.onPick).toHaveBeenCalledWith('k2');
   });
   it('says what is happening when there is nothing to list', () => {

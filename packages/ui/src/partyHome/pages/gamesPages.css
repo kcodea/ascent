@@ -3,12 +3,16 @@
    names and numbers, muted labels, the podium metals. Sizes are multiples of 8 * --phu (a phone is the same layout at its
    own unit). STATIC PAINT: hover is a colour, a press is a one-shot transform; nothing loops. */
 
-/* The page fills the host under the nav (the host is the classic `.lbpage` flex column). */
-.rgp-page > .phk-page, .lvp-page > .phk-page { flex: 1; min-height: 0; }
 .rgp-page, .lvp-page { background: none; }
 
+/* FANTASY, NOT TELEMETRY (owner 2026-11-02: "maintain a fantasy vibe ... dont make it look techy/futuristic"): the game's
+   inked serif for names, headings and the ledger's figures (Cinzel and Fraunces, loaded by index.html; the kit's tokens
+   when it has them), gilded edges and a warm light on the plates. */
+.rgp, .lvp { --gp-serif: var(--ph-serif, 'Cinzel', Georgia, serif); --gp-figure: var(--ph-figure, 'Fraunces', Georgia, serif);
+  --gp-gild: linear-gradient(90deg, transparent, var(--ph-gold) 20%, var(--ph-gold-hi) 50%, var(--ph-gold) 80%, transparent);
+  --gp-warm: radial-gradient(ellipse 70% 120% at 30% 0%, rgba(255, 196, 110, 0.10), transparent 70%); }
 /* One small label style for every key on these pages. */
-.rgp-k { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); white-space: nowrap; }
+.rgp-k { font-family: var(--gp-serif); font-weight: 700; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); white-space: nowrap; }
 
 /* ── RECENT GAMES ── */
 /* Desktop: the strip and the filter stay put, the two halves of the split scroll on their own. */
@@ -17,54 +21,57 @@
 
 /* THE STRIP: four numbers, the most played hero, the placement line. */
 .rgp-strip { flex: none; display: grid; grid-template-columns: auto calc(320 * var(--phu)) minmax(0, 1fr); align-items: stretch; min-height: calc(104 * var(--phu));
-  background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+  background: var(--gp-warm), var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-gold) 60%, transparent); clip-path: var(--ph-clip-s); }
 .rgp-stats { display: flex; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(24 * var(--phu)); }
-.rgp-stat { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); min-width: calc(88 * var(--phu)); }
-.rgp-statval { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow, var(--ph-shadow)); font-variant-numeric: tabular-nums; }
-.rgp-stat.t-gold .rgp-statval { color: #fbe6a6; }
+.rgp-stats .phk-stat { position: relative; min-width: calc(88 * var(--phu)); background: none; box-shadow: none; clip-path: none; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); align-items: center; }
+.rgp-stats .phk-stat + .phk-stat::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: calc(1 * var(--phu)); background: linear-gradient(180deg, transparent, var(--ph-gold), transparent); opacity: 0.6; }
+.rgp-stats .phk-statval { font-family: var(--gp-figure); font-weight: 900; font-variant-numeric: normal; }
+.rgp-stats .phk-statlbl { font-family: var(--gp-serif); font-weight: 700; letter-spacing: 0.12em; }
 .rgp-most { position: relative; display: flex; flex-direction: column; justify-content: center; gap: calc(4 * var(--phu)); min-width: 0; padding: 0 calc(24 * var(--phu)); overflow: hidden;
   box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair), inset calc(-1 * var(--phu)) 0 0 var(--ph-hair); }
 .rgp-mostart { position: absolute; right: 0; top: 0; width: 62%; height: 100%; object-fit: cover; object-position: 50% 22%; pointer-events: none;
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 70%); mask-image: linear-gradient(90deg, transparent 0%, #000 70%); }
 .rgp-most > :not(img) { position: relative; }
-.rgp-mostname { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rgp-mostname { font-family: var(--gp-serif); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rgp-mostsub { font-size: var(--ph-t1); color: var(--ph-muted); text-shadow: var(--ph-shadow); white-space: nowrap; }
 .rgp-spark { position: relative; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; padding: calc(12 * var(--phu)) calc(24 * var(--phu)) calc(12 * var(--phu)) calc(56 * var(--phu)); }
 .rgp-spark > .rgp-k { margin-left: calc(-32 * var(--phu)); }
 .rgp-spark svg { flex: 1; width: 100%; min-height: calc(48 * var(--phu)); overflow: visible; }
 .rgp-sp-ax { position: absolute; left: calc(16 * var(--phu)); top: calc(32 * var(--phu)); bottom: calc(12 * var(--phu)); display: flex; flex-direction: column; justify-content: space-between; }
-.rgp-sp-ax b { font-family: var(--ph-font); font-weight: 800; font-size: calc(10 * var(--phu)); color: var(--ph-muted); line-height: 1; }
-.rgp-sp-mid { stroke: var(--ph-hair); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
-.rgp-sp-line { fill: none; stroke: color-mix(in srgb, var(--ph-muted) 55%, transparent); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.rgp-sp-ax b { font-family: var(--gp-serif); font-weight: 700; font-size: calc(10 * var(--phu)); color: var(--ph-muted); line-height: 1; }
+.rgp-sp-mid { stroke: color-mix(in srgb, var(--ph-gold) 45%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.rgp-sp-line { fill: none; stroke: color-mix(in srgb, var(--ph-gold-hi) 55%, transparent); stroke-width: 1.2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .rgp-pt { vector-effect: non-scaling-stroke; }
-.rgp-pt.won { fill: #f6cf5a; }
-.rgp-pt.top4 { fill: var(--ph-teal); }
-.rgp-pt.lost { fill: var(--ph-navy); stroke: var(--ph-foe); stroke-width: 1.4; }
+/* The podium's metals: a gold diamond for a win, silver for the rest of the top 4, a bronze ring after. */
+.rgp-pt.won { fill: #f6cf5a; stroke: #7a571f; stroke-width: 1; }
+.rgp-pt.top4 { fill: #dfe5ec; }
+.rgp-pt.lost { fill: var(--ph-navy); stroke: #c98a55; stroke-width: 1.4; }
 
 /* THE HERO FILTER: the shared chips, in the kit's chip shape (the More list keeps the game's dropdown). */
 .rgp-scope { font-size: var(--ph-t2); color: var(--ph-muted); text-shadow: var(--ph-shadow); white-space: nowrap; }
-/* The filter row, in the kit's segmented look (PhSegmented's buttons); the shared chips keep their fit-one-line + More. */
-.rgp-filters { flex: none; display: flex; align-items: center; gap: calc(16 * var(--phu)); min-width: 0; }
-.rgp .rg-filters { flex: 1; gap: calc(4 * var(--phu)); flex-wrap: nowrap; }
-.rgp .rg-chip { height: calc(36 * var(--phu)); padding: 0 calc(12 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
-  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.04em; color: var(--ph-text); text-shadow: var(--ph-shadow); }
-.rgp .rg-chip:hover { color: var(--ph-ink); background: var(--ph-plate-hover); }
-.rgp .rg-chip.on, .rgp .rg-more.open .rg-more-trigger.on { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); box-shadow: none; }
-.rgp .rg-more.open .rg-more-trigger { color: var(--ph-ink); }
+/* The hero filter: the kit's segmented row on one line (the rest fold into More); the label sits beside it. */
+.rgp-filters { flex: none; min-width: 0; position: relative; z-index: 2; }
+.rgp-filters .phk-seg { flex-direction: row; align-items: center; gap: calc(16 * var(--phu)); }
+.rgp-filters .phk-segrow { flex-wrap: nowrap; min-width: 0; }
+.rgp-filters .phk-segbtn { flex: 0 0 auto; }
+.rgp-n { margin-left: calc(8 * var(--phu)); font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
+.phk-segbtn.on .rgp-n { color: color-mix(in srgb, var(--ph-navy) 70%, transparent); }
+.rgp .phk-moremenu { max-height: calc(360 * var(--phu)); overflow-y: auto; }
+.rgp .phk-moreitem { display: flex; align-items: center; justify-content: space-between; }
 
 /* THE SPLIT: the history, then the open game. */
 .rgp-split { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(440 * var(--phu)) minmax(0, 1fr); gap: calc(16 * var(--phu)); }
-.rgp-list { min-height: 0; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: calc(4 * var(--phu)); outline: none; }
-.rgp-list:focus-visible { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
+.rgp-listwrap { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: calc(4 * var(--phu)); }
+.rgp-list.phk-selist { gap: calc(4 * var(--phu)); }
 .rgp-detailcol { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 
 /* A history row: a rail slice. The band edge on the left, the placement in metal, the hero art fading in from the right. */
-.rgp-item { flex: none; width: 100%; gap: calc(16 * var(--phu)); min-height: calc(64 * var(--phu)); padding: 0 calc(16 * var(--phu)) 0 calc(20 * var(--phu)); margin: 0; border: 0; border-radius: 0; overflow: hidden;
+.rgp-item { flex: none; width: 100%; box-sizing: border-box; gap: calc(16 * var(--phu)); min-height: calc(64 * var(--phu)); padding: 0 calc(16 * var(--phu)) 0 calc(20 * var(--phu)); margin: 0; border: 0; border-radius: 0; overflow: hidden;
   color: inherit; text-align: left; font: inherit; }
 .rgp-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(4 * var(--phu)); background: var(--ph-hair); }
 .rgp-item.b-won::before { background: var(--ph-metal-gold); }
-.rgp-item.b-top4::before { background: var(--ph-teal); }
-.rgp-item.b-lost::before { background: var(--ph-foe); opacity: 0.75; }
+.rgp-item.b-top4::before { background: var(--ph-metal-silver); }
+.rgp-item.b-lost::before { background: var(--ph-metal-bronze); opacity: 0.8; }
 .rgp-item:hover { background: var(--ph-plate-hover); }
 .rgp-item .rgp-itemart { right: calc(112 * var(--phu)); width: 42%; opacity: 0.5;
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 45%, #000 60%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0%, #000 45%, #000 60%, transparent 100%); }
@@ -79,26 +86,25 @@
 .rgp-delta.down { color: var(--ph-foe); }
 
 /* A placement box: the kit's, a little wider so "1" to "8" and "-" sit alike; big in the banner. */
-.rgp-place.big { width: calc(72 * var(--phu)); height: calc(72 * var(--phu)); font-size: calc(40 * var(--phu)); --ph-cut-s: calc(12 * var(--phu)); }
 
 /* THE OPEN GAME. */
-.rgp-detail { position: relative; display: flex; flex-direction: column; min-height: 100%; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip); }
+.rgp-detail { position: relative; display: flex; flex-direction: column; min-height: 100%; background: var(--gp-warm), var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-gold) 60%, transparent); clip-path: var(--ph-clip); }
 /* The banner: placement, player, hero, record, rank; the hero's art fading in from the right; the two actions. */
 .rgp-banner { position: relative; display: flex; align-items: center; gap: calc(24 * var(--phu)); min-height: calc(128 * var(--phu)); padding: calc(16 * var(--phu)) calc(32 * var(--phu)); overflow: hidden;
-  box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
+  background: var(--gp-gild) bottom / 100% calc(1 * var(--phu)) no-repeat; }
 .rgp-banner::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(4 * var(--phu)); background: var(--ph-hair); }
 .rgp-detail.b-won .rgp-banner::after { background: var(--ph-metal-gold); }
-.rgp-detail.b-top4 .rgp-banner::after { background: var(--ph-teal); }
-.rgp-detail.b-lost .rgp-banner::after { background: var(--ph-foe); }
+.rgp-detail.b-top4 .rgp-banner::after { background: var(--ph-metal-silver); }
+.rgp-detail.b-lost .rgp-banner::after { background: var(--ph-metal-bronze); }
 .rgp-bannerart { position: absolute; right: 0; top: 0; width: 58%; height: 100%; object-fit: cover; object-position: 50% 20%; pointer-events: none; opacity: 0.85;
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 60%); mask-image: linear-gradient(90deg, transparent 0%, #000 60%); }
 .rgp-banner > :not(img) { position: relative; }
 .rgp-bannerwho { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); }
-.rgp-verdict { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+.rgp-verdict { font-family: var(--gp-serif); font-weight: 700; font-size: var(--ph-t1); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ph-muted); text-shadow: var(--ph-shadow); }
 .rgp-verdict.b-won { color: #fbe6a6; }
-.rgp-verdict.b-top4 { color: var(--ph-teal); }
+.rgp-verdict.b-top4 { color: #e8eef5; }
 .rgp-verdict.b-lost { color: var(--ph-foe); }
-.rgp-name { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rgp-name { margin: 0; font-family: var(--gp-serif); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rgp-line { display: flex; align-items: center; flex-wrap: wrap; gap: calc(4 * var(--phu)) calc(16 * var(--phu)); font-size: var(--ph-t2); font-weight: 700; color: var(--ph-text); text-shadow: var(--ph-shadow); }
 .rgp-record { font-family: var(--ph-font); font-weight: 900; font-variant-numeric: tabular-nums; }
 .rgp-record.up { color: var(--ph-teal); }
@@ -111,8 +117,6 @@
 
 /* The facts, as small tiles. */
 .rgp-facts { display: flex; flex-wrap: wrap; align-items: center; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(32 * var(--phu)) 0; }
-.rgp-fact { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
-.rgp-factv { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rgp-partial svg { width: calc(14 * var(--phu)); height: calc(14 * var(--phu)); }
 
 /* The board: whose it is, the real cards, the runes. */
@@ -145,7 +149,7 @@
 /* THE LOBBY: all eight players, a 4 x 2 grid of plates; pick one to show their board above. */
 .rgp-lobby { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(32 * var(--phu)) calc(32 * var(--phu)); }
 .rgp-lobbyhead { display: flex; align-items: baseline; gap: calc(16 * var(--phu)); }
-.rgp-lobbyhead h3 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.rgp-lobbyhead h3 { margin: 0; font-family: var(--gp-serif); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .rgp-lobbyhead span { font-size: var(--ph-t1); color: var(--ph-muted); }
 .rgp .lp-tiles { gap: calc(8 * var(--phu)); }
 .rgp .lp-tile { --band: var(--ph-muted); gap: calc(8 * var(--phu)); padding: calc(8 * var(--phu)) calc(12 * var(--phu)) calc(12 * var(--phu)) calc(16 * var(--phu)); border: 0; border-radius: 0;
@@ -214,7 +218,7 @@
 .lvp-row > :not(img) { position: relative; min-width: 0; }
 .lvp-row:hover { background: var(--ph-plate-hover); }
 .lvp-who { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); }
-.lvp-name { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lvp-name { font-family: var(--gp-serif); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lvp-hero { font-size: var(--ph-t1); color: var(--ph-muted); text-shadow: var(--ph-shadow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lvp-rank { display: flex; align-items: center; gap: calc(12 * var(--phu)); }
 .lvp-rank .rankcrest { --ring: calc(48 * var(--phu)); flex: none; }
@@ -238,9 +242,14 @@
    whole screen under the nav, so the list and the open game both get their full height. ── */
 html[data-touch-small] .rgp .phk-pagebody { overflow-y: auto; }
 html[data-touch-small] .rgp-split { flex: none; height: calc(100dvh - var(--ph-nav-h) - 16 * var(--phu)); grid-template-columns: calc(360 * var(--phu)) minmax(0, 1fr); }
-html[data-touch-small] .rgp-stat { min-width: calc(64 * var(--phu)); }
+html[data-touch-small] .rgp-stats .phk-stat { min-width: calc(72 * var(--phu)); }
 html[data-touch-small] .rgp-item .gamerank .gamerank-l { display: none; }
 html[data-touch-small] .rgp .lp-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 html[data-touch-small] .lvp { --lvp-cols: minmax(0, 1fr) calc(180 * var(--phu)) minmax(0, 1.4fr) calc(200 * var(--phu)); }
+
+/* The Duos card's boards and facts at this page's sizes (the classic page's phone rules key on `.rg-page`). */
+.rgp-duos .dh-board .cv2-team.cv2-team { --tw: min(calc((100cqw - 8px) / 8.4), 140px); --tile-gap: calc(var(--tw) * 0.2); justify-content: center; padding: calc(var(--tw) * 0.3) calc(var(--tw) * 0.1 + 2px) 10px; }
+.rgp-duos .gc.gc-detail .gc-meta { justify-self: stretch; min-width: 0; }
+.rgp-duos .gc-meta .lb-facts { width: 100%; }
 
 @media (prefers-reduced-motion: reduce) { .rgp-boardin { animation: none; } }

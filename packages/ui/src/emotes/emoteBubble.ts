@@ -24,7 +24,7 @@
  * `MAX_LIVE` bubbles show at once, and at most `MAX_WATCH_LIVE` of them from spectators.
  */
 import { emoteOf } from '@game/progression';
-import { phoneLayoutOn, stageHost, stageViewport, toStage } from '../stage';
+import { phoneLayoutOn, screenScale, stageHost, stageViewport, toStage } from '../stage';
 import { useGame } from '../store';
 import { EMOTE_ASPECT, emoteSrc } from './emoteArt';
 import { PLAYER_SEAT } from './emoteRuntime';
@@ -89,6 +89,54 @@ export function fitToPortrait(portrait: PortraitRect, surface: BubbleSurface, si
   };
 }
 
+/**
+ * THE DOCKED RAIL (owner 2026-11-01: "emotes on the rail are massive and look bad"; R-EMOTE-RAIL-DOCKED-01). On the
+ * Docked rail the seat is a wide slice and its portrait art spans most of it, so a bubble sized off that art (3.1x its
+ * width) came out bigger than three slices. A docked seat's bubble is sized off the SLICE instead: its height is
+ * `DOCK_BUBBLE_TO_SLICE` of the slice's height (so it tracks the rail's scale on every screen, and neighbouring seats'
+ * bubbles fit side by side without sliding), its width follows from the art's aspect. Where the whole game is drawn
+ * small (a phone), it never drops below `DOCK_MIN_SCREEN_H` screen px tall, so the painted words stay readable. It sits
+ * level with the slice's middle, wholly OUTSIDE the rail toward the board: its right end stops just short of the slice's
+ * left edge, and moves
+ * further left past anything else of the rail's column beside it (a Duos teammate's slice, the round slice, the Refresh
+ * pill, the End Turn gem, the Gold coin the slices are cut round), so it never covers a seat, hero art, the placement
+ * column or a board button. At these sizes the 512 px art is always drawn smaller than its source, so it stays crisp.
+ */
+export const DOCK_BUBBLE_TO_SLICE = 1.15;
+/** The shortest a docked bubble is drawn ON SCREEN (CSS px), whatever the game's scale: a phone's rail is tiny. */
+export const DOCK_MIN_SCREEN_H = 36;
+/** The breath between a docked bubble's right end and whatever it stands beside, as a fraction of its height. */
+export const DOCK_GAP = 0.04;
+
+/** The placement of a docked rail seat's bubble: beside `slice`, left of it and of every `obstacle` in its band. Pure. */
+export function fitBesideSlice(slice: PortraitRect, obstacles: readonly PortraitRect[], minHeight = 0): BubblePlacement {
+  const height = Math.round(Math.max(slice.height * DOCK_BUBBLE_TO_SLICE, minHeight));
+  const width = Math.round(height / EMOTE_ASPECT);
+  const gap = Math.max(2, Math.round(height * DOCK_GAP));
+  let x = slice.left - gap;
+  // The bubble is a touch taller than its slice. A piece that only reaches into that overhang (the Refresh pill's foot over
+  // the top slice, the coin's rim under the last) nudges it down or up within it, rather than sending it off to the left.
+  let top = slice.top + slice.height / 2 - height / 2;
+  for (const o of obstacles) {
+    if (!(o.left < x && o.left + o.width > x - width) || !(o.top < top + height && o.top + o.height > top)) continue;
+    if (o.top + o.height <= slice.top + 1) top = Math.max(top, o.top + o.height);
+    else if (o.top >= slice.top + slice.height - 1) top = Math.min(top, o.top - height);
+  }
+  top = Math.min(Math.max(top, slice.top + slice.height - height), slice.top);
+  const bottom = top + height;
+  const y = top + height / 2;
+  // Walk the right end left past anything in the bubble's band that it would cover (a few boxes, settles in a pass or two).
+  for (let moved = true, pass = 0; moved && pass < 8; pass++) {
+    moved = false;
+    for (const o of obstacles) {
+      const inBand = o.top < bottom && o.top + o.height > top;
+      const covered = o.left < x && o.left + o.width > x - width;
+      if (inBand && covered && o.left - gap < x) { x = o.left - gap; moved = true; }
+    }
+  }
+  return { x, y, width, side: 'left', slide: Math.round(height / 2) };
+}
+
 export interface BubbleBox { left: number; top: number; width: number; height: number; originX: number; originY: number }
 
 /** The box of a bubble placed at `p` (before any slide): its middle level with `y`, its near edge on `x`. It pops
@@ -133,6 +181,10 @@ export function settleBubble(p: BubblePlacement, taken: readonly Rect[], stageH:
 let currentFoe: string | null = null;
 export function setEmoteFoe(seatId: string | null): void { currentFoe = seatId; }
 
+/** What a docked rail bubble must not cover: every slice of the rail's column, and the board pieces the slices are cut
+ *  round (the Refresh pill, the End Turn gem, the Gold coin; the same three `useDockedRail` measures). */
+const DOCK_OBSTACLES = '.lobbyrail.lrv-docked .lobbyseat[data-seat], .lobbyrailhead.lrv-docked, .rfbwrap, .etb-base, .goldpill';
+
 /** A portrait rect (screen px) in stage px. */
 const stageRect = (r: DOMRect): PortraitRect => ({ left: toStage(r.left), top: toStage(r.top), width: toStage(r.width), height: toStage(r.height) });
 /** The fit for this screen (a phone draws every bubble a little larger). */
@@ -163,7 +215,13 @@ export function placementFor(seat: string): BubblePlacement | null {
   }
   const st = useGame.getState();
   if (!st.combatStaged) {
-    // A rail row (a Duos teammate's row too): to the LEFT of its face, eclipsing its left edge, level with it.
+    // A DOCKED rail slice (every mode's rail since #2504, a Duos teammate's slice too): beside the slice, sized off it.
+    const slice = SEAT_ID.test(seat) ? document.querySelector(`.lobbyrail.lrv-docked .lobbyseat[data-seat="${seat}"]`)?.getBoundingClientRect() : undefined;
+    if (slice && slice.width) {
+      const obstacles = [...document.querySelectorAll(DOCK_OBSTACLES)].map((el) => el.getBoundingClientRect()).filter((r) => r.width).map(stageRect);
+      return fitBesideSlice(stageRect(slice), obstacles, DOCK_MIN_SCREEN_H / Math.max(0.05, screenScale()));
+    }
+    // A Gem rail row (the fallback where the rail cannot dock): to the LEFT of its face, eclipsing its left edge, level with it.
     const r = SEAT_ID.test(seat) ? document.querySelector(`.lobbyseat[data-seat="${seat}"] .lobbyface`)?.getBoundingClientRect() : undefined;
     if (r && r.width) return fit(r, 'rail', 'left');
     // VERSUS has no rail in the shop (owner bug 2026-10-16: "emotes arent showing in the recruit phase of versus"; the

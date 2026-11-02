@@ -97,6 +97,7 @@ export const COMBAT_TRACE_COVERAGE: Record<CombatEvent['type'], CombatTraceCover
   boardFallen: { source: 'never', target: 'never', amount: 'never', note: 'tag-team (Versus Duos): a side board is wiped and its reserve steps in next; side + member in detail' },
   teamSend: { source: 'never', target: 'never', amount: 'never', note: 'Duos real-time team effect: the side member sent its teammate carry entry idx (side + member + idx in detail)' },
   tagIn: { source: 'never', target: 'never', amount: 'sometimes', note: 'tag-team (Versus Duos): the reserve board steps in; amount = how many bodies, side + member in detail' },
+  flyIn: { source: 'never', target: 'never', amount: 'always', note: 'tag-team fly-in (Duos, R-DUOS-FLYIN-01): the unfought teammate board of the winner fills the empty slots after the fight; amount = how many bodies, side + member + index in detail' },
   ascend: { source: 'never', target: 'always', amount: 'never', note: 'self-transform; the destination cardId in detail (into)' },
   buff: { source: 'always', target: 'always', amount: 'never', note: 'source is a display LABEL, not a uid (the emit sites pass names) — carried as label, never coerced to a uid; attack/health in detail (two-axis, no single amount)' },
   improve: { source: 'never', target: 'always', amount: 'always', note: 'accrual delta; display magnitude in detail when it differs' },
@@ -158,6 +159,8 @@ function project(e: CombatEvent): Pick<CombatSemanticEvent, 'source' | 'target' 
       return defined({ detail: det({ side: e.side, member: e.member, idx: e.idx }) });
     case 'tagIn':
       return defined({ amount: e.minions.length, detail: det({ side: e.side, member: e.member }) });
+    case 'flyIn':
+      return defined({ amount: e.minions.length, detail: det({ side: e.side, member: e.member, index: e.index }) });
     case 'summon':
       return defined({ ...(e.source ? { source: { uid: e.source } } : {}), target: { uid: e.minion.uid, cardId: e.minion.cardId, side: e.side }, detail: { index: e.index } });
     case 'ascend':

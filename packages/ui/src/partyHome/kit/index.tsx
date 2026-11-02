@@ -16,18 +16,25 @@
  *
  * All static paint; no native tooltips (aria-label + the game's `data-tip`); no own cursor (the gauntlet rule paints it).
  */
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
 import '../shell/shell.css';
 import './kit.css';
 
 const cx = (...c: (string | false | null | undefined)[]): string => c.filter(Boolean).join(' ');
 
-export function PhPage({ title, eyebrow, actions, tabs, wide, className, children }: {
+export function PhPage({ title, eyebrow, actions, tabs, wide, back, className, children }: {
   title: ReactNode; eyebrow?: ReactNode; actions?: ReactNode; tabs?: ReactNode; wide?: boolean; className?: string; children: ReactNode;
+  /** A back step inside the page (a sub-view back to its parent): sits left of the title. */
+  back?: { label: string; onClick: () => void };
 }) {
   return (
     <section className={cx('phk-page', wide && 'wide', className)}>
       <header className="phk-pagehead">
+        {back && (
+          <button type="button" className="phk-back" onClick={back.onClick} aria-label={back.label}>
+            <span className="phk-backarrow" aria-hidden="true">‹</span><span>{back.label}</span>
+          </button>
+        )}
         <div className="phk-pagetitle">
           {eyebrow && <span className="phk-eyebrow">{eyebrow}</span>}
           <h1>{title}</h1>
@@ -58,9 +65,15 @@ export function PhSection({ title, aside, flush, className, children }: {
 
 export type PhTone = 'neutral' | 'gold' | 'teal' | 'foe';
 
-export function PhRow({ art, title, sub, lead, right, onClick, tone, selected, label, className }: {
+export function PhRow({ art, title, sub, lead, right, onClick, tone, selected, label, className, dense, count, progress }: {
   art?: string; title: ReactNode; sub?: ReactNode; lead?: ReactNode; right?: ReactNode; onClick?: () => void;
   tone?: PhTone; selected?: boolean; label?: string; className?: string;
+  /** A compact 48 unit row (lists of many). */
+  dense?: boolean;
+  /** A count at the right end, before `right` (e.g. "12 / 30"). */
+  count?: ReactNode;
+  /** 0..1: a thin gold progress bar along the row's foot. */
+  progress?: number;
 }) {
   const body = (
     <>
@@ -73,11 +86,13 @@ export function PhRow({ art, title, sub, lead, right, onClick, tone, selected, l
     </>
   );
   return (
-    <div role="listitem" className={cx('phk-row', tone && `t-${tone}`, selected && 'sel', onClick && 'press', className)}>
+    <div role="listitem" className={cx('phk-row', tone && `t-${tone}`, selected && 'sel', onClick && 'press', dense && 'dense', className)}>
       {onClick
         ? <button type="button" className="phk-rowmain" onClick={onClick} aria-label={label}>{body}</button>
         : <span className="phk-rowmain">{body}</span>}
+      {count != null && <span className="phk-rowcount">{count}</span>}
       {right && <span className="phk-rowright">{right}</span>}
+      {progress != null && <span className="phk-rowbar" aria-hidden="true"><span style={{ transform: `scaleX(${Math.max(0, Math.min(1, progress))})` }} /></span>}
     </div>
   );
 }
@@ -102,15 +117,34 @@ export function PhChip({ tone = 'neutral', className, children }: { tone?: PhTon
   return <span className={cx('phk-chip', `t-${tone}`, className)}>{children}</span>;
 }
 
+/** A chip that toggles (a filter): pressed wears the podium gold. */
+export function PhToggleChip({ pressed, onToggle, disabled, className, children }: { pressed: boolean; onToggle: () => void; disabled?: boolean; className?: string; children: ReactNode }) {
+  return (
+    <button type="button" className={cx('phk-chip', 'phk-tchip', pressed ? 't-gold' : 't-neutral', className)} aria-pressed={pressed} disabled={disabled}
+      onClick={onToggle}>{children}</button>
+  );
+}
+
+/** A "collected" meter: a label, the count, and a thin gold bar. */
+export function PhMeter({ label, value, max, className }: { label?: ReactNode; value: number; max: number; className?: string }) {
+  const f = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
+  return (
+    <div className={cx('phk-meter', className)} role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={value} aria-label={typeof label === 'string' ? label : undefined}>
+      <span className="phk-meterhead">{label && <span className="phk-meterlbl">{label}</span>}<span className="phk-meterval">{value} / {max}</span></span>
+      <span className="phk-meterbar" aria-hidden="true"><span style={{ transform: `scaleX(${f})` }} /></span>
+    </div>
+  );
+}
+
 export function PhButton({ variant = 'plate', size = 'm', className, children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'plate' | 'ghost'; size?: 's' | 'm' | 'l';
 }) {
   return <button type="button" {...rest} className={cx('phk-btn', `v-${variant}`, `s-${size}`, className)}><span>{children}</span></button>;
 }
 
-export function PhStat({ label, value, sub, tone }: { label: ReactNode; value: ReactNode; sub?: ReactNode; tone?: PhTone }) {
+export function PhStat({ label, value, sub, tone, size = 'm' }: { label: ReactNode; value: ReactNode; sub?: ReactNode; tone?: PhTone; size?: 's' | 'm' }) {
   return (
-    <div className={cx('phk-stat', tone && `t-${tone}`)}>
+    <div className={cx('phk-stat', tone && `t-${tone}`, size === 's' && 's-s')}>
       <span className="phk-statval">{value}</span>
       <span className="phk-statlbl">{label}</span>
       {sub && <span className="phk-statsub">{sub}</span>}
@@ -118,8 +152,50 @@ export function PhStat({ label, value, sub, tone }: { label: ReactNode; value: R
   );
 }
 
-export function PhPlace({ place }: { place: number }) {
-  return <span className="phk-place" data-place={place} aria-label={`Place ${place}`}>{place}</span>;
+/** `size="l"`: the big box (a result header). `plain`: no podium metal (e.g. 2nd of 2 is not a podium). */
+export function PhPlace({ place, size = 'm', plain }: { place: number; size?: 'm' | 'l'; plain?: boolean }) {
+  return <span className={cx('phk-place', size === 'l' && 's-l')} data-place={plain ? undefined : place} aria-label={`Place ${place}`}>{place}</span>;
+}
+
+/** A small fact tile: a short label over a value, for a row of facts (PhStat at size s). */
+export function PhFact({ label, value, tone }: { label: ReactNode; value: ReactNode; tone?: PhTone }) {
+  return <PhStat label={label} value={value} tone={tone} size="s" />;
+}
+
+/**
+ * A selectable list with keyboard navigation: Up / Down (and Home / End) move the selection, Enter re-picks. Renders
+ * `role="listbox"`; each item is a row you render (a `PhRow` fits). The selected item gets `selected`.
+ */
+export function PhSelectList<T>({ items, keyOf, selected, onSelect, render, label, className }: {
+  items: readonly T[]; keyOf: (item: T) => string; selected: string | null; onSelect: (item: T) => void;
+  render: (item: T, selected: boolean) => ReactNode; label: string; className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const at = items.findIndex((it) => keyOf(it) === selected);
+  const move = (i: number): void => {
+    const it = items[Math.max(0, Math.min(items.length - 1, i))];
+    if (!it) return;
+    onSelect(it);
+    ref.current?.querySelector<HTMLElement>(`[data-key="${CSS.escape(keyOf(it))}"]`)?.scrollIntoView?.({ block: 'nearest' });
+  };
+  const onKey = (e: KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); move(at + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); move(at <= 0 ? 0 : at - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); move(0); }
+    else if (e.key === 'End') { e.preventDefault(); move(items.length - 1); }
+  };
+  return (
+    <div ref={ref} className={cx('phk-selist', className)} role="listbox" aria-label={label} tabIndex={0} onKeyDown={onKey}
+      aria-activedescendant={selected ? `phk-sel-${selected}` : undefined}>
+      {items.map((it) => {
+        const k = keyOf(it);
+        return (
+          <div key={k} id={`phk-sel-${k}`} data-key={k} role="option" aria-selected={k === selected} className="phk-selitem"
+            onClick={() => onSelect(it)}>{render(it, k === selected)}</div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function PhEmpty({ title, sub, action }: { title: ReactNode; sub?: ReactNode; action?: ReactNode }) {
@@ -137,11 +213,43 @@ export function PhEmpty({ title, sub, action }: { title: ReactNode; sub?: ReactN
  * passes `value`; multi-select passes `isOn` and toggles in `onPick`. `disabled` greys the row; give `hint` the reason.
  * `size="l"`: the big two-way switch (Practice's Sandbox | God Mode).
  */
-export function PhSegmented<T extends string | number | null>({ label, hint, value, isOn, options, onPick, disabled, size = 'm' }: {
+export function PhSegmented<T extends string | number | null>({ label, hint, value, isOn, options, onPick, disabled, size = 'm', max }: {
   label?: ReactNode; hint?: ReactNode; value?: T; isOn?: (v: T) => boolean; options: readonly { value: T; label: ReactNode }[];
   onPick: (v: T) => void; disabled?: boolean; size?: 'm' | 'l';
+  /** Show at most this many options; the rest go into a "More" menu (the picked one, if hidden, names the button). */
+  max?: number;
 }) {
   const lit = (v: T): boolean => (isOn ? isOn(v) : v === value);
+  const [moreOpen, setMoreOpen] = useState(false);
+  if (max != null && options.length > max) {
+    const shown = options.slice(0, Math.max(1, max - 1));
+    const rest = options.slice(shown.length);
+    const restOn = rest.find((o) => lit(o.value));
+    return (
+      <div className={cx('phk-seg', `s-${size}`, disabled && 'off')}>
+        {label && <span className="phk-seglbl">{label}</span>}
+        <div className="phk-segrow" role="group" aria-label={typeof label === 'string' ? label : undefined}>
+          {shown.map((o) => (
+            <button key={String(o.value)} type="button" className={cx('phk-segbtn', lit(o.value) && 'on')} aria-pressed={lit(o.value)} disabled={disabled}
+              onClick={() => { if (!disabled) onPick(o.value); }}>{o.label}</button>
+          ))}
+          <span className="phk-more">
+            <button type="button" className={cx('phk-segbtn', restOn && 'on')} aria-haspopup="menu" aria-expanded={moreOpen} disabled={disabled}
+              onClick={() => setMoreOpen((v) => !v)}>{restOn ? restOn.label : 'More'} <span aria-hidden="true">▾</span></button>
+            {moreOpen && (
+              <span className="phk-moremenu" role="menu">
+                {rest.map((o) => (
+                  <button key={String(o.value)} type="button" role="menuitemradio" aria-checked={lit(o.value)} className={cx('phk-moreitem', lit(o.value) && 'on')}
+                    onClick={() => { setMoreOpen(false); onPick(o.value); }}>{o.label}</button>
+                ))}
+              </span>
+            )}
+          </span>
+        </div>
+        {hint && <span className="phk-seghint">{hint}</span>}
+      </div>
+    );
+  }
   return (
     <div className={cx('phk-seg', `s-${size}`, disabled && 'off')}>
       {label && <span className="phk-seglbl">{label}</span>}
@@ -152,6 +260,27 @@ export function PhSegmented<T extends string | number | null>({ label, hint, val
         ))}
       </div>
       {hint && <span className="phk-seghint">{hint}</span>}
+    </div>
+  );
+}
+
+/**
+ * A modal window in the shell's language (added for the party home's confirmations; the other kit APIs are unchanged):
+ * a dark veil over the screen and one navy plate in the big cut, an eyebrow, a title, the text, then the actions
+ * (primary first). `onClose` runs on a press on the veil. One-shot entrance (transform + opacity).
+ */
+export function PhDialog({ eyebrow, title, children, actions, onClose, closing, label }: {
+  eyebrow?: ReactNode; title: ReactNode; children?: ReactNode; actions: ReactNode; onClose?: () => void; closing?: boolean; label: string;
+}) {
+  return (
+    <div className={cx('phk-dialog', closing && 'closing')} role="dialog" aria-modal="true" aria-label={label}>
+      <div className="phk-veil" onClick={onClose} aria-hidden="true" />
+      <div className="phk-dlgbox">
+        {eyebrow && <span className="phk-eyebrow">{eyebrow}</span>}
+        <h2 className="phk-dlgtitle">{title}</h2>
+        {children && <div className="phk-dlgtext">{children}</div>}
+        <div className="phk-dlgactions">{actions}</div>
+      </div>
     </div>
   );
 }

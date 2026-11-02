@@ -5,7 +5,7 @@
  * `slots` is how many banner cards the mode shows (you plus the open seats); `party` says whether the other seats are
  * TEAMMATES (Ranked Duos) or RIVALS (the Versus rooms) or there are none (solo modes). Pure data, so it is testable.
  */
-export type PartyModeId = 'ranked' | 'duos' | 'versus' | 'group' | 'vduos' | 'practice' | 'gauntlet' | 'learn' | 'scene';
+export type PartyModeId = 'ranked' | 'duos' | 'versus' | 'group' | 'vduos' | 'practice' | 'gauntlet' | 'learn';
 
 export interface PartyMode {
   id: PartyModeId;
@@ -35,7 +35,6 @@ export const PARTY_MODES: readonly PartyMode[] = [
   { id: 'practice', label: 'Practice', desc: 'Practice your way. Nothing here is rated.', slots: 1, party: 'solo', ranked: false, options: true },
   { id: 'gauntlet', label: 'Gauntlet', desc: 'Survive 10 rounds against a hand-built foe.', slots: 1, party: 'solo', ranked: false, options: true },
   { id: 'learn', label: 'Learn', desc: 'The tutorial and techniques.', slots: 1, party: 'solo', ranked: false },
-  { id: 'scene', label: 'Scene Builder', desc: 'A dev sandbox lobby against bots.', slots: 1, party: 'solo', ranked: false, dev: true },
 ];
 
 /** The tabs this build shows. */

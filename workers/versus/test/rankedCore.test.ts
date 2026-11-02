@@ -211,6 +211,52 @@ describe('Ranked Duos room (Cloudflare) — absence, leaving, the end', () => {
     expect(places).toEqual([...places].sort((a, b) => a - b));
   });
 
+  it('the duo run records EVERY round\'s boards, the deciding round included (R-RANKED-DUOS-RECORD-01)', async () => {
+    // Owner ruling 2026-11-02: Ranked Duos records are 1:1 with ranked solo, which records every round it fought. The
+    // round that placed the team never opened a next shop, so its boards never folded into the record: every Cloudflare
+    // duo run on the live project ended one round short (duo_runs.last_round = the match's round - 1).
+    const h = await inShop();
+    const sent: Record<number, { p1: PreparedCombatSide; p2: PreparedCombatSide }> = {};
+    let guard = 0;
+    while (h.g.phase !== 'complete' && guard++ < 60) {
+      const round = h.g.round;
+      // A board per round and seat that is told apart from the others (odd rounds swap the two boards).
+      const p1 = round % 2 ? STRONG : MID;
+      const p2 = round % 2 ? MID : STRONG;
+      sent[round] = { p1, p2 };
+      await lock(h, U1, p1);
+      await lock(h, U2, p2);
+      if (h.g.phase === 'combat') { await h.op(U1, 'combat_ready', { matchId: h.id, round }); await h.op(U2, 'combat_ready', { matchId: h.id, round }); }
+    }
+    expect(h.g.phase).toBe('complete');
+    const end = h.g.round;
+    expect(end).toBeGreaterThan(1);
+    const fin = h.persisted().filter((j) => j.kind === 'ranked_finish');
+    expect(fin).toHaveLength(1);
+    const row = fin[0]!.row as { rounds: { round: number }[]; submissions: { round: number; seat: string; prepared_side: unknown }[] };
+    const committed = row.rounds.map((r) => r.round);
+    expect(committed).toEqual(Array.from({ length: end }, (_, i) => i + 1));
+    // Both live seats, every committed round, exactly once: the deciding round too, with the board it fought.
+    expect(row.submissions.map((s) => `${s.round}${s.seat}`)).toEqual(committed.flatMap((r) => [`${r}p1`, `${r}p2`]));
+    for (const s of row.submissions) expect(s.prepared_side).toEqual(sent[s.round]![s.seat as 'p1' | 'p2']);
+    // And the room's own storage holds the deciding round's boards (a restore before the write still has them).
+    expect((valueOfKey(h.core.state, `rhist:${end}`) as unknown[] | undefined)?.length).toBe(2);
+  });
+
+  it('a round that never resolved is not recorded (the pair left mid-shop): only fought rounds, like solo', async () => {
+    const h = await inShop({ ensureTeam: async () => ({ teamId: TEAM, name: null, division: 0 }), soloSample: async () => [], duoSample: async () => ({ rows: [], names: {} }) });
+    await lock(h, U1, STRONG);
+    await lock(h, U2, MID);
+    await h.op(U1, 'combat_ready', { matchId: h.id, round: 1 });
+    await h.op(U2, 'combat_ready', { matchId: h.id, round: 1 });
+    expect(h.g.round).toBe(2);
+    await lock(h, U1, MID); // round 2: one lock, then both leave before it resolves
+    await h.op(U1, 'leave');
+    await h.op(U2, 'leave');
+    const row = h.persisted().find((j) => j.kind === 'ranked_finish')!.row as { submissions: { round: number; seat: string }[] };
+    expect(row.submissions.map((s) => `${s.round}${s.seat}`)).toEqual(['1p1', '1p2']);
+  });
+
   it('the table could not be seated yet: the heroes are dealt the old way when it is late, the round waits in resolving and resolves once it is', async () => {
     const h = new H();
     h.core.connect(U1, h.now);

@@ -417,6 +417,10 @@ export class RankedEngine extends GroupEngine {
     };
     this.r.rounds[row.round] = row;
     this.rh.dirty(`rround:${row.round}`);
+    // THE DECIDING ROUND IS RECORDED (R-RANKED-DUOS-RECORD-01): the live boards this round fought are kept NOW, as the
+    // round commits. They used to be kept only when the next shop opened, so the round that placed the team (no next
+    // shop) never reached the duo run: every Cloudflare duo run lacked its last board.
+    this.keepRoundBoards(row.round);
     this.rh.roundCommitted(row.round);
     for (const s of m.seats) s.ready = false;
     m.phase = 'combat';
@@ -534,15 +538,30 @@ export class RankedEngine extends GroupEngine {
     });
   }
 
-  /** Every live seat's FINAL board per round (kept for the duo run recording; `versus_group_submissions` final rows). */
+  /** Every live seat's FINAL board per COMMITTED round (kept for the duo run recording; `versus_group_submissions` final
+   *  rows), the deciding round included (R-RANKED-DUOS-RECORD-01). A round that never resolved (the pair left mid-shop)
+   *  was never fought, so it is not recorded, the same as solo, which snapshots only the waves it fought. */
   private liveSubmissions(): { round: number; seat: GSeat; user_id: string; prepared_side: unknown; source: string }[] {
-    return (this.g.history ?? []).filter((x) => x.seat === 'p1' || x.seat === 'p2');
+    for (const n of Object.keys(this.r.rounds)) this.keepRoundBoards(Number(n)); // a match stored by an older build
+    return (this.g.history ?? []).filter((x) => (x.seat === 'p1' || x.seat === 'p2') && this.r.rounds[x.round] != null)
+      .sort((a, b) => a.round - b.round || a.seat.localeCompare(b.seat));
   }
 
-  /** Kept per round as the subs fold away (the duo run needs every round's final boards). */
+  /** Keep both live seats' final boards of a committed round (once; the round's subs fold away later). */
+  private keepRoundBoards(round: number): void {
+    for (const seat of ['p1', 'p2'] as const) {
+      const sub = this.g.subs[seat];
+      if (sub && sub.round === round) this.foldSub(seat, sub);
+    }
+  }
+
+  /** Kept per round (the duo run needs every round's final boards): as the round commits, and again (a no-op) as the
+   *  subs fold away when the next shop opens. One row per round and seat. */
   protected override foldSub(seat: GSeat, sub: { round: number; final: boolean; prepared_side: unknown; source: string; user_id: string }): void {
     if (!sub.final || (seat !== 'p1' && seat !== 'p2')) return;
-    (this.g.history ??= []).push({ round: sub.round, seat, user_id: sub.user_id, prepared_side: sub.prepared_side, source: sub.source });
+    const hist = (this.g.history ??= []);
+    if (hist.some((x) => x.round === sub.round && x.seat === seat)) return;
+    hist.push({ round: sub.round, seat, user_id: sub.user_id, prepared_side: sub.prepared_side, source: sub.source });
     this.rh.dirty(`rhist:${sub.round}`);
   }
 

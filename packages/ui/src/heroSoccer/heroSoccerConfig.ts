@@ -239,7 +239,8 @@ export const HERO_SOCCER_DEFAULTS: HeroSoccerConfig = {
   sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.3, sfxWhooshRate: 1.1,
   sfxNetClip: 'fx/soccer-net', sfxNetGain: 0.85, sfxNetRate: 1,
   sfxPostClip: 'fx/bball-rim', sfxPostGain: 0.45, sfxPostRate: 1.35,
-  sfxBoomClip: 'fx/heavy-rock-impact', sfxBoomGain: 0.4, sfxBoomRate: 1.1,
+  // The boom is a SHARED clip (always decoded on a phone), so it costs the phone audio budget nothing (R-AUDIO-PREWARM-ATTACKS-01).
+  sfxBoomClip: 'fx/universfield-ground-impact-352053', sfxBoomGain: 0.45, sfxBoomRate: 1,
   sfxOohClip: 'fx/soccer-crowd-ooh', sfxOohGain: 0.7, sfxOohRate: 1,
   sfxRoarClip: 'fx/soccer-goal-roar', sfxRoarGain: 0.55, sfxRoarRate: 1,
   sfxGolazoClip: 'fx/soccer-golazo', sfxGolazoGain: 0.9, sfxGolazoRate: 1,

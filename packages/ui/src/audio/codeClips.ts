@@ -160,7 +160,6 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
   ],
   soccer: [
     'fx/bball-rim',
-    'fx/heavy-rock-impact',
     'fx/soccer-crowd-ooh',
     'fx/soccer-goal-roar',
     'fx/soccer-golazo',
@@ -168,6 +167,7 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/soccer-net',
     'fx/soccer-whistle',
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
+    'fx/universfield-ground-impact-352053',
   ],
   stitch: [
     'fx/blue-impact-hit',

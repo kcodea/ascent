@@ -52,8 +52,8 @@ hides the ball, the shadows, the goal, the flag and the defenders.
   shared Sequence / StageCamera / PortraitMover), `heroSoccer.test.ts` (26 tests).
 - `HeroSoccerTuner.tsx` on the Rare tuner builder with four tier groups and the Variation row (buttons on top).
 - Wired: the style registry, Recruit dispatch, the Collection preview, DevMenu (⚽), `tunerAll`, the cosmetic and its Edge
-  mirror, the knockout / camera / formation / tuner-button lists, the crate pins (Legendary 87 -> 88, 9 / 88 = 0.102%
-  each) and the Collection counts (23 attacks, 414 items).
+  mirror, the knockout / camera / formation / tuner-button lists, the crate pins (Legendary 88 -> 89 after the baseball, 9 / 89 = 0.101%
+  each) and the Collection counts (24 attacks, 415 items).
 - Oracle: R-PROG-ATTACK-37 (and R-PROG-ATTACK-01's crate history). GAME-RULES and the patch note updated.
 
 ## Sound
@@ -74,13 +74,15 @@ and encoded like the other fx clips (mono, 44.1 kHz, 128 kb/s), in `packages/ui/
 Cues: the whistle opens every tier; the kick on every strike and the header, pitched up for the touches; the net on every
 goal; the crowd's "Ooooh" starts as the ball leaves for a long ride so its peak lands near the goal (II's corner kick,
 III's first defender, IV's flick sky high); the goal roar on every goal (soft on I, fuller up the tiers); on IV the roar
-and the commentator's GOLAZO! with the word. Still reused: the whoosh, the boom (`fx/heavy-rock-impact`) and the post
-ring (`fx/bball-rim`, pitched up). The earlier synthesised placeholders are gone.
+and the commentator's GOLAZO! with the word. Still reused: the whoosh, the boom (`fx/universfield-ground-impact-352053`) and
+the post ring (`fx/bball-rim`, pitched up). The earlier synthesised placeholders are gone.
 
-**The phone audio budget.** Every clip named in code is prewarmed on a phone, and `phoneAudioQuality.test.ts` counts the
-whole set at 48 kHz float (192 KB per second). Before this attack the working set was about 36.85 MB against a 37.75 MB
-ceiling (90% of the 40 MB LRU): about 4.7 s of audio of headroom for every new attack together. The six soccer clips are
-11.8 s (2.27 MB), so the test fails at 39.1 MB. See the PR for the options.
+**The phone audio budget.** Every clip named in code used to be decoded ahead on a phone, so the six clips (11.8 s,
+2.27 MB) could not fit `phoneAudioQuality.test.ts`. Fixed at the root in PR #2538 (R-AUDIO-PREWARM-ATTACKS-01): phones now
+decode ahead only the hero-attack styles in play, and the budget counts the shared clips plus the two largest attacks.
+Soccer is now the largest (with baseball second); to keep a margin under the unchanged ceiling, IV's boom is the shared
+`fx/universfield-ground-impact-352053` (always decoded, so free) instead of `fx/heavy-rock-impact`. Working set 37.42 MB
+against 37.75 MB, with the owner's clips at the lengths above.
 
 ## Perf (PROD bench build, `VITE_PERF_BENCH=1` + `vite preview`, headless Chrome, 1920 x 1080, vsync and frame cap off, sound off)
 

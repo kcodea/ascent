@@ -10,14 +10,18 @@
  *  - PER CARD: the card's own voice clips (`cards/<id>`, `.effect`, `.death`) and the clips of every FX def bound to
  *    it (`bindings.json` `cards[<id>]`: its Shout, Rally, death, cast, ...).
  *  - PER HERO: the hero's lines (`heroes/<id>`, `heroes/<id>.power`).
- *  - CODE: the `fx/` clips named in code (the hero-attack styles, the Discover and Ancients entrances), listed in
- *    audio/codeClips.ts and pinned by its scan test.
+ *  - CODE: the shared `fx/` clips named in code (the Discover and Ancients entrances, the crate, the lobby reveal),
+ *    listed in audio/codeClips.ts and pinned by its scan test.
+ *  - PER ATTACK STYLE: each hero-attack style's own clips (`ATTACK_FX_CLIPS`). Only the styles IN PLAY are decoded
+ *    ahead (yours and your current opponent's, R-AUDIO-PREWARM-ATTACKS-01): a fight plays at most two styles, so the
+ *    whole roster's clips never sit in a phone's memory. A style that is not known ahead (a dev override flipped
+ *    mid-fight) still sounds: its runner asks for its clips the moment it starts (`AttackVoices.warm`).
  *
  * Pure apart from the two static imports and the glob, so the selection is unit-tested on the real data.
  */
 import rawBindings from '../choreo/bindings.json';
 import { DIRECT_CALL_SITES } from '../fx/directCalls';
-import { CODE_FX_CLIPS } from './codeClips';
+import { ATTACK_FX_CLIPS, CODE_FX_CLIPS } from './codeClips';
 
 /** Every `clip` string in a def's layers' params (the `sound` primitive's clip). */
 export function clipsOfDef(def: unknown): string[] {
@@ -48,8 +52,10 @@ export interface ClipIndex {
   forCard(cardId: string): readonly string[];
   /** The hero's own lines. */
   forHero(heroId: string): readonly string[];
-  /** The `fx/` clips named in code (hero attacks, entrances). */
+  /** The shared `fx/` clips named in code (entrances, crate, lobby reveal): every game decodes them ahead. */
   readonly code: readonly string[];
+  /** A hero-attack style's own clips (empty for a style with none, e.g. Classic). */
+  forAttack(style: string): readonly string[];
 }
 
 /**
@@ -63,6 +69,7 @@ export function buildClipIndex(
   directIds: readonly string[],
   clipNames: readonly string[],
   codeClips: readonly string[] = [],
+  attackClips: Readonly<Record<string, readonly string[]>> = {},
 ): ClipIndex {
   const bank = new Set(clipNames);
   const clipsOf = (ids: Iterable<string>): string[] => {
@@ -77,6 +84,10 @@ export function buildClipIndex(
   return {
     common,
     code: codeClips.filter((c) => bank.has(c)),
+    forAttack(style) {
+      const own = Object.prototype.hasOwnProperty.call(attackClips, style) ? attackClips[style]! : [];
+      return own.filter((c) => bank.has(c));
+    },
     forCard(cardId) {
       let hit = cardCache.get(cardId);
       if (!hit) {
@@ -98,12 +109,15 @@ export interface PrewarmScene {
   heroId?: string | null;
   /** Cards that can act soon, most urgent first: the board, the hand, the Shop, the fight's minions. */
   cardIds?: readonly string[];
+  /** The hero-attack styles in play (yours, then your current opponent's): only these styles' clips are decoded ahead. */
+  attackStyles?: readonly string[];
 }
 
 /**
  * The clips to decode ahead of time for a scene, most urgent first, de-duplicated, minus the common set (decoded with
  * the core bank) and anything `has` says is already held or loading. Order: the player's hero, the cards (in the
- * order given), the heroes on offer, then the code clips (the hero attacks play at the end of a fight).
+ * order given), the heroes on offer, then the shared code clips and the clips of the hero-attack styles in play (the
+ * hero attacks play at the end of a fight). Never the whole roster's attack clips.
  */
 export function prewarmList(index: ClipIndex, scene: PrewarmScene, has: (clip: string) => boolean = () => false): string[] {
   const out: string[] = [];
@@ -118,7 +132,10 @@ export function prewarmList(index: ClipIndex, scene: PrewarmScene, has: (clip: s
   if (scene.heroId) add(index.forHero(scene.heroId));
   for (const id of scene.cardIds ?? []) add(index.forCard(id));
   for (const h of scene.heroChoices ?? []) add(index.forHero(h));
-  if (scene.heroId || (scene.cardIds?.length ?? 0) > 0) add(index.code);
+  if (scene.heroId || (scene.cardIds?.length ?? 0) > 0) {
+    add(index.code);
+    for (const style of scene.attackStyles ?? []) add(index.forAttack(style));
+  }
   return out;
 }
 
@@ -132,6 +149,6 @@ export function shippedClipIndex(clipNames: readonly string[]): ClipIndex {
   } catch { /* a loader without Vite's glob: no defs, so only voice clips are found */ }
   const defs: Record<string, unknown> = {};
   for (const [p, d] of Object.entries(mods)) defs[p.split('/').pop()!.replace(/\.json$/, '')] = d;
-  shipped = buildClipIndex(defs, rawBindings, Object.keys(DIRECT_CALL_SITES), clipNames, CODE_FX_CLIPS);
+  shipped = buildClipIndex(defs, rawBindings, Object.keys(DIRECT_CALL_SITES), clipNames, CODE_FX_CLIPS, ATTACK_FX_CLIPS);
   return shipped;
 }

@@ -7457,6 +7457,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/phoneAudioQuality.test.ts', 'packages/ui/src/audio/codeClips.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
   {
+    id: 'R-AUDIO-PREWARM-ATTACKS-01',
+    title: 'Only the hero-attack styles in play are decoded ahead (yours and your opponent\x27s), never the whole roster\x27s clips',
+    statement:
+      'The fx clips named in code are split (audio/codeClips.ts, pinned by its scan test): the SHARED ones (named outside a '
+      + 'hero<Style>/ folder: entrances, the crate, the lobby reveal) are decoded ahead as before (R-TOUCH-AUDIO-QUALITY-01 '
+      + '(3)); each HERO-ATTACK STYLE\x27s own clips (named inside its hero<Style>/ folder) are decoded ahead only for the styles '
+      + 'in play this round: yours (your equipped hero attack) and your current opponent\x27s (its seat\x27s recorded cosmetic, '
+      + 'only while "Show opponent cosmetics" is on), resolved exactly as the fight resolves them (the DEV override included; '
+      + 'Classic has none). A change of equipped attack or opponent re-prewarms. A style not known ahead still sounds: its '
+      + 'runner asks for its own clips the moment it starts (AttackVoices.warm). The phone working-set budget counts the '
+      + 'shared clips plus the TWO LARGEST attack styles (a fight plays at most two), never every attack; the 40 MB cache and '
+      + 'its 90% ceiling are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Coordinator, 2026-11-02 (relaying the owner\x27s approval of the soccer attack)', quote: 'phones decode-ahead only the hero attack styles actually in play' },
+      { kind: 'code', ref: 'packages/ui/src/audio/codeClips.ts (CODE_FX_CLIPS, ATTACK_FX_CLIPS); packages/ui/src/audio/clipIndex.ts (forAttack, prewarmList attackStyles); packages/ui/src/audio/phonePrewarm.ts (attackStylesOf, sceneOf)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-02 (perf/phone-prewarm-equipped-attacks). Before, every hero attack\x27s clips were decoded ahead in every game, so each new attack ate into the phone working set whether anyone had it equipped or not.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/phoneAudioQuality.test.ts', 'packages/ui/src/audio/codeClips.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-TOUCH-GPU-MEMORY-01',
     title: 'A phone holds no WebGL effect context on the menus, and its menus keep no giant layers',
     statement:
@@ -13173,5 +13195,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-02 (fix/duos-pass-latency, client only). Before, the pushed row was only a wake: a read followed 50 ms later and landed the pass (~70 ms send to hand, measured locally), but a receiver watching their teammate had the pass "landed" on the teammate\x27s render-only run, which swallowed it, so it waited for the heartbeat\x27s every-third-beat backstop read (measured 2.7 s and 11.0 s). A failed send retried only on the sender\x27s next run change.',
     example: 'Bob is watching Ann\x27s screen. Ann drags Roomworks onto his portrait. Bob clicks back to his own screen a second later: Roomworks drops into his hand right away (measured 7 to 12 ms after he is back, 9 to 23 ms on his own screen).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosPassLatency.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-PROG-CRATE-06',
+    title: 'A chest reveal shows the reward\x27s own art for every visual cosmetic',
+    statement:
+      'When a chest reveals a reward whose look is a picture (a hero skin, a minion skin, an emote, a card plate or a portrait '
+      + 'frame), the reveal shows that picture beside the reward\x27s nameplate: the same art its Collection tile shows. Rewards '
+      + 'with no picture of their own (attack animations, announcers, titles) show the nameplate alone.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02 (Chest Shop reveal, a Green Hand Drawn card plate)', quote: 'there shoudl be a thumbnail that shows the card plate when receiving rewards' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02 (which types get one)', quote: 'no for attack animations or announcers, no for titles. yes for the rest' },
+      { kind: 'code', ref: 'packages/ui/src/progression/CrateOpener.tsx (skinKind / skinUrl: plate and frame)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-11-02. Before, only hero skins, minion skins (2026-09-29) and emotes (2026-10-15) showed art; a card plate or a portrait frame revealed with the nameplate alone.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/Crates.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
 ];

@@ -1,0 +1,214 @@
+/* ── RECENT GAMES + LIVE GAMES under the party home's app shell (DEV switch; RecentGamesPh.tsx, LiveGamesPh.tsx). ─────────
+   The kit's language only (`--ph-*` tokens, shell.css): navy plates, gold hairlines, the one cut shape, white title-font
+   names and numbers, muted labels, the podium metals. Sizes are multiples of 8 * --phu (a phone is the same layout at its
+   own unit). STATIC PAINT: hover is a colour, a press is a one-shot transform; nothing loops. */
+
+/* The page fills the host under the nav (the host is the classic `.lbpage` flex column). */
+.rgp-page > .phk-page, .lvp-page > .phk-page { flex: 1; min-height: 0; }
+.rgp-page, .lvp-page { background: none; }
+
+/* One small label style for every key on these pages. */
+.rgp-k { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); white-space: nowrap; }
+
+/* ── RECENT GAMES ── */
+/* Desktop: the strip and the filter stay put, the two halves of the split scroll on their own. */
+.rgp .phk-pagebody { overflow: hidden; padding-bottom: calc(24 * var(--phu) + var(--safe-b, 0px)); }
+.rgp .phk-pagetabs { justify-content: flex-start; }
+
+/* THE STRIP: four numbers, the most played hero, the placement line. */
+.rgp-strip { flex: none; display: grid; grid-template-columns: auto calc(320 * var(--phu)) minmax(0, 1fr); align-items: stretch; min-height: calc(104 * var(--phu));
+  background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.rgp-stats { display: flex; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(24 * var(--phu)); }
+.rgp-stat { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); min-width: calc(88 * var(--phu)); }
+.rgp-statval { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow, var(--ph-shadow)); font-variant-numeric: tabular-nums; }
+.rgp-stat.t-gold .rgp-statval { color: #fbe6a6; }
+.rgp-most { position: relative; display: flex; flex-direction: column; justify-content: center; gap: calc(4 * var(--phu)); min-width: 0; padding: 0 calc(24 * var(--phu)); overflow: hidden;
+  box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair), inset calc(-1 * var(--phu)) 0 0 var(--ph-hair); }
+.rgp-mostart { position: absolute; right: 0; top: 0; width: 62%; height: 100%; object-fit: cover; object-position: 50% 22%; pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 70%); mask-image: linear-gradient(90deg, transparent 0%, #000 70%); }
+.rgp-most > :not(img) { position: relative; }
+.rgp-mostname { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rgp-mostsub { font-size: var(--ph-t1); color: var(--ph-muted); text-shadow: var(--ph-shadow); white-space: nowrap; }
+.rgp-spark { position: relative; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; padding: calc(12 * var(--phu)) calc(24 * var(--phu)) calc(12 * var(--phu)) calc(56 * var(--phu)); }
+.rgp-spark > .rgp-k { margin-left: calc(-32 * var(--phu)); }
+.rgp-spark svg { flex: 1; width: 100%; min-height: calc(48 * var(--phu)); overflow: visible; }
+.rgp-sp-ax { position: absolute; left: calc(16 * var(--phu)); top: calc(32 * var(--phu)); bottom: calc(12 * var(--phu)); display: flex; flex-direction: column; justify-content: space-between; }
+.rgp-sp-ax b { font-family: var(--ph-font); font-weight: 800; font-size: calc(10 * var(--phu)); color: var(--ph-muted); line-height: 1; }
+.rgp-sp-mid { stroke: var(--ph-hair); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.rgp-sp-line { fill: none; stroke: color-mix(in srgb, var(--ph-muted) 55%, transparent); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.rgp-pt { vector-effect: non-scaling-stroke; }
+.rgp-pt.won { fill: #f6cf5a; }
+.rgp-pt.top4 { fill: var(--ph-teal); }
+.rgp-pt.lost { fill: var(--ph-navy); stroke: var(--ph-foe); stroke-width: 1.4; }
+
+/* THE HERO FILTER: the shared chips, in the kit's chip shape (the More list keeps the game's dropdown). */
+.rgp-filters { flex: none; min-width: 0; }
+.rgp .rg-filters { gap: calc(8 * var(--phu)); flex-wrap: nowrap; }
+.rgp .rg-chip { height: calc(32 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.rgp .rg-chip:hover { color: var(--ph-ink); background: var(--ph-plate-hover); }
+.rgp .rg-chip.on, .rgp .rg-more.open .rg-more-trigger.on { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); box-shadow: none; }
+.rgp .rg-more.open .rg-more-trigger { color: var(--ph-ink); }
+
+/* THE SPLIT: the history, then the open game. */
+.rgp-split { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(440 * var(--phu)) minmax(0, 1fr); gap: calc(16 * var(--phu)); }
+.rgp-list { min-height: 0; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: calc(4 * var(--phu)); outline: none; }
+.rgp-list:focus-visible { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
+.rgp-detailcol { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+
+/* A history row: a rail slice. The band edge on the left, the placement in metal, the hero art fading in from the right. */
+.rgp-item { flex: none; width: 100%; gap: calc(16 * var(--phu)); min-height: calc(64 * var(--phu)); padding: 0 calc(16 * var(--phu)) 0 calc(20 * var(--phu)); margin: 0; border: 0; border-radius: 0; overflow: hidden;
+  color: inherit; text-align: left; font: inherit; }
+.rgp-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(4 * var(--phu)); background: var(--ph-hair); }
+.rgp-item.b-won::before { background: var(--ph-metal-gold); }
+.rgp-item.b-top4::before { background: var(--ph-teal); }
+.rgp-item.b-lost::before { background: var(--ph-foe); opacity: 0.75; }
+.rgp-item:hover { background: var(--ph-plate-hover); }
+.rgp-item .rgp-itemart { right: calc(112 * var(--phu)); width: 42%; opacity: 0.5;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 45%, #000 60%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0%, #000 45%, #000 60%, transparent 100%); }
+.rgp-item.sel .rgp-itemart, .rgp-item:hover .rgp-itemart { opacity: 0.9; }
+.rgp-item .phk-rowwho { flex: 1; }
+.rgp-item .phk-rowtitle { font-size: var(--ph-t2); letter-spacing: 0.02em; }
+.rgp-itemend { position: relative; flex: none; min-width: calc(96 * var(--phu)); display: flex; flex-direction: column; align-items: flex-end; gap: calc(4 * var(--phu)); text-shadow: var(--ph-shadow); }
+.rgp-when { font-size: var(--ph-t1); color: var(--ph-muted); white-space: nowrap; }
+.rgp-item .gamerank { font-size: var(--ph-t1); color: var(--ph-text); }
+.rgp-delta { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); }
+.rgp-delta.up { color: var(--ph-teal); }
+.rgp-delta.down { color: var(--ph-foe); }
+
+/* A placement box: the kit's, a little wider so "1" to "8" and "-" sit alike; big in the banner. */
+.rgp-place.big { width: calc(72 * var(--phu)); height: calc(72 * var(--phu)); font-size: calc(40 * var(--phu)); --ph-cut-s: calc(12 * var(--phu)); }
+
+/* THE OPEN GAME. */
+.rgp-detail { position: relative; display: flex; flex-direction: column; min-height: 100%; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip); }
+/* The banner: placement, player, hero, record, rank; the hero's art fading in from the right; the two actions. */
+.rgp-banner { position: relative; display: flex; align-items: center; gap: calc(24 * var(--phu)); min-height: calc(128 * var(--phu)); padding: calc(16 * var(--phu)) calc(32 * var(--phu)); overflow: hidden;
+  box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
+.rgp-banner::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(4 * var(--phu)); background: var(--ph-hair); }
+.rgp-detail.b-won .rgp-banner::after { background: var(--ph-metal-gold); }
+.rgp-detail.b-top4 .rgp-banner::after { background: var(--ph-teal); }
+.rgp-detail.b-lost .rgp-banner::after { background: var(--ph-foe); }
+.rgp-bannerart { position: absolute; right: 0; top: 0; width: 58%; height: 100%; object-fit: cover; object-position: 50% 20%; pointer-events: none; opacity: 0.85;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 60%); mask-image: linear-gradient(90deg, transparent 0%, #000 60%); }
+.rgp-banner > :not(img) { position: relative; }
+.rgp-bannerwho { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); }
+.rgp-verdict { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+.rgp-verdict.b-won { color: #fbe6a6; }
+.rgp-verdict.b-top4 { color: var(--ph-teal); }
+.rgp-verdict.b-lost { color: var(--ph-foe); }
+.rgp-name { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rgp-line { display: flex; align-items: center; flex-wrap: wrap; gap: calc(4 * var(--phu)) calc(16 * var(--phu)); font-size: var(--ph-t2); font-weight: 700; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.rgp-record { font-family: var(--ph-font); font-weight: 900; font-variant-numeric: tabular-nums; }
+.rgp-record.up { color: var(--ph-teal); }
+.rgp-record.down { color: var(--ph-foe); }
+.rgp-line .gamerank { font-size: var(--ph-t2); }
+.rgp-bannerbtns { flex: none; display: flex; gap: calc(8 * var(--phu)); }
+.rgp-bannerbtns .phk-btn > span { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
+.rgp-bannerbtns .phk-btn svg { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); }
+.rgp-go { font-size: var(--ph-t3); line-height: 1; }
+
+/* The facts, as small tiles. */
+.rgp-facts { display: flex; flex-wrap: wrap; align-items: center; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(32 * var(--phu)) 0; }
+.rgp-fact { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.rgp-factv { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rgp-partial svg { width: calc(14 * var(--phu)); height: calc(14 * var(--phu)); }
+
+/* The board: whose it is, the real cards, the runes. */
+.rgp-boardsec { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(32 * var(--phu)) calc(8 * var(--phu)); }
+.rgp .lp-showing { min-height: calc(32 * var(--phu)); gap: calc(16 * var(--phu)); }
+.rgp .lp-showing-l { font-family: var(--ph-font); font-size: var(--ph-t1); letter-spacing: 0.16em; color: var(--ph-muted); }
+.rgp .lp-showing-v { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.rgp .lp-hint { font-size: var(--ph-t1); color: var(--ph-muted); }
+.rgp .lp-back { height: calc(32 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-text); }
+.rgp .lp-back:hover { background: var(--ph-plate-hover); color: var(--ph-ink); }
+.rgp-board { container-type: inline-size; min-width: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.rgp-boardin { animation: lp-swap 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
+.rgp-board .cv2-team.cv2-team { --tw: min(calc((100cqw - 8px) / 8.4), 168px); --tile-gap: calc(var(--tw) * 0.2); flex-wrap: nowrap; justify-content: center;
+  padding: calc(var(--tw) * 0.3) calc(var(--tw) * 0.1 + 2px) 12px; }
+.rgp-none, .rgp-board .cv2-row-none { padding: calc(40 * var(--phu)) 0; text-align: center; font-size: var(--ph-t2); color: var(--ph-muted); }
+/* A menu board's card FX stay still until pointed at; the Reborn wisps never run here (the classic page's measured rule). */
+.rgp-board .cv2-team .wisp, .rgp-board .cv2-team .reborn-dome { animation-play-state: paused !important; }
+.rgp-board:not(:hover) .cv2-team *, .rgp-board:not(:hover) .cv2-team *::before, .rgp-board:not(:hover) .cv2-team *::after { animation-play-state: paused !important; }
+.rgp-runes { display: flex; justify-content: center; min-width: 0; padding-top: calc(8 * var(--phu)); }
+.rgp-runes .cv2-runes, .rgp-runes .lb-runes { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(8 * var(--phu)); }
+.rgp-runes .cv2-rune, .rgp-runes .lb-rune { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); padding: calc(4 * var(--phu)) calc(16 * var(--phu)) calc(4 * var(--phu)) calc(4 * var(--phu)); border: 0; border-radius: 0;
+  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.rgp-runes .cv2-rune:hover, .rgp-runes .lb-rune:hover { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
+.rgp-runes .cv2-rune-disc, .rgp-runes .lb-rune-em { width: calc(40 * var(--phu)); height: calc(40 * var(--phu)); }
+.rgp-runes .cv2-rune-name, .rgp-runes .lb-rune-name { display: block; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; }
+.rgp-runes .cv2-norunes, .rgp-runes .lb-runes-none { font-size: var(--ph-t2); color: var(--ph-muted); }
+.rgp-runes .runtrophy-tip { left: 50%; right: auto; transform: translateX(-50%); }
+
+/* THE LOBBY: all eight players, a 4 x 2 grid of plates; pick one to show their board above. */
+.rgp-lobby { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(32 * var(--phu)) calc(32 * var(--phu)); }
+.rgp-lobbyhead { display: flex; align-items: baseline; gap: calc(16 * var(--phu)); }
+.rgp-lobbyhead h3 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.rgp-lobbyhead span { font-size: var(--ph-t1); color: var(--ph-muted); }
+.rgp .lp-tiles { gap: calc(8 * var(--phu)); }
+.rgp .lp-tile { --band: var(--ph-muted); gap: calc(8 * var(--phu)); padding: calc(8 * var(--phu)) calc(12 * var(--phu)) calc(12 * var(--phu)) calc(16 * var(--phu)); border: 0; border-radius: 0;
+  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); color: var(--ph-text); }
+.rgp .lp-tile::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(3 * var(--phu)); background: var(--band); }
+.rgp .lp-won { --band: #f6cf5a; } .rgp .lp-top4 { --band: var(--ph-teal); } .rgp .lp-lost { --band: var(--ph-foe); } .rgp .lp-in { --band: var(--ph-muted); }
+.rgp .lp-tile:hover { background: var(--ph-plate-hover); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-gold); }
+.rgp .lp-tile.on { background: var(--ph-plate-hover); box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
+.rgp .lp-chip-place { font-family: var(--ph-font); font-size: var(--ph-t1); color: var(--band); }
+.rgp .lp-tile-out { font-size: var(--ph-t1); color: var(--ph-muted); }
+.rgp .lp-chip-name { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.rgp .lp-tile.self .lp-chip-name { color: var(--ph-teal); }
+.rgp .lp-chip-portrait .mds-portrait, .rgp .lp-chip-portrait .cv2-heroframe { --ring: calc(36 * var(--phu)); }
+.rgp .lp-mini { gap: calc(4 * var(--phu)); }
+.rgp .lp-mini-m { border-color: color-mix(in srgb, var(--ph-gold) 30%, transparent); }
+.rgp .lp-ko { top: calc(4 * var(--phu)); right: calc(8 * var(--phu)); }
+
+/* DUOS: the shared Duos card, sat on the kit plate instead of its own card frame. */
+.rgp-duos .gc.gc-detail { min-height: 100%; border: 0; border-radius: 0; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip); }
+.rgp-duos .gc .gc-place { font-family: var(--ph-font); }
+.rgp-duos .gc-detail .lb-btn, .rgp-duos .gc-detail .cv2-btn { border-radius: 0; clip-path: var(--ph-clip-s); }
+
+/* ── LIVE GAMES ── */
+.lvp .phk-pagetabs { display: none; }
+.lvp-count { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
+.lvp-count i { width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); border-radius: 50%; background: var(--ph-teal); }
+.lvp-error { flex: none; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: color-mix(in srgb, var(--ph-foe) 16%, var(--ph-navy)); box-shadow: inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-foe) 55%, transparent);
+  clip-path: var(--ph-clip-s); font-size: var(--ph-t2); font-weight: 700; color: var(--ph-ink); }
+.lvp-list { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); }
+.lvp { --lvp-cols: minmax(0, 1.1fr) calc(220 * var(--phu)) minmax(0, 1.6fr) calc(220 * var(--phu)); }
+.lvp-row { display: grid; grid-template-columns: var(--lvp-cols); align-items: center; gap: calc(24 * var(--phu)); min-height: calc(88 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)) calc(8 * var(--phu)) calc(24 * var(--phu)); overflow: hidden; }
+.lvp-row::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(4 * var(--phu)); background: var(--ph-teal); opacity: 0.85; }
+.lvp-row.ended::before { background: var(--ph-hair); }
+.lvp-row .phk-rowart { width: 34%; left: 0; right: auto; opacity: 0.55; -webkit-mask-image: linear-gradient(270deg, transparent 0%, #000 70%); mask-image: linear-gradient(270deg, transparent 0%, #000 70%); }
+.lvp-row:hover .phk-rowart { opacity: 0.8; }
+.lvp-row > :not(img) { position: relative; min-width: 0; }
+.lvp-row:hover { background: var(--ph-plate-hover); }
+.lvp-who { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); }
+.lvp-name { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lvp-hero { font-size: var(--ph-t1); color: var(--ph-muted); text-shadow: var(--ph-shadow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lvp-rank { display: flex; align-items: center; gap: calc(12 * var(--phu)); }
+.lvp-rank .rankcrest { --ring: calc(48 * var(--phu)); flex: none; }
+.lvp-ranktxt { display: flex; flex-direction: column; gap: calc(2 * var(--phu)); min-width: 0; }
+.lvp-ranklbl { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lvp-rating { font-size: var(--ph-t1); color: var(--ph-muted); white-space: nowrap; }
+.lvp-game { display: flex; flex-direction: column; justify-content: center; gap: calc(4 * var(--phu)); }
+.lvp-game .phk-chip { align-self: flex-start; }
+.lvp-game .fr-game { flex-wrap: wrap; gap: calc(4 * var(--phu)) calc(8 * var(--phu)); font-size: var(--ph-t2); overflow: visible; }
+.lvp-game .fr-gameline { font-family: var(--ph-font); font-size: var(--ph-t2); font-weight: 900; color: var(--ph-ink); white-space: normal; }
+.lvp-game .fr-vitals svg { width: calc(14 * var(--phu)); height: calc(14 * var(--phu)); }
+.lvp-mate { font-size: var(--ph-t1); color: var(--ph-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lvp-act { display: flex; align-items: center; justify-content: flex-end; gap: calc(16 * var(--phu)); }
+.lvp-watchers { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); color: var(--ph-muted); text-shadow: var(--ph-shadow); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lvp-watchers svg { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); }
+.lvp-act .phk-btn { min-width: calc(104 * var(--phu)); }
+.lvp-pager { flex: none; display: flex; align-items: center; justify-content: center; gap: calc(16 * var(--phu)); padding: calc(8 * var(--phu)) 0; }
+.lvp-pager span { font-size: var(--ph-t1); color: var(--ph-muted); }
+
+/* ── A PHONE (landscape): the same layout at the phone's unit. Recent Games' page scrolls as one, and the split takes the
+   whole screen under the nav, so the list and the open game both get their full height. ── */
+html[data-touch-small] .rgp .phk-pagebody { overflow-y: auto; }
+html[data-touch-small] .rgp-split { flex: none; height: calc(100dvh - var(--ph-nav-h) - 16 * var(--phu)); grid-template-columns: calc(360 * var(--phu)) minmax(0, 1fr); }
+html[data-touch-small] .rgp-stat { min-width: calc(64 * var(--phu)); }
+html[data-touch-small] .rgp-item .gamerank .gamerank-l { display: none; }
+html[data-touch-small] .rgp .lp-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html[data-touch-small] .lvp { --lvp-cols: minmax(0, 1fr) calc(180 * var(--phu)) minmax(0, 1.4fr) calc(200 * var(--phu)); }
+
+@media (prefers-reduced-motion: reduce) { .rgp-boardin { animation: none; } }

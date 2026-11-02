@@ -39,7 +39,7 @@ describe('party home prototype', () => {
     const css = [here('./partyHome.css'), here('./kit/kit.css'), here('./shell/shell.css')].join('\n');
     // A native tooltip is `title=` on an intrinsic (lower-case) element; the kit's own `title` props are fine.
     expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
-    expect(css).not.toMatch(/cursor:/);
+    expect(css).not.toMatch(/cursor:(?!\s*url\(')/); // only the gauntlet URL form (CLAUDE.md)
     expect(css).not.toMatch(/infinite/);
     const strings = [...tsx.matchAll(/'([^'\n]*)'/g), ...PARTY_MODES.flatMap((m) => [[m.desc, m.desc], [m.label, m.label]])].map((x) => x[1] ?? '');
     for (const s of strings) { expect(s).not.toMatch(/—|\s--\s/); expect(s).not.toMatch(/\b(Oath|climb)\b/i); }

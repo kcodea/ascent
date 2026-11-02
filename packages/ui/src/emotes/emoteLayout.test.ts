@@ -15,8 +15,9 @@ import { act } from 'react';
 import { useGame } from '../store';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { EMOTE_ASPECT } from './emoteArt';
 import {
-  BUBBLE_TO_PORTRAIT, MAX_WATCH_LIVE, MIN_BUBBLE_WIDTH, PORTRAIT_ECLIPSE, bubbleBox, bubblesOverlap, clearEmoteBubbles, fitToPortrait,
+  BUBBLE_TO_PORTRAIT, DOCK_BUBBLE_TO_SLICE, MAX_WATCH_LIVE, MIN_BUBBLE_WIDTH, PORTRAIT_ECLIPSE, bubbleBox, bubblesOverlap, clearEmoteBubbles, fitBesideSlice, fitToPortrait,
   setEmoteFoe, settleBubble, showEmoteBubble,
 } from './emoteBubble';
 
@@ -200,5 +201,83 @@ describe('every bubble fits its portrait (owner 2026-10-29: "eclipse the players
     check('s1', { left: 1600, top: 500, width: 160, height: 160 }, 'left');
     check('w:u1', { left: 42, top: 120, width: 88, height: 88 }, 'right');
     check('s0', { left: 40, top: 420, width: 260, height: 260 }, 'right');
+  });
+});
+
+describe('the Docked rail: a seat\'s bubble is sized off its slice and sits beside it (owner 2026-11-01: "emotes on the rail are massive and look bad"; R-EMOTE-RAIL-DOCKED-01)', () => {
+  /** A docked slice: the wide seat box of the Docked rail, its portrait art spanning most of it. */
+  const slice = (seat: string, r: R): void => {
+    let rail = document.querySelector('.lobbyrail.lrv-docked .lobbyseats');
+    if (!rail) rail = add('<div class="lobbyrail lrv-docked"><div class="lobbyseats"></div></div>').querySelector('.lobbyseats')!;
+    const host = document.createElement('div');
+    host.innerHTML = `<div class="lobbyseat" data-seat="${seat}"><span class="lrv-tileart"><img class="lobbyface" alt=""></span></div>`;
+    const el = host.firstElementChild!;
+    rail.appendChild(el);
+    stub(el, r);
+    // the art spans the right 53% of the slice: sizing off it is what made the old bubble huge
+    stub(el.querySelector('.lobbyface')!, { left: r.left + r.width * 0.47, top: r.top, width: r.width * 0.53, height: r.height });
+  };
+  const SLICE_H = 61;
+  const at = (i: number): R => ({ left: 1617, top: 260 + i * 66.5, width: 245, height: SLICE_H });
+  const cover = (a: R, b: R): boolean => a.left < b.left + b.width && b.left < a.left + a.width && a.top < b.top + b.height && b.top < a.top + a.height;
+
+  it('about the slice\'s height (not a multiple of the portrait art), level with its middle, wholly left of it', () => {
+    slice('s3', at(2));
+    expect(showEmoteBubble('s3', 'emote_good_choice')).toBe(true);
+    const [b] = boxes();
+    expect(b!.height).toBe(Math.round(SLICE_H * DOCK_BUBBLE_TO_SLICE));
+    expect(b!.height).toBeLessThan(SLICE_H * 1.5);
+    expect(Math.abs(b!.top + b!.height / 2 - (at(2).top + SLICE_H / 2))).toBeLessThanOrEqual(1);
+    expect(b!.left + b!.width).toBeLessThan(at(2).left);
+    expect(b!.left + b!.width).toBeGreaterThan(at(2).left - 10);
+    expect(document.querySelector('.emote-bubble')!.classList.contains('left')).toBe(true);
+  });
+
+  it('tracks the rail\'s scale: a smaller rail (a smaller screen) gets a proportionally smaller bubble', () => {
+    const big = fitBesideSlice({ left: 1600, top: 300, width: 245, height: 61 }, []);
+    const small = fitBesideSlice({ left: 1200, top: 220, width: 184, height: 46 }, []);
+    expect(small.width / big.width).toBeCloseTo(46 / 61, 1);
+    // a phone draws the whole game small: never under the readable floor (here 36 screen px at a 0.4 screen scale)
+    expect(Math.round(fitBesideSlice({ left: 1600, top: 300, width: 245, height: 61 }, [], 36 / 0.4).width * EMOTE_ASPECT)).toBe(90);
+  });
+
+  it('every seat at once: no bubble covers another, a slice, the placement column or the board pieces the rail is cut round', () => {
+    for (let i = 0; i < 7; i++) slice(`s${i + 1}`, at(i));
+    // the End Turn gem bites into slices 3 and 4, the Gold coin into 6 and 7 (they stand left of the rail's edge)
+    const gem = add('<div class="etb-base"></div>');
+    stub(gem, { left: 1525, top: 390, width: 130, height: 140 });
+    const coin = add('<div class="goldpill"></div>');
+    stub(coin, { left: 1525, top: 655, width: 130, height: 130 });
+    for (let i = 0; i < 7; i++) expect(showEmoteBubble(`s${i + 1}`, EMOTES[i % EMOTES.length]!)).toBe(true);
+    const shown = boxes();
+    expect(shown).toHaveLength(7); // a slice tall: neighbours fit side by side, nobody waits
+    expect(noTwoOverlap(shown)).toBe(true);
+    const pieces: R[] = [...Array.from({ length: 7 }, (_, i) => at(i)), { left: 1525, top: 390, width: 130, height: 140 }, { left: 1525, top: 655, width: 130, height: 130 }];
+    for (const b of shown) for (const p of pieces) expect(cover(b, p)).toBe(false);
+  });
+
+  it('a piece that only reaches into the overhang (the Refresh pill\'s foot over the top slice) nudges the bubble down, not away', () => {
+    const s: R = { left: 1617, top: 260, width: 245, height: SLICE_H };
+    const pill: R = { left: 1430, top: 140, width: 280, height: 116 }; // its foot ends 4 px above the slice
+    const p = fitBesideSlice(s, [s, pill]);
+    const b = bubbleBox(p);
+    expect(b.left + b.width).toBeGreaterThan(s.left - 10); // still right beside its slice
+    expect(b.top).toBeGreaterThanOrEqual(pill.top + pill.height);
+    expect(b.top).toBeLessThanOrEqual(s.top);
+  });
+
+  it('a Duos table (teams side by side): the bubble stands left of the pair, never over the teammate\'s slice', () => {
+    slice('s0', { left: 1617, top: 300, width: 120, height: SLICE_H });
+    slice('s1', { left: 1742, top: 300, width: 120, height: SLICE_H });
+    expect(showEmoteBubble('s1', 'emote_hi')).toBe(true);
+    const [b] = boxes();
+    expect(b!.left + b!.width).toBeLessThan(1617);
+  });
+
+  it('the Gem rail fallback (a round face, no dock) keeps its portrait fit', () => {
+    railRow('s2', 300);
+    expect(showEmoteBubble('s2', 'emote_hi')).toBe(true);
+    const [b] = boxes();
+    expect(b!.left + b!.width).toBeCloseTo(1740 + 60 * PORTRAIT_ECLIPSE, 0);
   });
 });

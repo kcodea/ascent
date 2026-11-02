@@ -100,6 +100,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Emotes on the lobby rail are smaller and sit neatly beside the player who sent them.',
+        details: [
+          'A bubble is now about as tall as that player\'s slice on the rail, so it grows and shrinks with the rail on every screen.',
+          'It sits just left of the slice, out over the board, and never covers another player, the placement numbers, End Turn, Refresh or your Gold.',
+          'On a phone it stays big enough to read.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New look for Amplified Equipment.',
         details: [
           'While your selected Equipment is Amplified, its slot glows a soft blue that slowly breathes.',

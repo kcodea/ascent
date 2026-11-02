@@ -12,6 +12,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createLobbyRun, type RunState } from '@game/sim';
+import { hoverHeld } from './lobbyScoutHover.testkit';
 
 vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
 
@@ -127,7 +128,7 @@ describe('the Docked rail in every mode', () => {
     const lobby = { ...run.lobby!, encounters: [{ round: 2, a: 's0', b: 's2', outcome: 'win' as const, fought: true, damageToA: 0, damageToB: 4 }] };
     const c = show({ ...run, lobby }, { phase: 'shop', round: 3, p1_user: 'me', group: { me: 'p1', raw, duos: { team: 'a', mate: 'p2', first: { a: 'p1', b: 'p3' } } } });
     const [l2, l3] = [lobby.seats[2]!.label, lobby.seats[3]!.label];
-    act(() => { c.querySelector('.lobbyseat[data-seat="s1"]')!.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body })); });
+    hoverHeld(c.querySelector('.lobbyseat[data-seat="s1"]')!);
     const row = document.body.querySelector('.lobbyscout .lrv-sc-fight')!;
     expect(row).not.toBeNull();
     expect(row.classList.contains('team')).toBe(true);

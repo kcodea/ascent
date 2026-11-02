@@ -213,7 +213,20 @@ class RoomShell {
           throw new Error('chaos: the room object died mid-resolve');
         }
         entry.handled = true;
-        const res = await real(user, body, rev, store);
+        // RANKED DUOS, THE TEAM KNOCKED OUT (R-RANKED-DUOS-END-01): from round `rankedKnockOutAt` the live team's commit
+        // comes back at 0 Health (placed behind every team still in), so a match ends with the pair OUT while recorded
+        // teams play on, the live report's ending. The fight itself is left as resolved.
+        const knock = srv.rankedKnockOutAt;
+        const st = action === 'finalize_ranked_duos' && knock != null && Number(body.round) >= knock
+          ? { ...(store as Record<string, unknown>), commit: (args: { p_result: { vitals: Record<string, { health: number; armor: number }>; placed: { team: string; placement: number }[] } }) => {
+            const r = args.p_result;
+            const alive = Object.keys(r.vitals).filter((t) => t !== 'a' && (r.vitals[t]!.health > 0) && !r.placed.some((x) => x.team === t)).length;
+            r.vitals.a = { health: 0, armor: 0 };
+            if (!r.placed.some((x) => x.team === 'a')) r.placed.push({ team: 'a', placement: alive + 1 });
+            return (store as unknown as { commit: (a: unknown) => unknown }).commit(args);
+          } } as never
+          : store;
+        const res = await real(user, body, rev, st);
         entry.committed = res.status === 200;
         return finish(res.status, res.body);
       }) as F;
@@ -544,6 +557,8 @@ export class CfChaosServer implements ChaosBackend {
   readonly baseUrl = CF_CHAOS_URL;
   readonly resolverLog: ResolverCall[] = [];
   readonly resolverChaos: ResolverChaos = { delayMs: 0, fail: 0, conflict: 0 };
+  /** RANKED DUOS: the live team is knocked out by this round's commit (null: the fights decide, as always). */
+  rankedKnockOutAt: number | null = null;
   onResolve: (c: ResolverCall) => void = () => undefined;
   onNote: (s: string) => void = () => undefined;
   dir = new Directory();
@@ -599,6 +614,7 @@ export class CfChaosServer implements ChaosBackend {
     this.sockets.clear();
     this.resolverLog.length = 0;
     Object.assign(this.resolverChaos, { delayMs: 0, fail: 0, conflict: 0 });
+    this.rankedKnockOutAt = null;
     this.rng = rngOf(Math.floor((seed + 1) * 1e9));
     this.http = 0;
     this.sleeping = 0;

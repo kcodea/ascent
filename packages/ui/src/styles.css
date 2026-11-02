@@ -5375,6 +5375,14 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    stacked under the red aura it read as two competing keyword glows. */
 .card.compact.stdframe.venomcard { box-shadow: 0 3px 0 var(--shadow); }
 .card.compact.stdframe.venomcard::before { display: none; }
+/* TRIPLE HINTS on the framed cards (owner 2026-11-02: "there's a yellow highlight frame behind the art"): the own-triple
+   (`tripready`) and teammate-triple (`matetrip`) hints draw a hard 4px ring in the tribe colour (`--c`) around the card
+   BOX, which on the oval / shield frames reads as a coloured rectangle behind the art. Drop the ring there, as Divine
+   Shield and Execute do above; the breathing halo (an opacity-only ::before) and the rising arrows stay, and the halo
+   is rounded to the frame so it reads as a glow around the oval, not a box. */
+.card.compact.stdframe.tripready, .card.compact.stdframe.matetrip,
+.card.compact.taunt.tripready, .card.compact.taunt.matetrip { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.stdframe.tripready::before, .card.compact.stdframe.matetrip:not(.plated)::before { border-radius: 50%; }
 /* Golden (tripled): gold read = the gold frame metal + the crown + a TIGHT gold rim that hugs the frame's own
    alpha (no wide bleed outside the oval). Kill the base rectangular gold aura for BOTH framed types (stdframe
    uses `.cframe`, taunt uses `.tframe`). NB `:not(.cshadow)` — the grounding shadow is a 2nd `.cframe` copy, and

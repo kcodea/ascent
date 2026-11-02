@@ -47,7 +47,7 @@ import { versusOptionsSummary } from './versusOptionsUi';
 import { heroSelectFrame, newPublisher, nextHeroSelectMessage, nextSpectatorMessage, type HeroSelectFrame, type SpectatorPublisher } from './spectatorView';
 import { useOwnHeroPick } from '../hero-select/ownHeroPick';
 import { markServerRecordedWatch } from '../live/spectatorEnd';
-import { installSpectateIo, leaveTeammate, leaveTeammateHero, ownRunWhileWatching, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, trackDuosMatch, useSpectate } from './spectate';
+import { installSpectateIo, leaveSpectating, leaveTeammate, leaveTeammateHero, ownRunWhileWatching, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, trackDuosMatch, useSpectate } from './spectate';
 import { othersInStands, setWatchers, type Watcher } from './watchers';
 import { combatBeatFor, hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs, takeOdds, takeOverlay } from './spectateTap';
 import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
@@ -120,8 +120,14 @@ export type VersusArea = 'versus' | 'duos';
 export const isDuosParty = (r: { options?: { mode?: string } | null } | null | undefined): boolean => r?.options?.mode === 'ranked_duos';
 /** The play area a room belongs to. */
 export const areaOfRoom = (r: { options?: { mode?: string } | null } | null | undefined): VersusArea => (isDuosParty(r) ? 'duos' : 'versus');
-/** My team's result for a finished Ranked Duos match (a RankResult-shaped row, team-owned). */
-export interface DuosResultView { matchId: string; placement: number; result: RankResult | null; teamName: string | null; pending: boolean }
+/** One teammate on the Ranked Duos post-game screen: who, their hero, and the cosmetics their portrait wears. */
+export interface DuosResultMember { userId: string; name: string; hero: string | null; cosmetics: RunCosmeticSnapshot | null; self: boolean }
+/** My team's result for a finished Ranked Duos match (a RankResult-shaped row, team-owned). `unrated` = the table had a
+ *  generated team (no rating moves; the screen says so, as solo's does). `team` = both of us, me first. */
+export interface DuosResultView {
+  matchId: string; placement: number; result: RankResult | null; teamName: string | null; pending: boolean;
+  unrated: boolean; team: DuosResultMember[];
+}
 
 export const useVersus = create<VersusState>(() => ({
   screen: 'browser', rooms: [], loading: false, error: null, room: null, match: null, priv: null, heroOffer: null,
@@ -674,6 +680,8 @@ function onTick(): void {
   if (lastTickAt && now - lastTickAt > WAKE_GAP_MS && !hidden) resyncVersusSession();
   else if (!beatFresh(now, beatOkAt) && !wakeGate.held() && now - beatTriedAt > 2000) { beatTriedAt = now; void wakeGate.wake(() => heartbeat()); }
   lastTickAt = now;
+  // Local only (no server call), so it runs whatever the connection: a player never sits on a finished match.
+  endBackstop(match, now);
   if (!mayReconcile()) return;
   if (room?.status === 'sealed' && (versusRemainingMs(room.gate_deadline) ?? 1) <= 0) {
     const key = `${room.id}|${room.gate_deadline ?? ''}|${room.revision}`;
@@ -893,11 +901,14 @@ async function onMatch(match: VersusMatch): Promise<void> {
     }
     // The room writes its stands' watch record itself (R-LIVE-CF-XP-01): this spectator sends no beat for it.
     if (match.room_id) markServerRecordedWatch(match.group ? 'group' : 'versus', match.id);
+    // No seat any more (a Duos team knocked out to the stands, R-VERSUS-GROUP-06): this client watches as the stands do.
+    if (match.group?.duos) trackDuosMatch(null, get().rounds);
     spectateSync(match, get().rounds);
     return;
   }
   // VERSUS DUOS: my teammate's frames are tracked for the live teammate view (R-DUOS-VIEW-01).
-  trackDuosMatch(match.group?.duos && match.phase !== 'complete' ? match : null, get().rounds);
+  // A finished match is still passed (R-RANKED-DUOS-END-01): its seated players never turn into its spectators.
+  trackDuosMatch(match.group?.duos ? match : null, get().rounds);
   // The fight is in (or a pause): back to my own board BEFORE anything below drives the run, so the fight's End Turn
   // and the fight itself play on MY run, never the teammate's on screen (R-DUOS-VIEW-01).
   if (useSpectate.getState().teammate && teammateViewReturns(match)) leaveTeammate();
@@ -1836,7 +1847,10 @@ export async function unpauseMatch(): Promise<void> {
 /** CONCEDE (the Esc menu's two-tap): the gate closes at once (owner 2026-10-14), while the server records it. */
 export async function forfeitMatch(): Promise<void> {
   const match = get().match;
-  if (!match || match.phase === 'complete') return;
+  if (!match) return;
+  // THE MATCH IS ALREADY OVER (R-RANKED-DUOS-END-01): the Esc menu's leave is the way out of a screen the end never
+  // reached. Nothing goes to the server (there is nothing left to concede): the end gate opens on the room.
+  if (match.phase === 'complete') { if (mySeat(match) && !endGated.has(match.id)) playVersusEndGate(match.id); return; }
   // Remembered across a reload (R-RANKED-DUOS-CONCEDE-01): a Ranked Duos match goes on for the teammate, so the room
   // stays in game with my seat in it, and nothing may put me back in it as a player.
   markConceded(match.id);
@@ -1858,11 +1872,20 @@ export function returnToRoom(): void {
   } else if (match && seat) {
     set({ statsOpen: true }); // conceded at once: the record is built when the server confirms the result (`onMatch`)
   }
-  // RANKED DUOS: the team's rating change and medal, as the solo end screen shows them (R-RANKED-DUOS-RATING-01).
+  // RANKED DUOS POST-GAME (owner 2026-11-02, R-RANKED-DUOS-POSTGAME-01: "add a post game screen just like ranked solo's
+  // that shows your team's ranked progress/xp etc same flow as solos"): the team's place, its rating change and medal,
+  // then my Account XP, on the solo end screen's own sequence. It comes FIRST: the match stats wait behind its Match
+  // details button instead of opening over it, and its Continue returns to the party.
   if (match && seat && groupRaw && groupRaw.id === match.id && isRankedDuosRaw(groupRaw)) {
-    const mine = groupSeatOf(groupRaw, currentUserId());
+    const me = currentUserId();
+    const mine = groupSeatOf(groupRaw, me);
     const place = mine?.placement ?? (groupRaw.winner_seat ? 1 : null);
-    if (place != null && !groupRaw.unrated) void loadDuosResult(match.id, place, groupRaw.teamName ?? null);
+    if (place != null) {
+      const myCos = useGame.getState().run.mode === 'versus' ? useGame.getState().run.cosmetics ?? null : null;
+      const team = duosResultTeam(groupRaw, me, myCos, (uid) => parseCosmeticSnapshot(get().room?.members.find((m) => m.userId === uid)?.profile?.cosmetics) ?? null);
+      set({ statsOpen: false });
+      void loadDuosResult(match.id, place, groupRaw.teamName ?? null, { unrated: !!groupRaw.unrated, team });
+    }
   }
   builtFor = null;
   pendingPresent = null;
@@ -1995,16 +2018,35 @@ export async function saveTeamName(partner: string, name: string): Promise<strin
   return out.name ?? null;
 }
 
-/** Read my team's result for a finished Ranked Duos match (once; the server settles it in the round commit). */
-export async function loadDuosResult(matchId: string, placement: number, teamName: string | null): Promise<void> {
-  set({ duosResult: { matchId, placement, result: null, teamName, pending: true } });
+/** The two live teammates of a Ranked Duos match (seats p1 / p2), me first, for the post-game screen's team row. */
+export function duosResultTeam(
+  raw: Pick<VersusGroupMatchRaw, 'seats'>, me: string | null, myCos: RunCosmeticSnapshot | null,
+  cosOf: (userId: string) => RunCosmeticSnapshot | null,
+): DuosResultMember[] {
+  const live = raw.seats.filter((s) => s.seat === 'p1' || s.seat === 'p2');
+  return live
+    .map((s): DuosResultMember => ({ userId: s.userId, name: s.name, hero: s.hero, self: s.userId === me, cosmetics: s.userId === me ? myCos : cosOf(s.userId) }))
+    .sort((a, b) => Number(b.self) - Number(a.self));
+}
+
+/** Read my team's result for a finished Ranked Duos match (once; the server settles it in the round commit). An unrated
+ *  match has no result row to wait for: the screen shows "Unrated" at once, as solo's does. */
+export async function loadDuosResult(
+  matchId: string, placement: number, teamName: string | null,
+  opts: { unrated?: boolean; team?: DuosResultMember[] } = {},
+): Promise<void> {
+  const unrated = !!opts.unrated;
+  const team = opts.team ?? [];
+  const view = (result: RankResult | null, pending: boolean, place = placement): DuosResultView => ({ matchId, placement: place, result, teamName, pending, unrated, team });
+  if (unrated) { set({ duosResult: view(null, false) }); return; }
+  set({ duosResult: view(null, true) });
   for (let i = 0; i < 4; i++) {
     const row = await versusRemote.duosResult(matchId).catch(() => null);
     if (get().duosResult?.matchId !== matchId) return;
-    if (row) { set({ duosResult: { matchId, placement: row.placement, result: row, teamName, pending: false } }); return; }
+    if (row) { set({ duosResult: view(row, false, row.placement) }); return; }
     await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
   }
-  if (get().duosResult?.matchId === matchId) set({ duosResult: { matchId, placement, result: null, teamName, pending: false } });
+  if (get().duosResult?.matchId === matchId) set({ duosResult: view(null, false) });
 }
 
 export function closeDuosResult(): void {
@@ -2207,6 +2249,43 @@ function maybeEndGate(): void {
   const g = useGame.getState();
   if (!versusEndsNow({ match, rounds: get().rounds, run: g.run, heroSelect: g.heroChoices !== null && g.pendingMode === 'versus' })) return;
   playVersusEndGate(match.id);
+}
+
+/**
+ * THE END ALWAYS REACHES THE PLAYER (R-RANKED-DUOS-END-01; live report 2026-11-02, Ranked Duos round 13: the server
+ * resolved the deciding round and placed the team at 15:28:02, one teammate watched the fight and went back to the
+ * party, and the other sat on the round's shop with no fight and no way out: "how do we end the game? ... like how is it
+ * not the same logic"). The match is over on the server, so this client may only still owe the deciding fight. While it
+ * is still on the game screen (its run, or the Duos teammate view) the end is driven again on every tick: the teammate
+ * view is left and the run is driven (the fight lands and plays, its End Combat gem ends the match as always). A run
+ * still in the SHOP that long after the end (nothing animating) never got its fight: the end gate closes over it and
+ * opens on the room, as it does for the teammate. A fight on screen is the player's to finish (its gem leaves).
+ */
+export const END_BACKSTOP_MS = 15_000;
+/** The longest a finished match may hold its shop screen while something still animates (a long End of Turn). */
+export const END_BACKSTOP_MAX_MS = 60_000;
+let endSeen: { id: string; at: number; quietSince: number } | null = null;
+export function endBackstop(match: VersusMatch | null, now: number): void {
+  if (!match || match.phase !== 'complete') { endSeen = null; return; }
+  const seat = mySeat(match);
+  if (!seat || endGated.has(match.id)) return;
+  const g = useGame.getState();
+  const mate = useSpectate.getState().teammate;
+  if (g.run.mode !== 'versus' && !mate) return; // already off the game screen (the room, or the stands)
+  if (endSeen?.id !== match.id) endSeen = { id: match.id, at: now, quietSince: now };
+  if (mate) leaveTeammate();
+  // The stands' watch screen over my own finished match (the bug R-RANKED-DUOS-END-01 fixed in `trackDuosMatch`): never
+  // mine to sit on. My own screen comes back first.
+  else if (useSpectate.getState().active) leaveSpectating();
+  const run = useGame.getState().run;
+  // The deciding fight is on screen: the player watches it out and its End Combat gem ends the match.
+  if (run.mode === 'versus' && run.phase === 'combat') { endSeen.at = now; endSeen.quietSince = now; return; }
+  if (useGame.getState().presentationTx) endSeen.quietSince = now;
+  driveRun(match, seat);
+  maybeEndGate();
+  if (endGated.has(match.id)) return;
+  const quiet = now - endSeen.quietSince >= END_BACKSTOP_MS;
+  if (quiet || now - endSeen.at >= END_BACKSTOP_MAX_MS) playVersusEndGate(match.id);
 }
 
 /** Close the end gate over the match and open it on the room (once per match). Behind the shut doors the game is

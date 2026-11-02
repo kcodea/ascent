@@ -61,6 +61,7 @@ import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
 import { watcherPulseUids } from './choreo/channels/watcherPulse';
 import { combatBuffDeltas, combatDamageDeltas, driveRoll, driveRollSegment } from './fx/combatBuffRoll';
 import { HOLD_GRACE_MS, heldFor, holdStat, releaseStat, replaceHold } from './fx/statHold';
+import { fightBodies } from './fightRoster';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -640,6 +641,11 @@ export function computeFrame(
       for (const m of e.minions) { arr.push(fromSnap(m)); maxHp.set(m.uid, m.health); avengeBase.set(m.uid, 0); }
       deaths[e.side] = 0;
       spellCasts[e.side] = 0;
+    } else if (e.type === 'flyIn') {
+      // DUOS (R-DUOS-FLYIN-01): the fight is won and the unfought teammate board flies into the empty slots, after the
+      // survivors, left to right. They trigger nothing; they stand there so the damage formation counts them.
+      const arr = e.side === 'player' ? player : enemy;
+      for (const m of e.minions) { arr.push(fromSnap(m)); maxHp.set(m.uid, m.health); avengeBase.set(m.uid, deaths[e.side]); }
     } else if (e.type === 'summon') {
       const arr = e.side === 'player' ? player : enemy;
       arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));
@@ -762,6 +768,7 @@ export function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'death': return { [e.target]: 'dying' };
     case 'summon': return { [e.minion.uid]: 'summoned' };
     case 'tagIn': return Object.fromEntries(e.minions.map((m) => [m.uid, 'tagin'])); // VERSUS DUOS: the fly-in
+    case 'flyIn': return Object.fromEntries(e.minions.map((m) => [m.uid, 'tagin'])); // DUOS: the same entrance (R-DUOS-FLYIN-01)
     case 'rally': return { [e.source]: 'sccast', [e.target]: 'flare' }; // Deathsayer pulses; the Deathrattle minion flares
     case 'shout': return { [e.target]: 'sccast' }; // the Shout's owner flashes as it fires; the re-trigger source pulses per proc from `onShoutProc`
     case 'ascend': return { [e.target]: 'ascendpop' }; // transform: the new card pops in under the flash bloom (fired by onAscend)
@@ -789,6 +796,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'summon': return { text: `${e.minion.name} (${e.minion.attack}/${e.minion.health}) is summoned.`, kind: 'summon' };
     case 'boardFallen': return { text: `${e.side === 'player' ? 'Your' : 'Their'} board has fallen.`, kind: 'death' };
     case 'tagIn': return { text: `${e.side === 'player' ? 'Your' : 'Their'} teammate's board steps in.`, kind: 'summon' };
+    case 'flyIn': return { text: `${e.side === 'player' ? 'Your' : 'Their'} teammate's minions fly in to the empty slots.`, kind: 'summon' };
     case 'buff': return { text: `${n(e.target)} grows +${e.attack}/+${e.health}.`, kind: 'buff' };
     case 'improve': { const d = e.display ?? e.amount; return d > 0 ? { text: `${n(e.target)}'s effect improves by ${d}.`, kind: 'buff' } : null; }
     case 'keyword': return { text: `${n(e.target)} gains ${KW_FLOAT[e.keyword] ?? e.keyword}${e.source ? ` from ${n(e.source)}` : ''}.`, kind: 'buff' };
@@ -2046,8 +2054,7 @@ export function useCombatReplay(
   const cardIds = useMemo(() => {
     const m = new Map<string, string>();
     if (!combat) return m;
-    for (const u of [...combat.initial.player, ...combat.initial.enemy]) m.set(u.uid, u.cardId);
-    for (const e of combat.events) if (e.type === 'summon') m.set(e.minion.uid, e.minion.cardId);
+    for (const b of fightBodies(combat)) m.set(b.uid, b.cardId); // + every tagIn body (R-DUOS-FX-01)
     return m;
   }, [combat]);
 
@@ -2056,9 +2063,7 @@ export function useCombatReplay(
   const unitSides = useMemo(() => {
     const m = new Map<string, 'player' | 'enemy'>();
     if (!combat) return m;
-    for (const u of combat.initial.player) m.set(u.uid, 'player');
-    for (const u of combat.initial.enemy) m.set(u.uid, 'enemy');
-    for (const e of combat.events) if (e.type === 'summon') m.set(e.minion.uid, e.side);
+    for (const b of fightBodies(combat)) m.set(b.uid, b.side); // + every tagIn body (R-DUOS-FX-01)
     return m;
   }, [combat]);
 
@@ -2538,8 +2543,9 @@ export function useCombatReplay(
     // The player's uids: the initial player board + every player-side summon in the whole log. Enemy-sourced
     // narrations (spell power, auras) are filtered against this so they never draw on the player's board and
     // vice-versa. Cheap — a Set built once per beat effect from data already in scope.
-    const playerUids = new Set<string>((combat?.initial.player ?? []).map((u) => u.uid));
-    for (const ev of events) if (ev.type === 'summon' && ev.side === 'player') playerUids.add(ev.minion.uid);
+    // + the teammate's board that steps in on a `tagIn` (R-DUOS-FX-01).
+    const playerUids = new Set<string>();
+    if (combat) for (const b of fightBodies(combat, events)) if (b.side === 'player') playerUids.add(b.uid);
     // Refresh the last-known rects for everyone still on screen, THEN resolve anchors below through
     // `anchorOf`. Order matters: a unit that dies in this beat is already gone from the DOM, so its entry has
     // to come from the previous beat's snapshot.
@@ -3501,8 +3507,7 @@ export function useCombatReplay(
   const names = useMemo(() => {
     const m = new Map<string, string>();
     if (!combat) return m;
-    for (const u of [...combat.initial.player, ...combat.initial.enemy]) m.set(u.uid, u.name);
-    for (const e of combat.events) if (e.type === 'summon') m.set(e.minion.uid, e.minion.name);
+    for (const b of fightBodies(combat)) m.set(b.uid, b.name); // + every tagIn body (R-DUOS-FX-01)
     return m;
   }, [combat]);
 

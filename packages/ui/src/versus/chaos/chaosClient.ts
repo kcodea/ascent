@@ -67,6 +67,9 @@ export interface ChaosClientOptions {
   mendFrom?: number;
   /** A SPECTATOR (R-SPECTATE-HARNESS-01): joins the room's stands and watches; never takes a seat or plays. */
   spectator?: boolean;
+  /** DUOS: after its End Turn the player opens the TEAMMATE VIEW (their portrait) and watches their shop until the game
+   *  takes it back (R-DUOS-VIEW-01): the live report 2026-11-02, a teammate who waited on the other's screen. */
+  watchMate?: boolean;
 }
 
 const here = (p: string): string => fileURLToPath(new URL(p, import.meta.url));
@@ -92,6 +95,14 @@ export class ChaosClient {
   sim!: SimMod;
   /** A spectator's watch screen module (null for a player). */
   spec: SpectateMod | null = null;
+  /** A player's own spectate module (the Duos teammate view). */
+  mate!: SpectateMod;
+  /** Rounds this player opened the teammate view in. */
+  readonly mateWatched: number[] = [];
+  private fightObj: { wave: number; fight: unknown; flagged: boolean } | null = null;
+  private fightEntries = new Map<number, number>();
+  private reentered = new Set<number>();
+  private lastPhase: string | null = null;
   private rng: () => number;
   /** Driver state. */
   private launching = false;
@@ -151,8 +162,9 @@ export class ChaosClient {
     this.turn = await import('../versusTurn');
     this.clock = await import('../versusClock');
     this.sim = await import('@game/sim');
+    this.mate = await import('../spectate');
     if (this.opts.spectator) {
-      this.spec = await import('../spectate');
+      this.spec = this.mate;
       // The watch record's beat goes to the progression backend (not under test here): answer it locally.
       (await import('../../live/spectatorEnd')).setSpectateBeatForTests(async () => true);
     }
@@ -225,6 +237,8 @@ export class ChaosClient {
       else this.gateQueue.push(q);
     }
     const S = this.store;
+    // THE TEAMMATE VIEW is on screen: its frames render (no animation frames under the fake clock); nothing is clicked.
+    if (this.mate.useSpectate.getState().teammate) { this.mate.flushSpectateRender(); return; }
     const g = this.game.useGame.getState();
     const v = S.useVersus.getState();
     const m = v.match;
@@ -272,6 +286,8 @@ export class ChaosClient {
           this.actedWave = run.wave;
           this.shop();
           if (this.opts.endTurn === 'early') this.pressEndTurn();
+          const mate = m.group?.duos?.mate;
+          if (this.opts.watchMate && mate) { this.mateWatched.push(run.wave); this.mate.watchTeammate(mate as never); }
         }
       }
       return;
@@ -279,13 +295,29 @@ export class ChaosClient {
 
     if (run.phase === 'combat') {
       if (!this.fightSeen || this.fightSeen.wave !== run.wave) this.fightSeen = { wave: run.wave, at: now };
+      // ONE FIGHT PER ROUND on a player's own screen (R-RANKED-DUOS-END-01: "combat seemingly restarted"): a new fight
+      // object mid-fight restarts the replay.
+      const lc = (run as { lastCombat?: unknown }).lastCombat;
+      if (this.fightObj && this.fightObj.wave === run.wave && this.fightObj.fight !== lc && !this.fightObj.flagged) {
+        this.fightObj.flagged = true;
+        this.errors.push(`round ${run.wave}: the fight on screen was replaced mid-fight (the replay restarts)`);
+      }
+      if (!this.fightObj || this.fightObj.wave !== run.wave) this.fightObj = { wave: run.wave, fight: lc, flagged: false };
+      this.fightEntries.set(run.wave, (this.fightEntries.get(run.wave) ?? 0) + (this.lastPhase === 'recruit' ? 1 : 0));
+      if ((this.fightEntries.get(run.wave) ?? 0) > 1 && !this.reentered.has(run.wave)) {
+        this.reentered.add(run.wave);
+        this.errors.push(`round ${run.wave}: the fight was entered twice (back to the shop, then the same fight again)`);
+      }
+    }
+    this.lastPhase = run.phase;
+    if (run.phase === 'combat') {
       // The next shop is open for both: the fight leaves through its ordinary exit (`useVersusRecruit` 'leave').
       if (t.kind === 'leave') {
         if (this.leftWave !== run.wave) { this.leftWave = run.wave; this.endCombat(); }
         return;
       }
       // The player watches the fight, then presses End Combat.
-      if (now - this.fightSeen.at >= (this.opts.watchMs ?? 3500) && this.endCombatPressed !== run.wave && !paused) {
+      if (now - (this.fightSeen?.at ?? now) >= (this.opts.watchMs ?? 3500) && this.endCombatPressed !== run.wave && !paused) {
         this.endCombatPressed = run.wave;
         this.endCombat();
       }

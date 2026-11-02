@@ -3331,6 +3331,13 @@ export type CombatEvent = (
   // (instantiated, run-wide auras folded, before its Start of Combat, which follows as ordinary events). The replay
   // replaces that side's board with these bodies (the fallen board's dead are gone).
   | { type: 'tagIn'; side: Side; member: number; minions: MinionSnapshot[] }
+  // TAG-TEAM FLY-IN (Versus Duos / Ranked Duos, owner 2026-11-02, R-DUOS-FLYIN-01): the fight is over and `side` WON with
+  // its FIRST board, so its teammate's board (team member `member`, which never fought) flies in after the last kill:
+  // `minions` are its left-most bodies, as many as fit, landing in that side's board from slot `index` (the count of
+  // survivors) rightwards, up to 7. They trigger nothing (no Start of Combat, no summon triggers, no auras) and are not
+  // fighting bodies; they only join the survivors the damage counts (`damageBreakdown.survivorUids` lists them).
+  // Emitted at most once per side, once the fight is decided (after the last kill). Presentation beat.
+  | { type: 'flyIn'; side: Side; member: number; index: number; minions: MinionSnapshot[] }
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string; fromHandUid?: string } // `fromHandUid`: a COPY summoned from that hand card (set 3 Spirits) — the card stays in hand, greyed for the fight
   | { type: 'ascend'; target: string; into: string; gild?: true } // `gild`: an in-fight GILD (Ancient of Time) — same card, now golden; its doubled stats arrive as a `buff` // mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen)
   // `ruby`: this stat gain came from a RUBY landing on `target` (set 2 Kobolds), not from an ordinary buff.

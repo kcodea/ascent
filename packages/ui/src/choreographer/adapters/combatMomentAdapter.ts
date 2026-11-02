@@ -68,6 +68,7 @@ export const FAMILY_BY_MOMENT: Record<MomentKind, string> = {
   bankedCast: 'startOfCombat', // a next-combat spell cast as the fight opens (2026-10-07)
   boardFallen: 'death', // VERSUS DUOS: a whole board is gone
   tagIn: 'summon', // VERSUS DUOS: the teammate's board arrives
+  flyIn: 'summon', // DUOS: the unfought teammate board fills the empty slots after a won fight
 };
 
 /**

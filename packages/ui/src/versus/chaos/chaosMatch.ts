@@ -534,9 +534,21 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
   }
 
   // ── after the match ──
+  if (complete && last) say(`final: ${JSON.stringify(last.teams?.length ? last.teams : last.seats.map((x) => ({ seat: x.seat, placement: x.placement, health: x.health })))}`);
+  for (const c of clients) if (c.mateWatched.length) say(`${c.opts.name} watched the teammate in rounds ${c.mateWatched.join(',')}`);
   for (const c of clients) for (const m of c.mends) say(`${c.opts.name} cast Mend in round ${m.wave}: Armor ${m.before} -> ${m.after}`);
   say(`vitals: ${vitalsChecked.size} rail checks against the server`);
   for (const c of clients) for (const e of c.errors) flag('error', null, `${c.opts.name}: ${e}`);
+  // THE END REACHES EVERY PLAYER (R-RANKED-DUOS-END-01, live report 2026-11-02: one teammate back in the party, the other
+  // frozen in the last shop): once the match is over, every present player has left the game screen for the room.
+  if (complete) {
+    for (const [i, c] of clients.entries()) {
+      if (c.hidden || clients[i]!.net.state.offline) continue;
+      const v = c.view();
+      const mateOn = c.mate.useSpectate.getState().teammate;
+      if (v.runMode === 'versus' || mateOn) flag('final', null, `${c.opts.name}: after the end the screen is still the game (${mateOn ? 'the teammate view, ' : ''}${v.runPhase} ${v.wave}, ${v.screen}), not the room`);
+    }
+  }
   for (const w of watchers) {
     for (const e of w.c.errors) flag('error', null, `${w.c.opts.name}: ${e}`);
     // The match ended: every spectator is back in the room (the end gate opened on it), not on a frozen screen.

@@ -7390,9 +7390,32 @@ export function simulate(
   // ANCIENT OF DEATH × Re-Pete: the fight is over; the last friendly death comes home as a plain copy (live `toHand`).
   for (const side of SIDES) finishLastDeathCopy(side);
 
+  // TAG-TEAM FLY-IN (owner ruling 2026-11-02, R-DUOS-FLYIN-01): "the team flies in and fills the 7 slots from left to
+  // right. if there's no room, there's no fly in. flying in after combat does NOT trigger start of combats or anything,
+  // but it DOES deal more dmg to opponents as the filled in slots tally up for damage". The WINNING side's teammate
+  // board that never fought (its reserve still waiting: the first board won) flies in after the last kill: its bodies,
+  // left to right, fill the empty slots up to 7. They are instantiated only for their identity and stats (no effect
+  // registration, no auras, no Start of Combat, no summon triggers) and are NOT on the fighting board, so no carry-back
+  // (survivors, tallies) ever counts them; they only join the survivors the damage below sums. A side whose first
+  // board fell and whose reserve won flies nothing in (both boards fought). A draw flies nothing in.
+  const flownIn: Record<Side, Minion[]> = { player: [], enemy: [] };
+  if (hasReserve) {
+    for (const s of SIDES) {
+      const res = reserveOf[s];
+      if (!res || activeMember[s] !== 0 || res.board.length === 0) continue;
+      const standing = countLiving(s);
+      if (standing === 0 || countLiving(OTHER[s]) > 0) continue; // only the winner
+      const room = 7 - standing;
+      if (room <= 0) continue; // a full board: no fly-in
+      flownIn[s] = res.board.slice(0, room).map((b) => instantiate(structuredClone(b), s, cards, mkUid));
+      nextStep();
+      emit({ type: 'flyIn', side: s, member: 1, index: standing, minions: flownIn[s].map(snapshot) });
+    }
+  }
+
   // --- Outcome (A.3 step 8) ---
-  const survivorsP = living('player');
-  const survivorsE = living('enemy');
+  const survivorsP = flownIn.player.length ? [...living('player'), ...flownIn.player] : living('player');
+  const survivorsE = flownIn.enemy.length ? [...living('enemy'), ...flownIn.enemy] : living('enemy');
   const result: CombatOutcome =
     survivorsP.length > 0 && survivorsE.length > 0
       ? 'draw' // iteration guard reached with both sides alive

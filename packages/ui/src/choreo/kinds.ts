@@ -18,7 +18,9 @@ export type MomentKind =
   | 'pummelTrigger'
   | 'bankedCast'
   // VERSUS DUOS (R-DUOS-TAGTEAM-01): a board falls, then the teammate's board flies in.
-  | 'boardFallen' | 'tagIn';
+  | 'boardFallen' | 'tagIn'
+  // DUOS (R-DUOS-FLYIN-01): after a won fight, the unfought teammate board flies into the empty slots.
+  | 'flyIn';
 
 export function momentKind(primary: CombatEvent): MomentKind {
   switch (primary.type) {
@@ -93,6 +95,8 @@ export function momentKind(primary: CombatEvent): MomentKind {
     // VERSUS DUOS: the fallen board's breath, then the hand-off (the teammate's board flies in: `.unit.tagin`).
     case 'boardFallen': return 'boardFallen';
     case 'tagIn': return 'tagIn';
+    // DUOS: the winner's unfought teammate board flies into the empty slots (the same `.unit.tagin` entrance).
+    case 'flyIn': return 'flyIn';
     // Defensive: any future event type falls back to a quiet damage-style moment instead of crashing the replay
     // (momentKind must NEVER return undefined — `getScore()[undefined]` is not iterable).
     default: return 'damage';

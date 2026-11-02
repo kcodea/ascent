@@ -39,12 +39,18 @@ export interface HeroStrikeNumbers {
 
 export function heroStrikeNumbers(run: Pick<RunState, 'lobby' | 'mode' | 'lastCombat' | 'wave'>, won: boolean): HeroStrikeNumbers {
   const total = heroStrikeDamage(run, won);
-  // VERSUS: the blow is one heart, never a tier + survivors sum, so the formation shows just the blow.
-  if (run.mode === 'versus') return { hero: null, minions: [], full: total, total, cap: null };
   const lc = run.lastCombat;
+  // VERSUS 1v1 / Group: the formation shows just the blow. A DUOS tag-team fight (Versus Duos, Ranked Duos: the result
+  // carries `tagTeam`) shows the full formation (owner 2026-11-02, R-DUOS-FLYIN-01: the teammate minions that fly into
+  // the empty slots "DO deal more dmg to opponents as the filled in slots tally up for damage"), so each flown-in body's
+  // tier visibly rises from its slot. The resolver capped `enemyDamage` on the winner's view, so the full blow there is
+  // the breakdown's own sum (tier + every survivor, flown in included).
+  const duos = run.mode === 'versus' && !!lc?.tagTeam;
+  if (run.mode === 'versus' && !duos) return { hero: null, minions: [], full: total, total, cap: null };
   const bd = won ? lc?.enemyDamageBreakdown : lc?.damageBreakdown;
   const stampedCap = typeof lc?.damageCap === 'number' ? lc.damageCap : null;
-  const before = won ? lc?.enemyDamage : lc?.playerDamageUncapped;
+  const sum = bd ? bd.oppTier + bd.survivorTiers.reduce((a, t) => a + t, 0) : null;
+  const before = duos && sum !== null ? sum : won ? lc?.enemyDamage : lc?.playerDamageUncapped;
   const cut = stampedCap !== null && typeof before === 'number' && before > total;
   return {
     hero: bd ? bd.oppTier : null,

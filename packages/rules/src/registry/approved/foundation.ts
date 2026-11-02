@@ -9142,6 +9142,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/tagTeam.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
+    id: 'R-DUOS-FLYIN-01',
+    title: 'Tag-team fly-in: after a won fight, the winner\x27s unfought teammate board fills the empty slots and counts for damage',
+    statement:
+      'In a tag-team fight (Versus Duos, Ranked Duos), when a side WINS with its FIRST board, its teammate\x27s board (which never fought) '
+      + 'flies in after the last kill: its minions, left to right, fill that side\x27s empty slots after the survivors, up to 7. A full board '
+      + 'flies nothing in. The flown-in minions trigger NOTHING (no Start of Combat, no summon triggers, no auras) and are not part of the '
+      + 'fight, but they DO count for damage: the losing team takes the winning board\x27s tavern tier plus the tiers of every survivor AND '
+      + 'every flown-in minion (then the round cap and Armor as usual). If the first board fell and the teammate\x27s board stepped in and won, '
+      + 'nothing flies in (both boards fought). A draw flies nothing in. The losing side never flies in. Deterministic, 1:1 symmetric, '
+      + 'and identical on every client, spectator and replay (one `flyIn` event in the fight log). The screen plays the same fly-in '
+      + 'entrance as the step-in, then the damage formation counts each flown-in minion from its slot.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live Duos play with Mike)', quote: 'the team flies in and fills the 7 slots from left to right. if there\x27s no room, there\x27s no fly in. flying in after combat does NOT trigger start of combats or anything, but it DOES deal more dmg to opponents as the filled in slots tally up for damage' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (ruling)', quote: 'If your first board fell and your teammate\x27s board stepped in and won, NOTHING flies in (both boards already fought).' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (TAG-TEAM FLY-IN, flownIn); packages/core/src/types.ts (flyIn); packages/ui/src/useCombatReplay.ts; packages/ui/src/heroBlast/heroStrikeDamage.ts' },
+    ],
+    currentBehaviour: 'Built 2026-11-02 (feat/duos-teammate-flyin). Before, a teammate board that never fought counted for nothing and simply did not appear.',
+    example: 'Ann\x27s board (tier 4, two survivors) beats both of Cat and Dan\x27s boards. Bob\x27s six minions never fought: the first five fly into Ann\x27s empty slots, and Cat and Dan take 4 + both survivors + those five minions\x27 tiers (capped for the round).',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/tagTeamFlyIn.test.ts', 'packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/rankedDuosRound.test.ts', 'workers/versus/test/it/room.it.ts', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-DUOS-01',
     title: 'Versus Duos: 2v2 by seat pairs, one tag-team fight a round, one shared team Health pool, concede = the team out',
     statement:
@@ -13233,6 +13256,72 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/handOverBoardZ.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
   {
+    id: 'R-RANKED-DUOS-END-01',
+    title: 'Ranked Duos and Versus: a finished match always reaches every player, and a player on a finished match always has a way out',
+    statement:
+      'Once the server has ended a match, no player stays on its game screen, and a seated player never becomes a spectator of it: '
+      + 'the teammate\x27s last frames (their deciding fight, still publishing) stay cached and never open the watch screen over the '
+      + 'player\x27s own game, and a finished match that is not on screen never opens on it. While a finished match is still on screen the client drives '
+      + 'the end again on every tick (the Duos teammate view is left, the run is driven so the deciding fight lands and plays, and its End '
+      + 'Combat gem ends the match). A shop still on screen 15 s after the end with nothing animating (60 s at most while an End of Turn '
+      + 'still plays) closes the end gate and opens on the room. A fight on screen is never cut. The Esc menu on a finished match reads '
+      + '"Leave match" and goes back to the room through the end gate, asking the server nothing. The server side holds already: the '
+      + 'round closes on both teammates ready, a gone teammate counting as ready (auto), or 30 s after 0:00.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Orangez + LazerLemon, live Ranked Duos 2026-11-02 (match bc3ba9c7, round 13)', quote: 'the last fight mike got frozen and combat didnt start or something' },
+      { kind: 'owner-chat', ref: 'LazerLemon, 2026-11-02', quote: 'how do we end the game? ... like how is it not the same logic' },
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-02 (the next Ranked Duos game, round 14)', quote: 'combat seemingly restarted, then when it finished just sat at the end combat state and "returning to shop" just returned to combat' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts (trackDuosMatch, spectateSync); packages/ui/src/versus/versusStore.ts (onMatch, endBackstop, forfeitMatch); packages/ui/src/gameMenuParts.tsx (leaveText over); workers/versus/src/core/rankedMatch.ts (closeAt)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-02 (fix/ranked-duos-final-freeze). Before, the store stopped tracking the Duos match for its own players at the end, so the next frame of the teammate opened the watch screen of the stands over the game of the player: the fight of the teammate restarted there and End Combat looped back into it, or their last shop froze on screen. Nothing timed it out, and Concede returned at once on a finished match, so only a reload left.',
+    example: 'The pair is knocked out in round 13. Orangez watches the fight and goes back to the party. Lemon\x27s screen never starts the fight: 15 s later the end gate closes over his shop and opens on the party. Had he pressed Esc first, "Leave match" would have taken him there at once.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosEndFrames.test.ts', 'packages/ui/src/versus/rankedDuosEnd.test.ts', 'workers/versus/test/it/room.it.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-VERSUS-CF-ALARM-IDLE-01',
+    title: 'A closed Versus room forgets itself: its alarm stops',
+    statement:
+      'When a Versus room closes (its last member left, or it sat idle) and nothing is left to write, the room deletes its storage and its '
+      + 'alarm. Only a persistence retry backoff may hold the outbox drain; "nothing queued" never skips the forget. A fresh instance after '
+      + 'a wake drains any jobs it finds in storage.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'code', ref: 'workers/versus/src/room.ts (drainOutbox, rearm)' },
+      { kind: 'fix-pr', ref: 'fix/ranked-duos-final-freeze (Workers Logs 2026-11-02, found during the Ranked Duos freeze report: seven closed VersusRoom objects alarming several times a second for over a day)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-02 on a Worker deployed with fix/ranked-duos-final-freeze. Before, `drainOutbox` returned before the forget whenever nothing was queued, and `rearm` asked a closed room for an alarm NOW, so it woke in a loop for ever.',
+    example: 'Both teammates leave the party after a game. The room closes, forgets its storage and never wakes again.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/it/room.it.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-DUOS-FX-01',
+    title: 'Duos tag-team fights: the second board plays every animation the first board does',
+    statement:
+      'In a tag-team fight the board that steps in (a teammate\x27s, on either side) is presented exactly like the board that '
+      + 'opened the fight: its Deathrattle and Echo pulses, authored attack, damage, Shout and watcher FX, Rally and Flurry '
+      + 'wind-ups, trigger pulses, spell side, narration names, announcer moments, choreographer card identity and phone '
+      + 'audio prewarm all resolve. Mechanism: every uid lookup of the fight (uid to card, side and name) is built from '
+      + '`fightBodies` (packages/ui/src/fightRoster.ts): the starting boards, every `summon` AND every `tagIn` body. '
+      + 'The end-of-fight hero attack plays the attack equipped by the player whose board ended the fight '
+      + '(`useDuosCombat` selfSeatId / foeSeatId into `attackerCosmeticOf`), through "Show opponent cosmetics", so both '
+      + 'teammates see the same attack.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-02 (live Versus Duos / Ranked Duos play)', quote: 'some animations arent playing in duos it seems like the second player\x27s animations maybe dont play' },
+      { kind: 'code', ref: 'packages/ui/src/fightRoster.ts; packages/ui/src/useCombatReplay.ts (cardIds, unitSides, names, playerUids); packages/ui/src/choreographer/combatTimeline.ts; packages/ui/src/heroBlast/attackerCosmetic.ts' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (fix/duos-second-board-fx). Before, the replay\x27s uid maps were seeded from `initial` + '
+      + '`summon` only; a `tagIn` board\x27s fresh uids resolved to nothing, so every card-keyed FX decision skipped the '
+      + 'second board (its beats in the compiled timeline carried the bare uid `m7` instead of the card).',
+    example: 'My Mama Pup dies and its Echo pulses. My teammate\x27s Mama Pup steps in, dies, and its Echo pulses the same way.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/duosSecondBoardFx.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-DUOS-PASS-LATENCY-01',
     title: 'A Duos pass lands in the teammate\x27s hand as soon as the server has it, even while they watch the sender',
     statement:
@@ -13292,5 +13381,48 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'start in 15 got such a hero: that is what made the sbDuos pass test flaky in CI. The test now pins the rig seed.',
     example: 'Kev turns Duos on and his placeholder teammate is Disco Dan, whose first Discover is open. He asks them to pass Hitchhiker. The tuner says they have a choice to make first. He views their board, picks a card, comes back, and the pass lands.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/sbDuos.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-TRIPLE-HINT-OVAL-01',
+    title: 'Triple hints on a framed card glow around the frame, with no ring around the card box',
+    statement:
+      'The own-triple hint and the Duos teammate-triple hint on a framed card (the oval minion frame or the Taunt shield) show their '
+      + 'breathing glow and rising arrows only. They never draw the hard tribe-colour ring around the card box, which on those frames '
+      + 'reads as a coloured rectangle behind the art. Unframed cards keep the ring.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-02 (screenshot of a Dwarf in the Shop with the teal teammate-triple hint)', quote: 'there\x27s a yellow highlight frame behind the art - what is that? can you fix it?' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.card.compact.stdframe/.taunt .tripready/.matetrip)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-11-02. Before, the 4px `--c` box ring showed as a tribe-coloured rectangle behind oval art (yellow for Dwarves).',
+    example: 'A Dwarf in Ann\x27s Shop completes Bob\x27s pair: it glows teal with teal arrows, and no yellow box shows behind the oval.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/tripleHintOval.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-RANKED-DUOS-POSTGAME-01',
+    title: 'Ranked Duos: after a game both teammates get the solo ranked end screen, and Continue returns to the party',
+    statement:
+      'When a Ranked Duos game ends (my team is placed), each teammate sees the solo ranked end screen over the party: '
+      + 'the team\x27s place out of 4, the team\x27s medal bar and points change (the promotion / demotion moment included), '
+      + 'then that player\x27s own Account XP (and Aether, and the line pointing at new rewards), headed by the team\x27s name '
+      + 'and both teammates\x27 portraits and names. An unrated table reads "Unrated" and still shows the XP. The match '
+      + 'stats open only from its Match details button, never over it. Continue closes it onto the Duos party, where the '
+      + 'pair stays for the next game. Each player\x27s XP settles once (`versus:<match>`, deduped by the server); a request '
+      + 'refused because the Worker\x27s result has not landed yet (`source_not_found` / `not_terminal`) within 3 minutes of '
+      + 'the end is retried instead of dropped.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (Ranked Duos)', quote: 'add a post game screen just like ranked solo\x27s that shows your team\x27s ranked progress/xp etc same flow as solos' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (Ranked Duos)', quote: 'the continue then returns you to your duos party' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosParty.tsx (DuosResultOverlay, DuosResultTeam); packages/ui/src/versus/versusStore.ts (returnToRoom, duosResultTeam, loadDuosResult); packages/ui/src/progression/progressionQueue.ts (versusResultLanding)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (feat/ranked-duos-postgame). Before, the room opened the Versus match stats (z 560) over the '
+      + 'team\x27s rank screen (z 500), an unrated game showed no result screen at all, the rank screen had no Account XP, '
+      + 'and an XP request that beat the Worker\x27s result writer was dropped as a permanent refusal.',
+    example: 'Kevin and Lemon finish 2nd: both see "2ND", the team\x27s bar move +11, then their own Account XP; Continue puts them back on their party screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosPostgame.test.tsx', 'packages/ui/src/progression/progressionQueue.test.ts', 'packages/ui/src/versus/chaos/versusCfParity.db.test.ts'], lastVerifiedAt: '2026-11-02' },
   },
 ];

@@ -115,6 +115,12 @@ export function trackDuosMatch(match: VersusMatch | null, allRounds: Record<numb
   asPlayer = !!match;
   rounds = allRounds;
   if (!match) { if (useSpectate.getState().teammate) leaveTeammate(); leaveTeammateHero(); return; }
+  // THE MATCH IS OVER, and I still hold my seat in it (R-RANKED-DUOS-END-01, live 2026-11-02): I stay a PLAYER here.
+  // The teammate view closes, but my teammate's last frames (their deciding fight, still publishing) keep arriving, and
+  // they must stay cached only. This used to pass `null` at the end, which made this client a spectator of its own match:
+  // the next teammate frame opened the watch screen over my game (their fight "restarted" on my screen, End Combat and
+  // the shop curtain looped back into their fight, or their last shop froze there), and the end gate never came.
+  if (match.phase === 'complete') { if (useSpectate.getState().teammate) leaveTeammate(); leaveTeammateHero(); return; }
   if (matchId !== match.id) {
     if (useSpectate.getState().teammate) leaveTeammate();
     leaveTeammateHero();
@@ -242,6 +248,9 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
     watchEnded(match);
     return;
   }
+  // A match that is OVER and not on this screen never opens on it (R-RANKED-DUOS-END-01): a player who left through the
+  // end gate (to the room) keeps receiving the teammate's last frames, and they must not pull them onto that fight.
+  if (match && match.phase === 'complete' && !useSpectate.getState().active) watchDone = match.id;
   if (!match || !live) { stopSpectatorBeat(); if (useSpectate.getState().active) stopSpectating(); return; }
   if (matchId !== match.id) {
     // A NEW MATCH in the room: nothing of the last one survives (views, queue, cursor, caches).

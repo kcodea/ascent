@@ -235,6 +235,8 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // transform / opacity only) and the "steps in" plate (DuosTagIn); no channel cue rides these beats.
   boardFallen: [...BASE],
   tagIn: [...BASE],
+  // DUOS (R-DUOS-FLYIN-01): the fly-in after a won fight is the same one-shot `.unit.tagin` entrance; no channel cue.
+  flyIn: [...BASE],
 };
 
 const KEY = 'ascent.choreoScore';

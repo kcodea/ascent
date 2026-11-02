@@ -103,7 +103,10 @@ export function combatGainItems(r: CombatResult | null | undefined, board: reado
   // `sourceUid` is the RUN-board card's uid (combat instances carry it back to their card), so the run board
   // resolves it first; combat uids are the fallback for hand-built results.
   const initial = new Map<string, string>([...(r.initial?.player ?? []).map((m) => [m.uid, m.cardId] as const), ...board.map((c) => [c.uid, c.cardId] as const)]);
-  for (const e of r.events) if (e.type === 'summon' && e.side === 'player' && !initial.has(e.minion.uid)) initial.set(e.minion.uid, e.minion.cardId);
+  for (const e of r.events) {
+    if (e.type === 'summon' && e.side === 'player' && !initial.has(e.minion.uid)) initial.set(e.minion.uid, e.minion.cardId);
+    else if (e.type === 'tagIn' && e.side === 'player') for (const m of e.minions) if (!initial.has(m.uid)) initial.set(m.uid, m.cardId); // R-DUOS-FX-01
+  }
   const kept = new Map<string, { a: number; h: number }>();
   for (const b of r.playerPermaBuffs ?? []) {
     const t = kept.get(b.sourceUid) ?? { a: 0, h: 0 };

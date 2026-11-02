@@ -1171,7 +1171,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Concede** is in the Esc menu (two taps), from Hero Select or the match. A concede (either player) closes the end gate
   at once for both, wherever they are, mid-fight included, and opens it on the room. The other player wins.
 - **The end.** When the match is decided, the last fight plays out; its End Combat gem (or, with nothing left to
-  watch, the moment it ends) closes the end gate, which opens on the room. The room then has **Previous match
+  watch, the moment it ends) closes the end gate, which opens on the room. **The end always reaches every player**
+  (R-RANKED-DUOS-END-01, live reports 2026-11-02): a seated Duos player never becomes a spectator of their own finished
+  match (the teammate's last frames stay cached, never opening the watch screen over their game); while a finished match is still on a player's game screen the client drives
+  the end again every tick (the teammate view is left, the deciding fight lands and plays); a shop still on screen 15 s
+  after the end with nothing animating (60 s at most during an End of Turn) closes the end gate on its own. A fight on
+  screen is never cut. On a finished match the Esc menu's leave reads **Leave match** and goes back to the room. The room then has **Previous match
   stats**: the round-by-round result pips, and both boards as they entered each fight with each player's Health and
   Armor after it.
 - **Unranked.** No rank, rating, MMR, abandon penalty, opponent-pool upload or ranked save slot, ever. XP (half a
@@ -1323,6 +1328,14 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   on and it starts from its left-most minion. Both boards falling together is a draw. An empty board hands straight
   over to the teammate. Each player's run keeps only what its own board did in the fight (Engraved gains, tallies,
   hand grants, Gold, ...). Combat stays 1:1 symmetric.
+- **The fly-in** (owner 2026-11-02, R-DUOS-FLYIN-01: "the team flies in and fills the 7 slots from left to right. if
+  there's no room, there's no fly in. flying in after combat does NOT trigger start of combats or anything, but it DOES
+  deal more dmg to opponents as the filled in slots tally up for damage"). When a team WINS with its first board, the
+  teammate's board, which never fought, flies in after the last kill: its minions, left to right, fill the empty slots
+  after the survivors, up to 7 (a full board flies nothing in). They trigger nothing (no Start of Combat, no summon
+  triggers, no auras) but count for damage like survivors. If the first board fell and the teammate's board stepped in
+  and won, nothing flies in (both boards fought). A draw flies nothing in. On screen they play the step-in's fly-in, and
+  the damage formation (shown for Duos fights) counts each one from its slot. Ranked Duos fights work the same way.
 - **Who fights first** (R-DUOS-ORDER-01, owner ruling 2026-10-25: "I want the 'who fights first' to be a 50/50, not a
   player decision for duos teams. Every round it should say who fights first but players cannot decide who it is."). For
   each team, every round, a 50/50 pick between its two players; nobody can change it. It is known when the shop opens
@@ -1332,8 +1345,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **One shared Health pool and placement** (owner 2026-10-26: "The duo gets 30 hp plus the sum of both armors";
   R-DUOS-HEALTH-01). Each team plays on ONE pool: 30 Health plus both heroes' Armor (Summit: +10 Armor per hero). The
   losing team takes the lobby's damage, capped by the lobby's round cap, Armor first: the tavern tier of the winning
-  side's board that ENDED the fight (the one still standing; the teammate's if it stepped in) plus its survivors' tiers.
-  A draw costs nobody. A team at 0 Health is out together. *(7 team hearts, 2 for a stomp, until 2026-10-26.)* Placement is by TEAM (owner: "In duos you only
+  side's board that ENDED the fight (the one still standing; the teammate's if it stepped in) plus its survivors' tiers,
+  plus the tiers of the teammate minions that flew in (below). A draw costs nobody. A team at 0 Health is out together. *(7 team hearts, 2 for a stomp, until 2026-10-26.)* Placement is by TEAM (owner: "In duos you only
   place 1 and 2 in a 2v2"): the winning team is 1st (both players), the losing team 2nd (both). XP: 125 for each winner,
   50 for each loser. Teams are kept as their own record (id, pool, placement), so a future 4-team Duos places teams
   1st to 4th the same way.
@@ -1487,8 +1500,15 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   and the host's **friends only** switch are no longer on screen; the server keeps both (a friends-only party is
   listed, counted and joinable only for the host's friends and its members, and never shown on Live Games). The party
   uses the live rules.
-- **After a game** each teammate returns to the party and sees the team's place out of 4, its rating change and medal
-  on the ranked end sequence (the solo rank screen). The party stays together for the next game.
+- **After a game** (owner 2026-11-02, R-RANKED-DUOS-POSTGAME-01: "add a post game screen just like ranked solo's that
+  shows your team's ranked progress/xp etc same flow as solos"; "the continue then returns you to your duos party")
+  each teammate gets the solo ranked end screen over the party, in the solo order: the team's place out of 4, the
+  team's medal bar and points change (with the promotion / demotion moment), then the player's own Account XP (Aether
+  and the new-rewards line included). The team's name and both teammates' portraits and names head it. An unrated
+  table reads "Unrated" and still shows the XP. Match details opens the match stats (they never open over the
+  results). **Continue** closes it onto the party, which stays together for the next game. XP settles once per player
+  (`versus:<match>`); a request that reaches the server before the Worker's result has landed is retried for 3
+  minutes instead of dropped.
 - **Boards.** The Leaderboard has Solo | Duos tabs; Duos lists the top teams (team name, both players, medal, games).
   A player's Career shows their Ranked Duos teams (each with its partner, medal and games).
 - **Live Games.** A live team is one row (`duos:<room>`, published by its first seat): the team name, the first seat's
@@ -1496,7 +1516,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 
 - **The mode.** A ranked lobby for two players playing live together: 4 teams of 2. Your team is the two of you; the
   other three teams are recorded runs. It follows the lobby rules (pairing, ghost fights, damage formula, round loss cap,
-  placement), with tag-team fights as in Versus Duos and passing as in Versus Duos (1 Gold, hand only, refused on a full
+  placement), with tag-team fights as in Versus Duos (the fly-in included, R-DUOS-FLYIN-01) and passing as in Versus Duos (1 Gold, hand only, refused on a full
   hand). Attack-first cards are allowed. Duo runs never feed the solo pool.
 - **Team pool.** 30 Health plus both heroes' Armor; Armor absorbs first. A team at 0 is out together; placement is 1st
   to 4th per team.

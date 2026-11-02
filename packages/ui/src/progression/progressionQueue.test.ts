@@ -201,3 +201,40 @@ describe('Versus and spectator items (2026-10-24)', () => {
     expect(pendingProgressions()).toEqual([]);
   });
 });
+
+describe('a Versus result still landing (R-RANKED-DUOS-POSTGAME-01)', () => {
+  const m = '11111111-2222-3333-4444-555555555555';
+  it('source_not_found / not_terminal right after the game are retried, then settle once; past the grace they are final', async () => {
+    const { VERSUS_SOURCE_GRACE_MS } = await import('./progressionQueue');
+    const t0 = 50_000;
+    let t = t0;
+    let calls = 0;
+    // The Worker's writer has not landed the match yet: the first answer refuses, the second confirms.
+    invokeImpl = async (o) => (calls++ === 0 ? httpError(409, 'source_not_found') : settled(String(o.body.runId), 'versus'));
+    enqueuePendingProgression({ mode: 'versus', runId: `versus:${m}`, rulesVersion: 1, comeback: false }, t0);
+    const seen: string[] = [];
+    await flushPendingProgressions((_i, o) => seen.push(o.status), { ...noRankPending, now: () => t });
+    expect(seen).toEqual(['retryable']);
+    expect(pendingProgressions()[0]).toMatchObject({ attempts: 1, lastError: 'landing:source_not_found' });
+    t += backoffMs(1);
+    await flushPendingProgressions((_i, o) => seen.push(o.status), { ...noRankPending, now: () => t });
+    expect(seen).toEqual(['retryable', 'confirmed']);
+    expect(pendingProgressions()).toHaveLength(0);
+
+    // Past the grace window the same refusal is permanent (a bot or a forced match).
+    clearPendingProgressions();
+    invokeImpl = async () => httpError(409, 'not_terminal');
+    enqueuePendingProgression({ mode: 'versus', runId: `versus:${m}`, rulesVersion: 1, comeback: false }, t0);
+    const late: string[] = [];
+    await flushPendingProgressions((_i, o) => late.push(o.status), { ...noRankPending, now: () => t0 + VERSUS_SOURCE_GRACE_MS + 1 });
+    expect(late).toEqual(['rejected']);
+    expect(pendingProgressions()).toHaveLength(0);
+  });
+  it('only Versus: a ranked run refused as source_not_found stays refused', async () => {
+    invokeImpl = async () => httpError(409, 'source_not_found');
+    enqueuePendingProgression(progressionRequestFor(facts()), 1000);
+    const seen: string[] = [];
+    await flushPendingProgressions((_i, o) => seen.push(o.status), { ...noRankPending, now: () => 2000 });
+    expect(seen).toEqual(['rejected']);
+  });
+});

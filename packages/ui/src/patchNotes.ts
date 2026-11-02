@@ -58,6 +58,18 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-02',
     changes: [
+      {
+        category: 'Systems',
+        text: "Duos: when your first board wins, your teammate's minions now fly into the empty slots and add to the damage.",
+        details: [
+          "After a win with your first board, your teammate's board (which never fought) flies in and fills your empty slots from left to right, up to 7.",
+          'A full board means no fly-in.',
+          'They do not trigger anything. No Start of Combat, no summon effects.',
+          'Each one adds its tier to the damage, just like a survivor. The damage count now shows every minion for Duos fights.',
+          "If your first board fell and your teammate's board won, nothing flies in.",
+          'Works in Versus Duos and Ranked Duos.',
+        ],
+      },
       { category: 'Systems', text: 'Opening a chest now shows a picture of a card plate or portrait frame you find, like skins and emotes already did.' },
       {
         category: 'Systems',
@@ -70,6 +82,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'After a game ended, the menu could offer Continue at your last round. Playing it ended the same way and offered it again.',
           'A game that has ended is now gone from Continue on every device the moment it ends.',
           'Your rank result from that game was always counted once.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Duos fights: the second board to fight now plays all of its animations.',
+        details: [
+          'When a teammate’s board steps in, its Deathrattles, attack effects, Shouts, Rallies and trigger glows now play, the same as the first board’s.',
+          'This fixes both teams, on your screen, your teammate’s screen and for spectators.',
+          'The hero attack at the end of the fight is now the one equipped by the player whose board won it.',
         ],
       },
       {
@@ -100,6 +121,26 @@ export const PATCH_NOTES: PatchNote[] = [
           'It keeps the teal glow in your hand, so you know to pass it to them.',
           'It updates live as your teammate buys, sells and plays.',
           'If the card would finish your own triple too, it shows your own gold glow.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Ranked Duos now ends on the same results screen as ranked solo. Continue takes you back to your party.',
+        details: [
+          "You see your team's place out of 4, your team's rank bar and points change, then your own Account XP.",
+          'Your team name and both of your heroes sit at the top.',
+          'Match details opens the match stats. They no longer cover your results.',
+          'XP from a Versus or Duos game that was slow to save is now retried instead of lost.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Ranked Duos and Versus: the end of a match now always reaches both players. Nobody is left in a shop that never fights.',
+        details: [
+          'Fixed: after the last fight of a Duos game, your teammate\'s fight could start again on your screen, and End Combat led back into it.',
+          'Fixed: one teammate could be left on the last shop while the other went back to the party.',
+          'If your last fight does not start after the match is over, the game takes you back to the room on its own.',
+          'Leave match in the Esc menu now works once the match is over. Before, it did nothing.',
         ],
       },
       {

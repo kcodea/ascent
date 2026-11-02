@@ -76,6 +76,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ⇢ ${ev.side}'s board ${ev.member + 1} sends its teammate a gift`;
     case 'tagIn':
       return `   ⇄ ${ev.side}'s board ${ev.member + 1} steps in (${ev.minions.map((m) => m.name).join(', ')})`;
+    case 'flyIn':
+      return `   ⇉ ${ev.side}'s board ${ev.member + 1} flies in to the empty slots (${ev.minions.map((m) => m.name).join(', ')})`;
     case 'summon':
       return `   + ${ev.minion.name} (${ev.minion.attack}/${ev.minion.health}) summoned on ${ev.side}`;
     case 'ascend':

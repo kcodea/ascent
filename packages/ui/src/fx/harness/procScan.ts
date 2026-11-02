@@ -43,6 +43,7 @@ export function uidsForCard(combat: CombatResult, cardId: string): Set<string> {
   }
   for (const e of combat.events) {
     if (e.type === 'summon' && e.minion.cardId === cardId) out.add(e.minion.uid);
+    else if (e.type === 'tagIn') for (const m of e.minions) if (m.cardId === cardId) out.add(m.uid); // R-DUOS-FX-01
   }
   return out;
 }

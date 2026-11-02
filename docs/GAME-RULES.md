@@ -796,7 +796,21 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   the last). IV: dozens of lances in a dome of rings round the target while a big rune circle counts 3, 2, 1 in glowing runes; the dome
   collapses into one massive gold and violet impact on a slow-motion dip. Its Knockout variant adds a ring of cyan and
   magenta lances, a prismatic collapse, a bigger shake, a deeper dip and the KO sting. Every hit before the last is a
-  tick; the blow lands once. **Card Shark** and
+  tick; the blow lands once. **Golazo** (2026-11-02; `attack_soccer`, a placeholder name; Legendary, from chests;
+  R-PROG-ATTACK-37): the striking PORTRAIT plays football into a GOAL (posts, crossbar and net) drawn on the struck
+  hero, and every blow ends with the ball bulging the net (it bursts out and springs back). A referee's whistle opens
+  every tier. I the volley: keepy-uppies where it stands, a higher flick, a hop and a volley into the goal. II the corner
+  kick: it jogs out to a corner flag on the struck hero's goal line, sets the ball and strikes one of three corners
+  rolled per fight: the Olimpico (an inswinger that bends all the way in), an outswinger it sprints in to meet with a
+  leaping header, or a short corner rolled off the edge of the screen, the one-two back and a first-time curler. III the
+  breakaway: it dribbles up the pitch past defenders (dark tokens that lunge the wrong way and fall away) with one of
+  three skills rolled per fight (stepovers, a nutmeg straight through the defender, or a rainbow flick over its head),
+  then a slow-motion last touch and a placed finish. IV the bicycle kick: keepy-uppies, a flick sky high, a sprint to
+  the spot the ball's shadow marks, a crouch, a leap and a backward flip; upside down at the top, in deep slow motion,
+  the bicycle kick, and a thunderbolt with a fire trail rockets into the goal (the net bursts, the frame rings, an
+  explosion, confetti, GOLAZO! and the crowd's roar), then a knee slide and home. The blow lands once, when the ball
+  hits the net; nothing before it touches the target. The roll comes from the run seed and the round, so a replay rolls
+  the same; every point stays on screen and the portrait is restored exactly after. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
   medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from chests): the hero

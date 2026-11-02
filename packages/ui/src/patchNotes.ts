@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-01',
     changes: [
+      { category: 'Systems', text: 'Duos: a spell you drag out to cast, like Broshake or Tribe Bundle, now sends its stream to your teammate from where you let go, not from your hand. A minion you play that sends something does the same.' },
       { category: 'Balance', text: 'Hero balance: twelve heroes changed. Most start with less Armor, a few with more, and Tradesman tiers up for less.', details: [
         'Guardian: Armor 10 to 6.',
         'Emerald Warden: Armor 8 to 3.',

@@ -8,7 +8,7 @@
  * that resolves to on the page (`passFlightEl`). Plus: each entry flies once (a network retry ships it again).
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { passFlightEl, passFlightOf, playEntryFlight, type PassFlightEntry } from './passLob';
+import { RELEASE_TTL_MS, clearCastRelease, noteCastRelease, passFlightEl, passFlightOf, playEntryFlight, playPassFlight, takeCastRelease, type PassFlightEntry } from './passLob';
 
 const team = (t: PassFlightEntry['team'], extra: Partial<PassFlightEntry> = {}): PassFlightEntry =>
   ({ card: { uid: 'team3', cardId: '__team' }, team: t, ...extra });
@@ -98,5 +98,66 @@ describe('playEntryFlight', () => {
     playEntryFlight(e, run);
     expect(playEntryFlight(e, run)).toBe(false);
     expect(playEntryFlight({ seq: 1, wave: 1, card: { uid: 'h1', cardId: 'x' } }, run)).toBe(false);
+  });
+});
+
+/**
+ * R-DUOS-PASS-RELEASE-01 (owner 2026-11-01): "can spells like broshake/tribe bundle etc show the animation from the
+ * release point instead of from hand?" The drop notes where the card was let go; a send from that card streams from
+ * there (presentation only, keyed by uid, short-lived, the face handed out once).
+ */
+describe('a send from a card you let go of streams from the release point', () => {
+  afterEach(() => { document.body.innerHTML = ''; clearCastRelease(); });
+
+  const mountDragCard = (): void => {
+    document.body.innerHTML = '<div class="dragcard"><div class="dragshrink"><div class="card" id="face"><div class="cardplate" id="plate"></div></div></div></div>';
+    const dc = document.querySelector<HTMLElement>('.dragcard')!;
+    dc.getBoundingClientRect = () => ({ left: 300, top: 200, width: 150, height: 210, right: 450, bottom: 410, x: 300, y: 200, toJSON: () => ({}) }) as DOMRect;
+    Object.defineProperty(dc.style, 'zoom', { value: '1.5' });
+    Object.defineProperty(dc, 'offsetWidth', { value: 100 });
+    Object.defineProperty(dc, 'offsetHeight', { value: 140 });
+  };
+
+  it("a spell (Broshake) notes the drag card's box, face and plate; the face is handed out once", () => {
+    mountDragCard();
+    noteCastRelease('sp1', { pointer: { x: 1, y: 1 }, size: { w: 10, h: 10 }, leaves: true }, 1000);
+    const a = takeCastRelease('sp1', 1100)!;
+    expect(a).toMatchObject({ uid: 'sp1', cx: 375, cy: 305, w: 150, h: 210, zoom: 1.5, leaves: true });
+    expect(a.face?.id).toBe('face');
+    expect(a.plate).not.toBeNull();
+    const b = takeCastRelease('sp1', 1200)!;
+    expect(b.cx).toBe(375);
+    expect(b.face).toBeNull(); // a second send from the same cast streams bare: nothing dissolves twice
+    expect(b.plate).toBeNull();
+  });
+
+  it('a played minion (a Shout that sends) notes the point but no face: its play already dissolves its plate', () => {
+    mountDragCard();
+    noteCastRelease('m1', { pointer: { x: 1, y: 1 }, size: { w: 10, h: 10 }, leaves: false }, 0);
+    const r = takeCastRelease('m1', 10)!;
+    expect(r.cx).toBe(375);
+    expect(r.face).toBeNull();
+    expect(r.plate).toBeNull();
+  });
+
+  it('no drag card up (a targeted spell aiming): the pointer and the drag size stand in', () => {
+    noteCastRelease('sp2', { pointer: { x: 40, y: 60 }, size: { w: 120, h: 170 }, leaves: true }, 0);
+    expect(takeCastRelease('sp2', 5)).toMatchObject({ cx: 40, cy: 60, w: 120, h: 170, zoom: 1, face: null });
+  });
+
+  it("only for that card, and only while fresh (a click cast or a restore keeps today's source)", () => {
+    noteCastRelease('sp3', { pointer: { x: 0, y: 0 }, size: { w: 1, h: 1 }, leaves: true }, 0);
+    expect(takeCastRelease('other', 1)).toBeNull();
+    expect(takeCastRelease('sp3', RELEASE_TTL_MS + 1)).toBeNull();
+    expect(takeCastRelease('sp3', 2)).toBeNull(); // expired is gone
+  });
+
+  it('the flight streams from the release point even with the spell gone from the page; without one it has no source', () => {
+    document.body.innerHTML = '<div data-duos-mate><div class="duosdock-disc" id="door"></div></div>';
+    const flight = passFlightOf(team({ kind: 'buffLeftmost', attack: 3, health: 5 } as never, { src: { uid: 'bro' } }))!;
+    expect(flight).toEqual({ at: 'card', uid: 'bro', leaves: false, face: false });
+    expect(playPassFlight(flight)).toBe(false); // no release, no '.card[data-uid=bro]' on the page: nothing to fly from
+    noteCastRelease('bro', { pointer: { x: 500, y: 300 }, size: { w: 120, h: 170 }, leaves: true });
+    expect(playPassFlight(flight)).toBe(true);
   });
 });

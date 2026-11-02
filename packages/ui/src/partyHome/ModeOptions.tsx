@@ -59,7 +59,7 @@ export function PracticePanel() {
     <>
       <PhSegmented size="l" value={god ? 'god' : 'sandbox'} onPick={(v) => { sfx.tick(); setDraft({ godMode: v === 'god' }); }}
         options={[{ value: 'sandbox', label: 'Sandbox' }, { value: 'god', label: 'God Mode' }]}
-        hint={god ? 'A fixed setup with every tool unlocked.' : 'The Practice game, set up your way. Nothing here is rated.'} />
+        hint={god ? 'A fixed setup with every tool unlocked.' : 'Set the game up your way.'} />
       {god ? (
         <div className="pho-god" aria-label="What God Mode gives you">
           {GOD_FEATURES.map(([t, x]) => <div key={t} className="pho-godrow"><span>{t}</span><span>{x}</span></div>)}
@@ -119,8 +119,9 @@ export function GauntletPanel({ selected, onSelect }: { selected: number | null;
         {shown.map(({ n, stage, state }) => {
           const playable = stagePlayable(state);
           return (
-            <PhRow key={n} className={`pho-stage${playable ? '' : ' off'}`} art={foePortrait(n).art} selected={selected === n}
-              lead={<span className="pho-stagenum">{n}</span>} title={stage?.name ?? `Stage ${n}`}
+            <PhRow key={n} className={`pho-stage${playable ? '' : ' off'}`} selected={selected === n}
+              lead={<span className="pho-stagelead"><span className="pho-stagenum">{n}</span><span className="ph-fportrait">{foePortrait(n).art && <img src={foePortrait(n).art} alt="" draggable={false} decoding="sync" />}</span></span>}
+              title={stage?.name ?? `Stage ${n}`}
               sub={state === 'locked' ? `Clear Stage ${n - 1} to unlock` : state === 'cleared' ? 'Already cleared. No chest for replays.' : undefined}
               right={STAGE_TAG[state] ? <PhChip tone={state === 'cleared' ? 'teal' : 'neutral'}>{STAGE_TAG[state]}</PhChip> : undefined}
               onClick={playable ? () => { sfx.tick(); onSelect(n); } : undefined} label={`Stage ${n}${stage ? `, ${stage.name}` : ''}`} />
@@ -144,7 +145,7 @@ export function VersusPanel({ modifier, onModifier, onBrowse }: { modifier: Vers
       <PhSegmented label="Modifier" value={modifier} options={MODIFIERS} onPick={(v) => { sfx.tick(); onModifier(v); }}
         hint={modifier ? riftDefFor(modifier, 'versus').blurb : 'The usual rules.'} />
       <div className="pho-note">
-        <span>Start hosts a room with these rules. Friends join from your invite.</span>
+        <span>Start hosts a room with these rules.</span>
         <PhButton size="s" onClick={() => { sfx.pulse(); onBrowse(); }}>Browse rooms</PhButton>
       </div>
     </>

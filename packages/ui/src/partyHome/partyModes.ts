@@ -32,7 +32,7 @@ export const PARTY_MODES: readonly PartyMode[] = [
   { id: 'vduos', label: 'Versus Duos', desc: 'Two teams of two, shared hearts. Unranked.', slots: 4, party: 'rivals', ranked: false, versus: true, options: true },
   { id: 'practice', label: 'Practice', desc: 'Practice your way. Nothing here is rated.', slots: 1, party: 'solo', ranked: false, options: true },
   { id: 'gauntlet', label: 'Gauntlet', desc: 'Survive 10 rounds against a hand-built foe.', slots: 1, party: 'solo', ranked: false, options: true },
-  { id: 'learn', label: 'Learn', desc: 'The tutorial and techniques.', slots: 1, party: 'solo', ranked: false },
+  { id: 'learn', label: 'Learn', desc: 'A coached first game that teaches you everything.', slots: 1, party: 'solo', ranked: false },
 ];
 
 /** The tabs this build shows. */

@@ -77,6 +77,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // five seconds, with the turntick sound; fired from `ShopTimer` in Recruit, building in intensity toward ONE.
   'final-countdown-tick': ['Recruit.tsx'],
   'freeze-blast': ['FreezeButton.tsx'],
+  // THE GOLD FUSE BREAK (owner ask 2026-11-01, R-TIMER-FUSE-02): a gold ring and sparks where the fuse bar snaps as
+  // the shop clock lights; fired once per break from `useGoldFuseBreak`.
+  'gold-fuse-break': ['goldFuseBreak.ts'],
   'freeze-break': ['FreezeButton.tsx'],
   // The Versus room's VS slam (R-VERSUS-ROOM-ENTER-01): the entrance and the face-off beat, under the VS mark.
   'ground-slam': ['versus/VersusRoom.tsx'],

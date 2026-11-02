@@ -6,17 +6,22 @@
  * Two configs (`goldClockOf`):
  *  - EVERY LOBBY AND PRACTICE (R-TIMER-FUSE-01, owner 2026-10-07: "every rank will have the gold fuse implemented. it
  *    will kick off the timer when 10 gold is spent" + "the round timer should follow the existing round by round time
- *    increase, not the 60/90 secnd timer"): 10 Gold, then that round's STANDARD turn length (`standardTurnSeconds`,
- *    the one schedule Recruit's normal clock uses too), times Practice's 1-4x choice. Ranked at every medal, unrated
- *    tables and Practice alike ("All lobbies, Gauntlet unchanged"). Rounds 1-7 usually never reach 10 Gold, so they
- *    usually have no clock at all ("Yes, early rounds untimed"). Practice on ∞ has no clock whatsoever (null here,
- *    and Recruit's infinite clock).
+ *    increase, not the 60/90 secnd timer"): the fuse's Gold, then that round's STANDARD turn length
+ *    (`standardTurnSeconds`, the one schedule Recruit's normal clock uses too), times Practice's 1-4x choice. Ranked at
+ *    every medal, unrated tables and Practice alike ("All lobbies, Gauntlet unchanged"). Early rounds usually never
+ *    reach the threshold, so they usually have no clock at all ("Yes, early rounds untimed"). Practice on ∞ has no
+ *    clock whatsoever (null here, and Recruit's infinite clock).
+ *    THE THRESHOLD BY MEDAL (R-TIMER-FUSE-02, owner 2026-11-01: "Bronze = 10 gold, Silver = 10 gold, Gold = 7 gold,
+ *    Platinum = 5 gold, Diamond = 5 gold, Ascendant = 3 gold"): a rated lobby's fuse reads the medal PINNED on the run
+ *    when it started (`medalAtStart`, `FUSE_GOLD_BY_MEDAL`), so a promotion mid-game, Save & Quit, a cloud resume and
+ *    a replay all keep the threshold the game started with. A run with no pinned medal (an unrated table, Practice, a
+ *    run from before the pin) keeps `FUSE_GOLD` (10). The countdown's length does not change with the medal.
  *  - a GAUNTLET stage (R-GAUNTLET-04, owner 2026-09-29): 30 Gold, then 60 seconds, every round.
  * The tutorial (scripted, untimed), the sandbox and the legacy modes keep their own clocks (null).
  *
- * This replaced the Bronze-only fuse of 2026-10-06 (R-TIMER-BRONZE-01, 20 Gold then 60 / 90 s, read off the run's
- * pinned `medalAtStart`). The clock no longer reads the medal at all; the pin stays for telemetry
- * (R-TELEMETRY-RANK-01). A run saved under the Bronze rules simply resumes under these.
+ * This replaced the Bronze-only fuse of 2026-10-06 (R-TIMER-BRONZE-01, 20 Gold then 60 / 90 s, also read off the
+ * run's pinned `medalAtStart`). From 2026-10-07 to 2026-11-01 the clock ignored the medal entirely; since
+ * R-TIMER-FUSE-02 it reads it again, for the threshold only. The pin also feeds telemetry (R-TELEMETRY-RANK-01).
  *
  * Presentation-only, like every shop clock: the engine is untimed. The rule is kept here, pure, so it is testable
  * without a DOM; Recruit wires it into the shared `turnClock` store:
@@ -27,7 +32,7 @@
  * Because "waiting" is encoded in the clock VALUE, Save & Quit needs nothing new: a turn quit while waiting saves
  * the parked value and resumes waiting; one quit mid-countdown saves (and resumes) its real seconds.
  */
-import { lobbyIsUnrated, medalOf, rankAtStartOf, type PlayerProfile, type RunState } from '@game/sim';
+import { lobbyIsUnrated, medalOf, rankAtStartOf, type PlayerProfile, type RankMedal, type RunState } from '@game/sim';
 import { standardTurnSeconds } from './turnClock';
 
 /** One gold-spend clock: the Gold spent in a turn that starts it, and the countdown it starts. */
@@ -42,10 +47,24 @@ export const GOLD_CLOCK_WAITING = 99999;
 /** The Gauntlet's clock (R-GAUNTLET-04). */
 export const GAUNTLET_GOLD_CLOCK: GoldClockConfig = Object.freeze({ gold: 30, seconds: 60 });
 
-/** The Gold spent in a turn that lights every lobby's and Practice's fuse (R-TIMER-FUSE-01). */
+/** The Gold spent in a turn that lights the fuse of every lobby with no pinned medal and of Practice (R-TIMER-FUSE-01). */
 export const FUSE_GOLD = 10;
 
-export type GoldClockRun = Pick<RunState, 'mode' | 'sandbox' | 'wave'>;
+/** THE THRESHOLD BY MEDAL (R-TIMER-FUSE-02, owner 2026-11-01): the Gold that lights a rated lobby's fuse, read off
+ *  the medal the run started at (`RunState.medalAtStart`). */
+export const FUSE_GOLD_BY_MEDAL: Readonly<Record<RankMedal, number>> = Object.freeze({
+  Bronze: 10, Silver: 10, Gold: 7, Platinum: 5, Diamond: 5, Ascendant: 3,
+});
+
+/** The Gold that lights this lobby's / Practice's fuse: the pinned medal's threshold, or `FUSE_GOLD` with none. Only a
+ *  LOBBY reads the pin (Practice is never pinned, and would keep 10 if it ever were). An unknown medal string (a
+ *  hand-edited or future save) falls back to 10 too. */
+export function fuseGoldOf(run: Pick<RunState, 'mode' | 'medalAtStart'>): number {
+  if (run.mode !== 'lobby' || !run.medalAtStart) return FUSE_GOLD;
+  return FUSE_GOLD_BY_MEDAL[run.medalAtStart] ?? FUSE_GOLD;
+}
+
+export type GoldClockRun = Pick<RunState, 'mode' | 'sandbox' | 'wave' | 'medalAtStart'>;
 
 /** Practice's 1-4x timer multiplier as it applies to this run's clock: the store's `practiceTimer` on a Practice run
  *  (0 = ∞), 1 on every other run (the multiplier is never consulted outside Practice, and never in the sandbox). */
@@ -64,7 +83,7 @@ export function goldClockOf(run: GoldClockRun, practiceTimer: number): GoldClock
   if (run.mode !== 'lobby' && run.mode !== 'practice') return null;
   const mult = practiceClockMult(run, practiceTimer);
   if (mult <= 0) return null; // Practice on ∞: no timer at all
-  return { gold: FUSE_GOLD, seconds: standardTurnSeconds(run.wave, mult) };
+  return { gold: fuseGoldOf(run), seconds: standardTurnSeconds(run.wave, mult) };
 }
 
 /** Whether this turn's clock is running yet. */
@@ -103,8 +122,8 @@ export function goldTurnClock(args: { clock: GoldClockConfig; goldSpent: number;
 /**
  * PIN the player's medal on a run as it starts. Called by the store where a RATED lobby is minted (`pickHero` /
  * `newRun`, beside `runId`), and nowhere else: the medal never changes afterwards, so Save & Quit, a cloud resume and
- * a rank change mid-game all keep the rank the game started at. (It once chose the Bronze shop clock; since
- * 2026-10-07 every lobby has the same Gold Fuse and the clock no longer reads it.) Only a rated lobby is stamped
+ * a rank change mid-game all keep the rank the game started at. It chooses the Gold Fuse's threshold
+ * (R-TIMER-FUSE-02, `fuseGoldOf`); it once chose the retired Bronze shop clock. Only a rated lobby is stamped
  * (an unrated all-generated table, Practice, a Gauntlet stage, the tutorial and the sandbox are left alone). A
  * brand-new account's profile starts at Bronze I, so it is stamped Bronze. Mutates and returns `run`.
  *

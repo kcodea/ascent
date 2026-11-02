@@ -8,7 +8,7 @@ import {
   type BoardCard, type BoardSnapshot, type PlayerProfile, type RunState,
 } from '@game/sim';
 import {
-  FUSE_GOLD, GAUNTLET_GOLD_CLOCK, GOLD_CLOCK_WAITING, goldClockOf, goldClockReading, goldClockState, goldTurnClock,
+  FUSE_GOLD, FUSE_GOLD_BY_MEDAL, GAUNTLET_GOLD_CLOCK, fuseGoldOf, GOLD_CLOCK_WAITING, goldClockOf, goldClockReading, goldClockState, goldTurnClock,
   pinMedalAtStart, practiceClockMult, type GoldClockRun,
 } from './goldClock';
 import { CHARGE_SECONDS, standardTurnSeconds, turnClockReset } from './turnClock';
@@ -71,13 +71,41 @@ describe('the standard round-by-round schedule (one function, shared by the plai
 describe('goldClockOf: every mode and medal', () => {
   const lobby: GoldClockRun = { mode: 'lobby', wave: 1 };
 
-  it('a rated lobby at EVERY medal: 10 Gold, then that round\'s standard seconds', () => {
-    for (const [division, medal] of [[0, 'Bronze'], [3, 'Silver'], [6, 'Gold'], [9, 'Platinum'], [12, 'Diamond'], [15, 'Ascendant']] as const) {
+  // R-TIMER-FUSE-02 (owner 2026-11-01): "Bronze = 10 gold, Silver = 10 gold, Gold = 7 gold, Platinum = 5 gold,
+  // Diamond = 5 gold, Ascendant = 3 gold". The countdown's length does not change with the medal.
+  it('a rated lobby lights at its PINNED medal\'s threshold, then that round\'s standard seconds', () => {
+    for (const [division, medal, gold] of [[0, 'Bronze', 10], [3, 'Silver', 10], [6, 'Gold', 7], [9, 'Platinum', 5], [12, 'Diamond', 5], [15, 'Ascendant', 3]] as const) {
       const run = pinMedalAtStart(ratedLobby(), at(division));
       expect(run.medalAtStart, `division ${division}`).toBe(medal);
-      expect(goldClockOf({ ...run, wave: 8 }, 3), medal).toEqual({ gold: 10, seconds: 52 });
+      expect(goldClockOf({ ...run, wave: 8 }, 3), medal).toEqual({ gold, seconds: 52 });
+      expect(goldClockOf({ ...run, wave: 12 }, 1), `${medal} w12`).toEqual({ gold, seconds: 80 });
+      expect(FUSE_GOLD_BY_MEDAL[medal]).toBe(gold);
       OPPONENT_POOL.length = 0;
     }
+  });
+
+  it('the threshold is the medal the game STARTED at: a later rank change and a save round-trip keep it', () => {
+    const run = pinMedalAtStart(ratedLobby(), at(7)); // Gold II
+    expect(run.medalAtStart).toBe('Gold');
+    // A promotion elsewhere mid-game never re-stamps the pin (pickHero / newRun only), and a save keeps it.
+    const resumed = deserialize(serialize({ ...run, wave: 8 }));
+    expect(resumed.medalAtStart).toBe('Gold');
+    const clock = goldClockOf(resumed, 1)!;
+    expect(clock).toEqual({ gold: 7, seconds: 52 });
+    expect(goldTurnClock({ clock, goldSpent: 6, current: GOLD_CLOCK_WAITING })).toBeNull();
+    expect(goldTurnClock({ clock, goldSpent: 7, current: GOLD_CLOCK_WAITING }), 'lights at exactly 7').toBe(52);
+    const asc = goldClockOf({ mode: 'lobby', wave: 1, medalAtStart: 'Ascendant' }, 1)!;
+    expect(asc).toEqual({ gold: 3, seconds: 21 });
+    expect(goldClockState(asc, 3), 'Ascendant can light on round 1 with its opening Gold').toBe('running');
+  });
+
+  it('no pinned medal keeps 10: unrated, unpinned, Practice (even if stamped), and an unknown medal string', () => {
+    expect(fuseGoldOf({ mode: 'lobby' })).toBe(FUSE_GOLD);
+    expect(FUSE_GOLD).toBe(10);
+    expect(fuseGoldOf({ mode: 'practice', medalAtStart: 'Ascendant' }), 'Practice never reads the pin').toBe(10);
+    expect(goldClockOf({ mode: 'practice', wave: 8, medalAtStart: 'Diamond' }, 2)).toEqual({ gold: 10, seconds: 104 });
+    expect(fuseGoldOf({ mode: 'lobby', medalAtStart: 'Mythril' as never }), 'unknown medal').toBe(10);
+    expect(goldClockOf({ mode: 'gauntlet', wave: 8, medalAtStart: 'Ascendant' }, 1), 'the Gauntlet keeps its own fuse').toEqual(GAUNTLET_GOLD_CLOCK);
   });
 
   it('an UNRATED (all-generated) lobby and an unpinned lobby get the same fuse', () => {
@@ -234,7 +262,8 @@ describe('the Bronze-only clock is gone; the medal pin stays for telemetry', () 
   it('the Bronze config and its helpers are removed from the clock', () => {
     const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'goldClock.ts'), 'utf8');
     expect(src).not.toMatch(/BRONZE_CLOCK|isBronzeClockRun|bronzeClockSeconds/);
-    expect(src.slice(src.indexOf('export function goldClockOf'), src.indexOf('export function goldClockState'))).not.toMatch(/medal/i);
+    // The medal chooses the threshold only (R-TIMER-FUSE-02): the seconds come from the round schedule alone.
+    expect(src.slice(src.indexOf('export function goldClockOf'), src.indexOf('export function goldClockState'))).toContain('{ gold: fuseGoldOf(run), seconds: standardTurnSeconds(run.wave, mult) }');
   });
 
   it('the pin is still stamped only on a rated lobby (R-TELEMETRY-RANK-01)', () => {

@@ -118,7 +118,24 @@ html[data-touch-small] .phc .book-search { width: calc(200 * var(--phu)); }
 html[data-touch-small] .phc .book-grid { --ch: calc(360px * var(--book-zoom, 1)); }
 html[data-touch-small] .phc .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var(--phu)); }
 
-/* The stand-in host's top nav: the Compendium tab (the nav's last) reads as the current page until the shell's route
-   passes `current` for it (a shell gap, listed in the PR). */
-.phc-host .ph-nav > .ph-navtab:last-child { color: var(--ph-ink); }
-.phc-host .ph-nav > .ph-navtab:last-child::after { content: ''; position: absolute; left: calc(16 * var(--phu)); right: calc(16 * var(--phu)); bottom: 0; height: calc(3 * var(--phu)); background: var(--ph-metal-gold); }
+/* The shell's route: `.book-ov` sits under the top nav (shell.css); the page fills it. */
+.phc-ov { display: flex; place-items: stretch; animation: none; }
+.phc-ov > .phk-page { flex: 1; min-width: 0; }
+
+/* ── THE FANTASY PASS (owner 2026-11-02: "the Compendium is a natural fantasy tome"): captions and group heads in the title
+   serif, warm parchment-white text, gilded edges and a warm lamplight on the plates, the cards' painted name divider under
+   each glossary group. The painted card art in the rail and the cards themselves carry the rest. ── */
+.phc { --cp-warm: #f6e7c8; --cp-muted: #c8b896; --cp-serif: 'Cinzel', var(--font-title), serif; --ui-muted: var(--cp-muted); --ui-text: var(--cp-warm); }
+.phc :is(.book-tiers, .book-rail, :is(.gloss-group, .wiki-group), .wiki-bar) {
+  background: radial-gradient(120% 70% at 0% 0%, rgba(255, 206, 120, 0.08), transparent 60%), var(--ph-plate);
+  box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) color-mix(in srgb, var(--ph-gold) 55%, transparent); }
+.phc .book-main > :is(.book-grid, .bookguides, .book-empty) { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) color-mix(in srgb, var(--ph-gold) 55%, transparent); }
+.phc .book-grid { background: radial-gradient(80% 60% at 50% 0%, rgba(255, 206, 120, 0.06), transparent 70%), linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 85%, #000), color-mix(in srgb, var(--ph-navy) 70%, #000)); }
+.phc :is(.book-railcap, .gloss-grouphead, .wiki-grouphead) { font-family: var(--cp-serif); font-weight: 700; letter-spacing: 0.06em; text-transform: none; color: #fbe6a6; }
+.phc .book-railcap { font-size: var(--ph-t2); }
+.phc :is(.gloss-grouphead, .wiki-grouphead) { font-size: calc(20 * var(--phu)); }
+.phc :is(.gloss-grouphead, .wiki-grouphead)::after { flex: none; width: calc(160 * var(--phu)); height: calc(10 * var(--phu)); background: url('/frames/name-divider.webp') 0 50% / 100% 100% no-repeat; opacity: 0.85; }
+.phc .book-catlabel { font-family: var(--cp-serif); font-weight: 700; letter-spacing: 0.02em; color: var(--cp-warm); }
+.phc .gloss-term, .phc .wiki-q, .phc .bookhero-name { font-family: var(--cp-serif); font-weight: 700; color: var(--cp-warm); }
+.phc .gloss-def { font-family: var(--font-body), sans-serif; color: var(--cp-muted); }
+.phc .book-search { font-family: var(--font-body), sans-serif; color: var(--cp-warm); }

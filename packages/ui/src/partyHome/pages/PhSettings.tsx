@@ -268,8 +268,8 @@ function Row({ label, note, labelId, noteId, children }: { label: string; note?:
   );
 }
 
-/** An on/off setting: the switch (OFF knob left, ON knob right, as the owner's 2026-10-08 rule; the shell paints the
- *  track in the kit's well and gold rather than red and green, with the words On / Off beside it). */
+/** An on/off setting: the owner's 2026-10-08 switch (OFF knob left on red, ON knob right on green) in the shell's dress,
+ *  with the words On / Off beside it. */
 function ToggleRow({ label, note, on, onToggle }: { label: string; note?: string; on: boolean; onToggle: () => void }) {
   const id = useId();
   return (

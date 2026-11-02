@@ -86,13 +86,13 @@ describe('the gate: shell pages only with the switch on, on the menus', () => {
     act(() => { setPartyHome(true); useGame.setState({ showBook: true } as never); });
     ui = mount(<MinionBook />);
     await settle('.phc');
-    expect(ui.container.querySelector('.phc-host .phc .phc-book')).not.toBeNull();
-    expect(ui.container.querySelector('.book-ov'), 'no overlay window').toBeNull();
+    expect(ui.container.querySelector('.book-ov.phc-ov .phc .phc-book'), 'the page in the shell route').not.toBeNull();
+    expect(ui.container.querySelector('.book'), 'no ornate window').toBe(ui.container.querySelector('.phc-book'));
     ui.unmount();
     act(() => { useGame.setState({ showTitle: false } as never); });
     ui = mount(<MinionBook />);
     expect(ui.container.querySelector('.phc'), 'in a game: the window').toBeNull();
-    expect(ui.container.querySelector('.book-ov')).not.toBeNull();
+    expect(ui.container.querySelector('.book-ov .book-head')).not.toBeNull();
   });
 
   it('every shell page is DEV only (lazy, null in production)', () => {

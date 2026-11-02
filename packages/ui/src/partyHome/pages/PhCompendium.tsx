@@ -7,16 +7,11 @@
  * still the book's own (MinionBook.tsx); only the framing and the paint change (phCompendium.css). In a game, the book is
  * the overlay as before.
  *
- * `PhCompendium` is the page CONTENT (a `PhPage`), so the shell's router can mount it in its own host. `PhCompendiumHost`
- * is a stand-in host until that route lands: the lbpage + top nav, where a press on any other nav entry goes there and
- * closes the book (the Compendium tab itself stays put).
+ * `PhCompendium` is the page CONTENT (a `PhPage`). The shell mounts it in its Compendium route: MinionBook renders it in
+ * `.book-ov`, which shell.css places under the top nav (PhBookNav lights the Compendium tab and closes the book on a hop).
  */
-import type { MouseEvent } from 'react';
 import { MinionBook, type CompendiumView } from '../../MinionBook';
-import { MenuBackdrop } from '../../MenuBackdrop';
-import { MenuSidebar, SidebarHost } from '../../MenuSidebar';
 import { sfx } from '../../sfx';
-import { useGame } from '../../store';
 import { PhPage, PhTabs } from '../kit';
 import './phCompendium.css';
 
@@ -38,29 +33,5 @@ export function PhCompendium() {
         <div className={`book phc-book v-${view}`}>{body}</div>
       </PhPage>
     )} />
-  );
-}
-
-/** The stand-in host (see the header): the top nav over the page; any other nav entry goes there and closes the book. */
-export function PhCompendiumHost() {
-  const closeBook = useGame((s) => s.closeBook);
-  const navButton = (e: MouseEvent<HTMLDivElement>): HTMLButtonElement | null => {
-    const btn = (e.target as HTMLElement).closest('button');
-    return btn && btn.closest('.ph-top') ? btn : null;
-  };
-  // The Compendium tab is this page: pressing it does nothing (its own handler would toggle the book shut). Capture
-  // phase, and no state change here: a state change in capture would re-render before the button's own handler runs.
-  const onNavCapture = (e: MouseEvent<HTMLDivElement>): void => {
-    const btn = navButton(e);
-    if (btn?.classList.contains('ph-navtab') && btn.textContent?.trim() === 'Compendium') { e.stopPropagation(); e.preventDefault(); }
-  };
-  // Any other nav entry: its own handler has run (bubble phase), then the book closes.
-  const onNav = (e: MouseEvent<HTMLDivElement>): void => { if (navButton(e)) closeBook(); };
-  return (
-    <SidebarHost className="lbpage ph-shellpage phc-host" onClickCapture={onNavCapture} onClick={onNav}>
-      <MenuBackdrop screen="collection" />
-      <MenuSidebar current={null} />
-      <PhCompendium />
-    </SidebarHost>
   );
 }

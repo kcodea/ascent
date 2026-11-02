@@ -28,7 +28,7 @@ import { usePartyHome } from './partyHome/partyHomeFlag';
 import './compendium.css';
 
 /** The app shell's Compendium page (party home prototype, DEV only; lazy and null in production, like the top nav). */
-const PhCompendiumHost = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendiumHost }))) : null;
+const PhCompendium = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendium }))) : null;
 
 /** Evolution units — non-buyable tokens a minion ascends/transforms into (Spirit Pup → Spirit Worgen,
  *  Tara → Taragosa). Detected from the SOURCE cards actually in the given set's pool (ascend targets +
@@ -309,7 +309,10 @@ export function MinionBook({ frame }: { frame?: (parts: CompendiumParts) => Reac
   // THE APP SHELL (party home prototype, DEV switch): on the menus the Compendium is a page under the top nav.
   const shell = usePartyHome();
   const onMenus = useGame((s) => s.showTitle && !s.gameMenuOpen);
-  if (!frame && shell && onMenus && PhCompendiumHost) return <Suspense fallback={null}><PhCompendiumHost /></Suspense>;
+  // The shell's route: `.book-ov` sits under the top nav (shell.css), the nav lights its Compendium tab (PhBookNav).
+  if (!frame && shell && onMenus && PhCompendium) {
+    return <div className="book-ov phc-ov" role="region" aria-label="Compendium"><Suspense fallback={null}><PhCompendium /></Suspense></div>;
+  }
   return <BookView frame={frame} />;
 }
 

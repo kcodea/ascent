@@ -60,10 +60,6 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Compendium: the Guides view always shows its own tribe filter, even when Runes was open just before.',
-      },
-      {
-        category: 'Systems',
         text: "Duos: when your first board wins, your teammate's minions now fly into the empty slots and add to the damage.",
         details: [
           "After a win with your first board, your teammate's board (which never fought) flies in and fills your empty slots from left to right, up to 7.",

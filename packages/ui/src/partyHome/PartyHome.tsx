@@ -71,6 +71,8 @@ interface Member {
   titleId: string | null;
   /** Your own medal only (a teammate's is not read yet: a stub). */
   rank: ReturnType<typeof useCurrentRank>;
+  /** Another player in a Versus mode: an opponent, not a teammate (the rail's foe red). */
+  rival: boolean;
   level: number | null;
   state: 'ready' | 'in_game' | 'waiting';
   leader: boolean;
@@ -149,7 +151,7 @@ export default function PartyHome({ onSettings, onRankedStart }: PartyHomeProps)
   const host = duosRoom ? duosRoom.host_user_id === me : true;
   const inGame = duosRoom?.status === 'in_game';
   const selfMember: Member = {
-    key: 'self', self: true, name: myName, art: myArt, titleId: mirror?.equippedTitleId ?? null, rank, level: lv?.level ?? null,
+    key: 'self', self: true, name: myName, art: myArt, titleId: mirror?.equippedTitleId ?? null, rank, level: lv?.level ?? null, rival: false,
     state: inGame ? 'in_game' : 'ready', leader: mode.slots > 1 && host,
   };
   const members: Member[] = [selfMember];
@@ -158,13 +160,13 @@ export default function PartyHome({ onSettings, onRankedStart }: PartyHomeProps)
       if (m.userId === me) continue;
       const src = seatCardSource({ member: m, own: false, showOpp, server: seatData.get(m.userId) });
       members.push({
-        key: m.userId, self: false, name: src.name, art: playerCardArt(src), titleId: src.titleId, rank: null, level: null,
+        key: m.userId, self: false, name: src.name, art: playerCardArt(src), titleId: src.titleId, rank: null, level: null, rival: false,
         state: inGame ? 'in_game' : 'ready', leader: duosRoom.host_user_id === m.userId,
       });
     }
   } else if (demo && mode.slots > 1) {
     const av = sampleAvatars();
-    members.push({ key: 'sample-mate', self: false, name: 'Mike', art: avatarSrc(av[0]), titleId: null, rank: null, level: 12, state: 'ready', leader: false });
+    members.push({ key: 'sample-mate', self: false, name: 'Mike', art: avatarSrc(av[0]), titleId: null, rank: null, level: 12, rival: mode.party === 'rivals', state: 'ready', leader: false });
   }
   const slots = Math.max(mode.slots, members.length);
   const open = slots - members.length;
@@ -178,7 +180,7 @@ export default function PartyHome({ onSettings, onRankedStart }: PartyHomeProps)
   switch (mode.id) {
     case 'ranked': onStart = () => onRankedStart('solo'); break;
     case 'duos':
-      if (demo && !duosRoom) { startOk = false; startNote = 'Sample party. Start is off.'; break; }
+      if (demo && !duosRoom) { startNote = 'Sample party. Start does nothing here.'; break; }
       if (inGame) { startOk = false; startLabel = 'In game'; break; }
       if (!duosRoom || !teammate) { startOk = false; startNote = 'Invite a teammate to start.'; break; }
       if (!host) { startOk = false; startLabel = 'Waiting'; startNote = 'Your party leader starts the game.'; break; }
@@ -238,6 +240,11 @@ export default function PartyHome({ onSettings, onRankedStart }: PartyHomeProps)
           <button type="button" className="ph-navtab" onClick={() => { sfx.pulse(); toggleBook(); }}><MenuMedal name="glossary" className="menumedal ph-navicon" /><span>Compendium</span></button>
         </nav>
         <div className="ph-wallet">
+          {/* DEV: the prototype's own controls, clearly labelled. */}
+          <div className="ph-proto" role="group" aria-label="Prototype">
+            <span className="ph-proto-tag">Prototype</span>
+            <button type="button" className={`ph-chipbtn${demo ? ' on' : ''}`} aria-pressed={demo} onClick={() => { sfx.pulse(); setPartyDemo(!demo); }}>Sample party</button>
+          </div>
           {aetherOn && mirror && (
             <span className="ph-coin" aria-label={`${mirror.aether ?? 0} Aether`}><AetherIcon className="ph-aether" /><b>{mirror.aether ?? 0}</b></span>
           )}
@@ -318,12 +325,6 @@ export default function PartyHome({ onSettings, onRankedStart }: PartyHomeProps)
       <FriendsColumn open={!phone || friendsOpen} phone={phone} demo={demo} canInvite={canInvite} busy={inviteBusy}
         modeLabel={mode.label} onInvite={(f) => { void invite(f); }} onClose={() => setFriendsOpen(false)} />
 
-      {/* DEV: the prototype's own controls, bottom left, clearly labelled. */}
-      <div className="ph-proto" role="group" aria-label="Prototype">
-        <span className="ph-proto-tag">Prototype</span>
-        <button type="button" className={`ph-chipbtn${demo ? ' on' : ''}`} aria-pressed={demo} onClick={() => { sfx.pulse(); setPartyDemo(!demo); }}>Sample party</button>
-      </div>
-
       {nameOpen && duosRoom && <TeamNamePanel room={duosRoom} me={me} name={teamName} onSaved={setTeamName} onClose={() => setNameOpen(false)} />}
       {duosRoom && <DuosResultOverlay />}
     </div>
@@ -335,7 +336,7 @@ function BannerCard({ m, i, phone }: { m: Member; i: number; phone: boolean }): 
   const art = phone ? heroThumb(m.art) : m.art;
   const state = m.state === 'in_game' ? 'In game' : m.state === 'ready' ? 'Ready' : 'Not ready';
   return (
-    <div className={`ph-card${m.self ? ' you' : ''}`} style={{ '--i': i } as CSSProperties}>
+    <div className={`ph-card${m.self ? ' you' : ''}${m.rival ? ' rival' : ''}`} style={{ '--i': i } as CSSProperties}>
       <div className="ph-card-in">
         {art && <img className="ph-art" src={art} alt="" draggable={false} decoding="async" />}
         {m.self && <span className="ph-you" aria-hidden="true">You</span>}
@@ -346,7 +347,7 @@ function BannerCard({ m, i, phone }: { m: Member; i: number; phone: boolean }): 
           <span className="ph-rank">
             {m.rank ? (
               <><RankCrest divisionIndex={m.rank.divisionIndex} size="mini" hideDivision /><span>{rankLabel(m.rank)}</span></>
-            ) : <span className="ph-muted">{m.self ? 'Unranked' : 'Medal not shown yet'}</span>}
+            ) : <span className="ph-muted">{m.self ? 'Unranked' : 'Medal: prototype'}</span>}
           </span>
           <span className={`ph-state s-${m.state}`}>{state}</span>
         </div>

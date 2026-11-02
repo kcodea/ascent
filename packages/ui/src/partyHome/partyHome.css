@@ -39,7 +39,7 @@
   box-shadow: inset calc(-1 * var(--u)) 0 0 color-mix(in srgb, var(--gold) 30%, transparent); }
 .ph-brand img { width: calc(40 * var(--u)); height: calc(40 * var(--u)); object-fit: contain; }
 .ph-brand span { font-family: var(--title-font, var(--font-title)); font-weight: 800; font-size: calc(24 * var(--u)); letter-spacing: 0.12em; text-shadow: var(--pill-text-shadow); }
-.ph-nav { display: flex; align-items: stretch; gap: 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.ph-nav { flex: 1 1 auto; display: flex; align-items: stretch; gap: 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .ph-nav::-webkit-scrollbar { display: none; }
 .ph-navtab { position: relative; display: flex; align-items: center; gap: calc(8 * var(--u)); padding: 0 calc(16 * var(--u)); margin: 0; border: 0; border-radius: 0; background: none;
   font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap;
@@ -51,7 +51,7 @@
 .ph-navicon { width: calc(24 * var(--u)); height: calc(24 * var(--u)); flex: none; }
 .ph-navicon svg, .ph-navicon img { width: 100%; height: 100%; }
 .ph-dot { width: calc(8 * var(--u)); height: calc(8 * var(--u)); border-radius: 50%; background: var(--pill-red, #ff7a66); box-shadow: 0 0 0 calc(1.5 * var(--u)) var(--navy); margin-left: calc(-4 * var(--u)); align-self: flex-start; margin-top: calc(18 * var(--u)); }
-.ph-wallet { margin-left: auto; display: flex; align-items: center; gap: calc(14 * var(--u)); padding-right: var(--safe-r, 0px); }
+.ph-wallet { flex: none; margin-left: auto; display: flex; align-items: center; gap: calc(14 * var(--u)); padding-right: var(--safe-r, 0px); }
 .ph-coin, .ph-lv { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); height: calc(38 * var(--u)); padding: 0 calc(14 * var(--u));
   background: var(--pill-well); box-shadow: inset 0 0 0 calc(1 * var(--u)) var(--pill-hair);
   clip-path: polygon(calc(8 * var(--u)) 0, 100% 0, calc(100% - calc(8 * var(--u))) 100%, 0 100%); }
@@ -90,11 +90,11 @@
 .ph-chipbtn:hover { background: var(--pill-plate-hover); color: #fff; }
 .ph-chipbtn.on { box-shadow: inset 0 0 0 calc(1.5 * var(--u)) var(--teal); color: #fff; }
 
-.ph-cards { min-height: 0; height: 100%; width: 100%; display: flex; align-items: center; justify-content: center; gap: calc(26 * var(--u)); padding: calc(16 * var(--u)) 0; box-sizing: border-box; }
+.ph-cards { --gap: calc(26 * var(--u)); container-type: size; min-height: 0; height: 100%; width: 100%; display: flex; align-items: center; justify-content: center; gap: var(--gap); padding: calc(16 * var(--u)) 0; box-sizing: border-box; }
 /* THE BANNER CARD: a tall clean-cut card. The outer box is the gold edge (a gradient under the same cut), the inner box the
    navy plate, inset by the edge width, so the edge follows the cut corners exactly. */
 .ph-card { --ew: calc(2 * var(--u));
-  position: relative; flex: none; height: min(calc(560 * var(--u)), 100%); aspect-ratio: 0.56; padding: var(--ew); margin: 0; border: 0; border-radius: 0; box-sizing: border-box;
+  position: relative; flex: none; --n: 1; height: min(calc(640 * var(--u)), 100cqh, calc((100cqw - (var(--n) - 1) * var(--gap)) / var(--n) / 0.56)); aspect-ratio: 0.56; padding: var(--ew); margin: 0; border: 0; border-radius: 0; box-sizing: border-box;
   background: linear-gradient(180deg, var(--ui-edge-hi, #ffe9b0) 0%, var(--gold) 30%, var(--ui-edge-deep, #7a571f) 70%, var(--gold) 100%);
   clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
   color: inherit; text-align: left;
@@ -119,7 +119,7 @@
 .ph-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(32 * var(--u)); line-height: 1.05; letter-spacing: 0.02em; color: #fff; text-shadow: var(--pill-text-shadow), 0 calc(2 * var(--u)) calc(10 * var(--u)) rgba(0, 0, 0, 0.7); }
 .ph-sub, .ph-muted { font-size: calc(14 * var(--u)); color: var(--muted); text-shadow: var(--pill-text-shadow); }
 .ph-titlebadge { font-size: calc(15 * var(--u)); }
-.ph-rank { display: inline-flex; align-items: center; gap: calc(8 * var(--u)); min-height: calc(34 * var(--u)); font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(15 * var(--u)); color: var(--pill-text); text-shadow: var(--pill-text-shadow); }
+.ph-rank { display: inline-flex; align-items: center; gap: calc(14 * var(--u)); min-height: calc(34 * var(--u)); font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(15 * var(--u)); color: var(--pill-text); text-shadow: var(--pill-text-shadow); }
 .ph-rank .rankcrest { width: calc(34 * var(--u)); height: calc(34 * var(--u)); }
 /* THE STATE STRIP: the card's foot, full width under a gold hairline. Ready = teal, In game = gold. */
 .ph-state { align-self: stretch; margin: calc(6 * var(--u)) calc(-16 * var(--u)) 0; padding: calc(10 * var(--u)) 0 calc(12 * var(--u)); text-align: center;
@@ -127,6 +127,8 @@
   font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(15 * var(--u)); letter-spacing: 0.24em; text-transform: uppercase; color: var(--muted); }
 .ph-state.s-ready { color: #8ef3f8; }
 .ph-state.s-in_game { color: var(--pill-gold, #f6cf5a); }
+/* A RIVAL (the Versus modes): the rail's foe red on the name. */
+.ph-card.rival .ph-name { color: var(--pill-foe); }
 /* AN OPEN SEAT: the same cut, a faint edge and a see-through plate. */
 .ph-card.ph-open { background: color-mix(in srgb, var(--gold) 45%, transparent); }
 .ph-open .ph-card-in { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(6 * var(--u)); background: color-mix(in srgb, var(--navy) 62%, transparent); }
@@ -206,13 +208,15 @@
 .ph-fnote { font-size: calc(12 * var(--u)); color: var(--muted); font-style: italic; }
 
 /* ── THE PROTOTYPE'S OWN CONTROLS (DEV) ── */
-.ph-proto { position: absolute; z-index: 4; left: calc(18 * var(--u) + var(--safe-l, 0px)); top: calc(80 * var(--u)); display: flex; align-items: center; gap: calc(8 * var(--u)); }
+.ph-proto { display: flex; align-items: center; gap: calc(8 * var(--u)); }
 .ph-proto .ph-chipbtn { margin: 0; }
 .ph-proto-tag { padding: calc(4 * var(--u)) calc(8 * var(--u)); background: rgba(255, 122, 102, 0.18); box-shadow: inset 0 0 0 1px var(--pill-red, #ff7a66);
   font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(11 * var(--u)); letter-spacing: 0.16em; text-transform: uppercase; color: var(--pill-red, #ff7a66); }
 
 /* Three or four cards: a touch narrower so they sit together with START. */
-.ph-cards.n3 .ph-card, .ph-cards.n4 .ph-card { height: min(calc(520 * var(--u)), 100%); }
+.ph-cards.n2 .ph-card { --n: 2; }
+.ph-cards.n3 .ph-card { --n: 3; }
+.ph-cards.n4 .ph-card { --n: 4; }
 
 /* ── PHONES (landscape): screen points; the friends column becomes a drawer from the right ── */
 html[data-touch-ui][data-touch-small][data-page-scale] .ph, .ph.ph-phone { --u: calc(var(--pt, 1px) * 0.62); --fw: 0px; grid-template-columns: 1fr; }
@@ -227,9 +231,11 @@ html[data-touch-ui][data-touch-small][data-page-scale] .ph, .ph.ph-phone { --u: 
 .ph.ph-phone .ph-title { font-size: calc(26 * var(--u)); }
 .ph.ph-phone .ph-cards { padding: calc(8 * var(--u)) 0; gap: calc(16 * var(--u)); }
 .ph.ph-phone .ph-start { height: calc(66 * var(--u)); width: calc(320 * var(--u)); }
-.ph.ph-phone .ph-wallet .ph-lvbar { display: none; }
+.ph.ph-phone .ph-wallet .ph-lvbar, .ph.ph-phone .ph-proto-tag { display: none; }
+.ph.ph-phone .ph-name { font-size: calc(24 * var(--u)); }
+.ph.ph-phone .ph-brand { padding-right: calc(10 * var(--u)); }
 .ph.ph-phone .ph-friends.drawer { position: absolute; top: calc(64 * var(--u)); right: 0; bottom: 0; width: calc(420 * var(--u)); grid-column: auto; grid-row: auto; z-index: 5;
+  background: linear-gradient(180deg, var(--navy), color-mix(in srgb, var(--navy) 80%, #000));
   animation: ph-drawer 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
 @keyframes ph-drawer { from { transform: translateX(100%); } to { transform: none; } }
-.ph.ph-phone .ph-proto { top: auto; bottom: calc(12 * var(--u) + var(--safe-b, 0px)); }
 @media (prefers-reduced-motion: reduce) { .ph-card, .ph.ph-phone .ph-friends.drawer { animation: none; } .ph-card, .ph-start { transition: none; } }

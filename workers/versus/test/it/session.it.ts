@@ -163,14 +163,18 @@ describe('the session: held during play, flushed once (R-SESSION-CF-01)', () => 
     expect(again.body).toEqual(rated.body);
     expect((await metrics(game)).flushCalls).toHaveLength(1);
 
-    // The end's clear (and a late write) settle together once the writes go quiet.
+    // The end's clear goes AT ONCE, before the call answers (R-SESSION-CLEAR-01: a held clear let the title adopt the
+    // ended run as Continue); a late write still settles on its own once the writes go quiet.
     expect((await call(game, 'write', me, { item: { key: 'telemetry:1', kind: 'telemetry', table: 'run_telemetry', rows: [{ telemetry: {} }] } })).status).toBe(200);
     expect((await call(game, 'clear', me, { runKey: `run:${game}`, expected: 0 })).body).toEqual({ status: 'ok' });
-    for (let i = 0; i < 40 && (await metrics(game)).flushCalls.length < 2; i++) await sleep(500);
     m = await metrics(game);
     expect(m.flushCalls).toHaveLength(2);
-    expect(m.flushCalls[1]).toMatchObject({ p_clear: { run_key: `run:${game}`, expected: 0 }, p_rating: null });
-    expect(m.flushCalls[1].p_writes.map((w: { key: string }) => w.key)).toEqual(['telemetry:1']);
+    expect(m.flushCalls[1]).toMatchObject({ p_clear: { run_key: `run:${game}`, expected: 0 }, p_rating: null, p_writes: null });
+    for (let i = 0; i < 40 && (await metrics(game)).flushCalls.length < 3; i++) await sleep(500);
+    m = await metrics(game);
+    expect(m.flushCalls).toHaveLength(3);
+    expect(m.flushCalls[2]).toMatchObject({ p_clear: null, p_rating: null });
+    expect(m.flushCalls[2].p_writes.map((w: { key: string }) => w.key)).toEqual(['telemetry:1']);
     expect(m.pendingFlush).toBe(false);
   }, 60_000);
 
@@ -185,6 +189,20 @@ describe('the session: held during play, flushed once (R-SESSION-CF-01)', () => 
     expect(m.flushCalls[0].p_save).toMatchObject({ run_key: `run:${game}`, expected: 0, device: 'dev1', payload: { v: 1, save: '{"round":4}', seatRuns: [[{ seed: 3, wave: 1 }]] } });
     expect(m.savedRow).toEqual({ run_key: `run:${game}`, revision: 1 });
     expect((await call(game, 'save', me, { runKey: `run:${game}`, expected: 0, deviceId: 'dev1', save: '{"round":5}', seatsSame: true })).body).toMatchObject({ status: 'ok', revision: 1 });
+  });
+
+  it('a parked save is cleared from the row BEFORE the clear answers (no Continue of an ended game, R-SESSION-CLEAR-01)', async () => {
+    const game = crypto.randomUUID();
+    const me = crypto.randomUUID();
+    await call(game, 'save', me, { runKey: `run:${game}`, expected: 0, deviceId: 'dev1', save: '{"round":13}' });
+    await call(game, 'park', me, {});
+    expect((await metrics(game)).savedRow).toEqual({ run_key: `run:${game}`, revision: 1 });
+    // Continue, then the game ends: the client's lease is the row's revision.
+    await call(game, 'save', me, { runKey: `run:${game}`, expected: 1, deviceId: 'dev1', save: '{"round":14}', seatsSame: true });
+    expect((await call(game, 'clear', me, { runKey: `run:${game}`, expected: 1 })).body).toEqual({ status: 'ok' });
+    const m = await metrics(game);
+    expect(m.savedRow).toBeNull(); // gone the moment the clear answered: the title's next read finds nothing to adopt
+    expect(m.flushCalls.at(-1)).toMatchObject({ p_clear: { run_key: `run:${game}`, expected: 1 }, p_save: null });
   });
 
   it('the switch is read at /session/config; an old protocol is refused', async () => {

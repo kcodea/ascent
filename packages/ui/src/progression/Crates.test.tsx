@@ -12,7 +12,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StrictMode, act } from 'react';
-import type { OpenCrateResult, ProgressionProfile, ProgressionResult } from '@game/progression';
+import { COSMETICS, type OpenCrateResult, type ProgressionProfile, type ProgressionResult } from '@game/progression';
 import { mount, type Mounted } from '../renderedText.mount';
 import type { CrateFx } from './crateFx/crateFxPixi';
 import type { CratePreset } from './crateFx/crateFxConfig';
@@ -369,6 +369,35 @@ describe('the crate theatre: flow states', () => {
     act(() => button('Open')!.click());
     await settle();
     expect(text('.crate-reward-name')).toBe('Kingbreaker');
+    expect($('.crth-skin')).toBeNull();
+  });
+
+  // Owner 2026-11-02: "there should be a thumbnail that shows the card plate when receiving rewards"; yes for portrait
+  // frames too, no for attack animations, announcers and titles (R-PROG-CRATE-REVEAL-01).
+  it('a card plate and a portrait frame show their art beside the plate; an attack animation shows none', async () => {
+    liveCrates();
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-9', 'plate_green_hand_drawn', 9), profile: profile() });
+    ui = mount(<CrateOpener queue={[{ crateId: 'c-9', earnedLevel: 9 }]} reducedMotion />);
+    act(() => button('Open')!.click());
+    await settle();
+    expect(text('.crate-reward-kind')).toBe('New card plate');
+    expect($('.crth-plate .crth-skin.plate img')?.getAttribute('src')).toMatch(/frames\/plates\/plate_green_hand_drawn\.webp$/);
+    ui.unmount();
+
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-8', 'frame_fire', 8), profile: profile() });
+    ui = mount(<CrateOpener queue={[{ crateId: 'c-8', earnedLevel: 8 }]} reducedMotion />);
+    act(() => button('Open')!.click());
+    await settle();
+    expect(text('.crate-reward-kind')).toBe('New portrait frame');
+    expect($('.crth-plate .crth-skin.frame img')?.getAttribute('src')).toMatch(/frame_fire/);
+    ui.unmount();
+
+    const attack = COSMETICS.find((c) => c.category === 'hero_attack' && c.active)!;
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-7', attack.id, 7), profile: profile() });
+    ui = mount(<CrateOpener queue={[{ crateId: 'c-7', earnedLevel: 7 }]} reducedMotion />);
+    act(() => button('Open')!.click());
+    await settle();
+    expect(text('.crate-reward-name')).toBe(attack.name);
     expect($('.crth-skin')).toBeNull();
   });
 

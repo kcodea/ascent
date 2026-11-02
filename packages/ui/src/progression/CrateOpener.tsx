@@ -5,6 +5,8 @@ import { playTailedClip, sfx, type SfxHandle } from '../sfx';
 import { stageHost } from '../stage';
 import { skinArtOf } from '../skins/skinArt';
 import { emoteSrc } from '../emotes/emoteArt';
+import { frameSrc } from '../portraitFrame/portraitFrameConfig';
+import { CARD_PLATE_LOOKS } from '../cardPlate/cardPlateLook';
 import { openCrate, type CrateOpenOutcome } from './progressionStore';
 import {
   CRATE_CUE_CATEGORY, chestTierPresetFor, chestTuningOf, crateBeats, crateCue, crateFxSpeed, getCrateFxConfig, presetFor,
@@ -434,9 +436,16 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
   const revealed = (phase === 'reveal' || phase === 'settled') && !!reward;
   // A skin shows its art beside the plate (owner 2026-09-29); a title needs no preview, the plate IS the title.
   const rewardDef = result?.rewardId ? cosmeticOf(result.rewardId) : undefined;
-  // An emote (2026-10-15, now a crate drop) shows its bubble in the same spot.
-  const skinKind = rewardDef?.category === 'hero_skin' ? 'hero' : rewardDef?.category === 'minion_skin' ? 'minion' : rewardDef?.category === 'emote' ? 'emote' : null;
-  const skinUrl = skinKind === 'emote' ? emoteSrc(rewardDef?.id) : skinKind ? skinArtOf(rewardDef) : undefined;
+  // An emote (2026-10-15, now a crate drop) shows its bubble in the same spot. A card plate and a portrait frame show
+  // the art their Collection tile shows (owner 2026-11-02: "there should be a thumbnail that shows the card plate when
+  // receiving rewards"; yes for frames too, no for attack animations, announcers and titles).
+  const cat = rewardDef?.category;
+  const skinKind = cat === 'hero_skin' ? 'hero' : cat === 'minion_skin' ? 'minion' : cat === 'emote' ? 'emote'
+    : cat === 'card_plate' ? 'plate' : cat === 'portrait_frame' ? 'frame' : null;
+  const skinUrl = skinKind === 'emote' ? emoteSrc(rewardDef?.id)
+    : skinKind === 'plate' ? (typeof rewardDef?.assets.art === 'string' ? CARD_PLATE_LOOKS[rewardDef.assets.art]?.thumb : undefined)
+    : skinKind === 'frame' ? (rewardDef ? frameSrc(rewardDef.id) : undefined)
+    : skinKind ? skinArtOf(rewardDef) : undefined;
   const next = phase === 'settled' ? pending[0] ?? null : null;
   const c = getCrateFxConfig();
   const k = 1 / crateFxSpeed();

@@ -91,6 +91,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: "You can now hover the runes on a player's card in the lobby list.",
+        details: [
+          'Move from a player in the lobby list onto their card, then hover a rune to read it. On a phone, tap the player, then tap the rune.',
+          'The rune shows its current numbers for that player, like your own runes do.',
+          'Your own card shows every counter, the same as your rune badges.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New look for Amplified Equipment.',
         details: [
           'While your selected Equipment is Amplified, its slot glows a soft blue that slowly breathes.',

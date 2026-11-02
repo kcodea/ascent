@@ -11959,7 +11959,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    The hover read on one opponent. Dark glass, matching the hero / buff / quest panels: a vertical fill, a
    gold-mixed hairline, an inner top highlight, and a soft drop shadow.
    Opens LEFT of the rail (the rail is already at the right edge of the stage, so a right-side card would open
-   off-screen). `pointer-events: none` so crossing the card can never re-trigger or block the row beneath it. */
+   off-screen). It takes the pointer so its runes can be hovered (see below). */
 .lobbyscout {
   /* FIXED, not absolute: the rail is a scroll container (`overflow-y: auto`) and therefore CLIPS absolutely
      positioned descendants that fall outside it — which this card, opening to the rail's left, always does.
@@ -11972,7 +11972,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   --lrow: calc(var(--lu) * var(--lby-row, 1.91));
   --lfont: calc(var(--lu) * var(--lby-font, 0.9));
   position: fixed; z-index: 80; transform: translateY(-50%);
-  width: calc(112 * var(--lu) * var(--sc-w, 2.6)); pointer-events: none;
+  /* It TAKES the pointer (owner ask 2026-11-01, R-RAIL-SCOUT-RUNE-TIP-02): the seat holds it open for a beat after the
+     pointer leaves (LobbyPanel `leaveScout`), so the pointer can cross into it and hover its runes. It opens beside
+     the rail, never over it, and closes the moment the pointer leaves it. */
+  width: calc(112 * var(--lu) * var(--sc-w, 2.6)); pointer-events: auto;
   display: flex; flex-direction: column; gap: calc(4 * var(--lu) * var(--sc-gap, 2.3));
   padding: calc(7 * var(--lu) * var(--sc-pad, 2.3)); border-radius: calc(8 * var(--lu) * var(--sc-rad, 1.25));
   /* One-shot fade+slide on open. Safe to touch opacity/transform here — this is not a looping animation, and
@@ -12104,6 +12107,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* Centre the rune tip over its socket (owner ask 2026-08-31) — scoped to sockets so other badge tips are
    untouched. The shared tip anchors at `left: 0`; override to centre it on the node. */
 .lobbyscout-socket .questbadge-tip { left: 50%; right: auto; transform: translateX(-50%); }
+/* THE SCOUT CARD'S RUNE TIP (owner ask 2026-11-01, R-RAIL-SCOUT-RUNE-TIP-02), on both rails' cards: mounted only while
+   its socket is hovered, so it is shown outright (a one-shot opacity fade, compositor only), centred above the socket.
+   LobbyPanel measures it once as it mounts and flips it `.below` / slides it so it never leaves the screen. */
+.questbadge-tip.scout-runepop { opacity: 1; left: 50%; right: auto; bottom: calc(100% + 10px); top: auto; transform: translateX(-50%);
+  z-index: 3; animation: scoutruntipin 120ms ease-out; }
+.questbadge-tip.scout-runepop.below { bottom: auto; top: calc(100% + 10px); }
+@keyframes scoutruntipin { from { opacity: 0; } to { opacity: 1; } }
 
 /* The table sizes to its rows, and the rows size to `--lrow` — so the row-scale dial actually changes row
    height. (They used to be `flex: 1` inside a fixed-height rail, which pinned every row to an equal share of a
@@ -12311,10 +12321,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 
 
-/* PINNED scout card (right-click a rail seat). The hover copy is `pointer-events: none` — deliberately, so it
-   can't eat clicks meant for the rail — which is precisely why its rune/quest badges were unreachable. The
-   pinned copy takes pointer events so those badges can be hovered for their own tooltips, and it sits above
-   the hover layer with a brighter frame so the two are never confused. */
+/* PINNED scout card (click or right-click a rail seat). Both copies take pointer events (since 2026-11-01 the hover
+   copy too, so its runes can be hovered); the pinned one stays until dismissed, and it sits above the hover layer
+   with a brighter frame so the two are never confused. */
 .lobbyscout.pinned {
   pointer-events: auto;
   z-index: 84;

@@ -3,7 +3,6 @@ import { runeAccentTribe } from './RuneCard';
 import type { QuestObjective, Tribe } from '@game/core';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { heroGrantOf, type RunState } from '@game/sim';
-import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
 import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, questRewardLiveOf } from './questText';
@@ -15,7 +14,7 @@ import { heldSotRuneProcs, sotRunKey, useSotRuneReleased } from './sotRuneHold';
 import { arrivalClasses } from './runeArrival';
 import { getRuneLockInConfig } from './runeLockInConfig';
 import { useGame, type CombatQuestDelta } from './store';
-import { liveRuneText } from './runeText';
+import { RuneTipBody } from './runeTipBody';
 import { usePlayerRuneLive } from './useRuneLive';
 import { playDef } from './fx/playDef';
 import { sfx } from './sfx';
@@ -229,18 +228,10 @@ export function QuestBadges() {
               <span key={tally} className="qb-tally">{tally}</span>
             ); })()}
             <div className="questbadge-tip" role="tooltip">
-              <b>{rune.name}</b>
-              <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(liveRuneText(rune.id, rune.text, runeLive)) }} />
-              {/* Rune badges never showed LIVE reward text — only quests did — so a rune whose payout depends
-                  on run state could only ever restate its rule. Rune of Recollection is the case that made it
-                  visible: "a copy of the first spell you cast this turn" names no card until you've cast one. */}
-              {(() => {
-                const rlive = questRewardLiveText(rune.reward, { firstSpellId: run.firstSpellThisTurnId });
-                return rlive ? <span className="questbadge-tip-live">{rlive}</span> : null;
-              })()}
-              <span className="questbadge-tip-state">
-                {(() => { const tally = runeTally(run, rune.id); return `Rune · active${tally ? ` · ${tally}` : ''}`; })()}
-              </span>
+              {/* The shared rune tip (runeTipBody.tsx, R-RAIL-SCOUT-RUNE-TIP-02): the live value in place, Recollection's
+                  live spell line (rune badges never showed live REWARD text before it), and the meter in the pill. The
+                  lobby rail's scout card prints the same tip for every seat. */}
+              <RuneTipBody runeId={rune.id} src={{ run, live: runeLive }} />
             </div>
           </div>
         );

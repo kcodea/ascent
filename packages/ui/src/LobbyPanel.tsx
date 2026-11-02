@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { createPortal } from 'react-dom';
 import {
   boardIntel, getHero, lastRoundDamage, lobbyRailView, playerOpponent, railSeatIntel, roundLossCap, seatResults, snapshotBoard,
-  type LobbySeatState, type RunLobby, type SeatIntel,
+  type LobbySeatState, type RunLobby, type RunState, type SeatIntel,
   seatStartingArmor,
   VERSUS_COPY_SEAT_ID,
 } from '@game/sim';
@@ -18,7 +18,7 @@ import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
 import { useDockCfg, useSliceLabel } from './lobbyRailVariant';
 import { useDockedRail } from './useDockedRail';
 import type { DockPanel, Pt } from './lobbyRailDockedLayout';
-import { liveRuneText } from './runeText';
+import { RuneTipBody, type RuneTipSource } from './runeTipBody';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { MenuMedal } from './menuIcons';
@@ -343,7 +343,18 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     return () => document.removeEventListener('pointerdown', onDown, true);
   }, [showGuides, mode, railGuides]);
   const railMods = `${railGuides ? ` guidesview guides-${mode}` : ''}${swap ? ` swap-${swap}` : ''}`;
+  // THE HOVER CARD CAN BE REACHED (owner ask 2026-11-01, R-RAIL-SCOUT-RUNE-TIP-02: "mouseover on runes here is
+  // important"). Leaving a seat closes its card a beat later instead of at once, so the pointer can cross the small gap
+  // into the card and hover its runes. The card is portaled, but it is still the seat's React child, so entering it
+  // re-enters the seat (`openScout` again, which cancels the close) and leaving it leaves the seat (the close again).
+  const closeTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+  const leaveScout = (id: string): void => {
+    window.clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => setHovered((h) => (h?.id === id ? null : h)), SCOUT_CLOSE_GRACE_MS);
+  };
   const openScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
+    window.clearTimeout(closeTimer.current);
     if (staged) return;
     const b = e.currentTarget.getBoundingClientRect();
     setHovered({ id, top: toStage(b.top + b.height / 2), right: toStage(b.left) }); // screen -> stage (stage.ts): `at` is CSS px
@@ -670,7 +681,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               // Hover scouting works on EVERY seat, yours included (owner ask 2026-09-24: "add the same mouseover
               // for self as we have for enemies"). Pinning stays opponent-only; the owner asked for the hover.
               onMouseEnter={(e) => openScout(e, seat.id)}
-              onMouseLeave={() => setHovered((h) => (h?.id === seat.id ? null : h))}
+              onMouseLeave={() => leaveScout(seat.id)}
               // Left OR right click pins the card (and clicking a different seat switches to it) — owner ask 2026-08-31.
               onClick={isYou ? undefined : seat.id === duosMate ? () => enterTeammateView() : (e) => pinScout(e, seat.id)}
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
@@ -864,7 +875,57 @@ function SelfScoutCard({ lobby, seat, at, hp, compact }: { lobby: RunLobby; seat
     const snap = snapshotBoard(run);
     return boardIntel({ minions: snap.minions, tier: snap.tier, snapshot: snap }, lobby.round);
   }, [run, lobby.round]);
-  return <ScoutCard lobby={lobby} seat={seat} intel={intel} at={at} hp={hp} compact={compact} />;
+  return <ScoutCard lobby={lobby} seat={seat} intel={intel} at={at} hp={hp} compact={compact} run={run} />;
+}
+
+/**
+ * ONE RUNE SOCKET ON THE SCOUT CARD, with its rune's tip (owner ask 2026-11-01: "mouseover on runes here is important, and
+ * it should show any relevant values if the player has value shown on their runes etc"; R-RAIL-SCOUT-RUNE-TIP-02).
+ *
+ * The tip is the player's own rune tip (`RuneTipBody`, the same markup and live values as the rack in the Shop), and it
+ * MOUNTS ONLY WHILE ITS SOCKET IS HOVERED: the card itself mounts only on hover, so a closed tip costs nothing. Pointer
+ * enter / leave, so a finger tap opens it the way it opens every other preview (touchInput.ts holds the leave back
+ * until the next touch lands elsewhere).
+ */
+function ScoutRuneSocket({ as: Tag = 'div', className, runeId, src, children }: {
+  as?: 'div' | 'span'; className: string; runeId?: string; src: RuneTipSource; children?: React.ReactNode;
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  return (
+    <Tag className={className}
+      onPointerEnter={runeId ? () => setOpen(true) : undefined}
+      onPointerLeave={runeId ? () => setOpen(false) : undefined}>
+      {children}
+      {runeId && open && <ScoutRuneTip runeId={runeId} src={src} as={Tag} />}
+    </Tag>
+  );
+}
+
+/**
+ * The tip itself. It opens ABOVE its socket, centred on it; measured ONCE as it mounts (a layout read on a hover, never
+ * per frame) and, before it paints, flipped BELOW the socket if it would leave the top of the screen and slid sideways if
+ * it would leave either side, so a seat near the top of the rail or a card clamped to an edge never clips it.
+ */
+function ScoutRuneTip({ runeId, src, as: Tag }: { runeId: string; src: RuneTipSource; as: 'div' | 'span' }): JSX.Element {
+  const ref = useRef<HTMLElement>(null);
+  const [place, setPlace] = useState<{ below: boolean; dx: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const m = 8;
+    const vw = window.innerWidth;
+    const below = r.top < m;
+    const dx = r.left < m ? m - r.left : r.right > vw - m ? vw - m - r.right : 0;
+    setPlace({ below, dx: toStage(dx) }); // screen px -> stage px (the card's own coordinate space)
+  }, []);
+  return (
+    <Tag ref={ref as React.RefObject<never>} role="tooltip"
+      className={`questbadge-tip scout-runepop${place?.below ? ' below' : ''}`}
+      style={place ? (place.dx ? { marginLeft: place.dx } : undefined) : { visibility: 'hidden' }}>
+      <RuneTipBody runeId={runeId} src={src} />
+    </Tag>
+  );
 }
 
 const TRIBE_LABEL: Record<string, string> = {
@@ -883,6 +944,9 @@ function readScoutVariant(): number {
   try { const v = Number(localStorage.getItem(SCOUT_VARIANT_KEY)); return v >= 1 && v <= SCOUT_VARIANTS ? v : 1; }
   catch { return 1; }
 }
+/** ms a seat's hover card stays up after the pointer leaves the seat: long enough to cross the gap into the card, short
+ *  enough that sweeping down the rail never leaves a stale card behind (the next seat's card replaces it at once). */
+const SCOUT_CLOSE_GRACE_MS = 160;
 const OUTCOME_LABEL: Record<string, string> = { win: 'WON', lose: 'LOST', draw: 'DREW' };
 
 /**
@@ -891,8 +955,10 @@ const OUTCOME_LABEL: Record<string, string> = { win: 'WON', lose: 'LOST', draw: 
  * Rendered ONLY while hovered rather than always-mounted-and-hidden — eight of these permanently in the tree,
  * each mapping the encounter log, is work the shop phase does not need to do every frame.
  */
-function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
+function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run }: {
   lobby: RunLobby; seat: LobbySeatState; intel?: SeatIntel; at: { top: number; right: number };
+  /** The seat's whole run, when this client holds it (your own seat): the rune tips read every live value off it. */
+  run?: RunState;
   /** The seat's Health + Armor as the rail shows them (the Docked card prints the numbers the bar draws). */
   hp?: { alive: boolean; resolve: number; armor: number };
   /** The Docked rail's compact card (owner 2026-10-31). */
@@ -1009,6 +1075,9 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
   // RUNE SOCKETS — always three (owner ask 2026-08-31): dotted-outline circles marking where runes socket over
   // the match, filled with rune art as the seat acquires them. Filled sockets carry the same hover tip as a badge.
   const runeIds = (intel?.runes ?? []).filter((id) => RUNE_INDEX[id]);
+  // What the rune tips can read live (R-RAIL-SCOUT-RUNE-TIP-02): your own seat hands over the whole run (every value and
+  // meter, as your own rack shows it); every other seat its captured board's grown values and first spell.
+  const tipSrc: RuneTipSource = run ? { run } : { live: intel?.runeLive ?? null, firstSpellId: intel?.firstSpellId };
   const runeSockets = intel ? (
     <div className="lobbyscout-runesec">
       <div className="lobbyscout-sectitle">Runes</div>
@@ -1017,18 +1086,11 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
         const rune = runeIds[i] ? RUNE_INDEX[runeIds[i]!] : null;
         const rart = rune ? runeArt(rune.id) : null;
         return (
-          <div className={`lobbyscout-socket${rune ? ' filled' : ''}`} key={i}>
+          <ScoutRuneSocket className={`lobbyscout-socket${rune ? ' filled' : ''}`} key={i} runeId={rune?.id} src={tipSrc}>
             {rune && (rart
               ? <img decoding="sync" className="lobbyscout-socketart" src={rart} alt="" aria-hidden />
               : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>)}
-            {rune && (
-              <div className="questbadge-tip" role="tooltip">
-                <b>{rune.name}</b>
-                <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(liveRuneText(rune.id, rune.text, intel?.runeLive)) }} />
-                <span className="questbadge-tip-state">Rune · active</span>
-              </div>
-            )}
-          </div>
+          </ScoutRuneSocket>
         );
       })}
       </div>}
@@ -1046,16 +1108,9 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact }: {
       const rune = runeIds[i] ? RUNE_INDEX[runeIds[i]!] : null;
       const rart = rune ? runeArt(rune.id) : null;
       return (
-        <span className={`lrv-sc-socket${rune ? ' filled' : i === 2 ? ' third' : ''}`} key={i}>
+        <ScoutRuneSocket as="span" className={`lrv-sc-socket${rune ? ' filled' : i === 2 ? ' third' : ''}`} key={i} runeId={rune?.id} src={tipSrc}>
           {rune && (rart ? <img decoding="sync" src={rart} alt="" aria-hidden /> : <Icon name="sc" />)}
-          {rune && (
-            <span className="questbadge-tip" role="tooltip">
-              <b>{rune.name}</b>
-              <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(liveRuneText(rune.id, rune.text, intel?.runeLive)) }} />
-              <span className="questbadge-tip-state">Rune · active</span>
-            </span>
-          )}
-        </span>
+        </ScoutRuneSocket>
       );
     });
     body = (

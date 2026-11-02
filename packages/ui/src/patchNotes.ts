@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New Legendary hero attack: Charge the Mound. The hero being hit pitches, and your hero bats.',
+        details: [
+          'Small: a line drive straight back up the middle. Bonk.',
+          'Tier II: a screaming liner, a one-hop grounder, or a foul tip that loops around and hits them from behind. It changes from fight to fight.',
+          'Tier III: a slow motion swing, a bat flip, and a moonshot that comes back down on their head. Home run.',
+          'Huge: they bean your hero. Your hero slams the bat down, charges the mound and starts a dust cloud brawl, then lands one big punch. Yer out!',
+          'With a bat crack, a glove pop, a slide whistle, the ballpark organ, the umpire and the crowd.',
+          'Found in crates. Equip it in the Collection.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Versus Duos and Ranked Duos now have a Team chat beside the lobby chat.',
         details: [
           'The chat panel shows two tabs: Lobby for everyone in the game, and Team for you and your teammate.',

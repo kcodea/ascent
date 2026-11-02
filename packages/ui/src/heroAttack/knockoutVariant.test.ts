@@ -29,6 +29,7 @@ import { KNOT_PULSES, STITCH_KO, HERO_STITCH_DEFAULTS, knotAt, slowMoExtraMs, st
 import { MAX_STITCH_SPRITES, type HeroStitchTextures } from '../heroStitch/heroStitchScene';
 import { playHeroBlast } from '../heroBlast/heroBlast';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
+import { playHeroBaseball } from '../heroBaseball/heroBaseball';
 import { SPEC as ARCANA_TUNER } from '../HeroArcanaTuner';
 import { SPEC as HOLY_TUNER } from '../HeroHolyTuner';
 import { SPEC as STITCH_TUNER } from '../HeroStitchTuner';
@@ -304,10 +305,10 @@ describe('each variant is its Huge, remixed', () => {
 
 describe('a style with no variant ignores the flag and plays Huge', () => {
   afterEach(() => { document.body.innerHTML = ''; });
-  it('Blast and Basketball (Legendaries): a knockout with the flag forced on is still their plain Tier IV', () => {
+  it('Blast, Basketball and Baseball (Legendaries): a knockout with the flag forced on is still their plain Tier IV', () => {
     const base = { formation: formationOf([1, 2], 3), total: 3, knockout: true, side: 'player' as const, attacker: { x: 100, y: 800 }, defender: { x: 1400, y: 150 },
       reduced: false, onImpact: vi.fn(), frames: () => () => {}, sound: false, safety: false, host: document.body, camera: null, mount: () => () => {} };
-    for (const play of [playHeroBlast, playHeroBasketball]) {
+    for (const play of [playHeroBlast, playHeroBasketball, playHeroBaseball]) {
       const a = play({ ...base, textures: null, knockoutVariant: true });
       const b = play({ ...base, textures: null, knockoutVariant: false });
       expect(a.plan.tier).toBe(4);

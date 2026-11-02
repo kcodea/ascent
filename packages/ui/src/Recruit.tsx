@@ -135,6 +135,8 @@ import { playHeroBackstab } from './heroBackstab/heroBackstab';
 import { heroBackstabPreviewSpeed } from './heroBackstab/heroBackstabConfig';
 import { playHeroBasketball } from './heroBasketball/heroBasketball';
 import { heroBasketballPreviewSpeed } from './heroBasketball/heroBasketballConfig';
+import { playHeroBaseball } from './heroBaseball/heroBaseball';
+import { heroBaseballPreviewSpeed } from './heroBaseball/heroBaseballConfig';
 import { playHeroStitch } from './heroStitch/heroStitch';
 import { heroStitchPreviewSpeed } from './heroStitch/heroStitchConfig';
 import { playHeroBulletTime } from './heroBulletTime/heroBulletTime';
@@ -3758,7 +3760,7 @@ export function Recruit() {
     // across the screen eight times and ends in a bloody explosion; the Rares, two tiers each: Pocket Change flicks a coin that pings and ricochets,
     // Come Back Around throws a boomerang that thwacks and is caught, Bubble Trouble pops a bubble round the face, and
     // Shadow Step fades the striker into smoke and stabs from behind; Nothing But Net: the striker plays ball, a jump shot, a
-    // fadeaway, a pull-up three and a self alley-oop slammed into an explosion; Soul Stitch, the first Ancient: crystal needles sew the target to the striker on violet thread, a pierce and a cross-stitch the hero pulls until they snap, five pins the target is stretched against until they rip out, and the target dragged into a gold heart-knot that bursts). Same blow, same consequence, only drawn differently;
+    // fadeaway, a pull-up three and a self alley-oop slammed into an explosion; Charge the Mound: the target pitches and the striker bats, and the top tier is a beanball, a charge at the mound and a dust-cloud brawl; Soul Stitch, the first Ancient: crystal needles sew the target to the striker on violet thread, a pierce and a cross-stitch the hero pulls until they snap, five pins the target is stretched against until they rip out, and the target dragged into a gold heart-knot that bursts). Same blow, same consequence, only drawn differently;
     // the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
     // (`heroAttack/options.ts`).
     const attackerCosmeticId = attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins);
@@ -3773,6 +3775,8 @@ export function Recruit() {
         ? { play: playHeroStitch, preview: heroStitchPreviewSpeed() }
         : attackStyle === 'basketball'
         ? { play: playHeroBasketball, preview: heroBasketballPreviewSpeed() }
+        : attackStyle === 'baseball'
+        ? { play: playHeroBaseball, preview: heroBaseballPreviewSpeed() }
         : attackStyle === 'backstab'
         ? { play: playHeroBackstab, preview: heroBackstabPreviewSpeed() }
         : attackStyle === 'bubble'

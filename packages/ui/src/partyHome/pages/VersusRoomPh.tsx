@@ -170,6 +170,8 @@ function useRoomDrag(root: RefObject<HTMLElement>): {
     const x0 = e.clientX;
     const y0 = e.clientY;
     dragged.current = false;
+    // No text selection (and its edge auto-scroll) under a held card; the click still fires.
+    e.preventDefault();
     try { src.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
     let geo: SeatDragGeo | null = null;
     let origin: { cx: number; cy: number; w: number } | null = null;
@@ -343,12 +345,13 @@ export function VersusRoomPh() {
   // ── a seat ──
   const seatCard = (side: VersusGroupSeat, i: number): JSX.Element => {
     const m = room.members.find((x) => x.role === side) ?? null;
-    const over = drag && !drag.snap && drag.zone === side ? (drag.valid ? ' over' : ' bad') : '';
+    const over = drag && !drag.snap && drag.zone === side ? (drag.valid ? ' vsr-over' : ' vsr-bad') : '';
     if (!m) {
       const t = openSeatText({ open, mine });
-      const target = drag && !drag.snap && seatZoneValid(side, room, me) ? ' target' : '';
+      const target = drag && !drag.snap && seatZoneValid(side, room, me) ? ' vsr-target' : '';
       return (
-        <div key={side} className={`ph-cardwrap vsr-seat${over}${target}`} data-phseat={side} style={{ '--i': i } as CSSProperties}>
+        <div key={side} className={`ph-cardwrap open vsr-seat${over}${target}`} data-phseat={side} style={{ '--i': i } as CSSProperties}>
+          <span className="ph-bfoot" aria-hidden="true" />
           <div className="ph-card ph-open vsr-open">
             <span className="ph-card-in">
               <span className="ph-plus" aria-hidden="true">+</span>
@@ -364,6 +367,7 @@ export function VersusRoomPh() {
               )}
             </span>
           </div>
+          <span className="ph-rod" aria-hidden="true" />
         </div>
       );
     }
@@ -396,7 +400,7 @@ export function VersusRoomPh() {
   const sellBand = drag && !drag.snap && drag.sellTop !== null;
 
   return (
-    <div ref={rootRef} className={`vsr${compact ? ' compact' : ''}${drag ? ' dragging' : ''}`} role="region" aria-label={`${roomTitleOf(room.name, mode)}, ${roomModeLabel(mode)}`}>
+    <div ref={rootRef} className={`vsr${compact ? ' vsr-compact' : ''}${drag ? ' vsr-dragging' : ''}`} role="region" aria-label={`${roomTitleOf(room.name, mode)}, ${roomModeLabel(mode)}`}>
       <PhPage className="vsr-page" wide eyebrow={<>{roomModeLabel(mode)}{hostName ? <span className="vsr-host"> · Hosted by {hostName}</span> : null}</>}
         title={roomTitleOf(room.name, mode)} back={{ label: 'Play', onClick: goBack }}
         actions={(
@@ -448,8 +452,8 @@ export function VersusRoomPh() {
 
       {drag && createPortal(
         <>
-          {sellBand && <div className={`vsr-sellband${drag.zone === 'stands' ? ' on' : ''}`} style={{ height: drag.sellTop! }} aria-hidden="true"><span>Spectate</span></div>}
-          <div ref={ghost} className={`vsr-ghost${drag.snap ? ' snap' : ''}${drag.valid && drag.zone && drag.zone !== 'stands' ? ' lit' : ''}`} aria-hidden="true"
+          {sellBand && <div className={`vsr-sellband${drag.zone === 'stands' ? ' vsr-on' : ''}`} style={{ height: drag.sellTop! }} aria-hidden="true"><span>Spectate</span></div>}
+          <div ref={ghost} className={`vsr-ghost${drag.snap ? ' vsr-snap' : ''}${drag.valid && drag.zone && drag.zone !== 'stands' ? ' vsr-lit' : ''}`} aria-hidden="true"
             style={{ width: drag.w, height: drag.h, ...(drag.snap ? { transform: `translate(${drag.snap.x}px, ${drag.snap.y}px) scale(${drag.snap.s})`, transitionDuration: `${getDragFeel().snapMs}ms` } : {}) }}>
             <GhostCard userId={drag.userId} room={room} data={seatData} host={drag.userId === room.host_user_id} />
           </div>
@@ -486,13 +490,15 @@ function SeatBanner({ side, i, m, server, thumb, host, you, over, hidden, pools,
     : sealed ? <span className="ph-state s-in_game">Getting ready</span> : null;
   const body = <BannerFace face={face} host={host} you={you} state={state} />;
   return (
-    <div className={`ph-cardwrap vsr-seat${over}${hidden ? ' src' : ''}${menuOpen ? ' menu' : ''}`} data-phseat={side} style={{ '--i': i } as CSSProperties}>
+    <div className={`ph-cardwrap vsr-seat${draggable ? ' vsr-mineseat' : ''}${over}${hidden ? ' vsr-src' : ''}${menuOpen ? ' menu' : ''}`} data-phseat={side} style={{ '--i': i } as CSSProperties}>
+      <span className="ph-bfoot" aria-hidden="true" />
       {draggable
         ? (
           <button type="button" className="ph-card vsr-mine" aria-haspopup="menu" aria-expanded={menuOpen} aria-label={`You, seat ${side.slice(1)}. Drag to another seat, or up to spectate. Options`}
             onPointerDown={onPointerDown} onClick={onToggleMenu}>{body}</button>
         )
         : <div className="ph-card" role="img" aria-label={`${face.name}${host ? ', host' : ''}, seat ${side.slice(1)}`}>{body}</div>}
+      <span className="ph-rod" aria-hidden="true" />
       {menuOpen && (
         <div className="ph-cardmenu" role="menu" aria-label="Your seat">
           <button type="button" role="menuitem" className="ph-menuitem" onClick={onSpectate}><span>Move to spectators</span></button>
@@ -507,8 +513,10 @@ function GhostCard({ userId, room, data, host }: { userId: string; room: VersusR
   const m = memberOf(room, userId);
   const face = useFace(m ?? { userId, displayName: '', profile: {} }, data.get(userId), true);
   return (
-    <div className="vsr-ghostin">
+    <div className="ph-cardwrap vsr-ghostin">
+      <span className="ph-bfoot" aria-hidden="true" />
       <span className="ph-card"><BannerFace face={face} host={host} you state={null} /></span>
+      <span className="ph-rod" aria-hidden="true" />
     </div>
   );
 }
@@ -519,7 +527,7 @@ function Stands({ spectators, room, me, data, thumb, draggingSeated, over, hidde
   draggingSeated: boolean; over: boolean; hiddenId: string | null; onPointerDown: (e: ReactPointerEvent<HTMLElement>, userId: string) => void; myDraggable: boolean;
 }) {
   return (
-    <section className={`vsr-stands${draggingSeated ? ' target' : ''}${over ? ' over' : ''}`} aria-label="Spectators">
+    <section className={`vsr-stands${draggingSeated ? ' vsr-target' : ''}${over ? ' vsr-over' : ''}`} aria-label="Spectators">
       <header className="vsr-standshead">
         <h2>Spectators</h2>
         <span className="vsr-standsn">{spectators.length} / {VERSUS_SPECTATOR_CAP}</span>
@@ -543,7 +551,7 @@ function StandTile({ m, server, thumb, host, you, hidden, draggable, onPointerDo
 }) {
   const face = useFace(m, server, thumb);
   return (
-    <div role="listitem" className={`vsr-tile${you ? ' you' : ''}${draggable ? ' drag' : ''}${hidden ? ' src' : ''}`}
+    <div role="listitem" className={`vsr-tile${you ? ' vsr-tyou' : ''}${draggable ? ' vsr-tdrag' : ''}${hidden ? ' vsr-src' : ''}`}
       onPointerDown={draggable ? onPointerDown : undefined} aria-label={`${face.name}${host ? ', host' : ''}${you ? ', you. Drag to a seat to play' : ''}`}>
       {face.art && <img className="vsr-tileart" src={face.art} alt="" draggable={false} decoding="sync" />}
       <span className="vsr-tilename">{face.name}</span>

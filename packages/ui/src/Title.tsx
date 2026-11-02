@@ -481,7 +481,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       {partyView && PartyHome && (
         <Suspense fallback={null}><PartyHome onRankedStart={partyStart} /></Suspense>
       )}
-      {!partyView && <>
+      {/* (Under the shell the Versus pages cover the title: its classic menu never paints behind them.) */}
+      {!partyView && !(phVersus && titleView === 'versus') && <>
       <div className="titleaccount ta-card">
         {/* GUEST SIGN-IN (owner 2026-09-29): a slow-blinking "Sign in!" left of the portrait, guests only. */}
         <GuestSignInButton />
@@ -550,7 +551,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       </>}
       <PortraitSignInGate open={portraitGate} onClose={closePortraitGate} />
 
-      {!partyView && <div className="titlemenu">
+      {!partyView && !(phVersus && titleView === 'versus') && <div className="titlemenu">
         {/* The lockup is shared with hero select — see `AscentLogo`. `.titlelogo` keeps ALL of this screen's
             sizing, offset and float (the 🏔️ tuner's `--title-*` vars); the component itself is markup only. */}
         <AscentLogo className="titlelogo" />
@@ -710,7 +711,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
       {/* The corner footer: the reporter and the other small links, then the build stamp. Bottom left, clear of the
           Compendium + help buttons in the bottom-right corner (they overlapped the stamp before). */}
-      {!partyView && <div className="titlefoot">
+      {!partyView && !(phVersus && titleView === 'versus') && <div className="titlefoot">
         {/* Secondary links under the plaques: the reporter, the DEV balance report and the last replay. The
             Compendium link left here on 2026-09-21 (owner: "not important" on the title); it is still Tab. */}
         <div className="titlesecondary">

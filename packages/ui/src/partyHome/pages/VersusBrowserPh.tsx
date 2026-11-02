@@ -176,7 +176,7 @@ function RoomRow({ r, mine, blocked }: { r: VersusRoomSummary; mine: boolean; bl
       right={(
         <>
           <PhChip tone={tone}>{ROOM_STATUS[r.status] ?? r.status}</PhChip>
-          <span className={`vsb-watch${r.spectators > 0 ? '' : ' none'}`} aria-label={`${r.spectators} watching`}><Icon name="eye" />{r.spectators}</span>
+          <span className={`vsb-watch${r.spectators > 0 ? '' : ' vsb-nowatch'}`} aria-label={`${r.spectators} watching`}><Icon name="eye" />{r.spectators}</span>
           <PhButton variant={mine || (join.primary && !blocked) ? 'primary' : 'plate'} size="m" className="vsb-join" onClick={go} disabled={blocked && !mine}
             aria-label={`${mine ? 'Return to' : join.label} ${roomTitleOf(r.name, mode)}`}>{mine ? 'Return' : join.label}</PhButton>
         </>

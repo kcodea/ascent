@@ -49,7 +49,7 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 .vsb-seatn { min-width: calc(32 * var(--phu)); font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
 .vsb-watch { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); min-width: calc(40 * var(--phu)); font-family: var(--ph-name-font); font-weight: 700; font-size: var(--ph-t2); color: var(--ph-text); }
 .vsb-watch svg { width: calc(18 * var(--phu)); height: calc(18 * var(--phu)); color: var(--ph-muted); }
-.vsb-watch.none { opacity: 0.45; }
+.vsb-watch.vsb-nowatch { opacity: 0.45; }
 .vsb-join { min-width: calc(112 * var(--phu)); }
 .vsb-row.s-in_game .phk-rowtitle, .vsb-row.s-sealed .phk-rowtitle { color: var(--ph-text); }
 
@@ -62,7 +62,7 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 .vsb-heldact { margin-left: auto; display: flex; gap: calc(8 * var(--phu)); }
 
 /* ── THE ROOM ── */
-.vsr { position: relative; box-sizing: border-box; width: 100%; height: 100%; min-height: 0; display: flex; }
+.vsr { position: relative; box-sizing: border-box; width: 100%; height: 100%; min-height: 0; display: flex; -webkit-user-select: none; user-select: none; }
 .vsr-page { max-width: calc(1680 * var(--phu)); }
 .vsr-page .phk-pagetitle h1 { max-width: calc(820 * var(--phu)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vsr-host { color: var(--ph-muted); letter-spacing: 0.12em; }
@@ -81,10 +81,11 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 @keyframes vsr-vspop { from { opacity: 0; transform: scale(1.6); } to { opacity: 1; transform: none; } }
 
 /* A seat banner: the party home's card. My own lifts like a held card; the dragged source fades out. */
-.vsr-seat > div.ph-card:hover { transform: none; }
-.vsr-seat.src { opacity: 0.2; }
+/* Only my own banner lifts on hover (it is the one I can pick up). */
+.vsr-seat:not(.vsr-mineseat):hover { transform: none; }
+.vsr-seat.vsr-src { opacity: 0.2; }
 .vsr-mine { touch-action: none; }
-.vsr-you { position: absolute; top: calc(16 * var(--phu)); right: calc(16 * var(--phu)); display: inline-flex; align-items: center; height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu));
+.vsr-you { position: absolute; top: calc(0.12 * 100cqi); right: calc(16 * var(--phu)); display: inline-flex; align-items: center; height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu));
   background: var(--ph-metal-gold); clip-path: var(--ph-clip-s); box-shadow: inset 0 calc(2 * var(--phu)) 0 color-mix(in srgb, var(--ph-gold-hi) 55%, transparent);
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ph-navy); }
 .vsr-rec { display: inline-flex; align-items: baseline; gap: calc(6 * var(--phu)); font-size: var(--ph-t2); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
@@ -98,19 +99,20 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 .vsr-opensub { font-size: var(--ph-t2); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
 .vsr-open .phk-btn { margin-top: calc(8 * var(--phu)); }
 /* The drag's drop states: an open seat you can take is lit; under the card, brighter; a taken seat refuses in red. */
-.vsr.dragging .vsr-seat.target .ph-card { background: var(--ph-edge); }
-.vsr.dragging .vsr-seat.target .ph-card-in { box-shadow: inset 0 0 calc(32 * var(--phu)) color-mix(in srgb, var(--ph-gold) 22%, transparent); }
-.vsr-seat.over .ph-card { background: var(--ph-metal-gold); transform: translateY(calc(-6 * var(--phu))); }
-.vsr-seat.over .ph-card-in { box-shadow: inset 0 0 calc(48 * var(--phu)) color-mix(in srgb, var(--ph-gold) 40%, transparent); }
-.vsr-seat.bad .ph-card { background: var(--pill-red, #ff7a66); }
+.vsr.vsr-dragging .vsr-seat.vsr-target .ph-card { background: var(--ph-edge); }
+.vsr.vsr-dragging .vsr-seat.vsr-target .ph-card-in { box-shadow: inset 0 0 calc(32 * var(--phu)) color-mix(in srgb, var(--ph-gold) 22%, transparent); }
+.vsr-seat.vsr-over { transform: translateY(calc(-6 * var(--phu))); }
+.vsr-seat.vsr-over .ph-card { background: var(--ph-metal-gold); }
+.vsr-seat.vsr-over .ph-card-in { box-shadow: inset 0 0 calc(48 * var(--phu)) color-mix(in srgb, var(--ph-gold) 40%, transparent); }
+.vsr-seat.vsr-bad .ph-card { background: var(--pill-red, #ff7a66); }
 .vsr-menucatch { position: fixed; inset: 0; z-index: 6; }
 .vsr-seat.menu { z-index: 7; }
 
 /* THE STANDS: a slim plate under the seats; your tile drags to a seat. */
 .vsr-stands { flex: none; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(12 * var(--phu)) calc(24 * var(--phu)) calc(16 * var(--phu));
-  background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); transition: background 0.12s ease; }
-.vsr-stands.target { box-shadow: var(--ph-gild); }
-.vsr-stands.over { background: var(--ph-plate-hover); box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), var(--ph-gild); }
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.vsr-stands.vsr-target { box-shadow: var(--ph-gild); }
+.vsr-stands.vsr-over { background: var(--ph-plate-hover); box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), var(--ph-gild); }
 .vsr-standshead { display: flex; align-items: baseline; gap: calc(16 * var(--phu)); }
 .vsr-standshead h2 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .vsr-standsn { font-family: var(--ph-name-font); font-weight: 700; font-size: var(--ph-t2); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
@@ -118,10 +120,10 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 .vsr-tiles { display: flex; gap: calc(8 * var(--phu)); min-height: calc(48 * var(--phu)); overflow-x: auto; scrollbar-width: thin; overscroll-behavior: contain; }
 .vsr-none { align-self: center; font-size: var(--ph-t2); color: var(--ph-muted); }
 .vsr-tile { position: relative; flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(48 * var(--phu)); padding: 0 calc(16 * var(--phu)) 0 0; overflow: hidden;
-  background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); animation: vsb-rise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; transition: opacity 0.12s ease; }
-.vsr-tile.drag { touch-action: none; }
-.vsr-tile.you { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
-.vsr-tile.src { opacity: 0.25; }
+  background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); animation: vsb-rise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.vsr-tile.vsr-tdrag { touch-action: none; }
+.vsr-tile.vsr-tyou { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
+.vsr-tile.vsr-src { opacity: 0.25; }
 .vsr-tileart { flex: none; width: calc(48 * var(--phu)); height: 100%; object-fit: cover; object-position: 50% 20%; pointer-events: none;
   -webkit-mask-image: linear-gradient(90deg, #000 60%, transparent); mask-image: linear-gradient(90deg, #000 60%, transparent); }
 .vsr-tilename { max-width: calc(180 * var(--phu)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-name-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
@@ -143,15 +145,15 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 
 /* THE DRAG: the ghost banner rides the pointer (transform only); the band above the sell line says Spectate. */
 .vsr-ghost { position: fixed; left: 0; top: 0; z-index: 490; pointer-events: none; will-change: transform; transform: translate(-9999px, -9999px); }
-.vsr-ghost.snap { transition-property: transform; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
-.vsr-ghostin { position: absolute; inset: 0; transform-origin: 50% 40%; animation: vsr-grab 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-.vsr-ghostin > .ph-card { position: absolute; inset: 0; box-shadow: none; transform: rotate(-2deg) scale(1.03); }
-.vsr-ghost.lit .vsr-ghostin > .ph-card { background: var(--ph-metal-gold); }
-.vsr-ghost.snap .vsr-ghostin > .ph-card { transform: none; }
+.vsr-ghost.vsr-snap { transition-property: transform; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+.vsr-ghostin { position: absolute; inset: 0; width: 100%; height: 100%; transform-origin: 50% 40%; animation: vsr-grab 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.vsr-ghost .ph-cardwrap.vsr-ghostin { rotate: -2deg; scale: 1.03; }
+.vsr-ghost.vsr-lit .vsr-ghostin > .ph-card { background: var(--ph-metal-gold); }
+.vsr-ghost.vsr-snap .ph-cardwrap.vsr-ghostin { rotate: none; scale: none; }
 @keyframes vsr-grab { from { transform: scale(0.82); opacity: 0.6; } to { transform: none; opacity: 1; } }
 .vsr-sellband { position: fixed; left: 0; right: 0; top: 0; z-index: 489; pointer-events: none; display: flex; align-items: flex-end; justify-content: center; padding-bottom: calc(16 * var(--phu)); box-sizing: border-box;
   background: linear-gradient(180deg, color-mix(in srgb, var(--ph-gold) 16%, transparent), color-mix(in srgb, var(--ph-gold) 0%, transparent) 90%); opacity: 0.6; transition: opacity 0.12s ease; }
-.vsr-sellband.on { opacity: 1; }
+.vsr-sellband.vsr-on { opacity: 1; }
 .vsr-sellband > span { padding: calc(6 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-plate); box-shadow: var(--ph-gild); clip-path: var(--ph-clip-s);
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-gold-hi); }
 
@@ -177,7 +179,7 @@ html[data-ph-compact] .vsr-actions .ph-start { height: calc(56 * var(--phu)); wi
 html[data-ph-compact] .vsr-actions { padding-top: 0; gap: calc(12 * var(--phu)); }
 html[data-ph-compact] .vsr .ph-name { font-size: min(calc(22 * var(--phu)), 9.5cqi); }
 html[data-ph-compact] .vsr .ph-foot { gap: calc(4 * var(--phu)); padding-bottom: calc(var(--ph-cut) + 8 * var(--phu)); }
-html[data-ph-compact] .vsr .ph-lead, html[data-ph-compact] .vsr-you { top: calc(8 * var(--phu)); height: calc(24 * var(--phu)); }
+html[data-ph-compact] .vsr .ph-lead, html[data-ph-compact] .vsr-you { height: calc(24 * var(--phu)); }
 html[data-ph-compact] .vsr .ph-lead { left: calc(8 * var(--phu)); }
 html[data-ph-compact] .vsr-you { right: calc(8 * var(--phu)); }
 html[data-ph-compact] .vsr-cards.vsr-duos { padding-top: calc(32 * var(--phu)); }
@@ -189,5 +191,7 @@ html[data-ph-compact] .vsb-join { min-width: calc(88 * var(--phu)); }
 
 @media (prefers-reduced-motion: reduce) {
   .vsb-row, .vsr-tile, .vsr-rules, .vsr-vs, .vsr-ghostin, .vsr-notice { animation: none; }
-  .vsr-ghost.snap { transition: none; }
+  .vsr-ghost.vsr-snap { transition: none; }
 }
+/* A phone's open seat keeps only its name and its buttons. */
+html[data-ph-compact] .vsr-opensub, html[data-ph-compact] .vsr-open .ph-plus { display: none; }

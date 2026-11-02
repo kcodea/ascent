@@ -72,6 +72,7 @@ const settle = async (): Promise<void> => {
   // The skins are lazy chunks: load them, then let React commit.
   await import('./CollectionPh');
   await import('./CrateShopPh');
+  await import('../../partyHome/shell/PhPageChrome');
   for (let i = 0; i < 4; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 };
 const $ = (sel: string): HTMLElement | null => document.querySelector<HTMLElement>(sel);

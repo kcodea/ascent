@@ -202,3 +202,22 @@ html[data-ph-shell][data-touch-small] .phc-grid { grid-template-columns: repeat(
 .crth.phx .crth-summary-head { font-family: var(--ph-font); letter-spacing: 0.2em; color: var(--ph-muted); }
 .crth.phx .crth-summary li { padding: 6px 12px; border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-plate); box-shadow: inset 0 0 0 1.5px var(--rc);
   font-family: var(--ph-font); font-weight: 900; color: #fff; text-shadow: var(--ph-shadow); }
+
+/* ── THE FANTASY PASS (owner 2026-11-02: "it needs to maintain a fantasy vibe as much as possible ... we are a fantasy
+   game"): the game's inked serif (Cinzel, the title lettering) for every NAME on these pages, gilded edges on what is
+   picked, warm candle-light under the previews and the chests. Static paint only; the kit's own tokens still rule the
+   chrome, so the shell's fantasy tokens flow in when they land. ── */
+.phc, .phs { --phc-serif: 'Cinzel', var(--title-font, 'Cinzel Decorative'), Georgia, serif; --phc-warm: rgba(255, 196, 110, 0.16); }
+.phc-tile-name, .phc-name h2, .phc-stage-name, .phc-bay-num b, .phc-cat .phk-rowtitle,
+.cshop.phs .cshop-chest-name, .cshop.phs .cshop-cat-name, .cshop.phs .cshop-total .cshop-what, .cshop.phs .cshop-total .cshop-amt { font-family: var(--phc-serif); letter-spacing: 0.02em; }
+.phc-tile-name { font-weight: 700; }
+.phc-name h2, .phc-stage-name { font-weight: 900; letter-spacing: 0.01em; }
+.phc-cat .phk-rowtitle { font-weight: 700; letter-spacing: 0.06em; }
+.cshop.phs .cshop-chest-name { font-weight: 900; letter-spacing: 0.08em; }
+/* Gilded: the picked tile, the picked category and the detail plate wear the gold edge (the rail's gilt), not a flat line. */
+.phc-tile.sel { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold-hi, #ffe9b0), inset 0 0 0 calc(3 * var(--phu)) var(--ph-gold), inset 0 calc(-3 * var(--phu)) 0 var(--rc), inset 0 0 calc(24 * var(--phu)) var(--phc-warm); }
+.phc-detail { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold), inset 0 0 0 calc(3 * var(--phu)) color-mix(in srgb, var(--ph-gold-deep, #7a571f) 60%, transparent), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); }
+/* Candle-light: a warm pool under every preview and under the chest bay's chest. */
+.phc-stage { background: radial-gradient(55% 45% at 50% 85%, var(--phc-warm), transparent 70%), radial-gradient(60% 60% at 50% 45%, color-mix(in srgb, var(--rc) 24%, transparent), transparent 75%), var(--ph-well); }
+.phc-bay-art { background: radial-gradient(50% 40% at 50% 80%, rgba(255, 196, 110, 0.28), transparent 70%); }
+.cshop.phs .cshop-chest:not(:hover):not(.tt-on) { background: radial-gradient(60% 40% at 50% 70%, var(--phc-warm), transparent 70%), radial-gradient(70% 50% at 50% 60%, color-mix(in srgb, var(--tc) 14%, transparent), transparent 75%), var(--ph-well); }

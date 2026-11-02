@@ -28,7 +28,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { levelProgress } from '@game/progression';
 import { defaultTeamName, LEARN_ASCENT, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
-import { heroThumb } from '../art';
+import { heroThumb, modeArt } from '../art';
 import { isPhone } from '../deviceClass';
 import { Icon } from '../Icon';
 import { currentUserId } from '../identity';
@@ -270,7 +270,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
 
       <div className="ph-modes">
         <PhTabs label="Mode" value={modeId} onChange={pick}
-          tabs={modes.map((m) => ({ id: m.id, label: m.label, disabled: !!lockReason(m) }))} />
+          tabs={modes.map((m) => ({ id: m.id, label: <ModeLabel id={m.id} label={m.label} />, disabled: !!lockReason(m) }))} />
         <span className={`ph-desc${locked ? ' locked' : ''}`} role={locked ? 'status' : undefined}>{locked ?? mode.desc}</span>
       </div>
 
@@ -317,6 +317,20 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   );
 }
 
+/** A mode tab's label: the mode's painted tile in the gilded emblem frame (the owner's medallion art), then its name. */
+const MODE_TILE: Record<PartyModeId, string> = {
+  ranked: 'lobby', duos: 'lobby', versus: 'versus', group: 'versus', vduos: 'versus', practice: 'practice', gauntlet: 'gauntlet', learn: 'learn',
+};
+function ModeLabel({ id, label }: { id: PartyModeId; label: string }): JSX.Element {
+  const art = modeArt(MODE_TILE[id]);
+  return (
+    <span className="ph-modelbl">
+      <span className="ph-emblem" aria-hidden="true">{art && <img src={art} alt="" draggable={false} decoding="sync" />}</span>
+      <span>{label}</span>
+    </span>
+  );
+}
+
 /** Versus: host a room, set its rules, then show the room screen. A failure stays on the home and says why. */
 async function hostVersus(options: VersusRoomOptions, playerName: string): Promise<void> {
   await createRoom(defaultPartyName(playerName).replace(/party$/, 'room'));
@@ -334,6 +348,7 @@ function BannerCard({ m, i, phone, leader, showState, menuOpen, onToggleMenu, me
   const art = phone ? heroThumb(m.art) : m.art;
   return (
     <div className={`ph-cardwrap${menuOpen ? ' menu' : ''}`} style={{ '--i': i } as CSSProperties}>
+      <span className="ph-bfoot" aria-hidden="true" />
       <button type="button" className="ph-card" aria-haspopup="menu" aria-expanded={menuOpen} aria-label={`${m.self ? 'You' : m.name}. Options`} onClick={onToggleMenu}>
         <span className="ph-card-in">
           {art && <img className="ph-art" src={art} alt="" draggable={false} decoding="sync" />}
@@ -353,6 +368,7 @@ function BannerCard({ m, i, phone, leader, showState, menuOpen, onToggleMenu, me
           </span>
         </span>
       </button>
+      <span className="ph-rod" aria-hidden="true" />
       {menuOpen && (
         <div className="ph-cardmenu" role="menu" aria-label={`${m.name} options`}>
           {menu.map((it) => (
@@ -370,13 +386,15 @@ function BannerCard({ m, i, phone, leader, showState, menuOpen, onToggleMenu, me
 /** An open seat: points at the friends list (invite from there). */
 function OpenSeat({ i, onOpen }: { i: number; onOpen: () => void }): JSX.Element {
   return (
-    <div className="ph-cardwrap" style={{ '--i': i } as CSSProperties}>
+    <div className="ph-cardwrap open" style={{ '--i': i } as CSSProperties}>
+      <span className="ph-bfoot" aria-hidden="true" />
       <button type="button" className="ph-card ph-open" onClick={onOpen} aria-label="Open seat. Invite a friend from your friends list">
         <span className="ph-card-in">
           <span className="ph-plus" aria-hidden="true">+</span>
           <span className="ph-openlbl">Invite</span>
         </span>
       </button>
+      <span className="ph-rod" aria-hidden="true" />
     </div>
   );
 }

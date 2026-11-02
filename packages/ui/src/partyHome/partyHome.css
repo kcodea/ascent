@@ -68,7 +68,7 @@
 .ph-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-name-font); font-weight: 900; font-size: min(var(--ph-t4), 9.5cqi); line-height: 1.1; color: var(--ph-ink);
   text-shadow: var(--ph-shadow), 0 calc(2 * var(--phu)) calc(8 * var(--phu)) rgba(0, 0, 0, 0.7); }
 .ph-rank { display: inline-flex; align-items: center; gap: calc(12 * var(--phu)); min-height: calc(40 * var(--phu)); font-family: var(--ph-font); font-weight: 900; font-size: min(var(--ph-t3), 7cqi); color: var(--ph-text); text-shadow: var(--ph-shadow); }
-.ph-rank .rankcrest { width: min(calc(40 * var(--phu)), 12cqi); height: min(calc(40 * var(--phu)), 12cqi); }
+.ph-rank .rankcrest { --ring: min(calc(40 * var(--phu)), 12cqi); }
 .ph-muted { font-weight: 700; font-size: var(--ph-t2); color: var(--ph-muted); }
 .ph-sub { font-size: var(--ph-t2); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
 .ph-titlebadge { font-size: var(--ph-t2); }
@@ -145,3 +145,31 @@ html[data-ph-compact] .ph-name { font-size: min(calc(24 * var(--phu)), 9.5cqi); 
 html[data-ph-compact] .ph-start { height: calc(64 * var(--phu)); width: calc(320 * var(--phu)); }
 html[data-ph-compact] .ph-opts { width: calc(520 * var(--phu)); }
 @media (prefers-reduced-motion: reduce) { .ph-cardwrap, .ph-stage, .ph-opts, .ph-cardmenu { animation: none; } .ph-card, .ph-start { transition: none; } }
+
+/* ── THE PAINTED ORNAMENTS (the owner's UI art, ./ornaments, keyed and trimmed): static images, no animation ── */
+/* A BANNER: the gilded rod across the top (wider than the cloth, its finials past the edges), the navy cloth with gold
+   side edges, and the swallowtail foot with its tassel under it. The foot's cloth colour continues the card's. */
+.ph-cardwrap { --footh: calc(100cqi * 276 / 720); }
+.ph-card { bottom: calc(var(--footh) - 2px); clip-path: none; padding: 0 var(--ew); background: linear-gradient(90deg, #b8862e, #ffe9a8 30%, #c8953f 55%, #8a5f1c); }
+.ph-card-in { clip-path: none; background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 92%, #000) 0%, rgb(18 35 85) 100%); }
+.ph-card:hover, .ph-cardwrap.menu .ph-card { transform: none; }
+.ph-cardwrap:hover { transform: translateY(calc(-6 * var(--phu))); transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
+.ph-bfoot { position: absolute; left: 0; right: 0; bottom: 0; height: var(--footh); pointer-events: none; background: url('./ornaments/banner-foot.webp') center top / 100% 100% no-repeat; }
+.ph-rod { position: absolute; z-index: 2; left: -12%; right: -12%; top: calc(-0.07 * 100cqi); height: calc(124cqi * 94 / 760); pointer-events: none;
+  background: url('./ornaments/banner-rod.webp') center / 100% 100% no-repeat; }
+.ph-foot, .ph-foot:has(.ph-state) { padding-bottom: calc(12 * var(--phu)); }
+.ph-art { height: 88%; }
+.ph-lead { top: calc(0.12 * 100cqi); }
+/* An open seat: the same banner, dimmed. */
+.ph-cardwrap.open .ph-bfoot, .ph-cardwrap.open .ph-rod { opacity: 0.6; }
+.ph-cardwrap.open .ph-card { background: linear-gradient(90deg, rgba(184, 134, 46, 0.6), rgba(255, 233, 168, 0.6) 30%, rgba(200, 149, 63, 0.6) 55%, rgba(138, 95, 28, 0.6)); }
+.ph-open .ph-card-in { background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 92%, #000) 0%, rgb(18 35 85) 100%); opacity: 0.9; }
+/* START: the gilded plaque (blank face, sapphires each end), the word in dark ink on it. */
+.ph-start { height: calc(384 * var(--phu) * 197 / 800); clip-path: none; box-shadow: none; background: url('./ornaments/start-plaque.webp') center / 100% 100% no-repeat; }
+html[data-ph-compact] .ph-start { height: calc(320 * var(--phu) * 197 / 800); }
+.ph-start:disabled { background: url('./ornaments/start-plaque.webp') center / 100% 100% no-repeat; box-shadow: none; filter: grayscale(0.85) brightness(0.55); color: #2a1a06; text-shadow: none; }
+/* The mode tabs' emblems: the gilded medallion with the mode's painted tile in its enamel disc. */
+.ph-modelbl { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
+.ph-emblem { position: relative; flex: none; width: calc(30 * var(--phu)); height: calc(30 * var(--phu) * 131 / 128); background: url('./ornaments/mode-emblem.webp') center / 100% 100% no-repeat; }
+.ph-emblem > img { position: absolute; left: 21%; top: 21%; width: 58%; height: 56%; border-radius: 50%; object-fit: cover; }
+.phk-tab:disabled .ph-emblem { filter: grayscale(1); }

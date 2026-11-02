@@ -128,3 +128,25 @@ html[data-ph-shell][data-touch-small] .ph-friends.drawer { position: absolute; g
   animation: ph-drawer 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
 @keyframes ph-drawer { from { transform: translateX(100%); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ph-card, .ph-friends.drawer { animation: none; } .ph-card, .ph-start { transition: none; } }
+
+/* ── IN-PLACE MODE OPTIONS (ModeOptions.tsx): one kit section beside the cards; its body scrolls on its own ── */
+.ph-body { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; gap: calc(32 * var(--phu)); }
+.ph-body > .ph-cards { height: 100%; }
+.ph-body.has-opts > .ph-cards { flex: 1 1 0; width: auto; min-width: 0; }
+.ph-opts { flex: none; width: calc(480 * var(--phu)); max-height: 100%; min-height: 0; animation: ph-rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: 80ms; }
+.ph-opts > .phk-secbody { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; gap: calc(16 * var(--phu)); }
+.pho-rows { display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+.pho-god { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
+.pho-godrow { display: flex; flex-direction: column; gap: calc(2 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.pho-godrow > span:first-child { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
+.pho-godrow > span:last-child { font-size: var(--ph-t1); color: var(--ph-muted); }
+.pho-stages { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
+.pho-stage.off { opacity: 0.5; }
+.pho-stagenum { display: inline-grid; place-items: center; width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
+.pho-stage.sel .pho-stagenum { background: var(--ph-metal-gold); color: var(--ph-navy); box-shadow: none; }
+.pho-note { display: flex; align-items: center; gap: calc(16 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
+.pho-note > span { flex: 1; }
+.pho-hint { font-size: var(--ph-t1); color: var(--ph-muted); }
+html[data-ph-shell][data-touch-small] .ph-opts { width: calc(520 * var(--phu)); }

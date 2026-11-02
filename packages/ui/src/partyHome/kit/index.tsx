@@ -131,3 +131,27 @@ export function PhEmpty({ title, sub, action }: { title: ReactNode; sub?: ReactN
     </div>
   );
 }
+
+/**
+ * A labelled segmented control (added for the in-place mode options; the kit's other APIs are unchanged). Single-select
+ * passes `value`; multi-select passes `isOn` and toggles in `onPick`. `disabled` greys the row; give `hint` the reason.
+ * `size="l"`: the big two-way switch (Practice's Sandbox | God Mode).
+ */
+export function PhSegmented<T extends string | number | null>({ label, hint, value, isOn, options, onPick, disabled, size = 'm' }: {
+  label?: ReactNode; hint?: ReactNode; value?: T; isOn?: (v: T) => boolean; options: readonly { value: T; label: ReactNode }[];
+  onPick: (v: T) => void; disabled?: boolean; size?: 'm' | 'l';
+}) {
+  const lit = (v: T): boolean => (isOn ? isOn(v) : v === value);
+  return (
+    <div className={cx('phk-seg', `s-${size}`, disabled && 'off')}>
+      {label && <span className="phk-seglbl">{label}</span>}
+      <div className="phk-segrow" role="group" aria-label={typeof label === 'string' ? label : undefined}>
+        {options.map((o) => (
+          <button key={String(o.value)} type="button" className={cx('phk-segbtn', lit(o.value) && 'on')} aria-pressed={lit(o.value)} disabled={disabled}
+            onClick={() => { if (!disabled) onPick(o.value); }}>{o.label}</button>
+        ))}
+      </div>
+      {hint && <span className="phk-seghint">{hint}</span>}
+    </div>
+  );
+}

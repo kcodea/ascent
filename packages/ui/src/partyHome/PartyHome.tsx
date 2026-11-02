@@ -26,7 +26,7 @@
  */
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { levelProgress } from '@game/progression';
-import { defaultTeamName } from '@game/sim';
+import { defaultTeamName, LEARN_ASCENT, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
 import { AVATAR_ART, avatarSrc, heroThumb } from '../art';
 import { isPhone } from '../deviceClass';
 import { Icon } from '../Icon';
@@ -52,9 +52,10 @@ import { defaultPartyName } from '../versus/playParty';
 import { versusEnabled } from '../versus/versusFlag';
 import { versusRoomRef } from '../versus/versusRemote';
 import { playerCardArt, seatCardSource, useSeatData } from '../versus/versusSeatCard';
-import { enterDuosParty, isDuosParty, leaveDuosParty, openVersus, startGame, useVersus } from '../versus/versusStore';
+import { createRoom, enterDuosParty, isDuosParty, leaveDuosParty, openVersus, setRoomOptions, startGame, useVersus } from '../versus/versusStore';
+import { GauntletPanel, PracticePanel, VersusPanel, stagePlayable, useGauntletStages } from './ModeOptions';
 import { PhTopNav } from './shell/PhTopNav';
-import { PhButton, PhEmpty, PhRow, PhTabs } from './kit';
+import { PhButton, PhEmpty, PhRow, PhSection, PhTabs } from './kit';
 import { partyModeOf, partyModes, readPartyMode, rememberPartyMode, type PartyModeId } from './partyModes';
 import { usePartyBackdrop, usePartyDemo } from './partyHomeFlag';
 import './partyHome.css';
@@ -99,9 +100,10 @@ function sampleFriends(): Friend[] {
 }
 
 export default function PartyHome({ onRankedStart }: PartyHomeProps) {
-  const startPractice = useGame((s) => s.startPractice);
+  const confirmPracticeSetup = useGame((s) => s.confirmPracticeSetup);
+  const startGauntlet = useGame((s) => s.startGauntlet);
+  const startTutorial = useGame((s) => s.startTutorial);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
-  const setTitleView = useGame((s) => s.setTitleView);
   const playerName = useGame((s) => s.playerName);
   const playerAvatar = useGame((s) => s.playerAvatar);
   const showOpp = useGame((s) => s.showOpponentSkins);
@@ -126,6 +128,14 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const modeId: PartyModeId = duosRoom ? 'duos' : modes.some((m) => m.id === picked) ? picked : 'ranked';
   const mode = partyModeOf(modeId);
   const pick = (id: PartyModeId): void => { sfx.pulse(); setPicked(id); rememberPartyMode(id); };
+
+  // IN-PLACE OPTIONS (ModeOptions.tsx): the Gauntlet stage and the Versus modifier START reads (Practice's live in the
+  // store's persisted draft).
+  const stages = useGauntletStages();
+  const [stagePick, setStagePick] = useState<number | null>(null);
+  const autoStage = stages.find((x) => x.state === 'available')?.n ?? stages.find((x) => stagePlayable(x.state))?.n ?? null;
+  const stage = stagePick !== null && stagePlayable(stages[stagePick - 1]?.state ?? 'locked') ? stagePick : autoStage;
+  const [modifier, setModifier] = useState<VersusModifierId | null>(null);
 
   const [friendsOpen, setFriendsOpen] = useState(false); // the phone's drawer (desktop: always docked)
   const [nameOpen, setNameOpen] = useState(false);
@@ -170,10 +180,22 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       if (!host) { startOk = false; startLabel = 'Waiting'; note = 'Your party leader starts the game.'; break; }
       onStart = () => onRankedStart('duos', () => { void startGame(); });
       break;
-    case 'versus': case 'group': case 'vduos': onStart = () => openVersus(); break;
-    case 'practice': onStart = () => startPractice(); break;
-    case 'gauntlet': onStart = () => setTitleView('gauntlet'); break;
-    case 'learn': onStart = () => setTitleView('learn'); break;
+    case 'versus': case 'group': case 'vduos': {
+      // Host a room with the tab's mode and the picked modifier (the Versus room screen takes it from there).
+      const vmode = mode.id === 'versus' ? 'duel' : mode.id === 'group' ? 'group' : 'duos';
+      onStart = () => { void hostVersus({ v: 1, mode: vmode, modifiers: modifier ? [modifier] : [] } as VersusRoomOptions, playerName); };
+      break;
+    }
+    case 'practice':
+      // The options are set in place: straight to the hero picker with them (the title hides as the picker opens).
+      onStart = () => { useGame.setState({ showTitle: false, avatarPickerOpen: false }); confirmPracticeSetup(); };
+      break;
+    case 'gauntlet':
+      if (stage === null) { startOk = false; note = 'No stage is open yet.'; break; }
+      note = `Stage ${stage}${stages[stage - 1]?.stage ? `: ${stages[stage - 1]!.stage!.name}` : ''}`;
+      onStart = () => startGauntlet(stage);
+      break;
+    case 'learn': onStart = () => startTutorial(LEARN_ASCENT); break;
     case 'scene': onStart = () => startSceneBuilder(); break;
   }
 
@@ -217,11 +239,20 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
             {!inGame && friendsAccount() && <PhButton variant="ghost" size="s" onClick={() => { sfx.pulse(); setNameOpen(true); }}>Rename</PhButton>}
           </div>
         )}
-        <div className={`ph-cards n${slots}`} key={mode.id}>
-          {members.map((m, i) => <BannerCard key={m.key} m={m} i={i} phone={phone} leader={showLeader && m.leader} />)}
-          {Array.from({ length: open }, (_, i) => (
-            <OpenSeat key={`open-${i}`} i={members.length + i} rival={mode.party === 'rivals'} onOpen={() => { sfx.pulse(); setFriendsOpen(true); }} />
-          ))}
+        <div className={`ph-body${mode.options ? ' has-opts' : ''}`}>
+          <div className={`ph-cards n${slots}`} key={mode.id}>
+            {members.map((m, i) => <BannerCard key={m.key} m={m} i={i} phone={phone} leader={showLeader && m.leader} />)}
+            {Array.from({ length: open }, (_, i) => (
+              <OpenSeat key={`open-${i}`} i={members.length + i} rival={mode.party === 'rivals'} onOpen={() => { sfx.pulse(); setFriendsOpen(true); }} />
+            ))}
+          </div>
+          {mode.options && (
+            <PhSection className="ph-opts" title={mode.id === 'gauntlet' ? 'Pick a stage' : mode.id === 'practice' ? 'Practice setup' : 'Room rules'} key={`o-${mode.id}`}>
+              {mode.id === 'practice' && <PracticePanel />}
+              {mode.id === 'gauntlet' && <GauntletPanel selected={stage} onSelect={setStagePick} />}
+              {(mode.id === 'versus' || mode.id === 'group' || mode.id === 'vduos') && <VersusPanel modifier={modifier} onModifier={setModifier} onBrowse={() => openVersus()} />}
+            </PhSection>
+          )}
         </div>
         <div className="ph-actions">
           <div className="ph-side">
@@ -244,6 +275,13 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       {duosRoom && <DuosResultOverlay />}
     </div>
   );
+}
+
+/** Versus: open the rooms area, host a room, then set its rules (the room screen takes over). */
+async function hostVersus(options: VersusRoomOptions, playerName: string): Promise<void> {
+  openVersus('versus');
+  await createRoom(defaultPartyName(playerName).replace(/party$/, 'room'));
+  if (useVersus.getState().room) await setRoomOptions(options);
 }
 
 /** A member's tall banner card: the portrait fading into navy, then name, title, medal and state at the foot. */

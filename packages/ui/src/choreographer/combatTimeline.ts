@@ -13,6 +13,7 @@ import { CARD_INDEX, RUNE_INDEX, QUEST_INDEX } from '@game/content';
 import { replayBeats, replayOrder } from '../choreo/replayOrder';
 import { adaptCombatMoments } from './adapters/combatMomentAdapter';
 import { compileTimeline } from './compileTimeline';
+import { fightCardIds } from '../fightRoster';
 import type { CompiledTimeline } from './timelineTypes';
 
 /** The minimum shape of a resolved combat this needs — a subset of `CombatResult`. */
@@ -21,12 +22,9 @@ export interface ResolvedCombatLike {
   initial: { player: { uid: string; cardId: string }[]; enemy: { uid: string; cardId: string }[] };
 }
 
-/** uid → cardId across the whole fight (initial boards + everything summoned). Mirrors `useCombatReplay`. */
+/** uid → cardId across the whole fight (initial boards + everything summoned + a tag-team step-in). Mirrors `useCombatReplay`. */
 function cardIdMap(combat: ResolvedCombatLike): Map<string, string> {
-  const m = new Map<string, string>();
-  for (const u of [...combat.initial.player, ...combat.initial.enemy]) m.set(u.uid, u.cardId);
-  for (const e of combat.events) if (e.type === 'summon') m.set((e as { minion: { uid: string; cardId: string } }).minion.uid, (e as { minion: { cardId: string } }).minion.cardId);
-  return m;
+  return fightCardIds(combat); // initial boards + every summon + every Duos tagIn body (R-DUOS-FX-01)
 }
 
 /**

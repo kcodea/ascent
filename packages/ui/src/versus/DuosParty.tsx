@@ -6,14 +6,21 @@
  *    either teammate renames it between games from the Team name window (the room's own `.vsveil` + `.vspanel`).
  *  - FRIENDS ONLY (owner Q6): kept server-side (`setFriendsOnly`), but no longer on the party screen: there is no public
  *    parties list to hide from (2026-10-27).
- *  - THE RESULT (R-RANKED-DUOS-RATING-01): after a game, the team's place and its rating change on the solo end screen's
- *    own rank sequence (`RankScreen`, out of 4 teams), over the room.
+ *  - THE RESULT (R-RANKED-DUOS-RATING-01, R-RANKED-DUOS-POSTGAME-01): after a game, the solo end screen's own flow over
+ *    the room (`RankScreen` out of 4 teams, then Account XP), headed by both teammates; Continue returns to the party.
  */
 import { useEffect, useState } from 'react';
-import { defaultTeamName, teamNameProblem, TEAM_NAME_MAX } from '@game/sim';
+import { defaultTeamName, getHero, teamNameProblem, TEAM_NAME_MAX } from '@game/sim';
 import { sfx } from '../sfx';
 import { RankScreen } from '../rank/RankScreen';
-import { closeDuosResult, saveTeamName, useVersus } from './versusStore';
+import { LbHeroFrame } from '../LadderBits';
+import { ProgressionPostgame } from '../progression/ProgressionPostgame';
+import { frameIdOf } from '../portraitFrame/PortraitFrame';
+import { heroPortrait } from '../skins/skinArt';
+import { opponentSkins } from '../skins/skins';
+import { useGame } from '../store';
+import { RANKED_DUOS_TEAM_COUNT } from './rankedDuosView';
+import { closeDuosResult, saveTeamName, setVersusStatsOpen, useVersus, type DuosResultMember } from './versusStore';
 import { versusRemote, type VersusRoom } from './versusRemote';
 
 /** The server's refusal codes, in plain words (no em dashes). */
@@ -97,24 +104,58 @@ export function TeamNamePanel({ room, me, name, onSaved, onClose }: { room: Vers
   );
 }
 
-/** The team's place and rating change after a Ranked Duos game, on the solo end screen's rank sequence. */
+/** The team's two players on the post-game screen: each hero's portrait (in its owner's frame and skins) and name. */
+function DuosResultTeam({ team }: { team: DuosResultMember[] }) {
+  const showOpp = useGame((s) => s.showOpponentSkins);
+  if (team.length === 0) return null;
+  return (
+    <div className="vsduosresult-faces" aria-label="Your team">
+      {team.map((m) => {
+        const skins = m.self ? m.cosmetics : opponentSkins(showOpp, m.cosmetics);
+        return (
+          <div key={m.userId} className={`vsduosresult-face${m.self ? ' self' : ''}`}>
+            <LbHeroFrame heroId={m.hero} size="big" side={m.self ? 'self' : 'opp'} art={m.hero ? heroPortrait(m.hero, skins) : undefined} frameId={frameIdOf(skins)} />
+            <span className="vsduosresult-name">{m.self ? 'You' : m.name}</span>
+            {m.hero && <span className="vsduosresult-hero">{getHero(m.hero).name}</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * THE RANKED DUOS POST-GAME (owner 2026-11-02, R-RANKED-DUOS-POSTGAME-01: "add a post game screen just like ranked
+ * solo's that shows your team's ranked progress/xp etc same flow as solos"; "the continue then returns you to your duos
+ * party"). The solo ranked end screen 1:1 (`RankScreen`, its placement reveal, the team's medal bar and points, the
+ * promotion / demotion moment, then the Account XP panel with Aether and the rewards line), headed by the team: its
+ * name and both teammates' portraits. Out of 4 teams. Match details opens the match stats; Continue closes the screen
+ * onto the party, where the pair stays together for the next game.
+ */
 export function DuosResultOverlay() {
   const res = useVersus((s) => s.duosResult);
+  const hasStats = useVersus((s) => s.lastMatch != null);
   if (!res) return null;
+  const submission = res.unrated ? 'unrated' : res.result ? 'confirmed' : res.pending ? 'pending' : 'rejected';
   return (
     <div className="vsduosresult" role="dialog" aria-label="Ranked Duos result">
-      <div className="heroselect endscreen lobbyend rankend">
+      <div className={`heroselect endscreen lobbyend rankend${res.placement === 1 ? ' won' : ''}`}>
         <div className="hsbox endbox">
           {res.teamName && <div className="vsduosresult-team hudpill-name">{res.teamName}</div>}
+          <DuosResultTeam team={res.team} />
           <RankScreen
             placement={res.placement}
-            seatCount={4}
-            submission={res.result ? 'confirmed' : res.pending ? 'pending' : 'rejected'}
+            seatCount={RANKED_DUOS_TEAM_COUNT}
+            submission={submission}
             result={res.result}
             current={res.result?.after ?? null}
-            error={res.result || res.pending ? undefined : 'The team result is not in yet. It will show on the leaderboard.'}
+            error={submission === 'rejected' ? 'The team result is not in yet. It will show on the leaderboard.' : undefined}
+            unratedReason={res.unrated ? 'No recorded teams' : undefined}
             runId={`duos:${res.matchId}`}
             onContinue={() => { sfx.pulse(); closeDuosResult(); }}
+            // ACCOUNT XP waits its turn, as on the solo screen: not while the team's rank is still settling or celebrating.
+            extra={(settled) => <ProgressionPostgame localKey={`versus:${res.matchId}`} active={settled && submission !== 'pending'} />}
+            onMatchDetails={hasStats ? () => { sfx.tick(); setVersusStatsOpen(true); } : undefined}
           />
         </div>
       </div>

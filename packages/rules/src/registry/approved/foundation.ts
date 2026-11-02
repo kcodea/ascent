@@ -13233,6 +13233,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/handOverBoardZ.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
   {
+    id: 'R-DUOS-FX-01',
+    title: 'Duos tag-team fights: the second board plays every animation the first board does',
+    statement:
+      'In a tag-team fight the board that steps in (a teammate\x27s, on either side) is presented exactly like the board that '
+      + 'opened the fight: its Deathrattle and Echo pulses, authored attack, damage, Shout and watcher FX, Rally and Flurry '
+      + 'wind-ups, trigger pulses, spell side, narration names, announcer moments, choreographer card identity and phone '
+      + 'audio prewarm all resolve. Mechanism: every uid lookup of the fight (uid to card, side and name) is built from '
+      + '`fightBodies` (packages/ui/src/fightRoster.ts): the starting boards, every `summon` AND every `tagIn` body. '
+      + 'The end-of-fight hero attack plays the attack equipped by the player whose board ended the fight '
+      + '(`useDuosCombat` selfSeatId / foeSeatId into `attackerCosmeticOf`), through "Show opponent cosmetics", so both '
+      + 'teammates see the same attack.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-02 (live Versus Duos / Ranked Duos play)', quote: 'some animations arent playing in duos it seems like the second player\x27s animations maybe dont play' },
+      { kind: 'code', ref: 'packages/ui/src/fightRoster.ts; packages/ui/src/useCombatReplay.ts (cardIds, unitSides, names, playerUids); packages/ui/src/choreographer/combatTimeline.ts; packages/ui/src/heroBlast/attackerCosmetic.ts' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (fix/duos-second-board-fx). Before, the replay\x27s uid maps were seeded from `initial` + '
+      + '`summon` only; a `tagIn` board\x27s fresh uids resolved to nothing, so every card-keyed FX decision skipped the '
+      + 'second board (its beats in the compiled timeline carried the bare uid `m7` instead of the card).',
+    example: 'My Mama Pup dies and its Echo pulses. My teammate\x27s Mama Pup steps in, dies, and its Echo pulses the same way.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/duosSecondBoardFx.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-DUOS-PASS-LATENCY-01',
     title: 'A Duos pass lands in the teammate\x27s hand as soon as the server has it, even while they watch the sender',
     statement:
@@ -13287,5 +13312,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-11-02. Before, the 4px `--c` box ring showed as a tribe-coloured rectangle behind oval art (yellow for Dwarves).',
     example: 'A Dwarf in Ann\x27s Shop completes Bob\x27s pair: it glows teal with teal arrows, and no yellow box shows behind the oval.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/tripleHintOval.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-RANKED-DUOS-POSTGAME-01',
+    title: 'Ranked Duos: after a game both teammates get the solo ranked end screen, and Continue returns to the party',
+    statement:
+      'When a Ranked Duos game ends (my team is placed), each teammate sees the solo ranked end screen over the party: '
+      + 'the team\x27s place out of 4, the team\x27s medal bar and points change (the promotion / demotion moment included), '
+      + 'then that player\x27s own Account XP (and Aether, and the line pointing at new rewards), headed by the team\x27s name '
+      + 'and both teammates\x27 portraits and names. An unrated table reads "Unrated" and still shows the XP. The match '
+      + 'stats open only from its Match details button, never over it. Continue closes it onto the Duos party, where the '
+      + 'pair stays for the next game. Each player\x27s XP settles once (`versus:<match>`, deduped by the server); a request '
+      + 'refused because the Worker\x27s result has not landed yet (`source_not_found` / `not_terminal`) within 3 minutes of '
+      + 'the end is retried instead of dropped.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (Ranked Duos)', quote: 'add a post game screen just like ranked solo\x27s that shows your team\x27s ranked progress/xp etc same flow as solos' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (Ranked Duos)', quote: 'the continue then returns you to your duos party' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosParty.tsx (DuosResultOverlay, DuosResultTeam); packages/ui/src/versus/versusStore.ts (returnToRoom, duosResultTeam, loadDuosResult); packages/ui/src/progression/progressionQueue.ts (versusResultLanding)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (feat/ranked-duos-postgame). Before, the room opened the Versus match stats (z 560) over the '
+      + 'team\x27s rank screen (z 500), an unrated game showed no result screen at all, the rank screen had no Account XP, '
+      + 'and an XP request that beat the Worker\x27s result writer was dropped as a permanent refusal.',
+    example: 'Kevin and Lemon finish 2nd: both see "2ND", the team\x27s bar move +11, then their own Account XP; Continue puts them back on their party screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosPostgame.test.tsx', 'packages/ui/src/progression/progressionQueue.test.ts', 'packages/ui/src/versus/chaos/versusCfParity.db.test.ts'], lastVerifiedAt: '2026-11-02' },
   },
 ];

@@ -74,6 +74,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Duos fights: the second board to fight now plays all of its animations.',
+        details: [
+          'When a teammate’s board steps in, its Deathrattles, attack effects, Shouts, Rallies and trigger glows now play, the same as the first board’s.',
+          'This fixes both teams, on your screen, your teammate’s screen and for spectators.',
+          'The hero attack at the end of the fight is now the one equipped by the player whose board won it.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New Legendary hero attack: Golazo. Your hero plays football and scores on the enemy hero.',
         details: [
           'A goal appears on the enemy hero, and every hit ends with the ball bulging the net.',
@@ -100,6 +109,16 @@ export const PATCH_NOTES: PatchNote[] = [
           'It keeps the teal glow in your hand, so you know to pass it to them.',
           'It updates live as your teammate buys, sells and plays.',
           'If the card would finish your own triple too, it shows your own gold glow.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Ranked Duos now ends on the same results screen as ranked solo. Continue takes you back to your party.',
+        details: [
+          "You see your team's place out of 4, your team's rank bar and points change, then your own Account XP.",
+          'Your team name and both of your heroes sit at the top.',
+          'Match details opens the match stats. They no longer cover your results.',
+          'XP from a Versus or Duos game that was slow to save is now retried instead of lost.',
         ],
       },
       {

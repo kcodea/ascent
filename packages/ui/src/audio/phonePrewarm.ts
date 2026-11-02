@@ -55,6 +55,8 @@ export function combatCardIds(c: CombatResult | undefined | null): string[] {
   for (const e of c.events ?? []) {
     const id = (e as { cardId?: unknown }).cardId;
     if (typeof id === 'string' && id) out.add(id);
+    // A Duos step-in's board (R-DUOS-FX-01): its cards sound too.
+    if (e.type === 'tagIn') for (const m of e.minions ?? []) out.add(m.cardId);
   }
   return [...out];
 }

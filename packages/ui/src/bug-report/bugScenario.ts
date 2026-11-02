@@ -184,6 +184,8 @@ export interface CombatEventLine {
 export function combatEventLines(result: CombatResult): CombatEventLine[] {
   const names = new Map<string, string>();
   for (const m of [...(result.initial?.player ?? []), ...(result.initial?.enemy ?? [])]) names.set(m.uid, m.name);
+  // A Duos step-in's board (R-DUOS-FX-01) is named up front: its bodies act right after the `tagIn`.
+  for (const e of result.events) if (e.type === 'tagIn') for (const m of e.minions) names.set(m.uid, m.name);
   const n = (uid: string | undefined): string => (uid ? names.get(uid) ?? uid : '?');
   const lines: CombatEventLine[] = [];
   result.events.forEach((e: CombatEvent, index: number) => {

@@ -1,5 +1,5 @@
-import { Fragment, memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import { Fragment, lazy, memo, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { inRunTribes, type CardDef, type Tribe } from '@game/core';
 import { CARD_INDEX, DUOS_WHISPERS, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, duosPoolFor, poolFor, type SetId } from '@game/content';
 import { questRewardCardsFor, runeRewardCardsFor } from './compendiumRewards';
@@ -24,7 +24,11 @@ import { useGame } from './store';
 import { CompendiumRules } from './CompendiumRules';
 import { LazyCell, LazyRootProvider, eagerCellCount } from './bookLazy';
 import rulesQuestionArt from './rules-question.png';
+import { usePartyHome } from './partyHome/partyHomeFlag';
 import './compendium.css';
+
+/** The app shell's Compendium page (party home prototype, DEV only; lazy and null in production, like the top nav). */
+const PhCompendiumHost = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendiumHost }))) : null;
 
 /** Evolution units — non-buyable tokens a minion ascends/transforms into (Spirit Pup → Spirit Worgen,
  *  Tara → Taragosa). Detected from the SOURCE cards actually in the given set's pool (ascend targets +
@@ -282,6 +286,15 @@ function compendiumSetPickerEnabled(): boolean {
   return import.meta.env.DEV;
 }
 
+/** The Compendium's views: the card gallery, or one of the three codex panels. */
+export type CompendiumView = 'cards' | 'rules' | 'glossary' | 'guides';
+/** What a host frame receives (see `frame`). */
+export interface CompendiumParts {
+  subtitle: string; controls: ReactNode; body: ReactNode; view: CompendiumView; pickView: (v: CompendiumView) => void;
+  /** A text panel (Rules / Glossary) is up: the card controls are empty. */
+  codex: boolean;
+}
+
 /**
  * The Compendium (Tab) — a filterable codex of minions + spells: the whole card set when opened from the
  * title (pre-run), or scoped to the active run's tribes once a run is underway. A blurred
@@ -290,7 +303,17 @@ function compendiumSetPickerEnabled(): boolean {
  * for the enlarged inspect (the global Inspect overlay handles it). UI-only — reads `run.pool`'s eligibility
  * rule (neutral + active tribes) off `BUYABLE_CARDS` so the contents stay stable as you buy/sell.
  */
-export function MinionBook() {
+/** `frame` (the app shell's Compendium page, partyHome/pages/PhCompendium.tsx): render the book's parts inside the host's
+ *  own page instead of the overlay window. Every filter, view and state is the book's own; only the framing changes. */
+export function MinionBook({ frame }: { frame?: (parts: CompendiumParts) => ReactNode } = {}) {
+  // THE APP SHELL (party home prototype, DEV switch): on the menus the Compendium is a page under the top nav.
+  const shell = usePartyHome();
+  const onMenus = useGame((s) => s.showTitle && !s.gameMenuOpen);
+  if (!frame && shell && onMenus && PhCompendiumHost) return <Suspense fallback={null}><PhCompendiumHost /></Suspense>;
+  return <BookView frame={frame} />;
+}
+
+function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) {
   const run = useGame((s) => s.run);
   const showTitle = useGame((s) => s.showTitle);
   const closeBook = useGame((s) => s.closeBook);
@@ -652,81 +675,35 @@ export function MinionBook() {
     setGuidesOn(false);
   };
 
-  return (
-    <div className="book-ov" role="dialog" aria-label="Compendium. Press Esc or Tab to close."
-      onMouseDown={(e) => { pressBeganOnSurround.current = e.target === e.currentTarget; }}
-      onClick={(e) => { if (pressBeganOnSurround.current && e.target === e.currentTarget) closeBook(); }}>
-      <div className="book" onClick={(e) => e.stopPropagation()}>
-        {/* The window's painted frame (the Runeforge frame's corners + rails, compendium.css) carries two crests: the
-            top one over the title, the foot one under the gallery. Decorative, inert. */}
-        <span className="book-crest" aria-hidden="true" />
-        <span className="book-crest book-crest-foot" aria-hidden="true" />
-        {/* THE HEADER (polish 2026-10-09): a three-part title bar under the frame's crest. Left, the three views as
-            menu tabs; centre, the name and the live subtitle; right, search, card size and close. */}
-        <div className="book-head">
-          <div className="book-head-l">
-            <div className="book-views" role="group" aria-label="Compendium views">
-              <button
-                className={`book-gloss book-rules${rules ? ' on' : ''}`}
-                onClick={() => { setRules((r) => !r); setGlossary(false); setGuidesOn(false); }}
-                aria-pressed={rules}
-                aria-description="Rules. Search how anything in the game works."
-              >
-                <img className="book-rules-ico" decoding="sync" src={rulesQuestionArt} alt="" draggable={false} /> Rules
-              </button>
-              <button
-                className={`book-gloss${glossary ? ' on' : ''}`}
-                onClick={() => { setGlossary((g) => !g); setRules(false); setGuidesOn(false); }}
-                aria-pressed={glossary}
-                aria-description="Glossary. Every keyword and trigger, defined."
-              >
-                <img className="book-rules-ico" decoding="sync" src={`${import.meta.env.BASE_URL}menu/glossary.webp`} alt="" draggable={false} /> Glossary
-              </button>
-              <button
-                className={`book-gloss${guidesOn ? ' on' : ''}`}
-                onClick={() => { setGuidesOn((g) => !g); setRules(false); setGlossary(false); }}
-                aria-pressed={guidesOn}
-                aria-description="Guides. Build guides for this set, the same ones as the lobby rail."
-              >
-                <img className="book-rules-ico" decoding="sync" src={`${import.meta.env.BASE_URL}menu/guides.webp`} alt="" draggable={false} /> Guides
-              </button>
-            </div>
-          </div>
-          <div className="book-head-c">
-            <div className="book-titleblock">
-              <div className="book-titletext">
-                <div className="book-title">Compendium</div>
-                <div className="book-sub">
-                  {rules
-                    ? 'Rules & how-to. Search any question.'
-                    : glossary
-                    ? 'Keywords & abilities. Click one to see its minions.'
-                    : query && guidesOn
-                      // The Guides tab says what its pill shows. The Community list is searched on the server, so it
-                      // has no count here.
-                      ? `${guidesSubtitle(guideTab, guidesToShow.length, SETS[setId].name, true)}${guideTab === 'community' || guideTab === 'reports' ? '' : ` for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`}`
-                    : query
-                      ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
-                          (cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
-                        } for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`
-                    : guidesOn
-                      ? guidesSubtitle(guideTab, guidesToShow.length, SETS[setId].name, false)
-                    : cats.has('heroes')
-                      ? `${heroesToShow.length} heroes. Every champion and their power.`
-                      : cats.has('runes')
-                      ? `${runesToShow.length} runes. This set's Basic and Epic Runeforge stock.`
-                      : cats.has('quests')
-                      ? `${questsToShow.length} quests ${browsingRun ? 'available this run' : 'in the game'}`
-                      : `${filtered.length} ${
-                          [cats.has('spells') && 'spells', cats.has('gifts') && 'gifts', cats.has('rewards') && 'quest rewards', cats.has('runeRewards') && 'rune rewards']
-                            .filter(Boolean)
-                            .join(' & ') || 'minions'
-                        } ${!browsingRun || cats.has('runeRewards') || cats.has('gifts') ? 'in the game' : 'findable this run'}`}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="book-head-r">
+  // The book's three PARTS, so a host can frame them its own way (the app shell's page, `frame` below): the live
+  // subtitle, the header controls (search + card size) and the body (a codex panel, or the tier row + rail + gallery).
+  const subtitle: string = rules
+      ? 'Rules & how-to. Search any question.'
+      : glossary
+      ? 'Keywords & abilities. Click one to see its minions.'
+      : query && guidesOn
+        // The Guides tab says what its pill shows. The Community list is searched on the server, so it
+        // has no count here.
+        ? `${guidesSubtitle(guideTab, guidesToShow.length, SETS[setId].name, true)}${guideTab === 'community' || guideTab === 'reports' ? '' : ` for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`}`
+      : query
+        ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
+            (cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
+          } for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`
+      : guidesOn
+        ? guidesSubtitle(guideTab, guidesToShow.length, SETS[setId].name, false)
+      : cats.has('heroes')
+        ? `${heroesToShow.length} heroes. Every champion and their power.`
+        : cats.has('runes')
+        ? `${runesToShow.length} runes. This set's Basic and Epic Runeforge stock.`
+        : cats.has('quests')
+        ? `${questsToShow.length} quests ${browsingRun ? 'available this run' : 'in the game'}`
+        : `${filtered.length} ${
+            [cats.has('spells') && 'spells', cats.has('gifts') && 'gifts', cats.has('rewards') && 'quest rewards', cats.has('runeRewards') && 'rune rewards']
+              .filter(Boolean)
+              .join(' & ') || 'minions'
+          } ${!browsingRun || cats.has('runeRewards') || cats.has('gifts') ? 'in the game' : 'findable this run'}`;
+  const controls = (
+    <>
             {!codex && (
               <input
                 className="book-search"
@@ -754,12 +731,10 @@ export function MinionBook() {
                 >+</button>
               </div>
             )}
-            <button className="book-close" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
-
-          </div>
-        </div>
-
-        {rules ? (
+    </>
+  );
+  const body = (
+        rules ? (
           <CompendiumRules />
         ) : glossary ? (
           /* The glossary panel — replaces the tier bar + gallery with the keyword codex. */
@@ -833,7 +808,35 @@ export function MinionBook() {
             Duos
           </button>
           <div className="book-chart" role="group" aria-label={`${chartNoun} by tier`}>
-            {cats.has('runes') ? (
+            {/* Guides first: a rail tab left lit under the Guides view must not swap in its own filters. */}
+            {guidesOn ? (
+              /* Guides aren't tiered: the chart space carries their tribe filter, like the Runes tab's. */
+              <div className="book-runetribes" role="group" aria-label="Filter guides by tribe">
+                <span className="book-chart-cap">guides by tribe</span>
+                <button
+                  className={`book-runetribe${guideTribes.size === 0 ? ' on' : ''}`}
+                  style={{ '--c': 'var(--ui-title)' } as CSSProperties}
+                  onClick={() => setGuideTribes(new Set())}
+                  aria-pressed={guideTribes.size === 0}
+                  aria-label="Every guide"
+                >
+                  <img className="book-guides-all" decoding="sync" src={`${import.meta.env.BASE_URL}menu/guides.webp`} alt="" draggable={false} />
+                  <span>All</span>
+                </button>
+                {[...tribes, 'neutral' as Tribe].map((t) => (
+                  <button
+                    key={t}
+                    className={`book-runetribe${guideTribes.has(t) ? ' on' : ''}`}
+                    style={{ '--c': `var(--t-${t})` } as CSSProperties}
+                    onClick={() => setGuideTribes((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; })}
+                    aria-pressed={guideTribes.has(t)}
+                    aria-label={t === 'neutral' ? 'Neutral guides' : `${CAT_META[t].label} guides`}
+                  >
+                    <span>{CAT_META[t].label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : cats.has('runes') ? (
               /* Runes aren't tiered — the chart space carries the tribe filter instead (owner ask 2026-09-18). */
               <div className="book-runetribes" role="group" aria-label="Filter runes by tribe">
                 <span className="book-chart-cap">runes by tribe</span>
@@ -862,33 +865,6 @@ export function MinionBook() {
                     aria-label={f === 'epic' ? 'Epic runes' : 'Basic runes'}
                   >
                     <span>{f === 'epic' ? 'Epic' : 'Basic'}</span>
-                  </button>
-                ))}
-              </div>
-            ) : guidesOn ? (
-              /* Guides aren't tiered: the chart space carries their tribe filter, like the Runes tab's. */
-              <div className="book-runetribes" role="group" aria-label="Filter guides by tribe">
-                <span className="book-chart-cap">guides by tribe</span>
-                <button
-                  className={`book-runetribe${guideTribes.size === 0 ? ' on' : ''}`}
-                  style={{ '--c': 'var(--ui-title)' } as CSSProperties}
-                  onClick={() => setGuideTribes(new Set())}
-                  aria-pressed={guideTribes.size === 0}
-                  aria-label="Every guide"
-                >
-                  <img className="book-guides-all" decoding="sync" src={`${import.meta.env.BASE_URL}menu/guides.webp`} alt="" draggable={false} />
-                  <span>All</span>
-                </button>
-                {[...tribes, 'neutral' as Tribe].map((t) => (
-                  <button
-                    key={t}
-                    className={`book-runetribe${guideTribes.has(t) ? ' on' : ''}`}
-                    style={{ '--c': `var(--t-${t})` } as CSSProperties}
-                    onClick={() => setGuideTribes((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; })}
-                    aria-pressed={guideTribes.has(t)}
-                    aria-label={t === 'neutral' ? 'Neutral guides' : `${CAT_META[t].label} guides`}
-                  >
-                    <span>{CAT_META[t].label}</span>
                   </button>
                 ))}
               </div>
@@ -1026,7 +1002,68 @@ export function MinionBook() {
           )}
         </div>
           </>
-        )}
+        )
+  );
+  const view: CompendiumView = rules ? 'rules' : glossary ? 'glossary' : guidesOn ? 'guides' : 'cards';
+  const pickView = (v: CompendiumView): void => { setRules(v === 'rules'); setGlossary(v === 'glossary'); setGuidesOn(v === 'guides'); };
+  if (frame) return <>{frame({ subtitle, controls, body, view, pickView, codex })}</>;
+
+  return (
+    <div className="book-ov" role="dialog" aria-label="Compendium. Press Esc or Tab to close."
+      onMouseDown={(e) => { pressBeganOnSurround.current = e.target === e.currentTarget; }}
+      onClick={(e) => { if (pressBeganOnSurround.current && e.target === e.currentTarget) closeBook(); }}>
+      <div className="book" onClick={(e) => e.stopPropagation()}>
+        {/* The window's painted frame (the Runeforge frame's corners + rails, compendium.css) carries two crests: the
+            top one over the title, the foot one under the gallery. Decorative, inert. */}
+        <span className="book-crest" aria-hidden="true" />
+        <span className="book-crest book-crest-foot" aria-hidden="true" />
+        {/* THE HEADER (polish 2026-10-09): a three-part title bar under the frame's crest. Left, the three views as
+            menu tabs; centre, the name and the live subtitle; right, search, card size and close. */}
+        <div className="book-head">
+          <div className="book-head-l">
+            <div className="book-views" role="group" aria-label="Compendium views">
+              <button
+                className={`book-gloss book-rules${rules ? ' on' : ''}`}
+                onClick={() => { setRules((r) => !r); setGlossary(false); setGuidesOn(false); }}
+                aria-pressed={rules}
+                aria-description="Rules. Search how anything in the game works."
+              >
+                <img className="book-rules-ico" decoding="sync" src={rulesQuestionArt} alt="" draggable={false} /> Rules
+              </button>
+              <button
+                className={`book-gloss${glossary ? ' on' : ''}`}
+                onClick={() => { setGlossary((g) => !g); setRules(false); setGuidesOn(false); }}
+                aria-pressed={glossary}
+                aria-description="Glossary. Every keyword and trigger, defined."
+              >
+                <img className="book-rules-ico" decoding="sync" src={`${import.meta.env.BASE_URL}menu/glossary.webp`} alt="" draggable={false} /> Glossary
+              </button>
+              <button
+                className={`book-gloss${guidesOn ? ' on' : ''}`}
+                onClick={() => { setGuidesOn((g) => !g); setRules(false); setGlossary(false); }}
+                aria-pressed={guidesOn}
+                aria-description="Guides. Build guides for this set, the same ones as the lobby rail."
+              >
+                <img className="book-rules-ico" decoding="sync" src={`${import.meta.env.BASE_URL}menu/guides.webp`} alt="" draggable={false} /> Guides
+              </button>
+            </div>
+          </div>
+          <div className="book-head-c">
+            <div className="book-titleblock">
+              <div className="book-titletext">
+                <div className="book-title">Compendium</div>
+                <div className="book-sub">{subtitle}</div>
+              </div>
+            </div>
+          </div>
+          <div className="book-head-r">
+            {controls}
+            <button className="book-close" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
+
+          </div>
+        </div>
+
+        {body}
       </div>
     </div>
   );

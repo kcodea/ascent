@@ -13446,4 +13446,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Kevin is in the Scene Builder. He clicks the – in its header: the panel shrinks to a bar reading "Scene Builder R1 · 8 left GOD" with a restore button. He clicks ✕: the panel is gone and the shop keeps running. He opens the dev menu, clicks Scene Builder, and the panel is back with his search still typed in.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/sceneBuilderPanel.test.tsx', 'packages/ui/src/devCorner.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-COMPENDIUM-GUIDES-FILTER-01',
+    title: 'The Compendium\x27s Guides view always shows the guides\x27 own tribe filter, whatever rail tab was lit before it',
+    statement:
+      'With Guides open, the filter row\x27s middle carries the guides\x27 tribe pills (All, the set\x27s tribes, Neutral). '
+      + 'A rail tab that was lit before Guides opened (Runes, say) never swaps in its own filters there while Guides is up.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (the menu revamp)', quote: 'make sure this is a 14/10 experience and extremely clean' },
+      { kind: 'code', ref: 'packages/ui/src/MinionBook.tsx (the filter row\x27s chart: guidesOn is checked before the Runes tab)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-02 (feat/ph-page-info). Before: with Runes picked and then Guides opened, the row showed "runes by tribe" and the forge pills under the guides.',
+    example: 'Ann opens Runes in the Compendium, then the Guides view. The row reads "guides by tribe" with All, Beasts, Demons ... and Neutral.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/phInfoPages.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

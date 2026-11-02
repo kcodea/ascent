@@ -1,0 +1,80 @@
+/* ── SETTINGS under the app shell (party home prototype, DEV only; PhSettings.tsx). Shell tokens only (shell.css).
+   Valorant's settings grammar: tabs in the header, a centred column of sections, one row per setting (name + note left,
+   control right). Static paint; the switch knob moves on `transform`. No `cursor` here (the gauntlet rule paints buttons).
+   The sections DON'T clip (a dropdown's list must hang out of its row): the cut plate is painted on a `::before`. ── */
+
+.phs-col { width: 100%; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+
+/* A section: the cut navy plate (behind), a title row, its rows. */
+.phs-sec { position: relative; isolation: isolate; flex: none; display: flex; flex-direction: column; padding: calc(8 * var(--phu)) 0 calc(8 * var(--phu)); }
+.phs-sec::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ph-plate); clip-path: var(--ph-clip-s);
+  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+/* A section with an open dropdown rises over the sections after it, so its list is never covered. */
+.phs-sec:has(.escselect.open) { z-index: 2; }
+.phs-sechead { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); padding: calc(12 * var(--phu)) calc(24 * var(--phu)) calc(8 * var(--phu)); }
+.phs-sechead h2 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
+.phs-sechead p { margin: 0; font-size: var(--ph-t1); color: var(--ph-muted); }
+.phs-rows { display: flex; flex-direction: column; }
+
+/* A row: a hairline between rows, the name in the title font, the note muted under it; the control right-aligned. */
+.phs-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: calc(24 * var(--phu));
+  min-height: calc(64 * var(--phu)); padding: calc(12 * var(--phu)) calc(24 * var(--phu)); box-sizing: border-box; }
+.phs-row + .phs-row { box-shadow: inset 0 calc(1 * var(--phu)) 0 color-mix(in srgb, var(--ph-gold) 14%, transparent); }
+.phs-row:hover { background: color-mix(in srgb, var(--ph-plate-hover, #1b2c55) 45%, transparent); }
+.phs-row:has(.escselect.open) { z-index: 2; }
+.phs-what { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; }
+.phs-name { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phs-note { max-width: calc(560 * var(--phu)); font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-muted); }
+.phs-ctl { display: flex; align-items: center; justify-content: flex-end; gap: calc(16 * var(--phu)); min-width: 0; }
+
+/* ── The switch, in the kit's dress: a cut well with a silver knob (off); the podium gold with a navy knob (on). The
+   words "On / Off" sit beside it, so state never rides on colour alone. ── */
+.phs-switch { display: inline-flex; align-items: center; gap: calc(12 * var(--phu)); height: calc(40 * var(--phu)); padding: 0 calc(4 * var(--phu)) 0 calc(8 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none; color: var(--ph-muted); }
+.phs-switchtxt { min-width: calc(28 * var(--phu)); text-align: right; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; text-shadow: var(--ph-shadow); }
+.phs-switch.is-on .phs-switchtxt, .phs-switch:hover .phs-switchtxt { color: var(--ph-ink); }
+.phs-track { position: relative; width: calc(56 * var(--phu)); height: calc(28 * var(--phu)); flex: none; clip-path: var(--ph-clip-s);
+  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-hair); }
+.phs-switch:hover .phs-track { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
+.phs-switch.is-on .phs-track { background: var(--ph-metal-gold); box-shadow: none; }
+.phs-knob { position: absolute; top: calc(5 * var(--phu)); left: calc(5 * var(--phu)); width: calc(18 * var(--phu)); height: calc(18 * var(--phu));
+  background: var(--ph-metal-silver); clip-path: var(--ph-clip-s); transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.phs-switch.is-on .phs-knob { transform: translateX(calc(28 * var(--phu))); background: var(--ph-navy); }
+
+/* ── The slider: a thin well, the filled part gold up to the value (`--v`, set per change), a cut gold thumb. ── */
+.phs-range { -webkit-appearance: none; appearance: none; width: calc(280 * var(--phu)); height: calc(28 * var(--phu)); margin: 0; background: none; }
+.phs-range::-webkit-slider-runnable-track { height: calc(6 * var(--phu)); background: linear-gradient(90deg, var(--ph-gold) 0 var(--v, 0%), rgba(0, 0, 0, 0.55) var(--v, 0%) 100%); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.phs-range::-moz-range-track { height: calc(6 * var(--phu)); background: linear-gradient(90deg, var(--ph-gold) 0 var(--v, 0%), rgba(0, 0, 0, 0.55) var(--v, 0%) 100%); }
+.phs-range::-webkit-slider-thumb { -webkit-appearance: none; width: calc(16 * var(--phu)); height: calc(24 * var(--phu)); margin-top: calc(-9 * var(--phu)); border: 0; background: var(--ph-metal-gold); clip-path: var(--ph-clip-s); }
+.phs-range::-moz-range-thumb { width: calc(16 * var(--phu)); height: calc(24 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-metal-gold); }
+.phs-range:disabled { opacity: 0.4; }
+.phs-range:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(4 * var(--phu)); }
+.phs-val { min-width: calc(48 * var(--phu)); text-align: right; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow, var(--ph-shadow)); font-variant-numeric: tabular-nums; }
+.phs-mute { min-width: calc(80 * var(--phu)); height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)); margin: 0; border: 0; border-radius: 0; clip-path: var(--ph-clip-s);
+  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
+.phs-mute:hover { color: var(--ph-ink); }
+.phs-mute.on { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); box-shadow: none; }
+:is(.phs-switch, .phs-mute):focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(2 * var(--phu)); }
+
+/* ── The dropdown (EscMenu's SettingSelect, reused) in the shell's dress ── */
+.phs .escselect { min-width: calc(240 * var(--phu)); }
+.phs .escselect-trigger { height: calc(40 * var(--phu)); padding: 0 calc(12 * var(--phu)) 0 calc(16 * var(--phu)); gap: calc(12 * var(--phu)); border: 0; border-radius: 0; clip-path: var(--ph-clip-s);
+  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); text-shadow: var(--ph-shadow); }
+.phs .escselect-trigger:hover, .phs .escselect.open .escselect-trigger { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
+.phs .escselect-trigger .escchev { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); }
+.phs .escselect-list { top: calc(100% + 4 * var(--phu)); gap: calc(2 * var(--phu)); padding: calc(4 * var(--phu)); border: 0; border-radius: 0;
+  background: color-mix(in srgb, var(--ph-navy) 96%, #000); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-gold), 0 calc(12 * var(--phu)) calc(32 * var(--phu)) rgba(0, 0, 0, 0.6); }
+.phs .escselect-opt { padding: calc(8 * var(--phu)) calc(12 * var(--phu)); border-radius: 0; font-family: var(--ph-body); font-weight: 700; font-size: var(--ph-t2); color: var(--ph-text); }
+.phs .escselect-opt:hover, .phs .escselect-opt:focus-visible { background: var(--ph-plate-hover); color: var(--ph-ink); outline: none; }
+.phs .escselect-opt.on { background: var(--ph-metal-gold); color: var(--ph-navy); }
+/* The two-column list (Board backdrop) has a fixed width here, so the preview can sit just left of it. */
+.phs .escselect-list.cols2 { width: calc(400 * var(--phu)); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* The preview opens to the LEFT of the open list (the control sits at the row's right edge). */
+.phs .escselect-thumb { left: auto; right: calc(400 * var(--phu) + 16 * var(--phu)); top: calc(100% + 4 * var(--phu)); width: calc(260 * var(--phu)); border: 0; border-radius: 0; clip-path: var(--ph-clip-s);
+  background: var(--ph-navy); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-gold); }
+.phs .escselect-thumb-l { font-family: var(--ph-font); font-size: var(--ph-t2); color: var(--ph-ink); }
+
+/* ── Phones (landscape) ── */
+html[data-touch-small] .phs-row { gap: calc(16 * var(--phu)); }
+html[data-touch-small] .phs-range { width: calc(200 * var(--phu)); }
+html[data-touch-small] .phs-note { max-width: none; }
+@media (prefers-reduced-motion: reduce) { .phs-knob { transition: none; } }

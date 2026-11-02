@@ -1,0 +1,124 @@
+/* ── THE COMPENDIUM under the app shell (party home prototype, DEV only; PhCompendium.tsx). Shell tokens only (shell.css).
+   The book's own markup (MinionBook.tsx, compendium.css) inside the kit's PhPage, repainted in the rail's language:
+   1. the UI THEME tokens are re-pointed at the shell's navy + gold inside `.phc` (compendium.css paints with `--ui-*`
+      only, so every plate, chip and row turns navy at once; the cards keep their own surface tokens on `.book`);
+   2. the shapes become the shell's: flat tabs, cut chips and wells, rail rows with their art bleeding in from the right;
+   3. the window's painted frame, crests and pop are off: this is a page, not a window.
+   Static paint. The gallery stays the book's own scroller (the lazy cells observe it). No `cursor` here. ── */
+
+.phc {
+  --ui-plate-top: color-mix(in srgb, var(--ph-navy) 70%, #3a5a9a);
+  --ui-plate-mid: var(--ph-navy);
+  --ui-plate-bot: color-mix(in srgb, var(--ph-navy) 80%, #000);
+  --ui-plate: var(--ph-plate);
+  --ui-hover-top: color-mix(in srgb, var(--ph-navy) 62%, #4a6cb0);
+  --ui-hover-mid: color-mix(in srgb, var(--ph-navy) 82%, #3a5a9a);
+  --ui-hover-bot: var(--ph-navy);
+  --ui-hover-plate: var(--ph-plate-hover);
+  --ui-chip-bg: color-mix(in srgb, var(--ph-navy) 80%, #000);
+  --ui-chip-edge: var(--ph-hair);
+  --ui-muted: var(--ph-muted);
+  --ui-text: var(--ph-text);
+  --ui-divider: var(--ph-hair);
+  --ui-ring: transparent;
+  --ui-sheen: linear-gradient(transparent, transparent);
+  --ui-bevel: 0 0 0 transparent;
+  --ui-edge: var(--ph-gold);
+  --ui-hover-edge: var(--ph-gold-hi);
+}
+
+/* The page body does not scroll: the book's own panels do (the gallery, the rail, the glossary, the rules list). */
+.phc .phk-pagebody { overflow: hidden; padding-bottom: calc(24 * var(--phu) + var(--safe-b, 0px)); }
+.phc .phk-eyebrow { color: var(--ph-muted); letter-spacing: 0.16em; }
+.phc-actions { display: flex; align-items: center; gap: calc(8 * var(--phu)); }
+
+/* 3. The window steps aside. */
+.phc-book { flex: 1; min-height: 0; width: auto; height: auto; padding: 0; animation: none; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+.phc-book::before, .phc-book::after { display: none; }
+
+/* ── Header actions: the search well and the card-size stepper ── */
+.phc .book-search { box-sizing: border-box; width: calc(280 * var(--phu)); height: calc(40 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 0;
+  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-family: var(--ph-body); font-weight: 600; font-size: var(--ph-t2); color: var(--ph-ink); }
+.phc .book-search:focus { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
+.phc .book-zoom { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); height: calc(40 * var(--phu)); padding: 0 calc(4 * var(--phu)); border: 0; border-radius: 0;
+  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phc .book-zoom-btn { width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); border: 0; border-radius: 0; background: none; box-shadow: none; clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-text); }
+.phc .book-zoom-btn:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); transform: none; }
+.phc .book-zoom-val { min-width: calc(48 * var(--phu)); text-align: center; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); color: var(--ph-ink); }
+
+/* ── The filter row: a plate; tier chips and Gilded / Duos as cut wells, the picked ones in podium gold ── */
+.phc .book-tiers { min-height: calc(80 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); gap: calc(8 * var(--phu)); background: var(--ph-plate);
+  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phc .book-axislabel, .phc .book-chart-cap, .phc .book-railcap { font-family: var(--ph-font); font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
+.phc :is(.book-tier, .book-gilded, .book-runetribe, .book-kwchip, .book-setpick-btn) {
+  border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair);
+  font-family: var(--ph-font); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.phc :is(.book-tier, .book-gilded, .book-runetribe, .book-kwchip, .book-setpick-btn):hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); transform: none; }
+.phc :is(.book-tier, .book-gilded, .book-runetribe).on,
+.phc :is(.book-tier, .book-gilded, .book-runetribe).on:hover:not(:disabled) { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); box-shadow: none; }
+.phc .book-tier { width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); font-size: var(--ph-t3); }
+.phc .book-gilded { height: calc(36 * var(--phu)); font-size: var(--ph-t1); letter-spacing: 0.12em; }
+/* A tribe pill keeps its tribe colour as a thin bar on its left edge (colour is a cue beside the name, never the only one). */
+.phc .book-runetribe { box-shadow: inset calc(3 * var(--phu)) 0 0 var(--c), inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.phc .book-tiers-div { background: var(--ph-hair); }
+.phc .book-bar-n { color: var(--ph-ink); font-family: var(--ph-font); }
+.phc .book-bar-t { font-family: var(--ph-font); color: var(--ph-muted); }
+.phc .book-setpick-list { border: 0; border-radius: 0; background: color-mix(in srgb, var(--ph-navy) 96%, #000); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-gold), 0 calc(12 * var(--phu)) calc(32 * var(--phu)) rgba(0, 0, 0, 0.6); }
+.phc .book-setpick-opt.on { background: var(--ph-metal-gold); color: var(--ph-navy); }
+
+/* ── The rail: one plate; each category a rail row, its art bleeding in from the right into the navy ── */
+.phc .book-main { gap: calc(16 * var(--phu)); }
+.phc .book-rail { width: calc(240 * var(--phu)); margin: 0; padding: calc(12 * var(--phu)) calc(8 * var(--phu)); gap: calc(4 * var(--phu)); border: 0; border-radius: 0;
+  background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); scrollbar-width: none; }
+.phc .book-railcap { padding: calc(4 * var(--phu)) calc(8 * var(--phu)); font-size: var(--ph-t1); color: var(--ui-title, #ffd98a); }
+.phc .book-railcap::after { background: var(--ph-hair); }
+.phc .book-cat { position: relative; height: calc(48 * var(--phu)); padding: 0 calc(12 * var(--phu)); gap: 0; border-radius: 0; clip-path: var(--ph-clip-s); overflow: hidden;
+  background: var(--ph-well); box-shadow: inset calc(3 * var(--phu)) 0 0 color-mix(in srgb, var(--c) 70%, transparent), inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-gold) 14%, transparent);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.04em; color: var(--ph-text); }
+.phc .book-catface { position: absolute; right: 0; top: 0; width: 60%; height: 100%; border-radius: 0; box-shadow: none; background: none; object-fit: cover; object-position: 50% 28%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.85) 70%); mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.85) 70%); }
+.phc .book-catico { position: absolute; right: calc(12 * var(--phu)); width: calc(28 * var(--phu)); height: calc(28 * var(--phu)); border-radius: 0; box-shadow: none; background: none; }
+.phc .book-catlabel { position: relative; text-shadow: var(--ph-shadow); }
+.phc .book-cat:hover { transform: none; background: var(--ph-plate-hover); color: var(--ph-ink);
+  box-shadow: inset calc(3 * var(--phu)) 0 0 var(--c), inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.phc .book-cat.on, .phc .book-cat.on:hover { color: var(--ph-ink); background: var(--ph-plate-hover);
+  box-shadow: inset calc(4 * var(--phu)) 0 0 var(--c), inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
+.phc .book-cat.on :is(.book-catface, .book-catico) { box-shadow: none; }
+
+/* ── The gallery: a deep well beside the rail ── */
+.phc .book-main > :is(.book-grid, .bookguides, .book-empty) { margin: 0; border-radius: 0; clip-path: var(--ph-clip-s); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.phc .book-grid { background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 85%, #000), color-mix(in srgb, var(--ph-navy) 70%, #000)); }
+.phc .bookhero { border: 0; border-radius: 0; clip-path: var(--ph-clip); background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-hair); }
+.phc .bookhero-name { font-family: var(--ph-font); color: var(--ph-ink); }
+.phc .book-empty { font-family: var(--ph-font); color: var(--ph-muted); }
+.phc .book-empty::before { background: var(--ph-gold); border: 0; }
+
+/* ── The codex panels: Glossary groups and the Rules list as navy plates ── */
+.phc .book-gloss-body { padding: 0 0 calc(8 * var(--phu)); gap: calc(16 * var(--phu)); }
+.phc :is(.gloss-group, .wiki-group) { border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.phc :is(.gloss-grouphead, .wiki-grouphead) { font-family: var(--ph-font); font-weight: 900; color: var(--ui-title, #ffd98a); }
+.phc .gloss-row, .phc .wiki-q, .phc .wiki-item { border-radius: 0; }
+.phc .gloss-term { font-family: var(--ph-font); color: var(--ph-ink); }
+.phc .gloss-def { color: var(--ph-muted); }
+.phc .wiki-bar { background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phc .wiki-search { border: 0; border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); color: var(--ph-ink); }
+.phc .wiki-chip { border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); color: var(--ph-text); }
+.phc .wiki-chip.on { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: none; box-shadow: none; }
+.phc .wiki-q { font-family: var(--ph-font); }
+.phc .wiki-item.is-open .wiki-q { color: var(--ph-ink); }
+.phc .wiki-item.is-open { box-shadow: inset calc(3 * var(--phu)) 0 0 var(--ph-gold); }
+
+/* ── Phones (landscape): the window's phone zoom (touchUi.css scales `.book` 1.7x) is for the overlay, not this page;
+   a narrower rail, a smaller search, cards a little smaller so a row and a half fits the height. ── */
+html[data-touch-ui][data-touch-small] .phc .phc-book { scale: none; width: auto; height: auto; }
+html[data-touch-small] .phc .book-rail { width: calc(200 * var(--phu)); }
+html[data-touch-small] .phc .book-search { width: calc(200 * var(--phu)); }
+html[data-touch-small] .phc .book-grid { --ch: calc(360px * var(--book-zoom, 1)); }
+html[data-touch-small] .phc .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var(--phu)); }
+
+/* The stand-in host's top nav: the Compendium tab (the nav's last) reads as the current page until the shell's route
+   passes `current` for it (a shell gap, listed in the PR). */
+.phc-host .ph-nav > .ph-navtab:last-child { color: var(--ph-ink); }
+.phc-host .ph-nav > .ph-navtab:last-child::after { content: ''; position: absolute; left: calc(16 * var(--phu)); right: calc(16 * var(--phu)); bottom: 0; height: calc(3 * var(--phu)); background: var(--ph-metal-gold); }

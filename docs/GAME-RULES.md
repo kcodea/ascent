@@ -1171,7 +1171,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Concede** is in the Esc menu (two taps), from Hero Select or the match. A concede (either player) closes the end gate
   at once for both, wherever they are, mid-fight included, and opens it on the room. The other player wins.
 - **The end.** When the match is decided, the last fight plays out; its End Combat gem (or, with nothing left to
-  watch, the moment it ends) closes the end gate, which opens on the room. The room then has **Previous match
+  watch, the moment it ends) closes the end gate, which opens on the room. **The end always reaches every player**
+  (R-RANKED-DUOS-END-01, live reports 2026-11-02): a seated Duos player never becomes a spectator of their own finished
+  match (the teammate's last frames stay cached, never opening the watch screen over their game); while a finished match is still on a player's game screen the client drives
+  the end again every tick (the teammate view is left, the deciding fight lands and plays); a shop still on screen 15 s
+  after the end with nothing animating (60 s at most during an End of Turn) closes the end gate on its own. A fight on
+  screen is never cut. On a finished match the Esc menu's leave reads **Leave match** and goes back to the room. The room then has **Previous match
   stats**: the round-by-round result pips, and both boards as they entered each fight with each player's Health and
   Armor after it.
 - **Unranked.** No rank, rating, MMR, abandon penalty, opponent-pool upload or ranked save slot, ever. XP (half a

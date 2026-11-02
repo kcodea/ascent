@@ -191,6 +191,65 @@ describe('Duos room in workerd', () => {
   });
 });
 
+/** A Ranked Duos party of two Claudebots, through Hero Select and the seating, to round 1's open shop. */
+async function toRankedShop(): Promise<{ a: Player; b: Player; roomId: string; matchId: string }> {
+  const a = new Player(base, crypto.randomUUID(), 'Claudebot1');
+  const b = new Player(base, crypto.randomUUID(), 'Claudebot2');
+  const room = await versusCfHttp<Record<string, any>>(base, '/rooms', a.token, {
+    method: 'POST', body: { name: 'Party', display: 'A', profile: {}, setId: 'set1', contentRevision: CONTENT, protocol: VERSUS_PROTOCOL, options: { v: 1, mode: 'ranked_duos', modifiers: [] } },
+  });
+  const roomId = room.id as string;
+  await a.connect(roomId);
+  await b.connect(roomId);
+  await b.req('join', { as: 'player', display: 'B', profile: {}, content: CONTENT, protocol: VERSUS_PROTOCOL });
+  await a.req('start');
+  await a.req('gate');
+  await b.req('gate');
+  const matchId = (await a.req('sync')).match.id as string;
+  await a.req('register_offer', { matchId, offer: HERO_IDS.slice(0, 3) });
+  await b.req('register_offer', { matchId, offer: HERO_IDS.slice(3, 6) });
+  await a.req('pick_hero', { matchId, index: 0 });
+  await b.req('pick_hero', { matchId, index: 0 });
+  await a.next((m) => m.t === 'match' && (m.match as { seated?: boolean }).seated === true, 10_000);
+  await a.req('intro_done', { matchId });
+  await b.req('intro_done', { matchId });
+  return { a, b, roomId, matchId };
+}
+
+describe('Ranked Duos: a round never waits on a teammate who is gone (R-RANKED-DUOS-END-01)', () => {
+  it("my teammate's socket dies mid-shop and never comes back: my End Turn still closes the round and the fight reaches me", async () => {
+    const { a, b, matchId } = await toRankedShop();
+    // B's tab dies (a socket close the room hears), mid-shop, with nothing locked.
+    b.client!.close();
+    // B goes on auto once the disconnect grace is over; A's End Turn then closes the round at once.
+    const got = a.next((m) => m.t === 'round' && (m.row as { kind?: string }).kind === 'ranked', 30_000);
+    await a.req('submit', { matchId, round: 1, seq: 1, side: sideOf(1, 'p1'), final: true, checkpoint: null });
+    const row = (await got).msg as unknown as { row: { round: number; vitals: Record<string, unknown> } };
+    expect(row.row.round).toBe(1);
+    expect(Object.keys(row.row.vitals).sort()).toEqual(['a', 'b', 'c', 'd']);
+    const m = (await a.req('sync')).match as { phase: string; seats: { seat: string; auto: boolean }[] };
+    expect(['combat', 'shop']).toContain(m.phase);
+    expect(m.seats.find((x) => x.seat === 'p2')?.auto).toBe(true);
+    a.client!.close();
+  });
+});
+
+describe('a closed room forgets itself (R-VERSUS-CF-ALARM-IDLE-01)', () => {
+  it('once its last member leaves, its alarm stops: no wake loop', async () => {
+    const a = new Player(base, crypto.randomUUID(), 'Claudebot1');
+    const roomId = await a.createRoom();
+    await a.connect(roomId);
+    await a.req('leave');
+    a.client!.close();
+    const alarms = async (): Promise<number> => (await (await fetch(`${base}/rooms/${roomId}/metrics`)).json() as { alarms: number }).alarms;
+    await new Promise((r) => setTimeout(r, 1500));
+    const first = await alarms();
+    await new Promise((r) => setTimeout(r, 2000));
+    // Before the fix a closed room woke ~15 times a second for ever (live 2026-11-02).
+    expect((await alarms()) - first).toBeLessThanOrEqual(1);
+  });
+});
+
 describe('Ranked Duos party in workerd', () => {
   it('the pair plays a round against three seated teams (local: generated, unrated); every client gets the ranked round', async () => {
     const a = new Player(base, crypto.randomUUID(), 'Claudebot1');

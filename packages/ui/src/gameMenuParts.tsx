@@ -20,7 +20,7 @@ import { MenuMedal } from './menuIcons';
 import { useTurnClockRunning, useTurnSeconds } from './turnClock';
 import { goldClockWaiting } from './goldClock';
 import { endReplay } from './replay/replayPlayer';
-import { forfeitMatch } from './versus/versusStore';
+import { forfeitMatch, useVersus } from './versus/versusStore';
 import { leaveSpectating, useSpectate } from './versus/spectate';
 import { isWatchingLive, leaveLiveGame } from './live/liveWatch';
 
@@ -42,7 +42,9 @@ export function leaveKindOf(
 
 interface LeaveText { label: string; confirm: string; note: string }
 /** The button's words: its label, the armed label (tap again), and the note shown while armed and on hover. */
-export function leaveText(kind: LeaveKind, godMode: boolean, live: boolean): LeaveText {
+export function leaveText(kind: LeaveKind, godMode: boolean, live: boolean, over = false): LeaveText {
+  // The Versus match is already over (R-RANKED-DUOS-END-01): nothing to concede, the leave goes back to the room.
+  if (kind === 'concede' && over) return { label: 'Leave match', confirm: 'Tap again to leave', note: 'The match is over. Back to the room.' };
   switch (kind) {
     case 'watch': return live
       ? { label: 'Stop watching', confirm: 'Tap again to leave', note: 'Back to the live games. The game goes on.' }
@@ -65,6 +67,7 @@ export function LeaveButton() {
   const watching = useSpectate((s) => s.active);
   const kind = useGame((s) => leaveKindOf(s, watching));
   const godMode = useGame((s) => s.run.godMode === true);
+  const over = useVersus((s) => s.match?.phase === 'complete');
   const [armed, setArmed] = useState(false);
   const noteId = useId();
   useEffect(() => {
@@ -72,7 +75,7 @@ export function LeaveButton() {
     const t = window.setTimeout(() => setArmed(false), ARM_MS);
     return () => window.clearTimeout(t);
   }, [armed]);
-  const text = leaveText(kind, godMode, kind === 'watch' && isWatchingLive());
+  const text = leaveText(kind, godMode, kind === 'watch' && isWatchingLive(), over);
   const leave = (): void => {
     const st = useGame.getState();
     switch (kind) {

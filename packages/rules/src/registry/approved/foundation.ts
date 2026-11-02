@@ -13233,6 +13233,47 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/handOverBoardZ.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
   {
+    id: 'R-RANKED-DUOS-END-01',
+    title: 'Ranked Duos and Versus: a finished match always reaches every player, and a player on a finished match always has a way out',
+    statement:
+      'Once the server has ended a match, no player stays on its game screen, and a seated player never becomes a spectator of it: '
+      + 'the teammate\x27s last frames (their deciding fight, still publishing) stay cached and never open the watch screen over the '
+      + 'player\x27s own game, and a finished match that is not on screen never opens on it. While a finished match is still on screen the client drives '
+      + 'the end again on every tick (the Duos teammate view is left, the run is driven so the deciding fight lands and plays, and its End '
+      + 'Combat gem ends the match). A shop still on screen 15 s after the end with nothing animating (60 s at most while an End of Turn '
+      + 'still plays) closes the end gate and opens on the room. A fight on screen is never cut. The Esc menu on a finished match reads '
+      + '"Leave match" and goes back to the room through the end gate, asking the server nothing. The server side holds already: the '
+      + 'round closes on both teammates ready, a gone teammate counting as ready (auto), or 30 s after 0:00.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Orangez + LazerLemon, live Ranked Duos 2026-11-02 (match bc3ba9c7, round 13)', quote: 'the last fight mike got frozen and combat didnt start or something' },
+      { kind: 'owner-chat', ref: 'LazerLemon, 2026-11-02', quote: 'how do we end the game? ... like how is it not the same logic' },
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-02 (the next Ranked Duos game, round 14)', quote: 'combat seemingly restarted, then when it finished just sat at the end combat state and "returning to shop" just returned to combat' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts (trackDuosMatch, spectateSync); packages/ui/src/versus/versusStore.ts (onMatch, endBackstop, forfeitMatch); packages/ui/src/gameMenuParts.tsx (leaveText over); workers/versus/src/core/rankedMatch.ts (closeAt)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-02 (fix/ranked-duos-final-freeze). Before, the store stopped tracking the Duos match for its own players at the end, so the next frame of the teammate opened the watch screen of the stands over the game of the player: the fight of the teammate restarted there and End Combat looped back into it, or their last shop froze on screen. Nothing timed it out, and Concede returned at once on a finished match, so only a reload left.',
+    example: 'The pair is knocked out in round 13. Orangez watches the fight and goes back to the party. Lemon\x27s screen never starts the fight: 15 s later the end gate closes over his shop and opens on the party. Had he pressed Esc first, "Leave match" would have taken him there at once.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosEndFrames.test.ts', 'packages/ui/src/versus/rankedDuosEnd.test.ts', 'workers/versus/test/it/room.it.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-VERSUS-CF-ALARM-IDLE-01',
+    title: 'A closed Versus room forgets itself: its alarm stops',
+    statement:
+      'When a Versus room closes (its last member left, or it sat idle) and nothing is left to write, the room deletes its storage and its '
+      + 'alarm. Only a persistence retry backoff may hold the outbox drain; "nothing queued" never skips the forget. A fresh instance after '
+      + 'a wake drains any jobs it finds in storage.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'code', ref: 'workers/versus/src/room.ts (drainOutbox, rearm)' },
+      { kind: 'fix-pr', ref: 'fix/ranked-duos-final-freeze (Workers Logs 2026-11-02, found during the Ranked Duos freeze report: seven closed VersusRoom objects alarming several times a second for over a day)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-02 on a Worker deployed with fix/ranked-duos-final-freeze. Before, `drainOutbox` returned before the forget whenever nothing was queued, and `rearm` asked a closed room for an alarm NOW, so it woke in a loop for ever.',
+    example: 'Both teammates leave the party after a game. The room closes, forgets its storage and never wakes again.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/it/room.it.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-DUOS-FX-01',
     title: 'Duos tag-team fights: the second board plays every animation the first board does',
     statement:

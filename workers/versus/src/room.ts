@@ -647,7 +647,11 @@ export class VersusRoom extends DurableObject<RoomEnv> {
   }
 
   private async drainOutbox(): Promise<void> {
-    if (this.outboxRetryAt == null || Date.now() < this.outboxRetryAt) return;
+    // Only a retry backoff holds the drain. "Nothing known to be queued" (`outboxRetryAt` null) must still reach the
+    // closed-room forget below (R-VERSUS-CF-ALARM-IDLE-01): a closed room asks for an alarm NOW on every `rearm` until it
+    // forgets itself, and returning here first left it waking ~15 times a second forever (live 2026-11-02: six closed
+    // rooms looping for over a day). It also drains jobs a fresh instance found in storage after a wake.
+    if (this.outboxRetryAt != null && Date.now() < this.outboxRetryAt) return;
     const jobs = await this.ctx.storage.list<PersistJob>({ prefix: 'ob:', limit: 20 });
     for (const [key, job] of jobs) {
       try {

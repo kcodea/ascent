@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "id": "amplified-release",
+  "label": "Amplified: release",
+  "tags": ["amplified", "equipment", "one-shot"],
+  "duration": 900,
+  "layers": [
+    {
+      "name": "first trigger ring",
+      "primitive": "shockwave",
+      "anchor": "source",
+      "at": 0,
+      "life": 580,
+      "params": {
+        "rings": 1,
+        "speed": 1.7,
+        "thickness": 0.05,
+        "radius": 140,
+        "fade": 1.6,
+        "ease": 0.6,
+        "radiusCurve": [[0, 0.6], [1, 1]],
+        "bands": 3,
+        "alpha": 0.7,
+        "blendMode": "normal",
+        "glow": 0.35,
+        "plateau": 0.3,
+        "erode": 0.2,
+        "palette": [1910932, 3111935, 8373503, 13428991]
+      }
+    },
+    {
+      "name": "second trigger ring",
+      "primitive": "shockwave",
+      "anchor": "source",
+      "at": 240,
+      "life": 580,
+      "params": {
+        "rings": 1,
+        "speed": 1.7,
+        "thickness": 0.05,
+        "radius": 140,
+        "fade": 1.6,
+        "ease": 0.6,
+        "radiusCurve": [[0, 0.6], [1, 1]],
+        "bands": 3,
+        "alpha": 0.7,
+        "blendMode": "normal",
+        "glow": 0.35,
+        "plateau": 0.3,
+        "erode": 0.2,
+        "palette": [1910932, 3111935, 8373503, 13428991]
+      }
+    }
+  ]
+}

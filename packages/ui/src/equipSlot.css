@@ -22,7 +22,7 @@
    per name by EquipNamePlate.tsx), never below NAME_FIT_MIN of its base size; the ellipsis is only a last resort.
 
    PERFORMANCE. Static paint only. Nothing here animates. The existing glow (`.hpb-glow`: a static shadow whose
-   OPACITY breathes), the one-shot sheen, the fade in / out and the Pixi Amplified loop are untouched; this file
+   OPACITY breathes), the one-shot sheen, the fade in / out and the Amplified look (amplifiedSlot.css) are untouched; this file
    only reshapes the glow's box to hug each socket. */
 
 /* The two state colours (the charge chip's text and rim), declared once. Not scoped to a look on purpose. */

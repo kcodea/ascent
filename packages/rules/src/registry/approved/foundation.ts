@@ -310,21 +310,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PRESENT-02',
     title: 'The Amplified glow plays only on a selected Equipment that can fire',
     statement:
-      'The Equipment slot carries the Amplified cue (the owner\'s looping `amplified-slot` def) only while the '
+      'The Equipment slot carries the Amplified cue (since 2026-11-01 the owner-approved "Charged" CSS look; '
+      + 'before, the looping `amplified-slot` def) only while the '
       + 'SELECTED Equipment will Amplify its next activation AND has at least one charge to spend, in the shop '
       + 'phase. An Amplified Equipment with zero charges shows no glow; an unselected Amplified Equipment shows '
       + 'none until it is picked; the glow ends the moment any of that stops being true (the activation that spends '
       + 'the stack or the charge, a swap to an unamplified Equipment, the turn ending, the phase leaving the shop, '
       + 'the slot going away) and is never left running unseen (a hidden tab, any overlay covering the slot, unmount). '
-      + 'The cue decorates state the reducer already resolved; it never decides anything.',
+      + 'The cue decorates state the reducer already resolved; it never decides anything. When the Amplified '
+      + 'activation fires, the slot plays its release (two soft rings, one per trigger), once per press.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the amplified effect)', quote: 'it should only play when a usable equipment is equipped/selected. if an equipment has 0 charges it should not show the animation.' },
-      { kind: 'code', ref: 'packages/ui/src/useAmplifiedSlotFx.ts (one loop, caller-owned teardown); packages/ui/src/StatusBar.tsx (the condition: hasEquip && equipmentWillAmplify && equipmentUsesLeft > 0 && phase recruit && no covering overlay, run-state (Discover / Choose One / offers / scouting) or UI-store (Compendium, Inspect view, bug reporter, ladder and balance pages, title))' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-01 (the Amplified redo, via the lead)', quote: 'looks good' },
+      { kind: 'code', ref: 'packages/ui/src/StatusBar.tsx (`.eq-amp-set`, mounted only under `ampShow`) + packages/ui/src/amplifiedSlot.css (opacity / transform loops); packages/ui/src/useAmplifiedSlotFx.ts (`useAmplifiedReleaseFx`); packages/ui/src/StatusBar.tsx (the condition: hasEquip && equipmentWillAmplify && equipmentUsesLeft > 0 && phase recruit && no covering overlay, run-state (Discover / Choose One / offers / scouting) or UI-store (Compendium, Inspect view, bug reporter, ladder and balance pages, title))' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-09-22 (the day the cue shipped). The condition is derived from the same `run.equipment` '
+      'Conforms as of 2026-11-01 (the cue was redone as the CSS "Charged" look; the show rule is unchanged from '
+      + '2026-09-22, when the Pixi loop shipped). The condition is derived from the same `run.equipment` '
       + 'reads that paint the charge number blue (`equipmentWillAmplify`) and print it (`equipmentUsesLeft`), so '
       + 'the glow and the number cannot disagree. The phase gate is load-bearing: End of Turn hands every own '
       + 'charge back in the same action that starts combat, and the bar stays mounted through the fight. Same-day '
@@ -337,7 +341,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/useAmplifiedSlotFx.test.tsx'],
-      lastVerifiedAt: '2026-09-22',
+      lastVerifiedAt: '2026-11-01',
     },
   },
   {

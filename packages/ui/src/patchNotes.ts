@@ -58,6 +58,16 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-01',
     changes: [
+      {
+        category: 'Systems',
+        text: 'New look for Amplified Equipment.',
+        details: [
+          'While your selected Equipment is Amplified, its slot glows a soft blue that slowly breathes.',
+          'A second thin ring breathes beside it, a glint runs along the frame, and small blue motes drift up.',
+          'When you use it, two soft rings leave the slot: one for each time it triggers.',
+          'The new look is also much lighter on your device.',
+        ],
+      },
       { category: 'Systems', text: 'Duos: a spell you drag out to cast, like Broshake or Tribe Bundle, now sends its stream to your teammate from where you let go, not from your hand. A minion you play that sends something does the same.' },
       { category: 'Balance', text: 'Hero balance: twelve heroes changed. Most start with less Armor, a few with more, and Tradesman tiers up for less.', details: [
         'Guardian: Armor 10 to 6.',

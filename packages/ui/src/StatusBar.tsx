@@ -36,13 +36,14 @@ import { sfx } from './sfx';
 import { onPressCue } from './pressCue';
 import { useWatchedName } from './versus/spectate';
 import { canPlayDefs, playDef } from './fx/playDef';
-import { useAmplifiedSlotFx } from './useAmplifiedSlotFx';
+import { useAmplifiedReleaseFx } from './useAmplifiedSlotFx';
 import { DiceRoll } from './DiceRoll';
 import { diceSeed, type DieFace } from './diceRollTimeline';
 import { useGame } from './store';
 import { getHeroPowerBtnConfig } from './heroPowerBtnConfig';
 import { pixiFx } from './pixiFx';
 import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
+import './amplifiedSlot.css'; // the Amplified Equipment look (.eq-amp-set): compositor-only loops
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
 import { onStageChange, rectToStage, stageHost, stageViewport, toStage } from './stage';
 import { openEmoteMenu } from './emotes/emoteRuntime';
@@ -163,6 +164,22 @@ function heroPowerTallyOf(
 }
 
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
+/**
+ * THE CHARGED DUST of the Amplified look (owner 2026-11-01: "need a bit more to it"): eight soft blue motes
+ * that rise off the slot's sides and top and fade. Positions are fractions of the glow box (just outside the frame),
+ * so none of them crosses the art; `dx` drifts each one outward, `d` staggers them. Transform / opacity only.
+ */
+const AMP_MOTES: { x: string; y: string; dx: string; d: string }[] = [
+  { x: '-3%', y: '80%', dx: '-1', d: '0s' },
+  { x: '103%', y: '72%', dx: '1', d: '-0.7s' },
+  { x: '-3%', y: '50%', dx: '-1', d: '-1.5s' },
+  { x: '103%', y: '44%', dx: '1', d: '-2.2s' },
+  { x: '30%', y: '-3%', dx: '-0.5', d: '-2.9s' },
+  { x: '-3%', y: '22%', dx: '-1', d: '-3.6s' },
+  { x: '70%', y: '-3%', dx: '0.5', d: '-4.3s' },
+  { x: '103%', y: '16%', dx: '1', d: '-5s' },
+];
+
 export function StatusBar() {
   const run = useGame((s) => s.run);
   // Practice's timer choice: the Gold Fuse's length (and so a parked fuse's Thymepiece reading) folds it in.
@@ -330,10 +347,11 @@ export function StatusBar() {
   const hasEquip = equipOptions.length > 0 && !!selectedEquip && !!selectedEquipDef;
 
   /**
-   * THE AMPLIFIED LOOP (owner ask 2026-09-22): *"it should only play when a usable equipment is equipped/selected.
-   * if an equipment has 0 charges it should not show the animation."*
+   * THE AMPLIFIED LOOK (owner ask 2026-09-22): *"it should only play when a usable equipment is equipped/selected.
+   * if an equipment has 0 charges it should not show the animation."* Redone 2026-11-01 (owner-approved "Charged"
+   * look): no longer a Pixi loop but a CSS state on the slot (`.eq-amp-set` below, equipSlot.css), with the same rule.
    *
-   * The owner's `amplified-slot` def rides the slot button while the SELECTED Equipment will Amplify its next
+   * The look shows on the slot while the SELECTED Equipment will Amplify its next
    * activation (`equipAmplified` — its own stack, Empty Hands' permanent Amplification, or a pending Calibration
    * it can spend: the same read that paints the charge number blue) AND has a charge to spend (`equipUses`: its
    * own once-per-turn charge plus the shared pool). Zero charges = no loop, exactly as the owner said, so using
@@ -347,9 +365,8 @@ export function StatusBar() {
    * Paused (torn down, never left running unseen) under anything that covers the slot. Two reads, because the
    * overlays live in two places:
    *  - RUN-state overlays (`overlayCovering`): a Discover, a Choose One, a quest / power / Runeforge offer, a
-   *    scouted board. The FX canvas (`.pixifx`, z 110) sits BENEATH them, so the loop would spend its particles
-   *    behind a backdrop, and inside a Discover its size alone is over the scene's particle cap. A minimised
-   *    Discover counts as covering (this bar cannot read the minimise flag), which errs on the side of not paying.
+   *    scouted board. They cover the slot, so the loops would run unseen behind a backdrop. A minimised Discover
+   *    counts as covering (this bar cannot read the minimise flag), which errs on the side of not paying.
    *  - UI-store overlays (`uiCovering`): the Compendium (Tab), the Inspect view, the Ctrl+B bug reporter, the
    *    ladder / balance pages and the title. Every one is a fixed full-viewport backdrop above that canvas too
    *    (review finding 2026-09-22: the Book left the ring burning behind its blur). The set is the one Recruit
@@ -362,7 +379,10 @@ export function StatusBar() {
     || run.runeforgeOffer || run.scoutedNextOpponent?.length);
   const uiCovering = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook
     || s.showBalance || s.bugReportOpen || !!s.inspect);
-  useAmplifiedSlotFx(hasEquip && equipAmplified > 0 && equipUses > 0 && run.phase === 'recruit' && !overlayCovering && !uiCovering);
+  const ampShow = hasEquip && equipAmplified > 0 && equipUses > 0 && run.phase === 'recruit' && !overlayCovering && !uiCovering;
+  // THE RELEASE (owner ask 2026-11-01): the Amplified activation firing lets the charge go in two soft rings on the
+  // slot, one per trigger. Keyed on the Equipment that WAS Amplified and a fresh use cue for it.
+  useAmplifiedReleaseFx(run.equipFxSeq, run.equipFx, hasEquip && equipAmplified > 0 && selectedEquipDef ? selectedEquipDef.id : null);
 
   /**
    * "EMPTY" — the Equipment ran out of uses (owner ask 2026-08-29).
@@ -1271,6 +1291,21 @@ export function StatusBar() {
                 <img decoding="sync" className="equipframe" src={publicArt(`frames/equipment-frame.webp`)}
                      alt="" aria-hidden="true" draggable={false} />
               )}
+              {/* AMPLIFIED (owner-approved "Charged" look, 2026-11-01): a breathing blue halo, a thin second ring breathing
+                  out of phase, a glint travelling the rim and soft motes rising off the sides. Opacity / transform only
+                  (equipSlot.css), never over the art; mounted only while it shows (`ampShow`). */}
+              {ampShow && (
+                <span className="eq-amp-set" data-testid="eq-amp" aria-hidden="true">
+                  <span className="eq-amp" />
+                  <span className="eq-amp-ring" />
+                  <span className="eq-amp-sheen" />
+                  <span className="eq-amp-motes">
+                    {AMP_MOTES.map((m, i) => (
+                      <i key={i} style={{ '--mx': m.x, '--my': m.y, '--mdx': m.dx, '--md': m.d } as CSSProperties} />
+                    ))}
+                  </span>
+                </span>
+              )}
               <button
                 type="button"
                 className={`heropowerbtn${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}
@@ -1311,7 +1346,7 @@ export function StatusBar() {
                   pool through ANY Equipment drops every one of them back to plain. */}
               {/* AMPLIFIED wins the colour: BLUE says "the next press triggers twice", which matters more than the
                   pool's green. `data-fx="equipment-amplified"` marks the tally for tooling; the owner's authored
-                  cue is the `amplified-slot` loop on the button itself (`useAmplifiedSlotFx`, 2026-09-22), which
+                  cue is the Amplified look on the slot itself (the `.eq-amp-set` halo, ring, glint and motes since 2026-11-01), which
                   adds the "and it has a charge to spend" half the colour alone does not carry. */}
               <span
                 className={`hpb-tally${equipAmplified > 0 ? ' amplified' : equipPool > 0 ? ' boosted' : ''}`}

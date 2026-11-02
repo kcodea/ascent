@@ -1818,11 +1818,14 @@ collapses into the one entry. Engine: `RunState.runeEquipment` + `sim/equipment.
   Equipment still held (it is the one piece of Equipment state meant to carry) and is pruned for one whose
   sources all left. Presentation: the Equipment's **charge number turns BLUE** while Amplified (over the pool's
   green), the tooltip says so, and the tally carries `data-fx="equipment-amplified"` as a tooling mark. The
-  owner's authored cue (2026-09-22) is the **`amplified-slot` loop on the slot button**: it plays only while
-  the SELECTED Equipment will Amplify AND has a charge to spend, in the shop phase, with nothing covering the
-  slot (a board-covering overlay, the Compendium, the Inspect view, the bug reporter and the ladder pages all
-  pause it) — zero charges means no glow ("if an equipment has 0 charges it should not show the
-  animation"), so using the Equipment ends it. Gold is not a term: a charged Amplified Equipment the player
+  slot's cue is the owner-approved **"Charged" look** (2026-11-01, replacing the 2026-09-22 `amplified-slot` Pixi
+  loop): a soft blue halo breathing round the slot, a thin second ring breathing out of phase, a glint running
+  along the frame and a few blue motes drifting up (CSS, opacity / transform only, never over the art). It shows
+  only while the SELECTED Equipment will Amplify AND has a charge to spend, in the shop phase, with nothing
+  covering the slot (a board-covering overlay, the Compendium, the Inspect view, the bug reporter and the ladder
+  pages all hide it) — zero charges means no glow ("if an equipment has 0 charges it should not show the
+  animation"), so using the Equipment ends it. When the Amplified activation fires, two soft blue rings leave the
+  slot, one per trigger (`amplified-release`). Gold is not a term: a charged Amplified Equipment the player
   cannot afford right now still glows while its button is disabled (open owner question, 2026-09-22).
   Engine: `PlayerEquipmentState.amplified` + `sim/equipment.ts` (`amplifyEquipment` / `amplifyUnactivated` /
   `amplifyAllHeld` / `consumeAmplified`), pinned in `set3RunesTrancheC.test.ts`.

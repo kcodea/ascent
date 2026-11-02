@@ -1,64 +1,51 @@
 // @vitest-environment jsdom
 /**
- * THE AMPLIFIED LOOP on the Equipment slot (owner ask 2026-09-22): *"i created an amplified effect that should
- * play on equipment when amplified. it should only play when a usable equipment is equipped/selected. if an
- * equipment has 0 charges it should not show the animation."*
+ * THE AMPLIFIED LOOK on the Equipment slot (owner ask 2026-09-22: *"it should only play when a usable equipment is
+ * equipped/selected. if an equipment has 0 charges it should not show the animation."*; redone 2026-11-01, the
+ * owner-approved "Charged" look).
  *
- * The owner-authored `amplified-slot` def is a LOOP — a looping player never retires on its own — so what is
- * pinned here is the caller-owned lifetime, driven through the real StatusBar + store so a change to how the
- * slot reads `run.equipment` fails here rather than passing against a stub:
+ * Since 2026-11-01 the look is a CSS state on the slot (`.eq-amp-set`: a breathing halo, an out-of-phase second ring,
+ * a rim glint and rising motes) instead of a looping Pixi play, so what is pinned here, through the real StatusBar +
+ * store, is WHEN it is mounted (the show rule the loop had, unchanged), that it stays off the art and uses no Pixi,
+ * and the RELEASE flourish (`amplified-release`, two soft rings) that plays when the Amplified activation fires.
  *
- *   1. it STARTS (once, `loop: true`, on the slot button's centre) only when the SELECTED Equipment will
- *      Amplify AND has a charge to spend, in the shop phase — for every `equipmentWillAmplify` branch (own
- *      stack, a pending Calibration, Rune of Empty Hands), and never for the Wrench on its own Calibration;
- *   2. it never starts TWICE — not on an unrelated re-render, not on a swap between two Amplified Equipment;
- *   3. it STOPS, exactly once, on each way the condition ends: the stack spent, the charge spent, the
- *      selection moved to an unamplified Equipment, the phase leaving the shop, the Equipment state gone, a
- *      board-covering overlay in the run state OR a UI-store overlay over the slot (the Compendium, the Inspect
- *      view, the bug reporter, a ladder page), a hidden tab, and unmount;
- *   4. the "can't start yet" waits (FX runtime not ready, slot not painted) re-check the LATEST condition and
- *      are bounded, so a stale start can never fire and nothing retries forever;
- *   5. `follow` hands the player a CACHED point — re-measured on resize, once per frame — never a live read.
+ *   1. it SHOWS only when the SELECTED Equipment will Amplify AND has a charge to spend, in the Shop, with nothing
+ *      covering the slot: for every `equipmentWillAmplify` branch (own stack, a pending Calibration, Rune of Empty
+ *      Hands), and never for the Wrench on its own Calibration;
+ *   2. it HIDES on each way the condition ends: the stack spent, the charge spent, the selection moved to an
+ *      unamplified Equipment, the phase leaving the shop, the Equipment state gone, a run-state overlay, a UI-store
+ *      overlay over the slot (the Compendium, the Inspect view, the bug reporter, a ladder page);
+ *   3. the release fires ONCE per Amplified press, never on mount, never for an unamplified use, never for the
+ *      Amplification ending without a use.
  *
- * The FX layer needs a live Pixi renderer, which jsdom has none of, so `playDef` is stubbed and the assertions
- * are about WHETHER a loop started and whether its disposer ran — which is the rule under test.
+ * `playDef` is stubbed (jsdom has no renderer); the look itself must never call it.
  */
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createRun, type BoardCard, type RunState } from '@game/sim';
 import { StatusBar } from './StatusBar';
 import { useGame } from './store';
 import { mount, type Mounted } from './renderedText.mount';
-import { AMPLIFIED_RETRY_FRAMES, AMPLIFIED_SLOT_SELECTOR } from './useAmplifiedSlotFx';
 
 type Point = { x: number; y: number };
-interface Play { id: string; anchors: { source: Point; target: Point; cursor: Point }; opts: { loop?: boolean; follow?: () => Point | null }; dispose: ReturnType<typeof vi.fn> }
+interface Play { id: string; anchors: { source: Point; target: Point; cursor: Point }; opts?: { loop?: boolean } }
 
-/** Every stubbed `playDef` call, in order — the slot also fires one-shots through the same door (the
- *  `equipment-used-up` puff when a charge count hits zero), so the assertions below read the LOOPS only. */
 const fired: Play[] = [];
 let canPlay = true;
 vi.mock('./fx/playDef', () => ({
   playDef: (id: string, anchors: Play['anchors'], opts: Play['opts']) => {
-    const dispose = vi.fn();
-    fired.push({ id, anchors, opts, dispose });
-    return dispose;
+    fired.push({ id, anchors, opts });
+    return vi.fn();
   },
   canPlayDefs: () => canPlay,
   ensureDefsReady: () => Promise.resolve(),
 }));
-/** The `amplified-slot` loops started so far. */
-const plays = (): Play[] => fired.filter((p) => p.id === 'amplified-slot');
-/** How many times each loop's caller-owned disposer has run. */
-const disposed = (): number[] => plays().map((p) => p.dispose.mock.calls.length);
+const releases = (): Play[] => fired.filter((p) => p.id === 'amplified-release');
 
-/** The slot button's box. jsdom lays nothing out, so every element reports THIS rect; the hook only ever
- *  measures the slot button, and the tests that care assert the selector resolves to exactly one element. */
 let rect = { left: 100, top: 600, width: 128, height: 128 };
 const centre = (): Point => ({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-
-const frame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
-const frames = async (n: number): Promise<void> => { for (let i = 0; i < n; i++) await frame(); };
 
 const minion = (uid: string, cardId: string): BoardCard =>
   ({ uid, cardId, tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false });
@@ -86,24 +73,19 @@ function shopRun(equip: EquipOver = {}, over: Partial<RunState> = {}): RunState 
     ...over,
   } as RunState;
 }
-
-/** Bloodpot Amplified by its own stack — the plainest "glow" state. */
 const amplifiedRun = (equip: EquipOver = {}, over: Partial<RunState> = {}): RunState =>
   shopRun({ amplified: { bloodpot: 1 }, ...equip }, over);
-
-/** Bloodpot's own charge spent with an empty pool — the selected Equipment reads 0. */
 const spent = (): EquipOver['available'] => [
   { equipmentId: 'bloodpot', version: 'plain', sourceUids: ['f'], sourceCardIds: ['e3_frank'], grantedTurn: 1, ownChargeSpent: true },
   { equipmentId: 'titan_hammer', version: 'plain', sourceUids: ['s'], sourceCardIds: ['e3_sculptor'], grantedTurn: 1, ownChargeSpent: false },
 ];
 
 let ui: Mounted;
-/** Mount / re-render the real StatusBar against the store. `showTitle: false` because the store boots on the
- *  title and the loop's UI-overlay gate reads it (in the app `isPreRun` unmounts the bar with the title). */
 const show = (run: RunState, extra: Record<string, unknown> = {}): void => {
   act(() => { useGame.setState({ run, equipArmed: false, heroArmed: false, showTitle: false, ...extra }); });
   ui.render(<StatusBar />);
 };
+const look = (): Element | null => document.querySelector('.statusbar .equipslot:not(.leaving) .eq-amp-set');
 
 beforeEach(() => {
   fired.length = 0;
@@ -118,151 +100,80 @@ beforeEach(() => {
 afterEach(() => {
   ui.unmount();
   vi.restoreAllMocks();
-  delete (document as { hidden?: boolean }).hidden;
-  // The store is a module singleton: put back every UI-overlay flag a test opened.
   useGame.setState({ showBook: false, bugReportOpen: false, showCareer: false, inspect: null });
 });
 
-describe('the Amplified loop — when it STARTS', () => {
-  it('starts ONE looping amplified-slot play, centred on the slot button, when the selected Equipment is Amplified and charged', () => {
+describe('the Amplified look: when it SHOWS', () => {
+  it('shows the Charged set (halo, second ring, rim glint, 8 motes) when the selected Equipment is Amplified and charged', () => {
     show(amplifiedRun());
-    expect(document.querySelectorAll(AMPLIFIED_SLOT_SELECTOR).length, 'exactly one live slot button').toBe(1);
-    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
-    const [p] = plays();
-    expect(p!.opts.loop, 'a persistent marker, so the caller owns teardown').toBe(true);
-    expect(p!.anchors.source).toEqual(centre());
-    expect(p!.anchors.target).toEqual(centre());
-    expect(p!.opts.follow?.(), 'follow hands back the cached slot centre').toEqual(centre());
-    expect(disposed()).toEqual([0]);
+    const set = look();
+    expect(set, 'the look is mounted on the live slot').not.toBeNull();
+    expect(set!.querySelector('.eq-amp')).not.toBeNull();
+    expect(set!.querySelector('.eq-amp-ring')).not.toBeNull();
+    expect(set!.querySelector('.eq-amp-sheen')).not.toBeNull();
+    expect(set!.querySelectorAll('.eq-amp-motes > i').length).toBe(8);
+    expect(set!.getAttribute('aria-hidden')).toBe('true');
+    expect(fired, 'the look plays no Pixi effect').toEqual([]);
   });
 
-  it('starts nothing when the Equipment has no charge — owner: "if an equipment has 0 charges it should not show the animation"', () => {
+  it('shows nothing when the Equipment has no charge, and shows again when a bonus charge puts a use back', () => {
     show(amplifiedRun({ available: spent() }));
-    expect(plays()).toEqual([]);
-    // A bonus charge granted mid-turn (Equipment Charger) puts a use back — and the glow with it.
+    expect(look()).toBeNull();
     show(amplifiedRun({ available: spent(), bonusActivations: 1 }));
-    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
+    expect(look()).not.toBeNull();
   });
 
-  it('is about the SELECTED Equipment — another held Equipment being Amplified starts nothing until it is picked', () => {
+  it('is about the SELECTED Equipment: another held Equipment being Amplified shows nothing until it is picked', () => {
     show(shopRun({ amplified: { titan_hammer: 1 } }));
-    expect(plays()).toEqual([]);
+    expect(look()).toBeNull();
     show(shopRun({ amplified: { titan_hammer: 1 }, selectedEquipmentId: 'titan_hammer' }));
-    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
+    expect(look()).not.toBeNull();
   });
 
-  it('starts nothing when the selected Equipment is not Amplified at all', () => {
+  it('shows nothing when the selected Equipment is not Amplified, or outside the shop phase', () => {
     show(shopRun());
-    expect(plays()).toEqual([]);
-  });
-
-  it('starts nothing outside the shop phase — End of Turn hands every own charge back in the same action that starts combat', () => {
+    expect(look()).toBeNull();
     show(amplifiedRun({}, { phase: 'combat' }));
-    expect(plays()).toEqual([]);
+    expect(look()).toBeNull();
   });
 
-  it('starts for a pending Calibration on any held Equipment — but never for the Wrench itself', () => {
+  it('shows for a pending Calibration on any held Equipment, but never for the Wrench itself', () => {
     const held = [
       { equipmentId: 'bloodpot', version: 'plain' as const, sourceUids: ['f'], sourceCardIds: ['e3_frank'], grantedTurn: 1, ownChargeSpent: false },
       { equipmentId: 'calibration_wrench', version: 'plain' as const, sourceUids: ['w'], sourceCardIds: ['n3_calibration'], grantedTurn: 1, ownChargeSpent: false },
     ];
     show(shopRun({ available: held, calibrationPending: 1, selectedEquipmentId: 'calibration_wrench' }));
-    expect(plays(), 'the Wrench does not Amplify itself').toEqual([]);
+    expect(look(), 'the Wrench does not Amplify itself').toBeNull();
     show(shopRun({ available: held, calibrationPending: 1, selectedEquipmentId: 'bloodpot' }));
-    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
+    expect(look()).not.toBeNull();
   });
 
-  it('starts for a permanently Amplified Equipment (Rune of Empty Hands)', () => {
+  it('shows for a permanently Amplified Equipment (Rune of Empty Hands)', () => {
     show(shopRun({}, { equipmentAmplifiedCards: ['e3_frank'] }));
-    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
-  });
-
-  it('starts nothing while a board-covering overlay is open, and starts once it closes', () => {
-    show(amplifiedRun({}, { discover: ['alley', 'alley', 'alley'] }));
-    expect(plays(), 'the FX canvas sits beneath the Discover').toEqual([]);
-    show(amplifiedRun());
-    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
+    expect(look()).not.toBeNull();
   });
 });
 
-describe('the Amplified loop — never TWICE', () => {
-  it('an unrelated re-render (Gold changing) starts no second loop', () => {
-    show(amplifiedRun());
-    show(amplifiedRun({}, { embers: 7 }));
-    show(amplifiedRun({}, { embers: 3 }));
-    expect(plays().length).toBe(1);
-    expect(disposed(), 'and the first loop is still running').toEqual([0]);
-  });
-
-  it('a swap between two Amplified Equipment keeps the one loop running — same slot, same point', () => {
-    const both = { amplified: { bloodpot: 1, titan_hammer: 1 } };
-    show(shopRun(both));
-    show(shopRun({ ...both, selectedEquipmentId: 'titan_hammer' }));
-    show(shopRun({ ...both, selectedEquipmentId: 'bloodpot' }));
-    expect(plays().length).toBe(1);
-    expect(disposed()).toEqual([0]);
-  });
-});
-
-describe('the Amplified loop — when it STOPS (exactly once each)', () => {
+describe('the Amplified look: when it HIDES', () => {
   const ends: [string, () => RunState][] = [
     ['the Amplified stack is spent', () => shopRun()],
     ['the charge is spent (the Equipment was used)', () => amplifiedRun({ available: spent() })],
     ['the selection moves to an unamplified Equipment', () => amplifiedRun({ selectedEquipmentId: 'titan_hammer' })],
     ['the phase leaves the shop', () => amplifiedRun({}, { phase: 'combat' })],
-    ['the Equipment state is gone', () => amplifiedRun({}, { equipment: undefined })],
-    ['a board-covering overlay opens', () => amplifiedRun({}, { chooseOne: { uid: 'x', cardId: 'alley' } as RunState['chooseOne'] })],
+    ['a Discover opens over the board', () => amplifiedRun({}, { discover: ['alley', 'alley', 'alley'] })],
+    ['a Choose One opens over the board', () => amplifiedRun({}, { chooseOne: { uid: 'x', cardId: 'alley' } as RunState['chooseOne'] })],
   ];
   for (const [what, next] of ends) {
-    it(`stops when ${what}, and restarts when the condition returns`, () => {
+    it(`hides when ${what}, and shows again when the condition returns`, () => {
       show(amplifiedRun());
-      expect(plays().length).toBe(1);
+      expect(look()).not.toBeNull();
       show(next());
-      expect(disposed(), 'the loop was disposed once').toEqual([1]);
-      expect(plays().length, 'and nothing else started').toBe(1);
-      show(next());
-      expect(disposed(), 'a second render of the same off-state disposes nothing again').toEqual([1]);
+      expect(look()).toBeNull();
       show(amplifiedRun());
-      expect(plays().length, 'back on: a fresh loop').toBe(2);
-      expect(disposed()).toEqual([1, 0]);
+      expect(look()).not.toBeNull();
     });
   }
 
-  it('tears down when the tab is hidden and restarts when it is visible again', () => {
-    show(amplifiedRun());
-    expect(plays().length).toBe(1);
-    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
-    document.dispatchEvent(new Event('visibilitychange'));
-    expect(disposed()).toEqual([1]);
-    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
-    document.dispatchEvent(new Event('visibilitychange'));
-    expect(plays().length, 'visible again, still Amplified and charged: restarted').toBe(2);
-    expect(disposed()).toEqual([1, 0]);
-  });
-
-  it('a tab hidden while the loop is OFF starts nothing when it becomes visible with the condition false', () => {
-    show(shopRun());
-    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
-    document.dispatchEvent(new Event('visibilitychange'));
-    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
-    document.dispatchEvent(new Event('visibilitychange'));
-    expect(plays()).toEqual([]);
-  });
-
-  it('tears down on unmount', () => {
-    show(amplifiedRun());
-    expect(plays().length).toBe(1);
-    ui.unmount();
-    expect(disposed()).toEqual([1]);
-    ui = mount(<div />); // for afterEach
-  });
-});
-
-describe('the Amplified loop — UI-store overlays cover the slot too (review finding 2026-09-22)', () => {
-  // Every one of these is a fixed full-viewport backdrop ABOVE the FX canvas (`.pixifx`, z 110): the Compendium
-  // (`.book-ov`, z 480), the Inspect view (`.inspect-ov`, z 500), the Ctrl+B bug reporter (`.bgrov`, z 560) and
-  // the ladder pages (`.lbpage`, z 470). The Book is the one the review caught with the ring burning behind
-  // its blur; the rest are the same shape. The set mirrors Recruit's `overlayOpen` plus the Inspect view.
   const covers: [string, Record<string, unknown>, Record<string, unknown>][] = [
     ['the Compendium (Tab)', { showBook: true }, { showBook: false }],
     ['the Inspect view', { inspect: { name: 'Alley Cat', cardId: 'alley', tribe: 'neutral' } }, { inspect: null }],
@@ -270,87 +181,85 @@ describe('the Amplified loop — UI-store overlays cover the slot too (review fi
     ['a ladder page (Career)', { showCareer: true }, { showCareer: false }],
   ];
   for (const [what, open, close] of covers) {
-    it(`stops once when ${what} opens over the shop, and restarts when it closes`, () => {
-      show(amplifiedRun());
-      expect(plays().length).toBe(1);
+    it(`hides while ${what} covers the slot`, () => {
       show(amplifiedRun(), open);
-      expect(disposed(), 'the loop was disposed once').toEqual([1]);
-      expect(plays().length, 'and nothing else started').toBe(1);
-      show(amplifiedRun({}, { embers: 5 }), open);
-      expect(disposed(), 'a re-render under the overlay disposes nothing again').toEqual([1]);
-      expect(plays().length, 'and starts nothing').toBe(1);
+      expect(look()).toBeNull();
       show(amplifiedRun(), close);
-      expect(plays().length, 'closed: a fresh loop').toBe(2);
-      expect(disposed()).toEqual([1, 0]);
+      expect(look()).not.toBeNull();
     });
   }
+});
 
-  it('starts nothing while the Compendium is already open, and starts once it closes', () => {
-    show(amplifiedRun(), { showBook: true });
-    expect(plays()).toEqual([]);
-    show(amplifiedRun(), { showBook: false });
-    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
+describe('the Amplified look: perf (amplifiedSlot.css)', () => {
+  const css = readFileSync(join(__dirname, 'amplifiedSlot.css'), 'utf8');
+  /** Every `@keyframes name { ... }` block, brace-matched, with the property names its frames set. */
+  const keyframes = (): { name: string; props: string[] }[] => {
+    const out: { name: string; props: string[] }[] = [];
+    const re = /@keyframes\s+([\w-]+)\s*\{/g;
+    for (let m = re.exec(css); m; m = re.exec(css)) {
+      let depth = 1;
+      let j = re.lastIndex;
+      for (; j < css.length && depth > 0; j++) { if (css[j] === '{') depth++; else if (css[j] === '}') depth--; }
+      const body = css.slice(re.lastIndex, j - 1);
+      const props = [...body.matchAll(/\{([^{}]*)\}/g)].flatMap((f) => [...f[1]!.matchAll(/([a-z-]+)\s*:/g)].map((p) => p[1]!));
+      out.push({ name: m[1]!, props });
+    }
+    return out;
+  };
+
+  it('every looping keyframe animates opacity / transform only (compositor-only, no paint property)', () => {
+    const ks = keyframes();
+    expect(ks.map((k) => k.name).sort(), 'the breath, the rim glint and the motes').toEqual(['eqampbreathe', 'eqampmote', 'eqampsheen']);
+    for (const k of ks) for (const p of k.props) expect(['opacity', 'transform'], `${k.name} animates ${p}`).toContain(p);
+  });
+
+  it('nothing outside a keyframe transitions a property (no paint-property transition either)', () => {
+    expect(css).not.toMatch(/transition\s*:/);
   });
 });
 
-describe('the Amplified loop — the "can\'t start yet" waits', () => {
-  it('waits for the FX runtime and starts once it is ready — re-checking the condition, not replaying a stale start', async () => {
+describe('the Amplified RELEASE (two soft rings as the Amplified activation fires)', () => {
+  const useCue = (equipmentId: string): RunState['equipFx'] => [{ kind: 'use', uid: 'f', cardId: 'e3_frank', equipmentId }];
+
+  it('fires ONCE on the slot centre when the Amplified Equipment is used', () => {
+    show(amplifiedRun({}, { equipFxSeq: 1 }));
+    expect(releases(), 'mounting Amplified is not a release').toEqual([]);
+    // The press: the Amplification and the charge are spent, and the use cue arrives, in one action.
+    show(amplifiedRun({ amplified: {}, available: spent() }, { equipFxSeq: 2, equipFx: useCue('bloodpot') }));
+    expect(releases().length).toBe(1);
+    expect(releases()[0]!.anchors.source).toEqual(centre());
+    expect(releases()[0]!.opts?.loop, 'a one-shot').toBeFalsy();
+    show(amplifiedRun({ amplified: {}, available: spent() }, { equipFxSeq: 2, equipFx: useCue('bloodpot'), embers: 3 }));
+    expect(releases().length, 'a re-render of the same action does not release again').toBe(1);
+  });
+
+  it('fires nothing for a use of an Equipment that was NOT Amplified', () => {
+    show(shopRun({}, { equipFxSeq: 1 }));
+    show(shopRun({ available: spent() }, { equipFxSeq: 2, equipFx: useCue('bloodpot') }));
+    expect(releases()).toEqual([]);
+  });
+
+  it('fires nothing when the Amplification ends without a use, or for a use of ANOTHER Equipment', () => {
+    show(amplifiedRun({}, { equipFxSeq: 1 }));
+    show(amplifiedRun({}, { equipFxSeq: 2, equipFx: [{ kind: 'equip', uid: 's', cardId: 'e3_sculptor' }] }));
+    expect(releases(), 'an equip cue is not a use').toEqual([]);
+    show(amplifiedRun({}, { equipFxSeq: 3, equipFx: useCue('titan_hammer') }));
+    expect(releases(), 'the Hammer was not the Amplified one').toEqual([]);
+    show(shopRun({}, { equipFxSeq: 3 }));
+    expect(releases(), 'the stack spent with no use').toEqual([]);
+  });
+
+  it('a permanently Amplified Equipment (Rune of Empty Hands) releases on every use', () => {
+    show(shopRun({}, { equipmentAmplifiedCards: ['e3_frank'], equipFxSeq: 1 }));
+    show(shopRun({ bonusActivations: 1 }, { equipmentAmplifiedCards: ['e3_frank'], equipFxSeq: 2, equipFx: useCue('bloodpot') }));
+    show(shopRun({ bonusActivations: 1 }, { equipmentAmplifiedCards: ['e3_frank'], equipFxSeq: 3, equipFx: useCue('bloodpot') }));
+    expect(releases().length).toBe(2);
+  });
+
+  it('fires nothing while the FX runtime is not ready', () => {
     canPlay = false;
-    show(amplifiedRun());
-    expect(plays(), 'no renderer yet: nothing fired').toEqual([]);
-    canPlay = true;
-    await frames(2); // the readiness promise resolves, then one frame to re-sync
-    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
-  });
-
-  it('a readiness wait whose condition went false in the meantime fires nothing', async () => {
-    canPlay = false;
-    show(amplifiedRun());
-    show(shopRun()); // the stack was spent before the runtime came up
-    canPlay = true;
-    await frames(3);
-    expect(plays()).toEqual([]);
-  });
-
-  it('a slot with no layout box yet is retried on the next frames, not dropped', async () => {
-    rect = { left: 0, top: 0, width: 0, height: 0 };
-    show(amplifiedRun());
-    expect(plays()).toEqual([]);
-    rect = { left: 100, top: 600, width: 128, height: 128 };
-    await frames(2);
-    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
-    expect(plays()[0]!.anchors.source).toEqual(centre());
-  });
-
-  it('gives up on a slot that never gets a box — bounded, so nothing retries forever', async () => {
-    rect = { left: 0, top: 0, width: 0, height: 0 };
-    show(amplifiedRun());
-    await frames(AMPLIFIED_RETRY_FRAMES + 3);
-    expect(plays()).toEqual([]);
-  });
-
-  it('a pending retry is cancelled when the condition ends before it fires', async () => {
-    rect = { left: 0, top: 0, width: 0, height: 0 };
-    show(amplifiedRun());
-    show(shopRun());
-    rect = { left: 100, top: 600, width: 128, height: 128 };
-    await frames(3);
-    expect(plays()).toEqual([]);
-  });
-});
-
-describe('the Amplified loop — follow reads a cache, re-measured on resize', () => {
-  it('hands the player the cached centre, and moves it one frame after a resize', async () => {
-    show(amplifiedRun());
-    const follow = plays()[0]!.opts.follow!;
-    const before = centre();
-    expect(follow()).toEqual(before);
-    rect = { left: 300, top: 900, width: 96, height: 96 };
-    expect(follow(), 'no resize yet: the cache is untouched however the box moved').toEqual(before);
-    window.dispatchEvent(new Event('resize'));
-    expect(follow(), 'debounced to a frame').toEqual(before);
-    await frame();
-    expect(follow()).toEqual(centre());
-    expect(plays().length, 'a resize re-measures; it does not restart').toBe(1);
+    show(amplifiedRun({}, { equipFxSeq: 1 }));
+    show(amplifiedRun({ amplified: {}, available: spent() }, { equipFxSeq: 2, equipFx: useCue('bloodpot') }));
+    expect(releases()).toEqual([]);
   });
 });

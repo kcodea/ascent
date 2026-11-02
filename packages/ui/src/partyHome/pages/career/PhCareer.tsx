@@ -71,7 +71,7 @@ function HeroCard({ h, art, onPick }: { h: HeroCareer; art: string | undefined; 
   const net = h.ratedGames > 0 ? h.netMmr : null;
   return (
     <button type="button" className="phc-hero" onClick={() => onPick(h.heroId)} aria-label={`${name}: ${games} played. Show ${name} games`}>
-      {art && <img className="phc-heroart" src={art} alt="" draggable={false} decoding="async" loading="lazy" />}
+      {art && <img className="phc-heroart" src={art} alt="" draggable={false} decoding="sync" loading="lazy" />}
       <span className="phc-herobody">
         <span className="phc-heroname">{name}</span>
         <span className="phc-herogames">{games}</span>
@@ -162,7 +162,7 @@ export function PhCareer(p: PhCareerProps) {
           <div className="phc-grid">
             <aside className="phc-profile" aria-label="Profile">
               <section className="phc-id">
-                {p.profileArt && <img className="phc-idart" src={p.profileArt} alt="" draggable={false} decoding="async" />}
+                {p.profileArt && <img className="phc-idart" src={p.profileArt} alt="" draggable={false} decoding="sync" />}
                 {p.level !== null && <span className="phc-idlv" aria-label={`Level ${p.level}`}><small>Lv</small>{p.level}</span>}
                 <span className="phc-idwho">
                   <span className="phc-idname">{p.name}</span>

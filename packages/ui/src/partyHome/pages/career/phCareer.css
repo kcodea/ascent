@@ -160,7 +160,7 @@ html[data-ph-shell] .phc-page .phc-achview .ach-chip.on { background: var(--ph-m
 html[data-ph-shell] .phc-page .phc-achview .ach-tile-title, html[data-ph-shell] .phc-page .phc-achview .ach-cat-name { font-family: var(--ph-font); }
 
 /* ── 1366 and other short-wide screens: a slimmer profile column. ── */
-@media (max-width: 1500px) {
+@container cv2 (max-width: 1500px) {
   html[data-ph-shell] .phc-page .phc-grid { grid-template-columns: calc(300 * var(--phu)) minmax(0, 1fr); }
   .phc-id { height: calc(200 * var(--phu)); }
   html[data-ph-shell] .phc-page .phc-split > .gsplit { grid-template-columns: calc(304 * var(--phu)) minmax(0, 1fr); }
@@ -180,7 +180,7 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phc-profile > .phc-card:la
 html[data-ph-shell][data-touch-ui][data-touch-small] .phc-page .phc-card :is(.rankbar-caption, .rankbar-label) { font-size: var(--ph-t3); white-space: nowrap; }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phc-profile .phc-stats { grid-template-columns: repeat(3, 1fr); }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phc-id { height: auto; min-height: calc(220 * var(--phu)); }
-html[data-ph-shell][data-touch-ui][data-touch-small] .phc-main { flex: none; height: calc(100svh - var(--ph-nav-h) - 24 * var(--phu)); }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phc-main { flex: none; height: calc(var(--lvh, 100svh) - var(--ph-nav-h) - 24 * var(--phu)); }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phc-page .phc-split > .gsplit { grid-template-columns: calc(260 * var(--phu)) minmax(0, 1fr); }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phc-page .gs-item { grid-template-columns: calc(44 * var(--phu)) calc(40 * var(--phu)) minmax(0, 1fr) auto; min-height: calc(72 * var(--phu)); }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phc-page .phk-pagetitle h1 { max-width: calc(360 * var(--phu)); }

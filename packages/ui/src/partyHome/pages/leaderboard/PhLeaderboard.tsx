@@ -94,7 +94,7 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
             return (
               <div role="listitem" key={r.userId || r.author} className={`phl-pod p${i + 1}${mine ? ' me' : ''}`} ref={mine ? mineRef : undefined}>
                 <button type="button" className="phl-podbtn" onClick={() => p.onOpen(r)} aria-label={`${i + 1}. ${w.handle}. View their career`}>
-                  {art && <img className="phl-podart" src={art} alt="" draggable={false} decoding="async" />}
+                  {art && <img className="phl-podart" src={art} alt="" draggable={false} decoding="sync" />}
                   <span className="phl-podplace"><PhPlace place={i + 1} size={i === 0 ? 'l' : 'm'} /></span>
                   {mine && <PhChip tone="gold" className="phl-you">You</PhChip>}
                   <span className="phl-podwho">
@@ -128,7 +128,7 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
               <div role="row" key={r.userId || r.author} className={`phl-row${mine ? ' me' : ''}`} ref={mine ? mineRef : undefined}>
                 <button type="button" className="phl-rowbtn" onClick={() => p.onOpen(r)} aria-label={`${place}. ${w.handle}. View their career`}>
                   <PhPlace place={place} />
-                  <span className="phl-thumb">{art && <img src={art} alt="" draggable={false} decoding="async" loading="lazy" />}</span>
+                  <span className="phl-thumb">{art && <img src={art} alt="" draggable={false} decoding="sync" loading="lazy" />}</span>
                   <span className="phl-who">
                     <span className="phl-name">{w.handle}{mine && <PhChip tone="gold">You</PhChip>}{w.title}</span>
                     <span className="phl-sub">{w.hero}</span>
@@ -175,8 +175,8 @@ function DuosBoard({ myId }: { myId: string | null }) {
             <span className="phl-rowbtn static">
               <PhPlace place={i + 1} />
               <span className="phl-pair" aria-hidden="true">
-                <span className="phl-thumb">{artA && <img src={artA} alt="" draggable={false} decoding="async" loading="lazy" />}</span>
-                <span className="phl-thumb">{artB && <img src={artB} alt="" draggable={false} decoding="async" loading="lazy" />}</span>
+                <span className="phl-thumb">{artA && <img src={artA} alt="" draggable={false} decoding="sync" loading="lazy" />}</span>
+                <span className="phl-thumb">{artB && <img src={artB} alt="" draggable={false} decoding="sync" loading="lazy" />}</span>
               </span>
               <span className="phl-who">
                 <span className="phl-name">{duosTeamLabel(r.name, a, b)}{mine && <PhChip tone="gold">You</PhChip>}</span>

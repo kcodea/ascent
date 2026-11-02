@@ -308,3 +308,10 @@
 .phk-field { display: flex; flex-direction: column; gap: calc(6 * var(--phu)); }
 .phk-fieldinput { width: 100%; box-sizing: border-box; }
 .phk-fielderr { font-size: var(--ph-t1); color: var(--pill-red, #ff7a66); }
+
+/* Segmented options: an even grid (no lone option stretched to a full row); the big switch reads like the rest. */
+.phk-segrow { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(88 * var(--phu)), 1fr)); }
+.phk-seg.s-l .phk-segrow { grid-template-columns: 1fr 1fr; }
+.phk-seg.s-l .phk-segbtn { text-transform: none; letter-spacing: 0.02em; }
+/* A disabled button keeps the game's cursor (never the OS arrow). */
+.phk-btn:disabled, .phk-segbtn:disabled, .phk-tab:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }

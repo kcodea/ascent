@@ -233,3 +233,6 @@ html[data-ph-shell] .ph-top :is(.ph-navtab, .ph-iconbtn, .ph-brand) { letter-spa
 .ph-friends.drawer { border-radius: var(--ph-r-l) 0 0 var(--ph-r-l); }
 
 .ph-friends.embedded .ph-ftitle { display: none; }
+
+.ph-fhead { justify-content: space-between; }
+.ph-friends.embedded .ph-fhead { justify-content: flex-end; }

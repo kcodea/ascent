@@ -83,11 +83,12 @@ function Place({ place, band, big }: { place: number | null; band: GameBand; big
 export function RecentGamesPh(p: RecentGamesPhProps) {
   const duos = p.tab === 'duos';
   const practice = p.tab === 'practice';
-  const eyebrow = duos ? `Your last ${p.duosLimit} Duos games` : practice ? `The last ${p.feedRows} practice games, every player` : `The last ${p.feedRows} games, every player`;
+  const scope = duos ? `Your last ${p.duosLimit} Duos games` : practice ? `The last ${p.feedRows} practice games, every player` : `The last ${p.feedRows} games, every player`;
   return (
     <PhPage
-      className="rgp" wide eyebrow={eyebrow} title="Recent Games"
+      className="rgp" wide eyebrow="Match history" title="Recent Games"
       tabs={<PhTabs tabs={TABS} value={p.tab} onChange={p.onTab} label="Recent games view" />}
+      actions={<span className="rgp-scope">{scope}</span>}
     >
       {duos ? <DuosBody {...p} /> : <FeedBody {...p} />}
     </PhPage>
@@ -113,7 +114,7 @@ function StateBody({ state, tab, signedOut }: { state: RecentState; tab: RecentG
 function FeedBody(p: RecentGamesPhProps) {
   const practice = p.tab === 'practice';
   const filterBar = p.state === 'ready' || (p.heroFilter !== null && p.state !== 'offline')
-    ? <div className="rgp-filters" aria-label="Filter by hero"><HeroFilterChips counts={p.heroCounts} value={p.heroFilter} onChange={p.onHero} /></div>
+    ? <div className="rgp-filters" role="group" aria-label="Filter by hero"><span className="rgp-k" aria-hidden="true">Hero</span><HeroFilterChips counts={p.heroCounts} value={p.heroFilter} onChange={p.onHero} /></div>
     : null;
   if (p.state !== 'ready') return <><StateBody state={p.state} tab={p.tab} />{filterBar}</>;
   if (p.rows.length === 0) {
@@ -303,6 +304,14 @@ const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, o
   }, [practiceRow, r.rowId, r.userId]);
   const match = 'match' in r ? r.match : fetched;
   const { seat, pick } = useLobbySeat(match);
+  // A pick in the lobby (below the board) brings the board back into view; nothing moves when it is already on screen.
+  const boardRef = useRef<HTMLElement | null>(null);
+  const firstPick = useRef(true);
+  useEffect(() => {
+    if (firstPick.current) { firstPick.current = false; return; }
+    const el = boardRef.current;
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [seat?.id]);
   const art = heroThumb(heroPortrait(r.heroId, skins));
   const rank = !practice && 'rank' in r && r.rank != null ? r.rank : null;
   const replayText = busy ? 'Loading' : unplayable || !watchable ? 'No replay' : 'Replay';
@@ -349,7 +358,7 @@ const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, o
         {r.partial && <PhChip className="rgp-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</PhChip>}
       </div>
 
-      <section className="rgp-boardsec" aria-label="Final board">
+      <section className="rgp-boardsec" aria-label="Final board" ref={boardRef}>
         {match
           ? <ShowingLine seat={seat} details={match} onBack={() => pick(null)} />
           : <div className="lp-showing"><span className="lp-showing-l">Final board</span></div>}

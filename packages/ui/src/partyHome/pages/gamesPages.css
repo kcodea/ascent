@@ -42,10 +42,12 @@
 .rgp-pt.lost { fill: var(--ph-navy); stroke: var(--ph-foe); stroke-width: 1.4; }
 
 /* THE HERO FILTER: the shared chips, in the kit's chip shape (the More list keeps the game's dropdown). */
-.rgp-filters { flex: none; min-width: 0; }
-.rgp .rg-filters { gap: calc(8 * var(--phu)); flex-wrap: nowrap; }
-.rgp .rg-chip { height: calc(32 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
-  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.rgp-scope { font-size: var(--ph-t2); color: var(--ph-muted); text-shadow: var(--ph-shadow); white-space: nowrap; }
+/* The filter row, in the kit's segmented look (PhSegmented's buttons); the shared chips keep their fit-one-line + More. */
+.rgp-filters { flex: none; display: flex; align-items: center; gap: calc(16 * var(--phu)); min-width: 0; }
+.rgp .rg-filters { flex: 1; gap: calc(4 * var(--phu)); flex-wrap: nowrap; }
+.rgp .rg-chip { height: calc(36 * var(--phu)); padding: 0 calc(12 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.04em; color: var(--ph-text); text-shadow: var(--ph-shadow); }
 .rgp .rg-chip:hover { color: var(--ph-ink); background: var(--ph-plate-hover); }
 .rgp .rg-chip.on, .rgp .rg-more.open .rg-more-trigger.on { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); box-shadow: none; }
 .rgp .rg-more.open .rg-more-trigger { color: var(--ph-ink); }
@@ -163,8 +165,38 @@
 
 /* DUOS: the shared Duos card, sat on the kit plate instead of its own card frame. */
 .rgp-duos .gc.gc-detail { min-height: 100%; border: 0; border-radius: 0; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip); }
-.rgp-duos .gc .gc-place { font-family: var(--ph-font); }
-.rgp-duos .gc-detail .lb-btn, .rgp-duos .gc-detail .cv2-btn { border-radius: 0; clip-path: var(--ph-clip-s); }
+.rgp-duos .gc.gc-detail .gc-body { padding: calc(24 * var(--phu)) calc(32 * var(--phu)) calc(16 * var(--phu)); column-gap: calc(24 * var(--phu)); grid-template-columns: calc(72 * var(--phu)) minmax(0, 1fr) auto; }
+/* The team's placement as the kit's metal box (the classic crown and ordinal stay off here). */
+.rgp-duos .gc.gc-detail .gc-place { display: grid; place-items: center; width: calc(72 * var(--phu)); height: calc(72 * var(--phu)); padding: 0; border: 0; background: var(--ph-plate);
+  box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.rgp-duos .gc.gc-detail .gc-place .gc-crown { display: none; }
+.rgp-duos .gc.gc-detail .gc-place { align-self: center; justify-self: start; }
+.rgp-duos .gc.gc-detail .gc-place .gc-place-n { font: inherit; color: inherit; }
+.rgp-duos .gc.gc-detail .gc-place.won { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); box-shadow: none; }
+.rgp-duos .gc.gc-detail .gc-place.top4 { background: var(--ph-metal-silver); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); box-shadow: none; }
+.rgp-duos .gc-title, .rgp-duos .gc-title > * { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4) !important; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.rgp-duos .gc-sub, .rgp-duos .gc-sub > * { font-size: var(--ph-t2) !important; color: var(--ph-text); }
+.rgp-duos .gc-board { background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); border-top: 0 !important; }
+.rgp-duos .dh-board + .dh-board { border-top: calc(1 * var(--phu)) solid var(--ph-hair); }
+.rgp-duos .dh-board-who { font-family: var(--ph-font); font-size: var(--ph-t2); color: var(--ph-ink); }
+.rgp-duos .dh-board-hero { font-family: var(--ph-font); font-size: var(--ph-t1); letter-spacing: 0.16em; color: var(--ph-muted); }
+/* The facts as the kit's tiles. */
+.rgp-duos .gc.gc-detail .gc-meta { border-top: 0; padding-top: 0; }
+.rgp-duos .gc-meta .lb-facts { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: calc(8 * var(--phu)); }
+.rgp-duos .gc-meta .lb-fact { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); margin: 0; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); border: 0; background: var(--ph-well);
+  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.rgp-duos .gc-meta .lb-fact-l { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
+.rgp-duos .gc-meta .lb-fact-v, .rgp-duos .gc-meta .lb-when { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
+/* The lobby, grouped by team: each team a well, the kit's heading. */
+.rgp-duos .dh-lobby { margin: 0 calc(32 * var(--phu)) calc(32 * var(--phu)); padding-top: calc(16 * var(--phu)); border-top: 0; }
+.rgp-duos .lp-tiles-l { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.14em; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.rgp-duos .dh-team { --band: var(--ph-muted); border: 0; border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.rgp-duos .dh-team.lp-won { --band: #f6cf5a; } .rgp-duos .dh-team.lp-top4 { --band: var(--ph-teal); } .rgp-duos .dh-team.lp-lost { --band: var(--ph-foe); }
+.rgp-duos .dh-team.mine { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) color-mix(in srgb, var(--ph-teal) 60%, transparent); }
+.rgp-duos .dh-team-name { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
+.rgp-duos .dh-tile .lp-tile-head + * { min-width: 0; }
+.rgp-duos .dh-team .lp-tile { background: var(--ph-plate); }
 
 /* ── LIVE GAMES ── */
 .lvp .phk-pagetabs { display: none; }

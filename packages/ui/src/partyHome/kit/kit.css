@@ -269,3 +269,37 @@
 .phk-grow.head { min-height: calc(32 * var(--phu)); background: none; box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
 .phk-grow.press:hover { background: var(--ph-plate-hover); color: var(--ph-ink); }
 .phk-grow.sel { box-shadow: var(--ph-gild); }
+
+.phk-num { font-family: var(--ph-name-font); letter-spacing: 0; }
+.phk-tab.locked { opacity: 0.4; }
+.phk-tab.locked .ph-emblem { filter: grayscale(1); }
+
+/* ── MODERN FANTASY: rounded, bubbly, glossy, springy (owner 2026-11-02). Overrides the cut shapes above. ── */
+.phk-section, .phk-plate, .phk-podium { border-radius: var(--ph-r-l); clip-path: none; }
+.phk-dlgbox { border-radius: var(--ph-r-l); }
+.phk-row, .phk-grow, .phk-stat, .pho-note, .pho-godrow { border-radius: var(--ph-r); clip-path: none; }
+.phk-row.press, .phk-grow.press { transition: transform 0.18s var(--ph-spring); }
+.phk-row.press:hover, .phk-grow.press:hover { transform: translateY(calc(-2 * var(--phu))); }
+.phk-row.sel, .phk-grow.sel { box-shadow: var(--ph-gild-s), var(--ph-glow); }
+/* Pills: buttons, chips, segmented options, tabs, selects, search. Plump: a soft top highlight and a soft foot shade. */
+.phk-btn, .phk-chip, .phk-segbtn, .phk-select, .phk-search, .phk-back, .phk-count { clip-path: none; border-radius: 999px; }
+.phk-btn { font-weight: 900; letter-spacing: 0.06em; transition: transform 0.18s var(--ph-spring), box-shadow 0.12s ease; }
+.phk-btn:hover:not(:disabled) { transform: scale(1.05); }
+.phk-btn:active:not(:disabled) { transform: scale(0.95); }
+.phk-btn.v-primary { box-shadow: inset 0 calc(3 * var(--phu)) calc(2 * var(--phu)) rgba(255, 252, 235, 0.65), inset 0 calc(-3 * var(--phu)) calc(3 * var(--phu)) rgba(150, 90, 10, 0.5), 0 calc(4 * var(--phu)) calc(10 * var(--phu)) rgba(0, 0, 0, 0.35); }
+.phk-btn.v-primary:hover:not(:disabled) { box-shadow: inset 0 calc(3 * var(--phu)) calc(2 * var(--phu)) rgba(255, 252, 235, 0.7), inset 0 calc(-3 * var(--phu)) calc(3 * var(--phu)) rgba(150, 90, 10, 0.5), 0 0 calc(18 * var(--phu)) rgba(255, 200, 80, 0.6); }
+.phk-segbtn { font-weight: 800; letter-spacing: 0.02em; transition: transform 0.18s var(--ph-spring), color 0.12s ease; }
+.phk-segbtn:hover:not(:disabled) { transform: translateY(calc(-1 * var(--phu))); }
+.phk-segbtn.on { box-shadow: inset 0 calc(2 * var(--phu)) calc(2 * var(--phu)) rgba(255, 252, 235, 0.6), inset 0 calc(-2 * var(--phu)) calc(3 * var(--phu)) rgba(150, 90, 10, 0.45), 0 0 calc(12 * var(--phu)) rgba(255, 200, 80, 0.45); }
+.phk-tab { font-weight: 800; letter-spacing: 0.06em; transition: color 0.12s ease, transform 0.18s var(--ph-spring); }
+.phk-tab:hover:not(:disabled):not(.locked) { transform: translateY(calc(-2 * var(--phu))); }
+.phk-tab.on { text-shadow: var(--ph-shadow), 0 0 calc(12 * var(--phu)) rgba(255, 210, 110, 0.55); }
+.phk-switch { transition: transform 0.18s var(--ph-spring); }
+.phk-switch:active:not(:disabled) { transform: scale(0.95); }
+.phk-switchknob { transition: transform 0.22s var(--ph-spring); }
+.phk-moremenu, .phk-selectlist { border-radius: var(--ph-r); clip-path: none; }
+.phk-moreitem { border-radius: var(--ph-r-s); }
+.phk-pagetitle h1, .phk-dlgtitle { font-weight: 900; letter-spacing: 0.02em; }
+.phk-sechead h2 { font-weight: 900; letter-spacing: 0.08em; }
+.phk-num { font-family: inherit; }
+@media (prefers-reduced-motion: reduce) { .phk-btn, .phk-segbtn, .phk-tab, .phk-row.press, .phk-grow.press, .phk-switch, .phk-switchknob { transition: none; } }

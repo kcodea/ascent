@@ -32,9 +32,10 @@ html[data-ph-shell] {
   --ph-gold-hi: var(--ui-edge-hi, #ffe9b0);
   --ph-gold-deep: var(--ui-edge-deep, #7a571f);
   --ph-ink: #fff;
-  --ph-text: var(--pill-text, #fff1d6);
+  --ph-text: #fff6ea;
   /* Parchment for secondary text (warm, never a cold grey). */
-  --ph-muted: #cdbb98;
+  /* Secondary text: a soft blue-grey (clean, not sepia). */
+  --ph-muted: #aebddb;
   /* READY / ONLINE: a living green (the token keeps its old name so nothing that reads it breaks). */
   --ph-teal: #9be07f;
   --ph-ready: var(--ph-teal);
@@ -52,11 +53,13 @@ html[data-ph-shell] {
   --ph-metal-gold: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 70%, #a8741a 100%);
   --ph-metal-silver: linear-gradient(180deg, #ffffff 0%, #dfe5ec 38%, #b4bfcb 70%, #7f8b99 100%);
   --ph-metal-bronze: linear-gradient(180deg, #f8d1ac 0%, #e09a5c 38%, #b8703a 70%, #7e4720 100%);
-  --ph-font: 'Cinzel', var(--title-font, 'Cinzel Decorative'), Georgia, serif;
-  --ph-name-font: var(--font-cardname, 'Fraunces'), Georgia, serif;
+  /* MODERN FANTASY (owner 2026-11-02): the game's own rounded title face in heavy weights, with the soft layered shadow;
+     names and numbers in the same face (readable numerals). */
+  --ph-font: var(--font-title, 'Outfit'), sans-serif;
+  --ph-name-font: var(--font-title, 'Outfit'), sans-serif;
   --ph-body: var(--font-ui), sans-serif;
-  --ph-t1: calc(12 * var(--phu));
-  --ph-t2: calc(14 * var(--phu));
+  --ph-t1: calc(13 * var(--phu));
+  --ph-t2: calc(15 * var(--phu));
   --ph-t3: calc(18 * var(--phu));
   --ph-t4: calc(30 * var(--phu));
   --ph-t5: calc(34 * var(--phu));
@@ -66,6 +69,14 @@ html[data-ph-shell] {
   --ph-cut-s: calc(8 * var(--phu));
   --ph-clip: polygon(0 0, calc(100% - var(--ph-cut)) 0, 100% var(--ph-cut), 100% 100%, var(--ph-cut) 100%, 0 calc(100% - var(--ph-cut)));
   --ph-clip-banner: polygon(0 0, 100% 0, 100% calc(100% - var(--ph-cut)), 50% 100%, 0 calc(100% - var(--ph-cut)));
+  /* Rounded, bubbly shapes: the radii (cards keep their banner shape). */
+  --ph-r-s: calc(10 * var(--phu));
+  --ph-r: calc(16 * var(--phu));
+  --ph-r-l: calc(22 * var(--phu));
+  /* A springy, short press / hover (transform only). */
+  --ph-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* A bright magical selection glow (static paint; it appears on a state change, never loops). */
+  --ph-glow: 0 0 0 calc(2 * var(--phu)) rgba(255, 214, 110, 0.9), 0 0 calc(16 * var(--phu)) rgba(255, 196, 70, 0.55), 0 0 calc(28 * var(--phu)) rgba(120, 170, 255, 0.35);
   --ph-clip-s: polygon(0 0, calc(100% - var(--ph-cut-s)) 0, 100% var(--ph-cut-s), 100% 100%, var(--ph-cut-s) 100%, 0 calc(100% - var(--ph-cut-s)));
   --ph-nav-h: calc(64 * var(--phu));
 }
@@ -115,7 +126,9 @@ html[data-ph-shell][data-ph-compact] { --phu: calc(var(--ph-h, var(--lvh, 100vh)
    square target; the wordmark and the XP bar drop. */
 html[data-ph-compact] .ph-brand span, html[data-ph-compact] .ph-navlbl, html[data-ph-compact] .ph-lvbar { display: none; }
 html[data-ph-compact] .ph-brand { padding-right: calc(12 * var(--phu)); }
-html[data-ph-compact] .ph-navtab { padding: 0; width: calc(56 * var(--phu)); justify-content: center; }
+html[data-ph-compact] .ph-navtab { padding: 0; width: calc(72 * var(--phu)); justify-content: center; }
+html[data-ph-compact] { --ph-nav-h: calc(72 * var(--phu)); }
+html[data-ph-compact] .ph-iconbtn { width: calc(72 * var(--phu)); }
 html[data-ph-compact] .ph-navtab .ph-navicon { width: calc(30 * var(--phu)); height: calc(30 * var(--phu)); }
 html[data-ph-compact] .ph-navtab.on::after { left: calc(8 * var(--phu)); right: calc(8 * var(--phu)); }
 
@@ -194,3 +207,29 @@ html[data-ph-shell] body:has(.ph-bookpage) .book-ov { display: none; }
 .ph-fportrait > img { position: absolute; left: 13%; top: 12%; width: 74%; height: 70%; border-radius: 50%; object-fit: cover; object-position: 50% 22%; }
 .ph-fportrait::after { content: ''; position: absolute; inset: 0; background: url('../ornaments/friend-frame.webp') center / 100% 100% no-repeat; }
 .ph-friend.f-offline .ph-fportrait > img { filter: grayscale(0.8); }
+
+/* THE NAV IS THE SAME EVERYWHERE: a page's own button / text rules can never restyle it. */
+html[data-ph-shell] .ph-top :is(.ph-navtab, .ph-iconbtn, .ph-brand) { font-family: var(--ph-font) !important; font-size: var(--ph-t2) !important; letter-spacing: 0.06em !important;
+  line-height: normal !important; text-transform: uppercase !important; border: 0 !important; border-radius: 0 !important; min-height: 0 !important; box-shadow: none !important; background: none !important; }
+html[data-ph-shell] .ph-top .ph-brand span { font-size: calc(22 * var(--phu)) !important; letter-spacing: 0.12em !important; }
+html[data-ph-shell] .ph-top :is(.ph-coin b, .ph-lvnum) { font-family: var(--ph-name-font) !important; }
+/* LEGACY PAGE CONTENT on a phone under the shell: the old phone page rules size in screen points (--pt); here a point
+   is the shell's own unit, so a page not yet rebuilt on the kit reads at the home's scale and never runs off the side. */
+html[data-ph-shell][data-ph-compact][data-touch-ui][data-touch-small][data-page-scale] { --pt: var(--phu); }
+html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { overflow-x: hidden; }
+/* The friends drawer's outside-tap catcher (under the drawer, over the page). */
+.ph-fcatch { position: fixed; inset: 0; top: var(--ph-nav-h); z-index: 486; }
+.ph-gear { width: calc(24 * var(--phu)); height: calc(24 * var(--phu)); color: var(--pill-gold, #f6cf5a); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8)); }
+.ph-coin.offline b { color: var(--ph-muted); }
+
+/* ── MODERN FANTASY: rounded, glossy, springy (overrides the cut shapes above) ── */
+html[data-ph-shell] .ph-top :is(.ph-navtab, .ph-iconbtn, .ph-brand) { letter-spacing: 0.04em !important; font-weight: 800 !important; }
+.ph-coin, .ph-lv { clip-path: none; border-radius: 999px; }
+.ph-finput { clip-path: none; border-radius: 999px; }
+.ph-navtab { transition: color 0.12s ease, transform 0.18s var(--ph-spring); }
+.ph-navtab:hover { transform: translateY(calc(-2 * var(--phu))); }
+.ph-iconbtn { transition: transform 0.18s var(--ph-spring); }
+.ph-iconbtn:hover { transform: scale(1.1); }
+.ph-friends.drawer { border-radius: var(--ph-r-l) 0 0 var(--ph-r-l); }
+
+.ph-friends.embedded .ph-ftitle { display: none; }

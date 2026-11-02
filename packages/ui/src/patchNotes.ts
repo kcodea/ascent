@@ -56,6 +56,23 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-02',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'New Legendary hero attack: Charge the Mound. The hero being hit pitches, and your hero bats.',
+        details: [
+          'Small: a line drive straight back up the middle. Bonk.',
+          'Tier II: a screaming liner, a one-hop grounder, or a foul tip that loops around and hits them from behind. It changes from fight to fight.',
+          'Tier III: a slow motion swing, a bat flip, and a moonshot that comes back down on their head. Home run.',
+          'Huge: they bean your hero. Your hero slams the bat down, charges the mound and starts a dust cloud brawl, then lands one big punch. Yer out!',
+          'With a bat crack, a glove pop, a slide whistle, the ballpark organ, the umpire and the crowd.',
+          'Found in crates. Equip it in the Collection.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-01',
     changes: [
       {

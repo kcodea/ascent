@@ -3055,7 +3055,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'attack_bleed ("Hemorrhage", Legendary, style bleed: R-PROG-ATTACK-21), joined the same day under the same fixed odds, '
       + 'making Legendary sixteen items at 0.3125% each and the thirteen attacks together 4.06%. The four Rare attacks '
       + '(attack_coin, attack_boomerang, attack_bubble, attack_backstab: R-PROG-ATTACK-28 to 32) made Rare seventeen items '
-      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29). The first attack BUILT at Ancient, attack_soul_stitch ("Soul Stitch", style stitch: R-PROG-ATTACK-34), made Ancient eleven items at 0.273% each (2026-10-02, under the 35/31/22/9/3 odds).',
+      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29). The first attack BUILT at Ancient, attack_soul_stitch ("Soul Stitch", style stitch: R-PROG-ATTACK-34), made Ancient eleven items at 0.273% each (2026-10-02, under the 35/31/22/9/3 odds). Charge the Mound, attack_baseball (style baseball: R-PROG-ATTACK-36), joined Legendary on 2026-11-02 (Legendary 88 items, 0.102% each).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -4078,6 +4078,43 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-10-02; display name Timebreak since 2026-10-03 (was the placeholder Bullet Time). The item, and its name, reach the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBulletTime/heroBulletTime.test.ts', 'packages/ui/src/heroAttack/knockoutVariant.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: 'R-PROG-ATTACK-36',
+    title: 'Charge the Mound (attack_baseball, Legendary): the STRUCK hero pitches and the striker bats (both portraits move): a liner up the middle / a rolled hot shot / a slow-mo moonshot HOME RUN / beaned, the batter charges the mound and wins a dust-cloud brawl (YER OUT!); the blow lands ONCE; both portraits are always restored',
+    statement:
+      'attack_baseball ("Charge the Mound", a placeholder name; Legendary, crate, account-wide, style baseball): after the '
+      + 'shared damage formation (R-PROG-ATTACK-08) the roles are flipped: the STRUCK hero\x27s portrait is the PITCHER (a glove pop, a '
+      + 'windup that rocks it back, a lunge on the release) and the striking hero\x27s portrait is the BATTER (a bat at its side, '
+      + 'cocked over the shoulder, swung through the contact). Flat 2D. It escalates on the shared tiers (thresholds 6 / 12 / 20; a '
+      + 'knockout plays IV, R-PROG-ATTACK-20): I up the middle (a CRACK and a line drive straight back that BONKS the pitcher); II '
+      + 'the hot shot, one of three hits rolled per blow (a screaming liner that spins the pitcher round; a one-hop grounder that '
+      + 'skips in the dirt and hops into it; a foul tip that loops wide round the field and smacks it from BEHIND); III the '
+      + 'moonshot (the clock eases into SLOW MOTION around the contact, a huge CRACK, a BAT FLIP that clatters down beside the '
+      + 'batter, the ball rockets off the top of the screen and twinkles, the pitcher shuffles in a panic as a shadow grows under it '
+      + 'and a slide whistle falls, the ball comes down from the sky GROWING and craters it: HOME RUN, fireworks, a cheer); IV '
+      + 'charge the mound (the owner\x27s frame: the pitcher BEANS the batter, in slow motion, a BONK and dizzy stars on the '
+      + 'STRIKER, no damage; the batter reels, SLAMS the bat down, fumes, and CHARGES THE MOUND to the ballpark organ\x27s "Charge!"; '
+      + 'a cartoon DUST-CLOUD BRAWL, pulled in off the screen edges so it stays on screen, with the pitcher dragged into it, the '
+      + 'benches clearing in from both edges, both portraits shaking and popping out, and a FAST flurry of comic hits (POW / BAM / '
+      + 'SMACK, the clock running faster than normal); then one HAYMAKER that launches the pitcher spinning: YER OUT!, the umpire\x27s call '
+      + 'and the crowd). The consequence (the damage, Armor, Resolve) lands exactly ONCE: on the bonk (I-II), the crater (III) or the '
+      + 'haymaker (IV); the pitch, the crack, the hop, the bean on the striker, the collision and every brawl hit are ticks. Every '
+      + 'point a play visits is kept on screen. The striker is raised over the target (the .duel-attacker-* z-order) for the whole '
+      + 'attack; BOTH portraits\x27 transforms, the striker\x27s opacity and the z-order class are restored exactly, and the ball, '
+      + 'the bat and the shadows hidden, on every exit (the end, finish, cancel, the safety timer, an unmount). The hit is rolled '
+      + 'from a stable per-blow seed (the run seed and the round), so a replay rolls the same. The slow motion and the fast brawl are '
+      + 'smooth ramps of the attack\x27s one clock that never reach 0. No hit-stop or freeze (R-PROG-ATTACK-10); presentation only; '
+      + 'reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02 (the baseball attack, relayed by the lead)', quote: 'baseball - have the opponent be the pitcher and the batter be the player dealing dmg. the final lvl 4/knockout should be the player getting struck by the ball and charging the mound and beating up the opponent in an over the top fast attack sequence' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02 (the baseball attack, relayed by the lead)', quote: 'get creative and fun' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_baseball); packages/ui/src/heroBaseball/ (baseballPlan / baseballCues / baseballGeo / batterPose / pitcherPose / baseballBall / baseballBat / moonShadow / baseballCameraAt, variantOf / baseballTimeScale / slowExtraMs, playHeroBaseball, HeroBaseballScene, heroBaseballTextures); packages/ui/src/audio/fx/baseball-*.mp3' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBaseball/heroBaseball.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-02' },
   },
   {
     id: 'R-PROG-ATTACK-25',

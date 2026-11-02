@@ -124,7 +124,7 @@ export function playHeroBaseball(o: HeroBaseballOptions): HeroBaseballHandle {
   const scene = textures && !reduced
     ? new HeroBaseballScene(textures, {
       ball: hexToNum(c.colorBall), bat: hexToNum(c.colorBat), dust: hexToNum(c.colorDust), flash: hexToNum(c.colorFlash), pow: hexToNum(c.colorPow), side: hexToNum(sideHex),
-    }, { ballSize: c.ballSize, batLen: batLength(aRadius, c), shadowDrop: c.shadowDrop, wordSize: c.wordSize }, aRadius, radius, s, baseballSeed(o.total, dist, o.side))
+    }, { ballSize: c.ballSize, batLen: batLength(aRadius, c), shadowDrop: c.shadowDrop, wordSize: c.wordSize, frameH: vh }, aRadius, radius, s, baseballSeed(o.total, dist, o.side))
     : null;
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
@@ -251,7 +251,7 @@ export function playHeroBaseball(o: HeroBaseballOptions): HeroBaseballHandle {
           cue(c.sfxBonkClip, c.sfxBonkGain, c.sfxBonkRate * 0.8);
           cue(c.sfxUmpClip, c.sfxUmpGain, c.sfxUmpRate, { delayMs: real(140) });
           cue(c.sfxCheerClip, c.sfxCheerGain * 1.2, c.sfxCheerRate, { delayMs: real(320), lenMs: 2200, fadeMs: 700 });
-          scene?.ko(geo.hit, geo.cloud, blowDir, plan.burst, plan.rings);
+          scene?.ko({ x: o.defender.x + geo.pitcherBrawl.x, y: o.defender.y + geo.pitcherBrawl.y }, geo.cloud, blowDir, plan.burst, plan.rings);
         } else if (plan.kind === 'moonshot') {
           // HOME RUN: the moonshot craters the pitcher.
           cue(c.sfxKoClip, c.sfxKoGain, c.sfxKoRate * 1.05, { lenMs: 900, fadeMs: 300, tail: 0.1 });
@@ -310,7 +310,7 @@ export function playHeroBaseball(o: HeroBaseballOptions): HeroBaseballHandle {
       if (brawl) {
         // The charge's dust and speed lines; the boiling cloud and the benches clearing through the brawl.
         if (t >= plan.chargeRunAt! && t < plan.collideAt! && t - lastDust >= 40) { scene.chargeDust(heroAt(t), heroAt(t - 40), aRadius); lastDust = t; }
-        if (t >= plan.collideAt! && t < plan.brawlEnd! + 60 && t - lastPuff >= 45) { scene.cloudPuff(geo.cloud, c.brawlCloud); lastPuff = t; }
+        if (t >= plan.collideAt! && t < plan.brawlEnd! + 60 && t - lastPuff >= 28) { scene.cloudPuff(geo.cloud, c.brawlCloud); lastPuff = t; }
         if (t >= plan.collideAt! + 60 && t < plan.brawlEnd! - 200 && t - lastRush >= 260) { scene.benchRush(geo.cloud, vw, c.benchRush); lastRush = t; }
       }
     }

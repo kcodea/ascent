@@ -181,7 +181,7 @@ const tierDefaults = Object.fromEntries(TIERS.flatMap((t) => BASEBALL_TIER_SUFFI
 export const HERO_BASEBALL_DEFAULTS: HeroBaseballConfig = {
   ...HERO_ATTACK_TIER_THRESHOLDS,
   absorbMs: 180,
-  ballSize: 0.34,
+  ballSize: 0.24,
   batSize: 1,
   spin: 3,
   trailMs: 22,
@@ -244,7 +244,7 @@ export const HERO_BASEBALL_DEFAULTS: HeroBaseballConfig = {
   sfxHopClip: 'fx/bball-dribble', sfxHopGain: 0.6, sfxHopRate: 1.25,
   sfxFallClip: 'fx/baseball-fall', sfxFallGain: 0.5, sfxFallRate: 1,
   sfxChargeClip: 'fx/baseball-charge', sfxChargeGain: 0.55, sfxChargeRate: 1,
-  sfxThumpClip: 'fx/impact-basic', sfxThumpGain: 0.45, sfxThumpRate: 1.1,
+  sfxThumpClip: 'flurryhit', sfxThumpGain: 0.55, sfxThumpRate: 1.1,
   sfxKoClip: 'fx/heavy-rock-impact', sfxKoGain: 0.45, sfxKoRate: 1.1,
   sfxUmpClip: 'fx/baseball-out', sfxUmpGain: 0.75, sfxUmpRate: 1,
   sfxOohClip: 'fx/bball-ooh', sfxOohGain: 0.7, sfxOohRate: 1,
@@ -579,9 +579,14 @@ export interface BaseballGeo {
   /** III: where the flipped bat lands. IV: where the slammed bat lands. */
   batLand: Pt;
   batSlam: Pt;
-  /** IV: where the charge ends (overlapping the pitcher), the brawl cloud's centre, and the pitcher's KO launch offset. */
-  mound: Pt;
+  /**
+   * IV: the brawl's centre (the cloud), pulled in off the edges so the whole cloud stays on screen; where the charge ends
+   * (the batter's side of it); the pitcher's spot in it, as an OFFSET from its slot (it is dragged into the cloud); and
+   * the pitcher's KO launch, an offset from its slot (kept on screen).
+   */
   cloud: Pt;
+  mound: Pt;
+  pitcherBrawl: Pt;
   launch: Pt;
 }
 
@@ -630,13 +635,16 @@ export function baseballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame |
   const skyDrop = { x: d.x, y: topY };
   const batLand = clampToFrame(add(add(a, n, side * aR * 1.55), u, -aR * 0.25), frame, m * 0.6);
   const batSlam = clampToFrame(add(add(a, n, side * aR * 1.25), u, aR * 0.35), frame, m * 0.6);
-  // The charge ends overlapping the pitcher (toward the batter); the cloud swallows both.
-  const mound = add(d, u, -(dR + aR) * 0.42);
-  const cloud = lerpPt(mound, d, 0.5);
-  // The haymaker launches the pitcher away from the batter, kept on screen (an offset from its slot).
-  const launchTo = clampToFrame(add(d, u, dR * c.koLaunch), frame, dR * 0.5);
+  // The brawl: just in front of the pitcher, pulled in off the edges so the whole cloud is on screen. The batter charges
+  // to its near side; the pitcher is dragged in to its far side.
+  const cloud = clampToFrame(add(d, u, -dR * 0.55), frame, (aR + dR) * 1.05 * Math.max(0.6, c.brawlCloud));
+  const mound = add(cloud, u, -aR * 0.38);
+  const pIn = add(cloud, u, dR * 0.38);
+  const pitcherBrawl = { x: pIn.x - d.x, y: pIn.y - d.y };
+  // The haymaker launches the pitcher away from the batter, out of the cloud, kept on screen (an offset from its slot).
+  const launchTo = clampToFrame(add(pIn, u, dR * c.koLaunch), frame, dR * 0.5);
   const launch = { x: launchTo.x - d.x, y: launchTo.y - d.y };
-  return { u, n, dist, side, hands, plate, release, hit, bean, hop, foul1, foul2, sky, skyDrop, batLand, batSlam, mound, cloud, launch };
+  return { u, n, dist, side, hands, plate, release, hit, bean, hop, foul1, foul2, sky, skyDrop, batLand, batSlam, cloud, mound, pitcherBrawl, launch };
 }
 
 /** Whether a point is inside the frame (tests). */
@@ -777,6 +785,9 @@ export function pitcherPose(p: BaseballPlan, g: BaseballGeo, c: HeroBaseballConf
       pose.y += u.y * dR * 0.12 * w;
     }
     if (t >= hitAt && t < p.impactAt) {
+      // Dragged into the cloud on the collision (quick), shaking in it, popping out on the hits.
+      const pull = easeOutCubic(win(t, hitAt, hitAt + 110));
+      const base = { x: u.x * dR * 0.12 * (1 - pull) + g.pitcherBrawl.x * pull, y: u.y * dR * 0.12 * (1 - pull) + g.pitcherBrawl.y * pull };
       const J = c.brawlJitter * dR;
       let pop = 0;
       for (let i = 0; i < p.hits.length; i++) {
@@ -784,8 +795,8 @@ export function pitcherPose(p: BaseballPlan, g: BaseballGeo, c: HeroBaseballConf
         if (t >= h && t < h + 140) pop = Math.max(pop, Math.sin(Math.PI * ((t - h) / 140)) * (i % 2 ? 1 : -1));
       }
       const settle = t >= brawlEnd ? 1 - win(t, brawlEnd, p.impactAt) * 0.6 : 1;
-      pose.x = u.x * dR * 0.12 + (jit(t, 0.08, 1.4) * J * 0.26 + u.x * pop * dR * 0.25) * settle + g.n.x * pop * dR * 0.15;
-      pose.y = u.y * dR * 0.12 + (jit(t, 0.1, 0.5) * J * 0.22 + u.y * pop * dR * 0.25) * settle + g.n.y * pop * dR * 0.15;
+      pose.x = base.x + (jit(t, 0.08, 1.4) * J * 0.26 + u.x * pop * dR * 0.25) * settle + g.n.x * pop * dR * 0.15;
+      pose.y = base.y + (jit(t, 0.1, 0.5) * J * 0.22 + u.y * pop * dR * 0.25) * settle + g.n.y * pop * dR * 0.15;
       pose.rot = jit(t, 0.06, 2.4) * 16 * c.brawlJitter * settle;
       pose.squash = 0.06 * pop * c.brawlJitter;
       pose.scale = t >= brawlEnd ? 1 - 0.06 * win(t, brawlEnd, p.impactAt) : 1;
@@ -799,10 +810,10 @@ export function pitcherPose(p: BaseballPlan, g: BaseballGeo, c: HeroBaseballConf
       // LAUNCHED: flung away (kept on screen), spinning, then it springs back home.
       const out = age < 140 ? easeOutCubic(age / 140) : 1;
       const back = easeInOutSine(win(t, p.homeAt, p.homeEnd));
-      const k = out * (1 - back);
-      pose.x = g.launch.x * k; pose.y = g.launch.y * k;
+      const k = (1 - back);
+      pose.x = (g.pitcherBrawl.x + (g.launch.x - g.pitcherBrawl.x) * out) * k; pose.y = (g.pitcherBrawl.y + (g.launch.y - g.pitcherBrawl.y) * out) * k;
       pose.rot = c.koSpin * 360 * leanToward(u) * easeOutCubic(Math.min(1, age / 520)) * (1 - back);
-      pose.scale = 1 - 0.15 * k;
+      pose.scale = 1 - 0.15 * out * k;
       pose.squash = c.squash * 2 * Math.max(0, spring(age, 5, 110));
       if (t >= p.homeEnd) pose.squash += c.squash * 0.5 * Math.max(0, spring(t - p.homeEnd, 4, 70));
       return pose;

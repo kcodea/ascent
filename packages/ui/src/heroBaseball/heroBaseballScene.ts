@@ -43,6 +43,8 @@ export interface BaseballLook {
   /** How far a shadow drops below what casts it, in striker radii at full height. */
   shadowDrop: number;
   wordSize: number;
+  /** The frame's height (screen px): the big words drop BELOW the target when there is room (the hit number sits above). */
+  frameH?: number;
 }
 
 /** Hard cap on pooled sprites alive at once (a Tier IV brawl peaks near 200). The own objects are outside the pool. */
@@ -318,19 +320,21 @@ export class HeroBaseballScene extends FxPool {
   cloudPuff(at: Pt, k: number): void {
     if (k <= 0) return;
     const S = this.scale;
+    // A ring of big puffs round the two portraits (the middle stays thin, so the brawlers show through and pop out).
     const R = (this.aR + this.dR) * 0.5 * k;
     const a = this.rnd() * Math.PI * 2;
-    const d = R * (0.35 + this.rnd() * 0.75);
+    const d = R * (0.75 + this.rnd() * 0.55);
     const tint = this.rnd() < 0.3 ? whiten(this.colors.dust, 0.35) : this.colors.dust;
-    this.spawn('body', this.tex.puff, tint, at.x + Math.cos(a) * d, at.y + Math.sin(a) * d * 0.8, {
-      dur: 300 + this.rnd() * 160, from: (R * (0.7 + this.rnd() * 0.4)) / PUFF_PX / S, to: (R * (1 + this.rnd() * 0.5)) / PUFF_PX / S, a0: 0.95, mode: 'hold', ease: 'cubic',
-      vx: Math.cos(a) * 40, vy: Math.sin(a) * 30 - 20, drag: 0.3,
+    const D0 = R * (0.9 + this.rnd() * 0.5);
+    this.spawn('body', this.tex.puff, tint, at.x + Math.cos(a) * d, at.y + Math.sin(a) * d * 0.85, {
+      dur: 320 + this.rnd() * 180, from: D0 / PUFF_PX / S, to: (D0 * (1.25 + this.rnd() * 0.3)) / PUFF_PX / S, a0: 0.97, mode: 'hold', ease: 'cubic',
+      vx: Math.cos(a) * 50, vy: Math.sin(a) * 40 - 20, drag: 0.3,
     });
   }
 
   /** IV: the brawl cloud BURSTS onto the scene at the collision (a ring of puffs at once). */
   cloudBurst(at: Pt, k: number): void {
-    for (let i = 0; i < Math.round(10 * k); i++) this.cloudPuff(at, k);
+    for (let i = 0; i < Math.round(14 * k); i++) this.cloudPuff(at, k);
     const S = this.scale;
     const R = (this.aR + this.dR) * 0.5 * k;
     this.spawn('glow', this.tex.ring, 0xffffff, at.x, at.y, { dur: 300, from: (R * 0.5) / RING_PX / S, to: (R * 2.6) / RING_PX / S, a0: 0.6, ease: 'cubic' });
@@ -397,8 +401,12 @@ export class HeroBaseballScene extends FxPool {
     const S = this.scale;
     const width = this.dR * 1.8 * this.look.wordSize * Math.min(1.5, 0.75 + 0.3 * strength);
     const k = width / WORD_W / S;
-    // Above the point, but never off the top of the screen (a foe tucked in a corner).
-    const y = Math.max(at.y - this.dR * 0.9, width * (WORD_H / WORD_W) * 0.75 + 24);
+    // Above the point, but never off the top of the screen (a foe tucked in a corner). The two big calls (HOME RUN!,
+    // YER OUT!) go BELOW it when there is room, clear of the hit number that punches in above the target.
+    const hh = width * (WORD_H / WORD_W);
+    const big = w === 'out' || w === 'homer';
+    const below = at.y + this.dR * 1.15;
+    const y = big && below + hh * 0.6 < (this.look.frameH ?? Infinity) ? below : Math.max(at.y - this.dR * 0.9, hh * 0.75 + 24);
     const t = this.wordTex(w);
     this.spawn('body', t, w === 'out' || w === 'homer' ? this.colors.pow : 0xffffff, at.x, y, { dur, from: k * 0.5, to: k * 1.08, a0: 1, mode: 'hold', ease: 'quint', rot, vy: -40, drag: 0.4 });
     this.spawn('glow', t, this.colors.side, at.x, y, { dur: dur * 0.7, from: k * 0.55, to: k * 1.25, a0: 0.4, mode: 'punch', peakAt: 0.15, rot });

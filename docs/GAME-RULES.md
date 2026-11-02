@@ -757,7 +757,20 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   rim and the slam are heard. The hoop is ONE assembly (the backboard behind the rim, the rim on its lower centre, the
   net hanging from it) and it always hangs on the struck hero's portrait, in both directions. Every point it visits
   stays on screen and every shot and slam lands on the struck hero's centre; its portrait is restored exactly after (on the end, a skip or leaving the fight). The slow motion is a smooth
-  ramp of the whole attack's clock, never a freeze. **Soul Stitch** (2026-10-02; `attack_soul_stitch`; **Ancient**, from
+  ramp of the whole attack's clock, never a freeze. **Charge the Mound** (2026-11-02; `attack_baseball`, a placeholder
+  name; Legendary, from chests; R-PROG-ATTACK-36) flips the roles: the STRUCK hero's portrait is the pitcher and the
+  striker's portrait is the batter, a bat at its side. A glove pop opens every tier and the pitcher winds up and throws.
+  I up the middle: CRACK, a line drive straight back that bonks the pitcher (the blow lands on the bonk). II the hot
+  shot, one of three hits rolled per fight: a screaming liner that spins the pitcher round, a one-hop grounder that
+  skips in the dirt and hops into it, or a foul tip that loops wide round the field and smacks it from behind. III the
+  moonshot: slow motion on the contact, a bat flip, the ball rockets off the top of the screen and twinkles, the
+  pitcher shuffles in a panic as a shadow grows under it and a slide whistle falls, then the ball comes down from the
+  sky and craters it: HOME RUN (the blow lands on the crater). IV charge the mound: the pitcher beans the batter (slow
+  motion, a bonk and dizzy stars on the striker, no damage), the batter slams its bat down, fumes, and charges the mound
+  to the ballpark organ's "Charge!"; a cartoon dust-cloud brawl (kept on screen, the pitcher dragged into it, the benches
+  clearing in from both edges, both portraits shaking and popping out, a fast flurry of comic POW / BAM / SMACK hits),
+  then one haymaker sends the pitcher flying: YER OUT! (the blow lands on the haymaker). The bean and every brawl hit are
+  ticks. Both portraits are restored exactly after. **Soul Stitch** (2026-10-02; `attack_soul_stitch`; **Ancient**, from
   chests; R-PROG-ATTACK-34) is the first hero attack built at the Ancient rarity, for the Ancient of Bonds: crystal
   needles on violet soul thread STITCH the struck hero to the striker (the thread is drawn along each needle's own flight,
   hangs between the two portraits once it pierces, twangs, goes taut on the pull and snaps). I: one needle pierces the

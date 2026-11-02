@@ -650,6 +650,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   // TIMEBREAK (placeholder name "Bullet Time" until 2026-10-03): stopped time, the shots hang in the air, then time restarts and they all land (IV: a dome of blades and
   // a 3-2-1). Built at the Ancient rarity.
   heroAttack('attack_bullet_time', 'Timebreak', 'ancient', 'bullettime'),
+  // Owner 2026-11-02: "make 2 attack animations, a soccer one, and a baseball one. get creative and fun with them, like a
+  // corner kick for soccer then a breakaway etc." The striking portrait plays football into a goal on the target: a volley,
+  // a corner kick (an Olimpico, a header, or a short corner), a breakaway past defenders, and a bicycle kick into an
+  // exploding net. Four tiers, so Legendary like the Basketball. The name is the builder's placeholder (the id stays).
+  heroAttack('attack_soccer', 'Golazo', 'legendary', 'soccer'),
   // PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits"). Every
   // one drops from crates at its folder's rarity, the rank-named masters included (owner decision 2026-10-01). The NAMES
   // avoid the ranked medal words (the player-text rule below), so a crate frame never reads as a Ranked reward: the

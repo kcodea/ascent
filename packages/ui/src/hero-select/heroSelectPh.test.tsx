@@ -37,6 +37,7 @@ describe('Hero Select, party home look', () => {
     const el = open(true);
     const root = el.querySelector('.heroselect')!;
     expect(root.classList.contains('phhs')).toBe(true);
+    expect(root.classList.contains('ph-tokens')).toBe(true); // the shell's tokens, by the kit's opt-in class
     const back = el.querySelector('.hsback')!;
     expect(back.textContent).toBe('‹Back');
     expect(back.getAttribute('aria-label')).toBe('Back to the home screen');

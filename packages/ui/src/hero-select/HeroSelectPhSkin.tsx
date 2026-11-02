@@ -11,6 +11,7 @@
  * markup, behaviour and ceremony are the shipped ones; with the switch off nothing here is loaded.
  */
 import { PhBackdrop } from '../partyHome/shell/PhBackdrop';
+import '../partyHome/shell/shell.css';
 import '../partyHome/partyHome.css';
 import './heroSelectPh.css';
 

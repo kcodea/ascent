@@ -14,28 +14,12 @@
    dropped here, which saves a full-screen blur). Images: the painted ornaments (a few KB each) and the hero art the
    shipped screen already loads. */
 
-/* THE SHELL's TOKENS, for this screen. The shell defines them on `html[data-ph-shell]`, which is only set on the menus;
-   hero select is entered from them but is not one (Esc and Tab keep their in-run meaning), so it carries its own copy.
-   Inside `.hsbox` the box's zoom scales everything, so the unit is a plain px. (Kit gap: a `.ph-tokens` class would let
-   any screen opt in without a copy.) */
+/* THE SHELL's TOKENS come from the kit's `.ph-tokens` class on the root (shell.css): hero select is entered from the menus
+   but is not one (Esc and Tab keep their in-run meaning), so it opts in by class instead of `html[data-ph-shell]`. Inside
+   `.hsbox` the box's zoom scales everything; sizes here are plain px. Only this screen's own two extras are defined here:
+   a glossy top highlight and the banner's cloth (the party banner's navy, deep at the sides, lit through the middle fold). */
 .heroselect.phhs {
-  --phu: 1px;
-  --ph-navy: var(--pill-navy, #0d1a36);
-  --ph-gold: var(--pill-edge, #c8953f);
-  --ph-ink: #fff;
-  --ph-text: #fff6ea;
-  --ph-muted: #aebddb;
-  --ph-foe: var(--pill-foe, #ffb3bf);
-  --ph-gild: inset 0 0 0 1.5px color-mix(in srgb, var(--ph-gold) 85%, transparent), inset 0 2.5px 0 -1px rgba(255, 233, 176, 0.45), inset 0 -2.5px 0 -1px rgba(60, 36, 8, 0.6);
-  --ph-gild-s: inset 0 0 0 1px color-mix(in srgb, var(--ph-gold) 70%, transparent), inset 0 1.5px 0 -0.5px rgba(255, 233, 176, 0.3);
-  --ph-shadow: var(--pill-text-shadow);
-  --ph-plate: radial-gradient(120% 70% at 50% 0%, rgba(255, 206, 128, 0.11), rgba(255, 206, 128, 0) 62%), linear-gradient(180deg, color-mix(in srgb, var(--pill-navy-top, #1c2f58) 82%, transparent), color-mix(in srgb, var(--pill-navy-bot, #091226) 86%, transparent));
-  --ph-plate-hover: radial-gradient(120% 70% at 50% 0%, rgba(255, 214, 140, 0.18), rgba(255, 214, 140, 0) 62%), var(--pill-plate-hover);
   --ph-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 55%);
-  --ph-font: var(--font-title, 'Outfit'), sans-serif;
-  --ph-body: var(--font-ui), sans-serif;
-  --ph-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  /* The banner's cloth (the party banner's navy, deep at the sides, lit through the middle fold). */
   --hsph-cloth: linear-gradient(90deg, rgb(11 25 64) 0%, rgb(20 40 97) 45%, rgb(22 43 104) 55%, rgb(11 25 64) 100%);
   background: var(--ph-navy);
   color: var(--ph-text);

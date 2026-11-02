@@ -251,7 +251,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     : undefined;
 
   return (
-    <div className={`heroselect${active ? ' hsc-active' : ''}${watch ? ' hswatch' : ''}${ph ? ' phhs' : ''}`} style={rootStyle} {...(watch ? { 'aria-label': 'Watching Hero Select' } : {})}>
+    <div className={`heroselect${active ? ' hsc-active' : ''}${watch ? ' hswatch' : ''}${ph ? ' phhs ph-tokens' : ''}`} style={rootStyle} {...(watch ? { 'aria-label': 'Watching Hero Select' } : {})}>
       {ph && HeroSelectPhSkin && <Suspense fallback={null}><HeroSelectPhSkin /></Suspense>}
       {/* Return to the main menu (owner ask 2026-09-01) — the same `.hsback` chrome the Title's mode-pick
           wears, top-left. Hidden once a pick's ceremony is running: the launch is committing, and yanking

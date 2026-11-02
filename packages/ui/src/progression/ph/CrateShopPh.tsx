@@ -36,7 +36,7 @@ export function CrateShopPh({ shop: s }: { shop: CrateShopState }): JSX.Element 
           </>
         )}
       >
-        <PhSection title="Pick a chest" aside={touchText('Hover a chest for its odds', 'Tap a chest for its odds')} className="phs-pick">
+        <PhSection title="Pick a chest" aside={touchText('Hover a chest for its odds', 'Tap a chest for its odds')} className="phs-pick" unclipped>
           <div className="cshop-chests" role="group" aria-label="Chest">
             {CRATE_TIERS.map((t) => <ChestCard key={t} tier={t} price={s.economy.cratePrice[t]} on={s.tier === t} reduced={s.still} locked={s.busy} onPick={s.pickTier} />)}
           </div>
@@ -52,7 +52,7 @@ export function CrateShopPh({ shop: s }: { shop: CrateShopState }): JSX.Element 
             </div>
           </PhSection>
 
-          <PhSection title="Your chest" className="phs-checkout">
+          <PhSection title="Your chest" className="phs-checkout" unclipped>
             <div className="cshop-receipt">
               <div className="cshop-line"><span className="cshop-what">{s.tierLabel} Chest</span><span className="cshop-dots" /><Amount value={s.price} /></div>
               {s.receipt && (

@@ -7,7 +7,7 @@
 /* Above the shell chrome's backdrop (`.ph-pagebd`, positioned at z 0): without this the header's unpositioned title paints under it. */
 .phk-page.phc, .cshop.phs { position: relative; z-index: 1; }
 .phc .phk-pagebody { overflow: hidden; padding-bottom: calc(24 * var(--phu) + var(--safe-b, 0px)); }
-.phc-body { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(288 * var(--phu)) minmax(0, 1fr) calc(432 * var(--phu)); gap: calc(24 * var(--phu)); }
+.phc-body { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(312 * var(--phu)) minmax(0, 1fr) calc(424 * var(--phu)); gap: calc(24 * var(--phu)); }
 .phc-rail, .phc-side { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
 .phc-rail { display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
 .phc-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
@@ -15,7 +15,7 @@
   -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 32 * var(--phu)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 32 * var(--phu)), transparent); scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
 
 /* ── The header's actions ── */
-.phc-meter { box-sizing: border-box; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phc-meter { box-sizing: border-box; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
 .phc-bar { position: relative; display: block; height: calc(4 * var(--phu)); background: rgba(0, 0, 0, 0.55); overflow: hidden; }
 .phc-bar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
 .phc-shopbtn > span, .phs-wallet { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
@@ -26,7 +26,7 @@
 .phc-cat .phk-rowmain { gap: calc(12 * var(--phu)); padding-left: calc(8 * var(--phu)); }
 .phc-cat-icon { flex: none; display: grid; place-items: center; width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); }
 .phc-cat-icon .colls-caticon { width: 100%; height: 100%; object-fit: contain; color: var(--ph-gold); }
-.phc-cat .phk-rowtitle { letter-spacing: 0.1em; text-transform: uppercase; color: var(--ph-text); }
+.phc-cat .phk-rowtitle { letter-spacing: 0.04em; text-transform: uppercase; color: var(--ph-text); }
 .phc-cat.sel .phk-rowtitle { color: var(--ph-ink); }
 .phc-cat .phk-rowcount { font-size: var(--ph-t1); color: var(--ph-muted); }
 .phc-cat .phk-rowbar { left: calc(56 * var(--phu)); }
@@ -37,8 +37,8 @@
 
 /* ── The chest bay (left, under the categories) ── */
 .phc-bay { flex: none; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); padding: calc(16 * var(--phu)); background: var(--ph-plate);
-  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); clip-path: var(--ph-clip); }
-.phc-bay.ready { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); }
+  box-shadow: var(--ph-gild-s), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); clip-path: var(--ph-clip); }
+.phc-bay.ready { box-shadow: var(--ph-gild), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); }
 .phc-bay-top { display: flex; align-items: center; gap: calc(12 * var(--phu)); }
 .phc-bay-art { flex: none; width: calc(96 * var(--phu)); }
 .phc-bay:not(.ready) .phc-bay-art { opacity: 0.45; }
@@ -56,7 +56,7 @@
 .phc-bay-lvl { font-family: var(--ph-font); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .phc-bay-lvl b { font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
 .phc-bay-odds { font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
-.phc-guest { display: flex; flex-direction: column; align-items: flex-start; gap: calc(8 * var(--phu)); padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+.phc-guest { display: flex; flex-direction: column; align-items: flex-start; gap: calc(8 * var(--phu)); padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s);
   font-size: var(--ph-t1); color: var(--ph-muted); }
 .phc-guest .phk-btn { padding: 0; height: auto; }
 
@@ -78,10 +78,10 @@
 .phc-tile { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; min-height: calc(120 * var(--phu)); box-sizing: border-box;
   padding: calc(12 * var(--phu)) calc(16 * var(--phu)) calc(16 * var(--phu)); margin: 0; border: 0; border-radius: 0; overflow: hidden; text-align: left; font: inherit; color: var(--ph-text);
   background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--rc) 20%, transparent) 100%), var(--ph-plate);
-  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair), inset 0 calc(-3 * var(--phu)) 0 var(--rc); clip-path: var(--ph-clip-s); }
+  box-shadow: var(--ph-gild-s), inset 0 calc(-3 * var(--phu)) 0 var(--rc); clip-path: var(--ph-clip-s); }
 .phc-grid.art .phc-tile { min-height: calc(240 * var(--phu)); }
 .phc-tile.sel { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), inset 0 calc(-3 * var(--phu)) 0 var(--rc); }
-.phc-tile.missing { background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--rc) 8%, transparent) 100%), var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair), inset 0 calc(-3 * var(--phu)) 0 color-mix(in srgb, var(--rc) 45%, transparent); }
+.phc-tile.missing { background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--rc) 8%, transparent) 100%), var(--ph-well); box-shadow: var(--ph-gild-s), inset 0 calc(-3 * var(--phu)) 0 color-mix(in srgb, var(--rc) 45%, transparent); }
 .phc-tile.missing.sel { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), inset 0 calc(-3 * var(--phu)) 0 color-mix(in srgb, var(--rc) 45%, transparent); }
 .phc-tile-art { position: absolute; inset: 0; pointer-events: none; }
 .phc-tile-art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; -webkit-mask-image: linear-gradient(180deg, #000 50%, transparent 92%); mask-image: linear-gradient(180deg, #000 50%, transparent 92%); }
@@ -105,17 +105,17 @@
 .phc-tile:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(-2 * var(--phu)); }
 
 /* A switched-off category. */
-.phc-soon { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip); }
+.phc-soon { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip); }
 .phc-soon-icon { display: grid; width: calc(72 * var(--phu)); height: calc(72 * var(--phu)); opacity: 0.6; }
 .phc-soon-icon .colls-caticon { width: 100%; height: 100%; object-fit: contain; color: var(--ph-gold); }
 
 /* ── The detail column (right) ── */
 .phc-detail { box-sizing: border-box; min-height: 100%; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); padding: calc(16 * var(--phu)) calc(16 * var(--phu)) calc(24 * var(--phu));
-  background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); clip-path: var(--ph-clip); }
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); clip-path: var(--ph-clip); }
 .phc-detail.phk-section .phk-secbody { flex: 1; justify-content: center; }
 .phc-stage { position: relative; flex: none; display: grid; place-items: center; height: calc(312 * var(--phu)); overflow: hidden;
   background: radial-gradient(60% 60% at 50% 45%, color-mix(in srgb, var(--rc) 24%, transparent), transparent 75%), var(--ph-well);
-  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+  box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
 .phc-stage-hover { position: absolute; inset: 0; display: grid; place-items: center; }
 .phc-stage-img.contain { max-width: 80%; max-height: 86%; object-fit: contain; }
 .phc-stage-hover .phc-stage-img.contain { max-height: 90%; }
@@ -150,12 +150,12 @@
 .phc-actions { margin-top: auto; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); }
 .phc-equip { width: 100%; }
 .phc-worn { display: flex; align-items: center; justify-content: space-between; gap: calc(12 * var(--phu)); }
-.phc-hint { padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-text); }
+.phc-hint { padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); font-size: var(--ph-t-read); line-height: 1.4; color: var(--ph-text); }
 .phc-error { font-size: var(--ph-t2); color: var(--ph-foe); }
 /* The emote menu's eight slots, in the shell's wells. */
 .phc-actions .colls-emote-slots { gap: calc(8 * var(--phu)); }
-.phc-actions .colls-emote-slots .emote-pick { height: calc(72 * var(--phu)); border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
-.phc-actions .colls-emote-slots .emote-pick.emote-slot-empty { border: 0; box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); opacity: 0.6; }
+.phc-actions .colls-emote-slots .emote-pick { height: calc(72 * var(--phu)); border-radius: 0; background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.phc-actions .colls-emote-slots .emote-pick.emote-slot-empty { border: 0; box-shadow: var(--ph-gild-s); opacity: 0.6; }
 .phc-actions .colls-emote-slots .emote-pick.on { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); background: var(--ph-plate); }
 .phc-actions .colls-emote-slot-n { font-family: var(--ph-font); font-size: var(--ph-t1); color: var(--ph-muted); }
 
@@ -204,19 +204,18 @@ html[data-ph-shell][data-touch-small] .phc-grid { grid-template-columns: repeat(
   font-family: var(--ph-font); font-weight: 900; color: #fff; text-shadow: var(--ph-shadow); }
 
 /* ── THE FANTASY PASS (owner 2026-11-02: "it needs to maintain a fantasy vibe as much as possible ... we are a fantasy
-   game"): the game's inked serif (Cinzel, the title lettering) for every NAME on these pages, gilded edges on what is
+   game"): the shell's name serif (`--ph-name-font`) for every NAME and big number on these pages, Cinzel (`--ph-font`) for the labels, gilded edges on what is
    picked, warm candle-light under the previews and the chests. Static paint only; the kit's own tokens still rule the
    chrome, so the shell's fantasy tokens flow in when they land. ── */
-.phc, .phs { --phc-serif: 'Cinzel', var(--title-font, 'Cinzel Decorative'), Georgia, serif; --phc-warm: rgba(255, 196, 110, 0.16); }
-.phc-tile-name, .phc-name h2, .phc-stage-name, .phc-bay-num b, .phc-cat .phk-rowtitle,
-.cshop.phs .cshop-chest-name, .cshop.phs .cshop-cat-name, .cshop.phs .cshop-total .cshop-what, .cshop.phs .cshop-total .cshop-amt { font-family: var(--phc-serif); letter-spacing: 0.02em; }
+.phc, .phs { --phc-warm: rgba(255, 196, 110, 0.16); }
+.phc-tile-name, .phc-name h2, .phc-stage-name, .phc-bay-num b, .phc-meter .phk-meterval,
+.cshop.phs .cshop-chest-name, .cshop.phs .cshop-total .cshop-what, .cshop.phs .cshop-total .cshop-amt { font-family: var(--ph-name-font); letter-spacing: 0.02em; }
 .phc-tile-name { font-weight: 700; }
 .phc-name h2, .phc-stage-name { font-weight: 900; letter-spacing: 0.01em; }
-.phc-cat .phk-rowtitle { font-weight: 700; letter-spacing: 0.06em; }
 .cshop.phs .cshop-chest-name { font-weight: 900; letter-spacing: 0.08em; }
 /* Gilded: the picked tile, the picked category and the detail plate wear the gold edge (the rail's gilt), not a flat line. */
-.phc-tile.sel { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold-hi, #ffe9b0), inset 0 0 0 calc(3 * var(--phu)) var(--ph-gold), inset 0 calc(-3 * var(--phu)) 0 var(--rc), inset 0 0 calc(24 * var(--phu)) var(--phc-warm); }
-.phc-detail { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold), inset 0 0 0 calc(3 * var(--phu)) color-mix(in srgb, var(--ph-gold-deep, #7a571f) 60%, transparent), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); }
+.phc-tile.sel { box-shadow: var(--ph-gild), inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), inset 0 calc(-3 * var(--phu)) 0 var(--rc), inset 0 0 calc(24 * var(--phu)) var(--phc-warm); }
+.phc-detail { box-shadow: var(--ph-gild), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); }
 /* Candle-light: a warm pool under every preview and under the chest bay's chest. */
 .phc-stage { background: radial-gradient(55% 45% at 50% 85%, var(--phc-warm), transparent 70%), radial-gradient(60% 60% at 50% 45%, color-mix(in srgb, var(--rc) 24%, transparent), transparent 75%), var(--ph-well); }
 .phc-bay-art { background: radial-gradient(50% 40% at 50% 80%, rgba(255, 196, 110, 0.28), transparent 70%); }

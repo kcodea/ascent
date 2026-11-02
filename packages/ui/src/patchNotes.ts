@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-01',
     changes: [
       {
+        category: 'Systems',
+        text: 'In Duos games, the side rail now reads in teams.',
+        details: [
+          'Teammates sit together, and each team shows one place (1, 2, 3, 4) across both its heroes.',
+          'Both teammates now show the team Health and Armor.',
+          'Fight history names the whole team you fought, with both of their heroes.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'The Gold Fuse now lights sooner at higher ranks.',
         details: [

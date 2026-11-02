@@ -10468,6 +10468,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateSignals.test.tsx'], lastVerifiedAt: '2026-10-27' },
   },
   {
+    id: 'R-DUOS-RAIL-TEAM-02',
+    title: 'Duos on the Docked rail: one place per team, Health on both teammates, and the fight log names the team fought',
+    statement:
+      'In Versus Duos and Ranked Duos (playing or spectating) the Docked lobby rail is read in TEAMS. (1) Teammates\x27 slices sit next '
+      + 'to each other, team by team, the stronger team first (the fallen by where they finished), and the placement column is per '
+      + 'team: ONE placement box right of each pair, spanning both slices, printing the team\x27s place (1, 2, 3, 4) with the podium '
+      + 'metal for places 1 to 3; no seat gets its own box. (2) Both teammates\x27 slices show the team\x27s shared Health and Armor. '
+      + '(3) A seat\x27s scout card fight log lists its TEAM\x27s fights, one row a round, read the same from either teammate (also the '
+      + 'one whose board did not go first): both faces of the team it fought side by side, "vs <name> + <name>", the result and the '
+      + 'team\x27s damage. Solo modes are unchanged; the Gem rail\x27s team slot (R-DUOS-RAIL-TEAM-01) is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-01, with screenshots of a Docked Duos rail', quote: 'this should just show the teams with their medals together, so the top t2 would have a 1' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-01', quote: 'the combat history should show the team that they fought, not an individual hero' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-01', quote: 'health should show on both heroes in the rail' },
+      { kind: 'fix-pr', ref: 'PR fix/duos-rail-teams (2026-11-01)' },
+      { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (teamPlace, .lrv-teamrank, ScoutCard teams); packages/ui/src/versus/duosRailTeams.ts (duosTeamResults, duosTeamPlaces); packages/ui/src/lobbyRailDocked.css' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-11-01. Before, each slice had its own place (1 to 4), the team\x27s Health showed only on the pair\x27s second slice, and the fight log named the one board that went first (and was empty for the teammate who did not).',
+    example: 'You and Rayse lead on 30 Health: one gold "1" box spans both your slices, both show 30. Hovering Rayse lists round 2 as "vs Soren + Midas  W +4" with both faces, though your board went first.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailDockedModes.test.tsx', 'packages/ui/src/versus/duosRailTeams.test.ts'], lastVerifiedAt: '2026-11-01' },
+  },
+  {
     id: 'R-VERSUS-LIVE-ARMOR-01',
     title: 'Versus: a shop Armor raise (Mend) reaches the server pool at once and every rail; no rail shows damage or a knockout before its fight',
     statement:

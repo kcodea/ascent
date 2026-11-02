@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed a finished game sometimes coming back as Continue on the main menu.',
+        details: [
+          'After a game ended, the menu could offer Continue at your last round. Playing it ended the same way and offered it again.',
+          'A game that has ended is now gone from Continue on every device the moment it ends.',
+          'Your rank result from that game was always counted once.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New Legendary hero attack: Charge the Mound. The hero being hit pitches, and your hero bats.',
         details: [
           'Small: a line drive straight back up the middle. Bonk.',

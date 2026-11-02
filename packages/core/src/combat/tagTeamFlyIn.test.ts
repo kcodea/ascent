@@ -64,7 +64,7 @@ describe('R-DUOS-FLYIN-01: the winner\'s unfought teammate board flies in and co
     expect(res.events.indexOf(f)).toBeGreaterThan(lastDeath);
     // The enemy takes the winner's tier + both survivors + the 5 flown in.
     expect(res.enemyDamage).toBe(4 + tierOf('sandbag') * 2 + tierOf(ECHO.id) * 4 + tierOf('sandbag'));
-    expect(res.enemyDamageBreakdown!.survivorUids).toEqual([...res.enemyDamageBreakdown!.survivorUids.slice(0, 2), ...f.minions.map((m) => m.uid)]);
+    expect(res.enemyDamageBreakdown!.survivorUids!.slice(2)).toEqual(f.minions.map((m) => m.uid));
     expect(res.enemyDamageBreakdown!.survivorTiers.reduce((a, b) => a + b, 0) + 4).toBe(res.enemyDamage);
   });
 

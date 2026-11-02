@@ -9105,6 +9105,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/tagTeam.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
+    id: 'R-DUOS-FLYIN-01',
+    title: 'Tag-team fly-in: after a won fight, the winner\x27s unfought teammate board fills the empty slots and counts for damage',
+    statement:
+      'In a tag-team fight (Versus Duos, Ranked Duos), when a side WINS with its FIRST board, its teammate\x27s board (which never fought) '
+      + 'flies in after the last kill: its minions, left to right, fill that side\x27s empty slots after the survivors, up to 7. A full board '
+      + 'flies nothing in. The flown-in minions trigger NOTHING (no Start of Combat, no summon triggers, no auras) and are not part of the '
+      + 'fight, but they DO count for damage: the losing team takes the winning board\x27s tavern tier plus the tiers of every survivor AND '
+      + 'every flown-in minion (then the round cap and Armor as usual). If the first board fell and the teammate\x27s board stepped in and won, '
+      + 'nothing flies in (both boards fought). A draw flies nothing in. The losing side never flies in. Deterministic, 1:1 symmetric, '
+      + 'and identical on every client, spectator and replay (one `flyIn` event in the fight log). The screen plays the same fly-in '
+      + 'entrance as the step-in, then the damage formation counts each flown-in minion from its slot.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live Duos play with Mike)', quote: 'the team flies in and fills the 7 slots from left to right. if there\x27s no room, there\x27s no fly in. flying in after combat does NOT trigger start of combats or anything, but it DOES deal more dmg to opponents as the filled in slots tally up for damage' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (ruling)', quote: 'If your first board fell and your teammate\x27s board stepped in and won, NOTHING flies in (both boards already fought).' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (TAG-TEAM FLY-IN, flownIn); packages/core/src/types.ts (flyIn); packages/ui/src/useCombatReplay.ts; packages/ui/src/heroBlast/heroStrikeDamage.ts' },
+    ],
+    currentBehaviour: 'Built 2026-11-02 (feat/duos-teammate-flyin). Before, a teammate board that never fought counted for nothing and simply did not appear.',
+    example: 'Ann\x27s board (tier 4, two survivors) beats both of Cat and Dan\x27s boards. Bob\x27s six minions never fought: the first five fly into Ann\x27s empty slots, and Cat and Dan take 4 + both survivors + those five minions\x27 tiers (capped for the round).',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/tagTeamFlyIn.test.ts', 'packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/rankedDuosRound.test.ts', 'workers/versus/test/it/room.it.ts', 'packages/ui/src/heroAttack/damageFormation.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-DUOS-01',
     title: 'Versus Duos: 2v2 by seat pairs, one tag-team fight a round, one shared team Health pool, concede = the team out',
     statement:

@@ -58,6 +58,18 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-02',
     changes: [
+      {
+        category: 'Systems',
+        text: "Duos: when your first board wins, your teammate's minions now fly into the empty slots and add to the damage.",
+        details: [
+          "After a win with your first board, your teammate's board (which never fought) flies in and fills your empty slots from left to right, up to 7.",
+          'A full board means no fly-in.',
+          'They do not trigger anything. No Start of Combat, no summon effects.',
+          'Each one adds its tier to the damage, just like a survivor. The damage count now shows every minion for Duos fights.',
+          "If your first board fell and your teammate's board won, nothing flies in.",
+          'Works in Versus Duos and Ranked Duos.',
+        ],
+      },
       { category: 'Systems', text: 'Opening a chest now shows a picture of a card plate or portrait frame you find, like skins and emotes already did.' },
       {
         category: 'Systems',

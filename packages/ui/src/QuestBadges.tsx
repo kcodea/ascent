@@ -94,20 +94,21 @@ export function QuestBadges() {
   // A self-improving rune prints its CURRENT value, ticking mid-fight (R-RUNE-LIVE-TEXT-01).
   const runeLive = usePlayerRuneLive();
   const completedNow = useGame((s) => s.combatCompletedQuests);
-  const runeArrival = useGame((s) => s.runeArrival); // the rune the lock-in ceremony is handing over
+  // The rune the lock-in ceremony is handing over, as THIS mount should present it (R-RUNE-ARRIVAL-ONCE-01): an
+  // arrival already played on an earlier mount, or a cue from another run (the Duos teammate view), reads as none.
+  const runKey = `${run.seed}:${run.heroId}`;
+  const runeArrival = useRuneArrivalFx(useGame((s) => s.runeArrival), runKey);
   // The pop's shape is the ceremony's to own — it is the last beat of that sequence, tuned against it in the
   // same panel. Read per render rather than captured, so a dial moved between arrivals takes effect.
   const arrivalVars = useMemo(() => {
     const t = getRuneLockInConfig();
     return { '--rune-pop': `${t.arrivePopMs}ms`, '--rune-pop-scale': `${t.arrivePopScale}` } as CSSProperties;
   }, [runeArrival?.seq]);
-  useRuneArrivalFx(runeArrival);
   const combatQuestDelta = useGame((s) => s.combatQuestDelta); // live combat progress during the replay (null otherwise) // ids that JUST completed mid-replay (pre-settle)
   // The chains show at the start of EVERY run (even for a hero that will get a 3rd rune) and BREAK once, 1000ms
   // after the 3rd-rune condition is met — a runeforge hero at run start, or the moment an enabling rune is
   // picked (owner ask 2026-08-19). `chainsBroken` is per-run (localStorage keyed by `runKey`), so it persists a
   // resume without re-shattering, and resets for a new run (StatusBar remounts on `runKey`).
-  const runKey = `${run.seed}:${run.heroId}`;
   const canThird = canReachThirdRune(run);
   const [chainsBroken, setChainsBroken] = useState(() => readRuneChainsBroken(runKey));
   useEffect(() => {

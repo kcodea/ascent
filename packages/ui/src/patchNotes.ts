@@ -61,6 +61,10 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Opening a chest now shows a picture of a card plate or portrait frame you find, like skins and emotes already did.' },
       {
         category: 'Systems',
+        text: 'Fixed: a rune you just bought no longer plays its arrival again when you swap to your teammate and back.',
+      },
+      {
+        category: 'Systems',
         text: 'Fixed a finished game sometimes coming back as Continue on the main menu.',
         details: [
           'After a game ended, the menu could offer Continue at your last round. Playing it ended the same way and offered it again.',
@@ -78,6 +82,23 @@ export const PATCH_NOTES: PatchNote[] = [
           'Big hits are a breakaway past defenders with stepovers, a nutmeg or a rainbow flick, and a slow-motion finish.',
           'The biggest hits and knockouts are a bicycle kick in slow motion, a thunderbolt into the net and a knee slide.',
           'With a referee whistle, the crowd and a commentator. Found in crates. Equip it in the Collection.',
+      },
+      {
+        category: 'Systems',
+        text: 'Duos: a card your teammate passes you now shows up in your hand right away.',
+        details: [
+          'If you were watching their screen, it is in your hand the moment you switch back. It used to take up to 12 seconds.',
+          'A pass that hits a network blip now tries again within a second.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Duos: a minion that would finish your teammate\'s triple now glows teal in your Shop.',
+        details: [
+          'When your teammate holds a pair of a minion and a third copy shows up in your Shop, it glows teal with teal arrows rising.',
+          'It keeps the teal glow in your hand, so you know to pass it to them.',
+          'It updates live as your teammate buys, sells and plays.',
+          'If the card would finish your own triple too, it shows your own gold glow.',
         ],
       },
       {

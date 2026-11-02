@@ -10,13 +10,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import rawBindings from '../choreo/bindings.json';
 import { DIRECT_CALL_SITES } from '../fx/directCalls';
 import { buildClipIndex, clipsOfDef, prewarmList } from './clipIndex';
-import { CODE_FX_CLIPS } from './codeClips';
+import { ATTACK_FX_CLIPS, CODE_FX_CLIPS } from './codeClips';
 import { createPlayStats, PHONE_AUDIO_LRU_BYTES, PHONE_AUDIO_MAX_RATE, phoneDecodeRate, phoneMono } from './phoneAudio';
 
 const prewarmSpy = vi.hoisted(() => vi.fn(() => 0));
 vi.mock('../sfx', () => ({ prewarmSfx: prewarmSpy }));
 // Imported after the mock is registered (vi.mock is hoisted).
-import { __resetPhonePrewarm, combatCardIds, PREWARM_SETTLE_MS, sceneOf, syncPhoneSfxPrewarm, type PrewarmStoreState } from './phonePrewarm';
+import { __resetPhonePrewarm, attackStylesOf, combatCardIds, PREWARM_SETTLE_MS, sceneOf, syncPhoneSfxPrewarm, type PrewarmStoreState } from './phonePrewarm';
 
 const AUDIO = __dirname;
 const SRC = path.join(__dirname, '..');
@@ -39,7 +39,7 @@ function shippedDefs(): Record<string, unknown> {
   for (const f of fs.readdirSync(dir)) if (f.endsWith('.json')) out[f.slice(0, -5)] = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
   return out;
 }
-const realIndex = () => buildClipIndex(shippedDefs(), rawBindings, Object.keys(DIRECT_CALL_SITES), bankNames(), CODE_FX_CLIPS);
+const realIndex = () => buildClipIndex(shippedDefs(), rawBindings, Object.keys(DIRECT_CALL_SITES), bankNames(), CODE_FX_CLIPS, ATTACK_FX_CLIPS);
 
 /** Seconds of audio in an MP3 (frame headers) or a WAV (data chunk). */
 function clipSeconds(file: string): number {
@@ -146,15 +146,33 @@ describe('clip index (the shipped defs + bindings)', () => {
     expect(prewarmList(idx, { heroChoices: ['h2'] })).toEqual(['heroes/h2']);
   });
 
+  it('the hero-attack clips: only the styles in play are decoded ahead, never the whole roster (R-AUDIO-PREWARM-ATTACKS-01)', () => {
+    const idx = buildClipIndex({}, {}, [], ['cards/a', 'fx/shared', 'fx/ball', 'fx/net', 'fx/bolt', 'fx/rock'], ['fx/shared'],
+      { soccer: ['fx/ball', 'fx/net', 'fx/shared'], storm: ['fx/bolt'], quake: ['fx/rock', 'fx/gone'] });
+    expect(idx.forAttack('soccer')).toEqual(['fx/ball', 'fx/net', 'fx/shared']);
+    expect(idx.forAttack('quake')).toEqual(['fx/rock']); // a clip not in the bank is dropped
+    expect(idx.forAttack('classic')).toEqual([]);
+    // Nothing in play: the shared clips only.
+    expect(prewarmList(idx, { cardIds: ['a'] })).toEqual(['cards/a', 'fx/shared']);
+    // Yours and the foe's: both styles' clips, de-duplicated, and nothing of the styles not in play.
+    expect(prewarmList(idx, { cardIds: ['a'], attackStyles: ['soccer', 'storm'] })).toEqual(['cards/a', 'fx/shared', 'fx/ball', 'fx/net', 'fx/bolt']);
+    // Hero select: no attack clips yet.
+    expect(prewarmList(idx, { heroChoices: ['h'], attackStyles: ['soccer'] })).toEqual([]);
+  });
+
   it('a busy game\'s working set fits the phone LRU with room to spare', () => {
     const idx = realIndex();
     // The worst case: the 31 cards with the most clip audio (7 board + 10 hand + 7 Shop + 7 foes), the biggest hero,
-    // the heroes on offer, and every code clip.
+    // the heroes on offer, the shared code clips, and the hero-attack clips of the TWO LARGEST attack styles (a fight
+    // plays at most two: yours and your opponent's; R-AUDIO-PREWARM-ATTACKS-01). Never the whole roster.
     const cards = Object.keys(rawBindings.cards).map((id) => [id, idx.forCard(id).reduce((s, c) => s + phoneBytes(c), 0)] as const)
       .sort((a, b) => b[1] - a[1]).slice(0, 31).reduce((s, x) => s + x[1], 0);
     const heroes = [...new Set(bankNames().filter((n) => n.startsWith('heroes/')).map((n) => n.slice(7).split('.')[0]!))]
       .map((h) => idx.forHero(h).reduce((s, c) => s + phoneBytes(c), 0)).sort((a, b) => b - a).slice(0, 4).reduce((s, x) => s + x, 0);
-    const code = idx.code.reduce((s, c) => s + phoneBytes(c), 0);
+    const shared = new Set(idx.code);
+    const attackBytes = (style: string): number => idx.forAttack(style).filter((c) => !shared.has(c)).reduce((s, c) => s + phoneBytes(c), 0);
+    const [a1 = 0, a2 = 0] = Object.keys(ATTACK_FX_CLIPS).map(attackBytes).sort((a, b) => b - a);
+    const code = idx.code.reduce((s, c) => s + phoneBytes(c), 0) + a1 + a2;
     const working = cards + heroes + code;
     expect(working).toBeGreaterThan(0);
     expect(working).toBeLessThan(PHONE_AUDIO_LRU_BYTES * 0.9);
@@ -182,7 +200,26 @@ describe('phone prewarm from the store', () => {
   it('orders the scene board, hand, Shop, spell, then the fight (both boards and the cards its events name)', () => {
     const lastCombat = { initial: { player: [{ cardId: 'p' }], enemy: [{ cardId: 'e' }] }, events: [{ type: 'summon', cardId: 's' }, { type: 'attack' }] } as never;
     expect(combatCardIds(lastCombat)).toEqual(['p', 'e', 's']);
-    expect(sceneOf(state({ spell: { cardId: 'sp' } as never, lastCombat }, ['x']))).toEqual({ heroChoices: ['x'], heroId: 'warden', cardIds: ['a', 'b', 'c', 'sp', 'p', 'e', 's'] });
+    expect(sceneOf(state({ spell: { cardId: 'sp' } as never, lastCombat }, ['x']))).toEqual({ heroChoices: ['x'], heroId: 'warden', cardIds: ['a', 'b', 'c', 'sp', 'p', 'e', 's'], attackStyles: [] });
+  });
+
+  it('names the hero-attack styles in play: yours from your equipped cosmetic; the foe only with "Show opponent cosmetics" on; Classic never', () => {
+    const mine = (heroAttack: string | undefined, showOpponentSkins = true): PrewarmStoreState => ({ ...state(), showOpponentSkins, run: { ...state().run, cosmetics: { heroAttack } as never } });
+    expect(attackStylesOf(mine('attack_basketball'))).toEqual(['basketball']);
+    expect(attackStylesOf(mine('attack_blast', false))).toEqual(['blast']);
+    expect(attackStylesOf(mine(undefined))).toEqual([]); // Classic: no clips
+    expect(sceneOf(mine('attack_quake')).attackStyles).toEqual(['quake']);
+  });
+
+  it('re-prewarms when your equipped attack changes', () => {
+    vi.useFakeTimers();
+    const s1 = { ...state(), run: { ...state().run, cosmetics: { heroAttack: 'attack_blast' } as never } };
+    syncPhoneSfxPrewarm(s1);
+    vi.advanceTimersByTime(PREWARM_SETTLE_MS);
+    syncPhoneSfxPrewarm({ ...s1, run: { ...s1.run, cosmetics: { heroAttack: 'attack_quake' } as never } });
+    vi.advanceTimersByTime(PREWARM_SETTLE_MS);
+    expect(prewarmSpy).toHaveBeenCalledTimes(2);
+    expect((prewarmSpy.mock.calls[1] as unknown[])[0]).toMatchObject({ attackStyles: ['quake'] });
   });
 
   it('prewarms once per change of scene, after a quiet spell', () => {

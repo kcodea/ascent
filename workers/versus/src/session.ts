@@ -337,6 +337,12 @@ export class GameSession extends LiveGameHost<SessionEnv> {
         if (typeof b.runKey !== 'string' || !b.runKey) throw new SessionError('bad_arguments');
         s.clearSave(userId, b.runKey, Number(b.expected), now);
         await this.saveSession();
+        // THE CLEAR GOES AT ONCE (R-SESSION-CLEAR-01, player report 2026-11-02: "the game ended again and now it shows
+        // CONTINUE Round 13"). Held for the end's settle, the row stayed in Supabase for a few seconds after the game ended,
+        // and the title's reconcile (chained right behind this call on the client) read it in that window and adopted the
+        // ended run as Continue: a loop. So the clear is flushed before this answers. A failed flush answers 503: the
+        // client then clears the row the old way at once (the held clear also retries; a second delete is a no-op).
+        try { await this.flushClearNow(now); } catch { return { status: 503, body: { error: 'clear_failed' } }; }
         return { status: 200, body: { status: 'ok' } };
       }
       case 'rate': {
@@ -379,6 +385,14 @@ export class GameSession extends LiveGameHost<SessionEnv> {
     const plan: FlushPlan = s.plan(now, this.publisherHere(), this.quietSince(), true) ?? { writeKeys: [], save: false, clear: null };
     const a = await this.runFlush(s, plan, rating, now);
     return a.rating;
+  }
+
+  /** Flush the held clear alone, now (the writes keep their settle and ride the rate). Throws when the call failed. */
+  private async flushClearNow(now: number): Promise<void> {
+    if (this.flushing) await this.flushing.catch(() => undefined);
+    const s = this.session;
+    if (!s || !s.meta.owner || !s.meta.clear) return; // another flush took it meanwhile
+    await this.runFlush(s, { writeKeys: [], save: false, clear: s.meta.clear }, null, now);
   }
 
   private async runFlush(s: SessionCore, plan: FlushPlan, rating: Record<string, unknown> | null, now: number): Promise<FlushAnswer> {

@@ -80,7 +80,10 @@
      in-game pill read. The navy follows the Lobby Rail 2 tuner's plate colour (`--lr2-navy`), the edge follows the UI
      theme's gold, the shadow strength follows the rail's "Name shadow" dial (`--lr2-name-shadow`). Static paint. */
   --pill-navy: var(--lr2-navy, #0d1a36);
-  --pill-plate: linear-gradient(180deg, color-mix(in srgb, var(--pill-navy) 82%, #3a5a9a) 0%, var(--pill-navy) 55%, color-mix(in srgb, var(--pill-navy) 70%, #000) 100%);
+  /* The plate's top and bottom stops on their own (a tip's caret square takes the stop at its edge). */
+  --pill-navy-top: color-mix(in srgb, var(--pill-navy) 82%, #3a5a9a);
+  --pill-navy-bot: color-mix(in srgb, var(--pill-navy) 70%, #000);
+  --pill-plate: linear-gradient(180deg, var(--pill-navy-top) 0%, var(--pill-navy) 55%, var(--pill-navy-bot) 100%);
   /* A clickable pill's hover: the same plate, a step lighter (static on hover, no transition added). */
   --pill-plate-hover: linear-gradient(180deg, color-mix(in srgb, var(--pill-navy) 62%, #4a6cb0) 0%, color-mix(in srgb, var(--pill-navy) 82%, #3a5a9a) 55%, var(--pill-navy) 100%);
   --pill-edge: var(--ui-edge-main);
@@ -99,6 +102,10 @@
   /* Gold (a Gold count or cost: the rail's podium gold) and the "too expensive" red, as number / icon / edge accents. */
   --pill-gold: #f6cf5a;
   --pill-red: #ff7a66;
+  /* An inner box on a navy panel (the rail's inspect card tiles, its power box, its fight rows): a deeper navy well with
+     a faint gold hairline, so it reads as a box without a second full edge. */
+  --pill-well: linear-gradient(180deg, color-mix(in srgb, var(--pill-navy) 72%, #000), color-mix(in srgb, var(--pill-navy) 88%, #000));
+  --pill-hair: color-mix(in srgb, var(--pill-edge) 32%, transparent);
 }
 
 /* The 🎨 UI Theme tuner's pinned sample row (UiThemeTuner.tsx): a tooltip, a name pill, a Health pill and a button,

@@ -226,29 +226,31 @@
    size. They stay findable as BUTTONS: a gold icon, a brighter plate + edge on hover, Skip keeps its press lip and
    its one-shot press-down. No transitions added, nothing loops. Their Combat Controls tuner still owns position,
    text size and radius; its colour pickers are Classic-only. */
+/* THE RAIL LOOK (owner 2026-11-01: "sweep for ANY remaining purple tip/pill"): the navy plate in the solid gold edge, the
+   rail's title-font text. Hover: the lighter navy and the lit edge (static). */
 :root[data-hp-look="gem"] :is(.combatsummary, .combathud-skip) {
-  border-color: transparent; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  border-color: var(--pill-edge); color: var(--pill-text); font-family: var(--pill-font), sans-serif; text-shadow: var(--pill-text-shadow);
+  background: var(--pill-plate) padding-box;
 }
 /* The End Combat label is the End Turn TIP in its combat-done state; its own selector is a registered paint
    exception in tooltipRegistry.ts (PAINT_EXCEPTIONS), so it stays a single exact selector here. */
 :root[data-hp-look="gem"] .etbwrap.ready .etb-tip {
-  border-color: transparent; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  border-color: var(--pill-edge); color: var(--pill-text); text-shadow: var(--pill-text-shadow);
+  background: var(--pill-plate) padding-box;
 }
 :root[data-hp-look="gem"] .combatsummary {
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--pill-outline), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
 }
 :root[data-hp-look="gem"] .combathud-skip {
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 calc(4 * var(--u)) 0 var(--ui-lip), 0 calc(6 * var(--u)) calc(10 * var(--u)) -4px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--pill-outline), 0 calc(4 * var(--u)) 0 var(--ui-lip), 0 calc(6 * var(--u)) calc(10 * var(--u)) -4px rgba(0, 0, 0, 0.7);
 }
 :root[data-hp-look="gem"] :is(.combatsummary, .combathud-skip) svg { color: var(--ui-icon); }
 :root[data-hp-look="gem"] :is(.combatsummary, .combathud-skip):hover {
-  color: #fff;
-  background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box;
+  color: #fff; border-color: var(--pill-edge-hover);
+  background: var(--pill-plate-hover) padding-box;
 }
 :root[data-hp-look="gem"] .combathud-skip:active {
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 calc(2 * var(--u)) 0 var(--ui-lip);
+  box-shadow: var(--pill-outline), 0 calc(2 * var(--u)) 0 var(--ui-lip);
 }
 
 /* ── C. MINIMAL: borderless, an opaque soft gradient (never backdrop-filter), bigger white numbers, icon-led. ── */

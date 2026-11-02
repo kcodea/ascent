@@ -293,7 +293,8 @@ html:root .lobbyrailhead.lrv-docked:not(.guidesview) {
 html:root .lobbyrailhead.lrv-docked:not(.guidesview) > svg.lrv-edge { position: absolute; z-index: 1; }
 html:root .lobbyrailhead.lrv-docked:not(.guidesview) > .lrv-headbg {
   position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: linear-gradient(180deg, var(--ui-plate-top, var(--ui-plate-mid)), var(--ui-plate-bot));
+  /* The round slice wears the rail's navy plate too (owner 2026-11-01). */
+  background: var(--pill-plate);
 }
 html:root .lobbyrailhead.lrv-docked:not(.guidesview) { isolation: isolate; }
 /* TIED INTO THE PILL (Below, the default; owner 2026-10-31: "I don't want it to go over the refresh button, maybe just
@@ -402,9 +403,10 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
   width: calc(300 * var(--lu) * var(--lr2-card-w, 1.8));
   padding: calc(10 * var(--c)) calc(11 * var(--c));
   translate: calc(var(--lr2-card-x, -9) * 1px) calc(var(--lr2-card-y, 0) * 1px);
-  border: 1.5px solid transparent; border-radius: calc(8 * var(--c));
-  background: linear-gradient(180deg, var(--ui-plate-mid), var(--ui-plate-bot)) padding-box, var(--ui-edge) border-box;
-  box-shadow: 0 8px 22px -6px rgba(0, 0, 0, 0.9);
+  /* The rail's navy plate in its thin solid gold edge (owner 2026-11-01: the inspect card matches the rail). */
+  border: 1.5px solid var(--pill-edge); border-radius: calc(8 * var(--c));
+  background: var(--pill-plate) padding-box;
+  box-shadow: var(--pill-outline), 0 8px 22px -6px rgba(0, 0, 0, 0.9);
   display: flex; flex-direction: column; gap: calc(8 * var(--c));
 }
 .lobbyscout.lrv-scout > * { margin: 0; }
@@ -427,7 +429,7 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
 .lobbyscout.lrv-scout .lrv-sc-chip {
   display: flex; flex-direction: column; align-items: center; gap: calc(3 * var(--c)); min-width: 0;
   padding: calc(5 * var(--c)) calc(4 * var(--c)); border-radius: calc(5 * var(--c));
-  background: color-mix(in srgb, var(--ui-chip-bg) 85%, transparent); box-shadow: inset 0 0 0 1px var(--ui-divider);
+  background: var(--pill-well); box-shadow: inset 0 0 0 1px var(--pill-hair);
 }
 .lobbyscout.lrv-scout .lrv-sc-chip > i { font-style: normal; font-size: calc(8.5 * var(--lfont)); font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ui-muted); white-space: nowrap; }
 .lobbyscout.lrv-scout .lrv-sc-chip > b {
@@ -457,7 +459,7 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
 .lobbyscout.lrv-scout .lrv-sc-fight {
   display: grid; grid-template-columns: calc(24 * var(--c)) minmax(0, 1fr) auto auto; align-items: center; gap: calc(7 * var(--c));
   padding: calc(3 * var(--c)) calc(6 * var(--c)) calc(3 * var(--c)) calc(3 * var(--c)); border-radius: calc(5 * var(--c));
-  background: color-mix(in srgb, var(--ui-chip-bg) 70%, transparent); font-size: calc(11.5 * var(--lfont)); font-weight: 800;
+  background: var(--pill-well); box-shadow: inset 0 0 0 1px var(--pill-hair); font-size: calc(11.5 * var(--lfont)); font-weight: 800;
 }
 .lobbyscout.lrv-scout .lrv-sc-foe { width: calc(24 * var(--c)); height: calc(24 * var(--c)); border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 1px var(--ui-edge-main); }
 .lobbyscout.lrv-scout .lrv-sc-vs { color: var(--ui-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -498,8 +500,8 @@ html:root .lobbyrail.lrv-docked .lrv-status {
   position: absolute; z-index: 4; top: calc(-7px * var(--dk-s, 1)); right: calc(28px * var(--dk-s, 1));
   padding: calc(2px * var(--dk-s, 1)) calc(7px * var(--dk-s, 1)); border-radius: 999px; pointer-events: none; white-space: nowrap;
   font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(9.5px * var(--dk-s, 1)); line-height: 1.1; letter-spacing: 0.04em;
-  color: #fff6df; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
-  background: linear-gradient(180deg, var(--ui-plate-mid), var(--ui-plate-bot));
+  color: #fff6df; text-shadow: var(--pill-text-shadow);
+  background: var(--pill-plate);
   box-shadow: 0 0 0 calc(1.5px * var(--dk-s, 1)) var(--ui-title), 0 1px 3px rgba(0, 0, 0, 0.8);
   animation: lrvStatusIn 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
@@ -549,7 +551,7 @@ html:root .lobbyrail.lrv-docked .lobbyseat.mate .lrv-name { color: color-mix(in 
 .lobbyscout.lrv-scout .lrv-sc-power {
   display: flex; flex-direction: column; gap: calc(3 * var(--c));
   padding: calc(6 * var(--c)) calc(8 * var(--c)); border-radius: calc(5 * var(--c));
-  background: rgba(0, 0, 0, 0.28); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  background: var(--pill-well); box-shadow: inset 0 0 0 1px var(--pill-hair);
   font-size: calc(11.5 * var(--lfont)); line-height: 1.3; color: var(--ui-text);
 }
 .lobbyscout.lrv-scout .lrv-sc-power > b { font-family: var(--font-title), sans-serif; font-size: calc(12 * var(--lfont)); letter-spacing: 0.02em; color: var(--ui-title); }

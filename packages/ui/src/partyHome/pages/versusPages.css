@@ -13,6 +13,9 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 .vsb-create { display: flex; align-items: flex-end; gap: calc(24 * var(--phu)); flex-wrap: wrap; }
 .vsb-field { flex: 1 1 calc(320 * var(--phu)); min-width: 0; }
 .vsb-createbtn { flex: none; }
+/* The mode picker keeps its three choices on one line beside the name. */
+.vsb-create .phk-seg { flex: none; }
+.vsb-create .phk-segrow { grid-template-columns: repeat(3, calc(88 * var(--phu))); }
 .vsb-modehint { font-size: var(--ph-t2); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
 .vsb-host > .phk-secbody { gap: calc(16 * var(--phu)); }
 
@@ -63,7 +66,7 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 .vsr-page > .phk-pagebody { overflow: hidden; gap: calc(16 * var(--phu)); padding-bottom: calc(24 * var(--phu) + var(--safe-b, 0px)); }
 .vsr-body { flex: 1; min-height: 0; display: flex; gap: calc(32 * var(--phu)); }
 .vsr-main { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
-.vsr-cards { flex: 1 1 0; min-height: 0; width: 100%; height: auto; }
+.vsr-cards { flex: 1 1 0; min-height: 0; width: 100%; height: auto; box-sizing: border-box; padding-inline: calc(40 * var(--phu)); } /* room for the banner rods' overhang */
 /* Duos: room for the team plates above each pair. */
 .vsr-cards.vsr-duos { box-sizing: border-box; padding-top: calc(40 * var(--phu)); }
 .vsr-team { position: relative; flex: none; display: flex; align-items: center; gap: var(--gap); }
@@ -188,3 +191,5 @@ html[data-ph-compact] .vsb-join { min-width: calc(88 * var(--phu)); }
 }
 /* A phone's open seat keeps only its name and its buttons. */
 html[data-ph-compact] .vsr-open .ph-opensub { display: none; }
+/* A phone's open seat: the DEV Add bot stays small, under the seat's words. */
+html[data-ph-compact] .vsr-botslot { bottom: var(--footh, 0px); scale: 0.7; }

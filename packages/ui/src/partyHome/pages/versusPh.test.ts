@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { VersusMember, VersusRoom, VersusRoomSummary } from '../../versus/versusRemote';
+import { playerVersusError } from '../versusCopy';
 import {
-  defaultRoomName, hostSitsFirst, openSeatText, roomCounts, roomJoin, roomModeOf, roomStartOf, roomTitleOf, seatedOf, seatTeams, visibleRooms,
+  VERSUS_OFFLINE_TEXT, defaultRoomName, hostSitsFirst, openSeatText, roomCounts, roomJoin, roomModeOf, roomStartOf, roomTitleOf, seatedOf, seatTeams, visibleRooms,
 } from './versusPh';
 
 const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
@@ -51,8 +52,14 @@ describe('Versus on the party home shell (pure half)', () => {
     expect(roomTitleOf('Duos party', 'group')).toBe('Group room');
     expect(roomTitleOf('', 'duos')).toBe('Duos room');
     expect(roomTitleOf("Kevin's room", 'duos')).toBe("Kevin's room");
+    expect(roomTitleOf("Kevin's Versus 1v1", 'duos')).toBe("Kevin's Versus Duos");
+    expect(roomTitleOf("Kevin's Versus Duos", 'duos')).toBe("Kevin's Versus Duos");
     expect(defaultRoomName('', 'group')).toBe('Group room');
     expect(defaultRoomName('Kevin', 'group')).toBe("Kevin's room");
+  });
+
+  it('the offline line is the shell player copy (the home and the browser say the same thing)', () => {
+    expect(playerVersusError("This build's game server isn't deployed yet. Run the pack or select a local server.")).toBe(VERSUS_OFFLINE_TEXT);
   });
 
   it('lays the seats out per mode: 1v1 two sides, Group four free seats, Duos two teams of two', () => {

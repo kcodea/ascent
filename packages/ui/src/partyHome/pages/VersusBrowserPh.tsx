@@ -35,6 +35,7 @@ import {
   type RoomFilter, type VersusRoomMode,
 } from './versusPh';
 import { returnToVersusRoom } from './versusNav';
+import { playerVersusError } from '../versusCopy';
 import './versusPages.css';
 
 const ROOMS_VISIBLE_MS = 5000;
@@ -126,7 +127,7 @@ export function VersusBrowserPh() {
       )}
       {error && !offline && (
         <div className="vsph-err" role="alert">
-          <span>{error}</span>
+          <span>{playerVersusError(error)}</span>
           <PhButton size="s" onClick={() => { sfx.pulse(); clearVersusError(); }}>OK</PhButton>
         </div>
       )}

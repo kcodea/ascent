@@ -82,8 +82,11 @@ export function defaultRoomName(playerName: string, mode: VersusRoomMode = 'duel
  */
 export function roomTitleOf(name: string | null | undefined, mode: VersusRoomMode): string {
   const n = (name ?? '').trim();
-  if (!n || /^(versus|group|duos) (room|party)$/i.test(n)) return MODE_ROOM_NAME[mode];
-  return n;
+  if (!n) return MODE_ROOM_NAME[mode];
+  // A generic name, alone or after "<name>'s": a mode's room name, a party name, or a mode label ("Versus 1v1").
+  const m = /^(?:(.+)'s )?(versus 1v1|versus group|versus duos|versus room|group room|duos room|versus party|duos party|versus|group|duos)$/i.exec(n);
+  if (!m) return n;
+  return m[1] ? `${m[1]}'s ${roomModeLabel(mode)}` : MODE_ROOM_NAME[mode];
 }
 
 // ── THE ROOM ──────────────────────────────────────────────────────────────────────────────────────────────────────────

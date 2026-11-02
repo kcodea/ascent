@@ -58,6 +58,7 @@ import { setPhInvite } from '../shell/shellStore';
 import { hostSitsFirst, openSeatText, roomModeLabel, roomModeOf, roomStartOf, roomTitleOf, seatTeams, VERSUS_ROOM_MODES, type VersusRoomMode } from './versusPh';
 import { openVersusBrowser } from './versusNav';
 import '../partyHome.css';
+import { playerVersusError } from '../versusCopy';
 import './versusPages.css';
 
 /** COMPACT (phones, short windows): the shell's `html[data-ph-compact]`, or a phone. */
@@ -444,7 +445,7 @@ export function VersusRoomPh() {
       </PhPage>
 
       {optionsNotice && <div className="vsr-notice" role="status">{optionsNotice}</div>}
-      {error && <div className="ph-err vsr-err" role="alert">{error}</div>}
+      {error && <div className="ph-err vsr-err" role="alert">{playerVersusError(error)}</div>}
       {menuOpen && <div className="ph-menucatch vsr-menucatch" aria-hidden="true" onPointerDown={() => setMenuOpen(false)} />}
 
       {drag && createPortal(

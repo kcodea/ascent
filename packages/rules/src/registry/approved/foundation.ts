@@ -13174,4 +13174,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Play Grim onto the board, then at once hover Power Shifter in your hand: the lifted card covers Grim\x27s Attack badge and skull.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/handOverBoardZ.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
+  {
+    id: 'R-PROG-CRATE-06',
+    title: 'A chest reveal shows the reward\x27s own art for every visual cosmetic',
+    statement:
+      'When a chest reveals a reward whose look is a picture (a hero skin, a minion skin, an emote, a card plate or a portrait '
+      + 'frame), the reveal shows that picture beside the reward\x27s nameplate: the same art its Collection tile shows. Rewards '
+      + 'with no picture of their own (attack animations, announcers, titles) show the nameplate alone.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02 (Chest Shop reveal, a Green Hand Drawn card plate)', quote: 'there shoudl be a thumbnail that shows the card plate when receiving rewards' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02 (which types get one)', quote: 'no for attack animations or announcers, no for titles. yes for the rest' },
+      { kind: 'code', ref: 'packages/ui/src/progression/CrateOpener.tsx (skinKind / skinUrl: plate and frame)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-11-02. Before, only hero skins, minion skins (2026-09-29) and emotes (2026-10-15) showed art; a card plate or a portrait frame revealed with the nameplate alone.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/Crates.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

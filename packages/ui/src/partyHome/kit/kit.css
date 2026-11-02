@@ -308,3 +308,31 @@
 .phk-field { display: flex; flex-direction: column; gap: calc(6 * var(--phu)); }
 .phk-fieldinput { width: 100%; box-sizing: border-box; }
 .phk-fielderr { font-size: var(--ph-t1); color: var(--pill-red, #ff7a66); }
+
+/* Segmented options: an even grid (no lone option stretched to a full row); the big switch reads like the rest. */
+.phk-segrow { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(88 * var(--phu)), 1fr)); }
+.phk-seg.s-l .phk-segrow { grid-template-columns: 1fr 1fr; }
+.phk-seg.s-l .phk-segbtn { text-transform: none; letter-spacing: 0.02em; }
+/* A disabled button keeps the game's cursor (never the OS arrow). */
+.phk-btn:disabled, .phk-segbtn:disabled, .phk-tab:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* No hop on hover (a label moving is a layout shift): a tab answers with a warm glow, never a translate. */
+.phk-tab:hover:not(:disabled):not(.locked), .phk-tab.on, .phk-tab.on:hover { transform: none; }
+.phk-tab:hover:not(:disabled):not(.locked):not(.on) { text-shadow: var(--ph-shadow), 0 0 calc(10 * var(--phu)) rgba(255, 214, 120, 0.45); }
+
+/* PhSelect: the highlighted option (keyboard or pointer), dimmed-but-pickable options, the large preview beside the list. */
+.phk-selectwrap { position: fixed; display: flex; align-items: flex-start; gap: calc(12 * var(--phu)); }
+.phk-selectwrap > .phk-selectlist { position: static; }
+.phk-selopt.hi { background: var(--ph-plate-hover); color: var(--ph-ink); }
+.phk-selopt.dim { opacity: 0.6; }
+.phk-selopt.dim.hi { opacity: 0.85; }
+.phk-selpreview { flex: none; height: auto; border-radius: var(--ph-r); box-shadow: var(--ph-gild), 0 calc(12 * var(--phu)) calc(32 * var(--phu)) rgba(0, 0, 0, 0.6); }
+/* The slider keeps the game's cursor on the track and thumb (one rule per engine: a selector list holding another engine's
+   pseudo-element is dropped whole). */
+.phk-slider input[type="range"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.phk-slider input[type="range"]::-webkit-slider-runnable-track { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.phk-slider input[type="range"]::-webkit-slider-thumb { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.phk-slider input[type="range"]::-moz-range-track { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.phk-slider input[type="range"]::-moz-range-thumb { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+
+/* The preview flipped to the list's left (no room on the right): it hangs off the list's left edge. */
+.phk-selectwrap.pv-left > .phk-selpreview { position: absolute; top: 0; right: calc(100% + 12px); }

@@ -13426,6 +13426,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosPostgame.test.tsx', 'packages/ui/src/progression/progressionQueue.test.ts', 'packages/ui/src/versus/chaos/versusCfParity.db.test.ts'], lastVerifiedAt: '2026-11-02' },
   },
   {
+    id: 'R-RANKED-DUOS-RECORD-01',
+    title: 'Ranked Duos: the recorded duo run holds the boards of both teammates for every round they fought, the deciding round included',
+    statement:
+      'Like ranked solo, which records its board for every round it fought, a finished Ranked Duos game records both live '
+      + 'teammates\x27 locked boards (the whole prepared side: minions, runes, equipment, hero state) for EVERY round that resolved, '
+      + 'the round that placed the team included, once per round and teammate. That record is the duo run future Ranked Duos '
+      + 'tables serve as a recorded team, so a served duo fields at each round exactly the board it fought that round. A round '
+      + 'that never resolved (the pair left mid-shop) was never fought and is not recorded. The duo run\x27s first round, last '
+      + 'round, round count and eligibility are counted from those rounds.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-02 (Ranked Duos freeze investigation, PR #2547)', quote: 'Ranked Duos records must be 1:1 with ranked solo' },
+      { kind: 'code', ref: 'workers/versus/src/core/rankedMatch.ts (commitRanked -> keepRoundBoards, foldSub, liveSubmissions); supabase versus_ranked_duos__record_run' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (fix/ranked-duos-record-final-board). Before, the Cloudflare room kept a round\x27s boards only when '
+      + 'the NEXT shop opened, and the deciding round has no next shop, so every Cloudflare duo run ended one round short '
+      + '(live: 4 of 4 Cloudflare games, e.g. a 14-round win recorded rounds 1 to 13). A served duo then fielded its round 13 '
+      + 'board in round 14, and a team out in round 4 was recorded with 3 rounds and became unservable.',
+    example: 'Kevin and Lemon go out in round 12. Their duo run holds rounds 1 to 12; a later table that meets them in round 12 fights the round 12 boards they lost with.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/rankedCore.test.ts', 'workers/versus/test/it/room.it.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-SB-PANEL-CLOSE-01',
     title: 'DEV: the Scene Builder header ✕ closes the panel for real, and its minimize control folds it to a header bar',
     statement:

@@ -125,6 +125,7 @@ export function PhPatchNotes() {
   return (
     <PhPage
       className="phpn"
+      wide
       title="Patch Notes"
       eyebrow={latest ? `Latest patch ${prettyDate(latest)}` : undefined}
       tabs={<PhTabs label="Patch note sections" value={tab} onChange={pickTab}

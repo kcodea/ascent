@@ -61,7 +61,7 @@ export function PhSettings({ initialTab }: { initialTab?: SettingsTab } = {}) {
     try { localStorage.setItem(SETTINGS_TAB_KEY, t); } catch { /* a convenience only */ }
   };
   return (
-    <PhPage className="phs" title="Settings" tabs={<PhTabs label="Settings" value={tab} onChange={pick} tabs={SETTINGS_TABS} />}>
+    <PhPage className="phs" wide title="Settings" tabs={<PhTabs label="Settings" value={tab} onChange={pick} tabs={SETTINGS_TABS} />}>
       <div className="phs-col" role="tabpanel" aria-label={SETTINGS_TABS.find((t) => t.id === tab)!.label}>
         {tab === 'game' && <GameTab />}
         {tab === 'audio' && <AudioTab />}

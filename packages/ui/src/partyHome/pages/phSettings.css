@@ -96,3 +96,29 @@ html[data-touch-small] .phs-togglerow .phk-seghint { max-width: none; }
 /* The sliders take the kit slider's thumb (PhSlider: a round gold stud ringed in navy), so every slider in the shell matches. */
 .phs-range::-webkit-slider-thumb { width: calc(18 * var(--phu)); height: calc(18 * var(--phu)); margin-top: calc(-6 * var(--phu)); border-radius: 50%; clip-path: none; box-shadow: 0 0 0 calc(2 * var(--phu)) var(--ph-navy); }
 .phs-range::-moz-range-thumb { width: calc(18 * var(--phu)); height: calc(18 * var(--phu)); border-radius: 50%; }
+
+/* ── MODERN FANTASY (the shell's retune, 2026-11-02): rounded, glossy, warm. Overrides the cut shapes above. ── */
+.phs-sec::before { clip-path: none; border-radius: var(--ph-r-l); }
+.phs-sechead::after { width: calc(216 * var(--phu)); height: calc(24 * var(--phu)); bottom: calc(-4 * var(--phu)); background: url('../ornaments/divider.webp') 0 50% / contain no-repeat; }
+.phs-sechead h2, .phs-togglerow .phk-switchlbl, .phs-name { font-weight: 900; letter-spacing: 0.02em; }
+.phs-mute { clip-path: none; border-radius: 999px; }
+.phs .escselect-trigger, .phs .escselect-list, .phs .escselect-thumb { clip-path: none; }
+.phs .escselect-trigger { border-radius: 999px; }
+.phs .escselect-list, .phs .escselect-thumb { border-radius: var(--ph-r); overflow: hidden; }
+.phs .escselect-opt { border-radius: var(--ph-r-s); }
+/* THE GAUNTLET on the sliders, track and thumb alike (the game paints its own cursor; a native range shows the OS arrow). */
+/* (One rule per engine: a selector list with another engine's pseudo-element is dropped whole.) */
+.phs-range { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.phs-range::-webkit-slider-thumb { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.phs-range::-webkit-slider-runnable-track { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.phs-range::-moz-range-thumb { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.phs-range:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.phs-range:disabled::-webkit-slider-thumb { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+/* THE SWITCH, the owner's rule (2026-10-08: red when off, green when on), as warm glossy jewels: a ruby off, an emerald on,
+   each with a gem's top highlight and deep foot, ringed in gold; the knob a polished pearl. */
+.phs .phk-switch { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) rgba(255, 214, 120, 0.85), inset 0 calc(4 * var(--phu)) calc(4 * var(--phu)) rgba(255, 255, 255, 0.35), inset 0 calc(-4 * var(--phu)) calc(6 * var(--phu)) rgba(0, 0, 0, 0.35), 0 calc(3 * var(--phu)) calc(8 * var(--phu)) rgba(0, 0, 0, 0.35); }
+.phs .phk-switch.is-off { background: radial-gradient(120% 90% at 30% 20%, #ff8a8f 0%, #d8344c 38%, #8f1530 75%, #5e0b20 100%); }
+.phs .phk-switch.is-on { background: radial-gradient(120% 90% at 30% 20%, #8af0a8 0%, #2fb866 38%, #12784a 75%, #0a4f31 100%); }
+.phs .phk-switchknob { background: radial-gradient(circle at 35% 30%, #ffffff 0%, #fff4dc 45%, #e2c98f 100%); box-shadow: 0 calc(2 * var(--phu)) calc(4 * var(--phu)) rgba(0, 0, 0, 0.45), inset 0 0 0 calc(1 * var(--phu)) rgba(160, 110, 30, 0.5); }
+.phs .phk-switchword { color: #fff8e8; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55); font-weight: 900; }
+.phs .phk-tab:hover { transform: none; }

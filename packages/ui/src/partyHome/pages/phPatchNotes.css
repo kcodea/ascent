@@ -72,3 +72,14 @@ html[data-touch-small] .phpn-list { padding-left: calc(40 * var(--phu)); padding
 
 /* The page title never yields its width to the tabs and actions (Cinzel is wide; a kit gap: `.phk-pagetitle` can shrink to 0). */
 .phpn .phk-pagetitle { flex: none; }
+
+/* ── MODERN FANTASY (the shell's retune, 2026-11-02): rounded, glossy, warm. Overrides the cut shapes above. ── */
+.phpn-patch, .phpn-index { clip-path: none; border-radius: var(--ph-r-l); }
+.phpn-idx { clip-path: none; border-radius: 999px; }
+.phpn-idx.on { box-shadow: var(--ph-gild-s); background: linear-gradient(180deg, rgba(255, 220, 140, 0.16), rgba(255, 206, 120, 0.04)); }
+.phpn-head h2 { font-weight: 900; letter-spacing: 0.02em; }
+.phpn-monthname { font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; font-size: var(--ph-t1); }
+.phpn-head::after { width: calc(216 * var(--phu)); height: calc(24 * var(--phu)); bottom: calc(-6 * var(--phu)); background: url('../ornaments/divider.webp') 0 50% / contain no-repeat; }
+.phpn-list > li::before { border-radius: 50%; transform: none; background: radial-gradient(circle at 35% 30%, #fff1b8, #f6cf5a 45%, #a8741a); }
+/* Tabs never move on hover here (no layout hop while reading); the colour change carries it. */
+.phpn .phk-tab:hover { transform: none; }

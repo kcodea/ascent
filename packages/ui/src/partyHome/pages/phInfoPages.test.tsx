@@ -10,7 +10,7 @@
  *    the same stores;
  *  - the Compendium renders inside the kit page with its views as tabs, and the Guides view shows the guides' own filter
  *    even when Runes was lit before it (R-COMPENDIUM-GUIDES-FILTER-01);
- *  - the UI rules: no native tooltips, no own cursor, no looping animation, no em dashes, never "Oath" / "climb".
+ *  - the UI rules: no native tooltips, only the gauntlet cursor (the Settings sliders wear it too), no looping animation, no em dashes, never "Oath" / "climb".
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
@@ -209,7 +209,9 @@ describe('the UI rules', () => {
     const tsx = ['./PhPatchNotes.tsx', './PhSettings.tsx', './PhCompendium.tsx'].map(here).join('\n');
     const css = ['./phPatchNotes.css', './phSettings.css', './phCompendium.css'].map(here).join('\n');
     expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
-    expect(css).not.toMatch(/cursor:/);
+    // Only the gauntlet URL form (CLAUDE.md): a bare keyword cursor swaps the game cursor for the OS arrow.
+    expect(css).not.toMatch(/cursor:(?!\s*url\('\/cursors\/gauntlet_)/);
+    expect(here('./phSettings.css'), 'the sliders wear the gauntlet').toMatch(/\.phs-range[^{]*\{ cursor: url\('\/cursors\/gauntlet_open\.svg'\)/);
     expect(css).not.toMatch(/infinite/);
     for (const m of tsx.matchAll(/(['"`])([^'"`\n]*)\1/g)) {
       expect(m[2]).not.toMatch(/—|\s--\s/);

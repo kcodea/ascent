@@ -33,7 +33,7 @@ import { isPhone } from './deviceClass';
 import { MenuMedal } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
 import { sfx } from './sfx';
-import { navClockNow, useGame, type MenuDest } from './store';
+import { isPreRun, navClockNow, useGame, type MenuDest } from './store';
 import { getTitleText } from './titleTextConfig';
 import { TITLE_LOGO_SRC } from './AscentLogo';
 import { withAbandonWarning } from './rank/ratedRun';
@@ -104,7 +104,9 @@ let lastIndicatorY: number | null = null;
  */
 export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
   const inGame = useGame((s) => s.gameMenuOpen);
-  const shell = usePartyHome();
+  const preRunNow = useGame(isPreRun);
+  // The shell is for the menus before a run only (the in-game menu keeps this rail and its spacing).
+  const shell = usePartyHome() && preRunNow;
   const navRef = useRef<HTMLElement>(null);
   const indRef = useRef<HTMLSpanElement>(null);
   // THE SELECTION BAR (2026-10-16): measured ONCE per page (offsetTop, before paint), then a single transform

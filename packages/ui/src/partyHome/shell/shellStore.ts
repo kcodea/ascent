@@ -3,6 +3,7 @@
  * here" pulse for it, what an Invite does right now (the party home registers it; menu pages have none), and the nav's
  * intent for the Collection page (the Crates tab opens it on the crate shop). No persistence, nothing ticks.
  */
+import type { ComponentType } from 'react';
 import { create } from 'zustand';
 import type { Friend } from '../../friends/friendsRemote';
 
@@ -25,11 +26,16 @@ export interface PhShellState {
   invite: PhInvite;
   /** The Collection page should open on the crate shop (read once by the page). */
   collectionIntent: 'shop' | null;
+  /** THE COMPENDIUM PAGE under the shell: a content component the Compendium builder registers (`setCompendiumPage`).
+   *  While one is registered, the shell mounts it under the nav in place of the book's modal (nav tab lit). */
+  compendiumPage: ComponentType | null;
 }
 
 const NO_INVITE: PhInvite = { can: false, reason: null, members: [], modeLabel: '', send: null };
 
-export const usePhShell = create<PhShellState>(() => ({ friendsOpen: false, friendsPulse: 0, invite: NO_INVITE, collectionIntent: null }));
+export const usePhShell = create<PhShellState>(() => ({ friendsOpen: false, friendsPulse: 0, invite: NO_INVITE, collectionIntent: null, compendiumPage: null }));
+/** Register the Compendium's page content (call once at module load; null removes it). */
+export const setCompendiumPage = (c: ComponentType | null): void => usePhShell.setState({ compendiumPage: c });
 
 export const setFriendsOpen = (open: boolean): void => usePhShell.setState({ friendsOpen: open });
 export const toggleFriends = (): void => usePhShell.setState((s) => ({ friendsOpen: !s.friendsOpen }));

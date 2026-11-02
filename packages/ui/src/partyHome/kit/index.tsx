@@ -16,7 +16,8 @@
  *
  * All static paint; no native tooltips (aria-label + the game's `data-tip`); no own cursor (the gauntlet rule paints it).
  */
-import { useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import '../shell/shell.css';
 import './kit.css';
 
@@ -47,11 +48,13 @@ export function PhPage({ title, eyebrow, actions, tabs, wide, back, className, c
   );
 }
 
-export function PhSection({ title, aside, flush, className, children }: {
+export function PhSection({ title, aside, flush, unclipped, className, children }: {
   title?: ReactNode; aside?: ReactNode; flush?: boolean; className?: string; children: ReactNode;
+  /** Square corners and no clip, so a menu opening inside (a PhSelect, a More menu) is never cut off. */
+  unclipped?: boolean;
 }) {
   return (
-    <section className={cx('phk-section', flush && 'flush', className)}>
+    <section className={cx('phk-section', flush && 'flush', unclipped && 'unclipped', className)}>
       {(title || aside) && (
         <header className="phk-sechead">
           {title && <h2>{title}</h2>}
@@ -283,4 +286,87 @@ export function PhDialog({ eyebrow, title, children, actions, onClose, closing, 
       </div>
     </div>
   );
+}
+
+/**
+ * An on / off switch (owner rule: red when off, green when on, with the word On or Off on it). `label` sits left; `hint`
+ * under it. `role="switch"` with `aria-checked`.
+ */
+export function PhSwitch({ checked, onChange, label, hint, disabled, className }: {
+  checked: boolean; onChange: (next: boolean) => void; label?: ReactNode; hint?: ReactNode; disabled?: boolean; className?: string;
+}) {
+  return (
+    <div className={cx('phk-switchrow', disabled && 'off', className)}>
+      {(label || hint) && <span className="phk-switchtext">{label && <span className="phk-switchlbl">{label}</span>}{hint && <span className="phk-seghint">{hint}</span>}</span>}
+      <button type="button" role="switch" aria-checked={checked} disabled={disabled} className={cx('phk-switch', checked ? 'is-on' : 'is-off')}
+        aria-label={typeof label === 'string' ? label : undefined} onClick={() => { if (!disabled) onChange(!checked); }}>
+        <span className="phk-switchknob" aria-hidden="true" />
+        <span className="phk-switchword">{checked ? 'On' : 'Off'}</span>
+      </button>
+    </div>
+  );
+}
+
+/** A slider: a native range input in the shell's look, the value shown at the right (`format` it). */
+export function PhSlider({ value, min, max, step = 1, onChange, label, format, disabled, className }: {
+  value: number; min: number; max: number; step?: number; onChange: (v: number) => void; label?: ReactNode;
+  format?: (v: number) => ReactNode; disabled?: boolean; className?: string;
+}) {
+  const f = max > min ? (value - min) / (max - min) : 0;
+  return (
+    <label className={cx('phk-slider', disabled && 'off', className)}>
+      {label && <span className="phk-switchlbl">{label}</span>}
+      <span className="phk-sliderrow">
+        <input type="range" min={min} max={max} step={step} value={value} disabled={disabled} style={{ '--f': f } as React.CSSProperties}
+          onChange={(e) => onChange(Number(e.target.value))} />
+        <span className="phk-sliderval">{format ? format(value) : value}</span>
+      </span>
+    </label>
+  );
+}
+
+/**
+ * A dropdown select. The list opens in a layer on the page (a portal, placed from one measure on open), so a clipped
+ * section never cuts it off. Closes on a pick, a press outside, or Escape.
+ */
+export function PhSelect<T extends string | number>({ value, options, onChange, label, disabled, className }: {
+  value: T; options: readonly { value: T; label: ReactNode }[]; onChange: (v: T) => void; label?: string; disabled?: boolean; className?: string;
+}) {
+  const [open, setOpen] = useState<{ left: number; top: number; width: number } | null>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const cur = options.find((o) => o.value === value);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e: globalThis.KeyboardEvent): void => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(null); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [open]);
+  const toggle = (): void => {
+    if (open) { setOpen(null); return; }
+    const r = btn.current?.getBoundingClientRect();
+    if (r) setOpen({ left: r.left, top: r.bottom + 4, width: r.width });
+  };
+  return (
+    <>
+      <button ref={btn} type="button" className={cx('phk-select', className)} aria-haspopup="listbox" aria-expanded={!!open} aria-label={label} disabled={disabled} onClick={toggle}>
+        <span className="phk-selectval">{cur?.label ?? ''}</span><span className="phk-selectcaret" aria-hidden="true">▾</span>
+      </button>
+      {open && createPortal(
+        <div className="phk-selectlayer" onPointerDown={() => setOpen(null)}>
+          <div className="phk-selectlist" role="listbox" aria-label={label} style={{ left: open.left, top: open.top, minWidth: open.width }} onPointerDown={(e) => e.stopPropagation()}>
+            {options.map((o) => (
+              <button key={String(o.value)} type="button" role="option" aria-selected={o.value === value} className={cx('phk-moreitem', o.value === value && 'on')}
+                onClick={() => { setOpen(null); if (o.value !== value) onChange(o.value); }}>{o.label}</button>
+            ))}
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
+/** A search box in the shell's look (a well with the gold focus edge). Pass any input props. */
+export function PhSearch({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+  return <input type="search" spellCheck={false} autoComplete="off" {...rest} className={cx('phk-search', className)} />;
 }

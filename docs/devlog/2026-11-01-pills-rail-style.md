@@ -18,6 +18,14 @@ Branch `feat/pills-rail-style`.
   Refresh cost pills, tooltip pill tags (`--atip-pill-*`), `.riftpill-name`, `.anc-pill`, `.hcdiff`, `.lchat-pill`,
   `.newpill`, `.cv2-ppill`, the Versus hover states of name pills, and `.hsc-start` (Start Game).
 
+- Later the same day (owner, from the review on 5173): the Docked rail's INSPECT card (panel `--pill-plate`, its tiles,
+  power box and fight rows on `--pill-well` with a `--pill-hair` gold hairline), the ROUND slice (`.lrv-headbg`), the
+  KEYWORD boxes (`.kwbox`: own navy plate, solid gold 1px edge, title shadow), and EVERY tooltip panel through the shared
+  `--atip-*` tokens (navy plate, solid gold edge in place of the bevelled gradient, no sheen, titles take
+  `--atip-title-shadow`): the Gold tip, the timer / Gold Fuse tip, the End Turn and upgrade tips, `data-tip` bubbles, hero
+  and rune tips. Then a sweep of what was still purple in game: the combat Summary / Skip / End Combat pills, the Equipment
+  name and clock-window plates, the rail's Versus status pill, `.vsfoe-status`, and the title's "Last played" pill.
+
 ## Kept as accents (meaning)
 
 Heart red; Armor steel blue (`#c4d6ef`, number + shield + hairline); foe red tint on the opponent's name pill (as the
@@ -28,6 +36,7 @@ locked / rift / cleared / Versus-open plate variants keep their own edges.
 
 ## Not changed
 
-The round Gold coin (owner revert); the combat Summary / Skip / End Combat buttons (still the purple Gem plate: buttons,
-out of scope, a candidate follow-up since Start Game used to share their paint); the Compendium guide filter buttons; card
+The round Gold coin (owner revert); the board's targeting prompt pill (owned by `feat/target-prompt-says-effect`); the
+menu screens' purple buttons, tabs and panels (Compendium, Collection, Career, Leaderboard, Escape menu, Versus room,
+Runeforge, hero select Back / reroll); the dev panels (Scene Builder, God mode); the classic non-docked rail; card
 frames; the crystal fuse FX (canvas).

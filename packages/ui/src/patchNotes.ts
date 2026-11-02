@@ -66,6 +66,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Also the upgrade and Refresh costs, tooltip tags, the Rift and Ancient pills, hero difficulty, the lobby chat button and the New tag.',
           'Colours that mean something stay: the red heart, the steel blue Armor number, gold costs that turn red when you cannot afford them, a green free Refresh, and the low time warning.',
           "Your opponent's name now takes the same red tint it has on the lobby rail.",
+          'Every tooltip and keyword box, the lobby rail hover card and the round box take the same navy and gold look.',
         ],
       },
       {

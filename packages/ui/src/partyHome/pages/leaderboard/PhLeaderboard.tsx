@@ -95,7 +95,7 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
               <div role="listitem" key={r.userId || r.author} className={`phl-pod p${i + 1}${mine ? ' me' : ''}`} ref={mine ? mineRef : undefined}>
                 <button type="button" className="phl-podbtn" onClick={() => p.onOpen(r)} aria-label={`${i + 1}. ${w.handle}. View their career`}>
                   {art && <img className="phl-podart" src={art} alt="" draggable={false} decoding="async" />}
-                  <span className="phl-podplace"><PhPlace place={i + 1} /></span>
+                  <span className="phl-podplace"><PhPlace place={i + 1} size={i === 0 ? 'l' : 'm'} /></span>
                   {mine && <PhChip tone="gold" className="phl-you">You</PhChip>}
                   <span className="phl-podwho">
                     <span className="phl-podname">{w.handle}</span>

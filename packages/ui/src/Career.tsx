@@ -750,7 +750,7 @@ export function Career() {
             addFriend={viewing ? <AddFriendButton userId={viewing.userId} /> : null}
             pageState={pageState}
             profileArt={profileArt}
-            favoriteHero={heroName}
+            favoriteHero={heroId ? heroName : 'None yet'}
             accountLevel={accountProgression ? <AccountLevelCard profile={accountProgression} own={own} /> : null}
             level={lv}
             stats={{ games: (runs ?? []).length, firsts: aggregates.firsts, top4Pct: aggregates.top4Pct, losses: aggregates.losses, avgPlacement: aggregates.avgPlacement, tribe: aggregates.favoriteTribe ? TRIBE_LABEL[aggregates.favoriteTribe] : null }}

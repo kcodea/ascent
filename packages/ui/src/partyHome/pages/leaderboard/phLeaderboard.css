@@ -1,6 +1,8 @@
 /* ── THE LEADERBOARD ON THE APP SHELL (party home prototype, DEV only; PhLeaderboard.tsx). Tokens: ../../shell/shell.css.
    Static paint: hover is a colour or a one-shot transform, nothing loops. Scoped to `.phl-page` under html[data-ph-shell]. ── */
 
+/* Over the shell's page backdrop (.ph-pagebd is absolutely positioned; an unpositioned page's plain text paints under its veil). */
+html[data-ph-shell] .phl-page > .phk-page { position: relative; z-index: 1; }
 html[data-ph-shell] .phl-page .phl-pg { flex: 1; min-height: 0; }
 html[data-ph-shell] .phl-page .phk-pageactions { align-self: center; }
 html[data-ph-shell] .phl-page .phk-pagetabs { align-self: flex-end; margin-bottom: calc(-16 * var(--phu)); }
@@ -14,17 +16,16 @@ html[data-ph-shell] .phl-page .phk-pagetabs .phk-tab { padding-bottom: calc(16 *
 .phl-podbtn { position: relative; display: flex; flex-direction: column; justify-content: flex-end; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; overflow: hidden; text-align: left; font: inherit; color: inherit;
   background: var(--ph-navy); clip-path: var(--ph-clip); transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
 .phl-podbtn:hover { transform: translateY(calc(-2 * var(--phu))); }
-.phl-podbtn::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
-.phl-pod.p1 .phl-podbtn::after { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
-.phl-pod.me .phl-podbtn::after, .phl-podbtn:hover::after { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
+.phl-podbtn::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: var(--ph-gild-s); }
+.phl-pod.p1 .phl-podbtn::after { box-shadow: var(--ph-gild); }
+.phl-pod.me .phl-podbtn::after, .phl-podbtn:hover::after { box-shadow: var(--ph-gild); }
 .phl-podbtn:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold); outline-offset: calc(-2 * var(--phu)); }
 .phl-podart { position: absolute; inset: 0 0 auto 0; width: 100%; height: 80%; object-fit: cover; object-position: 50% 12%; pointer-events: none;
   -webkit-mask-image: linear-gradient(180deg, #000 45%, transparent 100%); mask-image: linear-gradient(180deg, #000 45%, transparent 100%); }
 .phl-podplace { position: absolute; top: calc(16 * var(--phu)); left: calc(16 * var(--phu)); }
-.phl-pod.p1 .phl-podplace .phk-place { width: calc(44 * var(--phu)); height: calc(44 * var(--phu)); font-size: var(--ph-t4); }
 .phl-you { position: absolute; top: calc(20 * var(--phu)); right: calc(20 * var(--phu)); }
 .phl-podwho { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: calc(4 * var(--phu)); padding: 0 calc(24 * var(--phu)); }
-.phl-podname { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phl-podname { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-name-font, var(--ph-font)); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .phl-podhero { font-size: var(--ph-t2); font-weight: 700; color: var(--ph-muted); text-shadow: var(--ph-shadow); }
 .phl-podfoot { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: calc(16 * var(--phu)); margin-top: calc(12 * var(--phu));
   padding: calc(12 * var(--phu)) calc(24 * var(--phu)) calc(16 * var(--phu)); background: color-mix(in srgb, var(--ph-navy) 82%, transparent); box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair); }
@@ -37,7 +38,7 @@ html[data-ph-shell] .phl-page .phl-title { --tb-fs: var(--ph-t1); flex: none; }
 
 /* A number with its unit under it. */
 .phl-num { display: flex; flex-direction: column; align-items: flex-end; gap: calc(2 * var(--phu)); }
-.phl-num b { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
+.phl-num b { font-family: var(--ph-name-font, var(--ph-font)); font-weight: 900; font-size: var(--ph-t3); line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
 .phl-num.gold b { color: #fbe6a6; }
 .phl-num small { font-family: var(--ph-font); font-weight: 800; font-size: calc(10 * var(--phu)); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
 .phl-pod .phl-num b { font-size: var(--ph-t4); }
@@ -49,16 +50,16 @@ html[data-ph-shell] .phl-page .phl-title { --tb-fs: var(--ph-t1); flex: none; }
 .phl-head, .phl-rowbtn { display: grid; grid-template-columns: var(--phl-cols); align-items: center; column-gap: calc(16 * var(--phu)); }
 .phl-head { padding: 0 calc(16 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
 .phl-head .r { text-align: right; }
-.phl-row { position: relative; flex: none; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phl-row { position: relative; flex: none; background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
 .phl-row:hover:has(button) { background: var(--ph-plate-hover); }
-.phl-row.me { background: var(--ph-plate-hover); box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
+.phl-row.me { background: var(--ph-plate-hover); box-shadow: var(--ph-gild); }
 .phl-rowbtn { width: 100%; min-height: calc(72 * var(--phu)); margin: 0; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); border: 0; border-radius: 0; background: none; text-align: left; font: inherit; color: inherit; }
 .phl-rowbtn:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold); outline-offset: calc(-2 * var(--phu)); }
-.phl-thumb { position: relative; display: block; width: calc(56 * var(--phu)); height: calc(56 * var(--phu)); overflow: hidden; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phl-thumb { position: relative; display: block; width: calc(56 * var(--phu)); height: calc(56 * var(--phu)); overflow: hidden; background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
 .phl-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
 .phl-pair { display: flex; gap: calc(0 * var(--phu)); }
 .phl-who { min-width: 0; display: flex; flex-direction: column; gap: calc(2 * var(--phu)); }
-.phl-name { display: flex; align-items: center; gap: calc(8 * var(--phu)); min-width: 0; overflow: hidden; white-space: nowrap; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phl-name { display: flex; align-items: center; gap: calc(8 * var(--phu)); min-width: 0; overflow: hidden; white-space: nowrap; font-family: var(--ph-name-font, var(--ph-font)); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .phl-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ph-t1); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
 .phl-go { font-family: var(--ph-font); font-size: var(--ph-t3); color: var(--ph-muted); }
 .phl-row:hover .phl-go { color: var(--ph-ink); }
@@ -73,14 +74,12 @@ html[data-ph-shell] .phl-page .phl-rank .rankbar-points { font-size: var(--ph-t1
 
 /* Your standing, pinned to the foot of the view when you are not on the board. */
 .phl-mepin { position: sticky; bottom: 0; z-index: 2; flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr) calc(280 * var(--phu)) calc(88 * var(--phu)) auto; align-items: center; column-gap: calc(16 * var(--phu));
-  min-height: calc(64 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-plate-hover); box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), 0 calc(-8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4); clip-path: var(--ph-clip-s); }
+  min-height: calc(64 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-plate-hover); box-shadow: var(--ph-gild), 0 calc(-8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4); clip-path: var(--ph-clip-s); }
 
 /* ── 1366: a narrower rank column ── */
 @media (max-width: 1500px) {
   .phl-table { --phl-cols: calc(36 * var(--phu)) calc(56 * var(--phu)) minmax(0, 1fr) calc(240 * var(--phu)) calc(80 * var(--phu)) calc(72 * var(--phu)) calc(16 * var(--phu)); }
   html[data-ph-shell] .phl-page .phl-rank .rankbar-track { width: calc(110 * var(--phu)); }
-  .phl-pod { height: calc(260 * var(--phu)); }
-  .phl-pod.p1 { height: calc(296 * var(--phu)); }
 }
 
 /* ── PHONE (landscape): the podium shorter, the table loses the bar and the chevron; every tap target stays 44 pt+. ── */

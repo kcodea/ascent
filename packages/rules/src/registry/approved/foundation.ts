@@ -10509,6 +10509,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateSignals.test.tsx'], lastVerifiedAt: '2026-10-27' },
   },
   {
+    id: 'R-DUOS-MATE-TRIPLE-01',
+    title: 'Duos: a Shop or hand card that completes your teammate\x27s triple is marked in teal',
+    statement:
+      'In Versus Duos and Ranked Duos, on the player\x27s own screen (never while they watch their teammate), a non-Golden Shop offer or '
+      + 'hand card is marked when the teammate is one copy short of Gilding it: the teammate holds two non-Golden copies on their board '
+      + 'and hand together (one under their own Gild-at-2 rules, Twin Gilding or Midas\x27 Touch). The mark is the own-triple hint '
+      + '(static ring, breathing glow, rising arrows) in the Duos pass teal; on a plated hand card the plate\x27s glow turns teal. It is '
+      + 'live: it follows the teammate\x27s frames, so it appears and clears the moment their pair forms or breaks. A Shop offer that '
+      + 'also completes the player\x27s OWN triple shows only the gold own-triple hint. Spells, Rubies and cards that never combine are '
+      + 'never marked. Animates opacity and transform only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live Duos play with Mike)', quote: 'this is referring to when a teammate has a pair, and the minion shows up in your shop. we need something that shows you can give that to your teammate for a triple.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/mateTriples.ts (mateTripleKey); packages/ui/src/versus/useMateTriples.ts; packages/ui/src/versus/duosMateSignals.ts (noteMateFrame); packages/ui/src/sbDuos.ts; packages/ui/src/Recruit.tsx (mateTripleUids); packages/ui/src/Card.tsx (.matetrip)' },
+    ],
+    currentBehaviour: 'Built 2026-11-02 (feat/duos-mate-flyin-triple). Before, nothing on the player\x27s screen said a Shop minion would complete the teammate\x27s pair.',
+    example: 'Bob holds two Alley Cats. A third shows up in Ann\x27s shop: it glows teal with teal arrows rising. Ann buys it and it keeps the teal glow in her hand until she passes it to Bob.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/mateTriples.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-DUOS-RAIL-TEAM-01',
     title: 'Duos: the lobby rail shows one slot per team',
     statement:

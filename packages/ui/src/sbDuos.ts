@@ -25,6 +25,7 @@ import {
 } from '@game/sim';
 import { useGame } from './store';
 import { installLocalMate, useLocalMate, type LocalMateApi } from './versus/localMate';
+import { noteLocalMateTriples } from './versus/mateTriples';
 import { useSpectate } from './versus/spectate';
 import { exitTeammateView } from './versus/teammateView';
 import { playArrival, playEntryFlight } from './versus/passLob';
@@ -200,12 +201,18 @@ const api: LocalMateApi = {
 };
 
 let unsub: (() => void) | null = null;
+let unsubTriples: (() => void) | null = null;
+/** The placeholder teammate's pairs, for my shop's teammate triple hint (R-DUOS-MATE-TRIPLE-01). Only while my own
+ *  screen is on (while I view theirs, `other` is MY run). */
+const syncMateTriples = (st: SbDuosState = useSbDuos.getState()): void => noteLocalMateTriples(st.viewing ? null : st.other);
 /** Turn the placeholder team on (the rig's Duos toggle, with a Duos sandbox run). Idempotent. */
 export function installSbDuos(): void {
   if (unsub) return;
   installLocalMate(api);
   unsub = useGame.subscribe((s, prev) => { if (s.run !== prev.run) onStoreRun(s.run, prev.run); });
+  unsubTriples = useSbDuos.subscribe((s, prev) => { if (s.other !== prev.other || s.viewing !== prev.viewing) syncMateTriples(s); });
   syncTeam(useGame.getState().run);
+  syncMateTriples();
 }
 /** Off: back to my own board, the teammate dropped, the seam removed. */
 export function uninstallSbDuos(): void {
@@ -213,7 +220,10 @@ export function uninstallSbDuos(): void {
   if (useSbDuos.getState().viewing) api.exit();
   unsub();
   unsub = null;
+  unsubTriples?.();
+  unsubTriples = null;
   resetTeam();
+  noteLocalMateTriples(null);
   installLocalMate(null);
   if (typeof document !== 'undefined') document.body.classList.remove('duos-viewing');
 }

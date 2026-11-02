@@ -1336,6 +1336,11 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   hand" like any other. Runes, Equipment, quests and the Starform cannot be passed. **A Golden minion CAN be passed from
   hand** (owner 2026-10-31, R-DUOS-PASS-GOLDEN-MANUAL-01: "gilded minions can be passed from hand but not targeted by
   spells that pass"; this revises the 2026-10-30 no-Golden rule): it costs 1 Gold like any card and arrives Golden.
+- **Your teammate's triple** (owner 2026-11-02, R-DUOS-MATE-TRIPLE-01: "when a teammate has a pair, and the minion shows
+  up in your shop. we need something that shows you can give that to your teammate for a triple"). On your own screen, a
+  non-Golden Shop offer or hand card your teammate is one copy short of Gilding (two non-Golden copies on their board and
+  hand; one under their own Gild-at-2 rules) wears the triple hint in teal (ring, glow, rising arrows), live from their
+  frames. An offer that completes your own triple too shows only your gold hint. Not shown while you watch them.
 - **Leaving, conceding, disconnects.** Leaving or conceding puts the whole team out. A disconnect pauses as in Group
   (30 s, then the absent player's last locked board plays on auto); three auto rounds in a row put the team out. A
   teammate who is away cannot be passed to: their portrait reads "Away" and a drop is refused ("Your teammate is away").

@@ -86,7 +86,7 @@ export function LiveGames(): JSX.Element | null {
         <MenuSidebar current="live" />
         <Suspense fallback={null}>
           <LiveGamesPh offline={!remoteEnabled()} rows={rows} failed={failed} error={error} page={page} joining={joining} showOpp={showOpp}
-            onWatch={watch} onPage={turnPage} onRecent={() => { sfx.pulse(); goTo('recent'); }} />
+            onWatch={watch} onPage={turnPage} onRecent={() => { sfx.pulse(); goTo('recent'); }} onPlay={() => { sfx.pulse(); goTo('menu'); }} />
         </Suspense>
       </SidebarHost>
     );

@@ -101,7 +101,7 @@ const live = (i: number, over: Partial<LiveGameRow> = {}): LiveGameRow => ({
 });
 const lprops = (over: Partial<LiveGamesPhProps> = {}): LiveGamesPhProps => ({
   offline: false, rows: [live(0), live(1, { spectators: 20 }), live(2, { phase: 'end', placement: 1 })], failed: false, error: null,
-  page: 0, joining: null, showOpp: false, onWatch: vi.fn(), onPage: vi.fn(), onRecent: vi.fn(), ...over,
+  page: 0, joining: null, showOpp: false, onWatch: vi.fn(), onPage: vi.fn(), onRecent: vi.fn(), onPlay: vi.fn(), ...over,
 });
 
 describe('Live Games on the shell', () => {
@@ -119,8 +119,12 @@ describe('Live Games on the shell', () => {
   it('is never a dead end: no games points at Recent Games, and a full page pages', () => {
     const p = lprops({ rows: [] });
     ui = mount(<LiveGamesPh {...p} />);
-    q('.phk-empty .phk-btn')!.click();
+    const [replays, play] = qa('.phk-empty .phk-btn');
+    expect(replays!.textContent).toBe('Watch replays');
+    replays!.click();
     expect(p.onRecent).toHaveBeenCalled();
+    play!.click();
+    expect(p.onPlay).toHaveBeenCalled();
     const full = Array.from({ length: LIVE_PAGE }, (_, i) => live(i));
     const p2 = lprops({ rows: full });
     ui.render(<LiveGamesPh {...p2} />);

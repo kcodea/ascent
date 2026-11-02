@@ -185,30 +185,26 @@ const Strip = memo(function Strip({ rows, practice }: { rows: readonly KeyedRow[
   );
 });
 
-/** The placement ledger: 1st at the top, 8th at the foot, a gilded rule at the 4.5 split; a win a gold diamond, the rest
- *  of the top 4 a silver dot, 5th to 8th a bronze ring (the podium's metals). Static SVG, built once per list. */
+/** The placement ledger: 1st at the top, 8th at the foot, the top 4 a soft lit band. The line is a soft rounded stroke in
+ *  a stretched SVG; every game is a glossy GEM laid over it in HTML (so it stays round at any width): a gold gem for a win,
+ *  silver for the rest of the top 4, bronze after. Static: built once per list. */
 const Spark = memo(function Spark({ places }: { places: readonly number[] }) {
-  const W = 560; const H = 96; const L = 34; const R = 8; const T = 9; const B = 9;
   const n = places.length;
-  const x = (i: number): number => (n <= 1 ? (L + W - R) / 2 : L + (i * (W - L - R)) / (n - 1));
-  const y = (pl: number): number => T + ((pl - 1) * (H - T - B)) / 7;
-  const line = n > 1 ? places.map((pl, i) => `${x(i).toFixed(1)},${y(pl).toFixed(1)}`).join(' ') : '';
-  const d = n > 60 ? 2.6 : 3.6;
+  // Percent of the plot box, with a little room at each end so the end gems are whole.
+  const x = (i: number): number => (n <= 1 ? 50 : 2 + (i * 96) / (n - 1));
+  const y = (pl: number): number => 8 + ((pl - 1) * 84) / 7;
+  const line = n > 1 ? places.map((pl, i) => `${(x(i) * 10).toFixed(1)},${y(pl).toFixed(1)}`).join(' ') : '';
   return (
     <div className="rgp-spark">
       <span className="rgp-k">Placements, oldest to newest</span>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={`Placements of the last ${n} games`}>
-        <line className="rgp-sp-mid" x1={L} x2={W - R} y1={y(4.5)} y2={y(4.5)} />
-        {line && <polyline className="rgp-sp-line" points={line} />}
-        {places.map((pl, i) => {
-          const band = bandOf(pl);
-          return band === 'won'
-            ? <rect key={i} className="rgp-pt won" x={x(i) - d} y={y(pl) - d} width={d * 2} height={d * 2} transform={`rotate(45 ${x(i)} ${y(pl)})`} />
-            : <circle key={i} className={`rgp-pt ${band}`} cx={x(i)} cy={y(pl)} r={n > 60 ? 2.2 : 3} />;
-        })}
-      </svg>
-      {/* The axis as HTML, so the stretched SVG never squashes its labels. */}
-      <span className="rgp-sp-ax" aria-hidden="true"><b>1st</b><b>4th</b><b>8th</b></span>
+      <div className={`rgp-sp-plot${n > 60 ? ' dense' : ''}`} role="img" aria-label={`Placements of the last ${n} games`}>
+        <svg viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
+          <rect className="rgp-sp-top4" x="0" y={y(1) - 6} width="1000" height={y(4.5) - y(1) + 6} rx="6" />
+          {line && <polyline className="rgp-sp-line" points={line} />}
+        </svg>
+        {places.map((pl, i) => <i key={i} className={`rgp-gem ${bandOf(pl)}`} style={{ left: `${x(i)}%`, top: `${y(pl)}%` }} />)}
+        <span className="rgp-sp-ax" aria-hidden="true"><b style={{ top: `${y(1)}%` }}>1st</b><b style={{ top: `${y(4)}%` }}>4th</b><b style={{ top: `${y(8)}%` }}>8th</b></span>
+      </div>
     </div>
   );
 });
@@ -356,7 +352,7 @@ const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, o
 
       <section className="rgp-boardsec" aria-label="Final board" ref={boardRef}>
         {match
-          ? <ShowingLine seat={seat} details={match} onBack={() => pick(null)} />
+          ? <ShowingLine seat={seat} details={match} onBack={() => pick(null)} own={mine} />
           : <div className="lp-showing"><span className="lp-showing-l">Final board</span></div>}
         <div className="rgp-board"><div className="rgp-boardin" key={seat?.id ?? 'own'}>
           {seat ? <SeatBoard seat={seat} own={mine} /> : r.board && r.board.minions.length > 0

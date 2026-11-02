@@ -25,7 +25,7 @@ export const LIVE_WATCH_CAP = 20;
 export interface LiveGamesPhProps {
   offline: boolean; rows: readonly LiveGameRow[] | null; failed: boolean; error: string | null;
   page: number; joining: string | null; showOpp: boolean;
-  onWatch: (r: LiveGameRow) => void; onPage: (next: number) => void; onRecent: () => void;
+  onWatch: (r: LiveGameRow) => void; onPage: (next: number) => void; onRecent: () => void; onPlay: () => void;
 }
 
 /** "12 live now" / "30+ live now" (a full page means there are more). */
@@ -42,14 +42,19 @@ export function LiveGamesPh(p: LiveGamesPhProps) {
   else if (rows === null) {
     body = <PhSection><PhEmpty title={p.failed ? 'Live games are not available right now' : 'Finding live games'} sub={p.failed ? 'Trying again shortly.' : 'One moment.'} /></PhSection>;
   } else if (rows.length === 0) {
+    // Never a dead end, and centred in the page (round 4 critic): a short friendly line and the two things to do instead.
     body = (
-      <PhSection>
-        <PhEmpty
-          title={p.page > 0 ? 'No more live games' : 'No games are being played right now'}
-          sub={p.page > 0 ? undefined : 'Check back soon, or watch a finished game.'}
-          action={p.page === 0 ? <PhButton onClick={p.onRecent}>Recent Games</PhButton> : <PhButton onClick={() => p.onPage(0)}>First page</PhButton>}
-        />
-      </PhSection>
+      <div className="lvp-quiet">
+        <PhSection>
+          <PhEmpty
+            title={p.page > 0 ? 'That is every live game' : 'All quiet in the arena'}
+            sub={p.page > 0 ? 'Head back to the first page to see them all.' : 'No one is mid-game right now. Catch a recent replay, or start a game of your own.'}
+            action={p.page === 0
+              ? <span className="lvp-quietbtns"><PhButton variant="primary" onClick={p.onRecent}>Watch replays</PhButton><PhButton onClick={p.onPlay}>Play</PhButton></span>
+              : <PhButton onClick={() => p.onPage(0)}>First page</PhButton>}
+          />
+        </PhSection>
+      </div>
     );
   } else {
     body = (

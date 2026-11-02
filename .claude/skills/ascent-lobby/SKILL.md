@@ -108,7 +108,10 @@ behaviour from a legacy symbol.**
   made the old way at once (no data loss). The pool sample's two reads come from the hub's mirror, which must stay
   byte-identical to `pool_runs_boards` and draw exactly as `pool_runs__pick` (`core/poolPick.ts`; a change to the SQL draw
   must change the port in the same PR: `workers/versus/test/sessionCf.db.test.ts` compares them). A new run-end write must
-  go through the outbox (`submitRunWrite`) to ride the session.
+  go through the outbox (`submitRunWrite`) to ride the session. The end's save-row CLEAR is the exception: the session
+  flushes it before answering (R-SESSION-CLEAR-01, 2026-11-02), because the title's reconcile runs right behind it and a
+  lingering row was adopted as Continue of the ended game (a loop). The client also never adopts a run it ended
+  (`noteRunEnded` / `endedRunKeys` in `cloudSave.ts`); a new door that ends or discards a run must call `cloudSave.endRun`.
 - **Board strength + rank bands** (R-LOBBY-09, 2026-09-30): a board's raw strength is its seeded win rate against the
   frozen reference set (`lobby/boardStrength.ts`, `strengthReference.v1.json`), stored with the board; percentiles and
   a run's strength (`pool_runs.strength`: its board-percentile average RANKED among the runs, so bands hold their nominal share) are derived server-side. Since 2026-10-06 (R-LOBBY-13) each run

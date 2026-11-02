@@ -1174,4 +1174,28 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'unchanged: it is not capped and keeps its own order.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/matchDetails.test.ts', 'packages/ui/src/matchDetails/matchBuffsInspect.test.tsx'], lastVerifiedAt: '2026-10-31' },
   },
+  {
+    id: 'R-SESSION-CLEAR-01',
+    title: 'A game that ended is never offered as Continue again, even while its cloud row is still being removed',
+    statement:
+      'When a game ends, the cloud save row of a game session is removed BEFORE the session answers the clear (it is no '
+      + 'longer held for the end-of-game settle). If that removal fails, the client removes the row the old way at once. '
+      + 'Each device also remembers the games that ended (or were discarded) on it, apart from the save slot: the title '
+      + 'never adopts the cloud row of one of those games as Continue, and clears that row instead. Ranked, casual and '
+      + 'Practice games alike.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Player report relayed by Kevin, 2026-11-02', quote: 'my game finished but then I didn\x27t see my MMR go up in my profile so I refreshed and now I\x27m on round 13 again' },
+      { kind: 'owner-chat', ref: 'Player report relayed by Kevin, 2026-11-02', quote: 'it keeps looping. the game ended again and now it shows CONTINUE Round 13' },
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-02', quote: 'i have also seen it where a game ends and the continue option is there' },
+      { kind: 'code', ref: 'workers/versus/src/session.ts (clear op: flushClearNow); packages/ui/src/cloudSave.ts (noteRunEnded / endedRunKeys, checkAtTitle); packages/ui/src/store.ts (run end endRun(runKeyOf(next)))' },
+    ],
+    currentBehaviour:
+      'Conforms from this PR (2026-11-02). Before it, the session held the end\x27s clear for about 8 s, and the title\x27s '
+      + 'reconcile (queued right behind the clear on the client) read the still-present row and adopted the ended game as '
+      + 'Continue, which looped: Continue, the same last fight, the same row.',
+    example: 'Ann Save & Quits a ranked game at round 13, continues it, and wins it at round 13. Back at the menu there is no Continue. Her row was removed before the clear answered, and even if it had lingered, her device knows that game ended and clears the row.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cloudSave.test.ts', 'workers/versus/test/it/session.it.ts'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

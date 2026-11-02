@@ -2283,7 +2283,7 @@ function commitResolvedAction(
       // `endRun` reads the lease before `clearSave` drops it.
       // `!next.sandbox`: a sandbox run (Scene Builder, God Mode) never owns the save slot, so its end must never
       // clear the player's real save (God Mode keeps that save offered as Continue, owner 2026-10-08).
-      if (finished && !next.sandbox) { void cloudSave.endRun(); clearSave(); savedRun = null; }
+      if (finished && !next.sandbox) { void cloudSave.endRun(runKeyOf(next)); clearSave(); savedRun = null; }
       // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
       // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
       else if (next.phase !== s.run.phase && isResumableRun(next)) {

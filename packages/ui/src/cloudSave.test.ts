@@ -5,7 +5,7 @@
  * (the lease + device id live there, exactly as they do in a browser profile).
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createCloudSave, decideAtTitle, loadLease, noteLocalClear, noteLocalSave, type CloudRowMeta, type CloudSave } from './cloudSave';
+import { createCloudSave, decideAtTitle, endedRunKeys, loadLease, noteLocalClear, noteLocalSave, noteRunEnded, type CloudRowMeta, type CloudSave } from './cloudSave';
 import { fakeCloudServer, type FakeServer } from './cloudSaveFake';
 
 const SAVE_KEY = 'ascent.save';
@@ -231,6 +231,42 @@ describe('run end', () => {
     await a.requestUpload(); // and a stray upload of it can't bring it back
     expect(server.rows.size).toBe(0);
     expect(moved).toEqual([null]);
+  });
+
+  it('a run that ended here is never adopted back while its row lingers; the title clears it (R-SESSION-CLEAR-01)', async () => {
+    // The game session on the hub answered the end's clear before the row was gone (it held it for the settle). The
+    // title's reconcile read the row in that window and offered the ended run as Continue: a loop (player 2026-11-02).
+    const real = server.apiFor(() => user);
+    let holdClear = true;
+    const svc = createCloudSave({
+      api: { ...real, clear: async (a) => (holdClear ? 'ok' : real.clear(a)) },
+      userId: () => user, readLocal: () => localStorage.getItem(SAVE_KEY), seatRuns: () => undefined,
+      onMoved: (m) => { moved.push(m); }, setTimeout: (fn) => { retries.push(fn); },
+    });
+    saveLocally('run:x', 'R13');
+    await svc.requestUpload(); // the row holds round 13 (a Save & Quit, or the session's quiet write)
+    await svc.endRun('run:x'); // the game ended at round 13
+    noteLocalClear();
+    expect(server.rows.size).toBe(1); // still there: the removal had not landed yet
+    holdClear = false;
+    const seen = await svc.checkAtTitle(null);
+    expect(seen.decision).toBe('none'); // no Continue of a finished game
+    expect(seen.row).toBeUndefined();
+    expect(server.rows.size).toBe(0); // and the lingering row is cleared from here
+    // A different (live) run in the slot is adopted as before.
+    saveLocally('run:y', 'Y');
+    await svc.requestUpload();
+    noteLocalClear();
+    expect((await svc.checkAtTitle(null)).decision).toBe('adopt');
+  });
+
+  it('the ended list survives the local clear and stays bounded', () => {
+    for (let i = 0; i < 30; i++) noteRunEnded(`run:${i}`);
+    noteLocalClear();
+    const keys = endedRunKeys();
+    expect(keys).toHaveLength(20);
+    expect(keys.at(-1)).toBe('run:29');
+    expect(keys).not.toContain('run:0');
   });
 
   it('a new run replaces an older one in the slot', async () => {

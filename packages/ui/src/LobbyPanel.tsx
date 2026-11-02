@@ -17,7 +17,7 @@ import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/Port
 import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
 import { useDockCfg, useSliceLabel } from './lobbyRailVariant';
 import { useDockedRail } from './useDockedRail';
-import type { DockPanel, Pt } from './lobbyRailDockedLayout';
+import { teamPlatePath, type DockPanel, type Pt } from './lobbyRailDockedLayout';
 import { RuneTipBody, type RuneTipSource } from './runeTipBody';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
@@ -29,6 +29,7 @@ import { stageHost, stageViewport, toStage } from './stage';
 import { useSpectate } from './versus/spectate';
 import { mySeat, useVersus } from './versus/versusStore';
 import { parseRailStatusKey, railStatusKey, versusRailStatuses } from './versus/versusRailStatus';
+import { playMateReadySlam } from './versus/mateReadySlam';
 import { groupDuosRailRows } from './versus/versusGroupView';
 import { duosRailTeamOf, duosRailTeams, duosTeamHealthRow, duosTeamPlaces, duosTeamResults, type DuosFightFoe } from './versus/duosRailTeams';
 import { isRankedDuosRaw, rankedTeamLabels } from './versus/rankedDuosView';
@@ -497,6 +498,21 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     return railStatusKey(versusRailStatuses(st.match, viewer));
   });
   const statuses = useMemo(() => parseRailStatusKey(statusKey), [statusKey]);
+  // YOUR TEAMMATE READIES UP (R-DUOS-MATE-READY-01): their slice glows green with a check while they are Locked in (the
+  // shop), and the flip itself slams (`playMateReadySlam` + the slice's punch). A teammate already locked in when the
+  // rail first sees them just shows the glow: the slam is for the moment it happens.
+  const mateReady = !!duosMate && statuses[duosMate]?.label === 'Locked in';
+  const [mateSlam, setMateSlam] = useState(false);
+  const mateReadyWas = useRef<boolean | null>(null);
+  useEffect(() => {
+    const was = mateReadyWas.current;
+    mateReadyWas.current = mateReady;
+    if (!mateReady) { setMateSlam(false); return; }
+    if (was === false) {
+      setMateSlam(true);
+      playMateReadySlam(railRef.current?.querySelector(`.lobbyseat[data-seat="${duosMate}"]`));
+    }
+  }, [mateReady, duosMate]);
   const rail = lobbyRailView(lobby, { opponent: playerOpponent(lobby), self: { resolve: myResolve, armor: myArmor } });
   const next = rail.opponent;
   const foe = next?.seat ?? null;
@@ -678,7 +694,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               data-seat={seat.id}
               // LIVE PINGS (R-PING-08): a teammate or mentor pings a seat; the player's own right-click stays the scout pin.
               data-ping={railKey(seat.id)} data-ping-own="" data-ping-at="left"
-              className={`lobbyseat${inTeam ? ' inteam' : ''}${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === mateId ? ' mate' : ''}`}
+              className={`lobbyseat${inTeam ? ' inteam' : ''}${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === mateId ? ' mate' : ''}${mateReady && seat.id === duosMate ? ` mate-ready${mateSlam ? ' slam' : ''}` : ''}`}
               {...(seat.id === duosMate ? { 'aria-label': `${seat.label}, your teammate. Click to watch their board.` } : {})}
               // Hover scouting works on EVERY seat, yours included (owner ask 2026-09-24: "add the same mouseover
               // for self as we have for enemies"). Pinning stays opponent-only; the owner asked for the hover.
@@ -720,9 +736,14 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                   {/* YOUR slice: YOU in a round teal chip on the top-right corner, the twin of the next foe's swords (owner 2026-10-31:
                       "lets have the players YOU in a circle in the top corner, just like the now facing icon"). */}
                   {isYou && <span className="lrv-you">You</span>}
+                  {/* YOUR TEAMMATE IS READY (R-DUOS-MATE-READY-01): a green check chip in the same corner (it says Locked in, so their
+                      slice drops the pill meanwhile). */}
+                  {mateReady && seat.id === duosMate && (
+                    <span className="lrv-ready" aria-label="Ready"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>
+                  )}
                   {/* VERSUS: what this player is doing, when it matters (versusRailStatus.ts). Keyed by the label, so each
                       change pops in once. Your own is on your End Turn gem. */}
-                  {!isYou && row.alive && statuses[seat.id] && (
+                  {!isYou && row.alive && statuses[seat.id] && !(mateReady && seat.id === duosMate) && (
                     <span key={statuses[seat.id]!.label} className={`lrv-status ${statuses[seat.id]!.tone}`}>{statuses[seat.id]!.label}</span>
                   )}
                   {/* A DUOS team's shared pool shows on BOTH its slices (owner 2026-11-01: "health should show on both heroes
@@ -809,7 +830,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                 const mod = `${members.some((m) => m.you) ? ' you' : ''}${members.some((m) => m.next) ? ' foe' : ''}${members.some((m) => m.alive) ? '' : ' dead'}`;
                 return (
                   <div key={`team${t.team}`} className={`lrv-team${mod}`} data-team={t.team} aria-hidden="true"
-                    style={{ left: t.x, top: t.y, width: t.w, height: t.h, '--dk-s': dock.s } as React.CSSProperties} />
+                    style={{ left: t.x, top: t.y, width: t.w, height: t.h, clipPath: teamPlatePath(t, dock.panels, 8 * dock.s), '--dk-s': dock.s } as React.CSSProperties} />
                 );
               })}
               {dock.teams?.map((t) => {
@@ -819,7 +840,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                 const mod = `${members.some((m) => m.you) ? ' you' : ''}${members.some((m) => m.alive) ? '' : ' dead'}`;
                 return (
                   <span key={`tname${t.team}`} className={`lrv-teamname${mod}`} aria-label={`Team ${label}`}
-                    style={{ left: t.x + (dockById.get(t.ids[0]!)?.topX ?? 0), top: t.labelY, maxWidth: t.w * 0.9, '--dk-s': dock.s } as React.CSSProperties}>{label}</span>
+                    style={{ left: t.x + (dockById.get(t.ids[0]!)?.topX ?? 0), top: t.labelY, width: t.w - (dockById.get(t.ids[0]!)?.topX ?? 0), '--dk-s': dock.s } as React.CSSProperties}>{label}</span>
                 );
               })}
               {/* THE TEAM'S PLACE (R-DUOS-RAIL-TEAM-02): one placement box right of the pair, spanning both slices, in the

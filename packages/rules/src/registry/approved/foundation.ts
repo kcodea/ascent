@@ -13470,4 +13470,66 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Kevin is in the Scene Builder. He clicks the – in its header: the panel shrinks to a bar reading "Scene Builder R1 · 8 left GOD" with a restore button. He clicks ✕: the panel is gone and the shop keeps running. He opens the dev menu, clicks Scene Builder, and the panel is back with his search still typed in.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/sceneBuilderPanel.test.tsx', 'packages/ui/src/devCorner.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-DUOS-RAIL-PLATE-01',
+    title: 'Duos on the Docked rail: the team backing follows the slices\x27 shape, and the team name reads right-aligned and outlined',
+    statement:
+      'In Versus Duos and Ranked Duos on the Docked lobby rail, a team\x27s dark backing never shows past its slices\x27 outlines: it '
+      + 'takes the union of its members\x27 slice shapes, the gap between them (starting where both edges are clear of a board '
+      + 'piece\x27s cut), and the strip for its side bracket, so a cut slice reads cut through its backing too. A team\x27s name over '
+      + 'its pair is right-aligned, kept clear of the round corner chip (YOU, the next foe\x27s swords), with a 2px black outline. '
+      + 'The Health and Armor column on a team rail sits 10px further right than on a solo rail.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02, with a screenshot of a Docked Duos rail', quote: 'the shadows are cropping over, which we dont want. they should follow the exact shape of the lobby rail navy blue part' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02', quote: 'i want the team name to be right aligned, but with some padding from the right so it isnt covered by the "YOU" or "now facing" corner icon. i want to put a black 2px stroke around the font as well' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02', quote: 'i want to nudge the heart and armor section to the right ever so slightly' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02', quote: 'i want to nudge the health and armor section over another 6px' },
+      { kind: 'fix-pr', ref: 'PR fix/duos-rail-polish (2026-11-02)' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyRailDockedLayout.ts (teamPlatePath); packages/ui/src/LobbyPanel.tsx (.lrv-team clipPath, .lrv-teamname box); packages/ui/src/lobbyRailDocked.css' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-11-02. Before, the backing was a plain rectangle round the pair, so its corners showed past the gem\x27s and the coin\x27s cuts, and the team name sat left with a soft shadow.',
+    example: 'Your pair sits beside the gem: the slices\x27 diamond cut runs clean through the dark backing, and "HILTON HOTELS" sits right-aligned above, short of your YOU chip.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailDuosPlate.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-DUOS-MATE-READY-01',
+    title: 'Duos on the Docked rail: your teammate readying up in the shop slams their slice, which then stays green with a check',
+    statement:
+      'In Versus Duos and Ranked Duos, while your teammate is Locked in during the shop their Docked rail slice has a green '
+      + 'edge and glow and a round green check chip on its top-right corner (in place of their Locked in pill). The moment '
+      + 'they lock in (seen happen, not a lock already set when the rail first shows them) plays once: the rune arrival\x27s '
+      + 'implosion in green on the slice, the owner ding (the loudest of the three, on its own fader), the rune arrival sound (the rune landing in its socket) and an impact thud, and a short punch of the slice. Unlocking '
+      + 'clears it; locking again plays it again. The fight screen never shows it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02', quote: 'i want to also add an animation when your teammate readies up during the shop round. i want to copy the rune select "slam" effect when the rune is applied to their slot, but their lobby rail card should go "CHING!" and thud and glow green with a green check mark icon in the top corner of their rail' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02', quote: 'i want the rune select sound when it slams into the rune socket on turn 6' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02, with dragon-studio-ding-sfx-472366.mp3', quote: 'can we layer this in, cut out the empty space of it first, then have this louder than the other two sounds?' },
+      { kind: 'fix-pr', ref: 'PR fix/duos-rail-polish (2026-11-02)' },
+      { kind: 'code', ref: 'packages/ui/src/versus/mateReadySlam.ts (playMateReadySlam); packages/ui/src/LobbyPanel.tsx (mateReady, .mate-ready, .lrv-ready); packages/ui/src/lobbyRailDocked.css (lrvReadySlam)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-11-02. Before, the teammate locking in only swapped a small Locked in pill onto their slice.',
+    example: 'Mid-shop, Rayse presses End Turn: their slice punches in under a green burst with a CHING and a thud, then sits green with a check until the fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailMateReady.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-RAIL-CHIP-TOP-01',
+    title: 'The Docked rail\x27s corner chips (YOU, the next foe\x27s swords, the teammate\x27s ready check) are drawn above every other rail piece',
+    statement:
+      'On the Docked lobby rail, a round corner chip on a slice (YOU, the next foe\x27s crossed swords, the Duos teammate\x27s ready '
+      + 'check) is never covered by another rail piece: not the placement column beside it, not a neighbouring slice. Every mode.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02, with a screenshot of the YOU and ready chips under the placement column', quote: 'these icon circles need to be above the rest of the rail UI elements, not behind' },
+      { kind: 'fix-pr', ref: 'PR fix/duos-rail-polish (2026-11-02)' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyRailDocked.css (.lobbyseat:is(.you.foe.ghost.dead, *):has(> .lrv-you, > .lrv-vs, > .lrv-ready) z-index 3)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-11-02. Before, a slice was its own stacking context at z 1, so its chip sat under the placement column (z 2) where the two overlap.',
+    example: 'Your slice beside the placement column: the teal YOU circle overlaps the column\x27s edge and is drawn over it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailDuosPlate.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

@@ -1809,7 +1809,7 @@ export const sfx = {
   // 2026-08-25). Volume is a ⚔️ Hero Duel tuner dial, applied on top of the `attack` mix via the node gain.
   tallyTravel: (vol = 1) => { playSample('TallyTravel', 'attack', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
   attackPillAdd: (vol = 1) => { playSample('AttackPillAdd', 'attack', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
-  tallyImpact: (vol = 1) => { playSample('tallyimpact', 'attack', 0, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
+  tallyImpact: (vol = 1, delay = 0) => { playSample('tallyimpact', 'attack', Math.max(0, delay) / 1000, (n) => { n.gain.gain.value *= Math.max(0, vol); }); },
   // ANCIENTS meter fill (owner 2026-09-26: the tally-counter clip was "far too loud and delayed and distracting"):
   // a very soft, short synth glint that starts on the same frame as the fill sweep (no sample decode / lead-in).
   ancientFillTick: (vol = 1) => {
@@ -2065,6 +2065,16 @@ export const sfx = {
     if (vol <= 0) return;
     if (playSample('runeselectimplosion', 'runeArrival', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
     tone({ freq: 1180, dur: 0.22, type: 'sine', vol: 0.09 * vol, slideTo: 380, category: 'runeArrival' });
+  },
+  /**
+   * THE DUOS TEAMMATE-READY DING (owner 2026-11-02: "can we layer this in, cut out the empty space of it first, then have
+   * this louder than the other two sounds"): the owner's ding clip (`mateready.mp3`, trimmed to its strike and ring),
+   * on its own fader, layered over the rune arrival and the thud when the teammate readies up (versus/mateReadySlam.ts).
+   */
+  mateReadyDing: (vol = 1, delay = 0) => {
+    if (vol <= 0) return;
+    if (playSample('mateready', 'mateready', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
+    tone({ freq: 1760, dur: 0.3, type: 'sine', vol: 0.1 * vol, slideTo: 1720, category: 'mateready' });
   },
   runeSelect: (vol = 1, delay = 0) => {
     if (vol <= 0) return;

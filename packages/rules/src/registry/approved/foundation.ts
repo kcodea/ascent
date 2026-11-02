@@ -13271,4 +13271,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-11-02. Before, only hero skins, minion skins (2026-09-29) and emotes (2026-10-15) showed art; a card plate or a portrait frame revealed with the nameplate alone.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/Crates.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-TRIPLE-HINT-OVAL-01',
+    title: 'Triple hints on a framed card glow around the frame, with no ring around the card box',
+    statement:
+      'The own-triple hint and the Duos teammate-triple hint on a framed card (the oval minion frame or the Taunt shield) show their '
+      + 'breathing glow and rising arrows only. They never draw the hard tribe-colour ring around the card box, which on those frames '
+      + 'reads as a coloured rectangle behind the art. Unframed cards keep the ring.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-02 (screenshot of a Dwarf in the Shop with the teal teammate-triple hint)', quote: 'there\x27s a yellow highlight frame behind the art - what is that? can you fix it?' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.card.compact.stdframe/.taunt .tripready/.matetrip)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-11-02. Before, the 4px `--c` box ring showed as a tribe-coloured rectangle behind oval art (yellow for Dwarves).',
+    example: 'A Dwarf in Ann\x27s Shop completes Bob\x27s pair: it glows teal with teal arrows, and no yellow box shows behind the oval.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/tripleHintOval.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

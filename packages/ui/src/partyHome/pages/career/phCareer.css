@@ -21,6 +21,9 @@ html[data-ph-shell] .phc-page .phc-titlechip { transform: none; height: calc(28 
 html[data-ph-shell] .phc-page .phc-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(360 * var(--phu)) minmax(0, 1fr); gap: calc(24 * var(--phu)); }
 .phc-profile { min-height: 0; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: none; padding-bottom: calc(8 * var(--phu)); }
 .phc-profile::-webkit-scrollbar { display: none; }
+/* The column scrolls on its own (it is taller than a 1080 screen): its foot fades out, so a card cut at the edge reads
+   as "more below" rather than as clipped. Static mask. */
+html[data-ph-shell]:not([data-touch-small]) .phc-profile { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 48 * var(--phu)), transparent 100%); mask-image: linear-gradient(180deg, #000 calc(100% - 48 * var(--phu)), transparent 100%); padding-bottom: calc(48 * var(--phu)); }
 .phc-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 
 /* The identity plate: the chosen portrait fading into the navy, the name and the favourite hero over its foot. */
@@ -134,8 +137,24 @@ html[data-ph-shell] .phc-page .gc.gc-detail .gc-runes :is(.cv2-rune, .lb-rune) {
 html[data-ph-shell] .phc-page .phc-trends { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; margin: 0; padding: calc(24 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-plate);
   box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
 
+/* The trend charts were drawn for a narrow column (their SVG text scales with the width): the focused chart keeps a
+   readable width on the left, the four small charts fill the right as a 2 x 2, the legend runs under both. */
+html[data-ph-shell] .phc-page .phc-trends { display: grid; grid-template-columns: minmax(0, calc(480 * var(--phu))) minmax(0, 1fr); grid-template-rows: auto 1fr auto; column-gap: calc(32 * var(--phu)); row-gap: calc(8 * var(--phu)); align-content: start; }
+html[data-ph-shell] .phc-page .phc-trends > .ct-mmr-head { grid-column: 1; grid-row: 1; }
+html[data-ph-shell] .phc-page .phc-trends > .ct-focus { grid-column: 1; grid-row: 2; }
+html[data-ph-shell] .phc-page .phc-trends > .ct-grid2 { grid-column: 2; grid-row: 1 / 3; margin: 0; align-content: start; gap: calc(12 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-trends > .ct-legend { grid-column: 1 / -1; grid-row: 3; }
+html[data-ph-shell] .phc-page .phc-trends .ct-small { border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); padding: calc(12 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-trends .ct-small svg { height: calc(96 * var(--phu)); max-height: none; }
+html[data-ph-shell] .phc-page .phc-trends :is(.cv2-trend-title, .ct-small-t) { font-family: var(--ph-font); letter-spacing: 0.16em; color: var(--ph-muted); }
+html[data-ph-shell] .phc-page .phc-trends :is(.cv2-trend-avg, .ct-small-v) { font-family: var(--ph-font); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); }
+
 /* Achievements: its own list, scrolling inside the view. */
 html[data-ph-shell] .phc-page .phc-achview { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 0; }
+html[data-ph-shell] .phc-page .phc-achview :is(.ach-cat, .ach-tile, .ach-chip) { border-radius: 0; clip-path: var(--ph-clip-s); }
+html[data-ph-shell] .phc-page .phc-achview .ach-chip { min-height: calc(40 * var(--phu)); font-family: var(--ph-font); letter-spacing: 0.14em; }
+html[data-ph-shell] .phc-page .phc-achview .ach-chip.on { background: var(--ph-metal-gold); color: var(--ph-navy); }
+html[data-ph-shell] .phc-page .phc-achview .ach-tile-title, html[data-ph-shell] .phc-page .phc-achview .ach-cat-name { font-family: var(--ph-font); }
 
 /* ── 1366 and other short-wide screens: a slimmer profile column. ── */
 @media (max-width: 1500px) {

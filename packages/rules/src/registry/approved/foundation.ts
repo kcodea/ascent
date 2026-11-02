@@ -13590,4 +13590,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-02 (feat/rail-hero-short-names). Before it, the rail printed every hero\x27s full name.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/railHeroName.test.ts', 'packages/ui/src/lobbyRailDockedModes.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-PROG-SKINS-22',
+    title: 'Skins batch 14: eight minion skins for Set 2 shop minions that had none join the crates at their folder rarity',
+    statement:
+      'Eight minion skins are crate items, each targeting one card by stable id and shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, at the rarity of the Minion Skins folder its master sits in (R-PROG-SKINS-11). '
+      + 'Common: Scribble Kobebes. Rare: Treasure Kobebes, Gargoyle Todd, Scribble Big Huggies, Scribble Humphry, Serverchef (Cinderchef), Toast Gary Toast. Epic: Scribble Daniel (Drunk Daniel). '
+      + 'With them in, a first crate holds 53 Common, 104 Rare, 97 Epic, 89 Legendary and 31 Ancient items (each Common '
+      + '0.66%, Rare 0.298%, Epic 0.227%, Legendary 0.101%, Ancient 0.097%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02 (skins batch 14)', quote: 'awesome i added new cosmetics to the minions folder' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 14); packages/ui/src/art/skins/ (8 new webps)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-02 (feat/skins-batch-scribble). One name differs from its filename to pass the catalog name rules (cosmetics.test.ts): Scribble Drunk Daniel -> Scribble Daniel (20 characters max). Serverchef.png was matched to Cinderchef from its art (a tennis-playing dragon chef). Both are Claude\x27s calls for the owner to confirm. Reaches the database on the next deploy of progression-inventory.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

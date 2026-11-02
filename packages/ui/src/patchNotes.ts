@@ -72,6 +72,13 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Eight new minion skins in chests, most of them hand-drawn in crayon.',
+        details: [
+          'Kobebes, Impossible Todd, Big Huggies, Humphry, Cinderchef, Chef Gary Toast and Drunk Daniel each get their first skins.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: "Duos: when your first board wins, your teammate's minions now fly into the empty slots and add to the damage.",
         details: [
           "After a win with your first board, your teammate's board (which never fought) flies in and fills your empty slots from left to right, up to 7.",

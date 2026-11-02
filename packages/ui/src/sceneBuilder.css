@@ -57,8 +57,10 @@
   box-shadow: var(--sbn-outline), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 22px 50px -14px rgba(0, 0, 0, 0.85);
   font-variant-numeric: tabular-nums;
 }
-.sfxmix.scenebuilder.collapsed { width: calc(250 * var(--u)); padding-bottom: 0; height: auto !important; min-height: 0; resize: none; }
-.sfxmix.scenebuilder.minimized { display: none; }
+/* MINIMIZED (R-SB-PANEL-CLOSE-01): the bar is the header strip alone, wide enough that the title and both status
+   chips read in full. The ✕ closes the panel by unmounting it (no display rule: the modern layout's `display: flex`
+   out-specified the old `.minimized { display: none }`, so the ✕ looked dead). */
+.sfxmix.scenebuilder.collapsed { width: calc(300 * var(--u)); padding-bottom: 0; height: auto !important; min-height: 0; resize: none; }
 .scenebuilder :is(button, select, .sb-chk, input[type='checkbox']) { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .scenebuilder button:disabled { cursor: url('/cursors/gauntlet_open.svg') 6 2, default; }
 

@@ -12424,14 +12424,14 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-DEV-CORNER-01',
     title: 'DEV builds only: the dev tuner and the minimized Scene Builder are squares of the bottom-right corner row, just left of Friends, wearing the row\x27s plaque',
     statement:
-      'In a DEV build the dev tuning menu button and the minimized Scene Builder are two more squares of the bottom-right corner row (gear, Compendium, Rules, Friends, dev tuner, Scene Builder, right to left), with the row\x27s plaque, size, hover lift, gauntlet cursor, an aria-label and the game\x27s hover bubble (no native tooltip). The dev tuner is the gear glyph, the Scene Builder the anvil glyph; the dev tuner keeps its open-panel count. They queue up after the Friends button: with no Friends button they close up one slot, and where the row is covered (hero select, a side-menu page, the in-game menu) they step down to the corner beside Friends. The Scene Builder square shows only while the Scene Builder is minimized. They stay above every layer so dev tools are always reachable. A production build carries neither.',
+      'In a DEV build the dev tuning menu button and the minimized Scene Builder are two more squares of the bottom-right corner row (gear, Compendium, Rules, Friends, dev tuner, Scene Builder, right to left), with the row\x27s plaque, size, hover lift, gauntlet cursor, an aria-label and the game\x27s hover bubble (no native tooltip). The dev tuner is the gear glyph, the Scene Builder the anvil glyph; the dev tuner keeps its open-panel count. They queue up after the Friends button: with no Friends button they close up one slot, and where the row is covered (hero select, a side-menu page, the in-game menu) they step down to the corner beside Friends. The Scene Builder square shows only while the Scene Builder is minimized (RETIRED 2026-11-02, R-SB-PANEL-CLOSE-01: the panel minimizes to its own header bar and the dev menu reopens a closed one, so only the dev tuner square remains). They stay above every layer so dev tools are always reachable. A production build carries neither.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30 (screenshot of the bottom-right corner row on the title)', quote: 'can you put our dev tuner and dev scene builder tuner buttons into a button like this, and put them in the bottom right' },
       { kind: 'code', ref: 'packages/ui/src/DevMenu.tsx, packages/ui/src/SceneBuilder.tsx (SceneBuilderDock), packages/ui/src/friends/dock/FriendsDock.tsx (devCornerSlot, useDevCornerSlot), packages/ui/src/styles.css (.cornerdev)' },
     ],
-    currentBehaviour: 'Built 2026-10-30 (feat/dev-buttons-corner-row). Before: the dev tuner was a round emoji button floating at slot 4 on the old bar offsets, and the minimized Scene Builder a round emoji button floating at a stale offset, neither matching the row. SUPERSEDED 2026-10-31 (feat/corner-buttons-teammate, R-CORNER-SPLIT-01): the dev squares moved to the bottom-left row, right of Friends.',
+    currentBehaviour: 'Built 2026-10-30 (feat/dev-buttons-corner-row). Before: the dev tuner was a round emoji button floating at slot 4 on the old bar offsets, and the minimized Scene Builder a round emoji button floating at a stale offset, neither matching the row. SUPERSEDED 2026-10-31 (feat/corner-buttons-teammate, R-CORNER-SPLIT-01): the dev squares moved to the bottom-left row, right of Friends. The Scene Builder square was retired 2026-11-02 (fix/scene-builder-close-minimize, R-SB-PANEL-CLOSE-01).',
     example: 'In a dev build on the title, the corner row reads gear, book, question mark, Friends, then a gear square: the dev tuner. Kevin minimizes the Scene Builder in the sandbox and an anvil square appears just left of it. He opens Career: Friends drops to the corner and the two dev squares sit right beside it.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/devCorner.test.tsx'], lastVerifiedAt: '2026-10-30' },
   },
@@ -12961,7 +12961,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'The bottom-right corner holds only the Compendium and Settings; Friends (and, in a DEV build, the dev squares beside it) live bottom left, placed per screen so they never cover what that screen keeps there',
     statement:
       'Bottom right, on every screen: only the Compendium (the book) and the Settings gear. There is no Rules square; the Rules page is the Compendium\x27s own Rules tab. On the title, which has no gear in the corner, the book takes the corner itself. '
-      + 'Bottom left: the Friends button, then (DEV builds only) the dev tuner and the minimized Scene Builder as the next squares to its right, all with the corner plaque. The row\x27s place is MEASURED per screen, once per screen change and on a resize (never per frame): '
+      + 'Bottom left: the Friends button, then (DEV builds only) the dev tuner as the next square to its right (the minimized Scene Builder square was retired 2026-11-02, R-SB-PANEL-CLOSE-01), all with the corner plaque. The row\x27s place is MEASURED per screen, once per screen change and on a resize (never per frame): '
       + 'on a side-menu page and in the in-game menu it sits inside the sidebar just above the Settings plaque, left edges aligned; on the title just above the footer links, left edges aligned; '
       + 'in a game in the corner left of the player\x27s hero portrait and Health plaque, on the gear\x27s baseline at the gear\x27s size (there the dev squares stack up the edge from it, because a full hand fills the bottom edge from the hero to the Gold coin); '
       + 'anywhere else (hero select, a Versus room) the corner itself. Every framing (desktop, a scaled stage, the phone zoom, the phone layout) uses the same measurement. '
@@ -13424,5 +13424,26 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'and an XP request that beat the Worker\x27s result writer was dropped as a permanent refusal.',
     example: 'Kevin and Lemon finish 2nd: both see "2ND", the team\x27s bar move +11, then their own Account XP; Continue puts them back on their party screen.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosPostgame.test.tsx', 'packages/ui/src/progression/progressionQueue.test.ts', 'packages/ui/src/versus/chaos/versusCfParity.db.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-SB-PANEL-CLOSE-01',
+    title: 'DEV: the Scene Builder header ✕ closes the panel for real, and its minimize control folds it to a header bar',
+    statement:
+      'The Scene Builder panel header carries three labelled controls (aria-label, no native tooltip, the game cursor): the wide toggle, MINIMIZE and the ✕. '
+      + 'Minimize folds the panel to a BAR: its header strip alone (the title and both status chips, round and seats left, rules), still draggable, with a Restore button in the same place; Restore opens the full panel again. Minimized is remembered. '
+      + 'The ✕ CLOSES the panel: it leaves the screen entirely, but the sandbox run keeps going (the board, the bots, a Duos teammate are untouched), and the panel keeps its search and folds. '
+      + 'The dev menu action "Scene Builder" shows or hides the panel in a sandbox (on the title it starts one; anywhere else it does nothing, so it never throws away a run). Leaving the sandbox resets it, so the next Scene Builder opens with its panel showing. '
+      + 'There is no corner square for a minimized or closed Scene Builder.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (Scene Builder panel)', quote: 'scene builder\x27s close button doesnt work. can you fix that? minimizing it actually closes it out instead of minimizing it to a bar, fix that too' },
+      { kind: 'code', ref: 'packages/ui/src/SceneBuilder.tsx (SceneBuilder, SB_PANEL_CTX, the .sb-collapse control); packages/ui/src/sceneBuilderPanel.ts (useSbPanel); packages/ui/src/DevMenu.tsx (the scenebuilder action); packages/ui/src/sceneBuilder.css (.collapsed)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (fix/scene-builder-close-minimize). Before, the ✕ only added a `.minimized` class whose `display: none` lost to the 2026-11-01 modern layout\x27s `display: flex` '
+      + '(a more specific selector), so the panel stayed on screen while an anvil square appeared in the corner: the ✕ looked dead, and the only thing that hid the panel was that square path.',
+    example: 'Kevin is in the Scene Builder. He clicks the – in its header: the panel shrinks to a bar reading "Scene Builder R1 · 8 left GOD" with a restore button. He clicks ✕: the panel is gone and the shop keeps running. He opens the dev menu, clicks Scene Builder, and the panel is back with his search still typed in.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/sceneBuilderPanel.test.tsx', 'packages/ui/src/devCorner.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
 ];

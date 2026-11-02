@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Duos: a minion that would finish your teammate's triple now glows teal in your Shop.',
+        text: 'Duos: a minion that would finish your teammate\'s triple now glows teal in your Shop.',
         details: [
           'When your teammate holds a pair of a minion and a third copy shows up in your Shop, it glows teal with teal arrows rising.',
           'It keeps the teal glow in your hand, so you know to pass it to them.',

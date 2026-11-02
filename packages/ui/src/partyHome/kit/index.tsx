@@ -101,14 +101,17 @@ export function PhRow({ art, title, sub, lead, right, onClick, tone, selected, l
   );
 }
 
-export function PhTabs<T extends string>({ tabs, value, onChange, label }: {
-  tabs: readonly { id: T; label: ReactNode; count?: number; disabled?: boolean }[]; value: T; onChange: (id: T) => void; label: string;
+export function PhTabs<T extends string>({ tabs, value, onChange, label, onLocked }: {
+  /** `reason`: the tab is locked; it stays focusable, says why on hover (the game's tip) and on a press (`onLocked`). */
+  tabs: readonly { id: T; label: ReactNode; count?: number; disabled?: boolean; reason?: string }[]; value: T; onChange: (id: T) => void; label: string;
+  onLocked?: (id: T, reason: string) => void;
 }) {
   return (
     <div className="phk-tabs" role="tablist" aria-label={label}>
       {tabs.map((t) => (
-        <button key={t.id} type="button" role="tab" aria-selected={t.id === value} disabled={t.disabled}
-          className={cx('phk-tab', t.id === value && 'on')} onClick={() => { if (t.id !== value) onChange(t.id); }}>
+        <button key={t.id} type="button" role="tab" aria-selected={t.id === value} disabled={t.disabled} aria-disabled={t.reason ? true : undefined}
+          data-tip={t.reason} className={cx('phk-tab', t.id === value && 'on', t.reason && 'locked')}
+          onClick={() => { if (t.reason) { onLocked?.(t.id, t.reason); return; } if (t.id !== value) onChange(t.id); }}>
           {t.label}
           {t.count ? <span className="phk-count">{t.count}</span> : null}
         </button>
@@ -446,4 +449,25 @@ export function PhGridRow({ cols, head, selected, onClick, label, className, chi
     return <button type="button" role="row" className={cx('phk-grow', selected && 'sel', 'press', className)} style={style} onClick={onClick} aria-label={label}>{children}</button>;
   }
   return <div role="row" className={cx('phk-grow', head && 'head', selected && 'sel', className)} style={style}>{children}</div>;
+}
+
+/** Digits in the name serif (the inscription serif's 1 reads as an I): wraps every run of digits in a span. */
+export function phNum(text: string): ReactNode {
+  const parts = text.split(/(\d+)/);
+  return parts.length === 1 ? text : parts.map((p, i) => (/^\d+$/.test(p) ? <span key={i} className="phk-num">{p}</span> : p));
+}
+
+export { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhLeaderBadge } from './PhBanner';
+
+/** A labelled text field: a small label over a pill input (a room name, a team name), an optional hint or error under it. */
+export function PhField({ label, hint, error, className, id, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode; hint?: ReactNode; error?: ReactNode }) {
+  const auto = useId();
+  const fid = id ?? auto;
+  return (
+    <label className={cx('phk-field', className)} htmlFor={fid}>
+      <span className="phk-seglbl">{label}</span>
+      <input id={fid} spellCheck={false} autoComplete="off" {...rest} className="phk-search phk-fieldinput" aria-invalid={error ? true : undefined} />
+      {error ? <span className="phk-fielderr" role="alert">{error}</span> : hint ? <span className="phk-seghint">{hint}</span> : null}
+    </label>
+  );
 }

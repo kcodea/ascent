@@ -145,6 +145,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Duos: when your teammate readies up in the shop, their rail card slams with a green burst and stays lit green with a check mark until the fight.',
+      },
+      {
+        category: 'Systems',
+        text: "Duos player rail: each team's backing now follows the shape of its slices, the Health numbers sit a touch further right, and team names are right-aligned with a dark outline.",
+      },
+      {
+        category: 'Systems',
         text: 'New Legendary hero attack: Charge the Mound. The hero being hit pitches, and your hero bats.',
         details: [
           'Small: a line drive straight back up the middle. Bonk.',

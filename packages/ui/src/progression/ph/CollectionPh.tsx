@@ -113,7 +113,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
           <PhMeter className="phc-meter" label="Collected" value={v.total.owned} max={v.total.total} />
           {v.aetherOn && (
             <PhButton variant="plate" size="m" className="phc-shopbtn" onClick={v.openShop}>
-              <AetherIcon className="phc-aether" />Chest Shop
+              <AetherIcon className="phc-aether" />Crates
             </PhButton>
           )}
         </>
@@ -383,6 +383,18 @@ function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.El
         <div className="phc-fact"><dt>Status</dt><dd className={owned ? 'yes' : 'no'}>{equipped ? 'Equipped' : owned ? 'Owned' : 'Not owned'}</dd></div>
         {facts.map(([k, val], i) => <div key={`${k}${i}`} className="phc-fact"><dt>{k}</dt><dd>{val}</dd></div>)}
       </dl>
+
+      {/* THIS CATEGORY, by rarity (what is left to find): fills the column under the facts with something useful. */}
+      <section className="phc-progress" aria-label={`${COSMETIC_CATEGORY_DEFS[item.category].label} collected, by rarity`}>
+        <span className="phc-sublbl">{COSMETIC_CATEGORY_DEFS[item.category].label} collected</span>
+        {ALL_COSMETIC_RARITIES.filter((r) => v.byRarity[r].total > 0).map((r) => (
+          <div key={r} className={`phc-prow r-${r}`}>
+            <span className="phc-prow-name"><span className="phc-gem" aria-hidden />{RARITY_LABELS[r]}</span>
+            <span className="phc-bar" aria-hidden><span style={{ transform: `scaleX(${v.byRarity[r].owned / v.byRarity[r].total})` }} /></span>
+            <span className="phc-prow-n">{v.byRarity[r].owned} / {v.byRarity[r].total}</span>
+          </div>
+        ))}
+      </section>
 
       <div className="phc-actions">
         {emote && <EmoteSlotRow item={item} owned={owned} busy={v.busy} slots={v.emoteMenu} onPlace={v.onPlaceEmote} />}

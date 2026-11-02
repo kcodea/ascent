@@ -1,4 +1,4 @@
-import { Suspense, lazy, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ALL_COSMETIC_RARITIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_TIER_FLOOR, EMOTE_SLOT_COUNT, MILESTONE_CRATE_TIER, RARITY_LABELS, cosmeticOf, crateLabel, crateOddsLine,
   isMasterTitle, levelProgress,
@@ -208,7 +208,10 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     document.querySelector('.colls-tabs .colls-tab.on')?.scrollIntoView?.({ block: 'nearest', inline: 'start' });
   }, [category]);
   // Aether switched off under an open shop: back to the Collection, and it stays there if Aether returns.
-  useEffect(() => { if (!aetherOn) setShopOpen(false); }, [aetherOn]);
+  // Only on a real switch-off (on, then off): Aether still loading on the first frames must not cancel a shop the shell's
+  // Crates tab asked for (it would land on the Collection with Crates lit).
+  const aetherWasOn = useRef(aetherOn);
+  useEffect(() => { if (aetherWasOn.current && !aetherOn) setShopOpen(false); aetherWasOn.current = aetherOn; }, [aetherOn]);
   const shopShown = shopOpen && aetherOn;
 
   const sealedRows: CrateRow[] = useMemo(() => (crateList ?? []).filter((c) => c.state === 'sealed'), [crateList]);

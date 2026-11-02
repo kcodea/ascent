@@ -144,7 +144,7 @@ describe('the Collection in the party home shell', () => {
     act(() => { $('.phc-shopbtn')!.click(); });
     await settle();
     expect($('.cshop.phs')).not.toBeNull();
-    expect($('.phs h1')?.textContent).toBe('Chest Shop');
+    expect($('.phs h1')?.textContent).toBe('Crates');
     expect($$('.phs .cshop-chest')).toHaveLength(5);
     expect($$('.phs .cshop-cat:not(.cshop-cat-head)').length).toBeGreaterThan(0);
     expect($('.phs-wallet')?.textContent).toContain('1500');

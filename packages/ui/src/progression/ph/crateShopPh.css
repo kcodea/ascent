@@ -91,3 +91,7 @@ html[data-ph-shell][data-touch-small] .cshop.phs { overflow: hidden; }
 html[data-ph-shell][data-touch-small] .phs .cshop-chest-name { font-size: var(--ph-t2); }
 html[data-ph-shell][data-touch-small] .phs .cshop-chest-art { max-width: calc(150 * var(--phu)); }
 html[data-ph-shell][data-touch-small] .phs .cshop-cat { border-radius: var(--ph-r-s); grid-template-columns: minmax(0, 1fr) calc(80 * var(--phu)) calc(112 * var(--phu)); }
+
+/* No jump when the receipt grows (a focus toggled on): the page's scrollbar space is always reserved. */
+.phs .phk-pagebody { scrollbar-gutter: stable; }
+.phs-note { margin: 0; font-size: var(--ph-t2); color: var(--ph-muted); }

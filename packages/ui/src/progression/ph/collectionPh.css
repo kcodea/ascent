@@ -220,3 +220,19 @@ html[data-ph-shell][data-touch-small] .phc-grid { grid-template-columns: repeat(
 .phc-stage { background: radial-gradient(55% 45% at 50% 85%, var(--phc-warm), transparent 70%), radial-gradient(60% 60% at 50% 45%, color-mix(in srgb, var(--rc) 24%, transparent), transparent 75%), var(--ph-well); }
 .phc-bay-art { background: radial-gradient(50% 40% at 50% 80%, rgba(255, 196, 110, 0.28), transparent 70%); }
 .cshop.phs .cshop-chest:not(:hover):not(.tt-on) { background: radial-gradient(60% 40% at 50% 70%, var(--phc-warm), transparent 70%), radial-gradient(70% 50% at 50% 60%, color-mix(in srgb, var(--tc) 14%, transparent), transparent 75%), var(--ph-well); }
+
+/* The detail column's rarity breakdown of this category (what is left to find). */
+.phc-progress { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
+.phc-sublbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
+.phc-prow { display: grid; grid-template-columns: calc(112 * var(--phu)) minmax(0, 1fr) calc(64 * var(--phu)); align-items: center; gap: calc(12 * var(--phu)); }
+.phc-prow-name { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.1em; text-transform: uppercase; color: var(--rc); }
+.phc-prow .phc-bar > span { background: var(--rc); }
+.r-ancient.phc-prow .phc-bar > span, .r-secret.phc-prow .phc-bar > span { background: var(--rc-grad); }
+.phc-prow-n { text-align: right; font-family: var(--ph-name-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-text); font-variant-numeric: tabular-nums; }
+html[data-ph-shell][data-touch-small] .phc-progress { display: none; }
+
+/* The sign-in gate (a guest's Open or buy) in the shell's look: navy plate, gilt edge, the gold pill. */
+html[data-ph-shell] .crgate-panel { border: 0; border-radius: var(--ph-r-l); background: var(--ph-plate); box-shadow: var(--ph-gild), 0 calc(24 * var(--phu)) calc(64 * var(--phu)) rgba(0, 0, 0, 0.6); }
+html[data-ph-shell] .crgate-panel .nrw-title { font-family: var(--ph-font); color: var(--ph-ink); }
+html[data-ph-shell] .crgate-panel .cv2-btn { border: 0; border-radius: 999px; background: var(--ph-metal-gold); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.5); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); font-family: var(--ph-font); font-weight: 900; }
+html[data-ph-shell] .crgate-panel .colls-quiet { border-radius: 999px; }

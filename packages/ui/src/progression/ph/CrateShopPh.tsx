@@ -11,7 +11,6 @@ import { useEffect } from 'react';
 import { CRATE_TIERS, COSMETIC_CATEGORY_DEFS } from '@game/progression';
 import { setCratesView } from '../../partyHome/shell/shellStore';
 import { PhButton, PhPage, PhSection } from '../../partyHome/kit';
-import { touchText } from '../../touchInput';
 import { AetherIcon } from '../AetherIcon';
 import { Amount, ChestCard, FocusRow, OddsSeg, type CrateShopState } from '../CrateShop';
 import './collectionPh.css';
@@ -25,12 +24,12 @@ export function CrateShopPh({ shop: s }: { shop: CrateShopState }): JSX.Element 
     : s.needMore > 0 ? `Need ${s.needMore} more Aether`
     : null;
   return (
-    <section className={`cshop phs${s.still ? ' cshop-still' : ''}`} aria-label="Chest Shop">
+    <section className={`cshop phs${s.still ? ' cshop-still' : ''}`} aria-label="Crates">
       <PhPage
         wide
         className="phs-page"
         eyebrow="Collection"
-        title="Chest Shop"
+        title="Crates"
         back={{ label: 'Collection', onClick: s.back }}
         actions={(
           <>
@@ -40,7 +39,7 @@ export function CrateShopPh({ shop: s }: { shop: CrateShopState }): JSX.Element 
           </>
         )}
       >
-        <PhSection title="Pick a chest" aside={touchText('Hover a chest for its odds', 'Tap a chest for its odds')} className="phs-pick" unclipped>
+        <PhSection title="Pick a chest" className="phs-pick" unclipped>
           <div className="cshop-chests" role="group" aria-label="Chest">
             {CRATE_TIERS.map((t) => <ChestCard key={t} tier={t} price={s.economy.cratePrice[t]} on={s.tier === t} reduced={s.still} locked={s.busy} onPick={s.pickTier} />)}
           </div>
@@ -87,6 +86,7 @@ export function CrateShopPh({ shop: s }: { shop: CrateShopState }): JSX.Element 
               >
                 {buyLabel ?? <>Open chest<span className="phs-buy-total"><AetherIcon />{s.quote!.total}</span></>}
               </PhButton>
+              {s.guest && !s.busy && s.quote && <p className="phs-note">Create a free account to buy chests with your Aether.</p>}
               {s.error && <p className="phs-err" role="alert">{s.error}</p>}
             </div>
           </PhSection>

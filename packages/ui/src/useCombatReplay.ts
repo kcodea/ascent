@@ -61,6 +61,7 @@ import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
 import { watcherPulseUids } from './choreo/channels/watcherPulse';
 import { combatBuffDeltas, combatDamageDeltas, driveRoll, driveRollSegment } from './fx/combatBuffRoll';
 import { HOLD_GRACE_MS, heldFor, holdStat, releaseStat, replaceHold } from './fx/statHold';
+import { fightBodies } from './fightRoster';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -2046,8 +2047,7 @@ export function useCombatReplay(
   const cardIds = useMemo(() => {
     const m = new Map<string, string>();
     if (!combat) return m;
-    for (const u of [...combat.initial.player, ...combat.initial.enemy]) m.set(u.uid, u.cardId);
-    for (const e of combat.events) if (e.type === 'summon') m.set(e.minion.uid, e.minion.cardId);
+    for (const b of fightBodies(combat)) m.set(b.uid, b.cardId); // + every tagIn body (R-DUOS-FX-01)
     return m;
   }, [combat]);
 
@@ -2056,9 +2056,7 @@ export function useCombatReplay(
   const unitSides = useMemo(() => {
     const m = new Map<string, 'player' | 'enemy'>();
     if (!combat) return m;
-    for (const u of combat.initial.player) m.set(u.uid, 'player');
-    for (const u of combat.initial.enemy) m.set(u.uid, 'enemy');
-    for (const e of combat.events) if (e.type === 'summon') m.set(e.minion.uid, e.side);
+    for (const b of fightBodies(combat)) m.set(b.uid, b.side); // + every tagIn body (R-DUOS-FX-01)
     return m;
   }, [combat]);
 
@@ -2538,8 +2536,9 @@ export function useCombatReplay(
     // The player's uids: the initial player board + every player-side summon in the whole log. Enemy-sourced
     // narrations (spell power, auras) are filtered against this so they never draw on the player's board and
     // vice-versa. Cheap — a Set built once per beat effect from data already in scope.
-    const playerUids = new Set<string>((combat?.initial.player ?? []).map((u) => u.uid));
-    for (const ev of events) if (ev.type === 'summon' && ev.side === 'player') playerUids.add(ev.minion.uid);
+    // + the teammate's board that steps in on a `tagIn` (R-DUOS-FX-01).
+    const playerUids = new Set<string>();
+    if (combat) for (const b of fightBodies(combat, events)) if (b.side === 'player') playerUids.add(b.uid);
     // Refresh the last-known rects for everyone still on screen, THEN resolve anchors below through
     // `anchorOf`. Order matters: a unit that dies in this beat is already gone from the DOM, so its entry has
     // to come from the previous beat's snapshot.
@@ -3501,8 +3500,7 @@ export function useCombatReplay(
   const names = useMemo(() => {
     const m = new Map<string, string>();
     if (!combat) return m;
-    for (const u of [...combat.initial.player, ...combat.initial.enemy]) m.set(u.uid, u.name);
-    for (const e of combat.events) if (e.type === 'summon') m.set(e.minion.uid, e.minion.name);
+    for (const b of fightBodies(combat)) m.set(b.uid, b.name); // + every tagIn body (R-DUOS-FX-01)
     return m;
   }, [combat]);
 

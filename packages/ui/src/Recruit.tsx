@@ -1,7 +1,7 @@
 import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent, type AnimationEvent as ReactAnimationEvent } from 'react';
 import { catchPulse, isPassArrival, mateDoor, noteCastRelease, playDrop } from './versus/passLob';
 import { duosPassRefusal, notePassRefused, overMateFrame, passOnRelease } from './versus/duosPassUi';
-import { useDuosCombatSync } from './versus/duosCombat';
+import { useDuosCombat, useDuosCombatSync } from './versus/duosCombat';
 import { targetPromptFor } from './targetPrompt';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { createOddsStepper } from './oddsStepper';
@@ -3767,7 +3767,9 @@ export function Recruit() {
     // fadeaway, a pull-up three and a self alley-oop slammed into an explosion; Charge the Mound: the target pitches and the striker bats, and the top tier is a beanball, a charge at the mound and a dust-cloud brawl; Soul Stitch, the first Ancient: crystal needles sew the target to the striker on violet thread, a pierce and a cross-stitch the hero pulls until they snap, five pins the target is stretched against until they rip out, and the target dragged into a gold heart-knot that bursts). Same blow, same consequence, only drawn differently;
     // the style is the ATTACKER's (their equipped cosmetic, or the dev override). Every runner takes the same options
     // (`heroAttack/options.ts`).
-    const attackerCosmeticId = attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins);
+    // VERSUS DUOS: the board that ended the fight strikes, so its player's attack plays (R-DUOS-FX-01).
+    const duosNow = useDuosCombat.getState();
+    const attackerCosmeticId = attackerCosmeticOf(run0, side, useGame.getState().showOpponentSkins, duosNow.on ? (side === 'player' ? duosNow.selfSeatId : duosNow.foeSeatId) : null);
     const attackStyle = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId });
     // AN ANCIENT ATTACK'S KNOCKOUT VARIANT (owner ask 2026-10-02): on a knockout, an Ancient-rarity attack that has one
     // plays its Knockout version (its Huge, remixed with more emphasis); every other attack keeps playing Huge.

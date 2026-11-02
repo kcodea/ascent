@@ -13233,6 +13233,31 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/handOverBoardZ.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
   {
+    id: 'R-DUOS-FX-01',
+    title: 'Duos tag-team fights: the second board plays every animation the first board does',
+    statement:
+      'In a tag-team fight the board that steps in (a teammate\x27s, on either side) is presented exactly like the board that '
+      + 'opened the fight: its Deathrattle and Echo pulses, authored attack, damage, Shout and watcher FX, Rally and Flurry '
+      + 'wind-ups, trigger pulses, spell side, narration names, announcer moments, choreographer card identity and phone '
+      + 'audio prewarm all resolve. Mechanism: every uid lookup of the fight (uid to card, side and name) is built from '
+      + '`fightBodies` (packages/ui/src/fightRoster.ts): the starting boards, every `summon` AND every `tagIn` body. '
+      + 'The end-of-fight hero attack plays the attack equipped by the player whose board ended the fight '
+      + '(`useDuosCombat` selfSeatId / foeSeatId into `attackerCosmeticOf`), through "Show opponent cosmetics", so both '
+      + 'teammates see the same attack.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-02 (live Versus Duos / Ranked Duos play)', quote: 'some animations arent playing in duos it seems like the second player\x27s animations maybe dont play' },
+      { kind: 'code', ref: 'packages/ui/src/fightRoster.ts; packages/ui/src/useCombatReplay.ts (cardIds, unitSides, names, playerUids); packages/ui/src/choreographer/combatTimeline.ts; packages/ui/src/heroBlast/attackerCosmetic.ts' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (fix/duos-second-board-fx). Before, the replay\x27s uid maps were seeded from `initial` + '
+      + '`summon` only; a `tagIn` board\x27s fresh uids resolved to nothing, so every card-keyed FX decision skipped the '
+      + 'second board (its beats in the compiled timeline carried the bare uid `m7` instead of the card).',
+    example: 'My Mama Pup dies and its Echo pulses. My teammate\x27s Mama Pup steps in, dies, and its Echo pulses the same way.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/duosSecondBoardFx.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-DUOS-PASS-LATENCY-01',
     title: 'A Duos pass lands in the teammate\x27s hand as soon as the server has it, even while they watch the sender',
     statement:

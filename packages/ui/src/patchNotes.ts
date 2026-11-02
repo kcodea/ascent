@@ -74,6 +74,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Duos fights: the second board to fight now plays all of its animations.',
+        details: [
+          'When a teammate’s board steps in, its Deathrattles, attack effects, Shouts, Rallies and trigger glows now play, the same as the first board’s.',
+          'This fixes both teams, on your screen, your teammate’s screen and for spectators.',
+          'The hero attack at the end of the fight is now the one equipped by the player whose board won it.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New Legendary hero attack: Golazo. Your hero plays football and scores on the enemy hero.',
         details: [
           'A goal appears on the enemy hero, and every hit ends with the ball bulging the net.',

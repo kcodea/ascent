@@ -64,6 +64,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: "Player rail: a player's info card now opens after you rest on their portrait for a second, so passing over the rail no longer pops it up. Click a portrait to open it straight away. Once a card is open, moving to other portraits shows theirs instantly, and moving off the rail closes it at once.",
+      },
+      {
+        category: 'Systems',
         text: "Duos: when your first board wins, your teammate's minions now fly into the empty slots and add to the damage.",
         details: [
           "After a win with your first board, your teammate's board (which never fought) flies in and fills your empty slots from left to right, up to 7.",

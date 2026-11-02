@@ -13548,4 +13548,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann opens Runes in the Compendium, then the Guides view. The row reads "guides by tribe" with All, Beasts, Demons ... and Neutral.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumGuidesFilter.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-RAIL-SCOUT-DELAY-01',
+    title: 'The game board comes first: a lobby rail seat opens its hover card only after a held 1 second hover (or a click); then the rail is warm until the pointer leaves it',
+    statement:
+      "Passing the pointer over the lobby rail never pops a seat's hover card: the card opens only after the pointer has stayed "
+      + 'on that one seat for 1 second, and leaving the seat before then opens nothing (sweeping down the rail opens nothing). '
+      + "A click opens it at once (an opponent's card pins, as before; your own seat's card opens). Once a hover card is up "
+      + "the rail is warm: moving onto another seat opens that seat's card at once. The pointer leaving the rail, the card and the "
+      + 'strip between the card and its seat closes the card at once (no grace), and the rail is cold again. Every mode with the rail.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02', quote: 'we need to make sure the game board elements are always prioritized over the lobby rail. right now its too easy to accidentally hover over the lobby rail and have their info pop up unnecessarily. lets make it so hovering requires 1 second of hovering before the hero card shows up. or you can click it to immediately open it' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02 (after trying it)', quote: 'when hovering ANY element for 1 second, then the lobby rail hover should be immediate as you continue to mouse over other heroes. mousing off the rail and/or off the hero card sould IMMEDIATELY close it' },
+      { kind: 'fix-pr', ref: 'PR fix/rail-hover-delay (2026-11-02)' },
+      { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (openScout: cold arms openTimer for SCOUT_OPEN_DELAY_MS, warm opens at once; leaveScout + the move check close outside zoneFor; showScout on a click)' },
+    ],
+    currentBehaviour:
+      "Conforms as of 2026-11-02. Before, a seat's card opened the instant the pointer entered it and closed 160 ms after it left. The zone "
+      + 'is measured once per open card (the rail as the box around its seats, the card, the strip), never per move; the scenario pins the timing and the '
+      + 'seat/card hand-offs, not the strip geometry (jsdom has no layout). The Duos teammate\'s seat '
+      + 'keeps its click for watching their board; its card opens on the held hover or a right-click pin.',
+    example: "Dragging a minion past the rail's edge brushes Rayse's seat for half a second: no card. Resting on Rayse for a second opens their card; clicking Rayse opens it straight away.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailScoutDelay.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

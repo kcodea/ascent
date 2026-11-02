@@ -82,6 +82,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Big hits are a breakaway past defenders with stepovers, a nutmeg or a rainbow flick, and a slow-motion finish.',
           'The biggest hits and knockouts are a bicycle kick in slow motion, a thunderbolt into the net and a knee slide.',
           'With a referee whistle, the crowd and a commentator. Found in crates. Equip it in the Collection.',
+        ],
       },
       {
         category: 'Systems',

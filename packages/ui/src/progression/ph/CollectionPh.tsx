@@ -288,7 +288,7 @@ const Tile = memo(function Tile({ id, name, rarity, owned, equipped, fresh, sele
       onPointerEnter={onHover ? (e) => { if (e.pointerType !== 'touch') onHover(id, e.currentTarget); } : undefined}
       onPointerLeave={onHover ? () => onHover(null) : undefined}
     >
-      {art && <span className="phc-tile-art"><img src={art} alt="" draggable={false} decoding="async" loading="lazy" /></span>}
+      {art && <span className="phc-tile-art"><img src={art} alt="" draggable={false} decoding="sync" /></span>}
       <span className="phc-tile-text">
         {target && <span className="phc-tile-for">{target}</span>}
         <span className="phc-tile-name">{master ? <TitleBadge id={id} className="colls-titleplate" /> : name}</span>

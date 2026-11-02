@@ -13,6 +13,16 @@
      metal          --ph-metal-gold --ph-metal-silver --ph-metal-bronze (fills, navy text on top)
      plates         --ph-plate (the rail plate) --ph-plate-hover --ph-well (a deeper inner box)
      shape          --ph-clip (big cut) --ph-clip-s (small cut)
+   FANTASY MATERIALS (owner 2026-11-02: "it needs to maintain a fantasy vibe ... don't make it look techy/futuristic"): the
+   headings, tabs and buttons wear the game's inscription serif (Cinzel), names and big numbers its card-name serif
+   (Fraunces); every edge is gilded (a bevelled gold, never a flat hairline); plates catch a warm candle light from above;
+   secondary text is parchment, not cold grey; Ready / online is a living green, not neon; keyboard focus is a warm gold
+   glow. Shapes stay clean: cards are banners (a pennant foot), START a gilded plaque.
+     fonts          --ph-font (Cinzel: headings, tabs, buttons, labels) | --ph-name-font (Fraunces: names, big numbers)
+                    | --ph-body (body text)
+     gilding        --ph-gild (an inset bevelled gold edge: use as a box-shadow) --ph-gild-s (the thin one)
+     reading        --ph-t-read 16 (long-form text)
+     shape          --ph-clip-banner (a banner with a pennant foot)
    PERFORMANCE: static paint. Hover is a colour or a one-shot transform. Nothing loops. */
 
 html[data-ph-shell] {
@@ -23,28 +33,39 @@ html[data-ph-shell] {
   --ph-gold-deep: var(--ui-edge-deep, #7a571f);
   --ph-ink: #fff;
   --ph-text: var(--pill-text, #fff1d6);
-  --ph-muted: #9fb0cf;
-  --ph-teal: #8ef3f8;
+  /* Parchment for secondary text (warm, never a cold grey). */
+  --ph-muted: #cdbb98;
+  /* READY / ONLINE: a living green (the token keeps its old name so nothing that reads it breaks). */
+  --ph-teal: #9be07f;
+  --ph-ready: var(--ph-teal);
   --ph-foe: var(--pill-foe, #ffb3bf);
-  --ph-hair: color-mix(in srgb, var(--ph-gold) 32%, transparent);
+  --ph-hair: color-mix(in srgb, var(--ph-gold) 58%, transparent);
+  /* GILDING: an inset gold edge with a lit top and a shaded foot (the rail's gold, bevelled), for any plate or well. */
+  --ph-gild: inset 0 0 0 calc(1.5 * var(--phu)) color-mix(in srgb, var(--ph-gold) 85%, transparent), inset 0 calc(2.5 * var(--phu)) 0 calc(-1 * var(--phu)) rgba(255, 233, 176, 0.45), inset 0 calc(-2.5 * var(--phu)) 0 calc(-1 * var(--phu)) rgba(60, 36, 8, 0.6);
+  --ph-gild-s: inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-gold) 70%, transparent), inset 0 calc(1.5 * var(--phu)) 0 calc(-0.5 * var(--phu)) rgba(255, 233, 176, 0.3);
   --ph-shadow: var(--pill-text-shadow);
-  --ph-plate: var(--pill-plate);
-  --ph-plate-hover: var(--pill-plate-hover);
-  --ph-well: var(--pill-well);
+  /* Plates catch a warm candle light from above (a static radial over the rail's navy). */
+  --ph-plate: radial-gradient(120% 70% at 50% 0%, rgba(255, 206, 128, 0.11), rgba(255, 206, 128, 0) 62%), var(--pill-plate);
+  --ph-plate-hover: radial-gradient(120% 70% at 50% 0%, rgba(255, 214, 140, 0.18), rgba(255, 214, 140, 0) 62%), var(--pill-plate-hover);
+  --ph-well: linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(255, 206, 128, 0.04)), var(--pill-well);
   --ph-edge: linear-gradient(180deg, var(--ph-gold-hi) 0%, var(--ph-gold) 30%, var(--ph-gold-deep) 70%, var(--ph-gold) 100%);
   --ph-metal-gold: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 70%, #a8741a 100%);
   --ph-metal-silver: linear-gradient(180deg, #ffffff 0%, #dfe5ec 38%, #b4bfcb 70%, #7f8b99 100%);
   --ph-metal-bronze: linear-gradient(180deg, #f8d1ac 0%, #e09a5c 38%, #b8703a 70%, #7e4720 100%);
-  --ph-font: var(--pill-font, var(--font-title)), sans-serif;
+  --ph-font: 'Cinzel', var(--title-font, 'Cinzel Decorative'), Georgia, serif;
+  --ph-name-font: var(--font-cardname, 'Fraunces'), Georgia, serif;
   --ph-body: var(--font-ui), sans-serif;
   --ph-t1: calc(12 * var(--phu));
   --ph-t2: calc(14 * var(--phu));
   --ph-t3: calc(18 * var(--phu));
   --ph-t4: calc(30 * var(--phu));
   --ph-t5: calc(34 * var(--phu));
+  /* Long-form reading text (patch notes, rules, settings help). */
+  --ph-t-read: calc(16 * var(--phu));
   --ph-cut: calc(20 * var(--phu));
   --ph-cut-s: calc(8 * var(--phu));
   --ph-clip: polygon(0 0, calc(100% - var(--ph-cut)) 0, 100% var(--ph-cut), 100% 100%, var(--ph-cut) 100%, 0 calc(100% - var(--ph-cut)));
+  --ph-clip-banner: polygon(0 0, 100% 0, 100% calc(100% - var(--ph-cut)), 50% 100%, 0 calc(100% - var(--ph-cut)));
   --ph-clip-s: polygon(0 0, calc(100% - var(--ph-cut-s)) 0, 100% var(--ph-cut-s), 100% 100%, var(--ph-cut-s) 100%, 0 calc(100% - var(--ph-cut-s)));
   --ph-nav-h: calc(64 * var(--phu));
 }
@@ -57,7 +78,7 @@ html[data-ph-shell][data-touch-ui][data-touch-small][data-page-scale] { --phu: m
 .ph-top { position: relative; z-index: 6; display: flex; align-items: stretch; gap: calc(8 * var(--phu)); box-sizing: border-box;
   height: var(--ph-nav-h); padding: 0 calc(16 * var(--phu) + var(--safe-r, 0px)) 0 calc(24 * var(--phu) + var(--safe-l, 0px));
   background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 94%, #000) 0%, color-mix(in srgb, var(--ph-navy) 88%, transparent) 100%);
-  box-shadow: inset 0 calc(-1 * var(--phu)) 0 color-mix(in srgb, var(--ph-gold) 55%, transparent), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 calc(-2 * var(--phu)) 0 color-mix(in srgb, var(--ph-gold) 80%, transparent), inset 0 calc(-3 * var(--phu)) 0 rgba(60, 36, 8, 0.6), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4);
   font-family: var(--ph-font); }
 .ph-brand { flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(24 * var(--phu)) 0 0; margin: 0 calc(8 * var(--phu)) 0 0; border: 0; border-radius: 0; background: none; color: var(--ph-ink);
   box-shadow: inset calc(-1 * var(--phu)) 0 0 var(--ph-hair); }
@@ -65,8 +86,8 @@ html[data-ph-shell][data-touch-ui][data-touch-small][data-page-scale] { --phu: m
 .ph-brand span { font-family: var(--title-font, var(--font-title)); font-weight: 800; font-size: calc(22 * var(--phu)); letter-spacing: 0.12em; text-shadow: var(--ph-shadow); }
 .ph-nav { flex: 1 1 auto; display: flex; align-items: stretch; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .ph-nav::-webkit-scrollbar { display: none; }
-.ph-navtab { position: relative; flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(16 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none;
-  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap;
+.ph-navtab { position: relative; flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(12 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none;
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
   color: var(--ph-muted); text-shadow: var(--ph-shadow); transition: color 0.12s ease; }
 .ph-navtab:hover, .ph-navtab.on { color: var(--ph-ink); }
 .ph-navtab.on::after, .ph-iconbtn.on::after { content: ''; position: absolute; left: calc(16 * var(--phu)); right: calc(16 * var(--phu)); bottom: 0; height: calc(3 * var(--phu)); background: var(--ph-metal-gold); }
@@ -75,8 +96,8 @@ html[data-ph-shell][data-touch-ui][data-touch-small][data-page-scale] { --phu: m
 .ph-dot { position: absolute; top: calc(16 * var(--phu)); right: calc(8 * var(--phu)); width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); border-radius: 50%; background: var(--pill-red, #ff7a66); box-shadow: 0 0 0 calc(2 * var(--phu)) var(--ph-navy); }
 .ph-wallet { flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); margin-left: calc(8 * var(--phu)); }
 .ph-coin, .ph-lv { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(36 * var(--phu)); padding: 0 calc(16 * var(--phu));
-  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
-.ph-coin b, .ph-lvnum { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
+  background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.ph-coin b, .ph-lvnum { font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
 .ph-aether { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); }
 .ph-lvnum small { font-size: var(--ph-t1); color: var(--ph-muted); margin-right: calc(4 * var(--phu)); letter-spacing: 0.08em; text-transform: uppercase; }
 .ph-lvbar { position: relative; width: calc(80 * var(--phu)); height: calc(4 * var(--phu)); background: rgba(0, 0, 0, 0.55); overflow: hidden; }
@@ -107,15 +128,19 @@ html[data-ph-shell] .lbpage.hop > .ph-pagebd, html[data-ph-shell] .modepick.hop 
 /* THE COMPENDIUM under the shell: the book's layer starts below the pinned nav. */
 .ph-booknav { position: fixed; top: 0; left: 0; right: 0; z-index: 486; }
 html[data-ph-shell] .book-ov { top: var(--ph-nav-h); background: rgba(6, 12, 28, 0.88); }
+/* A registered Compendium page (shellStore `compendiumPage`): a page host under the nav, over the menus. */
+.ph-bookpage { position: fixed; inset: 0; z-index: 480; display: flex; flex-direction: column; padding-top: var(--ph-nav-h); box-sizing: border-box; background: var(--ph-navy); }
+.ph-bookpage > .ph-pagebd { z-index: 0; }
+.ph-bookpage > :not(.ph-pagebd) { position: relative; z-index: 1; }
 
 /* ONE PLACE FOR EVERYTHING: under the shell the old corner buttons (the Friends square, the Compendium book) are hidden
    (the nav has both), and the DEV corner square shrinks into the bottom-left corner, clear of the player's controls. */
 html[data-ph-shell] :is(.fdock-btn, .fdock-stack, .fdock-catch, .bookbtn) { display: none !important; }
 html[data-ph-shell] .cornerdev { left: 8px !important; bottom: 8px !important; width: 28px; height: 28px; opacity: 0.6; }
 
-/* KEYBOARD FOCUS: a teal ring inside the element (an outline outside a cut shape would be clipped away). */
+/* KEYBOARD FOCUS: a warm gold ring inside the element (an outline outside a cut shape would be clipped away). */
 html[data-ph-shell] :is(.ph-top, .ph, .phk-page, .ph-friends, .phk-dialog) :is(button, input, [role="button"], [role="tab"]):focus-visible {
-  outline: calc(2 * var(--phu)) solid var(--ph-teal); outline-offset: calc(-3 * var(--phu)); }
+  outline: calc(2 * var(--phu)) solid #ffd98a; outline-offset: calc(-3 * var(--phu)); filter: drop-shadow(0 0 calc(6 * var(--phu)) rgba(255, 196, 96, 0.55)); }
 
 /* ── THE ONE FRIENDS LIST (PhFriends.tsx): docked in the party home's right column, or a drawer under the nav ── */
 .ph-friends { position: relative; z-index: 2; min-height: 0; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); box-sizing: border-box;
@@ -147,10 +172,13 @@ html[data-ph-shell] :is(.ph-top, .ph, .phk-page, .ph-friends, .phk-dialog) :is(b
 .ph-fstatus { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
 .ph-fstatus > i { flex: none; width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); border-radius: 50%; background: #6f7a90; }
 .ph-friend.f-online .ph-fstatus > i { background: var(--ph-teal); }
-.ph-friend.f-online .ph-fstatus { color: #c8f8fb; }
+.ph-friend.f-online .ph-fstatus { color: #d6efc6; }
 .ph-friend.f-in_game .ph-fstatus > i { background: var(--pill-gold, #f6cf5a); }
 .ph-friend.f-in_game .ph-fstatus { color: #fbe6a6; }
 .ph-fflash { font-size: var(--ph-t2); color: var(--ph-text); }
 .ph-fnote { font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
 .ph-friends .phk-empty { padding: calc(24 * var(--phu)) calc(8 * var(--phu)); }
 @media (prefers-reduced-motion: reduce) { .ph-friends.drawer, .ph-fpulse { animation: none; } }
+
+/* With a registered Compendium page up, the book's own modal is not shown. */
+html[data-ph-shell] body:has(.ph-bookpage) .book-ov { display: none; }

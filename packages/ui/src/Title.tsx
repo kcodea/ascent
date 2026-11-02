@@ -125,7 +125,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const partyHomeFlag = usePartyHome();
   // The app shell's attribute (partyHome/shell/shell.css): the menus (the title and the pages over it, before a run) wear
   // the top nav while the switch is on. A run drops it, so the game keeps its own corners and docks.
-  const shellOn = partyHomeFlag && (showTitle || practiceOpen);
+  const gameMenuOpen = useGame((s) => s.gameMenuOpen);
+  const shellOn = partyHomeFlag && (showTitle || practiceOpen) && !gameMenuOpen;
   useEffect(() => {
     if (!PartyHome) return undefined;
     const html = document.documentElement;

@@ -383,12 +383,6 @@ const FODDER_CARD_IDS: readonly string[] = Object.values(CARD_INDEX)
   .filter((d) => d.keywords.includes('FD'))
   .map((d) => d.id);
 
-// The card-marker classes for a persistent aura — Ward (gold dome) and Reborn (blue wisps), both drawn by CSS
-// (Card.tsx `.ward` / `.reborn` stacks). Used to spot an aura-wearing card so its landing dust tucks behind it.
-// Combat bursts/breaks/re-forms are the choreographer's (channels/aura.ts, fired off the event log). (Taunt is
-// signified by a static grey card border, not an aura — see `.card.taunt` in styles.css — so it's not here.)
-const AURA_MARKERS = ['dscard', 'reborncard'] as const;
-
 /** How far into a gem's own effect its number lands. `land.at` is when the effect STARTS; the dust takes a
  *  moment to look like it seated, and the number should arrive with the seating rather than the launch.
  *  Per-cue rather than per-def: a def that wants the number tied to a specific beat of its own motion says
@@ -8310,27 +8304,21 @@ export function Recruit() {
 
   // A puff of dry-dirt dust ringing a card that just landed on / moved across the board. We wait for the
   // GSAP Flip (0.18s) to settle, then measure the card's *landed* rect by uid — so the dust follows where
-  // the card actually ends up (e.g. snapping back to the middle), not where it was dropped. The card is
-  // briefly raised above the FX canvas (.pixifx z110) so the dust renders BEHIND it, escaping out from
-  // under every side. `.app` isn't a stacking context, so a z-index on the card wins over the overlay.
+  // the card actually ends up (e.g. snapping back to the middle), not where it was dropped.
+  //
+  // The landed card is NOT raised (R-PRESENT-HAND-OVER-BOARD-01, owner 2026-11-01: "the card art in hand should be
+  // on top of the minion on board here"). It used to get an inline `z-index: 111` for 850 ms so the dust would tuck
+  // behind it, on the belief that `.app` is not a stacking context. It is (`.app { z-index: 1 }`), so at rest the
+  // raise never beat `.pixifx` (the dust always painted over the card anyway) and only lifted the card over the hand
+  // zone (z25). Worse, hovering a hand card DISSOLVES `.app` (the hand-hover rule in styles.css), and then the z111
+  // card outranked the lifted hand card (zone z70): play a minion, lift the next hand card, and the new minion's
+  // badges and tier banner painted across its top edge. The dust now simply plays over the card, the look it already
+  // had at rest and on Ward / Reborn cards.
   const puffOnBoard = (uid: string): void => {
     window.setTimeout(() => {
       const el = document.querySelector<HTMLElement>(`[data-zone="warband"] .row.warband .card[data-uid="${uid}"]`);
       if (!el) return;
       const r = el.getBoundingClientRect();
-      // A card with a persistent AURA (divine-shield bubble OR reborn wisp) must keep that aura in FRONT, so
-      // we DON'T raise it above the FX canvas — doing so would hide the aura + its coalesce/pop behind the
-      // card for the dust's lifetime (the "effect flickers behind the card on placement" bug). The dust just
-      // renders over the card instead (subtle tan puffs; barely noticeable). Aura-free cards raise as before
-      // so their landing dust tucks behind them. Driven off AURA_MARKERS so any future aura kind is covered.
-      const hasAura = AURA_MARKERS.some((m) => el.classList.contains(m));
-      if (!hasAura) {
-        const prevPos = el.style.position;
-        const prevZ = el.style.zIndex;
-        el.style.position = 'relative';
-        el.style.zIndex = '111'; // above .pixifx (z110) → dust renders behind the card
-        window.setTimeout(() => { el.style.position = prevPos; el.style.zIndex = prevZ; }, 850);
-      }
       // The authored `landing-dust` def: sized to this card (`scale`) and, as the hand-written call did with
       // its `density` argument, +50% denser here than the combat-summon poof (`intensity`).
       const c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };

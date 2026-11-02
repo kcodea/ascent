@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Duos: a card your teammate passes you now shows up in your hand right away.',
+        details: [
+          'If you were watching their screen, it is in your hand the moment you switch back. It used to take up to 12 seconds.',
+          'A pass that hits a network blip now tries again within a second.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New Legendary hero attack: Charge the Mound. The hero being hit pitches, and your hero bats.',
         details: [
           'Small: a line drive straight back up the middle. Bonk.',

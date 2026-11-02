@@ -36,13 +36,13 @@ import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
 import { receiveLobbyChatEvent, resyncLobbyChat, setLobbyChatSession } from '../lobbyChat/lobbyChatStore';
 import type { PingMode } from '@game/versus-cf/pings';
 import { installVersusHandlers, releaseVersusFightWait, type VersusFreeze } from './versusHooks';
-import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
+import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow, type VersusDuosPassRow } from './versusRemote';
 import { duosFirstAt, duosLobbySeatId, groupPairingAt, groupSeatOf, groupViewerOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 import { concededHere, markConceded } from './concededMatches';
 import { isRankedDuosRaw, rankedCloseIso, rankedRoundsAsGroup, RANKED_DUOS_TEAM_COUNT, withServedSeats, type RankedDuosContext } from './rankedDuosView';
 import type { RankedDuosRoundRow } from './versusRemote';
 import type { RankResult } from '@game/sim';
-import { duosAfterRun, duosPull, duosReset } from './duosPasses';
+import { duosAfterRun, duosBackFromMate, duosPull, duosPushed, duosReset } from './duosPasses';
 import { versusOptionsSummary } from './versusOptionsUi';
 import { heroSelectFrame, newPublisher, nextHeroSelectMessage, nextSpectatorMessage, type HeroSelectFrame, type SpectatorPublisher } from './spectatorView';
 import { useOwnHeroPick } from '../hero-select/ownHeroPick';
@@ -459,7 +459,9 @@ function subscribe(matchId: string | null): void {
   if (!session) return;
   session.channel?.close();
   session.matchId = matchId;
-  session.channel = versusRemote.subscribeRoom(session.roomId, matchId, (what) => {
+  session.channel = versusRemote.subscribeRoom(session.roomId, matchId, (what, row) => {
+    // VERSUS DUOS (R-DUOS-PASS-LATENCY-01): a pushed pass row lands at once; the coalesced pull below is its backstop.
+    if (what === 'passes' && row) pushDuosPass(row);
     // Membership changes arrive as the ROOM's revision bump (join, leave, seat moves, knockouts and prunes all bump it);
     // heartbeats are not subscribed to at all (R-NET-REALTIME-01).
     scheduleRefresh(what);
@@ -515,7 +517,12 @@ function syncSpectatorEmotes(): void {
   if (session?.channel && me && !mySeat() && useSpectate.getState().active) installSpectatorEmotes(me, session.channel.send);
   else if (session) uninstallSpectatorEmotes();
 }
-useSpectate.subscribe((s, prev) => { if (s.active !== prev.active && session) syncSpectatorEmotes(); });
+useSpectate.subscribe((s, prev) => {
+  if (s.active !== prev.active && session) syncSpectatorEmotes();
+  // VERSUS DUOS (R-DUOS-PASS-LATENCY-01): back on my own screen from my teammate's, the passes that came while I watched
+  // land now (they could not land on their run), not on the heartbeat's 12 s backstop.
+  if (prev.teammate && !s.teammate && session) backFromMate();
+});
 
 /** Realtime is a wake-up only: coalesce bursts and re-read the rows. A round commit's events (the match row and the
  *  round insert) come from one transaction and arrive within a few ms of each other, so a short window still folds them
@@ -2317,6 +2324,22 @@ function pullDuosPasses(matchId: string): void {
   const me = get().match?.group?.me;
   if (!raw || raw.id !== matchId || !isDuosRaw(raw) || !me || builtFor !== matchId) return;
   void duosPull(matchId, me, raw.round);
+}
+
+/** VERSUS DUOS: one pass row the room pushed (to or from my teammate), applied at once. */
+function pushDuosPass(row: Record<string, unknown>): void {
+  const raw = groupRaw;
+  const me = get().match?.group?.me;
+  if (!raw || !isDuosRaw(raw) || !me || builtFor !== raw.id || row.match_id !== raw.id) return;
+  duosPushed(raw.id, me, row as unknown as VersusDuosPassRow);
+}
+
+/** VERSUS DUOS: I left my teammate's screen. */
+function backFromMate(): void {
+  const raw = groupRaw;
+  const me = get().match?.group?.me;
+  if (!raw || !isDuosRaw(raw) || !me || builtFor !== raw.id) return;
+  duosBackFromMate(raw.round);
 }
 
 /** VERSUS DUOS: a spectator frame or cursor sample from my teammate's seat. */

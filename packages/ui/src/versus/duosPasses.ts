@@ -76,6 +76,25 @@ export function duosReleaseCombatFx(idx: readonly number[]): void {
   if (fresh && ses) duosAfterRun(ses.matchId, ses.me, run);
 }
 
+/** A pass that failed for a transient reason (not a refusal) goes out again after this long, doubling per failure in a
+ *  row up to the cap (an offline client is not hammered), back to the first step once a pass gets through. */
+export const DUOS_PASS_RETRY_MS = 1000;
+export const DUOS_PASS_RETRY_MAX_MS = 8000;
+export const duosPassRetryDelay = (failures: number): number => Math.min(DUOS_PASS_RETRY_MAX_MS, DUOS_PASS_RETRY_MS * 2 ** Math.max(0, failures - 1));
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let failures = 0;
+function retrySoon(s: DuosSession): void {
+  failures++;
+  if (retryTimer != null) return;
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    if (ses !== s) return;
+    const run = useGame.getState().run;
+    // While my screen shows my teammate's run, mine is set aside: send from it.
+    duosAfterRun(s.matchId, s.me, ownRunWhileWatching() ?? run);
+  }, duosPassRetryDelay(failures));
+}
+
 /** After every committed change of my run: send new passes and report my hand room. */
 export function duosAfterRun(matchId: string, me: VersusGroupSeat, run: RunState): void {
   if (!run.duos || run.mode !== 'versus') return;
@@ -95,15 +114,20 @@ export function duosAfterRun(matchId: string, me: VersusGroupSeat, run: RunState
     if (!e.team) lastRefusal = null;
     void versusRemote.duosPass(matchId, e.wave, seq, duosWireOf(e)).then(() => {
       s.shipped.add(idx);
+      failures = 0;
     }).catch((err: unknown) => {
       const code = err instanceof VersusError ? err.code : '';
       if (DUOS_PASS_REFUSALS.has(code)) {
         s.shipped.add(idx);
+        failures = 0;
         dispatch({ type: 'passRefunded', seq: idx });
         // A TEAM EFFECT (a gift, team max Gold) never took anything from me: nothing came back, so nothing to say.
         if (!e.team) { lastRefusal = { seq: idx, reason: code }; sayReturned(code); }
       }
-      // Anything else (offline, a blip): the next run change retries it.
+      // Anything else (offline, a blip, a timeout): retried on a short timer, not only on my next run change (a player
+      // who passes and then waits made no run change, so the card sat unsent; R-DUOS-PASS-LATENCY-01). The server takes
+      // each seq once, so a retry of a pass that did land is answered with the same row.
+      else retrySoon(s);
     }).finally(() => s.inFlight.delete(idx));
   }
   duosNoteMate(run);
@@ -289,6 +313,33 @@ async function reconcile(s: DuosSession): Promise<void> {
   if (s.ready && ses === s) void duosPull(s.matchId, s.me, useGame.getState().run.wave);
 }
 
+/** Pushed rows that came while my screen showed my teammate's run (in arrival order). */
+let owed: VersusDuosPassRow[] = [];
+
+/**
+ * A PUSHED PASS LANDS AT ONCE (R-DUOS-PASS-LATENCY-01; player report 2026-11-02: "it took like 8 seconds before it showed
+ * up in my hand"). The room's `pass` push carries the row itself, so it is applied the moment it arrives, with no wait and
+ * no read. The pull still follows it as the backstop (applying a row twice changes nothing: a landed pass is answered).
+ */
+export function duosPushed(matchId: string, me: VersusGroupSeat, row: VersusDuosPassRow): void {
+  const s = session(matchId, me);
+  // During the restore replay rows land in the server's order only (the pull after it reads this one too).
+  if (!s.ready) return;
+  // Watching my teammate: kept, and landed the moment I am back on my own screen.
+  if (ownRunWhileWatching()) { owed.push(row); return; }
+  applyRows(s, [row]);
+}
+
+/** Back on my own screen after watching my teammate (R-DUOS-VIEW-01): land what arrived while I watched, now. */
+export function duosBackFromMate(round: number): void {
+  const rows = owed;
+  owed = [];
+  if (!ses) return;
+  if (ses.ready && rows.length) applyRows(ses, rows.filter((r) => r.match_id === ses!.matchId));
+  // And a read, for anything a push did not carry.
+  void duosPull(ses.matchId, ses.me, round);
+}
+
 /** A pass arrived or was answered (a realtime wake, or a match refresh): land / refund what is new. */
 export async function duosPull(matchId: string, me: VersusGroupSeat, round: number): Promise<void> {
   const s = session(matchId, me);
@@ -307,6 +358,11 @@ export async function duosPull(matchId: string, me: VersusGroupSeat, round: numb
 function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
   // Until the restore replay has run, nothing lands here: it lands this round's passes itself, in the server's order.
   if (!s.ready) return;
+  // WATCHING MY TEAMMATE (R-DUOS-PASS-LATENCY-01): the store holds their run, render only, and swallows every dispatch,
+  // so a pass "landed" now was lost until the heartbeat's 12 s backstop read it again (measured 2026-11-02: 2.7 s and
+  // 11.0 s, against 70 ms on my own screen). Nothing lands on their run; leaving their screen pulls at once
+  // (`duosBackFromMate`).
+  if (ownRunWhileWatching()) return;
   for (const r of rows) {
     const run = useGame.getState().run;
     if (!run.duos) return;
@@ -342,4 +398,10 @@ function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
 
 
 /** Leaving the match. */
-export function duosReset(): void { ses = null; lastRefusal = null; }
+export function duosReset(): void {
+  ses = null;
+  lastRefusal = null;
+  owed = [];
+  if (retryTimer != null) { clearTimeout(retryTimer); retryTimer = null; }
+  failures = 0;
+}

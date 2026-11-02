@@ -5,7 +5,7 @@
   padding: calc(32 * var(--phu)) calc(32 * var(--phu) + var(--safe-r, 0px)) 0 calc(32 * var(--phu) + var(--safe-l, 0px)); color: var(--ph-text); font-family: var(--ph-body); }
 .phk-page.wide { max-width: calc(1600 * var(--phu)); }
 .phk-pagehead { flex: none; display: flex; align-items: flex-end; gap: calc(24 * var(--phu)); padding-bottom: calc(16 * var(--phu)); box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
-.phk-pagetitle { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; }
+.phk-pagetitle { flex: none; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: calc(200 * var(--phu)); }
 .phk-pagetitle h1 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .phk-eyebrow { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
 .phk-pagetabs { flex: 1; display: flex; justify-content: center; min-width: 0; }
@@ -110,14 +110,14 @@
 /* A modal window: a static dark veil (opacity fades, no live blur) and a navy plate in the big cut. */
 .phk-dialog { position: fixed; inset: 0; z-index: 520; display: grid; place-items: center; font-family: var(--ph-body); color: var(--ph-text); }
 .phk-veil { position: absolute; inset: 0; background: rgba(4, 8, 20, 0.72); animation: phk-fade 0.16s ease both; }
-.phk-dlgbox { position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(16 * var(--phu)); width: min(calc(640 * var(--phu)), 90vw); box-sizing: border-box;
+.phk-dlgbox { position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(16 * var(--phu)); width: min(calc(640 * var(--phu)), calc(var(--lvw, 100vw) * 0.9)); box-sizing: border-box;
   padding: calc(40 * var(--phu)) calc(40 * var(--phu)) calc(32 * var(--phu)); text-align: center; background: var(--ph-plate);
   box-shadow: var(--ph-gild), inset 0 0 0 calc(4 * var(--phu)) rgba(0, 0, 0, 0.25), 0 calc(24 * var(--phu)) calc(64 * var(--phu)) rgba(0, 0, 0, 0.6); clip-path: var(--ph-clip);
   animation: phk-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.15) both; }
 .phk-dlgtitle { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.1; letter-spacing: 0.04em; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .phk-dlgtext { max-width: calc(440 * var(--phu)); font-size: var(--ph-t2); line-height: 1.5; color: var(--ph-text); }
 .phk-dlgtext p { margin: 0 0 calc(8 * var(--phu)); }
-.phk-dlgactions { display: flex; flex-wrap: nowrap; justify-content: center; gap: calc(8 * var(--phu)); margin-top: calc(8 * var(--phu)); }
+.phk-dlgactions { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(8 * var(--phu)); margin-top: calc(8 * var(--phu)); }
 .phk-dialog.closing .phk-veil { animation: phk-fade 0.14s ease reverse both; }
 .phk-dialog.closing .phk-dlgbox { animation: phk-fade 0.14s ease reverse both; }
 @keyframes phk-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -150,7 +150,7 @@
 .phk-meterbar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
 
 /* PhPage fills a page host (a flex column such as `.lbpage`). */
-.phk-page { flex: 1; min-height: 0; }
+.phk-page { flex: 1; min-height: 0; position: relative; z-index: 1; }
 /* A small stat (PhStat size s / PhFact). */
 .phk-stat.s-s { gap: calc(2 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); }
 .phk-stat.s-s .phk-statval { font-size: var(--ph-t3); }
@@ -205,8 +205,8 @@
 .phk-select:hover:not(:disabled), .phk-select[aria-expanded="true"] { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
 .phk-select:disabled { opacity: 0.45; }
 .phk-selectcaret { color: var(--ph-muted); }
-.phk-selectlayer { position: fixed; inset: 0; z-index: 9000; }
-.phk-selectlist { position: fixed; display: flex; flex-direction: column; max-height: 50vh; overflow-y: auto; padding: calc(8 * var(--phu)); box-sizing: border-box;
+.phk-selectlayer { position: fixed; inset: 0; z-index: 900; }
+.phk-selectlist { position: fixed; display: flex; flex-direction: column; max-height: calc(var(--lvh, 100vh) * 0.5); overflow-y: auto; padding: calc(8 * var(--phu)); box-sizing: border-box;
   background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold), 0 calc(12 * var(--phu)) calc(32 * var(--phu)) rgba(0, 0, 0, 0.6); }
 /* The search box. */
 .phk-search { height: calc(40 * var(--phu)); min-width: 0; padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
@@ -214,3 +214,97 @@
 .phk-search::placeholder { color: var(--ph-muted); }
 .phk-search:focus { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
 @media (prefers-reduced-motion: reduce) { .phk-switchknob { transition: none; } }
+
+/* PhSelect thumbnails and disabled options. */
+.phk-selthumb { flex: none; width: calc(28 * var(--phu)); height: calc(28 * var(--phu)); object-fit: cover; box-shadow: var(--ph-gild-s); }
+.phk-select .phk-selthumb { margin-right: calc(-4 * var(--phu)); }
+.phk-selopt { display: flex; align-items: center; gap: calc(12 * var(--phu)); min-height: calc(40 * var(--phu)); }
+.phk-selopt:disabled { opacity: 0.5; }
+.phk-seloptlbl { display: flex; flex-direction: column; gap: calc(2 * var(--phu)); }
+.phk-selreason { font-family: var(--ph-body); font-weight: 600; font-size: var(--ph-t1); color: var(--ph-muted); text-transform: none; letter-spacing: 0; }
+.phk-slider.muted input[type="range"] { opacity: 0.45; }
+
+/* ── THE PAINTED ORNAMENTS (../ornaments): static images ── */
+/* Sections and windows: square, the four gilded corners (each a mirror of the owner's top-left piece), a divider under
+   the title. The corners sit inside the edge. */
+.phk-section, .phk-dlgbox { clip-path: none; }
+.phk-section::before, .phk-dlgbox::before { content: ''; position: absolute; inset: calc(-2 * var(--phu)); z-index: 1; pointer-events: none;
+  background:
+    url('../ornaments/corner.webp') left top / calc(36 * var(--phu)) auto no-repeat,
+    url('../ornaments/corner-tr.webp') right top / calc(36 * var(--phu)) auto no-repeat,
+    url('../ornaments/corner-bl.webp') left bottom / calc(36 * var(--phu)) auto no-repeat,
+    url('../ornaments/corner-br.webp') right bottom / calc(36 * var(--phu)) auto no-repeat; }
+.phk-sechead { position: relative; padding-bottom: calc(16 * var(--phu)); }
+.phk-sechead::after { content: ''; position: absolute; left: calc(24 * var(--phu)); bottom: 0; width: calc(200 * var(--phu)); height: calc(22 * var(--phu)); pointer-events: none;
+  background: url('../ornaments/divider.webp') left center / contain no-repeat; }
+.phk-dlgtitle { position: relative; padding-bottom: calc(20 * var(--phu)); }
+.phk-dlgtitle::after { content: ''; position: absolute; left: 50%; bottom: 0; translate: -50% 0; width: calc(280 * var(--phu)); height: calc(26 * var(--phu)); pointer-events: none;
+  background: url('../ornaments/divider.webp') center / contain no-repeat; }
+/* The active tab: the painted bar with its sapphire. */
+.phk-tab.on::after { left: calc(8 * var(--phu)); right: calc(8 * var(--phu)); bottom: calc(-2 * var(--phu)); height: calc(14 * var(--phu)); background: url('../ornaments/tab-marker.webp') center / contain no-repeat; }
+/* A placing: the number in the crowned shield (the painted crest frame); 1 to 3 in their metal, the rest in ink. */
+.phk-place, .phk-place:is([data-place="1"], [data-place="2"], [data-place="3"]) {
+  width: calc(40 * var(--phu)); height: calc(40 * var(--phu) * 196 / 160); padding-top: calc(8 * var(--phu)); box-sizing: border-box; clip-path: none; box-shadow: none;
+  background: url('../ornaments/crest-frame.webp') center / 100% 100% no-repeat; font-size: var(--ph-t3); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.phk-place[data-place="1"] { color: #ffd98a; }
+.phk-place[data-place="2"] { color: #e8eef5; }
+.phk-place[data-place="3"] { color: #eaa66c; }
+.phk-place.s-l { width: calc(64 * var(--phu)); height: calc(64 * var(--phu) * 196 / 160); padding-top: calc(12 * var(--phu)); font-size: var(--ph-t4); }
+
+/* A plate with a small muted heading. */
+.phk-plate { position: relative; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-plate); box-shadow: var(--ph-gild-s); }
+.phk-platehead { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ph-muted); }
+/* A podium card. */
+.phk-podium { position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(16 * var(--phu)) calc(24 * var(--phu)); margin: 0; border: 0; border-radius: 0;
+  background: var(--ph-plate); box-shadow: var(--ph-gild); color: inherit; font: inherit; text-align: center; }
+.phk-podium.p-1 { box-shadow: var(--ph-gild), inset 0 calc(4 * var(--phu)) 0 rgba(246, 207, 90, 0.5); }
+.phk-podart { width: calc(96 * var(--phu)); height: calc(96 * var(--phu)); border-radius: 50%; object-fit: cover; object-position: 50% 22%; box-shadow: 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
+.phk-podname { font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phk-podsub { font-size: var(--ph-t1); color: var(--ph-muted); }
+.phk-podstat { font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); color: #fbe6a6; }
+.phk-podium.press:hover, button.phk-podium:hover { background: var(--ph-plate-hover); }
+/* A table row on a shared grid. */
+.phk-grow { display: grid; align-items: center; gap: calc(12 * var(--phu)); min-height: calc(48 * var(--phu)); padding: 0 calc(16 * var(--phu)); margin: 0; border: 0; border-radius: 0; box-sizing: border-box; width: 100%;
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s); color: var(--ph-text); font: inherit; font-size: var(--ph-t2); text-align: left; }
+.phk-grow.head { min-height: calc(32 * var(--phu)); background: none; box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
+.phk-grow.press:hover { background: var(--ph-plate-hover); color: var(--ph-ink); }
+.phk-grow.sel { box-shadow: var(--ph-gild); }
+
+.phk-num { font-family: var(--ph-name-font); letter-spacing: 0; }
+.phk-tab.locked { opacity: 0.4; }
+.phk-tab.locked .ph-emblem { filter: grayscale(1); }
+
+/* ── MODERN FANTASY: rounded, bubbly, glossy, springy (owner 2026-11-02). Overrides the cut shapes above. ── */
+.phk-section, .phk-plate, .phk-podium { border-radius: var(--ph-r-l); clip-path: none; }
+.phk-dlgbox { border-radius: var(--ph-r-l); }
+.phk-row, .phk-grow, .phk-stat, .pho-note, .pho-godrow { border-radius: var(--ph-r); clip-path: none; }
+.phk-row.press, .phk-grow.press { transition: transform 0.18s var(--ph-spring); }
+.phk-row.press:hover, .phk-grow.press:hover { transform: translateY(calc(-2 * var(--phu))); }
+.phk-row.sel, .phk-grow.sel { box-shadow: var(--ph-gild-s), var(--ph-glow); }
+/* Pills: buttons, chips, segmented options, tabs, selects, search. Plump: a soft top highlight and a soft foot shade. */
+.phk-btn, .phk-chip, .phk-segbtn, .phk-select, .phk-search, .phk-back, .phk-count { clip-path: none; border-radius: 999px; }
+.phk-btn { font-weight: 900; letter-spacing: 0.06em; transition: transform 0.18s var(--ph-spring), box-shadow 0.12s ease; }
+.phk-btn:hover:not(:disabled) { transform: scale(1.05); }
+.phk-btn:active:not(:disabled) { transform: scale(0.95); }
+.phk-btn.v-primary { box-shadow: inset 0 calc(3 * var(--phu)) calc(2 * var(--phu)) rgba(255, 252, 235, 0.65), inset 0 calc(-3 * var(--phu)) calc(3 * var(--phu)) rgba(150, 90, 10, 0.5), 0 calc(4 * var(--phu)) calc(10 * var(--phu)) rgba(0, 0, 0, 0.35); }
+.phk-btn.v-primary:hover:not(:disabled) { box-shadow: inset 0 calc(3 * var(--phu)) calc(2 * var(--phu)) rgba(255, 252, 235, 0.7), inset 0 calc(-3 * var(--phu)) calc(3 * var(--phu)) rgba(150, 90, 10, 0.5), 0 0 calc(18 * var(--phu)) rgba(255, 200, 80, 0.6); }
+.phk-segbtn { font-weight: 800; letter-spacing: 0.02em; transition: transform 0.18s var(--ph-spring), color 0.12s ease; }
+.phk-segbtn:hover:not(:disabled) { transform: translateY(calc(-1 * var(--phu))); }
+.phk-segbtn.on { box-shadow: inset 0 calc(2 * var(--phu)) calc(2 * var(--phu)) rgba(255, 252, 235, 0.6), inset 0 calc(-2 * var(--phu)) calc(3 * var(--phu)) rgba(150, 90, 10, 0.45), 0 0 calc(12 * var(--phu)) rgba(255, 200, 80, 0.45); }
+.phk-tab { font-weight: 800; letter-spacing: 0.06em; transition: color 0.12s ease, transform 0.18s var(--ph-spring); }
+.phk-tab:hover:not(:disabled):not(.locked) { transform: translateY(calc(-2 * var(--phu))); }
+.phk-tab.on { text-shadow: var(--ph-shadow), 0 0 calc(12 * var(--phu)) rgba(255, 210, 110, 0.55); }
+.phk-switch { transition: transform 0.18s var(--ph-spring); }
+.phk-switch:active:not(:disabled) { transform: scale(0.95); }
+.phk-switchknob { transition: transform 0.22s var(--ph-spring); }
+.phk-moremenu, .phk-selectlist { border-radius: var(--ph-r); clip-path: none; }
+.phk-moreitem { border-radius: var(--ph-r-s); }
+.phk-pagetitle h1, .phk-dlgtitle { font-weight: 900; letter-spacing: 0.02em; }
+.phk-sechead h2 { font-weight: 900; letter-spacing: 0.08em; }
+.phk-num { font-family: inherit; }
+@media (prefers-reduced-motion: reduce) { .phk-btn, .phk-segbtn, .phk-tab, .phk-row.press, .phk-grow.press, .phk-switch, .phk-switchknob { transition: none; } }
+
+/* A labelled field. */
+.phk-field { display: flex; flex-direction: column; gap: calc(6 * var(--phu)); }
+.phk-fieldinput { width: 100%; box-sizing: border-box; }
+.phk-fielderr { font-size: var(--ph-t1); color: var(--pill-red, #ff7a66); }

@@ -40,7 +40,11 @@ export function handleEscape(): void {
   if (st.inspect) return;
   // THE PARTY HOME PROTOTYPE's SHELL (DEV switch): Esc on a page goes home; on the home it does nothing (Settings is
   // the nav's gear, one place). Only while the shell is up (the menus before a run).
-  if (document.documentElement.hasAttribute('data-ph-shell')) { if (anyPageOpen(st)) st.goTo('menu'); return; }
+  if (document.documentElement.hasAttribute('data-ph-shell')) {
+    if (st.practiceSetupOpen) st.cancelPracticeSetup();
+    else if (anyPageOpen(st) || st.titleView !== 'menu') st.goTo('menu');
+    return;
+  }
   openMenu();
 }
 

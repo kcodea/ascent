@@ -6,6 +6,17 @@ import { PARTY_MODES, partyModeOf, partyModes } from './partyModes';
 const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
 
 describe('party home prototype', () => {
+  it('every kit name the party home files import is exported by the kit (a missing export crashed START once)', async () => {
+    const kit = await import('./kit');
+    const files = ['./PartyHome.tsx', './ModeOptions.tsx', './PhPrompts.tsx', './shell/PhFriends.tsx'];
+    for (const f of files) {
+      const m = here(f).match(/import \{([^}]+)\} from '(?:\.\/kit|\.\.\/kit)';/);
+      if (!m) continue;
+      for (const name of m[1]!.split(',').map((x) => x.trim()).filter(Boolean)) {
+        expect(kit, `${f} imports ${name}`).toHaveProperty(name);
+      }
+    }
+  });
   it('lists every mode, hiding Versus and dev-only modes when their flags are off', () => {
     expect(partyModes({ versus: true, dev: true }).map((m) => m.id)).toEqual(PARTY_MODES.map((m) => m.id));
     const prod = partyModes({ versus: false, dev: false }).map((m) => m.id);
@@ -30,7 +41,7 @@ describe('party home prototype', () => {
     expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
     expect(css).not.toMatch(/cursor:/);
     expect(css).not.toMatch(/infinite/);
-    const strings = [...tsx.matchAll(/'([^'\n]*)'/g), ...PARTY_MODES.flatMap((m) => [[m.desc, m.desc], [m.label, m.label], [m.stub ?? '', m.stub ?? '']])].map((x) => x[1] ?? '');
+    const strings = [...tsx.matchAll(/'([^'\n]*)'/g), ...PARTY_MODES.flatMap((m) => [[m.desc, m.desc], [m.label, m.label]])].map((x) => x[1] ?? '');
     for (const s of strings) { expect(s).not.toMatch(/—|\s--\s/); expect(s).not.toMatch(/\b(Oath|climb)\b/i); }
   });
 });

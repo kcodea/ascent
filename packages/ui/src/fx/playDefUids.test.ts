@@ -36,6 +36,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'passLob.ts', id: 'duos-pass-send', why: 'the Duos pass stream (R-DUOS-PASS-05): from a released card that has already left the run into the teammate portrait (HUD), no board unit at either end' },
   { file: 'passLob.ts', id: 'duos-pass-arrive', why: 'the Duos arrival stream (R-DUOS-PASS-02): from the teammate portrait (HUD) to a hand slot; the def has no react layer, and the card forms through its own coalesce' },
   { file: 'VersusRoom.tsx', id: 'ground-slam', why: 'the Versus room VS slam (entrance and face-off beat): fires under the VS mark, room chrome with no unit' },
+  { file: 'goldFuseBreak.ts', id: 'gold-fuse-break', why: 'the Gold Fuse break (R-TIMER-FUSE-02): fires where the fuse bar on the shop TIMER plaque (HUD chrome) snaps as the clock lights, never at a unit' },
   { file: 'Recruit.tsx', id: 'final-countdown-tick', why: 'the final-countdown burst: fires from the shop TIMER digits (HUD chrome) on each of the last five seconds, never at a unit' },
   { file: 'Recruit.tsx', id: 'self-buff-burst', why: 'the End-of-Turn economy burst (R-EOT-ECON-01): fires at the HUD control whose number moved (Tier stone, Refresh crystal, Gold pill), never at a unit' },
   { file: 'EndTurnButton.tsx', id: 'impact-dust', why: 'fires at the button' },

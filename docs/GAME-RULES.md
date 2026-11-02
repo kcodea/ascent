@@ -282,7 +282,8 @@ Single-player stages, each a 10-round duel against one hand-built opponent whose
 - **The shop is the normal game's** (economy, tiers, tribes, a random shop every attempt), with any hero at their
   normal Resolve and Armor. You can't see the opponent's next board before combat.
 - **Shop timer:** no clock until you spend 30 Gold in a round, then 60 seconds (R-GAUNTLET-04). Every lobby and
-  Practice run the same Gold Fuse at 10 Gold, then the round's normal turn length (see the Ranked ladder, R-TIMER-FUSE-01).
+  Practice run the Gold Fuse at 10 Gold (less in a ranked game started at Gold or higher), then the round's normal
+  turn length (see the Ranked ladder, R-TIMER-FUSE-01 / R-TIMER-FUSE-02).
 - **Opponent runes:** one from round 6, a second from round 9 (both active from then on). Only their combat effects act.
 - **Opponent run buffs:** a stage can give the opponent the run-wide values a real run builds up (Ruby strength, spell
   power, auras, counters like Grim's Deathrattles). A value set on a round lasts for every later round until changed,
@@ -362,11 +363,23 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   26 s); no round falls back to an always-running clock.
   Practice on **Unlimited** has no clock and no fuse. The **Gauntlet** keeps its own 30 Gold / 60 second fuse
   (R-GAUNTLET-04), the tutorial stays untimed and the sandbox keeps its own clock. The player's rank never changes the
-  clock, so no rank-up screen mentions it. This replaced the 2026-10-06 **Bronze-only** fuse (20 Gold, then 60 s / 90 s
-  from turn 9, R-TIMER-BRONZE-01) and its **Bronze → Silver "Shop Timer Adjusted" notice** (R-TIMER-BRONZE-02), both
-  retired; `RunState.medalAtStart` is still pinned for telemetry (R-TELEMETRY-RANK-01) but the clock no longer reads
-  it, so a game saved under the Bronze rules resumes under the new fuse. Source: `packages/ui/src/goldClock.ts`
-  (`goldClockOf`) and `packages/ui/src/turnClock.ts` (`standardTurnSeconds`, the one schedule the plain clock and the
+  countdown's length, and no rank-up screen mentions the clock. This replaced the 2026-10-06 **Bronze-only** fuse (20
+  Gold, then 60 s / 90 s from turn 9, R-TIMER-BRONZE-01) and its **Bronze → Silver "Shop Timer Adjusted" notice**
+  (R-TIMER-BRONZE-02), both retired, so a game saved under the Bronze rules resumes under the new fuse.
+  - **The threshold by medal** (owner 2026-11-01, verbatim: *"Bronze = 10 gold, Silver = 10 gold, Gold = 7 gold,
+    Platinum = 5 gold, Diamond = 5 gold, Ascendant = 3 gold"*; R-TIMER-FUSE-02, amending the flat 10 of 2026-10-07 for
+    ranked games). A ranked lobby's fuse lights at the Gold of the medal **pinned when the game started**
+    (`RunState.medalAtStart`, stamped once by `pinMedalAtStart`, also read for telemetry, R-TELEMETRY-RANK-01): Bronze
+    10, Silver 10, Gold 7, Platinum 5, Diamond 5, Ascendant 3, and the bar reads 0/7, 0/5 or 0/3 to match. A promotion
+    or demotion during the game, Save & Quit, a cloud resume and a replay all keep the starting threshold. A game with
+    no pinned medal (an unrated table, Practice, a run from before the pin) keeps 10. The countdown's length is the
+    same round schedule at every medal. Ranked Duos and Versus run on the live server's clock, not the Gold Fuse.
+  - **The break** (owner 2026-11-01: *"add an animation for when the gold fuse breaks and the timer starts"*). The
+    moment the threshold is met, the full bar snaps in two (a gold ring and sparks at the break, the halves kick apart
+    and fade) and the clock digits punch in, about 0.8 s in all. It plays only on a crossing seen live: a turn restored
+    with its clock already running does not replay it. Presentation only; the clock starts at the same instant.
+  Source: `packages/ui/src/goldClock.ts`
+  (`goldClockOf`, `fuseGoldOf`, `FUSE_GOLD_BY_MEDAL`), `packages/ui/src/goldFuseBreak.ts` and `packages/ui/src/turnClock.ts` (`standardTurnSeconds`, the one schedule the plain clock and the
   fuse share).
 - **Play asks first, and from "Yes" on you owe a result** (owner 2026-10-11, R-RANK-06). Pressing the Play card
   opens a confirmation: *"This is a ranked lobby, abandoning the match after this point will lose you MMR. Would you

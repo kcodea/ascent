@@ -59,6 +59,17 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-01',
     changes: [
       {
+        category: 'Balance',
+        text: 'The Gold Fuse now lights sooner at higher ranks.',
+        details: [
+          'In a ranked game, the Gold you spend before the shop timer starts now depends on your medal.',
+          'Bronze and Silver: 10 Gold. Gold: 7 Gold. Platinum and Diamond: 5 Gold. Ascendant: 3 Gold.',
+          'It uses your medal when the game started, so ranking up mid-game does not change it.',
+          'Unranked games and Practice still use 10 Gold. The timer length is the same as before.',
+        ],
+      },
+      { category: 'Systems', text: 'The Gold Fuse now snaps with a burst of sparks when it fills, and the shop timer punches in.' },
+      {
         category: 'Systems',
         text: "The game's pills now match the lobby rail: a deep navy plate, a thin gold edge and crisp white lettering.",
         details: [

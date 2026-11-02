@@ -202,6 +202,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'gild-trail' joined on 2026-09-24: the owner's gild redesign — one play per consumed copy, from where it stood
       // into the new gilded card (`gildTrail.ts`), replacing plateGild's hand-written centre-screen fuse.
       'gild-trail',
+      // 'gold-fuse-break' joined on 2026-11-01: the Gold Fuse break on the shop timer plaque (`goldFuseBreak.ts`).
+      'gold-fuse-break',
       // 'good-luck-intro' joined on 2026-09-24: the spark burst of the game-start "Good Luck" intro (`goodLuck/GoodLuckIntro.tsx`).
       'good-luck-intro',
       // 'ground-slam' joined on 2026-10-21: the Versus room's VS slam, on the entrance and when the second fighter sits

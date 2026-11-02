@@ -1328,6 +1328,14 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   on and it starts from its left-most minion. Both boards falling together is a draw. An empty board hands straight
   over to the teammate. Each player's run keeps only what its own board did in the fight (Engraved gains, tallies,
   hand grants, Gold, ...). Combat stays 1:1 symmetric.
+- **The fly-in** (owner 2026-11-02, R-DUOS-FLYIN-01: "the team flies in and fills the 7 slots from left to right. if
+  there's no room, there's no fly in. flying in after combat does NOT trigger start of combats or anything, but it DOES
+  deal more dmg to opponents as the filled in slots tally up for damage"). When a team WINS with its first board, the
+  teammate's board, which never fought, flies in after the last kill: its minions, left to right, fill the empty slots
+  after the survivors, up to 7 (a full board flies nothing in). They trigger nothing (no Start of Combat, no summon
+  triggers, no auras) but count for damage like survivors. If the first board fell and the teammate's board stepped in
+  and won, nothing flies in (both boards fought). A draw flies nothing in. On screen they play the step-in's fly-in, and
+  the damage formation (shown for Duos fights) counts each one from its slot. Ranked Duos fights work the same way.
 - **Who fights first** (R-DUOS-ORDER-01, owner ruling 2026-10-25: "I want the 'who fights first' to be a 50/50, not a
   player decision for duos teams. Every round it should say who fights first but players cannot decide who it is."). For
   each team, every round, a 50/50 pick between its two players; nobody can change it. It is known when the shop opens
@@ -1337,8 +1345,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **One shared Health pool and placement** (owner 2026-10-26: "The duo gets 30 hp plus the sum of both armors";
   R-DUOS-HEALTH-01). Each team plays on ONE pool: 30 Health plus both heroes' Armor (Summit: +10 Armor per hero). The
   losing team takes the lobby's damage, capped by the lobby's round cap, Armor first: the tavern tier of the winning
-  side's board that ENDED the fight (the one still standing; the teammate's if it stepped in) plus its survivors' tiers.
-  A draw costs nobody. A team at 0 Health is out together. *(7 team hearts, 2 for a stomp, until 2026-10-26.)* Placement is by TEAM (owner: "In duos you only
+  side's board that ENDED the fight (the one still standing; the teammate's if it stepped in) plus its survivors' tiers,
+  plus the tiers of the teammate minions that flew in (below). A draw costs nobody. A team at 0 Health is out together. *(7 team hearts, 2 for a stomp, until 2026-10-26.)* Placement is by TEAM (owner: "In duos you only
   place 1 and 2 in a 2v2"): the winning team is 1st (both players), the losing team 2nd (both). XP: 125 for each winner,
   50 for each loser. Teams are kept as their own record (id, pool, placement), so a future 4-team Duos places teams
   1st to 4th the same way.
@@ -1508,7 +1516,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 
 - **The mode.** A ranked lobby for two players playing live together: 4 teams of 2. Your team is the two of you; the
   other three teams are recorded runs. It follows the lobby rules (pairing, ghost fights, damage formula, round loss cap,
-  placement), with tag-team fights as in Versus Duos and passing as in Versus Duos (1 Gold, hand only, refused on a full
+  placement), with tag-team fights as in Versus Duos (the fly-in included, R-DUOS-FLYIN-01) and passing as in Versus Duos (1 Gold, hand only, refused on a full
   hand). Attack-first cards are allowed. Duo runs never feed the solo pool.
 - **Team pool.** 30 Health plus both heroes' Armor; Armor absorbs first. A team at 0 is out together; placement is 1st
   to 4th per team.

@@ -305,6 +305,27 @@ describe('the engine reader (`heroStrikeNumbers`)', () => {
   });
 });
 
+describe('a DUOS fight shows the formation, flown-in teammate minions included (R-DUOS-FLYIN-01)', () => {
+  it('a Versus Duos win: hero tier + survivors + the bodies that flew in; the cap beat when the resolver cut it', () => {
+    const run = { lobby: undefined, mode: 'versus', wave: 9, lastCombat: {
+      result: 'win', playerDamage: 0, enemyDamage: 6, damageCap: 6, tagTeam: { members: {}, tagInAt: {} },
+      enemyDamageBreakdown: { oppTier: 3, survivorTiers: [2, 1, 4], survivorUids: ['s0', 'f1', 'f2'] },
+    } } as never;
+    const n = heroStrikeNumbers(run, true);
+    expect(n.hero).toBe(3);
+    expect(n.minions.map((m) => m.uid)).toEqual(['s0', 'f1', 'f2']);
+    expect(n.full).toBe(10);
+    expect(n.cap).toBe(6);
+  });
+  it('a 1v1 / Group Versus fight keeps the blow-only read', () => {
+    const run = { lobby: undefined, mode: 'versus', wave: 9, lastCombat: {
+      result: 'win', playerDamage: 0, enemyDamage: 6, damageCap: 6,
+      enemyDamageBreakdown: { oppTier: 3, survivorTiers: [2], survivorUids: ['s0'] },
+    } } as never;
+    expect(heroStrikeNumbers(run, true)).toMatchObject({ hero: null, minions: [] });
+  });
+});
+
 describe('the runners', () => {
   afterEach(() => { document.body.innerHTML = ''; });
   const TEX = null;

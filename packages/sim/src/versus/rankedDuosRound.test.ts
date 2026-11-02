@@ -142,3 +142,21 @@ describe('the round (R-RANKED-DUOS-ROUND-01)', () => {
     expect(JSON.stringify(base())).toBe(JSON.stringify(base()));
   });
 });
+
+describe('the tag-team fly-in in a Ranked Duos fight (R-DUOS-FLYIN-01)', () => {
+  it('the winner\'s unfought teammate board flies into the empty slots and the losing team takes its tiers too', () => {
+    const r = resolveRankedDuosRound({
+      matchSeed: 7, round: 9, history: [], fallen: [], liveTeam: 'a',
+      alive: [
+        { team: 'a', sides: [side(2, 40, 400, 3), side(3, 1, 1, 3)], first: 0, vitals: { health: 30, armor: 0 } },
+        { team: 'b', sides: [side(1, 1, 1, 2), EMPTY], first: 0, vitals: { health: 30, armor: 0 } },
+      ],
+    });
+    const f = r.fights[0]!;
+    expect(f.loser).toBe('b');
+    const fly = f.liveResult!.events.filter((e) => e.type === 'flyIn');
+    expect(fly.map((e) => [e.side, e.index, e.minions.length])).toEqual([['player', 2, 3]]);
+    // Tier 3 + two survivors + three flown in (sandbags are tier 1), under round 9's cap.
+    expect(f.damage).toBe(Math.min(3 + 5, lossDamageCap(9)));
+  });
+});

@@ -160,6 +160,34 @@ describe('Duos room in workerd', () => {
     for (const p of players) p.client!.close();
   });
 
+  it('THE FLY-IN (R-DUOS-FLYIN-01): the unfought teammate board of the winner fills the empty slots and counts for damage, for every client', async () => {
+    const { players, matchId } = await toGroupShop(base, 4, 'duos');
+    const [p1, p2, p3, p4] = players as [Player, Player, Player, Player];
+    // Team A: two three-minion boards (whichever fights first wins against nothing; the other flies in). Team B: empty.
+    const full = FIXTURE.cases.find((c) => c.p1.board.length === 7)!.p1;
+    const three = (_seat: 'p1' | 'p2') => ({ ...structuredClone(full), board: structuredClone(full.board.slice(0, 3)) });
+    const none = () => ({ ...sideOf(1, 'p1'), board: [] });
+    await p1.req('submit', { matchId, round: 1, seq: 1, side: three('p1'), final: true, checkpoint: null });
+    await p2.req('submit', { matchId, round: 1, seq: 1, side: three('p2'), final: true, checkpoint: null });
+    await p3.req('submit', { matchId, round: 1, seq: 1, side: none(), final: true, checkpoint: null });
+    const got = Promise.all(players.map((p) => p.next((m) => m.t === 'round' && m.row.round === 1)));
+    await p4.req('submit', { matchId, round: 1, seq: 1, side: none(), final: true, checkpoint: null });
+    type Ev = { type: string; side?: string; index?: number; minions?: unknown[] };
+    type Res = { events: Ev[]; damageBreakdown?: { survivorUids: string[] }; playerDamageUncapped?: number };
+    const rows = (await got).map((a) => (a.msg as unknown as { row: { fights: { outcome: string; a_result: Res; b_result: Res }[] } }).row);
+    for (const r of rows) {
+      const f = r.fights[0]!;
+      expect(f.outcome).toBe('a');
+      const fly = f.a_result.events.filter((e) => e.type === 'flyIn');
+      expect(fly).toHaveLength(1);
+      expect([fly[0]!.side, fly[0]!.index, fly[0]!.minions!.length]).toEqual(['player', 3, 3]);
+      // The losing team's damage counts the three standing AND the three flown in.
+      expect(f.b_result.damageBreakdown!.survivorUids).toHaveLength(6);
+    }
+    expect(new Set(rows.map((r) => JSON.stringify(r.fights[0]))).size).toBe(1); // identical on every client
+    for (const p of players) p.client!.close();
+  });
+
   it('TEAM CHAT (R-LOBBY-CHAT-TEAM-01): the lobby sync says team; a team post reaches the teammate only, a lobby post all four', async () => {
     const { players } = await toGroupShop(base, 4, 'duos');
     const [p1, p2, p3, p4] = players as [Player, Player, Player, Player];

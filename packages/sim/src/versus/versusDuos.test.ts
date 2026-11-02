@@ -116,12 +116,14 @@ describe('a Duos round: one tag-team fight (R-DUOS-01)', () => {
   const pools = { a: { health: 30, armor: 2 }, b: { health: 30, armor: 2 } };
 
   it('the losing team takes the lobby damage of the board that ended the fight (capped, Armor first); a draw costs nobody', () => {
-    // Team A's first board (tier 4) never needs its teammate: 4 + its survivor's tier, capped at round 1's 5.
+    // Team A's first board (tier 4) never needs its teammate: 4 + its survivor's tier + its teammate's board, which flies
+    // into the empty slots after the fight (R-DUOS-FLYIN-01), capped at round 1's 5.
     const stomp = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [fa]: at(4, big), [ma]: small, [fb]: small, [mb]: small }, vitals: pools });
     expect(stomp.outcome).toBe('a');
     expect(stomp.losingTeam).toBe('b');
-    expect(stomp.bResult.playerDamageUncapped).toBe(4 + tierOf('sandbag'));
-    expect(stomp.damage).toBe(Math.min(5, 4 + tierOf('sandbag'))); // round 1: the lobby cap is 5
+    expect(stomp.aResult.events.filter((e) => e.type === 'flyIn').map((e) => e.side)).toEqual(['player']);
+    expect(stomp.bResult.playerDamageUncapped).toBe(4 + tierOf('sandbag') * 2);
+    expect(stomp.damage).toBe(Math.min(5, 4 + tierOf('sandbag') * 2)); // round 1: the lobby cap is 5
     expect(stomp.vitals).toEqual({ a: pools.a, b: { health: 30 - Math.max(0, stomp.damage - 2), armor: Math.max(0, 2 - stomp.damage) } });
     expect(stomp.bResult.versusVitals).toEqual(stomp.vitals!.b);
     // Team A's first board (tier 6) falls; its teammate (tier 2) steps in and wins: ITS tier counts, not the fallen one's.

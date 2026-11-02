@@ -70,6 +70,9 @@ export interface ChoreoConfig {
   boardFallen: number;
   /** VERSUS DUOS: the teammate's board flying in (`.unit.tagin`, staggered) before the fight goes on. */
   tagIn: number;
+  /** DUOS (R-DUOS-FLYIN-01): the unfought teammate board flying into the empty slots after a won fight (the same
+   *  `.unit.tagin` entrance), before the damage formation counts them. */
+  flyIn: number;
   /** DUOS: a real-time team effect marker (`teamSend`, R-DUOS-RUNES-02). Zero: it is a network cue, never a pause. */
   teamSend: number;
   // Overlay lifetimes (divide by combatSpeed only, not by `speed`).
@@ -106,6 +109,7 @@ const DEFAULTS: ChoreoConfig = {
   boardFallen: 380, // ×speed 1.5 ≈ 570ms: the last death settles and the "steps in" plate rises
   teamSend: 0, // a network marker (the gift ships to the teammate), never a pause
   tagIn: 640, // ×speed 1.5 ≈ 960ms: seven bodies fly in on a 60 ms stagger (the CSS fly-in is 0.52 s) and land
+  flyIn: 640, // = tagIn: the same entrance, so the same hold (the bodies land before the damage formation reads them)
   // overlay lifetimes (ms)
   floatMs: 1500, deathFloatMs: 1000, finalHold: 900,
   // consequence-overlap: a summon/reborn rides on the preceding FX after this short gap (nearly in tandem) —
@@ -159,7 +163,7 @@ const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
   tribeAura: 'buff', // hold-times like a buff wave — an aura is a buff cue
   questTrigger: 'dmg', questComplete: 'dmg',
   bankedCast: 'bankedCast', // its own key: the clock keys by primary event TYPE, and the card needs a real read
-  boardFallen: 'boardFallen', tagIn: 'tagIn', // VERSUS DUOS: their own keys (the clock keys by primary event TYPE)
+  boardFallen: 'boardFallen', tagIn: 'tagIn', flyIn: 'flyIn', // VERSUS DUOS: their own keys (the clock keys by primary event TYPE)
   pummelTrigger: 'pummelTrigger', // its own key (= dmg): the clock keys by primary event TYPE, so a leading crossing needs a real entry to hold like damage rather than falling to the 300 default
 };
 export function holdMsForKind(kind: MomentKind): number {

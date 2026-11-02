@@ -73,6 +73,39 @@
   --ui-bevel-strength: 1;
   --ui-sheen: radial-gradient(110% 70% at 50% 0%, rgba(255, 255, 255, calc(0.15 * var(--ui-sheen-strength))), rgba(255, 255, 255, calc(0.03 * var(--ui-sheen-strength))) 55%, rgba(255, 255, 255, 0) 75%);
   --ui-bevel: inset 0 1px 0 rgba(255, 255, 255, calc(0.18 * var(--ui-bevel-strength))), inset 0 -4px 6px -4px rgba(0, 0, 0, calc(0.7 * var(--ui-bevel-strength)));
+
+  /* THE RAIL PILL LOOK (owner 2026-11-01: "look at the style of the rail now - can you apply this same text/coloring
+     style to the rest of our pills in game?", every pill). The Docked lobby rail's plate, edge and text treatment
+     (lobbyRailDocked.css: the navy slice plate, the placement box, the hero name), as ONE source the rail AND every
+     in-game pill read. The navy follows the Lobby Rail 2 tuner's plate colour (`--lr2-navy`), the edge follows the UI
+     theme's gold, the shadow strength follows the rail's "Name shadow" dial (`--lr2-name-shadow`). Static paint. */
+  --pill-navy: var(--lr2-navy, #0d1a36);
+  /* The plate's top and bottom stops on their own (a tip's caret square takes the stop at its edge). */
+  --pill-navy-top: color-mix(in srgb, var(--pill-navy) 82%, #3a5a9a);
+  --pill-navy-bot: color-mix(in srgb, var(--pill-navy) 70%, #000);
+  --pill-plate: linear-gradient(180deg, var(--pill-navy-top) 0%, var(--pill-navy) 55%, var(--pill-navy-bot) 100%);
+  /* A clickable pill's hover: the same plate, a step lighter (static on hover, no transition added). */
+  --pill-plate-hover: linear-gradient(180deg, color-mix(in srgb, var(--pill-navy) 62%, #4a6cb0) 0%, color-mix(in srgb, var(--pill-navy) 82%, #3a5a9a) 55%, var(--pill-navy) 100%);
+  --pill-edge: var(--ui-edge-main);
+  --pill-edge-hover: var(--ui-edge-hi);
+  /* The hairline of black that seats the gold edge on any background. */
+  --pill-outline: 0 0 1px rgba(0, 0, 0, 0.95);
+  --pill-font: var(--font-title);
+  --pill-text: var(--ui-text);
+  --pill-ns: var(--lr2-name-shadow, 0.5);
+  --pill-text-shadow: 0 1px 0 rgba(0, 0, 0, min(1, calc(0.95 * var(--pill-ns)))), 0 0 calc(4px * var(--pill-ns)) rgba(0, 0, 0, min(1, calc(0.85 * var(--pill-ns)))), 0 0 calc(9px * var(--pill-ns)) rgba(0, 0, 0, min(1, calc(0.6 * var(--pill-ns))));
+  /* The rail's Health-number shadow (a touch heavier, for big numbers). */
+  --pill-num-shadow: 0 1px 0 rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.85);
+  /* State colours the rail keeps, shared so a pill carries the same meaning: Armor's steel blue, the foe's red tint. */
+  --pill-armor: #c4d6ef;
+  --pill-foe: color-mix(in srgb, var(--ui-heart) 35%, #fff);
+  /* Gold (a Gold count or cost: the rail's podium gold) and the "too expensive" red, as number / icon / edge accents. */
+  --pill-gold: #f6cf5a;
+  --pill-red: #ff7a66;
+  /* An inner box on a navy panel (the rail's inspect card tiles, its power box, its fight rows): a deeper navy well with
+     a faint gold hairline, so it reads as a box without a second full edge. */
+  --pill-well: linear-gradient(180deg, color-mix(in srgb, var(--pill-navy) 72%, #000), color-mix(in srgb, var(--pill-navy) 88%, #000));
+  --pill-hair: color-mix(in srgb, var(--pill-edge) 32%, transparent);
 }
 
 /* The 🎨 UI Theme tuner's pinned sample row (UiThemeTuner.tsx): a tooltip, a name pill, a Health pill and a button,

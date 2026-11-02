@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: "The game's pills now match the lobby rail: a deep navy plate, a thin gold edge and crisp white lettering.",
+        details: [
+          'Covers the hero name and Health pills in the shop and in combat, the Shop Tier and Freeze labels, the turn timer and Gold Fuse, the hero power labels, and the Start Game button.',
+          'Also the upgrade and Refresh costs, tooltip tags, the Rift and Ancient pills, hero difficulty, the lobby chat button and the New tag.',
+          'Colours that mean something stay: the red heart, the steel blue Armor number, gold costs that turn red when you cannot afford them, a green free Refresh, and the low time warning.',
+          "Your opponent's name now takes the same red tint it has on the lobby rail.",
+          'Every tooltip and keyword box, the lobby rail hover card and the round box take the same navy and gold look.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New look for Amplified Equipment.',
         details: [
           'While your selected Equipment is Amplified, its slot glows a soft blue that slowly breathes.',

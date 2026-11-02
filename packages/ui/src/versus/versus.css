@@ -577,7 +577,7 @@ html[data-touch-ui] .mdd-panel.vsoptions { zoom: var(--touch-p, 1); width: min(7
 .vsfoe-status {
   position: absolute; left: 50%; top: calc(100% + 4 * var(--u)); translate: -50% 0;
   white-space: nowrap; padding: calc(1.5 * var(--u)) calc(6.5 * var(--u));
-  background: var(--ui-sheen) padding-box, var(--atip-bg) padding-box, var(--atip-edge) border-box;
+  background: var(--atip-bg) padding-box, var(--atip-edge) border-box;
   border: 1px solid transparent; border-top-width: 1.5px; border-radius: calc(6 * var(--u)); box-shadow: var(--atip-shadow);
   font-family: var(--font-ui); font-weight: 800; font-size: calc(6.5 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--atip-text); animation: vsfoestatus 360ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
@@ -601,7 +601,7 @@ html[data-touch-ui] .mdd-panel.vsoptions { zoom: var(--touch-p, 1); width: min(7
 .vsfoe-guides .vsfoe-guides-ico { width: calc(12 * var(--u)); height: calc(12 * var(--u)); margin: calc(-2 * var(--u)) 0; object-fit: contain; }
 :root[data-hp-look="gem"] .vsfoe-guides.hudpill-name { color: var(--ui-title); }
 :root[data-hp-look="gem"] .vsfoe-guides.hudpill-name:hover,
-:root[data-hp-look="gem"] .vsfoe-guides.hudpill-name.on { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+:root[data-hp-look="gem"] .vsfoe-guides.hudpill-name.on { color: #fff; background: var(--pill-plate-hover) padding-box; border-color: var(--pill-edge-hover); }
 .vsfoe-guides:hover { transform: translateY(-1px); }
 .vsfoe-guides:focus-visible { outline: 2px solid var(--ui-title); outline-offset: 2px; }
 /* THE GUIDES DRAWER: the rail's own Guides face, over the right side, sliding in from the edge (one-shot transform +
@@ -644,7 +644,7 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
 .vsspec-name { max-width: calc(140 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   padding: calc(1.5 * var(--u)) calc(9 * var(--u)); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); line-height: 1.15;
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
-:root[data-hp-look="gem"] .vsspec-seat.on .vsspec-name.hudpill-name { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+:root[data-hp-look="gem"] .vsspec-seat.on .vsspec-name.hudpill-name { color: #fff; background: var(--pill-plate-hover) padding-box; border-color: var(--pill-edge-hover); }
 .vsspec-hp { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); padding: calc(2 * var(--u)) calc(8 * var(--u));
   border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: calc(8 * var(--u)); background: linear-gradient(180deg, #241a13, #17110c);
   font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); line-height: 1; color: #ff9db0; }

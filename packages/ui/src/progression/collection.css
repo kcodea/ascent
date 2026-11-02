@@ -352,7 +352,9 @@ img.colls-caticon { object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0
    Collection opens with. Static styling; the pop-up's entrance is one-shot. The gauntlet cursor comes from the
    global button rule (no `cursor` here). ── */
 .newpill { display: inline-flex; align-items: center; flex: none; margin-left: 8px; padding: 2px 8px 1px; border-radius: 999px; font-family: var(--font-ui); font-weight: 900; font-size: 11px; line-height: 1.3; letter-spacing: 0.14em; text-transform: uppercase;
-  color: #1a1206; background: linear-gradient(180deg, #ffb45a, #f08a24); box-shadow: 0 0 0 1.5px rgba(26, 18, 6, 0.55), 0 2px 6px -2px rgba(0, 0, 0, 0.6); vertical-align: middle; }
+  /* THE RAIL LOOK (owner 2026-11-01): the navy plate; the "new" orange stays as its edge and its word, so it still
+     calls for attention. Static. */
+  font-family: var(--pill-font), sans-serif; color: #ffb45a; text-shadow: var(--pill-text-shadow); background: var(--pill-plate); box-shadow: 0 0 0 1.5px #f08a24, var(--pill-outline), 0 2px 6px -2px rgba(0, 0, 0, 0.6); vertical-align: middle; }
 /* The plaque's label turns orange while rewards wait. */
 .hasnew .mblabel, .hasnew.cv2-acctlevel-coll { color: #ffb45a; }
 .menubtn.hasnew .mblabel, .sbbtn.hasnew .mblabel { text-shadow: 0 0 10px rgba(255, 150, 60, 0.45); }

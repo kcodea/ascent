@@ -714,4 +714,26 @@ export const TEXT_RULES: GameRule[] = [
     example: 'With the Rune of Facetwright, every Facetwright in hand glows in Kobold red along its plate, and a Veinbreaker offered under the Rune of the Unbroken Vein glows along its Shop frame.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/chooseOneBoth.test.tsx'], lastVerifiedAt: '2026-10-22' },
   },
+  {
+    id: 'R-TARGET-PROMPT-01',
+    title: 'The targeting pill says what the pick will do, at its live value',
+    statement:
+      'While you aim a Shout, a Choose One branch or a two-step spell, the pill over the board reads "Select a <target> '
+      + 'to <what it does>" with the number the effect will actually land right now (golden, spell power, Gold spent, '
+      + 'per-play steps and rune changes folded in, the same value the card prints). The target names the filter: a '
+      + 'tribe ("Dwarf"), "friendly minion", "minion" for a card that can also hit the Shop, "minion with End of Turn". '
+      + 'The phrase is built from the effect data (a table keyed by effect factory), never per card; an effect the '
+      + 'table cannot phrase falls back to "Select a <target> for <Card>\'s Shout". Numbers wear the Attack and Health '
+      + 'colours, keywords the gold accent, on the navy plate of the lobby rail.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-11-01 (screenshot of "Choose a minion for Crest of the Climb\'s Shout")', quote: 'make this show what the buff is going to do' },
+      { kind: 'code', ref: 'packages/ui/src/targetPrompt.ts (TARGET_VERBS, targetPromptFor); packages/ui/src/Recruit.tsx (.targetprompt); packages/ui/src/styles.css' },
+    ],
+    contentIds: ['dw_dorrin', 'crestclimb', 'beetle', 'd2_humphry', 'emissary'],
+    currentBehaviour: 'Conforms, built 2026-11-01. The pill used to read "Choose a minion for <Card>\'s Shout", naming the card but not the effect (and calling a Crest of the Climb spell a Shout).',
+    example: 'Baby Gastrid played after spending 9 Gold: "Select a Dwarf to grant +18 Health". Crest of the Climb, Health branch, under +1 Health spell power: "Select a minion to grant +5 Health".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/targetPrompt.test.ts'], lastVerifiedAt: '2026-11-01' },
+  },
 ];

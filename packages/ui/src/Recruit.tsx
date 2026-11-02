@@ -2,6 +2,7 @@ import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect
 import { catchPulse, isPassArrival, mateDoor, noteCastRelease, playDrop } from './versus/passLob';
 import { duosPassRefusal, notePassRefused, overMateFrame, passOnRelease } from './versus/duosPassUi';
 import { useDuosCombatSync } from './versus/duosCombat';
+import { targetPromptFor } from './targetPrompt';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { createOddsStepper } from './oddsStepper';
 import { compileTimeline } from './choreographer/compileTimeline';
@@ -89,6 +90,7 @@ import { LobbyPanel } from './LobbyPanel';
 import { GauntletFoe } from './gauntlet/GauntletFoe';
 import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
+import { useGoldFuseBreak } from './goldFuseBreak';
 import { GOLD_CLOCK_WAITING, goldClockOf, goldClockState, goldClockWaiting, goldTurnClock, practiceClockMult, shopClockInfinite } from './goldClock';
 import { CombatOpponent } from './CombatOpponent';
 import { OpponentHand } from './OpponentHand';
@@ -499,12 +501,18 @@ export const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { pract
   const s = Math.max(0, useTurnSeconds());
   const practiceTimer = useGame((st) => st.practiceTimer);
   const setPracticeTimer = useGame((st) => st.setPracticeTimer);
-  // A GOLD FUSE turn (every lobby and Practice: 10 Gold, R-TIMER-FUSE-01; a Gauntlet round: 30) has no clock
-  // until `goldGoal` Gold is spent: the clock sits parked on its waiting value until then (see goldClock.ts).
+  // A GOLD FUSE turn (every lobby and Practice: 10 Gold, or the pinned medal's threshold in a ranked game,
+  // R-TIMER-FUSE-01 / -02; a Gauntlet round: 30) has no clock until `goldGoal` Gold is spent: the clock sits parked
+  // on its waiting value until then (see goldClock.ts).
   const goal = goldGoal ?? 0;
   const goldWaiting = goal > 0 && goldClockWaiting(s);
   // …and while it waits, a bar fills with the Gold spent this turn toward that threshold (owner ask 2026-09-30).
   const goldSpent = useGame((st) => (goal > 0 ? Math.min(st.run.goldSpentThisTurn ?? 0, goal) : 0));
+  // THE FUSE BREAK (owner ask 2026-11-01, goldFuseBreak.ts): the moment the threshold is met the bar stays up for the
+  // snap (`snap`), then the digits punch in (`punch`). Only a crossing seen while mounted plays it, never a restore.
+  const fuseBarRef = useRef<HTMLSpanElement>(null);
+  const fuseBreak = useGoldFuseBreak(goal, goldSpent, fuseBarRef);
+  const fuseSnap = fuseBreak === 'snap' && goal > 0;
   // THE FINAL-COUNTDOWN BURST (owner 2026-10-07): the owner-authored `final-countdown-tick` effect bursts from the
   // timer digits on each of the last five seconds, with the `turntick` sound. Keyed on the same clock value the tick
   // fires on, so the two land together and a held clock holds both. It BUILDS like the tick (`intensity` = the tick's
@@ -520,11 +528,20 @@ export const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { pract
     playDef('final-countdown-tick', { source: p, target: p, cursor: p }, { intensity: turnTickLevel(s).vol });
   }, [s, unlimited, goldWaiting]);
   return (
-    <div className={`statcell time${s <= 5 ? ' low' : ''}${goldWaiting ? ' gwait' : ''}`} aria-label="Time left this turn">
+    <div className={`statcell time${s <= 5 ? ' low' : ''}${goldWaiting || fuseSnap ? ' gwait' : ''}${fuseBreak === 'punch' ? ' gfb-lit' : ''}`} aria-label="Time left this turn">
       {/* Two faces, one shown per HUD look (healthPills.css): the flat Classic glyph and the Gem plate gold clock. */}
       <span className="sc-ic"><Icon name="clock" /><Icon name="timerClock" /></span>
       {/* Practice on Unlimited time: no countdown to read, so show the symbol, not an absurd 1666:39. */}
-      {goldWaiting ? (
+      {fuseSnap ? (
+        <span className="gclock gfb" aria-hidden="true">
+          <span className="gclock-bar" ref={fuseBarRef}>
+            <span className="gclock-fill gfb-half l" />
+            <span className="gclock-fill gfb-half r" />
+            <span className="gfb-flash" />
+          </span>
+          <span className="gclock-n"><span className="gclock-coin"><Icon name="mana" /></span>{goal}/{goal}</span>
+        </span>
+      ) : goldWaiting ? (
         <span className="gclock" aria-label={`${goldSpent} of ${goal} Gold spent`}>
           <span className="gclock-bar">
             <span className="gclock-fill" style={{ transform: `scaleX(${goldSpent / goal})` }} />
@@ -543,7 +560,7 @@ export const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { pract
           <span className="gclock-n"><span className="gclock-coin"><Icon name="mana" /></span>{goldSpent}/{goal}</span>
         </span>
       ) : (
-        <span className="sc-v" ref={digitsRef}>{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
+        <span className={`sc-v${fuseBreak === 'punch' ? ' gfb-punch' : ''}`} ref={digitsRef}>{practice && practiceTimer === 0 ? '∞' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`}</span>
       )}
       {/* PRACTICE only — practice is the unscored mode, so letting the player slow the clock costs nothing.
           Deliberately absent in scored runs: the turn timer is part of the challenge there. `stopPropagation`
@@ -562,9 +579,9 @@ export const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { pract
       )}
       <span className="sbtip">
         {`${goldWaiting
-          ? `Gold Fuse: a countdown begins once you've spent ${goal} Gold in a single turn.`
+          ? `Gold Fuse: the timer starts once you spend ${goal} Gold this turn.`
           : practice ? 'Time left this turn.' : 'Time left this turn. At 0 your actions lock, so hit End Turn first.'}${practice
-          ? ' Practice only: pick 1–4× to lengthen the shop timer (1× matches a ranked game), or ∞ for no timer.'
+          ? ' Practice only: pick 1 to 4× for a longer timer (1× matches ranked), or ∞ for no timer.'
           : ''}`}
       </span>
     </div>
@@ -1556,7 +1573,8 @@ export function Recruit() {
   // GOD MODE (owner 2026-10-08) has no clock either, independent of the DEV rules preference (`shopClockInfinite`).
   const infiniteClock = shopClockInfinite(run, sbRules) || run.mode === 'tutorial'
     || (run.mode === 'practice' && !run.sandbox && practiceTimer === 0);
-  // THE GOLD FUSE (goldClock.ts): every LOBBY turn and every Practice turn (R-TIMER-FUSE-01: 10 Gold, then this
+  // THE GOLD FUSE (goldClock.ts): every LOBBY turn and every Practice turn (R-TIMER-FUSE-01: 10 Gold, or the pinned
+  // medal's threshold in a ranked game per R-TIMER-FUSE-02, then this
   // round's standard seconds, times Practice's 1-4x) and every GAUNTLET round (R-GAUNTLET-04: 30 Gold, then 60 s)
   // OPEN with no clock, parked on its waiting value; the countdown starts once the fuse's Gold is spent in the turn
   // (see the effect beside the clock reset below). `goldClockOf` is the ONE predicate every surface asks (this, the
@@ -5303,6 +5321,13 @@ export function Recruit() {
   // the Hero Power). Clicking off any warband minion is ignored (keep aiming); ending the turn first
   // auto-resolves on the carry in the reducer, so the play is never stranded.
   const pendingTarget = run.pendingTarget;
+  // The targeting pill's text: "Select a <noun> to <what the pick does>", read off the pending card's live view.
+  const pendingView = pendingTarget ? (boardViews.get(pendingTarget.uid) ?? handViews.get(pendingTarget.uid)) : undefined;
+  const pendingShown = pendingView ? (pendingView.golden ? (pendingView.goldenText ?? pendingView.text) : pendingView.text) : undefined;
+  const targetPromptSegs = useMemo(
+    () => (pendingTarget ? targetPromptFor(run, pendingShown, spellBonus, spellBonusH) : null),
+    [pendingTarget, run, pendingShown, spellBonus, spellBonusH],
+  );
   // Which board minions are valid picks for the pending targeted Battlecry — all friends for an
   // unrestricted pick (no targetTribe), or only the required tribe (never self) for a restricted one
   // (Toxin Tender → Undead).
@@ -5455,7 +5480,8 @@ export function Recruit() {
     // same "pick a new multiplier, get the full new turn" the plain clock always gave.
   }, [run.wave, turnSeconds, goldClockSeconds, heroSelecting, showTitle]);
 
-  // THE GOLD FUSE LIGHTS once its Gold is spent in the turn (every lobby + Practice: 10 Gold → this round's standard
+  // THE GOLD FUSE LIGHTS once its Gold is spent in the turn (every lobby + Practice: 10 Gold, or the medal's
+  // threshold in a ranked game → this round's standard
   // seconds; Gauntlet: 30 → 60 s): move the parked clock to the config's seconds. Declared AFTER the
   // reset above so, on any commit where both run, it sees the value the reset (or a Continue's resume) left — a
   // countdown already running, including seconds restored by Continue, is never restarted (`goldTurnClock`).
@@ -8931,9 +8957,10 @@ export function Recruit() {
 
       {/* Targeted-Battlecry prompt: a played Toxin Tender waits for you to pick the friendly minion
           its grant lands on (click a warband minion; ending the turn auto-targets the carry). */}
-      {pendingTarget && !inCombat && (
+      {/* It says what the pick will DO, at its live value (owner ask 2026-11-01): "Select a Dwarf to grant +18 Health". */}
+      {pendingTarget && !inCombat && targetPromptSegs && (
         <div className="targetprompt" aria-live="polite">
-          Choose a minion for {CARD_INDEX[pendingTarget.cardId]?.name ?? 'this'}&rsquo;s Shout
+          {targetPromptSegs.map((seg, i) => (seg.tone ? <b key={i} className={`tp-${seg.tone}`}>{seg.t}</b> : <span key={i}>{seg.t}</span>))}
         </div>
       )}
 

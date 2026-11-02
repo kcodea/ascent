@@ -191,19 +191,22 @@
      the button text", then "make the button larger though"). The label is 30px (19px originally, 24px after the first
      ask) with padding and ornaments scaled to match, so the button is about 60% larger than it started. A small gold
      flourish sits either side of the label (`.hsc-start-orn`, below). */
+  /* THE RAIL LOOK (owner 2026-11-01: "the START GAME button also gets the rail style"): the rail's navy plate inside its
+     solid gold edge (same 2px width, so the button keeps its size), the rail's title-font text and layered shadow
+     (`--pill-*`, uiTheme.css). Hover: the lighter navy and the lit edge. */
   display: inline-flex; align-items: center; gap: 18px;
-  font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 30px; line-height: 1.2; letter-spacing: normal;
-  text-transform: none; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-  border: 2px solid transparent;
-  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 5px 14px -4px rgba(0, 0, 0, 0.75);
+  font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: 30px; line-height: 1.2; letter-spacing: normal;
+  text-transform: none; color: var(--pill-text); text-shadow: var(--pill-text-shadow);
+  border: 2px solid var(--pill-edge);
+  background: var(--pill-plate) padding-box;
+  box-shadow: var(--pill-outline), 0 5px 14px -4px rgba(0, 0, 0, 0.75);
   padding: 19px 38px; border-radius: 14px;
   transition: translate 0.1s ease;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
   opacity: 0;
   animation: hscRise var(--hsc-ready-ms, 250ms) ease var(--hsc-ready-delay, 700ms) forwards;
 }
-.hsc-start:hover:not(:disabled) { color: #fff; translate: 0 -1px; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.hsc-start:hover:not(:disabled) { color: #fff; translate: 0 -1px; background: var(--pill-plate-hover) padding-box; border-color: var(--pill-edge-hover); }
 .hsc-start:active:not(:disabled), .hsc-start:hover:active:not(:disabled) { translate: 0 1px; transition-duration: 0.05s; }
 @media (prefers-reduced-motion: reduce) { .hsc-start:is(:hover, :active) { translate: none; } }
 /* THE SIDE DETAILS: a fine gold line that fades away from the label and ends, nearest the text, in the theme's gold

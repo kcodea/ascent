@@ -260,10 +260,10 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'bronze-timer',
     topic: 'lobby',
     q: 'Why does my shop timer wait until I spend Gold?',
-    a: "That's the **Gold Fuse**, and every lobby uses it, at every rank (Practice too). Each shop turn begins with no clock, and a bar fills as you spend Gold. Once you've spent **10 Gold** in the turn, that round's normal timer starts. The Gold Fuse is there from **round 1**: early on you usually won't spend 10 Gold, so those rounds often have no clock, but if you do (say by selling), the timer starts just the same. The Gauntlet uses a Gold Fuse too, at **30 Gold**, then 60 seconds.",
-    aliases: ['gold fuse', 'fuse', 'bronze timer', 'gold timer', 'no timer', '10 gold', 'timer starts late', 'silver timer', 'timer did not start', 'no clock'],
+    a: "That's the **Gold Fuse**, and every lobby uses it, at every rank (Practice too). Each shop turn begins with no clock, and a bar fills as you spend Gold. Once you've spent enough Gold in the turn, that round's normal timer starts. In a ranked game the amount depends on your medal when the game started: **10 Gold** at Bronze and Silver, **7** at Gold, **5** at Platinum and Diamond, and **3** at Ascendant. Ranking up mid-game doesn't change it. Unranked games and Practice always use **10 Gold**. The Gold Fuse is there from **round 1**: early on you often won't spend enough, so those rounds may have no clock, but if you do (say by selling), the timer starts just the same. The Gauntlet uses a Gold Fuse too, at **30 Gold**, then 60 seconds.",
+    aliases: ['gold fuse', 'fuse', 'bronze timer', 'gold timer', 'no timer', '10 gold', '7 gold', '5 gold', '3 gold', 'timer starts late', 'silver timer', 'timer did not start', 'no clock', 'fuse by rank', 'fuse by medal'],
     seeAlso: ['timer-runs-out', 'turn-timer-length', 'practice-timer'],
-    covers: [{ rule: 'R-TIMER-FUSE-01', fp: '3fa7d242' }],
+    covers: [{ rule: 'R-TIMER-FUSE-01', fp: '78c7ec10' }, { rule: 'R-TIMER-FUSE-02', fp: '6b7fff4f' }],
   },
   {
     id: 'practice-heroes',

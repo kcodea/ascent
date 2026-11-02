@@ -5000,16 +5000,16 @@ export const FOUNDATION_RULES: GameRule[] = [
   // ── The Gold Fuse in every lobby (owner 2026-10-07; supersedes the Bronze-only R-TIMER-BRONZE-01 / -02) ─────────
   {
     id: 'R-TIMER-FUSE-01',
-    title: 'Every lobby and Practice run on the Gold Fuse: no shop clock until 10 Gold is spent in a turn, then that round\x27s normal timer',
+    title: 'Every lobby and Practice run on the Gold Fuse: no shop clock until the fuse\x27s Gold is spent in a turn, then that round\x27s normal timer',
     statement:
       'In every lobby (ranked at every medal, and unrated tables) and in Practice, each Shop turn opens with no clock. '
-      + 'Once the player has spent 10 Gold in that turn, a countdown starts at that round\x27s normal turn length: the '
+      + 'Once the player has spent the fuse\x27s Gold in that turn (10 Gold, or less in a ranked game started at Gold or higher, R-TIMER-FUSE-02), a countdown starts at that round\x27s normal turn length: the '
       + 'same round-by-round schedule the timer has always used (21 seconds on round 1, rising each round to 92 seconds '
       + 'from round 15), times Practice\x27s 1x-4x choice. It never restarts for more Gold spent later in the turn, and at '
       + '0 the Shop locks exactly as any timeout does. The fuse is there from round 1: early rounds, where the player '
-      + 'usually cannot spend 10 Gold, usually have no clock at all, but they still show the fuse and light it at that '
-      + 'round\x27s normal length the moment 10 Gold is spent; no round falls back to an always-running clock. Practice on Unlimited has no clock and no fuse. The player\x27s rank never changes '
-      + 'the clock, so no rank-up or rank-down screen mentions it. The Gauntlet keeps its own 30 Gold / 60 second fuse '
+      + 'usually cannot spend the fuse\x27s Gold, usually have no clock at all, but they still show the fuse and light it at that '
+      + 'round\x27s normal length the moment it is spent; no round falls back to an always-running clock. Practice on Unlimited has no clock and no fuse. The player\x27s rank never changes '
+      + 'the countdown\x27s length, and no rank-up or rank-down screen mentions the clock. The Gauntlet keeps its own 30 Gold / 60 second fuse '
       + '(R-GAUNTLET-04); the tutorial stays untimed. A time-limited Equipment window (the Thymepiece) opened while the fuse is still '
       + 'waiting keeps its full length once the countdown starts.',
     domain: 'foundation',
@@ -5037,6 +5037,37 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Recruit wiring is pinned by source checks. Presentation-only: the engine is untimed. Announcer note: the '
       + 'clock-based lines (TimeRunningOut, Idle, FastTurn) only hear a turn once its countdown runs.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/goldClock.test.ts', 'packages/ui/src/rank/RankScreen.test.tsx', 'packages/ui/src/gauntlet/gauntletClock.test.ts'], lastVerifiedAt: '2026-10-07' },
+  },
+  // ── The Gold Fuse threshold by medal (owner 2026-11-01; amends R-TIMER-FUSE-01's 10 Gold for ranked games) ───────
+  {
+    id: 'R-TIMER-FUSE-02',
+    title: 'A ranked game\x27s Gold Fuse lights at a Gold threshold set by the medal the game started at',
+    statement:
+      'In a ranked lobby the Gold that lights the Gold Fuse (R-TIMER-FUSE-01) depends on the player\x27s medal when the '
+      + 'game started: Bronze 10, Silver 10, Gold 7, Platinum 5, Diamond 5, Ascendant 3. The medal is pinned when the game '
+      + 'starts, so a promotion or demotion during the game, Save & Quit, a cloud resume and a replay all keep the starting '
+      + 'threshold. A game with no pinned medal (an unrated table, Practice, a game from before the pin) keeps 10. The '
+      + 'countdown that starts is still that round\x27s normal turn length; the Gauntlet keeps its own 30 Gold / 60 '
+      + 'seconds (R-GAUNTLET-04). The fuse bar counts toward the threshold (0/7 at Gold, 0/3 at Ascendant). When the '
+      + 'threshold is met the bar plays a one-shot break and the clock punches in; a turn restored with its clock already '
+      + 'running does not replay it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-01 (Gold Fuse thresholds by medal)', quote: 'Bronze = 10 gold, Silver = 10 gold, Gold = 7 gold, Platinum = 5 gold, Diamond = 5 gold, Ascendant = 3 gold' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-01 (the break animation)', quote: 'add an animation for when the gold fuse breaks and the timer starts' },
+      { kind: 'code', ref: 'packages/ui/src/goldClock.ts (FUSE_GOLD_BY_MEDAL, fuseGoldOf, goldClockOf, pinMedalAtStart); packages/ui/src/goldFuseBreak.ts + goldFuseBreak.css (the break moment); packages/ui/src/Recruit.tsx ShopTimer' },
+      { kind: 'fix-pr', ref: 'feat/gold-fuse-by-medal' },
+    ],
+    example: 'A Gold II player starts a ranked game: the shop shows the fuse at 0/7, and spending 7 Gold on turn 8 starts the 52-second countdown. If another game promotes them to Platinum mid-run, this game still lights at 7. An Ascendant player\x27s fuse lights at 3 Gold, so most of their turns are timed from round 1. A Practice game always lights at 10.',
+    currentBehaviour:
+      'Conforms as of 2026-11-01. goldClockOf reads the run\x27s pinned medalAtStart (only on a lobby) through fuseGoldOf; '
+      + 'pinMedalAtStart stamps it once where a rated lobby is minted. Pinned by goldClock.test.ts (every medal\x27s threshold '
+      + 'with the countdown length unchanged; unrated, unpinned and Practice at 10; the pin surviving a save round-trip and '
+      + 'a later rank change; parked to running at the medal\x27s threshold) and goldFuseBreak.test.tsx (the break fires only '
+      + 'on a crossing seen while mounted, never on a restore). Ranked Duos and Versus run on the live server\x27s clock, '
+      + 'not the Gold Fuse, so they are untouched. Presentation-only: the engine is untimed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/goldClock.test.ts', 'packages/ui/src/goldFuseBreak.test.tsx'], lastVerifiedAt: '2026-11-01' },
   },
   // ── God Mode: the Practice learning playground (owner design 2026-10-08) ─────────────────────────────────────
   {

@@ -232,14 +232,16 @@ body:has(.anc-pv) .heropanel .herotip, .heropanel:has(.anc-meter .tt-on) .heroti
   position: absolute; left: 50%; top: calc(100% + 5 * var(--u)); transform: translateX(-50%); z-index: 7;
   display: inline-flex; align-items: center; gap: calc(6 * var(--u)); white-space: nowrap; pointer-events: none;
   padding: calc(3 * var(--u)) calc(11 * var(--u)) calc(3 * var(--u)) calc(8 * var(--u)); border-radius: 999px;
-  font-family: var(--font-ui); font-weight: 800; font-size: calc(11.5 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;
-  color: #fff;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--anc-c) 88%, #fff), color-mix(in srgb, var(--anc-c) 82%, #000));
-  border: 1.5px solid color-mix(in srgb, var(--anc-c) 45%, #fff);
-  box-shadow: 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px rgba(0, 0, 0, 0.45);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+  /* THE RAIL LOOK (owner 2026-11-01): the rail's navy plate and text; the Ancient's own colour stays as the edge and
+     the dot, so each Ancient still reads as itself. Static. */
+  font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(11.5 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;
+  color: var(--pill-text);
+  background: var(--pill-plate);
+  border: 1.5px solid color-mix(in srgb, var(--anc-c) 70%, #fff);
+  box-shadow: var(--pill-outline), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px rgba(0, 0, 0, 0.45);
+  text-shadow: var(--pill-text-shadow);
 }
-.anc-pill-dot { width: calc(7 * var(--u)); height: calc(7 * var(--u)); border-radius: 50%; background: #fff; opacity: 0.9; flex: none; }
+.anc-pill-dot { width: calc(7 * var(--u)); height: calc(7 * var(--u)); border-radius: 50%; background: color-mix(in srgb, var(--anc-c) 75%, #fff); opacity: 0.95; flex: none; }
 
 /* ── THE GATE (`AncientGate`): the hero power bursts and an iris opens from it into the offer. Below the offer
    (z 160), above the board and HUD. The backdrop is STATIC paint revealed by a one-shot clip-path (like the wipe's);

@@ -857,9 +857,9 @@ export interface RunState {
   runId?: string;
   /** MEDAL AT GAME START (owner 2026-10-06): the player's medal when this RATED lobby started, stamped by the UI
    *  beside `runId` and never changed, so it survives Save & Quit and cloud resume even after a rank change elsewhere.
-   *  Read for telemetry (`rankAtStartForTelemetry`, R-TELEMETRY-RANK-01); nothing in the sim reads it. It once chose
-   *  the Bronze-only shop clock (R-TIMER-BRONZE-01, retired 2026-10-07): every lobby now has the same Gold Fuse
-   *  (R-TIMER-FUSE-01) and the clock no longer reads it. Absent on unrated / practice / older runs. */
+   *  Read for telemetry (`rankAtStartForTelemetry`, R-TELEMETRY-RANK-01) and by the UI's Gold Fuse for its threshold
+   *  (`fuseGoldOf`, R-TIMER-FUSE-02, owner 2026-11-01: Bronze/Silver 10, Gold 7, Platinum/Diamond 5, Ascendant 3);
+   *  nothing in the sim reads it. Absent on unrated / practice / older runs (their fuse stays at 10). */
   medalAtStart?: RankMedal;
   /** RANK AT GAME START (owner 2026-10-06, R-TELEMETRY-RANK-01): the fuller snapshot pinned beside `medalAtStart`
    *  (medal, division, points, rating, season) by the same UI call, under the same gate, and never changed. Only the

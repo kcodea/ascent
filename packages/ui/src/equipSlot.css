@@ -90,10 +90,11 @@
 :root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .statusbar .equipslot .hplabel.eqname {
   box-sizing: border-box; display: flex; align-items: center; justify-content: center;
   width: calc(150 * var(--u)); height: calc(18.6 * var(--u) + 4px); padding: 0 calc(10 * var(--u));
-  border: 2px solid transparent; border-radius: 999px;
-  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px var(--ui-ring), 0 3px 9px -3px rgba(0, 0, 0, 0.7);
+  /* THE RAIL LOOK (owner 2026-11-01): the navy plate in the solid gold edge, the rail's text. */
+  border: 2px solid var(--pill-edge); border-radius: 999px;
+  background: var(--pill-plate) padding-box;
+  color: var(--pill-text); font-family: var(--pill-font), sans-serif; text-shadow: var(--pill-text-shadow);
+  box-shadow: var(--pill-outline), 0 3px 9px -3px rgba(0, 0, 0, 0.7);
   font-size: calc(12.5 * var(--u) * var(--eqn-fit, 1)); line-height: 1; letter-spacing: 0.02em;
   white-space: nowrap; overflow: hidden;
 }
@@ -102,15 +103,15 @@
 }
 /* Usable: the plate's edge brightens (static), the way a Gem button lights on hover. */
 :root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .statusbar .equipslot:is(.ready, .armed) .hplabel.eqname {
-  background: var(--ui-plate) padding-box, var(--ui-hover-edge) border-box; color: var(--ui-text);
+  border-color: var(--pill-edge-hover); color: var(--pill-text);
 }
 
 /* The clock-window readout ("-1 Gold · 6s"), as a Gem plate pill in the discount green. */
 :root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .statusbar .equipslot .hplabel.sellwin {
   border: 2px solid transparent; border-radius: 999px;
-  background: var(--ui-plate) padding-box, linear-gradient(180deg, var(--eq-boost), var(--ui-edge-deep)) border-box;
-  color: var(--eq-boost); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 3px 9px -3px rgba(0, 0, 0, 0.7);
+  background: var(--pill-plate) padding-box, linear-gradient(180deg, var(--eq-boost), var(--ui-edge-deep)) border-box;
+  color: var(--eq-boost); text-shadow: var(--pill-text-shadow);
+  box-shadow: var(--pill-outline), 0 3px 9px -3px rgba(0, 0, 0, 0.7);
   bottom: calc(100% + 20 * var(--u));
 }
 

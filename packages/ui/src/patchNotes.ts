@@ -59,6 +59,37 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-01',
     changes: [
       {
+        category: 'Balance',
+        text: 'The Gold Fuse now lights sooner at higher ranks.',
+        details: [
+          'In a ranked game, the Gold you spend before the shop timer starts now depends on your medal.',
+          'Bronze and Silver: 10 Gold. Gold: 7 Gold. Platinum and Diamond: 5 Gold. Ascendant: 3 Gold.',
+          'It uses your medal when the game started, so ranking up mid-game does not change it.',
+          'Unranked games and Practice still use 10 Gold. The timer length is the same as before.',
+        ],
+      },
+      { category: 'Systems', text: 'The Gold Fuse now snaps with a burst of sparks when it fills, and the shop timer punches in.' },
+      {
+        category: 'Systems',
+        text: "The game's pills now match the lobby rail: a deep navy plate, a thin gold edge and crisp white lettering.",
+        details: [
+          'Covers the hero name and Health pills in the shop and in combat, the Shop Tier and Freeze labels, the turn timer and Gold Fuse, the hero power labels, and the Start Game button.',
+          'Also the upgrade and Refresh costs, tooltip tags, the Rift and Ancient pills, hero difficulty, the lobby chat button and the New tag.',
+          'Colours that mean something stay: the red heart, the steel blue Armor number, gold costs that turn red when you cannot afford them, a green free Refresh, and the low time warning.',
+          "Your opponent's name now takes the same red tint it has on the lobby rail.",
+          'Every tooltip and keyword box, the lobby rail hover card and the round box take the same navy and gold look.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The targeting banner now tells you what your pick will do.',
+        details: [
+          'Playing Baby Gastrid after spending 9 Gold reads "Select a Dwarf to grant +18 Health".',
+          'It works for Shouts, Choose One picks and two-step spells, and the number is always the one you will get right now.',
+          'The banner has a new navy and gold look.',
+        ],
+      },
+      {
         category: 'Systems',
         text: "You can now hover the runes on a player's card in the lobby list.",
         details: [

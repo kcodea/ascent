@@ -26,16 +26,21 @@
      hud pill designs"). Never put a literal colour here; theme it in uiTheme.css. */
   /* Panel: the plate gradient inside a thin metallic filigree edge (a gradient painted under transparent borders,
      so every border keeps its old width: 1px sides, 2px top). */
-  --atip-bg-top: var(--ui-plate-top);
-  --atip-bg-bot: var(--ui-plate-bot);
-  --atip-bg: var(--ui-plate);
-  --atip-edge: var(--ui-edge);
-  --atip-line: var(--ui-edge-main);    /* solid stand-in for the edge (carets, the menu bubbles' squares) */
-  --atip-line-top: var(--ui-edge-hi);  /* the bright top of the edge */
-  --atip-line-bot: var(--ui-edge-lo);  /* the bottom of the edge */
+  /* THE RAIL LOOK (owner 2026-11-01: "every small HUD hover tip / tooltip box in the game"): the Docked rail's navy plate
+     inside its thin SOLID gold edge (`--pill-*`, uiTheme.css). The edge is still painted under transparent borders, so
+     every border keeps its old width; it is one flat gold now, not the bevelled gradient. */
+  --atip-bg-top: var(--pill-navy-top);
+  --atip-bg-bot: var(--pill-navy-bot);
+  --atip-bg: var(--pill-plate);
+  --atip-edge: linear-gradient(var(--pill-edge), var(--pill-edge));
+  --atip-line: var(--pill-edge);       /* solid stand-in for the edge (carets, the menu bubbles' squares) */
+  --atip-line-top: var(--pill-edge);   /* the top of the edge */
+  --atip-line-bot: var(--pill-edge);   /* the bottom of the edge */
   --atip-radius: 12px;
   --atip-radius-simple: 10px;
-  --atip-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), 0 2px 6px -2px rgba(0, 0, 0, 0.5), var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring);
+  --atip-shadow: var(--pill-outline), 0 14px 34px -10px rgba(0, 0, 0, 0.72), 0 2px 6px -2px rgba(0, 0, 0, 0.5);
+  /* The rail's layered name shadow under every tip title (and the keyword names). */
+  --atip-title-shadow: var(--pill-text-shadow);
   /* Text */
   --atip-font: var(--font-body);
   --atip-title-font: var(--font-title);
@@ -45,9 +50,18 @@
   --atip-hl: var(--ui-hl);             /* keywords + numbers inside the body */
   --atip-divider: var(--ui-divider);
   /* Pill tags ("once per turn", "Rune · active") */
-  --atip-pill-bg: var(--ui-chip-bg);
-  --atip-pill-line: var(--ui-chip-edge);
-  --atip-pill-text: var(--ui-chip-text);
+  /* THE RAIL LOOK (owner 2026-11-01, every pill): the tip's pill tags wear the rail's navy plate, gold edge and text. */
+  --atip-pill-bg: var(--pill-plate);
+  --atip-pill-line: var(--pill-edge);
+  --atip-pill-text: var(--pill-text);
+  --atip-pill-font: var(--pill-font);
+  --atip-pill-shadow: var(--pill-text-shadow);
+  /* The KEYWORD boxes beside a hovered card (owner 2026-11-01: "can prob be improved to better match stylistically"):
+     the rail's navy plate in its thin gold edge, the keyword in the title font with the rail's layered shadow. */
+  --atip-kw-bg: var(--pill-plate);
+  --atip-kw-line: var(--pill-edge);
+  --atip-kw-shadow: var(--pill-outline), 0 8px 18px -8px rgba(0, 0, 0, 0.85);
+  --atip-kw-name-shadow: var(--atip-title-shadow);
   /* The tuner's dials (tooltipConfig.ts), in ON-SCREEN px. Keep in sync with its DEFAULTS (the owner's dialled
      values, baked 2026-10-02). */
   --atip-title-size: 17px;
@@ -92,7 +106,7 @@
 .atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .cv2-rune-tip, .tagtip,
 .sbtip, .tvb-tip, .etb-tip, .rfb-tip, .kwbox, .inspect-buffs, .lobbyscout, .anc-pv,
 .gtip[data-tip]::after, .titlescreen [data-tip]:not(.menubtn)::after, .lbpage [data-tip]:not(.menubtn)::after, .balpage [data-tip]::after {
-  background: var(--ui-sheen) padding-box, var(--atip-bg) padding-box, var(--atip-edge) border-box;
+  background: var(--atip-bg) padding-box, var(--atip-edge) border-box;
   border: 1px solid transparent;
   border-top-width: 2px;
   border-radius: var(--atip-radius);
@@ -119,7 +133,7 @@
 .atip-title, .herotip > b, .herotip-head > b, .questbadge-tip > b:first-child, .riftpill-tip > b:first-child,
 .riftbtn-tip > b:first-child, .runtrophy-tip > b:first-child, .cv2-rune-tip-name, .goldtip .gt-now {
   font-family: var(--atip-title-font); font-weight: 800; font-size: var(--atip-z-title); line-height: 1.15;
-  color: var(--atip-title); letter-spacing: normal; text-transform: none;
+  color: var(--atip-title); letter-spacing: normal; text-transform: none; text-shadow: var(--atip-title-shadow);
 }
 /* The divider under it (the hero tip's head and the Gold readout's first line carry their own). */
 .atip-title, .questbadge-tip > b:first-child, .riftpill-tip > b:first-child, .riftbtn-tip > b:first-child,
@@ -147,8 +161,8 @@
 .atip-pill, .herotip-live, .questbadge-tip-state, .runtrophy-tip-kind {
   display: inline-block; align-self: flex-start; padding: 0.15em 0.85em; border-radius: 999px;
   background: var(--atip-pill-bg); border: 1px solid var(--atip-pill-line); color: var(--atip-pill-text);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 1px 2px rgba(0, 0, 0, 0.4);
-  font-family: var(--font-ui); font-size: var(--atip-z-pill); font-weight: 800; line-height: 1.4;
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.95), 0 1px 2px rgba(0, 0, 0, 0.4); text-shadow: var(--atip-pill-shadow);
+  font-family: var(--atip-pill-font); font-size: var(--atip-z-pill); font-weight: 800; line-height: 1.4;
   letter-spacing: normal; text-transform: none; font-variant-numeric: tabular-nums;
 }
 /* A live value line (rune reward naming the spell you get): highlighted body, not a pill. */
@@ -188,7 +202,8 @@
    card reveal's zoom (x1.52) and Inspect's scale (x1.9) are divided out above, so they read at the same on-screen
    size as every other tip. The icon beside the keyword's title stays. ── */
 .kwbox, .inspect-buffs { font-size: var(--atip-z-body); border-radius: calc(var(--atip-radius) / var(--atip-k, 1)); padding: calc(var(--atip-z-pad) * 0.6) calc(var(--atip-z-pad) * 0.9); }
-.kwbox-name { color: var(--atip-title); font-family: var(--atip-title-font); font-size: var(--atip-z-title); line-height: 1.2; letter-spacing: normal; }
+.kwbox { background: var(--atip-kw-bg) padding-box; border: 1px solid var(--atip-kw-line); box-shadow: var(--atip-kw-shadow); }
+.kwbox-name { color: var(--atip-title); font-family: var(--atip-title-font); font-size: var(--atip-z-title); line-height: 1.2; letter-spacing: 0.02em; text-shadow: var(--atip-kw-name-shadow); }
 .kwbox-ico { width: 1.15em; height: 1.15em; }
 .kwbox-def { color: var(--atip-text); font-family: var(--atip-font); font-weight: 600; font-size: var(--atip-z-body); line-height: var(--atip-lh); }
 .kwbox-def b { color: var(--atip-hl); }

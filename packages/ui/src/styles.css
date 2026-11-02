@@ -1662,16 +1662,19 @@ body.tvb-glow-preview .tvbwrap:not(:disabled) .tvb-glow {
   transform: translate(-50%, -50%) scale(var(--tvb-cost-s, 0.84));
   display: inline-flex; align-items: center; gap: calc(4 * var(--u));
   padding: calc(4 * var(--u)) calc(10 * var(--u)); border-radius: 999px;
-  background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f);
-  border: calc(2.5 * var(--u)) solid #1b1d22;
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(17 * var(--u)); color: #241a08;
-  box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.55);
+  /* THE RAIL LOOK (owner 2026-11-01): the navy plate in the gold edge (same edge width, so the pill keeps its size);
+     the cost and its coin in GOLD, the rail's heavy number text. */
+  background: var(--pill-plate);
+  border: calc(2.5 * var(--u)) solid var(--pill-edge);
+  font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(17 * var(--u)); color: var(--pill-gold);
+  font-variant-numeric: tabular-nums; text-shadow: var(--pill-num-shadow);
+  box-shadow: var(--pill-outline), 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(0, 0, 0, 0.45);
 }
 .tvbwrap .tvb-cost svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); }
-/* Can't afford / locked — the cost coin flushes RED (the standard "too expensive" cue; gold otherwise). */
+/* Can't afford / locked: the cost goes RED, number and edge (the standard "too expensive" cue; gold otherwise). */
 .tvbwrap:disabled:not(.maxed) .tvb-cost {
-  background: radial-gradient(circle at 38% 30%, #ff9f8a, #e5533b 58%, #9c2c1a);
-  color: #2a0d06;
+  border-color: var(--pill-red);
+  color: var(--pill-red);
 }
 /* Hover tip — the shared simple tooltip, seated under the stone. */
 .tvbwrap .tvb-tip {
@@ -4132,7 +4135,27 @@ body.modalup .app { z-index: auto; }
 /* (The dotted SVG targeting line retired 2026-07-16 — the living Pixi curve replaced it; see
    pixiFx.setAimLine + the 🎯 Hero Aim FX tuner.) */
 /* Floating prompt while a played minion waits for its targeted-Battlecry pick (Toxin Tender). */
-.targetprompt { position: fixed; left: 50%; top: 30%; transform: translateX(-50%); z-index: 92; pointer-events: none; font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); color: #fff; background: var(--acc-dk); padding: calc(7 * var(--u)) calc(18 * var(--u)); border-radius: 999px; box-shadow: 0 6px 20px -7px rgba(0, 0, 0, 0.5); border: 2px solid color-mix(in srgb, var(--acc) 70%, #fff); animation: tpfade 0.25s ease; }
+/* THE TARGETING PILL (owner ask 2026-11-01): the rail language, not the old orange (`.lrv-rank` / `.lrv-name` in
+   lobbyRailDocked.css): the navy plate gradient, a thin gold edge, title-font white text with the layered dark shadow.
+   The live numbers wear the stat colours (Attack / Health, as the card badges do) and keywords the rail's gold. One line
+   on desktop; a phone may wrap to two (centred). Static paint; the only motion is the one-shot opacity fade. */
+.targetprompt {
+  position: fixed; left: 50%; top: 30%; transform: translateX(-50%); z-index: 92; pointer-events: none;
+  max-width: calc(900 * var(--u)); box-sizing: border-box; text-align: center;
+  font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(16 * var(--u)); line-height: 1.2; letter-spacing: 0.02em;
+  color: #fff; padding: calc(7 * var(--u)) calc(18 * var(--u)); border-radius: calc(8 * var(--u));
+  border: max(1px, calc(1.5 * var(--u))) solid var(--ui-edge-main);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--lr2-navy, #0d1a36) 82%, #3a5a9a) 0%, var(--lr2-navy, #0d1a36) 55%, color-mix(in srgb, var(--lr2-navy, #0d1a36) 70%, #000) 100%);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.95), 0 6px 20px -7px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.85), 0 0 9px rgba(0, 0, 0, 0.6);
+  animation: tpfade 0.25s ease;
+}
+.targetprompt > b { font-weight: 900; }
+.targetprompt > .tp-atk { color: var(--atk, #f0a32a); }
+.targetprompt > .tp-hp { color: var(--hpc, #ff5a4f); }
+.targetprompt > .tp-kw, .targetprompt > .tp-num { color: var(--ui-title, #ffd98a); }
+/* Phones: bigger, and narrow enough that a long prompt wraps to two centred lines instead of running across the shop. */
+@media (pointer: coarse) { .targetprompt { font-size: calc(24 * var(--u)); max-width: calc(560 * var(--u)); padding: calc(8 * var(--u)) calc(20 * var(--u)); } }
 @keyframes tpfade { from { opacity: 0; } to { opacity: 1; } }
 .ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
 .ctype svg { width: 17px; height: 17px; color: var(--c); }
@@ -4522,28 +4545,29 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 /* THE HERO-POWER PILL palette — one source for the name pill, the counter pill and the Equipment charge chip
    (equipSlot.css), so the three can never drift apart. */
 :root {
-  --hpill-bg: linear-gradient(180deg, #211812, #16100b);
-  --hpill-edge: color-mix(in srgb, var(--gold) 55%, #000);
-  --hpill-text: #f4ecdb;
+  /* THE RAIL LOOK (owner 2026-11-01, every pill): the hero power's name / counter pills read the shared rail tokens. */
+  --hpill-bg: var(--pill-plate);
+  --hpill-edge: var(--pill-edge);
+  --hpill-text: var(--pill-text);
 }
 /* The power name in a dark pill under the button (replaces the old white panel box) — brightens when usable. */
 .statusbar .hplabel {
-  font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em;
+  font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em; text-shadow: var(--pill-text-shadow);
   color: var(--hpill-text); text-align: center; line-height: 1.05; white-space: nowrap;
   background: var(--hpill-bg); border: 2px solid var(--hpill-edge);
   border-radius: calc(11 * var(--u)); padding: calc(3 * var(--u)) calc(12 * var(--u));
-  box-shadow: 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--pill-outline), 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
 }
 .statusbar .heropanel.ready .hplabel { color: #fff; border-color: var(--acc); }
 /* The power's COUNTER (Ayse's "0/3", progress, countdowns) in the SAME dark pill as the name, seated on the art's
    top rim as the name pill sits on the bottom (owner ask 2026-10-08). Static paint only — the inherited one-shot
    `stepbump` still animates transform alone. The die face / centre readout / Clearance pip keep their own looks. */
 .statusbar .hpwrap .hpb-tally.hpb-pill {
-  font-weight: 800; font-size: calc(16 * var(--u)); letter-spacing: 0.02em; line-height: 1.05;
-  color: var(--hpill-text); text-shadow: none;
+  font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: calc(16 * var(--u)); letter-spacing: 0.02em; line-height: 1.05;
+  font-variant-numeric: tabular-nums; color: var(--hpill-text); text-shadow: var(--pill-text-shadow);
   background: var(--hpill-bg); border: 2px solid var(--hpill-edge);
   border-radius: calc(11 * var(--u)); padding: calc(3 * var(--u)) calc(10 * var(--u));
-  box-shadow: 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--pill-outline), 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
 }
 .statusbar .heropanel.ready .hpwrap .hpb-tally.hpb-pill { color: #fff; border-color: var(--acc); }
 /* Dark "pill/glass" restyle of the hero box + health box — matches the quest-badge / name-pill aesthetic
@@ -6585,7 +6609,9 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
    `--ap-fs` sizes the pill so each context can scale it; the tooltip is a fixed, readable size. */
 .riftpill { position: relative; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; font-size: var(--ap-fs, 13px); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
 .riftpill-tag { color: rgba(198, 160, 255, 0.85); }
-.riftpill-name { padding: 0.24em 0.9em; border-radius: 999px; background: linear-gradient(135deg, #a06bff, #6b8bff); color: #150a26; box-shadow: 0 0 14px rgba(150, 110, 255, 0.5); }
+/* THE RAIL LOOK (owner 2026-11-01): the rift's name on the navy plate; the rift's violet stays as its edge and glow (and
+   the tag beside it), so it still reads as the rift. Static. */
+.riftpill-name { padding: 0.24em 0.9em; border-radius: 999px; background: var(--pill-plate); border: 1.5px solid #a06bff; color: var(--pill-text); font-family: var(--pill-font), sans-serif; text-shadow: var(--pill-text-shadow); box-shadow: var(--pill-outline), 0 0 14px rgba(150, 110, 255, 0.5); }
 .riftpill-hero { --ap-fs: 13px; margin: 0 0 14px; }
 .riftpill-hud { --ap-fs: calc(12 * var(--u)); margin-bottom: calc(6 * var(--u)); }
 /* The floating tooltip — same clean card as .questbadge-tip, opened below the pill (both pills sit high on
@@ -6656,9 +6682,11 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .herocard.big:hover .hcmeta { opacity: 0; }
 .hcdiff {
   display: inline-block; padding: 3px 15px 4px; border-radius: 999px;
-  font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
-  border: 2px solid currentColor; background: linear-gradient(180deg, color-mix(in srgb, var(--ui-chip-bg) 78%, currentColor) 0%, var(--ui-chip-bg) 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 3px 8px -3px rgba(0, 0, 0, 0.75); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  /* THE RAIL LOOK (owner 2026-11-01): the rail's navy plate and text treatment; the difficulty hue stays as the edge and
+     the word (it is the pill's meaning). Static. */
+  font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
+  border: 2px solid currentColor; background: var(--pill-plate);
+  box-shadow: var(--pill-outline), 0 3px 8px -3px rgba(0, 0, 0, 0.75); text-shadow: var(--pill-text-shadow);
 }
 /* Difficulty is a THREE-STEP scale, so it gets three unambiguous hues rather than one accent at three
    opacities — the pill has to be readable at a glance across a row of cards. */
@@ -9127,7 +9155,8 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    on rows that carry a replay). Static styling only; nothing here animates. */
 .cv2-prow-side { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; flex: none; max-width: 60%; }
 .cv2-ppills { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; flex: none; }
-.cv2-ppill { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; color: #f4eee2; white-space: nowrap; padding: 6px 12px; border-radius: 999px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(196, 160, 92, 0.4); }
+/* THE RAIL LOOK (owner 2026-11-01): the navy plate in the gold edge, the rail's text. Bots keep their pale blue edge + icon. */
+.cv2-ppill { display: inline-flex; align-items: center; gap: 7px; font-family: var(--pill-font), sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 0.04em; color: var(--pill-text); text-shadow: var(--pill-text-shadow); white-space: nowrap; padding: 6px 12px; border-radius: 999px; background: var(--pill-plate); border: 1px solid var(--pill-edge); box-shadow: var(--pill-outline); }
 .cv2-ppill svg { width: 16px; height: 16px; color: #e8c877; flex: none; }
 .cv2-ppill.bots { border-color: rgba(168, 216, 239, 0.5); }
 .cv2-ppill.bots svg { color: #a8d8ef; }
@@ -9612,8 +9641,8 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 /* "Last played": a small plate in the top-right corner, the UI theme's own plate (no new chrome). */
 .mclast { position: absolute; top: 14px; right: 14px; z-index: 3; padding: 4px 12px; border-radius: 999px;
   font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
-  border: 1.5px solid transparent; background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+  border: 1.5px solid var(--pill-edge); background: var(--pill-plate) padding-box; box-shadow: var(--pill-outline);
+  font-family: var(--pill-font), sans-serif; color: var(--pill-text); text-shadow: var(--pill-text-shadow); }
 /* The Ranked card's top-right corner holds SOLO / DUO, so its "Last played" plate sits top-left instead. */
 .mc-hero .mclast { right: auto; left: 14px; }
 /* The art inside each tile, pannable from the dev tuner. Versus's square art keeps its focal height. */
@@ -9973,14 +10002,16 @@ body.rfb-glow-preview .rfb-glow, .rfbwrap.tt-on:not(:disabled) .rfb-glow {  /* t
   transform: translate(calc(-50% + var(--rfb-cost-x, -66) * var(--u)), calc(-50% + var(--rfb-cost-y, -64) * var(--u))) scale(var(--rfb-cost-s, 0.72));
   display: inline-flex; align-items: center; gap: calc(4 * var(--u));
   padding: calc(4 * var(--u)) calc(10 * var(--u)); border-radius: 999px;
-  background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--rfb-cost-color, #f4be35) 55%, #fff),
-              var(--rfb-cost-color, #f4be35) 58%, color-mix(in srgb, var(--rfb-cost-color, #f4be35) 62%, #000));
-  border: calc(2.5 * var(--u)) solid #1b1d22;
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(17 * var(--u)); color: #241a08;
-  box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.55);
+  /* THE RAIL LOOK (owner 2026-11-01): the navy plate in the gold edge (same edge width); the cost in the coin colour
+     (`--rfb-cost-color`, so the tuner's picker still recolours it), the rail's heavy number text. */
+  background: var(--pill-plate);
+  border: calc(2.5 * var(--u)) solid var(--pill-edge);
+  font-family: var(--pill-font), sans-serif; font-weight: 900; font-size: calc(17 * var(--u)); color: var(--rfb-cost-color, #f4be35);
+  font-variant-numeric: tabular-nums; text-shadow: var(--pill-num-shadow);
+  box-shadow: var(--pill-outline), 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(0, 0, 0, 0.45);
   pointer-events: none;
 }
-.rfb-cost svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); color: #241a08; }
+.rfb-cost svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); color: inherit; }
 /* Banked free-roll count (`x2`) — rides INSIDE the coin so the badge stays one shape, slightly smaller and
    lighter than the 0 it follows: the 0 is the headline (this roll is free), the count is the detail. */
 .rfb-freen { font-style: normal; font-size: calc(13 * var(--u)); font-weight: 800; opacity: 0.72; margin-left: calc(-1 * var(--u)); }
@@ -9988,24 +10019,18 @@ body.rfb-glow-preview .rfb-glow, .rfbwrap.tt-on:not(:disabled) .rfb-glow {  /* t
    so the button never changes shape; only the fill reads differently. Its own colour var so the ✨ tuner's
    cost picker still drives the PAID state independently. */
 .rfb-cost.free {
-  background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--rfb-free-color, #47d17c) 55%, #fff),
-              var(--rfb-free-color, #47d17c) 58%, color-mix(in srgb, var(--rfb-free-color, #47d17c) 62%, #000));
+  border-color: var(--rfb-free-color, #47d17c); color: var(--rfb-free-color, #47d17c);
 }
 /* Can't afford — the coin flushes RED, matching the Tavern stone's "too expensive" cue. (No combat guard
    needed: the coin is not rendered at all in combat — see RefreshButton.) */
 .rfbwrap:disabled .rfb-cost {
-  background: radial-gradient(circle at 38% 30%, #ff9f8a, #e5533b 58%, #9c2c1a);
-  color: #2a0d06;
+  border-color: var(--pill-red); color: var(--pill-red);
 }
-.rfbwrap:disabled .rfb-cost svg { color: #2a0d06; }
 /* …but a FREE roll is never "can't afford" — keep it green even while the button is disabled (mid-animation),
    or a 0-cost coin would flash the red too-expensive cue. Out-specifies the disabled rule. */
 .rfbwrap:disabled .rfb-cost.free {
-  background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--rfb-free-color, #47d17c) 55%, #fff),
-              var(--rfb-free-color, #47d17c) 58%, color-mix(in srgb, var(--rfb-free-color, #47d17c) 62%, #000));
-  color: #241a08;
+  border-color: var(--rfb-free-color, #47d17c); color: var(--rfb-free-color, #47d17c);
 }
-.rfbwrap:disabled .rfb-cost.free svg { color: #241a08; }
 
 /* The glass "Refresh" pill floating ABOVE the crystal (owner request) — the dark-glass treatment the
    Discover banner and the Rift button use, so the board's chrome stays one family. */

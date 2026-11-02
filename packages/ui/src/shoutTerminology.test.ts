@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { SHOUT_SUFFIX } from './targetPrompt';
 
 // R-TEXT-KEYWORD-RETIRE-01 (owner 2026-10-06): the game's keywords have ASCENT names on screen — never the
 // retired classic names. The on-play trigger is "Shout" (not Battlecry; owner report 2026-10-06, the targeted
@@ -58,8 +59,9 @@ describe('on-screen text uses the ASCENT keyword names, never the retired classi
     expect(hits).toEqual([]);
   });
 
-  it('the targeted-Shout prompt names the Shout', () => {
-    const src = readFileSync(join(ROOT, 'Recruit.tsx'), 'utf8');
-    expect(src).toMatch(/Choose a minion for \{[^}]+\}&rsquo;s Shout/);
+  it("the targeted-Shout prompt's fallback names the Shout", () => {
+    // Since 2026-11-01 the pill says what the pick does (`targetPrompt.ts`, R-TARGET-PROMPT-01); its fallback for a
+    // factory it cannot phrase still reads "Select a <noun> for <Card>'s Shout".
+    expect(SHOUT_SUFFIX).toBe('’s Shout');
   });
 });

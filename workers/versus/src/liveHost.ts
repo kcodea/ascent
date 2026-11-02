@@ -21,7 +21,7 @@ import { LIVE_CF_PROTOCOL, LIVE_MAX_KEY_CHARS, type LiveHello, type LiveHelloAns
 import { VERSUS_CF_CLOSE, VERSUS_CF_PING, VERSUS_CF_PONG, VERSUS_CF_STALE_MS, VERSUS_CF_SUBPROTOCOL, parseClientMessage } from './protocol';
 import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
 import { WatchReporter, type SpectateSink } from './spectate';
-import { GUEST_HEADER, LOBBY_CHAT_EVENT, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_STORAGE_KEY, LOBBY_CHAT_SYNC_EVENT, LobbyChat, type LobbyChatSender } from './lobbyChat';
+import { GUEST_HEADER, LOBBY_CHAT_EVENT, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_STORAGE_KEY, LOBBY_CHAT_SYNC_EVENT, LobbyChat, lobbyChatChannelOf, type LobbyChatSender } from './lobbyChat';
 import { livePingRoom, PING_CLEAR_EVENT, PING_CLEAR_RATE, PING_EVENT, PING_MENTOR_EVENT, PingRateLimiter, routePing, routePingClear, routePingMentor } from './pings';
 
 export const LIVE_GAME_HEADER = 'X-Live-Game';
@@ -381,6 +381,13 @@ export abstract class LiveGameHost<E extends LiveHostEnv = LiveHostEnv> extends 
     const role = a.role === 'publish' && a.userId === core.meta.owner ? 'player' : a.role === 'watch' && core.watchers.has(a.userId) ? 'spectator' : null;
     const name = role === 'player' ? core.meta.info?.name ?? 'Player' : core.watchers.get(a.userId)?.display_name ?? 'Spectator';
     const sender: LobbyChatSender = { userId: a.userId, role, name, guest: !!a.guest };
+    // A lobby / Practice game has no teams (R-LOBBY-CHAT-TEAM-01): a team request is never posted to the lobby.
+    if (lobbyChatChannelOf(payload) === 'team') {
+      const cid = (payload as { cid?: unknown } | null)?.cid;
+      if (event === LOBBY_CHAT_SYNC_EVENT) this.send(ws, JSON.stringify({ t: 'bc', event, payload: { msgs: [], canSend: false, channel: 'team' }, from: a.userId } satisfies LivePush));
+      else this.send(ws, JSON.stringify({ t: 'bc', event: LOBBY_CHAT_REFUSED_EVENT, payload: { cid: typeof cid === 'string' ? cid : null, reason: 'not_member', channel: 'team' }, from: a.userId } satisfies LivePush));
+      return;
+    }
     if (event === LOBBY_CHAT_SYNC_EVENT) {
       this.send(ws, JSON.stringify({ t: 'bc', event, payload: this.chat.sync(sender, payload), from: a.userId } satisfies LivePush));
       return;

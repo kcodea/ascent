@@ -12088,6 +12088,36 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyChat/lobbyChat.test.tsx'], lastVerifiedAt: '2026-10-30' },
   },
   {
+    id: 'R-LOBBY-CHAT-CLOSE-01',
+    title: 'Lobby chat closes when the game ends: it never shows on the title or the menus',
+    statement:
+      'The lobby chat panel (and its collapsed button) shows only while a game is on screen: the shop, the fight, Hero Select and the watch screen. It never shows on the title, the main menu, the mode screens or a Versus room between matches, even while that room\x27s socket stays open: a Versus match\x27s chat goes as its end gate shuts (the match stats open in the room without it). A live lobby or Practice game ends its chat with the game (its socket closes at the end), and leaving a watched game ends the watcher\x27s. When the game\x27s socket goes, the chat empties and stops asking the object for anything.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-01 (screenshot of the main menu with the Lobby chat button still showing)', quote: 'lobby chat should close after games end' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyChat/LobbyChatPanel.tsx (the showTitle gate); packages/ui/src/lobbyChat/lobbyChatStore.ts (setLobbyChatSession null)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-01 (feat/lobby-chat-team-tab). Before: after a Versus match the room\x27s chat stayed installed, so its Lobby chat button sat on the main menu.',
+    example: 'Ann sends "gg" before the last fight of a Versus Duos match ends. The end gate shuts, the room opens with the stats, and she goes back to the main menu: the Lobby chat button is on neither. When her next match starts it comes back.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyChat/lobbyChat.test.tsx'], lastVerifiedAt: '2026-11-01' },
+  },
+  {
+    id: 'R-LOBBY-CHAT-TEAM-01',
+    title: 'Versus Duos and Ranked Duos players get a Team chat tab beside the Lobby one, seen only by the two teammates',
+    statement:
+      "In Versus Duos (p1+p2 against p3+p4) and Ranked Duos (the party room's p1+p2), a seated player's lobby chat panel has two tabs: Lobby (everyone in the game, as before) and Team (the two teammates only). Each tab has its own unread count; the collapsed button shows both added up. Team chat rides the same Cloudflare socket and the same events as the lobby chat, with `channel: 'team'`; the room's Durable Object decides the team from the sender's SEAT, never the payload, and sends a team message only to the sockets of that team's seated members. A spectator, a mentor included, never receives or posts a team message and has no Team tab; nor does any solo mode or a live lobby / Practice game. The object says `team: true` in its lobby backlog answer only to a seated teammate, and a client shows the Team tab only after that and the team backlog answer arrive, so it never sends a team message to an older Worker. A team chat belongs to the current match: a new match starts it empty. Everything else is the lobby chat's (R-LOBBY-CHAT-01 / -02): signed-in members only, never a guest; the same rate limit and body rule; mute (both tabs), the swear filter, replies, read when seen, catch-up after a reconnect. Live only, never in Postgres or Supabase.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-01', quote: 'in versus team modes, there should be a tab in lobby that has a team chat too' },
+      { kind: 'code', ref: 'workers/versus/src/lobbyChat.ts (lobbyChatTeamOf, lobbyChatTeamAudience, LobbyTeamChats); workers/versus/src/room.ts (teamChat); packages/ui/src/lobbyChat/lobbyChatStore.ts (team channel); packages/ui/src/lobbyChat/LobbyChatPanel.tsx (tabs)' },
+    ],
+    currentBehaviour: 'New on 2026-11-01 (feat/lobby-chat-team-tab). Needs the versus Worker deployed.',
+    example: 'Ann and Bob play Versus Duos against Cy and Dee while Eve watches. Ann opens the Team tab and types "save gold for tier 4". Bob sees it with a 1 on his Team tab. Cy, Dee and Eve never see it. Bob types "gl all" on the Lobby tab and all five see that.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/lobbyChat.test.ts', 'workers/versus/test/it/room.it.ts', 'packages/ui/src/lobbyChat/lobbyChat.test.tsx'], lastVerifiedAt: '2026-11-01' },
+  },
+  {
     id: 'R-DUOS-CARDS-01',
     title: 'Duos-only cards appear only in Duos runs, joined to a set by tribe',
     statement:

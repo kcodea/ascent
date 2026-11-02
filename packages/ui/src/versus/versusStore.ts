@@ -33,7 +33,7 @@ import { ServerClock, shopClockAt } from './versusClock';
 import { installVersusEmotes, receiveVersusEmote, receiveWatchedEmote, setVersusEmoteSeatMap, uninstallVersusEmotes, VERSUS_EMOTE_EVENT } from './versusEmotes';
 import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from './spectatorEmotes';
 import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
-import { receiveLobbyChatEvent, setLobbyChatSession } from '../lobbyChat/lobbyChatStore';
+import { receiveLobbyChatEvent, resyncLobbyChat, setLobbyChatSession } from '../lobbyChat/lobbyChatStore';
 import type { PingMode } from '@game/versus-cf/pings';
 import { installVersusHandlers, releaseVersusFightWait, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
@@ -1869,6 +1869,9 @@ export function returnToRoom(): void {
   if (session) session.unsubRun = null;
   set({ lockedRound: null, readyRound: null, endTurnWave: null, screen: 'room' });
   useGame.getState().leaveVersusRun();
+  // TEAM CHAT (R-LOBBY-CHAT-TEAM-01): out of the match, ask the room again whether I still hold a team seat (a team
+  // knocked out to the stands loses its Team tab; the panel itself is hidden off the game screen, R-LOBBY-CHAT-CLOSE-01).
+  resyncLobbyChat();
   // VERSUS GROUP: a player who is out of a match that goes on now sees it as the stands do.
   // KNOCKED OUT (owner 2026-10-24: "when a player loses/is knocked out in this mode they go into a spectator seat so
   // they can watch the rest of the game", R-VERSUS-GROUP-06): straight onto the watch screen of the same match (the

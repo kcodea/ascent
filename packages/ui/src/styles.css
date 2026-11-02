@@ -2643,6 +2643,20 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .triparrows .ta:nth-child(3) { left: 62%; animation-delay: 0.66s; }
 .triparrows .ta:nth-child(4) { left: 84%; animation-delay: 0.98s; }
 @keyframes triparrow { 0% { opacity: 0; transform: translateY(12px) scale(0.85); } 25% { opacity: 1; } 70% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(-30px) scale(1); } }
+/* DUOS: MY TEAMMATE'S TRIPLE (owner 2026-11-02, R-DUOS-MATE-TRIPLE-01): a shop offer or a held card my teammate is one copy
+   short of a Gild on. The own-triple hint above, tinted the Duos pass teal: the same static ring + an opacity-only
+   breathing ::before on a Shop card, the plate's own hover-glow layer recoloured (a static drop-shadow, set once) on a
+   plated hand card, and the same rising arrows in teal. Only opacity / transform animate (the kwglow rule). */
+.card.matetrip:not(.plated) { z-index: 5; box-shadow: 0 0 0 4px var(--c), 0 0 20px 4px rgba(64, 214, 236, 0.62), 0 3px 0 var(--shadow); }
+.card.matetrip:not(.plated)::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 40px 12px rgba(96, 226, 244, 1); animation: kwglow 1.15s ease-in-out infinite; will-change: opacity; }
+.card.plated.matetrip .plateglow:not(.bothglow) {
+  filter: drop-shadow(0 0 2px #bff6ff) drop-shadow(0 0 4px rgba(64, 214, 236, 0.95)) drop-shadow(0 0 12px rgba(64, 214, 236, 0.9));
+  transition: none; animation: kwglow 1.15s ease-in-out infinite; will-change: opacity;
+}
+.triparrows.mate .ta { border-bottom-color: #60e2f4; filter: drop-shadow(0 0 6px rgba(64, 214, 236, 0.95)); }
+@media (prefers-reduced-motion: reduce) {
+  .card.matetrip:not(.plated)::before, .card.plated.matetrip .plateglow:not(.bothglow) { animation: none; opacity: 1; }
+}
 /* (Reborn's rising "spectral tears" were removed — replaced by the Pixi blue wispy aura.) */
 /* cost badge — a teal Mana circle overhanging the top-left corner */
 /* --u-scaled (was fixed 60px etc.) so the coin tracks the card at ANY stage size — raw px read fine on desktop

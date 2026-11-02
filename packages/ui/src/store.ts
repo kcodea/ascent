@@ -727,8 +727,8 @@ interface GameStore {
    * `seq` makes a repeat re-fire: buying the same rune twice in a run is legal (Rune of Duplication), and two
    * identical cue objects would otherwise read as "no change".
    */
-  runeArrival: { runeId: string; occurrence: number; phase: 'pending' | 'arrived'; seq: number } | null;
-  setRuneArrival: (a: { runeId: string; occurrence: number; phase: 'pending' | 'arrived' } | null) => void;
+  runeArrival: { runeId: string; occurrence: number; phase: 'pending' | 'arrived'; seq: number; runKey?: string } | null;
+  setRuneArrival: (a: { runeId: string; occurrence: number; phase: 'pending' | 'arrived'; runKey?: string } | null) => void;
   showTitle: boolean;
   /** The mode the next run will start in (set by startLobby/confirmPracticeSetup, read by pickHero). Only
    *  `lobby` or `practice` is ever set: pickHero builds a LOBBY run whatever this says (R-PERSIST-01). */
@@ -2283,7 +2283,7 @@ function commitResolvedAction(
       // `endRun` reads the lease before `clearSave` drops it.
       // `!next.sandbox`: a sandbox run (Scene Builder, God Mode) never owns the save slot, so its end must never
       // clear the player's real save (God Mode keeps that save offered as Continue, owner 2026-10-08).
-      if (finished && !next.sandbox) { void cloudSave.endRun(); clearSave(); savedRun = null; }
+      if (finished && !next.sandbox) { void cloudSave.endRun(runKeyOf(next)); clearSave(); savedRun = null; }
       // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
       // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
       else if (next.phase !== s.run.phase && isResumableRun(next)) {

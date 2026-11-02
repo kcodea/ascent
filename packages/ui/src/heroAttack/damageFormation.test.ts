@@ -38,6 +38,7 @@ import { playHeroBubble } from '../heroBubble/heroBubble';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
 import { playHeroBaseball } from '../heroBaseball/heroBaseball';
+import { playHeroSoccer } from '../heroSoccer/heroSoccer';
 import { playHeroStitch } from '../heroStitch/heroStitch';
 import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
 import { SPEC, boardOf } from '../DamageFormationTuner';
@@ -338,6 +339,7 @@ describe('the runners', () => {
       ['stitch', (o) => playHeroStitch({ ...o, textures: TEX })],
       ['bullettime', (o) => playHeroBulletTime({ ...o, textures: TEX })],
       ['baseball', (o) => playHeroBaseball({ ...o, textures: TEX })],
+      ['soccer', (o) => playHeroSoccer({ ...o, textures: TEX })],
     ];
     const lead = leadInOf([4, 2, 3, 4], false, true);
     for (const [name, play] of styles) {
@@ -498,6 +500,7 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['stitch', (o) => playHeroStitch({ ...o, textures: null })],
     ['bullettime', (o) => playHeroBulletTime({ ...o, textures: null })],
     ['baseball', (o) => playHeroBaseball({ ...o, textures: null })],
+    ['soccer', (o) => playHeroSoccer({ ...o, textures: null })],
   ];
 
   it('every style (and the formation inside it, through the capped slash) advances the clock by exactly the time played, every frame', () => {

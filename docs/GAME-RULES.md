@@ -796,7 +796,21 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   the last). IV: dozens of lances in a dome of rings round the target while a big rune circle counts 3, 2, 1 in glowing runes; the dome
   collapses into one massive gold and violet impact on a slow-motion dip. Its Knockout variant adds a ring of cyan and
   magenta lances, a prismatic collapse, a bigger shake, a deeper dip and the KO sting. Every hit before the last is a
-  tick; the blow lands once. **Card Shark** and
+  tick; the blow lands once. **Golazo** (2026-11-02; `attack_soccer`, a placeholder name; Legendary, from chests;
+  R-PROG-ATTACK-37): the striking PORTRAIT plays football into a GOAL (posts, crossbar and net) drawn on the struck
+  hero, and every blow ends with the ball bulging the net (it bursts out and springs back). A referee's whistle opens
+  every tier. I the volley: keepy-uppies where it stands, a higher flick, a hop and a volley into the goal. II the corner
+  kick: it jogs out to a corner flag on the struck hero's goal line, sets the ball and strikes one of three corners
+  rolled per fight: the Olimpico (an inswinger that bends all the way in), an outswinger it sprints in to meet with a
+  leaping header, or a short corner rolled off the edge of the screen, the one-two back and a first-time curler. III the
+  breakaway: it dribbles up the pitch past defenders (dark tokens that lunge the wrong way and fall away) with one of
+  three skills rolled per fight (stepovers, a nutmeg straight through the defender, or a rainbow flick over its head),
+  then a slow-motion last touch and a placed finish. IV the bicycle kick: keepy-uppies, a flick sky high, a sprint to
+  the spot the ball's shadow marks, a crouch, a leap and a backward flip; upside down at the top, in deep slow motion,
+  the bicycle kick, and a thunderbolt with a fire trail rockets into the goal (the net bursts, the frame rings, an
+  explosion, confetti, GOLAZO! and the crowd's roar), then a knee slide and home. The blow lands once, when the ball
+  hits the net; nothing before it touches the target. The roll comes from the run seed and the round, so a replay rolls
+  the same; every point stays on screen and the portrait is restored exactly after. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
   medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from chests): the hero
@@ -1341,6 +1355,11 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   hand" like any other. Runes, Equipment, quests and the Starform cannot be passed. **A Golden minion CAN be passed from
   hand** (owner 2026-10-31, R-DUOS-PASS-GOLDEN-MANUAL-01: "gilded minions can be passed from hand but not targeted by
   spells that pass"; this revises the 2026-10-30 no-Golden rule): it costs 1 Gold like any card and arrives Golden.
+- **Your teammate's triple** (owner 2026-11-02, R-DUOS-MATE-TRIPLE-01: "when a teammate has a pair, and the minion shows
+  up in your shop. we need something that shows you can give that to your teammate for a triple"). On your own screen, a
+  non-Golden Shop offer or hand card your teammate is one copy short of Gilding (two non-Golden copies on their board and
+  hand; one under their own Gild-at-2 rules) wears the triple hint in teal (ring, glow, rising arrows), live from their
+  frames. An offer that completes your own triple too shows only your gold hint. Not shown while you watch them.
 - **Leaving, conceding, disconnects.** Leaving or conceding puts the whole team out. A disconnect pauses as in Group
   (30 s, then the absent player's last locked board plays on auto); three auto rounds in a row put the team out. A
   teammate who is away cannot be passed to: their portrait reads "Away" and a drop is refused ("Your teammate is away").
@@ -1473,8 +1492,15 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   and the host's **friends only** switch are no longer on screen; the server keeps both (a friends-only party is
   listed, counted and joinable only for the host's friends and its members, and never shown on Live Games). The party
   uses the live rules.
-- **After a game** each teammate returns to the party and sees the team's place out of 4, its rating change and medal
-  on the ranked end sequence (the solo rank screen). The party stays together for the next game.
+- **After a game** (owner 2026-11-02, R-RANKED-DUOS-POSTGAME-01: "add a post game screen just like ranked solo's that
+  shows your team's ranked progress/xp etc same flow as solos"; "the continue then returns you to your duos party")
+  each teammate gets the solo ranked end screen over the party, in the solo order: the team's place out of 4, the
+  team's medal bar and points change (with the promotion / demotion moment), then the player's own Account XP (Aether
+  and the new-rewards line included). The team's name and both teammates' portraits and names head it. An unrated
+  table reads "Unrated" and still shows the XP. Match details opens the match stats (they never open over the
+  results). **Continue** closes it onto the party, which stays together for the next game. XP settles once per player
+  (`versus:<match>`); a request that reaches the server before the Worker's result has landed is retried for 3
+  minutes instead of dropped.
 - **Boards.** The Leaderboard has Solo | Duos tabs; Duos lists the top teams (team name, both players, medal, games).
   A player's Career shows their Ranked Duos teams (each with its partner, medal and games).
 - **Live Games.** A live team is one row (`duos:<room>`, published by its first seat): the team name, the first seat's

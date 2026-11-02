@@ -33,7 +33,25 @@ export interface RuneArrivalCue {
   occurrence: number;
   phase: 'pending' | 'arrived';
   seq: number;
+  /** The run the rune was bought in (`seed:heroId`). A cue never lights a badge on another run's screen (the Duos
+   *  teammate view puts THEIR run in the store, R-RUNE-ARRIVAL-ONCE-01). Absent only on an older caller. */
+  runKey?: string;
 }
+
+/**
+ * ── ONCE PER ARRIVAL, ACROSS MOUNTS (R-RUNE-ARRIVAL-ONCE-01) ──────────────────────────────────────────────
+ *
+ * Owner report 2026-11-02: *"going back and forth sometimes causes runes to "trigger" as if they were just
+ * equipped. like ninefold broker's keeps triggering"*.
+ *
+ * The cue stays in the store after it has played (nothing clears it), and the badge row REMOUNTS with the
+ * StatusBar, which is keyed on the run identity: the Duos teammate view swaps the store's run to theirs and back,
+ * and a replay seek bumps the key too. The "already played" memory used to be a ref, so it died with the mount,
+ * and every remount replayed the last bought rune's implosion, sound and art pop. It is MODULE state now, keyed
+ * by the cue's run and seq, so it outlives any mount. Seqs only grow within a session (`setRuneArrival`).
+ */
+const playedArrivals = new Set<string>();
+const arrivalKey = (cue: RuneArrivalCue): string => `${cue.runKey ?? ''}#${cue.seq}`;
 
 /**
  * DEV-ONLY fallback anchor, for the tuner's playback.
@@ -63,19 +81,30 @@ function previewAnchor(): { x: number; y: number } | null {
  * Fire the implosion on the arriving rune's badge, once per arrival.
  *
  * Keyed on `seq` rather than on the cue object: the phase flip is a new object every time, and a re-render
- * for any other reason must not re-fire an effect that has already played.
+ * for any other reason must not re-fire an effect that has already played. Returns the cue THIS mount should
+ * present (the badge classes read it): null for another run's cue, or for an arrival an earlier mount played.
  */
-export function useRuneArrivalFx(cue: RuneArrivalCue | null): void {
-  const firedSeq = useRef<number | null>(null);
+export function useRuneArrivalFx(rawCue: RuneArrivalCue | null, runKey: string): RuneArrivalCue | null {
+  // The arrival THIS mount played. Its badge keeps the `rune-arrived` class (the art pop is mid-flight) on this
+  // mount's later renders, but a fresh mount of the same arrival shows the badge plain.
+  const ownKey = useRef<string | null>(null);
+  const cue = rawCue
+    && (rawCue.runKey === undefined || rawCue.runKey === runKey) // another run's cue (teammate view, a new run)
+    && !(rawCue.phase === 'arrived' && playedArrivals.has(arrivalKey(rawCue)) && ownKey.current !== arrivalKey(rawCue))
+    ? rawCue : null;
   useEffect(() => {
     if (!cue || cue.phase !== 'arrived') return;
-    if (firedSeq.current === cue.seq) return; // already played for this arrival
-    firedSeq.current = cue.seq;
+    const key = arrivalKey(cue);
+    if (playedArrivals.has(key)) return; // already played for this arrival, on this mount or an earlier one
+    playedArrivals.add(key);
+    ownKey.current = key;
 
     const t = getRuneLockInConfig();
     let raf = 0;
     let timer = 0;
+    let fired = false;
     const fire = (): void => {
+      fired = true;
       // The badge's live centre. It has just gained its art, so this reads the box the player is looking at
       // rather than the empty one it had a frame ago.
       const at = badgeCenterOf(cue.runeId, cue.occurrence) ?? previewAnchor();
@@ -99,6 +128,9 @@ export function useRuneArrivalFx(cue: RuneArrivalCue | null): void {
     return () => {
       if (raf !== 0) cancelAnimationFrame(raf);
       if (timer !== 0) window.clearTimeout(timer);
+      // Unmounted before the beat could land: it never played, so the next mount may still play it.
+      if (!fired) { playedArrivals.delete(key); if (ownKey.current === key) ownKey.current = null; }
     };
   }, [cue]);
+  return cue;
 }

@@ -3055,7 +3055,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'attack_bleed ("Hemorrhage", Legendary, style bleed: R-PROG-ATTACK-21), joined the same day under the same fixed odds, '
       + 'making Legendary sixteen items at 0.3125% each and the thirteen attacks together 4.06%. The four Rare attacks '
       + '(attack_coin, attack_boomerang, attack_bubble, attack_backstab: R-PROG-ATTACK-28 to 32) made Rare seventeen items '
-      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29). The first attack BUILT at Ancient, attack_soul_stitch ("Soul Stitch", style stitch: R-PROG-ATTACK-34), made Ancient eleven items at 0.273% each (2026-10-02, under the 35/31/22/9/3 odds). Charge the Mound, attack_baseball (style baseball: R-PROG-ATTACK-36), joined Legendary on 2026-11-02 (Legendary 88 items, 0.102% each).',
+      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29). The first attack BUILT at Ancient, attack_soul_stitch ("Soul Stitch", style stitch: R-PROG-ATTACK-34), made Ancient eleven items at 0.273% each (2026-10-02, under the 35/31/22/9/3 odds). Charge the Mound, attack_baseball (style baseball: R-PROG-ATTACK-36), joined Legendary on 2026-11-02 (Legendary 88 items, 0.102% each). Golazo, attack_soccer (style soccer: R-PROG-ATTACK-37), joined Legendary on 2026-11-02 (Legendary 89 items, 0.101% each).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -4115,6 +4115,43 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-11-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBaseball/heroBaseball.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-PROG-ATTACK-37',
+    title: 'Golazo (attack_soccer, Legendary): the striking PORTRAIT plays football into a GOAL drawn on the struck hero: a volley / a corner kick (rolled) / a breakaway past defenders (rolled) / a slow-mo bicycle kick into an exploding net; the blow lands ONCE when the ball hits the net; the portrait is always restored',
+    statement:
+      'attack_soccer ("Golazo", a placeholder name; Legendary, crate, account-wide, style soccer): after the shared damage '
+      + 'formation (R-PROG-ATTACK-08) a referee\x27s whistle sounds and the striking hero\x27s own PORTRAIT moves (as the '
+      + 'Basketball\x27s does), with a GOAL (two posts, a crossbar and a net) drawn on the struck hero, flat 2D. Every blow ends '
+      + 'with the ball BULGING THE NET (it bursts out along the shot and springs back; the frame shakes). It escalates on the '
+      + 'shared tiers (thresholds 6 / 12 / 20; a knockout plays IV, R-PROG-ATTACK-20): I the volley (keepy-uppies where it '
+      + 'stands, a higher flick, a hop and a volley into the goal); II the corner kick (it jogs out to a CORNER FLAG on the '
+      + 'target\x27s goal line at the side with more room, sets the ball, steps back and strikes one of three corners rolled per '
+      + 'blow: the OLIMPICO, an inswinger that bends all the way in; an outswinger it sprints in to meet with a leaping '
+      + 'HEADER; or a SHORT CORNER rolled off the edge of the screen, the one-two back to it and a first-time curler); III the '
+      + 'breakaway (it dribbles up the pitch past DEFENDERS, dark tokens that lunge the wrong way and fall away, with one of '
+      + 'three skills rolled per blow: STEPOVERS, a NUTMEG that rolls the ball straight through the defender while the '
+      + 'portrait goes round, or a RAINBOW FLICK over its head; the clock eases into SLOW MOTION around the last touch and the '
+      + 'placed finish); IV the bicycle kick (keepy-uppies, a flick SKY HIGH, a sprint to the spot its shadow marks, a '
+      + 'crouch and a leap into a backward FLIP; upside down at the top, in deep SLOW MOTION (0.25x), the bicycle kick; the '
+      + 'clock eases back and runs a touch fast as a THUNDERBOLT with a fire trail rockets into the goal: the net bursts out, '
+      + 'the frame rings, an explosion, confetti, GOLAZO! and the crowd\x27s roar; then a knee slide and home). The '
+      + 'consequence (the damage, Armor, Resolve) lands exactly ONCE: when the ball hits the net; the keepy-uppies, the '
+      + 'corner, the cross, the one-two, the skills, the flick and the contact never land it or make the target react. Every '
+      + 'point the portrait visits is kept on screen and every shot lands on the struck hero\x27s centre. The striker is raised '
+      + 'over the target (the .duel-attacker-* z-order) for the whole attack, and its transform, opacity and z-order class are '
+      + 'restored exactly, and the ball, shadows, goal, flag and defenders hidden, on every exit (the end, finish, cancel, the '
+      + 'safety timer, an unmount). The variation is rolled from a stable per-blow seed (the run seed and the round), so a '
+      + 'replay rolls the same. The slow motion is a smooth ramp of the attack\x27s one clock that never reaches 0. No hit-stop '
+      + 'or freeze (R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02 (the soccer and baseball attacks, relayed by the coordinator)', quote: 'branch off and make 2 attack animations, a soccer one, and a baseball one. get creative and fun with them, like a corner kick for soccer then a breakaway etc.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_soccer); packages/ui/src/heroSoccer/ (soccerPlan / soccerCues / soccerGeo / goalLayout / poseSegs / soccerPose / soccerBall / defenderAt / goalAt / flagAt / soccerCameraAt, variantOf / soccerTimeScale / slowExtraMs, playHeroSoccer, HeroSoccerScene, heroSoccerTextures); packages/ui/src/audio/fx/soccer-*.mp3' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroSoccer/heroSoccer.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-02' },
   },
   {
     id: 'R-PROG-ATTACK-25',
@@ -7457,6 +7494,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/phoneAudioQuality.test.ts', 'packages/ui/src/audio/codeClips.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
   {
+    id: 'R-AUDIO-PREWARM-ATTACKS-01',
+    title: 'Only the hero-attack styles in play are decoded ahead (yours and your opponent\x27s), never the whole roster\x27s clips',
+    statement:
+      'The fx clips named in code are split (audio/codeClips.ts, pinned by its scan test): the SHARED ones (named outside a '
+      + 'hero<Style>/ folder: entrances, the crate, the lobby reveal) are decoded ahead as before (R-TOUCH-AUDIO-QUALITY-01 '
+      + '(3)); each HERO-ATTACK STYLE\x27s own clips (named inside its hero<Style>/ folder) are decoded ahead only for the styles '
+      + 'in play this round: yours (your equipped hero attack) and your current opponent\x27s (its seat\x27s recorded cosmetic, '
+      + 'only while "Show opponent cosmetics" is on), resolved exactly as the fight resolves them (the DEV override included; '
+      + 'Classic has none). A change of equipped attack or opponent re-prewarms. A style not known ahead still sounds: its '
+      + 'runner asks for its own clips the moment it starts (AttackVoices.warm). The phone working-set budget counts the '
+      + 'shared clips plus the TWO LARGEST attack styles (a fight plays at most two), never every attack; the 40 MB cache and '
+      + 'its 90% ceiling are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Coordinator, 2026-11-02 (relaying the owner\x27s approval of the soccer attack)', quote: 'phones decode-ahead only the hero attack styles actually in play' },
+      { kind: 'code', ref: 'packages/ui/src/audio/codeClips.ts (CODE_FX_CLIPS, ATTACK_FX_CLIPS); packages/ui/src/audio/clipIndex.ts (forAttack, prewarmList attackStyles); packages/ui/src/audio/phonePrewarm.ts (attackStylesOf, sceneOf)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-02 (perf/phone-prewarm-equipped-attacks). Before, every hero attack\x27s clips were decoded ahead in every game, so each new attack ate into the phone working set whether anyone had it equipped or not.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/phoneAudioQuality.test.ts', 'packages/ui/src/audio/codeClips.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-TOUCH-GPU-MEMORY-01',
     title: 'A phone holds no WebGL effect context on the menus, and its menus keep no giant layers',
     statement:
@@ -10487,6 +10546,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateSignals.test.tsx'], lastVerifiedAt: '2026-10-27' },
   },
   {
+    id: 'R-DUOS-MATE-TRIPLE-01',
+    title: 'Duos: a Shop or hand card that completes your teammate\x27s triple is marked in teal',
+    statement:
+      'In Versus Duos and Ranked Duos, on the player\x27s own screen (never while they watch their teammate), a non-Golden Shop offer or '
+      + 'hand card is marked when the teammate is one copy short of Gilding it: the teammate holds two non-Golden copies on their board '
+      + 'and hand together (one under their own Gild-at-2 rules, Twin Gilding or Midas\x27 Touch). The mark is the own-triple hint '
+      + '(static ring, breathing glow, rising arrows) in the Duos pass teal; on a plated hand card the plate\x27s glow turns teal. It is '
+      + 'live: it follows the teammate\x27s frames, so it appears and clears the moment their pair forms or breaks. A Shop offer that '
+      + 'also completes the player\x27s OWN triple shows only the gold own-triple hint. Spells, Rubies and cards that never combine are '
+      + 'never marked. Animates opacity and transform only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live Duos play with Mike)', quote: 'this is referring to when a teammate has a pair, and the minion shows up in your shop. we need something that shows you can give that to your teammate for a triple.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/mateTriples.ts (mateTripleKey); packages/ui/src/versus/useMateTriples.ts; packages/ui/src/versus/duosMateSignals.ts (noteMateFrame); packages/ui/src/sbDuos.ts; packages/ui/src/Recruit.tsx (mateTripleUids); packages/ui/src/Card.tsx (.matetrip)' },
+    ],
+    currentBehaviour: 'Built 2026-11-02 (feat/duos-mate-flyin-triple). Before, nothing on the player\x27s screen said a Shop minion would complete the teammate\x27s pair.',
+    example: 'Bob holds two Alley Cats. A third shows up in Ann\x27s shop: it glows teal with teal arrows rising. Ann buys it and it keeps the teal glow in her hand until she passes it to Bob.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/mateTriples.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-DUOS-RAIL-TEAM-01',
     title: 'Duos: the lobby rail shows one slot per team',
     statement:
@@ -13192,5 +13272,95 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-02 on a Worker deployed with fix/ranked-duos-final-freeze. Before, `drainOutbox` returned before the forget whenever nothing was queued, and `rearm` asked a closed room for an alarm NOW, so it woke in a loop for ever.',
     example: 'Both teammates leave the party after a game. The room closes, forgets its storage and never wakes again.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/it/room.it.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-DUOS-FX-01',
+    title: 'Duos tag-team fights: the second board plays every animation the first board does',
+    statement:
+      'In a tag-team fight the board that steps in (a teammate\x27s, on either side) is presented exactly like the board that '
+      + 'opened the fight: its Deathrattle and Echo pulses, authored attack, damage, Shout and watcher FX, Rally and Flurry '
+      + 'wind-ups, trigger pulses, spell side, narration names, announcer moments, choreographer card identity and phone '
+      + 'audio prewarm all resolve. Mechanism: every uid lookup of the fight (uid to card, side and name) is built from '
+      + '`fightBodies` (packages/ui/src/fightRoster.ts): the starting boards, every `summon` AND every `tagIn` body. '
+      + 'The end-of-fight hero attack plays the attack equipped by the player whose board ended the fight '
+      + '(`useDuosCombat` selfSeatId / foeSeatId into `attackerCosmeticOf`), through "Show opponent cosmetics", so both '
+      + 'teammates see the same attack.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-02 (live Versus Duos / Ranked Duos play)', quote: 'some animations arent playing in duos it seems like the second player\x27s animations maybe dont play' },
+      { kind: 'code', ref: 'packages/ui/src/fightRoster.ts; packages/ui/src/useCombatReplay.ts (cardIds, unitSides, names, playerUids); packages/ui/src/choreographer/combatTimeline.ts; packages/ui/src/heroBlast/attackerCosmetic.ts' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (fix/duos-second-board-fx). Before, the replay\x27s uid maps were seeded from `initial` + '
+      + '`summon` only; a `tagIn` board\x27s fresh uids resolved to nothing, so every card-keyed FX decision skipped the '
+      + 'second board (its beats in the compiled timeline carried the bare uid `m7` instead of the card).',
+    example: 'My Mama Pup dies and its Echo pulses. My teammate\x27s Mama Pup steps in, dies, and its Echo pulses the same way.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/duosSecondBoardFx.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-DUOS-PASS-LATENCY-01',
+    title: 'A Duos pass lands in the teammate\x27s hand as soon as the server has it, even while they watch the sender',
+    statement:
+      'A card passed to the teammate (Versus Duos and Ranked Duos) lands in their hand the moment the room\x27s `pass` push reaches them: '
+      + 'the push carries the row and is applied at once, with no read or poll in the delivery path (the coalesced read that follows is '
+      + 'only a backstop, and a row applied twice lands once). A receiver who is WATCHING their teammate\x27s screen keeps the pushed rows '
+      + 'and lands them the instant they are back on their own screen (the watch screen holds the teammate\x27s render-only run, which '
+      + 'takes no actions), so the card is there when they return, never on the heartbeat\x27s 12 s backstop. A send that fails for a '
+      + 'transient reason (a timeout, a dropped socket) goes out again on a short timer (1 s, doubling to 8 s), not only on the sender\x27s '
+      + 'next run change; the server takes each seq once, so a retry never passes a card twice.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Player report via the coordinator, 2026-11-02 (live Versus Duos with the owner)', quote: 'so i watched you send over roomworks and it took like 8 seconds before it showed up in my hand' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02', quote: 'sometimes passes take literally 10 seconds' },
+      { kind: 'code', ref: 'fix/duos-pass-latency: packages/ui/src/versus/duosPasses.ts (duosPushed, duosBackFromMate, applyRows watch guard, retrySoon); packages/ui/src/versus/versusStore.ts (the room subscription hands the pushed row over; leaving the teammate view lands what came while watching)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-02 (fix/duos-pass-latency, client only). Before, the pushed row was only a wake: a read followed 50 ms later and landed the pass (~70 ms send to hand, measured locally), but a receiver watching their teammate had the pass "landed" on the teammate\x27s render-only run, which swallowed it, so it waited for the heartbeat\x27s every-third-beat backstop read (measured 2.7 s and 11.0 s). A failed send retried only on the sender\x27s next run change.',
+    example: 'Bob is watching Ann\x27s screen. Ann drags Roomworks onto his portrait. Bob clicks back to his own screen a second later: Roomworks drops into his hand right away (measured 7 to 12 ms after he is back, 9 to 23 ms on his own screen).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosPassLatency.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-PROG-CRATE-06',
+    title: 'A chest reveal shows the reward\x27s own art for every visual cosmetic',
+    statement:
+      'When a chest reveals a reward whose look is a picture (a hero skin, a minion skin, an emote, a card plate or a portrait '
+      + 'frame), the reveal shows that picture beside the reward\x27s nameplate: the same art its Collection tile shows. Rewards '
+      + 'with no picture of their own (attack animations, announcers, titles) show the nameplate alone.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02 (Chest Shop reveal, a Green Hand Drawn card plate)', quote: 'there shoudl be a thumbnail that shows the card plate when receiving rewards' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02 (which types get one)', quote: 'no for attack animations or announcers, no for titles. yes for the rest' },
+      { kind: 'code', ref: 'packages/ui/src/progression/CrateOpener.tsx (skinKind / skinUrl: plate and frame)' },
+    ],
+    currentBehaviour: 'Conforms since 2026-11-02. Before, only hero skins, minion skins (2026-09-29) and emotes (2026-10-15) showed art; a card plate or a portrait frame revealed with the nameplate alone.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/Crates.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-RANKED-DUOS-POSTGAME-01',
+    title: 'Ranked Duos: after a game both teammates get the solo ranked end screen, and Continue returns to the party',
+    statement:
+      'When a Ranked Duos game ends (my team is placed), each teammate sees the solo ranked end screen over the party: '
+      + 'the team\x27s place out of 4, the team\x27s medal bar and points change (the promotion / demotion moment included), '
+      + 'then that player\x27s own Account XP (and Aether, and the line pointing at new rewards), headed by the team\x27s name '
+      + 'and both teammates\x27 portraits and names. An unrated table reads "Unrated" and still shows the XP. The match '
+      + 'stats open only from its Match details button, never over it. Continue closes it onto the Duos party, where the '
+      + 'pair stays for the next game. Each player\x27s XP settles once (`versus:<match>`, deduped by the server); a request '
+      + 'refused because the Worker\x27s result has not landed yet (`source_not_found` / `not_terminal`) within 3 minutes of '
+      + 'the end is retried instead of dropped.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (Ranked Duos)', quote: 'add a post game screen just like ranked solo\x27s that shows your team\x27s ranked progress/xp etc same flow as solos' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (Ranked Duos)', quote: 'the continue then returns you to your duos party' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosParty.tsx (DuosResultOverlay, DuosResultTeam); packages/ui/src/versus/versusStore.ts (returnToRoom, duosResultTeam, loadDuosResult); packages/ui/src/progression/progressionQueue.ts (versusResultLanding)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (feat/ranked-duos-postgame). Before, the room opened the Versus match stats (z 560) over the '
+      + 'team\x27s rank screen (z 500), an unrated game showed no result screen at all, the rank screen had no Account XP, '
+      + 'and an XP request that beat the Worker\x27s result writer was dropped as a permanent refusal.',
+    example: 'Kevin and Lemon finish 2nd: both see "2ND", the team\x27s bar move +11, then their own Account XP; Continue puts them back on their party screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosPostgame.test.tsx', 'packages/ui/src/progression/progressionQueue.test.ts', 'packages/ui/src/versus/chaos/versusCfParity.db.test.ts'], lastVerifiedAt: '2026-11-02' },
   },
 ];

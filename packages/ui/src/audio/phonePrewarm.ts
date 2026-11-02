@@ -4,7 +4,8 @@
  * decoded BEFORE their first play or that play is silent. This reads the store and tells `prewarmSfx` (sfx.ts) what
  * the game is about to need: the heroes on offer in hero select, then the player's hero, and the cards on the board,
  * in the hand, in the Shop and in the fight (both sides, plus every card the fight's events name: its summons, its
- * cast spells, its gifts).
+ * cast spells, its gifts), and the clips of the two HERO-ATTACK STYLES in play: yours and your current opponent's
+ * (R-AUDIO-PREWARM-ATTACKS-01), never the whole roster's.
  *
  * Store-driven and React-free, like the music (music.ts): Game.tsx subscribes it, on desktop too since
  * R-AUDIO-MEMORY-02 (desktop no longer holds the whole bank). It reads a few references per store update and does the
@@ -16,11 +17,33 @@ import type { RunState } from '@game/sim';
 import { prewarmSfx } from '../sfx';
 import type { PrewarmScene } from './clipIndex';
 import { LITE_ART } from '../phoneArt';
+import { attackerCosmeticOf } from '../heroBlast/attackerCosmetic';
+import { resolveHeroAttackStyle } from '../heroBlast/heroAttackStyle';
 
 /** The slice of the store this reads. */
 export interface PrewarmStoreState {
   heroChoices: readonly string[] | null;
-  run: Pick<RunState, 'heroId' | 'board' | 'hand' | 'shop' | 'lastCombat'> & { spell?: { cardId: string } | null; discover?: readonly string[] };
+  /** "Show opponent cosmetics": off, the foe's attack plays Classic (as Recruit decides it). */
+  showOpponentSkins?: boolean;
+  run: Pick<RunState, 'heroId' | 'board' | 'hand' | 'shop' | 'lastCombat'> & Partial<Pick<RunState, 'cosmetics' | 'lobby'>>
+    & { spell?: { cardId: string } | null; discover?: readonly string[] };
+}
+
+/**
+ * The hero-attack styles a fight this round can play: yours, then your current opponent's (its seat's recorded
+ * cosmetic, only while "Show opponent cosmetics" is on), resolved exactly as Recruit resolves them (the DEV override
+ * included). Classic (no clips) is left out. A side not known yet is simply absent: its runner warms its own clips
+ * when it starts.
+ */
+export function attackStylesOf(st: PrewarmStoreState): string[] {
+  const out: string[] = [];
+  const run = { cosmetics: st.run.cosmetics, lobby: st.run.lobby } as Parameters<typeof attackerCosmeticOf>[0];
+  for (const side of ['player', 'opp'] as const) {
+    let style: string;
+    try { style = resolveHeroAttackStyle({ attacker: side, attackerCosmeticId: attackerCosmeticOf(run, side, !!st.showOpponentSkins) }); } catch { continue; }
+    if (style !== 'classic' && !out.includes(style)) out.push(style);
+  }
+  return out;
 }
 
 /** Every card id a fight can sound: both starting boards, then every `cardId` its events carry (summons, casts, gifts). */
@@ -32,6 +55,8 @@ export function combatCardIds(c: CombatResult | undefined | null): string[] {
   for (const e of c.events ?? []) {
     const id = (e as { cardId?: unknown }).cardId;
     if (typeof id === 'string' && id) out.add(id);
+    // A Duos step-in's board (R-DUOS-FX-01): its cards sound too.
+    if (e.type === 'tagIn') for (const m of e.minions ?? []) out.add(m.cardId);
   }
   return [...out];
 }
@@ -48,7 +73,7 @@ export function sceneOf(st: PrewarmStoreState): PrewarmScene {
   for (const c of r.shop ?? []) ids.push(c.cardId);
   if (r.spell) ids.push(r.spell.cardId);
   ids.push(...combatCardIds(r.lastCombat));
-  return { heroChoices: st.heroChoices, heroId: r.heroId || null, cardIds: ids };
+  return { heroChoices: st.heroChoices, heroId: r.heroId || null, cardIds: ids, attackStyles: attackStylesOf(st) };
 }
 
 /** Quiet spell before a changed scene is prewarmed: a burst of store updates (a buy, a roll) settles first. Shorter
@@ -56,7 +81,10 @@ export function sceneOf(st: PrewarmStoreState): PrewarmScene {
  *  just offered within half a second. */
 export const PREWARM_SETTLE_MS = LITE_ART ? 400 : 150;
 
-let last: { heroChoices: unknown; heroId: unknown; board: unknown; hand: unknown; shop: unknown; combat: unknown; discover: unknown } | null = null;
+let last: {
+  heroChoices: unknown; heroId: unknown; board: unknown; hand: unknown; shop: unknown; combat: unknown; discover: unknown;
+  cosmetics: unknown; lobby: unknown; showOpp: unknown;
+} | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let latest: PrewarmStoreState | null = null;
 
@@ -64,8 +92,12 @@ let latest: PrewarmStoreState | null = null;
 export function syncPhoneSfxPrewarm(st: PrewarmStoreState): void {
   const r = st.run;
   if (last && last.heroChoices === st.heroChoices && last.heroId === r.heroId && last.board === r.board
-    && last.hand === r.hand && last.shop === r.shop && last.combat === r.lastCombat && last.discover === r.discover) return;
-  last = { heroChoices: st.heroChoices, heroId: r.heroId, board: r.board, hand: r.hand, shop: r.shop, combat: r.lastCombat, discover: r.discover };
+    && last.hand === r.hand && last.shop === r.shop && last.combat === r.lastCombat && last.discover === r.discover
+    && last.cosmetics === r.cosmetics && last.lobby === r.lobby && last.showOpp === st.showOpponentSkins) return;
+  last = {
+    heroChoices: st.heroChoices, heroId: r.heroId, board: r.board, hand: r.hand, shop: r.shop, combat: r.lastCombat, discover: r.discover,
+    cosmetics: r.cosmetics, lobby: r.lobby, showOpp: st.showOpponentSkins,
+  };
   latest = st;
   if (timer !== null) return;
   timer = setTimeout(() => {

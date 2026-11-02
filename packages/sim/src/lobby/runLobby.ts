@@ -134,6 +134,10 @@ export interface SeatIntel {
   /** The grown value of its self-improving runes at capture (Wild Hunt, Packcraft, Beastial Swarm), so the scout
    *  card's rune text prints the CURRENT number, never the base (R-RUNE-LIVE-TEXT-01). Omitted when none. */
   runeLive?: RuneLiveState;
+  /** The first spell that board's run cast in its captured turn (`BoardSnapshot.firstSpellThisTurnId`), so the scout
+   *  card's Rune of Recollection tip can name the spell it copies, as the owner's own badge does
+   *  (R-RAIL-SCOUT-RUNE-TIP-02). Display only; omitted when the seat holds no rune or the snapshot never recorded it. */
+  firstSpellId?: string;
 }
 
 export interface RunLobby {
@@ -880,6 +884,7 @@ export function boardIntel(board: PreparedBoard, round: number): SeatIntel {
     ...(quests.length ? { quests } : {}),
     ...(runes.length ? { runes } : {}),
     ...(Object.keys(runeLive).length ? { runeLive } : {}),
+    ...(runes.length && board.snapshot?.firstSpellThisTurnId ? { firstSpellId: board.snapshot.firstSpellThisTurnId } : {}),
   };
 }
 

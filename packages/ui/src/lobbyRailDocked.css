@@ -449,8 +449,8 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
 .lobbyscout.lrv-scout .lrv-sc-socket.third { background: rgba(0, 0, 0, 0.18); box-shadow: none; border: 1.5px dotted rgba(200, 200, 210, 0.45); opacity: 0.7; }
 .lobbyscout.lrv-scout .lrv-sc-socket > img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .lobbyscout.lrv-scout .lrv-sc-socket > svg { width: 60%; height: 60%; color: var(--ui-title); }
-.lobbyscout.lrv-scout .lrv-sc-socket > .questbadge-tip { display: none; }
-.lobbyscout.lrv-scout.pinned .lrv-sc-socket:hover > .questbadge-tip { display: flex; }
+/* A filled socket's rune tip (R-RAIL-SCOUT-RUNE-TIP-02): mounted only while hovered, on the hover card and the pinned one
+   alike (styles.css `.scout-runepop` places it). */
 .lobbyscout.lrv-scout .lrv-sc-fights { display: flex; flex-direction: column; gap: calc(4 * var(--c)); }
 .lobbyscout.lrv-scout .lrv-sc-none { text-transform: none; letter-spacing: 0; font-size: calc(12 * var(--lfont)); font-weight: 700; text-align: center; padding: calc(4 * var(--c)) 0; }
 .lobbyscout.lrv-scout .lrv-sc-fight {

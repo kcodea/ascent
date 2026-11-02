@@ -2,9 +2,10 @@
 /**
  * SELF HOVER IN THE LOBBY RAIL (owner ask 2026-09-24: "add the same mouseover for self as we have for enemies").
  * Pins: hovering YOUR seat opens the same scout card an opponent's seat opens (same `.lobbyscout` markup, your
- * name + hero, intel read live off your run), leaving the seat closes it, and an opponent's hover is unchanged.
+ * name + hero, intel read live off your run), leaving the seat closes it (after the reach grace), and an opponent's
+ * hover is unchanged.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createLobbyRun, getHero } from '@game/sim';
 import { mount, type Mounted } from './renderedText.mount';
@@ -31,7 +32,12 @@ describe('lobby rail: hover your own seat', () => {
     expect(card()!.textContent).toContain(run.lobby!.seats[0]!.label);
     expect(card()!.textContent).toContain(getHero('warden').name);
     expect(card()!.querySelector('[title]')).toBeNull();
-    leave(mine);
+    // The card closes a beat after the pointer leaves (R-RAIL-SCOUT-RUNE-TIP-02: so the pointer can reach it).
+    vi.useFakeTimers();
+    try {
+      leave(mine);
+      act(() => { vi.advanceTimersByTime(1000); });
+    } finally { vi.useRealTimers(); }
     expect(card()).toBeNull();
 
     const theirs = ui.container.querySelector('.lobbyseat:not(.you)')!;

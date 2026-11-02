@@ -29,13 +29,15 @@ import './sceneBuilder.css';
  * toggle picks the feel: GOD (infinite time + Gold) or NORMAL (the real clock + real per-turn Gold); every
  * authoring tool works under both, and the player cannot be eliminated under either.
  *
- * Layout (2026-09-09): a brass nameplate carrying the live readout (round · seats left · rules), then five
- * FOLDABLE sections — Setup (hero · set · rules · bots), Table (Gold / time / sweeps as tiles + the tier row),
- * Enemy (which row shows, edit mode, dummies as the game's own stat badges), Library (one search, Minions |
- * Spells | Runes tabs, one list, a hover preview of the real card / rune) and
- * Scenarios (the bug-report + QA bridges, folded by default). Fold state is remembered per section. The whole
- * panel collapses to a strip so it can tuck out of the way while you watch a fight. It wears the tuner
- * panels' slate (`.scenebuilder` in styles.css). Stripped from production with the rest of the dev tooling.
+ * Layout (2026-11-01, owner: "modernize that while you're at it"): a fixed-height panel in the Docked rail's navy.
+ * A navy nameplate carrying the live readout as chips (round · seats left, rules) and a ⇔ wide toggle; a QUICK BAR
+ * that never folds (tier row, Gold, refill, freeze, edit, rewatch); the LIBRARY as the main body (Minions | Spells |
+ * Runes tabs and the search pinned, one tall list, a hover preview of the real card / rune; "/" focuses the search);
+ * then the FOLDABLE tools in their own scroll — Enemy, Teammate (Duos only), Table (sweeps + Runeforge doors), Setup
+ * (hero · set · rules · bots · Duos · Ancients, folded by default, its heading names the picks) and Scenarios (the
+ * bug-report + QA bridges, folded by default). Wide (⇔, or the resize grip past 560px): tools left, library right.
+ * Fold state is remembered per section. The whole panel collapses to a strip so it can tuck out of the way while you
+ * watch a fight. Skin: sceneBuilder.css. Stripped from production with the rest of the dev tooling.
  */
 /** The Library's three lists (owner ask 2026-09-16): the set pool's minions, its spells, and the set-scoped
  *  runes. Rubies (tokens) and Gifts (outside every set manifest) are not DRAWABLE, so neither list carries
@@ -118,7 +120,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   // teammate (`sbDuos.ts`) lives while it is on and the run carries `duos`.
   const sbDuos = useGame((s) => s.sbDuos);
   const setSbDuos = useGame((s) => s.setSbDuos);
-  const { panelRef, headerPointerDown, panelStyle, raise } = useDraggablePanel('scenebuilder');
+  const { panelRef, panelElRef, headerPointerDown, panelStyle, raise } = useDraggablePanel('scenebuilder');
   // Library tab (minions / spells / runes share the search box + list) and the per-section fold state (remembered).
   const [lib, setLib] = useState<LibTab>('minions');
   // The "Archived" set option (owner ask 2026-10-10): a LIBRARY view, not a run set. The run stays on `setId`.
@@ -337,24 +339,204 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
 
   const foeShown = sbTavernShowsEnemy;
   const roundLabel = run?.lobby ? `R${run.lobby.round} · ${run.lobby.seats.filter((x) => x.alive).length} left` : `wave ${run?.wave ?? 1}`;
+  // The header readout as chips (2026-11-01 layout): round + seats left, then rules. Tabular numbers.
+  const aliveSeats = run?.lobby ? run.lobby.seats.filter((x) => x.alive).length : null;
+  // Setup folds by default (2026-11-01): mid-scene you rarely touch it, so its heading carries the current picks.
+  const setupSummary = `${getHero(run?.heroId ?? 'warden').name} · ${setName} · bots ${sbBotLevel}${duosOn ? ' · duos' : ''}`;
+
+  // "/" jumps to the library search from anywhere outside a text field (2026-11-01). Nothing else in the game binds
+  // "/", and a key typed into an input / select / contenteditable is left alone.
+  const panelOpen = !collapsed && !minimized;
+  useEffect(() => {
+    if (!panelOpen) return undefined;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+      searchRef.current?.select();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [panelOpen]);
+
+  // WIDE (2026-11-01): one header button flips the panel between its default width and a wide one, where the tools
+  // and the library sit side by side (a container query on `.sb-main`). It writes the panel's width the same way the
+  // native resize grip does, so the shared panel hook records it like any drag-resize; dragging the grip past the
+  // same width gives the same two columns.
+  const toggleWide = (): void => {
+    const el = panelElRef.current;
+    if (!el) return;
+    el.style.width = el.offsetWidth < SB_WIDE_PX - 40 ? `${SB_WIDE_PX}px` : '';
+  };
 
   return (
     <>
-    <div className={`sfxmix lunge scenebuilder${collapsed ? ' collapsed' : ''}${minimized ? ' minimized' : ''}`} ref={panelRef} style={panelStyle}>
-      {/* NAMEPLATE — the struck-brass header the tuner panels wear. The live readout (round · rules) sits in
-          it so the collapsed strip still says what the rig is doing. */}
+    <div className={`sfxmix lunge scenebuilder sb-modern${collapsed ? ' collapsed' : ''}${minimized ? ' minimized' : ''}`} ref={panelRef} style={panelStyle}>
+      {/* HEADER — the navy nameplate (no emblem since 2026-11-01: the room went to the readout). The live readout (round · seats left · rules) sits in it as chips, so the
+          collapsed strip still says what the rig is doing. */}
       <div className="sfxmix-h drag sb-head" onPointerDown={(e) => { setHeroOpen(false); headerPointerDown(e); }}>
-        <span className="sb-emblem" aria-hidden>🧩</span>
         <span className="sb-title">Scene Builder</span>
-        <span className="sb-status">{roundLabel} · {sbRules === 'god' ? 'god' : 'normal'}</span>
+        <span className="sb-status" aria-label={`${roundLabel} · ${sbRules === 'god' ? 'god' : 'normal'}`}>
+          <span className="sb-chip">{run?.lobby ? `R${run.lobby.round} · ${aliveSeats} left` : `wave ${run?.wave ?? 1}`}</span>
+          <span className={`sb-chip${sbRules === 'god' ? ' sb-chip-gold' : ''}`}>{sbRules === 'god' ? 'god' : 'normal'}</span>
+        </span>
+        {!collapsed && (
+          <button type="button" className="sb-hbtn" onPointerDown={(e) => e.stopPropagation()} onClick={toggleWide}
+            aria-label="Toggle a wide panel: tools and library side by side">⇔</button>
+        )}
         <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)} aria-label={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▸' : '▾'}</button>
       </div>
 
       {!collapsed && (
-        <div className="sb-body">
-          {/* SETUP — hero + set side by side. Both restart the sandbox, and each carries the OTHER's current
-              value so switching hero can't silently drop you back to the live set (or vice versa). */}
-          <Sec id="setup" title="Setup" folded={folded} onFold={fold}>
+        <div className="sb-body sb-main">
+          {/* QUICK BAR — the controls you reach for every few seconds, never folded: the tier row, Gold, the clock,
+              click-to-edit and rewatch. */}
+          <div className="sb-quick">
+            <div className="sb-seg sb-seg-7" role="radiogroup" aria-label="Tavern tier">
+              {[1, 2, 3, 4, 5, 6, 7].map((t) => (
+                <button key={t} type="button" role="radio" aria-checked={run?.tier === t} className={`sb-seg-btn${run?.tier === t ? ' on' : ''}`} onClick={() => setTier(t)}>
+                  <span className="sb-seg-k">T</span>{t}
+                </button>
+              ))}
+            </div>
+            <div className="sb-tiles sb-tiles-auto">
+              <button className="sb-tile" onClick={giveGold} aria-description="Add 1000 Gold"><b>+1k</b> gold</button>
+              {sbRules === 'god' ? (
+                <button className={`sb-tile${refill ? ' on' : ''}`} onClick={() => setRefill((r) => !r)} aria-description="Keep Gold topped up at 999" aria-pressed={refill}><b>∞</b> refill</button>
+              ) : null}
+              <button className="sb-tile" onClick={freezeTime} aria-description="Freeze the turn timer"><b>❄</b> freeze</button>
+              <button className={`sb-tile${sbEditMode ? ' on' : ''}`} onClick={() => setSbEditMode(!sbEditMode)} aria-pressed={sbEditMode}
+                aria-label="Click a minion on either row to set its card, attack, health and keywords"><b>✎</b> {sbEditMode ? 'editing' : 'edit'}</button>
+              {/* Tuning an effect means watching the same moment many times. This re-mounts the replay on the
+                  CombatResult already stored — same boards, same seed, same beats — and resolves nothing.
+                  Recruit phase ONLY: a click DURING a live fight re-entered a phase it was already in. */}
+              <button className="sb-tile" disabled={run?.lastCombat === undefined || run.phase !== 'recruit'} onClick={replayLastCombat}
+                aria-description="Watch the last fight again — nothing advances"><b>↻</b> rewatch</button>
+            </div>
+          </div>
+
+          {/* LIBRARY — the panel's main body (2026-11-01): tabs + search pinned at the top, the list fills the rest.
+              One search box; Minions, Spells and Runes as tabs over one tall list (owner ask 2026-09-16). ↵ adds the
+              active tab's top match (shop for a card, grant for a rune). Hovering or focusing a row floats the REAL
+              card / rune beside it (`SceneBuilderPreview`). Not foldable: it is what the panel is for. */}
+          <div className="sb-lib">
+            <div className="sb-lib-pin">
+              <div className="sb-seg sb-seg-3" role="tablist" aria-label="Library">
+                {([['minions', 'minions', minionResults.length], ['spells', 'spells', spellResults.length], ['runes', 'runes', runeResults.length]] as const).map(([id, label, n]) => (
+                  <button key={id} type="button" role="tab" aria-selected={lib === id} className={`sb-seg-btn sb-tab${lib === id ? ' on' : ''}`} onClick={() => { setLib(id); clearPreview(); }}>{label} <em>{n}</em></button>
+                ))}
+              </div>
+              <div className="sb-searchwrap">
+                <input
+                  ref={searchRef}
+                  className="sb-search"
+                  placeholder={lib === 'runes' ? 'Search runes… ↵ grants top match' : `Search ${lib}… ↵ adds top match`}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Rapid-fire keyboard add (owner ask 2026-08-14): Enter drops the top match into the shop
+                    // without reaching for the mouse. The text is re-selected, not cleared, so a second Enter adds
+                    // ANOTHER copy of the same card and typing over it switches to the next — never leaving the box.
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (lib === 'runes') { if (runeResults.length > 0) grantRune(runeResults[0]!.id); }
+                      else if (cardResults.length > 0) addToShop(cardResults[0]!.id);
+                      e.currentTarget.select();
+                    } else if (e.key === 'ArrowDown') {
+                      // Walk into the list: the focused row previews, ↵ on it adds it, ↑ off the top comes back here.
+                      e.preventDefault();
+                      const first = resultsRef.current?.querySelector<HTMLElement>('.sb-card');
+                      first?.focus();
+                      first?.scrollIntoView({ block: 'nearest' });
+                    }
+                  }}
+                  aria-label="Matches name, id, tribe, keywords, rules text and effect ids. Space-separated terms must ALL match. ↵ adds the top match (again for another copy). ↓ walks the list. Press / anywhere to jump here."
+                />
+                <span className="sb-kbd" aria-hidden>/</span>
+              </div>
+              {libArchived && <div className="sb-mini sb-archived-note">archived cards and runes · the run stays on {setName}</div>}
+            </div>
+            {/* No native `title` on rows (owner 2026-09-16): the browser tooltip popped over the preview and
+                covered the art. The hover preview is the only hover UI here. */}
+            <div className="sb-results sb-lib-list" ref={resultsRef} onMouseLeave={clearPreview}>
+              {lib !== 'runes' ? cardResults.map((c) => (
+                <button key={c.id} className="sb-card" onClick={() => addToShop(c.id)} aria-label={`Add ${c.name} (Tier ${c.tier}) to the shop`}
+                  onMouseEnter={(e) => previewRow('card', c.id, e.currentTarget)} onFocus={(e) => previewRow('card', c.id, e.currentTarget)} onBlur={clearPreview} onKeyDown={rowKeyNav}>
+                  <span className={`sb-t sb-t${c.tier}`}>{c.tier}</span>
+                  <span className="sb-name">{c.name}</span>
+                  {c.kind && <span className={`sb-tag ${c.kind}`}>{c.kind}</span>}
+                  {c.duos && <span className="sb-tag duos">duos</span>}
+                  {c.archived && <span className="sb-tag archived">(archived)</span>}
+                </button>
+              )) : runeResults.map((r) => (
+                // Granting a rune applies its reward for the run, exactly like buying it in the Runeforge.
+                <button key={r.id} className="sb-card" onClick={() => grantRune(r.id)} aria-label={`Grant ${r.name} — its reward applies for the run (free here)`}
+                  onMouseEnter={(e) => previewRow('rune', r.id, e.currentTarget)} onFocus={(e) => previewRow('rune', r.id, e.currentTarget)} onBlur={clearPreview} onKeyDown={rowKeyNav}>
+                  <span className="sb-name">{r.name}</span>
+                  {r.epic && <span className="sb-tag">epic</span>}
+                  {r.isNew && <span className="sb-tag new">new</span>}
+                  {r.duos && <span className="sb-tag duos">duos</span>}
+                  {r.archived && <span className="sb-tag archived">(archived)</span>}
+                </button>
+              ))}
+              {activeCount === 0 && <div className="sb-empty">no matches</div>}
+            </div>
+          </div>
+
+          {/* TOOLS — the foldable sections, in their own scroll under the library (beside it when wide). Fold state is
+              remembered per section. */}
+          <div className="sb-tools">
+          {/* ENEMY — what the top row shows, the pinned dummies and the presets. Both toggles are sandbox-only and
+              neither changes run state, so the shop is exactly as you left it when you flip back. */}
+          <Sec id="enemy" title="Enemy" folded={folded} onFold={fold}
+            right={foeShown ? <span className="sb-count">{foeCount} / {MAX_BOARD}{run?.lobby && !rigAuthored ? ' · paired seat' : rigAuthored ? ' · authored' : ''}</span> : undefined}>
+            <div className="sb-seg" role="radiogroup" aria-label="Top row shows">
+              <button type="button" role="radio" aria-checked={!foeShown} className={`sb-seg-btn${!foeShown ? ' on' : ''}`} onClick={() => setSbTavernShowsEnemy(false)} aria-description="The top row shows the shop">shop row</button>
+              <button type="button" role="radio" aria-checked={foeShown} className={`sb-seg-btn${foeShown ? ' on' : ''}`} onClick={() => setSbTavernShowsEnemy(true)} aria-description="The top row shows the opponent you are about to fight">enemy row</button>
+            </div>
+            {/* DUMMIES — edited with the game's own stat badges (owner ask 2026-09-16): the red Attack and
+                green Health circles a card wears, typeable in place; ↑/↓ or the wheel step by 1 (Shift = 5).
+                The count is a small stepper in the same brass. `set` pins them exactly as before. */}
+            <div className="sb-row sb-dummies">
+              <span className="sb-mini">dummies</span>
+              <CountStepper value={enemyN} min={1} max={MAX_BOARD} onCommit={setEnemyN} title="How many dummies (1–7) — click to type, ↑/↓ or wheel to step" />
+              <span className="sb-stats" aria-label="Dummy stats">
+                <StatBadgeField stat="atk" value={enemyAtk} min={0} onCommit={setEnemyAtk} title="Attack — click to type, ↑/↓ or wheel to step (Shift = 5)" />
+                <StatBadgeField stat="hp" value={enemyHp} min={1} onCommit={setEnemyHp} title="Health — click to type, ↑/↓ or wheel to step (Shift = 5)" />
+              </span>
+              <button className="sb-btn sb-primary" onClick={() => setEnemies(enemyHp, enemyAtk, enemyN)} aria-description="Pin these dummies as the next fight's opponent">set</button>
+            </div>
+            <div className="sb-tiles sb-tiles-4">
+              <button className="sb-tile" disabled={!foeShown || foeCount >= MAX_BOARD} onClick={addEnemyFromPanel}
+                aria-description={foeShown ? 'Add a minion to the enemy row' : 'Show the enemy row first'}><b>+</b> enemy</button>
+              <button className="sb-tile" onClick={() => setEnemies(1, 0, 7)} aria-description="7 glass dummies (1 hp)">glass ×7</button>
+              <button className="sb-tile" onClick={() => setEnemies(300, 0, 1)} aria-description="1 tank dummy (300 hp)">tank</button>
+              <button className="sb-tile" onClick={() => setEnemies(20, 20, 5)} aria-description="5 bruisers (20/20)">bruisers</button>
+            </div>
+          </Sec>
+
+          {duosOn && <SbTeammate all={all} folded={folded} onFold={fold} />}
+
+          {/* TABLE — the board sweeps and the Runeforge doors (Gold, time and the tier row live in the quick bar). */}
+          <Sec id="table" title="Table" folded={folded} onFold={fold}>
+            <div className="sb-tiles">
+              <button className="sb-tile" onClick={clearShop} aria-description="Empty the shop row"><b>⌫</b> shop</button>
+              <button className="sb-tile" onClick={clearBoard} aria-description="Empty your board"><b>⌫</b> board</button>
+              <button className="sb-tile sb-tile-warn" onClick={clearAll} aria-description="Empty shop, board and hand"><b>⌫</b> all</button>
+            </div>
+            <div className="sb-two">
+              <button className="sb-btn" disabled={forgeBlocked} onClick={() => openForge(false)} aria-description="Open a Basic Runeforge on this turn">Runeforge</button>
+              <button className="sb-btn" disabled={forgeBlocked} onClick={() => openForge(true)} aria-description="Open an Epic Runeforge on this turn (the turn-8 rules)">Epic Runeforge</button>
+            </div>
+          </Sec>
+
+          {/* SETUP — hero, set, rules, bots, Duos, Ancients. Folded by default (2026-11-01); its heading names the
+              current picks. Hero + set both restart the sandbox, and each carries the OTHER's current value so
+              switching hero can't silently drop you back to the live set (or vice versa). */}
+          <Sec id="setup" title="Setup" folded={folded} onFold={fold} defaultFolded
+            right={<span className="sb-count sb-count-sum">{setupSummary}</span>}>
             {/* HERO: a portrait button that slides the hero grid out beside the panel (SceneBuilderHeroPicker). */}
             <div className="sb-field">
               <span className="sb-mini">hero</span>
@@ -404,169 +586,35 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               </label>
               <button className="sb-btn sb-btn-tall" onClick={() => startSceneBuilder(run?.heroId ?? 'warden', setId)} aria-description="Start the sandbox over with a fresh lobby (same hero, set and rules)">↺ restart</button>
             </div>
-            <div className="sb-mini sb-note">you can't be eliminated under either rule set</div>
-            {/* ANCIENTS (proof of concept, owner 2026-09-25): Set 3 only. The toggle relaunches the rig (the meter is
-                stamped on the run at creation); the meter row drives the REAL reducer (`ancientSetMeter`). */}
             {/* DUOS (owner ask 2026-10-31, R-SB-DUOS-01): relaunches the rig as a Duos-style run with a placeholder
-                teammate held locally (no Worker). Its tools live in the Teammate section below. */}
-            <div className="sb-ancients">
+                teammate held locally (no Worker). Its tools live in the Teammate section. ANCIENTS (proof of concept,
+                owner 2026-09-25): Set 3 only. The toggle relaunches the rig (the meter is stamped on the run at
+                creation); the meter row drives the REAL reducer (`ancientSetMeter`). */}
+            <div className="sb-two sb-toggles">
               <button type="button" className={`sb-seg-btn sb-anc-toggle${sbDuos ? ' on' : ''}`} aria-pressed={sbDuos}
                 onClick={() => setSbDuos(!sbDuos)}
                 aria-description="Play this sandbox as Duos with a placeholder teammate: their portrait bottom right, passing, team effects and the Duos-only cards and runes (restarts the sandbox)">
                 ✦ Duos {sbDuos ? 'on' : 'off'}
               </button>
-            </div>
-            {setId === 'set3' && (
-              <div className="sb-ancients">
+              {setId === 'set3' && (
                 <button type="button" className={`sb-seg-btn sb-anc-toggle${sbAncients ? ' on' : ''}`} aria-pressed={sbAncients}
                   onClick={() => setSbAncients(!sbAncients)}
                   aria-description="Play this Set 3 sandbox with the Ancients meter around the hero power (restarts the sandbox)">
                   ✦ Ancients {sbAncients ? 'on' : 'off'}
                 </button>
-                {run?.ancients && (
-                  <>
-                    <span className="sb-mini sb-anc-meter">meter</span>
-                    <CountStepper value={run.ancients.points} min={0} max={run.ancients.cost}
-                      onCommit={(v) => dispatch({ type: 'ancientSetMeter', points: v })} />
-                    <button type="button" className="sb-btn" disabled={!!run.ancients.picked || !!run.ancients.offer}
-                      onClick={() => dispatch({ type: 'ancientSetMeter', points: run.ancients!.cost })}
-                      aria-description="Fill the meter so the Ancient awakens now">Fill meter</button>
-                  </>
-                )}
+              )}
+            </div>
+            {setId === 'set3' && run?.ancients && (
+              <div className="sb-row sb-ancients">
+                <span className="sb-mini sb-anc-meter">meter</span>
+                <CountStepper value={run.ancients.points} min={0} max={run.ancients.cost}
+                  onCommit={(v) => dispatch({ type: 'ancientSetMeter', points: v })} />
+                <button type="button" className="sb-btn" disabled={!!run.ancients.picked || !!run.ancients.offer}
+                  onClick={() => dispatch({ type: 'ancientSetMeter', points: run.ancients!.cost })}
+                  aria-description="Fill the meter so the Ancient awakens now">Fill meter</button>
               </div>
             )}
-          </Sec>
-
-          {/* TABLE — Gold, time, tier and the board sweeps, as one grid of same-sized tiles. */}
-          <Sec id="table" title="Table" folded={folded} onFold={fold}>
-            <div className="sb-tiles">
-              <button className="sb-tile" onClick={giveGold} aria-description="Add 1000 Gold"><b>+1000</b> gold</button>
-              {sbRules === 'god' ? (
-                <button className={`sb-tile${refill ? ' on' : ''}`} onClick={() => setRefill((r) => !r)} aria-description="Keep Gold topped up at 999" aria-pressed={refill}><b>∞</b> refill</button>
-              ) : (
-                <button className="sb-tile" onClick={freezeTime} aria-description="Freeze the turn timer"><b>❄</b> freeze</button>
-              )}
-              {sbRules === 'god' && <button className="sb-tile" onClick={freezeTime} aria-description="Freeze the turn timer"><b>❄</b> freeze</button>}
-              <button className="sb-tile" onClick={clearShop} aria-description="Empty the shop row"><b>⌫</b> shop</button>
-              <button className="sb-tile" onClick={clearBoard} aria-description="Empty your board"><b>⌫</b> board</button>
-              <button className="sb-tile sb-tile-warn" onClick={clearAll} aria-description="Empty shop, board and hand"><b>⌫</b> all</button>
-            </div>
-            <div className="sb-two">
-              <button className="sb-btn" disabled={forgeBlocked} onClick={() => openForge(false)} aria-description="Open a Basic Runeforge on this turn">Enter Runeforge</button>
-              <button className="sb-btn" disabled={forgeBlocked} onClick={() => openForge(true)} aria-description="Open an Epic Runeforge on this turn (the turn-8 rules)">Enter Epic Runeforge</button>
-            </div>
-            <div className="sb-row sb-tierrow">
-              <span className="sb-mini">tier</span>
-              <div className="sb-seg sb-seg-7" role="radiogroup" aria-label="Tavern tier">
-                {[1, 2, 3, 4, 5, 6, 7].map((t) => (
-                  <button key={t} type="button" role="radio" aria-checked={run?.tier === t} className={`sb-seg-btn${run?.tier === t ? ' on' : ''}`} onClick={() => setTier(t)}>{t}</button>
-                ))}
-              </div>
-            </div>
-          </Sec>
-
-          {duosOn && <SbTeammate all={all} folded={folded} onFold={fold} />}
-
-          {/* ENEMY — what the top row shows, click-to-edit, and the pinned dummies. Both toggles are
-              sandbox-only and neither changes run state, so the shop is exactly as you left it when you
-              flip back. */}
-          <Sec id="enemy" title="Enemy" folded={folded} onFold={fold}
-            right={foeShown ? <span className="sb-count">{foeCount} / {MAX_BOARD}{run?.lobby && !rigAuthored ? ' · paired seat' : rigAuthored ? ' · authored' : ''}</span> : undefined}>
-            <div className="sb-seg" role="radiogroup" aria-label="Top row shows">
-              <button type="button" role="radio" aria-checked={!foeShown} className={`sb-seg-btn${!foeShown ? ' on' : ''}`} onClick={() => setSbTavernShowsEnemy(false)} aria-description="The top row shows the shop">shop row</button>
-              <button type="button" role="radio" aria-checked={foeShown} className={`sb-seg-btn${foeShown ? ' on' : ''}`} onClick={() => setSbTavernShowsEnemy(true)} aria-description="The top row shows the opponent you are about to fight">enemy row</button>
-            </div>
-            <div className="sb-tiles sb-tiles-3">
-              <button className={`sb-tile${sbEditMode ? ' on' : ''}`} onClick={() => setSbEditMode(!sbEditMode)} aria-pressed={sbEditMode}
-                aria-label="Click a minion on either row to set its card, attack, health and keywords"><b>✎</b> {sbEditMode ? 'editing' : 'edit'}</button>
-              <button className="sb-tile" disabled={!foeShown || foeCount >= MAX_BOARD} onClick={addEnemyFromPanel}
-                aria-description={foeShown ? 'Add a minion to the enemy row' : 'Show the enemy row first'}><b>+</b> enemy</button>
-              {/* Tuning an effect means watching the same moment many times. This re-mounts the replay on the
-                  CombatResult already stored — same boards, same seed, same beats — and resolves nothing.
-                  Recruit phase ONLY: a click DURING a live fight re-entered a phase it was already in. */}
-              <button className="sb-tile" disabled={run?.lastCombat === undefined || run.phase !== 'recruit'} onClick={replayLastCombat}
-                aria-description="Watch the last fight again — nothing advances"><b>↻</b> rewatch</button>
-            </div>
-            {/* DUMMIES — edited with the game's own stat badges (owner ask 2026-09-16): the red Attack and
-                green Health circles a card wears, typeable in place; ↑/↓ or the wheel step by 1 (Shift = 5).
-                The count is a small stepper in the same brass. `set` pins them exactly as before. */}
-            <div className="sb-row sb-dummies">
-              <span className="sb-mini">dummies</span>
-              <CountStepper value={enemyN} min={1} max={MAX_BOARD} onCommit={setEnemyN} title="How many dummies (1–7) — click to type, ↑/↓ or wheel to step" />
-              <span className="sb-stats" aria-label="Dummy stats">
-                <StatBadgeField stat="atk" value={enemyAtk} min={0} onCommit={setEnemyAtk} title="Attack — click to type, ↑/↓ or wheel to step (Shift = 5)" />
-                <StatBadgeField stat="hp" value={enemyHp} min={1} onCommit={setEnemyHp} title="Health — click to type, ↑/↓ or wheel to step (Shift = 5)" />
-              </span>
-              <button className="sb-btn sb-primary" onClick={() => setEnemies(enemyHp, enemyAtk, enemyN)} aria-description="Pin these dummies as the next fight's opponent">set</button>
-            </div>
-            <div className="sb-row">
-              <button className="sb-btn" onClick={() => setEnemies(1, 0, 7)} aria-description="7 glass dummies (1 hp)">glass ×7</button>
-              <button className="sb-btn" onClick={() => setEnemies(300, 0, 1)} aria-description="1 tank dummy (300 hp)">tank</button>
-              <button className="sb-btn" onClick={() => setEnemies(20, 20, 5)} aria-description="5 bruisers (20/20)">bruisers</button>
-            </div>
-          </Sec>
-
-          {/* LIBRARY — one search box; Minions, Spells and Runes as tabs over one tall list (owner ask
-              2026-09-16). ↵ adds the active tab's top match (shop for a card, grant for a rune). Hovering or
-              focusing a row floats the REAL card / rune beside it (`SceneBuilderPreview`). */}
-          <Sec id="library" title={libArchived ? 'Library (archived)' : 'Library'} folded={folded} onFold={fold}
-            right={<span className="sb-count">{activeCount}</span>}>
-            {/* Three tabs as a segmented row of their own (they no longer fit the heading's right slot). */}
-            <div className="sb-seg sb-seg-3" role="tablist" aria-label="Library">
-              {([['minions', 'minions', minionResults.length], ['spells', 'spells', spellResults.length], ['runes', 'runes', runeResults.length]] as const).map(([id, label, n]) => (
-                <button key={id} type="button" role="tab" aria-selected={lib === id} className={`sb-seg-btn sb-tab${lib === id ? ' on' : ''}`} onClick={() => { setLib(id); clearPreview(); }}>{label} <em>{n}</em></button>
-              ))}
-            </div>
-            <input
-              ref={searchRef}
-              className="sb-search"
-              placeholder={lib === 'runes' ? 'Search runes… ↵ grants top match' : `Search ${lib}… ↵ adds top match`}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                // Rapid-fire keyboard add (owner ask 2026-08-14): Enter drops the top match into the shop
-                // without reaching for the mouse. The text is re-selected, not cleared, so a second Enter adds
-                // ANOTHER copy of the same card and typing over it switches to the next — never leaving the box.
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  if (lib === 'runes') { if (runeResults.length > 0) grantRune(runeResults[0]!.id); }
-                  else if (cardResults.length > 0) addToShop(cardResults[0]!.id);
-                  e.currentTarget.select();
-                } else if (e.key === 'ArrowDown') {
-                  // Walk into the list: the focused row previews, ↵ on it adds it, ↑ off the top comes back here.
-                  e.preventDefault();
-                  const first = resultsRef.current?.querySelector<HTMLElement>('.sb-card');
-                  first?.focus();
-                  first?.scrollIntoView({ block: 'nearest' });
-                }
-              }}
-              aria-label="Matches name, id, tribe, keywords, rules text and effect ids. Space-separated terms must ALL match. ↵ adds the top match (again for another copy). ↓ walks the list."
-            />
-            {/* No native `title` on rows (owner 2026-09-16): the browser tooltip popped over the preview and
-                covered the art. The hover preview is the only hover UI here. */}
-            <div className="sb-results" ref={resultsRef} onMouseLeave={clearPreview}>
-              {lib !== 'runes' ? cardResults.map((c) => (
-                <button key={c.id} className="sb-card" onClick={() => addToShop(c.id)} aria-label={`Add ${c.name} (Tier ${c.tier}) to the shop`}
-                  onMouseEnter={(e) => previewRow('card', c.id, e.currentTarget)} onFocus={(e) => previewRow('card', c.id, e.currentTarget)} onBlur={clearPreview} onKeyDown={rowKeyNav}>
-                  <span className={`sb-t sb-t${c.tier}`}>{c.tier}</span>
-                  <span className="sb-name">{c.name}</span>
-                  {c.kind && <span className={`sb-tag ${c.kind}`}>{c.kind}</span>}
-                  {c.duos && <span className="sb-tag duos">duos</span>}
-                  {c.archived && <span className="sb-tag archived">(archived)</span>}
-                </button>
-              )) : runeResults.map((r) => (
-                // Granting a rune applies its reward for the run, exactly like buying it in the Runeforge.
-                <button key={r.id} className="sb-card" onClick={() => grantRune(r.id)} aria-label={`Grant ${r.name} — its reward applies for the run (free here)`}
-                  onMouseEnter={(e) => previewRow('rune', r.id, e.currentTarget)} onFocus={(e) => previewRow('rune', r.id, e.currentTarget)} onBlur={clearPreview} onKeyDown={rowKeyNav}>
-                  <span className="sb-name">{r.name}</span>
-                  {r.epic && <span className="sb-tag">epic</span>}
-                  {r.isNew && <span className="sb-tag new">new</span>}
-                  {r.duos && <span className="sb-tag duos">duos</span>}
-                  {r.archived && <span className="sb-tag archived">(archived)</span>}
-                </button>
-              ))}
-              {activeCount === 0 && <div className="sb-empty">no matches</div>}
-            </div>
+            <div className="sb-mini sb-note">you can't be eliminated under either rule set</div>
           </Sec>
 
           {/* QUESTS — REMOVED from the menu 2026-08-28 (owner): quests are not being actively developed. The
@@ -586,7 +634,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               </div>
             ) : (
               <>
-                <div className="sb-row">
+                <div className="sb-two">
                   <input ref={bugFileRef} type="file" accept=".json,application/json" style={{ display: 'none' }}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
@@ -603,18 +651,18 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
             {bugErrors.length > 0 && <div className="sb-mini sb-warn">{bugErrors.join(' ')}</div>}
 
             <div className="sb-sub">QA scenario</div>
-            <div className="sb-row">
-              <button className="sb-btn" onClick={exportQa} aria-description="Serialize this run as a QaScenarioV1 — downloads the JSON and copies it to the clipboard">⬇ export</button>
-              <button className="sb-btn" onClick={runHeadless} aria-description="Run the current export through the headless scenario runner (real engine, no UI) and show its summary">▶ headless</button>
-              <button className="sb-btn" onClick={copyRepro} aria-description="Copy the deterministic reproduction command for this scenario's id">⎘ repro</button>
+            <div className="sb-tiles">
+              <button className="sb-tile" onClick={exportQa} aria-description="Serialize this run as a QaScenarioV1 — downloads the JSON and copies it to the clipboard">⬇ export</button>
+              <button className="sb-tile" onClick={runHeadless} aria-description="Run the current export through the headless scenario runner (real engine, no UI) and show its summary">▶ headless</button>
+              <button className="sb-tile" onClick={copyRepro} aria-description="Copy the deterministic reproduction command for this scenario's id">⎘ repro</button>
             </div>
-            <div className="sb-row">
+            <div className="sb-two">
               <button className="sb-btn" onClick={saveFixture} aria-description={`Write the export into ${QA_SCENARIO_FIXTURE_DIR} via the dev server (refuses to overwrite unless armed)`}>💾 save fixture</button>
               <label className="sb-chk" aria-description="Allow the save to replace an existing fixture of the same id">
                 <input type="checkbox" checked={qaOverwrite} onChange={(e) => setQaOverwrite(e.target.checked)} /> overwrite
               </label>
             </div>
-            <div className="sb-row">
+            <div className="sb-two">
               <input ref={qaFileRef} type="file" accept=".json,application/json" style={{ display: 'none' }}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
@@ -630,6 +678,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
             {qaErrors.length > 0 && <div className="sb-mini sb-warn">{qaErrors.join(' · ')}</div>}
             {qaSummary !== '' && <pre className="sb-mini sb-qa-summary">{qaSummary}</pre>}
           </Sec>
+          </div>
         </div>
       )}
     </div>
@@ -730,6 +779,8 @@ function SbTeammate({ all, folded, onFold }: { all: readonly CardRow[]; folded: 
  *  run, so it lives beside the panel's dragged position rather than in any run state. */
 const SB_FOLD_KEY = 'ascent.sb.fold';
 const SB_COLLAPSED_KEY = 'ascent.sb.collapsed';
+/** The wide panel's width (the header ⇔): wide enough for the two-column layout (`.sb-main` container query, 560px). */
+const SB_WIDE_PX = 640;
 function loadFolded(): Record<string, boolean> {
   try { return (JSON.parse(localStorage.getItem(SB_FOLD_KEY) || '{}') as Record<string, boolean>) ?? {}; } catch { return {}; }
 }

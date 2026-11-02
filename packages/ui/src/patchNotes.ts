@@ -61,6 +61,10 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Opening a chest now shows a picture of a card plate or portrait frame you find, like skins and emotes already did.' },
       {
         category: 'Systems',
+        text: 'Fixed: a rune you just bought no longer plays its arrival again when you swap to your teammate and back.',
+      },
+      {
+        category: 'Systems',
         text: 'Fixed a finished game sometimes coming back as Continue on the main menu.',
         details: [
           'After a game ended, the menu could offer Continue at your last round. Playing it ended the same way and offered it again.',

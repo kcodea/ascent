@@ -1,6 +1,6 @@
 /* ── THE COLLECTION + CHEST SHOP IN THE PARTY HOME SHELL (DEV only; CollectionPh.tsx, CrateShopPh.tsx) ──────────────────
    The shell kit's language only: `--ph-*` tokens (partyHome/shell/shell.css), sizes in `--phu`, spacing in multiples of 8,
-   the five type sizes, the cut corner. Rarity colours are the shared `.r-*` tokens (`--rc`): data, not chrome.
+   the five type sizes, the shell's rounded shapes (`--ph-r*`). Rarity colours are the shared `.r-*` tokens (`--rc`): data, not chrome.
    PERFORMANCE: static paint. Hover is a colour or a one-shot transform; nothing loops. Bars are scaleX (transform). */
 
 /* ── The page: the body does not scroll; each column does. ── */
@@ -15,8 +15,8 @@
   -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 32 * var(--phu)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 32 * var(--phu)), transparent); scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
 
 /* ── The header's actions ── */
-.phc-meter { box-sizing: border-box; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
-.phc-bar { position: relative; display: block; height: calc(4 * var(--phu)); background: rgba(0, 0, 0, 0.55); overflow: hidden; }
+.phc-meter { box-sizing: border-box; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s); }
+.phc-bar { position: relative; display: block; height: calc(6 * var(--phu)); border-radius: 999px; background: rgba(0, 0, 0, 0.55); overflow: hidden; }
 .phc-bar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
 .phc-shopbtn > span, .phs-wallet { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
 .phc-aether.aether-icon, .phc-shopbtn .aether-icon { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); }
@@ -30,14 +30,14 @@
 .phc-cat.sel .phk-rowtitle { color: var(--ph-ink); }
 .phc-cat .phk-rowcount { font-size: var(--ph-t1); color: var(--ph-muted); }
 .phc-cat .phk-rowbar { left: calc(56 * var(--phu)); }
-.phc-cat-new { min-width: calc(20 * var(--phu)); padding: 0 calc(4 * var(--phu)); background: var(--pill-red, #ff7a66); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); line-height: calc(20 * var(--phu)); text-align: center; clip-path: var(--ph-clip-s); }
+.phc-cat-new { min-width: calc(20 * var(--phu)); padding: 0 calc(6 * var(--phu)); background: var(--pill-red, #ff7a66); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); line-height: calc(20 * var(--phu)); text-align: center; border-radius: 999px; }
 .phc-cat-lock { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-muted); }
 .phc-cat-lock .colls-lock { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); opacity: 0.7; }
 .phc-cat.locked .phc-cat-icon, .phc-cat.locked .phk-rowtitle { opacity: 0.5; }
 
 /* ── The chest bay (left, under the categories) ── */
 .phc-bay { flex: none; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); padding: calc(16 * var(--phu)); background: var(--ph-plate);
-  box-shadow: var(--ph-gild-s), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); clip-path: var(--ph-clip); }
+  box-shadow: var(--ph-gild-s), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); border-radius: var(--ph-r-l); }
 .phc-bay.ready { box-shadow: var(--ph-gild), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); }
 .phc-bay-top { display: flex; align-items: center; gap: calc(12 * var(--phu)); }
 .phc-bay-art { flex: none; width: calc(96 * var(--phu)); }
@@ -56,7 +56,7 @@
 .phc-bay-lvl { font-family: var(--ph-font); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .phc-bay-lvl b { font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
 .phc-bay-odds { font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
-.phc-guest { display: flex; flex-direction: column; align-items: flex-start; gap: calc(8 * var(--phu)); padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s);
+.phc-guest { display: flex; flex-direction: column; align-items: flex-start; gap: calc(8 * var(--phu)); padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s);
   font-size: var(--ph-t1); color: var(--ph-muted); }
 .phc-guest .phk-btn { padding: 0; height: auto; }
 
@@ -78,7 +78,7 @@
 .phc-tile { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; min-height: calc(120 * var(--phu)); box-sizing: border-box;
   padding: calc(12 * var(--phu)) calc(16 * var(--phu)) calc(16 * var(--phu)); margin: 0; border: 0; border-radius: 0; overflow: hidden; text-align: left; font: inherit; color: var(--ph-text);
   background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--rc) 20%, transparent) 100%), var(--ph-plate);
-  box-shadow: var(--ph-gild-s), inset 0 calc(-3 * var(--phu)) 0 var(--rc); clip-path: var(--ph-clip-s); }
+  box-shadow: var(--ph-gild-s), inset 0 calc(-3 * var(--phu)) 0 var(--rc); border-radius: var(--ph-r); }
 .phc-grid.art .phc-tile { min-height: calc(240 * var(--phu)); }
 .phc-tile.sel { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), inset 0 calc(-3 * var(--phu)) 0 var(--rc); }
 .phc-tile.missing { background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--rc) 8%, transparent) 100%), var(--ph-well); box-shadow: var(--ph-gild-s), inset 0 calc(-3 * var(--phu)) 0 color-mix(in srgb, var(--rc) 45%, transparent); }
@@ -105,17 +105,17 @@
 .phc-tile:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(-2 * var(--phu)); }
 
 /* A switched-off category. */
-.phc-soon { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip); }
+.phc-soon { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-l); }
 .phc-soon-icon { display: grid; width: calc(72 * var(--phu)); height: calc(72 * var(--phu)); opacity: 0.6; }
 .phc-soon-icon .colls-caticon { width: 100%; height: 100%; object-fit: contain; color: var(--ph-gold); }
 
 /* ── The detail column (right) ── */
 .phc-detail { box-sizing: border-box; min-height: 100%; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); padding: calc(16 * var(--phu)) calc(16 * var(--phu)) calc(24 * var(--phu));
-  background: var(--ph-plate); box-shadow: var(--ph-gild-s), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); clip-path: var(--ph-clip); }
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); border-radius: var(--ph-r-l); }
 .phc-detail.phk-section .phk-secbody { flex: 1; justify-content: center; }
 .phc-stage { position: relative; flex: none; display: grid; place-items: center; height: calc(312 * var(--phu)); overflow: hidden;
   background: radial-gradient(60% 60% at 50% 45%, color-mix(in srgb, var(--rc) 24%, transparent), transparent 75%), var(--ph-well);
-  box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+  box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s); }
 .phc-stage-hover { position: absolute; inset: 0; display: grid; place-items: center; }
 .phc-stage-img.contain { max-width: 80%; max-height: 86%; object-fit: contain; }
 .phc-stage-hover .phc-stage-img.contain { max-height: 90%; }
@@ -150,11 +150,11 @@
 .phc-actions { margin-top: auto; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); }
 .phc-equip { width: 100%; }
 .phc-worn { display: flex; align-items: center; justify-content: space-between; gap: calc(12 * var(--phu)); }
-.phc-hint { padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); font-size: var(--ph-t-read); line-height: 1.4; color: var(--ph-text); }
+.phc-hint { padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s); font-size: var(--ph-t-read); line-height: 1.4; color: var(--ph-text); }
 .phc-error { font-size: var(--ph-t2); color: var(--ph-foe); }
 /* The emote menu's eight slots, in the shell's wells. */
 .phc-actions .colls-emote-slots { gap: calc(8 * var(--phu)); }
-.phc-actions .colls-emote-slots .emote-pick { height: calc(72 * var(--phu)); border-radius: 0; background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.phc-actions .colls-emote-slots .emote-pick { height: calc(72 * var(--phu)); border-radius: var(--ph-r-s); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s); }
 .phc-actions .colls-emote-slots .emote-pick.emote-slot-empty { border: 0; box-shadow: var(--ph-gild-s); opacity: 0.6; }
 .phc-actions .colls-emote-slots .emote-pick.on { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); background: var(--ph-plate); }
 .phc-actions .colls-emote-slot-n { font-family: var(--ph-font); font-size: var(--ph-t1); color: var(--ph-muted); }
@@ -167,7 +167,7 @@ html[data-ph-shell][data-touch-small] .phc-rail { grid-column: 1 / -1; flex-dire
 html[data-ph-shell][data-touch-small] .phc-rail::-webkit-scrollbar { display: none; }
 html[data-ph-shell][data-touch-small] .phc-cats { flex-direction: row; }
 html[data-ph-shell][data-touch-small] .phc-cat { flex: none; min-width: calc(200 * var(--phu)); }
-html[data-ph-shell][data-touch-small] .phc-bay { flex: none; flex-direction: row; align-items: center; gap: calc(12 * var(--phu)); padding: calc(4 * var(--phu)) calc(12 * var(--phu)); clip-path: var(--ph-clip-s); }
+html[data-ph-shell][data-touch-small] .phc-bay { flex: none; flex-direction: row; align-items: center; gap: calc(12 * var(--phu)); padding: calc(4 * var(--phu)) calc(12 * var(--phu)); border-radius: var(--ph-r-s); }
 html[data-ph-shell][data-touch-small] .phc-bay-level, html[data-ph-shell][data-touch-small] .phc-bay-odds, html[data-ph-shell][data-touch-small] .phc-bay-top .phc-bay-sub { display: none; }
 html[data-ph-shell][data-touch-small] .phc-bay-art { width: calc(56 * var(--phu)); }
 html[data-ph-shell][data-touch-small] .phc-bay-num b { font-size: var(--ph-t3); }
@@ -192,7 +192,7 @@ html[data-ph-shell][data-touch-small] .phc-grid { grid-template-columns: repeat(
 .crth.phx .crate-name { font-family: var(--ph-font); font-size: 22px; letter-spacing: 0.24em; text-transform: uppercase; color: #fff; text-shadow: var(--ph-shadow); }
 .crth.phx .crate-name::before { background: linear-gradient(90deg, transparent, var(--ph-gold)); }
 .crth.phx .crate-name::after { background: linear-gradient(90deg, transparent, var(--ph-gold)); }
-.crth.phx .crate-btn { height: 52px; padding: 0 40px; border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-metal-gold); box-shadow: none;
+.crth.phx .crate-btn { height: 52px; padding: 0 40px; border: 0; border-radius: 999px; background: var(--ph-metal-gold); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.5);
   font-family: var(--ph-font); font-weight: 900; font-size: 16px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
 .crth.phx .crate-btn:hover:not(:disabled), .crth.phx .crate-btn:focus-visible { background: var(--ph-metal-gold); color: #000; }
 .crth.phx .crate-btn.crate-btn-quiet { background: var(--ph-plate); box-shadow: inset 0 0 0 1.5px var(--ph-gold); color: var(--ph-text); text-shadow: var(--ph-shadow); }
@@ -200,11 +200,11 @@ html[data-ph-shell][data-touch-small] .phc-grid { grid-template-columns: repeat(
 .crth.phx .crate-note { font-family: var(--ph-body); color: var(--ph-text); text-shadow: var(--ph-shadow); }
 .crth.phx .crth-skip { font-family: var(--ph-font); font-weight: 800; letter-spacing: 0.2em; color: var(--ph-muted); }
 .crth.phx .crth-summary-head { font-family: var(--ph-font); letter-spacing: 0.2em; color: var(--ph-muted); }
-.crth.phx .crth-summary li { padding: 6px 12px; border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-plate); box-shadow: inset 0 0 0 1.5px var(--rc);
+.crth.phx .crth-summary li { padding: 6px 14px; border: 0; border-radius: 999px; background: var(--ph-plate); box-shadow: inset 0 0 0 1.5px var(--rc);
   font-family: var(--ph-font); font-weight: 900; color: #fff; text-shadow: var(--ph-shadow); }
 
 /* ── THE FANTASY PASS (owner 2026-11-02: "it needs to maintain a fantasy vibe as much as possible ... we are a fantasy
-   game"): the shell's name serif (`--ph-name-font`) for every NAME and big number on these pages, Cinzel (`--ph-font`) for the labels, gilded edges on what is
+   game"): the shell's name font (`--ph-name-font`) for every NAME and big number on these pages, `--ph-font` for the labels, gilded edges on what is
    picked, warm candle-light under the previews and the chests. Static paint only; the kit's own tokens still rule the
    chrome, so the shell's fantasy tokens flow in when they land. ── */
 .phc, .phs { --phc-warm: rgba(255, 196, 110, 0.16); }

@@ -34,13 +34,13 @@ import { CollectionPage } from '../CollectionScreen';
 import { resetProgressionForTests, useProgression } from '../progressionStore';
 import { setCrateFxFactoryForTests } from '../crateFx/crateFxPixi';
 import { setPartyHome } from '../../partyHome/partyHomeFlag';
-import { setCollectionIntent, usePhShell } from '../../partyHome/shell/shellStore';
+import { openCrates, setCollectionIntent, usePhShell } from '../../partyHome/shell/shellStore';
 import { useGame } from '../../store';
 
 const noopFx = (): CrateFx => new Proxy({}, { get: (_t, k) => (k === 'then' ? undefined : k === 'mount' ? async () => true : () => {}) }) as CrateFx;
 
 let ui: Mounted | null = null;
-afterEach(() => { ui?.unmount(); ui = null; setCrateFxFactoryForTests(null); setPartyHome(false); setCollectionIntent(null); });
+afterEach(() => { ui?.unmount(); ui = null; setCrateFxFactoryForTests(null); setPartyHome(false); setCollectionIntent(null); usePhShell.setState({ crates: false }); });
 beforeEach(() => {
   resetProgressionForTests();
   localStorage.clear();
@@ -157,6 +157,18 @@ describe('the Collection in the party home shell', () => {
   it('ON with Aether: the shell\'s Crates tab (its Collection intent) lands straight on the Chest Shop, once', async () => {
     setCollectionIntent('shop');
     await open({ ph: true, aether: true });
+    await settle();
+    expect($('.cshop.phs')).not.toBeNull();
+    expect(usePhShell.getState().collectionIntent).toBeNull();
+    expect(usePhShell.getState().crates).toBe(true);
+    act(() => { $('.phs .phk-back')!.click(); });
+    expect(usePhShell.getState().crates).toBe(false);
+  });
+
+  it('ON with Aether: Crates pressed while the Collection is already open switches to the Chest Shop', async () => {
+    await open({ ph: true, aether: true });
+    expect($('.cshop')).toBeNull();
+    act(() => { openCrates(); });
     await settle();
     expect($('.cshop.phs')).not.toBeNull();
     expect(usePhShell.getState().collectionIntent).toBeNull();

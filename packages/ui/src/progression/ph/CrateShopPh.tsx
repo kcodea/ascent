@@ -7,7 +7,9 @@
  * components, so every pick and toggle celebration (`chestShopFx.ts`) and every tip plays exactly as before; the shell's
  * stylesheet only re-skins the chrome around them. The chest opening (the theatre) is untouched.
  */
+import { useEffect } from 'react';
 import { CRATE_TIERS, COSMETIC_CATEGORY_DEFS } from '@game/progression';
+import { setCratesView } from '../../partyHome/shell/shellStore';
 import { PhButton, PhPage, PhSection } from '../../partyHome/kit';
 import { touchText } from '../../touchInput';
 import { AetherIcon } from '../AetherIcon';
@@ -16,6 +18,8 @@ import './collectionPh.css';
 import './crateShopPh.css';
 
 export function CrateShopPh({ shop: s }: { shop: CrateShopState }): JSX.Element {
+  // The nav's Crates tab is lit while this screen is up, however it was reached (the tab, or the page's Chest Shop button).
+  useEffect(() => { setCratesView(true); return () => setCratesView(false); }, []);
   const buyLabel = s.busy ? 'Buying…'
     : !s.quote ? 'Sold out'
     : s.needMore > 0 ? `Need ${s.needMore} more Aether`

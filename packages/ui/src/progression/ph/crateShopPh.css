@@ -7,7 +7,7 @@
 
 /* The wallet chip in the header. */
 .phs-wallet { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(40 * var(--phu)); padding: 0 calc(16 * var(--phu));
-  background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+  background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: 999px; }
 .phs-wallet b { font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
 .phs-wallet small { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
 .phs-wallet .aether-icon { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); }
@@ -17,25 +17,24 @@
 
 /* ── The chest cards ── */
 .phs .cshop-chests { gap: calc(16 * var(--phu)); }
-.phs .cshop-chest { gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(12 * var(--phu)); border: 0; border-radius: 0;
+.phs .cshop-chest { gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(12 * var(--phu)); border: 0; border-radius: var(--ph-r);
   background: radial-gradient(70% 50% at 50% 60%, color-mix(in srgb, var(--tc) 14%, transparent), transparent 75%), var(--ph-well);
   box-shadow: var(--ph-gild-s), inset 0 calc(-3 * var(--phu)) 0 color-mix(in srgb, var(--tc) 70%, transparent); color: var(--ph-text); }
-.phs .cshop-chest::before, .phs .cshop-chest-fx { border-radius: 0; }
-.phs .cshop-chest::after { border-radius: 0; }
+.phs .cshop-chest::before, .phs .cshop-chest-fx, .phs .cshop-chest::after { border-radius: var(--ph-r); }
 .phs .cshop-chest:hover, .phs .cshop-chest.tt-on { background: radial-gradient(70% 50% at 50% 60%, color-mix(in srgb, var(--tc) 18%, transparent), transparent 75%), var(--ph-plate-hover); }
 .phs .cshop-chest.on, .phs .cshop-chest.on:hover { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--tc), inset 0 calc(-3 * var(--phu)) 0 var(--tc); }
 .phs .cshop-chest:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(-2 * var(--phu)); }
-.phs .cshop-chest-check { border-radius: 0; clip-path: var(--ph-clip-s); color: var(--ph-navy); }
+.phs .cshop-chest-check { border-radius: 999px; color: var(--ph-navy); }
 .phs .cshop-chest-name { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.12em; text-transform: uppercase; text-shadow: var(--ph-shadow); }
 .phs .cshop-chest .cshop-chest-price { display: inline-flex; align-items: center; margin-top: 0; padding: 0 calc(16 * var(--phu)); height: calc(32 * var(--phu)); border: 0; border-radius: 0;
-  background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s);
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: 999px;
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .phs .cshop-chest.on .cshop-chest-price { background: var(--ph-metal-gold); box-shadow: none; color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
 
 /* ── Focus + checkout ── */
 .phs-lower { flex: none; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: calc(16 * var(--phu)); align-items: stretch; }
 .phs .phs-checkout .phk-secbody { flex: 1; justify-content: space-between; gap: calc(16 * var(--phu)); }
-.phs .cshop-cat { grid-template-columns: minmax(0, 1fr) calc(120 * var(--phu)) calc(128 * var(--phu)); gap: calc(16 * var(--phu)); min-height: calc(48 * var(--phu)); padding: calc(4 * var(--phu)) 0 calc(4 * var(--phu)) calc(12 * var(--phu));
+.phs .cshop-cat { border-radius: var(--ph-r-s); grid-template-columns: minmax(0, 1fr) calc(120 * var(--phu)) calc(128 * var(--phu)); gap: calc(16 * var(--phu)); min-height: calc(48 * var(--phu)); padding: calc(4 * var(--phu)) 0 calc(4 * var(--phu)) calc(12 * var(--phu));
   border-bottom: 0; box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
 .phs .cshop-cat:last-child { box-shadow: none; }
 .phs .cshop-cat-head { min-height: 0; padding-bottom: calc(8 * var(--phu)); }
@@ -45,14 +44,14 @@
 .phs .cshop-cat.on { background: linear-gradient(90deg, color-mix(in srgb, var(--ph-gold) 16%, transparent), transparent 70%); }
 .phs .cshop-cat.on .cshop-cat-name { color: var(--ph-ink); }
 .phs .cshop-cat.on .cshop-cat-left { color: var(--ph-text); }
-.phs .cshop-cat-sweep { border-radius: 0; }
+.phs .cshop-cat-sweep { border-radius: var(--ph-r-s); }
 /* The toggle: Off is a quiet well, On the podium gold (the toggle's own pop, ring and halo still play over it). */
-.phs .cshop-toggle { min-width: calc(112 * var(--phu)); min-height: calc(36 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 0;
+.phs .cshop-toggle { min-width: calc(112 * var(--phu)); min-height: calc(36 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 999px;
   background: var(--ph-well); box-shadow: var(--ph-gild-s);
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
 .phs .cshop-toggle:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); }
 .phs .cshop-toggle:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(2 * var(--phu)); }
-.phs .cshop-toggle::before, .phs .cshop-toggle::after { border-radius: 0; }
+.phs .cshop-toggle::before, .phs .cshop-toggle::after { border-radius: 999px; }
 .phs .cshop-cat.on .cshop-toggle, .phs .cshop-cat.on .cshop-toggle:hover { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
   box-shadow: 0 0 calc(16 * var(--phu)) color-mix(in srgb, var(--ph-gold) 45%, transparent); }
 
@@ -72,8 +71,11 @@
 /* The odds bar. */
 .phs .cshop-odds { gap: calc(8 * var(--phu)); }
 .phs .cshop-odds h4 { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
-.phs .cshop-bars { height: calc(32 * var(--phu)); padding: calc(2 * var(--phu)); border-radius: 0; background: rgba(0, 0, 0, 0.5); box-shadow: var(--ph-gild-s); }
-.phs .cshop-seg, .phs .cshop-seg:first-child, .phs .cshop-seg:last-child, .phs .cshop-seg:only-child { border-radius: 0; }
+.phs .cshop-bars { height: calc(32 * var(--phu)); padding: calc(2 * var(--phu)); border-radius: 999px; background: rgba(0, 0, 0, 0.5); box-shadow: var(--ph-gild-s); }
+.phs .cshop-seg { border-radius: 0; }
+.phs .cshop-seg:first-child { border-radius: 999px 0 0 999px; }
+.phs .cshop-seg:last-child { border-radius: 0 999px 999px 0; }
+.phs .cshop-seg:only-child { border-radius: 999px; }
 .phs .cshop-seg { font-family: var(--ph-font); font-size: var(--ph-t1); color: var(--ph-navy); }
 
 /* The buy button: the screen's one gold. */
@@ -88,4 +90,4 @@
 html[data-ph-shell][data-touch-small] .cshop.phs { overflow: hidden; }
 html[data-ph-shell][data-touch-small] .phs .cshop-chest-name { font-size: var(--ph-t2); }
 html[data-ph-shell][data-touch-small] .phs .cshop-chest-art { max-width: calc(150 * var(--phu)); }
-html[data-ph-shell][data-touch-small] .phs .cshop-cat { grid-template-columns: minmax(0, 1fr) calc(80 * var(--phu)) calc(112 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phs .cshop-cat { border-radius: var(--ph-r-s); grid-template-columns: minmax(0, 1fr) calc(80 * var(--phu)) calc(112 * var(--phu)); }

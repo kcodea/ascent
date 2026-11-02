@@ -17,13 +17,13 @@
  * `ChestPicture`, the painted category medallions. Static paint; hover is a colour or a one-shot transform; no native
  * tooltips; no own cursor.
  */
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import {
   ALL_COSMETIC_RARITIES, COSMETIC_CATEGORY_DEFS, RARITY_LABELS, crateLabel, isMasterTitle,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type levelProgress,
 } from '@game/progression';
 import { PhButton, PhChip, PhEmpty, PhMeter, PhPage, PhRow, PhSection, PhTabs, PhToggleChip } from '../../partyHome/kit';
-import { takeCollectionIntent } from '../../partyHome/shell/shellStore';
+import { takeCollectionIntent, usePhShell } from '../../partyHome/shell/shellStore';
 import { MenuMedal } from '../../menuIcons';
 import { sfx } from '../../sfx';
 import { touchText } from '../../touchInput';
@@ -92,6 +92,15 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
   // THE CRATES TAB (the shell's nav): it opens this page with the intent to land on the Chest Shop. Read once, on mount.
   const openShop = v.openShop;
   useEffect(() => { if (takeCollectionIntent() === 'shop') openShop(); }, [openShop]);
+  // ...and pressed again while this page is already open: every press bumps `cratesSeq`; a change since mount opens the shop.
+  const cratesSeq = usePhShell((st) => st.cratesSeq);
+  const seenSeq = useRef(cratesSeq);
+  useEffect(() => {
+    if (cratesSeq === seenSeq.current) return;
+    seenSeq.current = cratesSeq;
+    takeCollectionIntent();
+    openShop();
+  }, [cratesSeq, openShop]);
   return (
     <PhPage
       wide

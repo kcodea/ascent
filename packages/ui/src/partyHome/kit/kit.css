@@ -146,3 +146,23 @@
 .phk-meterval { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); font-variant-numeric: tabular-nums; }
 .phk-meterbar { position: relative; height: calc(4 * var(--phu)); background: rgba(0, 0, 0, 0.5); overflow: hidden; }
 .phk-meterbar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
+
+/* PhPage fills a page host (a flex column such as `.lbpage`). */
+.phk-page { flex: 1; min-height: 0; }
+/* A small stat (PhStat size s / PhFact). */
+.phk-stat.s-s { gap: calc(2 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); }
+.phk-stat.s-s .phk-statval { font-size: var(--ph-t3); }
+/* The big placement box. */
+.phk-place.s-l { width: calc(64 * var(--phu)); height: calc(64 * var(--phu)); font-size: var(--ph-t4); }
+/* A selectable list: the rows stack; the picked one is lit by the row's own `selected` (PhRow `selected`). */
+.phk-selist { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); outline: none; }
+.phk-selist:focus-visible { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-teal); }
+/* The segmented control's "More" menu. */
+.phk-more { position: relative; display: inline-flex; flex: 1 0 auto; }
+.phk-more > .phk-segbtn { width: 100%; }
+.phk-moremenu { position: absolute; top: calc(100% + 4 * var(--phu)); right: 0; z-index: 10; min-width: calc(180 * var(--phu)); display: flex; flex-direction: column; padding: calc(8 * var(--phu));
+  background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold), 0 calc(12 * var(--phu)) calc(32 * var(--phu)) rgba(0, 0, 0, 0.6); clip-path: var(--ph-clip-s); }
+.phk-moreitem { min-height: calc(36 * var(--phu)); padding: 0 calc(12 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none; text-align: left;
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-text); }
+.phk-moreitem:hover { background: var(--ph-plate-hover); color: var(--ph-ink); }
+.phk-moreitem.on { color: #fbe6a6; }

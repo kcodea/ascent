@@ -159,6 +159,16 @@ export function scanCombat(scan: CombatScan, events: readonly CombatEvent[], to:
         }
         break;
       }
+      case 'tagIn': {
+        // VERSUS DUOS: the teammate's board steps in (R-DUOS-FX-01). Its bodies are the side's from here on, exactly
+        // as a summon's would be (not counted as summons).
+        for (const m of e.minions) {
+          scan.keywords.set(m.uid, new Set(m.keywords));
+          if (m.golden) scan.golden.add(m.uid);
+          if (e.side === 'player') { scan.player.add(m.uid); scan.alivePlayer.add(m.uid); }
+        }
+        break;
+      }
       case 'keyword': scan.keywords.get(e.target)?.add(e.keyword); break;
       case 'keywordLost': scan.keywords.get(e.target)?.delete(e.keyword); break;
       case 'attack': {

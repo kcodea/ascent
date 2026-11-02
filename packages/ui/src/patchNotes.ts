@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Duos fights: the second board to fight now plays all of its animations.',
+        details: [
+          'When a teammate’s board steps in, its Deathrattles, attack effects, Shouts, Rallies and trigger glows now play, the same as the first board’s.',
+          'This fixes both teams, on your screen, your teammate’s screen and for spectators.',
+          'The hero attack at the end of the fight is now the one equipped by the player whose board won it.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New Legendary hero attack: Charge the Mound. The hero being hit pitches, and your hero bats.',
         details: [
           'Small: a line drive straight back up the middle. Bonk.',

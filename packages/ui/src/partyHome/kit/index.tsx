@@ -22,12 +22,19 @@ import './kit.css';
 
 const cx = (...c: (string | false | null | undefined)[]): string => c.filter(Boolean).join(' ');
 
-export function PhPage({ title, eyebrow, actions, tabs, wide, className, children }: {
+export function PhPage({ title, eyebrow, actions, tabs, wide, back, className, children }: {
   title: ReactNode; eyebrow?: ReactNode; actions?: ReactNode; tabs?: ReactNode; wide?: boolean; className?: string; children: ReactNode;
+  /** A back step inside the page (a sub-view back to its parent): sits left of the title. */
+  back?: { label: string; onClick: () => void };
 }) {
   return (
     <section className={cx('phk-page', wide && 'wide', className)}>
       <header className="phk-pagehead">
+        {back && (
+          <button type="button" className="phk-back" onClick={back.onClick} aria-label={back.label}>
+            <span className="phk-backarrow" aria-hidden="true">‹</span><span>{back.label}</span>
+          </button>
+        )}
         <div className="phk-pagetitle">
           {eyebrow && <span className="phk-eyebrow">{eyebrow}</span>}
           <h1>{title}</h1>
@@ -58,9 +65,15 @@ export function PhSection({ title, aside, flush, className, children }: {
 
 export type PhTone = 'neutral' | 'gold' | 'teal' | 'foe';
 
-export function PhRow({ art, title, sub, lead, right, onClick, tone, selected, label, className }: {
+export function PhRow({ art, title, sub, lead, right, onClick, tone, selected, label, className, dense, count, progress }: {
   art?: string; title: ReactNode; sub?: ReactNode; lead?: ReactNode; right?: ReactNode; onClick?: () => void;
   tone?: PhTone; selected?: boolean; label?: string; className?: string;
+  /** A compact 48 unit row (lists of many). */
+  dense?: boolean;
+  /** A count at the right end, before `right` (e.g. "12 / 30"). */
+  count?: ReactNode;
+  /** 0..1: a thin gold progress bar along the row's foot. */
+  progress?: number;
 }) {
   const body = (
     <>
@@ -73,11 +86,13 @@ export function PhRow({ art, title, sub, lead, right, onClick, tone, selected, l
     </>
   );
   return (
-    <div role="listitem" className={cx('phk-row', tone && `t-${tone}`, selected && 'sel', onClick && 'press', className)}>
+    <div role="listitem" className={cx('phk-row', tone && `t-${tone}`, selected && 'sel', onClick && 'press', dense && 'dense', className)}>
       {onClick
         ? <button type="button" className="phk-rowmain" onClick={onClick} aria-label={label}>{body}</button>
         : <span className="phk-rowmain">{body}</span>}
+      {count != null && <span className="phk-rowcount">{count}</span>}
       {right && <span className="phk-rowright">{right}</span>}
+      {progress != null && <span className="phk-rowbar" aria-hidden="true"><span style={{ transform: `scaleX(${Math.max(0, Math.min(1, progress))})` }} /></span>}
     </div>
   );
 }
@@ -100,6 +115,25 @@ export function PhTabs<T extends string>({ tabs, value, onChange, label }: {
 
 export function PhChip({ tone = 'neutral', className, children }: { tone?: PhTone; className?: string; children: ReactNode }) {
   return <span className={cx('phk-chip', `t-${tone}`, className)}>{children}</span>;
+}
+
+/** A chip that toggles (a filter): pressed wears the podium gold. */
+export function PhToggleChip({ pressed, onToggle, disabled, className, children }: { pressed: boolean; onToggle: () => void; disabled?: boolean; className?: string; children: ReactNode }) {
+  return (
+    <button type="button" className={cx('phk-chip', 'phk-tchip', pressed ? 't-gold' : 't-neutral', className)} aria-pressed={pressed} disabled={disabled}
+      onClick={onToggle}>{children}</button>
+  );
+}
+
+/** A "collected" meter: a label, the count, and a thin gold bar. */
+export function PhMeter({ label, value, max, className }: { label?: ReactNode; value: number; max: number; className?: string }) {
+  const f = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
+  return (
+    <div className={cx('phk-meter', className)} role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={value} aria-label={typeof label === 'string' ? label : undefined}>
+      <span className="phk-meterhead">{label && <span className="phk-meterlbl">{label}</span>}<span className="phk-meterval">{value} / {max}</span></span>
+      <span className="phk-meterbar" aria-hidden="true"><span style={{ transform: `scaleX(${f})` }} /></span>
+    </div>
+  );
 }
 
 export function PhButton({ variant = 'plate', size = 'm', className, children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -152,6 +186,27 @@ export function PhSegmented<T extends string | number | null>({ label, hint, val
         ))}
       </div>
       {hint && <span className="phk-seghint">{hint}</span>}
+    </div>
+  );
+}
+
+/**
+ * A modal window in the shell's language (added for the party home's confirmations; the other kit APIs are unchanged):
+ * a dark veil over the screen and one navy plate in the big cut, an eyebrow, a title, the text, then the actions
+ * (primary first). `onClose` runs on a press on the veil. One-shot entrance (transform + opacity).
+ */
+export function PhDialog({ eyebrow, title, children, actions, onClose, closing, label }: {
+  eyebrow?: ReactNode; title: ReactNode; children?: ReactNode; actions: ReactNode; onClose?: () => void; closing?: boolean; label: string;
+}) {
+  return (
+    <div className={cx('phk-dialog', closing && 'closing')} role="dialog" aria-modal="true" aria-label={label}>
+      <div className="phk-veil" onClick={onClose} aria-hidden="true" />
+      <div className="phk-dlgbox">
+        {eyebrow && <span className="phk-eyebrow">{eyebrow}</span>}
+        <h2 className="phk-dlgtitle">{title}</h2>
+        {children && <div className="phk-dlgtext">{children}</div>}
+        <div className="phk-dlgactions">{actions}</div>
+      </div>
     </div>
   );
 }

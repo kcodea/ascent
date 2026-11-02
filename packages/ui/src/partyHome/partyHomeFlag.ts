@@ -56,7 +56,7 @@ export type PartyBackdrop = 'citadel' | 'hall';
 const BD_KEY = 'ascent.partyHome.backdrop';
 let backdrop: PartyBackdrop | null = null;
 export function partyBackdrop(): PartyBackdrop {
-  if (backdrop === null) { try { backdrop = localStorage.getItem(BD_KEY) === 'hall' ? 'hall' : 'citadel'; } catch { backdrop = 'citadel'; } }
+  if (backdrop === null) { try { backdrop = localStorage.getItem(BD_KEY) === 'citadel' ? 'citadel' : 'hall'; } catch { backdrop = 'hall'; } }
   return backdrop;
 }
 export function setPartyBackdrop(v: PartyBackdrop): void {

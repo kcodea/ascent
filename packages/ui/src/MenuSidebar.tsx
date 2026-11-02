@@ -47,7 +47,7 @@ import { InGameNote, LeaveButton, ResumeButton, SidebarShopClock } from './gameM
 import './friends/friends.css';
 import { usePartyHome } from './partyHome/partyHomeFlag';
 /** The party home prototype's top nav (DEV only; lazy and null in production, so the shipped bundle never carries it). */
-const PhTopNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhTopNav').then((m) => ({ default: m.PhTopNav }))) : null;
+const PhPageChrome = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhPageChrome')) : null;
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
  *  the same event turn (a few ms); a title-plaque open or a row click carries no fresh stamp. */
@@ -184,11 +184,10 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
   const playTip = inGame ? null : playWarn && vsTip ? `${playWarn} ${vsTip}.` : playWarn ?? vsTip;
 
   // THE PARTY HOME PROTOTYPE's APP SHELL (DEV switch, off by default): the page wears the top nav instead of this rail.
-  if (shell && !inGame && PhTopNav) {
+  if (shell && !inGame && PhPageChrome) {
     return (
       <>
-        {current && <MenuBackdrop screen={current} />}
-        <Suspense fallback={null}><PhTopNav current={current} /></Suspense>
+        <Suspense fallback={null}><PhPageChrome current={current} /></Suspense>
       </>
     );
   }

@@ -44,10 +44,13 @@ import { crumb, crumbTrail } from './crashLog';
 import { MenuViewSwap } from './MenuViewSwap';
 import { PracticeOptions } from './PracticeOptions';
 import { usePartyHome } from './partyHome/partyHomeFlag';
+import { isPhone } from './deviceClass';
 
 /** THE PARTY HOME PROTOTYPE (DEV only, owner 2026-11-02; partyHome/PartyHome.tsx). Lazy, and `null` in a production build,
  *  so the shipped bundle never carries it. */
 const PartyHome = import.meta.env.DEV ? lazy(() => import('./partyHome/PartyHome')) : null;
+const PhTutorialPrompt = import.meta.env.DEV ? lazy(() => import('./partyHome/PhPrompts').then((m) => ({ default: m.PhTutorialPrompt }))) : null;
+const PhRankedPrompt = import.meta.env.DEV ? lazy(() => import('./partyHome/PhPrompts').then((m) => ({ default: m.PhRankedPrompt }))) : null;
 
 /** The mode screen's views (`MenuViewSwap`): the home, its sub-views, Practice's setup, and the Versus room's empty
  *  ground (the room is its own stage over it). */
@@ -120,12 +123,19 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const practiceOpen = useGame((s) => s.practiceSetupOpen);
   // THE PARTY HOME PROTOTYPE (DEV switch, off by default): it takes the main menu, the mode screen and the Duos party.
   const partyHomeFlag = usePartyHome();
-  // The app shell's attribute (partyHome/shell/shell.css): every menu page wears the top nav while the switch is on.
+  // The app shell's attribute (partyHome/shell/shell.css): the menus (the title and the pages over it, before a run) wear
+  // the top nav while the switch is on. A run drops it, so the game keeps its own corners and docks.
+  const shellOn = partyHomeFlag && (showTitle || practiceOpen);
   useEffect(() => {
     if (!PartyHome) return undefined;
-    document.documentElement.toggleAttribute('data-ph-shell', partyHomeFlag);
-    return () => document.documentElement.removeAttribute('data-ph-shell');
-  }, [partyHomeFlag]);
+    const html = document.documentElement;
+    html.toggleAttribute('data-ph-shell', shellOn);
+    // COMPACT (phones, short windows): the shell's icon-only nav, one scrolling tab row and the friends drawer.
+    const compact = (): void => { html.toggleAttribute('data-ph-compact', shellOn && (isPhone() || window.innerHeight < 700)); };
+    compact();
+    window.addEventListener('resize', compact);
+    return () => { window.removeEventListener('resize', compact); html.removeAttribute('data-ph-shell'); html.removeAttribute('data-ph-compact'); };
+  }, [shellOn]);
   // The portrait-frames tuner's ring for your own avatar corner (null = today's copper ring).
   const avatarFrame = usePortraitFrame('self');
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
@@ -621,7 +631,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       {/* TUTORIAL NUDGE — a new player who hits Play is offered the guided course first (owner 2026-08-17:
           the nudge lives here, not on an auto-popup). Either choice retires it: "Start Playing" records a
           skip so it never asks again. */}
-      {tutorialPrompt && (
+      {tutorialPrompt && partyView && PhTutorialPrompt && (
+        <Suspense fallback={null}>
+          <PhTutorialPrompt onClose={() => setTutorialPrompt(false)}
+            onTutorial={() => { sfx.pulse(); setTutorialPrompt(false); startTutorial(LEARN_ASCENT); }}
+            onSkip={() => { sfx.pulse(); skipCourse(LEARN_ASCENT.id, LEARN_ASCENT.version); setTutorialPrompt(false); openRankedConfirm(); }} />
+        </Suspense>
+      )}
+      {tutorialPrompt && !partyView && (
         <div className="modepick tutprompt-ov" role="dialog" aria-label="New here?">
           <div className="tutprompt-card">
             <div className="eyebrow">First time?</div>
@@ -640,7 +657,16 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           It sits OVER the mode picker (owner 2026-10-12), which stays on screen behind a veil that darkens and
           blurs it while the card expands out with a small bounce. Motion is `transform` + `opacity` only: the
           veil's blur is static and only its opacity fades (styles.css, "THE RANKED CONFIRMATION"). */}
-      {rankedConfirm && (
+      {rankedConfirm && partyView && PhRankedPrompt && (
+        <Suspense fallback={null}>
+          <PhRankedPrompt closing={rankedConfirm === 'closing'}
+            title={confirmKind === 'duos' ? DUOS_CONFIRM_TITLE : RANKED_CONFIRM_TITLE}
+            text={confirmKind === 'duos' ? DUOS_CONFIRM_TEXT : RANKED_CONFIRM_TEXT}
+            warning={confirmKind === 'solo' && savedGameWarning ? `Picking a hero also gives up your saved game. ${savedGameWarning}` : null}
+            yes={RANKED_CONFIRM_YES} no={RANKED_CONFIRM_NO} onYes={confirmRanked} onNo={() => { sfx.pulse(); closeRankedConfirm(); }} />
+        </Suspense>
+      )}
+      {rankedConfirm && !partyView && (
         <div className={`rankedconfirm-ov${rankedConfirm === 'closing' ? ' closing' : ''}`} role="dialog" aria-modal="true" aria-label="Ranked lobby">
           <div className="rankedconfirm-veil" onClick={closeRankedConfirm} aria-hidden="true" />
           {/* THE WINDOW wears the Compendium's chrome (owner 2026-10-12: "use the border that the compendium uses ...

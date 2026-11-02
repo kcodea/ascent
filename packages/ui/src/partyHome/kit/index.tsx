@@ -16,7 +16,7 @@
  *
  * All static paint; no native tooltips (aria-label + the game's `data-tip`); no own cursor (the gauntlet rule paints it).
  */
-import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { rectToStage, stageHost } from '../../stage';
 import '../shell/shell.css';
@@ -360,7 +360,7 @@ export function PhSlider({ value, min, max, step = 1, onChange, onRelease, label
  * A dropdown select. The list opens in a layer on the page (a portal, placed from one measure on open), so a clipped
  * section never cuts it off. Closes on a pick, a press outside, or Escape.
  */
-export function PhSelect<T extends string | number>({ value, options, onChange, label, disabled, className, previewSize }: {
+export function PhSelect<T extends string | number>({ value, options, onChange, label, disabled, className, previewSize, previewSide = 'auto' }: {
   value: T;
   /**
    * `thumb`: a small image left of the label. `disabled` + `reason`: greyed, not pickable, the reason under it.
@@ -371,6 +371,8 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
   onChange: (v: T) => void; label?: string; disabled?: boolean; className?: string;
   /** The preview's width in units (default 260). */
   previewSize?: number;
+  /** Where the preview sits: 'auto' (right, flipped left when the stage has no room there), or forced. */
+  previewSide?: 'auto' | 'left' | 'right';
 }) {
   const [open, setOpen] = useState<{ left: number; top: number; width: number } | null>(null);
   const [hi, setHi] = useState(0);
@@ -424,6 +426,26 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
   };
   const preview = open ? options[hi]?.preview : undefined;
   const listId = useId();
+  // THE PREVIEW's SIDE: measured once per open (the first time a preview shows), never per frame. Right when it fits in
+  // the stage, else left; clamped inside the stage either way.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<{ side: 'left' | 'right'; maxW: number | null } | null>(null);
+  const hasPreview = !!preview;
+  useLayoutEffect(() => {
+    if (!open || !hasPreview) { if (!open) setPlace(null); return; }
+    if (place) return;
+    const wrap = wrapRef.current; const list = listRef.current;
+    const img = wrap?.querySelector<HTMLElement>('.phk-selpreview');
+    if (!wrap || !list || !img) return;
+    const stageW = stageHost()?.clientWidth || window.innerWidth;
+    const gap = 12;
+    const pw = img.offsetWidth;
+    const right = open.left + list.offsetWidth + gap + pw <= stageW;
+    const left = open.left - gap - pw >= 0;
+    const side = previewSide !== 'auto' ? previewSide : right || !left ? 'right' : 'left';
+    const room = side === 'right' ? stageW - (open.left + list.offsetWidth + gap) : open.left - gap;
+    setPlace({ side, maxW: room < pw ? Math.max(80, room - 8) : null });
+  }, [open, hasPreview, place, previewSide]);
   return (
     <>
       <button ref={btn} type="button" className={cx('phk-select', className)} aria-haspopup="listbox" aria-expanded={!!open} aria-controls={open ? listId : undefined}
@@ -433,7 +455,7 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
       </button>
       {open && createPortal(
         <div className="phk-selectlayer" onPointerDown={() => close(false)}>
-          <div className="phk-selectwrap" style={{ left: open.left, top: open.top }} onPointerDown={(e) => e.stopPropagation()}>
+          <div ref={wrapRef} className={cx('phk-selectwrap', place?.side === 'left' && 'pv-left')} style={{ left: open.left, top: open.top }} onPointerDown={(e) => e.stopPropagation()}>
             <div ref={listRef} id={listId} className="phk-selectlist" role="listbox" aria-label={label} style={{ minWidth: open.width }}
               aria-activedescendant={`${listId}-${hi}`}>
               {options.map((o, i) => (
@@ -448,7 +470,7 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
             </div>
             {preview && (
               <img className="phk-selpreview" src={preview} alt="" draggable={false} decoding="sync"
-                style={{ width: `calc(${previewSize ?? 260} * var(--phu))` } as React.CSSProperties} />
+                style={{ width: `calc(${previewSize ?? 260} * var(--phu))`, ...(place?.maxW ? { maxWidth: place.maxW } : {}), visibility: place ? 'visible' : 'hidden' } as React.CSSProperties} />
             )}
           </div>
         </div>,

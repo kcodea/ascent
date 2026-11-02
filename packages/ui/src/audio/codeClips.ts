@@ -9,6 +9,7 @@
 export const CODE_FX_CLIPS: readonly string[] = [
   'fx/alexis_gaming_cam-woosh-long-cartoon-370386',
   'fx/baseball-bonk',
+  'fx/baseball-brawl',
   'fx/baseball-charge',
   'fx/baseball-crack',
   'fx/baseball-fall',

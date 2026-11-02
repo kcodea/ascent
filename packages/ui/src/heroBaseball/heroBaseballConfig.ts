@@ -123,6 +123,7 @@ interface GlobalConfig {
   sfxFallClip: string; sfxFallGain: number; sfxFallRate: number;
   sfxChargeClip: string; sfxChargeGain: number; sfxChargeRate: number;
   sfxThumpClip: string; sfxThumpGain: number; sfxThumpRate: number;
+  sfxBrawlClip: string; sfxBrawlGain: number; sfxBrawlRate: number;
   sfxKoClip: string; sfxKoGain: number; sfxKoRate: number;
   sfxUmpClip: string; sfxUmpGain: number; sfxUmpRate: number;
   sfxOohClip: string; sfxOohGain: number; sfxOohRate: number;
@@ -135,7 +136,7 @@ export type HeroBaseballConfig = GlobalConfig & Record<TierKey, number>;
 
 export const HERO_BASEBALL_COLOR_KEYS = ['colorBall', 'colorBat', 'colorDust', 'colorFlash', 'colorPow', 'colorPlayer', 'colorFoe'] as const;
 export const HERO_BASEBALL_CLIP_KEYS = [
-  'sfxGloveClip', 'sfxPitchClip', 'sfxCrackClip', 'sfxBonkClip', 'sfxHopClip', 'sfxFallClip', 'sfxChargeClip', 'sfxThumpClip', 'sfxKoClip',
+  'sfxGloveClip', 'sfxPitchClip', 'sfxCrackClip', 'sfxBonkClip', 'sfxHopClip', 'sfxFallClip', 'sfxChargeClip', 'sfxThumpClip', 'sfxBrawlClip', 'sfxKoClip',
   'sfxUmpClip', 'sfxOohClip', 'sfxCheerClip',
 ] as const;
 export type HeroBaseballStrKey = (typeof HERO_BASEBALL_COLOR_KEYS)[number] | (typeof HERO_BASEBALL_CLIP_KEYS)[number] | 'variation';
@@ -239,12 +240,13 @@ export const HERO_BASEBALL_DEFAULTS: HeroBaseballConfig = {
   colorFoe: '#ff6a5a',
   sfxGloveClip: 'fx/baseball-glove', sfxGloveGain: 0.6, sfxGloveRate: 1,
   sfxPitchClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxPitchGain: 0.3, sfxPitchRate: 1.3,
-  sfxCrackClip: 'fx/baseball-crack', sfxCrackGain: 0.85, sfxCrackRate: 1,
+  sfxCrackClip: 'fx/baseball-crack', sfxCrackGain: 1, sfxCrackRate: 1,
   sfxBonkClip: 'fx/baseball-bonk', sfxBonkGain: 0.7, sfxBonkRate: 1,
   sfxHopClip: 'fx/bball-dribble', sfxHopGain: 0.6, sfxHopRate: 1.25,
   sfxFallClip: 'fx/baseball-fall', sfxFallGain: 0.5, sfxFallRate: 1,
   sfxChargeClip: 'fx/baseball-charge', sfxChargeGain: 0.55, sfxChargeRate: 1,
-  sfxThumpClip: 'flurryhit', sfxThumpGain: 0.55, sfxThumpRate: 1.1,
+  sfxThumpClip: 'flurryhit', sfxThumpGain: 0.35, sfxThumpRate: 1.1,
+  sfxBrawlClip: 'fx/baseball-brawl', sfxBrawlGain: 0.8, sfxBrawlRate: 1,
   sfxKoClip: 'fx/heavy-rock-impact', sfxKoGain: 0.45, sfxKoRate: 1.1,
   sfxUmpClip: 'fx/baseball-out', sfxUmpGain: 0.75, sfxUmpRate: 1,
   sfxOohClip: 'fx/bball-ooh', sfxOohGain: 0.7, sfxOohRate: 1,
@@ -314,6 +316,7 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBaseballStrKey>, [nu
   sfxFallGain: [0, 2, 0.05], sfxFallRate: [0.5, 2.5, 0.01],
   sfxChargeGain: [0, 2, 0.05], sfxChargeRate: [0.5, 2.5, 0.01],
   sfxThumpGain: [0, 2, 0.05], sfxThumpRate: [0.5, 2.5, 0.01],
+  sfxBrawlGain: [0, 2, 0.05], sfxBrawlRate: [0.5, 2.5, 0.01],
   sfxKoGain: [0, 2, 0.05], sfxKoRate: [0.5, 2.5, 0.01],
   sfxUmpGain: [0, 2, 0.05], sfxUmpRate: [0.5, 2.5, 0.01],
   sfxOohGain: [0, 2, 0.05], sfxOohRate: [0.5, 2.5, 0.01],

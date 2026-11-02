@@ -65,17 +65,22 @@ striker, the collision and every brawl hit are ticks.
 
 ## Sound
 
-Six new clips in `packages/ui/src/audio/fx/`, all **synthesised placeholders** (no ElevenLabs key in the repo `.env`
-or the environment, as on 2026-09-29): `baseball-crack` (a wooden transient and the barrel's inharmonic ring, a
-ballpark echo), `baseball-glove` (a leather pop), `baseball-bonk` (a cartoon pitch-drop knock), `baseball-fall` (a
-falling slide whistle), `baseball-charge` (the six-note "Charge!" on drawbar-style organ partials with a tremolo) and
-`baseball-out` (the umpire: Windows speech "Yer OUT!", pitched down, band-limited and echoed). Made with
-`ffmpeg-static` (`aevalsrc`), levelled to about the Basketball clips' loudness. The ElevenLabs prompts are ready in
-`packages/tools/vo-lines.json` (`vo-baseball-*`): `npm run vo:generate -- --sfx`, approve, normalize, and point the
-tuner's clip rows at `fx/vo-baseball-*`.
+The owner generated the clips in ElevenLabs (`C:\Game Assets\Ascent Art\SFX\Baseball\`, copied, never moved); they
+replaced the first build's synthesised placeholders. Seven clips in `packages/ui/src/audio/fx/`, each trimmed to its hit,
+given a short fade, levelled to about the other fx clips' loudness and encoded like them (mono, 44.1 kHz, 128 kbps mp3):
+`baseball-glove` (the mitt pop, the opener), `baseball-crack` (the bat), `baseball-bonk`, `baseball-fall` (the slide
+whistle: the whole 3 s fall kept but played about four times faster, tempo only, so it bottoms out on the moonshot's
+crash), `baseball-charge` (the organ: the two pickup notes and the held note, cut short), `baseball-brawl` (NEW: the fast
+cartoon fight flurry, played once on IV's collision under the whole cloud; each comic hit keeps a soft `flurryhit` thump)
+and `baseball-out` (the gruff umpire's "Yer OUT!").
 
-Reused: the pitch / swing / charge whoosh, the hop (the dribble, pitched up), the brawl thumps (`flurryhit`), the KO and
-crater (`fx/heavy-rock-impact`), the crowd "ooh" (`fx/bball-ooh`) and the cheer (`fx/cheering`).
+THE PHONE AUDIO BUDGET decided the lengths: a phone decodes every code-named `fx/` clip ahead of a fight
+(R-TOUCH-AUDIO-QUALITY-01), and the worst-case working set (`phoneAudioQuality.test.ts`) had about 4.7 s of 48 kHz mono
+left for this attack. The seven clips total about 4.5 s, so the headroom left for the NEXT attack is close to zero (the
+soccer build will need room: prewarming only the equipped attacks' clips would free it).
+
+Reused: the pitch / swing / charge whoosh, the hop (the dribble, pitched up), the brawl hit thumps (`flurryhit`), the KO
+and crater (`fx/heavy-rock-impact`), the crowd "ooh" (`fx/bball-ooh`) and the cheer (`fx/cheering`).
 
 ## Perf
 
@@ -103,6 +108,6 @@ long frames. Not re-measured on a real 240 Hz display or a phone.
 
 ## Open for the owner
 
-- The name, the six placeholder clips, and the umpire voice (a robot until ElevenLabs).
+- The name. The clips are the owner's; the organ and the slide whistle are cut short / sped up to fit the phone budget.
 - Both portraits leave their slot in IV; the slot's dark well shows behind while the batter is at the mound (as with
   every attack that moves a portrait).

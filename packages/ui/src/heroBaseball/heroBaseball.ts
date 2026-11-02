@@ -145,7 +145,7 @@ export function playHeroBaseball(o: HeroBaseballOptions): HeroBaseballHandle {
   // During a slow-mo beat a cue is pitched down a touch (subtle), with the clock.
   const cue: AttackVoices['cue'] = (clip, gain, rate, opts) => voices.cue(clip, gain, rate * (0.88 + 0.12 * Math.min(1, baseballTimeScale(plan, c, seq.t))), opts);
   voices.warm([
-    c.sfxGloveClip, c.sfxPitchClip, c.sfxCrackClip, c.sfxBonkClip, c.sfxHopClip, c.sfxFallClip, c.sfxChargeClip, c.sfxThumpClip, c.sfxKoClip,
+    c.sfxGloveClip, c.sfxPitchClip, c.sfxCrackClip, c.sfxBonkClip, c.sfxHopClip, c.sfxFallClip, c.sfxChargeClip, c.sfxThumpClip, c.sfxBrawlClip, c.sfxKoClip,
     c.sfxUmpClip, c.sfxOohClip, c.sfxCheerClip,
   ]);
   const real = (ms: number): number => ms / speed;
@@ -227,7 +227,9 @@ export function playHeroBaseball(o: HeroBaseballOptions): HeroBaseballHandle {
         cue(c.sfxPitchClip, c.sfxPitchGain * 1.1, c.sfxPitchRate * 0.7, { lenMs: 500, fadeMs: 200, delayMs: real(60) });
         break;
       case 'collide': {
-        cue(c.sfxThumpClip, c.sfxThumpGain * 1.3, c.sfxThumpRate * 0.8);
+        cue(c.sfxThumpClip, c.sfxThumpGain * 1.6, c.sfxThumpRate * 0.8);
+        // THE BRAWL: one fast cartoon fight flurry under the whole cloud (the hits below add their own small thumps).
+        cue(c.sfxBrawlClip, c.sfxBrawlGain, c.sfxBrawlRate, { fadeMs: 120 });
         cue(c.sfxOohClip, c.sfxOohGain * 0.6, c.sfxOohRate * 1.1, { fadeMs: 300 });
         cue(c.sfxCheerClip, c.sfxCheerGain * 0.8, c.sfxCheerRate, { lenMs: 1800, fadeMs: 600 });
         scene?.cloudBurst(geo.cloud, c.brawlCloud);

@@ -85,6 +85,8 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   sfxChargeRate: ['organ: pitch', '×', 'Pitch of the organ.', 'Sound: organ'],
   sfxThumpGain: ['thump: gain', undefined, 'IV: the collision and every brawl hit.', 'Sound: brawl thump'],
   sfxThumpRate: ['thump: pitch', '×', 'Pitch of the thumps (each hit varies it a little).', 'Sound: brawl thump'],
+  sfxBrawlGain: ['brawl: gain', undefined, 'IV: the cartoon fight flurry under the dust cloud (once, on the collision).', 'Sound: brawl'],
+  sfxBrawlRate: ['brawl: pitch', '×', 'Pitch of the brawl.', 'Sound: brawl'],
   sfxKoGain: ['ko: gain', undefined, 'III: the crater; IV: the haymaker (THE impact).', 'Sound: ko'],
   sfxKoRate: ['ko: pitch', '×', 'Pitch of the ko.', 'Sound: ko'],
   sfxUmpGain: ['umpire: gain', undefined, 'IV: the umpire\'s "You\'re out!" on the haymaker.', 'Sound: umpire'],
@@ -137,7 +139,7 @@ const built = rareTunerSpec({
   ],
   clipOf: {
     'Sound: glove': 'sfxGloveClip', 'Sound: whoosh': 'sfxPitchClip', 'Sound: bat crack': 'sfxCrackClip', 'Sound: bonk': 'sfxBonkClip',
-    'Sound: hop': 'sfxHopClip', 'Sound: slide whistle': 'sfxFallClip', 'Sound: organ': 'sfxChargeClip', 'Sound: brawl thump': 'sfxThumpClip',
+    'Sound: hop': 'sfxHopClip', 'Sound: slide whistle': 'sfxFallClip', 'Sound: organ': 'sfxChargeClip', 'Sound: brawl thump': 'sfxThumpClip', 'Sound: brawl': 'sfxBrawlClip',
     'Sound: ko': 'sfxKoClip', 'Sound: umpire': 'sfxUmpClip', 'Sound: crowd ooh': 'sfxOohClip', 'Sound: cheer': 'sfxCheerClip',
   },
   note: () => {

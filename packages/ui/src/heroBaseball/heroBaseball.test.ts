@@ -81,6 +81,7 @@ describe('the tuner values', () => {
     expect(C.sfxFallClip).toBe('fx/baseball-fall');
     expect(C.sfxChargeClip).toBe('fx/baseball-charge');
     expect(C.sfxUmpClip).toBe('fx/baseball-out');
+    expect(C.sfxBrawlClip).toBe('fx/baseball-brawl');
     const { existsSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     for (const k of HERO_BASEBALL_CLIP_KEYS) {

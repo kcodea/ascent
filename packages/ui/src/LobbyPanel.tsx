@@ -39,6 +39,7 @@ import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/g
 import { ownsMine, useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 import { railKey } from './pings/pingKeys';
+import { railHeroName } from './railHeroName';
 import './lobbyRailDocked.css'; // the Docked rail (owner 2026-10-31): slices set into the board's right side
 // Lobby Rail Tuner 2 (DEV only): applies its saved values before the panel is ever opened. Production never loads it and
 // renders the shipped defaults (the sheet's fallbacks + DOCK_DEFAULTS).
@@ -793,7 +794,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                       side of the art instead. */}
                   {/* The slice's label (Tuner 2 "Slice label"): the player's name (default), the hero's name, or none. Same
                       font, alignment and 2-line ellipsis either way; the fallen follow it too. */}
-                  {sliceLabel !== 'none' && <span className="lrv-name"><ClampedName text={sliceLabel === 'hero' ? getHero(seat.heroId)?.name ?? seat.label : seat.label} /></span>}
+                  {sliceLabel !== 'none' && <span className="lrv-name"><ClampedName text={sliceLabel === 'hero' ? railHeroName(seat.heroId) ?? seat.label : seat.label} /></span>}
                   {/* YOUR slice: YOU in a round teal chip on the top-right corner, the twin of the next foe's swords (owner 2026-10-31:
                       "lets have the players YOU in a circle in the top corner, just like the now facing icon"). */}
                   {isYou && <span className="lrv-you">You</span>}

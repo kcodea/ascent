@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The lobby rail shows shorter names for two heroes: Keshi the Protector is Keshi, and Lord of the Risen is Risen. Their full names still show everywhere else.',
+      },
+      {
+        category: 'Systems',
         text: 'Compendium: the Guides view always shows its own tribe filter, even when Runes was open just before.',
       },
       {

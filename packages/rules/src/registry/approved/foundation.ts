@@ -13573,4 +13573,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: "Dragging a minion past the rail's edge brushes Rayse's seat for half a second: no card. Resting on Rayse for a second opens their card; clicking Rayse opens it straight away.",
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailScoutDelay.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-RAIL-HERO-SHORTNAME-01',
+    title: 'The lobby rail may print a shorter hero name; every other surface keeps the full name',
+    statement:
+      'When the lobby rail labels a slice with its hero, it prints that hero\x27s short rail name if the hero has one, and '
+      + 'the full name otherwise. Today Keshi the Protector reads Keshi and Lord of the Risen reads Risen; every other hero '
+      + '(Emerald Warden, Foreman Flint, Frantic Frank and Disco Dan included) keeps its full name on the rail. Hero select, '
+      + 'the rail\x27s hover / scout card, tooltips, match details and every other surface always show the full name.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02', quote: 'Emerald Warden is fine as is. lets just adjust lord of risen to risen and keshi th eprotector to keshi, the rest seem fin' },
+      { kind: 'code', ref: 'packages/ui/src/railHeroName.ts (RAIL_HERO_NAMES, railHeroName); packages/ui/src/LobbyPanel.tsx (the slice label)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-02 (feat/rail-hero-short-names). Before it, the rail printed every hero\x27s full name.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/railHeroName.test.ts', 'packages/ui/src/lobbyRailDockedModes.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

@@ -38,7 +38,7 @@ const { useGame } = await import('./store');
 const { useVersus } = await import('./versus/versusStore');
 const { setIdentity } = await import('./identity');
 const { setSliceLabel } = await import('./lobbyRailVariant');
-const { getHero } = await import('@game/sim');
+const { railHeroName } = await import('./railHeroName');
 type Mounted = Awaited<ReturnType<typeof mount>>;
 
 let ui: Mounted | null = null;
@@ -145,7 +145,7 @@ describe('the Docked rail in every mode', () => {
       setSliceLabel('hero');
       const c = show(run, match);
       const labels = [...c.querySelectorAll('.lrv-name-t')].map((e) => e.getAttribute('aria-label'));
-      expect(labels).toEqual(expect.arrayContaining(run.lobby!.seats.map((x) => getHero(x.heroId).name)));
+      expect(labels).toEqual(expect.arrayContaining(run.lobby!.seats.map((x) => railHeroName(x.heroId))));
       // Your slice: the teal edge and YOU under your hero's name (owner 2026-10-31).
       expect(c.querySelector('.lobbyseat.you > .lrv-you')?.textContent).toBe('You');
       expect(c.querySelectorAll('.lrv-you')).toHaveLength(1);
@@ -158,5 +158,18 @@ describe('the Docked rail in every mode', () => {
       act(() => { setSliceLabel('player'); });
       expect([...c.querySelectorAll('.lrv-name-t')].map((e) => e.getAttribute('aria-label'))).toEqual(expect.arrayContaining(run.lobby!.seats.map((x) => x.label)));
     } finally { setSliceLabel('hero'); }
+  });
+
+  it('the rail prints each hero\'s SHORT rail name (Keshi, Risen); the scout card keeps the full name (owner 2026-11-02, R-RAIL-HERO-SHORTNAME-01)', () => {
+    const base = versusRun(2);
+    const seats = base.lobby!.seats.map((x, i) => ({ ...x, heroId: i === 0 ? 'keshi' : 'risen' }));
+    const run = { ...base, heroId: 'keshi', lobby: { ...base.lobby!, seats } } as RunState;
+    const c = show(run, { phase: 'shop', round: 3, p1_user: 'me', p2_user: 'them', paused_seat: null });
+    const labels = [...c.querySelectorAll('.lrv-name-t')].map((e) => e.getAttribute('aria-label'));
+    expect(labels).toEqual(expect.arrayContaining(['Keshi', 'Risen']));
+    expect(labels).not.toContain('Keshi the Protector');
+    expect(labels).not.toContain('Lord of the Risen');
+    hoverHeld(c.querySelector('.lobbyseat[data-seat="s1"]')!);
+    expect(document.body.querySelector('.lobbyscout')?.textContent).toContain('Lord of the Risen');
   });
 });

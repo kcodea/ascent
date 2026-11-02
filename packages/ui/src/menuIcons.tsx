@@ -12,7 +12,8 @@ import { publicArt } from './phoneArt';
  * They don't take `currentColor`, so hover/active tint changes leave them as painted.
  */
 export type MenuMedalName = 'play' | 'career' | 'collection' | 'leaderboard' | 'recent' | 'live' | 'settings' | 'glossary' | 'patchnotes' | 'friends' | 'watcher' | 'avenge' | 'equip' | 'heroes' | 'padlock' | 'first' | 'third'
-  | 'minions' | 'titles' | 'attacks' | 'frames' | 'announcers' | 'second' | 'emotes' | 'plates' | 'guides' | 'spend';
+  | 'minions' | 'titles' | 'attacks' | 'frames' | 'announcers' | 'second' | 'emotes' | 'plates' | 'guides' | 'spend'
+  | 'mechanics' | 'milestones' | 'runes' | 'set2';
 export const MenuMedal = ({ name, className = 'menumedal' }: { name: MenuMedalName; className?: string }) => (
   <img
     className={className}

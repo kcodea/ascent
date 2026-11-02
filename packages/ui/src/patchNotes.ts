@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-02',
     changes: [
+      { category: 'Systems', text: 'Achievements: the Mechanics, Runes, Set 2 and Milestones categories now have painted icons too.' },
       {
         category: 'Systems',
         text: 'Versus Duos and Ranked Duos now have a Team chat beside the lobby chat.',

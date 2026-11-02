@@ -43,9 +43,10 @@ const CATEGORY_ICONS: Readonly<Record<AchievementCategory, string>> = {
   career: 'crown', ranked: 'shield', heroes: 'taunt', economy: 'ember', mechanics: 'gear', runes: 'anvil', set2: 'paw',
   combat: 'sword', milestones: 'clock', collection: 'gift',
 };
-/** The painted category medallions (owner 2026-11-01). A category without art yet keeps its flat glyph above. */
+/** The painted category medallions (owner 2026-11-01/02). A category added later without art falls back to its flat glyph above. */
 const CATEGORY_ART: Partial<Record<AchievementCategory, MenuMedalName>> = {
   career: 'career', ranked: 'leaderboard', heroes: 'heroes', economy: 'spend', combat: 'attacks', collection: 'collection',
+  mechanics: 'mechanics', runes: 'runes', set2: 'set2', milestones: 'milestones',
 };
 const TAB_KEY = 'ascent.career.achievements.cat';
 function loadCat(): AchievementCategory {

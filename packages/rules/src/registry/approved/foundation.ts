@@ -13005,7 +13005,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'lifting the next hand card dissolved `.app`, so that minion outranked the hand zone (z70) and its badges and tier '
       + 'banner painted across the lifted card. Reproduced headless and fixed by dropping the raise (it never beat the FX '
       + 'canvas at rest anyway, since `.app` is a z1 stacking context).',
-    example: 'Play Grim onto the board, then at once hover Power Shifter in your hand: the lifted card covers Grim's Attack badge and skull.',
+    example: 'Play Grim onto the board, then at once hover Power Shifter in your hand: the lifted card covers Grim\x27s Attack badge and skull.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/handOverBoardZ.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
 ];

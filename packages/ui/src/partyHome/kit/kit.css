@@ -333,3 +333,6 @@
 .phk-slider input[type="range"]::-webkit-slider-thumb { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .phk-slider input[type="range"]::-moz-range-track { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .phk-slider input[type="range"]::-moz-range-thumb { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+
+/* The preview flipped to the list's left (no room on the right): it hangs off the list's left edge. */
+.phk-selectwrap.pv-left > .phk-selpreview { position: absolute; top: 0; right: calc(100% + 12px); }

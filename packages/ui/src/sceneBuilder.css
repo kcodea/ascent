@@ -1,196 +1,281 @@
 /* ══ THE SCENE BUILDER SKIN (SceneBuilder.tsx + SceneBuilderHeroPicker.tsx), DEV only ══════════════════════════════
    Owner ask 2026-10-03: "have it follow our ui theming. lean it up and improve the usability and readability".
+   Owner ask 2026-11-01: "might as well update the scene builder too. if you think there's a better layout for this,
+   please go ahead and modernize that while you're at it" — the panel now wears the DOCKED LOBBY RAIL's look (the navy
+   slice plate, a thin gold edge, white title text under the rail's layered dark shadow, tabular numbers), the look
+   every in-game pill is moving to, and a denser layout (SceneBuilder.tsx: header chips, quick bar, the Library as the
+   main body, foldable tools beside or under it).
 
-   Every colour here comes from the shared `--ui-*` tokens (uiTheme.css), so the panel wears the Gem plate look and
-   follows the 🎨 UI Theme tuner exactly like the HUD pills and tooltips. `tooltipStyle.test.ts` fails a literal colour
-   in this file (black / white shading excepted). The legacy `--sb-*` names are re-pointed at the tokens on the panel
-   root, so the pieces that still read them (the Stage Builder, the dummy stat badges, the count stepper in
-   styles.css) theme along for free.
+   COLOURS: every colour comes from a token, so `tooltipStyle.test.ts` (no literal colour here, black / white shading
+   excepted) holds. The rail look's shared tokens (`--pill-*`, uiTheme.css) paint when they exist; until they land on
+   main each one falls back to the rail's own value (`--lr2-navy` and the stops its gradient resolves to by default),
+   so the panel looks the same either way and follows the shared tokens the moment they arrive. The legacy `--sb-*`
+   names are re-pointed at the navy tokens on the panel root, so the pieces that still read them (the Stage Builder,
+   the dummy stat badges, the count stepper in styles.css) wear the same look for free. Tier badges keep their tier
+   colours (styles.css `.sb-t*`).
 
    Sizes are one scale: every control is `--sb-ctl-h` tall, labels are one size, sections one rhythm.
-   PERFORMANCE: static gradients + shadows only. Hovers are short one-shot colour transitions; the hero flyout's
-   entrance is a one-shot transform/opacity animation. Nothing loops.
+   PERFORMANCE: static gradients + shadows only. Hovers are instant static swaps or short one-shot colour transitions;
+   the hero flyout's entrance is a one-shot transform/opacity animation. Nothing loops.
    CURSOR: the base `.sb-*` rules (shared with the bug-report panel) carry a bare `cursor: pointer`; inside the Scene
    Builder every control is put back on the game's gauntlet. */
 
+.sfxmix.scenebuilder, .sbhp {
+  /* The rail look (lobbyRailDocked.css), through the shared --pill-* tokens when present. */
+  --sbn-navy: var(--pill-navy, var(--lr2-navy, #0d1a36));
+  --sbn-top: var(--pill-navy-top, #152548);
+  --sbn-bot: var(--pill-navy-bot, #091226);
+  --sbn-plate: var(--pill-plate, linear-gradient(180deg, var(--sbn-top) 0%, var(--sbn-navy) 55%, var(--sbn-bot) 100%));
+  --sbn-plate-hover: var(--pill-plate-hover, linear-gradient(180deg, color-mix(in srgb, var(--sbn-top) 84%, #fff) 0%, var(--sbn-top) 55%, var(--sbn-navy) 100%));
+  --sbn-well: var(--pill-well, linear-gradient(180deg, color-mix(in srgb, var(--sbn-navy) 72%, #000), color-mix(in srgb, var(--sbn-navy) 88%, #000)));
+  --sbn-deep: color-mix(in srgb, var(--sbn-navy) 78%, #000);
+  --sbn-edge: var(--pill-edge, var(--ui-edge-main));
+  --sbn-edge-hi: var(--pill-edge-hover, var(--ui-edge-hi));
+  --sbn-hair: var(--pill-hair, color-mix(in srgb, var(--ui-edge-main) 32%, transparent));
+  --sbn-edge-soft: color-mix(in srgb, var(--sbn-edge) 70%, transparent);
+  --sbn-outline: var(--pill-outline, 0 0 1px rgba(0, 0, 0, 0.95));
+  --sbn-font: var(--pill-font, var(--font-title));
+  --sbn-text: var(--pill-text, var(--ui-text));
+  --sbn-muted: color-mix(in srgb, var(--sbn-text) 64%, var(--sbn-navy));
+  --sbn-gold: var(--ui-title);
+  /* The rail's name shadow at its default strength (0.5). */
+  --sbn-shadow: var(--pill-text-shadow, 0 1px 0 rgba(0, 0, 0, 0.475), 0 0 2px rgba(0, 0, 0, 0.425), 0 0 4.5px rgba(0, 0, 0, 0.3));
+  /* The accent fill (primary buttons, the picked segment): the theme's gold, printed in navy. */
+  --sbn-accent: linear-gradient(180deg, var(--ui-edge-hi) 0%, var(--ui-title) 45%, var(--ui-edge-main) 100%);
+  --sbn-on-accent: var(--sbn-bot);
+}
 .sfxmix.scenebuilder {
-  --sb-well: var(--ui-chip-bg); --sb-raise: var(--ui-hover-mid); --sb-line: var(--ui-chip-edge); --sb-line2: var(--ui-edge-deep);
-  --sb-ink: var(--ui-text); --sb-ink2: var(--ui-chip-text); --sb-ink3: var(--ui-muted); --sb-brass: var(--ui-title); --sb-brass-dk: var(--ui-edge-deep);
-  --sb-on-ink: var(--ui-plate-bot);
-  --sb-ctl-h: calc(28 * var(--u));
+  --sb-well: var(--sbn-deep); --sb-raise: var(--sbn-top); --sb-line: var(--sbn-hair); --sb-line2: var(--sbn-edge-soft);
+  --sb-ink: var(--sbn-text); --sb-ink2: var(--sbn-text); --sb-ink3: var(--sbn-muted); --sb-brass: var(--sbn-gold); --sb-brass-dk: var(--ui-edge-deep);
+  --sb-on-ink: var(--sbn-on-accent);
+  --sb-ctl-h: calc(26 * var(--u));
   --sb-fs: calc(12 * var(--u));
   --sb-fs-label: calc(10 * var(--u));
-  width: calc(312 * var(--u)); max-width: calc(92 * var(--vw, 1vw));
-  color: var(--ui-text); border: 2px solid transparent; border-radius: 14px; padding: 0 0 calc(10 * var(--u));
-  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 22px 50px -14px rgba(0, 0, 0, 0.85);
+  width: calc(316 * var(--u)); max-width: calc(92 * var(--vw, 1vw));
+  color: var(--sbn-text); border: 1px solid var(--sbn-edge); border-radius: 10px; padding: 0 0 calc(8 * var(--u));
+  background: linear-gradient(180deg, var(--sbn-top) 0, var(--sbn-navy) calc(120 * var(--u)), var(--sbn-bot) 100%);
+  box-shadow: var(--sbn-outline), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 22px 50px -14px rgba(0, 0, 0, 0.85);
+  font-variant-numeric: tabular-nums;
 }
-.sfxmix.scenebuilder.collapsed { width: calc(232 * var(--u)); padding-bottom: 0; }
+.sfxmix.scenebuilder.collapsed { width: calc(250 * var(--u)); padding-bottom: 0; height: auto !important; min-height: 0; resize: none; }
 .sfxmix.scenebuilder.minimized { display: none; }
 .scenebuilder :is(button, select, .sb-chk, input[type='checkbox']) { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .scenebuilder button:disabled { cursor: url('/cursors/gauntlet_open.svg') 6 2, default; }
 
-/* NAMEPLATE */
-.scenebuilder .sb-head { margin: 0; padding: calc(8 * var(--u)) calc(34 * var(--u)) calc(8 * var(--u)) calc(12 * var(--u)); gap: calc(8 * var(--u));
-  display: flex; align-items: center; justify-content: flex-start; border-radius: 12px 12px 0 0;
-  border-bottom: 1px solid var(--ui-divider); background: var(--ui-hover-plate); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
-.scenebuilder.collapsed .sb-head { border-radius: 12px; border-bottom: 0; }
-.scenebuilder .sb-emblem { flex: none; width: calc(24 * var(--u)); height: calc(24 * var(--u)); display: grid; place-items: center; font-size: calc(13 * var(--u)); border-radius: 7px;
-  border: 1px solid transparent; background: linear-gradient(var(--ui-chip-bg), var(--ui-chip-bg)) padding-box, var(--ui-stud) border-box; }
-.scenebuilder .sb-title { font-size: calc(15 * var(--u)); font-weight: 800; color: var(--ui-title); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); letter-spacing: 0.02em; text-transform: none; white-space: nowrap; }
-.scenebuilder .sb-status { flex: 1; min-width: 0; font-size: var(--sb-fs-label); font-weight: 700; color: var(--ui-muted); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
-.scenebuilder .sb-collapse { flex: none; background: none; border: 0; color: var(--ui-muted); font-size: calc(13 * var(--u)); padding: 0 calc(3 * var(--u)); }
-.scenebuilder .sb-collapse:hover { color: var(--ui-title); }
-.scenebuilder .sb-body { display: flex; flex-direction: column; gap: 0; padding: 0 calc(12 * var(--u)); }
+/* HEADER — the navy nameplate: emblem, title, the status chips, the wide toggle and the collapse caret. */
+.scenebuilder .sb-head { margin: 0; padding: calc(6 * var(--u)) calc(32 * var(--u)) calc(6 * var(--u)) calc(9 * var(--u)); gap: calc(5 * var(--u));
+  display: flex; align-items: center; justify-content: flex-start; border-radius: 9px 9px 0 0; flex: none;
+  border-bottom: 1px solid var(--sbn-edge-soft); background: var(--sbn-plate); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+.scenebuilder.collapsed .sb-head { border-radius: 9px; border-bottom: 0; }
+.scenebuilder .sb-emblem { flex: none; width: calc(22 * var(--u)); height: calc(22 * var(--u)); display: grid; place-items: center; font-size: calc(12 * var(--u)); border-radius: 6px;
+  border: 1px solid var(--sbn-edge-soft); background: var(--sbn-well); }
+.scenebuilder .sb-title { font-family: var(--sbn-font); font-size: calc(13.5 * var(--u)); font-weight: 800; color: var(--sbn-text); text-shadow: var(--sbn-shadow); letter-spacing: 0.01em; text-transform: none; white-space: nowrap; }
+.scenebuilder .sb-status { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-start; gap: calc(3 * var(--u)); overflow: hidden;
+  font-size: var(--sb-fs-label); font-weight: 800; color: var(--sbn-muted); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+.scenebuilder .sb-chip { flex: none; padding: calc(1 * var(--u)) calc(5 * var(--u)); border-radius: 5px; border: 1px solid var(--sbn-hair); background: var(--sbn-well);
+  color: var(--sbn-text); font-family: var(--sbn-font); font-size: var(--sb-fs-label); font-weight: 800; letter-spacing: 0.04em; line-height: 1.35; text-shadow: var(--sbn-shadow); }
+.scenebuilder .sb-chip:first-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.scenebuilder .sb-chip-gold { color: var(--sbn-gold); border-color: var(--sbn-edge-soft); }
+.scenebuilder .sb-hbtn, .scenebuilder .sb-collapse { flex: none; display: grid; place-items: center; width: calc(20 * var(--u)); height: calc(20 * var(--u)); padding: 0;
+  border-radius: 5px; border: 1px solid var(--sbn-hair); background: var(--sbn-well); color: var(--sbn-muted); font-size: calc(11 * var(--u)); font-weight: 900; line-height: 1; }
+.scenebuilder .sb-hbtn:hover, .scenebuilder .sb-collapse:hover { color: var(--sbn-gold); border-color: var(--sbn-edge-soft); }
+.scenebuilder .sb-body { display: flex; flex-direction: column; gap: 0; padding: 0 calc(9 * var(--u)); }
 
-/* SECTIONS — a title-coloured heading with a fold caret and a rule fading out of the gold edge. */
-.scenebuilder .sb-sec { display: flex; flex-direction: column; gap: calc(7 * var(--u)); padding: calc(4 * var(--u)) 0 calc(11 * var(--u)); border-bottom: 1px solid var(--ui-divider); }
-.scenebuilder .sb-sec.folded { padding-bottom: calc(4 * var(--u)); }
+/* THE MODERN LAYOUT (2026-11-01, Scene Builder only, not the Stage Builder that shares this skin): a fixed-height
+   column. Header, quick bar, then the Library filling the space (tabs + search pinned, the list scrolls), then the
+   foldable tools in their own scroll. Wide (the header ⇔, or the resize grip past ~560px): tools left, library right,
+   both full height. The panel keeps the shared `resize: both`; a dragged height is honoured (inline style). */
+.sfxmix.scenebuilder.sb-modern:not(.collapsed) {
+  display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0;
+  /* The two-column switch reads the PANEL's width (a container query cannot target its own container). Nothing inside
+     the panel is position: fixed (the hero flyout and the card preview are portalled), so the containment is free. */
+  container: sbpanel / inline-size;
+  height: min(calc(86 * var(--vh, 1vh)), calc(860 * var(--u)));
+  min-height: min(calc(420 * var(--u)), calc(86 * var(--vh, 1vh)));
+}
+.scenebuilder .sb-main { flex: 1 1 auto; min-height: 0; padding: calc(7 * var(--u)) calc(8 * var(--u)) calc(8 * var(--u)); gap: calc(7 * var(--u)); }
+.scenebuilder .sb-quick { flex: none; display: flex; flex-direction: column; gap: calc(5 * var(--u)); }
+.scenebuilder .sb-lib { flex: 1 1 0; min-height: calc(180 * var(--u)); display: flex; flex-direction: column; gap: calc(5 * var(--u)); }
+.scenebuilder .sb-lib-pin { flex: none; display: flex; flex-direction: column; gap: calc(5 * var(--u)); }
+.scenebuilder .sb-results.sb-lib-list { flex: 1 1 0; min-height: 0; max-height: none; }
+.scenebuilder .sb-tools { flex: 0 1 auto; max-height: 46%; min-height: 0; overflow-y: auto; margin: 0 calc(-8 * var(--u)); padding: 0 calc(8 * var(--u));
+  border-top: 1px solid var(--sbn-edge-soft); scrollbar-width: thin; scrollbar-color: var(--sbn-edge-soft) transparent; }
+@container sbpanel (min-width: 560px) {
+  .scenebuilder .sb-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); column-gap: calc(10 * var(--u)); }
+  .scenebuilder .sb-quick { grid-column: 1 / -1; flex-direction: row; align-items: stretch; }
+  .scenebuilder .sb-quick > * { flex: 1 1 0; min-width: 0; }
+  .scenebuilder .sb-tools { grid-column: 1; grid-row: 2; max-height: none; margin: 0; padding: 0 calc(4 * var(--u)) 0 0; border-top: 0; }
+  .scenebuilder .sb-lib { grid-column: 2; grid-row: 2; min-height: 0; }
+}
+
+/* SECTIONS — a slim heading: gold caret, white title-font caps under the rail shadow, a rule fading out of the gold. */
+.scenebuilder .sb-sec { display: flex; flex-direction: column; gap: calc(6 * var(--u)); padding: calc(2 * var(--u)) 0 calc(9 * var(--u)); border-bottom: 1px solid var(--sbn-hair); }
+.scenebuilder .sb-sec.folded { padding-bottom: calc(2 * var(--u)); }
 .scenebuilder .sb-sec:last-child { border-bottom: 0; }
-.scenebuilder .sb-label { display: flex; align-items: center; gap: calc(6 * var(--u)); padding: calc(7 * var(--u)) 0 calc(2 * var(--u));
-  font-size: calc(11 * var(--u)); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-title); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
-.scenebuilder .sb-label::after { content: ''; flex: 1; height: 1px; order: 5; background: linear-gradient(90deg, color-mix(in srgb, var(--ui-edge-main) 60%, transparent), transparent 70%); }
-.scenebuilder .sb-label-r { order: 9; display: inline-flex; align-items: center; gap: calc(4 * var(--u)); }
-.scenebuilder .sb-fold { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); border: 0; background: none; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; }
-.scenebuilder .sb-fold:hover { color: var(--ui-hl); }
-.scenebuilder .sb-caret { font-size: calc(9 * var(--u)); width: calc(9 * var(--u)); color: var(--ui-muted); }
-.scenebuilder .sb-count { order: 9; font-size: var(--sb-fs-label); font-weight: 700; color: var(--ui-chip-text); background: var(--ui-chip-bg); border: 1px solid var(--ui-chip-edge); border-radius: 999px; padding: 1px calc(7 * var(--u)); letter-spacing: 0.03em; text-transform: none; }
-.scenebuilder .sb-sub { font-size: var(--sb-fs-label); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ui-muted); margin-top: calc(4 * var(--u)); }
-.scenebuilder .sb-mini { font-size: calc(11 * var(--u)); color: var(--ui-muted); margin-right: 0; }
+.scenebuilder .sb-label { display: flex; align-items: center; gap: calc(6 * var(--u)); min-width: 0; padding: calc(6 * var(--u)) 0 calc(1 * var(--u));
+  font-family: var(--sbn-font); font-size: calc(11 * var(--u)); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sbn-text); text-shadow: var(--sbn-shadow); }
+.scenebuilder .sb-label::after { content: ''; flex: 1 1 calc(8 * var(--u)); min-width: calc(8 * var(--u)); height: 1px; order: 5; background: linear-gradient(90deg, var(--sbn-edge-soft), transparent 80%); }
+.scenebuilder .sb-label-r { order: 9; display: inline-flex; align-items: center; gap: calc(4 * var(--u)); min-width: 0; }
+.scenebuilder .sb-fold { flex: none; display: inline-flex; align-items: center; gap: calc(6 * var(--u)); border: 0; background: none; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; text-shadow: inherit; }
+.scenebuilder .sb-fold:hover { color: var(--sbn-gold); }
+.scenebuilder .sb-caret { font-size: calc(9 * var(--u)); width: calc(9 * var(--u)); color: var(--sbn-gold); }
+.scenebuilder .sb-count { order: 9; min-width: 0; font-family: var(--sbn-font); font-size: var(--sb-fs-label); font-weight: 700; color: var(--sbn-text); background: var(--sbn-well); border: 1px solid var(--sbn-hair); border-radius: 5px;
+  padding: 0 calc(6 * var(--u)); letter-spacing: 0.03em; text-transform: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.scenebuilder .sb-count-sum { color: var(--sbn-muted); }
+.scenebuilder .sb-sub { font-family: var(--sbn-font); font-size: var(--sb-fs-label); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sbn-muted); margin-top: calc(3 * var(--u)); }
+.scenebuilder .sb-mini { font-size: calc(11 * var(--u)); color: var(--sbn-muted); margin-right: 0; }
 .scenebuilder .sb-note { font-style: italic; opacity: 0.9; }
 .scenebuilder .sb-warn { display: block; color: var(--ui-warn); margin-top: calc(2 * var(--u)); }
 
-/* FIELDS — a small caps label over a recessed well. */
-.scenebuilder .sb-two { display: grid; grid-template-columns: 1fr 1fr; gap: calc(6 * var(--u)); }
-.scenebuilder .sb-two-tight { grid-template-columns: 1fr auto; align-items: end; }
+/* FIELDS — a small caps label over a recessed navy well. */
+.scenebuilder .sb-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: calc(5 * var(--u)); align-items: stretch; }
+.scenebuilder .sb-two-tight { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
 .scenebuilder .sb-field { display: flex; flex-direction: column; gap: calc(3 * var(--u)); min-width: 0; }
 .scenebuilder .sb-field > .sb-mini, .scenebuilder .sb-row > .sb-mini:first-child, .scenebuilder .sb-anc-meter {
-  font-size: var(--sb-fs-label); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; flex: none; }
+  font-family: var(--sbn-font); font-size: var(--sb-fs-label); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 800; flex: none; }
 .scenebuilder .sb-select, .scenebuilder .sb-search, .scenebuilder .sb-num input {
-  box-sizing: border-box; background: var(--ui-chip-bg); border: 1px solid var(--ui-chip-edge); color: var(--ui-text);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7); border-radius: calc(7 * var(--u)); font-family: var(--font-ui); }
-.scenebuilder .sb-select { width: 100%; height: var(--sb-ctl-h); padding: 0 calc(7 * var(--u)); font-size: var(--sb-fs); font-weight: 700; min-width: 0; }
-.scenebuilder .sb-select option { background: var(--ui-chip-bg); color: var(--ui-chip-text); }
-.scenebuilder .sb-select:focus, .scenebuilder .sb-search:focus, .scenebuilder .sb-num input:focus { outline: none; border-color: var(--ui-title); }
-.scenebuilder .sb-search { width: 100%; height: var(--sb-ctl-h); padding: 0 calc(9 * var(--u)); font-size: var(--sb-fs); font-weight: 700; }
-.scenebuilder textarea.sb-search { height: auto; padding: calc(6 * var(--u)) calc(9 * var(--u)); }
-.scenebuilder .sb-search::placeholder { color: var(--ui-muted); font-weight: 600; opacity: 0.85; }
+  box-sizing: border-box; background: var(--sbn-deep); border: 1px solid var(--sbn-hair); color: var(--sbn-text);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7); border-radius: 6px; font-family: var(--font-ui); }
+.scenebuilder .sb-select { width: 100%; height: var(--sb-ctl-h); padding: 0 calc(6 * var(--u)); font-size: var(--sb-fs); font-weight: 700; min-width: 0; }
+.scenebuilder .sb-select option { background: var(--sbn-deep); color: var(--sbn-text); }
+.scenebuilder .sb-select:focus, .scenebuilder .sb-search:focus, .scenebuilder .sb-num input:focus { outline: none; border-color: var(--sbn-gold); }
+.scenebuilder .sb-search { width: 100%; height: calc(var(--sb-ctl-h) + 2 * var(--u)); padding: 0 calc(26 * var(--u)) 0 calc(9 * var(--u)); font-size: var(--sb-fs); font-weight: 700; }
+.scenebuilder textarea.sb-search { height: auto; padding: calc(5 * var(--u)) calc(8 * var(--u)); }
+.scenebuilder .sb-search::placeholder { color: var(--sbn-muted); font-weight: 600; opacity: 0.85; }
+.scenebuilder .sb-searchwrap { position: relative; }
+.scenebuilder .sb-kbd { position: absolute; right: calc(6 * var(--u)); top: 50%; translate: 0 -50%; pointer-events: none; min-width: calc(14 * var(--u)); padding: 0 calc(3 * var(--u)); box-sizing: border-box;
+  border: 1px solid var(--sbn-hair); border-radius: 4px; text-align: center; font-size: var(--sb-fs-label); font-weight: 800; line-height: 1.4; color: var(--sbn-muted); }
+.scenebuilder .sb-search:focus + .sb-kbd { opacity: 0; }
 
-/* BUTTONS — small Gem plates. */
-.scenebuilder .sb-row { display: flex; align-items: center; gap: calc(6 * var(--u)); flex-wrap: wrap; }
-.scenebuilder .sb-btn { display: inline-flex; align-items: center; justify-content: center; gap: calc(4 * var(--u)); min-height: var(--sb-ctl-h); box-sizing: border-box;
-  border: 1px solid transparent; background: var(--ui-plate) padding-box, linear-gradient(var(--ui-chip-edge), var(--ui-chip-edge)) border-box;
-  color: var(--ui-chip-text); border-radius: calc(7 * var(--u)); padding: 0 calc(10 * var(--u)); font-family: var(--font-ui); font-size: var(--sb-fs); font-weight: 800;
-  transition: color 0.12s ease; }
-.scenebuilder .sb-btn:hover:not(:disabled) { color: var(--ui-text); background: var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+/* BUTTONS — secondary: the navy plate with a gold edge; primary: the gold accent printed in navy. */
+.scenebuilder .sb-row { display: flex; align-items: center; gap: calc(5 * var(--u)); flex-wrap: wrap; }
+.scenebuilder .sb-btn { display: inline-flex; align-items: center; justify-content: center; gap: calc(4 * var(--u)); min-height: var(--sb-ctl-h); min-width: 0; box-sizing: border-box;
+  border: 1px solid var(--sbn-edge-soft); background: var(--sbn-plate); box-shadow: var(--sbn-outline);
+  color: var(--sbn-text); border-radius: 6px; padding: 0 calc(9 * var(--u)); font-family: var(--sbn-font); font-size: var(--sb-fs); font-weight: 800; text-shadow: var(--sbn-shadow);
+  line-height: 1.15; text-align: center; transition: color 0.12s ease; }
+.scenebuilder .sb-btn:hover:not(:disabled) { color: var(--sbn-text); background: var(--sbn-plate-hover); border-color: var(--sbn-edge-hi); }
 .scenebuilder .sb-btn:disabled { opacity: 0.4; }
-.scenebuilder .sb-btn.sb-primary, .scenebuilder .sb-btn.sb-primary:hover:not(:disabled) { color: var(--sb-on-ink); background: linear-gradient(var(--ui-title), var(--ui-title)) padding-box, var(--ui-edge) border-box; text-shadow: none; }
+.scenebuilder .sb-btn.sb-primary, .scenebuilder .sb-btn.sb-primary:hover:not(:disabled) { color: var(--sbn-on-accent); background: var(--sbn-accent); border-color: var(--sbn-edge-hi); text-shadow: none; }
+.scenebuilder .sb-btn.sb-primary:hover:not(:disabled) { box-shadow: var(--sbn-outline), inset 0 0 0 1px rgba(255, 255, 255, 0.35); }
 .scenebuilder .sb-btn-tall { align-self: stretch; }
-.scenebuilder .sb-chk { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); font-size: var(--sb-fs); color: var(--ui-chip-text); }
-.scenebuilder .sb-chk input { accent-color: var(--ui-title); }
+.scenebuilder .sb-chk { display: inline-flex; align-items: center; justify-content: center; gap: calc(4 * var(--u)); font-size: var(--sb-fs); color: var(--sbn-text); }
+.scenebuilder .sb-chk input { accent-color: var(--sbn-gold); }
 
-/* SEGMENTED ROWS (rules, top row, tier, library tabs) */
-.scenebuilder .sb-seg { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6); border-radius: calc(7 * var(--u)); }
+/* SEGMENTED ROWS (rules, top row, tier, library tabs) — a navy well; the picked segment takes the gold accent. */
+.scenebuilder .sb-seg { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; border: 1px solid var(--sbn-hair); background: var(--sbn-well); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6); border-radius: 6px; }
 .scenebuilder .sb-seg-3 { grid-template-columns: repeat(3, 1fr); }
 .scenebuilder .sb-seg-7 { grid-template-columns: repeat(7, 1fr); flex: 1; }
-.scenebuilder .sb-seg-btn { min-height: var(--sb-ctl-h); background: transparent; border: 0; color: var(--ui-muted); padding: 0 calc(4 * var(--u));
-  font-family: var(--font-ui); font-size: var(--sb-fs); font-weight: 800; letter-spacing: 0.02em; transition: color 0.12s ease; }
-.scenebuilder .sb-seg-btn + .sb-seg-btn { border-left: 1px solid var(--ui-divider); }
-.scenebuilder .sb-seg-btn:hover { color: var(--ui-text); background: var(--ui-hover-mid); }
-.scenebuilder .sb-seg-btn.on, .scenebuilder .sb-seg-btn.on:hover { background: var(--ui-title); color: var(--sb-on-ink); }
+.scenebuilder .sb-seg-btn { min-height: var(--sb-ctl-h); background: transparent; border: 0; color: var(--sbn-muted); padding: 0 calc(4 * var(--u));
+  font-family: var(--sbn-font); font-size: var(--sb-fs); font-weight: 800; letter-spacing: 0.02em; text-shadow: var(--sbn-shadow); transition: color 0.12s ease; }
+.scenebuilder .sb-seg-btn + .sb-seg-btn { border-left: 1px solid var(--sbn-hair); }
+.scenebuilder .sb-seg-btn:hover { color: var(--sbn-text); background: var(--sbn-top); }
+.scenebuilder .sb-seg-btn.on, .scenebuilder .sb-seg-btn.on:hover { background: var(--sbn-accent); color: var(--sbn-on-accent); text-shadow: none; }
+.scenebuilder .sb-seg-k { font-size: 0.72em; opacity: 0.6; margin-right: 1px; }
 .scenebuilder .sb-seg-btn.sb-tab { display: inline-flex; align-items: center; justify-content: center; gap: calc(4 * var(--u)); border-radius: 0; text-transform: uppercase; letter-spacing: 0.06em; font-size: calc(11 * var(--u)); }
 .scenebuilder .sb-seg-btn.sb-tab em { font-style: normal; font-size: var(--sb-fs-label); opacity: 0.75; font-variant-numeric: tabular-nums; }
 .scenebuilder .sb-tierrow { gap: calc(8 * var(--u)); flex-wrap: nowrap; }
 
-/* TILES — same-sized action buttons */
-.scenebuilder .sb-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(5 * var(--u)); }
-.scenebuilder .sb-tile { display: flex; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-width: 0; min-height: var(--sb-ctl-h); padding: 0 calc(4 * var(--u));
-  border: 1px solid transparent; border-radius: calc(8 * var(--u)); background: var(--ui-plate) padding-box, linear-gradient(var(--ui-chip-edge), var(--ui-chip-edge)) border-box;
-  color: var(--ui-chip-text); font-family: var(--font-ui); font-size: var(--sb-fs); font-weight: 700; white-space: nowrap; transition: color 0.12s ease; }
-.scenebuilder .sb-tile b { font-size: var(--sb-fs); color: var(--ui-icon); font-weight: 900; }
-.scenebuilder .sb-tile:hover:not(:disabled) { color: var(--ui-text); background: var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+/* TILES — same-sized action buttons, navy plates with a gold edge. `-auto` fits however many there are on one row. */
+.scenebuilder .sb-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(4 * var(--u)); }
+.scenebuilder .sb-tiles-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.scenebuilder .sb-tiles-auto { display: flex; gap: calc(3 * var(--u)); }
+.scenebuilder .sb-tiles-auto > .sb-tile { flex: 1 1 auto; }
+.scenebuilder .sb-tiles-auto .sb-tile { font-size: calc(11 * var(--u)); gap: calc(3 * var(--u)); padding: 0 calc(2 * var(--u)); }
+.scenebuilder .sb-tile { display: flex; align-items: center; justify-content: center; gap: calc(4 * var(--u)); min-width: 0; min-height: var(--sb-ctl-h); padding: 0 calc(3 * var(--u)); box-sizing: border-box;
+  border: 1px solid var(--sbn-edge-soft); border-radius: 6px; background: var(--sbn-plate); box-shadow: var(--sbn-outline);
+  color: var(--sbn-text); font-family: var(--sbn-font); font-size: calc(11.5 * var(--u)); font-weight: 700; text-shadow: var(--sbn-shadow); white-space: nowrap; overflow: hidden; transition: color 0.12s ease; }
+.scenebuilder .sb-tile b { font-size: var(--sb-fs); color: var(--sbn-gold); font-weight: 900; }
+.scenebuilder .sb-tile:hover:not(:disabled) { color: var(--sbn-text); background: var(--sbn-plate-hover); border-color: var(--sbn-edge-hi); }
 .scenebuilder .sb-tile:disabled { opacity: 0.4; }
-.scenebuilder .sb-tile.on { color: var(--ui-text); background: var(--ui-hover-plate) padding-box, var(--ui-edge) border-box; box-shadow: inset 0 0 0 1px var(--ui-ring); }
+.scenebuilder .sb-tile.on { color: var(--sbn-on-accent); background: var(--sbn-accent); border-color: var(--sbn-edge-hi); text-shadow: none; }
+.scenebuilder .sb-tile.on b { color: var(--sbn-on-accent); }
 .scenebuilder .sb-tile-warn:hover:not(:disabled), .scenebuilder .sb-tile-warn:hover:not(:disabled) b { color: var(--ui-warn); }
 
-/* ANCIENTS block (Set 3): the toggle on its own line, then  meter · stepper · Fill meter  on the next. */
-.scenebuilder .sb-ancients { display: flex; align-items: center; gap: calc(6 * var(--u)); flex-wrap: wrap; padding: calc(6 * var(--u)); border-radius: calc(8 * var(--u)); border: 1px solid var(--ui-divider); background: var(--ui-chip-bg); }
-.scenebuilder .sb-ancients .sb-anc-toggle { flex: 1 0 100%; min-height: var(--sb-ctl-h); padding: 0 calc(10 * var(--u)); border-radius: calc(7 * var(--u)); border: 1px solid var(--ui-chip-edge); }
+/* SETUP toggles (Duos, Ancients) — side by side; the Ancients meter row under them. */
+.scenebuilder .sb-toggles .sb-anc-toggle, .scenebuilder .sb-ancients .sb-anc-toggle { min-height: var(--sb-ctl-h); padding: 0 calc(8 * var(--u)); border-radius: 6px; border: 1px solid var(--sbn-hair); background: var(--sbn-well); }
+.scenebuilder .sb-toggles .sb-anc-toggle:only-child { grid-column: 1 / -1; }
+.scenebuilder .sb-toggles .sb-anc-toggle.on { background: var(--sbn-accent); color: var(--sbn-on-accent); border-color: var(--sbn-edge-hi); text-shadow: none; }
+.scenebuilder .sb-ancients { display: flex; align-items: center; gap: calc(6 * var(--u)); flex-wrap: wrap; }
 .scenebuilder .sb-ancients .sb-btn { margin-left: auto; }
 
 /* ENEMY dummies */
 .scenebuilder .sb-dummies { flex-wrap: wrap; gap: calc(6 * var(--u)); }
 .scenebuilder .sb-dummies .sb-btn { margin-left: auto; }
-.scenebuilder .sb-num { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--ui-muted); }
+.scenebuilder .sb-num { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); color: var(--sbn-muted); }
 .scenebuilder .sb-num input { width: calc(40 * var(--u)); padding: calc(4 * var(--u)) calc(5 * var(--u)); }
 
-/* LIBRARY list */
-.scenebuilder .sb-results { max-height: calc(300 * var(--u)); overflow-y: auto; display: flex; flex-direction: column; gap: calc(3 * var(--u)); margin-top: 0; }
-.scenebuilder .sb-card { display: flex; align-items: center; gap: calc(8 * var(--u)); width: 100%; min-height: calc(26 * var(--u)); text-align: left; box-sizing: border-box;
-  border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-chip-text); border-radius: calc(7 * var(--u)); padding: 0 calc(8 * var(--u));
+/* LIBRARY list — one recessed well of slim rows; a hovered / focused row takes the navy plate and the gold edge. */
+.scenebuilder .sb-results { max-height: calc(300 * var(--u)); overflow-y: auto; display: flex; flex-direction: column; gap: 1px; margin-top: 0; padding: calc(2 * var(--u));
+  border: 1px solid var(--sbn-hair); border-radius: 6px; background: var(--sbn-deep); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+  scrollbar-width: thin; scrollbar-color: var(--sbn-edge-soft) transparent; }
+.scenebuilder .sb-card { display: flex; align-items: center; gap: calc(7 * var(--u)); width: 100%; min-height: calc(24 * var(--u)); flex: none; text-align: left; box-sizing: border-box;
+  border: 1px solid transparent; background: transparent; color: var(--sbn-text); border-radius: 5px; padding: 0 calc(6 * var(--u));
   font-family: var(--font-ui); font-size: var(--sb-fs); font-weight: 600; transition: color 0.12s ease; }
-.scenebuilder .sb-card:hover, .scenebuilder .sb-card:focus-visible { outline: none; color: var(--ui-text); border-color: var(--ui-title); background: var(--ui-hover-mid); }
-.scenebuilder .sb-empty { color: var(--ui-muted); font-size: var(--sb-fs); padding: calc(8 * var(--u)); text-align: center; }
+.scenebuilder .sb-card:nth-child(even) { background: rgba(255, 255, 255, 0.025); }
+.scenebuilder .sb-card:hover, .scenebuilder .sb-card:focus-visible { outline: none; color: var(--sbn-text); border-color: var(--sbn-edge-soft); background: var(--sbn-plate-hover); }
+.scenebuilder .sb-card .sb-t { width: calc(16 * var(--u)); height: calc(16 * var(--u)); font-size: calc(10 * var(--u)); }
+:where(.scenebuilder) .sb-tag { color: var(--sbn-muted); }
+.scenebuilder .sb-empty { color: var(--sbn-muted); font-size: var(--sb-fs); padding: calc(8 * var(--u)); text-align: center; }
 .scenebuilder .sb-bugpaste { min-height: calc(32 * var(--u)); font-size: calc(11 * var(--u)); }
-.scenebuilder .sb-qa-summary { color: var(--ui-chip-text); background: var(--ui-chip-bg); border: 1px solid var(--ui-chip-edge); }
+.scenebuilder .sb-qa-summary { color: var(--sbn-text); background: var(--sbn-deep); border: 1px solid var(--sbn-hair); }
 
-/* THE HERO TRIGGER (Setup) — portrait + name, a full-width Gem plate. */
-.scenebuilder .sbhp-trigger { display: flex; align-items: center; gap: calc(9 * var(--u)); width: 100%; box-sizing: border-box; padding: calc(5 * var(--u)) calc(10 * var(--u)) calc(5 * var(--u)) calc(5 * var(--u));
-  border: 1px solid transparent; border-radius: calc(10 * var(--u)); text-align: left; font-family: var(--font-ui); color: var(--ui-text);
-  background: var(--ui-plate) padding-box, var(--ui-edge) border-box; box-shadow: inset 0 0 0 1px var(--ui-ring); transition: color 0.12s ease; }
-.scenebuilder .sbhp-trigger:hover, .scenebuilder .sbhp-trigger.open { background: var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
-.scenebuilder .sbhp-trigger .sbhp-face { width: calc(38 * var(--u)); height: calc(38 * var(--u)); }
+/* THE HERO TRIGGER (Setup) — portrait + name, a full-width navy plate. */
+.scenebuilder .sbhp-trigger { display: flex; align-items: center; gap: calc(9 * var(--u)); width: 100%; box-sizing: border-box; padding: calc(4 * var(--u)) calc(10 * var(--u)) calc(4 * var(--u)) calc(4 * var(--u));
+  border: 1px solid var(--sbn-edge-soft); border-radius: 8px; text-align: left; font-family: var(--sbn-font); color: var(--sbn-text);
+  background: var(--sbn-plate); box-shadow: var(--sbn-outline); transition: color 0.12s ease; }
+.scenebuilder .sbhp-trigger:hover, .scenebuilder .sbhp-trigger.open { background: var(--sbn-plate-hover); border-color: var(--sbn-edge-hi); }
+.scenebuilder .sbhp-trigger .sbhp-face { width: calc(34 * var(--u)); height: calc(34 * var(--u)); }
 .sbhp-trigger-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
-.sbhp-trigger-name { font-size: calc(14 * var(--u)); font-weight: 800; color: var(--ui-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
-.sbhp-trigger-sub { font-size: var(--sb-fs-label); font-weight: 700; color: var(--ui-muted); text-transform: uppercase; letter-spacing: 0.06em; }
-.sbhp-trigger-caret { flex: none; color: var(--ui-title); font-size: calc(12 * var(--u)); }
+.sbhp-trigger-name { font-size: calc(14 * var(--u)); font-weight: 800; color: var(--sbn-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: var(--sbn-shadow); }
+.sbhp-trigger-sub { font-size: var(--sb-fs-label); font-weight: 700; color: var(--sbn-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.sbhp-trigger-caret { flex: none; color: var(--sbn-gold); font-size: calc(12 * var(--u)); }
 
 /* A round portrait in a gold ring. Shared by the trigger and the flyout tiles. */
 .sbhp-face { position: relative; flex: none; display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; overflow: hidden; box-sizing: border-box;
-  border: 2px solid transparent; background: linear-gradient(var(--ui-chip-bg), var(--ui-chip-bg)) padding-box, var(--ui-edge) border-box; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
+  border: 2px solid transparent; background: linear-gradient(var(--sbn-deep), var(--sbn-deep)) padding-box, var(--ui-edge) border-box; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
 .sbhp-face img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
-.sbhp-face b { font-family: var(--font-ui); font-size: 22px; font-weight: 900; color: var(--ui-title); }
+.sbhp-face b { font-family: var(--font-ui); font-size: 22px; font-weight: 900; color: var(--sbn-gold); }
 
 /* THE FLYOUT — portalled into the stage host, seated beside the panel by JS (SceneBuilderHeroPicker). */
 .sbhp { position: fixed; z-index: 960; width: 468px; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 10px;
-  font-family: var(--font-ui); color: var(--ui-text); border: 2px solid transparent; border-radius: 14px;
-  background: var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 22px 50px -14px rgba(0, 0, 0, 0.85);
+  font-family: var(--font-ui); color: var(--sbn-text); border: 1px solid var(--sbn-edge); border-radius: 10px;
+  background: linear-gradient(180deg, var(--sbn-top) 0, var(--sbn-navy) 120px, var(--sbn-bot) 100%);
+  box-shadow: var(--sbn-outline), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 22px 50px -14px rgba(0, 0, 0, 0.85);
   animation: sbhpin 0.14s ease-out; }
 .sbhp[data-side='right'] { --sbhp-dx: -16px; }
 @keyframes sbhpin { from { opacity: 0; transform: translateX(var(--sbhp-dx, 16px)); } to { opacity: 1; transform: none; } }
 .sbhp :is(button, input[type='checkbox']) { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .sbhp-head { display: flex; align-items: center; gap: 8px; }
-.sbhp-title { font-size: 15px; font-weight: 800; color: var(--ui-title); letter-spacing: 0.02em; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
-.sbhp-count { font-size: 11px; font-weight: 700; color: var(--ui-chip-text); background: var(--ui-chip-bg); border: 1px solid var(--ui-chip-edge); border-radius: 999px; padding: 0 7px; }
-.sbhp-x { margin-left: auto; width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-muted); font-size: 13px; font-weight: 900; }
-.sbhp-x:hover { color: var(--ui-text); border-color: var(--ui-title); }
-.sbhp-search { width: 100%; height: 30px; box-sizing: border-box; padding: 0 10px; border-radius: 8px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-text);
+.sbhp-title { font-family: var(--sbn-font); font-size: 15px; font-weight: 800; color: var(--sbn-text); letter-spacing: 0.02em; text-shadow: var(--sbn-shadow); }
+.sbhp-count { font-size: 11px; font-weight: 700; color: var(--sbn-text); background: var(--sbn-well); border: 1px solid var(--sbn-hair); border-radius: 5px; padding: 0 7px; font-variant-numeric: tabular-nums; }
+.sbhp-x { margin-left: auto; width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--sbn-hair); background: var(--sbn-well); color: var(--sbn-muted); font-size: 13px; font-weight: 900; }
+.sbhp-x:hover { color: var(--sbn-text); border-color: var(--sbn-gold); }
+.sbhp-search { width: 100%; height: 30px; box-sizing: border-box; padding: 0 10px; border-radius: 6px; border: 1px solid var(--sbn-hair); background: var(--sbn-deep); color: var(--sbn-text);
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7); font-family: var(--font-ui); font-size: 13px; font-weight: 700; }
-.sbhp-search:focus { outline: none; border-color: var(--ui-title); }
-.sbhp-search::placeholder { color: var(--ui-muted); font-weight: 600; opacity: 0.85; }
-.sbhp-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; font-weight: 700; color: var(--ui-chip-text); }
+.sbhp-search:focus { outline: none; border-color: var(--sbn-gold); }
+.sbhp-search::placeholder { color: var(--sbn-muted); font-weight: 600; opacity: 0.85; }
+.sbhp-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; font-weight: 700; color: var(--sbn-text); }
 .sbhp-legend > span { display: inline-flex; align-items: center; gap: 5px; }
 .sbhp-legend .sbhp-anc { position: static; }
-.sbhp-tally { color: var(--ui-muted); }
-.sbhp-filter { margin-left: auto; height: 24px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); color: var(--ui-muted); font-family: var(--font-ui); font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
-.sbhp-filter:hover { color: var(--ui-text); }
-.sbhp-filter.on { background: var(--ui-title); color: var(--ui-plate-bot); border-color: var(--ui-title); }
-.sbhp-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 2px 4px; margin: 0 -2px; }
+.sbhp-tally { color: var(--sbn-muted); }
+.sbhp-filter { margin-left: auto; height: 24px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--sbn-hair); background: var(--sbn-well); color: var(--sbn-muted); font-family: var(--sbn-font); font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.sbhp-filter:hover { color: var(--sbn-text); }
+.sbhp-filter.on { background: var(--sbn-accent); color: var(--sbn-on-accent); border-color: var(--sbn-edge-hi); }
+.sbhp-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 2px 4px; margin: 0 -2px; scrollbar-width: thin; scrollbar-color: var(--sbn-edge-soft) transparent; }
 .sbhp-grid { display: grid; grid-template-columns: repeat(5, 80px); gap: 6px; justify-content: space-between; }
-.sbhp-sec { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-muted); }
-.sbhp-sec::after { content: ''; flex: 1; height: 1px; background: var(--ui-divider); }
-.sbhp-sec em { font-style: normal; font-size: 10px; color: var(--ui-chip-text); background: var(--ui-chip-bg); border: 1px solid var(--ui-chip-edge); border-radius: 999px; padding: 0 6px; letter-spacing: 0.03em; }
+.sbhp-sec { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; font-family: var(--sbn-font); font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sbn-muted); }
+.sbhp-sec::after { content: ''; flex: 1; height: 1px; background: var(--sbn-hair); }
+.sbhp-sec em { font-style: normal; font-size: 10px; color: var(--sbn-text); background: var(--sbn-well); border: 1px solid var(--sbn-hair); border-radius: 5px; padding: 0 6px; letter-spacing: 0.03em; }
 
 /* A tile: portrait over its name. Current hero = the highlight ring; archived = dimmed but clickable. */
-.sbhp-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px 5px; border-radius: 10px; border: 1px solid transparent; background: transparent;
-  color: var(--ui-chip-text); font-family: var(--font-ui); transition: color 0.12s ease, opacity 0.12s ease; }
-.sbhp-tile:hover, .sbhp-tile:focus-visible { outline: none; color: var(--ui-text); background: var(--ui-hover-mid); border-color: var(--ui-chip-edge); }
-.sbhp-tile:focus-visible { border-color: var(--ui-title); }
+.sbhp-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px 5px; border-radius: 8px; border: 1px solid transparent; background: transparent;
+  color: var(--sbn-text); font-family: var(--font-ui); transition: color 0.12s ease, opacity 0.12s ease; }
+.sbhp-tile:hover, .sbhp-tile:focus-visible { outline: none; color: var(--sbn-text); background: var(--sbn-top); border-color: var(--sbn-hair); }
+.sbhp-tile:focus-visible { border-color: var(--sbn-gold); }
 .sbhp-tile-face { position: relative; }
 .sbhp-tile-name { width: 100%; font-size: 11.5px; font-weight: 700; line-height: 1.15; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sbhp-tile.cur { color: var(--ui-text); background: var(--ui-hover-mid); border-color: var(--ui-hl); box-shadow: inset 0 0 0 1px var(--ui-hl); }
-.sbhp-tile.cur .sbhp-face { background: linear-gradient(var(--ui-chip-bg), var(--ui-chip-bg)) padding-box, linear-gradient(var(--ui-hl), var(--ui-hl)) border-box; }
+.sbhp-tile.cur { color: var(--sbn-text); background: var(--sbn-top); border-color: var(--ui-hl); box-shadow: inset 0 0 0 1px var(--ui-hl); }
+.sbhp-tile.cur .sbhp-face { background: linear-gradient(var(--sbn-deep), var(--sbn-deep)) padding-box, linear-gradient(var(--ui-hl), var(--ui-hl)) border-box; }
 .sbhp-tile.cur .sbhp-tile-name { color: var(--ui-hl); }
 .sbhp-tile.arch { opacity: 0.55; }
 .sbhp-tile.arch img { filter: grayscale(0.7); }
@@ -198,16 +283,16 @@
 
 /* The Ancients badge (Set 3): a check for all six, a half disc + count for some. */
 .sbhp-anc { position: absolute; right: -4px; bottom: -3px; display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 4px; box-sizing: border-box; border-radius: 999px;
-  font-family: var(--font-ui); font-size: 11px; font-weight: 900; line-height: 1; white-space: nowrap; border: 1px solid var(--ui-chip-edge); background: var(--ui-chip-bg); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+  font-family: var(--font-ui); font-size: 11px; font-weight: 900; line-height: 1; white-space: nowrap; border: 1px solid var(--sbn-hair); background: var(--sbn-deep); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
 .sbhp-anc.full { color: var(--ui-ghost); border-color: var(--ui-ghost); }
 .sbhp-anc.partial { color: var(--ui-hl); border-color: var(--ui-hl); font-size: 10px; }
-.sbhp-empty { padding: 18px; text-align: center; color: var(--ui-muted); font-size: 13px; }
-.sbhp-readout { min-height: 16px; font-size: 12px; font-weight: 600; color: var(--ui-muted); border-top: 1px solid var(--ui-divider); padding-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbhp-empty { padding: 18px; text-align: center; color: var(--sbn-muted); font-size: 13px; }
+.sbhp-readout { min-height: 16px; font-size: 12px; font-weight: 600; color: var(--sbn-muted); border-top: 1px solid var(--sbn-hair); padding-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* The "Archived" set option (owner ask 2026-10-10): archived rows wear a muted grey tag; the note under the picker
-   names the real set the run stays on. */
-.scenebuilder .sb-tag.archived { color: var(--ui-muted); }
-.scenebuilder .sb-archived-note { color: var(--ui-title); }
+   (and above the library list) names the real set the run stays on. */
+.scenebuilder .sb-tag.archived { color: var(--sbn-muted); }
+.scenebuilder .sb-archived-note { color: var(--sbn-gold); }
 
 /* DUOS (owner ask 2026-10-31, R-SB-DUOS-01): Duos-only rows wear a ghost-tinted tag; the Teammate
    section's picked-card matches are a short list; its view button spans the row. */

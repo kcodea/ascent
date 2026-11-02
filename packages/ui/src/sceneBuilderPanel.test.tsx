@@ -50,6 +50,8 @@ const byTitle = (root: ParentNode, title: string): HTMLButtonElement | null => r
 
 beforeEach(() => {
   localStorage.clear();
+  // Setup folds by default since the 2026-11-01 layout; these tests drive its controls, so open it.
+  localStorage.setItem('ascent.sb.fold', JSON.stringify({ setup: false }));
   useGame.setState({ sbRules: 'god', sbBotLevel: 5, sbEditMode: false, sbTavernShowsEnemy: false });
   useGame.getState().startSceneBuilder('warden');
   ui = mount(<SceneBuilder />);
@@ -201,3 +203,36 @@ describe('the "Archived" set option (owner ask 2026-10-10): a library view, neve
   });
 });
 
+
+describe('the 2026-11-01 layout (owner: "modernize that while you are at it")', () => {
+  it('a fresh panel folds Setup (its heading names hero, set and bots) and keeps the quick bar and library open', () => {
+    ui?.unmount();
+    localStorage.clear();
+    ui = mount(<SceneBuilder />);
+    const root = ui.container;
+    const setup = [...root.querySelectorAll('.sb-sec')].find((s) => s.querySelector('.sb-fold')?.textContent?.includes('Setup'))!;
+    expect(setup.classList.contains('folded')).toBe(true);
+    expect(setup.querySelector('.sb-count-sum')?.textContent).toMatch(/^Warden · .+ · bots 5$/);
+    expect(root.querySelector('select.sb-select')).toBeNull();
+    // Unfolding it brings every Setup control back.
+    click(setup.querySelector('.sb-fold'));
+    expect(root.querySelector('select.sb-select')).not.toBeNull();
+    expect(root.querySelector('.sbhp-trigger')).not.toBeNull();
+    // The quick bar: tier row, Gold, freeze, edit, rewatch, never folded.
+    expect(root.querySelectorAll('.sb-quick [role="radiogroup"] [role="radio"]')).toHaveLength(7);
+    for (const d of ['Add 1000 Gold', 'Freeze the turn timer', 'Watch the last fight again — nothing advances']) expect(byTitle(root, d), d).not.toBeNull();
+    // The library sits outside every foldable section.
+    expect(root.querySelector('.sb-lib .sb-search')?.closest('.sb-sec')).toBeNull();
+  });
+
+  it('"/" outside a text field jumps to the library search; typed into a field it is left alone', () => {
+    const search = ui!.container.querySelector<HTMLInputElement>('.sb-lib .sb-search')!;
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true })); });
+    expect(document.activeElement).toBe(search);
+    search.blur();
+    const other = ui!.container.querySelector<HTMLSelectElement>('select.sb-select')!;
+    other.focus();
+    act(() => { other.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true })); });
+    expect(document.activeElement).toBe(other);
+  });
+});

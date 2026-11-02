@@ -119,6 +119,8 @@ describe('the picker in the panel', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    // Setup folds by default since the 2026-11-01 layout; these tests drive its controls, so open it.
+    localStorage.setItem('ascent.sb.fold', JSON.stringify({ setup: false }));
     useGame.setState({ sbRules: 'god', sbBotLevel: 5, sbEditMode: false, sbTavernShowsEnemy: false });
     useGame.getState().startSceneBuilder('warden', 'set3');
     ui = mount(<SceneBuilder />);

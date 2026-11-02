@@ -143,7 +143,7 @@ function VideoTab() {
     <>
       <Section title="Board">
         <SelectRow label="Board backdrop" note="What lies behind the board. Saved on this device." value={backdrop}
-          options={BACKDROP_IDS.map((id) => ({ value: id, label: BACKDROPS[id].label, thumb: backdropThumbUrl(id) }))}
+          options={BACKDROP_IDS.map((id) => ({ value: id, label: BACKDROPS[id].label, thumb: backdropThumbUrl(id), preview: backdropThumbUrl(id) }))}
           onChange={(id) => { if (id !== backdrop) { setBackdropPick(id); setBackdrop(id); sfx.pulse(); } }} />
       </Section>
       <Section title="Performance">
@@ -153,7 +153,11 @@ function VideoTab() {
             "Caps combat effects and card motion only. The rest of the game runs at your display's refresh. To cap the whole game, use your GPU driver's per-app frame limit. Options above your display's refresh have no effect.",
             "Caps combat effects and card motion only. The rest of the game runs at your screen's refresh. Options above your screen's refresh have no effect.",
           )}
-          options={FPS_CAP_OPTIONS.map((cap) => ({ value: cap, label: fpsLabel(fpsCapLabel(cap, displayHz), cap > 0 && displayHz > 0 && cap > displayHz + 1) }))}
+          options={FPS_CAP_OPTIONS.map((cap) => {
+            // Above the display's refresh: dimmed but still pickable (the refresh is measured, and can read low under load).
+            const above = cap > 0 && displayHz > 0 && cap > displayHz + 1;
+            return { value: cap, label: fpsCapLabel(cap, displayHz), ...(above ? { dim: true, reason: touchText("Above your display's refresh", "Above your screen's refresh") } : {}) };
+          })}
           onChange={(cap) => { if (fpsCap !== cap) { setFpsCap(cap); sfx.pulse(); } }} />
       </Section>
       {(isDesktop() || touchDevice) && (
@@ -244,12 +248,6 @@ function PhoneDiagnostics() {
   );
 }
 
-/** A frame-rate option above the display's refresh: still pickable (the refresh is measured, and can read low under load),
- *  but marked, the way the old list dimmed it. */
-function fpsLabel(text: string, above: boolean): ReactNode {
-  return above ? <span className="phs-optabove">{text}<span className="phk-selreason">{touchText("Above your display's refresh", "Above your screen's refresh")}</span></span> : text;
-}
-
 /* ── The building blocks: a section, and one row per setting (name + note left, control right) ── */
 
 function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
@@ -302,14 +300,14 @@ function AudioRow({ label, note, volume, muted, onVolume, onRelease, onToggleMut
     <Row label={label} note={note} labelId={`${id}l`} noteId={`${id}n`}>
       <PhSlider className="phs-slider" min={0} max={100} step={1} value={Math.round(volume * 100)} ariaLabel={`${label} volume`}
         format={(v) => (muted ? 'Off' : v)} onChange={(v) => onVolume(v / 100)} onRelease={onRelease ? () => onRelease() : undefined}
-        muted={muted} onMute={onToggleMute} />
+        muted={muted} onMute={onToggleMute} muteLabel={`${muted ? 'Unmute' : 'Mute'} ${label.toLowerCase()}`} />
     </Row>
   );
 }
 
 /** A pick-one setting: the kit's dropdown (its list opens in a layer above the page, so a section never clips it). */
 function SelectRow<T extends string | number>({ label, note, value, options, onChange }: {
-  label: string; note?: string; value: T; options: { value: T; label: ReactNode; thumb?: string }[]; onChange: (v: T) => void;
+  label: string; note?: string; value: T; options: { value: T; label: ReactNode; thumb?: string; preview?: string; dim?: boolean; reason?: string }[]; onChange: (v: T) => void;
 }) {
   const id = useId();
   return (

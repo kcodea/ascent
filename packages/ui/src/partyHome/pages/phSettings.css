@@ -70,16 +70,7 @@ html[data-touch-small] .phs-togglerow .phk-seghint { max-width: none; }
 /* The kit's slider (PhSlider) sits at the row's right: a fixed track width, its value and (audio) its Mute after it. */
 .phs-slider { width: calc(400 * var(--phu)); }
 html[data-touch-small] .phs-slider { width: calc(300 * var(--phu)); }
-/* THE GAUNTLET on the sliders, track and thumb alike (a native range shows the OS arrow; a kit gap, to upstream to
-   `.phk-slider`). One rule per engine: a selector list with another engine's pseudo-element is dropped whole. */
-.phs .phk-slider input[type="range"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.phs .phk-slider input[type="range"]::-webkit-slider-thumb { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.phs .phk-slider input[type="range"]::-webkit-slider-runnable-track { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.phs .phk-slider input[type="range"]::-moz-range-thumb { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 /* The dropdown: a fixed width so the rows line up. */
 .phs .phs-select { min-width: calc(240 * var(--phu)); }
 /* Mute and Muted take the same width, so a muted channel's track never shrinks out of line with the others. */
 .phs .phk-slider .phk-tchip { min-width: calc(76 * var(--phu)); justify-content: center; }
-/* A frame rate above the display's refresh: still pickable, dimmed, with the reason on its own line (the old list's dim). */
-.phs-optabove { display: inline-flex; flex-direction: column; align-items: flex-start; gap: calc(2 * var(--phu)); opacity: 0.6; }
-.phk-select .phs-optabove .phk-selreason { display: none; }

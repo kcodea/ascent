@@ -1,5 +1,5 @@
 import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent, type AnimationEvent as ReactAnimationEvent } from 'react';
-import { catchPulse, isPassArrival, mateDoor, playDrop } from './versus/passLob';
+import { catchPulse, isPassArrival, mateDoor, noteCastRelease, playDrop } from './versus/passLob';
 import { duosPassRefusal, notePassRefused, overMateFrame, passOnRelease } from './versus/duosPassUi';
 import { useDuosCombatSync } from './versus/duosCombat';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
@@ -8317,6 +8317,14 @@ export function Recruit() {
   // their mount-pop ~0.2s so the trigger pulse reads first and the token appears right after. Runs
   // synchronously, so the delay flag is set in the same React batch as the dispatch — before the token's
   // card mounts (a post-render detection would be too late; the pop would already have played).
+  // VERSUS DUOS (R-DUOS-PASS-RELEASE-01): note where a card was let go, so a team send it causes (Broshake, Tribe
+  // Bundle, a Shout that sends) streams into the teammate portrait from there, not from its hand slot. Duos runs only;
+  // one rect read at the release. `leaves`: a spell (its face dissolves at the point); a played minion stays.
+  const noteDuosRelease = (d: { uid: string; w: number; h: number }, x: number, y: number, leaves: boolean): void => {
+    if (!run.duos) return;
+    noteCastRelease(d.uid, { pointer: { x, y }, size: { w: toStage(d.w), h: toStage(d.h) }, leaves });
+  };
+
   const playWithSummonDelay = (action: { type: 'play'; uid: string; toIndex?: number; targetUid?: string }): void => {
     const before = new Set(run.board.map((c) => c.uid));
     presentAction({ kind: 'placing', uid: action.uid }); // the player's own play: its landing is `applyDrop`'s, not the arrival watcher's
@@ -8504,6 +8512,7 @@ export function Recruit() {
           return true;
         }
         const castCard = run.hand.find((c) => c.uid === d.uid); // the instance, before the cast removes it
+        noteDuosRelease(d, x, y, true);
         dispatch({ type: 'play', uid: d.uid, targetUid });
         presentAction({ kind: 'cast', cardId: d.view.cardId, at: { x, y }, ...(castCard ? { card: castCard } : {}), targetUid });
         return true;
@@ -8511,6 +8520,7 @@ export function Recruit() {
       if (up) {
         lassoDropRef.current = { x, y }; // where the card left the hand — a Lasso beam launches from here
         const castCard = run.hand.find((c) => c.uid === d.uid); // the instance, before the cast removes it
+        noteDuosRelease(d, x, y, true);
         dispatch({ type: 'play', uid: d.uid });
         // A Choose One that is about to open its prompt casts nothing yet (`asksFirst`, see the presenter).
         presentAction({ kind: 'cast', cardId: d.view.cardId, at: { x, y }, ...(castCard ? { card: castCard } : {}), asksFirst });
@@ -8526,6 +8536,7 @@ export function Recruit() {
       const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx);
       // The plate is measured on the LIVE drag card (`applyDrop` runs before `setDrag(null)`, so it is still mounted).
       const plate = document.querySelector<HTMLElement>('.dragcard .cardplate')?.getBoundingClientRect() ?? null;
+      noteDuosRelease(d, x, y, false);
       playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: to });
       presentAction({ kind: 'played', uid: d.uid, plate }); // the plate dissolves, the minion lands in its dust
       return true;

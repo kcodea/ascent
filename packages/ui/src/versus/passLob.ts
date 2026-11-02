@@ -300,6 +300,86 @@ export function passFlightOf(e: PassFlightEntry, combatUid?: string | null, card
   return null;
 }
 
+// ── FROM THE RELEASE POINT (R-DUOS-PASS-RELEASE-01) ──────────────────────────────────────────────────────────
+
+/**
+ * Owner 2026-11-01: "can spells like broshake/tribe bundle etc show the animation from the release point instead of
+ * from hand?" A spell's send names the spell (`src: { uid }`), and inside the cast's commit that uid is still the hand
+ * slot it was dragged out of, so the stream used to leave the hand. Now the drop notes WHERE the player let go (the
+ * floating drag card's box, read once at the release: `noteCastRelease`), and a send whose source is that card streams
+ * from there instead.
+ *
+ *  - A SPELL leaves (`leaves`): its face fades and its plate dissolves where it was let go, and the stream rises off
+ *    it. A cast plays no dissolve of its own, so this is the only one.
+ *  - A MINION played by drag (a Shout that sends) stays: the stream alone leaves the release point. Its plate already
+ *    dissolves there (the `played` presentation), so nothing dissolves twice.
+ *
+ * PRESENTATION ONLY: one module record, never in run state or on the wire. Keyed by the card's uid, it expires after
+ * `RELEASE_TTL_MS` (a click cast, a keyboard cast, the Scene Builder, a restore note nothing and keep today's source).
+ * The face dissolves once: a cast that sends twice streams twice from the point, the second without a face.
+ */
+export interface CastRelease {
+  uid: string;
+  /** The release box: centre in screen px, visual size (layout size times the lift zoom) in stage px. */
+  cx: number; cy: number; w: number; h: number; zoom: number;
+  plate: Box | null;
+  face: HTMLElement | null;
+  /** The card is gone from the run after this (a spell): its face dissolves at the point. */
+  leaves: boolean;
+  at: number;
+}
+export const RELEASE_TTL_MS = 1500;
+let lastRelease: CastRelease | null = null;
+const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+/** Note where `uid` was let go (call it on the drop, BEFORE the dispatch, while the drag card is still mounted). One
+ *  layout read. `pointer` and `size` (stage px) stand in when no drag card is up (a targeted spell's aim). */
+export function noteCastRelease(uid: string, opts: { pointer: Pt; size: { w: number; h: number }; leaves: boolean }, now = nowMs()): void {
+  if (typeof document === 'undefined') return;
+  const dc = document.querySelector<HTMLElement>('.dragcard');
+  const dr = dc?.getBoundingClientRect();
+  const zoom = parseFloat(dc?.style.zoom || '1') || 1;
+  const live = !!dc && !!dr && dr.width > 0;
+  lastRelease = {
+    uid,
+    cx: live ? dr.left + dr.width / 2 : opts.pointer.x,
+    cy: live ? dr.top + dr.height / 2 : opts.pointer.y,
+    w: live ? dc.offsetWidth * zoom : opts.size.w,
+    h: live ? dc.offsetHeight * zoom : opts.size.h,
+    zoom: live ? zoom : 1,
+    plate: live && opts.leaves ? dc.querySelector<HTMLElement>('.cardplate:not(.plate-interior)')?.getBoundingClientRect() ?? null : null,
+    face: live && opts.leaves ? dc.querySelector<HTMLElement>('.dragshrink > .card') ?? dc.querySelector<HTMLElement>('.card') : null,
+    leaves: opts.leaves,
+    at: now,
+  };
+}
+
+/** The release noted for `uid`, if it is fresh. Its face and plate are handed out once (a second send streams bare). */
+export function takeCastRelease(uid: string, now = nowMs()): CastRelease | null {
+  const r = lastRelease;
+  if (!r || r.uid !== uid) return null;
+  if (now - r.at > RELEASE_TTL_MS) { lastRelease = null; return null; }
+  const out = { ...r };
+  r.face = null;
+  r.plate = null;
+  return out;
+}
+
+/** Forget the noted release (tests). */
+export function clearCastRelease(): void { lastRelease = null; }
+
+/** A send's stream from a noted release point into the teammate portrait (no layout read but the portrait's). */
+function streamFromRelease(rel: CastRelease, face: boolean): boolean {
+  const door = mateDoor();
+  if (!door) return false;
+  const showFace = (rel.leaves || face) ? rel.face : null;
+  playDrop({
+    from: { cx: rel.cx, cy: rel.cy, w: rel.w, h: rel.h }, zoom: rel.zoom,
+    plate: showFace ? rel.plate : null, face: showFace, to: door.getBoundingClientRect(), coin: false, onLand: () => catchPulse(door),
+  });
+  return true;
+}
+
 /** A send's stream from `el` into the teammate portrait: the card's own face dissolving there when `face` (a copy: the
  *  element itself is left alone), else the stream alone. One layout read per element, at launch. */
 function streamFrom(el: HTMLElement, face: boolean): boolean {
@@ -338,6 +418,8 @@ export function passFlightEl(f: PassFlight): HTMLElement | null {
  */
 export function playPassFlight(f: PassFlight | null): boolean {
   if (!f || typeof document === 'undefined') return false;
+  // A card the player just let go of (a spell cast or a minion played by drag): it streams from where they let go.
+  if (f.at === 'card') { const rel = takeCastRelease(f.uid); if (rel) return streamFromRelease(rel, f.face); }
   if (f.at === 'card' && f.leaves) { playSpellPass(f.uid); return true; }
   const el = passFlightEl(f);
   if (!el) return false;

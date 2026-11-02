@@ -12888,6 +12888,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/passFlight.test.ts', 'packages/sim/src/duosPassFlight.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
   {
+    id: 'R-DUOS-PASS-RELEASE-01',
+    title: 'A send from a card you let go of streams from where you let go',
+    statement:
+      'When you drag a spell out of your hand to cast it and it sends your teammate something (Broshake, Tribe Bundle, Share '
+      + 'the Wealth), the pass stream starts where you let go of the spell, not at its hand slot: the spell fades and its plate '
+      + 'dissolves there, then the stream rises into the teammate portrait. A minion you drag onto the board whose Shout sends '
+      + 'something streams from its release point too, with no extra dissolve (its play already dissolves its plate). This is '
+      + 'presentation only: the point is noted on the drop, never stored in the run or sent. With no fresh release point (a '
+      + 'click or keyboard cast, the Scene Builder, a restore) the stream starts where it did before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-01', quote: 'show the animation from the release point instead of from hand' },
+      { kind: 'code', ref: 'packages/ui/src/versus/passLob.ts noteCastRelease / takeCastRelease / playPassFlight; packages/ui/src/Recruit.tsx applyDrop' },
+    ],
+    currentBehaviour: 'Built 2026-11-01. Before, a cast spell\x27s send streamed from the hand slot the spell was dragged out of.',
+    example: 'Ann drags Broshake up to the middle of the screen and lets go: Broshake dissolves there and the stream flies from that spot into Amy\x27s portrait.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/passFlight.test.ts'], lastVerifiedAt: '2026-11-01' },
+  },
+  {
     id: 'R-PHONE-HERO-LAYER-01',
     title: 'On a phone your portrait and the combat foe portrait are rasterised at the size they are drawn',
     statement:

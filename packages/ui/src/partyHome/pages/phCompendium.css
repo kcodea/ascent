@@ -136,11 +136,6 @@ html[data-touch-small] .phc .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var
 .phc .gloss-def { font-family: var(--ph-body); color: var(--ph-muted); }
 .phc .book-search { font-family: var(--ph-body); color: var(--ph-text); }
 
-/* The page title never yields its width to the tabs and actions (a kit gap: `.phk-pagetitle` can shrink to 0). */
-.phc .phk-pagetitle { flex: none; }
-/* SHELL GAP (to upstream): `.ph-bookpage > :not(.ph-pagebd) { position: relative }` also un-pins the nav, so it drops a
-   nav-height down the page. Pin it back. */
-html .ph-bookpage > .ph-booknav { position: fixed; }
 
 /* ── MODERN FANTASY (the shell's retune, 2026-11-02): rounded, glossy pills, warm plates. Overrides the cut shapes above. ── */
 .phc :is(.book-tiers, .book-rail, .gloss-group, .wiki-group, .wiki-bar) { clip-path: none; border-radius: var(--ph-r-l); }
@@ -165,7 +160,5 @@ html .ph-bookpage > .ph-booknav { position: fixed; }
 .phc .phk-pageactions { flex: none; align-self: flex-end; }
 .phc-actions { flex-wrap: nowrap; }
 .phc .book-search { width: clamp(calc(180 * var(--phu)), 16vw, calc(280 * var(--phu))); }
-/* Tabs never move on hover here (no layout hop); the colour change carries it. */
-.phc .phk-tab:hover { transform: none; }
 .phc :is(.gloss-grouphead, .wiki-grouphead)::after { width: calc(144 * var(--phu)); height: calc(16 * var(--phu)); background: url('../ornaments/divider.webp') 0 50% / contain no-repeat; }
 .phc :is(.book-railcap, .gloss-grouphead, .wiki-grouphead) { font-weight: 900; letter-spacing: 0.04em; }

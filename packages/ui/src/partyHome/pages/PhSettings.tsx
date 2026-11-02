@@ -20,7 +20,7 @@
  *
  * Static paint. The switch knob slides on `transform` only. No `cursor` here (the gauntlet rule paints it).
  */
-import { useId, useState, type CSSProperties, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { isDesktop, quitGame, toggleFullscreen } from '../../desktop';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from '../../sfx';
 import { getMusicVolume, isMusicMuted, setMusicVolume, toggleMusicMute } from '../../music';
@@ -30,7 +30,6 @@ import { useGame } from '../../store';
 import { FPS_CAP_OPTIONS, fpsCapLabel } from '../../fpsCap';
 import { BACKDROPS, BACKDROP_IDS, getBackdrop, setBackdrop, type BackdropId, backdropThumbUrl } from '../../backdrop';
 import { perfThresholds } from '../../perfMonitor';
-import { SettingSelect } from '../../EscMenu';
 import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from '../../versus/spectatorEmotes';
 import { setFilterMessages, setShowActivity, useFriendsPrefs } from '../../friends/friendsPrefs';
 import { setLobbyChatEnabled, useLobbyChat } from '../../lobbyChat/lobbyChatStore';
@@ -38,7 +37,7 @@ import { setLobbyRevealEnabled, useLobbyRevealEnabled } from '../../lobbyReveal/
 import { isTouchDevice, touchText } from '../../touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from '../../touchUi';
 import { PHONE_DIAG_FLAGS, PHONE_GPU, activeDiagLabel, saveDiagFlags, storedDiagFlags, type PhoneDiagFlags } from '../../phoneDiag';
-import { PhButton, PhPage, PhSwitch, PhTabs } from '../kit';
+import { PhButton, PhPage, PhSelect, PhSlider, PhSwitch, PhTabs } from '../kit';
 import './phSettings.css';
 
 export type SettingsTab = 'game' | 'audio' | 'video' | 'social' | 'account';
@@ -143,7 +142,7 @@ function VideoTab() {
   return (
     <>
       <Section title="Board">
-        <SelectRow label="Board backdrop" note="What lies behind the board. Saved on this device." columns={2} value={backdrop}
+        <SelectRow label="Board backdrop" note="What lies behind the board. Saved on this device." value={backdrop}
           options={BACKDROP_IDS.map((id) => ({ value: id, label: BACKDROPS[id].label, thumb: backdropThumbUrl(id) }))}
           onChange={(id) => { if (id !== backdrop) { setBackdropPick(id); setBackdrop(id); sfx.pulse(); } }} />
       </Section>
@@ -154,7 +153,7 @@ function VideoTab() {
             "Caps combat effects and card motion only. The rest of the game runs at your display's refresh. To cap the whole game, use your GPU driver's per-app frame limit. Options above your display's refresh have no effect.",
             "Caps combat effects and card motion only. The rest of the game runs at your screen's refresh. Options above your screen's refresh have no effect.",
           )}
-          options={FPS_CAP_OPTIONS.map((cap) => ({ value: cap, label: fpsCapLabel(cap, displayHz), dim: cap > 0 && displayHz > 0 && cap > displayHz + 1 }))}
+          options={FPS_CAP_OPTIONS.map((cap) => ({ value: cap, label: fpsLabel(fpsCapLabel(cap, displayHz), cap > 0 && displayHz > 0 && cap > displayHz + 1) }))}
           onChange={(cap) => { if (fpsCap !== cap) { setFpsCap(cap); sfx.pulse(); } }} />
       </Section>
       {(isDesktop() || touchDevice) && (
@@ -245,6 +244,12 @@ function PhoneDiagnostics() {
   );
 }
 
+/** A frame-rate option above the display's refresh: still pickable (the refresh is measured, and can read low under load),
+ *  but marked, the way the old list dimmed it. */
+function fpsLabel(text: string, above: boolean): ReactNode {
+  return above ? <span className="phs-optabove">{text}<span className="phk-selreason">{touchText("Above your display's refresh", "Above your screen's refresh")}</span></span> : text;
+}
+
 /* ── The building blocks: a section, and one row per setting (name + note left, control right) ── */
 
 function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
@@ -274,47 +279,42 @@ function ToggleRow({ label, note, on, onToggle }: { label: string; note?: string
   return <div className="phs-row phs-togglerow"><PhSwitch checked={on} onChange={() => onToggle()} label={label} hint={note} /></div>;
 }
 
-function SliderRow({ label, note, aria, min, max, step, value, shown, onChange, onRelease, disabled }: {
+/** A slider setting: the kit's slider (its value at the right), its name and note on the left. */
+function SliderRow({ label, note, aria, min, max, step, value, shown, onChange, onRelease }: {
   label: string; note?: string; aria: string; min: number; max: number; step: number; value: number; shown: string;
-  onChange: (v: number) => void; onRelease?: () => void; disabled?: boolean;
+  onChange: (v: number) => void; onRelease?: () => void;
 }) {
   const id = useId();
-  const pct = ((value - min) / (max - min)) * 100;
   return (
     <Row label={label} note={note} labelId={`${id}l`} noteId={`${id}n`}>
-      <input className="phs-range" type="range" min={min} max={max} step={step} value={value} disabled={disabled}
-        aria-label={aria} aria-describedby={note ? `${id}n` : undefined} style={{ '--v': `${pct}%` } as CSSProperties}
-        onChange={(e) => onChange(Number(e.target.value))} onPointerUp={onRelease} />
-      <span className="phs-val">{shown}</span>
+      <PhSlider className="phs-slider" min={min} max={max} step={step} value={value} ariaLabel={aria} format={() => shown}
+        onChange={onChange} onRelease={onRelease ? () => onRelease() : undefined} />
     </Row>
   );
 }
 
+/** An audio channel: the kit's slider with its Mute pairing (the slider dims while muted, the value reads Off). */
 function AudioRow({ label, note, volume, muted, onVolume, onRelease, onToggleMute }: {
   label: string; note?: string; volume: number; muted: boolean; onVolume: (v: number) => void; onRelease?: () => void; onToggleMute: () => void;
 }) {
   const id = useId();
-  const v = Math.round(volume * 100);
   return (
     <Row label={label} note={note} labelId={`${id}l`} noteId={`${id}n`}>
-      <input className="phs-range" type="range" min={0} max={100} step={1} value={v} disabled={muted} aria-label={`${label} volume`}
-        style={{ '--v': `${v}%` } as CSSProperties} onChange={(e) => onVolume(Number(e.target.value) / 100)} onPointerUp={onRelease} />
-      <span className="phs-val">{muted ? 'Off' : v}</span>
-      <button type="button" className={`phs-mute${muted ? ' on' : ''}`} aria-pressed={muted}
-        aria-label={muted ? `Unmute ${label.toLowerCase()}` : `Mute ${label.toLowerCase()}`} onClick={onToggleMute}>
-        {muted ? 'Muted' : 'Mute'}
-      </button>
+      <PhSlider className="phs-slider" min={0} max={100} step={1} value={Math.round(volume * 100)} ariaLabel={`${label} volume`}
+        format={(v) => (muted ? 'Off' : v)} onChange={(v) => onVolume(v / 100)} onRelease={onRelease ? () => onRelease() : undefined}
+        muted={muted} onMute={onToggleMute} />
     </Row>
   );
 }
 
-function SelectRow<T extends string | number>({ label, note, value, options, onChange, columns }: {
-  label: string; note?: string; value: T; options: { value: T; label: string; dim?: boolean; thumb?: string }[]; onChange: (v: T) => void; columns?: 2;
+/** A pick-one setting: the kit's dropdown (its list opens in a layer above the page, so a section never clips it). */
+function SelectRow<T extends string | number>({ label, note, value, options, onChange }: {
+  label: string; note?: string; value: T; options: { value: T; label: ReactNode; thumb?: string }[]; onChange: (v: T) => void;
 }) {
   const id = useId();
   return (
     <Row label={label} note={note} labelId={`${id}l`} noteId={`${id}n`}>
-      <SettingSelect labelledBy={`${id}l`} value={value} options={options} onChange={onChange} columns={columns} />
+      <PhSelect className="phs-select" label={label} value={value} options={options} onChange={onChange} />
     </Row>
   );
 }

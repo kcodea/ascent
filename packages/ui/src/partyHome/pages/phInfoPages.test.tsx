@@ -211,7 +211,7 @@ describe('the UI rules', () => {
     expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
     // Only the gauntlet URL form (CLAUDE.md): a bare keyword cursor swaps the game cursor for the OS arrow.
     expect(css).not.toMatch(/cursor:(?!\s*url\('\/cursors\/gauntlet_)/);
-    expect(here('./phSettings.css'), 'the sliders wear the gauntlet').toMatch(/\.phs-range[^{]*\{ cursor: url\('\/cursors\/gauntlet_open\.svg'\)/);
+    expect(here('./phSettings.css'), 'the sliders wear the gauntlet').toMatch(/\.phk-slider input\[type="range"\] \{ cursor: url\('\/cursors\/gauntlet_open\.svg'\)/);
     expect(css).not.toMatch(/infinite/);
     for (const m of tsx.matchAll(/(['"`])([^'"`\n]*)\1/g)) {
       expect(m[2]).not.toMatch(/—|\s--\s/);

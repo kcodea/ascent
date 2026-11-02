@@ -1,7 +1,7 @@
 /* ── SETTINGS under the app shell (party home prototype, DEV only; PhSettings.tsx). Shell tokens only (shell.css).
    Valorant's settings grammar: tabs in the header, a centred column of sections, one row per setting (name + note left,
    control right). Static paint; the switch knob moves on `transform`. No `cursor` here (the gauntlet rule paints buttons).
-   The sections DON'T clip (a dropdown's list must hang out of its row): the cut plate is painted on a `::before`. ── */
+   The plate is painted on a `::before` (the section itself never clips). The dropdowns are the kit's PhSelect (their list opens in a layer above the page). ── */
 
 .phs-col { width: 100%; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
 
@@ -9,8 +9,6 @@
 .phs-sec { position: relative; isolation: isolate; flex: none; display: flex; flex-direction: column; padding: calc(8 * var(--phu)) 0 calc(8 * var(--phu)); }
 .phs-sec::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ph-plate); clip-path: var(--ph-clip-s);
   box-shadow: var(--ph-gild-s); }
-/* A section with an open dropdown rises over the sections after it, so its list is never covered. */
-.phs-sec:has(.escselect.open) { z-index: 2; }
 .phs-sechead { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); padding: calc(12 * var(--phu)) calc(24 * var(--phu)) calc(8 * var(--phu)); }
 .phs-sechead h2 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
 .phs-sechead p { margin: 0; font-size: var(--ph-t1); color: var(--ph-muted); }
@@ -21,48 +19,14 @@
   min-height: calc(64 * var(--phu)); padding: calc(12 * var(--phu)) calc(24 * var(--phu)); box-sizing: border-box; }
 .phs-row + .phs-row { box-shadow: inset 0 calc(1 * var(--phu)) 0 color-mix(in srgb, var(--ph-gold) 14%, transparent); }
 .phs-row:hover { background: color-mix(in srgb, var(--ph-plate-hover, #1b2c55) 45%, transparent); }
-.phs-row:has(.escselect.open) { z-index: 2; }
 .phs-what { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; }
 .phs-name { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .phs-note { max-width: calc(560 * var(--phu)); font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-muted); }
 .phs-ctl { display: flex; align-items: center; justify-content: flex-end; gap: calc(16 * var(--phu)); min-width: 0; }
 
-/* ── The slider: a thin well, the filled part gold up to the value (`--v`, set per change), a cut gold thumb. ── */
-.phs-range { -webkit-appearance: none; appearance: none; width: calc(280 * var(--phu)); height: calc(28 * var(--phu)); margin: 0; background: none; }
-.phs-range::-webkit-slider-runnable-track { height: calc(6 * var(--phu)); background: linear-gradient(90deg, var(--ph-gold) 0 var(--v, 0%), rgba(0, 0, 0, 0.55) var(--v, 0%) 100%); box-shadow: var(--ph-gild-s); }
-.phs-range::-moz-range-track { height: calc(6 * var(--phu)); background: linear-gradient(90deg, var(--ph-gold) 0 var(--v, 0%), rgba(0, 0, 0, 0.55) var(--v, 0%) 100%); }
-.phs-range::-webkit-slider-thumb { -webkit-appearance: none; width: calc(16 * var(--phu)); height: calc(24 * var(--phu)); margin-top: calc(-9 * var(--phu)); border: 0; background: var(--ph-metal-gold); clip-path: var(--ph-clip-s); }
-.phs-range::-moz-range-thumb { width: calc(16 * var(--phu)); height: calc(24 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-metal-gold); }
-.phs-range:disabled { opacity: 0.4; }
-.phs-range:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(4 * var(--phu)); }
-.phs-val { min-width: calc(48 * var(--phu)); text-align: right; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow, var(--ph-shadow)); font-variant-numeric: tabular-nums; }
-.phs-mute { min-width: calc(80 * var(--phu)); height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)); margin: 0; border: 0; border-radius: 0; clip-path: var(--ph-clip-s);
-  background: var(--ph-well); box-shadow: var(--ph-gild-s); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
-.phs-mute:hover { color: var(--ph-ink); }
-.phs-mute.on { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); box-shadow: none; }
-.phs-mute:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(2 * var(--phu)); }
-
-/* ── The dropdown (EscMenu's SettingSelect, reused) in the shell's dress ── */
-.phs .escselect { min-width: calc(240 * var(--phu)); }
-.phs .escselect-trigger { height: calc(40 * var(--phu)); padding: 0 calc(12 * var(--phu)) 0 calc(16 * var(--phu)); gap: calc(12 * var(--phu)); border: 0; border-radius: 0; clip-path: var(--ph-clip-s);
-  background: var(--ph-well); box-shadow: var(--ph-gild-s); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); text-shadow: var(--ph-shadow); }
-.phs .escselect-trigger:hover, .phs .escselect.open .escselect-trigger { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
-.phs .escselect-trigger .escchev { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); }
-.phs .escselect-list { top: calc(100% + 4 * var(--phu)); gap: calc(2 * var(--phu)); padding: calc(4 * var(--phu)); border: 0; border-radius: 0;
-  background: color-mix(in srgb, var(--ph-navy) 96%, #000); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-gold), 0 calc(12 * var(--phu)) calc(32 * var(--phu)) rgba(0, 0, 0, 0.6); }
-.phs .escselect-opt { padding: calc(8 * var(--phu)) calc(12 * var(--phu)); border-radius: 0; font-family: var(--ph-body); font-weight: 700; font-size: var(--ph-t2); color: var(--ph-text); }
-.phs .escselect-opt:hover, .phs .escselect-opt:focus-visible { background: var(--ph-plate-hover); color: var(--ph-ink); outline: none; }
-.phs .escselect-opt.on { background: var(--ph-metal-gold); color: var(--ph-navy); }
-/* The two-column list (Board backdrop) has a fixed width here, so the preview can sit just left of it. */
-.phs .escselect-list.cols2 { width: calc(400 * var(--phu)); grid-template-columns: repeat(2, minmax(0, 1fr)); }
-/* The preview opens to the LEFT of the open list (the control sits at the row's right edge). */
-.phs .escselect-thumb { left: auto; right: calc(400 * var(--phu) + 16 * var(--phu)); top: calc(100% + 4 * var(--phu)); width: calc(260 * var(--phu)); border: 0; border-radius: 0; clip-path: var(--ph-clip-s);
-  background: var(--ph-navy); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-gold); }
-.phs .escselect-thumb-l { font-family: var(--ph-font); font-size: var(--ph-t2); color: var(--ph-ink); }
 
 /* ── Phones (landscape) ── */
 html[data-touch-small] .phs-row { gap: calc(16 * var(--phu)); }
-html[data-touch-small] .phs-range { width: calc(200 * var(--phu)); }
 html[data-touch-small] .phs-note { max-width: none; }
 
 /* ── THE FANTASY PASS (owner 2026-11-02: "don't make it look techy/futuristic. we are a fantasy game"): not an OS panel.
@@ -81,7 +45,6 @@ html[data-touch-small] .phs-note { max-width: none; }
 .phs-row + .phs-row::before { content: ''; position: absolute; left: calc(24 * var(--phu)); right: calc(24 * var(--phu)); top: 0; height: calc(1 * var(--phu));
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ph-gold) 35%, transparent) 20%, color-mix(in srgb, var(--ph-gold) 35%, transparent) 80%, transparent); }
 .phs-row:hover { background: linear-gradient(90deg, rgba(255, 206, 120, 0.06), transparent 70%); }
-.phs-val { font-family: var(--ph-name-font); color: #fbe6a6; }
 
 
 /* The kit's switch (PhSwitch) fills its row: its name and note read like every other row's. */
@@ -91,29 +54,11 @@ html[data-touch-small] .phs-note { max-width: none; }
 .phs-togglerow .phk-seghint { max-width: calc(560 * var(--phu)); font-family: var(--ph-body); font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-muted); }
 html[data-touch-small] .phs-togglerow .phk-seghint { max-width: none; }
 
-/* The page title never yields its width to the tabs (a kit gap: `.phk-pagetitle` can shrink to 0). */
-.phs .phk-pagetitle { flex: none; }
-/* The sliders take the kit slider's thumb (PhSlider: a round gold stud ringed in navy), so every slider in the shell matches. */
-.phs-range::-webkit-slider-thumb { width: calc(18 * var(--phu)); height: calc(18 * var(--phu)); margin-top: calc(-6 * var(--phu)); border-radius: 50%; clip-path: none; box-shadow: 0 0 0 calc(2 * var(--phu)) var(--ph-navy); }
-.phs-range::-moz-range-thumb { width: calc(18 * var(--phu)); height: calc(18 * var(--phu)); border-radius: 50%; }
 
 /* ── MODERN FANTASY (the shell's retune, 2026-11-02): rounded, glossy, warm. Overrides the cut shapes above. ── */
 .phs-sec::before { clip-path: none; border-radius: var(--ph-r-l); }
 .phs-sechead::after { width: calc(216 * var(--phu)); height: calc(24 * var(--phu)); bottom: calc(-4 * var(--phu)); background: url('../ornaments/divider.webp') 0 50% / contain no-repeat; }
 .phs-sechead h2, .phs-togglerow .phk-switchlbl, .phs-name { font-weight: 900; letter-spacing: 0.02em; }
-.phs-mute { clip-path: none; border-radius: 999px; }
-.phs .escselect-trigger, .phs .escselect-list, .phs .escselect-thumb { clip-path: none; }
-.phs .escselect-trigger { border-radius: 999px; }
-.phs .escselect-list, .phs .escselect-thumb { border-radius: var(--ph-r); overflow: hidden; }
-.phs .escselect-opt { border-radius: var(--ph-r-s); }
-/* THE GAUNTLET on the sliders, track and thumb alike (the game paints its own cursor; a native range shows the OS arrow). */
-/* (One rule per engine: a selector list with another engine's pseudo-element is dropped whole.) */
-.phs-range { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.phs-range::-webkit-slider-thumb { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.phs-range::-webkit-slider-runnable-track { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.phs-range::-moz-range-thumb { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.phs-range:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-.phs-range:disabled::-webkit-slider-thumb { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 /* THE SWITCH, the owner's rule (2026-10-08: red when off, green when on), as warm glossy jewels: a ruby off, an emerald on,
    each with a gem's top highlight and deep foot, ringed in gold; the knob a polished pearl. */
 .phs .phk-switch { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) rgba(255, 214, 120, 0.85), inset 0 calc(4 * var(--phu)) calc(4 * var(--phu)) rgba(255, 255, 255, 0.35), inset 0 calc(-4 * var(--phu)) calc(6 * var(--phu)) rgba(0, 0, 0, 0.35), 0 calc(3 * var(--phu)) calc(8 * var(--phu)) rgba(0, 0, 0, 0.35); }
@@ -121,4 +66,20 @@ html[data-touch-small] .phs-togglerow .phk-seghint { max-width: none; }
 .phs .phk-switch.is-on { background: radial-gradient(120% 90% at 30% 20%, #8af0a8 0%, #2fb866 38%, #12784a 75%, #0a4f31 100%); }
 .phs .phk-switchknob { background: radial-gradient(circle at 35% 30%, #ffffff 0%, #fff4dc 45%, #e2c98f 100%); box-shadow: 0 calc(2 * var(--phu)) calc(4 * var(--phu)) rgba(0, 0, 0, 0.45), inset 0 0 0 calc(1 * var(--phu)) rgba(160, 110, 30, 0.5); }
 .phs .phk-switchword { color: #fff8e8; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55); font-weight: 900; }
-.phs .phk-tab:hover { transform: none; }
+
+/* The kit's slider (PhSlider) sits at the row's right: a fixed track width, its value and (audio) its Mute after it. */
+.phs-slider { width: calc(400 * var(--phu)); }
+html[data-touch-small] .phs-slider { width: calc(300 * var(--phu)); }
+/* THE GAUNTLET on the sliders, track and thumb alike (a native range shows the OS arrow; a kit gap, to upstream to
+   `.phk-slider`). One rule per engine: a selector list with another engine's pseudo-element is dropped whole. */
+.phs .phk-slider input[type="range"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.phs .phk-slider input[type="range"]::-webkit-slider-thumb { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.phs .phk-slider input[type="range"]::-webkit-slider-runnable-track { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.phs .phk-slider input[type="range"]::-moz-range-thumb { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* The dropdown: a fixed width so the rows line up. */
+.phs .phs-select { min-width: calc(240 * var(--phu)); }
+/* Mute and Muted take the same width, so a muted channel's track never shrinks out of line with the others. */
+.phs .phk-slider .phk-tchip { min-width: calc(76 * var(--phu)); justify-content: center; }
+/* A frame rate above the display's refresh: still pickable, dimmed, with the reason on its own line (the old list's dim). */
+.phs-optabove { display: inline-flex; flex-direction: column; align-items: flex-start; gap: calc(2 * var(--phu)); opacity: 0.6; }
+.phk-select .phs-optabove .phk-selreason { display: none; }

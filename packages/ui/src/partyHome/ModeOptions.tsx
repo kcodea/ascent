@@ -9,7 +9,7 @@
  *  - VERSUS 1v1 / GROUP / DUOS (versus/versusOptionsUi.tsx): the modifier. START hosts a room with the tab's mode and it.
  * Built from the shell kit only. Static paint.
  */
-import { useMemo, useSyncExternalStore } from 'react';
+import { useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { gauntletStage, type SetId } from '@game/content';
 import {
   normalizePracticeRank, normalizePracticeTribes, PRACTICE_RANKS, practiceSetOf, practiceSetOptions, practiceTribeOptions, riftDefFor,
@@ -21,13 +21,13 @@ import { fuseGoldOf } from '../goldClock';
 import { foePortrait } from '../gauntlet/foePortrait';
 import { clearedStages, GAUNTLET_STAGE_COUNT, gauntletAccountMode, gauntletProgressVersion, stageSlotState, subscribeGauntletProgress, type StageSlotState } from '../gauntlet/gauntletProgress';
 import { versusModifierName } from '../versus/versusOptionsUi';
-import { PhButton, PhChip, PhRow, PhSegmented } from './kit';
+import { PhButton, PhChip, PhRow, PhSegmented, phNum } from './kit';
 
 // ── PRACTICE ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 const HERO_MODES = [{ value: 'beginner' as const, label: 'Beginner' }, { value: 'all' as const, label: 'All' }];
 const HEALTH: { value: PracticeConfig['health']; label: string }[] = [{ value: 'unlimited', label: 'Unlimited' }, { value: 'normal', label: 'Normal' }];
-const TIMES: { value: PracticeConfig['timeMult']; label: string }[] = [
-  { value: 1, label: '1x' }, { value: 2, label: '2x' }, { value: 3, label: '3x' }, { value: 4, label: '4x' }, { value: 0, label: 'Unlimited' },
+const TIMES: { value: PracticeConfig['timeMult']; label: ReactNode }[] = [
+  { value: 1, label: phNum('1x') }, { value: 2, label: phNum('2x') }, { value: 3, label: phNum('3x') }, { value: 4, label: phNum('4x') }, { value: 0, label: 'Unlimited' },
 ];
 const RANK_LABEL: Record<PracticeRank, string> = { all: 'All Ranks', bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' };
 const RANKS = PRACTICE_RANKS.map((value) => ({ value, label: RANK_LABEL[value] }));
@@ -48,7 +48,7 @@ export function PracticePanel() {
   const god = cfg.godMode === true;
   const setId = practiceSetOf(import.meta.env.DEV ? cfg : undefined);
   const devSet = import.meta.env.DEV && setId !== practiceSetOptions().find((o) => o.live)?.id;
-  const setOptions = useMemo(() => (import.meta.env.DEV ? practiceSetOptions().map((o) => ({ value: o.id as SetId, label: o.live ? `${o.name} (live)` : o.name })) : []), []);
+  const setOptions = useMemo(() => (import.meta.env.DEV ? practiceSetOptions().map((o) => ({ value: o.id as SetId, label: phNum(o.live ? `${o.name} (live)` : o.name) })) : []), []);
   const tribes: { value: PracticeTribe | null; label: string }[] = [
     { value: null, label: 'Normal' },
     ...practiceTribeOptions(setId).map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
@@ -59,7 +59,7 @@ export function PracticePanel() {
     <>
       <PhSegmented size="l" value={god ? 'god' : 'sandbox'} onPick={(v) => { sfx.tick(); setDraft({ godMode: v === 'god' }); }}
         options={[{ value: 'sandbox', label: 'Sandbox' }, { value: 'god', label: 'God Mode' }]}
-        hint={god ? 'Your own fixed setup. Nothing is saved.' : 'The Practice game, set up your way. Nothing here is rated.'} />
+        hint={god ? 'A fixed setup with every tool unlocked.' : 'The Practice game, set up your way. Nothing here is rated.'} />
       {god ? (
         <div className="pho-god" aria-label="What God Mode gives you">
           {GOD_FEATURES.map(([t, x]) => <div key={t} className="pho-godrow"><span>{t}</span><span>{x}</span></div>)}
@@ -67,7 +67,7 @@ export function PracticePanel() {
       ) : (
         <div className="pho-rows">
           {import.meta.env.DEV && (
-            <PhSegmented label="Set (dev)" value={setId} options={setOptions}
+            <PhSegmented label="Set (dev builds only)" value={setId} options={setOptions}
               hint={devSet ? 'Your opponents are bots playing this set.' : 'The set this game is played with.'}
               onPick={(v) => { sfx.tick(); setDraft({ setId: v, tribes: normalizePracticeTribes(cfg.tribes, v) }); }} />
           )}
@@ -89,7 +89,7 @@ export function PracticePanel() {
 }
 
 // ── GAUNTLET ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-const STAGE_TAG: Record<StageSlotState, string> = { available: 'Play', cleared: 'Cleared', locked: 'Locked', soon: 'Coming soon', draft: 'Draft' };
+const STAGE_TAG: Record<StageSlotState, string | null> = { available: null, cleared: 'Cleared', locked: 'Locked', soon: 'Coming soon', draft: 'Draft' };
 export const stagePlayable = (s: StageSlotState): boolean => s === 'available' || s === 'cleared' || s === 'draft';
 
 export function useGauntletStages() {
@@ -106,7 +106,6 @@ export function useGauntletStages() {
 
 export function GauntletPanel({ selected, onSelect }: { selected: number | null; onSelect: (n: number) => void }) {
   const stages = useGauntletStages();
-  const openAccountPanel = useGame((s) => s.openAccountPanel);
   const soon = stages.filter((x) => x.state === 'soon');
   const shown = stages.filter((x) => x.state !== 'soon');
   return (
@@ -114,7 +113,6 @@ export function GauntletPanel({ selected, onSelect }: { selected: number | null;
       {gauntletAccountMode() === 'local' && (
         <div className="pho-note">
           <span>Not signed in. Progress stays on this device and clears grant no chests.</span>
-          <PhButton size="s" onClick={() => { sfx.pulse(); openAccountPanel(); }}>Sign in</PhButton>
         </div>
       )}
       <div className="pho-stages" role="list">
@@ -123,8 +121,8 @@ export function GauntletPanel({ selected, onSelect }: { selected: number | null;
           return (
             <PhRow key={n} className={`pho-stage${playable ? '' : ' off'}`} art={foePortrait(n).art} selected={selected === n}
               lead={<span className="pho-stagenum">{n}</span>} title={stage?.name ?? `Stage ${n}`}
-              sub={state === 'locked' ? `Clear Stage ${n - 1} to unlock` : state === 'cleared' ? 'Already cleared. No chest for replays.' : stage?.tribe ? `${stage.tribe.charAt(0).toUpperCase()}${stage.tribe.slice(1)}` : undefined}
-              right={<PhChip tone={state === 'cleared' ? 'teal' : state === 'available' ? 'gold' : 'neutral'}>{STAGE_TAG[state]}</PhChip>}
+              sub={state === 'locked' ? `Clear Stage ${n - 1} to unlock` : state === 'cleared' ? 'Already cleared. No chest for replays.' : undefined}
+              right={STAGE_TAG[state] ? <PhChip tone={state === 'cleared' ? 'teal' : 'neutral'}>{STAGE_TAG[state]}</PhChip> : undefined}
               onClick={playable ? () => { sfx.tick(); onSelect(n); } : undefined} label={`Stage ${n}${stage ? `, ${stage.name}` : ''}`} />
           );
         })}

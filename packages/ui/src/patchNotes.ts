@@ -56,6 +56,22 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-02',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Versus Duos and Ranked Duos now have a Team chat beside the lobby chat.',
+        details: [
+          'The chat panel shows two tabs: Lobby for everyone in the game, and Team for you and your teammate.',
+          'Only your teammate sees Team messages. Your opponents and spectators never do.',
+          'Each tab shows its own count of new messages. The collapsed chat button adds them up.',
+          'Mute, replies, emotes and the bad word filter work on both tabs.',
+        ],
+      },
+      { category: 'Systems', text: 'The lobby chat now closes when your game ends. It no longer stays on the main menu or the menus.' },
+    ],
+  },
+  {
     date: '2026-11-01',
     changes: [
       {

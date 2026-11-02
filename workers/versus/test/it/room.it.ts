@@ -11,6 +11,7 @@ import { VersusCfClient, versusCfHttp } from '../../src/client';
 import { createHash, createHmac } from 'node:crypto';
 import { CONTENT, FIXTURE, HERO_IDS, IT_WRITER_SECRET, Player, sideOf, startLocalWorker, toGroupShop, toRoundOne } from './driver';
 import { invitePayload } from '../../src/invites';
+import type { VersusCfPush } from '../../src/protocol';
 
 let base = '';
 let dispose: () => Promise<void> = async () => undefined;
@@ -156,6 +157,36 @@ describe('Duos room in workerd', () => {
     await p4.req('submit', { matchId, round: 1, seq: 1, side: sideOf(1, 'p2'), final: true, checkpoint: null });
     const rows = (await got).map((a) => (a.msg as unknown as { row: { fights: unknown[] } }).row);
     expect(rows.every((r) => r.fights.length === 1)).toBe(true);
+    for (const p of players) p.client!.close();
+  });
+
+  it('TEAM CHAT (R-LOBBY-CHAT-TEAM-01): the lobby sync says team; a team post reaches the teammate only, a lobby post all four', async () => {
+    const { players } = await toGroupShop(base, 4, 'duos');
+    const [p1, p2, p3, p4] = players as [Player, Player, Player, Player];
+    const isChat = (m: VersusCfPush, ch?: 'team'): boolean => m.t === 'bc' && m.event === 'lobby_chat' && (m.payload as { channel?: string }).channel === ch;
+    const sync = p1.next((m) => m.t === 'bc' && m.event === 'lobby_chat_sync');
+    p1.client!.broadcast('lobby_chat_sync', {});
+    expect(((await sync).msg as { payload: { team?: boolean } }).payload.team).toBe(true);
+    const mate = p2.next((m) => isChat(m, 'team'));
+    const own = p1.next((m) => isChat(m, 'team'));
+    let foeSaw = false;
+    const foes = Promise.all([p3, p4].map((p) => p.next((m) => isChat(m, 'team'), 1500).then(() => { foeSaw = true; }, () => undefined)));
+    p1.client!.broadcast('lobby_chat', { cid: 't1', body: 'go left', channel: 'team' });
+    expect((await mate).msg).toMatchObject({ payload: { body: 'go left', channel: 'team', from: p1.userId, cid: 't1' } });
+    await own;
+    await foes;
+    expect(foeSaw).toBe(false);
+    // The other team's own chat is theirs: p3 posts, p4 gets it, p1 does not; p3's sync holds only theirs.
+    const p4Got = p4.next((m) => isChat(m, 'team'));
+    p3.client!.broadcast('lobby_chat', { cid: 't2', body: 'b side', channel: 'team' });
+    await p4Got;
+    const tsync = p3.next((m) => m.t === 'bc' && m.event === 'lobby_chat_sync');
+    p3.client!.broadcast('lobby_chat_sync', { channel: 'team' });
+    expect(((await tsync).msg as { payload: { channel: string; msgs: { body: string }[] } }).payload).toMatchObject({ channel: 'team', msgs: [{ body: 'b side' }] });
+    // The lobby still reaches everyone.
+    const all = players.map((p) => p.next((m) => isChat(m)));
+    p2.client!.broadcast('lobby_chat', { cid: 'l1', body: 'gl all' });
+    for (const a of await Promise.all(all)) expect(a.msg).toMatchObject({ payload: { body: 'gl all' } });
     for (const p of players) p.client!.close();
   });
 });

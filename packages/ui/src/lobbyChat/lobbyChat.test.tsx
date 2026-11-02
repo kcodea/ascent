@@ -18,11 +18,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { LobbyChat, type LobbyChatSender } from '@game/versus-cf/lobbyChat';
 import { stageViewport } from '../stage';
+import { useGame } from '../store';
 import { clampGeom } from '../chat/chatGeom';
 import { defaultLobbyChatGeom, LOBBY_CHAT_LIMITS, LobbyChatPanel, lobbyChatPrefs } from './LobbyChatPanel';
 import {
   LOBBY_CHAT_ERROR_TEXT, LOBBY_CHAT_GUEST_TEXT, receiveLobbyChatEvent, resyncLobbyChat, retryLobbyChat, sendLobbyChat, setLobbyChatClockForTests, setLobbyChatCompany,
-  setLobbyChatEnabled, setLobbyChatMuted, setLobbyChatOpen, setLobbyChatSession, useLobbyChat,
+  setLobbyChatEnabled, setLobbyChatMuted, setLobbyChatOpen, setLobbyChatSession, setLobbyChatTab, useLobbyChat,
 } from './lobbyChatStore';
 
 const ME = '00000000-0000-4000-8000-000000000001';
@@ -54,6 +55,7 @@ beforeEach(() => {
     [ANN]: { userId: ANN, role: 'player', name: 'Ann', guest: false },
   };
   setLobbyChatClockForTests(() => T0);
+  useGame.setState({ showTitle: false }); // a game is on screen (R-LOBBY-CHAT-CLOSE-01)
   setLobbyChatEnabled(true);
   setLobbyChatOpen(true);
   install();
@@ -438,5 +440,133 @@ describe('lobby chat quality of life (R-LOBBY-CHAT-02)', () => {
     const lc = readFileSync(join(__dirname, 'lobbyChat.css'), 'utf8');
     for (const c of lc.matchAll(/cursor: ([^;]+);/g)) expect(c[1]).toMatch(/^url\('\/cursors\//);
     expect(lc).not.toMatch(/infinite/);
+  });
+});
+
+describe('lobby chat closes when the game ends (R-LOBBY-CHAT-CLOSE-01)', () => {
+  it('shows only while a game is on screen: the title / menus (a Versus room between matches) never show it', () => {
+    answerSync();
+    expect(q('.lchat')).not.toBeNull();
+    act(() => { useGame.setState({ showTitle: true }); });
+    expect(q('.lchat')).toBeNull();
+    act(() => setLobbyChatOpen(false));
+    expect(q('.lchat-pill')).toBeNull(); // the collapsed button too: nothing lingers on the menu
+    act(() => { useGame.setState({ showTitle: false }); });
+    expect(q('.lchat-pill')).not.toBeNull();
+  });
+
+  it("the game's socket going away empties the chat and stops asking the object", () => {
+    answerSync();
+    deliver(ANN, 'gg');
+    act(() => setLobbyChatSession('test', null));
+    expect(useLobbyChat.getState()).toMatchObject({ gameKey: null, available: false, msgs: [], teamMsgs: [], team: false });
+    expect(q('.lchat')).toBeNull();
+  });
+});
+
+describe('team chat (R-LOBBY-CHAT-TEAM-01)', () => {
+  const MATE = '00000000-0000-4000-8000-000000000003';
+  let team: LobbyChat;
+  const teamSync = (who = ME): void => { act(() => { receiveLobbyChatEvent('lobby_chat_sync', JSON.parse(JSON.stringify(team.sync(senders[who]!)))); }); };
+  const teamPost = (from: string, body: string, cid?: string): void => {
+    const r = team.post(senders[from]!, { body, cid }, T0);
+    if (!r.ok) throw new Error(r.reason);
+    act(() => { receiveLobbyChatEvent('lobby_chat', JSON.parse(JSON.stringify(r.msg))); });
+  };
+  /** The lobby answer as a team-mode room sends it to a seated teammate. */
+  const lobbyTeamSync = (): void => { act(() => { receiveLobbyChatEvent('lobby_chat_sync', { ...JSON.parse(JSON.stringify(server.sync(senders[ME]!))), team: true }); }); };
+  beforeEach(() => {
+    team = new LobbyChat('team');
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    vi.spyOn(document, 'hasFocus').mockImplementation(() => true); // the page is in front of me
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+  beforeEach(() => {
+    senders[ME] = { userId: ME, role: 'player', name: 'Claudebot1', guest: false };
+    senders[MATE] = { userId: MATE, role: 'player', name: 'Mate', guest: false };
+  });
+  const tabs = (): string[] => [...(m?.container.querySelectorAll('.lchat-tabs [role="tab"]') ?? [])].map((t) => t.textContent ?? '');
+  const tab = (label: string): HTMLElement => [...m!.container.querySelectorAll<HTMLElement>('.lchat-tabs [role="tab"]')].find((t) => t.textContent?.startsWith(label))!;
+
+  it('no Team tab unless the object says I hold a team seat (a spectator, a solo mode, an older Worker)', () => {
+    answerSync();
+    expect(q('.lchat-tabs')).toBeNull();
+    expect(sent.some((s) => (s.payload as { channel?: string }).channel === 'team')).toBe(false);
+    expect(text()).toContain('Lobby chat');
+    // A team message that reaches a non-member anyway is never shown.
+    teamPost(MATE, 'secret');
+    expect(text()).not.toContain('secret');
+  });
+
+  it('a teammate: the lobby answer says team, the team backlog is asked, then Lobby and Team tabs show', () => {
+    lobbyTeamSync();
+    expect(sent.at(-1)).toEqual({ event: 'lobby_chat_sync', payload: { channel: 'team' } });
+    expect(q('.lchat-tabs')).toBeNull(); // not until the team answer arrives
+    teamSync();
+    expect(tabs()).toEqual(['Lobby', 'Team']);
+    expect(tab('Lobby').getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('a send on the Team tab goes out as team; the lists stay apart; each tab counts its own unread', () => {
+    lobbyTeamSync();
+    teamSync();
+    act(() => setLobbyChatTab('team'));
+    expect(tab('Team').getAttribute('aria-selected')).toBe('true');
+    expect((q('.lchat-input') as HTMLInputElement).placeholder).toBe('Message your team');
+    act(() => { expect(sendLobbyChat('push left')).toBeNull(); });
+    expect(sent.at(-1)).toMatchObject({ event: 'lobby_chat', payload: { body: 'push left', channel: 'team' } });
+    const cid = (sent.at(-1)!.payload as { cid: string }).cid;
+    teamPost(ME, 'push left', cid);
+    expect(useLobbyChat.getState().teamMsgs).toHaveLength(1);
+    expect(useLobbyChat.getState().msgs).toHaveLength(0);
+    // A lobby message while I look at Team: the Lobby tab counts it, Team stays read.
+    deliver(ANN, 'gl both');
+    expect(useLobbyChat.getState()).toMatchObject({ unread: 1, teamUnread: 0 });
+    expect(text()).not.toContain('gl both');
+    expect(tab('Lobby').textContent).toBe('Lobby1');
+    // Back on Lobby: read; a teammate's message now counts on Team.
+    act(() => setLobbyChatTab('lobby'));
+    expect(useLobbyChat.getState().unread).toBe(0);
+    teamPost(MATE, 'ok');
+    expect(useLobbyChat.getState().teamUnread).toBe(1);
+    expect(tab('Team').textContent).toBe('Team1');
+    // Collapsed, the button adds both up.
+    act(() => setLobbyChatOpen(false));
+    deliver(ANN, 'two');
+    expect(q('.lchat-pill')?.textContent).toContain('2');
+    // A lobby send stays a lobby send (no channel on the wire).
+    act(() => setLobbyChatOpen(true));
+    act(() => { sendLobbyChat('to all', null, 'lobby'); });
+    expect('channel' in (sent.at(-1)!.payload as object)).toBe(false);
+  });
+
+  it("a team refusal (no longer on a team) says so; a new match's full team answer starts the tab empty", () => {
+    lobbyTeamSync();
+    teamPost(MATE, 'old match');
+    teamSync();
+    expect(useLobbyChat.getState().teamMsgs.map((x) => x.body)).toEqual(['old match']);
+    act(() => setLobbyChatTab('team'));
+    act(() => { sendLobbyChat('hey'); });
+    const cid = (sent.at(-1)!.payload as { cid: string }).cid;
+    act(() => { receiveLobbyChatEvent('lobby_chat_refused', { cid, reason: 'not_member', channel: 'team' }); });
+    expect(text()).toContain('You are not on a team now.');
+    // A new match: the object's team chat is empty, and its full answer replaces what I held.
+    act(() => { receiveLobbyChatEvent('lobby_chat_sync', { msgs: [], canSend: true, channel: 'team' }); });
+    expect(useLobbyChat.getState().teamMsgs.filter((x) => !x.state)).toEqual([]);
+    // Moved to the stands: the next lobby answer has no team, and the tab goes.
+    answerSync();
+    expect(q('.lchat-tabs')).toBeNull();
+    expect(useLobbyChat.getState()).toMatchObject({ team: false, teamMsgs: [], tab: 'lobby' });
+  });
+
+  it('a reconnect catches the team up too (since its newest message), on the same socket', () => {
+    lobbyTeamSync();
+    teamPost(MATE, 'one');
+    teamSync();
+    const last = useLobbyChat.getState().teamMsgs.at(-1)!.id;
+    sent = [];
+    act(() => resyncLobbyChat());
+    lobbyTeamSync();
+    expect(sent.find((s) => (s.payload as { channel?: string }).channel === 'team')?.payload).toEqual({ since: last, channel: 'team' });
   });
 });

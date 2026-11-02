@@ -13175,6 +13175,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/handOverBoardZ.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
   {
+    id: 'R-DUOS-PASS-LATENCY-01',
+    title: 'A Duos pass lands in the teammate\x27s hand as soon as the server has it, even while they watch the sender',
+    statement:
+      'A card passed to the teammate (Versus Duos and Ranked Duos) lands in their hand the moment the room\x27s `pass` push reaches them: '
+      + 'the push carries the row and is applied at once, with no read or poll in the delivery path (the coalesced read that follows is '
+      + 'only a backstop, and a row applied twice lands once). A receiver who is WATCHING their teammate\x27s screen keeps the pushed rows '
+      + 'and lands them the instant they are back on their own screen (the watch screen holds the teammate\x27s render-only run, which '
+      + 'takes no actions), so the card is there when they return, never on the heartbeat\x27s 12 s backstop. A send that fails for a '
+      + 'transient reason (a timeout, a dropped socket) goes out again on a short timer (1 s, doubling to 8 s), not only on the sender\x27s '
+      + 'next run change; the server takes each seq once, so a retry never passes a card twice.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Player report via the coordinator, 2026-11-02 (live Versus Duos with the owner)', quote: 'so i watched you send over roomworks and it took like 8 seconds before it showed up in my hand' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02', quote: 'sometimes passes take literally 10 seconds' },
+      { kind: 'code', ref: 'fix/duos-pass-latency: packages/ui/src/versus/duosPasses.ts (duosPushed, duosBackFromMate, applyRows watch guard, retrySoon); packages/ui/src/versus/versusStore.ts (the room subscription hands the pushed row over; leaving the teammate view lands what came while watching)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-02 (fix/duos-pass-latency, client only). Before, the pushed row was only a wake: a read followed 50 ms later and landed the pass (~70 ms send to hand, measured locally), but a receiver watching their teammate had the pass "landed" on the teammate\x27s render-only run, which swallowed it, so it waited for the heartbeat\x27s every-third-beat backstop read (measured 2.7 s and 11.0 s). A failed send retried only on the sender\x27s next run change.',
+    example: 'Bob is watching Ann\x27s screen. Ann drags Roomworks onto his portrait. Bob clicks back to his own screen a second later: Roomworks drops into his hand right away (measured 7 to 12 ms after he is back, 9 to 23 ms on his own screen).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosPassLatency.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-PROG-CRATE-06',
     title: 'A chest reveal shows the reward\x27s own art for every visual cosmetic',
     statement:

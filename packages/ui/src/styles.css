@@ -4132,7 +4132,27 @@ body.modalup .app { z-index: auto; }
 /* (The dotted SVG targeting line retired 2026-07-16 — the living Pixi curve replaced it; see
    pixiFx.setAimLine + the 🎯 Hero Aim FX tuner.) */
 /* Floating prompt while a played minion waits for its targeted-Battlecry pick (Toxin Tender). */
-.targetprompt { position: fixed; left: 50%; top: 30%; transform: translateX(-50%); z-index: 92; pointer-events: none; font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); color: #fff; background: var(--acc-dk); padding: calc(7 * var(--u)) calc(18 * var(--u)); border-radius: 999px; box-shadow: 0 6px 20px -7px rgba(0, 0, 0, 0.5); border: 2px solid color-mix(in srgb, var(--acc) 70%, #fff); animation: tpfade 0.25s ease; }
+/* THE TARGETING PILL (owner ask 2026-11-01): the rail language, not the old orange (`.lrv-rank` / `.lrv-name` in
+   lobbyRailDocked.css): the navy plate gradient, a thin gold edge, title-font white text with the layered dark shadow.
+   The live numbers wear the stat colours (Attack / Health, as the card badges do) and keywords the rail's gold. One line
+   on desktop; a phone may wrap to two (centred). Static paint; the only motion is the one-shot opacity fade. */
+.targetprompt {
+  position: fixed; left: 50%; top: 30%; transform: translateX(-50%); z-index: 92; pointer-events: none;
+  max-width: calc(900 * var(--u)); box-sizing: border-box; text-align: center;
+  font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(16 * var(--u)); line-height: 1.2; letter-spacing: 0.02em;
+  color: #fff; padding: calc(7 * var(--u)) calc(18 * var(--u)); border-radius: calc(8 * var(--u));
+  border: max(1px, calc(1.5 * var(--u))) solid var(--ui-edge-main);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--lr2-navy, #0d1a36) 82%, #3a5a9a) 0%, var(--lr2-navy, #0d1a36) 55%, color-mix(in srgb, var(--lr2-navy, #0d1a36) 70%, #000) 100%);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.95), 0 6px 20px -7px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.85), 0 0 9px rgba(0, 0, 0, 0.6);
+  animation: tpfade 0.25s ease;
+}
+.targetprompt > b { font-weight: 900; }
+.targetprompt > .tp-atk { color: var(--atk, #f0a32a); }
+.targetprompt > .tp-hp { color: var(--hpc, #ff5a4f); }
+.targetprompt > .tp-kw, .targetprompt > .tp-num { color: var(--ui-title, #ffd98a); }
+/* Phones: bigger, and narrow enough that a long prompt wraps to two centred lines instead of running across the shop. */
+@media (pointer: coarse) { .targetprompt { font-size: calc(24 * var(--u)); max-width: calc(560 * var(--u)); padding: calc(8 * var(--u)) calc(20 * var(--u)); } }
 @keyframes tpfade { from { opacity: 0; } to { opacity: 1; } }
 .ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
 .ctype svg { width: 17px; height: 17px; color: var(--c); }

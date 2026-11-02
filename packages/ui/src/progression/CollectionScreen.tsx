@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ALL_COSMETIC_RARITIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_TIER_FLOOR, EMOTE_SLOT_COUNT, MILESTONE_CRATE_TIER, RARITY_LABELS, cosmeticOf, crateLabel, crateOddsLine,
   isMasterTitle, levelProgress,
@@ -43,6 +43,11 @@ import { clearLocalEmotes, equipEmoteLocally, useEmoteSlots } from '../emotes/em
 import '../emotes/emotes.css';
 import './collection.css';
 import { touchText } from '../touchInput';
+import { usePartyHome } from '../partyHome/partyHomeFlag';
+import type { CollectionPhView } from './ph/CollectionPh';
+
+/** THE PARTY HOME SHELL's skin for this page (DEV switch, lazy: production never loads it). */
+const CollectionPh = import.meta.env.DEV ? lazy(() => import('./ph/CollectionPh').then((m) => ({ default: m.CollectionPh }))) : null;
 
 /**
  * THE COLLECTION SCREEN (owner ask 2026-09-28: "make the collection screen separate"; relaid out the same day:
@@ -130,6 +135,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const aetherOn = useProgression(aetherVisible);
   const balance = useProgression(aetherBalance);
   const milestoneEvery = useProgression((s) => s.economy.milestoneEvery);
+  // THE PARTY HOME SHELL (DEV switch, off by default): the same page, state and handlers, drawn in the shell's language.
+  const ph = usePartyHome() && !!CollectionPh;
   const anonymous = useGame((s) => s.account.anonymous);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
   const userId = useGame((s) => s.account.userId);
@@ -348,6 +355,51 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     setSeenFor((prev) => ({ ...prev, ids: new Set([...prev.ids, ...ids]) }));
   };
 
+  // The pop-ups, the sign-in gate, the card-skin hover and the crate theatre: the same in either skin.
+  const overlays = (
+    <>
+      {/* NEW REWARDS (owner 2026-09-28): what the last games awarded, summarised once, then marked seen. */}
+      {introFor && <AetherIntroPopup userId={introFor} onDone={() => setIntroFor(null)} />}
+      {!introUp && <NewRewardsPopup sealedIds={sealedIds} onOpenCrates={(all) => { if (all) openAllBay(); else openBay(); }} />}
+      <CrateSignInGate open={gate} onClose={closeGate} />
+      {hover && <SkinCardPreview key={`${hover.cardId}:${hover.art ?? ''}:${hover.plate === undefined ? '' : hover.plate?.id ?? 'standard'}:${hover.rect.left}:${hover.rect.top}`} cardId={hover.cardId} art={hover.art} anchor={hover.rect} plate={hover.plate} />}
+      {theatre && (
+        <CrateOpener
+          queue={theatre.queue}
+          autoOpen
+          openAll={theatre.openAll}
+          open={theatre.open}
+          reducedMotion={reducedMotion}
+          className={ph ? 'phx' : undefined}
+          onClose={() => { setTheatre(null); void refreshCrates(); }}
+        />
+      )}
+    </>
+  );
+
+  if (ph && CollectionPh) {
+    const view: CollectionPhView = {
+      reducedMotion, anyNew, markAllSeen, total, aetherOn, openShop, me: !!me, level: lp, categories, category, pickCategory, owned, newIn, live,
+      show, setShow, rarity, setRarity, albumCount, byRarity, shown, hover: !!hover, clearHover, selectedId, worn, fresh, onPick, onHover, selected,
+      busy, error, playerName: name, showDefault: !!selected && defaultShown === selected.id && (busy || !isEquipped(selected, me)),
+      emoteMenu, onPlaceEmote: (pos) => { if (selected) void onPlaceEmote(selected, pos); },
+      onEquip: () => { if (selected) void onEquip(selected, true); }, onTakeOff: () => { if (selected) void onEquip(selected, false); },
+      cratesOn, cratesLoading: crateList === null, sealed, bayTier, nextCrateLevel, guest: anonymous, oddsLine, shopBusy, openBay, openAllBay,
+      openAccount: () => { sfx.pulse(); openAccountPanel(); },
+    };
+    return (
+      <SidebarHost className={`lbpage colls-page phc-host${reducedMotion ? ' colls-still' : ''}`}>
+        <MenuSidebar current="collection" />
+        <Suspense fallback={null}>
+          {shopShown
+            ? <CrateShop ph guest={anonymous} onGuest={openGate} onOpen={playBought} onBusy={setShopBusy} onBack={closeShop} reducedMotion={reducedMotion} />
+            : <CollectionPh view={view} />}
+        </Suspense>
+        {overlays}
+      </SidebarHost>
+    );
+  }
+
   return (
     <SidebarHost className={`lbpage colls-page${reducedMotion ? ' colls-still' : ''}`}>
       <MenuSidebar current="collection" />
@@ -495,21 +547,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
         </>
       )}
 
-      {/* NEW REWARDS (owner 2026-09-28): what the last games awarded, summarised once, then marked seen. */}
-      {introFor && <AetherIntroPopup userId={introFor} onDone={() => setIntroFor(null)} />}
-      {!introUp && <NewRewardsPopup sealedIds={sealedIds} onOpenCrates={(all) => { if (all) openAllBay(); else openBay(); }} />}
-      <CrateSignInGate open={gate} onClose={closeGate} />
-      {hover && <SkinCardPreview key={`${hover.cardId}:${hover.art ?? ''}:${hover.plate === undefined ? '' : hover.plate?.id ?? 'standard'}:${hover.rect.left}:${hover.rect.top}`} cardId={hover.cardId} art={hover.art} anchor={hover.rect} plate={hover.plate} />}
-      {theatre && (
-        <CrateOpener
-          queue={theatre.queue}
-          autoOpen
-          openAll={theatre.openAll}
-          open={theatre.open}
-          reducedMotion={reducedMotion}
-          onClose={() => { setTheatre(null); void refreshCrates(); }}
-        />
-      )}
+      {overlays}
     </SidebarHost>
   );
 }
@@ -696,7 +734,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
  * drawn like the in-game menu: an emote's bubble, or the dashed empty-slot frame. With an OWNED emote selected each slot
  * is a button that puts it there (the one already holding it is ringed); otherwise the row is read-only.
  */
-function EmoteSlotRow({ item, owned, busy, slots, onPlace }: {
+export function EmoteSlotRow({ item, owned, busy, slots, onPlace }: {
   item: CosmeticDef; owned: boolean; busy: boolean; slots?: readonly (string | null)[]; onPlace?: (position: number) => void;
 }): JSX.Element {
   const row = slots ?? Array.from({ length: EMOTE_SLOT_COUNT }, () => null);
@@ -732,7 +770,7 @@ function EmoteSlotRow({ item, owned, busy, slots, onPlace }: {
  * "Use default frame" it shows the default ring instead. NOT OWNED: only the ring itself, blurred, and never around a
  * portrait (owner 2026-10-01: "do not allow preview if you do not own the art").
  */
-function FramePreview({ item, owned, showDefault }: { item: CosmeticDef; owned: boolean; showDefault: boolean }): JSX.Element | null {
+export function FramePreview({ item, owned, showDefault }: { item: CosmeticDef; owned: boolean; showDefault: boolean }): JSX.Element | null {
   const avatar = useGame((s) => s.playerAvatar);
   const portrait = avatarSrc(avatar) ?? heroArt(HEROES[0]!.id);
   if (!owned) {
@@ -755,7 +793,7 @@ function FramePreview({ item, owned, showDefault }: { item: CosmeticDef; owned: 
 const PLATE_SAMPLE_CARD = 'dm_todd';
 
 /** A plate item's look (art + darkening), or null for an item this client has no art for. */
-const plateLookOf = (item: CosmeticDef | null | undefined): CardPlateLook | null => {
+export const plateLookOf = (item: CosmeticDef | null | undefined): CardPlateLook | null => {
   const key = item?.category === 'card_plate' ? item.assets.art : undefined;
   return key ? CARD_PLATE_LOOKS[key] ?? null : null;
 };
@@ -827,7 +865,7 @@ function ComingSoon({ category }: { category: CosmeticCategory }): JSX.Element {
 
 // ── Glyphs ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-function LockGlyph(): JSX.Element {
+export function LockGlyph(): JSX.Element {
   // The painted padlock medallion (owner art 2026-10-31); every `.colls-lock` size rule still sizes it.
   return <MenuMedal name="padlock" className="colls-lock" />;
 }
@@ -851,7 +889,7 @@ const CAT_ART: Partial<Record<CosmeticCategory, MenuMedalName>> = {
   emote: 'emotes', card_plate: 'plates',
 };
 
-function CategoryIcon({ category }: { category: CosmeticCategory }): JSX.Element {
+export function CategoryIcon({ category }: { category: CosmeticCategory }): JSX.Element {
   const art = CAT_ART[category];
   if (art) return <MenuMedal name={art} className="colls-caticon" />;
   return <svg className="colls-caticon" viewBox="0 0 24 24" aria-hidden><path fill="currentColor" d={CAT_PATHS[category]} /></svg>;

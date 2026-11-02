@@ -13446,4 +13446,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Kevin is in the Scene Builder. He clicks the – in its header: the panel shrinks to a bar reading "Scene Builder R1 · 8 left GOD" with a restore button. He clicks ✕: the panel is gone and the shop keeps running. He opens the dev menu, clicks Scene Builder, and the panel is back with his search still typed in.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/sceneBuilderPanel.test.tsx', 'packages/ui/src/devCorner.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-PH-COLLECTION-01',
+    title: 'DEV: under the party home switch the Collection and the Chest Shop are drawn in the shell, with nothing lost, and a failed chest opening stays on screen',
+    statement:
+      'With the DEV "Party home (prototype)" switch on, the Collection page sits under the top nav as a shell kit page: the categories (owned / total, NEW count, Soon) and the sealed-chest bay (count, Open, Open all, the next chest\x27s level, your XP toward it, the odds) on the left; the Show tabs, rarity filters and the album in the middle; the selected item\x27s live preview, facts and Equip on the right. '
+      + 'The Chest Shop is the same shop in the shell (the chest cards, focus rows, receipt, odds and buy, every celebration intact), and the chest opening keeps its reveal while its buttons and notes take the shell\x27s look. '
+      + 'Every capability and rule of the page is unchanged (guests are gated, a purchase is never charged twice, Esc goes back). '
+      + 'A failed chest opening is never pulled off screen by the shell. With the switch off, and in every production build, the page is today\x27s.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (party home revamp)', quote: 'like all of these menus should get revamped to work with the new setup as well' },
+      { kind: 'code', ref: 'packages/ui/src/progression/ph/CollectionPh.tsx, packages/ui/src/progression/ph/CrateShopPh.tsx, packages/ui/src/progression/CollectionScreen.tsx, packages/ui/src/progression/CrateShop.tsx (useCrateShop), packages/ui/src/progression/crateFx/crateTheatre.css (.crate.crth.ph-error)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (feat/ph-page-collection). Before, the pages rendered their old layout under the top nav, and a failed chest opening under the switch slid half off screen: the theatre\x27s phase class `ph-error` matched the party home\x27s own `.ph-error` note rule.',
+    example: 'Kevin turns on the party home switch and opens Collection: Heroes, Minions and the rest are a list on the left with his 3 sealed chests under them, the album in the middle, Surf Day Albus large on the right with Equip. He opens a chest that fails: the chest and its Try again sit in the middle of the screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/ph/CollectionPh.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

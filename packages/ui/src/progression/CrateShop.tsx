@@ -58,7 +58,7 @@
  * into it) and replaces that host's previous burst. Reduced motion (`reducedMotion` or the OS) draws nothing; the
  * sounds still play.
  */
-import { memo, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Suspense, lazy, memo, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_TIERS, CRATE_TIER_FLOOR, CRATE_TIER_LABELS, RARITY_LABELS,
   availableFocusCategories, quoteCrate, tierOddsPercent, withStarterCosmetics,
@@ -93,7 +93,12 @@ export interface CrateShopProps {
   onBack: () => void;
   /** The page's reduced-motion setting: no one-shots, nothing breathing (the states still read). */
   reducedMotion?: boolean;
+  /** The party home shell is on (DEV switch): the same shop, drawn in the shell's language (`ph/CrateShopPh.tsx`). */
+  ph?: boolean;
 }
+
+/** THE PARTY HOME SHELL's skin for this screen (DEV only, lazy: production never loads it). */
+const CrateShopPh = import.meta.env.DEV ? lazy(() => import('./ph/CrateShopPh').then((m) => ({ default: m.CrateShopPh }))) : null;
 
 const EMPTY: readonly string[] = [];
 
@@ -134,7 +139,7 @@ function receiptRows(price: number, ticked: readonly CosmeticCategory[], availab
 }
 
 /** One receipt amount: "+400" for the focus cost, "−160" for a discount, plain "0" for nothing (never "−0"). */
-function Amount({ value, cost }: { value: number; cost?: boolean }): JSX.Element {
+export function Amount({ value, cost }: { value: number; cost?: boolean }): JSX.Element {
   const sign = value > 0 && cost ? '+' : value < 0 ? MINUS : '';
   return <span className="cshop-amt">{sign}<AetherIcon />{Math.abs(value)}</span>;
 }
@@ -154,7 +159,7 @@ const TIER_TIP: Readonly<Record<CrateTier, TierTip>> = Object.fromEntries(
 
 /** One chest card: the painted chest, its name in its tier colour, its price; the tip below it on hover (and on a tap,
  *  through the `.tt-on` twin). The card is the stable host the pick celebration attaches to. */
-const ChestCard = memo(function ChestCard({ tier, price, on, reduced, locked, onPick }: {
+export const ChestCard = memo(function ChestCard({ tier, price, on, reduced, locked, onPick }: {
   tier: CrateTier; price: number; on: boolean; reduced: boolean; locked: boolean; onPick: (t: CrateTier) => void;
 }): JSX.Element {
   const tipId = useId();
@@ -192,7 +197,7 @@ const ChestCard = memo(function ChestCard({ tier, price, on, reduced, locked, on
 
 /** One focus row: the category, its count left to find at this floor, its toggle. The row (and the toggle in it) is the
  *  stable host the toggle-on celebration attaches to. */
-const FocusRow = memo(function FocusRow({ cat, left, on, soldOut, reduced, locked, onToggle }: {
+export const FocusRow = memo(function FocusRow({ cat, left, on, soldOut, reduced, locked, onToggle }: {
   cat: CosmeticCategory; left: number; on: boolean; soldOut: boolean; reduced: boolean; locked: boolean; onToggle: (cat: CosmeticCategory) => void;
 }): JSX.Element {
   const label = COSMETIC_CATEGORY_DEFS[cat].label;
@@ -220,7 +225,7 @@ const FocusRow = memo(function FocusRow({ cat, left, on, soldOut, reduced, locke
 });
 
 /** One odds slice: the rarity's share, only its percent inside; its tip names the categories it can come from. */
-const OddsSeg = memo(function OddsSeg({ slice }: { slice: OddsSlice }): JSX.Element {
+export const OddsSeg = memo(function OddsSeg({ slice }: { slice: OddsSlice }): JSX.Element {
   const tipId = useId();
   const name = RARITY_LABELS[slice.rarity];
   return (
@@ -247,7 +252,88 @@ const DIVIDER_SRC = publicArt('frames/name-divider.webp');
 
 /** Memoized: the Collection page re-renders on its own state; the shop's props are stable (`useCallback` handlers, the
  *  setState `onBusy`), so those renders skip this screen. */
-export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBusy, onBack, reducedMotion }: CrateShopProps): JSX.Element {
+export const CrateShop = memo(function CrateShop(props: CrateShopProps): JSX.Element {
+  const shop = useCrateShop(props);
+  if (props.ph && CrateShopPh) return <Suspense fallback={null}><CrateShopPh shop={shop} /></Suspense>;
+  const {
+    still, busy, back, balance, economy, tier, pickTier, cats, left, ticked, available, toggle, tierLabel, price, receipt, quote, slices, disabled, ariaLabel, label, spend, error,
+  } = shop;
+  return (
+    <section className={`cshop${still ? ' cshop-still' : ''}`} aria-label="Chest Shop">
+      <div className="cshop-page">
+        <div className="cshop-top">
+          <button type="button" className="cshop-gem cshop-back" disabled={busy} onClick={back}>◀ Collection</button>
+          <h2 className="cshop-title">Chest Shop</h2>
+          <span className="cshop-spacer" />
+          <div className="cshop-gem cshop-wallet" role="group" aria-label="Aether balance">
+            <AetherIcon className="cshop-wallet-gem" />{balance} <small>Aether</small>
+          </div>
+        </div>
+
+        <div className="cshop-sec-h">
+          <span>PICK A CHEST</span>
+          <img src={DIVIDER_SRC} alt="" aria-hidden="true" draggable={false} decoding="sync" />
+        </div>
+        <div className="cshop-chests" role="group" aria-label="Chest">
+          {CRATE_TIERS.map((t) => <ChestCard key={t} tier={t} price={economy.cratePrice[t]} on={tier === t} reduced={still} locked={busy} onPick={pickTier} />)}
+        </div>
+
+        <div className="cshop-lower">
+          <section className="cshop-panel cshop-focus" aria-label="Focus Chest">
+            <div className="cshop-panel-h"><span>FOCUS CHEST</span><em>The more categories you select, the cheaper the fee!</em></div>
+            <div className="cshop-cats" role="group" aria-label="Focus">
+              <div className="cshop-cat cshop-cat-head" aria-hidden="true"><span>CATEGORY</span><span>LEFT TO FIND</span></div>
+              {cats.map((c) => (
+                <FocusRow key={c} cat={c} left={left.get(c) ?? 0} on={ticked.has(c) && available.has(c)} soldOut={!available.has(c)} reduced={still} locked={busy} onToggle={toggle} />
+              ))}
+            </div>
+          </section>
+
+          <section className="cshop-panel cshop-checkout" aria-label="Your Chest">
+            <div className="cshop-panel-h"><span>YOUR CHEST</span></div>
+            <div className="cshop-receipt">
+              <div className="cshop-line"><span className="cshop-what">{tierLabel} Chest</span><span className="cshop-dots" /><Amount value={price} /></div>
+              {receipt && (
+                <>
+                  <div className="cshop-line cshop-fee"><span className="cshop-what">Focusing</span></div>
+                  <div className="cshop-subs">
+                    {receipt.rows.map((r, i) => (
+                      <div key={r.category} className="cshop-sub">
+                        <span className="cshop-what">{COSMETIC_CATEGORY_DEFS[r.category].label}</span><span className="cshop-dots" /><Amount value={r.amount} cost={i === 0} />
+                      </div>
+                    ))}
+                  </div>
+                  {receipt.noFocus && <div className="cshop-allnote">Everything ticked: no focus, so any category can drop, Announcers too.</div>}
+                </>
+              )}
+              <div className="cshop-line cshop-total"><span className="cshop-what">Total</span><span className="cshop-dots" /><Amount value={quote?.total ?? price} /></div>
+            </div>
+            <div className="cshop-odds">
+              <h4>ODDS</h4>
+              <div className="cshop-bars" role="group" aria-label="Odds">
+                {slices.map((s) => <OddsSeg key={s.rarity} slice={s} />)}
+              </div>
+            </div>
+            <div className="cshop-buywrap">
+              <button
+                type="button" className={`cshop-gem cshop-buy${busy ? ' pressed' : ''}`} disabled={disabled} aria-busy={busy || undefined}
+                aria-label={ariaLabel} onClick={() => { void spend(); }}
+              >
+                {label}
+              </button>
+              {error && <p className="cshop-err" role="alert">{error}</p>}
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  );
+});
+
+/** Everything the Chest Shop knows and does, whichever skin draws it (today's screen, or the party home shell's). */
+export type CrateShopState = ReturnType<typeof useCrateShop>;
+
+function useCrateShop({ guest, onGuest, onOpen, onBusy, onBack, reducedMotion }: CrateShopProps) {
   const economy = useProgression((s) => s.economy);
   const balance = useProgression(aetherBalance);
   const catalogEpoch = useProgression((s) => s.catalogEpoch);
@@ -390,74 +476,8 @@ export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBus
     onOpen(item, () => Promise.resolve({ status: 'ok', result }));
   };
 
-  return (
-    <section className={`cshop${still ? ' cshop-still' : ''}`} aria-label="Chest Shop">
-      <div className="cshop-page">
-        <div className="cshop-top">
-          <button type="button" className="cshop-gem cshop-back" disabled={busy} onClick={back}>◀ Collection</button>
-          <h2 className="cshop-title">Chest Shop</h2>
-          <span className="cshop-spacer" />
-          <div className="cshop-gem cshop-wallet" role="group" aria-label="Aether balance">
-            <AetherIcon className="cshop-wallet-gem" />{balance} <small>Aether</small>
-          </div>
-        </div>
-
-        <div className="cshop-sec-h">
-          <span>PICK A CHEST</span>
-          <img src={DIVIDER_SRC} alt="" aria-hidden="true" draggable={false} decoding="sync" />
-        </div>
-        <div className="cshop-chests" role="group" aria-label="Chest">
-          {CRATE_TIERS.map((t) => <ChestCard key={t} tier={t} price={economy.cratePrice[t]} on={tier === t} reduced={still} locked={busy} onPick={pickTier} />)}
-        </div>
-
-        <div className="cshop-lower">
-          <section className="cshop-panel cshop-focus" aria-label="Focus Chest">
-            <div className="cshop-panel-h"><span>FOCUS CHEST</span><em>The more categories you select, the cheaper the fee!</em></div>
-            <div className="cshop-cats" role="group" aria-label="Focus">
-              <div className="cshop-cat cshop-cat-head" aria-hidden="true"><span>CATEGORY</span><span>LEFT TO FIND</span></div>
-              {cats.map((c) => (
-                <FocusRow key={c} cat={c} left={left.get(c) ?? 0} on={ticked.has(c) && available.has(c)} soldOut={!available.has(c)} reduced={still} locked={busy} onToggle={toggle} />
-              ))}
-            </div>
-          </section>
-
-          <section className="cshop-panel cshop-checkout" aria-label="Your Chest">
-            <div className="cshop-panel-h"><span>YOUR CHEST</span></div>
-            <div className="cshop-receipt">
-              <div className="cshop-line"><span className="cshop-what">{tierLabel} Chest</span><span className="cshop-dots" /><Amount value={price} /></div>
-              {receipt && (
-                <>
-                  <div className="cshop-line cshop-fee"><span className="cshop-what">Focusing</span></div>
-                  <div className="cshop-subs">
-                    {receipt.rows.map((r, i) => (
-                      <div key={r.category} className="cshop-sub">
-                        <span className="cshop-what">{COSMETIC_CATEGORY_DEFS[r.category].label}</span><span className="cshop-dots" /><Amount value={r.amount} cost={i === 0} />
-                      </div>
-                    ))}
-                  </div>
-                  {receipt.noFocus && <div className="cshop-allnote">Everything ticked: no focus, so any category can drop, Announcers too.</div>}
-                </>
-              )}
-              <div className="cshop-line cshop-total"><span className="cshop-what">Total</span><span className="cshop-dots" /><Amount value={quote?.total ?? price} /></div>
-            </div>
-            <div className="cshop-odds">
-              <h4>ODDS</h4>
-              <div className="cshop-bars" role="group" aria-label="Odds">
-                {slices.map((s) => <OddsSeg key={s.rarity} slice={s} />)}
-              </div>
-            </div>
-            <div className="cshop-buywrap">
-              <button
-                type="button" className={`cshop-gem cshop-buy${busy ? ' pressed' : ''}`} disabled={disabled} aria-busy={busy || undefined}
-                aria-label={ariaLabel} onClick={() => { void spend(); }}
-              >
-                {label}
-              </button>
-              {error && <p className="cshop-err" role="alert">{error}</p>}
-            </div>
-          </section>
-        </div>
-      </div>
-    </section>
-  );
-});
+  return {
+    guest, still, busy, error, back, balance, economy, tier, pickTier, cats, left, ticked, available, toggle, tierLabel, name, price, focus,
+    receipt, quote, slices, needMore, disabled, ariaLabel, label, spend,
+  };
+}

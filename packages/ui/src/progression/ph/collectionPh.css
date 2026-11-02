@@ -1,0 +1,213 @@
+/* ── THE COLLECTION + CHEST SHOP IN THE PARTY HOME SHELL (DEV only; CollectionPh.tsx, CrateShopPh.tsx) ──────────────────
+   The shell kit's language only: `--ph-*` tokens (partyHome/shell/shell.css), sizes in `--phu`, spacing in multiples of 8,
+   the five type sizes, the cut corner. Rarity colours are the shared `.r-*` tokens (`--rc`): data, not chrome.
+   PERFORMANCE: static paint. Hover is a colour or a one-shot transform; nothing loops. Bars are scaleX (transform). */
+
+/* ── The page: the body does not scroll; each column does. ── */
+.phc .phk-pagebody { overflow: hidden; padding-bottom: calc(24 * var(--phu) + var(--safe-b, 0px)); }
+.phc-body { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(288 * var(--phu)) minmax(0, 1fr) calc(432 * var(--phu)); gap: calc(24 * var(--phu)); }
+.phc-rail, .phc-side { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
+.phc-rail { display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+.phc-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+.phc-gridwrap { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 calc(8 * var(--phu)) calc(32 * var(--phu)) 0;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 32 * var(--phu)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 32 * var(--phu)), transparent); scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
+
+/* ── The header's actions ── */
+.phc-meter { display: grid; grid-template-columns: auto auto; align-items: baseline; justify-content: space-between; column-gap: calc(16 * var(--phu)); row-gap: calc(4 * var(--phu));
+  min-width: calc(192 * var(--phu)); box-sizing: border-box; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phc-meter-num { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
+.phc-meter-num b { font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); }
+.phc-meter-lbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
+.phc-meter .phc-bar { grid-column: 1 / -1; }
+.phc-bar { position: relative; display: block; height: calc(4 * var(--phu)); background: rgba(0, 0, 0, 0.55); overflow: hidden; }
+.phc-bar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
+.phc-shopbtn > span, .phs-wallet { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
+.phc-aether.aether-icon, .phc-shopbtn .aether-icon { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); }
+
+/* ── The categories (left) ── */
+.phc-cats { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
+.phc-cat { position: relative; flex: none; display: flex; align-items: center; gap: calc(12 * var(--phu)); height: calc(56 * var(--phu)); padding: 0 calc(16 * var(--phu)) 0 calc(8 * var(--phu)); margin: 0; border: 0; border-radius: 0;
+  background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); color: var(--ph-text); text-align: left; font: inherit; }
+.phc-cat:hover { background: var(--ph-plate-hover); }
+.phc-cat.on { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
+.phc-cat-icon { flex: none; display: grid; place-items: center; width: calc(40 * var(--phu)); height: calc(40 * var(--phu)); }
+.phc-cat-icon .colls-caticon { width: 100%; height: 100%; object-fit: contain; color: var(--ph-gold); }
+.phc-cat-who { min-width: 0; display: flex; flex-direction: column; gap: calc(2 * var(--phu)); }
+.phc-cat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.phc-cat.on .phc-cat-name { color: var(--ph-ink); }
+.phc-cat-count { font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
+.phc-cat-new { margin-left: auto; min-width: calc(20 * var(--phu)); padding: 0 calc(4 * var(--phu)); background: var(--pill-red, #ff7a66); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); line-height: calc(20 * var(--phu)); text-align: center; clip-path: var(--ph-clip-s); }
+.phc-cat-lock { margin-left: auto; display: grid; }
+.phc-cat-lock .colls-lock { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); opacity: 0.7; }
+.phc-cat.locked .phc-cat-icon, .phc-cat.locked .phc-cat-name { opacity: 0.5; }
+.phc-cat-bar { position: absolute; left: calc(60 * var(--phu)); right: calc(16 * var(--phu)); bottom: calc(8 * var(--phu)); height: calc(2 * var(--phu)); background: rgba(0, 0, 0, 0.5); overflow: hidden; }
+.phc-cat-bar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
+
+/* ── The chest bay (left, under the categories) ── */
+.phc-bay { flex: none; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); padding: calc(16 * var(--phu)); background: var(--ph-plate);
+  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); clip-path: var(--ph-clip); }
+.phc-bay.ready { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); }
+.phc-bay-top { display: flex; align-items: center; gap: calc(12 * var(--phu)); }
+.phc-bay-art { flex: none; width: calc(96 * var(--phu)); }
+.phc-bay:not(.ready) .phc-bay-art { opacity: 0.45; }
+.phc-bay-who { min-width: 0; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); }
+.phc-bay-lbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
+.phc-bay-num { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.phc-bay-num b { font-weight: 900; font-size: var(--ph-t4); line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow); margin-right: calc(4 * var(--phu)); }
+.phc-bay-sub { font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
+.phc-bay-guest { font-size: var(--ph-t1); color: var(--ph-foe); }
+.phc-bay-actions { display: flex; gap: calc(8 * var(--phu)); }
+.phc-bay-actions .phk-btn { flex: 1; padding: 0 calc(8 * var(--phu)); }
+.phc-bay-actions .colls-lock { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); margin-right: calc(4 * var(--phu)); }
+.phc-bay-level { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: calc(8 * var(--phu)); padding-top: calc(12 * var(--phu)); box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair);
+  font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
+.phc-bay-lvl { font-family: var(--ph-font); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.phc-bay-lvl b { font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
+.phc-bay-odds { font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
+.phc-guest { display: flex; flex-direction: column; align-items: flex-start; gap: calc(8 * var(--phu)); padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-size: var(--ph-t1); color: var(--ph-muted); }
+.phc-guest .phk-btn { padding: 0; height: auto; }
+
+/* ── The filters (centre, above the album) ── */
+.phc-filters { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: calc(8 * var(--phu)); box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
+.phc-filters .phk-tab:first-child { padding-left: 0; }
+.phc-filters .phk-tab:first-child.on::after { left: 0; }
+.phc-n { font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.phk-tab.on .phc-n { color: var(--ph-text); }
+.phc-rarities { display: flex; flex-wrap: wrap; gap: calc(8 * var(--phu)); padding-bottom: calc(8 * var(--phu)); }
+.phc-rchip { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)); margin: 0; border: 0; border-radius: 0;
+  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; color: var(--ph-text); }
+.phc-rchip:hover { background: var(--ph-plate-hover); color: var(--ph-ink); }
+.phc-rchip.on { background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); color: var(--ph-ink); }
+.phc-gem { flex: none; display: inline-block; width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); transform: rotate(45deg); background: var(--rc, var(--ph-gold)); }
+.r-ancient .phc-gem, .r-secret .phc-gem { background: var(--rc-grad); }
+
+/* ── The album ── */
+.phc-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(216 * var(--phu)), 1fr)); gap: calc(12 * var(--phu)); }
+.phc-grid > li { display: flex; min-width: 0; width: 100%; margin: 0; justify-self: stretch; }
+.phc-tile { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; min-height: calc(120 * var(--phu)); box-sizing: border-box;
+  padding: calc(12 * var(--phu)) calc(16 * var(--phu)) calc(16 * var(--phu)); margin: 0; border: 0; border-radius: 0; overflow: hidden; text-align: left; font: inherit; color: var(--ph-text);
+  background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--rc) 20%, transparent) 100%), var(--ph-plate);
+  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair), inset 0 calc(-3 * var(--phu)) 0 var(--rc); clip-path: var(--ph-clip-s); }
+.phc-grid.art .phc-tile { min-height: calc(240 * var(--phu)); }
+.phc-tile.sel { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), inset 0 calc(-3 * var(--phu)) 0 var(--rc); }
+.phc-tile.missing { background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--rc) 8%, transparent) 100%), var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair), inset 0 calc(-3 * var(--phu)) 0 color-mix(in srgb, var(--rc) 45%, transparent); }
+.phc-tile.missing.sel { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), inset 0 calc(-3 * var(--phu)) 0 color-mix(in srgb, var(--rc) 45%, transparent); }
+.phc-tile-art { position: absolute; inset: 0; pointer-events: none; }
+.phc-tile-art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; -webkit-mask-image: linear-gradient(180deg, #000 50%, transparent 92%); mask-image: linear-gradient(180deg, #000 50%, transparent 92%); }
+.phc-tile.contain .phc-tile-art { inset: calc(16 * var(--phu)) calc(16 * var(--phu)) calc(72 * var(--phu)); }
+.phc-tile.contain .phc-tile-art img { object-fit: contain; object-position: 50% 50%; -webkit-mask-image: none; mask-image: none; }
+/* Unowned art stays dark and unreadable (owner 2026-10-01: "do not allow preview if you do not own the art"). Static. */
+.phc-tile.missing .phc-tile-art img { filter: saturate(0) brightness(0.3) contrast(1.2); }
+.phc-tile-text { position: relative; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; }
+.phc-tile-for { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.phc-tile-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); line-height: 1.15; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phc-tile.missing .phc-tile-name { color: var(--ph-muted); }
+.phc-tile-name .titlebadge.colls-titleplate { --tb-fs: calc(15 * var(--phu)); }
+.phc-tile-rar { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--rc); text-shadow: var(--ph-shadow); }
+.phc-tile.missing .phc-tile-rar { opacity: 0.7; }
+.phc-tile-how { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--ph-t1); line-height: 1.35; color: var(--ph-muted); }
+.phc-tile-lock { position: absolute; top: calc(12 * var(--phu)); right: calc(12 * var(--phu)); display: grid; }
+.phc-tile-lock .colls-lock { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); opacity: 0.75; }
+.phc-tile-tags { position: absolute; top: calc(12 * var(--phu)); left: calc(12 * var(--phu)); display: flex; }
+.phc-tile:focus-visible, .phc-cat:focus-visible, .phc-rchip:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(-2 * var(--phu)); }
+
+/* A switched-off category. */
+.phc-soon { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip); }
+.phc-soon-icon { display: grid; width: calc(72 * var(--phu)); height: calc(72 * var(--phu)); opacity: 0.6; }
+.phc-soon-icon .colls-caticon { width: 100%; height: 100%; object-fit: contain; color: var(--ph-gold); }
+
+/* ── The detail column (right) ── */
+.phc-detail { box-sizing: border-box; min-height: 100%; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); padding: calc(16 * var(--phu)) calc(16 * var(--phu)) calc(24 * var(--phu));
+  background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); clip-path: var(--ph-clip); }
+.phc-detail.phk-section .phk-secbody { flex: 1; justify-content: center; }
+.phc-stage { position: relative; flex: none; display: grid; place-items: center; height: calc(312 * var(--phu)); overflow: hidden;
+  background: radial-gradient(60% 60% at 50% 45%, color-mix(in srgb, var(--rc) 24%, transparent), transparent 75%), var(--ph-well);
+  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phc-stage-hover { position: absolute; inset: 0; display: grid; place-items: center; }
+.phc-stage-img.contain { max-width: 80%; max-height: 86%; object-fit: contain; }
+.phc-stage-hover .phc-stage-img.contain { max-height: 90%; }
+.phc-stage-img.cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
+.phc-detail.missing .phc-stage img, .phc-detail.missing .phc-stage .heroimg { filter: saturate(0.25) brightness(0.5); }
+.phc-stage .colls-heroring { --ring: calc(232 * var(--phu)); }
+.phc-stage .colls-skinart.colls-framelocked { width: calc(232 * var(--phu)); height: calc(232 * var(--phu)); }
+.phc-stage .colls-default-tag { display: none; }
+.phc-stage .hapv { width: 100%; height: 100%; }
+.phc-stage-title { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(16 * var(--phu)); text-align: center; }
+.phc-stage-lbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-muted); }
+.phc-stage-name { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phc-stage-sub { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t3); letter-spacing: 0.08em; text-transform: uppercase; color: #fbe6a6; text-shadow: var(--ph-shadow); }
+.phc-stage-sub .titlebadge.colls-titleplate { --tb-fs: calc(16 * var(--phu)); }
+.phc-stage-icon { display: grid; width: calc(96 * var(--phu)); height: calc(96 * var(--phu)); }
+.phc-stage-icon img, .phc-stage-icon svg { width: 100%; height: 100%; object-fit: contain; }
+.phc-stage-tag { position: absolute; left: 50%; bottom: calc(12 * var(--phu)); transform: translateX(-50%); }
+.phc-stage-lock { position: absolute; top: calc(12 * var(--phu)); right: calc(12 * var(--phu)); }
+.phc-stage-lock .colls-lock { width: calc(14 * var(--phu)); height: calc(14 * var(--phu)); }
+.phc-name { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); }
+.phc-kind { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
+.phc-name h2 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; color: var(--ph-ink); text-shadow: var(--ph-shadow); overflow-wrap: anywhere; }
+.phc-name h2 .titlebadge.colls-titleplate-lg { --tb-fs: calc(22 * var(--phu)); }
+.phc-rarity { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--rc); text-shadow: var(--ph-shadow); }
+.phc-facts { margin: 0; display: flex; flex-direction: column; }
+.phc-fact { display: grid; grid-template-columns: calc(112 * var(--phu)) minmax(0, 1fr); gap: calc(12 * var(--phu)); padding: calc(8 * var(--phu)) 0; box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
+.phc-fact:first-child { box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair), inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
+.phc-fact dt { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); padding-top: calc(2 * var(--phu)); }
+.phc-fact dd { margin: 0; font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-text); }
+.phc-fact dd.yes { color: var(--ph-ink); font-weight: 800; }
+.phc-fact dd.no { color: var(--ph-muted); font-weight: 800; }
+.phc-actions { margin-top: auto; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); }
+.phc-equip { width: 100%; }
+.phc-worn { display: flex; align-items: center; justify-content: space-between; gap: calc(12 * var(--phu)); }
+.phc-hint { padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-text); }
+.phc-error { font-size: var(--ph-t2); color: var(--ph-foe); }
+/* The emote menu's eight slots, in the shell's wells. */
+.phc-actions .colls-emote-slots { gap: calc(8 * var(--phu)); }
+.phc-actions .colls-emote-slots .emote-pick { height: calc(72 * var(--phu)); border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phc-actions .colls-emote-slots .emote-pick.emote-slot-empty { border: 0; box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); opacity: 0.6; }
+.phc-actions .colls-emote-slots .emote-pick.on { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); background: var(--ph-plate); }
+.phc-actions .colls-emote-slot-n { font-family: var(--ph-font); font-size: var(--ph-t1); color: var(--ph-muted); }
+
+/* ── PHONES (landscape, 844 x 390): the categories become one compact sideways row above two columns (the album and
+   the detail), each scrolling on its own like the desktop, so Equip is always one glance away. The chest bay leads
+   the category row. ── */
+html[data-ph-shell][data-touch-small] .phc-body { grid-template-columns: minmax(0, 1fr) calc(320 * var(--phu)); grid-template-rows: auto minmax(0, 1fr); gap: calc(12 * var(--phu)) calc(16 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-rail { grid-column: 1 / -1; flex-direction: row; align-items: stretch; gap: calc(8 * var(--phu)); overflow: auto hidden; scrollbar-width: none; }
+html[data-ph-shell][data-touch-small] .phc-rail::-webkit-scrollbar { display: none; }
+html[data-ph-shell][data-touch-small] .phc-cats { flex-direction: row; }
+html[data-ph-shell][data-touch-small] .phc-cat { height: calc(56 * var(--phu)); padding-right: calc(16 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-bay { flex: none; flex-direction: row; align-items: center; gap: calc(12 * var(--phu)); padding: calc(4 * var(--phu)) calc(12 * var(--phu)); clip-path: var(--ph-clip-s); }
+html[data-ph-shell][data-touch-small] .phc-bay-level, html[data-ph-shell][data-touch-small] .phc-bay-odds, html[data-ph-shell][data-touch-small] .phc-bay-top .phc-bay-sub { display: none; }
+html[data-ph-shell][data-touch-small] .phc-bay-art { width: calc(56 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-bay-num b { font-size: var(--ph-t3); }
+html[data-ph-shell][data-touch-small] .phc-guest { flex: none; max-width: calc(260 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-stage { height: calc(176 * var(--phu)); }
+/* The chests lead the row (they are what a phone visit is usually for); Equip stays pinned at the column's foot. */
+html[data-ph-shell][data-touch-small] .phc-bay { order: -1; }
+html[data-ph-shell][data-touch-small] .phc-actions { position: sticky; bottom: calc(-24 * var(--phu)); z-index: 2; margin: auto calc(-16 * var(--phu)) calc(-24 * var(--phu)); padding: calc(12 * var(--phu)) calc(16 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-navy); box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair); }
+html[data-ph-shell][data-touch-small] .phc-stage .colls-heroring { --ring: calc(150 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-stage .colls-skinart.colls-framelocked { width: calc(150 * var(--phu)); height: calc(150 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-grid.art .phc-tile { min-height: calc(200 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-grid { grid-template-columns: repeat(auto-fill, minmax(calc(180 * var(--phu)), 1fr)); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .colls-page:not(.colls-still) .phc-tile, .colls-page:not(.colls-still) .phc-cat { transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+  .colls-page:not(.colls-still) .phc-tile:hover { transform: translateY(calc(-2 * var(--phu))); }
+}
+
+/* ── THE CHEST OPENING's surrounding UI (the theatre wears `phx` from this page; CrateOpener.tsx). The reveal itself
+   (the Pixi layer, the chest, the rays, the reward plate, its gem, ribbon and shine) is untouched: only the chest's
+   name, the notes, the summary and the buttons take the shell's language. Theatre px (it is drawn on the stage). ── */
+.crth.phx .crate-name { font-family: var(--ph-font); font-size: 22px; letter-spacing: 0.24em; text-transform: uppercase; color: #fff; text-shadow: var(--ph-shadow); }
+.crth.phx .crate-name::before { background: linear-gradient(90deg, transparent, var(--ph-gold)); }
+.crth.phx .crate-name::after { background: linear-gradient(90deg, transparent, var(--ph-gold)); }
+.crth.phx .crate-btn { height: 52px; padding: 0 40px; border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-metal-gold); box-shadow: none;
+  font-family: var(--ph-font); font-weight: 900; font-size: 16px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+.crth.phx .crate-btn:hover:not(:disabled), .crth.phx .crate-btn:focus-visible { background: var(--ph-metal-gold); color: #000; }
+.crth.phx .crate-btn.crate-btn-quiet { background: var(--ph-plate); box-shadow: inset 0 0 0 1.5px var(--ph-gold); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.crth.phx .crate-btn.crate-btn-quiet:hover:not(:disabled), .crth.phx .crate-btn.crate-btn-quiet:focus-visible { background: var(--ph-plate-hover); color: #fff; }
+.crth.phx .crate-note { font-family: var(--ph-body); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.crth.phx .crth-skip { font-family: var(--ph-font); font-weight: 800; letter-spacing: 0.2em; color: var(--ph-muted); }
+.crth.phx .crth-summary-head { font-family: var(--ph-font); letter-spacing: 0.2em; color: var(--ph-muted); }
+.crth.phx .crth-summary li { padding: 6px 12px; border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-plate); box-shadow: inset 0 0 0 1.5px var(--rc);
+  font-family: var(--ph-font); font-weight: 900; color: #fff; text-shadow: var(--ph-shadow); }

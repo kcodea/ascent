@@ -456,3 +456,18 @@ export function phNum(text: string): ReactNode {
   const parts = text.split(/(\d+)/);
   return parts.length === 1 ? text : parts.map((p, i) => (/^\d+$/.test(p) ? <span key={i} className="phk-num">{p}</span> : p));
 }
+
+export { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhLeaderBadge } from './PhBanner';
+
+/** A labelled text field: a small label over a pill input (a room name, a team name), an optional hint or error under it. */
+export function PhField({ label, hint, error, className, id, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode; hint?: ReactNode; error?: ReactNode }) {
+  const auto = useId();
+  const fid = id ?? auto;
+  return (
+    <label className={cx('phk-field', className)} htmlFor={fid}>
+      <span className="phk-seglbl">{label}</span>
+      <input id={fid} spellCheck={false} autoComplete="off" {...rest} className="phk-search phk-fieldinput" aria-invalid={error ? true : undefined} />
+      {error ? <span className="phk-fielderr" role="alert">{error}</span> : hint ? <span className="phk-seghint">{hint}</span> : null}
+    </label>
+  );
+}

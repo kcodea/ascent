@@ -303,3 +303,8 @@
 .phk-sechead h2 { font-weight: 900; letter-spacing: 0.08em; }
 .phk-num { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) { .phk-btn, .phk-segbtn, .phk-tab, .phk-row.press, .phk-grow.press, .phk-switch, .phk-switchknob { transition: none; } }
+
+/* A labelled field. */
+.phk-field { display: flex; flex-direction: column; gap: calc(6 * var(--phu)); }
+.phk-fieldinput { width: 100%; box-sizing: border-box; }
+.phk-fielderr { font-size: var(--ph-t1); color: var(--pill-red, #ff7a66); }

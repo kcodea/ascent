@@ -16,7 +16,7 @@ import { heroPortrait, opponentSkins } from '../../skins/skins';
 import { sfx } from '../../sfx';
 import { useGame } from '../../store';
 import { cardSkins, handleOf, sortFriends, statusText } from '../../friends/friendBits';
-import { addFriendByHandle, friendsAccount, useFriends, useFriendsListLoop } from '../../friends/friendsStore';
+import { addFriendByHandle, friendsAccount, inviteFriend, useFriends, useFriendsListLoop } from '../../friends/friendsStore';
 import { liveFriends, useDm } from '../../friends/dm/dmStore';
 import { openDm } from '../../friends/dock/dockStore';
 import { isDuosParty, useVersus } from '../../versus/versusStore';
@@ -52,7 +52,10 @@ export function PhFriends({ docked, picker = false, embedded = false }: { docked
     return () => window.removeEventListener('keydown', onKey, true);
   }, [docked]);
   const online = friends.filter((f) => f.status !== 'offline').length;
-  const target = room && isDuosParty(room) ? versusRoomRef(room) : null;
+  // THE CONTEXT: a Versus room you hold (its members are "In room", Invite goes into the room), else the party.
+  const versusRoom = room && !isDuosParty(room) && room.status === 'open' ? room : null;
+  const target = room ? versusRoomRef(room) : null;
+  const roomMembers = versusRoom ? versusRoom.members.map((m) => m.userId) : [];
 
   let body: JSX.Element;
   if (!demo && !remoteEnabled()) body = <PhEmpty title="Friends are offline" sub="The online service is not connected on this build, so invites are off." />;
@@ -63,13 +66,17 @@ export function PhFriends({ docked, picker = false, embedded = false }: { docked
     body = (
       <div className="ph-frows" role="list">
         {friends.map((f) => {
-          const inParty = invite.members.includes(f.userId);
+          const inRoom = roomMembers.includes(f.userId);
+          const inParty = !versusRoom && invite.members.includes(f.userId);
           const s = target ? sent?.find((x) => x.to === f.userId && x.target === target) : undefined;
           const invited = s?.status === 'pending' || (demo && sampleInvites.includes(f.userId));
           const label = invited ? 'Invited' : s?.status === 'declined' ? 'Declined' : 'Invite';
           const art = heroThumb((showOpp ? avatarSrc(f.avatar) : undefined) ?? heroPortrait(f.favoriteHero, opponentSkins(showOpp, cardSkins(f))));
-          const right = inParty
-            ? <PhChip tone="teal">In party</PhChip>
+          const right = inRoom ? <PhChip tone="teal">In room</PhChip>
+            : inParty ? <PhChip tone="teal">In party</PhChip>
+            : versusRoom && f.status === 'online'
+              ? <PhButton variant="primary" size="s" disabled={busy || invited} aria-label={`Invite ${handleOf(f)} to your room`}
+                  onClick={() => { sfx.pulse(); void inviteFriend(f.userId, 'versus_room', versusRoomRef(versusRoom)); }}>{label}</PhButton>
             : invite.can && invite.send && f.status === 'online'
               ? <PhButton variant="primary" size="s" disabled={busy || invited} aria-label={`Invite ${handleOf(f)} to ${invite.modeLabel}`}
                   onClick={() => invite.send?.(f)}>{label}</PhButton>
@@ -102,7 +109,8 @@ export function PhFriends({ docked, picker = false, embedded = false }: { docked
       {(live || demo) && <AddFriend disabled={demo} />}
       {flash && !demo && <div className="ph-fflash" role="status">{flash}</div>}
       {body}
-      {invite.reason && <div className="ph-fnote">{invite.reason}</div>}
+      {!versusRoom && invite.reason && <div className="ph-fnote">{invite.reason}</div>}
+      {versusRoom && <div className="ph-fnote">Invites go to your Versus room, {versusRoom.name}.</div>}
     </aside>
     </>
   );

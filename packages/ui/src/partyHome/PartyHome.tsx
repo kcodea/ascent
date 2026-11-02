@@ -27,7 +27,7 @@
  * PERFORMANCE: static paint; motion is one-shot transform / opacity (the cards rise in, hover lifts). At most four
  * portraits; on a phone they are the 256 px thumbnails (`heroThumb`).
  */
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { levelProgress } from '@game/progression';
 import { defaultTeamName, LEARN_ASCENT, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
 import { heroThumb, modeArt } from '../art';
@@ -58,7 +58,7 @@ import { PhTopNav } from './shell/PhTopNav';
 import { PhBackdrop } from './shell/PhBackdrop';
 import { PhFriends } from './shell/PhFriends';
 import { addSampleInvite, clearSampleInvites, pulseFriends, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
-import { PhButton, PhDialog, PhTabs, phNum } from './kit';
+import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhLeaderBadge, PhTabs, phNum } from './kit';
 import { GauntletPanel, PracticePanel, VersusPanel, stagePlayable, useGauntletStages } from './ModeOptions';
 import { partyModeOf, partyModes, readPartyMode, rememberPartyMode, type PartyMode, type PartyModeId } from './partyModes';
 import { setPartyDemo, usePartyDemo } from './partyHomeFlag';
@@ -442,15 +442,20 @@ function BannerCard({ m, i, phone, leader, showState, menuOpen, onToggleMenu, me
   menu: { label: string; run?: () => void; soon?: boolean }[]; onPick: (run: () => void) => void;
 }): JSX.Element {
   const art = phone ? heroThumb(m.art) : m.art;
+  const overlay = menuOpen ? (
+    <div className="ph-cardmenu" role="menu" aria-label={`${m.name} options`}>
+      {menu.map((it) => (
+        <button key={it.label} type="button" role="menuitem" className="ph-menuitem" disabled={!it.run}
+          onClick={() => { if (it.run) onPick(it.run); }}>
+          <span>{it.label}</span>{it.soon && <span className="ph-soon">Soon</span>}
+        </button>
+      ))}
+    </div>
+  ) : null;
   return (
-    <div className={`ph-cardwrap${menuOpen ? ' menu' : ''}`} style={{ '--i': i } as CSSProperties}>
-      <span className="ph-bfoot" aria-hidden="true" />
-      <button type="button" className="ph-card" aria-haspopup="menu" aria-expanded={menuOpen} aria-label={`${m.self ? 'You' : m.name}. Options`} onClick={onToggleMenu}>
-        <span className="ph-card-in">
-          {art && <img className="ph-art" src={art} alt="" draggable={false} decoding="sync" />}
-          {leader && <span className="ph-lead"><Icon name="crown" /><span>Leader</span></span>}
-          <span className="ph-foot">
-            <span className="ph-name">{m.name}</span>
+    <PhBanner art={art} index={i} badge={leader ? <PhLeaderBadge /> : undefined} onClick={onToggleMenu} label={`${m.self ? 'You' : m.name}. Options`}
+      haspopup expanded={menuOpen} overlay={overlay}>
+            <PhBannerName>{m.name}</PhBannerName>
             <span className="ph-rank">
               {m.rank
                 ? <><RankCrest divisionIndex={m.rank.divisionIndex} size="mini" hideDivision /><span>{m.rank.label}</span></>
@@ -459,39 +464,17 @@ function BannerCard({ m, i, phone, leader, showState, menuOpen, onToggleMenu, me
             {(m.titleId || m.level != null) && (
               <span className="ph-sub">{m.titleId ? <TitleBadge id={m.titleId} className="ph-titlebadge" /> : `Level ${m.level}`}</span>
             )}
-            {showState === 'show' && <span className={`ph-state s-${m.state}`}>{m.state === 'in_game' ? 'In game' : 'Ready'}</span>}
-            {showState === 'space' && <span className="ph-state s-space" aria-hidden="true">&nbsp;</span>}
-          </span>
-        </span>
-      </button>
-      <span className="ph-rod" aria-hidden="true" />
-      {menuOpen && (
-        <div className="ph-cardmenu" role="menu" aria-label={`${m.name} options`}>
-          {menu.map((it) => (
-            <button key={it.label} type="button" role="menuitem" className="ph-menuitem" disabled={!it.run}
-              onClick={() => { if (it.run) onPick(it.run); }}>
-              <span>{it.label}</span>{it.soon && <span className="ph-soon">Soon</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+            {showState === 'show' && <PhBannerState tone={m.state}>{m.state === 'in_game' ? 'In game' : 'Ready'}</PhBannerState>}
+            {showState === 'space' && <PhBannerState tone="space" />}
+    </PhBanner>
   );
 }
 
 /** An open seat: points at the friends list (invite from there). */
 function OpenSeat({ i, onOpen, pending }: { i: number; onOpen: () => void; pending: string | null }): JSX.Element {
   return (
-    <div className="ph-cardwrap open" style={{ '--i': i } as CSSProperties}>
-      <span className="ph-bfoot" aria-hidden="true" />
-      <button type="button" className="ph-card ph-open" onClick={onOpen} aria-label="Open seat. Invite a friend from your friends list">
-        <span className="ph-card-in">
-          {pending
-            ? <><span className="ph-openlbl">Invited</span><span className="ph-opensub">{pending}</span><span className="ph-opensub">Waiting for an answer</span></>
-            : <><span className="ph-invmed" aria-hidden="true"><span>+</span></span><span className="ph-openlbl">Invite</span></>}
-        </span>
-      </button>
-      <span className="ph-rod" aria-hidden="true" />
-    </div>
+    <PhBanner ghost index={i} onClick={onOpen} label="Open seat. Invite a friend from your friends list">
+      <PhBannerInvite pending={pending} />
+    </PhBanner>
   );
 }

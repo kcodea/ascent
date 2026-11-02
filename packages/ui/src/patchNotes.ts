@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Duos: a minion that would finish your teammate's triple now glows teal in your Shop.',
+        details: [
+          'When your teammate holds a pair of a minion and a third copy shows up in your Shop, it glows teal with teal arrows rising.',
+          'It keeps the teal glow in your hand, so you know to pass it to them.',
+          'It updates live as your teammate buys, sells and plays.',
+          'If the card would finish your own triple too, it shows your own gold glow.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New Legendary hero attack: Charge the Mound. The hero being hit pitches, and your hero bats.',
         details: [
           'Small: a line drive straight back up the middle. Bonk.',

@@ -476,6 +476,7 @@ export const Card = memo(function Card({
   onDrop,
   suppressPop,
   tripleReady,
+  mateTriple,
   contraband,
   enchanted,
   soulbound,
@@ -562,6 +563,9 @@ export const Card = memo(function Card({
   /** A tavern offer that would complete a triple if bought (you already hold 2 copies) — gets a
    *  gold glow + floating up-arrows to flag it. */
   tripleReady?: boolean;
+  /** DUOS (R-DUOS-MATE-TRIPLE-01): my teammate is one copy short of a Gild on this card, so buying (or holding) it and
+   *  passing it completes their triple: the same hint as `tripleReady`, tinted teal (the pass colour). */
+  mateTriple?: boolean;
   /** Pete (Contrabanana): a smuggled tier-above Shop offer — one-shot flash as the row lands. */
   contraband?: boolean;
   /** Croupier Cia's Lucky Seat: this offer wears the Enchanted treatment — a purple chained wisp. Purely
@@ -949,7 +953,7 @@ export const Card = memo(function Card({
   const bothFrameGlow = bothGlow ? <div className="cglow bothglow" aria-hidden="true"><span className="cglow-rim" /></div> : null;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${whisperLook ? ' whispercard' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}${dissipate !== undefined ? ' whisperdissipate' : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${mateTriple && !tripleReady ? ' matetrip' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${whisperLook ? ' whispercard' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}${dissipate !== undefined ? ' whisperdissipate' : ''}`}
       data-uid={uid}
       data-tribe={card.tribe}
       /* Marks the Triple Reward for its gold ARRIVAL coalesce only (plateCoalesce.ts) — no styling keys on it;
@@ -1142,8 +1146,8 @@ export const Card = memo(function Card({
           2026-07-22 (owner) — with the aura shipped it was a second, louder signifier for the same keyword.
           The `execute` glyph is still used by the Compendium's keyword list. */}
       {/* Triple-ready: this tavern offer completes a triple if bought — gold arrows float up around it. */}
-      {tripleReady && (
-        <span className="triparrows" aria-hidden="true">
+      {(tripleReady || mateTriple) && (
+        <span className={tripleReady ? 'triparrows' : 'triparrows mate'} aria-hidden="true">
           <span className="ta" /><span className="ta" /><span className="ta" /><span className="ta" />
         </span>
       )}

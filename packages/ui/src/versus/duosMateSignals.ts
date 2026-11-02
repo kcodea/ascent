@@ -18,6 +18,7 @@
  */
 import { create } from 'zustand';
 import type { VersusGroupSeat } from '@game/sim';
+import { noteMateTriples, resetMateTriples } from './mateTriples';
 
 export interface MateSeen {
   /** The view's round and screen ('recruit' / 'combat' / ...). */
@@ -47,6 +48,8 @@ const tierOf = (v: unknown): number | null => {
  */
 export function noteMateFrame(seat: VersusGroupSeat, before: unknown, after: unknown, acts: readonly { t: string; eot?: unknown }[] | undefined): void {
   if (!after || typeof after !== 'object') return;
+  // The cards my teammate is one copy short of a Gild on (my shop marks them, R-DUOS-MATE-TRIPLE-01).
+  noteMateTriples(seat, after);
   const st = useDuosMateSignals.getState();
   const a = after as { wave?: unknown; phase?: unknown };
   const wave = typeof a.wave === 'number' ? a.wave : 0;
@@ -66,6 +69,7 @@ export function noteMateFrame(seat: VersusGroupSeat, before: unknown, after: unk
 
 /** A new match (or none): forget everything. */
 export function resetDuosMateSignals(): void {
+  resetMateTriples();
   const st = useDuosMateSignals.getState();
   if (Object.keys(st.seen).length || Object.keys(st.tierPop).length) useDuosMateSignals.setState({ tierPop: {}, seen: {} });
 }

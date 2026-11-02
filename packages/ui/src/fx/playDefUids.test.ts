@@ -53,7 +53,6 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'DuosMateDock.tsx', id: 'shop-tier-up', why: "the Duos teammate's tier-up (R-DUOS-MATE-SIGNALS-01): fires over the teammate PORTRAIT bottom right (HUD chrome); its subject is the teammate's shop, not a board unit" },
   { file: 'FreezeButton.tsx', id: 'freeze-blast', why: 'fires at the button' },
   { file: 'StatusBar.tsx', id: 'hero-power-spark', why: 'fires at the hero power button, not a unit' },
-  { file: 'useAmplifiedSlotFx.ts', id: 'amplified-slot', why: "the AMPLIFIED glow loops on the Equipment slot button — HUD chrome with no unit uid; the subject is the selected Equipment's next activation, not a body on the board (2026-09-22)" },
   { file: 'useAmplifiedSlotFx.ts', id: 'amplified-release', why: "the AMPLIFIED release (2026-11-01): two soft rings on the Equipment slot button as an Amplified activation fires. The subject is the slot's charge, not a body; the use def that travels to the target carries its uid" },
   { file: 'DiceRoll.tsx', id: 'dice-land', why: "the die's landing burst — at the power button or the cast point, never a unit" },
   { file: 'LobbyReveal.tsx', id: 'discover-glint', why: 'the lobby reveal magic sweep: glints over a hero portrait in the game-start line-up overlay, a player, not a unit (2026-10-31)' },

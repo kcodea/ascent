@@ -160,11 +160,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'shop-buff-aura' left on 2026-09-02: the mid-combat Shop-buff bloom was removed (owner ask: every stock
       // buff cue is being replaced by an authored pixi effect); the number float carries the read now.
       'ale-bubbles',
-      // 'amplified-slot' joined on 2026-09-22: the owner-authored Amplified glow, a looping play on the Equipment slot
-      // button from `useAmplifiedSlotFx.ts` while the selected Equipment will Amplify and has a charge to spend.
+      // 'amplified-slot' joined on 2026-09-22 and left on 2026-11-01: the Amplified glow is a CSS state on the slot now.
       // 'amplified-release' joined on 2026-11-01: two soft rings on the Equipment slot as an Amplified activation fires.
       'amplified-release',
-      'amplified-slot',
       // 'ancient-pick-impact' joined on 2026-09-27: the Ancients pick's ring + sparks on the hero power (`ancients/ancientsSmoke.ts`).
       'ancient-pick-impact',
       // 'ancient-reveal-spark' joined on 2026-09-27: the Ancients reveal's spark (`ancients/ancientsSmoke.ts`).

@@ -28,9 +28,8 @@
 /** def id → the `packages/ui/src`-relative files that fire it. Generated; see the header. */
 export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'ale-bubbles': ['Recruit.tsx', 'choreo/score.ts'],
-  // The persistent AMPLIFIED glow on the Equipment slot (owner-authored 2026-09-22): a looping, slot-centred play
-  // started while the selected Equipment will Amplify AND has a charge to spend, fired by literal id from its hook.
-  'amplified-slot': ['useAmplifiedSlotFx.ts'],
+  // ('amplified-slot', the looping Amplified glow on the Equipment slot, left on 2026-11-01: the owner-approved
+  // "Charged" look replaced it with a CSS state on the slot. The def stays in the library, unplayed.)
   // The Amplified RELEASE (owner ask 2026-11-01): two soft rings on the slot as an Amplified activation fires.
   'amplified-release': ['useAmplifiedSlotFx.ts'],
   // The Ancients PICK's impact on the hero power (2026-09-27): a ring + a few sparks in the Ancient's colour.

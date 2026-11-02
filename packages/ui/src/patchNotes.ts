@@ -62,8 +62,9 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'New look for Amplified Equipment.',
         details: [
-          'While your selected Equipment is Amplified, two rings pulse out from its slot, one after the other.',
-          'When you use it, the slot lets go with two quick bursts: one for each time it triggers.',
+          'While your selected Equipment is Amplified, its slot glows a soft blue that slowly breathes.',
+          'A second thin ring breathes beside it, a glint runs along the frame, and small blue motes drift up.',
+          'When you use it, two soft rings leave the slot: one for each time it triggers.',
           'The new look is also much lighter on your device.',
         ],
       },

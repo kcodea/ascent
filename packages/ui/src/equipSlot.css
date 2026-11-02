@@ -21,8 +21,8 @@
    NAMES. In the new looks the plate is a FIXED width and the name auto-shrinks to fit (`--eqn-fit`, measured once
    per name by EquipNamePlate.tsx), never below NAME_FIT_MIN of its base size; the ellipsis is only a last resort.
 
-   PERFORMANCE. Static paint only, except the Amplified halo and sheen at the end (opacity / transform only). The existing glow (`.hpb-glow`: a static shadow whose
-   OPACITY breathes), the one-shot sheen, the fade in / out and the Pixi Amplified loop are untouched; this file
+   PERFORMANCE. Static paint only. Nothing here animates. The existing glow (`.hpb-glow`: a static shadow whose
+   OPACITY breathes), the one-shot sheen, the fade in / out and the Amplified look (amplifiedSlot.css) are untouched; this file
    only reshapes the glow's box to hug each socket. */
 
 /* The two state colours (the charge chip's text and rim), declared once. Not scoped to a look on purpose. */
@@ -175,93 +175,3 @@
 }
 :root[data-eq-look="tablet"] .statusbar .equipslot:is(.ready, .armed) .hplabel.eqname { background: none; color: var(--ui-title); }
 :root[data-eq-look="tablet"] .statusbar .equipslot .hplabel.sellwin { bottom: calc(100% + 28 * var(--u)); }
-
-/* ── AMPLIFIED (owner ask 2026-11-01) ───────────────────────────────────────────────────────────────────────────
-   Owner direction, in rounds: "somewhat gentle and not over the top, just needs to say 'this is amplified'", then
-   "need a bit more to it than this". StatusBar mounts `.eq-amp-set` only while the selected Equipment will Amplify
-   and has a charge, in the Shop, with nothing covering the slot (the show rule the old Pixi loop used). Two looks:
-    - `charged` (default): a breathing blue halo, a thin second ring breathing out of phase (the quiet "double"), a
-      glint travelling the rim, and soft blue motes rising off the sides like charged dust;
-    - `twin-ring`: the halo, the second ring and the rim glint, plus a twin glint on the blue charge chip in time
-      with the breath (no motes).
-
-   PERFORMANCE. Every loop here is compositor-only, by the house rule (no looping paint property): the halo and the
-   ring are STATIC shadows on layers whose OPACITY breathes (the `kwglow` pattern), the rim glint is a band moved by
-   `transform` inside a STATIC rim-shaped mask (so it only ever crosses the rim, never the art), and the motes and
-   chip glints are static dots moved / faded by `transform` + `opacity`. Nothing sits on the art. */
-.equipslot .eq-amp-set {
-  /* The glow box: the socket's outline (Classic and the Gem socket; the other looks override below). */
-  --amp-inset: calc(-9 * var(--u)); --amp-r: calc(34 * var(--u)); --amp-rim: calc(9 * var(--u));
-  position: absolute; inset: var(--amp-inset); border-radius: var(--amp-r); pointer-events: none;
-  /* z4: above the button's gold READY call (its halo layers sit at z1 / z3), so the blue still reads while the slot
-     shouts READY. */
-  z-index: 4;
-}
-:root[data-eq-look="halo"] .equipslot .eq-amp-set { --amp-inset: calc(-8 * var(--u)); --amp-r: 50%; --amp-rim: calc(8 * var(--u)); }
-:root[data-eq-look="tablet"] .equipslot .eq-amp-set { --amp-inset: calc(-6 * var(--u)); --amp-r: calc(20 * var(--u)); --amp-rim: calc(6 * var(--u)); }
-.equipslot .eq-amp-set > span { position: absolute; pointer-events: none; }
-
-/* The halo: a crisp blue rim on the socket edge and a soft wide spill, breathing between a quiet low and a bright peak. */
-.equipslot .eq-amp { inset: 0; border-radius: inherit; }
-.equipslot .eq-amp::before {
-  content: ''; position: absolute; inset: 0; border-radius: inherit;
-  box-shadow: 0 0 0 calc(3 * var(--u)) rgba(127, 196, 255, 1), 0 0 calc(28 * var(--u)) calc(10 * var(--u)) rgba(60, 140, 255, 0.95);
-  animation: eqampbreathe 3.6s ease-in-out infinite; will-change: opacity;
-}
-@keyframes eqampbreathe { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
-
-/* The second ring: thin, just outside the frame, breathing OUT of phase with the halo, so the slot reads "double". */
-.equipslot .eq-amp-ring { inset: calc(-9 * var(--u)); border-radius: calc(var(--amp-r) + 9 * var(--u)); }
-:root[data-eq-look="halo"] .equipslot .eq-amp-ring { border-radius: 50%; }
-.equipslot .eq-amp-ring::before {
-  content: ''; position: absolute; inset: 0; border-radius: inherit;
-  box-shadow: 0 0 0 calc(1.5 * var(--u)) rgba(150, 210, 255, 0.9), 0 0 calc(10 * var(--u)) calc(2 * var(--u)) rgba(80, 160, 255, 0.6);
-  animation: eqampbreathe 3.6s ease-in-out -1.8s infinite; will-change: opacity;
-}
-
-/* The rim glint: one slow pass along the frame every 4.8 s, clipped to the rim ring (the box minus its content). */
-.equipslot .eq-amp-sheen {
-  inset: 0; border-radius: inherit; overflow: hidden; box-sizing: border-box; padding: var(--amp-rim);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-}
-.equipslot .eq-amp-sheen::before {
-  content: ''; position: absolute; top: -40%; left: 0; width: 34%; height: 180%;
-  background: linear-gradient(90deg, rgba(190, 228, 255, 0) 0%, rgba(225, 244, 255, 1) 50%, rgba(190, 228, 255, 0) 100%);
-  transform: translateX(-160%) rotate(24deg);
-  animation: eqampsheen 4.8s ease-in-out infinite; will-change: transform;
-}
-@keyframes eqampsheen {
-  0% { transform: translateX(-160%) rotate(24deg); }
-  40%, 100% { transform: translateX(420%) rotate(24deg); }
-}
-
-/* Charged dust: eight soft motes rising off the sides and top, each drifting outward as it fades. */
-.equipslot .eq-amp-motes { inset: 0; }
-.equipslot .eq-amp-motes > i {
-  position: absolute; left: var(--mx); top: var(--my); width: calc(14 * var(--u)); height: calc(14 * var(--u));
-  margin: calc(-7 * var(--u)) 0 0 calc(-7 * var(--u)); border-radius: 50%;
-  background: radial-gradient(circle, rgba(245, 251, 255, 1) 0%, rgba(127, 196, 255, 1) 32%, rgba(40, 120, 255, 0.55) 52%, rgba(40, 120, 255, 0) 72%);
-  opacity: 0; animation: eqampmote 5.6s ease-out var(--md) infinite; will-change: transform, opacity;
-}
-@keyframes eqampmote {
-  0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
-  20% { opacity: 0.95; }
-  70% { opacity: 0.5; }
-  100% { opacity: 0; transform: translate(calc(var(--mdx) * 12 * var(--u)), calc(-34 * var(--u))) scale(1); }
-}
-
-/* Twin glint on the blue charge chip (the `twin-ring` look): two small sparkles that light in turn at the breath's peak. */
-.equipslot .eq-amp-glint { position: absolute; pointer-events: none; top: calc(-15 * var(--u)); right: calc(-15 * var(--u)); width: calc(30 * var(--u)); height: calc(30 * var(--u)); z-index: 7; }
-.equipslot .eq-amp-glint > i {
-  position: absolute; width: calc(18 * var(--u)); height: calc(18 * var(--u)); border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(160, 215, 255, 0.9) 30%, rgba(60, 140, 255, 0) 70%);
-  opacity: 0; animation: eqampglint 3.6s ease-in-out infinite; will-change: transform, opacity;
-}
-.equipslot .eq-amp-glint > i:nth-child(1) { left: calc(-4 * var(--u)); top: calc(-4 * var(--u)); }
-.equipslot .eq-amp-glint > i:nth-child(2) { right: calc(-4 * var(--u)); bottom: calc(-4 * var(--u)); animation-delay: 0.22s; }
-@keyframes eqampglint {
-  0%, 30%, 72%, 100% { opacity: 0; transform: scale(0.4); }
-  50% { opacity: 1; transform: scale(1); }
-}

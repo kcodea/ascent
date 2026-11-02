@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Ranked Duos and Versus: the end of a match now always reaches both players. Nobody is left in a shop that never fights.',
+        details: [
+          'Fixed: after the last fight of a Duos game, your teammate\'s fight could start again on your screen, and End Combat led back into it.',
+          'Fixed: one teammate could be left on the last shop while the other went back to the party.',
+          'If your last fight does not start after the match is over, the game takes you back to the room on its own.',
+          'Leave match in the Esc menu now works once the match is over. Before, it did nothing.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New Legendary hero attack: Charge the Mound. The hero being hit pitches, and your hero bats.',
         details: [
           'Small: a line drive straight back up the middle. Bonk.',

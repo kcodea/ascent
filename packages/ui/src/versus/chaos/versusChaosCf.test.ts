@@ -47,6 +47,32 @@ export const CF_EXTRA: ScenarioDef[] = [
     }),
   },
   {
+    // R-RANKED-DUOS-END-01 (live report 2026-11-02, "the last fight mike got frozen and combat didnt start"): one teammate
+    // ends the turn early and waits on the other's screen (the teammate view) every round, the deciding one included.
+    name: 'mateWatch', about: "a teammate ends the turn early and watches the other teammate's shop every round; the match runs to its end and both teammates end in the room", modes: ['duos', 'ranked_duos'],
+    build: (mode) => ({
+      name: 'mateWatch', mode, seed: seedOf('mateWatch', mode),
+      players: Array.from({ length: mode === 'duos' ? 4 : 2 }, (_, i) => (i === 1 ? { policy: 'buyer', thinkMs: 1000, watchMate: true } : { policy: i % 2 ? 'empty' : 'buyer', thinkMs: 6000 })),
+    }),
+  },
+  {
+    // The same, the TEAM KNOCKED OUT (the live report's end: the pair placed 3rd while two recorded teams played on).
+    name: 'mateWatchOut', about: 'Ranked Duos: a teammate watches the other while the deciding round knocks the pair out (recorded teams play on); both end in the room', modes: ['ranked_duos'],
+    build: (mode) => ({
+      name: 'mateWatchOut', mode, seed: seedOf('mateWatchOut', mode),
+      players: [{ policy: 'buyer', thinkMs: 6000 }, { policy: 'buyer', thinkMs: 1000, watchMate: true }],
+      events: [{ round: 1, phase: 'shop', act: (h) => { (h.server as CfChaosServer).rankedKnockOutAt = 4; } }],
+    }),
+  },
+  {
+    name: 'knockOut', about: 'Ranked Duos: the deciding round knocks the pair out (recorded teams play on); both teammates end in the room', modes: ['ranked_duos'],
+    build: (mode) => ({
+      name: 'knockOut', mode, seed: seedOf('knockOut', mode),
+      players: [{ policy: 'buyer', thinkMs: 3000 }, { policy: 'buyer', thinkMs: 1500 }],
+      events: [{ round: 1, phase: 'shop', act: (h) => { (h.server as CfChaosServer).rankedKnockOutAt = 3; } }],
+    }),
+  },
+  {
     name: 'dropFin', about: 'a 20 s loss the object hears (a closed socket): paused within the 3 s grace, lifted on return', modes: CF_MODES,
     build: (mode) => ({
       name: 'dropFin', mode, seed: seedOf('dropFin', mode), rounds: 3,

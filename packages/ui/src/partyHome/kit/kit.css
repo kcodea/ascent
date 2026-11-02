@@ -315,3 +315,6 @@
 .phk-seg.s-l .phk-segbtn { text-transform: none; letter-spacing: 0.02em; }
 /* A disabled button keeps the game's cursor (never the OS arrow). */
 .phk-btn:disabled, .phk-segbtn:disabled, .phk-tab:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* No hop on hover (a label moving is a layout shift): a tab answers with a warm glow, never a translate. */
+.phk-tab:hover:not(:disabled):not(.locked), .phk-tab.on, .phk-tab.on:hover { transform: none; }
+.phk-tab:hover:not(:disabled):not(.locked):not(.on) { text-shadow: var(--ph-shadow), 0 0 calc(10 * var(--phu)) rgba(255, 214, 120, 0.45); }

@@ -13271,4 +13271,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms since 2026-11-02. Before, only hero skins, minion skins (2026-09-29) and emotes (2026-10-15) showed art; a card plate or a portrait frame revealed with the nameplate alone.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/Crates.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-SB-DUOS-02',
+    title: 'Scene Builder Duos: the tuner says why when the placeholder teammate has a choice open',
+    statement:
+      'DEV ONLY (the Scene Builder). When the placeholder teammate\x27s run has a choice open (a turn-1 Discover, Choose One or '
+      + 'targeting, for example a Disco Dan, Brackus or Mimic teammate), the run refuses every pass and sale until it is answered. The '
+      + 'Teammate tuner\x27s "passes to you" (a picked card or a hand card) and "sells a minion" then say "Refused: they have a choice to '
+      + 'make first" and change nothing. Answer it on their board (view the teammate) and the tuner works again. The board-minion effect '
+      + 'pass is not a run action and still works.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (sbDuos.test.ts flaky in CI: fix the real cause)', quote: 'Find the real cause of the nondeterminism' },
+      { kind: 'code', ref: 'packages/ui/src/sbDuos.ts (sbMatePasses, sbMateSells: modalOpen)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-02 (test/deflake-sbduos). Before, the tuner said "Passed Hitchhiker" while the reducer had silently refused '
+      + 'the pass (the card stayed in their hand). The rig seeds off Math.random and the seed picks the placeholder hero, so about one rig '
+      + 'start in 15 got such a hero: that is what made the sbDuos pass test flaky in CI. The test now pins the rig seed.',
+    example: 'Kev turns Duos on and his placeholder teammate is Disco Dan, whose first Discover is open. He asks them to pass Hitchhiker. The tuner says they have a choice to make first. He views their board, picks a card, comes back, and the pass lands.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/sbDuos.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

@@ -21,9 +21,9 @@ vi.mock('./remoteBoards', async (importOriginal) => {
 });
 
 import { CARD_INDEX } from '@game/content';
-import type { BoardCard } from '@game/sim';
+import { modalOpen, type BoardCard } from '@game/sim';
 import { useGame } from './store';
-import { installSbDuos, sbMatePasses, sbMateRun, sbMateSells, sbMyRun, uninstallSbDuos, useSbDuos } from './sbDuos';
+import { CHOICE_OPEN, installSbDuos, sbMatePasses, sbMateRun, sbMateSells, sbMyRun, uninstallSbDuos, useSbDuos } from './sbDuos';
 import { enterTeammateView } from './versus/teammateView';
 import { localMate, useLocalMate } from './versus/localMate';
 import { duosPassRefusal } from './versus/duosPassUi';
@@ -35,6 +35,14 @@ const card = (id: string, uid: string): BoardCard => {
   const d = CARD_INDEX[id]!;
   return { uid, cardId: id, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false };
 };
+
+/** The rig with a PINNED seed. `startSceneBuilder` seeds off `Math.random`, and the seed picks the placeholder hero: a
+ *  hero that opens on a turn-1 choice (Disco Dan, Brackus, Mimic: about 1 seed in 15) would hold the teammate's passes
+ *  until it is answered, which made the pass test flaky in CI (R-SB-DUOS-02). */
+function startRig(): void {
+  const r = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+  try { useGame.getState().startSceneBuilder('warden', 'set2'); } finally { r.mockRestore(); }
+}
 
 describe('Scene Builder Duos (R-SB-DUOS-01)', () => {
   beforeEach(() => {
@@ -56,11 +64,12 @@ describe('Scene Builder Duos (R-SB-DUOS-01)', () => {
 
   it('passes both ways through the local channel, and the view swap shows their run', async () => {
     useGame.setState({ sbDuos: true });
-    useGame.getState().startSceneBuilder('warden', 'set2');
+    startRig();
     installSbDuos();
     expect(localMate()).not.toBeNull();
     const mate0 = sbMateRun()!;
     expect(mate0.duos).toBeDefined();
+    expect(modalOpen(mate0)).toBe(false);
     expect(useLocalMate.getState().mate?.hero).toBe(mate0.heroId);
 
     // My drag pass (the reducer's `passCard`, as Recruit dispatches it) reaches the teammate.
@@ -96,6 +105,23 @@ describe('Scene Builder Duos (R-SB-DUOS-01)', () => {
     expect(useGame.getState().run).toBe(mine);
     expect(useGame.getState().run.phase).toBe('recruit');
     expect(useSpectate.getState().teammate).toBe(false);
+  });
+
+  it('the tuner says why when the teammate has a choice open, and nothing moves (R-SB-DUOS-02)', async () => {
+    useGame.setState({ sbDuos: true });
+    startRig();
+    installSbDuos();
+    const mate = sbMateRun()!;
+    useSbDuos.setState({ other: { ...mate, discover: [plainId, plainId, plainId], board: [card(plainId, 'mb1')] } });
+    sbMatePasses({ kind: 'card', cardId: 'duo_hitchhiker' });
+    await flush();
+    expect(useSbDuos.getState().note).toBe(CHOICE_OPEN);
+    expect(sbMateRun()!.hand).toHaveLength(mate.hand.length);
+    expect(sbMateRun()!.duos!.outbox).toHaveLength(0);
+    expect(useGame.getState().run.hand.some((c) => c.cardId === 'duo_hitchhiker')).toBe(false);
+    sbMateSells();
+    expect(useSbDuos.getState().note).toBe(CHOICE_OPEN);
+    expect(sbMateRun()!.board).toHaveLength(1);
   });
 
   it('a manual pass is refused up front when the teammate hand is full (the portrait says why)', () => {

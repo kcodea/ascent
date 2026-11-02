@@ -8,9 +8,6 @@
    (no cursor rules here). The rarity colour arrives as `--cr-color` from the preset. */
 
 .crate.crth { position: fixed; inset: 0; z-index: 700; display: block; width: auto; gap: 0; animation: crth-in 0.22s ease-out both; }
-/* The phase class `ph-error` shares its name with the party home prototype's error note (partyHome.css `.ph-error`, DEV
-   switch): without this, a failed opening under that switch was pulled half off screen. Inert everywhere else. */
-.crate.crth.ph-error { translate: none; padding: 0; background: none; box-shadow: none; clip-path: none; color: inherit; font-size: inherit; }
 .crth-scrim { position: absolute; inset: 0; -webkit-backdrop-filter: blur(var(--cr-blur, 6px)); backdrop-filter: blur(var(--cr-blur, 6px));
   background:
     radial-gradient(ellipse 42% 48% at 50% 54%, rgba(30, 40, 72, 0.55) 0%, rgba(10, 14, 28, 0.82) 60%, rgba(2, 3, 8, 0.97) 100%); }

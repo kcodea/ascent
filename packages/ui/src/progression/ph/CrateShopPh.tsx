@@ -27,9 +27,9 @@ export function CrateShopPh({ shop: s }: { shop: CrateShopState }): JSX.Element 
         className="phs-page"
         eyebrow="Collection"
         title="Chest Shop"
+        back={{ label: 'Collection', onClick: s.back }}
         actions={(
           <>
-            <PhButton variant="ghost" size="s" disabled={s.busy} onClick={s.back}>◀ Back to Collection</PhButton>
             <span className="phs-wallet" role="group" aria-label="Aether balance">
               <AetherIcon className="phs-wallet-gem" /><b>{s.balance}</b><small>Aether</small>
             </span>

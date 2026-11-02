@@ -34,12 +34,13 @@ import { CollectionPage } from '../CollectionScreen';
 import { resetProgressionForTests, useProgression } from '../progressionStore';
 import { setCrateFxFactoryForTests } from '../crateFx/crateFxPixi';
 import { setPartyHome } from '../../partyHome/partyHomeFlag';
+import { setCollectionIntent, usePhShell } from '../../partyHome/shell/shellStore';
 import { useGame } from '../../store';
 
 const noopFx = (): CrateFx => new Proxy({}, { get: (_t, k) => (k === 'then' ? undefined : k === 'mount' ? async () => true : () => {}) }) as CrateFx;
 
 let ui: Mounted | null = null;
-afterEach(() => { ui?.unmount(); ui = null; setCrateFxFactoryForTests(null); setPartyHome(false); });
+afterEach(() => { ui?.unmount(); ui = null; setCrateFxFactoryForTests(null); setPartyHome(false); setCollectionIntent(null); });
 beforeEach(() => {
   resetProgressionForTests();
   localStorage.clear();
@@ -77,7 +78,7 @@ const $ = (sel: string): HTMLElement | null => document.querySelector<HTMLElemen
 const $$ = (sel: string): HTMLElement[] => [...document.querySelectorAll<HTMLElement>(sel)];
 const btn = (label: string): HTMLButtonElement | undefined => [...document.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === label);
 const tileNames = (): string[] => $$('.phc-tile .phc-tile-name').map((n) => n.textContent ?? '');
-const cat = (label: string): HTMLButtonElement => $$('.phc-cat').find((c) => c.querySelector('.phc-cat-name')?.textContent === label) as HTMLButtonElement;
+const cat = (label: string): HTMLElement => $$('.phc-cat').find((c) => c.querySelector('.phk-rowtitle')?.textContent === label)!;
 
 describe('the Collection in the party home shell', () => {
   it('with the switch OFF the page is today\'s: nothing of the shell mounts', async () => {
@@ -92,14 +93,14 @@ describe('the Collection in the party home shell', () => {
     expect($('.phc.phk-page h1')?.textContent).toBe('Collection');
     expect($('.ph-top')).not.toBeNull();
     expect($('.colls-tabs')).toBeNull();
-    expect(cat('Titles').getAttribute('aria-selected')).toBe('true');
-    expect(cat('Titles').querySelector('.phc-cat-count')?.textContent).toMatch(/^2 \/ \d+$/);
+    expect(cat('Titles').className).toMatch(/\bsel\b/);
+    expect(cat('Titles').querySelector('.phk-rowcount')?.textContent).toMatch(/^2 \/ \d+$/);
     expect(tileNames()).toContain('Alpha Tester');
     // The equipped title is selected by default and its detail says so, with Take off.
     expect($('.phc-detail h2')?.textContent).toBe('Alpha Tester');
     expect($('.phc-stage-name')?.textContent).toBe('Kevin');
     expect(btn('Take off')).toBeDefined();
-    expect($('.phc-meter')?.getAttribute('aria-label')).toMatch(/^\d+ of \d+ collected$/);
+    expect($('.phc-meter')?.getAttribute('aria-valuenow')).toMatch(/^\d+$/);
   });
 
   it('ON: filters and picking work through the page; Equip calls the store', async () => {
@@ -133,7 +134,7 @@ describe('the Collection in the party home shell', () => {
     await open({ ph: true });
     const locked = $$('.phc-cat.locked');
     if (!locked.length) return; // every category is live in this build
-    act(() => { locked[0]!.click(); });
+    act(() => { locked[0]!.querySelector('button')!.click(); });
     expect($('.phc-soon')).not.toBeNull();
   });
 
@@ -147,9 +148,17 @@ describe('the Collection in the party home shell', () => {
     expect($$('.phs .cshop-cat:not(.cshop-cat-head)').length).toBeGreaterThan(0);
     expect($('.phs-wallet')?.textContent).toContain('1500');
     expect($('.phs-buy')?.textContent).toMatch(/^Open chest/);
-    act(() => { btn('◀ Back to Collection')!.click(); });
+    act(() => { $('.phs .phk-back')!.click(); });
     expect($('.cshop')).toBeNull();
     expect($('.phc')).not.toBeNull();
+  });
+
+  it('ON with Aether: the shell\'s Crates tab (its Collection intent) lands straight on the Chest Shop, once', async () => {
+    setCollectionIntent('shop');
+    await open({ ph: true, aether: true });
+    await settle();
+    expect($('.cshop.phs')).not.toBeNull();
+    expect(usePhShell.getState().collectionIntent).toBeNull();
   });
 
   it('ON with Aether: a guest\'s buy is the sign-in gate, never the store', async () => {
@@ -167,9 +176,8 @@ describe('the shell skins keep the UI rules', () => {
     expect(here('../CollectionScreen.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/ph\/CollectionPh'\)/);
     expect(here('../CrateShop.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/ph\/CrateShopPh'\)/);
   });
-  it('the chest opening ph-error phase is never pulled off screen by the party home .ph-error rule (R-PH-COLLECTION-01)', () => {
-    const theatre = here('../crateFx/crateTheatre.css');
-    expect(theatre).toMatch(/\.crate\.crth\.ph-error \{ translate: none; padding: 0; background: none; box-shadow: none; clip-path: none;/);
+  it('the chest opening ph-error phase class meets no shell rule of that name; it once pulled a failed opening off screen (R-PH-COLLECTION-01)', () => {
+    expect(here('../../partyHome/partyHome.css')).not.toMatch(/\.ph-error\b/);
   });
   it('no native tooltips, no cursor rules, no em dashes, no looping animation', () => {
     const tsx = [here('./CollectionPh.tsx'), here('./CrateShopPh.tsx')].join('\n');

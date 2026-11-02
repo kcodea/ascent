@@ -22,7 +22,8 @@ import {
   ALL_COSMETIC_RARITIES, COSMETIC_CATEGORY_DEFS, RARITY_LABELS, crateLabel, isMasterTitle,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type levelProgress,
 } from '@game/progression';
-import { PhButton, PhChip, PhEmpty, PhPage, PhSection, PhTabs } from '../../partyHome/kit';
+import { PhButton, PhChip, PhEmpty, PhMeter, PhPage, PhRow, PhSection, PhTabs, PhToggleChip } from '../../partyHome/kit';
+import { takeCollectionIntent } from '../../partyHome/shell/shellStore';
 import { MenuMedal } from '../../menuIcons';
 import { sfx } from '../../sfx';
 import { touchText } from '../../touchInput';
@@ -88,7 +89,9 @@ function kindOf(item: CosmeticDef): string {
 }
 
 export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Element {
-  const pct = v.total.total ? v.total.owned / v.total.total : 0;
+  // THE CRATES TAB (the shell's nav): it opens this page with the intent to land on the Chest Shop. Read once, on mount.
+  const openShop = v.openShop;
+  useEffect(() => { if (takeCollectionIntent() === 'shop') openShop(); }, [openShop]);
   return (
     <PhPage
       wide
@@ -98,11 +101,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
       actions={(
         <>
           {v.anyNew && <PhButton variant="ghost" size="s" onClick={v.markAllSeen}>Mark all as seen</PhButton>}
-          <div className="phc-meter" role="group" aria-label={`${v.total.owned} of ${v.total.total} collected`}>
-            <span className="phc-meter-num"><b>{v.total.owned}</b> / {v.total.total}</span>
-            <span className="phc-meter-lbl">Collected</span>
-            <span className="phc-bar" aria-hidden><span style={{ transform: `scaleX(${pct})` }} /></span>
-          </div>
+          <PhMeter className="phc-meter" label="Collected" value={v.total.owned} max={v.total.total} />
           {v.aetherOn && (
             <PhButton variant="plate" size="m" className="phc-shopbtn" onClick={v.openShop}>
               <AetherIcon className="phc-aether" />Chest Shop
@@ -136,12 +135,12 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
                   ]}
                 />
                 <div className="phc-rarities" role="group" aria-label="Rarity">
-                  <button type="button" className={`phc-rchip${v.rarity === 'all' ? ' on' : ''}`} aria-pressed={v.rarity === 'all'} onClick={() => { sfx.pulse(); v.setRarity('all'); }}>Any rarity</button>
+                  <PhToggleChip className="phc-rchip" pressed={v.rarity === 'all'} onToggle={() => { sfx.pulse(); v.setRarity('all'); }}>Any rarity</PhToggleChip>
                   {ALL_COSMETIC_RARITIES.filter((r) => v.byRarity[r].total > 0).map((r) => (
-                    <button key={r} type="button" className={`phc-rchip r-${r}${v.rarity === r ? ' on' : ''}`} aria-pressed={v.rarity === r} onClick={() => { sfx.pulse(); v.setRarity(r); }}>
+                    <PhToggleChip key={r} className={`phc-rchip r-${r}`} pressed={v.rarity === r} onToggle={() => { sfx.pulse(); v.setRarity(r); }}>
                       <span className="phc-gem" aria-hidden />{RARITY_LABELS[r]}
                       <span className="phc-n">{v.byRarity[r].owned}/{v.byRarity[r].total}</span>
-                    </button>
+                    </PhToggleChip>
                   ))}
                 </div>
               </div>
@@ -193,30 +192,23 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
 
 function CategoryList({ v }: { v: CollectionPhView }): JSX.Element {
   return (
-    <div className="phc-cats" role="tablist" aria-label="Categories">
+    <div className="phc-cats" role="list" aria-label="Categories">
       {v.categories.map((c) => {
         const on = categoryLive(c);
         const cnt = on ? countOf(albumOf(c, undefined, v.owned), v.owned) : null;
         const freshCount = on ? v.newIn(c) : 0;
         const label = COSMETIC_CATEGORY_DEFS[c].label;
         return (
-          <button
-            key={c} type="button" role="tab" aria-selected={v.category === c}
-            className={`phc-cat${v.category === c ? ' on' : ''}${on ? '' : ' locked'}`}
-            aria-label={on ? `${label}, ${cnt!.owned} of ${cnt!.total}${freshCount ? `, ${freshCount} new` : ''}` : `${label}, coming soon`}
+          <PhRow
+            key={c} dense className={`phc-cat${on ? '' : ' locked'}`} selected={v.category === c}
+            lead={<span className="phc-cat-icon" aria-hidden><CategoryIcon category={c} /></span>}
+            title={label}
+            count={on ? `${cnt!.owned} / ${cnt!.total}` : undefined}
+            progress={on && cnt!.total > 0 ? cnt!.owned / cnt!.total : undefined}
+            right={freshCount > 0 ? <span className="phc-cat-new" aria-hidden>{freshCount}</span> : !on ? <span className="phc-cat-lock" aria-hidden><LockGlyph />Soon</span> : undefined}
+            label={on ? `${label}, ${cnt!.owned} of ${cnt!.total}${freshCount ? `, ${freshCount} new` : ''}${v.category === c ? ', selected' : ''}` : `${label}, coming soon`}
             onClick={() => v.pickCategory(c)}
-          >
-            <span className="phc-cat-icon" aria-hidden><CategoryIcon category={c} /></span>
-            <span className="phc-cat-who">
-              <span className="phc-cat-name">{label}</span>
-              {on
-                ? <span className="phc-cat-count">{cnt!.owned} / {cnt!.total}</span>
-                : <span className="phc-cat-count">Soon</span>}
-            </span>
-            {freshCount > 0 && <span className="phc-cat-new" aria-hidden>{freshCount}</span>}
-            {!on && <span className="phc-cat-lock" aria-hidden><LockGlyph /></span>}
-            {on && cnt!.total > 0 && <span className="phc-cat-bar" aria-hidden><span style={{ transform: `scaleX(${cnt!.owned / cnt!.total})` }} /></span>}
-          </button>
+          />
         );
       })}
     </div>

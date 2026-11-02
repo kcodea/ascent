@@ -13458,10 +13458,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (party home revamp)', quote: 'like all of these menus should get revamped to work with the new setup as well' },
-      { kind: 'code', ref: 'packages/ui/src/progression/ph/CollectionPh.tsx, packages/ui/src/progression/ph/CrateShopPh.tsx, packages/ui/src/progression/CollectionScreen.tsx, packages/ui/src/progression/CrateShop.tsx (useCrateShop), packages/ui/src/progression/crateFx/crateTheatre.css (.crate.crth.ph-error)' },
+      { kind: 'code', ref: 'packages/ui/src/progression/ph/CollectionPh.tsx, packages/ui/src/progression/ph/CrateShopPh.tsx, packages/ui/src/progression/CollectionScreen.tsx, packages/ui/src/progression/CrateShop.tsx (useCrateShop), packages/ui/src/partyHome/partyHome.css (the shell note renamed .ph-err), packages/ui/src/partyHome/shell/shellStore.ts (takeCollectionIntent: the Crates tab lands on the Chest Shop)' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-11-02 (feat/ph-page-collection). Before, the pages rendered their old layout under the top nav, and a failed chest opening under the switch slid half off screen: the theatre\x27s phase class `ph-error` matched the party home\x27s own `.ph-error` note rule.',
+      'Conforms as of 2026-11-02 (feat/ph-page-collection). Before, the pages rendered their old layout under the top nav, and a failed chest opening under the switch slid half off screen: the theatre\x27s phase class `ph-error` matched the party home\x27s own `.ph-error` note rule (the shell renamed its note `.ph-err`). The shell\x27s Crates tab opens this page straight on the Chest Shop.',
     example: 'Kevin turns on the party home switch and opens Collection: Heroes, Minions and the rest are a list on the left with his 3 sealed chests under them, the album in the middle, Surf Day Albus large on the right with Equip. He opens a chest that fails: the chest and its Try again sit in the middle of the screen.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/ph/CollectionPh.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },

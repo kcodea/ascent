@@ -4,6 +4,8 @@
    PERFORMANCE: static paint. Hover is a colour or a one-shot transform; nothing loops. Bars are scaleX (transform). */
 
 /* ── The page: the body does not scroll; each column does. ── */
+/* Above the shell chrome's backdrop (`.ph-pagebd`, positioned at z 0): without this the header's unpositioned title paints under it. */
+.phk-page.phc, .cshop.phs { position: relative; z-index: 1; }
 .phc .phk-pagebody { overflow: hidden; padding-bottom: calc(24 * var(--phu) + var(--safe-b, 0px)); }
 .phc-body { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(288 * var(--phu)) minmax(0, 1fr) calc(432 * var(--phu)); gap: calc(24 * var(--phu)); }
 .phc-rail, .phc-side { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
@@ -13,12 +15,7 @@
   -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 32 * var(--phu)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 32 * var(--phu)), transparent); scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
 
 /* ── The header's actions ── */
-.phc-meter { display: grid; grid-template-columns: auto auto; align-items: baseline; justify-content: space-between; column-gap: calc(16 * var(--phu)); row-gap: calc(4 * var(--phu));
-  min-width: calc(192 * var(--phu)); box-sizing: border-box; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
-.phc-meter-num { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
-.phc-meter-num b { font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); }
-.phc-meter-lbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
-.phc-meter .phc-bar { grid-column: 1 / -1; }
+.phc-meter { box-sizing: border-box; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
 .phc-bar { position: relative; display: block; height: calc(4 * var(--phu)); background: rgba(0, 0, 0, 0.55); overflow: hidden; }
 .phc-bar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
 .phc-shopbtn > span, .phs-wallet { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
@@ -26,22 +23,17 @@
 
 /* ── The categories (left) ── */
 .phc-cats { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
-.phc-cat { position: relative; flex: none; display: flex; align-items: center; gap: calc(12 * var(--phu)); height: calc(56 * var(--phu)); padding: 0 calc(16 * var(--phu)) 0 calc(8 * var(--phu)); margin: 0; border: 0; border-radius: 0;
-  background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); color: var(--ph-text); text-align: left; font: inherit; }
-.phc-cat:hover { background: var(--ph-plate-hover); }
-.phc-cat.on { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
-.phc-cat-icon { flex: none; display: grid; place-items: center; width: calc(40 * var(--phu)); height: calc(40 * var(--phu)); }
+.phc-cat .phk-rowmain { gap: calc(12 * var(--phu)); padding-left: calc(8 * var(--phu)); }
+.phc-cat-icon { flex: none; display: grid; place-items: center; width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); }
 .phc-cat-icon .colls-caticon { width: 100%; height: 100%; object-fit: contain; color: var(--ph-gold); }
-.phc-cat-who { min-width: 0; display: flex; flex-direction: column; gap: calc(2 * var(--phu)); }
-.phc-cat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ph-text); text-shadow: var(--ph-shadow); }
-.phc-cat.on .phc-cat-name { color: var(--ph-ink); }
-.phc-cat-count { font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
-.phc-cat-new { margin-left: auto; min-width: calc(20 * var(--phu)); padding: 0 calc(4 * var(--phu)); background: var(--pill-red, #ff7a66); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); line-height: calc(20 * var(--phu)); text-align: center; clip-path: var(--ph-clip-s); }
-.phc-cat-lock { margin-left: auto; display: grid; }
-.phc-cat-lock .colls-lock { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); opacity: 0.7; }
-.phc-cat.locked .phc-cat-icon, .phc-cat.locked .phc-cat-name { opacity: 0.5; }
-.phc-cat-bar { position: absolute; left: calc(60 * var(--phu)); right: calc(16 * var(--phu)); bottom: calc(8 * var(--phu)); height: calc(2 * var(--phu)); background: rgba(0, 0, 0, 0.5); overflow: hidden; }
-.phc-cat-bar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
+.phc-cat .phk-rowtitle { letter-spacing: 0.1em; text-transform: uppercase; color: var(--ph-text); }
+.phc-cat.sel .phk-rowtitle { color: var(--ph-ink); }
+.phc-cat .phk-rowcount { font-size: var(--ph-t1); color: var(--ph-muted); }
+.phc-cat .phk-rowbar { left: calc(56 * var(--phu)); }
+.phc-cat-new { min-width: calc(20 * var(--phu)); padding: 0 calc(4 * var(--phu)); background: var(--pill-red, #ff7a66); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); line-height: calc(20 * var(--phu)); text-align: center; clip-path: var(--ph-clip-s); }
+.phc-cat-lock { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-muted); }
+.phc-cat-lock .colls-lock { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); opacity: 0.7; }
+.phc-cat.locked .phc-cat-icon, .phc-cat.locked .phk-rowtitle { opacity: 0.5; }
 
 /* ── The chest bay (left, under the categories) ── */
 .phc-bay { flex: none; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); padding: calc(16 * var(--phu)); background: var(--ph-plate);
@@ -75,11 +67,8 @@
 .phc-n { font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
 .phk-tab.on .phc-n { color: var(--ph-text); }
 .phc-rarities { display: flex; flex-wrap: wrap; gap: calc(8 * var(--phu)); padding-bottom: calc(8 * var(--phu)); }
-.phc-rchip { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)); margin: 0; border: 0; border-radius: 0;
-  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
-  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; color: var(--ph-text); }
-.phc-rchip:hover { background: var(--ph-plate-hover); color: var(--ph-ink); }
-.phc-rchip.on { background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); color: var(--ph-ink); }
+.phc-rchip { height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)); gap: calc(8 * var(--phu)); }
+.phc-rchip.t-gold .phc-n { color: var(--ph-navy); }
 .phc-gem { flex: none; display: inline-block; width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); transform: rotate(45deg); background: var(--rc, var(--ph-gold)); }
 .r-ancient .phc-gem, .r-secret .phc-gem { background: var(--rc-grad); }
 
@@ -113,7 +102,7 @@
 .phc-tile-lock { position: absolute; top: calc(12 * var(--phu)); right: calc(12 * var(--phu)); display: grid; }
 .phc-tile-lock .colls-lock { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); opacity: 0.75; }
 .phc-tile-tags { position: absolute; top: calc(12 * var(--phu)); left: calc(12 * var(--phu)); display: flex; }
-.phc-tile:focus-visible, .phc-cat:focus-visible, .phc-rchip:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(-2 * var(--phu)); }
+.phc-tile:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(-2 * var(--phu)); }
 
 /* A switched-off category. */
 .phc-soon { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip); }
@@ -177,7 +166,7 @@ html[data-ph-shell][data-touch-small] .phc-body { grid-template-columns: minmax(
 html[data-ph-shell][data-touch-small] .phc-rail { grid-column: 1 / -1; flex-direction: row; align-items: stretch; gap: calc(8 * var(--phu)); overflow: auto hidden; scrollbar-width: none; }
 html[data-ph-shell][data-touch-small] .phc-rail::-webkit-scrollbar { display: none; }
 html[data-ph-shell][data-touch-small] .phc-cats { flex-direction: row; }
-html[data-ph-shell][data-touch-small] .phc-cat { height: calc(56 * var(--phu)); padding-right: calc(16 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-cat { flex: none; min-width: calc(200 * var(--phu)); }
 html[data-ph-shell][data-touch-small] .phc-bay { flex: none; flex-direction: row; align-items: center; gap: calc(12 * var(--phu)); padding: calc(4 * var(--phu)) calc(12 * var(--phu)); clip-path: var(--ph-clip-s); }
 html[data-ph-shell][data-touch-small] .phc-bay-level, html[data-ph-shell][data-touch-small] .phc-bay-odds, html[data-ph-shell][data-touch-small] .phc-bay-top .phc-bay-sub { display: none; }
 html[data-ph-shell][data-touch-small] .phc-bay-art { width: calc(56 * var(--phu)); }
@@ -193,7 +182,7 @@ html[data-ph-shell][data-touch-small] .phc-grid.art .phc-tile { min-height: calc
 html[data-ph-shell][data-touch-small] .phc-grid { grid-template-columns: repeat(auto-fill, minmax(calc(180 * var(--phu)), 1fr)); }
 
 @media (prefers-reduced-motion: no-preference) {
-  .colls-page:not(.colls-still) .phc-tile, .colls-page:not(.colls-still) .phc-cat { transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+  .colls-page:not(.colls-still) .phc-tile { transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
   .colls-page:not(.colls-still) .phc-tile:hover { transform: translateY(calc(-2 * var(--phu))); }
 }
 

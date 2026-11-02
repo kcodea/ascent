@@ -236,3 +236,11 @@ html[data-ph-shell] .crgate-panel { border: 0; border-radius: var(--ph-r-l); bac
 html[data-ph-shell] .crgate-panel .nrw-title { font-family: var(--ph-font); color: var(--ph-ink); }
 html[data-ph-shell] .crgate-panel .cv2-btn { border: 0; border-radius: 999px; background: var(--ph-metal-gold); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.5); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); font-family: var(--ph-font); font-weight: 900; }
 html[data-ph-shell] .crgate-panel .colls-quiet { border-radius: 999px; }
+
+/* PHONES: every control a finger can hit is at least 40 screen points tall (the filters, the Show tabs, the categories,
+   the bay and detail buttons, the emote slots). */
+html[data-ph-shell][data-touch-small] .phc-rchip { height: auto; min-height: calc(40 * var(--pt, 1px)); padding: 0 calc(14 * var(--pt, 1px)); }
+html[data-ph-shell][data-touch-small] .phc-filters .phk-tab { min-height: calc(40 * var(--pt, 1px)); }
+html[data-ph-shell][data-touch-small] .phc-cat { min-height: calc(44 * var(--pt, 1px)); }
+html[data-ph-shell][data-touch-small] .phc .phk-btn { min-height: calc(40 * var(--pt, 1px)); }
+html[data-ph-shell][data-touch-small] .phc-actions .colls-emote-slots .emote-pick { min-height: calc(44 * var(--pt, 1px)); }

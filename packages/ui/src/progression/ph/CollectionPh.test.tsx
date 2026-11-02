@@ -178,6 +178,10 @@ describe('the Collection in the party home shell', () => {
     await open({ ph: true, aether: true, guest: true });
     act(() => { $('.phc-shopbtn')!.click(); });
     await settle();
+    // Live (it opens sign-in), but it reads as sign-in: the outlined plate, never the gold buy.
+    expect($('.phs-buy')?.textContent).toMatch(/^Sign in to open/);
+    expect($('.phs-buy')?.className).toMatch(/\bv-plate\b/);
+    expect(($('.phs-buy') as HTMLButtonElement).disabled).toBe(false);
     act(() => { $('.phs-buy')!.click(); });
     expect(buyCrateRemote).not.toHaveBeenCalled();
   });

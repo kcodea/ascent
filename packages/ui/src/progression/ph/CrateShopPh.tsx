@@ -13,12 +13,16 @@ import { setCratesView } from '../../partyHome/shell/shellStore';
 import { PhButton, PhPage, PhSection } from '../../partyHome/kit';
 import { AetherIcon } from '../AetherIcon';
 import { Amount, ChestCard, FocusRow, OddsSeg, type CrateShopState } from '../CrateShop';
+import { LockGlyph } from '../CollectionScreen';
 import './collectionPh.css';
 import './crateShopPh.css';
 
 export function CrateShopPh({ shop: s }: { shop: CrateShopState }): JSX.Element {
   // The nav's Crates tab is lit while this screen is up, however it was reached (the tab, or the page's Chest Shop button).
   useEffect(() => { setCratesView(true); return () => setCratesView(false); }, []);
+  // A GUEST's button stays live (owner ruling 2026-10-19: it opens the sign-in prompt), but it reads as what it does:
+  // the outlined plate, a padlock and "Sign in to open", never the gold buy.
+  const guestBuy = s.guest && !s.busy && !!s.quote;
   const buyLabel = s.busy ? 'Buying…'
     : !s.quote ? 'Sold out'
     : s.needMore > 0 ? `Need ${s.needMore} more Aether`
@@ -81,12 +85,13 @@ export function CrateShopPh({ shop: s }: { shop: CrateShopState }): JSX.Element 
             </div>
             <div className="phs-buywrap">
               <PhButton
-                variant="primary" size="l" className="phs-buy" disabled={s.disabled} aria-busy={s.busy || undefined}
+                variant={guestBuy ? 'plate' : 'primary'} size="l" className={`phs-buy${guestBuy ? ' guest' : ''}`} disabled={s.disabled} aria-busy={s.busy || undefined}
                 aria-label={s.ariaLabel} onClick={() => { void s.spend(); }}
               >
-                {buyLabel ?? <>Open chest<span className="phs-buy-total"><AetherIcon />{s.quote!.total}</span></>}
+                {guestBuy ? <><LockGlyph />Sign in to open<span className="phs-buy-total"><AetherIcon />{s.quote!.total}</span></>
+                  : buyLabel ?? <>Open chest<span className="phs-buy-total"><AetherIcon />{s.quote!.total}</span></>}
               </PhButton>
-              {s.guest && !s.busy && s.quote && <p className="phs-note">Create a free account to buy chests with your Aether.</p>}
+              {guestBuy && <p className="phs-note">Chests are bought with an account. It is free.</p>}
               {s.error && <p className="phs-err" role="alert">{s.error}</p>}
             </div>
           </PhSection>

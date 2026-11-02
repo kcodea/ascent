@@ -296,11 +296,17 @@ const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, o
   const { seat, pick } = useLobbySeat(match);
   // A pick in the lobby (below the board) brings the board back into view; nothing moves when it is already on screen.
   const boardRef = useRef<HTMLElement | null>(null);
-  const firstPick = useRef(true);
+  // Only on a real change of seat (StrictMode runs effects twice), and it scrolls only the detail column, never the page.
+  const shownSeat = useRef<string | null>(null);
   useEffect(() => {
-    if (firstPick.current) { firstPick.current = false; return; }
+    const id = seat?.id ?? null;
+    if (id === shownSeat.current) return;
+    shownSeat.current = id;
     const el = boardRef.current;
-    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const col = el?.closest<HTMLElement>('.rgp-detailcol');
+    if (!el || !col || typeof col.scrollTo !== 'function') return;
+    const top = el.getBoundingClientRect().top - col.getBoundingClientRect().top;
+    if (top < 0) col.scrollTo({ top: col.scrollTop + top, behavior: 'smooth' });
   }, [seat?.id]);
   const art = heroThumb(heroPortrait(r.heroId, skins));
   const rank = !practice && 'rank' in r && r.rank != null ? r.rank : null;

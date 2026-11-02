@@ -20,7 +20,7 @@
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
 import {
-  createLobbyRun, duosPassBlocked, duosPassCost, handCap, passMinionToTeammate, playableHeroes, reduce,
+  createLobbyRun, duosPassBlocked, duosPassCost, handCap, modalOpen, passMinionToTeammate, playableHeroes, reduce,
   type Action, type BoardCard, type PracticeConfig, type PracticeTribe, type RunState,
 } from '@game/sim';
 import { useGame } from './store';
@@ -231,6 +231,8 @@ export function uninstallSbDuos(): void {
 // ── the tuner: the teammate does something to you ───────────────────────────────────────────────────────────────────
 
 const say = (note: string): void => useSbDuos.setState({ note });
+/** The tuner's answer while the teammate's run has a choice open (view their board to answer it). */
+export const CHOICE_OPEN = 'Refused: they have a choice to make first';
 const pick = <T,>(xs: readonly T[]): T | undefined => xs[Math.floor(Math.random() * xs.length)];
 
 /** What the teammate passes: a card by id (it lands in their hand first, then goes through their real drag pass), a
@@ -260,6 +262,9 @@ export function sbMatePasses(what: SbMatePass): void {
     schedulePump();
     return;
   }
+  // Their run has a choice open (a turn-1 Discover: Disco Dan, Brackus, Mimic...): the reducer refuses every pass
+  // until it is answered, so say so instead of reporting a pass that never left (R-SB-DUOS-02).
+  if (modalOpen(mate)) { say(CHOICE_OPEN); return; }
   let uid: string | undefined;
   if (what.kind === 'card') {
     if (!CARD_INDEX[what.cardId]) { say('Unknown card'); return; }
@@ -289,6 +294,7 @@ export function sbMateSells(cardId?: string): void {
   let mate = sbMateRun();
   if (!mate) { say('No teammate'); return; }
   if (mate.phase !== 'recruit') { say('Their shop is closed'); return; }
+  if (modalOpen(mate)) { say(CHOICE_OPEN); return; } // the reducer refuses a sale too (R-SB-DUOS-02)
   if (mate.board.length === 0) {
     const def = cardId ? CARD_INDEX[cardId] : undefined;
     if (!def || def.spell) { say('Their board is empty. Pick a minion to sell'); return; }

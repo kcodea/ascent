@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { getHero, handCap, runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
 import { buildQaScenario, reproCommandFor, scenarioFileName, scenarioFileText, QA_SCENARIO_FIXTURE_DIR } from './qaScenarioBridge';
@@ -15,8 +15,7 @@ import { archivedCardRows, archivedRuneRows, cardRowsFor, duosCardRowsFor, match
 import { DuosMateDock } from './versus/DuosMateDock';
 import { TeammateFrame, enterTeammateView, exitTeammateView, useTeammateViewKeys } from './versus/teammateView';
 import { installSbDuos, sbMateClear, sbMateFillHand, sbMatePasses, sbMateSells, uninstallSbDuos, useSbDuos, SB_MATE_NAME } from './sbDuos';
-import { Icon } from './Icon';
-import { useDevCornerSlot } from './friends/dock/FriendsDock';
+import { closeSceneBuilderPanel, openSceneBuilderPanel, useSbPanel } from './sceneBuilderPanel';
 import './sceneBuilder.css';
 
 /**
@@ -74,19 +73,24 @@ const SET_OPTIONS = Object.values(SETS).map((s) => {
  *  own SetId), never the picker's value. */
 export const SB_ARCHIVED_OPTION = '__archived__';
 
-/** Outer shell: holds the minimized state and provides `close` (the injected ✕ / DevPanelContext) so the panel's
- *  ✕ minimizes it to the dock instead of no-op-closing. The inner component (below) reads that context via
- *  `useDraggablePanel`, so the provider must sit ABOVE its hook call — hence the split. */
+/** Outer shell: provides `close` (the injected ✕ / DevPanelContext) so the panel's ✕ CLOSES it for real
+ *  (R-SB-PANEL-CLOSE-01): the panel goes away, the sandbox run keeps going, and the dev menu's "Scene Builder" action
+ *  opens it again. The inner component (below) reads that context via `useDraggablePanel`, so the provider must sit
+ *  ABOVE its hook call — hence the split. The inner stays mounted while closed (only its panel is dropped), so the
+ *  library search, the folds and a Duos teammate survive a close and reopen. Leaving the sandbox resets it to open,
+ *  so the next Scene Builder from the title starts with its panel showing. */
 export function SceneBuilder() {
-  const [minimized, setMinimized] = useState(false);
+  const closed = useSbPanel((s) => s.closed);
+  useEffect(() => () => openSceneBuilderPanel(), []);
   return (
-    <DevPanelContext.Provider value={{ close: () => setMinimized(true) }}>
-      <SceneBuilderInner minimized={minimized} onRestore={() => setMinimized(false)} />
+    <DevPanelContext.Provider value={SB_PANEL_CTX}>
+      <SceneBuilderInner closed={closed} />
     </DevPanelContext.Provider>
   );
 }
+const SB_PANEL_CTX = { close: closeSceneBuilderPanel };
 
-function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRestore: () => void }) {
+function SceneBuilderInner({ closed }: { closed: boolean }) {
   const run = useGame((s) => s.run);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
   const dispatch = useGame((s) => s.dispatch);
@@ -95,7 +99,8 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const [enemyAtk, setEnemyAtk] = useState(0);
   const [enemyN, setEnemyN] = useState(5);
   const [refill, setRefill] = useState(true);
-  // The whole-panel collapse is remembered like the section folds (DEV localStorage).
+  // MINIMIZE (R-SB-PANEL-CLOSE-01): the whole panel folds to a BAR, its header strip (title + status chips), still
+  // draggable, with a restore button. Remembered like the section folds (DEV localStorage).
   const [collapsed, setCollapsedRaw] = useState<boolean>(() => { try { return localStorage.getItem(SB_COLLAPSED_KEY) === '1'; } catch { return false; } });
   const setCollapsed = (fn: (c: boolean) => boolean): void => setCollapsedRaw((c) => {
     const next = fn(c);
@@ -121,6 +126,8 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const sbDuos = useGame((s) => s.sbDuos);
   const setSbDuos = useGame((s) => s.setSbDuos);
   const { panelRef, panelElRef, headerPointerDown, panelStyle, raise } = useDraggablePanel('scenebuilder');
+  // Reopened from the dev menu: bring it to the front of the other dev panels.
+  useEffect(() => { if (!closed) raise(); }, [closed, raise]);
   // Library tab (minions / spells / runes share the search box + list) and the per-section fold state (remembered).
   const [lib, setLib] = useState<LibTab>('minions');
   // The "Archived" set option (owner ask 2026-10-10): a LIBRARY view, not a run set. The run stays on `setId`.
@@ -346,7 +353,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
 
   // "/" jumps to the library search from anywhere outside a text field (2026-11-01). Nothing else in the game binds
   // "/", and a key typed into an input / select / contenteditable is left alone.
-  const panelOpen = !collapsed && !minimized;
+  const panelOpen = !collapsed && !closed;
   useEffect(() => {
     if (!panelOpen) return undefined;
     const onKey = (e: KeyboardEvent): void => {
@@ -373,7 +380,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
 
   return (
     <>
-    <div className={`sfxmix lunge scenebuilder sb-modern${collapsed ? ' collapsed' : ''}${minimized ? ' minimized' : ''}`} ref={panelRef} style={panelStyle}>
+    {!closed && <div className={`sfxmix lunge scenebuilder sb-modern${collapsed ? ' collapsed' : ''}`} ref={panelRef} style={panelStyle}>
       {/* HEADER — the navy nameplate (no emblem since 2026-11-01: the room went to the readout). The live readout (round · seats left · rules) sits in it as chips, so the
           collapsed strip still says what the rig is doing. */}
       <div className="sfxmix-h drag sb-head" onPointerDown={(e) => { setHeroOpen(false); headerPointerDown(e); }}>
@@ -386,7 +393,9 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
           <button type="button" className="sb-hbtn" onPointerDown={(e) => e.stopPropagation()} onClick={toggleWide}
             aria-label="Toggle a wide panel: tools and library side by side">⇔</button>
         )}
-        <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)} aria-label={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▸' : '▾'}</button>
+        {/* Minimize to the bar / restore it. The ✕ beside it (injected by useDraggablePanel) closes the panel. */}
+        <button type="button" className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)}
+          aria-label={collapsed ? 'Restore the Scene Builder panel' : 'Minimize the Scene Builder panel to a bar'} aria-expanded={!collapsed}>{collapsed ? '▢' : '–'}</button>
       </div>
 
       {!collapsed && (
@@ -681,18 +690,15 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
           </div>
         </div>
       )}
-    </div>
-    {/* Minimized (the header ✕ hides it): a dev corner square, one slot left of the dev tuner (R-DEV-CORNER-01).
-        Click restores + refocuses (brings the panel back to the front via the shared hook's raise). */}
-    {minimized && <SceneBuilderDock onRestore={() => { onRestore(); raise(); }} />}
+    </div>}
     {/* The hero picker flyout: portalled beside the panel while open. */}
-    {heroOpen && !collapsed && !minimized && (
+    {heroOpen && !collapsed && !closed && (
       <HeroPicker heroId={run?.heroId ?? 'warden'} showAncients={setId === 'set3'} anchor={() => heroBtnRef.current?.closest<HTMLElement>('.scenebuilder') ?? null}
         triggerRef={heroBtnRef} onPick={(id) => startSceneBuilder(id, setId)} onClose={closeHeroPicker} />
     )}
     {duosOn && <SbDuosHud />}
     {/* The library's floating preview — mounted ONCE here (not per row); null until a row is hovered/focused. */}
-    <SceneBuilderPreview target={collapsed || minimized ? null : preview} run={run} />
+    <SceneBuilderPreview target={collapsed || closed ? null : preview} run={run} />
     </>
   );
 }
@@ -802,16 +808,5 @@ export function Sec({ id, title, right, folded, onFold, defaultFolded, children 
       </div>
       {!closed && children}
     </div>
-  );
-}
-
-/** The minimized Scene Builder: a corner-row square (`.cornerdev`), the slot after the dev tuner's (R-DEV-CORNER-01). */
-export function SceneBuilderDock({ onRestore }: { onRestore: () => void }): JSX.Element {
-  const slot = useDevCornerSlot() + 1;
-  return (
-    <button type="button" className="sb-dock cornerdev gtip" style={{ '--cd-slot': slot } as CSSProperties}
-      data-tip="Scene Builder" aria-label="Restore Scene Builder" onClick={onRestore}>
-      <Icon name="anvil" />
-    </button>
   );
 }

@@ -100,6 +100,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Fixed: a card you lift from your hand right after playing a minion now shows on top of that minion.',
+      },
+      {
+        category: 'Systems',
         text: 'New look for Amplified Equipment.',
         details: [
           'While your selected Equipment is Amplified, its slot glows a soft blue that slowly breathes.',

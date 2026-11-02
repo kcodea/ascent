@@ -13014,4 +13014,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Amy casts Double Down and takes the middle spell: it goes to her hand and a copy flies into Bob\x27s portrait.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosBatch2.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
+  {
+    id: 'R-PRESENT-HAND-OVER-BOARD-01',
+    title: 'A hand card always paints over the board minions, including one that just landed',
+    statement:
+      'In the Shop a hand card, resting or lifted by hover (or by a touch press on phones), paints above every board '
+      + 'minion: its art, frame, badges, tier banner and keyword glyphs. That includes a minion that just landed (played, '
+      + 'summoned or moved): its landing dust plays over it, and the card itself is never raised above the hand. The '
+      + 'dragged card, the targeting arrow, the hover preview and the FX canvas keep their own higher layers. Mechanism: '
+      + 'no inline z-index on a board card from the Shop screen (`puffOnBoard` in Recruit.tsx used to set `z-index: 111` '
+      + 'for 850 ms), and every board-card z-index rule stays below the hand zone (z25 resting, z70 while a hand card is '
+      + 'lifted and `.app` dissolves its stacking context).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-01 (screenshot: a lifted Shield spell under a board minion)', quote: 'the card art in hand should be on top of the minion on board here' },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (puffOnBoard); packages/ui/src/styles.css (the hand-hover rule `body:not(.dragging) .app:has(.row.hand .card:hover)`)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-01 (fix/hand-card-over-board). Before, for 850 ms after a minion landed it carried z-index 111; '
+      + 'lifting the next hand card dissolved `.app`, so that minion outranked the hand zone (z70) and its badges and tier '
+      + 'banner painted across the lifted card. Reproduced headless and fixed by dropping the raise (it never beat the FX '
+      + 'canvas at rest anyway, since `.app` is a z1 stacking context).',
+    example: 'Play Grim onto the board, then at once hover Power Shifter in your hand: the lifted card covers Grim\x27s Attack badge and skull.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/handOverBoardZ.test.ts'], lastVerifiedAt: '2026-11-01' },
+  },
 ];

@@ -120,6 +120,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const practiceOpen = useGame((s) => s.practiceSetupOpen);
   // THE PARTY HOME PROTOTYPE (DEV switch, off by default): it takes the main menu, the mode screen and the Duos party.
   const partyHomeFlag = usePartyHome();
+  // The app shell's attribute (partyHome/shell/shell.css): every menu page wears the top nav while the switch is on.
+  useEffect(() => {
+    if (!PartyHome) return undefined;
+    document.documentElement.toggleAttribute('data-ph-shell', partyHomeFlag);
+    return () => document.documentElement.removeAttribute('data-ph-shell');
+  }, [partyHomeFlag]);
   // The portrait-frames tuner's ring for your own avatar corner (null = today's copper ring).
   const avatarFrame = usePortraitFrame('self');
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
@@ -442,7 +448,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           👤 Title Account dev tuner's `--ta-*` vars (see titleAccountConfig.ts). No `data-tip` on `.portring`
           itself — its ::after IS the ring; the tip rides the wrapping button. */}
       {partyView && PartyHome && (
-        <Suspense fallback={null}><PartyHome onSettings={onSettings} onRankedStart={partyStart} /></Suspense>
+        <Suspense fallback={null}><PartyHome onRankedStart={partyStart} /></Suspense>
       )}
       {!partyView && <>
       <div className="titleaccount ta-card">

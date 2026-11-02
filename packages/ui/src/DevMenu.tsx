@@ -1,4 +1,4 @@
-import { partyHomeOn, setPartyHome } from './partyHome/partyHomeFlag';
+import { partyBackdrop, partyDemoOn, partyHomeOn, setPartyBackdrop, setPartyDemo, setPartyHome } from './partyHome/partyHomeFlag';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from './Icon';
 import { useDevCornerSlot } from './friends/dock/FriendsDock';
@@ -411,6 +411,12 @@ export function DevMenu() {
     { id: 'partyhome', icon: '🎉', label: 'Party home (prototype)',
       hint: 'The Valorant-style party home as the main screen: big party cards, mode tabs, Start, friends docked. Off by default; remembered on this machine',
       run: () => setPartyHome(!partyHomeOn()), live: () => partyHomeOn() },
+    { id: 'partydemo', icon: '👥', label: 'Party home: sample party',
+      hint: 'Fill the party home with a sample teammate and sample friends (no backend or second account needed). Start does nothing with it on',
+      run: () => setPartyDemo(!partyDemoOn()), live: () => partyDemoOn() },
+    { id: 'partybackdrop', icon: '🏰', label: 'Party home: citadel backdrop',
+      hint: 'On: the title screen citadel, blurred and darkened. Off: the Mode screen hall',
+      run: () => setPartyBackdrop(partyBackdrop() === 'citadel' ? 'hall' : 'citadel'), live: () => partyBackdrop() === 'citadel' },
     { id: 'testfx', icon: '✨', label: 'Test FX', hint: 'Fire the spell-power flourish once on the board', run: () => pixiFx.test() },
     { id: 'testcrit', icon: '⚡', label: 'Test Crit', hint: 'Fire the critical-strike flourish once', run: () => pixiFx.testCrit() },
     { id: 'testflurry', icon: '🌬️', label: 'Test Flurry', hint: 'Fire the flurry wind-slash once', run: () => pixiFx.testFlurry() },

@@ -1,0 +1,93 @@
+/* ── THE SHELL KIT (party home prototype, DEV only; kit/index.tsx). Tokens: ../shell/shell.css. Static paint. ── */
+
+/* A page under the nav: a centred column, the header row, then a body that scrolls. */
+.phk-page { box-sizing: border-box; display: flex; flex-direction: column; gap: calc(24 * var(--phu)); width: 100%; max-width: calc(1280 * var(--phu)); height: 100%; min-height: 0; margin: 0 auto;
+  padding: calc(32 * var(--phu)) calc(32 * var(--phu) + var(--safe-r, 0px)) 0 calc(32 * var(--phu) + var(--safe-l, 0px)); color: var(--ph-text); font-family: var(--ph-body); }
+.phk-page.wide { max-width: calc(1600 * var(--phu)); }
+.phk-pagehead { flex: none; display: flex; align-items: flex-end; gap: calc(24 * var(--phu)); padding-bottom: calc(16 * var(--phu)); box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
+.phk-pagetitle { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; }
+.phk-pagetitle h1 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phk-eyebrow { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
+.phk-pagetabs { flex: 1; display: flex; justify-content: center; min-width: 0; }
+.phk-pageactions { margin-left: auto; display: flex; align-items: center; gap: calc(8 * var(--phu)); }
+.phk-pagebody { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(32 * var(--phu) + var(--safe-b, 0px)); scrollbar-width: thin; }
+
+/* A section: the rail plate, a gold hairline, an optional title row. */
+.phk-section { position: relative; flex: none; display: flex; flex-direction: column; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); clip-path: var(--ph-clip-s); }
+.phk-sechead { display: flex; align-items: center; gap: calc(16 * var(--phu)); padding: calc(16 * var(--phu)) calc(24 * var(--phu)) calc(8 * var(--phu)); }
+.phk-sechead h2 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phk-secaside { margin-left: auto; display: flex; align-items: center; gap: calc(8 * var(--phu)); font-size: var(--ph-t2); color: var(--ph-muted); }
+.phk-secbody { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(8 * var(--phu)) calc(24 * var(--phu)) calc(24 * var(--phu)); }
+.phk-section.flush .phk-secbody { padding: 0; }
+
+/* A list row: a rail slice. Art bleeds in from the right and fades into the navy; the title sits left. */
+.phk-row { position: relative; flex: none; display: flex; align-items: center; min-height: calc(64 * var(--phu)); background: var(--ph-plate);
+  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phk-row.press:hover { background: var(--ph-plate-hover); }
+.phk-row.sel { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
+.phk-rowmain { position: relative; flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: calc(16 * var(--phu)); padding: 0 calc(16 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none; color: inherit; text-align: left; font: inherit; }
+.phk-rowart { position: absolute; right: 0; top: 0; width: 40%; height: 100%; object-fit: cover; object-position: 50% 22%; pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 65%); mask-image: linear-gradient(90deg, transparent 0%, #000 65%); }
+.phk-rowlead { position: relative; flex: none; display: flex; align-items: center; }
+.phk-rowwho { position: relative; min-width: 0; display: flex; flex-direction: column; gap: calc(2 * var(--phu)); }
+.phk-rowtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phk-rowsub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ph-t1); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+.phk-rowright { position: relative; flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); padding-right: calc(16 * var(--phu)); }
+.phk-row.t-gold .phk-rowtitle { color: #fbe6a6; }
+.phk-row.t-teal .phk-rowtitle { color: var(--ph-teal); }
+.phk-row.t-foe .phk-rowtitle { color: var(--ph-foe); }
+
+/* Tabs: flat; the current tab white with the gold underline. */
+.phk-tabs { display: flex; gap: calc(4 * var(--phu)); overflow-x: auto; scrollbar-width: none; }
+.phk-tabs::-webkit-scrollbar { display: none; }
+.phk-tab { position: relative; flex: none; display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)) calc(12 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none;
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; color: var(--ph-muted); text-shadow: var(--ph-shadow); transition: color 0.12s ease; }
+.phk-tab:hover:not(:disabled), .phk-tab.on { color: var(--ph-ink); }
+.phk-tab.on::after { content: ''; position: absolute; left: calc(16 * var(--phu)); right: calc(16 * var(--phu)); bottom: 0; height: calc(3 * var(--phu)); background: var(--ph-metal-gold); }
+.phk-tab:disabled { opacity: 0.4; }
+.phk-count { min-width: calc(20 * var(--phu)); padding: 0 calc(4 * var(--phu)); background: var(--pill-red, #ff7a66); color: var(--ph-ink); font-size: var(--ph-t1); line-height: calc(20 * var(--phu)); text-align: center; text-shadow: none; clip-path: var(--ph-clip-s); }
+
+/* Chips. */
+.phk-chip { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); height: calc(24 * var(--phu)); padding: 0 calc(8 * var(--phu)); background: var(--ph-well);
+  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; color: var(--ph-text); }
+.phk-chip.t-gold { background: var(--ph-metal-gold); color: var(--ph-navy); box-shadow: none; }
+.phk-chip.t-teal { color: var(--ph-teal); box-shadow: inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-teal) 50%, transparent); }
+.phk-chip.t-foe { color: var(--ph-foe); box-shadow: inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-foe) 50%, transparent); }
+
+/* Buttons: one cut shape; primary is the podium gold, the one strong accent on a screen. */
+.phk-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; margin: 0; border: 0; border-radius: 0; clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+.phk-btn.s-s { height: calc(32 * var(--phu)); padding: 0 calc(16 * var(--phu)); font-size: var(--ph-t1); }
+.phk-btn.s-m { height: calc(40 * var(--phu)); padding: 0 calc(24 * var(--phu)); font-size: var(--ph-t2); }
+.phk-btn.s-l { height: calc(56 * var(--phu)); padding: 0 calc(40 * var(--phu)); font-size: var(--ph-t3); }
+.phk-btn.v-primary { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+.phk-btn.v-plate { background: var(--ph-plate); color: var(--ph-text); text-shadow: var(--ph-shadow); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
+.phk-btn.v-plate:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); }
+.phk-btn.v-ghost { background: none; color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+.phk-btn.v-ghost:hover:not(:disabled) { color: var(--ph-ink); }
+.phk-btn:active:not(:disabled) { transform: scale(0.98); }
+.phk-btn:disabled { opacity: 0.45; }
+
+/* A number tile. */
+.phk-stat { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); padding: calc(16 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.phk-statval { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
+.phk-statlbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
+.phk-statsub { font-size: var(--ph-t1); color: var(--ph-muted); }
+.phk-stat.t-gold .phk-statval { color: #fbe6a6; }
+.phk-stat.t-teal .phk-statval { color: var(--ph-teal); }
+.phk-stat.t-foe .phk-statval { color: var(--ph-foe); }
+
+/* A placement box (the rail's): podium metal for 1 to 3 with a navy number, the navy plate after. */
+.phk-place { display: inline-grid; place-items: center; flex: none; width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-text); text-shadow: var(--ph-shadow); font-variant-numeric: tabular-nums; }
+.phk-place:is([data-place="1"], [data-place="2"], [data-place="3"]) { color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); box-shadow: none; }
+.phk-place[data-place="1"] { background: var(--ph-metal-gold); }
+.phk-place[data-place="2"] { background: var(--ph-metal-silver); }
+.phk-place[data-place="3"] { background: var(--ph-metal-bronze); }
+
+/* Empty / loading. */
+.phk-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); padding: calc(48 * var(--phu)) calc(24 * var(--phu)); text-align: center; }
+.phk-emptytitle { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phk-emptysub { max-width: calc(420 * var(--phu)); font-size: var(--ph-t2); color: var(--ph-muted); }
+@media (prefers-reduced-motion: reduce) { .phk-btn, .phk-tab { transition: none; } }

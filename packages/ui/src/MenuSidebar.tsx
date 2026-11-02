@@ -26,7 +26,7 @@
  * `navHopAt` stamp it wears `.hop`, which turns the page fade off and fades only the content beside the
  * sidebar (see the `.hop` rules in styles.css).
  */
-import { useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { phoneLayoutOn } from './stage';
 import { isPhone } from './deviceClass';
@@ -45,6 +45,9 @@ import { VsOpenBadge } from './versus/VsOpenBadge';
 import { HALL_VISIBLE } from './hallFlag';
 import { InGameNote, LeaveButton, ResumeButton, SidebarShopClock } from './gameMenuParts';
 import './friends/friends.css';
+import { usePartyHome } from './partyHome/partyHomeFlag';
+/** The party home prototype's top nav (DEV only; lazy and null in production, so the shipped bundle never carries it). */
+const PhTopNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhTopNav').then((m) => ({ default: m.PhTopNav }))) : null;
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
  *  the same event turn (a few ms); a title-plaque open or a row click carries no fresh stamp. */
@@ -101,6 +104,7 @@ let lastIndicatorY: number | null = null;
  */
 export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
   const inGame = useGame((s) => s.gameMenuOpen);
+  const shell = usePartyHome();
   const navRef = useRef<HTMLElement>(null);
   const indRef = useRef<HTMLSpanElement>(null);
   // THE SELECTION BAR (2026-10-16): measured ONCE per page (offsetTop, before paint), then a single transform
@@ -179,6 +183,15 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
   const vsTip = vsOpen > 0 ? versusRoomsTip(vsOpen) : null;
   const playTip = inGame ? null : playWarn && vsTip ? `${playWarn} ${vsTip}.` : playWarn ?? vsTip;
 
+  // THE PARTY HOME PROTOTYPE's APP SHELL (DEV switch, off by default): the page wears the top nav instead of this rail.
+  if (shell && !inGame && PhTopNav) {
+    return (
+      <>
+        {current && <MenuBackdrop screen={current} />}
+        <Suspense fallback={null}><PhTopNav current={current} /></Suspense>
+      </>
+    );
+  }
   // The screen's painted backdrop rides along with the sidebar, so every host gets it (MenuBackdrop.tsx).
   return (
     <>

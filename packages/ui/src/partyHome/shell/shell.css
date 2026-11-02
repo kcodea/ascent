@@ -1,0 +1,93 @@
+/* ── THE APP SHELL (party home prototype, DEV only; `html[data-ph-shell]` is set while the switch is on) ───────────────────
+   ONE visual language for the party home, its top nav and every menu page under it: the Docked lobby rail
+   (lobbyRailDocked.css + uiTheme.css `--pill-*`). Navy plates, thin gold edges, ONE cut shape (top-right + bottom-left
+   corners: big on cards, small on buttons, rows and chips), white title-font names with the rail's layered shadow, muted
+   secondary text, the podium metals. No purple.
+
+   TOKENS (use these, never raw values, so every page reads as one app):
+     size unit      --phu           1px on desktop (the layout never goes below 1920 x 1080), screen points on a phone
+     spacing        multiples of 8 * --phu
+     type scale     --ph-t1 12 meta | --ph-t2 14 body, labels | --ph-t3 18 row + section titles | --ph-t4 30 names, page
+                    titles | --ph-t5 34 START
+     colour         --ph-navy --ph-gold --ph-ink (white) --ph-text --ph-muted --ph-teal (ready / online) --ph-foe --ph-hair
+     metal          --ph-metal-gold --ph-metal-silver --ph-metal-bronze (fills, navy text on top)
+     plates         --ph-plate (the rail plate) --ph-plate-hover --ph-well (a deeper inner box)
+     shape          --ph-clip (big cut) --ph-clip-s (small cut)
+   PERFORMANCE: static paint. Hover is a colour or a one-shot transform. Nothing loops. */
+
+html[data-ph-shell] {
+  --phu: 1px;
+  --ph-navy: var(--pill-navy, #0d1a36);
+  --ph-gold: var(--pill-edge, #c8953f);
+  --ph-gold-hi: var(--ui-edge-hi, #ffe9b0);
+  --ph-gold-deep: var(--ui-edge-deep, #7a571f);
+  --ph-ink: #fff;
+  --ph-text: var(--pill-text, #fff1d6);
+  --ph-muted: #9fb0cf;
+  --ph-teal: #8ef3f8;
+  --ph-foe: var(--pill-foe, #ffb3bf);
+  --ph-hair: color-mix(in srgb, var(--ph-gold) 32%, transparent);
+  --ph-shadow: var(--pill-text-shadow);
+  --ph-plate: var(--pill-plate);
+  --ph-plate-hover: var(--pill-plate-hover);
+  --ph-well: var(--pill-well);
+  --ph-edge: linear-gradient(180deg, var(--ph-gold-hi) 0%, var(--ph-gold) 30%, var(--ph-gold-deep) 70%, var(--ph-gold) 100%);
+  --ph-metal-gold: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 70%, #a8741a 100%);
+  --ph-metal-silver: linear-gradient(180deg, #ffffff 0%, #dfe5ec 38%, #b4bfcb 70%, #7f8b99 100%);
+  --ph-metal-bronze: linear-gradient(180deg, #f8d1ac 0%, #e09a5c 38%, #b8703a 70%, #7e4720 100%);
+  --ph-font: var(--pill-font, var(--font-title)), sans-serif;
+  --ph-body: var(--font-ui), sans-serif;
+  --ph-t1: calc(12 * var(--phu));
+  --ph-t2: calc(14 * var(--phu));
+  --ph-t3: calc(18 * var(--phu));
+  --ph-t4: calc(30 * var(--phu));
+  --ph-t5: calc(34 * var(--phu));
+  --ph-cut: calc(20 * var(--phu));
+  --ph-cut-s: calc(8 * var(--phu));
+  --ph-clip: polygon(0 0, calc(100% - var(--ph-cut)) 0, 100% var(--ph-cut), 100% 100%, var(--ph-cut) 100%, 0 calc(100% - var(--ph-cut)));
+  --ph-clip-s: polygon(0 0, calc(100% - var(--ph-cut-s)) 0, 100% var(--ph-cut-s), 100% 100%, var(--ph-cut-s) 100%, 0 calc(100% - var(--ph-cut-s)));
+  --ph-nav-h: calc(64 * var(--phu));
+}
+/* Phones (landscape): screen points (`--pt`, phoneMenus.css), a little over half a point per desktop px. */
+html[data-ph-shell][data-touch-ui][data-touch-small][data-page-scale] { --phu: calc(var(--pt, 1px) * 0.62); }
+
+/* ── THE TOP NAV ── */
+.ph-top { position: relative; z-index: 6; display: flex; align-items: stretch; gap: calc(8 * var(--phu)); box-sizing: border-box;
+  height: var(--ph-nav-h); padding: 0 calc(16 * var(--phu) + var(--safe-r, 0px)) 0 calc(24 * var(--phu) + var(--safe-l, 0px));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 94%, #000) 0%, color-mix(in srgb, var(--ph-navy) 88%, transparent) 100%);
+  box-shadow: inset 0 calc(-1 * var(--phu)) 0 color-mix(in srgb, var(--ph-gold) 55%, transparent), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4);
+  font-family: var(--ph-font); }
+.ph-brand { flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(24 * var(--phu)) 0 0; margin: 0 calc(8 * var(--phu)) 0 0; border: 0; border-radius: 0; background: none; color: var(--ph-ink);
+  box-shadow: inset calc(-1 * var(--phu)) 0 0 var(--ph-hair); }
+.ph-brand img { width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); object-fit: contain; }
+.ph-brand span { font-family: var(--title-font, var(--font-title)); font-weight: 800; font-size: calc(22 * var(--phu)); letter-spacing: 0.12em; text-shadow: var(--ph-shadow); }
+.ph-nav { flex: 1 1 auto; display: flex; align-items: stretch; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.ph-nav::-webkit-scrollbar { display: none; }
+.ph-navtab { position: relative; flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(16 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none;
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap;
+  color: var(--ph-muted); text-shadow: var(--ph-shadow); transition: color 0.12s ease; }
+.ph-navtab:hover, .ph-navtab.on { color: var(--ph-ink); }
+.ph-navtab.on::after, .ph-iconbtn.on::after { content: ''; position: absolute; left: calc(16 * var(--phu)); right: calc(16 * var(--phu)); bottom: 0; height: calc(3 * var(--phu)); background: var(--ph-metal-gold); }
+.ph-navicon { width: calc(24 * var(--phu)); height: calc(24 * var(--phu)); flex: none; }
+.ph-navicon svg, .ph-navicon img { width: 100%; height: 100%; }
+.ph-dot { position: absolute; top: calc(16 * var(--phu)); right: calc(8 * var(--phu)); width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); border-radius: 50%; background: var(--pill-red, #ff7a66); box-shadow: 0 0 0 calc(2 * var(--phu)) var(--ph-navy); }
+.ph-wallet { flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); margin-left: calc(8 * var(--phu)); }
+.ph-coin, .ph-lv { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(36 * var(--phu)); padding: 0 calc(16 * var(--phu));
+  background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.ph-coin b, .ph-lvnum { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
+.ph-aether { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); }
+.ph-lvnum small { font-size: var(--ph-t1); color: var(--ph-muted); margin-right: calc(4 * var(--phu)); letter-spacing: 0.08em; text-transform: uppercase; }
+.ph-lvbar { position: relative; width: calc(80 * var(--phu)); height: calc(4 * var(--phu)); background: rgba(0, 0, 0, 0.55); overflow: hidden; }
+.ph-lvbar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
+.ph-iconbtn { position: relative; flex: none; display: grid; place-items: center; width: calc(48 * var(--phu)); height: 100%; padding: 0; margin: 0; border: 0; border-radius: 0; background: none; color: var(--ph-muted); }
+.ph-iconbtn::after { left: calc(8 * var(--phu)) !important; right: calc(8 * var(--phu)) !important; }
+.ph-iconbtn .ph-navicon { width: calc(26 * var(--phu)); height: calc(26 * var(--phu)); }
+.ph-iconbtn:hover, .ph-iconbtn.on { color: var(--ph-ink); }
+html[data-ph-shell][data-touch-small] .ph-brand span, html[data-ph-shell][data-touch-small] .ph-navtab .ph-navicon, html[data-ph-shell][data-touch-small] .ph-lvbar { display: none; }
+html[data-ph-shell][data-touch-small] .ph-navtab { font-size: calc(16 * var(--phu)); }
+
+/* ── EVERY MENU PAGE UNDER THE SHELL: no left sidebar (MenuSidebar renders the top nav instead), content under the nav ── */
+html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { --sb-w: 0px !important; padding-top: var(--ph-nav-h) !important; }
+html[data-ph-shell] :is(.lbpage, .modepick.sb-host) > .ph-top { position: absolute; top: 0; left: 0; right: 0; }
+/* A hop between pages keeps the bar still: only the content under it fades. */
+html[data-ph-shell] :is(.lbpage, .modepick).hop > .ph-top, html[data-ph-shell] .lbpage > .ph-top { animation: none !important; }

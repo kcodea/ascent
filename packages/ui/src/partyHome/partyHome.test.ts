@@ -17,16 +17,17 @@ describe('party home prototype', () => {
     expect(partyModeOf('group').slots).toBe(4);
     expect(partyModeOf('duos').ranked && partyModeOf('ranked').ranked).toBe(true);
   });
-  it('is DEV only and off by default (production never reads the switch)', () => {
+  it('is DEV only and off by default (production never loads the screen or the shell)', () => {
     const flag = here('./partyHomeFlag.ts');
     expect(flag).toMatch(/if \(!import\.meta\.env\.DEV\) return false;/);
-    const title = here('../Title.tsx');
-    expect(title).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/PartyHome'\)\) : null/);
+    expect(here('../Title.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/PartyHome'\)\) : null/);
+    expect(here('../MenuSidebar.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/shell\/PhTopNav'\)/);
   });
   it('keeps to the UI rules: no native tooltips, no bare cursor, no em dashes in player text, no looping animation', () => {
-    const tsx = here('./PartyHome.tsx');
-    const css = here('./partyHome.css');
-    expect(tsx).not.toMatch(/\stitle=/);
+    const tsx = [here('./PartyHome.tsx'), here('./kit/index.tsx'), here('./shell/PhTopNav.tsx')].join('\n');
+    const css = [here('./partyHome.css'), here('./kit/kit.css'), here('./shell/shell.css')].join('\n');
+    // A native tooltip is `title=` on an intrinsic (lower-case) element; the kit's own `title` props are fine.
+    expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
     expect(css).not.toMatch(/cursor:/);
     expect(css).not.toMatch(/infinite/);
     const strings = [...tsx.matchAll(/'([^'\n]*)'/g), ...PARTY_MODES.flatMap((m) => [[m.desc, m.desc], [m.label, m.label], [m.stub ?? '', m.stub ?? '']])].map((x) => x[1] ?? '');

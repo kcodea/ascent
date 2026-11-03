@@ -45,6 +45,9 @@ import './lobbyRailDocked.css'; // the Docked rail (owner 2026-10-31): slices se
 // renders the shipped defaults (the sheet's fallbacks + DOCK_DEFAULTS).
 if (import.meta.env.DEV) void import('./lobbyRailTuner2Config');
 
+/** The fallen seat's mark on the rail: the painted Echo medallion (owner 2026-11-03), in place of the flat skull glyph. */
+const RAIL_FALLEN_MEDAL = `${import.meta.env.BASE_URL}medallions/echo.webp`;
+
 /** DOCKED (owner review 2026-10-31): a slice's outline as a `clip-path`. */
 function outlineClip(pts: readonly Pt[]): string {
   return `polygon(${pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(', ')})`;
@@ -830,7 +833,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                       {/* The Health fill's leading edge: a soft glow at the end of the red (its own layer, translate only). */}
                       {hpFrac > 0 && <span className="lrv-bar-lead" style={{ transform: `translateX(${(hpFrac * 100).toFixed(2)}%)` }} />}
                     </span>
-                  </span></>) : <span className="lrv-skull" aria-label="Knocked out"><Icon name="skull" /></span>}
+                  </span></>) : <span className="lrv-skull" aria-label="Knocked out"><img src={RAIL_FALLEN_MEDAL} alt="" aria-hidden="true" draggable={false} decoding="sync" /></span>}
                 </>
               ) : (<>
               {(() => {

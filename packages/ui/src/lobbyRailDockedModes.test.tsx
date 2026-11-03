@@ -90,6 +90,20 @@ describe('the Docked rail in every mode', () => {
     expect(c.querySelectorAll('.lrv-team')).toHaveLength(0);
   });
 
+  it('a fallen seat wears the painted Echo medallion over its portrait, not the flat skull glyph (owner 2026-11-03)', () => {
+    const seats = [seat('p1'), seat('p2'), seat('p3', { health: 0, eliminatedRound: 2, placement: 3 })];
+    const raw = { phase: 'shop', paused_at: null, paused_seat: null, options: { mode: 'group' }, seats };
+    const run = versusRun(3);
+    const lobby = { ...run.lobby!, seats: run.lobby!.seats.map((s, i) => (i === 2 ? { ...s, alive: false, resolve: 0, placement: 3, eliminatedRound: 2 } : s)) };
+    const c = show({ ...run, lobby } as RunState, { phase: 'shop', round: 3, p1_user: 'me', group: { me: 'p1', raw } });
+    const marks = [...c.querySelectorAll<HTMLElement>('.lobbyseat.dead .lrv-skull')];
+    expect(marks.length).toBeGreaterThan(0);
+    for (const m of marks) {
+      expect(m.querySelector('img')?.getAttribute('src')).toMatch(/medallions\/echo\.webp$/);
+      expect(m.querySelector('svg')).toBeNull();
+    }
+  });
+
   it('Versus Duos: slices grouped per team, Health on both teammates, one place per team, the teammate distinct; clicking them opens their board', () => {
     const raw = { phase: 'shop', paused_at: null, paused_seat: null, options: { mode: 'duos' }, seats: ['p1', 'p2', 'p3', 'p4'].map((x) => seat(x)) };
     const c = show(versusRun(4), { phase: 'shop', round: 3, p1_user: 'me', group: { me: 'p1', raw, duos: { team: 'a', mate: 'p2', first: { a: 'p1', b: 'p3' } } } });

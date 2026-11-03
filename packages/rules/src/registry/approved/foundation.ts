@@ -13626,4 +13626,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'VerdantBear35 opens IonLime\x27s win in Recent Games: the lobby\x27s first tile reads "1st Winner IonLime" and the board line "IonLime\x27s board". Opening his own game, his seat reads You.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/lobbyPickerViewer.test.tsx', 'packages/ui/src/ladderPages.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-CARDNAME-FILTER-NOSCROLL-01',
+    title: 'The hidden gilded card-name filter never adds page scroll',
+    statement:
+      'The invisible SVG that holds the gilded card-name filters is pinned to the top left corner of the stage (fixed, top 0, '
+      + 'left 0, overflow hidden, no pointer events), so it never sits at the end of the page flow and never lengthens a page or '
+      + 'adds a scrollbar, on any screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Lead via the info-pages builder, 2026-11-02', quote: 'the gilded card-name hidden SVG filter element has no top/left so it can add page scroll' },
+      { kind: 'code', ref: 'packages/ui/src/cardNameFilter.ts (cardNameFilter: the defs svg)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-02 (fix/card-name-filter-svg-scroll). Before: position absolute with no top / left, so the svg sat at the end of the stage content.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardNameFilter.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
 ];

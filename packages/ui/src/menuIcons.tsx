@@ -60,6 +60,32 @@ export const TribeMedal = ({ tribe }: { tribe: Tribe }) => (
   />
 );
 
+/** The Armor mark: the painted silver shield medallion (owner art, `Reference Art/Medallions/armor.png`, 2026-11-03), in
+ *  `public/medallions/armor.webp`. Sized by its container's svg rules (each takes `.armormedal` beside `svg`). */
+export const ArmorMedal = () => (
+  <img
+    className="armormedal"
+    src={`${import.meta.env.BASE_URL}medallions/armor.webp`}
+    alt=""
+    aria-hidden="true"
+    draggable={false}
+    decoding="sync"
+  />
+);
+
+/** The Health mark: the painted red heart medallion (owner art, `Reference Art/Medallions/health.png`, 2026-11-03), in
+ *  `public/medallions/health.webp`. Sized by its container's svg rules (each takes `.healthmedal` beside `svg`). */
+export const HealthMedal = () => (
+  <img
+    className="healthmedal"
+    src={`${import.meta.env.BASE_URL}medallions/health.webp`}
+    alt=""
+    aria-hidden="true"
+    draggable={false}
+    decoding="sync"
+  />
+);
+
 /** The crest gem — the Play / Continue mark (also the logo's gem). */
 export const Crest = () => (
   <svg viewBox="0 0 24 24" className="crest" aria-hidden="true">

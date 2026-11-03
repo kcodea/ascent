@@ -138,7 +138,8 @@ describe('Ruinous Lord: permanence follows the phase (owner ruling 2026-10-10)',
     const paid = r.events.filter((e): e is Buff => e.type === 'buff' && e.source === lord && e.target === eg);
     expect(paid.length, 'the Engraved Demon was paid in the fight').toBeGreaterThan(0);
     const carry = r.playerPermaBuffs ?? [];
-    expect(carry.filter((c) => c.sourceUid === 'p1')).toEqual([{ sourceUid: 'p1', attack: paid.length, health: paid.length, engraved: true }]);
+    // R-ENGRAVE-05 (2026-11-03): kept AS ITSELF, the Shop's own 'Ruinous Lord' row, never a generic 'Engraved'.
+    expect(carry.filter((c) => c.sourceUid === 'p1')).toEqual([{ sourceUid: 'p1', attack: paid.length, health: paid.length, engraved: true, label: 'Ruinous Lord' }]);
     expect(carry.some((c) => c.sourceUid === 'p0' || c.sourceUid === 'p2'), 'nothing carries back for a non-Engraved body').toBe(false);
   });
   it('RECRUIT PHASE: a Demon dealing damage in the Shop (the Fel Spikes Echo) gives your board Demons +1/+1 PERMANENTLY', () => {

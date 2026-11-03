@@ -110,7 +110,7 @@ export function PhTabs<T extends string>({ tabs, value, onChange, label, onLocke
     <div className="phk-tabs" role="tablist" aria-label={label}>
       {tabs.map((t) => (
         <button key={t.id} type="button" role="tab" aria-selected={t.id === value} disabled={t.disabled} aria-disabled={t.reason ? true : undefined}
-          data-tip={t.reason} className={cx('phk-tab', t.id === value && 'on', t.reason && 'locked')}
+          data-tip={t.reason} className={cx('phk-tab', t.id === value && 'on', t.reason && 'locked gtip')}
           onClick={() => { if (t.reason) { onLocked?.(t.id, t.reason); return; } if (t.id !== value) onChange(t.id); }}>
           {t.label}
           {t.count ? <span className="phk-count">{t.count}</span> : null}

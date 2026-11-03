@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Match history: hover a player in a game\'s lobby to see their Game strength right on their tile.',
+      },
+      {
+        category: 'Systems',
         text: 'Spectating: you now see the screen exactly as the player does.',
         details: [
           "The player's mouse is always drawn on top, even over their Equipment and hero power.",

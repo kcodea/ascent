@@ -14989,6 +14989,14 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lp-tile.on .lp-tile-out { color: var(--ui-title); }
 .lp-tile .lp-chip-name { font-size: 14px; }
 .lp-tile .lp-chip-place { font-size: 13px; }
+/* Hover (or a tap: .tt-on) darkens the tile and prints "Game strength: X" over it, in place of a tip bubble
+   (R-LOBBY-TILE-STRENGTH-01). The overlay's paint is static; only its opacity moves. The KO sword stays on top. */
+.lp-tile-strength { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; border-radius: inherit; pointer-events: none;
+  background: rgba(4, 8, 16, 0.74); opacity: 0; transition: opacity 0.12s ease;
+  font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.04em; color: #f4eee2; text-shadow: 0 1px 3px #000; white-space: nowrap; }
+.lp-tile-strength b { margin-left: 6px; font-weight: 900; font-size: 22px; color: var(--ui-title); }
+.lp-tile:hover .lp-tile-strength, .lp-tile.tt-on .lp-tile-strength { opacity: 1; }
+.lp-tile .lp-ko { z-index: 2; }
 @media (prefers-reduced-motion: reduce) { .gc-board-in { animation: none; } .lp-tile, .lp-tile:hover, .lp-tile:active { transform: none; transition: border-color 0.1s ease; } }
 
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════════════

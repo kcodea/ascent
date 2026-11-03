@@ -61,6 +61,9 @@ export const PATCH_NOTES: PatchNote[] = [
       {
         category: 'Systems',
         text: 'Lobby rail: a knocked-out player now shows the painted Echo medallion instead of the plain skull.',
+      },
+      {
+        category: 'Systems',
         text: 'Career: Top 4 Finish, Losses and Avg Placement now wear painted gold medallions too.',
       },
       {

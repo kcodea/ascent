@@ -150,7 +150,7 @@ html:root .lobbyrail.lrv-docked .lrv-hpnum {
   text-shadow: var(--pill-num-shadow);
 }
 html:root .lobbyrail.lrv-docked .lrv-hpnum > span { display: inline-flex; align-items: center; gap: 0.2em; }
-html:root .lobbyrail.lrv-docked .lrv-hpnum svg { width: 0.82em; height: 0.82em; flex: none; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)); }
+html:root .lobbyrail.lrv-docked .lrv-hpnum :is(svg, .armormedal, .healthmedal) { width: 0.82em; height: 0.82em; flex: none; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)); }
 html:root .lobbyrail.lrv-docked .lrv-hpn-hp { font-size: calc(var(--lr2-hpnum-size, 24.5) * var(--dk-s, 1) * 1px); color: #fff; }
 html:root .lobbyrail.lrv-docked .lrv-hpn-hp svg { color: var(--ui-heart); }
 html:root .lobbyrail.lrv-docked .lrv-hpn-arm { font-size: calc(var(--lr2-armnum-size, 14) * var(--dk-s, 1) * 1px); color: var(--pill-armor); }
@@ -440,7 +440,7 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
 }
 .lobbyscout.lrv-scout .lrv-sc-hp { flex: none; display: inline-flex; align-items: center; gap: calc(7 * var(--c)); font-size: calc(13 * var(--lfont)); font-weight: 900; font-variant-numeric: tabular-nums; }
 .lobbyscout.lrv-scout .lrv-sc-hp > span { display: inline-flex; align-items: center; gap: 0.2em; }
-.lobbyscout.lrv-scout .lrv-sc-hp svg { width: 1.1em; height: 1.1em; }
+.lobbyscout.lrv-scout .lrv-sc-hp :is(svg, .armormedal, .healthmedal) { width: 1.1em; height: 1.1em; }
 .lobbyscout.lrv-scout .lrv-sc-heart { color: var(--ui-text); }
 .lobbyscout.lrv-scout .lrv-sc-heart svg { color: var(--ui-heart); }
 .lobbyscout.lrv-scout .lrv-sc-arm { color: #c9d8ee; }
@@ -508,7 +508,7 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
 .lobbyrailhead.lrv-docked:not(.guidesview) .lobbymax {
   align-self: auto; transform: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
 }
-.lobbyrailhead.lrv-docked:not(.guidesview) .lobbymax svg { width: 1em; height: 1em; color: var(--ui-heart); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); }
+.lobbyrailhead.lrv-docked:not(.guidesview) .lobbymax :is(svg, .healthmedal) { width: 1em; height: 1em; color: var(--ui-heart); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9)); }
 .lobbyrailhead.lrv-docked:not(.guidesview) > .herotip.lobbymax-tip { right: 50%; translate: 50% 0; font-size: initial; text-shadow: none; }
 
 /* ── EVERY MODE ON THE DOCKED RAIL (owner 2026-10-31: "I think we should move all modes to this rail type. 1v1, even 3

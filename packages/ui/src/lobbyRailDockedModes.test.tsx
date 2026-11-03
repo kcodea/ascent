@@ -104,6 +104,23 @@ describe('the Docked rail in every mode', () => {
     }
   });
 
+  it('a seat with Armor wears the painted silver shield medallion beside its number, not the flat shield glyph (owner 2026-11-03)', () => {
+    const seats = [seat('p1'), seat('p2'), seat('p3')];
+    const raw = { phase: 'shop', paused_at: null, paused_seat: null, options: { mode: 'group' }, seats };
+    const run = versusRun(3);
+    const lobby = { ...run.lobby!, seats: run.lobby!.seats.map((s, i) => (i === 1 ? { ...s, armor: 5 } : s)) };
+    const c = show({ ...run, lobby } as RunState, { phase: 'shop', round: 3, p1_user: 'me', group: { me: 'p1', raw } });
+    const arm = c.querySelector('[data-seat="s1"] .lrv-hpn-arm');
+    expect(arm?.textContent).toBe('5');
+    expect(arm?.querySelector('img.armormedal')?.getAttribute('src')).toMatch(/medallions\/armor\.webp$/);
+    expect(arm?.querySelector('svg')).toBeNull();
+    // Health wears the painted red heart medallion, on the slice and on the Max dmg chip (owner 2026-11-03).
+    const hp = c.querySelector('[data-seat="s1"] .lrv-hpn-hp');
+    expect(hp?.querySelector('img.healthmedal')?.getAttribute('src')).toMatch(/medallions\/health\.webp$/);
+    expect(hp?.querySelector('svg')).toBeNull();
+    expect(c.querySelector('.lobbymax img.healthmedal')).not.toBeNull();
+  });
+
   it('Versus Duos: slices grouped per team, Health on both teammates, one place per team, the teammate distinct; clicking them opens their board', () => {
     const raw = { phase: 'shop', paused_at: null, paused_seat: null, options: { mode: 'duos' }, seats: ['p1', 'p2', 'p3', 'p4'].map((x) => seat(x)) };
     const c = show(versusRun(4), { phase: 'shop', round: 3, p1_user: 'me', group: { me: 'p1', raw, duos: { team: 'a', mate: 'p2', first: { a: 'p1', b: 'p3' } } } });

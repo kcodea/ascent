@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Lobby rail: Health and Armor now show painted heart and shield medallions.',
+      },
+      {
+        category: 'Systems',
         text: 'Lobby rail: a knocked-out player now shows the painted Echo medallion instead of the plain skull.',
       },
       {

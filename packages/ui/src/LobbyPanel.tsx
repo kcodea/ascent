@@ -21,7 +21,7 @@ import { teamPlatePath, type DockPanel, type Pt } from './lobbyRailDockedLayout'
 import { RuneTipBody, type RuneTipSource } from './runeTipBody';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
-import { MenuMedal } from './menuIcons';
+import { ArmorMedal, HealthMedal, MenuMedal } from './menuIcons';
 import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { useScreenSwapped, useSwapRef } from './screenSwap';
@@ -686,7 +686,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
           game's standard HUD tip panel (`.herotip`, the hero-power / Equipment hover), not the small `.gtip`
           bubble: owner 2026-10-02, "fix this tooltip, it's unreadable". */}
       <span key={capPop} className={`lobbymax${capPop ? ' lobbymax-pop' : ''}`} aria-label={`${capTip.title}. ${capTip.rule}`}>
-        <Icon name="heart" />{maxDamageLabel(cap)}
+        <HealthMedal />{maxDamageLabel(cap)}
       </span>
       {/* The chip's SIBLING (opened by `.lobbymax:hover + .lobbymax-tip`, the opponent-power tip's pattern), so the
           chip's own text stays just the number. */}
@@ -821,8 +821,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                     {/* HEALTH NUMBERS (owner 2026-10-31: "can we make that a number?"): Health, Armor under it, on the navy
                         side. Tuner 2 "Show Health as" picks these (default), the bar below, or both. */}
                     <span className="lrv-hpnum" role="img" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
-                      <span className="lrv-hpn-hp"><Icon name="heartPill" />{live.resolve}</span>
-                      {live.armor > 0 && <span className="lrv-hpn-arm"><Icon name="shield" />{live.armor}</span>}
+                      <span className="lrv-hpn-hp"><HealthMedal />{live.resolve}</span>
+                      {live.armor > 0 && <span className="lrv-hpn-arm"><ArmorMedal />{live.armor}</span>}
                     </span>
                     <span className="lrv-barclip" style={dp?.cut ? { clipPath: outlineClip(insetOutline(dp.outline, 4 * dock!.s, dp.w)) } : undefined}>
                     <span className="lrv-bar" role="img" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
@@ -866,9 +866,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               </span>
               {inTeam ? null : row.alive ? (
                 <span className="lobbyhp">
-                  {/* The health pill heart: its facet + gloss show in the Gem rail and hide in Classic (lobbyRail.css). */}
-                  <Icon name="heartPill" />{live.resolve}
-                  {live.armor > 0 && <span className="lobbyarmor"><Icon name="shield" />{live.armor}</span>}
+                  {/* The painted Health medallion (owner art 2026-11-03), in every rail look. */}
+                  <HealthMedal />{live.resolve}
+                  {live.armor > 0 && <span className="lobbyarmor"><ArmorMedal />{live.armor}</span>}
                 </span>
               ) : (
                 <span className="lobbyplace">{row.placement ? `#${row.placement}` : 'out'}</span>
@@ -948,8 +948,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               {members.map((m) => seatRow(m, true))}
               {alive ? (
                 <span className="lobbyhp lobbyteamslot-hp">
-                  <Icon name="heartPill" />{hpRow.resolve}
-                  {hpRow.armor > 0 && <span className="lobbyarmor"><Icon name="shield" />{hpRow.armor}</span>}
+                  <HealthMedal />{hpRow.resolve}
+                  {hpRow.armor > 0 && <span className="lobbyarmor"><ArmorMedal />{hpRow.armor}</span>}
                 </span>
               ) : (
                 <span className="lobbyplace lobbyteamslot-hp">{hpRow.placement ? `#${hpRow.placement}` : 'out'}</span>
@@ -1241,8 +1241,8 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run, teams }: 
           <span className="lobbyscout-name">{seat.label}</span>
           {hp?.alive && (
             <span className="lrv-sc-hp" aria-label={`Health ${hp.resolve}, Armor ${hp.armor}`}>
-              <span className="lrv-sc-heart"><Icon name="heartPill" />{hp.resolve}</span>
-              <span className="lrv-sc-arm"><Icon name="armor" />{hp.armor}</span>
+              <span className="lrv-sc-heart"><HealthMedal />{hp.resolve}</span>
+              <span className="lrv-sc-arm"><ArmorMedal />{hp.armor}</span>
             </span>
           )}
         </div>

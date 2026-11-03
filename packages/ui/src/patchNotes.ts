@@ -56,6 +56,22 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-03',
+    changes: [
+      {
+        category: 'Systems',
+        text: "Engraved now keeps each combat buff as itself. A Growth stays Growth and a Ruby stays a Ruby, so cards that use this minion's Rubies count them.",
+        details: [
+          'Engraved is not its own kind of buff. It just makes buffs gained in combat permanent.',
+          'A minion that gets +20/+20 from Growth in combat keeps +20/+20 Growth.',
+          'A golden Taurus doubles a Ruby. Now the whole doubled Ruby is kept as a Ruby.',
+          'A Ruby on a Dragon next to Transcendant is now kept as a Ruby.',
+          'Fixed: a permanent buff on a Dragon next to Transcendant was kept twice. It is now kept once.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-02',
     changes: [
       {

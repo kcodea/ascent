@@ -3148,6 +3148,12 @@ export interface Minion {
    *  the carry-back came from them the run board labelled the gain "Flowing Monk" — the only non-Engraved
    *  source that existed before Set 2. Subtracted out at collection so each share is labelled correctly. */
   permaRuby?: { attack: number; health: number };
+  /** ENGRAVED GAINS BY ORIGINAL SOURCE (owner ruling 2026-11-03, R-ENGRAVE-05: "'Engraved' isn't a buff type, it just
+   *  makes buffs and enchantments gained in combat permanent"). Every gain `ctx.buff` keeps on an Engraved body is
+   *  booked here under the label the Shop would give it (a Ruby as 'Ruby', a spell under the spell's name, a minion's
+   *  buff under that minion's name, a labelled grant under its label), so the run card's ledger shows "+20/+20 Growth",
+   *  never a generic "Engraved". Also summed into `permaGain`; the carry-back emits one row per label. */
+  permaRows?: { label: string; attack: number; health: number }[];
   /** Set 2 — stats from RUBIES played onto this minion during COMBAT (`playRubyOn`). Tracked separately from
    *  the recruit-phase `Ruby` entry in `buffs` because `buffs` is SHARED BY REFERENCE with the run's board card
    *  (see `combat/minion.ts`) — appending to it from inside the simulation would mutate run state and break the
@@ -4258,7 +4264,10 @@ export interface CombatContext {
   /** `ruby`: tag the emitted `buff` event as a Ruby landing (presentation only — see the `buff` event's own
    *  note). Only `applyRubyStats` passes it; every other caller leaves it off and behaves exactly as before. */
   /** `bounce`: stamp the buff as a cross-target re-cast off `bounce.from` (see the `buff` event's note). */
-  buff(target: Minion, attack: number, health: number, source: string, ruby?: true, bounce?: BounceProvenance): void;
+  /** Returns what actually LANDED on `target` (after any `gainMult` doubling) and whether the gain was `kept` (an
+   *  Engraved body, native EG or a live Transcendant aura, accrued it into `permaGain`). Most callers ignore it;
+   *  `applyRubyStats` reads it so a Ruby's engraved share stays labelled Ruby (R-RUBY-ENGRAVED-01). */
+  buff(target: Minion, attack: number, health: number, source: string, ruby?: true, bounce?: BounceProvenance): { attack: number; health: number; kept: boolean };
   /** Register a tribe buff that persists for the rest of combat: a friend of `tribe` on `side`
    *  summoned *after* this also gains +atk/+hp (Grim's Deathrattle). Current friends are buffed by the caller. */
   addTribeAura(side: Side, tribe: Tribe | 'any', attack: number, health: number, source: string): void;

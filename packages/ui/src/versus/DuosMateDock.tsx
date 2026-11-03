@@ -33,6 +33,7 @@
  */
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { parseCosmeticSnapshot } from '@game/progression';
+import { duosMateOf, type VersusGroupSeat } from '@game/sim';
 import { FoePortraitDisc } from '../FoePortraitDisc';
 import { frameIdOf, usePortraitFrame } from '../portraitFrame/PortraitFrame';
 import { ensureDefsReady, playDef } from '../fx/playDef';
@@ -218,7 +219,17 @@ export function stageBox(rect: Box, win: { w: number; h: number } = typeof windo
  * YOU, and clicking it brings you back to your own. The face is the hero picked so far (theirs from their screen, mine
  * from mine), else the player's profile picture. No passing there (no hand yet).
  */
-export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = false, heroSelect = false }: { watching: boolean; inCombat?: boolean; heroSelect?: boolean }): JSX.Element | null {
+/**
+ * `stands` (owner report 2026-11-02: "im realizing i dont see the teammate portrait at all as a spec";
+ * R-SPECTATE-DUOS-MATEDOCK-01): a SPECTATOR's screen is the watched player's, so it shows the watched player's teammate
+ * here exactly as that player sees them: the same face and frame, the same place, the same live signals off the
+ * teammate's own frames (their tier-up burst, the "still working" glow, Away), the tag-in copy in a fight, and the
+ * target every pass stream flies into and out of. Only a face: nothing a spectator presses changes the game, so it takes
+ * no click and no drag.
+ */
+export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = false, heroSelect = false, stands = false }: { watching: boolean; inCombat?: boolean; heroSelect?: boolean; stands?: boolean }): JSX.Element | null {
+  // Whose screen this is: my seat, or (a spectator) the watched player's.
+  const watchedSeat = useSpectate((s) => (stands && s.active ? s.seat : null));
   // Hero Select: the heroes picked so far (the seat rows carry a hero only once every pick is in).
   const matePick = useSpectate((s) => (heroSelect ? s.matePick ?? null : null));
   const myPick = useOwnHeroPick((s) => (heroSelect ? s.heroId : null));
@@ -237,8 +248,9 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     if (local) return null;
     const g = s.match?.group;
     const d = g?.duos;
-    if (!g?.me || !d) return null;
-    const seat = watching ? g.me : d.mate;
+    const viewer = g?.me ?? watchedSeat;
+    if (!g || !viewer || !d) return null;
+    const seat = watching ? viewer : d.mate ?? duosMateOf(viewer);
     const row = g.raw.seats.find((x) => x.seat === seat);
     if (!row) return null;
     const profile = s.room?.members.find((m) => m.userId === row.userId)?.profile;
@@ -252,19 +264,21 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   const away = useVersus((s) => {
     const g = s.match?.group;
     if (local || watching || !g?.duos) return false;
-    const row = g.raw.seats.find((x) => x.seat === g.duos!.mate);
-    return !!row?.auto || (!!g.raw.paused_at && g.raw.paused_seat === g.duos.mate);
+    const mateSeat = g.duos.mate ?? (watchedSeat ? duosMateOf(watchedSeat) : null);
+    if (!mateSeat) return false;
+    const row = g.raw.seats.find((x) => x.seat === mateSeat);
+    return !!row?.auto || (!!g.raw.paused_at && g.raw.paused_seat === mateSeat);
   });
   const showOppSkins = useGame((s) => s.showOpponentSkins);
-  const passOver = useDragSlice((st) => (watching || inCombat || heroSelect ? null : st.passOver), Object.is);
-  const passReason = useDragSlice((st) => (watching || inCombat || heroSelect ? null : st.passReason), Object.is);
-  const note = useDuosPassNote((st) => (watching || heroSelect || !st.text ? null : `${st.n}|${st.text}`));
+  const passOver = useDragSlice((st) => (watching || inCombat || heroSelect || stands ? null : st.passOver), Object.is);
+  const passReason = useDragSlice((st) => (watching || inCombat || heroSelect || stands ? null : st.passReason), Object.is);
+  const note = useDuosPassNote((st) => (watching || heroSelect || stands || !st.text ? null : `${st.n}|${st.text}`));
   // THE TAG-IN (R-DUOS-SLOTS-02): my teammate's board is fighting on my side right now.
   const tagged = useDuosCombat((st) => inCombat && !watching && !heroSelect && st.on && !!st.selfSeatId);
   // MY TEAMMATE'S SIGNALS (owner 2026-10-27, R-DUOS-MATE-SIGNALS-01): only while this portrait is THEIRS (on my board, in
   // the shop or the fight; never while I watch them, where their own screen shows it, nor at Hero Select).
   const signals = !local && !watching && !heroSelect;
-  const mate = useVersus((s) => (signals ? s.match?.group?.duos?.mate ?? null : null));
+  const mate = useVersus((s): VersusGroupSeat | null => (signals ? s.match?.group?.duos?.mate ?? (watchedSeat ? duosMateOf(watchedSeat) : null) : null));
   // Their shop tiered up: the player's own tier-up burst over the disc (`shop-tier-up`, TavernUpButton's def).
   const tierPop = useDuosMateSignals((st) => (mate ? st.tierPop[mate] ?? 0 : 0));
   // The round is waiting on their screen (their End of Turn going off, or their late fight): the working glow.
@@ -272,9 +286,11 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   const roundKey = useVersus((s) => {
     const m = s.match;
     const g = m?.group;
-    if (!signals || !m || !g?.duos?.mate) return null;
-    const row = g.raw.seats.find((x) => x.seat === g.duos!.mate);
-    return `${m.round}|${m.phase}|${s.readyRound === m.round || m.p1_ready ? 1 : 0}|${row?.ready ? 1 : 0}`;
+    if (!signals || !m || !g?.duos || !mate) return null;
+    const row = g.raw.seats.find((x) => x.seat === mate);
+    // "Am I back": my own ready, or (a spectator) the watched player's, as their own portrait reads it.
+    const meBack = watchedSeat && !g.me ? !!g.raw.seats.find((x) => x.seat === watchedSeat)?.ready : s.readyRound === m.round || m.p1_ready;
+    return `${m.round}|${m.phase}|${meBack ? 1 : 0}|${row?.ready ? 1 : 0}`;
   });
   const myWave = useGame((s) => s.run.wave);
   // EFFECT PASSES WAITING FOR MY HAND ROOM (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01): a count pill by the portrait,
@@ -377,8 +393,9 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     >
       {/* IN COMBAT (owner 2026-10-25) the portrait stays but is only a face: the fight is the team's (both of you watch
           the same one) and passing is shop-only, so it takes no click. */}
-      {inCombat ? (
-        <div ref={holdRef} className="duosdock-hold" data-duos-mate="" aria-label={`${face.name}, your teammate.`}>
+      {/* A SPECTATOR's (`stands`) is a face too, in the shop as well: nothing they press reaches the game. */}
+      {inCombat || stands ? (
+        <div ref={holdRef} className="duosdock-hold" data-duos-mate="" aria-label={stands ? `${face.name}, the teammate of the player you watch.` : `${face.name}, your teammate.`}>
           <span className="duosdock-work" aria-hidden="true" />
           {disc}
         </div>

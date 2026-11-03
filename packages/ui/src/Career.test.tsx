@@ -149,6 +149,10 @@ describe('the left column', () => {
     // Losses sits directly under Top 4 Finish (owner ask 2026-09-21) and wears its own icon.
     const tiles = [...ui.container.querySelectorAll('.cv2-left .cv2-stat')];
     expect(tiles[2]!.querySelector('.cv2-stat-ico svg')).not.toBeNull();
+    // Favorite Tribe wears that tribe's painted medallion (owner art 2026-11-03), not the flat paw glyph.
+    const medal = tiles[4]!.querySelector<HTMLImageElement>('.cv2-stat-ico img.tribemedal');
+    expect(medal?.getAttribute('src')).toMatch(/menu\/tribe-beast\.webp$/);
+    expect(tiles[4]!.querySelector('.cv2-stat-ico svg')).toBeNull();
   });
 });
 

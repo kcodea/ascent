@@ -1,3 +1,4 @@
+import type { Tribe } from '@game/core';
 import { publicArt } from './phoneArt';
 
 /**
@@ -35,6 +36,22 @@ export const GildedCrown = () => (
   <img
     className="gildedcrown"
     src={publicArt('frames/gilded.webp')}
+    alt=""
+    aria-hidden="true"
+    draggable={false}
+    decoding="sync"
+  />
+);
+
+/** The tribes with a painted gold medallion (owner art, `Reference Art/Medallions/tribe-*.png`, 2026-11-03) in `public/menu/tribe-<id>.webp`. */
+const TRIBE_MEDALS: ReadonlySet<Tribe> = new Set<Tribe>(['beast', 'celestial', 'demon', 'dragon', 'dwarf', 'kobold', 'mech', 'spirit', 'undead']);
+export const hasTribeMedal = (tribe: Tribe | null | undefined): tribe is Tribe => !!tribe && TRIBE_MEDALS.has(tribe);
+
+/** A tribe's painted medallion, sized by its container like the gilded crown. Check `hasTribeMedal` first. */
+export const TribeMedal = ({ tribe }: { tribe: Tribe }) => (
+  <img
+    className="tribemedal"
+    src={`${import.meta.env.BASE_URL}menu/tribe-${tribe}.webp`}
     alt=""
     aria-hidden="true"
     draggable={false}

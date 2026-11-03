@@ -1,4 +1,4 @@
-import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { GameSplit, type GameListItem } from './GameSplit';
 import { GameRank } from './gameRank';
 import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicker';
@@ -15,7 +15,7 @@ import { RuneEmblem } from './RuneEmblem';
 import { heroPortrait, opponentSkins } from './skins/skins';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
-import { GildedCrown, MenuMedal, ReplayEye } from './menuIcons';
+import { GildedCrown, MenuMedal, ReplayEye, TribeMedal, hasTribeMedal } from './menuIcons';
 import { HeroPortraitRing } from './portraitFrame/HeroPortraitRing';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { recordText } from './leaderboardData';
@@ -154,10 +154,10 @@ function FinalTeam({ board }: { board: BoardSnapshot }) {
 }
 
 /** A labelled small-caps stat with a big value — the left column's tiles. */
-function StatTile({ label, value, icon }: { label: string; value: string; icon?: string }) {
+function StatTile({ label, value, icon, art }: { label: string; value: string; icon?: string; art?: ReactNode }) {
   return (
     <div className="cv2-stat">
-      {icon && <span className="cv2-stat-ico">{icon === 'crown' ? <GildedCrown /> : <Icon name={icon} />}</span>}
+      {(art || icon) && <span className="cv2-stat-ico">{art ?? (icon === 'crown' ? <GildedCrown /> : <Icon name={icon!} />)}</span>}
       <span className="cv2-stat-v">{value}</span>
       <span className="cv2-stat-l">{label}</span>
     </div>
@@ -691,7 +691,8 @@ export function Career() {
               {/* LOSSES (owner ask 2026-09-21): the bottom-4 finishes, as a count beside the Top 4 rate. */}
               <StatTile icon="skull" label="Losses" value={String(aggregates.losses)} />
               <StatTile icon="star" label="Avg Placement" value={aggregates.avgPlacement === null ? '—' : String(aggregates.avgPlacement)} />
-              <StatTile icon="paw" label="Favorite Tribe" value={aggregates.favoriteTribe ? TRIBE_LABEL[aggregates.favoriteTribe] : '—'} />
+              {/* The favourite tribe wears its own painted medallion (owner art 2026-11-03); no tribe / Neutral keeps the paw. */}
+              <StatTile icon="paw" art={hasTribeMedal(aggregates.favoriteTribe) ? <TribeMedal tribe={aggregates.favoriteTribe} /> : undefined} label="Favorite Tribe" value={aggregates.favoriteTribe ? TRIBE_LABEL[aggregates.favoriteTribe] : '—'} />
             </div>
           </div>
         </aside>

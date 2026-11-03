@@ -9061,6 +9061,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-stat { display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(196, 160, 92, 0.3); text-align: left; }
 .cv2-stat-ico { grid-row: 1 / span 2; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: rgba(196, 160, 92, 0.16); color: #f0c977; }
 .cv2-stat-ico svg, .cv2-stat-ico .gildedcrown { width: 22px; height: 22px; }
+.cv2-stat-ico .tribemedal { width: 26px; height: 26px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 .cv2-stat-v { font-family: var(--font-ui); font-weight: 900; font-size: 26px; line-height: 1.05; color: #fff; font-variant-numeric: tabular-nums; }
 .cv2-stat-l { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.62); margin-top: 2px; }
 

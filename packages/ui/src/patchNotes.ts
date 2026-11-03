@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Career: your Favorite Tribe now shows that tribe\'s new painted gold medallion.',
+      },
+      {
+        category: 'Systems',
         text: 'Match history: hover a player in a game\'s lobby to see their Game strength right on their tile.',
       },
       {

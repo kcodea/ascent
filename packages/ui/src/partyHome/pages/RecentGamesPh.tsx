@@ -25,7 +25,7 @@ import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { heroThumb } from '../../art';
 import { isPhone } from '../../deviceClass';
 import { Icon } from '../../Icon';
-import { ReplayEye } from '../../menuIcons';
+import { GildedCrown, ReplayEye } from '../../menuIcons';
 import { GameRank } from '../../gameRank';
 import { rankLabel } from '../../rank/types';
 import { StoredTeam } from '../../StoredTeam';
@@ -41,7 +41,7 @@ import { heroPortrait } from '../../skins/skins';
 import { DuosGameCard } from '../../duosHistory/DuosGameCard';
 import { duosBand, duosGameView, duosModeLabel, teamPlaceText, type DuosGameRow } from '../../duosHistory/duosHistoryData';
 import { practiceOpponentsText, summaryOf, type FeedRow, type RecentGamesTab } from '../../RecentGames';
-import { PhButton, PhChip, PhEmpty, PhFact, PhPage, PhPlace, PhSection, PhSegmented, PhSelectList, PhStat, PhTabs } from '../kit';
+import { PhButton, PhChip, PhEmpty, PhFact, PhPage, PhSection, PhSegmented, PhSelectList, PhStat, PhTabs } from '../kit';
 import './gamesPages.css';
 
 export interface KeyedRow { r: FeedRow; key: string; mine: boolean; skins: RunCosmeticSnapshot | null }
@@ -69,11 +69,17 @@ export function placeWords(place: number | null): string {
   return place === 1 ? 'Victory' : `${placeText(place)} place`;
 }
 
-/** A placement box: the kit's `PhPlace`, plain (no podium metal) when the band did not earn it (a Duos team's 2nd of 2 is
- *  a loss). No placement: the same box with a dash. */
+/** THE PLACEMENT (owner ruling 2026-11-03: "for the ui overhaul i prefer this style placement", the production Recent
+ *  Games list's): the ordinal as plain bold text in its band's colour (gold a win, green the top 4, rose after), a small
+ *  gilded crown before a 1st, and the same colour as the row's left edge bar. No crest. The band, not the number, picks
+ *  the colour, so a Duos team's 2nd of 2 reads as the loss it is. */
 function Place({ place, band, big }: { place: number | null; band: GameBand; big?: boolean }) {
-  if (place === null || !(place > 0)) return <span className={`phk-place${big ? ' s-l' : ''}`} aria-label="No placement">-</span>;
-  return <PhPlace place={place} size={big ? 'l' : 'm'} plain={band === 'lost'} />;
+  return (
+    <span className={`rgp-ord b-${band}${big ? ' big' : ''}`} aria-label={placeWords(place)}>
+      {band === 'won' && <span className="rgp-crown" aria-hidden="true"><GildedCrown /></span>}
+      {placeText(place)}
+    </span>
+  );
 }
 
 /** How many hero options the filter shows on the header line before the rest fold into More ("All heroes" and More count):

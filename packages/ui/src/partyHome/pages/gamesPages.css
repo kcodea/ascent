@@ -79,9 +79,9 @@
 .rgp-item { flex: none; width: 100%; box-sizing: border-box; gap: calc(16 * var(--phu)); min-height: calc(64 * var(--phu)); padding: 0 calc(16 * var(--phu)) 0 calc(20 * var(--phu)); margin: 0; border: 0; overflow: hidden;
   color: inherit; text-align: left; font: inherit; }
 .rgp-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(4 * var(--phu)); background: var(--ph-hair); }
-.rgp-item.b-won::before { background: var(--ph-metal-gold); }
-.rgp-item.b-top4::before { background: var(--ph-metal-silver); }
-.rgp-item.b-lost::before { background: var(--ph-metal-bronze); opacity: 0.8; }
+.rgp-item.b-won::before { background: var(--rgp-won); }
+.rgp-item.b-top4::before { background: var(--rgp-top4); }
+.rgp-item.b-lost::before { background: var(--rgp-lost); }
 .rgp-item:hover { background: var(--ph-plate-hover); }
 .rgp-item .rgp-itemart { right: calc(112 * var(--phu)); width: 42%; opacity: 0.5;
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 45%, #000 60%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0%, #000 45%, #000 60%, transparent 100%); }
@@ -103,9 +103,9 @@
 .rgp-banner { position: relative; display: flex; align-items: center; gap: calc(24 * var(--phu)); min-height: calc(128 * var(--phu)); padding: calc(16 * var(--phu)) calc(32 * var(--phu)); overflow: hidden;
   background: var(--gp-rule) bottom / 100% calc(1 * var(--phu)) no-repeat; }
 .rgp-banner::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(4 * var(--phu)); background: var(--ph-hair); }
-.rgp-detail.b-won .rgp-banner::after { background: var(--ph-metal-gold); }
-.rgp-detail.b-top4 .rgp-banner::after { background: var(--ph-metal-silver); }
-.rgp-detail.b-lost .rgp-banner::after { background: var(--ph-metal-bronze); }
+.rgp-detail.b-won .rgp-banner::after { background: var(--rgp-won); }
+.rgp-detail.b-top4 .rgp-banner::after { background: var(--rgp-top4); }
+.rgp-detail.b-lost .rgp-banner::after { background: var(--rgp-lost); }
 .rgp-bannerart { position: absolute; right: 0; top: 0; width: 58%; height: 100%; object-fit: cover; object-position: 50% 20%; pointer-events: none; opacity: 0.85;
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 60%); mask-image: linear-gradient(90deg, transparent 0%, #000 60%); }
 .rgp-banner > :not(img) { position: relative; }
@@ -180,15 +180,8 @@
 /* DUOS: the shared Duos card, sat on the kit plate instead of its own card frame. */
 .rgp-duos .gc.gc-detail { min-height: 100%; border: 0; background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); border-radius: var(--ph-r-l); }
 .rgp-duos .gc.gc-detail .gc-body { padding: calc(24 * var(--phu)) calc(32 * var(--phu)) calc(16 * var(--phu)); column-gap: calc(24 * var(--phu)); grid-template-columns: calc(72 * var(--phu)) minmax(0, 1fr) auto; }
-/* The team's placement as the kit's metal box (the classic crown and ordinal stay off here). */
-.rgp-duos .gc.gc-detail .gc-place { display: grid; place-items: center; width: calc(72 * var(--phu)); height: calc(72 * var(--phu)); padding: 0; border: 0; background: var(--ph-plate);
-  box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); border-radius: var(--ph-r);
-  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-text); text-shadow: var(--ph-shadow); }
-.rgp-duos .gc.gc-detail .gc-place .gc-crown { display: none; }
-.rgp-duos .gc.gc-detail .gc-place { align-self: center; justify-self: start; }
-.rgp-duos .gc.gc-detail .gc-place .gc-place-n { font: inherit; color: inherit; }
-.rgp-duos .gc.gc-detail .gc-place.won { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: none; box-shadow: none; }
-.rgp-duos .gc.gc-detail .gc-place.top4 { background: var(--ph-metal-silver); color: var(--ph-navy); text-shadow: none; box-shadow: none; }
+/* The team's placement keeps the shared card's own style (band-coloured ordinal, a crown on a win), the same as the list. */
+.rgp-duos .gc.gc-detail .gc-place { font-family: var(--ph-font); }
 .rgp-duos .gc-title, .rgp-duos .gc-title > * { font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t4) !important; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .rgp-duos .gc-sub, .rgp-duos .gc-sub > * { font-size: var(--ph-t2) !important; color: var(--ph-text); }
 .rgp-duos .gc-board { background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); border-radius: var(--ph-r); border-top: 0 !important; }
@@ -282,3 +275,18 @@ html[data-touch-small] :is(.rgp, .lvp) .phk-moreitem { min-height: 40px; }
 .rgp-facts .phk-stat { background: color-mix(in srgb, var(--ph-navy) 45%, transparent); box-shadow: inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-gold) 22%, transparent); padding: calc(6 * var(--phu)) calc(14 * var(--phu)); }
 /* An empty board slot: a soft round glow where a minion would stand, no dashed box. */
 .rgp-board .cv2-tile.empty::before, .rgp-duos .cv2-tile.empty::before { border: 0; background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--ph-gold-hi) 9%, transparent), transparent 68%); }
+
+/* ── THE PLACEMENT, the production list's style (owner ruling 2026-11-03): the ordinal in bold band-coloured text with a
+   small crown before a 1st, matching the row's left edge bar. One set of band colours for the bar, the text and the
+   verdict. ── */
+.rgp { --rgp-won: #ffd76a; --rgp-top4: #7fe8ac; --rgp-lost: #ff9a9a; --rgp-none: color-mix(in srgb, var(--ph-ink) 40%, transparent); }
+.rgp-ord { flex: none; display: inline-flex; align-items: center; gap: calc(3 * var(--phu)); min-width: calc(56 * var(--phu)); font-family: var(--ph-font); font-weight: 900; font-size: calc(22 * var(--phu)); line-height: 1; font-variant-numeric: tabular-nums; text-shadow: var(--ph-shadow); }
+.rgp-ord.b-won { color: var(--rgp-won); } .rgp-ord.b-top4 { color: var(--rgp-top4); } .rgp-ord.b-lost { color: var(--rgp-lost); } .rgp-ord.b-none { color: var(--rgp-none); }
+.rgp-crown svg, .rgp-crown .gildedcrown { display: block; width: calc(15 * var(--phu)); height: calc(15 * var(--phu)); }
+.rgp-ord.big { min-width: 0; font-size: calc(52 * var(--phu)); gap: calc(6 * var(--phu)); }
+.rgp-ord.big .rgp-crown svg, .rgp-ord.big .rgp-crown .gildedcrown { width: calc(28 * var(--phu)); height: calc(28 * var(--phu)); }
+.rgp-item::before { width: calc(5 * var(--phu)); }
+.rgp-banner::after { width: calc(5 * var(--phu)); }
+.rgp .rgp-verdict.b-won { color: var(--rgp-won); } .rgp .rgp-verdict.b-top4 { color: var(--rgp-top4); } .rgp .rgp-verdict.b-lost { color: var(--rgp-lost); }
+.rgp-duos .dh-team.lp-won { --band: var(--rgp-won); } .rgp-duos .dh-team.lp-top4 { --band: var(--rgp-top4); } .rgp-duos .dh-team.lp-lost { --band: var(--rgp-lost); }
+.rgp .lp-won { --band: var(--rgp-won); } .rgp .lp-top4 { --band: var(--rgp-top4); } .rgp .lp-lost { --band: var(--rgp-lost); }

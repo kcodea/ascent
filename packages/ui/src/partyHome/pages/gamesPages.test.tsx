@@ -92,6 +92,11 @@ describe('Recent Games on the shell', () => {
     expect(q('.rgp-scope')?.textContent).toBe('Your last 50 Duos games');
   });
   it('names a placement in words', () => {
+    // The production list's placement style (owner ruling 2026-11-03): band-coloured ordinal text, a crown on a win, no crest.
+    ui = mount(<RecentGamesPh {...props()} />);
+    expect(qa('.rgp-item .rgp-ord').map((n) => `${n.className.match(/b-\w+/)?.[0]} ${n.textContent}`)).toEqual(['b-won 1st', 'b-lost 5th', 'b-top4 3rd']);
+    expect(qa('.rgp-item .rgp-crown').length).toBe(1);
+    expect(q('.rgp-item .phk-place')).toBeNull();
     expect(placeWords(1)).toBe('Victory');
     expect(placeWords(4)).toBe('4th place');
     expect(placeWords(null)).toBe('No placement');

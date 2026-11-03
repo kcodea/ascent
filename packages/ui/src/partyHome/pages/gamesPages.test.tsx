@@ -48,7 +48,9 @@ describe('Recent Games on the shell', () => {
   it('shows the strip, the hero filter, the whole history and the newest game open', () => {
     ui = mount(<RecentGamesPh {...props()} />);
     expect(q('.phk-pagetitle h1')?.textContent).toBe('Recent Games');
-    expect(q('.rgp-scope')?.textContent).toBe('The last 100 games, every player');
+    // The hero filter sits on the header line (one row); whose games these are rides the Games figure.
+    expect(q('.phk-pageactions .rgp-filters')).not.toBeNull();
+    expect(q('.rgp-strip .phk-statsub')?.textContent).toBe('every player');
     expect(qa('.rgp-strip .phk-statval').map((n) => n.textContent)).toEqual(['3', '3.0', '67%', '1']);
     expect(q('.rgp-mostname')?.textContent).toBe(HEROES[0]!.name);
     expect(qa('.rgp-filters .phk-segbtn').map((b) => b.textContent)).toEqual(['All heroes', `${HEROES[0]!.name}2`, `${HEROES[1]!.name}1`]);
@@ -87,6 +89,7 @@ describe('Recent Games on the shell', () => {
     expect(q('.phk-emptytitle')?.textContent).toBe('Recent games are unavailable');
     ui.render(<RecentGamesPh {...props({ tab: 'duos', state: 'signedout' })} />);
     expect(q('.phk-emptytitle')?.textContent).toBe('Sign in to see your Duos games');
+    expect(q('.rgp-scope')?.textContent).toBe('Your last 50 Duos games');
   });
   it('names a placement in words', () => {
     expect(placeWords(1)).toBe('Victory');

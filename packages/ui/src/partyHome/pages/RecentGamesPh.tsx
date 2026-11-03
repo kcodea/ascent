@@ -23,6 +23,7 @@ import type { MatchDetails } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { heroThumb } from '../../art';
+import { isPhone } from '../../deviceClass';
 import { Icon } from '../../Icon';
 import { ReplayEye } from '../../menuIcons';
 import { GameRank } from '../../gameRank';
@@ -75,8 +76,9 @@ function Place({ place, band, big }: { place: number | null; band: GameBand; big
   return <PhPlace place={place} size={big ? 'l' : 'm'} plain={band === 'lost'} />;
 }
 
-/** How many hero options the filter shows before the rest fold into More ("All heroes" counts as one). */
-export const HERO_FILTER_MAX = 9;
+/** How many hero options the filter shows on the header line before the rest fold into More ("All heroes" and More count):
+ *  one row on every screen (round 5 critic). Read once per render from the window width, never per frame. */
+export const heroFilterMax = (): number => (isPhone() ? 4 : typeof window !== 'undefined' && window.innerWidth < 1600 ? 5 : 7);
 
 export function RecentGamesPh(p: RecentGamesPhProps) {
   const duos = p.tab === 'duos';
@@ -86,7 +88,9 @@ export function RecentGamesPh(p: RecentGamesPhProps) {
     <PhPage
       className="rgp" wide eyebrow="Match history" title="Recent Games"
       tabs={<PhTabs tabs={TABS} value={p.tab} onChange={p.onTab} label="Recent games view" />}
-      actions={<span className="rgp-scope">{scope}</span>}
+      actions={duos || !(p.state === 'ready' || (p.heroFilter !== null && p.state !== 'offline'))
+        ? <span className="rgp-scope">{scope}</span>
+        : <HeroFilter {...p} />}
     >
       {duos ? <DuosBody {...p} /> : <FeedBody {...p} />}
     </PhPage>
@@ -109,29 +113,30 @@ function StateBody({ state, tab, signedOut }: { state: RecentState; tab: RecentG
 
 /* ── RANKED + PRACTICE ─────────────────────────────────────────────────────────────────────────────────────────────── */
 
+/** The hero filter: ONE row of pills on the header line, the rest under More (the kit's PhSegmented `max`). */
+function HeroFilter(p: RecentGamesPhProps) {
+  return (
+    <div className="rgp-filters" aria-label="Filter by hero">
+      <PhSegmented<string | null>
+        value={p.heroFilter} onPick={p.onHero} max={heroFilterMax()}
+        options={[{ value: null, label: 'All heroes' }, ...p.heroCounts.map((c) => ({
+          value: c.id, label: <>{getHero(c.id).name}<span className="rgp-n" aria-label={`, ${c.n} ${c.n === 1 ? 'game' : 'games'}`}>{c.n}</span></>,
+        }))]}
+      />
+    </div>
+  );
+}
+
 function FeedBody(p: RecentGamesPhProps) {
   const practice = p.tab === 'practice';
-  const filterBar = p.state === 'ready' || (p.heroFilter !== null && p.state !== 'offline')
-    ? (
-      <div className="rgp-filters">
-        <PhSegmented<string | null>
-          label="Hero" value={p.heroFilter} onPick={p.onHero} max={HERO_FILTER_MAX}
-          options={[{ value: null, label: 'All heroes' }, ...p.heroCounts.map((c) => ({
-            value: c.id, label: <>{getHero(c.id).name}<span className="rgp-n" aria-label={`, ${c.n} ${c.n === 1 ? 'game' : 'games'}`}>{c.n}</span></>,
-          }))]}
-        />
-      </div>
-    )
-    : null;
-  if (p.state !== 'ready') return <><StateBody state={p.state} tab={p.tab} />{filterBar}</>;
+  if (p.state !== 'ready') return <StateBody state={p.state} tab={p.tab} />;
   if (p.rows.length === 0) {
-    return <>{filterBar}<PhSection><PhEmpty title="No games with this hero" sub="Pick another hero, or show them all." action={<PhButton size="s" onClick={() => p.onHero(null)}>All heroes</PhButton>} /></PhSection></>;
+    return <><PhSection><PhEmpty title="No games with this hero" sub="Pick another hero, or show them all." action={<PhButton size="s" onClick={() => p.onHero(null)}>All heroes</PhButton>} /></PhSection></>;
   }
   const sel = p.rows.find((k) => k.key === p.picked) ?? p.rows[0]!;
   return (
     <>
       <Strip rows={p.rows} practice={practice} />
-      {filterBar}
       <div className="rgp-split">
         <GameList
           label={practice ? 'Latest practice games' : 'Latest games'} selected={sel.key} onPick={p.onPick}
@@ -167,7 +172,7 @@ const Strip = memo(function Strip({ rows, practice }: { rows: readonly KeyedRow[
   return (
     <section className="rgp-strip" aria-label={practice ? 'The latest practice games at a glance' : 'The latest games at a glance'}>
       <div className="rgp-stats">
-        <PhStat label="Games" value={s.games} />
+        <PhStat label="Games" value={s.games} sub={practice ? 'practice, every player' : 'every player'} />
         <PhStat label="Avg place" value={s.avgPlace === null ? '-' : s.avgPlace.toFixed(1)} />
         <PhStat label="Top 4" value={s.top4 === null ? '-' : `${Math.round(s.top4 * 100)}%`} />
         <PhStat label="Wins" value={s.wins} tone="gold" />

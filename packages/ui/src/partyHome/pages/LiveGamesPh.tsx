@@ -101,7 +101,7 @@ function LiveRow({ r, showOpp, joining, onWatch }: { r: LiveGameRow; showOpp: bo
         <RankCrest divisionIndex={r.division_index} size="row" />
         <span className="lvp-ranktxt">
           <span className="lvp-ranklbl">{rankLabel({ divisionIndex: r.division_index, points: r.rank_points })}</span>
-          <span className="lvp-rating">{r.rating} rating</span>
+          <span className="lvp-rating">{r.rating} MMR</span>
         </span>
       </div>
       <div className="lvp-game">

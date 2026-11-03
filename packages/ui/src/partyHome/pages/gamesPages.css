@@ -15,7 +15,9 @@
 /* ── RECENT GAMES ── */
 /* Desktop: the strip and the filter stay put, the two halves of the split scroll on their own. */
 .rgp .phk-pagebody { overflow: hidden; padding-bottom: calc(24 * var(--phu) + var(--safe-b, 0px)); }
-.rgp .phk-pagetabs { justify-content: flex-start; }
+.rgp .phk-pagetabs { flex: none; justify-content: flex-start; }
+.rgp .phk-pageactions { min-width: 0; }
+.rgp-stats .phk-statsub { font-size: var(--ph-t1); color: var(--ph-muted); white-space: nowrap; }
 
 /* THE STRIP: four numbers, the most played hero, the placement line. */
 .rgp-strip { flex: none; overflow: hidden; display: grid; grid-template-columns: auto calc(320 * var(--phu)) minmax(0, 1fr); align-items: stretch; min-height: calc(120 * var(--phu));
@@ -55,11 +57,13 @@
 .rgp-sp-plot.dense .rgp-gem.won { width: calc(10 * var(--phu)); height: calc(10 * var(--phu)); }
 .rgp-sp-plot.dense .rgp-gem.lost { width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); }
 
-/* The hero filter: the kit's segmented row on one line (the rest fold into More); the label sits beside it. */
-.rgp-filters { flex: none; min-width: 0; position: relative; z-index: 2; }
-.rgp-filters .phk-seg { flex-direction: row; align-items: center; gap: calc(16 * var(--phu)); }
-.rgp-filters .phk-segrow { flex-wrap: nowrap; min-width: 0; }
-.rgp-filters .phk-segbtn { flex: 0 0 auto; }
+/* The hero filter on the header line: ONE row of pills (the kit's segmented row is a wrapping grid elsewhere), the rest
+   under More. */
+.rgp-filters { min-width: 0; position: relative; z-index: 3; }
+.rgp-filters .phk-seg { gap: 0; }
+.rgp-filters .phk-segrow { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: calc(4 * var(--phu)); }
+.rgp-filters .phk-segbtn, .rgp-filters .phk-more { flex: 0 0 auto; }
+.rgp-filters .phk-more > .phk-segbtn { width: auto; }
 .rgp-n { margin-left: calc(8 * var(--phu)); font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
 .phk-segbtn.on .rgp-n { color: color-mix(in srgb, var(--ph-navy) 70%, transparent); }
 .rgp .phk-moremenu { max-height: calc(360 * var(--phu)); overflow-y: auto; }
@@ -260,5 +264,9 @@ html[data-touch-small] .lvp { --lvp-cols: minmax(0, 1fr) calc(180 * var(--phu)) 
 .rgp-duos .dh-board .cv2-team.cv2-team { --tw: min(calc((100cqw - 8px) / 8.4), 140px); --tile-gap: calc(var(--tw) * 0.2); justify-content: center; padding: calc(var(--tw) * 0.3) calc(var(--tw) * 0.1 + 2px) 10px; }
 .rgp-duos .gc.gc-detail .gc-meta { justify-self: stretch; min-width: 0; }
 .rgp-duos .gc-meta .lb-facts { width: 100%; }
+
+/* PHONE TAP TARGETS (round 5 critic): every pill, tab and button on these pages is at least 36 px tall on a phone. */
+html[data-touch-small] :is(.rgp, .lvp) :is(.phk-segbtn, .phk-tab, .phk-btn, .lp-back) { min-height: 36px; }
+html[data-touch-small] :is(.rgp, .lvp) .phk-moreitem { min-height: 40px; }
 
 @media (prefers-reduced-motion: reduce) { .rgp-boardin { animation: none; } }

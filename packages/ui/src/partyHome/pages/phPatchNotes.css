@@ -83,6 +83,5 @@ html[data-touch-small] .phpn-list { padding-left: calc(40 * var(--phu)); padding
 /* Summary / Detailed sit side by side in the header row (the kit's segment grid would stack them in a narrow slot). */
 .phpn .phk-seg { flex: none; }
 .phpn .phk-segrow { display: flex; flex-wrap: nowrap; }
-/* Touch: the switch and the search are real tap targets. */
-html[data-touch-ui] .phpn .phk-segbtn, html[data-touch-ui] .phpn-search { height: calc(44 * var(--phu)); }
+/* Touch: the patch index rows are real tap targets (the kit sizes the switch and the search). */
 html[data-touch-ui] .phpn-idx { min-height: calc(44 * var(--phu)); }

@@ -157,7 +157,7 @@ html[data-touch-small] .phc .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var
 .phc .book-chart { position: static; transform: none; margin: 0 auto; flex: 0 1 auto; min-width: 0; }
 .phc .book-tiers-end { margin-left: 0; }
 /* The header row: the search and the card size sit side by side on the tabs' line, never stacked over the header line. */
-.phc .phk-pageactions { flex: none; align-self: flex-end; }
+.phc .phk-pageactions { flex: none; }
 .phc-actions { flex-wrap: nowrap; }
 .phc .book-search { width: clamp(calc(180 * var(--phu)), 16vw, calc(280 * var(--phu))); }
 .phc :is(.gloss-grouphead, .wiki-grouphead)::after { width: calc(144 * var(--phu)); height: calc(16 * var(--phu)); background: url('../ornaments/divider.webp') 0 50% / contain no-repeat; }

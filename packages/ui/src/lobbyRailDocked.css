@@ -142,7 +142,7 @@ html:root:is(:not([data-lr2-art]), [data-lr2-art="navy"]) .lobbyrail.lrv-docked 
    in the stack (`--hx`, the layout's `numX`). Tuner 2 "Show Health as" picks numbers (default), the bar, or both. */
 html:root .lobbyrail.lrv-docked .lrv-hpnum {
   position: absolute; z-index: 3; top: 50%;
-  left: calc(var(--hx, var(--mx, 0px)) + 10px * var(--dk-s, 1) + var(--lr2-hpnum-x, -15.5) * 1px);
+  left: calc(var(--hx, var(--mx, 0px)) + 10px * var(--dk-s, 1) + var(--lr2-hpnum-x, -5.5) * 1px);
   translate: 0 calc(-50% + var(--lr2-hpnum-y, 0) * 1px);
   display: flex; flex-direction: column; align-items: flex-start; gap: calc(2px * var(--dk-s, 1));
   font-family: var(--font-title), sans-serif; font-weight: 900; line-height: 1; pointer-events: none;

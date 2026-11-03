@@ -157,7 +157,7 @@ export function SpectatorBar(): JSX.Element | null {
     <>
       {mateDock && <DuosMateDock key="dock" watching={false} inCombat={phase === 'combat'} stands />}
       <SpectatorSelf onLeave={leaveSpectating} />
-      <WatchedPanel seats={group ? groupSeats : seats} />
+      <WatchedPanel seats={group ? groupSeats : seats} duos={!!match.group?.duos} />
       <KnockoutNotice matchId={match.id} />
     </>
   );

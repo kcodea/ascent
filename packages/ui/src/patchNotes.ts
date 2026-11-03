@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Spectating: you now see the screen exactly as the player does.',
+        details: [
+          "The player's mouse is always drawn on top, even over their Equipment and hero power.",
+          "Duos: their teammate's portrait shows in the bottom right, with its signals, and the switcher moves up top so it never covers it.",
+          'Duos: every pass plays its animation, in the shop and in the fight, both going out and coming in.',
+          'Ranked Duos team names show on the lobby rail.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: "Engraved now keeps each combat buff as itself. A Growth stays Growth and a Ruby stays a Ruby, so cards that use this minion's Rubies count them.",
         details: [
           'Engraved is not its own kind of buff. It just makes buffs gained in combat permanent.',

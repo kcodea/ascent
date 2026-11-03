@@ -13642,4 +13642,76 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Fixed 2026-11-02 (fix/card-name-filter-svg-scroll). Before: position absolute with no top / left, so the svg sat at the end of the stage content.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardNameFilter.test.ts'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-SPECTATE-CURSOR-LAYER-01',
+    title: "A watched player's cursor paints over the whole HUD, the Equipment slot included",
+    statement:
+      'On every spectate path (the Versus and Duos stands, a Live Games watch, a replay with a recorded stream) the watched '
+      + 'player\x27s hand is drawn by ONE layer at the app root, never inside the game box (which is its own stacking layer '
+      + 'in the shop, under the hero cluster). It paints above the hero portrait, the hero power, the Equipment slot, the '
+      + 'lobby rail, the hand and the teammate portrait, under the replay transport and the full-screen pages, and it never '
+      + 'takes a click.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live spectating Versus / Duos)', quote: 'bug with spectating - mouse goes under equipment it looks like' },
+      { kind: 'code', ref: 'packages/ui/src/versus/SpectatorCursorLayer.tsx; packages/ui/src/Game.tsx' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-03 (fix/spectator-duos-layer). Before, the Versus stands drew the hand from the spectator bar inside the shop screen, so in the shop it slid under the Equipment slot and the hero power.',
+    example: 'The watched player rests their mouse on their Bloodpot. The spectator sees the gauntlet on top of the Bloodpot, not behind it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorDuos.test.tsx'], lastVerifiedAt: '2026-11-03' },
+  },
+  {
+    id: 'R-SPECTATE-DUOS-PASS-01',
+    title: 'The stands see every Duos pass the watched player sees, sends and arrivals',
+    statement:
+      'A spectator plays the same pass streams as the watched player\x27s screen, from the frames they receive: a drag pass '
+      + 'dissolves where the card was let go and streams into the teammate portrait (with its coin when it cost Gold), an '
+      + 'effect pass streams from what sent it (a Discover option, a played spell, the card that sent it, a rune, the '
+      + 'Equipment), a fight\x27s gift streams from the unit that sent it on the same beat of the fight, and a pass that lands '
+      + 'in the watched hand streams out of the teammate portrait into its slot. Each plays once; a pass that completes a '
+      + 'triple shows the Gild instead, as for the player.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live spectating Duos)', quote: 'im spectating and antsy died and i didnt see the pass animation' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectatorPasses.ts; packages/ui/src/versus/spectate.ts (watchedPassFlights, presentHeldDrop); packages/ui/src/versus/duosCombat.tsx' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-03 (fix/spectator-duos-layer). Before, only a seated player\x27s own pass transport played the streams, so a spectator saw cards vanish and appear with no stream at all.',
+    example: 'Antsy dies in the watched player\x27s fight and gives their teammate a card. On that beat the spectator sees the stream leave Antsy and land on the teammate portrait.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorDuos.test.tsx'], lastVerifiedAt: '2026-11-03' },
+  },
+  {
+    id: 'R-SPECTATE-DUOS-TEAMNAMES-01',
+    title: 'A spectator sees the Duos team names on the rail, read from the watched player\x27s side',
+    statement:
+      'In Ranked Duos the lobby rail names every team for the stands exactly as for the watched player: the same names on '
+      + 'the same team slots. A spectator has no seat, so the names are laid out from the watched player\x27s seat.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live spectating Duos)', quote: 'i also dont see the team names of the duos' },
+      { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (rankedMe falls back to the watched seat)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-03 (fix/spectator-duos-layer). Before, the names were read only from the viewer\x27s own seat, and a spectator has none, so the rail showed no names.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorDuos.test.tsx'], lastVerifiedAt: '2026-11-03' },
+  },
+  {
+    id: 'R-SPECTATE-DUOS-MATEDOCK-01',
+    title: "A spectator sees the watched player's teammate portrait, bottom right",
+    statement:
+      'Watching a Duos player (Versus Duos or Ranked Duos), the stands show that player\x27s teammate portrait where the '
+      + 'player sees it, in the shop and the fight: the same face and frame, the "still working" glow, the tier-up burst, '
+      + 'Away, the tag-in copy over the hero when the teammate\x27s board fights, and the waiting-cards pill. It switches with '
+      + 'the watched player. It is only a face for the stands (no click, no pass target). In Duos the stands\x27 player switcher '
+      + 'sits along the top edge so it never covers the portrait.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live spectating Duos)', quote: 'im realizing i dont see the teammate portrait at all as a spec' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (stands); packages/ui/src/versus/SpectatorBar.tsx; packages/ui/src/versus/spectate.ts (noteMateFrame for the stands)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-03 (fix/spectator-duos-layer). Before, the portrait was drawn only for a seated player.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorDuos.test.tsx'], lastVerifiedAt: '2026-11-03' },
+  },
 ];

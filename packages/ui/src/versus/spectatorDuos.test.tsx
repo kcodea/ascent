@@ -13,7 +13,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createVersusRun, type BoardCard, type RunState, type VersusGroupMatchRaw } from '@game/sim';
+import { createVersusRun, type BoardCard, type RunState } from '@game/sim';
+import type { VersusGroupMatchRaw } from './versusRemote';
 
 vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
 vi.mock('./passLob', async (orig) => ({

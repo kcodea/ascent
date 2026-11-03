@@ -13714,4 +13714,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Fixed 2026-11-03 (fix/spectator-duos-layer). Before, the portrait was drawn only for a seated player.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorDuos.test.tsx'], lastVerifiedAt: '2026-11-03' },
   },
+  {
+    id: 'R-LOBBY-TILE-STRENGTH-01',
+    title: 'A lobby tile in a game card shows its Game strength by darkening on hover, never with a tip bubble',
+    statement:
+      'Hovering (or tapping) a seat tile in a game card\x27s lobby darkens that tile and prints "Game strength: X" over it. '
+      + 'No tip bubble opens under the tile. A seat with no Game strength shows no overlay.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-03', quote: 'this thumbnail is unessecary, lets just darken the card and put Game Strength: X overlaid on top when hovering' },
+      { kind: 'code', ref: 'packages/ui/src/matchDetails/LobbyPicker.tsx (LobbyTiles: .lp-tile-strength); packages/ui/src/styles.css (.lp-tile-strength)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-03 (fix/lobby-tile-strength-overlay). Before, hovering a tile opened a bubble under it ("Out in round 11. '
+      + 'Game strength 18." plus Health and "Knocked you out"). The tile itself still shows the round out and the KO sword; the '
+      + 'screen-reader label keeps the full sentence. The scenario pins the overlay text and the missing bubble, not the hover '
+      + 'opacity (jsdom has no hover).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/matchDetails.test.tsx'], lastVerifiedAt: '2026-11-03' },
+  },
 ];

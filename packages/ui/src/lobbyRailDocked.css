@@ -153,7 +153,8 @@ html:root .lobbyrail.lrv-docked .lrv-hpnum > span { display: inline-flex; align-
 html:root .lobbyrail.lrv-docked .lrv-hpnum :is(svg, .armormedal, .healthmedal) { width: 0.82em; height: 0.82em; flex: none; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)); }
 html:root .lobbyrail.lrv-docked .lrv-hpn-hp { font-size: calc(var(--lr2-hpnum-size, 24.5) * var(--dk-s, 1) * 1px); color: #fff; }
 html:root .lobbyrail.lrv-docked .lrv-hpn-hp svg { color: var(--ui-heart); }
-html:root .lobbyrail.lrv-docked .lrv-hpn-arm { font-size: calc(var(--lr2-armnum-size, 14) * var(--dk-s, 1) * 1px); color: var(--pill-armor); }
+/* Armor sits 6px in from Health's left edge (owner 2026-11-03: "slide the armor over separately by 6px? its too left aligned"). */
+html:root .lobbyrail.lrv-docked .lrv-hpn-arm { font-size: calc(var(--lr2-armnum-size, 14) * var(--dk-s, 1) * 1px); color: var(--pill-armor); margin-left: calc(6px * var(--dk-s, 1)); }
 html:root:is(:not([data-lr2-hp]), [data-lr2-hp="number"]) .lobbyrail.lrv-docked .lrv-barclip { display: none; }
 html:root[data-lr2-hp="bar"] .lobbyrail.lrv-docked .lrv-hpnum { display: none; }
 /* Duos (owner 2026-11-02: "nudge the heart and armor section to the right ever so slightly"): a team rail's column sits 10px

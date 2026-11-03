@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Career: Top 4 Finish, Losses and Avg Placement now wear painted gold medallions too.',
+      },
+      {
+        category: 'Systems',
         text: 'Career: your Favorite Tribe now shows that tribe\'s new painted gold medallion.',
       },
       {

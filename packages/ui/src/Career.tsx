@@ -687,10 +687,10 @@ export function Career() {
             {accountProgression && <AccountLevelCard profile={accountProgression} own={!viewing} />}
             <div className="cv2-tiles">
               <StatTile icon="crown" label="1st Place Wins" value={String(aggregates.firsts)} />
-              <StatTile icon="shield" label="Top 4 Finish" value={aggregates.top4Pct === null ? '—' : `${aggregates.top4Pct}%`} />
+              <StatTile art={<MenuMedal name="top4" />} label="Top 4 Finish" value={aggregates.top4Pct === null ? '—' : `${aggregates.top4Pct}%`} />
               {/* LOSSES (owner ask 2026-09-21): the bottom-4 finishes, as a count beside the Top 4 rate. */}
-              <StatTile icon="skull" label="Losses" value={String(aggregates.losses)} />
-              <StatTile icon="star" label="Avg Placement" value={aggregates.avgPlacement === null ? '—' : String(aggregates.avgPlacement)} />
+              <StatTile art={<MenuMedal name="losses" />} label="Losses" value={String(aggregates.losses)} />
+              <StatTile art={<MenuMedal name="avgplacement" />} label="Avg Placement" value={aggregates.avgPlacement === null ? '—' : String(aggregates.avgPlacement)} />
               {/* The favourite tribe wears its own painted medallion (owner art 2026-11-03); no tribe / Neutral keeps the paw. */}
               <StatTile icon="paw" art={hasTribeMedal(aggregates.favoriteTribe) ? <TribeMedal tribe={aggregates.favoriteTribe} /> : undefined} label="Favorite Tribe" value={aggregates.favoriteTribe ? TRIBE_LABEL[aggregates.favoriteTribe] : '—'} />
             </div>

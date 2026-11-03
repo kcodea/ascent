@@ -84,6 +84,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-02',
     changes: [
+      { category: 'Systems', text: 'Achievements: the Mechanics, Runes, Set 2 and Milestones categories now have painted icons too.' },
       {
         category: 'Systems',
         text: "Recent Games and other players' Careers: a game's lobby now names its player instead of calling them You, and the board line reads their name too. You still shows on your own games.",

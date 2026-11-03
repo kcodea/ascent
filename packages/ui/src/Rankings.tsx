@@ -5,7 +5,7 @@ import { Icon } from './Icon';
 import { MenuMedal } from './menuIcons';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, displayHandle } from './store';
-import { peekSocial, putSocial, useSocial } from './socialCache';
+import { loadSocial, peekSocial, putSocial, useSocial } from './socialCache';
 import { fetchTopPlayers, remoteEnabled, type PlayerRow } from './remoteBoards';
 import { TitleBadge } from './titles/TitleBadge';
 import { LbHeroFrame, LbMedallion } from './LadderBits';
@@ -116,6 +116,7 @@ export function Rankings() {
         <PhLeaderboard
           rows={rows} rowsShown={RANKED_ROWS} remote={remoteEnabled()} versusOn={versusEnabled()} board={board} onBoard={setBoard}
           myId={myId ?? null} myName={myName} myDisc={myDisc} myRank={myRank ?? null} myAvatar={myAvatar} myLoadout={myLoadout} showOpp={showOppCosmetics}
+          onRetry={() => { void loadSocial(RANKINGS_KEY, loadRankings, { force: true }); }}
           onOpen={(r) => openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero, ...(r.rank ? { rank: r.rank } : {}), ...(r.avatar ? { avatar: r.avatar } : {}) })}
         />
       </Suspense>

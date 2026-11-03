@@ -29,7 +29,7 @@ import { displayHandle } from '../../../store';
 import { TitleBadge } from '../../../titles/TitleBadge';
 import { DUOS_RANKINGS_KEY, duosTeamLabel, loadDuosRankings } from '../../../versus/DuosBoards';
 import type { DuosLeaderboardRow, DuosPlayerCard } from '../../../versus/versusRemote';
-import { PhChip, PhEmpty, PhPage, PhPlace, PhTabs } from '../../kit';
+import { PhButton, PhEmpty, PhPage, PhPlace, PhSection, PhTabs } from '../../kit';
 import './phLeaderboard.css';
 
 export type PhBoard = 'solo' | 'duos';
@@ -49,6 +49,8 @@ export interface PhLeaderboardProps {
   myLoadout: RunCosmeticSnapshot | null | undefined;
   showOpp: boolean;
   onOpen: (r: RankedRow) => void;
+  /** Ask the ladder again (the offline panel's Retry). */
+  onRetry: () => void;
 }
 
 /** The art a row shows: the chosen profile picture (yours always, theirs through "Show opponent cosmetics"), else the
@@ -96,7 +98,6 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
                 <button type="button" className="phl-podbtn" onClick={() => p.onOpen(r)} aria-label={`${i + 1}. ${w.handle}. View their career`}>
                   {art && <img className="phl-podart" src={art} alt="" draggable={false} decoding="sync" />}
                   <span className="phl-podplace"><PhPlace place={i + 1} size={i === 0 ? 'l' : 'm'} /></span>
-                  {mine && <PhChip tone="gold" className="phl-you">You</PhChip>}
                   <span className="phl-podwho">
                     <span className="phl-podname">{w.handle}</span>
                     {w.title}
@@ -130,7 +131,7 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
                   <PhPlace place={place} />
                   <span className="phl-thumb">{art && <img src={art} alt="" draggable={false} decoding="sync" loading="lazy" />}</span>
                   <span className="phl-who">
-                    <span className="phl-name">{w.handle}{mine && <PhChip tone="gold">You</PhChip>}{w.title}</span>
+                    <span className="phl-name">{w.handle}{w.title}</span>
                     <span className="phl-sub">{w.hero}</span>
                   </span>
                   <RankCell rank={rankPositionOf(r.rank)} />
@@ -145,7 +146,6 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
       )}
       {!meOnBoard && p.myRank && (
         <div className="phl-mepin" role="note" aria-label="Your standing">
-          <PhChip tone="gold">You</PhChip>
           <span className="phl-name">{displayHandle(p.myName, p.myDisc, p.myId)}</span>
           <RankCell rank={p.myRank} />
           <Num v={scalarCaption(p.myRank)} unit="MMR" gold />
@@ -194,7 +194,7 @@ function DuosBoard({ myId }: { myId: string | null }) {
                 {face(artB)}
               </span>
               <span className="phl-who">
-                <span className="phl-name">{label.name}{mine && <PhChip tone="gold">You</PhChip>}</span>
+                <span className="phl-name">{label.name}</span>
                 <span className="phl-sub">{label.sub}</span>
               </span>
               <RankCell rank={{ divisionIndex: r.division, points: r.points }} />
@@ -213,17 +213,25 @@ export function PhLeaderboard(p: PhLeaderboardProps) {
   if (!p.remote) body = <PhEmpty title="Leaderboard unavailable" sub="This build has no backend configured." />;
   else if (duos) body = <DuosBoard myId={p.myId} />;
   else if (p.rows === null) body = <PhEmpty title="Loading the ladder" sub="Fetching the top players." />;
-  else if (p.rows.length === 0) body = <PhEmpty title="No ranked players yet" sub="Finish a run to claim a slot." />;
+  // An empty answer is a failed or timed-out read (the ladder always holds ranked players; `fetchTopPlayers` answers []
+  // on any failure): the framed "not available" panel with Retry, never a false "no players yet".
+  else if (p.rows.length === 0) body = (
+    <PhSection className="phl-off">
+      <PhEmpty title="The leaderboard is not available right now" sub="Check your connection and try again."
+        action={<PhButton variant="plate" onClick={p.onRetry}>Retry</PhButton>} />
+    </PhSection>
+  );
   else body = <SoloBoard {...p} rows={p.rows} />;
   return (
     <SidebarHost className="lbpage rankpage phl-page">
       <MenuSidebar current="rankings" />
       <PhPage
+        wide
         className="phl-pg"
         eyebrow="Season ranked"
         title="Leaderboard"
         tabs={p.versusOn ? <PhTabs tabs={[{ id: 'solo', label: 'Solo' }, { id: 'duos', label: 'Duos' }]} value={p.board} onChange={p.onBoard} label="Leaderboard" /> : undefined}
-        actions={<span className="phl-count">{duos ? 'Top Ranked Duos teams' : p.rows && p.rows.length > 0 && p.rows.length < p.rowsShown ? 'Top players by MMR' : `Top ${p.rowsShown} players by MMR`}</span>}
+        actions={duos ? <span className="phl-count">Top Ranked Duos teams</span> : p.rows && p.rows.length > 0 ? <span className="phl-count">{p.rows.length < p.rowsShown ? 'Top players by MMR' : `Top ${p.rowsShown} players by MMR`}</span> : undefined}
       >
         {body}
       </PhPage>

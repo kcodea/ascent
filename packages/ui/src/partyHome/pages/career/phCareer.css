@@ -202,3 +202,20 @@ html[data-ph-shell] .phc-page .phc-achview .ach-tile:not(.done) { opacity: 0.8; 
 html[data-ph-shell] .phc-page .phc-achview .ach-tile { border-radius: var(--ph-r); }
 html[data-ph-shell] .phc-page .phc-achview .ach-cat { border-radius: var(--ph-r); }
 @media (prefers-reduced-motion: reduce) { html[data-ph-shell] .phc-page :is(.phc-acct .cv2-btn, .gc.gc-detail .gc-actions .cv2-btn) { transition: none; } }
+
+/* Round 5: the profile column fits a 1080 screen down to the career numbers (portrait shorter, stats three across),
+   the account card's actions sit on their own row, and phone pills meet the 40 pt tap target. */
+.phc-id { height: calc(200 * var(--phu)); }
+.phc-profile { gap: calc(12 * var(--phu)); }
+.phc-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.phc-stats .phk-stat { padding: calc(8 * var(--phu)) calc(12 * var(--phu)); }
+.phc-stats .phk-statval { font-size: var(--ph-t3); }
+html[data-ph-shell] .phc-page .phc-card .rankcrest-big { --ring: calc(72 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-card .cv2-panel.cv2-ranked .rankbar-stack { gap: calc(4 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel { display: flex; flex-direction: column; }
+html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-coll { align-self: stretch; justify-content: center; order: 3; margin-top: calc(4 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-save { order: 4; }
+html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-save .cv2-btn { align-self: stretch; justify-content: center; }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phc-page :is(.phc-acct .cv2-btn, .gc.gc-detail .gc-actions .cv2-btn, .phc-achview .ach-chip, .phc-duos .cv2-duocard-arrow, .phc-toolbar .phk-segbtn, .phk-pagetabs .phk-tab, .phc-filter .phk-btn) { min-height: calc(40 * var(--pt, 1px)); }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phc-page .phc-duos .cv2-duocard-arrow { min-width: calc(40 * var(--pt, 1px)); }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phc-profile .phc-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }

@@ -47,7 +47,7 @@ const row = (i: number, over: Partial<RankedRow> = {}): RankedRow => ({
 function boardProps(over: Partial<PhLeaderboardProps> = {}): PhLeaderboardProps {
   return {
     rows: [1, 2, 3, 4, 5].map((i) => row(i)), rowsShown: 10, remote: true, versusOn: true, board: 'solo', onBoard: vi.fn(),
-    myId: null, myName: 'Me', myDisc: '0001', myRank: null, myAvatar: null, myLoadout: null, showOpp: false, onOpen: vi.fn(), ...over,
+    myId: null, myName: 'Me', myDisc: '0001', myRank: null, myAvatar: null, myLoadout: null, showOpp: false, onOpen: vi.fn(), onRetry: vi.fn(), ...over,
   };
 }
 
@@ -112,7 +112,9 @@ describe('Leaderboard on the app shell', () => {
   });
   it('marks your row, or pins your standing when you are off the board', () => {
     const m = mount(<PhLeaderboard {...boardProps({ myId: 'u5' })} />);
-    expect(m.container.querySelector('.phl-row.me')?.textContent).toContain('You');
+    // Marked by the highlight plate alone: no "You" chip (owner rule).
+    expect(m.container.querySelector('.phl-row.me')).not.toBeNull();
+    expect(m.container.querySelector('.phk-chip')).toBeNull();
     expect(m.container.querySelector('.phl-mepin')).toBeNull();
     m.render(<PhLeaderboard {...boardProps({ myId: 'zz', myRank: { divisionIndex: 3, points: 40 } })} />);
     expect(m.container.querySelector('.phl-mepin')?.textContent).toContain('Outside the top 10');
@@ -131,6 +133,15 @@ describe('Leaderboard on the app shell', () => {
   it('says "Top players" when the board holds fewer than its size', () => {
     const m = mount(<PhLeaderboard {...boardProps()} />);
     expect(m.container.querySelector('.phl-count')?.textContent).toBe('Top players by MMR');
+    m.unmount();
+  });
+  it('an empty or failed read shows the framed "not available right now" panel with Retry, never "no players yet"', () => {
+    const p = boardProps({ rows: [] });
+    const m = mount(<PhLeaderboard {...p} />);
+    expect(m.container.textContent).toContain('not available right now');
+    expect(m.container.textContent).not.toMatch(/no ranked players/i);
+    act(() => { [...m.container.querySelectorAll('button')].find((b) => b.textContent === 'Retry')!.click(); });
+    expect(p.onRetry).toHaveBeenCalled();
     m.unmount();
   });
   it('switches Solo / Duos through its tabs', () => {

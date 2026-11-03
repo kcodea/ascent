@@ -101,6 +101,12 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phl-mepin > .phl-sub { dis
 
 /* ── MODERN WHIMSICAL pass (owner 2026-11-02, critic round 4): sentence-case labels, pill chips, crest fallbacks ── */
 html[data-ph-shell] .phl-page :is(.phl-head, .phl-num small, .phl-count) { text-transform: none; letter-spacing: 0.02em; }
-html[data-ph-shell] .phl-page .phk-pagetitle h1 { text-transform: none; letter-spacing: 0.01em; }
 .phl-thumb.crest { display: grid; place-items: center; overflow: visible; background: var(--ph-well); }
 .phl-thumb.crest .rankcrest { --ring: calc(40 * var(--phu)); }
+
+/* Round 5: your row is marked by its highlight plate alone. On a phone the standing sits at the foot of the list (not
+   sticky), so it never covers the row under it; the rank crest's numeral stays inside its own row. */
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-mepin { position: relative; bottom: auto; margin-top: calc(8 * var(--phu)); box-shadow: var(--ph-gild); }
+.phl-row, .phl-mepin, .phl-pod { isolation: isolate; }
+.phl-off { flex: none; }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-page :is(.phk-pagetabs .phk-tab, .phk-btn) { min-height: calc(40 * var(--pt, 1px)); }

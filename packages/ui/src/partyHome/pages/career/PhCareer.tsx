@@ -174,18 +174,19 @@ export function PhCareer(p: PhCareerProps) {
                 <h2 className="phc-h">Seasonal Ranked</h2>
                 {p.rank}
               </div>
-              {p.duos && <div className="phc-card phc-duos">{p.duos}</div>}
               <div className="phc-card">
                 <h2 className="phc-h">Career Stats</h2>
                 <div className="phc-stats">
-                  <PhStat label="Games" value={stats.games} />
-                  <PhStat label="1st Place Wins" value={stats.firsts} tone="gold" />
-                  <PhStat label="Top 4 Finish" value={stats.top4Pct === null ? '-' : `${stats.top4Pct}%`} />
-                  <PhStat label="Losses" value={stats.losses} />
-                  <PhStat label="Avg Placement" value={stats.avgPlacement === null ? '-' : stats.avgPlacement} />
-                  <PhStat label="Favorite Tribe" value={stats.tribe ?? '-'} />
+                  <PhStat size="s" label="Games" value={stats.games} />
+                  <PhStat size="s" label="1st Place Wins" value={stats.firsts} tone="gold" />
+                  <PhStat size="s" label="Top 4 Finish" value={stats.top4Pct === null ? '-' : `${stats.top4Pct}%`} />
+                  <PhStat size="s" label="Losses" value={stats.losses} />
+                  <PhStat size="s" label="Avg Placement" value={stats.avgPlacement === null ? '-' : stats.avgPlacement} />
+                  <PhStat size="s" label="Favorite Tribe" value={stats.tribe ?? '-'} />
                 </div>
               </div>
+              {/* Ranked Duos last: the career numbers stay on screen at 1080; the teams scroll in under them. */}
+              {p.duos && <div className="phc-card phc-duos">{p.duos}</div>}
             </aside>
             <section className="phc-main" aria-label={tabs.find((t) => t.id === p.tab)?.label} role="tabpanel">{view}</section>
           </div>

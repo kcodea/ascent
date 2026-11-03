@@ -371,7 +371,7 @@ const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, o
 
       {match && (
         <section className="rgp-lobby" aria-label="Players in this lobby">
-          <header className="rgp-lobbyhead"><h3>The lobby</h3></header>
+          <header className="rgp-lobbyhead"><h3>Lobby</h3></header>
           <LobbyTiles details={match} selectedId={seat?.id ?? null} onPick={pick} own={mine} />
         </section>
       )}

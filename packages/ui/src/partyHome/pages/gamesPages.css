@@ -270,3 +270,15 @@ html[data-touch-small] :is(.rgp, .lvp) :is(.phk-segbtn, .phk-tab, .phk-btn, .lp-
 html[data-touch-small] :is(.rgp, .lvp) .phk-moreitem { min-height: 40px; }
 
 @media (prefers-reduced-motion: reduce) { .rgp-boardin { animation: none; } }
+
+/* ── LIGHT POLISH (owner 2026-11-02, after round 5: "it looks ok"; keep the layout): fewer all-caps tracked labels, the
+   fact tiles a touch lighter, and the board's empty slots as soft ghosts instead of dashed boxes. ── */
+.rgp .rgp-k, .rgp .rgp-verdict, .rgp .lp-showing-l, .rgp-duos .lp-tiles-l, .rgp-duos .gc-meta .lb-fact-l, .rgp-stats .phk-statlbl, .rgp-facts .phk-statlbl, .rgp-lobbyhead h3, .rgp .phk-chip.rgp-partial, .rgp .lp-back {
+  text-transform: none; letter-spacing: 0.02em; }
+.rgp .rgp-k, .rgp .lp-showing-l, .rgp-stats .phk-statlbl, .rgp-facts .phk-statlbl { font-weight: 700; font-size: var(--ph-t2); }
+.rgp .rgp-verdict { font-weight: 800; font-size: var(--ph-t2); }
+.rgp-lobbyhead h3 { font-size: var(--ph-t3); }
+/* The facts: lighter than a tile, a soft wash and no gilded rim. */
+.rgp-facts .phk-stat { background: color-mix(in srgb, var(--ph-navy) 45%, transparent); box-shadow: inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-gold) 22%, transparent); padding: calc(6 * var(--phu)) calc(14 * var(--phu)); }
+/* An empty board slot: a soft round glow where a minion would stand, no dashed box. */
+.rgp-board .cv2-tile.empty::before, .rgp-duos .cv2-tile.empty::before { border: 0; background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--ph-gold-hi) 9%, transparent), transparent 68%); }

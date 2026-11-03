@@ -18,7 +18,7 @@
  */
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { sfx } from '../../sfx';
-import { PATCH_CATEGORY_ORDER, PATCH_NOTES, type PatchCategory, type PatchChange, type PatchNote } from '../../patchNotes';
+import { PATCH_CATEGORY_ORDER, type PatchCategory, type PatchChange, type PatchNote } from '../../patchNotes';
 import { PATCH_TAB_LABEL, PATCH_TAB_STORAGE_KEY, notesForTab } from '../../PatchNotesBody';
 import { PhChip, PhEmpty, PhPage, PhSearch, PhSegmented, PhTabs } from '../kit';
 import './phPatchNotes.css';
@@ -121,13 +121,11 @@ export function PhPatchNotes() {
     return out;
   }, [entries]);
 
-  const latest = PATCH_NOTES[0]?.date ?? null;
   return (
     <PhPage
       className="phpn"
       wide
       title="Patch Notes"
-      eyebrow={latest ? `Latest patch ${prettyDate(latest)}` : undefined}
       tabs={<PhTabs label="Patch note sections" value={tab} onChange={pickTab}
         tabs={PATCH_CATEGORY_ORDER.map((t) => ({ id: t, label: PATCH_TAB_LABEL[t] }))} />}
       actions={

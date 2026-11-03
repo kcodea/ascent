@@ -29,7 +29,7 @@
 
 /* The page body does not scroll: the book's own panels do (the gallery, the rail, the glossary, the rules list). */
 .phc .phk-pagebody { overflow: hidden; padding-bottom: calc(24 * var(--phu) + var(--safe-b, 0px)); }
-.phc .phk-eyebrow { color: var(--ph-muted); letter-spacing: 0.16em; }
+.phc-sub { flex: none; margin: 0; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-muted); }
 .phc-actions { display: flex; align-items: center; gap: calc(8 * var(--phu)); }
 
 /* 3. The window steps aside. */
@@ -162,3 +162,12 @@ html[data-touch-small] .phc .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var
 .phc .book-search { width: clamp(calc(180 * var(--phu)), 16vw, calc(280 * var(--phu))); }
 .phc :is(.gloss-grouphead, .wiki-grouphead)::after { width: calc(144 * var(--phu)); height: calc(16 * var(--phu)); background: url('../ornaments/divider.webp') 0 50% / contain no-repeat; }
 .phc :is(.book-railcap, .gloss-grouphead, .wiki-grouphead) { font-weight: 900; letter-spacing: 0.04em; }
+
+/* Touch: every filter pill is a real tap target (at least 40 units tall). */
+html[data-touch-ui] .phc :is(.book-tier, .book-gilded, .book-runetribe, .book-zoom-btn) { min-height: calc(44 * var(--phu)); }
+html[data-touch-ui] .phc .book-tier { min-width: calc(44 * var(--phu)); }
+html[data-touch-ui] .phc :is(.book-zoom, .book-search) { height: calc(44 * var(--phu)); }
+
+/* No page scroll under the Compendium: the gilded card names' shared filter <svg> (cardNameFilter.ts) is absolutely placed
+   with no top / left, so it sat just below the stage and gave the whole document an 18px scroll. Pin it to the corner. */
+html[data-ph-shell] svg:has(> defs > filter[id^="cn-gild"]) { top: 0; left: 0; }

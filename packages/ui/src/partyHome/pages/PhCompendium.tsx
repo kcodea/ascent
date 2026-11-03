@@ -28,10 +28,12 @@ const VIEWS: readonly { id: CompendiumView; label: string }[] = [
 export function PhCompendium() {
   return (
     <MinionBook frame={({ subtitle, controls, body, view, pickView, codex }) => (
-      <PhPage className="phc" wide title="Compendium" eyebrow={subtitle}
+      <PhPage className="phc" wide title="Compendium"
         tabs={<PhTabs label="Compendium views" value={view} onChange={(v) => { sfx.tick(); pickView(v); }} tabs={VIEWS} />}
         actions={codex ? undefined : <div className="phc-actions">{controls}</div>}>
         {/* `.book` carries the surface tokens the real cards read (compendium.css); `.phc` repaints everything else. */}
+        {/* The live count / view line sits at the top of the body, so the header keeps the one standard height. */}
+        <p className="phc-sub" aria-live="polite">{subtitle}</p>
         <div className={`book phc-book v-${view}`}>{body}</div>
       </PhPage>
     )} />

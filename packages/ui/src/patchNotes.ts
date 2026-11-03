@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Choosing a hero power (Mimic, Void, Power Shifter): each option now shows its Gold cost and whether it is Active or Passive.',
+        details: [
+          'Active powers wear a larger Gold coin marked PER USE: what each use costs on the turn you pick them (picking is free). Passive powers have no coin.',
+          'The rules text leads with how the power is used: Passive, once per turn, once per game, uses left, or already used.',
+          'The text shows the current numbers for the power, the same as your hero panel will after the pick.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Lobby rail: Health and Armor now show painted heart and shield medallions.',
       },
       {

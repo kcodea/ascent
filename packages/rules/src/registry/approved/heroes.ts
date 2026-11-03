@@ -2519,4 +2519,23 @@ export const HEROES_RULES: GameRule[] = [
     example: "Drakko at 4/5 Shout buys casts Power Shifter for Nadja's power: further Shout buys do nothing and Drakko never arrives.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroPowerHeldPassives.test.ts"], lastVerifiedAt: '2026-11-01' },
   },
+  {
+    id: "R-POWER-PICK-INFO-01",
+    title: "A hero-power Discover option shows its cost, its Active/Passive usage and its live text",
+    statement:
+      "Every option in a hero-power Discover (Mimic's turn pick, Void's two picks, the Power Shifter spell) tells the "
+      + "player what the pick will be, read off the run the pick produces: an ACTIVE power wears a Gold coin with the price "
+      + "it costs on the pick turn (0 when free; a re-basing price clock reads its post-adoption price), a PASSIVE power "
+      + "wears no coin, and the rules text leads with the usage tag (Passive / Active · once per turn / once per game / "
+      + "N uses left / already used / unlocks turn N / locked) followed by the live text the hero panel prints after the pick.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-03 (Mimic power pick)", quote: "for the hero, Mimic, there's currently no way to know how much the hero power that you are selecting either costs money or not, whether the hero power is active or passive." },
+      { kind: 'code', ref: "packages/ui/src/discoverEntrance/powerOffer.ts previewPowerPick / powerUsage / powerOfferCards; packages/ui/src/Recruit.tsx PowerOverlay" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-03). Before: the option card showed only the printed name and text, with no coin and no usage tag.",
+    example: "Mimic is offered Goldspring and Robin's power: Goldspring wears a 3 coin and reads 'Active · once per turn.', Robin's reads 'Passive.' with no coin.",
+    enforcement: { kind: 'scenario', refs: ["packages/ui/src/discoverEntrance/powerPickInfo.test.ts"], lastVerifiedAt: '2026-11-03' },
+  },
 ];

@@ -76,7 +76,7 @@ import { DiscoverDialog, EntranceOverlay, OfferSheen } from './discoverEntrance/
 import { OfferBanner } from './discoverEntrance/OfferBanner';
 import { DiscoverPeekToggle } from './discoverEntrance/DiscoverPeekToggle';
 import { chooseOneSourceName } from './discoverEntrance/offerSource';
-import { powerCardView, powerOccasion, powerOfferSource } from './discoverEntrance/powerOffer';
+import { powerOccasion, powerOfferCards, powerOfferSource } from './discoverEntrance/powerOffer';
 import { discoverOccasion } from './discoverEntrance/useOfferEntrance';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
 import { captureRuneLockIn } from './runeLockInCapture';
@@ -9036,7 +9036,7 @@ export function Recruit() {
 
       <QuestOverlay overlaysHeld={overlaysHeld} questOffer={run.questOffer} questMin={questMin} setQuestMin={setQuestMin} dispatch={dispatch} />
 
-      <PowerOverlay overlaysHeld={overlaysHeld} powerOffer={run.powerOffer} occasion={powerOccasion(run)} powerMin={powerMin} setPowerMin={setPowerMin} dispatch={dispatch} burstRef={discoverBurstRef} />
+      <PowerOverlay overlaysHeld={overlaysHeld} run={run} occasion={powerOccasion(run)} powerMin={powerMin} setPowerMin={setPowerMin} dispatch={dispatch} burstRef={discoverBurstRef} />
 
       {/* ANCIENTS (proof of concept): the awakening Discover. It waits for every other decision overlay, and for
           the curtain, so it never stacks on one. */}
@@ -10579,14 +10579,17 @@ const QuestOverlay = memo(function QuestOverlay({ overlaysHeld, questOffer, ques
 });
 
 /** The hero-power Discover (Mimic / Void / Power Shifter) + its Peek toggle. */
-const PowerOverlay = memo(function PowerOverlay({ overlaysHeld, powerOffer, occasion, powerMin, setPowerMin, dispatch, burstRef }: {
-  overlaysHeld: boolean; powerOffer: RunState['powerOffer']; occasion: string | null; powerMin: boolean;
+const PowerOverlay = memo(function PowerOverlay({ overlaysHeld, run, occasion, powerMin, setPowerMin, dispatch, burstRef }: {
+  overlaysHeld: boolean; run: RunState; occasion: string | null; powerMin: boolean;
   setPowerMin: React.Dispatch<React.SetStateAction<boolean>>; dispatch: (a: Action) => void; burstRef: React.RefObject<HTMLDivElement>;
 }) {
   // A replay plays the entrance at the replay's speed (live play has no session: 1).
   const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
-  // Built once per offer, so the option cards keep their identity across a Peek / Return and unrelated renders.
-  const cards = useMemo(() => (powerOffer?.heroIds ?? []).map(powerCardView), [powerOffer]);
+  const powerOffer = run.powerOffer;
+  // Built once per run state (the offer blocks every other action, so that is once per offer), keeping the option
+  // cards' identity across a Peek / Return. Each card previews its pick against the run: its live cost coin, its
+  // Active / Passive usage tag and its live text (R-POWER-PICK-INFO-01).
+  const cards = useMemo(() => (powerOffer ? powerOfferCards(run) : []), [run, powerOffer]);
   return (
     <>
       {/* HERO-POWER DISCOVER (Mimic every turn / Void's turn-4 pair / the Power Shifter spell): it IS the Discover

@@ -15,8 +15,8 @@ import { useGame } from '../store';
 import { leaveSpectating, useSpectate, watchSeat } from './spectate';
 import { clearVersusKnockout, useVersus } from './versusStore';
 import { placementText } from '../rank/rankFormat';
-import { SpectatorCursor } from './SpectatorCursor';
 import { SpectatorSelf, WatchedPanel, type WatchSeat } from './SpectatorHud';
+import { DuosMateDock } from './DuosMateDock';
 import '../live/live.css';
 import { copyName, duosFirstAt, foeIn, groupPairingAt, isDuosRaw } from './versusGroupView';
 import { isRankedDuosRaw } from './rankedDuosView';
@@ -33,6 +33,7 @@ export function SpectatorBar(): JSX.Element | null {
   // lands), so the bar never tells the result of a fight that is still playing. The match row is the fallback, and the
   // only source on Hero Select (R-SPECTATE-HEROSELECT-01: no watched run on screen yet).
   const heroStage = useSpectate((s) => !!s.hero);
+  const phase = useGame((s) => s.run.phase);
   const shown = useGame((s) => {
     const l = s.run.lobby;
     return !heroStage && l ? `${l.seats[0]?.resolve ?? ''}/${l.seats[0]?.armor ?? ''}|${l.seats[1]?.resolve ?? ''}/${l.seats[1]?.armor ?? ''}` : '';
@@ -148,9 +149,13 @@ export function SpectatorBar(): JSX.Element | null {
     });
   }, [match, room, seat, shown]);
   if (!active || !match) return null;
+  // VERSUS DUOS / RANKED DUOS (owner report 2026-11-02: "im realizing i dont see the teammate portrait at all as a spec";
+  // R-SPECTATE-DUOS-MATEDOCK-01): the watched player's teammate, bottom right, exactly where that player sees them, in
+  // the shop and the fight, with the same live signals. The pass streams fly into and out of it.
+  const mateDock = !!match.group?.duos && !(match.paused_at && match.phase !== 'complete') && (phase === 'recruit' || phase === 'combat');
   return (
     <>
-      <SpectatorCursor />
+      {mateDock && <DuosMateDock key="dock" watching={false} inCombat={phase === 'combat'} stands />}
       <SpectatorSelf onLeave={leaveSpectating} />
       <WatchedPanel seats={group ? groupSeats : seats} />
       <KnockoutNotice matchId={match.id} />

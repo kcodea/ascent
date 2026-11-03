@@ -544,7 +544,11 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const duosMate = useVersus((st) => (versus && st.match?.group?.duos?.mate && st.match.group.me ? 's1' : null));
   // RANKED DUOS (owner 2026-10-26: team names "shown on the rail"): each team's name on its first row.
   const rankedRaw = useVersus((st) => (versus && st.match?.group && isRankedDuosRaw(st.match.group.raw) ? st.match.group.raw : null));
-  const rankedMe = useVersus((st) => st.match?.group?.me ?? null);
+  // A SPECTATOR has no seat of their own: the names are read from the WATCHED player's side, the screen they see
+  // (owner report 2026-11-02: "i also dont see the team names of the duos"; R-SPECTATE-DUOS-TEAMNAMES-01).
+  const rankedSeat = useVersus((st) => st.match?.group?.me ?? null);
+  const watchedSeat = useSpectate((sp) => (sp.active ? sp.seat : null));
+  const rankedMe = rankedSeat ?? watchedSeat;
   const teamLabels = useMemo(() => (rankedRaw && rankedMe ? rankedTeamLabels(rankedRaw, rankedMe, rankedRaw.servedTeamNames ?? {}) : null), [rankedRaw, rankedMe]);
   // EVERY DUOS VIEW (a spectator too, who has no teammate of their own): the table is in teams, so the docked slices are
   // grouped per team. `mateId`: the viewed player's teammate's slice (s1), drawn distinct.

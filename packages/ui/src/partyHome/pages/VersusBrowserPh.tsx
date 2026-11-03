@@ -17,13 +17,14 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { parseCosmeticSnapshot } from '@game/progression';
+import { riftDefFor, VERSUS_MODIFIERS, type VersusModifierId } from '@game/sim';
 import { heroThumb } from '../../art';
 import { Icon } from '../../Icon';
 import { pageHidden } from '../../net/backoff';
 import { opponentSkins } from '../../skins/skins';
 import { sfx } from '../../sfx';
 import { useGame } from '../../store';
-import { versusOptionsSummary } from '../../versus/versusOptionsUi';
+import { versusModifierName, versusOptionsSummary } from '../../versus/versusOptionsUi';
 import type { VersusRoomSummary } from '../../versus/versusRemote';
 import { playerCardArt } from '../../versus/versusSeatCard';
 import { stopVersusBot } from '../../versus/versusBot';
@@ -34,12 +35,18 @@ import {
   defaultRoomName, ROOM_STATUS, VERSUS_OFFLINE_TEXT, roomModeLabel, roomTitleOf, roomCounts, roomJoin, roomModeOf, roomModeShort, seatCap, seatText, visibleRooms, VERSUS_ROOM_MODES,
   type RoomFilter, type VersusRoomMode,
 } from './versusPh';
-import { returnToVersusRoom } from './versusNav';
+import { returnToVersusRoom, versusBrowserIntent } from './versusNav';
 import { playerVersusError } from '../versusCopy';
 import './versusPages.css';
 
 const ROOMS_VISIBLE_MS = 5000;
 const ROOMS_HIDDEN_MS = 30_000;
+
+/** The Create form's modifier choices (the room's own Room rules list). */
+const MODIFIERS: { value: VersusModifierId | null; label: string }[] = [
+  { value: null, label: 'None' },
+  ...VERSUS_MODIFIERS.map((id) => ({ value: id as VersusModifierId | null, label: versusModifierName(id) })),
+];
 
 /** The party home's Versus tab, as a room mode (the Create picker starts there). */
 function homeMode(): VersusRoomMode {
@@ -56,6 +63,8 @@ export function VersusBrowserPh() {
   const playerName = useGame((s) => s.playerName);
   const goTo = useGame((s) => s.goTo);
   const [mode, setMode] = useState<VersusRoomMode>(homeMode);
+  // The modifier (critic round 5): pre-filled from the party home's Room rules when Browse rooms opened this page.
+  const [modifier, setModifier] = useState<VersusModifierId | null>(() => versusBrowserIntent()?.modifier ?? null);
   const [name, setName] = useState(() => defaultRoomName(playerName, homeMode()));
   const [filter, setFilter] = useState<RoomFilter>('all');
   const [creating, setCreating] = useState(false);
@@ -87,7 +96,7 @@ export function VersusBrowserPh() {
     void (async () => {
       await createRoom(name.trim() || defaultRoomName(playerName, mode));
       // The store opens the room; the mode is the host's room option (the classic room's Room options, set at once).
-      if (useVersus.getState().room && mode !== 'duel') await setRoomOptions({ v: 1, mode, modifiers: [] });
+      if (useVersus.getState().room && (mode !== 'duel' || modifier)) await setRoomOptions({ v: 1, mode, modifiers: modifier ? [modifier] : [] });
     })().finally(() => setCreating(false));
   };
 
@@ -138,9 +147,11 @@ export function VersusBrowserPh() {
             onChange={(e) => setName(e.target.value)} />
           <PhSegmented label="Mode" value={mode} options={VERSUS_ROOM_MODES.map((m) => ({ value: m.id, label: m.short }))}
             onPick={(v) => { sfx.tick(); setMode(v); }} />
+          <PhSegmented label="Modifier" value={modifier} options={MODIFIERS} max={4} onPick={(v) => { sfx.tick(); setModifier(v); }} />
           <PhButton type="submit" variant="primary" size="l" className="vsb-createbtn" disabled={creating || !!held}>Create room</PhButton>
         </form>
-        <span className="vsb-modehint">{held ? 'Leave your room to host or join another.' : VERSUS_ROOM_MODES.find((m) => m.id === mode)?.desc}</span>
+        <span className="vsb-modehint">{held ? 'Leave your room to host or join another.'
+          : `${VERSUS_ROOM_MODES.find((m) => m.id === mode)?.desc ?? ''} ${modifier ? riftDefFor(modifier, 'versus').blurb : 'The usual rules.'}`}</span>
       </PhSection>
 
       <div className="vsb-listhead">

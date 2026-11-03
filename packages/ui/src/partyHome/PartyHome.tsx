@@ -55,6 +55,7 @@ import { createRoom, enterDuosParty, isDuosParty, leaveDuosParty, leaveRoom, ope
 import { titleContinueNote } from '../titleTextConfig';
 import { withAbandonWarning } from '../rank/ratedRun';
 import { PhTopNav } from './shell/PhTopNav';
+import { openVersusBrowser } from './pages/versusNav';
 import { PhBackdrop } from './shell/PhBackdrop';
 import { PhFriends } from './shell/PhFriends';
 import { addSampleInvite, clearSampleInvites, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
@@ -345,7 +346,8 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     </div>
   );
   // Browse rooms always opens the list (even with a room held: Return is on the home's plate).
-  const browseRooms = (): void => { openVersus('versus'); useVersus.setState({ screen: 'browser' }); };
+  // Browse rooms: always the list (even holding a room), the picked modifier pre-filled on its Create form (pages/versusNav.ts).
+  const browseRooms = (): void => { openVersusBrowser({ modifier }); };
 
   // THE SIDE PANEL: Friends | the mode's settings. Picking a mode with settings opens its tab once; Friends is a press away.
   const settingsTitle = mode.id === 'practice' ? 'Practice' : mode.id === 'gauntlet' ? 'Gauntlet' : 'Room rules';

@@ -193,3 +193,11 @@ html[data-ph-compact] .vsb-join { min-width: calc(88 * var(--phu)); }
 html[data-ph-compact] .vsr-open .ph-opensub { display: none; }
 /* A phone's open seat: the DEV Add bot stays small, under the seat's words. */
 html[data-ph-compact] .vsr-botslot { bottom: var(--footh, 0px); scale: 0.7; }
+
+/* PHONE TAP TARGETS (critic round 5): every control on these pages is at least 40 px tall on a phone. */
+html[data-ph-compact] :is(.vsb-page, .vsr) :is(.phk-btn, .phk-segbtn, .phk-tab, .phk-back, .phk-fieldinput, .ph-menuitem) { min-height: 40px; }
+html[data-ph-compact] :is(.vsb-page, .vsr) :is(.phk-btn, .phk-segbtn) { min-width: 44px; }
+/* ONE ROW (critic round 5): the name field, the Mode and Modifier pills and Create share one control height, so their
+   labels and their bodies line up across the form. */
+.vsb-create :is(.phk-fieldinput, .phk-segbtn, .vsb-createbtn) { box-sizing: border-box; height: calc(44 * var(--phu)); min-height: 0; }
+.vsb-create :is(.phk-field, .phk-seg) { gap: calc(8 * var(--phu)); }

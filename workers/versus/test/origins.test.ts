@@ -14,7 +14,7 @@ const DEFAULT = /^ALLOWED_ORIGINS = "([^"]*)"$/m.exec(toml)?.[1];
 
 describe('Versus Worker origins', () => {
   it('defaults to the Netlify site and local dev only', () => {
-    expect(DEFAULT).toBe('https://ascent-game-web.netlify.app,http://localhost:*,http://127.0.0.1:*');
+    expect(DEFAULT).toBe('https://ascent-game-web.netlify.app,app://ascent,http://localhost:*,http://127.0.0.1:*');
     expect(originAllowed('https://ascent-game-web.netlify.app', DEFAULT)).toBe(true);
     expect(originAllowed('http://localhost:5173', DEFAULT)).toBe(true);
     expect(originAllowed('http://127.0.0.1:5291', DEFAULT)).toBe(true);
@@ -24,6 +24,15 @@ describe('Versus Worker origins', () => {
     expect(originAllowed('https://deploy-preview-1--ascent-game-web.netlify.app', DEFAULT)).toBe(false);
     expect(originAllowed('http://ascent-game-web.netlify.app', DEFAULT)).toBe(false);
     expect(originAllowed(null, DEFAULT)).toBe(true); // no Origin: server-to-server; the bearer token is the gate
+  });
+
+  it('accepts the desktop app origin and no other app:// origin (R-DESKTOP-ORIGIN-01)', () => {
+    expect(originAllowed('app://ascent', DEFAULT)).toBe(true);
+    expect(originAllowed('app://evil', DEFAULT)).toBe(false);
+    expect(originAllowed('app://ascent.evil.com', DEFAULT)).toBe(false);
+    expect(originAllowed('app://ascent/x', DEFAULT)).toBe(false);
+    expect(validOrigin('app://ascent')).toBe(true);
+    for (const bad of ['app://other', 'app://*', 'app://', 'app://ascent/', 'app://ascent:1', 'APP://evil']) expect(validOrigin(bad), bad).toBe(false);
   });
 
   it('a custom domain is one config entry', () => {

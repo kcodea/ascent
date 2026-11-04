@@ -108,7 +108,7 @@
 .heroselect.phhs .herocard.big :is(.hcframe-art, .hcframe-pow) { inset: 0 var(--trim); width: calc(100% - 2 * var(--trim)); border-radius: 0; object-position: 50% 18%;
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 7%, #000 56%, transparent 98%), linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
   mask-image: linear-gradient(180deg, transparent 0, #000 7%, #000 56%, transparent 98%), linear-gradient(90deg, transparent 0, #000 7%, #000 93%, transparent 100%);
-  -webkit-mask-composite: source-in; mask-composite: intersect; }
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-composite: source-in; mask-composite: intersect; height: calc(100% - 2px); }
 .heroselect.phhs .herocard.big .hcframe > svg { color: var(--ui-title, #ffd98a); }
 /* THE TEXT BLOCK, on one centre line and an 8px rhythm. The name grows upward if it wraps; Health and Armor are plain
    stats, not chips. */
@@ -202,14 +202,24 @@ body:has(.heroselect.phhs) .cornerdev { left: 8px !important; bottom: 8px !impor
 
 /* PHONES (a short landscape screen): a shorter portrait crop and tighter heading, so three banners and their re-roll pills
    fit without scrolling. The text block already stacks both faces there (touchUi.css / phoneLayout.css). */
-html[data-touch-ui][data-touch-small] .heroselect.phhs .hsrow:not(.browse) .herocard.big .hcframe { aspect-ratio: 1 / 0.78; }
+/* The power text reads at 11 real px or more on a phone: the stage draws at about a third, so the banners go wider and the
+   portrait crop shorter to hold the bigger text in the same height. */
+html[data-touch-ui][data-touch-small] .heroselect.phhs .hsrow:not(.browse) { gap: 40px; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs .hsrow:not(.browse) .herocard.big { width: 420px; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), .hsc-clone:not(:has(.hsc-browse))) .herocard.big .hcframe { aspect-ratio: 1 / 0.5; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), .hsc-clone:not(:has(.hsc-browse))) .herocard.big .hcpw { font-size: 22.5px; line-height: 1.26; }
 html[data-touch-ui][data-touch-small] .heroselect.phhs .hsprompt { margin-bottom: 28px; font-size: 44px; }
 html[data-touch-ui][data-touch-small] .heroselect.phhs .hs-eyebrow { margin-bottom: 4px; }
 html[data-touch-ui][data-touch-small] .heroselect.phhs .hcreroll-slot { margin-top: 8px; padding-top: 0; height: 44px; }
 html[data-touch-ui][data-touch-small] .heroselect.phhs .hsrow:not(.browse) .herocard.big .hcbelow { min-height: 0; gap: 4px; padding-top: 10px; }
 html[data-touch-ui][data-touch-small] .heroselect.phhs .herocard.big { margin-top: 16px; }
-html[data-touch-ui][data-touch-small] .heroselect.phhs .hsrow.browse .herocard.big .hcframe { aspect-ratio: 1 / 0.8; }
-html[data-touch-ui][data-touch-small] .heroselect.phhs .hsrow.browse .herocard.big .hcpw { font-size: 21px; line-height: 1.28; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow.browse, .hsc-clone) .herocard.big.herocard.big:is(.hsrow.browse *, .hsc-browse) .hcframe { aspect-ratio: 1 / 0.8; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow.browse, .hsc-clone) .herocard.big.herocard.big:is(.hsrow.browse *, .hsc-browse) .hcpw { font-size: 32px; line-height: 1.24; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow.browse, .hsc-clone) .herocard.big.herocard.big:is(.hsrow.browse *, .hsc-browse) .hcname.hudpill-name { bottom: 50px; font-size: 44px; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow.browse, .hsc-clone) .herocard.big.herocard.big:is(.hsrow.browse *, .hsc-browse) .hchp.hudpill-hp { height: 40px; font-size: 32px; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow.browse, .hsc-clone) .herocard.big.herocard.big:is(.hsrow.browse *, .hsc-browse) .hcarmor.hudpill-arm { font-size: 32px; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow.browse, .hsc-clone) .herocard.big.herocard.big:is(.hsrow.browse *, .hsc-browse) :is(.hchp, .hcarmor) svg { width: 28px; height: 28px; }
+html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), .hsc-clone:not(:has(.hsc-browse))) .herocard.big :is(.hcframe-art, .hcframe-pow) { object-position: 50% 24%; }
 
 @media (prefers-reduced-motion: reduce) {
   .heroselect.phhs :is(.herocard.big, .hsback, .hcreroll, .hsc-start) { transition: none; }

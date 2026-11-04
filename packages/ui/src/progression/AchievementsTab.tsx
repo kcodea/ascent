@@ -1,4 +1,5 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { loadSocial, peekSocial, useSocial } from '../socialCache';
 import { activeSet } from '@game/content';
 import { ACHIEVEMENT_CATEGORIES, UNIQUE_PLATE_REWARD_TEXT, type AchievementCategory } from '@game/progression';
 import { Icon } from '../Icon';
@@ -30,6 +31,8 @@ import './achievements.css';
  * it is off screen (`content-visibility: auto` in achievements.css), so the 446-entry registry stays cheap.
  */
 export interface AchievementsTabProps {
+  /** The party home shell: seen data at once, a skeleton on a first read. */
+  shell?: boolean;
   userId: string;
   /** Your own Career: progress bars show. */
   own: boolean;
@@ -55,15 +58,47 @@ function loadCat(): AchievementCategory {
   } catch { return 'career'; }
 }
 
-export function AchievementsTab({ userId, own, ownerName }: AchievementsTabProps): JSX.Element {
+/** The party home shell's memory of a player's achievements (socialCache): seen data paints at once, refreshes quietly. */
+const achKey = (userId: string, own: boolean): string => `career:ach:${userId}:${own ? 'own' : 'view'}`;
+async function readAchievements(userId: string, own: boolean): Promise<Loaded> {
+  const [completions, progress, retired] = await Promise.all([
+    fetchAchievementCompletions(userId),
+    own ? fetchOwnAchievementProgress() : Promise.resolve(undefined),
+    fetchRetiredAchievementIds(),
+  ]);
+  const prev = peekSocial<Loaded>(achKey(userId, own))?.data;
+  if (!completions && prev) return prev; // a failed refresh never blanks what is on screen
+  return { userId, completions: completions ?? null, progress: progress ?? null, retired: retired ?? [] };
+}
+/** Read them ahead of the tab (the Career page does, on open). */
+export function warmAchievements(userId: string, own: boolean): void { void loadSocial(achKey(userId, own), () => readAchievements(userId, own)); }
+
+const GHOST_CATS = ACHIEVEMENT_CATEGORIES.map((c) => c);
+const GHOST_TILES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+/** A first read on the shell: the tab's final layout with nothing in it, so nothing jumps when it lands. */
+function AchGhost() {
+  return (
+    <div className="ach-tab ach-ghost" role="status" aria-busy="true" aria-label="Loading achievements">
+      <div className="ach-summary"><span className="ach-summary-n">&nbsp;</span></div>
+      <div className="ach-cats" aria-hidden="true">{GHOST_CATS.map((c) => <div key={c} className="ach-cat" />)}</div>
+      <div className="ach-filters" aria-hidden="true"><span className="ach-chip">&nbsp;</span><span className="ach-chip">&nbsp;</span><span className="ach-chip">&nbsp;</span></div>
+      <div className="ach-grid" aria-hidden="true">{GHOST_TILES.map((i) => <div key={i} className="ach-tile" />)}</div>
+    </div>
+  );
+}
+
+export function AchievementsTab({ userId, own, ownerName, shell }: AchievementsTabProps): JSX.Element {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const seen = useSocial<Loaded>(shell && remoteEnabled() ? achKey(userId, own) : null, () => readAchievements(userId, own));
   const [tick, setTick] = useState(0);
   const [cat, setCat] = useState<AchievementCategory>(loadCat);
   const [filter, setFilter] = useState<AchievementFilter>('all');
 
-  const mine = loaded && loaded.userId === userId ? loaded : null;
+  const mine = shell ? seen ?? null : loaded && loaded.userId === userId ? loaded : null;
+  // Fades in only after a wait: seen data paints as it is.
+  const waited = useRef(!mine);
   useEffect(() => {
-    if (mine || !remoteEnabled()) return;
+    if (shell || mine || !remoteEnabled()) return;
     let live = true;
     void Promise.all([
       fetchAchievementCompletions(userId),
@@ -80,6 +115,7 @@ export function AchievementsTab({ userId, own, ownerName }: AchievementsTabProps
     ? achievementView({ completions: mine.completions, progress: own ? mine.progress ?? {} : null, retired: mine.retired, activeSetId: activeSet().id })
     : null), [mine, own]);
 
+  if (!mine && shell) return <AchGhost />;
   if (!mine) {
     return (
       <div className="cv2-panel cv2-none" role="status" aria-busy="true">
@@ -95,7 +131,7 @@ export function AchievementsTab({ userId, own, ownerName }: AchievementsTabProps
         <div className="cv2-state-ico"><Icon name="mute" /></div>
         <div className="cv2-state-title">Couldn’t reach the server</div>
         <div className="cv2-state-body">Check your connection and try again.</div>
-        <button type="button" className="cv2-btn pressable" onClick={() => { sfx.pulse(); setLoaded(null); setTick((t) => t + 1); }}>Retry</button>
+        <button type="button" className="cv2-btn pressable" onClick={() => { sfx.pulse(); if (shell) void loadSocial(achKey(userId, own), () => readAchievements(userId, own), { force: true }); else { setLoaded(null); setTick((t) => t + 1); } }}>Retry</button>
       </div>
     );
   }
@@ -111,7 +147,7 @@ export function AchievementsTab({ userId, own, ownerName }: AchievementsTabProps
   };
 
   return (
-    <div className="ach-tab">
+    <div className={`ach-tab${shell && waited.current ? ' fadein' : ''}`}>
       <div className="ach-summary" aria-label="Achievements completed">
         <span className="ach-summary-n"><b>{view.done}</b> / {view.total} completed</span>
         <span className="ach-summary-xp">{view.xpEarned.toLocaleString('en-US')} XP earned</span>

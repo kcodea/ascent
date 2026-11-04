@@ -497,7 +497,8 @@ describe('states', () => {
       act(() => { setPartyHome(true); });
       ui = mount(<Career />);
       await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
-      expect(ui.container.textContent).toContain('Loading your career');
+      expect(ui.container.querySelector('.rgp-split[aria-busy]')?.getAttribute('aria-label')).toBe('Loading your games'); // the final layout, held by ghosts
+      expect(ui.container.querySelector('.phc-strip.loading')).not.toBeNull();
       await act(async () => { vi.advanceTimersByTime(3000); for (let i = 0; i < 20; i++) await Promise.resolve(); });
       expect(ui.container.textContent).toContain('Your career is not available right now');
       expect([...ui.container.querySelectorAll('button')].some((b) => b.textContent === 'Retry')).toBe(true);
@@ -506,6 +507,7 @@ describe('states', () => {
       expect(ui.container.querySelector('.phc-strip')).not.toBeNull();
     } finally {
       act(() => { setPartyHome(false); });
+      (await import('./socialCache')).clearSocialCache(); // the shell's per-player memory must not reach the next test
       vi.useRealTimers();
     }
   });

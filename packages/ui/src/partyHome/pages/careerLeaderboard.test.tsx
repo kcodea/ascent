@@ -31,7 +31,7 @@ const VIEW: PhCareerProps['history']['view'] = {
 
 function careerProps(over: Partial<PhCareerProps> = {}): PhCareerProps {
   return {
-    own: false, name: 'Orangez', title: null, addFriend: null, pageState: null, profileArt: undefined, favoriteHero: 'Robin',
+    own: false, name: 'Orangez', loading: false, title: null, addFriend: null, pageState: null, profileArt: undefined, favoriteHero: 'Robin',
     level: { level: 157, into: 365, next: 500, fraction: 0.73 }, onCreateAccount: null,
     stats: { games: 141, firsts: 66, top4Pct: 74, losses: 37, avgPlacement: 3, tribe: 'Demon' },
     rank: { divisionIndex: 15, points: 94 }, mmr: 1594, rankPending: false, userId: null,
@@ -105,6 +105,18 @@ describe('Career on the app shell', () => {
   });
 });
 
+describe('Career loading', () => {
+  it('a cold read holds the final layout with ghosts, naming the player, with no spinner or loading words', () => {
+    const m = mount(<PhCareer {...careerProps({ loading: true, history: { filter: null, state: null, view: null } })} />);
+    expect(m.container.querySelector('.rgp-split[aria-busy]')?.getAttribute('aria-label')).toBe("Loading Orangez's games");
+    expect(m.container.querySelectorAll('.rgp-rowghost').length).toBeGreaterThan(0);
+    expect(m.container.textContent).not.toMatch(/Loading|Fetching/);
+    m.render(<PhCareer {...careerProps()} />);
+    expect(m.container.querySelector('.phc-main.fadein')).not.toBeNull(); // one soft fade after a wait
+    m.unmount();
+  });
+});
+
 describe('Leaderboard on the app shell', () => {
   it('stands the top three as a podium (2nd, 1st, 3rd) and lists the rest; every row opens that career', () => {
     const p = boardProps();
@@ -126,7 +138,7 @@ describe('Leaderboard on the app shell', () => {
     expect(m.container.querySelector('.phk-chip')).toBeNull();
     expect(m.container.querySelector('.phl-mepin')).toBeNull();
     m.render(<PhLeaderboard {...boardProps({ myId: 'zz', myRank: { divisionIndex: 3, points: 40 } })} />);
-    expect(m.container.querySelector('.phl-mepin')?.textContent).toContain('Outside the top 10');
+    expect(m.container.querySelector('.phl-mepin')?.textContent).toContain('Outside the top 5'); // what is listed, not the board's size
     m.unmount();
   });
   it('names a Duos team without "Player & Player": its name, its players, or an unnamed team', () => {
@@ -171,7 +183,7 @@ describe('shell pages: production and UI rules', () => {
     const tsx = [here('./career/PhCareer.tsx'), here('./leaderboard/PhLeaderboard.tsx')].join('\n');
     const css = [here('./career/phCareer.css'), here('./leaderboard/phLeaderboard.css')].join('\n');
     expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
-    expect(css).not.toMatch(/cursor:/);
+    expect(css).not.toMatch(/cursor:(?!\s*url\('\/cursors\/gauntlet_open\.svg'\))/); // only the open gauntlet, never a keyword
     expect(css).not.toMatch(/infinite/);
     const strings = [...tsx.matchAll(/'([^'\n]*)'/g), ...tsx.matchAll(/>([^<>{}\n]+)</g)].map((x) => x[1] ?? '');
     for (const s of strings) { expect(s).not.toMatch(/—|\s--\s/); expect(s).not.toMatch(/\b(Oath|climb)\b/i); }

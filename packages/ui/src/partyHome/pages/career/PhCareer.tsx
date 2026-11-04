@@ -16,7 +16,7 @@
  * Nothing is lost from the old page: Performance Trends moved from the right column into its own tab (judgement call,
  * flagged in the PR). Static paint; no looping animation; no layout reads.
  */
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { getHero } from '@game/sim';
 import { RankBar } from '../../../rank/RankBar';
 import { scalarCaption } from '../../../rank/rankFormat';
@@ -30,7 +30,7 @@ import { MenuMedal } from '../../../menuIcons';
 import { MenuSidebar, SidebarHost } from '../../../MenuSidebar';
 import { HERO_SORTS, HERO_SORT_LABEL, TREND_WINDOWS, trendWindowLabel, type HeroCareer, type HeroSort, type TrendWindow } from '../../../careerData';
 import { PhButton, PhEmpty, PhPage, PhSegmented, PhStat, PhTabs } from '../../kit';
-import { GameSplitPh, type GameSplitView } from '../gameView';
+import { GameSplitGhost, GameSplitPh, type GameSplitView } from '../gameView';
 import './phCareer.css';
 
 /** A whole-view state (loading, offline, signed out, empty). */
@@ -41,6 +41,8 @@ export type PhCareerTab = 'history' | 'heroes' | 'trends' | 'practice' | 'achiev
 export interface PhCareerProps {
   own: boolean;
   name: string;
+  /** A cold read of the games: the final layout with its contents held by ghosts. */
+  loading: boolean;
   /** The equipped title, already rendered (rarity chip or the master plate). */
   title: ReactNode;
   addFriend: ReactNode;
@@ -90,6 +92,8 @@ function DuosCell({ userId }: { userId: string | null }) {
     </div>
   );
 }
+
+const HERO_GHOSTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
 function StateView({ s }: { s: PhState }) {
   return (
@@ -144,8 +148,17 @@ export function PhCareer(p: PhCareerProps) {
 
   // An empty or loading view is a plate sized to its message, not a screen-tall panel (a phone would push the words below the fold).
   const stateShown = (p.tab === 'history' && !!p.history.state) || (p.tab === 'practice' && !!p.practice.state) || (p.tab === 'heroes' && !!p.heroes.state);
+  // Fades in only after a wait: seen data paints as it is.
+  const waited = useRef(p.loading);
+  if (p.loading) waited.current = true;
+  const fade = waited.current && !p.loading ? ' fadein' : '';
+  const ghostLabel = `Loading ${p.own ? 'your' : `${p.name}'s`} games`;
   let view: ReactNode;
-  if (p.tab === 'heroes') {
+  if (p.tab === 'heroes' && p.loading) {
+    view = <div className="phc-view phc-heroesview"><div className="phc-toolbar" /><div className="phc-herogrid" role="status" aria-busy="true" aria-label={ghostLabel}>{HERO_GHOSTS.map((i) => <div key={i} className="phc-hero phc-heroghost" />)}</div></div>;
+  } else if (p.tab === 'trends' && p.loading) {
+    view = <div className="phc-view phc-trendsview"><div className="phc-toolbar" /><div className="phc-trends phc-trendsghost" role="status" aria-busy="true" aria-label={ghostLabel} /></div>;
+  } else if (p.tab === 'heroes') {
     view = p.heroes.state ? <StateView s={p.heroes.state} /> : (
       <div className="phc-view phc-heroesview">
         <div className="phc-toolbar">
@@ -170,7 +183,7 @@ export function PhCareer(p: PhCareerProps) {
   } else if (p.tab === 'practice') {
     view = p.practice.state ? <StateView s={p.practice.state} /> : (
       <div className="phc-view phc-splitview">
-        {p.practice.view && <GameSplitPh view={p.practice.view} />}
+        {p.practice.view ? <GameSplitPh view={p.practice.view} /> : <GameSplitGhost label={ghostLabel} />}
       </div>
     );
   } else if (p.tab === 'achievements') {
@@ -188,7 +201,7 @@ export function PhCareer(p: PhCareerProps) {
             </span>
           </div>
         )}
-        {p.history.state ? <StateView s={p.history.state} /> : p.history.view && <GameSplitPh view={p.history.view} />}
+        {p.history.state ? <StateView s={p.history.state} /> : p.history.view ? <GameSplitPh view={p.history.view} /> : <GameSplitGhost label={ghostLabel} />}
       </div>
     );
   }
@@ -206,7 +219,7 @@ export function PhCareer(p: PhCareerProps) {
       >
         {p.pageState ? <StateView s={p.pageState} /> : (
           <>
-            <section className="rgp-strip phc-strip" aria-label="Profile">
+            <section className={`rgp-strip phc-strip${p.loading ? ' loading' : ''}`} aria-label="Profile">
               <div className="rgp-most phc-who">
                 {p.profileArt && <img className="rgp-mostart" src={p.profileArt} alt="" draggable={false} decoding="sync" />}
                 {/* The name is the page title just above: the strip does not say it twice. */}
@@ -233,7 +246,7 @@ export function PhCareer(p: PhCareerProps) {
                 <PhStat label="Tribe" value={<span className="phc-sv">{stats.tribeMedal}{stats.tribe ?? '-'}</span>} />
               </div>
             </section>
-            <section className={`phc-main${stateShown ? ' fit' : ''}`} aria-label={tabs.find((t) => t.id === p.tab)?.label} role="tabpanel">{view}</section>
+            <section className={`phc-main${stateShown ? ' fit' : ''}${fade}`} aria-label={tabs.find((t) => t.id === p.tab)?.label} role="tabpanel">{view}</section>
           </>
         )}
       </PhPage>

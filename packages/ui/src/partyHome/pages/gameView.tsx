@@ -209,7 +209,9 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
         <div className="rgp-board"><div className="rgp-boardin" key={seat?.id ?? 'own'}>
           {seat ? <SeatBoard seat={seat} own={p.own} /> : p.minions && p.minions.length > 0
             ? <StoredTeam minions={p.minions} skins={p.skins} />
-            : <div className="rgp-none">No board recorded for this game</div>}
+            : p.matchPending
+              ? <div className="rgp-boardghost" aria-hidden="true" />
+              : <div className="rgp-none">No board recorded for this game</div>}
         </div></div>
         <div className="rgp-runes">
           {seat ? <SeatRuneRow seat={seat} /> : <LbRunes runes={p.runes} live={p.runeLive} empty="No runes taken" />}
@@ -234,6 +236,24 @@ export function GameSplitPh({ view }: { view: GameSplitView }) {
     <div className="rgp-split">
       <GameList items={view.items} selected={view.selected} onPick={view.onPick} label={view.label} />
       <div className="rgp-detailcol"><GameDetail key={view.selected} {...view.detail} /></div>
+    </div>
+  );
+}
+
+const GHOST_ROWS = [0, 1, 2, 3, 4, 5, 6, 7];
+/** A first read: the list + detail's final layout with nothing in it, so nothing jumps when the games land. */
+export function GameSplitGhost({ label }: { label: string }) {
+  return (
+    <div className="rgp-split" role="status" aria-busy="true" aria-label={label}>
+      <div className="rgp-listwrap"><div className="rgp-list phk-selist" aria-hidden="true">{GHOST_ROWS.map((i) => <div key={i} className="phk-row rgp-item rgp-rowghost" />)}</div></div>
+      <div className="rgp-detailcol" aria-hidden="true">
+        <div className="rgp-detail">
+          <div className="rgp-banner" />
+          <div className="rgp-facts rgp-factsghost" />
+          <section className="rgp-boardsec"><div className="rgp-board"><div className="rgp-boardghost" /></div></section>
+          <section className="rgp-lobby"><header className="rgp-lobbyhead"><h3>Lobby</h3></header><LobbyGhost /></section>
+        </div>
+      </div>
     </div>
   );
 }

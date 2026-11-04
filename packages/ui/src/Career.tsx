@@ -23,6 +23,7 @@ import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { refuseInGame } from './gameMenuParts';
 import { AddFriendButton } from './friends/AddFriendButton';
+import { loadSocial, peekSocial, putSocial, useSocial } from './socialCache';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
 import { CareerDuosTeams } from './versus/DuosBoards';
 import { fetchMyPracticeGames, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, fetchRunBoards, fetchRunDetails, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
@@ -38,7 +39,7 @@ import { RankCard } from './rank/RankCard';
 import { cosmeticOf, isMasterTitle, levelProgress, titleName } from '@game/progression';
 import { TitleBadge } from './titles/TitleBadge';
 import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
-import { AchievementsTab } from './progression/AchievementsTab';
+import { AchievementsTab, warmAchievements } from './progression/AchievementsTab';
 import { achievementsVisible, useProgression } from './progression/progressionStore';
 import { rankLabel, rankScalar } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
@@ -411,7 +412,8 @@ export function Career() {
   const [loadedRuns, setRuns] = useState<CareerRun[] | null | undefined>(undefined);
   // The FIRST render of an open already shows the cached rows (this key's, else the same player's older answer), not
   // a loading frame waiting on the effect below to copy them in (perf 2026-10-09). `loadedRuns` is cleared on close.
-  const cachedRuns = cache && userId && careerKeyUser(cache.key) === userId ? cache.runs : undefined;
+  const seenRuns = userId ? peekSocial<CareerRun[]>(`career:runs:${userId}`)?.data : undefined; // the shell's per-player memory
+  const cachedRuns = (cache && userId && careerKeyUser(cache.key) === userId ? cache.runs : undefined) ?? seenRuns;
   const runs = loadedRuns !== undefined ? loadedRuns : cachedRuns;
   const [fetchTick, setFetchTick] = useState(0); // the Retry button
   // The shell layout's read timeout: still nothing after this long reads as "not available" with Retry, never an endless
@@ -429,7 +431,8 @@ export function Career() {
   // rows read for a filtered hero's light runs (one read per hero pick, per career owner).
   const [heroSort, setHeroSort] = useState<HeroSort>(loadHeroSort);
   const [heroFilter, setHeroFilter] = useState<string | null>(null);
-  const [heroDetail, setHeroDetail] = useState<{ userId: string; rows: RunHistoryRowLike[] } | null>(null);
+  const [heroDetail, setHeroDetail] = useState<Record<string, RunHistoryRowLike[]>>({}); // per career owner
+  const [detailMiss, setDetailMiss] = useState<number | null>(null); // the run whose full read came back with nothing
   const heroAsked = useRef(new Set<string>());
   const [watching, setWatching] = useState<number | null>(null); // run id whose replay is loading
   const [noReplay, setNoReplay] = useState<number | null>(null); // run id whose payload came back unplayable
@@ -446,6 +449,11 @@ export function Career() {
     return () => window.clearTimeout(t);
   }, [show, shell, runs === undefined, fetchTick]);
 
+  // The shell reads the achievements with the page, so the tab has them when it is opened.
+  useEffect(() => {
+    if (show && shell && achievementsOn && userId && remoteEnabled()) warmAchievements(userId, !viewing);
+  }, [show, shell, achievementsOn, userId, viewing]);
+
   const lastTick = useRef(fetchTick);
   useEffect(() => {
     if (!show) { setRuns(undefined); return; }
@@ -456,7 +464,7 @@ export function Career() {
     // and the telemetry join (Watch, length, APM) after, carrying the older answer's Watch handles meanwhile.
     const exact = cache && cache.key === cacheKey ? cache.runs : undefined;
     const sameUser = cache && userId && careerKeyUser(cache.key) === userId ? cache.runs : undefined;
-    const shown = exact ?? sameUser;
+    const shown = exact ?? sameUser ?? seenRuns;
     setRuns(shown);
     setWatching(null);
     setNoReplay(null);
@@ -472,6 +480,7 @@ export function Career() {
       ...(viewing ? { userId: viewing.userId } : {}),
       onHistory: (partial) => { if (live) setRuns(carryTelemetry(partial, shown)); },
     }).then((rows) => {
+      if (rows && shell && userId) putSocial(`career:runs:${userId}`, rows);
       if (!live) return;
       setRuns(rows ?? (shown ?? null));
     });
@@ -500,10 +509,13 @@ export function Career() {
   // The Practice tab reads the career owner's practice games the first time it is shown for them (never on
   // open: most visits never look), then keeps them while the page stays open. Closing forgets them, so the
   // next open (a practice game may have finished since) reads fresh.
-  const practiceRows = practice && practice.userId === userId ? practice.rows : undefined;
+  const practiceKey = shell && show && tab === 'practice' && userId && remoteEnabled() ? `career:practice:${userId}` : null;
+  const readPractice = (): Promise<PracticeGameRow[] | null> => fetchMyPracticeGames(userId, MATCH_ROWS).then((rows) => rows ?? peekSocial<PracticeGameRow[] | null>(practiceKey ?? '')?.data ?? null);
+  const practiceSeen = useSocial<PracticeGameRow[] | null>(practiceKey, readPractice);
+  const practiceRows = shell ? practiceSeen : practice && practice.userId === userId ? practice.rows : undefined;
   useEffect(() => {
     if (!show) { setPractice(null); return; }
-    if (tab !== 'practice' || !userId || !remoteEnabled() || practiceRows !== undefined) return;
+    if (shell || tab !== 'practice' || !userId || !remoteEnabled() || practiceRows !== undefined) return;
     let live = true;
     const who = userId;
     void fetchMyPracticeGames(who, MATCH_ROWS).then((rows) => { if (live) setPractice({ userId: who, rows }); });
@@ -532,7 +544,7 @@ export function Career() {
   const sortedHeroes = useMemo(() => sortHeroCareers(heroes, heroSort), [heroes, heroSort]);
   // The filtered hero's newest games, read from the runs already loaded (no list fetch), their light rows upgraded
   // with the detailed rows read below once they land.
-  const heroDetailRows = heroDetail && heroDetail.userId === userId ? heroDetail.rows : null;
+  const heroDetailRows = userId ? heroDetail[userId] ?? null : null;
   const heroRuns = useMemo(
     () => (heroFilter && runs ? runsOfHero(runs, heroFilter, MATCH_ROWS) : null),
     [heroFilter, runs],
@@ -547,7 +559,8 @@ export function Career() {
   // BOARDS ONCE per hero pick so the list portraits wear the recorded skins (the opened game is read in full below).
   // Replay never waits on this (the telemetry join already gave every row its handle).
   useEffect(() => {
-    if (!show) { setHeroFilter(null); setHeroDetail(null); heroAsked.current.clear(); return; }
+    // The shell keeps what it has read: a game opened before paints in full on a return visit.
+    if (!show) { setHeroFilter(null); if (!shell) { setHeroDetail({}); heroAsked.current.clear(); } return; }
     if (tab !== 'history' || !heroFilter || !userId || !runs || !remoteEnabled()) return;
     const ask = `${userId}|${heroFilter}`;
     if (heroAsked.current.has(ask)) return;
@@ -558,7 +571,7 @@ export function Career() {
     const who = userId;
     void fetchRunBoards(who, ids).then((rows) => {
       if (!live || !rows) return;
-      setHeroDetail((prev) => ({ userId: who, rows: [...(prev && prev.userId === who ? prev.rows : []), ...rows] }));
+      setHeroDetail((prev) => ({ ...prev, [who]: [...(prev[who] ?? []), ...rows] }));
     });
     return () => { live = false; };
   }, [show, tab, heroFilter, userId, runs]);
@@ -596,8 +609,9 @@ export function Career() {
     const who = userId;
     // Kept even if the player has moved on: the read is per game, and a quick flick back must not ask twice.
     void fetchRunDetails(who, [openRunId]).then((rows) => {
+      if (!rows || rows.length === 0) setDetailMiss(openRunId); // no answer: the panel stops holding the lobby's place
       if (!rows) { heroAsked.current.delete(ask); return; } // couldn't ask: the next open tries again
-      setHeroDetail((prev) => ({ userId: who, rows: [...(prev && prev.userId === who ? prev.rows : []), ...rows] }));
+      setHeroDetail((prev) => ({ ...prev, [who]: [...(prev[who] ?? []), ...rows] }));
     });
   }, [show, tab, openRunId, userId]);
   // Stable Watch callbacks for the memoised banners; the ref always holds this render's handler.
@@ -698,7 +712,7 @@ export function Career() {
         };
       }),
       detail: {
-        ...bits, place: run.placement, rank: run.rank ?? null, facts, match: run.match,
+        ...bits, place: run.placement, rank: run.rank ?? null, facts, match: run.match, matchPending: !run.detailed && run.id !== null && run.id !== detailMiss,
         replay: {
           watchable, busy: watching !== null && watching === run.id, unplayable: noReplay !== null && noReplay === run.id, onWatch: () => onWatchRun(run),
           label: watchable ? 'Watch this run’s replay' : 'No replay stored for this run',
@@ -812,7 +826,6 @@ export function Career() {
     if (!remoteEnabled()) pageState = st('Career unavailable', 'This build has no backend configured, so there is no server record to show.');
     else if (!userId) pageState = st('Sign in to see your career', 'Your runs, placements and Rating live on your account, so they follow you between devices.', { label: 'Sign in', onClick: () => { sfx.pulse(); openAccountPanel(); } });
     else if (runs === undefined && loadStalled) pageState = st('Your career is not available right now', 'Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } });
-    else if (runs === undefined) pageState = st('Loading your career', 'Fetching your recent runs from the server.', undefined, true);
     else if (runs === null) pageState = st('Couldn’t reach the server', 'Your career is stored on your account. Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } });
     // A player the ladder knows (games, a rating) whose history comes back empty: the read was refused or failed, so it says
     // so and offers Retry, never a false "no runs yet" beside their MMR (`fetchMyRuns` answers [] when row access refuses).
@@ -827,15 +840,16 @@ export function Career() {
       : heroFilter
       ? `${matchRows.length} ${filterName} game${matchRows.length === 1 ? '' : 's'}`
       : (matchRows.length ? `Last ${matchRows.length} run${matchRows.length === 1 ? '' : 's'}` : '');
-    const historyState = heroFilter && matchRows.length === 0
+    const loading = runs === undefined && !pageState; // a cold read: the final layout, its contents held by ghosts
+    const historyState = loading ? null : heroFilter && matchRows.length === 0
       ? st(`No ${filterName} games yet`, viewing ? `${shownName} hasn’t finished a lobby run with ${filterName} yet.` : `Finish a lobby run with ${filterName} and it will appear here.`)
       : matchRows.length === 0
       ? st('No runs yet', viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Finish a lobby run and it will appear here, final team and all.')
       : null;
     const practiceState = practiceRows === undefined
-      ? st('Loading practice games', 'Fetching finished practice games from the server.', undefined, true)
+      ? null
       : practiceRows === null
-      ? st('Couldn’t reach the server', 'Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setPractice(null); setPracticeTick((t) => t + 1); } })
+      ? st('Couldn’t reach the server', 'Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); if (practiceKey) void loadSocial(practiceKey, readPractice, { force: true }); } })
       : practiceRows.length === 0
       ? st('No practice games yet', viewing ? `${shownName} hasn’t finished a practice game yet.` : 'Finish a practice game to see it here.')
       : null;
@@ -845,6 +859,7 @@ export function Career() {
           <PhCareer
             own={own}
             name={shownName}
+            loading={loading}
             title={headerTitle ? (headerTitleMaster
               ? <TitleBadge id={accountProgression?.equippedTitleId ?? null} className="cv2-titleplate" />
               : <span className={`cv2-titlechip phc-titlechip${headerTitleRarity ? ` r-${headerTitleRarity}` : ''}`}>{headerTitle}</span>) : null}
@@ -863,22 +878,22 @@ export function Career() {
             history={{
               filter: heroFilter ? { name: filterName, clear: clearHeroFilter, back: () => { sfx.pulse(); pickTab('heroes'); } } : null,
               state: historyState,
-              view: historyState || tab !== 'history' ? null : historyView(),
+              view: loading || historyState || tab !== 'history' ? null : historyView(),
             }}
             heroes={{
               list: sortedHeroes, sort: heroSort,
               onSort: (k) => { if (heroSort !== k) { sfx.pulse(); setHeroSort(k); saveHeroSort(k); } },
               onPick: onPickHero,
               art: (id) => heroThumb(heroPortrait(id, shownLoadout)),
-              state: heroes.length === 0 ? st('No games played yet', viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Every hero you finish a lobby run with is tallied here.') : null,
+              state: !loading && heroes.length === 0 ? st('No games played yet', viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Every hero you finish a lobby run with is tallied here.') : null,
             }}
             trends={{
               window: window_,
               onWindow: (d) => { if (window_ !== d) { sfx.pulse(); setWindow(d); } },
-              body: tab === 'trends' ? <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} own={own} /> : null,
+              body: tab === 'trends' && !loading ? <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} own={own} /> : null,
             }}
-            practice={{ state: practiceState, view: practiceState || tab !== 'practice' ? null : practiceView(practiceRows!) }}
-            achievements={tab === 'achievements' && userId ? <AchievementsTab userId={userId} own={own} ownerName={shownName} /> : null}
+            practice={{ state: practiceState, view: practiceState || tab !== 'practice' || practiceRows === undefined ? null : practiceView(practiceRows!) }}
+            achievements={tab === 'achievements' && userId ? <AchievementsTab userId={userId} own={own} ownerName={shownName} shell /> : null}
           />
         </Suspense>
       </CareerSkinContext.Provider>

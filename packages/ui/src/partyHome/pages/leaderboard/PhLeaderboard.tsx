@@ -151,7 +151,7 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
         <div className="phl-mepin" role="note" aria-label="Your standing">
           <span className="phl-who">
             <span className="phl-name">{shownName(displayHandle(p.myName, p.myDisc, p.myId))}</span>
-            <span className="phl-sub">Outside the top {p.rowsShown}</span>
+            <span className="phl-sub">Outside the top {Math.min(p.rowsShown, rows.length)}</span>
           </span>
           <RankCell rank={p.myRank} />
           <Num v={scalarCaption(p.myRank)} unit="MMR" gold />
@@ -177,38 +177,74 @@ function DuosBoard({ myId }: { myId: string | null }) {
   const rows = useSocial<DuosLeaderboardRow[]>(DUOS_RANKINGS_KEY, loadDuosRankings) ?? null;
   if (rows === null) return <PhEmpty title="Loading the teams" sub="Fetching the top Ranked Duos teams." />;
   if (rows.length === 0) return <PhEmpty title="No ranked teams yet" sub="Team up with a friend in Ranked Duos." />;
+  const podium = rows.length >= 3 ? rows.slice(0, 3) : [];
+  const rest = rows.slice(podium.length);
+  const faces = (r: DuosLeaderboardRow) => r.players.map((c) => heroThumb(heroPortrait(c?.hero, null)));
   return (
-    <div className="phl-table duos" role="table" aria-label="Top Ranked Duos teams">
-      <div className="phl-head" role="row"><span>#</span><span /><span>Team</span><span>Rank</span><span className="r">Games</span></div>
-      {rows.map((r, i) => {
-        const [a, b] = r.players;
-        const mine = !!myId && (a?.userId === myId || b?.userId === myId);
-        const artA = heroThumb(heroPortrait(a?.hero, null));
-        const artB = heroThumb(heroPortrait(b?.hero, null));
-        const label = teamLabel(r);
-        // No hero recorded for a player: the team's rank crest stands in, never an empty box.
-        const face = (art: string | undefined) => art
-          ? <span className="phl-thumb"><img src={art} alt="" draggable={false} decoding="sync" loading="lazy" /></span>
-          : <span className="phl-thumb crest"><RankCrest divisionIndex={r.division} size="row" /></span>;
-        return (
-          <div role="row" className={`phl-row${mine ? ' me' : ''}`} key={r.teamId}>
-            <span className="phl-rowbtn static">
-              <PhPlace place={i + 1} />
-              <span className="phl-pair" aria-hidden="true">
-                {face(artA)}
-                {face(artB)}
-              </span>
-              <span className="phl-who">
-                <span className="phl-name">{label.name}</span>
-                <span className="phl-sub">{label.sub}</span>
-              </span>
-              <RankCell rank={{ divisionIndex: r.division, points: r.points }} />
-              <Num v={r.games} unit="Games" />
-            </span>
-          </div>
-        );
-      })}
-    </div>
+    <>
+      {podium.length > 0 && (
+        <div className="phl-podium" role="list" aria-label="Top three teams">
+          {[1, 0, 2].map((i) => {
+            const r = podium[i]!;
+            const mine = !!myId && r.players.some((c) => c?.userId === myId);
+            const label = teamLabel(r);
+            const arts = faces(r).filter((a): a is string => !!a);
+            return (
+              <div role="listitem" key={r.teamId} className={`phl-pod p${i + 1}${mine ? ' me' : ''}`}>
+                <div className="phl-podbtn static">
+                  {arts.length > 0
+                    ? <span className={`phl-podpair n${arts.length}`} aria-hidden="true">{arts.map((a, k) => <img key={k} className="phl-podhalf" src={a} alt="" draggable={false} decoding="sync" />)}</span>
+                    : <span className="phl-podcrest" aria-hidden="true"><RankCrest divisionIndex={r.division} size="big" /></span>}
+                  <span className="phl-podplace"><PhPlace place={i + 1} size={i === 0 ? 'l' : 'm'} /></span>
+                  <span className="phl-podwho">
+                    <span className="phl-podname">{label.name}</span>
+                    <span className="phl-podhero">{label.sub}</span>
+                  </span>
+                  <span className="phl-podfoot">
+                    <span className="phl-podrank"><RankCrest divisionIndex={r.division} size="row" /><span>{rankLabel(r.division)}</span></span>
+                    <Num v={r.points} unit="Points" gold />
+                    <Num v={r.games} unit="Games" />
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {rest.length > 0 && (
+        <div className="phl-table duos" role="table" aria-label="Top Ranked Duos teams">
+          <div className="phl-head" role="row"><span>#</span><span /><span>Team</span><span>Rank</span><span className="r">Games</span></div>
+          {rest.map((r, j) => {
+            const [a, b] = r.players;
+            const mine = !!myId && (a?.userId === myId || b?.userId === myId);
+            const artA = heroThumb(heroPortrait(a?.hero, null));
+            const artB = heroThumb(heroPortrait(b?.hero, null));
+            const label = teamLabel(r);
+            // No hero recorded for a player: the team's rank crest stands in, never an empty box.
+            const face = (art: string | undefined) => art
+              ? <span className="phl-thumb"><img src={art} alt="" draggable={false} decoding="sync" loading="lazy" /></span>
+              : <span className="phl-thumb crest"><RankCrest divisionIndex={r.division} size="row" /></span>;
+            return (
+              <div role="row" className={`phl-row${mine ? ' me' : ''}`} key={r.teamId}>
+                <span className="phl-rowbtn static">
+                  <PhPlace place={j + podium.length + 1} />
+                  <span className="phl-pair" aria-hidden="true">
+                    {face(artA)}
+                    {face(artB)}
+                  </span>
+                  <span className="phl-who">
+                    <span className="phl-name">{label.name}</span>
+                    <span className="phl-sub">{label.sub}</span>
+                  </span>
+                  <RankCell rank={{ divisionIndex: r.division, points: r.points }} />
+                  <Num v={r.games} unit="Games" />
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }
 

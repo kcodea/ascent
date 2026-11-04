@@ -105,9 +105,9 @@ html[data-ph-shell] .phc-page .phc-splitview .rgp-itemend { gap: calc(2 * var(--
 .phc-strip { display: flex; }
 .phc-who { flex: 0 0 calc(272 * var(--phu)); box-shadow: none; }
 /* The words sit on the navy; the art only fades in at the far right, behind a scrim, so nothing reads over it. */
-.phc-who .rgp-mostart { width: 50%; -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 80%); mask-image: linear-gradient(90deg, transparent 0%, #000 80%); }
+.phc-who .rgp-mostart { width: 40%; -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 80%); mask-image: linear-gradient(90deg, transparent 0%, #000 80%); }
 .phc-xprow { display: flex; align-items: center; gap: calc(8 * var(--phu)); margin-top: calc(4 * var(--phu)); }
-.phc-xp { position: relative; display: block; flex: none; width: calc(88 * var(--phu)); height: calc(6 * var(--phu)); overflow: hidden; border-radius: 999px; background: rgba(0, 0, 0, 0.5); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.phc-xp { position: relative; display: block; flex: none; width: calc(72 * var(--phu)); height: calc(6 * var(--phu)); overflow: hidden; border-radius: 999px; background: rgba(0, 0, 0, 0.5); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
 .phc-xpnum { font-size: var(--ph-t1); color: var(--ph-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .phc-xp > i { position: absolute; inset: 0; transform-origin: left; border-radius: inherit; background: var(--ph-metal-gold); }
 .phc-cell { flex: 0 0 auto; display: flex; align-items: center; gap: calc(16 * var(--phu)); min-width: 0; padding: calc(8 * var(--phu)) calc(24 * var(--phu)); box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair); }
@@ -154,3 +154,25 @@ html[data-ph-shell][data-touch-small] .phc-herogrid { grid-template-columns: rep
 /* Desktop too: an empty view is a plate its message's size. */
 .phc-main.fit .phc-view { flex: none; }
 .phc-main.fit .phc-state { flex: none; }
+
+/* A cold read: the final layout, its contents held by quiet ghosts; a one-shot fade when the real thing lands. Static paint. */
+.phc-strip.loading .rgp-stats .phk-statval { color: transparent; text-shadow: none; border-radius: var(--ph-r-s); background: color-mix(in srgb, var(--ph-ink) 6%, transparent); }
+.phc-strip.loading .rgp-stats .phk-statval * { visibility: hidden; }
+.rgp-rowghost, .phc-heroghost { opacity: 0.45; pointer-events: none; }
+.rgp-rowghost::before { display: none; }
+.rgp-boardghost { height: calc(168 * var(--phu)); }
+.rgp-factsghost { min-height: calc(72 * var(--phu)); }
+.phc-trendsghost { min-height: calc(360 * var(--phu)); }
+.phc-main.fadein > .phc-view { animation: lp-swap 0.22s cubic-bezier(0, 0, 0.2, 1) both; }
+.phc-achview .ach-tab.fadein { animation: lp-swap 0.22s cubic-bezier(0, 0, 0.2, 1) both; }
+html[data-ph-shell] .phc-page .phc-achview .ach-ghost :is(.ach-cat, .ach-tile, .ach-chip) { opacity: 0.35; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .phc-main.fadein > .phc-view, .phc-achview .ach-tab.fadein { animation: none; } }
+/* A clickable match row wears the open gauntlet, as a Lobby tile does. */
+.phc-page .rgp-item:not(.rgp-rowghost) { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* The head never outgrows the page: the tabs give way (they scroll) so the actions stay whole. */
+html[data-ph-shell] .phc-page .phc-pg .phk-pagetabs { flex: 0 1 auto; min-width: 0; }
+html[data-ph-shell] .phc-page .phc-pg .phk-pageactions { flex: none; }
+html[data-ph-shell] .phc-page .phc-pg .phk-pagetitle { flex: 0 2 auto; }
+html[data-ph-shell] .phc-page .phk-pagehead { min-width: 0; }
+/* A touch screen has no hover: the guest pill's hidden tip must not widen the page. */
+html[data-ph-shell][data-touch-small] .phc-page .phk-pageactions .gtip::before, html[data-ph-shell][data-touch-small] .phc-page .phk-pageactions .gtip::after { display: none; }

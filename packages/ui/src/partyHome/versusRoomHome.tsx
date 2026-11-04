@@ -525,9 +525,9 @@ const MODIFIERS: { value: VersusModifierId | null; label: string }[] = [
  * ROOM RULES in the side panel (R-VERSUS-OPTIONS-01). Before a room: the name and the modifier START or an invite opens it
  * with. In a room: its modifier, the host's to change between games (the server validates), read-only for the others.
  */
-export function RoomRulesPanel({ room, me, modifier, onModifier, name, onName, placeholder, onBrowse }: {
+export function RoomRulesPanel({ room, me, modifier, onModifier, name, onName, placeholder }: {
   room: VersusRoom | null; me: string | null; modifier: VersusModifierId | null; onModifier: (m: VersusModifierId | null) => void;
-  name: string; onName: (n: string) => void; placeholder: string; onBrowse: () => void;
+  name: string; onName: (n: string) => void; placeholder: string;
 }) {
   const editable = !room || (room.host_user_id === me && room.status === 'open');
   const value = room ? (room.options?.modifiers ?? [])[0] ?? null : modifier;
@@ -540,10 +540,9 @@ export function RoomRulesPanel({ room, me, modifier, onModifier, name, onName, p
     <>
       {!room && <PhField label="Room name" maxLength={40} placeholder={placeholder} value={name} onChange={(e) => onName(e.target.value)} />}
       <PhSegmented label="Modifier" value={value} options={MODIFIERS} disabled={!editable} max={4} onPick={pick}
-        hint={value ? riftDefFor(value, 'versus').blurb : 'The usual rules.'} />
+        hint={value ? riftDefFor(value, 'versus').blurb : undefined} />
       <div className="pho-note">
-        <span>{room ? (editable ? 'Versus is unranked. Changes show for everyone at once.' : room.host_user_id === me ? 'The rules are set for this game. You can change them between games.' : 'Only the host can change these, between games.') : 'Press Start to open your room, then invite friends.'}</span>
-        {!room && <PhButton size="s" onClick={() => { sfx.pulse(); onBrowse(); }}>Open rooms</PhButton>}
+        <span>{room ? (editable ? 'Changes show for everyone at once.' : room.host_user_id === me ? 'The rules are set for this game. You can change them between games.' : 'Only the host can change these, between games.') : 'Press Start to open your room, then invite friends.'}</span>
       </div>
     </>
   );

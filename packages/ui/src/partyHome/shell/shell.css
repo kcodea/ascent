@@ -272,3 +272,16 @@ html[data-ph-compact] .ph-fadd .ph-finput { min-height: calc(64 * var(--phu)); }
 /* ── CRITIC ROUND 9 ── */
 /* One nav type on every screen: rounded title case. */
 html[data-ph-shell] .ph-top .ph-navtab, html[data-ph-shell] .ph-top .ph-navlbl { text-transform: none !important; }
+
+/* ── CRITIC ROUND 10 ── */
+/* EVERY scroller under the shell wears the slim gold bar, whatever its page set: one rule, not one per page. The width is zero
+   specificity, so a row that hides its bar (`scrollbar-width: none`) keeps hiding it. */
+html[data-ph-shell] * { scrollbar-color: var(--ph-gold) transparent; }
+:where(html[data-ph-shell]) :where(*) { scrollbar-width: thin; }
+html[data-ph-shell] *::-webkit-scrollbar-corner { background: transparent; }
+/* The page's own bar is the custom gutter one (kit.css); its children go back to the rule above. */
+html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody { scrollbar-color: auto; }
+/* A little air between a list's bar and its plates. */
+html[data-ph-shell]:not([data-ph-compact]) :is(.phpn-index, .phpn-feed, .rgp-listwrap, .rgp-detailcol, .phc-side, .phc-view, .bookguides) { padding-right: calc(6 * var(--phu)); }
+/* The old corner gear never takes focus behind the rail: Settings is in the nav. */
+html[data-ph-shell] .gearbtn { display: none; }

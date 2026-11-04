@@ -1198,4 +1198,48 @@ export const PERSISTENCE_RULES: GameRule[] = [
     example: 'Ann Save & Quits a ranked game at round 13, continues it, and wins it at round 13. Back at the menu there is no Continue. Her row was removed before the clear answered, and even if it had lingered, her device knows that game ended and clears the row.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/cloudSave.test.ts', 'workers/versus/test/it/session.it.ts'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-RUBY-ENGRAVED-01',
+    title: 'An Engraved Ruby carries home as a Ruby',
+    statement:
+      'A Ruby that lands on an Engraved minion in combat goes back to the run card as a RUBY, so every "this minion\'s '
+      + 'Rubies" reader (Gem Carver, Geode Guardian, Kurse, Porkbelly, Ruby Shrapnel, Rune of the Gem Golem, Rune of the '
+      + 'Gem Crypt) counts it. It counts the stats that actually landed: a golden Taurus doubles the Ruby and the whole '
+      + 'doubled Ruby goes home as a Ruby. Engraved means any Engrave: the EG keyword, Taurus at Start of Combat, or a '
+      + 'living Transcendant beside a Dragon. A permanent Ruby on an Engraved minion is kept once, never twice. Non-Ruby '
+      + 'Engraved gains are unchanged and stay labelled Engraved. Both combat sides share the one path.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-11-02 (Disco Dan board, Facetwright + Kobold Bebes)', quote: 'specifically the engraved buff being from a ruby, not all engraved buffs, but the buffs that are rubies should be counted as ruby buffs.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts applyRubyStats (reads the landed amount + kept flag ctx.buff returns)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-03. Before, applyRubyStats labelled only the raw pre-doubling Ruby and only on an EG keyword: '
+      + 'a golden Taurus\'s doubled half and every Ruby on a Transcendant-adjacent Dragon went home as "Engraved", and a '
+      + 'permanent Ruby there was carried home twice.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/rubyEngravedAttribution.test.ts'], lastVerifiedAt: '2026-11-03' },
+  },
+  {
+    id: 'R-ENGRAVE-05',
+    title: 'Engraved is not a buff type: each kept combat gain keeps its own source',
+    statement:
+      'Engraved makes the stats a minion gains in combat permanent AS THEMSELVES. Each kept gain goes back to the run card '
+      + 'under the source the Shop would name: a Growth cast is Growth, a Ruby is a Ruby (R-RUBY-ENGRAVED-01), a minion\'s '
+      + 'buff is that minion\'s, a rune or labelled grant keeps its label. No kept combat gain is ever recorded as an '
+      + '"Engraved" buff, so anything that reads a buff by its source (Ruby totals, per-card enchants, rune buff FX) sees '
+      + 'the original source. Any Engrave counts: the EG keyword, Taurus, or a living Transcendant beside a Dragon, and a '
+      + 'gain that is both Engraved and "permanent" is kept once. Keywords are R-ENGRAVE-03. A legacy "Engraved" row (a save '
+      + 'or replay from before this rule) still loads and settles as it did. Both combat sides share the one path.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-11-03 (follow-up to the Engraved Ruby report)', quote: 'Engraved isn\'t a buff type, it just makes buffs and enchantments gained in combat permanent.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts ctx.buff permaRows + engravedLabelOf; carryBacksFor one row per label; packages/sim/src/reducer.ts settle uses the row label' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-03. Before, every kept combat gain on an Engraved body was folded into one "Engraved" buff, '
+      + 'losing its source, and a permanent gift on a Transcendant-adjacent Dragon was carried home twice.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/rubyEngravedAttribution.test.ts', 'packages/sim/src/run.test.ts'], lastVerifiedAt: '2026-11-03' },
+  },
 ];

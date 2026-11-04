@@ -6,22 +6,21 @@
  *    real Gold Fuse threshold, `fuseGoldOf`), Opponent Rank (greyed, with the reason, for a dev set), Tribes. God Mode
  *    greys the Sandbox rows and lists what it gives you. Writes the same store draft (`setPracticeDraft`, persisted).
  *  - GAUNTLET (gauntlet/StageSelect.tsx): the ten stages with their state; pick one, START opens its hero picker.
- *  - VERSUS 1v1 / GROUP / DUOS (versus/versusOptionsUi.tsx): the modifier. START hosts a room with the tab's mode and it.
+ *  - VERSUS 1v1 / GROUP / DUOS: `RoomRulesPanel` in versusRoomHome.tsx.
  * Built from the shell kit only. Static paint.
  */
 import { useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { gauntletStage, type SetId } from '@game/content';
 import {
-  normalizePracticeRank, normalizePracticeTribes, PRACTICE_RANKS, practiceSetOf, practiceSetOptions, practiceTribeOptions, riftDefFor,
-  togglePracticeTribe, VERSUS_MODIFIERS, type PracticeConfig, type PracticeRank, type PracticeTribe, type VersusModifierId,
+  normalizePracticeRank, normalizePracticeTribes, PRACTICE_RANKS, practiceSetOf, practiceSetOptions, practiceTribeOptions,
+  togglePracticeTribe, type PracticeConfig, type PracticeRank, type PracticeTribe,
 } from '@game/sim';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { fuseGoldOf } from '../goldClock';
 import { foePortrait } from '../gauntlet/foePortrait';
 import { clearedStages, GAUNTLET_STAGE_COUNT, gauntletAccountMode, gauntletProgressVersion, stageSlotState, subscribeGauntletProgress, type StageSlotState } from '../gauntlet/gauntletProgress';
-import { versusModifierName } from '../versus/versusOptionsUi';
-import { PhButton, PhChip, PhRow, PhSegmented, phNum } from './kit';
+import { PhChip, PhRow, PhSegmented, phNum } from './kit';
 
 // ── PRACTICE ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 const HERO_MODES = [{ value: 'beginner' as const, label: 'Beginner' }, { value: 'all' as const, label: 'All' }];
@@ -129,25 +128,6 @@ export function GauntletPanel({ selected, onSelect }: { selected: number | null;
         })}
       </div>
       {soon.length > 0 && <span className="pho-hint">{soon.length === 1 ? `Stage ${soon[0]!.n} is coming soon.` : `Stages ${soon[0]!.n} to ${soon[soon.length - 1]!.n} are coming soon.`}</span>}
-    </>
-  );
-}
-
-// ── VERSUS ───────────────────────────────────────────────────────────────────────────────────────────────────────────
-const MODIFIERS: { value: VersusModifierId | null; label: string }[] = [
-  { value: null, label: 'None' },
-  ...VERSUS_MODIFIERS.map((id) => ({ value: id as VersusModifierId | null, label: versusModifierName(id) })),
-];
-
-export function VersusPanel({ modifier, onModifier, onBrowse }: { modifier: VersusModifierId | null; onModifier: (m: VersusModifierId | null) => void; onBrowse: () => void }) {
-  return (
-    <>
-      <PhSegmented label="Modifier" value={modifier} options={MODIFIERS} onPick={(v) => { sfx.tick(); onModifier(v); }}
-        hint={modifier ? riftDefFor(modifier, 'versus').blurb : 'The usual rules.'} />
-      <div className="pho-note">
-        <span>Start hosts a room with these rules.</span>
-        <PhButton size="s" onClick={() => { sfx.pulse(); onBrowse(); }}>Browse rooms</PhButton>
-      </div>
     </>
   );
 }

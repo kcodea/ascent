@@ -149,7 +149,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left :is(.
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles { flex: 1 1 0; min-width: 0; flex-wrap: nowrap; gap: calc(5 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat { flex: 1 1 0; min-width: 0; padding: calc(4 * var(--pt)) calc(5 * var(--pt)); grid-template-columns: minmax(0, 1fr); column-gap: 0; text-align: center; border-radius: calc(8 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-ico { display: none; }
-html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-ico :is(svg, .gildedcrown) { width: calc(14 * var(--pt)); height: calc(14 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-ico :is(svg, .gildedcrown, .tribemedal, .menumedal) { width: calc(14 * var(--pt)); height: calc(14 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-v { font-size: calc(15 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-l { font-size: calc(9.5 * var(--pt)); letter-spacing: 0; white-space: normal; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.15; }
 /* Match History: the tabs, then the list beside the open game. */

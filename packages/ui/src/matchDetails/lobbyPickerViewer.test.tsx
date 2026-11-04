@@ -42,9 +42,9 @@ describe('the lobby picker names the recorded player by who is looking (R-LOBBY-
   it('someone else\'s game: picking a seat offers Back to their board, and the killer reads Knocked IonLime out', () => {
     ui = mount(<><ShowingLine seat={lostTo.seats[1]!} details={lostTo} onBack={() => {}} own={false} /><LobbyTiles details={lostTo} selectedId="s2" onPick={() => {}} own={false} /></>);
     expect(ui.container.querySelector('.lp-back')?.textContent).toMatch(/Back to IonLime's$/);
-    expect(ui.container.querySelector('[data-seat="s2"]')?.getAttribute('data-tip')).toMatch(/Knocked IonLime out\./);
+    expect(ui.container.querySelector('[data-seat="s2"]')?.getAttribute('aria-label')).toMatch(/Knocked IonLime out\./);
     ui.render(<LobbyTiles details={lostTo} selectedId="s2" onPick={() => {}} own />);
-    expect(ui.container.querySelector('[data-seat="s2"]')?.getAttribute('data-tip')).toMatch(/Knocked you out\./);
+    expect(ui.container.querySelector('[data-seat="s2"]')?.getAttribute('aria-label')).toMatch(/Knocked you out\./);
   });
   it('a seat still standing reads Still in once, and a seat that is out keeps its fate (R-LOBBY-TILE-STILL-IN-01)', () => {
     const open: MatchDetails = { ...details, placement: 0, seats: [seat('me', 'IonLime', undefined, { self: true }), seat('s2', 'Orangez', undefined), seat('s3', 'Rooks', 7, { eliminatedRound: 11 })] } as MatchDetails;

@@ -17,11 +17,11 @@ import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/Port
 import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
 import { useDockCfg, useSliceLabel } from './lobbyRailVariant';
 import { useDockedRail } from './useDockedRail';
-import type { DockPanel, Pt } from './lobbyRailDockedLayout';
+import { teamPlatePath, type DockPanel, type Pt } from './lobbyRailDockedLayout';
 import { RuneTipBody, type RuneTipSource } from './runeTipBody';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
-import { MenuMedal } from './menuIcons';
+import { ArmorMedal, HealthMedal, MenuMedal } from './menuIcons';
 import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { useScreenSwapped, useSwapRef } from './screenSwap';
@@ -29,6 +29,7 @@ import { stageHost, stageViewport, toStage } from './stage';
 import { useSpectate } from './versus/spectate';
 import { mySeat, useVersus } from './versus/versusStore';
 import { parseRailStatusKey, railStatusKey, versusRailStatuses } from './versus/versusRailStatus';
+import { playMateReadySlam } from './versus/mateReadySlam';
 import { groupDuosRailRows } from './versus/versusGroupView';
 import { duosRailTeamOf, duosRailTeams, duosTeamHealthRow, duosTeamPlaces, duosTeamResults, type DuosFightFoe } from './versus/duosRailTeams';
 import { isRankedDuosRaw, rankedTeamLabels } from './versus/rankedDuosView';
@@ -38,10 +39,14 @@ import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/g
 import { ownsMine, useGuides } from './guides/guidesStore';
 import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-rail`, 🎨 Lobby Rail Look tuner)
 import { railKey } from './pings/pingKeys';
+import { railHeroName } from './railHeroName';
 import './lobbyRailDocked.css'; // the Docked rail (owner 2026-10-31): slices set into the board's right side
 // Lobby Rail Tuner 2 (DEV only): applies its saved values before the panel is ever opened. Production never loads it and
 // renders the shipped defaults (the sheet's fallbacks + DOCK_DEFAULTS).
 if (import.meta.env.DEV) void import('./lobbyRailTuner2Config');
+
+/** The fallen seat's mark on the rail: the painted Echo medallion (owner 2026-11-03), in place of the flat skull glyph. */
+const RAIL_FALLEN_MEDAL = `${import.meta.env.BASE_URL}medallions/echo.webp`;
 
 /** DOCKED (owner review 2026-10-31): a slice's outline as a `clip-path`. */
 function outlineClip(pts: readonly Pt[]): string {
@@ -344,23 +349,83 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   }, [showGuides, mode, railGuides]);
   const railMods = `${railGuides ? ` guidesview guides-${mode}` : ''}${swap ? ` swap-${swap}` : ''}`;
   // THE HOVER CARD CAN BE REACHED (owner ask 2026-11-01, R-RAIL-SCOUT-RUNE-TIP-02: "mouseover on runes here is
-  // important"). Leaving a seat closes its card a beat later instead of at once, so the pointer can cross the small gap
-  // into the card and hover its runes. The card is portaled, but it is still the seat's React child, so entering it
-  // re-enters the seat (`openScout` again, which cancels the close) and leaving it leaves the seat (the close again).
-  const closeTimer = useRef(0);
-  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
-  const leaveScout = (id: string): void => {
-    window.clearTimeout(closeTimer.current);
-    closeTimer.current = window.setTimeout(() => setHovered((h) => (h?.id === id ? null : h)), SCOUT_CLOSE_GRACE_MS);
+  // important"): the pointer can cross from a seat into its card and hover the runes. The card is portaled, but it is
+  // still the seat's React child, so entering it re-enters the seat and leaving it leaves the seat.
+  // THE BOARD COMES FIRST (owner 2026-11-02, R-RAIL-SCOUT-DELAY-01: "hovering requires 1 second of hovering before the
+  // hero card shows up. or you can click it to immediately open it"; then "when hovering ANY element for 1 second, then
+  // the lobby rail hover should be immediate as you continue to mouse over other heroes. mousing off the rail and/or off
+  // the hero card sould IMMEDIATELY close it"). From cold, entering a seat only arms `openTimer`: the card opens after
+  // SCOUT_OPEN_DELAY_MS on that seat, or at once on a click. While a hover card is up the rail is WARM: the next seat's
+  // card replaces it at once. The card stays up only while the pointer is over the hover ZONE (the rail, the card, and
+  // the strip between the card and its seat); the moment it leaves, the card closes and the rail is cold again.
+  const openTimer = useRef(0);
+  const stagedRef = useRef(staged);
+  stagedRef.current = staged;
+  useEffect(() => () => window.clearTimeout(openTimer.current), []);
+  useEffect(() => { if (staged) window.clearTimeout(openTimer.current); }, [staged]);
+  // The zone, measured ONCE per open card (never per move: the layout-read rule), in screen px like the pointer.
+  const zoneRef = useRef<{ id: string; boxes: ScoutBox[] } | null>(null);
+  const zoneFor = (id: string): ScoutBox[] => {
+    if (zoneRef.current?.id === id) return zoneRef.current.boxes;
+    const seats = [...(railRef.current?.querySelectorAll('.lobbyseat') ?? [])].map(boxOf).filter((b): b is ScoutBox => !!b);
+    if (!seats.length) return [];
+    const rail = { l: Math.min(...seats.map((b) => b.l)), t: Math.min(...seats.map((b) => b.t)), r: Math.max(...seats.map((b) => b.r)), b: Math.max(...seats.map((b) => b.b)) };
+    const seatEl = railRef.current?.querySelector(`.lobbyseat[data-seat="${id}"]`);
+    const seat = seatEl ? boxOf(seatEl) : null;
+    const cardEl = document.querySelector('.lobbyscout:not(.pinned)');
+    const card = cardEl ? boxOf(cardEl) : null;
+    if (!card || !seat) return [rail]; // the card is not laid out yet: measure again on the next check
+    // The strip from the card's edge to the seat (the gap, and a slanted slice's empty corner).
+    const t = Math.max(card.t, seat.t), b = Math.min(card.b, seat.b);
+    const strip = { l: Math.min(card.r, seat.l) - 1, r: seat.l + (seat.r - seat.l) / 2, t: t < b ? t : seat.t, b: t < b ? b : seat.b };
+    const boxes = [rail, card, strip];
+    zoneRef.current = { id, boxes };
+    return boxes;
+  };
+  /** Close `id`'s hover card now (the rail goes cold). */
+  const closeScout = (id: string): void => {
+    window.clearTimeout(openTimer.current);
+    setHovered((h) => (h?.id === id ? null : h));
+  };
+  const leaveScout = (e: React.MouseEvent, id: string): void => {
+    window.clearTimeout(openTimer.current);
+    if (isScoutTarget(e.relatedTarget)) return; // onto another seat or into the card: its enter takes over
+    if (hovered?.id === id && inBoxes(e.clientX, e.clientY, zoneFor(id))) return; // a gap in the rail, or the strip: the move check watches
+    closeScout(id);
+  };
+  // While a hover card is up: close it the moment the pointer is outside the zone, or leaves the window.
+  const hoveredId = hovered?.id ?? null;
+  useEffect(() => {
+    if (!hoveredId) return;
+    const onMove = (ev: MouseEvent): void => {
+      if (isScoutTarget(ev.target)) return;
+      if (!inBoxes(ev.clientX, ev.clientY, zoneFor(hoveredId))) closeScout(hoveredId);
+    };
+    const onOut = (ev: MouseEvent): void => { if (!ev.relatedTarget) closeScout(hoveredId); };
+    document.addEventListener('mousemove', onMove, { passive: true });
+    document.addEventListener('mouseout', onOut);
+    return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseout', onOut); };
+    // zoneFor / closeScout read refs and the setter only: re-binding per render would buy nothing.
+  }, [hoveredId]);
+  /** Open `id`'s hover card now, anchored on its seat (measured once, as it opens). */
+  const showScout = (el: HTMLElement, id: string): void => {
+    window.clearTimeout(openTimer.current);
+    if (stagedRef.current || !el.isConnected) return;
+    zoneRef.current = null;
+    const b = el.getBoundingClientRect();
+    setHovered({ id, top: toStage(b.top + b.height / 2), right: toStage(b.left) }); // screen -> stage (stage.ts): `at` is CSS px
   };
   const openScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
-    window.clearTimeout(closeTimer.current);
     if (staged) return;
-    const b = e.currentTarget.getBoundingClientRect();
-    setHovered({ id, top: toStage(b.top + b.height / 2), right: toStage(b.left) }); // screen -> stage (stage.ts): `at` is CSS px
+    if (hovered?.id === id) return; // already open: the pointer came back from its card
+    window.clearTimeout(openTimer.current);
+    const el = e.currentTarget;
+    if (hovered) { showScout(el, id); return; } // warm: another seat's card is up, so this one opens at once
+    openTimer.current = window.setTimeout(() => showScout(el, id), SCOUT_OPEN_DELAY_MS);
   };
   const pinScout = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
     e.preventDefault(); // no browser context menu over the rail
+    window.clearTimeout(openTimer.current);
     if (staged) return;
     const b = e.currentTarget.getBoundingClientRect();
     setPinned((p) => (p?.id === id ? null : { id, top: toStage(b.top + b.height / 2), right: toStage(b.left) })); // toggle; stage px
@@ -482,7 +547,11 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const duosMate = useVersus((st) => (versus && st.match?.group?.duos?.mate && st.match.group.me ? 's1' : null));
   // RANKED DUOS (owner 2026-10-26: team names "shown on the rail"): each team's name on its first row.
   const rankedRaw = useVersus((st) => (versus && st.match?.group && isRankedDuosRaw(st.match.group.raw) ? st.match.group.raw : null));
-  const rankedMe = useVersus((st) => st.match?.group?.me ?? null);
+  // A SPECTATOR has no seat of their own: the names are read from the WATCHED player's side, the screen they see
+  // (owner report 2026-11-02: "i also dont see the team names of the duos"; R-SPECTATE-DUOS-TEAMNAMES-01).
+  const rankedSeat = useVersus((st) => st.match?.group?.me ?? null);
+  const watchedSeat = useSpectate((sp) => (sp.active ? sp.seat : null));
+  const rankedMe = rankedSeat ?? watchedSeat;
   const teamLabels = useMemo(() => (rankedRaw && rankedMe ? rankedTeamLabels(rankedRaw, rankedMe, rankedRaw.servedTeamNames ?? {}) : null), [rankedRaw, rankedMe]);
   // EVERY DUOS VIEW (a spectator too, who has no teammate of their own): the table is in teams, so the docked slices are
   // grouped per team. `mateId`: the viewed player's teammate's slice (s1), drawn distinct.
@@ -497,6 +566,21 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     return railStatusKey(versusRailStatuses(st.match, viewer));
   });
   const statuses = useMemo(() => parseRailStatusKey(statusKey), [statusKey]);
+  // YOUR TEAMMATE READIES UP (R-DUOS-MATE-READY-01): their slice glows green with a check while they are Locked in (the
+  // shop), and the flip itself slams (`playMateReadySlam` + the slice's punch). A teammate already locked in when the
+  // rail first sees them just shows the glow: the slam is for the moment it happens.
+  const mateReady = !!duosMate && statuses[duosMate]?.label === 'Locked in';
+  const [mateSlam, setMateSlam] = useState(false);
+  const mateReadyWas = useRef<boolean | null>(null);
+  useEffect(() => {
+    const was = mateReadyWas.current;
+    mateReadyWas.current = mateReady;
+    if (!mateReady) { setMateSlam(false); return; }
+    if (was === false) {
+      setMateSlam(true);
+      playMateReadySlam(railRef.current?.querySelector(`.lobbyseat[data-seat="${duosMate}"]`));
+    }
+  }, [mateReady, duosMate]);
   const rail = lobbyRailView(lobby, { opponent: playerOpponent(lobby), self: { resolve: myResolve, armor: myArmor } });
   const next = rail.opponent;
   const foe = next?.seat ?? null;
@@ -602,7 +686,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
           game's standard HUD tip panel (`.herotip`, the hero-power / Equipment hover), not the small `.gtip`
           bubble: owner 2026-10-02, "fix this tooltip, it's unreadable". */}
       <span key={capPop} className={`lobbymax${capPop ? ' lobbymax-pop' : ''}`} aria-label={`${capTip.title}. ${capTip.rule}`}>
-        <Icon name="heart" />{maxDamageLabel(cap)}
+        <HealthMedal />{maxDamageLabel(cap)}
       </span>
       {/* The chip's SIBLING (opened by `.lobbymax:hover + .lobbymax-tip`, the opponent-power tip's pattern), so the
           chip's own text stays just the number. */}
@@ -678,14 +762,15 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               data-seat={seat.id}
               // LIVE PINGS (R-PING-08): a teammate or mentor pings a seat; the player's own right-click stays the scout pin.
               data-ping={railKey(seat.id)} data-ping-own="" data-ping-at="left"
-              className={`lobbyseat${inTeam ? ' inteam' : ''}${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === mateId ? ' mate' : ''}`}
+              className={`lobbyseat${inTeam ? ' inteam' : ''}${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === mateId ? ' mate' : ''}${mateReady && seat.id === duosMate ? ` mate-ready${mateSlam ? ' slam' : ''}` : ''}`}
               {...(seat.id === duosMate ? { 'aria-label': `${seat.label}, your teammate. Click to watch their board.` } : {})}
               // Hover scouting works on EVERY seat, yours included (owner ask 2026-09-24: "add the same mouseover
               // for self as we have for enemies"). Pinning stays opponent-only; the owner asked for the hover.
               onMouseEnter={(e) => openScout(e, seat.id)}
-              onMouseLeave={() => leaveScout(seat.id)}
+              onMouseLeave={(e) => leaveScout(e, seat.id)}
               // Left OR right click pins the card (and clicking a different seat switches to it) — owner ask 2026-08-31.
-              onClick={isYou ? undefined : seat.id === duosMate ? () => enterTeammateView() : (e) => pinScout(e, seat.id)}
+              // Your own seat has no pin: a click opens its hover card at once (no hover wait).
+              onClick={isYou ? (e) => showScout(e.currentTarget, seat.id) : seat.id === duosMate ? () => enterTeammateView() : (e) => pinScout(e, seat.id)}
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
               style={dp ? {
                 left: dp.x, top: dp.y, width: dp.w, height: dp.h,
@@ -716,13 +801,18 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                       side of the art instead. */}
                   {/* The slice's label (Tuner 2 "Slice label"): the player's name (default), the hero's name, or none. Same
                       font, alignment and 2-line ellipsis either way; the fallen follow it too. */}
-                  {sliceLabel !== 'none' && <span className="lrv-name"><ClampedName text={sliceLabel === 'hero' ? getHero(seat.heroId)?.name ?? seat.label : seat.label} /></span>}
+                  {sliceLabel !== 'none' && <span className="lrv-name"><ClampedName text={sliceLabel === 'hero' ? railHeroName(seat.heroId) ?? seat.label : seat.label} /></span>}
                   {/* YOUR slice: YOU in a round teal chip on the top-right corner, the twin of the next foe's swords (owner 2026-10-31:
                       "lets have the players YOU in a circle in the top corner, just like the now facing icon"). */}
                   {isYou && <span className="lrv-you">You</span>}
+                  {/* YOUR TEAMMATE IS READY (R-DUOS-MATE-READY-01): a green check chip in the same corner (it says Locked in, so their
+                      slice drops the pill meanwhile). */}
+                  {mateReady && seat.id === duosMate && (
+                    <span className="lrv-ready" aria-label="Ready"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span>
+                  )}
                   {/* VERSUS: what this player is doing, when it matters (versusRailStatus.ts). Keyed by the label, so each
                       change pops in once. Your own is on your End Turn gem. */}
-                  {!isYou && row.alive && statuses[seat.id] && (
+                  {!isYou && row.alive && statuses[seat.id] && !(mateReady && seat.id === duosMate) && (
                     <span key={statuses[seat.id]!.label} className={`lrv-status ${statuses[seat.id]!.tone}`}>{statuses[seat.id]!.label}</span>
                   )}
                   {/* A DUOS team's shared pool shows on BOTH its slices (owner 2026-11-01: "health should show on both heroes
@@ -731,8 +821,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                     {/* HEALTH NUMBERS (owner 2026-10-31: "can we make that a number?"): Health, Armor under it, on the navy
                         side. Tuner 2 "Show Health as" picks these (default), the bar below, or both. */}
                     <span className="lrv-hpnum" role="img" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
-                      <span className="lrv-hpn-hp"><Icon name="heartPill" />{live.resolve}</span>
-                      {live.armor > 0 && <span className="lrv-hpn-arm"><Icon name="shield" />{live.armor}</span>}
+                      <span className="lrv-hpn-hp"><HealthMedal />{live.resolve}</span>
+                      {live.armor > 0 && <span className="lrv-hpn-arm"><ArmorMedal />{live.armor}</span>}
                     </span>
                     <span className="lrv-barclip" style={dp?.cut ? { clipPath: outlineClip(insetOutline(dp.outline, 4 * dock!.s, dp.w)) } : undefined}>
                     <span className="lrv-bar" role="img" aria-label={`Health ${live.resolve}${live.armor > 0 ? `, Armor ${live.armor}` : ''}`}>
@@ -743,7 +833,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                       {/* The Health fill's leading edge: a soft glow at the end of the red (its own layer, translate only). */}
                       {hpFrac > 0 && <span className="lrv-bar-lead" style={{ transform: `translateX(${(hpFrac * 100).toFixed(2)}%)` }} />}
                     </span>
-                  </span></>) : <span className="lrv-skull" aria-label="Knocked out"><Icon name="skull" /></span>}
+                  </span></>) : <span className="lrv-skull" aria-label="Knocked out"><img src={RAIL_FALLEN_MEDAL} alt="" aria-hidden="true" draggable={false} decoding="sync" /></span>}
                 </>
               ) : (<>
               {(() => {
@@ -776,9 +866,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               </span>
               {inTeam ? null : row.alive ? (
                 <span className="lobbyhp">
-                  {/* The health pill heart: its facet + gloss show in the Gem rail and hide in Classic (lobbyRail.css). */}
-                  <Icon name="heartPill" />{live.resolve}
-                  {live.armor > 0 && <span className="lobbyarmor"><Icon name="shield" />{live.armor}</span>}
+                  {/* The painted Health medallion (owner art 2026-11-03), in every rail look. */}
+                  <HealthMedal />{live.resolve}
+                  {live.armor > 0 && <span className="lobbyarmor"><ArmorMedal />{live.armor}</span>}
                 </span>
               ) : (
                 <span className="lobbyplace">{row.placement ? `#${row.placement}` : 'out'}</span>
@@ -809,7 +899,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                 const mod = `${members.some((m) => m.you) ? ' you' : ''}${members.some((m) => m.next) ? ' foe' : ''}${members.some((m) => m.alive) ? '' : ' dead'}`;
                 return (
                   <div key={`team${t.team}`} className={`lrv-team${mod}`} data-team={t.team} aria-hidden="true"
-                    style={{ left: t.x, top: t.y, width: t.w, height: t.h, '--dk-s': dock.s } as React.CSSProperties} />
+                    style={{ left: t.x, top: t.y, width: t.w, height: t.h, clipPath: teamPlatePath(t, dock.panels, 8 * dock.s), '--dk-s': dock.s } as React.CSSProperties} />
                 );
               })}
               {dock.teams?.map((t) => {
@@ -819,7 +909,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                 const mod = `${members.some((m) => m.you) ? ' you' : ''}${members.some((m) => m.alive) ? '' : ' dead'}`;
                 return (
                   <span key={`tname${t.team}`} className={`lrv-teamname${mod}`} aria-label={`Team ${label}`}
-                    style={{ left: t.x + (dockById.get(t.ids[0]!)?.topX ?? 0), top: t.labelY, maxWidth: t.w * 0.9, '--dk-s': dock.s } as React.CSSProperties}>{label}</span>
+                    style={{ left: t.x + (dockById.get(t.ids[0]!)?.topX ?? 0), top: t.labelY, width: t.w - (dockById.get(t.ids[0]!)?.topX ?? 0), '--dk-s': dock.s } as React.CSSProperties}>{label}</span>
                 );
               })}
               {/* THE TEAM'S PLACE (R-DUOS-RAIL-TEAM-02): one placement box right of the pair, spanning both slices, in the
@@ -858,8 +948,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               {members.map((m) => seatRow(m, true))}
               {alive ? (
                 <span className="lobbyhp lobbyteamslot-hp">
-                  <Icon name="heartPill" />{hpRow.resolve}
-                  {hpRow.armor > 0 && <span className="lobbyarmor"><Icon name="shield" />{hpRow.armor}</span>}
+                  <HealthMedal />{hpRow.resolve}
+                  {hpRow.armor > 0 && <span className="lobbyarmor"><ArmorMedal />{hpRow.armor}</span>}
                 </span>
               ) : (
                 <span className="lobbyplace lobbyteamslot-hp">{hpRow.placement ? `#${hpRow.placement}` : 'out'}</span>
@@ -960,9 +1050,17 @@ function readScoutVariant(): number {
   try { const v = Number(localStorage.getItem(SCOUT_VARIANT_KEY)); return v >= 1 && v <= SCOUT_VARIANTS ? v : 1; }
   catch { return 1; }
 }
-/** ms a seat's hover card stays up after the pointer leaves the seat: long enough to cross the gap into the card, short
- *  enough that sweeping down the rail never leaves a stale card behind (the next seat's card replaces it at once). */
-const SCOUT_CLOSE_GRACE_MS = 160;
+/** A screen-px box of the hover zone (R-RAIL-SCOUT-DELAY-01). */
+type ScoutBox = { l: number; t: number; r: number; b: number };
+const boxOf = (el: Element): ScoutBox | null => {
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 ? { l: r.left, t: r.top, r: r.right, b: r.bottom } : null;
+};
+const inBoxes = (x: number, y: number, boxes: readonly ScoutBox[]): boolean => boxes.some((b) => x >= b.l && x <= b.r && y >= b.t && y <= b.b);
+/** Over a rail seat or a scout card (the hover card stays up). */
+const isScoutTarget = (t: EventTarget | null): boolean => t instanceof Element && !!t.closest('.lobbyseat, .lobbyscout');
+/** ms the pointer must stay on a seat before its hover card opens (R-RAIL-SCOUT-DELAY-01); a click opens it at once. */
+export const SCOUT_OPEN_DELAY_MS = 1000;
 const OUTCOME_LABEL: Record<string, string> = { win: 'WON', lose: 'LOST', draw: 'DREW' };
 
 /**
@@ -1143,8 +1241,8 @@ function ScoutCard({ lobby, seat, intel, at, pinned, hp, compact, run, teams }: 
           <span className="lobbyscout-name">{seat.label}</span>
           {hp?.alive && (
             <span className="lrv-sc-hp" aria-label={`Health ${hp.resolve}, Armor ${hp.armor}`}>
-              <span className="lrv-sc-heart"><Icon name="heartPill" />{hp.resolve}</span>
-              <span className="lrv-sc-arm"><Icon name="armor" />{hp.armor}</span>
+              <span className="lrv-sc-heart"><HealthMedal />{hp.resolve}</span>
+              <span className="lrv-sc-arm"><ArmorMedal />{hp.armor}</span>
             </span>
           )}
         </div>

@@ -364,3 +364,78 @@ html[data-ph-compact] .ph-stagehead > * { pointer-events: auto; }
 html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 8 * var(--phu)); }
 html[data-ph-compact] .ph-cards { padding-top: calc(48 * var(--phu)); }
 .ph-cardwrap.rival .ph-bfoot { filter: none; }
+
+/* ── CRITIC ROUND 6 ── */
+/* ONE FOOT LAYOUT: every banner has the same four rows at the same heights (name, medal, level, state strip), filled or
+   empty, so nothing moves when someone joins and an invited seat lines up with its peers. */
+.ph-foot, .ph-foot:has(.ph-state) { gap: calc(6 * var(--phu)); padding-bottom: calc(12 * var(--phu)); }
+.ph-rank, .ph-rank:has(.ph-muted) { box-sizing: border-box; height: min(calc(40 * var(--phu)), 11cqi); min-height: 0; }
+.ph-sub { display: flex; align-items: center; justify-content: center; height: 1.4em; line-height: 1.4; }
+.ph-state { box-sizing: content-box; height: 1.3em; line-height: 1.3; }
+/* The pending seat's Cancel sits on the state strip. */
+.ph-cancelinv { position: absolute; left: 50%; translate: -50% 0; bottom: 22%; z-index: 4; height: calc(32 * var(--phu)); padding: 0 calc(16 * var(--phu)); margin: 0; border: 0; border-radius: 999px;
+  background: var(--ph-well); box-shadow: var(--ph-gild-s); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.06em; white-space: nowrap; }
+.ph-cancelinv:hover { background: var(--ph-plate-hover); }
+/* The notes beside START: the mode's hint, then (when it applies) the server's one calm line. */
+.ph-notes { display: flex; flex-direction: column; gap: calc(2 * var(--phu)); min-width: 0; }
+.ph-issue { color: #fbe6a6; }
+/* A locked tab's reason in the description's own line. */
+.ph-desc.locked { font-weight: 700; }
+
+/* PHONE: nothing under calc(18 * var(--phu)), nothing against the edge. */
+/* A name fits by its length: about 0.58em a letter across 88% of the banner, with the 11px floor. */
+.ph-name { font-size: min(var(--ph-t4), 9cqi, calc(150cqi / var(--nl, 1))); }
+html[data-ph-compact] .ph-name { font-size: max(calc(18 * var(--phu)), min(calc(24 * var(--phu)), calc(150cqi / var(--nl, 1)))); font-weight: 800; letter-spacing: -0.02em; }
+html[data-ph-compact] :is(.ph-rank, .ph-sub, .ph-state, .ph-openlbl, .ph-opensub, .ph-lead, .ph-note, .ph-teamlbl) { font-size: max(calc(18 * var(--phu)), var(--ph-t1)); }
+html[data-ph-compact] .ph-rank, html[data-ph-compact] .ph-rank:has(.ph-muted) { height: calc(36 * var(--phu)); padding-top: 0; padding-bottom: 0; }
+html[data-ph-compact] .ph-rank .rankcrest { --ring: calc(22 * var(--phu)); flex: none; }
+html[data-ph-compact] .ph-rank { font-weight: 700; letter-spacing: -0.02em; }
+/* The medal chip stays one line on a narrow banner. */
+.ph-rank > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+html[data-ph-compact] .ph-rank, html[data-ph-compact] .ph-rank:has(.ph-muted) { max-width: 100%; gap: calc(4 * var(--phu)); padding-left: calc(2 * var(--phu)); padding-right: calc(8 * var(--phu)); }
+html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { padding-left: calc(6 * var(--phu)); padding-right: calc(6 * var(--phu)); }
+html[data-ph-compact] .ph-state { margin-left: calc(-6 * var(--phu)); margin-right: calc(-6 * var(--phu)); }
+/* The Versus stands strip sits just over START: the banners stop short of it. */
+html[data-ph-compact] .ph-stage:has(.vsr-stands) .ph-cards { padding-top: calc(64 * var(--phu)); padding-bottom: calc(28 * var(--phu)); }
+html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { gap: calc(3 * var(--phu)); padding-bottom: calc(6 * var(--phu)); }
+html[data-ph-compact] .ph-cancelinv { min-height: calc(64 * var(--phu)); bottom: 18%; font-size: calc(18 * var(--phu)); }
+html[data-ph-compact] .ph-modes .phk-tabs { padding-right: calc(96 * var(--phu)); scroll-padding-right: calc(96 * var(--phu)); }
+html[data-ph-compact] .ph-cards { padding-top: calc(80 * var(--phu)); }
+html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 20 * var(--phu)); }
+html[data-ph-compact] .ph-stagehead { top: calc(10 * var(--phu)); }
+/* A phone's banners are short, so they stand wider: a name and a long medal ("Ascendant II") read whole at 11px. */
+html[data-ph-compact] .ph-cards .ph-cardwrap:not(.standalone) { aspect-ratio: 0.72; }
+
+/* ── CRITIC ROUND 7 ── */
+/* The stage head: the pill stays dead centre; a saved game or held room sits beside it, or centres when it is alone. */
+.ph-stagehead { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; }
+.ph-stagehead > .ph-team { grid-column: 2; grid-row: 1; }
+.ph-stagehead > .ph-held { grid-column: 3; grid-row: 1; justify-self: start; }
+.ph-stagehead:not(:has(> .ph-team)) > .ph-held { grid-column: 2; }
+/* Softer labels: rounded, bold, close-set, sentence case. */
+.ph-teamlbl, .ph-state, .ph-openlbl, .ph-lead, .ph-pairlbl { letter-spacing: 0.02em; text-transform: none; font-weight: 800; }
+.ph-teamlbl { font-size: var(--ph-t2); }
+/* On any backdrop: a dark pill under the team labels; the rivals' colour holds its strength. */
+.ph-pairlbl { justify-self: center; width: fit-content; margin: 0 auto; padding: calc(2 * var(--phu)) calc(14 * var(--phu)); border-radius: 999px; background: rgba(6, 12, 28, 0.78); text-shadow: none; }
+.ph-pairlbl.rival { color: #ff9d94; }
+/* The portrait runs down the banner; a soft floor under the rows keeps them readable. */
+.ph-art { height: 100%; -webkit-mask-image: linear-gradient(180deg, #000 74%, transparent 100%); mask-image: linear-gradient(180deg, #000 74%, transparent 100%); }
+.ph-foot { background: linear-gradient(180deg, transparent 0%, rgba(11, 25, 64, 0.72) 34%, rgba(11, 25, 64, 0.9) 100%); padding-top: calc(32 * var(--phu)); }
+/* Friends and the mode's settings share one inset. */
+.ph-sidepanel > .ph-friends.embedded { padding-left: calc(4 * var(--phu)); padding-right: calc(4 * var(--phu)); }
+.ph-settings .phk-seghint, .ph-settings .pho-hint, .ph-settings .pho-note, .ph-fnote { font-size: calc(16 * var(--phu)); }
+/* The drawer seats under the gold rail. */
+.ph-sidepanel.drawer { top: calc(var(--ph-nav-h) + 10 * var(--phu)); }
+/* The picker: the list scrolls inside, the window fits the screen. */
+.ph-picker { width: min(calc(440 * var(--phu)), calc(var(--lvw, 100vw) * 0.8)); max-height: none; flex: 1; min-height: 0; }
+.ph-picker .phk-row .phk-btn, .ph-picker .ph-friend .phk-btn { width: auto; flex: none; }
+.ph-picker .ph-fadd .phk-btn, .ph-fadd .phk-btn { height: auto; align-self: stretch; }
+/* PHONE */
+html[data-ph-compact] .ph-lead { padding: calc(4 * var(--phu)); top: calc(var(--rodh) * 0.5 + 2 * var(--phu)); left: calc(6 * var(--phu)); }
+html[data-ph-compact] .ph-lead > span { display: none; }
+html[data-ph-compact] .ph-team:not(:has(.phk-btn)) { padding-right: calc(16 * var(--phu)); }
+html[data-ph-compact] .ph-stagehead { display: flex; justify-content: center; }
+html[data-ph-compact] .ph-note { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* The mark at the end of the tab row while more tabs wait off the edge. */
+html[data-ph-compact] .ph-modes.more::after { content: '\203A'; position: absolute; right: calc(10 * var(--phu)); top: calc(8 * var(--phu)); height: calc(72 * var(--phu)); display: grid; place-items: center; pointer-events: none;
+  font-family: var(--ph-font); font-weight: 900; font-size: calc(34 * var(--phu)); color: var(--ph-gold-hi); text-shadow: var(--ph-shadow); }

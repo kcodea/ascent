@@ -122,17 +122,18 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
             </span>
           )}
           {extra}
-          {/* Friends: the drawer's button (hidden where the list is docked beside the party). */}
-          {!friendsDocked && (
+          <button type="button" className={`ph-iconbtn${current === 'settings' ? ' on' : ''}`} aria-label={txt.settings} aria-current={current === 'settings' ? 'page' : undefined}
+            onClick={() => hop('settings')}>
+            <span className="ph-gear" aria-hidden="true"><Icon name="gear" /></span>
+          </button>
+          {/* Friends: the drawer's button, last in the row. Where the list is docked beside the party its slot stays, empty,
+              so the currency and the gear hold still across every page. */}
+          {friendsDocked ? <span className="ph-iconbtn ph-slot" aria-hidden="true" /> : (
             <button type="button" className={`ph-iconbtn ph-friendsbtn${friendsOpen ? ' on' : ''}`} aria-label="Friends" aria-expanded={friendsOpen}
               onClick={() => { sfx.pulse(); toggleFriends(); }}>
               <MenuMedal name="friends" className="menumedal ph-navicon" />
             </button>
           )}
-          <button type="button" className={`ph-iconbtn${current === 'settings' ? ' on' : ''}`} aria-label={txt.settings} aria-current={current === 'settings' ? 'page' : undefined}
-            onClick={() => hop('settings')}>
-            <span className="ph-gear" aria-hidden="true"><Icon name="gear" /></span>
-          </button>
         </div>
       </header>
       {/* The friends drawer: everywhere the list is not docked (menu pages, the Compendium, phones). */}

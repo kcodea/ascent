@@ -525,8 +525,8 @@ export function simulate(
     if (!sb) return;
     for (const m of boards[side]) {
       if (m.dead || m.health <= 0 || m.cardId !== sb.cardId) continue;
-      ctx.buff(m, sb.attack, sb.health, sb.label);
-      if (!m.keywords.includes('EG')) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + sb.attack, health: (m.permaGain?.health ?? 0) + sb.health };
+      const keptBy = ctx.buff(m, sb.attack, sb.health, sb.label).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
+      if (!keptBy) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + sb.attack, health: (m.permaGain?.health ?? 0) + sb.health };
     }
   });
   // PEP TALK (Duos rune, owner 2026-11-01, R-DUOS-RUNES-04: "When you trigger a Shout, give your teammate's left-most
@@ -758,9 +758,22 @@ export function simulate(
     buffCount: number;
     permaGain?: { attack: number; health: number };
     permaRuby?: { attack: number; health: number };
+    permaRows?: { label: string; attack: number; health: number }[];
     permaLabel?: string;
     engraved: boolean;
   }>();
+  /** R-ENGRAVE-05 (owner ruling 2026-11-03): the ledger label an Engraved body's kept combat gain carries home, the
+   *  SAME label the Shop would give that gain, so Engraved never re-types a buff. A Ruby is 'Ruby'; a gain made while a
+   *  named spell resolves is that spell's (Growth stays Growth); a gain from a body is that body's name (the Shop's
+   *  `nameOf(self)`); a labelled grant ('Anvil', a rune's name) keeps its label. 'Engraved' only when nothing names it. */
+  function engravedLabelOf(source: string | undefined, ruby: true | undefined): string {
+    if (ruby) return 'Ruby';
+    const spellId = ctx.castingSpellId;
+    if (spellId !== undefined) { const sp = cards[spellId]; if (sp) return sp.name; }
+    if (!source) return 'Engraved';
+    const body = boards.player.find((m) => m.uid === source) ?? boards.enemy.find((m) => m.uid === source);
+    return body ? body.name : source;
+  }
   /** TRANSCENDANT's live adjacency aura: the living Transcendant beside `target` when `target` is a Dragon, else
    *  undefined. Read at the moment of a gain (stats in `ctx.buff`, keywords in `scanEngravedKeywords`), which is what
    *  makes "while alive and adjacent" literally true. */
@@ -1590,11 +1603,23 @@ export function simulate(
       // Engraved: a minion that keeps its combat gains accrues every buff into permaGain, which carries
       // back to the run board after the fight (Flowing Monk records its gift directly for non-Engraved).
       // (A Xerox Bonds MIRROR never accrues here: the source's own permanent gain is mirrored by the Shop at settle.)
-      if ((target.keywords.includes('EG') || transcendant) && !xeroxBondMirroring) {
+      // `kept` is reported back to the caller with the AMOUNT actually applied (after `gainMult`), so a Ruby can
+      // label exactly the share it engraved (R-RUBY-ENGRAVED-01: a golden Taurus's doubled Ruby, or a Ruby on a
+      // Transcendant-adjacent Dragon, carries home as Ruby, not as a generic Engraved gain).
+      const kept = (target.keywords.includes('EG') || !!transcendant) && !xeroxBondMirroring;
+      if (kept) {
         target.permaGain = {
           attack: (target.permaGain?.attack ?? 0) + attack,
           health: (target.permaGain?.health ?? 0) + health,
         };
+        // R-ENGRAVE-05: keep the gain AS ITSELF, under its original source label (see `permaRows`).
+        if (attack !== 0 || health !== 0) {
+          const label = engravedLabelOf(source, ruby);
+          const rows = (target.permaRows ??= []);
+          const row = rows.find((r) => r.label === label);
+          if (row) { row.attack += attack; row.health += health; }
+          else rows.push({ label, attack, health });
+        }
       }
       // Tara: tally each stat-grant on a minion that ascends after N grants (`cards[id].ascendAt`). Carried
       // back via playerAscendCount + transformed at settle, AND — once the running total (seeded prior progress
@@ -1678,6 +1703,7 @@ export function simulate(
           try { ctx.buff(partner, attack, health, source ?? 'Soulbind', ruby); } finally { soulbindMirroring = false; }
         }
       }
+      return { attack, health, kept };
     },
     addTribeAura: (side, tribe, attack, health, source) => {
       tribeAuras.push({ side, tribe, attack, health, source });
@@ -3827,6 +3853,7 @@ export function simulate(
           buffCount: buffCounts.get(minion.uid) ?? 0,
           permaGain: minion.permaGain ? { ...minion.permaGain } : undefined,
           permaRuby: minion.permaRuby ? { ...minion.permaRuby } : undefined,
+          permaRows: minion.permaRows ? minion.permaRows.map((r) => ({ ...r })) : undefined,
           permaLabel: minion.permaLabel,
           engraved: minion.keywords.includes('EG') || !!minion.auraEngraved,
         });
@@ -6177,12 +6204,14 @@ export function simulate(
       const n = 2 * flagCopiesOf(side, 'runeSecondWind');
       nextStep();
       fireTrigger('runeSecondWind', side);
-      ctx.buff(minion, n, n, 'Second Wind');
-      if (!minion.keywords.includes('EG')) minion.permaGain = { attack: (minion.permaGain?.attack ?? 0) + n, health: (minion.permaGain?.health ?? 0) + n };
+      const keptBy = ctx.buff(minion, n, n, 'Second Wind').kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
+      if (!keptBy) minion.permaGain = { attack: (minion.permaGain?.attack ?? 0) + n, health: (minion.permaGain?.health ?? 0) + n };
       // R-RISE-06 x R-SET3RUNE-08: the risen copy's gains stay in combat, but this one is ABOUT the Rise and prints
       // "permanently", so it is booked onto the original's frozen carry-back and reaches the board card.
       const snap = riseCarry.get(minion.uid);
       if (snap) snap.permaGain = { attack: (snap.permaGain?.attack ?? 0) + n, health: (snap.permaGain?.health ?? 0) + n };
+      // R-ENGRAVE-05: booked under its own name, so it never goes home as a generic "Engraved" row.
+      if (snap) { const rows = (snap.permaRows ??= []); const row = rows.find((r) => r.label === 'Second Wind'); if (row) { row.attack += n; row.health += n; } else rows.push({ label: 'Second Wind', attack: n, health: n }); }
     }
     if (m.runeRestless && !minion.dead && minion.health > 0 && minion.effects.some((e) => e.on === 'onDeath')) {
       nextStep();
@@ -6301,8 +6330,8 @@ export function simulate(
         if (pool.length === 0) break;
         if (!fired) { fireTrigger('runeRoseysGarden', side); fired = true; }
         const pick = pool[rng.int(pool.length)]!;
-        ctx.buff(pick, ROSEYS_GARDEN_GAIN.attack, ROSEYS_GARDEN_GAIN.health, "Rosey's Garden");
-        if (!pick.keywords.includes('EG')) pick.permaGain = { attack: (pick.permaGain?.attack ?? 0) + ROSEYS_GARDEN_GAIN.attack, health: (pick.permaGain?.health ?? 0) + ROSEYS_GARDEN_GAIN.health };
+        const keptBy = ctx.buff(pick, ROSEYS_GARDEN_GAIN.attack, ROSEYS_GARDEN_GAIN.health, "Rosey's Garden").kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
+        if (!keptBy) pick.permaGain = { attack: (pick.permaGain?.attack ?? 0) + ROSEYS_GARDEN_GAIN.attack, health: (pick.permaGain?.health ?? 0) + ROSEYS_GARDEN_GAIN.health };
       }
     }
     void target;
@@ -6598,8 +6627,8 @@ export function simulate(
       for (const m of boards[side]) {
         const d = cards[m.cardId];
         if (m.dead || m.health <= 0 || !d || d.spell || d.tier !== 7) continue;
-        ctx.buff(m, ba.attack, ba.health, ba.label);
-        if (!m.keywords.includes('EG')) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + ba.attack, health: (m.permaGain?.health ?? 0) + ba.health };
+        const keptBy = ctx.buff(m, ba.attack, ba.health, ba.label).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
+        if (!keptBy) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + ba.attack, health: (m.permaGain?.health ?? 0) + ba.health };
       }
     }
   });
@@ -6862,8 +6891,8 @@ export function simulate(
       if (gilded.length === 0) return;
       nextStep(); // its own beat, not the death's
       for (const m of gilded) {
-        ctx.buff(m, war.attack, war.health, war.label);
-        if (!m.keywords.includes('EG')) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + war.attack, health: (m.permaGain?.health ?? 0) + war.health };
+        const keptBy = ctx.buff(m, war.attack, war.health, war.label).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
+        if (!keptBy) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + war.attack, health: (m.permaGain?.health ?? 0) + war.health };
       }
     });
   }
@@ -7048,6 +7077,7 @@ export function simulate(
       buffCount: buffCounts.get(m.uid) ?? 0,
       permaGain: m.permaGain,
       permaRuby: m.permaRuby,
+      permaRows: m.permaRows,
       permaLabel: m.permaLabel,
       engraved: m.keywords.includes('EG') || !!m.auraEngraved,
     };
@@ -7089,12 +7119,28 @@ export function simulate(
         // Split the permanent gain into its RUBY share and the rest, so each carries its own label. Before this
         // every non-Engraved permaGain was attributed to Flowing Monk, which made a combat Ruby show up on the
         // run board as a Flowing Monk gift (owner report 2026-07-25).
-        const ruby = v.permaRuby ?? { attack: 0, health: 0 };
-        const restA = v.permaGain!.attack - ruby.attack;
-        const restH = v.permaGain!.health - ruby.health;
-        const out: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean }[] = [];
+        // R-ENGRAVE-05 (owner ruling 2026-11-03): an Engraved body's kept gains go home AS THEMSELVES, one row per
+        // original source label (`permaRows`: Growth stays Growth, a Ruby stays a Ruby). Engraved is never a label of
+        // its own. Whatever `permaGain` holds beyond those rows is an explicit permanent gift (a permanent Ruby, Flowing
+        // Monk, Kindled Sprite...) and keeps the older split below. Gains are booked before losses so the run card's
+        // Attack floor never clips a gain that a later debuff only partly undoes.
+        const keptRows = v.permaRows ?? [];
+        let keptA = 0;
+        let keptH = 0;
+        for (const r of keptRows) { keptA += r.attack; keptH += r.health; }
+        const rubyRes = v.permaRuby ?? { attack: 0, health: 0 };
+        const keptRuby = keptRows.find((r) => r.label === 'Ruby');
+        const ruby = { attack: rubyRes.attack + (keptRuby?.attack ?? 0), health: rubyRes.health + (keptRuby?.health ?? 0) };
+        const restA = v.permaGain!.attack - keptA - rubyRes.attack;
+        const restH = v.permaGain!.health - keptH - rubyRes.health;
+        const out: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean; label?: string }[] = [];
         if (ruby.attack > 0 || ruby.health > 0) {
           out.push({ sourceUid: m.sourceUid!, attack: ruby.attack, health: ruby.health, engraved: false, ruby: true });
+        }
+        const gainFirst = [...keptRows.filter((r) => r.attack >= 0 && r.health >= 0), ...keptRows.filter((r) => r.attack < 0 || r.health < 0)];
+        for (const r of gainFirst) {
+          if (r.label === 'Ruby' || (r.attack === 0 && r.health === 0)) continue;
+          out.push({ sourceUid: m.sourceUid!, attack: r.attack, health: r.health, engraved: true, label: r.label });
         }
         if (restA > 0 || restH > 0) {
           out.push({ sourceUid: m.sourceUid!, attack: restA, health: restH, engraved: v.engraved, ...(v.permaLabel ? { label: v.permaLabel } : {}) });

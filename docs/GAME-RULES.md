@@ -2670,6 +2670,16 @@ carry it back from combat."*
   includes the **next-combat-only** spells (Field Maneuvers, Last Stand, Executioner's Edge, Marked Target) and every
   other Shop-granted one-combat keyword (a Maw of the Pit Ward, a Lord of the Risen Rise, a Whisper's keyword): they
   were cast in the recruit phase and expire as usual. A future spell that grants a keyword AT Start of Combat would count.
+- **Engraved is not a buff type** (owner 2026-11-03, R-ENGRAVE-05): *"'Engraved' isn't a buff type, it just makes buffs
+  and enchantments gained in combat permanent."* Each kept stat gain goes home as itself, under the source the Shop
+  would name: a combat Growth is "+20/+20 Growth", a minion's buff is that minion's, a rune's is the rune's. Nothing is
+  recorded as an "Engraved" buff any more (old saves keep their old rows). A gain that is both Engraved and "permanent"
+  is kept once.
+- **A kept Ruby stays a Ruby** (owner 2026-11-02, R-RUBY-ENGRAVED-01): *"the buffs that are rubies should be counted as ruby
+  buffs."* A Ruby that lands on an Engraved minion goes home as that minion's Rubies, so every "this minion's Rubies"
+  card counts it. It counts what actually landed (a golden Taurus's doubled Ruby is all Ruby), any Engrave counts
+  (the keyword, Taurus, or a living Transcendant beside a Dragon), and a permanent Ruby there is kept once. Other
+  Engraved gains stay labelled Engraved.
 - **Gained, then lost** in the same fight (a Ward that breaks) still carries back (owner: "1. Yes carries back").
   Losing a keyword it already had changes nothing on the Shop card ("2. Correct").
 - **A one-fight keyword lost, then regained** in combat carries back (owner 2026-10-21: *"yea if it re-gained in a

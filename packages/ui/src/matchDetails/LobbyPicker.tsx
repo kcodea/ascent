@@ -58,7 +58,7 @@ export function seatFate(seat: MatchSeat, d: MatchDetails): string | null {
   return out === seatPlace(seat, d) ? null : out;
 }
 
-/** The chip's hover tip: short plain sentences. */
+/** The tile's screen-reader sentence: short plain sentences. */
 function seatTip(seat: MatchSeat, d: MatchDetails, own: boolean): string {
   const parts = [`${seatOut(seat, d)}.`];
   if (typeof seat.strength === 'number') parts.push(`${GAME_STRENGTH_LABEL} ${seat.strength}.`);
@@ -150,8 +150,7 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
         return (
           <button
             type="button" key={seat.id} data-seat={seat.id} aria-pressed={on}
-            className={`lp-tile gtip lp-${bandOfPlace(seat, details)}${on ? ' on' : ''}${seat.self && own ? ' self' : ''}`}
-            data-tip={seatTip(seat, details, own)}
+            className={`lp-tile lp-${bandOfPlace(seat, details)}${on ? ' on' : ''}${seat.self && own ? ' self' : ''}`}
             aria-label={`${seatPlace(seat, details)}, ${seat.self && own ? 'you' : seat.name}.${seatFate(seat, details) === null ? seatTip(seat, details, own).replace(/^Still in\./, '') : ` ${seatTip(seat, details, own)}`}`}
             onClick={(e) => {
               onPick(seat.self ? null : seat.id);
@@ -170,6 +169,11 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
               {seat.id === details.knockedOutBy && <span className="lp-ko" aria-hidden="true"><Icon name="sword" /></span>}
             </span>
             <MiniBoard minions={minions} />
+            {/* Hover darkens the tile and prints its Game strength over it (owner 2026-11-03: the tip bubble under the
+                tile was unnecessary). An unscored seat shows nothing. */}
+            {typeof seat.strength === 'number' && (
+              <span className="lp-tile-strength" aria-hidden="true">{GAME_STRENGTH_LABEL}: <b>{seat.strength}</b></span>
+            )}
           </button>
         );
       })}

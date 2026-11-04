@@ -353,9 +353,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     : titleView === 'versus' && versusScreen === 'room' ? 'versus-room'
     : titleView;
   // THE PARTY HOME PROTOTYPE (DEV only): with the switch on, the main menu, the mode screen and the Ranked Duos party are
-  // all ONE screen (partyHome/PartyHome.tsx). Learn, Gauntlet, Practice's setup and the Versus rooms keep their views.
+  // all ONE screen (partyHome/PartyHome.tsx), and so are the Versus rooms: a room is a state of that screen.
   const partyView = !!PartyHome && partyHomeFlag && !practiceOpen
-    && (titleView === 'menu' || titleView === 'modes' || (titleView === 'versus' && versusArea === 'duos'));
+    && (titleView === 'menu' || titleView === 'modes' || titleView === 'versus');
   const partyStart = (kind: 'solo' | 'duos', then?: () => void): void => {
     crumb('party home start pressed');
     if (kind === 'solo' && isNewPlayer) { setTutorialPrompt(true); return; }

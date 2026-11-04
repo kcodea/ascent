@@ -5,13 +5,6 @@
 .cshop.phs { display: flex; flex-direction: column; overflow: hidden; font-family: var(--ph-body); color: var(--ph-text); }
 .phs .phk-page { flex: 1; }
 
-/* The wallet chip in the header. */
-.phs-wallet { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(40 * var(--phu)); padding: 0 calc(16 * var(--phu));
-  background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: 999px; }
-.phs-wallet b { font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
-.phs-wallet small { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
-.phs-wallet .aether-icon { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); }
-
 /* The pick and checkout sections are `unclipped` (PhSection): the tips hang outside the cards. */
 .phs .phk-section.phs-pick { z-index: 2; }
 
@@ -109,3 +102,5 @@ html[data-ph-shell][data-touch-small] .phs .phk-back { min-height: calc(64 * var
 /* The picked card stays level with its row (its gold, halo and check say it is picked). */
 .cshop.phs:not(.cshop-still) .cshop-chest.on, .cshop.phs:not(.cshop-still) .cshop-chest.on:hover { transform: none; }
 .phs-offline .phk-empty { min-height: calc(320 * var(--phu)); }
+/* The column heads stay on one line at every width. */
+.phs .cshop-cat-head span { white-space: nowrap; }

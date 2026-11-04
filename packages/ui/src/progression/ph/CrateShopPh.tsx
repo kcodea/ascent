@@ -67,13 +67,6 @@ export function CrateShopPh({ shop: s }: { shop: CrateShopState }): JSX.Element 
         eyebrow="Collection"
         title="Crates"
         back={{ label: 'Collection', onClick: s.back }}
-        actions={(
-          <>
-            <span className="phs-wallet" role="group" aria-label="Aether balance">
-              <AetherIcon className="phs-wallet-gem" /><b>{s.balance}</b><small>Aether</small>
-            </span>
-          </>
-        )}
       >
         <PhSection title="Pick a chest" className="phs-pick" unclipped>
           <div className="cshop-chests" role="group" aria-label="Chest">

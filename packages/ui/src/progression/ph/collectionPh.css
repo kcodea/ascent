@@ -18,7 +18,7 @@
 .phc-meter { box-sizing: border-box; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s); }
 .phc-bar { position: relative; display: block; height: calc(6 * var(--phu)); border-radius: 999px; background: rgba(0, 0, 0, 0.55); overflow: hidden; }
 .phc-bar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
-.phc-shopbtn > span, .phs-wallet { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
+.phc-shopbtn > span { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
 .phc-aether.aether-icon, .phc-shopbtn .aether-icon { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); }
 
 /* ── The categories (left) ── */
@@ -264,3 +264,18 @@ html[data-ph-shell][data-touch-small] .phc-filters .phk-tabs { flex: none; overf
 html[data-ph-shell][data-touch-small] .phc-rarities { flex: none; flex-wrap: nowrap; padding-bottom: 0; }
 html[data-ph-shell][data-touch-small] .phc-gridwrap, html[data-ph-shell][data-touch-small] .phc-side { touch-action: pan-y; -webkit-overflow-scrolling: touch; }
 html[data-ph-shell][data-touch-small] .lbpage.phc-host { padding-bottom: var(--safe-b, 0px); }
+/* The name never runs under a missing tile's padlock. */
+.phc-tile.missing:not(.hasart) .phc-tile-name { padding-right: calc(28 * var(--phu)); }
+/* Phones: the stage is short, so its "Not owned" chip takes the corner and the "Preview" label steps aside; the guest note
+   is one line, so it never makes the category row taller. */
+html[data-ph-shell][data-touch-small] .phc-stage-lbl { display: none; }
+html[data-ph-shell][data-touch-small] .phc-guest { flex-direction: row; align-items: center; gap: calc(12 * var(--phu)); max-width: none; padding: 0 calc(16 * var(--phu)); white-space: nowrap; }
+/* Phones: a long one-word name cannot wrap away from the padlock, so the padlock gets its own strip above the name. */
+html[data-ph-shell][data-touch-small] .phc-tile.missing:not(.hasart) { padding-top: calc(32 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-tile.missing:not(.hasart) .phc-tile-name { padding-right: 0; }
+html[data-ph-shell][data-touch-small] .phc-tile.missing:not(.hasart) .phc-tile-lock { top: calc(8 * var(--phu)); right: calc(10 * var(--phu)); }
+/* Phones, inside the shell's one-scroll frame: the detail column fits the screen from where it starts and keeps Equip
+   pinned at its foot (the kit's own `.phc-actions` row is the Compendium's, a name collision: undone here). */
+html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-side { max-height: calc(var(--ph-h, var(--lvh, 100vh)) - 272 * var(--phu)); }
+html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-side .phc-actions { flex-direction: column; flex-wrap: nowrap; position: sticky; bottom: calc(-24 * var(--phu)); margin: auto calc(-16 * var(--phu)) calc(-24 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-navy); }
+html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-side .phc-actions > * { position: static; }

@@ -147,7 +147,7 @@ describe('the Collection in the party home shell', () => {
     expect($('.phs h1')?.textContent).toBe('Crates');
     expect($$('.phs .cshop-chest')).toHaveLength(5);
     expect($$('.phs .cshop-cat:not(.cshop-cat-head)').length).toBeGreaterThan(0);
-    expect($('.phs-wallet')?.textContent).toContain('1500');
+    expect($('.phs-wallet')).toBeNull(); // the nav's wallet is the one balance
     expect($('.phs-buy')?.textContent).toMatch(/^Open chest/);
     act(() => { $('.phs .phk-back')!.click(); });
     expect($('.cshop')).toBeNull();

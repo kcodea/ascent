@@ -8249,6 +8249,14 @@ html[data-bl="game"] .devmenu { left: calc(var(--bl-l) + var(--bl-cb) * 1.25); b
 .titlescreen.ph-clear { background: none; animation: none; }
 .titlescreen.ph-clear::before { content: none; }
 html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { background: none; }
+/* ONE PAGE ON SCREEN: pages are transparent over the backdrop, so a page opened over another (Career from a row, Collection from
+   Career, the Compendium, Settings) must hide what is under it, whoever opened it. */
+html[data-ph-shell] .lbpage:has(~ .lbpage) { visibility: hidden; }
+html[data-ph-book] .lbpage { visibility: hidden; }
+.titlescreen.ph-clear.ph-paged .modepick { visibility: hidden; }
+/* Hero select stands on the same backdrop: its own ground would cut to brown until its skin loads. */
+html[data-ph-steady] .heroselect:not(.endscreen) { background: none; }
+html[data-ph-steady] .heroselect:not(.endscreen)::before { content: none; }
 .lbtopbar { display: flex; align-items: center; gap: 18px; padding: 22px 30px 14px; flex: none; }
 .lbback { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #f0dcae; background: rgba(0, 0, 0, 0.38); border: 2px solid rgba(196, 160, 92, 0.55); padding: 10px 22px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.18); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; flex: none; }
 .lbback:hover { border-color: var(--acc); color: var(--acc); }

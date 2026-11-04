@@ -116,3 +116,8 @@ html[data-ph-shell]:not([data-ph-compact]) .phs .phk-pagebody { gap: calc(12 * v
 /* A resting tip takes no room: its box is what pushed the page 17 px wider than it is. */
 .phs .cshop-pop { display: none; }
 .phs :is(.cshop-chest, .cshop-seg):is(:hover, .tt-on, :focus-visible) .cshop-pop { display: block; }
+
+/* IDLE GOES STILL: the picked chest's halo, the On toggle's halo and the rays looped forever (360 screen updates in 6 s on an
+   idle page). They still play on every pick, then hold their pose, so an idle page paints nothing. Compositor-only either way. */
+.cshop.phs:not(.cshop-still) .cshop-chest.on::after, .cshop.phs:not(.cshop-still) .cshop-cat.on .cshop-toggle::before { animation-iteration-count: 1.5; animation-fill-mode: forwards; }
+.cshop.phs:not(.cshop-still) .cshop-chest.on .cshop-chest-rays { animation-iteration-count: 0.5; animation-fill-mode: forwards; }

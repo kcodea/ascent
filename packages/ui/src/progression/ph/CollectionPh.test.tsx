@@ -173,17 +173,19 @@ describe('the Collection in the party home shell', () => {
     expect($('.phc-soon')).not.toBeNull();
   });
 
-  it('ON with Aether: the Chest Shop opens in the shell skin (the shop\'s own cards and rows) and Back returns', async () => {
+  it('ON with Aether: the Chest Shop opens in the shell skin (the shop\'s own cards and rows), with no back button; the nav returns', async () => {
     await open({ ph: true, aether: true });
     act(() => { $('.phc-shopbtn')!.click(); });
     await settle();
     expect($('.cshop.phs')).not.toBeNull();
     expect($('.phs h1')?.textContent).toBe('Crates');
+    expect($('.phs .phk-back')).toBeNull(); // a top-level nav page
     expect($$('.phs .cshop-chest')).toHaveLength(5);
     expect($$('.phs .cshop-cat:not(.cshop-cat-head)').length).toBeGreaterThan(0);
     expect($('.phs-wallet')).toBeNull(); // the nav's wallet is the one balance
     expect($('.phs-buy')?.textContent).toMatch(/^Open chest/);
-    act(() => { $('.phs .phk-back')!.click(); });
+    act(() => { leaveCrates(); });
+    await settle();
     expect($('.cshop')).toBeNull();
     expect($('.phc')).not.toBeNull();
   });
@@ -195,7 +197,8 @@ describe('the Collection in the party home shell', () => {
     expect($('.cshop.phs')).not.toBeNull();
     expect(usePhShell.getState().collectionIntent).toBeNull();
     expect(usePhShell.getState().crates).toBe(true);
-    act(() => { $('.phs .phk-back')!.click(); });
+    act(() => { leaveCrates(); });
+    await settle();
     expect(usePhShell.getState().crates).toBe(false);
   });
 
@@ -247,6 +250,11 @@ describe('the shell skins keep the UI rules', () => {
   });
   it('the chest opening ph-error phase class meets no shell rule of that name; it once pulled a failed opening off screen (R-PH-COLLECTION-01)', () => {
     expect(here('../../partyHome/partyHome.css')).not.toMatch(/\.ph-error\b/);
+  });
+  it('idle Crates goes still: the picked chest\'s halo, the On toggle and the rays run a bounded time, then hold', () => {
+    const css = here('./crateShopPh.css');
+    expect(css).toMatch(/\.cshop-chest\.on::after, [^{]*\.cshop-toggle::before \{ animation-iteration-count: 1\.5; animation-fill-mode: forwards; \}/);
+    expect(css).toMatch(/\.cshop-chest-rays \{ animation-iteration-count: 0\.5; animation-fill-mode: forwards; \}/);
   });
   it('no native tooltips, no cursor rules, no em dashes, no looping animation', () => {
     const tsx = [here('./CollectionPh.tsx'), here('./CrateShopPh.tsx')].join('\n');

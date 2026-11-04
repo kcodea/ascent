@@ -38,7 +38,7 @@ export function CratesOfflinePh({ onBack }: { onBack: () => void }): JSX.Element
   const retry = (): void => { sfx.pulse(); setChecking(true); void probeProgression().finally(() => setChecking(false)); };
   return (
     <section className="cshop phs cshop-still" aria-label="Crates">
-      <PhPage wide className="phs-page" eyebrow="Collection" title="Crates" back={{ label: 'Collection', onClick: () => { sfx.pulse(); onBack(); } }}>
+      <PhPage wide className="phs-page" title="Crates">
         <PhSection className="phs-offline">
           <PhEmpty
             title="Crates are unavailable right now" sub="Check your connection and try again."
@@ -64,9 +64,7 @@ export function CrateShopPh({ shop: s }: { shop: CrateShopState }): JSX.Element 
       <PhPage
         wide
         className="phs-page"
-        eyebrow="Collection"
         title="Crates"
-        back={{ label: 'Collection', onClick: s.back }}
       >
         <PhSection title="Pick a chest" className="phs-pick" unclipped>
           <div className="cshop-chests" role="group" aria-label="Chest">

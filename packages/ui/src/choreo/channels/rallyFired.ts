@@ -165,6 +165,56 @@ export function rallyProcsFor(moment: Moment, events: CombatEvent[], attackerUid
 }
 
 /**
+ * THE RALLIER'S OWN "On Rally" EFFECT for an ordinary Rally — or `null` when this swing plays none here.
+ *
+ * The workbench's "On Rally" slot binds a def at the `rally` kind for every Rally card. A Rally that procs an
+ * ALLY (Echohorn, Deathsayer) logs a `rally` event, and the `rallyFx` cue plays that def from the rallier to
+ * the ally. An ORDINARY Rally (Chorus Drake, Cinderchef, Demon Horse — "Rally: do X") logs no `rally` event,
+ * so its binding sat unreachable: the slot was offered and never played (owner ask 2026-11-04, Chorus Drake's
+ * music notes). This is the other half: an attacker that rallies with ZERO procs in its moment plays its own
+ * binding ON ITSELF, at the wind-up pulse. A swing with procs returns `null` so the `rallyFx` path keeps it and
+ * nothing plays twice. `resolve` is `bindingFor` in the app (injected so this stays pure).
+ */
+export function ownRallyBindingFor<B>(
+  moment: Moment,
+  events: CombatEvent[],
+  attackerUid: string | null,
+  cardId: string | null,
+  rallies: boolean,
+  resolve: (cardId: string | null, kind: 'rally') => B | null,
+): B | null {
+  if (!rallies || attackerUid === null || cardId === null) return null;
+  if (rallyProcsFor(moment, events, attackerUid) > 0) return null;
+  return resolve(cardId, 'rally');
+}
+
+/**
+ * Split an attack moment's floats so the RALLIER'S OWN narration ("+0/+1 Spell Power", "+1/+1") waits for its
+ * "On Rally" effect (owner ask 2026-11-04: *"delay the spell buff effect the +1, until just after the rally fx
+ * goes off"*). The own-Rally def plays at the top of the wind-up (`ownRallyBindingFor`); without this the
+ * float fires at the moment's START, so the number landed before the effect it is the result of. `later` is
+ * every non-damage float on the attacker; everything else (the strike's numbers, other units) stays `now`.
+ */
+export function splitOwnRallyFloats<F extends { uid: string; kind: string }>(floats: F[], attackerUid: string): { now: F[]; later: F[] } {
+  const now: F[] = [];
+  const later: F[] = [];
+  for (const f of floats) (f.uid === attackerUid && f.kind !== 'dmg' ? later : now).push(f);
+  return { now, later };
+}
+
+/** Is `e` a narration (`sc`, e.g. "+0/+1 Spell Power") the RALLIER caused itself? Those wait for its own
+ *  "On Rally" effect, like its floats (`splitOwnRallyFloats`). A hero-power grant is never the rallier's. */
+export function isOwnNarration(e: CombatEvent | undefined, attackerUid: string | null): boolean {
+  return !!e && attackerUid !== null && e.type === 'sc' && !e.heroPower && e.source === attackerUid;
+}
+
+/** When a delayed own-Rally float lands, from the moment's start: the same read gap after the wind-up pulse
+ *  that Echohorn's sparkle uses (`rallyLeadMs`), so the effect goes off first and the number follows. */
+export function ownRallyFloatDelayMs(windupDurSec: number): number {
+  return rallyLeadMs(windupDurSec);
+}
+
+/**
  * DID THIS SWING'S FORCED ECHO RESOLVE ENTIRELY INSIDE THE WIND-UP? — true when the very next event after the
  * attack moment is the attacker's OWN strike (its non-wave `dmg`), i.e. everything the Rally caused was absorbed
  * into the attack moment and there is NO later beat between the wind-up and the hit.

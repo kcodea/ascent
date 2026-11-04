@@ -31,7 +31,8 @@ import { bankedCastPlayerAnchor, clearCastPreviews, showBankedCastPreviews, show
 import { clearHandSummonFx, combatHandSummonOrigins, handSummonRemainingMs, isHandSummonInFlight, launchHandSummonFlights, type HandCardLike, type HandSummonFlight } from './handSummonFx';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
-import { RALLY_PROC_STRIDE_MS, attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
+import { RALLY_PROC_STRIDE_MS, attackSummonUids, isOwnNarration, ownRallyBindingFor, ownRallyFloatDelayMs, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
+import { getLungeConfig } from './lungeConfig';
 import { shoutsAheadOf } from './choreo/channels/shoutFired';
 import { wavesAheadOf } from './choreo/channels/windupWaves';
 import { HIT_REACTION_LEAD_MS, chainEligible, chainTendrilPlan, chainTickCount, hitReactionStart, reactionChainMs, reactionTickStrideMs, reactionTicks, type ReactionTick } from './choreo/hitReactions';
@@ -2624,7 +2625,23 @@ export function useCombatReplay(
     // SPELL POWER gained mid-combat: `grantSpellPower` already emits an `sc` narration carrying the SOURCE
     // unit and a "+A/+H Spell Power" text, so the flourish rides that rather than needing a new choreo
     // channel. Fired over the unit that caused it, matching the shop behaviour (owner ask 2026-07-21).
-    for (let i = beat.start; i < beat.end; i++) spellPowerNarration(events[i], playerUids, anchorOf);
+    // An attacker with its own "On Rally" effect (Chorus Drake) plays that effect at the top of the wind-up, so its
+    // OWN spell-power flourish waits the same read gap the plain floats do (R-FX-RALLY-FLOAT-01) — the effect goes
+    // off first, then the +1.
+    const spAtk = beat.kind === 'attackExchange' && beat.primary.type === 'attack' ? beat.primary.attacker : null;
+    const spOwnRally = spAtk !== null && canPlayDefs()
+      && !!ownRallyBindingFor(beat, events, spAtk, cardIds.get(spAtk) ?? null, true, bindingFor);
+    const spLater: CombatEvent[] = [];
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (spOwnRally && isOwnNarration(e, spAtk)) { if (e) spLater.push(e); continue; }
+      spellPowerNarration(e, playerUids, anchorOf);
+    }
+    if (spLater.length) {
+      const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
+      window.setTimeout(() => { for (const e of spLater) spellPowerNarration(e, playerUids, anchorOf); },
+        ownRallyFloatDelayMs(getLungeConfig().windupDur) / speed);
+    }
     // SPELLS CAST / FRIENDLY DEATHS / BLADE MASTERY ATTACKS mid-combat (owner asks 2026-08-07 + 2026-08-24, for
     // Yirin's Attunement, Cindara's Hoard and Gorun's Blade Mastery) no longer dispatch from here. They ride
     // `combatPreviews` — one FOLD over the events played so far, published absolutely by Recruit's bridge, the
@@ -3287,6 +3304,7 @@ export function useCombatReplay(
         const atkUnit = frameRef.current?.player.find((u) => u.uid === atkUid) ?? frameRef.current?.enemy.find((u) => u.uid === atkUid);
         let rallies = !!atkUnit?.keywords.includes('RL') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('RL');
         if (!rallies) for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'rally' && e.source === atkUid) { rallies = true; break; } }
+        const ownRally = ownRallyBindingFor(cur, events, atkUid, cardIds.get(atkUid) ?? null, rallies, bindingFor);
         // Buffs absorbed into this attack's wind-up (on-attack / on-ally-attack / Rally buffers) → fire their FX at
         // the top of the wind-up (after the yellow rally pulse), so the beat reads pulse → tendril → lunge. Buff-
         // OTHERS rain a tendril/descend; the buffer's own SELF-buff (which `groupBuffCasts` skips) pops an in-place
@@ -3404,7 +3422,15 @@ export function useCombatReplay(
           // the attacker's own damage beat. Read through the ref so the timeline built now can fire the release
           // decided many beats later.
           onParkedContact: heldWindup ? () => parkedContactRef.current?.() : undefined,
-          onRallyPulse: rallies ? () => firePulse(atkUid) : undefined,
+          onRallyPulse: rallies ? () => {
+            firePulse(atkUid);
+            // An ORDINARY Rally (no ally proc) plays the card's own "On Rally" binding on itself, with the pulse.
+            // Ally procs (Echohorn) keep the `rallyFx` cue's source→target path; see `ownRallyBindingFor`.
+            if (ownRally && canPlayDefs()) {
+              const a = anchorsForUnits(atkUid, atkUid);
+              if (a) playDef(ownRally.def, a, { uids: { source: atkUid, target: atkUid }, gain: ownRally.gain });
+            }
+          } : undefined,
           // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.
           // Only Echohorn can exceed 1 today (see `rallyProcsFor`).
           rallyProcs: rallyProcsFor(cur, events, atkUid),

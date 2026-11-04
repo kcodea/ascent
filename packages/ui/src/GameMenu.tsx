@@ -57,6 +57,7 @@ export function handleEscape(): void {
   // nothing (Settings is the nav's gear, one place). Only while the shell is up (the menus before a run).
   if (document.documentElement.hasAttribute('data-ph-shell')) {
     if (st.practiceSetupOpen) st.cancelPracticeSetup();
+    else if (st.showCareer && st.careerOf?.from) st.closeCareer(); // back to the game or ladder it was opened from
     else if (anyPageOpen(st) || st.titleView !== 'menu') st.goTo('menu');
     return;
   }

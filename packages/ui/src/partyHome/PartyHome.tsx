@@ -452,6 +452,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       {!phone && vh.stands}
       <div className="ph-side">
         {vh.side}
+        {/* PHONE: the saved game is one plain button in this clear row; the head row stays for the team and rules. */}
+        {phone && savedRun && !versusRoom && <PhButton size="s" className="ph-phonecontinue" aria-label={`Continue your saved game, ${savedRunMode(savedRun)}`} onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>}
         {inParty && !inGame && !versusRoom && (
           <PhButton onClick={() => { sfx.pulse(); if (duosRoom) void leaveDuosParty(); else setPartyDemo(false); }}>Leave party</PhButton>
         )}
@@ -540,7 +542,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
           </div>
         )}
         {/* (Not inside a Versus room: Continue would leave it. The plate returns with the room gone.) */}
-        {savedRun && !versusRoom && (
+        {!phone && savedRun && !versusRoom && (
           <div className="ph-held">
             <div className="ph-heldrow">
               <span className="ph-heldtxt"><b>Saved game</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>

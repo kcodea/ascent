@@ -28,6 +28,7 @@ import {
   versusTurnSeconds,
   uniqueAutoHeroIndex,
   versusDisjointHeroOffers,
+  versusModeIsDuos,
   versusRerollCandidatesFree,
   type VersusDuosFinalizeStore,
   type VersusGroupFinalizeStore,
@@ -305,7 +306,7 @@ export function newGroupState(host: GroupHost, room: { id: string; set_id: strin
  *  Stored on the private rows, the clients' truth. */
 export function dealGroupOffers(g: GroupState, exclude?: ReadonlySet<string>): void {
   const seats = g.match.seats;
-  const offers = versusDisjointHeroOffers(seats.map((s) => ({ heroSeed: g.priv[s.seat]!.hero_seed, runSeed: g.priv[s.seat]!.run_seed })), g.match.set_id as SetId, exclude);
+  const offers = versusDisjointHeroOffers(seats.map((s) => ({ heroSeed: g.priv[s.seat]!.hero_seed, runSeed: g.priv[s.seat]!.run_seed })), g.match.set_id as SetId, exclude, { duos: versusModeIsDuos(g.match.options.mode) });
   seats.forEach((s, i) => { g.priv[s.seat]!.hero_offer = offers[i]!; });
 }
 

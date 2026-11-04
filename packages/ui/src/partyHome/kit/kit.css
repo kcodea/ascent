@@ -467,3 +467,8 @@ html[data-ph-laptop]:not([data-ph-compact]) :is(.phk-btn.s-s, .phk-chip.phk-tchi
 /* One heading height on every phone page. */
 html[data-ph-shell][data-ph-compact] .phk-page .phk-pagehead { height: calc(60 * var(--phu)); min-height: 0; }
 html[data-ph-shell][data-ph-compact] .phk-page { padding-top: calc(8 * var(--phu)) !important; }
+
+/* PHONE TARGETS: a switch reads larger (a transform: no layout moves), a slider's track keeps its look in a tall hit box. */
+html[data-ph-shell][data-ph-compact] .phk-switch { transform: scale(1.6); transform-origin: 100% 50%; margin-top: calc(10 * var(--phu)); margin-bottom: calc(10 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-slider input[type="range"] { height: calc(64 * var(--phu)); }
+

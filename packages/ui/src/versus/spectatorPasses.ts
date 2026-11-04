@@ -31,7 +31,7 @@ export function watchedPasses(prev: DuosRun | null | undefined, next: DuosRun | 
   if (!prev.duos) return NONE;
   const had = prev.duos.outbox.length;
   const sends = next.duos.outbox.length > had
-    ? next.duos.outbox.slice(had).filter((e) => !e.refunded && e.combatIdx == null)
+    ? next.duos.outbox.slice(had).filter((e) => !e.refunded && !e.restored && e.combatIdx == null)
     : [];
   const before = new Set(prev.duos.received);
   const fresh = next.duos.received.filter((k) => !before.has(k));

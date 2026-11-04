@@ -1678,11 +1678,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-active-conditional",
-    "title": "'active-conditional' powers · 5 heroes",
-    "statement": "These 5 powers all active, but only against a staged precondition (a pair to complete, a fight behind you, a spell cast). — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'active-conditional' powers · 6 heroes",
+    "statement": "These 6 powers all active, but only against a staged precondition (a pair to complete, a fight behind you, a spell cast). — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
-    "currentBehaviour": "heroPowerFamilies.ts classifies these 5 powers as 'active-conditional'; the heroPowerLane + stager suites verify each against that reading.",
-    "cardText": "Exemplar — Gildmaster, Gildcrafter: \"When you have 2 copies of a minion, this grants a third.\" · Members: Gildmaster — Gildcrafter [gildcrafter] · Hunch — Rounded Spellbook [roundedSpellbook] · Membrance — Memory [memory] · Quillen — Archive [archive] · Underdweller — Soulkeeper [soulkeeper]",
+    "currentBehaviour": "heroPowerFamilies.ts classifies these 6 powers as 'active-conditional'; the heroPowerLane + stager suites verify each against that reading.",
+    "cardText": "Exemplar — Gildmaster, Gildcrafter: \"When you have 2 copies of a minion, this grants a third.\" · Members: Gildmaster — Gildcrafter [gildcrafter] · Hunch — Rounded Spellbook [roundedSpellbook] · Membrance — Memory [memory] · Priestess — Passaria [passaria] · Quillen — Archive [archive] · Underdweller — Soulkeeper [soulkeeper]",
     "example": "Gildmaster's Gildcrafter active, but only against a staged precondition (a pair to complete, a fight behind you, a spell cast)."
   },
   {

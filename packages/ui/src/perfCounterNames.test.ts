@@ -7,10 +7,12 @@
  * The owner's 2026-08-22 session logged `particles: 0` in all 448 buckets, including the 66 that fired an
  * aura wave: the counter that exists to explain an FX spike was the one blind to it.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 describe('FX perf counters are namespaced per controller', () => {
-  it('the two controllers register disjoint counter names', async () => {
+  // Load in a hook, on its own timeout: an import inside a test body counts against that test's 5 s.
+  let mod: typeof import('./pixiFx');
+  beforeAll(async () => {
     const registered: string[] = [];
     vi.resetModules();
     vi.doMock('./perfMonitor', () => ({
@@ -20,7 +22,11 @@ describe('FX perf counters are namespaced per controller', () => {
       },
       perfEnabledByFlag: () => false,
     }));
-    const mod = await import('./pixiFx');
+    mod = await import('./pixiFx');
+    vi.doUnmock('./perfMonitor');
+  }, 60_000);
+
+  it('the two controllers register disjoint counter names', () => {
     // Register both without a real WebGL context: call the registration path directly on each instance.
     const reg = (c: unknown, label: string): void => {
       const inst = c as { setPerfLabel(l: string): void };
@@ -37,6 +43,5 @@ describe('FX perf counters are namespaced per controller', () => {
     // The board layer keeps the original names, so existing captures stay comparable.
     expect(board).toContain('particles');
     expect(discover).toContain('discover particles');
-    vi.doUnmock('./perfMonitor');
   });
 });

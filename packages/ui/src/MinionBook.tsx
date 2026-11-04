@@ -477,10 +477,10 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
   // name or power. Not run-scoped (heroes aren't tribe-bound), same as the Runes tab.
   const heroesToShow = useMemo(() => {
     const m = makeSearchMatcher(searchQ);
-    return HEROES.filter((h) => !h.wip)
+    return HEROES.filter((h) => !h.wip && (!h.duosOnly || duos))
       .filter((h) => m(h.name) || m(h.power.name) || m(h.power.text))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [searchQ]);
+  }, [searchQ, duos]);
 
   // Every rune (both forges) for the Runes tab — Basic set first, then Epic, each alphabetical. Not run-scoped
   // (runes aren't tribe-bound); shown as read-only RuneCards.
@@ -850,7 +850,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
             className={`book-gilded book-duos${duos ? ' on' : ''}`}
             onClick={() => setDuos((d) => !d)}
             aria-pressed={duos}
-            disabled={guidesOn || cats.has('quests') || cats.has('heroes')}
+            disabled={guidesOn || cats.has('quests')}
             aria-description="Add the Duos-only cards to the book"
           >
             Duos
@@ -1011,6 +1011,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
                   const art = heroArt(h.id);
                   return (
                     <div className="book-cell" key={h.id}>
+                      {h.duosOnly && <DuosTag />}
                       <div className="bookhero">
                         <div className="bookhero-art">
                           {art ? <img decoding="sync" src={art} alt={h.name} draggable={false} /> : <Icon name="shield" />}

@@ -14,7 +14,7 @@ import { handleVersusFinalize, versusFightDigest, versusFightPayload, type Versu
 import { reportedVitals, versusArmorFloorMax, versusFreshSide, versusStartingVitals } from './vitals';
 import { resolveVersusGroupRound, versusGroupPairings, type VersusGroupRoundInput, type VersusGroupRoundResult } from './group';
 import { groupFightsPayload, groupRoundDigest, handleVersusGroupFinalize, type VersusGroupFinalizeStore } from './groupFinalize';
-import { normalizeVersusOptions, versusOptionsError } from './options';
+import { normalizeVersusOptions, versusModeIsDuos, versusOptionsError } from './options';
 import { resolveVersusDuosRound, type VersusDuosRoundInput, type VersusDuosRoundResult } from './duos';
 import { duosFightPayload, duosRoundDigest, handleVersusDuosFinalize, type VersusDuosFinalizeStore } from './duosFinalize';
 import { handleRankedDuosSeat, type RankedDuosSeatStore } from './rankedDuosSeat';
@@ -34,7 +34,7 @@ export { VERSUS_COMBAT_VIEW_CAP_SECONDS, VERSUS_GATE_SECONDS, VERSUS_HERO_SELECT
 export { versusTurnSeconds };
 export type { VersusFightInput, VersusFightResult, VersusFinalizeStore };
 // VERSUS GROUP (owner 2026-10-24): the 3-4 player round's resolver, its finalize handler and the room options check.
-export { handleVersusGroupFinalize, resolveVersusGroupRound, versusGroupPairings, normalizeVersusOptions, versusOptionsError };
+export { handleVersusGroupFinalize, resolveVersusGroupRound, versusGroupPairings, normalizeVersusOptions, versusModeIsDuos, versusOptionsError };
 export type { VersusGroupFinalizeStore, VersusGroupRoundInput, VersusGroupRoundResult };
 // VERSUS DUOS (owner 2026-10-25): the 2v2 tag-team round's resolver and its finalize handler.
 export { handleVersusDuosFinalize, resolveVersusDuosRound };

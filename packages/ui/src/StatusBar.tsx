@@ -7,7 +7,7 @@ import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, commissionDelayOf, ancientDrumlineNeed, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
-import { ancientArchiveNeed, ancientArchivePassive } from '@game/sim'; // Quillen × Ancients (Genesis: fills at 2; Time: passive)
+import { ancientArchiveNeed, ancientArchivePassive, passariaHasTarget } from '@game/sim'; // Quillen × Ancients (Genesis: fills at 2; Time: passive)
 import { heroGrantOf, shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
 import { useEotAmplified } from './choreographer/equipmentFx';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
@@ -701,7 +701,8 @@ export function StatusBar() {
     // 2026-08-17). `liveCost` is the same fallback chain the coin renders, so shown price == checked price.
     (!liveCost || run.embers >= liveCost) &&
     diceLock === 0 && // Gambler: the roll is unusable while its lock runs
-    !(power.kind === 'commission' && run.commission); // Cassen: locked until the running commission pays out
+    !(power.kind === 'commission' && run.commission) && // Cassen: locked until the running commission pays out
+    !(power.kind === 'passaria' && !passariaHasTarget(run)); // Priestess: no teammate, or nothing she may pass
   // Live power TALLY (owner ask 2026-07-16) — the Avenge-style numerals riding ABOVE the diamond for powers
   // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
   // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).

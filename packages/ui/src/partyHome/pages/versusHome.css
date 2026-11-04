@@ -122,3 +122,7 @@ html[data-ph-compact] .ph-stagehead .vsr-tiles { display: none; }
 .vsr-drawerstands .vsr-stands { position: static; translate: none; max-width: none; flex-direction: column; align-items: stretch; }
 .vsr-drawerstands .vsr-stands.vsr-nostands { display: none; }
 .vsr-drawerstands .vsr-tiles { flex-wrap: wrap; }
+
+/* A phone: the buttons beside START stay on ONE line (extras scroll sideways), so they can never grow the row and squeeze the banners. */
+html[data-ph-compact] .ph-actions > .ph-side:not(.ph-side-r) { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+html[data-ph-compact] .ph-actions > .ph-side:not(.ph-side-r) > * { flex: none; }

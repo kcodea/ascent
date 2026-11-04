@@ -532,7 +532,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
             )}
           </div>
         )}
-        {savedRun && (
+        {/* (Not inside a Versus room: Continue would leave it. The plate returns with the room gone.) */}
+        {savedRun && !versusRoom && (
           <div className="ph-held">
             <div className="ph-heldrow">
               <span className="ph-heldtxt"><b>Saved game</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>

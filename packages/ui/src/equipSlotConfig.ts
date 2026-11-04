@@ -131,7 +131,7 @@ export interface EquipSlotConfig {
  * alone", not "never looked at".
  */
 const DEFAULTS: EquipSlotConfig = {
-  x: -248, y: -260, scale: 0.99,
+  x: -248, y: -243, scale: 0.99, // y -260 -> -243 keeps the slot put when the main power moved up 17 (2026-11-04)
 
   frameOn: 1, frameX: 0, frameY: 0, frameScale: 1.42, frameBehind: 0,
 

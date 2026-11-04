@@ -325,6 +325,7 @@ html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov::af
 
 /* Zoomed phone: the hero power's name plate a size up (it read at ~6 pt). */
 html[data-touch-ui][data-phone-zoom] .statusbar .heropanel .hplabel { scale: 1.2; transform-origin: 50% 0%; }
+html[data-touch-ui][data-phone-zoom] .statusbar .heropanel:not(.heropanel2):not(.equipslot) > .hplabel { transform-origin: 50% 100%; }
 /* THE POP: a finger on a hand card lifts it whole and VERY large (owner 2026-10-24: "it should be very large"): straight,
    ~68% of the safe screen height, growing in place from the hand row, plate, text, cost, Attack and Health all on screen (owner
    2026-10-24: the resting hand is the desktop card exactly, badges and all, so a neighbour may cover them; the pop is

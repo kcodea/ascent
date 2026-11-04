@@ -38,6 +38,11 @@ const NUM: Record<NumKey, [string, TunerUnit | undefined, string, string]> = {
   glowY:          ['Vertical alignment', 'px', 'Nudges the halo vertically.', 'Glow fit'],
   glowW:          ['Width fit', '×', 'Halo width relative to the face. Small corrections only — use softness and intensity for overall size.', 'Glow fit'],
   glowH:          ['Height fit', '×', 'Halo height relative to the face.', 'Glow fit'],
+
+  nameRest:       ['Height, no counter', 'px', 'How far the name sits above the art when the power has no counter. Negative seats it on the rim.', 'Name'],
+  nameAbove:      ['Height over counter', 'px', 'How far the name sits above the art when a counter pill (e.g. 0/3) is on the rim.', 'Name'],
+  nameX:          ['Horizontal nudge', 'px', 'Slides the name sideways.', 'Name'],
+  nameScale:      ['Size', '×', 'Size of the name pill.', 'Name'],
 };
 
 /**
@@ -50,7 +55,7 @@ const BEFORE_COLOUR: NumKey[] = [
   'artX', 'artY', 'artScale', 'artDim', 'refreshFlash',
   'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
 ];
-const AFTER_COLOUR: NumKey[] = ['glowX', 'glowY', 'glowW', 'glowH'];
+const AFTER_COLOUR: NumKey[] = ['glowX', 'glowY', 'glowW', 'glowH', 'nameRest', 'nameAbove', 'nameX', 'nameScale'];
 
 const num = (key: NumKey): TunerControl<Extract<keyof HeroPowerBtnConfig, string>> => {
   const [label, unit, hint, group] = NUM[key];

@@ -143,6 +143,8 @@ html[data-phone-layout] .opphand { --oh-s: 1.6; --oh-y: -200px; --oh-x: 520px; }
 html[data-phone-layout] .lobbyrailhead { --lby-font: 1.55; }
 html[data-phone-layout] .lobbyrail .lobbyhead { --lby-font: 1.9; }
 html[data-phone-layout] .statusbar .heropanel .hplabel { scale: 1.8; transform-origin: 50% 0%; }
+/* The main power's name sits ABOVE the art, so it grows upward, away from it. */
+html[data-phone-layout] .statusbar .heropanel:not(.heropanel2):not(.equipslot) > .hplabel { transform-origin: 50% 100%; }
 /* Own Health and Armor read at ~12 pt. */
 html[data-phone-layout] .statusbar .hpbox { zoom: 1.25; }
 

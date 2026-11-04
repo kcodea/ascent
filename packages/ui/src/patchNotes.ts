@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Your hero power\'s name now sits above the power, so tall hero portraits no longer cover it.',
+      },
+      {
+        category: 'Systems',
         text: 'Fixed: in Duos, reloading mid-turn no longer brings back a minion you passed with Handout, CueBee\'s Pass or Passaria.',
       },
       {

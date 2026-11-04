@@ -545,3 +545,7 @@ html[data-ph-compact] .ph-phonecontinue { flex: none; }
 .ph-cardmenu { left: 50%; translate: -50% 0; min-width: min(calc(220 * var(--phu)), 92cqi); }
 .ph-picker .ph-fnote { text-align: center; }
 
+
+/* ── CRITIC ROUND 16 ── */
+/* The phone panel's rank reads at the panel's size. */
+html[data-ph-compact] .ph-settings .phk-plate > :not(.phk-platehead) { zoom: 1.7; }

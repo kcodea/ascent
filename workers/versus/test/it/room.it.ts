@@ -311,4 +311,55 @@ describe('Ranked Duos party in workerd', () => {
     expect(table.served).toHaveLength(6);
     for (const p of [a, b]) p.client!.close();
   });
+
+  it('played to the end: the one result written carries both live boards of EVERY round, the deciding one too (R-RANKED-DUOS-RECORD-01)', async () => {
+    const a = new Player(base, crypto.randomUUID(), 'Claudebot1');
+    const b = new Player(base, crypto.randomUUID(), 'Claudebot2');
+    const room = await versusCfHttp<Record<string, any>>(base, '/rooms', a.token, {
+      method: 'POST', body: { name: 'Party', display: 'A', profile: {}, setId: 'set1', contentRevision: CONTENT, protocol: VERSUS_PROTOCOL, options: { v: 1, mode: 'ranked_duos', modifiers: [] } },
+    });
+    const roomId = room.id as string;
+    await a.connect(roomId);
+    await b.connect(roomId);
+    await b.req('join', { as: 'player', display: 'B', profile: {}, content: CONTENT, protocol: VERSUS_PROTOCOL });
+    await a.req('start');
+    await a.req('gate');
+    await b.req('gate');
+    const matchId = (await a.req('sync')).match.id as string;
+    await a.req('register_offer', { matchId, offer: HERO_IDS.slice(0, 3) });
+    await b.req('register_offer', { matchId, offer: HERO_IDS.slice(3, 6) });
+    await a.req('pick_hero', { matchId, index: 0 });
+    await b.req('pick_hero', { matchId, index: 0 });
+    await a.next((m) => m.t === 'match' && (m.match as { seated?: boolean }).seated === true, 10_000);
+    await a.req('intro_done', { matchId });
+    await b.req('intro_done', { matchId });
+    // A strong pair (the 7-minion fixture board) against the local generated table: it ends in a few rounds.
+    const strong = FIXTURE.cases.find((c) => c.p1.board.length === 7)!.p1;
+    let phase = 'shop';
+    let round = 1;
+    for (let guard = 0; guard < 40 && phase !== 'complete'; guard++) {
+      await new Promise((r) => setTimeout(r, 300)); // a human pace: under the socket's request limit (rate.ts)
+      for (const p of [a, b]) await p.req('submit', { matchId, round, seq: 1, side: structuredClone(strong), final: true, checkpoint: null });
+      const m = (await a.req('sync')).match as { phase: string; round: number };
+      if (m.phase === 'complete') break;
+      for (const p of [a, b]) await p.req('combat_ready', { matchId, round });
+      const next = (await a.req('sync')).match as { phase: string; round: number };
+      phase = next.phase;
+      round = next.round;
+    }
+    const end = ((await a.req('sync')).match as { phase: string; round: number });
+    expect(end.phase).toBe('complete');
+    // The writer job leaves the outbox on the alarm; persistence is off here, so it lands in the local recorder.
+    let fin: { round: number; rounds: number[]; submissions: string[] } | undefined;
+    for (let i = 0; i < 40 && !fin; i++) {
+      const met = await (await fetch(`${base}/rooms/${roomId}/metrics`)).json() as { rankedFinish: typeof fin[] };
+      fin = met.rankedFinish[0];
+      if (!fin) await new Promise((r) => setTimeout(r, 250));
+    }
+    expect(fin).toBeDefined();
+    expect(fin!.round).toBe(end.round);
+    expect(fin!.rounds).toEqual(Array.from({ length: end.round }, (_, i) => i + 1));
+    expect(fin!.submissions).toEqual(fin!.rounds.flatMap((r) => [`${r}p1`, `${r}p2`]));
+    for (const p of [a, b]) p.client!.close();
+  });
 });

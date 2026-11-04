@@ -56,8 +56,77 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-03',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Lobby rail: Health and Armor now show painted heart and shield medallions.',
+      },
+      {
+        category: 'Systems',
+        text: 'Lobby rail: a knocked-out player now shows the painted Echo medallion instead of the plain skull.',
+      },
+      {
+        category: 'Systems',
+        text: 'Career: Top 4 Finish, Losses and Avg Placement now wear painted gold medallions too.',
+      },
+      {
+        category: 'Systems',
+        text: 'Career: your Favorite Tribe now shows that tribe\'s new painted gold medallion.',
+      },
+      {
+        category: 'Systems',
+        text: 'Match history: hover a player in a game\'s lobby to see their Game strength right on their tile.',
+      },
+      {
+        category: 'Systems',
+        text: 'Spectating: you now see the screen exactly as the player does.',
+        details: [
+          "The player's mouse is always drawn on top, even over their Equipment and hero power.",
+          "Duos: their teammate's portrait shows in the bottom right, with its signals, and the switcher moves up top so it never covers it.",
+          'Duos: every pass plays its animation, in the shop and in the fight, both going out and coming in.',
+          'Ranked Duos team names show on the lobby rail.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "Engraved now keeps each combat buff as itself. A Growth stays Growth and a Ruby stays a Ruby, so cards that use this minion's Rubies count them.",
+        details: [
+          'Engraved is not its own kind of buff. It just makes buffs gained in combat permanent.',
+          'A minion that gets +20/+20 from Growth in combat keeps +20/+20 Growth.',
+          'A golden Taurus doubles a Ruby. Now the whole doubled Ruby is kept as a Ruby.',
+          'A Ruby on a Dragon next to Transcendant is now kept as a Ruby.',
+          'Fixed: a permanent buff on a Dragon next to Transcendant was kept twice. It is now kept once.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-02',
     changes: [
+      {
+        category: 'Systems',
+        text: "Recent Games and other players' Careers: a game's lobby now names its player instead of calling them You, and the board line reads their name too. You still shows on your own games.",
+      },
+      {
+        category: 'Systems',
+        text: 'The lobby rail shows shorter names for two heroes: Keshi the Protector is Keshi, and Lord of the Risen is Risen. Their full names still show everywhere else.',
+      },
+      {
+        category: 'Systems',
+        text: 'Compendium: the Guides view always shows its own tribe filter, even when Runes was open just before.',
+      },
+      {
+        category: 'Systems',
+        text: "Player rail: a player's info card now opens after you rest on their portrait for a second, so passing over the rail no longer pops it up. Click a portrait to open it straight away. Once a card is open, moving to other portraits shows theirs instantly, and moving off the rail closes it at once.",
+      },
+      {
+        category: 'Systems',
+        text: 'Eight new minion skins in chests, most of them hand-drawn in crayon.',
+        details: [
+          'Kobebes, Impossible Todd, Big Huggies, Humphry, Cinderchef, Chef Gary Toast and Drunk Daniel each get their first skins.',
+        ],
+      },
       {
         category: 'Systems',
         text: "Duos: when your first board wins, your teammate's minions now fly into the empty slots and add to the damage.",
@@ -142,6 +211,14 @@ export const PATCH_NOTES: PatchNote[] = [
           'If your last fight does not start after the match is over, the game takes you back to the room on its own.',
           'Leave match in the Esc menu now works once the match is over. Before, it did nothing.',
         ],
+      },
+      {
+        category: 'Systems',
+        text: 'Duos: when your teammate readies up in the shop, their rail card slams with a green burst and stays lit green with a check mark until the fight.',
+      },
+      {
+        category: 'Systems',
+        text: "Duos player rail: each team's backing now follows the shape of its slices, the Health numbers sit a touch further right, and team names are right-aligned with a dark outline.",
       },
       {
         category: 'Systems',

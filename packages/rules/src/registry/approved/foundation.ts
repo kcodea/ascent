@@ -13426,6 +13426,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosPostgame.test.tsx', 'packages/ui/src/progression/progressionQueue.test.ts', 'packages/ui/src/versus/chaos/versusCfParity.db.test.ts'], lastVerifiedAt: '2026-11-02' },
   },
   {
+    id: 'R-RANKED-DUOS-RECORD-01',
+    title: 'Ranked Duos: the recorded duo run holds the boards of both teammates for every round they fought, the deciding round included',
+    statement:
+      'Like ranked solo, which records its board for every round it fought, a finished Ranked Duos game records both live '
+      + 'teammates\x27 locked boards (the whole prepared side: minions, runes, equipment, hero state) for EVERY round that resolved, '
+      + 'the round that placed the team included, once per round and teammate. That record is the duo run future Ranked Duos '
+      + 'tables serve as a recorded team, so a served duo fields at each round exactly the board it fought that round. A round '
+      + 'that never resolved (the pair left mid-shop) was never fought and is not recorded. The duo run\x27s first round, last '
+      + 'round, round count and eligibility are counted from those rounds.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-02 (Ranked Duos freeze investigation, PR #2547)', quote: 'Ranked Duos records must be 1:1 with ranked solo' },
+      { kind: 'code', ref: 'workers/versus/src/core/rankedMatch.ts (commitRanked -> keepRoundBoards, foldSub, liveSubmissions); supabase versus_ranked_duos__record_run' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (fix/ranked-duos-record-final-board). Before, the Cloudflare room kept a round\x27s boards only when '
+      + 'the NEXT shop opened, and the deciding round has no next shop, so every Cloudflare duo run ended one round short '
+      + '(live: 4 of 4 Cloudflare games, e.g. a 14-round win recorded rounds 1 to 13). A served duo then fielded its round 13 '
+      + 'board in round 14, and a team out in round 4 was recorded with 3 rounds and became unservable.',
+    example: 'Kevin and Lemon go out in round 12. Their duo run holds rounds 1 to 12; a later table that meets them in round 12 fights the round 12 boards they lost with.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/rankedCore.test.ts', 'workers/versus/test/it/room.it.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-SB-PANEL-CLOSE-01',
     title: 'DEV: the Scene Builder header ✕ closes the panel for real, and its minimize control folds it to a header bar',
     statement:
@@ -13445,5 +13469,268 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '(a more specific selector), so the panel stayed on screen while an anvil square appeared in the corner: the ✕ looked dead, and the only thing that hid the panel was that square path.',
     example: 'Kevin is in the Scene Builder. He clicks the – in its header: the panel shrinks to a bar reading "Scene Builder R1 · 8 left GOD" with a restore button. He clicks ✕: the panel is gone and the shop keeps running. He opens the dev menu, clicks Scene Builder, and the panel is back with his search still typed in.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/sceneBuilderPanel.test.tsx', 'packages/ui/src/devCorner.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-DUOS-RAIL-PLATE-01',
+    title: 'Duos on the Docked rail: the team backing follows the slices\x27 shape, and the team name reads right-aligned and outlined',
+    statement:
+      'In Versus Duos and Ranked Duos on the Docked lobby rail, a team\x27s dark backing never shows past its slices\x27 outlines: it '
+      + 'takes the union of its members\x27 slice shapes, the gap between them (starting where both edges are clear of a board '
+      + 'piece\x27s cut), and the strip for its side bracket, so a cut slice reads cut through its backing too. A team\x27s name over '
+      + 'its pair is right-aligned, kept clear of the round corner chip (YOU, the next foe\x27s swords), with a 2px black outline. '
+      + 'The Health and Armor column on a team rail sits 10px further right than on a solo rail.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02, with a screenshot of a Docked Duos rail', quote: 'the shadows are cropping over, which we dont want. they should follow the exact shape of the lobby rail navy blue part' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02', quote: 'i want the team name to be right aligned, but with some padding from the right so it isnt covered by the "YOU" or "now facing" corner icon. i want to put a black 2px stroke around the font as well' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02', quote: 'i want to nudge the heart and armor section to the right ever so slightly' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02', quote: 'i want to nudge the health and armor section over another 6px' },
+      { kind: 'fix-pr', ref: 'PR fix/duos-rail-polish (2026-11-02)' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyRailDockedLayout.ts (teamPlatePath); packages/ui/src/LobbyPanel.tsx (.lrv-team clipPath, .lrv-teamname box); packages/ui/src/lobbyRailDocked.css' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-11-02. Before, the backing was a plain rectangle round the pair, so its corners showed past the gem\x27s and the coin\x27s cuts, and the team name sat left with a soft shadow.',
+    example: 'Your pair sits beside the gem: the slices\x27 diamond cut runs clean through the dark backing, and "HILTON HOTELS" sits right-aligned above, short of your YOU chip.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailDuosPlate.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-DUOS-MATE-READY-01',
+    title: 'Duos on the Docked rail: your teammate readying up in the shop slams their slice, which then stays green with a check',
+    statement:
+      'In Versus Duos and Ranked Duos, while your teammate is Locked in during the shop their Docked rail slice has a green '
+      + 'edge and glow and a round green check chip on its top-right corner (in place of their Locked in pill). The moment '
+      + 'they lock in (seen happen, not a lock already set when the rail first shows them) plays once: the rune arrival\x27s '
+      + 'implosion in green on the slice, the owner ding (the loudest of the three, on its own fader), the rune arrival sound (the rune landing in its socket) and an impact thud, and a short punch of the slice. Unlocking '
+      + 'clears it; locking again plays it again. The fight screen never shows it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02', quote: 'i want to also add an animation when your teammate readies up during the shop round. i want to copy the rune select "slam" effect when the rune is applied to their slot, but their lobby rail card should go "CHING!" and thud and glow green with a green check mark icon in the top corner of their rail' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02', quote: 'i want the rune select sound when it slams into the rune socket on turn 6' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02, with dragon-studio-ding-sfx-472366.mp3', quote: 'can we layer this in, cut out the empty space of it first, then have this louder than the other two sounds?' },
+      { kind: 'fix-pr', ref: 'PR fix/duos-rail-polish (2026-11-02)' },
+      { kind: 'code', ref: 'packages/ui/src/versus/mateReadySlam.ts (playMateReadySlam); packages/ui/src/LobbyPanel.tsx (mateReady, .mate-ready, .lrv-ready); packages/ui/src/lobbyRailDocked.css (lrvReadySlam)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-11-02. Before, the teammate locking in only swapped a small Locked in pill onto their slice.',
+    example: 'Mid-shop, Rayse presses End Turn: their slice punches in under a green burst with a CHING and a thud, then sits green with a check until the fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailMateReady.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-RAIL-CHIP-TOP-01',
+    title: 'The Docked rail\x27s corner chips (YOU, the next foe\x27s swords, the teammate\x27s ready check) are drawn above every other rail piece',
+    statement:
+      'On the Docked lobby rail, a round corner chip on a slice (YOU, the next foe\x27s crossed swords, the Duos teammate\x27s ready '
+      + 'check) is never covered by another rail piece: not the placement column beside it, not a neighbouring slice. Every mode.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02, with a screenshot of the YOU and ready chips under the placement column', quote: 'these icon circles need to be above the rest of the rail UI elements, not behind' },
+      { kind: 'fix-pr', ref: 'PR fix/duos-rail-polish (2026-11-02)' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyRailDocked.css (.lobbyseat:is(.you.foe.ghost.dead, *):has(> .lrv-you, > .lrv-vs, > .lrv-ready) z-index 3)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-11-02. Before, a slice was its own stacking context at z 1, so its chip sat under the placement column (z 2) where the two overlap.',
+    example: 'Your slice beside the placement column: the teal YOU circle overlaps the column\x27s edge and is drawn over it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailDuosPlate.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-COMPENDIUM-GUIDES-FILTER-01',
+    title: 'The Compendium\x27s Guides view always shows the guides\x27 own tribe filter, whatever rail tab was lit before it',
+    statement:
+      'With Guides open, the filter row\x27s middle carries the guides\x27 tribe pills (All, the set\x27s tribes, Neutral). '
+      + 'A rail tab that was lit before Guides opened (Runes, say) never swaps in its own filters there while Guides is up.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (the menu revamp)', quote: 'make sure this is a 14/10 experience and extremely clean' },
+      { kind: 'code', ref: 'packages/ui/src/MinionBook.tsx (the filter row\x27s chart: guidesOn is checked before the Runes tab)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-02 (fix/compendium-guides-filter). Before: with Runes picked and then Guides opened, the row showed "runes by tribe" and the forge pills under the guides.',
+    example: 'Ann opens Runes in the Compendium, then the Guides view. The row reads "guides by tribe" with All, Beasts, Demons ... and Neutral.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumGuidesFilter.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-RAIL-SCOUT-DELAY-01',
+    title: 'The game board comes first: a lobby rail seat opens its hover card only after a held 1 second hover (or a click); then the rail is warm until the pointer leaves it',
+    statement:
+      "Passing the pointer over the lobby rail never pops a seat's hover card: the card opens only after the pointer has stayed "
+      + 'on that one seat for 1 second, and leaving the seat before then opens nothing (sweeping down the rail opens nothing). '
+      + "A click opens it at once (an opponent's card pins, as before; your own seat's card opens). Once a hover card is up "
+      + "the rail is warm: moving onto another seat opens that seat's card at once. The pointer leaving the rail, the card and the "
+      + 'strip between the card and its seat closes the card at once (no grace), and the rail is cold again. Every mode with the rail.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02', quote: 'we need to make sure the game board elements are always prioritized over the lobby rail. right now its too easy to accidentally hover over the lobby rail and have their info pop up unnecessarily. lets make it so hovering requires 1 second of hovering before the hero card shows up. or you can click it to immediately open it' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-11-02 (after trying it)', quote: 'when hovering ANY element for 1 second, then the lobby rail hover should be immediate as you continue to mouse over other heroes. mousing off the rail and/or off the hero card sould IMMEDIATELY close it' },
+      { kind: 'fix-pr', ref: 'PR fix/rail-hover-delay (2026-11-02)' },
+      { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (openScout: cold arms openTimer for SCOUT_OPEN_DELAY_MS, warm opens at once; leaveScout + the move check close outside zoneFor; showScout on a click)' },
+    ],
+    currentBehaviour:
+      "Conforms as of 2026-11-02. Before, a seat's card opened the instant the pointer entered it and closed 160 ms after it left. The zone "
+      + 'is measured once per open card (the rail as the box around its seats, the card, the strip), never per move; the scenario pins the timing and the '
+      + 'seat/card hand-offs, not the strip geometry (jsdom has no layout). The Duos teammate\'s seat '
+      + 'keeps its click for watching their board; its card opens on the held hover or a right-click pin.',
+    example: "Dragging a minion past the rail's edge brushes Rayse's seat for half a second: no card. Resting on Rayse for a second opens their card; clicking Rayse opens it straight away.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailScoutDelay.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-RAIL-HERO-SHORTNAME-01',
+    title: 'The lobby rail may print a shorter hero name; every other surface keeps the full name',
+    statement:
+      'When the lobby rail labels a slice with its hero, it prints that hero\x27s short rail name if the hero has one, and '
+      + 'the full name otherwise. Today Keshi the Protector reads Keshi and Lord of the Risen reads Risen; every other hero '
+      + '(Emerald Warden, Foreman Flint, Frantic Frank and Disco Dan included) keeps its full name on the rail. Hero select, '
+      + 'the rail\x27s hover / scout card, tooltips, match details and every other surface always show the full name.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02', quote: 'Emerald Warden is fine as is. lets just adjust lord of risen to risen and keshi th eprotector to keshi, the rest seem fin' },
+      { kind: 'code', ref: 'packages/ui/src/railHeroName.ts (RAIL_HERO_NAMES, railHeroName); packages/ui/src/LobbyPanel.tsx (the slice label)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-02 (feat/rail-hero-short-names). Before it, the rail printed every hero\x27s full name.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/railHeroName.test.ts', 'packages/ui/src/lobbyRailDockedModes.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-PROG-SKINS-22',
+    title: 'Skins batch 14: eight minion skins for Set 2 shop minions that had none join the crates at their folder rarity',
+    statement:
+      'Eight minion skins are crate items, each targeting one card by stable id and shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, at the rarity of the Minion Skins folder its master sits in (R-PROG-SKINS-11). '
+      + 'Common: Scribble Kobebes. Rare: Treasure Kobebes, Gargoyle Todd, Scribble Big Huggies, Scribble Humphry, Serverchef (Cinderchef), Toast Gary Toast. Epic: Scribble Daniel (Drunk Daniel). '
+      + 'With them in, a first crate holds 53 Common, 104 Rare, 97 Epic, 89 Legendary and 31 Ancient items (each Common '
+      + '0.66%, Rare 0.298%, Epic 0.227%, Legendary 0.101%, Ancient 0.097%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-02 (skins batch 14)', quote: 'awesome i added new cosmetics to the minions folder' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 14); packages/ui/src/art/skins/ (8 new webps)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-02 (feat/skins-batch-scribble). One name differs from its filename to pass the catalog name rules (cosmetics.test.ts): Scribble Drunk Daniel -> Scribble Daniel (20 characters max). Serverchef.png was matched to Cinderchef from its art (a tennis-playing dragon chef). Both are Claude\x27s calls for the owner to confirm. Reaches the database on the next deploy of progression-inventory.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-LOBBY-PICKER-VIEWER-01',
+    title: 'A recorded lobby calls its player You only when you are that player',
+    statement:
+      'A finished game\x27s lobby (the seat tiles under an open game, and the Showing line over its board) marks the seat of the player '
+      + 'who recorded the game. That seat reads You, and the board line Your board, only when the viewer is that player (their own Career '
+      + 'or their own row in Recent Games). Viewing anyone else\x27s game, that seat shows its recorded name like every other seat, the '
+      + 'board line reads "<name>\x27s board", Back returns to "<name>\x27s", and the seat that knocked them out says it knocked <name> out.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner critic via the lead, 2026-11-02', quote: 'viewing IonLime\x27s game labels the lobby winner "1st Winner You" and says "Showing Your board"' },
+      { kind: 'code', ref: 'packages/ui/src/matchDetails/LobbyPicker.tsx (seatName, ownerNameOf, ShowingLine own, LobbyTiles own)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-02 (fix/lobby-picker-you). Before: the recorded seat always read You and the board line Your board, whoever was viewing.',
+    example: 'VerdantBear35 opens IonLime\x27s win in Recent Games: the lobby\x27s first tile reads "1st Winner IonLime" and the board line "IonLime\x27s board". Opening his own game, his seat reads You.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/lobbyPickerViewer.test.tsx', 'packages/ui/src/ladderPages.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-CARDNAME-FILTER-NOSCROLL-01',
+    title: 'The hidden gilded card-name filter never adds page scroll',
+    statement:
+      'The invisible SVG that holds the gilded card-name filters is pinned to the top left corner of the stage (fixed, top 0, '
+      + 'left 0, overflow hidden, no pointer events), so it never sits at the end of the page flow and never lengthens a page or '
+      + 'adds a scrollbar, on any screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Lead via the info-pages builder, 2026-11-02', quote: 'the gilded card-name hidden SVG filter element has no top/left so it can add page scroll' },
+      { kind: 'code', ref: 'packages/ui/src/cardNameFilter.ts (cardNameFilter: the defs svg)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-02 (fix/card-name-filter-svg-scroll). Before: position absolute with no top / left, so the svg sat at the end of the stage content.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardNameFilter.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-SPECTATE-CURSOR-LAYER-01',
+    title: "A watched player's cursor paints over the whole HUD, the Equipment slot included",
+    statement:
+      'On every spectate path (the Versus and Duos stands, a Live Games watch, a replay with a recorded stream) the watched '
+      + 'player\x27s hand is drawn by ONE layer at the app root, never inside the game box (which is its own stacking layer '
+      + 'in the shop, under the hero cluster). It paints above the hero portrait, the hero power, the Equipment slot, the '
+      + 'lobby rail, the hand and the teammate portrait, under the replay transport and the full-screen pages, and it never '
+      + 'takes a click.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live spectating Versus / Duos)', quote: 'bug with spectating - mouse goes under equipment it looks like' },
+      { kind: 'code', ref: 'packages/ui/src/versus/SpectatorCursorLayer.tsx; packages/ui/src/Game.tsx' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-03 (fix/spectator-duos-layer). Before, the Versus stands drew the hand from the spectator bar inside the shop screen, so in the shop it slid under the Equipment slot and the hero power.',
+    example: 'The watched player rests their mouse on their Bloodpot. The spectator sees the gauntlet on top of the Bloodpot, not behind it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorDuos.test.tsx'], lastVerifiedAt: '2026-11-03' },
+  },
+  {
+    id: 'R-SPECTATE-DUOS-PASS-01',
+    title: 'The stands see every Duos pass the watched player sees, sends and arrivals',
+    statement:
+      'A spectator plays the same pass streams as the watched player\x27s screen, from the frames they receive: a drag pass '
+      + 'dissolves where the card was let go and streams into the teammate portrait (with its coin when it cost Gold), an '
+      + 'effect pass streams from what sent it (a Discover option, a played spell, the card that sent it, a rune, the '
+      + 'Equipment), a fight\x27s gift streams from the unit that sent it on the same beat of the fight, and a pass that lands '
+      + 'in the watched hand streams out of the teammate portrait into its slot. Each plays once; a pass that completes a '
+      + 'triple shows the Gild instead, as for the player.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live spectating Duos)', quote: 'im spectating and antsy died and i didnt see the pass animation' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectatorPasses.ts; packages/ui/src/versus/spectate.ts (watchedPassFlights, presentHeldDrop); packages/ui/src/versus/duosCombat.tsx' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-03 (fix/spectator-duos-layer). Before, only a seated player\x27s own pass transport played the streams, so a spectator saw cards vanish and appear with no stream at all.',
+    example: 'Antsy dies in the watched player\x27s fight and gives their teammate a card. On that beat the spectator sees the stream leave Antsy and land on the teammate portrait.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorDuos.test.tsx'], lastVerifiedAt: '2026-11-03' },
+  },
+  {
+    id: 'R-SPECTATE-DUOS-TEAMNAMES-01',
+    title: 'A spectator sees the Duos team names on the rail, read from the watched player\x27s side',
+    statement:
+      'In Ranked Duos the lobby rail names every team for the stands exactly as for the watched player: the same names on '
+      + 'the same team slots. A spectator has no seat, so the names are laid out from the watched player\x27s seat.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live spectating Duos)', quote: 'i also dont see the team names of the duos' },
+      { kind: 'code', ref: 'packages/ui/src/LobbyPanel.tsx (rankedMe falls back to the watched seat)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-03 (fix/spectator-duos-layer). Before, the names were read only from the viewer\x27s own seat, and a spectator has none, so the rail showed no names.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorDuos.test.tsx'], lastVerifiedAt: '2026-11-03' },
+  },
+  {
+    id: 'R-SPECTATE-DUOS-MATEDOCK-01',
+    title: "A spectator sees the watched player's teammate portrait, bottom right",
+    statement:
+      'Watching a Duos player (Versus Duos or Ranked Duos), the stands show that player\x27s teammate portrait where the '
+      + 'player sees it, in the shop and the fight: the same face and frame, the "still working" glow, the tier-up burst, '
+      + 'Away, the tag-in copy over the hero when the teammate\x27s board fights, and the waiting-cards pill. It switches with '
+      + 'the watched player. It is only a face for the stands (no click, no pass target). In Duos the stands\x27 player switcher '
+      + 'sits along the top edge so it never covers the portrait.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (live spectating Duos)', quote: 'im realizing i dont see the teammate portrait at all as a spec' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (stands); packages/ui/src/versus/SpectatorBar.tsx; packages/ui/src/versus/spectate.ts (noteMateFrame for the stands)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-03 (fix/spectator-duos-layer). Before, the portrait was drawn only for a seated player.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorDuos.test.tsx'], lastVerifiedAt: '2026-11-03' },
+  },
+  {
+    id: 'R-LOBBY-TILE-STRENGTH-01',
+    title: 'A lobby tile in a game card shows its Game strength by darkening on hover, never with a tip bubble',
+    statement:
+      'Hovering (or tapping) a seat tile in a game card\x27s lobby darkens that tile and prints "Game strength: X" over it. '
+      + 'No tip bubble opens under the tile. A seat with no Game strength shows no overlay.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-03', quote: 'this thumbnail is unessecary, lets just darken the card and put Game Strength: X overlaid on top when hovering' },
+      { kind: 'code', ref: 'packages/ui/src/matchDetails/LobbyPicker.tsx (LobbyTiles: .lp-tile-strength); packages/ui/src/styles.css (.lp-tile-strength)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-03 (fix/lobby-tile-strength-overlay). Before, hovering a tile opened a bubble under it ("Out in round 11. '
+      + 'Game strength 18." plus Health and "Knocked you out"). The tile itself still shows the round out and the KO sword; the '
+      + 'screen-reader label keeps the full sentence. The scenario pins the overlay text and the missing bubble, not the hover '
+      + 'opacity (jsdom has no hover).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/matchDetails.test.tsx'], lastVerifiedAt: '2026-11-03' },
   },
 ];

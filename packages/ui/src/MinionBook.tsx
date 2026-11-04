@@ -833,7 +833,35 @@ export function MinionBook() {
             Duos
           </button>
           <div className="book-chart" role="group" aria-label={`${chartNoun} by tier`}>
-            {cats.has('runes') ? (
+            {/* Guides first: a rail tab left lit under the Guides view must not swap in its own filters (R-COMPENDIUM-GUIDES-FILTER-01). */}
+            {guidesOn ? (
+              /* Guides aren't tiered: the chart space carries their tribe filter, like the Runes tab's. */
+              <div className="book-runetribes" role="group" aria-label="Filter guides by tribe">
+                <span className="book-chart-cap">guides by tribe</span>
+                <button
+                  className={`book-runetribe${guideTribes.size === 0 ? ' on' : ''}`}
+                  style={{ '--c': 'var(--ui-title)' } as CSSProperties}
+                  onClick={() => setGuideTribes(new Set())}
+                  aria-pressed={guideTribes.size === 0}
+                  aria-label="Every guide"
+                >
+                  <img className="book-guides-all" decoding="sync" src={`${import.meta.env.BASE_URL}menu/guides.webp`} alt="" draggable={false} />
+                  <span>All</span>
+                </button>
+                {[...tribes, 'neutral' as Tribe].map((t) => (
+                  <button
+                    key={t}
+                    className={`book-runetribe${guideTribes.has(t) ? ' on' : ''}`}
+                    style={{ '--c': `var(--t-${t})` } as CSSProperties}
+                    onClick={() => setGuideTribes((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; })}
+                    aria-pressed={guideTribes.has(t)}
+                    aria-label={t === 'neutral' ? 'Neutral guides' : `${CAT_META[t].label} guides`}
+                  >
+                    <span>{CAT_META[t].label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : cats.has('runes') ? (
               /* Runes aren't tiered — the chart space carries the tribe filter instead (owner ask 2026-09-18). */
               <div className="book-runetribes" role="group" aria-label="Filter runes by tribe">
                 <span className="book-chart-cap">runes by tribe</span>
@@ -862,33 +890,6 @@ export function MinionBook() {
                     aria-label={f === 'epic' ? 'Epic runes' : 'Basic runes'}
                   >
                     <span>{f === 'epic' ? 'Epic' : 'Basic'}</span>
-                  </button>
-                ))}
-              </div>
-            ) : guidesOn ? (
-              /* Guides aren't tiered: the chart space carries their tribe filter, like the Runes tab's. */
-              <div className="book-runetribes" role="group" aria-label="Filter guides by tribe">
-                <span className="book-chart-cap">guides by tribe</span>
-                <button
-                  className={`book-runetribe${guideTribes.size === 0 ? ' on' : ''}`}
-                  style={{ '--c': 'var(--ui-title)' } as CSSProperties}
-                  onClick={() => setGuideTribes(new Set())}
-                  aria-pressed={guideTribes.size === 0}
-                  aria-label="Every guide"
-                >
-                  <img className="book-guides-all" decoding="sync" src={`${import.meta.env.BASE_URL}menu/guides.webp`} alt="" draggable={false} />
-                  <span>All</span>
-                </button>
-                {[...tribes, 'neutral' as Tribe].map((t) => (
-                  <button
-                    key={t}
-                    className={`book-runetribe${guideTribes.has(t) ? ' on' : ''}`}
-                    style={{ '--c': `var(--t-${t})` } as CSSProperties}
-                    onClick={() => setGuideTribes((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; })}
-                    aria-pressed={guideTribes.has(t)}
-                    aria-label={t === 'neutral' ? 'Neutral guides' : `${CAT_META[t].label} guides`}
-                  >
-                    <span>{CAT_META[t].label}</span>
                   </button>
                 ))}
               </div>

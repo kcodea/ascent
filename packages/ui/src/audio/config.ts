@@ -36,6 +36,9 @@ export const CATEGORY_GAINS: Record<string, number> = {
   felSpikeEcho: 0.5, felSpikeEchoLand: 0.5,
   uihover: 0.08,
   runeArrival: 0.6,
+  // The Duos teammate-ready ding (owner 2026-11-02: "have this louder than the other two"): its own fader, over the
+  // rune arrival it plays with (played at half there) and the thud.
+  mateready: 1,
   // Clips that used to ride the generic `ui` fallback (0.6) with no fader of their own — seeded at that exact
   // level so the mix is unchanged; now visible/tunable. `ceremony` bundles the hero-select stingers.
   ceremony: 0.6, auctioneerhp: 0.6, runeselect: 0.6,
@@ -105,6 +108,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   cardVoice: 'voice', cardEffect: 'voice', cardDeath: 'voice',
   heroSelect: 'hero', heroPower: 'hero',
   runeArrival: 'ui',
+  mateready: 'ui',
   // Bus routing is inert today (every bus is gain 1, no comp), so this only changes where they GROUP on the
   // desk, not the sound: the hero-select stingers + the Auctioneer power sit on the hero bus, rune-select on ui.
   ceremony: 'hero', auctioneerhp: 'hero', runeselect: 'ui',
@@ -134,6 +138,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
  */
 export const CATEGORY_LABEL: Record<string, string> = {
   runeArrival: 'Rune arrival — implosion on the badge',
+  mateready: 'Duos — teammate ready ding',
   ceremony: 'Ceremony — hero-select stingers',
   auctioneerhp: 'Auctioneer — hero power',
   runeselect: 'Rune select — frame clang',

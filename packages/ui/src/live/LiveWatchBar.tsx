@@ -8,7 +8,6 @@
  */
 import { sfx } from '../sfx';
 import { useGame } from '../store';
-import { SpectatorCursor } from '../versus/SpectatorCursor';
 import { SpectatorSelf, WatchedPanel } from '../versus/SpectatorHud';
 import { useSpectate } from '../versus/spectate';
 import { leaveLiveGame, useLiveWatch } from './liveWatch';
@@ -24,7 +23,6 @@ export function LiveWatchBar(): JSX.Element | null {
   if (!game || !active || versusScreen) return null;
   return (
     <>
-      <SpectatorCursor />
       {/* Me, as a spectator, top left; the one player I watch, compact, bottom right (R-SPECTATE-HUD-01). */}
       <SpectatorSelf onLeave={leaveToList} />
       <WatchedPanel single={{ name: game.display_name, divisionIndex: game.division_index, rankPoints: game.rank_points }} />

@@ -24,6 +24,7 @@
 const { Menu, app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { isRemoteNetworkError } = require('./smokeClassify.cjs');
 
 // ── SMOKE MODE (scripts/release-desktop.mjs) ──────────────────────────────────────────────────────────────
 // `ASCENT_SMOKE=1` turns the shell into a self-check of the packaged bundle: a windowed (not fullscreen) boot
@@ -129,10 +130,10 @@ function runSmoke(win) {
     else console.log(JSON.stringify(report, null, 2));
     app.exit(ok ? 0 : 1);
   };
-  win.webContents.on('console-message', (_e, level, message) => {
+  win.webContents.on('console-message', (_e, level, message, _line, sourceId) => {
     if (level < 3) return; // 3 = error
     // A cross-origin network refusal (CORS-blocked / net::ERR_* against a non-app:// URL) is the network's doing, not a defect in the build.
-    const network = (/blocked by CORS policy/.test(message) && !message.includes("fetch at 'app:")) || (/net::ERR_/.test(message) && !message.includes('app:'));
+    const network = isRemoteNetworkError(message, sourceId);
     (network ? smoke.networkErrors : smoke.consoleErrors).push(message);
   });
   win.webContents.on('did-fail-load', (_e, code, desc) => { smoke.consoleErrors.push(`did-fail-load ${code} ${desc}`); void finish(false); });

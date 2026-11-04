@@ -47,8 +47,7 @@ const PhSettings = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/Ph
  *  (`gameMenuParts.tsx`). Mounted only while open (the store's `settingsOpen`), like every page. */
 export function SettingsPage() {
   const show = useGame((s) => s.settingsOpen);
-  const inGame = useGame((s) => s.gameMenuOpen);
-  const shell = usePartyHome() && !inGame;
+  const shell = usePartyHome();
   if (!show) return null;
   // THE APP SHELL (party home prototype, DEV switch): the top nav (MenuSidebar swaps it in) over the shell's own page.
   if (shell && PhSettings) {

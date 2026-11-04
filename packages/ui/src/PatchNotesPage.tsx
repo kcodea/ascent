@@ -21,8 +21,7 @@ const PhPatchNotes = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/
 
 export function PatchNotesPage() {
   const show = useGame((s) => s.showPatchNotes);
-  const inGame = useGame((s) => s.gameMenuOpen);
-  const shell = usePartyHome() && !inGame && !!PhPatchNotes;
+  const shell = usePartyHome() && !!PhPatchNotes;
   if (!show) return null;
   // THE APP SHELL (party home prototype, DEV switch): the top nav (MenuSidebar swaps it in) over the shell's own page.
   if (shell && PhPatchNotes) {

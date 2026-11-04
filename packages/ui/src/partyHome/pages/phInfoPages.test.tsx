@@ -2,8 +2,8 @@
 /**
  * THE INFO PAGES UNDER THE APP SHELL (party home prototype, DEV only; feat/ph-page-info): Patch Notes, Settings and the
  * Compendium in the shell's kit. Pins:
- *  - each page swaps in its shell version ONLY while the switch is on and the player is on the menus; switch off (or in
- *    the in-game menu) the old page renders exactly as before;
+ *  - each page swaps in its shell version ONLY while the switch is on, on the menus and from the in-game menu; switch off
+ *    the old page renders exactly as before;
  *  - Patch Notes keeps both tabs, Summary / Detailed and newest-first, adds a patch index and a search (that also reads
  *    the details, and opens them when the match is only there);
  *  - Settings in the shell carries EVERY setting the old panel has (a parity check over switches and sliders), wired to
@@ -51,7 +51,7 @@ afterEach(() => {
 });
 
 describe('the gate: shell pages only with the switch on, on the menus', () => {
-  it('Patch Notes: shell page with the switch on; the old body with it off or in a game', async () => {
+  it('Patch Notes: shell page with the switch on, in a game too; the old body with it off', async () => {
     act(() => { setPartyHome(true); useGame.setState({ showPatchNotes: true } as never); });
     ui = mount(<PatchNotesPage />);
     await settle('.phpn');
@@ -60,9 +60,8 @@ describe('the gate: shell pages only with the switch on, on the menus', () => {
     ui.unmount();
     act(() => { useGame.setState({ gameMenuOpen: true } as never); });
     ui = mount(<PatchNotesPage />);
-    await settle('.pnpatch');
-    expect(ui.container.querySelector('.phpn'), 'in a game: the old page').toBeNull();
-    expect(ui.container.querySelector('.pnpatch')).not.toBeNull();
+    await settle('.phpn');
+    expect(ui.container.querySelector('.phpn'), 'from the in-game menu: the shell page too').not.toBeNull();
     ui.unmount();
     act(() => { setPartyHome(false); useGame.setState({ gameMenuOpen: false } as never); });
     ui = mount(<PatchNotesPage />);
@@ -77,7 +76,12 @@ describe('the gate: shell pages only with the switch on, on the menus', () => {
     expect(ui.container.querySelector('.set-page .phs')).not.toBeNull();
     expect(ui.container.querySelector('.escpanel')).toBeNull();
     ui.unmount();
-    act(() => { setPartyHome(false); });
+    act(() => { useGame.setState({ gameMenuOpen: true } as never); });
+    ui = mount(<SettingsPage />);
+    await settle('.phs');
+    expect(ui.container.querySelector('.phs'), 'from the in-game menu: the shell page too').not.toBeNull();
+    ui.unmount();
+    act(() => { setPartyHome(false); useGame.setState({ gameMenuOpen: false } as never); });
     ui = mount(<SettingsPage />);
     expect(ui.container.querySelector('.phs')).toBeNull();
     expect(ui.container.querySelector('.escpanel')).not.toBeNull();

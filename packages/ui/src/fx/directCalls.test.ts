@@ -1,9 +1,14 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, relative, sep } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { scanDirectCalls, isScannedSource } from './directCallScan';
 import { DIRECT_CALL_SITES, DYNAMIC_CALL_SITES, directCallSites, directCallDefIds } from './directCalls';
+
+// Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
+beforeAll(async () => {
+  await Promise.allSettled([import('./primitives'), import('./fxDefs')]);
+}, 60_000);
 
 /**
  * THE guard that makes `directCalls.ts` a derivation rather than a list.

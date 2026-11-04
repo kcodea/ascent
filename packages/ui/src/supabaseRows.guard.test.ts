@@ -12,10 +12,15 @@
  * Writes (`insert` / `update` / `upsert` / `delete`) are not reads and are skipped. A REST URL in the tools must not
  * ask for `limit=` above 1,000 either (the server would cut it).
  */
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { MAX_ROWS_PER_REQUEST, fetchAllRows } from './supabaseRows';
+
+// Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
+beforeAll(async () => {
+  await Promise.allSettled([import('./remoteBoards')]);
+}, 60_000);
 
 const root = join(__dirname, '../../..');
 const DIRS = ['packages/ui/src', 'apps/web/src', 'supabase/functions', 'packages/tools/src'];

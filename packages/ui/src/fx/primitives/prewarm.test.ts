@@ -1,4 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+
+// Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
+beforeAll(async () => {
+  await Promise.allSettled([import('../shapeTextures'), import('../particleLayerPool'), import('./index'), import('./ribbon'), import('./shockwave')]);
+}, 60_000);
 
 // The load-time warm-up's COMPOSITION: the shape bake (Pixi's batch-shader link — the measured 0.6 s
 // first-play freeze) must ride `prewarmFxMaterials` for the main canvas and `prewarmSlotRenderer` for the

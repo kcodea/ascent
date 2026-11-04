@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 /**
  * The DEV/production SPLIT for authored FX, pinned.
@@ -22,6 +22,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  * is `false`) is part of every case — without that assertion these would silently degrade into tests that
  * pass whatever the gates say.
  */
+
+// A fresh load per case is the point of this file, so even warm it costs a real evaluation inside the test: give it room.
+vi.setConfig({ testTimeout: 30_000 });
+
+// Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
+// (The reset keeps every case's fresh load, which the file header explains; only the transform work is done ahead.)
+beforeAll(async () => {
+  await Promise.allSettled([import('./fxDefs'), import('./playDef'), import('./primitives'), import('../choreo/bindings'), import('./registry'), import('./shapeLibrary'), import('./defStore')]);
+  vi.resetModules();
+}, 60_000);
 
 afterEach(() => {
   vi.unstubAllEnvs();

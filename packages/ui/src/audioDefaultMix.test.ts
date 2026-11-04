@@ -5,7 +5,17 @@
  * Music 0.2, Announcer 0.7). A player's OLD saved values (raw gains under the pre-curve keys) are not read: everyone
  * starts once on the new defaults, and a choice made after that sticks. Mutes are untouched.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// A fresh load per case is the point of this file, so even warm it costs a real evaluation inside the test: give it room.
+vi.setConfig({ testTimeout: 30_000 });
+
+// Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
+// (The reset keeps every test's own fresh load; only the transform work is done ahead.)
+beforeAll(async () => {
+  await Promise.allSettled([import('./sfx'), import('./music'), import('./announcer')]);
+  vi.resetModules();
+}, 60_000);
 
 async function coldLoad() {
   vi.resetModules();

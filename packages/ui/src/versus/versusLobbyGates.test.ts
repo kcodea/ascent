@@ -6,11 +6,16 @@
  * fight-ledger / Hall row, never run_history / rank, never a replay draft. Driven through the REAL store commit path:
  * a Versus End Turn parks the side, the server's fight lands, settles and resolves, round after round.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { makeRng } from '@game/core';
 import {
   createVersusRun, lobbyIsUnrated, reduce, resolveVersusFight, versusAutoResolve, versusLobby, type RunState, type VersusLobbyRound,
 } from '@game/sim';
+
+// Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
+beforeAll(async () => {
+  await Promise.allSettled([import('../store'), import('./versusHooks'), import('../replay/replayDraft'), import('../rank/ratedRun')]);
+}, 60_000);
 
 const remote = vi.hoisted(() => ({
   recordFightResult: vi.fn(async () => undefined), recordLobbyFights: vi.fn(async () => undefined), uploadBoards: vi.fn(async () => undefined),

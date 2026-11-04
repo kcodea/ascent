@@ -5,12 +5,17 @@
  * every guide the player owns, whatever its set or tribe (so one that did not carry over to this set can be found and
  * repaired), and a guide the lobby rail asked to edit opens the Compendium straight on Guides, in the editor.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { SETS, activeSet, type SetId } from '@game/content';
 import type { GuideRecord } from '@game/guides';
 import { mount, type Mounted } from '../renderedText.mount';
 import type { CommunityQuery } from './guidesRemote';
+
+// Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
+beforeAll(async () => {
+  await Promise.allSettled([import('../MinionBook'), import('../store'), import('../identity'), import('./guides'), import('./guidesStore')]);
+}, 60_000);
 
 let mineRows: GuideRecord[] = [];
 /** What the server holds as this player's bookmarks. */

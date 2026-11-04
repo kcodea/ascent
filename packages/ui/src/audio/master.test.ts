@@ -10,11 +10,16 @@
  * channel's output node to the destination multiplying the gains on the way: that product is the channel's
  * effective gain at the speakers.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   __resetMasterForTests, DEFAULT_MASTER, getMasterVolume, isMasterMuted, MASTER_MUTED_KEY, MASTER_VOLUME_KEY,
   masterLevel, masterOutput, masterSliderToGain, onMasterChange, setMasterVolume, toggleMasterMute,
 } from './master';
+
+// Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
+beforeAll(async () => {
+  await Promise.allSettled([import('../music'), import('../announcer'), import('../sfx')]);
+}, 60_000);
 
 // ── A recording fake AudioContext ──────────────────────────────────────────────────────────────────────────────
 interface FakeNode { kind: string; outs: FakeNode[]; gain?: { value: number }; connect(n: FakeNode): FakeNode; disconnect(): void }

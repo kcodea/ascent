@@ -285,3 +285,36 @@ html[data-touch-small] :is(.rgp, .lvp) .phk-moreitem { min-height: 40px; }
 .rgp .rgp-verdict.b-won { color: var(--rgp-won); } .rgp .rgp-verdict.b-top4 { color: var(--rgp-top4); } .rgp .rgp-verdict.b-lost { color: var(--rgp-lost); }
 .rgp-duos .dh-team.lp-won { --band: var(--rgp-won); } .rgp-duos .dh-team.lp-top4 { --band: var(--rgp-top4); } .rgp-duos .dh-team.lp-lost { --band: var(--rgp-lost); }
 .rgp .lp-won { --band: var(--rgp-won); } .rgp .lp-top4 { --band: var(--rgp-top4); } .rgp .lp-lost { --band: var(--rgp-lost); }
+
+/* ── THE PHONE, tightened (round 8 critic: the strip took too much of the screen, rows crowded, the board below the fold):
+   the page no longer scrolls as one. A slim one-line strip, then the list and the open game fill what is left and scroll
+   on their own. The list is wider so the hero name and the date both fit, and the open game's head is shorter so the
+   board sits in view. Page rules key on `.phk-page.rgp` (the Career hosts the same list and detail in its own page). ── */
+html[data-touch-small] .phk-page.rgp { gap: calc(8 * var(--phu)); padding-top: calc(12 * var(--phu)); }
+html[data-touch-small] .phk-page.rgp .phk-pagehead { align-items: center; padding-bottom: calc(6 * var(--phu)); }
+html[data-touch-small] .phk-page.rgp .phk-eyebrow { display: none; }
+html[data-touch-small] .phk-page.rgp .phk-pagebody { overflow: hidden; gap: calc(8 * var(--phu)); padding-bottom: calc(8 * var(--phu) + var(--safe-b, 0px)); }
+html[data-touch-small] .phk-page.rgp .rgp-split { flex: 1; height: auto; min-height: 0; }
+html[data-touch-small] .rgp-split { grid-template-columns: calc(460 * var(--phu)) minmax(0, 1fr); }
+html[data-touch-small] .rgp-strip { min-height: calc(64 * var(--phu)); grid-template-columns: auto calc(240 * var(--phu)) minmax(0, 1fr); }
+html[data-touch-small] .rgp-stats { gap: 0; padding: 0 calc(8 * var(--phu)); }
+html[data-touch-small] .rgp-stats .phk-stat { flex-direction: row; align-items: baseline; gap: calc(6 * var(--phu)); min-width: 0; padding: 0 calc(12 * var(--phu)); }
+html[data-touch-small] .rgp-stats .phk-statval { font-size: var(--ph-t3); }
+html[data-touch-small] .rgp-stats .phk-statsub, html[data-touch-small] .rgp-mostsub, html[data-touch-small] .rgp-spark > .rgp-k { display: none; }
+html[data-touch-small] .rgp-most { padding: 0 calc(16 * var(--phu)); gap: 0; }
+html[data-touch-small] .rgp-spark { padding: calc(6 * var(--phu)) calc(16 * var(--phu)) calc(6 * var(--phu)) calc(48 * var(--phu)); }
+html[data-touch-small] .rgp-sp-plot { min-height: calc(52 * var(--phu)); }
+html[data-touch-small] .rgp-gem { width: calc(14 * var(--phu)); height: calc(14 * var(--phu)); }
+html[data-touch-small] .rgp-gem.won { width: calc(15 * var(--phu)); height: calc(15 * var(--phu)); }
+html[data-touch-small] .rgp-gem.lost { width: calc(12 * var(--phu)); height: calc(12 * var(--phu)); }
+html[data-touch-small] .rgp-item { gap: calc(12 * var(--phu)); padding-right: calc(12 * var(--phu)); }
+html[data-touch-small] .rgp-itemend { min-width: 0; }
+/* The open game: a shorter head, so the board is on screen without a scroll. */
+html[data-touch-small] .rgp-banner { min-height: calc(84 * var(--phu)); padding: calc(8 * var(--phu)) calc(24 * var(--phu)); gap: calc(16 * var(--phu)); }
+html[data-touch-small] .rgp-ord.big { font-size: calc(40 * var(--phu)); }
+html[data-touch-small] .rgp-facts { padding: calc(8 * var(--phu)) calc(24 * var(--phu)) 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+html[data-touch-small] .rgp-facts .phk-stat { flex: none; flex-direction: row; align-items: baseline; gap: calc(6 * var(--phu)); padding: calc(4 * var(--phu)) calc(12 * var(--phu)); }
+html[data-touch-small] .rgp-facts .phk-statval { font-size: var(--ph-t2); }
+html[data-touch-small] .rgp-boardsec { gap: calc(4 * var(--phu)); padding: calc(4 * var(--phu)) calc(24 * var(--phu)) calc(8 * var(--phu)); }
+html[data-touch-small] .rgp .lp-hint { display: none; }
+html[data-touch-small] .rgp-lobby { padding: calc(8 * var(--phu)) calc(24 * var(--phu)) calc(24 * var(--phu)); }

@@ -479,7 +479,7 @@ describe('states', () => {
       ui = mount(<Career />);
       await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
       expect(ui.container.querySelector('.phk-tab.on')?.textContent).toBe('Match History');
-      expect(ui.container.querySelector('.phk-back')?.textContent).toContain('Back to game');
+      expect(ui.container.querySelector('.phk-back')?.textContent).toContain('Back to Recent Games');
       document.documentElement.setAttribute('data-ph-shell', '');
       act(() => { handleEscape(); });
       expect(useGame.getState().showCareer).toBe(false);

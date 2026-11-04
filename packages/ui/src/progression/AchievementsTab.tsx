@@ -194,7 +194,7 @@ export function AchievementsTab({ userId, own, ownerName, shell }: AchievementsT
           <section key={g.id || 'all'} className="ach-group" aria-label={g.label ?? current.label}>
             {g.label && <div className="ach-group-head">{g.label}</div>}
             <ul className="ach-grid">
-              {g.tiles.map((t) => <li key={t.def.id}><AchTile tile={t} /></li>)}
+              {g.tiles.map((t) => <li key={t.def.id}><AchTile tile={t} shell={shell} /></li>)}
             </ul>
           </section>
         ))}
@@ -204,7 +204,7 @@ export function AchievementsTab({ userId, own, ownerName, shell }: AchievementsT
 }
 
 /** One achievement. Static: nothing on it animates. */
-const AchTile = memo(function AchTile({ tile }: { tile: AchievementTile }): JSX.Element {
+const AchTile = memo(function AchTile({ tile, shell }: { tile: AchievementTile; shell?: boolean }): JSX.Element {
   const { def, completed, concealed, progress, legacy } = tile;
   if (concealed) {
     return (
@@ -226,7 +226,7 @@ const AchTile = memo(function AchTile({ tile }: { tile: AchievementTile }): JSX.
       {/* A title reward (the hero Titled and Mastery tiers, owner 2026-09-29), shown as it will be worn. */}
       {def.rewards.titleId && <div className="ach-tile-title"><span>Title</span><TitleBadge id={def.rewards.titleId} className="ach-titlebadge" /></div>}
       {/* A cosmetic reward (the Secret Plushie Plate, owner 2026-10-27): named only by its reward line, never shown. */}
-      {def.rewards.cosmeticId && <div className="ach-tile-title ach-tile-secret"><span>Reward</span><span className="ach-secret-reward">{UNIQUE_PLATE_REWARD_TEXT}</span></div>}
+      {def.rewards.cosmeticId && <div className="ach-tile-title ach-tile-secret"><span>Reward</span><span className="ach-secret-reward">{shell ? 'Unique card plate' : UNIQUE_PLATE_REWARD_TEXT}</span></div>}
       {pct !== null && (
         <div className="ach-prog" aria-label={`${progress} of ${def.target}`}>
           <div className="ach-prog-track"><div className="ach-prog-fill" style={{ transform: `scaleX(${pct})` }} /></div>

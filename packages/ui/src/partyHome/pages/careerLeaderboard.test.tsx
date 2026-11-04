@@ -135,9 +135,9 @@ describe('Career arrival and way back', () => {
     expect(m.container.querySelector('.phc-pg.arrive')).not.toBeNull();
     m.unmount();
   });
-  it('another player reached from a game has a Back to game', () => {
+  it('another player reached from Recent Games has a way back', () => {
     const onClick = vi.fn();
-    const m = mount(<PhCareer {...careerProps({ back: { label: 'Back to game', onClick } })} />);
+    const m = mount(<PhCareer {...careerProps({ back: { label: 'Back to Recent Games', onClick } })} />);
     act(() => { m.container.querySelector<HTMLButtonElement>('.phk-back')!.click(); });
     expect(onClick).toHaveBeenCalled();
     m.unmount();

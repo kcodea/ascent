@@ -883,8 +883,8 @@ export function Career() {
         <Suspense fallback={null}>
           <PhCareer
             key={userId ?? ''}
-            ready={!!pageState || (!loading && (tab !== 'practice' || practiceRows !== undefined) && (tab !== 'achievements' || !userId || achievementsSeen(userId, own)) && (!progressionOn || !!accountProgression))}
-            back={viewing?.from ? { label: viewing.from === 'recent' ? 'Back to game' : 'Back to Leaderboard', onClick: () => { sfx.pulse(); closeCareer(); } } : null}
+            ready={!!pageState || (!loading && (tab !== 'history' || !openRun || openRun.detailed || openRun.id === null || detailMiss.has(openRun.id)) && (tab !== 'practice' || practiceRows !== undefined) && (tab !== 'achievements' || !userId || achievementsSeen(userId, own)) && (!progressionOn || !!accountProgression))}
+            back={viewing?.from ? { label: viewing.from === 'recent' ? 'Back to Recent Games' : 'Back to Leaderboard', onClick: () => { sfx.pulse(); closeCareer(); } } : null}
             own={own}
             name={shownName}
             loading={loading}

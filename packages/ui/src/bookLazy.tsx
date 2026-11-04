@@ -28,7 +28,7 @@ const HAS_IO = typeof IntersectionObserver !== 'undefined';
 /** How many pending cells may mount in one frame. A plated card costs ~1-2 ms to mount in prod; two a frame keeps a fast fling under budget even at 240 Hz. */
 const MOUNTS_PER_FRAME = 2;
 
-function makeLazyRoot(root: HTMLElement): LazyRoot & { disconnect(): void } {
+function makeLazyRoot(root: HTMLElement, lookahead: string): LazyRoot & { disconnect(): void } {
   const mounts = new Map<Element, Mount>();
   const queue: Mount[] = [];
   let raf = 0;
@@ -47,7 +47,7 @@ function makeLazyRoot(root: HTMLElement): LazyRoot & { disconnect(): void } {
       queue.push(m);
     }
     if (queue.length && !raf) raf = requestAnimationFrame(drain);
-  }, { root, rootMargin: '200% 0px 200% 0px' });
+  }, { root, rootMargin: `${lookahead} 0px ${lookahead} 0px` });
   return {
     observe(el, mount) {
       mounts.set(el, mount);
@@ -59,8 +59,8 @@ function makeLazyRoot(root: HTMLElement): LazyRoot & { disconnect(): void } {
 }
 
 /** Provides the lazy root for the cells inside `root` (the gallery scroller). */
-export function LazyRootProvider({ root, children }: { root: HTMLElement | null; children: ReactNode }) {
-  const lazy = useMemo(() => (root && HAS_IO ? makeLazyRoot(root) : null), [root]);
+export function LazyRootProvider({ root, lookahead = '200%', children }: { root: HTMLElement | null; lookahead?: string; children: ReactNode }) {
+  const lazy = useMemo(() => (root && HAS_IO ? makeLazyRoot(root, lookahead) : null), [root, lookahead]);
   useEffect(() => () => lazy?.disconnect(), [lazy]);
   return <LazyRootCtx.Provider value={lazy}>{children}</LazyRootCtx.Provider>;
 }

@@ -111,6 +111,8 @@ export interface RoomStart {
   label: string;
   /** One line beside it (null = none). */
   note: string | null;
+  /** Nothing to press: the calm waiting plate, not a dimmed START. */
+  wait?: boolean;
 }
 export function roomStartOf(args: {
   mode: VersusRoomMode; status: VersusRoom['status']; seated: number; host: boolean; isPlayer: boolean;
@@ -130,9 +132,10 @@ export function roomStartOf(args: {
   if (seated < need) {
     const missing = need - seated;
     const who = mode === 'duel' ? 'an opponent' : missing === 1 ? 'one more player' : `${missing} more players`;
-    return { canStart: false, label: 'Start', note: mode === 'group' ? `Needs three or four players. Waiting for ${who}.` : `Waiting for ${who}.` };
+    const line = mode === 'group' ? `Needs three or four players. Waiting for ${who}.` : `Waiting for ${who}.`;
+    return host ? { canStart: false, label: 'Start', note: line } : { canStart: false, label: 'Waiting for players', note: line, wait: true };
   }
-  if (!host) return { canStart: false, label: 'Ready', note: 'The host starts the match.' };
+  if (!host) return { canStart: false, label: 'Waiting for host', note: null, wait: true };
   return { canStart: true, label: 'Start', note: mode === 'group' && seated < 4 ? 'A fourth player can still sit.' : null };
 }
 

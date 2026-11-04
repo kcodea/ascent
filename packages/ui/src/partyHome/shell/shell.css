@@ -268,3 +268,7 @@ html[data-ph-shell][data-ph-compact] { --ph-t1: calc(18 * var(--phu)); --ph-t2: 
 /* ── CRITIC ROUND 7 ── */
 .ph-friends.drawer, .ph-fcatch { top: calc(var(--ph-nav-h) + 10 * var(--phu)); }
 html[data-ph-compact] .ph-fadd .ph-finput { min-height: calc(64 * var(--phu)); }
+
+/* ── CRITIC ROUND 9 ── */
+/* One nav type on every screen: rounded title case. */
+html[data-ph-shell] .ph-top .ph-navtab, html[data-ph-shell] .ph-top .ph-navlbl { text-transform: none !important; }

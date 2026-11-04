@@ -465,3 +465,16 @@ html[data-ph-compact] .ph-art { -webkit-mask-image: linear-gradient(180deg, #000
 .ph-submode .phk-segrow, html[data-ph-shell] .ph-submode .phk-seg.s-l .phk-segrow { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; }
 .ph-submode .phk-seg.s-l .phk-segbtn { height: calc(52 * var(--phu)); font-size: var(--ph-t3); font-weight: 900; }
 .ph-submode .phk-segbtn.locked { opacity: 0.45; }
+
+/* ── CRITIC ROUND 9 ── */
+/* ONE CLOTH: the body shades down to the exact colour at the top of the painted tail: no seam, on any seat. */
+.ph-card-in::after { content: ''; position: absolute; inset: auto 0 0 0; height: 30%; z-index: 1; pointer-events: none; background: linear-gradient(180deg, transparent 0%, rgb(16 30 80) 100%); }
+.ph-cardwrap.open .ph-bfoot, .ph-cardwrap.pending .ph-bfoot { filter: none; }
+/* The rows sit lower, so the portrait owns the banner. */
+.ph-foot, .ph-foot:has(.ph-state) { padding-bottom: calc(4 * var(--phu)); }
+/* The leader chip keeps its crown alone on a phone; a word-only chip (Host) keeps its word. */
+html[data-ph-compact] .ph-lead > span { display: inline; }
+html[data-ph-compact] .ph-lead > svg + span { display: none; }
+/* The phone sheets: a soft foot says there is more; the close is a real target. */
+html[data-ph-compact] .ph-settings { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 40 * var(--phu)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 40 * var(--phu)), transparent); padding-bottom: calc(40 * var(--phu)); }
+html[data-ph-compact] .ph-sidepanel .ph-fclose { width: calc(72 * var(--phu)); height: calc(72 * var(--phu)); min-height: calc(72 * var(--phu)); flex: none; }

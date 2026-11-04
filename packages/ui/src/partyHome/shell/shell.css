@@ -216,7 +216,9 @@ html[data-ph-shell] .ph-top .ph-brand span { font-size: calc(22 * var(--phu)) !i
 html[data-ph-shell] .ph-top :is(.ph-coin b, .ph-lvnum) { font-family: var(--ph-name-font) !important; }
 /* LEGACY PAGE CONTENT on a phone under the shell: the old phone page rules size in screen points (--pt); here a point
    is the shell's own unit, so a page not yet rebuilt on the kit reads at the home's scale and never runs off the side. */
-html[data-ph-shell][data-ph-compact][data-touch-ui][data-touch-small][data-page-scale] { --pt: var(--phu); }
+/* `--pt` IS ONE REAL SCREEN POINT under the shell (one phone point = 620 / 390 = 1.6 units), so `calc(40 * var(--pt))` means a
+   true 40pt touch target. Page authors: size in --phu; use --pt only for a real-point floor; never use raw px on a phone. */
+html[data-ph-shell][data-ph-compact][data-touch-ui][data-touch-small][data-page-scale] { --pt: calc(1.6 * var(--phu)); }
 html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { overflow-x: hidden; }
 /* The friends drawer's outside-tap catcher (under the drawer, over the page). */
 .ph-fcatch { position: fixed; inset: 0; top: var(--ph-nav-h); z-index: 486; }

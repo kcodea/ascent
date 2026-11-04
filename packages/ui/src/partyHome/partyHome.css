@@ -373,7 +373,7 @@ html[data-ph-compact] .ph-cards { padding-top: calc(48 * var(--phu)); }
 .ph-sub { display: flex; align-items: center; justify-content: center; height: 1.4em; line-height: 1.4; }
 .ph-state { box-sizing: content-box; height: 1.3em; line-height: 1.3; }
 /* The pending seat's Cancel sits on the state strip. */
-.ph-cancelinv { position: absolute; left: 50%; translate: -50% 0; bottom: calc(14 * var(--phu)); z-index: 4; height: calc(32 * var(--phu)); padding: 0 calc(16 * var(--phu)); margin: 0; border: 0; border-radius: 999px;
+.ph-cancelinv { position: absolute; left: 50%; translate: -50% 0; bottom: 22%; z-index: 4; height: calc(32 * var(--phu)); padding: 0 calc(16 * var(--phu)); margin: 0; border: 0; border-radius: 999px;
   background: var(--ph-well); box-shadow: var(--ph-gild-s); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.06em; white-space: nowrap; }
 .ph-cancelinv:hover { background: var(--ph-plate-hover); }
 /* The notes beside START: the mode's hint, then (when it applies) the server's one calm line. */
@@ -388,7 +388,7 @@ html[data-ph-compact] :is(.ph-rank, .ph-sub, .ph-state, .ph-openlbl, .ph-opensub
 html[data-ph-compact] .ph-rank, html[data-ph-compact] .ph-rank:has(.ph-muted) { height: calc(36 * var(--phu)); padding-top: 0; padding-bottom: 0; }
 html[data-ph-compact] .ph-rank .rankcrest { --ring: calc(30 * var(--phu)); }
 html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { gap: calc(3 * var(--phu)); padding-bottom: calc(6 * var(--phu)); }
-html[data-ph-compact] .ph-cancelinv { min-height: calc(64 * var(--phu)); bottom: 0; font-size: calc(18 * var(--phu)); }
+html[data-ph-compact] .ph-cancelinv { min-height: calc(64 * var(--phu)); bottom: 18%; font-size: calc(18 * var(--phu)); }
 html[data-ph-compact] .ph-modes .phk-tabs { padding-right: calc(96 * var(--phu)); scroll-padding-right: calc(96 * var(--phu)); }
 html[data-ph-compact] .ph-cards { padding-top: calc(80 * var(--phu)); }
 html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 20 * var(--phu)); }

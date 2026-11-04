@@ -20,8 +20,9 @@ import type { Action, RunState } from './state';
  *  - `freeze`: owner 2026-07-21, Freeze is deliberately not gated on the clock.
  *  - `reposition` / `reorderShop` / `reorderHand` / `selectEquipment`: arrangement only, no Gold, no effect.
  *  - the modal answers (Discover, Choose One, aim, quest / power / Runeforge / Ancient picks, scout close): the
- *    clock is PAUSED while any of them is open, so they never start after 0:00; leaving them answerable means a
- *    legacy save can never strand one (the softlock class `endTurnSoftlock.test.ts` pins).
+ *    clock is PAUSED while any of them but the aim is open, so they never start after 0:00; leaving them answerable
+ *    means a legacy save can never strand one (the softlock class `endTurnSoftlock.test.ts` pins). The AIM is the
+ *    exception (owner 2026-11-03, R-TIMER-AIM-01): the clock runs under it, and 0:00 closes a held aim like a cancel.
  *  - the automatic transitions and display-only previews (combat flow, death settle, Thymepiece expiry, dev tools).
  *
  * REPLAYS stay deterministic by construction: the expiry is itself a recorded action, so a new recording replays
@@ -46,7 +47,7 @@ export const SHOP_CLOCK_POLICY: Record<Action['type'], 'open' | 'locked'> = {
   reorderShop: 'open',
   reorderHand: 'open',
   selectEquipment: 'open',
-  // Modal answers (the clock is paused while any is open).
+  // Modal answers (the clock is paused while any but an aim is open; see the note above).
   discover: 'open',
   chooseOne: 'open',
   cancelChoice: 'open',

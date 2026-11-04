@@ -49,6 +49,7 @@
     "perf:late": "tsx packages/tools/src/perf-late-game.ts",
     "perf:odds": "tsx packages/tools/src/perf-odds.ts",
     "perf:gauntlet": "tsx scripts/perf-gauntlet.mjs",
+    "perf:popin": "node scripts/perf-popin.mjs",
     "perf:phone-menus": "node scripts/phone-menu-memory.mjs",
     "perf:phone-play": "node scripts/phone-play-memory.mjs",
     "phone:preview": "node scripts/phone-preview.mjs",

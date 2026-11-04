@@ -3112,6 +3112,12 @@ export function simulate(
   const foodChainUsed: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** The body that spent this side's Food Chain chance, so a deferred one that overflows can hand it back. */
   const foodChainTaken = new WeakSet<Minion>();
+  /** Slots this side has taken: living bodies PLUS deferred summons still queued to land (an attacks-immediately
+   *  body sits on `pendingAttackOnSummon` until the next flush). Counting only the living let Living Echoes see the
+   *  same free slot three times and spend every charge at once, the extra Sunmanes then finding no room
+   *  (R-ECHOES-CHARGE-01, owner 2026-11-03). */
+  const slotsTaken = (side: Side): number =>
+    countLiving(side) + pendingAttackOnSummon.filter((q) => q.summon?.side === side).length;
   /**
    * Rune of the Brood / Rune of Living Echoes: while a side has an empty board slot, fill it.
    *
@@ -3125,7 +3131,7 @@ export function simulate(
       // right (the default append position). Same bounded once-per-cast shape as the Brood below.
       const decoys = modsFor(side).decoySigils ?? 0;
       const dummy = cards['trainingdummy'];
-      while (decoys > 0 && decoysSpent[side] < decoys && countLiving(side) < 7 && dummy) {
+      while (decoys > 0 && decoysSpent[side] < decoys && slotsTaken(side) < 7 && dummy) {
         decoysSpent[side] += 1;
         nextStep();
         emit({ type: 'sc', source: boards[side].find((m) => !m.dead)?.uid ?? '', text: 'Decoy Sigil deploys a Training Dummy', cast: true });
@@ -3133,14 +3139,14 @@ export function simulate(
       }
       const brood = modsFor(side).runeBrood ?? 0;
       const imp = cards['impscrap'];
-      while (brood > 0 && broodSpent[side] < brood && countLiving(side) < 7 && imp) {
+      while (brood > 0 && broodSpent[side] < brood && slotsTaken(side) < 7 && imp) {
         broodSpent[side] += 1;
         nextStep(); fireTrigger('runeBrood', side);
         summonMinion(side, imp, undefined, ['DS', 'T']);
       }
       const echoes = modsFor(side).runeLivingEchoes ?? 0;
       const herald = cards['b2_sunmane'];
-      while (echoes > 0 && echoesSpent[side] < echoes && countLiving(side) < 7 && herald) {
+      while (echoes > 0 && echoesSpent[side] < echoes && slotsTaken(side) < 7 && herald) {
         echoesSpent[side] += 1;
         nextStep(); fireTrigger('runeLivingEchoes', side);
         summonMinion(side, herald, undefined, undefined, false, true); // attacks immediately

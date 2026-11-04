@@ -47,7 +47,8 @@ const banTitleTooltips = {
 
 export default tseslint.config(
   // `apps/desktop/release/**` is packaged build output (a copy of main.cjs plus the whole Electron
-  // runtime) — linting it reports the same findings twice and would fail on vendored code.
+  // runtime) — linting it reports the same findings twice and would fail on vendored code. Same for
+  // `apps/desktop/build/**` (scripts/bundle-shell.mjs output, which inlines electron-updater).
   // `.claude/**` is per-machine agent tooling: locally-installed plugins/skills and worktrees, all
   // gitignored. CI never sees it, so linting it only produces errors in OUR shells that no PR can fix
   // (and that drown out real findings) — a dev with a plugin installed would get a red `npm run lint`
@@ -55,7 +56,7 @@ export default tseslint.config(
   // `supabase/functions/**` is Deno (remote URL imports, Deno globals) — not part of the Node monorepo build.
   // `.local/**` is gitignored local state (pulled bug reports, and the throwaway worktree `npm run docbot:retro`
   // creates while it runs) — a lint that overlaps a retro run must not report the throwaway's files.
-  { ignores: ['**/node_modules/**', '**/dist/**', '**/.wrangler/**', '**/*.tsbuildinfo', 'apps/desktop/release/**', '.claude/**', '.local/**', 'supabase/**'] },
+  { ignores: ['**/node_modules/**', '**/dist/**', '**/.wrangler/**', '**/*.tsbuildinfo', 'apps/desktop/release/**', 'apps/desktop/build/**', '.claude/**', '.local/**', 'supabase/**'] },
   ...tseslint.configs.recommended,
   {
     // Electron's main process is CommonJS: it is loaded by Electron itself, not bundled, so `require` is the

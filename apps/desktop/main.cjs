@@ -25,6 +25,7 @@ const { Menu, app, BrowserWindow, ipcMain, protocol, net, shell } = require('ele
 const path = require('node:path');
 const fs = require('node:fs');
 const { isRemoteNetworkError } = require('./smokeClassify.cjs');
+const { startUpdater } = require('./updater.cjs');
 
 // ── SMOKE MODE (scripts/release-desktop.mjs) ──────────────────────────────────────────────────────────────
 // `ASCENT_SMOKE=1` turns the shell into a self-check of the packaged bundle: a windowed (not fullscreen) boot
@@ -61,8 +62,9 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 // hostile in a game window. F11/F12 below replace the only two entries worth keeping.
 Menu.setApplicationMenu(null);
 
-function createWindow() {
-  const win = new BrowserWindow({
+/** The window options the game AND the "Installing update" screen share (only the preload differs). */
+function windowOptions(preload) {
+  return {
     // BORDERLESS FULLSCREEN by default. Electron's `fullscreen` on Windows is the borderless kind (it does not
     // take an exclusive display mode), which is what a game wants: no chrome, instant alt-tab. The width/height
     // below are the WINDOWED size — what you get after F11 or the Fullscreen toggle, never the initial state.
@@ -78,12 +80,16 @@ function createWindow() {
     icon: path.join(__dirname, 'icon.png'),
     show: false, // revealed on ready-to-show to avoid a blank window while the bundle boots
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, preload),
       contextIsolation: true,
       nodeIntegration: false, // the game is pure web code — it needs no Node, so don't hand it any
       backgroundThrottling: false, // pairs with the switches above
     },
-  });
+  };
+}
+
+function createWindow() {
+  const win = new BrowserWindow(windowOptions('preload.cjs'));
 
   // F11 escapes fullscreen — without it a borderless-fullscreen default is a trap (no title bar to click, and
   // Esc belongs to the in-game menu). F12 opens DevTools, which the removed menu used to provide and which a
@@ -197,7 +203,12 @@ app.whenReady().then(() => {
     });
   });
 
-  createWindow();
+  // The updater decides whether this launch installs a pending update (its own window, then a relaunch) or opens
+  // the game; when it is off (dev, smoke, the zip exe, ASCENT_NO_UPDATE=1) it just opens the game. See updater.cjs.
+  void startUpdater({
+    app, BrowserWindow, createGameWindow: createWindow,
+    windowOptions: windowOptions('updatingPreload.cjs'), updatingHtml: path.join(__dirname, 'updating.html'),
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

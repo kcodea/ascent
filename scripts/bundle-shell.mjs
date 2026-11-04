@@ -4,6 +4,7 @@
  *   node scripts/bundle-shell.mjs
  *     → apps/desktop/build/main.cjs      (esbuild bundle of apps/desktop/main.cjs; `electron` stays external)
  *     → apps/desktop/build/preload.cjs   (copied verbatim — it runs sandboxed and cannot be bundled with deps)
+ *     → apps/desktop/build/updatingPreload.cjs + updating.html + updating-logo.png  (the "Installing update" screen)
  *     → apps/desktop/build/icon.png      (the runtime window icon)
  *     → apps/desktop/build/package.json  (name / productName / version / main, so electron-builder reads the app dir)
  *
@@ -33,7 +34,9 @@ await build({
   logLevel: 'info',
 });
 
-for (const f of ['preload.cjs', 'icon.png']) copyFileSync(path.join(desktop, f), path.join(out, f));
+for (const f of ['preload.cjs', 'updatingPreload.cjs', 'updating.html', 'icon.png']) copyFileSync(path.join(desktop, f), path.join(out, f));
+// The installing screen's crest: the title screen's own logo, so updating.html needs nothing from the network.
+copyFileSync(path.join(root, 'apps', 'web', 'public', 'frames', 'title-logo.png'), path.join(out, 'updating-logo.png'));
 
 const version = JSON.parse(readFileSync(path.join(desktop, 'package.json'), 'utf8')).version;
 writeFileSync(

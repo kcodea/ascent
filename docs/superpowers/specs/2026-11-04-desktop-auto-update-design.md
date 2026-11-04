@@ -28,7 +28,7 @@ them what changed. Netlify goes away entirely. Steam is the long-term home, but 
 - Steam (later, its own project; see "Moving to Steam later").
 - Code signing (later). Friends click through one SmartScreen "unknown publisher" warning on first install only.
 - macOS / Linux builds. Windows only.
-- Deleting the web BUILD. `npm run build:web` stays (CI gate, dev server, tools, the Electron app bundles it).
+- Deleting the web build. `npm run build:web` stays (CI gate, dev server, tools, the Electron app bundles it).
   We only stop *publishing* it to Netlify.
 - A separate launcher window. The launcher's jobs (update, patch notes) live in the game's own boot + title screen.
 
@@ -113,7 +113,22 @@ The desktop app loads from the origin `app://ascent`. Today both Cloudflare Work
 `packages/ui/src/friends/dm/hubUrl.ts` explicitly gives `app://` no hub. So Versus and the friends hub are likely
 refused in the exe today. This project adds `app://ascent` to those allowlists (and to whatever origin-pattern
 parser they use), and verifies from the packaged exe that Versus matchmaking, a match, DMs and presence work.
-Once friends have moved over, the Netlify origin is removed from the lists.
+The Netlify origin is removed at cutover (see "Retiring Netlify").
+
+## Retiring Netlify
+
+Owner decision 2026-11-04: **take the Netlify site down**. There's no download page and no redirect. Order:
+1. The first "Ship Ascent" release is out, and Versus/hub/sign-in are confirmed working from the installed app.
+2. Mike sends friends the installer link.
+3. The owner takes the site down in the Netlify dashboard (it's their account). In the same cutover PR, the repo
+   stops referring to it:
+   - `https://ascent-game-web.netlify.app` removed from `ALLOWED_ORIGINS` (both tomls) and `HUB_PAGE_ORIGINS`,
+     keeping `app://ascent` + localhost.
+   - `npm run release:web` and its Netlify instructions in `CLAUDE.md` removed. The Versus/hub deploy logic it
+     contains moves into the ship command.
+   - The health check reads `release.json` from the latest GitHub Release (see above).
+
+People who only ever played in the browser lose access until they install the app. That's accepted.
 
 Accounts: email sign-in sends `emailRedirectTo` only for http(s) origins (`packages/ui/src/remoteBoards.ts`).
 The builder confirms sign-in works end-to-end in the exe (code entry rather than a link), and fixes it if not.

@@ -18,7 +18,7 @@ export function RuneInspect() {
   const view = useRuneInspect((s) => s.view);
   const forgeOpen = useGame((s) => !!s.run?.runeforgeOffer);
   const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => { if (view && !forgeOpen) closeRuneInspect(); }, [view, forgeOpen]);
+  useEffect(() => { if (view && !forgeOpen && !view.fromBook) closeRuneInspect(); }, [view, forgeOpen]);
   useEffect(() => {
     if (!view) return;
     const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') closeRuneInspect(); };
@@ -32,7 +32,7 @@ export function RuneInspect() {
     <div className="inspect-ov rune-inspect-ov" onClick={closeRuneInspect} onContextMenu={(e) => { e.preventDefault(); closeRuneInspect(); }} role="dialog" aria-label={`${view.rune.name}. Close to dismiss.`}>
       <div className="inspect-card rune-inspect" ref={ref} onClick={(e) => e.stopPropagation()}>
         <div className="rune-inspect-tablet">
-          <RuneCard rune={view.rune} cost={view.cost} duplicating={view.duplicating} affordable={view.affordable} onBuy={NOOP} />
+          <RuneCard rune={view.rune} cost={view.cost} duplicating={view.duplicating} affordable={view.affordable || !!view.fromBook} onBuy={NOOP} />
         </div>
         {rewards.length > 0 && (
           <div className="rune-inspect-rewards">

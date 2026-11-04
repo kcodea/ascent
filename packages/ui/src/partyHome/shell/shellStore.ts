@@ -33,13 +33,15 @@ export interface PhShellState {
   crates: boolean;
   /** Bumped by each Crates press, so a Collection page already open can switch to its shop. */
   cratesSeq: number;
+  /** The open drawer shows the mode's tab (opened from the mode pill), so the nav's Friends is not lit. */
+  drawerIsMode: boolean;
   /** The sample party's sent invites (DEV, no backend): their ids show "Invited" and a pending seat. */
   sampleInvites: readonly string[];
 }
 
 const NO_INVITE: PhInvite = { can: false, reason: null, members: [], modeLabel: '', send: null };
 
-export const usePhShell = create<PhShellState>(() => ({ friendsOpen: false, friendsPulse: 0, invite: NO_INVITE, collectionIntent: null, compendiumPage: null, crates: false, cratesSeq: 0, sampleInvites: [] }));
+export const usePhShell = create<PhShellState>(() => ({ friendsOpen: false, friendsPulse: 0, invite: NO_INVITE, collectionIntent: null, compendiumPage: null, crates: false, drawerIsMode: false, cratesSeq: 0, sampleInvites: [] }));
 /** Register the Compendium's page content (call once at module load; null removes it). */
 export const setCompendiumPage = (c: ComponentType | null): void => usePhShell.setState({ compendiumPage: c });
 
@@ -58,9 +60,10 @@ export function takeCollectionIntent(): 'shop' | null {
 
 /** The nav's Crates press: the Collection page opens on (or switches to) its crate shop; the Crates tab is lit. */
 export const openCrates = (): void => usePhShell.setState((s) => ({ crates: true, cratesSeq: s.cratesSeq + 1, collectionIntent: 'shop' }));
-export const leaveCrates = (): void => usePhShell.setState({ crates: false, collectionIntent: null });
+export const leaveCrates = (): void => usePhShell.setState({ crates: false, drawerIsMode: false, collectionIntent: null });
 /** The Collection page reports when it leaves its crate shop by itself (its own back), so the nav lights Collection again. */
 export const setCratesView = (on: boolean): void => usePhShell.setState({ crates: on });
 export const addSampleInvite = (id: string): void => usePhShell.setState((s) => ({ sampleInvites: s.sampleInvites.includes(id) ? s.sampleInvites : [...s.sampleInvites, id] }));
+export const setDrawerIsMode = (v: boolean): void => usePhShell.setState({ drawerIsMode: v });
 export const removeSampleInvite = (id: string): void => usePhShell.setState((s) => ({ sampleInvites: s.sampleInvites.filter((x) => x !== id) }));
 export const clearSampleInvites = (): void => usePhShell.setState({ sampleInvites: [] });

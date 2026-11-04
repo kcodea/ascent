@@ -7,15 +7,8 @@
 
 .ph { --fw: calc(368 * var(--phu)); position: absolute; inset: 0; z-index: 3; overflow: hidden;
   display: grid; grid-template-rows: auto auto 1fr; grid-template-columns: minmax(0, 1fr) var(--fw);
-  font-family: var(--ph-body); color: var(--ph-text); background: var(--ph-navy); }
-.ph > .mbd { z-index: 0; }
+  font-family: var(--ph-body); color: var(--ph-text); background: none; }
 .ph > .ph-top { grid-column: 1 / -1; min-width: 0; }
-.ph-citadel { position: absolute; inset: 0; z-index: 0; background-position: center; background-size: cover; pointer-events: none; }
-/* A calm navy grade: dark under the bars, open in the middle where the cards stand. Static. */
-.ph-veil { position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  background:
-    linear-gradient(180deg, rgba(6, 12, 28, 0.7) 0%, rgba(6, 12, 28, 0.2) 24%, rgba(6, 12, 28, 0.15) 60%, rgba(6, 12, 28, 0.85) 100%),
-    radial-gradient(70% 70% at 45% 50%, transparent 0%, rgba(4, 8, 20, 0.5) 100%); }
 
 /* ── MODE TABS + the one line on the mode (or why a tab is dimmed in a party) ── */
 .ph-modes { position: relative; z-index: 2; grid-column: 1; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(24 * var(--phu)) 0; min-width: 0; }
@@ -515,3 +508,21 @@ html[data-ph-compact] .ph-sub { display: none; }
 html[data-ph-compact] .ph-state { bottom: calc(2 * var(--phu)); }
 /* A greyed mode says why on the tab itself: the row does not scroll at desktop size, so the game's tip can show. */
 html[data-ph-shell]:not([data-ph-compact]) .ph-modes .phk-tabs { overflow: visible; position: relative; z-index: 4; }
+
+/* ON THE CITADEL: the art is brighter than the hall, so the home's words carry their own ground. */
+.ph-modes .phk-tab { text-shadow: var(--ph-shadow), 0 0 calc(6 * var(--phu)) rgba(4, 8, 20, 0.9); }
+.ph-modes .phk-tab.locked { opacity: 0.62; }
+.ph-desc, .ph-note { text-shadow: 0 calc(1 * var(--phu)) calc(3 * var(--phu)) rgba(0, 0, 0, 0.9), 0 0 calc(10 * var(--phu)) rgba(4, 8, 20, 0.85); }
+
+/* ── CRITIC ROUND 12 ── */
+/* The saved game keeps one slot, right of the head row, on every mode. */
+.ph-stagehead { position: relative; }
+.ph-stagehead > .ph-held, .ph-stagehead:not(:has(> .ph-team)) > .ph-held { grid-column: 3; justify-self: end; }
+html[data-ph-compact] .ph-stagehead > .ph-held { position: absolute; right: calc(16 * var(--phu)); top: 0; }
+/* The rules line is information, not a control. */
+.ph-team.info { background: none; box-shadow: none; padding: 0; }
+.ph-team.info .ph-teamlbl, .ph-team.info .ph-teamname { text-shadow: 0 calc(1 * var(--phu)) calc(3 * var(--phu)) rgba(0, 0, 0, 0.9); }
+/* The rows sit low on the cloth, the art comes down to meet them. */
+.ph-art { height: 84%; }
+.ph-foot, .ph-foot:has(.ph-state) { top: 73%; }
+

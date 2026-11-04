@@ -16,6 +16,7 @@
  *
  * All static paint; no native tooltips (aria-label + the game's `data-tip`); no own cursor (the gauntlet rule paints it).
  */
+import { markPhPage } from '../shell/PhPageGuard';
 import { isValidElement, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { rectToStage, stageHost } from '../../stage';
@@ -36,6 +37,7 @@ export function PhPage({ title, eyebrow, actions, tabs, wide, back, className, c
   const bodyRef = useRef<HTMLDivElement>(null);
   const lastTab = useRef(tabValue);
   const running = useRef<Animation[]>([]);
+  useLayoutEffect(() => markPhPage(), []);
   useLayoutEffect(() => {
     if (lastTab.current === tabValue) return;
     lastTab.current = tabValue;

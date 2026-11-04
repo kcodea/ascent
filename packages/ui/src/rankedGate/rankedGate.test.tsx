@@ -521,7 +521,7 @@ describe('what ships', () => {
     expect(lit, 'the lit copy only fades: it never scales').not.toMatch(/transform/);
     expect(noComments, 'its brightness is a static filter, not an animated one').toMatch(/\.rgate-crystal-lit \{[^}]*filter: brightness\(/);
     // The glint: masked to the crystal's own shape, on a slow cycle that is mostly rest.
-    expect(noComments).toMatch(/\.rgate-crystal-glint \{[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp'\)/);
+    expect(noComments).toMatch(/\.rgate-crystal-glint \{[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp\?mask'\)/);
     expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-glint::before \{[^}]*rg-cry-glint 4\.4s linear infinite/);
     expect(noComments).toMatch(/\.rgate\.is-armed \.rgate-crystal-twinkle \{[^}]*rg-cry-twinkle 4\.4s linear infinite/);
     expect(css).toMatch(/@keyframes rg-cry-glint \{\s*0%, 60% \{/);
@@ -564,13 +564,13 @@ describe('what ships', () => {
     expect(scales[scales.length - 1], 'to its full size, exactly').toBe(1);
     expect([...scales].slice(0, -1), 'growing all the way (the last step is only the settle)').toEqual([...scales].slice(0, -1).sort((a, b) => a - b));
     // The white face: a pure white fill in the crystal's own shape, full on until the last third.
-    expect(noComments).toMatch(/\.rgate-crystal-ply::before \{[^}]*background: #fff;[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp'\)/);
+    expect(noComments).toMatch(/\.rgate-crystal-ply::before \{[^}]*background: #fff;[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp\?mask'\)/);
     expect(noComments).toMatch(/\.rgate\.is-forming \.rgate-crystal-hot \{[^}]*rg-cry-cool var\(--rg-form/);
     expect(kf('rg-cry-cool')).toMatch(/0%, 66% \{ opacity: 1; \}\s*100% \{ opacity: 0; \}/);
     // Its heat is its OWN SHAPE, never a disc (owner 2026-10-13: "can we have the shape be the diamond instead of
     // a circle?"): a white fill masked to the crystal, blurred by its parent, and nothing round plays while forming.
     expect(noComments).toMatch(/\.rgate-crystal-heat \{[^}]*filter: blur\(/);
-    expect(noComments).toMatch(/\.rgate-crystal-heat::before \{[^}]*background: #fff;[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp'\)/);
+    expect(noComments).toMatch(/\.rgate-crystal-heat::before \{[^}]*background: #fff;[^}]*mask: url\('\/frames\/ranked-gate-crystal\.webp\?mask'\)/);
     expect(noComments).toMatch(/\.rgate\.is-forming \.rgate-crystal-heat \{[^}]*rg-cry-heat var\(--rg-form/);
     expect(kf('rg-cry-heat'), 'only its opacity moves: the gem carries the growth').not.toMatch(/transform/);
     expect(noComments, 'the round burst is the shatter\'s alone').not.toMatch(/\.rgate\.is-forming \.rgate-crystal-burst/);

@@ -173,8 +173,8 @@ export function playPlateDissolve(screenRect: { left: number; top: number; width
     `width:${rect.width}px`, `height:${rect.height}px`,
     'pointer-events:none', `z-index:${z}`, 'opacity:0',
     `background:${arcaneGradient(c.cDeep, c.cMid, c.cCore, c.grad)}`,
-    `-webkit-mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
-    `mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
+    `-webkit-mask:url(${WIRE_SRC}?mask) center / 100% 100% no-repeat`,
+    `mask:url(${WIRE_SRC}?mask) center / 100% 100% no-repeat`,
     `filter:drop-shadow(0 0 ${c.g1 * k}px ${rgba(c.cMid, 0.85)}) drop-shadow(0 0 ${c.g2 * k}px ${rgba(c.cDeep, 1)})`,
   ].join(';');
   stageHost().appendChild(imp);

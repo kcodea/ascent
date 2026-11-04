@@ -787,7 +787,7 @@ The rules:
   `preloadPlan.ts`. New public-folder art is picked up automatically (`__PUBLIC_ART__`, derived at build time
   from the files the UI source names, `apps/web/publicArt.ts`); a first-shop public image also needs its
   pattern in `PUBLIC_CHROME_ORDER`.
-- **Cache headers are part of the fix.** `apps/web/public/_headers` makes `/assets/*` (hashed)
+- **Cache headers are part of the fix** (public art rules revised 2026-11-04, see §3n). `apps/web/public/_headers` makes `/assets/*` (hashed)
   `immutable` for a year and `index.html` `no-cache`. Without it Netlify sends `max-age=0, must-revalidate`, so a
   returning player's browser re-asks the server about every image (722 revalidations in one measured warm
   visit) before it may use its own copy. `npm run release:web` refuses a build without it.
@@ -1055,6 +1055,27 @@ Owner, via the lead: performance degrades over a game, worse on phones. Numbers 
   nodes per impulse (it kept up to 8, so its high-water mark stayed resident). To find this kind of thing: a
   memory-infra dump every second beside the game state (the watcher in the devlog), then A/B a stubbed API with
   `perf:gauntlet --init-js`.
+
+## 3n. Art pop-in, 2026-11-04: measure a RETURNING visit, not a fresh one
+
+Owner: *"i am seeing a ton of art pop in"*. Numbers and method: `docs/devlog/2026-11-04-art-pop-in-probe.md`.
+
+- **Measure pop-in with the probe, on a prod build.** `?popin=1` (works on Netlify; or the Dev menu) logs each image not ready
+  at mount, by cause: `not-in-plan`, `pipe-pending`, `network`, `revalidate`, `disk`, `redecode`. `npm run perf:popin` walks a
+  `VITE_PERF_BENCH=1` build headless. `--headers expire:<s>` is a returning player, `--gpu --trace --no-probe` the compositor's
+  own decode counts. It cannot see a blank tile on a moving layer: that needs a real GPU and a screen recording.
+- **An expired copy pops in on every mount.** A new `<img>` reuses the in-memory copy only while it is fresh. Never put
+  `stale-while-revalidate` on art: it lets a whole session run on expired copies (R-PERF-ART-STAYS-FRESH-01). A fresh-profile
+  test cannot see this, so always run `expire:` too.
+- **Playwright `page.route` turns the HTTP cache off.** Block hosts with `--host-resolver-rules` when cache behaviour matters.
+- **A CSS mask loads in CORS mode, and there is one memory-cache entry per URL** (R-PERF-ART-MASKS-HELD-01). A URL used as a mask
+  and as an `<img>` evicts itself, and holding both under one URL makes it worse. Write every mask `url('/x.webp?mask')` and add
+  it to `PUBLIC_MASK_ART`; a test checks both.
+- **Benchmark alone.** A test suite running beside a walk tripled decode counts and looked like a regression. Throw such runs away.
+- **The plan is checked against the disk** (R-PERF-ART-PLAN-COMPLETE-01). A new image must be planned, or exempt with a reason
+  in `artPlanCoverage.test.ts`. Names built from a constant are invisible to `publicArt.ts`: that is how 249 plate files hid.
+- **Holding an Image holds the bytes, not the pixels.** The compositor's decode cache is far smaller than the art set, so the
+  gate's decodes do not last. `decoding="sync"` turns a re-decode into a late frame instead of a blank one.
 
 ## 4. Established anti-patterns (don't reintroduce these)
 

@@ -2126,8 +2126,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact.dscard .wg-hex {
   background: var(--wg-hex-color, #e0f2ff);
   opacity: var(--wg-hex-a, 1); mix-blend-mode: screen;
-  -webkit-mask-image: url("/fx/ward-hexsphere.svg"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.35) var(--wg-hex-edge, 47%), #000 88%, #000 100%);
-          mask-image: url("/fx/ward-hexsphere.svg"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.35) var(--wg-hex-edge, 47%), #000 88%, #000 100%);
+  -webkit-mask-image: url("/fx/ward-hexsphere.svg?mask"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.35) var(--wg-hex-edge, 47%), #000 88%, #000 100%);
+          mask-image: url("/fx/ward-hexsphere.svg?mask"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.35) var(--wg-hex-edge, 47%), #000 88%, #000 100%);
   -webkit-mask-size: var(--wg-hex-w, 101%) var(--wg-hex-h, 102%), 100% 100%;
           mask-size: var(--wg-hex-w, 101%) var(--wg-hex-h, 102%), 100% 100%;
   -webkit-mask-position: var(--wg-hex-x, 7%) var(--wg-hex-y, 50%), 50% 50%;
@@ -5077,7 +5077,7 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));
 }
-.card.compact.stdframe .cglow-rim { -webkit-mask-image: url('/frames/standard-oval-v2.png'); mask-image: url('/frames/standard-oval-v2.png'); }
+.card.compact.stdframe .cglow-rim { -webkit-mask-image: url('/frames/standard-oval-v2.png?mask'); mask-image: url('/frames/standard-oval-v2.png?mask'); }
 /* Spell cards have their OWN glow dials (🔆 Hover Glow tuner → "Spell …" groups, owner ask 2026-10-27):
    re-pointing the shared --hg-* vars here lets the base .cglow / .cglow-rim rules pick the spell values up
    unchanged. The fallbacks mirror glowConfig.ts DEFAULTS (spell*). */
@@ -5095,13 +5095,13 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   left: calc(var(--ccw) * (0.5 - 0.6194 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));
 }
-.card.compact.spellframe .cglow-rim { -webkit-mask-image: url('/frames/spell-frame-arch.webp'); mask-image: url('/frames/spell-frame-arch.webp'); }
+.card.compact.spellframe .cglow-rim { -webkit-mask-image: url('/frames/spell-frame-arch.webp?mask'); mask-image: url('/frames/spell-frame-arch.webp?mask'); }
 .card.compact.taunt .cglow {
   width: calc(var(--ccw) * 1.527 * var(--sh)); aspect-ratio: 1086 / 1448;
   left: calc(var(--ccw) * (0.5 - 0.758 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 1.086 * var(--sh)));
 }
-.card.compact.taunt .cglow-rim { -webkit-mask-image: url('/frames/taunt-shield.png'); mask-image: url('/frames/taunt-shield.png'); }
+.card.compact.taunt .cglow-rim { -webkit-mask-image: url('/frames/taunt-shield.png?mask'); mask-image: url('/frames/taunt-shield.png?mask'); }
 /* COLOR OVERLAY layer (🖼️ Card Frames tuner): a solid tint masked to the frame's own PNG silhouette, laid
    directly OVER the frame img (same geometry as .cglow, later sibling at the same z). `--fovl` (colour) +
    `--fovl-a` (opacity) are per-frame-class knobs from the tuner; the opacity-0 default makes this a no-op in
@@ -5121,7 +5121,7 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   width: calc(var(--ccw) * 1.481 * var(--sh)); aspect-ratio: 1059 / 1427;
   left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));
-  -webkit-mask-image: url('/frames/standard-oval-v2.png'); mask-image: url('/frames/standard-oval-v2.png');
+  -webkit-mask-image: url('/frames/standard-oval-v2.png?mask'); mask-image: url('/frames/standard-oval-v2.png?mask');
 }
 .card.compact.spellframe .cframe-tint {
   /* Same box as the spell .cframe-img (the ARCH frame, 705x862) — was an older, larger spell frame's box (1.387,
@@ -5129,7 +5129,7 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   width: calc(var(--ccw) * 1.239 * var(--sh)); aspect-ratio: 705 / 862;
   left: calc(var(--ccw) * (0.5 - 0.6194 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));
-  -webkit-mask-image: url('/frames/spell-frame-arch.webp'); mask-image: url('/frames/spell-frame-arch.webp');
+  -webkit-mask-image: url('/frames/spell-frame-arch.webp?mask'); mask-image: url('/frames/spell-frame-arch.webp?mask');
 }
 /* Light on hover — or when the tuner pins `body.hglow-preview`. Scoped to the frame class so they out-specify
    the scoped `opacity:0` default above (an unscoped `.card:hover .cglow` would LOSE to it). */
@@ -5230,7 +5230,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 .card.compact.spellframe .art {
   /* ARCH window mask (2026-08-05): the illustration is clipped to the frame's real arched opening, not a
      rounded rectangle, so it can't poke out the arch shoulders. `--artRound` no longer applies here. */
-  -webkit-mask-image: url('/frames/spell-art-window-arch.webp'); mask-image: url('/frames/spell-art-window-arch.webp');
+  -webkit-mask-image: url('/frames/spell-art-window-arch.webp?mask'); mask-image: url('/frames/spell-art-window-arch.webp?mask');
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   -webkit-mask-position: center; mask-position: center;

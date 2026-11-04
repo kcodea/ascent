@@ -6,7 +6,7 @@
  *     (main process only, so it can never hitch a frame). When it finishes, write `pending-update.json` ({ version })
  *     in userData and tell the game (`ascent:update-ready`) so it can say "installs next time you start".
  *   - INSTALL (a newer version is pending): before the game loads, show `updating.html` ("Installing update vX…"),
- *     re-check (the cached download is re-validated, not re-fetched) and `quitAndInstall` silently with a relaunch.
+ *     re-check (the cached download is re-validated, not re-fetched) and `quitAndInstall` (non-silent: NSIS shows its own progress window) with a relaunch.
  *     On an error, "nothing to install", or 60 s with no download, give up: clear the marker and boot the game.
  *     The attempt is counted in the marker before quitting, and a 15 s watchdog catches a quit that never happens,
  *     so a failing installer can never trap the player (2 tries per version, then boot). Never shows an error.
@@ -239,7 +239,7 @@ function runInstall({ BrowserWindow, createGameWindow, autoUpdater, deps, marker
     setTimeout(() => {
       if (phase !== 'installing') return;
       watchdog = setTimeout(() => giveUp('still running after quitAndInstall'), QUIT_WATCHDOG_MS);
-      try { autoUpdater.quitAndInstall(true, true); } catch (e) { giveUp(`quitAndInstall threw: ${e}`); }
+      try { autoUpdater.quitAndInstall(false, true); } catch (e) { giveUp(`quitAndInstall threw: ${e}`); }
     }, 0);
   });
   autoUpdater.on('update-not-available', () => { if (phase === 'waiting') giveUp('not available'); });

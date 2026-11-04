@@ -28,9 +28,13 @@ export function UpdatedPanel() {
 
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') dismiss(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Capture phase + stopImmediatePropagation: Game.tsx's own window Escape listener (opens Settings) must not also see it.
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault(); e.stopImmediatePropagation(); dismiss();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [open]);
 
   if (!open) return null;

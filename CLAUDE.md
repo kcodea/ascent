@@ -174,7 +174,7 @@ a rule in a skill stops being true, fix it in the same PR as the behaviour chang
 
 ## Releasing: Ship Ascent (`npm run ship`)
 
-**Only the exact phrase "Ship Ascent" from Mike or Kevin runs `npm run ship`. Nothing else publishes a release** (not
+**Only the exact phrase "Ship Ascent" from Mike or Kevin runs `npm run ship`. Nothing else publishes a GitHub release** (not
 "release", "deploy" or "cut a build"; ask what they mean). It ships the desktop app that friends' installed copies update
 from: it needs `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`, refuses unless `verify` is green on `origin/main`, deploys
 the hub and Versus Worker, builds the installer in CI, and publishes the GitHub release only after the CI smoke test
@@ -185,6 +185,8 @@ the printed SQL line(s) to the developer, and run `npm run ship -- --resume` onl
 ship (or `--resume`) on your own initiative; `npm run ship -- --dry-run` is safe and only prints the plan.
 
 ## Releasing: every Netlify package ships its Versus Worker (Versus is Cloudflare only)
+
+**Desktop releases go ONLY through Ship Ascent (`npm run ship`, above); Netlify / `release:web` is being retired (plan Task 6).**
 
 **`npm run release:web` deploys the Cloudflare Versus Worker for the SAME commit first, then builds the zip with its
 URL baked in.** Every Versus mode (1v1, Group, Duos, Ranked Duos) and live-game spectating runs on that Worker

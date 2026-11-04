@@ -11,4 +11,6 @@ export const RELEASE_ASSETS: string[];
 export function verifyDraft(release: { isDraft?: boolean; targetCommitish?: string; assets?: { name: string }[] } | null, o: { sha: string }): { ok: boolean; reason: string };
 export function parseArgs(argv: string[]): { bump: 'patch' | 'minor' | 'major'; dry: boolean; resume: boolean; error: string | null };
 export const USAGE: string;
+export const DESKTOP_ORIGIN: string;
+export function allowedOriginsProblem(value: string | undefined | null): string | null;
 export function pickNewRun(runs: { databaseId: number; displayTitle: string }[], title: string, excludeIds: number[]): number | null;

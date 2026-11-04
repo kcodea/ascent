@@ -28,7 +28,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { deployServers } from './lib/deployServers.mjs';
-import { USAGE, expectedRunName, latestPublished, nextVersion, parseArgs, pickNewRun, previousReleaseDate, releaseNotesMarkdown, resumeState, verifyDraft } from '../apps/desktop/ship/shipLib.mjs';
+import { USAGE, expectedRunName, latestPublished, nextVersion, parseArgs, pickNewRun, previousReleaseDate, releaseNotesMarkdown, resumeState, verifyDraft, allowedOriginsProblem } from '../apps/desktop/ship/shipLib.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WT = path.join(ROOT, '.claude', 'worktrees', 'ship');
@@ -63,6 +63,9 @@ if (needsCloudflare && !DRY && (!process.env.CLOUDFLARE_API_TOKEN || !process.en
 }
 try { execFileSync('gh', ['auth', 'status'], { stdio: 'ignore' }); } catch { die('gh is not signed in (run `gh auth login`)'); }
 console.log(`  ✓ gh signed in${DRY ? ' (dry run: Cloudflare credentials not required)' : ''}`);
+
+const originsProblem = allowedOriginsProblem(process.env.VERSUS_ALLOWED_ORIGINS);
+if (originsProblem && !RESUME) die(originsProblem);
 
 let plan;
 if (RESUME) {
@@ -192,7 +195,7 @@ try {
   const draft = JSON.parse(gh(['release', 'view', `v${plan.version}`, '--repo', REPO, '--json', 'isDraft,targetCommitish,assets']));
   const v = verifyDraft(draft, { sha: plan.sha });
   if (!v.ok) refusal = v.reason;
-  else gh(['release', 'edit', `v${plan.version}`, '--repo', REPO, '--notes-file', notesFile, '--draft=false']);
+  else gh(['release', 'edit', `v${plan.version}`, '--repo', REPO, '--notes-file', notesFile, '--draft=false', '--latest']);
 } catch (e) {
   refusal = String(e?.message ?? e);
 } finally {

@@ -54,6 +54,8 @@ jobs:
         run: |
           npm pkg set version="$BUILD_VERSION"
           npm pkg set version="$BUILD_VERSION" --prefix apps/desktop
+          # The stamp is not a source change: keep vite.config's git-dirty check from tagging the badge "abc1234*".
+          git update-index --assume-unchanged package.json apps/desktop/package.json
       - name: Build the web bundle
         shell: bash
         env:

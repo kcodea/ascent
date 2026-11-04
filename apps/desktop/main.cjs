@@ -35,6 +35,19 @@ const { startUpdater } = require('./updater.cjs');
 // would not fire. The point is that the check runs against the exe's own `resources/dist`, over the exe's own
 // protocol handler — the exact code path a player's machine takes — not against a dev server.
 const SMOKE = process.env.ASCENT_SMOKE === '1';
+
+// ONE INSTANCE. A second launch (a double-clicked shortcut, the installer's relaunch racing a stale process) would
+// fight the first over the update marker and the install. The loser exits at once; the first instance's window is
+// brought forward. Smoke runs skip the lock so a game the developer has open cannot make the self-check exit early.
+const GOT_LOCK = SMOKE || app.requestSingleInstanceLock();
+if (!GOT_LOCK) app.exit(0);
+app.on('second-instance', () => {
+  const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+});
 const smoke = { requests: 0, missing: [], consoleErrors: [], networkErrors: [] };
 
 /** The web build. Packaged: copied into resources/ by electron-builder. Dev: read straight from the repo. */
@@ -165,6 +178,7 @@ ipcMain.on('ascent:toggle-fullscreen', (event) => {
 });
 
 app.whenReady().then(() => {
+  if (!GOT_LOCK) return; // a second instance: app.exit(0) is already on its way
   const MIME = {
     '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
     '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextVersion, releaseNotesMarkdown, resumeState, previousReleaseDate, expectedRunName, verifyDraft, parseArgs, pickNewRun } from './shipLib.mjs';
+import { nextVersion, releaseNotesMarkdown, resumeState, previousReleaseDate, expectedRunName, verifyDraft, parseArgs, pickNewRun, allowedOriginsProblem } from './shipLib.mjs';
 
 describe('nextVersion', () => {
   it('starts at 0.2.0 when nothing is released', () => expect(nextVersion(null, 'patch')).toBe('0.2.0'));
@@ -93,4 +93,10 @@ describe('pickNewRun', () => {
     expect(pickNewRun([{ databaseId: 9, displayTitle: 'other' }], t, [])).toBeNull();
     expect(pickNewRun([], t, [])).toBeNull();
   });
+});
+
+describe('allowedOriginsProblem', () => {
+  it('unset or empty is fine', () => { expect(allowedOriginsProblem(undefined)).toBeNull(); expect(allowedOriginsProblem('')).toBeNull(); });
+  it('a list with app://ascent is fine', () => expect(allowedOriginsProblem('https://a.app, app://ascent')).toBeNull());
+  it('a list without it is refused', () => expect(allowedOriginsProblem('https://a.app')).toMatch(/app:\/\/ascent/));
 });

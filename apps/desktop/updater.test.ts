@@ -141,7 +141,7 @@ describe('startUpdater', () => {
     // The attempt is recorded BEFORE quitting, so a failure after the app is gone is visible next launch.
     expect(JSON.parse(h.files.get(MARKER)!)).toEqual({ version: '0.2.1', attempts: 1 });
     vi.advanceTimersByTime(1);
-    expect(h.au.quitAndInstall).toHaveBeenCalledWith(true, true);
+    expect(h.au.quitAndInstall).toHaveBeenCalledWith(false, true);
     expect(h.createGameWindow).not.toHaveBeenCalled();
   });
 

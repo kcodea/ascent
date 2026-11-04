@@ -3,6 +3,8 @@ import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { mount, type Mounted } from './renderedText.mount';
 import { UpdatedPanel } from './UpdatedPanel';
+import { PatchNotesBody } from './PatchNotesBody';
+import type { PatchNote } from './patchNotes';
 import { UpdateReadyNotice } from './UpdateReadyNotice';
 import { readUpdateSeen, writeUpdateSeen } from './updateNotes';
 
@@ -15,7 +17,12 @@ const setDesktop = (): void => {
     onUpdateReady(cb) { fire = cb; return () => { fire = null; }; },
   };
 };
-const flush = async (): Promise<void> => { await act(async () => { await new Promise((r) => setTimeout(r, 30)); }); };
+/** The notes are a lazy chunk (~400 KB of changelog text): poll for `selector` instead of a fixed wait (up to 3 s). */
+const flush = async (selector = '.pnlist > li'): Promise<void> => {
+  for (let i = 0; i < 300 && !document.querySelector(selector); i++) await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+};
+/** For "nothing appears" cases: a short fixed wait is enough (there is no chunk to wait for). */
+const nothing = async (): Promise<void> => { await act(async () => { await new Promise((r) => setTimeout(r, 30)); }); };
 
 afterEach(() => {
   ui?.unmount(); ui = null; fire = null;
@@ -41,7 +48,7 @@ describe('UpdatedPanel', () => {
   it('first ever desktop launch shows nothing but records the version', async () => {
     setDesktop();
     ui = mount(<UpdatedPanel />);
-    await flush();
+    await nothing();
     expect(document.body.textContent).not.toContain('Updated to v');
     expect(readUpdateSeen()?.version).toBe(__APP_VERSION__);
   });
@@ -49,9 +56,32 @@ describe('UpdatedPanel', () => {
   it('never shows or records in the browser build', async () => {
     writeUpdateSeen({ version: '0.0.1', buildDate: '2026-01-01' });
     ui = mount(<UpdatedPanel />);
-    await flush();
+    await nothing();
     expect(document.body.textContent).not.toContain('Updated to v');
     expect(readUpdateSeen()?.version).toBe('0.0.1');
+  });
+});
+
+describe('UpdatedPanel keys and tabs', () => {
+  it('Escape closes the panel and never reaches a bubbling window listener (Game.tsx opens Settings on Escape)', async () => {
+    setDesktop();
+    writeUpdateSeen({ version: '0.0.1', buildDate: '2026-01-01' });
+    ui = mount(<UpdatedPanel />);
+    expect(document.body.textContent).toContain('Updated to v');
+    let leaked = false;
+    const bubbling = (): void => { leaked = true; };
+    window.addEventListener('keydown', bubbling);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+    window.removeEventListener('keydown', bubbling);
+    expect(document.body.textContent).not.toContain('Updated to v');
+    expect(leaked).toBe(false);
+  });
+
+  it('an update with only Systems entries opens on the Systems tab and shows an entry', async () => {
+    const notes: PatchNote[] = [{ date: '2026-11-04', changes: [{ category: 'Systems', text: 'A systems change' }] }];
+    ui = mount(<PatchNotesBody notes={notes} initialTab="Systems" />);
+    expect(document.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.trim()).toBe('Systems');
+    expect(document.querySelector('.pnlist > li')).not.toBeNull();
   });
 });
 

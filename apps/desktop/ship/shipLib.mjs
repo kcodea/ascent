@@ -95,6 +95,16 @@ export function parseArgs(argv) {
   return out;
 }
 
+/** The desktop app's origin: a `VERSUS_ALLOWED_ORIGINS` override that omits it would lock the installed exe out of Versus. */
+export const DESKTOP_ORIGIN = 'app://ascent';
+
+/** null when fine; else the reason an explicit `VERSUS_ALLOWED_ORIGINS` (comma list) drops the desktop origin. */
+export function allowedOriginsProblem(value) {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const origins = String(value).split(',').map((o) => o.trim());
+  return origins.includes(DESKTOP_ORIGIN) ? null : `VERSUS_ALLOWED_ORIGINS is set but does not include ${DESKTOP_ORIGIN}; the installed desktop app would be refused by the Versus Worker. Add it, or unset the variable.`;
+}
+
 export const USAGE = 'usage: npm run ship -- [--minor | --major] [--dry-run] [--resume]';
 
 /** The newly dispatched run: newest run titled `title` whose id was not already present before the dispatch, else null. */

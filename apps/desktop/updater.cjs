@@ -155,7 +155,13 @@ async function startUpdater(deps) {
     if (isSkipped(version, skip)) { log('info', `downloaded ${version}, but it is skipped (install failed twice); ignoring`); return; }
     if (skip) { log('info', `${version} is newer than skipped ${skip.version}; clearing the skip`); skip = null; try { fs.rmSync(skipPath, { force: true }); } catch (e) { log('warn', `clear skip: ${e}`); } }
     log('info', `downloaded ${version}; installs next launch`);
-    try { fs.writeFileSync(markerPath, JSON.stringify({ version })); } catch (e) { log('error', `write marker: ${e}`); return; }
+    // The same version as a marker already on disk keeps its install-attempt count; a different version starts fresh.
+    let next = { version };
+    try {
+      const prev = fs.existsSync(markerPath) ? JSON.parse(fs.readFileSync(markerPath, 'utf8')) : null;
+      if (prev && prev.version === version && Number(prev.attempts) > 0) next = { version, attempts: Number(prev.attempts) };
+    } catch { /* unreadable marker: start fresh */ }
+    try { fs.writeFileSync(markerPath, JSON.stringify(next)); } catch (e) { log('error', `write marker: ${e}`); return; }
     const gameWin = getGameWin();
     if (gameWin && !gameWin.isDestroyed()) gameWin.webContents.send('ascent:update-ready', { version });
   };
@@ -197,11 +203,16 @@ function runInstall({ BrowserWindow, createGameWindow, autoUpdater, deps, marker
   let watchdog = null;
   const giveUp = (why) => {
     if (phase === 'gaveUp') return;
+    const failedPhase = phase;
     phase = 'gaveUp';
     clearTimeout(timer);
     clearTimeout(watchdog);
     log('warn', `install gave up (${why}); booting the game`);
-    clearMarker();
+    // A failed INSTALL (error during/after quitAndInstall, or the watchdog) keeps the { version, attempts } it just
+    // wrote, so the count builds up and decideLaunch / R11 can retire the version. Giving up while still WAITING for
+    // the download (timeout, error, nothing to install) consumed no attempt: clear it and let the boot path redo it.
+    if (failedPhase === 'installing') log('info', 'keeping the attempt-counted marker');
+    else clearMarker();
     // A download that outlives the timeout still counts: record it for next launch, exactly as the boot path does.
     autoUpdater.on('update-downloaded', recordDownload(() => gameWin));
     // Open the game BEFORE closing this window, or window-all-closed would quit the app in between.

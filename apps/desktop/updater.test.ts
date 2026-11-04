@@ -155,7 +155,8 @@ describe('startUpdater', () => {
     expect(h.au.quitAndInstall).toHaveBeenCalledTimes(1);
     expect(h.createGameWindow).toHaveBeenCalledTimes(1);
     expect(h.windows[0].isDestroyed()).toBe(true);
-    expect(h.files.has(MARKER)).toBe(false);
+    // The attempt stays counted so decideLaunch / R11 can retire a version that keeps failing.
+    expect(JSON.parse(h.files.get(MARKER)!)).toEqual({ version: '0.2.1', attempts: 1 });
     vi.advanceTimersByTime(120_000); // neither the watchdog nor the old timeout opens a second game
     expect(h.createGameWindow).toHaveBeenCalledTimes(1);
   });
@@ -171,6 +172,50 @@ describe('startUpdater', () => {
     vi.advanceTimersByTime(2);
     expect(h.createGameWindow).toHaveBeenCalledTimes(1);
     expect(h.windows[0].isDestroyed()).toBe(true);
+    expect(JSON.parse(h.files.get(MARKER)!)).toEqual({ version: '0.2.1', attempts: 1 });
+  });
+
+  it('two in-process install failures for one version → skip written, later launches stay booted', async () => {
+    const files = new Map<string, string>([[MARKER, JSON.stringify({ version: '0.2.1' })]]);
+    const failingInstall = (h: ReturnType<typeof harness>) =>
+      h.au.quitAndInstall.mockImplementation(() => { h.au.emit('error', new Error('install failed')); return false; });
+    for (const expected of [1, 2]) {
+      const h = harness({ files });
+      failingInstall(h);
+      await updater.startUpdater(h.deps);
+      expect(h.windows).toHaveLength(1);
+      h.au.emit('update-downloaded', { version: '0.2.1' });
+      vi.advanceTimersByTime(1);
+      expect(h.createGameWindow).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(files.get(MARKER)!)).toEqual({ version: '0.2.1', attempts: expected });
+    }
+    // Third launch: attempts used up → boot, skip written; the feed's 0.2.1 is ignored from now on.
+    for (let i = 0; i < 3; i++) {
+      const h = harness({ files });
+      await updater.startUpdater(h.deps);
+      expect(h.windows).toHaveLength(0);
+      expect(h.createGameWindow).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(files.get(SKIP)!)).toEqual({ version: '0.2.1' });
+      vi.advanceTimersByTime(10_000);
+      h.au.emit('update-downloaded', { version: '0.2.1' });
+      expect(files.has(MARKER)).toBe(false);
+      expect(h.gameSent).toEqual([]);
+    }
+  });
+
+  it('a download of the version a marker already names keeps its attempts; a newer one starts fresh', async () => {
+    // Defensive path: the boot path drops markers at launch, so this is reached via an install launch's give-up
+    // (which attaches the boot download handler) with a counted marker on disk when the download lands.
+    const files = new Map<string, string>([[MARKER, JSON.stringify({ version: '0.2.1', attempts: 1 })]]);
+    const h = harness({ files });
+    await updater.startUpdater(h.deps);
+    vi.advanceTimersByTime(60_000); // a waiting-phase give-up consumed no attempt, so it clears the marker
+    expect(files.has(MARKER)).toBe(false);
+    files.set(MARKER, JSON.stringify({ version: '0.2.1', attempts: 1 }));
+    h.au.emit('update-downloaded', { version: '0.2.1' });
+    expect(JSON.parse(files.get(MARKER)!)).toEqual({ version: '0.2.1', attempts: 1 });
+    h.au.emit('update-downloaded', { version: '0.2.2' });
+    expect(JSON.parse(files.get(MARKER)!)).toEqual({ version: '0.2.2' });
   });
 
   it('a launch that finds an already-attempted marker boots and clears it', async () => {

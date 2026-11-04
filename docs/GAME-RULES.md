@@ -1401,8 +1401,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   Mimic / Void / Power Shifter power Discovers, and the Compendium's Heroes tab shows them under its Duos toggle.
   **Priestess** (14 Armor) wields **Passaria**: 2 Gold, once per turn, pass a non-Gilded minion in the Shop or on your
   board. It is an effect pass in every way but the price: it follows the rules above (never Golden, never refused for a
-  full hand, counts as a pass, counts toward the 10 per round), and Brian's Pal and Playing Catch do not discount it. A
-  press with no legal target, no teammate or too little Gold spends nothing. If the room refuses the pass (the teammate
+  full hand, counts as a pass, counts toward the 10 per round), and Brian's Pal and Playing Catch do not discount it. The 2
+  Gold is the whole price: no 1 Gold drag fee, and a Shop minion charges no buy cost. While its aim is armed no hand card can
+  be picked up, so the aim never ends as a drag pass. A press with no legal target, no teammate or too little Gold spends nothing. If the room refuses the pass (the teammate
   is away or out, the clock, the cap), the minion, the 2 Gold and that turn's charge all come back. Wishbone never passes
   a second minion.
 - **Duos-only runes** (owner 2026-10-30; R-DUOS-RUNES-01..03). `RuneDef.duos`: only a Duos run's Runeforge (and a granted

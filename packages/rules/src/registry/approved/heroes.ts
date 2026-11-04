@@ -2540,4 +2540,22 @@ export const HEROES_RULES: GameRule[] = [
     example: "Ann, as Priestess, spends 2 Gold on a Shop minion: it leaves the Shop and lands in Amy's hand. Amy's hand is full, so it waits until she plays a card.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroPriestess.test.ts", "workers/versus/test/uniqueHeroes.test.ts"], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: "R-DUOS-PRIESTESS-GOLD-01",
+    title: "Passaria costs exactly 2 Gold in total; the pass itself is free",
+    statement:
+      "One Passaria takes exactly 2 Gold from the sender, from a board or a Shop target: no 1 Gold pass fee and no buy cost. "
+      + "The outbox entry records `paid: 2`, and a room refusal returns exactly that. While its aim is armed no hand card can be "
+      + "picked up, so the aim cannot end as the separate 1 Gold drag pass. A later drag pass of another card is its own pass "
+      + "at its own 1 Gold.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-04", quote: "passaria should not cost an additional gold to pass, it should pay the 2g and that's it" },
+      { kind: 'code', ref: "packages/sim/src/reducer.ts heroPower passaria; packages/sim/src/duosPass.ts recordSpellPass / refundDuosPass; packages/ui/src/versus/duosPassUi.ts passariaAimHoldsHand" },
+    ],
+    currentBehaviour: "Conforms. The press itself always charged 2. Built 2026-11-04: the hand-drag block under the aim, and the store-level Gold test.",
+    example: "Ann has 10 Gold and uses Passaria on a Shop minion: she has 8 Gold, and the minion is in Amy's hand.",
+    enforcement: { kind: 'scenario', refs: ["packages/ui/src/passariaGold.test.ts"], lastVerifiedAt: '2026-11-04' },
+  },
 ];

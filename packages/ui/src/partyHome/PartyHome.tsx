@@ -36,7 +36,7 @@ import { isPhone } from '../deviceClass';
 import { Icon } from '../Icon';
 import { currentUserId } from '../identity';
 import { mirrorFor, useProgression } from '../progression/progressionStore';
-import { RankCrest } from '../rank/RankBar';
+import { RankBar, RankCrest } from '../rank/RankBar';
 import { useCurrentRank } from '../rank/rankSource';
 import { rankLabel } from '../rank/rankFormat';
 import { remoteEnabled } from '../remoteBoards';
@@ -61,7 +61,7 @@ import { defaultRoomName, roomModeOf, roomTitleOf } from './pages/versusPh';
 import { PhBackdrop } from './shell/PhBackdrop';
 import { PhFriends } from './shell/PhFriends';
 import { addSampleInvite, clearSampleInvites, removeSampleInvite, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
-import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhField, PhLeaderBadge, PhSegmented, PhTabs, phNum } from './kit';
+import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhField, PhLeaderBadge, PhPlate, PhSegmented, PhTabs, phNum } from './kit';
 import { GauntletPanel, PracticePanel, stagePlayable, useGauntletStages } from './ModeOptions';
 import { familyOf, modeHasSettings, partyFamilies, partyModeOf, partyModes, readFamilySub, readPartyMode, rememberPartyMode, type ModeFamily, type ModeFamilyId, type PartyMode, type PartyModeId } from './partyModes';
 import { setPartyDemo, usePartyDemo, usePartyRoom } from './partyHomeFlag';
@@ -100,11 +100,13 @@ function useCompact(): boolean {
 }
 
 export interface PartyHomeProps {
+  /** A guest's Change portrait: the title's own sign-in gate (a guest cannot pick a portrait). */
+  onGuestPortrait: () => void;
   /** A ranked START: the title's nudge + ranked confirmation (R-RANK-06). `then` runs on "Yes" instead of the default. */
   onRankedStart: (kind: 'solo' | 'duos', then?: () => void) => void;
 }
 
-export default function PartyHome({ onRankedStart }: PartyHomeProps) {
+export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeProps) {
   const confirmPracticeSetup = useGame((s) => s.confirmPracticeSetup);
   const startGauntlet = useGame((s) => s.startGauntlet);
   const startTutorial = useGame((s) => s.startTutorial);
@@ -114,6 +116,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const playerAvatar = useGame((s) => s.playerAvatar);
   const showOpp = useGame((s) => s.showOpponentSkins);
   const userId = useGame((s) => s.account.userId);
+  const guest = useGame((s) => s.account.anonymous);
   const pageOpen = useGame(anyPageOpen);
   const savedRun = useGame((s) => s.savedRun);
   const continueRun = useGame((s) => s.continueRun);
@@ -386,7 +389,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const teamLabel = pair ? teamName ?? defaultTeamName(pair[0].name, pair[1].name) : demo && mode.id === 'duos' ? demoTeam ?? defaultTeamName(members[0]!.name, 'Mike') : null;
 
   const cardMenu = (m: Member): { label: string; run?: () => void; soon?: boolean }[] => (m.self
-    ? [{ label: 'Change portrait', run: () => openAvatarPicker() }, { label: 'View Career', run: () => goTo('career') }]
+    ? [{ label: 'Change portrait', run: () => { if (guest) onGuestPortrait(); else openAvatarPicker(); } }, { label: 'View Career', run: () => goTo('career') }]
     : [
         { label: 'Message', run: demo || !m.userId ? undefined : () => openDm(m.userId!) },
         ...(m.userId ? [{ label: 'View Career', run: () => goTo('career') }] : []),
@@ -461,6 +464,11 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
           <PhSegmented size="l" label="Mode" value={modeId} onPick={pick} onLockedHover={versusRoom ? undefined : setHoverNote} onLocked={(reason) => { sfx.deny(); setLockNote(reason); }}
             options={family.subs.map((x) => ({ value: x.id, label: phNum(x.label), reason: lockReason(partyModeOf(x.id)) ?? undefined }))} />
         </div>
+      )}
+      {family.id === 'ranked' && (
+        <PhPlate heading="Your rank">
+          {rank ? <RankBar position={rank} /> : <span className="pho-hint">Play Ranked to earn your first medal.</span>}
+        </PhPlate>
       )}
       {mode.id === 'practice' && <PracticePanel />}
       {mode.id === 'gauntlet' && <GauntletPanel selected={stage} onSelect={setStagePick} />}
@@ -587,7 +595,7 @@ function SampleRename({ name, fallback, onSave, onClose }: { name: string | null
         <PhButton size="l" onClick={() => { sfx.pulse(); onClose(); }}>Cancel</PhButton>
       </>}>
       <form onSubmit={(e) => { e.preventDefault(); save(); }}>
-        <PhField label="Name" value={v} placeholder={fallback} maxLength={TEAM_NAME_MAX} autoFocus onChange={(e) => setV(e.target.value)}
+        <PhField label="Name" value={v} placeholder={fallback} maxLength={TEAM_NAME_MAX} showCount autoFocus onChange={(e) => setV(e.target.value)}
           error={problem ? NAME_PROBLEM[problem] : undefined} hint="Leave it empty to use your two names. Either teammate can rename between games." />
       </form>
     </PhDialog>

@@ -2,7 +2,7 @@
  * SHIP ASCENT: publish the desktop app so friends' installed copies update themselves.
  *
  *   npm run ship                 # patch bump (v0.2.0 -> v0.2.1; the very first ship is v0.2.0)
- *   npm run ship -- --bump minor # or major
+ *   npm run ship -- --minor     # or --major (anything else is rejected)
  *   npm run ship -- --resume     # continue after exit code 3 (the SQL pause), using the saved plan
  *   npm run ship -- --dry-run    # print the plan (sha, version, steps) and exit; no side effects, no credentials needed
  *
@@ -28,7 +28,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { deployServers } from './lib/deployServers.mjs';
-import { latestPublished, nextVersion, previousReleaseDate, releaseNotesMarkdown, resumeState } from '../apps/desktop/ship/shipLib.mjs';
+import { USAGE, expectedRunName, latestPublished, nextVersion, parseArgs, previousReleaseDate, releaseNotesMarkdown, resumeState, verifyDraft } from '../apps/desktop/ship/shipLib.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WT = path.join(ROOT, '.claude', 'worktrees', 'ship');
@@ -38,11 +38,14 @@ const WORKFLOW = 'desktop-release.yml';
 const INSTALLER_LINK = `https://github.com/${REPO}/releases/latest/download/ASCENT-Setup.exe`;
 const FEED = `https://github.com/${REPO}/releases/latest/download/latest.yml`;
 
-const argv = process.argv.slice(2);
-const DRY = argv.includes('--dry-run');
-const RESUME = argv.includes('--resume');
-const bumpAt = argv.indexOf('--bump');
-const BUMP = bumpAt >= 0 ? argv[bumpAt + 1] : 'patch';
+const args = parseArgs(process.argv.slice(2));
+if (args.error) { console.error(`
+✗ ${args.error}
+  ${USAGE}
+`); process.exit(2); }
+const DRY = args.dry;
+const RESUME = args.resume;
+const BUMP = args.bump;
 
 const die = (msg) => { console.error(`\n✗ ${msg}\n`); process.exit(1); };
 const step = (msg) => console.log(`\n• ${msg}`);
@@ -51,7 +54,6 @@ const gh = (ghArgs) => execFileSync('gh', ghArgs, { cwd: ROOT, encoding: 'utf8',
 const run = (cmd, cwd) => { console.log(`  $ ${cmd}`); execSync(cmd, { cwd, stdio: 'inherit' }); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-if (!['patch', 'minor', 'major'].includes(BUMP)) die(`--bump must be patch, minor or major (got "${BUMP}")`);
 
 // ── 1. preflight ───────────────────────────────────────────────────────────────────────────────────────────
 step('preflight');
@@ -138,36 +140,41 @@ if (!RESUME) {
 }
 
 // ── 5. dispatch + watch ────────────────────────────────────────────────────────────────────────────────────
+// Saved BEFORE dispatching, so "--resume" is always a valid way back. A resume re-dispatches the build, and the
+// workflow's cancel-in-progress cancels the earlier run if it is still going.
+mkdirSync(path.dirname(STATE), { recursive: true });
+writeFileSync(STATE, `${JSON.stringify(plan, null, 2)}
+`);
 step(`dispatching ${WORKFLOW} (publish=true, draft release)`);
-const since = Date.now() - 15_000;
 gh([
   'workflow', 'run', WORKFLOW, '--repo', REPO, '--ref', 'main',
   '-f', `sha=${plan.sha}`, '-f', `version=${plan.version}`, '-f', `versusUrl=${plan.workerUrl}`,
   '-f', `hubUrl=${plan.hubUrl}`, '-f', `contentRevision=${plan.contentRevision}`, '-f', 'publish=true',
 ]);
+const wantName = expectedRunName(plan.version, plan.sha);
 let runId = null;
-for (let i = 0; i < 30 && !runId; i++) {
+for (let i = 0; i < 45 && !runId; i++) {
   await sleep(4000);
-  const runs = JSON.parse(gh(['run', 'list', '--repo', REPO, '--workflow', WORKFLOW, '--event', 'workflow_dispatch', '--limit', '10', '--json', 'databaseId,createdAt']));
-  runId = runs.filter((r) => Date.parse(r.createdAt) >= since).sort((a, b) => b.databaseId - a.databaseId)[0]?.databaseId ?? null;
+  const runs = JSON.parse(gh(['run', 'list', '--repo', REPO, '--workflow', WORKFLOW, '--event', 'workflow_dispatch', '--limit', '20', '--json', 'databaseId,displayTitle']));
+  runId = runs.filter((r) => r.displayTitle === wantName).sort((x, y) => y.databaseId - x.databaseId)[0]?.databaseId ?? null;
 }
-if (!runId) die('could not find the dispatched workflow run (check the Actions tab); the plan is saved, re-run with --resume');
+if (!runId) die(`no workflow run named "${wantName}" appeared within 3 minutes (check the Actions tab). The plan is saved: fix and run \`npm run ship -- --resume\` (it re-dispatches; cancel-in-progress cancels the earlier run).`);
 const runUrl = `https://github.com/${REPO}/actions/runs/${runId}`;
 console.log(`  run ${runUrl}`);
-writeFileSync(STATE, `${JSON.stringify(plan, null, 2)}\n`);
 try {
   execFileSync('gh', ['run', 'watch', String(runId), '--repo', REPO, '--exit-status'], { cwd: ROOT, stdio: 'inherit' });
 } catch {
-  die(`the desktop build FAILED. The draft release (if any) was left unpublished; nothing reached friends.\n  ${runUrl}\n  Fix forward on main and run ship again (a stale draft v${plan.version} is replaced by the next run).`);
+  die(`the desktop build FAILED. The draft release (if any) was left unpublished; nothing reached friends.\n  ${runUrl}\n  Fix forward, then run \`npm run ship -- --resume\` (re-dispatches; a stale draft v${plan.version} is replaced).`);
 }
 
-// ── 6. release notes, then publish the draft ───────────────────────────────────────────────────────────────
+// ── 6. release notes, verify the draft, then publish it ────────────────────────────────────────────────────
+const unpublished = (why) => die(`draft v${plan.version} left UNPUBLISHED: ${why}; fix and run \`npm run ship -- --resume\``);
 step('writing release notes and publishing the draft');
-const releases = JSON.parse(gh(['release', 'list', '--repo', REPO, '--limit', '100', '--json', 'tagName,isDraft,publishedAt']));
-const sinceDate = previousReleaseDate(releases);
+let sinceDate = null;
 const tmp = mkdtempSync(path.join(os.tmpdir(), 'ascent-ship-'));
-let notes;
 try {
+  const releases = JSON.parse(gh(['release', 'list', '--repo', REPO, '--limit', '100', '--json', 'tagName,isDraft,publishedAt']));
+  sinceDate = previousReleaseDate(releases);
   // PATCH_NOTES + notesSince are TypeScript in packages/ui: bundle a tiny entry with esbuild (a pinned devDep of @game/desktop).
   const esbuild = createRequire(path.join(ROOT, 'apps', 'desktop', 'package.json'))('esbuild');
   const ui = path.join(WT, 'packages', 'ui', 'src').replaceAll('\\', '/');
@@ -176,10 +183,15 @@ try {
   const out = path.join(tmp, 'notes.mjs');
   await esbuild.build({ entryPoints: [entry], bundle: true, format: 'esm', platform: 'node', outfile: out, logLevel: 'error' });
   const mod = await import(pathToFileURL(out).href);
-  notes = releaseNotesMarkdown(mod.notesSince(mod.PATCH_NOTES, sinceDate));
   const notesFile = path.join(tmp, 'notes.md');
-  writeFileSync(notesFile, notes);
+  writeFileSync(notesFile, releaseNotesMarkdown(mod.notesSince(mod.PATCH_NOTES, sinceDate)));
+  // Never publish a draft that is not exactly the one this ship built.
+  const draft = JSON.parse(gh(['release', 'view', `v${plan.version}`, '--repo', REPO, '--json', 'isDraft,targetCommitish,assets']));
+  const v = verifyDraft(draft, { sha: plan.sha });
+  if (!v.ok) unpublished(v.reason);
   gh(['release', 'edit', `v${plan.version}`, '--repo', REPO, '--notes-file', notesFile, '--draft=false']);
+} catch (e) {
+  unpublished(String(e?.message ?? e));
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }
@@ -195,7 +207,7 @@ for (let i = 0; i < 12 && feedVersion !== plan.version; i++) {
   } catch { /* not routable yet */ }
   if (feedVersion !== plan.version) await sleep(5000);
 }
-if (feedVersion !== plan.version) die(`${FEED} reports ${feedVersion ?? 'nothing'}, not ${plan.version}. The release IS published; check it by hand.`);
+if (feedVersion !== plan.version) die(`published, but the feed check failed: ${FEED} reports ${feedVersion ?? 'nothing'}, not ${plan.version}. The release IS published; check it by hand (the state file is kept).`);
 console.log(`  ✓ latest.yml reports ${feedVersion}`);
 
 rmSync(STATE, { force: true });

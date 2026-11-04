@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextVersion, releaseNotesMarkdown, resumeState, previousReleaseDate } from './shipLib.mjs';
+import { nextVersion, releaseNotesMarkdown, resumeState, previousReleaseDate, expectedRunName, verifyDraft, parseArgs } from './shipLib.mjs';
 
 describe('nextVersion', () => {
   it('starts at 0.2.0 when nothing is released', () => expect(nextVersion(null, 'patch')).toBe('0.2.0'));
@@ -52,5 +52,35 @@ describe('previousReleaseDate', () => {
       { tagName: 'v0.2.0', isDraft: false, publishedAt: '2026-11-03T10:00:00Z' },
     ])).toBe('2026-11-03');
     expect(previousReleaseDate([])).toBeNull();
+  });
+});
+
+describe('expectedRunName', () => {
+  it('names the run by version and sha', () => expect(expectedRunName('0.2.0', 'abc')).toBe('desktop-release v0.2.0 abc'));
+});
+
+describe('verifyDraft', () => {
+  const assets = ['ASCENT-Setup.exe', 'ASCENT-Setup.exe.blockmap', 'latest.yml', 'release.json'].map((name) => ({ name }));
+  const good = { isDraft: true, targetCommitish: 'abc', assets };
+  it('accepts the exact draft', () => expect(verifyDraft(good, { sha: 'abc' }).ok).toBe(true));
+  it('refuses a wrong sha', () => expect(verifyDraft({ ...good, targetCommitish: 'zzz' }, { sha: 'abc' }).ok).toBe(false));
+  it('refuses a published release', () => expect(verifyDraft({ ...good, isDraft: false }, { sha: 'abc' }).ok).toBe(false));
+  it('refuses a missing asset', () => expect(verifyDraft({ ...good, assets: assets.slice(1) }, { sha: 'abc' })).toMatchObject({ ok: false, reason: expect.stringContaining('ASCENT-Setup.exe') }));
+  it('refuses an extra asset', () => expect(verifyDraft({ ...good, assets: [...assets, { name: 'x.zip' }] }, { sha: 'abc' }).ok).toBe(false));
+  it('refuses no release', () => expect(verifyDraft(null, { sha: 'abc' }).ok).toBe(false));
+});
+
+describe('parseArgs', () => {
+  it('defaults to patch', () => expect(parseArgs([])).toMatchObject({ bump: 'patch', dry: false, resume: false, error: null }));
+  it('takes --minor, --major, --dry-run, --resume', () => {
+    expect(parseArgs(['--minor']).bump).toBe('minor');
+    expect(parseArgs(['--major', '--dry-run'])).toMatchObject({ bump: 'major', dry: true });
+    expect(parseArgs(['--resume']).resume).toBe(true);
+  });
+  it('rejects unknown arguments and conflicts', () => {
+    expect(parseArgs(['--bump', 'minor']).error).toMatch(/unknown/);
+    expect(parseArgs(['--wat']).error).toMatch(/unknown/);
+    expect(parseArgs(['--minor', '--major']).error).toBeTruthy();
+    expect(parseArgs(['--resume', '--minor']).error).toBeTruthy();
   });
 });

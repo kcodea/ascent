@@ -58,3 +58,41 @@ export function resumeState(saved, _now) {
   }
   return out;
 }
+
+/** The workflow run-name for one ship dispatch; the run lookup matches the run's displayTitle against this exactly. */
+export function expectedRunName(version, sha) {
+  return `desktop-release v${version} ${sha}`;
+}
+
+export const RELEASE_ASSETS = ['ASCENT-Setup.exe', 'ASCENT-Setup.exe.blockmap', 'latest.yml', 'release.json'];
+
+/** Is this `gh release view --json isDraft,targetCommitish,assets` output the draft we expect to publish? Returns { ok, reason }. */
+export function verifyDraft(release, { sha }) {
+  if (!release) return { ok: false, reason: 'the draft release was not found' };
+  if (release.isDraft !== true) return { ok: false, reason: 'the release is not a draft (already published?)' };
+  if (release.targetCommitish !== sha) return { ok: false, reason: `the draft targets ${release.targetCommitish}, not ${sha}` };
+  const have = (release.assets ?? []).map((a) => a.name).sort();
+  const want = [...RELEASE_ASSETS].sort();
+  const missing = want.filter((n) => !have.includes(n));
+  const extra = have.filter((n) => !want.includes(n));
+  if (missing.length || extra.length || have.length !== want.length) {
+    return { ok: false, reason: `draft assets are not exactly the expected four (missing: ${missing.join(', ') || 'none'}; unexpected/duplicate: ${extra.join(', ') || (have.length !== want.length ? 'duplicates' : 'none')})` };
+  }
+  return { ok: true, reason: '' };
+}
+
+/** Parse ship's argv. Patch unless --minor / --major; anything unknown is an error, never silently ignored. */
+export function parseArgs(argv) {
+  const out = { bump: 'patch', dry: false, resume: false, error: null };
+  for (const a of argv) {
+    if (a === '--dry-run') out.dry = true;
+    else if (a === '--resume') out.resume = true;
+    else if (a === '--minor') { if (out.bump === 'major') out.error = 'use only one of --minor / --major'; else out.bump = 'minor'; }
+    else if (a === '--major') { if (out.bump === 'minor') out.error = 'use only one of --minor / --major'; else out.bump = 'major'; }
+    else { out.error = `unknown argument "${a}"`; break; }
+  }
+  if (out.resume && out.bump !== 'patch') out.error = out.error ?? '--resume continues the saved plan; --minor / --major do not apply';
+  return out;
+}
+
+export const USAGE = 'usage: npm run ship -- [--minor | --major] [--dry-run] [--resume]';

@@ -20,6 +20,9 @@ on:
       - 'scripts/package-desktop.mjs'
       - '.github/workflows/desktop-release.yml'
 
+# ship.mjs finds its run by this exact name (expectedRunName in apps/desktop/ship/shipLib.mjs); PR runs keep a plain name.
+run-name: ${{ inputs.version && format('desktop-release v{0} {1}', inputs.version, inputs.sha) || format('desktop-release {0}', github.ref_name) }}
+
 concurrency:
   group: desktop-release-${{ github.ref }}
   cancel-in-progress: true

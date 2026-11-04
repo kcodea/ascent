@@ -1,0 +1,307 @@
+// @vitest-environment jsdom
+/**
+ * THE COLLECTION + CHEST SHOP IN THE PARTY HOME SHELL (DEV switch). The same page and the same shop, drawn by
+ * `CollectionPh` / `CrateShopPh`: with the switch OFF the page is today's (nothing of the shell mounts); ON, every
+ * capability is still there and still goes through the page's own handlers (categories, filters, equip, the chest bay,
+ * the theatre, the shop, the guest gate). Plus the UI rules on the new files.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act } from 'react';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import type { CrateRow, ProgressionProfile } from '@game/progression';
+import { mount, type Mounted } from '../../renderedText.mount';
+import type { CrateFx } from '../crateFx/crateFxPixi';
+
+vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
+
+const equipTitleRemote = vi.fn();
+const buyCrateRemote = vi.fn();
+vi.mock('../../identity', async (orig) => ({ ...(await orig<typeof import('../../identity')>()), currentUserId: () => 'u-1' }));
+vi.mock('../../remoteBoards', async (orig) => ({ ...(await orig<typeof import('../../remoteBoards')>()), remoteEnabled: () => true }));
+vi.mock('../progressionRemote', async (orig) => ({
+  ...(await orig<typeof import('../progressionRemote')>()),
+  openCrateRemote: vi.fn(async () => undefined),
+  buyCrateRemote: (req: unknown) => buyCrateRemote(req),
+  fetchAetherEconomy: async () => undefined,
+  equipTitleRemote: (id: string | null) => equipTitleRemote(id),
+  fetchOwnCrates: async () => undefined,
+  fetchSeenCosmeticIds: async () => undefined,
+  markCosmeticsSeenRemote: async () => true,
+}));
+
+import { CollectionPage } from '../CollectionScreen';
+import { resetProgressionForTests, useProgression } from '../progressionStore';
+import { setCrateFxFactoryForTests } from '../crateFx/crateFxPixi';
+import { setPartyHome } from '../../partyHome/partyHomeFlag';
+import { leaveCrates, openCrates, setCollectionIntent, usePhShell } from '../../partyHome/shell/shellStore';
+import { useGame } from '../../store';
+
+const noopFx = (): CrateFx => new Proxy({}, { get: (_t, k) => (k === 'then' ? undefined : k === 'mount' ? async () => true : () => {}) }) as CrateFx;
+
+let ui: Mounted | null = null;
+afterEach(() => { ui?.unmount(); ui = null; setCrateFxFactoryForTests(null); setPartyHome(false); setCollectionIntent(null); usePhShell.setState({ crates: false }); });
+beforeEach(() => {
+  resetProgressionForTests();
+  localStorage.clear();
+  equipTitleRemote.mockReset();
+  buyCrateRemote.mockReset();
+  setCrateFxFactoryForTests(noopFx);
+  useGame.setState({ account: { userId: 'u-1', email: 'kev@example.com', anonymous: false, discriminator: null }, accountPanelOpen: false, playerName: 'Kevin' });
+});
+
+const crateList: CrateRow[] = [
+  { crateId: 'c-2', earnedLevel: 2, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null },
+  { crateId: 'c-3', earnedLevel: 3, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null },
+];
+const profile = (over: Partial<ProgressionProfile> = {}): ProgressionProfile =>
+  ({ accountXp: 325, accountLevel: 2, revision: 9, equippedTitleId: 'alpha_tester', titles: ['alpha_tester', 'title_star_chaser'], aether: 1500, ...over });
+
+/** Mount the page (the shell on or off) and let the lazy skins load. */
+async function open(opts: { ph: boolean; aether?: boolean; guest?: boolean; crates?: CrateRow[]; landing?: boolean }): Promise<void> {
+  localStorage.setItem('ascent.collection.seen.u-1', JSON.stringify(['alpha_tester', 'title_star_chaser']));
+  localStorage.setItem('ascent.collection.baseline.u-1', '1');
+  localStorage.setItem('ascent.aetherIntro.seen.u-1', '1');
+  setPartyHome(opts.ph);
+  if (opts.guest) useGame.setState({ account: { userId: 'u-1', email: null, anonymous: true, discriminator: null } });
+  useProgression.setState({ capability: 'on', cratesCapability: 'on', aetherCapability: opts.aether ? 'on' : 'off', crateList: opts.crates ?? crateList, mirror: { userId: 'u-1', ...profile() } });
+  ui = mount(<CollectionPage reducedMotion />);
+  await settle();
+  // Most tests read the Titles shelf; `landing` keeps the page where it opened.
+  if (opts.ph && !opts.landing && $('.phc')) act(() => { cat('Titles').querySelector('button')!.click(); });
+}
+const settle = async (): Promise<void> => {
+  // The skins are lazy chunks: load them, then let React commit.
+  await import('./CollectionPh');
+  await import('./CrateShopPh');
+  await import('../../partyHome/shell/PhPageChrome');
+  for (let i = 0; i < 4; i++) await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+};
+const $ = (sel: string): HTMLElement | null => document.querySelector<HTMLElement>(sel);
+const $$ = (sel: string): HTMLElement[] => [...document.querySelectorAll<HTMLElement>(sel)];
+const btn = (label: string): HTMLButtonElement | undefined => [...document.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === label);
+const tileNames = (): string[] => $$('.phc-tile .phc-tile-name').map((n) => n.textContent ?? '');
+const cat = (label: string): HTMLElement => $$('.phc-cat').find((c) => c.querySelector('.phk-rowtitle')?.textContent === label)!;
+
+const tileBy = (name: string): HTMLElement => [...document.querySelectorAll<HTMLElement>('.phc-tile')].find((t) => t.textContent?.includes(name))!;
+
+describe('the Collection in the party home shell', () => {
+  it('with the switch OFF the page is today\'s: nothing of the shell mounts', async () => {
+    await open({ ph: false });
+    expect($('.colls-tabs')).not.toBeNull();
+    expect($('.phc')).toBeNull();
+    expect($('.phk-page')).toBeNull();
+  });
+
+  it('COMPACT: no side column; a tap opens the item in a sheet, and the close button, Esc and a new category shut it', async () => {
+    document.documentElement.setAttribute('data-ph-compact', '');
+    try {
+      await open({ ph: true });
+      expect($('.phc-side')).toBeNull();
+      expect($('.phc-sheet')).toBeNull();
+      act(() => { tileBy('Star Chaser').click(); });
+      expect($('.phc-sheet h2')?.textContent).toBe('Star Chaser');
+      act(() => { $('.phc-sheetx')!.click(); });
+      expect($('.phc-sheet')).toBeNull();
+      act(() => { tileBy('Star Chaser').click(); });
+      act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+      expect($('.phc-sheet')).toBeNull();
+      act(() => { tileBy('Star Chaser').click(); });
+      act(() => { cat('Heroes').querySelector('button')!.click(); });
+      expect($('.phc-sheet')).toBeNull();
+    } finally { document.documentElement.removeAttribute('data-ph-compact'); }
+  });
+
+  it('COMPACT: the rail fades at an edge only while there is more that way', async () => {
+    const seen: { cb: IntersectionObserverCallback }[] = [];
+    vi.stubGlobal('IntersectionObserver', class { constructor(cb: IntersectionObserverCallback) { seen.push({ cb }); } observe(): void {} disconnect(): void {} });
+    document.documentElement.setAttribute('data-ph-compact', '');
+    try {
+      await open({ ph: true });
+      const rail = $('.phc-rail')!;
+      const hit = (edge: string, isIntersecting: boolean): void => seen.at(-1)!.cb([{ target: $(`.phc-railedge.${edge}`)!, isIntersecting } as unknown as IntersectionObserverEntry], {} as IntersectionObserver);
+      hit('end', false); hit('start', true);
+      expect(rail.hasAttribute('data-more-r')).toBe(true);
+      expect(rail.hasAttribute('data-more-l')).toBe(false);
+      hit('end', true); hit('start', false);
+      expect(rail.hasAttribute('data-more-r')).toBe(false);
+      expect(rail.hasAttribute('data-more-l')).toBe(true);
+    } finally { document.documentElement.removeAttribute('data-ph-compact'); vi.unstubAllGlobals(); }
+  });
+
+  it('Esc on Crates: from the Collection it steps back; from the nav on another page it is left to the shell', async () => {
+    const esc = (): boolean => { const e = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }); act(() => { document.dispatchEvent(e); }); return e.defaultPrevented; };
+    await open({ ph: true, aether: true });
+    act(() => { $('.phc-shopbtn')!.click(); });
+    await settle();
+    expect(esc()).toBe(true);
+    await settle();
+    expect($('.phs')).toBeNull();
+    ui?.unmount(); ui = null;
+    setCollectionIntent('shop');
+    await open({ ph: true, aether: true });
+    await settle();
+    expect($('.phs')).not.toBeNull();
+    expect(esc()).toBe(false);
+    expect($('.phs')).not.toBeNull();
+  });
+
+  it('ON: the page opens on the first category, Heroes', async () => {
+    await open({ ph: true, landing: true });
+    expect($$('.phc-cat')[0]).toBe(cat('Heroes'));
+    expect(cat('Heroes').className).toMatch(/\bsel\b/);
+  });
+
+  it('ON: the kit page under the top nav, every category with its count, the album and the selected item', async () => {
+    await open({ ph: true });
+    expect($('.phc.phk-page h1')?.textContent).toBe('Collection');
+    expect($('.ph-top')).not.toBeNull();
+    expect($('.colls-tabs')).toBeNull();
+    expect(cat('Titles').className).toMatch(/\bsel\b/);
+    expect(cat('Titles').querySelector('.phk-rowcount')?.textContent).toMatch(/^2 \/ \d+$/);
+    expect(tileNames()).toContain('Alpha Tester');
+    // The equipped title is selected by default and its detail says so, with Take off.
+    expect($('.phc-detail h2')?.textContent).toBe('Alpha Tester');
+    expect($('.phc-stage-name')?.textContent).toBe('Kevin');
+    expect(btn('Take off')).toBeDefined();
+    expect($('.phc-meter')?.getAttribute('aria-valuenow')).toMatch(/^\d+$/);
+  });
+
+  it('ON: filters and picking work through the page; Equip calls the store', async () => {
+    equipTitleRemote.mockResolvedValue({ ok: true, profile: { userId: 'u-1', ...profile({ equippedTitleId: 'title_star_chaser' }) } });
+    await open({ ph: true });
+    act(() => { $$('.phk-tab').find((t) => t.textContent?.startsWith('Owned'))!.click(); });
+    expect(tileNames().sort()).toEqual(['Alpha Tester', 'Star Chaser']);
+    act(() => { $$('.phc-tile').find((t) => t.textContent?.includes('Star Chaser'))!.click(); });
+    expect($('.phc-detail h2')?.textContent).toBe('Star Chaser');
+    await act(async () => { btn('Equip')!.click(); await Promise.resolve(); });
+    expect(equipTitleRemote).toHaveBeenCalledWith('title_star_chaser');
+    // A missing item says so beside its kind, clear of the preview.
+    act(() => { $$('.phk-tab').find((t) => t.textContent?.startsWith('All'))!.click(); });
+    act(() => { tileBy('Kingbreaker').click(); });
+    expect(document.querySelector('.phc-kindrow')?.textContent).toContain('Not owned');
+    expect(document.querySelector('.phc-stage .phc-notowned')).toBeNull();
+  });
+
+  it('ON: the chest bay counts the sealed chests and Open plays the theatre in the shell skin', async () => {
+    await open({ ph: true });
+    expect($('.phc-bay-num')?.textContent).toBe('2 ready');
+    expect(btn('Open all (2)')).toBeDefined();
+    act(() => { btn('Open')!.click(); });
+    expect($('.crth.phx')).not.toBeNull();
+  });
+
+  it('ON: a guest\'s Open shows the sign-in gate, never the theatre', async () => {
+    await open({ ph: true, guest: true });
+    expect($('.phc-guest')).not.toBeNull();
+    act(() => { [...document.querySelectorAll<HTMLButtonElement>('.phc-bay-actions button')][0]!.click(); });
+    expect($('.crth')).toBeNull();
+    expect(document.body.textContent).toMatch(/account/i);
+  });
+
+  it('ON: a switched-off category is listed as Soon and opens a coming-soon view', async () => {
+    await open({ ph: true });
+    const locked = $$('.phc-cat.locked');
+    if (!locked.length) return; // every category is live in this build
+    act(() => { locked[0]!.querySelector('button')!.click(); });
+    expect($('.phc-soon')).not.toBeNull();
+  });
+
+  it('ON with Aether: the Chest Shop opens in the shell skin (the shop\'s own cards and rows), with no back button; the nav returns', async () => {
+    await open({ ph: true, aether: true });
+    act(() => { $('.phc-shopbtn')!.click(); });
+    await settle();
+    expect($('.cshop.phs')).not.toBeNull();
+    expect($('.phs h1')?.textContent).toBe('Crates');
+    expect($('.phs .phk-back')).toBeNull(); // a top-level nav page
+    expect($$('.phs .cshop-chest')).toHaveLength(5);
+    expect($$('.phs .cshop-cat:not(.cshop-cat-head)').length).toBeGreaterThan(0);
+    expect($('.phs-wallet')).toBeNull(); // the nav's wallet is the one balance
+    expect($('.phs-buy')?.textContent).toMatch(/^Open chest/);
+    act(() => { leaveCrates(); });
+    await settle();
+    expect($('.cshop')).toBeNull();
+    expect($('.phc')).not.toBeNull();
+  });
+
+  it('ON with Aether: the shell\'s Crates tab (its Collection intent) lands straight on the Chest Shop, once', async () => {
+    setCollectionIntent('shop');
+    await open({ ph: true, aether: true });
+    await settle();
+    expect($('.cshop.phs')).not.toBeNull();
+    expect(usePhShell.getState().collectionIntent).toBeNull();
+    expect(usePhShell.getState().crates).toBe(true);
+    act(() => { leaveCrates(); });
+    await settle();
+    expect(usePhShell.getState().crates).toBe(false);
+  });
+
+  it('Crates with the shop out of reach: the plain offline note under a lit Crates tab; the Collection tab steps back', async () => {
+    useProgression.setState({ cratesCapability: 'off' });
+    await open({ ph: true, aether: false });
+    useProgression.setState({ cratesCapability: 'off' });
+    await settle();
+    expect($('.phc-bay')?.textContent).toContain('Chests are unavailable right now.');
+    act(() => { openCrates(); });
+    await settle();
+    expect($('.phs h1')?.textContent).toBe('Crates');
+    expect($('.phs-offline')?.textContent).toContain('Crates are unavailable right now');
+    expect(btn('Retry')).toBeDefined();
+    expect(usePhShell.getState().crates).toBe(true);
+    act(() => { leaveCrates(); });
+    await settle();
+    expect($('.phs')).toBeNull();
+    expect($('.phc')).not.toBeNull();
+  });
+
+  it('ON with Aether: Crates pressed while the Collection is already open switches to the Chest Shop', async () => {
+    await open({ ph: true, aether: true });
+    expect($('.cshop')).toBeNull();
+    act(() => { openCrates(); });
+    await settle();
+    expect($('.cshop.phs')).not.toBeNull();
+    expect(usePhShell.getState().collectionIntent).toBeNull();
+  });
+
+  it('ON with Aether: a guest\'s buy is the sign-in gate, never the store', async () => {
+    await open({ ph: true, aether: true, guest: true });
+    act(() => { $('.phc-shopbtn')!.click(); });
+    await settle();
+    // Live (it opens sign-in), but it reads as sign-in: the outlined plate, never the gold buy.
+    expect($('.phs-buy')?.textContent).toMatch(/^Sign in to open/);
+    expect($('.phs-buy')?.className).toMatch(/\bv-plate\b/);
+    expect(($('.phs-buy') as HTMLButtonElement).disabled).toBe(false);
+    act(() => { $('.phs-buy')!.click(); });
+    expect(buyCrateRemote).not.toHaveBeenCalled();
+  });
+});
+
+describe('the shell skins keep the UI rules', () => {
+  const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
+  it('DEV only: lazy imports behind import.meta.env.DEV', () => {
+    expect(here('../CollectionScreen.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/ph\/CollectionPh'\)/);
+    expect(here('../CrateShop.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/ph\/CrateShopPh'\)/);
+  });
+  it('the chest opening ph-error phase class meets no shell rule of that name; it once pulled a failed opening off screen (R-PH-COLLECTION-01)', () => {
+    expect(here('../../partyHome/partyHome.css')).not.toMatch(/\.ph-error\b/);
+  });
+  it('a tap opens a chest or odds tip on a phone: its .tt-on twin stands apart from :hover, which the hover guard moves (R-PH-COLLECTION-01)', () => {
+    const css = here('./crateShopPh.css');
+    expect(css).toMatch(/\.phs :is\(\.cshop-chest, \.cshop-seg\)\.tt-on \.cshop-pop[^{]*\{ display: block; \}|\.phs :is\(\.cshop-chest, \.cshop-seg\)\.tt-on \.cshop-pop, /);
+    expect(css).not.toMatch(/:is\([^)]*:hover[^)]*\.tt-on/);
+  });
+  it('idle Crates goes still: the picked chest\'s halo, the On toggle and the rays run a bounded time, then hold', () => {
+    const css = here('./crateShopPh.css');
+    expect(css).toMatch(/\.cshop-chest\.on::after, [^{]*\.cshop-toggle::before \{ animation-iteration-count: 1\.5; animation-fill-mode: forwards; \}/);
+    expect(css).toMatch(/\.cshop-chest-rays \{ animation-iteration-count: 0\.5; animation-fill-mode: forwards; \}/);
+  });
+  it('no native tooltips, no cursor rules, no em dashes, no looping animation', () => {
+    const tsx = [here('./CollectionPh.tsx'), here('./CrateShopPh.tsx')].join('\n');
+    const css = [here('./collectionPh.css'), here('./crateShopPh.css')].join('\n');
+    expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
+    expect(tsx).not.toMatch(/[—–]/);
+    expect(css).not.toMatch(/cursor\s*:/);
+    expect(css).not.toMatch(/infinite/);
+    expect(css).not.toMatch(/@keyframes/);
+  });
+});

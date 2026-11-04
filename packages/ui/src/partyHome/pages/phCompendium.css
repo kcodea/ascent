@@ -287,3 +287,6 @@ html[data-ph-compact] .phh-name { font-size: calc(24 * var(--phu)); }
 html[data-ph-book] :is(.ph, .lbpage, .modepick) { visibility: hidden; }
 .phb-ov .ph-steady { position: absolute !important; z-index: 0 !important; }
 .phh { width: 100%; }
+/* Phones: the header's tools leave the tabs their room (the Set picker keeps only its name). */
+html[data-ph-compact] .phb :is(.book-setpick-cap, .book-setpick-live) { display: none; }
+html[data-ph-compact] .phb .book-search { width: calc(150 * var(--phu)); }

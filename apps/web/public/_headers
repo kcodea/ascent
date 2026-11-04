@@ -16,43 +16,63 @@
 /release.json
   Cache-Control: no-cache
 
-# Public-folder art keeps its filename across edits (no hash), so it is NOT immutable: fresh for an hour, then
-# served from cache instantly while the browser re-checks in the background (a replaced frame lands one visit later).
+# Public-folder art keeps its filename across edits (no hash), so it is NOT immutable. Fresh for a DAY, and deliberately
+# NO stale-while-revalidate (R-PERF-ART-STAYS-FRESH-01, owner 2026-11-04 "a ton of art pop in"). An image past its
+# freshness is not reused by a new <img>: the browser goes back to the disk cache or the server for every element it
+# mounts, and that element paints blank until then. stale-while-revalidate is what let a RETURNING player's whole session
+# run on expired copies (measured: 14 pop-ins on a warm visit, 155 on an expired one). Without it the boot gate re-checks
+# an expired file once (a 304), and the copy is fresh for the session. A day because a session must fit inside it: a tab
+# left open past the mark goes back to popping. A replaced frame reaches a returning player within a day.
 /frames/*
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /medallions/*
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /cursors/*
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /fx/*
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /collection/*
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
+/backdrops/*
+  Cache-Control: public, max-age=86400
+/menu/*
+  Cache-Control: public, max-age=86400
+/currency/*
+  Cache-Control: public, max-age=86400
+# The build's phone copies (phoneArtPlugin.ts): without a rule a phone asked the server about each one on every visit.
+/m1/*
+  Cache-Control: public, max-age=86400
 /music/*
   Cache-Control: public, max-age=3600, stale-while-revalidate=604800
 /announcer/*
   Cache-Control: public, max-age=3600, stale-while-revalidate=604800
 /playingboard.webp
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /playingboard-combat.webp
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /backdrop-*
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /playingboard-shadow.webp
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /playingboard-combat-shadow.webp
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /homescreen.webp
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /runeforgebg2.webp
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /opponents-backplate.webp
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /return-to-shop.webp
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /blast-dmg-icon.webp
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /opp-rune-slot-*
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
 /rune-slot-*
-  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+  Cache-Control: public, max-age=86400
+/vista-*
+  Cache-Control: public, max-age=86400
+/transition-*
+  Cache-Control: public, max-age=86400
+/loadscreen.webp
+  Cache-Control: public, max-age=86400

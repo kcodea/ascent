@@ -1075,8 +1075,8 @@ describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy +
         board: [mkCard('dw', 'dw_brunni', 'dwarf', 3, 2)],
         hand: [mkCard('g', 'dw_dorrin', 'dwarf', 2, 4)] };
       s = reduce(s, { type: 'play', uid: 'g' });
-      expect(s.pendingTarget?.uid, 'the aim opened and the body is on the board').toBe('g');
-      expect(s.board.some((c) => c.uid === 'g')).toBe(true);
+      expect(s.pendingTarget?.uid, 'the aim opened, the card held in hand (R-TARGET-CANCEL-01)').toBe('g');
+      expect(s.hand.some((c) => c.uid === 'g')).toBe(true);
       const aimed = reduce(s, { type: 'battlecryTarget', targetUid: 'dw' });
       expect(aimed, 'the aim is accepted').not.toBe(s);
       expect(aimed.pendingTarget).toBeUndefined();

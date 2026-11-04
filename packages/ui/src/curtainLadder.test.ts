@@ -66,6 +66,7 @@ const ABOVE_CURTAIN: Record<string, string> = {
 
 /** Inline z-indexes at or above the curtain, by file: all dev tools or system layers. */
 const INLINE_ABOVE_CURTAIN = new Set([
+  'popIn.ts', // the opt-in pop-in probe's panel: a dev tool
   'BugBoard.tsx', 'DevMenu.tsx', 'QaWorkbench.tsx', 'RulebookTriage.tsx', 'touchKeyboard.ts', 'uiEditor/EditorOverlay.tsx',
 ]);
 

@@ -496,5 +496,22 @@ html[data-ph-compact] .ph-stagehead .ph-held { display: flex; }
 html[data-ph-compact] .ph-stagehead { gap: calc(8 * var(--phu)); }
 html[data-ph-compact] .ph-heldrow { padding: calc(2 * var(--phu)) calc(4 * var(--phu)) calc(2 * var(--phu)) calc(14 * var(--phu)); }
 html[data-ph-compact] .ph-heldrow .phk-btn.s-s { height: calc(48 * var(--phu)); min-height: calc(48 * var(--phu)) !important; }
-/* Under a page the home is covered: it paints nothing and takes no focus. */
-.ph.paged { visibility: hidden; }
+/* Under a page the home is covered: its content paints nothing and takes no focus (`inert`). The nav and backdrop stay, so a page
+   still loading never shows the title's art through. */
+.ph.paged > :is(.ph-modes, .ph-stage, .ph-sidepanel) { visibility: hidden; }
+
+/* ── CRITIC ROUND 11 ── */
+/* A return to Play starts moving at once. */
+.ph-cardwrap { animation-duration: 0.22s; animation-delay: calc(var(--i, 0) * 25ms); }
+/* THE BANNER: portrait above, plate below. The art fades out before the name, so the name and medal sit on the navy; the level or
+   state closes the foot. No hard crop, no dead gap, the same on every seat. */
+.ph-art { height: 76%; object-position: 50% 14%; -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); mask-image: linear-gradient(180deg, #000 72%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); }
+.ph-foot, .ph-foot:has(.ph-state) { top: 66%; bottom: 0; justify-content: flex-start; padding: calc(4 * var(--phu)) calc(12 * var(--phu)) 0; background: none; }
+.ph-sub, .ph-state { position: absolute; left: 0; right: 0; bottom: calc(8 * var(--phu)); margin: 0; padding: 0; }
+.ph-cardwrap.rival .ph-name { color: #ffd6d0; }
+html[data-ph-compact] .ph-art { height: 62%; object-position: 50% 8%; }
+html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { top: 52%; padding: 0 calc(6 * var(--phu)); }
+html[data-ph-compact] .ph-sub { display: none; }
+html[data-ph-compact] .ph-state { bottom: calc(2 * var(--phu)); }
+/* A greyed mode says why on the tab itself: the row does not scroll at desktop size, so the game's tip can show. */
+html[data-ph-shell]:not([data-ph-compact]) .ph-modes .phk-tabs { overflow: visible; position: relative; z-index: 4; }

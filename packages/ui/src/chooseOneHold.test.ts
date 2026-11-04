@@ -96,18 +96,18 @@ describe('Choose One hold — the card keeps its board slot through the targetin
     expect(done.board.map((c) => c.uid).slice(0, 3)).toEqual(['a', 'ws', 'b']);
   });
 
-  it('a plain targeted Battlecry is really on the board while it aims — nothing to hold', () => {
-    // Twilight Emissary: an ordinary targeted Battlecry commits its body at play time, so the board shows the
-    // real card and the gate stays out of it (it only covers the DEFERRED Choose One aim).
+  it('a plain targeted Battlecry holds its slot the same way (R-TARGET-CANCEL-01)', () => {
+    // Twilight Emissary: an ordinary targeted Battlecry commits nothing until the pick, so it stands in its slot
+    // through the same gate, and the pick lands it there.
     const s0: RunState = { ...createRun(23), board: [card('d', 'emissary')], hand: [card('e', 'emissary')] };
     const aiming = reduce(s0, { type: 'play', uid: 'e', toIndex: 0 });
     expect(aiming.pendingTarget?.uid).toBe('e');
-    expect(aiming.pendingTarget?.deferredPlay).toBeFalsy();
-    expect(aiming.board.map((c) => c.uid), 'body committed at the drop slot').toEqual(['e', 'd']);
-    expect(chooseOneHeldSlot(aiming)).toBeNull();
+    expect(aiming.pendingTarget?.deferredPlay).toBe(true);
+    expect(aiming.board.map((c) => c.uid), 'nothing committed yet').toEqual(['d']);
+    expect(chooseOneHeldSlot(aiming)).toEqual({ uid: 'e', toIndex: 0 });
     const done = reduce(aiming, { type: 'battlecryTarget', targetUid: 'd' });
     expect(done.pendingTarget).toBeUndefined();
-    expect(done.board.map((c) => c.uid)).toEqual(['e', 'd']);
+    expect(done.board.map((c) => c.uid), 'body committed at the drop slot').toEqual(['e', 'd']);
   });
 
   it('a spell or an Equipment is never held (no slot, no card)', () => {

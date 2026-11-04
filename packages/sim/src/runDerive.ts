@@ -444,8 +444,11 @@ export function observeAction(st: DeriveState, before: RunState, action: Action,
     for (const c of [...after.hand, ...after.board]) {
       if (!had.has(c.uid)) recordAcquisition(st, c, before.wave, src, Math.max(0, before.embers - after.embers));
     }
-  } else if (action.type === 'play') {
-    const row = st.acquisitions[st.acqIdx[action.uid] ?? -1];
+  } else if (action.type === 'play' || action.type === 'chooseOne' || action.type === 'battlecryTarget') {
+    // A play that only opened its prompt or aim has not happened yet, and may never (R-TARGET-CANCEL-01): the row is
+    // marked by the action that actually spent the play, whichever of the three that was.
+    const uid = action.type === 'play' ? action.uid : (before.chooseOne ?? before.pendingTarget)?.uid;
+    const row = uid !== undefined && (after.playedThisTurn?.length ?? 0) > (before.playedThisTurn?.length ?? 0) ? st.acquisitions[st.acqIdx[uid] ?? -1] : undefined;
     if (row && !row.played) { row.played = true; row.playedWave = before.wave; }
   } else if (action.type === 'sell') {
     const row = st.acquisitions[st.acqIdx[action.uid] ?? -1];

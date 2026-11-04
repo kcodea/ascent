@@ -2769,10 +2769,14 @@ export interface RunState {
    *  summon buffs, Refrain's RNG roll, triples, the golden Discover) firing exactly once and in the same
    *  order it always did. */
   chooseOnePick?: { uid: string; index: number; targetUid?: string };
-  /** A played minion with a *targeted* Battlecry (`CardDef.target === 'friendly'`, e.g. Toxin Tender),
-   *  on the board and waiting for the player to pick the friendly minion its Battlecry hits. Resolved
-   *  by `battlecryTarget`; auto-resolves on the carry if the turn ends first. `optionIndex` marks a deferred
-   *  *targeted Choose One* (Runic Beetle) — the chosen option's effects resolve on the picked target. */
+  /** TRANSIENT, single-dispatch scratch, the aimed Shout's twin of `chooseOnePick`: the pick handed to the `play` case as
+   *  it REPLAYS a held play (R-TARGET-CANCEL-01). No `targetUid` = the turn ended on the aim (R-TARGET-07 picks). */
+  aimPick?: { uid: string; targetUid?: string };
+  /** An aim waiting on the player. A minion with a *targeted* Battlecry (`CardDef.target === 'friendly'`, e.g. Toxin
+   *  Tender) is HELD IN HAND until the pick (`shoutAim`, R-TARGET-CANCEL-01), with nothing played yet, so `cancelChoice`
+   *  sends it home. Resolved by `battlecryTarget`; a random legal pick if the turn ends first (R-TARGET-07). An aim with
+   *  no `deferredPlay` comes from an older save: its play already committed, so it cannot be cancelled. `optionIndex`
+   *  marks a deferred *targeted Choose One* (Runic Beetle) — the chosen option's effects resolve on the picked target. */
   pendingTarget?: { uid: string; cardId: string; optionIndex?: number;
     /** Common Ground: this pending aim belongs to a SPELL in HAND (not a board battlecry) whose FIRST target
      *  is already picked (`spellFirstUid`); the aim picker chooses the SECOND friendly minion, then the two are
@@ -2783,6 +2787,8 @@ export interface RunState {
      *  summoned + Battlecry) only once the target is picked. That is what makes a click-away cancel here a
      *  pure no-op instead of stranding a chosen-but-unplaced card. */
     deferredPlay?: boolean;
+    /** With `deferredPlay`: an aimed Shout or a Mage-Pup's taught spell, whose pick replays the `play` through `aimPick`. */
+    shoutAim?: boolean;
     /** The warband slot captured at play time, replayed into the completing `play` (minions only). */
     toIndex?: number };
   /** The most recent combat's result, for the UI to replay. Transient. */

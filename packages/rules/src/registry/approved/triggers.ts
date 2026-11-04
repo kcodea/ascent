@@ -1027,7 +1027,7 @@ export const TRIGGERS_RULES: GameRule[] = [
     title: 'The end-of-turn charge (the crystal fuse, its debris, the gem glow and its build sound) stops whenever the Shop clock stops',
     statement:
       'The end-of-turn charge effect is a readout of the Shop turn timer and never runs on a clock of its own. Whenever '
-      + 'the timer is held mid-turn, for ANY reason (a Discover or other decision, an offer, an aim, the Esc menu, an '
+      + 'the timer is held mid-turn, for ANY reason (a Discover or other decision, an offer, the Esc menu, an '
       + 'overlay, the Good Luck intro, the combat wipe, a Gold Fuse turn before its Gold is spent, or any hold added '
       + 'later), the fuse burn, its debris, the gem glow and the charge-build sound all stop with it, and on resume they '
       + 'continue from exactly where the timer is. A hold keeps the part of the second already elapsed, so pausing '

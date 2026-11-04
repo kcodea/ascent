@@ -1044,7 +1044,30 @@ export function reduce(state: RunState, action: Action): RunState {
     settlePendingDeath(settled);
     state = settled;
   }
-  let next = reduceCore(state, action);
+  // AN AIM STRANDED WHEN THE TURN ENDS (R-TARGET-07): the held Shout play completes on a random legal target, as a real
+  // `play` (every per-play hook below runs for it), and only then does the turn end. The live game reaches End Turn with
+  // the aim already cancelled (the press is a click off target); this is the path for a recording, a bot or a driver.
+  const strandedAim = action.type === 'faceOmen' && !!state.pendingTarget?.shoutAim;
+  if (strandedAim) {
+    const pt = state.pendingTarget!;
+    const held = { ...state, pendingTarget: undefined, aimPick: { uid: pt.uid } };
+    const played = reduce(held, { type: 'play', uid: pt.uid, toIndex: pt.toIndex });
+    state = { ...played, aimPick: undefined };
+  }
+  const next = reduceCore(state, action, strandedAim ? { aimSettled: true } : undefined);
+  // A HELD PLAY IS NOT A PLAY (R-TARGET-CANCEL-01): a `play` that only opened its Choose One prompt or its aim changed
+  // nothing but the prompt, so no per-play hook below may hear it (they run once, when it commits). A cancelled play
+  // therefore ticks no quest and no watcher. The commit is the mirror image: the `chooseOne` / `battlecryTarget` that
+  // finished a held play IS that play to everything below.
+  if (action.type === 'play' && next !== state
+    && (next.chooseOne?.uid === action.uid || (next.pendingTarget?.deferredPlay && next.pendingTarget.uid === action.uid))) return next;
+  const heldPlay = action.type === 'chooseOne' ? state.chooseOne : action.type === 'battlecryTarget' && state.pendingTarget?.deferredPlay ? state.pendingTarget : undefined;
+  const committed = !!heldPlay && (next.playedThisTurn?.length ?? 0) > (state.playedThisTurn?.length ?? 0);
+  return settleAction(state, committed ? { type: 'play', uid: heldPlay.uid } : action, next);
+}
+
+/** Everything an action owes the run once the core has resolved it: the boundary diffs, the quest ticks, the FX stamps. */
+function settleAction(state: RunState, action: Action, next: RunState): RunState {
   // DUOS (R-DUOS-PASS-FLIGHT-01): a send this play / buy queued streams from the card the player acted on, when its own
   // stamp names nothing on screen (a bare cast, or a card this action gave a fresh uid). Presentation only.
   if (next !== state && next.duos && (action.type === 'play' || action.type === 'buy')) {
@@ -1540,6 +1563,35 @@ function opensBattlecryAim(s: RunState, card: BoardCard): boolean {
   return s.board.some((c) => c.uid !== card.uid && battlecryTargetAllowed(def, c)); // Roomworks: needs an End of Turn minion
 }
 
+/** May this aimed Shout land on `target`? The ONE check behind every player pick.
+ *  Self-targeting: R-TARGET-03 (owner 2026-09-18, global): NO aimed Shout resolves onto its own body (it began as
+ *  Graverobber's `targetNotSelf`, where destroying itself deleted the body paying for the spell). Tribe: this guard was
+ *  once MISSING, the aim UI filtered the pick but the reducer accepted any uid, so an Appetite Agent could feed a Beast
+ *  (the Battlecry twin of the Cupcakes hole, fixed 2026-08-03). Roomworks (owner 2026-10-10): only a minion WITH an End of
+ *  Turn effect. Authoritative: the aim UI mirrors it, but the reducer is what actually decides. */
+function shoutAimLegal(s: RunState, card: BoardCard, target: BoardCard): boolean {
+  if (target.uid === card.uid) return false;
+  const def = CARD_INDEX[card.cardId];
+  if (def?.targetTribe && !isTribe(target, def.targetTribe)) return false;
+  return !def || battlecryTargetAllowed(def, target);
+}
+
+/** An aim the turn ended on. The player never got to aim, so the engine picks the way every un-aimed targeted effect does
+ *  (R-TARGET-07, owner 2026-10-10): a RANDOM legal body off the run cursor — never itself (R-TARGET-03), honouring a tribe
+ *  restriction (Toxin Tender → another friendly Undead) and the aim filters (Roomworks → an End of Turn minion). It used
+ *  to be the highest-Attack "carry", self included on an untyped aim. No eligible target → the play resolves with no
+ *  effect. `optionIndex`: a committed targeted Choose One (Runic Beetle) resolves the chosen option on the pick. */
+function resolveStrandedAim(s: RunState, src: BoardCard, optionIndex?: number): void {
+  const def = CARD_INDEX[src.cardId];
+  const opt = optionIndex !== undefined ? def?.chooseOne?.[optionIndex] : undefined;
+  const autoTribe = effectiveTargetTribe(s, def);
+  const pool = s.board.filter((c) => c !== src && (!autoTribe || isTribe(c, autoTribe)) && (!def || !!opt || battlecryTargetAllowed(def, c)));
+  const carry = refireTarget(s, pool);
+  if (!carry) return;
+  if (opt) applyChooseOneTarget(s, src, opt.effects, carry);
+  else applyBattlecryTarget(s, src, carry);
+}
+
 /** Rune of Refrain's roll for a Shout minion that has just FIRED: 25% per copy held (owner 2026-08-27, unique-engine
  *  doubling), capped below certainty, drawn off the run cursor so a reload/replay resolves it identically. A hit
  *  returns the actual instance (buffs/golden intact) to hand; a full hand swallows it. A miss is not the rune firing. */
@@ -1557,7 +1609,19 @@ function rollRefrainReturn(s: RunState, card: BoardCard): void {
   }
 }
 
-function reduceCore(state: RunState, action: Action): RunState {
+/** What a re-entrant `reduceCore` call needs that no recorded action carries. `aimSettled`: this End Turn just finished a
+ *  stranded aim, so a Discover that aim opened does not hold the turn (the same escape `pendingTarget` itself gets).
+ *  `hold`: stop on a clean draft with this aim open and nothing else changed (see `holdPlayForAim`). */
+interface ReduceInner { aimSettled?: boolean; hold?: NonNullable<RunState['pendingTarget']> }
+
+/** THE AIM COMES FIRST (R-TARGET-CANCEL-01). The `play` that reached an aim ran on a throwaway draft, which is how it
+ *  knows the aim opens with the board the play would really leave. That draft is dropped here: the run answers from
+ *  `state`, the card is still in hand, and no counter, trigger or RNG draw survives. */
+function holdPlayForAim(state: RunState, action: Action, hold: NonNullable<RunState['pendingTarget']>): RunState {
+  return reduceCore(state, action, { hold });
+}
+
+function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunState {
   // Read-only rejections run BEFORE the deep clone — every no-op dispatch (a click while a Discover is
   // open, an out-of-phase action) used to pay the full structuredClone below for nothing.
   // A finished run (loss or victory) takes no more actions — restart goes through the store.
@@ -1631,15 +1695,18 @@ function reduceCore(state: RunState, action: Action): RunState {
   // raises a Discover now queues behind the open modal rather than stacking on it.)
   //
   // End Turn (`faceOmen`) is exempt SPECIFICALLY when a battlecry aim (`pendingTarget`) is the blocker, and
-  // this is load-bearing. The round timer pauses for the Discover / quest / Runeforge overlays but NOT for a
-  // pendingTarget aim, so the timer can expire mid-aim — and the UI then blocks the target pick too (`timeUp`).
-  // With End Turn also rejected here, the player was permanently softlocked, and since `pendingTarget` is
-  // saved, a reload landed straight back in it (owner report 2026-07-22). `faceOmen` already auto-resolves a
-  // pending target onto a random legal target (R-TARGET-07), so ending the turn is a safe, defined escape.
+  // this is load-bearing. The round timer pauses for the Discover / quest / Runeforge overlays but NOT for an
+  // aim (R-TIMER-AIM-01). An aim held from the hand closes at 0:00 (`shopClockExpired`), but a committed aim from
+  // an older save does not, and the UI blocks its target pick (`timeUp`). With End Turn also rejected here, the
+  // player was permanently softlocked, and since `pendingTarget` is saved, a reload landed straight back in it
+  // (owner report 2026-07-22). `faceOmen` auto-resolves a pending target onto a random legal target (R-TARGET-07),
+  // so ending the turn is a safe, defined escape.
   // The exemption is deliberately NARROW — only `pendingTarget`, NOT the other modals: `chooseOne`'s options
   // stay clickable under `timeUp` (so it can always be resolved and needs no escape), and letting End Turn fire
   // over an open Discover / Choose One / quest / Runeforge would strand it going into combat.
-  const endTurnEscapesAim = action.type === 'faceOmen' && !!state.pendingTarget;
+  const endTurnEscapesAim = action.type === 'faceOmen' && (!!state.pendingTarget || !!inner?.aimSettled);
+  // The clock reaches 0:00 under an aim (R-TIMER-AIM-01), so its expiry has to get past this gate to lock the Shop and close the aim.
+  const clockEndsAim = action.type === 'shopClockExpired' && !!state.pendingTarget;
   // COMBAT TRANSITIONS ARE EXEMT TOO (found 2026-08-07 by the seed-7 hard bot). The phase guard above allows
   // ONLY `settleCombat`/`resolveCombat` while `phase === 'combat'`. So if a modal is open during a fight, the
   // phase guard rejects the modal-resolving action AND this guard rejects the transition — a hard deadlock
@@ -1654,7 +1721,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // before the pick resolves either way — it only lets the settle be its own commit, so the shop can play the
   // dissolve and THEN raise the Discover (Recruit.tsx holds the overlay on `pendingDeath`).
   const settlesDeath = action.type === 'resolveShopDeath' && !!state.pendingDeath;
-  if (modalOpen(state) && !combatTransition && !combatPreview && !settlesDeath && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
+  if (modalOpen(state) && !combatTransition && !combatPreview && !settlesDeath && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim && !clockEndsAim) {
     return state;
   }
 
@@ -1735,6 +1802,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.equipmentSpellCasts = []; // per-action: spells an Equipment activation cast (the Keg's Ale) — for the use cue
   s.equipmentFxBuffed = []; // per-action: board bodies an Equipment's effect buffed — the use cue's destination
 
+  if (inner?.hold) { s.pendingTarget = inner.hold; return s; } // a held play: the prompt opens, nothing else moves
   switch (action.type) {
     case 'buy': {
       // The right-hand spell slot: pays its own (modifiable) cost, into the hand.
@@ -2407,8 +2475,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           // then average the pair on `battlecryTarget`. Needs another friendly minion to exist, else it fizzles.
           if (boardTarget && def.effects.some((e) => e.do === 'spellAverageStats')) {
             if (!s.board.some((c) => c.uid !== boardTarget.uid)) return state; // no second minion → keep in hand
-            s.pendingTarget = { uid: card.uid, cardId: def.id, spell: true, spellFirstUid: boardTarget.uid };
-            return s;
+            return holdPlayForAim(state, action, { uid: card.uid, cardId: def.id, spell: true, spellFirstUid: boardTarget.uid, deferredPlay: true });
           }
           // Displacement needs a tavern MINION to swap with (spells can't be displaced) — with none in the
           // tavern the swap can't happen, so the spell fizzles and stays in hand.
@@ -2674,9 +2741,24 @@ function reduceCore(state: RunState, action: Action): RunState {
       // applied above), so it must not fall into the generic targeted-Battlecry prompt as well — Runic Beetle
       // would open a second, meaningless aim. Before the deferral this block was unreachable for a Choose One
       // because the prompt returned early. (`opensBattlecryAim` holds the one predicate; Refrain reads it too.)
+      //
+      // THE AIM COMES FIRST (owner 2026-11-03, R-TARGET-CANCEL-01: "click back and not play the card/send it back to
+      // hand"). Reaching this line WITHOUT a pick means the player has not aimed yet, so nothing above may stand: the
+      // draft is dropped and only the aim opens, with the card still in hand. The pick replays this `play` from the top
+      // and lands here again carrying `aimPick`, which is what keeps the old order exactly (`play`, then
+      // `battlecryTarget`: the same meters, summon buffs and RNG draws, in the same sequence, just after the aim).
       if (opensBattlecryAim(s, card)) {
-        s.pendingTarget = { uid: card.uid, cardId: card.cardId };
-        return s;
+        const pick = s.aimPick?.uid === card.uid ? s.aimPick : undefined;
+        if (!pick) return holdPlayForAim(state, action, { uid: card.uid, cardId: card.cardId, deferredPlay: true, shoutAim: true, toIndex: action.toIndex });
+        s.aimPick = undefined;
+        if (pick.targetUid === undefined) { resolveStrandedAim(s, card); return s; } // the turn ended first (R-TARGET-07)
+        const target = s.board.find((c) => c.uid === pick.targetUid);
+        if (!target || !shoutAimLegal(s, card, target)) return state; // refused: the prompt stays up, nothing played
+        applyBattlecryTarget(s, card, target);
+        // Rune of Refrain rolls for an aimed Shout HERE: its Shout has now fired (see the play-time note). Same gate as
+        // the play-time roll (a real Shout minion, never a Mage-Pup's taught spell).
+        const aimedDef = CARD_INDEX[card.cardId];
+        if (s.runeRefrain && aimedDef && hasBattlecry(aimedDef)) rollRefrainReturn(s, card);
       }
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
@@ -2747,9 +2829,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       // trigger fired, and — deliberately — no RNG was drawn, so `rngCursor` and `uidSeq` are untouched.
       // Recorded as an action so a replay lives the abandoned play the same way the player did.
       //
-      // It only ever cancels a DEFERRED Choose One. A legacy target-first prompt (`co.targetUid`) and an
-      // ordinary battlecry aim (Toxin Tender, already on the board with its body committed) are both left
-      // alone — there is no clean "untouched" state to return those to.
+      // The same holds for every aim opened from the hand (R-TARGET-CANCEL-01): an aimed Shout, a Mage-Pup's taught
+      // spell and Common Ground's second pick are all held plays now, so one clear backs out of each. What it leaves
+      // alone is a legacy target-first prompt (`co.targetUid`) and a COMMITTED aim restored from an older save (the
+      // body already on the board): there is no clean "untouched" state to return those to.
       if (s.chooseOne && !s.chooseOne.targetUid) { s.chooseOne = undefined; return s; }
       if (s.pendingTarget?.deferredPlay) { s.pendingTarget = undefined; return s; }
       return state;
@@ -2768,7 +2851,21 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Nothing has been played yet — the card is still in hand. Validate the aim against the SAME pool the
       // play-time guard and the pick step read, then complete the play by replaying it with the branch and
       // the target in hand. A refused aim leaves the prompt up, so the player can pick again or click away.
-      if (pt.deferredPlay) {
+      // A held card can leave the hand under the aim (a teammate's pass completing a triple): the aim goes with it.
+      if (pt.deferredPlay && !s.hand.some((c) => c.uid === pt.uid)) { s.pendingTarget = undefined; return s; }
+      // ── AN AIMED SHOUT, HELD IN HAND (R-TARGET-CANCEL-01): replay the `play` with the pick. Every legality check lives
+      // at the aim site, on the board the play leaves, so a refused pick leaves the prompt up and the card in hand.
+      if (pt.shoutAim) {
+        s.pendingTarget = undefined;
+        s.aimPick = { uid: pt.uid, targetUid: action.targetUid };
+        const done = reduceCore(s, { type: 'play', uid: pt.uid, toIndex: pt.toIndex });
+        // Refused at the aim site, or the replay never reached it (no legal target is left, so the aim would not open
+        // now): either way this pick did nothing legal, so the prompt stays up for a cancel.
+        if (done === s || done.aimPick) return state;
+        openNextStartOfTurnModal(done); // this modal owned the screen — open whatever queued behind it
+        return done;
+      }
+      if (pt.deferredPlay && !pt.spellFirstUid) {
         const ptDefC = CARD_INDEX[pt.cardId];
         if (!ptDefC) return state;
         if (!chooseOneTargetPool(s, ptDefC, pt.uid).includes(action.targetUid)) return state;
@@ -2788,6 +2885,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         const second = s.board.find((c) => c.uid === action.targetUid);
         const spellDef = CARD_INDEX[pt.cardId];
         if (hi >= 0 && spellDef && first && second && first.uid !== second.uid) {
+          // A held play (R-TARGET-CANCEL-01): the draft that opened this aim was dropped, so the play's own meters run
+          // now. An aim restored from an older save paid them when it opened.
+          if (pt.deferredPlay) { applyCardsPlayed(s, 1); ancientOnCardPlayed(s, s.hand[hi]!); }
           withHandCast(spellDef.id, () => castSpell(s, spellDef, second)); // factory averages `second` with `pt.spellFirstUid` BEFORE we clear pt; a cast from hand
           s.hand.splice(hi, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), pt.cardId]; // counts as a card played (Rune of Action)
@@ -2800,21 +2900,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       const card = s.board.find((c) => c.uid === pt.uid);
       const target = s.board.find((c) => c.uid === action.targetUid);
       if (!card || !target) return state; // a friendly target is required
-      // Self-targeting guard — R-TARGET-03 (owner 2026-09-18, global): NO aimed Shout resolves onto its own
-      // body (it began as Graverobber's `targetNotSelf`, where destroying itself deleted the body paying for
-      // the spell; Cage Breaker / Auric Runemaster / Gravetwin now inherit it). Authoritative — the aim UI
-      // mirrors it, but the reducer is what actually decides.
+      // A COMMITTED aim: only an older save can still hold one (a body already on the board). New plays hold in hand.
       const ptDef = CARD_INDEX[pt.cardId];
-      if (target.uid === card.uid) return state;
-      // A tribe-restricted Battlecry may only resolve onto that tribe. This guard was MISSING: the aim UI
-      // filtered the pick, but the reducer accepted whatever uid it was handed — so an off-tribe target was
-      // fully resolved (an Appetite Agent could feed a Beast). Exactly the hole Cupcakes had on the SPELL
-      // path (fixed 2026-08-03); this is the Battlecry twin, and it covers all five `targetTribe` cards, not
-      // just the reported one. Refused outright: the card stays where it is and nothing resolves.
-      if (ptDef?.targetTribe && !isTribe(target, ptDef.targetTribe)) return state;
-      // Roomworks (owner 2026-10-10): only a minion WITH an End of Turn effect is a legal pick. Refused outright, the
-      // same as an off-tribe pick above; the aim UI mirrors it through the same predicate.
-      if (ptDef && !battlecryTargetAllowed(ptDef, target)) return state;
+      if (!shoutAimLegal(s, card, target)) return state;
       // A deferred targeted Choose One (Runic Beetle) resolves the CHOSEN option's effects on the target; a
       // normal targeted Battlecry (Toxin Tender) re-fires the card's own onPlay effects.
       const opt = pt.optionIndex !== undefined ? CARD_INDEX[pt.cardId]?.chooseOne?.[pt.optionIndex] : undefined;
@@ -3191,6 +3279,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       // The recruit clock hit 0:00 (the UI's tick dispatches it; the reducer never reads a clock). Cleared at the
       // turn flip and on combat entry. See `shopClock.ts`.
       s.shopClockExpired = true;
+      // THE CLOCK RUNS UNDER AN AIM (owner 2026-11-03, R-TIMER-AIM-01), so it can reach 0:00 there. A held play has not
+      // happened and `play` is locked from here on (R-TIMER-LOCK-01), so the aim closes like a cancel: the card is back
+      // in hand, nothing paid. A committed aim from an older save stays for End Turn to resolve (R-TARGET-07).
+      if (s.pendingTarget?.deferredPlay) s.pendingTarget = undefined;
       return s;
 
     case 'sellWindowExpired':
@@ -4667,30 +4759,17 @@ function endRecruitTurn(s: RunState): void {
   // otherwise sit open until the next turn's first tick. (The turn flip clears it again, belt and braces.)
   s.sellBonusWindow = undefined;
   s.shopClockExpired = undefined; // the 0:00 lock belongs to this Shop turn only (R-TIMER-LOCK-01)
-  // An unresolved targeted Battlecry (the player ended the turn mid-pick, or the clock ran out under the aim) auto-
-  // resolves on a RANDOM legal target — never strand a played Toxin Tender without its grant (R-TARGET-07).
+  // An unresolved targeted Battlecry the turn ended on resolves on a RANDOM legal target (R-TARGET-07): `reduce` has
+  // already finished a held Shout that way, so what reaches this line is a committed aim from an older save.
   if (s.pendingTarget?.deferredPlay) {
-    // A DEFERRED Choose One aim (the card is still in hand and nothing has resolved): ending the turn
-    // abandons it exactly like a click-away cancel — the card stays in hand untouched. Auto-resolving it
+    // A DEFERRED Choose One aim or Common Ground's second pick (the card is still in hand and nothing has resolved):
+    // ending the turn abandons it exactly like a click-away cancel — the card stays in hand untouched. Auto-resolving it
     // would summon a minion the player never confirmed, into a board they can no longer arrange.
     s.pendingTarget = undefined;
   } else if (s.pendingTarget) {
     const pt = s.pendingTarget;
     const src = s.board.find((c) => c.uid === pt.uid);
-    const def = src ? CARD_INDEX[src.cardId] : undefined;
-    // The player never got to aim, so the engine picks the way every un-aimed targeted effect does (R-TARGET-07, owner
-    // 2026-10-10): a RANDOM legal body off the run cursor — never itself (R-TARGET-03), honouring a tribe restriction
-    // (Toxin Tender → another friendly Undead) and the aim filters (Roomworks → an End of Turn minion). It used to be
-    // the highest-Attack "carry", self included on an untyped aim. No eligible target → the play resolves with no effect.
-    const opt = pt.optionIndex !== undefined ? def?.chooseOne?.[pt.optionIndex] : undefined;
-    const autoTribe = effectiveTargetTribe(s, def);
-    const pool = s.board.filter((c) => c !== src && (!autoTribe || isTribe(c, autoTribe)) && (!def || !!opt || battlecryTargetAllowed(def, c)));
-    const carry = src ? refireTarget(s, pool) : undefined;
-    if (src && carry) {
-      // A deferred targeted Choose One (Runic Beetle) auto-resolves the chosen option on the pick.
-      if (opt) applyChooseOneTarget(s, src, opt.effects, carry);
-      else applyBattlecryTarget(s, src, carry);
-    }
+    if (src) resolveStrandedAim(s, src, pt.optionIndex);
     s.pendingTarget = undefined;
   }
   // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).

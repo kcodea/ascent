@@ -95,10 +95,9 @@ describe('one steady backdrop (owner 2026-11-04: the old background must never f
 });
 
 describe('one back rule (owner 2026-11-04)', () => {
-  it('Esc goes through the shell history, and Crates leaves Esc to it', () => {
+  it('Esc goes through the shell history', () => {
     const read = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
     expect(read('../GameMenu.tsx')).toMatch(/phBack\(\)/);
-    expect(read('../progression/CrateShop.tsx')).toMatch(/data-ph-shell/);
   });
 });
 

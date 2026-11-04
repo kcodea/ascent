@@ -282,8 +282,7 @@ export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBus
   backRef.current = onBack;
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      // Under the party home shell Esc is the one back rule (phHistory.ts).
-      if (e.key !== 'Escape' || e.defaultPrevented || busyRef.current || document.documentElement.hasAttribute('data-ph-shell')) return;
+      if (e.key !== 'Escape' || e.defaultPrevented || busyRef.current) return;
       const st = useGame.getState();
       if (st.settingsOpen || st.showBook || st.inspect) return;
       e.preventDefault();

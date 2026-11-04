@@ -144,7 +144,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     // depends on how a device happens to scale. Measured on mount and on a resize, never per frame.
     const ts = document.querySelector<HTMLElement>('.titlescreen');
     const measure = (): void => {
-      const h = ts?.offsetHeight || document.getElementById('stage')?.offsetHeight || window.innerHeight;
+      // In a game there is no title: the stage's layout height, capped by what the window really shows in that layout (a window
+      // that ignores the viewport meta lays out at its own size while the stage still reads the design height).
+      const stage = document.getElementById('stage');
+      const k = stage && stage.offsetHeight > 0 ? stage.getBoundingClientRect().height / stage.offsetHeight : 1;
+      const h = ts?.offsetHeight || (stage?.offsetHeight ? Math.min(stage.offsetHeight, window.innerHeight / (k || 1)) : window.innerHeight);
       html.style.setProperty('--ph-h', `${h}px`);
       html.toggleAttribute('data-ph-compact', shellAttr && (isPhone() || h < 700));
       html.toggleAttribute('data-ph-laptop', shellAttr && window.innerHeight <= 900);

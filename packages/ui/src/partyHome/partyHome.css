@@ -486,7 +486,7 @@ html[data-ph-compact] .ph-sidepanel .ph-fclose { width: calc(72 * var(--phu)); h
 html[data-ph-compact] .ph-art { height: 74%; }
 /* The side tabs all fit their row: nothing scrolls or moves on a pick. */
 .ph-sidetabs .phk-tabs { flex: 1 1 auto; min-width: 0; justify-content: space-between; gap: 0; overflow: hidden; }
-.ph-sidetabs .phk-tab { padding-left: calc(8 * var(--phu)); padding-right: calc(8 * var(--phu)); font-size: var(--ph-t2); }
+.ph-sidetabs .phk-tab { padding-left: calc(5 * var(--phu)); padding-right: calc(5 * var(--phu)); font-size: var(--ph-t2); }
 /* The rail's scrollers keep their bar just outside the column, so every row ends on one edge. */
 html[data-ph-shell]:not([data-ph-compact]) :is(.ph-frows, .ph-settings) { scrollbar-color: auto; scrollbar-width: auto; scrollbar-gutter: stable; margin-right: calc(-10 * var(--phu)); }
 html[data-ph-shell]:not([data-ph-compact]) :is(.ph-frows, .ph-settings)::-webkit-scrollbar { width: calc(10 * var(--phu)); }

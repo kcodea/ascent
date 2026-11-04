@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextVersion, releaseNotesMarkdown, resumeState, previousReleaseDate, expectedRunName, verifyDraft, parseArgs } from './shipLib.mjs';
+import { nextVersion, releaseNotesMarkdown, resumeState, previousReleaseDate, expectedRunName, verifyDraft, parseArgs, pickNewRun } from './shipLib.mjs';
 
 describe('nextVersion', () => {
   it('starts at 0.2.0 when nothing is released', () => expect(nextVersion(null, 'patch')).toBe('0.2.0'));
@@ -82,5 +82,15 @@ describe('parseArgs', () => {
     expect(parseArgs(['--wat']).error).toMatch(/unknown/);
     expect(parseArgs(['--minor', '--major']).error).toBeTruthy();
     expect(parseArgs(['--resume', '--minor']).error).toBeTruthy();
+  });
+});
+
+describe('pickNewRun', () => {
+  const t = 'desktop-release v0.2.0 abc';
+  it('ignores an old same-title run', () => expect(pickNewRun([{ databaseId: 5, displayTitle: t }], t, [5])).toBeNull());
+  it('picks the new run over the old one', () => expect(pickNewRun([{ databaseId: 5, displayTitle: t }, { databaseId: 9, displayTitle: t }], t, [5])).toBe(9));
+  it('ignores other titles and no match gives null', () => {
+    expect(pickNewRun([{ databaseId: 9, displayTitle: 'other' }], t, [])).toBeNull();
+    expect(pickNewRun([], t, [])).toBeNull();
   });
 });

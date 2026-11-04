@@ -28,7 +28,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { deployServers } from './lib/deployServers.mjs';
-import { USAGE, expectedRunName, latestPublished, nextVersion, parseArgs, previousReleaseDate, releaseNotesMarkdown, resumeState, verifyDraft } from '../apps/desktop/ship/shipLib.mjs';
+import { USAGE, expectedRunName, latestPublished, nextVersion, parseArgs, pickNewRun, previousReleaseDate, releaseNotesMarkdown, resumeState, verifyDraft } from '../apps/desktop/ship/shipLib.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WT = path.join(ROOT, '.claude', 'worktrees', 'ship');
@@ -145,18 +145,20 @@ if (!RESUME) {
 mkdirSync(path.dirname(STATE), { recursive: true });
 writeFileSync(STATE, `${JSON.stringify(plan, null, 2)}
 `);
+const wantName = expectedRunName(plan.version, plan.sha);
+const listRuns = () => JSON.parse(gh(['run', 'list', '--repo', REPO, '--workflow', WORKFLOW, '--event', 'workflow_dispatch', '--limit', '30', '--json', 'databaseId,displayTitle']));
+// A resume re-dispatches the same version + sha, so the earlier run has the same name: remember it and never pick it.
+const oldRunIds = listRuns().filter((r) => r.displayTitle === wantName).map((r) => r.databaseId);
 step(`dispatching ${WORKFLOW} (publish=true, draft release)`);
 gh([
   'workflow', 'run', WORKFLOW, '--repo', REPO, '--ref', 'main',
   '-f', `sha=${plan.sha}`, '-f', `version=${plan.version}`, '-f', `versusUrl=${plan.workerUrl}`,
   '-f', `hubUrl=${plan.hubUrl}`, '-f', `contentRevision=${plan.contentRevision}`, '-f', 'publish=true',
 ]);
-const wantName = expectedRunName(plan.version, plan.sha);
 let runId = null;
 for (let i = 0; i < 45 && !runId; i++) {
   await sleep(4000);
-  const runs = JSON.parse(gh(['run', 'list', '--repo', REPO, '--workflow', WORKFLOW, '--event', 'workflow_dispatch', '--limit', '20', '--json', 'databaseId,displayTitle']));
-  runId = runs.filter((r) => r.displayTitle === wantName).sort((x, y) => y.databaseId - x.databaseId)[0]?.databaseId ?? null;
+  runId = pickNewRun(listRuns(), wantName, oldRunIds);
 }
 if (!runId) die(`no workflow run named "${wantName}" appeared within 3 minutes (check the Actions tab). The plan is saved: fix and run \`npm run ship -- --resume\` (it re-dispatches; cancel-in-progress cancels the earlier run).`);
 const runUrl = `https://github.com/${REPO}/actions/runs/${runId}`;
@@ -172,6 +174,7 @@ const unpublished = (why) => die(`draft v${plan.version} left UNPUBLISHED: ${why
 step('writing release notes and publishing the draft');
 let sinceDate = null;
 const tmp = mkdtempSync(path.join(os.tmpdir(), 'ascent-ship-'));
+let refusal = null; // set instead of exiting inside the try, so the temp dir is always cleaned up
 try {
   const releases = JSON.parse(gh(['release', 'list', '--repo', REPO, '--limit', '100', '--json', 'tagName,isDraft,publishedAt']));
   sinceDate = previousReleaseDate(releases);
@@ -188,13 +191,14 @@ try {
   // Never publish a draft that is not exactly the one this ship built.
   const draft = JSON.parse(gh(['release', 'view', `v${plan.version}`, '--repo', REPO, '--json', 'isDraft,targetCommitish,assets']));
   const v = verifyDraft(draft, { sha: plan.sha });
-  if (!v.ok) unpublished(v.reason);
-  gh(['release', 'edit', `v${plan.version}`, '--repo', REPO, '--notes-file', notesFile, '--draft=false']);
+  if (!v.ok) refusal = v.reason;
+  else gh(['release', 'edit', `v${plan.version}`, '--repo', REPO, '--notes-file', notesFile, '--draft=false']);
 } catch (e) {
-  unpublished(String(e?.message ?? e));
+  refusal = String(e?.message ?? e);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }
+if (refusal) unpublished(refusal);
 console.log(`  ✓ v${plan.version} published (notes since ${sinceDate ?? 'the latest entry'})`);
 
 // ── 7. the feed must now name the new version ──────────────────────────────────────────────────────────────

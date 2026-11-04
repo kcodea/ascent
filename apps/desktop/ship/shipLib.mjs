@@ -96,3 +96,11 @@ export function parseArgs(argv) {
 }
 
 export const USAGE = 'usage: npm run ship -- [--minor | --major] [--dry-run] [--resume]';
+
+/** The newly dispatched run: newest run titled `title` whose id was not already present before the dispatch, else null. */
+export function pickNewRun(runs, title, excludeIds) {
+  const skip = new Set(excludeIds ?? []);
+  const fresh = (runs ?? []).filter((r) => r.displayTitle === title && !skip.has(r.databaseId));
+  fresh.sort((a, b) => b.databaseId - a.databaseId);
+  return fresh[0]?.databaseId ?? null;
+}

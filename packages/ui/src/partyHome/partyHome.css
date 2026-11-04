@@ -395,8 +395,6 @@ html[data-ph-compact] .ph-rank { font-weight: 700; letter-spacing: -0.02em; }
 html[data-ph-compact] .ph-rank, html[data-ph-compact] .ph-rank:has(.ph-muted) { max-width: 100%; gap: calc(4 * var(--phu)); padding-left: calc(2 * var(--phu)); padding-right: calc(8 * var(--phu)); }
 html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { padding-left: calc(6 * var(--phu)); padding-right: calc(6 * var(--phu)); }
 html[data-ph-compact] .ph-state { margin-left: calc(-6 * var(--phu)); margin-right: calc(-6 * var(--phu)); }
-/* The Versus stands strip sits just over START: the banners stop short of it. */
-html[data-ph-compact] .ph-stage:has(.vsr-stands) .ph-cards { padding-top: calc(64 * var(--phu)); padding-bottom: calc(28 * var(--phu)); }
 html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { gap: calc(3 * var(--phu)); padding-bottom: calc(6 * var(--phu)); }
 html[data-ph-compact] .ph-cancelinv { min-height: calc(64 * var(--phu)); bottom: 18%; font-size: calc(18 * var(--phu)); }
 html[data-ph-compact] .ph-modes .phk-tabs { padding-right: calc(96 * var(--phu)); scroll-padding-right: calc(96 * var(--phu)); }
@@ -451,3 +449,17 @@ html[data-ph-compact] .ph-foot { background: none; padding-top: 0; }
 html[data-ph-compact] .ph-sub { display: none; }
 /* The picker's list fades at its foot instead of cutting. */
 .ph-friends.picker:not(.embedded) { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 28 * var(--phu)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 28 * var(--phu)), transparent); padding-bottom: calc(20 * var(--phu)); }
+
+/* ── OWNER 2026-11-04 ── */
+/* THE ART MELTS INTO THE CLOTH: the portrait fades out at its foot and both sides, one static light (a top sheen and a soft
+   vignette) lies over it, and the rows sit above that. No hard edge anywhere. */
+.ph-art { -webkit-mask-image: linear-gradient(180deg, #000 66%, transparent 98%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); mask-image: linear-gradient(180deg, #000 66%, transparent 98%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); -webkit-mask-composite: source-in; mask-composite: intersect; }
+.ph-card-in::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 238, 200, 0.12) 0%, transparent 24%), radial-gradient(85% 62% at 50% 36%, transparent 52%, rgba(11, 25, 64, 0.6) 100%); }
+.ph-open .ph-card-in::before { content: none; }
+.ph-foot, .ph-lead { z-index: 2; }
+html[data-ph-compact] .ph-art { -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); mask-image: linear-gradient(180deg, #000 62%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); }
+/* THE SUB-MODE at the top of the panel: one big, even segmented row. */
+.ph-submode .phk-segrow, html[data-ph-shell] .ph-submode .phk-seg.s-l .phk-segrow { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; }
+.ph-submode .phk-seg.s-l .phk-segbtn { height: calc(52 * var(--phu)); font-size: var(--ph-t3); font-weight: 900; }
+.ph-submode .phk-segbtn.locked { opacity: 0.45; }

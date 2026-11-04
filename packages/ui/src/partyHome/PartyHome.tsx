@@ -61,9 +61,9 @@ import { defaultRoomName, roomModeOf, roomTitleOf } from './pages/versusPh';
 import { PhBackdrop } from './shell/PhBackdrop';
 import { PhFriends } from './shell/PhFriends';
 import { addSampleInvite, clearSampleInvites, removeSampleInvite, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
-import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhField, PhLeaderBadge, PhTabs, phNum } from './kit';
+import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhField, PhLeaderBadge, PhSegmented, PhTabs, phNum } from './kit';
 import { GauntletPanel, PracticePanel, stagePlayable, useGauntletStages } from './ModeOptions';
-import { partyModeOf, partyModes, readPartyMode, rememberPartyMode, type PartyMode, type PartyModeId } from './partyModes';
+import { familyOf, modeHasSettings, partyFamilies, partyModeOf, partyModes, readFamilySub, readPartyMode, rememberPartyMode, type ModeFamily, type ModeFamilyId, type PartyMode, type PartyModeId } from './partyModes';
 import { setPartyDemo, usePartyDemo, usePartyRoom } from './partyHomeFlag';
 import { homeMe, homeSetOptions, sampleHost, useSampleRoom } from './sampleRoom';
 import { SAMPLE_MATE_ID, sampleFriends, sampleHeroes } from './sample';
@@ -170,7 +170,11 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const roomTab: PartyModeId | null = versusRoom ? ({ duel: 'versus', group: 'group', duos: 'vduos' } as const)[roomModeOf(versusRoom.options)] : null;
   const roomHost = !!versusRoom && versusRoom.host_user_id === homeMe() && versusRoom.status === 'open';
   const lockReason = (m: PartyMode): string | null => {
-    if (versusRoom) return m.id === roomTab || (roomHost && m.party === 'rivals') ? null : `You are in a Versus room. Leave it to play ${m.label}.`;
+    if (versusRoom) {
+      if (m.id === roomTab || (roomHost && m.party === 'rivals')) return null;
+      if (m.party === 'rivals') return versusRoom.host_user_id === homeMe() ? 'You can change this between games.' : 'Only the host can change this.';
+      return `You are in a Versus room. Leave it to play ${m.label}.`;
+    }
     if (!inParty) return null;
     if (duosRoom) return m.id === 'duos' ? null : `Your party is queued for Ranked Duos. Leave the party to play ${m.label}.`;
     return m.party === 'solo' ? `${m.label} is solo. Leave the party to play it.` : null;
@@ -182,6 +186,19 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const pick = (id: PartyModeId): void => {
     sfx.pulse(); setLockNote(null); setPicked(id); rememberPartyMode(id);
     if (versusRoom) void homeSetOptions({ v: 1, mode: id === 'versus' ? 'duel' : id === 'group' ? 'group' : 'duos', modifiers: versusRoom.options?.modifiers ?? [] } as VersusRoomOptions);
+  };
+  // THE TOP ROW IS THE FAMILIES: a family is locked only when every sub-mode is; picking one returns to its last sub-mode,
+  // or the first it can play (Ranked in a party lands on Duos, with Solo locked in the panel).
+  const families = useMemo(() => partyFamilies(modes), [modes]);
+  const family = families.find((f) => f.id === familyOf(modeId).id) ?? familyOf(modeId);
+  const familyReason = (f: ModeFamily): string | null => (f.subs.every((x) => lockReason(partyModeOf(x.id))) ? lockReason(partyModeOf(f.subs[0]!.id)) : null);
+  const pickFamily = (id: ModeFamilyId): void => {
+    const f = families.find((x) => x.id === id);
+    if (!f) return;
+    const open = f.subs.filter((x) => !lockReason(partyModeOf(x.id)));
+    const last = readFamilySub(id);
+    const to = open.find((x) => x.id === last) ?? open[0];
+    if (to) pick(to.id);
   };
   const [lockNote, setLockNote] = useState<string | null>(null);
   const [hoverNote, setHoverNote] = useState<string | null>(null);
@@ -320,7 +337,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   // The drawer closes when the screen becomes the docked layout.
   useEffect(() => { if (!phone) setFriendsOpen(false); }, [phone]);
   // A fresh mode clears the open-seat note.
-  useEffect(() => { setSeatNote(null); setMenuFor(null); setPickerOpen(false); setSideTab(partyModeOf(modeId).options ? 'settings' : 'friends'); }, [modeId]);
+  useEffect(() => { setSeatNote(null); setMenuFor(null); setPickerOpen(false); setSideTab(modeHasSettings(modeId) ? 'settings' : 'friends'); }, [modeId]);
   // A Versus error belongs to the press that made it: a new mode, or leaving the party, starts clean.
   useEffect(() => { if (useVersus.getState().error) useVersus.setState({ error: null }); }, [modeId, inParty]);
   useEffect(() => { if (!demo) clearSampleInvites(); }, [demo]);
@@ -357,7 +374,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   useEffect(() => { if (wasPaged.current && !pageOpen) setEnterKey((k) => k + 1); wasPaged.current = pageOpen; }, [pageOpen]);
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [sideTab, setSideTab] = useState<'friends' | 'settings' | 'rooms'>(() => (mode.options ? 'settings' : 'friends'));
+  const [sideTab, setSideTab] = useState<'friends' | 'settings' | 'rooms'>(() => (modeHasSettings(modeId) ? 'settings' : 'friends'));
   const friendsOpen = usePhShell((s) => s.friendsOpen);
   const onOpenSeat = (): void => {
     sfx.pulse();
@@ -379,7 +396,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   // layout, so the name and medal never move when someone joins.
   const stateOf = (m: Member): 'show' | 'space' => (!m.self || m.state === 'in_game' ? 'show' : 'space');
   const cards: JSX.Element[] = members.map((m, i) => (
-    <BannerCard key={m.key} m={m} i={i} phone={phone} leader={showLeader && m.leader} showState={stateOf(m)} rival={mode.party === 'rivals' && !m.self && mode.id !== 'vduos'}
+    <BannerCard key={m.key} m={m} i={i} phone={phone} leader={showLeader && m.leader} showState={stateOf(m)} rival={mode.party === 'rivals' && !m.self && (mode.id !== 'vduos' || i >= 2)}
       menuOpen={menuFor === m.key} onToggleMenu={() => { sfx.pulse(); setMenuFor((k) => (k === m.key ? null : m.key)); }}
       menu={cardMenu(m)} onPick={(run) => { sfx.pulse(); setMenuFor(null); run(); }} />
   ));
@@ -410,10 +427,10 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const rule = versusRoom ? (versusRoom.options?.modifiers ?? [])[0] ?? null : modifier;
   const actions = (
     <div className="ph-actions">
-      {vh.stands}
+      {!phone && vh.stands}
       <div className="ph-side">
         {vh.side}
-        {inParty && !inGame && (
+        {inParty && !inGame && !versusRoom && (
           <PhButton onClick={() => { sfx.pulse(); if (duosRoom) void leaveDuosParty(); else setPartyDemo(false); }}>Leave party</PhButton>
         )}
         {/* On a phone the saved game's Continue sits here (the head row stays slim). */}
@@ -424,7 +441,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       </button>}
       <div className="ph-side ph-side-r">
         {/* On a phone the side panel is a drawer: the mode's settings are one press from START. */}
-        {phone && mode.options && <PhButton size="s" onClick={() => { sfx.pulse(); setSideTab('settings'); setFriendsOpen(true); }}>{mode.id === 'practice' ? 'Practice' : mode.id === 'gauntlet' ? 'Stages' : 'Rules'}</PhButton>}
+        {phone && modeHasSettings(modeId) && <PhButton size="s" onClick={() => { sfx.pulse(); setSideTab('settings'); setFriendsOpen(true); }}>{family.subs.length > 1 ? family.subs.find((x) => x.id === modeId)?.label : mode.id === 'practice' ? 'Practice' : mode.id === 'gauntlet' ? 'Stages' : 'Rules'}</PhButton>}
         {(note || issue) && (
           <span className="ph-notes" role="status">
             {note && <span className="ph-note">{note}</span>}
@@ -435,13 +452,22 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     </div>
   );
   // THE SIDE PANEL: Friends | the mode's settings. Picking a mode with settings opens its tab once; Friends is a press away.
-  const settingsTitle = mode.id === 'practice' ? 'Practice' : mode.id === 'gauntlet' ? 'Gauntlet' : 'Rules';
-  const settings = mode.options ? (
+  // The family's name: Ranked and Versus keep their sub-mode choice here, at the top of the panel.
+  const settingsTitle = family.label;
+  const settings = modeHasSettings(modeId) ? (
     <div className="ph-settings">
+      {family.subs.length > 1 && (
+        <div className="ph-submode">
+          <PhSegmented size="l" label="Mode" value={modeId} onPick={pick} onLockedHover={versusRoom ? undefined : setHoverNote} onLocked={(reason) => { sfx.deny(); setLockNote(reason); }}
+            options={family.subs.map((x) => ({ value: x.id, label: phNum(x.label), reason: lockReason(partyModeOf(x.id)) ?? undefined }))} />
+        </div>
+      )}
       {mode.id === 'practice' && <PracticePanel />}
       {mode.id === 'gauntlet' && <GauntletPanel selected={stage} onSelect={setStagePick} />}
       {mode.party === 'rivals' && <RoomRulesPanel room={versusRoom} me={homeMe()} modifier={modifier} onModifier={setModifier} name={roomName} onName={setRoomName}
         placeholder={hostName()} onBrowse={() => setSideTab('rooms')} />}
+      {/* A phone's spectators live here (the head shows only their count), so the banner row keeps its size. */}
+      {phone && vh.stands && <div className="vsr-drawerstands">{vh.stands}</div>}
     </div>
   ) : null;
   const tab = settings ? sideTab : 'friends';
@@ -463,8 +489,8 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       <PhTopNav current="home" friendsDocked={!phone} ownDrawer />
 
       <div ref={modesRef} className={`ph-modes${moreTabs ? ' more' : ''}`}>
-        <PhTabs label="Mode" value={modeId} onChange={pick} onLocked={(_id, reason) => { sfx.deny(); setLockNote(reason); }} onLockedHover={versusRoom ? undefined : setHoverNote}
-          tabs={modes.map((m) => ({ id: m.id, label: <ModeLabel id={m.id} label={m.label} />, reason: lockReason(m) ?? undefined }))} />
+        <PhTabs label="Mode" value={family.id} onChange={pickFamily} onLocked={(_id, reason) => { sfx.deny(); setLockNote(reason); }} onLockedHover={versusRoom ? undefined : setHoverNote}
+          tabs={families.map((f) => ({ id: f.id, label: <ModeLabel id={f.id} label={f.label} />, reason: familyReason(f) ?? undefined }))} />
         {/* A locked tab's reason takes the description's own line for a moment: it never covers the stage. */}
         <span className={`ph-desc${lockNote || (hoverNote && !versusRoom) ? ' locked' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? (versusRoom ? null : hoverNote) ?? mode.desc}</span>
       </div>
@@ -472,6 +498,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       <main className="ph-stage" key={enterKey}>
         {/* The head slot: always the same height (the team plate, a saved game, a held room), so the banners never move. */}
         <div className="ph-stagehead">
+        {phone && vh.stands}
         {!teamLabel && mode.party === 'rivals' && (
           <div className="ph-team">
             <span className="ph-teamlbl">{versusRoom ? roomTitleOf(versusRoom.name, roomModeOf(versusRoom.options)) : 'Unranked room'}</span>
@@ -522,10 +549,8 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
 }
 
 /** A mode tab's label: the mode's painted tile in the gilded emblem frame (the owner's medallion art), then its name. */
-const MODE_TILE: Record<PartyModeId, string> = {
-  ranked: 'lobby', duos: 'lobby', versus: 'versus', group: 'versus', vduos: 'versus', practice: 'practice', gauntlet: 'gauntlet', learn: 'learn',
-};
-function ModeLabel({ id, label }: { id: PartyModeId; label: string }): JSX.Element {
+const MODE_TILE: Record<ModeFamilyId, string> = { ranked: 'lobby', versus: 'versus', practice: 'practice', gauntlet: 'gauntlet', learn: 'learn' };
+function ModeLabel({ id, label }: { id: ModeFamilyId; label: string }): JSX.Element {
   const art = modeArt(MODE_TILE[id]);
   return (
     <span className="ph-modelbl">

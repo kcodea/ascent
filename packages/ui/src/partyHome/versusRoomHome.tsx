@@ -32,7 +32,7 @@ import { mirrorFor, useProgression } from '../progression/progressionStore';
 import { sfx } from '../sfx';
 import { opponentSkins, useLiveLoadout } from '../skins/skins';
 import { stageHost, toStage } from '../stage';
-import { useGame } from '../store';
+import { tempHandle, useGame } from '../store';
 import { TitleBadge } from '../titles/TitleBadge';
 import { TAP_SLOP } from '../touchInput';
 import { canDragSeatCard, memberOf, roomWithSeatMove, seatDropOf, seatZoneAt, seatZoneValid, sellLineOf, type SeatDragGeo, type SeatZone } from '../versus/seatDrag';
@@ -74,13 +74,16 @@ function useFace(m: Pick<VersusMember, 'userId' | 'displayName' | 'profile'>, se
   const myAvatar = useGame((s) => s.playerAvatar);
   const myTitle = useProgression((s) => mirrorFor(currentUserId(), s.mirror)?.equippedTitleId ?? null);
   const myLoadout = useLiveLoadout();
-  const myName = useGame((s) => s.playerName);
+  const myName = useGame((s) => s.playerName || tempHandle(s.account.userId));
   return useMemo(() => {
     const src = seatCardSource({ member: m, own, showOpp, server, ...(own ? { self: { avatar: myAvatar ?? null, titleId: myTitle, cosmetics: myLoadout } } : {}) });
     const art = playerCardArt(src);
     return { name: (own && myName) || src.name || 'Player', art: thumb ? heroThumb(art) : art, titleId: src.titleId, record: src.record };
   }, [m.userId, m.displayName, m.profile, own, showOpp, server, myAvatar, myTitle, myLoadout, thumb, myName]);
 }
+
+/** A Duos seat's team (p1 + p2, p3 + p4). */
+const teamOf = (s: VersusGroupSeat): number => (s === 'p1' || s === 'p2' ? 0 : 1);
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
@@ -361,7 +364,7 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
       ? open ? [...openSeats.map((s) => ({ label: `Move to seat ${s.slice(1)}`, run: () => { sfx.play(); void homeTakeSeat(s); } })), { label: 'Move to spectators', run: () => { sfx.sell(); void homeTakeSeat('spectator'); } }] : []
       : canFriend ? [{ label: 'Add friend', run: () => { sfx.pulse(); void addFriend(m.userId); } }] : [];
     return (
-      <SeatBanner key={m.userId} side={side} i={i} m={m} medal={mineCard ? myMedal : null} server={seatData.get(m.userId)} thumb={phone} host={m.userId === room.host_user_id} over={over} hidden={drag?.userId === m.userId}
+      <SeatBanner key={m.userId} side={side} i={i} m={m} rival={!mineCard && !!role && role !== 'spectator' && (mode !== 'duos' || teamOf(side) !== teamOf(role as VersusGroupSeat))} medal={mineCard ? myMedal : null} server={seatData.get(m.userId)} thumb={phone} host={m.userId === room.host_user_id} over={over} hidden={drag?.userId === m.userId}
         pools={running ? seatPools(match, side) : null} sealed={room.status === 'sealed'} draggable={mineCard && myDraggable} onPointerDown={(e) => begin(e, m.userId)}
         items={items} menuOpen={menuFor === m.userId} onToggleMenu={() => { if (!clicked()) return; sfx.pulse(); setMenuFor((k) => (k === m.userId ? null : m.userId)); }}
         onPick={(run) => { setMenuFor(null); run(); }} />
@@ -428,8 +431,8 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
 }
 
 /** A seated member's banner (the kit's PhBanner). Mine drags; a tap opens its small menu. */
-function SeatBanner({ side, i, m, medal, server, thumb, host, over, hidden, pools, sealed, draggable, onPointerDown, items, menuOpen, onToggleMenu, onPick }: {
-  side: VersusGroupSeat; i: number; m: VersusMember; medal: ReactNode; server: SeatServerData | undefined; thumb: boolean; host: boolean; over: string; hidden: boolean;
+function SeatBanner({ side, i, m, rival, medal, server, thumb, host, over, hidden, pools, sealed, draggable, onPointerDown, items, menuOpen, onToggleMenu, onPick }: {
+  side: VersusGroupSeat; i: number; m: VersusMember; rival: boolean; medal: ReactNode; server: SeatServerData | undefined; thumb: boolean; host: boolean; over: string; hidden: boolean;
   pools: { health: number; armor: number } | null; sealed: boolean; draggable: boolean; onPointerDown: (e: ReactPointerEvent<HTMLElement>) => void;
   items: { label: string; run: () => void }[]; menuOpen: boolean; onToggleMenu: () => void; onPick: (run: () => void) => void;
 }) {
@@ -444,7 +447,7 @@ function SeatBanner({ side, i, m, medal, server, thumb, host, over, hidden, pool
     : sealed ? <PhBannerState tone="in_game">Getting ready</PhBannerState> : null;
   const banner = (
     <PhBanner art={face.art} index={i} badge={host ? HOST_BADGE : undefined}
-      className={`vsr-seat vsr-s-${side}${draggable ? ' vsr-mineseat' : ''}${over}${hidden ? ' vsr-src' : ''}`}
+      className={`vsr-seat vsr-s-${side}${rival ? ' rival' : ''}${draggable ? ' vsr-mineseat' : ''}${over}${hidden ? ' vsr-src' : ''}`}
       label={draggable ? `You, seat ${side.slice(1)}. Drag to another seat, or up to spectate. Options` : `${face.name}${host ? ', host' : ''}, seat ${side.slice(1)}`}
       onClick={items.length > 0 ? onToggleMenu : undefined} haspopup={items.length > 0} expanded={menuOpen}
       overlay={menuOpen ? (

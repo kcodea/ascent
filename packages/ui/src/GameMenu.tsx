@@ -58,6 +58,7 @@ export function handleEscape(): void {
   if (document.documentElement.hasAttribute('data-ph-shell')) {
     if (st.practiceSetupOpen) st.cancelPracticeSetup();
     else if (st.showCareer && st.careerOf?.from) st.closeCareer(); // back to the game or ladder it was opened from
+    else if (phBack()) return;
     else if (anyPageOpen(st) || st.titleView !== 'menu') st.goTo('menu');
     return;
   }

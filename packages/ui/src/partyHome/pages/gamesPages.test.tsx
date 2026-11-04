@@ -162,7 +162,7 @@ describe('Recent Games on the shell', () => {
   });
   it('the page stays invisible until its first frame is drawn, then fades in as one', () => {
     const css = here('./gamesPages.css');
-    expect(css).toMatch(/\.phk-page\.rgp:not\(\[data-in\]\) \{ opacity: 0; \}/);
+    expect(css).toMatch(/\.phk-page\.rgp:not\(\.phc-pg\):not\(\[data-in\]\) \{ opacity: 0; animation: ph-reveal [^;]+ forwards; \}/); // Recent Games' own, with a release that needs no script
     expect(here('./RecentGamesPh.tsx')).toMatch(/setAttribute\('data-in', ''\)/);
   });
   it('the detail column never scrolls sideways (a phone: the hidden hover bubble must not widen it)', () => {

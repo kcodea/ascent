@@ -178,7 +178,9 @@ html[data-ph-shell] .phc-page .phk-pagehead { min-width: 0; }
 html[data-ph-shell][data-touch-small] .phc-page .phk-pageactions .gtip::before, html[data-ph-shell][data-touch-small] .phc-page .phk-pageactions .gtip::after { display: none; }
 
 /* The page arrives whole: held out of sight, then one soft fade (a one-shot, transform + opacity). */
-html[data-ph-shell] .phc-page .phc-pg.hold { opacity: 0; }
+/* A HIDE ALWAYS HAS A RELEASE: script lifts `.hold` when the view is ready or at its cap; if neither ever happens, this delayed
+   animation reveals the page anyway. (`ph-reveal`: gamesPages.css.) */
+html[data-ph-shell] .phc-page .phc-pg.hold { opacity: 0; animation: ph-reveal 0.2s linear 0.7s forwards; }
 html[data-ph-shell] .lbpage.phc-page > .phc-pg.arrive { animation: lp-swap 0.22s cubic-bezier(0, 0, 0.2, 1) both; } /* above the shell's rule for a nav hop */
 @media (prefers-reduced-motion: reduce) { html[data-ph-shell] .lbpage.phc-page > .phc-pg.arrive { animation: none; } }
 /* The strip's numbers share one height, medallion or not, so their labels sit on one baseline. */

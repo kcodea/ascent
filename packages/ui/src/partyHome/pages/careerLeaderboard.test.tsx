@@ -144,6 +144,30 @@ describe('Career arrival and way back', () => {
   });
 });
 
+describe('a hidden page always has a release (round 16: Career stayed at opacity 0 for good)', () => {
+  it('no gate that hides a page can catch the Career, and each hide reveals itself with no script', () => {
+    const all = `${here('./gamesPages.css')}\n${here('./career/phCareer.css')}`;
+    // Every rule that sets a whole page to opacity 0.
+    const hides = [...all.matchAll(/([^{}\n]*\.(?:phk-page|phc-pg)[^{}\n]*)\{([^{}]*opacity: 0;[^{}]*)\}/g)];
+    expect(hides.length).toBeGreaterThanOrEqual(2);
+    for (const [, sel, body] of hides) {
+      expect(body).toMatch(/animation: ph-reveal [^;]+ forwards/);
+      if (/\.phk-page\.rgp/.test(sel!)) expect(sel).toContain(':not(.phc-pg)');
+    }
+    expect(all).toMatch(/@keyframes ph-reveal \{ to \{ opacity: 1; \} \}/);
+  });
+  it('the hold lifts at its cap even if the data never comes', () => {
+    vi.useFakeTimers();
+    try {
+      const m = mount(<PhCareer {...careerProps({ ready: false })} />);
+      expect(m.container.querySelector('.phc-pg.hold')).not.toBeNull();
+      act(() => { vi.advanceTimersByTime(400); });
+      expect(m.container.querySelector('.phc-pg.hold')).toBeNull();
+      m.unmount();
+    } finally { vi.useRealTimers(); }
+  });
+});
+
 describe('Career loading', () => {
   it('a cold read holds the final layout with ghosts, naming the player, with no spinner or loading words', () => {
     const m = mount(<PhCareer {...careerProps({ loading: true, history: { filter: null, state: null, view: null } })} />);

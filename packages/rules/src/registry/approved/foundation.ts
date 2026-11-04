@@ -13733,4 +13733,21 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'opacity (jsdom has no hover).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/matchDetails.test.tsx'], lastVerifiedAt: '2026-11-03' },
   },
+  {
+    id: 'R-LOBBY-TILE-STILL-IN-01',
+    title: 'A lobby tile says Still in once',
+    statement:
+      'On a finished game, a lobby tile shows the seat place and, beside it, how the seat ended (Winner, or Out R10). A seat still standing '
+      + 'when the recorded game ended has no final place, so its place reads Still in and nothing is repeated beside it. Screen readers '
+      + 'hear it once too.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner critic via the lead, 2026-11-03', quote: 'Still in Still in doubled text on lobby tiles of an unfinished game' },
+      { kind: 'code', ref: 'packages/ui/src/matchDetails/LobbyPicker.tsx (seatFate, LobbyTiles)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-03 (fix/lobby-tile-still-in). Before: the place and the fate both printed Still in.',
+    example: 'A game recorded while Orangez was alive: the tile reads "Still in", then Orangez. A seat out in round 11 still reads "7th Out R11".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/lobbyPickerViewer.test.tsx'], lastVerifiedAt: '2026-11-03' },
+  },
 ];

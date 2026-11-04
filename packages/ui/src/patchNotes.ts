@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Game lobbies: a player still standing when the game ended now reads Still in once, not twice.',
+      },
+      {
+        category: 'Systems',
         text: 'Lobby rail: Health and Armor now show painted heart and shield medallions.',
       },
       {

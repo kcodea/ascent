@@ -95,6 +95,9 @@ export interface CrateShopProps {
   reducedMotion?: boolean;
   /** The party home shell is on (DEV switch): the same shop, drawn in the shell's language (`ph/CrateShopPh.tsx`). */
   ph?: boolean;
+  /** Under the shell: this visit came from the Collection page, so Esc steps back to it. Otherwise (the nav's Crates tab from
+   *  another page) Esc is the shell's, which goes back to where you came from. */
+  escToCollection?: boolean;
 }
 
 /** THE PARTY HOME SHELL's skin for this screen (DEV only, lazy: production never loads it). */
@@ -333,7 +336,7 @@ export const CrateShop = memo(function CrateShop(props: CrateShopProps): JSX.Ele
 /** Everything the Chest Shop knows and does, whichever skin draws it (today's screen, or the party home shell's). */
 export type CrateShopState = ReturnType<typeof useCrateShop>;
 
-function useCrateShop({ guest, onGuest, onOpen, onBusy, onBack, reducedMotion }: CrateShopProps) {
+function useCrateShop({ guest, onGuest, onOpen, onBusy, onBack, reducedMotion, ph, escToCollection }: CrateShopProps) {
   const economy = useProgression((s) => s.economy);
   const balance = useProgression(aetherBalance);
   const catalogEpoch = useProgression((s) => s.catalogEpoch);
@@ -366,11 +369,20 @@ function useCrateShop({ guest, onGuest, onOpen, onBusy, onBack, reducedMotion }:
   // Inspect is open (Game's handler closes those), and for a press something earlier already handled.
   const backRef = useRef(onBack);
   backRef.current = onBack;
+  const shellRef = useRef({ ph, escToCollection });
+  shellRef.current = { ph, escToCollection };
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape' || e.defaultPrevented || busyRef.current) return;
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      const shell = shellRef.current;
+      if (busyRef.current) {
+        // Under the shell Esc would leave the page, and the reveal with it: a purchase in flight holds the key.
+        if (shell.ph) { e.preventDefault(); e.stopPropagation(); }
+        return;
+      }
       const st = useGame.getState();
       if (st.settingsOpen || st.showBook || st.inspect) return;
+      if (shell.ph && !shell.escToCollection) return;
       e.preventDefault();
       e.stopPropagation();
       backRef.current();

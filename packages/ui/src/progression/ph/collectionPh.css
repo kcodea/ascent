@@ -315,3 +315,14 @@ html[data-ph-shell][data-touch-small] .phc-rarities { flex: none; flex-wrap: now
    scrollbar's room stays reserved when the page stops scrolling. */
 html[data-ph-shell][data-ph-compact] .phk-page .phc-body.sheeted { grid-template-rows: auto 1fr; }
 html[data-ph-shell][data-ph-compact] .phc .phk-pagebody { scrollbar-gutter: stable; }
+
+/* PHONES: the category rail fades at an edge while there is more that way, and the fade goes at the end of the row (the
+   `data-more-*` flags come from two 1px end markers, CollectionPh.tsx). Static masks; nothing runs while it scrolls. */
+.phc-railedge { display: none; }
+html[data-ph-shell][data-touch-small] .phc-railedge { display: block; flex: none; width: 1px; height: 1px; align-self: center; }
+html[data-ph-shell][data-touch-small] .phc-railedge.start { order: -2; margin-right: calc(-8 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-railedge.end { order: 9; margin-left: calc(-8 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-rail { --phc-fade: calc(112 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-rail[data-more-r] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--phc-fade)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - var(--phc-fade)), transparent); }
+html[data-ph-shell][data-touch-small] .phc-rail[data-more-l] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--phc-fade)); mask-image: linear-gradient(90deg, transparent, #000 var(--phc-fade)); }
+html[data-ph-shell][data-touch-small] .phc-rail[data-more-l][data-more-r] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--phc-fade), #000 calc(100% - var(--phc-fade)), transparent); mask-image: linear-gradient(90deg, transparent, #000 var(--phc-fade), #000 calc(100% - var(--phc-fade)), transparent); }

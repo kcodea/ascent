@@ -17,7 +17,7 @@
  * `ChestPicture`, the painted category medallions. Static paint; hover is a colour or a one-shot transform; no native
  * tooltips; no own cursor.
  */
-import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import {
   ALL_COSMETIC_RARITIES, COSMETIC_CATEGORY_DEFS, RARITY_LABELS, crateLabel, isMasterTitle,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type levelProgress,
@@ -50,7 +50,7 @@ type Count = { owned: number; total: number };
 export interface CollectionPhView {
   reducedMotion?: boolean;
   anyNew: boolean; markAllSeen: () => void; total: Count;
-  aetherOn: boolean; openShop: () => void;
+  aetherOn: boolean; openShop: () => void; openShopFromNav: () => void;
   /** The account's mirror is here (the level and the next chest read it). */
   me: boolean; level: ReturnType<typeof levelProgress>;
   categories: readonly CosmeticCategory[]; category: CosmeticCategory; pickCategory: (c: CosmeticCategory) => void;
@@ -99,10 +99,27 @@ const subscribeCompact = (cb: () => void): (() => void) => {
 };
 const readCompact = (): boolean => document.documentElement.hasAttribute('data-ph-compact');
 
+/** COMPACT: the sideways category rail says there is more with an edge fade. Two 1px end markers and an IntersectionObserver
+ *  turn each fade on and off, so nothing runs per scroll frame and no layout is read. */
+function useRailEdges(on: boolean): RefObject<HTMLElement> {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const rail = ref.current;
+    if (!on || !rail || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) rail.toggleAttribute((e.target as HTMLElement).dataset.edge === 'end' ? 'data-more-r' : 'data-more-l', !e.isIntersecting);
+    }, { root: rail });
+    rail.querySelectorAll('.phc-railedge').forEach((el) => io.observe(el));
+    return () => { io.disconnect(); rail.removeAttribute('data-more-l'); rail.removeAttribute('data-more-r'); };
+  }, [on]);
+  return ref;
+}
+
 export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Element {
   // COMPACT: the album takes the full width and a tap opens the item in a sheet (round 10: the side column was cramped).
   const compact = useSyncExternalStore(subscribeCompact, readCompact, readCompact);
   const [sheet, setSheet] = useState(false);
+  const railRef = useRailEdges(compact);
   const pageOnPick = v.onPick;
   const pick = useCallback((id: string) => { pageOnPick(id); setSheet(true); }, [pageOnPick]);
   const closeSheet = useCallback(() => { sfx.pulse(); setSheet(false); }, []);
@@ -117,7 +134,8 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
   }, [sheetUp]);
   // THE CRATES TAB (the shell's nav): it opens this page with the intent to land on the Chest Shop. Read once, on mount.
   const openShop = v.openShop;
-  useEffect(() => { if (takeCollectionIntent() === 'shop') openShop(); }, [openShop]);
+  const openShopFromNav = v.openShopFromNav;
+  useEffect(() => { if (takeCollectionIntent() === 'shop') openShopFromNav(); }, [openShopFromNav]);
   // ...and pressed again while this page is already open: every press bumps `cratesSeq`; a change since mount opens the shop.
   const cratesSeq = usePhShell((st) => st.cratesSeq);
   const seenSeq = useRef(cratesSeq);
@@ -148,7 +166,8 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
       )}
     >
       <div className={`phc-body${compact ? ' sheeted' : ''}`}>
-        <aside className="phc-rail" aria-label="Categories and chests">
+        <aside ref={railRef} className="phc-rail" aria-label="Categories and chests">
+          {compact && <span className="phc-railedge start" data-edge="start" aria-hidden />}
           <CategoryList v={v} />
           <ChestBay v={v} />
           {v.guest && (
@@ -157,6 +176,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
               <PhButton variant="plate" size="s" onClick={v.openAccount}>Create account</PhButton>
             </div>
           )}
+          {compact && <span className="phc-railedge end" data-edge="end" aria-hidden />}
         </aside>
 
         <main className="phc-main">

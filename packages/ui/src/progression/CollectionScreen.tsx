@@ -200,7 +200,10 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const [hover, setHover] = useState<{ cardId: string; art: string | undefined; rect: StageRect; plate?: CardPlateLook | null } | null>(null);
   const closeGate = useCallback(() => setGate(false), []);
   const openGate = useCallback(() => setGate(true), []);
-  const openShop = useCallback(() => { sfx.pulse(); setShopOpen(true); }, []);
+  const openShop = useCallback(() => { sfx.pulse(); setShopViaNav(false); setShopOpen(true); }, []);
+  /** The shell's Crates tab landed here from another page: Esc on the shop belongs to the shell then, not to this page. */
+  const [shopViaNav, setShopViaNav] = useState(false);
+  const openShopFromNav = useCallback(() => { setShopViaNav(true); setShopOpen(true); }, []);
   const closeShop = useCallback(() => setShopOpen(false), []);
   /** A shop purchase, already bought and opened: the theatre plays it. */
   const playBought = useCallback((item: CrateQueueItem, open: OpenFn) => { setTheatre({ queue: [item], openAll: false, open }); }, []);
@@ -387,7 +390,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
 
   if (ph && CollectionPh) {
     const view: CollectionPhView = {
-      reducedMotion, anyNew, markAllSeen, total, aetherOn, openShop, me: !!me, level: lp, categories, category, pickCategory, owned, newIn, live,
+      reducedMotion, anyNew, markAllSeen, total, aetherOn, openShop, openShopFromNav, me: !!me, level: lp, categories, category, pickCategory, owned, newIn, live,
       show, setShow, rarity, setRarity, albumCount, byRarity, shown, hover: !!hover, clearHover, selectedId, worn, fresh, onPick, onHover, selected,
       busy, error, playerName: name, showDefault: !!selected && defaultShown === selected.id && (busy || !isEquipped(selected, me)),
       emoteMenu, onPlaceEmote: (pos) => { if (selected) void onPlaceEmote(selected, pos); },
@@ -400,7 +403,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
         <MenuSidebar current="collection" />
         <Suspense fallback={null}>
           {shopShown
-            ? <CrateShop ph guest={anonymous} onGuest={openGate} onOpen={playBought} onBusy={setShopBusy} onBack={closeShop} reducedMotion={reducedMotion} />
+            ? <CrateShop ph escToCollection={!shopViaNav} guest={anonymous} onGuest={openGate} onOpen={playBought} onBusy={setShopBusy} onBack={closeShop} reducedMotion={reducedMotion} />
             : <CollectionPh view={view} />}
         </Suspense>
         {overlays}

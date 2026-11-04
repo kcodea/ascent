@@ -112,6 +112,40 @@ describe('the Collection in the party home shell', () => {
     } finally { document.documentElement.removeAttribute('data-ph-compact'); }
   });
 
+  it('COMPACT: the rail fades at an edge only while there is more that way', async () => {
+    const seen: { cb: IntersectionObserverCallback }[] = [];
+    vi.stubGlobal('IntersectionObserver', class { constructor(cb: IntersectionObserverCallback) { seen.push({ cb }); } observe(): void {} disconnect(): void {} });
+    document.documentElement.setAttribute('data-ph-compact', '');
+    try {
+      await open({ ph: true });
+      const rail = $('.phc-rail')!;
+      const hit = (edge: string, isIntersecting: boolean): void => seen.at(-1)!.cb([{ target: $(`.phc-railedge.${edge}`)!, isIntersecting } as unknown as IntersectionObserverEntry], {} as IntersectionObserver);
+      hit('end', false); hit('start', true);
+      expect(rail.hasAttribute('data-more-r')).toBe(true);
+      expect(rail.hasAttribute('data-more-l')).toBe(false);
+      hit('end', true); hit('start', false);
+      expect(rail.hasAttribute('data-more-r')).toBe(false);
+      expect(rail.hasAttribute('data-more-l')).toBe(true);
+    } finally { document.documentElement.removeAttribute('data-ph-compact'); vi.unstubAllGlobals(); }
+  });
+
+  it('Esc on Crates: from the Collection it steps back; from the nav on another page it is left to the shell', async () => {
+    const esc = (): boolean => { const e = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }); act(() => { document.dispatchEvent(e); }); return e.defaultPrevented; };
+    await open({ ph: true, aether: true });
+    act(() => { $('.phc-shopbtn')!.click(); });
+    await settle();
+    expect(esc()).toBe(true);
+    await settle();
+    expect($('.phs')).toBeNull();
+    ui?.unmount(); ui = null;
+    setCollectionIntent('shop');
+    await open({ ph: true, aether: true });
+    await settle();
+    expect($('.phs')).not.toBeNull();
+    expect(esc()).toBe(false);
+    expect($('.phs')).not.toBeNull();
+  });
+
   it('ON: the page opens on the first category, Heroes', async () => {
     await open({ ph: true, landing: true });
     expect($$('.phc-cat')[0]).toBe(cat('Heroes'));

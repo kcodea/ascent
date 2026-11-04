@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Your hero power\'s name now sits above the power, so tall hero portraits no longer cover it.',
+      },
+      {
+        category: 'Systems',
         text: 'Fixed: in Duos, reloading mid-turn no longer brings back a minion you passed with Handout, CueBee\'s Pass or Passaria.',
       },
       {
@@ -67,7 +71,8 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'New Duos hero: Priestess. Her power, Passaria, passes a minion to your teammate.',
         details: [
           'Priestess starts with 14 Armor and only appears in Versus Duos and Ranked Duos.',
-          'Passaria costs 2 Gold, once per turn. Pick a non-Gilded minion in the Shop or on your board.',
+          'Passaria costs 2 Gold in total, once per turn. Pick a non-Gilded minion in the Shop or on your board. The pass itself is free.',
+          'While you aim Passaria, cards in your hand stay put.',
           'If your teammate\'s hand is full, the minion waits until they have room.',
         ],
       },

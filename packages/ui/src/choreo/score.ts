@@ -9,8 +9,8 @@ import { groupSelfBuffs } from './channels/buffSelf';
 import { rubiedLandsIn, RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
 import { bouncesIn } from './channels/bounce';
 import {
-  ralliesFiredIn, rallyLeadMs, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS,
-  type RallyFired,
+  ownRallyBindingFor, ownRallyFloatDelayMs, ralliesFiredIn, rallyLeadMs, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS,
+  RALLY_PULSE_READ_MS, splitOwnRallyFloats, type RallyFired,
 } from './channels/rallyFired';
 import { shoutsFiredIn } from './channels/shoutFired';
 import { pummelsFiredIn, PUMMEL_STACK_MS } from './channels/pummelFired';
@@ -543,7 +543,22 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     if (cue.ch === 'sfx') at(cue, () => { const { shake } = playMomentSfx(moment, ctx.events, ctx.cardIds); if (shake) ctx.onShake(); });
     else if (cue.ch === 'float') at(cue, () => {
       const { floats, deathFloats } = spawnFloats(moment, ctx.events, ctx.slotRectOf, ctx.attackerUid);
-      if (floats.length) ctx.onFloats(floats);
+      // An ordinary Rally with its own "On Rally" effect: hold the rallier's own number until just after that
+      // effect goes off (R-FX-RALLY-FLOAT-01). Only when the effect will actually play, so an unbound Rally or
+      // a no-FX playback keeps its number on time.
+      const atk = moment.kind === 'attackExchange' && moment.primary.type === 'attack' ? moment.primary.attacker : null;
+      const ownRally = atk !== null && canPlayDefs()
+        ? ownRallyBindingFor(moment, ctx.events, atk, ctx.cardIds?.get(atk) ?? null, true, bindingFor)
+        : null;
+      if (ownRally && atk !== null) {
+        const { now, later } = splitOwnRallyFloats(floats, atk);
+        if (now.length) ctx.onFloats(now);
+        if (later.length) {
+          const speed = ctx.combatSpeed > 0 ? ctx.combatSpeed : 1;
+          const wait = Math.max(0, ownRallyFloatDelayMs(getLungeConfig().windupDur) / speed - (cue.offset ?? 0));
+          timers.push(setTimeout(() => ctx.onFloats(later), wait));
+        }
+      } else if (floats.length) ctx.onFloats(floats);
       if (deathFloats.length) ctx.onDeathFloats(deathFloats);
     });
     // a real (non-Rise) death anywhere in the moment bursts its auras in place. `death` with `rise` is

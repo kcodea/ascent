@@ -302,7 +302,7 @@ html[data-ph-shell] .gearbtn { display: none; }
 html[data-ph-shell] :is(.lbpage, .modepick, .ph, .ph-booknav) .ph-top { visibility: hidden; }
 /* Labels wear the game's cursor; a text field keeps the I-beam, in the gauntlet form. */
 html[data-ph-shell] :is(.phk-field, .phk-seglbl, .ph-fadd) { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
-html[data-ph-shell] :is(.ph-finput, .phk-fieldinput) { cursor: url('/cursors/gauntlet_default.svg') 6 2, text; }
+html[data-ph-shell] :is(.ph-finput, .phk-fieldinput, .phk-search, input[type="text"], input[type="search"], textarea) { cursor: url('/cursors/gauntlet_default.svg') 6 2, text; }
 
 
 /* PHONE NAV: every label whole with the Aether and Level pills up: the tabs sit tight and the wallet gives up its slack. */
@@ -320,7 +320,8 @@ html[data-ph-shell] .ph-top .ph-iconbtn:focus-visible { outline: none; filter: d
 html[data-ph-ingame] { --ph-nav-h: 0px; }
 
 /* DEV: the Scene Builder button beside the gear (never in production: the whole shell is DEV only). */
-.ph-scenebtn { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: calc(20 * var(--phu)); line-height: 1; }
-.ph-devlbl { font-size: calc(11 * var(--phu)); font-weight: 800; }
-html[data-ph-compact] .ph-devlbl { display: none; }
+.ph-top .ph-iconbtn.ph-scenebtn { width: auto !important; padding: 0 calc(8 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1) !important; letter-spacing: 0.02em; color: var(--ph-text); white-space: nowrap; }
+
+/* The Scene Builder panel steps aside for the in-game menu. */
+html[data-ph-gm] .scenebuilder { visibility: hidden; }
 

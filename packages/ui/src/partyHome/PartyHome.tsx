@@ -464,7 +464,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       <div className="ph-side ph-side-r">
         {/* On a phone the side panel is a drawer: the mode's settings are one press from START. */}
         {phone && !friendsOpen && modeHasSettings(modeId) && <PhButton size="s" onClick={() => { sfx.pulse(); toSettings.current = true; setDrawerIsMode(true); setSideTab('settings'); setFriendsOpen(true); }}>Options</PhButton>}
-        {(note || issue) && (
+        {(note || issue) && !(phone && friendsOpen) && (
           <span className="ph-notes" role="status">
             {note && <span className="ph-note">{note}</span>}
             {issue && <span className="ph-note ph-issue">{issue}</span>}
@@ -525,11 +525,12 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
         {/* The head slot: always the same height (the team plate, a saved game, a held room), so the banners never move. */}
         <div className="ph-stagehead">
         {phone && vh.stands}
-        {!teamLabel && mode.party === 'rivals' && (
+        {/* The rule shows here only when it is not the usual one (Modifier: None says that once, in the panel). */}
+        {!teamLabel && mode.party === 'rivals' && (versusRoom || rule) && (
           <div className="ph-team info">
             {/* (Unranked is said once, in the line above; the rule once, here.) */}
             {versusRoom && <span className="ph-teamlbl">{roomTitleOf(versusRoom.name, roomModeOf(versusRoom.options))}</span>}
-            <span className="ph-teamname">{rule ? versusRuleName(rule) : 'Usual rules'}</span>
+            {rule && <span className="ph-teamname">{versusRuleName(rule)}</span>}
           </div>
         )}
         {teamLabel && (

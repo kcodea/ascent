@@ -6,20 +6,22 @@
 import { useEffect } from 'react';
 import { anyPageOpen, useGame } from '../../store';
 import { isPhone } from '../../deviceClass';
-import { phPagePushed, phPopped, phTakeReturnPage } from './phHistory';
+import { phAttach, phPagePushed, phTakeReturn } from './phHistory';
+import { closeSceneBuilderPanel } from '../../sceneBuilderPanel';
 import { PhTopNav, type PhNavCurrent } from './PhTopNav';
 import { leaveCrates, openCrates, usePhShell } from './shellStore';
 
-/** A popped history entry: an overlay on top closes (it returns to what is under it), anything else opens that page. */
+/** Bring a page on screen: every overlay comes off, then that page is there. */
 function showPage(page: string): void {
   const st = useGame.getState();
-  if (st.settingsOpen) { st.closeSettings(); return; }
-  if (st.showBook) { st.closeBook(); return; }
-  if (st.careerOf) { st.closeCareer(); return; }
+  if (page === 'settings') { if (st.showBook) st.closeBook(); st.openSettings(); return; }
+  if (page === 'compendium') { if (st.settingsOpen) st.closeSettings(); if (!st.showBook) st.toggleBook(); return; }
+  if (st.settingsOpen) st.closeSettings();
+  if (st.showBook) st.closeBook();
+  if (st.careerOf) st.closeCareer();
   if (page === 'crates') { openCrates(); st.goTo('collection'); return; }
   leaveCrates();
-  if (page === 'home' || page === 'other') { st.goTo('menu'); return; }
-  st.goTo(page as Parameters<typeof st.goTo>[0]);
+  st.goTo(page === 'home' ? 'menu' : (page as Parameters<typeof st.goTo>[0]));
 }
 
 function useCurrent(): PhNavCurrent {
@@ -43,12 +45,14 @@ export default function PhSteadyNav() {
   const crates = usePhShell((s) => s.crates);
   const entry = book ? 'compendium' : current === 'collection' && crates ? 'crates' : current ?? 'other';
   useEffect(() => { phPagePushed(entry); }, [entry]);
-  // Back from a Scene Builder game: the page you left it from.
-  useEffect(() => { const p = phTakeReturnPage(); if (p && p !== 'home') showPage(p); }, []);
+  useEffect(() => phAttach(showPage), []);
+  // Back from a Scene Builder game: the panel goes, the saved game shows at once, and the page you left it from returns.
   useEffect(() => {
-    const onPop = (e: PopStateEvent): void => { phPopped((e.state as { phPage?: string } | null)?.phPage ?? 'home', showPage); };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
+    closeSceneBuilderPanel();
+    const back = phTakeReturn();
+    if (!back) return;
+    if (back.saved) useGame.setState({ savedRun: back.saved as ReturnType<typeof useGame.getState>['savedRun'] });
+    if (back.page !== 'home') showPage(back.page);
   }, []);
   const compact = document.documentElement.hasAttribute('data-ph-compact') || isPhone();
   return <div className="ph-navhost"><PhTopNav current={current} friendsDocked={home && !compact} ownDrawer={home} /></div>;

@@ -31,7 +31,8 @@ import { bankedCastPlayerAnchor, clearCastPreviews, showBankedCastPreviews, show
 import { clearHandSummonFx, combatHandSummonOrigins, handSummonRemainingMs, isHandSummonInFlight, launchHandSummonFlights, type HandCardLike, type HandSummonFlight } from './handSummonFx';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
-import { RALLY_PROC_STRIDE_MS, attackSummonUids, ownRallyBindingFor, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
+import { RALLY_PROC_STRIDE_MS, attackSummonUids, isOwnNarration, ownRallyBindingFor, ownRallyFloatDelayMs, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
+import { getLungeConfig } from './lungeConfig';
 import { shoutsAheadOf } from './choreo/channels/shoutFired';
 import { wavesAheadOf } from './choreo/channels/windupWaves';
 import { HIT_REACTION_LEAD_MS, chainEligible, chainTendrilPlan, chainTickCount, hitReactionStart, reactionChainMs, reactionTickStrideMs, reactionTicks, type ReactionTick } from './choreo/hitReactions';
@@ -2624,7 +2625,23 @@ export function useCombatReplay(
     // SPELL POWER gained mid-combat: `grantSpellPower` already emits an `sc` narration carrying the SOURCE
     // unit and a "+A/+H Spell Power" text, so the flourish rides that rather than needing a new choreo
     // channel. Fired over the unit that caused it, matching the shop behaviour (owner ask 2026-07-21).
-    for (let i = beat.start; i < beat.end; i++) spellPowerNarration(events[i], playerUids, anchorOf);
+    // An attacker with its own "On Rally" effect (Chorus Drake) plays that effect at the top of the wind-up, so its
+    // OWN spell-power flourish waits the same read gap the plain floats do (R-FX-RALLY-FLOAT-01) — the effect goes
+    // off first, then the +1.
+    const spAtk = beat.kind === 'attackExchange' && beat.primary.type === 'attack' ? beat.primary.attacker : null;
+    const spOwnRally = spAtk !== null && canPlayDefs()
+      && !!ownRallyBindingFor(beat, events, spAtk, cardIds.get(spAtk) ?? null, true, bindingFor);
+    const spLater: CombatEvent[] = [];
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (spOwnRally && isOwnNarration(e, spAtk)) { if (e) spLater.push(e); continue; }
+      spellPowerNarration(e, playerUids, anchorOf);
+    }
+    if (spLater.length) {
+      const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
+      window.setTimeout(() => { for (const e of spLater) spellPowerNarration(e, playerUids, anchorOf); },
+        ownRallyFloatDelayMs(getLungeConfig().windupDur) / speed);
+    }
     // SPELLS CAST / FRIENDLY DEATHS / BLADE MASTERY ATTACKS mid-combat (owner asks 2026-08-07 + 2026-08-24, for
     // Yirin's Attunement, Cindara's Hoard and Gorun's Blade Mastery) no longer dispatch from here. They ride
     // `combatPreviews` — one FOLD over the events played so far, published absolutely by Recruit's bridge, the

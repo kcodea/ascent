@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { getHero } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
 import { MenuMedal } from './menuIcons';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, displayHandle } from './store';
-import { peekSocial, putSocial, useSocial } from './socialCache';
+import { loadSocial, peekSocial, putSocial, useSocial } from './socialCache';
 import { fetchTopPlayers, remoteEnabled, type PlayerRow } from './remoteBoards';
 import { TitleBadge } from './titles/TitleBadge';
 import { LbHeroFrame, LbMedallion } from './LadderBits';
@@ -19,6 +19,9 @@ import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { heroPortrait, opponentSkins, useLiveLoadout } from './skins/skins';
 import { DuosLeaderboard, DUOS_ROWS } from './versus/DuosBoards';
 import { versusEnabled } from './versus/versusFlag';
+import { usePartyHome } from './partyHome/partyHomeFlag';
+/** The Leaderboard on the party home's app shell (DEV switch; lazy and null in production, so the shipped bundle never carries it). */
+const PhLeaderboard = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/leaderboard/PhLeaderboard').then((m) => ({ default: m.PhLeaderboard }))) : null;
 
 /**
  * Rankings — the player LEADERBOARD (owner request 2026-07-13; polished 2026-09-20 to the Career page's
@@ -96,14 +99,29 @@ export function Rankings() {
   // RANKED DUOS (owner 2026-10-26, Q5): Solo players | Duos teams (the Career's tab style).
   const [board, setBoard] = useState<'solo' | 'duos'>('solo');
   const duosTab = versusEnabled() && board === 'duos';
+  const shell = usePartyHome() && !!PhLeaderboard;
 
   // Bring YOUR row into view once the list has painted — one scroll, not a per-frame read.
   useEffect(() => {
-    if (!rows || !mineRef.current) return;
+    if (shell || !rows || !mineRef.current) return;
     mineRef.current.scrollIntoView({ block: 'nearest' }); // nearest: a podium row is already in view; a row below scrolls up just enough
-  }, [rows]);
+  }, [rows, shell]);
 
   if (!show) return null;
+
+  // THE PARTY HOME's APP SHELL (DEV switch, off by default): the same rows, laid out by PhLeaderboard.
+  if (shell && PhLeaderboard) {
+    return (
+      <Suspense fallback={null}>
+        <PhLeaderboard
+          rows={rows} rowsShown={RANKED_ROWS} remote={remoteEnabled()} versusOn={versusEnabled()} board={board} onBoard={setBoard}
+          myId={myId ?? null} myName={myName} myDisc={myDisc} myRank={myRank ?? null} myAvatar={myAvatar} myLoadout={myLoadout} showOpp={showOppCosmetics}
+          onRetry={() => { void loadSocial(RANKINGS_KEY, loadRankings, { force: true }); }}
+          onOpen={(r) => openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero, ...(r.rank ? { rank: r.rank } : {}), ...(r.avatar ? { avatar: r.avatar } : {}) })}
+        />
+      </Suspense>
+    );
+  }
 
   // Medal ranks on the table → the rating cell is the crest + bar, and the MMR number gets its own column.
   const ranked = !!rows?.some((r) => rankOfRow(r));

@@ -242,7 +242,7 @@
 /* ── A PHONE (landscape): the same layout at the phone's unit. Recent Games' page scrolls as one, and the split takes the
    whole screen under the nav, so the list and the open game both get their full height. ── */
 html[data-touch-small] .rgp .phk-pagebody { overflow-y: auto; }
-html[data-touch-small] .rgp-split { flex: none; height: calc(100dvh - var(--ph-nav-h) - 16 * var(--phu)); grid-template-columns: calc(360 * var(--phu)) minmax(0, 1fr); }
+html[data-touch-small] .rgp-split { flex: none; height: calc(var(--lvh, 100dvh) - var(--ph-nav-h) - 16 * var(--phu)); grid-template-columns: calc(360 * var(--phu)) minmax(0, 1fr); }
 html[data-touch-small] .rgp-stats .phk-stat { min-width: calc(72 * var(--phu)); }
 html[data-touch-small] .rgp-item .gamerank .gamerank-l { display: none; }
 html[data-touch-small] .rgp .lp-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }

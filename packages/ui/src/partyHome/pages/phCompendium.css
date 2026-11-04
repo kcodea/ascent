@@ -255,7 +255,7 @@ html[data-ph-book] .cardref { z-index: 490; }
 
 /* ── HEROES (owner 2026-11-04: "improve the hero look ... extremely clean"): one plate per hero. The portrait fills the top and
    melts into the navy with no frame; the name and Health sit on the melt; the power below. A row's tiles share one height. ── */
-.phb .phh-grid { --ch: calc(320 * var(--phu)); grid-template-columns: repeat(auto-fill, minmax(calc(256 * var(--phu)), 1fr)); gap: calc(16 * var(--phu)); padding: calc(16 * var(--phu)); align-items: stretch; justify-items: stretch; row-gap: calc(16 * var(--phu)); }
+.phb .phh-grid { --ch: calc(320 * var(--phu)); grid-template-columns: repeat(auto-fill, minmax(calc(240 * var(--phu)), 1fr)); gap: calc(16 * var(--phu)); padding: calc(16 * var(--phu)); align-items: stretch; justify-items: stretch; row-gap: calc(16 * var(--phu)); }
 .phb .phh-grid .book-cell { width: 100%; min-width: 0; }
 .phb .phh-grid .book-cell.is-pending { min-height: calc(320 * var(--phu)); }
 .phb .phh-grid .book-cell:hover { transform: translateY(calc(-2 * var(--phu))); }
@@ -283,3 +283,7 @@ html[data-ph-compact] .phh-name { font-size: calc(24 * var(--phu)); }
 /* ── IN A GAME: the same page, over the match. It paints its own full screen; there is no nav above it. ── */
 .ph-bookpage.phb-ov { padding-top: 0; }
 .phb-close { flex: none; }
+/* The shell's backdrop paints under everything and pages are transparent over it, so whatever the book opened on steps aside. */
+html[data-ph-book] :is(.ph, .lbpage, .modepick) { visibility: hidden; }
+.phb-ov .ph-steady { position: absolute !important; z-index: 0 !important; }
+.phh { width: 100%; }

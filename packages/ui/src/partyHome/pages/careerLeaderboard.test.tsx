@@ -23,6 +23,12 @@ const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import
 
 const hero = (heroId: string, runs: number): HeroCareer => ({ heroId, runs, winRate: 50, avgPlacement: 4.2, netMmr: 12, ratedGames: 2 } as unknown as HeroCareer);
 
+const VIEW: PhCareerProps['history']['view'] = {
+  label: 'Match history', selected: 'r1', onPick: vi.fn(),
+  items: [{ key: 'r1', place: 3, band: 'top4', title: 'Orangez', sub: 'Robin', delta: 6, label: '3rd, Robin' }],
+  detail: { place: 3, who: 'Orangez', heroName: 'Robin', record: '7-7', recordTone: 'up', rank: null, facts: [], match: null, own: false, skins: null, runes: [], replay: null },
+};
+
 function careerProps(over: Partial<PhCareerProps> = {}): PhCareerProps {
   return {
     own: false, name: 'Orangez', title: null, addFriend: null, pageState: null, profileArt: undefined, favoriteHero: 'Robin',
@@ -30,10 +36,10 @@ function careerProps(over: Partial<PhCareerProps> = {}): PhCareerProps {
     stats: { games: 141, firsts: 66, top4Pct: 74, losses: 37, avgPlacement: 3, tribe: 'Demon' },
     rank: <div className="rk">rank</div>, duos: null,
     tab: 'history', onTab: vi.fn(), achievementsOn: true, tabSub: 'Last 50 runs',
-    history: { filter: null, state: null, split: <div className="split">games</div> },
+    history: { filter: null, state: null, view: VIEW },
     heroes: { list: [hero('robin', 13), hero('albus', 3)], sort: 'games', onSort: vi.fn(), onPick: vi.fn(), art: () => undefined, state: null },
     trends: { window: 30, onWindow: vi.fn(), body: <div className="charts">charts</div> },
-    practice: { state: null, split: null },
+    practice: { state: null, view: null },
     achievements: null,
     ...over,
   };
@@ -69,7 +75,8 @@ describe('Career on the app shell', () => {
     const m = mount(<PhCareer {...careerProps()} />);
     const text = m.container.textContent ?? '';
     for (const s of ['157', 'Favorite hero', 'Robin', '141', '66', '74%', '37', 'Demon', 'Seasonal Ranked', 'rank']) expect(text).toContain(s);
-    expect(m.container.querySelector('.split')).not.toBeNull();
+    expect(m.container.querySelector('.rgp-item')?.textContent).toContain('+6'); // Recent Games' row, with the rating change
+    expect(m.container.querySelector('.rgp-banner')).not.toBeNull();
     m.unmount();
   });
   it('a hero card opens that hero’s games; the sort and the trend window reach their handlers', () => {

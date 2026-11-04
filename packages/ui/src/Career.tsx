@@ -7,7 +7,7 @@ import { DEFAULT_HERO_ID, getHero, runeLiveStateOfSnapshot, strengthText } from 
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import type { BoardSnapshot } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
-import { GameCard, placeText } from './GameCard';
+import { bandOf, GameCard, placeText } from './GameCard';
 import { TrendsBody } from './careerTrends';
 import { avatarSrc, heroThumb } from './art';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP, NO_DETAILS_TEXT } from './matchDetails/matchDetailsText';
@@ -30,6 +30,7 @@ import { startReplay } from './replay/replayPlayer';
 import type { RunHistoryRowLike } from './careerData';
 import { usePartyHome } from './partyHome/partyHomeFlag';
 import type { PhCareerTab, PhState } from './partyHome/pages/career/PhCareer';
+import type { GameDetailProps, GameFact, GameSplitView } from './partyHome/pages/gameView';
 /** The Career on the party home's app shell (DEV switch; lazy and null in production, so the shipped bundle never carries it). */
 const PhCareer = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/career/PhCareer').then((m) => ({ default: m.PhCareer }))) : null;
 import { careerFresh, careerKeyUser, carryTelemetry, loadCareer } from './careerLoad';
@@ -656,6 +657,86 @@ export function Career() {
   const pickTab = (t: CenterTab): void => { if (t === tab) return; if (t !== 'history') setHeroFilter(null); setTab(t); saveTab(t); };
   const clearHeroFilter = (): void => { sfx.pulse(); setHeroFilter(null); setPickedRun(null); };
 
+  // THE SHELL's MATCH HISTORY (owner 2026-11-03: "make them match and use the recent games look"): the runs as the props of
+  // the list + detail Recent Games wears (partyHome/pages/gameView.tsx). A row wears the skins RECORDED on its board.
+  const gameSkins = (snap: RunCosmeticSnapshot | null | undefined): RunCosmeticSnapshot | null => (!viewing ? snap ?? null : opponentSkins(showOppSkins, snap));
+  const gameBits = (heroId: string, rec: { wins: number; losses: number; draws: number } | null | undefined, board: BoardSnapshot | null | undefined, runes: readonly string[]): Pick<GameDetailProps, 'who' | 'heroName' | 'art' | 'record' | 'recordTone' | 'own' | 'minions' | 'skins' | 'runes' | 'runeLive'> => {
+    const skins = gameSkins(board?.cosmetics);
+    const fought = !!rec && rec.wins + rec.losses + rec.draws > 0;
+    return {
+      who: shownName, heroName: heroId ? getHero(heroId).name : 'Unknown hero', art: heroThumb(heroPortrait(heroId, skins)),
+      record: fought ? recordText(rec!) : '', recordTone: fought ? (rec!.wins >= rec!.losses ? 'up' : 'down') : '',
+      own: !viewing, minions: board?.minions, skins, runes: runes.filter((id) => RUNE_INDEX[id]), runeLive: runeLiveStateOfSnapshot(board),
+    };
+  };
+  const historyView = (): GameSplitView => {
+    const keyed = matchRows.map((run, i) => ({ run, i, key: `r${run.id ?? i}` }));
+    const focusAt = heroFilter ? -1 : focusIndex;
+    const sel = keyed.find((k) => k.key === pickedRun) ?? keyed[focusAt >= 0 ? focusAt : 0]!;
+    const run = sel.run;
+    const bits = gameBits(run.heroId, run, run.board, run.runes);
+    const facts: GameFact[] = [
+      { label: 'Played', value: playedOnText(run.atMs) || '-' },
+      { label: 'Length', value: runLengthText(run.durationMs, run.lengthOverCap) },
+      ...(run.wave > 0 ? [{ label: 'Rounds', value: run.wave }] : []),
+      { label: 'Gold spent', value: run.goldSpent === null ? '-' : run.goldSpent },
+      ...(run.ratingDelta != null && run.ratingDelta !== 0 ? [{ label: 'Rating', value: run.ratingDelta > 0 ? `+${run.ratingDelta}` : `${run.ratingDelta}` }] : []),
+      ...(SHOW_LOBBY_STRENGTH && run.lobbyStrength ? [{ label: 'Lobby', value: strengthText(run.lobbyStrength) }] : []),
+      ...(run.boardStrength != null ? [{ label: GAME_STRENGTH_LABEL, value: run.boardStrength, tip: GAME_STRENGTH_TIP }] : []),
+    ];
+    const watchable = run.replayRowId !== null;
+    return {
+      label: 'Match history', selected: sel.key, onPick: setPickedRun,
+      items: keyed.map(({ run: r, key }) => {
+        const name = r.heroId ? getHero(r.heroId).name : 'Unknown hero';
+        const fights = r.wins + r.losses + r.draws;
+        return {
+          key, place: r.placement, band: bandOf(r.placement), title: shownName, sub: fights > 0 ? `${name} · ${recordText(r)}` : name,
+          when: playedOnText(r.atMs) || undefined, rank: r.rank, delta: r.ratingDelta ?? null, art: heroThumb(heroPortrait(r.heroId, gameSkins(r.board?.cosmetics))),
+          label: `${placeText(r.placement)}, ${name}${r.rank != null ? `, played at ${rankLabel(r.rank)}` : ''}`,
+        };
+      }),
+      detail: {
+        ...bits, place: run.placement, rank: run.rank ?? null, facts, match: run.match,
+        replay: {
+          watchable, busy: watching !== null && watching === run.id, unplayable: noReplay !== null && noReplay === run.id, onWatch: () => onWatchRun(run),
+          label: watchable ? 'Watch this run’s replay' : 'No replay stored for this run',
+        },
+      },
+    };
+  };
+  const practiceView = (rows: PracticeGameRow[]): GameSplitView => {
+    const keyed = rows.map((g, i) => ({ g, key: `p${g.rowId ?? `${g.createdAt ?? ''}-${i}`}` }));
+    const sel = keyed.find((k) => k.key === pickedPractice) ?? keyed[0]!;
+    const g = sel.g;
+    const cfg = g.practice;
+    const facts: GameFact[] = [
+      { label: 'Played', value: playedOnText(g.createdAt ? Date.parse(g.createdAt) : NaN) || '-' },
+      { label: 'Length', value: runLengthText(g.durationMs, g.lengthOverCap) },
+      { label: 'Rounds', value: g.wave ?? '-' },
+      ...(cfg ? [{ label: 'Opponents', value: practiceOpponentsPill(cfg) }, { label: 'Health', value: practiceHealthPill(cfg) }] : []),
+    ];
+    return {
+      label: 'Practice games', selected: sel.key, onPick: setPickedPractice,
+      items: keyed.map(({ g: r, key }) => {
+        const name = r.heroId ? getHero(r.heroId).name : 'Unknown hero';
+        const rec = r.record && r.record.wins + r.record.losses + r.record.draws > 0 ? recordText(r.record) : null;
+        return {
+          key, place: r.placement, band: bandOf(r.placement), title: shownName, sub: rec ? `${name} · ${rec}` : name,
+          when: playedOnText(r.createdAt ? Date.parse(r.createdAt) : NaN) || undefined, art: heroThumb(heroPortrait(r.heroId, gameSkins(r.board?.cosmetics))),
+          label: `${placeText(r.placement)}, ${name}`,
+        };
+      }),
+      detail: {
+        ...gameBits(g.heroId ?? '', g.record, g.board, g.runes), place: g.placement, rank: null, facts, match: g.match,
+        replay: g.hasReplay ? {
+          watchable: true, busy: watchingPractice !== null && watchingPractice === g.rowId, unplayable: noPracticeReplay !== null && noPracticeReplay === g.rowId,
+          onWatch: () => watchPractice(g), label: 'Watch this practice game’s replay',
+        } : null,
+      },
+    };
+  };
+
   /** The Practice tab's list + detail (LAYOUT B, GameSplit.tsx); built once, shown by either layout. */
   const practiceSplit = (practiceRows: PracticeGameRow[]): JSX.Element => {
     // LAYOUT B (owner 2026-10-16): the compact list + the selected practice game in full (GameSplit.tsx).
@@ -783,7 +864,7 @@ export function Career() {
             history={{
               filter: heroFilter ? { name: filterName, clear: clearHeroFilter, back: () => { sfx.pulse(); pickTab('heroes'); } } : null,
               state: historyState,
-              split: historyState || tab !== 'history' ? null : historySplit(),
+              view: historyState || tab !== 'history' ? null : historyView(),
             }}
             heroes={{
               list: sortedHeroes, sort: heroSort,
@@ -797,7 +878,7 @@ export function Career() {
               onWindow: (d) => { if (window_ !== d) { sfx.pulse(); setWindow(d); } },
               body: tab === 'trends' ? <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} own={own} /> : null,
             }}
-            practice={{ state: practiceState, split: practiceState || tab !== 'practice' ? null : practiceSplit(practiceRows!) }}
+            practice={{ state: practiceState, view: practiceState || tab !== 'practice' ? null : practiceView(practiceRows!) }}
             achievements={tab === 'achievements' && userId ? <AchievementsTab userId={userId} own={own} ownerName={shownName} /> : null}
           />
         </Suspense>

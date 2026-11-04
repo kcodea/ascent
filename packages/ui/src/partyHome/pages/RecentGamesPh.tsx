@@ -18,21 +18,16 @@
  * PERFORMANCE: static paint (hover is a colour); only the open game's board mounts; the board's card FX stay still until
  * pointed at (the classic page's rule). Phone portraits are the 256 px thumbnails (`heroThumb`).
  */
-import { memo, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { memo, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import type { MatchDetails } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { heroThumb } from '../../art';
 import { isPhone } from '../../deviceClass';
 import { Icon } from '../../Icon';
-import { GildedCrown, ReplayEye } from '../../menuIcons';
-import { GameRank } from '../../gameRank';
 import { rankLabel } from '../../rank/types';
-import { StoredTeam } from '../../StoredTeam';
-import { LbRunes } from '../../LadderBits';
 import type { HeroCount } from '../../heroFilter';
-import { bandOf, placeText, type GameBand } from '../../GameCard';
-import { LobbyTiles, SeatBoard, SeatRuneRow, ShowingLine, useLobbySeat } from '../../matchDetails/LobbyPicker';
+import { bandOf, placeText } from '../../GameCard';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from '../../matchDetails/matchDetailsText';
 import { SHOW_LOBBY_STRENGTH } from '../../lobbyStrengthDisplay';
 import { fetchRecentMatch } from '../../remoteBoards';
@@ -41,8 +36,11 @@ import { heroPortrait } from '../../skins/skins';
 import { DuosGameCard } from '../../duosHistory/DuosGameCard';
 import { duosBand, duosGameView, duosModeLabel, teamPlaceText, type DuosGameRow } from '../../duosHistory/duosHistoryData';
 import { practiceOpponentsText, summaryOf, type FeedRow, type RecentGamesTab } from '../../RecentGames';
-import { PhButton, PhChip, PhEmpty, PhFact, PhPage, PhSection, PhSegmented, PhSelectList, PhStat, PhTabs } from '../kit';
+import { PhButton, PhChip, PhEmpty, PhPage, PhSection, PhSegmented, PhStat, PhTabs } from '../kit';
+import { GameDetail, GameList, type GameFact, type ListItem } from './gameView';
 import './gamesPages.css';
+
+export { placeWords } from './gameView';
 
 export interface KeyedRow { r: FeedRow; key: string; mine: boolean; skins: RunCosmeticSnapshot | null }
 export type RecentState = 'offline' | 'loading' | 'empty' | 'signedout' | 'ready';
@@ -64,25 +62,6 @@ const TABS = [
   { id: 'practice' as const, label: 'Practice' },
   { id: 'duos' as const, label: 'Duos' },
 ];
-
-/** The words for a placement: "Victory", "4th place", "No placement". */
-export function placeWords(place: number | null): string {
-  if (place === null || !(place > 0)) return 'No placement';
-  return place === 1 ? 'Victory' : `${placeText(place)} place`;
-}
-
-/** THE PLACEMENT (owner ruling 2026-11-03: "for the ui overhaul i prefer this style placement", the production Recent
- *  Games list's): the ordinal as plain bold text in its band's colour (gold a win, green the top 4, rose after), a small
- *  gilded crown before a 1st, and the same colour as the row's left edge bar. No crest. The band, not the number, picks
- *  the colour, so a Duos team's 2nd of 2 reads as the loss it is. */
-function Place({ place, band, big }: { place: number | null; band: GameBand; big?: boolean }) {
-  return (
-    <span className={`rgp-ord b-${band}${big ? ' big' : ''}`} aria-label={placeWords(place)}>
-      {band === 'won' && <span className="rgp-crown" aria-hidden="true"><GildedCrown /></span>}
-      {placeText(place)}
-    </span>
-  );
-}
 
 /** How many hero options the filter shows on the header line before the rest fold into More ("All heroes" and More count):
  *  one row on every screen (round 5 critic). Read once per render from the window width, never per frame. */
@@ -225,75 +204,17 @@ const Spark = memo(function Spark({ places }: { places: readonly number[] }) {
   );
 });
 
-/* ── THE LIST ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
-
-export interface ListItem {
-  key: string; place: number | null; band: GameBand; title: string; sub?: string; when?: string;
-  rank?: number | null; delta?: number | null; art?: string; label: string;
-}
-
-/** The history: one rail slice per game, in the kit's keyboard list (Up / Down / Home / End). */
-export const GameList = memo(function GameList({ items, selected, onPick, label }: {
-  items: readonly ListItem[]; selected: string; onPick: (key: string) => void; label: string;
-}) {
-  // Keep the picked row in view when the pick comes from outside the list (a filter change). `nearest` never moves a
-  // visible row; the kit list scrolls its own keyboard moves.
-  // Scrolls only the list itself (scrollIntoView would also scroll the phone's page and hide the strip): one read per pick.
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const box = ref.current;
-    const on = box?.querySelector<HTMLElement>('.rgp-item.sel')?.parentElement;
-    if (!box || !on) return;
-    const top = on.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
-    if (top < box.scrollTop) box.scrollTop = top;
-    else if (top + on.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = top + on.offsetHeight - box.clientHeight;
-  }, [selected]);
-  return (
-    <div className="rgp-listwrap" ref={ref}>
-      <PhSelectList
-        className="rgp-list" label={label} items={items} keyOf={(it) => it.key} selected={selected}
-        onSelect={(it) => { if (it.key !== selected) onPick(it.key); }}
-        render={(it, on) => (
-          <div className={`phk-row rgp-item b-${it.band}${on ? ' sel' : ''}`} aria-label={it.label}>
-            {it.art && <img className="phk-rowart rgp-itemart" src={it.art} alt="" draggable={false} decoding="async" loading="lazy" />}
-            <Place place={it.place} band={it.band} />
-            <span className="phk-rowwho">
-              <span className="phk-rowtitle">{it.title}</span>
-              {it.sub && <span className="phk-rowsub">{it.sub}</span>}
-            </span>
-            <span className="rgp-itemend">
-              {it.rank != null && <GameRank divisionIndex={it.rank} compact />}
-              {it.delta != null && it.delta !== 0 && <span className={`rgp-delta ${it.delta > 0 ? 'up' : 'down'}`}>{it.delta > 0 ? `+${it.delta}` : it.delta}</span>}
-              {it.when && <span className="rgp-when">{it.when}</span>}
-            </span>
-          </div>
-        )}
-      />
-    </div>
-  );
-});
-
-/* ── THE OPEN GAME ─────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* ── THE OPEN GAME: this feed's row, as the shared detail (gameView.tsx) ─────────────────────────────────────────────── */
 
 interface DetailProps {
   row: KeyedRow; practice: boolean; busy: boolean; unplayable: boolean; opening: boolean;
   onOpen: (r: FeedRow, key: string) => void; onWatch: (e: MouseEvent, r: FeedRow, key: string) => void;
 }
 
-/** One fact tile (the kit's), with the game's hover tip when it has one. */
-function Fact({ label, children, tip }: { label: string; children: React.ReactNode; tip?: string }) {
-  const tile = <PhFact label={label} value={children} />;
-  return tip ? <span className="gtip rgp-tip" data-tip={tip}>{tile}</span> : tile;
-}
-
 const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, opening, onOpen, onWatch }: DetailProps) {
   const { r, key, mine, skins } = row;
   const cfg = 'practice' in r ? r.practice : null;
-  const hero = r.heroId ? getHero(r.heroId) : null;
-  const band = bandOf(r.placement);
   const watchable = r.hasReplay && r.rowId != null;
-  const who = r.author || 'Unnamed player';
-  const record = r.record ? recordText(r.record) : `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`;
   // A practice row carries its lobby; a ranked row's standings load on demand (two one-row reads, cached), exactly as the
   // classic page does. Until they land, or when none were recorded, there is simply no lobby section.
   const practiceRow = 'match' in r;
@@ -304,89 +225,30 @@ const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, o
     void fetchRecentMatch(r.rowId, r.userId).then((m) => { if (live) setFetched(m); });
     return () => { live = false; };
   }, [practiceRow, r.rowId, r.userId]);
-  const match = 'match' in r ? r.match : fetched;
-  const { seat, pick } = useLobbySeat(match);
-  // A pick in the lobby (below the board) brings the board back into view; nothing moves when it is already on screen.
-  const boardRef = useRef<HTMLElement | null>(null);
-  // Only on a real change of seat (StrictMode runs effects twice), and it scrolls only the detail column, never the page.
-  const shownSeat = useRef<string | null>(null);
-  useEffect(() => {
-    const id = seat?.id ?? null;
-    if (id === shownSeat.current) return;
-    shownSeat.current = id;
-    const el = boardRef.current;
-    const col = el?.closest<HTMLElement>('.rgp-detailcol');
-    if (!el || !col || typeof col.scrollTo !== 'function') return;
-    const top = el.getBoundingClientRect().top - col.getBoundingClientRect().top;
-    if (top < 0) col.scrollTo({ top: col.scrollTop + top, behavior: 'smooth' });
-  }, [seat?.id]);
-  const art = heroThumb(heroPortrait(r.heroId, skins));
-  const rank = !practice && 'rank' in r && r.rank != null ? r.rank : null;
-  const replayText = busy ? 'Loading' : unplayable || !watchable ? 'No replay' : 'Replay';
-
+  const facts: GameFact[] = [
+    ...(playedAtText(r.createdAt) ? [{ label: 'Played', value: playedAtText(r.createdAt) }] : []),
+    { label: 'Length', value: runLengthText(r.durationMs, r.lengthOverCap) },
+    ...(r.wave !== null ? [{ label: 'Rounds', value: r.wave }] : []),
+    ...(cfg ? [{ label: 'Opponents', value: practiceOpponentsText(cfg) }, { label: 'Health', value: cfg.health === 'normal' ? 'Normal' : 'Unlimited' }] : []),
+    ...(SHOW_LOBBY_STRENGTH && r.lobbyStrength ? [{ label: 'Lobby', value: strengthText(r.lobbyStrength) }] : []),
+    ...(r.boardStrength != null ? [{ label: GAME_STRENGTH_LABEL, value: r.boardStrength, tip: GAME_STRENGTH_TIP }] : []),
+  ];
   return (
-    <article className={`rgp-detail b-${band}`} aria-label={`${who}, ${hero?.name ?? 'Unknown hero'}: ${placeWords(r.placement)}`}>
-      <header className="rgp-banner">
-        {art && <img className="rgp-bannerart" src={art} alt="" draggable={false} decoding="async" />}
-        <Place place={r.placement} band={band} big />
-        <div className="rgp-bannerwho">
-          {(band === 'won' || band === 'none') && <span className={`rgp-verdict b-${band}`}>{placeWords(r.placement)}</span>}
-          <h2 className="rgp-name">{who}</h2>
-          <span className="rgp-line">
-            <span>{hero?.name ?? 'Unknown hero'}</span>
-            <span className={`rgp-record ${r.record ? (r.record.wins >= r.record.losses ? 'up' : 'down') : ''}`}>{record}</span>
-            {rank != null && <GameRank divisionIndex={rank} />}
-          </span>
-        </div>
-        <div className="rgp-bannerbtns">
-          {(!practice || watchable) && (
-            <PhButton
-              variant="primary" onClick={(e) => onWatch(e, r, key)} disabled={!watchable || busy || unplayable}
-              aria-label={watchable ? `Watch ${r.author || 'this player'}'s game` : 'No replay stored for this game'}
-            >
-              <ReplayEye />{replayText}
-            </PhButton>
-          )}
-          {r.userId && (
-            <PhButton onClick={() => onOpen(r, key)} disabled={opening} aria-label={`View ${r.author || 'this player'}'s Career`}>
-              Career<span className="rgp-go" aria-hidden="true">›</span>
-            </PhButton>
-          )}
-        </div>
-      </header>
-
-      <div className="rgp-facts">
-        {playedAtText(r.createdAt) && <Fact label="Played">{playedAtText(r.createdAt)}</Fact>}
-        <Fact label="Length">{runLengthText(r.durationMs, r.lengthOverCap)}</Fact>
-        {r.wave !== null && <Fact label="Rounds">{r.wave}</Fact>}
-        {cfg && <Fact label="Opponents">{practiceOpponentsText(cfg)}</Fact>}
-        {cfg && <Fact label="Health">{cfg.health === 'normal' ? 'Normal' : 'Unlimited'}</Fact>}
-        {SHOW_LOBBY_STRENGTH && r.lobbyStrength && <Fact label="Lobby">{strengthText(r.lobbyStrength)}</Fact>}
-        {r.boardStrength != null && <Fact label={GAME_STRENGTH_LABEL} tip={GAME_STRENGTH_TIP}>{r.boardStrength}</Fact>}
-        {r.partial && <PhChip className="rgp-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</PhChip>}
-      </div>
-
-      <section className="rgp-boardsec" aria-label="Final board" ref={boardRef}>
-        {match
-          ? <ShowingLine seat={seat} details={match} onBack={() => pick(null)} own={mine} />
-          : <div className="lp-showing"><span className="lp-showing-l">Final board</span></div>}
-        <div className="rgp-board"><div className="rgp-boardin" key={seat?.id ?? 'own'}>
-          {seat ? <SeatBoard seat={seat} own={mine} /> : r.board && r.board.minions.length > 0
-            ? <StoredTeam minions={r.board.minions} skins={skins} />
-            : <div className="rgp-none">No board recorded for this game</div>}
-        </div></div>
-        <div className="rgp-runes">
-          {seat ? <SeatRuneRow seat={seat} /> : <LbRunes runes={r.runes} live={runeLiveStateOfSnapshot(r.board)} empty="No runes taken" />}
-        </div>
-      </section>
-
-      {match && (
-        <section className="rgp-lobby" aria-label="Players in this lobby">
-          <header className="rgp-lobbyhead"><h3>Lobby</h3></header>
-          <LobbyTiles details={match} selectedId={seat?.id ?? null} onPick={pick} own={mine} />
-        </section>
-      )}
-    </article>
+    <GameDetail
+      place={r.placement} who={r.author || 'Unnamed player'} heroName={r.heroId ? getHero(r.heroId).name : 'Unknown hero'}
+      art={heroThumb(heroPortrait(r.heroId, skins))}
+      record={r.record ? recordText(r.record) : `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`}
+      recordTone={r.record ? (r.record.wins >= r.record.losses ? 'up' : 'down') : ''}
+      rank={!practice && 'rank' in r && r.rank != null ? r.rank : null}
+      facts={facts} notice={r.partial ? <PhChip className="rgp-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</PhChip> : null}
+      match={'match' in r ? r.match : fetched} own={mine} minions={r.board?.minions} skins={skins}
+      runes={r.runes} runeLive={runeLiveStateOfSnapshot(r.board)}
+      replay={!practice || watchable ? {
+        watchable, busy, unplayable, onWatch: (e) => onWatch(e, r, key),
+        label: watchable ? `Watch ${r.author || 'this player'}'s game` : 'No replay stored for this game',
+      } : null}
+      career={r.userId ? { disabled: opening, onOpen: () => onOpen(r, key), label: `View ${r.author || 'this player'}'s Career` } : null}
+    />
   );
 });
 

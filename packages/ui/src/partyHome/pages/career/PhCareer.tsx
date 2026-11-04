@@ -9,7 +9,7 @@
  *            middle (Match History, Heroes, Trends, Practice, Achievements) and the title + Add Friend on the right.
  *   LEFT     the PROFILE column (it scrolls on its own): the chosen portrait fading into the navy with the name, title
  *            and favourite hero on it; the account level; Seasonal Ranked; Ranked Duos; the career numbers as tiles.
- *   RIGHT    the open view. Match History and Practice keep the shared list + detail split (GameSplit); Heroes is a
+ *   RIGHT    the open view. Match History and Practice wear Recent Games' list + detail (../gameView.tsx); Heroes is a
  *            grid of portrait cards (Valorant's agent grid); Trends gets the full width the charts never had in the
  *            old right column.
  *
@@ -22,6 +22,7 @@ import { MenuMedal } from '../../../menuIcons';
 import { MenuSidebar, SidebarHost } from '../../../MenuSidebar';
 import { HERO_SORTS, HERO_SORT_LABEL, TREND_WINDOWS, trendWindowLabel, type HeroCareer, type HeroSort, type TrendWindow } from '../../../careerData';
 import { PhButton, PhEmpty, PhPage, PhSegmented, PhStat, PhTabs } from '../../kit';
+import { GameSplitPh, type GameSplitView } from '../gameView';
 import './phCareer.css';
 
 /** A whole-view state (loading, offline, signed out, empty). */
@@ -50,10 +51,10 @@ export interface PhCareerProps {
   achievementsOn: boolean;
   /** "Last 50 runs" / "36 heroes played" ... */
   tabSub: string;
-  history: { filter: { name: string; clear: () => void; back: () => void } | null; state: PhState | null; split: ReactNode };
+  history: { filter: { name: string; clear: () => void; back: () => void } | null; state: PhState | null; view: GameSplitView | null };
   heroes: { list: readonly HeroCareer[]; sort: HeroSort; onSort: (s: HeroSort) => void; onPick: (heroId: string) => void; art: (heroId: string) => string | undefined; state: PhState | null };
   trends: { window: TrendWindow; onWindow: (w: TrendWindow) => void; body: ReactNode };
-  practice: { state: PhState | null; split: ReactNode };
+  practice: { state: PhState | null; view: GameSplitView | null };
   achievements: ReactNode;
 }
 
@@ -122,9 +123,9 @@ export function PhCareer(p: PhCareerProps) {
     );
   } else if (p.tab === 'practice') {
     view = p.practice.state ? <StateView s={p.practice.state} /> : (
-      <div className="phc-view phc-splitview">
+      <div className="phc-view phc-splitview rgp">
         <div className="phc-toolbar"><span className="phc-sub">{p.tabSub}</span></div>
-        <div className="phc-split cv2-list">{p.practice.split}</div>
+        {p.practice.view && <GameSplitPh view={p.practice.view} />}
       </div>
     );
   } else if (p.tab === 'achievements') {
@@ -132,7 +133,7 @@ export function PhCareer(p: PhCareerProps) {
   } else {
     const f = p.history.filter;
     view = (
-      <div className="phc-view phc-splitview">
+      <div className="phc-view phc-splitview rgp">
         <div className="phc-toolbar">
           {f ? (
             <span className="phc-filter">
@@ -143,7 +144,7 @@ export function PhCareer(p: PhCareerProps) {
           ) : null}
           <span className="phc-sub phc-count">{p.tabSub}</span>
         </div>
-        {p.history.state ? <StateView s={p.history.state} /> : <div className="phc-split cv2-list">{p.history.split}</div>}
+        {p.history.state ? <StateView s={p.history.state} /> : p.history.view && <GameSplitPh view={p.history.view} />}
       </div>
     );
   }

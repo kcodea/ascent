@@ -20,6 +20,8 @@ import { rectToStage, stageViewport } from '../stage';
 import './heroCeremony.css';
 import { useGame } from '../store';
 import { useVersusHeroesRevealed } from '../versus/versusStore';
+import { usePartyHome } from '../partyHome/partyHomeFlag';
+import { HeroPowerLine } from './HeroPowerLine';
 import { crumbLight, crumbTrail } from '../crashLog';
 
 /** VERSUS: how long a finished ceremony waits on Start Game before starting on its own (both heroes locked). */
@@ -110,6 +112,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
   const art = useSharpArt(heroPortrait(heroId, loadout));
   // The portrait-frames tuner's ring swaps the heroportrait ring the champion snaps into (null = today's ring).
   const frame = usePortraitFrame('self');
+  // The party home look (DEV switch, off by default): the clone wears the card's banner (heroSelectPh.css).
+  const ph = usePartyHome();
+  // A phone's banner crops the portrait short and wide; the champion's art is square, so its crop is squared up to the
+  // banner's width and the portrait and ring land at their shipped size.
+  const artCrop = <R extends { width: number; height: number }>(c: R): R => (ph && c.width > c.height ? { ...c, height: c.width } : c);
   const tip = heroTip(heroId);
   const pi = phaseIndex(state.phase);
   const crossed = (p: HeroCeremonyPhase): boolean => pi >= phaseIndex(p);
@@ -305,7 +312,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
     if (!crossed('materializing') || portrait || !art || !travelDone) return;
     const frame = frameRef.current;
     if (!frame) return;
-    const crop = snapshotRect(rectToStage(frame.getBoundingClientRect()));
+    const crop = artCrop(snapshotRect(rectToStage(frame.getBoundingClientRect())));
     if (crop.width <= 0) return; // degenerate (hidden/unstyled test env): keep the framed fallback
     setPortrait({ crop, bounds: portraitBoundsOf(crop) });
   }, [state.phase, art, travelDone, portrait]);
@@ -347,7 +354,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
           // Portrait correction: re-measure the snapped frame once and rebuild the (already faded-in)
           // portrait bounds around it. The entrance animation is long finished by any realistic resize.
           if (portrait && frameRef.current) {
-            const crop = snapshotRect(rectToStage(frameRef.current.getBoundingClientRect()));
+            const crop = artCrop(snapshotRect(rectToStage(frameRef.current.getBoundingClientRect())));
             if (crop.width > 0) {
               setPortrait({ crop, bounds: portraitBoundsOf(crop) });
               const p = portraitRef.current;
@@ -390,7 +397,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
   }, [versusPick, heroesLocked, state.phase]);
 
   const materialized = pi >= phaseIndex('materializing');
-  const k = source.width > 0 ? source.width / BIG_CARD_W : 1; // static adapter: natural card → source rect
+  // The party home look: banners have their own width per layout (the browse grid, phones), so the clone lays out at the
+  // card's own width and wraps its text the same way. The shipped card is always BIG_CARD_W.
+  const cardZoom = (cardEls.current[state.sourceIndex] as (HTMLElement & { currentCSSZoom?: number }) | null | undefined)?.currentCSSZoom;
+  const cloneW = ph && cardZoom ? source.width / cardZoom : BIG_CARD_W;
+  const k = source.width > 0 ? source.width / cloneW : 1; // static adapter: natural card → source rect
 
   // The identity/button entrances are pure CSS animations whose delays are timing-object offsets from the
   // materializing beat (they mount with it) — no extra timers to abort.
@@ -421,7 +432,10 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
         style={{ left: source.left, top: source.top, width: source.width, height: source.height }}
         aria-hidden="true"
       >
-        <div className="herocard big hsc-clone-card" style={{ width: BIG_CARD_W, transform: `scale(${k})` }}>
+        {/* THE PARTY HOME LOOK (DEV switch): the clone is the same banner as its card (rod + foot), at the card's own
+            height (its text block is stretched to the tallest offer), so nothing jumps when it takes the card's place. */}
+        <div className={`herocard big hsc-clone-card${ph && cardEls.current[state.sourceIndex]?.closest('.hsrow.browse') ? ' hsc-browse' : ''}`} style={{ width: cloneW, transform: `scale(${k})`, ...(ph ? { minHeight: source.height / k } : {}) }}>
+          {ph && <span className="hcrod" aria-hidden="true" />}
           <div ref={frameRef} className="hcframe">
             <div className="hcname hudpill-name">{hero.name}</div>
             {art ? <img decoding="sync" className="hcframe-art" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
@@ -435,13 +449,16 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
           {/* The resting face only (difficulty + tip) — the hover face never shows on a clone nobody can
               hover, and it dissolves with the rest of the chrome. */}
           <div className="hcbelow">
-            {tip && (
+            {tip && (!ph || !!cardEls.current[state.sourceIndex]?.querySelector('.hcdiff')) && (
               <div className="hcmeta">
                 <span className={`hcdiff d-${tip.difficulty.toLowerCase()}`}>{tip.difficulty}</span>
                 {SHOW_HERO_TIPS && <span className="hctip">{tip.tip}</span>}
               </div>
             )}
+            {/* The party home look keeps the power on the card at rest, so the clone keeps it too. */}
+            {ph && <div className="hcpw"><HeroPowerLine power={hero.power} stacked /></div>}
           </div>
+          {ph && <span className="hcfoot" aria-hidden="true" />}
         </div>
       </div>
 

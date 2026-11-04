@@ -11,18 +11,13 @@
  * And what a player must be able to see and find: an ask (sign in; resume or discard first) is scrolled into view and
  * takes keyboard focus; the Resume bar's Discard asks before it deletes; a newly saved guide is shown under My guides.
  */
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { SETS } from '@game/content';
 import { GUIDE_LIMITS, type GuideRecord } from '@game/guides';
 import { mount, type Mounted } from '../renderedText.mount';
 import { useGame } from '../store';
 import type { GuideDraftInput, GuideWriteResult } from './guidesRemote';
-
-// Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
-beforeAll(async () => {
-  await Promise.allSettled([import('./CompendiumGuides'), import('./guides'), import('./guideDrafts'), import('./guideDraftStore'), import('./guidesStore'), import('../identity')]);
-}, 60_000);
 
 const imports: GuideDraftInput[][] = [];
 type ImportAnswer = GuideWriteResult<{ inserted: number; skipped: number }>;

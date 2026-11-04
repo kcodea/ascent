@@ -25,7 +25,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StrictMode, act, useState } from 'react';
 import type { Tribe } from '@game/core';
 import { SETS } from '@game/content';
@@ -33,11 +33,6 @@ import { GUIDE_LIMITS, type GuideRecord } from '@game/guides';
 import { mount, type Mounted } from '../renderedText.mount';
 import { useGame } from '../store';
 import type { CommunityPage, CommunityQuery, GuideWriteResult } from './guidesRemote';
-
-// Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
-beforeAll(async () => {
-  await Promise.allSettled([import('./CompendiumGuides'), import('./guides'), import('./guidesStore'), import('../identity')]);
-}, 60_000);
 
 const asked: CommunityQuery[] = [];
 let pageAnswer: (q: CommunityQuery) => Promise<CommunityPage | undefined> | CommunityPage | undefined;

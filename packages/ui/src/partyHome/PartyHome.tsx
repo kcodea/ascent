@@ -64,7 +64,8 @@ import { addSampleInvite, clearSampleInvites, removeSampleInvite, setFriendsOpen
 import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhField, PhLeaderBadge, PhTabs, phNum } from './kit';
 import { GauntletPanel, PracticePanel, stagePlayable, useGauntletStages } from './ModeOptions';
 import { partyModeOf, partyModes, readPartyMode, rememberPartyMode, type PartyMode, type PartyModeId } from './partyModes';
-import { setPartyDemo, usePartyDemo } from './partyHomeFlag';
+import { setPartyDemo, usePartyDemo, usePartyRoom } from './partyHomeFlag';
+import { homeMe, homeSetOptions, sampleHost, useSampleRoom } from './sampleRoom';
 import { SAMPLE_MATE_ID, sampleFriends, sampleHeroes } from './sample';
 import { playerVersusError, useVersusDown } from './versusCopy';
 import { versusModifierName } from '../versus/versusOptionsUi';
@@ -126,7 +127,11 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const phone = useCompact();
 
   // THE PARTY: a Ranked Duos room is the only server-side party today; the DEV sample party stands in for one.
-  const room = useVersus((s) => s.room);
+  // (The DEV sample room stands in for a Versus room: sampleRoom.ts, no backend.)
+  const sampleOn = usePartyRoom();
+  const sampleRoom = useSampleRoom((s) => s.room);
+  const liveRoom = useVersus((s) => s.room);
+  const room = sampleOn ? sampleRoom : liveRoom;
   const vsError = useVersus((s) => s.error);
   const duosRoom = room && isDuosParty(room) ? room : null;
   const versusRoom = room && !isDuosParty(room) ? room : null;
@@ -163,7 +168,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   // A VERSUS ROOM IS A STATE OF THIS SCREEN (versusRoomHome.tsx): the tabs follow it. The host can switch between the Versus
   // modes while the room is open; anything else waits until the room is left, like a party.
   const roomTab: PartyModeId | null = versusRoom ? ({ duel: 'versus', group: 'group', duos: 'vduos' } as const)[roomModeOf(versusRoom.options)] : null;
-  const roomHost = !!versusRoom && versusRoom.host_user_id === me && versusRoom.status === 'open';
+  const roomHost = !!versusRoom && versusRoom.host_user_id === homeMe() && versusRoom.status === 'open';
   const lockReason = (m: PartyMode): string | null => {
     if (versusRoom) return m.id === roomTab || (roomHost && m.party === 'rivals') ? null : `You are in a Versus room. Leave it to play ${m.label}.`;
     if (!inParty) return null;
@@ -176,7 +181,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const mode = partyModeOf(modeId);
   const pick = (id: PartyModeId): void => {
     sfx.pulse(); setLockNote(null); setPicked(id); rememberPartyMode(id);
-    if (versusRoom) void setRoomOptions({ v: 1, mode: id === 'versus' ? 'duel' : id === 'group' ? 'group' : 'duos', modifiers: versusRoom.options?.modifiers ?? [] } as VersusRoomOptions);
+    if (versusRoom) void homeSetOptions({ v: 1, mode: id === 'versus' ? 'duel' : id === 'group' ? 'group' : 'duos', modifiers: versusRoom.options?.modifiers ?? [] } as VersusRoomOptions);
   };
   const [lockNote, setLockNote] = useState<string | null>(null);
   const [hoverNote, setHoverNote] = useState<string | null>(null);
@@ -208,7 +213,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   useEffect(() => { if (roomTab) { setPicked(roomTab); rememberPartyMode(roomTab); } }, [roomTab]);
   // Joining from Open rooms: the list has done its job, so the panel shows the room's rules.
   useEffect(() => { if (versusRoom?.id) setSideTab((t) => (t === 'rooms' ? 'settings' : t)); }, [versusRoom?.id]);
-  useEffect(() => { if (mode.party === 'rivals' && !useVersus.getState().room) openVersus('versus'); }, [mode.party]);
+  useEffect(() => { if (mode.party === 'rivals' && !sampleOn && !useVersus.getState().room) openVersus('versus'); }, [mode.party, sampleOn]);
   const hostName = (): string => roomName.trim() || (playerName.trim() ? `${playerName.trim()}'s ${mode.label}` : defaultRoomName('', mode.id === 'versus' ? 'duel' : mode.id === 'group' ? 'group' : 'duos'));
   const [nameOpen, setNameOpen] = useState(false);
   const [teamName, setTeamName] = usePartyTeamName(duosRoom);
@@ -234,7 +239,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       if (vh.start) { startLabel = vh.start.label; startOk = vh.start.ok; note = vh.start.note ?? note; onStart = vh.start.run; break; }
       // No room yet: START opens one behind this screen, with the tab's mode and the picked rules. Nothing navigates.
       const vmode = mode.id === 'versus' ? 'duel' : mode.id === 'group' ? 'group' : 'duos';
-      onStart = () => { void hostVersus({ v: 1, mode: vmode, modifiers: modifier ? [modifier] : [] } as VersusRoomOptions, hostName()); };
+      onStart = () => { if (sampleOn) sampleHost(vmode, modifier); else void hostVersus({ v: 1, mode: vmode, modifiers: modifier ? [modifier] : [] } as VersusRoomOptions, hostName()); };
       break;
     }
     case 'practice':
@@ -257,7 +262,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   // THE SERVER LINE: its own line under the mode's note, so the mode's hint always shows. Only on the modes that use the
   // Versus server, cleared on a mode change and on recovery (a stale error never follows you to another mode).
   const usesServer = mode.party === 'rivals' || mode.id === 'duos';
-  const vsDown = useVersusDown();
+  const vsDown = useVersusDown() && !sampleOn; // (the sample room needs no server)
   const serverName = mode.id === 'duos' ? 'Ranked Duos' : 'Versus';
   const vsCopy = usesServer ? playerVersusError(vsError) : null;
   const downLine = `${serverName} is offline right now.`;
@@ -279,11 +284,12 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const takesParty = mode.id === 'duos';
   const full = vh.row ? vh.seatsFree === 0 : members.length + (demo ? sampleInvites.length : 0) >= mode.slots;
   const takesFriends = takesParty || mode.party === 'rivals';
-  const canInvite = !(vsDown && takesFriends) && !full && (!versusRoom || versusRoom.status === 'open') && (demo ? takesFriends : takesFriends && account && remoteEnabled() && !inGame);
+  const canInvite = !(vsDown && takesFriends) && !full && (!versusRoom || versusRoom.status === 'open') && (demo || sampleOn ? takesFriends : takesFriends && account && remoteEnabled() && !inGame);
   const memberIds = vh.row ? vh.memberIds : members.map((m) => m.userId).filter((x): x is string => !!x && x !== me);
   const sendRef = useRef<(f: Friend) => void>(() => undefined);
   sendRef.current = (f: Friend): void => {
     if (demo) { sfx.pulse(); addSampleInvite(f.userId); return; }
+    if (sampleOn) { sfx.pulse(); return; }
     if (mode.party === 'rivals') {
       // Versus: host the room (with the rules set here) if none is held, then invite into it.
       sfx.pulse();
@@ -434,7 +440,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     <div className="ph-settings">
       {mode.id === 'practice' && <PracticePanel />}
       {mode.id === 'gauntlet' && <GauntletPanel selected={stage} onSelect={setStagePick} />}
-      {mode.party === 'rivals' && <RoomRulesPanel room={versusRoom} me={me} modifier={modifier} onModifier={setModifier} name={roomName} onName={setRoomName}
+      {mode.party === 'rivals' && <RoomRulesPanel room={versusRoom} me={homeMe()} modifier={modifier} onModifier={setModifier} name={roomName} onName={setRoomName}
         placeholder={hostName()} onBrowse={() => setSideTab('rooms')} />}
     </div>
   ) : null;

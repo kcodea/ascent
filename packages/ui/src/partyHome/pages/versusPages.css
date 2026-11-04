@@ -8,7 +8,7 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 
 /* ── THE BROWSER ── */
 .vsph-err, .vsb-page .vsph-err { flex: none; display: flex; align-items: center; gap: calc(16 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-plate);
-  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--pill-red, #ff7a66); clip-path: var(--ph-clip-s); color: var(--ph-foe); font-size: var(--ph-t2); }
+  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--pill-red, #ff7a66); border-radius: var(--ph-r); color: var(--ph-foe); font-size: var(--ph-t2); }
 .vsph-err > span { flex: 1; }
 .vsb-create { display: flex; align-items: flex-end; gap: calc(24 * var(--phu)); flex-wrap: wrap; }
 .vsb-field { flex: 1 1 calc(320 * var(--phu)); min-width: 0; }
@@ -40,7 +40,7 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 .vsb-mode { min-width: calc(56 * var(--phu)); justify-content: center; }
 .vsb-seats { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
 .vsb-pips { display: inline-flex; gap: calc(4 * var(--phu)); }
-.vsb-pips > i { width: calc(12 * var(--phu)); height: calc(20 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.vsb-pips > i { width: calc(12 * var(--phu)); height: calc(20 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); border-radius: var(--ph-r); }
 .vsb-pips > i.on { background: var(--ph-metal-gold); box-shadow: none; }
 .vsb-seatn { min-width: calc(32 * var(--phu)); font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
 .vsb-watch { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); min-width: calc(40 * var(--phu)); font-family: var(--ph-name-font); font-weight: 700; font-size: var(--ph-t2); color: var(--ph-text); }
@@ -51,7 +51,7 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 
 /* IN A ROOM ALREADY: the plate over the list (Return / Leave). */
 .vsb-held { flex: none; display: flex; align-items: center; gap: calc(16 * var(--phu)); padding: calc(12 * var(--phu)) calc(16 * var(--phu)) calc(12 * var(--phu)) calc(24 * var(--phu));
-  background: var(--ph-plate); box-shadow: var(--ph-gild); clip-path: var(--ph-clip-s); animation: vsb-rise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+  background: var(--ph-plate); box-shadow: var(--ph-gild); border-radius: var(--ph-r); animation: vsb-rise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 .vsb-heldlbl { flex: none; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-teal); }
 .vsb-heldname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .vsb-heldmode { font-size: var(--ph-t2); color: var(--ph-muted); white-space: nowrap; }
@@ -71,7 +71,7 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 .vsr-cards.vsr-duos { box-sizing: border-box; padding-top: calc(40 * var(--phu)); }
 .vsr-team { position: relative; flex: none; display: flex; align-items: center; gap: var(--gap); }
 .vsr-teamname { position: absolute; left: 50%; top: 0; translate: -50% calc(-100% - 8 * var(--phu)); padding: calc(4 * var(--phu)) calc(24 * var(--phu)); white-space: nowrap;
-  background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s);
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r);
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .vsr-vs { animation: vsr-vspop 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 @keyframes vsr-vspop { from { opacity: 0; transform: scale(1.6); } to { opacity: 1; transform: none; } }
@@ -106,7 +106,7 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 
 /* THE STANDS: a slim plate under the seats; your tile drags to a seat. */
 .vsr-stands { flex: none; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(12 * var(--phu)) calc(24 * var(--phu)) calc(16 * var(--phu));
-  background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r); }
 .vsr-stands.vsr-target { box-shadow: var(--ph-gild); }
 .vsr-stands.vsr-over { background: var(--ph-plate-hover); box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), var(--ph-gild); }
 .vsr-standshead { display: flex; align-items: baseline; gap: calc(16 * var(--phu)); }
@@ -116,7 +116,7 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 .vsr-tiles { display: flex; gap: calc(8 * var(--phu)); min-height: calc(48 * var(--phu)); overflow-x: auto; scrollbar-width: thin; overscroll-behavior: contain; }
 .vsr-none { align-self: center; font-size: var(--ph-t2); color: var(--ph-muted); }
 .vsr-tile { position: relative; flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(48 * var(--phu)); padding: 0 calc(16 * var(--phu)) 0 0; overflow: hidden;
-  background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); animation: vsb-rise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+  background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r); animation: vsb-rise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 .vsr-tile.vsr-tdrag { touch-action: none; }
 .vsr-tile.vsr-tyou { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
 .vsr-tile.vsr-src { opacity: 0.25; }
@@ -136,7 +136,7 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 .vsr-actions { padding-top: calc(8 * var(--phu)); }
 .vsr-actions .ph-side { gap: calc(8 * var(--phu)); align-items: center; flex-wrap: wrap; }
 .vsr-notice { position: absolute; top: calc(96 * var(--phu)); left: 50%; translate: -50% 0; z-index: 5; padding: calc(8 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-plate);
-  box-shadow: var(--ph-gild); clip-path: var(--ph-clip-s); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-text); animation: ph-pop 0.16s ease both; }
+  box-shadow: var(--ph-gild); border-radius: var(--ph-r); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-text); animation: ph-pop 0.16s ease both; }
 .vsr-err { z-index: 5; }
 
 /* THE DRAG: the ghost banner rides the pointer (transform only); the band above the sell line says Spectate. */
@@ -151,7 +151,7 @@ html[data-ph-shell] .mpview:is(.mp-versus, .mp-versus-room) { padding: 0; place-
 .vsr-sellband { position: fixed; left: 0; right: 0; top: 0; z-index: 489; pointer-events: none; display: flex; align-items: flex-end; justify-content: center; padding-bottom: calc(16 * var(--phu)); box-sizing: border-box;
   background: linear-gradient(180deg, color-mix(in srgb, var(--ph-gold) 16%, transparent), color-mix(in srgb, var(--ph-gold) 0%, transparent) 90%); opacity: 0.6; transition: opacity 0.12s ease; }
 .vsr-sellband.vsr-on { opacity: 1; }
-.vsr-sellband > span { padding: calc(6 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-plate); box-shadow: var(--ph-gild); clip-path: var(--ph-clip-s);
+.vsr-sellband > span { padding: calc(6 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-plate); box-shadow: var(--ph-gild); border-radius: var(--ph-r);
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-gold-hi); }
 
 /* The invite window. */
@@ -201,3 +201,7 @@ html[data-ph-compact] :is(.vsb-page, .vsr) :is(.phk-btn, .phk-segbtn) { min-widt
    labels and their bodies line up across the form. */
 .vsb-create :is(.phk-fieldinput, .phk-segbtn, .vsb-createbtn) { box-sizing: border-box; height: calc(44 * var(--phu)); min-height: 0; }
 .vsb-create :is(.phk-field, .phk-seg) { gap: calc(8 * var(--phu)); }
+/* ROUNDED PLATES ONLY (critic round 6): no square corner filigree on these pages. */
+:is(.vsb-page, .vsr) :is(.phk-section, .phk-dlgbox)::before { content: none; }
+/* The field's label wears the game's gauntlet, never the OS arrow. */
+.vsb-field, .vsb-field .phk-seglbl { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }

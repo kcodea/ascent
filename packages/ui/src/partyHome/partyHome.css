@@ -476,3 +476,23 @@ html[data-ph-compact] .ph-lead > svg + span { display: none; }
 /* The phone sheets: a soft foot says there is more; the close is a real target. */
 html[data-ph-compact] .ph-settings { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 40 * var(--phu)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 40 * var(--phu)), transparent); padding-bottom: calc(40 * var(--phu)); }
 html[data-ph-compact] .ph-sidepanel .ph-fclose { width: calc(72 * var(--phu)); height: calc(72 * var(--phu)); min-height: calc(72 * var(--phu)); flex: none; }
+
+/* ── CRITIC ROUND 10 ── */
+/* START is the true centre: side text never widens its column. */
+.ph-actions { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+/* The art runs on down the cloth: no empty navy under the medal. */
+.ph-art { -webkit-mask-image: linear-gradient(180deg, #000 80%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); mask-image: linear-gradient(180deg, #000 80%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); }
+.ph-foot { background: linear-gradient(180deg, transparent 0%, rgba(11, 25, 64, 0.5) 40%, rgba(11, 25, 64, 0.82) 100%); }
+html[data-ph-compact] .ph-art { height: 74%; }
+/* The side tabs all fit their row: nothing scrolls or moves on a pick. */
+.ph-sidetabs .phk-tabs { flex: 1 1 auto; min-width: 0; justify-content: space-between; gap: 0; overflow: hidden; }
+.ph-sidetabs .phk-tab { padding-left: calc(8 * var(--phu)); padding-right: calc(8 * var(--phu)); font-size: var(--ph-t2); }
+/* The rail's scrollers keep their bar just outside the column, so every row ends on one edge. */
+html[data-ph-shell]:not([data-ph-compact]) :is(.ph-frows, .ph-settings) { scrollbar-color: auto; scrollbar-width: auto; scrollbar-gutter: stable; margin-right: calc(-10 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) :is(.ph-frows, .ph-settings)::-webkit-scrollbar { width: calc(10 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) :is(.ph-frows, .ph-settings)::-webkit-scrollbar-thumb { border: calc(3 * var(--phu)) solid transparent; border-radius: 999px; background: var(--ph-gold) padding-box; }
+/* The saved game is one chip on every screen. */
+html[data-ph-compact] .ph-stagehead .ph-held { display: flex; }
+html[data-ph-compact] .ph-stagehead { gap: calc(8 * var(--phu)); }
+html[data-ph-compact] .ph-heldrow { padding: calc(2 * var(--phu)) calc(4 * var(--phu)) calc(2 * var(--phu)) calc(14 * var(--phu)); }
+html[data-ph-compact] .ph-heldrow .phk-btn.s-s { height: calc(48 * var(--phu)); min-height: calc(48 * var(--phu)) !important; }

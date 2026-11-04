@@ -272,3 +272,21 @@ html[data-ph-compact] .ph-fadd .ph-finput { min-height: calc(64 * var(--phu)); }
 /* ── CRITIC ROUND 9 ── */
 /* One nav type on every screen: rounded title case. */
 html[data-ph-shell] .ph-top .ph-navtab, html[data-ph-shell] .ph-top .ph-navlbl { text-transform: none !important; }
+
+/* ── CRITIC ROUND 10 ── */
+/* EVERY scroller under the shell wears the slim gold bar, whatever its page set: one rule, not one per page. The width is zero
+   specificity, so a row that hides its bar (`scrollbar-width: none`) keeps hiding it. */
+html[data-ph-shell] * { scrollbar-color: var(--ph-gold) transparent; }
+:where(html[data-ph-shell]) :where(*) { scrollbar-width: thin; }
+html[data-ph-shell] *::-webkit-scrollbar-corner { background: transparent; }
+/* The page's own bar is the custom gutter one (kit.css); its children go back to the rule above. */
+html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody { scrollbar-color: auto; }
+/* A little air between a list's bar and its plates. */
+html[data-ph-shell]:not([data-ph-compact]) :is(.phpn-index, .phpn-feed, .rgp-listwrap, .rgp-detailcol, .phc-side) { padding-right: calc(6 * var(--phu)); }
+/* The old corner gear never takes focus behind the rail: Settings is in the nav. */
+html[data-ph-shell] .gearbtn { display: none; }
+/* THE CROSSFADE (phSwap.ts): the old page's snapshot fades out on top of the live new page; the layer takes no presses. */
+::view-transition { pointer-events: none; }
+::view-transition-old(root) { z-index: 1; animation: phk-swap-out 0.14s ease-out both; mix-blend-mode: normal; }
+::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+@keyframes phk-swap-out { to { opacity: 0; } }

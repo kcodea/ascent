@@ -1,4 +1,4 @@
-import { partyBackdrop, partyDemoOn, partyHomeOn, setPartyBackdrop, setPartyDemo, setPartyHome } from './partyHome/partyHomeFlag';
+import { partyBackdrop, partyDemoOn, partyHomeOn, partyRoomOn, setPartyBackdrop, setPartyDemo, setPartyHome, setPartyRoom } from './partyHome/partyHomeFlag';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from './Icon';
 import { useDevCornerSlot } from './friends/dock/FriendsDock';
@@ -414,6 +414,9 @@ export function DevMenu() {
     { id: 'partydemo', icon: '👥', label: 'Party home: sample party',
       hint: 'Fill the party home with a sample teammate and sample friends (no backend or second account needed). Start does nothing with it on',
       run: () => setPartyDemo(!partyDemoOn()), live: () => partyDemoOn() },
+    { id: 'partyroom', icon: '⚔️', label: 'Party home: sample room',
+      hint: 'A mocked Versus room on the party home (host, guest, an open seat, spectators, rules, Open rooms). No backend. The mode tabs cycle 1v1, Group, Duos',
+      run: () => setPartyRoom(!partyRoomOn()), live: () => partyRoomOn() },
     { id: 'partybackdrop', icon: '🏰', label: 'Party home: citadel backdrop',
       hint: 'On: the title screen citadel, blurred and darkened. Off: the Mode screen hall',
       run: () => setPartyBackdrop(partyBackdrop() === 'citadel' ? 'hall' : 'citadel'), live: () => partyBackdrop() === 'citadel' },

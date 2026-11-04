@@ -88,3 +88,5 @@ html[data-ph-compact] .ph-menuitem { min-height: calc(40 * var(--pt)); }
 .ph-sidetabs .phk-tab { padding-inline: calc(10 * var(--phu)); letter-spacing: 0.04em; }
 /* A phone's open seat keeps only its medallion and its word. */
 html[data-ph-compact] .vsr-open .ph-opensub { display: none; }
+/* A seat with no record to show keeps the medal line's height, with no empty chip. */
+.vsr-rankspace { visibility: hidden; }

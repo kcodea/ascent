@@ -509,9 +509,9 @@ html[data-ph-compact] .ph-heldrow .phk-btn.s-s { height: calc(48 * var(--phu)); 
 .ph-foot, .ph-foot:has(.ph-state) { top: 66%; bottom: 0; justify-content: flex-start; padding: calc(4 * var(--phu)) calc(12 * var(--phu)) 0; background: none; }
 .ph-sub, .ph-state { position: absolute; left: 0; right: 0; bottom: calc(8 * var(--phu)); margin: 0; padding: 0; }
 .ph-cardwrap.rival .ph-name { color: #ffd6d0; }
-html[data-ph-compact] .ph-art { height: 70%; object-position: 50% 8%; }
-html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { top: 60%; padding: 0 calc(6 * var(--phu)); }
+html[data-ph-compact] .ph-art { height: 62%; object-position: 50% 8%; }
+html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { top: 52%; padding: 0 calc(6 * var(--phu)); }
 html[data-ph-compact] .ph-sub { display: none; }
 html[data-ph-compact] .ph-state { bottom: calc(2 * var(--phu)); }
 /* A greyed mode says why on the tab itself: the row does not scroll at desktop size, so the game's tip can show. */
-html[data-ph-shell]:not([data-ph-compact]) .ph-modes .phk-tabs { overflow: visible; }
+html[data-ph-shell]:not([data-ph-compact]) .ph-modes .phk-tabs { overflow: visible; position: relative; z-index: 4; }

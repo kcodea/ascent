@@ -403,3 +403,5 @@ html[data-ph-compact] .ph-modes .phk-tabs { padding-right: calc(96 * var(--phu))
 html[data-ph-compact] .ph-cards { padding-top: calc(80 * var(--phu)); }
 html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 20 * var(--phu)); }
 html[data-ph-compact] .ph-stagehead { top: calc(10 * var(--phu)); }
+/* A phone's banners are short, so they stand wider: a name and a long medal ("Ascendant II") read whole at 11px. */
+html[data-ph-compact] .ph-cards .ph-cardwrap:not(.standalone) { aspect-ratio: 0.72; }

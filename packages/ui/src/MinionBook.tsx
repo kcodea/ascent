@@ -298,7 +298,7 @@ const PhHeroTile = memo(function PhHeroTile({ h }: { h: (typeof HEROES)[number] 
   return (
     <article className="phh">
       <div className="phh-top">
-        {art && <img className="phh-art" decoding="async" src={art} alt="" draggable={false} />}
+        {art && <img className="phh-art" decoding="sync" src={art} alt="" draggable={false} />}
         <div className="phh-who">
           <span className="phh-name">{h.name}</span>
           <span className="phh-vitals">
@@ -309,7 +309,7 @@ const PhHeroTile = memo(function PhHeroTile({ h }: { h: (typeof HEROES)[number] 
       </div>
       <div className="phh-power">
         <div className="phh-pwhead">
-          {pw && <img className="phh-pwart" decoding="async" src={pw} alt="" draggable={false} />}
+          {pw && <img className="phh-pwart" decoding="sync" src={pw} alt="" draggable={false} />}
           <span className="phh-pwname">{h.power.name}</span>
         </div>
         <p className="phh-pwtext" dangerouslySetInnerHTML={{ __html: mdBold(h.power.text) }} />

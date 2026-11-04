@@ -429,7 +429,7 @@ html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody::-webkit-scro
    brighter text; the rest stay dimmer. */
 html[data-ph-shell] .phk-tab.on::after, html[data-ph-shell] .ph-navtab.on::after, html[data-ph-shell] .ph-iconbtn.on::after, .phk-tab.on::after, .ph-navtab.on::after, .ph-iconbtn.on::after { content: none !important; }
 .phk-tab, .ph-navtab, .ph-iconbtn { isolation: isolate; }
-.phk-tab.on::before, .ph-navtab.on::before, .ph-iconbtn.on::before { content: ''; position: absolute; inset: calc(-6 * var(--phu)) calc(-4 * var(--phu)); z-index: -1; pointer-events: none;
+.phk-tab.on::before, .ph-navtab.on::before, .ph-iconbtn.on::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: radial-gradient(58% 62% at 50% 50%, rgba(255, 196, 92, 0.42) 0%, rgba(255, 176, 70, 0.16) 55%, transparent 78%); }
 html[data-ph-shell] .phk-tab.on, html[data-ph-shell] .ph-navtab.on { color: #fff6df; text-shadow: var(--ph-shadow), 0 0 calc(12 * var(--phu)) rgba(255, 214, 130, 0.75); }
 .phk-tab:not(.on):not(.locked) { opacity: 0.8; }
@@ -450,15 +450,16 @@ html[data-ph-shell] .lbpage:not(.hop) > :is(.lbtopbar, .lbscroll, .pnbar) { anim
 /* Scrollers keep one themed look and a reserved gutter, so a bar arriving with late data moves nothing. */
 html[data-ph-shell] { scrollbar-color: var(--ph-gold) transparent; }
 html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody { scrollbar-color: auto; }
-html[data-ph-shell]:not([data-ph-compact]) :is(.ph-settings, .ph-frows, .phc-gridwrap, .phc-rail, .phc-side, .rgp-listwrap, .rgp-detailcol, .phpn-index, .phpn-feed) { scrollbar-gutter: stable; }
+html[data-ph-shell]:not([data-ph-compact]) :is(.ph-settings, .ph-frows, .phc-gridwrap, .phc-rail, .phc-side, .phc-view, .bookguides, .rgp-listwrap, .rgp-detailcol, .phpn-index, .phpn-feed) { scrollbar-gutter: stable; }
 /* THE ENTRANCE: one shared, CSS-only mount animation, so a new page starts at once, an old one just leaves, and tab mashing cannot
    stack: only the page that is there plays it. Transform and opacity, one-shot, filling backwards only. About 200-260ms. */
 @keyframes phk-in { from { opacity: 0; transform: translateY(calc(6 * var(--phu))); } }
-html[data-ph-shell] .phk-page .phk-pagehead, html[data-ph-shell] .phk-page .phk-pagebody > * { animation: phk-in 0.2s cubic-bezier(0.22, 0.8, 0.3, 1) backwards; }
+/* The header is there on the first frame, over the steady backdrop, so a move never reads as empty; the body rows ease in under it. */
+html[data-ph-shell] .phk-page .phk-pagebody > * { animation: phk-in 0.2s cubic-bezier(0.22, 0.8, 0.3, 1) backwards; }
 html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(1) { animation-delay: 20ms; }
 html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(2) { animation-delay: 40ms; }
 html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(n + 3) { animation-delay: 60ms; }
 /* The mode panel's content eases in the same way (fade only: it is its own scroller). */
 @keyframes phk-fadein { from { opacity: 0; } }
 .ph-settings { animation: phk-fadein 0.18s ease-out backwards; }
-@media (prefers-reduced-motion: reduce) { html[data-ph-shell] .phk-page .phk-pagehead, html[data-ph-shell] .phk-page .phk-pagebody > *, .ph-settings { animation: none; } }
+@media (prefers-reduced-motion: reduce) { html[data-ph-shell] .phk-page .phk-pagebody > *, .ph-settings { animation: none; } }

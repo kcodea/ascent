@@ -13,7 +13,6 @@
 .vsr-hp { display: inline-flex; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); letter-spacing: 0; color: var(--ph-ink); }
 .vsr-hp svg { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); }
 .vsr-hp b { font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); margin-right: calc(8 * var(--phu)); }
-.vsr-open:not(.vsr-cantake) .ph-invmed { opacity: 0.45; }
 .vsr-dragwrap { display: contents; }
 .vsr-mineseat .ph-card { touch-action: none; }
 .vsr-botslot { position: absolute; left: 50%; bottom: calc(var(--footh, 0px) + 8 * var(--phu)); translate: -50% 0; z-index: 3; }
@@ -111,3 +110,15 @@ html[data-ph-compact] .ph-actions > .ph-side:not(.ph-side-r) { gap: calc(8 * var
 .ph .ph-pairlbl.mine { color: #b9f29c; }
 .ph .ph-pairlbl.rival { color: #ffb4ab; }
 html[data-ph-compact] .ph .ph-pairlbl { display: block; bottom: calc(100% + 16 * var(--phu)); padding: 0 calc(12 * var(--phu)); font-size: var(--ph-t1); z-index: 4; }
+
+/* ROUND 9. Open rooms: room for the whole line. */
+.vso-row.phk-row { min-height: calc(80 * var(--phu)); }
+.vso-row .phk-rowsub { white-space: normal; line-height: 1.3; }
+/* The buttons beside START never clip: extras wrap, the row keeps its width. */
+.ph-actions > .ph-side:not(.ph-side-r) { flex-wrap: wrap; min-width: 0; }
+/* A phone: the banner row keeps the home's size, so the stands are a count chip by the rules line, and the list is in the drawer. */
+html[data-ph-compact] .ph-stagehead .vsr-stands { position: static; translate: none; flex: none; padding: 0 calc(12 * var(--phu)); }
+html[data-ph-compact] .ph-stagehead .vsr-tiles { display: none; }
+.vsr-drawerstands .vsr-stands { position: static; translate: none; max-width: none; flex-direction: column; align-items: stretch; }
+.vsr-drawerstands .vsr-stands.vsr-nostands { display: none; }
+.vsr-drawerstands .vsr-tiles { flex-wrap: wrap; }

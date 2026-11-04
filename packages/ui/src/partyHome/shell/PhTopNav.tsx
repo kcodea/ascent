@@ -11,7 +11,7 @@
  * drawer elsewhere) and Settings. EVERY destination lives here once: the old corner buttons are hidden under the shell.
  * On a phone the tabs are icons only. Static paint; hover is a colour change.
  */
-import { lazy, Suspense, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { levelProgress } from '@game/progression';
 import { TITLE_LOGO_SRC } from '../../AscentLogo';
 import { MenuMedal, type MenuMedalName } from '../../menuIcons';
@@ -21,8 +21,9 @@ import { useHasNewRewards } from '../../progression/NewRewardsPopup';
 import { sfx } from '../../sfx';
 import { useGame, type MenuDest } from '../../store';
 import { getTitleText } from '../../titleTextConfig';
+import { warmPhPages } from './phWarm';
 import { Icon } from '../../Icon';
-import { leaveCrates, openCrates, setFriendsOpen, toggleFriends, usePhShell } from './shellStore';
+import { leaveCrates, openCrates, setFriendsOpen, toggleFriends, usePhShell, pulseFriends } from './shellStore';
 import './shell.css';
 
 const PhFriends = lazy(() => import('./PhFriends').then((m) => ({ default: m.PhFriends })));
@@ -69,6 +70,8 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
     { dest: 'live', label: 'Live Games', icon: medal('live') },
     { dest: 'patchnotes', label: 'Patch Notes', icon: medal('patchnotes') },
   ];
+  // A press changes the page in the click itself, never waiting on a frame (no view transition: its update waits for a
+  // rendering opportunity, and it cost frames: 2026-11-04).
   const hop = (dest: PageDest | 'crates' | 'settings'): void => {
     setFriendsOpen(false); // a page switch closes the friends drawer
     if (dest === 'crates') {
@@ -85,6 +88,7 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
   };
   const toHome = (): void => { setFriendsOpen(false); if (atHome) return; sfx.pulse(); if (showBook) closeBook(); leaveCrates(); goTo('menu'); };
   const onBook = (): void => { setFriendsOpen(false); if (current === 'compendium') return; sfx.pulse(); toggleBook(); };
+  useEffect(() => { warmPhPages(); }, []);
 
   return (
     <>
@@ -126,14 +130,12 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
             onClick={() => hop('settings')}>
             <span className="ph-gear" aria-hidden="true"><Icon name="gear" /></span>
           </button>
-          {/* Friends: the drawer's button, last in the row. Where the list is docked beside the party its slot stays, empty,
-              so the currency and the gear hold still across every page. */}
-          {friendsDocked ? <span className="ph-iconbtn ph-slot" aria-hidden="true" /> : (
-            <button type="button" className={`ph-iconbtn ph-friendsbtn${friendsOpen ? ' on' : ''}`} aria-label="Friends" aria-expanded={friendsOpen}
-              onClick={() => { sfx.pulse(); toggleFriends(); }}>
-              <MenuMedal name="friends" className="menumedal ph-navicon" />
-            </button>
-          )}
+          {/* Friends: last in the row on every page, so the currency and the gear hold still. Where the list is docked beside
+              the party it brings the panel's Friends tab forward. */}
+          <button type="button" className={`ph-iconbtn ph-friendsbtn${friendsOpen ? ' on' : ''}`} aria-label="Friends" aria-expanded={friendsDocked ? undefined : friendsOpen}
+            onClick={() => { sfx.pulse(); if (friendsDocked) pulseFriends(); else toggleFriends(); }}>
+            <MenuMedal name="friends" className="menumedal ph-navicon" />
+          </button>
         </div>
       </header>
       {/* The friends drawer: everywhere the list is not docked (menu pages, the Compendium, phones). */}

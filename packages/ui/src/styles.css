@@ -8244,6 +8244,11 @@ html[data-bl="game"] .devmenu { left: calc(var(--bl-l) + var(--bl-cb) * 1.25); b
 
 /* Leaderboard — full "Hall of Champions" page (scrollable; Back top-left; each entry shows its warband inline) */
 .lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%); /* the loading splash's navy — the same backdrop as the rank screen (owner 2026-09-20), replacing the title art */ animation: fadein 0.2s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* THE PARTY HOME SHELL's ONE BACKDROP (DEV prototype, inert without the attribute): here, not in the shell's lazy stylesheet,
+   because it must hold from the first frame. Nothing above `Game`'s steady backdrop has a ground of its own. */
+.titlescreen.ph-clear { background: none; animation: none; }
+.titlescreen.ph-clear::before { content: none; }
+html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { background: none; }
 .lbtopbar { display: flex; align-items: center; gap: 18px; padding: 22px 30px 14px; flex: none; }
 .lbback { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #f0dcae; background: rgba(0, 0, 0, 0.38); border: 2px solid rgba(196, 160, 92, 0.55); padding: 10px 22px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.18); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; flex: none; }
 .lbback:hover { border-color: var(--acc); color: var(--acc); }

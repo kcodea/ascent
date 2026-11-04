@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { VersusMember, VersusRoom, VersusRoomSummary } from '../../versus/versusRemote';
+// Static imports on purpose: an import inside a test body counts against that test's timeout.
+import * as kit from '../kit';
+import { SAMPLE_ME, sampleHost, sampleToggleView, useSampleRoom } from '../sampleRoomState';
 import { playerVersusError } from '../versusCopy';
 import {
   VERSUS_OFFLINE_TEXT, defaultRoomName, openSeatText, roomCounts, roomJoin, roomModeOf, roomStartOf, roomTitleOf, seatedOf, seatTeams, visibleRooms,
@@ -19,8 +22,7 @@ const room = (members: VersusMember[], p: Partial<VersusRoom> = {}): VersusRoom 
 } as VersusRoom);
 
 describe('Versus on the party home shell (pure half)', () => {
-  it('every kit name the Versus pages import is exported by the kit', async () => {
-    const kit = await import('../kit');
+  it('every kit name the Versus pages import is exported by the kit', () => {
     for (const f of ['../versusRoomHome.tsx']) {
       const m = here(f).match(/import \{([^}]+)\} from '\.\/kit';/);
       expect(m, f).toBeTruthy();
@@ -104,8 +106,7 @@ describe('Versus on the party home shell (pure half)', () => {
 });
 
 describe('the sample room (DEV): no backend, every state', () => {
-  it('fills 1v1, leaves an open seat in Group and Duos, flips host and guest, and leaves', async () => {
-    const { useSampleRoom, sampleToggleView, sampleHost, SAMPLE_ME } = await import('../sampleRoom');
+  it('fills 1v1, leaves an open seat in Group and Duos, flips host and guest, and leaves', () => {
     const seats = (): number => useSampleRoom.getState().room!.members.filter((m) => m.role !== 'spectator').length;
     sampleHost('duel', null);
     expect(seats()).toBe(2);

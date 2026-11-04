@@ -62,3 +62,16 @@ describe('mode families (owner 2026-11-04: fewer top tabs, sub-modes on the side
     expect(modeHasSettings('learn')).toBe(false);
   });
 });
+
+describe('tab changes (owner 2026-11-04: no scrollbar wobble, a gentle entrance)', () => {
+  const css = readFileSync(fileURLToPath(new URL('./kit/kit.css', import.meta.url)), 'utf8');
+  it('the page host never shows a bar and the old host rise is off under the shell', () => {
+    expect(css).toMatch(/:is\(\.lbpage, \.modepick\.sb-host\) \{ scrollbar-width: none; \}/);
+    expect(css).toMatch(/\.lbpage\.hop > :not\(\.msb\):not\(\.mbd\)[^{]*\{ animation: none; \}/);
+  });
+  it('the shared entrance is transform and opacity only, and fills backwards only', () => {
+    expect(css).toMatch(/@keyframes phk-in \{ from \{ opacity: 0; transform: translateY\([^;]*; \} \}/);
+    expect(css).toMatch(/animation: phk-in [^;]* backwards;/);
+  });
+});
+

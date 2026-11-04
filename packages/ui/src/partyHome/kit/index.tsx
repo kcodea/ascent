@@ -187,7 +187,7 @@ export function PhSelectList<T>({ items, keyOf, selected, onSelect, render, labe
     const it = items[Math.max(0, Math.min(items.length - 1, i))];
     if (!it) return;
     onSelect(it);
-    ref.current?.querySelector<HTMLElement>(`[data-key="${CSS.escape(keyOf(it))}"]`)?.scrollIntoView?.({ block: 'nearest' });
+    ref.current?.querySelector<HTMLElement>(`[data-key="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(keyOf(it)) : keyOf(it).replace(/["\\]/g, '\\$&')}"]`)?.scrollIntoView?.({ block: 'nearest' });
   };
   const onKey = (e: KeyboardEvent<HTMLDivElement>): void => {
     if (e.key === 'ArrowDown') { e.preventDefault(); move(at + 1); }

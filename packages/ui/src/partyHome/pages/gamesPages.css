@@ -336,3 +336,13 @@ html[data-touch-small] .rgp-lobby { padding: calc(8 * var(--phu)) calc(24 * var(
 /* ROUND 12. The hover bubble is laid out even while invisible, and on a phone the Game strength one was wider than the
    column: that alone gave Ranked games a sideways scroll. Off the layout on a phone (no hover there; `:hover` rules are wrapped in a hover media query by the build). */
 html[data-touch-small] .rgp-tip.gtip[data-tip]:not(.tt-on)::after { display: none; }
+
+/* ROUND 13, THE TYPE FLOOR: no text under the kit's smallest size (--ph-t1: 9 real px at 1366, 11 on a phone). The classic
+   px or smaller sizes these pieces carry lift to it, in the shared detail too. */
+.rgp-sp-ax b, .rgp .lp-mini-star, .rgp .gamerank .gamerank-l, .rgp .gamerank.compact .gamerank-l, .rgp-duos .dh-tile-hero { font-size: var(--ph-t1); }
+.rgp-sp-ax { left: calc(-44 * var(--phu)); width: calc(38 * var(--phu)); }
+html[data-touch-small] .rgp-spark { padding-left: calc(56 * var(--phu)); }
+.rgp .lp-tile-strength, .rgp-duos .lb-row-record, .rgp .runtrophy-tip, .rgp .runtrophy-tip :is(b, .term, .runtrophy-tip-body, .runtrophy-tip-kind) { font-size: var(--ph-t1); }
+.rgp .rgp-scope { font-size: var(--ph-t2); color: var(--ph-muted); white-space: nowrap; text-shadow: var(--ph-shadow); }
+.rgp-duos .gc.gc-detail .gc-record, .rgp-duos .gc.gc-detail .gc-record > * { font-size: var(--ph-t2); }
+.rgp .lp-tile .lp-tile-strength b { font-size: var(--ph-t3); }

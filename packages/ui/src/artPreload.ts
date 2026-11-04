@@ -73,13 +73,15 @@ function artLoaded(): void {
   if (artLoadedCount % 100 === 0) crumbProgress('art stream', { loaded: artLoadedCount });
 }
 
-/** Fetch + decode, and hold the Image for the session. REJECTS on a failed load or a timeout so the pipe retries. */
-function decodeImage(url: string, attempt: number, last: boolean): Promise<void> {
+/** Fetch + decode, and hold the Image for the session. REJECTS on a failed load or a timeout so the pipe retries.
+ *  `cors`: load it the way a CSS mask does (see `requestMaskArt`). */
+function decodeImage(url: string, attempt: number, last: boolean, cors = false): Promise<void> {
   if (typeof Image === 'undefined') return Promise.resolve();
   const src = last && attempt > 0 ? cacheBust(url, attempt) : url;
   return new Promise<void>((resolve, reject) => {
     const img = new Image();
     img.decoding = 'async';
+    if (cors) img.crossOrigin = 'anonymous';
     const timer = setTimeout(() => reject(new Error('timeout')), DECODE_TIMEOUT_MS);
     img.src = src;
     img.decode().then(() => {
@@ -97,6 +99,37 @@ function decodeImage(url: string, attempt: number, last: boolean): Promise<void>
 export function requestArt(url: string | undefined, lane: Lane): void {
   if (!url) return;
   queue.request(url, lane, artTask(url), { retryDelays: ART_RETRY_DELAYS });
+}
+
+/**
+ * Load and hold WITHOUT decoding: a new <img> finds the bytes at once and decodes them when it paints. For art most
+ * sessions never draw (card plates): asking the compositor to decode ~250 big pictures behind the gate cost ~5 s of
+ * decode work during the menus, for pixels it had dropped again before anyone needed them.
+ */
+function holdImage(url: string): Promise<void> {
+  if (typeof Image === 'undefined') return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { KEEP.set(url, img, 0); artLoaded(); resolve(); };
+    img.onerror = () => reject(new Error('load failed'));
+    img.src = url;
+  });
+}
+export function requestHeldArtList(urls: Iterable<string>, lane: Lane): void {
+  for (const u of urls) queue.request(u, lane, () => holdImage(u), { retryDelays: ART_RETRY_DELAYS });
+}
+
+/**
+ * A picture a stylesheet uses as a MASK (R-PERF-ART-MASKS-HELD-01). The browser fetches mask images in CORS mode, and
+ * Blink's memory cache keeps ONE entry per URL, so a URL used as both a mask and a plain <img> (the medallions) evicts
+ * itself back and forth: each mount went to the disk cache, and a mask that is not loaded hides what it masks. Holding a
+ * second copy under the SAME URL made that worse (measured: disk reads doubled). So every mask is written `<file>?mask`,
+ * a URL of its own, and this holds that. A phone skips the hold: its budget is tighter than the win.
+ */
+export function requestMaskArt(url: string | undefined, lane: Lane): void {
+  if (!url || LITE_ART) return;
+  const masked = `${url}?mask`;
+  queue.request(masked, lane, (_l, { attempt, last }) => decodeImage(masked, attempt, last, true), { retryDelays: ART_RETRY_DELAYS });
 }
 
 /** Fetch only (a phone's background lanes): the bytes land in the HTTP cache, no Image is made. REJECTS on a failed
@@ -175,6 +208,9 @@ export function requestAssetTask(key: string, lane: Lane, task: () => Promise<un
 export const artReady = (url: string | undefined): boolean => !url || queue.ready(url);
 /** The URL gave up (every retry failed): it shows the placeholder until `retryFailedArt`. */
 export const artFailed = (url: string | undefined): boolean => !!url && queue.failed(url);
+
+/** Where `url` stands in the pipe: `unknown` means the plan never asked for it (read by the pop-in probe, `popIn.ts`). */
+export const artState = (url: string): ReturnType<AssetQueue['state']> => queue.state(url);
 
 /** An on-screen <img> finished loading + decoding before the queue got to it: mark it ready. */
 export function markArtReady(url: string | undefined): void {

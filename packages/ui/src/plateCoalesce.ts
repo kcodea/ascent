@@ -213,8 +213,8 @@ export function playPlateCoalesce(
     `width:${rect.width}px`, `height:${rect.height}px`,
     'pointer-events:none', `z-index:${z}`, 'opacity:0',
     `background:${arcaneGradient(pal.cDeep, pal.cMid, pal.cCore, c.grad)}`,
-    `-webkit-mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
-    `mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
+    `-webkit-mask:url(${WIRE_SRC}?mask) center / 100% 100% no-repeat`,
+    `mask:url(${WIRE_SRC}?mask) center / 100% 100% no-repeat`,
     `filter:drop-shadow(0 0 ${c.g1 * k}px ${rgba(pal.cMid, 0.85)}) drop-shadow(0 0 ${c.g2 * k}px ${rgba(pal.cDeep, 1)})`,
   ].join(';');
   stageHost().appendChild(imp);

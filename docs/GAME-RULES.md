@@ -1836,6 +1836,12 @@ itself), seeded, like Baby Gastrid and Appetite Agent: Gravetwin a friendly Echo
 non-Gilded friendly (a combat Gild lasts that fight), Graverobber any other friendly. No legal target: nothing
 happens (R-TARGET-06, owner 2026-09-26).
 
+**Aiming from the hand (owner 2026-11-03; R-TARGET-CANCEL-01, R-TIMER-AIM-01).** A card that needs a target (a Shout, a
+Choose One branch, Common Ground's second pick) is not played until the target is picked: it stays in hand, and a minion
+only shows in the slot it was dropped on. A click or tap off target, a right-click or Esc sends it back with nothing
+played, no counter or trigger moved and no random draw spent. The Shop clock keeps running during an aim (a Discover and
+the other overlay decisions still hold it); at 0:00 the aim closes like a cancel.
+
 **The shop draws from a shared, finite pool, weighted by copies left** (owner ruling 2026-09-10). Every
 minion of the run's tribes starts with a fixed number of copies per tier; buying takes one, selling or
 discarding returns one. Each roll picks a card with probability proportional to the copies it has left, so
@@ -1877,7 +1883,7 @@ collapses into the one entry. Engine: `RunState.runeEquipment` + `sim/equipment.
   seconds"*; gilded 16 seconds, Amplified doubles either; R-EQUIP-THYME-SELL-01. It replaced the 2026-09-12
   "all cards cost 1 less Gold" discount, which is gone) runs on the **turn clock**, not wall time: the activation
   records the clock's reading, the window is 8 clock-seconds in every mode (Practice's multiplier only stretches
-  the real seconds), and it pauses with the clock (Discover / Choose One / aim / hero select). Every card sold
+  the real seconds), and it pauses with the clock (Discover / Choose One / hero select; an aim does not hold the clock, R-TIMER-AIM-01). Every card sold
   while it is open (board or hand, and every effect that sells a minion) pays **+1 Gold on top of every other sell
   value**, read at the moment of the sale (`sellValueOf`). The amount never stacks: a re-use only keeps the later
   close. The slot counts it down ("Sell +1 Gold · 6s"), and it ends on its own expiry action, at combat entry, or

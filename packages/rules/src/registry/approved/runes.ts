@@ -2792,4 +2792,24 @@ export const RUNES_RULES: GameRule[] = [
     example: 'Buy Ninefold Commerce, watch it arrive, then swap to your teammate and back five times: the arrival played once.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/runeArrivalReplay.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
+  {
+    id: 'R-ECHOES-CHARGE-01',
+    title: 'A "when you have space" rune spends a charge only on a slot that is really free',
+    statement:
+      'A rune that fills free board slots a limited number of times per combat (Living Echoes, the Brood, Decoy Sigil) '
+      + 'spends one charge per body that actually takes a slot. A body already summoned but still waiting to land (an '
+      + '"attacks immediately" summon) counts as holding its slot, so the remaining charges wait and fire the next time '
+      + 'space opens, until all of them are used.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-11-03, with a screenshot of the Living Echoes tooltip', quote: 'if the first sunmane survives, no other sunmanes summon once space clears up again' },
+      { kind: 'fix-pr', ref: 'PR fix/living-echoes-charges (2026-11-03): fillFreeSlots counts queued deferred summons via slotsTaken' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts slotsTaken / fillFreeSlots' },
+    ],
+    contentIds: ['rune_living_echoes', 'rune_brood'],
+    currentBehaviour: "Conforms as of 2026-11-03. Before, the fill counted only living bodies, so a queued Sunmane did not hold its slot: one free slot spent all 3 charges at once and the extra Sunmanes found no room and were lost.",
+    example: 'Six minions plus Living Echoes: one Sunmane arrives at once. Each later death opens a slot and the next Sunmane arrives, three in total.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeBatch10.test.ts'], lastVerifiedAt: '2026-11-03' },
+  },
 ];

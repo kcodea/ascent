@@ -287,4 +287,47 @@ export const TARGETING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-10-22). Before, Grevlin was always the eater.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/grevlinRandomEater.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
+  {
+    id: 'R-TARGET-CANCEL-01',
+    title: 'Any aim opened from the hand can be cancelled: the card goes back to hand and nothing was played',
+    statement:
+      'Playing a card that needs a target commits nothing until the target is picked. An aimed Shout minion, a Mage-Pup '
+      + 'with a taught aimed spell, a Choose One branch that needs a target and Common Ground\u2019s second pick all stay in '
+      + '`run.hand` while the aim is open; a minion only SHOWS in the slot it was dropped on (R-TARGET-05). A click or tap '
+      + 'off a legal target, a right-click, or Esc cancels: the card is back in hand, no counter ticked, no trigger or '
+      + 'quest heard it, no random draw was spent and the board is untouched. Picking a target runs the whole play then, '
+      + 'once, in its usual order. Esc goes to whatever else is open first (the menu, the Compendium, an inspected card). '
+      + 'A hero power or Equipment aim backs out on the same right-click and Esc. The exception is a committed aim loaded '
+      + 'from a save made before this rule: its body is on the board, so it cannot be cancelled and resolves as it did.',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-11-03 (a Shout mid-aim)', quote: 'both choose one and shouts etc should be able to click back and not play the card/send it back to hand.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts play (holdPlayForAim, aimPick), battlecryTarget, cancelChoice, reduce (a held play skips settleAction; the commit runs it as a play); packages/ui/src/Recruit.tsx the aim effect (cancelAim, rightClick, escape)' },
+    ],
+    currentBehaviour:
+      'Conforms (2026-11-03). Before, an aimed Shout landed on the board and paid every play meter before the aim opened, '
+      + 'so there was nothing to go back to, and a Choose One play ticked the per-play quests when its prompt opened.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/aimCancel.test.ts', 'packages/ui/src/chooseOneHold.test.ts'], lastVerifiedAt: '2026-11-03' },
+  },
+  {
+    id: 'R-TIMER-AIM-01',
+    title: 'Choosing a target never pauses the Shop clock, and 0:00 sends the card back to hand',
+    statement:
+      'An aim is part of the turn, not a Discover: the Shop clock keeps running while the player picks a target. The '
+      + 'overlay decisions (a Discover, a Choose One prompt, a quest, power, Runeforge or Ancient offer, a scouting reveal) '
+      + 'still hold it. If the clock reaches 0:00 under an aim that was opened from the hand, the aim closes exactly like a '
+      + 'cancel (R-TARGET-CANCEL-01), because the play has not happened and plays are locked from 0:00 (R-TIMER-LOCK-01). '
+      + 'A held Shout that somehow reaches End Turn with its aim still open (a recording, a bot) completes on a random '
+      + 'legal target (R-TARGET-07); the live game cannot, since pressing End Turn is a click off target. Versus: the '
+      + 'server deadline is unchanged, and the client closes the aim on the same `shopClockExpired`.',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-11-03', quote: 'shop time should not pause while choosing a minion in a case lke this' },
+      { kind: 'code', ref: 'packages/ui/src/turnClock.ts shopDecisionOpen; packages/ui/src/Recruit.tsx (the countdown gate); packages/sim/src/reducer.ts shopClockExpired' },
+    ],
+    currentBehaviour: 'Conforms (2026-11-03). Before, `pendingTarget` was one of the decisions that held the clock.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/aimClock.test.ts', 'packages/sim/src/aimCancel.test.ts'], lastVerifiedAt: '2026-11-03' },
+  },
 ];

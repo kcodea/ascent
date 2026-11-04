@@ -320,7 +320,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'use-hero-power',
     topic: 'basics',
     q: 'How do I use my hero power?',
-    a: "Press the hero power button during your shop turn. If it doesn't need a target, it fires right away. If it does, drag the glowing line onto a minion and let go (or click the button, then click the minion). Let go on nothing to cancel; it costs you nothing.",
+    a: "Press the hero power button during your shop turn. If it doesn't need a target, it fires right away. If it does, drag the glowing line onto a minion and let go (or click the button, then click the minion). Let go on nothing, right-click or press Esc to cancel; it costs you nothing.",
     aliases: ['activate power', 'use power', 'target power', 'aim power', 'click hero', 'cancel power'],
     seeAlso: ['hero-power-cost', 'hero-power-greyed-out', 'hero-power-shop-targets'],
   },

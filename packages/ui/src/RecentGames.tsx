@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import type { MatchDetails } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
@@ -11,7 +11,7 @@ import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { refuseInGame } from './gameMenuParts';
 import { useGame } from './store';
-import { useSocial } from './socialCache';
+import { loadSocial, useSocial } from './socialCache';
 import { GameSplit, type GameListItem } from './GameSplit';
 import { GameRank } from './gameRank';
 import { rankLabel } from './rank/types';
@@ -28,6 +28,11 @@ import { HeroFilterChips } from './HeroFilterChips';
 import { heroFilterCounts } from './heroFilter';
 import { DuosGameCard } from './duosHistory/DuosGameCard';
 import { DUOS_ROWS, duosBand, duosGameView, duosModeLabel, fetchMyDuosGames, teamPlaceText, type DuosGameRow } from './duosHistory/duosHistoryData';
+import { usePartyHome } from './partyHome/partyHomeFlag';
+
+/** THE PARTY HOME's version of this page (DEV switch "Party home (prototype)", owner 2026-11-02): the same data and handlers,
+ *  drawn with the shell kit under the top nav. Lazy and null in production, so the shipped bundle never carries it. */
+const RecentGamesPh = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/RecentGamesPh').then((m) => ({ default: m.RecentGamesPh }))) : null;
 
 /**
  * Recent Games (owner ask 2026-08-11; polished 2026-09-20) — the last 100 finished games across ALL players (20, then 50, on 2026-10-16),
@@ -74,7 +79,7 @@ export const loadRecentRanked = (): Promise<RecentGameRow[]> => fetchRecentGames
 export const loadRecentPractice = (): Promise<PracticeGameRow[]> => fetchPracticeGames(FEED_ROWS);
 
 /** A feed row (ranked or practice). */
-type FeedRow = RecentGameRow | PracticeGameRow;
+export type FeedRow = RecentGameRow | PracticeGameRow;
 
 /** The SUMMARY over the games shown (Valorant / League put this over their history): count, average placement, top-4
  *  rate, wins, the most-played hero and the most common tribe on the final boards, plus a placement sparkline. */
@@ -246,6 +251,7 @@ export function RecentGames(): JSX.Element | null {
   const openCareer = useGame((s) => s.openCareer);
   const myId = useGame((s) => s.account.userId);
   const showOppCosmetics = useGame((s) => s.showOpponentSkins);
+  const shell = usePartyHome();
   const [tab, setTab] = useState<RecentGamesTab>('ranked');
   // Each tab's list is cached across opens (socialCache.ts): it reads the first time the tab is shown, a revisit paints
   // the last list at once and refreshes behind it when stale, and switching back and forth never flashes a spinner.
@@ -328,6 +334,27 @@ export function RecentGames(): JSX.Element | null {
     const mine = !!myId && r.userId === myId;
     return { mine, skins: mine ? (r.board?.cosmetics ?? null) : opponentSkins(showOppCosmetics, r.board?.cosmetics) };
   };
+  // THE PARTY HOME's page (DEV switch): the same state, handlers and reads, drawn with the shell kit.
+  if (shell && RecentGamesPh) {
+    const state = !remoteEnabled() ? 'offline' : duos ? (myId ? (duosRows === null ? 'loading' : 'ready') : 'signedout')
+      : shown === null ? 'loading' : (all ?? []).length === 0 ? 'empty' : 'ready';
+    return (
+      <SidebarHost className="lbpage rgp-page">
+        <MenuSidebar current="recent" />
+        <Suspense fallback={null}>
+          <RecentGamesPh
+            tab={tab} onTab={pickTab} state={state} feedRows={FEED_ROWS} duosLimit={DUOS_ROWS}
+            rows={duos ? [] : (shown ?? []).map((r, i) => ({ r, key: keyOf(r, i), ...skinsOf(r) }))}
+            duosRows={duosRows ?? []} myId={myId}
+            heroCounts={heroCounts} heroFilter={heroFilter} onHero={pickHero}
+            picked={picked} onPick={setPicked}
+            watching={watching} noReplay={noReplay} opening={opening} onOpen={onOpen} onWatch={onWatch}
+            onRetry={() => { sfx.pulse(); void (practice ? loadSocial(RECENT_PRACTICE_KEY, loadRecentPractice, { force: true }) : loadSocial(RECENT_RANKED_KEY, loadRecentRanked, { force: true })); }}
+          />
+        </Suspense>
+      </SidebarHost>
+    );
+  }
   const card = (r: FeedRow, key: string): JSX.Element => {
     const { mine, skins } = skinsOf(r);
     return (

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // THE ONE-BACKDROP CHECK (party home prototype, owner 2026-11-04). A cold, slow or failed page chunk must never show another
 // background. Needs a prod-like build with the prototype on, served on :5358, and PWC / PWEXE / SHARP env paths (playwright-core,
 // the headless shell, sharp). Writes a frame strip per case; exits 1 if a frame goes bright (foreign art) or the crash screen shows.

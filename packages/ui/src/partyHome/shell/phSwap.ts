@@ -7,11 +7,15 @@
  */
 import { flushSync } from 'react-dom';
 
-type WithTransition = Document & { startViewTransition?: (update: () => void) => unknown };
+interface SwapTransition { ready: Promise<unknown>; finished: Promise<unknown>; updateCallbackDone: Promise<unknown> }
+type WithTransition = Document & { startViewTransition?: (update: () => void) => SwapTransition };
 
 export function phSwap(run: () => void): void {
   const doc = document as WithTransition;
   const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   if (!doc.startViewTransition || calm) { run(); return; }
-  doc.startViewTransition(() => { flushSync(run); });
+  const t = doc.startViewTransition(() => { flushSync(run); });
+  // A skipped fade (the next press) rejects these: expected, never an error.
+  const quiet = (): void => undefined;
+  t.ready.catch(quiet); t.finished.catch(quiet); t.updateCallbackDone.catch(quiet);
 }

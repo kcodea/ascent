@@ -496,3 +496,5 @@ html[data-ph-compact] .ph-stagehead .ph-held { display: flex; }
 html[data-ph-compact] .ph-stagehead { gap: calc(8 * var(--phu)); }
 html[data-ph-compact] .ph-heldrow { padding: calc(2 * var(--phu)) calc(4 * var(--phu)) calc(2 * var(--phu)) calc(14 * var(--phu)); }
 html[data-ph-compact] .ph-heldrow .phk-btn.s-s { height: calc(48 * var(--phu)); min-height: calc(48 * var(--phu)) !important; }
+/* Under a page the home is covered: it paints nothing and takes no focus. */
+.ph.paged { visibility: hidden; }

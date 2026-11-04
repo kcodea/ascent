@@ -282,7 +282,7 @@ html[data-ph-shell] *::-webkit-scrollbar-corner { background: transparent; }
 /* The page's own bar is the custom gutter one (kit.css); its children go back to the rule above. */
 html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody { scrollbar-color: auto; }
 /* A little air between a list's bar and its plates. */
-html[data-ph-shell]:not([data-ph-compact]) :is(.phpn-index, .phpn-feed, .rgp-listwrap, .rgp-detailcol, .phc-side) { padding-right: calc(6 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) :is(.phpn-index, .phpn-feed, .rgp-listwrap, .rgp-detailcol, .phc-side, .phc-view, .bookguides) { padding-right: calc(6 * var(--phu)); }
 /* The old corner gear never takes focus behind the rail: Settings is in the nav. */
 html[data-ph-shell] .gearbtn { display: none; }
 /* THE CROSSFADE (phSwap.ts): the old page's snapshot fades out on top of the live new page; the layer takes no presses. */

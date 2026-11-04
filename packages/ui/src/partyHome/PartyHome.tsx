@@ -500,7 +500,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   );
 
   return (
-    <div ref={rootRef} className={`ph${phone ? ' phone' : ''}${vh.dragging ? ' vsr-dragging' : ''}`} role="region" aria-label="Your party">
+    <div ref={rootRef} className={`ph${phone ? ' phone' : ''}${pageOpen ? ' paged' : ''}${vh.dragging ? ' vsr-dragging' : ''}`} role="region" aria-label="Your party">
       <PhBackdrop />
       <PhTopNav current="home" friendsDocked={!phone} ownDrawer />
 

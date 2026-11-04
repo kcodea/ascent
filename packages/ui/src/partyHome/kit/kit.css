@@ -450,7 +450,7 @@ html[data-ph-shell] .lbpage:not(.hop) > :is(.lbtopbar, .lbscroll, .pnbar) { anim
 /* Scrollers keep one themed look and a reserved gutter, so a bar arriving with late data moves nothing. */
 html[data-ph-shell] { scrollbar-color: var(--ph-gold) transparent; }
 html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody { scrollbar-color: auto; }
-html[data-ph-shell]:not([data-ph-compact]) :is(.ph-settings, .ph-frows, .phc-gridwrap, .phc-rail, .phc-side, .rgp-listwrap, .rgp-detailcol, .phpn-index, .phpn-feed) { scrollbar-gutter: stable; }
+html[data-ph-shell]:not([data-ph-compact]) :is(.ph-settings, .ph-frows, .phc-gridwrap, .phc-rail, .phc-side, .phc-view, .bookguides, .rgp-listwrap, .rgp-detailcol, .phpn-index, .phpn-feed) { scrollbar-gutter: stable; }
 /* THE ENTRANCE: one shared, CSS-only mount animation, so a new page starts at once, an old one just leaves, and tab mashing cannot
    stack: only the page that is there plays it. Transform and opacity, one-shot, filling backwards only. About 200-260ms. */
 @keyframes phk-in { from { opacity: 0; transform: translateY(calc(6 * var(--phu))); } }

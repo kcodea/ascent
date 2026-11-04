@@ -458,7 +458,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   // The family's name: Ranked and Versus keep their sub-mode choice here, at the top of the panel.
   const settingsTitle = family.label;
   const settings = modeHasSettings(modeId) ? (
-    <div className="ph-settings">
+    <div className="ph-settings" key={modeId}>
       {family.subs.length > 1 && (
         <div className="ph-submode">
           <PhSegmented size="l" label="Mode" value={modeId} onPick={pick} onLockedHover={versusRoom ? undefined : setHoverNote} onLocked={(reason) => { sfx.deny(); setLockNote(reason); }}

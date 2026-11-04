@@ -23,11 +23,13 @@ import { isDuosParty, useVersus } from '../../versus/versusStore';
 import { versusRoomRef } from '../../versus/versusRemote';
 import { PhButton, PhChip, PhEmpty, PhRow } from '../kit';
 import { sampleFriends } from '../sample';
-import { usePartyDemo } from '../partyHomeFlag';
+import { usePartyDemo, usePartyRoom } from '../partyHomeFlag';
 import { setFriendsOpen, usePhShell } from './shellStore';
 
 export function PhFriends({ docked, picker = false, embedded = false }: { docked: boolean; picker?: boolean; embedded?: boolean }): JSX.Element {
-  const demo = usePartyDemo();
+  const sampleRoomOn = usePartyRoom();
+  const partyDemo = usePartyDemo();
+  const demo = partyDemo || sampleRoomOn; // the sample room shows the sample friends too: no backend
   const account = friendsAccount();
   const live = remoteEnabled() && account && !demo;
   useFriendsListLoop(live);

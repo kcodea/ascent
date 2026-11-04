@@ -245,3 +245,18 @@ html[data-ph-shell] .ph-top :is(.ph-navtab, .ph-iconbtn, .ph-brand) { letter-spa
 .ph-gear svg { width: 100%; height: 100%; }
 /* Rows with an action keep their whole frame (the action sits inside the gilded edge). */
 .ph-friend .phk-rowright { margin: calc(2 * var(--phu)) calc(2 * var(--phu)) calc(2 * var(--phu)) 0; border-radius: 0 var(--ph-r) var(--ph-r) 0; }
+
+/* ── CRITIC ROUND 6 ── */
+/* The empty slot that keeps the wallet still where the friends list is docked. */
+.ph-iconbtn.ph-slot { visibility: hidden; pointer-events: none; }
+/* KEYBOARD FOCUS: a rounded warm glow on the square-edged controls, never a sharp box. */
+html[data-ph-shell] :is(.ph-navtab, .phk-tab, .ph-iconbtn, .ph-brand, .phk-row, .phk-grow):focus-visible { border-radius: var(--ph-r-s); }
+html[data-ph-shell] :is(.ph-top, .ph, .phk-page, .ph-friends, .phk-dialog) :is(button, input, [role="button"], [role="tab"]):focus-visible {
+  outline: calc(2 * var(--phu)) solid rgba(255, 217, 138, 0.85); outline-offset: calc(-2 * var(--phu)); }
+/* PHONE NAV: a tiny label under each icon, so no page is a guess. The row scrolls sideways when it must. */
+html[data-ph-compact] { --ph-nav-h: calc(84 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .ph-top .ph-navlbl { display: block; font-size: 10px !important; line-height: 1; letter-spacing: 0; text-transform: none; font-weight: 700; }
+html[data-ph-compact] .ph-navtab { flex-direction: column; justify-content: center; gap: 3px; width: auto; min-width: calc(72 * var(--phu)); padding: 0 calc(8 * var(--phu)); }
+html[data-ph-compact] .ph-navtab .ph-navicon { width: calc(34 * var(--phu)); height: calc(34 * var(--phu)); }
+html[data-ph-compact] .ph-navtab.on::after { bottom: calc(-2 * var(--phu)); }
+html[data-ph-compact] .ph-nav { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32 * var(--phu)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 32 * var(--phu)), transparent); }

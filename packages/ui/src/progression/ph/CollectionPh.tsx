@@ -374,11 +374,13 @@ function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.El
           </div>
         )}
         {showDefault && <span className="phc-stage-tag"><PhChip>{frame ? 'Default frame' : plate ? 'Standard plate' : 'Default art'}</PhChip></span>}
-        {!owned && <span className="phc-stage-lock"><PhChip><LockGlyph />Not owned</PhChip></span>}
       </div>
 
       <div className="phc-name">
-        <span className="phc-kind">{kindOf(item)}</span>
+        <span className="phc-kindrow">
+          <span className="phc-kind">{kindOf(item)}</span>
+          {!owned && <PhChip className="phc-notowned"><LockGlyph />Not owned</PhChip>}
+        </span>
         <h2>{isMasterTitle(item.id) ? <TitleBadge id={item.id} className="colls-titleplate colls-titleplate-lg" /> : item.name}</h2>
         <span className={`phc-rarity r-${item.rarity}`}><span className="phc-gem" aria-hidden />{RARITY_LABELS[item.rarity]}</span>
       </div>

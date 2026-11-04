@@ -87,10 +87,11 @@
 .phc-tile-art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; -webkit-mask-image: linear-gradient(180deg, #000 50%, transparent 92%); mask-image: linear-gradient(180deg, #000 50%, transparent 92%); }
 .phc-tile.contain .phc-tile-art { inset: calc(16 * var(--phu)) calc(16 * var(--phu)) calc(96 * var(--phu)); }
 .phc-tile.contain .phc-tile-art img { object-fit: contain; object-position: 50% 50%; -webkit-mask-image: none; mask-image: none; }
-/* Unowned art stays dark and unreadable (owner 2026-10-01: "do not allow preview if you do not own the art"). Static. */
-.phc-tile.missing .phc-tile-art img { filter: saturate(0) brightness(0.3) contrast(1.2); }
+/* Unowned art: the real art, muted and dimmed so there is something to want; the padlock is the signal. The card, frame and
+   full-colour previews stay owned only (owner 2026-10-01: "do not allow preview if you do not own the art"). Static. */
+.phc-tile.missing .phc-tile-art img { filter: saturate(0.5) brightness(0.62); }
 /* A frame, plate or emote is mostly its outline: a little lighter, so its shape still reads (still grey, never its colours). */
-.phc-tile.missing.contain .phc-tile-art img { filter: saturate(0) brightness(0.6); }
+.phc-tile.missing.contain .phc-tile-art img { filter: saturate(0.5) brightness(0.75); }
 .phc-tile-text { position: relative; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; }
 .phc-tile-for { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-text); text-shadow: var(--ph-shadow); }
 .phc-tile-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); line-height: 1.15; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
@@ -133,8 +134,9 @@
 .phc-stage-icon { display: grid; width: calc(96 * var(--phu)); height: calc(96 * var(--phu)); }
 .phc-stage-icon img, .phc-stage-icon svg { width: 100%; height: 100%; object-fit: contain; }
 .phc-stage-tag { position: absolute; left: 50%; bottom: calc(12 * var(--phu)); transform: translateX(-50%); }
-.phc-stage-lock { position: absolute; top: calc(12 * var(--phu)); right: calc(12 * var(--phu)); }
-.phc-stage-lock .colls-lock { width: calc(14 * var(--phu)); height: calc(14 * var(--phu)); }
+.phc-kindrow { display: flex; align-items: center; justify-content: space-between; gap: calc(8 * var(--phu)); }
+.phc-notowned { flex: none; }
+.phc-notowned .colls-lock { width: calc(14 * var(--phu)); height: calc(14 * var(--phu)); }
 .phc-name { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); }
 .phc-kind { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
 .phc-name h2 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; color: var(--ph-ink); text-shadow: var(--ph-shadow); overflow-wrap: anywhere; }
@@ -279,3 +281,9 @@ html[data-ph-shell][data-touch-small] .phc-tile.missing:not(.hasart) .phc-tile-l
 html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-side { max-height: calc(var(--ph-h, var(--lvh, 100vh)) - 272 * var(--phu)); }
 html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-side .phc-actions { flex-direction: column; flex-wrap: nowrap; position: sticky; bottom: calc(-24 * var(--phu)); margin: auto calc(-16 * var(--phu)) calc(-24 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-navy); }
 html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-side .phc-actions > * { position: static; }
+
+/* Art tiles: a navy foot under the text, so names read over the brighter locked art. Static. */
+.phc-tile.hasart:not(.contain)::before { content: "";  position: absolute; inset: 40% 0 calc(3 * var(--phu)); z-index: 0; pointer-events: none; background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--ph-navy) 92%, transparent) 62%); }
+.phc-tile.hasart.missing .phc-tile-name { color: var(--ph-text); }
+.phc-kind { white-space: nowrap; }
+html[data-ph-shell][data-touch-small] .phc-kind { letter-spacing: 0.12em; }

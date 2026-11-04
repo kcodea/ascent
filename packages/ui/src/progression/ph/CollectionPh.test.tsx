@@ -83,6 +83,8 @@ const btn = (label: string): HTMLButtonElement | undefined => [...document.query
 const tileNames = (): string[] => $$('.phc-tile .phc-tile-name').map((n) => n.textContent ?? '');
 const cat = (label: string): HTMLElement => $$('.phc-cat').find((c) => c.querySelector('.phk-rowtitle')?.textContent === label)!;
 
+const tileBy = (name: string): HTMLElement => [...document.querySelectorAll<HTMLElement>('.phc-tile')].find((t) => t.textContent?.includes(name))!;
+
 describe('the Collection in the party home shell', () => {
   it('with the switch OFF the page is today\'s: nothing of the shell mounts', async () => {
     await open({ ph: false });
@@ -121,6 +123,11 @@ describe('the Collection in the party home shell', () => {
     expect($('.phc-detail h2')?.textContent).toBe('Star Chaser');
     await act(async () => { btn('Equip')!.click(); await Promise.resolve(); });
     expect(equipTitleRemote).toHaveBeenCalledWith('title_star_chaser');
+    // A missing item says so beside its kind, clear of the preview.
+    act(() => { $$('.phk-tab').find((t) => t.textContent?.startsWith('All'))!.click(); });
+    act(() => { tileBy('Kingbreaker').click(); });
+    expect(document.querySelector('.phc-kindrow')?.textContent).toContain('Not owned');
+    expect(document.querySelector('.phc-stage .phc-notowned')).toBeNull();
   });
 
   it('ON: the chest bay counts the sealed chests and Open plays the theatre in the shell skin', async () => {

@@ -324,6 +324,14 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   // A Versus error belongs to the press that made it: a new mode, or leaving the party, starts clean.
   useEffect(() => { if (useVersus.getState().error) useVersus.setState({ error: null }); }, [modeId, inParty]);
   useEffect(() => { if (!demo) clearSampleInvites(); }, [demo]);
+  // A press outside the open card closes its menu. A window listener, not a catcher layer: the stage is its own stacking
+  // context, so a layer over the page would sit on top of the menu and swallow its items.
+  useEffect(() => {
+    if (!menuFor) return undefined;
+    const onDown = (e: PointerEvent): void => { if (!(e.target instanceof Element) || !e.target.closest('.ph-cardwrap.menu')) setMenuFor(null); };
+    window.addEventListener('pointerdown', onDown, true);
+    return () => window.removeEventListener('pointerdown', onDown, true);
+  }, [menuFor]);
   // Esc closes an open card menu first (and only it).
   useEffect(() => {
     if (!menuFor) return undefined;
@@ -496,7 +504,6 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       {phone && friendsOpen && <><div className="ph-fcatch" aria-hidden="true" onPointerDown={() => setFriendsOpen(false)} />{side}</>}
 
       {vh.layers}
-      {menuFor && <div className="ph-menucatch" aria-hidden="true" onPointerDown={() => setMenuFor(null)} />}
       {pickerOpen && <InvitePicker onClose={() => setPickerOpen(false)} />}
       {nameOpen && duosRoom && <TeamNamePanel room={duosRoom} me={me} name={teamName} onSaved={setTeamName} onClose={() => setNameOpen(false)} />}
       {nameOpen && !duosRoom && demo && <SampleRename name={demoTeam} fallback={defaultTeamName(members[0]!.name, 'Mike')} onSave={(n) => { setDemoTeam(n || null); setNameOpen(false); }} onClose={() => setNameOpen(false)} />}

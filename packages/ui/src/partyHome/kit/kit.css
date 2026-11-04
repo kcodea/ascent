@@ -413,3 +413,13 @@ html[data-ph-shell]:not([data-ph-compact]) .phk-pagehead { padding-bottom: calc(
 html[data-ph-shell] .phk-pagehead .phk-tab { min-height: calc(56 * var(--phu)) !important; padding-top: calc(8 * var(--phu)) !important; padding-bottom: calc(12 * var(--phu)) !important; }
 html[data-ph-shell][data-ph-compact] .phk-dlgtitle::after { display: none; }
 html[data-ph-shell][data-ph-compact] .ph-picker .phk-btn.s-s { min-height: calc(52 * var(--phu)) !important; height: calc(52 * var(--phu)); }
+
+/* ── CRITIC ROUND 8 ── */
+/* ONE PAGE HEADER: title, its tabs straight after, tools at the right, all on the one line. */
+html[data-ph-shell] .phk-pagehead .phk-pagetabs { flex: 0 1 auto !important; justify-content: flex-start !important; }
+html[data-ph-shell] .phk-pagehead .phk-pagetitle { min-width: 0; }
+html[data-ph-shell] .phk-pagehead .phk-pageactions { flex: none; align-self: flex-end; margin-left: auto; margin-bottom: 0; }
+/* ONE RIGHT EDGE: the scrollbar lives in a fixed gutter just outside the column, so panels end on the header's line. */
+html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody { scrollbar-width: auto; scrollbar-gutter: stable; margin-right: calc(-12 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody::-webkit-scrollbar { width: calc(12 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody::-webkit-scrollbar-thumb { border: calc(3 * var(--phu)) solid transparent; border-radius: 999px; background: var(--ph-gold) padding-box; }

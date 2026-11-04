@@ -344,4 +344,20 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-04 (fix/fx-fly-copy-life). Before, the Fly group (PR 2580) froze a flying copy at the end of its Duration and kept it drawn until the whole layer finished.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/customGeometry.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: 'R-FX-CLIP-TRIM-PCT-01',
+    title: 'A sound layer trims anywhere in its clip, set as a percent of the clip',
+    statement:
+      'In the FX workbench, a sound layer Start offset and End offset read and set as 0 to 100 percent of the loaded clip, '
+      + 'and the waveform lines drag across the whole clip, so a clip of any length can be trimmed right up to its end. Start '
+      + 'and End never cross. A saved effect keeps its trim exactly: the def still stores milliseconds.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, chorusdrake-chord clip', quote: 'can we change the start and end offset to be % 0-100 of the clips length?' },
+      { kind: 'code', ref: 'feat/fx-clip-offset-percent: packages/ui/src/fx/clipTrim.ts; packages/ui/src/fx/primitives/sound.ts (offset ceiling); packages/ui/src/fx/ui/Inspector.tsx (ParamRow % rows, WaveformStrip drag)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-04 (feat/fx-clip-offset-percent). Before, both offsets were 0 to 2000 ms sliders and the waveform drag was capped at 2000 ms, so the end of a longer clip could not be reached.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/clipTrim.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
 ];

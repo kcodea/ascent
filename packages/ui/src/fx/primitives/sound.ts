@@ -14,6 +14,7 @@
  * `audioFilters.ts` and the whole param bag is handed to `playFxSound`, which builds the filter node chain.
  * Reverb (algorithmic) and modulation land in later PRs; that audio-graph code also lives outside this file.
  */
+import { CLIP_OFFSET_MAX_MS } from '../clipTrim';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import type { ParamsOf, FxParamSpecs } from '../params';
 import { registerPrimitive } from '../registry';
@@ -49,13 +50,13 @@ const PLAYBACK_SPECS = {
     help: 'Repeat the clip until the layer ends (e.g. a sound that holds while a targeting line is up). Fades out on end.',
   },
   startOffset: {
-    kind: 'slider', label: 'Start offset', group: 'Timing', min: 0, max: 2000, step: 10, default: 0,
-    help: 'Skip this many ms into the clip before it starts. Drag the green line on the waveform to set it.',
+    kind: 'slider', label: 'Start offset', group: 'Timing', min: 0, max: CLIP_OFFSET_MAX_MS, step: 1, default: 0,
+    help: 'How far into the clip it starts, as a % of the clip\'s length (0 = the very start). Drag the green line on the waveform to set it.',
   },
   endOffset: {
-    kind: 'slider', label: 'End offset', group: 'Timing', min: 0, max: 2000, step: 10, default: 0,
-    help: 'Stop this many ms before the clip\'s end (0 = play to the end). The clip plays the window between the '
-      + 'Start and End lines on the waveform — drag the red line to set it.',
+    kind: 'slider', label: 'End offset', group: 'Timing', min: 0, max: CLIP_OFFSET_MAX_MS, step: 1, default: 0,
+    help: 'How much to cut off the clip\'s end, as a % of its length (0 = play to the end, 100 = cut it all). The clip plays the '
+      + 'window between the Start and End lines on the waveform — drag the red line to set it.',
   },
   delay: {
     kind: 'slider', label: 'Delay', group: 'Timing', min: 0, max: 2000, step: 10, default: 0,

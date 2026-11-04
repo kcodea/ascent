@@ -4584,6 +4584,18 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   box-shadow: var(--pill-outline), 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
 }
 .statusbar .heropanel.ready .hpwrap .hpb-tally.hpb-pill { color: #fff; border-color: var(--acc); }
+/* THE MAIN POWER'S NAME SITS ABOVE THE ART (owner ask 2026-11-04: "certain portraits block the name of the hero
+   power"): the hero portrait's art and FX reach up under the power, so the name moved from under the button to
+   over it. OUT OF FLOW, so the art never shifts. With no counter it sits on the art's top rim where the counter
+   would; with the counter pill (or Frank's taller Clearance pip) it stacks just above that. Main power only —
+   the second power and the Equipment slot keep their own seats. */
+.statusbar .heropanel:not(.heropanel2):not(.equipslot) > .hplabel {
+  position: absolute; left: 50%; bottom: calc(100% - 10 * var(--u)); transform: translateX(-50%); margin: 0;
+}
+.statusbar .heropanel:not(.heropanel2):not(.equipslot):has(> .hpwrap > .hpb-pill) > .hplabel { bottom: calc(100% + 18 * var(--u)); }
+.statusbar .heropanel:not(.heropanel2):not(.equipslot):has(> .hpwrap > .clearance-uses) > .hplabel { bottom: calc(100% + 34 * var(--u)); }
+/* The hover tip clears the raised name instead of covering it. */
+.statusbar .heropanel:not(.heropanel2):not(.equipslot) > .herotip { bottom: calc(100% + 50 * var(--u)); }
 /* Dark "pill/glass" restyle of the hero box + health box — matches the quest-badge / name-pill aesthetic
    (the dark gradient + gold-mix border the `.hplabel` already uses) instead of the old cream/white boxes. */
 .statusbar .hero {

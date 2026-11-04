@@ -11718,7 +11718,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-DM-HUB-URL-01',
     title: 'Every build that can reach the friends hub uses it, and a hub socket that died for good is reopened, so messages never say "not available" while the hub is up',
     statement:
-      'The friends hub is ONE stable Worker for every build, so its URL is not a per-pack setting: the client uses the live hub (`FRIENDS_HUB_LIVE_URL`) on every page origin the hub accepts (a copy of `hub.wrangler.toml` ALLOWED_ORIGINS: the Netlify site and a local dev server), whether or not the release baked `VITE_FRIENDS_HUB_URL`. A page the hub would refuse (the desktop app\x27s `app://` origin, any other host) gets no hub. A dev token is only ever sent to a local dev hub; against the live hub the client waits for a real session. Reading my access token gives up after 8 s and tries again (a stuck session read never stalls the hub). A hub socket that will not reconnect by itself (a refused hello, a socket closed for good, a first connect that failed) is replaced by a fresh one after 30 s, keeping the conversations and the outbox; only an old client the hub no longer speaks to (`version_mismatch`) and a game replaced by a newer one of mine (`replaced`) stay off.',
+      'The friends hub is ONE stable Worker for every build, so its URL is not a per-pack setting: the client uses the live hub (`FRIENDS_HUB_LIVE_URL`) on every page origin the hub accepts (a copy of `hub.wrangler.toml` ALLOWED_ORIGINS: the Netlify site, the desktop app\x27s `app://ascent` and a local dev server), whether or not the release baked `VITE_FRIENDS_HUB_URL`. A page the hub would refuse (any other host, any other `app://` origin) gets no hub. A dev token is only ever sent to a local dev hub; against the live hub the client waits for a real session. Reading my access token gives up after 8 s and tries again (a stuck session read never stalls the hub). A hub socket that will not reconnect by itself (a refused hello, a socket closed for good, a first connect that failed) is replaced by a fresh one after 30 s, keeping the conversations and the outbox; only an old client the hub no longer speaks to (`version_mismatch`) and a game replaced by a newer one of mine (`replaced`) stay off.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -13881,5 +13881,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-04 (fix/hp-name-above-counter). Before, the name sat under the power, where portraits with tall art (Ayse) covered it.',
     example: 'Ayse in the shop: "Lucky Seat" reads above the 0/3 counter, clear of her portrait.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroPowerNameAbove.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
+    id: 'R-DESKTOP-ORIGIN-01',
+    title: 'Every online service accepts the desktop app origin',
+    statement:
+      'Every online service (Versus, friends hub) accepts the desktop app\x27s `app://ascent` origin, and no other `app://` origin. '
+      + 'A page served from the desktop app reaches the live hub and the Versus Worker exactly as the web build does.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-04', quote: 'The goal is to remove the need for Netlify altogether.' },
+      { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/2582 (workers/versus/wrangler.toml, workers/versus/hub.wrangler.toml, workers/versus/src/origins.ts, packages/ui/src/friends/dm/hubUrl.ts)' },
+    ],
+    currentBehaviour:
+      'Conforms in the repo from 2026-11-04 (feat/desktop-auto-update). The live Workers pick it up on the next deploy: the hub hash covers hub.wrangler.toml, '
+      + 'so the next hub:deploy ships it; the Versus Worker needs its own deploy. Before, the desktop origin was refused (CORS) and defaultHubUrl returned no hub. '
+      + 'The Netlify origin stays in every list until the site is retired.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/origins.test.ts', 'packages/ui/src/friends/dm/hubUrl.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
 ];

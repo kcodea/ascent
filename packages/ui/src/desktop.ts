@@ -13,6 +13,8 @@ interface DesktopBridge {
   isDesktop: true;
   quit: () => void;
   toggleFullscreen: () => void;
+  /** Fires with the version once an update has finished downloading. Returns the unsubscribe. */
+  onUpdateReady?: (cb: (version: string) => void) => () => void;
 }
 
 const bridge = (): DesktopBridge | undefined =>
@@ -31,4 +33,10 @@ export function quitGame(): void {
 /** Toggle borderless fullscreen. No-op in the browser — F11 is the browser's own there. */
 export function toggleFullscreen(): void {
   bridge()?.toggleFullscreen();
+}
+
+/** Be told when the shell has finished downloading an update (it installs at the next launch). No-op in the browser;
+ *  the returned function unsubscribes. */
+export function onUpdateReady(cb: (version: string) => void): () => void {
+  return bridge()?.onUpdateReady?.(cb) ?? (() => {});
 }

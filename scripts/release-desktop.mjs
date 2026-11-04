@@ -83,6 +83,7 @@ run('npm ci --no-audit --no-fund', WT);
 step('building the web bundle');
 run('npm run build:web', WT);
 step('packaging the exe');
+run('node scripts/bundle-shell.mjs', WT);
 run('node scripts/package-desktop.mjs', WT);
 
 const releaseDir = path.join(WT, 'apps', 'desktop', 'release', 'ASCENT-win32-x64');
@@ -113,13 +114,12 @@ if (!SMOKE) {
   });
   if (!existsSync(out)) die(`smoke test produced no report (exit ${code})`);
   const report = JSON.parse(readFileSync(out, 'utf8'));
-  const stages = Object.entries(report.boot?.stages ?? {}).map(([k, v]) => `${k}:${v.ok ? 'ok' : 'FAIL'} ${v.ms}ms`).join('  ');
-  console.log(`  boot ${report.boot?.ms ?? '?'}ms  ${stages}`);
-  console.log(`  assets requested: ${report.requests}, missing: ${report.missing.length}, fonts failed: ${report.fontErrors.length}, console errors: ${report.consoleErrors.length}`);
+  console.log(`  ready (title screen) after ${report.boot?.ms ?? '?'}ms`);
+  console.log(`  assets requested: ${report.requests}, missing: ${report.missing.length}, fonts failed: ${report.fontErrors.length}, console errors: ${report.consoleErrors.length}, network errors: ${report.networkErrors.length}`);
+  for (const n of report.networkErrors) console.error(`    NETWORK  ${n}`);
   for (const m of report.missing) console.error(`    MISSING  ${m}`);
   for (const f of report.fontErrors) console.error(`    FONT     ${f}`);
   for (const e of report.consoleErrors) console.error(`    CONSOLE  ${e}`);
-  if (report.warmFailed?.length) console.error(`    FX could not fire: ${report.warmFailed.join(', ')}`);
   if (!report.ok || code !== 0) die(`smoke test FAILED (exit ${code}) — the release is not shippable`);
   console.log('  ✓ smoke test passed');
 }

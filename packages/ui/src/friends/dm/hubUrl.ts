@@ -7,10 +7,10 @@
  *   2. The baked URL (`VITE_FRIENDS_HUB_URL`, set by `release:web -- --versus-cf`), trusted only when it is exactly the
  *      live hub (a typo never sends players elsewhere).
  *   3. OTHERWISE the live hub, whenever this page's origin is one the hub accepts (`HUB_PAGE_ORIGINS`, the hub's
- *      `ALLOWED_ORIGINS`): the Netlify site and a local dev server. This is the fix for "why are messages unavailable?"
+ *      `ALLOWED_ORIGINS`): the Netlify site, the desktop app (`app://ascent`) and a local dev server. This is the fix for "why are messages unavailable?"
  *      (owner 2026-10-29): a build without the release flag (a dev server, a pack cut without `--versus-cf`) used to carry
  *      no hub at all, so every chat said "Messages are not available right now." even though the hub was up. A page the
- *      hub would refuse (the desktop app's `app://` origin, an unknown host) still gets no hub: it would only be refused.
+ *      hub would refuse (an unknown host, any other `app://` origin) still gets no hub: it would only be refused.
  */
 import { FRIENDS_HUB_LIVE_URL } from '@game/versus-cf/hub';
 
@@ -20,7 +20,7 @@ const KEY = 'ascent.hubUrl';
  * The page origins the live hub accepts: a copy of `ALLOWED_ORIGINS` in `workers/versus/hub.wrangler.toml` (a test keeps
  * the two equal). `*` matches a port.
  */
-export const HUB_PAGE_ORIGINS = ['https://ascent-game-web.netlify.app', 'http://localhost:*', 'http://127.0.0.1:*'] as const;
+export const HUB_PAGE_ORIGINS = ['https://ascent-game-web.netlify.app', 'app://ascent', 'http://localhost:*', 'http://127.0.0.1:*'] as const;
 
 /** The baked URL, trusted only when it is the live hub (a typo never sends players elsewhere). */
 export function bakedHubUrl(raw: string | undefined): string | null {

@@ -24,8 +24,13 @@ describe('the default hub (R-DM-HUB-URL-01)', () => {
     expect(defaultHubUrl('http://127.0.0.1:4173')).toBe(FRIENDS_HUB_LIVE_URL);
   });
 
-  it('is nothing where the hub would refuse the socket (the desktop app, any other host)', () => {
-    expect(defaultHubUrl('app://ascent')).toBeNull();
+  it('is the live hub inside the desktop app (R-DESKTOP-ORIGIN-01)', () => {
+    expect(defaultHubUrl('app://ascent')).toBe(FRIENDS_HUB_LIVE_URL);
+    expect(defaultHubUrl('app://evil')).toBeNull();
+    expect(defaultHubUrl('app://ascent.evil.com')).toBeNull();
+  });
+
+  it('is nothing where the hub would refuse the socket (any other host)', () => {
     expect(defaultHubUrl('null')).toBeNull();
     expect(defaultHubUrl('https://ascent-game-web.netlify.app.evil.com')).toBeNull();
     expect(defaultHubUrl('https://evil-ascent-game-web.netlify.app')).toBeNull();

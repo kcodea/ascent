@@ -23,7 +23,7 @@ DEV_AUTH = "0"
 # Browser origins allowed to call the Worker (`*` = one host label or a port): the game's Netlify site (owner 2026-10-28)
 # and local dev ports. CONFIG, not code: a deploy with VERSUS_ALLOWED_ORIGINS set in the environment uses that list
 # instead (scripts/deploy.ts), so a custom domain is added without editing this file (docs/versus-cf-cutover.md).
-ALLOWED_ORIGINS = "https://ascent-game-web.netlify.app,http://localhost:*,http://127.0.0.1:*"
+ALLOWED_ORIGINS = "https://ascent-game-web.netlify.app,app://ascent,http://localhost:*,http://127.0.0.1:*"
 PERSIST = "0"
 
 [[durable_objects.bindings]]

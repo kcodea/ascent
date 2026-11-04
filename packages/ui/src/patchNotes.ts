@@ -64,6 +64,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Ascent now updates itself. The desktop app downloads new versions in the background and installs them the next time you start it.',
+        details: [
+          'When a download finishes, a small notice tells you it will install next launch. Nothing ever installs in the middle of a game.',
+          'After an update, the title screen shows what is new since the last version you played.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed: in Duos, reloading mid-turn no longer brings back a minion you passed with Handout, CueBee\'s Pass or Passaria.',
       },
       {

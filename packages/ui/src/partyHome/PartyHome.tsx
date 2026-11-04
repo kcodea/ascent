@@ -59,7 +59,7 @@ import { PhTopNav } from './shell/PhTopNav';
 import { OpenRoomsPanel, RoomRulesPanel, useVersusRoomHome } from './versusRoomHome';
 import { defaultRoomName, roomModeOf, roomTitleOf } from './pages/versusPh';
 import { PhFriends } from './shell/PhFriends';
-import { addSampleInvite, clearSampleInvites, removeSampleInvite, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
+import { addSampleInvite, clearSampleInvites, removeSampleInvite, setDrawerIsMode, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
 import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhField, PhLeaderBadge, PhPlate, PhSegmented, PhTabs, phNum } from './kit';
 import { GauntletPanel, PracticePanel, stagePlayable, useGauntletStages } from './ModeOptions';
 import { familyOf, modeHasSettings, partyFamilies, partyModeOf, partyModes, readFamilySub, readPartyMode, rememberPartyMode, type ModeFamily, type ModeFamilyId, type PartyMode, type PartyModeId } from './partyModes';
@@ -387,7 +387,15 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   useLayoutEffect(() => {
     if (friendsOpen && !toSettings.current) setSideTab('friends');
     toSettings.current = false;
+    if (!friendsOpen) setDrawerIsMode(false);
   }, [friendsOpen]);
+  // Esc closes the phone drawer first.
+  useEffect(() => {
+    if (!phone || !friendsOpen) return undefined;
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); setFriendsOpen(false); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [phone, friendsOpen]);
   const pulsed = useRef(friendsPulse);
   useEffect(() => { if (friendsPulse !== pulsed.current) { pulsed.current = friendsPulse; setSideTab('friends'); } }, [friendsPulse]);
   const onOpenSeat = (): void => {
@@ -453,7 +461,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       </button>}
       <div className="ph-side ph-side-r">
         {/* On a phone the side panel is a drawer: the mode's settings are one press from START. */}
-        {phone && !friendsOpen && modeHasSettings(modeId) && <PhButton size="s" onClick={() => { sfx.pulse(); toSettings.current = true; setSideTab('settings'); setFriendsOpen(true); }}>{family.subs.length > 1 ? family.subs.find((x) => x.id === modeId)?.label : mode.id === 'practice' ? 'Practice' : mode.id === 'gauntlet' ? 'Stages' : 'Rules'}</PhButton>}
+        {phone && !friendsOpen && modeHasSettings(modeId) && <PhButton size="s" onClick={() => { sfx.pulse(); toSettings.current = true; setDrawerIsMode(true); setSideTab('settings'); setFriendsOpen(true); }}>{family.subs.length > 1 ? family.subs.find((x) => x.id === modeId)?.label : mode.id === 'practice' ? 'Practice' : mode.id === 'gauntlet' ? 'Stages' : 'Rules'}</PhButton>}
         {(note || issue) && (
           <span className="ph-notes" role="status">
             {note && <span className="ph-note">{note}</span>}
@@ -516,7 +524,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
         <div className="ph-stagehead">
         {phone && vh.stands}
         {!teamLabel && mode.party === 'rivals' && (
-          <div className="ph-team">
+          <div className="ph-team info">
             {/* (Unranked is said once, in the line above; the rule once, here.) */}
             {versusRoom && <span className="ph-teamlbl">{roomTitleOf(versusRoom.name, roomModeOf(versusRoom.options))}</span>}
             <span className="ph-teamname">{rule ? versusRuleName(rule) : 'Usual rules'}</span>
@@ -605,7 +613,7 @@ function SampleRename({ name, fallback, onSave, onClose }: { name: string | null
         <PhButton size="l" onClick={() => { sfx.pulse(); onClose(); }}>Cancel</PhButton>
       </>}>
       <form onSubmit={(e) => { e.preventDefault(); save(); }}>
-        <PhField label="Name" value={v} placeholder={fallback} maxLength={TEAM_NAME_MAX} showCount autoFocus onChange={(e) => setV(e.target.value)}
+        <PhField label="Name" value={v} placeholder="Your two names" maxLength={TEAM_NAME_MAX} showCount autoFocus onChange={(e) => setV(e.target.value)}
           error={problem ? NAME_PROBLEM[problem] : undefined} hint="Leave it empty to use your two names. Either teammate can rename between games." />
       </form>
     </PhDialog>

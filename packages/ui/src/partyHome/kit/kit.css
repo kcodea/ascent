@@ -464,3 +464,6 @@ html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(n + 3) { animation-dela
 /* LAPTOP SIZES: the stage scales down below full HD, so small controls hold a readable, pressable height (units are the scaled
    ones: 44 units is about 31 real px at 1366). */
 html[data-ph-laptop]:not([data-ph-compact]) :is(.phk-btn.s-s, .phk-chip.phk-tchip, .phk-segbtn, .phc-rchip, .cv2-btn, .ach-chip, .phc-trends button) { min-height: calc(44 * var(--phu)); }
+/* One heading height on every phone page. */
+html[data-ph-shell][data-ph-compact] .phk-page .phk-pagehead { height: calc(60 * var(--phu)); min-height: 0; }
+

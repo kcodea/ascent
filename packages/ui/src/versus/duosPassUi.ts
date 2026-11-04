@@ -4,7 +4,7 @@
  * Pure reads of the run, the teammate's live frame and the match; nothing here touches the network.
  */
 import { create } from 'zustand';
-import { duosPassBlocked, handCap, type RunState } from '@game/sim';
+import { activePowers, duosPassBlocked, handCap, type RunState } from '@game/sim';
 import { teammateViewOf } from './spectate';
 import { useVersus } from './versusStore';
 import { localMate } from './localMate';
@@ -40,6 +40,11 @@ export function mateAway(): boolean {
   const row = g.raw.seats.find((x) => x.seat === mate);
   return !!row?.auto || (!!g.raw.paused_at && g.raw.paused_seat === mate);
 }
+
+/** PASSARIA (owner 2026-11-04, R-DUOS-PRIESTESS-GOLD-01: "it should pay the 2g and that's it"): while its aim is armed no
+ *  hand card can be picked up, so the aim can never end as the separate 1 Gold drag pass. The press cancels the aim. */
+export const passariaAimHoldsHand = (g: { run: RunState; heroArmed: boolean; heroArmedSlot: number }): boolean =>
+  g.heroArmed && activePowers(g.run)[g.heroArmedSlot]?.kind === 'passaria';
 
 /** Why `uid` cannot be passed right now, as the portrait says it (null = it can). */
 export function duosPassRefusal(run: RunState, uid: string): string | null {

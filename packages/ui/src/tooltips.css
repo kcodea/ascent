@@ -90,7 +90,7 @@
   --atip-z-maxw: calc(var(--atip-maxw) / var(--atip-k, 1));
 }
 /* The scaled parents (read from their own tuner vars, so a re-tuned control keeps its tip true to size). */
-.statusbar .heropanel .herotip { --atip-k: var(--hpb-s, 0.87); }
+.statusbar .heropanel .herotip { --atip-k: var(--hpb-s, 0.9); }
 .statusbar .heropanel.heropanel2 .herotip { --atip-k: var(--hp2-scale, 0.9); }
 .statusbar .heropanel.equipslot .herotip { --atip-k: var(--eqs-scale, 0.99); }
 .questbadges .questbadge-tip { --atip-k: var(--qb-s, 1.09); }

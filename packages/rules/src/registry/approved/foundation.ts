@@ -13865,6 +13865,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['apps/web/firstPaint.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
   {
+    id: 'R-HUD-HEROPOWER-NAME-01',
+    title: 'The hero power name sits above the power, never under the portrait',
+    statement:
+      'The main hero power name pill sits above the power art, so the hero portrait and its effects never cover it. With a counter '
+      + '(a count, a countdown, a uses pip) it sits just above the counter; with none it sits on the top rim of the art. It never moves the art, '
+      + 'and the hover tip opens above it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04 (screenshot of Lucky Seat under the Ayse portrait)', quote: 'certain portraits block the name of the hero power, can we move it above?' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04', quote: 'move it and send a screenshot of what it looks like.' },
+      { kind: 'fix-pr', ref: 'fix/hp-name-above-counter: packages/ui/src/styles.css (main .heropanel > .hplabel), phoneLayout.css, touchUi.css' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-04 (fix/hp-name-above-counter). Before, the name sat under the power, where portraits with tall art (Ayse) covered it.',
+    example: 'Ayse in the shop: "Lucky Seat" reads above the 0/3 counter, clear of her portrait.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroPowerNameAbove.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
     id: 'R-DESKTOP-ORIGIN-01',
     title: 'Every online service accepts the desktop app origin',
     statement:

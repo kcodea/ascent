@@ -21,7 +21,7 @@ export interface SecondPowerConfig {
   scale: number;
 }
 
-const DEFAULTS: SecondPowerConfig = { x: 81, y: 201, scale: 0.9 }; // owner-placed 2026-08-24
+const DEFAULTS: SecondPowerConfig = { x: 81, y: 218, scale: 0.9 }; // owner-placed 2026-08-24; y 201 -> 218 keeps it put when the main power moved up 17 (2026-11-04)
 
 const RANGES: Record<keyof SecondPowerConfig, [number, number, number]> = {
   x: [-300, 500, 1],

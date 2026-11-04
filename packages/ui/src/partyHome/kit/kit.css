@@ -386,4 +386,9 @@ html[data-ph-shell][data-ph-compact] .phk-page .book-tiers { flex-wrap: nowrap; 
 html[data-ph-shell][data-ph-compact] .phk-page :is(.book-tier, .book-zoom-btn) { min-width: calc(64 * var(--phu)); min-height: calc(64 * var(--phu)); }
 html[data-ph-shell][data-ph-compact] .phk-page :is(.book-gilded, .book-setpick-btn, .book-kwchip, .book-runetribe, .book-search) { min-height: calc(64 * var(--phu)); flex: none; }
 html[data-ph-shell][data-ph-compact] .phk-page .book-zoom { height: auto; }
-html[data-ph-shell][data-ph-compact] .phk-page :is(.phk-tab, .phk-segbtn, .phk-btn, .phk-select, .phk-search) { min-height: calc(64 * var(--phu)); }
+/* The touch floor (64 units = 40 real px), over every page's own sizes. */
+html[data-ph-shell][data-ph-compact] :is(.phk-page, .ph, .phk-dialog, .ph-friends) :is(.phk-tab, .phk-segbtn, .phk-btn, .phk-select, .phk-search, .phk-chip.phk-tchip, .phk-back, .cv2-btn, .cshop-toggle, .book-cat, .ach-chip, .phc-rchip) { min-height: calc(64 * var(--phu)) !important; }
+html[data-ph-shell][data-ph-compact] :is(.phk-tab, .phk-segbtn, .phk-btn, .phk-chip, .phk-back, .phk-seglbl, .phk-seghint, .phk-rowsub, .phk-selectval) { font-size: max(var(--ph-t1), calc(18 * var(--phu))); }
+html[data-ph-shell][data-ph-compact] .phk-switch { min-height: calc(40 * var(--phu)); padding: calc(12 * var(--phu)) 0; background-clip: content-box; }
+/* The page reaches the screen's foot: the old sidebar pages' bottom reserve is not needed under the top nav. */
+html[data-ph-shell][data-ph-compact] :is(.lbpage, .modepick.sb-host) { padding-bottom: 0 !important; }

@@ -406,7 +406,8 @@ html[data-ph-shell][data-ph-compact] .phk-dlgbox { gap: calc(8 * var(--phu)); pa
 html[data-ph-shell][data-ph-compact] .phk-dlgtitle { font-size: var(--ph-t3); padding-bottom: calc(12 * var(--phu)); }
 /* While a field is lifted over the phone keyboard, the window rises to the top and keeps only what is needed: Save stays in reach. */
 html[data-touch-kb] .phk-dialog { place-items: start center; padding-top: calc(8 * var(--phu)); }
-html[data-touch-kb] .phk-dlgbox .phk-dlgtitle, html[data-touch-kb] .phk-dlgbox .phk-field .phk-seghint { display: none; }
+html[data-touch-kb] .phk-dlgbox .phk-field .phk-seghint, html[data-touch-kb] .phk-dlgbox .phk-fieldhead { display: none; }
+html[data-touch-kb] .phk-dlgbox .phk-dlgtitle { font-size: var(--ph-t2); padding-bottom: 0; }
 /* ONE TAB BASELINE: every page's sub-tabs sit on the same line in the header. */
 html[data-ph-shell] .phk-pagehead .phk-pagetabs { align-self: flex-end; margin: 0 !important; padding: 0; }
 html[data-ph-shell]:not([data-ph-compact]) .phk-pagehead { padding-bottom: calc(16 * var(--phu)) !important; }
@@ -428,9 +429,37 @@ html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody::-webkit-scro
    brighter text; the rest stay dimmer. */
 html[data-ph-shell] .phk-tab.on::after, html[data-ph-shell] .ph-navtab.on::after, html[data-ph-shell] .ph-iconbtn.on::after, .phk-tab.on::after, .ph-navtab.on::after, .ph-iconbtn.on::after { content: none !important; }
 .phk-tab, .ph-navtab, .ph-iconbtn { isolation: isolate; }
-.phk-tab.on::before, .ph-navtab.on::before, .ph-iconbtn.on::before { content: ''; position: absolute; inset: calc(-6 * var(--phu)) calc(-4 * var(--phu)); z-index: -1; pointer-events: none;
+.phk-tab.on::before, .ph-navtab.on::before, .ph-iconbtn.on::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: radial-gradient(58% 62% at 50% 50%, rgba(255, 196, 92, 0.42) 0%, rgba(255, 176, 70, 0.16) 55%, transparent 78%); }
 html[data-ph-shell] .phk-tab.on, html[data-ph-shell] .ph-navtab.on { color: #fff6df; text-shadow: var(--ph-shadow), 0 0 calc(12 * var(--phu)) rgba(255, 214, 130, 0.75); }
 .phk-tab:not(.on):not(.locked) { opacity: 0.8; }
 .ph-navtab:not(.on) { opacity: 0.78; }
 .phk-tab:not(.on):not(.locked):hover, .ph-navtab:not(.on):hover { opacity: 1; }
+/* A field's head row: the label, and its counter at the right. */
+.phk-fieldhead { display: flex; align-items: baseline; justify-content: space-between; gap: calc(8 * var(--phu)); }
+.phk-fieldcount { font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
+
+/* ── TAB CHANGES (owner 2026-11-04: "extremely fluid and clean, and everything gently animates in") ──
+   THE WOBBLE was the old page host: `.lbpage` is `overflow: auto`, and its `page-enter` rise pushed the page past the host's
+   foot, so an OS scrollbar flashed in for the entrance and moved the page 7.5px. Under the shell the host never shows a bar
+   and never rises; the rise lives on the page's own rows, inside the body's padding, so it adds no height. */
+html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { scrollbar-width: none; }
+html[data-ph-shell] :is(.lbpage, .modepick.sb-host)::-webkit-scrollbar { display: none; }
+html[data-ph-shell] .lbpage.hop > :not(.msb):not(.mbd), html[data-ph-shell] .modepick.hop > :not(.msb):not(.mbd),
+html[data-ph-shell] .lbpage:not(.hop) > :is(.lbtopbar, .lbscroll, .pnbar) { animation: none; }
+/* Scrollers keep one themed look and a reserved gutter, so a bar arriving with late data moves nothing. */
+html[data-ph-shell] { scrollbar-color: var(--ph-gold) transparent; }
+html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody { scrollbar-color: auto; }
+html[data-ph-shell]:not([data-ph-compact]) :is(.ph-settings, .ph-frows, .phc-gridwrap, .phc-rail, .phc-side, .phc-view, .bookguides, .rgp-listwrap, .rgp-detailcol, .phpn-index, .phpn-feed) { scrollbar-gutter: stable; }
+/* THE ENTRANCE: one shared, CSS-only mount animation, so a new page starts at once, an old one just leaves, and tab mashing cannot
+   stack: only the page that is there plays it. Transform and opacity, one-shot, filling backwards only. About 200-260ms. */
+@keyframes phk-in { from { opacity: 0; transform: translateY(calc(6 * var(--phu))); } }
+/* The header is there on the first frame, over the steady backdrop, so a move never reads as empty; the body rows ease in under it. */
+html[data-ph-shell] .phk-page .phk-pagebody > * { animation: phk-in 0.2s cubic-bezier(0.22, 0.8, 0.3, 1) backwards; }
+html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(1) { animation-delay: 20ms; }
+html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(2) { animation-delay: 40ms; }
+html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(n + 3) { animation-delay: 60ms; }
+/* The mode panel's content eases in the same way (fade only: it is its own scroller). */
+@keyframes phk-fadein { from { opacity: 0; } }
+.ph-settings { animation: phk-fadein 0.18s ease-out backwards; }
+@media (prefers-reduced-motion: reduce) { html[data-ph-shell] .phk-page .phk-pagebody > *, .ph-settings { animation: none; } }

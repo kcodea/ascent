@@ -13,7 +13,6 @@
 .vsr-hp { display: inline-flex; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); letter-spacing: 0; color: var(--ph-ink); }
 .vsr-hp svg { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); }
 .vsr-hp b { font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); margin-right: calc(8 * var(--phu)); }
-.vsr-open:not(.vsr-cantake) .ph-invmed { opacity: 0.45; }
 .vsr-dragwrap { display: contents; }
 .vsr-mineseat .ph-card { touch-action: none; }
 .vsr-botslot { position: absolute; left: 50%; bottom: calc(var(--footh, 0px) + 8 * var(--phu)); translate: -50% 0; z-index: 3; }
@@ -25,12 +24,9 @@
 .vsr-seat.vsr-bad .ph-card { background: var(--pill-red, #ff7a66); }
 .vsr-stands { flex: none; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(12 * var(--phu)) calc(24 * var(--phu)) calc(16 * var(--phu));
   background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r); }
-.vsr-stands.vsr-target { box-shadow: var(--ph-gild); }
-.vsr-stands.vsr-over { background: var(--ph-plate-hover); box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), var(--ph-gild); }
 .vsr-standshead { display: flex; align-items: baseline; gap: calc(16 * var(--phu)); }
 .vsr-standshead h2 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .vsr-standsn { font-family: var(--ph-name-font); font-weight: 700; font-size: var(--ph-t2); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
-.vsr-standshint { margin-left: auto; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-gold-hi); }
 .vsr-tiles { display: flex; gap: calc(8 * var(--phu)); min-height: calc(48 * var(--phu)); overflow-x: auto; scrollbar-width: thin; overscroll-behavior: contain; }
 .vsr-none { align-self: center; font-size: var(--ph-t2); color: var(--ph-muted); }
 .vsr-tile { position: relative; flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(48 * var(--phu)); padding: 0 calc(16 * var(--phu)) 0 0; overflow: hidden;
@@ -56,11 +52,9 @@
 .vsr-sellband { position: fixed; left: 0; right: 0; top: 0; z-index: 489; pointer-events: none; display: flex; align-items: flex-end; justify-content: center; padding-bottom: calc(16 * var(--phu)); box-sizing: border-box;
   background: linear-gradient(180deg, color-mix(in srgb, var(--ph-gold) 16%, transparent), color-mix(in srgb, var(--ph-gold) 0%, transparent) 90%); opacity: 0.6; transition: opacity 0.12s ease; }
 .vsr-sellband.vsr-on { opacity: 1; }
-.vsr-sellband > span { padding: calc(6 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-plate); box-shadow: var(--ph-gild); border-radius: var(--ph-r);
-  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-gold-hi); }
 
 /* THE STANDS: a slim strip just over START, out of the layout flow, so the banner row never moves. */
-.vsr-stands { position: absolute; left: 50%; bottom: calc(100% + 4 * var(--phu)); translate: -50% 0; z-index: 3; max-width: 100%; box-sizing: border-box; flex-direction: row; align-items: center; gap: calc(16 * var(--phu)); padding: calc(4 * var(--phu)) calc(16 * var(--phu)); }
+.vsr-stands { position: absolute; left: 50%; bottom: calc(100% + 14 * var(--phu)); translate: -50% 0; z-index: 3; max-width: 100%; box-sizing: border-box; flex-direction: row; align-items: center; gap: calc(16 * var(--phu)); padding: calc(4 * var(--phu)) calc(16 * var(--phu)); }
 .vsr-standshead { flex: none; align-items: center; }
 .vsr-tiles { flex: 1; min-height: 0; }
 .vsr-tile { height: calc(36 * var(--phu)); padding-right: calc(12 * var(--phu)); }
@@ -68,10 +62,8 @@
 .ph-actions { position: relative; }
 /* The Open rooms tab: a compact list that scrolls on its own. */
 .vso-list { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
-.vso-row .phk-rowart { width: 30%; }
-.vso-row .phk-rowright { align-self: stretch; padding-left: calc(24 * var(--phu)); background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ph-navy) 92%, transparent) 30%); }
 /* A phone: every control at least 40 px, the strip a single line over START. */
-html[data-ph-compact] .ph .vsr-stands { bottom: calc(100% - 2 * var(--phu)); padding: 0 calc(12 * var(--phu)); }
+html[data-ph-compact] .ph .vsr-stands { bottom: calc(100% + 6 * var(--phu)); padding: 0 calc(12 * var(--phu)); }
 html[data-ph-compact] .vsr-tile { height: calc(28 * var(--phu)); }
 html[data-ph-compact] .vsr-tileart { width: calc(28 * var(--phu)); }
 html[data-ph-compact] .vsr-tiles { min-height: 0; }
@@ -81,7 +73,7 @@ html[data-ph-compact] .ph-menuitem { min-height: calc(40 * var(--pt)); }
 @media (prefers-reduced-motion: reduce) { .vsr-tile, .vsr-ghostin, .vsr-notice { animation: none; } .vsr-ghost.vsr-snap { transition: none; } }
 
 /* Nobody watching: the strip keeps its box (the drag measures it) and shows only as a drop target. */
-.vsr-stands.vsr-nostands:not(.vsr-target) { visibility: hidden; }
+.vsr-stands.vsr-nostands { visibility: hidden; }
 
 /* Three panel tabs fit the column (Friends, Rules, Open rooms). */
 .ph-sidetabs .phk-tabs { gap: 0; }
@@ -90,3 +82,43 @@ html[data-ph-compact] .ph-menuitem { min-height: calc(40 * var(--pt)); }
 html[data-ph-compact] .vsr-open .ph-opensub { display: none; }
 /* A seat with no record to show keeps the medal line's height, with no empty chip. */
 .vsr-rankspace { visibility: hidden; }
+
+/* ROUND 8. A seat's foot: a line with nothing to say draws nothing; a record reads as plain text, never a medal chip. */
+.ph-rank.vsr-rankspace { visibility: hidden; }
+.ph-rank.vsr-rankplain { background: none; box-shadow: none; }
+/* The calm wait: nothing to press, so no plaque. Same box as START, so nothing moves. */
+.ph-start.vsr-waitplate, .ph-start.vsr-waitplate:hover { display: grid; place-items: center; box-sizing: border-box; background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: 999px; filter: none; transform: none;
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t3); letter-spacing: 0.04em; text-transform: none; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.ph-start.vsr-waitplate > span { padding: 0; }
+/* The buttons beside START: equal pills with a clear gap, and clear of the plaque. */
+.ph-actions > .ph-side:not(.ph-side-r) { gap: calc(12 * var(--phu)); padding-right: calc(16 * var(--phu)); align-items: center; }
+html[data-ph-compact] .ph-actions > .ph-side:not(.ph-side-r) { gap: calc(8 * var(--phu)); padding-right: calc(8 * var(--phu)); }
+/* The ghost is the card: the banner's rod reads the row's gap. */
+.vsr-ghost { --gap: calc(44 * var(--phu)); }
+/* The one spectate target: the band over the seats; its chip centred on the party stage (left is set from the drag). */
+.vsr-sellband > span { position: absolute; bottom: calc(16 * var(--phu)); translate: -50% 0; padding: calc(6 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-plate); box-shadow: var(--ph-gild); border-radius: 999px;
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.04em; color: var(--ph-gold-hi); }
+/* Open rooms: a fixed art slot and a fixed button column, so nothing shifts between Join and Watch. */
+.vso-row .phk-rowmain { padding-right: calc(76 * var(--phu)); }
+.vso-row .phk-rowart { width: calc(72 * var(--phu)); -webkit-mask-image: linear-gradient(90deg, transparent, #000 40%, #000 70%, transparent); mask-image: linear-gradient(90deg, transparent, #000 40%, #000 70%, transparent); }
+.vso-row .phk-rowright { flex: none; box-sizing: border-box; width: calc(96 * var(--phu)); padding: 0 calc(8 * var(--phu)) 0 0; justify-content: flex-end; }
+.vso-row .phk-rowright .phk-btn { width: 100%; padding-inline: 0; }
+/* (Anchored to the banners' row, above the rods.) */
+.ph-pairrow { position: relative; }
+/* Versus Duos: the team words read clearly, close to their banners, phones too. */
+.ph .ph-pairlbl { display: block; box-sizing: border-box; top: auto; left: 50%; right: auto; bottom: calc(100% + 34 * var(--phu)); translate: -50% 0; width: max-content; height: auto; min-height: 0; margin: 0; padding: calc(4 * var(--phu)) calc(16 * var(--phu)); line-height: 1.3; border-radius: 999px; font-size: var(--ph-t3); font-weight: 900; background: rgba(6, 12, 28, 0.92); box-shadow: var(--ph-gild-s); }
+.ph .ph-pairlbl.mine { color: #b9f29c; }
+.ph .ph-pairlbl.rival { color: #ffb4ab; }
+html[data-ph-compact] .ph .ph-pairlbl { display: block; bottom: calc(100% + 16 * var(--phu)); padding: 0 calc(12 * var(--phu)); font-size: var(--ph-t1); z-index: 4; }
+
+/* ROUND 9. Open rooms: room for the whole line. */
+.vso-row.phk-row { min-height: calc(80 * var(--phu)); }
+.vso-row .phk-rowsub { white-space: normal; line-height: 1.3; }
+/* The buttons beside START never clip: extras wrap, the row keeps its width. */
+.ph-actions > .ph-side:not(.ph-side-r) { flex-wrap: wrap; min-width: 0; }
+/* A phone: the banner row keeps the home's size, so the stands are a count chip by the rules line, and the list is in the drawer. */
+html[data-ph-compact] .ph-stagehead .vsr-stands { position: static; translate: none; flex: none; padding: 0 calc(12 * var(--phu)); }
+html[data-ph-compact] .ph-stagehead .vsr-tiles { display: none; }
+.vsr-drawerstands .vsr-stands { position: static; translate: none; max-width: none; flex-direction: column; align-items: stretch; }
+.vsr-drawerstands .vsr-stands.vsr-nostands { display: none; }
+.vsr-drawerstands .vsr-tiles { flex-wrap: wrap; }

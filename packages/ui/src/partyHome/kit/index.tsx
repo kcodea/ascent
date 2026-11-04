@@ -187,7 +187,7 @@ export function PhSelectList<T>({ items, keyOf, selected, onSelect, render, labe
     const it = items[Math.max(0, Math.min(items.length - 1, i))];
     if (!it) return;
     onSelect(it);
-    ref.current?.querySelector<HTMLElement>(`[data-key="${CSS.escape(keyOf(it))}"]`)?.scrollIntoView?.({ block: 'nearest' });
+    ref.current?.querySelector<HTMLElement>(`[data-key="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(keyOf(it)) : keyOf(it).replace(/["\\]/g, '\\$&')}"]`)?.scrollIntoView?.({ block: 'nearest' });
   };
   const onKey = (e: KeyboardEvent<HTMLDivElement>): void => {
     if (e.key === 'ArrowDown') { e.preventDefault(); move(at + 1); }
@@ -560,12 +560,14 @@ export function phNum(text: string): ReactNode {
 export { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhLeaderBadge } from './PhBanner';
 
 /** A labelled text field: a small label over a pill input (a room name, a team name), an optional hint or error under it. */
-export function PhField({ label, hint, error, className, id, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode; hint?: ReactNode; error?: ReactNode }) {
+export function PhField({ label, hint, error, className, id, showCount, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode; hint?: ReactNode; error?: ReactNode;
+  /** With `maxLength`: a "3 / 16" counter beside the label, so typing never stops silently. */
+  showCount?: boolean }) {
   const auto = useId();
   const fid = id ?? auto;
   return (
     <label className={cx('phk-field', className)} htmlFor={fid}>
-      <span className="phk-seglbl">{label}</span>
+      <span className="phk-fieldhead"><span className="phk-seglbl">{label}</span>{showCount && rest.maxLength != null && <span className="phk-fieldcount">{String(rest.value ?? '').length} / {rest.maxLength}</span>}</span>
       <input id={fid} spellCheck={false} autoComplete="off" {...rest} className="phk-search phk-fieldinput" aria-invalid={error ? true : undefined} />
       {error ? <span className="phk-fielderr" role="alert">{error}</span> : hint ? <span className="phk-seghint">{hint}</span> : null}
     </label>

@@ -75,7 +75,7 @@ describe('Versus on the party home shell (pure half)', () => {
     const base = { status: 'open' as const, host: true, isPlayer: true, running: false, phase: null, round: null, gateLeft: null };
     expect(roomStartOf({ ...base, mode: 'duel', seated: 1 })).toMatchObject({ canStart: false, note: 'Waiting for an opponent.' });
     expect(roomStartOf({ ...base, mode: 'duel', seated: 2 })).toMatchObject({ canStart: true, label: 'Start' });
-    expect(roomStartOf({ ...base, mode: 'duel', seated: 2, host: false })).toMatchObject({ canStart: false, note: 'The host starts the match.' });
+    expect(roomStartOf({ ...base, mode: 'duel', seated: 2, host: false })).toMatchObject({ canStart: false, label: 'Waiting for host', wait: true });
     expect(roomStartOf({ ...base, mode: 'group', seated: 3 })).toMatchObject({ canStart: true });
     expect(roomStartOf({ ...base, mode: 'duos', seated: 2 }).note).toBe('Waiting for 2 more players.');
     expect(roomStartOf({ ...base, mode: 'duel', seated: 2, status: 'in_game', running: true, isPlayer: false, phase: 'shop', round: 3 }))

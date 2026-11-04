@@ -112,7 +112,7 @@
 
 /* ── Phones (landscape): the window's phone zoom (touchUi.css scales `.book` 1.7x) is for the overlay, not this page;
    a narrower rail, a smaller search, cards a little smaller so a row and a half fits the height. ── */
-html[data-touch-ui][data-touch-small] .phc .phc-book { scale: none; width: auto; height: auto; }
+html[data-touch-ui][data-touch-small] .phc .phc-book { scale: none; width: auto; }
 html[data-touch-small] .phc .book-rail { width: calc(200 * var(--phu)); }
 html[data-touch-small] .phc .book-grid { --ch: calc(300px * var(--book-zoom, 1)); }
 html[data-touch-small] .phc .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var(--phu)); }
@@ -183,4 +183,7 @@ html[data-ph-compact] .phc .book-tier { min-width: calc(64 * var(--phu)); }
 html[data-ph-compact] .phc .book-main { gap: calc(8 * var(--phu)); }
 html[data-ph-compact] .phc :is(.book-zoom, .book-search) { height: calc(64 * var(--phu)); }
 html[data-ph-compact] .phc .book-zoom-btn { width: calc(64 * var(--phu)); height: calc(64 * var(--phu)); }
-html[data-ph-compact] .phc .book-search { width: calc(240 * var(--phu)); background: color-mix(in srgb, var(--ph-navy) 75%, transparent); box-shadow: var(--ph-gild); text-overflow: ellipsis; }
+/* The search keeps a visible field on phones (the kit strips the header tools' own backgrounds). */
+html[data-ph-shell][data-ph-compact] .phk-page .phc-actions .book-search { padding: 0 calc(16 * var(--phu)); background: color-mix(in srgb, var(--ph-navy) 75%, transparent); box-shadow: var(--ph-gild); text-overflow: ellipsis; }
+/* The book fills exactly what the page body has left, so the gallery is the one scroller (its lazy cells observe it). */
+html[data-ph-shell][data-ph-compact] .phk-page .phc-book { flex: 1 1 0; height: auto; min-height: 0; }

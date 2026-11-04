@@ -55,8 +55,8 @@ function writeTab(t: PatchCategory): void {
  *  "Rune reworks", and a bare "Art Batch" says nothing the date doesn't, so it shows no label. */
 export function playerLabel(label: string | undefined): string | undefined {
   if (!label) return undefined;
-  const tidy = label.replace(/^Balance \d+\/\d+:\s*/, '').replace(/\s+(?:[A-Z]|round \d+)$/, '').trim();
-  if (!tidy || /batch/i.test(tidy)) return undefined;
+  const tidy = label.replace(/^Balance \d+\/\d+:\s*/, '').replace(/\s+(?:[A-HJ-Z]|round \d+)$/, '').trim();
+  if (!tidy || /\bbatch\b/i.test(tidy)) return undefined;
   return tidy[0]!.toUpperCase() + tidy.slice(1);
 }
 

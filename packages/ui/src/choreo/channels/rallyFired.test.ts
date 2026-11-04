@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
 import { compileMoments } from '../compile';
-import { attackSummonUids, ownRallyBindingFor, ralliesFiredIn, rallyProcsFor, RALLY_BEAT_MS, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS } from './rallyFired';
+import { attackSummonUids, ownRallyBindingFor, ownRallyFloatDelayMs, splitOwnRallyFloats, ralliesFiredIn, rallyProcsFor, RALLY_BEAT_MS, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS } from './rallyFired';
 
 const rally = (source: string, target: string): CombatEvent => ({ type: 'rally', source, target } as CombatEvent);
 const buff = (target: string): CombatEvent =>
@@ -233,5 +233,21 @@ describe('ownRallyBindingFor — an ordinary Rally plays its own "On Rally" bind
   it('another unit ally proc in the same moment does not suppress the attacker own', () => {
     const events = [atk, rally('z', 'b')];
     expect(ownRallyBindingFor(span(0, 2), events, 'a', 'd2_chorus', true, resolve)).toEqual({ def: 'chorus-notes' });
+  });
+});
+
+describe('the rallier number waits for its own Rally effect (R-FX-RALLY-FLOAT-01)', () => {
+  const fl = (uid: string, kind: string) => ({ uid, kind, text: '' });
+
+  it('holds the rallier non-damage floats and keeps everything else on time', () => {
+    const floats = [fl('a', 'sc'), fl('a', 'dmg'), fl('d', 'dmg'), fl('z', 'sc')];
+    const { now, later } = splitOwnRallyFloats(floats, 'a');
+    expect(later).toEqual([fl('a', 'sc')]);
+    expect(now).toEqual([fl('a', 'dmg'), fl('d', 'dmg'), fl('z', 'sc')]);
+  });
+
+  it('lands after the wind-up pulse, with the same read gap Echohorn sparkle uses', () => {
+    expect(ownRallyFloatDelayMs(0.3)).toBe(300 + RALLY_PULSE_READ_MS);
+    expect(ownRallyFloatDelayMs(0.3)).toBeGreaterThan(300);
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { PARTY_MODES, partyModeOf, partyModes } from './partyModes';
+import { MODE_FAMILIES, PARTY_MODES, familyOf, modeHasSettings, partyFamilies, partyModeOf, partyModes } from './partyModes';
 
 const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
 
@@ -45,3 +45,33 @@ describe('party home prototype', () => {
     for (const s of strings) { expect(s).not.toMatch(/—|\s--\s/); expect(s).not.toMatch(/\b(Oath|climb)\b/i); }
   });
 });
+
+describe('mode families (owner 2026-11-04: fewer top tabs, sub-modes on the side)', () => {
+  it('the top row is five families and every mode belongs to exactly one', () => {
+    expect(MODE_FAMILIES.map((f) => f.label)).toEqual(['Ranked', 'Versus', 'Practice', 'Gauntlet', 'Learn']);
+    for (const m of PARTY_MODES) expect(MODE_FAMILIES.filter((f) => f.subs.some((x) => x.id === m.id))).toHaveLength(1);
+    expect(familyOf('vduos').id).toBe('versus');
+  });
+  it('a build without Versus keeps Ranked (Solo only) and drops the Versus family', () => {
+    const fams = partyFamilies(partyModes({ versus: false, dev: false }));
+    expect(fams.map((f) => f.id)).toEqual(['ranked', 'practice', 'gauntlet', 'learn']);
+    expect(fams[0]!.subs.map((x) => x.id)).toEqual(['ranked']);
+  });
+  it('a family with sub-modes has a settings tab', () => {
+    expect(modeHasSettings('ranked')).toBe(true);
+    expect(modeHasSettings('learn')).toBe(false);
+  });
+});
+
+describe('tab changes (owner 2026-11-04: no scrollbar wobble, a gentle entrance)', () => {
+  const css = readFileSync(fileURLToPath(new URL('./kit/kit.css', import.meta.url)), 'utf8');
+  it('the page host never shows a bar and the old host rise is off under the shell', () => {
+    expect(css).toMatch(/:is\(\.lbpage, \.modepick\.sb-host\) \{ scrollbar-width: none; \}/);
+    expect(css).toMatch(/\.lbpage\.hop > :not\(\.msb\):not\(\.mbd\)[^{]*\{ animation: none; \}/);
+  });
+  it('the shared entrance is transform and opacity only, and fills backwards only', () => {
+    expect(css).toMatch(/@keyframes phk-in \{ from \{ opacity: 0; transform: translateY\([^;]*; \} \}/);
+    expect(css).toMatch(/animation: phk-in [^;]* backwards;/);
+  });
+});
+

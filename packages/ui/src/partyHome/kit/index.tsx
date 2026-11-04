@@ -224,8 +224,11 @@ export function PhEmpty({ title, sub, action }: { title: ReactNode; sub?: ReactN
  * passes `value`; multi-select passes `isOn` and toggles in `onPick`. `disabled` greys the row; give `hint` the reason.
  * `size="l"`: the big two-way switch (Practice's Sandbox | God Mode).
  */
-export function PhSegmented<T extends string | number | null>({ label, hint, value, isOn, options, onPick, disabled, size = 'm', max }: {
-  label?: ReactNode; hint?: ReactNode; value?: T; isOn?: (v: T) => boolean; options: readonly { value: T; label: ReactNode }[];
+export function PhSegmented<T extends string | number | null>({ label, hint, value, isOn, options, onPick, disabled, size = 'm', max, onLocked, onLockedHover }: {
+  label?: ReactNode; hint?: ReactNode; value?: T; isOn?: (v: T) => boolean;
+  /** `reason`: the option is locked: dimmed, says why through `onLocked` (a press) and `onLockedHover`. */
+  options: readonly { value: T; label: ReactNode; reason?: string }[];
+  onLocked?: (reason: string) => void; onLockedHover?: (reason: string | null) => void;
   onPick: (v: T) => void; disabled?: boolean; size?: 'm' | 'l';
   /** Show at most this many options; the rest go into a "More" menu (the picked one, if hidden, names the button). */
   max?: number;
@@ -266,8 +269,9 @@ export function PhSegmented<T extends string | number | null>({ label, hint, val
       {label && <span className="phk-seglbl">{label}</span>}
       <div className="phk-segrow" role="group" aria-label={typeof label === 'string' ? label : undefined}>
         {options.map((o) => (
-          <button key={String(o.value)} type="button" className={cx('phk-segbtn', lit(o.value) && 'on')} aria-pressed={lit(o.value)} disabled={disabled}
-            onClick={() => { if (!disabled) onPick(o.value); }}>{o.label}</button>
+          <button key={String(o.value)} type="button" className={cx('phk-segbtn', lit(o.value) && 'on', o.reason && 'locked')} aria-pressed={lit(o.value)} disabled={disabled} aria-disabled={o.reason ? true : undefined}
+            onPointerEnter={o.reason ? () => onLockedHover?.(o.reason!) : undefined} onPointerLeave={o.reason ? () => onLockedHover?.(null) : undefined}
+            onClick={() => { if (disabled) return; if (o.reason) { onLocked?.(o.reason); return; } onPick(o.value); }}>{o.label}</button>
         ))}
       </div>
       {hint && <span className="phk-seghint">{hint}</span>}
@@ -556,12 +560,14 @@ export function phNum(text: string): ReactNode {
 export { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhLeaderBadge } from './PhBanner';
 
 /** A labelled text field: a small label over a pill input (a room name, a team name), an optional hint or error under it. */
-export function PhField({ label, hint, error, className, id, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode; hint?: ReactNode; error?: ReactNode }) {
+export function PhField({ label, hint, error, className, id, showCount, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode; hint?: ReactNode; error?: ReactNode;
+  /** With `maxLength`: a "3 / 16" counter beside the label, so typing never stops silently. */
+  showCount?: boolean }) {
   const auto = useId();
   const fid = id ?? auto;
   return (
     <label className={cx('phk-field', className)} htmlFor={fid}>
-      <span className="phk-seglbl">{label}</span>
+      <span className="phk-fieldhead"><span className="phk-seglbl">{label}</span>{showCount && rest.maxLength != null && <span className="phk-fieldcount">{String(rest.value ?? '').length} / {rest.maxLength}</span>}</span>
       <input id={fid} spellCheck={false} autoComplete="off" {...rest} className="phk-search phk-fieldinput" aria-invalid={error ? true : undefined} />
       {error ? <span className="phk-fielderr" role="alert">{error}</span> : hint ? <span className="phk-seghint">{hint}</span> : null}
     </label>

@@ -46,9 +46,11 @@ import { versusModifierName, versusOptionsSummary } from '../versus/versusOption
 import type { VersusMember, VersusRole, VersusRoom, VersusRoomSummary } from '../versus/versusRemote';
 import { seatPools } from '../versus/VersusRoom';
 import { MAX_RECORD_IDS, playerCardArt, seatCardSource, useSeatData, type SeatServerData } from '../versus/versusSeatCard';
-import { clearVersusError, isDuosParty, joinRoom, leaveRoom, myRole, refreshRooms, setRoomOptions, setVersusStatsOpen, startGame, takeSeat, useVersus, versusRemainingMs } from '../versus/versusStore';
+import { clearVersusError, isDuosParty, joinRoom, refreshRooms, setVersusStatsOpen, useVersus, versusRemainingMs } from '../versus/versusStore';
 import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhChip, PhEmpty, PhField, PhRow, PhSegmented } from './kit';
 import { openSeatText, ROOM_STATUS, roomJoin, roomModeOf, roomModeShort, roomStartOf, roomTitleOf, seatCap, seatTeams, seatText, VERSUS_OFFLINE_TEXT, visibleRooms, type VersusRoomMode } from './pages/versusPh';
+import { usePartyRoom } from './partyHomeFlag';
+import { homeLeave, homeMe, homeRoomNow, homeSetOptions, homeStart, homeTakeSeat, sampleJoin, sampleRooms, sampleToggleView, useSampleRoom } from './sampleRoom';
 import './pages/versusHome.css';
 
 function useCountdown(iso: string | null | undefined): number | null {
@@ -67,33 +69,36 @@ function useCountdown(iso: string | null | undefined): number | null {
 //    opponent-cosmetics switch, exactly as the classic seat card) ───────────────────────────────────────────────────────
 interface Face { name: string; art: string | undefined; titleId: string | null; record: { wins: number; losses: number } | null }
 function useFace(m: Pick<VersusMember, 'userId' | 'displayName' | 'profile'>, server: SeatServerData | undefined, thumb: boolean): Face {
-  const own = m.userId === currentUserId();
+  const own = m.userId === homeMe();
   const showOpp = useGame((s) => s.showOpponentSkins);
   const myAvatar = useGame((s) => s.playerAvatar);
   const myTitle = useProgression((s) => mirrorFor(currentUserId(), s.mirror)?.equippedTitleId ?? null);
   const myLoadout = useLiveLoadout();
+  const myName = useGame((s) => s.playerName);
   return useMemo(() => {
     const src = seatCardSource({ member: m, own, showOpp, server, ...(own ? { self: { avatar: myAvatar ?? null, titleId: myTitle, cosmetics: myLoadout } } : {}) });
     const art = playerCardArt(src);
-    return { name: src.name || 'Player', art: thumb ? heroThumb(art) : art, titleId: src.titleId, record: src.record };
-  }, [m.userId, m.displayName, m.profile, own, showOpp, server, myAvatar, myTitle, myLoadout, thumb]);
+    return { name: (own && myName) || src.name || 'Player', art: thumb ? heroThumb(art) : art, titleId: src.titleId, record: src.record };
+  }, [m.userId, m.displayName, m.profile, own, showOpp, server, myAvatar, myTitle, myLoadout, thumb, myName]);
 }
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
 /** A banner's foot (a seat, and the drag ghost): name, Versus record, title, state. The kit's PhBanner draws the rest. */
 function BannerFoot({ face, medal, state }: { face: Face; medal?: ReactNode; state: ReactNode }) {
+  const record = face.record && (
+    <span className="vsr-rec" aria-label={`Versus record: ${plural(face.record.wins, 'win', 'wins')}, ${plural(face.record.losses, 'loss', 'losses')}`}>
+      <b>{face.record.wins}</b><span>{face.record.wins === 1 ? 'win' : 'wins'}</span><i aria-hidden="true" /><b>{face.record.losses}</b><span>{face.record.losses === 1 ? 'loss' : 'losses'}</span>
+    </span>
+  );
   return (
     <>
       <PhBannerName>{face.name}</PhBannerName>
-      {medal}
-      {face.record && (
-        <span className="vsr-rec" aria-label={`Versus record: ${plural(face.record.wins, 'win', 'wins')}, ${plural(face.record.losses, 'loss', 'losses')}`}>
-          <b>{face.record.wins}</b><span>{face.record.wins === 1 ? 'win' : 'wins'}</span><i aria-hidden="true" /><b>{face.record.losses}</b><span>{face.record.losses === 1 ? 'loss' : 'losses'}</span>
-        </span>
-      )}
-      {face.titleId && <span className="ph-sub"><TitleBadge id={face.titleId} className="ph-titlebadge" /></span>}
-      {state}
+      {/* ONE FIXED FOOT: the home's own lines (medal, title, state strip) in every state, so no text ever moves. A line with
+          nothing to say keeps its height and draws nothing (never an empty chip). */}
+      {medal ?? <span className={`ph-rank ${record ? 'vsr-rankplain' : 'vsr-rankspace'}`}>{record ?? '\u00a0'}</span>}
+      <span className="ph-sub">{face.titleId ? <TitleBadge id={face.titleId} className="ph-titlebadge" /> : medal && record ? record : '\u00a0'}</span>
+      {state ?? <PhBannerState tone="space" />}
     </>
   );
 }
@@ -117,6 +122,8 @@ interface PhDrag {
   h: number;
   /** The sell line (stage px) for a seated card: above it the card goes to the stands. */
   sellTop: number | null;
+  /** The centre of the party stage (stage px): the Spectate chip sits over the banners, not the whole window. */
+  bandX: number;
   /** Springing back: the ghost's target (stage px). */
   snap: { x: number; y: number; s: number } | null;
 }
@@ -143,8 +150,8 @@ function useRoomDrag(root: RefObject<HTMLElement>): {
   const begin = (e: ReactPointerEvent<HTMLElement>, userId: string): void => {
     const el = root.current;
     if (!el || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    const me = currentUserId();
-    const room = liveRoomView();
+    const me = homeMe();
+    const room = homeRoomNow(liveRoomView);
     if (useVersus.getState().seatMove || live.current || !canDragSeatCard(room, me, userId)) return;
     const from = memberOf(room, me)!.role;
     // The press's own box: a display-contents wrapper (my seat banner) has none, so its banner stands in.
@@ -176,11 +183,13 @@ function useRoomDrag(root: RefObject<HTMLElement>): {
       const one = seatEls[0];
       const w = one?.offsetWidth || toStage(sr.width);
       const h = one?.offsetHeight || toStage(sr.height);
+      const stg = el.querySelector<HTMLElement>('.ph-stage')?.getBoundingClientRect();
+      const bandX = toStage(stg ? stg.left + stg.width / 2 : sr.left + sr.width / 2);
       pos.current = { x: x0, y: y0 };
       dragged.current = true;
       showDragCursorVeil();
       sfx.cardTouch();
-      put({ userId, from, zone: null, valid: false, w, h, sellTop: sellScreen === null ? null : toStage(sellScreen), snap: null });
+      put({ userId, from, zone: null, valid: false, w, h, sellTop: sellScreen === null ? null : toStage(sellScreen), bandX, snap: null });
     };
     const frame = (): void => {
       raf = 0;
@@ -188,7 +197,7 @@ function useRoomDrag(root: RefObject<HTMLElement>): {
       const d = live.current;
       if (!d || !geo) return;
       const zone = seatZoneAt(from, pos.current.x, pos.current.y, geo);
-      if (zone !== d.zone) put({ ...d, zone, valid: seatZoneValid(zone, liveRoomView(), currentUserId()) });
+      if (zone !== d.zone) put({ ...d, zone, valid: seatZoneValid(zone, homeRoomNow(liveRoomView), homeMe()) });
     };
     const onMove = (ev: PointerEvent): void => {
       if (ev.pointerId !== e.pointerId) return;
@@ -226,12 +235,12 @@ function useRoomDrag(root: RefObject<HTMLElement>): {
       finish();
       if (!geo) { teardown(); return; } // a click, not a drag
       pos.current = { x: ev.clientX, y: ev.clientY };
-      const me2 = currentUserId();
-      const drop = seatDropOf(seatZoneAt(from, pos.current.x, pos.current.y, geo), liveRoomView(), me2);
+      const me2 = homeMe();
+      const drop = seatDropOf(seatZoneAt(from, pos.current.x, pos.current.y, geo), homeRoomNow(liveRoomView), me2);
       if (drop.kind === 'take' && me2) {
         if (drop.role === 'spectator') sfx.sell(); else sfx.play();
         teardown();
-        void takeSeat(drop.role);
+        void homeTakeSeat(drop.role);
         return;
       }
       if (drop.kind === 'reject') sfx.deny();
@@ -262,7 +271,7 @@ export interface VersusRoomHome {
   /** The strip under the banners. */
   stands: JSX.Element | null;
   /** START. */
-  start: { label: string; ok: boolean; note: string | null; run: () => void } | null;
+  start: { label: string; ok: boolean; wait: boolean; note: string | null; run: () => void } | null;
   /** The buttons beside START (Leave room, Previous match stats, the DEV bot tools). */
   side: JSX.Element | null;
   /** The drag ghost, the rules notice, the match stats window. */
@@ -274,10 +283,14 @@ export interface VersusRoomHome {
 }
 
 export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, onInvite: () => void, myMedal: ReactNode): VersusRoomHome {
-  const serverRoom0 = useVersus((s) => s.room);
+  const sampleOn = usePartyRoom();
+  const sample = useSampleRoom((s) => s.room);
+  const sampleView = useSampleRoom((s) => s.view);
+  const liveRoom = useVersus((s) => s.room);
+  const serverRoom0 = sampleOn ? sample : liveRoom;
   const serverRoom = serverRoom0 && !isDuosParty(serverRoom0) ? serverRoom0 : null;
   const seatMove = useVersus((s) => s.seatMove);
-  const me = currentUserId();
+  const me = homeMe();
   const room = useMemo(() => roomWithSeatMove(serverRoom, seatMove, me), [serverRoom, seatMove, me]);
   const match = useVersus((s) => s.match);
   const optionsNotice = useVersus((s) => s.optionsNotice);
@@ -291,9 +304,9 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   const gateLeft = useCountdown(room?.status === 'sealed' ? room.gate_deadline : null);
   const mode: VersusRoomMode = roomModeOf(serverRoom?.options);
   // ONE batched read for every card in the room: every seat and every spectator (at most 24 ids, R-NET-01).
-  const memberIds = (room?.members ?? []).map((m) => m.userId).slice(0, MAX_RECORD_IDS);
+  const memberIds = sampleOn ? [] : (room?.members ?? []).map((m) => m.userId).slice(0, MAX_RECORD_IDS);
   const seatData = useSeatData(memberIds, `${memberIds.join(',')}|${room?.status === 'open' ? 'open' : 'busy'}|${room?.current_match_id ?? ''}|${lastMatch?.matchId ?? ''}`);
-  useEffect(() => { setMenuFor(null); }, [myRole(room), !!drag]);
+  useEffect(() => { setMenuFor(null); }, [room?.members.find((m) => m.userId === me)?.role, !!drag]);
   useEffect(() => {
     if (!menuFor) return undefined;
     const close = (e: PointerEvent): void => { if (!(e.target as Element | null)?.closest?.('.ph-cardmenu')) setMenuFor(null); };
@@ -303,7 +316,7 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
 
   if (!room || !serverRoom) return { row: null, stands: null, start: null, side: null, layers: null, memberIds: [], seatsFree: 0, dragging: false };
   const teams = seatTeams(mode);
-  const role = myRole(room);
+  const role = room.members.find((m) => m.userId === me)?.role ?? null;
   const mine = memberOf(room, me);
   const host = room.host_user_id === me;
   const open = room.status === 'open';
@@ -317,7 +330,7 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   const allOff = roomBots.length > 0 && roomBots.every((b) => b.disconnected);
   const st = roomStartOf({ mode, status: room.status, seated: seatedCount, host, isPlayer, running, phase: match?.phase ?? null, round: match?.round ?? null, gateLeft });
   const watch = running && !isPlayer && match!.phase !== 'hero_select';
-  const testTools = host && open && versusTestToolsEnabled();
+  const testTools = host && open && !sampleOn && versusTestToolsEnabled();
   const myDraggable = !!me && canDragSeatCard(room, me, me);
   const openSeats = teams.flat().filter((s) => !room.members.some((m) => m.role === s));
 
@@ -331,7 +344,7 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
       return (
         <PhBanner key={side} ghost index={i} className={`vsr-seat vsr-s-${side} vsr-open${over}${target}`}
           label={fromStands ? `Take seat ${side.slice(1)}` : `Open seat ${side.slice(1)}. Invite a friend`}
-          onClick={fromStands ? () => { if (!seatMove) { sfx.play(); void takeSeat(side); } } : () => { sfx.pulse(); onInvite(); }}
+          onClick={fromStands ? () => { if (!seatMove) { sfx.play(); void homeTakeSeat(side); } } : () => { sfx.pulse(); onInvite(); }}
           overlay={testTools && canAddBot ? (
             /* TEST TOOLS (dev / opted-in browsers only): a bot fills this seat through the normal server protocol. */
             <span className="vsr-botslot"><PhButton size="s" onClick={() => { sfx.pulse(); void startVersusBot(room.id, side); }}>Add bot</PhButton></span>
@@ -345,7 +358,7 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
     const mineCard = m.userId === me;
     const canFriend = !mineCard && friendsAccount() && !!friendsList && relationOf(m.userId, { list: friendsList }) === 'none';
     const items: { label: string; run: () => void }[] = mineCard
-      ? open ? [...openSeats.map((s) => ({ label: `Move to seat ${s.slice(1)}`, run: () => { sfx.play(); void takeSeat(s); } })), { label: 'Move to spectators', run: () => { sfx.sell(); void takeSeat('spectator'); } }] : []
+      ? open ? [...openSeats.map((s) => ({ label: `Move to seat ${s.slice(1)}`, run: () => { sfx.play(); void homeTakeSeat(s); } })), { label: 'Move to spectators', run: () => { sfx.sell(); void homeTakeSeat('spectator'); } }] : []
       : canFriend ? [{ label: 'Add friend', run: () => { sfx.pulse(); void addFriend(m.userId); } }] : [];
     return (
       <SeatBanner key={m.userId} side={side} i={i} m={m} medal={mineCard ? myMedal : null} server={seatData.get(m.userId)} thumb={phone} host={m.userId === room.host_user_id} over={over} hidden={drag?.userId === m.userId}
@@ -365,17 +378,18 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
       ? <span className="ph-pairlbl">Team {t + 1}</span>
       : <span className={`ph-pairlbl ${myTeam === t ? 'mine' : 'rival'}`}>{myTeam === t ? 'Your team' : 'Rivals'}</span>);
     row.push(
-      <div key="a" className="ph-pair" role="group" aria-label="Team 1">{lbl(0)}<div className="ph-pairrow">{cards[0]}</div></div>,
+      <div key="a" className="ph-pair" role="group" aria-label="Team 1"><div className="ph-pairrow">{lbl(0)}{cards[0]}</div></div>,
       <span key="vs" className="ph-vs" aria-hidden="true">VS</span>,
-      <div key="b" className="ph-pair" role="group" aria-label="Team 2">{lbl(1)}<div className="ph-pairrow">{cards[1]}</div></div>,
+      <div key="b" className="ph-pair" role="group" aria-label="Team 2"><div className="ph-pairrow">{lbl(1)}{cards[1]}</div></div>,
     );
   } else if (mode === 'duel') row.push(...cards[0]!, <span key="vs" className="ph-vs" aria-hidden="true">VS</span>, ...cards[1]!);
   else row.push(...cards[0]!);
 
-  const leave = (): void => { sfx.pulse(); void stopVersusBot().then(() => leaveRoom()); };
+  const leave = (): void => { sfx.pulse(); void stopVersusBot().then(() => homeLeave()); };
   const side = (
     <>
       <PhButton onClick={leave}>{running && isPlayer ? 'Leave (concede)' : 'Leave room'}</PhButton>
+      {sampleOn && <PhButton onClick={() => { sfx.pulse(); sampleToggleView(); }}>{sampleView === 'host' ? 'View as guest' : 'View as host'}</PhButton>}
       {open && lastMatch && <PhButton onClick={() => { sfx.pulse(); setVersusStatsOpen(true); }}>Previous match stats</PhButton>}
       {roomBots.length > 0 && (
         <>
@@ -391,10 +405,10 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
       {optionsNotice && <div className="vsr-notice" role="status">{optionsNotice}</div>}
       {drag && createPortal(
         <>
-          {sellBand && <div className={`vsr-sellband${drag.zone === 'stands' ? ' vsr-on' : ''}`} style={{ height: drag.sellTop! }} aria-hidden="true"><span>Spectate</span></div>}
+          {sellBand && <div className={`vsr-sellband${drag.zone === 'stands' ? ' vsr-on' : ''}`} style={{ height: drag.sellTop! }} aria-hidden="true"><span style={{ left: drag.bandX }}>Spectate</span></div>}
           <div ref={ghost} className={`vsr-ghost${drag.snap ? ' vsr-snap' : ''}${drag.valid && drag.zone && drag.zone !== 'stands' ? ' vsr-lit' : ''}`} aria-hidden="true"
             style={{ width: drag.w, height: drag.h, ...(drag.snap ? { transform: `translate(${drag.snap.x}px, ${drag.snap.y}px) scale(${drag.snap.s})`, transitionDuration: `${getDragFeel().snapMs}ms` } : {}) }}>
-            <GhostCard userId={drag.userId} room={room} data={seatData} host={drag.userId === room.host_user_id} />
+            <GhostCard userId={drag.userId} room={room} data={seatData} host={drag.userId === room.host_user_id} medal={drag.userId === me ? myMedal : null} />
           </div>
         </>,
         stageHost(),
@@ -404,11 +418,10 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   );
   return {
     row,
-    stands: <Stands spectators={spectators} room={room} me={me} data={seatData} draggingSeated={!!drag && !drag.snap && drag.from !== 'spectator'}
-      over={!!drag && !drag.snap && drag.zone === 'stands'} hiddenId={drag?.userId ?? null} onPointerDown={begin} myDraggable={myDraggable} />,
+    stands: <Stands spectators={spectators} room={room} me={me} data={seatData} hiddenId={drag?.userId ?? null} onPointerDown={begin} myDraggable={myDraggable} />,
     start: {
-      label: st.label, ok: st.canStart || watch, note: bots.error ? `Bot: ${bots.error}` : st.note,
-      run: () => { if (watch) resumeSpectating(); else if (st.canStart) void startGame(); },
+      label: st.label, ok: st.canStart || watch, wait: !!st.wait, note: bots.error ? `Bot: ${bots.error}` : st.note,
+      run: () => { if (watch) resumeSpectating(); else if (st.canStart) void homeStart(); },
     },
     side, layers, memberIds: room.members.map((m) => m.userId).filter((id) => id !== me), seatsFree: openSeats.length, dragging: !!drag,
   };
@@ -443,33 +456,33 @@ function SeatBanner({ side, i, m, medal, server, thumb, host, over, hidden, pool
     </PhBanner>
   );
   // My own banner starts the drag (a wrapper that takes no box, so the banner stays a direct item of the row).
-  return draggable ? <div className="vsr-dragwrap" onPointerDown={onPointerDown}>{banner}</div> : banner;
+  // Always there, so the banner never remounts (and replays its entrance) when the room starts.
+  return <div className="vsr-dragwrap" onPointerDown={draggable ? onPointerDown : undefined}>{banner}</div>;
 }
 
 /** The drag ghost's banner: the dragged member's face at seat size (inert: it never takes focus or a press). */
-function GhostCard({ userId, room, data, host }: { userId: string; room: VersusRoom; data: ReadonlyMap<string, SeatServerData>; host: boolean }) {
+function GhostCard({ userId, room, data, host, medal }: { userId: string; room: VersusRoom; data: ReadonlyMap<string, SeatServerData>; host: boolean; medal: ReactNode }) {
   const m = memberOf(room, userId);
   const face = useFace(m ?? { userId, displayName: '', profile: {} }, data.get(userId), true);
   return (
     <div className="vsr-ghostwrap" ref={(el) => { el?.setAttribute('inert', ''); }}>
       <PhBanner art={face.art} badge={host ? HOST_BADGE : undefined} className="vsr-ghostin" label={face.name}>
-        <BannerFoot face={face} state={null} />
+        <BannerFoot face={face} medal={medal} state={null} />
       </PhBanner>
     </div>
   );
 }
 
 /** THE STANDS: every spectator as a small tile; mine drags to a seat. */
-function Stands({ spectators, room, me, data, draggingSeated, over, hiddenId, onPointerDown, myDraggable }: {
+function Stands({ spectators, room, me, data, hiddenId, onPointerDown, myDraggable }: {
   spectators: VersusMember[]; room: VersusRoom; me: string | null; data: ReadonlyMap<string, SeatServerData>;
-  draggingSeated: boolean; over: boolean; hiddenId: string | null; onPointerDown: (e: ReactPointerEvent<HTMLElement>, userId: string) => void; myDraggable: boolean;
+  hiddenId: string | null; onPointerDown: (e: ReactPointerEvent<HTMLElement>, userId: string) => void; myDraggable: boolean;
 }) {
   return (
-    <section className={`vsr-stands${draggingSeated ? ' vsr-target' : ''}${over ? ' vsr-over' : ''}${spectators.length === 0 ? ' vsr-nostands' : ''}`} aria-label="Spectators">
+    <section className={`vsr-stands${spectators.length === 0 ? ' vsr-nostands' : ''}`} aria-label="Spectators">
       <header className="vsr-standshead">
         <h2>Spectators</h2>
         <span className="vsr-standsn">{spectators.length} / {VERSUS_SPECTATOR_CAP}</span>
-        {draggingSeated && <span className="vsr-standshint">Drop here to spectate</span>}
       </header>
       <div className="vsr-tiles" role="list">
         {spectators.length === 0
@@ -518,7 +531,7 @@ export function RoomRulesPanel({ room, me, modifier, onModifier, name, onName, p
   const pick = (v: VersusModifierId | null): void => {
     sfx.tick();
     if (!room) { onModifier(v); return; }
-    if (v !== value) void setRoomOptions({ v: 1, mode: roomModeOf(room.options), modifiers: v ? [v] : [] } as VersusRoomOptions);
+    if (v !== value) void homeSetOptions({ v: 1, mode: roomModeOf(room.options), modifiers: v ? [v] : [] } as VersusRoomOptions);
   };
   return (
     <>
@@ -526,7 +539,7 @@ export function RoomRulesPanel({ room, me, modifier, onModifier, name, onName, p
       <PhSegmented label="Modifier" value={value} options={MODIFIERS} disabled={!editable} max={4} onPick={pick}
         hint={value ? riftDefFor(value, 'versus').blurb : 'The usual rules.'} />
       <div className="pho-note">
-        <span>{room ? (editable ? 'Versus is unranked. Changes show for everyone at once.' : 'Only the host can change these, between games.') : 'Press Start to open your room, then invite friends.'}</span>
+        <span>{room ? (editable ? 'Versus is unranked. Changes show for everyone at once.' : room.host_user_id === me ? 'The rules are set for this game. You can change them between games.' : 'Only the host can change these, between games.') : 'Press Start to open your room, then invite friends.'}</span>
         {!room && <PhButton size="s" onClick={() => { sfx.pulse(); onBrowse(); }}>Open rooms</PhButton>}
       </div>
     </>
@@ -542,9 +555,14 @@ const ROOMS_HIDDEN_MS = 30_000;
  * while the tab shows. A list that cannot be read is one friendly line with Retry.
  */
 export function OpenRoomsPanel({ mode }: { mode: VersusRoomMode }) {
-  const rooms = useVersus((s) => s.rooms);
-  const loading = useVersus((s) => s.loading);
-  const held = useVersus((s) => s.room);
+  const sampleOn = usePartyRoom();
+  const sampleHeld = useSampleRoom((s) => s.room);
+  const liveRooms = useVersus((s) => s.rooms);
+  const rooms = useMemo(() => (sampleOn ? sampleRooms() : liveRooms), [sampleOn, liveRooms]);
+  const liveLoading = useVersus((s) => s.loading);
+  const loading = liveLoading && !sampleOn;
+  const liveHeld = useVersus((s) => s.room);
+  const held = sampleOn ? sampleHeld : liveHeld;
   const [offline, setOffline] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const read = (): Promise<void> => refreshRooms().then(() => {
@@ -553,6 +571,7 @@ export function OpenRoomsPanel({ mode }: { mode: VersusRoomMode }) {
     if (failed) clearVersusError(); // this panel says it, once
   });
   useEffect(() => {
+    if (sampleOn) return undefined;
     let last = 0;
     const ask = (): void => { last = Date.now(); void read(); };
     ask();
@@ -560,7 +579,7 @@ export function OpenRoomsPanel({ mode }: { mode: VersusRoomMode }) {
     const onVis = (): void => { if (!pageHidden() && Date.now() - last >= ROOMS_VISIBLE_MS) ask(); };
     document.addEventListener('visibilitychange', onVis);
     return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
-  }, []);
+  }, [sampleOn]);
   if (offline) {
     return <PhEmpty title={VERSUS_OFFLINE_TEXT} sub="Your other modes still work."
       action={<PhButton variant="primary" disabled={retrying} onClick={() => { sfx.pulse(); setRetrying(true); void read().finally(() => setRetrying(false)); }}>{retrying ? 'Trying' : 'Retry'}</PhButton>} />;
@@ -579,6 +598,7 @@ export function OpenRoomsPanel({ mode }: { mode: VersusRoomMode }) {
 }
 
 function OpenRoomRow({ r, mine, blocked }: { r: VersusRoomSummary; mine: boolean; blocked: boolean }) {
+  const sampleOn = usePartyRoom();
   const showOpp = useGame((s) => s.showOpponentSkins);
   const join = roomJoin(r);
   const cap = seatCap(r);
@@ -592,7 +612,7 @@ function OpenRoomRow({ r, mine, blocked }: { r: VersusRoomSummary; mine: boolean
     <PhRow dense className="vso-row" art={art} title={title} sub={sub} selected={mine} label={seatText(r)}
       right={mine ? <PhChip tone="teal">Yours</PhChip> : (
         <PhButton variant={join.primary && !blocked ? 'primary' : 'plate'} size="s" disabled={blocked} aria-label={`${join.label} ${title}`}
-          onClick={() => { sfx.pulse(); void joinRoom(r.id, join.as); }}>{join.label}</PhButton>
+          onClick={() => { sfx.pulse(); if (sampleOn) sampleJoin(r); else void joinRoom(r.id, join.as); }}>{join.label}</PhButton>
       )} />
   );
 }

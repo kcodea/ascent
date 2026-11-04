@@ -75,7 +75,7 @@ describe('Versus on the party home shell (pure half)', () => {
     const base = { status: 'open' as const, host: true, isPlayer: true, running: false, phase: null, round: null, gateLeft: null };
     expect(roomStartOf({ ...base, mode: 'duel', seated: 1 })).toMatchObject({ canStart: false, note: 'Waiting for an opponent.' });
     expect(roomStartOf({ ...base, mode: 'duel', seated: 2 })).toMatchObject({ canStart: true, label: 'Start' });
-    expect(roomStartOf({ ...base, mode: 'duel', seated: 2, host: false })).toMatchObject({ canStart: false, note: 'The host starts the match.' });
+    expect(roomStartOf({ ...base, mode: 'duel', seated: 2, host: false })).toMatchObject({ canStart: false, label: 'Waiting for host', wait: true });
     expect(roomStartOf({ ...base, mode: 'group', seated: 3 })).toMatchObject({ canStart: true });
     expect(roomStartOf({ ...base, mode: 'duos', seated: 2 }).note).toBe('Waiting for 2 more players.');
     expect(roomStartOf({ ...base, mode: 'duel', seated: 2, status: 'in_game', running: true, isPlayer: false, phase: 'shop', round: 3 }))
@@ -100,5 +100,20 @@ describe('Versus on the party home shell (pure half)', () => {
       expect(src, f).not.toMatch(/<[a-z][a-z0-9]*\b[^>\n]*\stitle=/);
     }
     expect(here('./versusHome.css')).not.toMatch(/cursor:\s*pointer/);
+  });
+});
+
+describe('the sample room (DEV): no backend, every state', () => {
+  it('fills 1v1, leaves an open seat in Group and Duos, flips host and guest, and leaves', async () => {
+    const { useSampleRoom, sampleToggleView, sampleHost, SAMPLE_ME } = await import('../sampleRoom');
+    const seats = (): number => useSampleRoom.getState().room!.members.filter((m) => m.role !== 'spectator').length;
+    sampleHost('duel', null);
+    expect(seats()).toBe(2);
+    expect(useSampleRoom.getState().room!.host_user_id).toBe(SAMPLE_ME);
+    expect(useSampleRoom.getState().room!.members.filter((m) => m.role === 'spectator')).toHaveLength(2);
+    sampleToggleView();
+    expect(useSampleRoom.getState().room!.host_user_id).not.toBe(SAMPLE_ME);
+    sampleHost('duos', null);
+    expect(seats()).toBe(3);
   });
 });

@@ -19,7 +19,7 @@ import { GameRank } from '../../gameRank';
 import { StoredTeam } from '../../StoredTeam';
 import { LbRunes } from '../../LadderBits';
 import { bandOf, placeText, type GameBand } from '../../GameCard';
-import { LobbyTiles, SeatBoard, SeatRuneRow, ShowingLine, useLobbySeat } from '../../matchDetails/LobbyPicker';
+import { LobbyTiles, MiniBoard, SeatBoard, SeatRuneRow, ShowingLine, useLobbySeat } from '../../matchDetails/LobbyPicker';
 import { PhButton, PhFact, PhSelectList } from '../kit';
 import './gamesPages.css';
 
@@ -102,6 +102,8 @@ export interface GameDetailProps {
   notice?: ReactNode;
   /** The lobby; absent until it lands, or when none was recorded (no lobby section). */
   match: MatchDetails | null | undefined;
+  /** The lobby is still being read: its space is held by quiet ghost tiles, and it fades in when it lands. */
+  matchPending?: boolean;
   /** Is this the viewer's own game ("Your board", "You" in the lobby)? */
   own: boolean;
   minions?: BoardSnapshot['minions']; skins: RunCosmeticSnapshot | null;
@@ -118,8 +120,30 @@ function Fact({ label, children, tip }: { label: string; children: ReactNode; ti
   return tip ? <span className="gtip rgp-tip" data-tip={tip}>{tile}</span> : tile;
 }
 
+const NO_MINIONS: never[] = [];
+const GHOST_SEATS = [0, 1, 2, 3, 4, 5, 6, 7];
+
+/** The lobby's place while it is read: the real grid and tile shape with nothing in it, so nothing moves when it lands. */
+function LobbyGhost() {
+  return (
+    <div className="lp-tiles" aria-hidden="true">
+      {GHOST_SEATS.map((i) => (
+        <div key={i} className="lp-tile rgp-ghost">
+          <span className="lp-tile-head">
+            <span className="lp-chip-portrait"><i className="rgp-ghostface" /></span>
+            <span className="lp-chip-txt"><span className="lp-chip-place">&nbsp;<span className="lp-tile-out">&nbsp;</span></span><span className="lp-chip-name">&nbsp;</span></span>
+          </span>
+          <MiniBoard minions={NO_MINIONS} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
   const band = p.band ?? bandOf(p.place);
+  // Fades only when it was waited for: a revisit (the answer already in hand) paints as it always did.
+  const waited = useRef(!!p.matchPending);
   const { seat, pick } = useLobbySeat(p.match);
   // A pick in the lobby (below the board) brings the board back into view; nothing moves when it is already on screen.
   const boardRef = useRef<HTMLElement | null>(null);
@@ -174,7 +198,14 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
       <section className="rgp-boardsec" aria-label="Final board" ref={boardRef}>
         {p.match
           ? <ShowingLine seat={seat} details={p.match} onBack={() => pick(null)} own={p.own} />
-          : <div className="lp-showing"><span className="lp-showing-l">Final board</span></div>}
+          : (
+            // The same line the lobby's arrival keeps, so the words do not change when it lands.
+            <div className="lp-showing">
+              <span className="lp-showing-l">Showing</span>
+              <span className="lp-showing-v">{p.own ? 'Your board' : `${p.who}'s board`}</span>
+              {p.matchPending && <span className="lp-hint">Pick a player in the lobby below to see their board</span>}
+            </div>
+          )}
         <div className="rgp-board"><div className="rgp-boardin" key={seat?.id ?? 'own'}>
           {seat ? <SeatBoard seat={seat} own={p.own} /> : p.minions && p.minions.length > 0
             ? <StoredTeam minions={p.minions} skins={p.skins} />
@@ -185,10 +216,10 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
         </div>
       </section>
 
-      {p.match && (
-        <section className="rgp-lobby" aria-label="Players in this lobby">
+      {(p.match || p.matchPending) && (
+        <section className={`rgp-lobby${p.match && waited.current ? ' fadein' : ''}`} aria-label="Players in this lobby" aria-busy={!p.match}>
           <header className="rgp-lobbyhead"><h3>Lobby</h3></header>
-          <LobbyTiles details={p.match} selectedId={seat?.id ?? null} onPick={pick} own={p.own} />
+          {p.match ? <LobbyTiles details={p.match} selectedId={seat?.id ?? null} onPick={pick} own={p.own} /> : <LobbyGhost />}
         </section>
       )}
     </article>

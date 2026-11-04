@@ -50,7 +50,7 @@ export function LiveGamesPh(p: LiveGamesPhProps) {
   else if (rows === null) {
     body = <PhSection><PhEmpty title={p.failed ? 'Live games are not available right now' : 'Finding live games'} sub={p.failed ? 'Trying again shortly.' : 'One moment.'} /></PhSection>;
   } else if (rows.length === 0) {
-    // Never a dead end, and centred in the page (round 4 critic): a short friendly line and the two things to do instead.
+    // Never a dead end: a short friendly line and the two things to do instead, pinned to the top like every empty page.
     body = (
       <div className="lvp-quiet">
         <PhSection>

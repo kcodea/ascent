@@ -382,13 +382,13 @@ html[data-ph-compact] .ph-cards { padding-top: calc(48 * var(--phu)); }
 /* A locked tab's reason in the description's own line. */
 .ph-desc.locked { font-weight: 700; }
 
-/* PHONE: nothing under 11px, nothing against the edge. */
-html[data-ph-compact] .ph-name { font-size: max(14px, min(calc(24 * var(--phu)), 9.5cqi)); }
-html[data-ph-compact] :is(.ph-rank, .ph-sub, .ph-state, .ph-openlbl, .ph-opensub, .ph-lead, .ph-note, .ph-teamlbl) { font-size: max(11px, var(--ph-t1)); }
-html[data-ph-compact] .ph-rank, html[data-ph-compact] .ph-rank:has(.ph-muted) { height: 22px; padding-top: 0; padding-bottom: 0; }
-html[data-ph-compact] .ph-rank .rankcrest { --ring: 18px; }
-html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { gap: 2px; padding-bottom: calc(6 * var(--phu)); }
-html[data-ph-compact] .ph-cancelinv { min-height: 40px; bottom: 0; font-size: 11px; }
+/* PHONE: nothing under calc(18 * var(--phu)), nothing against the edge. */
+html[data-ph-compact] .ph-name { font-size: max(calc(23 * var(--phu)), min(calc(24 * var(--phu)), 9.5cqi)); }
+html[data-ph-compact] :is(.ph-rank, .ph-sub, .ph-state, .ph-openlbl, .ph-opensub, .ph-lead, .ph-note, .ph-teamlbl) { font-size: max(calc(18 * var(--phu)), var(--ph-t1)); }
+html[data-ph-compact] .ph-rank, html[data-ph-compact] .ph-rank:has(.ph-muted) { height: calc(36 * var(--phu)); padding-top: 0; padding-bottom: 0; }
+html[data-ph-compact] .ph-rank .rankcrest { --ring: calc(30 * var(--phu)); }
+html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { gap: calc(3 * var(--phu)); padding-bottom: calc(6 * var(--phu)); }
+html[data-ph-compact] .ph-cancelinv { min-height: calc(64 * var(--phu)); bottom: 0; font-size: calc(18 * var(--phu)); }
 html[data-ph-compact] .ph-modes .phk-tabs { padding-right: calc(96 * var(--phu)); scroll-padding-right: calc(96 * var(--phu)); }
 html[data-ph-compact] .ph-cards { padding-top: calc(56 * var(--phu)); }
 html[data-ph-compact] .ph-stagehead { top: calc(10 * var(--phu)); }

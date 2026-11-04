@@ -369,13 +369,13 @@ html[data-ph-shell][data-ph-compact] .phk-page { gap: calc(8 * var(--phu)); padd
 html[data-ph-shell][data-ph-compact] .phk-page .phk-pagehead { height: auto; min-height: calc(56 * var(--phu)); align-items: center; gap: calc(12 * var(--phu)); padding-bottom: calc(4 * var(--phu)); }
 html[data-ph-shell][data-ph-compact] .phk-page .phk-pagehead > * { align-self: center; }
 html[data-ph-shell][data-ph-compact] .phk-pagetitle { min-width: 0; }
-html[data-ph-shell][data-ph-compact] .phk-pagetitle h1 { font-size: max(16px, calc(26 * var(--phu))); white-space: nowrap; }
+html[data-ph-shell][data-ph-compact] .phk-pagetitle h1 { font-size: max(calc(26 * var(--phu)), calc(26 * var(--phu))); white-space: nowrap; }
 html[data-ph-shell][data-ph-compact] .phk-page .phk-pagebody { overflow-x: hidden; overflow-y: auto; touch-action: pan-y; padding-bottom: calc(8 * var(--phu) + var(--safe-b, 0px)); }
 html[data-ph-shell][data-ph-compact] .phk-page .phk-pagebody > * { flex-shrink: 0; }
 /* Collection: one flow (rail, then the grid beside a pinned detail); the grid no longer has a window of its own. */
 html[data-ph-shell][data-ph-compact] .phk-page .phc-body { flex: none; min-height: 100%; grid-template-rows: auto auto; }
 html[data-ph-shell][data-ph-compact] .phk-page .phc-rail { overflow-y: hidden; touch-action: pan-x pan-y; }
-html[data-ph-shell][data-ph-compact] .phk-page .phc-cat { min-height: 44px; }
+html[data-ph-shell][data-ph-compact] .phk-page .phc-cat { min-height: calc(72 * var(--phu)); }
 html[data-ph-shell][data-ph-compact] .phk-page .phc-main { min-height: auto; }
 html[data-ph-shell][data-ph-compact] .phk-page .phc-gridwrap { flex: none; overflow: visible; padding-bottom: calc(8 * var(--phu)); }
 html[data-ph-shell][data-ph-compact] .phk-page .phc-side { position: sticky; top: 0; align-self: start; max-height: calc(var(--ph-h, 100vh) - var(--ph-nav-h) - 80 * var(--phu)); overflow-y: auto; touch-action: pan-y; }
@@ -383,7 +383,7 @@ html[data-ph-shell][data-ph-compact] .phk-page .phc-side { position: sticky; top
 html[data-ph-shell][data-ph-compact] .phk-page .phc-sub, html[data-ph-shell][data-ph-compact] .phk-page .book-chart, html[data-ph-shell][data-ph-compact] .phk-page .book-tiers-div { display: none; }
 html[data-ph-shell][data-ph-compact] .phk-page .phc-book { flex: none; height: calc(var(--ph-h, 100vh) - var(--ph-nav-h) - 80 * var(--phu)); gap: calc(8 * var(--phu)); }
 html[data-ph-shell][data-ph-compact] .phk-page .book-tiers { flex-wrap: nowrap; min-height: 0; overflow-x: auto; scrollbar-width: none; padding: calc(4 * var(--phu)) calc(8 * var(--phu)); }
-html[data-ph-shell][data-ph-compact] .phk-page :is(.book-tier, .book-zoom-btn) { min-width: 40px; min-height: 40px; }
-html[data-ph-shell][data-ph-compact] .phk-page :is(.book-gilded, .book-setpick-btn, .book-kwchip, .book-runetribe, .book-search) { min-height: 40px; flex: none; }
+html[data-ph-shell][data-ph-compact] .phk-page :is(.book-tier, .book-zoom-btn) { min-width: calc(64 * var(--phu)); min-height: calc(64 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page :is(.book-gilded, .book-setpick-btn, .book-kwchip, .book-runetribe, .book-search) { min-height: calc(64 * var(--phu)); flex: none; }
 html[data-ph-shell][data-ph-compact] .phk-page .book-zoom { height: auto; }
-html[data-ph-shell][data-ph-compact] .phk-page :is(.phk-tab, .phk-segbtn, .phk-btn, .phk-select, .phk-search) { min-height: 40px; }
+html[data-ph-shell][data-ph-compact] .phk-page :is(.phk-tab, .phk-segbtn, .phk-btn, .phk-select, .phk-search) { min-height: calc(64 * var(--phu)); }

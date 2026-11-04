@@ -255,8 +255,8 @@ html[data-ph-shell] :is(.ph-top, .ph, .phk-page, .ph-friends, .phk-dialog) :is(b
   outline: calc(2 * var(--phu)) solid rgba(255, 217, 138, 0.85); outline-offset: calc(-2 * var(--phu)); }
 /* PHONE NAV: a tiny label under each icon, so no page is a guess. The row scrolls sideways when it must. */
 html[data-ph-compact] { --ph-nav-h: calc(84 * var(--phu)); }
-html[data-ph-shell][data-ph-compact] .ph-top .ph-navlbl { display: block; font-size: 10px !important; line-height: 1; letter-spacing: 0; text-transform: none; font-weight: 700; }
-html[data-ph-compact] .ph-navtab { flex-direction: column; justify-content: center; gap: 3px; width: auto; min-width: calc(72 * var(--phu)); padding: 0 calc(8 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .ph-top .ph-navlbl { display: block; font-size: calc(17 * var(--phu)) !important; line-height: 1; letter-spacing: 0; text-transform: none; font-weight: 700; }
+html[data-ph-compact] .ph-navtab { flex-direction: column; justify-content: center; gap: calc(5 * var(--phu)); width: auto; min-width: calc(72 * var(--phu)); padding: 0 calc(8 * var(--phu)); }
 html[data-ph-compact] .ph-navtab .ph-navicon { width: calc(34 * var(--phu)); height: calc(34 * var(--phu)); }
 html[data-ph-compact] .ph-navtab.on::after { bottom: calc(-2 * var(--phu)); }
 html[data-ph-compact] .ph-nav { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32 * var(--phu)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 32 * var(--phu)), transparent); }

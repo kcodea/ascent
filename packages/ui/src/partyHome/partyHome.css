@@ -467,10 +467,9 @@ html[data-ph-compact] .ph-art { -webkit-mask-image: linear-gradient(180deg, #000
 .ph-submode .phk-segbtn.locked { opacity: 0.45; }
 
 /* ── CRITIC ROUND 9 ── */
-/* ONE CLOTH: the tail fades in over the body, and the body shades down to meet it: no seam, on any seat. */
-.ph-bfoot { -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 34%); mask-image: linear-gradient(180deg, transparent 0%, #000 34%); }
-.ph-card-in::after { content: ''; position: absolute; inset: auto 0 0 0; height: 30%; z-index: 1; pointer-events: none; background: linear-gradient(180deg, transparent 0%, rgba(14, 30, 78, 0.85) 100%); }
-.ph-cardwrap.open .ph-rod, .ph-cardwrap.open .ph-bfoot { filter: saturate(0.7) brightness(0.92); }
+/* ONE CLOTH: the body shades down to the exact colour at the top of the painted tail: no seam, on any seat. */
+.ph-card-in::after { content: ''; position: absolute; inset: auto 0 0 0; height: 30%; z-index: 1; pointer-events: none; background: linear-gradient(180deg, transparent 0%, rgb(16 30 80) 100%); }
+.ph-cardwrap.open .ph-bfoot, .ph-cardwrap.pending .ph-bfoot { filter: none; }
 /* The rows sit lower, so the portrait owns the banner. */
 .ph-foot, .ph-foot:has(.ph-state) { padding-bottom: calc(4 * var(--phu)); }
 /* The leader chip keeps its crown alone on a phone; a word-only chip (Host) keeps its word. */

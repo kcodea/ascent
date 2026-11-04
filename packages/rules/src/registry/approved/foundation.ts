@@ -13828,4 +13828,19 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Round 9 on an iPhone: the gate falls, four tick crumbs land with images, WebGL and an animation count, and no style or layout work runs while it animates.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneDiagCost.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: 'R-BOOT-FIRST-PAINT-01',
+    title: 'The first painted pixel is navy',
+    statement:
+      'The document paints its navy ground from the very first frame: the root background, no page scrollbar and the splash logo size '
+      + 'are inline at the top of the head, before any other tag, so a slow load never shows a white page or the logo at its natural size.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Lead via the party home critic, 2026-11-04', quote: 'on slow loads one WHITE frame with a scrollbar appears before the navy splash' },
+      { kind: 'code', ref: 'apps/web/index.html (the first style tag)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-04 (fix/first-paint-navy). Before: the root had no background until the stylesheet further down was parsed.',
+    enforcement: { kind: 'scenario', refs: ['apps/web/firstPaint.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
 ];

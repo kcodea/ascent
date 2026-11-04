@@ -2,6 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- THE FIRST PAINTED PIXEL IS NAVY (R-BOOT-FIRST-PAINT-01): this comes before anything else, so a slow load never shows a white
+         page, a page scrollbar, or the splash logo at its natural size before the styles further down are parsed. -->
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0a1730; }
+      #bootsplash-img { width: min(570px, 42vw, 42vh); height: auto; opacity: 0; }
+    </style>
     <!-- Mobile: lock zoom (the board handles its own scaling), cover the notch/safe areas, and set the browser
          theme colour to the dark board frame so the status bar blends in. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />

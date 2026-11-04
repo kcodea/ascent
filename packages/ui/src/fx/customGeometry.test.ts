@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeRng } from './rng';
 import {
   aimsLeft,
+  copyVisibleAt,
   flightOffset,
   rollFlight,
   reverseFrame,
@@ -240,5 +241,23 @@ describe('flightOffset', () => {
     const far = flightOffset(roll, 50, 0, 2);
     expect(far.dx).toBeCloseTo(100 / 2, 6);
     expect(far.dy).toBeCloseTo(-200 / 2, 6);
+  });
+});
+
+describe('copyVisibleAt (R-FX-CUSTOM-FLY-LIFE-01)', () => {
+  it('no copy shows before its own start', () => {
+    expect(copyVisibleAt(-1, 800, false)).toBe(false);
+    expect(copyVisibleAt(-1, 800, true)).toBe(false);
+  });
+
+  it('a flying copy lives exactly its Duration, then is gone', () => {
+    expect(copyVisibleAt(0, 800, true)).toBe(true);
+    expect(copyVisibleAt(799, 800, true)).toBe(true);
+    expect(copyVisibleAt(800, 800, true)).toBe(false);
+    expect(copyVisibleAt(1500, 800, true)).toBe(false);
+  });
+
+  it('a still copy keeps holding its last look after Duration (the pre-Fly behaviour)', () => {
+    expect(copyVisibleAt(1500, 800, false)).toBe(true);
   });
 });

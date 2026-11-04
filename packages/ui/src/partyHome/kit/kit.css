@@ -429,7 +429,7 @@ html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody::-webkit-scro
    brighter text; the rest stay dimmer. */
 html[data-ph-shell] .phk-tab.on::after, html[data-ph-shell] .ph-navtab.on::after, html[data-ph-shell] .ph-iconbtn.on::after, .phk-tab.on::after, .ph-navtab.on::after, .ph-iconbtn.on::after { content: none !important; }
 .phk-tab, .ph-navtab, .ph-iconbtn { isolation: isolate; }
-.phk-tab.on::before, .ph-navtab.on::before, .ph-iconbtn.on::before { content: ''; position: absolute; inset: calc(-6 * var(--phu)) calc(-4 * var(--phu)); z-index: -1; pointer-events: none;
+.phk-tab.on::before, .ph-navtab.on::before, .ph-iconbtn.on::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: radial-gradient(58% 62% at 50% 50%, rgba(255, 196, 92, 0.42) 0%, rgba(255, 176, 70, 0.16) 55%, transparent 78%); }
 html[data-ph-shell] .phk-tab.on, html[data-ph-shell] .ph-navtab.on { color: #fff6df; text-shadow: var(--ph-shadow), 0 0 calc(12 * var(--phu)) rgba(255, 214, 130, 0.75); }
 .phk-tab:not(.on):not(.locked) { opacity: 0.8; }

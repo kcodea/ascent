@@ -508,3 +508,8 @@ html[data-ph-compact] .ph-sub { display: none; }
 html[data-ph-compact] .ph-state { bottom: calc(2 * var(--phu)); }
 /* A greyed mode says why on the tab itself: the row does not scroll at desktop size, so the game's tip can show. */
 html[data-ph-shell]:not([data-ph-compact]) .ph-modes .phk-tabs { overflow: visible; position: relative; z-index: 4; }
+
+/* ON THE CITADEL: the art is brighter than the hall, so the home's words carry their own ground. */
+.ph-modes .phk-tab { text-shadow: var(--ph-shadow), 0 0 calc(6 * var(--phu)) rgba(4, 8, 20, 0.9); }
+.ph-modes .phk-tab.locked { opacity: 0.62; }
+.ph-desc, .ph-note { text-shadow: 0 calc(1 * var(--phu)) calc(3 * var(--phu)) rgba(0, 0, 0, 0.9), 0 0 calc(10 * var(--phu)) rgba(4, 8, 20, 0.85); }

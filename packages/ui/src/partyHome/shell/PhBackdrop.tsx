@@ -11,7 +11,7 @@ import { phonePublicUrl } from '../../phoneArt';
 
 const CITADEL = phonePublicUrl('backdrops/citadel-blur.webp', import.meta.env.BASE_URL);
 const FILL: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%' };
-const VEIL = 'linear-gradient(180deg, rgba(6, 12, 28, 0.72) 0%, rgba(6, 12, 28, 0.34) 24%, rgba(6, 12, 28, 0.3) 60%, rgba(6, 12, 28, 0.86) 100%), radial-gradient(70% 70% at 45% 50%, transparent 0%, rgba(4, 8, 20, 0.5) 100%)';
+const VEIL = 'linear-gradient(180deg, rgba(6, 12, 28, 0.82) 0%, rgba(6, 12, 28, 0.58) 26%, rgba(6, 12, 28, 0.42) 60%, rgba(6, 12, 28, 0.88) 100%), radial-gradient(70% 70% at 45% 50%, transparent 0%, rgba(4, 8, 20, 0.5) 100%)';
 
 export function PhBackdrop() {
   return (

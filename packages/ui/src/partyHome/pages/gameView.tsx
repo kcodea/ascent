@@ -129,7 +129,7 @@ export const GameList = memo(function GameList({ items, selected, onPick, label,
         onSelect={(it) => { if (it.key !== selected) { local.current = true; onPick(it.key); } }}
         render={(it, on) => (
           <div className={`phk-row rgp-item b-${it.band}${on ? ' sel' : ''}`} aria-label={it.label} onPointerEnter={onNear ? () => onNear(it.key) : undefined}>
-            {it.art && <img className="phk-rowart rgp-itemart" src={it.art} alt="" draggable={false} decoding="async" />}
+            {it.art && <img className="phk-rowart rgp-itemart" src={it.art} alt="" draggable={false} decoding="sync" />}
             <Place place={it.place} band={it.band} />
             <span className="phk-rowwho">
               <span className="phk-rowtitle">{it.title}</span>

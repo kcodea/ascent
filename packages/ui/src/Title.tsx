@@ -51,9 +51,6 @@ import { isPhone } from './deviceClass';
 const PartyHome = import.meta.env.DEV ? lazy(() => import('./partyHome/PartyHome')) : null;
 const PhTutorialPrompt = import.meta.env.DEV ? lazy(() => import('./partyHome/PhPrompts').then((m) => ({ default: m.PhTutorialPrompt }))) : null;
 const PhRankedPrompt = import.meta.env.DEV ? lazy(() => import('./partyHome/PhPrompts').then((m) => ({ default: m.PhRankedPrompt }))) : null;
-/** THE VERSUS BROWSER + ROOM under the party home's shell (DEV switch; partyHome/pages/Versus*Ph.tsx). Lazy, null in production. */
-const VersusBrowserPh = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/VersusBrowserPh').then((m) => ({ default: m.VersusBrowserPh }))) : null;
-const VersusRoomPh = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/VersusRoomPh').then((m) => ({ default: m.VersusRoomPh }))) : null;
 
 /** The mode screen's views (`MenuViewSwap`): the home, its sub-views, Practice's setup, and the Versus room's empty
  *  ground (the room is its own stage over it). */
@@ -356,12 +353,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     : titleView === 'versus' && versusScreen === 'room' ? 'versus-room'
     : titleView;
   // THE PARTY HOME PROTOTYPE (DEV only): with the switch on, the main menu, the mode screen and the Ranked Duos party are
-  // all ONE screen (partyHome/PartyHome.tsx). Learn, Gauntlet, Practice's setup and the Versus rooms keep their views.
+  // all ONE screen (partyHome/PartyHome.tsx), and so are the Versus rooms: a room is a state of that screen.
   const partyView = !!PartyHome && partyHomeFlag && !practiceOpen
-    && (titleView === 'menu' || titleView === 'modes' || (titleView === 'versus' && versusArea === 'duos'));
-  // THE VERSUS BROWSER + ROOM in the shell's language (partyHome/pages): with the switch on, the Versus views are pages
-  // under the top nav. (A Ranked Duos party is the party home itself, `partyView`.)
-  const phVersus = !!PartyHome && partyHomeFlag;
+    && (titleView === 'menu' || titleView === 'modes' || titleView === 'versus');
   const partyStart = (kind: 'solo' | 'duos', then?: () => void): void => {
     crumb('party home start pressed');
     if (kind === 'solo' && isNewPlayer) { setTutorialPrompt(true); return; }
@@ -442,14 +436,13 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       );
       // VERSUS: the lobby browser (versus/VersusTitle.tsx). The room is its own stage over this screen (below).
-      case 'versus': return phVersus && VersusBrowserPh ? <Suspense fallback={null}><VersusBrowserPh /></Suspense> : (
+      case 'versus': return (
         <div className="mpbox">
           {subHead('Versus')}
           <VersusTitle />
         </div>
       );
-      // Under the party home's shell the room is a page under the nav (the classic arena is its own stage, below).
-      case 'versus-room': return phVersus && VersusRoomPh ? <Suspense fallback={null}><VersusRoomPh /></Suspense> : null;
+      case 'versus-room': return null;
       // RANKED DUOS (R-RANKED-DUOS-SPLIT-01): my party opening (or the reason it could not); the party is its stage.
       case 'duos': return (
         <div className="mpbox">
@@ -481,8 +474,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       {partyView && PartyHome && (
         <Suspense fallback={null}><PartyHome onRankedStart={partyStart} /></Suspense>
       )}
-      {/* (Under the shell the Versus pages cover the title: its classic menu never paints behind them.) */}
-      {!partyView && !(phVersus && titleView === 'versus') && <>
+      {!partyView && <>
       <div className="titleaccount ta-card">
         {/* GUEST SIGN-IN (owner 2026-09-29): a slow-blinking "Sign in!" left of the portrait, guests only. */}
         <GuestSignInButton />
@@ -551,7 +543,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       </>}
       <PortraitSignInGate open={portraitGate} onClose={closePortraitGate} />
 
-      {!partyView && !(phVersus && titleView === 'versus') && <div className="titlemenu">
+      {!partyView && <div className="titlemenu">
         {/* The lockup is shared with hero select — see `AscentLogo`. `.titlelogo` keeps ALL of this screen's
             sizing, offset and float (the 🏔️ tuner's `--title-*` vars); the component itself is markup only. */}
         <AscentLogo className="titlelogo" />
@@ -648,7 +640,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </SidebarHost>
       )}
       {/* VERSUS ROOM (versus/VersusRoom.tsx): its own arena stage over the mode screen (whose content is empty under it). */}
-      {(shellView === 'versus-room' || shellView === 'duos-party') && !partyView && !(phVersus && shellView === 'versus-room') && <VersusRoom />}
+      {(shellView === 'versus-room' || shellView === 'duos-party') && !partyView && <VersusRoom />}
 
       {/* TUTORIAL NUDGE — a new player who hits Play is offered the guided course first (owner 2026-08-17:
           the nudge lives here, not on an auto-popup). Either choice retires it: "Start Playing" records a
@@ -711,7 +703,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
       {/* The corner footer: the reporter and the other small links, then the build stamp. Bottom left, clear of the
           Compendium + help buttons in the bottom-right corner (they overlapped the stamp before). */}
-      {!partyView && !(phVersus && titleView === 'versus') && <div className="titlefoot">
+      {!partyView && <div className="titlefoot">
         {/* Secondary links under the plaques: the reporter, the DEV balance report and the last replay. The
             Compendium link left here on 2026-09-21 (owner: "not important" on the title); it is still Tab. */}
         <div className="titlesecondary">

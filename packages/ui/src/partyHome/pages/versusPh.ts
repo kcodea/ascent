@@ -1,6 +1,6 @@
 /**
- * VERSUS under the party home's app shell (DEV switch "Party home (prototype)", owner 2026-11-02): the pure half of the
- * room browser (`VersusBrowserPh.tsx`) and the room (`VersusRoomPh.tsx`). No DOM, no React: what a room row says, how the
+ * VERSUS under the party home's app shell (DEV switch "Party home (prototype)", owner 2026-11-02): the pure half of a
+ * room on the party home (`../versusRoomHome.tsx`). No DOM, no React: what a room row says, how the
  * browser filters, which seats a mode lays out and in what teams, and what the room's START area says. Presentation
  * only: every call these pages make is the store's existing one (createRoom, joinRoom, takeSeat, setRoomOptions, ...).
  */
@@ -134,12 +134,6 @@ export function roomStartOf(args: {
   }
   if (!host) return { canStart: false, label: 'Ready', note: 'The host starts the match.' };
   return { canStart: true, label: 'Start', note: mode === 'group' && seated < 4 ? 'A fourth player can still sit.' : null };
-}
-
-/** THE HOST SITS BY DEFAULT (critic round 3): a room I host, still open, with me alone in its stands. */
-export function hostSitsFirst(room: Pick<VersusRoom, 'host_user_id' | 'status' | 'members'>, me: string | null): boolean {
-  if (!me || room.host_user_id !== me || room.status !== 'open' || room.members.length !== 1) return false;
-  return room.members[0]!.userId === me && room.members[0]!.role === 'spectator';
 }
 
 /** An open seat's line for this viewer. */

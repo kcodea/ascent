@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { VersusMember, VersusRoom, VersusRoomSummary } from '../../versus/versusRemote';
 import { playerVersusError } from '../versusCopy';
 import {
-  VERSUS_OFFLINE_TEXT, defaultRoomName, hostSitsFirst, openSeatText, roomCounts, roomJoin, roomModeOf, roomStartOf, roomTitleOf, seatedOf, seatTeams, visibleRooms,
+  VERSUS_OFFLINE_TEXT, defaultRoomName, openSeatText, roomCounts, roomJoin, roomModeOf, roomStartOf, roomTitleOf, seatedOf, seatTeams, visibleRooms,
 } from './versusPh';
 
 const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
@@ -21,8 +21,8 @@ const room = (members: VersusMember[], p: Partial<VersusRoom> = {}): VersusRoom 
 describe('Versus on the party home shell (pure half)', () => {
   it('every kit name the Versus pages import is exported by the kit', async () => {
     const kit = await import('../kit');
-    for (const f of ['./VersusBrowserPh.tsx', './VersusRoomPh.tsx']) {
-      const m = here(f).match(/import \{([^}]+)\} from '\.\.\/kit';/);
+    for (const f of ['../versusRoomHome.tsx']) {
+      const m = here(f).match(/import \{([^}]+)\} from '\.\/kit';/);
       expect(m, f).toBeTruthy();
       for (const name of m![1]!.split(',').map((x) => x.trim()).filter(Boolean)) expect(kit, `${f} imports ${name}`).toHaveProperty(name);
     }
@@ -71,14 +71,6 @@ describe('Versus on the party home shell (pure half)', () => {
     expect([...seated.entries()].map(([s, m]) => `${s}:${m?.userId ?? '-'}`)).toEqual(['p1:-', 'p2:me']);
   });
 
-  it('the host sits by default only in a fresh room they are alone in (critic round 3)', () => {
-    expect(hostSitsFirst(room([member('me', 'spectator')]), 'me')).toBe(true);
-    expect(hostSitsFirst(room([member('me', 'spectator'), member('x', 'spectator')]), 'me')).toBe(false);
-    expect(hostSitsFirst(room([member('me', 'p1')]), 'me')).toBe(false);
-    expect(hostSitsFirst(room([member('me', 'spectator')], { host_user_id: 'x' }), 'me')).toBe(false);
-    expect(hostSitsFirst(room([member('me', 'spectator')], { status: 'in_game' }), 'me')).toBe(false);
-  });
-
   it('START: the host once enough sit; everyone else reads what they wait for; a spectator watches a live round', () => {
     const base = { status: 'open' as const, host: true, isPlayer: true, running: false, phase: null, round: null, gateLeft: null };
     expect(roomStartOf({ ...base, mode: 'duel', seated: 1 })).toMatchObject({ canStart: false, note: 'Waiting for an opponent.' });
@@ -99,7 +91,7 @@ describe('Versus on the party home shell (pure half)', () => {
   });
 
   it('player text: no em dashes, no "--", never Oath or climb, no native title tooltips, no bare pointer cursor', () => {
-    for (const f of ['./VersusBrowserPh.tsx', './VersusRoomPh.tsx', './versusPh.ts', './versusNav.ts']) {
+    for (const f of ['../versusRoomHome.tsx', './versusPh.ts']) {
       const src = here(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
       const strings = src.match(/'[^'\n]*'|`[^`\n]*`|>[^<>{}\n]+</g) ?? [];
       for (const s of strings.filter((x) => !/^['`]--[a-z]/.test(x))) { // (a CSS custom property name is not player text)
@@ -107,6 +99,6 @@ describe('Versus on the party home shell (pure half)', () => {
       }
       expect(src, f).not.toMatch(/<[a-z][a-z0-9]*\b[^>\n]*\stitle=/);
     }
-    expect(here('./versusPages.css')).not.toMatch(/cursor:\s*pointer/);
+    expect(here('./versusHome.css')).not.toMatch(/cursor:\s*pointer/);
   });
 });

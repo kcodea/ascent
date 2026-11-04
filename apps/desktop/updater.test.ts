@@ -130,7 +130,7 @@ describe('startUpdater', () => {
     expect(h.createGameWindow).toHaveBeenCalledTimes(1);
   });
 
-  it('install: forwards progress and installs silently on download', async () => {
+  it('install: forwards progress and installs (with the NSIS progress window) on download', async () => {
     const h = harness({ marker: { version: '0.2.1' } });
     await updater.startUpdater(h.deps);
     expect(h.au.autoDownload).toBe(true);

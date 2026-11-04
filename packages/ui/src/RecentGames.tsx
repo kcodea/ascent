@@ -351,7 +351,7 @@ export function RecentGames(): JSX.Element | null {
         <MenuSidebar current="recent" />
         <Suspense fallback={null}>
           <RecentGamesPh
-            tab={tab} onTab={pickTab} state={state} feedRows={FEED_ROWS} duosLimit={DUOS_ROWS}
+            tab={tab} onTab={pickTab} state={state}
             rows={shellRows}
             duosRows={duosRows ?? []} myId={myId}
             heroCounts={heroCounts} heroFilter={heroFilter} onHero={pickHero}

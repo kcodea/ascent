@@ -48,7 +48,6 @@ export type RecentState = 'offline' | 'loading' | 'empty' | 'signedout' | 'ready
 
 export interface RecentGamesPhProps {
   tab: RecentGamesTab; onTab: (t: RecentGamesTab) => void; state: RecentState;
-  feedRows: number; duosLimit: number;
   rows: readonly KeyedRow[]; duosRows: readonly DuosGameRow[]; myId: string | null;
   heroCounts: readonly HeroCount[]; heroFilter: string | null; onHero: (id: string | null) => void;
   picked: string | null; onPick: (key: string) => void;
@@ -68,6 +67,12 @@ const TABS = [
  *  one row on every screen (round 5 critic). Read once per render from the window width, never per frame. */
 export const heroFilterMax = (): number => (isPhone() ? 4 : typeof window !== 'undefined' && window.innerWidth < 1600 ? 5 : 7);
 
+/** The Duos tab's note: what is actually listed. Nothing with no games: it never claims games that are not there. */
+export function duosScope(games: number): string | null {
+  if (games === 0) return null;
+  return games === 1 ? 'Your last Duos game' : `Your last ${games} Duos games`;
+}
+
 export function RecentGamesPh(given: RecentGamesPhProps) {
   // A TAB SWITCH NEVER BLANKS THE PAGE (round 11 critic): while the next feed is read, the last one stays up (tabs already
   // on the new tab, the strip, chips and list a little dimmed), and the data swaps in place when it lands.
@@ -83,15 +88,14 @@ export function RecentGamesPh(given: RecentGamesPhProps) {
   const stale = given.state === 'loading' && given.tab !== 'duos' && last.current !== null;
   const p: RecentGamesPhProps = stale ? { ...given, ...last.current!, state: 'ready' } : given;
   const duos = given.tab === 'duos';
-  const practice = given.tab === 'practice';
-  const scope = duos ? `Your last ${p.duosLimit} Duos games` : practice ? `Last ${p.feedRows} practice games` : `Last ${p.feedRows} games`;
+  const scope = duos ? duosScope(p.duosRows.length) : null;
   return (
     <PhPage
       className={`rgp${stale ? ' stale' : ''}`} wide eyebrow="Match history" title="Recent Games"
       tabs={<PhTabs tabs={TABS} value={given.tab} onChange={p.onTab} label="Recent games view" />}
-      actions={duos || !(p.state === 'ready' || (p.heroFilter !== null && p.state !== 'offline'))
-        ? <span className="rgp-scope">{scope}</span>
-        : <HeroFilter {...p} />}
+      actions={duos
+        ? scope && <span className="rgp-scope">{scope}</span>
+        : (p.state === 'ready' || (p.heroFilter !== null && p.state !== 'offline')) && <HeroFilter {...p} />}
     >
       {duos ? <DuosBody {...p} /> : <FeedBody {...p} />}
     </PhPage>

@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { HEROES } from '@game/sim';
 import { mount, type Mounted } from '../../renderedText.mount';
-import { RecentGamesPh, placeWords, type KeyedRow, type RecentGamesPhProps } from './RecentGamesPh';
+import { RecentGamesPh, duosScope, placeWords, type KeyedRow, type RecentGamesPhProps } from './RecentGamesPh';
 import { LiveGamesPh, liveCountText, liveRowNames, type LiveGamesPhProps } from './LiveGamesPh';
 import { FIRST_ROWS, HOLD_MS } from './gameView';
 import type { RecentGameRow } from '../../remoteBoards';
@@ -38,7 +38,7 @@ const game = (i: number, placement: number, heroId: string): RecentGameRow => ({
 const rows: KeyedRow[] = [game(0, 1, H[0]!), game(1, 5, H[1]!), game(2, 3, H[0]!)].map((r, i) => ({ r, key: `k${i}`, mine: false, skins: null }));
 
 const props = (over: Partial<RecentGamesPhProps> = {}): RecentGamesPhProps => ({
-  tab: 'ranked', onTab: vi.fn(), state: 'ready', feedRows: 100, duosLimit: 50, rows, duosRows: [], myId: null,
+  tab: 'ranked', onTab: vi.fn(), state: 'ready', rows, duosRows: [], myId: null,
   heroCounts: [{ id: H[0]!, n: 2 }, { id: H[1]!, n: 1 }], heroFilter: null, onHero: vi.fn(), picked: null, onPick: vi.fn(),
   watching: null, noReplay: null, opening: null, onOpen: vi.fn(), onWatch: vi.fn(), onRetry: vi.fn(), ...over,
 });
@@ -93,7 +93,7 @@ describe('Recent Games on the shell', () => {
     expect(q('.phk-emptytitle')?.textContent).toBe('Recent games are unavailable');
     ui.render(<RecentGamesPh {...props({ tab: 'duos', state: 'signedout' })} />);
     expect(q('.phk-emptytitle')?.textContent).toBe('Sign in to see your Duos games');
-    expect(q('.rgp-scope')?.textContent).toBe('Your last 50 Duos games');
+    expect(q('.rgp-scope')).toBeNull();
   });
   it('a failed read says so and offers Retry, never a false no games yet; Duos can truly be empty', () => {
     const p = props({ state: 'empty', rows: [] });
@@ -103,6 +103,8 @@ describe('Recent Games on the shell', () => {
     expect(p.onRetry).toHaveBeenCalled();
     ui.render(<RecentGamesPh {...props({ tab: 'duos', state: 'ready', duosRows: [] })} />);
     expect(q('.phk-emptytitle')?.textContent).toBe('No Duos games yet');
+    expect(q('.rgp-scope')).toBeNull(); // no games: the header claims none
+    expect([duosScope(0), duosScope(1), duosScope(12)]).toEqual([null, 'Your last Duos game', 'Your last 12 Duos games']);
   });
   it('the banner does not repeat the big ordinal: only a win says it in words', () => {
     ui = mount(<RecentGamesPh {...props({ picked: 'k1' })} />);

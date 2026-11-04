@@ -85,7 +85,7 @@ describe('one steady backdrop (owner 2026-11-04: the old background must never f
   it('only Game mounts the backdrop: no page, chrome or home brings its own', () => {
     for (const f of ['./PartyHome.tsx', './shell/PhBookNav.tsx']) expect(read(f)).not.toMatch(/PhBackdrop|MenuBackdrop/);
     expect(read('./shell/PhPageChrome.tsx')).not.toMatch(/<PhBackdrop|<MenuBackdrop|import \{ (?:PhBackdrop|MenuBackdrop)/);
-    expect(read('../Game.tsx')).toMatch(/PhSteady && shellMenus/);
+    expect(read('../Game.tsx')).toMatch(/PhSteady && \(shellMenus/);
   });
   it('the grounds under it are cleared in the eager stylesheet', () => {
     const css = read('../styles.css');

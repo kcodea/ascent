@@ -489,7 +489,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       )}
       {mode.id === 'practice' && <PracticePanel />}
       {mode.id === 'gauntlet' && <GauntletPanel selected={stage} onSelect={setStagePick} />}
-      {mode.party === 'rivals' && <RoomRulesPanel room={versusRoom} me={homeMe()} modifier={modifier} onModifier={setModifier} name={roomName} onName={setRoomName}
+      {mode.party === 'rivals' && <RoomRulesPanel hasMate={members.length > 1} room={versusRoom} me={homeMe()} modifier={modifier} onModifier={setModifier} name={roomName} onName={setRoomName}
         placeholder={hostName()} />}
       {/* A phone's spectators live here (the head shows only their count), so the banner row keeps its size. */}
       {phone && vh.stands && <div className="vsr-drawerstands">{vh.stands}</div>}

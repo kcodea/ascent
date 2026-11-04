@@ -15,7 +15,6 @@ export default function PhBookNav() {
   if (Page) {
     return (
       <div className="ph-bookpage" role="region" aria-label="Compendium">
-        <div className="ph-pagebd" aria-hidden="true"><div className="ph-veil" /></div>
         <div className="ph-booknav"><PhTopNav current="compendium" /></div>
         <Page />
       </div>

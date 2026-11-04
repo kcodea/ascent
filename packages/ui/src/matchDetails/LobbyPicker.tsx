@@ -51,6 +51,13 @@ function seatOut(seat: MatchSeat, d: MatchDetails): string {
 export const ownerNameOf = (d: MatchDetails): string => d.seats.find((s) => s.self)?.name || 'This player';
 export const seatName = (seat: MatchSeat, own: boolean): string => (seat.self && own ? 'You' : seat.name);
 
+/** The tile's small fate beside the place ("Out R10", "Winner"), or null when the place already says it: a seat still
+ *  standing when the game ended reads "Still in" once, never twice (R-LOBBY-TILE-STILL-IN-01). */
+export function seatFate(seat: MatchSeat, d: MatchDetails): string | null {
+  const out = seatOut(seat, d).replace('Out in round ', 'Out R');
+  return out === seatPlace(seat, d) ? null : out;
+}
+
 /** The chip's hover tip: short plain sentences. */
 function seatTip(seat: MatchSeat, d: MatchDetails, own: boolean): string {
   const parts = [`${seatOut(seat, d)}.`];
@@ -145,7 +152,7 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
             type="button" key={seat.id} data-seat={seat.id} aria-pressed={on}
             className={`lp-tile gtip lp-${bandOfPlace(seat, details)}${on ? ' on' : ''}${seat.self && own ? ' self' : ''}`}
             data-tip={seatTip(seat, details, own)}
-            aria-label={`${seatPlace(seat, details)}, ${seat.self && own ? 'you' : seat.name}. ${seatTip(seat, details, own)}`}
+            aria-label={`${seatPlace(seat, details)}, ${seat.self && own ? 'you' : seat.name}.${seatFate(seat, details) === null ? seatTip(seat, details, own).replace(/^Still in\./, '') : ` ${seatTip(seat, details, own)}`}`}
             onClick={(e) => {
               onPick(seat.self ? null : seat.id);
               // The board is above the lobby: bring it into view when the pick happens below the fold (nothing moves
@@ -157,7 +164,7 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
             <span className="lp-tile-head">
               <span className="lp-chip-portrait"><SeatPortrait heroId={seat.heroId} skins={seatSkinsOf(seat, own, showOpp)} self={!!seat.self && own} /></span>
               <span className="lp-chip-txt">
-                <span className="lp-chip-place">{seatPlace(seat, details)}<span className="lp-tile-out">{seatOut(seat, details).replace('Out in round ', 'Out R')}</span></span>
+                <span className="lp-chip-place">{seatPlace(seat, details)}{seatFate(seat, details) !== null && <span className="lp-tile-out">{seatFate(seat, details)}</span>}</span>
                 <span className="lp-chip-name">{seatName(seat, own)}</span>
               </span>
               {seat.id === details.knockedOutBy && <span className="lp-ko" aria-hidden="true"><Icon name="sword" /></span>}

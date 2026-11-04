@@ -49,6 +49,7 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
   const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
   const newRewards = useHasNewRewards();
   const friendsOpen = usePhShell((s) => s.friendsOpen);
+  const drawerIsMode = usePhShell((s) => s.drawerIsMode);
   const lv = progressionOn && mirror ? levelProgress(mirror.accountXp) : null;
   const txt = getTitleText();
   const cratesOn = usePhShell((s) => s.crates);
@@ -81,7 +82,7 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
       return;
     }
     // The Career tab always means your own Career, even from another player's.
-    if (dest === 'career' && current === 'career' && useGame.getState().careerOf) { sfx.pulse(); useGame.getState().openCareer(); return; }
+    if (dest === 'career' && useGame.getState().careerOf) { sfx.pulse(); leaveCrates(); goTo('career'); return; }
     if (dest === current) return;
     sfx.pulse();
     if (showBook) closeBook();
@@ -134,7 +135,7 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
           </button>
           {/* Friends: last in the row on every page, so the currency and the gear hold still. Where the list is docked beside
               the party it brings the panel's Friends tab forward. */}
-          <button type="button" className={`ph-iconbtn ph-friendsbtn${friendsOpen ? ' on' : ''}`} aria-label="Friends" aria-expanded={friendsDocked ? undefined : friendsOpen}
+          <button type="button" className={`ph-iconbtn ph-friendsbtn${friendsOpen && !drawerIsMode ? ' on' : ''}`} aria-label="Friends" aria-expanded={friendsDocked ? undefined : friendsOpen}
             onClick={() => { sfx.pulse(); if (friendsDocked) pulseFriends(); else toggleFriends(); }}>
             <MenuMedal name="friends" className="menumedal ph-navicon" />
           </button>

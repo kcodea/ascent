@@ -4,7 +4,7 @@
  * whichever pages this build has. DEV only, like the prototype: production has none of this.
  */
 const PAGES: Record<string, () => Promise<unknown>> = import.meta.env.DEV
-  ? import.meta.glob(['../pages/**/*Ph.tsx', '../pages/Ph*.tsx', '../pages/**/Ph*.tsx', '../../progression/ph/*Ph.tsx', '!**/*.test.tsx'])
+  ? import.meta.glob(['./PhPageChrome.tsx', './PhBookNav.tsx', '../pages/**/*Ph.tsx', '../pages/Ph*.tsx', '../pages/**/Ph*.tsx', '../../progression/ph/*Ph.tsx', '!**/*.test.tsx'])
   : {};
 
 let warmed = false;

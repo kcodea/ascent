@@ -279,7 +279,7 @@ html[data-ph-shell] .ph-top .ph-navtab, html[data-ph-shell] .ph-top .ph-navlbl {
 /* (Round 11) Standard `scrollbar-color` / `thin` keep the OS arrow steppers on Windows, so the shell uses the styled bar only:
    those two properties are switched off (they would disable it) and one gold thumb, inset from rounded corners, is drawn. */
 html[data-ph-shell] * { scrollbar-color: auto !important; }
-html[data-ph-shell] :is(.phk-pagebody, .phk-dlgtext, .phc-herogrid, .phc-trends, .phc-achview, .phc-gridwrap, .phc-rail, .phc-side, .phc-sheet, .phc-view, .bookguides, .rgp-listwrap, .rgp-detailcol, .phpn-index, .phpn-feed, .vsr-tiles, .vso-list, .ph-opts > .phk-secbody) { scrollbar-width: auto !important; }
+html[data-ph-shell] :is(.phk-pagebody, .book-grid, .book-rail, .book-gloss-body, .wiki-list, .phk-dlgtext, .phc-herogrid, .phc-trends, .phc-achview, .phc-gridwrap, .phc-rail, .phc-side, .phc-sheet, .phc-view, .bookguides, .rgp-listwrap, .rgp-detailcol, .phpn-index, .phpn-feed, .vsr-tiles, .vso-list, .ph-opts > .phk-secbody) { scrollbar-width: auto !important; }
 html[data-ph-shell] *::-webkit-scrollbar { width: calc(10 * var(--phu)); height: calc(10 * var(--phu)); }
 html[data-ph-shell] *::-webkit-scrollbar-thumb { border: calc(3 * var(--phu)) solid transparent; border-radius: 999px; background: var(--ph-gold) padding-box; }
 html[data-ph-shell] *::-webkit-scrollbar-track { background: transparent; margin: calc(12 * var(--phu)); }

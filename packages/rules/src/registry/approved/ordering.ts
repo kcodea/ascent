@@ -344,4 +344,22 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-04 (fix/fx-fly-copy-life). Before, the Fly group (PR 2580) froze a flying copy at the end of its Duration and kept it drawn until the whole layer finished.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/customGeometry.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: 'R-FX-RALLY-FLOAT-01',
+    title: 'A Rally number lands just after the Rally effect, not before it',
+    statement:
+      'When a Rally minion with its own On Rally effect rallies, the number its Rally produces on itself (a stat or Spell '
+      + 'Power gain) appears just after that effect goes off, a short read after the medallion lights at the top of the '
+      + 'swing. Damage numbers and numbers on other units keep their usual timing, and a Rally with no On Rally effect '
+      + 'shows its number when the swing starts, as before.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, Chorus Drake Rally', quote: 'is it possible to delay the spell buff effect the +1, until just after the rally fx goes off?' },
+      { kind: 'code', ref: 'fix/fx-rally-float-after-fx: packages/ui/src/choreo/channels/rallyFired.ts splitOwnRallyFloats + ownRallyFloatDelayMs; packages/ui/src/choreo/score.ts (float cue)' },
+    ],
+    contentIds: ['d2_chorus'],
+    currentBehaviour: 'Conforms from 2026-11-04 (fix/fx-rally-float-after-fx). Before, the float fired at the start of the swing, ahead of the On Rally effect that plays at the top of the wind-up.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/rallyFired.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
 ];

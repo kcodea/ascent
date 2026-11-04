@@ -17,11 +17,12 @@ import { createLobbyRun } from '@game/sim';
 import { mount, type Mounted } from './renderedText.mount';
 import { LobbyPanel } from './LobbyPanel';
 import { useGame } from './store';
+import { hoverHeld } from './lobbyScoutHover.testkit';
 
 let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; act(() => { useGame.setState({ combatStaged: false }); }); });
 
-const hover = (el: Element): void => { act(() => { el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body })); }); };
+const hover = hoverHeld; // stays on the seat for the open delay (R-RAIL-SCOUT-DELAY-01)
 const click = (el: Element): void => { act(() => { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); }); };
 const card = (): Element | null => document.body.querySelector('.lobbyscout');
 const setStaged = (v: boolean): void => { act(() => { useGame.setState({ combatStaged: v }); }); };

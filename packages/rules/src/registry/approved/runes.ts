@@ -2750,8 +2750,8 @@ export const RUNES_RULES: GameRule[] = [
     title: "Hovering a rune on a lobby rail seat's card opens that rune's tip, with that seat's live values",
     statement:
       "Every seat's scout card on the lobby rail (hovered or pinned, in every mode that draws the rail: lobby, Practice, "
-      + 'Ranked Duos, Versus 1v1 / group / Duos, and spectating) can be reached with the pointer: it stays up for a beat '
-      + 'after the pointer leaves the seat, and while the pointer is on it. Hovering (or tapping, on touch) a filled rune '
+      + 'Ranked Duos, Versus 1v1 / group / Duos, and spectating) can be reached with the pointer: it stays up while the '
+      + 'pointer crosses from the seat to it, and while the pointer is on it. Hovering (or tapping, on touch) a filled rune '
       + "socket opens the same rune tip the player's own rack shows (name, text with the current value in place, the live "
       + "reward line, the state pill with the meter), mounted only while hovered and kept on screen. The values are that "
       + "seat's: your own seat (or the watched player's) reads the whole run, so every value and meter is live; any other "
@@ -2766,7 +2766,7 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/runeTipBody.tsx; packages/ui/src/LobbyPanel.tsx ScoutRuneSocket / leaveScout; packages/sim/src/lobby/runLobby.ts boardIntel (firstSpellId)' },
     ],
     contentIds: ['rune_wild_hunt', 'rune_recollection'],
-    currentBehaviour: "Conforms as of 2026-11-01. Before, the hover card closed the moment the pointer left the seat, and on the Docked rail the socket tip never became visible even on a pinned card; the tips printed no meter for your own seat and no Recollection spell.",
+    currentBehaviour: "Conforms as of 2026-11-01. Before, the hover card closed the moment the pointer left the seat, and on the Docked rail the socket tip never became visible even on a pinned card; the tips printed no meter for your own seat and no Recollection spell. Since 2026-11-02 (R-RAIL-SCOUT-DELAY-01) the crossing is a measured strip between the card and its seat rather than a 160 ms close grace.",
     example: 'Your seat holds Wild Hunt grown by 10 and Overtime at 5 of 12 Gold: hovering the Wild Hunt socket reads +12 Attack, the Overtime socket shows 5/12g, exactly as your rack does.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyScoutRuneTip.test.tsx'], lastVerifiedAt: '2026-11-01' },
   },

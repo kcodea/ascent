@@ -62,4 +62,5 @@ export const leaveCrates = (): void => usePhShell.setState({ crates: false, coll
 /** The Collection page reports when it leaves its crate shop by itself (its own back), so the nav lights Collection again. */
 export const setCratesView = (on: boolean): void => usePhShell.setState({ crates: on });
 export const addSampleInvite = (id: string): void => usePhShell.setState((s) => ({ sampleInvites: s.sampleInvites.includes(id) ? s.sampleInvites : [...s.sampleInvites, id] }));
+export const removeSampleInvite = (id: string): void => usePhShell.setState((s) => ({ sampleInvites: s.sampleInvites.filter((x) => x !== id) }));
 export const clearSampleInvites = (): void => usePhShell.setState({ sampleInvites: [] });

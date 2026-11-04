@@ -333,26 +333,31 @@ export function livingNeighbours(ctx: CombatContext, self: Minion): Minion[] {
 }
 
 function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: number, h: number, permanent = false, bounce?: BounceProvenance): void {
-  ctx.buff(target, a, h, self.uid, true, bounce); // `true` = tag the log event as a Ruby, for the UI's Ruby-landed cue; `bounce` = a cross-target re-cast's provenance
+  // `true` = tag the log event as a Ruby, for the UI's Ruby-landed cue; `bounce` = a cross-target re-cast's provenance.
+  // `landed` is what actually reached the body (a golden Taurus's `gainMult` doubles it) and whether the body KEPT it
+  // (Engraved: native EG, Taurus's Start-of-Combat EG, or a live Transcendant aura). Every Ruby ledger below reads
+  // `landed`, never the raw `a`/`h`, so the Ruby attribution matches the stats the body really gained.
+  const landed = ctx.buff(target, a, h, self.uid, true, bounce);
+  const la = landed.attack;
+  const lh = landed.health;
   // Remember these as RUBIES, not just stats — Gemheart Carver's Echo scales off "the Rubies on this minion",
   // and a plain `ctx.buff` is indistinguishable from any other combat buff. Combat-local (see `rubyGain`);
   // the recruit-phase equivalent is the `Ruby` entry in `buffs`.
-  target.rubyGain = { attack: (target.rubyGain?.attack ?? 0) + a, health: (target.rubyGain?.health ?? 0) + h };
+  target.rubyGain = { attack: (target.rubyGain?.attack ?? 0) + la, health: (target.rubyGain?.health ?? 0) + lh };
   // Combat Rubies are TEMPORARY by rule (owner ruling 2026-07-31, off the Gemstorm rune): they persist only
   // on an ENGRAVED minion — whose `ctx.buff` above already accrued the gain into `permaGain` — or when a card
-  // explicitly prints "permanently" (none currently does; such a card would thread a `permanent` param here).
-  // This REVERSES the earlier "Ruby buffs are always permanent" ruling that used to add `permaGain` for every
-  // recipient. `permaRuby` stays as the LABEL for the Engraved share, so the carry-back split (Ruby vs the
-  // rest, simulate ~2405) keeps attributing correctly — it must only accrue when the gain actually persists.
-  if (target.keywords.includes('EG')) {
-    target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + a, health: (target.permaRuby?.health ?? 0) + h };
-  } else if (permanent) {
-    // A card that explicitly prints "permanently" (Kobe / Boulderdash / Blazer): accrue BOTH permaGain (so the
-    // carry-back filter at settle picks it up — ctx.buff only accrues permaGain for Engraved bodies) AND
-    // permaRuby (so the carry-back split labels it a Ruby rather than a generic gift). This is the `permanent`
-    // hook the applyRubyStats reversal note (2026-07-31) reserved for exactly this case.
-    target.permaGain = { attack: (target.permaGain?.attack ?? 0) + a, health: (target.permaGain?.health ?? 0) + h };
-    target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + a, health: (target.permaRuby?.health ?? 0) + h };
+  // explicitly prints "permanently" (Kobe / Boulderdash / Blazer, Rune of Engraving Gems).
+  // `permaRuby` is the LABEL for the kept share, so the carry-back split (Ruby vs the rest, `carryBacksFor`)
+  // attributes it as a Ruby. R-RUBY-ENGRAVED-01 (owner 2026-11-02: "the buffs that are rubies should be counted as
+  // ruby buffs"): an ENGRAVED Ruby carries home as a Ruby. Keyed on `landed.kept`, not the EG keyword, so a Ruby on a
+  // Dragon beside Transcendant (an aura Engrave, no keyword) is labelled Ruby too, and a permanent Ruby there is not
+  // accrued into `permaGain` a second time.
+  // (A kept Ruby needs nothing more here: `ctx.buff` booked it under 'Ruby' in `permaRows`, R-ENGRAVE-05.)
+  if (!landed.kept && permanent) {
+    // A card that explicitly prints "permanently": accrue BOTH permaGain (so the carry-back filter at settle picks it
+    // up — ctx.buff only accrues permaGain for Engraved bodies) AND permaRuby (so the split labels it a Ruby).
+    target.permaGain = { attack: (target.permaGain?.attack ?? 0) + la, health: (target.permaGain?.health ?? 0) + lh };
+    target.permaRuby = { attack: (target.permaRuby?.attack ?? 0) + la, health: (target.permaRuby?.health ?? 0) + lh };
   }
 }
 function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string, permanent = false): void {
@@ -394,10 +399,10 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     buff: (t, a, h) => ctx.buff(t as Minion, a, h, self.uid),
     buffPermanent: (t, a, h) => {
       const m = t as Minion;
-      ctx.buff(m, a, h, self.uid);
+      const keptBy = ctx.buff(m, a, h, self.uid).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
       // ctx.buff already accrues permaGain for an Engraved recipient; record it for everyone else — the
       // gift is permanent regardless of the recipient's keywords.
-      if (!m.keywords.includes('EG')) {
+      if (!keptBy) {
         m.permaGain = { attack: (m.permaGain?.attack ?? 0) + a, health: (m.permaGain?.health ?? 0) + h };
       }
     },
@@ -514,8 +519,8 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       if (!dem || (dem.attack === 0 && dem.health === 0)) return;
       for (const m of ctx.living(self.side)) {
         if (m.tribe === 'demon' || m.tribe2 === 'demon' || (!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) {
-          ctx.buff(m, dem.attack, dem.health, self.uid);
-          if (!m.keywords.includes('EG')) {
+          const keptBy = ctx.buff(m, dem.attack, dem.health, self.uid).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
+          if (!keptBy) {
             m.permaGain = { attack: (m.permaGain?.attack ?? 0) + dem.attack, health: (m.permaGain?.health ?? 0) + dem.health };
           }
         }
@@ -1740,8 +1745,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || minion !== self) return;
     const n = ctx.spiritsPlayedFor(self.side) * num(params.per, 1) * mul(self);
     if (n <= 0) return;
-    ctx.buff(self, n, 0, self.uid); // uid, not name: a label source draws no self pulse (2026-09-16)
-    if (!self.keywords.includes('EG')) {
+    const keptBy = ctx.buff(self, n, 0, self.uid).kept; // uid, not name: a label source draws no self pulse (2026-09-16)
+    if (!keptBy) {
       self.permaGain = { attack: (self.permaGain?.attack ?? 0) + n, health: self.permaGain?.health ?? 0 };
       self.permaLabel = self.name; // the run card's ledger names the Sprite, not Flowing Monk
     }
@@ -1756,8 +1761,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || p.side !== self.side || !p.spellId) return;
     const g = shopSpellGrowth(params, !!self.golden, false);
     if (g.attack <= 0 && g.health <= 0) return;
-    ctx.buff(self, g.attack, g.health, self.uid);
-    if (!self.keywords.includes('EG')) {
+    const keptBy = ctx.buff(self, g.attack, g.health, self.uid).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
+    if (!keptBy) {
       self.permaGain = { attack: (self.permaGain?.attack ?? 0) + g.attack, health: (self.permaGain?.health ?? 0) + g.health };
       self.permaLabel = self.name;
     }
@@ -4018,10 +4023,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const engrave = params.engrave === true;
     for (const m of ctx.living(self.side)) {
       if (tribe && m.tribe !== tribe && m.tribe2 !== tribe && !(!!m.universalTribe || !!ctx.getCard(m.cardId)?.universalTribe)) continue;
-      ctx.buff(m, a, h, self.uid);
+      const keptBy = ctx.buff(m, a, h, self.uid).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
       // Engraved overflow: carry the gift back to the run board (ctx.buff already does this for an EG
       // recipient; record it here for everyone else, mirroring overflowBuffRandom).
-      if (engrave && !m.keywords.includes('EG')) {
+      if (engrave && !keptBy) {
         m.permaGain = { attack: (m.permaGain?.attack ?? 0) + a, health: (m.permaGain?.health ?? 0) + h };
       }
     }
@@ -4070,8 +4075,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || (payload as MinionPayload).minion !== self) return;
     const a = num(params.attack, 1) * mul(self);
     if (a <= 0) return;
-    ctx.buff(self, a, 0, self.uid);
-    if (!self.keywords.includes('EG')) {
+    const keptBy = ctx.buff(self, a, 0, self.uid).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
+    if (!keptBy) {
       self.permaGain = { attack: (self.permaGain?.attack ?? 0) + a, health: self.permaGain?.health ?? 0 };
     }
   },
@@ -4775,11 +4780,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(params.attack, 0) * mul(self);
     const h = num(params.health, 0) * mul(self);
     if (a || h) {
-      ctx.buff(self, a, h, self.uid);
+      const keptBy = ctx.buff(self, a, h, self.uid).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
       // PERMANENT: carry the gain back to the run board like an Engraved minion (owner 2026-08-18: these gains
       // are permanent). `ctx.buff` only auto-accrues permaGain for EG/Transcendant bodies, so add it here for
       // the rest. Carry-back only reads PLAYER minions with a sourceUid, so an enemy copy is harmless.
-      if (!self.keywords.includes('EG')) {
+      if (!keptBy) {
         self.permaGain = { attack: (self.permaGain?.attack ?? 0) + a, health: (self.permaGain?.health ?? 0) + h };
       }
     }

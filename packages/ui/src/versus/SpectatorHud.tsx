@@ -86,13 +86,16 @@ export interface WatchSeat {
 }
 
 /** Bottom right: who I am watching. Two or more players: the switcher. One: the compact name + rank plate. */
-export function WatchedPanel({ seats, single }: {
+export function WatchedPanel({ seats, single, duos = false }: {
   seats?: readonly WatchSeat[];
   single?: { name: string; divisionIndex: number; rankPoints: number };
+  /** A Duos match: the bottom-right corner is the watched player's teammate portrait (R-SPECTATE-DUOS-MATEDOCK-01), so the
+   *  switcher sits along the top edge instead, right of my own plate, never over that portrait. */
+  duos?: boolean;
 }): JSX.Element | null {
   if (seats && seats.length > 1) {
     return (
-      <div className="vsspec vswatchpanel" role="group" aria-label="Choose who to watch">
+      <div className={`vsspec vswatchpanel${duos ? ' vswatchpanel-top' : ''}`} role="group" aria-label="Choose who to watch">
         <span className="vsspec-label">Watching</span>
         <div className="vsspec-seats">
           {seats.map((s, i) => (

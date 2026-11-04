@@ -232,11 +232,17 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     }
   }
 
-  async metricsSnapshot(): Promise<RoomMetrics & { persistLive: boolean; persisted: number; watchBeats: unknown[] }> {
+  async metricsSnapshot(): Promise<RoomMetrics & { persistLive: boolean; persisted: number; watchBeats: unknown[]; rankedFinish: unknown[] }> {
     const ob = await this.ctx.storage.list({ prefix: 'ob:' });
+    const written = (this.sink as { written?: PersistJob[] }).written ?? [];
     return {
-      ...this.metrics, persistLive: this.sink.live, persisted: (this.sink as { written?: unknown[] }).written?.length ?? 0, ...{ outbox: ob.size },
+      ...this.metrics, persistLive: this.sink.live, persisted: written.length, ...{ outbox: ob.size },
       watchBeats: (this.watchSink as { written?: unknown[] }).written ?? [],
+      // RANKED DUOS (dev only, persistence off): what each written result carries for the duo run (R-RANKED-DUOS-RECORD-01).
+      rankedFinish: written.filter((j) => j.kind === 'ranked_finish').map((j) => {
+        const row = j.row as { placement?: unknown; match?: { round?: unknown }; rounds?: { round: number }[]; submissions?: { round: number; seat: string }[] };
+        return { placement: row.placement, round: row.match?.round, rounds: (row.rounds ?? []).map((r) => r.round), submissions: (row.submissions ?? []).map((x) => `${x.round}${x.seat}`) };
+      }),
     };
   }
 

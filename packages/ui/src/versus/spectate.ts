@@ -37,6 +37,9 @@ import { applySpectatorMessage, newReceiver, type CombatBeat, type HeroSelectFra
 import type { VersusMatch, VersusRoundRow } from './versusRemote';
 import { endWatchedGame, startSpectatorBeat, stopSpectatorBeat } from '../live/spectatorEnd';
 import { roundResultFor } from './versusGroupView';
+import { playArrival, playEntryFlight, playWatchedDragPass } from './passLob';
+import { isDragPass, watchedPasses } from './spectatorPasses';
+import { sfx } from '../sfx';
 import { noteMateFrame, resetDuosMateSignals } from './duosMateSignals';
 
 /** The broadcast event a spectator sends when it needs a fresh keyframe (a gap it could not repair from the table). */
@@ -262,6 +265,7 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
     resumeAt = null;
     rounds = allRounds;
     useSpectate.setState({ odds: {}, overlay: {} });
+    resetDuosMateSignals();
     endWatch = null;
     void fetchKeyframes();
   }
@@ -283,6 +287,8 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
 
 /** The live match last synced (the seat pick reads its table). */
 let syncMatch: VersusMatch | null = null;
+/** A spectator (no seat) of a Duos match: the teammate portrait on their screen reads the teammates' frames too. */
+const duosStands = (): boolean => !asPlayer && !!syncMatch?.group?.duos;
 
 /**
  * THE SEAT TO WATCH in a match: the one asked for while that player is still in, else the first player still in (seat
@@ -413,8 +419,10 @@ export function receiveSpectate(payload: unknown): void {
   // The SAME fight arriving again (a later keyframe) keeps the object on screen, so the arena never restarts its replay.
   if (msg.fight && next.view) next = { ...next, view: { ...next.view, lastCombat: sameFight(rx[msg.seat].view, msg.fight) } };
   rx[msg.seat] = next;
-  // VERSUS DUOS: my teammate's tier-ups and End of Turn, for their bottom-right portrait (R-DUOS-MATE-SIGNALS-01).
-  if (asPlayer && msg.kind !== 'hero') noteMateFrame(msg.seat, prevView, next.view, msg.acts);
+  // VERSUS DUOS: my teammate's tier-ups and End of Turn, for their bottom-right portrait (R-DUOS-MATE-SIGNALS-01). The
+  // stands too: their screen shows the watched player's teammate portrait with the same signals
+  // (R-SPECTATE-DUOS-MATEDOCK-01), read off whichever seat is the watched one's teammate.
+  if ((asPlayer || duosStands()) && msg.kind !== 'hero') noteMateFrame(msg.seat, prevView, next.view, msg.acts);
   // Matchmaker reads my teammate's board: my run records it when it changed (a no-op unless such a card is held).
   if (asPlayer && msg.kind !== 'hero') mateFrameHook?.();
   // The player's own odds for this fight (their probe's result): the stands' Summary shows exactly these.
@@ -600,6 +608,17 @@ function pump(): void {
 export function presentHeldDrop(acts: readonly { t: string; uid?: string }[], prevRun: RunState, nextView: { hand?: { uid: string }[]; triplesMade?: number }): boolean {
   for (const a of acts) {
     if (!a.uid) continue;
+    // A DRAG PASS (R-SPECTATE-DUOS-PASS-01): the held card dissolves where it was let go and streams into the teammate
+    // portrait, the player's own drop. Read the parked card BEFORE the landing is taken (its node is still drawn).
+    if (a.t === 'passCard') {
+      const face = typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.vsspec-cursor .ghostcardwrap .card');
+      const held = takeLanding(a.uid);
+      if (!held) continue;
+      const out = (nextView as { duos?: { outbox?: { card?: { uid?: string }; paid?: number }[] } }).duos?.outbox ?? [];
+      const entry = [...out].reverse().find((e) => e.card?.uid === a.uid);
+      if (playWatchedDragPass(a.uid, { face, rect: held.rect }, (entry?.paid ?? 1) > 0)) { heldPassShown.set(a.uid, nowMs()); sfx.sell?.(); }
+      return true;
+    }
     const held = takeLanding(a.uid);
     const drop = DROP_OF[a.t];
     if (!held || !drop) continue;
@@ -614,6 +633,36 @@ export function presentHeldDrop(acts: readonly { t: string; uid?: string }[], pr
     return true;
   }
   return false;
+}
+
+/** Drag passes whose stream the held card already played (`presentHeldDrop`), so the frame diff never plays it twice. */
+const heldPassShown = new Map<string, number>();
+const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+/**
+ * THE WATCHED PLAYER'S PASSES (R-SPECTATE-DUOS-PASS-01): the streams their screen played between the run on screen and
+ * the one about to replace it (`watchedPasses`). The sends stream from their sources NOW, while those are still drawn
+ * (a Discover option, a played spell, the card that sent it, the hand card a drag pass took); `after` runs once the new
+ * run is in the store, for the arrivals (their slots exist from the next frame). Only on a spectator's screen: a seated
+ * player's own transport plays theirs. A fight's gifts wait for their beat (`duosCombat.tsx`).
+ */
+function watchedPassFlights(cur: RunState, next: RunState): (() => void) | null {
+  if (asPlayer || next.mode !== 'versus' || !next.duos) return null;
+  const passes = watchedPasses(cur, next);
+  if (!passes.sends.length && !passes.arrivals.length) return null;
+  const now = nowMs();
+  for (const e of passes.sends) {
+    if (isDragPass(e)) {
+      const shown = heldPassShown.get(e.card.uid);
+      heldPassShown.delete(e.card.uid);
+      if (shown != null && now - shown < 3000) continue;
+      if (playWatchedDragPass(e.card.uid, null, (e.paid ?? 1) > 0)) sfx.sell?.();
+      continue;
+    }
+    playEntryFlight(e, cur, cur.runId);
+  }
+  const arrivals = passes.arrivals;
+  return arrivals.length ? () => { for (const uid of arrivals) playArrival(uid); } : null;
 }
 
 /**
@@ -1026,7 +1075,9 @@ function render(): void {
   }
   leaving = 'no';
   freshDrivers(run.lobby);
+  const afterPasses = watchedPassFlights(cur, run);
   useGame.setState({ run });
+  afterPasses?.();
   // Out of the fight: the shop actions held for it play now, on the shop they were made in.
   if (awaitingShop && run.phase !== 'combat') { awaitingShop = false; window.setTimeout(pump, 0); }
 }

@@ -102,3 +102,18 @@ describe('Versus on the party home shell (pure half)', () => {
     expect(here('./versusHome.css')).not.toMatch(/cursor:\s*pointer/);
   });
 });
+
+describe('the sample room (DEV): no backend, every state', () => {
+  it('fills 1v1, leaves an open seat in Group and Duos, flips host and guest, and leaves', async () => {
+    const { useSampleRoom, sampleToggleView, sampleHost, SAMPLE_ME } = await import('../sampleRoom');
+    const seats = (): number => useSampleRoom.getState().room!.members.filter((m) => m.role !== 'spectator').length;
+    sampleHost('duel', null);
+    expect(seats()).toBe(2);
+    expect(useSampleRoom.getState().room!.host_user_id).toBe(SAMPLE_ME);
+    expect(useSampleRoom.getState().room!.members.filter((m) => m.role === 'spectator')).toHaveLength(2);
+    sampleToggleView();
+    expect(useSampleRoom.getState().room!.host_user_id).not.toBe(SAMPLE_ME);
+    sampleHost('duos', null);
+    expect(seats()).toBe(3);
+  });
+});

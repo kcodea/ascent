@@ -84,9 +84,9 @@ export function mechMedallionArtId(mechanicId: string): string | null {
 }
 
 /** The stylesheet text: `.cgem-tint[data-art="<art>"] { mask-image: url(<the art>) }`, one rule per medallion art. */
+export const MECH_MEDALLION_MASK_ARTS: readonly string[] = [...new Set([...MECH_MEDALLION_PNGS].map((id) => MECH_MEDALLION_ART_ALIAS[id] ?? id))];
 export function mechMedallionMaskCss(base: string = import.meta.env.BASE_URL): string {
-  const arts = new Set([...MECH_MEDALLION_PNGS].map((id) => MECH_MEDALLION_ART_ALIAS[id] ?? id));
-  return [...arts].map((art) => {
+  return MECH_MEDALLION_MASK_ARTS.map((art) => {
     const u = `url("${base}medallions/${art}.webp")`;
     return `.cgem-tint[data-art="${art}"]{-webkit-mask-image:${u};mask-image:${u}}`;
   }).join('\n');

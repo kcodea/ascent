@@ -58,7 +58,10 @@ describe('Netlify _headers', () => {
     expect(rule('/index.html')).toMatch(/Cache-Control: no-cache/);
   });
   it('un-hashed public art is never marked immutable (its filename survives an edit)', () => {
-    expect(rule('/frames/*')).toMatch(/max-age=3600/);
+    expect(rule('/frames/*')).toMatch(/max-age=86400/);
     expect(rule('/frames/*')).not.toMatch(/immutable/);
+  });
+  it('public art never rides stale-while-revalidate: an expired copy pops in on every mount (R-PERF-ART-STAYS-FRESH-01)', () => {
+    for (const p of ['/frames/*', '/medallions/*', '/fx/*', '/backdrops/*', '/menu/*', '/m1/*']) expect(rule(p), p).not.toMatch(/stale-while-revalidate/);
   });
 });

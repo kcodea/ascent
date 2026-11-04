@@ -73,18 +73,20 @@ function artLoaded(): void {
   if (artLoadedCount % 100 === 0) crumbProgress('art stream', { loaded: artLoadedCount });
 }
 
-/** Fetch + decode, and hold the Image for the session. REJECTS on a failed load or a timeout so the pipe retries. */
-function decodeImage(url: string, attempt: number, last: boolean): Promise<void> {
+/** Fetch + decode, and hold the Image for the session. REJECTS on a failed load or a timeout so the pipe retries.
+ *  `cors`: load it the way a CSS mask does (see `requestMaskArt`). */
+function decodeImage(url: string, attempt: number, last: boolean, cors = false): Promise<void> {
   if (typeof Image === 'undefined') return Promise.resolve();
   const src = last && attempt > 0 ? cacheBust(url, attempt) : url;
   return new Promise<void>((resolve, reject) => {
     const img = new Image();
     img.decoding = 'async';
+    if (cors) img.crossOrigin = 'anonymous';
     const timer = setTimeout(() => reject(new Error('timeout')), DECODE_TIMEOUT_MS);
     img.src = src;
     img.decode().then(() => {
       clearTimeout(timer);
-      KEEP.set(url, img, decodedBytes(img.naturalWidth, img.naturalHeight));
+      KEEP.set(cors ? `mask:${url}` : url, img, decodedBytes(img.naturalWidth, img.naturalHeight));
       artLoaded();
       if (src !== url) LOADED_AS.set(url, src);
       resolve();
@@ -97,6 +99,17 @@ function decodeImage(url: string, attempt: number, last: boolean): Promise<void>
 export function requestArt(url: string | undefined, lane: Lane): void {
   if (!url) return;
   queue.request(url, lane, artTask(url), { retryDelays: ART_RETRY_DELAYS });
+}
+
+/**
+ * A picture a stylesheet uses as a MASK (R-PERF-ART-MASKS-HELD-01). The browser fetches mask images in CORS mode, and a
+ * CORS request cannot share the plain request the pipe made for the same URL, so everything the pipe held did nothing
+ * for a mask: each `.cglow-rim` or medallion tint that mounted went back to the disk cache, and a mask that is not
+ * loaded hides whatever it masks. This holds a CORS copy too. A phone skips it: its budget is tighter than the win.
+ */
+export function requestMaskArt(url: string | undefined, lane: Lane): void {
+  if (!url || LITE_ART) return;
+  queue.request(`mask:${url}`, lane, (_l, { attempt, last }) => decodeImage(url, attempt, last, true), { retryDelays: ART_RETRY_DELAYS });
 }
 
 /** Fetch only (a phone's background lanes): the bytes land in the HTTP cache, no Image is made. REJECTS on a failed
@@ -175,6 +188,9 @@ export function requestAssetTask(key: string, lane: Lane, task: () => Promise<un
 export const artReady = (url: string | undefined): boolean => !url || queue.ready(url);
 /** The URL gave up (every retry failed): it shows the placeholder until `retryFailedArt`. */
 export const artFailed = (url: string | undefined): boolean => !!url && queue.failed(url);
+
+/** Where `url` stands in the pipe: `unknown` means the plan never asked for it (read by the pop-in probe, `popIn.ts`). */
+export const artState = (url: string): ReturnType<AssetQueue['state']> => queue.state(url);
 
 /** An on-screen <img> finished loading + decoding before the queue got to it: mark it ready. */
 export function markArtReady(url: string | undefined): void {

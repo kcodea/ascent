@@ -12,6 +12,7 @@ vi.mock('./artPreload', () => ({
   requestArtList: (urls: Iterable<string | undefined>, lane: string) => {
     calls.push({ lane, urls: [...urls].filter((u): u is string => !!u) });
   },
+  requestMaskArt: () => {},
 }));
 
 import { __resetPreloadPlan, poolArtOrder, preloadBootArt, preloadRunArt, splitCardArt, splitPublicArt, splitRuneArt, startBackgroundArt } from './preloadPlan';

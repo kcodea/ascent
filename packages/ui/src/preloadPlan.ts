@@ -3,7 +3,9 @@ import { CARD_INDEX, poolFor, RUNE_INDEX, SETS, type SetId } from '@game/content
 import { poolOf, type RunState } from '@game/sim';
 import { ART_URL_GROUPS, artFor, heroThumb } from './art';
 import { ART_ALIAS } from './artAlias';
-import { requestArtList } from './artPreload';
+import { requestArtList, requestMaskArt } from './artPreload';
+import { MECH_MEDALLION_MASK_ARTS } from './mechMedallion';
+import { CARD_PLATE_LOOKS, cardPlateLookOf, plateLookUrls } from './cardPlate/cardPlateLook';
 import { LITE_ART, phonePublicUrl } from './phoneArt';
 import type { Lane } from './assetQueue';
 import { crumb } from './crashLog';
@@ -85,14 +87,27 @@ export function poolArtOrder(cards: readonly CardDef[], earlyTier: number): { ea
   return { early, rest };
 }
 
-/** FX textures and portrait-frame art: bundled, not in `ART_URL_GROUPS`, loaded by their own modules on first use.
- *  Globbed here too (same hashed URLs — Vite dedupes the asset) so the HTTP cache is warm when they ask. Kept
- *  here rather than imported from `fx/imageLibrary.ts`, which would drag Pixi into the entry chunk. */
+/** FX textures, portrait frames (and their SKINS), emote bubbles, ping icons and the Versus arena: bundled, not in
+ *  `ART_URL_GROUPS`, loaded by their own modules on first use. Globbed here too (same hashed URLs: Vite dedupes the
+ *  asset) so they are decoded when asked for. Kept here rather than imported from `fx/imageLibrary.ts`, which would drag
+ *  Pixi into the entry chunk. The frame skins, emotes, pings and arena were missing until 2026-11-04: a player who OWNS
+ *  cosmetics paid a cold load on every one (R-PERF-ART-PLAN-COMPLETE-01). `artPlanCoverage.test.ts` fails on any image
+ *  file under `src/` that reaches neither this plan nor its exempt list. */
 const EXTRA_ART: string[] = Object.values({
   ...(import.meta.glob('./fx/defs/images/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob('./fx/defs/art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob('./art/frames/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+  ...(import.meta.glob('./art/frames/skins/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+  ...(import.meta.glob('./art/emotes/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+  ...(import.meta.glob(['./art/pings/*.webp', '!./art/pings/inspect.webp'], { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+  ...(import.meta.glob('./art/versus/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
 });
+
+/** Every public image a stylesheet draws as a `mask` (`artPlanCoverage.test.ts` checks the list against styles.css). */
+export const PUBLIC_MASK_ART: readonly string[] = [
+  'frames/standard-oval-v2.png', 'frames/spell-frame-arch.webp', 'frames/taunt-shield.png', 'frames/spell-art-window-arch.webp',
+  'frames/ranked-gate-crystal.webp', 'frames/cardplate-wire.webp', 'fx/ward-hexsphere.svg',
+];
 
 /** The handful of UI images imported straight from `src/` (the rules / compendium buttons, the hero-select portrait
  *  frame): on the title and in the shop from the first frame, so they ride the chrome lane. */
@@ -196,6 +211,12 @@ export function preloadBootArt(extraSets: readonly SetId[] = [], lite: boolean =
   // Behind the gate: cards and runes only a set nobody can play right now can show (the Collection's set picker).
   plan('idle', cards.other);
   plan('idle', runes.other);
+  // Card plates (a cosmetic, ~250 files, ~1 GB decoded). The source builds their names from a constant, so the public
+  // list never saw them and the plate a player WEARS was a cold load on every hand card (R-PERF-ART-PLAN-COMPLETE-01).
+  // Behind the gate, not in it: most of them are other people's. The worn one is raised by `preloadRunArt`.
+  plan('idle', Object.values(CARD_PLATE_LOOKS).flatMap(plateLookUrls));
+  // The CORS copies of every mask (requestMaskArt): keys of their own, not in the gate's count, first thing behind it.
+  for (const p of [...PUBLIC_MASK_ART, ...MECH_MEDALLION_MASK_ARTS.map((a) => `medallions/${a}.webp`)]) requestMaskArt(`${BASE}${p}`, 'set');
   bootGate = [...new Set(gate)];
   return bootGate;
 }
@@ -254,7 +275,10 @@ function streamLiteRest(gatedSets: ReadonlySet<SetId>, pub: ReturnType<typeof sp
 
 let lastRunKey = '';
 /** The run's pinned pool, up to one tier past the tavern first. Re-plans only when set / tribes / tier move. */
-export function preloadRunArt(run: Pick<RunState, 'setId' | 'tier'> & Partial<Pick<RunState, 'tribes' | 'practiceConfig'>>): void {
+export function preloadRunArt(run: Pick<RunState, 'setId' | 'tier'> & Partial<Pick<RunState, 'tribes' | 'practiceConfig' | 'cosmetics'>>): void {
+  // The plate this run wears, ahead of everything: every card in hand draws it (a phone fetches it here, too).
+  const plate = cardPlateLookOf(run.cosmetics);
+  if (plate) plan('early', plateLookUrls(plate));
   const earlyTier = Math.max(2, (run.tier ?? 1) + 1);
   const key = `${run.setId ?? 'set1'}|${(run.tribes ?? []).join(',')}|${earlyTier}`;
   if (key === lastRunKey) return;

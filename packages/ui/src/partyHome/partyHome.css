@@ -519,7 +519,7 @@ html[data-ph-shell]:not([data-ph-compact]) .ph-modes .phk-tabs { overflow: visib
 /* ── CRITIC ROUND 12 ── */
 /* The saved game keeps one slot, right of the head row, on every mode. */
 /* (Desktop) centred on START's axis, in the clear space above it, the same on every mode. */
-.ph-stagehead > .ph-held, .ph-stagehead:not(:has(> .ph-team)) > .ph-held { position: absolute; left: 50%; translate: -50% 0; bottom: calc(112 * var(--phu)); z-index: 3; }
+.ph-stagehead > .ph-held, .ph-stagehead:not(:has(> .ph-team)) > .ph-held { position: absolute; left: 50%; translate: -50% 0; bottom: calc(156 * var(--phu)); z-index: 3; }
 html[data-ph-compact] .ph-stagehead { position: relative; }
 html[data-ph-compact] .ph-stagehead > .ph-held, html[data-ph-compact] .ph-stagehead:not(:has(> .ph-team)) > .ph-held { left: auto; translate: none; bottom: auto; right: calc(16 * var(--phu)); top: 0; }
 /* The rules line is information, not a control. */
@@ -529,4 +529,6 @@ html[data-ph-compact] .ph-stagehead > .ph-held, html[data-ph-compact] .ph-stageh
 .ph-art { height: 84%; }
 .ph-foot, .ph-foot:has(.ph-state) { top: 73%; }
 html[data-ph-compact] .ph-cards { padding-top: calc(90 * var(--phu)); }
+/* The greyed tab's tip owns the line under the tabs while it shows. */
+.ph-modes .phk-tabs:has(.phk-tab.locked:hover) ~ .ph-desc { visibility: hidden; }
 

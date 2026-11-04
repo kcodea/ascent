@@ -490,6 +490,30 @@ describe('states', () => {
     }
   });
 
+  it('on the party home shell your own Career with no games shows at once, in every tab', async () => {
+    const { setPartyHome } = await import('./partyHome/partyHomeFlag');
+    await import('./partyHome/pages/career/PhCareer');
+    try {
+      ui.unmount();
+      fetchMyRuns.mockResolvedValue([]);
+      fetchMyPracticeGames.mockResolvedValue([]);
+      useGame.setState({ careerCache: null, careerOf: null });
+      act(() => { setPartyHome(true); });
+      ui = mount(<Career />);
+      await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(ui.container.textContent).toContain('No runs yet');
+      expect(ui.container.querySelector('.phc-pg.hold')).toBeNull();
+      for (const t of ui.container.querySelectorAll<HTMLButtonElement>('.phk-pagetabs .phk-tab')) {
+        act(() => { t.click(); });
+        await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+        expect(ui.container.querySelector('.phc-pg.hold')).toBeNull();
+      }
+    } finally {
+      act(() => { setPartyHome(false); });
+      (await import('./socialCache')).clearSocialCache();
+    }
+  });
+
   it('on the party home shell a known player whose history reads empty says so with Retry, never "no runs yet"', async () => {
     const { setPartyHome } = await import('./partyHome/partyHomeFlag');
     await import('./partyHome/pages/career/PhCareer');

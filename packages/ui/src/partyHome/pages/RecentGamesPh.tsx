@@ -81,7 +81,7 @@ export function RecentGamesPh(given: RecentGamesPhProps) {
   // after the first has committed), then fades in as one, instead of painting in pieces while its pictures decode. Every
   // picture is `decoding="sync"` (imgDecodingSync.test.ts), so that first frame holds them all: nothing lands after the fade.
   useEffect(() => {
-    let id = requestAnimationFrame(() => { id = requestAnimationFrame(() => { document.querySelector('.phk-page.rgp')?.setAttribute('data-in', ''); }); });
+    let id = requestAnimationFrame(() => { id = requestAnimationFrame(() => { document.querySelector('.phk-page.rgp:not(.phc-pg)')?.setAttribute('data-in', ''); }); });
     return () => cancelAnimationFrame(id);
   }, []);
   if (given.state === 'ready' && given.tab !== 'duos' && given.rows.length > 0) last.current = { tab: given.tab, rows: given.rows, heroCounts: given.heroCounts };

@@ -355,6 +355,10 @@ html[data-touch-small] .rgp-spark { padding-left: calc(56 * var(--phu)); }
 .rgp .lp-tile .lp-tile-strength b { font-size: var(--ph-t3); }
 
 /* The page's arrival: invisible until its first frame is drawn, then one soft fade (compositor-only opacity). */
-.phk-page.rgp { transition: opacity 0.2s cubic-bezier(0, 0, 0.2, 1); }
-.phk-page.rgp:not([data-in]) { opacity: 0; }
-@media (prefers-reduced-motion: reduce) { .phk-page.rgp { transition: none; } }
+/* THE GATE IS RECENT GAMES' OWN (`.phc-pg` is the Career, which shares `.rgp` for the list and detail and has its own arrival;
+   it blanked for good when this rule caught it). A HIDE ALWAYS HAS A RELEASE: the delayed animation below reveals the page
+   with no script at all, so a missed frame, a hidden tab or a thrown effect can never leave it invisible. */
+.phk-page.rgp:not(.phc-pg) { transition: opacity 0.2s cubic-bezier(0, 0, 0.2, 1); }
+.phk-page.rgp:not(.phc-pg):not([data-in]) { opacity: 0; animation: ph-reveal 0.2s linear 0.8s forwards; }
+@keyframes ph-reveal { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .phk-page.rgp:not(.phc-pg) { transition: none; } }

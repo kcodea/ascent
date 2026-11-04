@@ -51,6 +51,15 @@ function writeTab(t: PatchCategory): void {
   try { localStorage.setItem(PATCH_TAB_STORAGE_KEY, t); } catch { /* storage blocked: the tab still switches */ }
 }
 
+/** A patch label as a player reads it. Old labels were written for the team: "Balance 9/23: rune reworks B" reads as
+ *  "Rune reworks", and a bare "Art Batch" says nothing the date doesn't, so it shows no label. */
+export function playerLabel(label: string | undefined): string | undefined {
+  if (!label) return undefined;
+  const tidy = label.replace(/^Balance \d+\/\d+:\s*/, '').replace(/\s+(?:[A-Z]|round \d+)$/, '').trim();
+  if (!tidy || /batch/i.test(tidy)) return undefined;
+  return tidy[0]!.toUpperCase() + tidy.slice(1);
+}
+
 /** Does `text` mention every word of `query` (any order, any case)? An empty query matches. */
 export function matchesWords(text: string, query: string): boolean {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -152,9 +161,9 @@ export function PhPatchNotes() {
                   const p = dateParts(e.note.date);
                   return (
                     <button key={e.key} type="button" className={`phpn-idx${active === e.key ? ' on' : ''}`} aria-current={active === e.key ? 'true' : undefined}
-                      onClick={() => jump(e.key)} aria-label={`${prettyDate(e.note.date)}${e.note.label ? `, ${e.note.label}` : ''}, ${e.items.length} changes`}>
+                      onClick={() => jump(e.key)} aria-label={`${prettyDate(e.note.date)}${playerLabel(e.note.label) ? `, ${playerLabel(e.note.label)}` : ''}, ${e.items.length} changes`}>
                       <span className="phpn-day">{p ? `${SHORT_MONTHS[p.m - 1]} ${p.d}` : e.note.date}</span>
-                      <span className="phpn-idxlabel">{e.note.label ?? ''}</span>
+                      <span className="phpn-idxlabel">{playerLabel(e.note.label) ?? ''}</span>
                       <span className="phpn-n">{e.items.length}</span>
                     </button>
                   );
@@ -167,7 +176,7 @@ export function PhPatchNotes() {
               <article className="phpn-patch" key={e.key} id={domId(e.key)} data-key={e.key}>
                 <header className="phpn-head">
                   <h2>{prettyDate(e.note.date)}</h2>
-                  {e.note.label && <PhChip tone="gold">{e.note.label}</PhChip>}
+                  {playerLabel(e.note.label) && <PhChip tone="gold">{playerLabel(e.note.label)}</PhChip>}
                   <span className="phpn-headn">{e.items.length} {e.items.length === 1 ? 'change' : 'changes'}</span>
                 </header>
                 <ul className="phpn-list">

@@ -710,7 +710,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
               <input
                 className="book-search"
                 type="search"
-                placeholder={frame && document.documentElement.hasAttribute('data-ph-compact') ? 'Search' : 'Search… (Imp, or "Imp" exact)'}
+                placeholder={frame ? 'Search' : 'Search… (Imp, or "Imp" exact)'}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search cards, quests, and runes by name or text"
@@ -810,7 +810,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
             Duos
           </button>
           <div className="book-chart" role="group" aria-label={`${chartNoun} by tier`}>
-            {/* Guides first: a rail tab left lit under the Guides view must not swap in its own filters. */}
+            {/* Guides first: a rail tab left lit under the Guides view must not swap in its own filters (R-COMPENDIUM-GUIDES-FILTER-01). */}
             {guidesOn ? (
               /* Guides aren't tiered: the chart space carries their tribe filter, like the Runes tab's. */
               <div className="book-runetribes" role="group" aria-label="Filter guides by tribe">

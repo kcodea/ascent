@@ -89,7 +89,12 @@ export function cardNameFilter(px: number): string {
       svg.setAttribute('width', '0');
       svg.setAttribute('height', '0');
       svg.setAttribute('aria-hidden', 'true');
-      svg.style.position = 'absolute';
+      // PINNED TO THE CORNER (R-CARDNAME-FILTER-NOSCROLL-01): a positioned element with no top / left sits where it
+      // lands in the flow (the end of the stage), and a 0x0 svg there can still lengthen the page and add a scrollbar.
+      svg.style.position = 'fixed';
+      svg.style.top = '0';
+      svg.style.left = '0';
+      svg.style.overflow = 'hidden';
       svg.style.pointerEvents = 'none';
       defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
       svg.appendChild(defs);

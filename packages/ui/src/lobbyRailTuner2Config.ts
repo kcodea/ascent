@@ -78,7 +78,7 @@ export const LR2_DEFAULTS: LobbyRailTuner2Config = {
   // The shipped look (owner pick 2026-10-31, "i like these values"): the navy plate with the Health numbers, the art on the right, the hero's name on each slice.
   navyArtW: 53, navyFade: 46,
   rankW: 23.5, rankGap: 6.5,
-  hpNumSize: 24.5, armNumSize: 14, hpNumX: -15.5, hpNumY: 0,
+  hpNumSize: 24.5, armNumSize: 14, hpNumX: -5.5, hpNumY: 0,
   artLayout: 'navy', nameSide: 'right', nameShow: 'on', nameText: 'hero',
   artZoom: 1.16, artFx: 0, artFy: 21, artW: 20, fadeStart: 0, fadeLen: 100, fadeStr: 1, artBright: 1,
   nameSize: 15, nameWeight: 800, nameLines: 2, nameX: 2.5, nameY: 27.5, nameShadow: 0.5,

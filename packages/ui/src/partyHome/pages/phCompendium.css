@@ -114,7 +114,7 @@
    a narrower rail, a smaller search, cards a little smaller so a row and a half fits the height. ── */
 html[data-touch-ui][data-touch-small] .phc .phc-book { scale: none; width: auto; height: auto; }
 html[data-touch-small] .phc .book-rail { width: calc(200 * var(--phu)); }
-html[data-touch-small] .phc .book-grid { --ch: calc(360px * var(--book-zoom, 1)); }
+html[data-touch-small] .phc .book-grid { --ch: calc(300px * var(--book-zoom, 1)); }
 html[data-touch-small] .phc .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var(--phu)); }
 
 
@@ -183,4 +183,4 @@ html[data-ph-compact] .phc .book-tier { min-width: calc(64 * var(--phu)); }
 html[data-ph-compact] .phc .book-main { gap: calc(8 * var(--phu)); }
 html[data-ph-compact] .phc :is(.book-zoom, .book-search) { height: calc(64 * var(--phu)); }
 html[data-ph-compact] .phc .book-zoom-btn { width: calc(64 * var(--phu)); height: calc(64 * var(--phu)); }
-html[data-ph-compact] .phc .book-search { width: calc(240 * var(--phu)); background: color-mix(in srgb, var(--ph-navy) 55%, transparent); text-overflow: ellipsis; }
+html[data-ph-compact] .phc .book-search { width: calc(240 * var(--phu)); background: color-mix(in srgb, var(--ph-navy) 75%, transparent); box-shadow: var(--ph-gild); text-overflow: ellipsis; }

@@ -101,16 +101,20 @@ export function PhRow({ art, title, sub, lead, right, onClick, tone, selected, l
   );
 }
 
-export function PhTabs<T extends string>({ tabs, value, onChange, label, onLocked }: {
+export function PhTabs<T extends string>({ tabs, value, onChange, label, onLocked, onLockedHover }: {
   /** `reason`: the tab is locked; it stays focusable, says why on hover (the game's tip) and on a press (`onLocked`). */
   tabs: readonly { id: T; label: ReactNode; count?: number; disabled?: boolean; reason?: string }[]; value: T; onChange: (id: T) => void; label: string;
   onLocked?: (id: T, reason: string) => void;
+  /** Hovering a locked tab (null on leaving): for a row that shows the reason in its own line. The tab row scrolls, so the
+   *  game's `data-tip` bubble is clipped inside it. */
+  onLockedHover?: (reason: string | null) => void;
 }) {
   return (
     <div className="phk-tabs" role="tablist" aria-label={label}>
       {tabs.map((t) => (
         <button key={t.id} type="button" role="tab" aria-selected={t.id === value} disabled={t.disabled} aria-disabled={t.reason ? true : undefined}
           data-tip={t.reason} className={cx('phk-tab', t.id === value && 'on', t.reason && 'locked gtip')}
+          onPointerEnter={t.reason && onLockedHover ? () => onLockedHover(t.reason!) : undefined} onPointerLeave={t.reason && onLockedHover ? () => onLockedHover(null) : undefined}
           onClick={() => { if (t.reason) { onLocked?.(t.id, t.reason); return; } if (t.id !== value) onChange(t.id); }}>
           {t.label}
           {t.count ? <span className="phk-count">{t.count}</span> : null}
@@ -220,8 +224,11 @@ export function PhEmpty({ title, sub, action }: { title: ReactNode; sub?: ReactN
  * passes `value`; multi-select passes `isOn` and toggles in `onPick`. `disabled` greys the row; give `hint` the reason.
  * `size="l"`: the big two-way switch (Practice's Sandbox | God Mode).
  */
-export function PhSegmented<T extends string | number | null>({ label, hint, value, isOn, options, onPick, disabled, size = 'm', max }: {
-  label?: ReactNode; hint?: ReactNode; value?: T; isOn?: (v: T) => boolean; options: readonly { value: T; label: ReactNode }[];
+export function PhSegmented<T extends string | number | null>({ label, hint, value, isOn, options, onPick, disabled, size = 'm', max, onLocked, onLockedHover }: {
+  label?: ReactNode; hint?: ReactNode; value?: T; isOn?: (v: T) => boolean;
+  /** `reason`: the option is locked: dimmed, says why through `onLocked` (a press) and `onLockedHover`. */
+  options: readonly { value: T; label: ReactNode; reason?: string }[];
+  onLocked?: (reason: string) => void; onLockedHover?: (reason: string | null) => void;
   onPick: (v: T) => void; disabled?: boolean; size?: 'm' | 'l';
   /** Show at most this many options; the rest go into a "More" menu (the picked one, if hidden, names the button). */
   max?: number;
@@ -262,8 +269,9 @@ export function PhSegmented<T extends string | number | null>({ label, hint, val
       {label && <span className="phk-seglbl">{label}</span>}
       <div className="phk-segrow" role="group" aria-label={typeof label === 'string' ? label : undefined}>
         {options.map((o) => (
-          <button key={String(o.value)} type="button" className={cx('phk-segbtn', lit(o.value) && 'on')} aria-pressed={lit(o.value)} disabled={disabled}
-            onClick={() => { if (!disabled) onPick(o.value); }}>{o.label}</button>
+          <button key={String(o.value)} type="button" className={cx('phk-segbtn', lit(o.value) && 'on', o.reason && 'locked')} aria-pressed={lit(o.value)} disabled={disabled} aria-disabled={o.reason ? true : undefined}
+            onPointerEnter={o.reason ? () => onLockedHover?.(o.reason!) : undefined} onPointerLeave={o.reason ? () => onLockedHover?.(null) : undefined}
+            onClick={() => { if (disabled) return; if (o.reason) { onLocked?.(o.reason); return; } onPick(o.value); }}>{o.label}</button>
         ))}
       </div>
       {hint && <span className="phk-seghint">{hint}</span>}
@@ -292,7 +300,12 @@ export function PhDialog({ eyebrow, title, children, actions, onClose, closing, 
   }, []);
   return (
     <div className={cx('phk-dialog', closing && 'closing')} role="dialog" aria-modal="true" aria-label={label}>
-      <div className="phk-veil" onClick={onClose} aria-hidden="true" />
+      {/* A tap outside while a field is being typed in only ends the typing; it never throws the window away. */}
+      <div className="phk-veil" aria-hidden="true" onClick={() => {
+        const el = document.activeElement;
+        if (el instanceof HTMLInputElement) { el.blur(); return; }
+        onClose?.();
+      }} />
       <div className="phk-dlgbox">
         {eyebrow && <span className="phk-eyebrow">{eyebrow}</span>}
         <h2 className="phk-dlgtitle">{title}</h2>

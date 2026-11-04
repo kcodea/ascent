@@ -29,7 +29,7 @@ import { PatchNotesPage } from '../../PatchNotesPage';
 import { SettingsPage, SettingsPanel } from '../../EscMenu';
 import { MinionBook } from '../../MinionBook';
 import { PATCH_NOTES } from '../../patchNotes';
-import { matchesWords, patchEntries, PhPatchNotes } from './PhPatchNotes';
+import { matchesWords, patchEntries, PhPatchNotes, playerLabel } from './PhPatchNotes';
 import { PhSettings, SETTINGS_TABS } from './PhSettings';
 import { PhCompendium } from './PhCompendium';
 import { usePhShell } from '../shell/shellStore';
@@ -118,6 +118,13 @@ describe('Patch Notes in the shell', () => {
     expect(hits[0]!.items.map((c) => c.text)).toEqual(['Alpha changed']);
     expect(patchEntries('Balance', '', notes)[0]!.items).toHaveLength(2);
     expect(patchEntries('Balance', 'nothing', notes)).toEqual([]);
+  });
+
+  it('shows player-friendly patch labels', () => {
+    expect(playerLabel('Balance 9/23: rune reworks B')).toBe('Rune reworks');
+    expect(playerLabel('Art Batch')).toBeUndefined();
+    expect(playerLabel('Set 3 Neutrals II')).toBe('Set 3 Neutrals II');
+    expect(playerLabel(undefined)).toBeUndefined();
   });
 
   it('renders the newest patch first, an index row per patch, and remembers the tab', () => {

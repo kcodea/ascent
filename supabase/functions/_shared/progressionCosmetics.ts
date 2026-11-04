@@ -538,6 +538,17 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   skin('skin_gourmand_3', 'minion_skin', 'Scribbled Bob', 'legendary', 'dm_gourmand', 'Scribbled Bob.png'),
   skin('skin_chronos_4', 'minion_skin', 'Blueprint Chronos', 'ancient', 'chronos', 'Blueprint Chronos.png'),
   skin('skin_tapkeeper_3', 'minion_skin', 'Brick Tapkeeper', 'ancient', 'dw_tapkeeper', 'Lego Tapkeeper.png'),
+  // Skins batch 14 (owner 2026-11-02: "i added new cosmetics to the minions folder"). Eight skins for Set 2 shop minions
+  // that had none, most in the crayon Scribble style of Scribbled Bob. Rarity = the folder. 'Scribble Drunk Daniel.png'
+  // ships as Scribble Daniel (20 characters max); 'Serverchef.png' is the tennis Cinderchef.
+  skin('skin_kobabyboldies_1', 'minion_skin', 'Scribble Kobebes', 'common', 'k_kobabyboldies', 'Scribble Kobebes.png'),
+  skin('skin_kobabyboldies_2', 'minion_skin', 'Treasure Kobebes', 'rare', 'k_kobabyboldies', 'Treasure Kobebes.png'),
+  skin('skin_todd_1', 'minion_skin', 'Gargoyle Todd', 'rare', 'dm_todd', 'Gargoyle Todd.png'),
+  skin('skin_velvet_1', 'minion_skin', 'Scribble Big Huggies', 'rare', 'dm_velvet', 'Scribble Big Huggies.png'),
+  skin('skin_humphry_1', 'minion_skin', 'Scribble Humphry', 'rare', 'd2_humphry', 'Scribble Humphry.png'),
+  skin('skin_cinderchef_1', 'minion_skin', 'Serverchef', 'rare', 'd2_cinderchef', 'Serverchef.png'),
+  skin('skin_chef_1', 'minion_skin', 'Toast Gary Toast', 'rare', 'dw_chef', 'Toast Gary Toast.png'),
+  skin('skin_drunkdaniel_1', 'minion_skin', 'Scribble Daniel', 'epic', 'dw_drunkdaniel', 'Scribble Drunk Daniel.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is

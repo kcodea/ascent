@@ -38,6 +38,7 @@ import { PerfScreen } from './PerfScreen';
 import { AvatarPicker } from './AvatarPicker';
 import { TutorialController } from './tutorial/TutorialController';
 import { CrashLogReadout } from './CrashLogReadout';
+import { UpdateReadyNotice } from './UpdateReadyNotice';
 import { PerfLogReadout } from './PerfLogReadout';
 import { PHONE_BENCH_ON } from './perfLogFlag';
 // The on-device auto-bench (R-PHONE-BENCH-01): fetched only with ?phonebench=1.
@@ -775,6 +776,8 @@ export function Game() {
       {/* The phone crash log's readout (R-TOUCH-PLAY-MEMORY-01): renders nothing unless `?crashlog=1` or a crash in a
           standalone phone app. Counter-scaled so it reads at full size. */}
       <CrashLogReadout />
+      {/* DESKTOP AUTO-UPDATE: "Update vX downloaded" toast. Mounted for the whole session; renders nothing in the browser. */}
+      <UpdateReadyNotice />
       <PerfLogReadout />
       {PHONE_BENCH_ON && <Suspense fallback={null}><PhoneBenchCard /></Suspense>}
       {/* First-launch welcome RETIRED as an auto-popup (owner 2026-08-17): the tutorial nudge now fires when a

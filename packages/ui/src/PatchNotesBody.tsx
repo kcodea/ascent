@@ -64,7 +64,7 @@ const panelDomId = (tab: PatchCategory): string => `pnpanel-${tab.toLowerCase()}
  * Detailed toggle is independent of the tab. The last tab is remembered in localStorage. Data lives in
  * `patchNotes.ts`; this is a pure renderer over it.
  */
-export function PatchNotesBody() {
+export function PatchNotesBody({ notes = PATCH_NOTES }: { notes?: PatchNote[] } = {}) {
   // Two reading levels (owner ask 2026-08-24): Summary (headlines only) vs Detailed (every change's specifics).
   const [detailed, setDetailed] = useState(false);
   // Which bucket is open. Lazily read from storage so a blocked localStorage never throws during render.
@@ -91,7 +91,7 @@ export function PatchNotesBody() {
     (e.currentTarget.parentElement?.querySelector(`#${tabDomId(next)}`) as HTMLButtonElement | null)?.focus();
   };
 
-  const entries = notesForTab(tab);
+  const entries = notesForTab(tab, notes);
 
   return (
     <>

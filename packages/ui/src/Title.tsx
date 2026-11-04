@@ -43,6 +43,7 @@ import { scalarCaption } from './rank/rankFormat';
 import { crumb, crumbTrail } from './crashLog';
 import { MenuViewSwap } from './MenuViewSwap';
 import { PracticeOptions } from './PracticeOptions';
+import { UpdatedPanel } from './UpdatedPanel';
 
 /** The mode screen's views (`MenuViewSwap`): the home, its sub-views, Practice's setup, and the Versus room's empty
  *  ground (the room is its own stage over it). */
@@ -412,6 +413,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     // was gone and the title (and the mode picker inside it) was still skipped by `content-visibility: hidden`, a blank
     // frame. Deriving it in render un-skips the title in the same commit that removes the page.
     <div className={`titlescreen${covered && pageOpen ? ' covered' : ''}`}>
+      {/* DESKTOP AUTO-UPDATE: the "Updated to vX" panel (renders nothing in the browser build). */}
+      <UpdatedPanel />
       {/* Static homescreen background — the looping menu video is disabled for now (owner request 2026-07-08);
           the full-bleed sky-castle art comes from the `.titlescreen` CSS background (homescreen.webp). */}
 

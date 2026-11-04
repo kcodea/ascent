@@ -32,9 +32,9 @@ const VIEW: PhCareerProps['history']['view'] = {
 function careerProps(over: Partial<PhCareerProps> = {}): PhCareerProps {
   return {
     own: false, name: 'Orangez', title: null, addFriend: null, pageState: null, profileArt: undefined, favoriteHero: 'Robin',
-    accountLevel: null, level: 157,
+    level: { level: 157, into: 365, next: 500, fraction: 0.73 }, onCreateAccount: null,
     stats: { games: 141, firsts: 66, top4Pct: 74, losses: 37, avgPlacement: 3, tribe: 'Demon' },
-    rank: <div className="rk">rank</div>, duos: null,
+    rank: { divisionIndex: 15, points: 94 }, mmr: 1594, rankPending: false, userId: null,
     tab: 'history', onTab: vi.fn(), achievementsOn: true, tabSub: 'Last 50 runs',
     history: { filter: null, state: null, view: VIEW },
     heroes: { list: [hero('robin', 13), hero('albus', 3)], sort: 'games', onSort: vi.fn(), onPick: vi.fn(), art: () => undefined, state: null },
@@ -71,10 +71,11 @@ describe('Career on the app shell', () => {
     expect(m.container.querySelector('.phk-pagehead h1')?.textContent).toBe('VerdantBear35');
     m.unmount();
   });
-  it('keeps every profile number: level, the six career stats, the rank card', () => {
+  it('keeps every profile number on the strip: level, the rank + MMR, the six career stats', () => {
     const m = mount(<PhCareer {...careerProps()} />);
     const text = m.container.textContent ?? '';
-    for (const s of ['157', 'Favorite hero', 'Robin', '141', '66', '74%', '37', 'Demon', 'Seasonal Ranked', 'rank']) expect(text).toContain(s);
+    for (const s of ['Level 157', 'Favorite hero', 'Robin', '141', '66', '74%', '37', 'Demon', 'MMR']) expect(text).toContain(s);
+    expect(m.container.querySelector('.phc-strip .rankbar')).not.toBeNull();
     expect(m.container.querySelector('.rgp-item')?.textContent).toContain('+6'); // Recent Games' row, with the rating change
     expect(m.container.querySelector('.rgp-banner')).not.toBeNull();
     m.unmount();
@@ -97,7 +98,7 @@ describe('Career on the app shell', () => {
   it('a whole-page state replaces the grid and keeps its one action', () => {
     const onClick = vi.fn();
     const m = mount(<PhCareer {...careerProps({ pageState: { title: 'Sign in to see your career', body: 'x', action: { label: 'Sign in', onClick } } })} />);
-    expect(m.container.querySelector('.phc-grid')).toBeNull();
+    expect(m.container.querySelector('.phc-strip')).toBeNull();
     act(() => { [...m.container.querySelectorAll('button')].find((b) => b.textContent === 'Sign in')!.click(); });
     expect(onClick).toHaveBeenCalled();
     m.unmount();

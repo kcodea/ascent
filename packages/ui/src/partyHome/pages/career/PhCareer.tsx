@@ -7,17 +7,25 @@
  *
  *   HEADER   the shared PhPage head: "Career" / "Your Career" eyebrow, the player's name, the five view tabs in the
  *            middle (Match History, Heroes, Trends, Practice, Achievements) and the title + Add Friend on the right.
- *   LEFT     the PROFILE column (it scrolls on its own): the chosen portrait fading into the navy with the name, title
- *            and favourite hero on it; the account level; Seasonal Ranked; Ranked Duos; the career numbers as tiles.
- *   RIGHT    the open view. Match History and Practice wear Recent Games' list + detail (../gameView.tsx); Heroes is a
- *            grid of portrait cards (Valorant's agent grid); Trends gets the full width the charts never had in the
- *            old right column.
+ *   STRIP    Recent Games' strip, one plate across the page (owner 2026-11-03: "the career page should probably be a bit
+ *            cleaner"): who (portrait fading in, level + XP, favourite hero), the rank + MMR, the best Ranked Duos team
+ *            (arrows step through them), the career numbers. Thin rules, no boxes.
+ *   BODY     the open view at full width. Match History and Practice wear Recent Games' list + detail (../gameView.tsx);
+ *            Heroes is a grid of portrait cards (Valorant's agent grid); Trends has the room the old column never gave it.
  *
  * Nothing is lost from the old page: Performance Trends moved from the right column into its own tab (judgement call,
  * flagged in the PR). Static paint; no looping animation; no layout reads.
  */
-import type { ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { getHero } from '@game/sim';
+import { RankBar } from '../../../rank/RankBar';
+import { scalarCaption } from '../../../rank/rankFormat';
+import type { RankPosition } from '../../../rank/types';
+import { remoteEnabled } from '../../../remoteBoards';
+import { sfx } from '../../../sfx';
+import { useSocial } from '../../../socialCache';
+import { handleOf, sortDuosTeams } from '../../../versus/DuosBoards';
+import { versusRemote, type DuosTeamOfRow } from '../../../versus/versusRemote';
 import { MenuMedal } from '../../../menuIcons';
 import { MenuSidebar, SidebarHost } from '../../../MenuSidebar';
 import { HERO_SORTS, HERO_SORT_LABEL, TREND_WINDOWS, trendWindowLabel, type HeroCareer, type HeroSort, type TrendWindow } from '../../../careerData';
@@ -40,12 +48,17 @@ export interface PhCareerProps {
   pageState: PhState | null;
   profileArt: string | undefined;
   favoriteHero: string;
-  /** The account level card (level, XP, Collection, the guest's Create account). Null until progression is on. */
-  accountLevel: ReactNode;
-  level: number | null;
+  /** The account level. Null until progression is on. */
+  level: { level: number; into: number; next: number; fraction: number } | null;
+  /** Your own page as a guest: the way to an account. */
+  onCreateAccount: (() => void) | null;
   stats: { games: number; firsts: number; top4Pct: number | null; losses: number; avgPlacement: number | null; tribe: string | null; tribeMedal?: ReactNode };
-  rank: ReactNode;
-  duos: ReactNode;
+  rank: RankPosition | null;
+  /** The bare number when no rank exists. */
+  mmr: number;
+  /** A viewed player's rank is still being read. */
+  rankPending: boolean;
+  userId: string | null;
   tab: PhCareerTab;
   onTab: (t: PhCareerTab) => void;
   achievementsOn: boolean;
@@ -56,6 +69,26 @@ export interface PhCareerProps {
   trends: { window: TrendWindow; onWindow: (w: TrendWindow) => void; body: ReactNode };
   practice: { state: PhState | null; view: GameSplitView | null };
   achievements: ReactNode;
+}
+
+/** The player's Ranked Duos teams, best first: one quiet cell, the arrow steps through them. Nothing with no team. */
+function DuosCell({ userId }: { userId: string | null }) {
+  const rows = useSocial<DuosTeamOfRow[]>(userId && remoteEnabled() ? `career:duos:${userId}` : null, () => versusRemote.duosTeamsOf(userId!).catch(() => [])) ?? null;
+  const teams = useMemo(() => (rows ? sortDuosTeams(rows) : []), [rows]);
+  const [at, setAt] = useState(0);
+  if (teams.length === 0) return null;
+  const t = teams[at % teams.length]!;
+  const partner = `With ${handleOf(t.partner)}`;
+  return (
+    <div className="phc-cell" role="group" aria-label="Ranked Duos teams">
+      <RankBar position={{ divisionIndex: t.division, points: t.points }} size="row" showGate={false} />
+      <span className="phc-duosteam" aria-live="polite">
+        <b>{t.name ?? 'Ranked Duos'}</b>
+        <span>{partner}, {t.games} game{t.games === 1 ? '' : 's'}</span>
+      </span>
+      {teams.length > 1 && <button type="button" className="phc-duosnext" aria-label={`Next team, ${(at % teams.length) + 1} of ${teams.length}`} onClick={() => { sfx.pulse(); setAt((a) => a + 1); }}>›</button>}
+    </div>
+  );
 }
 
 function StateView({ s }: { s: PhState }) {
@@ -95,7 +128,18 @@ export function PhCareer(p: PhCareerProps) {
     { id: 'practice', label: 'Practice' },
     ...(p.achievementsOn ? [{ id: 'achievements' as const, label: 'Achievements' }] : []),
   ];
-  const actions = (p.title || p.addFriend) ? <>{p.title}{p.addFriend}</> : undefined;
+  const scope = !p.pageState && (p.tab === 'history' || p.tab === 'practice') ? p.tabSub : '';
+  const actions = (
+    <>
+      {scope && <span className="phc-scope">{scope}</span>}
+      {p.title}{p.addFriend}
+      {p.onCreateAccount && (
+        <span className="gtip" data-tip="Playing as a guest. Create an account to save your progress.">
+          <PhButton size="s" onClick={p.onCreateAccount}>Create account</PhButton>
+        </span>
+      )}
+    </>
+  );
   const { stats } = p;
 
   let view: ReactNode;
@@ -123,8 +167,7 @@ export function PhCareer(p: PhCareerProps) {
     );
   } else if (p.tab === 'practice') {
     view = p.practice.state ? <StateView s={p.practice.state} /> : (
-      <div className="phc-view phc-splitview rgp">
-        <div className="phc-toolbar"><span className="phc-sub">{p.tabSub}</span></div>
+      <div className="phc-view phc-splitview">
         {p.practice.view && <GameSplitPh view={p.practice.view} />}
       </div>
     );
@@ -133,17 +176,16 @@ export function PhCareer(p: PhCareerProps) {
   } else {
     const f = p.history.filter;
     view = (
-      <div className="phc-view phc-splitview rgp">
-        <div className="phc-toolbar">
-          {f ? (
+      <div className="phc-view phc-splitview">
+        {f && (
+          <div className="phc-toolbar">
             <span className="phc-filter">
               <span className="phc-sub">Showing</span>
               <PhButton size="s" variant="plate" onClick={f.clear} aria-label={`Show every hero, not just ${f.name}`}>{f.name}<span className="phc-x" aria-hidden="true">✕</span></PhButton>
               <PhButton size="s" variant="ghost" onClick={f.back}>Back to Heroes</PhButton>
             </span>
-          ) : null}
-          <span className="phc-sub phc-count">{p.tabSub}</span>
-        </div>
+          </div>
+        )}
         {p.history.state ? <StateView s={p.history.state} /> : p.history.view && <GameSplitPh view={p.history.view} />}
       </div>
     );
@@ -154,44 +196,40 @@ export function PhCareer(p: PhCareerProps) {
       <MenuSidebar current="career" />
       <PhPage
         wide
-        className="phc-pg"
+        className="phc-pg rgp"
         eyebrow={p.own ? 'Your Career' : 'Career'}
         title={p.name}
         tabs={p.pageState ? undefined : <PhTabs tabs={tabs} value={p.tab} onChange={p.onTab} label="Career view" />}
         actions={actions}
       >
         {p.pageState ? <StateView s={p.pageState} /> : (
-          <div className="phc-grid">
-            <aside className="phc-profile" aria-label="Profile">
-              <section className="phc-id">
-                {p.profileArt && <img className="phc-idart" src={p.profileArt} alt="" draggable={false} decoding="sync" />}
-                {p.level !== null && <span className="phc-idlv" aria-label={`Level ${p.level}`}><small>Lv</small>{p.level}</span>}
-                <span className="phc-idwho">
-                  <span className="phc-idname">{p.name}</span>
-                  <span className="phc-idfav"><span>Favorite hero</span> {p.favoriteHero}</span>
-                </span>
-              </section>
-              {p.accountLevel && <div className="phc-acct">{p.accountLevel}</div>}
-              <div className="phc-card">
-                <h2 className="phc-h">Seasonal Ranked</h2>
-                {p.rank}
+          <>
+            <section className="rgp-strip phc-strip" aria-label="Profile">
+              <div className="rgp-most phc-who">
+                {p.profileArt && <img className="rgp-mostart" src={p.profileArt} alt="" draggable={false} decoding="sync" />}
+                {/* The name is the page title just above: the strip does not say it twice. */}
+                <span className="rgp-mostname">{p.level ? `Level ${p.level.level}` : p.name}</span>
+                <span className="rgp-mostsub">Favorite hero {p.favoriteHero}</span>
+                {p.level && (
+                  <span className="phc-xp" role="img" aria-label={`Level ${p.level.level}, ${p.level.into} of ${p.level.next} XP`}><i style={{ transform: `scaleX(${p.level.fraction})` }} /></span>
+                )}
               </div>
-              <div className="phc-card">
-                <h2 className="phc-h">Career Stats</h2>
-                <div className="phc-stats">
-                  <PhStat size="s" label="Games" value={stats.games} />
-                  <PhStat size="s" label="1st Place Wins" value={stats.firsts} tone="gold" />
-                  <PhStat size="s" label="Top 4 Finish" value={<span className="phc-sv"><MenuMedal name="top4" />{stats.top4Pct === null ? '-' : `${stats.top4Pct}%`}</span>} />
-                  <PhStat size="s" label="Losses" value={<span className="phc-sv"><MenuMedal name="losses" />{stats.losses}</span>} />
-                  <PhStat size="s" label="Avg Placement" value={<span className="phc-sv"><MenuMedal name="avgplacement" />{stats.avgPlacement === null ? '-' : stats.avgPlacement}</span>} />
-                  <PhStat size="s" label="Favorite Tribe" value={<span className="phc-sv">{stats.tribeMedal}{stats.tribe ?? '-'}</span>} />
-                </div>
+              <div className="phc-cell" role="group" aria-label="Seasonal Ranked">
+                {p.rank ? <RankBar position={p.rank} size="row" /> : p.rankPending ? <span className="phc-wait" aria-busy="true" aria-label="Loading rank" /> : null}
+                {!p.rankPending && <span className="phc-mmr"><b>{p.rank ? scalarCaption(p.rank) : p.mmr}</b>MMR</span>}
               </div>
-              {/* Ranked Duos last: the career numbers stay on screen at 1080; the teams scroll in under them. */}
-              {p.duos && <div className="phc-card phc-duos">{p.duos}</div>}
-            </aside>
+              <DuosCell userId={p.userId} />
+              <div className="rgp-stats">
+                <PhStat label="Games" value={stats.games} />
+                <PhStat label="1st Place" value={stats.firsts} tone="gold" />
+                <PhStat label="Top 4" value={<span className="phc-sv"><MenuMedal name="top4" />{stats.top4Pct === null ? '-' : `${stats.top4Pct}%`}</span>} />
+                <PhStat label="Losses" value={<span className="phc-sv"><MenuMedal name="losses" />{stats.losses}</span>} />
+                <PhStat label="Avg Place" value={<span className="phc-sv"><MenuMedal name="avgplacement" />{stats.avgPlacement === null ? '-' : stats.avgPlacement}</span>} />
+                <PhStat label="Tribe" value={<span className="phc-sv">{stats.tribeMedal}{stats.tribe ?? '-'}</span>} />
+              </div>
+            </section>
             <section className="phc-main" aria-label={tabs.find((t) => t.id === p.tab)?.label} role="tabpanel">{view}</section>
-          </div>
+          </>
         )}
       </PhPage>
     </SidebarHost>

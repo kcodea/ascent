@@ -485,7 +485,7 @@ describe('states', () => {
       expect([...ui.container.querySelectorAll('button')].some((b) => b.textContent === 'Retry')).toBe(true);
       await act(async () => { resolve(RUNS); for (let i = 0; i < 20; i++) await Promise.resolve(); });
       expect(ui.container.textContent).not.toContain('not available right now');
-      expect(ui.container.querySelector('.phc-grid')).not.toBeNull();
+      expect(ui.container.querySelector('.phc-strip')).not.toBeNull();
     } finally {
       act(() => { setPartyHome(false); });
       vi.useRealTimers();

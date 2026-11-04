@@ -401,6 +401,7 @@ export function Career() {
   const careerVersion = useGame((s) => s.careerVersion);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
   const cache = useGame((s) => s.careerCache);
+  const accountAnonymous = useGame((s) => s.account.anonymous);
   const showOppSkins = useGame((s) => s.showOpponentSkins); // the shell layout's portraits (the same rule as useCareerSkins)
 
   const viewing = careerOf;
@@ -813,7 +814,7 @@ export function Career() {
     else if (runs === undefined && loadStalled) pageState = st('Your career is not available right now', 'Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } });
     else if (runs === undefined) pageState = st('Loading your career', 'Fetching your recent runs from the server.', undefined, true);
     else if (runs === null) pageState = st('Couldn’t reach the server', 'Your career is stored on your account. Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } });
-    const lv = accountProgression ? levelProgress(accountProgression.accountXp).level : null;
+    const lvp = accountProgression ? levelProgress(accountProgression.accountXp) : null;
     const tabSub = tab === 'heroes'
       ? (heroes.length ? `${heroes.length} hero${heroes.length === 1 ? '' : 'es'} played` : '')
       : tab === 'practice'
@@ -846,17 +847,10 @@ export function Career() {
             pageState={pageState}
             profileArt={profileArt}
             favoriteHero={heroId ? heroName : 'None yet'}
-            accountLevel={accountProgression ? <AccountLevelCard profile={accountProgression} own={own} /> : null}
-            level={lv}
+            level={lvp ? { level: lvp.level, into: lvp.xpIntoLevel, next: lvp.xpForNextLevel, fraction: lvp.fraction } : null}
+            onCreateAccount={own && accountAnonymous ? () => { sfx.pulse(); openAccountPanel(); } : null}
             stats={{ games: (runs ?? []).length, firsts: aggregates.firsts, top4Pct: aggregates.top4Pct, losses: aggregates.losses, avgPlacement: aggregates.avgPlacement, tribe: aggregates.favoriteTribe ? TRIBE_LABEL[aggregates.favoriteTribe] : null, tribeMedal: hasTribeMedal(aggregates.favoriteTribe) ? <TribeMedal tribe={aggregates.favoriteTribe} /> : null }}
-            rank={(
-              <RankCard position={rank ?? null}>
-                {rankPending
-                  ? <div className="cv2-rank-wait" aria-busy="true" aria-label="Loading rank" />
-                  : <div className="cv2-mmr"><span className="cv2-mmr-v">{mmr}</span><span className="cv2-mmr-l">MMR</span></div>}
-              </RankCard>
-            )}
-            duos={<CareerDuosTeams userId={userId ?? null} />}
+            rank={rank ?? null} mmr={mmr} rankPending={rankPending} userId={userId ?? null}
             tab={tab as PhCareerTab}
             onTab={(t) => { sfx.pulse(); pickTab(t); }}
             achievementsOn={achievementsOn}

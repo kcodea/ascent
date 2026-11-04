@@ -8257,6 +8257,13 @@ html[data-ph-book] .lbpage { visibility: hidden; }
 /* Hero select stands on the same backdrop: its own ground would cut to brown until its skin loads. */
 html[data-ph-steady] .heroselect:not(.endscreen) { background: none; }
 html[data-ph-steady] .heroselect:not(.endscreen)::before { content: none; }
+/* (Same prototype, inert without the attribute.) The in-game rail on a phone: every row on screen, the corner icons on a row of
+   their own under it. Sizes follow the layout height, so a scaled and an unscaled phone agree. */
+html[data-ph-gm][data-touch-small] .gmenu .msb { bottom: calc(var(--lvh, 100vh) * 0.13); padding-top: calc(var(--lvh, 100vh) * 0.012); padding-bottom: 0; gap: calc(var(--lvh, 100vh) * 0.008); overflow: hidden; }
+html[data-ph-gm][data-touch-small] .gmenu :is(.msb-home, .msb-clock) { display: none; }
+html[data-ph-gm][data-touch-small] .gmenu .msb-nav { gap: calc(var(--lvh, 100vh) * 0.008); padding-top: 0; }
+html[data-ph-gm][data-touch-small] .gmenu .sbbtn { height: calc(var(--lvh, 100vh) * 0.082); min-height: 0; }
+html[data-ph-gm][data-touch-small] { --bl-b: calc(var(--lvh, 100vh) * 0.012) !important; --bl-cb: calc(var(--lvh, 100vh) * 0.1) !important; }
 .lbtopbar { display: flex; align-items: center; gap: 18px; padding: 22px 30px 14px; flex: none; }
 .lbback { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #f0dcae; background: rgba(0, 0, 0, 0.38); border: 2px solid rgba(196, 160, 92, 0.55); padding: 10px 22px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.18); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; flex: none; }
 .lbback:hover { border-color: var(--acc); color: var(--acc); }

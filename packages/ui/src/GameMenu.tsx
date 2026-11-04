@@ -21,6 +21,7 @@ import { MenuSidebar } from './MenuSidebar';
 import { anyPageOpen, inGameScreen, useGame } from './store';
 import { sfx } from './sfx';
 import { phBack } from './partyHome/shell/phHistory';
+import { usePartyHome } from './partyHome/partyHomeFlag';
 
 /** Escape / the gear: in a game the in-game menu (the sidebar over the dimmed game), on the menus the Settings page. */
 export function openMenu(): void {
@@ -62,6 +63,13 @@ export function GameMenu() {
   // The menu belongs to a game: back on the title (Save & Quit, a game that ended into the menus) it closes itself.
   const onTitle = useGame((s) => s.showTitle);
   useEffect(() => { if (open && onTitle) close(); }, [open, onTitle, close]);
+  // The party home prototype's phone rail: every row on screen, the corner icons on their own row below it (styles.css).
+  const shellFlag = usePartyHome();
+  const phRail = shellFlag && open && !onTitle;
+  useEffect(() => {
+    document.documentElement.toggleAttribute('data-ph-gm', phRail);
+    return () => document.documentElement.removeAttribute('data-ph-gm');
+  }, [phRail]);
   if (!open || onTitle) return null;
   return (
     <div className={`gmenu${paged ? ' paged' : ''}`} role="dialog" aria-label="Game menu">

@@ -185,10 +185,11 @@ describe('Leaderboard on the app shell', () => {
       teamId: 't', name, division: 0, points: 0, demotionReady: false, games: 3,
       players: [a ? { userId: 'a', name: a } : null, b ? { userId: 'b', name: b } : null],
     } as unknown as DuosLeaderboardRow);
-    expect(teamLabel(team(null, null, null))).toEqual({ name: 'Unnamed team', sub: '3 games' });
+    expect(teamLabel(team(null, null, null))).toEqual({ name: 'Unnamed team', sub: '' });
     expect(teamLabel(team('hilton hotels', null, null)).name).toBe('hilton hotels');
     expect(teamLabel(team(null, 'Ann', null)).name).toBe('Ann and a partner');
-    expect(teamLabel(team(null, 'Ann', 'Bo')).sub).toBe('Ann and Bo');
+    expect(teamLabel(team(null, 'Ann', 'Bo'))).toEqual({ name: 'Ann & Bo', sub: '' }); // named once, not twice
+    expect(teamLabel(team('hilton hotels', 'Ann', 'Bo')).sub).toBe('Ann and Bo');
   });
   it('says "Top players" when the board holds fewer than its size', () => {
     const m = mount(<PhLeaderboard {...boardProps()} />);

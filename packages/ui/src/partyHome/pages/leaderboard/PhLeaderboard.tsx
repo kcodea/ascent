@@ -166,11 +166,11 @@ const handleOf = (c: DuosPlayerCard | null): string | null => (c?.name ? shownNa
 export function teamLabel(r: DuosLeaderboardRow): { name: string; sub: string } {
   const [a, b] = r.players;
   const ha = handleOf(a), hb = handleOf(b);
-  const games = `${r.games} game${r.games === 1 ? '' : 's'}`;
-  if (r.name) return { name: r.name, sub: ha && hb ? `${ha} and ${hb}` : games };
-  if (ha && hb) return { name: duosTeamLabel(null, a, b), sub: `${ha} and ${hb}` };
-  if (ha || hb) return { name: `${ha ?? hb} and a partner`, sub: games };
-  return { name: 'Unnamed team', sub: games };
+  // The players are named once: under a team's own name, or as the name itself. The games are their own column.
+  if (r.name) return { name: r.name, sub: ha && hb ? `${ha} and ${hb}` : '' };
+  if (ha && hb) return { name: duosTeamLabel(null, a, b), sub: '' };
+  if (ha || hb) return { name: `${ha ?? hb} and a partner`, sub: '' };
+  return { name: 'Unnamed team', sub: '' };
 }
 
 function DuosBoard({ myId }: { myId: string | null }) {
@@ -198,7 +198,7 @@ function DuosBoard({ myId }: { myId: string | null }) {
                   <span className="phl-podplace"><PhPlace place={i + 1} size={i === 0 ? 'l' : 'm'} /></span>
                   <span className="phl-podwho">
                     <span className="phl-podname">{label.name}</span>
-                    <span className="phl-podhero">{label.sub}</span>
+                    {label.sub && <span className="phl-podhero">{label.sub}</span>}
                   </span>
                   <span className="phl-podfoot">
                     <span className="phl-podrank"><RankCrest divisionIndex={r.division} size="row" /><span>{rankLabel(r.division)}</span></span>
@@ -213,7 +213,7 @@ function DuosBoard({ myId }: { myId: string | null }) {
       )}
       {rest.length > 0 && (
         <div className="phl-table duos" role="table" aria-label="Top Ranked Duos teams">
-          <div className="phl-head" role="row"><span>#</span><span /><span>Team</span><span>Rank</span><span className="r">Games</span></div>
+          <div className="phl-head" role="row"><span>#</span><span /><span>Team</span><span>Rank</span><span className="r">Points</span><span className="r">Games</span></div>
           {rest.map((r, j) => {
             const [a, b] = r.players;
             const mine = !!myId && (a?.userId === myId || b?.userId === myId);
@@ -234,9 +234,10 @@ function DuosBoard({ myId }: { myId: string | null }) {
                   </span>
                   <span className="phl-who">
                     <span className="phl-name">{label.name}</span>
-                    <span className="phl-sub">{label.sub}</span>
+                    {label.sub && <span className="phl-sub">{label.sub}</span>}
                   </span>
                   <RankCell rank={{ divisionIndex: r.division, points: r.points }} />
+                  <Num v={r.points} unit="Points" gold />
                   <Num v={r.games} unit="Games" />
                 </span>
               </div>

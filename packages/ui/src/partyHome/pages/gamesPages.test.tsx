@@ -14,7 +14,7 @@ import { HEROES } from '@game/sim';
 import { mount, type Mounted } from '../../renderedText.mount';
 import { RecentGamesPh, placeWords, type KeyedRow, type RecentGamesPhProps } from './RecentGamesPh';
 import { LiveGamesPh, liveCountText, liveRowNames, type LiveGamesPhProps } from './LiveGamesPh';
-import { HOLD_MS } from './gameView';
+import { FIRST_ROWS, HOLD_MS } from './gameView';
 import type { RecentGameRow } from '../../remoteBoards';
 import type { LiveGameRow } from '../../live/liveRemote';
 import { LIVE_PAGE } from '../../live/liveRemote';
@@ -148,6 +148,20 @@ describe('Recent Games on the shell', () => {
     expect(q('.rgp-filters')).not.toBeNull();
     expect(q('.phk-tab.on')?.textContent).toBe('Practice');
     expect(q('.phk-empty')).toBeNull();
+  });
+  it('paints a screenful of rows first, then the rest, and always the picked row', () => {
+    vi.useFakeTimers();
+    const many = Array.from({ length: 40 }, (_, i) => ({ r: game(i, (i % 8) + 1, H[0]!), key: `m${i}`, mine: false, skins: null }));
+    ui = mount(<RecentGamesPh {...props({ rows: many })} />);
+    expect(qa('.rgp-item').length).toBe(FIRST_ROWS);
+    act(() => { vi.advanceTimersByTime(400); });
+    vi.useRealTimers();
+    expect(qa('.rgp-item').length).toBe(40);
+  });
+  it('the detail column never scrolls sideways (a phone: the hidden hover bubble must not widen it)', () => {
+    const css = here('./gamesPages.css');
+    expect(css).toMatch(/\.rgp-detailcol \{[^}]*overflow-x: hidden/);
+    expect(css).toMatch(/html\[data-touch-small\] \.rgp-tip\.gtip\[data-tip\]:not\(\.tt-on\)::after \{ display: none; \}/);
   });
   it('names a placement in words', () => {
     // The production list's placement style (owner ruling 2026-11-03): band-coloured ordinal text, a crown on a win, no crest.

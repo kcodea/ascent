@@ -37,7 +37,8 @@ import { DuosGameCard } from '../../duosHistory/DuosGameCard';
 import { duosBand, duosGameView, duosModeLabel, teamPlaceText, type DuosGameRow } from '../../duosHistory/duosHistoryData';
 import { practiceOpponentsText, summaryOf, type FeedRow, type RecentGamesTab } from '../../RecentGames';
 import { PhButton, PhChip, PhEmpty, PhPage, PhSection, PhSegmented, PhStat, PhTabs } from '../kit';
-import { GameDetail, GameDetailHold, GameList, useHeldKey, useNearPrefetch, type GameFact, type ListItem } from './gameView';
+import { boardArtReady, warmBoardArt } from './gameWarm';
+import { GameDetail, GameDetailHold, GameList, markPageFading, useHeldKey, useNearPrefetch, type GameFact, type ListItem } from './gameView';
 import './gamesPages.css';
 
 export { placeWords } from './gameView';
@@ -71,6 +72,13 @@ export function RecentGamesPh(given: RecentGamesPhProps) {
   // A TAB SWITCH NEVER BLANKS THE PAGE (round 11 critic): while the next feed is read, the last one stays up (tabs already
   // on the new tab, the strip, chips and list a little dimmed), and the data swaps in place when it lands.
   const last = useRef<Pick<RecentGamesPhProps, 'tab' | 'rows' | 'heroCounts'> | null>(null);
+  if (last.current === null) markPageFading();
+  // THE PAGE ARRIVES WHOLE: it stays invisible until its first frame has been drawn (the second animation frame runs only
+  // after the first has committed), then fades in as one, instead of painting in pieces while its pictures decode.
+  useEffect(() => {
+    let id = requestAnimationFrame(() => { id = requestAnimationFrame(() => { document.querySelector('.phk-page.rgp')?.setAttribute('data-in', ''); }); });
+    return () => cancelAnimationFrame(id);
+  }, []);
   if (given.state === 'ready' && given.tab !== 'duos' && given.rows.length > 0) last.current = { tab: given.tab, rows: given.rows, heroCounts: given.heroCounts };
   const stale = given.state === 'loading' && given.tab !== 'duos' && last.current !== null;
   const p: RecentGamesPhProps = stale ? { ...given, ...last.current!, state: 'ready' } : given;
@@ -131,7 +139,7 @@ function FeedBody(p: RecentGamesPhProps) {
   return <FeedReady {...p} />;
 }
 
-/** Is this row's lobby in hand? A practice row carries its own; a row with no read to make has none to wait for. */
+/** Is this row's lobby in hand? (Its board art is the other half of "ready".) A practice row carries its own; a row with no read to make has none to wait for. */
 const lobbyInHand = (r: FeedRow): boolean => 'match' in r || r.rowId == null || !r.userId || peekRecentMatch(r.rowId) !== undefined;
 
 function FeedReady(p: RecentGamesPhProps) {
@@ -140,10 +148,11 @@ function FeedReady(p: RecentGamesPhProps) {
   const rowOf = (key: string): KeyedRow | undefined => p.rows.find((k) => k.key === key);
   const readLobby = (key: string): Promise<unknown> => {
     const k = rowOf(key);
-    return k && !('match' in k.r) ? fetchRecentMatch(k.r.rowId, k.r.userId) : Promise.resolve();
+    if (!k) return Promise.resolve();
+    return Promise.all([warmBoardArt(k.r.board?.minions), 'match' in k.r ? null : fetchRecentMatch(k.r.rowId, k.r.userId)]);
   };
   // The open game arrives whole: the list moves at once, the detail swaps when its lobby is in hand (gameView.tsx).
-  const shownKey = useHeldKey(sel.key, (key) => { const k = rowOf(key); return !k || lobbyInHand(k.r); }, readLobby);
+  const shownKey = useHeldKey(sel.key, (key) => { const k = rowOf(key); return !k || (lobbyInHand(k.r) && boardArtReady(k.r.board?.minions)); }, readLobby);
   const keys = useMemo(() => p.rows.map((k) => k.key), [p.rows]);
   useNearPrefetch(keys, sel.key, readLobby);
   const items = useMemo((): ListItem[] => p.rows.map(({ r, key, skins }) => {
@@ -187,7 +196,7 @@ const Strip = memo(function Strip({ rows, practice }: { rows: readonly KeyedRow[
         <PhStat label="Wins" value={s.wins} tone="gold" />
       </div>
       <div className="rgp-most">
-        {heroArt && <img className="rgp-mostart" src={heroArt} alt="" draggable={false} decoding="sync" />}
+        {heroArt && <img className="rgp-mostart" src={heroArt} alt="" draggable={false} decoding="async" />}
         <span className="rgp-k">Most played</span>
         <span className="rgp-mostname">{s.hero ? getHero(s.hero.id).name : '-'}</span>
         <span className="rgp-mostsub">

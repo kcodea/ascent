@@ -91,6 +91,9 @@ export interface ListItem {
   rank?: number | null; delta?: number | null; art?: string; label: string;
 }
 
+/** The rows in the first paint: a screenful and a little. The rest follow a moment later, off the page's first frame. */
+export const FIRST_ROWS = 14;
+
 /** The history: one rail slice per game, in the kit's keyboard list (Up / Down / Home / End). */
 export const GameList = memo(function GameList({ items, selected, onPick, label, onNear }: {
   items: readonly ListItem[]; selected: string; onPick: (key: string) => void; label: string;
@@ -101,6 +104,10 @@ export const GameList = memo(function GameList({ items, selected, onPick, label,
   // is in view, and a layout read in the commit cost 48 ms on open) and never for a press in the list (it is in view too;
   // the kit list scrolls its own keyboard moves). Scrolls only the list, never the phone's page.
   const ref = useRef<HTMLDivElement | null>(null);
+  const [allRows, setAllRows] = useState(false);
+  useEffect(() => { const t = window.setTimeout(() => setAllRows(true), 350); return () => window.clearTimeout(t); }, []);
+  const at = items.findIndex((it) => it.key === selected);
+  const rows = allRows ? items : items.slice(0, Math.max(FIRST_ROWS, at + 4));
   const prev = useRef(selected);
   const local = useRef(false);
   useEffect(() => {
@@ -118,11 +125,11 @@ export const GameList = memo(function GameList({ items, selected, onPick, label,
   return (
     <div className="rgp-listwrap" ref={ref}>
       <PhSelectList
-        className="rgp-list" label={label} items={items} keyOf={(it) => it.key} selected={selected}
+        className="rgp-list" label={label} items={rows} keyOf={(it) => it.key} selected={selected}
         onSelect={(it) => { if (it.key !== selected) { local.current = true; onPick(it.key); } }}
         render={(it, on) => (
           <div className={`phk-row rgp-item b-${it.band}${on ? ' sel' : ''}`} aria-label={it.label} onPointerEnter={onNear ? () => onNear(it.key) : undefined}>
-            {it.art && <img className="phk-rowart rgp-itemart" src={it.art} alt="" draggable={false} decoding="sync" loading="lazy" />}
+            {it.art && <img className="phk-rowart rgp-itemart" src={it.art} alt="" draggable={false} decoding="async" />}
             <Place place={it.place} band={it.band} />
             <span className="phk-rowwho">
               <span className="phk-rowtitle">{it.title}</span>
@@ -172,6 +179,12 @@ function Fact({ label, children, tip }: { label: string; children: ReactNode; ti
   return tip ? <span className="gtip rgp-tip" data-tip={tip}>{tile}</span> : tile;
 }
 
+/** Has a game been drawn since the page opened? The first one paints inside the page's own fade (`.lbpage`), so its big
+ *  pictures decode off that frame instead of holding it; after that a swap decodes in its frame, whole. */
+let pageFading = false;
+/** The page opened (its fade plays): the next open game may decode off the frame. */
+export const markPageFading = (): void => { pageFading = true; };
+
 const NO_MINIONS: never[] = [];
 const GHOST_SEATS = [0, 1, 2, 3, 4, 5, 6, 7];
 
@@ -196,6 +209,8 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
   const band = p.band ?? bandOf(p.place);
   // Fades only when it was waited for: a revisit (the answer already in hand) paints as it always did.
   const waited = useRef(!!p.matchPending);
+  const decoding = useRef<'sync' | 'async'>(pageFading ? 'async' : 'sync').current;
+  useEffect(() => { pageFading = false; }, []);
   const { seat, pick } = useLobbySeat(p.match);
   // A pick in the lobby (below the board) brings the board back into view; nothing moves when it is already on screen.
   const boardRef = useRef<HTMLElement | null>(null);
@@ -217,7 +232,7 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
   return (
     <article className={`rgp-detail b-${band}`} aria-label={`${p.who}, ${p.heroName}: ${placeWords(p.place)}`}>
       <header className="rgp-banner">
-        {p.art && <img className="rgp-bannerart" src={p.art} alt="" draggable={false} decoding="sync" />}
+        {p.art && <img className="rgp-bannerart" src={p.art} alt="" draggable={false} decoding={decoding} />}
         <Place place={p.place} band={band} big />
         <div className="rgp-bannerwho">
           {(band === 'won' || band === 'none') && <span className={`rgp-verdict b-${band}`}>{placeWords(p.place)}</span>}
@@ -273,7 +288,7 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
       {(p.match || p.matchPending) && (
         <section className={`rgp-lobby${p.match && waited.current ? ' fadein' : ''}`} aria-label="Players in this lobby" aria-busy={!p.match}>
           <header className="rgp-lobbyhead"><h3>Lobby</h3></header>
-          {p.match ? <LobbyTiles details={p.match} selectedId={seat?.id ?? null} onPick={pick} own={p.own} /> : <LobbyGhost />}
+          {p.match ? <LobbyTiles details={p.match} selectedId={seat?.id ?? null} onPick={pick} own={p.own} artDecoding={decoding} /> : <LobbyGhost />}
         </section>
       )}
     </article>

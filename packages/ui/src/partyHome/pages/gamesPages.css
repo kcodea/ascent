@@ -69,7 +69,7 @@
 .rgp-listwrap { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: calc(4 * var(--phu)); }
 .rgp-list.phk-selist { gap: calc(4 * var(--phu)); }
 /* The gutter stays reserved: a game whose lobby turns out unrecorded loses its held space, and the panel must not widen. */
-.rgp-detailcol { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-gutter: stable; }
+.rgp-detailcol { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-gutter: stable; overflow-x: hidden; }
 
 /* A history row: a rail slice. The band edge on the left, the placement in metal, the hero art fading in from the right. */
 .rgp-item { flex: none; width: 100%; box-sizing: border-box; gap: calc(16 * var(--phu)); min-height: calc(64 * var(--phu)); padding: 0 calc(16 * var(--phu)) 0 calc(20 * var(--phu)); margin: 0; border: 0; overflow: hidden;
@@ -340,3 +340,16 @@ html[data-touch-small] .rgp-lobby { padding: calc(8 * var(--phu)) calc(24 * var(
 .rgp-item > :not(img) { position: relative; z-index: 1; }
 .rgp-item .phk-rowsub { color: var(--ph-text); }
 
+/* ROUND 12. The hover bubble is laid out even while invisible, and on a phone the Game strength one was wider than the
+   column: that alone gave Ranked games a sideways scroll. Off the layout on a phone (no hover there; `:hover` rules are wrapped in a hover media query by the build). */
+html[data-touch-small] .rgp-tip.gtip[data-tip]:not(.tt-on)::after { display: none; }
+
+/* ROUND 13, THE TYPE FLOOR: no text under the kit's smallest size (--ph-t1: 9 real px at 1366, 11 on a phone). The classic
+   px or smaller sizes these pieces carry lift to it, in the shared detail too. */
+.rgp-sp-ax b, .rgp .lp-mini-star, .rgp .gamerank .gamerank-l, .rgp .gamerank.compact .gamerank-l, .rgp-duos .dh-tile-hero { font-size: var(--ph-t1); }
+.rgp-sp-ax { left: calc(-44 * var(--phu)); width: calc(38 * var(--phu)); }
+html[data-touch-small] .rgp-spark { padding-left: calc(56 * var(--phu)); }
+.rgp .lp-tile-strength, .rgp-duos .lb-row-record, .rgp .runtrophy-tip, .rgp .runtrophy-tip :is(b, .term, .runtrophy-tip-body, .runtrophy-tip-kind) { font-size: var(--ph-t1); }
+.rgp .rgp-scope { font-size: var(--ph-t2); color: var(--ph-muted); white-space: nowrap; text-shadow: var(--ph-shadow); }
+.rgp-duos .gc.gc-detail .gc-record, .rgp-duos .gc.gc-detail .gc-record > * { font-size: var(--ph-t2); }
+.rgp .lp-tile .lp-tile-strength b { font-size: var(--ph-t3); }

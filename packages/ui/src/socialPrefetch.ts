@@ -7,6 +7,7 @@ import { RECENT_RANKED_KEY, loadRecentRanked } from './RecentGames';
 import { fetchRecentMatch, remoteEnabled, replayFactsState } from './remoteBoards';
 import { partyHomeOn } from './partyHome/partyHomeFlag';
 import { warmAchievements } from './progression/AchievementsTab';
+import { warmBoardArt } from './partyHome/pages/gameWarm';
 import { loadSocial } from './socialCache';
 import { useGame } from './store';
 
@@ -43,7 +44,7 @@ export async function prefetchSocial(): Promise<void> {
   if (replayFactsState('run_telemetry') === true) {
     const recent = await loadSocial(RECENT_RANKED_KEY, loadRecentRanked);
     // The party home prototype opens its first games whole: their lobbies are read now, not on the click (DEV switch only).
-    if (partyHomeOn()) for (const r of recent.slice(0, 3)) void fetchRecentMatch(r.rowId, r.userId);
+    if (partyHomeOn()) for (const r of recent.slice(0, 3)) { void fetchRecentMatch(r.rowId, r.userId); void warmBoardArt(r.board?.minions); }
   }
 }
 

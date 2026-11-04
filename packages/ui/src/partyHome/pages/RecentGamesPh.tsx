@@ -168,7 +168,7 @@ const Strip = memo(function Strip({ rows, practice }: { rows: readonly KeyedRow[
         <PhStat label="Wins" value={s.wins} tone="gold" />
       </div>
       <div className="rgp-most">
-        {heroArt && <img className="rgp-mostart" src={heroArt} alt="" draggable={false} decoding="async" />}
+        {heroArt && <img className="rgp-mostart" src={heroArt} alt="" draggable={false} decoding="sync" />}
         <span className="rgp-k">Most played</span>
         <span className="rgp-mostname">{s.hero ? getHero(s.hero.id).name : '-'}</span>
         <span className="rgp-mostsub">

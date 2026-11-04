@@ -213,3 +213,15 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phc-stats .phk-statlbl { o
 /* Match History / Practice wear Recent Games' list + detail (gamesPages.css): here beside the profile, a slimmer list. */
 html[data-ph-shell] .phc-page .phc-splitview .rgp-split { grid-template-columns: calc(376 * var(--phu)) minmax(0, 1fr); }
 html[data-ph-shell] .phc-page .phc-splitview .rgp-banner { padding-left: calc(24 * var(--phu)); padding-right: calc(24 * var(--phu)); }
+/* A row with a rank, a rating change and a date needs its third line; the tribe tile's longer word fits its tile. */
+html[data-ph-shell] .phc-page .phc-splitview .rgp-item { min-height: calc(76 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-splitview .rgp-itemend { gap: calc(2 * var(--phu)); }
+.phc-stats .phk-stat:last-child { padding-left: calc(8 * var(--phu)); padding-right: calc(8 * var(--phu)); }
+.phc-stats .phk-stat:last-child .phk-statval { font-size: var(--ph-t2); line-height: calc(24 * var(--phu)); }
+.phc-stats .phk-stat:last-child .phc-sv > :is(svg, img, span) { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); }
+/* The pills: the account card's buttons, the title chip, the Lv badge, the achievement filters, the Duos arrows. */
+html[data-ph-shell] .phc-page :is(.phc-acct .cv2-btn, .phc-titlechip, .phc-idlv, .phc-achview .ach-chip, .phc-duos .cv2-duocard-arrow) { border-radius: 999px; }
+html[data-ph-shell] .phc-page .phc-acct .cv2-btn { justify-content: center; padding: 0 calc(8 * var(--phu)); text-transform: none; letter-spacing: 0.02em; white-space: nowrap; transition: transform 0.18s var(--ph-spring); }
+html[data-ph-shell] .phc-page .phc-acct .cv2-btn:hover:not(:disabled) { transform: scale(1.05); }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phc-page :is(.phc-acct .cv2-btn, .rgp-bannerbtns .phk-btn, .phc-achview .ach-chip, .phc-duos .cv2-duocard-arrow, .phc-toolbar .phk-segbtn, .phk-pagetabs .phk-tab, .phc-filter .phk-btn) { min-height: calc(40 * var(--pt, 1px)); }
+@media (prefers-reduced-motion: reduce) { html[data-ph-shell] .phc-page .phc-acct .cv2-btn { transition: none; } }

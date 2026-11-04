@@ -100,7 +100,7 @@ function LiveRow({ r, showOpp, joining, onWatch }: { r: LiveGameRow; showOpp: bo
   const art = heroThumb(heroPortrait(r.hero_id, skins));
   return (
     <div role="listitem" className={`phk-row lvp-row${ended ? ' ended' : ''}`}>
-      {art && <img className="phk-rowart" src={art} alt="" draggable={false} decoding="async" loading="lazy" />}
+      {art && <img className="phk-rowart" src={art} alt="" draggable={false} decoding="sync" loading="lazy" />}
       <div className="lvp-who">
         <span className="lvp-name">{names.title}</span>
         {names.sub && <span className="lvp-hero">{names.sub}</span>}

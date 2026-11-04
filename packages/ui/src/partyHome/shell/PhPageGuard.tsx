@@ -32,7 +32,7 @@ export function PhPageWait() {
 function Failed({ onBack, nav }: { onBack?: () => void; nav?: ReactNode }) {
   const btn: CSSProperties = { minHeight: 44, padding: '0 22px', borderRadius: 999, border: '1px solid #c8953f', background: '#0d1a36', color: '#fff', fontWeight: 800 };
   return (
-    <>
+    <div className="lbpage ph-failhost">
       {nav}
       <div className="ph-pagefail" role="alert" style={{ ...CENTRE, pointerEvents: 'auto' }}>
         <div style={{ display: 'grid', justifyItems: 'center', gap: 16 }}>
@@ -43,7 +43,7 @@ function Failed({ onBack, nav }: { onBack?: () => void; nav?: ReactNode }) {
           </span>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

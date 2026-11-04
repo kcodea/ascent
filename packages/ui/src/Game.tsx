@@ -149,6 +149,7 @@ const PhBookNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhB
 /** The shell's one steady backdrop and its page guard: eager (they paint before any lazy chunk), and gone from production. */
 const PhSteady = import.meta.env.DEV ? PhBackdrop : null;
 const PhGuard = import.meta.env.DEV ? PhPageGuard : null;
+const PhChrome = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhPageChrome')) : null;
 
 /** The FX budget scene a run state is in (see `fxBudget.ts`): the Discover overlay, else the shop, else none. */
 function fxSceneOf(r: { discover?: unknown; phase?: string } | null | undefined): FxScene | null {
@@ -483,6 +484,10 @@ export function Game() {
   const partyHomeOn = usePartyHome();
   const titleUp = useGame((s) => s.showTitle || s.practiceSetupOpen);
   const shellMenus = partyHomeOn && titleUp && !gameMenuOpen;
+  // A page under the shell that fails to load says so in place, with the nav and a way out, instead of the crash screen.
+  const page = (el: JSX.Element): JSX.Element => (PhGuard && PhChrome && shellMenus
+    ? <PhGuard onBack={() => useGame.getState().goTo('menu')} nav={<Suspense fallback={null}><PhChrome current={null} /></Suspense>}>{el}</PhGuard>
+    : el);
   useEffect(() => { setStageMenuZoom((preRun && !heroPicking) || gameMenuOpen); }, [preRun, heroPicking, gameMenuOpen]);
   // …and the phone zoom (R-PHONE-ZOOM-01) only once a run is on screen: hero select keeps the plain fit.
   useEffect(() => { setStageInRun(!preRun && !heroPicking && !gameMenuOpen); }, [preRun, heroPicking, gameMenuOpen]);
@@ -728,10 +733,10 @@ export function Game() {
       {/* THE IN-GAME MENU (R-ESC-SIDEBAR-01): the sidebar over the dimmed game. Before the pages, so a page opened from
           it paints over it, and `.gmenu ~ .lbpage` (styles.css) draws those pages over the game without their backdrop. */}
       <GameMenu />
-      <Leaderboard />
-      <Rankings />
-      <RecentGames />
-      <LiveGames />
+      {page(<Leaderboard />)}
+      {page(<Rankings />)}
+      {page(<RecentGames />)}
+      {page(<LiveGames />)}
       {/* The watched player's held card (SpectatorCursor) is THEIR run's card: their skins (R-PROG-SKINS-17). */}
       <RunSkins><LiveWatchBar /></RunSkins>
       <LiveJoining />
@@ -751,14 +756,14 @@ export function Game() {
       <DmToast />
       {/* The friend menu (R-FRIENDS-MENU-01): right-click / long press on a friend row in the dock. */}
       <FriendMenu />
-      <Career />
+      {page(<Career />)}
       {/* The Collection page (2026-09-28). After Career in DOM order, so a Collection opened from your Career's
           Account Level card paints on top of it and Back returns there. */}
-      <CollectionScreen />
+      {page(<CollectionScreen />)}
       {/* The Patch Notes page (R-PATCHNOTES-PAGE-01): a sidebar page like Settings; its changelog chunk loads on first open. */}
-      <PatchNotesPage />
+      {page(<PatchNotesPage />)}
       {/* The Settings page (R-ESC-SIDEBAR-01): a sidebar page like the others, last so it paints over a page it opened on. */}
-      <SettingsPage />
+      {page(<SettingsPage />)}
       {/* DEV: the Crate opening tuner's practice crates (▶ Common … ▶ Legendary). Local only; renders nothing until
           a Play is pressed. `VITE_CRATE_PREVIEW=1` also bakes it into a PRODUCTION bundle, only so the opening can be
           profiled on the prod build (docs/performance.md); player builds never set it. */}

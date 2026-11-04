@@ -1,12 +1,13 @@
-/* ── THE COMPENDIUM under the app shell (party home prototype, DEV only; PhCompendium.tsx). Shell tokens only (shell.css).
+/* ── THE COMPENDIUM under the app shell (party home prototype, DEV only; PhCompendium.tsx). Namespace `.phb` (book): `.phc`
+   is the Collection page's.  Shell tokens only (shell.css).
    The book's own markup (MinionBook.tsx, compendium.css) inside the kit's PhPage, repainted in the rail's language:
-   1. the UI THEME tokens are re-pointed at the shell's navy + gold inside `.phc` (compendium.css paints with `--ui-*`
+   1. the UI THEME tokens are re-pointed at the shell's navy + gold inside `.phb` (compendium.css paints with `--ui-*`
       only, so every plate, chip and row turns navy at once; the cards keep their own surface tokens on `.book`);
    2. the shapes become the shell's: flat tabs, cut chips and wells, rail rows with their art bleeding in from the right;
    3. the window's painted frame, crests and pop are off: this is a page, not a window.
    Static paint. The gallery stays the book's own scroller (the lazy cells observe it). No `cursor` here. ── */
 
-.phc {
+.phb {
   --ui-plate-top: color-mix(in srgb, var(--ph-navy) 70%, #3a5a9a);
   --ui-plate-mid: var(--ph-navy);
   --ui-plate-bot: color-mix(in srgb, var(--ph-navy) 80%, #000);
@@ -28,162 +29,162 @@
 }
 
 /* The page body does not scroll: the book's own panels do (the gallery, the rail, the glossary, the rules list). */
-.phc .phk-pagebody { overflow: hidden; padding-bottom: calc(24 * var(--phu) + var(--safe-b, 0px)); }
-.phc-sub { flex: none; margin: 0; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-muted); }
-.phc-actions { display: flex; align-items: center; gap: calc(8 * var(--phu)); }
+.phb .phk-pagebody { overflow: hidden; padding-bottom: calc(24 * var(--phu) + var(--safe-b, 0px)); }
+.phb-sub { flex: none; margin: 0; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-muted); }
+.phb-actions { display: flex; align-items: center; gap: calc(8 * var(--phu)); }
 
 /* 3. The window steps aside. */
-.phc-book { flex: 1; min-height: 0; width: auto; height: auto; padding: 0; animation: none; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
-.phc-book::before, .phc-book::after { display: none; }
+.phb-book { flex: 1; min-height: 0; width: auto; height: auto; padding: 0; animation: none; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+.phb-book::before, .phb-book::after { display: none; }
 
 /* ── Header actions: the search well and the card-size stepper ── */
-.phc .book-search { box-sizing: border-box; width: calc(280 * var(--phu)); height: calc(40 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 0;
+.phb .book-search { box-sizing: border-box; width: calc(280 * var(--phu)); height: calc(40 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 0;
   background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s);
   font-family: var(--ph-body); font-weight: 600; font-size: var(--ph-t2); color: var(--ph-ink); }
-.phc .book-search:focus { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
-.phc .book-zoom { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); height: calc(40 * var(--phu)); padding: 0 calc(4 * var(--phu)); border: 0; border-radius: 0;
+.phb .book-search:focus { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
+.phb .book-zoom { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); height: calc(40 * var(--phu)); padding: 0 calc(4 * var(--phu)); border: 0; border-radius: 0;
   background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
-.phc .book-zoom-btn { width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); border: 0; border-radius: 0; background: none; box-shadow: none; clip-path: var(--ph-clip-s);
+.phb .book-zoom-btn { width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); border: 0; border-radius: 0; background: none; box-shadow: none; clip-path: var(--ph-clip-s);
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-text); }
-.phc .book-zoom-btn:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); transform: none; }
-.phc .book-zoom-val { min-width: calc(48 * var(--phu)); text-align: center; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); color: var(--ph-ink); }
+.phb .book-zoom-btn:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); transform: none; }
+.phb .book-zoom-val { min-width: calc(48 * var(--phu)); text-align: center; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); color: var(--ph-ink); }
 
 /* ── The filter row: a plate; tier chips and Gilded / Duos as cut wells, the picked ones in podium gold ── */
-.phc .book-tiers { min-height: calc(80 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); gap: calc(8 * var(--phu)); background: var(--ph-plate);
+.phb .book-tiers { min-height: calc(80 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); gap: calc(8 * var(--phu)); background: var(--ph-plate);
   box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
-.phc .book-axislabel, .phc .book-chart-cap, .phc .book-railcap { font-family: var(--ph-font); font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
-.phc :is(.book-tier, .book-gilded, .book-runetribe, .book-kwchip, .book-setpick-btn) {
+.phb .book-axislabel, .phb .book-chart-cap, .phb .book-railcap { font-family: var(--ph-font); font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
+.phb :is(.book-tier, .book-gilded, .book-runetribe, .book-kwchip, .book-setpick-btn) {
   border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-well); box-shadow: var(--ph-gild-s);
   font-family: var(--ph-font); color: var(--ph-text); text-shadow: var(--ph-shadow); }
-.phc :is(.book-tier, .book-gilded, .book-runetribe, .book-kwchip, .book-setpick-btn):hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); transform: none; }
-.phc :is(.book-tier, .book-gilded, .book-runetribe).on,
-.phc :is(.book-tier, .book-gilded, .book-runetribe).on:hover:not(:disabled) { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); box-shadow: none; }
-.phc .book-tier { width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); font-size: var(--ph-t3); }
-.phc .book-gilded { height: calc(36 * var(--phu)); font-size: var(--ph-t1); letter-spacing: 0.12em; }
+.phb :is(.book-tier, .book-gilded, .book-runetribe, .book-kwchip, .book-setpick-btn):hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); transform: none; }
+.phb :is(.book-tier, .book-gilded, .book-runetribe).on,
+.phb :is(.book-tier, .book-gilded, .book-runetribe).on:hover:not(:disabled) { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); box-shadow: none; }
+.phb .book-tier { width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); font-size: var(--ph-t3); }
+.phb .book-gilded { height: calc(36 * var(--phu)); font-size: var(--ph-t1); letter-spacing: 0.12em; }
 /* A tribe pill keeps its tribe colour as a thin bar on its left edge (colour is a cue beside the name, never the only one). */
-.phc .book-runetribe { box-shadow: inset calc(3 * var(--phu)) 0 0 var(--c), var(--ph-gild-s); }
-.phc .book-tiers-div { background: var(--ph-hair); }
-.phc .book-bar-n { color: var(--ph-ink); font-family: var(--ph-font); }
-.phc .book-bar-t { font-family: var(--ph-font); color: var(--ph-muted); }
-.phc .book-setpick-list { border: 0; border-radius: 0; background: color-mix(in srgb, var(--ph-navy) 96%, #000); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-gold), 0 calc(12 * var(--phu)) calc(32 * var(--phu)) rgba(0, 0, 0, 0.6); }
-.phc .book-setpick-opt.on { background: var(--ph-metal-gold); color: var(--ph-navy); }
+.phb .book-runetribe { box-shadow: inset calc(3 * var(--phu)) 0 0 var(--c), var(--ph-gild-s); }
+.phb .book-tiers-div { background: var(--ph-hair); }
+.phb .book-bar-n { color: var(--ph-ink); font-family: var(--ph-font); }
+.phb .book-bar-t { font-family: var(--ph-font); color: var(--ph-muted); }
+.phb .book-setpick-list { border: 0; border-radius: 0; background: color-mix(in srgb, var(--ph-navy) 96%, #000); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-gold), 0 calc(12 * var(--phu)) calc(32 * var(--phu)) rgba(0, 0, 0, 0.6); }
+.phb .book-setpick-opt.on { background: var(--ph-metal-gold); color: var(--ph-navy); }
 
 /* ── The rail: one plate; each category a rail row, its art bleeding in from the right into the navy ── */
-.phc .book-main { gap: calc(16 * var(--phu)); }
-.phc .book-rail { width: calc(240 * var(--phu)); margin: 0; padding: calc(12 * var(--phu)) calc(8 * var(--phu)); gap: calc(4 * var(--phu)); border: 0; border-radius: 0;
+.phb .book-main { gap: calc(16 * var(--phu)); }
+.phb .book-rail { width: calc(240 * var(--phu)); margin: 0; padding: calc(12 * var(--phu)) calc(8 * var(--phu)); gap: calc(4 * var(--phu)); border: 0; border-radius: 0;
   background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); scrollbar-width: none; }
-.phc .book-railcap { padding: calc(4 * var(--phu)) calc(8 * var(--phu)); font-size: var(--ph-t1); color: var(--ui-title, #ffd98a); }
-.phc .book-railcap::after { background: var(--ph-hair); }
-.phc .book-cat { position: relative; height: calc(48 * var(--phu)); padding: 0 calc(12 * var(--phu)); gap: 0; border-radius: 0; clip-path: var(--ph-clip-s); overflow: hidden;
+.phb .book-railcap { padding: calc(4 * var(--phu)) calc(8 * var(--phu)); font-size: var(--ph-t1); color: var(--ui-title, #ffd98a); }
+.phb .book-railcap::after { background: var(--ph-hair); }
+.phb .book-cat { position: relative; height: calc(48 * var(--phu)); padding: 0 calc(12 * var(--phu)); gap: 0; border-radius: 0; clip-path: var(--ph-clip-s); overflow: hidden;
   background: var(--ph-well); box-shadow: inset calc(3 * var(--phu)) 0 0 color-mix(in srgb, var(--c) 70%, transparent), inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-gold) 14%, transparent);
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.04em; color: var(--ph-text); }
-.phc .book-catface { position: absolute; right: 0; top: 0; width: 60%; height: 100%; border-radius: 0; box-shadow: none; background: none; object-fit: cover; object-position: 50% 28%;
+.phb .book-catface { position: absolute; right: 0; top: 0; width: 60%; height: 100%; border-radius: 0; box-shadow: none; background: none; object-fit: cover; object-position: 50% 28%;
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.85) 70%); mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.85) 70%); }
-.phc .book-catico { position: absolute; right: calc(12 * var(--phu)); width: calc(28 * var(--phu)); height: calc(28 * var(--phu)); border-radius: 0; box-shadow: none; background: none; }
-.phc .book-catlabel { position: relative; text-shadow: var(--ph-shadow); }
-.phc .book-cat:hover { transform: none; background: var(--ph-plate-hover); color: var(--ph-ink);
+.phb .book-catico { position: absolute; right: calc(12 * var(--phu)); width: calc(28 * var(--phu)); height: calc(28 * var(--phu)); border-radius: 0; box-shadow: none; background: none; }
+.phb .book-catlabel { position: relative; text-shadow: var(--ph-shadow); }
+.phb .book-cat:hover { transform: none; background: var(--ph-plate-hover); color: var(--ph-ink);
   box-shadow: inset calc(3 * var(--phu)) 0 0 var(--c), var(--ph-gild-s); }
-.phc .book-cat.on, .phc .book-cat.on:hover { color: var(--ph-ink); background: var(--ph-plate-hover);
+.phb .book-cat.on, .phb .book-cat.on:hover { color: var(--ph-ink); background: var(--ph-plate-hover);
   box-shadow: inset calc(4 * var(--phu)) 0 0 var(--c), inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }
-.phc .book-cat.on :is(.book-catface, .book-catico) { box-shadow: none; }
+.phb .book-cat.on :is(.book-catface, .book-catico) { box-shadow: none; }
 
 /* ── The gallery: a deep well beside the rail ── */
-.phc .book-main > :is(.book-grid, .bookguides, .book-empty) { margin: 0; border-radius: 0; clip-path: var(--ph-clip-s); box-shadow: var(--ph-gild-s); }
-.phc .book-grid { background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 85%, #000), color-mix(in srgb, var(--ph-navy) 70%, #000)); }
-.phc .bookhero { border: 0; border-radius: 0; clip-path: var(--ph-clip); background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-hair); }
-.phc .bookhero-name { font-family: var(--ph-font); color: var(--ph-ink); }
-.phc .book-empty { font-family: var(--ph-font); color: var(--ph-muted); }
-.phc .book-empty::before { background: var(--ph-gold); border: 0; }
+.phb .book-main > :is(.book-grid, .bookguides, .book-empty) { margin: 0; border-radius: 0; clip-path: var(--ph-clip-s); box-shadow: var(--ph-gild-s); }
+.phb .book-grid { background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 85%, #000), color-mix(in srgb, var(--ph-navy) 70%, #000)); }
+.phb .bookhero { border: 0; border-radius: 0; clip-path: var(--ph-clip); background: var(--ph-plate); box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-hair); }
+.phb .bookhero-name { font-family: var(--ph-font); color: var(--ph-ink); }
+.phb .book-empty { font-family: var(--ph-font); color: var(--ph-muted); }
+.phb .book-empty::before { background: var(--ph-gold); border: 0; }
 
 /* ── The codex panels: Glossary groups and the Rules list as navy plates ── */
-.phc .book-gloss-body { padding: 0 0 calc(8 * var(--phu)); gap: calc(16 * var(--phu)); }
-.phc :is(.gloss-group, .wiki-group) { border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-plate); box-shadow: var(--ph-gild-s); }
-.phc :is(.gloss-grouphead, .wiki-grouphead) { font-family: var(--ph-font); font-weight: 900; color: var(--ui-title, #ffd98a); }
-.phc .gloss-row, .phc .wiki-q, .phc .wiki-item { border-radius: 0; }
-.phc .gloss-term { font-family: var(--ph-font); color: var(--ph-ink); }
-.phc .gloss-def { color: var(--ph-muted); }
-.phc .wiki-bar { background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
-.phc .wiki-search { border: 0; border-radius: 0; background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); color: var(--ph-ink); }
-.phc .wiki-chip { border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-well); box-shadow: var(--ph-gild-s); color: var(--ph-text); }
-.phc .wiki-chip.on { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: none; box-shadow: none; }
-.phc .wiki-q { font-family: var(--ph-font); }
-.phc .wiki-item.is-open .wiki-q { color: var(--ph-ink); }
-.phc .wiki-item.is-open { box-shadow: inset calc(3 * var(--phu)) 0 0 var(--ph-gold); }
+.phb .book-gloss-body { padding: 0 0 calc(8 * var(--phu)); gap: calc(16 * var(--phu)); }
+.phb :is(.gloss-group, .wiki-group) { border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-plate); box-shadow: var(--ph-gild-s); }
+.phb :is(.gloss-grouphead, .wiki-grouphead) { font-family: var(--ph-font); font-weight: 900; color: var(--ui-title, #ffd98a); }
+.phb .gloss-row, .phb .wiki-q, .phb .wiki-item { border-radius: 0; }
+.phb .gloss-term { font-family: var(--ph-font); color: var(--ph-ink); }
+.phb .gloss-def { color: var(--ph-muted); }
+.phb .wiki-bar { background: var(--ph-plate); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.phb .wiki-search { border: 0; border-radius: 0; background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); color: var(--ph-ink); }
+.phb .wiki-chip { border: 0; border-radius: 0; clip-path: var(--ph-clip-s); background: var(--ph-well); box-shadow: var(--ph-gild-s); color: var(--ph-text); }
+.phb .wiki-chip.on { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: none; box-shadow: none; }
+.phb .wiki-q { font-family: var(--ph-font); }
+.phb .wiki-item.is-open .wiki-q { color: var(--ph-ink); }
+.phb .wiki-item.is-open { box-shadow: inset calc(3 * var(--phu)) 0 0 var(--ph-gold); }
 
 /* ── Phones (landscape): the window's phone zoom (touchUi.css scales `.book` 1.7x) is for the overlay, not this page;
    a narrower rail, a smaller search, cards a little smaller so a row and a half fits the height. ── */
-html[data-touch-ui][data-touch-small] .phc .phc-book { scale: none; width: auto; }
-html[data-touch-small] .phc .book-rail { width: calc(200 * var(--phu)); }
-html[data-touch-small] .phc .book-grid { --ch: calc(300px * var(--book-zoom, 1)); }
-html[data-touch-small] .phc .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var(--phu)); }
+html[data-touch-ui][data-touch-small] .phb .phb-book { scale: none; width: auto; }
+html[data-touch-small] .phb .book-rail { width: calc(200 * var(--phu)); }
+html[data-touch-small] .phb .book-grid { --ch: calc(300px * var(--book-zoom, 1)); }
+html[data-touch-small] .phb .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var(--phu)); }
 
 
 /* ── THE FANTASY PASS (owner 2026-11-02: "the Compendium is a natural fantasy tome"): captions and group heads in the title
    serif, warm parchment-white text, gilded edges and a warm lamplight on the plates, the cards' painted name divider under
    each glossary group. The painted card art in the rail and the cards themselves carry the rest. ── */
-.phc :is(.book-tiers, .book-rail, :is(.gloss-group, .wiki-group), .wiki-bar) {
+.phb :is(.book-tiers, .book-rail, :is(.gloss-group, .wiki-group), .wiki-bar) {
   background: radial-gradient(120% 70% at 0% 0%, rgba(255, 206, 120, 0.08), transparent 60%), var(--ph-plate);
   box-shadow: var(--ph-gild); }
-.phc .book-main > :is(.book-grid, .bookguides, .book-empty) { box-shadow: var(--ph-gild); }
-.phc .book-grid { background: radial-gradient(80% 60% at 50% 0%, rgba(255, 206, 120, 0.06), transparent 70%), linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 85%, #000), color-mix(in srgb, var(--ph-navy) 70%, #000)); }
-.phc :is(.book-railcap, .gloss-grouphead, .wiki-grouphead) { font-family: var(--ph-font); font-weight: 700; letter-spacing: 0.06em; text-transform: none; color: #fbe6a6; }
-.phc .book-railcap { font-size: var(--ph-t2); }
-.phc :is(.gloss-grouphead, .wiki-grouphead) { font-size: calc(20 * var(--phu)); }
-.phc :is(.gloss-grouphead, .wiki-grouphead)::after { flex: none; width: calc(160 * var(--phu)); height: calc(10 * var(--phu)); background: url('/frames/name-divider.webp') 0 50% / 100% 100% no-repeat; opacity: 0.85; }
-.phc .book-catlabel { font-family: var(--ph-font); font-weight: 700; letter-spacing: 0.02em; color: var(--ph-text); }
-.phc .gloss-term, .phc .wiki-q, .phc .bookhero-name { font-family: var(--ph-font); font-weight: 700; color: var(--ph-text); }
-.phc .gloss-def { font-family: var(--ph-body); color: var(--ph-muted); }
-.phc .book-search { font-family: var(--ph-body); color: var(--ph-text); }
+.phb .book-main > :is(.book-grid, .bookguides, .book-empty) { box-shadow: var(--ph-gild); }
+.phb .book-grid { background: radial-gradient(80% 60% at 50% 0%, rgba(255, 206, 120, 0.06), transparent 70%), linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 85%, #000), color-mix(in srgb, var(--ph-navy) 70%, #000)); }
+.phb :is(.book-railcap, .gloss-grouphead, .wiki-grouphead) { font-family: var(--ph-font); font-weight: 700; letter-spacing: 0.06em; text-transform: none; color: #fbe6a6; }
+.phb .book-railcap { font-size: var(--ph-t2); }
+.phb :is(.gloss-grouphead, .wiki-grouphead) { font-size: calc(20 * var(--phu)); }
+.phb :is(.gloss-grouphead, .wiki-grouphead)::after { flex: none; width: calc(160 * var(--phu)); height: calc(10 * var(--phu)); background: url('/frames/name-divider.webp') 0 50% / 100% 100% no-repeat; opacity: 0.85; }
+.phb .book-catlabel { font-family: var(--ph-font); font-weight: 700; letter-spacing: 0.02em; color: var(--ph-text); }
+.phb .gloss-term, .phb .wiki-q, .phb .bookhero-name { font-family: var(--ph-font); font-weight: 700; color: var(--ph-text); }
+.phb .gloss-def { font-family: var(--ph-body); color: var(--ph-muted); }
+.phb .book-search { font-family: var(--ph-body); color: var(--ph-text); }
 
 
 /* ── MODERN FANTASY (the shell's retune, 2026-11-02): rounded, glossy pills, warm plates. Overrides the cut shapes above. ── */
-.phc :is(.book-tiers, .book-rail, .gloss-group, .wiki-group, .wiki-bar) { clip-path: none; border-radius: var(--ph-r-l); }
-.phc .book-main > :is(.book-grid, .bookguides, .book-empty) { clip-path: none; border-radius: var(--ph-r-l); }
-.phc .bookhero { clip-path: none; border-radius: var(--ph-r-l); }
-.phc .book-cat { clip-path: none; border-radius: var(--ph-r); }
-.phc :is(.book-tier, .book-gilded, .book-runetribe, .book-kwchip, .book-setpick-btn, .book-zoom, .book-zoom-btn, .book-search, .wiki-search, .wiki-chip) { clip-path: none; border-radius: 999px; }
-.phc :is(.book-setpick-list, .book-setpick-opt) { border-radius: var(--ph-r); }
+.phb :is(.book-tiers, .book-rail, .gloss-group, .wiki-group, .wiki-bar) { clip-path: none; border-radius: var(--ph-r-l); }
+.phb .book-main > :is(.book-grid, .bookguides, .book-empty) { clip-path: none; border-radius: var(--ph-r-l); }
+.phb .bookhero { clip-path: none; border-radius: var(--ph-r-l); }
+.phb .book-cat { clip-path: none; border-radius: var(--ph-r); }
+.phb :is(.book-tier, .book-gilded, .book-runetribe, .book-kwchip, .book-setpick-btn, .book-zoom, .book-zoom-btn, .book-search, .wiki-search, .wiki-chip) { clip-path: none; border-radius: 999px; }
+.phb :is(.book-setpick-list, .book-setpick-opt) { border-radius: var(--ph-r); }
 /* Plump glossy pills: a soft top highlight and foot shade; the picked ones in the podium gold with a warm glow. */
-.phc :is(.book-tier, .book-gilded, .book-runetribe) { box-shadow: var(--ph-gild-s), inset 0 calc(2 * var(--phu)) calc(2 * var(--phu)) rgba(255, 255, 255, 0.12), inset 0 calc(-2 * var(--phu)) calc(3 * var(--phu)) rgba(0, 0, 0, 0.3); transition: transform 0.18s var(--ph-spring); }
-.phc .book-tier { width: calc(40 * var(--phu)); height: calc(36 * var(--phu)); font-weight: 900; }
-.phc .book-runetribe { box-shadow: inset calc(4 * var(--phu)) 0 0 var(--c), var(--ph-gild-s); }
-.phc :is(.book-tier, .book-gilded, .book-runetribe).on, .phc :is(.book-tier, .book-gilded, .book-runetribe).on:hover:not(:disabled) {
+.phb :is(.book-tier, .book-gilded, .book-runetribe) { box-shadow: var(--ph-gild-s), inset 0 calc(2 * var(--phu)) calc(2 * var(--phu)) rgba(255, 255, 255, 0.12), inset 0 calc(-2 * var(--phu)) calc(3 * var(--phu)) rgba(0, 0, 0, 0.3); transition: transform 0.18s var(--ph-spring); }
+.phb .book-tier { width: calc(40 * var(--phu)); height: calc(36 * var(--phu)); font-weight: 900; }
+.phb .book-runetribe { box-shadow: inset calc(4 * var(--phu)) 0 0 var(--c), var(--ph-gild-s); }
+.phb :is(.book-tier, .book-gilded, .book-runetribe).on, .phb :is(.book-tier, .book-gilded, .book-runetribe).on:hover:not(:disabled) {
   box-shadow: inset 0 calc(2 * var(--phu)) calc(2 * var(--phu)) rgba(255, 252, 235, 0.6), inset 0 calc(-2 * var(--phu)) calc(3 * var(--phu)) rgba(150, 90, 10, 0.45), 0 0 calc(12 * var(--phu)) rgba(255, 200, 80, 0.45); }
-.phc :is(.book-tier, .book-gilded, .book-runetribe):hover:not(:disabled) { transform: scale(1.06); }
-.phc .book-zoom-btn:hover:not(:disabled) { transform: scale(1.1); }
-@media (prefers-reduced-motion: reduce) { .phc :is(.book-tier, .book-gilded, .book-runetribe, .book-zoom-btn) { transition: none; } }
+.phb :is(.book-tier, .book-gilded, .book-runetribe):hover:not(:disabled) { transform: scale(1.06); }
+.phb .book-zoom-btn:hover:not(:disabled) { transform: scale(1.1); }
+@media (prefers-reduced-motion: reduce) { .phb :is(.book-tier, .book-gilded, .book-runetribe, .book-zoom-btn) { transition: none; } }
 /* The tier chart takes its own space in the row (it was centred over the row and ran into Duos on narrower screens). */
-.phc .book-chart { position: static; transform: none; margin: 0 auto; flex: 0 1 auto; min-width: 0; }
-.phc .book-tiers-end { margin-left: 0; }
+.phb .book-chart { position: static; transform: none; margin: 0 auto; flex: 0 1 auto; min-width: 0; }
+.phb .book-tiers-end { margin-left: 0; }
 /* The header row: the search and the card size sit side by side on the tabs' line, never stacked over the header line. */
-.phc .phk-pageactions { flex: none; }
-.phc-actions { flex-wrap: nowrap; }
-.phc .book-search { width: clamp(calc(180 * var(--phu)), 16vw, calc(280 * var(--phu))); }
-.phc :is(.gloss-grouphead, .wiki-grouphead)::after { width: calc(144 * var(--phu)); height: calc(16 * var(--phu)); background: url('../ornaments/divider.webp') 0 50% / contain no-repeat; }
-.phc :is(.book-railcap, .gloss-grouphead, .wiki-grouphead) { font-weight: 900; letter-spacing: 0.04em; }
+.phb .phk-pageactions { flex: none; }
+.phb-actions { flex-direction: row; flex-wrap: nowrap; }
+.phb .book-search { width: clamp(calc(180 * var(--phu)), 16vw, calc(280 * var(--phu))); }
+.phb :is(.gloss-grouphead, .wiki-grouphead)::after { width: calc(144 * var(--phu)); height: calc(16 * var(--phu)); background: url('../ornaments/divider.webp') 0 50% / contain no-repeat; }
+.phb :is(.book-railcap, .gloss-grouphead, .wiki-grouphead) { font-weight: 900; letter-spacing: 0.04em; }
 
 /* Touch: every filter pill is a real tap target (at least 40 units tall). */
-html[data-touch-ui] .phc :is(.book-tier, .book-gilded, .book-runetribe, .book-zoom-btn) { min-height: calc(44 * var(--phu)); }
-html[data-touch-ui] .phc .book-tier { min-width: calc(44 * var(--phu)); }
-html[data-touch-ui] .phc :is(.book-zoom, .book-search) { height: calc(44 * var(--phu)); }
+html[data-touch-ui] .phb :is(.book-tier, .book-gilded, .book-runetribe, .book-zoom-btn) { min-height: calc(44 * var(--phu)); }
+html[data-touch-ui] .phb .book-tier { min-width: calc(44 * var(--phu)); }
+html[data-touch-ui] .phb :is(.book-zoom, .book-search) { height: calc(44 * var(--phu)); }
 
 /* ── COMPACT (phones): the gallery gets the height. The live count and the tier chart step aside (the tier pills filter the
    same way; the Runes and Guides pills stay, scrolling sideways in one row), the row is one line, the gaps are tight, and
    every control is a 64 unit (40 px) target. ── */
-html[data-ph-compact] .phc .phk-pagebody { gap: calc(8 * var(--phu)); padding-bottom: calc(8 * var(--phu) + var(--safe-b, 0px)); }
-html[data-ph-compact] .phc-sub { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-html[data-ph-compact] .phc-book { gap: calc(8 * var(--phu)); }
-html[data-ph-compact] .phc .book-tiers { flex-wrap: nowrap; min-height: 0; padding: calc(4 * var(--phu)) calc(8 * var(--phu)); overflow-x: auto; scrollbar-width: none; }
-html[data-ph-compact] .phc .book-tiers > * { flex: none; }
-html[data-ph-compact] .phc :is(.book-axislabel, .book-bar, .book-chart-cap, .book-chart-quiet) { display: none; }
-html[data-ph-compact] .phc .book-chart { height: auto; margin: 0; }
-html[data-ph-compact] .phc .book-runetribes { flex-wrap: nowrap; }
-html[data-ph-compact] .phc :is(.book-tier, .book-gilded, .book-runetribe, .book-setpick-btn) { min-height: calc(64 * var(--phu)); }
-html[data-ph-compact] .phc .book-tier { min-width: calc(64 * var(--phu)); }
-html[data-ph-compact] .phc .book-main { gap: calc(8 * var(--phu)); }
-html[data-ph-compact] .phc :is(.book-zoom, .book-search) { height: calc(64 * var(--phu)); }
-html[data-ph-compact] .phc .book-zoom-btn { width: calc(64 * var(--phu)); height: calc(64 * var(--phu)); }
-/* The search keeps a visible field on phones (the kit strips the header tools' own backgrounds). */
-html[data-ph-shell][data-ph-compact] .phk-page .phc-actions .book-search { padding: 0 calc(16 * var(--phu)); background: color-mix(in srgb, var(--ph-navy) 75%, transparent); box-shadow: var(--ph-gild); text-overflow: ellipsis; }
+html[data-ph-compact] .phb .phk-pagebody { gap: calc(8 * var(--phu)); padding-bottom: calc(8 * var(--phu) + var(--safe-b, 0px)); }
+html[data-ph-compact] .phb-sub { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+html[data-ph-compact] .phb-book { gap: calc(8 * var(--phu)); }
+html[data-ph-compact] .phb .book-tiers { flex-wrap: nowrap; min-height: 0; padding: calc(4 * var(--phu)) calc(8 * var(--phu)); overflow-x: auto; scrollbar-width: none; }
+html[data-ph-compact] .phb .book-tiers > * { flex: none; }
+html[data-ph-compact] .phb :is(.book-axislabel, .book-bar, .book-chart-cap, .book-chart-quiet) { display: none; }
+html[data-ph-compact] .phb .book-chart { height: auto; margin: 0; }
+html[data-ph-compact] .phb .book-runetribes { flex-wrap: nowrap; }
+html[data-ph-compact] .phb :is(.book-tier, .book-gilded, .book-runetribe, .book-setpick-btn) { min-height: calc(64 * var(--phu)); }
+html[data-ph-compact] .phb .book-tier { min-width: calc(64 * var(--phu)); }
+html[data-ph-compact] .phb .book-main { gap: calc(8 * var(--phu)); }
+html[data-ph-compact] .phb :is(.book-zoom, .book-search) { height: calc(64 * var(--phu)); }
+html[data-ph-compact] .phb .book-zoom-btn { width: calc(64 * var(--phu)); height: calc(64 * var(--phu)); }
+/* The search keeps a visible field on phones. */
+html[data-ph-compact] .phb .book-search { background: color-mix(in srgb, var(--ph-navy) 75%, transparent); box-shadow: var(--ph-gild); text-overflow: ellipsis; }
 /* The book fills exactly what the page body has left, so the gallery is the one scroller (its lazy cells observe it). */
-html[data-ph-shell][data-ph-compact] .phk-page .phc-book { flex: 1 1 0; height: auto; min-height: 0; }
+html[data-ph-compact] .phb .phb-book { flex: 1 1 0; height: auto; min-height: 0; }

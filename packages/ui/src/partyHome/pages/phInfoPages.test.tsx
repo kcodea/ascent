@@ -92,7 +92,7 @@ describe('the gate: shell pages only with the switch on, on the menus', () => {
     ui.unmount();
     act(() => { useGame.setState({ showTitle: false } as never); });
     ui = mount(<MinionBook />);
-    expect(ui.container.querySelector('.phc'), 'in a game: the window').toBeNull();
+    expect(ui.container.querySelector('.phb'), 'in a game: the window').toBeNull();
     expect(ui.container.querySelector('.book-ov .book-head')).not.toBeNull();
   });
 
@@ -194,12 +194,12 @@ describe('Settings in the shell', () => {
 describe('the Compendium in the shell', () => {
   it('frames the book in the kit page with its views as tabs', () => {
     ui = mount(<PhCompendium />);
-    expect(ui.container.querySelector('.phc h1')?.textContent).toBe('Compendium');
+    expect(ui.container.querySelector('.phb h1')?.textContent).toBe('Compendium');
     expect([...ui.container.querySelectorAll('.phk-tab')].map((t) => t.textContent)).toEqual(['Cards', 'Glossary', 'Rules', 'Guides']);
-    expect(ui.container.querySelector('.phc-book .book-rail')).not.toBeNull();
+    expect(ui.container.querySelector('.phb-book .book-rail')).not.toBeNull();
     click([...ui.container.querySelectorAll('.phk-tab')].find((b) => b.textContent === 'Glossary'));
-    expect(ui.container.querySelector('.phc-book .book-gloss-body')).not.toBeNull();
-    expect(ui.container.querySelector('.phc-actions'), 'a text panel drops the card controls').toBeNull();
+    expect(ui.container.querySelector('.phb-book .book-gloss-body')).not.toBeNull();
+    expect(ui.container.querySelector('.phb-actions'), 'a text panel drops the card controls').toBeNull();
   });
 
   it('R-COMPENDIUM-GUIDES-FILTER-01: Guides shows its own tribe filter even with Runes lit before it', () => {

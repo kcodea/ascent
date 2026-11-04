@@ -139,7 +139,7 @@ export function PhPatchNotes() {
         tabs={PATCH_CATEGORY_ORDER.map((t) => ({ id: t, label: PATCH_TAB_LABEL[t] }))} />}
       actions={
         <>
-          <PhSearch className="phpn-search" placeholder="Search changes" value={search}
+          <PhSearch className="phpn-search" placeholder="Search" value={search}
             onChange={(e) => setSearch(e.target.value)} aria-label="Search the patch notes" />
           <PhSegmented value={detailed ? 'detailed' : 'summary'} onPick={(v) => { if ((v === 'detailed') !== detailed) { sfx.tick(); setDetailed(v === 'detailed'); } }}
             options={[{ value: 'summary', label: 'Summary' }, { value: 'detailed', label: 'Detailed' }]} />

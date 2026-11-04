@@ -85,3 +85,10 @@ html[data-touch-small] .phpn-list { padding-left: calc(40 * var(--phu)); padding
 .phpn .phk-segrow { display: flex; flex-wrap: nowrap; }
 /* Touch: the patch index rows are real tap targets (the kit sizes the switch and the search). */
 html[data-touch-ui] .phpn-idx { min-height: calc(44 * var(--phu)); }
+
+/* The bullet is sized and placed in em, so it stays on the first line's middle at every text size (phones included). */
+.phpn-list > li { font-size: var(--ph-t-read); line-height: 1.55; }
+.phpn-text { font-size: inherit; line-height: inherit; }
+.phpn-list > li::before { left: -1.2em; top: 0.5em; width: 0.5em; height: 0.5em; }
+/* The plates stop short of the scrollbar (the gutter is the shell's). */
+.phpn-feed { padding-right: calc(8 * var(--phu)); }

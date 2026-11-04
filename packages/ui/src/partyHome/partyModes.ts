@@ -1,6 +1,8 @@
 /**
- * THE PARTY HOME's MODE TABS (prototype, owner 2026-11-02). Every mode the current menus reach, as one row of tabs across
- * the top of the party home (the Valorant pattern: pick the mode, the party slots follow, START does the rest).
+ * THE PARTY HOME's MODES (prototype, owner 2026-11-02). Every mode the current menus reach. The top row shows the mode
+ * FAMILIES (Ranked, Versus, Practice, Gauntlet, Learn); a family's sub-modes (Solo / Duos, 1v1 / Group / Duos) are picked in
+ * the side panel (owner 2026-11-04: "consolidating ranked, and versus into one mode with the sub modifiers somewhere else").
+ * The Valorant pattern: pick the mode, the party slots follow, START does the rest.
  *
  * `slots` is how many banner cards the mode shows (you plus the open seats); `party` says whether the other seats are
  * TEAMMATES (Ranked Duos) or RIVALS (the Versus rooms) or there are none (solo modes). Pure data, so it is testable.
@@ -35,6 +37,34 @@ export const PARTY_MODES: readonly PartyMode[] = [
   { id: 'learn', label: 'Learn', desc: 'A coached first game that teaches you everything.', slots: 1, party: 'solo', ranked: false },
 ];
 
+/** A top-row tab: one mode, or several sub-modes picked in the side panel. */
+export type ModeFamilyId = 'ranked' | 'versus' | 'practice' | 'gauntlet' | 'learn';
+export interface ModeFamily { id: ModeFamilyId; label: string; subs: readonly { id: PartyModeId; label: string }[] }
+export const MODE_FAMILIES: readonly ModeFamily[] = [
+  { id: 'ranked', label: 'Ranked', subs: [{ id: 'ranked', label: 'Solo' }, { id: 'duos', label: 'Duos' }] },
+  { id: 'versus', label: 'Versus', subs: [{ id: 'versus', label: '1v1' }, { id: 'group', label: 'Group' }, { id: 'vduos', label: 'Duos' }] },
+  { id: 'practice', label: 'Practice', subs: [{ id: 'practice', label: 'Practice' }] },
+  { id: 'gauntlet', label: 'Gauntlet', subs: [{ id: 'gauntlet', label: 'Gauntlet' }] },
+  { id: 'learn', label: 'Learn', subs: [{ id: 'learn', label: 'Learn' }] },
+];
+/** The families this build shows, each with only the sub-modes it has. */
+export function partyFamilies(modes: readonly PartyMode[]): ModeFamily[] {
+  return MODE_FAMILIES.map((f) => ({ ...f, subs: f.subs.filter((s) => modes.some((m) => m.id === s.id)) })).filter((f) => f.subs.length > 0);
+}
+export const familyOf = (id: PartyModeId): ModeFamily => MODE_FAMILIES.find((f) => f.subs.some((s) => s.id === id)) ?? MODE_FAMILIES[0]!;
+/** Does this mode have a settings tab in the side panel (its own options, or a sub-mode choice)? */
+export const modeHasSettings = (id: PartyModeId): boolean => !!partyModeOf(id).options || familyOf(id).subs.length > 1;
+
+const SUB_KEY = 'ascent.partyHome.sub.';
+/** The sub-mode last picked in a family (a convenience, this machine). */
+export function readFamilySub(family: ModeFamilyId): PartyModeId | null {
+  try {
+    const v = localStorage.getItem(SUB_KEY + family);
+    if (v && PARTY_MODES.some((m) => m.id === v)) return v as PartyModeId;
+  } catch { /* a convenience only */ }
+  return null;
+}
+
 /** The tabs this build shows. */
 export function partyModes(opts: { versus: boolean; dev: boolean }): PartyMode[] {
   return PARTY_MODES.filter((m) => (!m.versus || opts.versus) && (!m.dev || opts.dev));
@@ -51,5 +81,5 @@ export function readPartyMode(): PartyModeId {
   return 'ranked';
 }
 export function rememberPartyMode(id: PartyModeId): void {
-  try { localStorage.setItem(MODE_KEY, id); } catch { /* a convenience only */ }
+  try { localStorage.setItem(MODE_KEY, id); localStorage.setItem(SUB_KEY + familyOf(id).id, id); } catch { /* a convenience only */ }
 }

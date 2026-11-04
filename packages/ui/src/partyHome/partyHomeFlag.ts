@@ -13,9 +13,11 @@ import { useSyncExternalStore } from 'react';
 
 const KEY = 'ascent.partyHome';
 const DEMO_KEY = 'ascent.partyHome.demo';
+const ROOM_KEY = 'ascent.partyHome.room';
 const listeners = new Set<() => void>();
 let on: boolean | null = null;
 let demo: boolean | null = null;
+let sampleRoom: boolean | null = null;
 
 const readKey = (k: string): boolean => { try { return localStorage.getItem(k) === '1'; } catch { return false; } };
 const writeKey = (k: string, v: boolean): void => { try { localStorage.setItem(k, v ? '1' : '0'); } catch { /* a convenience only */ } };
@@ -27,6 +29,8 @@ function fromUrl(): void {
     if (p === '1' || p === '0') writeKey(KEY, p === '1');
     const d = q.get('partydemo');
     if (d === '1' || d === '0') writeKey(DEMO_KEY, d === '1');
+    const r = q.get('partyroom');
+    if (r === '1' || r === '0') writeKey(ROOM_KEY, r === '1');
   } catch { /* no window (tests) */ }
 }
 
@@ -50,6 +54,16 @@ export function setPartyDemo(v: boolean): void {
   demo = v; writeKey(DEMO_KEY, v);
   for (const l of listeners) l();
 }
+/** The sample Versus room (DEV only, inside the prototype; sampleRoom.ts). `?partyroom=1` sets it too. */
+export function partyRoomOn(): boolean {
+  if (!import.meta.env.DEV) return false;
+  if (sampleRoom === null) { fromUrl(); sampleRoom = readKey(ROOM_KEY); }
+  return sampleRoom;
+}
+export function setPartyRoom(v: boolean): void {
+  sampleRoom = v; writeKey(ROOM_KEY, v);
+  for (const l of listeners) l();
+}
 /** The party home's backdrop (owner 2026-11-02: "the backdrop art can maybe still be the old main menu art with the citadel,
  *  but blur it out? idk could try both"): the Mode screen's hall, or the title's citadel, pre-blurred and darkened. */
 export type PartyBackdrop = 'citadel' | 'hall';
@@ -67,3 +81,4 @@ const subscribe = (l: () => void): (() => void) => { listeners.add(l); return ()
 export const usePartyHome = (): boolean => useSyncExternalStore(subscribe, partyHomeOn, partyHomeOn);
 export const usePartyBackdrop = (): PartyBackdrop => useSyncExternalStore(subscribe, partyBackdrop, partyBackdrop);
 export const usePartyDemo = (): boolean => useSyncExternalStore(subscribe, partyDemoOn, partyDemoOn);
+export const usePartyRoom = (): boolean => useSyncExternalStore(subscribe, partyRoomOn, partyRoomOn);

@@ -112,6 +112,8 @@ function saveTab(t: CenterTab): void {
 /** Banners in Match History (and the Practice tab): the newest 50 server runs (owner 2026-10-16 "career to 50 too"; was 25,
  *  and 10 before 2026-09-20). Matches `CAREER_DETAIL_ROWS`, the rows fetched WITH their boards. */
 const MATCH_ROWS = 50;
+/** How long the shell layout waits on a cold career read before offering Retry. */
+const CAREER_STALL_MS = 3000;
 
 /**
  * SKINS on a Career page (2026-09-28). Whose page it is decides the toggle: YOUR page shows your skins as recorded
@@ -410,6 +412,9 @@ export function Career() {
   const cachedRuns = cache && userId && careerKeyUser(cache.key) === userId ? cache.runs : undefined;
   const runs = loadedRuns !== undefined ? loadedRuns : cachedRuns;
   const [fetchTick, setFetchTick] = useState(0); // the Retry button
+  // The shell layout's read timeout: still nothing after this long reads as "not available" with Retry, never an endless
+  // loading state (a late answer simply replaces it). A cached list paints at once, so this only meets a cold read.
+  const [loadStalled, setLoadStalled] = useState(false);
   const [window_, setWindow] = useState<TrendWindow>(30);
   const [tabPicked, setTab] = useState<CenterTab>(loadTab);
   // ACHIEVEMENTS (2026-09-28): the tab exists only once the owner has switched achievements on; a remembered
@@ -431,6 +436,13 @@ export function Career() {
   const [practiceTick, setPracticeTick] = useState(0); // the Practice tab's Retry
   const [watchingPractice, setWatchingPractice] = useState<number | null>(null); // practice row id whose replay is loading
   const [noPracticeReplay, setNoPracticeReplay] = useState<number | null>(null); // practice row id whose payload came back unplayable
+
+  useEffect(() => {
+    setLoadStalled(false);
+    if (!show || !shell || runs !== undefined) return undefined;
+    const t = window.setTimeout(() => setLoadStalled(true), CAREER_STALL_MS);
+    return () => window.clearTimeout(t);
+  }, [show, shell, runs === undefined, fetchTick]);
 
   const lastTick = useRef(fetchTick);
   useEffect(() => {
@@ -717,6 +729,7 @@ export function Career() {
     let pageState: PhState | null = null;
     if (!remoteEnabled()) pageState = st('Career unavailable', 'This build has no backend configured, so there is no server record to show.');
     else if (!userId) pageState = st('Sign in to see your career', 'Your runs, placements and Rating live on your account, so they follow you between devices.', { label: 'Sign in', onClick: () => { sfx.pulse(); openAccountPanel(); } });
+    else if (runs === undefined && loadStalled) pageState = st('Your career is not available right now', 'Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } });
     else if (runs === undefined) pageState = st('Loading your career', 'Fetching your recent runs from the server.', undefined, true);
     else if (runs === null) pageState = st('Couldn’t reach the server', 'Your career is stored on your account. Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } });
     const lv = accountProgression ? levelProgress(accountProgression.accountXp).level : null;

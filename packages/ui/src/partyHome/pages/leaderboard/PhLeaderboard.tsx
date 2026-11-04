@@ -146,10 +146,12 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
       )}
       {!meOnBoard && p.myRank && (
         <div className="phl-mepin" role="note" aria-label="Your standing">
-          <span className="phl-name">{displayHandle(p.myName, p.myDisc, p.myId)}</span>
+          <span className="phl-who">
+            <span className="phl-name">{displayHandle(p.myName, p.myDisc, p.myId)}</span>
+            <span className="phl-sub">Outside the top {p.rowsShown}</span>
+          </span>
           <RankCell rank={p.myRank} />
           <Num v={scalarCaption(p.myRank)} unit="MMR" gold />
-          <span className="phl-sub">Outside the top {p.rowsShown}</span>
         </div>
       )}
     </>

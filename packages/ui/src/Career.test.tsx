@@ -458,6 +458,31 @@ describe('states', () => {
     expect(ui.container.querySelector('.cv2-cols')).not.toBeNull();
   });
 
+  it('on the party home shell a stalled read becomes "not available" with Retry, and a late answer replaces it', async () => {
+    const { setPartyHome } = await import('./partyHome/partyHomeFlag');
+    await import('./partyHome/pages/career/PhCareer');
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      let resolve!: (v: CareerRun[]) => void;
+      fetchMyRuns.mockReturnValue(new Promise<CareerRun[] | null>((r) => { resolve = r; }));
+      ui.unmount(); // the beforeEach's page: only one Career may stay live
+      useGame.setState({ careerCache: null });
+      act(() => { setPartyHome(true); });
+      ui = mount(<Career />);
+      await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(ui.container.textContent).toContain('Loading your career');
+      await act(async () => { vi.advanceTimersByTime(3000); for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(ui.container.textContent).toContain('Your career is not available right now');
+      expect([...ui.container.querySelectorAll('button')].some((b) => b.textContent === 'Retry')).toBe(true);
+      await act(async () => { resolve(RUNS); for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(ui.container.textContent).not.toContain('not available right now');
+      expect(ui.container.querySelector('.phc-grid')).not.toBeNull();
+    } finally {
+      act(() => { setPartyHome(false); });
+      vi.useRealTimers();
+    }
+  });
+
   it('with no account session it asks the player to sign in (the account panel affordance) and fetches nothing', async () => {
     ui.unmount();
     fetchMyRuns.mockClear();

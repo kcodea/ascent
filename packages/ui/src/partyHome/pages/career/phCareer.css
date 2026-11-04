@@ -219,3 +219,7 @@ html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-save .cv2-btn { align-sel
 html[data-ph-shell][data-touch-ui][data-touch-small] .phc-page :is(.phc-acct .cv2-btn, .gc.gc-detail .gc-actions .cv2-btn, .phc-achview .ach-chip, .phc-duos .cv2-duocard-arrow, .phc-toolbar .phk-segbtn, .phk-pagetabs .phk-tab, .phc-filter .phk-btn) { min-height: calc(40 * var(--pt, 1px)); }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phc-page .phc-duos .cv2-duocard-arrow { min-width: calc(40 * var(--pt, 1px)); }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phc-profile .phc-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* Round 6: the scroll cue. A slim gold scrollbar beside the foot fade, so a taller column plainly reads as scrollable. */
+html[data-ph-shell]:not([data-touch-small]) .phc-profile { scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; padding-right: calc(4 * var(--phu)); }
+html[data-ph-shell]:not([data-touch-small]) .phc-profile::-webkit-scrollbar { display: block; width: calc(6 * var(--phu)); }
+html[data-ph-shell]:not([data-touch-small]) .phc-profile::-webkit-scrollbar-thumb { background: var(--ph-gold); border-radius: 999px; }

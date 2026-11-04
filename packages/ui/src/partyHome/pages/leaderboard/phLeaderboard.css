@@ -47,6 +47,7 @@ html[data-ph-shell] .phl-page .phl-title { --tb-fs: var(--ph-t1); flex: none; }
 /* ── THE TABLE: rail rows ── */
 .phl-table { --phl-cols: calc(36 * var(--phu)) calc(56 * var(--phu)) minmax(0, 1fr) calc(280 * var(--phu)) calc(88 * var(--phu)) calc(80 * var(--phu)) calc(16 * var(--phu));
   flex: none; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
+.phl-mepin { --phl-cols: calc(36 * var(--phu)) calc(56 * var(--phu)) minmax(0, 1fr) calc(280 * var(--phu)) calc(88 * var(--phu)) calc(80 * var(--phu)) calc(16 * var(--phu)); }
 .phl-table.duos { --phl-cols: calc(36 * var(--phu)) calc(112 * var(--phu)) minmax(0, 1fr) calc(280 * var(--phu)) calc(80 * var(--phu)); }
 .phl-head, .phl-rowbtn { display: grid; grid-template-columns: var(--phl-cols); align-items: center; column-gap: calc(16 * var(--phu)); }
 .phl-head { padding: 0 calc(16 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
@@ -74,12 +75,12 @@ html[data-ph-shell] .phl-page .phl-rank .rankbar-track { width: calc(140 * var(-
 html[data-ph-shell] .phl-page .phl-rank .rankbar-points { font-size: var(--ph-t1); color: var(--ph-muted); }
 
 /* Your standing, pinned to the foot of the view when you are not on the board. */
-.phl-mepin { position: sticky; bottom: 0; z-index: 2; flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr) calc(280 * var(--phu)) calc(88 * var(--phu)) auto; align-items: center; column-gap: calc(16 * var(--phu));
+.phl-mepin { position: sticky; bottom: 0; z-index: 2; flex: none; display: grid; grid-template-columns: var(--phl-cols); align-items: center; column-gap: calc(16 * var(--phu));
   min-height: calc(64 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-plate-hover); box-shadow: var(--ph-gild), 0 calc(-8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4); border-radius: var(--ph-r); }
 
 /* ── 1366: a narrower rank column ── */
 @container phl (max-width: 1500px) {
-  .phl-table { --phl-cols: calc(36 * var(--phu)) calc(56 * var(--phu)) minmax(0, 1fr) calc(240 * var(--phu)) calc(80 * var(--phu)) calc(72 * var(--phu)) calc(16 * var(--phu)); }
+  :is(.phl-table, .phl-mepin) { --phl-cols: calc(36 * var(--phu)) calc(56 * var(--phu)) minmax(0, 1fr) calc(240 * var(--phu)) calc(80 * var(--phu)) calc(72 * var(--phu)) calc(16 * var(--phu)); }
   html[data-ph-shell] .phl-page .phl-rank .rankbar-track { width: calc(110 * var(--phu)); }
 }
 
@@ -89,13 +90,11 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phl-pod.p1 { height: calc(
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-podfoot { grid-template-columns: minmax(0, 1fr) auto; padding: calc(10 * var(--phu)) calc(16 * var(--phu)) calc(12 * var(--phu)); }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-podfoot > .phl-num:last-child { display: none; }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-podwho { padding: 0 calc(16 * var(--phu)); }
-html[data-ph-shell][data-touch-ui][data-touch-small] .phl-table { --phl-cols: calc(36 * var(--phu)) calc(48 * var(--phu)) minmax(0, 1fr) calc(200 * var(--phu)) calc(72 * var(--phu)) calc(64 * var(--phu)) 0; }
+html[data-ph-shell][data-touch-ui][data-touch-small] :is(.phl-table, .phl-mepin) { --phl-cols: calc(36 * var(--phu)) calc(48 * var(--phu)) minmax(0, 1fr) calc(200 * var(--phu)) calc(72 * var(--phu)) calc(64 * var(--phu)) 0; }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-table.duos { --phl-cols: calc(36 * var(--phu)) calc(96 * var(--phu)) minmax(0, 1fr) calc(200 * var(--phu)) calc(64 * var(--phu)); }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-thumb { width: calc(48 * var(--phu)); height: calc(48 * var(--phu)); }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-page .phl-rank .rankbar-track { display: none; }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-go { display: none; }
-html[data-ph-shell][data-touch-ui][data-touch-small] .phl-mepin { grid-template-columns: auto minmax(0, 1fr) calc(200 * var(--phu)) auto; }
-html[data-ph-shell][data-touch-ui][data-touch-small] .phl-mepin > .phl-sub { display: none; }
 
 @media (prefers-reduced-motion: reduce) { .phl-podbtn { transition: none; } }
 
@@ -110,3 +109,5 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phl-mepin { position: rela
 .phl-row, .phl-mepin, .phl-pod { isolation: isolate; }
 .phl-off { flex: none; }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-page :is(.phk-pagetabs .phk-tab, .phk-btn) { min-height: calc(40 * var(--pt, 1px)); }
+/* Your standing shares the table's columns: name + "Outside the top N" across place, portrait and player, then Rank, MMR. */
+.phl-mepin > .phl-who { grid-column: 1 / 4; }

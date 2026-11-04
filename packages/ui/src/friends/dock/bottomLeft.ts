@@ -112,6 +112,8 @@ export function useBottomLeftAnchor(): void {
     let raf = 0;
     let tries = 0;
     const run = (): void => {
+      // The party home shell has none of these pieces: skip the forced layout reads (and the 20 frames of retries) on every page.
+      if (document.documentElement.hasAttribute('data-ph-shell')) { writeBlAnchor(null); return; }
       const a = measure();
       writeBlAnchor(a);
       // A screen still mounting (the HUD, the sidebar): retry for a few frames before settling on the corner.

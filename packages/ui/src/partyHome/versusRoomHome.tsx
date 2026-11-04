@@ -494,7 +494,6 @@ function StandTile({ m, server, thumb, host, you, hidden, draggable, onPointerDo
       {face.art && <img className="vsr-tileart" src={face.art} alt="" draggable={false} decoding="sync" />}
       <span className="vsr-tilename">{face.name}</span>
       {host && <span className="vsr-tilehost" aria-hidden="true"><Icon name="crown" /></span>}
-      {you && <span className="vsr-tileyou" aria-hidden="true">You</span>}
     </div>
   );
 }

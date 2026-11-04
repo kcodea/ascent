@@ -42,7 +42,6 @@
   -webkit-mask-image: linear-gradient(90deg, #000 60%, transparent); mask-image: linear-gradient(90deg, #000 60%, transparent); }
 .vsr-tilename { max-width: calc(180 * var(--phu)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-name-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 .vsr-tilehost svg { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); color: var(--pill-gold, #f6cf5a); }
-.vsr-tileyou { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-gold-hi); }
 
 .vsr-notice { position: absolute; top: calc(96 * var(--phu)); left: 50%; translate: -50% 0; z-index: 5; padding: calc(8 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-plate);
   box-shadow: var(--ph-gild); border-radius: var(--ph-r); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-text); animation: ph-pop 0.16s ease both; }
@@ -72,7 +71,10 @@
 .vso-row .phk-rowart { width: 30%; }
 .vso-row .phk-rowright { align-self: stretch; padding-left: calc(24 * var(--phu)); background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ph-navy) 92%, transparent) 30%); }
 /* A phone: every control at least 40 px, the strip a single line over START. */
-html[data-ph-compact] .ph .vsr-stands { padding: calc(2 * var(--phu)) calc(12 * var(--phu)); }
+html[data-ph-compact] .ph .vsr-stands { bottom: calc(100% - 2 * var(--phu)); padding: 0 calc(12 * var(--phu)); }
+html[data-ph-compact] .vsr-tile { height: calc(28 * var(--phu)); }
+html[data-ph-compact] .vsr-tileart { width: calc(28 * var(--phu)); }
+html[data-ph-compact] .vsr-tiles { min-height: 0; }
 html[data-ph-compact] .vsr-botslot { bottom: var(--footh, 0px); scale: 0.7; }
 html[data-ph-compact] .vso-row .phk-btn { min-height: calc(40 * var(--pt)); min-width: calc(44 * var(--pt)); }
 html[data-ph-compact] .ph-menuitem { min-height: calc(40 * var(--pt)); }
@@ -84,3 +86,5 @@ html[data-ph-compact] .ph-menuitem { min-height: calc(40 * var(--pt)); }
 /* Three panel tabs fit the column (Friends, Rules, Open rooms). */
 .ph-sidetabs .phk-tabs { gap: 0; }
 .ph-sidetabs .phk-tab { padding-inline: calc(10 * var(--phu)); letter-spacing: 0.04em; }
+/* A phone's open seat keeps only its medallion and its word. */
+html[data-ph-compact] .vsr-open .ph-opensub { display: none; }

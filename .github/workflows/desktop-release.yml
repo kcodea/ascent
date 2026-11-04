@@ -83,6 +83,13 @@ jobs:
           # electron-builder cannot resolve the workspace's ^range, so hand it the installed version.
           ELECTRON_VERSION=$(node -p "require('electron/package.json').version")
           npx electron-builder --win nsis --publish never --projectDir apps/desktop -c.electronVersion="$ELECTRON_VERSION"
+      - name: Write the update feed (latest.yml)
+        shell: bash
+        # electron-builder skips latest.yml under --publish never; without it no installed copy ever finds an update.
+        run: |
+          node apps/desktop/latestYml.cjs apps/desktop/release-ci/ASCENT-Setup.exe "$BUILD_VERSION"
+          grep -qx "version: $BUILD_VERSION" apps/desktop/release-ci/latest.yml || { echo "latest.yml has the wrong version"; exit 1; }
+          grep -qx "path: ASCENT-Setup.exe" apps/desktop/release-ci/latest.yml || { echo "latest.yml does not name ASCENT-Setup.exe"; exit 1; }
       - name: Check the self-update config
         shell: bash
         # updater.cjs only runs when resources/app-update.yml exists (the zip exe has none), and reads its feed from it.

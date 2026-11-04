@@ -117,16 +117,12 @@ export function ShowingLine({ seat, details, onBack, own = true }: { seat: Match
   );
 }
 
-interface PickerProps {
-  details: MatchDetails; selectedId: string | null; onPick: (id: string | null) => void; own: boolean;
-  /** `async` keeps the 56 mini portraits out of the frame that paints the tiles (a page fading in hides their landing). */
-  artDecoding?: 'sync' | 'async';
-}
+interface PickerProps { details: MatchDetails; selectedId: string | null; onPick: (id: string | null) => void; own: boolean }
 
 /** A board as seven small portraits: minion art only, no stat badges, a Gilded minion in a gold rim with a star.
  *  Shared by the lobby tiles and the Career MMR chart's hover tip. Memoised on the minions array (a stored board's
  *  array is a stable reference), so a hover that moves a tooltip never rebuilds it. */
-export const MiniBoard = memo(function MiniBoard({ minions, className = '', decoding = 'sync' }: { minions: readonly BoardMinion[]; className?: string; decoding?: 'sync' | 'async' }) {
+export const MiniBoard = memo(function MiniBoard({ minions, className = '' }: { minions: readonly BoardMinion[]; className?: string }) {
   return (
     <span className={`lp-mini ${className}`.trim()} aria-hidden="true">
       {Array.from({ length: 7 }, (_, i) => {
@@ -134,7 +130,7 @@ export const MiniBoard = memo(function MiniBoard({ minions, className = '', deco
         const art = m ? artFor(m.cardId) : undefined;
         return (
           <span key={i} className={`lp-mini-m${m ? '' : ' empty'}${m?.golden ? ' golden' : ''}`}>
-            {art && <img decoding={decoding} src={art} alt="" draggable={false} />}
+            {art && <img decoding="sync" src={art} alt="" draggable={false} />}
             {m?.golden && <span className="lp-mini-star">★</span>}
           </span>
         );
@@ -144,7 +140,7 @@ export const MiniBoard = memo(function MiniBoard({ minions, className = '', deco
 });
 
 /** The lobby: a 4 x 2 table of seat tiles with mini boards. */
-export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick, own, artDecoding }: PickerProps) {
+export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick, own }: PickerProps) {
   const showOpp = useGame((s) => s.showOpponentSkins);
   return (
     <div className="lp-tiles" role="group" aria-label="Players in this lobby. Pick one to see their board">
@@ -172,7 +168,7 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
               </span>
               {seat.id === details.knockedOutBy && <span className="lp-ko" aria-hidden="true"><Icon name="sword" /></span>}
             </span>
-            <MiniBoard minions={minions} decoding={artDecoding} />
+            <MiniBoard minions={minions} />
             {/* Hover darkens the tile and prints its Game strength over it (owner 2026-11-03: the tip bubble under the
                 tile was unnecessary). An unscored seat shows nothing. */}
             {typeof seat.strength === 'number' && (

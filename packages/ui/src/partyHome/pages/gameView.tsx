@@ -179,12 +179,6 @@ function Fact({ label, children, tip }: { label: string; children: ReactNode; ti
   return tip ? <span className="gtip rgp-tip" data-tip={tip}>{tile}</span> : tile;
 }
 
-/** Has a game been drawn since the page opened? The first one paints inside the page's own fade (`.lbpage`), so its big
- *  pictures decode off that frame instead of holding it; after that a swap decodes in its frame, whole. */
-let pageFading = false;
-/** The page opened (its fade plays): the next open game may decode off the frame. */
-export const markPageFading = (): void => { pageFading = true; };
-
 const NO_MINIONS: never[] = [];
 const GHOST_SEATS = [0, 1, 2, 3, 4, 5, 6, 7];
 
@@ -209,8 +203,6 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
   const band = p.band ?? bandOf(p.place);
   // Fades only when it was waited for: a revisit (the answer already in hand) paints as it always did.
   const waited = useRef(!!p.matchPending);
-  const decoding = useRef<'sync' | 'async'>(pageFading ? 'async' : 'sync').current;
-  useEffect(() => { pageFading = false; }, []);
   const { seat, pick } = useLobbySeat(p.match);
   // A pick in the lobby (below the board) brings the board back into view; nothing moves when it is already on screen.
   const boardRef = useRef<HTMLElement | null>(null);
@@ -232,7 +224,7 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
   return (
     <article className={`rgp-detail b-${band}`} aria-label={`${p.who}, ${p.heroName}: ${placeWords(p.place)}`}>
       <header className="rgp-banner">
-        {p.art && <img className="rgp-bannerart" src={p.art} alt="" draggable={false} decoding={decoding} />}
+        {p.art && <img className="rgp-bannerart" src={p.art} alt="" draggable={false} decoding="sync" />}
         <Place place={p.place} band={band} big />
         <div className="rgp-bannerwho">
           {(band === 'won' || band === 'none') && <span className={`rgp-verdict b-${band}`}>{placeWords(p.place)}</span>}
@@ -288,7 +280,7 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
       {(p.match || p.matchPending) && (
         <section className={`rgp-lobby${p.match && waited.current ? ' fadein' : ''}`} aria-label="Players in this lobby" aria-busy={!p.match}>
           <header className="rgp-lobbyhead"><h3>Lobby</h3></header>
-          {p.match ? <LobbyTiles details={p.match} selectedId={seat?.id ?? null} onPick={pick} own={p.own} artDecoding={decoding} /> : <LobbyGhost />}
+          {p.match ? <LobbyTiles details={p.match} selectedId={seat?.id ?? null} onPick={pick} own={p.own} /> : <LobbyGhost />}
         </section>
       )}
     </article>

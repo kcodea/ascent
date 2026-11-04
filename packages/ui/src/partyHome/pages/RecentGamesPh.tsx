@@ -37,8 +37,8 @@ import { DuosGameCard } from '../../duosHistory/DuosGameCard';
 import { duosBand, duosGameView, duosModeLabel, teamPlaceText, type DuosGameRow } from '../../duosHistory/duosHistoryData';
 import { practiceOpponentsText, summaryOf, type FeedRow, type RecentGamesTab } from '../../RecentGames';
 import { PhButton, PhChip, PhEmpty, PhPage, PhSection, PhSegmented, PhStat, PhTabs } from '../kit';
-import { boardArtReady, warmBoardArt } from './gameWarm';
-import { GameDetail, GameDetailHold, GameList, markPageFading, useHeldKey, useNearPrefetch, type GameFact, type ListItem } from './gameView';
+import { boardArtReady, lobbyMinions, warmBoardArt } from './gameWarm';
+import { GameDetail, GameDetailHold, GameList, useHeldKey, useNearPrefetch, type GameFact, type ListItem } from './gameView';
 import './gamesPages.css';
 
 export { placeWords } from './gameView';
@@ -48,7 +48,6 @@ export type RecentState = 'offline' | 'loading' | 'empty' | 'signedout' | 'ready
 
 export interface RecentGamesPhProps {
   tab: RecentGamesTab; onTab: (t: RecentGamesTab) => void; state: RecentState;
-  feedRows: number; duosLimit: number;
   rows: readonly KeyedRow[]; duosRows: readonly DuosGameRow[]; myId: string | null;
   heroCounts: readonly HeroCount[]; heroFilter: string | null; onHero: (id: string | null) => void;
   picked: string | null; onPick: (key: string) => void;
@@ -68,13 +67,19 @@ const TABS = [
  *  one row on every screen (round 5 critic). Read once per render from the window width, never per frame. */
 export const heroFilterMax = (): number => (isPhone() ? 4 : typeof window !== 'undefined' && window.innerWidth < 1600 ? 5 : 7);
 
+/** The Duos tab's note: what is actually listed. Nothing with no games: it never claims games that are not there. */
+export function duosScope(games: number): string | null {
+  if (games === 0) return null;
+  return games === 1 ? 'Your last Duos game' : `Your last ${games} Duos games`;
+}
+
 export function RecentGamesPh(given: RecentGamesPhProps) {
   // A TAB SWITCH NEVER BLANKS THE PAGE (round 11 critic): while the next feed is read, the last one stays up (tabs already
   // on the new tab, the strip, chips and list a little dimmed), and the data swaps in place when it lands.
   const last = useRef<Pick<RecentGamesPhProps, 'tab' | 'rows' | 'heroCounts'> | null>(null);
-  if (last.current === null) markPageFading();
   // THE PAGE ARRIVES WHOLE: it stays invisible until its first frame has been drawn (the second animation frame runs only
-  // after the first has committed), then fades in as one, instead of painting in pieces while its pictures decode.
+  // after the first has committed), then fades in as one, instead of painting in pieces while its pictures decode. Every
+  // picture is `decoding="sync"` (imgDecodingSync.test.ts), so that first frame holds them all: nothing lands after the fade.
   useEffect(() => {
     let id = requestAnimationFrame(() => { id = requestAnimationFrame(() => { document.querySelector('.phk-page.rgp')?.setAttribute('data-in', ''); }); });
     return () => cancelAnimationFrame(id);
@@ -83,15 +88,14 @@ export function RecentGamesPh(given: RecentGamesPhProps) {
   const stale = given.state === 'loading' && given.tab !== 'duos' && last.current !== null;
   const p: RecentGamesPhProps = stale ? { ...given, ...last.current!, state: 'ready' } : given;
   const duos = given.tab === 'duos';
-  const practice = given.tab === 'practice';
-  const scope = duos ? `Your last ${p.duosLimit} Duos games` : practice ? `Last ${p.feedRows} practice games` : `Last ${p.feedRows} games`;
+  const scope = duos ? duosScope(p.duosRows.length) : null;
   return (
     <PhPage
       className={`rgp${stale ? ' stale' : ''}`} wide eyebrow="Match history" title="Recent Games"
       tabs={<PhTabs tabs={TABS} value={given.tab} onChange={p.onTab} label="Recent games view" />}
-      actions={duos || !(p.state === 'ready' || (p.heroFilter !== null && p.state !== 'offline'))
-        ? <span className="rgp-scope">{scope}</span>
-        : <HeroFilter {...p} />}
+      actions={duos
+        ? scope && <span className="rgp-scope">{scope}</span>
+        : (p.state === 'ready' || (p.heroFilter !== null && p.state !== 'offline')) && <HeroFilter {...p} />}
     >
       {duos ? <DuosBody {...p} /> : <FeedBody {...p} />}
     </PhPage>
@@ -151,8 +155,15 @@ function FeedReady(p: RecentGamesPhProps) {
     if (!k) return Promise.resolve();
     return Promise.all([warmBoardArt(k.r.board?.minions), 'match' in k.r ? null : fetchRecentMatch(k.r.rowId, k.r.userId)]);
   };
+  // Opening a game also waits for the art on its lobby tiles (only the game being opened: neighbours read their data alone).
+  const matchOf = (r: FeedRow): MatchDetails | null | undefined => ('match' in r ? r.match : peekRecentMatch(r.rowId));
+  const openGame = async (key: string): Promise<void> => {
+    await readLobby(key);
+    const k = rowOf(key);
+    if (k) await warmBoardArt(lobbyMinions(matchOf(k.r)));
+  };
   // The open game arrives whole: the list moves at once, the detail swaps when its lobby is in hand (gameView.tsx).
-  const shownKey = useHeldKey(sel.key, (key) => { const k = rowOf(key); return !k || (lobbyInHand(k.r) && boardArtReady(k.r.board?.minions)); }, readLobby);
+  const shownKey = useHeldKey(sel.key, (key) => { const k = rowOf(key); return !k || (lobbyInHand(k.r) && boardArtReady(k.r.board?.minions) && boardArtReady(lobbyMinions(matchOf(k.r)))); }, openGame);
   const keys = useMemo(() => p.rows.map((k) => k.key), [p.rows]);
   useNearPrefetch(keys, sel.key, readLobby);
   const items = useMemo((): ListItem[] => p.rows.map(({ r, key, skins }) => {

@@ -24,6 +24,8 @@
 const { Menu, app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { isRemoteNetworkError } = require('./smokeClassify.cjs');
+const { startUpdater } = require('./updater.cjs');
 
 // ── SMOKE MODE (scripts/release-desktop.mjs) ──────────────────────────────────────────────────────────────
 // `ASCENT_SMOKE=1` turns the shell into a self-check of the packaged bundle: a windowed (not fullscreen) boot
@@ -33,7 +35,20 @@ const fs = require('node:fs');
 // would not fire. The point is that the check runs against the exe's own `resources/dist`, over the exe's own
 // protocol handler — the exact code path a player's machine takes — not against a dev server.
 const SMOKE = process.env.ASCENT_SMOKE === '1';
-const smoke = { requests: 0, missing: [], consoleErrors: [] };
+
+// ONE INSTANCE. A second launch (a double-clicked shortcut, the installer's relaunch racing a stale process) would
+// fight the first over the update marker and the install. The loser exits at once; the first instance's window is
+// brought forward. Smoke runs skip the lock so a game the developer has open cannot make the self-check exit early.
+const GOT_LOCK = SMOKE || app.requestSingleInstanceLock();
+if (!GOT_LOCK) app.exit(0);
+app.on('second-instance', () => {
+  const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+});
+const smoke = { requests: 0, missing: [], consoleErrors: [], networkErrors: [] };
 
 /** The web build. Packaged: copied into resources/ by electron-builder. Dev: read straight from the repo. */
 const DIST = app.isPackaged
@@ -60,8 +75,9 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 // hostile in a game window. F11/F12 below replace the only two entries worth keeping.
 Menu.setApplicationMenu(null);
 
-function createWindow() {
-  const win = new BrowserWindow({
+/** The window options the game AND the "Installing update" screen share (only the preload differs). */
+function windowOptions(preload) {
+  return {
     // BORDERLESS FULLSCREEN by default. Electron's `fullscreen` on Windows is the borderless kind (it does not
     // take an exclusive display mode), which is what a game wants: no chrome, instant alt-tab. The width/height
     // below are the WINDOWED size — what you get after F11 or the Fullscreen toggle, never the initial state.
@@ -77,12 +93,16 @@ function createWindow() {
     icon: path.join(__dirname, 'icon.png'),
     show: false, // revealed on ready-to-show to avoid a blank window while the bundle boots
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, preload),
       contextIsolation: true,
       nodeIntegration: false, // the game is pure web code — it needs no Node, so don't hand it any
       backgroundThrottling: false, // pairs with the switches above
     },
-  });
+  };
+}
+
+function createWindow() {
+  const win = new BrowserWindow(windowOptions('preload.cjs'));
 
   // F11 escapes fullscreen — without it a borderless-fullscreen default is a trap (no title bar to click, and
   // Esc belongs to the in-game menu). F12 opens DevTools, which the removed menu used to provide and which a
@@ -109,37 +129,40 @@ function createWindow() {
   return win;
 }
 
-/** Poll for the boot report, gather the failure evidence, write it, exit. Never hangs: hard cap at 4 minutes. */
+/** Poll for the readiness, gather the failure evidence, write it, exit. Never hangs: hard cap at 4 minutes. */
 function runSmoke(win) {
   const started = Date.now();
+  let readyMs = 0;
   const finish = async (timedOut) => {
-    let boot = null;
     let fontErrors = [];
     try {
-      boot = await win.webContents.executeJavaScript('window.__boot ? JSON.parse(JSON.stringify(window.__boot)) : null', true);
       fontErrors = await win.webContents.executeJavaScript(
         "Array.from(document.fonts).filter((f) => f.status === 'error').map((f) => f.family + ' ' + f.weight)", true);
     } catch (e) { smoke.consoleErrors.push(`executeJavaScript failed: ${e}`); }
-    const stages = boot?.stages ?? {};
-    const stageFail = Object.values(stages).some((st) => !st.ok);
-    const warmFailed = boot?.warmAll?.first?.failed ?? [];
-    const ok = !timedOut && !!boot && !stageFail && smoke.missing.length === 0 && fontErrors.length === 0 && warmFailed.length === 0;
-    const report = { ok, timedOut, ms: Date.now() - started, boot, warmFailed, fontErrors, requests: smoke.requests, missing: smoke.missing, consoleErrors: smoke.consoleErrors };
+    // "Ready" = the title screen mounted (window.__ascentReady, set in Title.tsx). Offline runs (CI pull_request) tolerate
+    // cross-origin network refusals; a publish run keeps them fatal.
+    const offline = process.env.ASCENT_SMOKE_OFFLINE === '1';
+    const ok = !timedOut && smoke.missing.length === 0 && fontErrors.length === 0 && smoke.consoleErrors.length === 0 && (offline || smoke.networkErrors.length === 0);
+    const report = { ok, timedOut, ms: Date.now() - started, boot: timedOut ? null : { ready: true, ms: readyMs }, fontErrors, requests: smoke.requests, missing: smoke.missing, consoleErrors: smoke.consoleErrors, networkErrors: smoke.networkErrors, offline };
     const out = process.env.ASCENT_SMOKE_OUT;
     if (out) fs.writeFileSync(out, JSON.stringify(report, null, 2));
     else console.log(JSON.stringify(report, null, 2));
     app.exit(ok ? 0 : 1);
   };
-  win.webContents.on('console-message', (_e, level, message) => {
-    if (level >= 3) smoke.consoleErrors.push(message); // 3 = error
+  win.webContents.on('console-message', (_e, level, message, _line, sourceId) => {
+    if (level < 3) return; // 3 = error
+    // A cross-origin network refusal (CORS-blocked / net::ERR_* against a non-app:// URL) is the network's doing, not a defect in the build.
+    const network = isRemoteNetworkError(message, sourceId);
+    (network ? smoke.networkErrors : smoke.consoleErrors).push(message);
   });
   win.webContents.on('did-fail-load', (_e, code, desc) => { smoke.consoleErrors.push(`did-fail-load ${code} ${desc}`); void finish(false); });
   const poll = setInterval(async () => {
     if (Date.now() - started > 4 * 60_000) { clearInterval(poll); return finish(true); }
     let done = false;
-    try { done = await win.webContents.executeJavaScript('!!window.__boot', true); } catch { /* not loaded yet */ }
+    try { done = await win.webContents.executeJavaScript('!!window.__ascentReady', true); } catch { /* not loaded yet */ }
     if (done) {
       clearInterval(poll);
+      readyMs = Date.now() - started;
       // Give the fire-everything pass + font loads a beat to settle their final requests before reading.
       setTimeout(() => void finish(false), 1500);
     }
@@ -155,6 +178,7 @@ ipcMain.on('ascent:toggle-fullscreen', (event) => {
 });
 
 app.whenReady().then(() => {
+  if (!GOT_LOCK) return; // a second instance: app.exit(0) is already on its way
   const MIME = {
     '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
     '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json',
@@ -193,7 +217,12 @@ app.whenReady().then(() => {
     });
   });
 
-  createWindow();
+  // The updater decides whether this launch installs a pending update (its own window, then a relaunch) or opens
+  // the game; when it is off (dev, smoke, the zip exe, ASCENT_NO_UPDATE=1) it just opens the game. See updater.cjs.
+  void startUpdater({
+    app, BrowserWindow, createGameWindow: createWindow,
+    windowOptions: windowOptions('updatingPreload.cjs'), updatingHtml: path.join(__dirname, 'updating.html'),
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

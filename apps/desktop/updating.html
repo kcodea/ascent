@@ -1,0 +1,53 @@
+<!doctype html>
+<!--
+  "Installing update vX…" — shown by updater.cjs BEFORE the game loads when a downloaded update is pending.
+  Self-contained: inline CSS + script, no network, no fonts to fetch. Its only input is window.ascentUpdating
+  (updatingPreload.cjs), which only receives progress from the main process. Styled after the game's boot loader
+  (.bootload-* in packages/ui/src/styles.css): the board's dark surround, the crest, the orange wordmark.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>ASCENT</title>
+<style>
+  :root { --bg: #211d27; --acc: #f0902e; --acc-dk: #c46f17; --ink3: #9c8b71; --track: #2f2937; }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; user-select: none; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+         font-family: 'Segoe UI', system-ui, sans-serif; }
+  .crest { width: min(30vmin, 260px); height: auto; display: block; }
+  .mark { font-weight: 800; font-size: clamp(30px, 7vw, 86px); letter-spacing: 0.14em; color: var(--acc);
+          text-shadow: 0 3px 0 var(--acc-dk); line-height: 1; margin: 0; }
+  .sub { font-weight: 700; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3);
+         font-variant-numeric: tabular-nums; margin: 0; }
+  .sub .ver { text-transform: none; }
+  .bar { width: min(340px, 60vw); height: 12px; border-radius: 999px; background: var(--track); overflow: hidden; }
+  .fill { height: 100%; width: 100%; border-radius: 999px; background: var(--acc); transform-origin: left center; transform: scaleX(0);
+          transition: transform 0.18s ease-out; }
+  /* Before the first progress event (or while the cached download is re-validated) the bar sweeps. */
+  .bar.idle .fill { width: 30%; transform: translateX(-100%); animation: sweep 1.3s ease-in-out infinite; transition: none; }
+  @keyframes sweep { to { transform: translateX(340%); } }
+</style>
+</head>
+<body>
+  <img class="crest" src="updating-logo.png" alt="" draggable="false">
+  <h1 class="mark">ASCENT</h1>
+  <p class="sub">Installing update<span class="ver" id="ver"></span>…</p>
+  <div class="bar idle" id="bar" role="progressbar" aria-label="Update progress" aria-valuemin="0" aria-valuemax="100"><div class="fill" id="fill"></div></div>
+<script>
+  (() => {
+    const raw = new URLSearchParams(location.search).get('v') || '';
+    const version = /^[0-9A-Za-z.+-]{1,40}$/.test(raw) ? raw.replace(/^v/, '') : '';
+    document.getElementById('ver').textContent = version ? ` v${version}` : '';
+    const bar = document.getElementById('bar');
+    const fill = document.getElementById('fill');
+    window.ascentUpdating?.onUpdateProgress((percent) => {
+      const p = Math.max(0, Math.min(100, percent));
+      bar.classList.remove('idle');
+      bar.setAttribute('aria-valuenow', String(Math.round(p)));
+      fill.style.transform = `scaleX(${p / 100})`;
+    });
+  })();
+</script>
+</body>
+</html>

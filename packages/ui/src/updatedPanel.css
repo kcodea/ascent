@@ -1,0 +1,24 @@
+/* The desktop update surfaces (UpdatedPanel.tsx, UpdateReadyNotice.tsx). Both live in the scaled stage (stageHost), so
+   they use design-pixel sizes and no viewport units. No cursor rule: the global button rule paints the gauntlet. Static
+   paint; the only motion is a one-shot opacity fade-in. Type: Headline 24px / Body 14px from DESIGN.md. */
+.updpanel-scrim { position: fixed; inset: 0; z-index: 2500; display: flex; align-items: center; justify-content: center; background: rgba(5, 7, 14, 0.72); animation: updfade 0.18s ease-out; }
+.updpanel { display: flex; flex-direction: column; align-items: stretch; width: 760px; max-width: 92%; max-height: 82%; padding: 28px 32px 24px; box-sizing: border-box; border-radius: 22px;
+  background: var(--ui-plate); border: 2px solid var(--ui-edge-main, rgba(196, 160, 92, 0.6)); box-shadow: var(--ui-bevel), 0 24px 70px -20px rgba(0, 0, 0, 0.7); color: var(--ui-text); }
+.updpanel-title { margin: 0; font-family: var(--font-title), sans-serif; font-weight: 800; font-size: 24px; letter-spacing: 0.04em; color: var(--ui-title, #f1d48a); text-align: center; }
+.updpanel-sub { margin: 6px 0 14px; font-family: var(--font-ui), sans-serif; font-weight: 600; font-size: 14px; color: rgba(244, 238, 226, 0.7); text-align: center; }
+.updpanel-notes { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.updpanel-notes .pnscroll { flex: 1 1 auto; min-height: 0; }
+.updpanel-go { align-self: center; margin-top: 18px; height: 46px; padding: 0 34px; border-radius: 11px; border: 2px solid transparent; white-space: nowrap;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 17px; line-height: 1; transition: translate 0.1s ease; }
+.updpanel-go:hover { color: #fff; translate: 0 -1px; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.updpanel-go:active { translate: 0 1px; transition-duration: 0.05s; }
+.updpanel-go:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
+
+/* The toast: top centre, input-transparent so it can never block a control, on the same Gem plate. */
+.updnotice { position: fixed; top: 14px; left: 50%; translate: -50% 0; z-index: 2400; pointer-events: none; max-width: 620px; padding: 10px 20px; border-radius: 11px; border: 2px solid transparent; text-align: center;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), 0 3px 10px -3px rgba(0, 0, 0, 0.7); color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 14px; line-height: 1.34; animation: updfade 0.25s ease-out; }
+@keyframes updfade { from { opacity: 0; } to { opacity: 1; } }

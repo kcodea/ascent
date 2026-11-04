@@ -37,6 +37,8 @@ vitest.config.ts.timestamp-*
 # Electron desktop build output (the Electron runtime + the game, ~300 MB) — regenerate with
 # `npm run package:desktop`. `dist/` above already covers apps/web/dist.
 apps/desktop/release/
+apps/desktop/release-ci/
+apps/desktop/build/
 packages/tools/.cache/
 
 # `npm run report:export` output — regenerated on demand, never committed (it is a
@@ -69,3 +71,4 @@ supabase/functions/versus-resolve/engine.generated.js
 docs/ops/db-reports/*.json
 apps/web/dist-bench*/
 .versus-qa/
+.claude/ship-state.json

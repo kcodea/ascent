@@ -358,7 +358,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                       </div>
                     )}
                     <div className="hcpw">
-                      <HeroPowerLine power={power} />
+                      <HeroPowerLine power={power} stacked={ph} />
                     </div>
                   </div>
                   {ph && <span className="hcfoot" aria-hidden="true" />}

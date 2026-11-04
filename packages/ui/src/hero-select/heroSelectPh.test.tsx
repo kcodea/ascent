@@ -83,6 +83,17 @@ describe('round 6', () => {
   });
 });
 
+describe('the cleanup pass', () => {
+  it('hover is lighting only and nothing draws an underline', () => {
+    const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const m of css.matchAll(/([^{}]*:(?:hover|active)[^{}]*)\{([^}]*)\}/g)) {
+      expect(m[2]!.replace(/(?:transform|translate|scale): none;?/g, ''), m[1]).not.toMatch(/\b(?:transform|translate|scale):/);
+    }
+    expect(css).toMatch(/\.hsprompt::after \{ content: none; \}/);
+    expect(css).not.toMatch(/divider\.webp/);
+  });
+});
+
 describe('the mode line', () => {
   it('names the game the pick is for', () => {
     const base = { ranked: false, rankedDuos: false, watching: false };

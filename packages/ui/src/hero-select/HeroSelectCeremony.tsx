@@ -449,7 +449,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
               </div>
             )}
             {/* The party home look keeps the power on the card at rest, so the clone keeps it too. */}
-            {ph && <div className="hcpw"><HeroPowerLine power={hero.power} /></div>}
+            {ph && <div className="hcpw"><HeroPowerLine power={hero.power} stacked /></div>}
           </div>
           {ph && <span className="hcfoot" aria-hidden="true" />}
         </div>

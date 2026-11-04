@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
 import { compileMoments } from '../compile';
-import { attackSummonUids, ralliesFiredIn, rallyProcsFor, RALLY_BEAT_MS, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS } from './rallyFired';
+import { attackSummonUids, ownRallyBindingFor, ralliesFiredIn, rallyProcsFor, RALLY_BEAT_MS, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS } from './rallyFired';
 
 const rally = (source: string, target: string): CombatEvent => ({ type: 'rally', source, target } as CombatEvent);
 const buff = (target: string): CombatEvent =>
@@ -206,5 +206,32 @@ describe('ralliesFiredIn — delivered summons', () => {
   it('never reads past the moment window for a litter', () => {
     const events = [rally('ech', 'saber'), summon('inside'), summon('next-moment')];
     expect(ralliesFiredIn(span(0, 2), events)[0]?.delivered).toEqual([['inside']]);
+  });
+});
+
+describe('ownRallyBindingFor — an ordinary Rally plays its own "On Rally" binding (R-FX-RALLY-OWN-01)', () => {
+  const resolve = (cardId: string | null, kind: 'rally') => (cardId === 'd2_chorus' && kind === 'rally' ? { def: 'chorus-notes' } : null);
+  const atk = { type: 'attack', attacker: 'a', defender: 'd' } as CombatEvent;
+
+  it('an ordinary Rally (no ally proc in the moment) resolves the rallier binding', () => {
+    const events = [atk, buff('x')];
+    expect(ownRallyBindingFor(span(0, 2), events, 'a', 'd2_chorus', true, resolve)).toEqual({ def: 'chorus-notes' });
+  });
+
+  it('a Rally that procs an ally is left to the rallyFx cue, so nothing plays twice', () => {
+    const events = [atk, rally('a', 'b')];
+    expect(ownRallyBindingFor(span(0, 2), events, 'a', 'd2_chorus', true, resolve)).toBeNull();
+  });
+
+  it('a non-rallier, an unknown card, or an unbound card plays nothing', () => {
+    const events = [atk];
+    expect(ownRallyBindingFor(span(0, 1), events, 'a', 'd2_chorus', false, resolve)).toBeNull();
+    expect(ownRallyBindingFor(span(0, 1), events, 'a', null, true, resolve)).toBeNull();
+    expect(ownRallyBindingFor(span(0, 1), events, 'a', 'cinderchef', true, resolve)).toBeNull();
+  });
+
+  it('another unit ally proc in the same moment does not suppress the attacker own', () => {
+    const events = [atk, rally('z', 'b')];
+    expect(ownRallyBindingFor(span(0, 2), events, 'a', 'd2_chorus', true, resolve)).toEqual({ def: 'chorus-notes' });
   });
 });

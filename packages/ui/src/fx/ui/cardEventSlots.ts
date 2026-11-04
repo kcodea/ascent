@@ -59,7 +59,8 @@ export const CARD_EVENT_SLOTS: readonly CardEventSlot[] = [
     label: 'On Rally',
     blurb: 'Plays each time this minion’s Rally fires in combat (when it attacks). Rally minions only.',
     // The Rally keyword is `'RL'` (e.g. Packstrider). Its combat proc is the `rally` moment, played by the
-    // score’s `rallyFx` channel per Rally event, keyed by the rallier’s card.
+    // score’s `rallyFx` channel per Rally event, keyed by the rallier’s card. An ORDINARY Rally (no ally proc,
+    // e.g. Chorus Drake) plays it on the rallier at its wind-up pulse instead (`ownRallyBindingFor`).
     kindFor: (card) => (hasKeyword(card, 'RL') ? 'rally' : null),
   },
   {

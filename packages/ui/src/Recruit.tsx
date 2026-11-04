@@ -1,6 +1,6 @@
 import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent, type AnimationEvent as ReactAnimationEvent } from 'react';
 import { catchPulse, isPassArrival, mateDoor, noteCastRelease, playDrop } from './versus/passLob';
-import { duosPassRefusal, notePassRefused, overMateFrame, passOnRelease } from './versus/duosPassUi';
+import { duosPassRefusal, notePassRefused, overMateFrame, passariaAimHoldsHand, passOnRelease } from './versus/duosPassUi';
 import { useDuosCombat, useDuosCombatSync } from './versus/duosCombat';
 import { targetPromptFor } from './targetPrompt';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
@@ -4683,6 +4683,8 @@ export function Recruit() {
       // SAME turn, and a stale run left over from a previous hero can't false-lock a uid-colliding card
       // (both runs start uidSeq at 0, so a fresh buy can share a locked Setlist card's uid).
       if (source === 'hand') {
+        // Passaria's aim owns the pointer (R-DUOS-PRIESTESS-GOLD-01): a hand drag under it would be the separate 1 Gold pass.
+        if (passariaAimHoldsHand(useGame.getState())) return;
         const liveRun = useGame.getState().run;
         const hc = liveRun.hand.find((c) => c.uid === uid);
         if (hc?.lockedUntilTier && liveRun.tier < hc.lockedUntilTier) return;

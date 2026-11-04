@@ -202,6 +202,12 @@ export function splitOwnRallyFloats<F extends { uid: string; kind: string }>(flo
   return { now, later };
 }
 
+/** Is `e` a narration (`sc`, e.g. "+0/+1 Spell Power") the RALLIER caused itself? Those wait for its own
+ *  "On Rally" effect, like its floats (`splitOwnRallyFloats`). A hero-power grant is never the rallier's. */
+export function isOwnNarration(e: CombatEvent | undefined, attackerUid: string | null): boolean {
+  return !!e && attackerUid !== null && e.type === 'sc' && !e.heroPower && e.source === attackerUid;
+}
+
 /** When a delayed own-Rally float lands, from the moment's start: the same read gap after the wind-up pulse
  *  that Echohorn's sparkle uses (`rallyLeadMs`), so the effect goes off first and the number follows. */
 export function ownRallyFloatDelayMs(windupDurSec: number): number {

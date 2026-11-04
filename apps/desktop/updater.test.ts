@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-type Marker = { version: string } | null;
+type Marker = { version: string; attempts?: number } | null;
 const updater = createRequire(import.meta.url)('./updater.cjs') as {
   isNewer: (a: string, b: string) => boolean;
   decideLaunch: (marker: Marker, current: string) => 'install' | 'boot';
@@ -32,6 +32,11 @@ describe('decideLaunch', () => {
   it('installs only a newer pending version', () => {
     expect(updater.decideLaunch({ version: '0.2.1' }, '0.2.0')).toBe('install');
     expect(updater.decideLaunch(null, '0.2.0')).toBe('boot');
+  });
+  it('allows one retry, then drops a marker whose install attempts ran out', () => {
+    expect(updater.decideLaunch({ version: '0.2.1', attempts: 1 }, '0.2.0')).toBe('install');
+    expect(updater.decideLaunch({ version: '0.2.1', attempts: 2 }, '0.2.0')).toBe('boot');
+    expect(updater.decideLaunch({ version: '0.2.1', attempts: 2 }, '0.2.1')).toBe('boot');
   });
 });
 
@@ -112,8 +117,7 @@ describe('startUpdater', () => {
     expect(h.createGameWindow).toHaveBeenCalledTimes(1);
     expect(h.files.has(MARKER)).toBe(false);
     expect(h.windows[0].isDestroyed()).toBe(true);
-    // A late event after giving up changes nothing.
-    h.au.emit('update-downloaded', { version: '0.2.1' });
+    // A late error after giving up changes nothing.
     h.au.emit('error', new Error('late'));
     expect(h.au.quitAndInstall).not.toHaveBeenCalled();
     expect(h.createGameWindow).toHaveBeenCalledTimes(1);
@@ -127,9 +131,76 @@ describe('startUpdater', () => {
     h.au.emit('download-progress', { percent: 42.5 });
     expect(h.sent).toEqual([['ascent:update-progress', { percent: 42.5 }]]);
     h.au.emit('update-downloaded', { version: '0.2.1' });
-    vi.runAllTimers();
+    // The attempt is recorded BEFORE quitting, so a failure after the app is gone is visible next launch.
+    expect(JSON.parse(h.files.get(MARKER)!)).toEqual({ version: '0.2.1', attempts: 1 });
+    vi.advanceTimersByTime(1);
     expect(h.au.quitAndInstall).toHaveBeenCalledWith(true, true);
     expect(h.createGameWindow).not.toHaveBeenCalled();
+  });
+
+  // electron-updater 6.x's real failure modes: quitAndInstall never throws.
+  it('install: quitAndInstall that emits error and returns (BaseUpdater.install) boots the game', async () => {
+    const h = harness({ marker: { version: '0.2.1' } });
+    h.au.quitAndInstall.mockImplementation(() => { h.au.emit('error', new Error("No update filepath provided, can't quit and install")); return false; });
+    await updater.startUpdater(h.deps);
+    h.au.emit('update-downloaded', { version: '0.2.1' });
+    vi.advanceTimersByTime(1);
+    expect(h.au.quitAndInstall).toHaveBeenCalledTimes(1);
+    expect(h.createGameWindow).toHaveBeenCalledTimes(1);
+    expect(h.windows[0].isDestroyed()).toBe(true);
+    expect(h.files.has(MARKER)).toBe(false);
+    vi.advanceTimersByTime(120_000); // neither the watchdog nor the old timeout opens a second game
+    expect(h.createGameWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it('install: quitAndInstall that returns without quitting → the 15 s watchdog boots the game', async () => {
+    const h = harness({ marker: { version: '0.2.1' } });
+    h.au.quitAndInstall.mockImplementation(() => true); // "spawned", but the app never quits
+    await updater.startUpdater(h.deps);
+    h.au.emit('update-downloaded', { version: '0.2.1' });
+    vi.advanceTimersByTime(1);
+    vi.advanceTimersByTime(14_998);
+    expect(h.createGameWindow).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(2);
+    expect(h.createGameWindow).toHaveBeenCalledTimes(1);
+    expect(h.windows[0].isDestroyed()).toBe(true);
+  });
+
+  it('a launch that finds an already-attempted marker boots and clears it', async () => {
+    const h = harness({ marker: { version: '0.2.1', attempts: 2 } });
+    await updater.startUpdater(h.deps);
+    expect(h.createGameWindow).toHaveBeenCalledTimes(1);
+    expect(h.windows).toHaveLength(0);
+    expect(h.files.has(MARKER)).toBe(false);
+    expect(h.au.quitAndInstall).not.toHaveBeenCalled();
+  });
+
+  it('a second launch after an installer that failed post-quit retries once, then boots', async () => {
+    const a = harness({ marker: { version: '0.2.1', attempts: 1 } });
+    await updater.startUpdater(a.deps);
+    expect(a.windows).toHaveLength(1); // the one retry
+    a.au.emit('update-downloaded', { version: '0.2.1' });
+    expect(JSON.parse(a.files.get(MARKER)!)).toEqual({ version: '0.2.1', attempts: 2 });
+  });
+
+  it('install: update-not-available boots the game at once', async () => {
+    const h = harness({ marker: { version: '0.2.1' } });
+    await updater.startUpdater(h.deps);
+    h.au.emit('update-not-available', { version: '0.2.0' });
+    expect(h.createGameWindow).toHaveBeenCalledTimes(1);
+    expect(h.files.has(MARKER)).toBe(false);
+    expect(h.windows[0].isDestroyed()).toBe(true);
+  });
+
+  it('install: a download that outlives the timeout is still recorded for next launch', async () => {
+    const h = harness({ marker: { version: '0.2.1' } });
+    await updater.startUpdater(h.deps);
+    vi.advanceTimersByTime(60_000);
+    expect(h.createGameWindow).toHaveBeenCalledTimes(1);
+    h.au.emit('update-downloaded', { version: '0.2.1' });
+    expect(h.au.quitAndInstall).not.toHaveBeenCalled();
+    expect(JSON.parse(h.files.get(MARKER)!)).toEqual({ version: '0.2.1' });
+    expect(h.gameSent).toEqual([['ascent:update-ready', { version: '0.2.1' }]]);
   });
 
   it('install: an error falls back to the game at once', async () => {

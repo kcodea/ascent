@@ -8,7 +8,8 @@
  *   - INSTALL (a newer version is pending): before the game loads, show `updating.html` ("Installing update vX…"),
  *     re-check (the cached download is re-validated, not re-fetched) and `quitAndInstall` silently with a relaunch.
  *     On an error, "nothing to install", or 60 s with no download, give up: clear the marker and boot the game.
- *     It never hangs and never shows the player an error.
+ *     The attempt is counted in the marker before quitting, and a 15 s watchdog catches a quit that never happens,
+ *     so a failing installer can never trap the player (2 tries per version, then boot). Never shows an error.
  *
  * OFF unless every one of these holds (`updatesAllowed`): UPDATES_ENABLED, a packaged app, not the smoke test,
  * ASCENT_NO_UPDATE !== '1', and `resources/app-update.yml` exists. electron-builder writes that file only for the NSIS
@@ -24,6 +25,10 @@ const UPDATES_ENABLED = true;
 const MARKER_FILE = 'pending-update.json';
 const CHECK_DELAY_MS = 10_000;
 const INSTALL_TIMEOUT_MS = 60_000;
+/** After quitAndInstall the app should be gone within moments; if it is still here, the install did not start. */
+const QUIT_WATCHDOG_MS = 15_000;
+/** Install tries per pending version (the first + one retry). A marker that used them up is dropped at launch. */
+const MAX_INSTALL_ATTEMPTS = 2;
 
 /** Parse `1.2.3-pre.4` (leading `v` tolerated). Null when it is not a semver. */
 function parse(v) {
@@ -54,9 +59,16 @@ function isNewer(a, b) {
   return false;
 }
 
-/** 'install' only when a pending marker names a version newer than the one running. */
+/**
+ * 'install' only when a pending marker names a version newer than the one running AND it has not used up its
+ * install attempts. `marker.attempts` is written just before each quitAndInstall; if the installer then fails after
+ * the app quit (Defender, a locked file, a full disk), the next launch still runs the OLD version and sees the count.
+ * Exhausted → 'boot' (the caller clears the marker and the boot path re-downloads), so a broken install can never
+ * lock the player out of the game.
+ */
 function decideLaunch(marker, current) {
-  return marker && typeof marker.version === 'string' && isNewer(marker.version, current) ? 'install' : 'boot';
+  if (!marker || typeof marker.version !== 'string' || !isNewer(marker.version, current)) return 'boot';
+  return (Number(marker.attempts) || 0) >= MAX_INSTALL_ATTEMPTS ? 'boot' : 'install';
 }
 
 /** The R8 gate. */
@@ -118,62 +130,81 @@ async function startUpdater(deps) {
     } catch (e) { log('warn', `check threw: ${e}`); }
   };
 
-  const current = app.getVersion();
-  if (decideLaunch(marker, current) === 'install') {
-    runInstall({ BrowserWindow, createGameWindow, autoUpdater, deps, version: marker.version, clearMarker, log, check });
-    return;
-  }
-
-  // BOOT. Any marker left here names a version already installed (or older): stale.
-  if (marker) clearMarker();
-  const gameWin = createGameWindow();
-  autoUpdater.on('error', (e) => log('warn', `boot: ${e?.message ?? e}`));
-  autoUpdater.on('update-downloaded', (info) => {
+  /** The boot behaviour for a finished download: record it for next launch and tell the game (if it is open). */
+  const recordDownload = (getGameWin) => (info) => {
     const version = String(info?.version ?? '');
     log('info', `downloaded ${version}; installs next launch`);
     try { fs.writeFileSync(markerPath, JSON.stringify({ version })); } catch (e) { log('error', `write marker: ${e}`); return; }
+    const gameWin = getGameWin();
     if (gameWin && !gameWin.isDestroyed()) gameWin.webContents.send('ascent:update-ready', { version });
-  });
+  };
+
+  const current = app.getVersion();
+  if (decideLaunch(marker, current) === 'install') {
+    runInstall({ BrowserWindow, createGameWindow, autoUpdater, deps, marker, fs, markerPath, clearMarker, log, check, recordDownload });
+    return;
+  }
+
+  // BOOT. Any marker left here names a version already installed (or older), or one whose install attempts ran out.
+  if (marker) { log('info', `dropping marker ${JSON.stringify(marker)} (running ${current})`); clearMarker(); }
+  const gameWin = createGameWindow();
+  autoUpdater.on('error', (e) => log('warn', `boot: ${e?.message ?? e}`));
+  autoUpdater.on('update-downloaded', recordDownload(() => gameWin));
   setTimeout(check, CHECK_DELAY_MS);
 }
 
-function runInstall({ BrowserWindow, createGameWindow, autoUpdater, deps, version, clearMarker, log, check }) {
-  log('info', `installing pending ${version}`);
+function runInstall({ BrowserWindow, createGameWindow, autoUpdater, deps, marker, fs, markerPath, clearMarker, log, check, recordDownload }) {
+  const { version } = marker;
+  log('info', `installing pending ${version} (previous attempts: ${Number(marker.attempts) || 0})`);
   const win = new BrowserWindow(deps.windowOptions);
   win.once('ready-to-show', () => win.show());
   void Promise.resolve(win.loadFile(deps.updatingHtml, { query: { v: version } })).catch((e) => log('warn', `load updating.html: ${e}`));
 
-  let settled = false;
+  // 'waiting' (for the download) → 'installing' (quitAndInstall called, the app should quit) → 'gaveUp'.
+  // NB quitAndInstall NEVER throws on failure in electron-updater 6.x: it emits 'error' and returns (BaseUpdater.install),
+  // or spawns the installer and returns true. So failure is detected by that 'error' or by the watchdog below.
+  let phase = 'waiting';
+  let gameWin = null;
+  let watchdog = null;
   const giveUp = (why) => {
-    if (settled) return;
-    settled = true;
+    if (phase === 'gaveUp') return;
+    phase = 'gaveUp';
     clearTimeout(timer);
+    clearTimeout(watchdog);
     log('warn', `install gave up (${why}); booting the game`);
     clearMarker();
+    // A download that outlives the timeout still counts: record it for next launch, exactly as the boot path does.
+    autoUpdater.on('update-downloaded', recordDownload(() => gameWin));
     // Open the game BEFORE closing this window, or window-all-closed would quit the app in between.
-    createGameWindow();
+    gameWin = createGameWindow();
     if (!win.isDestroyed()) win.close();
   };
   const timer = setTimeout(() => giveUp('timeout'), INSTALL_TIMEOUT_MS);
 
   autoUpdater.on('download-progress', (p) => {
-    if (settled || win.isDestroyed()) return;
+    if (phase !== 'waiting' || win.isDestroyed()) return;
     win.webContents.send('ascent:update-progress', { percent: Number(p?.percent) || 0 });
   });
   autoUpdater.on('update-downloaded', () => {
-    if (settled) return;
-    settled = true;
+    if (phase !== 'waiting') return;
+    phase = 'installing';
     clearTimeout(timer);
+    // Count the attempt BEFORE quitting: if the installer fails after we are gone, the next launch sees it.
+    try {
+      fs.writeFileSync(markerPath, JSON.stringify({ version, attempts: (Number(marker.attempts) || 0) + 1 }));
+    } catch (e) { log('error', `write attempt: ${e}`); }
     log('info', 'downloaded; quitAndInstall');
     if (!win.isDestroyed()) win.webContents.send('ascent:update-progress', { percent: 100 });
     // Defer a tick so the event finishes dispatching before the app starts quitting.
     setTimeout(() => {
-      try { autoUpdater.quitAndInstall(true, true); } catch (e) { settled = false; giveUp(`quitAndInstall: ${e}`); }
+      if (phase !== 'installing') return;
+      watchdog = setTimeout(() => giveUp('still running after quitAndInstall'), QUIT_WATCHDOG_MS);
+      try { autoUpdater.quitAndInstall(true, true); } catch (e) { giveUp(`quitAndInstall threw: ${e}`); }
     }, 0);
   });
-  autoUpdater.on('update-not-available', () => giveUp('not available'));
-  autoUpdater.on('error', (e) => giveUp(`error: ${e?.message ?? e}`));
+  autoUpdater.on('update-not-available', () => { if (phase === 'waiting') giveUp('not available'); });
+  autoUpdater.on('error', (e) => { if (phase !== 'gaveUp') giveUp(`error: ${e?.message ?? e}`); });
   check();
 }
 
-module.exports = { UPDATES_ENABLED, isNewer, decideLaunch, updatesAllowed, startUpdater };
+module.exports = { UPDATES_ENABLED, MAX_INSTALL_ATTEMPTS, isNewer, decideLaunch, updatesAllowed, startUpdater };

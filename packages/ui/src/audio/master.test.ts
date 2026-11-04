@@ -18,7 +18,10 @@ import {
 
 // Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
 beforeAll(async () => {
-  await Promise.allSettled([import('../music'), import('../announcer'), import('../sfx')]);
+  // One at a time: importing in parallel races a `vi.mock` factory, and the REAL module can slip through.
+  await import('../music');
+  await import('../announcer');
+  await import('../sfx');
 }, 60_000);
 
 // ── A recording fake AudioContext ──────────────────────────────────────────────────────────────────────────────

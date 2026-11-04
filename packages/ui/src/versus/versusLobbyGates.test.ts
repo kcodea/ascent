@@ -14,7 +14,11 @@ import {
 
 // Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
 beforeAll(async () => {
-  await Promise.allSettled([import('../store'), import('./versusHooks'), import('../replay/replayDraft'), import('../rank/ratedRun')]);
+  // One at a time: importing in parallel races a `vi.mock` factory, and the REAL module can slip through.
+  await import('../store');
+  await import('./versusHooks');
+  await import('../replay/replayDraft');
+  await import('../rank/ratedRun');
 }, 60_000);
 
 const remote = vi.hoisted(() => ({

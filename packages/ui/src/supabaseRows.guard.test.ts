@@ -19,7 +19,8 @@ import { MAX_ROWS_PER_REQUEST, fetchAllRows } from './supabaseRows';
 
 // Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
 beforeAll(async () => {
-  await Promise.allSettled([import('./remoteBoards')]);
+  // One at a time: importing in parallel races a `vi.mock` factory, and the REAL module can slip through.
+  await import('./remoteBoards');
 }, 60_000);
 
 const root = join(__dirname, '../../..');

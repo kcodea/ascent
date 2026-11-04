@@ -13,7 +13,10 @@ vi.setConfig({ testTimeout: 30_000 });
 // Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
 // (The reset keeps every test's own fresh load; only the transform work is done ahead.)
 beforeAll(async () => {
-  await Promise.allSettled([import('./sfx'), import('./music'), import('./announcer')]);
+  // One at a time: importing in parallel races a `vi.mock` factory, and the REAL module can slip through.
+  await import('./sfx');
+  await import('./music');
+  await import('./announcer');
   vi.resetModules();
 }, 60_000);
 

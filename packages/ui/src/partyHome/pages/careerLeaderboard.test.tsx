@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { mount } from '../../renderedText.mount';
 import { PhCareer, type PhCareerProps } from './career/PhCareer';
+import { GameSplitPh } from './gameView';
 import { PhLeaderboard, teamLabel, type PhLeaderboardProps } from './leaderboard/PhLeaderboard';
 import type { DuosLeaderboardRow } from '../../versus/versusRemote';
 import type { RankedRow } from '../../Rankings';
@@ -26,12 +27,13 @@ const hero = (heroId: string, runs: number): HeroCareer => ({ heroId, runs, winR
 const VIEW: PhCareerProps['history']['view'] = {
   label: 'Match history', selected: 'r1', onPick: vi.fn(),
   items: [{ key: 'r1', place: 3, band: 'top4', title: 'Orangez', sub: 'Robin', delta: 6, label: '3rd, Robin' }],
-  detail: { place: 3, who: 'Orangez', heroName: 'Robin', record: '7-7', recordTone: 'up', rank: null, facts: [], match: null, own: false, skins: null, runes: [], replay: null },
+  detailOf: () => ({ place: 3, who: 'Orangez', heroName: 'Robin', record: '7-7', recordTone: 'up', rank: null, facts: [], match: null, own: false, skins: null, runes: [], replay: null }),
+  ready: () => true, load: () => Promise.resolve(),
 };
 
 function careerProps(over: Partial<PhCareerProps> = {}): PhCareerProps {
   return {
-    own: false, name: 'Orangez', title: null, addFriend: null, pageState: null, profileArt: undefined, favoriteHero: 'Robin',
+    own: false, name: 'Orangez', loading: false, ready: true, back: null, title: null, addFriend: null, pageState: null, profileArt: undefined, favoriteHero: 'Robin',
     level: { level: 157, into: 365, next: 500, fraction: 0.73 }, onCreateAccount: null,
     stats: { games: 141, firsts: 66, top4Pct: 74, losses: 37, avgPlacement: 3, tribe: 'Demon' },
     rank: { divisionIndex: 15, points: 94 }, mmr: 1594, rankPending: false, userId: null,
@@ -105,13 +107,63 @@ describe('Career on the app shell', () => {
   });
 });
 
+describe('Career match history', () => {
+  it('the list moves at once; the old game stays up until the new one is in hand, and neighbours are read ahead', async () => {
+    let finish!: () => void;
+    const load = vi.fn((key: string) => (key === 'b' ? new Promise<void>((r) => { finish = r; }) : Promise.resolve()));
+    let inHand = false;
+    const item = (key: string, title: string) => ({ key, place: 3, band: 'top4' as const, title, label: title });
+    const detailOf = (key: string) => ({ ...VIEW!.detailOf('r1')!, who: key === 'a' ? 'First game' : 'Second game' });
+    const view = (selected: string) => ({ label: 'Match history', selected, onPick: vi.fn(), items: [item('a', 'A'), item('b', 'B'), item('c', 'C')], detailOf, ready: (k: string) => k === 'a' || inHand, load });
+    const m = mount(<GameSplitPh view={view('a')} />);
+    expect(load).toHaveBeenCalledWith('b'); // read ahead
+    m.render(<GameSplitPh view={view('b')} />);
+    expect(m.container.querySelector('.rgp-name')?.textContent).toBe('First game');
+    inHand = true;
+    await act(async () => { finish(); await Promise.resolve(); await Promise.resolve(); });
+    expect(m.container.querySelector('.rgp-name')?.textContent).toBe('Second game');
+    m.unmount();
+  });
+});
+
+describe('Career arrival and way back', () => {
+  it('holds the whole page until the view is ready, then one fade', () => {
+    const m = mount(<PhCareer {...careerProps({ ready: false })} />);
+    expect(m.container.querySelector('.phc-pg.hold')).not.toBeNull();
+    m.render(<PhCareer {...careerProps({ ready: true })} />);
+    expect(m.container.querySelector('.phc-pg.hold')).toBeNull();
+    expect(m.container.querySelector('.phc-pg.arrive')).not.toBeNull();
+    m.unmount();
+  });
+  it('another player reached from Recent Games has a way back', () => {
+    const onClick = vi.fn();
+    const m = mount(<PhCareer {...careerProps({ back: { label: 'Back to Recent Games', onClick } })} />);
+    act(() => { m.container.querySelector<HTMLButtonElement>('.phk-back')!.click(); });
+    expect(onClick).toHaveBeenCalled();
+    m.unmount();
+  });
+});
+
+describe('Career loading', () => {
+  it('a cold read holds the final layout with ghosts, naming the player, with no spinner or loading words', () => {
+    const m = mount(<PhCareer {...careerProps({ loading: true, history: { filter: null, state: null, view: null } })} />);
+    expect(m.container.querySelector('.rgp-split[aria-busy]')?.getAttribute('aria-label')).toBe("Loading Orangez's games");
+    expect(m.container.querySelectorAll('.rgp-rowghost').length).toBeGreaterThan(0);
+    expect(m.container.textContent).not.toMatch(/Loading|Fetching/);
+    m.render(<PhCareer {...careerProps()} />);
+    expect(m.container.querySelector('.phc-main.fadein')).not.toBeNull(); // one soft fade after a wait
+    m.unmount();
+  });
+});
+
 describe('Leaderboard on the app shell', () => {
   it('stands the top three as a podium (2nd, 1st, 3rd) and lists the rest; every row opens that career', () => {
     const p = boardProps();
     const m = mount(<PhLeaderboard {...p} />);
     expect(m.container.querySelector('.phk-pagehead h1')?.textContent).toBe('Leaderboard');
     const pods = [...m.container.querySelectorAll('.phl-pod')].map((e) => e.querySelector('.phl-podname')?.textContent);
-    expect(pods).toEqual(['Player2#1002', 'Player1#1001', 'Player3#1003']);
+    expect(pods).toEqual(['Player2', 'Player1', 'Player3']); // one name format: no #tag on screen
+    expect(m.container.querySelector('.phl-podbtn')?.getAttribute('aria-label')).toContain('#100');
     const rows = m.container.querySelectorAll<HTMLButtonElement>('.phl-row .phl-rowbtn');
     expect(rows).toHaveLength(2);
     act(() => { rows[0]!.click(); });
@@ -125,7 +177,7 @@ describe('Leaderboard on the app shell', () => {
     expect(m.container.querySelector('.phk-chip')).toBeNull();
     expect(m.container.querySelector('.phl-mepin')).toBeNull();
     m.render(<PhLeaderboard {...boardProps({ myId: 'zz', myRank: { divisionIndex: 3, points: 40 } })} />);
-    expect(m.container.querySelector('.phl-mepin')?.textContent).toContain('Outside the top 10');
+    expect(m.container.querySelector('.phl-mepin')?.textContent).toContain('Outside the top 5'); // what is listed, not the board's size
     m.unmount();
   });
   it('names a Duos team without "Player & Player": its name, its players, or an unnamed team', () => {
@@ -133,10 +185,11 @@ describe('Leaderboard on the app shell', () => {
       teamId: 't', name, division: 0, points: 0, demotionReady: false, games: 3,
       players: [a ? { userId: 'a', name: a } : null, b ? { userId: 'b', name: b } : null],
     } as unknown as DuosLeaderboardRow);
-    expect(teamLabel(team(null, null, null))).toEqual({ name: 'Unnamed team', sub: '3 games' });
+    expect(teamLabel(team(null, null, null))).toEqual({ name: 'Unnamed team', sub: '' });
     expect(teamLabel(team('hilton hotels', null, null)).name).toBe('hilton hotels');
     expect(teamLabel(team(null, 'Ann', null)).name).toBe('Ann and a partner');
-    expect(teamLabel(team(null, 'Ann', 'Bo')).sub).toBe('Ann and Bo');
+    expect(teamLabel(team(null, 'Ann', 'Bo'))).toEqual({ name: 'Ann & Bo', sub: '' }); // named once, not twice
+    expect(teamLabel(team('hilton hotels', 'Ann', 'Bo')).sub).toBe('Ann and Bo');
   });
   it('says "Top players" when the board holds fewer than its size', () => {
     const m = mount(<PhLeaderboard {...boardProps()} />);
@@ -170,7 +223,7 @@ describe('shell pages: production and UI rules', () => {
     const tsx = [here('./career/PhCareer.tsx'), here('./leaderboard/PhLeaderboard.tsx')].join('\n');
     const css = [here('./career/phCareer.css'), here('./leaderboard/phLeaderboard.css')].join('\n');
     expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
-    expect(css).not.toMatch(/cursor:/);
+    expect(css).not.toMatch(/cursor:(?!\s*url\('\/cursors\/gauntlet_open\.svg'\))/); // only the open gauntlet, never a keyword
     expect(css).not.toMatch(/infinite/);
     const strings = [...tsx.matchAll(/'([^'\n]*)'/g), ...tsx.matchAll(/>([^<>{}\n]+)</g)].map((x) => x[1] ?? '');
     for (const s of strings) { expect(s).not.toMatch(/—|\s--\s/); expect(s).not.toMatch(/\b(Oath|climb)\b/i); }

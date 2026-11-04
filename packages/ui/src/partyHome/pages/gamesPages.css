@@ -333,6 +333,13 @@ html[data-touch-small] .rgp-lobby { padding: calc(8 * var(--phu)) calc(24 * var(
 /* The first game held for its lobby: the plate alone, the height of the panel. */
 .rgp-detail.rgp-hold { min-height: 100%; }
 
+/* The row's words sit on a darker fade over the hero art, so the hero and record read on busy art (both pages). */
+.rgp-item::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ph-navy) 92%, transparent) 0%, color-mix(in srgb, var(--ph-navy) 82%, transparent) 46%, transparent 68%); }
+.rgp-item::before { z-index: 1; }
+.rgp-item > :not(img) { position: relative; z-index: 1; }
+.rgp-item .phk-rowsub { color: var(--ph-text); }
+
 /* ROUND 12. The hover bubble is laid out even while invisible, and on a phone the Game strength one was wider than the
    column: that alone gave Ranked games a sideways scroll. Off the layout on a phone (no hover there; `:hover` rules are wrapped in a hover media query by the build). */
 html[data-touch-small] .rgp-tip.gtip[data-tip]:not(.tt-on)::after { display: none; }

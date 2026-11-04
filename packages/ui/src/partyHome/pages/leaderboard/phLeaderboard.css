@@ -38,14 +38,14 @@ html[data-ph-shell] .phl-page .phl-title { --tb-fs: var(--ph-t1); flex: none; }
 .phl-num { display: flex; flex-direction: column; align-items: flex-end; gap: calc(2 * var(--phu)); }
 .phl-num b { font-family: var(--ph-name-font, var(--ph-font)); font-weight: 900; font-size: var(--ph-t3); line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
 .phl-num.gold b { color: #fbe6a6; }
-.phl-num small { font-family: var(--ph-font); font-weight: 800; font-size: calc(10 * var(--phu)); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
+.phl-num small { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
 .phl-pod .phl-num b { font-size: var(--ph-t4); }
 
 /* ── THE TABLE: rail rows ── */
 .phl-table { --phl-cols: calc(36 * var(--phu)) calc(56 * var(--phu)) minmax(0, 1fr) calc(280 * var(--phu)) calc(88 * var(--phu)) calc(80 * var(--phu)) calc(16 * var(--phu));
   flex: none; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
 .phl-mepin { --phl-cols: calc(36 * var(--phu)) calc(56 * var(--phu)) minmax(0, 1fr) calc(280 * var(--phu)) calc(88 * var(--phu)) calc(80 * var(--phu)) calc(16 * var(--phu)); }
-.phl-table.duos { --phl-cols: calc(36 * var(--phu)) calc(112 * var(--phu)) minmax(0, 1fr) calc(280 * var(--phu)) calc(80 * var(--phu)); }
+.phl-table.duos { --phl-cols: calc(36 * var(--phu)) calc(112 * var(--phu)) minmax(0, 1fr) calc(280 * var(--phu)) calc(88 * var(--phu)) calc(80 * var(--phu)); }
 .phl-head, .phl-rowbtn { display: grid; grid-template-columns: var(--phl-cols); align-items: center; column-gap: calc(16 * var(--phu)); }
 .phl-head { padding: 0 calc(16 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
 .phl-head .r { text-align: right; }
@@ -88,7 +88,7 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phl-podfoot { grid-templat
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-podfoot > .phl-num:last-child { display: none; }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-podwho { padding: 0 calc(16 * var(--phu)); }
 html[data-ph-shell][data-touch-ui][data-touch-small] :is(.phl-table, .phl-mepin) { --phl-cols: calc(36 * var(--phu)) calc(48 * var(--phu)) minmax(0, 1fr) calc(200 * var(--phu)) calc(72 * var(--phu)) calc(64 * var(--phu)) 0; }
-html[data-ph-shell][data-touch-ui][data-touch-small] .phl-table.duos { --phl-cols: calc(36 * var(--phu)) calc(96 * var(--phu)) minmax(0, 1fr) calc(200 * var(--phu)) calc(64 * var(--phu)); }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phl-table.duos { --phl-cols: calc(36 * var(--phu)) calc(96 * var(--phu)) minmax(0, 1fr) calc(200 * var(--phu)) calc(72 * var(--phu)) calc(64 * var(--phu)); }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-thumb { width: calc(48 * var(--phu)); height: calc(48 * var(--phu)); }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-page .phl-rank .rankbar-track { display: none; }
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-go { display: none; }
@@ -108,3 +108,12 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phl-mepin { position: rela
 html[data-ph-shell][data-touch-ui][data-touch-small] .phl-page :is(.phk-pagetabs .phk-tab, .phk-btn) { min-height: calc(40 * var(--pt, 1px)); }
 /* Your standing shares the table's columns: name + "Outside the top N" across place, portrait and player, then Rank, MMR. */
 .phl-mepin > .phl-who { grid-column: 1 / 4; }
+
+/* The Duos podium: Solo's cards, the two heroes side by side (the pair fades to the navy as one), a crest with none. */
+.phl-podbtn.static:hover { transform: none; }
+.phl-podpair { position: absolute; inset: 0 0 auto 0; height: 80%; display: flex; pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, #000 45%, transparent 100%); mask-image: linear-gradient(180deg, #000 45%, transparent 100%); }
+.phl-podhalf { flex: 1 1 0; min-width: 0; object-fit: cover; object-position: 50% 15%; }
+.phl-podcrest { position: absolute; inset: 0 0 auto 0; height: 70%; display: grid; place-items: center; pointer-events: none; }
+/* Duos: Points is its own column, as on the podium; the bar keeps the shape, not a second copy of the number. */
+.phl-table.duos .rankbar-points { display: none; }

@@ -301,7 +301,8 @@ export function RecentGames(): JSX.Element | null {
         favoriteHero: p?.favoriteHero,
         ...(p?.rank ? { rank: p.rank } : {}),
         ...(p?.avatar ? { avatar: p.avatar } : {}),
-        ...(!L.practice ? { focus: { heroId: r.heroId, wins: r.wins, placement: r.placement, createdAt: r.createdAt } } : {}),
+        ...(!L.practice ? { focus: { heroId: r.heroId, wins: r.wins, placement: r.placement, createdAt: r.createdAt } } : { tab: 'practice' as const }),
+        from: 'recent',
       });
       setOpening(null);
     });

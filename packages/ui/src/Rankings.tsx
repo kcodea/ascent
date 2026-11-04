@@ -117,7 +117,7 @@ export function Rankings() {
           rows={rows} rowsShown={RANKED_ROWS} remote={remoteEnabled()} versusOn={versusEnabled()} board={board} onBoard={setBoard}
           myId={myId ?? null} myName={myName} myDisc={myDisc} myRank={myRank ?? null} myAvatar={myAvatar} myLoadout={myLoadout} showOpp={showOppCosmetics}
           onRetry={() => { void loadSocial(RANKINGS_KEY, loadRankings, { force: true }); }}
-          onOpen={(r) => openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero, ...(r.rank ? { rank: r.rank } : {}), ...(r.avatar ? { avatar: r.avatar } : {}) })}
+          onOpen={(r) => openCareer({ from: 'rankings', userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero, ...(r.rank ? { rank: r.rank } : {}), ...(r.avatar ? { avatar: r.avatar } : {}) })}
         />
       </Suspense>
     );

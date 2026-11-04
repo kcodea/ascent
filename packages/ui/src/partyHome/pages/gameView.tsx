@@ -13,7 +13,7 @@
  *
  * PERFORMANCE: static paint; only the open game's board mounts; its card FX stay still until pointed at.
  */
-import { memo, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { memo, useMemo, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import type { BoardSnapshot, MatchDetails, RuneLiveState } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { GildedCrown, ReplayEye } from '../../menuIcons';
@@ -129,7 +129,7 @@ export const GameList = memo(function GameList({ items, selected, onPick, label,
         onSelect={(it) => { if (it.key !== selected) { local.current = true; onPick(it.key); } }}
         render={(it, on) => (
           <div className={`phk-row rgp-item b-${it.band}${on ? ' sel' : ''}`} aria-label={it.label} onPointerEnter={onNear ? () => onNear(it.key) : undefined}>
-            {it.art && <img className="phk-rowart rgp-itemart" src={it.art} alt="" draggable={false} decoding="async" />}
+            {it.art && <img className="phk-rowart rgp-itemart" src={it.art} alt="" draggable={false} decoding="sync" />}
             <Place place={it.place} band={it.band} />
             <span className="phk-rowwho">
               <span className="phk-rowtitle">{it.title}</span>
@@ -276,7 +276,9 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
         <div className="rgp-board"><div className={`rgp-boardin${seat ? ' swap' : ''}`} key={seat?.id ?? 'own'}>
           {seat ? <SeatBoard seat={seat} own={p.own} /> : p.minions && p.minions.length > 0
             ? <StoredTeam minions={p.minions} skins={p.skins} />
-            : <div className="rgp-none">No board recorded for this game</div>}
+            : p.matchPending
+              ? <div className="rgp-boardghost" aria-hidden="true" />
+              : <div className="rgp-none">No board recorded for this game</div>}
         </div></div>
         <div className="rgp-runes">
           {seat ? <SeatRuneRow seat={seat} /> : <LbRunes runes={p.runes} live={p.runeLive} empty="No runes taken" />}
@@ -294,13 +296,45 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
 });
 
 /** A page's games as one list + detail: the two columns of `.rgp-split`. */
-export interface GameSplitView { items: readonly ListItem[]; selected: string; onPick: (key: string) => void; label: string; detail: GameDetailProps }
+export interface GameSplitView {
+  items: readonly ListItem[]; selected: string; onPick: (key: string) => void; label: string;
+  /** Any listed game's detail: the panel may still be showing the old one while the new one's lobby is read. */
+  detailOf: (key: string) => GameDetailProps | null;
+  /** Is this game's lobby in hand, synchronously? */
+  ready: (key: string) => boolean;
+  /** Read it (cached and safe to call again). */
+  load: (key: string) => Promise<unknown>;
+}
 
 export function GameSplitPh({ view }: { view: GameSplitView }) {
+  // The open game arrives whole, and its neighbours are read ahead: the same rule as Recent Games.
+  const shownKey = useHeldKey(view.selected, view.ready, view.load);
+  const sig = view.items.map((it) => it.key).join('|');
+  const keys = useMemo(() => (sig ? sig.split('|') : []), [sig]);
+  useNearPrefetch(keys, view.selected, view.load);
+  const detail = shownKey ? view.detailOf(shownKey) : null;
   return (
     <div className="rgp-split">
-      <GameList items={view.items} selected={view.selected} onPick={view.onPick} label={view.label} />
-      <div className="rgp-detailcol"><GameDetail key={view.selected} {...view.detail} /></div>
+      <GameList items={view.items} selected={view.selected} onPick={view.onPick} label={view.label} onNear={view.load} />
+      <div className="rgp-detailcol">{detail ? <GameDetail key={shownKey} {...detail} /> : <GameDetailHold />}</div>
+    </div>
+  );
+}
+
+const GHOST_ROWS = [0, 1, 2, 3, 4, 5, 6, 7];
+/** A first read: the list + detail's final layout with nothing in it, so nothing jumps when the games land. */
+export function GameSplitGhost({ label }: { label: string }) {
+  return (
+    <div className="rgp-split" role="status" aria-busy="true" aria-label={label}>
+      <div className="rgp-listwrap"><div className="rgp-list phk-selist" aria-hidden="true">{GHOST_ROWS.map((i) => <div key={i} className="phk-row rgp-item rgp-rowghost" />)}</div></div>
+      <div className="rgp-detailcol" aria-hidden="true">
+        <div className="rgp-detail">
+          <div className="rgp-banner" />
+          <div className="rgp-facts rgp-factsghost" />
+          <section className="rgp-boardsec"><div className="rgp-board"><div className="rgp-boardghost" /></div></section>
+          <section className="rgp-lobby"><header className="rgp-lobbyhead"><h3>Lobby</h3></header><LobbyGhost /></section>
+        </div>
+      </div>
     </div>
   );
 }

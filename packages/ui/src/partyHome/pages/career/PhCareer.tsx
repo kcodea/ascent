@@ -183,7 +183,7 @@ export function PhCareer(p: PhCareerProps) {
   } else if (p.tab === 'practice') {
     view = p.practice.state ? <StateView s={p.practice.state} /> : (
       <div className="phc-view phc-splitview">
-        {p.practice.view ? <GameSplitPh view={p.practice.view} /> : <GameSplitGhost label={ghostLabel} />}
+        {p.practice.view ? <GameSplitPh key="practice" view={p.practice.view} /> : <GameSplitGhost label={ghostLabel} />}
       </div>
     );
   } else if (p.tab === 'achievements') {
@@ -201,7 +201,7 @@ export function PhCareer(p: PhCareerProps) {
             </span>
           </div>
         )}
-        {p.history.state ? <StateView s={p.history.state} /> : p.history.view ? <GameSplitPh view={p.history.view} /> : <GameSplitGhost label={ghostLabel} />}
+        {p.history.state ? <StateView s={p.history.state} /> : p.history.view ? <GameSplitPh key="history" view={p.history.view} /> : <GameSplitGhost label={ghostLabel} />}
       </div>
     );
   }

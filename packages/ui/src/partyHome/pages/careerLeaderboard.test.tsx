@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { mount } from '../../renderedText.mount';
 import { PhCareer, type PhCareerProps } from './career/PhCareer';
+import { GameSplitPh } from './gameView';
 import { PhLeaderboard, teamLabel, type PhLeaderboardProps } from './leaderboard/PhLeaderboard';
 import type { DuosLeaderboardRow } from '../../versus/versusRemote';
 import type { RankedRow } from '../../Rankings';
@@ -26,7 +27,8 @@ const hero = (heroId: string, runs: number): HeroCareer => ({ heroId, runs, winR
 const VIEW: PhCareerProps['history']['view'] = {
   label: 'Match history', selected: 'r1', onPick: vi.fn(),
   items: [{ key: 'r1', place: 3, band: 'top4', title: 'Orangez', sub: 'Robin', delta: 6, label: '3rd, Robin' }],
-  detail: { place: 3, who: 'Orangez', heroName: 'Robin', record: '7-7', recordTone: 'up', rank: null, facts: [], match: null, own: false, skins: null, runes: [], replay: null },
+  detailOf: () => ({ place: 3, who: 'Orangez', heroName: 'Robin', record: '7-7', recordTone: 'up', rank: null, facts: [], match: null, own: false, skins: null, runes: [], replay: null }),
+  ready: () => true, load: () => Promise.resolve(),
 };
 
 function careerProps(over: Partial<PhCareerProps> = {}): PhCareerProps {
@@ -101,6 +103,25 @@ describe('Career on the app shell', () => {
     expect(m.container.querySelector('.phc-strip')).toBeNull();
     act(() => { [...m.container.querySelectorAll('button')].find((b) => b.textContent === 'Sign in')!.click(); });
     expect(onClick).toHaveBeenCalled();
+    m.unmount();
+  });
+});
+
+describe('Career match history', () => {
+  it('the list moves at once; the old game stays up until the new one is in hand, and neighbours are read ahead', async () => {
+    let finish!: () => void;
+    const load = vi.fn((key: string) => (key === 'b' ? new Promise<void>((r) => { finish = r; }) : Promise.resolve()));
+    let inHand = false;
+    const item = (key: string, title: string) => ({ key, place: 3, band: 'top4' as const, title, label: title });
+    const detailOf = (key: string) => ({ ...VIEW!.detailOf('r1')!, who: key === 'a' ? 'First game' : 'Second game' });
+    const view = (selected: string) => ({ label: 'Match history', selected, onPick: vi.fn(), items: [item('a', 'A'), item('b', 'B'), item('c', 'C')], detailOf, ready: (k: string) => k === 'a' || inHand, load });
+    const m = mount(<GameSplitPh view={view('a')} />);
+    expect(load).toHaveBeenCalledWith('b'); // read ahead
+    m.render(<GameSplitPh view={view('b')} />);
+    expect(m.container.querySelector('.rgp-name')?.textContent).toBe('First game');
+    inHand = true;
+    await act(async () => { finish(); await Promise.resolve(); await Promise.resolve(); });
+    expect(m.container.querySelector('.rgp-name')?.textContent).toBe('Second game');
     m.unmount();
   });
 });

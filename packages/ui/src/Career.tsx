@@ -432,7 +432,8 @@ export function Career() {
   const [heroSort, setHeroSort] = useState<HeroSort>(loadHeroSort);
   const [heroFilter, setHeroFilter] = useState<string | null>(null);
   const [heroDetail, setHeroDetail] = useState<Record<string, RunHistoryRowLike[]>>({}); // per career owner
-  const [detailMiss, setDetailMiss] = useState<number | null>(null); // the run whose full read came back with nothing
+  const [detailMiss, setDetailMiss] = useState<ReadonlySet<number>>(() => new Set()); // runs whose full read came back with nothing
+  const runReads = useRef(new Map<string, Promise<unknown>>()); // a game's full read, once, whoever asks first
   const heroAsked = useRef(new Set<string>());
   const [watching, setWatching] = useState<number | null>(null); // run id whose replay is loading
   const [noReplay, setNoReplay] = useState<number | null>(null); // run id whose payload came back unplayable
@@ -560,7 +561,7 @@ export function Career() {
   // Replay never waits on this (the telemetry join already gave every row its handle).
   useEffect(() => {
     // The shell keeps what it has read: a game opened before paints in full on a return visit.
-    if (!show) { setHeroFilter(null); if (!shell) { setHeroDetail({}); heroAsked.current.clear(); } return; }
+    if (!show) { setHeroFilter(null); if (!shell) { setHeroDetail({}); heroAsked.current.clear(); runReads.current.clear(); } return; }
     if (tab !== 'history' || !heroFilter || !userId || !runs || !remoteEnabled()) return;
     const ask = `${userId}|${heroFilter}`;
     if (heroAsked.current.has(ask)) return;
@@ -601,18 +602,23 @@ export function Career() {
     return matchRows.find((r, i) => `r${r.id ?? i}` === pickedRun) ?? matchRows[focusAt >= 0 ? focusAt : 0] ?? null;
   }, [matchRows, pickedRun, heroFilter, focusIndex]);
   const openRunId = openRun && !openRun.detailed ? openRun.id : null;
-  useEffect(() => {
-    if (!show || tab !== 'history' || openRunId === null || !userId || !remoteEnabled()) return;
-    const ask = `${userId}|#${openRunId}`;
-    if (heroAsked.current.has(ask)) return;
-    heroAsked.current.add(ask);
-    const who = userId;
-    // Kept even if the player has moved on: the read is per game, and a quick flick back must not ask twice.
-    void fetchRunDetails(who, [openRunId]).then((rows) => {
-      if (!rows || rows.length === 0) setDetailMiss(openRunId); // no answer: the panel stops holding the lobby's place
-      if (!rows) { heroAsked.current.delete(ask); return; } // couldn't ask: the next open tries again
+  // One read per game, shared by the open game, the shell's read-ahead and a hover. Kept even if the player has moved on:
+  // a quick flick back must not ask twice.
+  const readRun = (who: string, id: number): Promise<unknown> => {
+    const ask = `${who}|#${id}`;
+    const running = runReads.current.get(ask);
+    if (running) return running;
+    const p = fetchRunDetails(who, [id]).then((rows) => {
+      if (!rows || rows.length === 0) setDetailMiss((prev) => new Set(prev).add(id)); // no answer: stop holding the lobby's place
+      if (!rows) { runReads.current.delete(ask); return; } // couldn't ask: the next open tries again
       setHeroDetail((prev) => ({ ...prev, [who]: [...(prev[who] ?? []), ...rows] }));
     });
+    runReads.current.set(ask, p);
+    return p;
+  };
+  useEffect(() => {
+    if (!show || tab !== 'history' || openRunId === null || !userId || !remoteEnabled()) return;
+    void readRun(userId, openRunId);
   }, [show, tab, openRunId, userId]);
   // Stable Watch callbacks for the memoised banners; the ref always holds this render's handler.
   const watchRunRef = useRef<(run: CareerRun) => void>(() => {});
@@ -688,18 +694,30 @@ export function Career() {
     const keyed = matchRows.map((run, i) => ({ run, i, key: `r${run.id ?? i}` }));
     const focusAt = heroFilter ? -1 : focusIndex;
     const sel = keyed.find((k) => k.key === pickedRun) ?? keyed[focusAt >= 0 ? focusAt : 0]!;
-    const run = sel.run;
-    const bits = gameBits(run.heroId, run, run.board, run.runes);
-    const facts: GameFact[] = [
-      { label: 'Played', value: playedOnText(run.atMs) || '-' },
-      { label: 'Length', value: runLengthText(run.durationMs, run.lengthOverCap) },
-      ...(run.wave > 0 ? [{ label: 'Rounds', value: run.wave }] : []),
-      { label: 'Gold spent', value: run.goldSpent === null ? '-' : run.goldSpent },
-      ...(run.ratingDelta != null && run.ratingDelta !== 0 ? [{ label: 'Rating', value: run.ratingDelta > 0 ? `+${run.ratingDelta}` : `${run.ratingDelta}` }] : []),
-      ...(SHOW_LOBBY_STRENGTH && run.lobbyStrength ? [{ label: 'Lobby', value: strengthText(run.lobbyStrength) }] : []),
-      ...(run.boardStrength != null ? [{ label: GAME_STRENGTH_LABEL, value: run.boardStrength, tip: GAME_STRENGTH_TIP }] : []),
-    ];
-    const watchable = run.replayRowId !== null;
+    const runOf = (key: string): CareerRun | undefined => keyed.find((k) => k.key === key)?.run;
+    const inHand = (run: CareerRun): boolean => run.detailed || run.id === null || detailMiss.has(run.id);
+    const detailOf = (key: string): GameDetailProps | null => {
+      const run = runOf(key);
+      if (!run) return null;
+      const bits = gameBits(run.heroId, run, run.board, run.runes);
+      const facts: GameFact[] = [
+        { label: 'Played', value: playedOnText(run.atMs) || '-' },
+        { label: 'Length', value: runLengthText(run.durationMs, run.lengthOverCap) },
+        ...(run.wave > 0 ? [{ label: 'Rounds', value: run.wave }] : []),
+        { label: 'Gold spent', value: run.goldSpent === null ? '-' : run.goldSpent },
+        ...(run.ratingDelta != null && run.ratingDelta !== 0 ? [{ label: 'Rating', value: run.ratingDelta > 0 ? `+${run.ratingDelta}` : `${run.ratingDelta}` }] : []),
+        ...(SHOW_LOBBY_STRENGTH && run.lobbyStrength ? [{ label: 'Lobby', value: strengthText(run.lobbyStrength) }] : []),
+        ...(run.boardStrength != null ? [{ label: GAME_STRENGTH_LABEL, value: run.boardStrength, tip: GAME_STRENGTH_TIP }] : []),
+      ];
+      const watchable = run.replayRowId !== null;
+      return {
+        ...bits, place: run.placement, rank: run.rank ?? null, facts, match: run.match, matchPending: !inHand(run),
+        replay: {
+          watchable, busy: watching !== null && watching === run.id, unplayable: noReplay !== null && noReplay === run.id, onWatch: () => onWatchRun(run),
+          label: watchable ? 'Watch this run’s replay' : 'No replay stored for this run',
+        },
+      };
+    };
     return {
       label: 'Match history', selected: sel.key, onPick: setPickedRun,
       items: keyed.map(({ run: r, key }) => {
@@ -711,26 +729,32 @@ export function Career() {
           label: `${placeText(r.placement)}, ${name}${r.rank != null ? `, played at ${rankLabel(r.rank)}` : ''}`,
         };
       }),
-      detail: {
-        ...bits, place: run.placement, rank: run.rank ?? null, facts, match: run.match, matchPending: !run.detailed && run.id !== null && run.id !== detailMiss,
-        replay: {
-          watchable, busy: watching !== null && watching === run.id, unplayable: noReplay !== null && noReplay === run.id, onWatch: () => onWatchRun(run),
-          label: watchable ? 'Watch this run’s replay' : 'No replay stored for this run',
-        },
-      },
+      detailOf,
+      ready: (key) => { const run = runOf(key); return !run || inHand(run); },
+      load: (key) => { const run = runOf(key); return run && !inHand(run) && userId && remoteEnabled() ? readRun(userId, run.id!) : Promise.resolve(); },
     };
   };
   const practiceView = (rows: PracticeGameRow[]): GameSplitView => {
     const keyed = rows.map((g, i) => ({ g, key: `p${g.rowId ?? `${g.createdAt ?? ''}-${i}`}` }));
     const sel = keyed.find((k) => k.key === pickedPractice) ?? keyed[0]!;
-    const g = sel.g;
-    const cfg = g.practice;
-    const facts: GameFact[] = [
-      { label: 'Played', value: playedOnText(g.createdAt ? Date.parse(g.createdAt) : NaN) || '-' },
-      { label: 'Length', value: runLengthText(g.durationMs, g.lengthOverCap) },
-      { label: 'Rounds', value: g.wave ?? '-' },
-      ...(cfg ? [{ label: 'Opponents', value: practiceOpponentsPill(cfg) }, { label: 'Health', value: practiceHealthPill(cfg) }] : []),
-    ];
+    const detailOf = (key: string): GameDetailProps | null => {
+      const g = keyed.find((k) => k.key === key)?.g;
+      if (!g) return null;
+      const cfg = g.practice;
+      const facts: GameFact[] = [
+        { label: 'Played', value: playedOnText(g.createdAt ? Date.parse(g.createdAt) : NaN) || '-' },
+        { label: 'Length', value: runLengthText(g.durationMs, g.lengthOverCap) },
+        { label: 'Rounds', value: g.wave ?? '-' },
+        ...(cfg ? [{ label: 'Opponents', value: practiceOpponentsPill(cfg) }, { label: 'Health', value: practiceHealthPill(cfg) }] : []),
+      ];
+      return {
+        ...gameBits(g.heroId ?? '', g.record, g.board, g.runes), place: g.placement, rank: null, facts, match: g.match,
+        replay: g.hasReplay ? {
+          watchable: true, busy: watchingPractice !== null && watchingPractice === g.rowId, unplayable: noPracticeReplay !== null && noPracticeReplay === g.rowId,
+          onWatch: () => watchPractice(g), label: 'Watch this practice game’s replay',
+        } : null,
+      };
+    };
     return {
       label: 'Practice games', selected: sel.key, onPick: setPickedPractice,
       items: keyed.map(({ g: r, key }) => {
@@ -742,13 +766,7 @@ export function Career() {
           label: `${placeText(r.placement)}, ${name}`,
         };
       }),
-      detail: {
-        ...gameBits(g.heroId ?? '', g.record, g.board, g.runes), place: g.placement, rank: null, facts, match: g.match,
-        replay: g.hasReplay ? {
-          watchable: true, busy: watchingPractice !== null && watchingPractice === g.rowId, unplayable: noPracticeReplay !== null && noPracticeReplay === g.rowId,
-          onWatch: () => watchPractice(g), label: 'Watch this practice game’s replay',
-        } : null,
-      },
+      detailOf, ready: () => true, load: () => Promise.resolve(), // a practice row carries its lobby
     };
   };
 

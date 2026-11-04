@@ -13,7 +13,7 @@
  *
  * PERFORMANCE: static paint; only the open game's board mounts; its card FX stay still until pointed at.
  */
-import { memo, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { memo, useMemo, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import type { BoardSnapshot, MatchDetails, RuneLiveState } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { GildedCrown, ReplayEye } from '../../menuIcons';
@@ -281,13 +281,27 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
 });
 
 /** A page's games as one list + detail: the two columns of `.rgp-split`. */
-export interface GameSplitView { items: readonly ListItem[]; selected: string; onPick: (key: string) => void; label: string; detail: GameDetailProps }
+export interface GameSplitView {
+  items: readonly ListItem[]; selected: string; onPick: (key: string) => void; label: string;
+  /** Any listed game's detail: the panel may still be showing the old one while the new one's lobby is read. */
+  detailOf: (key: string) => GameDetailProps | null;
+  /** Is this game's lobby in hand, synchronously? */
+  ready: (key: string) => boolean;
+  /** Read it (cached and safe to call again). */
+  load: (key: string) => Promise<unknown>;
+}
 
 export function GameSplitPh({ view }: { view: GameSplitView }) {
+  // The open game arrives whole, and its neighbours are read ahead: the same rule as Recent Games.
+  const shownKey = useHeldKey(view.selected, view.ready, view.load);
+  const sig = view.items.map((it) => it.key).join('|');
+  const keys = useMemo(() => (sig ? sig.split('|') : []), [sig]);
+  useNearPrefetch(keys, view.selected, view.load);
+  const detail = shownKey ? view.detailOf(shownKey) : null;
   return (
     <div className="rgp-split">
-      <GameList items={view.items} selected={view.selected} onPick={view.onPick} label={view.label} />
-      <div className="rgp-detailcol"><GameDetail key={view.selected} {...view.detail} /></div>
+      <GameList items={view.items} selected={view.selected} onPick={view.onPick} label={view.label} onNear={view.load} />
+      <div className="rgp-detailcol">{detail ? <GameDetail key={shownKey} {...detail} /> : <GameDetailHold />}</div>
     </div>
   );
 }

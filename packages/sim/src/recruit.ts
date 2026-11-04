@@ -17612,7 +17612,7 @@ function spendDuosTurnUse(state: RunState, card: BoardCard, key: string, cap: nu
  * passed (owner 2026-10-30) and a spell offer is not a minion. Fires the pass watchers like a drag pass. Outside a Duos run
  * nothing happens. Returns whether it passed.
  */
-export function passMinionToTeammate(state: RunState, target: BoardCard, power?: { slot: 0 | 1; paid: number }): boolean {
+export function passMinionToTeammate(state: RunState, target: BoardCard, power?: { slot: 0 | 1; paid: number }, restored?: boolean): boolean {
   if (!state.duos || target.golden) return false;
   const si = state.shop.findIndex((o) => o.uid === target.uid);
   if (si >= 0) {
@@ -17625,12 +17625,12 @@ export function passMinionToTeammate(state: RunState, target: BoardCard, power?:
       uid: target.uid, cardId: target.cardId, tribe: def.tribe, attack: target.attack, health: target.health,
       keywords: [...target.keywords], golden: false, ...(offer.buffs?.length ? { buffs: structuredClone(offer.buffs) } : {}),
     };
-    return effectPassCard(state, card, 'shop', si, { power });
+    return effectPassCard(state, card, 'shop', si, { power, restored });
   }
   const bi = state.board.findIndex((c) => c.uid === target.uid);
   if (bi < 0) return false;
   const [card] = state.board.splice(bi, 1);
-  return !!card && effectPassCard(state, card, 'board', bi, { power });
+  return !!card && effectPassCard(state, card, 'board', bi, { power, restored });
 }
 
 /**
@@ -17677,9 +17677,9 @@ export function passariaHasTarget(state: Pick<RunState, 'duos' | 'board' | 'shop
 export function effectPassCard(state: RunState, card: BoardCard, from: 'board' | 'shop' | 'hand', index: number,
   /** `allowGolden`: the ONE explicit exception to the no-golden rule, Salesman of the Year's sold minion (owner
    *  2026-10-30, R-DUOS-RUNES-01); `via: 'sale'` marks that pass (a refusal returns nothing: the sale was paid). */
-  opts?: { allowGolden?: boolean; via?: 'sale'; src?: DuosPassSource; power?: { slot: 0 | 1; paid: number } }): boolean {
+  opts?: { allowGolden?: boolean; via?: 'sale'; src?: DuosPassSource; power?: { slot: 0 | 1; paid: number }; restored?: boolean }): boolean {
   if (!state.duos || (card.golden && !opts?.allowGolden)) return false;
-  if (!recordSpellPass(state, card, from, index, opts?.via ?? 'spell', opts?.src, opts?.power)) return false;
+  if (!recordSpellPass(state, card, from, index, opts?.via ?? 'spell', opts?.src, opts?.power, opts?.restored)) return false;
   fireTeamPassTriggers(state, { mine: true, cardId: card.cardId });
   return true;
 }

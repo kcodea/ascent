@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-04',
     changes: [
       {
+        category: 'Systems',
+        text: 'Fixed: in Duos, reloading mid-turn no longer brings back a minion you passed with Handout, CueBee\'s Pass or Passaria.',
+      },
+      {
         category: 'Balance',
         text: 'New Duos hero: Priestess. Her power, Passaria, passes a minion to your teammate.',
         details: [

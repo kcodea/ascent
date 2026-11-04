@@ -230,6 +230,7 @@ export function atMicros(at: unknown): number | null {
 type ReplayAction =
   | { type: 'receivePass'; from: string; seq: number; card: BoardCard }
   | { type: 'passCard'; uid: string }
+  | { type: 'restoreEffectPass'; uid: string; cardId: string; via: 'spell' | 'sale'; power?: 0 | 1; paid?: number }
   | { type: 'passRefunded'; seq: number };
 
 /**
@@ -241,6 +242,10 @@ type ReplayAction =
  * is found by the pass key it arrived through when it has one (a restored run gives a re-landed card a fresh uid), else
  * by its uid among the cards I never received. So A->B->A->B lands exactly once per hop after a reload, with each hop's
  * Gold paid once: nothing duplicates, nothing vanishes (owner 2026-10-25, passing back).
+ *
+ * AN EFFECT PASS (`passFrom: 'spell' | 'sale'`, R-DUOS-PASS-RESTORE-EFFECT-01) is not a hand card: Handout, CueBee's Pass,
+ * Passaria and Salesman send a board or Shop minion, and the action that sent it is one the reload dropped. The teammate
+ * holds it, so `restoreEffectPass` takes it off my board or Shop again. A refused row delivered nothing: it stays.
  */
 export function replayRestore(
   getRun: () => RunState,
@@ -283,6 +288,15 @@ export function replayRestore(
     if (r.round !== live.wave) continue;
     const key = keyOf(r.card);
     const uid = typeof r.card.uid === 'string' ? r.card.uid : null;
+    const via = r.card.passFrom;
+    if (via === 'spell' || via === 'sale') {
+      if (r.status === 'refused' || !uid || typeof r.card.cardId !== 'string') continue;
+      const sent = live.duos?.outbox.length ?? 0;
+      const power = r.card.passPower === 0 || r.card.passPower === 1 ? r.card.passPower : undefined;
+      act({ type: 'restoreEffectPass', uid, cardId: r.card.cardId, via, ...(power != null ? { power, paid: Number(r.card.passPaid) || 0 } : {}) });
+      if ((getRun().duos?.outbox.length ?? 0) > sent) { seqOf.set(sent, r.seq); shipped.add(sent); }
+      continue;
+    }
     const card = key ? live.hand.find((c) => c.passKey === key) : live.hand.find((c) => c.uid === uid && !c.passKey);
     if (!card) continue;
     const before = live.duos?.outbox.length ?? 0;

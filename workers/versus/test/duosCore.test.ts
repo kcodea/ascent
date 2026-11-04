@@ -400,6 +400,13 @@ describe('Duos room (Cloudflare) — effect passes wait for hand room; Disco / M
     return b;
   }
 
+  it('a hero power\'s pass keeps its replay markers on the row, for a reload (R-DUOS-PASS-RESTORE-EFFECT-01)', async () => {
+    const h = await inShop();
+    await h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 0, card: { cardId: filler, uid: 'm0', passFrom: 'spell', passPower: 0, passPaid: 2 } });
+    const rows = await h.op(U[0], 'duos_passes', { matchId: h.id, from: 1 });
+    expect(rows[0].card).toMatchObject({ uid: 'm0', passFrom: 'spell', passPower: 0, passPaid: 2 });
+  });
+
   it('owner 2026-10-30 ("they get the card once there is space in their hand"): an effect pass to a FULL hand is accepted, lands, and waits', async () => {
     const h = await inShop();
     await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 0 });

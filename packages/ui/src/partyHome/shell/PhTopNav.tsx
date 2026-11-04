@@ -75,6 +75,15 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
   // rendering opportunity, and it cost frames: 2026-11-04).
   const hop = (dest: PageDest | 'crates' | 'settings'): void => {
     setFriendsOpen(false); // a page switch closes the friends drawer
+    // Settings opens OVER the page, like the Compendium: the gear toggles it, and the page under keeps its place.
+    if (dest === 'settings') {
+      const st = useGame.getState();
+      sfx.pulse();
+      if (st.settingsOpen) { st.closeSettings(); return; }
+      if (showBook) closeBook();
+      st.openSettings();
+      return;
+    }
     if (dest === 'crates') {
       // Crates: the Collection page on its crate shop (a press on Collection's page switches it there too).
       if (current === 'crates') return;
@@ -82,7 +91,7 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
       return;
     }
     // The Career tab always means your own Career, even from another player's.
-    if (dest === 'career' && current === 'career' && useGame.getState().careerOf) { sfx.pulse(); useGame.getState().openCareer(); return; }
+    if (dest === 'career' && useGame.getState().careerOf) { sfx.pulse(); leaveCrates(); goTo('career'); return; }
     if (dest === current) return;
     sfx.pulse();
     if (showBook) closeBook();

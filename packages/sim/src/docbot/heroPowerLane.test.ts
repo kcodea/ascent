@@ -19,7 +19,7 @@ describe('Doc Bot — hero power lane', () => {
     // through its activation-family stager (heroPowerStagers.test.ts) or carries a typed needs-stager reason
     // in SILENT_QUEUE_VERDICTS; the exact-match test below keeps the two in lockstep. This pin only says the
     // heroScan FIXTURE still can't see these kinds act (their activation lives outside a bare heroPower click).
-    const PIN = 24; // Myra + Djinn drained by the Shout/EoT fixture bodies; Hunch armed via a staged prior spell cast (owner triage 2026-08-26)
+    const PIN = 25; // + Priestess (needs a Duos seat, staged). Myra + Djinn drained by the Shout/EoT fixture bodies; Hunch armed via a staged prior spell cast (owner triage 2026-08-26)
     expect(silent.length, `${silent.length} hero power(s) changed nothing under the fixture (pin ${PIN}): ${silent.join(', ')} — above the pin: a new hero's power never acted; give it a stager + verdict (heroPowerStagers.test.ts), an ACTIVE kind here is the §13.5 silent-routing class.`).toBeLessThanOrEqual(PIN);
     expect(silent.length, `only ${silent.length} silent now (pin ${PIN}) — you staged some; lower the pin.`).toBeGreaterThanOrEqual(PIN);
   });

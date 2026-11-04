@@ -18,7 +18,7 @@ import { contentRevision, activeSet } from '@game/content';
 import {
   buildVersusCandidate, catchUpVersusRun, progressionFactsOf, createVersusRun, deserialize, reduce, resetLobbyDrivers, serialize, versusAutoResolve, versusHeroOffer, versusHeroRerollCandidates, isHeroReroll,
   versusLobby, versusLobbyKey, versusScoutOf, versusTimeoutRng, VERSUS_LEASE_SECONDS, type Action, type RunState, type VersusLobbyInput, type VersusSeat,
-  normalizeVersusOptions, versusGroupLobby, type VersusRoomOptions, versusGroupLobbyKey, type PreparedCombatSide, type VersusGroupLobbyInput, type VersusGroupSeat, type VersusSeatScout,
+  normalizeVersusOptions, versusModeIsDuos, versusGroupLobby, type VersusRoomOptions, versusGroupLobbyKey, type PreparedCombatSide, type VersusGroupLobbyInput, type VersusGroupSeat, type VersusSeatScout,
 } from '@game/sim';
 import { parseCosmeticSnapshot, type RunCosmeticSnapshot } from '@game/progression';
 import type { CombatResult } from '@game/core';
@@ -2170,7 +2170,7 @@ export function versusRerollCandidates(st: VersusState = get()): string[] {
   const { match, priv, heroOffer } = st;
   if (!match || !priv || !heroOffer || priv.match_id !== match.id || match.phase !== 'hero_select') return [];
   if (st.rerollPending || st.rerollOffFor === match.id || st.pickedFor === match.id || priv.hero_index != null || priv.hero_reroll) return [];
-  return versusHeroRerollCandidates(Number(priv.run_seed), match.set_id as SetId, heroOffer);
+  return versusHeroRerollCandidates(Number(priv.run_seed), match.set_id as SetId, heroOffer, { duos: versusModeIsDuos(match.options ? normalizeVersusOptions(match.options).mode : undefined) });
 }
 
 /** Spend my one re-roll on `slot`: the server draws the hero (match seed) and the swap lands on my screen only. The

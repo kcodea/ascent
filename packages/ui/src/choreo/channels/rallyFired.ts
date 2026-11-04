@@ -165,6 +165,30 @@ export function rallyProcsFor(moment: Moment, events: CombatEvent[], attackerUid
 }
 
 /**
+ * THE RALLIER'S OWN "On Rally" EFFECT for an ordinary Rally — or `null` when this swing plays none here.
+ *
+ * The workbench's "On Rally" slot binds a def at the `rally` kind for every Rally card. A Rally that procs an
+ * ALLY (Echohorn, Deathsayer) logs a `rally` event, and the `rallyFx` cue plays that def from the rallier to
+ * the ally. An ORDINARY Rally (Chorus Drake, Cinderchef, Demon Horse — "Rally: do X") logs no `rally` event,
+ * so its binding sat unreachable: the slot was offered and never played (owner ask 2026-11-04, Chorus Drake's
+ * music notes). This is the other half: an attacker that rallies with ZERO procs in its moment plays its own
+ * binding ON ITSELF, at the wind-up pulse. A swing with procs returns `null` so the `rallyFx` path keeps it and
+ * nothing plays twice. `resolve` is `bindingFor` in the app (injected so this stays pure).
+ */
+export function ownRallyBindingFor<B>(
+  moment: Moment,
+  events: CombatEvent[],
+  attackerUid: string | null,
+  cardId: string | null,
+  rallies: boolean,
+  resolve: (cardId: string | null, kind: 'rally') => B | null,
+): B | null {
+  if (!rallies || attackerUid === null || cardId === null) return null;
+  if (rallyProcsFor(moment, events, attackerUid) > 0) return null;
+  return resolve(cardId, 'rally');
+}
+
+/**
  * DID THIS SWING'S FORCED ECHO RESOLVE ENTIRELY INSIDE THE WIND-UP? — true when the very next event after the
  * attack moment is the attacker's OWN strike (its non-wave `dmg`), i.e. everything the Rally caused was absorbed
  * into the attack moment and there is NO later beat between the wind-up and the hit.

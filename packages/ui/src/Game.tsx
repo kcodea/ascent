@@ -100,7 +100,7 @@ function setPerfFlag(on: boolean): void {
 import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PhBackdrop } from './partyHome/shell/PhBackdrop';
-import { PhPageGuard } from './partyHome/shell/PhPageGuard';
+import { PhBackContext, PhPageGuard } from './partyHome/shell/PhPageGuard';
 import { usePartyHome } from './partyHome/partyHomeFlag';
 import { retryImport } from './retryImport';
 import { ReplayOverlay } from './replay/ReplayOverlay';
@@ -149,6 +149,8 @@ const PhBookNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhB
 /** The shell's one steady backdrop and its page guard: eager (they paint before any lazy chunk), and gone from production. */
 const PhSteady = import.meta.env.DEV ? PhBackdrop : null;
 const PhGuard = import.meta.env.DEV ? PhPageGuard : null;
+/** Settings opens over a page: its Back returns to that page, as it was. */
+const SETTINGS_BACK = { label: 'Back', onClick: (): void => useGame.getState().closeSettings() };
 const PhSteadyNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhSteadyNav')) : null;
 const PhChrome = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhPageChrome')) : null;
 
@@ -485,6 +487,11 @@ export function Game() {
   const partyHomeOn = usePartyHome();
   const titleUp = useGame((s) => s.showTitle || s.practiceSetupOpen);
   const shellMenus = partyHomeOn && titleUp && !gameMenuOpen;
+  // The Compendium is a page too: while it is up, nothing under it shows through the transparent pages.
+  const bookUp = useGame((s) => s.showBook);
+  useLayoutEffect(() => {
+    document.documentElement.toggleAttribute('data-ph-book', shellMenus && bookUp);
+  }, [shellMenus, bookUp]);
   // A page under the shell that fails to load says so in place, with the nav and a way out, instead of the crash screen.
   const page = (el: JSX.Element): JSX.Element => (PhGuard && PhChrome && shellMenus
     ? <PhGuard onBack={() => useGame.getState().goTo('menu')} nav={<Suspense fallback={null}><PhChrome current={null} /></Suspense>}>{el}</PhGuard>
@@ -722,7 +729,7 @@ export function Game() {
       <DiscoverEntrancePreview />
       <WipePreview />
       <HeroLaunchCurtain />
-      {PhSteady && shellMenus && <PhSteady />}
+      {PhSteady && (shellMenus || (partyHomeOn && heroPicking)) && <PhSteady steady />}
       {PhSteadyNav && PhGuard && shellMenus && <PhGuard><PhSteadyNav /></PhGuard>}
       <Title onSettings={openSettings} />
       {/* THE RANKED GATE (owner 2026-10-12): "Yes, let's go." slams two doors shut over the mode picker and opens
@@ -765,7 +772,7 @@ export function Game() {
       {/* The Patch Notes page (R-PATCHNOTES-PAGE-01): a sidebar page like Settings; its changelog chunk loads on first open. */}
       {page(<PatchNotesPage />)}
       {/* The Settings page (R-ESC-SIDEBAR-01): a sidebar page like the others, last so it paints over a page it opened on. */}
-      {page(<SettingsPage />)}
+      {page(PhGuard ? <PhBackContext.Provider value={SETTINGS_BACK}><SettingsPage /></PhBackContext.Provider> : <SettingsPage />)}
       {/* DEV: the Crate opening tuner's practice crates (▶ Common … ▶ Legendary). Local only; renders nothing until
           a Play is pressed. `VITE_CRATE_PREVIEW=1` also bakes it into a PRODUCTION bundle, only so the opening can be
           profiled on the prod build (docs/performance.md); player builds never set it. */}

@@ -14,6 +14,10 @@ const team = (t: PassFlightEntry['team'], extra: Partial<PassFlightEntry> = {}):
   ({ card: { uid: 'team3', cardId: '__team' }, team: t, ...extra });
 
 describe('passFlightOf: where each send starts', () => {
+  it('Passaria: the passed minion streams from where it stood, like any effect pass (R-DUOS-PRIESTESS-01)', () => {
+    expect(passFlightOf({ card: { uid: 'm0', cardId: 'x' }, via: 'spell' })).toEqual({ at: 'card', uid: 'm0', leaves: true, face: true });
+  });
+
   it('Matchmaker: the passed pick streams from the Discover option it was picked from', () => {
     expect(passFlightOf({ card: { uid: 'b9', cardId: 'x' }, via: 'spell', src: { discover: 2 } })).toEqual({ at: 'discover', index: 2 });
   });

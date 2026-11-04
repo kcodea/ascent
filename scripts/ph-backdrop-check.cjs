@@ -32,4 +32,13 @@ const pick=[];const step=Math.max(1,Math.floor(frames.length/6));for(let i=0;i<f
 if(pick.length){const W=320,H=180;const comp=await Promise.all(pick.map(async(f,i)=>({input:await sharp(f.d).resize(W,H).toBuffer(),left:i*W,top:0})));await sharp({create:{width:W*6,height:H,channels:3,background:'#000'}}).composite(comp).jpeg({quality:70}).toFile(path.join(OUT,name+'.jpg'))}
 const line={name,frames:frames.length,lum:[Math.min(...lum),Math.max(...lum)],blue:[Math.min(...blue),Math.max(...blue)],end};sum.push(line);console.log(JSON.stringify(line).slice(0,520));
 await ctx.close()}
+// ONE PAGE ON SCREEN: every route that opens a page over another. More than one visible host fails the run.
+{const ctx=await chromium.launchPersistentContext(process.env.PW_PROFILE||path.join(__dirname,'pw-r11-d1920'),{headless:true,ignoreDefaultArgs:['--hide-scrollbars'],executablePath:process.env.PWEXE,viewport:{width:1920,height:1080}});
+const page=ctx.pages()[0]||await ctx.newPage();await page.goto('http://localhost:5358/?partyhome=1&partydemo=1',{waitUntil:'commit',timeout:60000});await page.waitForFunction(()=>document.querySelectorAll('.ph-navhost .ph-navtab').length>3,null,{timeout:120000,polling:200});await page.waitForTimeout(2500);
+const nav=(n)=>page.evaluate((n)=>document.querySelector(`.ph-navhost [aria-label="${n}"]`)?.click(),n);
+const hosts=()=>page.evaluate(()=>[...document.querySelectorAll('.lbpage,.ph-bookpage')].filter((e)=>getComputedStyle(e).visibility!=='hidden'&&e.getBoundingClientRect().width>0).length);
+const open=(sel,re)=>page.evaluate(([sel,re])=>{const r=new RegExp(re,'i');const b=[...document.querySelectorAll(sel)].filter((x)=>r.test(x.textContent.trim())&&getComputedStyle(x).visibility!=='hidden')[0];b?.click();return !!b},[sel,re]);
+const routes=[['Recent>Career',async()=>{await nav('Recent Games');await page.waitForTimeout(1500);await open('.phk-page button','^career')}],['Leaderboard>row',async()=>{await nav('Leaderboard');await page.waitForTimeout(1300);await open('.phl-rowbtn','.')}],['page>Compendium',async()=>{await nav('Compendium')}],['Compendium>Settings',async()=>{await nav('Settings')}],['Settings>Crates',async()=>{await nav('Crates')}],['Crates>Compendium',async()=>{await nav('Compendium')}]];
+for(const [n,go] of routes){await go();await page.waitForTimeout(1100);const v=await hosts();sum.push({name:'stack '+n,lum:[0,0],end:{crash:v>1}});console.log('stack',n,v)}
+await ctx.close()}
 fs.writeFileSync(path.join(OUT,'summary.json'),JSON.stringify(sum,null,1));const bad=sum.filter((l)=>l.lum[1]>110||l.end.crash);if(bad.length){console.log('FAIL',bad.map((l)=>l.name).join(' '));process.exit(1)}console.log('PASS',sum.length);})().catch(e=>{console.log('ERR',e.message.slice(0,240));process.exit(1)});

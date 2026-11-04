@@ -84,6 +84,7 @@ export const HERO_TIPS: Readonly<Record<string, HeroTip>> = {
   odelle: { difficulty: 'Hard', tip: 'Reorder your board before playing each minion so Exhibition lands between three distinct types as often as possible.' },
   harlan: { difficulty: 'Medium', tip: 'Use Buyout for huge tempo swings in the early game, and for economy later.' },
   sable: { difficulty: 'Hard', tip: 'Put your two intended carries at the edges, activate Soulbind, then funnel repeated buffs into whichever is easier to target.' },
+  priestess: { difficulty: 'Medium', tip: 'Passaria sends a Shop minion for less than buying and passing it. Plan each turn with your teammate.' },
   keshi: { difficulty: 'Easy', tip: 'Higher-tier purchases advance Keshi’s Crown faster, so combine natural buying with timely Shop upgrades.' },
 };
 

@@ -114,6 +114,16 @@ describe('Compendium Duos toggle', () => {
     expect(m.container.querySelectorAll('.book-grid.is-runes .book-duos-tag').length).toBe(duosRunes.length);
   });
 
+  it('Heroes: a Duos-only hero rides the toggle, tagged (R-DUOS-PRIESTESS-01)', () => {
+    cat('Heroes');
+    const heroes = (): string[] => [...m.container.querySelectorAll('.book-grid.is-heroes .bookhero-name')].map((n) => n.textContent ?? '');
+    expect(heroes()).not.toContain('Priestess');
+    expect(duosBtn().disabled).toBe(false);
+    click(duosBtn());
+    expect(heroes()).toContain('Priestess');
+    expect(m.container.querySelectorAll('.book-grid.is-heroes .book-duos-tag').length).toBe(1);
+  });
+
   it('Gilded + Duos shows the Duos cards in their Gilded form', () => {
     click(duosBtn());
     click(gildedBtn());

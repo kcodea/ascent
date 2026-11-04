@@ -40,3 +40,11 @@ describe('patch notes: no duplicates', () => {
     expect(problems([a, { ...b, label: 'Hotfix', changes: [{ category: 'Systems', text: 'Something else.' }] }])).toEqual([]);
   });
 });
+
+describe('R-TERM-01: no "Oath" and no "climb" in the notes', () => {
+  it('uses neither word, bar the card names that carry them', () => {
+    const NAMES = /Crest of the Climb|Oathshield Orin|Twin Sun Oath/g;
+    const lines = PATCH_NOTES.flatMap((n) => [n.label ?? '', ...n.changes.flatMap((c) => [c.text, ...(c.details ?? [])])]);
+    expect(lines.filter((l) => /oath|climb/i.test(l.replace(NAMES, '')))).toEqual([]);
+  });
+});

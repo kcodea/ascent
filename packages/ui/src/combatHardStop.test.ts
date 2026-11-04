@@ -83,7 +83,7 @@ beforeAll(async () => {
   sfx = await import('./sfx');
   stop = await import('./combatHardStop');
   hold = await import('./combatHold');
-});
+}, 60_000); // loading the whole audio + FX chain can pass the 10 s hook default on a busy run
 afterEach(() => { stop.releaseCombatHold(); });
 
 const rumble = (category: string): unknown =>

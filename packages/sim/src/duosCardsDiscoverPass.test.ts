@@ -137,7 +137,7 @@ describe('CueBee: "Whisper: Pass a minion in the Shop or on your board."', () =>
     ann = reduce(ann, { type: 'play', uid: 'cb' });
     const pass = ann.hand.find((c) => c.cardId === 'duo_w_pass')!;
     expect(pass).toBeDefined();
-    expect(WHISPER_TIERS['duo_w_pass']).toBe(4); // CueBee's tier
+    expect(WHISPER_TIERS['duo_w_pass']).toBe(5); // CueBee's tier
     const offer = ann.shop.find((o) => !CARD_INDEX[o.cardId]?.spell && !o.starform)!;
     const spells = ann.spellsCast;
     ann = reduce(ann, { type: 'play', uid: pass.uid, targetUid: offer.uid });

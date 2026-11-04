@@ -5906,7 +5906,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     example:
       'A legacy Ascent run on round 9 with a 1-7 record shows "ROUND 9 / 17", the dashes and "1-7" on the plaque, '
       + 'and nothing after the record. The Rules Wiki says divisions "go up Bronze I, Bronze II, Bronze III".',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/retiredTerms.test.ts', 'packages/ui/src/gauntlet/heroSelectGauntlet.test.tsx'], lastVerifiedAt: '2026-10-14' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/retiredTerms.test.ts', 'packages/ui/src/gauntlet/heroSelectGauntlet.test.tsx', 'packages/ui/src/patchNotes.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
   {
     id: 'R-VERSUS-HEARTS-01',
@@ -12313,6 +12313,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCards.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
   {
+    id: 'R-DUOS-PASS-RESTORE-EFFECT-01',
+    title: 'A reload replays an effect pass: the minion leaves again, and never exists on both teammates',
+    statement:
+      'A reload rebuilds the run from its last lock and drops the round\x27s unlocked Shop actions. A pass the server already '
+      + 'recorded still stands, so the restore replay plays it again: a hand pass through `passCard`, an effect pass (`passFrom` '
+      + '`spell` or `sale`: Handout, CueBee\x27s Pass, Passaria, Salesman of the Year) through `restoreEffectPass`, which takes the '
+      + 'minion off the board or Shop by uid and card id. A hero power\x27s pass pays its recorded Gold and spends its charge. A '
+      + 'minion not on the restored run (it was made by a dropped action) changes nothing, and a refused row delivered nothing. '
+      + 'The replayed entry is marked `restored`, so no screen streams it twice. The lock and snapshot of that turn are built '
+      + 'from the replayed run, so they do not hold the minion.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-04 (snapshot integrity bar, 2026-10-17)', quote: 'snapshots served on exactly the right turn with exact recorded state' },
+      { kind: 'code', ref: 'packages/ui/src/versus/duosPasses.ts replayRestore; packages/sim/src/reducer.ts restoreEffectPass; packages/ui/src/versus/spectatorPasses.ts watchedPasses' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-04. Before, `replayRestore` looked only in the hand, so the minion stayed on the sender and also sat with the teammate, and the sender\x27s lock carried it.',
+    example: 'Ann casts Handout on her Taunt, Bob gets it, and Ann reloads: her board has no Taunt, and her lock for the turn does not either.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosPassesRestore.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
     id: 'R-DUOS-CARDS-04',
     title: '"Your teammate\x27s most common type" breaks ties with a seeded 50/50',
     statement:
@@ -13824,5 +13845,42 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Fixed 2026-11-03 (fix/lobby-tile-still-in). Before: the place and the fate both printed Still in.',
     example: 'A game recorded while Orangez was alive: the tile reads "Still in", then Orangez. A seat out in round 11 still reads "7th Out R11".',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/lobbyPickerViewer.test.tsx'], lastVerifiedAt: '2026-11-03' },
+  },
+  {
+    id: 'R-PHONE-DIAG-COST-01',
+    title: 'The phone diagnostics never cost a frame in play: an every-round step reads no element style or box',
+    statement:
+      'The crash log and perf log that record on every phone must stay off the frame budget. A crash-log step that '
+      + 'comes back every round of a game (the falling gate and its trip back, the gate layer being made, the art stream '
+      + 'progress) records only the memory numbers and how many animations are running: never a style read of every '
+      + 'element and never an element box read (a forced layout). The full scan stays for one-off steps (menus, hero '
+      + 'select, layer inits). The perf log measures its payload once per store (each list entry once, only when it must '
+      + 'trim) instead of re-stringifying it per trim step, and refreshes its stored copy at most once a minute; going '
+      + 'hidden or pagehide still stores at once.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04 (iPhone 17)', quote: 'the game becomes near unplayable after a few turns. really huge hitching and freezing throughout' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, approving the plan to make the phone diagnostics cheap', quote: 'Yes, build #1' },
+      { kind: 'code', ref: 'fix/phone-diag-cost: packages/ui/src/crashLog.ts (crumbTick, measure count mode, crumbProgress); Recruit.tsx (gate crumbs); rankedGate/gateFx.ts; phonePerfLog.ts (buildPerfRow, PERSIST_MS)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-04 (fix/phone-diag-cost). Before: every round on a phone ran a getComputedStyle scan of up to 6,000 elements as the gate layer was made, four gate crumbs each read up to 400 element boxes mid-animation, every 100 art loads ran the full scan again, and the perf log stringified its ~50 KB session 3-7 times every 15 s once its windows filled.',
+    example: 'Round 9 on an iPhone: the gate falls, four tick crumbs land with images, WebGL and an animation count, and no style or layout work runs while it animates.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneDiagCost.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
+    id: 'R-BOOT-FIRST-PAINT-01',
+    title: 'The first painted pixel is navy',
+    statement:
+      'The document paints its navy ground from the very first frame: the root background, no page scrollbar and the splash logo size '
+      + 'are inline at the top of the head, before any other tag, so a slow load never shows a white page or the logo at its natural size.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Lead via the party home critic, 2026-11-04', quote: 'on slow loads one WHITE frame with a scrollbar appears before the navy splash' },
+      { kind: 'code', ref: 'apps/web/index.html (the first style tag)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-04 (fix/first-paint-navy). Before: the root had no background until the stylesheet further down was parsed.',
+    enforcement: { kind: 'scenario', refs: ['apps/web/firstPaint.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
 ];

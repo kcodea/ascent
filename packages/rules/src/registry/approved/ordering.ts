@@ -308,4 +308,40 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-23. Before, the rewind put the pointer just left of the RETURNED body, which sits to the right of its Echo summons, so the risen body attacked next and its Echo summons were skipped until the rotation wrapped.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/riseEchoOrder.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-FX-RALLY-OWN-01',
+    title: 'Every Rally plays the On Rally effect bound to its card when it fires',
+    statement:
+      'The "On Rally" effect of a Rally card (bound in the FX workbench) plays each time that Rally fires in combat. A Rally that '
+      + 'fires the effect of another unit (Echohorn, Deathsayer) plays it from the rallier to that ally. Every other Rally '
+      + '("Rally: do X", e.g. Chorus Drake, Cinderchef) plays it on the rallier itself, at the moment its medallion lights '
+      + 'at the top of the swing. One fire plays it once, never on both paths.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, Chorus Drake FX', quote: 'when his rally goes off, i want a burst of different musical notes from his medallion' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, approving the hook', quote: 'Yes, add the hook' },
+      { kind: 'code', ref: 'fix/fx-own-rally-slot: packages/ui/src/choreo/channels/rallyFired.ts ownRallyBindingFor; packages/ui/src/useCombatReplay.ts (onRallyPulse)' },
+    ],
+    contentIds: ['d2_chorus'],
+    currentBehaviour: 'Conforms from 2026-11-04 (fix/fx-own-rally-slot). Before, the workbench offered On Rally for every Rally card but only an ally-proc Rally (one that logs a rally event) ever played it; the binding of an ordinary Rally never fired.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/rallyFired.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
+    id: 'R-FX-CUSTOM-FLY-LIFE-01',
+    title: 'A flying copy of a Custom image layer moves for its whole life, then is gone',
+    statement:
+      'When a Custom image layer flies its copies (Speed, Gravity or Spin on), every copy behaves like a burst particle: it '
+      + 'keeps moving for its full Duration from its own start and then disappears. It never stops mid-air and lingers while '
+      + 'later copies are still flying. A copy with no Fly motion keeps the old behaviour and holds its last look until the '
+      + 'layer ends.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, Chorus Drake music notes', quote: 'the notes spread out then stop. i want them to burst out and fade' },
+      { kind: 'code', ref: 'fix/fx-fly-copy-life: packages/ui/src/fx/customGeometry.ts copyVisibleAt; packages/ui/src/fx/primitives/custom.ts (update)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-04 (fix/fx-fly-copy-life). Before, the Fly group (PR 2580) froze a flying copy at the end of its Duration and kept it drawn until the whole layer finished.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/customGeometry.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
 ];

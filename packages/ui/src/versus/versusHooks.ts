@@ -28,7 +28,7 @@ const SYSTEM_ACTIONS: ReadonlySet<Action['type']> = new Set<Action['type']>([
   'combatEscalationPreview', 'combatSpellPowerPreview', 'combatSpellCastPreview', 'combatFriendlyDeathPreview',
   'combatBladeAttackPreview', 'combatScoutPreview',
   'noteMateTribes', // DUOS: the record of my teammate's board (Matchmaker) is bookkeeping, never a player move
-  'receivePass', 'passRefunded', // VERSUS DUOS: a teammate's pass (or its refusal) lands while the shop is held (re-delivered after a pause)
+  'receivePass', 'passRefunded', 'restoreEffectPass', // VERSUS DUOS: a teammate's pass (or its refusal) lands while the shop is held (re-delivered after a pause)
 ]);
 
 let handlers: VersusCommitHandlers | null = null;

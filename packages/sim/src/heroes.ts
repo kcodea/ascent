@@ -77,7 +77,8 @@ export type HeroPowerKind =
   | 'tempest' // Aevor (passive): from 15 run kills, End of Turn gives your left+right-most +4/+4, another +4/+4 per 15
   | 'bladeMastery' // Gorun (passive): a friendly attack grants the attacker +3 Attack for the fight, +3 more per 8 run attacks
   | 'hoard' // Cindara (passive): Avenge (4) summons a Whelp that strikes now, then improves every Whelp you own by +2/+2
-  | 'rubyWealth'; // Fibbsy: 1 Gold — get 2 Rubies; usable TWICE per turn
+  | 'rubyWealth' // Fibbsy: 1 Gold — get 2 Rubies; usable TWICE per turn
+  | 'passaria'; // Priestess (Duos only): 2 Gold — pass a non-Gilded Shop or board minion to your teammate (active, targeted)
 
 export interface HeroPower {
   name: string;
@@ -144,6 +145,10 @@ export interface HeroDef {
    *  tribe-agnostic. Tagged where the power is inert or has no pool without the tribe (Tiff's Dragon Discover,
    *  Flint's Dwarf price); a power that merely mints a tribe TOKEN (Cindara's Whelps) is left untagged. */
   tribes?: readonly Tribe[];
+  /** DUOS ONLY (owner 2026-11-04, R-DUOS-PRIESTESS-01): this hero's power needs a teammate, so it is offered only in
+   *  the team modes (Versus Duos and Ranked Duos), the hero-level twin of `CardDef.duos`. Out of `playableHeroes` and
+   *  `practiceHeroes` unless the caller asks for a Duos deal, and never in `powerDiscoverPool`. */
+  duosOnly?: boolean;
 }
 
 export const HEROES: HeroDef[] = [
@@ -1003,6 +1008,24 @@ export const HEROES: HeroDef[] = [
       text: 'Give a friendly minion **+1/+1**. Recharges every other turn.',
     },
   },
+  {
+    // DUOS ONLY (owner 2026-11-04, R-DUOS-PRIESTESS-01). Passaria is an EFFECT pass (`passMinionToTeammate`, the Handout
+    // and CueBee's Pass body): the 2 Gold is the power's price, a Gilded minion is never a target, a full teammate hand
+    // holds the card until there is room, and the normal once-per-turn charge applies. Appended last, and out of every
+    // non-Duos list, so no solo offer order or seeded hero draw moves.
+    id: 'priestess',
+    name: 'Priestess',
+    blurb: 'What she holds, she gives away.',
+    resolve: 30,
+    armor: 14,
+    duosOnly: true,
+    power: {
+      name: 'Passaria',
+      kind: 'passaria',
+      cost: 2,
+      text: '**Pass** a **non-Gilded** minion in the Shop or on your board.',
+    },
+  },
 ];
 
 /**
@@ -1223,8 +1246,10 @@ const tribeAllowed = (h: HeroDef, tribes?: readonly Tribe[]): boolean =>
  *  the Scene Builder. The one predicate for "can a player be handed this hero in a new run?" (negated). */
 export const isArchivedHero = (h: Pick<HeroDef, 'wip'>): boolean => !!h.wip;
 
-export function playableHeroes(tribes?: readonly Tribe[]): HeroDef[] {
-  return HEROES.filter((h) => !isArchivedHero(h) && !h.practiceOnly && tribeAllowed(h, tribes));
+/** `duos` (a team mode's deal: Versus Duos, Ranked Duos) adds the Duos-only heroes (`HeroDef.duosOnly`). Without it the
+ *  list is exactly the solo roster, so every existing seeded draw keeps its old answer. */
+export function playableHeroes(tribes?: readonly Tribe[], opts?: { duos?: boolean }): HeroDef[] {
+  return HEROES.filter((h) => !isArchivedHero(h) && !h.practiceOnly && (!h.duosOnly || !!opts?.duos) && tribeAllowed(h, tribes));
 }
 
 /** Practice's BEGINNER hero offer (owner 2026-09-27: "the starter selector should give the 3 hero choices like
@@ -1240,13 +1265,13 @@ export function practiceHeroChoiceIds(mode: 'beginner' | 'all' | undefined, trib
 
 /** The heroes PRACTICE may use — everything except `wip`. */
 export function practiceHeroes(tribes?: readonly Tribe[]): HeroDef[] {
-  return HEROES.filter((h) => !isArchivedHero(h) && tribeAllowed(h, tribes));
+  return HEROES.filter((h) => !isArchivedHero(h) && !h.duosOnly && tribeAllowed(h, tribes));
 }
 
 export function powerDiscoverPool(who: 'mimic' | 'void', exclude: readonly string[] = [], tribes?: readonly Tribe[]): string[] {
   const banned = who === 'mimic' ? MIMIC_EXCLUDED : VOID_EXCLUDED;
   return HEROES
-    .filter((h) => !isArchivedHero(h) && !banned.has(h.id) && !UNDISCOVERABLE_KINDS.has(h.power.kind) && !exclude.includes(h.id) && tribeAllowed(h, tribes))
+    .filter((h) => !isArchivedHero(h) && !h.duosOnly && !banned.has(h.id) && !UNDISCOVERABLE_KINDS.has(h.power.kind) && !exclude.includes(h.id) && tribeAllowed(h, tribes))
     .map((h) => h.id);
 }
 

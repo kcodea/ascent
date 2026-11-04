@@ -143,7 +143,7 @@ describe('hero tribe gate', () => {
     expect(practiceHeroes(['beast', 'dragon']).map((h) => h.id)).not.toContain('flint');
     expect(playableHeroes(['dragon']).map((h) => h.id)).toContain('tiff');
     expect(playableHeroes().map((h) => h.id)).toContain('tiff');
-    expect(playableHeroes().length).toBe(HEROES.filter((h) => !h.wip && !h.practiceOnly).length);
+    expect(playableHeroes().length).toBe(HEROES.filter((h) => !h.wip && !h.practiceOnly && !h.duosOnly).length);
   }));
   it('adoptable powers (Mimic / Void / Power Shifter) obey the same gate', () => withUnarchived(['tiff'], () => {
     expect(powerDiscoverPool('mimic')).toContain('tiff');

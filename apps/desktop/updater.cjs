@@ -23,6 +23,7 @@ const path = require('node:path');
 /** One switch for the whole updater (a Steam build flips it: Steam updates the game itself). */
 const UPDATES_ENABLED = true;
 const MARKER_FILE = 'pending-update.json';
+const SKIP_FILE = 'skipped-update.json';
 const CHECK_DELAY_MS = 10_000;
 const INSTALL_TIMEOUT_MS = 60_000;
 /** After quitAndInstall the app should be gone within moments; if it is still here, the install did not start. */
@@ -65,10 +66,23 @@ function isNewer(a, b) {
  * the app quit (Defender, a locked file, a full disk), the next launch still runs the OLD version and sees the count.
  * Exhausted → 'boot' (the caller clears the marker and the boot path re-downloads), so a broken install can never
  * lock the player out of the game.
+ * `skip` (optional, from skipped-update.json): a version whose install already failed twice is never installed again;
+ * only a strictly newer one is.
  */
-function decideLaunch(marker, current) {
+function decideLaunch(marker, current, skip = null) {
   if (!marker || typeof marker.version !== 'string' || !isNewer(marker.version, current)) return 'boot';
-  return (Number(marker.attempts) || 0) >= MAX_INSTALL_ATTEMPTS ? 'boot' : 'install';
+  if (isSkipped(marker.version, skip)) return 'boot';
+  return attemptsExhausted(marker) ? 'boot' : 'install';
+}
+
+function attemptsExhausted(marker) {
+  return (Number(marker?.attempts) || 0) >= MAX_INSTALL_ATTEMPTS;
+}
+
+/** True when `version` is the skipped one (or older). A garbage/missing skip skips nothing. */
+function isSkipped(version, skip) {
+  if (!skip || typeof skip.version !== 'string' || !parse(skip.version)) return false;
+  return !isNewer(version, skip.version);
 }
 
 /** The R8 gate. */
@@ -109,6 +123,11 @@ async function startUpdater(deps) {
 
   let marker = null;
   try { if (fs.existsSync(markerPath)) marker = JSON.parse(fs.readFileSync(markerPath, 'utf8')); } catch (e) { log('warn', `bad marker: ${e}`); }
+  // R11: a version whose install failed twice is skipped until a strictly newer one ships (stops the boot/try/try cycle).
+  const skipPath = path.join(userData, SKIP_FILE);
+  let skip = null;
+  try { if (fs.existsSync(skipPath)) skip = JSON.parse(fs.readFileSync(skipPath, 'utf8')); } catch (e) { log('warn', `bad skip file: ${e}`); }
+  if (!skip || typeof skip !== 'object') skip = null;
 
   let autoUpdater;
   try {
@@ -133,6 +152,8 @@ async function startUpdater(deps) {
   /** The boot behaviour for a finished download: record it for next launch and tell the game (if it is open). */
   const recordDownload = (getGameWin) => (info) => {
     const version = String(info?.version ?? '');
+    if (isSkipped(version, skip)) { log('info', `downloaded ${version}, but it is skipped (install failed twice); ignoring`); return; }
+    if (skip) { log('info', `${version} is newer than skipped ${skip.version}; clearing the skip`); skip = null; try { fs.rmSync(skipPath, { force: true }); } catch (e) { log('warn', `clear skip: ${e}`); } }
     log('info', `downloaded ${version}; installs next launch`);
     try { fs.writeFileSync(markerPath, JSON.stringify({ version })); } catch (e) { log('error', `write marker: ${e}`); return; }
     const gameWin = getGameWin();
@@ -140,13 +161,21 @@ async function startUpdater(deps) {
   };
 
   const current = app.getVersion();
-  if (decideLaunch(marker, current) === 'install') {
+  if (decideLaunch(marker, current, skip) === 'install') {
     runInstall({ BrowserWindow, createGameWindow, autoUpdater, deps, marker, fs, markerPath, clearMarker, log, check, recordDownload });
     return;
   }
 
   // BOOT. Any marker left here names a version already installed (or older), or one whose install attempts ran out.
-  if (marker) { log('info', `dropping marker ${JSON.stringify(marker)} (running ${current})`); clearMarker(); }
+  if (marker) {
+    log('info', `dropping marker ${JSON.stringify(marker)} (running ${current})`);
+    if (typeof marker.version === 'string' && isNewer(marker.version, current) && attemptsExhausted(marker) && !isSkipped(marker.version, skip)) {
+      skip = { version: marker.version };
+      log('warn', `install of ${marker.version} failed ${MAX_INSTALL_ATTEMPTS} times; skipping it until a newer version ships`);
+      try { fs.writeFileSync(skipPath, JSON.stringify(skip)); } catch (e) { log('error', `write skip: ${e}`); }
+    }
+    clearMarker();
+  }
   const gameWin = createGameWindow();
   autoUpdater.on('error', (e) => log('warn', `boot: ${e?.message ?? e}`));
   autoUpdater.on('update-downloaded', recordDownload(() => gameWin));
@@ -207,4 +236,4 @@ function runInstall({ BrowserWindow, createGameWindow, autoUpdater, deps, marker
   check();
 }
 
-module.exports = { UPDATES_ENABLED, MAX_INSTALL_ATTEMPTS, isNewer, decideLaunch, updatesAllowed, startUpdater };
+module.exports = { UPDATES_ENABLED, MAX_INSTALL_ATTEMPTS, isNewer, decideLaunch, isSkipped, updatesAllowed, startUpdater };

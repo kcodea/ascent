@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 type Marker = { version: string; attempts?: number } | null;
 const updater = createRequire(import.meta.url)('./updater.cjs') as {
   isNewer: (a: string, b: string) => boolean;
-  decideLaunch: (marker: Marker, current: string) => 'install' | 'boot';
+  decideLaunch: (marker: Marker, current: string, skip?: { version: string } | null) => 'install' | 'boot';
   updatesAllowed: (o: { isPackaged: boolean; env: Record<string, string | undefined>; hasUpdateConfig: boolean }) => boolean;
   startUpdater: (deps: Record<string, unknown>) => Promise<void>;
 };
@@ -38,6 +38,12 @@ describe('decideLaunch', () => {
     expect(updater.decideLaunch({ version: '0.2.1', attempts: 2 }, '0.2.0')).toBe('boot');
     expect(updater.decideLaunch({ version: '0.2.1', attempts: 2 }, '0.2.1')).toBe('boot');
   });
+  it('never installs a skipped version; a strictly newer one installs; a garbage skip skips nothing', () => {
+    expect(updater.decideLaunch({ version: '0.2.1' }, '0.2.0', { version: '0.2.1' })).toBe('boot');
+    expect(updater.decideLaunch({ version: '0.2.2' }, '0.2.0', { version: '0.2.1' })).toBe('install');
+    expect(updater.decideLaunch({ version: '0.2.1' }, '0.2.0', { version: 'garbage' })).toBe('install');
+    expect(updater.decideLaunch({ version: '0.2.1' }, '0.2.0', null)).toBe('install');
+  });
 });
 
 describe('updatesAllowed (the R8 gate)', () => {
@@ -56,9 +62,10 @@ describe('updatesAllowed (the R8 gate)', () => {
 const USER_DATA = path.join('/fake', 'userData');
 const RESOURCES = path.join('/fake', 'resources');
 const MARKER = path.join(USER_DATA, 'pending-update.json');
+const SKIP = path.join(USER_DATA, 'skipped-update.json');
 
-function harness(opts: { marker?: Marker; version?: string; env?: Record<string, string> } = {}) {
-  const files = new Map<string, string>();
+function harness(opts: { marker?: Marker; version?: string; env?: Record<string, string>; files?: Map<string, string> } = {}) {
+  const files = opts.files ?? new Map<string, string>();
   files.set(path.join(RESOURCES, 'app-update.yml'), 'provider: generic\n');
   if (opts.marker) files.set(MARKER, JSON.stringify(opts.marker));
   const fs = {
@@ -225,6 +232,57 @@ describe('startUpdater', () => {
     expect(JSON.parse(h.files.get(MARKER)!)).toEqual({ version: '0.2.1' });
     expect(h.gameSent).toEqual([['ascent:update-ready', { version: '0.2.1' }]]);
     expect(h.au.quitAndInstall).not.toHaveBeenCalled();
+  });
+
+  it('R11: the launch after two failed tries boots, skips that version, and stays booted', async () => {
+    const files = new Map<string, string>();
+    // Launch 3: the marker has used both attempts.
+    const l3 = harness({ marker: { version: '0.2.1', attempts: 2 }, files });
+    await updater.startUpdater(l3.deps);
+    expect(l3.windows).toHaveLength(0);
+    expect(l3.createGameWindow).toHaveBeenCalledTimes(1);
+    expect(files.has(MARKER)).toBe(false);
+    expect(JSON.parse(files.get(SKIP)!)).toEqual({ version: '0.2.1' });
+    vi.advanceTimersByTime(10_000);
+    l3.au.emit('update-downloaded', { version: '0.2.1' }); // the feed still serves 0.2.1
+    expect(files.has(MARKER)).toBe(false);
+    expect(l3.gameSent).toEqual([]);
+    // Launches 4 and 5 against the same feed: plain boots, no installing screen, no marker.
+    for (let i = 0; i < 2; i++) {
+      const l = harness({ files });
+      await updater.startUpdater(l.deps);
+      expect(l.windows).toHaveLength(0);
+      expect(l.createGameWindow).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(10_000);
+      l.au.emit('update-downloaded', { version: '0.2.1' });
+      expect(files.has(MARKER)).toBe(false);
+      expect(l.gameSent).toEqual([]);
+      expect(l.au.quitAndInstall).not.toHaveBeenCalled();
+    }
+  });
+
+  it('R11: a strictly newer version clears the skip and is marked', async () => {
+    const files = new Map<string, string>([[SKIP, JSON.stringify({ version: '0.2.1' })]]);
+    const h = harness({ files });
+    await updater.startUpdater(h.deps);
+    vi.advanceTimersByTime(10_000);
+    h.au.emit('update-downloaded', { version: '0.2.2' });
+    expect(JSON.parse(files.get(MARKER)!)).toEqual({ version: '0.2.2' });
+    expect(files.has(SKIP)).toBe(false);
+    expect(h.gameSent).toEqual([['ascent:update-ready', { version: '0.2.2' }]]);
+    // ...and the next launch installs it.
+    const next = harness({ files });
+    await updater.startUpdater(next.deps);
+    expect(next.windows).toHaveLength(1);
+  });
+
+  it('R11: a garbage skip file skips nothing', async () => {
+    const files = new Map<string, string>([[SKIP, '{not json']]);
+    const h = harness({ files });
+    await updater.startUpdater(h.deps);
+    vi.advanceTimersByTime(10_000);
+    h.au.emit('update-downloaded', { version: '0.2.1' });
+    expect(JSON.parse(files.get(MARKER)!)).toEqual({ version: '0.2.1' });
   });
 
   it('ASCENT_UPDATE_URL overrides the feed with a generic provider', async () => {

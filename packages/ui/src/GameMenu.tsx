@@ -20,7 +20,7 @@ import { useEffect } from 'react';
 import { MenuSidebar } from './MenuSidebar';
 import { anyPageOpen, inGameScreen, useGame } from './store';
 import { sfx } from './sfx';
-import { phBack } from './partyHome/shell/phHistory';
+import { phBack, phInLayer, phOwnsBack } from './partyHome/shell/phHistory';
 import { usePartyHome } from './partyHome/partyHomeFlag';
 
 /** Escape / the gear: in a game the in-game menu (the sidebar over the dimmed game), on the menus the Settings page. */
@@ -40,6 +40,14 @@ export function escapeHasOwner(st: ReturnType<typeof useGame.getState>): boolean
  *  Esc itself; else the menu opens. */
 export function handleEscape(): void {
   const st = useGame.getState();
+  // THE PARTY HOME SHELL: Esc is Back (phHistory.ts), one path with every Back control, one layer at a time.
+  if (phInLayer()) { phBack(); return; }
+  if (phOwnsBack() && !st.gameMenuOpen) {
+    if (st.inspect) return;
+    if (st.practiceSetupOpen) st.cancelPracticeSetup();
+    else phBack();
+    return;
+  }
   if (st.showBook) { st.closeBook(); return; }
   if (st.gameMenuOpen) { st.closeGameMenu(); return; }
   if (st.settingsOpen) { st.closeSettings(); return; }
@@ -49,7 +57,6 @@ export function handleEscape(): void {
   // nothing (Settings is the nav's gear, one place). Only while the shell is up (the menus before a run).
   if (document.documentElement.hasAttribute('data-ph-shell')) {
     if (st.practiceSetupOpen) st.cancelPracticeSetup();
-    else if (phBack()) return;
     else if (anyPageOpen(st) || st.titleView !== 'menu') st.goTo('menu');
     return;
   }

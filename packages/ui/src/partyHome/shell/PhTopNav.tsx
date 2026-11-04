@@ -143,9 +143,9 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
           {import.meta.env.DEV && (
             <button type="button" className="ph-iconbtn ph-scenebtn" aria-label="Scene Builder" onClick={() => {
               // The DEV menu's own route; the page you are on comes back when the game ends.
-              sfx.pulse(); phRememberPage(); setFriendsOpen(false); if (showBook) closeBook(); leaveCrates();
+              sfx.pulse(); phRememberPage(useGame.getState().savedRun); setFriendsOpen(false); if (showBook) closeBook(); leaveCrates();
               useGame.setState(PAGES_CLOSED); openSceneBuilderPanel(); useGame.getState().startSceneBuilder();
-            }}><span aria-hidden="true">🏗️</span><small className="ph-devlbl">Scene</small></button>
+            }}>Scene</button>
           )}
           <button type="button" className={`ph-iconbtn${current === 'settings' ? ' on' : ''}`} aria-label={txt.settings} aria-current={current === 'settings' ? 'page' : undefined}
             onClick={() => hop('settings')}>

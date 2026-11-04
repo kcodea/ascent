@@ -464,7 +464,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       <div className="ph-side ph-side-r">
         {/* On a phone the side panel is a drawer: the mode's settings are one press from START. */}
         {phone && !friendsOpen && modeHasSettings(modeId) && <PhButton size="s" onClick={() => { sfx.pulse(); toSettings.current = true; setDrawerIsMode(true); setSideTab('settings'); setFriendsOpen(true); }}>Options</PhButton>}
-        {(note || issue) && (
+        {(note || issue) && !(phone && friendsOpen) && (
           <span className="ph-notes" role="status">
             {note && <span className="ph-note">{note}</span>}
             {issue && <span className="ph-note ph-issue">{issue}</span>}

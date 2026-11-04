@@ -101,6 +101,7 @@ import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PhBackdrop } from './partyHome/shell/PhBackdrop';
 import { PhBackContext, PhPageGuard } from './partyHome/shell/PhPageGuard';
+import { phBack, phLayer } from './partyHome/shell/phHistory';
 import { usePartyHome } from './partyHome/partyHomeFlag';
 import { retryImport } from './retryImport';
 import { ReplayOverlay } from './replay/ReplayOverlay';
@@ -150,10 +151,10 @@ const PhBookNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhB
 const PhSteady = import.meta.env.DEV ? PhBackdrop : null;
 const PhGuard = import.meta.env.DEV ? PhPageGuard : null;
 /** Settings opens over a page: its Back returns to that page, as it was. */
-const SETTINGS_BACK = { label: 'Back', onClick: (): void => useGame.getState().closeSettings() };
+const SETTINGS_BACK = { label: 'Back', onClick: (): void => { if (!phBack()) useGame.getState().closeSettings(); } };
 /** A page opened in a game: Back returns to the in-game menu, the game exactly as it was. */
 const closeInGamePage = (): void => useGame.setState(PAGES_CLOSED);
-const IN_GAME_BACK = { label: 'Back', onClick: closeInGamePage };
+const IN_GAME_BACK = { label: 'Back', onClick: (): void => { if (!phBack()) closeInGamePage(); } };
 const PhSteadyNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhSteadyNav')) : null;
 const PhChrome = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhPageChrome')) : null;
 
@@ -492,6 +493,8 @@ export function Game() {
   const shellMenus = partyHomeOn && titleUp && !gameMenuOpen;
   // A page opened from the in-game menu stands on the same backdrop, over the board.
   const inGamePage = useGame((s) => partyHomeOn && s.gameMenuOpen && anyPageOpen(s));
+  // ...and is one layer on the history: Back closes it, even with no history before it.
+  useEffect(() => (inGamePage ? phLayer(closeInGamePage) : undefined), [inGamePage]);
   // The Compendium is a page too: while it is up, nothing under it shows through the transparent pages.
   const bookUp = useGame((s) => s.showBook);
   useLayoutEffect(() => {

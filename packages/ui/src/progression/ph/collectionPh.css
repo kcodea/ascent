@@ -287,3 +287,18 @@ html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-side .phc-
 .phc-tile.hasart.missing .phc-tile-name { color: var(--ph-text); }
 .phc-kind { white-space: nowrap; }
 html[data-ph-shell][data-touch-small] .phc-kind { letter-spacing: 0.12em; }
+
+/* ── COMPACT (a phone or a short window): no side column; the album takes the width and a tap opens the item in a sheet,
+   a sibling of the page on the host, under the nav. ── */
+html[data-ph-shell][data-ph-compact] .phk-page .phc-body.sheeted { grid-template-columns: calc(312 * var(--phu)) minmax(0, 1fr); }
+html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-body.sheeted { grid-template-columns: minmax(0, 1fr); }
+html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-grid { grid-template-columns: repeat(auto-fill, minmax(calc(216 * var(--phu)), 1fr)); }
+html[data-ph-shell][data-touch-small] .phc-tile-for { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.phc-scrim { position: absolute; inset: var(--ph-nav-h) 0 0; z-index: 4; margin: 0; padding: 0; border: 0; border-radius: 0; background: rgba(4, 8, 18, 0.62); }
+.phc-sheet { position: absolute; top: var(--ph-nav-h); right: 0; bottom: 0; z-index: 5; box-sizing: border-box; width: min(calc(600 * var(--phu)), 100%); padding: calc(8 * var(--phu)) calc(8 * var(--phu) + var(--safe-r, 0px)) calc(8 * var(--phu) + var(--safe-b, 0px)) calc(8 * var(--phu)); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
+.phc-sheetx { position: absolute; top: calc(16 * var(--phu)); right: calc(16 * var(--phu) + var(--safe-r, 0px)); z-index: 3; display: grid; place-items: center; width: calc(64 * var(--phu)); height: calc(64 * var(--phu)); margin: 0; padding: 0; border: 0; border-radius: 999px; background: var(--ph-plate); box-shadow: var(--ph-gild-s); color: var(--ph-ink); font-size: var(--ph-t3); }
+.phc-sheet .phc-actions { background: var(--ph-navy); }
+html[data-ph-shell][data-touch-small] .phc-sheet .phc-progress { display: flex; }
+/* With the full width, the filters wrap instead of cutting a chip at the edge. */
+html[data-ph-shell][data-touch-small] .phc-filters { flex-wrap: wrap; overflow: visible; touch-action: auto; }
+html[data-ph-shell][data-touch-small] .phc-rarities { flex: 0 1 auto; flex-wrap: wrap; }

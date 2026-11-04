@@ -93,6 +93,25 @@ describe('the Collection in the party home shell', () => {
     expect($('.phk-page')).toBeNull();
   });
 
+  it('COMPACT: no side column; a tap opens the item in a sheet, and the close button, Esc and a new category shut it', async () => {
+    document.documentElement.setAttribute('data-ph-compact', '');
+    try {
+      await open({ ph: true });
+      expect($('.phc-side')).toBeNull();
+      expect($('.phc-sheet')).toBeNull();
+      act(() => { tileBy('Star Chaser').click(); });
+      expect($('.phc-sheet h2')?.textContent).toBe('Star Chaser');
+      act(() => { $('.phc-sheetx')!.click(); });
+      expect($('.phc-sheet')).toBeNull();
+      act(() => { tileBy('Star Chaser').click(); });
+      act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+      expect($('.phc-sheet')).toBeNull();
+      act(() => { tileBy('Star Chaser').click(); });
+      act(() => { cat('Heroes').querySelector('button')!.click(); });
+      expect($('.phc-sheet')).toBeNull();
+    } finally { document.documentElement.removeAttribute('data-ph-compact'); }
+  });
+
   it('ON: the page opens on the first category, Heroes', async () => {
     await open({ ph: true, landing: true });
     expect($$('.phc-cat')[0]).toBe(cat('Heroes'));

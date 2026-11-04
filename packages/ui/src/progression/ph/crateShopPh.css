@@ -104,3 +104,15 @@ html[data-ph-shell][data-touch-small] .phs .phk-back { min-height: calc(64 * var
 .phs-offline .phk-empty { min-height: calc(320 * var(--phu)); }
 /* The column heads stay on one line at every width. */
 .phs .cshop-cat-head span { white-space: nowrap; }
+
+/* One axis only: the page may scroll down, never sideways (the hidden tips hang past the edge), and at 1920 x 1080 the whole
+   screen fits with no scrolling at all. */
+.phs .phk-pagebody { overflow-x: hidden; }
+html[data-ph-shell]:not([data-ph-compact]) .phs .cshop-cat { min-height: calc(44 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phs .phk-pagebody { gap: calc(12 * var(--phu)); padding-bottom: calc(12 * var(--phu) + var(--safe-b, 0px)); }
+/* The last card's tip opens inward, so nothing hangs past the page edge (or gets cut by it). */
+.phs .cshop-chest:last-child .cshop-pop { left: auto; right: 0; transform: translate(0, 6px); }
+.phs .cshop-chest:last-child:hover .cshop-pop, .phs .cshop-chest:last-child.tt-on .cshop-pop, .phs .cshop-chest:last-child:focus-visible .cshop-pop { transform: translate(0, 0); }
+/* A resting tip takes no room: its box is what pushed the page 17 px wider than it is. */
+.phs .cshop-pop { display: none; }
+.phs :is(.cshop-chest, .cshop-seg):is(:hover, .tt-on, :focus-visible) .cshop-pop { display: block; }

@@ -17,7 +17,7 @@
  * `ChestPicture`, the painted category medallions. Static paint; hover is a colour or a one-shot transform; no native
  * tooltips; no own cursor.
  */
-import { memo, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   ALL_COSMETIC_RARITIES, COSMETIC_CATEGORY_DEFS, RARITY_LABELS, crateLabel, isMasterTitle,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type levelProgress,
@@ -91,7 +91,30 @@ function kindOf(item: CosmeticDef): string {
   }
 }
 
+/** The shell's compact frame (a phone, or a short window; Title.tsx owns the attribute): the detail is a sheet there. */
+const subscribeCompact = (cb: () => void): (() => void) => {
+  const mo = new MutationObserver(cb);
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-ph-compact'] });
+  return () => mo.disconnect();
+};
+const readCompact = (): boolean => document.documentElement.hasAttribute('data-ph-compact');
+
 export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Element {
+  // COMPACT: the album takes the full width and a tap opens the item in a sheet (round 10: the side column was cramped).
+  const compact = useSyncExternalStore(subscribeCompact, readCompact, readCompact);
+  const [sheet, setSheet] = useState(false);
+  const pageOnPick = v.onPick;
+  const pick = useCallback((id: string) => { pageOnPick(id); setSheet(true); }, [pageOnPick]);
+  const closeSheet = useCallback(() => { sfx.pulse(); setSheet(false); }, []);
+  useEffect(() => { setSheet(false); }, [v.category]);
+  const sheetUp = compact && sheet && v.live && !!v.selected;
+  // Esc closes the sheet first (the shell's Esc would leave the page): the capture phase, claimed when it acts.
+  useEffect(() => {
+    if (!sheetUp) return undefined;
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setSheet(false); } };
+    document.addEventListener('keydown', onKey, { capture: true });
+    return () => document.removeEventListener('keydown', onKey, { capture: true });
+  }, [sheetUp]);
   // THE CRATES TAB (the shell's nav): it opens this page with the intent to land on the Chest Shop. Read once, on mount.
   const openShop = v.openShop;
   useEffect(() => { if (takeCollectionIntent() === 'shop') openShop(); }, [openShop]);
@@ -106,6 +129,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
   }, [cratesSeq, openShop]);
   if (v.shopOffline) return <CratesOfflinePh onBack={v.closeShop} />;
   return (
+    <>
     <PhPage
       wide
       className="phc"
@@ -123,7 +147,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
         </>
       )}
     >
-      <div className="phc-body">
+      <div className={`phc-body${compact ? ' sheeted' : ''}`}>
         <aside className="phc-rail" aria-label="Categories and chests">
           <CategoryList v={v} />
           <ChestBay v={v} />
@@ -172,7 +196,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
                         <Tile
                           id={c.id} name={c.name} rarity={c.rarity} art={tileArt(c)} contain={c.category === 'portrait_frame' || c.category === 'card_plate' || c.category === 'emote'}
                           target={skinTargetName(c) ?? undefined} owned={v.owned.has(c.id)} equipped={v.worn(c)} fresh={v.fresh(c)} selected={v.selectedId === c.id}
-                          master={isMasterTitle(c.id)} how={v.owned.has(c.id) ? undefined : acquisitionText(c)} onPick={v.onPick}
+                          master={isMasterTitle(c.id)} how={v.owned.has(c.id) ? undefined : acquisitionText(c)} onPick={pick}
                           onHover={c.target?.type === 'card' || c.category === 'card_plate' ? v.onHover : undefined}
                         />
                       </li>
@@ -189,15 +213,25 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
           )}
         </main>
 
-        <aside className="phc-side" aria-label="Details">
+        {!compact && <aside className="phc-side" aria-label="Details">
           {v.live && v.selected ? <Detail v={v} item={v.selected} /> : (
             <PhSection className="phc-detail">
               <PhEmpty title={COSMETIC_CATEGORY_DEFS[v.category].label} sub="Coming in a later update." />
             </PhSection>
           )}
-        </aside>
+        </aside>}
       </div>
     </PhPage>
+    {sheetUp && (
+      <>
+        <button type="button" className="phc-scrim" aria-label="Close details" onClick={closeSheet} />
+        <div className="phc-sheet" role="dialog" aria-label="Details">
+          <button type="button" className="phc-sheetx" aria-label="Close details" onClick={closeSheet}>✕</button>
+          <Detail v={v} item={v.selected!} />
+        </div>
+      </>
+    )}
+    </>
   );
 }
 

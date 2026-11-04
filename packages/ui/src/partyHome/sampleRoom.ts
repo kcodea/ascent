@@ -27,11 +27,11 @@ function build(s: SampleInput): VersusRoom | null {
   const mk = (userId: string, role: VersusRole, displayName: string, i: number): VersusMember => ({
     userId, role, displayName, profile: userId === SAMPLE_ME ? {} : { avatar: `hero:${heroes[i % heroes.length]}` }, lastSeenAt: '',
   });
-  const host = s.view === 'host' ? SAMPLE_ME : 'sample-host';
-  const guest = s.view === 'guest' ? SAMPLE_ME : 'sample-guest';
-  const members: VersusMember[] = [mk(host, 'p1', host === SAMPLE_ME ? 'You' : 'Mike', 0), mk(guest, 'p2', guest === SAMPLE_ME ? 'You' : 'Brisbane', 1)];
-  if (s.mode !== 'duel') members.push(mk('sample-third', 'p3', 'Coran', 2));
-  members.push(mk('sample-watch-1', 'spectator', 'Tamby', 3), mk('sample-watch-2', 'spectator', 'Rowan', 4));
+  const host = s.view === 'host' ? SAMPLE_ME : 'sample-1'; // (the sample friends' ids, so the friends list says In this room)
+  const guest = s.view === 'guest' ? SAMPLE_ME : 'sample-2';
+  const members: VersusMember[] = [mk(host, 'p1', host === SAMPLE_ME ? 'Player' : 'Mike', 0), mk(guest, 'p2', guest === SAMPLE_ME ? 'Player' : 'Brisbane', 1)];
+  if (s.mode !== 'duel') members.push(mk('sample-3', 'p3', 'Coran', 2));
+  members.push(mk('sample-4', 'spectator', 'Tamby', 3), mk('sample-watch-2', 'spectator', 'Rowan', 4));
   if (s.myRole) for (const m of members) if (m.userId === SAMPLE_ME) m.role = s.myRole;
   return {
     id: 'sample-room', name: `Sample ${roomModeLabel(s.mode)}`, host_user_id: host, status: s.status, set_id: '', content_revision: '', protocol: 0, revision: 0, gate_deadline: null,

@@ -393,9 +393,9 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     ? [cards[0]!, <span key="vs" className="ph-vs" aria-hidden="true">VS</span>, cards[1]!]
     : mode.id === 'vduos' && cards.length === 4
     ? [
-        <div key="a" className="ph-pair"><span className="ph-pairlbl mine">Your team</span><div className="ph-pairrow">{cards.slice(0, 2)}</div></div>,
+        <div key="a" className="ph-pair"><div className="ph-pairrow"><span className="ph-pairlbl mine">Your team</span>{cards.slice(0, 2)}</div></div>,
         <span key="vs" className="ph-vs" aria-hidden="true">VS</span>,
-        <div key="b" className="ph-pair"><span className="ph-pairlbl rival">Rivals</span><div className="ph-pairrow">{cards.slice(2)}</div></div>,
+        <div key="b" className="ph-pair"><div className="ph-pairrow"><span className="ph-pairlbl rival">Rivals</span>{cards.slice(2)}</div></div>,
       ]
     : cards;
 
@@ -411,9 +411,9 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
         {/* On a phone the saved game's Continue sits here (the head row stays slim). */}
         {phone && savedRun && !inParty && <PhButton size="s" variant="primary" className="ph-phonecontinue" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>}
       </div>
-      <button type="button" className="ph-start" disabled={!startOk} onClick={() => { if (!startOk) return; sfx.pulse(); onStart(); }}>
+      {vh.start?.wait ? <div className="ph-start vsr-waitplate" role="status"><span>{startLabel}</span></div> : <button type="button" className="ph-start" disabled={!startOk} onClick={() => { if (!startOk) return; sfx.pulse(); onStart(); }}>
         <span>{startLabel}</span>
-      </button>
+      </button>}
       <div className="ph-side ph-side-r">
         {/* On a phone the side panel is a drawer: the mode's settings are one press from START. */}
         {phone && mode.options && <PhButton size="s" onClick={() => { sfx.pulse(); setSideTab('settings'); setFriendsOpen(true); }}>{mode.id === 'practice' ? 'Practice' : mode.id === 'gauntlet' ? 'Stages' : 'Rules'}</PhButton>}
@@ -455,10 +455,10 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       <PhTopNav current="home" friendsDocked={!phone} ownDrawer />
 
       <div ref={modesRef} className={`ph-modes${moreTabs ? ' more' : ''}`}>
-        <PhTabs label="Mode" value={modeId} onChange={pick} onLocked={(_id, reason) => { sfx.deny(); setLockNote(reason); }} onLockedHover={setHoverNote}
+        <PhTabs label="Mode" value={modeId} onChange={pick} onLocked={(_id, reason) => { sfx.deny(); setLockNote(reason); }} onLockedHover={versusRoom ? undefined : setHoverNote}
           tabs={modes.map((m) => ({ id: m.id, label: <ModeLabel id={m.id} label={m.label} />, reason: lockReason(m) ?? undefined }))} />
         {/* A locked tab's reason takes the description's own line for a moment: it never covers the stage. */}
-        <span className={`ph-desc${lockNote || hoverNote ? ' locked' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? hoverNote ?? mode.desc}</span>
+        <span className={`ph-desc${lockNote || (hoverNote && !versusRoom) ? ' locked' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? (versusRoom ? null : hoverNote) ?? mode.desc}</span>
       </div>
 
       <main className="ph-stage" key={enterKey}>

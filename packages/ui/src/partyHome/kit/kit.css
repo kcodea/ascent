@@ -393,6 +393,23 @@ html[data-ph-shell][data-ph-compact] .phk-switch { min-height: calc(40 * var(--p
 /* The page reaches the screen's foot: the old sidebar pages' bottom reserve is not needed under the top nav. */
 html[data-ph-shell][data-ph-compact] :is(.lbpage, .modepick.sb-host) { padding-bottom: 0 !important; }
 /* Compendium's header tools: one row beside the tabs. Older px-sized labels lift to the phone floor. */
-html[data-ph-shell][data-ph-compact] .phk-page .phc-actions, html[data-ph-shell][data-ph-compact] .phk-page .phc-actions > * { flex-direction: row; flex-wrap: nowrap; position: static; inset: auto; width: auto; padding: 0; background: none; box-shadow: none; gap: calc(8 * var(--phu)); }
-html[data-ph-shell][data-ph-compact] .phk-page .phc-actions .book-search { width: calc(180 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page .phc-actions:has(.book-search), html[data-ph-shell][data-ph-compact] .phk-page .phc-actions:has(.book-search) > * { flex-direction: row; flex-wrap: nowrap; position: static; inset: auto; width: auto; padding: 0; background: none; box-shadow: none; gap: calc(8 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page .book-search { width: calc(180 * var(--phu)); }
 html[data-ph-shell][data-ph-compact] .phk-page :is(.cv2-btn, .book-axislabel, .book-setpick-cap, .book-setpick-name, .book-setpick-live, .book-gilded, .book-zoom-val, .cshop-guar, .cshop-orow-name, .cshop-orow span, .rankbar-points) { font-size: calc(18 * var(--phu)) !important; }
+
+/* ── CRITIC ROUND 7 ── */
+/* A window always fits the screen: its body scrolls inside, the actions stay pinned and visible. */
+.phk-dlgbox { max-height: calc(var(--ph-h, var(--lvh, 100vh)) - 32 * var(--phu)); }
+.phk-dlgtext { flex: 0 1 auto; min-height: 0; max-width: 100%; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; }
+.phk-dlgactions { flex: none; }
+html[data-ph-shell][data-ph-compact] .phk-dlgbox { gap: calc(8 * var(--phu)); padding-top: calc(16 * var(--phu)); padding-bottom: calc(16 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-dlgtitle { font-size: var(--ph-t3); padding-bottom: calc(12 * var(--phu)); }
+/* While a field is lifted over the phone keyboard, the window rises to the top and keeps only what is needed: Save stays in reach. */
+html[data-touch-kb] .phk-dialog { place-items: start center; padding-top: calc(8 * var(--phu)); }
+html[data-touch-kb] .phk-dlgbox .phk-dlgtitle, html[data-touch-kb] .phk-dlgbox .phk-field .phk-seghint { display: none; }
+/* ONE TAB BASELINE: every page's sub-tabs sit on the same line in the header. */
+html[data-ph-shell] .phk-pagehead .phk-pagetabs { align-self: flex-end; margin: 0 !important; padding: 0; }
+html[data-ph-shell]:not([data-ph-compact]) .phk-pagehead { padding-bottom: calc(16 * var(--phu)) !important; }
+html[data-ph-shell] .phk-pagehead .phk-tab { min-height: calc(56 * var(--phu)) !important; padding-top: calc(8 * var(--phu)) !important; padding-bottom: calc(12 * var(--phu)) !important; }
+html[data-ph-shell][data-ph-compact] .phk-dlgtitle::after { display: none; }
+html[data-ph-shell][data-ph-compact] .ph-picker .phk-btn.s-s { min-height: calc(52 * var(--phu)) !important; height: calc(52 * var(--phu)); }

@@ -184,6 +184,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     if (versusRoom) void homeSetOptions({ v: 1, mode: id === 'versus' ? 'duel' : id === 'group' ? 'group' : 'duos', modifiers: versusRoom.options?.modifiers ?? [] } as VersusRoomOptions);
   };
   const [lockNote, setLockNote] = useState<string | null>(null);
+  const [hoverNote, setHoverNote] = useState<string | null>(null);
   // A locked tab's reason shows as a brief toast under the tabs, then the line returns to the mode's description.
   useEffect(() => { if (!lockNote) return undefined; const t = window.setTimeout(() => setLockNote(null), 2600); return () => window.clearTimeout(t); }, [lockNote]);
   const [demoTeam, setDemoTeam] = useState<string | null>(null);
@@ -261,12 +262,17 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   // THE SERVER LINE: its own line under the mode's note, so the mode's hint always shows. Only on the modes that use the
   // Versus server, cleared on a mode change and on recovery (a stale error never follows you to another mode).
   const usesServer = mode.party === 'rivals' || mode.id === 'duos';
-  const vsDown = useVersusDown(usesServer && !demo);
+  const vsDown = useVersusDown() && !sampleOn; // (the sample room needs no server)
   const serverName = mode.id === 'duos' ? 'Ranked Duos' : 'Versus';
   const vsCopy = usesServer ? playerVersusError(vsError) : null;
-  const issue = vsDown ? `${serverName} is offline right now.` : vsCopy;
+  const downLine = `${serverName} is offline right now.`;
+  const issue = vsDown && usesServer ? downLine : vsCopy;
+  // The server is down: START is the same dim, disabled START as a Duos party with no teammate; the line says why.
+  if (vsDown && usesServer && !versusRoom && !duosRoom) { startOk = false; onStart = () => undefined; }
   // A phone has no line under the tabs: a locked tab's reason reads here.
   if (phone && lockNote) note = lockNote;
+  // A phone has no room for the description line: its first sentence sits beside START when nothing else needs the slot.
+  if (phone && !note && !issue) note = mode.desc.split('. ')[0]!.replace(/\.$/, '');
   // A saved game waiting: Start asks first (Ranked's own confirmation already names it).
   if (savedRun && (mode.id === 'practice' || mode.id === 'gauntlet' || mode.id === 'learn')) {
     const go = onStart;
@@ -278,7 +284,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const takesParty = mode.id === 'duos';
   const full = vh.row ? vh.seatsFree === 0 : members.length + (demo ? sampleInvites.length : 0) >= mode.slots;
   const takesFriends = takesParty || mode.party === 'rivals';
-  const canInvite = !full && (!versusRoom || versusRoom.status === 'open') && (demo || sampleOn ? takesFriends : takesFriends && account && remoteEnabled() && !inGame);
+  const canInvite = !(vsDown && takesFriends) && !full && (!versusRoom || versusRoom.status === 'open') && (demo || sampleOn ? takesFriends : takesFriends && account && remoteEnabled() && !inGame);
   const memberIds = vh.row ? vh.memberIds : members.map((m) => m.userId).filter((x): x is string => !!x && x !== me);
   const sendRef = useRef<(f: Friend) => void>(() => undefined);
   sendRef.current = (f: Friend): void => {
@@ -304,7 +310,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       if (r && isDuosParty(r)) await inviteFriend(f.userId, 'duos_party', versusRoomRef(r));
     })();
   };
-  const inviteReason = full && takesFriends ? (takesParty ? 'Your party is full.' : 'Every seat is taken.')
+  const inviteReason = vsDown && takesFriends ? downLine : full && takesFriends ? (takesParty ? 'Your party is full.' : 'Every seat is taken.')
     : takesFriends ? null
     : `${mode.label} is solo. Pick Ranked Duos to play with a friend.`;
   useEffect(() => {
@@ -328,6 +334,17 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
 
   // Back from a page: the stage replays its short entrance (transform / opacity), so the hop is never a hard cut.
   const [enterKey, setEnterKey] = useState(0);
+  // PHONE: a mark at the end of the mode tabs while more wait off the edge.
+  const modesRef = useRef<HTMLDivElement>(null);
+  const [moreTabs, setMoreTabs] = useState(false);
+  useEffect(() => {
+    const row = modesRef.current?.querySelector('.phk-tabs');
+    if (!row || !phone) { setMoreTabs(false); return undefined; }
+    const on = (): void => setMoreTabs(row.scrollLeft + row.clientWidth < row.scrollWidth - 4);
+    on();
+    row.addEventListener('scroll', on, { passive: true });
+    return () => row.removeEventListener('scroll', on);
+  }, [phone, modes.length]);
   const wasPaged = useRef(pageOpen);
   useEffect(() => { if (wasPaged.current && !pageOpen) setEnterKey((k) => k + 1); wasPaged.current = pageOpen; }, [pageOpen]);
 
@@ -369,7 +386,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
           <span className="ph-sub">{'\u00a0'}</span>
           <PhBannerState tone="space" />
         </PhBanner>
-      : <OpenSeat key={`open-${i}`} i={members.length + i} onOpen={onOpenSeat} pending={null} />);
+      : <OpenSeat key={`open-${i}`} i={members.length + i} onOpen={onOpenSeat} pending={null} optional={mode.id === 'group' && members.length + i === 3} />);
   }
   // VERSUS DUOS: two pairs (your team, the rivals), split by the VS mark.
   const row: JSX.Element[] = mode.id === 'versus' && cards.length === 2
@@ -392,7 +409,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
           <PhButton onClick={() => { sfx.pulse(); if (duosRoom) void leaveDuosParty(); else setPartyDemo(false); }}>Leave party</PhButton>
         )}
         {/* On a phone the saved game's Continue sits here (the head row stays slim). */}
-        {savedRun && !inParty && <PhButton size="s" variant="primary" className="ph-phonecontinue" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>}
+        {phone && savedRun && !inParty && <PhButton size="s" variant="primary" className="ph-phonecontinue" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>}
       </div>
       <button type="button" className="ph-start" disabled={!startOk} onClick={() => { if (!startOk) return; sfx.pulse(); onStart(); }}>
         <span>{startLabel}</span>
@@ -437,11 +454,11 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       <PhBackdrop />
       <PhTopNav current="home" friendsDocked={!phone} ownDrawer />
 
-      <div className="ph-modes">
-        <PhTabs label="Mode" value={modeId} onChange={pick} onLocked={(_id, reason) => { sfx.deny(); setLockNote(reason); }}
+      <div ref={modesRef} className={`ph-modes${moreTabs ? ' more' : ''}`}>
+        <PhTabs label="Mode" value={modeId} onChange={pick} onLocked={(_id, reason) => { sfx.deny(); setLockNote(reason); }} onLockedHover={setHoverNote}
           tabs={modes.map((m) => ({ id: m.id, label: <ModeLabel id={m.id} label={m.label} />, reason: lockReason(m) ?? undefined }))} />
         {/* A locked tab's reason takes the description's own line for a moment: it never covers the stage. */}
-        <span className={`ph-desc${lockNote ? ' locked' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? mode.desc}</span>
+        <span className={`ph-desc${lockNote || hoverNote ? ' locked' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? hoverNote ?? mode.desc}</span>
       </div>
 
       <main className="ph-stage" key={enterKey}>
@@ -597,10 +614,10 @@ function BannerCard({ m, i, phone, leader, showState, rival, menuOpen, onToggleM
 }
 
 /** An open seat: points at the friends list (invite from there). */
-function OpenSeat({ i, onOpen, pending }: { i: number; onOpen: () => void; pending: string | null }): JSX.Element {
+function OpenSeat({ i, onOpen, pending, optional }: { i: number; onOpen: () => void; pending: string | null; optional?: boolean }): JSX.Element {
   return (
     <PhBanner ghost index={i} onClick={onOpen} label="Open seat. Invite a friend from your friends list">
-      <PhBannerInvite pending={pending} />
+      <PhBannerInvite pending={pending} note={optional ? 'Optional seat' : undefined} />
     </PhBanner>
   );
 }

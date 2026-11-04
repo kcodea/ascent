@@ -100,7 +100,7 @@ export function PhFriends({ docked, picker = false, embedded = false }: { docked
       {/* The one-shot "look here" outline (an open seat was pressed): keyed, so each press replays it. */}
       {pulse > 0 && <span key={pulse} className="ph-fpulse" aria-hidden="true" />}
       <div className="ph-fhead">
-        <span className="ph-ftitle">Friends</span>
+        {!picker && <span className="ph-ftitle">Friends</span>}
         {(demo || (live && list)) && <span className="ph-fcount">{online} online</span>}
         {!docked && (
           <button type="button" className="ph-iconbtn ph-fclose" aria-label="Close friends" onClick={() => { sfx.pulse(); setFriendsOpen(false); }}>

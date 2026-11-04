@@ -534,7 +534,7 @@ export function RoomRulesPanel({ room, me, modifier, onModifier, name, onName, p
       <PhSegmented label="Modifier" value={value} options={MODIFIERS} disabled={!editable} max={4} onPick={pick}
         hint={value ? riftDefFor(value, 'versus').blurb : 'The usual rules.'} />
       <div className="pho-note">
-        <span>{room ? (editable ? 'Versus is unranked. Changes show for everyone at once.' : 'Only the host can change these, between games.') : 'Start opens a room with these rules. Friends join from your invite.'}</span>
+        <span>{room ? (editable ? 'Versus is unranked. Changes show for everyone at once.' : 'Only the host can change these, between games.') : 'Press Start to open your room, then invite friends.'}</span>
         {!room && <PhButton size="s" onClick={() => { sfx.pulse(); onBrowse(); }}>Open rooms</PhButton>}
       </div>
     </>

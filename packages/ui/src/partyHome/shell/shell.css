@@ -264,3 +264,7 @@ html[data-ph-compact] .ph-navtab.on::after { bottom: calc(-2 * var(--phu)); }
 html[data-ph-compact] .ph-nav { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32 * var(--phu)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 32 * var(--phu)), transparent); }
 /* PHONE TYPE: the read sizes lift so nothing lands under 11 real px (18 units on a phone). */
 html[data-ph-shell][data-ph-compact] { --ph-t1: calc(18 * var(--phu)); --ph-t2: calc(19 * var(--phu)); --ph-t3: calc(22 * var(--phu)); --ph-t-read: calc(20 * var(--phu)); }
+
+/* ── CRITIC ROUND 7 ── */
+.ph-friends.drawer, .ph-fcatch { top: calc(var(--ph-nav-h) + 10 * var(--phu)); }
+html[data-ph-compact] .ph-fadd .ph-finput { min-height: calc(64 * var(--phu)); }

@@ -20,6 +20,7 @@ import { CORE_BLUR_ID, FILTER_ORDER_KEY } from '../filterStack';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
 import { imageUrlFor, importFramesFromFiles, importImageFromFile, listImageOptions, IMAGE_NONE } from '../imageLibrary';
 import { clipNames, previewFxClip, importFxSound, getFxClipBuffer } from '../../sfx';
+import { clampTrimMs, offsetMsToPct, offsetPctToMs } from '../clipTrim';
 import { ColorPickerHSB } from './ColorPickerHSB';
 import { PalettePicker } from './PalettePicker';
 import { GradientEditor } from './GradientEditor';
@@ -558,6 +559,19 @@ function NumberField({ value, min, max, disabled, onCommit }: {
   );
 }
 
+/** The decoded length of a sound clip in ms, or 0 while it is unknown (none picked, or still decoding — polled
+ *  briefly, like the waveform strip, so the row switches to % the moment the buffer lands). */
+function useClipDurationMs(clip: string): number {
+  const [, bump] = useState(0);
+  const buf = clip ? getFxClipBuffer(clip) : null;
+  useEffect(() => {
+    if (buf || !clip) return;
+    const t = window.setInterval(() => { if (getFxClipBuffer(clip)) { bump((n) => n + 1); window.clearInterval(t); } }, 120);
+    return () => window.clearInterval(t);
+  }, [clip, buf]);
+  return buf ? buf.duration * 1000 : 0;
+}
+
 function ParamRow({
   paramKey: key,
   spec,
@@ -592,6 +606,15 @@ function ParamRow({
   // replay on a second reset (a class that's still present wouldn't re-trigger the CSS animation).
   const [resetFlash, setResetFlash] = useState(false);
   const off = !enabled;
+  // A sound layer's trim rows read in % of the loaded clip; 0 = not a trim row, or the clip isn't decoded yet
+  // (the row then falls back to the plain ms slider).
+  const trimKey = key === 'startOffset' || key === 'endOffset';
+  const clipDurMs = useClipDurationMs(trimKey && typeof values.clip === 'string' ? values.clip : '');
+  const trimFromPct = (pct: number): number => clampTrimMs(
+    offsetPctToMs(pct, clipDurMs),
+    Number((key === 'startOffset' ? values.endOffset : values.startOffset) ?? 0),
+    clipDurMs,
+  );
 
   // Double-click the label resets the param to its spec default. No-op when the param is already at default
   // (nothing to reset, and no flash to confirm) — `changed` is the same set the modified dot renders from, so
@@ -632,7 +655,18 @@ function ParamRow({
           </button>
         )}
       </span>
-      {spec.kind === 'slider' && (
+      {spec.kind === 'slider' && clipDurMs > 0 && (
+        // A sound layer's Start / End offset, shown as % of the loaded clip (stored as ms in the def).
+        <>
+          <input id={`fxwb-${key}`} type="range" min={0} max={100} step={0.1}
+            disabled={off}
+            value={offsetMsToPct(value as number, clipDurMs)}
+            onChange={(e) => onChange(key, trimFromPct(Number(e.target.value)))} />
+          <NumberField value={Math.round(offsetMsToPct(value as number, clipDurMs) * 10) / 10} min={0} max={100} disabled={off}
+            onCommit={(n) => onChange(key, trimFromPct(n))} />
+        </>
+      )}
+      {spec.kind === 'slider' && clipDurMs <= 0 && (
         <>
           <input id={`fxwb-${key}`} type="range" min={spec.min} max={spec.max} step={spec.step}
             disabled={off}
@@ -875,8 +909,8 @@ function WaveformStrip({ clip, startOffset, endOffset, disabled, onTrim }: {
   const startPct = durMs > 0 ? Math.min(100, (startOffset / durMs) * 100) : 0;
   const endPct = durMs > 0 ? Math.max(0, ((durMs - endOffset) / durMs) * 100) : 100;
 
-  // Drag a trim line: map the pointer x to a clip time, clamp to the param range (0..2000 ms) AND to the other
-  // line, and write the offset in 10 ms steps (the param's own step). `endOffset` is measured from the clip END,
+  // Drag a trim line: map the pointer x to a clip time, clamp to the clip AND to the other line, and write the
+  // offset in whole ms. `endOffset` is measured from the clip END,
   // so the end line sits at `duration − endOffset`.
   const startDrag = (which: 'startOffset' | 'endOffset') => (e: React.PointerEvent<HTMLDivElement>): void => {
     if (disabled || durMs <= 0) return;
@@ -886,14 +920,9 @@ function WaveformStrip({ clip, startOffset, endOffset, disabled, onTrim }: {
       if (!box) return;
       const r = box.getBoundingClientRect();
       const posMs = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)) * durMs;
-      const snap = (ms: number): number => Math.round(ms / 10) * 10;
-      if (which === 'startOffset') {
-        const cap = Math.min(2000, Math.max(0, durMs - endOffset));
-        onTrim('startOffset', snap(Math.min(cap, Math.max(0, posMs))));
-      } else {
-        const cap = Math.min(2000, Math.max(0, durMs - startOffset));
-        onTrim('endOffset', snap(Math.min(cap, Math.max(0, durMs - posMs))));
-      }
+      // Anywhere in the clip, never past the other line (no 2000 ms ceiling: a long clip trims to its end).
+      if (which === 'startOffset') onTrim('startOffset', clampTrimMs(posMs, endOffset, durMs));
+      else onTrim('endOffset', clampTrimMs(durMs - posMs, startOffset, durMs));
     };
     const up = (): void => {
       window.removeEventListener('pointermove', move);

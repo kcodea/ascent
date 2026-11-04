@@ -532,3 +532,12 @@ html[data-ph-compact] .ph-cards { padding-top: calc(90 * var(--phu)); }
 /* The greyed tab's tip owns the line under the tabs while it shows. */
 .ph-modes .phk-tabs:has(.phk-tab.locked:hover) ~ .ph-desc { visibility: hidden; }
 
+/* ── CRITIC ROUND 14 ── */
+/* PHONE BANNERS: name, medal and state are three rows that flow from the foot, so they can never print over each other. */
+html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { top: auto; bottom: 0; gap: calc(2 * var(--phu)); padding: 0 calc(6 * var(--phu)) calc(4 * var(--phu)); }
+html[data-ph-compact] .ph-state { position: static; height: auto; line-height: 1.2; }
+html[data-ph-compact] .ph-name { font-size: max(calc(17 * var(--phu)), min(calc(24 * var(--phu)), calc(135cqi / var(--nl, 1)))); }
+/* The bottom row holds the phone's saved game; the side column keeps its buttons in a row. */
+html[data-ph-compact] .ph-side { gap: calc(8 * var(--phu)); align-items: center; }
+html[data-ph-compact] .ph-phonecontinue { flex: none; }
+

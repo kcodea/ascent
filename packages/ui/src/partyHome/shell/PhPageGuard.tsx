@@ -4,7 +4,10 @@
  * a fast load. If its chunk fails (a stale hash after a deploy) the page says so plainly, with a way out, instead of the app's
  * crash screen. Eager and styled inline, so it works before any lazy stylesheet has arrived.
  */
-import { Component, Suspense, useEffect, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
+import { Component, createContext, Suspense, useEffect, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
+
+/** A page's way back when something outside it knows the way (Settings, opened over another page): `PhPage` shows it. */
+export const PhBackContext = createContext<{ label: string; onClick: () => void } | null>(null);
 
 /** Pages on screen (`PhPage` counts itself): the quiet word only shows while there are none. */
 let pages = 0;

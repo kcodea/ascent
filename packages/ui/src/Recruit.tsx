@@ -255,7 +255,8 @@ import { computeFrame, useCombatReplay } from './useCombatReplay';
 import { endCombatReady } from './endCombatGate';
 import { hardStopCombat, releaseCombatHold } from './combatHardStop';
 import { retryImport } from './retryImport';
-import { CHARGE_SECONDS, chargeElapsed, shopClockStep, standardTurnSeconds, turnClock, turnClockMayTick, turnClockReset, useTurnClockRunning, useTurnSeconds, useTurnTimeUp } from './turnClock';
+import { escapeHasOwner } from './GameMenu';
+import { CHARGE_SECONDS, chargeElapsed, shopClockStep, shopDecisionOpen, standardTurnSeconds, turnClock, turnClockMayTick, turnClockReset, useTurnClockRunning, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
 import { visibleHandPreviews } from './handPreview';
 import { useChargePreview } from './chargeGlyphTune';
@@ -5581,16 +5582,16 @@ export function Recruit() {
   // writes turnClock directly, so ticking never re-renders Recruit. The reset effect above runs first
   // on a new turn (effect order), so the clock is back at full time before this re-schedules.
   useEffect(() => {
-    // `pendingTarget` (a battlecry aim) and `chooseOne` are forced mid-play decisions that lock the rest of the
-    // board, exactly like a Discover — so the timer must pause for them too. It didn't for `pendingTarget`, and
-    // because the UI also blocks the target pick once `timeUp`, the timer expiring mid-aim left the player
-    // unable to pick AND (before the reducer fix) unable to End Turn: a hard softlock (owner report 2026-07-22).
+    // `chooseOne` is a forced mid-play decision like a Discover, so the timer pauses for it. An AIM (`pendingTarget`) is
+    // not (owner 2026-11-03, R-TIMER-AIM-01): the clock runs under it, and 0:00 closes it like a cancel, card back in
+    // hand. That close is what keeps the old softlock shut (owner report 2026-07-22: an aim the UI would not let you
+    // answer at 0:00, with End Turn refused too).
     // The "Good Luck" intro holds the clock too (owner ask 2026-09-24): the turn starts at full time the moment
     // the intro fades or is skipped. The gate itself lives in `turnClockMayTick` so it is testable.
     if (run.mode === 'versus') return; // VERSUS: the shared server deadline drives the clock (useVersusRecruit)
     if (!turnClockMayTick({
       recruitPhase: run.phase === 'recruit',
-      decisionOpen: !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || run.ancients?.offer?.length),
+      decisionOpen: shopDecisionOpen(run),
       heroSelecting,
       overlayOpen,
       introPlaying,
@@ -5610,6 +5611,7 @@ export function Recruit() {
       const { next, expire } = shopClockStep(cur);
       if (expire) {
         sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
+        captureCoalesce(); // a minion held in a slot under an aim glides home as the lock closes the aim (R-TIMER-AIM-01)
         // …and the ENGINE locks with it (owner 2026-09-30, R-TIMER-LOCK-01: "make sure hero powers cant be used after
         // timer ends"). A real action, like Thymepiece's expiry, so the reducer refuses the Shop's player actions
         // (`blockedByShopClock`) and a recording replays the lock where it was lived.
@@ -5624,7 +5626,7 @@ export function Recruit() {
         else if (next > 5 && next <= 10) sfx.warmTurnTick();
       }
       // Thymepiece's window closes on the SAME tick that moves the clock, so whatever pauses this loop (a
-      // Discover, a Choose One, an aim, hero select — the effect's gate above) pauses the window with it. Once:
+      // Discover, a Choose One, hero select — the effect's gate above) pauses the window with it. Once:
       // the reducer clears the window, so the next tick reads none. Replay pacing divides this tick too, so a
       // recorded window plays back over the same clock-seconds it was lived in.
       const win = sellWindowRef.current;
@@ -5639,7 +5641,7 @@ export function Recruit() {
     // charge-build sound all read this running/held state, so they stop and start with the clock, never on their own.
     id = window.setTimeout(tick, turnClock.startSecond(tickMs(), performance.now()));
     return () => { window.clearTimeout(id); turnClock.hold(performance.now()); };
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying, goldClockWaits, run.scoutedNextOpponent?.length]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying, goldClockWaits, run.scoutedNextOpponent?.length]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.

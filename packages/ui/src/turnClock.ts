@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import type { RunState } from '@game/sim';
 
 /**
  * The recruit-turn countdown, kept in a tiny external store INSTEAD of Recruit-local state.
@@ -208,6 +209,12 @@ export function turnClockReset(
   return { set: turnSeconds, consumeResume: false };
 }
 
+/** A decision the Shop stops for: a Discover, an offer, a Choose One prompt, a scouting reveal. NOT an aim
+ *  (`pendingTarget`, R-TIMER-AIM-01): choosing a minion for a Shout never holds the clock. */
+export function shopDecisionOpen(run: Pick<RunState, 'discover' | 'questOffer' | 'powerOffer' | 'runeforgeOffer' | 'chooseOne' | 'scoutedNextOpponent' | 'ancients'>): boolean {
+  return !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.chooseOne || run.scoutedNextOpponent?.length || run.ancients?.offer?.length);
+}
+
 /**
  * Whether the recruit countdown may tick right now: the pause gate behind Recruit's countdown effect,
  * extracted so it can be tested without a DOM.
@@ -228,6 +235,10 @@ export function turnClockReset(
  * for now"): `settingsOpen` is its own input rather than part of `overlayOpen`, because `overlayOpen` also pauses
  * the combat replay and gates other board work, and the ruling covers only the Shop clock. Closing the menu
  * resumes from the displayed second (a held clock is never reset).
+ *
+ * AN AIM DOES NOT HOLD IT (owner 2026-11-03, R-TIMER-AIM-01: "it doesnt count as a discover situation where shop should
+ * be paused"): `shopDecisionOpen` leaves `pendingTarget` out. Picking a minion is part of the turn, so the clock keeps
+ * running under the aim line, and 0:00 closes the aim like a cancel (the reducer's `shopClockExpired`).
  *
  * A GOLD FUSE turn's clock has not started yet (`clockWaiting`, see `goldClock.ts`): it holds, parked on its waiting
  * value, until the player has spent the fuse's Gold in the turn (10 in every lobby and Practice, 30 in a Gauntlet).

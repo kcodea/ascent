@@ -5,7 +5,6 @@
  * the book itself shows below the pinned nav.
  */
 import { usePartyHome } from '../partyHomeFlag';
-import { PhBackdrop } from './PhBackdrop';
 import { PhTopNav } from './PhTopNav';
 import { usePhShell } from './shellStore';
 
@@ -16,7 +15,7 @@ export default function PhBookNav() {
   if (Page) {
     return (
       <div className="ph-bookpage" role="region" aria-label="Compendium">
-        <div className="ph-pagebd" aria-hidden="true"><PhBackdrop /></div>
+        <div className="ph-pagebd" aria-hidden="true"><div className="ph-veil" /></div>
         <div className="ph-booknav"><PhTopNav current="compendium" /></div>
         <Page />
       </div>

@@ -58,8 +58,10 @@ describe('Rune of Living Echoes', () => {
   // clears up again". A Sunmane's summon is queued (it attacks immediately), so the fill used to see the same free
   // slot three times, spend every charge at once, and lose the extra Sunmanes.
   const wall: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 300 }]; // 1 Attack: a Sunmane (5/3) survives its swing
+  type Ev = ReturnType<typeof sim>['events'][number];
   const sunmanes = (r: ReturnType<typeof sim>) =>
-    r.events.filter((e) => e.type === 'summon' && e.side === 'player' && e.minion.cardId === 'b2_sunmane');
+    r.events.filter((e): e is Extract<Ev, { type: 'summon' }> =>
+      e.type === 'summon' && e.side === 'player' && e.minion.cardId === 'b2_sunmane');
 
   it('3 open slots at the start: all 3 Sunmanes summon at once and fill the board', () => {
     const four: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 300 }));

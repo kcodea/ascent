@@ -7,15 +7,8 @@
 
 .ph { --fw: calc(368 * var(--phu)); position: absolute; inset: 0; z-index: 3; overflow: hidden;
   display: grid; grid-template-rows: auto auto 1fr; grid-template-columns: minmax(0, 1fr) var(--fw);
-  font-family: var(--ph-body); color: var(--ph-text); background: var(--ph-navy); }
-.ph > .mbd { z-index: 0; }
+  font-family: var(--ph-body); color: var(--ph-text); background: none; }
 .ph > .ph-top { grid-column: 1 / -1; min-width: 0; }
-.ph-citadel { position: absolute; inset: 0; z-index: 0; background-position: center; background-size: cover; pointer-events: none; }
-/* A calm navy grade: dark under the bars, open in the middle where the cards stand. Static. */
-.ph-veil { position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  background:
-    linear-gradient(180deg, rgba(6, 12, 28, 0.7) 0%, rgba(6, 12, 28, 0.2) 24%, rgba(6, 12, 28, 0.15) 60%, rgba(6, 12, 28, 0.85) 100%),
-    radial-gradient(70% 70% at 45% 50%, transparent 0%, rgba(4, 8, 20, 0.5) 100%); }
 
 /* ── MODE TABS + the one line on the mode (or why a tab is dimmed in a party) ── */
 .ph-modes { position: relative; z-index: 2; grid-column: 1; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(24 * var(--phu)) 0; min-width: 0; }

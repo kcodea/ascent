@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { AscentLogo } from './AscentLogo';
 import { LEARN_ASCENT } from '@game/sim';
 import { avatarSrc, modeArt } from './art';
@@ -44,6 +44,7 @@ import { crumb, crumbTrail } from './crashLog';
 import { MenuViewSwap } from './MenuViewSwap';
 import { PracticeOptions } from './PracticeOptions';
 import { usePartyHome } from './partyHome/partyHomeFlag';
+import { PhPageGuard } from './partyHome/shell/PhPageGuard';
 import { isPhone } from './deviceClass';
 
 /** THE PARTY HOME PROTOTYPE (DEV only, owner 2026-11-02; partyHome/PartyHome.tsx). Lazy, and `null` in a production build,
@@ -127,7 +128,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // the top nav while the switch is on. A run drops it, so the game keeps its own corners and docks.
   const gameMenuOpen = useGame((s) => s.gameMenuOpen);
   const shellOn = partyHomeFlag && (showTitle || practiceOpen) && !gameMenuOpen;
-  useEffect(() => {
+  // Before the first paint: the shell's first frame must already be the shell's.
+  useLayoutEffect(() => {
     if (!PartyHome) return undefined;
     const html = document.documentElement;
     html.toggleAttribute('data-ph-shell', shellOn);
@@ -462,7 +464,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     // flash"): the effect that clears `covered` runs AFTER the frame in which the page closed, so for one frame the page
     // was gone and the title (and the mode picker inside it) was still skipped by `content-visibility: hidden`, a blank
     // frame. Deriving it in render un-skips the title in the same commit that removes the page.
-    <div className={`titlescreen${covered && pageOpen ? ' covered' : ''}`}>
+    <div className={`titlescreen${covered && pageOpen ? ' covered' : ''}${shellOn ? ' ph-clear' : ''}`}>
       {/* Static homescreen background — the looping menu video is disabled for now (owner request 2026-07-08);
           the full-bleed sky-castle art comes from the `.titlescreen` CSS background (homescreen.webp). */}
 
@@ -473,7 +475,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           👤 Title Account dev tuner's `--ta-*` vars (see titleAccountConfig.ts). No `data-tip` on `.portring`
           itself — its ::after IS the ring; the tip rides the wrapping button. */}
       {partyView && PartyHome && (
-        <Suspense fallback={null}><PartyHome onRankedStart={partyStart} onGuestPortrait={() => setPortraitGate(true)} /></Suspense>
+        <PhPageGuard><PartyHome onRankedStart={partyStart} onGuestPortrait={() => setPortraitGate(true)} /></PhPageGuard>
       )}
       {!partyView && <>
       <div className="titleaccount ta-card">

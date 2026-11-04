@@ -99,6 +99,9 @@ function setPerfFlag(on: boolean): void {
 }
 import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { ErrorBoundary } from './ErrorBoundary';
+import { PhBackdrop } from './partyHome/shell/PhBackdrop';
+import { PhPageGuard } from './partyHome/shell/PhPageGuard';
+import { usePartyHome } from './partyHome/partyHomeFlag';
 import { retryImport } from './retryImport';
 import { ReplayOverlay } from './replay/ReplayOverlay';
 import { ReplayDragGhost } from './replay/ReplayDragGhost';
@@ -143,6 +146,9 @@ import './tunedDefaults';
 
 /** The party home prototype's Compendium nav (DEV only; lazy and null in production). */
 const PhBookNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhBookNav')) : null;
+/** The shell's one steady backdrop and its page guard: eager (they paint before any lazy chunk), and gone from production. */
+const PhSteady = import.meta.env.DEV ? PhBackdrop : null;
+const PhGuard = import.meta.env.DEV ? PhPageGuard : null;
 
 /** The FX budget scene a run state is in (see `fxBudget.ts`): the Discover overlay, else the shop, else none. */
 function fxSceneOf(r: { discover?: unknown; phase?: string } | null | undefined): FxScene | null {
@@ -473,6 +479,10 @@ export function Game() {
   // THE IN-GAME MENU (R-ESC-SIDEBAR-01) is a menu too: while it is open a phone fits the stage as on the menus, so the
   // sidebar and its pages get the phone page layout instead of being cropped by the in-run zoom. Once per open / close.
   const gameMenuOpen = useGame((s) => s.gameMenuOpen);
+  // The party home shell's menus: the same test Title.tsx uses for `html[data-ph-shell]`.
+  const partyHomeOn = usePartyHome();
+  const titleUp = useGame((s) => s.showTitle || s.practiceSetupOpen);
+  const shellMenus = partyHomeOn && titleUp && !gameMenuOpen;
   useEffect(() => { setStageMenuZoom((preRun && !heroPicking) || gameMenuOpen); }, [preRun, heroPicking, gameMenuOpen]);
   // …and the phone zoom (R-PHONE-ZOOM-01) only once a run is on screen: hero select keeps the plain fit.
   useEffect(() => { setStageInRun(!preRun && !heroPicking && !gameMenuOpen); }, [preRun, heroPicking, gameMenuOpen]);
@@ -635,9 +645,9 @@ export function Game() {
       {/* The cast preview (owner ask 2026-09-23): a rune's / minion's cast spell floating above its caster — one
           fixed, input-transparent layer serving the shop and the combat replay alike. */}
       {!preRun && <CastPreviewLayer />}
-      {showBook && <MinionBook />}
+      {showBook && (PhGuard && shellMenus ? <PhGuard onBack={() => useGame.getState().closeBook()}><MinionBook /></PhGuard> : <MinionBook />)}
       {/* THE PARTY HOME PROTOTYPE (DEV): on the menus the Compendium is a page under the shell's top nav. */}
-      {showBook && preRun && PhBookNav && <Suspense fallback={null}><PhBookNav /></Suspense>}
+      {showBook && preRun && PhBookNav && PhGuard && <PhGuard onBack={() => useGame.getState().closeBook()}><PhBookNav /></PhGuard>}
       <Inspect />
       {/* A Runeforge offer's tap-to-inspect view (touch only, R-TOUCH-TAPINSPECT-01): renders nothing until a finger opens it. */}
       <RuneInspect />
@@ -706,6 +716,7 @@ export function Game() {
       <DiscoverEntrancePreview />
       <WipePreview />
       <HeroLaunchCurtain />
+      {PhSteady && shellMenus && <PhSteady />}
       <Title onSettings={openSettings} />
       {/* THE RANKED GATE (owner 2026-10-12): "Yes, let's go." slams two doors shut over the mode picker and opens
           them on hero select. Mounted here, after the Title and the picker, because it must outlive the Title:

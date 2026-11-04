@@ -142,14 +142,14 @@ html[data-ph-shell] :is(.lbpage, .modepick).hop > .ph-top, html[data-ph-shell] .
 /* Every menu page under the shell paints the shell's one backdrop (PhPageChrome), a touch darker for reading. */
 .ph-pagebd { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
 html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { isolation: isolate; }
-.ph-pagebd .ph-veil { background: rgba(6, 12, 28, 0.55); }
+.ph-pagebd .ph-veil { position: absolute; inset: 0; background: rgba(6, 12, 28, 0.45); }
 html[data-ph-shell] .lbpage.hop > .ph-pagebd, html[data-ph-shell] .modepick.hop > .ph-pagebd { animation: none !important; }
 
 /* THE COMPENDIUM under the shell: the book's layer starts below the pinned nav. */
 .ph-booknav { position: fixed; top: 0; left: 0; right: 0; z-index: 486; }
 html[data-ph-shell] .book-ov { top: var(--ph-nav-h); background: rgba(6, 12, 28, 0.88); }
 /* A registered Compendium page (shellStore `compendiumPage`): a page host under the nav, over the menus. */
-.ph-bookpage { position: fixed; inset: 0; z-index: 480; display: flex; flex-direction: column; padding-top: var(--ph-nav-h); box-sizing: border-box; background: var(--ph-navy); }
+.ph-bookpage { position: fixed; inset: 0; z-index: 480; display: flex; flex-direction: column; padding-top: var(--ph-nav-h); box-sizing: border-box; background: none; }
 .ph-bookpage > .ph-pagebd { z-index: 0; }
 .ph-bookpage > :not(.ph-pagebd):not(.ph-booknav) { position: relative; z-index: 1; }
 
@@ -289,3 +289,7 @@ html[data-ph-shell] *::-webkit-scrollbar-corner { background: transparent; }
 html[data-ph-shell]:not([data-ph-compact]) :is(.phpn-index, .phpn-feed, .rgp-listwrap, .rgp-detailcol, .phc-side, .phc-view, .bookguides) { padding-right: calc(6 * var(--phu)); }
 /* The old corner gear never takes focus behind the rail: Settings is in the nav. */
 html[data-ph-shell] .gearbtn { display: none; }
+
+/* ── ONE BACKDROP (owner 2026-11-04) ── `Game` paints it; nothing above it may have a ground of its own. The first rules of this are
+   in styles.css (they must hold before this lazy sheet arrives). A nav still on its way holds the nav's own place. */
+.ph-navwait { position: absolute; top: 0; left: 0; right: 0; height: var(--ph-nav-h); }

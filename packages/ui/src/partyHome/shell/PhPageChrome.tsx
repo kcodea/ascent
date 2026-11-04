@@ -1,14 +1,14 @@
 /**
- * A MENU PAGE's SHELL CHROME (party home prototype, DEV only): the shell's one backdrop and the top nav, which
- * `MenuSidebar` renders instead of the left rail while the switch is on. The page's own content renders after it.
+ * A MENU PAGE's SHELL CHROME (party home prototype, DEV only): the top nav, which `MenuSidebar` renders instead of the left rail
+ * while the switch is on, and a static veil that dims the shell's one backdrop for reading. The backdrop itself is `Game`'s
+ * (PhBackdrop.tsx): a page never brings its own.
  */
-import { PhBackdrop } from './PhBackdrop';
 import { PhTopNav, type PhNavCurrent } from './PhTopNav';
 
 export default function PhPageChrome({ current }: { current: PhNavCurrent }) {
   return (
     <>
-      <div className="ph-pagebd" aria-hidden="true"><PhBackdrop /></div>
+      <div className="ph-pagebd" aria-hidden="true"><div className="ph-veil" /></div>
       <PhTopNav current={current} />
     </>
   );

@@ -79,3 +79,17 @@ describe('tab changes (owner 2026-11-04: no scrollbar wobble, a gentle entrance)
     expect(css).toMatch(/animation: phk-in [^;]* backwards;/);
   });
 });
+
+describe('one steady backdrop (owner 2026-11-04: the old background must never flash)', () => {
+  const read = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
+  it('only Game mounts the backdrop: no page, chrome or home brings its own', () => {
+    for (const f of ['./PartyHome.tsx', './shell/PhPageChrome.tsx', './shell/PhBookNav.tsx']) expect(read(f)).not.toMatch(/PhBackdrop|MenuBackdrop/);
+    expect(read('../Game.tsx')).toMatch(/PhSteady && shellMenus/);
+  });
+  it('the grounds under it are cleared in the eager stylesheet', () => {
+    const css = read('../styles.css');
+    expect(css).toMatch(/\.titlescreen\.ph-clear \{ background: none;/);
+    expect(css).toMatch(/html\[data-ph-shell\] :is\(\.lbpage, \.modepick\.sb-host\) \{ background: none; \}/);
+  });
+});
+

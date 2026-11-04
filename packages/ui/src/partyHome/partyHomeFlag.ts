@@ -64,21 +64,7 @@ export function setPartyRoom(v: boolean): void {
   sampleRoom = v; writeKey(ROOM_KEY, v);
   for (const l of listeners) l();
 }
-/** The party home's backdrop (owner 2026-11-02: "the backdrop art can maybe still be the old main menu art with the citadel,
- *  but blur it out? idk could try both"): the Mode screen's hall, or the title's citadel, pre-blurred and darkened. */
-export type PartyBackdrop = 'citadel' | 'hall';
-const BD_KEY = 'ascent.partyHome.backdrop';
-let backdrop: PartyBackdrop | null = null;
-export function partyBackdrop(): PartyBackdrop {
-  if (backdrop === null) { try { backdrop = localStorage.getItem(BD_KEY) === 'citadel' ? 'citadel' : 'hall'; } catch { backdrop = 'hall'; } }
-  return backdrop;
-}
-export function setPartyBackdrop(v: PartyBackdrop): void {
-  backdrop = v; try { localStorage.setItem(BD_KEY, v); } catch { /* a convenience only */ }
-  for (const l of listeners) l();
-}
 const subscribe = (l: () => void): (() => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
 export const usePartyHome = (): boolean => useSyncExternalStore(subscribe, partyHomeOn, partyHomeOn);
-export const usePartyBackdrop = (): PartyBackdrop => useSyncExternalStore(subscribe, partyBackdrop, partyBackdrop);
 export const usePartyDemo = (): boolean => useSyncExternalStore(subscribe, partyDemoOn, partyDemoOn);
 export const usePartyRoom = (): boolean => useSyncExternalStore(subscribe, partyRoomOn, partyRoomOn);

@@ -58,7 +58,6 @@ import { withAbandonWarning } from '../rank/ratedRun';
 import { PhTopNav } from './shell/PhTopNav';
 import { OpenRoomsPanel, RoomRulesPanel, useVersusRoomHome } from './versusRoomHome';
 import { defaultRoomName, roomModeOf, roomTitleOf } from './pages/versusPh';
-import { PhBackdrop } from './shell/PhBackdrop';
 import { PhFriends } from './shell/PhFriends';
 import { addSampleInvite, clearSampleInvites, removeSampleInvite, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
 import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhField, PhLeaderBadge, PhPlate, PhSegmented, PhTabs, phNum } from './kit';
@@ -503,7 +502,6 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
 
   return (
     <div ref={rootRef} className={`ph${phone ? ' phone' : ''}${pageOpen ? ' paged' : ''}${vh.dragging ? ' vsr-dragging' : ''}`} role="region" aria-label="Your party">
-      <PhBackdrop />
       <PhTopNav current="home" friendsDocked={!phone} ownDrawer />
 
       <div ref={modesRef} className={`ph-modes${moreTabs ? ' more' : ''}`}>

@@ -46,8 +46,11 @@ import { HALL_VISIBLE } from './hallFlag';
 import { InGameNote, LeaveButton, ResumeButton, SidebarShopClock } from './gameMenuParts';
 import './friends/friends.css';
 import { usePartyHome } from './partyHome/partyHomeFlag';
+import { PhPageGuard, PhPageWait } from './partyHome/shell/PhPageGuard';
 /** The party home prototype's top nav (DEV only; lazy and null in production, so the shipped bundle never carries it). */
 const PhPageChrome = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhPageChrome')) : null;
+const PhGuard = import.meta.env.DEV ? PhPageGuard : null;
+const PhWait = import.meta.env.DEV ? PhPageWait : () => null;
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
  *  the same event turn (a few ms); a title-plaque open or a row click carries no fresh stamp. */
@@ -74,7 +77,15 @@ export function SidebarHost({ className, children, ...rest }: HTMLAttributes<HTM
     document.documentElement.setAttribute('data-phone-sbpage', '');
     return () => { if (--sidebarPages <= 0) { sidebarPages = 0; document.documentElement.removeAttribute('data-phone-sbpage'); } };
   }, []);
-  return <div className={`${className}${hop ? ' hop' : ''}`} {...rest}>{children}</div>;
+  const shell = usePartyHome();
+  const back = (): void => useGame.getState().goTo('menu');
+  return (
+    <div className={`${className}${hop ? ' hop' : ''}`} {...rest}>
+      {PhGuard && shell
+        ? <PhGuard onBack={back} nav={PhPageChrome && <Suspense fallback={null}><PhPageChrome current={null} /></Suspense>}>{children}<PhWait /></PhGuard>
+        : children}
+    </div>
+  );
 }
 
 /** The screen the sidebar is rendered on — its plaque is the blue one. */
@@ -189,7 +200,7 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
   if (shell && !inGame && PhPageChrome) {
     return (
       <>
-        <Suspense fallback={null}><PhPageChrome current={current} /></Suspense>
+        <Suspense fallback={<div className="ph-navwait" aria-hidden="true" />}><PhPageChrome current={current} /></Suspense>
       </>
     );
   }

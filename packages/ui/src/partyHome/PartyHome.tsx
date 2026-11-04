@@ -437,7 +437,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
           <PhButton onClick={() => { sfx.pulse(); if (duosRoom) void leaveDuosParty(); else setPartyDemo(false); }}>Leave party</PhButton>
         )}
         {/* On a phone the saved game's Continue sits here (the head row stays slim). */}
-        {phone && savedRun && !inParty && <PhButton size="s" variant="primary" className="ph-phonecontinue" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>}
+        {phone && savedRun && !inParty && !versusRoom && <PhButton size="s" variant="primary" className="ph-phonecontinue" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>}
       </div>
       {vh.start?.wait ? <div className="ph-start vsr-waitplate" role="status"><span>{startLabel}</span></div> : <button type="button" className="ph-start" disabled={!startOk} onClick={() => { if (!startOk) return; sfx.pulse(); onStart(); }}>
         <span>{startLabel}</span>
@@ -522,7 +522,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
             )}
           </div>
         )}
-        {savedRun && (
+        {/* (Not inside a Versus room: Continue would leave it. The plate returns with the room gone.) */}
+        {savedRun && !versusRoom && (
           <div className="ph-held">
             <div className="ph-heldrow">
               <span className="ph-heldtxt"><b>Saved game</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>

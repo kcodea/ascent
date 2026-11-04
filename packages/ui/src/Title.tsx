@@ -472,7 +472,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           👤 Title Account dev tuner's `--ta-*` vars (see titleAccountConfig.ts). No `data-tip` on `.portring`
           itself — its ::after IS the ring; the tip rides the wrapping button. */}
       {partyView && PartyHome && (
-        <Suspense fallback={null}><PartyHome onRankedStart={partyStart} /></Suspense>
+        <Suspense fallback={null}><PartyHome onRankedStart={partyStart} onGuestPortrait={() => setPortraitGate(true)} /></Suspense>
       )}
       {!partyView && <>
       <div className="titleaccount ta-card">

@@ -75,8 +75,5 @@ html[data-touch-small] .phs-slider { width: calc(300 * var(--phu)); }
 /* Mute and Muted take the same width, so a muted channel's track never shrinks out of line with the others. */
 .phs .phk-slider .phk-tchip { min-width: calc(76 * var(--phu)); justify-content: center; }
 
-/* Every dropdown reads the same way: its value left-aligned after the thumbnail. A backdrop thumbnail keeps its own 16:9
-   shape (a square crop of a wide board blurred it). */
+/* Every dropdown reads the same way: its value left-aligned after the thumbnail. */
 .phs .phk-selectval { flex: 1; text-align: left; }
-.phs .phk-selthumb { width: calc(44 * var(--phu)); height: calc(25 * var(--phu)); border-radius: calc(6 * var(--phu)); object-fit: cover; }
-.phs .phk-select .phk-selthumb { margin-right: 0; }

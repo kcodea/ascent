@@ -142,7 +142,7 @@ function VideoTab() {
   return (
     <>
       <Section title="Board">
-        <SelectRow label="Board backdrop" note="What lies behind the board. Saved on this device." value={backdrop}
+        <SelectRow label="Board backdrop" note="What lies behind the board. Saved on this device." thumbAspect="16 / 9" value={backdrop}
           options={BACKDROP_IDS.map((id) => ({ value: id, label: BACKDROPS[id].label, thumb: backdropThumbUrl(id), preview: backdropThumbUrl(id) }))}
           onChange={(id) => { if (id !== backdrop) { setBackdropPick(id); setBackdrop(id); sfx.pulse(); } }} />
       </Section>
@@ -306,13 +306,13 @@ function AudioRow({ label, note, volume, muted, onVolume, onRelease, onToggleMut
 }
 
 /** A pick-one setting: the kit's dropdown (its list opens in a layer above the page, so a section never clips it). */
-function SelectRow<T extends string | number>({ label, note, value, options, onChange }: {
-  label: string; note?: string; value: T; options: { value: T; label: ReactNode; thumb?: string; preview?: string; dim?: boolean; reason?: string }[]; onChange: (v: T) => void;
+function SelectRow<T extends string | number>({ label, note, value, options, onChange, thumbAspect }: {
+  label: string; note?: string; value: T; options: { value: T; label: ReactNode; thumb?: string; preview?: string; dim?: boolean; reason?: string }[]; onChange: (v: T) => void; thumbAspect?: string;
 }) {
   const id = useId();
   return (
     <Row label={label} note={note} labelId={`${id}l`} noteId={`${id}n`}>
-      <PhSelect className="phs-select" label={label} value={value} options={options} onChange={onChange} />
+      <PhSelect className="phs-select" label={label} value={value} options={options} onChange={onChange} thumbAspect={thumbAspect} />
     </Row>
   );
 }

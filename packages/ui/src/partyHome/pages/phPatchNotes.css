@@ -65,8 +65,8 @@ html[data-touch-small] .phpn-list { padding-left: calc(40 * var(--phu)); padding
 .phpn-headn, .phpn-count, .phpn-idxlabel, .phpn-n { color: var(--ph-muted); }
 .phpn-monthname { font-family: var(--ph-font); font-weight: 700; font-size: var(--ph-t2); letter-spacing: 0.08em; text-transform: none; }
 .phpn-day { font-family: var(--ph-name-font); font-weight: 900; color: var(--ph-text); }
-.phpn-text { font-family: var(--ph-body); font-weight: 600; color: var(--ph-text); }
-.phpn-sub li { font-family: var(--ph-body); color: var(--ph-muted); }
+.phpn-text { font-family: var(--ph-body); font-weight: 400; color: var(--ph-text); }
+.phpn-sub li { font-family: var(--ph-body); font-weight: 400; color: var(--ph-muted); }
 .phpn-sub { box-shadow: inset calc(2 * var(--phu)) 0 0 color-mix(in srgb, var(--ph-gold) 35%, transparent); }
 .phpn-idx.on { background: linear-gradient(90deg, rgba(255, 206, 120, 0.14), transparent 80%); box-shadow: inset calc(3 * var(--phu)) 0 0 var(--ph-gold); }
 

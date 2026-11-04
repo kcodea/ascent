@@ -114,7 +114,6 @@
    a narrower rail, a smaller search, cards a little smaller so a row and a half fits the height. ── */
 html[data-touch-ui][data-touch-small] .phc .phc-book { scale: none; width: auto; height: auto; }
 html[data-touch-small] .phc .book-rail { width: calc(200 * var(--phu)); }
-html[data-touch-small] .phc .book-search { width: calc(200 * var(--phu)); }
 html[data-touch-small] .phc .book-grid { --ch: calc(360px * var(--book-zoom, 1)); }
 html[data-touch-small] .phc .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var(--phu)); }
 
@@ -168,6 +167,20 @@ html[data-touch-ui] .phc :is(.book-tier, .book-gilded, .book-runetribe, .book-zo
 html[data-touch-ui] .phc .book-tier { min-width: calc(44 * var(--phu)); }
 html[data-touch-ui] .phc :is(.book-zoom, .book-search) { height: calc(44 * var(--phu)); }
 
-/* No page scroll under the Compendium: the gilded card names' shared filter <svg> (cardNameFilter.ts) is absolutely placed
-   with no top / left, so it sat just below the stage and gave the whole document an 18px scroll. Pin it to the corner. */
-html[data-ph-shell] svg:has(> defs > filter[id^="cn-gild"]) { top: 0; left: 0; }
+/* ── COMPACT (phones): the gallery gets the height. The live count and the tier chart step aside (the tier pills filter the
+   same way; the Runes and Guides pills stay, scrolling sideways in one row), the row is one line, the gaps are tight, and
+   every control is a 64 unit (40 px) target. ── */
+html[data-ph-compact] .phc .phk-pagebody { gap: calc(8 * var(--phu)); padding-bottom: calc(8 * var(--phu) + var(--safe-b, 0px)); }
+html[data-ph-compact] .phc-sub { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+html[data-ph-compact] .phc-book { gap: calc(8 * var(--phu)); }
+html[data-ph-compact] .phc .book-tiers { flex-wrap: nowrap; min-height: 0; padding: calc(4 * var(--phu)) calc(8 * var(--phu)); overflow-x: auto; scrollbar-width: none; }
+html[data-ph-compact] .phc .book-tiers > * { flex: none; }
+html[data-ph-compact] .phc :is(.book-axislabel, .book-bar, .book-chart-cap, .book-chart-quiet) { display: none; }
+html[data-ph-compact] .phc .book-chart { height: auto; margin: 0; }
+html[data-ph-compact] .phc .book-runetribes { flex-wrap: nowrap; }
+html[data-ph-compact] .phc :is(.book-tier, .book-gilded, .book-runetribe, .book-setpick-btn) { min-height: calc(64 * var(--phu)); }
+html[data-ph-compact] .phc .book-tier { min-width: calc(64 * var(--phu)); }
+html[data-ph-compact] .phc .book-main { gap: calc(8 * var(--phu)); }
+html[data-ph-compact] .phc :is(.book-zoom, .book-search) { height: calc(64 * var(--phu)); }
+html[data-ph-compact] .phc .book-zoom-btn { width: calc(64 * var(--phu)); height: calc(64 * var(--phu)); }
+html[data-ph-compact] .phc .book-search { width: calc(240 * var(--phu)); background: color-mix(in srgb, var(--ph-navy) 55%, transparent); text-overflow: ellipsis; }

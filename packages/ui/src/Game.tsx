@@ -149,6 +149,7 @@ const PhBookNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhB
 /** The shell's one steady backdrop and its page guard: eager (they paint before any lazy chunk), and gone from production. */
 const PhSteady = import.meta.env.DEV ? PhBackdrop : null;
 const PhGuard = import.meta.env.DEV ? PhPageGuard : null;
+const PhSteadyNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhSteadyNav')) : null;
 const PhChrome = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhPageChrome')) : null;
 
 /** The FX budget scene a run state is in (see `fxBudget.ts`): the Discover overlay, else the shop, else none. */
@@ -722,6 +723,7 @@ export function Game() {
       <WipePreview />
       <HeroLaunchCurtain />
       {PhSteady && shellMenus && <PhSteady />}
+      {PhSteadyNav && PhGuard && shellMenus && <PhGuard><PhSteadyNav /></PhGuard>}
       <Title onSettings={openSettings} />
       {/* THE RANKED GATE (owner 2026-10-12): "Yes, let's go." slams two doors shut over the mode picker and opens
           them on hero select. Mounted here, after the Title and the picker, because it must outlive the Title:

@@ -390,5 +390,6 @@ html[data-ph-compact] .ph-rank .rankcrest { --ring: calc(30 * var(--phu)); }
 html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { gap: calc(3 * var(--phu)); padding-bottom: calc(6 * var(--phu)); }
 html[data-ph-compact] .ph-cancelinv { min-height: calc(64 * var(--phu)); bottom: 0; font-size: calc(18 * var(--phu)); }
 html[data-ph-compact] .ph-modes .phk-tabs { padding-right: calc(96 * var(--phu)); scroll-padding-right: calc(96 * var(--phu)); }
-html[data-ph-compact] .ph-cards { padding-top: calc(56 * var(--phu)); }
+html[data-ph-compact] .ph-cards { padding-top: calc(80 * var(--phu)); }
+html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 20 * var(--phu)); }
 html[data-ph-compact] .ph-stagehead { top: calc(10 * var(--phu)); }

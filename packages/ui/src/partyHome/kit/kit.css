@@ -392,3 +392,7 @@ html[data-ph-shell][data-ph-compact] :is(.phk-tab, .phk-segbtn, .phk-btn, .phk-c
 html[data-ph-shell][data-ph-compact] .phk-switch { min-height: calc(40 * var(--phu)); padding: calc(12 * var(--phu)) 0; background-clip: content-box; }
 /* The page reaches the screen's foot: the old sidebar pages' bottom reserve is not needed under the top nav. */
 html[data-ph-shell][data-ph-compact] :is(.lbpage, .modepick.sb-host) { padding-bottom: 0 !important; }
+/* Compendium's header tools: one row beside the tabs. Older px-sized labels lift to the phone floor. */
+html[data-ph-shell][data-ph-compact] .phk-page .phc-actions, html[data-ph-shell][data-ph-compact] .phk-page .phc-actions > * { flex-direction: row; flex-wrap: nowrap; position: static; inset: auto; width: auto; padding: 0; background: none; box-shadow: none; gap: calc(8 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page .phc-actions .book-search { width: calc(180 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page :is(.cv2-btn, .book-axislabel, .book-setpick-cap, .book-setpick-name, .book-setpick-live, .book-gilded, .book-zoom-val, .cshop-guar, .cshop-orow-name, .cshop-orow span, .rankbar-points) { font-size: calc(18 * var(--phu)) !important; }

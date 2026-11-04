@@ -58,7 +58,7 @@ const profile = (over: Partial<ProgressionProfile> = {}): ProgressionProfile =>
   ({ accountXp: 325, accountLevel: 2, revision: 9, equippedTitleId: 'alpha_tester', titles: ['alpha_tester', 'title_star_chaser'], aether: 1500, ...over });
 
 /** Mount the page (the shell on or off) and let the lazy skins load. */
-async function open(opts: { ph: boolean; aether?: boolean; guest?: boolean; crates?: CrateRow[] }): Promise<void> {
+async function open(opts: { ph: boolean; aether?: boolean; guest?: boolean; crates?: CrateRow[]; landing?: boolean }): Promise<void> {
   localStorage.setItem('ascent.collection.seen.u-1', JSON.stringify(['alpha_tester', 'title_star_chaser']));
   localStorage.setItem('ascent.collection.baseline.u-1', '1');
   localStorage.setItem('ascent.aetherIntro.seen.u-1', '1');
@@ -67,6 +67,8 @@ async function open(opts: { ph: boolean; aether?: boolean; guest?: boolean; crat
   useProgression.setState({ capability: 'on', cratesCapability: 'on', aetherCapability: opts.aether ? 'on' : 'off', crateList: opts.crates ?? crateList, mirror: { userId: 'u-1', ...profile() } });
   ui = mount(<CollectionPage reducedMotion />);
   await settle();
+  // Most tests read the Titles shelf; `landing` keeps the page where it opened.
+  if (opts.ph && !opts.landing && $('.phc')) act(() => { cat('Titles').querySelector('button')!.click(); });
 }
 const settle = async (): Promise<void> => {
   // The skins are lazy chunks: load them, then let React commit.
@@ -87,6 +89,12 @@ describe('the Collection in the party home shell', () => {
     expect($('.colls-tabs')).not.toBeNull();
     expect($('.phc')).toBeNull();
     expect($('.phk-page')).toBeNull();
+  });
+
+  it('ON: the page opens on the first category, Heroes', async () => {
+    await open({ ph: true, landing: true });
+    expect($$('.phc-cat')[0]).toBe(cat('Heroes'));
+    expect(cat('Heroes').className).toMatch(/\bsel\b/);
   });
 
   it('ON: the kit page under the top nav, every category with its count, the album and the selected item', async () => {

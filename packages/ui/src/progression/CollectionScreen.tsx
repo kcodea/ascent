@@ -160,7 +160,12 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const categories = useMemo(() => collectionCategories(), [catalogEpoch]);
 
   // Lands on Titles (the page's first and largest shelf) while it is live; else the first live category.
-  const [category, setCategory] = useState<CosmeticCategory>(() => (categoryLive('title') ? 'title' : collectionCategories()[0]!));
+  // Under the party home shell it opens on the list's first live category instead (Heroes).
+  const [category, setCategory] = useState<CosmeticCategory>(() => {
+    const list = collectionCategories();
+    if (ph) return list.find(categoryLive) ?? list[0]!;
+    return categoryLive('title') ? 'title' : list[0]!;
+  });
   const [show, setShow] = useState<ShowFilter>('all');
   const [rarity, setRarity] = useState<RarityFilter>('all');
   // NEW (owner 2026-10-11: "whenever i load the game, all of my stuff that i already own shows up as 'new'", then

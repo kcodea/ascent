@@ -64,6 +64,19 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Aiming a card can now be cancelled. Click off target, right-click or press Esc and the card goes back to your hand, with nothing played.',
+        details: [
+          'Works for Shouts, Choose One, and spells with a second target.',
+          'On a phone, tap empty space.',
+          'Hero powers and Equipment also back out on right-click and Esc.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Shop timer no longer stops while you choose a target. Discovers still stop it. If time runs out while you aim, the card goes back to your hand.',
+      },
+      {
+        category: 'Systems',
         text: 'Game lobbies: a player still standing when the game ended now reads Still in once, not twice.',
       },
       {

@@ -56,6 +56,19 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-04',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Fixed: card frames, medallions and other art no longer pop in when you come back to the game after a while.',
+        details: [
+          'Your equipped card plate, portrait frame skins, emotes and pings now load ahead of time too.',
+          'Card glows and medallion tints stay ready instead of reloading each time a card appears.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-03',
     changes: [
       {

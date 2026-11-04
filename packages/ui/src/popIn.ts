@@ -226,6 +226,8 @@ function watchImg(el: HTMLImageElement): void {
 }
 
 const CSS_URL = /url\(["']?([^"')]+)["']?\)/g;
+/** URLs seen as a mask: asked for in CORS mode, as the browser does, or the probe would load a copy of its own. */
+const MASKED = new Set<string>();
 function cssImages(el: Element): string[] {
   const out: string[] = [];
   for (const pseudo of [null, '::before', '::after']) {
@@ -233,7 +235,11 @@ function cssImages(el: Element): string[] {
     if (pseudo && (cs.content === 'none' || cs.content === 'normal')) continue;
     for (const v of [cs.backgroundImage, cs.maskImage, cs.borderImageSource]) {
       if (!v || v === 'none' || !v.includes('url(')) continue;
-      for (const m of v.matchAll(CSS_URL)) if (!/^(data|blob):|^#/i.test(m[1]!)) out.push(m[1]!);
+      for (const m of v.matchAll(CSS_URL)) {
+        if (/^(data|blob):|^#/i.test(m[1]!)) continue;
+        out.push(m[1]!);
+        if (v === cs.maskImage) MASKED.add(m[1]!);
+      }
     }
   }
   return out;
@@ -249,6 +255,7 @@ function checkCss(el: Element, raw: string): void {
   const state = stateOf(raw);
   const where = classOf(el);
   const img = new Image();
+  if (MASKED.has(raw)) img.crossOrigin = 'anonymous';
   img.src = raw;
   const wasComplete = img.complete;
   void askDecode(img).then((over) => {

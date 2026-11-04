@@ -12510,6 +12510,62 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/artDecodeOnce.test.tsx', 'packages/tools/src/perfGauntletStats.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
   {
+    id: 'R-PERF-ART-STAYS-FRESH-01',
+    title: 'Public art stays fresh for a whole session, so a new image never goes back to the disk or the server',
+    statement:
+      'Every public image has a Cache-Control rule, fresh for a day, with no stale-while-revalidate. A copy past its '
+      + 'freshness is not reused by a new image element: the browser goes back for it on every mount and the element '
+      + 'paints blank until then. So a returning player re-checks an expired file once, behind the boot gate, and then '
+      + 'plays the session on fresh copies. Hashed build output stays immutable.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-04', quote: 'i am seeing a ton of art pop in. how do we resolve that once and for all where we simply never have to worry about it again?' },
+      { kind: 'code', ref: 'apps/web/public/_headers; scripts/perf-popin.mjs (--headers expire:<s>)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-04 (perf/art-pop-in). Before, public art was fresh for an hour with stale-while-revalidate, '
+      + 'and six paths (backdrops, menu, currency, vista, transition, the phone copies) had no rule at all.',
+    example: 'A player comes back the next day. The boot gate re-checks the frames once. Every card that mounts afterwards has its frame at once.',
+    enforcement: { kind: 'scenario', refs: ['apps/web/publicArt.test.ts', 'packages/ui/src/artPlanCoverage.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
+    id: 'R-PERF-ART-PLAN-COMPLETE-01',
+    title: 'Every image in the game is in the preload plan, or named as exempt with a reason',
+    statement:
+      'Every image file the game ships reaches the art pipe: bundled art through the plan\x27s globs, public art through the '
+      + 'build\x27s list, card plates through their looks. A file in neither fails a test until it is planned or exempted with '
+      + 'a reason. The plate a run wears is raised ahead of other art. Phones keep their short gate.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-04', quote: 'i am seeing a ton of art pop in. how do we resolve that once and for all where we simply never have to worry about it again?' },
+      { kind: 'code', ref: 'packages/ui/src/preloadPlan.ts; packages/ui/src/popIn.ts' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-04 (perf/art-pop-in). Before, portrait frame skins, emotes, pings, the Versus arena and all '
+      + 'card plates sat outside the plan, so a player who owned cosmetics paid a cold load on each one.',
+    example: 'A player wears a card plate. Its files are held before the first hand card mounts, instead of loading as the card appears.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/artPlanCoverage.test.ts', 'packages/ui/src/preloadPlan.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
+    id: 'R-PERF-ART-MASKS-HELD-01',
+    title: 'A picture used as a CSS mask is held in the mode a mask loads it',
+    statement:
+      'The browser loads mask images in CORS mode, which cannot share the plain copy the art pipe holds. On desktop the pipe '
+      + 'also holds a CORS copy of every public mask, so a card glow or medallion tint that mounts does not go back to the '
+      + 'disk cache. A mask that is not loaded hides whatever it masks. Phones skip the extra copy.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-04', quote: 'i am seeing a ton of art pop in. how do we resolve that once and for all where we simply never have to worry about it again?' },
+      { kind: 'code', ref: 'packages/ui/src/artPreload.ts (requestMaskArt); packages/ui/src/preloadPlan.ts (PUBLIC_MASK_ART)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-04 (perf/art-pop-in). Before, each mount of a masked element re-read its mask from disk.',
+    example: 'A shop roll mounts seven cards with a glow rim. The rim mask is already held, so no card waits on the disk for it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/artPlanCoverage.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
     id: 'R-PERF-SHARED-TAIL-REVERB-01',
     title: 'A fight never builds reverb nodes as it starts, and the reverb pool never grows over a game',
     statement:

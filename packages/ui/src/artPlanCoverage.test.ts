@@ -13,6 +13,7 @@ const calls = vi.hoisted(() => [] as string[]);
 vi.mock('./artPreload', () => ({
   requestArtList: (urls: Iterable<string | undefined>) => { for (const u of urls) if (u) calls.push(u); },
   requestMaskArt: () => {},
+  requestHeldArtList: (urls: Iterable<string>) => { for (const u of urls) calls.push(u); },
 }));
 
 import { CARD_PLATE_LOOKS, plateLookUrls } from './cardPlate/cardPlateLook';

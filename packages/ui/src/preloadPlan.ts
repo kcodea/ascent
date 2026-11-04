@@ -3,7 +3,7 @@ import { CARD_INDEX, poolFor, RUNE_INDEX, SETS, type SetId } from '@game/content
 import { poolOf, type RunState } from '@game/sim';
 import { ART_URL_GROUPS, artFor, heroThumb } from './art';
 import { ART_ALIAS } from './artAlias';
-import { requestArtList, requestMaskArt } from './artPreload';
+import { requestArtList, requestHeldArtList, requestMaskArt } from './artPreload';
 import { MECH_MEDALLION_MASK_ARTS } from './mechMedallion';
 import { CARD_PLATE_LOOKS, cardPlateLookOf, plateLookUrls } from './cardPlate/cardPlateLook';
 import { LITE_ART, phonePublicUrl } from './phoneArt';
@@ -214,7 +214,7 @@ export function preloadBootArt(extraSets: readonly SetId[] = [], lite: boolean =
   // Card plates (a cosmetic, ~250 files, ~1 GB decoded). The source builds their names from a constant, so the public
   // list never saw them and the plate a player WEARS was a cold load on every hand card (R-PERF-ART-PLAN-COMPLETE-01).
   // Behind the gate, not in it: most of them are other people's. The worn one is raised by `preloadRunArt`.
-  plan('idle', Object.values(CARD_PLATE_LOOKS).flatMap(plateLookUrls));
+  requestHeldArtList(Object.values(CARD_PLATE_LOOKS).flatMap(plateLookUrls), 'idle');
   // The CORS copies of every mask (requestMaskArt): keys of their own, not in the gate's count, first thing behind it.
   for (const p of [...PUBLIC_MASK_ART, ...MECH_MEDALLION_MASK_ARTS.map((a) => `medallions/${a}.webp`)]) requestMaskArt(`${BASE}${p}`, 'set');
   bootGate = [...new Set(gate)];

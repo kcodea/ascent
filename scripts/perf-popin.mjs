@@ -232,7 +232,7 @@ async function main() {
       const ctx = await chromium.launchPersistentContext(profile, {
         executablePath: headlessShell(), headless: true, viewport: { width: Number(arg('w', '1920')), height: Number(arg('h', '1080')) },
         // Blocked by name, not with page.route: Playwright routing turns the HTTP cache off, which is what is being measured.
-        args: ['--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1', '--mute-audio', '--autoplay-policy=no-user-gesture-required', ...(flag('gpu') ? ['--enable-gpu-rasterization', '--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [])],
+        args: ['--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1 , EXCLUDE localhost', '--mute-audio', '--autoplay-policy=no-user-gesture-required', ...(flag('gpu') ? ['--enable-gpu-rasterization', '--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [])],
       });
       const page = ctx.pages()[0] ?? await ctx.newPage();
       page.on('pageerror', (e) => log(`   (page error: ${String(e).slice(0, 160)})`));
@@ -254,7 +254,7 @@ async function main() {
     }
   } finally {
     server.close();
-    fs.rmSync(profile, { recursive: true, force: true });
+    try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 400 }); } catch { /* a browser still letting go: the OS temp folder cleans it */ }
   }
   if (OUT) fs.writeFileSync(OUT, JSON.stringify(results, null, 1));
   log('\nvisit  total  by cause');

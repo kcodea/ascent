@@ -102,6 +102,24 @@ export function requestArt(url: string | undefined, lane: Lane): void {
 }
 
 /**
+ * Load and hold WITHOUT decoding: a new <img> finds the bytes at once and decodes them when it paints. For art most
+ * sessions never draw (card plates): asking the compositor to decode ~250 big pictures behind the gate cost ~5 s of
+ * decode work during the menus, for pixels it had dropped again before anyone needed them.
+ */
+function holdImage(url: string): Promise<void> {
+  if (typeof Image === 'undefined') return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { KEEP.set(url, img, 0); artLoaded(); resolve(); };
+    img.onerror = () => reject(new Error('load failed'));
+    img.src = url;
+  });
+}
+export function requestHeldArtList(urls: Iterable<string>, lane: Lane): void {
+  for (const u of urls) queue.request(u, lane, () => holdImage(u), { retryDelays: ART_RETRY_DELAYS });
+}
+
+/**
  * A picture a stylesheet uses as a MASK (R-PERF-ART-MASKS-HELD-01). The browser fetches mask images in CORS mode, and a
  * CORS request cannot share the plain request the pipe made for the same URL, so everything the pipe held did nothing
  * for a mask: each `.cglow-rim` or medallion tint that mounted went back to the disk cache, and a mask that is not

@@ -74,7 +74,7 @@ export function CompendiumRules() {
           // On a touch device the search waits for a tap: focusing it on open raised the on-screen keyboard over the
           // whole Rules page before the player asked anything (phone menus pass, 2026-10-24).
           autoFocus={!isTouchDevice()}
-          placeholder="Ask anything… (sell, who attacks first, Ward)"
+          placeholder={document.documentElement.hasAttribute('data-ph-compact') ? 'Ask anything…' : 'Ask anything… (sell, who attacks first, Ward)'}
           value={query}
           onChange={(ev) => setQuery(ev.target.value)}
           aria-label="Search the rules"

@@ -1,0 +1,85 @@
+/* ── SETTINGS under the app shell (party home prototype, DEV only; PhSettings.tsx). Shell tokens only (shell.css).
+   Valorant's settings grammar: tabs in the header, a centred column of sections, one row per setting (name + note left,
+   control right). Static paint; the switch knob moves on `transform`. No `cursor` here (the gauntlet rule paints buttons).
+   The plate is painted on a `::before` (the section itself never clips). The dropdowns are the kit's PhSelect (their list opens in a layer above the page). ── */
+
+.phs-col { width: 100%; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+
+/* A section: the cut navy plate (behind), a title row, its rows. */
+.phs-sec { position: relative; isolation: isolate; flex: none; display: flex; flex-direction: column; padding: calc(8 * var(--phu)) 0 calc(8 * var(--phu)); }
+.phs-sec::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ph-plate); clip-path: var(--ph-clip-s);
+  box-shadow: var(--ph-gild-s); }
+.phs-sechead { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); padding: calc(12 * var(--phu)) calc(24 * var(--phu)) calc(8 * var(--phu)); }
+.phs-sechead h2 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
+.phs-sechead p { margin: 0; font-size: var(--ph-t1); color: var(--ph-muted); }
+.phs-rows { display: flex; flex-direction: column; }
+
+/* A row: a hairline between rows, the name in the title font, the note muted under it; the control right-aligned. */
+.phs-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: calc(24 * var(--phu));
+  min-height: calc(64 * var(--phu)); padding: calc(12 * var(--phu)) calc(24 * var(--phu)); box-sizing: border-box; }
+.phs-row + .phs-row { box-shadow: inset 0 calc(1 * var(--phu)) 0 color-mix(in srgb, var(--ph-gold) 14%, transparent); }
+.phs-row:hover { background: color-mix(in srgb, var(--ph-plate-hover, #1b2c55) 45%, transparent); }
+.phs-what { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; }
+.phs-name { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phs-note { max-width: calc(560 * var(--phu)); font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-muted); }
+.phs-ctl { display: flex; align-items: center; justify-content: flex-end; gap: calc(16 * var(--phu)); min-width: 0; }
+
+
+/* ── Phones (landscape) ── */
+html[data-touch-small] .phs-row { gap: calc(16 * var(--phu)); }
+html[data-touch-small] .phs-note { max-width: none; }
+
+/* ── THE FANTASY PASS (owner 2026-11-02: "don't make it look techy/futuristic. we are a fantasy game"): not an OS panel.
+   Section names in the title serif under the cards' painted name divider, setting names in the serif, warm notes, gilded
+   section edges with a warm lamplight, and soft gold rules between rows (fading at both ends, never a hard grid). ── */
+.phs-sec::before { background: radial-gradient(120% 70% at 0% 0%, rgba(255, 206, 120, 0.08), transparent 60%), var(--ph-plate);
+  box-shadow: var(--ph-gild); }
+.phs-sechead { position: relative; padding-bottom: calc(20 * var(--phu)); }
+.phs-sechead::after { content: ''; position: absolute; left: calc(16 * var(--phu)); bottom: calc(4 * var(--phu)); width: calc(220 * var(--phu)); height: calc(12 * var(--phu));
+  background: url('/frames/name-divider.webp') 0 50% / 100% 100% no-repeat; opacity: 0.85; pointer-events: none; }
+.phs-sechead h2 { font-family: var(--ph-font); font-weight: 700; font-size: calc(20 * var(--phu)); letter-spacing: 0.06em; text-transform: none; color: #fbe6a6; }
+.phs-sechead p { color: var(--ph-muted); }
+.phs-name { font-family: var(--ph-font); font-weight: 700; font-size: var(--ph-t3); letter-spacing: 0.02em; color: var(--ph-text); }
+.phs-note { font-family: var(--ph-body); color: var(--ph-muted); }
+.phs-row + .phs-row { box-shadow: none; }
+.phs-row + .phs-row::before { content: ''; position: absolute; left: calc(24 * var(--phu)); right: calc(24 * var(--phu)); top: 0; height: calc(1 * var(--phu));
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ph-gold) 35%, transparent) 20%, color-mix(in srgb, var(--ph-gold) 35%, transparent) 80%, transparent); }
+.phs-row:hover { background: linear-gradient(90deg, rgba(255, 206, 120, 0.06), transparent 70%); }
+
+
+/* The kit's switch (PhSwitch) fills its row: its name and note read like every other row's. */
+.phs-togglerow { display: block; }
+.phs-togglerow .phk-switchrow { width: 100%; }
+.phs-togglerow .phk-switchlbl { font-family: var(--ph-font); font-weight: 700; font-size: var(--ph-t3); letter-spacing: 0.02em; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.phs-togglerow .phk-seghint { max-width: calc(560 * var(--phu)); font-family: var(--ph-body); font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-muted); }
+html[data-touch-small] .phs-togglerow .phk-seghint { max-width: none; }
+
+
+/* ── MODERN FANTASY (the shell's retune, 2026-11-02): rounded, glossy, warm. Overrides the cut shapes above. ── */
+.phs-sec::before { clip-path: none; border-radius: var(--ph-r-l); }
+.phs-sechead::after { width: calc(216 * var(--phu)); height: calc(24 * var(--phu)); bottom: calc(-4 * var(--phu)); background: url('../ornaments/divider.webp') 0 50% / contain no-repeat; }
+.phs-sechead h2, .phs-togglerow .phk-switchlbl, .phs-name { font-weight: 900; letter-spacing: 0.02em; }
+/* THE SWITCH, the owner's rule (2026-10-08: red when off, green when on), as warm glossy jewels: a ruby off, an emerald on,
+   each with a gem's top highlight and deep foot, ringed in gold; the knob a polished pearl. */
+.phs .phk-switch { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) rgba(255, 214, 120, 0.85), inset 0 calc(4 * var(--phu)) calc(4 * var(--phu)) rgba(255, 255, 255, 0.35), inset 0 calc(-4 * var(--phu)) calc(6 * var(--phu)) rgba(0, 0, 0, 0.35), 0 calc(3 * var(--phu)) calc(8 * var(--phu)) rgba(0, 0, 0, 0.35); }
+.phs .phk-switch.is-off { background: radial-gradient(120% 90% at 30% 20%, #ff8a8f 0%, #d8344c 38%, #8f1530 75%, #5e0b20 100%); }
+.phs .phk-switch.is-on { background: radial-gradient(120% 90% at 30% 20%, #8af0a8 0%, #2fb866 38%, #12784a 75%, #0a4f31 100%); }
+.phs .phk-switchknob { background: radial-gradient(circle at 35% 30%, #ffffff 0%, #fff4dc 45%, #e2c98f 100%); box-shadow: 0 calc(2 * var(--phu)) calc(4 * var(--phu)) rgba(0, 0, 0, 0.45), inset 0 0 0 calc(1 * var(--phu)) rgba(160, 110, 30, 0.5); }
+.phs .phk-switchword { color: #fff8e8; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55); font-weight: 900; }
+
+/* The kit's slider (PhSlider) sits at the row's right: a fixed track width, its value and (audio) its Mute after it. */
+.phs-slider { width: calc(400 * var(--phu)); }
+/* The dropdown: a fixed width so the rows line up. */
+.phs .phs-select { min-width: calc(240 * var(--phu)); }
+/* Mute and Muted take the same width, so a muted channel's track never shrinks out of line with the others. */
+.phs .phk-slider .phk-tchip { min-width: calc(76 * var(--phu)); justify-content: center; }
+
+/* Every dropdown reads the same way: its value left-aligned after the thumbnail. */
+.phs .phk-selectval { flex: 1; text-align: left; }
+
+/* The slider's track gives way first, so the value and the Mute pill always stay inside the row. Phones get a wider slot:
+   the kit's phone type makes the value and the pill larger. */
+.phs-slider { min-width: 0; max-width: 100%; }
+.phs .phk-sliderrow { min-width: 0; }
+.phs .phk-slider input[type="range"] { min-width: 0; }
+html[data-ph-compact] .phs-slider { width: calc(560 * var(--phu)); }

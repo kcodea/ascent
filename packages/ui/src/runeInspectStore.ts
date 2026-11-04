@@ -15,6 +15,8 @@ export interface RuneInspectView {
   affordable: boolean;
   /** Run the buy the tap used to (the RuneCard's own `onBuy` with its element, for the lock-in ceremony). */
   pick: () => void;
+  /** Opened from the shell's Compendium: there is no forge offer for it to close with. */
+  fromBook?: boolean;
 }
 
 export const useRuneInspect = create<{ view: RuneInspectView | null }>(() => ({ view: null }));

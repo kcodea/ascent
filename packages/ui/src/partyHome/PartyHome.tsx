@@ -525,11 +525,12 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
         {/* The head slot: always the same height (the team plate, a saved game, a held room), so the banners never move. */}
         <div className="ph-stagehead">
         {phone && vh.stands}
-        {!teamLabel && mode.party === 'rivals' && (
+        {/* The rule shows here only when it is not the usual one (Modifier: None says that once, in the panel). */}
+        {!teamLabel && mode.party === 'rivals' && (versusRoom || rule) && (
           <div className="ph-team info">
             {/* (Unranked is said once, in the line above; the rule once, here.) */}
             {versusRoom && <span className="ph-teamlbl">{roomTitleOf(versusRoom.name, roomModeOf(versusRoom.options))}</span>}
-            <span className="ph-teamname">{rule ? versusRuleName(rule) : 'Usual rules'}</span>
+            {rule && <span className="ph-teamname">{versusRuleName(rule)}</span>}
           </div>
         )}
         {teamLabel && (

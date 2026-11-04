@@ -126,3 +126,6 @@ html[data-ph-compact] .ph-stagehead .vsr-tiles { display: none; }
 /* A phone: the buttons beside START stay on ONE line (extras scroll sideways), so they can never grow the row and squeeze the banners. */
 html[data-ph-compact] .ph-actions > .ph-side:not(.ph-side-r) { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 html[data-ph-compact] .ph-actions > .ph-side:not(.ph-side-r) > * { flex: none; }
+
+/* The room's line over the banners: a quiet label, not a heading. */
+.ph-team.info .ph-teamlbl, .ph-team.info .ph-teamname { font-family: var(--ph-body); font-weight: 600; font-size: var(--ph-t2); letter-spacing: 0.01em; color: var(--ph-muted); }

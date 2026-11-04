@@ -4546,8 +4546,8 @@ body.duel-attacker-opp .combatopp { z-index: 100; }
   /* Mirrors the End Turn diamond across the board's centre line (owner direction 2026-07-16): base
      0.19/0.45 of the stage + the 💠 tuner's px offsets × --scale. */
   left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpb-x, 15px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpb-y, 305px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--hpb-s, 0.87));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpb-y, 288px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--hpb-s, 0.9));
   align-self: auto; pointer-events: auto; z-index: 41;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(7 * var(--u));
 }
@@ -4591,7 +4591,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    the second power and the Equipment slot keep their own seats. */
 .statusbar .heropanel:not(.heropanel2):not(.equipslot) > .hplabel {
   /* Tuned in the 💠 tuner's Name section (--hpb-name-*); these fallbacks mirror its DEFAULTS. */
-  position: absolute; left: 50%; bottom: calc(100% + var(--hpb-name-rest, -10) * var(--u)); margin: 0;
+  position: absolute; left: 50%; bottom: calc(100% + var(--hpb-name-rest, 5.5) * var(--u)); margin: 0;
   transform: translateX(-50%) translateX(calc(var(--hpb-name-x, 0) * var(--u))) scale(var(--hpb-name-s, 1)); transform-origin: 50% 100%;
 }
 .statusbar .heropanel:not(.heropanel2):not(.equipslot):has(> .hpwrap > .hpb-pill) > .hplabel { bottom: calc(100% + var(--hpb-name-above, 18) * var(--u)); }
@@ -4635,7 +4635,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    "right of the hero, under the other power" holds at every resolution and follows the 💠 tuner's nudges. */
 .statusbar .heropanel.heropanel2 {
   left: calc(var(--bar-x) + 0.19 * var(--gw) + (var(--hpb-x, 15px) * var(--scale)) + (var(--hp2-x, 81) * 1px * var(--scale)));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 305px) * var(--scale)) + (var(--hp2-y, 201) * 1px * var(--scale)));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 288px) * var(--scale)) + (var(--hp2-y, 218) * 1px * var(--scale)));
   transform: translate(-50%, -50%) scale(var(--hp2-scale, 0.9));
   z-index: 42; }
 .heropanel2 .hpb-glyph { display: grid; place-items: center; width: 100%; height: 100%; font-size: 26px; color: #d8ccb6; }
@@ -4651,7 +4651,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   /* Fallbacks MIRROR `equipSlotConfig.ts`'s baked defaults, so a paint before the config module has applied
      its vars lands in the right seat rather than the pre-tuning one. Update both together. */
   left: calc(var(--bar-x) + 0.19 * var(--gw) + (var(--hpb-x, 15px) * var(--scale)) + (var(--eqs-x, -248) * 1px * var(--scale)));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 305px) * var(--scale)) + (var(--eqs-y, -260) * 1px * var(--scale)));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--hpb-y, 288px) * var(--scale)) + (var(--eqs-y, -243) * 1px * var(--scale)));
   transform: translate(-50%, -50%) scale(var(--eqs-scale, 0.99));
   z-index: 42; }
 /* The glyph/label treatment the second-power block uses — the Equipment button is the same kind of control,

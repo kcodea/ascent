@@ -72,8 +72,8 @@ export interface HeroPowerBtnConfig {
 // fallbacks.
 const DEFAULTS: HeroPowerBtnConfig = {
   x: 15,
-  y: 305,
-  scale: 0.87,
+  y: 288, // 305 -> 288, scale 0.87 -> 0.9 (owner 2026-11-04, with the name moved above the art)
+  scale: 0.9,
   artX: 0,
   artY: 0,
   artScale: 1.03,
@@ -89,7 +89,7 @@ const DEFAULTS: HeroPowerBtnConfig = {
   glowW: 1.03,
   glowH: 1.03,
   glowColor: '#ffc852',
-  nameRest: -10,
+  nameRest: 5.5, // owner-tuned 2026-11-04
   nameAbove: 18,
   nameX: 0,
   nameScale: 1,

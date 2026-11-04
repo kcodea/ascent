@@ -6,6 +6,7 @@
  * banner, facts, board, runes and Replay / Career; the live list's rank, game, watchers and Watch), wire the same
  * handlers, and gate on the switch so production never draws them.
  */
+import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +14,7 @@ import { HEROES } from '@game/sim';
 import { mount, type Mounted } from '../../renderedText.mount';
 import { RecentGamesPh, placeWords, type KeyedRow, type RecentGamesPhProps } from './RecentGamesPh';
 import { LiveGamesPh, liveCountText, liveRowNames, type LiveGamesPhProps } from './LiveGamesPh';
+import { HOLD_MS } from './gameView';
 import type { RecentGameRow } from '../../remoteBoards';
 import type { LiveGameRow } from '../../live/liveRemote';
 import { LIVE_PAGE } from '../../live/liveRemote';
@@ -21,6 +23,7 @@ const lobbyRead = vi.hoisted(() => ({ hang: false }));
 vi.mock('../../remoteBoards', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../remoteBoards')>()),
   fetchRecentMatch: () => (lobbyRead.hang ? new Promise(() => {}) : Promise.resolve(null)),
+  peekRecentMatch: () => (lobbyRead.hang ? undefined : null),
 }));
 
 const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
@@ -51,7 +54,7 @@ describe('Recent Games on the shell', () => {
     expect(q('.phk-pagetitle h1')?.textContent).toBe('Recent Games');
     // The hero filter sits on the header line (one row); whose games these are rides the Games figure.
     expect(q('.phk-pageactions .rgp-filters')).not.toBeNull();
-    expect(q('.rgp-strip .phk-statsub')?.textContent).toBe('every player');
+    expect(q('.rgp-strip .phk-statlbl')?.textContent).toBe('Games, all players');
     expect(qa('.rgp-strip .phk-statval').map((n) => n.textContent)).toEqual(['3', '3.0', '67%', '1']);
     expect(q('.rgp-mostname')?.textContent).toBe(HEROES[0]!.name);
     expect(qa('.rgp-filters .phk-segbtn').map((b) => b.textContent)).toEqual(['All heroes', `${HEROES[0]!.name}2`, `${HEROES[1]!.name}1`]);
@@ -114,14 +117,37 @@ describe('Recent Games on the shell', () => {
     expect(qa('.rgp-gem').length).toBe(30);
     expect(q('.rgp-spark polyline')).toBeNull();
   });
-  it('holds the lobby\'s place with ghost tiles while it is read, and the board line already says what it will keep', () => {
+  it('the first game waits for its lobby on a plain plate, then opens with ghost tiles if the read is slow', () => {
+    vi.useFakeTimers();
     lobbyRead.hang = true;
     ui = mount(<RecentGamesPh {...props()} />);
+    expect(q('.rgp-hold')).not.toBeNull();
+    expect(q('.rgp-banner')).toBeNull();
+    act(() => { vi.advanceTimersByTime(HOLD_MS); });
     lobbyRead.hang = false;
+    vi.useRealTimers();
     expect(qa('.rgp-lobby .rgp-ghost').length).toBe(8);
     expect(q('.rgp-lobby')?.getAttribute('aria-busy')).toBe('true');
     expect(q('.lp-showing-v')?.textContent).toBe("Player0's board");
     expect(ui.container.textContent).not.toMatch(/Final board/);
+  });
+  it('a pick moves the list at once and keeps the old game open until the new one is ready', () => {
+    ui = mount(<RecentGamesPh {...props({ picked: 'k0' })} />);
+    lobbyRead.hang = true;
+    ui.render(<RecentGamesPh {...props({ picked: 'k1' })} />);
+    lobbyRead.hang = false;
+    expect(q('.rgp-item.sel .phk-rowtitle')?.textContent).toBe('Player1');
+    expect(q('.rgp-name')?.textContent).toBe('Player0');
+  });
+  it('a tab switch keeps the page up on the last feed until the next one lands', () => {
+    ui = mount(<RecentGamesPh {...props()} />);
+    ui.render(<RecentGamesPh {...props({ tab: 'practice', state: 'loading', rows: [] })} />);
+    expect(q('.phk-page')?.classList.contains('stale')).toBe(true);
+    expect(qa('.rgp-item').length).toBe(3);
+    expect(q('.rgp-strip')).not.toBeNull();
+    expect(q('.rgp-filters')).not.toBeNull();
+    expect(q('.phk-tab.on')?.textContent).toBe('Practice');
+    expect(q('.phk-empty')).toBeNull();
   });
   it('names a placement in words', () => {
     // The production list's placement style (owner ruling 2026-11-03): band-coloured ordinal text, a crown on a win, no crest.
@@ -193,7 +219,8 @@ describe('the gate and the UI rules', () => {
     const tsx = [here('./RecentGamesPh.tsx'), here('./LiveGamesPh.tsx')].join('\n');
     const css = here('./gamesPages.css');
     expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
-    expect(css).not.toMatch(/cursor:/);
+    // Only the gauntlet form; never a plain keyword.
+    for (const m of css.matchAll(/cursor:[^;]*/g)) expect(m[0]).toMatch(/gauntlet/);
     expect(css).not.toMatch(/infinite/);
     for (const m of tsx.matchAll(/'([^'\n]*)'|>([^<>{}\n]+)</g)) {
       const s = m[1] ?? m[2] ?? '';

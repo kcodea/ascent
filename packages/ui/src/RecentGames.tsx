@@ -326,6 +326,14 @@ export function RecentGames(): JSX.Element | null {
       .finally(() => setWatching(null));
   }, []);
 
+  // The party home page's rows: one stable array per feed, so its memoised list and strip are not rebuilt on every render.
+  const shellRows = useMemo(() => (!shell || duos ? [] : (shown ?? []).map((r, i) => {
+    const mine = !!myId && r.userId === myId;
+    return { r, key: keyOf(r, i), mine, skins: mine ? (r.board?.cosmetics ?? null) : opponentSkins(showOppCosmetics, r.board?.cosmetics) };
+  })), [shell, duos, shown, keyOf, myId, showOppCosmetics]);
+  // Both feeds are warm while the page is open, so a tab switch swaps at once.
+  useEffect(() => { if (show && shell && remoteEnabled()) void loadSocial(RECENT_PRACTICE_KEY, loadRecentPractice); }, [show, shell]);
+
   if (!show) return null;
   const pickTab = (t: RecentGamesTab): void => { if (t === tab) return; setTab(t); setHeroFilter(null); setPicked(null); };
   // The skin + portrait frame RECORDED with the game's final board (owner 2026-10-16): your own game always, everyone
@@ -344,7 +352,7 @@ export function RecentGames(): JSX.Element | null {
         <Suspense fallback={null}>
           <RecentGamesPh
             tab={tab} onTab={pickTab} state={state} feedRows={FEED_ROWS} duosLimit={DUOS_ROWS}
-            rows={duos ? [] : (shown ?? []).map((r, i) => ({ r, key: keyOf(r, i), ...skinsOf(r) }))}
+            rows={shellRows}
             duosRows={duosRows ?? []} myId={myId}
             heroCounts={heroCounts} heroFilter={heroFilter} onHero={pickHero}
             picked={picked} onPick={setPicked}

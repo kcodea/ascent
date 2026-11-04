@@ -251,6 +251,11 @@ describe('the shell skins keep the UI rules', () => {
   it('the chest opening ph-error phase class meets no shell rule of that name; it once pulled a failed opening off screen (R-PH-COLLECTION-01)', () => {
     expect(here('../../partyHome/partyHome.css')).not.toMatch(/\.ph-error\b/);
   });
+  it('a tap opens a chest or odds tip on a phone: its .tt-on twin stands apart from :hover, which the hover guard moves (R-PH-COLLECTION-01)', () => {
+    const css = here('./crateShopPh.css');
+    expect(css).toMatch(/\.phs :is\(\.cshop-chest, \.cshop-seg\)\.tt-on \.cshop-pop[^{]*\{ display: block; \}|\.phs :is\(\.cshop-chest, \.cshop-seg\)\.tt-on \.cshop-pop, /);
+    expect(css).not.toMatch(/:is\([^)]*:hover[^)]*\.tt-on/);
+  });
   it('idle Crates goes still: the picked chest\'s halo, the On toggle and the rays run a bounded time, then hold', () => {
     const css = here('./crateShopPh.css');
     expect(css).toMatch(/\.cshop-chest\.on::after, [^{]*\.cshop-toggle::before \{ animation-iteration-count: 1\.5; animation-fill-mode: forwards; \}/);

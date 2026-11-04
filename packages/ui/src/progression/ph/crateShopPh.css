@@ -115,9 +115,21 @@ html[data-ph-shell]:not([data-ph-compact]) .phs .phk-pagebody { gap: calc(12 * v
 .phs .cshop-chest:last-child:hover .cshop-pop, .phs .cshop-chest:last-child.tt-on .cshop-pop, .phs .cshop-chest:last-child:focus-visible .cshop-pop { transform: translate(0, 0); }
 /* A resting tip takes no room: its box is what pushed the page 17 px wider than it is. */
 .phs .cshop-pop { display: none; }
-.phs :is(.cshop-chest, .cshop-seg):is(:hover, .tt-on, :focus-visible) .cshop-pop { display: block; }
+/* `.tt-on` is its own selector, not inside `:is()` with `:hover`: the hover guard moves any selector holding `:hover` under
+   (hover: hover), and a tap on a phone would never open the tip. */
+.phs :is(.cshop-chest, .cshop-seg):hover .cshop-pop, .phs :is(.cshop-chest, .cshop-seg).tt-on .cshop-pop, .phs :is(.cshop-chest, .cshop-seg):focus-visible .cshop-pop { display: block; }
 
 /* IDLE GOES STILL: the picked chest's halo, the On toggle's halo and the rays looped forever (360 screen updates in 6 s on an
    idle page). They still play on every pick, then hold their pose, so an idle page paints nothing. Compositor-only either way. */
 .cshop.phs:not(.cshop-still) .cshop-chest.on::after, .cshop.phs:not(.cshop-still) .cshop-cat.on .cshop-toggle::before { animation-iteration-count: 1.5; animation-fill-mode: forwards; }
 .cshop.phs:not(.cshop-still) .cshop-chest.on .cshop-chest-rays { animation-iteration-count: 0.5; animation-fill-mode: forwards; }
+
+/* COMPACT (a phone or a short window): the tips and the picked chest's check were sized in plain px, so a phone's page scale
+   shrank them under the type floor. Everything here is in the shell's units: at least `--ph-t1`, the same on any phone. */
+html[data-ph-shell][data-ph-compact] .phs .cshop-chest-check { top: calc(12 * var(--phu)); right: calc(12 * var(--phu)); width: calc(40 * var(--phu)); height: calc(40 * var(--phu)); font-size: var(--ph-t1); }
+html[data-ph-shell][data-ph-compact] .phs .cshop-pop { width: calc(400 * var(--phu)); max-width: none; padding: calc(16 * var(--phu)); font-size: var(--ph-t1); }
+html[data-ph-shell][data-ph-compact] .phs .cshop-pop :is(.atip-title, .cshop-oddsline) { font-size: var(--ph-t1); }
+/* The page scrolls inside a short window, which cut a tip hanging off a card or the odds bar. Here a tip is one card, centred
+   under the nav, the same wherever it was tapped. Fixed, so its host must not carry a transform while it is open. */
+html[data-ph-shell][data-ph-compact] .phs :is(.cshop-chest, .cshop-seg):nth-child(n) .cshop-pop { position: fixed; top: calc(var(--ph-nav-h) + 16 * var(--phu)); right: auto; bottom: auto; left: 50%; transform: translate(-50%, 0); }
+html[data-ph-shell][data-ph-compact] .cshop.phs:not(.cshop-still) :is(.cshop-chest, .cshop-seg).tt-on { transform: none; }

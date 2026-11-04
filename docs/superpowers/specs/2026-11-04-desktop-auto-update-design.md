@@ -41,7 +41,10 @@ them what changed. Netlify goes away entirely. Steam is the long-term home, but 
 
 ## How it works (player side)
 
-1. **First install:** a friend downloads `ASCENT-Setup-<version>.exe` from the GitHub Release page link we send,
+1. **First install:** a friend opens the one permanent link
+   `https://github.com/kcodea/ascent/releases/latest/download/ASCENT-Setup.exe`, which always downloads the newest
+   installer. Every release must upload the installer under exactly that **unversioned** name (the version goes in
+   the installer's own metadata and the release title), or the link breaks. *(My call.)* They download it,
    clicks through SmartScreen once, and installs. Settings live in `%APPDATA%\ASCENT` (unchanged from today's exe),
    so anyone moving from the zip build keeps their local settings.
 2. **While playing:** shortly after launch the shell checks GitHub Releases for a newer version and, if there is

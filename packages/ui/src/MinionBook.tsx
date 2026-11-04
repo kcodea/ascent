@@ -695,6 +695,17 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
   const toggleCat = (c: Category): void => {
     // A rail tab while Guides is up leaves Guides for that tab (it selects it fresh, not toggled off).
     if (guidesOn) { setGuidesOn(false); setCats(new Set([c])); return; }
+    // THE SHELL's RAIL (critic round 13): what is lit is what shows. A press on another group switches to it: the tribes
+    // multi-select among themselves, every Library entry stands alone, and a second press on the lit one clears it.
+    if (frame) {
+      setCats((prev) => {
+        if (NON_TRIBE_CATS.has(c)) return prev.has(c) ? new Set() : new Set([c]);
+        const next = new Set([...prev].filter((x) => !NON_TRIBE_CATS.has(x)));
+        if (next.has(c)) next.delete(c); else next.add(c);
+        return next;
+      });
+      return;
+    }
     setCats((prev) => { const next = new Set(prev); if (next.has(c)) next.delete(c); else next.add(c); return next; });
   };
 

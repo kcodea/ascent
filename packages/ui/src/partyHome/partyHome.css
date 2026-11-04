@@ -395,8 +395,6 @@ html[data-ph-compact] .ph-rank { font-weight: 700; letter-spacing: -0.02em; }
 html[data-ph-compact] .ph-rank, html[data-ph-compact] .ph-rank:has(.ph-muted) { max-width: 100%; gap: calc(4 * var(--phu)); padding-left: calc(2 * var(--phu)); padding-right: calc(8 * var(--phu)); }
 html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { padding-left: calc(6 * var(--phu)); padding-right: calc(6 * var(--phu)); }
 html[data-ph-compact] .ph-state { margin-left: calc(-6 * var(--phu)); margin-right: calc(-6 * var(--phu)); }
-/* The Versus stands strip sits just over START: the banners stop short of it. */
-html[data-ph-compact] .ph-stage:has(.vsr-stands) .ph-cards { padding-top: calc(64 * var(--phu)); padding-bottom: calc(28 * var(--phu)); }
 html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { gap: calc(3 * var(--phu)); padding-bottom: calc(6 * var(--phu)); }
 html[data-ph-compact] .ph-cancelinv { min-height: calc(64 * var(--phu)); bottom: 18%; font-size: calc(18 * var(--phu)); }
 html[data-ph-compact] .ph-modes .phk-tabs { padding-right: calc(96 * var(--phu)); scroll-padding-right: calc(96 * var(--phu)); }

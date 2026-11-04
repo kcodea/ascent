@@ -6,6 +6,7 @@ import { RANKINGS_KEY, loadRankings } from './Rankings';
 import { RECENT_RANKED_KEY, loadRecentRanked } from './RecentGames';
 import { fetchRecentMatch, remoteEnabled, replayFactsState } from './remoteBoards';
 import { partyHomeOn } from './partyHome/partyHomeFlag';
+import { warmAchievements } from './progression/AchievementsTab';
 import { loadSocial } from './socialCache';
 import { useGame } from './store';
 
@@ -34,6 +35,7 @@ export async function prefetchSocial(): Promise<void> {
   if (userId) {
     const key = `${userId}|${s.careerVersion}`;
     if (!careerFresh(key)) tasks.push(loadCareer(key));
+    if (partyHomeOn()) warmAchievements(userId, true); // the shell's Career arrives whole, its Achievements tab included
   }
   tasks.push(loadSocial(RANKINGS_KEY, loadRankings));
   if (HALL_VISIBLE) tasks.push(loadSocial(HALL_KEY, loadHall)); // a hidden Hall is never fetched (hallFlag.ts)

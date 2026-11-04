@@ -16,7 +16,7 @@
  * Nothing is lost from the old page: Performance Trends moved from the right column into its own tab (judgement call,
  * flagged in the PR). Static paint; no looping animation; no layout reads.
  */
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { getHero } from '@game/sim';
 import { RankBar } from '../../../rank/RankBar';
 import { scalarCaption } from '../../../rank/rankFormat';
@@ -43,6 +43,10 @@ export interface PhCareerProps {
   name: string;
   /** A cold read of the games: the final layout with its contents held by ghosts. */
   loading: boolean;
+  /** Everything this view shows is in hand: the page arrives whole, in one fade. */
+  ready: boolean;
+  /** A way back to the page it was opened from. */
+  back: { label: string; onClick: () => void } | null;
   /** The equipped title, already rendered (rarity chip or the master plate). */
   title: ReactNode;
   addFriend: ReactNode;
@@ -93,6 +97,8 @@ function DuosCell({ userId }: { userId: string | null }) {
   );
 }
 
+/** The longest a page waits for its data before showing what it has. */
+const ARRIVE_CAP_MS = 400;
 const HERO_GHOSTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
 function StateView({ s }: { s: PhState }) {
@@ -149,8 +155,18 @@ export function PhCareer(p: PhCareerProps) {
   // An empty or loading view is a plate sized to its message, not a screen-tall panel (a phone would push the words below the fold).
   const stateShown = (p.tab === 'history' && !!p.history.state) || (p.tab === 'practice' && !!p.practice.state) || (p.tab === 'heroes' && !!p.heroes.state);
   // Fades in only after a wait: seen data paints as it is.
-  const waited = useRef(p.loading);
-  if (p.loading) waited.current = true;
+  // THE PAGE ARRIVES WHOLE: nothing shows until the open view's data is in hand (capped), then one soft fade. A slower read
+  // than the cap falls back to the ghosts.
+  const [arrived, setArrived] = useState(p.ready);
+  const held = useRef(!p.ready);
+  useEffect(() => {
+    if (arrived) return undefined;
+    if (p.ready) { setArrived(true); return undefined; }
+    const t = window.setTimeout(() => setArrived(true), ARRIVE_CAP_MS);
+    return () => window.clearTimeout(t);
+  }, [p.ready, arrived]);
+  const waited = useRef(false);
+  if (p.loading && arrived) waited.current = true;
   const fade = waited.current && !p.loading ? ' fadein' : '';
   const ghostLabel = `Loading ${p.own ? 'your' : `${p.name}'s`} games`;
   let view: ReactNode;
@@ -208,10 +224,11 @@ export function PhCareer(p: PhCareerProps) {
 
   return (
     <SidebarHost className="lbpage cv2-page phc-page">
-      <MenuSidebar current="career" />
+      <MenuSidebar current={p.own ? 'career' : null} />
       <PhPage
         wide
-        className="phc-pg rgp"
+        className={`phc-pg rgp${!arrived ? ' hold' : held.current ? ' arrive' : ''}`}
+        back={p.back ?? undefined}
         eyebrow={p.own ? 'Your Career' : 'Career'}
         title={p.name}
         tabs={p.pageState ? undefined : <PhTabs tabs={tabs} value={p.tab} onChange={p.onTab} label="Career view" />}

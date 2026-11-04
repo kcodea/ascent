@@ -73,6 +73,9 @@ async function readAchievements(userId: string, own: boolean): Promise<Loaded> {
 /** Read them ahead of the tab (the Career page does, on open). */
 export function warmAchievements(userId: string, own: boolean): void { void loadSocial(achKey(userId, own), () => readAchievements(userId, own)); }
 
+/** Are they in hand already (the page holds its arrival for them)? */
+export const achievementsSeen = (userId: string, own: boolean): boolean => !!peekSocial<Loaded>(achKey(userId, own));
+
 const GHOST_CATS = ACHIEVEMENT_CATEGORIES.map((c) => c);
 const GHOST_TILES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 /** A first read on the shell: the tab's final layout with nothing in it, so nothing jumps when it lands. */

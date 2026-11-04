@@ -467,6 +467,29 @@ describe('states', () => {
     expect(ui.container.querySelector('.cv2-cols')).not.toBeNull();
   });
 
+  it('on the party home shell a viewed player opens on the tab the visit fits, not your remembered one; Esc goes back', async () => {
+    const { setPartyHome } = await import('./partyHome/partyHomeFlag');
+    const { handleEscape } = await import('./GameMenu');
+    await import('./partyHome/pages/career/PhCareer');
+    try {
+      ui.unmount();
+      localStorage.setItem('ascent.career.tab', 'heroes');
+      useGame.setState({ careerCache: null, careerOf: { userId: 'them-2', author: 'Orangez', rating: 1632, gamesPlayed: 145, from: 'recent' } });
+      act(() => { setPartyHome(true); });
+      ui = mount(<Career />);
+      await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(ui.container.querySelector('.phk-tab.on')?.textContent).toBe('Match History');
+      expect(ui.container.querySelector('.phk-back')?.textContent).toContain('Back to game');
+      document.documentElement.setAttribute('data-ph-shell', '');
+      act(() => { handleEscape(); });
+      expect(useGame.getState().showCareer).toBe(false);
+    } finally {
+      document.documentElement.removeAttribute('data-ph-shell');
+      act(() => { setPartyHome(false); });
+      (await import('./socialCache')).clearSocialCache();
+    }
+  });
+
   it('on the party home shell a known player whose history reads empty says so with Retry, never "no runs yet"', async () => {
     const { setPartyHome } = await import('./partyHome/partyHomeFlag');
     await import('./partyHome/pages/career/PhCareer');

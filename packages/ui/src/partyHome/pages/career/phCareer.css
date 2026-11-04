@@ -176,3 +176,12 @@ html[data-ph-shell] .phc-page .phc-pg .phk-pagetitle { flex: 0 2 auto; }
 html[data-ph-shell] .phc-page .phk-pagehead { min-width: 0; }
 /* A touch screen has no hover: the guest pill's hidden tip must not widen the page. */
 html[data-ph-shell][data-touch-small] .phc-page .phk-pageactions .gtip::before, html[data-ph-shell][data-touch-small] .phc-page .phk-pageactions .gtip::after { display: none; }
+
+/* The page arrives whole: held out of sight, then one soft fade (a one-shot, transform + opacity). */
+html[data-ph-shell] .phc-page .phc-pg.hold { opacity: 0; }
+html[data-ph-shell] .lbpage.phc-page > .phc-pg.arrive { animation: lp-swap 0.22s cubic-bezier(0, 0, 0.2, 1) both; } /* above the shell's rule for a nav hop */
+@media (prefers-reduced-motion: reduce) { html[data-ph-shell] .lbpage.phc-page > .phc-pg.arrive { animation: none; } }
+/* The strip's numbers share one height, medallion or not, so their labels sit on one baseline. */
+html[data-ph-shell] .phc-page .phc-strip .rgp-stats .phk-statval { display: flex; align-items: center; justify-content: center; height: calc(24 * var(--phu)); line-height: 1; }
+html[data-ph-shell][data-touch-small] .phc-page .phc-strip .rgp-stats .phk-stat { align-items: center; }
+

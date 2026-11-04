@@ -33,7 +33,7 @@ const VIEW: PhCareerProps['history']['view'] = {
 
 function careerProps(over: Partial<PhCareerProps> = {}): PhCareerProps {
   return {
-    own: false, name: 'Orangez', loading: false, title: null, addFriend: null, pageState: null, profileArt: undefined, favoriteHero: 'Robin',
+    own: false, name: 'Orangez', loading: false, ready: true, back: null, title: null, addFriend: null, pageState: null, profileArt: undefined, favoriteHero: 'Robin',
     level: { level: 157, into: 365, next: 500, fraction: 0.73 }, onCreateAccount: null,
     stats: { games: 141, firsts: 66, top4Pct: 74, losses: 37, avgPlacement: 3, tribe: 'Demon' },
     rank: { divisionIndex: 15, points: 94 }, mmr: 1594, rankPending: false, userId: null,
@@ -122,6 +122,24 @@ describe('Career match history', () => {
     inHand = true;
     await act(async () => { finish(); await Promise.resolve(); await Promise.resolve(); });
     expect(m.container.querySelector('.rgp-name')?.textContent).toBe('Second game');
+    m.unmount();
+  });
+});
+
+describe('Career arrival and way back', () => {
+  it('holds the whole page until the view is ready, then one fade', () => {
+    const m = mount(<PhCareer {...careerProps({ ready: false })} />);
+    expect(m.container.querySelector('.phc-pg.hold')).not.toBeNull();
+    m.render(<PhCareer {...careerProps({ ready: true })} />);
+    expect(m.container.querySelector('.phc-pg.hold')).toBeNull();
+    expect(m.container.querySelector('.phc-pg.arrive')).not.toBeNull();
+    m.unmount();
+  });
+  it('another player reached from a game has a Back to game', () => {
+    const onClick = vi.fn();
+    const m = mount(<PhCareer {...careerProps({ back: { label: 'Back to game', onClick } })} />);
+    act(() => { m.container.querySelector<HTMLButtonElement>('.phk-back')!.click(); });
+    expect(onClick).toHaveBeenCalled();
     m.unmount();
   });
 });

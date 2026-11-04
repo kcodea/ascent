@@ -39,7 +39,7 @@ import { RankCard } from './rank/RankCard';
 import { cosmeticOf, isMasterTitle, levelProgress, titleName } from '@game/progression';
 import { TitleBadge } from './titles/TitleBadge';
 import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
-import { AchievementsTab, warmAchievements } from './progression/AchievementsTab';
+import { AchievementsTab, achievementsSeen, warmAchievements } from './progression/AchievementsTab';
 import { achievementsVisible, useProgression } from './progression/progressionStore';
 import { rankLabel, rankScalar } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
@@ -401,6 +401,7 @@ export function Career() {
   const myId = useGame((s) => s.account.userId);
   const careerVersion = useGame((s) => s.careerVersion);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
+  const closeCareer = useGame((s) => s.closeCareer);
   const cache = useGame((s) => s.careerCache);
   const accountAnonymous = useGame((s) => s.account.anonymous);
   const showOppSkins = useGame((s) => s.showOpponentSkins); // the shell layout's portraits (the same rule as useCareerSkins)
@@ -425,7 +426,13 @@ export function Career() {
   // Achievements tab reads as Match History until then.
   const achievementsOn = useProgression(achievementsVisible);
   const shell = usePartyHome() && !!PhCareer;
-  const tab: CenterTab = (tabPicked === 'achievements' && !achievementsOn) || (tabPicked === 'trends' && !shell) ? 'history' : tabPicked;
+  // On the shell someone else's Career opens on the tab that fits how it was reached, never your last one; a pick there
+  // lasts for this visit and is not remembered.
+  const [viewTab, setViewTab] = useState<{ userId: string; tab: CenterTab } | null>(null);
+  const shellViewing = shell && !!careerOf;
+  const shownTab: CenterTab = shellViewing ? (viewTab?.userId === careerOf!.userId ? viewTab.tab : careerOf!.tab ?? 'history') : tabPicked;
+  const tab: CenterTab = (shownTab === 'achievements' && !achievementsOn) || (shownTab === 'trends' && !shell) ? 'history' : shownTab;
+  const progressionOn = useProgression((s) => s.capability === 'on');
   // HEROES -> MATCH HISTORY (owner 2026-10-23: "show the games of that hero if i clicked on the hero so i could go
   // rewatch them"): the hero Match History is filtered to (null = every run), the Heroes grid's sort, and the detailed
   // rows read for a filtered hero's light runs (one read per hero pick, per career owner).
@@ -628,9 +635,9 @@ export function Career() {
     sfx.pulse();
     setHeroFilter(id);
     setPickedRun(null);
-    setTab('history');
-    saveTab('history');
-  }, []);
+    if (shellViewing) setViewTab({ userId: careerOf!.userId, tab: 'history' });
+    else { setTab('history'); saveTab('history'); }
+  }, [shellViewing, careerOf]);
 
   if (!show) return null;
 
@@ -675,7 +682,7 @@ export function Career() {
   const heroName = heroId ? getHero(heroId).name : '—';
   const filterName = heroFilter ? getHero(heroFilter).name : '';
   // Leaving Match History drops the hero filter: it only ever comes from a hero card's click.
-  const pickTab = (t: CenterTab): void => { if (t === tab) return; if (t !== 'history') setHeroFilter(null); setTab(t); saveTab(t); };
+  const pickTab = (t: CenterTab): void => { if (t === tab) return; if (t !== 'history') setHeroFilter(null); if (shellViewing) setViewTab({ userId: careerOf!.userId, tab: t }); else { setTab(t); saveTab(t); } };
   const clearHeroFilter = (): void => { sfx.pulse(); setHeroFilter(null); setPickedRun(null); };
 
   // THE SHELL's MATCH HISTORY (owner 2026-11-03: "make them match and use the recent games look"): the runs as the props of
@@ -875,6 +882,9 @@ export function Career() {
       <CareerSkinContext.Provider value={careerSkins}>
         <Suspense fallback={null}>
           <PhCareer
+            key={userId ?? ''}
+            ready={!!pageState || (!loading && (tab !== 'practice' || practiceRows !== undefined) && (tab !== 'achievements' || !userId || achievementsSeen(userId, own)) && (!progressionOn || !!accountProgression))}
+            back={viewing?.from ? { label: viewing.from === 'recent' ? 'Back to game' : 'Back to Leaderboard', onClick: () => { sfx.pulse(); closeCareer(); } } : null}
             own={own}
             name={shownName}
             loading={loading}

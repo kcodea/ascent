@@ -316,3 +316,11 @@ html[data-ph-compact] .ph-lv { padding-left: calc(6 * var(--phu)); padding-right
 /* The round icons take a soft gold focus, never a square. */
 html[data-ph-shell] .ph-top .ph-iconbtn:focus-visible { outline: none; filter: drop-shadow(0 0 calc(6 * var(--phu)) rgba(255, 205, 100, 0.9)); }
 
+/* A page opened in a game: no nav above it. */
+html[data-ph-ingame] { --ph-nav-h: 0px; }
+
+/* DEV: the Scene Builder button beside the gear (never in production: the whole shell is DEV only). */
+.ph-scenebtn { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: calc(20 * var(--phu)); line-height: 1; }
+.ph-devlbl { font-size: calc(11 * var(--phu)); font-weight: 800; }
+html[data-ph-compact] .ph-devlbl { display: none; }
+

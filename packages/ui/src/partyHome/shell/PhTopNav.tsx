@@ -19,7 +19,9 @@ import { AetherIcon } from '../../progression/AetherIcon';
 import { aetherVisible, cratesVisible, mirrorFor, useProgression } from '../../progression/progressionStore';
 import { useHasNewRewards } from '../../progression/NewRewardsPopup';
 import { sfx } from '../../sfx';
-import { useGame, type MenuDest } from '../../store';
+import { PAGES_CLOSED, useGame, type MenuDest } from '../../store';
+import { phRememberPage } from './phHistory';
+import { openSceneBuilderPanel } from '../../sceneBuilderPanel';
 import { getTitleText } from '../../titleTextConfig';
 import { warmPhPages } from './phWarm';
 import { Icon } from '../../Icon';
@@ -138,6 +140,13 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
             </span>
           )}
           {extra}
+          {import.meta.env.DEV && (
+            <button type="button" className="ph-iconbtn ph-scenebtn" aria-label="Scene Builder" onClick={() => {
+              // The DEV menu's own route; the page you are on comes back when the game ends.
+              sfx.pulse(); phRememberPage(); setFriendsOpen(false); if (showBook) closeBook(); leaveCrates();
+              useGame.setState(PAGES_CLOSED); openSceneBuilderPanel(); useGame.getState().startSceneBuilder();
+            }}><span aria-hidden="true">🏗️</span><small className="ph-devlbl">Scene</small></button>
+          )}
           <button type="button" className={`ph-iconbtn${current === 'settings' ? ' on' : ''}`} aria-label={txt.settings} aria-current={current === 'settings' ? 'page' : undefined}
             onClick={() => hop('settings')}>
             <span className="ph-gear" aria-hidden="true"><Icon name="gear" /></span>

@@ -119,7 +119,7 @@ import { cancelAnnouncer, setAnnouncerAudioContextProvider, setAnnouncerPackProv
 import { equippedAnnouncerPack } from './progression/announcerPack';
 import { setMusicAudioContextProvider, syncMusic } from './music';
 import { syncPhoneSfxPrewarm } from './audio/phonePrewarm';
-import { useGame, isPreRun, inGameScreen } from './store';
+import { anyPageOpen, PAGES_CLOSED, useGame, isPreRun, inGameScreen } from './store';
 import { RankedGate } from './rankedGate/RankedGate';
 import { installStage, onStageChange, setStageInRun, setStageMenuZoom, stageFit, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
@@ -151,6 +151,9 @@ const PhSteady = import.meta.env.DEV ? PhBackdrop : null;
 const PhGuard = import.meta.env.DEV ? PhPageGuard : null;
 /** Settings opens over a page: its Back returns to that page, as it was. */
 const SETTINGS_BACK = { label: 'Back', onClick: (): void => useGame.getState().closeSettings() };
+/** A page opened in a game: Back returns to the in-game menu, the game exactly as it was. */
+const closeInGamePage = (): void => useGame.setState(PAGES_CLOSED);
+const IN_GAME_BACK = { label: 'Back', onClick: closeInGamePage };
 const PhSteadyNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhSteadyNav')) : null;
 const PhChrome = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhPageChrome')) : null;
 
@@ -487,15 +490,20 @@ export function Game() {
   const partyHomeOn = usePartyHome();
   const titleUp = useGame((s) => s.showTitle || s.practiceSetupOpen);
   const shellMenus = partyHomeOn && titleUp && !gameMenuOpen;
+  // A page opened from the in-game menu stands on the same backdrop, over the board.
+  const inGamePage = useGame((s) => partyHomeOn && s.gameMenuOpen && anyPageOpen(s));
   // The Compendium is a page too: while it is up, nothing under it shows through the transparent pages.
   const bookUp = useGame((s) => s.showBook);
   useLayoutEffect(() => {
     document.documentElement.toggleAttribute('data-ph-book', shellMenus && bookUp);
   }, [shellMenus, bookUp]);
   // A page under the shell that fails to load says so in place, with the nav and a way out, instead of the crash screen.
-  const page = (el: JSX.Element): JSX.Element => (PhGuard && PhChrome && shellMenus
-    ? <PhGuard onBack={() => useGame.getState().goTo('menu')} nav={<Suspense fallback={null}><PhChrome current={null} /></Suspense>}>{el}</PhGuard>
-    : el);
+  const page = (el: JSX.Element): JSX.Element => {
+    if (PhGuard && inGamePage) return <PhGuard onBack={closeInGamePage}><PhBackContext.Provider value={IN_GAME_BACK}>{el}</PhBackContext.Provider></PhGuard>;
+    return PhGuard && PhChrome && shellMenus
+      ? <PhGuard onBack={() => useGame.getState().goTo('menu')} nav={<Suspense fallback={null}><PhChrome current={null} /></Suspense>}>{el}</PhGuard>
+      : el;
+  };
   useEffect(() => { setStageMenuZoom((preRun && !heroPicking) || gameMenuOpen); }, [preRun, heroPicking, gameMenuOpen]);
   // …and the phone zoom (R-PHONE-ZOOM-01) only once a run is on screen: hero select keeps the plain fit.
   useEffect(() => { setStageInRun(!preRun && !heroPicking && !gameMenuOpen); }, [preRun, heroPicking, gameMenuOpen]);
@@ -729,7 +737,7 @@ export function Game() {
       <DiscoverEntrancePreview />
       <WipePreview />
       <HeroLaunchCurtain />
-      {PhSteady && (shellMenus || (partyHomeOn && heroPicking)) && <PhSteady steady />}
+      {PhSteady && (shellMenus || inGamePage || (partyHomeOn && heroPicking)) && <PhSteady steady over={inGamePage} />}
       {PhSteadyNav && PhGuard && shellMenus && <PhGuard><PhSteadyNav /></PhGuard>}
       <Title onSettings={openSettings} />
       {/* THE RANKED GATE (owner 2026-10-12): "Yes, let's go." slams two doors shut over the mode picker and opens

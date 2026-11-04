@@ -5,7 +5,7 @@ import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicke
 import { RUNE_INDEX } from '@game/content';
 import { DEFAULT_HERO_ID, getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
-import type { BoardSnapshot } from '@game/sim';
+import type { BoardSnapshot, MatchDetails } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
 import { bandOf, GameCard, placeText } from './GameCard';
 import { TrendsBody } from './careerTrends';
@@ -440,6 +440,7 @@ export function Career() {
   const [heroFilter, setHeroFilter] = useState<string | null>(null);
   const [heroDetail, setHeroDetail] = useState<Record<string, RunHistoryRowLike[]>>({}); // per career owner
   const [detailMiss, setDetailMiss] = useState<ReadonlySet<number>>(() => new Set()); // runs whose full read came back with nothing
+  const namedMatches = useRef(new WeakMap<MatchDetails, { name: string; match: MatchDetails }>()); // stable, for the memoised lobby
   const runReads = useRef(new Map<string, Promise<unknown>>()); // a game's full read, once, whoever asks first
   const heroAsked = useRef(new Set<string>());
   const [watching, setWatching] = useState<number | null>(null); // run id whose replay is loading
@@ -697,6 +698,15 @@ export function Career() {
       own: !viewing, minions: board?.minions, skins, runes: runes.filter((id) => RUNE_INDEX[id]), runeLive: runeLiveStateOfSnapshot(board),
     };
   };
+  // One name per page: a recorded lobby keeps the name its player had that day, so the page's owner wears the current name.
+  const ownerNamed = (m: MatchDetails | null | undefined): MatchDetails | null | undefined => {
+    if (!m || !m.seats.some((x) => x.self && x.name !== shownName)) return m;
+    const hit = namedMatches.current.get(m);
+    if (hit?.name === shownName) return hit.match;
+    const match = { ...m, seats: m.seats.map((x) => (x.self ? { ...x, name: shownName } : x)) };
+    namedMatches.current.set(m, { name: shownName, match });
+    return match;
+  };
   const historyView = (): GameSplitView => {
     const keyed = matchRows.map((run, i) => ({ run, i, key: `r${run.id ?? i}` }));
     const focusAt = heroFilter ? -1 : focusIndex;
@@ -718,7 +728,7 @@ export function Career() {
       ];
       const watchable = run.replayRowId !== null;
       return {
-        ...bits, place: run.placement, rank: run.rank ?? null, facts, match: run.match, matchPending: !inHand(run),
+        ...bits, place: run.placement, rank: run.rank ?? null, facts, match: ownerNamed(run.match), matchPending: !inHand(run),
         replay: {
           watchable, busy: watching !== null && watching === run.id, unplayable: noReplay !== null && noReplay === run.id, onWatch: () => onWatchRun(run),
           label: watchable ? 'Watch this run’s replay' : 'No replay stored for this run',
@@ -755,7 +765,7 @@ export function Career() {
         ...(cfg ? [{ label: 'Opponents', value: practiceOpponentsPill(cfg) }, { label: 'Health', value: practiceHealthPill(cfg) }] : []),
       ];
       return {
-        ...gameBits(g.heroId ?? '', g.record, g.board, g.runes), place: g.placement, rank: null, facts, match: g.match,
+        ...gameBits(g.heroId ?? '', g.record, g.board, g.runes), place: g.placement, rank: null, facts, match: ownerNamed(g.match),
         replay: g.hasReplay ? {
           watchable: true, busy: watchingPractice !== null && watchingPractice === g.rowId, unplayable: noPracticeReplay !== null && noPracticeReplay === g.rowId,
           onWatch: () => watchPractice(g), label: 'Watch this practice game’s replay',

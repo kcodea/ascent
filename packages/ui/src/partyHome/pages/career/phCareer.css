@@ -227,3 +227,6 @@ html[data-ph-shell][data-touch-small] .phc-page .phk-pagehead:has(.phk-back) { f
 html[data-ph-shell][data-touch-small] .phc-page .phk-pagehead:has(.phk-back) .phk-pagetabs { order: 3; flex: 1 0 100%; justify-content: flex-start; }
 html[data-ph-shell][data-touch-small] .phc-page .phk-pagehead:has(.phk-back) .phk-pageactions { order: 2; margin-left: auto; }
 html[data-ph-shell]:not([data-touch-small]) .phc-page .phc-trends :is(.ct-small-t, .ct-delta) { font-size: var(--ph-t1); }
+/* Phone: the short chips (7d) are as wide as they are tall. */
+html[data-ph-shell][data-touch-small] .phc-page .phc-toolbar .phk-segbtn { min-width: calc(40 * var(--pt, 1px)); }
+

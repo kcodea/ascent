@@ -49,6 +49,8 @@ export function normalizedSignature(s: RunState): string {
     board: s.board.map(card),
     shop: s.shop.map((o) => [o.cardId, o.cost ?? -1, o.golden ? 1 : 0].join(',')),
     spell: s.spell?.cardId ?? null,
+    // A held play (R-TARGET-CANCEL-01) moves nothing but the prompt, and that is still a new state, not a cycle.
+    prompt: s.pendingTarget?.uid ?? s.chooseOne?.uid ?? null,
   };
   return fnv1a(JSON.stringify(material));
 }

@@ -183,7 +183,7 @@ describe('LEEDS: when you play a Dwarf, give your Dwarves +2/+2; improves every 
     s = act(s, { type: 'play', uid: 'd1' });
     expect(sumFrom(at(s, 'a'), 'Leeds'), 'three sales: still the base grant').toEqual({ attack: 2, health: 2 });
     s = act(s, { type: 'sell', uid: 'f4' });
-    s = act(s, { type: 'play', uid: 'd2' });
+    s = act(act(s, { type: 'play', uid: 'd2' }), { type: 'battlecryTarget', targetUid: 'a' }); // an aimed Shout plays on the pick
     expect(sumFrom(at(s, 'a'), 'Leeds'), 'four sales: +4/+4 on top').toEqual({ attack: 6, health: 6 });
   });
 
@@ -193,7 +193,7 @@ describe('LEEDS: when you play a Dwarf, give your Dwarves +2/+2; improves every 
     s = act(s, { type: 'play', uid: 'd1' });
     expect(sumFrom(at(s, 'a'), 'Leeds')).toEqual({ attack: 4, health: 4 });
     for (const u of ['f1', 'f2', 'f3', 'f4']) s = act(s, { type: 'sell', uid: u });
-    s = act(s, { type: 'play', uid: 'd2' });
+    s = act(act(s, { type: 'play', uid: 'd2' }), { type: 'battlecryTarget', targetUid: 'a' }); // an aimed Shout plays on the pick
     expect(sumFrom(at(s, 'a'), 'Leeds')).toEqual({ attack: 12, health: 12 });
   });
 

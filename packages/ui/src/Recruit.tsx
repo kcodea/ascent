@@ -5281,6 +5281,7 @@ export function Recruit() {
       if (!raf) raf = requestAnimationFrame(flush);
     });
     const up = (e: PointerEvent): void => perfMonitor.measure('input:pointerup', () => {
+      if (e.button === 2) return; // a right-click only ever backs out (`disarm` below), even released over a minion
       // The release of the press that ARMED it (no move, no new press) stays armed for a follow-up tap / click.
       if (!aimReleaseResolves(moved, pressedSinceArm)) return;
       const target = minionAt(e.clientX, e.clientY);
@@ -5323,22 +5324,38 @@ export function Recruit() {
       else armHero(); // released without a valid target — snaps back / cancels
     });
     const press = (e: PointerEvent): void => { if (e.button === 0) pressedSinceArm = true; };
+    // Right-click and Esc back out of a power or Equipment aim the way they back out of a card's (R-TARGET-CANCEL-01).
+    const disarm = (): void => { if (equipArmed) armEquipment(); else armHero(); };
+    const rightClick = (e: MouseEvent): void => {
+      if ((e as PointerEvent).pointerType === 'touch') return;
+      e.preventDefault();
+      e.stopPropagation();
+      disarm();
+    };
+    const escape = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape' || escapeHasOwner(useGame.getState())) return;
+      e.stopImmediatePropagation();
+      disarm();
+    };
     window.addEventListener('pointerdown', press, true);
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('contextmenu', rightClick, true);
+    window.addEventListener('keydown', escape, true);
     return () => {
       if (raf) cancelAnimationFrame(raf);
       rects.dispose();
       window.removeEventListener('pointerdown', press, true);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('contextmenu', rightClick, true);
+      window.removeEventListener('keydown', escape, true);
     };
   }, [heroArmed, equipArmed, armEquipment, heroArmedSlot, heroTargetsTavern, heroTargetsTavernOnly, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat, viewing]);
 
-  // Targeted Battlecry (Toxin Tender): once the minion is played it sits on the board with a pending
-  // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors
-  // the Hero Power). Clicking off any warband minion is ignored (keep aiming); ending the turn first
-  // auto-resolves on the carry in the reducer, so the play is never stranded.
+  // Targeted Battlecry (Toxin Tender): the dropped minion stands in its slot, still in `run.hand`, with a pending
+  // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors the Hero Power).
+  // A click off target, a right-click or Esc sends it back to hand with nothing played (R-TARGET-CANCEL-01).
   const pendingTarget = run.pendingTarget;
   // The targeting pill's text: "Select a <noun> to <what the pick does>", read off the pending card's live view.
   const pendingView = pendingTarget ? (boardViews.get(pendingTarget.uid) ?? handViews.get(pendingTarget.uid)) : undefined;
@@ -5392,7 +5409,7 @@ export function Recruit() {
     // An `any` Choose One (Crest of the Climb) may land on a TAVERN offer as well as a warband minion — the
     // reducer's target pool says so, so the picker has to offer it, or choosing "+4 Attack" would silently
     // narrow the spell to the board (it could always hit an offer when the drag did the aiming).
-    const aimsTavern = pendingTarget.deferredPlay && def?.target === 'any';
+    const aimsTavern = pendingTarget.deferredPlay && !pendingTarget.shoutAim && def?.target === 'any';
     // Cached hit-testing, as in the hero-power aim above (`aimRectCache.ts`): no layout read on the move path.
     const boardRects = createAimRectCache('[data-zone="warband"] .row .card[data-uid]');
     const shopRects = aimsTavern ? createAimRectCache(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`) : null;
@@ -5429,23 +5446,44 @@ export function Recruit() {
       pending = { x: e.clientX, y: e.clientY };
       if (!raf) raf = requestAnimationFrame(flush);
     });
+    const cancelAim = (): void => {
+      if (pendingTarget.deferredPlay) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); }
+    };
     const pick = (e: PointerEvent): void => perfMonitor.measure('input:pointerdown', () => {
       if (e.button !== 0 || timeUp) return;
       const target = minionAt(e.clientX, e.clientY);
       if (target) { dispatch({ type: 'battlecryTarget', targetUid: target.uid }); return; }
-      // CLICK AWAY = CANCEL, but only for a DEFERRED Choose One aim (owner ruling 2026-08-28): nothing has
-      // been played, so the card simply returns to hand untouched. An ordinary battlecry aim still ignores the
-      // click and keeps aiming — its body is already on the board, so there is nothing clean to back out to.
-      if (pendingTarget.deferredPlay) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); }
+      // CLICK AWAY = CANCEL (owner rulings 2026-08-28 and 2026-11-03, R-TARGET-CANCEL-01): nothing has been played, so
+      // the card simply returns to hand untouched. A tap on empty space is this same pointerdown. Only a committed aim
+      // from an older save ignores the click: its body is on the board, so there is nothing clean to back out to.
+      cancelAim();
     });
+    // Right-click backs out too. Capture phase, so the ping menu (R-PINGS) never opens over the aim it just closed; a
+    // touch long-press is not a right-click and keeps its own meaning.
+    const rightClick = (e: MouseEvent): void => {
+      if (!pendingTarget.deferredPlay || (e as PointerEvent).pointerType === 'touch') return;
+      e.preventDefault();
+      e.stopPropagation();
+      cancelAim();
+    };
+    // Esc backs out of the aim before it opens the menu; an open menu, book or inspect keeps its own Esc.
+    const escape = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape' || !pendingTarget.deferredPlay || escapeHasOwner(useGame.getState())) return;
+      e.stopImmediatePropagation();
+      cancelAim();
+    };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerdown', pick);
+    window.addEventListener('contextmenu', rightClick, true);
+    window.addEventListener('keydown', escape, true);
     return () => {
       if (raf) cancelAnimationFrame(raf);
       boardRects.dispose();
       shopRects?.dispose();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerdown', pick);
+      window.removeEventListener('contextmenu', rightClick, true);
+      window.removeEventListener('keydown', escape, true);
     };
   }, [pendingTarget, timeUp, dispatch, inCombat, run.board, captureCoalesce, viewing]);
 
@@ -8969,8 +9007,8 @@ export function Recruit() {
       {/* The targeting line (hero power / targeted Battlecry / targeted spell) is the LIVING Pixi curve
           now — synced in the aim-line effect above; the old dotted SVG render retired (owner 2026-07-16). */}
 
-      {/* Targeted-Battlecry prompt: a played Toxin Tender waits for you to pick the friendly minion
-          its grant lands on (click a warband minion; ending the turn auto-targets the carry). */}
+      {/* Targeted-Battlecry prompt: a Toxin Tender held in its slot waits for you to pick the friendly minion its grant
+          lands on (click a warband minion; anywhere else, right-click or Esc sends it back to hand). */}
       {/* It says what the pick will DO, at its live value (owner ask 2026-11-01): "Select a Dwarf to grant +18 Health". */}
       {pendingTarget && !inCombat && targetPromptSegs && (
         <div className="targetprompt" aria-live="polite">

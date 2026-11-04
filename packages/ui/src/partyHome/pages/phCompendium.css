@@ -115,7 +115,6 @@
    a narrower rail, a smaller search, cards a little smaller so a row and a half fits the height. ── */
 html[data-touch-ui][data-touch-small] .phb .phb-book { scale: none; width: auto; }
 html[data-touch-small] .phb .book-rail { width: calc(200 * var(--phu)); }
-html[data-touch-small] .phb .book-grid { --ch: calc(300px * var(--book-zoom, 1)); }
 html[data-touch-small] .phb .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var(--phu)); }
 
 
@@ -188,3 +187,41 @@ html[data-ph-compact] .phb .book-zoom-btn { width: calc(64 * var(--phu)); height
 html[data-ph-compact] .phb .book-search { background: color-mix(in srgb, var(--ph-navy) 75%, transparent); box-shadow: var(--ph-gild); text-overflow: ellipsis; }
 /* The book fills exactly what the page body has left, so the gallery is the one scroller (its lazy cells observe it). */
 html[data-ph-compact] .phb .phb-book { flex: 1 1 0; height: auto; min-height: 0; }
+
+/* ── ONE SCROLLBAR, in a gutter beside the plate (desktop) ── The book hides native bars (styles.css, compendium.css); every
+   view here shows the shell's gold bar instead. The bar lives just outside the plate, the kit's "one right edge" move: the
+   gallery plate is painted by `.book-main::before`, and the scroller runs on past it into a 12 unit gutter, so the bar never
+   rides the plate's rounded corners. Phones keep overlay bars and the plate on the scroller. */
+.phb :is(.book-grid, .book-gloss-body, .wiki-list, .bookguides) { scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
+html[data-ph-shell]:not([data-ph-compact]) .phb { --phb-gut: calc(12 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phb .phk-pagebody { scrollbar-gutter: auto; }
+html[data-ph-shell]:not([data-ph-compact]) .phb :is(.phb-sub, .book-tiers, .wiki-bar) { margin-right: var(--phb-gut); }
+html[data-ph-shell]:not([data-ph-compact]) .phb :is(.book-grid, .book-gloss-body, .wiki-list, .bookguides) { scrollbar-gutter: stable; }
+html[data-ph-shell]:not([data-ph-compact]) .phb .book-main { position: relative; }
+html[data-ph-shell]:not([data-ph-compact]) .phb .book-main::before { content: ''; position: absolute; z-index: 0; top: 0; bottom: 0; left: calc(256 * var(--phu)); right: var(--phb-gut); border-radius: var(--ph-r-l); pointer-events: none;
+  background: radial-gradient(80% 60% at 50% 0%, rgba(255, 206, 120, 0.06), transparent 70%), linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 85%, #000), color-mix(in srgb, var(--ph-navy) 70%, #000)); box-shadow: var(--ph-gild); }
+html[data-ph-shell]:not([data-ph-compact]) .phb .book-main > :is(.book-grid, .bookguides, .book-empty) { position: relative; z-index: 1; background: none; box-shadow: none; border-radius: var(--ph-r-l) 0 0 var(--ph-r-l); }
+
+/* ── A filter row shows only what applies: on the untiered views (Guides, Runes, Heroes) the Tier chips step aside, and so
+   do Gilded and Duos where they are off. A row left with nothing is not drawn. ── */
+.phb .book-tiers.is-inert :is(.book-axislabel, .book-tier, .book-tiers-div, .book-gilded:disabled, .book-chart-quiet) { display: none; }
+.phb .book-tiers.is-inert .book-chart { margin-left: 0; }
+.phb .book-tiers.is-bare { display: none; }
+/* A picked tribe pill is gold: its label goes dark. */
+.phb .book-runetribe.on > span { color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+
+/* ── PHONES: whole cards at 100%. A card's badges, plate and text are fixed px, so shrinking `--ch` alone leaves giant badges on
+   a tiny card. Instead the gallery keeps the desktop card and is ZOOMED as one, so everything scales together: a desktop cell
+   is 417 px tall, and it should come out 320 shell units (the gallery's height, less a margin). tan(atan2(a, b)) is a / b as
+   a plain number, which `zoom` needs, and it holds at any pixel density. */
+html[data-ph-compact] .phb .book-grid { --ch: calc(304px * var(--book-zoom, 1)); zoom: tan(atan2(calc(320 * var(--phu)), 417px)); }
+
+/* The panels' right edges keep their inset beside the bar. */
+html[data-ph-shell]:not([data-ph-compact]) .phb .bookguides { padding-right: calc(24 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phb .book-gloss-body { padding-right: calc(2 * var(--phu)); }
+
+/* Phones: the Rules bar is two short lines' worth at most, the chips one row that scrolls sideways, so the list gets the height. */
+html[data-ph-compact] .phb .wiki-bar { flex-wrap: nowrap; gap: calc(8 * var(--phu)); padding: calc(4 * var(--phu)) calc(8 * var(--phu)); }
+html[data-ph-compact] .phb .wiki-search { flex: none; width: calc(240 * var(--phu)); height: calc(64 * var(--phu)); }
+html[data-ph-compact] .phb .wiki-chips { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+html[data-ph-compact] .phb .wiki-chip { flex: none; }

@@ -69,7 +69,6 @@ html[data-touch-small] .phs-togglerow .phk-seghint { max-width: none; }
 
 /* The kit's slider (PhSlider) sits at the row's right: a fixed track width, its value and (audio) its Mute after it. */
 .phs-slider { width: calc(400 * var(--phu)); }
-html[data-touch-small] .phs-slider { width: calc(300 * var(--phu)); }
 /* The dropdown: a fixed width so the rows line up. */
 .phs .phs-select { min-width: calc(240 * var(--phu)); }
 /* Mute and Muted take the same width, so a muted channel's track never shrinks out of line with the others. */
@@ -77,3 +76,10 @@ html[data-touch-small] .phs-slider { width: calc(300 * var(--phu)); }
 
 /* Every dropdown reads the same way: its value left-aligned after the thumbnail. */
 .phs .phk-selectval { flex: 1; text-align: left; }
+
+/* The slider's track gives way first, so the value and the Mute pill always stay inside the row. Phones get a wider slot:
+   the kit's phone type makes the value and the pill larger. */
+.phs-slider { min-width: 0; max-width: 100%; }
+.phs .phk-sliderrow { min-width: 0; }
+.phs .phk-slider input[type="range"] { min-width: 0; }
+html[data-ph-compact] .phs-slider { width: calc(560 * var(--phu)); }

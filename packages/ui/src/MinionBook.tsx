@@ -772,7 +772,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
             filter at the far right. ALWAYS rendered — it used to unmount on the Runes / Heroes tabs (their pools
             aren't tiered), which dropped the whole window by a row every time you switched (owner report
             2026-09-18). Now the bar holds its place; on those tabs the chips dim and the chart goes quiet. */}
-        <div className={`book-tiers${ownGalleryTab ? ' is-inert' : ''}`}>
+        <div className={`book-tiers${ownGalleryTab ? ' is-inert' : ''}${ownGalleryTab && !guidesOn && !cats.has('runes') && !kw && !showSetPicker ? ' is-bare' : ''}`}>
           <span className="book-axislabel">Tier</span>
           {TIERS.map((t) => (
             <button

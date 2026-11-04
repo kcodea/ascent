@@ -17612,7 +17612,7 @@ function spendDuosTurnUse(state: RunState, card: BoardCard, key: string, cap: nu
  * passed (owner 2026-10-30) and a spell offer is not a minion. Fires the pass watchers like a drag pass. Outside a Duos run
  * nothing happens. Returns whether it passed.
  */
-export function passMinionToTeammate(state: RunState, target: BoardCard): boolean {
+export function passMinionToTeammate(state: RunState, target: BoardCard, power?: { slot: 0 | 1; paid: number }): boolean {
   if (!state.duos || target.golden) return false;
   const si = state.shop.findIndex((o) => o.uid === target.uid);
   if (si >= 0) {
@@ -17625,12 +17625,42 @@ export function passMinionToTeammate(state: RunState, target: BoardCard): boolea
       uid: target.uid, cardId: target.cardId, tribe: def.tribe, attack: target.attack, health: target.health,
       keywords: [...target.keywords], golden: false, ...(offer.buffs?.length ? { buffs: structuredClone(offer.buffs) } : {}),
     };
-    return effectPassCard(state, card, 'shop', si);
+    return effectPassCard(state, card, 'shop', si, { power });
   }
   const bi = state.board.findIndex((c) => c.uid === target.uid);
   if (bi < 0) return false;
   const [card] = state.board.splice(bi, 1);
-  return !!card && effectPassCard(state, card, 'board', bi);
+  return !!card && effectPassCard(state, card, 'board', bi, { power });
+}
+
+/**
+ * PASSARIA (Priestess, owner 2026-11-04, R-DUOS-PRIESTESS-01): the minion `uid` names, as `passMinionToTeammate` takes it,
+ * or null when it is not a legal target (outside a Duos run; a Gilded minion; a spell, Ruby or Starform offer). The one
+ * answer: the reducer's refusal, the aim's glow and the power button all read it.
+ */
+export function passariaTarget(state: Pick<RunState, 'duos' | 'board' | 'shop'>, uid: string | undefined): BoardCard | null {
+  if (!state.duos || !uid) return null;
+  const minion = state.board.find((c) => c.uid === uid);
+  if (minion) return minion.golden ? null : minion;
+  const offer = state.shop.find((o) => o.uid === uid);
+  const def = offer ? CARD_INDEX[offer.cardId] : undefined;
+  if (!offer || !def || def.spell || def.ruby || offer.starform) return null;
+  const held = offer.held; // a displaced body keeps its own stats, as `castSpellOnOffer` reads it
+  if (held ? held.golden : offer.golden) return null;
+  const base = held ? held.keywords : def.keywords;
+  return {
+    uid: offer.uid, cardId: offer.cardId, tribe: def.tribe,
+    attack: (held ? held.attack : def.attack) + (offer.atk ?? 0),
+    health: (held ? held.health : def.health) + (offer.hp ?? 0),
+    keywords: [...base, ...(offer.keywords ?? []).filter((k) => !base.includes(k))],
+    golden: false,
+  };
+}
+
+/** Is there anything Passaria could pass right now? False keeps the power's button dark, so a press never arms an aim
+ *  with nowhere to land. */
+export function passariaHasTarget(state: Pick<RunState, 'duos' | 'board' | 'shop'>): boolean {
+  return !!state.duos && [...state.board, ...state.shop].some((c) => passariaTarget(state, c.uid));
 }
 
 /**
@@ -17647,9 +17677,9 @@ export function passMinionToTeammate(state: RunState, target: BoardCard): boolea
 export function effectPassCard(state: RunState, card: BoardCard, from: 'board' | 'shop' | 'hand', index: number,
   /** `allowGolden`: the ONE explicit exception to the no-golden rule, Salesman of the Year's sold minion (owner
    *  2026-10-30, R-DUOS-RUNES-01); `via: 'sale'` marks that pass (a refusal returns nothing: the sale was paid). */
-  opts?: { allowGolden?: boolean; via?: 'sale'; src?: DuosPassSource }): boolean {
+  opts?: { allowGolden?: boolean; via?: 'sale'; src?: DuosPassSource; power?: { slot: 0 | 1; paid: number } }): boolean {
   if (!state.duos || (card.golden && !opts?.allowGolden)) return false;
-  if (!recordSpellPass(state, card, from, index, opts?.via ?? 'spell', opts?.src)) return false;
+  if (!recordSpellPass(state, card, from, index, opts?.via ?? 'spell', opts?.src, opts?.power)) return false;
   fireTeamPassTriggers(state, { mine: true, cardId: card.cardId });
   return true;
 }

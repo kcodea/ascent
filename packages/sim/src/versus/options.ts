@@ -32,6 +32,8 @@ import type { RiftId } from '../config';
  *  plays the live rules, so it takes no modifier. Design: docs/design/2026-10-26-ranked-duos.md. */
 export type VersusMode = 'duel' | 'group' | 'duos' | 'ranked_duos';
 export const VERSUS_MODES: readonly VersusMode[] = ['duel', 'group', 'duos', 'ranked_duos'];
+/** The team modes: Versus Duos and Ranked Duos. Their runs carry Duos state and their deals add the Duos-only heroes. */
+export const versusModeIsDuos = (mode: unknown): boolean => mode === 'duos' || mode === 'ranked_duos';
 
 /**
  * MODIFIERS: an existing RIFT applied to one room. The rift is pinned onto every seat's run at creation

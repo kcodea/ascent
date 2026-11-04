@@ -51,6 +51,9 @@ export interface DuosOutboxEntry {
    *  sold minion Salesman of the Year passed (R-DUOS-RUNES-01): free, MAY be Golden (owner 2026-10-30: "golden minions
    *  DO get passed in this case"), travels as `passFrom: 'sale'`, and a refusal returns nothing (the sale was paid). */
   via?: 'spell' | 'sale';
+  /** A pass a HERO POWER made (Passaria, R-DUOS-PRIESTESS-01): the slot that fired it. `paid` is the power's Gold; a
+   *  refusal gives that Gold and this turn's charge back. */
+  power?: 0 | 1;
   /** Which free allowance a free MANUAL pass spent: Brian's Pal (`'pal'`) or the team's Playing Catch (`'catch'`). A
    *  refund gives back exactly that one. */
   free?: 'pal' | 'catch';
@@ -190,10 +193,10 @@ export function applyDuosPass(s: RunState, uid: string, spendGold: (s: RunState,
  * records it on the outbox, free (the spell is the price). A pass spell never targets a Golden minion (owner
  * 2026-10-31: "not targeted by spells that pass"): the caller refuses it before removing anything. Returns false outside a Duos run.
  */
-export function recordSpellPass(s: RunState, card: BoardCard, from: 'board' | 'shop' | 'hand', index: number, via: 'spell' | 'sale' = 'spell', src?: DuosPassSource): boolean {
+export function recordSpellPass(s: RunState, card: BoardCard, from: 'board' | 'shop' | 'hand', index: number, via: 'spell' | 'sale' = 'spell', src?: DuosPassSource, power?: { slot: 0 | 1; paid: number }): boolean {
   const duos = s.duos;
   if (!duos) return false;
-  duos.outbox.push({ seq: duos.outbox.length, wave: s.wave, card: structuredClone(card), from, index, paid: 0, via, ...(src ? { src } : {}) });
+  duos.outbox.push({ seq: duos.outbox.length, wave: s.wave, card: structuredClone(card), from, index, paid: power?.paid ?? 0, via, ...(src ? { src } : {}), ...(power ? { power: power.slot } : {}) });
   return true;
 }
 
@@ -319,6 +322,11 @@ export function refundDuosPass(state: RunState, seq: number): RunState {
     const atk = back.attack - (def?.attack ?? back.attack), hp = back.health - (def?.health ?? back.health);
     s.shop.splice(Math.min(e.index, s.shop.length), 0, { uid: back.uid, cardId: back.cardId, ...(atk ? { atk } : {}), ...(hp ? { hp } : {}) });
   } else s.hand.splice(e.from === 'hand' ? Math.min(e.index, s.hand.length) : s.hand.length, 0, back);
+  // Passaria (R-DUOS-PRIESTESS-01): a refused pass never used the power, so this turn's charge comes back with the Gold.
+  if (e.power != null && e.wave === s.wave) {
+    if (e.power === 1) s.heroReady2 = true;
+    else s.heroReady = true;
+  }
   // The pass was never paid: the Gold and the Gold-spent tallies of its turn come back (a free pass: its allowance).
   const paid = e.paid ?? DUOS_PASS_GOLD;
   if (paid > 0) {

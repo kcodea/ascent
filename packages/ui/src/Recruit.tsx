@@ -54,7 +54,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
-import { type Action, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
+import { type Action, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -1539,10 +1539,12 @@ export function Recruit() {
     [run.sableBond, run.wave],
   );
   // Albus's Empowerment targets a Shop offer ONLY (it upgrades what's for sale, never your board).
-  const heroTargetsTavern = heroPowerKind === 'fortify' || heroPowerKind === 'archive' || heroPowerKind === 'empowerment';
+  const heroTargetsTavern = heroPowerKind === 'fortify' || heroPowerKind === 'archive' || heroPowerKind === 'empowerment' || heroPowerKind === 'passaria';
   const heroTargetsTavernOnly = heroPowerKind === 'empowerment';
   // Darah's Displace can't target a golden minion (you can't trade away a triple) — excluded as a valid pick.
   const heroTargetsNoGolden = heroPowerKind === 'displace';
+  // Priestess's Passaria (R-DUOS-PRIESTESS-01): the engine's own answer, so a Gilded minion or a spell offer never lights.
+  const heroAimLegal = useCallback((uid: string): boolean => heroPowerKind !== 'passaria' || !!passariaTarget(useGame.getState().run, uid), [heroPowerKind]);
   // The active +X/+X bonus to stat-granting spells (Spellbinder, etc.) — so spell cards show their
   // real value. One source of truth shared with the reducer's cast math.
   // …Live: the combat replay's display-only spell-power preview folds in, so every spell surface prints the
@@ -5231,6 +5233,7 @@ export function Recruit() {
       if (equipArmed && equipSourceUids.includes(uid)) return null; // never its own granting body
       // Displace can't target a golden (triple) — it never lights up as a valid pick.
       if (heroTargetsNoGolden && run.board.find((c) => c.uid === uid)?.golden) return null;
+      if (heroArmed && !heroAimLegal(uid)) return null;
       return { uid };
     };
     // ANCHOR: measured ONCE per aim. The hero-power button cannot move while you're aiming, so re-reading
@@ -5353,7 +5356,7 @@ export function Recruit() {
       window.removeEventListener('contextmenu', rightClick, true);
       window.removeEventListener('keydown', escape, true);
     };
-  }, [heroArmed, equipArmed, armEquipment, heroArmedSlot, heroTargetsTavern, heroTargetsTavernOnly, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat, viewing]);
+  }, [heroArmed, equipArmed, armEquipment, heroArmedSlot, heroTargetsTavern, heroTargetsTavernOnly, heroTargetsNoGolden, heroAimLegal, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat, viewing]);
 
   // Targeted Battlecry (Toxin Tender): the dropped minion stands in its slot, still in `run.hand`, with a pending
   // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors the Hero Power).
@@ -8863,7 +8866,7 @@ export function Recruit() {
         frozen={!!run.frozen && !inCombat} replay={combatUnitsShown ? replay : null}
         sbEnemyShown={sbTavernShowsEnemy && !!run.sandbox} sbEnemySnap={sbEnemySnap} sbEditMode={sbEditMode} onSbEnemyPointerDown={onSbEnemyPointerDown}
         displayShop={displayShop} heldUids={heldUids} shopOrder={shopOrder} shopViews={shopViews} refViewsByUid={refViewsByUid}
-        heroArmed={heroArmed} heroTargetsTavern={heroTargetsTavern}
+        heroArmed={heroArmed} heroTargetsTavern={heroTargetsTavern} heroAimLegal={heroAimLegal}
         tripleReadyUids={tripleReadyUids} mateTripleUids={mateTripleUids} returningFromCombat={returningFromCombat} onCardPointerDown={onCardPointerDown}
         spell={run.spell} spellView={spellView}
       />
@@ -9397,7 +9400,7 @@ export const selectHandDrag = (s: DragSnapshot) => ({
 
 const TavernRow = memo(function TavernRow({
   frozen, replay, sbEnemyShown, sbEnemySnap, sbEditMode, onSbEnemyPointerDown, displayShop, heldUids, shopOrder,
-  shopViews, refViewsByUid, heroArmed, heroTargetsTavern,
+  shopViews, refViewsByUid, heroArmed, heroTargetsTavern, heroAimLegal,
   tripleReadyUids, mateTripleUids, returningFromCombat, onCardPointerDown, spell, spellView,
 }: {
   frozen: boolean; replay: ReturnType<typeof useCombatReplay> | null; sbEnemyShown: boolean;
@@ -9406,7 +9409,7 @@ const TavernRow = memo(function TavernRow({
   /** `run.shop`'s uid order — the dragged offer's home slot for the reorder slide (memoized by the caller). */
   shopOrder: readonly string[];
   shopViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>;
-  heroArmed: boolean; heroTargetsTavern: boolean;
+  heroArmed: boolean; heroTargetsTavern: boolean; heroAimLegal: (uid: string) => boolean;
   tripleReadyUids: ReadonlySet<string>; returningFromCombat: boolean;
   /** DUOS: offers my teammate is one copy short of a Gild on (R-DUOS-MATE-TRIPLE-01). */
   mateTripleUids: ReadonlySet<string>;
@@ -9506,7 +9509,7 @@ const TavernRow = memo(function TavernRow({
                 card={shopViews.get(o.uid)!}
                 refCards={refViewsByUid.get(o.uid)}
                 dragging={viewerDrag}
-                highlight={(heroArmed && heroTargetsTavern) || (castingSpell && !(o.golden && CARD_INDEX[dragCardId ?? '']?.targetNoGolden) && (dragTarget === 'any' || (!!o.starform && starformSpellAimsToken(CARD_INDEX[dragCardId ?? ''] ?? {}))))}
+                highlight={(heroArmed && heroTargetsTavern && heroAimLegal(o.uid)) || (castingSpell && !(o.golden && CARD_INDEX[dragCardId ?? '']?.targetNoGolden) && (dragTarget === 'any' || (!!o.starform && starformSpellAimsToken(CARD_INDEX[dragCardId ?? ''] ?? {}))))}
                 targeted={(heroArmed && heroTargetsTavern && aimTargetUid === o.uid) || castTargetUid === o.uid}
                 tripleReady={tripleReadyUids.has(o.uid)}
                 mateTriple={mateTripleUids.has(o.uid)}

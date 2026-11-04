@@ -115,6 +115,12 @@ describe('R-SPECTATE-CURSOR-LAYER-01: the watched hand paints over the whole HUD
 });
 
 describe('R-SPECTATE-DUOS-PASS-01: the passes of the watched run (pure)', () => {
+  it('a Passaria send is a stream, not a drag: the stands see it leave (R-DUOS-PRIESTESS-01)', () => {
+    const send = entry(0, bc('m0', 'dw_pimm'), { via: 'spell', from: 'board', paid: 2, power: 0 });
+    expect(watchedPasses(duosRun(), duosRun({ outbox: [send] })).sends).toEqual([send]);
+    expect(isDragPass(send)).toBe(false);
+  });
+
   it('a new outbox entry is a send; a fight\'s gift waits for its beat; a refunded one never streams', () => {
     const a = duosRun();
     const send = entry(0, bc('h1', 'dw_pimm'), { team: { kind: 'gift', cardId: 'dw_pimm' } as never, src: { uid: 'b1' } });

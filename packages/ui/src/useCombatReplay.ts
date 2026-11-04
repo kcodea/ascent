@@ -31,7 +31,7 @@ import { bankedCastPlayerAnchor, clearCastPreviews, showBankedCastPreviews, show
 import { clearHandSummonFx, combatHandSummonOrigins, handSummonRemainingMs, isHandSummonInFlight, launchHandSummonFlights, type HandCardLike, type HandSummonFlight } from './handSummonFx';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
-import { RALLY_PROC_STRIDE_MS, attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
+import { RALLY_PROC_STRIDE_MS, attackSummonUids, ownRallyBindingFor, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
 import { shoutsAheadOf } from './choreo/channels/shoutFired';
 import { wavesAheadOf } from './choreo/channels/windupWaves';
 import { HIT_REACTION_LEAD_MS, chainEligible, chainTendrilPlan, chainTickCount, hitReactionStart, reactionChainMs, reactionTickStrideMs, reactionTicks, type ReactionTick } from './choreo/hitReactions';
@@ -3287,6 +3287,7 @@ export function useCombatReplay(
         const atkUnit = frameRef.current?.player.find((u) => u.uid === atkUid) ?? frameRef.current?.enemy.find((u) => u.uid === atkUid);
         let rallies = !!atkUnit?.keywords.includes('RL') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('RL');
         if (!rallies) for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'rally' && e.source === atkUid) { rallies = true; break; } }
+        const ownRally = ownRallyBindingFor(cur, events, atkUid, cardIds.get(atkUid) ?? null, rallies, bindingFor);
         // Buffs absorbed into this attack's wind-up (on-attack / on-ally-attack / Rally buffers) → fire their FX at
         // the top of the wind-up (after the yellow rally pulse), so the beat reads pulse → tendril → lunge. Buff-
         // OTHERS rain a tendril/descend; the buffer's own SELF-buff (which `groupBuffCasts` skips) pops an in-place
@@ -3404,7 +3405,15 @@ export function useCombatReplay(
           // the attacker's own damage beat. Read through the ref so the timeline built now can fire the release
           // decided many beats later.
           onParkedContact: heldWindup ? () => parkedContactRef.current?.() : undefined,
-          onRallyPulse: rallies ? () => firePulse(atkUid) : undefined,
+          onRallyPulse: rallies ? () => {
+            firePulse(atkUid);
+            // An ORDINARY Rally (no ally proc) plays the card's own "On Rally" binding on itself, with the pulse.
+            // Ally procs (Echohorn) keep the `rallyFx` cue's source→target path; see `ownRallyBindingFor`.
+            if (ownRally && canPlayDefs()) {
+              const a = anchorsForUnits(atkUid, atkUid);
+              if (a) playDef(ownRally.def, a, { uids: { source: atkUid, target: atkUid }, gain: ownRally.gain });
+            }
+          } : undefined,
           // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.
           // Only Echohorn can exceed 1 today (see `rallyProcsFor`).
           rallyProcs: rallyProcsFor(cur, events, atkUid),

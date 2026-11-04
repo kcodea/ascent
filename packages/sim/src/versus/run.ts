@@ -22,7 +22,7 @@ import { riftBonusArmor } from '../config';
 import { VERSUS_HERO_OFFER_SIZE } from './constants';
 import { versusHeroShuffle } from './heroOffers';
 import type { VersusGroupSeat } from './group';
-import { normalizeVersusOptions, versusOptionsRift, type VersusRoomOptions } from './options';
+import { normalizeVersusOptions, versusModeIsDuos, versusOptionsRift, type VersusRoomOptions } from './options';
 import { versusDuosStartingVitals } from './vitals';
 import { snapshotBoard } from '../snapshot';
 import type { VersusSeatScout } from '../lobby/runLobby';
@@ -49,7 +49,7 @@ export function createVersusRun(
   // VERSUS DUOS (R-DUOS-PASS-01): a Duos seat's run can pass cards to its teammate. RANKED DUOS passes the same way
   // (owner 2026-10-26) and plays on the same team pool. Stamped AT CREATION (not after): a Duos run's pool holds the
   // Duos-only cards (R-DUOS-CARDS-01), so its stock and opening Shop must be drawn from that pool.
-  const duos = opts.mode === 'duos' || opts.mode === 'ranked_duos';
+  const duos = versusModeIsDuos(opts.mode);
   const run = createRun(runSeed, heroId, 'versus', undefined, setId, undefined, duos ? { duos: true } : undefined);
   const rift = versusOptionsRift(opts);
   if (rift) {
@@ -78,8 +78,8 @@ export function versusHeroOffer(heroSeed: number, runSeed: number, setId: SetId)
 /** THE HERO RE-ROLL in Versus (owner 2026-10-15, R-HERO-REROLL-01): the heroes the seat's one re-roll may draw, i.e.
  *  the heroes this run's tribes allow minus the current three. The SERVER draws from this list with the match seed
  *  (`versus_reroll_hero`); the client never picks. */
-export function versusHeroRerollCandidates(runSeed: number, setId: SetId, offer: readonly string[]): string[] {
-  return heroRerollCandidates(offer, playableHeroes(runTribesForSeed(runSeed, setId)).map((h) => h.id));
+export function versusHeroRerollCandidates(runSeed: number, setId: SetId, offer: readonly string[], opts?: { duos?: boolean }): string[] {
+  return heroRerollCandidates(offer, playableHeroes(runTribesForSeed(runSeed, setId), opts).map((h) => h.id));
 }
 
 /** The deterministic RNG for one seat's timeout answers in one round (p1..p4; p1/p2 unchanged since 1v1). */

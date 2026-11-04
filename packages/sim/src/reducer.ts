@@ -33,8 +33,8 @@ import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpel
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
-import { applyDuosPass, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass, stampOutboxSrc, type DuosPassSource } from './duosPass';
-import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, receiveTeamEffect } from './recruit';
+import { applyDuosPass, duosDraft, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass, stampOutboxSrc, type DuosPassSource } from './duosPass';
+import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, passariaTarget, passMinionToTeammate, receiveTeamEffect } from './recruit';
 import { advanceDuosMeters, armDuosRune, duosMetersMods, duosOnBoughtBuddy, duosOnTripleReward, duosPepTalkMods, duosPepTalkShop, settleDuosMeters } from './duosRunes';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -649,6 +649,27 @@ const onScreenUids = (s: RunState): Set<string> => new Set([...s.hand, ...s.boar
 /** R-DUOS-PASS-FLIGHT-01 (presentation only): the TEAM GIFTS from `from` on whose `src` names nothing that was on
  *  screen before the action (none, or a card the action itself made) start from `src` instead. A card pass keeps its
  *  own (Matchmaker's option) or none (the card itself leaves from where it stood: Handout, CueBee). */
+/** A reload's replay of an effect pass (R-DUOS-PASS-RESTORE-EFFECT-01): see the `restoreEffectPass` action. */
+function restoreEffectPass(state: RunState, a: Extract<Action, { type: 'restoreEffectPass' }>): RunState {
+  if (!state.duos) return state;
+  const s = duosDraft(state);
+  const power = a.power != null ? { slot: a.power, paid: a.paid ?? 0 } : undefined;
+  const bi = s.board.findIndex((c) => c.uid === a.uid && c.cardId === a.cardId);
+  if (bi >= 0) {
+    const sale = a.via === 'sale'; // Salesman of the Year may carry a Golden minion
+    if (!effectPassCard(s, s.board.splice(bi, 1)[0]!, 'board', bi, { power, restored: true, ...(sale ? { via: 'sale' as const, allowGolden: true } : {}) })) return state;
+  } else {
+    const offer = passariaTarget(s, a.uid);
+    if (offer?.cardId !== a.cardId || !passMinionToTeammate(s, offer, power, true)) return state;
+  }
+  if (power) {
+    if (power.paid > 0) spendGold(s, Math.min(s.embers, power.paid));
+    if (power.slot === 1) s.heroReady2 = false;
+    else s.heroReady = false;
+  }
+  return s;
+}
+
 function restampBornSrc(s: RunState, from: number, onScreen: ReadonlySet<string>, src: DuosPassSource): void {
   const out = s.duos?.outbox;
   if (!out) return;
@@ -1663,6 +1684,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
     return next;
   }
   if (action.type === 'passRefunded') return refundDuosPass(state, action.seq);
+  if (action.type === 'restoreEffectPass') return restoreEffectPass(state, action);
   // Nothing owed — a late or duplicate resolve (the UI timer racing a click) is a free no-op, not a clone.
   if (action.type === 'resolveShopDeath' && !state.pendingDeath) return state;
   // No window open — a late or duplicate expiry tick (Thymepiece) is a free no-op, not a clone.
@@ -3661,6 +3683,13 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (!card || card.keywords.includes('R')) return state;
         card.keywords.push('R');
         card.tempReborn = true;
+      } else if (power.kind === 'passaria') {
+        // Priestess (Duos only, R-DUOS-PRIESTESS-01): THE EFFECT PASS (Handout's body) on a Shop or board minion. No-op (no
+        // charge, no Gold) outside a Duos run or on anything but a legal target. The shared block below spends the Gold;
+        // the outbox entry records it, so a server refusal hands the Gold and the charge back with the card. One
+        // application: `reps` (Wishbone) never passes a second minion.
+        const target = passariaTarget(s, action.uid);
+        if (!target || !passMinionToTeammate(s, target, { slot, paid: power.cost ?? 0 })) return state;
       } else if (power.kind === 'pocketMagic') {
         // Merrin: a random Shop spell (up to the current tier) to hand. No-op (no charge) if none exist or the
         // hand is full. Untargeted; the 1-Gold cost is spent by the shared block.

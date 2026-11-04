@@ -247,8 +247,8 @@ const SIGNATURES: Record<ThemedHero, AncientHeroSignature> = {
 };
 
 export const THEMED_HEROES = Object.keys(COLOURS) as ThemedHero[];
-/** Hero ids that deliberately wear the default (none today: every hero has a theme). */
-export const DEFAULT_THEMED_HEROES: readonly string[] = [];
+/** Hero ids that deliberately wear the default: Priestess is Duos only and has no Ancient pairings. */
+export const DEFAULT_THEMED_HEROES: readonly string[] = ['priestess'];
 
 export const ANCIENT_HERO_THEMES = {
   // The owner-baked teal (2026-09-26): what any hero without an entry wears.

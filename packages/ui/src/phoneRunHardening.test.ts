@@ -17,6 +17,7 @@ describe('phone run hardening', () => {
     const curtain = src('hero-select/HeroLaunchCurtain.tsx');
     for (const s of ['launch cover', 'launch covered', 'run built', 'launch reveal']) expect(curtain).toContain(`crumbLight('${s}'`);
     expect(curtain).toMatch(/crumbTrail\('first shop', undefined, true\)/);
-    expect(src('Recruit.tsx')).toMatch(/crumbLight\(`gate \$\{wipe\}`\)/);
+    // Four a round, so a TICK (no rect reads) since R-PHONE-DIAG-COST-01, not a light step.
+    expect(src('Recruit.tsx')).toMatch(/crumbTick\(`gate \$\{wipe\}`\)/);
   });
 });

@@ -11,6 +11,10 @@
  * still unclean ended without that: it crashed, after its last breadcrumb.
  *
  * Cheap by design: a write per step (tens per session) plus a heartbeat every 5 s while visible. Never per frame.
+ * A step that comes back EVERY ROUND of a game (the falling gate, its layer, the art stream) is a TICK (`crumbTick`,
+ * R-PHONE-DIAG-COST-01): the memory numbers and a count of running animations only, never a per-element style or
+ * box read. Those reads (up to 6,000 `getComputedStyle` calls, up to 400 forced-layout rect reads) are kept for the
+ * one-off steps (menus, hero select, Pixi inits), where they found the crashes.
  * It records on a phone (`LITE_ART`) or with `?crashlog=1`; desktop without the flag records nothing.
  *
  * The readout (CrashLogReadout.tsx) shows only with `?crashlog=1` (remembered, `?crashlog=0` forgets it). It used to
@@ -172,7 +176,10 @@ function layerEstimate(els: Set<Element>): { mb: number; n: number } {
   }
   return { mb: round((px * dpr * dpr * 4) / 1048576), n: Math.min(n, els.size) };
 }
-function measure(s: string, x?: Record<string, string | number>, scan: 'full' | 'anim' | false = 'full'): Crumb {
+/** `scan`: 'full' = every element's style + the layer model (one-off steps); 'anim' = the layer model from the running
+ *  animations' boxes (one-off moments that animate); 'count' = only how many animations run (a TICK: every round, so
+ *  no style or rect read at all, R-PHONE-DIAG-COST-01); false = the heartbeat (memory numbers only). */
+function measure(s: string, x?: Record<string, string | number>, scan: 'full' | 'anim' | 'count' | false = 'full'): Crumb {
   const c: Crumb = { s, t: Math.round(typeof performance !== 'undefined' ? performance.now() : 0) };
   try { if (probes.audio) c.a = round(probes.audio()); } catch { /* probe failed */ }
   try {
@@ -187,7 +194,9 @@ function measure(s: string, x?: Record<string, string | number>, scan: 'full' | 
     alive++; px += glCanvases[k]!.width * glCanvases[k]!.height;
   }
   c.ga = alive; c.gmb = round((px * 4) / 1048576);
-  if (scan) {
+  if (scan === 'count') {
+    try { c.an = typeof document.getAnimations === 'function' ? document.getAnimations().filter((a) => a.playState === 'running').length : 0; } catch { /* no DOM */ }
+  } else if (scan) {
     domScan(c, scan === 'full');
     const sizes: string[] = [];
     for (let k = 0; k < glCanvases.length; k++) {
@@ -227,10 +236,22 @@ export function crumbLight(step: string, x?: Record<string, string | number>): v
   pushCrumb(store.cur, measure(step, x, 'anim'));
   save();
 }
-/** Record progress of a running step: overwrites its own previous breadcrumb while nothing else came between. */
+/**
+ * A TICK (R-PHONE-DIAG-COST-01, owner 2026-11-04 "the game becomes near unplayable after a few turns"): a step that
+ * repeats every round of a game. The memory numbers and the running-animation count, with NO per-element style read
+ * and NO rect read (`crumbLight` still reads up to 400 boxes, a forced layout mid-animation). Use it for anything a
+ * round fires again: the falling gate's stages, its Pixi layer, the art stream.
+ */
+export function crumbTick(step: string, x?: Record<string, string | number>): void {
+  if (!store?.cur) return;
+  pushCrumb(store.cur, measure(step, x, 'count'));
+  save();
+}
+/** Record progress of a running step: overwrites its own previous breadcrumb while nothing else came between. A tick
+ *  (no DOM scan): the art stream it notes keeps loading all game (R-PHONE-DIAG-COST-01). */
 export function crumbProgress(step: string, x?: Record<string, string | number>): void {
   if (!store?.cur) return;
-  pushCrumb(store.cur, measure(step, x), true);
+  pushCrumb(store.cur, measure(step, x, 'count'), true);
   save();
 }
 /** Record a step only the first time it happens this session (reverb built, a Pixi layer's first init). */

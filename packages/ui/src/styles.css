@@ -4590,10 +4590,12 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    would; with the counter pill (or Frank's taller Clearance pip) it stacks just above that. Main power only —
    the second power and the Equipment slot keep their own seats. */
 .statusbar .heropanel:not(.heropanel2):not(.equipslot) > .hplabel {
-  position: absolute; left: 50%; bottom: calc(100% - 10 * var(--u)); transform: translateX(-50%); margin: 0;
+  /* Tuned in the 💠 tuner's Name section (--hpb-name-*); these fallbacks mirror its DEFAULTS. */
+  position: absolute; left: 50%; bottom: calc(100% + var(--hpb-name-rest, -10) * var(--u)); margin: 0;
+  transform: translateX(-50%) translateX(calc(var(--hpb-name-x, 0) * var(--u))) scale(var(--hpb-name-s, 1)); transform-origin: 50% 100%;
 }
-.statusbar .heropanel:not(.heropanel2):not(.equipslot):has(> .hpwrap > .hpb-pill) > .hplabel { bottom: calc(100% + 18 * var(--u)); }
-.statusbar .heropanel:not(.heropanel2):not(.equipslot):has(> .hpwrap > .clearance-uses) > .hplabel { bottom: calc(100% + 34 * var(--u)); }
+.statusbar .heropanel:not(.heropanel2):not(.equipslot):has(> .hpwrap > .hpb-pill) > .hplabel { bottom: calc(100% + var(--hpb-name-above, 18) * var(--u)); }
+.statusbar .heropanel:not(.heropanel2):not(.equipslot):has(> .hpwrap > .clearance-uses) > .hplabel { bottom: calc(100% + (var(--hpb-name-above, 18) + 16) * var(--u)); }
 /* The hover tip clears the raised name instead of covering it. */
 .statusbar .heropanel:not(.heropanel2):not(.equipslot) > .herotip { bottom: calc(100% + 50 * var(--u)); }
 /* Dark "pill/glass" restyle of the hero box + health box — matches the quest-badge / name-pill aesthetic

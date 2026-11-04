@@ -26,8 +26,8 @@ describe('R-HUD-HEROPOWER-NAME-01: the hero power name sits above the art', () =
   });
 
   it('it stacks above the counter pill and the Clearance pip', () => {
-    expect(body(styles, `${MAIN}:has(> .hpwrap > .hpb-pill) > .hplabel`)).toMatch(/bottom:\s*calc\(100% \+ \d+ \* var\(--u\)\)/);
-    expect(body(styles, `${MAIN}:has(> .hpwrap > .clearance-uses) > .hplabel`)).toMatch(/bottom:\s*calc\(100% \+ \d+ \* var\(--u\)\)/);
+    expect(body(styles, `${MAIN}:has(> .hpwrap > .hpb-pill) > .hplabel`)).toMatch(/bottom:\s*calc\(100% \+ var\(--hpb-name-above/);
+    expect(body(styles, `${MAIN}:has(> .hpwrap > .clearance-uses) > .hplabel`)).toMatch(/bottom:\s*calc\(100% \+ \(var\(--hpb-name-above/);
   });
 
   it('the hover tip opens above the raised name', () => {

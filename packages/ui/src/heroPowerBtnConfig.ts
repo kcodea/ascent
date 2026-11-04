@@ -55,6 +55,15 @@ export interface HeroPowerBtnConfig {
   glowH: number;
   /** Glow — colour (hex). */
   glowColor: string;
+  /** NAME pill — its bottom edge above the art's top (design px, × --u) when the power has NO counter. Negative
+   *  seats it down onto the rim. */
+  nameRest: number;
+  /** NAME pill — its bottom edge above the art's top (design px, × --u) when a counter pill sits on the rim. */
+  nameAbove: number;
+  /** NAME pill — sideways nudge (design px, × --u). */
+  nameX: number;
+  /** NAME pill — size (×). */
+  nameScale: number;
 }
 
 // Owner-tuned by eye in the 💠 tuner and baked as the shipped look (2026-07-16): seated just inside the
@@ -80,6 +89,10 @@ const DEFAULTS: HeroPowerBtnConfig = {
   glowW: 1.03,
   glowH: 1.03,
   glowColor: '#ffc852',
+  nameRest: -10,
+  nameAbove: 18,
+  nameX: 0,
+  nameScale: 1,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
@@ -101,6 +114,10 @@ export const HPB_RANGES: Record<Exclude<keyof HeroPowerBtnConfig, 'glowColor'>, 
   glowY: [-24, 24, 0.5],
   glowW: [0.85, 1.15, 0.005],
   glowH: [0.85, 1.15, 0.005],
+  nameRest: [-60, 80, 0.5],
+  nameAbove: [-20, 80, 0.5],
+  nameX: [-80, 80, 0.5],
+  nameScale: [0.5, 2, 0.01],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -123,6 +140,10 @@ export const HPB_DESC: Record<keyof HeroPowerBtnConfig, string> = {
   glowW: 'Glow fit — halo width (× the face). Small corrections only; use blur/strength for overall size.',
   glowH: 'Glow fit — halo height (× the face).',
   glowColor: 'Face glow colour.',
+  nameRest: 'Name pill — height above the art when the power has no counter. Negative sits it on the rim.',
+  nameAbove: 'Name pill — height above the art when a counter pill sits on the rim.',
+  nameX: 'Name pill — sideways nudge.',
+  nameScale: 'Name pill — size (×).',
 };
 
 /** Keys grouped by control type for the tuner UI. */
@@ -131,6 +152,7 @@ export const HPB_NUM_KEYS = [
   'artX', 'artY', 'artScale', 'artDim', 'refreshFlash',
   'glowX', 'glowY', 'glowW', 'glowH',
   'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
+  'nameRest', 'nameAbove', 'nameX', 'nameScale',
 ] as const;
 export const HPB_COLOR_KEYS = ['glowColor'] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
@@ -189,6 +211,10 @@ export function applyHeroPowerBtnVars(): void {
   root.setProperty('--hpb-glow-spread', String(cfg.glowStrength));
   // Legacy filter var (unused by the circle) kept in sync so nothing that still reads it goes stale.
   const one = `drop-shadow(0 0 ${cfg.glowBlur}px ${rgba(cfg.glowColor, 1)})`;
+  root.setProperty('--hpb-name-rest', String(cfg.nameRest));
+  root.setProperty('--hpb-name-above', String(cfg.nameAbove));
+  root.setProperty('--hpb-name-x', String(cfg.nameX));
+  root.setProperty('--hpb-name-s', String(cfg.nameScale));
   root.setProperty('--hpb-glow-filter', Array(Math.max(1, Math.round(cfg.glowStrength))).fill(one).join(' '));
 }
 

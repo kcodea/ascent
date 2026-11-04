@@ -38,10 +38,13 @@ export function playedOnText(iso: string | null | undefined): string {
 }
 
 /** "Sep 19, 3:42 PM" — the date AND time, for a feed where several games share a day; '' when unknown. */
+let playedAtFormat: Intl.DateTimeFormat | null = null; // one formatter: `toLocaleString` builds a new one on every call (13 ms over a list)
 export function playedAtText(iso: string | null | undefined): string {
   if (!iso) return '';
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  if (Number.isNaN(d.getTime())) return '';
+  playedAtFormat ??= new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  return playedAtFormat.format(d);
 }
 
 /** A W–L–D record → the per-round string a leaderboard row prints ("9–4", or "9–4–1" only when a draw

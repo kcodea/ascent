@@ -18,7 +18,7 @@
  * PERFORMANCE: static paint (hover is a colour); only the open game's board mounts; the board's card FX stay still until
  * pointed at (the classic page's rule). Phone portraits are the 256 px thumbnails (`heroThumb`).
  */
-import { memo, useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { MatchDetails } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
@@ -37,7 +37,7 @@ import { DuosGameCard } from '../../duosHistory/DuosGameCard';
 import { duosBand, duosGameView, duosModeLabel, teamPlaceText, type DuosGameRow } from '../../duosHistory/duosHistoryData';
 import { practiceOpponentsText, summaryOf, type FeedRow, type RecentGamesTab } from '../../RecentGames';
 import { PhButton, PhChip, PhEmpty, PhPage, PhSection, PhSegmented, PhStat, PhTabs } from '../kit';
-import { GameDetail, GameList, type GameFact, type ListItem } from './gameView';
+import { GameDetail, GameDetailHold, GameList, useHeldKey, useNearPrefetch, type GameFact, type ListItem } from './gameView';
 import './gamesPages.css';
 
 export { placeWords } from './gameView';
@@ -67,14 +67,20 @@ const TABS = [
  *  one row on every screen (round 5 critic). Read once per render from the window width, never per frame. */
 export const heroFilterMax = (): number => (isPhone() ? 4 : typeof window !== 'undefined' && window.innerWidth < 1600 ? 5 : 7);
 
-export function RecentGamesPh(p: RecentGamesPhProps) {
-  const duos = p.tab === 'duos';
-  const practice = p.tab === 'practice';
-  const scope = duos ? `Your last ${p.duosLimit} Duos games` : practice ? `The last ${p.feedRows} practice games, every player` : `The last ${p.feedRows} games, every player`;
+export function RecentGamesPh(given: RecentGamesPhProps) {
+  // A TAB SWITCH NEVER BLANKS THE PAGE (round 11 critic): while the next feed is read, the last one stays up (tabs already
+  // on the new tab, the strip, chips and list a little dimmed), and the data swaps in place when it lands.
+  const last = useRef<Pick<RecentGamesPhProps, 'tab' | 'rows' | 'heroCounts'> | null>(null);
+  if (given.state === 'ready' && given.tab !== 'duos' && given.rows.length > 0) last.current = { tab: given.tab, rows: given.rows, heroCounts: given.heroCounts };
+  const stale = given.state === 'loading' && given.tab !== 'duos' && last.current !== null;
+  const p: RecentGamesPhProps = stale ? { ...given, ...last.current!, state: 'ready' } : given;
+  const duos = given.tab === 'duos';
+  const practice = given.tab === 'practice';
+  const scope = duos ? `Your last ${p.duosLimit} Duos games` : practice ? `Last ${p.feedRows} practice games` : `Last ${p.feedRows} games`;
   return (
     <PhPage
-      className="rgp" wide eyebrow="Match history" title="Recent Games"
-      tabs={<PhTabs tabs={TABS} value={p.tab} onChange={p.onTab} label="Recent games view" />}
+      className={`rgp${stale ? ' stale' : ''}`} wide eyebrow="Match history" title="Recent Games"
+      tabs={<PhTabs tabs={TABS} value={given.tab} onChange={p.onTab} label="Recent games view" />}
       actions={duos || !(p.state === 'ready' || (p.heroFilter !== null && p.state !== 'offline'))
         ? <span className="rgp-scope">{scope}</span>
         : <HeroFilter {...p} />}
@@ -118,35 +124,48 @@ function HeroFilter(p: RecentGamesPhProps) {
 }
 
 function FeedBody(p: RecentGamesPhProps) {
-  const practice = p.tab === 'practice';
   if (p.state !== 'ready') return <StateBody state={p.state} tab={p.tab} onRetry={p.onRetry} />;
   if (p.rows.length === 0) {
-    return <><PhSection><PhEmpty title="No games with this hero" sub="Pick another hero, or show them all." action={<PhButton size="s" onClick={() => p.onHero(null)}>All heroes</PhButton>} /></PhSection></>;
+    return <PhSection><PhEmpty title="No games with this hero" sub="Pick another hero, or show them all." action={<PhButton size="s" onClick={() => p.onHero(null)}>All heroes</PhButton>} /></PhSection>;
   }
+  return <FeedReady {...p} />;
+}
+
+/** Is this row's lobby in hand? A practice row carries its own; a row with no read to make has none to wait for. */
+const lobbyInHand = (r: FeedRow): boolean => 'match' in r || r.rowId == null || !r.userId || peekRecentMatch(r.rowId) !== undefined;
+
+function FeedReady(p: RecentGamesPhProps) {
+  const practice = p.tab === 'practice';
   const sel = p.rows.find((k) => k.key === p.picked) ?? p.rows[0]!;
+  const rowOf = (key: string): KeyedRow | undefined => p.rows.find((k) => k.key === key);
+  const readLobby = (key: string): Promise<unknown> => {
+    const k = rowOf(key);
+    return k && !('match' in k.r) ? fetchRecentMatch(k.r.rowId, k.r.userId) : Promise.resolve();
+  };
+  // The open game arrives whole: the list moves at once, the detail swaps when its lobby is in hand (gameView.tsx).
+  const shownKey = useHeldKey(sel.key, (key) => { const k = rowOf(key); return !k || lobbyInHand(k.r); }, readLobby);
+  const keys = useMemo(() => p.rows.map((k) => k.key), [p.rows]);
+  useNearPrefetch(keys, sel.key, readLobby);
+  const items = useMemo((): ListItem[] => p.rows.map(({ r, key, skins }) => {
+    const heroName = r.heroId ? getHero(r.heroId).name : 'Unknown hero';
+    const rank = !practice && 'rank' in r ? r.rank ?? null : null;
+    const who = r.author || 'Unnamed player';
+    return {
+      key, place: r.placement, band: bandOf(r.placement), title: who, sub: heroName, when: playedAtText(r.createdAt) || undefined, rank,
+      art: heroThumb(heroPortrait(r.heroId, skins)),
+      label: `${placeText(r.placement)}, ${who}, ${heroName}${rank != null ? `, played at ${rankLabel(rank)}` : ''}`,
+    };
+  }), [p.rows, practice]);
+  const shown = shownKey === null ? null : rowOf(shownKey) ?? sel;
   return (
     <>
       <Strip rows={p.rows} practice={practice} />
       <div className="rgp-split">
-        <GameList
-          label={practice ? 'Latest practice games' : 'Latest games'} selected={sel.key} onPick={p.onPick}
-          items={p.rows.map(({ r, key, skins }) => {
-            const heroName = r.heroId ? getHero(r.heroId).name : 'Unknown hero';
-            const rank = !practice && 'rank' in r ? r.rank ?? null : null;
-            const who = r.author || 'Unnamed player';
-            return {
-              key, place: r.placement, band: bandOf(r.placement), title: who, sub: heroName, when: playedAtText(r.createdAt) || undefined, rank,
-              art: heroThumb(heroPortrait(r.heroId, skins)),
-              label: `${placeText(r.placement)}, ${who}, ${heroName}${rank != null ? `, played at ${rankLabel(rank)}` : ''}`,
-            };
-          })}
-        />
+        <GameList label={practice ? 'Latest practice games' : 'Latest games'} selected={sel.key} onPick={p.onPick} items={items} onNear={readLobby} />
         <div className="rgp-detailcol">
-          <FeedDetail
-            key={sel.key} row={sel} practice={practice}
-            busy={p.watching === sel.key} unplayable={p.noReplay === sel.key} opening={p.opening === sel.key}
-            onOpen={p.onOpen} onWatch={p.onWatch}
-          />
+          {shown
+            ? <FeedDetail key={shown.key} row={shown} practice={practice} busy={p.watching === shown.key} unplayable={p.noReplay === shown.key} opening={p.opening === shown.key} onOpen={p.onOpen} onWatch={p.onWatch} />
+            : <GameDetailHold />}
         </div>
       </div>
     </>
@@ -162,7 +181,7 @@ const Strip = memo(function Strip({ rows, practice }: { rows: readonly KeyedRow[
   return (
     <section className="rgp-strip" aria-label={practice ? 'The latest practice games at a glance' : 'The latest games at a glance'}>
       <div className="rgp-stats">
-        <PhStat label="Games" value={s.games} sub={practice ? 'practice, every player' : 'every player'} />
+        <PhStat label={practice ? 'Practice, all players' : 'Games, all players'} value={s.games} />
         <PhStat label="Avg place" value={s.avgPlace === null ? '-' : s.avgPlace.toFixed(1)} />
         <PhStat label="Top 4" value={s.top4 === null ? '-' : `${Math.round(s.top4 * 100)}%`} />
         <PhStat label="Wins" value={s.wins} tone="gold" />

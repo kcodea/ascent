@@ -135,7 +135,7 @@
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-text); }
 .rgp .lp-back:hover { background: var(--ph-plate-hover); color: var(--ph-ink); }
 .rgp-board { container-type: inline-size; min-width: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); border-radius: var(--ph-r); }
-.rgp-boardin { animation: lp-swap 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
+.rgp-boardin.swap { animation: lp-swap 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
 .rgp-board .cv2-team.cv2-team { --tw: min(calc((100cqw - 8px) / 8.4), 168px); --tile-gap: calc(var(--tw) * 0.2); flex-wrap: nowrap; justify-content: center;
   padding: calc(var(--tw) * 0.3) calc(var(--tw) * 0.1 + 2px) 12px; }
 .rgp-none, .rgp-board .cv2-row-none { padding: calc(40 * var(--phu)) 0; text-align: center; font-size: var(--ph-t2); color: var(--ph-muted); }
@@ -256,7 +256,7 @@ html[data-touch-small] .lvp { --lvp-cols: minmax(0, 1fr) calc(180 * var(--phu)) 
 html[data-touch-small] :is(.rgp, .lvp) :is(.phk-segbtn, .phk-tab, .phk-btn, .lp-back) { min-height: 36px; }
 html[data-touch-small] :is(.rgp, .lvp) .phk-moreitem { min-height: 40px; }
 
-@media (prefers-reduced-motion: reduce) { .rgp-boardin { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .rgp-boardin.swap { animation: none; } }
 
 /* ── LIGHT POLISH (owner 2026-11-02, after round 5: "it looks ok"; keep the layout): fewer all-caps tracked labels, the
    fact tiles a touch lighter, and the board's empty slots as soft ghosts instead of dashed boxes. ── */
@@ -311,7 +311,7 @@ html[data-touch-small] .rgp-itemend { min-width: 0; }
 /* The open game: a shorter head, so the board is on screen without a scroll. */
 html[data-touch-small] .rgp-banner { min-height: calc(84 * var(--phu)); padding: calc(8 * var(--phu)) calc(24 * var(--phu)); gap: calc(16 * var(--phu)); }
 html[data-touch-small] .rgp-ord.big { font-size: calc(40 * var(--phu)); }
-html[data-touch-small] .rgp-facts { padding: calc(8 * var(--phu)) calc(24 * var(--phu)) 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+html[data-touch-small] .rgp-facts { padding: calc(8 * var(--phu)) calc(24 * var(--phu)) 0; gap: calc(4 * var(--phu)); }
 html[data-touch-small] .rgp-facts .phk-stat { flex: none; flex-direction: row; align-items: baseline; gap: calc(6 * var(--phu)); padding: calc(4 * var(--phu)) calc(12 * var(--phu)); }
 html[data-touch-small] .rgp-facts .phk-statval { font-size: var(--ph-t2); }
 html[data-touch-small] .rgp-boardsec { gap: calc(4 * var(--phu)); padding: calc(4 * var(--phu)) calc(24 * var(--phu)) calc(8 * var(--phu)); }
@@ -325,3 +325,10 @@ html[data-touch-small] .rgp-lobby { padding: calc(8 * var(--phu)) calc(24 * var(
 .rgp-ghostface { display: block; width: calc(37.125 * var(--phu)); height: calc(37.125 * var(--phu)); border-radius: 50%; background: color-mix(in srgb, var(--ph-ink) 10%, transparent); }
 .rgp-lobby.fadein .lp-tiles { animation: lp-swap 0.22s cubic-bezier(0, 0, 0.2, 1) both; }
 @media (prefers-reduced-motion: reduce) { .rgp-lobby.fadein .lp-tiles { animation: none; } }
+
+/* ROUND 11. A row reads as pressable: the open gauntlet, like the lobby tiles (never a plain keyword). */
+.rgp-list .phk-selitem { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* A tab switch in flight: the last feed stays up, a little dimmed (a one-shot opacity), and swaps in place. */
+.rgp.stale .phk-pagebody { opacity: 0.7; transition: opacity 0.12s ease; }
+/* The first game held for its lobby: the plate alone, the height of the panel. */
+.rgp-detail.rgp-hold { min-height: 100%; }

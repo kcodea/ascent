@@ -2668,6 +2668,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    30.2px at 1600x900). The seat keeps the coin's CENTRE exactly where the old 60u coin's centre sat
    (14u, 10u from the corner), so the owner's tuned nudge still lands it on the corner. */
 .cost { --coin-d: 46.5; top: calc(10 * var(--u) - 23.25 * var(--u)); left: calc(14 * var(--u) - 23.25 * var(--u)); pointer-events: auto; transform: var(--cpl-cost-t, none); transform-origin: center; }
+/* HERO-POWER DISCOVER (owner ask 2026-11-03): a power option's Gold coin is 70% larger, so the price reads at a
+   glance while picking (R-POWER-PICK-INFO-01). Scaled about its centre, on top of the tuner's seat. */
+.disc-slot .card:has(.spellkind[data-kind="power"]) .cost { transform: var(--cpl-cost-t, none) scale(1.7); }
+/* …and wears a PER USE label above it (owner ask 2026-11-03: the bare coin "looks like it costs 3 to select"): the
+   coin is what each ACTIVATION costs, picking the power is free. Inside the coin's transform, so it scales with it. */
+.disc-slot .card:has(.spellkind[data-kind="power"]) .cost::after {
+  content: "PER USE"; position: absolute; bottom: calc(100% + 2 * var(--u)); left: 50%; transform: translateX(-50%);
+  white-space: nowrap; font-family: var(--font-ui); font-weight: 900; font-size: calc(8 * var(--u)); letter-spacing: 0.06em;
+  line-height: 1; color: #ffe293; text-shadow: 0 0 calc(3 * var(--u)) #000, 0 1px 1px #000; pointer-events: none;
+}
 /* Cast multiplier (Nimbus / Yazzus / a Prismcaster'd Ruby): the ×N badge top-RIGHT. Wears the same minted-coin
    skin as the hero-power cost + the `.cost` coin (owner ask 2026-07-24) but in ORANGE, so it reads as the same
    family of badge while staying instantly distinguishable from the gold cost coin on the opposite corner.

@@ -26,7 +26,8 @@ describe('a hero power as a Discover card', () => {
       expect(v.text).toBe(h.power.text);
       expect(v.heroPowerOf).toBe(h.name);
       expect(v.spell).toBe(true);
-      // The five-star plaque, as on the Power Shifter spell (owner ask 2026-10-12). No cost coin: a power has none.
+      // The five-star plaque, as on the Power Shifter spell (owner ask 2026-10-12). No coin without a live preview
+      // (the live offer adds one to an active power: R-POWER-PICK-INFO-01, powerPickInfo.test.ts).
       expect(v.tier).toBe(5);
       expect(v.tier).toBe(CARD_INDEX.powershifter!.tier);
       expect(v.cost).toBeUndefined();
@@ -78,7 +79,7 @@ describe('the dialog', () => {
     const onPick = vi.fn();
     m = mount(
       <DiscoverDialog
-        ids={[...HEROES]} cards={HEROES.map(powerCardView)} onPick={onPick} occasion={null}
+        ids={[...HEROES]} cards={HEROES.map((id) => powerCardView(id))} onPick={onPick} occasion={null}
         source={powerOfferSource('shifter')} label="Discover a hero power" full
       />,
     );

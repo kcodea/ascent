@@ -1374,7 +1374,10 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   A pass that comes back to you (their hand was full, the clock) says so on the portrait. A reload keeps every pass
   exactly once: the restored run lines its passes up with the server by card (and the pass it last arrived through)
   and round, then replays the round's passes both ways in the order the server recorded them, so a card passed back
-  and forth (A to B to A) lands once per pass and every pass is paid once.
+  and forth (A to B to A) lands once per pass and every pass is paid once. An effect pass replays too
+  (R-DUOS-PASS-RESTORE-EFFECT-01): the minion leaves your board or Shop again, so it never exists on both teammates, and
+  your lock and snapshot for that turn do not hold it. Passaria pays its 2 Gold again. A reload still drops the rest of the
+  turn's unlocked actions, so a Handout you cast comes back to your hand with its Gold.
 - **Duos-only cards** (owner 2026-10-30; R-DUOS-CARDS-01..05, R-DUOS-EFFECT-PASS-QUEUE-01). Some minions and Shop Spells exist only in Duos runs
   (Versus Duos and Ranked Duos). They join a run's pool when their tribe is one of the set's tribes (neutrals and spells
   always), then the run's tribe roll narrows them like any card. **Only the manual pass costs Gold** (the drag, 1 Gold;

@@ -115,6 +115,11 @@ describe('R-SPECTATE-CURSOR-LAYER-01: the watched hand paints over the whole HUD
 });
 
 describe('R-SPECTATE-DUOS-PASS-01: the passes of the watched run (pure)', () => {
+  it('a pass a reload put back never streams twice (R-DUOS-PASS-RESTORE-EFFECT-01)', () => {
+    const send = entry(0, bc('m0', 'dw_pimm'), { via: 'spell', from: 'board', restored: true });
+    expect(watchedPasses(duosRun(), duosRun({ outbox: [send] })).sends).toEqual([]);
+  });
+
   it('a Passaria send is a stream, not a drag: the stands see it leave (R-DUOS-PRIESTESS-01)', () => {
     const send = entry(0, bc('m0', 'dw_pimm'), { via: 'spell', from: 'board', paid: 2, power: 0 });
     expect(watchedPasses(duosRun(), duosRun({ outbox: [send] })).sends).toEqual([send]);

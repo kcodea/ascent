@@ -12313,6 +12313,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/duosCards.test.ts'], lastVerifiedAt: '2026-10-30' },
   },
   {
+    id: 'R-DUOS-PASS-RESTORE-EFFECT-01',
+    title: 'A reload replays an effect pass: the minion leaves again, and never exists on both teammates',
+    statement:
+      'A reload rebuilds the run from its last lock and drops the round\x27s unlocked Shop actions. A pass the server already '
+      + 'recorded still stands, so the restore replay plays it again: a hand pass through `passCard`, an effect pass (`passFrom` '
+      + '`spell` or `sale`: Handout, CueBee\x27s Pass, Passaria, Salesman of the Year) through `restoreEffectPass`, which takes the '
+      + 'minion off the board or Shop by uid and card id. A hero power\x27s pass pays its recorded Gold and spends its charge. A '
+      + 'minion not on the restored run (it was made by a dropped action) changes nothing, and a refused row delivered nothing. '
+      + 'The replayed entry is marked `restored`, so no screen streams it twice. The lock and snapshot of that turn are built '
+      + 'from the replayed run, so they do not hold the minion.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-04 (snapshot integrity bar, 2026-10-17)', quote: 'snapshots served on exactly the right turn with exact recorded state' },
+      { kind: 'code', ref: 'packages/ui/src/versus/duosPasses.ts replayRestore; packages/sim/src/reducer.ts restoreEffectPass; packages/ui/src/versus/spectatorPasses.ts watchedPasses' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-04. Before, `replayRestore` looked only in the hand, so the minion stayed on the sender and also sat with the teammate, and the sender\x27s lock carried it.',
+    example: 'Ann casts Handout on her Taunt, Bob gets it, and Ann reloads: her board has no Taunt, and her lock for the turn does not either.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosPassesRestore.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
     id: 'R-DUOS-CARDS-04',
     title: '"Your teammate\x27s most common type" breaks ties with a seeded 50/50',
     statement:

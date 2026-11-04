@@ -285,6 +285,71 @@ export function rollVariation(rng: () => number, count: number, o: VariationOpti
   return out;
 }
 
+// ─── per-copy flight (burst motion) ───────────────────────────────────────────────────────────────────
+
+/** One copy's launch: an initial velocity in px/s (screen space, +y down) and a spin in radians/s. */
+export interface FlightRoll {
+  vx: number;
+  vy: number;
+  spin: number;
+}
+
+export interface FlightOptions {
+  /** Launch speed, px/s. 0 = no flight (every roll is the identity). */
+  speed: number;
+  /** 0..1 — each copy's speed is × (1 ± this). */
+  speedJitter: number;
+  /** Centre of the launch cone, degrees, screen space: 0 = right, -90 = up, 90 = down. */
+  angleDeg: number;
+  /** Full width of the launch cone, degrees (0 = every copy on Angle, 360 = every direction). */
+  spreadDeg: number;
+  /** Each copy spins at a random ± this many degrees/s. */
+  spinDeg: number;
+}
+
+/**
+ * Roll `count` launches. ALWAYS consumes exactly three draws per copy (angle, speed, spin), in that order,
+ * whatever the options — so a knob change re-shapes the same throw instead of re-rolling a new one. Give it
+ * its OWN generator (not the scatter/variation one): flight was added after those, and sharing their stream
+ * would reshuffle every already-authored def's scatter and frames.
+ */
+export function rollFlight(rng: () => number, count: number, o: FlightOptions): FlightRoll[] {
+  const n = Math.max(1, Math.floor(count));
+  const spread = Math.max(0, Math.min(360, o.spreadDeg));
+  const out: FlightRoll[] = [];
+  for (let i = 0; i < n; i++) {
+    const ua = rng();
+    const us = rng();
+    const ur = rng();
+    if (o.speed <= 0 && o.spinDeg <= 0) { out.push({ vx: 0, vy: 0, spin: 0 }); continue; }
+    const a = (o.angleDeg + (ua - 0.5) * spread) * DEG;
+    const sp = o.speed > 0 ? Math.max(0, o.speed * (1 + (2 * us - 1) * Math.max(0, o.speedJitter))) : 0;
+    out.push({
+      vx: sp === 0 ? 0 : sp * Math.cos(a),
+      vy: sp === 0 ? 0 : sp * Math.sin(a),
+      spin: o.spinDeg > 0 ? (2 * ur - 1) * o.spinDeg * DEG : 0,
+    });
+  }
+  return out;
+}
+
+/**
+ * Where a launched copy is `tSec` after its own start, as an offset from where it was born. Closed form (no
+ * per-frame integration, so a scrubbed or hitched clock lands in the same place): linear drag `drag` per
+ * second on the velocity, constant `gravity` px/s² downward. Drag 0 is plain ballistic motion.
+ */
+export function flightOffset(roll: FlightRoll, tSec: number, gravity: number, drag: number): { dx: number; dy: number } {
+  const t = Math.max(0, tSec);
+  if (drag <= 0) {
+    return { dx: roll.vx * t, dy: roll.vy * t + 0.5 * gravity * t * t };
+  }
+  const k = drag;
+  const e = 1 - Math.exp(-k * t);
+  // With drag, gravity pulls toward a terminal velocity g/k rather than accelerating forever.
+  // v(t) = g/k + (v0 - g/k)·e^(-kt), integrated from 0.
+  return { dx: (roll.vx / k) * e, dy: (gravity / k) * t + ((roll.vy - gravity / k) / k) * e };
+}
+
 /** Mirror a reversed strip: frame `i` of `n` plays as `n-1-i`. */
 export function reverseFrame(i: number, n: number): number {
   return Math.max(0, n - 1 - i);

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { makeRng } from './rng';
 import {
   aimsLeft,
+  flightOffset,
+  rollFlight,
   reverseFrame,
   ropePoints,
   rollScatter,
@@ -169,5 +171,74 @@ describe('tiltCorners', () => {
   });
   it('never produces NaN even at extreme tilt and tiny depth', () => {
     expect(tiltCorners(100, 50, 89, 89, 1).every(Number.isFinite)).toBe(true);
+  });
+});
+
+describe('rollFlight', () => {
+  const opts = { speed: 400, speedJitter: 0.3, angleDeg: -90, spreadDeg: 60, spinDeg: 180 };
+
+  it('is the identity when Speed and Spin are both 0 (pre-Fly defs look unchanged)', () => {
+    const rolls = rollFlight(makeRng(7), 5, { ...opts, speed: 0, spinDeg: 0 });
+    expect(rolls).toEqual(Array.from({ length: 5 }, () => ({ vx: 0, vy: 0, spin: 0 })));
+  });
+
+  it('is a pure function of the seed', () => {
+    expect(rollFlight(makeRng(42), 8, opts)).toEqual(rollFlight(makeRng(42), 8, opts));
+  });
+
+  it('keeps every launch inside the cone and the speed band', () => {
+    for (const r of rollFlight(makeRng(3), 64, opts)) {
+      const sp = Math.hypot(r.vx, r.vy);
+      expect(sp).toBeGreaterThanOrEqual(400 * 0.7 - 1e-6);
+      expect(sp).toBeLessThanOrEqual(400 * 1.3 + 1e-6);
+      const deg = (Math.atan2(r.vy, r.vx) * 180) / Math.PI;
+      expect(deg).toBeGreaterThanOrEqual(-120 - 1e-6);
+      expect(deg).toBeLessThanOrEqual(-60 + 1e-6);
+      expect(Math.abs(r.spin)).toBeLessThanOrEqual(Math.PI + 1e-9);
+    }
+  });
+
+  it('draws a fixed three numbers per copy, so a knob change reshapes the same throw', () => {
+    const a = rollFlight(makeRng(11), 6, opts);
+    const b = rollFlight(makeRng(11), 6, { ...opts, spreadDeg: 0 });
+    // spread 0 collapses every direction onto Angle, but each copy keeps its own speed
+    a.forEach((r, i) => expect(Math.hypot(b[i].vx, b[i].vy)).toBeCloseTo(Math.hypot(r.vx, r.vy), 9));
+    for (const r of b) expect(r.vx).toBeCloseTo(0, 9);
+  });
+});
+
+describe('flightOffset', () => {
+  const roll = { vx: 100, vy: -200, spin: 0 };
+
+  it('starts at the birth point', () => {
+    expect(flightOffset(roll, 0, 500, 0)).toEqual({ dx: 0, dy: 0 });
+    const d = flightOffset(roll, 0, 500, 3);
+    expect(d.dx).toBeCloseTo(0, 9);
+    expect(d.dy).toBeCloseTo(0, 9);
+  });
+
+  it('is plain ballistic motion with no drag', () => {
+    const d = flightOffset(roll, 0.5, 400, 0);
+    expect(d.dx).toBeCloseTo(50, 9);
+    expect(d.dy).toBeCloseTo(-100 + 0.5 * 400 * 0.25, 9);
+  });
+
+  it('with drag, matches a fine numeric integration', () => {
+    const g = 300;
+    const k = 2;
+    let x = 0, y = 0, vx = roll.vx, vy = roll.vy;
+    const h = 1e-4;
+    for (let t = 0; t < 0.8 - h / 2; t += h) {
+      vx += -k * vx * h; vy += (g - k * vy) * h; x += vx * h; y += vy * h;
+    }
+    const d = flightOffset(roll, 0.8, g, k);
+    expect(d.dx).toBeCloseTo(x, 1);
+    expect(d.dy).toBeCloseTo(y, 1);
+  });
+
+  it('drag bleeds speed off so copies slow to a stop without gravity', () => {
+    const far = flightOffset(roll, 50, 0, 2);
+    expect(far.dx).toBeCloseTo(100 / 2, 6);
+    expect(far.dy).toBeCloseTo(-200 / 2, 6);
   });
 });

@@ -23,7 +23,9 @@ import { getImageTexture, IMAGE_NONE } from '../imageLibrary';
 import { makeRng, randomSeed } from '../rng';
 import {
   aimsLeft,
+  flightOffset,
   reverseFrame,
+  rollFlight,
   rollScatter,
   rollVariation,
   ropePoints,
@@ -34,6 +36,7 @@ import {
   tiltCorners,
   WOBBLE_AXES,
   wobblePositions,
+  type FlightRoll,
   type ScatterRoll,
   type ScatterShape,
   type SheetMode,
@@ -189,6 +192,35 @@ const SPECS = {
   staggerMs: {
     kind: 'slider', label: 'Stagger', group: 'Scatter', min: 0, max: 2000, step: 10, default: 0,
     help: 'Delay between copies, in ms, in order: copy 2 starts this long after copy 1, and so on. Each copy runs its own Duration (and its own sheet playback) from its start. A one-shot fire waits for the last copy.',
+  },
+  // ── Fly (per-copy burst motion; Speed 0 and Spin 0 = copies stay where they land, the pre-Fly look) ──
+  flySpeed: {
+    kind: 'slider', label: 'Speed', group: 'Fly', min: 0, max: 2000, step: 10, default: 0,
+    help: 'Launch speed of each copy, in px per second. 0 = no launch (copies stay where they land, unless Gravity pulls them). Above 0 every copy flies off on its own path from its start, like a burst of particles — Count sets how many, Stagger spaces their launches.',
+  },
+  flySpeedJitter: {
+    kind: 'slider', label: 'Speed jitter', group: 'Fly', min: 0, max: 1, step: 0.01, default: 0.3,
+    help: 'Each copy launches at Speed × a random 1 ± this, so some fly far and some stay close. 0 = all the same speed.',
+  },
+  flyAngle: {
+    kind: 'slider', label: 'Angle', group: 'Fly', min: -180, max: 180, step: 1, default: -90,
+    help: 'The direction the burst aims, in degrees: 0 = right, -90 = up, 90 = down, 180 = left. Spread fans copies out around it.',
+  },
+  flySpread: {
+    kind: 'slider', label: 'Spread', group: 'Fly', min: 0, max: 360, step: 1, default: 360,
+    help: 'How wide the fan of launch directions is, in degrees, centred on Angle. 360 = every direction (a ring burst); 60 = a tight fountain; 0 = every copy on the same line.',
+  },
+  flyGravity: {
+    kind: 'slider', label: 'Gravity', group: 'Fly', min: -2000, max: 2000, step: 10, default: 0,
+    help: 'Constant pull on each flying copy, in px per second squared. Positive pulls down (copies arc and fall), negative lifts them (notes that float up). 0 = straight lines.',
+  },
+  flyDrag: {
+    kind: 'slider', label: 'Drag', group: 'Fly', min: 0, max: 10, step: 0.1, default: 0,
+    help: 'Air resistance. Copies burst out fast and slow to a drift. 0 = they keep their speed. With Gravity on, drag also caps how fast they fall.',
+  },
+  flySpin: {
+    kind: 'slider', label: 'Spin', group: 'Fly', min: 0, max: 1080, step: 5, default: 0,
+    help: 'Each copy turns at a random ± this many degrees per second as it flies (and works with Speed 0 too — copies spin in place). 0 = no spin.',
   },
   // ── Render ──
   renderMode: {
@@ -377,6 +409,8 @@ interface Copy {
   node: CustomNode;
   roll: ScatterRoll;
   vroll: VariationRoll;
+  /** The copy's launch (velocity + spin) — the identity when Fly Speed and Spin are both 0. */
+  flight: FlightRoll;
   /** Last applied frame index within the copy's strip, so a texture swap only happens on change. */
   frame: number;
   hueFilter: ColorMatrixFilter | null;
@@ -391,6 +425,10 @@ interface Copy {
 /** Frame textures per (image, grid). Sub-textures share the sheet's source and are never destroyed — the
  *  base texture is shared library state, and a handful of Texture wrappers per authored sheet is nothing. */
 const FRAME_CACHE = new Map<string, Texture[]>();
+
+/** Salt for the flight roll's own generator, so it never shares (and shifts) the scatter/variation stream. */
+const FLIGHT_SALT = 0x5f1a7e;
+const NO_FLIGHT = { dx: 0, dy: 0 } as const;
 
 function framesFor(image: string, tex: Texture, cols: number, rows: number, count: number): Texture[] {
   const c = Math.max(1, Math.floor(cols));
@@ -414,6 +452,8 @@ function structureKey(p: CustomParams): string {
     p.ropeSegments, p.tiltSegments, p.sliceCap, p.role, p.scatterRadius, p.scatterShape, p.jitterRotation,
     p.jitterScale, p.jitterAlpha, p.staggerMs, p.randomStart, p.randomFlipX, p.randomFlipY, p.fpsJitter,
     p.hueJitter, p.randomReverse,
+    // the launch is rolled at build too; Gravity and Drag act per frame, so they are not here
+    p.flySpeed, p.flySpeedJitter, p.flyAngle, p.flySpread, p.flySpin,
   ].join('|');
 }
 
@@ -530,20 +570,25 @@ class CustomInstance implements FxInstance<CustomParams> {
       randomFlipX: p.randomFlipX, randomFlipY: p.randomFlipY, fpsJitter: p.fpsJitter, hueJitter: p.hueJitter,
       randomReverse: p.randomReverse,
     });
+    // Flight rolls off its OWN stream (a fixed salt on the seed): sharing `rng` would shift every draw after
+    // it and re-arrange already-authored defs. Same seed → same throw.
+    const flights = rollFlight(makeRng((this.seed ^ FLIGHT_SALT) >>> 0), p.count, {
+      speed: p.flySpeed, speedJitter: p.flySpeedJitter, angleDeg: p.flyAngle, spreadDeg: p.flySpread, spinDeg: p.flySpin,
+    });
     rolls.forEach((roll, i) => {
-      const copy = this.makeCopy(roll, vrolls[i]);
+      const copy = this.makeCopy(roll, vrolls[i], flights[i]);
       this.container.addChild(copy.wrap);
       this.copies.push(copy);
     });
   }
 
-  private makeCopy(roll: ScatterRoll, vroll: VariationRoll): Copy {
+  private makeCopy(roll: ScatterRoll, vroll: VariationRoll, flight: FlightRoll): Copy {
     const p = this.params;
     const frame0 = this.strips[vroll.row]?.[0] ?? this.frames[0];
     const fw = frame0.width;
     const fh = frame0.height;
     const wrap = new Container();
-    const copy: Copy = { wrap, node: null as unknown as CustomNode, roll, vroll, frame: -1, hueFilter: null };
+    const copy: Copy = { wrap, node: null as unknown as CustomNode, roll, vroll, flight, frame: -1, hueFilter: null };
     switch (p.renderMode) {
       case 'slice': {
         const cap = Math.max(0, Math.min(Math.floor(p.sliceCap), Math.floor(fw / 2) - 1));
@@ -695,11 +740,16 @@ class CustomInstance implements FxInstance<CustomParams> {
         const sqy = Math.max(0.01, p.squashY * sampleCurve(p.squashYCurve, cprog));
         copy.wrap.scale.set(copy.wrap.scale.x * sqx, copy.wrap.scale.y * sqy);
 
+        // Fly: where this copy's own launch has carried it, on its own clock (held at Duration so a looping
+        // preview's wait between plays doesn't send it off-screen).
+        const flyT = Math.min(local, dur) / 1000;
+        const fl = copy.flight;
+        const fo = fl.vx !== 0 || fl.vy !== 0 || p.flyGravity !== 0 ? flightOffset(fl, flyT, p.flyGravity, p.flyDrag) : NO_FLIGHT;
         // Children draw at ABSOLUTE screen coords (the envelope pivots the layer container about the head).
-        copy.wrap.position.set(this.headX + p.offsetX + copy.roll.dx, this.headY + p.offsetY + copy.roll.dy);
+        copy.wrap.position.set(this.headX + p.offsetX + copy.roll.dx + fo.dx, this.headY + p.offsetY + copy.roll.dy + fo.dy);
         // A trail rope is already in world orientation (its points ARE the path), so only the scatter jitter
         // rotates it; everything else takes the static rotation + aim.
-        copy.wrap.rotation = (trailMode ? 0 : baseRot) + copy.roll.rot;
+        copy.wrap.rotation = (trailMode ? 0 : baseRot) + copy.roll.rot + fl.spin * flyT;
         copy.wrap.alpha = Math.max(0, Math.min(1, p.alpha * sampleCurve(p.alphaCurve, cprog) * copy.roll.alpha));
         // The node sits inside the wrap offset by the pivot; a rope's geometry is centred on its path, so it
         // gets the half-frame origin shift that puts its box at 0..w / 0..fh like the others. The pivot's x

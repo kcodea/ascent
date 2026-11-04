@@ -1270,6 +1270,9 @@ export async function fetchLatestReplayForUser(userId: string): Promise<ReplayV2
 // new policy or RPC is involved. Cached per telemetry row for the session, misses included (a row with no record
 // asks once). Best-effort + time-boxed; null = no lobby section.
 const recentMatchCache = new Map<number, Promise<MatchDetails | null>>();
+const recentMatchKnown = new Map<number, MatchDetails | null>();
+/** The answer already in hand for a row, synchronously (undefined = not read yet), so a revisit paints its lobby at once. */
+export const peekRecentMatch = (rowId: number | null | undefined): MatchDetails | null | undefined => (rowId == null ? undefined : recentMatchKnown.get(rowId));
 export function fetchRecentMatch(rowId: number | null | undefined, userId: string | null | undefined): Promise<MatchDetails | null> {
   if (rowId == null || !userId) return Promise.resolve(null);
   const hit = recentMatchCache.get(rowId);
@@ -1296,6 +1299,7 @@ export function fetchRecentMatch(rowId: number | null | undefined, userId: strin
     }
   })();
   recentMatchCache.set(rowId, p);
+  void p.then((m) => { recentMatchKnown.set(rowId, m); });
   return p;
 }
 

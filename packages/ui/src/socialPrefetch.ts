@@ -4,7 +4,10 @@ import { HALL_KEY, loadHall } from './Leaderboard';
 import { HALL_VISIBLE } from './hallFlag';
 import { RANKINGS_KEY, loadRankings } from './Rankings';
 import { RECENT_RANKED_KEY, loadRecentRanked } from './RecentGames';
-import { remoteEnabled, replayFactsState } from './remoteBoards';
+import { fetchRecentMatch, remoteEnabled, replayFactsState } from './remoteBoards';
+import { partyHomeOn } from './partyHome/partyHomeFlag';
+import { warmAchievements } from './progression/AchievementsTab';
+import { warmBoardArt } from './partyHome/pages/gameWarm';
 import { loadSocial } from './socialCache';
 import { useGame } from './store';
 
@@ -33,11 +36,16 @@ export async function prefetchSocial(): Promise<void> {
   if (userId) {
     const key = `${userId}|${s.careerVersion}`;
     if (!careerFresh(key)) tasks.push(loadCareer(key));
+    if (partyHomeOn()) warmAchievements(userId, true); // the shell's Career arrives whole, its Achievements tab included
   }
   tasks.push(loadSocial(RANKINGS_KEY, loadRankings));
   if (HALL_VISIBLE) tasks.push(loadSocial(HALL_KEY, loadHall)); // a hidden Hall is never fetched (hallFlag.ts)
   await Promise.allSettled(tasks);
-  if (replayFactsState('run_telemetry') === true) await loadSocial(RECENT_RANKED_KEY, loadRecentRanked);
+  if (replayFactsState('run_telemetry') === true) {
+    const recent = await loadSocial(RECENT_RANKED_KEY, loadRecentRanked);
+    // The party home prototype opens its first games whole: their lobbies are read now, not on the click (DEV switch only).
+    if (partyHomeOn()) for (const r of recent.slice(0, 3)) { void fetchRecentMatch(r.rowId, r.userId); void warmBoardArt(r.board?.minions); }
+  }
 }
 
 /** Queue `prefetchSocial` on idle time after the title settles. Returns a cancel (the title left first). */

@@ -467,6 +467,74 @@ describe('states', () => {
     expect(ui.container.querySelector('.cv2-cols')).not.toBeNull();
   });
 
+  it('on the party home shell a viewed player opens on the tab the visit fits, not your remembered one; Esc goes back', async () => {
+    const { setPartyHome } = await import('./partyHome/partyHomeFlag');
+    const { handleEscape } = await import('./GameMenu');
+    await import('./partyHome/pages/career/PhCareer');
+    try {
+      ui.unmount();
+      localStorage.setItem('ascent.career.tab', 'heroes');
+      useGame.setState({ careerCache: null, careerOf: { userId: 'them-2', author: 'Orangez', rating: 1632, gamesPlayed: 145, from: 'recent' } });
+      act(() => { setPartyHome(true); });
+      ui = mount(<Career />);
+      await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(ui.container.querySelector('.phk-tab.on')?.textContent).toBe('Match History');
+      expect(ui.container.querySelector('.phk-back')?.textContent).toContain('Back to Recent Games');
+      document.documentElement.setAttribute('data-ph-shell', '');
+      act(() => { handleEscape(); });
+      expect(useGame.getState().showCareer).toBe(false);
+    } finally {
+      document.documentElement.removeAttribute('data-ph-shell');
+      act(() => { setPartyHome(false); });
+      (await import('./socialCache')).clearSocialCache();
+    }
+  });
+
+  it('on the party home shell a known player whose history reads empty says so with Retry, never "no runs yet"', async () => {
+    const { setPartyHome } = await import('./partyHome/partyHomeFlag');
+    await import('./partyHome/pages/career/PhCareer');
+    try {
+      ui.unmount();
+      fetchMyRuns.mockResolvedValue([]);
+      useGame.setState({ careerCache: null, careerOf: { userId: 'them-1', author: 'Orangez', rating: 1632, gamesPlayed: 145 } });
+      act(() => { setPartyHome(true); });
+      ui = mount(<Career />);
+      await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(ui.container.textContent).toContain('games are not available right now');
+      expect(ui.container.textContent).not.toMatch(/hasn.t finished a lobby run|No runs yet/);
+      expect([...ui.container.querySelectorAll('button')].some((b) => b.textContent === 'Retry')).toBe(true);
+    } finally {
+      act(() => { setPartyHome(false); });
+    }
+  });
+
+  it('on the party home shell a stalled read becomes "not available" with Retry, and a late answer replaces it', async () => {
+    const { setPartyHome } = await import('./partyHome/partyHomeFlag');
+    await import('./partyHome/pages/career/PhCareer');
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      let resolve!: (v: CareerRun[]) => void;
+      fetchMyRuns.mockReturnValue(new Promise<CareerRun[] | null>((r) => { resolve = r; }));
+      ui.unmount(); // the beforeEach's page: only one Career may stay live
+      useGame.setState({ careerCache: null });
+      act(() => { setPartyHome(true); });
+      ui = mount(<Career />);
+      await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(ui.container.querySelector('.rgp-split[aria-busy]')?.getAttribute('aria-label')).toBe('Loading your games'); // the final layout, held by ghosts
+      expect(ui.container.querySelector('.phc-strip.loading')).not.toBeNull();
+      await act(async () => { vi.advanceTimersByTime(3000); for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(ui.container.textContent).toContain('Your career is not available right now');
+      expect([...ui.container.querySelectorAll('button')].some((b) => b.textContent === 'Retry')).toBe(true);
+      await act(async () => { resolve(RUNS); for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(ui.container.textContent).not.toContain('not available right now');
+      expect(ui.container.querySelector('.phc-strip')).not.toBeNull();
+    } finally {
+      act(() => { setPartyHome(false); });
+      (await import('./socialCache')).clearSocialCache(); // the shell's per-player memory must not reach the next test
+      vi.useRealTimers();
+    }
+  });
+
   it('with no account session it asks the player to sign in (the account panel affordance) and fetches nothing', async () => {
     ui.unmount();
     fetchMyRuns.mockClear();

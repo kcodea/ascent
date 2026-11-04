@@ -10,7 +10,7 @@
  * `FriendGameStatus` (`liveGameStatusOf`): the step ("Round 6 · Fighting Ann", "Picking a hero", "Finished 3rd"), the
  * place, Health + Armor and tier, and a Ranked Duos teammate. No second formatter.
  */
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { getHero, rankLabel } from '@game/sim';
 import { Icon } from '../Icon';
 import { MenuMedal } from '../menuIcons';
@@ -29,7 +29,12 @@ import { useLiveWatch } from './liveWatch';
 import { watchGame } from '../friends/friendsGo';
 import { liveGameStatusOf, liveModeLabel, liveNameOf, liveWatchTargetOf } from './liveTargets';
 import { FriendGame } from '../friends/friendBits';
+import { usePartyHome } from '../partyHome/partyHomeFlag';
 import './live.css';
+
+/** THE PARTY HOME's version of this page (DEV switch "Party home (prototype)", owner 2026-11-02): the same reads and Watch
+ *  path, drawn with the shell kit under the top nav. Lazy and null in production, so the shipped bundle never carries it. */
+const LiveGamesPh = import.meta.env.DEV ? lazy(() => import('../partyHome/pages/LiveGamesPh').then((m) => ({ default: m.LiveGamesPh }))) : null;
 
 const REFRESH_MS = 10_000;
 
@@ -38,6 +43,7 @@ export function LiveGames(): JSX.Element | null {
   const goTo = useGame((s) => s.goTo);
   const showOpp = useGame((s) => s.showOpponentSkins);
   const error = useLiveWatch((s) => s.error);
+  const shell = usePartyHome();
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<LiveGameRow[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -73,6 +79,18 @@ export function LiveGames(): JSX.Element | null {
     void watchGame(liveWatchTargetOf(r.game_id), r).then(() => setJoining(null));
   };
 
+  const turnPage = (next: number): void => { if (next === page) return; sfx.pulse(); setRows(null); setPage(next); };
+  if (shell && LiveGamesPh) {
+    return (
+      <SidebarHost className="lbpage lvp-page">
+        <MenuSidebar current="live" />
+        <Suspense fallback={null}>
+          <LiveGamesPh offline={!remoteEnabled()} rows={rows} failed={failed} error={error} page={page} joining={joining} showOpp={showOpp}
+            onWatch={watch} onPage={turnPage} onRecent={() => { sfx.pulse(); goTo('recent'); }} onPlay={() => { sfx.pulse(); goTo('menu'); }} />
+        </Suspense>
+      </SidebarHost>
+    );
+  }
   return (
     <SidebarHost className="lbpage lb-ladder lv-page">
       <MenuSidebar current="live" />

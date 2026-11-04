@@ -34,6 +34,10 @@ export interface CareerView {
   avatar?: string;
   /** Set only when opened from a single game (Recent Games) — the run to auto-expand + scroll to. */
   focus?: CareerFocus;
+  /** The page underneath it (still mounted, as it was): the party home shell's Back and Esc return there. */
+  from?: 'recent' | 'rankings';
+  /** The shell's tab for this open, when it is not Match History (a practice game opens Practice). */
+  tab?: 'practice';
 }
 
 /** The title screen's view: the main menu, the MODE picker, or the LEARN hub / GAUNTLET stage select inside it. */

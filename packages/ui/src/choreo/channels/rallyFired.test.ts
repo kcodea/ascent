@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
 import { compileMoments } from '../compile';
-import { attackSummonUids, ownRallyBindingFor, ownRallyFloatDelayMs, splitOwnRallyFloats, ralliesFiredIn, rallyProcsFor, RALLY_BEAT_MS, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS } from './rallyFired';
+import { attackSummonUids, isOwnNarration, ownRallyBindingFor, ownRallyFloatDelayMs, splitOwnRallyFloats, ralliesFiredIn, rallyProcsFor, RALLY_BEAT_MS, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS } from './rallyFired';
 
 const rally = (source: string, target: string): CombatEvent => ({ type: 'rally', source, target } as CombatEvent);
 const buff = (target: string): CombatEvent =>
@@ -244,6 +244,14 @@ describe('the rallier number waits for its own Rally effect (R-FX-RALLY-FLOAT-01
     const { now, later } = splitOwnRallyFloats(floats, 'a');
     expect(later).toEqual([fl('a', 'sc')]);
     expect(now).toEqual([fl('a', 'dmg'), fl('d', 'dmg'), fl('z', 'sc')]);
+  });
+
+  it('holds the rallier Spell Power flourish too, never a hero-power grant or another unit', () => {
+    const sp = (source: string, heroPower?: boolean) => ({ type: 'sc', source, text: '+0/+1 Spell Power', ...(heroPower ? { heroPower } : {}) }) as unknown as CombatEvent;
+    expect(isOwnNarration(sp('a'), 'a')).toBe(true);
+    expect(isOwnNarration(sp('b'), 'a')).toBe(false);
+    expect(isOwnNarration(sp('a', true), 'a')).toBe(false);
+    expect(isOwnNarration(undefined, 'a')).toBe(false);
   });
 
   it('lands after the wind-up pulse, with the same read gap Echohorn sparkle uses', () => {

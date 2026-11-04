@@ -302,3 +302,8 @@ html[data-ph-shell][data-touch-small] .phc-sheet .phc-progress { display: flex; 
 /* With the full width, the filters wrap instead of cutting a chip at the edge. */
 html[data-ph-shell][data-touch-small] .phc-filters { flex-wrap: wrap; overflow: visible; touch-action: auto; }
 html[data-ph-shell][data-touch-small] .phc-rarities { flex: 0 1 auto; flex-wrap: wrap; }
+
+/* Desktop: every rarity chip on one row. They share the row evenly, and if a future rarity ever forced a wrap, both rows
+   still fill the width (no lone chip). */
+html[data-ph-shell]:not([data-ph-compact]) .phc-rarities { gap: calc(4 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phc-rchip { flex: 1 1 auto; max-width: calc(192 * var(--phu)); justify-content: center; gap: calc(4 * var(--phu)); padding: 0 calc(8 * var(--phu)); letter-spacing: 0.04em; }

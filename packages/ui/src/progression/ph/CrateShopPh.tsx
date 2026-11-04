@@ -7,19 +7,51 @@
  * components, so every pick and toggle celebration (`chestShopFx.ts`) and every tip plays exactly as before; the shell's
  * stylesheet only re-skins the chrome around them. The chest opening (the theatre) is untouched.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CRATE_TIERS, COSMETIC_CATEGORY_DEFS } from '@game/progression';
-import { setCratesView } from '../../partyHome/shell/shellStore';
-import { PhButton, PhPage, PhSection } from '../../partyHome/kit';
+import { setCratesView, usePhShell } from '../../partyHome/shell/shellStore';
+import { sfx } from '../../sfx';
+import { probeProgression } from '../progressionStore';
+import { PhButton, PhEmpty, PhPage, PhSection } from '../../partyHome/kit';
 import { AetherIcon } from '../AetherIcon';
 import { Amount, ChestCard, FocusRow, OddsSeg, type CrateShopState } from '../CrateShop';
 import { LockGlyph } from '../CollectionScreen';
 import './collectionPh.css';
 import './crateShopPh.css';
 
+/** The nav's Crates tab is lit while a Crates view is up, however it was reached. A nav press that leaves Crates for the
+ *  Collection stays on this same page, so the view steps back by itself. */
+function useCratesLit(leave: () => void): void {
+  const leaveRef = useRef(leave);
+  leaveRef.current = leave;
+  useEffect(() => {
+    setCratesView(true);
+    const off = usePhShell.subscribe((st, prev) => { if (prev.crates && !st.crates) leaveRef.current(); });
+    return () => { off(); setCratesView(false); };
+  }, []);
+}
+
+/** Crates asked for while the shop cannot be reached (offline, or the server has it off): say so plainly, with a Retry. */
+export function CratesOfflinePh({ onBack }: { onBack: () => void }): JSX.Element {
+  useCratesLit(onBack);
+  const [checking, setChecking] = useState(false);
+  const retry = (): void => { sfx.pulse(); setChecking(true); void probeProgression().finally(() => setChecking(false)); };
+  return (
+    <section className="cshop phs cshop-still" aria-label="Crates">
+      <PhPage wide className="phs-page" eyebrow="Collection" title="Crates" back={{ label: 'Collection', onClick: () => { sfx.pulse(); onBack(); } }}>
+        <PhSection className="phs-offline">
+          <PhEmpty
+            title="Crates are unavailable right now" sub="Check your connection and try again."
+            action={<PhButton variant="plate" size="m" disabled={checking} onClick={retry}>{checking ? 'Checking' : 'Retry'}</PhButton>}
+          />
+        </PhSection>
+      </PhPage>
+    </section>
+  );
+}
+
 export function CrateShopPh({ shop: s }: { shop: CrateShopState }): JSX.Element {
-  // The nav's Crates tab is lit while this screen is up, however it was reached (the tab, or the page's Chest Shop button).
-  useEffect(() => { setCratesView(true); return () => setCratesView(false); }, []);
+  useCratesLit(s.back);
   // A GUEST's button stays live (owner ruling 2026-10-19: it opens the sign-in prompt), but it reads as what it does:
   // the outlined plate, a padlock and "Sign in to open", never the gold buy.
   const guestBuy = s.guest && !s.busy && !!s.quote;

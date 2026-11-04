@@ -34,7 +34,7 @@ import { CollectionPage } from '../CollectionScreen';
 import { resetProgressionForTests, useProgression } from '../progressionStore';
 import { setCrateFxFactoryForTests } from '../crateFx/crateFxPixi';
 import { setPartyHome } from '../../partyHome/partyHomeFlag';
-import { openCrates, setCollectionIntent, usePhShell } from '../../partyHome/shell/shellStore';
+import { leaveCrates, openCrates, setCollectionIntent, usePhShell } from '../../partyHome/shell/shellStore';
 import { useGame } from '../../store';
 
 const noopFx = (): CrateFx => new Proxy({}, { get: (_t, k) => (k === 'then' ? undefined : k === 'mount' ? async () => true : () => {}) }) as CrateFx;
@@ -163,6 +163,24 @@ describe('the Collection in the party home shell', () => {
     expect(usePhShell.getState().crates).toBe(true);
     act(() => { $('.phs .phk-back')!.click(); });
     expect(usePhShell.getState().crates).toBe(false);
+  });
+
+  it('Crates with the shop out of reach: the plain offline note under a lit Crates tab; the Collection tab steps back', async () => {
+    useProgression.setState({ cratesCapability: 'off' });
+    await open({ ph: true, aether: false });
+    useProgression.setState({ cratesCapability: 'off' });
+    await settle();
+    expect($('.phc-bay')?.textContent).toContain('Chests are unavailable right now.');
+    act(() => { openCrates(); });
+    await settle();
+    expect($('.phs h1')?.textContent).toBe('Crates');
+    expect($('.phs-offline')?.textContent).toContain('Crates are unavailable right now');
+    expect(btn('Retry')).toBeDefined();
+    expect(usePhShell.getState().crates).toBe(true);
+    act(() => { leaveCrates(); });
+    await settle();
+    expect($('.phs')).toBeNull();
+    expect($('.phc')).not.toBeNull();
   });
 
   it('ON with Aether: Crates pressed while the Collection is already open switches to the Chest Shop', async () => {

@@ -36,6 +36,7 @@ import { defaultArtOf, skinArtOf } from '../../skins/skinArt';
 import { previewAnnouncerPack, stopAnnouncerPreview } from '../../announcer';
 import { announcerPackOf } from '../announcerPack';
 import { AetherIcon } from '../AetherIcon';
+import { CratesOfflinePh } from './CrateShopPh';
 import { ChestPicture } from '../ChestPicture';
 import { chestFloorOf, type ChestTier } from '../crateFx/chestTiers';
 import type { CrateQueueItem } from '../CrateOpener';
@@ -61,6 +62,8 @@ export interface CollectionPhView {
   onHover: (id: string | null, el?: HTMLElement, asDefault?: boolean) => void;
   selected: CosmeticDef | null; busy: boolean; error: string | null; playerName: string; showDefault: boolean;
   emoteMenu: readonly (string | null)[]; onPlaceEmote: (position: number) => void; onEquip: () => void; onTakeOff: () => void;
+  /** Crates was asked for but the shop cannot be reached: the page shows the plain offline note. */
+  shopOffline: boolean; closeShop: () => void;
   cratesOn: boolean; cratesLoading: boolean; sealed: readonly CrateQueueItem[]; bayTier: ChestTier; nextCrateLevel: number; guest: boolean;
   oddsLine: string; shopBusy: boolean; openBay: () => void; openAllBay: () => void; openAccount: () => void;
 }
@@ -101,6 +104,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
     takeCollectionIntent();
     openShop();
   }, [cratesSeq, openShop]);
+  if (v.shopOffline) return <CratesOfflinePh onBack={v.closeShop} />;
   return (
     <PhPage
       wide
@@ -239,7 +243,7 @@ function ChestBay({ v }: { v: CollectionPhView }): JSX.Element {
           <span className="phc-bay-lbl">Sealed chests</span>
           {ready
             ? <span className="phc-bay-num"><b>{n}</b> ready</span>
-            : <span className="phc-bay-sub">{!v.cratesOn ? 'Chests are coming soon.' : v.cratesLoading ? 'Loading' : `None right now. Your next chest comes at Level ${v.nextCrateLevel}.`}</span>}
+            : <span className="phc-bay-sub">{!v.cratesOn ? 'Chests are unavailable right now.' : v.cratesLoading ? 'Loading' : `None right now. Your next chest comes at Level ${v.nextCrateLevel}.`}</span>}
           {ready && <span className="phc-bay-sub">Next: {crateLabel({ ...v.sealed[0]!, floor: chestFloorOf(v.sealed[0]!.tier) })}</span>}
         </div>
       </div>

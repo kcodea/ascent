@@ -100,6 +100,12 @@ html[data-ph-shell][data-touch-small] .phs .cshop-cat { border-radius: var(--ph-
 .phs-buy.guest .phs-buy-total { box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair); opacity: 0.8; }
 
 /* PHONES: every control a finger can hit is at least 40 screen points tall. */
-html[data-ph-shell][data-touch-small] .phs .cshop-toggle { min-height: calc(40 * var(--pt, 1px)); min-width: calc(72 * var(--pt, 1px)); }
-html[data-ph-shell][data-touch-small] .phs .cshop-cat { min-height: calc(44 * var(--pt, 1px)); }
-html[data-ph-shell][data-touch-small] .phs .phk-back { min-height: calc(40 * var(--pt, 1px)); }
+html[data-ph-shell][data-touch-small] .phs .cshop-toggle { min-height: calc(64 * var(--phu)); min-width: calc(115 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phs .cshop-cat { min-height: calc(70 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phs .phk-back { min-height: calc(64 * var(--phu)); }
+
+/* Rounded plates only here: no square corner ornaments on these panels. */
+.phs .phk-section::before { display: none; }
+/* The picked card stays level with its row (its gold, halo and check say it is picked). */
+.cshop.phs:not(.cshop-still) .cshop-chest.on, .cshop.phs:not(.cshop-still) .cshop-chest.on:hover { transform: none; }
+.phs-offline .phk-empty { min-height: calc(320 * var(--phu)); }

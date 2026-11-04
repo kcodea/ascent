@@ -387,7 +387,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
       busy, error, playerName: name, showDefault: !!selected && defaultShown === selected.id && (busy || !isEquipped(selected, me)),
       emoteMenu, onPlaceEmote: (pos) => { if (selected) void onPlaceEmote(selected, pos); },
       onEquip: () => { if (selected) void onEquip(selected, true); }, onTakeOff: () => { if (selected) void onEquip(selected, false); },
-      cratesOn, cratesLoading: crateList === null, sealed, bayTier, nextCrateLevel, guest: anonymous, oddsLine, shopBusy, openBay, openAllBay,
+      shopOffline: shopOpen && !aetherOn, closeShop, cratesOn, cratesLoading: crateList === null, sealed, bayTier, nextCrateLevel, guest: anonymous, oddsLine, shopBusy, openBay, openAllBay,
       openAccount: () => { sfx.pulse(); openAccountPanel(); },
     };
     return (

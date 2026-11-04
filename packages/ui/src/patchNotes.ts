@@ -3268,7 +3268,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Balance',
         text: "The Leaderboard now shows each player's MMR in its own column, next to their rank.",
         details: [
-          'MMR counts 100 for every division climbed plus the points in the current one, so Bronze II at 78 reads 178.',
+          'MMR counts 100 for every division gained plus the points in the current one, so Bronze II at 78 reads 178.',
         ],
       },
       { category: 'Systems', text: 'Menus and the Social tab load and scroll much faster.' },
@@ -3315,7 +3315,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Coinfire Forewoman is now Coinfire.',
           'Dwarven Sniper is now Sharpshooter.',
           'Anvilshade Smith is now Anvilshade.',
-          'Uron, Oathbringer is now Uron.',
+          'Uron has a shorter name.',
           'Zyff, the Betrayer is now Zyff.',
         ],
       },
@@ -4846,7 +4846,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'End of Turn effects that repeat now speed up. A big Kringle no longer takes minutes to finish.',
         details: [
-          'Every repeat still lands on its own, and the numbers still climb as they land.',
+          'Every repeat still lands on its own, and the numbers still rise as they land.',
           'The first few repeats play at normal speed, then they speed up fast.',
           'The repeats of one card never take longer than about two and a half seconds, however many there are.',
           'Sounds and buff trails are thinned out on the fast repeats, so it stays clean to watch.',
@@ -5167,7 +5167,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'The announcer has 31 new moments to call out, from tier-ups and big turns to streaks, standings and finishing second.',
         details: [
-          'Shop: tier-ups, a fast climb to tier 4 or 6, selling sprees, selling a golden minion, spell chains, big turns, a full board, an all-golden board, a board passing 500 total stats, a minion reaching 250 stats, 20+ Armor, a one-tribe board, and a board of five or more tribes.',
+          'Shop: tier-ups, reaching tier 4 or 6 fast, selling sprees, selling a golden minion, spell chains, big turns, a full board, an all-golden board, a board passing 500 total stats, a minion reaching 250 stats, 20+ Armor, a one-tribe board, and a board of five or more tribes.',
           'Into a fight: the final showdown, being a big underdog or a heavy favourite, and ending a turn broke.',
           'After a fight: your first draw, surviving on 1 Resolve, losing your Armor, a blowout loss, a five-win streak, back-to-back losses, and a broken win streak.',
           'The table: the first player out, five or three players left, leading or trailing the lobby after round 8, rounds 10, 15 and 20, and a game that runs past round 18.',
@@ -5875,7 +5875,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Conductor now reads "Shout: give adjacent minions +2/+3 and improve this." Each time its Shout fires, that copy grows its grant by +1/+1 for the rest of the game. The old rule that every Conductor played improved every other Conductor is gone.',
           'Traveling Skald is now a 1/3, and gives +3/+2 to another friendly Dragon when it attacks (was +2/+1).',
           'Rope Wrangler now reads "End of Turn: cast Lasso. Repeat for every 10 Gold spent this turn." The extra casts land one after another, and there is no cap (was one extra cast per 6 Gold, 5 at most).',
-          'Soul Defiler now casts a Staff of Guel at End of Turn instead of its climbing, alternating shop buff.',
+          'Soul Defiler now casts a Staff of Guel at End of Turn instead of its growing, alternating shop buff.',
           'Moira now triggers every Shout minion you control at End of Turn, wherever they stand (was the two next to her).',
           'Impossible Todd gains +1/+2 and gives your Imps +2/+1 each time a friendly Demon deals damage (was +4/+4 and +2/+2).',
           'Muster General\'s Trooper is now a 3/3 (was 1/1). It still improves your Troopers by +1/+1 each time.',
@@ -6510,7 +6510,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-22',
     label: 'Division numbers',
     changes: [
-      { category: 'Balance', text: 'Division numbers now count up as you climb. A medal runs I, II, III instead of III, II, I.', details: [
+      { category: 'Balance', text: 'Division numbers now count up as you rank up. A medal runs I, II, III instead of III, II, I.', details: [
         'You start a medal at I and promote to II, then III, then the next medal at I. Bronze I is the floor, Ascendant III is the top.',
         'This is a name change only. Nobody moved, your points did not change, and every promotion and demotion rule works exactly as before.',
       ] },
@@ -6882,8 +6882,8 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Points by finish: 1st +40, 2nd +28, 3rd +16, 4th +6, 5th -6, 6th -16, 7th -28, 8th -40. Only ranked lobbies count; Practice and the tutorial never move your rank.',
           "Reaching 100 points unlocks a PROMOTION GAME rather than promoting on the spot (anything past 100 is discarded). Moving up a division (say Gold III to Gold II) takes a top-4 finish in that game; moving up a medal (Gold I to Platinum III) takes 1st place. A won promotion starts the next division at 0, not at the game's points.",
-          'A lost promotion game (5th–8th) just costs its normal points from 100; climb back to 100 and the gate reopens. At a medal gate, a 2nd–4th finish neither promotes nor gains. You stay at 100, still promotion-ready.',
-          'Dropping below 0 inside a medal demotes one division and keeps the remainder (Gold II 10 after an 8th place lands on Gold III 70). Bronze III can never fall below 0. Ascendant I has no cap, so points keep climbing.',
+          'A lost promotion game (5th–8th) just costs its normal points from 100; get back to 100 and the gate reopens. At a medal gate, a 2nd–4th finish neither promotes nor gains. You stay at 100, still promotion-ready.',
+          'Dropping below 0 inside a medal demotes one division and keeps the remainder (Gold II 10 after an 8th place lands on Gold III 70). Bronze III can never fall below 0. Ascendant I has no cap, so points keep going up.',
           "Dropping OUT of a medal is gated too: a loss at a medal's lowest division (Gold III) stops at 0 and arms a DEMOTION GAME for your next ranked lobby. A top-4 finish keeps you in the medal and your points apply from 0. A 5th–8th drops you to the previous medal's division I with 100 minus that game's loss (an 8th lands on Silver I 60). Arriving at 0 by winning a medal promotion does not arm it; only a loss there does.",
           'The post-game screen shows the actual points applied (a capped award at the gate says so), the outcome line when there is one ("Promotion game ready" or "Demotion game"), and CONTINUE, which is always usable and fades you back to the menu. Click the rank display or Skip to settle the animation instantly.',
           "If the rank update hasn't come back yet the screen says \"Updating rank…\". A result that can't reach the server is kept and retried, never lost, and shows \"Rank update pending\" with a Retry. Practice games show your placement and \"Unrated\".",
@@ -6986,7 +6986,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: "Milestone stat badges now wear their own colour at each tier. The disc behind the frame, and the buffed digit on the top frames, shifts as a stat climbs past 50, 150, 500, 2000 and 5000, instead of one Attack colour and one Health colour across every tier.",
+        text: "Milestone stat badges now wear their own colour at each tier. The disc behind the frame, and the buffed digit on the top frames, shifts as a stat rises past 50, 150, 500, 2000 and 5000, instead of one Attack colour and one Health colour across every tier.",
       },
     ],
   },
@@ -6999,7 +6999,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: "Goldvein's damage meter now resets after every combat: it reads 0/6 in the shop instead of sitting at 6/6 once it has fired.",
         details: [
           "Once per combat means the meter starts every fight fresh, progress and payout both. Damage it dealt in an earlier fight no longer counts toward the next one.",
-          'In combat the counter climbs with each hit and stops at 6/6 once the Gold is banked; it does not lap around to promise a second payout.',
+          'In combat the counter rises with each hit and stops at 6/6 once the Gold is banked; it does not lap around to promise a second payout.',
         ],
       },
       {
@@ -8600,7 +8600,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Practice bots now have ten difficulty levels instead of three, and the top levels field real utility minions.',
         details: [
           'Level 1 is the old Easy, level 3 the old Medium, level 5 the old Hard. Levels 2 and 4 sit between them.',
-          'Levels 6–10 go past the old Hard: bigger boards, a faster tier climb, higher starting tiers, and heavier hits.',
+          'Levels 6–10 go past the old Hard: bigger boards, faster tier-ups, higher starting tiers, and heavier hits.',
           'From level 6, one to three bot minions each round are real cards with effects: Echoes that Ward allies or spray damage, Venomous, Cleave, Rally and more. Higher levels unlock nastier ones.',
           'Those utility minions use the bot board’s stats for that round, so they scale with the game. Venom stays at 1 Attack.',
           'Your saved Practice setup carries over: Easy, Medium and Hard become levels 1, 3 and 5.',
@@ -9656,7 +9656,7 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Practice Bots',
     changes: [
       { category: 'Systems', text: 'Practice bot games are much shorter. Bots now tier up as the rounds go on, hit harder, and knock each other out instead of stalling in draws.', details: [
-        'Bots climb tavern tiers over the game (faster on higher difficulties), so a lost round actually costs Resolve.',
+        'Bots move up tavern tiers over the game (faster on higher difficulties), so a lost round actually costs Resolve.',
         'Bot damage scales with difficulty. Easy hits softest, Hard hardest.',
         'Each bot now fields a slightly different board, so bot-vs-bot fights resolve instead of mirroring into draws.',
         'Bots start on less health than you, so the table thins out at a sensible pace.',
@@ -9761,7 +9761,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-24',
     label: 'Tutorial & Save',
     changes: [
-      { category: 'Systems', text: 'The Learn Ascent tutorial now climbs to Tier 6, teaches the rune system, and uses tier-accurate shops.', details: [
+      { category: 'Systems', text: 'The Learn Ascent tutorial now goes up to Tier 6, teaches the rune system, and uses tier-accurate shops.', details: [
         'Tiers up all the way to 6 across the course.',
         'Shops only ever offer minions your current tier has unlocked, and the course explains that link.',
         'A Runeforge round introduces runes with clear direction.',

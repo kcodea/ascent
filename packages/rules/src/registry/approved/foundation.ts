@@ -5906,7 +5906,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     example:
       'A legacy Ascent run on round 9 with a 1-7 record shows "ROUND 9 / 17", the dashes and "1-7" on the plaque, '
       + 'and nothing after the record. The Rules Wiki says divisions "go up Bronze I, Bronze II, Bronze III".',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/retiredTerms.test.ts', 'packages/ui/src/gauntlet/heroSelectGauntlet.test.tsx'], lastVerifiedAt: '2026-10-14' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/retiredTerms.test.ts', 'packages/ui/src/gauntlet/heroSelectGauntlet.test.tsx', 'packages/ui/src/patchNotes.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
   {
     id: 'R-VERSUS-HEARTS-01',

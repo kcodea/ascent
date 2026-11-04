@@ -1,5 +1,5 @@
-import { Fragment, lazy, memo, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import { Fragment, lazy, memo, Suspense, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { inRunTribes, type CardDef, type Tribe } from '@game/core';
 import { CARD_INDEX, DUOS_WHISPERS, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, duosPoolFor, poolFor, type SetId } from '@game/content';
 import { questRewardCardsFor, runeRewardCardsFor } from './compendiumRewards';
@@ -25,6 +25,8 @@ import { CompendiumRules } from './CompendiumRules';
 import { LazyCell, LazyRootProvider, eagerCellCount } from './bookLazy';
 import rulesQuestionArt from './rules-question.png';
 import { usePartyHome } from './partyHome/partyHomeFlag';
+import { lastPointerWasTouch, lastTouchWasTap } from './touchInput';
+import { openRuneInspect } from './runeInspectStore';
 import './compendium.css';
 
 /** The app shell's Compendium page (party home prototype, DEV only; lazy and null in production, like the top nav). Loading
@@ -722,6 +724,34 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
     setGuidesOn(false);
   };
 
+  // THE SHELL: every rail, filter, search or view change starts at the top of its list. Before paint, so no jump shows.
+  useLayoutEffect(() => {
+    if (!frame) return;
+    for (const el of document.querySelectorAll('.phb-book :is(.book-grid, .bookguides, .book-gloss-body, .wiki-list)')) el.scrollTop = 0;
+  }, [frame, cats, tiers, kw, rules, glossary, guidesOn, runeTribes, runeForges, guideTribes, guideTab, searchQ, duos, setId]);
+
+  // THE SHELL on touch: the whole cell answers a finger, the plate's edge and the gap round the card too (the card's own tap
+  // opens the large view); and a held rune opens its large view like a tapped one.
+  const cellTap = (e: ReactMouseEvent<HTMLDivElement>): void => {
+    if (!lastTouchWasTap()) return;
+    const t = e.target as Element;
+    if (t.closest('.card, .runecard')) return;
+    // A plate overhangs its cell, so a press in the gap between cells goes to the nearest card (one read, on a tap only).
+    const near = (): Element | undefined => {
+      let best: Element | undefined; let min = Infinity;
+      for (const c of e.currentTarget.querySelectorAll('.book-cell')) {
+        const r = c.getBoundingClientRect();
+        const d = Math.hypot(Math.max(r.left - e.clientX, 0, e.clientX - r.right), Math.max(r.top - e.clientY, 0, e.clientY - r.bottom));
+        if (d < min) { min = d; best = c; }
+      }
+      return best;
+    };
+    (t.closest('.book-cell') ?? near())?.querySelector<HTMLElement>('.card, .runecard')?.click();
+  };
+  const runeHold = (e: ReactMouseEvent<HTMLDivElement>): void => {
+    if (lastPointerWasTouch()) (e.target as Element).closest<HTMLElement>('.runecard')?.click();
+  };
+
   // The book's three PARTS, so a host can frame them its own way (the app shell's page, `frame` below): the live
   // subtitle, the header controls (search + card size) and the body (a codex panel, or the tier row + rail + gallery).
   const subtitle: string = rules
@@ -741,7 +771,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
       : cats.has('heroes')
         ? `${heroesToShow.length} heroes. Every champion and their power.`
         : cats.has('runes')
-        ? `${runesToShow.length} runes. This set's Basic and Epic Runeforge stock.`
+        ? (frame ? `${runesToShow.length} runes in this set` : `${runesToShow.length} runes. This set's Basic and Epic Runeforge stock.`)
         : cats.has('quests')
         ? `${questsToShow.length} quests ${browsingRun ? 'available this run' : 'in the game'}`
         : `${filtered.length} ${
@@ -1035,10 +1065,10 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
               <div className="book-empty">No heroes match your search.</div>
             )
           ) : cats.has('runes') ? (
-            <div className="book-grid is-runes" ref={setGridEl}>
+            <div className="book-grid is-runes" ref={setGridEl} onClick={frame ? cellTap : undefined} onContextMenu={frame ? runeHold : undefined}>
               <LazyRootProvider root={gridEl}>
                 {runesToShow.map((r, i) => (
-                  <LazyCell key={r.id} eager={i < eagerN}>{() => <><RuneCard rune={r} affordable onBuy={NOOP} />{r.duos && <DuosTag />}</>}</LazyCell>
+                  <LazyCell key={r.id} eager={i < eagerN}>{() => <><RuneCard rune={r} affordable onBuy={frame ? () => { if (lastPointerWasTouch()) openRuneInspect({ rune: r, affordable: false, pick: NOOP, fromBook: true }); } : NOOP} />{r.duos && <DuosTag />}</>}</LazyCell>
                 ))}
               </LazyRootProvider>
             </div>
@@ -1057,7 +1087,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
           ) : filtered.length > 0 ? (
             // `--book-zoom` scales the grid's card metrics (see styles.css); `plated` gives every card the
             // same carved PLATE it wears in hand, so the Compendium reads as the game does (owner 2026-08-02).
-            <div className="book-grid" ref={setGridEl} style={{ '--book-zoom': zoom } as CSSProperties}>
+            <div className="book-grid" ref={setGridEl} style={{ '--book-zoom': zoom } as CSSProperties} onClick={frame ? cellTap : undefined}>
               <LazyRootProvider root={gridEl}>
                 {filtered.map((c, i) => (
                   <BookCardCell key={c.id} card={c} gilded={gilded} liveRun={liveRun} eager={i < eagerN} />

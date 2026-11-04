@@ -239,6 +239,17 @@ describe('the Compendium in the shell', () => {
     expect(lit()).toEqual(['All minions']);
   });
 
+  it('a rail or filter change starts at the top of the list', () => {
+    ui = mount(<PhCompendium />);
+    const grid = (): Element => ui!.container.querySelector('.book-grid')!;
+    grid().scrollTop = 1200;
+    click([...ui.container.querySelectorAll('.book-cat')].find((b) => b.textContent === 'Demons'));
+    expect(grid().scrollTop).toBe(0);
+    grid().scrollTop = 800;
+    click(ui.container.querySelector('.book-tier'));
+    expect(grid().scrollTop).toBe(0);
+  });
+
   it('R-COMPENDIUM-GUIDES-FILTER-01: Guides shows its own tribe filter even with Runes lit before it', () => {
     ui = mount(<PhCompendium />);
     click([...ui.container.querySelectorAll('.book-cat')].find((b) => b.textContent === 'Runes'));

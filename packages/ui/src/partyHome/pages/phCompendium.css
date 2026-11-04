@@ -365,3 +365,14 @@ html[data-ph-compact] .phb .book-guides-all { width: calc(32 * var(--phu)); heig
 /* A spell's frame has a shorter text box than a minion's. */
 html[data-ph-compact] .phb .book-grid .card.compact.plated.spellcard.plate-txt-s .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.12); }
 html[data-ph-compact] .phb .book-grid .card.compact.plated.spellcard.plate-txt-m .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1); }
+
+/* ── A view that arrives uses the kit's sub-tab entrance (the page body's own, on the panel that is new): the rail and the filter
+   row fade in place, so nothing the eye holds moves. Compositor only; a rail press keeps its elements, so it does not replay. ── */
+.phb :is(.book-grid, .bookguides, .book-gloss-body, .wiki-body) { animation: phk-in 0.2s cubic-bezier(0.22, 0.8, 0.3, 1) backwards; }
+.phb :is(.book-rail, .book-tiers) { animation: phk-fadein 0.18s ease-out backwards; }
+@media (prefers-reduced-motion: reduce) { .phb :is(.book-grid, .bookguides, .book-gloss-body, .wiki-body, .book-rail, .book-tiers) { animation: none; } }
+
+/* The large card a tap opens fits every phone: its size is tied to the shell's unit (1.74 px a unit on a phone that lays out
+   wide, where it already fits), so a phone that lays out at its real width shows it whole too. */
+html[data-ph-book][data-ph-compact] .inspect-ov .inspect-card { zoom: tan(atan2(var(--phu), 1.74px)); }
+html[data-ph-book][data-ph-compact] .inspect-ov .rune-inspect { zoom: tan(atan2(calc(var(--phu) * 1.3), 1.74px)); }

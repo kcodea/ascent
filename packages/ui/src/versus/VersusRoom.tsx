@@ -162,7 +162,7 @@ function useStartPresence(full: boolean): [boolean, boolean] {
 
 /** A seat's Health and Armor in the running match (R-VERSUS-HEALTH-01): the 1v1 row, or the group table's seat (Duos: its
  *  team's pool); before round 1 commits, its hero's start. Null for a seat that is not in the match. */
-function seatPools(match: VersusState['match'], side: VersusGroupSeat): { health: number; armor: number } | null {
+export function seatPools(match: VersusState['match'], side: VersusGroupSeat): { health: number; armor: number } | null {
   if (!match) return null;
   if (match.group) {
     const raw = match.group.raw;

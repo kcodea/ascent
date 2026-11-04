@@ -5226,7 +5226,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
       // 'Ruby' keeps the inspect breakdown honest AND makes the gain visible to Deepdelve Paragon next fight,
       // which looks for exactly that source. A self-authored permanent gain (Kindled Sprite's Rally, 2026-09-18)
       // carries its own `label` so the ledger names the card.
-      addBuff(card, ruby ? 'Ruby' : engraved ? 'Engraved' : (label ?? 'Flowing Monk'), attack * mult, health * mult);
+      addBuff(card, ruby ? 'Ruby' : (label ?? (engraved ? 'Engraved' : 'Flowing Monk')), attack * mult, health * mult); // R-ENGRAVE-05: a kept gain's own label wins; 'Engraved' is only the legacy fallback (old results / replays)
     }
   }
   // ENGRAVED KEYWORDS (owner 2026-10-21, R-ENGRAVE-03): "if a minion is engraved and gains ward, they gain that ward

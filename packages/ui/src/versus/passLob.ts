@@ -441,9 +441,10 @@ export function noteTeamSendSources(wave: number, events: readonly { type: strin
 /** Sends already flown (a network retry ships an entry again: it streams once). */
 const flown = new Set<string>();
 
-/** One outbox entry of `run` (mine, on screen) is being sent now: stream it from its source, once. */
-export function playEntryFlight(e: PassFlightEntry & { seq: number; wave: number }, run: { seed: number; hand: readonly { uid: string; cardId: string }[]; board: readonly { uid: string; cardId: string }[]; shop: readonly { uid: string; cardId: string }[] }): boolean {
-  const key = `${run.seed}:${e.seq}`;
+/** One outbox entry of `run` (mine, on screen) is being sent now: stream it from its source, once. `id`: the run's
+ *  identity for that once (default its seed; a spectator's watched runs all carry seed 0, so they pass their run id). */
+export function playEntryFlight(e: PassFlightEntry & { seq: number; wave: number }, run: { seed: number; hand: readonly { uid: string; cardId: string }[]; board: readonly { uid: string; cardId: string }[]; shop: readonly { uid: string; cardId: string }[] }, id?: string): boolean {
+  const key = `${id ?? run.seed}:${e.seq}`;
   if (flown.has(key)) return false;
   const combatUid = e.combatIdx != null && combatSenders.wave === e.wave ? combatSenders.uid.get(e.combatIdx) ?? null : null;
   const cardIdOf = (uid: string): string | undefined =>
@@ -452,6 +453,27 @@ export function playEntryFlight(e: PassFlightEntry & { seq: number; wave: number
   if (!f) return false;
   flown.add(key);
   return playPassFlight(f);
+}
+
+/**
+ * THE STANDS SEE A DRAG PASS (owner report 2026-11-02: "im spectating and antsy died and i didnt see the pass animation";
+ * R-SPECTATE-DUOS-PASS-01). The player's own drop plays its stream from the floating drag card (Recruit's pass drop);
+ * a spectator's screen has no drag card of its own, so the same stream leaves the watched hand's card (`face`, the
+ * spectator cursor's held card, at `rect` where it was let go), else the card's slot in the hand. Same look, same coin
+ * (`coin`: the pass paid Gold), same catch on the teammate portrait. One layout read. Returns whether it played.
+ */
+export function playWatchedDragPass(uid: string, held: { face: HTMLElement | null; rect: Box | null } | null, coin: boolean): boolean {
+  if (typeof document === 'undefined') return false;
+  const door = mateDoor();
+  if (!door) return false;
+  const face = held?.face ?? q(`.row.hand .card[data-uid="${esc(uid)}"]`) ?? q(`.card[data-uid="${esc(uid)}"]`);
+  const r = held?.rect ?? face?.getBoundingClientRect() ?? null;
+  if (!r || r.width <= 0) return false;
+  playDrop({
+    from: { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: face?.offsetWidth || toStage(r.width), h: face?.offsetHeight || toStage(r.height) },
+    plate: face ? plateBox(face) : null, face, to: door.getBoundingClientRect(), coin, onLand: () => catchPulse(door),
+  });
+  return true;
 }
 
 // ── RECEIVING ────────────────────────────────────────────────────────────────────────────────────────────────

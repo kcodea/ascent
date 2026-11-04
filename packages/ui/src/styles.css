@@ -6957,6 +6957,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 /* Shared crest gem — used in the logo, rank chip, and the Play button. */
 .crest { width: 1em; height: 1em; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 /* The painted menu medallions (menuIcons.tsx MenuMedal): crest-sized, so they pick up each .mbicon size rule. */
+.armormedal, .healthmedal { display: block; flex: none; object-fit: contain; }
 .menumedal { display: block; width: 1em; height: 1em; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 /* The painted 1st-place crown (GildedCrown) takes the box its container gave the flat crown it replaced; the
    Replay button's Watcher eye (ReplayEye) sits inline with the label, a touch larger than the text, without
@@ -9061,6 +9062,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-stat { display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(196, 160, 92, 0.3); text-align: left; }
 .cv2-stat-ico { grid-row: 1 / span 2; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: rgba(196, 160, 92, 0.16); color: #f0c977; }
 .cv2-stat-ico svg, .cv2-stat-ico .gildedcrown { width: 22px; height: 22px; }
+.cv2-stat-ico :is(.tribemedal, .menumedal) { width: 26px; height: 26px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 .cv2-stat-v { font-family: var(--font-ui); font-weight: 900; font-size: 26px; line-height: 1.05; color: #fff; font-variant-numeric: tabular-nums; }
 .cv2-stat-l { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.62); margin-top: 2px; }
 
@@ -11959,7 +11961,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyround { font-size: calc(20 * var(--lfont)); font-weight: 800; color: var(--lby-round-col, #fff6e4); letter-spacing: 0.05em; }
 /* Max-loss chip: the round's most-you-can-lose readout ("−5", or "No cap"). */
 .lobbymax { display: inline-flex; align-items: center; gap: calc(3 * var(--lfont)); font-size: calc(20 * var(--lfont)); font-weight: 800; color: var(--lby-max-col, #ff9a9a); }
-.lobbymax svg { width: calc(20 * var(--lfont)); height: calc(20 * var(--lfont)); color: #ff6b6b; }
+.lobbymax :is(svg, .healthmedal) { width: calc(20 * var(--lfont)); height: calc(20 * var(--lfont)); color: #ff6b6b; }
 /* Its hover tip IS the standard HUD tip (`.herotip`: the dark slate panel, gold hairline, cream rule text, the
    hero-power / Equipment hover), owner 2026-10-02 ("fix this tooltip, it's unreadable" about the small `.gtip`
    bubble). Only the anchor differs: the chip's sibling inside the header, it opens ABOVE the header, right-aligned
@@ -12179,11 +12181,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .lobbyseat.dead .lobbyname { text-decoration: line-through; }
 .lobbyhp { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); font-weight: 800; color: var(--lby-hp-col, #fb3737);
   font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.45)); }
-.lobbyhp svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); }
+.lobbyhp :is(svg, .healthmedal) { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); }
 /* Armor reads as a little shield + the number (owner ask 2026-08-28), replacing the old "+N". The shield glyph
    strokes in currentColor, so it takes the armor ink. */
 .lobbyarmor { display: inline-flex; align-items: center; gap: calc(1 * var(--lfont)); color: var(--lby-armor-col, #a3a3a3); font-weight: 800; }
-.lobbyarmor svg { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); }
+.lobbyarmor :is(svg, .armormedal) { width: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); height: calc(8 * var(--lfont) * var(--lby-hp-size, 1.45)); }
 .lobbyplace { color: rgba(255, 255, 255, 0.62); font-weight: 700; }
 /* GAUNTLET FOE (GauntletFoe.tsx) — no rail: the stage opponent's face floats free on the right side of the shop,
    vertically centred where the lobby rail used to stand. Owner ask 2026-09-30: it MIMICS the combat opponent, so the
@@ -14989,6 +14991,14 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lp-tile.on .lp-tile-out { color: var(--ui-title); }
 .lp-tile .lp-chip-name { font-size: 14px; }
 .lp-tile .lp-chip-place { font-size: 13px; }
+/* Hover (or a tap: .tt-on) darkens the tile and prints "Game strength: X" over it, in place of a tip bubble
+   (R-LOBBY-TILE-STRENGTH-01). The overlay's paint is static; only its opacity moves. The KO sword stays on top. */
+.lp-tile-strength { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; border-radius: inherit; pointer-events: none;
+  background: rgba(4, 8, 16, 0.74); opacity: 0; transition: opacity 0.12s ease;
+  font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.04em; color: #f4eee2; text-shadow: 0 1px 3px #000; white-space: nowrap; }
+.lp-tile-strength b { margin-left: 6px; font-weight: 900; font-size: 22px; color: var(--ui-title); }
+.lp-tile:hover .lp-tile-strength, .lp-tile.tt-on .lp-tile-strength { opacity: 1; }
+.lp-tile .lp-ko { z-index: 2; }
 @media (prefers-reduced-motion: reduce) { .gc-board-in { animation: none; } .lp-tile, .lp-tile:hover, .lp-tile:active { transform: none; transition: border-color 0.1s ease; } }
 
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════════════

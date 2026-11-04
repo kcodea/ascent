@@ -126,6 +126,25 @@ export interface DockTeam {
 /** The extra space between two teams' slices, board px (on top of the panel gap), so each pair reads as one group. */
 export const DOCK_TEAM_GAP = 12;
 
+/** THE TEAM PLATE'S SHAPE (owner 2026-11-02: "the shadows are cropping over ... they should follow the exact shape of the
+ *  lobby rail navy blue part"; R-DUOS-RAIL-PLATE-01): a `clip-path: path()` in the team box's own px, the union of its
+ *  members' outlines, the gap between each two (from where both edges are clear of a cut, so it never pokes into a board
+ *  piece), and a strip right of the slices for the bracket (`bracket` px wide). Sub-paths never overlap, so the union holds. */
+export function teamPlatePath(t: DockTeam, panels: readonly DockPanel[], bracket: number): string {
+  const f = (n: number): string => n.toFixed(1);
+  const rect = (x0: number, y0: number, x1: number, y1: number): string => `M${f(x0)} ${f(y0)}H${f(x1)}V${f(y1)}H${f(x0)}Z`;
+  const ps = t.ids.map((id) => panels.find((p) => p.id === id)).filter((p): p is DockPanel => !!p);
+  const parts: string[] = [];
+  ps.forEach((p, i) => {
+    const ox = p.x - t.x, oy = p.y - t.y;
+    parts.push(`M${p.outline.map(([x, y]) => `${f(x + ox)} ${f(y + oy)}`).join('L')}Z`);
+    const next = ps[i + 1];
+    if (next && next.y > p.y + p.h) parts.push(rect(Math.max(ox + p.footX, next.x - t.x + next.topX), oy + p.h, t.w, next.y - t.y));
+  });
+  parts.push(rect(t.w, 0, t.w + bracket, t.h));
+  return `path('${parts.join('')}')`;
+}
+
 interface Shape { kind: 'circle' | 'diamond'; cx: number; cy: number; rx: number; ry: number }
 
 /** The leftmost x a slice may use at height `y`: its left edge, pushed right round each board piece (+ clearance). */

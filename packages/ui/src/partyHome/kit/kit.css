@@ -348,3 +348,78 @@
 html[data-ph-compact] :is(.phk-segbtn, .phk-chip.phk-tchip, .phk-select, .phk-search, .phk-back) { min-height: calc(64 * var(--phu)); }
 html[data-ph-compact] .phk-tab { min-height: calc(72 * var(--phu)); }
 html[data-ph-compact] .phk-btn.s-m { height: calc(64 * var(--phu)); }
+
+/* ── CRITIC ROUND 6 ── */
+/* OPTION PILLS: each sized to its words with even padding, never clipped; rows wrap as a tidy left-aligned group. */
+html[data-ph-shell] .phk-segrow { display: flex; flex-wrap: wrap; gap: calc(6 * var(--phu)); }
+html[data-ph-shell] .phk-segbtn { flex: 0 0 auto; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 0 calc(14 * var(--phu)); white-space: nowrap; overflow: visible; }
+html[data-ph-shell] .phk-more { flex: 0 0 auto; }
+html[data-ph-shell] .phk-seg.s-l .phk-segrow { display: grid; grid-template-columns: 1fr 1fr; }
+/* ONE FRAME LANGUAGE: every panel and window is the rounded plate. No corner filigree on a frame. */
+html[data-ph-shell] :is(.phk-section, .phk-dlgbox) { border-radius: var(--ph-r-l); clip-path: none; }
+html[data-ph-shell] :is(.phk-section, .phk-dlgbox)::before { content: none; }
+/* READING WEIGHT: long text is regular / medium; bold stays for names, labels and numbers. */
+html[data-ph-shell] :is(.phk-page, .phk-dialog, .ph-friends, .ph-settings) :is(p, li, .phk-seghint, .phk-rowsub, .pho-hint, .pho-note), html[data-ph-shell] .ph-note, html[data-ph-shell] .ph-desc:not(.locked) { font-weight: 500; }
+/* ONE PAGE HEADER: the title alone (no eyebrow line) on the one baseline. */
+html[data-ph-shell] .phk-pagetitle .phk-eyebrow { display: none; }
+
+/* THE PHONE PAGE FRAME: the header collapses to one slim row, the rails tighten, and the page body is ONE touch scroller that
+   runs to the screen's edge, so content owns the height. Inner windows give up their own scroll here. */
+html[data-ph-shell][data-ph-compact] .phk-page { gap: calc(8 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu) + var(--safe-r, 0px)) 0 calc(16 * var(--phu) + var(--safe-l, 0px)); max-width: none; }
+html[data-ph-shell][data-ph-compact] .phk-page .phk-pagehead { height: auto; min-height: calc(56 * var(--phu)); align-items: center; gap: calc(12 * var(--phu)); padding-bottom: calc(4 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page .phk-pagehead > * { align-self: center; }
+html[data-ph-shell][data-ph-compact] .phk-pagetitle { min-width: 0; }
+html[data-ph-shell][data-ph-compact] .phk-pagetitle h1 { font-size: max(calc(26 * var(--phu)), calc(26 * var(--phu))); white-space: nowrap; }
+html[data-ph-shell][data-ph-compact] .phk-page .phk-pagebody { overflow-x: hidden; overflow-y: auto; touch-action: pan-y; padding-bottom: calc(8 * var(--phu) + var(--safe-b, 0px)); }
+html[data-ph-shell][data-ph-compact] .phk-page .phk-pagebody > * { flex-shrink: 0; }
+/* Collection: one flow (rail, then the grid beside a pinned detail); the grid no longer has a window of its own. */
+html[data-ph-shell][data-ph-compact] .phk-page .phc-body { flex: none; min-height: 100%; grid-template-rows: auto auto; }
+html[data-ph-shell][data-ph-compact] .phk-page .phc-rail { overflow-y: hidden; touch-action: pan-x pan-y; }
+html[data-ph-shell][data-ph-compact] .phk-page .phc-cat { min-height: calc(72 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page .phc-main { min-height: auto; }
+html[data-ph-shell][data-ph-compact] .phk-page .phc-gridwrap { flex: none; overflow: visible; padding-bottom: calc(8 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page .phc-side { position: sticky; top: 0; align-self: start; max-height: calc(var(--ph-h, var(--lvh, 100vh)) - var(--ph-nav-h) - 80 * var(--phu)); overflow-y: auto; touch-action: pan-y; }
+/* Compendium: a slim filter row (the counts chart and the sub line give way to the cards), then the card window owns the rest. */
+html[data-ph-shell][data-ph-compact] .phk-page .phc-sub, html[data-ph-shell][data-ph-compact] .phk-page .book-chart, html[data-ph-shell][data-ph-compact] .phk-page .book-tiers-div { display: none; }
+html[data-ph-shell][data-ph-compact] .phk-page .phc-book { flex: none; height: calc(var(--ph-h, var(--lvh, 100vh)) - var(--ph-nav-h) - 80 * var(--phu)); gap: calc(8 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page .book-tiers { flex-wrap: nowrap; min-height: 0; overflow-x: auto; scrollbar-width: none; padding: calc(4 * var(--phu)) calc(8 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page :is(.book-tier, .book-zoom-btn) { min-width: calc(64 * var(--phu)); min-height: calc(64 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page :is(.book-gilded, .book-setpick-btn, .book-kwchip, .book-runetribe, .book-search) { min-height: calc(64 * var(--phu)); flex: none; }
+html[data-ph-shell][data-ph-compact] .phk-page .book-zoom { height: auto; }
+/* The touch floor (64 units = 40 real px), over every page's own sizes. */
+html[data-ph-shell][data-ph-compact] :is(.phk-page, .ph, .phk-dialog, .ph-friends) :is(.phk-tab, .phk-segbtn, .phk-btn, .phk-select, .phk-search, .phk-chip.phk-tchip, .phk-back, .cv2-btn, .cshop-toggle, .book-cat, .ach-chip, .phc-rchip) { min-height: calc(64 * var(--phu)) !important; }
+html[data-ph-shell][data-ph-compact] :is(.phk-tab, .phk-segbtn, .phk-btn, .phk-chip, .phk-back, .phk-seglbl, .phk-seghint, .phk-rowsub, .phk-selectval) { font-size: max(var(--ph-t1), calc(18 * var(--phu))); }
+html[data-ph-shell][data-ph-compact] .phk-switch { min-height: calc(40 * var(--phu)); padding: calc(12 * var(--phu)) 0; background-clip: content-box; }
+/* The page reaches the screen's foot: the old sidebar pages' bottom reserve is not needed under the top nav. */
+html[data-ph-shell][data-ph-compact] :is(.lbpage, .modepick.sb-host) { padding-bottom: 0 !important; }
+/* Compendium's header tools: one row beside the tabs. Older px-sized labels lift to the phone floor. */
+html[data-ph-shell][data-ph-compact] .phk-pageactions .phc-actions, html[data-ph-shell][data-ph-compact] .phk-pageactions .phc-actions > * { flex-direction: row; flex-wrap: nowrap; position: static; inset: auto; width: auto; padding: 0; background: none; box-shadow: none; gap: calc(8 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page .book-search { width: calc(180 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page :is(.cv2-btn, .book-axislabel, .book-setpick-cap, .book-setpick-name, .book-setpick-live, .book-gilded, .book-zoom-val, .cshop-guar, .cshop-orow-name, .cshop-orow span, .rankbar-points) { font-size: calc(18 * var(--phu)) !important; }
+
+/* ── CRITIC ROUND 7 ── */
+/* A window always fits the screen: its body scrolls inside, the actions stay pinned and visible. */
+.phk-dlgbox { max-height: calc(var(--ph-h, var(--lvh, 100vh)) - 32 * var(--phu)); }
+.phk-dlgtext { flex: 0 1 auto; min-height: 0; max-width: 100%; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; }
+.phk-dlgactions { flex: none; }
+html[data-ph-shell][data-ph-compact] .phk-dlgbox { gap: calc(8 * var(--phu)); padding-top: calc(16 * var(--phu)); padding-bottom: calc(16 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-dlgtitle { font-size: var(--ph-t3); padding-bottom: calc(12 * var(--phu)); }
+/* While a field is lifted over the phone keyboard, the window rises to the top and keeps only what is needed: Save stays in reach. */
+html[data-touch-kb] .phk-dialog { place-items: start center; padding-top: calc(8 * var(--phu)); }
+html[data-touch-kb] .phk-dlgbox .phk-dlgtitle, html[data-touch-kb] .phk-dlgbox .phk-field .phk-seghint { display: none; }
+/* ONE TAB BASELINE: every page's sub-tabs sit on the same line in the header. */
+html[data-ph-shell] .phk-pagehead .phk-pagetabs { align-self: flex-end; margin: 0 !important; padding: 0; }
+html[data-ph-shell]:not([data-ph-compact]) .phk-pagehead { padding-bottom: calc(16 * var(--phu)) !important; }
+html[data-ph-shell] .phk-pagehead .phk-tab { min-height: calc(56 * var(--phu)) !important; padding-top: calc(8 * var(--phu)) !important; padding-bottom: calc(12 * var(--phu)) !important; }
+html[data-ph-shell][data-ph-compact] .phk-dlgtitle::after { display: none; }
+html[data-ph-shell][data-ph-compact] .ph-picker .phk-btn.s-s { min-height: calc(52 * var(--phu)) !important; height: calc(52 * var(--phu)); }
+
+/* ── CRITIC ROUND 8 ── */
+/* ONE PAGE HEADER: title, its tabs straight after, tools at the right, all on the one line. */
+html[data-ph-shell] .phk-pagehead .phk-pagetabs { flex: 0 1 auto !important; justify-content: flex-start !important; }
+html[data-ph-shell] .phk-pagehead .phk-pagetitle { min-width: 0; }
+html[data-ph-shell] .phk-pagehead .phk-pageactions { flex: none; align-self: flex-end; margin-left: auto; margin-bottom: 0; }
+/* ONE RIGHT EDGE: the scrollbar lives in a fixed gutter just outside the column, so panels end on the header's line. */
+html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody { scrollbar-width: auto; scrollbar-gutter: stable; margin-right: calc(-12 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody::-webkit-scrollbar { width: calc(12 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody::-webkit-scrollbar-thumb { border: calc(3 * var(--phu)) solid transparent; border-radius: 999px; background: var(--ph-gold) padding-box; }

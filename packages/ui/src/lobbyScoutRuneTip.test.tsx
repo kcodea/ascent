@@ -48,10 +48,12 @@ describe('rail scout card: rune tips', () => {
     ui = mount(<LobbyPanel lobby={run.lobby!} />);
     const mine = ui.container.querySelector('.lobbyseat.you')!;
     fire(mine, 'mouseover');
+    wait(1000); // the open delay (R-RAIL-SCOUT-DELAY-01)
     expect(card()).not.toBeNull();
 
-    // Leaving the seat does not close it at once: the pointer is crossing the gap.
-    fire(mine, 'mouseout');
+    // Moving from the seat onto its card keeps it up (R-RAIL-SCOUT-DELAY-01: only leaving the rail, the card and the strip
+    // between them closes it, at once).
+    fire(mine, 'mouseout', card()!);
     wait(60);
     expect(card()).not.toBeNull();
     // Entering the (portaled) card re-enters the seat in React's tree, which cancels the close.
@@ -76,9 +78,8 @@ describe('rail scout card: rune tips', () => {
     expect(tip2.textContent).toContain('Overtime');
     expect(tip2.textContent).toContain('5/12g'); // the meter, as the rack badge's pill shows it
 
-    // Leaving the card closes it after the grace.
+    // Leaving the card (off the rail) closes it at once.
     fire(card()!, 'mouseout');
-    wait(1000);
     expect(card()).toBeNull();
   });
 

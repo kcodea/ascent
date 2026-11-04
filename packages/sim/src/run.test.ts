@@ -4537,6 +4537,28 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     expect(card.buffs?.some((b) => b.source === 'Flowing Monk')).toBe(false);
   });
 
+  it('R-ENGRAVE-05: an Engraved gain carries back under its OWN label (Growth stays Growth, never "Engraved")', () => {
+    // Owner ruling 2026-11-03: "if a minion is buffed by growth +20/20 it should just keep that growth +20/20".
+    // An old result (no label) still settles as the legacy "Engraved" row, so saved games and replays load.
+    let s: RunState = {
+      ...createRun(1), phase: 'combat', combatSettled: false,
+      board: [{ uid: 'g', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+      lastCombat: {
+        events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
+        initial: { player: [], enemy: [] },
+        playerPermaBuffs: [
+          { sourceUid: 'g', attack: 20, health: 20, engraved: true, label: 'Growth' },
+          { sourceUid: 'g', attack: 2, health: 2, engraved: true },
+        ],
+      },
+    };
+    s = reduce(s, { type: 'resolveCombat' });
+    const card = s.board.find((c) => c.uid === 'g')!;
+    expect(card.buffs?.find((b) => b.source === 'Growth')).toMatchObject({ attack: 20, health: 20 });
+    expect(card.buffs?.find((b) => b.source === 'Engraved')).toMatchObject({ attack: 2, health: 2 });
+    expect([card.attack, card.health]).toEqual([23, 23]);
+  });
+
   it('Flowing Monk gift (engraved: false) still labels the carry-back "Flowing Monk"', () => {
     // Regression guard: a non-EG carrier that received Flowing Monk's overflow gift carries back labelled
     // "Flowing Monk", exactly as before the refactor (the `engraved` flag steers only the label).

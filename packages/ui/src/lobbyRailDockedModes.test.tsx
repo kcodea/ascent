@@ -12,6 +12,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createLobbyRun, type RunState } from '@game/sim';
+import { hoverHeld } from './lobbyScoutHover.testkit';
 
 vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
 
@@ -37,7 +38,7 @@ const { useGame } = await import('./store');
 const { useVersus } = await import('./versus/versusStore');
 const { setIdentity } = await import('./identity');
 const { setSliceLabel } = await import('./lobbyRailVariant');
-const { getHero } = await import('@game/sim');
+const { railHeroName } = await import('./railHeroName');
 type Mounted = Awaited<ReturnType<typeof mount>>;
 
 let ui: Mounted | null = null;
@@ -89,6 +90,37 @@ describe('the Docked rail in every mode', () => {
     expect(c.querySelectorAll('.lrv-team')).toHaveLength(0);
   });
 
+  it('a fallen seat wears the painted Echo medallion over its portrait, not the flat skull glyph (owner 2026-11-03)', () => {
+    const seats = [seat('p1'), seat('p2'), seat('p3', { health: 0, eliminatedRound: 2, placement: 3 })];
+    const raw = { phase: 'shop', paused_at: null, paused_seat: null, options: { mode: 'group' }, seats };
+    const run = versusRun(3);
+    const lobby = { ...run.lobby!, seats: run.lobby!.seats.map((s, i) => (i === 2 ? { ...s, alive: false, resolve: 0, placement: 3, eliminatedRound: 2 } : s)) };
+    const c = show({ ...run, lobby } as RunState, { phase: 'shop', round: 3, p1_user: 'me', group: { me: 'p1', raw } });
+    const marks = [...c.querySelectorAll<HTMLElement>('.lobbyseat.dead .lrv-skull')];
+    expect(marks.length).toBeGreaterThan(0);
+    for (const m of marks) {
+      expect(m.querySelector('img')?.getAttribute('src')).toMatch(/medallions\/echo\.webp$/);
+      expect(m.querySelector('svg')).toBeNull();
+    }
+  });
+
+  it('a seat with Armor wears the painted silver shield medallion beside its number, not the flat shield glyph (owner 2026-11-03)', () => {
+    const seats = [seat('p1'), seat('p2'), seat('p3')];
+    const raw = { phase: 'shop', paused_at: null, paused_seat: null, options: { mode: 'group' }, seats };
+    const run = versusRun(3);
+    const lobby = { ...run.lobby!, seats: run.lobby!.seats.map((s, i) => (i === 1 ? { ...s, armor: 5 } : s)) };
+    const c = show({ ...run, lobby } as RunState, { phase: 'shop', round: 3, p1_user: 'me', group: { me: 'p1', raw } });
+    const arm = c.querySelector('[data-seat="s1"] .lrv-hpn-arm');
+    expect(arm?.textContent).toBe('5');
+    expect(arm?.querySelector('img.armormedal')?.getAttribute('src')).toMatch(/medallions\/armor\.webp$/);
+    expect(arm?.querySelector('svg')).toBeNull();
+    // Health wears the painted red heart medallion, on the slice and on the Max dmg chip (owner 2026-11-03).
+    const hp = c.querySelector('[data-seat="s1"] .lrv-hpn-hp');
+    expect(hp?.querySelector('img.healthmedal')?.getAttribute('src')).toMatch(/medallions\/health\.webp$/);
+    expect(hp?.querySelector('svg')).toBeNull();
+    expect(c.querySelector('.lobbymax img.healthmedal')).not.toBeNull();
+  });
+
   it('Versus Duos: slices grouped per team, Health on both teammates, one place per team, the teammate distinct; clicking them opens their board', () => {
     const raw = { phase: 'shop', paused_at: null, paused_seat: null, options: { mode: 'duos' }, seats: ['p1', 'p2', 'p3', 'p4'].map((x) => seat(x)) };
     const c = show(versusRun(4), { phase: 'shop', round: 3, p1_user: 'me', group: { me: 'p1', raw, duos: { team: 'a', mate: 'p2', first: { a: 'p1', b: 'p3' } } } });
@@ -127,7 +159,7 @@ describe('the Docked rail in every mode', () => {
     const lobby = { ...run.lobby!, encounters: [{ round: 2, a: 's0', b: 's2', outcome: 'win' as const, fought: true, damageToA: 0, damageToB: 4 }] };
     const c = show({ ...run, lobby }, { phase: 'shop', round: 3, p1_user: 'me', group: { me: 'p1', raw, duos: { team: 'a', mate: 'p2', first: { a: 'p1', b: 'p3' } } } });
     const [l2, l3] = [lobby.seats[2]!.label, lobby.seats[3]!.label];
-    act(() => { c.querySelector('.lobbyseat[data-seat="s1"]')!.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body })); });
+    hoverHeld(c.querySelector('.lobbyseat[data-seat="s1"]')!);
     const row = document.body.querySelector('.lobbyscout .lrv-sc-fight')!;
     expect(row).not.toBeNull();
     expect(row.classList.contains('team')).toBe(true);
@@ -144,7 +176,7 @@ describe('the Docked rail in every mode', () => {
       setSliceLabel('hero');
       const c = show(run, match);
       const labels = [...c.querySelectorAll('.lrv-name-t')].map((e) => e.getAttribute('aria-label'));
-      expect(labels).toEqual(expect.arrayContaining(run.lobby!.seats.map((x) => getHero(x.heroId).name)));
+      expect(labels).toEqual(expect.arrayContaining(run.lobby!.seats.map((x) => railHeroName(x.heroId))));
       // Your slice: the teal edge and YOU under your hero's name (owner 2026-10-31).
       expect(c.querySelector('.lobbyseat.you > .lrv-you')?.textContent).toBe('You');
       expect(c.querySelectorAll('.lrv-you')).toHaveLength(1);
@@ -157,5 +189,18 @@ describe('the Docked rail in every mode', () => {
       act(() => { setSliceLabel('player'); });
       expect([...c.querySelectorAll('.lrv-name-t')].map((e) => e.getAttribute('aria-label'))).toEqual(expect.arrayContaining(run.lobby!.seats.map((x) => x.label)));
     } finally { setSliceLabel('hero'); }
+  });
+
+  it('the rail prints each hero\'s SHORT rail name (Keshi, Risen); the scout card keeps the full name (owner 2026-11-02, R-RAIL-HERO-SHORTNAME-01)', () => {
+    const base = versusRun(2);
+    const seats = base.lobby!.seats.map((x, i) => ({ ...x, heroId: i === 0 ? 'keshi' : 'risen' }));
+    const run = { ...base, heroId: 'keshi', lobby: { ...base.lobby!, seats } } as RunState;
+    const c = show(run, { phase: 'shop', round: 3, p1_user: 'me', p2_user: 'them', paused_seat: null });
+    const labels = [...c.querySelectorAll('.lrv-name-t')].map((e) => e.getAttribute('aria-label'));
+    expect(labels).toEqual(expect.arrayContaining(['Keshi', 'Risen']));
+    expect(labels).not.toContain('Keshi the Protector');
+    expect(labels).not.toContain('Lord of the Risen');
+    hoverHeld(c.querySelector('.lobbyseat[data-seat="s1"]')!);
+    expect(document.body.querySelector('.lobbyscout')?.textContent).toContain('Lord of the Risen');
   });
 });

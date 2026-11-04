@@ -8,6 +8,7 @@
  * player to invite from there". Style: the Docked lobby rail (shell/shell.css tokens). Bar: "extremely clean".
  *
  * THE SCREEN IS YOUR PARTY:
+ *  - A VERSUS ROOM is a state of this screen, not a page (versusRoomHome.tsx): its seats are the banners.
  *  - TOP: the app shell's nav (shell/PhTopNav.tsx), the same bar every menu page wears in the prototype.
  *  - UNDER IT: the mode tabs and one line on the picked mode. A mode sets the party's seats and what START does. In a
  *    party, the solo modes are dimmed with the reason (the party never silently drops a teammate).
@@ -51,19 +52,21 @@ import { defaultPartyName } from '../versus/playParty';
 import { versusEnabled } from '../versus/versusFlag';
 import { versusRoomRef } from '../versus/versusRemote';
 import { playerCardArt, seatCardSource, useSeatData } from '../versus/versusSeatCard';
-import { createRoom, enterDuosParty, isDuosParty, leaveDuosParty, leaveRoom, openVersus, setRoomOptions, startGame, takeSeat, useVersus } from '../versus/versusStore';
+import { createRoom, enterDuosParty, isDuosParty, leaveDuosParty, openVersus, setRoomOptions, startGame, takeSeat, useVersus } from '../versus/versusStore';
 import { titleContinueNote } from '../titleTextConfig';
 import { withAbandonWarning } from '../rank/ratedRun';
 import { PhTopNav } from './shell/PhTopNav';
+import { OpenRoomsPanel, RoomRulesPanel, useVersusRoomHome } from './versusRoomHome';
+import { defaultRoomName, roomModeOf, roomTitleOf } from './pages/versusPh';
 import { PhBackdrop } from './shell/PhBackdrop';
 import { PhFriends } from './shell/PhFriends';
-import { addSampleInvite, clearSampleInvites, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
+import { addSampleInvite, clearSampleInvites, removeSampleInvite, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
 import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhField, PhLeaderBadge, PhTabs, phNum } from './kit';
-import { GauntletPanel, PracticePanel, VersusPanel, stagePlayable, useGauntletStages } from './ModeOptions';
+import { GauntletPanel, PracticePanel, stagePlayable, useGauntletStages } from './ModeOptions';
 import { partyModeOf, partyModes, readPartyMode, rememberPartyMode, type PartyMode, type PartyModeId } from './partyModes';
 import { setPartyDemo, usePartyDemo } from './partyHomeFlag';
 import { SAMPLE_MATE_ID, sampleFriends, sampleHeroes } from './sample';
-import { playerVersusError } from './versusCopy';
+import { playerVersusError, useVersusDown } from './versusCopy';
 import { versusModifierName } from '../versus/versusOptionsUi';
 import './partyHome.css';
 
@@ -157,17 +160,26 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
 
   // ── the modes: in a party, only the modes that take it ──
   const modes = useMemo(() => partyModes({ versus: versusEnabled(), dev: import.meta.env.DEV }), []);
+  // A VERSUS ROOM IS A STATE OF THIS SCREEN (versusRoomHome.tsx): the tabs follow it. The host can switch between the Versus
+  // modes while the room is open; anything else waits until the room is left, like a party.
+  const roomTab: PartyModeId | null = versusRoom ? ({ duel: 'versus', group: 'group', duos: 'vduos' } as const)[roomModeOf(versusRoom.options)] : null;
+  const roomHost = !!versusRoom && versusRoom.host_user_id === me && versusRoom.status === 'open';
   const lockReason = (m: PartyMode): string | null => {
+    if (versusRoom) return m.id === roomTab || (roomHost && m.party === 'rivals') ? null : `You are in a Versus room. Leave it to play ${m.label}.`;
     if (!inParty) return null;
     if (duosRoom) return m.id === 'duos' ? null : `Your party is queued for Ranked Duos. Leave the party to play ${m.label}.`;
     return m.party === 'solo' ? `${m.label} is solo. Leave the party to play it.` : null;
   };
   const [picked, setPicked] = useState<PartyModeId>(() => readPartyMode());
   const pickedMode = modes.find((m) => m.id === picked) ?? modes[0]!;
-  const modeId: PartyModeId = lockReason(pickedMode) ? 'duos' : pickedMode.id;
+  const modeId: PartyModeId = roomTab ?? (lockReason(pickedMode) ? 'duos' : pickedMode.id);
   const mode = partyModeOf(modeId);
-  const pick = (id: PartyModeId): void => { sfx.pulse(); setLockNote(null); setPicked(id); rememberPartyMode(id); };
+  const pick = (id: PartyModeId): void => {
+    sfx.pulse(); setLockNote(null); setPicked(id); rememberPartyMode(id);
+    if (versusRoom) void setRoomOptions({ v: 1, mode: id === 'versus' ? 'duel' : id === 'group' ? 'group' : 'duos', modifiers: versusRoom.options?.modifiers ?? [] } as VersusRoomOptions);
+  };
   const [lockNote, setLockNote] = useState<string | null>(null);
+  const [hoverNote, setHoverNote] = useState<string | null>(null);
   // A locked tab's reason shows as a brief toast under the tabs, then the line returns to the mode's description.
   useEffect(() => { if (!lockNote) return undefined; const t = window.setTimeout(() => setLockNote(null), 2600); return () => window.clearTimeout(t); }, [lockNote]);
   const [demoTeam, setDemoTeam] = useState<string | null>(null);
@@ -181,6 +193,23 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const autoStage = stages.find((x) => x.state === 'available')?.n ?? stages.find((x) => stagePlayable(x.state))?.n ?? null;
   const stage = stagePick !== null && stagePlayable(stages[stagePick - 1]?.state ?? 'locked') ? stagePick : autoStage;
   const [modifier, setModifier] = useState<VersusModifierId | null>(null);
+  const [roomName, setRoomName] = useState('');
+  const rootRef = useRef<HTMLDivElement>(null);
+  // My banner keeps its medal line in a room, so the name never jumps when a room opens behind the screen.
+  const myMedal = (
+    <span className="ph-rank">
+      {members[0]!.rank
+        ? <><RankCrest divisionIndex={members[0]!.rank.divisionIndex} size="mini" hideDivision /><span>{members[0]!.rank.label}</span></>
+        : <span className="ph-muted">Unranked</span>}
+    </span>
+  );
+  const vh = useVersusRoomHome(rootRef, phone, () => setPickerOpen(true), myMedal);
+  // The tab stays on the room's mode after leaving it, and a returning member lands back in their room (the store's rejoin).
+  useEffect(() => { if (roomTab) { setPicked(roomTab); rememberPartyMode(roomTab); } }, [roomTab]);
+  // Joining from Open rooms: the list has done its job, so the panel shows the room's rules.
+  useEffect(() => { if (versusRoom?.id) setSideTab((t) => (t === 'rooms' ? 'settings' : t)); }, [versusRoom?.id]);
+  useEffect(() => { if (mode.party === 'rivals' && !useVersus.getState().room) openVersus('versus'); }, [mode.party]);
+  const hostName = (): string => roomName.trim() || (playerName.trim() ? `${playerName.trim()}'s ${mode.label}` : defaultRoomName('', mode.id === 'versus' ? 'duel' : mode.id === 'group' ? 'group' : 'duos'));
   const [nameOpen, setNameOpen] = useState(false);
   const [teamName, setTeamName] = usePartyTeamName(duosRoom);
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -201,11 +230,11 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       onStart = () => onRankedStart('duos', () => { void startGame(); });
       break;
     case 'versus': case 'group': case 'vduos': {
-      // Holding a room already: START returns to it (the plate above says so too).
-      if (versusRoom) { startLabel = 'Return'; onStart = () => openVersus('versus'); break; }
-      // Host a room with the tab's mode and the picked modifier; the room screen opens only once the room exists.
+      // In a room: its START (the host's once enough sit; everyone else reads what they wait for).
+      if (vh.start) { startLabel = vh.start.label; startOk = vh.start.ok; note = vh.start.note ?? note; onStart = vh.start.run; break; }
+      // No room yet: START opens one behind this screen, with the tab's mode and the picked rules. Nothing navigates.
       const vmode = mode.id === 'versus' ? 'duel' : mode.id === 'group' ? 'group' : 'duos';
-      onStart = () => { void hostVersus({ v: 1, mode: vmode, modifiers: modifier ? [modifier] : [] } as VersusRoomOptions, playerName, mode.label); };
+      onStart = () => { void hostVersus({ v: 1, mode: vmode, modifiers: modifier ? [modifier] : [] } as VersusRoomOptions, hostName()); };
       break;
     }
     case 'practice':
@@ -225,8 +254,20 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     case 'learn': onStart = () => startTutorial(LEARN_ASCENT); break;
   }
 
-  // A Versus error reads in the note slot beside START (never a pill against its frame).
-  if (vsError) note = playerVersusError(vsError);
+  // THE SERVER LINE: its own line under the mode's note, so the mode's hint always shows. Only on the modes that use the
+  // Versus server, cleared on a mode change and on recovery (a stale error never follows you to another mode).
+  const usesServer = mode.party === 'rivals' || mode.id === 'duos';
+  const vsDown = useVersusDown();
+  const serverName = mode.id === 'duos' ? 'Ranked Duos' : 'Versus';
+  const vsCopy = usesServer ? playerVersusError(vsError) : null;
+  const downLine = `${serverName} is offline right now.`;
+  const issue = vsDown && usesServer ? downLine : vsCopy;
+  // The server is down: START is the same dim, disabled START as a Duos party with no teammate; the line says why.
+  if (vsDown && usesServer && !versusRoom && !duosRoom) { startOk = false; onStart = () => undefined; }
+  // A phone has no line under the tabs: a locked tab's reason reads here.
+  if (phone && lockNote) note = lockNote;
+  // A phone has no room for the description line: its first sentence sits beside START when nothing else needs the slot.
+  if (phone && !note && !issue) note = mode.desc.split('. ')[0]!.replace(/\.$/, '');
   // A saved game waiting: Start asks first (Ranked's own confirmation already names it).
   if (savedRun && (mode.id === 'practice' || mode.id === 'gauntlet' || mode.id === 'learn')) {
     const go = onStart;
@@ -236,10 +277,10 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   // ── THE ONE FRIENDS LIST's Invite for this mode (shell/shellStore) ──
   const account = friendsAccount();
   const takesParty = mode.id === 'duos';
-  const full = members.length + (demo ? sampleInvites.length : 0) >= mode.slots;
+  const full = vh.row ? vh.seatsFree === 0 : members.length + (demo ? sampleInvites.length : 0) >= mode.slots;
   const takesFriends = takesParty || mode.party === 'rivals';
-  const canInvite = !full && (demo ? takesFriends : takesFriends && account && remoteEnabled() && !inGame);
-  const memberIds = members.map((m) => m.userId).filter((x): x is string => !!x && x !== me);
+  const canInvite = !(vsDown && takesFriends) && !full && (!versusRoom || versusRoom.status === 'open') && (demo ? takesFriends : takesFriends && account && remoteEnabled() && !inGame);
+  const memberIds = vh.row ? vh.memberIds : members.map((m) => m.userId).filter((x): x is string => !!x && x !== me);
   const sendRef = useRef<(f: Friend) => void>(() => undefined);
   sendRef.current = (f: Friend): void => {
     if (demo) { sfx.pulse(); addSampleInvite(f.userId); return; }
@@ -249,7 +290,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       const vmode = mode.id === 'versus' ? 'duel' : mode.id === 'group' ? 'group' : 'duos';
       void (async () => {
         let r = useVersus.getState().room;
-        if (!r || isDuosParty(r)) { await hostVersus({ v: 1, mode: vmode, modifiers: modifier ? [modifier] : [] } as VersusRoomOptions, playerName, mode.label, false); r = useVersus.getState().room; }
+        if (!r || isDuosParty(r)) { await hostVersus({ v: 1, mode: vmode, modifiers: modifier ? [modifier] : [] } as VersusRoomOptions, hostName()); r = useVersus.getState().room; }
         if (r && !isDuosParty(r)) await inviteFriend(f.userId, 'versus_room', versusRoomRef(r));
       })();
       return;
@@ -263,7 +304,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       if (r && isDuosParty(r)) await inviteFriend(f.userId, 'duos_party', versusRoomRef(r));
     })();
   };
-  const inviteReason = full && takesFriends ? (takesParty ? 'Your party is full.' : 'Every seat is taken.')
+  const inviteReason = vsDown && takesFriends ? downLine : full && takesFriends ? (takesParty ? 'Your party is full.' : 'Every seat is taken.')
     : takesFriends ? null
     : `${mode.label} is solo. Pick Ranked Duos to play with a friend.`;
   useEffect(() => {
@@ -274,7 +315,17 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   useEffect(() => { if (!phone) setFriendsOpen(false); }, [phone]);
   // A fresh mode clears the open-seat note.
   useEffect(() => { setSeatNote(null); setMenuFor(null); setPickerOpen(false); setSideTab(partyModeOf(modeId).options ? 'settings' : 'friends'); }, [modeId]);
+  // A Versus error belongs to the press that made it: a new mode, or leaving the party, starts clean.
+  useEffect(() => { if (useVersus.getState().error) useVersus.setState({ error: null }); }, [modeId, inParty]);
   useEffect(() => { if (!demo) clearSampleInvites(); }, [demo]);
+  // A press outside the open card closes its menu. A window listener, not a catcher layer: the stage is its own stacking
+  // context, so a layer over the page would sit on top of the menu and swallow its items.
+  useEffect(() => {
+    if (!menuFor) return undefined;
+    const onDown = (e: PointerEvent): void => { if (!(e.target instanceof Element) || !e.target.closest('.ph-cardwrap.menu')) setMenuFor(null); };
+    window.addEventListener('pointerdown', onDown, true);
+    return () => window.removeEventListener('pointerdown', onDown, true);
+  }, [menuFor]);
   // Esc closes an open card menu first (and only it).
   useEffect(() => {
     if (!menuFor) return undefined;
@@ -285,11 +336,22 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
 
   // Back from a page: the stage replays its short entrance (transform / opacity), so the hop is never a hard cut.
   const [enterKey, setEnterKey] = useState(0);
+  // PHONE: a mark at the end of the mode tabs while more wait off the edge.
+  const modesRef = useRef<HTMLDivElement>(null);
+  const [moreTabs, setMoreTabs] = useState(false);
+  useEffect(() => {
+    const row = modesRef.current?.querySelector('.phk-tabs');
+    if (!row || !phone) { setMoreTabs(false); return undefined; }
+    const on = (): void => setMoreTabs(row.scrollLeft + row.clientWidth < row.scrollWidth - 4);
+    on();
+    row.addEventListener('scroll', on, { passive: true });
+    return () => row.removeEventListener('scroll', on);
+  }, [phone, modes.length]);
   const wasPaged = useRef(pageOpen);
   useEffect(() => { if (wasPaged.current && !pageOpen) setEnterKey((k) => k + 1); wasPaged.current = pageOpen; }, [pageOpen]);
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [sideTab, setSideTab] = useState<'friends' | 'settings'>(() => (mode.options ? 'settings' : 'friends'));
+  const [sideTab, setSideTab] = useState<'friends' | 'settings' | 'rooms'>(() => (mode.options ? 'settings' : 'friends'));
   const friendsOpen = usePhShell((s) => s.friendsOpen);
   const onOpenSeat = (): void => {
     sfx.pulse();
@@ -307,9 +369,9 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
         ...(m.userId ? [{ label: 'View Career', run: () => goTo('career') }] : []),
       ].filter((it) => !!it.run));
 
-  // The state strip: on the others' cards (yours only when in a game). In a party your card keeps an empty strip, so
-  // every name and medal line sits at the same height across the cards.
-  const stateOf = (m: Member): 'show' | 'space' | 'none' => (!m.self || m.state === 'in_game' ? 'show' : members.length > 1 ? 'space' : 'none');
+  // The state strip: on the others' cards (yours only when in a game). Your card always keeps the empty strip: ONE foot
+  // layout, so the name and medal never move when someone joins.
+  const stateOf = (m: Member): 'show' | 'space' => (!m.self || m.state === 'in_game' ? 'show' : 'space');
   const cards: JSX.Element[] = members.map((m, i) => (
     <BannerCard key={m.key} m={m} i={i} phone={phone} leader={showLeader && m.leader} showState={stateOf(m)} rival={mode.party === 'rivals' && !m.self && mode.id !== 'vduos'}
       menuOpen={menuFor === m.key} onToggleMenu={() => { sfx.pulse(); setMenuFor((k) => (k === m.key ? null : m.key)); }}
@@ -319,12 +381,14 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   for (let i = 0; i < open; i++) {
     const p = pending[i];
     cards.push(p
-      ? <PhBanner key={`open-${i}`} index={members.length + i} className="pending" art={heroThumb(heroPortrait(p.favoriteHero, null))} label={`${p.author ?? 'Friend'}, invited`}>
+      ? <PhBanner key={`open-${i}`} index={members.length + i} className="pending" art={heroThumb(heroPortrait(p.favoriteHero, null))} label={`${p.author ?? 'Friend'}, invited`}
+          overlay={<button type="button" className="ph-cancelinv" onClick={() => { sfx.pulse(); removeSampleInvite(p.userId); }}>Cancel</button>}>
           <PhBannerName>{p.author ?? 'Friend'}</PhBannerName>
           <span className="ph-rank"><span className="ph-muted">Invited</span></span>
-          <PhBannerState tone="in_game">Waiting</PhBannerState>
+          <span className="ph-sub">{'\u00a0'}</span>
+          <PhBannerState tone="space" />
         </PhBanner>
-      : <OpenSeat key={`open-${i}`} i={members.length + i} onOpen={onOpenSeat} pending={null} />);
+      : <OpenSeat key={`open-${i}`} i={members.length + i} onOpen={onOpenSeat} pending={null} optional={mode.id === 'group' && members.length + i === 3} />);
   }
   // VERSUS DUOS: two pairs (your team, the rivals), split by the VS mark.
   const row: JSX.Element[] = mode.id === 'versus' && cards.length === 2
@@ -337,14 +401,17 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       ]
     : cards;
 
+  const rule = versusRoom ? (versusRoom.options?.modifiers ?? [])[0] ?? null : modifier;
   const actions = (
     <div className="ph-actions">
+      {vh.stands}
       <div className="ph-side">
+        {vh.side}
         {inParty && !inGame && (
           <PhButton onClick={() => { sfx.pulse(); if (duosRoom) void leaveDuosParty(); else setPartyDemo(false); }}>Leave party</PhButton>
         )}
         {/* On a phone the saved game's Continue sits here (the head row stays slim). */}
-        {savedRun && !inParty && <PhButton size="s" variant="primary" className="ph-phonecontinue" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>}
+        {phone && savedRun && !inParty && <PhButton size="s" variant="primary" className="ph-phonecontinue" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>}
       </div>
       <button type="button" className="ph-start" disabled={!startOk} onClick={() => { if (!startOk) return; sfx.pulse(); onStart(); }}>
         <span>{startLabel}</span>
@@ -352,20 +419,23 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       <div className="ph-side ph-side-r">
         {/* On a phone the side panel is a drawer: the mode's settings are one press from START. */}
         {phone && mode.options && <PhButton size="s" onClick={() => { sfx.pulse(); setSideTab('settings'); setFriendsOpen(true); }}>{mode.id === 'practice' ? 'Practice' : mode.id === 'gauntlet' ? 'Stages' : 'Rules'}</PhButton>}
-        {note && <span className="ph-note" role="status">{note}</span>}
+        {(note || issue) && (
+          <span className="ph-notes" role="status">
+            {note && <span className="ph-note">{note}</span>}
+            {issue && <span className="ph-note ph-issue">{issue}</span>}
+          </span>
+        )}
       </div>
     </div>
   );
-  // Browse rooms always opens the list (even with a room held: Return is on the home's plate).
-  const browseRooms = (): void => { openVersus('versus'); useVersus.setState({ screen: 'browser' }); };
-
   // THE SIDE PANEL: Friends | the mode's settings. Picking a mode with settings opens its tab once; Friends is a press away.
-  const settingsTitle = mode.id === 'practice' ? 'Practice' : mode.id === 'gauntlet' ? 'Gauntlet' : 'Room rules';
+  const settingsTitle = mode.id === 'practice' ? 'Practice' : mode.id === 'gauntlet' ? 'Gauntlet' : 'Rules';
   const settings = mode.options ? (
     <div className="ph-settings">
       {mode.id === 'practice' && <PracticePanel />}
       {mode.id === 'gauntlet' && <GauntletPanel selected={stage} onSelect={setStagePick} />}
-      {(mode.id === 'versus' || mode.id === 'group' || mode.id === 'vduos') && <VersusPanel modifier={modifier} onModifier={setModifier} onBrowse={browseRooms} />}
+      {mode.party === 'rivals' && <RoomRulesPanel room={versusRoom} me={me} modifier={modifier} onModifier={setModifier} name={roomName} onName={setRoomName}
+        placeholder={hostName()} onBrowse={() => setSideTab('rooms')} />}
     </div>
   ) : null;
   const tab = settings ? sideTab : 'friends';
@@ -373,23 +443,24 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     <aside className={`ph-sidepanel${phone ? ' drawer' : ''}`} aria-label="Side panel">
       <div className="ph-sidetabs">
         <PhTabs label="Panel" value={tab} onChange={(t) => { sfx.pulse(); setSideTab(t); }}
-          tabs={[{ id: 'friends' as const, label: 'Friends' }, ...(settings ? [{ id: 'settings' as const, label: <span className="ph-settab">{settingsTitle}</span> }] : [])]} />
+          tabs={[{ id: 'friends' as const, label: 'Friends' }, ...(settings ? [{ id: 'settings' as const, label: <span className="ph-settab">{settingsTitle}</span> }] : []),
+            ...(mode.party === 'rivals' ? [{ id: 'rooms' as const, label: 'Open rooms' }] : [])]} />
         {phone && <button type="button" className="ph-iconbtn ph-fclose" aria-label="Close" onClick={() => { sfx.pulse(); setFriendsOpen(false); }}><Icon name="chevron" /></button>}
       </div>
-      {tab === 'friends' ? <PhFriends docked embedded /> : settings}
+      {tab === 'friends' ? <PhFriends docked embedded /> : tab === 'rooms' ? <div className="ph-settings"><OpenRoomsPanel mode={roomModeOf({ v: 1, mode: mode.id === 'group' ? 'group' : mode.id === 'vduos' ? 'duos' : 'duel', modifiers: [] } as VersusRoomOptions)} /></div> : settings}
     </aside>
   );
 
   return (
-    <div className={`ph${phone ? ' phone' : ''}`} role="region" aria-label="Your party">
+    <div ref={rootRef} className={`ph${phone ? ' phone' : ''}${vh.dragging ? ' vsr-dragging' : ''}`} role="region" aria-label="Your party">
       <PhBackdrop />
       <PhTopNav current="home" friendsDocked={!phone} ownDrawer />
 
-      <div className="ph-modes">
-        <PhTabs label="Mode" value={modeId} onChange={pick} onLocked={(_id, reason) => { sfx.deny(); setLockNote(reason); }}
+      <div ref={modesRef} className={`ph-modes${moreTabs ? ' more' : ''}`}>
+        <PhTabs label="Mode" value={modeId} onChange={pick} onLocked={(_id, reason) => { sfx.deny(); setLockNote(reason); }} onLockedHover={setHoverNote}
           tabs={modes.map((m) => ({ id: m.id, label: <ModeLabel id={m.id} label={m.label} />, reason: lockReason(m) ?? undefined }))} />
-        <span className="ph-desc">{mode.desc}</span>
-        {lockNote && <span key={lockNote} className="ph-toast" role="status">{lockNote}</span>}
+        {/* A locked tab's reason takes the description's own line for a moment: it never covers the stage. */}
+        <span className={`ph-desc${lockNote || hoverNote ? ' locked' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? hoverNote ?? mode.desc}</span>
       </div>
 
       <main className="ph-stage" key={enterKey}>
@@ -397,8 +468,8 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
         <div className="ph-stagehead">
         {!teamLabel && mode.party === 'rivals' && (
           <div className="ph-team">
-            <span className="ph-teamlbl">Unranked room</span>
-            <span className="ph-teamname">{modifier ? versusRuleName(modifier) : 'Usual rules'}</span>
+            <span className="ph-teamlbl">{versusRoom ? roomTitleOf(versusRoom.name, roomModeOf(versusRoom.options)) : 'Unranked room'}</span>
+            <span className="ph-teamname">{rule ? versusRuleName(rule) : 'Usual rules'}</span>
           </div>
         )}
         {teamLabel && (
@@ -410,32 +481,23 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
             )}
           </div>
         )}
-        {(savedRun || versusRoom) && (
+        {savedRun && (
           <div className="ph-held">
-            {savedRun && (
-              <div className="ph-heldrow">
-                <span className="ph-heldtxt"><b>Saved game</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>
-                <PhButton variant="primary" size="s" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>
-              </div>
-            )}
-            {versusRoom && (
-              <div className="ph-heldrow">
-                <span className="ph-heldtxt"><b>In a Versus room</b><span>{versusRoom.name}</span></span>
-                <PhButton variant="primary" size="s" onClick={() => { sfx.pulse(); openVersus('versus'); }}>Return</PhButton>
-                <PhButton size="s" onClick={() => { sfx.pulse(); void leaveRoom(); }}>Leave</PhButton>
-              </div>
-            )}
+            <div className="ph-heldrow">
+              <span className="ph-heldtxt"><b>Saved game</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>
+              <PhButton variant="primary" size="s" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>
+            </div>
           </div>
         )}
         </div>
-        <div className={`ph-cards n${slots}${mode.id === 'vduos' ? ' vs' : ''}`} key={mode.id}>{row}</div>
+        <div className={`ph-cards n${slots}${mode.id === 'vduos' ? ' vs' : ''}`} key={mode.id}>{vh.row ?? row}</div>
         {actions}
       </main>
 
       {!phone && side}
       {phone && friendsOpen && <><div className="ph-fcatch" aria-hidden="true" onPointerDown={() => setFriendsOpen(false)} />{side}</>}
 
-      {menuFor && <div className="ph-menucatch" aria-hidden="true" onPointerDown={() => setMenuFor(null)} />}
+      {vh.layers}
       {pickerOpen && <InvitePicker onClose={() => setPickerOpen(false)} />}
       {nameOpen && duosRoom && <TeamNamePanel room={duosRoom} me={me} name={teamName} onSaved={setTeamName} onClose={() => setNameOpen(false)} />}
       {nameOpen && !duosRoom && demo && <SampleRename name={demoTeam} fallback={defaultTeamName(members[0]!.name, 'Mike')} onSave={(n) => { setDemoTeam(n || null); setNameOpen(false); }} onClose={() => setNameOpen(false)} />}
@@ -501,13 +563,12 @@ function SampleRename({ name, fallback, onSave, onClose }: { name: string | null
   );
 }
 
-async function hostVersus(options: VersusRoomOptions, playerName: string, modeLabel: string, show = true): Promise<void> {
-  const who = playerName.trim();
-  await createRoom((who ? `${who}'s ${modeLabel}` : modeLabel).slice(0, 40));
+/** Open a Versus room behind this screen: the host seated, the rules set. Nothing navigates; the banner row IS the room. */
+async function hostVersus(options: VersusRoomOptions, name: string): Promise<void> {
+  await createRoom(name.slice(0, 40));
   if (!useVersus.getState().room) return;
   await setRoomOptions(options);
   await takeSeat('p1'); // the host sits in the first seat (a room opens with its host in the stands)
-  if (show) openVersus('versus');
 }
 
 /** The invite picker an open seat opens: the online friends with Invite (the one friends list, in a window). */
@@ -523,7 +584,7 @@ function InvitePicker({ onClose }: { onClose: () => void }): JSX.Element {
 /** A member's tall banner card: the portrait fading into navy, then name, medal, title or level, and (others) the state.
  *  Pressing it opens its small menu. */
 function BannerCard({ m, i, phone, leader, showState, rival, menuOpen, onToggleMenu, menu, onPick }: {
-  m: Member; i: number; phone: boolean; leader: boolean; showState: 'show' | 'space' | 'none'; rival?: boolean; menuOpen: boolean; onToggleMenu: () => void;
+  m: Member; i: number; phone: boolean; leader: boolean; showState: 'show' | 'space'; rival?: boolean; menuOpen: boolean; onToggleMenu: () => void;
   menu: { label: string; run?: () => void; soon?: boolean }[]; onPick: (run: () => void) => void;
 }): JSX.Element {
   const art = phone ? heroThumb(m.art) : m.art;
@@ -546,9 +607,7 @@ function BannerCard({ m, i, phone, leader, showState, rival, menuOpen, onToggleM
                 ? <><RankCrest divisionIndex={m.rank.divisionIndex} size="mini" hideDivision /><span>{m.rank.label}</span></>
                 : <span className="ph-muted">{m.self ? 'Unranked' : 'Medal not shown'}</span>}
             </span>
-            {(m.titleId || m.level != null) && (
-              <span className="ph-sub">{m.titleId ? <TitleBadge id={m.titleId} className="ph-titlebadge" /> : `Level ${m.level}`}</span>
-            )}
+            <span className="ph-sub">{m.titleId ? <TitleBadge id={m.titleId} className="ph-titlebadge" /> : m.level != null ? `Level ${m.level}` : '\u00a0'}</span>
             {showState === 'show' && <PhBannerState tone={m.state}>{m.state === 'in_game' ? 'In game' : 'Ready'}</PhBannerState>}
             {showState === 'space' && <PhBannerState tone="space" />}
     </PhBanner>
@@ -556,10 +615,10 @@ function BannerCard({ m, i, phone, leader, showState, rival, menuOpen, onToggleM
 }
 
 /** An open seat: points at the friends list (invite from there). */
-function OpenSeat({ i, onOpen, pending }: { i: number; onOpen: () => void; pending: string | null }): JSX.Element {
+function OpenSeat({ i, onOpen, pending, optional }: { i: number; onOpen: () => void; pending: string | null; optional?: boolean }): JSX.Element {
   return (
     <PhBanner ghost index={i} onClick={onOpen} label="Open seat. Invite a friend from your friends list">
-      <PhBannerInvite pending={pending} />
+      <PhBannerInvite pending={pending} note={optional ? 'Optional seat' : undefined} />
     </PhBanner>
   );
 }

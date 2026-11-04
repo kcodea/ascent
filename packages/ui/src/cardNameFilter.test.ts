@@ -1,5 +1,6 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { CARD_NAME_COLOURS, CARD_NAME_RINGS, cardNameBucket, cardNameFilterId, cardNameFilterMarkup, cardNameFit } from './cardNameFilter';
+import { CARD_NAME_COLOURS, CARD_NAME_RINGS, cardNameBucket, cardNameFilter, cardNameFilterId, cardNameFilterMarkup, cardNameFit } from './cardNameFilter';
 
 describe('gilded card-name filter (owner spec 2026-10-09)', () => {
   it('paints, bottom to top: shadow, #775a33 outer, #c7ad88 inner 1, #f4e9d4 inner 2, gradient core', () => {
@@ -39,5 +40,15 @@ describe('gilded card-name filter (owner spec 2026-10-09)', () => {
     expect(250 * fit).toBeLessThanOrEqual(200);
     expect(250 * fit).toBeGreaterThan(199);
     expect(cardNameFit(0, 200)).toBe(1);   // nothing measured yet (detached / not laid out): leave it alone
+  });
+
+  it('the hidden filter svg is pinned to the corner, so it can never add page scroll (R-CARDNAME-FILTER-NOSCROLL-01)', () => {
+    cardNameFilter(21.5);
+    const svg = [...document.querySelectorAll('svg')].find((el) => el.querySelector('filter[id^="cn-gild-"]'));
+    expect(svg).toBeTruthy();
+    expect(svg!.style.position).toBe('fixed');
+    expect(svg!.style.top).toBe('0px');
+    expect(svg!.style.left).toBe('0px');
+    expect(svg!.style.overflow).toBe('hidden');
   });
 });

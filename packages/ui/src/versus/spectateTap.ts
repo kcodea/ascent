@@ -71,6 +71,9 @@ export type WireDecision = StreamDecision;
 const TAGGED: ReadonlySet<string> = new Set([
   'buy', 'sell', 'play', 'roll', 'freeze', 'upgrade', 'reposition', 'reorderShop', 'reorderHand', 'heroPower',
   'activateEquipment', 'discover', 'chooseOne', 'buyRune', 'pickPower', 'battlecryTarget', 'faceOmen',
+  // VERSUS DUOS: a drag pass (R-SPECTATE-DUOS-PASS-01). Tagged, its drop reads as COMMITTED on the stands' screen, so the
+  // held card stays where it was let go and streams into the teammate portrait from there, as the player's did.
+  'passCard',
 ]);
 const MAX_ACTS = 24;
 /** An action goes out at most this long after it happened (the ordinary publish waits for idle time, up to 250 ms; an

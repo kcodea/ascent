@@ -41,9 +41,11 @@ export function PhBanner({ art, ghost, badge, onClick, label, expanded, haspopup
   );
 }
 
-/** A banner's name line (heavy rounded title type, scales with the banner). */
+/** A banner's name line (heavy rounded title type, scales with the banner). A plain name also scales to its own length
+ *  (`--nl`), so a long name fits a narrow banner instead of cutting off. */
 export function PhBannerName({ children }: { children: ReactNode }) {
-  return <span className="ph-name">{children}</span>;
+  const style = typeof children === 'string' ? ({ '--nl': Math.max(children.length, 1) } as CSSProperties) : undefined;
+  return <span className="ph-name" style={style}>{children}</span>;
 }
 
 /** A banner's state strip (Ready, In game): `tone` colours it. */
@@ -57,8 +59,8 @@ export function PhLeaderBadge() {
 }
 
 /** A ghost banner's invite medallion and label (or the friend it waits on). */
-export function PhBannerInvite({ pending }: { pending?: string | null }) {
+export function PhBannerInvite({ pending, note }: { pending?: string | null; note?: string }) {
   return pending
     ? <><span className="ph-openlbl">Invited</span><span className="ph-opensub">{pending}</span><span className="ph-opensub">Waiting for an answer</span></>
-    : <><span className="ph-invmed" aria-hidden="true"><span>+</span></span><span className="ph-openlbl">Invite</span></>;
+    : <><span className="ph-invmed" aria-hidden="true"><span>+</span></span><span className="ph-openlbl">Invite</span>{note && <span className="ph-opensub">{note}</span>}</>;
 }

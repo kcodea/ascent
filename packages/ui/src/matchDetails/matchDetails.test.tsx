@@ -50,7 +50,7 @@ const LOSS: MatchDetails = {
   v: 1, endRound: 11, placement: 6, eliminated: true, knockedOutBy: 's4',
   seats: [
     seat({ id: 's3', name: 'Skye', heroId: 'albus', health: 22, armor: 5, runKey: 'Skye|albus|4242', cosmetics: { heroSkinByHeroId: { albus: 'skin_albus_1' } } }),
-    seat({ id: 's4', name: 'Rook', health: 18, board: { round: 11, tier: 5, minions: [{ cardId: 'pack', attack: 3, health: 3 }], runes: ['rune_broodpit', 'rune_epic_forge', 'rune_not_in_this_build'] } }),
+    seat({ id: 's4', name: 'Rook', health: 18, strength: 18, board: { round: 11, tier: 5, minions: [{ cardId: 'pack', attack: 3, health: 3 }], runes: ['rune_broodpit', 'rune_epic_forge', 'rune_not_in_this_build'] } }),
     seat({ id: 's5', name: 'Pim', health: 12 }),
     seat({ id: 's6', name: 'Juno', health: 9 }),
     seat({ id: 's2', name: 'Vex', health: 3 }),
@@ -370,8 +370,13 @@ describe('the Career match card', () => {
     expect(ui!.container.querySelector('.lp-showing-v')?.textContent).toBe('Your board');
     // The seat that knocked you out wears the sword.
     expect(ui!.container.querySelector(`.lp-tile[data-seat="${LOSS.knockedOutBy}"] .lp-ko`)).not.toBeNull();
-    // Every chip's hover tip is the game's bubble, never a native title.
-    expect(chips.every((c) => c.getAttribute('data-tip') && !c.getAttribute('title'))).toBe(true);
+    // R-LOBBY-TILE-STRENGTH-01: no tip bubble (and never a native title); a scored seat carries a "Game strength: X"
+    // overlay that hover reveals over the darkened tile, an unscored seat carries none.
+    expect(chips.every((c) => !c.getAttribute('data-tip') && !c.classList.contains('gtip') && !c.getAttribute('title'))).toBe(true);
+    for (const seat of LOSS.seats) {
+      const overlay = ui!.container.querySelector(`.gs-detail .lp-tile[data-seat="${seat.id}"] .lp-tile-strength`);
+      expect(overlay?.textContent ?? null).toBe(typeof seat.strength === 'number' ? `Game strength: ${seat.strength}` : null);
+    }
     click(ui!.container.querySelector('.lp-tile[data-seat="s3"]'));
     expect(ui!.container.querySelector('.lp-tile[data-seat="s3"]')?.classList.contains('on')).toBe(true);
     expect(ui!.container.querySelector('.lp-showing-v')?.textContent).toMatch(/'s board/);

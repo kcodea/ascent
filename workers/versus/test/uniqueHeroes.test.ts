@@ -53,6 +53,23 @@ class H {
 
 const CASES: [Mode, number][] = [['duel', 2], ['group', 3], ['group', 4], ['duos', 4]];
 
+describe('a Duos-only hero is dealt by a team room and no other (R-DUOS-PRIESTESS-01)', () => {
+  const dealt = async (mode: Mode, n: number): Promise<Set<string>> => {
+    const heroes = new Set<string>();
+    for (let seed = 1; seed <= 40; seed++) {
+      const h = new H(mode, seed * 7919, n);
+      await h.toHeroSelect();
+      for (const s of h.seats()) for (const hero of h.priv(s).hero_offer!) heroes.add(hero);
+    }
+    return heroes;
+  };
+  it('Duos deals Priestess; a duel and a group room never do', async () => {
+    expect((await dealt('duos', 4)).has('priestess')).toBe(true);
+    expect((await dealt('duel', 2)).has('priestess')).toBe(false);
+    expect((await dealt('group', 4)).has('priestess')).toBe(false);
+  });
+});
+
 describe('unique heroes per lobby: the room deals disjoint offers (R-VERSUS-UNIQUE-HEROES-01)', () => {
   for (const [mode, n] of CASES) {
     it(`${mode} x${n}: no hero is offered twice, every offer is three heroes the seat's run may play, across 40 rooms`, async () => {
@@ -64,13 +81,13 @@ describe('unique heroes per lobby: the room deals disjoint offers (R-VERSUS-UNIQ
         for (const s of h.seats()) {
           const p = h.priv(s);
           expect(p.hero_offer).toHaveLength(3);
-          const allowed = new Set(playableHeroes(runTribesForSeed(p.run_seed, 'set2')).map((x) => x.id));
+          const allowed = new Set(playableHeroes(runTribesForSeed(p.run_seed, 'set2'), { duos: mode === 'duos' }).map((x) => x.id));
           for (const hero of p.hero_offer!) expect(allowed.has(hero)).toBe(true);
           all.push(...p.hero_offer!);
         }
         expect(new Set(all).size).toBe(all.length);
         // Deterministic: the deal is a pure function of the stored seeds.
-        expect(versusDisjointHeroOffers(h.seats().map((s) => ({ heroSeed: h.priv(s).hero_seed, runSeed: h.priv(s).run_seed })), 'set2'))
+        expect(versusDisjointHeroOffers(h.seats().map((s) => ({ heroSeed: h.priv(s).hero_seed, runSeed: h.priv(s).run_seed })), 'set2', undefined, { duos: mode === 'duos' }))
           .toEqual(h.seats().map((s) => h.priv(s).hero_offer));
       }
     });

@@ -47,6 +47,10 @@ const WINDOW_MS = 10_000;
 const MAX_WINDOWS = 120;
 const MAX_EVENTS = 120;
 const SNAP_MS = 15_000;
+/** The stored copy (a JSON of tens of KB + a sync localStorage write) is refreshed this often, not every snapshot
+ *  (R-PHONE-DIAG-COST-01: it ran every 15 s all game on every phone). Going hidden / pagehide still stores at once,
+ *  so a session killed in the background loses at most this much. */
+export const PERSIST_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const NEXT_LOAD_DELAY_MS = 8000;
 
@@ -181,6 +185,7 @@ let lastGl = { lostEvents: 0, restoredEvents: 0 };
 let snap: StateSnap | null = null;
 const peak = { glAlive: 0, glMb: 0, pixiAlive: 0, imgMb: 0, imgUniqueMb: 0, audioMb: 0, heap: 0, anims: 0, nodes: 0, glLostNow: 0 };
 let lastSnapAt = -Infinity;
+let lastPersistAt = -Infinity;
 let lastLostLabels = '';
 let persistQueued = false;
 let uploads = 0;
@@ -304,8 +309,13 @@ function onBucket(b: PerfBucket): void {
     const t = now();
     if (t - lastSnapAt >= SNAP_MS) {
       lastSnapAt = t;
-      // Off the frame callback: the snapshot + the stored copy (a JSON of a few tens of KB) run in their own task.
-      if (!persistQueued) { persistQueued = true; window.setTimeout(() => { persistQueued = false; persist(); }, 0); }
+      if (t - lastPersistAt >= PERSIST_MS) {
+        lastPersistAt = t;
+        // Off the frame callback: the snapshot + the stored copy (a JSON of a few tens of KB) run in their own task.
+        if (!persistQueued) { persistQueued = true; window.setTimeout(() => { persistQueued = false; persist(); }, 0); }
+      } else {
+        takeSnap(b); // the state timeline keeps its 15 s cadence; only the stored copy waits (R-PHONE-DIAG-COST-01)
+      }
     } else {
       // Context losses are noted the second they happen (two counter reads), not at the next 15 s snapshot.
       const gl = webglSnapshot();
@@ -379,13 +389,30 @@ export function perfPayload(): Record<string, unknown> {
   };
 }
 
-/** Pure: the row for a payload, trimmed (oldest windows, then events, then the busiest ledger rows) to fit. */
+/**
+ * Pure: the row for a payload, trimmed (oldest windows, then events, then the busiest ledger rows) to fit.
+ * R-PHONE-DIAG-COST-01: the size is measured ONCE (plus each list entry once, only when a trim is needed) and kept up
+ * to date by subtraction, never re-stringified per trim step: the old loop ran 3-6 full stringifies of ~50 KB on
+ * every store once a session filled its windows.
+ */
 export function buildPerfRow(payload: Record<string, unknown>, env: { ua: string; standalone: boolean; build: string }, key: string): CrashReportRow {
   const p = { ...payload } as Record<string, unknown> & { windows?: unknown[]; events?: unknown[]; fx?: Record<string, unknown> };
-  const size = (): number => JSON.stringify(p).length;
-  while (size() > MAX_PERF_PAYLOAD_CHARS && Array.isArray(p.windows) && p.windows.length > 6) p.windows = p.windows.slice(Math.ceil(p.windows.length / 4));
-  while (size() > MAX_PERF_PAYLOAD_CHARS && Array.isArray(p.events) && p.events.length > 10) p.events = p.events.slice(Math.ceil(p.events.length / 4));
-  if (size() > MAX_PERF_PAYLOAD_CHARS && p.fx) p.fx = { ...p.fx, busiest: {} };
+  let size = JSON.stringify(p).length;
+  // Drop the oldest quarter of a list while over budget; each entry costs its own JSON plus a comma.
+  const trim = (list: unknown[], keep: number): unknown[] => {
+    if (size <= MAX_PERF_PAYLOAD_CHARS || list.length <= keep) return list;
+    const lens = list.map((e) => (JSON.stringify(e) ?? 'null').length + 1);
+    let from = 0;
+    while (size > MAX_PERF_PAYLOAD_CHARS && list.length - from > keep) {
+      const cut = Math.ceil((list.length - from) / 4);
+      for (let i = from; i < from + cut; i++) size -= lens[i]!;
+      from += cut;
+    }
+    return from > 0 ? list.slice(from) : list;
+  };
+  if (Array.isArray(p.windows)) p.windows = trim(p.windows, 6);
+  if (Array.isArray(p.events)) p.events = trim(p.events, 10);
+  if (size > MAX_PERF_PAYLOAD_CHARS && p.fx) p.fx = { ...p.fx, busiest: {} };
   return {
     last_step: PERF_REPORT_STEP,
     ua: env.ua.slice(0, 400),

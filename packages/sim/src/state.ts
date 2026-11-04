@@ -2934,6 +2934,10 @@ export type Action =
   | { type: 'receivePass'; from: string; seq: number; card: BoardCard }
   /** VERSUS DUOS: the teammate's full hand refused my pass `seq`: the card and its 1 Gold come back, once. */
   | { type: 'passRefunded'; seq: number }
+  /** VERSUS DUOS (R-DUOS-PASS-RESTORE-EFFECT-01): a reload's replay of MY effect pass. The teammate already holds the
+   *  minion, so it leaves my board or Shop again; a hero power's pass pays its `paid` and spends the `power` slot. A
+   *  minion that is not here (it only existed in the dropped actions) changes nothing. Accepted in any phase. */
+  | { type: 'restoreEffectPass'; uid: string; cardId: string; via: 'spell' | 'sale'; power?: 0 | 1; paid?: number }
   /** DUOS-ONLY CARDS (R-DUOS-CARDS-05): what this run last saw of the teammate's board, as minions per tribe of THEIR
    *  run (`mateTribeCounts`). Fed by the client from the teammate's live frame whenever it changes while a card that
    *  reads it is held (Matchmaker); recorded, so a replay reproduces the Shout's pick. Accepted in any phase. */

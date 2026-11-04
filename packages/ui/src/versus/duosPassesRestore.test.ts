@@ -152,3 +152,93 @@ describe('passing back and forth survives a reload (A->B->A->B)', () => {
     expect(atMicros(undefined)).toBeNull();
   });
 });
+
+// ── EFFECT PASSES SURVIVE A RELOAD (R-DUOS-PASS-RESTORE-EFFECT-01) ────────────────────────────────────────────────────
+// A reload drops the round's unlocked Shop actions, so the cast or power that made an effect pass is gone from my run, yet
+// the row stands and my teammate holds the minion. It must leave my board or Shop again: one minion, on one side.
+const { buildVersusCandidate, duosWireOf, versusTimeoutRng } = await import('@game/sim');
+
+/** The real flow: `act` on the run, each new outbox entry shipped as a row and landed on the teammate, then a reload. */
+function effectPass(hero: string, act: (r: Run) => Run, over: Partial<Run> = {}) {
+  const start: Run = { ...createVersusRun(11, hero, 'set2', { v: 1, mode: 'duos', modifiers: [] }), hand: [], board: [minion('m0'), minion('m1')], embers: 10, ...over };
+  const live = act(start);
+  const rows: Row[] = live.duos!.outbox.map((e, seq) => ({ match_id: 'm', round: e.wave, from_seat: 'p1', to_seat: 'p2', seq, card: duosWireOf(e) as unknown as Record<string, unknown>, status: 'landed', created_at: `2026-11-04T12:00:0${seq}.000000+00:00` }));
+  let mate = duos(200);
+  for (const r of rows) mate = reduce(mate, { type: 'receivePass', from: 'p1', seq: r.seq, card: r.card as never });
+  let run = start;
+  const res = replayRestore(() => run, (a) => { run = reduce(run, a); }, 'p1', rows);
+  return { start, live, rows, mate, run, res };
+}
+const handout = (uid: string) => (r: Run): Run => reduce({ ...r, hand: [{ uid: 'ho', cardId: 'duo_handout', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }, ...r.hand] }, { type: 'play', uid: 'ho', targetUid: uid });
+const shopUid = (r: Run): string => r.shop.find((o) => !CARD_INDEX[o.cardId]?.spell && !o.starform)!.uid;
+const boardOf = (r: Run): string[] => r.board.map((c) => c.uid);
+
+describe('an effect pass survives a reload', () => {
+  it('Handout from the board: the minion is on one side only, and so is the side my lock records', () => {
+    const t = effectPass('warden', handout('m0'));
+    expect(boardOf(t.live)).toEqual(['m1']);
+    expect(t.mate.hand).toHaveLength(1);
+    expect(boardOf(t.run)).toEqual(['m1']);
+    expect(t.run.duos!.outbox).toHaveLength(1);
+    const sideOf = (r: Run): string => JSON.stringify(buildVersusCandidate(r, versusTimeoutRng(1, r.wave, 'p1')));
+    expect(sideOf(t.start)).toContain('"m0"'); // the check can see it
+    expect(sideOf(t.run)).not.toContain('"m0"');
+  });
+
+  it('the restored entry is shipped, never sent again, and a second reload changes nothing', () => {
+    const t = effectPass('warden', handout('m0'));
+    expect(t.res.shipped.has(0)).toBe(true);
+    expect(t.res.seqOf.get(0)).toBe(0);
+    expect(t.res.next).toBe(1);
+    expect(t.run.duos!.outbox[0]!.restored).toBe(true);
+    let again = t.run;
+    replayRestore(() => again, (a) => { again = reduce(again, a); }, 'p1', t.rows);
+    expect(again).toBe(t.run);
+  });
+
+  it('a refused row delivered nothing: the minion stays', () => {
+    const t = effectPass('warden', handout('m0'));
+    let run = t.start;
+    replayRestore(() => run, (a) => { run = reduce(run, a); }, 'p1', t.rows.map((r) => ({ ...r, status: 'refused' as const })));
+    expect(boardOf(run)).toEqual(['m0', 'm1']);
+  });
+
+  it('a minion made by a dropped action is not on the run: nothing moves, and a same-uid body of another card stays', () => {
+    const t = effectPass('warden', handout('m0'));
+    let run: Run = { ...t.start, board: [{ ...minion('m0'), cardId: 'pup' }, minion('m1')] };
+    replayRestore(() => run, (a) => { run = reduce(run, a); }, 'p1', t.rows);
+    expect(boardOf(run)).toEqual(['m0', 'm1']);
+    expect(run.duos!.outbox).toHaveLength(0);
+  });
+
+  it('a Salesman sale may carry a Golden minion, and it leaves too', () => {
+    const start: Run = { ...duos(100), board: [{ ...minion('g0'), golden: true }] };
+    const row = { match_id: 'm', round: start.wave, from_seat: 'p1', to_seat: 'p2', seq: 0, card: { ...minion('g0'), golden: true, passFrom: 'sale' }, status: 'landed', created_at: '2026-11-04T12:00:00.000000+00:00' } as unknown as Row;
+    let run = start;
+    replayRestore(() => run, (a) => { run = reduce(run, a); }, 'p1', [row]);
+    expect(run.board).toEqual([]);
+  });
+
+  it('the hero power markers ride the wire and never reach the teammate\'s hand', () => {
+    const t = effectPass('priestess', (r) => reduce(r, { type: 'heroPower', uid: 'm0' }));
+    expect(t.rows[0]!.card).toMatchObject({ passPower: 0, passPaid: 2 });
+    expect(t.mate.hand[0]).not.toHaveProperty('passPaid');
+    expect(t.mate.hand[0]).not.toHaveProperty('passPower');
+  });
+
+  it('Handout from the Shop: the offer does not come back', () => {
+    let uid = '';
+    const t = effectPass('warden', (r) => { uid = shopUid(r); return handout(uid)(r); });
+    expect(t.mate.hand).toHaveLength(1);
+    expect(t.run.shop.some((o) => o.uid === uid)).toBe(false);
+    expect(t.run.duos!.outbox).toHaveLength(1);
+  });
+
+  it('Passaria: the minion leaves, its 2 Gold is paid once and the charge is spent', () => {
+    const t = effectPass('priestess', (r) => reduce(r, { type: 'heroPower', uid: 'm0' }));
+    expect(boardOf(t.run)).toEqual(['m1']);
+    expect(t.run.embers).toBe(8);
+    expect(t.run.heroReady).toBe(false);
+    expect(t.run.duos!.outbox[0]).toMatchObject({ paid: 2, power: 0 });
+  });
+});

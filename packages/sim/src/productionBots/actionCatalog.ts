@@ -30,6 +30,7 @@ export const ACTION_CATALOG = {
   receivePass: { generation: 'never', reveal: false, note: 'Versus Duos only: delivered by the server, never chosen' },
   noteMateTribes: { generation: 'never', reveal: false, note: "Duos only: the client's record of the teammate's board (Matchmaker), never chosen" },
   passRefunded: { generation: 'never', reveal: false, note: 'Versus Duos only: delivered by the server, never chosen' },
+  restoreEffectPass: { generation: 'never', reveal: false, note: 'Versus Duos only: a reload replay of a recorded pass, never chosen' },
   play: { generation: 'recruit', reveal: false, note: 'hand cards at strategically distinct indices/targets' },
   roll: { generation: 'recruit', reveal: true, note: 'draws a shop the bot has not seen' },
   freeze: { generation: 'recruit', reveal: false, note: 'toggle; only when the kept/unkept state has value' },

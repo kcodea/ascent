@@ -85,7 +85,7 @@ describe('R-WHISPER-TIER-01: every Whisper has the tier of the Whisper minion th
     expect(table).toEqual({
       // Ripple: 1 since Falx was archived (2026-10-27); Warding Call: 4 since Whispwarder moved to Tier 4 (2026-10-27).
       w4_tome: 1, w4_runebind: 2, w3_ripple: 1, w3_wellofdragons: 5, w3_seed: 1, w3_bait: 2, w3_clutch: 4, w3_wardingcall: 4,
-      duo_w_pass: 4, // CueBee's Pass (Duos, 2026-10-30): CueBee is Tier 4
+      duo_w_pass: 5, // CueBee's Pass (Duos, 2026-10-30): CueBee is Tier 5 (owner 2026-11-04)
     });
   });
 });

@@ -11,8 +11,22 @@
  *  - an action hurries its publish (`ACT_FLUSH_MS`) and lands when the drawn hand gets there;
  *  - an older player (no `ts`) still plays exactly as before.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createVersusRun, type Action, type BoardCard, type RunState } from '@game/sim';
+
+// Warm the heavy imports here, on this hook's own timeout: an import inside a test body counts against that test's 5 s.
+beforeAll(async () => {
+  // One at a time: importing in parallel races a `vi.mock` factory, and the REAL module can slip through.
+  await import('./cursorPlayback');
+  await import('./spectate');
+  await import('./spectateTap');
+  await import('../dragStore');
+  await import('../actionPresenter');
+  await import('./spectatorView');
+  await import('../store');
+  await import('./SpectatorCursor');
+  await import('../replay/replayPlayer');
+}, 60_000);
 
 vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
 

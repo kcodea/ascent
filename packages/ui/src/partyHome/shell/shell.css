@@ -312,3 +312,7 @@ html[data-ph-compact] .ph-brand { padding-right: calc(4 * var(--phu)); margin-ri
 html[data-ph-compact] .ph-top .ph-iconbtn { width: calc(58 * var(--phu)); }
 html[data-ph-compact] .ph-wallet { gap: calc(2 * var(--phu)); }
 html[data-ph-compact] .ph-lv { padding-left: calc(6 * var(--phu)); padding-right: calc(6 * var(--phu)); }
+
+/* The round icons take a soft gold focus, never a square. */
+html[data-ph-shell] .ph-top .ph-iconbtn:focus-visible { outline: none; filter: drop-shadow(0 0 calc(6 * var(--phu)) rgba(255, 205, 100, 0.9)); }
+

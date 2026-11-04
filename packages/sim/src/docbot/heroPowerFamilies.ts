@@ -55,6 +55,7 @@ export const POWER_FAMILY: Record<HeroPowerKind, ActivationFamily> = {
   chaos: 'every-n-turns',
   sellGold: 'count-threshold',
   displace: 'active',
+  passaria: 'active-conditional', // needs a teammate: silent on a run with no Duos state
   grantReborn: 'active',
   recurringGoldcrafter: 'retired',
   greatPresence: 'every-n-turns',
@@ -162,6 +163,7 @@ export const SILENT_QUEUE_VERDICTS: Record<string, SilentVerdict> = {
   underdweller: { kind: 'soulkeeper', family: 'active-conditional', verdict: 'stager' },
   membrance: { kind: 'memory', family: 'active-conditional', verdict: 'stager' },
   gildmaster: { kind: 'gildcrafter', family: 'active-conditional', verdict: 'stager' },
+  priestess: { kind: 'passaria', family: 'active-conditional', verdict: 'stager' },
 };
 
 /**

@@ -2519,4 +2519,25 @@ export const HEROES_RULES: GameRule[] = [
     example: "Drakko at 4/5 Shout buys casts Power Shifter for Nadja's power: further Shout buys do nothing and Drakko never arrives.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroPowerHeldPassives.test.ts"], lastVerifiedAt: '2026-11-01' },
   },
+  {
+    id: "R-DUOS-PRIESTESS-01",
+    title: "Priestess is Duos only; Passaria is a 2 Gold effect pass of a non-Gilded Shop or board minion",
+    statement:
+      "A hero flagged `duosOnly` is offered only by a team mode's deal and re-roll (Versus Duos, Ranked Duos): never in solo, "
+      + "Group, Practice, generated seats or the Mimic / Void / Power Shifter pools. Priestess starts with 14 Armor. Her power, "
+      + "Passaria, costs 2 Gold, once per turn, and sends a non-Gilded minion in the Shop or on your board through the effect "
+      + "pass (`passMinionToTeammate`, Handout's body): it counts as a pass, counts toward the 10 per round, and waits for room "
+      + "at a full teammate hand (R-DUOS-EFFECT-PASS-QUEUE-01). No legal target, no teammate or too little Gold spends nothing. "
+      + "A room refusal gives back the minion, the Gold and that turn's charge, once. `passariaTarget` is the one legality "
+      + "answer for the reducer, the aim and the button.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-04", quote: "Priestess - 14 armor, Passaria -> 2g pass a non-golden minion to your teammate." },
+      { kind: 'code', ref: "packages/sim/src/heroes.ts HeroDef.duosOnly / playableHeroes; packages/sim/src/recruit.ts passariaTarget / passMinionToTeammate; packages/sim/src/duosPass.ts refundDuosPass; workers/versus/src/core/groupMatch.ts dealGroupOffers" },
+    ],
+    currentBehaviour: "Built 2026-11-04.",
+    example: "Ann, as Priestess, spends 2 Gold on a Shop minion: it leaves the Shop and lands in Amy's hand. Amy's hand is full, so it waits until she plays a card.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroPriestess.test.ts", "workers/versus/test/uniqueHeroes.test.ts"], lastVerifiedAt: '2026-11-04' },
+  },
 ];

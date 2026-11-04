@@ -16,8 +16,8 @@
  *
  * All static paint; no native tooltips (aria-label + the game's `data-tip`); no own cursor (the gauntlet rule paints it).
  */
-import { markPhPage } from '../shell/PhPageGuard';
-import { isValidElement, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
+import { markPhPage, PhBackContext } from '../shell/PhPageGuard';
+import { isValidElement, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { rectToStage, stageHost } from '../../stage';
 import '../shell/shell.css';
@@ -25,11 +25,13 @@ import './kit.css';
 
 const cx = (...c: (string | false | null | undefined)[]): string => c.filter(Boolean).join(' ');
 
-export function PhPage({ title, eyebrow, actions, tabs, wide, back, className, children }: {
+export function PhPage({ title, eyebrow, actions, tabs, wide, back: ownBack, className, children }: {
   title: ReactNode; eyebrow?: ReactNode; actions?: ReactNode; tabs?: ReactNode; wide?: boolean; className?: string; children: ReactNode;
   /** A back step inside the page (a sub-view back to its parent): sits left of the title. */
   back?: { label: string; onClick: () => void };
 }) {
+  const outerBack = useContext(PhBackContext);
+  const back = ownBack ?? outerBack;
   // A SUB-TAB'S ARRIVAL, one for every page: when the page's own tabs change, the body's rows replay the page entrance. Web
   // Animations on the rows that are there (nothing remounts, no state lost): transform and opacity, one-shot, and a new
   // change cancels the last, so quick presses cannot stack.

@@ -142,6 +142,8 @@ export function PhCareer(p: PhCareerProps) {
   );
   const { stats } = p;
 
+  // An empty or loading view is a plate sized to its message, not a screen-tall panel (a phone would push the words below the fold).
+  const stateShown = (p.tab === 'history' && !!p.history.state) || (p.tab === 'practice' && !!p.practice.state) || (p.tab === 'heroes' && !!p.heroes.state);
   let view: ReactNode;
   if (p.tab === 'heroes') {
     view = p.heroes.state ? <StateView s={p.heroes.state} /> : (
@@ -211,7 +213,10 @@ export function PhCareer(p: PhCareerProps) {
                 <span className="rgp-mostname">{p.level ? `Level ${p.level.level}` : p.name}</span>
                 <span className="rgp-mostsub">Favorite hero {p.favoriteHero}</span>
                 {p.level && (
-                  <span className="phc-xp" role="img" aria-label={`Level ${p.level.level}, ${p.level.into} of ${p.level.next} XP`}><i style={{ transform: `scaleX(${p.level.fraction})` }} /></span>
+                  <span className="phc-xprow">
+                    <span className="phc-xp" aria-hidden="true"><i style={{ transform: `scaleX(${p.level.fraction})` }} /></span>
+                    <span className="phc-xpnum">{p.level.into} / {p.level.next} XP</span>
+                  </span>
                 )}
               </div>
               <div className="phc-cell" role="group" aria-label="Seasonal Ranked">
@@ -228,7 +233,7 @@ export function PhCareer(p: PhCareerProps) {
                 <PhStat label="Tribe" value={<span className="phc-sv">{stats.tribeMedal}{stats.tribe ?? '-'}</span>} />
               </div>
             </section>
-            <section className="phc-main" aria-label={tabs.find((t) => t.id === p.tab)?.label} role="tabpanel">{view}</section>
+            <section className={`phc-main${stateShown ? ' fit' : ''}`} aria-label={tabs.find((t) => t.id === p.tab)?.label} role="tabpanel">{view}</section>
           </>
         )}
       </PhPage>

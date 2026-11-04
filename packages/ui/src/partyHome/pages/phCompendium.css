@@ -353,8 +353,8 @@ html[data-ph-compact] .phb .book-main > .book-grid { --ph-r-l: 30px; --ph-gild: 
 html[data-ph-compact] .phb .bookguides .book-runetribe { box-shadow: inset 2px 0 0 var(--c), var(--ph-gild-s); }
 html[data-ph-compact] .phb .book-gilded-ico { width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); }
 html[data-ph-compact] .phb .book-setpick-caret { width: calc(24 * var(--phu)); height: calc(24 * var(--phu)); }
-/* Phone Rules: the chips fade at the right edge, so it reads as a row that goes on, and they are comfortable targets. */
-html[data-ph-compact] .phb .wiki-chips { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent); padding-right: 32px; }
+/* Phone Rules: every chip shows, on two rows beside the search, so nothing hides off the edge. */
+html[data-ph-compact] .phb .wiki-chips { flex-wrap: wrap; overflow: visible; gap: 6px; }
 html[data-ph-compact] .phb .wiki-chip { min-height: 44px; }
 html[data-ph-compact] .phb .wiki-search { height: 44px; }
 html[data-ph-shell][data-ph-compact] .phk-page .bookguides .book-runetribe { min-height: 44px; }
@@ -376,3 +376,10 @@ html[data-ph-compact] .phb .book-grid .card.compact.plated.spellcard.plate-txt-m
    wide, where it already fits), so a phone that lays out at its real width shows it whole too. */
 html[data-ph-book][data-ph-compact] .inspect-ov .inspect-card { zoom: tan(atan2(var(--phu), 1.74px)); }
 html[data-ph-book][data-ph-compact] .inspect-ov .rune-inspect { zoom: tan(atan2(calc(var(--phu) * 1.3), 1.74px)); }
+
+/* In a game on a phone the close is a round cross, so all four tabs keep their room beside the tools. */
+.phb-closex { display: none; }
+html[data-ph-compact] .phb-closeword { display: none; }
+html[data-ph-compact] .phb-closex { display: inline; }
+html[data-ph-compact] .phb .phb-close { width: calc(64 * var(--phu)); min-width: 0; padding: 0; }
+html[data-ph-compact] .phb-ov .phb .book-search { width: calc(120 * var(--phu)); }

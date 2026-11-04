@@ -243,6 +243,19 @@ describe('the Compendium in the shell', () => {
     expect(lit()).toEqual(['All minions']);
   });
 
+  it('reopens on the last view, unless a view was asked for', () => {
+    ui = mount(<PhCompendium />);
+    click([...ui.container.querySelectorAll('.phk-tab')].find((b) => b.textContent === 'Glossary'));
+    ui.unmount();
+    ui = mount(<PhCompendium />);
+    expect(ui.container.querySelector('.phk-tab.on')?.textContent).toBe('Glossary');
+    ui.unmount();
+    act(() => { useGame.setState({ bookOpensTo: 'rules' } as never); });
+    ui = mount(<PhCompendium />);
+    expect(ui.container.querySelector('.phk-tab.on')?.textContent).toBe('Rules');
+    act(() => { useGame.setState({ bookOpensTo: 'cards' } as never); });
+  });
+
   it('a rail or filter change starts at the top of the list', () => {
     ui = mount(<PhCompendium />);
     const grid = (): Element => ui!.container.querySelector('.book-grid')!;

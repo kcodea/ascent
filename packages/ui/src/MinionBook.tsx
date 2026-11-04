@@ -291,6 +291,11 @@ function compendiumSetPickerEnabled(): boolean {
   return import.meta.env.DEV;
 }
 
+const BOOK_VIEW_KEY = 'ascent.compendium.view';
+function readBookView(): CompendiumView {
+  try { const v = localStorage.getItem(BOOK_VIEW_KEY); return v === 'rules' || v === 'glossary' || v === 'guides' ? v : 'cards'; } catch { return 'cards'; }
+}
+
 /** A hero under the shell's Compendium: the portrait melts into the plate, the name and Health sit on it, the power below. */
 const PhHeroTile = memo(function PhHeroTile({ h }: { h: (typeof HEROES)[number] }) {
   const art = heroThumb(heroArt(h.id));
@@ -401,12 +406,15 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
     try { const v = Number(localStorage.getItem('ascent.bookzoom')); return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : 1; } catch { return 1; }
   });
   useEffect(() => { try { localStorage.setItem('ascent.bookzoom', String(zoom)); } catch { /* ignore */ } }, [zoom]);
-  const [glossary, setGlossary] = useState(false); // swap the gallery for the keyword codex
-  const [rules, setRules] = useState(() => useGame.getState().bookOpensTo === 'rules'); // swap the gallery for the Rules wiki (searchable Q&A); exclusive with glossary
+  // THE SHELL reopens on the last view, like Patch Notes and Settings (one key, the menus and a game alike); a request for a
+  // given view (Rules, a guide to edit) wins.
+  const [openView] = useState<CompendiumView>(() => (frame && useGame.getState().bookOpensTo !== 'rules' && useGuides.getState().pendingEdit === null ? readBookView() : 'cards'));
+  const [glossary, setGlossary] = useState(openView === 'glossary'); // swap the gallery for the keyword codex
+  const [rules, setRules] = useState(() => openView === 'rules' || useGame.getState().bookOpensTo === 'rules'); // swap the gallery for the Rules wiki (searchable Q&A); exclusive with glossary
   // THE GUIDES VIEW (owner 2026-10-09): a header toggle beside Glossary ("move the guides button to the top next to
   // glossary"), exclusive with Rules / Glossary and with the left-rail tabs. Unlike those two codex panels it keeps the
   // tier bar (its chart space carries the guides' tribe pills, its end the set picker) and the search box.
-  const [guidesOn, setGuidesOn] = useState(() => useGuides.getState().pendingEdit !== null);
+  const [guidesOn, setGuidesOn] = useState(() => openView === 'guides' || useGuides.getState().pendingEdit !== null);
   const codex = glossary || rules; // a text panel is up: the card-gallery controls (search, Gilded, zoom) step aside
   const [kw, setKw] = useState<{ term: string; icon: string; mechId?: string; match: (c: CardDef) => boolean } | null>(null); // active keyword filter (from the glossary)
   // RUNES TAB tribe filter (owner ask 2026-09-18): the tier row's chart space shows one button per tribe; a rune
@@ -723,6 +731,11 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
     setGlossary(false);
     setGuidesOn(false);
   };
+
+  useEffect(() => {
+    if (!frame) return;
+    try { localStorage.setItem(BOOK_VIEW_KEY, rules ? 'rules' : glossary ? 'glossary' : guidesOn ? 'guides' : 'cards'); } catch { /* a convenience only */ }
+  }, [frame, rules, glossary, guidesOn]);
 
   // THE SHELL: every rail, filter, search or view change starts at the top of its list. Before paint, so no jump shows.
   useLayoutEffect(() => {

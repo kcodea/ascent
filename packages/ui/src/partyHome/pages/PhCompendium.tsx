@@ -51,7 +51,7 @@ export function PhCompendium({ onClose }: { onClose?: () => void } = {}) {
         </>}
         actions={codex && !onClose ? undefined : <div className="phb-actions">
           {!codex && controls}
-          {onClose && <PhButton size="s" className="phb-close" onClick={onClose} aria-label="Close (Tab / Esc)">Close</PhButton>}
+          {onClose && <PhButton size="s" className="phb-close" onClick={onClose} aria-label="Close (Tab / Esc)"><span className="phb-closeword">Close</span><span className="phb-closex" aria-hidden="true">✕</span></PhButton>}
         </div>}>
         {/* `.book` carries the surface tokens the real cards read (compendium.css); `.phb` repaints everything else. */}
         <div className={`book phb-book v-${view}`}>{body}</div>

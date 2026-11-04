@@ -84,11 +84,11 @@ const offerView = (s: RunState, o: ShopCard): BotOfferView => {
 function pendingTargets(s: RunState): string[] {
   const pt = s.pendingTarget!;
   const def = CARD_INDEX[pt.cardId];
-  if (pt.spell && !pt.deferredPlay) return s.board.filter((c) => c.uid !== pt.spellFirstUid).map((c) => c.uid);
+  if (pt.spell && pt.spellFirstUid) return s.board.filter((c) => c.uid !== pt.spellFirstUid).map((c) => c.uid);
   const tribe = effectiveTargetTribe(s, def);
   // R-TARGET-03: every aimed pick excludes the source (the reducer refuses a self-target outright).
   const board = s.board.filter((c) => c.uid !== pt.uid && (!tribe || isTribe(c, tribe)));
-  const offers = pt.deferredPlay && def?.target === 'any' ? s.shop.filter((o) => !CARD_INDEX[o.cardId]?.spell) : [];
+  const offers = pt.deferredPlay && !pt.shoutAim && def?.target === 'any' ? s.shop.filter((o) => !CARD_INDEX[o.cardId]?.spell) : [];
   return [...board.map((c) => c.uid), ...offers.map((o) => o.uid)];
 }
 

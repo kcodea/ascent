@@ -51,6 +51,8 @@ export interface AssetQueue {
   failed(key: string): boolean;
   /** Ready OR failed: nothing more will happen to it on its own. What a loading gate waits on. */
   settled(key: string): boolean;
+  /** How far `key` has got. `unknown` = nobody ever requested it (the pop-in probe's "not in the plan"). */
+  state(key: string): 'unknown' | 'pending' | 'ready' | 'failed';
   /** Re-queue every failed key (attempts reset) and every key backing off (now, not after its timer). */
   retryFailed(): number;
   /** Called whenever `key` changes state (ready, failed, or back to pending for a retry) until unsubscribed. A
@@ -207,6 +209,9 @@ export function createAssetQueue(
     ready: (key) => done.has(key),
     failed: (key) => failedKeys.has(key),
     settled: (key) => done.has(key) || failedKeys.has(key),
+    state: (key) => (done.has(key) ? 'ready'
+      : failedKeys.has(key) ? 'failed'
+        : queued.has(key) || inFlight.has(key) || backoff.has(key) ? 'pending' : 'unknown'),
     retryFailed() {
       let n = 0;
       for (const key of [...failedKeys]) {

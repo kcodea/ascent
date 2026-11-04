@@ -276,11 +276,15 @@ html[data-ph-shell] .ph-top .ph-navtab, html[data-ph-shell] .ph-top .ph-navlbl {
 /* ── CRITIC ROUND 10 ── */
 /* EVERY scroller under the shell wears the slim gold bar, whatever its page set: one rule, not one per page. The width is zero
    specificity, so a row that hides its bar (`scrollbar-width: none`) keeps hiding it. */
-html[data-ph-shell] * { scrollbar-color: var(--ph-gold) transparent; }
-:where(html[data-ph-shell]) :where(*) { scrollbar-width: thin; }
+/* (Round 11) Standard `scrollbar-color` / `thin` keep the OS arrow steppers on Windows, so the shell uses the styled bar only:
+   those two properties are switched off (they would disable it) and one gold thumb, inset from rounded corners, is drawn. */
+html[data-ph-shell] * { scrollbar-color: auto !important; }
+html[data-ph-shell] :is(.phk-dlgtext, .phc-herogrid, .phc-trends, .phc-achview, .phc-gridwrap, .phc-rail, .phc-side, .phc-sheet, .phc-view, .bookguides, .rgp-listwrap, .rgp-detailcol, .phpn-index, .phpn-feed, .vsr-tiles, .vso-list, .ph-opts > .phk-secbody) { scrollbar-width: auto !important; }
+html[data-ph-shell] *::-webkit-scrollbar { width: calc(10 * var(--phu)); height: calc(10 * var(--phu)); }
+html[data-ph-shell] *::-webkit-scrollbar-thumb { border: calc(3 * var(--phu)) solid transparent; border-radius: 999px; background: var(--ph-gold) padding-box; }
+html[data-ph-shell] *::-webkit-scrollbar-track { background: transparent; margin: calc(12 * var(--phu)); }
+html[data-ph-shell] *::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 html[data-ph-shell] *::-webkit-scrollbar-corner { background: transparent; }
-/* The page's own bar is the custom gutter one (kit.css); its children go back to the rule above. */
-html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody { scrollbar-color: auto; }
 /* A little air between a list's bar and its plates. */
 html[data-ph-shell]:not([data-ph-compact]) :is(.phpn-index, .phpn-feed, .rgp-listwrap, .rgp-detailcol, .phc-side, .phc-view, .bookguides) { padding-right: calc(6 * var(--phu)); }
 /* The old corner gear never takes focus behind the rail: Settings is in the nav. */

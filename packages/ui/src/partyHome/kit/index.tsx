@@ -16,7 +16,7 @@
  *
  * All static paint; no native tooltips (aria-label + the game's `data-tip`); no own cursor (the gauntlet rule paints it).
  */
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
+import { isValidElement, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { rectToStage, stageHost } from '../../stage';
 import '../shell/shell.css';
@@ -29,6 +29,24 @@ export function PhPage({ title, eyebrow, actions, tabs, wide, back, className, c
   /** A back step inside the page (a sub-view back to its parent): sits left of the title. */
   back?: { label: string; onClick: () => void };
 }) {
+  // A SUB-TAB'S ARRIVAL, one for every page: when the page's own tabs change, the body's rows replay the page entrance. Web
+  // Animations on the rows that are there (nothing remounts, no state lost): transform and opacity, one-shot, and a new
+  // change cancels the last, so quick presses cannot stack.
+  const tabValue = isValidElement(tabs) ? (tabs.props as { value?: unknown }).value : undefined;
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const lastTab = useRef(tabValue);
+  const running = useRef<Animation[]>([]);
+  useLayoutEffect(() => {
+    if (lastTab.current === tabValue) return;
+    lastTab.current = tabValue;
+    const body = bodyRef.current;
+    if (!body || typeof body.animate !== 'function' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    running.current.forEach((a) => a.cancel());
+    running.current = [...body.children].slice(0, 6).map((el, i) => el.animate(
+      [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 200, delay: Math.min(i, 2) * 20, easing: 'cubic-bezier(0.22, 0.8, 0.3, 1)', fill: 'backwards' },
+    ));
+  }, [tabValue]);
   return (
     <section className={cx('phk-page', wide && 'wide', className)}>
       <header className="phk-pagehead">
@@ -44,7 +62,7 @@ export function PhPage({ title, eyebrow, actions, tabs, wide, back, className, c
         {tabs && <div className="phk-pagetabs">{tabs}</div>}
         {actions && <div className="phk-pageactions">{actions}</div>}
       </header>
-      <div className="phk-pagebody">{children}</div>
+      <div ref={bodyRef} className="phk-pagebody">{children}</div>
     </section>
   );
 }

@@ -36,7 +36,7 @@ import { detachPixiDomEvents } from '../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafety';
 import { RANKED_GATE_CRYSTAL_BODY, rankedGateCrystalGrowth } from './rankedGateTiming';
 import { PIXI_ANTIALIAS } from '../phoneArt';
-import { crumb } from '../crashLog';
+import { crumbTick } from '../crashLog';
 import { PHONE_GPU, phonePixiOptions, pixiAllowed } from '../phoneDiag';
 import { followStage } from '../pixiStageFollow';
 
@@ -123,7 +123,7 @@ class GateFxController {
     followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
     guardAppRender(app, 'gateFx');
     watchContextLoss(app, 'gateFx', () => this.recover()); // a loss empties its textures: rebuild (R-PHONE-FX-CTX-01)
-    crumb('gate fx created'); // phones: every gate (the layer is freed after each one); desktop: once a session
+    crumbTick('gate fx created'); // phones: every gate (the layer is freed after each one), so a tick (R-PHONE-DIAG-COST-01); desktop: once a session
     const c = app.canvas;
     c.className = 'gatefx-canvas pixi-screen';
     c.style.visibility = 'hidden';

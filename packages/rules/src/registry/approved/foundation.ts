@@ -13806,4 +13806,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A game recorded while Orangez was alive: the tile reads "Still in", then Orangez. A seat out in round 11 still reads "7th Out R11".',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchDetails/lobbyPickerViewer.test.tsx'], lastVerifiedAt: '2026-11-03' },
   },
+  {
+    id: 'R-PHONE-DIAG-COST-01',
+    title: 'The phone diagnostics never cost a frame in play: an every-round step reads no element style or box',
+    statement:
+      'The crash log and perf log that record on every phone must stay off the frame budget. A crash-log step that '
+      + 'comes back every round of a game (the falling gate and its trip back, the gate layer being made, the art stream '
+      + 'progress) records only the memory numbers and how many animations are running: never a style read of every '
+      + 'element and never an element box read (a forced layout). The full scan stays for one-off steps (menus, hero '
+      + 'select, layer inits). The perf log measures its payload once per store (each list entry once, only when it must '
+      + 'trim) instead of re-stringifying it per trim step, and refreshes its stored copy at most once a minute; going '
+      + 'hidden or pagehide still stores at once.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04 (iPhone 17)', quote: 'the game becomes near unplayable after a few turns. really huge hitching and freezing throughout' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, approving the plan to make the phone diagnostics cheap', quote: 'Yes, build #1' },
+      { kind: 'code', ref: 'fix/phone-diag-cost: packages/ui/src/crashLog.ts (crumbTick, measure count mode, crumbProgress); Recruit.tsx (gate crumbs); rankedGate/gateFx.ts; phonePerfLog.ts (buildPerfRow, PERSIST_MS)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-04 (fix/phone-diag-cost). Before: every round on a phone ran a getComputedStyle scan of up to 6,000 elements as the gate layer was made, four gate crumbs each read up to 400 element boxes mid-animation, every 100 art loads ran the full scan again, and the perf log stringified its ~50 KB session 3-7 times every 15 s once its windows filled.',
+    example: 'Round 9 on an iPhone: the gate falls, four tick crumbs land with images, WebGL and an animation count, and no style or layout work runs while it animates.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneDiagCost.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
 ];

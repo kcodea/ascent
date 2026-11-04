@@ -270,7 +270,7 @@ import { gateFx } from './rankedGate/gateFx';
 import { PHONE_GPU } from './phoneDiag';
 import { fxNote } from './fxLedger';
 import { publicArt } from './phoneArt';
-import { crumbLight } from './crashLog';
+import { crumbTick } from './crashLog';
 import { afterBeat, afterSweep, combatBackdropShown, curtainClassFor, vistaClassFor, vistaDrivesMachine, vistaWarmClassFor, VISTA_WARM_MS, wipeExiting, wipeSweeping, wipeUp, type VistaWarmStep, type WipeState } from './wipeMachine';
 import { VISTA_DOOR_CLIP, VISTA_DOOR_CLIP_ID } from './vistaDoor';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
@@ -2588,8 +2588,9 @@ export function Recruit() {
   const wipeNowRef = useRef(wipe);
   wipeNowRef.current = wipe;
   useEffect(() => {
-    // Crash-log steps for the falling gate and the trip back (phones; R-TOUCH-CRASH-REPORT-02). Light: mid-animation.
-    if (wipe === 'coverIn' || wipe === 'combat' || wipe === 'coverOut' || wipe === 'revealOut') crumbLight(`gate ${wipe}`);
+    // Crash-log steps for the falling gate and the trip back (phones; R-TOUCH-CRASH-REPORT-02). A tick: four a round,
+    // mid-animation, so no style or rect read (R-PHONE-DIAG-COST-01).
+    if (wipe === 'coverIn' || wipe === 'combat' || wipe === 'coverOut' || wipe === 'revealOut') crumbTick(`gate ${wipe}`);
   }, [wipe]);
   // THE TRANSITIONS' ART AND SOUNDS, warmed once on mount so the first trip never waits on a load.
   useEffect(() => {

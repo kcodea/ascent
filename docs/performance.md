@@ -961,6 +961,10 @@ throttle) and at 1920x1080 with no throttle. Numbers and method: `docs/devlog/20
   document (476 elements). And every slot crossing ran `Flip.from` + `Flip.getState`, two forced style + layout passes
   for a flip the capture completed in the same task (the `!important` CSS transition was always the visible glide).
   Both are gone; `bodyClassRestyle.test.ts` and `dragSession.test.ts` pin them.
+- **The phone diagnostics are on in every phone session, so they get the frame budget too (R-PHONE-DIAG-COST-01,
+  2026-11-04).** A crash-log step that repeats every round is a `crumbTick` (memory + animation count, no style or rect
+  read); the full `crumb` scan (up to 6,000 `getComputedStyle`) is for one-off steps only. The perf log measures its
+  payload once per store and stores at most once a minute.
 - **Phone-only budgets go through `deviceClass.ts` (`isPhone`).** Phones get 60% FX particle and filter ceilings
   (`fxBudgetConfig.ts`); desktop, laptops and tablets keep theirs.
 - **Reading headless phone numbers:** SwiftShader draws everything in software, so multi-second frame gaps with

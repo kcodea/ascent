@@ -109,9 +109,11 @@ export interface CrateOpenerProps {
   onClose?: () => void;
   /** Where the opening asks for its reward. Default: the server. The tuner passes a local fake. */
   open?: (crateId: string) => Promise<CrateOpenOutcome>;
+  /** An extra class on the theatre's root (the party home shell's skin for the surrounding UI, `phx`; the reveal FX are untouched). */
+  className?: string;
 }
 
-export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedMotion, minShakeMs, onStart, onOpened, onClose, open }: CrateOpenerProps): JSX.Element | null {
+export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedMotion, minShakeMs, onStart, onOpened, onClose, open, className }: CrateOpenerProps): JSX.Element | null {
   const reduced = reducedMotion ?? prefersReducedMotion();
   const openFn = open ?? openCrate;
   const [active, setActive] = useState<CrateQueueItem | null>(null);
@@ -475,7 +477,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
 
   const theatre = (
     <div
-      className={`crate crth ph-${phase}${reduced ? ' reduced' : ''}${skipped ? ' skipped' : ''}${domCrate ? ' domcrate' : ''}${preset ? ` r-${preset.rarity}` : ''}${preset && preset.signature !== 'none' ? ` sig-${preset.signature}` : ''} t-${tierShown}`}
+      className={`crate crth ph-${phase}${reduced ? ' reduced' : ''}${skipped ? ' skipped' : ''}${domCrate ? ' domcrate' : ''}${preset ? ` r-${preset.rarity}` : ''}${preset && preset.signature !== 'none' ? ` sig-${preset.signature}` : ''} t-${tierShown}${className ? ` ${className}` : ''}`}
       style={vars}
       role="dialog"
       aria-modal="true"

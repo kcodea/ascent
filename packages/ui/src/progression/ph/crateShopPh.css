@@ -1,0 +1,135 @@
+/* ── THE CHEST SHOP IN THE PARTY HOME SHELL (DEV only; CrateShopPh.tsx). Re-skins the shop's own pieces (`chestShop.css`)
+   in the shell's language. Everything the celebrations draw (the rays, flash, sweep, bursts, the selected halo, the
+   toggle's ring) is left exactly as it is: only plates, edges, type and the buy button change. Static paint. ── */
+
+.cshop.phs { display: flex; flex-direction: column; overflow: hidden; font-family: var(--ph-body); color: var(--ph-text); }
+.phs .phk-page { flex: 1; }
+
+/* The pick and checkout sections are `unclipped` (PhSection): the tips hang outside the cards. */
+.phs .phk-section.phs-pick { z-index: 2; }
+
+/* ── The chest cards ── */
+.phs .cshop-chests { gap: calc(16 * var(--phu)); }
+.phs .cshop-chest { gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(12 * var(--phu)); border: 0; border-radius: var(--ph-r);
+  background: radial-gradient(70% 50% at 50% 60%, color-mix(in srgb, var(--tc) 14%, transparent), transparent 75%), var(--ph-well);
+  box-shadow: var(--ph-gild-s), inset 0 calc(-3 * var(--phu)) 0 color-mix(in srgb, var(--tc) 70%, transparent); color: var(--ph-text); }
+.phs .cshop-chest::before, .phs .cshop-chest-fx, .phs .cshop-chest::after { border-radius: var(--ph-r); }
+.phs .cshop-chest:hover, .phs .cshop-chest.tt-on { background: radial-gradient(70% 50% at 50% 60%, color-mix(in srgb, var(--tc) 18%, transparent), transparent 75%), var(--ph-plate-hover); }
+.phs .cshop-chest.on, .phs .cshop-chest.on:hover { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--tc), inset 0 calc(-3 * var(--phu)) 0 var(--tc); }
+.phs .cshop-chest:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(-2 * var(--phu)); }
+.phs .cshop-chest-check { border-radius: 999px; color: var(--ph-navy); }
+.phs .cshop-chest-name { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.12em; text-transform: uppercase; text-shadow: var(--ph-shadow); }
+.phs .cshop-chest .cshop-chest-price { display: inline-flex; align-items: center; margin-top: 0; padding: 0 calc(16 * var(--phu)); height: calc(32 * var(--phu)); border: 0; border-radius: 0;
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: 999px;
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phs .cshop-chest.on .cshop-chest-price { background: var(--ph-metal-gold); box-shadow: none; color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+
+/* ── Focus + checkout ── */
+.phs-lower { flex: none; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: calc(16 * var(--phu)); align-items: stretch; }
+.phs .phs-checkout .phk-secbody { flex: 1; justify-content: space-between; gap: calc(16 * var(--phu)); }
+.phs .cshop-cat { border-radius: var(--ph-r-s); grid-template-columns: minmax(0, 1fr) calc(120 * var(--phu)) calc(128 * var(--phu)); gap: calc(16 * var(--phu)); min-height: calc(48 * var(--phu)); padding: calc(4 * var(--phu)) 0 calc(4 * var(--phu)) calc(12 * var(--phu));
+  border-bottom: 0; box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
+.phs .cshop-cat:last-child { box-shadow: none; }
+.phs .cshop-cat-head { min-height: 0; padding-bottom: calc(8 * var(--phu)); }
+.phs .cshop-cat-head span { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
+.phs .cshop-cat-name { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.phs .cshop-cat-left { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-muted); }
+.phs .cshop-cat.on { background: linear-gradient(90deg, color-mix(in srgb, var(--ph-gold) 16%, transparent), transparent 70%); }
+.phs .cshop-cat.on .cshop-cat-name { color: var(--ph-ink); }
+.phs .cshop-cat.on .cshop-cat-left { color: var(--ph-text); }
+.phs .cshop-cat-sweep { border-radius: var(--ph-r-s); }
+/* The toggle: Off is a quiet well, On the podium gold (the toggle's own pop, ring and halo still play over it). */
+.phs .cshop-toggle { min-width: calc(112 * var(--phu)); min-height: calc(36 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 999px;
+  background: var(--ph-well); box-shadow: var(--ph-gild-s);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
+.phs .cshop-toggle:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); }
+.phs .cshop-toggle:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(2 * var(--phu)); }
+.phs .cshop-toggle::before, .phs .cshop-toggle::after { border-radius: 999px; }
+.phs .cshop-cat.on .cshop-toggle, .phs .cshop-cat.on .cshop-toggle:hover { background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 calc(16 * var(--phu)) color-mix(in srgb, var(--ph-gold) 45%, transparent); }
+
+/* The receipt. */
+.phs .cshop-receipt { gap: calc(8 * var(--phu)); font-family: var(--ph-body); font-weight: 700; font-size: var(--ph-t2); }
+.phs .cshop-what { color: var(--ph-text); }
+.phs .cshop-dots { border-bottom-color: color-mix(in srgb, var(--ph-gold) 25%, transparent); }
+.phs .cshop-amt { font-family: var(--ph-font); font-weight: 900; color: var(--ph-ink); }
+.phs .cshop-subs { border-left-color: var(--ph-hair); }
+.phs .cshop-sub::before { color: var(--ph-gold); }
+.phs .cshop-sub:first-child .cshop-amt { color: #fbe6a6; }
+.phs .cshop-allnote { font-size: var(--ph-t1); color: var(--ph-muted); }
+.phs .cshop-total { padding-top: calc(12 * var(--phu)); border-top: 0; box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair); font-family: var(--ph-font); font-size: var(--ph-t3); font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+.phs .cshop-total .cshop-amt { color: #fbe6a6; font-size: var(--ph-t4); line-height: 1; }
+.phs .cshop-total .cshop-amt .aether-icon { width: 0.8em; height: 0.8em; vertical-align: -0.08em; }
+
+/* The odds bar. */
+.phs .cshop-odds { gap: calc(8 * var(--phu)); }
+.phs .cshop-odds h4 { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
+.phs .cshop-bars { height: calc(32 * var(--phu)); padding: calc(2 * var(--phu)); border-radius: 999px; background: rgba(0, 0, 0, 0.5); box-shadow: var(--ph-gild-s); }
+.phs .cshop-seg { border-radius: 0; }
+.phs .cshop-seg:first-child { border-radius: 999px 0 0 999px; }
+.phs .cshop-seg:last-child { border-radius: 0 999px 999px 0; }
+.phs .cshop-seg:only-child { border-radius: 999px; }
+.phs .cshop-seg { font-family: var(--ph-font); font-size: var(--ph-t1); color: var(--ph-navy); }
+
+/* The buy button: the screen's one gold. */
+.phs-buywrap { display: flex; flex-direction: column; align-items: stretch; gap: calc(8 * var(--phu)); text-align: center; }
+.phs-buy { width: 100%; height: calc(64 * var(--phu)) !important; }
+.phs-buy > span { display: inline-flex; align-items: center; gap: calc(16 * var(--phu)); }
+.phs-buy-total { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); padding-left: calc(16 * var(--phu)); box-shadow: inset calc(1 * var(--phu)) 0 0 rgba(13, 26, 54, 0.35); font-variant-numeric: tabular-nums; }
+.phs-buy-total .aether-icon { width: 1em; height: 1em; }
+.phs-err { margin: 0; font-size: var(--ph-t2); color: var(--ph-foe); }
+
+/* ── PHONES (landscape): the page scrolls as one; the five chests stay in a row. ── */
+html[data-ph-shell][data-touch-small] .cshop.phs { overflow: hidden; }
+html[data-ph-shell][data-touch-small] .phs .cshop-chest-name { font-size: var(--ph-t2); }
+html[data-ph-shell][data-touch-small] .phs .cshop-chest-art { max-width: calc(150 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phs .cshop-cat { border-radius: var(--ph-r-s); grid-template-columns: minmax(0, 1fr) calc(80 * var(--phu)) calc(112 * var(--phu)); }
+
+/* No jump when the receipt grows (a focus toggled on): the page's scrollbar space is always reserved. */
+.phs .phk-pagebody { scrollbar-gutter: stable; }
+.phs-note { margin: 0; font-size: var(--ph-t2); color: var(--ph-muted); }
+/* A guest's buy: the outlined plate with a padlock (it opens the sign-in prompt), never the gold. */
+.phs-buy.guest .colls-lock { width: 1.1em; height: 1.1em; }
+.phs-buy.guest .phs-buy-total { box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair); opacity: 0.8; }
+
+/* PHONES: every control a finger can hit is at least 40 screen points tall. */
+html[data-ph-shell][data-touch-small] .phs .cshop-toggle { min-height: calc(64 * var(--phu)); min-width: calc(115 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phs .cshop-cat { min-height: calc(70 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phs .phk-back { min-height: calc(64 * var(--phu)); }
+
+/* Rounded plates only here: no square corner ornaments on these panels. */
+.phs .phk-section::before { display: none; }
+/* The picked card stays level with its row (its gold, halo and check say it is picked). */
+.cshop.phs:not(.cshop-still) .cshop-chest.on, .cshop.phs:not(.cshop-still) .cshop-chest.on:hover { transform: none; }
+.phs-offline .phk-empty { min-height: calc(320 * var(--phu)); }
+/* The column heads stay on one line at every width. */
+.phs .cshop-cat-head span { white-space: nowrap; }
+
+/* One axis only: the page may scroll down, never sideways (the hidden tips hang past the edge), and at 1920 x 1080 the whole
+   screen fits with no scrolling at all. */
+.phs .phk-pagebody { overflow-x: hidden; }
+html[data-ph-shell]:not([data-ph-compact]) .phs .cshop-cat { min-height: calc(44 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phs .phk-pagebody { gap: calc(12 * var(--phu)); padding-bottom: calc(12 * var(--phu) + var(--safe-b, 0px)); }
+/* The last card's tip opens inward, so nothing hangs past the page edge (or gets cut by it). */
+.phs .cshop-chest:last-child .cshop-pop { left: auto; right: 0; transform: translate(0, 6px); }
+.phs .cshop-chest:last-child:hover .cshop-pop, .phs .cshop-chest:last-child.tt-on .cshop-pop, .phs .cshop-chest:last-child:focus-visible .cshop-pop { transform: translate(0, 0); }
+/* A resting tip takes no room: its box is what pushed the page 17 px wider than it is. */
+.phs .cshop-pop { display: none; }
+/* `.tt-on` is its own selector, not inside `:is()` with `:hover`: the hover guard moves any selector holding `:hover` under
+   (hover: hover), and a tap on a phone would never open the tip. */
+.phs :is(.cshop-chest, .cshop-seg):hover .cshop-pop, .phs :is(.cshop-chest, .cshop-seg).tt-on .cshop-pop, .phs :is(.cshop-chest, .cshop-seg):focus-visible .cshop-pop { display: block; }
+
+/* IDLE GOES STILL: the picked chest's halo, the On toggle's halo and the rays looped forever (360 screen updates in 6 s on an
+   idle page). They still play on every pick, then hold their pose, so an idle page paints nothing. Compositor-only either way. */
+.cshop.phs:not(.cshop-still) .cshop-chest.on::after, .cshop.phs:not(.cshop-still) .cshop-cat.on .cshop-toggle::before { animation-iteration-count: 1.5; animation-fill-mode: forwards; }
+.cshop.phs:not(.cshop-still) .cshop-chest.on .cshop-chest-rays { animation-iteration-count: 0.5; animation-fill-mode: forwards; }
+
+/* COMPACT (a phone or a short window): the tips and the picked chest's check were sized in plain px, so a phone's page scale
+   shrank them under the type floor. Everything here is in the shell's units: at least `--ph-t1`, the same on any phone. */
+html[data-ph-shell][data-ph-compact] .phs .cshop-chest-check { top: calc(12 * var(--phu)); right: calc(12 * var(--phu)); width: calc(40 * var(--phu)); height: calc(40 * var(--phu)); font-size: var(--ph-t1); }
+html[data-ph-shell][data-ph-compact] .phs .cshop-pop { width: calc(400 * var(--phu)); max-width: none; padding: calc(16 * var(--phu)); font-size: var(--ph-t1); }
+html[data-ph-shell][data-ph-compact] .phs .cshop-pop :is(.atip-title, .cshop-oddsline) { font-size: var(--ph-t1); }
+/* The page scrolls inside a short window, which cut a tip hanging off a card or the odds bar. Here a tip is one card, centred
+   under the nav, the same wherever it was tapped. Fixed, so its host must not carry a transform while it is open. */
+html[data-ph-shell][data-ph-compact] .phs :is(.cshop-chest, .cshop-seg):nth-child(n) .cshop-pop { position: fixed; top: calc(var(--ph-nav-h) + 16 * var(--phu)); right: auto; bottom: auto; left: 50%; transform: translate(-50%, 0); }
+html[data-ph-shell][data-ph-compact] .cshop.phs:not(.cshop-still) :is(.cshop-chest, .cshop-seg).tt-on { transform: none; }

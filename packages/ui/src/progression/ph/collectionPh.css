@@ -1,0 +1,328 @@
+/* ── THE COLLECTION + CHEST SHOP IN THE PARTY HOME SHELL (DEV only; CollectionPh.tsx, CrateShopPh.tsx) ──────────────────
+   The shell kit's language only: `--ph-*` tokens (partyHome/shell/shell.css), sizes in `--phu`, spacing in multiples of 8,
+   the five type sizes, the shell's rounded shapes (`--ph-r*`). Rarity colours are the shared `.r-*` tokens (`--rc`): data, not chrome.
+   PERFORMANCE: static paint. Hover is a colour or a one-shot transform; nothing loops. Bars are scaleX (transform). */
+
+/* ── The page: the body does not scroll; each column does. ── */
+/* Above the shell chrome's backdrop (`.ph-pagebd`, positioned at z 0): without this the header's unpositioned title paints under it. */
+.phk-page.phc, .cshop.phs { position: relative; z-index: 1; }
+.phc .phk-pagebody { overflow: hidden; padding-bottom: calc(24 * var(--phu) + var(--safe-b, 0px)); }
+.phc-body { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(312 * var(--phu)) minmax(0, 1fr) calc(424 * var(--phu)); gap: calc(24 * var(--phu)); }
+.phc-rail, .phc-side { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
+.phc-rail { display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+.phc-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+.phc-gridwrap { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 calc(8 * var(--phu)) calc(32 * var(--phu)) 0;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 32 * var(--phu)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 32 * var(--phu)), transparent); scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
+
+/* ── The header's actions ── */
+.phc-meter { box-sizing: border-box; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s); }
+.phc-bar { position: relative; display: block; height: calc(6 * var(--phu)); border-radius: 999px; background: rgba(0, 0, 0, 0.55); overflow: hidden; }
+.phc-bar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
+.phc-shopbtn > span { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
+.phc-aether.aether-icon, .phc-shopbtn .aether-icon { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); }
+
+/* ── The categories (left) ── */
+.phc-cats { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
+.phc-cat .phk-rowmain { gap: calc(12 * var(--phu)); padding-left: calc(8 * var(--phu)); }
+.phc-cat-icon { flex: none; display: grid; place-items: center; width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); }
+.phc-cat-icon .colls-caticon { width: 100%; height: 100%; object-fit: contain; color: var(--ph-gold); }
+.phc-cat .phk-rowtitle { letter-spacing: 0.04em; text-transform: uppercase; color: var(--ph-text); }
+.phc-cat.sel .phk-rowtitle { color: var(--ph-ink); }
+.phc-cat .phk-rowcount { font-size: var(--ph-t1); color: var(--ph-muted); }
+.phc-cat .phk-rowbar { left: calc(56 * var(--phu)); }
+.phc-cat-new { min-width: calc(20 * var(--phu)); padding: 0 calc(6 * var(--phu)); background: var(--pill-red, #ff7a66); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); line-height: calc(20 * var(--phu)); text-align: center; border-radius: 999px; }
+.phc-cat-lock { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-muted); }
+.phc-cat-lock .colls-lock { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); opacity: 0.7; }
+.phc-cat.locked .phc-cat-icon, .phc-cat.locked .phk-rowtitle { opacity: 0.5; }
+
+/* ── The chest bay (left, under the categories) ── */
+.phc-bay { flex: none; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); padding: calc(16 * var(--phu)); background: var(--ph-plate);
+  box-shadow: var(--ph-gild-s), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); border-radius: var(--ph-r-l); }
+.phc-bay.ready { box-shadow: var(--ph-gild), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); }
+.phc-bay-top { display: flex; align-items: center; gap: calc(12 * var(--phu)); }
+.phc-bay-art { flex: none; width: calc(96 * var(--phu)); }
+.phc-bay:not(.ready) .phc-bay-art { opacity: 0.45; }
+.phc-bay-who { min-width: 0; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); }
+.phc-bay-lbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); }
+.phc-bay-num { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.phc-bay-num b { font-weight: 900; font-size: var(--ph-t4); line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow); margin-right: calc(4 * var(--phu)); }
+.phc-bay-sub { font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
+.phc-bay-guest { font-size: var(--ph-t1); color: var(--ph-foe); }
+.phc-bay-actions { display: flex; gap: calc(8 * var(--phu)); }
+.phc-bay-actions .phk-btn { flex: 1; padding: 0 calc(8 * var(--phu)); }
+.phc-bay-actions .colls-lock { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); margin-right: calc(4 * var(--phu)); }
+.phc-bay-level { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: calc(8 * var(--phu)); padding-top: calc(12 * var(--phu)); box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair);
+  font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
+.phc-bay-lvl { font-family: var(--ph-font); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.phc-bay-lvl b { font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
+.phc-bay-odds { font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
+.phc-guest { display: flex; flex-direction: column; align-items: flex-start; gap: calc(8 * var(--phu)); padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s);
+  font-size: var(--ph-t1); color: var(--ph-muted); }
+
+/* ── The filters (centre, above the album) ── */
+.phc-filters { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: calc(8 * var(--phu)); box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
+.phc-filters .phk-tab:first-child { padding-left: 0; }
+.phc-filters .phk-tab:first-child.on::after { left: 0; }
+.phc-n { font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.phk-tab.on .phc-n { color: var(--ph-text); }
+.phc-rarities { display: flex; flex-wrap: wrap; gap: calc(8 * var(--phu)); padding-bottom: calc(8 * var(--phu)); }
+.phc-rchip { height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)); gap: calc(8 * var(--phu)); }
+.phc-rchip.t-gold .phc-n { color: var(--ph-navy); }
+.phc-gem { flex: none; display: inline-block; width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); transform: rotate(45deg); background: var(--rc, var(--ph-gold)); }
+.r-ancient .phc-gem, .r-secret .phc-gem { background: var(--rc-grad); }
+
+/* ── The album ── */
+.phc-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(216 * var(--phu)), 1fr)); gap: calc(12 * var(--phu)); }
+.phc-grid > li { display: flex; min-width: 0; width: 100%; margin: 0; justify-self: stretch; }
+.phc-tile { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; min-height: calc(120 * var(--phu)); box-sizing: border-box;
+  padding: calc(12 * var(--phu)) calc(16 * var(--phu)) calc(16 * var(--phu)); margin: 0; border: 0; border-radius: 0; overflow: hidden; text-align: left; font: inherit; color: var(--ph-text);
+  background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--rc) 20%, transparent) 100%), var(--ph-plate);
+  box-shadow: var(--ph-gild-s), inset 0 calc(-3 * var(--phu)) 0 var(--rc); border-radius: var(--ph-r); }
+.phc-grid.art .phc-tile { min-height: calc(240 * var(--phu)); }
+.phc-tile.sel { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), inset 0 calc(-3 * var(--phu)) 0 var(--rc); }
+.phc-tile.missing { background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--rc) 8%, transparent) 100%), var(--ph-well); box-shadow: var(--ph-gild-s), inset 0 calc(-3 * var(--phu)) 0 color-mix(in srgb, var(--rc) 45%, transparent); }
+.phc-tile.missing.sel { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), inset 0 calc(-3 * var(--phu)) 0 color-mix(in srgb, var(--rc) 45%, transparent); }
+.phc-tile-art { position: absolute; inset: 0; pointer-events: none; }
+.phc-tile-art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; -webkit-mask-image: linear-gradient(180deg, #000 50%, transparent 92%); mask-image: linear-gradient(180deg, #000 50%, transparent 92%); }
+.phc-tile.contain .phc-tile-art { inset: calc(16 * var(--phu)) calc(16 * var(--phu)) calc(96 * var(--phu)); }
+.phc-tile.contain .phc-tile-art img { object-fit: contain; object-position: 50% 50%; -webkit-mask-image: none; mask-image: none; }
+/* Unowned art: the real art, muted and dimmed so there is something to want; the padlock is the signal. The card, frame and
+   full-colour previews stay owned only (owner 2026-10-01: "do not allow preview if you do not own the art"). Static. */
+.phc-tile.missing .phc-tile-art img { filter: saturate(0.5) brightness(0.62); }
+/* A frame, plate or emote is mostly its outline: a little lighter, so its shape still reads (still grey, never its colours). */
+.phc-tile.missing.contain .phc-tile-art img { filter: saturate(0.5) brightness(0.75); }
+.phc-tile-text { position: relative; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; }
+.phc-tile-for { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.phc-tile-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); line-height: 1.15; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phc-tile.missing .phc-tile-name { color: var(--ph-muted); }
+.phc-tile-name .titlebadge.colls-titleplate { --tb-fs: calc(15 * var(--phu)); }
+.phc-tile-rar { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--rc); text-shadow: var(--ph-shadow); }
+.phc-tile.missing .phc-tile-rar { opacity: 0.7; }
+.phc-tile-how { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--ph-t1); line-height: 1.35; color: var(--ph-muted); }
+.phc-tile-lock { position: absolute; top: calc(12 * var(--phu)); right: calc(12 * var(--phu)); display: grid; }
+.phc-tile-lock .colls-lock { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); opacity: 0.75; }
+.phc-tile-tags { position: absolute; top: calc(12 * var(--phu)); left: calc(12 * var(--phu)); display: flex; }
+.phc-tile:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(-2 * var(--phu)); }
+
+/* A switched-off category. */
+.phc-soon { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--ph-plate); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-l); }
+.phc-soon-icon { display: grid; width: calc(72 * var(--phu)); height: calc(72 * var(--phu)); opacity: 0.6; }
+.phc-soon-icon .colls-caticon { width: 100%; height: 100%; object-fit: contain; color: var(--ph-gold); }
+
+/* ── The detail column (right) ── */
+.phc-detail { box-sizing: border-box; min-height: 100%; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); padding: calc(16 * var(--phu)) calc(16 * var(--phu)) calc(24 * var(--phu));
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); border-radius: var(--ph-r-l); }
+.phc-detail.phk-section .phk-secbody { flex: 1; justify-content: center; }
+.phc-stage { position: relative; flex: none; display: grid; place-items: center; height: calc(312 * var(--phu)); overflow: hidden;
+  background: radial-gradient(60% 60% at 50% 45%, color-mix(in srgb, var(--rc) 24%, transparent), transparent 75%), var(--ph-well);
+  box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s); }
+.phc-stage-hover { position: absolute; inset: 0; display: grid; place-items: center; }
+.phc-stage-img.contain { max-width: 80%; max-height: 86%; object-fit: contain; }
+.phc-stage-hover .phc-stage-img.contain { max-height: 90%; }
+.phc-stage-img.cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
+.phc-detail.missing .phc-stage img, .phc-detail.missing .phc-stage .heroimg { filter: saturate(0.25) brightness(0.5); }
+.phc-stage .colls-heroring { --ring: calc(232 * var(--phu)); }
+.phc-stage .colls-skinart.colls-framelocked { width: calc(232 * var(--phu)); height: calc(232 * var(--phu)); }
+.phc-stage .colls-default-tag { display: none; }
+.phc-stage .hapv { width: 100%; height: 100%; }
+.phc-stage-title { display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(16 * var(--phu)); text-align: center; }
+.phc-stage-lbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-muted); }
+.phc-stage-name { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phc-stage-sub { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t3); letter-spacing: 0.08em; text-transform: uppercase; color: #fbe6a6; text-shadow: var(--ph-shadow); }
+.phc-stage-sub .titlebadge.colls-titleplate { --tb-fs: calc(16 * var(--phu)); }
+.phc-stage-icon { display: grid; width: calc(96 * var(--phu)); height: calc(96 * var(--phu)); }
+.phc-stage-icon img, .phc-stage-icon svg { width: 100%; height: 100%; object-fit: contain; }
+.phc-stage-tag { position: absolute; left: 50%; bottom: calc(12 * var(--phu)); transform: translateX(-50%); }
+.phc-kindrow { display: flex; align-items: center; justify-content: space-between; gap: calc(8 * var(--phu)); }
+.phc-notowned { flex: none; }
+.phc-notowned .colls-lock { width: calc(14 * var(--phu)); height: calc(14 * var(--phu)); }
+.phc-name { display: flex; flex-direction: column; gap: calc(4 * var(--phu)); }
+.phc-kind { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
+.phc-name h2 { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); line-height: 1.05; color: var(--ph-ink); text-shadow: var(--ph-shadow); overflow-wrap: anywhere; }
+.phc-name h2 .titlebadge.colls-titleplate-lg { --tb-fs: calc(22 * var(--phu)); }
+.phc-rarity { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--rc); text-shadow: var(--ph-shadow); }
+.phc-facts { margin: 0; display: flex; flex-direction: column; }
+.phc-fact { display: grid; grid-template-columns: calc(112 * var(--phu)) minmax(0, 1fr); gap: calc(12 * var(--phu)); padding: calc(8 * var(--phu)) 0; box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
+.phc-fact:first-child { box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair), inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
+.phc-fact dt { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); padding-top: calc(2 * var(--phu)); }
+.phc-fact dd { margin: 0; font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-text); }
+.phc-fact dd.yes { color: var(--ph-ink); font-weight: 800; }
+.phc-fact dd.no { color: var(--ph-muted); font-weight: 800; }
+.phc-actions { margin-top: auto; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); }
+.phc-equip { width: 100%; }
+.phc-worn { display: flex; align-items: center; justify-content: space-between; gap: calc(12 * var(--phu)); }
+.phc-hint { padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s); font-size: var(--ph-t-read); line-height: 1.4; color: var(--ph-text); }
+.phc-error { font-size: var(--ph-t2); color: var(--ph-foe); }
+/* The emote menu's eight slots, in the shell's wells. */
+.phc-actions .colls-emote-slots { gap: calc(8 * var(--phu)); }
+.phc-actions .colls-emote-slots .emote-pick { height: calc(72 * var(--phu)); border-radius: var(--ph-r-s); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s); }
+.phc-actions .colls-emote-slots .emote-pick.emote-slot-empty { border: 0; box-shadow: var(--ph-gild-s); opacity: 0.6; }
+.phc-actions .colls-emote-slots .emote-pick.on { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); background: var(--ph-plate); }
+.phc-actions .colls-emote-slot-n { font-family: var(--ph-font); font-size: var(--ph-t1); color: var(--ph-muted); }
+
+/* ── PHONES (landscape, 844 x 390): the categories become one compact sideways row above two columns (the album and
+   the detail), each scrolling on its own like the desktop, so Equip is always one glance away. The chest bay leads
+   the category row. ── */
+html[data-ph-shell][data-touch-small] .phc-body { grid-template-columns: minmax(0, 1fr) calc(320 * var(--phu)); grid-template-rows: auto minmax(0, 1fr); gap: calc(12 * var(--phu)) calc(16 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-rail { grid-column: 1 / -1; flex-direction: row; align-items: stretch; gap: calc(8 * var(--phu)); overflow: auto hidden; scrollbar-width: none; }
+html[data-ph-shell][data-touch-small] .phc-rail::-webkit-scrollbar { display: none; }
+html[data-ph-shell][data-touch-small] .phc-cats { flex-direction: row; }
+html[data-ph-shell][data-touch-small] .phc-cat { flex: none; min-width: calc(200 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-bay { flex: none; flex-direction: row; align-items: center; gap: calc(12 * var(--phu)); padding: calc(4 * var(--phu)) calc(12 * var(--phu)); border-radius: var(--ph-r-s); }
+html[data-ph-shell][data-touch-small] .phc-bay-level, html[data-ph-shell][data-touch-small] .phc-bay-odds, html[data-ph-shell][data-touch-small] .phc-bay-top .phc-bay-sub { display: none; }
+html[data-ph-shell][data-touch-small] .phc-bay-art { width: calc(56 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-bay-num b { font-size: var(--ph-t3); }
+html[data-ph-shell][data-touch-small] .phc-guest { flex: none; max-width: calc(260 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-stage { height: calc(176 * var(--phu)); }
+/* The chests lead the row (they are what a phone visit is usually for); Equip stays pinned at the column's foot. */
+html[data-ph-shell][data-touch-small] .phc-bay { order: -1; }
+html[data-ph-shell][data-touch-small] .phc-actions { position: sticky; bottom: calc(-24 * var(--phu)); z-index: 2; margin: auto calc(-16 * var(--phu)) calc(-24 * var(--phu)); padding: calc(12 * var(--phu)) calc(16 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-navy); box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair); }
+html[data-ph-shell][data-touch-small] .phc-stage .colls-heroring { --ring: calc(150 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-stage .colls-skinart.colls-framelocked { width: calc(150 * var(--phu)); height: calc(150 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-grid.art .phc-tile { min-height: calc(200 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-grid { grid-template-columns: repeat(auto-fill, minmax(calc(180 * var(--phu)), 1fr)); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .colls-page:not(.colls-still) .phc-tile { transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+  .colls-page:not(.colls-still) .phc-tile:hover { transform: translateY(calc(-2 * var(--phu))); }
+}
+
+/* ── THE CHEST OPENING's surrounding UI (the theatre wears `phx` from this page; CrateOpener.tsx). The reveal itself
+   (the Pixi layer, the chest, the rays, the reward plate, its gem, ribbon and shine) is untouched: only the chest's
+   name, the notes, the summary and the buttons take the shell's language. Theatre px (it is drawn on the stage). ── */
+.crth.phx .crate-name { font-family: var(--ph-font); font-size: 22px; letter-spacing: 0.24em; text-transform: uppercase; color: #fff; text-shadow: var(--ph-shadow); }
+.crth.phx .crate-name::before { background: linear-gradient(90deg, transparent, var(--ph-gold)); }
+.crth.phx .crate-name::after { background: linear-gradient(90deg, transparent, var(--ph-gold)); }
+.crth.phx .crate-btn { height: 52px; padding: 0 40px; border: 0; border-radius: 999px; background: var(--ph-metal-gold); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.5);
+  font-family: var(--ph-font); font-weight: 900; font-size: 16px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+.crth.phx .crate-btn:hover:not(:disabled), .crth.phx .crate-btn:focus-visible { background: var(--ph-metal-gold); color: #000; }
+.crth.phx .crate-btn.crate-btn-quiet { background: var(--ph-plate); box-shadow: inset 0 0 0 1.5px var(--ph-gold); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.crth.phx .crate-btn.crate-btn-quiet:hover:not(:disabled), .crth.phx .crate-btn.crate-btn-quiet:focus-visible { background: var(--ph-plate-hover); color: #fff; }
+.crth.phx .crate-note { font-family: var(--ph-body); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.crth.phx .crth-skip { font-family: var(--ph-font); font-weight: 800; letter-spacing: 0.2em; color: var(--ph-muted); }
+.crth.phx .crth-summary-head { font-family: var(--ph-font); letter-spacing: 0.2em; color: var(--ph-muted); }
+.crth.phx .crth-summary li { padding: 6px 14px; border: 0; border-radius: 999px; background: var(--ph-plate); box-shadow: inset 0 0 0 1.5px var(--rc);
+  font-family: var(--ph-font); font-weight: 900; color: #fff; text-shadow: var(--ph-shadow); }
+
+/* ── THE FANTASY PASS (owner 2026-11-02: "it needs to maintain a fantasy vibe as much as possible ... we are a fantasy
+   game"): the shell's name font (`--ph-name-font`) for every NAME and big number on these pages, `--ph-font` for the labels, gilded edges on what is
+   picked, warm candle-light under the previews and the chests. Static paint only; the kit's own tokens still rule the
+   chrome, so the shell's fantasy tokens flow in when they land. ── */
+.phc, .phs { --phc-warm: rgba(255, 196, 110, 0.16); }
+.phc-tile-name, .phc-name h2, .phc-stage-name, .phc-bay-num b, .phc-meter .phk-meterval,
+.cshop.phs .cshop-chest-name, .cshop.phs .cshop-total .cshop-what, .cshop.phs .cshop-total .cshop-amt { font-family: var(--ph-name-font); letter-spacing: 0.02em; }
+.phc-tile-name { font-weight: 700; }
+.phc-name h2, .phc-stage-name { font-weight: 900; letter-spacing: 0.01em; }
+.cshop.phs .cshop-chest-name { font-weight: 900; letter-spacing: 0.08em; }
+/* Gilded: the picked tile, the picked category and the detail plate wear the gold edge (the rail's gilt), not a flat line. */
+.phc-tile.sel { box-shadow: var(--ph-gild), inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), inset 0 calc(-3 * var(--phu)) 0 var(--rc), inset 0 0 calc(24 * var(--phu)) var(--phc-warm); }
+.phc-detail { box-shadow: var(--ph-gild), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); }
+/* Candle-light: a warm pool under every preview and under the chest bay's chest. */
+.phc-stage { background: radial-gradient(55% 45% at 50% 85%, var(--phc-warm), transparent 70%), radial-gradient(60% 60% at 50% 45%, color-mix(in srgb, var(--rc) 24%, transparent), transparent 75%), var(--ph-well); }
+.phc-bay-art { background: radial-gradient(50% 40% at 50% 80%, rgba(255, 196, 110, 0.28), transparent 70%); }
+.cshop.phs .cshop-chest:not(:hover):not(.tt-on) { background: radial-gradient(60% 40% at 50% 70%, var(--phc-warm), transparent 70%), radial-gradient(70% 50% at 50% 60%, color-mix(in srgb, var(--tc) 14%, transparent), transparent 75%), var(--ph-well); }
+
+/* The detail column's rarity breakdown of this category (what is left to find). */
+.phc-progress { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
+.phc-sublbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
+.phc-prow { display: grid; grid-template-columns: calc(112 * var(--phu)) minmax(0, 1fr) calc(64 * var(--phu)); align-items: center; gap: calc(12 * var(--phu)); }
+.phc-prow-name { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.1em; text-transform: uppercase; color: var(--rc); }
+.phc-prow .phc-bar > span { background: var(--rc); }
+.r-ancient.phc-prow .phc-bar > span, .r-secret.phc-prow .phc-bar > span { background: var(--rc-grad); }
+.phc-prow-n { text-align: right; font-family: var(--ph-name-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-text); font-variant-numeric: tabular-nums; }
+html[data-ph-shell][data-touch-small] .phc-progress { display: none; }
+
+/* The sign-in gate (a guest's Open or buy) in the shell's look: navy plate, gilt edge, the gold pill. */
+html[data-ph-shell] .crgate-panel { border: 0; border-radius: var(--ph-r-l); background: var(--ph-plate); box-shadow: var(--ph-gild), 0 calc(24 * var(--phu)) calc(64 * var(--phu)) rgba(0, 0, 0, 0.6); }
+html[data-ph-shell] .crgate-panel .nrw-title { font-family: var(--ph-font); color: var(--ph-ink); }
+html[data-ph-shell] .crgate-panel .cv2-btn { border: 0; border-radius: 999px; background: var(--ph-metal-gold); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.5); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); font-family: var(--ph-font); font-weight: 900; }
+html[data-ph-shell] .crgate-panel .colls-quiet { border-radius: 999px; }
+
+/* PHONES: every control a finger can hit is at least 40 screen points tall (64 --phu: the shell's unit is 1/620 of the
+   screen height, so 1 point is 1.6 units; measured on the glass at 844 x 390) (the filters, the Show tabs, the categories,
+   the bay and detail buttons, the emote slots). */
+html[data-ph-shell][data-touch-small] .phc-rchip { height: auto; min-height: calc(64 * var(--phu)); padding: 0 calc(22 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-filters .phk-tab { min-height: calc(64 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-cat { min-height: calc(70 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc .phk-btn { min-height: calc(64 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-actions .colls-emote-slots .emote-pick { min-height: calc(70 * var(--phu)); }
+
+/* Rounded plates only here: no square corner ornaments. */
+.phc .phk-section::before { display: none; }
+
+/* PHONES: the album gets the height. One short header, ONE sideways row of categories, ONE sideways row of filters, then
+   the grid and the detail, each scrolling by touch on its own axis. */
+html[data-ph-shell][data-touch-small] .phc.phk-page { gap: calc(13 * var(--phu)); padding-top: calc(13 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc .phk-eyebrow { display: none; }
+html[data-ph-shell][data-touch-small] .phc .phk-pagehead { align-items: center; padding-bottom: calc(6 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc .phk-pagebody { padding-bottom: calc(6 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-body { gap: calc(10 * var(--phu)) calc(13 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-rail { touch-action: pan-x; }
+html[data-ph-shell][data-touch-small] .phc-main { gap: calc(10 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-filters { flex-direction: row; align-items: center; gap: calc(13 * var(--phu)); overflow: auto hidden; scrollbar-width: none; touch-action: pan-x; box-shadow: none; }
+html[data-ph-shell][data-touch-small] .phc-filters::-webkit-scrollbar { display: none; }
+html[data-ph-shell][data-touch-small] .phc-filters .phk-tabs { flex: none; overflow: visible; }
+html[data-ph-shell][data-touch-small] .phc-rarities { flex: none; flex-wrap: nowrap; padding-bottom: 0; }
+html[data-ph-shell][data-touch-small] .phc-gridwrap, html[data-ph-shell][data-touch-small] .phc-side { touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+html[data-ph-shell][data-touch-small] .lbpage.phc-host { padding-bottom: var(--safe-b, 0px); }
+/* The name never runs under a missing tile's padlock. */
+.phc-tile.missing:not(.hasart) .phc-tile-name { padding-right: calc(28 * var(--phu)); }
+/* Phones: the stage is short, so its "Not owned" chip takes the corner and the "Preview" label steps aside; the guest note
+   is one line, so it never makes the category row taller. */
+html[data-ph-shell][data-touch-small] .phc-stage-lbl { display: none; }
+html[data-ph-shell][data-touch-small] .phc-guest { flex-direction: row; align-items: center; gap: calc(12 * var(--phu)); max-width: none; padding: 0 calc(16 * var(--phu)); white-space: nowrap; }
+/* Phones: a long one-word name cannot wrap away from the padlock, so the padlock gets its own strip above the name. */
+html[data-ph-shell][data-touch-small] .phc-tile.missing:not(.hasart) { padding-top: calc(32 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-tile.missing:not(.hasart) .phc-tile-name { padding-right: 0; }
+html[data-ph-shell][data-touch-small] .phc-tile.missing:not(.hasart) .phc-tile-lock { top: calc(8 * var(--phu)); right: calc(10 * var(--phu)); }
+/* Phones, inside the shell's one-scroll frame: the detail column fits the screen from where it starts and keeps Equip
+   pinned at its foot (the kit's own `.phc-actions` row is the Compendium's, a name collision: undone here). */
+html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-side { max-height: calc(var(--ph-h, var(--lvh, 100vh)) - 272 * var(--phu)); }
+html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-side .phc-actions { flex-direction: column; flex-wrap: nowrap; position: sticky; bottom: calc(-24 * var(--phu)); margin: auto calc(-16 * var(--phu)) calc(-24 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-navy); }
+html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-side .phc-actions > * { position: static; }
+
+/* Art tiles: a navy foot under the text, so names read over the brighter locked art. Static. */
+.phc-tile.hasart:not(.contain)::before { content: "";  position: absolute; inset: 40% 0 calc(3 * var(--phu)); z-index: 0; pointer-events: none; background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--ph-navy) 92%, transparent) 62%); }
+.phc-tile.hasart.missing .phc-tile-name { color: var(--ph-text); }
+.phc-kind { white-space: nowrap; }
+html[data-ph-shell][data-touch-small] .phc-kind { letter-spacing: 0.12em; }
+
+/* ── COMPACT (a phone or a short window): no side column; the album takes the width and a tap opens the item in a sheet,
+   a sibling of the page on the host, under the nav. ── */
+html[data-ph-shell][data-ph-compact] .phk-page .phc-body.sheeted { grid-template-columns: calc(312 * var(--phu)) minmax(0, 1fr); }
+html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-body.sheeted { grid-template-columns: minmax(0, 1fr); }
+html[data-ph-shell][data-ph-compact][data-touch-small] .phk-page .phc-grid { grid-template-columns: repeat(auto-fill, minmax(calc(216 * var(--phu)), 1fr)); }
+html[data-ph-shell][data-touch-small] .phc-tile-for { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.phc-scrim { position: absolute; inset: var(--ph-nav-h) 0 0; z-index: 4; margin: 0; padding: 0; border: 0; border-radius: 0; background: rgba(4, 8, 18, 0.62); }
+.phc-sheet { position: absolute; top: var(--ph-nav-h); right: 0; bottom: 0; z-index: 5; box-sizing: border-box; width: min(calc(600 * var(--phu)), 100%); padding: calc(8 * var(--phu)) calc(8 * var(--phu) + var(--safe-r, 0px)) calc(8 * var(--phu) + var(--safe-b, 0px)) calc(8 * var(--phu)); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
+.phc-sheetx { position: absolute; top: calc(16 * var(--phu)); right: calc(16 * var(--phu) + var(--safe-r, 0px)); z-index: 3; display: grid; place-items: center; width: calc(64 * var(--phu)); height: calc(64 * var(--phu)); margin: 0; padding: 0; border: 0; border-radius: 999px; background: var(--ph-plate); box-shadow: var(--ph-gild-s); color: var(--ph-ink); font-size: var(--ph-t3); }
+.phc-sheet .phc-actions { background: var(--ph-navy); }
+html[data-ph-shell][data-touch-small] .phc-sheet .phc-progress { display: flex; }
+/* With the full width, the filters wrap instead of cutting a chip at the edge. */
+html[data-ph-shell][data-touch-small] .phc-filters { flex-wrap: wrap; overflow: visible; touch-action: auto; }
+html[data-ph-shell][data-touch-small] .phc-rarities { flex: 0 1 auto; flex-wrap: wrap; }
+
+/* Desktop: every rarity chip on one row. They share the row evenly, and if a future rarity ever forced a wrap, both rows
+   still fill the width (no lone chip). */
+html[data-ph-shell]:not([data-ph-compact]) .phc-rarities { gap: calc(4 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phc-rchip { flex: 1 1 auto; max-width: calc(192 * var(--phu)); justify-content: center; gap: calc(4 * var(--phu)); padding: 0 calc(8 * var(--phu)); letter-spacing: 0.04em; }
+
+/* PHONES: one fixed filter layout on every tab, so the album never moves: the Show tabs on row one, the rarity chips on row two
+   (six fit at full width; a tab with fewer leaves the rest of the row empty). */
+html[data-ph-shell][data-touch-small] .phc-filters { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: calc(6 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-rarities { flex: none; flex-wrap: nowrap; }
+/* A short tab (Announcers) must not move it either: spare height goes under the album, not into the category row, and the
+   scrollbar's room stays reserved when the page stops scrolling. */
+html[data-ph-shell][data-ph-compact] .phk-page .phc-body.sheeted { grid-template-rows: auto 1fr; }
+html[data-ph-shell][data-ph-compact] .phc .phk-pagebody { scrollbar-gutter: stable; }
+
+/* PHONES: the category rail fades at an edge while there is more that way, and the fade goes at the end of the row (the
+   `data-more-*` flags come from two 1px end markers, CollectionPh.tsx). Static masks; nothing runs while it scrolls. */
+.phc-railedge { display: none; }
+html[data-ph-shell][data-touch-small] .phc-railedge { display: block; flex: none; width: 1px; height: 1px; align-self: center; }
+html[data-ph-shell][data-touch-small] .phc-railedge.start { order: -2; margin-right: calc(-8 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-railedge.end { order: 9; margin-left: calc(-8 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-rail { --phc-fade: calc(112 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-rail[data-more-r] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--phc-fade)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - var(--phc-fade)), transparent); }
+html[data-ph-shell][data-touch-small] .phc-rail[data-more-l] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--phc-fade)); mask-image: linear-gradient(90deg, transparent, #000 var(--phc-fade)); }
+html[data-ph-shell][data-touch-small] .phc-rail[data-more-l][data-more-r] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--phc-fade), #000 calc(100% - var(--phc-fade)), transparent); mask-image: linear-gradient(90deg, transparent, #000 var(--phc-fade), #000 calc(100% - var(--phc-fade)), transparent); }

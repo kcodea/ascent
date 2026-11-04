@@ -236,3 +236,50 @@ html[data-ph-compact] .phb .wiki-chip { flex: none; }
 /* Rules: the panel takes the page's full width, like every other Compendium view. */
 .phb .wiki-group { width: 100%; max-width: none; box-sizing: border-box; }
 .phb .wiki-list { padding-left: 0; padding-right: calc(2 * var(--phu)); }
+
+/* ── WIDER (owner 2026-11-04: "make the compendium wider in the menus so it shows more"): the page takes the screen, with the
+   shell's page margins, up to a cap for ultrawides. Galleries gain columns: the card size does not change. ── */
+.phk-page.phb, .phk-page.wide.phb { max-width: calc(2400 * var(--phu)); }
+
+/* ── THE HEADER: the live line sits beside the tabs and fills the room to the tools; it truncates, never pushes. ── */
+html[data-ph-shell] .phb .phk-pagehead .phk-pagetabs { flex: 1 1 0 !important; min-width: 0; align-items: center; gap: calc(16 * var(--phu)); }
+.phb .phk-pagetabs .phk-tabs { flex: none; }
+.phb-sub { flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.phb .book-setpick { flex: none; }
+.phb .book-setpick-btn { height: calc(40 * var(--phu)); }
+html[data-ph-compact] .phb .book-setpick-btn { height: calc(64 * var(--phu)); }
+html[data-ph-compact] .phb .book-search { width: calc(200 * var(--phu)); }
+
+/* Hover previews over the page's layer (they portal to <body> at z 460). */
+html[data-ph-book] .cardref { z-index: 490; }
+
+/* ── HEROES (owner 2026-11-04: "improve the hero look ... extremely clean"): one plate per hero. The portrait fills the top and
+   melts into the navy with no frame; the name and Health sit on the melt; the power below. A row's tiles share one height. ── */
+.phb .phh-grid { --ch: calc(320 * var(--phu)); grid-template-columns: repeat(auto-fill, minmax(calc(256 * var(--phu)), 1fr)); gap: calc(16 * var(--phu)); padding: calc(16 * var(--phu)); align-items: stretch; justify-items: stretch; row-gap: calc(16 * var(--phu)); }
+.phb .phh-grid .book-cell { width: 100%; min-width: 0; }
+.phb .phh-grid .book-cell.is-pending { min-height: calc(320 * var(--phu)); }
+.phb .phh-grid .book-cell:hover { transform: translateY(calc(-2 * var(--phu))); }
+.phh { position: relative; box-sizing: border-box; height: 100%; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--ph-r); background: var(--ph-plate); box-shadow: var(--ph-gild-s); }
+.phh-top { position: relative; flex: none; height: calc(168 * var(--phu)); }
+.phh-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%;
+  -webkit-mask-image: linear-gradient(180deg, #000 45%, transparent 100%); mask-image: linear-gradient(180deg, #000 45%, transparent 100%); }
+.phh-who { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: calc(8 * var(--phu)); padding: 0 calc(12 * var(--phu)); }
+.phh-name { min-width: 0; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); line-height: 1.15; color: var(--ph-ink); text-shadow: var(--ph-shadow), 0 calc(2 * var(--phu)) calc(8 * var(--phu)) rgba(0, 0, 0, 0.8); }
+.phh-vitals { flex: none; display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); font-variant-numeric: tabular-nums; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.phh-hp, .phh-armor { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); }
+.phh-vitals svg { width: calc(14 * var(--phu)); height: calc(14 * var(--phu)); }
+.phh-hp svg { color: var(--ui-heart, #ff2f58); }
+.phh-armor svg { color: var(--ui-armor-mid, #b3bdca); }
+.phh-power { flex: 1; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); padding: calc(8 * var(--phu)) calc(12 * var(--phu)) calc(12 * var(--phu)); }
+.phh-pwhead { display: flex; align-items: center; gap: calc(8 * var(--phu)); min-height: calc(28 * var(--phu)); }
+.phh-pwart { flex: none; width: calc(28 * var(--phu)); height: calc(28 * var(--phu)); border-radius: 50%; object-fit: cover; }
+.phh-pwname { min-width: 0; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: #fbe6a6; text-shadow: var(--ph-shadow); }
+.phh-pwtext { margin: 0; font-family: var(--ph-body); font-weight: 500; font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-text); }
+.phh-lock { margin-top: auto; padding-top: calc(4 * var(--phu)); font-size: var(--ph-t1); color: var(--ph-muted); }
+html[data-ph-compact] .phb .phh-grid { zoom: 1; --ch: calc(320 * var(--phu)); grid-template-columns: repeat(auto-fill, minmax(calc(300 * var(--phu)), 1fr)); }
+html[data-ph-compact] .phh-pwtext, html[data-ph-compact] .phh-pwname { font-size: calc(18 * var(--phu)); }
+html[data-ph-compact] .phh-name { font-size: calc(24 * var(--phu)); }
+
+/* ── IN A GAME: the same page, over the match. It paints its own full screen; there is no nav above it. ── */
+.ph-bookpage.phb-ov { padding-top: 0; }
+.phb-close { flex: none; }

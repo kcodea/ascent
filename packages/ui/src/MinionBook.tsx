@@ -14,13 +14,13 @@ import { CompendiumSetPicker, type SetPickerOption } from './CompendiumSetPicker
 import { CompendiumGuides } from './guides/CompendiumGuides';
 import { guidesFor } from './guides/guides';
 import { loadGuides, ownsMine, useGuides, type GuidesTab } from './guides/guidesStore';
-import { artFor, heroArt, runeArt } from './art';
+import { artFor, heroArt, heroPowerArt, heroThumb, runeArt } from './art';
 import { Icon } from './Icon';
 import { MECHANICS, toMechInput } from './mechanics';
 import { mechMedallionSrc } from './mechMedallion';
 import { GLOSSARY_SECTIONS, KEYWORD_GLOSSARY, type KeywordDef } from './keywordGlossary';
 import { detectCardKeywords } from './detectCardKeywords';
-import { useGame } from './store';
+import { isPreRun, useGame } from './store';
 import { CompendiumRules } from './CompendiumRules';
 import { LazyCell, LazyRootProvider, eagerCellCount } from './bookLazy';
 import rulesQuestionArt from './rules-question.png';
@@ -30,6 +30,8 @@ import './compendium.css';
 /** The app shell's Compendium page (party home prototype, DEV only; lazy and null in production, like the top nav). Loading
  *  the module registers the page with the shell's route; the mount itself renders nothing. */
 const PhCompendiumMount = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendiumMount }))) : null;
+/** The same page as an overlay over a match (switch on, in a game). */
+const PhCompendiumOverlay = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendiumOverlay }))) : null;
 
 /** Evolution units — non-buyable tokens a minion ascends/transforms into (Spirit Pup → Spirit Worgen,
  *  Tara → Taragosa). Detected from the SOURCE cards actually in the given set's pool (ascend targets +
@@ -287,6 +289,34 @@ function compendiumSetPickerEnabled(): boolean {
   return import.meta.env.DEV;
 }
 
+/** A hero under the shell's Compendium: the portrait melts into the plate, the name and Health sit on it, the power below. */
+const PhHeroTile = memo(function PhHeroTile({ h }: { h: (typeof HEROES)[number] }) {
+  const art = heroThumb(heroArt(h.id));
+  const pw = heroThumb(heroPowerArt(h.id));
+  return (
+    <article className="phh">
+      <div className="phh-top">
+        {art && <img className="phh-art" decoding="async" src={art} alt="" draggable={false} />}
+        <div className="phh-who">
+          <span className="phh-name">{h.name}</span>
+          <span className="phh-vitals">
+            <span className="phh-hp" aria-label={`${h.resolve} starting Health`}><Icon name="heart" />{h.resolve}</span>
+            {h.armor > 0 && <span className="phh-armor" aria-label={`${h.armor} starting Armor`}><Icon name="shield" />{h.armor}</span>}
+          </span>
+        </div>
+      </div>
+      <div className="phh-power">
+        <div className="phh-pwhead">
+          {pw && <img className="phh-pwart" decoding="async" src={pw} alt="" draggable={false} />}
+          <span className="phh-pwname">{h.power.name}</span>
+        </div>
+        <p className="phh-pwtext" dangerouslySetInnerHTML={{ __html: mdBold(h.power.text) }} />
+        {h.power.unlockWave && h.power.unlockWave > 1 && <span className="phh-lock">Unlocks turn {h.power.unlockWave}</span>}
+      </div>
+    </article>
+  );
+});
+
 /** The Compendium's views: the card gallery, or one of the three codex panels. */
 export type CompendiumView = 'cards' | 'rules' | 'glossary' | 'guides';
 /** What a host frame receives (see `frame`). */
@@ -309,9 +339,11 @@ export interface CompendiumParts {
 export function MinionBook({ frame }: { frame?: (parts: CompendiumParts) => ReactNode } = {}) {
   // THE APP SHELL (party home prototype, DEV switch): on the menus the Compendium is a page under the top nav.
   const shell = usePartyHome();
-  const onMenus = useGame((s) => s.showTitle && !s.gameMenuOpen);
+  const onMenus = useGame(isPreRun);
   // The shell's route (PhBookNav) mounts the page itself; loading PhCompendium registers it (setCompendiumPage).
   if (!frame && shell && onMenus && PhCompendiumMount) return <Suspense fallback={null}><PhCompendiumMount /></Suspense>;
+  // In a game: one design, the same page, as an overlay over the match.
+  if (!frame && shell && !onMenus && PhCompendiumOverlay) return <Suspense fallback={null}><PhCompendiumOverlay /></Suspense>;
   return <BookView frame={frame} />;
 }
 
@@ -640,7 +672,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
   const liveRun = browsingRun ? run : undefined;
   // The gallery scroller, the root the lazy cells observe; and how many cells mount up front (about two rows).
   const [gridEl, setGridEl] = useState<HTMLDivElement | null>(null);
-  const eagerN = useMemo(() => eagerCellCount(zoom), [zoom]);
+  const eagerN = useMemo(() => (frame ? Math.min(12, eagerCellCount(zoom)) : eagerCellCount(zoom)), [zoom, frame]); // the shell's first screen shows about 12; the rest mount a few a frame
   // (The previews are built per mounted card, in BookCardCell.)
 
   // A glossary term is a live filter only if at least one in-scope card matches it — otherwise the row
@@ -706,6 +738,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
           } ${!browsingRun || cats.has('runeRewards') || cats.has('gifts') ? 'in the game' : 'findable this run'}`;
   const controls = (
     <>
+      {frame && !codex && showSetPicker && <CompendiumSetPicker options={setOptions} value={setId} onChange={pickSet} />}
             {!codex && (
               <input
                 className="book-search"
@@ -772,7 +805,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
             filter at the far right. ALWAYS rendered — it used to unmount on the Runes / Heroes tabs (their pools
             aren't tiered), which dropped the whole window by a row every time you switched (owner report
             2026-09-18). Now the bar holds its place; on those tabs the chips dim and the chart goes quiet. */}
-        <div className={`book-tiers${ownGalleryTab ? ' is-inert' : ''}${ownGalleryTab && !guidesOn && !cats.has('runes') && !kw && !showSetPicker ? ' is-bare' : ''}`}>
+        <div className={`book-tiers${ownGalleryTab ? ' is-inert' : ''}${ownGalleryTab && !guidesOn && !cats.has('runes') && !kw && (frame || !showSetPicker) ? ' is-bare' : ''}`}>
           <span className="book-axislabel">Tier</span>
           {TIERS.map((t) => (
             <button
@@ -903,13 +936,13 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
           {/* The far-right cluster: the active keyword chip (when one is on), then the SET PICKER (dev only), always
               last. Not rendered at all when it would be empty, so a player build's tribe pills centre in the space
               right of Gilded instead of leaving a gap where the picker was. */}
-          {(kw || showSetPicker) && <div className="book-tiers-end">
+          {(kw || (showSetPicker && !frame)) && <div className="book-tiers-end">
             {kw && (
               <button className="book-kwchip" onClick={() => setKw(null)} aria-label="Clear keyword filter">
                 {glossIcon(kw)} {kw.term} <span className="book-kwx">✕</span>
               </button>
             )}
-            {showSetPicker && <CompendiumSetPicker options={setOptions} value={setId} onChange={pickSet} />}
+            {showSetPicker && !frame && <CompendiumSetPicker options={setOptions} value={setId} onChange={pickSet} />}
           </div>}
         </div>
 
@@ -943,7 +976,14 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
             <CompendiumGuides guides={guidesToShow} tribes={tribes} setTribes={SETS[setId].tribes} run={liveRun} setId={setId} pillTribes={guidePills} search={searchQ} />
           ) : cats.has('heroes') ? (
             heroesToShow.length > 0 ? (
-              <div className="book-grid is-heroes">
+          frame ? (
+            <div className="book-grid is-heroes phh-grid" ref={setGridEl}>
+              <LazyRootProvider root={gridEl}>
+                {heroesToShow.map((h, i) => <LazyCell key={h.id} eager={i < eagerN}>{() => <PhHeroTile h={h} />}</LazyCell>)}
+              </LazyRootProvider>
+            </div>
+          ) : (
+          <div className="book-grid is-heroes">
                 {heroesToShow.map((h) => {
                   const art = heroArt(h.id);
                   return (
@@ -966,6 +1006,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
                   );
                 })}
               </div>
+              )
             ) : (
               <div className="book-empty">No heroes match your search.</div>
             )

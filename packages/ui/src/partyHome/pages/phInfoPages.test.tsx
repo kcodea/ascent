@@ -90,9 +90,19 @@ describe('the gate: shell pages only with the switch on, on the menus', () => {
     expect(usePhShell.getState().compendiumPage, 'the page the shell route (PhBookNav) mounts').toBe(PhCompendium);
     expect(ui.container.querySelector('.book-ov'), 'no window on the menus').toBeNull();
     ui.unmount();
+    // In a game the same page sits over the match, with a close; with the switch off it is the old window.
     act(() => { useGame.setState({ showTitle: false } as never); });
     ui = mount(<MinionBook />);
-    expect(ui.container.querySelector('.phb'), 'in a game: the window').toBeNull();
+    await settle('.phb-ov');
+    expect(ui.container.querySelector('.phb-ov .phb .phb-book'), 'in a game: the same page').not.toBeNull();
+    expect(document.documentElement.hasAttribute('data-ph-shell'), 'the shell styles apply while it is open').toBe(true);
+    click(ui.container.querySelector('.phb-close'));
+    expect(useGame.getState().showBook).toBe(false);
+    ui.unmount();
+    expect(document.documentElement.hasAttribute('data-ph-shell'), 'and come off with it').toBe(false);
+    act(() => { setPartyHome(false); useGame.setState({ showBook: true } as never); });
+    ui = mount(<MinionBook />);
+    expect(ui.container.querySelector('.phb'), 'switch off: the window').toBeNull();
     expect(ui.container.querySelector('.book-ov .book-head')).not.toBeNull();
   });
 

@@ -101,16 +101,20 @@ export function PhRow({ art, title, sub, lead, right, onClick, tone, selected, l
   );
 }
 
-export function PhTabs<T extends string>({ tabs, value, onChange, label, onLocked }: {
+export function PhTabs<T extends string>({ tabs, value, onChange, label, onLocked, onLockedHover }: {
   /** `reason`: the tab is locked; it stays focusable, says why on hover (the game's tip) and on a press (`onLocked`). */
   tabs: readonly { id: T; label: ReactNode; count?: number; disabled?: boolean; reason?: string }[]; value: T; onChange: (id: T) => void; label: string;
   onLocked?: (id: T, reason: string) => void;
+  /** Hovering a locked tab (null on leaving): for a row that shows the reason in its own line. The tab row scrolls, so the
+   *  game's `data-tip` bubble is clipped inside it. */
+  onLockedHover?: (reason: string | null) => void;
 }) {
   return (
     <div className="phk-tabs" role="tablist" aria-label={label}>
       {tabs.map((t) => (
         <button key={t.id} type="button" role="tab" aria-selected={t.id === value} disabled={t.disabled} aria-disabled={t.reason ? true : undefined}
           data-tip={t.reason} className={cx('phk-tab', t.id === value && 'on', t.reason && 'locked gtip')}
+          onPointerEnter={t.reason && onLockedHover ? () => onLockedHover(t.reason!) : undefined} onPointerLeave={t.reason && onLockedHover ? () => onLockedHover(null) : undefined}
           onClick={() => { if (t.reason) { onLocked?.(t.id, t.reason); return; } if (t.id !== value) onChange(t.id); }}>
           {t.label}
           {t.count ? <span className="phk-count">{t.count}</span> : null}
@@ -292,7 +296,12 @@ export function PhDialog({ eyebrow, title, children, actions, onClose, closing, 
   }, []);
   return (
     <div className={cx('phk-dialog', closing && 'closing')} role="dialog" aria-modal="true" aria-label={label}>
-      <div className="phk-veil" onClick={onClose} aria-hidden="true" />
+      {/* A tap outside while a field is being typed in only ends the typing; it never throws the window away. */}
+      <div className="phk-veil" aria-hidden="true" onClick={() => {
+        const el = document.activeElement;
+        if (el instanceof HTMLInputElement) { el.blur(); return; }
+        onClose?.();
+      }} />
       <div className="phk-dlgbox">
         {eyebrow && <span className="phk-eyebrow">{eyebrow}</span>}
         <h2 className="phk-dlgtitle">{title}</h2>

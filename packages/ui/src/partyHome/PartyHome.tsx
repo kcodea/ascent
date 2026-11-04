@@ -29,7 +29,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { levelProgress } from '@game/progression';
-import { defaultTeamName, LEARN_ASCENT, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
+import { defaultTeamName, LEARN_ASCENT, TEAM_NAME_MAX, teamNameProblem, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
 import { heroThumb, modeArt } from '../art';
 import { isPhone } from '../deviceClass';
 import { Icon } from '../Icon';
@@ -64,6 +64,7 @@ import { partyModeOf, partyModes, readPartyMode, rememberPartyMode, type PartyMo
 import { setPartyDemo, usePartyDemo } from './partyHomeFlag';
 import { SAMPLE_MATE_ID, sampleFriends, sampleHeroes } from './sample';
 import { playerVersusError } from './versusCopy';
+import { versusModifierName } from '../versus/versusOptionsUi';
 import './partyHome.css';
 
 /** One banner card's contents. */
@@ -224,6 +225,8 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     case 'learn': onStart = () => startTutorial(LEARN_ASCENT); break;
   }
 
+  // A Versus error reads in the note slot beside START (never a pill against its frame).
+  if (vsError) note = playerVersusError(vsError);
   // A saved game waiting: Start asks first (Ranked's own confirmation already names it).
   if (savedRun && (mode.id === 'practice' || mode.id === 'gauntlet' || mode.id === 'learn')) {
     const go = onStart;
@@ -312,8 +315,17 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       menuOpen={menuFor === m.key} onToggleMenu={() => { sfx.pulse(); setMenuFor((k) => (k === m.key ? null : m.key)); }}
       menu={cardMenu(m)} onPick={(run) => { sfx.pulse(); setMenuFor(null); run(); }} />
   ));
-  const pendingNames = demo ? sampleInvites.map((id) => sampleFriends().find((f) => f.userId === id)?.author ?? 'Friend') : [];
-  for (let i = 0; i < open; i++) cards.push(<OpenSeat key={`open-${i}`} i={members.length + i} onOpen={onOpenSeat} pending={pendingNames[i] ?? null} />);
+  const pending = demo ? sampleInvites.map((id) => sampleFriends().find((f) => f.userId === id)).filter((f): f is Friend => !!f) : [];
+  for (let i = 0; i < open; i++) {
+    const p = pending[i];
+    cards.push(p
+      ? <PhBanner key={`open-${i}`} index={members.length + i} className="pending" art={heroThumb(heroPortrait(p.favoriteHero, null))} label={`${p.author ?? 'Friend'}, invited`}>
+          <PhBannerName>{p.author ?? 'Friend'}</PhBannerName>
+          <span className="ph-rank"><span className="ph-muted">Invited</span></span>
+          <PhBannerState tone="in_game">Waiting</PhBannerState>
+        </PhBanner>
+      : <OpenSeat key={`open-${i}`} i={members.length + i} onOpen={onOpenSeat} pending={null} />);
+  }
   // VERSUS DUOS: two pairs (your team, the rivals), split by the VS mark.
   const row: JSX.Element[] = mode.id === 'versus' && cards.length === 2
     ? [cards[0]!, <span key="vs" className="ph-vs" aria-hidden="true">VS</span>, cards[1]!]
@@ -383,6 +395,12 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       <main className="ph-stage" key={enterKey}>
         {/* The head slot: always the same height (the team plate, a saved game, a held room), so the banners never move. */}
         <div className="ph-stagehead">
+        {!teamLabel && mode.party === 'rivals' && (
+          <div className="ph-team">
+            <span className="ph-teamlbl">Unranked room</span>
+            <span className="ph-teamname">{modifier ? versusRuleName(modifier) : 'Usual rules'}</span>
+          </div>
+        )}
         {teamLabel && (
           <div className="ph-team">
             <span className="ph-teamlbl">Your team</span>
@@ -412,7 +430,6 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
         </div>
         <div className={`ph-cards n${slots}${mode.id === 'vduos' ? ' vs' : ''}`} key={mode.id}>{row}</div>
         {actions}
-        {vsError && <div className="ph-err" role="alert">{playerVersusError(vsError)}</div>}
       </main>
 
       {!phone && side}
@@ -421,7 +438,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       {menuFor && <div className="ph-menucatch" aria-hidden="true" onPointerDown={() => setMenuFor(null)} />}
       {pickerOpen && <InvitePicker onClose={() => setPickerOpen(false)} />}
       {nameOpen && duosRoom && <TeamNamePanel room={duosRoom} me={me} name={teamName} onSaved={setTeamName} onClose={() => setNameOpen(false)} />}
-      {nameOpen && !duosRoom && demo && <SampleRename name={teamLabel ?? ''} onSave={(n) => { setDemoTeam(n || null); setNameOpen(false); }} onClose={() => setNameOpen(false)} />}
+      {nameOpen && !duosRoom && demo && <SampleRename name={demoTeam} fallback={defaultTeamName(members[0]!.name, 'Mike')} onSave={(n) => { setDemoTeam(n || null); setNameOpen(false); }} onClose={() => setNameOpen(false)} />}
       {confirmOverwrite && savedRun && (
         <PhDialog label="Replace your saved game?" eyebrow="Saved game" title="Start a new game?" onClose={() => setConfirmOverwrite(null)}
           actions={<>
@@ -451,6 +468,9 @@ function ModeLabel({ id, label }: { id: PartyModeId; label: string }): JSX.Eleme
 }
 
 /** Versus: host a room, set its rules, then show the room screen. A failure stays on the home and says why. */
+/** A Versus rule's name (the room's modifier). */
+function versusRuleName(id: VersusModifierId): string { return versusModifierName(id); }
+
 /** A saved run's mode, in player words. */
 function savedRunMode(run: { mode?: string } | null | undefined): string {
   const m = run?.mode;
@@ -458,15 +478,25 @@ function savedRunMode(run: { mode?: string } | null | undefined): string {
 }
 
 /** The sample party's Rename: a small window with the team name field (DEV, no server). */
-function SampleRename({ name, onSave, onClose }: { name: string; onSave: (n: string) => void; onClose: () => void }): JSX.Element {
-  const [v, setV] = useState(name);
+const NAME_PROBLEM: Record<string, string> = {
+  name_length: 'A team name is 2 to 16 characters.',
+  name_chars: 'Use letters, numbers and single spaces only.',
+};
+/** The sample party's Rename: the server's own rule (teamNameProblem), Enter saves, an empty field keeps the default. */
+function SampleRename({ name, fallback, onSave, onClose }: { name: string | null; fallback: string; onSave: (n: string) => void; onClose: () => void }): JSX.Element {
+  const [v, setV] = useState(name ?? '');
+  const problem = v.trim() ? teamNameProblem(v) : null;
+  const save = (): void => { if (problem) return; sfx.pulse(); onSave(v.trim()); };
   return (
-    <PhDialog label="Team name" eyebrow="Your team" title="Team name" onClose={onClose}
+    <PhDialog label="Team name" title="Team name" onClose={onClose}
       actions={<>
-        <PhButton variant="primary" size="l" onClick={() => { sfx.pulse(); onSave(v.trim()); }}>Save</PhButton>
+        <PhButton variant="primary" size="l" disabled={!!problem} onClick={save}>Save</PhButton>
         <PhButton size="l" onClick={() => { sfx.pulse(); onClose(); }}>Cancel</PhButton>
       </>}>
-      <PhField label="Name" value={v} maxLength={16} autoFocus onChange={(e) => setV(e.target.value)} hint="2 to 16 letters or numbers. Either teammate can rename between games." />
+      <form onSubmit={(e) => { e.preventDefault(); save(); }}>
+        <PhField label="Name" value={v} placeholder={fallback} maxLength={TEAM_NAME_MAX} autoFocus onChange={(e) => setV(e.target.value)}
+          error={problem ? NAME_PROBLEM[problem] : undefined} hint="Leave it empty to use your two names. Either teammate can rename between games." />
+      </form>
     </PhDialog>
   );
 }

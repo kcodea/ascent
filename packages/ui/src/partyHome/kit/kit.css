@@ -336,3 +336,15 @@
 
 /* The preview flipped to the list's left (no room on the right): it hangs off the list's left edge. */
 .phk-selectwrap.pv-left > .phk-selpreview { position: absolute; top: 0; right: calc(100% + 12px); }
+
+/* ROUND 5 */
+/* ONE PAGE HEADER: the same height and baseline on every page under the shell. */
+.phk-pagehead { flex: none; box-sizing: border-box; height: calc(96 * var(--phu)); align-items: flex-end; }
+.phk-pagehead > * { align-self: flex-end; }
+/* The big Sandbox | God Mode switch: the same pill size as every other option. */
+.phk-seg.s-l .phk-segbtn { height: calc(36 * var(--phu)); font-size: var(--ph-t2); }
+.phk-segrow { grid-template-columns: repeat(auto-fill, minmax(calc(72 * var(--phu)), 1fr)); }
+/* Touch: pills, tabs and options are comfortable targets. */
+html[data-ph-compact] :is(.phk-segbtn, .phk-chip.phk-tchip, .phk-select, .phk-search, .phk-back) { min-height: calc(64 * var(--phu)); }
+html[data-ph-compact] .phk-tab { min-height: calc(72 * var(--phu)); }
+html[data-ph-compact] .phk-btn.s-m { height: calc(64 * var(--phu)); }

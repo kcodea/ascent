@@ -285,8 +285,3 @@ html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody { scrollbar-c
 html[data-ph-shell]:not([data-ph-compact]) :is(.phpn-index, .phpn-feed, .rgp-listwrap, .rgp-detailcol, .phc-side, .phc-view, .bookguides) { padding-right: calc(6 * var(--phu)); }
 /* The old corner gear never takes focus behind the rail: Settings is in the nav. */
 html[data-ph-shell] .gearbtn { display: none; }
-/* THE CROSSFADE (phSwap.ts): the old page's snapshot fades out on top of the live new page; the layer takes no presses. */
-::view-transition { pointer-events: none; }
-::view-transition-old(root) { z-index: 1; animation: phk-swap-out 0.14s ease-out both; mix-blend-mode: normal; }
-::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
-@keyframes phk-swap-out { to { opacity: 0; } }

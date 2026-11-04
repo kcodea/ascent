@@ -21,7 +21,6 @@ import { useHasNewRewards } from '../../progression/NewRewardsPopup';
 import { sfx } from '../../sfx';
 import { useGame, type MenuDest } from '../../store';
 import { getTitleText } from '../../titleTextConfig';
-import { phSwap } from './phSwap';
 import { warmPhPages } from './phWarm';
 import { Icon } from '../../Icon';
 import { leaveCrates, openCrates, setFriendsOpen, toggleFriends, usePhShell, pulseFriends } from './shellStore';
@@ -71,21 +70,24 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
     { dest: 'live', label: 'Live Games', icon: medal('live') },
     { dest: 'patchnotes', label: 'Patch Notes', icon: medal('patchnotes') },
   ];
+  // A press changes the page in the click itself, never waiting on a frame (no view transition: its update waits for a
+  // rendering opportunity, and it cost frames: 2026-11-04).
   const hop = (dest: PageDest | 'crates' | 'settings'): void => {
     setFriendsOpen(false); // a page switch closes the friends drawer
     if (dest === 'crates') {
       // Crates: the Collection page on its crate shop (a press on Collection's page switches it there too).
       if (current === 'crates') return;
-      sfx.pulse();
-      phSwap(() => { if (showBook) closeBook(); openCrates(); if (given !== 'collection') goTo('collection'); });
+      sfx.pulse(); if (showBook) closeBook(); openCrates(); if (given !== 'collection') goTo('collection');
       return;
     }
     if (dest === current) return;
     sfx.pulse();
-    phSwap(() => { if (showBook) closeBook(); leaveCrates(); goTo(dest); });
+    if (showBook) closeBook();
+    leaveCrates();
+    goTo(dest);
   };
-  const toHome = (): void => { setFriendsOpen(false); if (atHome) return; sfx.pulse(); phSwap(() => { if (showBook) closeBook(); leaveCrates(); goTo('menu'); }); };
-  const onBook = (): void => { setFriendsOpen(false); if (current === 'compendium') return; sfx.pulse(); phSwap(() => toggleBook()); };
+  const toHome = (): void => { setFriendsOpen(false); if (atHome) return; sfx.pulse(); if (showBook) closeBook(); leaveCrates(); goTo('menu'); };
+  const onBook = (): void => { setFriendsOpen(false); if (current === 'compendium') return; sfx.pulse(); toggleBook(); };
   useEffect(() => { warmPhPages(); }, []);
 
   return (

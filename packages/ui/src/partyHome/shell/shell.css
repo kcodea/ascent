@@ -302,7 +302,7 @@ html[data-ph-shell] .gearbtn { display: none; }
 html[data-ph-shell] :is(.lbpage, .modepick, .ph, .ph-booknav) .ph-top { visibility: hidden; }
 /* Labels wear the game's cursor; a text field keeps the I-beam, in the gauntlet form. */
 html[data-ph-shell] :is(.phk-field, .phk-seglbl, .ph-fadd) { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
-html[data-ph-shell] :is(.ph-finput, .phk-fieldinput) { cursor: url('/cursors/gauntlet_default.svg') 6 2, text; }
+html[data-ph-shell] :is(.ph-finput, .phk-fieldinput, .phk-search, input[type="text"], input[type="search"], textarea) { cursor: url('/cursors/gauntlet_default.svg') 6 2, text; }
 
 
 /* PHONE NAV: every label whole with the Aether and Level pills up: the tabs sit tight and the wallet gives up its slack. */

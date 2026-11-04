@@ -383,13 +383,25 @@ html[data-ph-compact] .ph-cards { padding-top: calc(48 * var(--phu)); }
 .ph-desc.locked { font-weight: 700; }
 
 /* PHONE: nothing under calc(18 * var(--phu)), nothing against the edge. */
-html[data-ph-compact] .ph-name { font-size: max(calc(23 * var(--phu)), min(calc(24 * var(--phu)), 9.5cqi)); }
+/* A name fits by its length: about 0.58em a letter across 88% of the banner, with the 11px floor. */
+.ph-name { font-size: min(var(--ph-t4), 9cqi, calc(150cqi / var(--nl, 1))); }
+html[data-ph-compact] .ph-name { font-size: max(calc(18 * var(--phu)), min(calc(24 * var(--phu)), calc(150cqi / var(--nl, 1)))); font-weight: 800; letter-spacing: -0.02em; }
 html[data-ph-compact] :is(.ph-rank, .ph-sub, .ph-state, .ph-openlbl, .ph-opensub, .ph-lead, .ph-note, .ph-teamlbl) { font-size: max(calc(18 * var(--phu)), var(--ph-t1)); }
 html[data-ph-compact] .ph-rank, html[data-ph-compact] .ph-rank:has(.ph-muted) { height: calc(36 * var(--phu)); padding-top: 0; padding-bottom: 0; }
-html[data-ph-compact] .ph-rank .rankcrest { --ring: calc(30 * var(--phu)); }
+html[data-ph-compact] .ph-rank .rankcrest { --ring: calc(22 * var(--phu)); flex: none; }
+html[data-ph-compact] .ph-rank { font-weight: 700; letter-spacing: -0.02em; }
+/* The medal chip stays one line on a narrow banner. */
+.ph-rank > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+html[data-ph-compact] .ph-rank, html[data-ph-compact] .ph-rank:has(.ph-muted) { max-width: 100%; gap: calc(4 * var(--phu)); padding-left: calc(2 * var(--phu)); padding-right: calc(8 * var(--phu)); }
+html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { padding-left: calc(6 * var(--phu)); padding-right: calc(6 * var(--phu)); }
+html[data-ph-compact] .ph-state { margin-left: calc(-6 * var(--phu)); margin-right: calc(-6 * var(--phu)); }
+/* The Versus stands strip sits just over START: the banners stop short of it. */
+html[data-ph-compact] .ph-stage:has(.vsr-stands) .ph-cards { padding-top: calc(64 * var(--phu)); padding-bottom: calc(28 * var(--phu)); }
 html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { gap: calc(3 * var(--phu)); padding-bottom: calc(6 * var(--phu)); }
 html[data-ph-compact] .ph-cancelinv { min-height: calc(64 * var(--phu)); bottom: 18%; font-size: calc(18 * var(--phu)); }
 html[data-ph-compact] .ph-modes .phk-tabs { padding-right: calc(96 * var(--phu)); scroll-padding-right: calc(96 * var(--phu)); }
 html[data-ph-compact] .ph-cards { padding-top: calc(80 * var(--phu)); }
 html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 20 * var(--phu)); }
 html[data-ph-compact] .ph-stagehead { top: calc(10 * var(--phu)); }
+/* A phone's banners are short, so they stand wider: a name and a long medal ("Ascendant II") read whole at 11px. */
+html[data-ph-compact] .ph-cards .ph-cardwrap:not(.standalone) { aspect-ratio: 0.72; }

@@ -9,13 +9,14 @@ import { PhTopNav, type PhNavCurrent } from './PhTopNav';
 
 function useCurrent(): PhNavCurrent {
   return useGame((s) => {
-    if (s.showCareer) return 'career';
-    if (s.showCollection) return 'collection';
-    if (s.showRankings) return 'rankings';
-    if (s.showRecentGames) return 'recent';
-    if (s.showLiveGames) return 'live';
-    if (s.showPatchNotes) return 'patchnotes';
+    // The page on top, in the order they stack. Someone else's Career lights nothing.
     if (s.settingsOpen) return 'settings';
+    if (s.showPatchNotes) return 'patchnotes';
+    if (s.showCollection) return 'collection';
+    if (s.showCareer) return s.careerOf ? null : 'career';
+    if (s.showLiveGames) return 'live';
+    if (s.showRecentGames) return 'recent';
+    if (s.showRankings) return 'rankings';
     return anyPageOpen(s) ? null : 'home';
   });
 }

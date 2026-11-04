@@ -378,10 +378,10 @@ html[data-ph-shell][data-ph-compact] .phk-page .phc-rail { overflow-y: hidden; t
 html[data-ph-shell][data-ph-compact] .phk-page .phc-cat { min-height: calc(72 * var(--phu)); }
 html[data-ph-shell][data-ph-compact] .phk-page .phc-main { min-height: auto; }
 html[data-ph-shell][data-ph-compact] .phk-page .phc-gridwrap { flex: none; overflow: visible; padding-bottom: calc(8 * var(--phu)); }
-html[data-ph-shell][data-ph-compact] .phk-page .phc-side { position: sticky; top: 0; align-self: start; max-height: calc(var(--ph-h, 100vh) - var(--ph-nav-h) - 80 * var(--phu)); overflow-y: auto; touch-action: pan-y; }
+html[data-ph-shell][data-ph-compact] .phk-page .phc-side { position: sticky; top: 0; align-self: start; max-height: calc(var(--ph-h, var(--lvh, 100vh)) - var(--ph-nav-h) - 80 * var(--phu)); overflow-y: auto; touch-action: pan-y; }
 /* Compendium: a slim filter row (the counts chart and the sub line give way to the cards), then the card window owns the rest. */
 html[data-ph-shell][data-ph-compact] .phk-page .phc-sub, html[data-ph-shell][data-ph-compact] .phk-page .book-chart, html[data-ph-shell][data-ph-compact] .phk-page .book-tiers-div { display: none; }
-html[data-ph-shell][data-ph-compact] .phk-page .phc-book { flex: none; height: calc(var(--ph-h, 100vh) - var(--ph-nav-h) - 80 * var(--phu)); gap: calc(8 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-page .phc-book { flex: none; height: calc(var(--ph-h, var(--lvh, 100vh)) - var(--ph-nav-h) - 80 * var(--phu)); gap: calc(8 * var(--phu)); }
 html[data-ph-shell][data-ph-compact] .phk-page .book-tiers { flex-wrap: nowrap; min-height: 0; overflow-x: auto; scrollbar-width: none; padding: calc(4 * var(--phu)) calc(8 * var(--phu)); }
 html[data-ph-shell][data-ph-compact] .phk-page :is(.book-tier, .book-zoom-btn) { min-width: calc(64 * var(--phu)); min-height: calc(64 * var(--phu)); }
 html[data-ph-shell][data-ph-compact] .phk-page :is(.book-gilded, .book-setpick-btn, .book-kwchip, .book-runetribe, .book-search) { min-height: calc(64 * var(--phu)); flex: none; }

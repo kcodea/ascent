@@ -18,7 +18,7 @@ import { useSpectate } from './spectate';
 import { duosCombatAt, type DuosCombatNow } from './versusGroupView';
 import { duosReleaseCombatFx } from './duosPasses';
 import { localMate } from './localMate';
-import { noteTeamSendSources } from './passLob';
+import { noteTeamSendSources, playEntryFlight } from './passLob';
 import { useGame } from '../store';
 
 /**
@@ -76,4 +76,19 @@ export function useDuosCombatSync(combat: CombatResult | undefined, events: read
     noteTeamSendSources(useGame.getState().run.wave, events, processedEnd, combat.duosMember ?? 0);
     duosReleaseCombatFx(idx);
   }, [combat, events, processedEnd, fighting, viewer, hasSends]);
+  // THE STANDS SEE THE FIGHT'S GIFTS (owner report 2026-11-02: "im spectating and antsy died and i didnt see the pass
+  // animation"; R-SPECTATE-DUOS-PASS-01): a spectator ships nothing, but the watched run carries the same held entries,
+  // so each streams from the unit that sent it on the same `teamSend` beat of this screen's replay, as the player's did.
+  // Keyed on the watched run's own held gifts (the fight's result row may not carry the carry list), one boolean.
+  const watchedGifts = useGame((s) => !viewer && !!watched && fighting && !!s.run.duos?.outbox.some((e) => e.combatIdx != null && e.wave === s.run.wave));
+  useEffect(() => {
+    if (!fighting || !combat || viewer || !watched || localMate() || !watchedGifts) return;
+    const idx = teamSendsReached(events, processedEnd, combat.duosMember ?? 0);
+    if (idx.length === 0) return;
+    const run = useGame.getState().run;
+    noteTeamSendSources(run.wave, events, processedEnd, combat.duosMember ?? 0);
+    for (const e of run.duos?.outbox ?? []) {
+      if (e.wave === run.wave && e.combatIdx != null && idx.includes(e.combatIdx)) playEntryFlight(e, run, run.runId);
+    }
+  }, [combat, events, processedEnd, fighting, viewer, watched, watchedGifts]);
 }

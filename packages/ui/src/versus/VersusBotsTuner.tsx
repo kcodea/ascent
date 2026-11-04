@@ -256,6 +256,12 @@ export function VersusBotsTuner(): JSX.Element {
             <span className="duostuner-line">Passing back: a card your teammate passed can go straight back (1 Gold). Hand cards only.</span>
           </Section>
 
+          <Section title="Ready up">
+            <Btn label="Teammate ends turn" hint="Your bot teammate ends its turn now (the green ready slam on its rail card)"
+              disabled={!mate || match!.phase !== 'shop' || mate.lockedFor === match!.round}
+              run={() => { if (mate) { mate.lockNow = true; tunerNote('Your teammate is ending their turn.'); } }} />
+          </Section>
+
           <Section title="Teammate view">
             <Btn label="Watch teammate" hint="Swap to your teammate's live screen" run={() => enterTeammateView()} />
             <Btn label="Back to my board" hint="Swap back" run={() => exitTeammateView()} />

@@ -57,13 +57,13 @@ import { withAbandonWarning } from '../rank/ratedRun';
 import { PhTopNav } from './shell/PhTopNav';
 import { PhBackdrop } from './shell/PhBackdrop';
 import { PhFriends } from './shell/PhFriends';
-import { addSampleInvite, clearSampleInvites, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
+import { addSampleInvite, clearSampleInvites, removeSampleInvite, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
 import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhField, PhLeaderBadge, PhTabs, phNum } from './kit';
 import { GauntletPanel, PracticePanel, VersusPanel, stagePlayable, useGauntletStages } from './ModeOptions';
 import { partyModeOf, partyModes, readPartyMode, rememberPartyMode, type PartyMode, type PartyModeId } from './partyModes';
 import { setPartyDemo, usePartyDemo } from './partyHomeFlag';
 import { SAMPLE_MATE_ID, sampleFriends, sampleHeroes } from './sample';
-import { playerVersusError } from './versusCopy';
+import { playerVersusError, useVersusDown } from './versusCopy';
 import { versusModifierName } from '../versus/versusOptionsUi';
 import './partyHome.css';
 
@@ -225,8 +225,15 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
     case 'learn': onStart = () => startTutorial(LEARN_ASCENT); break;
   }
 
-  // A Versus error reads in the note slot beside START (never a pill against its frame).
-  if (vsError) note = playerVersusError(vsError);
+  // THE SERVER LINE: its own line under the mode's note, so the mode's hint always shows. Only on the modes that use the
+  // Versus server, cleared on a mode change and on recovery (a stale error never follows you to another mode).
+  const usesServer = mode.party === 'rivals' || mode.id === 'duos';
+  const vsDown = useVersusDown(usesServer && !demo);
+  const serverName = mode.id === 'duos' ? 'Ranked Duos' : 'Versus';
+  const vsCopy = usesServer ? playerVersusError(vsError) : null;
+  const issue = vsDown ? `${serverName} is offline right now.` : vsCopy;
+  // A phone has no line under the tabs: a locked tab's reason reads here.
+  if (phone && lockNote) note = lockNote;
   // A saved game waiting: Start asks first (Ranked's own confirmation already names it).
   if (savedRun && (mode.id === 'practice' || mode.id === 'gauntlet' || mode.id === 'learn')) {
     const go = onStart;
@@ -274,6 +281,8 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   useEffect(() => { if (!phone) setFriendsOpen(false); }, [phone]);
   // A fresh mode clears the open-seat note.
   useEffect(() => { setSeatNote(null); setMenuFor(null); setPickerOpen(false); setSideTab(partyModeOf(modeId).options ? 'settings' : 'friends'); }, [modeId]);
+  // A Versus error belongs to the press that made it: a new mode, or leaving the party, starts clean.
+  useEffect(() => { if (useVersus.getState().error) useVersus.setState({ error: null }); }, [modeId, inParty]);
   useEffect(() => { if (!demo) clearSampleInvites(); }, [demo]);
   // Esc closes an open card menu first (and only it).
   useEffect(() => {
@@ -307,9 +316,9 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
         ...(m.userId ? [{ label: 'View Career', run: () => goTo('career') }] : []),
       ].filter((it) => !!it.run));
 
-  // The state strip: on the others' cards (yours only when in a game). In a party your card keeps an empty strip, so
-  // every name and medal line sits at the same height across the cards.
-  const stateOf = (m: Member): 'show' | 'space' | 'none' => (!m.self || m.state === 'in_game' ? 'show' : members.length > 1 ? 'space' : 'none');
+  // The state strip: on the others' cards (yours only when in a game). Your card always keeps the empty strip: ONE foot
+  // layout, so the name and medal never move when someone joins.
+  const stateOf = (m: Member): 'show' | 'space' => (!m.self || m.state === 'in_game' ? 'show' : 'space');
   const cards: JSX.Element[] = members.map((m, i) => (
     <BannerCard key={m.key} m={m} i={i} phone={phone} leader={showLeader && m.leader} showState={stateOf(m)} rival={mode.party === 'rivals' && !m.self && mode.id !== 'vduos'}
       menuOpen={menuFor === m.key} onToggleMenu={() => { sfx.pulse(); setMenuFor((k) => (k === m.key ? null : m.key)); }}
@@ -319,10 +328,12 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   for (let i = 0; i < open; i++) {
     const p = pending[i];
     cards.push(p
-      ? <PhBanner key={`open-${i}`} index={members.length + i} className="pending" art={heroThumb(heroPortrait(p.favoriteHero, null))} label={`${p.author ?? 'Friend'}, invited`}>
+      ? <PhBanner key={`open-${i}`} index={members.length + i} className="pending" art={heroThumb(heroPortrait(p.favoriteHero, null))} label={`${p.author ?? 'Friend'}, invited`}
+          overlay={<button type="button" className="ph-cancelinv" onClick={() => { sfx.pulse(); removeSampleInvite(p.userId); }}>Cancel</button>}>
           <PhBannerName>{p.author ?? 'Friend'}</PhBannerName>
           <span className="ph-rank"><span className="ph-muted">Invited</span></span>
-          <PhBannerState tone="in_game">Waiting</PhBannerState>
+          <span className="ph-sub">{'\u00a0'}</span>
+          <PhBannerState tone="space" />
         </PhBanner>
       : <OpenSeat key={`open-${i}`} i={members.length + i} onOpen={onOpenSeat} pending={null} />);
   }
@@ -352,7 +363,12 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       <div className="ph-side ph-side-r">
         {/* On a phone the side panel is a drawer: the mode's settings are one press from START. */}
         {phone && mode.options && <PhButton size="s" onClick={() => { sfx.pulse(); setSideTab('settings'); setFriendsOpen(true); }}>{mode.id === 'practice' ? 'Practice' : mode.id === 'gauntlet' ? 'Stages' : 'Rules'}</PhButton>}
-        {note && <span className="ph-note" role="status">{note}</span>}
+        {(note || issue) && (
+          <span className="ph-notes" role="status">
+            {note && <span className="ph-note">{note}</span>}
+            {issue && <span className="ph-note ph-issue">{issue}</span>}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -388,8 +404,8 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
       <div className="ph-modes">
         <PhTabs label="Mode" value={modeId} onChange={pick} onLocked={(_id, reason) => { sfx.deny(); setLockNote(reason); }}
           tabs={modes.map((m) => ({ id: m.id, label: <ModeLabel id={m.id} label={m.label} />, reason: lockReason(m) ?? undefined }))} />
-        <span className="ph-desc">{mode.desc}</span>
-        {lockNote && <span key={lockNote} className="ph-toast" role="status">{lockNote}</span>}
+        {/* A locked tab's reason takes the description's own line for a moment: it never covers the stage. */}
+        <span className={`ph-desc${lockNote ? ' locked' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? mode.desc}</span>
       </div>
 
       <main className="ph-stage" key={enterKey}>
@@ -523,7 +539,7 @@ function InvitePicker({ onClose }: { onClose: () => void }): JSX.Element {
 /** A member's tall banner card: the portrait fading into navy, then name, medal, title or level, and (others) the state.
  *  Pressing it opens its small menu. */
 function BannerCard({ m, i, phone, leader, showState, rival, menuOpen, onToggleMenu, menu, onPick }: {
-  m: Member; i: number; phone: boolean; leader: boolean; showState: 'show' | 'space' | 'none'; rival?: boolean; menuOpen: boolean; onToggleMenu: () => void;
+  m: Member; i: number; phone: boolean; leader: boolean; showState: 'show' | 'space'; rival?: boolean; menuOpen: boolean; onToggleMenu: () => void;
   menu: { label: string; run?: () => void; soon?: boolean }[]; onPick: (run: () => void) => void;
 }): JSX.Element {
   const art = phone ? heroThumb(m.art) : m.art;
@@ -546,9 +562,7 @@ function BannerCard({ m, i, phone, leader, showState, rival, menuOpen, onToggleM
                 ? <><RankCrest divisionIndex={m.rank.divisionIndex} size="mini" hideDivision /><span>{m.rank.label}</span></>
                 : <span className="ph-muted">{m.self ? 'Unranked' : 'Medal not shown'}</span>}
             </span>
-            {(m.titleId || m.level != null) && (
-              <span className="ph-sub">{m.titleId ? <TitleBadge id={m.titleId} className="ph-titlebadge" /> : `Level ${m.level}`}</span>
-            )}
+            <span className="ph-sub">{m.titleId ? <TitleBadge id={m.titleId} className="ph-titlebadge" /> : m.level != null ? `Level ${m.level}` : '\u00a0'}</span>
             {showState === 'show' && <PhBannerState tone={m.state}>{m.state === 'in_game' ? 'In game' : 'Ready'}</PhBannerState>}
             {showState === 'space' && <PhBannerState tone="space" />}
     </PhBanner>

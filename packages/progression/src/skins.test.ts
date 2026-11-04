@@ -17,7 +17,7 @@ afterEach(() => setServerCatalogState(null));
 
 const skins = COSMETICS.filter((c) => c.category === 'hero_skin' || c.category === 'minion_skin');
 
-describe('the one hundred and sixty-eight skins', () => {
+describe('the one hundred and seventy-six skins', () => {
   // 2026-09-28: a third Black Belt Brian (Legendary) joined; owner: "i added a legendary black belt brian skin and
   // renaemd skins to match their rarity" (masters renamed SkinRare / SkinEpic / SkinLegendary; ids unchanged); then
   // "put the bellringer voss skin in too" (an Epic for Bellringer Voss). Then skins batch 2: "i added some skins here:
@@ -40,7 +40,7 @@ describe('the one hundred and sixty-eight skins', () => {
   // Then skins batch 11 (2026-10-26): "i just added a ton of new images to the art folder ... IMPORT them into
   // collections" (22 minion skins at their folder rarity, nearly all Set 2 Beasts: the Plushie line, Frostclaw,
   // Stoneclaw, Pinata Claw, Stormhorn, Snowyhorn, Solar Spots, Voidworks, Cyborg Roomworks).
-  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2 to 13, and the hero skins; crate items with art keys and attributed masters', () => {
+  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2 to 14, and the hero skins; crate items with art keys and attributed masters', () => {
     expect(skins.map((c) => [c.id, c.category, c.target, c.rarity])).toEqual([
       ['skin_blackbelt_1', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'common'],
       ['skin_blackbelt_2', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'epic'],
@@ -213,6 +213,15 @@ describe('the one hundred and sixty-eight skins', () => {
       ['skin_gourmand_3', 'minion_skin', { type: 'card', id: 'dm_gourmand' }, 'legendary'],
       ['skin_chronos_4', 'minion_skin', { type: 'card', id: 'chronos' }, 'ancient'],
       ['skin_tapkeeper_3', 'minion_skin', { type: 'card', id: 'dw_tapkeeper' }, 'ancient'],
+      // skins batch 14 (2026-11-02): "i added new cosmetics to the minions folder"
+      ['skin_kobabyboldies_1', 'minion_skin', { type: 'card', id: 'k_kobabyboldies' }, 'common'],
+      ['skin_kobabyboldies_2', 'minion_skin', { type: 'card', id: 'k_kobabyboldies' }, 'rare'],
+      ['skin_todd_1', 'minion_skin', { type: 'card', id: 'dm_todd' }, 'rare'],
+      ['skin_velvet_1', 'minion_skin', { type: 'card', id: 'dm_velvet' }, 'rare'],
+      ['skin_humphry_1', 'minion_skin', { type: 'card', id: 'd2_humphry' }, 'rare'],
+      ['skin_cinderchef_1', 'minion_skin', { type: 'card', id: 'd2_cinderchef' }, 'rare'],
+      ['skin_chef_1', 'minion_skin', { type: 'card', id: 'dw_chef' }, 'rare'],
+      ['skin_drunkdaniel_1', 'minion_skin', { type: 'card', id: 'dw_drunkdaniel' }, 'epic'],
     ]);
     for (const c of skins) {
       expect(c.acquisition).toEqual({ type: 'crate' });

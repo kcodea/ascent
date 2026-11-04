@@ -539,7 +539,9 @@ describe('RecentGames — layout B: the game list + the selected game in full (o
     await flush();
     await flush();
     expect(ui.container.querySelectorAll('.gs-detail .lp-tile')).toHaveLength(8);
-    expect(ui.container.querySelector('.lp-showing-v')?.textContent).toBe('Your board');
+    // Nadja's game, not the viewer's: her seat is her name, never "You" (R-LOBBY-PICKER-VIEWER-01).
+    expect(ui.container.querySelector('.lp-showing-v')?.textContent).toBe("Nadja's board");
+    expect(Array.from(ui.container.querySelectorAll('.gs-detail .lp-chip-name'), (n) => n.textContent)).not.toContain('You');
   });
 
   it('Up / Down on the list move the selection', () => {

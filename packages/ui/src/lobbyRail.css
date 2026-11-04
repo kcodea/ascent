@@ -126,7 +126,7 @@
   grid-column: 2; grid-row: 2; justify-self: start; transform: none; min-width: 0;
 }
 :root:not([data-lobby-rail="classic"]) .lobbyhp { font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.45) * 1.42); line-height: 1.1; }
-:root:not([data-lobby-rail="classic"]) .lobbyhp > svg { width: 0.9em; height: 0.9em; }
+:root:not([data-lobby-rail="classic"]) .lobbyhp > :is(svg, .healthmedal) { width: 0.9em; height: 0.9em; }
 :root:not([data-lobby-rail="classic"]) .lobbyplace { font-size: calc(11 * var(--lfont) * var(--lby-hp-size, 1.45) * 1.1); }
 
 /* ── Seats: the paint ──────────────────────────────────────────────────────────────────────────────────────── */
@@ -181,7 +181,7 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(0, 0, 0, 0.2);
   color: var(--ui-armor-ink); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
-:root:not([data-lobby-rail="classic"]) .lobbyarmor svg { width: 0.95em; height: 0.95em; color: var(--ui-armor-icon); }
+:root:not([data-lobby-rail="classic"]) .lobbyarmor :is(svg, .armormedal) { width: 0.95em; height: 0.95em; color: var(--ui-armor-icon); }
 
 /* ── Health bar: a clean bar across the row under the stats, at 80% of Classic's thickness. ───────────────────── */
 :root:not([data-lobby-rail="classic"]) .lobbybar {
@@ -247,7 +247,7 @@
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 -2px 6px -3px rgba(0, 0, 0, 0.5);
 }
-.lobbyrailhead .lobbymax svg { width: 1.05em; height: 1.05em; color: var(--ui-heart); }
+.lobbyrailhead .lobbymax :is(svg, .healthmedal) { width: 1.05em; height: 1.05em; color: var(--ui-heart); }
 
 /* ── THE MAX-DAMAGE PUNCH (owner ask 2026-10-09: "an obvious animation that draws attention") ─────────────────────
    Played ONCE when the round's cap moves to its next step (LobbyPanel adds `.lobbymax-pop` and re-keys the pill per

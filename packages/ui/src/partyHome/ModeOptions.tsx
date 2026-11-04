@@ -67,8 +67,8 @@ export function PracticePanel() {
       ) : (
         <div className="pho-rows">
           {import.meta.env.DEV && (
-            <PhSegmented label="Set (dev builds only)" value={setId} options={setOptions}
-              hint={devSet ? 'Your opponents are bots playing this set.' : 'The set this game is played with.'}
+            <PhSegmented label="Set" value={setId} options={setOptions}
+              hint={devSet ? 'Dev builds only. Your opponents are bots playing this set.' : 'Dev builds only. The set this game is played with.'}
               onPick={(v) => { sfx.tick(); setDraft({ setId: v, tribes: normalizePracticeTribes(cfg.tribes, v) }); }} />
           )}
           <PhSegmented label="Heroes" value={cfg.heroes ?? 'beginner'} options={HERO_MODES} onPick={pick('heroes')}

@@ -345,3 +345,22 @@ html[data-ph-compact] .ph-pairlbl { display: none; }
 
 /* A STANDALONE banner (PhBanner `width`): its own fixed width outside a `.ph-cards` row; everything inside scales with it. */
 .ph-cardwrap.standalone, .ph-cards .ph-cardwrap.standalone, html[data-ph-compact] .ph-cardwrap.standalone { width: var(--bw); height: auto; aspect-ratio: 0.56; }
+
+/* ── ROUND 5 ── */
+/* Gauntlet: a locked stage's line wraps in full. */
+.pho-stage .phk-rowsub { white-space: normal; }
+/* An invited friend waiting: their portrait, dimmed, in a filled banner's layout. */
+.ph-cardwrap.pending .ph-art { opacity: 0.45; filter: grayscale(0.4); }
+.ph-cardwrap.pending .ph-rod, .ph-cardwrap.pending .ph-bfoot { filter: saturate(0.6) brightness(0.85); }
+/* A card's menu opens beside the card (never over the name or face). */
+.ph-cardmenu { top: calc(30 * var(--phu)); bottom: auto; left: calc(100% + 8 * var(--phu)); translate: none; }
+.ph-cards > :last-child .ph-cardmenu, .ph-pairrow > :last-child .ph-cardmenu { left: auto; right: calc(100% + 8 * var(--phu)); }
+/* A disabled START: the gilded plaque, gently desaturated and dimmed (never olive). */
+.ph-start:disabled { filter: saturate(0.75) brightness(0.92); opacity: 0.55; }
+/* PHONES: the banners take the head slot's height too (the plate floats over the gap above the rods; the line drops). */
+html[data-ph-compact] .ph-desc { display: none; }
+html[data-ph-compact] .ph-stagehead { position: absolute; left: 0; right: 0; top: calc(4 * var(--phu)); height: auto; z-index: 4; pointer-events: none; }
+html[data-ph-compact] .ph-stagehead > * { pointer-events: auto; }
+html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 8 * var(--phu)); }
+html[data-ph-compact] .ph-cards { padding-top: calc(48 * var(--phu)); }
+.ph-cardwrap.rival .ph-bfoot { filter: none; }

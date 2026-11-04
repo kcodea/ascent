@@ -110,7 +110,7 @@ export function PhTabs<T extends string>({ tabs, value, onChange, label, onLocke
     <div className="phk-tabs" role="tablist" aria-label={label}>
       {tabs.map((t) => (
         <button key={t.id} type="button" role="tab" aria-selected={t.id === value} disabled={t.disabled} aria-disabled={t.reason ? true : undefined}
-          data-tip={t.reason} className={cx('phk-tab', t.id === value && 'on', t.reason && 'locked')}
+          data-tip={t.reason} className={cx('phk-tab', t.id === value && 'on', t.reason && 'locked gtip')}
           onClick={() => { if (t.reason) { onLocked?.(t.id, t.reason); return; } if (t.id !== value) onChange(t.id); }}>
           {t.label}
           {t.count ? <span className="phk-count">{t.count}</span> : null}
@@ -360,7 +360,7 @@ export function PhSlider({ value, min, max, step = 1, onChange, onRelease, label
  * A dropdown select. The list opens in a layer on the page (a portal, placed from one measure on open), so a clipped
  * section never cuts it off. Closes on a pick, a press outside, or Escape.
  */
-export function PhSelect<T extends string | number>({ value, options, onChange, label, disabled, className, previewSize, previewSide = 'auto' }: {
+export function PhSelect<T extends string | number>({ value, options, onChange, label, disabled, className, previewSize, previewSide = 'auto', thumbAspect, thumbSize }: {
   value: T;
   /**
    * `thumb`: a small image left of the label. `disabled` + `reason`: greyed, not pickable, the reason under it.
@@ -373,7 +373,18 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
   previewSize?: number;
   /** Where the preview sits: 'auto' (right, flipped left when the stage has no room there), or forced. */
   previewSide?: 'auto' | 'left' | 'right';
+  /**
+   * The thumbnails' shape, as a CSS aspect ratio (default '1/1', square). E.g. '16/9' for backdrop thumbs. The list lives
+   * in the stage layer, outside the page, so a page can't style its thumbs: it sets them here.
+   */
+  thumbAspect?: string;
+  /** The thumbnails' height in the open list, in units (default 28). The button's own thumb stays 28 high so it fits. */
+  thumbSize?: number;
 }) {
+  const thumbStyle = (h: number): React.CSSProperties | undefined =>
+    thumbAspect === undefined && h === 28 ? undefined : { height: `calc(${h} * var(--phu))`, width: 'auto', aspectRatio: thumbAspect ?? '1 / 1' };
+  const btnThumb = thumbStyle(28);
+  const listThumb = thumbStyle(thumbSize ?? 28);
   const [open, setOpen] = useState<{ left: number; top: number; width: number } | null>(null);
   const [hi, setHi] = useState(0);
   const hiRef = useRef(0);
@@ -450,7 +461,7 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
     <>
       <button ref={btn} type="button" className={cx('phk-select', className)} aria-haspopup="listbox" aria-expanded={!!open} aria-controls={open ? listId : undefined}
         aria-label={label} disabled={disabled} onClick={toggle} onKeyDown={onBtnKey}>
-        {cur?.thumb && <img className="phk-selthumb" src={cur.thumb} alt="" draggable={false} decoding="sync" />}
+        {cur?.thumb && <img className="phk-selthumb" src={cur.thumb} alt="" draggable={false} decoding="sync" style={btnThumb} />}
         <span className="phk-selectval">{cur?.label ?? ''}</span><span className="phk-selectcaret" aria-hidden="true">▾</span>
       </button>
       {open && createPortal(
@@ -463,7 +474,7 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
                   aria-selected={o.value === value} aria-disabled={o.disabled || undefined} disabled={o.disabled}
                   className={cx('phk-moreitem', 'phk-selopt', o.value === value && 'on', i === hi && 'hi', o.dim && 'dim')}
                   onPointerEnter={() => { if (!o.disabled) setHi(i); }} onClick={() => pick(i)}>
-                  {o.thumb && <img className="phk-selthumb" src={o.thumb} alt="" draggable={false} decoding="sync" />}
+                  {o.thumb && <img className="phk-selthumb" src={o.thumb} alt="" draggable={false} decoding="sync" style={listThumb} />}
                   <span className="phk-seloptlbl">{o.label}{(o.disabled || o.dim) && o.reason && <span className="phk-selreason">{o.reason}</span>}</span>
                 </button>
               ))}

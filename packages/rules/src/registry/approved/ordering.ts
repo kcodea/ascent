@@ -327,4 +327,21 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-04 (fix/fx-own-rally-slot). Before, the workbench offered On Rally for every Rally card but only an ally-proc Rally (one that logs a rally event) ever played it; the binding of an ordinary Rally never fired.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/rallyFired.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: 'R-FX-CUSTOM-FLY-LIFE-01',
+    title: 'A flying copy of a Custom image layer moves for its whole life, then is gone',
+    statement:
+      'When a Custom image layer flies its copies (Speed, Gravity or Spin on), every copy behaves like a burst particle: it '
+      + 'keeps moving for its full Duration from its own start and then disappears. It never stops mid-air and lingers while '
+      + 'later copies are still flying. A copy with no Fly motion keeps the old behaviour and holds its last look until the '
+      + 'layer ends.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, Chorus Drake music notes', quote: 'the notes spread out then stop. i want them to burst out and fade' },
+      { kind: 'code', ref: 'fix/fx-fly-copy-life: packages/ui/src/fx/customGeometry.ts copyVisibleAt; packages/ui/src/fx/primitives/custom.ts (update)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-04 (fix/fx-fly-copy-life). Before, the Fly group (PR 2580) froze a flying copy at the end of its Duration and kept it drawn until the whole layer finished.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/customGeometry.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
 ];

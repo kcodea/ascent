@@ -23,6 +23,7 @@ import { getImageTexture, IMAGE_NONE } from '../imageLibrary';
 import { makeRng, randomSeed } from '../rng';
 import {
   aimsLeft,
+  copyVisibleAt,
   flightOffset,
   reverseFrame,
   rollFlight,
@@ -196,7 +197,7 @@ const SPECS = {
   // ── Fly (per-copy burst motion; Speed 0 and Spin 0 = copies stay where they land, the pre-Fly look) ──
   flySpeed: {
     kind: 'slider', label: 'Speed', group: 'Fly', min: 0, max: 2000, step: 10, default: 0,
-    help: 'Launch speed of each copy, in px per second. 0 = no launch (copies stay where they land, unless Gravity pulls them). Above 0 every copy flies off on its own path from its start, like a burst of particles — Count sets how many, Stagger spaces their launches.',
+    help: 'Launch speed of each copy, in px per second. 0 = no launch (copies stay where they land, unless Gravity pulls them). Above 0 every copy flies off on its own path from its start, like a burst of particles — Count sets how many, Stagger spaces their launches. A flying copy lives exactly Duration and then disappears; shape its fade with Alpha / time (a falling curve fades each note out as it flies).',
   },
   flySpeedJitter: {
     kind: 'slider', label: 'Speed jitter', group: 'Fly', min: 0, max: 1, step: 0.01, default: 0.3,
@@ -689,12 +690,15 @@ class CustomInstance implements FxInstance<CustomParams> {
     // A trail-bent rope takes its shape (and direction) from the path itself.
     const trailMode = p.renderMode === 'rope' && p.bendMode === 'trail';
 
+    // Any Fly motion makes copies particles: each lives its own Duration, then is gone.
+    const flyOn = p.flySpeed > 0 || p.flyGravity !== 0 || p.flySpin > 0;
+
     if (p.role !== 'draw') {
       this.updateRole(layerClock, layerProg, baseRot);
     } else {
       for (const copy of this.copies) {
         const local = layerClock - copy.roll.delayMs;
-        if (local < 0) { copy.wrap.visible = false; continue; }
+        if (!copyVisibleAt(local, dur, flyOn)) { copy.wrap.visible = false; continue; }
         copy.wrap.visible = true;
         const cprog = Math.min(1, local / dur);
         const node = copy.node;
@@ -740,8 +744,8 @@ class CustomInstance implements FxInstance<CustomParams> {
         const sqy = Math.max(0.01, p.squashY * sampleCurve(p.squashYCurve, cprog));
         copy.wrap.scale.set(copy.wrap.scale.x * sqx, copy.wrap.scale.y * sqy);
 
-        // Fly: where this copy's own launch has carried it, on its own clock (held at Duration so a looping
-        // preview's wait between plays doesn't send it off-screen).
+        // Fly: where this copy's own launch has carried it, on its own clock. A flying copy moves for its whole
+        // life and is hidden once that ends (`copyVisibleAt`), so it never parks mid-air.
         const flyT = Math.min(local, dur) / 1000;
         const fl = copy.flight;
         const fo = fl.vx !== 0 || fl.vy !== 0 || p.flyGravity !== 0 ? flightOffset(fl, flyT, p.flyGravity, p.flyDrag) : NO_FLIGHT;

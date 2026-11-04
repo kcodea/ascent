@@ -334,6 +334,16 @@ export function rollFlight(rng: () => number, count: number, o: FlightOptions): 
 }
 
 /**
+ * Is a copy drawn `localMs` after its own start? Never before it starts. A STILL copy (no Fly) then holds its
+ * last look until the layer ends, as it always has. A FLYING copy is a particle: it lives exactly its Duration
+ * and is gone after, so a staggered burst never leaves early notes parked mid-air while later ones still fly.
+ */
+export function copyVisibleAt(localMs: number, durMs: number, flying: boolean): boolean {
+  if (localMs < 0) return false;
+  return !flying || localMs < durMs;
+}
+
+/**
  * Where a launched copy is `tSec` after its own start, as an offset from where it was born. Closed form (no
  * per-frame integration, so a scrubbed or hitched clock lands in the same place): linear drag `drag` per
  * second on the velocity, constant `gravity` px/s² downward. Drag 0 is plain ballistic motion.

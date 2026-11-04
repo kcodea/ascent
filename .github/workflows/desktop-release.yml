@@ -20,6 +20,9 @@ on:
       - 'scripts/package-desktop.mjs'
       - '.github/workflows/desktop-release.yml'
 
+# ship.mjs finds its run by this exact name (expectedRunName in apps/desktop/ship/shipLib.mjs); PR runs keep a plain name.
+run-name: ${{ inputs.version && format('desktop-release v{0} {1}', inputs.version, inputs.sha) || format('desktop-release {0}', github.ref_name) }}
+
 concurrency:
   group: desktop-release-${{ github.ref }}
   cancel-in-progress: true
@@ -109,3 +112,37 @@ jobs:
             apps/desktop/release-ci/latest.yml
             apps/web/dist/release.json
             smoke.json
+
+  # publish=true (dispatched by `npm run ship`): create the DRAFT release v<version> on the built commit. ship.mjs fills the
+  # notes and publishes the draft only after this run is green; a red run leaves the draft invisible to friends.
+  publish:
+    needs: build
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BUILD_SHA: ${{ inputs.sha }}
+      BUILD_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ascent-installer-${{ inputs.version }}
+          path: out
+      - name: Create the draft release
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v$BUILD_VERSION"
+          # A retry after a red run: replace the stale DRAFT (never a published release).
+          if [ "$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft 2>/dev/null || true)" = true ]; then
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes
+          fi
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --draft --target "$BUILD_SHA" --title "ASCENT v$BUILD_VERSION" \
+            --notes "ASCENT v$BUILD_VERSION" \
+            out/apps/desktop/release-ci/ASCENT-Setup.exe \
+            out/apps/desktop/release-ci/ASCENT-Setup.exe.blockmap \
+            out/apps/desktop/release-ci/latest.yml \
+            out/apps/web/dist/release.json

@@ -453,7 +453,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       <div className="ph-side">
         {vh.side}
         {/* PHONE: the saved game is one plain button in this clear row; the head row stays for the team and rules. */}
-        {phone && savedRun && !versusRoom && <PhButton size="s" className="ph-phonecontinue" aria-label={`Continue your saved game, ${savedRunMode(savedRun)}`} onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>}
+        {phone && savedRun && !versusRoom && <PhButton size="s" className="ph-phonecontinue" aria-label={`Continue your saved game, ${savedRunMode(savedRun)}`} onClick={() => { sfx.pulse(); continueRun(); }}>Continue {savedRunMode(savedRun)}</PhButton>}
         {inParty && !inGame && !versusRoom && (
           <PhButton onClick={() => { sfx.pulse(); if (duosRoom) void leaveDuosParty(); else setPartyDemo(false); }}>Leave party</PhButton>
         )}
@@ -463,7 +463,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       </button>}
       <div className="ph-side ph-side-r">
         {/* On a phone the side panel is a drawer: the mode's settings are one press from START. */}
-        {phone && !friendsOpen && modeHasSettings(modeId) && <PhButton size="s" onClick={() => { sfx.pulse(); toSettings.current = true; setDrawerIsMode(true); setSideTab('settings'); setFriendsOpen(true); }}>{family.subs.length > 1 ? family.subs.find((x) => x.id === modeId)?.label : mode.id === 'practice' ? 'Practice' : mode.id === 'gauntlet' ? 'Stages' : 'Rules'}</PhButton>}
+        {phone && !friendsOpen && modeHasSettings(modeId) && <PhButton size="s" onClick={() => { sfx.pulse(); toSettings.current = true; setDrawerIsMode(true); setSideTab('settings'); setFriendsOpen(true); }}>Options</PhButton>}
         {(note || issue) && (
           <span className="ph-notes" role="status">
             {note && <span className="ph-note">{note}</span>}

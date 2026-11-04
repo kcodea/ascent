@@ -520,7 +520,6 @@ html[data-ph-shell]:not([data-ph-compact]) .ph-modes .phk-tabs { overflow: visib
 /* The saved game keeps one slot, right of the head row, on every mode. */
 /* (Desktop) centred on START's axis, in the clear space above it, the same on every mode. */
 .ph-stagehead > .ph-held, .ph-stagehead:not(:has(> .ph-team)) > .ph-held { position: absolute; left: 50%; translate: -50% 0; bottom: calc(156 * var(--phu)); z-index: 3; }
-html[data-ph-compact] .ph-stagehead { position: relative; }
 html[data-ph-compact] .ph-stagehead > .ph-held, html[data-ph-compact] .ph-stagehead:not(:has(> .ph-team)) > .ph-held { left: auto; translate: none; bottom: auto; right: calc(16 * var(--phu)); top: 0; }
 /* The rules line is information, not a control. */
 .ph-team.info { background: none; box-shadow: none; padding: 0; }
@@ -536,10 +535,13 @@ html[data-ph-compact] .ph-cards { padding-top: calc(90 * var(--phu)); }
 /* PHONE BANNERS: name, medal and state are three rows that flow from the foot, so they can never print over each other. */
 html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { top: auto; bottom: 0; gap: calc(2 * var(--phu)); padding: 0 calc(6 * var(--phu)) calc(4 * var(--phu)); }
 html[data-ph-compact] .ph-state { position: static; height: auto; line-height: 1.2; }
-html[data-ph-compact] .ph-name { font-size: max(calc(17 * var(--phu)), min(calc(24 * var(--phu)), calc(135cqi / var(--nl, 1)))); }
+html[data-ph-compact] .ph-name { font-size: max(calc(14 * var(--phu)), min(calc(24 * var(--phu)), calc(135cqi / var(--nl, 1)))); }
 /* The bottom row holds the phone's saved game; the side column keeps its buttons in a row. */
 html[data-ph-compact] .ph-side { gap: calc(8 * var(--phu)); align-items: center; }
 html[data-ph-compact] .ph-phonecontinue { flex: none; }
 
-/* A long name on a narrow banner takes a second line at the floor size rather than cutting off. */
-html[data-ph-compact] .ph-name { white-space: normal; overflow-wrap: anywhere; line-height: 1.05; text-overflow: clip; }
+/* ── CRITIC ROUND 15 ── */
+/* A one-item menu sits over its own card, never its neighbour. */
+.ph-cardmenu { left: 50%; translate: -50% 0; min-width: min(calc(220 * var(--phu)), 92cqi); }
+.ph-picker .ph-fnote { text-align: center; }
+

@@ -20,6 +20,7 @@ import { useEffect } from 'react';
 import { MenuSidebar } from './MenuSidebar';
 import { anyPageOpen, inGameScreen, useGame } from './store';
 import { sfx } from './sfx';
+import { phBack } from './partyHome/shell/phHistory';
 
 /** Escape / the gear: in a game the in-game menu (the sidebar over the dimmed game), on the menus the Settings page. */
 export function openMenu(): void {
@@ -43,10 +44,11 @@ export function handleEscape(): void {
   if (st.settingsOpen) { st.closeSettings(); return; }
   if (st.showPatchNotes) { st.closePatchNotes(); return; }
   if (st.inspect) return;
-  // THE PARTY HOME PROTOTYPE's SHELL (DEV switch): Esc on a page goes home; on the home it does nothing (Settings is
-  // the nav's gear, one place). Only while the shell is up (the menus before a run).
+  // THE PARTY HOME PROTOTYPE's SHELL (DEV switch): Esc goes back to the page you came from (phHistory.ts); on the home it does
+  // nothing (Settings is the nav's gear, one place). Only while the shell is up (the menus before a run).
   if (document.documentElement.hasAttribute('data-ph-shell')) {
     if (st.practiceSetupOpen) st.cancelPracticeSetup();
+    else if (phBack()) return;
     else if (anyPageOpen(st) || st.titleView !== 'menu') st.goTo('menu');
     return;
   }

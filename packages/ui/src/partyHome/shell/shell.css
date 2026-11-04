@@ -316,3 +316,6 @@ html[data-ph-compact] .ph-lv { padding-left: calc(6 * var(--phu)); padding-right
 /* The round icons take a soft gold focus, never a square. */
 html[data-ph-shell] .ph-top .ph-iconbtn:focus-visible { outline: none; filter: drop-shadow(0 0 calc(6 * var(--phu)) rgba(255, 205, 100, 0.9)); }
 
+/* A page opened in a game: no nav above it. */
+html[data-ph-ingame] { --ph-nav-h: 0px; }
+

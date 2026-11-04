@@ -117,7 +117,8 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
   const inGame = useGame((s) => s.gameMenuOpen);
   const preRunNow = useGame(isPreRun);
   // The shell is for the menus before a run only (the in-game menu keeps this rail and its spacing).
-  const shell = usePartyHome() && preRunNow;
+  const flagOn = usePartyHome();
+  const shell = flagOn && preRunNow;
   const navRef = useRef<HTMLElement>(null);
   const indRef = useRef<HTMLSpanElement>(null);
   // THE SELECTION BAR (2026-10-16): measured ONCE per page (offsetTop, before paint), then a single transform
@@ -204,6 +205,8 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
       </>
     );
   }
+  // A shell page opened in a game has no nav and no rail: its Back returns to the in-game menu.
+  if (flagOn && inGame && current) return null;
   // The screen's painted backdrop rides along with the sidebar, so every host gets it (MenuBackdrop.tsx).
   return (
     <>

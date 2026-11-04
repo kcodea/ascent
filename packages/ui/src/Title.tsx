@@ -128,21 +128,26 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // the top nav while the switch is on. A run drops it, so the game keeps its own corners and docks.
   const gameMenuOpen = useGame((s) => s.gameMenuOpen);
   const shellOn = partyHomeFlag && (showTitle || practiceOpen) && !gameMenuOpen;
+  // A page opened from the in-game menu wears the shell too, only while it is open, so a game in play never pays for it.
+  const anyPage = useGame(anyPageOpen);
+  const pageOverGame = partyHomeFlag && gameMenuOpen && anyPage;
+  const shellAttr = shellOn || pageOverGame;
   // Before the first paint: the shell's first frame must already be the shell's.
   useLayoutEffect(() => {
     if (!PartyHome) return undefined;
     const html = document.documentElement;
-    html.toggleAttribute('data-ph-shell', shellOn);
+    html.toggleAttribute('data-ph-shell', shellAttr);
+    html.toggleAttribute('data-ph-ingame', pageOverGame);
     // COMPACT (phones, short windows): the shell's icon-only nav, one scrolling tab row and the friends drawer.
     // THE SHELL's SCALE (one rule on every device): the menus' own layout height, measured off the title screen (it fills
     // the same box the menu pages do: the stage on a scaled desktop, the window on a phone's plain fit), so the unit never
     // depends on how a device happens to scale. Measured on mount and on a resize, never per frame.
     const ts = document.querySelector<HTMLElement>('.titlescreen');
     const measure = (): void => {
-      const h = ts?.offsetHeight || window.innerHeight;
+      const h = ts?.offsetHeight || document.getElementById('stage')?.offsetHeight || window.innerHeight;
       html.style.setProperty('--ph-h', `${h}px`);
-      html.toggleAttribute('data-ph-compact', shellOn && (isPhone() || h < 700));
-      html.toggleAttribute('data-ph-laptop', shellOn && window.innerHeight <= 900);
+      html.toggleAttribute('data-ph-compact', shellAttr && (isPhone() || h < 700));
+      html.toggleAttribute('data-ph-laptop', shellAttr && window.innerHeight <= 900);
     };
     measure();
     const ro = typeof ResizeObserver === 'function' && ts ? new ResizeObserver(measure) : null;
@@ -150,9 +155,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     window.addEventListener('resize', measure);
     return () => {
       ro?.disconnect(); window.removeEventListener('resize', measure);
-      html.removeAttribute('data-ph-shell'); html.removeAttribute('data-ph-compact'); html.removeAttribute('data-ph-laptop'); html.style.removeProperty('--ph-h');
+      html.removeAttribute('data-ph-shell'); html.removeAttribute('data-ph-ingame'); html.removeAttribute('data-ph-compact'); html.removeAttribute('data-ph-laptop'); html.style.removeProperty('--ph-h');
     };
-  }, [shellOn]);
+  }, [shellAttr, pageOverGame]);
   // The portrait-frames tuner's ring for your own avatar corner (null = today's copper ring).
   const avatarFrame = usePortraitFrame('self');
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);

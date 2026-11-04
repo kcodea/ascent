@@ -18,7 +18,9 @@ const VEIL = 'linear-gradient(180deg, rgba(6, 12, 28, 0.82) 0%, rgba(6, 12, 28, 
  * `steady`: the one `Game` mounts. It also owns the pages' dim (a page's own layer would vanish with the page for a frame), and
  * sits under hero select (z 400) as well as the menus (z 450+), so the art stays through every move between them.
  */
-export function PhBackdrop({ steady = false }: { steady?: boolean }) {
+export function PhBackdrop({ steady = false, over = false }: { steady?: boolean;
+  /** Over a game: above the board and the in-game menu's veil, under the page. */
+  over?: boolean }) {
   const paged = useGame((s) => anyPageOpen(s) || s.showBook);
   useLayoutEffect(() => {
     if (!steady) return undefined;
@@ -26,7 +28,7 @@ export function PhBackdrop({ steady = false }: { steady?: boolean }) {
     return () => document.documentElement.removeAttribute('data-ph-steady');
   }, [steady]);
   return (
-    <div className="ph-steady" aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 390, background: '#0a1730', pointerEvents: 'none', overflow: 'hidden' }}>
+    <div className="ph-steady" aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: over ? 466 : 390, background: '#0a1730', pointerEvents: 'none', overflow: 'hidden' }}>
       <img src={CITADEL} alt="" draggable={false} decoding="sync" style={{ ...FILL, objectFit: 'cover' }} />
       <div style={{ ...FILL, background: VEIL }} />
       {steady && <div style={{ ...FILL, background: 'rgba(6, 12, 28, 0.45)', opacity: paged ? 1 : 0, transition: 'opacity 0.16s ease-out' }} />}

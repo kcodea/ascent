@@ -23,6 +23,11 @@ export function phPopped(page: string, apply: (page: string) => void): void {
   apply(page);
 }
 
+/** The page to come back to after a dev Scene Builder game (the nav remounts when the menus return). */
+let returnPage: string | null = null;
+export function phRememberPage(): void { returnPage = last; }
+export function phTakeReturnPage(): string | null { const p = returnPage; returnPage = null; return p; }
+
 /** One step back, when there is a step. */
 export function phBack(): boolean {
   if (depth <= 0) return false;

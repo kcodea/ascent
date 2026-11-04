@@ -319,3 +319,8 @@ html[data-ph-shell] .ph-top .ph-iconbtn:focus-visible { outline: none; filter: d
 /* A page opened in a game: no nav above it. */
 html[data-ph-ingame] { --ph-nav-h: 0px; }
 
+/* DEV: the Scene Builder button beside the gear (never in production: the whole shell is DEV only). */
+.ph-scenebtn { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: calc(20 * var(--phu)); line-height: 1; }
+.ph-devlbl { font-size: calc(11 * var(--phu)); font-weight: 800; }
+html[data-ph-compact] .ph-devlbl { display: none; }
+

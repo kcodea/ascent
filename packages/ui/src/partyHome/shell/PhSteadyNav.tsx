@@ -6,7 +6,7 @@
 import { useEffect } from 'react';
 import { anyPageOpen, useGame } from '../../store';
 import { isPhone } from '../../deviceClass';
-import { phPagePushed, phPopped } from './phHistory';
+import { phPagePushed, phPopped, phTakeReturnPage } from './phHistory';
 import { PhTopNav, type PhNavCurrent } from './PhTopNav';
 import { leaveCrates, openCrates, usePhShell } from './shellStore';
 
@@ -43,6 +43,8 @@ export default function PhSteadyNav() {
   const crates = usePhShell((s) => s.crates);
   const entry = book ? 'compendium' : current === 'collection' && crates ? 'crates' : current ?? 'other';
   useEffect(() => { phPagePushed(entry); }, [entry]);
+  // Back from a Scene Builder game: the page you left it from.
+  useEffect(() => { const p = phTakeReturnPage(); if (p && p !== 'home') showPage(p); }, []);
   useEffect(() => {
     const onPop = (e: PopStateEvent): void => { phPopped((e.state as { phPage?: string } | null)?.phPage ?? 'home', showPage); };
     window.addEventListener('popstate', onPop);

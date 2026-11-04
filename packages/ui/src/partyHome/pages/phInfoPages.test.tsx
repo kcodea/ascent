@@ -212,24 +212,31 @@ describe('the Compendium in the shell', () => {
     expect(ui.container.querySelector('.phb-actions'), 'a text panel drops the card controls').toBeNull();
   });
 
-  it('the rail: another group switches the view, and what is lit is what shows', () => {
+  it('the rail: a press switches, Ctrl adds a tribe, All minions goes back, and what is lit is what shows', () => {
     ui = mount(<PhCompendium />);
     const lit = (): string[] => [...ui!.container.querySelectorAll('.book-cat.on')].map((b) => b.textContent ?? '');
-    const pick = (name: string): void => { click([...ui!.container.querySelectorAll('.book-cat')].find((b) => b.textContent === name)); };
+    const row = (name: string): Element => [...ui!.container.querySelectorAll('.book-cat')].find((b) => b.textContent === name)!;
+    const pick = (name: string): void => { click(row(name)); };
+    expect(lit()).toEqual(['All minions']);
     pick('Heroes');
     expect(ui.container.querySelector('.phh-grid')).not.toBeNull();
     pick('Beasts');
     expect(lit()).toEqual(['Beasts']);
     expect(ui.container.querySelector('.phh-grid'), 'Heroes gives way').toBeNull();
     pick('Demons');
-    expect(lit(), 'tribes multi-select').toEqual(['Beasts', 'Demons']);
+    expect(lit(), 'a plain press switches tribe').toEqual(['Demons']);
+    act(() => { row('Beasts').dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: true })); });
+    expect(lit().sort(), 'Ctrl adds').toEqual(['Beasts', 'Demons']);
     pick('Runes');
     expect(lit()).toEqual(['Runes']);
     pick('Rune Rewards');
     expect(lit()).toEqual(['Rune Rewards']);
     expect(ui.container.querySelector('.phb-sub')?.textContent).toContain('rune rewards');
     pick('Rune Rewards');
-    expect(lit(), 'a second press clears it').toEqual([]);
+    expect(lit(), 'a second press goes back to all').toEqual(['All minions']);
+    pick('Beasts');
+    pick('All minions');
+    expect(lit()).toEqual(['All minions']);
   });
 
   it('R-COMPENDIUM-GUIDES-FILTER-01: Guides shows its own tribe filter even with Runes lit before it', () => {

@@ -692,17 +692,19 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
 
   const toggleTier = (t: number): void =>
     setTiers((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; });
-  const toggleCat = (c: Category): void => {
+  const toggleCat = (c: Category, add = false): void => {
     // A rail tab while Guides is up leaves Guides for that tab (it selects it fresh, not toggled off).
     if (guidesOn) { setGuidesOn(false); setCats(new Set([c])); return; }
-    // THE SHELL's RAIL (critic round 13): what is lit is what shows. A press on another group switches to it: the tribes
-    // multi-select among themselves, every Library entry stands alone, and a second press on the lit one clears it.
+    // THE SHELL's RAIL: one behaviour for the whole rail, and what is lit is what shows. A plain press switches to that row,
+    // and a press on the lit row goes back to All minions. Ctrl / Shift + press adds or drops a tribe, among tribes only.
     if (frame) {
       setCats((prev) => {
-        if (NON_TRIBE_CATS.has(c)) return prev.has(c) ? new Set() : new Set([c]);
-        const next = new Set([...prev].filter((x) => !NON_TRIBE_CATS.has(x)));
-        if (next.has(c)) next.delete(c); else next.add(c);
-        return next;
+        if (add && !NON_TRIBE_CATS.has(c)) {
+          const next = new Set([...prev].filter((x) => !NON_TRIBE_CATS.has(x)));
+          if (next.has(c)) next.delete(c); else next.add(c);
+          return next;
+        }
+        return prev.size === 1 && prev.has(c) ? new Set() : new Set([c]);
       });
       return;
     }
@@ -964,11 +966,21 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
               <Fragment key={c}>
                 {/* Group captions (polish 2026-10-09): the minion tribes first, then the other galleries. */}
                 {i === 0 && <span className="book-railcap">Minions</span>}
+                {i === 0 && frame && (
+                  <button
+                    className={`book-cat phb-all${!guidesOn && cats.size === 0 ? ' on' : ''}`}
+                    style={{ '--c': 'var(--ui-title)' } as CSSProperties}
+                    onClick={() => { setGuidesOn(false); setCats(new Set()); }}
+                    aria-pressed={!guidesOn && cats.size === 0}
+                  >
+                    <span className="book-catlabel">All minions</span>
+                  </button>
+                )}
                 {c === 'spells' && <span className="book-railcap">Library</span>}
                 <button
                   className={`book-cat${!guidesOn && cats.has(c) ? ' on' : ''}`}
                   style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : c === 'runes' ? '#b078e6' : c === 'gifts' ? '#ffd27a' : c === 'runeRewards' ? '#c9a4ec' : c === 'heroes' ? '#e0b34a' : `var(--t-${c})` } as CSSProperties}
-                  onClick={() => toggleCat(c)}
+                  onClick={(e) => toggleCat(c, e.ctrlKey || e.metaKey || e.shiftKey)}
                   aria-pressed={!guidesOn && cats.has(c)}
                   aria-label={CAT_META[c].label}
                 >

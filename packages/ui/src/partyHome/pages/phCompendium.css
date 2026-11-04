@@ -201,9 +201,9 @@ html[data-ph-shell]:not([data-ph-compact]) .phb { --phb-gut: calc(12 * var(--phu
 html[data-ph-shell]:not([data-ph-compact]) .phb .phk-pagebody { scrollbar-gutter: auto; }
 html[data-ph-shell]:not([data-ph-compact]) .phb :is(.phb-sub, .book-tiers, .wiki-bar) { margin-right: var(--phb-gut); }
 html[data-ph-shell]:not([data-ph-compact]) .phb :is(.book-grid, .book-gloss-body, .wiki-list, .bookguides) { scrollbar-gutter: stable; }
-html[data-ph-shell]:not([data-ph-compact]) .phb .book-main { position: relative; }
-html[data-ph-shell]:not([data-ph-compact]) .phb .book-main::before { content: ''; position: absolute; z-index: 0; top: 0; bottom: 0; left: calc(256 * var(--phu)); right: var(--phb-gut); border-radius: var(--ph-r-l); pointer-events: none;
+html[data-ph-shell]:not([data-ph-compact]) .phb .book-main::before { content: ''; position: relative; z-index: 0; grid-column: 2; grid-row: 2; margin-right: var(--phb-gut); border-radius: var(--ph-r-l); pointer-events: none;
   background: radial-gradient(80% 60% at 50% 0%, rgba(255, 206, 120, 0.06), transparent 70%), linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 85%, #000), color-mix(in srgb, var(--ph-navy) 70%, #000)); box-shadow: var(--ph-gild); }
+html[data-ph-shell]:not([data-ph-compact]) .phb .book-tiers.is-bare + .book-main::before { grid-row: 1 / -1; }
 html[data-ph-shell]:not([data-ph-compact]) .phb .book-main > :is(.book-grid, .bookguides, .book-empty) { position: relative; z-index: 1; background: none; box-shadow: none; border-radius: var(--ph-r-l) 0 0 var(--ph-r-l); }
 
 /* ── A filter row shows only what applies: on the untiered views (Guides, Runes, Heroes) the Tier chips step aside, and so
@@ -293,7 +293,7 @@ html[data-ph-compact] .phb .book-search { width: calc(150 * var(--phu)); }
 
 /* ── THE SHARED HEADER LINE: the gallery is wider than other pages, but the title and tabs start where every page's do, so a
    hop between pages does not move them. The tools stay on the gallery's right edge. ── */
-html[data-ph-shell]:not([data-ph-compact]) .phb .phk-pagehead { padding-left: max(0px, calc((100% - 1536 * var(--phu)) / 2)); }
+html[data-ph-shell]:not([data-ph-compact]) .phb :is(.phk-pagehead, .phk-pagebody) { padding-left: max(0px, calc((100% - 1536 * var(--phu)) / 2)); }
 
 /* ── READABLE AT EVERY SIZE ── The book's panels are sized in px, which on a phone means different things (a phone that lays
    out at 844 against one that lays out wider and scales down). `zoom` ties them to the shell's unit, so text, chips and
@@ -308,9 +308,9 @@ html[data-ph-shell]:not([data-ph-compact]) .phb .book-grid.is-runes { grid-templ
    left as they are. */
 html[data-ph-compact] .phb .book-grid .card.compact.plated .drawer .desc { line-height: 1.15; }
 html[data-ph-compact] .phb .book-grid .card.compact.plated.plate-txt-s .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.55); }
-html[data-ph-compact] .phb .book-grid .card.compact.plated.plate-txt-m .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.4); }
-html[data-ph-compact] .phb .book-grid .card.compact.plated.plate-txt-l .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.25); }
-html[data-ph-compact] .phb .book-grid .card.compact.plated.plate-txt-xl .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.1); }
+html[data-ph-compact] .phb .book-grid .card.compact.plated.plate-txt-m .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.3); }
+html[data-ph-compact] .phb .book-grid .card.compact.plated.plate-txt-l .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.08); }
+html[data-ph-compact] .phb .book-grid .card.compact.plated.plate-txt-xl .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.92); }
 html[data-ph-compact] .phb .book-grid .plate-tribe { font-size: 22px; }
 html[data-ph-compact] .phb .wiki-chip { font-size: 13px; }
 /* Inside the zoomed panels sizes are px: the zoom already carries the shell's unit. */
@@ -325,3 +325,37 @@ html[data-ph-compact] .phb .wiki-search { width: 280px; }
 html[data-ph-compact] .phb .book-tiers .book-runetribe { font-size: calc(18 * var(--phu)); }
 html[data-ph-compact] .phb .book-tiers .book-runetribe > span { font-size: inherit; }
 html[data-ph-compact] .phb .book-tiers .book-runetribe { padding: 0 calc(16 * var(--phu)); }
+
+/* ── THE RAIL STANDS STILL. The rail runs the full height of the page body on the left, at the shared left edge; the filter row
+   and the gallery stack on its right. A view that has no filters (Heroes) lets its gallery take the row's place; the rail
+   never moves. `.book-main` dissolves so its children join the grid. ── */
+.phb-book.v-cards, .phb-book.v-guides { display: grid; grid-template-columns: calc(200 * var(--phu)) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); column-gap: calc(16 * var(--phu)); row-gap: calc(16 * var(--phu)); }
+.phb .book-main { display: contents; }
+.phb .book-rail { grid-column: 1; grid-row: 1 / -1; width: auto; min-height: 0; }
+.phb .book-tiers { grid-column: 2; grid-row: 1; min-width: 0; }
+.phb .book-main > :is(.book-grid, .bookguides, .book-empty) { grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; }
+.phb .book-tiers.is-bare + .book-main > :is(.book-grid, .bookguides, .book-empty) { grid-row: 1 / -1; }
+html[data-ph-compact] .phb-book.v-cards, html[data-ph-compact] .phb-book.v-guides { column-gap: calc(8 * var(--phu)); row-gap: calc(8 * var(--phu)); }
+/* The filter row holds one height on every view. */
+html[data-ph-shell]:not([data-ph-compact]) .phb .book-tiers { box-sizing: border-box; height: max(calc(80 * var(--phu)), 84px); min-height: 0; }
+html[data-ph-compact] .phb .book-tiers { box-sizing: border-box; height: calc(76 * var(--phu)); }
+.phb .phb-all { padding-left: calc(12 * var(--phu)); }
+/* Six across on the narrower gallery: tiles and runes tighten, and a laptop's card a little. */
+.phb .phh-grid { grid-template-columns: repeat(auto-fill, minmax(calc(224 * var(--phu)), 1fr)); }
+html[data-ph-shell]:not([data-ph-compact]) .phb .book-grid.is-runes { padding-left: calc(12 * var(--phu)); padding-right: calc(12 * var(--phu)); }
+html[data-ph-laptop]:not([data-ph-compact]) .phb .book-grid:not(.is-runes):not(.phh-grid) { --ch: calc(216px * var(--book-zoom, 1)); column-gap: 8px; }
+
+/* ── ONE LOOK ON BOTH PHONES ── Inside a zoomed panel the zoom already carries the shell's unit, so corners and gold edges use
+   plain px there; a shell-unit value would count the zoom twice on a phone that lays out wide. The gallery zooms by about
+   0.48 of a real px, the panels by about 0.88. */
+html[data-ph-compact] .phb :is(.book-gloss-body, .wiki-body, .bookguides) { --ph-r-l: 15px; --ph-r: 11px; --ph-r-s: 7px; --ph-gild: inset 0 0 0 1.5px color-mix(in srgb, var(--ph-gold) 85%, transparent); --ph-gild-s: inset 0 0 0 1px color-mix(in srgb, var(--ph-gold) 70%, transparent); }
+html[data-ph-compact] .phb .book-main > .book-grid { --ph-r-l: 30px; --ph-gild: inset 0 0 0 3px color-mix(in srgb, var(--ph-gold) 85%, transparent); --ph-gild-s: inset 0 0 0 2px color-mix(in srgb, var(--ph-gold) 70%, transparent); }
+html[data-ph-compact] .phb .bookguides .book-runetribe { box-shadow: inset 2px 0 0 var(--c), var(--ph-gild-s); }
+html[data-ph-compact] .phb .book-gilded-ico { width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); }
+html[data-ph-compact] .phb .book-setpick-caret { width: calc(24 * var(--phu)); height: calc(24 * var(--phu)); }
+/* Phone Rules: the chips fade at the right edge, so it reads as a row that goes on, and they are comfortable targets. */
+html[data-ph-compact] .phb .wiki-chips { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent); padding-right: 32px; }
+html[data-ph-compact] .phb .wiki-chip { min-height: 44px; }
+html[data-ph-compact] .phb .wiki-search { height: 44px; }
+html[data-ph-shell][data-ph-compact] .phk-page .bookguides .book-runetribe { min-height: 44px; }
+html[data-ph-compact] .phb .bookguides .gbtn { min-height: 44px; }

@@ -140,6 +140,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       const h = ts?.offsetHeight || window.innerHeight;
       html.style.setProperty('--ph-h', `${h}px`);
       html.toggleAttribute('data-ph-compact', shellOn && (isPhone() || h < 700));
+      html.toggleAttribute('data-ph-laptop', shellOn && window.innerHeight <= 900);
     };
     measure();
     const ro = typeof ResizeObserver === 'function' && ts ? new ResizeObserver(measure) : null;
@@ -147,7 +148,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     window.addEventListener('resize', measure);
     return () => {
       ro?.disconnect(); window.removeEventListener('resize', measure);
-      html.removeAttribute('data-ph-shell'); html.removeAttribute('data-ph-compact'); html.style.removeProperty('--ph-h');
+      html.removeAttribute('data-ph-shell'); html.removeAttribute('data-ph-compact'); html.removeAttribute('data-ph-laptop'); html.style.removeProperty('--ph-h');
     };
   }, [shellOn]);
   // The portrait-frames tuner's ring for your own avatar corner (null = today's copper ring).

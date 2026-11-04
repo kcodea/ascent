@@ -360,6 +360,30 @@ const SPECS = {
     kind: 'shape', label: 'Shape', group: 'Shape', default: 'shard',
     help: 'Every live particle in the burst shares one base texture, so this swaps all of them at once. Custom imported PNG/SVG art is selectable here alongside the built-ins.',
   },
+  shape2On: {
+    kind: 'toggle', label: 'Image 2', group: 'Shape', default: false,
+    help: 'Mix a second image into the burst. The wave is split evenly between the images in turn (Shape, then Image 2, 3, 4), so 20 particles over 4 images is exactly 5 of each. Every image shares all the other settings.',
+  },
+  shape2: {
+    kind: 'shape', label: 'Image 2 shape', group: 'Shape', default: 'shard', enabledWhen: { param: 'shape2On', is: true },
+    help: 'The second image in the mix. Only used while Image 2 is on.',
+  },
+  shape3On: {
+    kind: 'toggle', label: 'Image 3', group: 'Shape', default: false,
+    help: 'Mix a third image into the burst, in the same even split.',
+  },
+  shape3: {
+    kind: 'shape', label: 'Image 3 shape', group: 'Shape', default: 'shard', enabledWhen: { param: 'shape3On', is: true },
+    help: 'The third image in the mix. Only used while Image 3 is on.',
+  },
+  shape4On: {
+    kind: 'toggle', label: 'Image 4', group: 'Shape', default: false,
+    help: 'Mix a fourth image into the burst, in the same even split.',
+  },
+  shape4: {
+    kind: 'shape', label: 'Image 4 shape', group: 'Shape', default: 'shard', enabledWhen: { param: 'shape4On', is: true },
+    help: 'The fourth image in the mix. Only used while Image 4 is on.',
+  },
   size: {
     kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 200, step: 1, default: 9, essential: true, axis: 'scale',
     help: 'How big a shard is across, in px — 9 reads as shrapnel, 40 as flying chunks, and the top of the range is debris the size of the card. Size variance jitters it per shard and the Size / life curve rescales it as the shard ages.',
@@ -495,6 +519,8 @@ function styleOf(p: BurstParams): ParticleStyle {
  *  a flat array of plain objects, mutated in place every frame — no per-frame allocation. */
 interface LiveParticle {
   particle: Particle;
+  /** Which image slot (0 = Shape, then Image 2..4 in order): the ParticleContainer this particle lives in. */
+  slot: number;
   vx: number;
   vy: number;
   spin: number; // rad/sec
@@ -505,8 +531,33 @@ interface LiveParticle {
   bias0: number; // spawn core-bias; effectiveBias(lifeT) = bias0 * sampleCurve(biasCurve, lifeT)
 }
 
+/** The extra images switched on (Image 2, 3, 4, in that order), after Shape. Empty for a one-image burst. */
+export function burstExtraShapes(p: {
+  shape2On: boolean; shape2: string; shape3On: boolean; shape3: string; shape4On: boolean; shape4: string;
+}): string[] {
+  const out: string[] = [];
+  if (p.shape2On) out.push(p.shape2);
+  if (p.shape3On) out.push(p.shape3);
+  if (p.shape4On) out.push(p.shape4);
+  return out;
+}
+
+/** One image of the burst: a pooled ParticleContainer + shader drawing one shared texture. Slot 0 is Shape. */
+interface ShapeSlot {
+  pc: ParticleContainer;
+  shader: Shader;
+  shapeId: string;
+}
+
 class BurstInstance implements FxInstance<BurstParams> {
   private readonly pc: ParticleContainer;
+  /** Slot 0 is `pc`/`shader` (Shape); the rest are the Image 2..4 extras that are switched on, in order. */
+  private slots: ShapeSlot[] = [];
+  /** Round-robin cursor over `slots`, carried across waves so the split stays even over a whole loop. */
+  private nextSlot = 0;
+  /** Per-slot write cursors for the cull pass, reused every frame. */
+  private readonly slotWrites: number[] = [0];
+  private readonly parent: FxContext['container'];
   // The FILTER LAB stack (core Blur + every toggle-gated pixi-filter), on this primitive's OWN overlay
   // container — off the pooled `pc`, whose `filters` the layer pool resets between users.
   private readonly filters: FilterStack;
@@ -561,6 +612,7 @@ class BurstInstance implements FxInstance<BurstParams> {
   constructor(ctx: FxContext, params: BurstParams) {
     this.params = params;
     this.renderer = ctx.renderer;
+    this.parent = ctx.container;
     this.oneShot = ctx.oneShot === true;
     const seed = ctx.seed ?? randomSeed();
     this.rand = makeRng(seed);
@@ -581,6 +633,8 @@ class BurstInstance implements FxInstance<BurstParams> {
     });
     this.shader = layer.shader;
     this.pc = layer.pc;
+    this.slots = [{ pc: this.pc, shader: this.shader, shapeId: params.shape }];
+    this.syncExtraSlots(params);
     this.filters = new FilterStack(ctx.container, FILTERS);
     this.transform = new ContainerTransform(ctx.container);
     // Deliberately no emit here. `headX/headY` default to (0, 0) until the first real `setHead()` call,
@@ -639,12 +693,16 @@ class BurstInstance implements FxInstance<BurstParams> {
     const p = this.params;
     const room = MAX_LIVE - this.live.length;
     const n = Math.min(p.count, room);
-    const children = this.pc.particleChildren;
+    const slots = this.slots;
     // The cone's centre for this whole wave. Computed ONCE, outside the loop, and drawing NOTHING from
     // `this.rand` — see `resolveBurstAimAngle`, which exists precisely so the base angle can be chosen
     // without touching the draw sequence documented above.
     const aim = resolveBurstAimAngle(p.aimMode, this.travelAngle, p.angle, this.aimAngle);
     for (let i = 0; i < n; i++) {
+      // Even split across the images, in turn. Draws nothing from `this.rand`, so a one-image burst replays
+      // every saved seed exactly as before.
+      const slot = this.nextSlot % slots.length;
+      this.nextSlot = (this.nextSlot + 1) % slots.length;
       const angle = sampleBurstAngle(aim, p.spread, this.rand);
       const speed = p.speed * (1 + (this.rand() * 2 - 1) * p.speedVar);
       const size = Math.max(0.5, p.size * (1 + (this.rand() * 2 - 1) * p.sizeVar));
@@ -670,7 +728,7 @@ class BurstInstance implements FxInstance<BurstParams> {
       const vx0 = rev ? -this.velScratch.vx : this.velScratch.vx;
       const vy0 = rev ? -this.velScratch.vy : this.velScratch.vy;
       const particle = new Particle({
-        texture: this.texture,
+        texture: slots[slot].pc.texture,
         x: this.headX + this.emitScratch.ox + (rev ? this.velScratch.vx * lifeSec : 0),
         y: this.headY + this.emitScratch.oy + (rev ? this.velScratch.vy * lifeSec : 0),
         anchorX: 0.5,
@@ -685,6 +743,7 @@ class BurstInstance implements FxInstance<BurstParams> {
       });
       this.live.push({
         particle,
+        slot,
         // Base radial velocity (inward when reversed) plus a fraction of the anchor's own movement
         // (inheritVel 0 → no change). Inheritance is NOT flipped: it describes the emitter's own travel,
         // which does not reverse just because the shards do.
@@ -697,7 +756,7 @@ class BurstInstance implements FxInstance<BurstParams> {
         scaleY0,
         bias0,
       });
-      children.push(particle);
+      slots[slot].pc.particleChildren.push(particle);
     }
   }
 
@@ -705,7 +764,7 @@ class BurstInstance implements FxInstance<BurstParams> {
     this.clockSec += dtMs / 1000;
     // One uniform write per frame regardless of live particle count (not per-particle) — see
     // `setParticleTime`'s own comment for why this is cheap.
-    setParticleTime(this.shader, this.clockSec);
+    for (const sl of this.slots) setParticleTime(sl.shader, this.clockSec);
 
     const dtSec = dtMs / 1000;
     const p = this.params;
@@ -737,7 +796,10 @@ class BurstInstance implements FxInstance<BurstParams> {
     const reverse = p.reverse;
     const clockSec = this.clockSec;
     const live = this.live;
-    const children = this.pc.particleChildren;
+    const slots = this.slots;
+    // One write cursor per image container: each keeps its own compacted `particleChildren`.
+    const writes = this.slotWrites;
+    for (let k = 0; k < slots.length; k++) writes[k] = 0;
 
     // Advance + cull dead particles, compacting `live` and `particleChildren` together in a single
     // forward pass (write index trails read index — mirrors emitter.ts's pattern). A whole wave shares
@@ -808,11 +870,11 @@ class BurstInstance implements FxInstance<BurstParams> {
       setParticleGreyTint(particle, biasTint(lp.bias0 * sampleCurve(p.biasCurve, curveT))); // fast path, same colour (particleMaterial.ts)
 
       if (write !== i) live[write] = lp;
-      children[write] = particle;
+      slots[lp.slot].pc.particleChildren[writes[lp.slot]++] = particle;
       write++;
     }
     live.length = write;
-    children.length = write;
+    for (let k = 0; k < slots.length; k++) slots[k].pc.particleChildren.length = writes[k];
 
     // Fire: the very first wave waits for a real anchor position (see `setHead` / the constructor
     // comment above); every wave after that follows the fixed interval timer — EXCEPT in one-shot mode,
@@ -843,7 +905,7 @@ class BurstInstance implements FxInstance<BurstParams> {
       this.lastHeadSet = true;
     }
 
-    this.pc.update();
+    for (const sl of this.slots) sl.pc.update();
   }
 
   /** See `burstFireComplete`'s header comment for the completion contract. */
@@ -854,9 +916,12 @@ class BurstInstance implements FxInstance<BurstParams> {
   setParams(next: BurstParams): void {
     const shapeChanged = next.shape !== this.params.shape;
     this.params = next;
-    this.pc.blendMode = next.blendMode;
-    updateParticleMaterial(this.shader, styleOf(next));
-    updateParticleMaterialShaping(this.shader, shapingOf(next));
+    this.syncExtraSlots(next);
+    for (const sl of this.slots) {
+      sl.pc.blendMode = next.blendMode;
+      updateParticleMaterial(sl.shader, styleOf(next));
+      updateParticleMaterialShaping(sl.shader, shapingOf(next));
+    }
     if (shapeChanged) {
       // A ParticleContainer shares exactly ONE base texture across every live particle (see
       // `shapeTextures.ts`'s `getShapeTexture` header comment), so every shard/mote already in flight
@@ -864,7 +929,50 @@ class BurstInstance implements FxInstance<BurstParams> {
       // shape without a second container, and nothing in this workbench needs that.
       this.texture = getShapeTextureById(this.renderer, next.shape);
       this.pc.texture = this.texture;
+      this.slots[0].shapeId = next.shape;
     }
+  }
+
+  /**
+   * Make the extra image slots (Image 2..4) match the params: one pooled container per image switched on, in
+   * order. A slot whose image changed swaps its texture in place (like Shape does); a slot that went away is
+   * released and its in-flight particles dropped; a new one is acquired from the pool.
+   */
+  private syncExtraSlots(p: BurstParams): void {
+    const want = burstExtraShapes(p);
+    const have = this.slots.length - 1;
+    for (let k = 0; k < Math.min(want.length, have); k++) {
+      const sl = this.slots[k + 1];
+      if (sl.shapeId !== want[k]) {
+        sl.shapeId = want[k];
+        sl.pc.texture = getShapeTextureById(this.renderer, want[k]);
+      }
+    }
+    if (want.length < have) {
+      const keep = want.length + 1;
+      for (const sl of this.slots.slice(keep)) {
+        sl.pc.particleChildren.length = 0;
+        releaseParticleLayer({ shader: sl.shader, pc: sl.pc });
+      }
+      this.slots.length = keep;
+      // Drop the particles whose container just went back to the pool.
+      let w = 0;
+      for (const lp of this.live) if (lp.slot < keep) this.live[w++] = lp;
+      this.live.length = w;
+      this.nextSlot %= keep;
+    }
+    for (let k = have; k < want.length; k++) {
+      const layer = acquireParticleLayer({
+        renderer: this.renderer,
+        parent: this.parent,
+        texture: getShapeTextureById(this.renderer, want[k]),
+        blendMode: p.blendMode,
+        style: styleOf(p),
+        shaping: shapingOf(p),
+      });
+      this.slots.push({ pc: layer.pc, shader: layer.shader, shapeId: want[k] });
+    }
+    while (this.slotWrites.length < this.slots.length) this.slotWrites.push(0);
   }
 
   destroy(): void {
@@ -875,7 +983,8 @@ class BurstInstance implements FxInstance<BurstParams> {
     // destroys our owning container with `{ children: true }` immediately after this returns, which would
     // otherwise take the pooled pair down with it. Shape textures are shared and cached per-renderer in
     // `shapeTextures.ts`; nothing here touches them.
-    releaseParticleLayer({ shader: this.shader, pc: this.pc });
+    for (const sl of this.slots) releaseParticleLayer({ shader: sl.shader, pc: sl.pc });
+    this.slots = [];
   }
 }
 

@@ -327,4 +327,21 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-04 (fix/fx-own-rally-slot). Before, the workbench offered On Rally for every Rally card but only an ally-proc Rally (one that logs a rally event) ever played it; the binding of an ordinary Rally never fired.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/rallyFired.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: 'R-FX-BURST-MULTI-SHAPE-01',
+    title: 'A Burst layer can mix up to four images, split evenly, with one set of physics',
+    statement:
+      'A Burst layer draws its Shape plus every extra image switched on (Image 2, 3, 4). Each wave is shared out between the '
+      + 'images in turn, so every image gets an equal share (20 particles over 4 images is 5 of each), and every particle '
+      + 'follows the same motion, size, fade and colour settings whichever image it carries. A Burst with no extra image '
+      + 'switched on looks and replays exactly as it did before.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, Chorus Drake music notes', quote: 'i simply wanted the exact burst effect i have, but import 4 different images that all burst at equal amounts at the same time' },
+      { kind: 'code', ref: 'feat/fx-burst-multi-shape: packages/ui/src/fx/primitives/burst.ts (shape2..4, burstExtraShapes, syncExtraSlots, emit round-robin)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-04 (feat/fx-burst-multi-shape). Before, a Burst layer could carry one image only.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/primitives/burst.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
 ];

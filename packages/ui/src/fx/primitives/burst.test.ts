@@ -5,6 +5,7 @@ import { sampleCurve } from '../curve';
 import { makeRng } from '../rng';
 import {
   BURST_AIM_MODES,
+  burstExtraShapes,
   burstFadeEnvelope,
   burstFireComplete,
   burstPrimitive,
@@ -553,5 +554,29 @@ describe('burst reverse', () => {
 
   it('points the shard the way it is actually travelling', () => {
     expect(codeOf(BURST_SRC)).toContain('rotation: rev ? angle + Math.PI : angle,');
+  });
+});
+
+describe('burst image mix (R-FX-BURST-MULTI-SHAPE-01)', () => {
+  const base = { shape2On: false, shape2: 'a', shape3On: false, shape3: 'b', shape4On: false, shape4: 'c' };
+
+  it('a burst with no extra images switched on is the one-image burst it always was', () => {
+    expect(burstExtraShapes(base)).toEqual([]);
+    const p = coerceParams(burstPrimitive.params, {});
+    expect(burstExtraShapes(p as never)).toEqual([]);
+  });
+
+  it('lists the switched-on images in order, skipping the ones that are off', () => {
+    expect(burstExtraShapes({ ...base, shape2On: true, shape4On: true })).toEqual(['a', 'c']);
+    expect(burstExtraShapes({ ...base, shape2On: true, shape3On: true, shape4On: true })).toEqual(['a', 'b', 'c']);
+  });
+
+  it('splits each wave evenly in turn, drawing nothing from the seeded stream', () => {
+    // The split is a round-robin cursor, so 20 particles over 4 images is exactly 5 of each.
+    expect(BURST_SRC).toContain('const slot = this.nextSlot % slots.length;');
+    const counts = [0, 0, 0, 0];
+    let cursor = 0;
+    for (let i = 0; i < 20; i++) { counts[cursor % 4]++; cursor = (cursor + 1) % 4; }
+    expect(counts).toEqual([5, 5, 5, 5]);
   });
 });

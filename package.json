@@ -122,7 +122,7 @@
     "build:web": "npm run build -w apps/web",
     "desktop": "npm run build:web && npm --workspace @game/desktop run start",
     "desktop:icon": "node scripts/make-icon.mjs",
-    "package:desktop": "npm run build:web && node scripts/package-desktop.mjs",
+    "package:desktop": "npm run build:web && node scripts/bundle-shell.mjs && node scripts/package-desktop.mjs",
     "package:itch:win": "npm run package:desktop && node scripts/package-itch-desktop.mjs",
     "release:desktop": "node scripts/release-desktop.mjs",
     "release:web": "node scripts/release-web.mjs",

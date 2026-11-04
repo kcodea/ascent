@@ -1,0 +1,96 @@
+name: desktop-release
+
+# Builds the Windows NSIS installer (ASCENT-Setup.exe) in CI with electron-builder. electron-builder is NEVER a
+# repo dependency (Windows Defender quarantines its app-builder.exe on the dev PC); it is installed --no-save here.
+# publish=false (default) only uploads a workflow artifact. A pull_request run (paths-filtered) exercises the same
+# build + smoke with a throwaway version so the workflow is testable before it lands on main.
+on:
+  workflow_dispatch:
+    inputs:
+      sha: { description: 'Commit to build', required: true, type: string }
+      version: { description: 'Release version (no leading v)', required: true, type: string }
+      versusUrl: { description: 'Versus Worker URL baked into the build', required: true, type: string }
+      hubUrl: { description: 'Friends hub URL baked into the build', required: true, type: string }
+      contentRevision: { description: 'Versus Worker content revision', required: true, type: string }
+      publish: { description: 'Publish to a draft GitHub release', required: false, type: boolean, default: false }
+  pull_request:
+    paths:
+      - 'apps/desktop/**'
+      - 'scripts/bundle-shell.mjs'
+      - 'scripts/package-desktop.mjs'
+      - '.github/workflows/desktop-release.yml'
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      BUILD_SHA: ${{ inputs.sha || github.sha }}
+      BUILD_VERSION: ${{ inputs.version || format('0.0.0-pr.{0}', github.run_number) }}
+      VERSUS_URL: ${{ inputs.versusUrl }}
+      HUB_URL: ${{ inputs.hubUrl }}
+      CONTENT_REVISION: ${{ inputs.contentRevision }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Stamp the version
+        shell: bash
+        run: |
+          npm pkg set version="$BUILD_VERSION"
+          npm pkg set version="$BUILD_VERSION" --prefix apps/desktop
+      - name: Build the web bundle
+        shell: bash
+        env:
+          VITE_VERSUS_CF_URL: ${{ inputs.versusUrl }}
+          VITE_FRIENDS_HUB_URL: ${{ inputs.hubUrl }}
+        run: npm run build:web
+      - name: Write release.json
+        shell: bash
+        run: |
+          node -e "
+          const e = process.env;
+          require('fs').writeFileSync('apps/web/dist/release.json', JSON.stringify({
+            sha: e.BUILD_SHA.slice(0, 8),
+            contentRevision: e.CONTENT_REVISION || null,
+            versusWorker: e.VERSUS_URL || null,
+            hub: e.HUB_URL || null,
+            builtAt: new Date().toISOString(),
+          }) + '\n');
+          "
+      - run: node scripts/bundle-shell.mjs
+      - name: Build the installer
+        shell: bash
+        run: |
+          npm i --no-save --no-audit --no-fund electron-builder@26.18.1
+          npx electron-builder --win nsis --publish never --projectDir apps/desktop
+      - name: Smoke-test the unpacked app
+        shell: bash
+        run: |
+          rm -f smoke.json
+          ASCENT_SMOKE=1 ASCENT_SMOKE_OUT="$PWD/smoke.json" apps/desktop/release-ci/win-unpacked/ASCENT.exe || true
+          test -f smoke.json || { echo "smoke produced no report"; exit 1; }
+          cat smoke.json
+          node -e "process.exit(JSON.parse(require('fs').readFileSync('smoke.json','utf8')).ok === true ? 0 : 1)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ascent-installer-${{ env.BUILD_VERSION }}
+          if-no-files-found: error
+          path: |
+            apps/desktop/release-ci/ASCENT-Setup.exe
+            apps/desktop/release-ci/ASCENT-Setup.exe.blockmap
+            apps/desktop/release-ci/latest.yml
+            apps/web/dist/release.json
+            smoke.json

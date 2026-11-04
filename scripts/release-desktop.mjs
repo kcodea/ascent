@@ -83,6 +83,7 @@ run('npm ci --no-audit --no-fund', WT);
 step('building the web bundle');
 run('npm run build:web', WT);
 step('packaging the exe');
+run('node scripts/bundle-shell.mjs', WT);
 run('node scripts/package-desktop.mjs', WT);
 
 const releaseDir = path.join(WT, 'apps', 'desktop', 'release', 'ASCENT-win32-x64');

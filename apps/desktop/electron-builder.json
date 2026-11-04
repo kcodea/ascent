@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "productName": "ASCENT",
+  "appId": "com.kcodea.ascent",
+  "asar": true,
+  "directories": { "app": "build", "output": "release-ci" },
+  "extraResources": [{ "from": "../web/dist", "to": "dist" }],
+  "win": { "target": ["nsis"], "icon": "icon.ico" },
+  "nsis": {
+    "artifactName": "ASCENT-Setup.${ext}",
+    "oneClick": true,
+    "perMachine": false
+  },
+  "publish": { "provider": "generic", "url": "https://github.com/kcodea/ascent/releases/latest/download" }
+}

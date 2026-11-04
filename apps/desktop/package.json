@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "electron": "^44.2.0",
+    "esbuild": "0.28.2",
     "rcedit": "^5.0.2"
   },
   "author": "kcodea"

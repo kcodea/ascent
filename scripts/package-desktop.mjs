@@ -12,7 +12,7 @@
  *   release/ASCENT-win32-x64/
  *     ASCENT.exe            ← node_modules/electron/dist/electron.exe, renamed
  *     …Electron runtime…    ← the rest of node_modules/electron/dist verbatim
- *     resources/app/        ← main.cjs + preload.cjs + icon.png + a minimal package.json (the shell)
+ *     resources/app/        ← bundled main.cjs + preload.cjs + icon.png + a minimal package.json (the shell)
  *     resources/dist/       ← apps/web/dist (the game), where main.cjs looks when app.isPackaged
  *
  * The exe's icon + version info ARE stamped, via `rcedit` (the same tool electron-builder uses for it) — see
@@ -51,8 +51,11 @@ await rm(path.join(out, 'resources', 'default_app.asar'), { force: true });
 console.log('• copying the shell');
 const appDir = path.join(out, 'resources', 'app');
 await mkdir(appDir, { recursive: true });
+// The shell comes from `scripts/bundle-shell.mjs` (esbuild-bundled main.cjs + preload + icon in apps/desktop/build/).
+const shellBuild = path.join(root, 'apps', 'desktop', 'build');
+if (!existsSync(path.join(shellBuild, 'main.cjs'))) die('Bundled shell missing — run `node scripts/bundle-shell.mjs`.');
 for (const f of ['main.cjs', 'preload.cjs', 'icon.png']) {
-  await cp(path.join(root, 'apps', 'desktop', f), path.join(appDir, f));
+  await cp(path.join(shellBuild, f), path.join(appDir, f));
 }
 await writeFile(
   path.join(appDir, 'package.json'),

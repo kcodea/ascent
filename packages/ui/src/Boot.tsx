@@ -7,6 +7,7 @@ import { applyPhoneCssArt, LITE_ART } from './phoneArt';
 import { useGame } from './store';
 import { crumb } from './crashLog';
 import { bootWarm } from './bootWarm';
+import { popInEnabled, startPopIn } from './popInFlag';
 
 /**
  * ON A PHONE the gate is shorter (owner 2026-10-18, approved for phones / touch only: "the iPhone crashes a lot"): the
@@ -88,6 +89,8 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     // Running it again is harmless: `preloadBootArt` queues once and returns the same list, and `whenArtReady`
     // only listens.
     let alive = true;
+    // The pop-in probe (opt-in: ?popin=1 or the Dev menu). Lazy, so a normal boot fetches none of it.
+    if (popInEnabled()) startPopIn();
     // PHONES (owner 2026-10-18) gate on the title + menu art only and stream the rest (preloadPlan.ts); the board
     // art switches to its phone copy here, before anything paints it.
     applyPhoneCssArt();

@@ -45,7 +45,7 @@ describe('medallion tint mask (R-PERF-MEDALLION-MASK-01)', () => {
     const css = mechMedallionMaskCss('/');
     for (const id of MECH_MEDALLION_PNGS) {
       const art = mechMedallionArtId(id)!;
-      expect(css).toContain(`.cgem-tint[data-art="${art}"]{-webkit-mask-image:url("/medallions/${art}.webp");mask-image:url("/medallions/${art}.webp")}`);
+      expect(css).toContain(`.cgem-tint[data-art="${art}"]{-webkit-mask-image:url("/medallions/${art}.webp?mask");mask-image:url("/medallions/${art}.webp?mask")}`);
     }
     expect(mechMedallionArtId('overflow')).toBe('watcher');
     expect(mechMedallionArtId('taunt')).toBeNull();

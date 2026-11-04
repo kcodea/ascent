@@ -349,8 +349,8 @@ body.ancgate .app { z-index: auto; }
   box-shadow: inset 0 0 calc(34 * var(--u, 1px)) rgba(170, 159, 254, 0.8), 0 0 calc(5 * var(--u, 1px)) rgba(189, 242, 255, 0.97); }
 .anc-acc-shell .p0::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   background: #e0f2ff; opacity: 0.55; mix-blend-mode: screen;
-  -webkit-mask-image: url("/fx/ward-hexsphere.svg"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.3) 47%, #000 88%, #000 100%);
-          mask-image: url("/fx/ward-hexsphere.svg"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.3) 47%, #000 88%, #000 100%);
+  -webkit-mask-image: url("/fx/ward-hexsphere.svg?mask"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.3) 47%, #000 88%, #000 100%);
+          mask-image: url("/fx/ward-hexsphere.svg?mask"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.3) 47%, #000 88%, #000 100%);
   -webkit-mask-size: 101% 102%, 100% 100%; mask-size: 101% 102%, 100% 100%;
   -webkit-mask-position: 7% 50%, 50% 50%; mask-position: 7% 50%, 50% 50%;
   -webkit-mask-repeat: no-repeat, no-repeat; mask-repeat: no-repeat, no-repeat;

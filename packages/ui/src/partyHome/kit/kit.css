@@ -448,18 +448,19 @@ html[data-ph-shell] :is(.lbpage, .modepick.sb-host)::-webkit-scrollbar { display
 html[data-ph-shell] .lbpage.hop > :not(.msb):not(.mbd), html[data-ph-shell] .modepick.hop > :not(.msb):not(.mbd),
 html[data-ph-shell] .lbpage:not(.hop) > :is(.lbtopbar, .lbscroll, .pnbar) { animation: none; }
 /* Scrollers keep one themed look and a reserved gutter, so a bar arriving with late data moves nothing. */
-html[data-ph-shell] { scrollbar-color: var(--ph-gold) transparent; }
-html[data-ph-shell]:not([data-ph-compact]) .phk-page .phk-pagebody { scrollbar-color: auto; }
 html[data-ph-shell]:not([data-ph-compact]) :is(.ph-settings, .ph-frows, .phc-gridwrap, .phc-rail, .phc-side, .phc-view, .bookguides, .rgp-listwrap, .rgp-detailcol, .phpn-index, .phpn-feed) { scrollbar-gutter: stable; }
 /* THE ENTRANCE: one shared, CSS-only mount animation, so a new page starts at once, an old one just leaves, and tab mashing cannot
    stack: only the page that is there plays it. Transform and opacity, one-shot, filling backwards only. About 200-260ms. */
 @keyframes phk-in { from { opacity: 0; transform: translateY(calc(6 * var(--phu))); } }
 /* The header is there on the first frame, over the steady backdrop, so a move never reads as empty; the body rows ease in under it. */
 html[data-ph-shell] .phk-page .phk-pagebody > * { animation: phk-in 0.2s cubic-bezier(0.22, 0.8, 0.3, 1) backwards; }
-html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(1) { animation-delay: 20ms; }
-html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(2) { animation-delay: 40ms; }
-html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(n + 3) { animation-delay: 60ms; }
+html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(2) { animation-delay: 20ms; }
+html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(n + 3) { animation-delay: 40ms; }
 /* The mode panel's content eases in the same way (fade only: it is its own scroller). */
 @keyframes phk-fadein { from { opacity: 0; } }
 .ph-settings { animation: phk-fadein 0.18s ease-out backwards; }
 @media (prefers-reduced-motion: reduce) { html[data-ph-shell] .phk-page .phk-pagebody > *, .ph-settings { animation: none; } }
+
+/* LAPTOP SIZES: the stage scales down below full HD, so small controls hold a readable, pressable height (units are the scaled
+   ones: 44 units is about 31 real px at 1366). */
+html[data-ph-laptop]:not([data-ph-compact]) :is(.phk-btn.s-s, .phk-chip.phk-tchip, .phk-segbtn, .phc-rchip, .cv2-btn, .ach-chip, .phc-trends button) { min-height: calc(44 * var(--phu)); }

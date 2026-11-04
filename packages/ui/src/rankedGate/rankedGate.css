@@ -135,14 +135,14 @@
    because a mask on the ply would be applied after its filter and cut the blur back to the hard edge. */
 .rgate-crystal-hot { opacity: 0; }
 .rgate-crystal-ply::before { content: ''; position: absolute; inset: 0; background: #fff;
-  -webkit-mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; }
+  -webkit-mask: url('/frames/ranked-gate-crystal.webp?mask') 50% 50% / 100% 100% no-repeat; mask: url('/frames/ranked-gate-crystal.webp?mask') 50% 50% / 100% 100% no-repeat; }
 .rgate-crystal-ply:nth-child(1) { filter: blur(calc(4 * var(--rg-u))); }
 .rgate-crystal-ply:nth-child(2) { filter: blur(calc(8 * var(--rg-u))); }
 .rgate-crystal-ply:nth-child(3) { filter: blur(calc(13 * var(--rg-u))); }
 /* The glint: a box masked to the crystal's own shape, with a slanted band of light that crosses it now and then
    and a four-point star that flares on its upper facet as the band passes. */
 .rgate-crystal-glint { opacity: 0; overflow: hidden;
-  -webkit-mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; }
+  -webkit-mask: url('/frames/ranked-gate-crystal.webp?mask') 50% 50% / 100% 100% no-repeat; mask: url('/frames/ranked-gate-crystal.webp?mask') 50% 50% / 100% 100% no-repeat; }
 .rgate-crystal-glint::before { content: ''; position: absolute; top: -20%; bottom: -20%; left: 0; width: 34%; transform: translateX(-160%) skewX(-22deg);
   background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(235, 248, 255, 0.55) 35%, rgba(255, 255, 255, 0.95) 50%, rgba(235, 248, 255, 0.55) 65%, rgba(255, 255, 255, 0)); }
 .rgate-crystal-twinkle { position: absolute; left: 41%; top: 27%; width: 26%; aspect-ratio: 1; opacity: 0; pointer-events: none; will-change: transform, opacity;
@@ -158,7 +158,7 @@
    shows all round. Wider and softer since the edge was asked to blur further (9 -> 16 art px, 1.16 -> 1.26). */
 .rgate-crystal-heat { opacity: 0; transform: scale(1.26); filter: blur(calc(16 * var(--rg-u))); }
 .rgate-crystal-heat::before { content: ''; position: absolute; inset: 0; background: #fff;
-  -webkit-mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; mask: url('/frames/ranked-gate-crystal.webp') 50% 50% / 100% 100% no-repeat; }
+  -webkit-mask: url('/frames/ranked-gate-crystal.webp?mask') 50% 50% / 100% 100% no-repeat; mask: url('/frames/ranked-gate-crystal.webp?mask') 50% 50% / 100% 100% no-repeat; }
 /* The white-blue burst in front of it as it SHATTERS (round: it is a flash going off, not the crystal's body). */
 .rgate-crystal-burst { inset: -30%; opacity: 0; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.98), rgba(190, 230, 255, 0.75) 30%, rgba(90, 170, 255, 0.25) 60%, rgba(90, 170, 255, 0)); }
 

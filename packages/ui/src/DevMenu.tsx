@@ -133,6 +133,7 @@ import { HeroPanelTuner } from './HeroPanelTuner';
 import { VersusBotsTuner } from './versus/VersusBotsTuner';
 import { pixiFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
+import { popInEnabled, setPopInSticky, startPopIn } from './popInFlag';
 import { FxWorkbench } from './fx/ui/Workbench';
 import { BeatLab } from './beatLab/BeatLab';
 import { ALL_TUNER_SPECS, resetAllTuners } from './tunerAll';
@@ -405,6 +406,10 @@ export function DevMenu() {
         (window as unknown as { __perfHud?: (on?: boolean) => void }).__perfHud?.(on);
       },
       live: () => perfMonitor.isRunning },
+    { id: 'popin', icon: '🖼️', label: 'Art Pop-in Probe',
+      hint: 'Logs every image that was not ready when it reached the screen, with why (network, revalidate, not in the plan, re-decode). A small panel copies the report; window.__popin has it too. Also in prod via ?popin=1. Remembered: turn it off here and it stops on the next load',
+      run: () => { const on = !popInEnabled(); setPopInSticky(on); if (on) startPopIn(); },
+      live: () => popInEnabled() },
     { id: 'perfscreen', icon: '📈', label: 'Perf Analytics',
       hint: 'Findings, per-phase breakdown, jank timeline and run-over-run comparison — plus a report to paste to Claude',
       run: () => { useGame.getState().openPerf(); } },

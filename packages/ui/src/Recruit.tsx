@@ -255,7 +255,8 @@ import { computeFrame, useCombatReplay } from './useCombatReplay';
 import { endCombatReady } from './endCombatGate';
 import { hardStopCombat, releaseCombatHold } from './combatHardStop';
 import { retryImport } from './retryImport';
-import { CHARGE_SECONDS, chargeElapsed, shopClockStep, standardTurnSeconds, turnClock, turnClockMayTick, turnClockReset, useTurnClockRunning, useTurnSeconds, useTurnTimeUp } from './turnClock';
+import { escapeHasOwner } from './GameMenu';
+import { CHARGE_SECONDS, chargeElapsed, shopClockStep, shopDecisionOpen, standardTurnSeconds, turnClock, turnClockMayTick, turnClockReset, useTurnClockRunning, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
 import { visibleHandPreviews } from './handPreview';
 import { useChargePreview } from './chargeGlyphTune';
@@ -5281,6 +5282,7 @@ export function Recruit() {
       if (!raf) raf = requestAnimationFrame(flush);
     });
     const up = (e: PointerEvent): void => perfMonitor.measure('input:pointerup', () => {
+      if (e.button === 2) return; // a right-click only ever backs out (`disarm` below), even released over a minion
       // The release of the press that ARMED it (no move, no new press) stays armed for a follow-up tap / click.
       if (!aimReleaseResolves(moved, pressedSinceArm)) return;
       const target = minionAt(e.clientX, e.clientY);
@@ -5323,22 +5325,38 @@ export function Recruit() {
       else armHero(); // released without a valid target — snaps back / cancels
     });
     const press = (e: PointerEvent): void => { if (e.button === 0) pressedSinceArm = true; };
+    // Right-click and Esc back out of a power or Equipment aim the way they back out of a card's (R-TARGET-CANCEL-01).
+    const disarm = (): void => { if (equipArmed) armEquipment(); else armHero(); };
+    const rightClick = (e: MouseEvent): void => {
+      if ((e as PointerEvent).pointerType === 'touch') return;
+      e.preventDefault();
+      e.stopPropagation();
+      disarm();
+    };
+    const escape = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape' || escapeHasOwner(useGame.getState())) return;
+      e.stopImmediatePropagation();
+      disarm();
+    };
     window.addEventListener('pointerdown', press, true);
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
+    window.addEventListener('contextmenu', rightClick, true);
+    window.addEventListener('keydown', escape, true);
     return () => {
       if (raf) cancelAnimationFrame(raf);
       rects.dispose();
       window.removeEventListener('pointerdown', press, true);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('contextmenu', rightClick, true);
+      window.removeEventListener('keydown', escape, true);
     };
   }, [heroArmed, equipArmed, armEquipment, heroArmedSlot, heroTargetsTavern, heroTargetsTavernOnly, heroTargetsNoGolden, run.board, run.spell?.uid, timeUp, dispatch, armHero, inCombat, viewing]);
 
-  // Targeted Battlecry (Toxin Tender): once the minion is played it sits on the board with a pending
-  // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors
-  // the Hero Power). Clicking off any warband minion is ignored (keep aiming); ending the turn first
-  // auto-resolves on the carry in the reducer, so the play is never stranded.
+  // Targeted Battlecry (Toxin Tender): the dropped minion stands in its slot, still in `run.hand`, with a pending
+  // target — aim a glowing line from it to a friendly minion and click to grant the keyword (mirrors the Hero Power).
+  // A click off target, a right-click or Esc sends it back to hand with nothing played (R-TARGET-CANCEL-01).
   const pendingTarget = run.pendingTarget;
   // The targeting pill's text: "Select a <noun> to <what the pick does>", read off the pending card's live view.
   const pendingView = pendingTarget ? (boardViews.get(pendingTarget.uid) ?? handViews.get(pendingTarget.uid)) : undefined;
@@ -5392,7 +5410,7 @@ export function Recruit() {
     // An `any` Choose One (Crest of the Climb) may land on a TAVERN offer as well as a warband minion — the
     // reducer's target pool says so, so the picker has to offer it, or choosing "+4 Attack" would silently
     // narrow the spell to the board (it could always hit an offer when the drag did the aiming).
-    const aimsTavern = pendingTarget.deferredPlay && def?.target === 'any';
+    const aimsTavern = pendingTarget.deferredPlay && !pendingTarget.shoutAim && def?.target === 'any';
     // Cached hit-testing, as in the hero-power aim above (`aimRectCache.ts`): no layout read on the move path.
     const boardRects = createAimRectCache('[data-zone="warband"] .row .card[data-uid]');
     const shopRects = aimsTavern ? createAimRectCache(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`) : null;
@@ -5429,23 +5447,44 @@ export function Recruit() {
       pending = { x: e.clientX, y: e.clientY };
       if (!raf) raf = requestAnimationFrame(flush);
     });
+    const cancelAim = (): void => {
+      if (pendingTarget.deferredPlay) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); }
+    };
     const pick = (e: PointerEvent): void => perfMonitor.measure('input:pointerdown', () => {
       if (e.button !== 0 || timeUp) return;
       const target = minionAt(e.clientX, e.clientY);
       if (target) { dispatch({ type: 'battlecryTarget', targetUid: target.uid }); return; }
-      // CLICK AWAY = CANCEL, but only for a DEFERRED Choose One aim (owner ruling 2026-08-28): nothing has
-      // been played, so the card simply returns to hand untouched. An ordinary battlecry aim still ignores the
-      // click and keeps aiming — its body is already on the board, so there is nothing clean to back out to.
-      if (pendingTarget.deferredPlay) { captureCoalesce(); dispatch({ type: 'cancelChoice' }); }
+      // CLICK AWAY = CANCEL (owner rulings 2026-08-28 and 2026-11-03, R-TARGET-CANCEL-01): nothing has been played, so
+      // the card simply returns to hand untouched. A tap on empty space is this same pointerdown. Only a committed aim
+      // from an older save ignores the click: its body is on the board, so there is nothing clean to back out to.
+      cancelAim();
     });
+    // Right-click backs out too. Capture phase, so the ping menu (R-PINGS) never opens over the aim it just closed; a
+    // touch long-press is not a right-click and keeps its own meaning.
+    const rightClick = (e: MouseEvent): void => {
+      if (!pendingTarget.deferredPlay || (e as PointerEvent).pointerType === 'touch') return;
+      e.preventDefault();
+      e.stopPropagation();
+      cancelAim();
+    };
+    // Esc backs out of the aim before it opens the menu; an open menu, book or inspect keeps its own Esc.
+    const escape = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape' || !pendingTarget.deferredPlay || escapeHasOwner(useGame.getState())) return;
+      e.stopImmediatePropagation();
+      cancelAim();
+    };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerdown', pick);
+    window.addEventListener('contextmenu', rightClick, true);
+    window.addEventListener('keydown', escape, true);
     return () => {
       if (raf) cancelAnimationFrame(raf);
       boardRects.dispose();
       shopRects?.dispose();
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerdown', pick);
+      window.removeEventListener('contextmenu', rightClick, true);
+      window.removeEventListener('keydown', escape, true);
     };
   }, [pendingTarget, timeUp, dispatch, inCombat, run.board, captureCoalesce, viewing]);
 
@@ -5543,16 +5582,16 @@ export function Recruit() {
   // writes turnClock directly, so ticking never re-renders Recruit. The reset effect above runs first
   // on a new turn (effect order), so the clock is back at full time before this re-schedules.
   useEffect(() => {
-    // `pendingTarget` (a battlecry aim) and `chooseOne` are forced mid-play decisions that lock the rest of the
-    // board, exactly like a Discover — so the timer must pause for them too. It didn't for `pendingTarget`, and
-    // because the UI also blocks the target pick once `timeUp`, the timer expiring mid-aim left the player
-    // unable to pick AND (before the reducer fix) unable to End Turn: a hard softlock (owner report 2026-07-22).
+    // `chooseOne` is a forced mid-play decision like a Discover, so the timer pauses for it. An AIM (`pendingTarget`) is
+    // not (owner 2026-11-03, R-TIMER-AIM-01): the clock runs under it, and 0:00 closes it like a cancel, card back in
+    // hand. That close is what keeps the old softlock shut (owner report 2026-07-22: an aim the UI would not let you
+    // answer at 0:00, with End Turn refused too).
     // The "Good Luck" intro holds the clock too (owner ask 2026-09-24): the turn starts at full time the moment
     // the intro fades or is skipped. The gate itself lives in `turnClockMayTick` so it is testable.
     if (run.mode === 'versus') return; // VERSUS: the shared server deadline drives the clock (useVersusRecruit)
     if (!turnClockMayTick({
       recruitPhase: run.phase === 'recruit',
-      decisionOpen: !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || run.ancients?.offer?.length),
+      decisionOpen: shopDecisionOpen(run),
       heroSelecting,
       overlayOpen,
       introPlaying,
@@ -5572,6 +5611,7 @@ export function Recruit() {
       const { next, expire } = shopClockStep(cur);
       if (expire) {
         sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
+        captureCoalesce(); // a minion held in a slot under an aim glides home as the lock closes the aim (R-TIMER-AIM-01)
         // …and the ENGINE locks with it (owner 2026-09-30, R-TIMER-LOCK-01: "make sure hero powers cant be used after
         // timer ends"). A real action, like Thymepiece's expiry, so the reducer refuses the Shop's player actions
         // (`blockedByShopClock`) and a recording replays the lock where it was lived.
@@ -5586,7 +5626,7 @@ export function Recruit() {
         else if (next > 5 && next <= 10) sfx.warmTurnTick();
       }
       // Thymepiece's window closes on the SAME tick that moves the clock, so whatever pauses this loop (a
-      // Discover, a Choose One, an aim, hero select — the effect's gate above) pauses the window with it. Once:
+      // Discover, a Choose One, hero select — the effect's gate above) pauses the window with it. Once:
       // the reducer clears the window, so the next tick reads none. Replay pacing divides this tick too, so a
       // recorded window plays back over the same clock-seconds it was lived in.
       const win = sellWindowRef.current;
@@ -5601,7 +5641,7 @@ export function Recruit() {
     // charge-build sound all read this running/held state, so they stop and start with the clock, never on their own.
     id = window.setTimeout(tick, turnClock.startSecond(tickMs(), performance.now()));
     return () => { window.clearTimeout(id); turnClock.hold(performance.now()); };
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying, goldClockWaits, run.scoutedNextOpponent?.length]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.chooseOne, run.ancients?.offer, heroSelecting, overlayOpen, settingsOpen, introPlaying, run.wave, replaySpeed, wipe, sotPlaying, goldClockWaits, run.scoutedNextOpponent?.length]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.
@@ -8969,8 +9009,8 @@ export function Recruit() {
       {/* The targeting line (hero power / targeted Battlecry / targeted spell) is the LIVING Pixi curve
           now — synced in the aim-line effect above; the old dotted SVG render retired (owner 2026-07-16). */}
 
-      {/* Targeted-Battlecry prompt: a played Toxin Tender waits for you to pick the friendly minion
-          its grant lands on (click a warband minion; ending the turn auto-targets the carry). */}
+      {/* Targeted-Battlecry prompt: a Toxin Tender held in its slot waits for you to pick the friendly minion its grant
+          lands on (click a warband minion; anywhere else, right-click or Esc sends it back to hand). */}
       {/* It says what the pick will DO, at its live value (owner ask 2026-11-01): "Select a Dwarf to grant +18 Health". */}
       {pendingTarget && !inCombat && targetPromptSegs && (
         <div className="targetprompt" aria-live="polite">

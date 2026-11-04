@@ -28,6 +28,11 @@ export function openMenu(): void {
   else st.openSettings();
 }
 
+/** Does something already open answer Esc? The test an aim runs before it takes Esc for itself (R-TARGET-CANCEL-01). */
+export function escapeHasOwner(st: ReturnType<typeof useGame.getState>): boolean {
+  return !!(st.showBook || st.gameMenuOpen || st.settingsOpen || st.showPatchNotes || st.inspect);
+}
+
 /** THE ESCAPE KEY (Game.tsx's one listener). The Compendium closes first; then an open in-game menu closes (with any page
  *  it opened, Patch Notes included), or an open Settings / Patch Notes page on the menus; a card being inspected claims
  *  Esc itself; else the menu opens. */

@@ -374,6 +374,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
     return () => row.removeEventListener('scroll', on);
   }, [phone, modes.length]);
   const wasPaged = useRef(pageOpen);
+  // Covered by a page, the home takes no focus.
+  useLayoutEffect(() => { rootRef.current?.toggleAttribute('inert', pageOpen); }, [pageOpen]);
   // A layout effect: the replay is committed before the first paint, so the stage never shows at full opacity first.
   useLayoutEffect(() => { if (wasPaged.current && !pageOpen) setEnterKey((k) => k + 1); wasPaged.current = pageOpen; }, [pageOpen]);
 
@@ -505,7 +507,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       <PhTopNav current="home" friendsDocked={!phone} ownDrawer />
 
       <div ref={modesRef} className={`ph-modes${moreTabs ? ' more' : ''}`}>
-        <PhTabs label="Mode" value={family.id} onChange={pickFamily} onLocked={(_id, reason) => { sfx.deny(); setLockNote(reason); }} onLockedHover={versusRoom ? undefined : setHoverNote}
+        <PhTabs label="Mode" value={family.id} onChange={pickFamily} onLocked={(_id, reason) => { sfx.deny(); if (phone) setLockNote(reason); }}
           tabs={families.map((f) => ({ id: f.id, label: <ModeLabel id={f.id} label={f.label} />, reason: familyReason(f) ?? undefined }))} />
         {/* A locked tab's reason takes the description's own line for a moment: it never covers the stage. */}
         <span className={`ph-desc${lockNote || (hoverNote && !versusRoom) ? ' locked' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? (versusRoom ? null : hoverNote) ?? mode.desc}</span>
@@ -530,7 +532,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
             )}
           </div>
         )}
-        {savedRun && (
+        {/* (Not inside a Versus room: Continue would leave it. The plate returns with the room gone.) */}
+        {savedRun && !versusRoom && (
           <div className="ph-held">
             <div className="ph-heldrow">
               <span className="ph-heldtxt"><b>Saved game</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>

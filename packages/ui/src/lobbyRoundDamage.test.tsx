@@ -12,6 +12,7 @@ import { act } from 'react';
 import { createLobbyRun, type RunLobby } from '@game/sim';
 import { mount, type Mounted } from './renderedText.mount';
 import { roundDamageFloats } from './lobbyDamageFx';
+import { hoverHeld } from './lobbyScoutHover.testkit';
 
 const fx = vi.hoisted(() => ({ calls: [] as string[] }));
 vi.mock('./lobbyDamageFx', async (orig) => ({
@@ -109,7 +110,7 @@ describe('lobby rail round damage', () => {
     act(() => { useGame.setState({ run: { ...run, lobby } }); });
     ui = mount(<LobbyPanel lobby={lobby} />);
     const row = ui.container.querySelector('[data-seat="s3"]')!;
-    act(() => { row.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body })); });
+    hoverHeld(row);
     const card = document.body.querySelector('.lobbyscout')!;
     expect(card).not.toBeNull();
     const fight = card.querySelector('.lobbyscout-row')!;

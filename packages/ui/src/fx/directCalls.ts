@@ -136,7 +136,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'rune-cast-flourish': ['fx/runeCastFlourish.ts'],
   'rune-cast-mote': ['fx/runeCastFlourish.ts'],
   // The implosion on a rune's BADGE as the lock-in ceremony hands it over (owner ask 2026-08-31).
-  'rune-select-implosion': ['useRuneArrivalFx.ts'],
+  'rune-select-implosion': ['useRuneArrivalFx.ts', 'versus/mateReadySlam.ts'],
   'rune-slot-break': ['QuestBadges.tsx'],
   // THE DISCOVER ENTRANCE (2026-09-25): the golden dust under each arriving Discover / Choose One option, and the glints
   // over its face.

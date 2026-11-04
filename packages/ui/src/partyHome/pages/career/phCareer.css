@@ -6,9 +6,6 @@
    open view scroll on their own, so the tabs and the profile never leave the screen. */
 html[data-ph-shell] .phc-page .phc-pg { flex: 1; min-height: 0; }
 html[data-ph-shell] .phc-page .phc-pg > .phk-pagebody { overflow: hidden; padding-bottom: calc(24 * var(--phu) + var(--safe-b, 0px)); }
-html[data-ph-shell] .phc-page .phk-pageactions { align-self: center; }
-html[data-ph-shell] .phc-page .phk-pagetabs { align-self: flex-end; margin-bottom: calc(-16 * var(--phu)); }
-html[data-ph-shell] .phc-page .phk-pagetabs .phk-tab { padding-bottom: calc(16 * var(--phu)); }
 html[data-ph-shell] .phc-page .phk-pagetitle { flex: 0 1 auto; min-width: calc(160 * var(--phu)); }
 html[data-ph-shell] .phc-page .phk-pagetitle h1 { max-width: calc(520 * var(--phu)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -53,8 +50,8 @@ html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel { margin: 0; padding: 0; 
 html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-badge { display: none; }
 html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-label { font-family: var(--ph-font); font-size: var(--ph-t2); letter-spacing: 0.16em; color: var(--ph-muted); }
 html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-num { font-size: var(--ph-t1); color: var(--ph-text); }
-html[data-ph-shell] .phc-page .phc-acct .acctxp-track { height: calc(6 * var(--phu)); border: 0; border-radius: 0; background: rgba(0, 0, 0, 0.55); box-shadow: none; }
-html[data-ph-shell] .phc-page .phc-acct .acctxp-fill { border-radius: 0; background: var(--ph-metal-gold); box-shadow: none; }
+html[data-ph-shell] .phc-page .phc-acct .acctxp-track { height: calc(8 * var(--phu)); border: 0; border-radius: 999px; overflow: hidden; background: rgba(0, 0, 0, 0.55); box-shadow: none; }
+html[data-ph-shell] .phc-page .phc-acct .acctxp-fill { border-radius: 999px; background: var(--ph-metal-gold); box-shadow: none; }
 html[data-ph-shell] .phc-page .phc-acct :is(.cv2-btn, .cv2-acctlevel-save) { border-radius: 0; }
 html[data-ph-shell] .phc-page .phc-acct .cv2-btn { height: calc(32 * var(--phu)); padding: 0 calc(16 * var(--phu)); background: var(--ph-plate); color: var(--ph-text); border: 0; box-shadow: var(--ph-gild);
   border-radius: var(--ph-r); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
@@ -68,7 +65,7 @@ html[data-ph-shell] .phc-page .phc-card .rankcrest-big { --ring: calc(88 * var(-
 html[data-ph-shell] .phc-page .phc-card .rankbar-label { font-family: var(--ph-font); font-size: var(--ph-t3); letter-spacing: 0.12em; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
 html[data-ph-shell] .phc-page .phc-card .rankbar-points { font-size: var(--ph-t1); color: var(--ph-muted); }
 html[data-ph-shell] .phc-page .phc-card .rankbar-caption { font-family: var(--ph-name-font, var(--ph-font)); font-size: var(--ph-t4); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); }
-html[data-ph-shell] .phc-page .phc-card .rankbar-track { border-radius: 0; }
+html[data-ph-shell] .phc-page .phc-card .rankbar-track { border-radius: 999px; }
 html[data-ph-shell] .phc-page .phc-card .cv2-mmr-v { font-family: var(--ph-name-font, var(--ph-font)); font-size: var(--ph-t4); }
 html[data-ph-shell] .phc-page .phc-card .cv2-mmr-l { font-family: var(--ph-font); font-size: var(--ph-t1); color: var(--ph-muted); }
 html[data-ph-shell] .phc-page .phc-duos .cv2-duocard-kicker { font-family: var(--ph-font); font-size: var(--ph-t2); letter-spacing: 0.16em; color: var(--ph-muted); }
@@ -223,3 +220,28 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phc-profile .phc-stats { g
 html[data-ph-shell]:not([data-touch-small]) .phc-profile { scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; padding-right: calc(4 * var(--phu)); }
 html[data-ph-shell]:not([data-touch-small]) .phc-profile::-webkit-scrollbar { display: block; width: calc(6 * var(--phu)); }
 html[data-ph-shell]:not([data-touch-small]) .phc-profile::-webkit-scrollbar-thumb { background: var(--ph-gold); border-radius: 999px; }
+/* Round 7: the whole profile fits a 1080 screen, guest note included. Portrait shorter, the two account actions side by
+   side, the rank crest beside its bar (as on a phone). Ranked Duos, when a player has teams, scrolls in below. */
+.phc-id { height: calc(168 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(8 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-row { grid-column: 1 / -1; }
+html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-save { display: contents; }
+html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-save > span { grid-column: 1 / -1; grid-row: 2; }
+html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-coll { grid-row: 3; margin: 0; }
+html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-coll:last-child { grid-column: 1 / -1; }
+html[data-ph-shell] .phc-page .phc-acct .cv2-acctlevel-save .cv2-btn { grid-row: 3; }
+html[data-ph-shell] .phc-page .phc-card .rankbar-stack { flex-direction: row; align-items: center; text-align: left; gap: calc(16 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-card .rankbar-stack .rankbar-crests { align-self: center; }
+html[data-ph-shell] .phc-page .phc-card .rankbar-stack .rankbar-body { flex: 1 1 0; min-width: 0; align-items: flex-start; gap: calc(4 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-card .rankbar-stack .rankbar-track { width: 100%; }
+html[data-ph-shell] .phc-page .phc-card .rankbar-stack .rankbar-label { order: -2; }
+html[data-ph-shell] .phc-page .phc-card .rankbar-stack .rankbar-caption { order: -1; font-size: var(--ph-t3); }
+/* The tiles' painted medallions (as on the old Career), small beside the number. */
+.phc-sv { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); min-width: 0; }
+.phc-sv > :is(svg, img, span) { flex: none; width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); }
+/* PHONE: four cards share the row exactly (no sideways scroll); Ranked Duos takes its own row under them. */
+html[data-ph-shell][data-touch-ui][data-touch-small] .phc-profile { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1.05fr) minmax(0, 1.25fr); overflow: visible; align-items: stretch; }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phc-profile > *, html[data-ph-shell][data-touch-ui][data-touch-small] .phc-profile > .phc-card, html[data-ph-shell][data-touch-ui][data-touch-small] .phc-profile > .phc-card:last-child { width: auto; min-width: 0; }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phc-profile > .phc-duos { grid-column: 1 / -1; }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phc-stats .phk-stat { padding: calc(8 * var(--phu)); }
+html[data-ph-shell][data-touch-ui][data-touch-small] .phc-stats .phk-statlbl { overflow-wrap: anywhere; }

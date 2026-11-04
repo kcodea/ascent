@@ -18,6 +18,7 @@
  */
 import type { ReactNode } from 'react';
 import { getHero } from '@game/sim';
+import { MenuMedal } from '../../../menuIcons';
 import { MenuSidebar, SidebarHost } from '../../../MenuSidebar';
 import { HERO_SORTS, HERO_SORT_LABEL, TREND_WINDOWS, trendWindowLabel, type HeroCareer, type HeroSort, type TrendWindow } from '../../../careerData';
 import { PhButton, PhEmpty, PhPage, PhSegmented, PhStat, PhTabs } from '../../kit';
@@ -41,7 +42,7 @@ export interface PhCareerProps {
   /** The account level card (level, XP, Collection, the guest's Create account). Null until progression is on. */
   accountLevel: ReactNode;
   level: number | null;
-  stats: { games: number; firsts: number; top4Pct: number | null; losses: number; avgPlacement: number | null; tribe: string | null };
+  stats: { games: number; firsts: number; top4Pct: number | null; losses: number; avgPlacement: number | null; tribe: string | null; tribeMedal?: ReactNode };
   rank: ReactNode;
   duos: ReactNode;
   tab: PhCareerTab;
@@ -179,10 +180,10 @@ export function PhCareer(p: PhCareerProps) {
                 <div className="phc-stats">
                   <PhStat size="s" label="Games" value={stats.games} />
                   <PhStat size="s" label="1st Place Wins" value={stats.firsts} tone="gold" />
-                  <PhStat size="s" label="Top 4 Finish" value={stats.top4Pct === null ? '-' : `${stats.top4Pct}%`} />
-                  <PhStat size="s" label="Losses" value={stats.losses} />
-                  <PhStat size="s" label="Avg Placement" value={stats.avgPlacement === null ? '-' : stats.avgPlacement} />
-                  <PhStat size="s" label="Favorite Tribe" value={stats.tribe ?? '-'} />
+                  <PhStat size="s" label="Top 4 Finish" value={<span className="phc-sv"><MenuMedal name="top4" />{stats.top4Pct === null ? '-' : `${stats.top4Pct}%`}</span>} />
+                  <PhStat size="s" label="Losses" value={<span className="phc-sv"><MenuMedal name="losses" />{stats.losses}</span>} />
+                  <PhStat size="s" label="Avg Placement" value={<span className="phc-sv"><MenuMedal name="avgplacement" />{stats.avgPlacement === null ? '-' : stats.avgPlacement}</span>} />
+                  <PhStat size="s" label="Favorite Tribe" value={<span className="phc-sv">{stats.tribeMedal}{stats.tribe ?? '-'}</span>} />
                 </div>
               </div>
               {/* Ranked Duos last: the career numbers stay on screen at 1080; the teams scroll in under them. */}

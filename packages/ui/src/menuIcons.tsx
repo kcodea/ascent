@@ -1,3 +1,4 @@
+import type { Tribe } from '@game/core';
 import { publicArt } from './phoneArt';
 
 /**
@@ -12,7 +13,8 @@ import { publicArt } from './phoneArt';
  * They don't take `currentColor`, so hover/active tint changes leave them as painted.
  */
 export type MenuMedalName = 'play' | 'career' | 'collection' | 'leaderboard' | 'recent' | 'live' | 'settings' | 'glossary' | 'patchnotes' | 'friends' | 'watcher' | 'avenge' | 'equip' | 'heroes' | 'padlock' | 'first' | 'third'
-  | 'minions' | 'titles' | 'attacks' | 'frames' | 'announcers' | 'second' | 'emotes' | 'plates' | 'guides' | 'spend';
+  | 'minions' | 'titles' | 'attacks' | 'frames' | 'announcers' | 'second' | 'emotes' | 'plates' | 'guides' | 'spend'
+  | 'top4' | 'losses' | 'avgplacement';
 export const MenuMedal = ({ name, className = 'menumedal' }: { name: MenuMedalName; className?: string }) => (
   <img
     className={className}
@@ -35,6 +37,48 @@ export const GildedCrown = () => (
   <img
     className="gildedcrown"
     src={publicArt('frames/gilded.webp')}
+    alt=""
+    aria-hidden="true"
+    draggable={false}
+    decoding="sync"
+  />
+);
+
+/** The tribes with a painted gold medallion (owner art, `Reference Art/Medallions/tribe-*.png`, 2026-11-03) in `public/menu/tribe-<id>.webp`. */
+const TRIBE_MEDALS: ReadonlySet<Tribe> = new Set<Tribe>(['beast', 'celestial', 'demon', 'dragon', 'dwarf', 'kobold', 'mech', 'spirit', 'undead']);
+export const hasTribeMedal = (tribe: Tribe | null | undefined): tribe is Tribe => !!tribe && TRIBE_MEDALS.has(tribe);
+
+/** A tribe's painted medallion, sized by its container like the gilded crown. Check `hasTribeMedal` first. */
+export const TribeMedal = ({ tribe }: { tribe: Tribe }) => (
+  <img
+    className="tribemedal"
+    src={`${import.meta.env.BASE_URL}menu/tribe-${tribe}.webp`}
+    alt=""
+    aria-hidden="true"
+    draggable={false}
+    decoding="sync"
+  />
+);
+
+/** The Armor mark: the painted silver shield medallion (owner art, `Reference Art/Medallions/armor.png`, 2026-11-03), in
+ *  `public/medallions/armor.webp`. Sized by its container's svg rules (each takes `.armormedal` beside `svg`). */
+export const ArmorMedal = () => (
+  <img
+    className="armormedal"
+    src={`${import.meta.env.BASE_URL}medallions/armor.webp`}
+    alt=""
+    aria-hidden="true"
+    draggable={false}
+    decoding="sync"
+  />
+);
+
+/** The Health mark: the painted red heart medallion (owner art, `Reference Art/Medallions/health.png`, 2026-11-03), in
+ *  `public/medallions/health.webp`. Sized by its container's svg rules (each takes `.healthmedal` beside `svg`). */
+export const HealthMedal = () => (
+  <img
+    className="healthmedal"
+    src={`${import.meta.env.BASE_URL}medallions/health.webp`}
     alt=""
     aria-hidden="true"
     draggable={false}

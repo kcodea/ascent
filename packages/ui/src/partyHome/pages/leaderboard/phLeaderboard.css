@@ -5,9 +5,6 @@
    would see the window, R-STAGE tripwire). */
 html[data-ph-shell] .phl-page { container: phl / inline-size; }
 html[data-ph-shell] .phl-page .phl-pg { flex: 1; min-height: 0; }
-html[data-ph-shell] .phl-page .phk-pageactions { align-self: center; }
-html[data-ph-shell] .phl-page .phk-pagetabs { align-self: flex-end; margin-bottom: calc(-16 * var(--phu)); }
-html[data-ph-shell] .phl-page .phk-pagetabs .phk-tab { padding-bottom: calc(16 * var(--phu)); }
 .phl-count { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-muted); text-shadow: var(--ph-shadow); white-space: nowrap; }
 
 /* ── THE PODIUM: three tall cards, 1st in the middle and tallest ── */
@@ -71,7 +68,7 @@ html[data-ph-shell] .phl-page .phl-title { --tb-fs: var(--ph-t1); flex: none; }
 html[data-ph-shell] .phl-page .phl-rank .rankbar { gap: calc(12 * var(--phu)); }
 html[data-ph-shell] .phl-page .phl-rank .rankcrest-row { --ring: calc(40 * var(--phu)); }
 html[data-ph-shell] .phl-page .phl-rank .rankbar-label { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.1em; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
-html[data-ph-shell] .phl-page .phl-rank .rankbar-track { width: calc(140 * var(--phu)); border-radius: 0; }
+html[data-ph-shell] .phl-page .phl-rank .rankbar-track { width: calc(140 * var(--phu)); border-radius: 999px; }
 html[data-ph-shell] .phl-page .phl-rank .rankbar-points { font-size: var(--ph-t1); color: var(--ph-muted); }
 
 /* Your standing, pinned to the foot of the view when you are not on the board. */

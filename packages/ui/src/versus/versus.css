@@ -706,6 +706,9 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
 .vswatchpanel { left: auto; top: auto; right: calc(var(--edge-r, 0px) + 20 * var(--u));
   bottom: calc(var(--edge-b, 0px) + 16px + 40 * var(--u) + 30px); }
 .vswatchpanel-one .vsspec-info { align-items: flex-end; }
+/* DUOS (R-SPECTATE-DUOS-MATEDOCK-01): the bottom-right corner is the watched player's teammate portrait, as on their own
+   screen, so the switcher runs along the top edge, right of my own plate and clear of the tier gem and the clock. */
+.vswatchpanel.vswatchpanel-top { right: auto; bottom: auto; left: calc(var(--edge-l, 0px) + 150 * var(--u)); top: calc(var(--edge-t, 0px) + 10 * var(--u)); }
 /* A spectator's plate takes a right-click (mute their emotes) and a hover (the tip), on either screen. A muted one sits
    back and reads "Muted". */
 .vswatch .vswatch-seat, .vsself .vswatch-seat { pointer-events: auto; }

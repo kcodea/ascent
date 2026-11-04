@@ -216,7 +216,9 @@ html[data-ph-shell] .ph-top .ph-brand span { font-size: calc(22 * var(--phu)) !i
 html[data-ph-shell] .ph-top :is(.ph-coin b, .ph-lvnum) { font-family: var(--ph-name-font) !important; }
 /* LEGACY PAGE CONTENT on a phone under the shell: the old phone page rules size in screen points (--pt); here a point
    is the shell's own unit, so a page not yet rebuilt on the kit reads at the home's scale and never runs off the side. */
-html[data-ph-shell][data-ph-compact][data-touch-ui][data-touch-small][data-page-scale] { --pt: var(--phu); }
+/* `--pt` IS ONE REAL SCREEN POINT under the shell (one phone point = 620 / 390 = 1.6 units), so `calc(40 * var(--pt))` means a
+   true 40pt touch target. Page authors: size in --phu; use --pt only for a real-point floor; never use raw px on a phone. */
+html[data-ph-shell][data-ph-compact][data-touch-ui][data-touch-small][data-page-scale] { --pt: calc(1.6 * var(--phu)); }
 html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { overflow-x: hidden; }
 /* The friends drawer's outside-tap catcher (under the drawer, over the page). */
 .ph-fcatch { position: fixed; inset: 0; top: var(--ph-nav-h); z-index: 486; }
@@ -245,3 +247,20 @@ html[data-ph-shell] .ph-top :is(.ph-navtab, .ph-iconbtn, .ph-brand) { letter-spa
 .ph-gear svg { width: 100%; height: 100%; }
 /* Rows with an action keep their whole frame (the action sits inside the gilded edge). */
 .ph-friend .phk-rowright { margin: calc(2 * var(--phu)) calc(2 * var(--phu)) calc(2 * var(--phu)) 0; border-radius: 0 var(--ph-r) var(--ph-r) 0; }
+
+/* ── CRITIC ROUND 6 ── */
+/* The empty slot that keeps the wallet still where the friends list is docked. */
+.ph-iconbtn.ph-slot { visibility: hidden; pointer-events: none; }
+/* KEYBOARD FOCUS: a rounded warm glow on the square-edged controls, never a sharp box. */
+html[data-ph-shell] :is(.ph-navtab, .phk-tab, .ph-iconbtn, .ph-brand, .phk-row, .phk-grow):focus-visible { border-radius: var(--ph-r-s); }
+html[data-ph-shell] :is(.ph-top, .ph, .phk-page, .ph-friends, .phk-dialog) :is(button, input, [role="button"], [role="tab"]):focus-visible {
+  outline: calc(2 * var(--phu)) solid rgba(255, 217, 138, 0.85); outline-offset: calc(-2 * var(--phu)); }
+/* PHONE NAV: a tiny label under each icon, so no page is a guess. The row scrolls sideways when it must. */
+html[data-ph-compact] { --ph-nav-h: calc(84 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .ph-top .ph-navlbl { display: block; font-size: calc(18 * var(--phu)) !important; line-height: 1; letter-spacing: 0; text-transform: none; font-weight: 700; }
+html[data-ph-compact] .ph-navtab { flex-direction: column; justify-content: center; gap: calc(5 * var(--phu)); width: auto; min-width: calc(72 * var(--phu)); padding: 0 calc(8 * var(--phu)); }
+html[data-ph-compact] .ph-navtab .ph-navicon { width: calc(34 * var(--phu)); height: calc(34 * var(--phu)); }
+html[data-ph-compact] .ph-navtab.on::after { bottom: calc(-2 * var(--phu)); }
+html[data-ph-compact] .ph-nav { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32 * var(--phu)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 32 * var(--phu)), transparent); }
+/* PHONE TYPE: the read sizes lift so nothing lands under 11 real px (18 units on a phone). */
+html[data-ph-shell][data-ph-compact] { --ph-t1: calc(18 * var(--phu)); --ph-t2: calc(19 * var(--phu)); --ph-t3: calc(22 * var(--phu)); --ph-t-read: calc(20 * var(--phu)); }

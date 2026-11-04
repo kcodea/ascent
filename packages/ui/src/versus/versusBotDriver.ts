@@ -132,6 +132,8 @@ export class VersusBotDriver {
   holdPasses = false;
   /** Duos dev: the next pass that reaches the bot finds its hand full ("the hand fills while the pass is in flight"). */
   raceArmed = false;
+  /** Dev: End Turn on the next shop step (no more actions, no "after me" hold); cleared once it locks. */
+  lockNow = false;
   private lastPassPoll = -Infinity;
   private shipped = new Set<number>();
   private inFlight = new Set<number>();
@@ -313,13 +315,13 @@ export class VersusBotDriver {
     }
     // A random action, or End Turn once it has had its fill (or the clock is nearly out).
     const left = m.shop_deadline ? Date.parse(m.shop_deadline) - now : Infinity;
-    if (!this.quiet && this.actions < (this.opts.maxActions ?? 8) && left > 4000) {
+    if (!this.quiet && !this.lockNow && this.actions < (this.opts.maxActions ?? 8) && left > 4000) {
       const next = this.randomAction(run);
       this.actions++;
       if (next) { this.run = next; return 'acted'; }
     }
     // DEV: "Bots end turn after me" holds the lock while the clock has time.
-    if (left > 4000 && this.hooks.holdLock?.()) return 'idle';
+    if (!this.lockNow && left > 4000 && this.hooks.holdLock?.()) return 'idle';
     // LOCK: every open decision gets a random legal answer, then End Turn parks the side; the run keeps that state.
     const forced = this.hooks.beforeLock ? this.hooks.beforeLock(run, { round: m.round, seat: this.realSeat }) : run;
     const answered = versusAutoResolve(forced, this.rng);
@@ -327,6 +329,7 @@ export class VersusBotDriver {
     if (!ended.pendingCombatSide) return 'idle';
     this.seq++;
     this.lockedRound = m.round;
+    this.lockNow = false;
     this.actions = 0;
     this.run = answered;
     await this.api.submit(m.id, m.round, this.seq, ended.pendingCombatSide, true, null, versusScoutOf(answered));

@@ -245,7 +245,10 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // SIX since 2026-09-21: the By-card binder's ON WATCHER cue — one `playDef(wb.def, …)` resolving
   // `bindingFor(cardId, 'watcher')` on each watcher uid answering an ally's attack. A derived-pulse binding
   // (no moment kind), so it fires at the watcher-pulse site rather than through the score.
-  'useCombatReplay.ts': 6,
+  // SEVEN since 2026-11-04: the ON RALLY cue for an ORDINARY Rally (no ally proc, e.g. Chorus Drake) — one
+  // `playDef(ownRally.def, …)` at the attacker's wind-up pulse, resolved by `ownRallyBindingFor`. Ally procs
+  // (Echohorn) still play through the score's `rallyFx` row; this covers the Rally that logs no `rally` event.
+  'useCombatReplay.ts': 7,
   // PER-TRIBE BUFF RIBBON (2026-09-09). One `playDef(`tendril-trail-${tribe}`, …)` in `fireBuffFx`: the buffer's
   // TRIBE picks its ribbon variant, so the id is data-resolved (from the tribe) rather than a literal — the
   // same shape as a binding, keyed on the source's tribe instead of a `bindings.json` row. The generic

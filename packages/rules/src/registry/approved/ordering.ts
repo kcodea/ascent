@@ -308,4 +308,23 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-23. Before, the rewind put the pointer just left of the RETURNED body, which sits to the right of its Echo summons, so the risen body attacked next and its Echo summons were skipped until the rotation wrapped.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/riseEchoOrder.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-FX-RALLY-OWN-01',
+    title: 'Every Rally plays the On Rally effect bound to its card when it fires',
+    statement:
+      'The "On Rally" effect of a Rally card (bound in the FX workbench) plays each time that Rally fires in combat. A Rally that '
+      + 'fires the effect of another unit (Echohorn, Deathsayer) plays it from the rallier to that ally. Every other Rally '
+      + '("Rally: do X", e.g. Chorus Drake, Cinderchef) plays it on the rallier itself, at the moment its medallion lights '
+      + 'at the top of the swing. One fire plays it once, never on both paths.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, Chorus Drake FX', quote: 'when his rally goes off, i want a burst of different musical notes from his medallion' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, approving the hook', quote: 'Yes, add the hook' },
+      { kind: 'code', ref: 'fix/fx-own-rally-slot: packages/ui/src/choreo/channels/rallyFired.ts ownRallyBindingFor; packages/ui/src/useCombatReplay.ts (onRallyPulse)' },
+    ],
+    contentIds: ['d2_chorus'],
+    currentBehaviour: 'Conforms from 2026-11-04 (fix/fx-own-rally-slot). Before, the workbench offered On Rally for every Rally card but only an ally-proc Rally (one that logs a rally event) ever played it; the binding of an ordinary Rally never fired.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/rallyFired.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
 ];

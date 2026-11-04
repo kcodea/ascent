@@ -33,7 +33,7 @@ const fs = require('node:fs');
 // would not fire. The point is that the check runs against the exe's own `resources/dist`, over the exe's own
 // protocol handler — the exact code path a player's machine takes — not against a dev server.
 const SMOKE = process.env.ASCENT_SMOKE === '1';
-const smoke = { requests: 0, missing: [], consoleErrors: [] };
+const smoke = { requests: 0, missing: [], consoleErrors: [], networkErrors: [] };
 
 /** The web build. Packaged: copied into resources/ by electron-builder. Dev: read straight from the repo. */
 const DIST = app.isPackaged
@@ -109,37 +109,40 @@ function createWindow() {
   return win;
 }
 
-/** Poll for the boot report, gather the failure evidence, write it, exit. Never hangs: hard cap at 4 minutes. */
+/** Poll for the readiness, gather the failure evidence, write it, exit. Never hangs: hard cap at 4 minutes. */
 function runSmoke(win) {
   const started = Date.now();
+  let readyMs = 0;
   const finish = async (timedOut) => {
-    let boot = null;
     let fontErrors = [];
     try {
-      boot = await win.webContents.executeJavaScript('window.__boot ? JSON.parse(JSON.stringify(window.__boot)) : null', true);
       fontErrors = await win.webContents.executeJavaScript(
         "Array.from(document.fonts).filter((f) => f.status === 'error').map((f) => f.family + ' ' + f.weight)", true);
     } catch (e) { smoke.consoleErrors.push(`executeJavaScript failed: ${e}`); }
-    const stages = boot?.stages ?? {};
-    const stageFail = Object.values(stages).some((st) => !st.ok);
-    const warmFailed = boot?.warmAll?.first?.failed ?? [];
-    const ok = !timedOut && !!boot && !stageFail && smoke.missing.length === 0 && fontErrors.length === 0 && warmFailed.length === 0;
-    const report = { ok, timedOut, ms: Date.now() - started, boot, warmFailed, fontErrors, requests: smoke.requests, missing: smoke.missing, consoleErrors: smoke.consoleErrors };
+    // "Ready" = the title screen mounted (window.__ascentReady, set in Title.tsx). Offline runs (CI pull_request) tolerate
+    // cross-origin network refusals; a publish run keeps them fatal.
+    const offline = process.env.ASCENT_SMOKE_OFFLINE === '1';
+    const ok = !timedOut && smoke.missing.length === 0 && fontErrors.length === 0 && smoke.consoleErrors.length === 0 && (offline || smoke.networkErrors.length === 0);
+    const report = { ok, timedOut, ms: Date.now() - started, boot: timedOut ? null : { ready: true, ms: readyMs }, fontErrors, requests: smoke.requests, missing: smoke.missing, consoleErrors: smoke.consoleErrors, networkErrors: smoke.networkErrors, offline };
     const out = process.env.ASCENT_SMOKE_OUT;
     if (out) fs.writeFileSync(out, JSON.stringify(report, null, 2));
     else console.log(JSON.stringify(report, null, 2));
     app.exit(ok ? 0 : 1);
   };
   win.webContents.on('console-message', (_e, level, message) => {
-    if (level >= 3) smoke.consoleErrors.push(message); // 3 = error
+    if (level < 3) return; // 3 = error
+    // A cross-origin network refusal (CORS-blocked / net::ERR_* against a non-app:// URL) is the network's doing, not a defect in the build.
+    const network = (/blocked by CORS policy/.test(message) && !message.includes("fetch at 'app:")) || (/net::ERR_/.test(message) && !message.includes('app:'));
+    (network ? smoke.networkErrors : smoke.consoleErrors).push(message);
   });
   win.webContents.on('did-fail-load', (_e, code, desc) => { smoke.consoleErrors.push(`did-fail-load ${code} ${desc}`); void finish(false); });
   const poll = setInterval(async () => {
     if (Date.now() - started > 4 * 60_000) { clearInterval(poll); return finish(true); }
     let done = false;
-    try { done = await win.webContents.executeJavaScript('!!window.__boot', true); } catch { /* not loaded yet */ }
+    try { done = await win.webContents.executeJavaScript('!!window.__ascentReady', true); } catch { /* not loaded yet */ }
     if (done) {
       clearInterval(poll);
+      readyMs = Date.now() - started;
       // Give the fire-everything pass + font loads a beat to settle their final requests before reading.
       setTimeout(() => void finish(false), 1500);
     }

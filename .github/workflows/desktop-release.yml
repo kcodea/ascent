@@ -82,6 +82,7 @@ jobs:
         shell: bash
         run: |
           rm -f smoke.json
+          if [ "${{ github.event_name }}" = pull_request ]; then export ASCENT_SMOKE_OFFLINE=1; fi
           ASCENT_SMOKE=1 ASCENT_SMOKE_OUT="$PWD/smoke.json" apps/desktop/release-ci/win-unpacked/ASCENT.exe || true
           test -f smoke.json || { echo "smoke produced no report"; exit 1; }
           cat smoke.json

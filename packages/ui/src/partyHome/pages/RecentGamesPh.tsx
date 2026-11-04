@@ -55,6 +55,8 @@ export interface RecentGamesPhProps {
   picked: string | null; onPick: (key: string) => void;
   watching: string | null; noReplay: string | null; opening: string | null;
   onOpen: (r: FeedRow, key: string) => void; onWatch: (e: MouseEvent, r: FeedRow, key: string) => void;
+  /** Read the feed again (the "not available" panel's Retry). */
+  onRetry: () => void;
 }
 
 const TABS = [
@@ -103,18 +105,21 @@ export function RecentGamesPh(p: RecentGamesPhProps) {
   );
 }
 
-function StateBody({ state, tab, signedOut }: { state: RecentState; tab: RecentGamesTab; signedOut?: boolean }) {
+function StateBody({ state, tab, signedOut, onRetry }: { state: RecentState; tab: RecentGamesTab; signedOut?: boolean; onRetry: () => void }) {
   if (state === 'offline') return <PhSection><PhEmpty title="Recent games are unavailable" sub="This build has no backend configured." /></PhSection>;
   if (state === 'loading') {
     return <PhSection><PhEmpty title={tab === 'duos' ? 'Gathering your Duos games' : tab === 'practice' ? 'Gathering the latest practice games' : 'Gathering the latest games'} sub="One moment." /></PhSection>;
   }
   if (signedOut) return <PhSection><PhEmpty title="Sign in to see your Duos games" sub="Duos games are kept on your account." /></PhSection>;
-  const empty = tab === 'duos'
-    ? { t: 'No Duos games yet', s: 'Finish a Ranked Duos or Versus Duos game to see it here.' }
-    : tab === 'practice'
-      ? { t: 'No practice games yet', s: 'Finish a practice game to see it here.' }
-      : { t: 'No games recorded yet', s: 'Finish a run to seed the feed.' };
-  return <PhSection><PhEmpty title={empty.t} sub={empty.s} /></PhSection>;
+  if (tab === 'duos') return <PhSection><PhEmpty title="No Duos games yet" sub="Finish a Ranked Duos or Versus Duos game to see it here." /></PhSection>;
+  // Ranked and Practice are feeds of EVERY player, and their reads answer [] on any failure: an empty feed is a failed or
+  // timed-out read, so it says so and offers Retry, never a false "no games yet" (the Leaderboard's rule).
+  return (
+    <PhSection>
+      <PhEmpty title="Recent games are not available right now" sub="Check your connection and try again."
+        action={<PhButton onClick={onRetry}>Retry</PhButton>} />
+    </PhSection>
+  );
 }
 
 /* ── RANKED + PRACTICE ─────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -135,7 +140,7 @@ function HeroFilter(p: RecentGamesPhProps) {
 
 function FeedBody(p: RecentGamesPhProps) {
   const practice = p.tab === 'practice';
-  if (p.state !== 'ready') return <StateBody state={p.state} tab={p.tab} />;
+  if (p.state !== 'ready') return <StateBody state={p.state} tab={p.tab} onRetry={p.onRetry} />;
   if (p.rows.length === 0) {
     return <><PhSection><PhEmpty title="No games with this hero" sub="Pick another hero, or show them all." action={<PhButton size="s" onClick={() => p.onHero(null)}>All heroes</PhButton>} /></PhSection></>;
   }
@@ -196,24 +201,24 @@ const Strip = memo(function Strip({ rows, practice }: { rows: readonly KeyedRow[
   );
 });
 
-/** The placement ledger: 1st at the top, 8th at the foot, the top 4 a soft lit band. The line is a soft rounded stroke in
- *  a stretched SVG; every game is a glossy GEM laid over it in HTML (so it stays round at any width): a gold gem for a win,
- *  silver for the rest of the top 4, bronze after. Static: built once per list. */
+/** How many games the ledger shows: few enough that every gem is chunky and none overlap (the figures cover the whole feed). */
+export const LEDGER_GAMES = 30;
+
+/** The placement ledger: the latest games as glossy GEMS, newest on the right, 1st at the top and 8th at the foot, the top 4
+ *  a soft lit band. No line joining them. A gold gem for a win, silver for the rest of the top 4, bronze after. Laid out
+ *  in HTML so they stay round at any width. Static: built once per list. */
 const Spark = memo(function Spark({ places }: { places: readonly number[] }) {
-  const n = places.length;
+  const shown = places.slice(-LEDGER_GAMES);
+  const n = shown.length;
   // Percent of the plot box, with a little room at each end so the end gems are whole.
   const x = (i: number): number => (n <= 1 ? 50 : 2 + (i * 96) / (n - 1));
-  const y = (pl: number): number => 8 + ((pl - 1) * 84) / 7;
-  const line = n > 1 ? places.map((pl, i) => `${(x(i) * 10).toFixed(1)},${y(pl).toFixed(1)}`).join(' ') : '';
+  const y = (pl: number): number => 10 + ((pl - 1) * 80) / 7;
   return (
     <div className="rgp-spark">
-      <span className="rgp-k">Placements, oldest to newest</span>
-      <div className={`rgp-sp-plot${n > 60 ? ' dense' : ''}`} role="img" aria-label={`Placements of the last ${n} games`}>
-        <svg viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
-          <rect className="rgp-sp-top4" x="0" y={y(1) - 6} width="1000" height={y(4.5) - y(1) + 6} rx="6" />
-          {line && <polyline className="rgp-sp-line" points={line} />}
-        </svg>
-        {places.map((pl, i) => <i key={i} className={`rgp-gem ${bandOf(pl)}`} style={{ left: `${x(i)}%`, top: `${y(pl)}%` }} />)}
+      <span className="rgp-k">Last {n} placements, newest on the right</span>
+      <div className="rgp-sp-plot" role="img" aria-label={`Placements of the last ${n} games, oldest first: ${shown.map((pl) => placeText(pl)).join(', ')}`}>
+        <span className="rgp-sp-top4" style={{ top: 0, height: `${y(4.5)}%` }} />
+        {shown.map((pl, i) => <i key={i} className={`rgp-gem ${bandOf(pl)}`} style={{ left: `${x(i)}%`, top: `${y(pl)}%` }} />)}
         <span className="rgp-sp-ax" aria-hidden="true"><b style={{ top: `${y(1)}%` }}>1st</b><b style={{ top: `${y(4)}%` }}>4th</b><b style={{ top: `${y(8)}%` }}>8th</b></span>
       </div>
     </div>
@@ -325,7 +330,7 @@ const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, o
         {art && <img className="rgp-bannerart" src={art} alt="" draggable={false} decoding="async" />}
         <Place place={r.placement} band={band} big />
         <div className="rgp-bannerwho">
-          <span className={`rgp-verdict b-${band}`}>{placeWords(r.placement)}</span>
+          {(band === 'won' || band === 'none') && <span className={`rgp-verdict b-${band}`}>{placeWords(r.placement)}</span>}
           <h2 className="rgp-name">{who}</h2>
           <span className="rgp-line">
             <span>{hero?.name ?? 'Unknown hero'}</span>
@@ -400,8 +405,8 @@ function DuosBody(p: RecentGamesPhProps) {
       label: `${teamPlaceText(v.place, v.teamCount)}, ${duosModeLabel(r.mode)}, ${sub}${rank != null ? `, played at ${rankLabel(rank)}` : ''}`,
     };
   }), [p.duosRows, p.myId]);
-  if (p.state !== 'ready') return <StateBody state={p.state} tab="duos" signedOut={p.state === 'signedout'} />;
-  if (p.duosRows.length === 0) return <StateBody state="empty" tab="duos" />;
+  if (p.state !== 'ready') return <StateBody state={p.state} tab="duos" signedOut={p.state === 'signedout'} onRetry={p.onRetry} />;
+  if (p.duosRows.length === 0) return <StateBody state="empty" tab="duos" onRetry={p.onRetry} />;
   const sel = p.duosRows.find((r) => r.matchId === p.picked) ?? p.duosRows[0]!;
   return (
     <div className="rgp-split">

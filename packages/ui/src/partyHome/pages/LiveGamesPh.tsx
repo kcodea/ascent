@@ -28,6 +28,14 @@ export interface LiveGamesPhProps {
   onWatch: (r: LiveGameRow) => void; onPage: (next: number) => void; onRecent: () => void; onPlay: () => void;
 }
 
+/** The row's name lines. A player with no name goes out as the placeholder "Player": the hero they picked leads instead,
+ *  so the row still says something. */
+export function liveRowNames(name: string, heroName: string | null, room: boolean, picking: boolean): { title: string; sub: string | null } {
+  const unnamed = !name.trim() || name.trim() === 'Player';
+  if (unnamed) return heroName && !picking ? { title: heroName, sub: 'Anonymous player' } : { title: 'Anonymous player', sub: null };
+  return { title: name, sub: room || picking ? null : heroName };
+}
+
 /** "12 live now" / "30+ live now" (a full page means there are more). */
 export function liveCountText(n: number, page: number): string {
   if (page > 0) return `Page ${page + 1}`;
@@ -86,7 +94,7 @@ function LiveRow({ r, showOpp, joining, onWatch }: { r: LiveGameRow; showOpp: bo
   const status = liveGameStatusOf(r);
   const name = liveNameOf(r);
   // A room's name line is already its players; a lobby game names its hero (not while the player is still picking one).
-  const sub = room || r.phase === 'hero' ? null : hero?.name ?? null;
+  const names = liveRowNames(name, hero?.name ?? null, room, r.phase === 'hero');
   const ended = r.phase === 'end';
   const full = r.spectators >= LIVE_WATCH_CAP;
   const art = heroThumb(heroPortrait(r.hero_id, skins));
@@ -94,8 +102,8 @@ function LiveRow({ r, showOpp, joining, onWatch }: { r: LiveGameRow; showOpp: bo
     <div role="listitem" className={`phk-row lvp-row${ended ? ' ended' : ''}`}>
       {art && <img className="phk-rowart" src={art} alt="" draggable={false} decoding="async" loading="lazy" />}
       <div className="lvp-who">
-        <span className="lvp-name">{name}</span>
-        {sub && <span className="lvp-hero">{sub}</span>}
+        <span className="lvp-name">{names.title}</span>
+        {names.sub && <span className="lvp-hero">{names.sub}</span>}
       </div>
       <div className="lvp-rank">
         <RankCrest divisionIndex={r.division_index} size="row" />
@@ -112,7 +120,7 @@ function LiveRow({ r, showOpp, joining, onWatch }: { r: LiveGameRow; showOpp: bo
       </div>
       <div className="lvp-act">
         {!ended && <span className="lvp-watchers" aria-label={`${r.spectators} watching`}><Icon name="eye" />{r.spectators}</span>}
-        <PhButton variant="primary" size="s" disabled={joining !== null || ended || full} onClick={() => onWatch(r)} aria-label={`Watch ${name}`}>
+        <PhButton variant="primary" size="s" disabled={joining !== null || ended || full} onClick={() => onWatch(r)} aria-label={`Watch ${names.title}`}>
           {joining === r.game_id ? 'Joining' : ended ? 'Ended' : full ? 'Full' : 'Watch'}
         </PhButton>
       </div>

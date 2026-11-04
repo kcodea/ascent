@@ -37,25 +37,20 @@
 .rgp-spark { position: relative; display: flex; flex-direction: column; gap: calc(4 * var(--phu)); min-width: 0; padding: calc(12 * var(--phu)) calc(24 * var(--phu)) calc(12 * var(--phu)) calc(56 * var(--phu)); }
 .rgp-spark > .rgp-k { margin-left: calc(-32 * var(--phu)); }
 .rgp-sp-plot { position: relative; flex: 1; min-height: calc(72 * var(--phu)); }
-.rgp-sp-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.rgp-sp-top4 { fill: color-mix(in srgb, var(--ph-gold-hi) 9%, transparent); }
-.rgp-sp-line { fill: none; stroke: color-mix(in srgb, var(--ph-gold-hi) 45%, transparent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.rgp-sp-top4 { position: absolute; left: 0; right: 0; border-radius: var(--ph-r-s); background: color-mix(in srgb, var(--ph-gold-hi) 8%, transparent); }
 .rgp-sp-ax { position: absolute; left: calc(-40 * var(--phu)); top: 0; bottom: 0; width: calc(32 * var(--phu)); }
 .rgp-sp-ax b { position: absolute; right: 0; transform: translateY(-50%); font-family: var(--ph-font); font-weight: 800; font-size: calc(11 * var(--phu)); color: var(--ph-muted); line-height: 1; }
 /* A glossy gem per game: the podium's metal, a soft white shine at the top left, a soft shadow; a win is a rounded
    diamond with a warm glow. Static paint. */
-.rgp-gem { position: absolute; width: calc(11 * var(--phu)); height: calc(11 * var(--phu)); transform: translate(-50%, -50%); border-radius: 50%;
+.rgp-gem { position: absolute; width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); transform: translate(-50%, -50%); border-radius: 50%;
   background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.9) 0 18%, transparent 30%), var(--ph-metal-silver);
   box-shadow: 0 calc(1 * var(--phu)) calc(2 * var(--phu)) rgba(0, 0, 0, 0.45); }
-.rgp-gem.won { width: calc(13 * var(--phu)); height: calc(13 * var(--phu)); border-radius: 30%; transform: translate(-50%, -50%) rotate(45deg);
+.rgp-gem.won { width: calc(17 * var(--phu)); height: calc(17 * var(--phu)); border-radius: 30%; transform: translate(-50%, -50%) rotate(45deg);
   background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.95) 0 18%, transparent 30%), var(--ph-metal-gold);
   box-shadow: 0 0 calc(8 * var(--phu)) color-mix(in srgb, var(--ph-gold-hi) 60%, transparent), 0 calc(1 * var(--phu)) calc(2 * var(--phu)) rgba(0, 0, 0, 0.45); }
-.rgp-gem.lost { width: calc(10 * var(--phu)); height: calc(10 * var(--phu)); opacity: 0.9;
+.rgp-gem.lost { width: calc(14 * var(--phu)); height: calc(14 * var(--phu)); opacity: 0.9;
   background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.7) 0 16%, transparent 28%), var(--ph-metal-bronze); }
 .rgp-gem.none { display: none; }
-.rgp-sp-plot.dense .rgp-gem { width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); }
-.rgp-sp-plot.dense .rgp-gem.won { width: calc(10 * var(--phu)); height: calc(10 * var(--phu)); }
-.rgp-sp-plot.dense .rgp-gem.lost { width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); }
 
 /* The hero filter on the header line: ONE row of pills (the kit's segmented row is a wrapping grid elsewhere), the rest
    under More. */
@@ -216,7 +211,7 @@
 .lvp-row { display: grid; grid-template-columns: var(--lvp-cols); align-items: center; gap: calc(24 * var(--phu)); min-height: calc(88 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)) calc(8 * var(--phu)) calc(24 * var(--phu)); overflow: hidden; }
 .lvp-row::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(4 * var(--phu)); background: var(--ph-ready); opacity: 0.85; }
 .lvp-row.ended::before { background: var(--ph-hair); }
-.lvp-row .phk-rowart { width: 34%; left: 0; right: auto; opacity: 0.55; -webkit-mask-image: linear-gradient(270deg, transparent 0%, #000 70%); mask-image: linear-gradient(270deg, transparent 0%, #000 70%); }
+.lvp-row .phk-rowart { width: calc(260 * var(--phu)); object-position: 50% 16%; left: 0; right: auto; opacity: 0.55; -webkit-mask-image: linear-gradient(270deg, transparent 0%, #000 70%); mask-image: linear-gradient(270deg, transparent 0%, #000 70%); }
 .lvp-row:hover .phk-rowart { opacity: 0.8; }
 .lvp-row > :not(img) { position: relative; min-width: 0; }
 .lvp-row:hover { background: var(--ph-plate-hover); }

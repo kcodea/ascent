@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { HEROES } from '@game/sim';
 import { mount, type Mounted } from '../../renderedText.mount';
 import { RecentGamesPh, placeWords, type KeyedRow, type RecentGamesPhProps } from './RecentGamesPh';
-import { LiveGamesPh, liveCountText, type LiveGamesPhProps } from './LiveGamesPh';
+import { LiveGamesPh, liveCountText, liveRowNames, type LiveGamesPhProps } from './LiveGamesPh';
 import type { RecentGameRow } from '../../remoteBoards';
 import type { LiveGameRow } from '../../live/liveRemote';
 import { LIVE_PAGE } from '../../live/liveRemote';
@@ -36,7 +36,7 @@ const rows: KeyedRow[] = [game(0, 1, H[0]!), game(1, 5, H[1]!), game(2, 3, H[0]!
 const props = (over: Partial<RecentGamesPhProps> = {}): RecentGamesPhProps => ({
   tab: 'ranked', onTab: vi.fn(), state: 'ready', feedRows: 100, duosLimit: 50, rows, duosRows: [], myId: null,
   heroCounts: [{ id: H[0]!, n: 2 }, { id: H[1]!, n: 1 }], heroFilter: null, onHero: vi.fn(), picked: null, onPick: vi.fn(),
-  watching: null, noReplay: null, opening: null, onOpen: vi.fn(), onWatch: vi.fn(), ...over,
+  watching: null, noReplay: null, opening: null, onOpen: vi.fn(), onWatch: vi.fn(), onRetry: vi.fn(), ...over,
 });
 
 let ui: Mounted | null = null;
@@ -91,6 +91,28 @@ describe('Recent Games on the shell', () => {
     expect(q('.phk-emptytitle')?.textContent).toBe('Sign in to see your Duos games');
     expect(q('.rgp-scope')?.textContent).toBe('Your last 50 Duos games');
   });
+  it('a failed read says so and offers Retry, never a false no games yet; Duos can truly be empty', () => {
+    const p = props({ state: 'empty', rows: [] });
+    ui = mount(<RecentGamesPh {...p} />);
+    expect(q('.phk-emptytitle')?.textContent).toBe('Recent games are not available right now');
+    q('.phk-empty .phk-btn')!.click();
+    expect(p.onRetry).toHaveBeenCalled();
+    ui.render(<RecentGamesPh {...props({ tab: 'duos', state: 'ready', duosRows: [] })} />);
+    expect(q('.phk-emptytitle')?.textContent).toBe('No Duos games yet');
+  });
+  it('the banner does not repeat the big ordinal: only a win says it in words', () => {
+    ui = mount(<RecentGamesPh {...props({ picked: 'k1' })} />);
+    expect(q('.rgp-ord.big')?.textContent).toBe('5th');
+    expect(q('.rgp-verdict')).toBeNull();
+    ui.render(<RecentGamesPh {...props({ picked: 'k0' })} />);
+    expect(q('.rgp-verdict')?.textContent).toBe('Victory');
+  });
+  it('the ledger is chunky gems with no line, the latest 30 at most', () => {
+    const many = Array.from({ length: 40 }, (_, i) => ({ r: game(i, (i % 8) + 1, H[0]!), key: `m${i}`, mine: false, skins: null }));
+    ui = mount(<RecentGamesPh {...props({ rows: many })} />);
+    expect(qa('.rgp-gem').length).toBe(30);
+    expect(q('.rgp-spark polyline')).toBeNull();
+  });
   it('names a placement in words', () => {
     // The production list's placement style (owner ruling 2026-11-03): band-coloured ordinal text, a crown on a win, no crest.
     ui = mount(<RecentGamesPh {...props()} />);
@@ -141,6 +163,12 @@ describe('Live Games on the shell', () => {
     next!.click();
     expect(p2.onPage).toHaveBeenCalledWith(1);
     expect(liveCountText(LIVE_PAGE, 0)).toBe(`${LIVE_PAGE}+ live now`);
+  });
+  it('a player with no name leads with their hero, never the bare placeholder', () => {
+    expect(liveRowNames('Player', 'Soren', false, false)).toEqual({ title: 'Soren', sub: 'Anonymous player' });
+    expect(liveRowNames('Player', 'Soren', false, true)).toEqual({ title: 'Anonymous player', sub: null });
+    expect(liveRowNames('IonLime', 'Soren', false, false)).toEqual({ title: 'IonLime', sub: 'Soren' });
+    expect(liveRowNames('Ann vs Bob', 'Soren', true, false)).toEqual({ title: 'Ann vs Bob', sub: null });
   });
 });
 

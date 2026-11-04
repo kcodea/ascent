@@ -11,7 +11,7 @@ import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { refuseInGame } from './gameMenuParts';
 import { useGame } from './store';
-import { useSocial } from './socialCache';
+import { loadSocial, useSocial } from './socialCache';
 import { GameSplit, type GameListItem } from './GameSplit';
 import { GameRank } from './gameRank';
 import { rankLabel } from './rank/types';
@@ -349,6 +349,7 @@ export function RecentGames(): JSX.Element | null {
             heroCounts={heroCounts} heroFilter={heroFilter} onHero={pickHero}
             picked={picked} onPick={setPicked}
             watching={watching} noReplay={noReplay} opening={opening} onOpen={onOpen} onWatch={onWatch}
+            onRetry={() => { sfx.pulse(); void (practice ? loadSocial(RECENT_PRACTICE_KEY, loadRecentPractice, { force: true }) : loadSocial(RECENT_RANKED_KEY, loadRecentRanked, { force: true })); }}
           />
         </Suspense>
       </SidebarHost>

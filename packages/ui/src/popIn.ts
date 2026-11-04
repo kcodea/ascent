@@ -124,7 +124,7 @@ let installed = false;
 let po: PerformanceObserver | null = null;
 
 /** Queue keys are the URL as the plan wrote it (a path); elements and stylesheets hand back absolute URLs. */
-const pathOf = (u: string): string => { try { const x = new URL(u, location.href); return x.origin === location.origin ? x.pathname : x.href; } catch { return u; } };
+const pathOf = (u: string): string => { try { const x = new URL(u, location.href); return x.origin === location.origin ? x.pathname + (x.search === '?mask' ? x.search : '') : x.href; } catch { return u; } };
 
 /** The plan's key for a URL. A build with a relative base writes bundled art as an absolute URL and public art as
  *  `./frames/x.webp`; an element's attribute and a stylesheet hand back either. */

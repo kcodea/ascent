@@ -12552,9 +12552,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PERF-ART-MASKS-HELD-01',
     title: 'A picture used as a CSS mask is held in the mode a mask loads it',
     statement:
-      'The browser loads mask images in CORS mode, which cannot share the plain copy the art pipe holds. On desktop the pipe '
-      + 'also holds a CORS copy of every public mask, so a card glow or medallion tint that mounts does not go back to the '
-      + 'disk cache. A mask that is not loaded hides whatever it masks. Phones skip the extra copy.',
+      'The browser loads mask images in CORS mode, and keeps one memory-cache entry per URL, so a URL used as both a mask and '
+      + 'a plain image evicts itself on every mount. Every public mask is written with its own URL (<file>?mask), and on '
+      + 'desktop the art pipe holds it. A mask that is not loaded hides whatever it masks. Phones skip the hold.',
     domain: 'foundation',
     status: 'approved',
     evidence: [

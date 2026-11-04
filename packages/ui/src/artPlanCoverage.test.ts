@@ -81,17 +81,19 @@ describe('every image in the game is in the preload plan or explicitly exempt', 
   });
 
   it('masks: every public image a stylesheet masks with is held in CORS mode (R-PERF-ART-MASKS-HELD-01)', () => {
-    const css = readFileSync(join(UI, 'styles.css'), 'utf8');
+    const css = walk(UI).filter((f) => f.endsWith('.css') && !f.includes('partyHome')).map((f) => readFileSync(f, 'utf8')).join('\n');
     const used = [...css.matchAll(/mask(?:-image)?\s*:[^;{}]*?url\(['"]?\/([^'")]+)/g)].map((m) => m[1]!);
     expect(used.length).toBeGreaterThan(8);
-    expect([...new Set(used)].filter((u) => !PUBLIC_MASK_ART.includes(u))).toEqual([]);
+    // One memory-cache entry per URL: a mask under a plain image's URL evicts it on every mount, so it gets its own.
+    expect(used.filter((u) => !u.endsWith('?mask'))).toEqual([]);
+    expect([...new Set(used.map((u) => u.replace(/\?mask$/, '')))].filter((u) => !PUBLIC_MASK_ART.includes(u))).toEqual([]);
     const files = new Set(walk(join(WEB, 'public')).map((f) => rel(join(WEB, 'public'), f)));
     expect(PUBLIC_MASK_ART.filter((u) => !files.has(u))).toEqual([]);
   });
 
   it('public art: every public path the stylesheet or the source spells out exists (a typo is a blank, not a pop-in)', () => {
     const css = readFileSync(join(UI, 'styles.css'), 'utf8');
-    const refs = [...css.matchAll(/url\(['"]?\/([^'")*]+\.(?:webp|png|jpe?g|svg))/g)].map((m) => m[1]!);
+    const refs = [...css.matchAll(/url\(['"]?\/([^'")*?]+\.(?:webp|png|jpe?g|svg))/g)].map((m) => m[1]!);
     expect(refs.length).toBeGreaterThan(20);
     const files = new Set(walk(join(WEB, 'public')).map((f) => rel(join(WEB, 'public'), f)));
     expect(refs.filter((r) => !files.has(r))).toEqual([]);

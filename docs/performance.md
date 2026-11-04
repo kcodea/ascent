@@ -1068,8 +1068,10 @@ Owner: *"i am seeing a ton of art pop in"*. Numbers and method: `docs/devlog/202
   `stale-while-revalidate` on art: it lets a whole session run on expired copies (R-PERF-ART-STAYS-FRESH-01). A fresh-profile
   test cannot see this, so always run `expire:` too.
 - **Playwright `page.route` turns the HTTP cache off.** Block hosts with `--host-resolver-rules` when cache behaviour matters.
-- **A CSS mask loads in CORS mode and shares nothing with the plain copy** (R-PERF-ART-MASKS-HELD-01). A new public mask goes in
-  `PUBLIC_MASK_ART`; a test checks the list against `styles.css`.
+- **A CSS mask loads in CORS mode, and there is one memory-cache entry per URL** (R-PERF-ART-MASKS-HELD-01). A URL used as a mask
+  and as an `<img>` evicts itself, and holding both under one URL makes it worse. Write every mask `url('/x.webp?mask')` and add
+  it to `PUBLIC_MASK_ART`; a test checks both.
+- **Benchmark alone.** A test suite running beside a walk tripled decode counts and looked like a regression. Throw such runs away.
 - **The plan is checked against the disk** (R-PERF-ART-PLAN-COMPLETE-01). A new image must be planned, or exempt with a reason
   in `artPlanCoverage.test.ts`. Names built from a constant are invisible to `publicArt.ts`: that is how 249 plate files hid.
 - **Holding an Image holds the bytes, not the pixels.** The compositor's decode cache is far smaller than the art set, so the

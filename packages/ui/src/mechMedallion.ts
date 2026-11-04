@@ -87,7 +87,7 @@ export function mechMedallionArtId(mechanicId: string): string | null {
 export const MECH_MEDALLION_MASK_ARTS: readonly string[] = [...new Set([...MECH_MEDALLION_PNGS].map((id) => MECH_MEDALLION_ART_ALIAS[id] ?? id))];
 export function mechMedallionMaskCss(base: string = import.meta.env.BASE_URL): string {
   return MECH_MEDALLION_MASK_ARTS.map((art) => {
-    const u = `url("${base}medallions/${art}.webp")`;
+    const u = `url("${base}medallions/${art}.webp?mask")`; // its own URL: R-PERF-ART-MASKS-HELD-01
     return `.cgem-tint[data-art="${art}"]{-webkit-mask-image:${u};mask-image:${u}}`;
   }).join('\n');
 }

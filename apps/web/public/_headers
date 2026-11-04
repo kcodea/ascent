@@ -20,7 +20,7 @@
 # NO stale-while-revalidate (R-PERF-ART-STAYS-FRESH-01, owner 2026-11-04 "a ton of art pop in"). An image past its
 # freshness is not reused by a new <img>: the browser goes back to the disk cache or the server for every element it
 # mounts, and that element paints blank until then. stale-while-revalidate is what let a RETURNING player's whole session
-# run on expired copies (measured: 17 pop-ins on a fresh visit, 195 on an expired one). Without it the boot gate re-checks
+# run on expired copies (measured: 14 pop-ins on a warm visit, 155 on an expired one). Without it the boot gate re-checks
 # an expired file once (a 304), and the copy is fresh for the session. A day because a session must fit inside it: a tab
 # left open past the mark goes back to popping. A replaced frame reaches a returning player within a day.
 /frames/*

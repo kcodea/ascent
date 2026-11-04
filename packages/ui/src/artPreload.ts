@@ -86,7 +86,7 @@ function decodeImage(url: string, attempt: number, last: boolean, cors = false):
     img.src = src;
     img.decode().then(() => {
       clearTimeout(timer);
-      KEEP.set(cors ? `mask:${url}` : url, img, decodedBytes(img.naturalWidth, img.naturalHeight));
+      KEEP.set(url, img, decodedBytes(img.naturalWidth, img.naturalHeight));
       artLoaded();
       if (src !== url) LOADED_AS.set(url, src);
       resolve();
@@ -120,14 +120,16 @@ export function requestHeldArtList(urls: Iterable<string>, lane: Lane): void {
 }
 
 /**
- * A picture a stylesheet uses as a MASK (R-PERF-ART-MASKS-HELD-01). The browser fetches mask images in CORS mode, and a
- * CORS request cannot share the plain request the pipe made for the same URL, so everything the pipe held did nothing
- * for a mask: each `.cglow-rim` or medallion tint that mounted went back to the disk cache, and a mask that is not
- * loaded hides whatever it masks. This holds a CORS copy too. A phone skips it: its budget is tighter than the win.
+ * A picture a stylesheet uses as a MASK (R-PERF-ART-MASKS-HELD-01). The browser fetches mask images in CORS mode, and
+ * Blink's memory cache keeps ONE entry per URL, so a URL used as both a mask and a plain <img> (the medallions) evicts
+ * itself back and forth: each mount went to the disk cache, and a mask that is not loaded hides what it masks. Holding a
+ * second copy under the SAME URL made that worse (measured: disk reads doubled). So every mask is written `<file>?mask`,
+ * a URL of its own, and this holds that. A phone skips the hold: its budget is tighter than the win.
  */
 export function requestMaskArt(url: string | undefined, lane: Lane): void {
   if (!url || LITE_ART) return;
-  queue.request(`mask:${url}`, lane, (_l, { attempt, last }) => decodeImage(url, attempt, last, true), { retryDelays: ART_RETRY_DELAYS });
+  const masked = `${url}?mask`;
+  queue.request(masked, lane, (_l, { attempt, last }) => decodeImage(masked, attempt, last, true), { retryDelays: ART_RETRY_DELAYS });
 }
 
 /** Fetch only (a phone's background lanes): the bytes land in the HTTP cache, no Image is made. REJECTS on a failed

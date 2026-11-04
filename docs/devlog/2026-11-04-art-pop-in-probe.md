@@ -19,7 +19,7 @@ A new `<img>` reuses Blink's in-memory copy only while that copy is FRESH. Publi
 `stale-while-revalidate`. A player returning more than an hour later got every public image from disk, already expired.
 SWR let that stand: the load succeeded, the re-check ran in the background, and the in-memory copy stayed expired for the
 whole session. So every new element for that URL (frames, stat icons, shop buttons, medallions) went back to the disk and
-painted blank until it landed: p50 147 ms, measured. A fresh visit never shows it, which is why earlier passes missed it,
+painted blank until it landed: p50 54 ms on an idle machine, 147 ms on a busy one. A fresh visit never shows it, which is why earlier passes missed it,
 and why it is worst for someone who plays daily.
 
 Fix: a day of freshness and no SWR on images. An expired file is re-checked once, in the boot gate (a 304), and the copy is
@@ -37,16 +37,44 @@ join the gate. Plates ride `idle` behind it (most belong to other people) and th
 
 ## Root cause 3: masks
 
-CSS masks load in CORS mode, which cannot share the pipe's plain copy, and nothing held them. They went back to disk on
-every mount, and an unloaded mask hides what it masks. Desktop now holds a CORS copy (`requestMaskArt`).
+CSS masks load in CORS mode, and Blink's memory cache keeps ONE entry per URL. The medallions are drawn both as a plain
+`<img>` and as a mask, so each use evicted the other and every mount went to disk. An unloaded mask hides what it masks.
+
+The first fix held a CORS copy under the same URL, and the A/B caught it making things WORSE: warm pop-ins 14 to 32, since
+the held copy now fought the plain one. Masks are written `<file>?mask`, a URL of their own, held on desktop
+(`requestMaskArt`). A test fails on a mask URL without it. Costs one more small fetch per mask file.
+
+Plates are held without `decode()` (`requestHeldArtList`). Decoding them behind the gate tripled the compositor's decodes in
+a first measurement, for pixels it dropped again before anyone drew them.
 
 ## Numbers
 
-RESULTS_TABLE
+Prod bench build, headless shell, 1920 x 1080, 2 shop rounds, 20 ms added latency, same probe both sides, nothing else
+running. "Pop-ins" are images on screen that were not ready at mount. One run each, so small counts are not precise.
+
+| Visit | Before | After | Before, by cause | After, by cause |
+|---|---|---|---|---|
+| First ever (cold) | 5 | 2 | 4 disk, 1 redecode | 2 redecode |
+| Second, within the hour (warm) | 14 | 0 | 12 disk, 2 redecode | none |
+| Returning, copies expired | 155 | 0 | 154 disk, 1 redecode | none |
+
+Late image fetches after the gate: 49 to 0 warm, 126 to 0 returning.
+
+Costs: gate 1,481 to 1,571 items (6.4 s to 6.7 s returning, 7.5 s to 8.0 s cold, on localhost). A cold desktop visit
+downloads 157 MB to 194 MB, nearly all of it plates, behind the gate. GPU raster trace (SwiftShader, 2560 x 1440, cold,
+no probe): 82 to 86 decodes, worst 65 to 69 ms, images decoded twice 3 to 6.
+
+Numbers taken while anything else ran were thrown away: under load the same trace read 306 decodes, and 288 ms worst.
+
 
 ## What this does not explain
 
-Headless shows a clean first visit on the dev server too (11 pop-ins, 1 round, mostly masks), so 5173's "a ton" is NOT
-reproduced. Candidates left, none proven: the compositor. With GPU raster on SwiftShader at 2560 x 1440 the trace shows
-images decoded again within two rounds (worst 288 ms, software decode) and no checker-imaging events, but that is not a real
-GPU or its budget. The owner's report from `?popin=1` on his own machine is the next input.
+5173 is NOT explained. The dev server sends `no-cache`, and `no-cache` did not reproduce the expired-copy storm: 11 pop-ins
+on one round there (measured before `?mask`, mostly masks; not re-run after). Netlify's cause does not apply to it, so
+whatever makes 5173 bad is still unknown and may also be part of what the owner sees on Netlify.
+
+The compositor is the other unknown. The trace shows no checker imaging and few repeat decodes, but SwiftShader is not a real
+GPU or its budget, and nothing here can see a blank tile on a moving layer. The owner's report from `?popin=1` on his own
+machine is the next input.
+
+A tab left open past a day goes back to popping: the copies expire mid-session. Not fixed here.

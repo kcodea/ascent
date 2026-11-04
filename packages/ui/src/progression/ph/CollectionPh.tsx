@@ -154,7 +154,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
           {v.guest && (
             <div className="phc-guest">
               <span>Guest account. Save it to keep your collection.</span>
-              <PhButton variant="ghost" size="s" onClick={v.openAccount}>Create account</PhButton>
+              <PhButton variant="plate" size="s" onClick={v.openAccount}>Create account</PhButton>
             </div>
           )}
         </aside>

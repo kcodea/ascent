@@ -58,7 +58,6 @@
 .phc-bay-odds { font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
 .phc-guest { display: flex; flex-direction: column; align-items: flex-start; gap: calc(8 * var(--phu)); padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s);
   font-size: var(--ph-t1); color: var(--ph-muted); }
-.phc-guest .phk-btn { padding: 0; height: auto; }
 
 /* ── The filters (centre, above the album) ── */
 .phc-filters { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: calc(8 * var(--phu)); box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
@@ -307,3 +306,12 @@ html[data-ph-shell][data-touch-small] .phc-rarities { flex: 0 1 auto; flex-wrap:
    still fill the width (no lone chip). */
 html[data-ph-shell]:not([data-ph-compact]) .phc-rarities { gap: calc(4 * var(--phu)); }
 html[data-ph-shell]:not([data-ph-compact]) .phc-rchip { flex: 1 1 auto; max-width: calc(192 * var(--phu)); justify-content: center; gap: calc(4 * var(--phu)); padding: 0 calc(8 * var(--phu)); letter-spacing: 0.04em; }
+
+/* PHONES: one fixed filter layout on every tab, so the album never moves: the Show tabs on row one, the rarity chips on row two
+   (six fit at full width; a tab with fewer leaves the rest of the row empty). */
+html[data-ph-shell][data-touch-small] .phc-filters { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: calc(6 * var(--phu)); }
+html[data-ph-shell][data-touch-small] .phc-rarities { flex: none; flex-wrap: nowrap; }
+/* A short tab (Announcers) must not move it either: spare height goes under the album, not into the category row, and the
+   scrollbar's room stays reserved when the page stops scrolling. */
+html[data-ph-shell][data-ph-compact] .phk-page .phc-body.sheeted { grid-template-rows: auto 1fr; }
+html[data-ph-shell][data-ph-compact] .phc .phk-pagebody { scrollbar-gutter: stable; }

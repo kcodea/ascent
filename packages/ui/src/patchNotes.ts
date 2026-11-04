@@ -56,8 +56,42 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-04',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Fixed: card frames, medallions and other art no longer pop in when you come back to the game after a while.',
+        details: [
+          'Your equipped card plate, portrait frame skins, emotes and pings now load ahead of time too.',
+          'Card glows and medallion tints stay ready instead of reloading each time a card appears.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-03',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Fixed: Rune of Living Echoes now summons all 3 Sunmanes. If the first one survived, the other two were lost instead of arriving as space opened.',
+      },
+      {
+        category: 'Systems',
+        text: 'Aiming a card can now be cancelled. Click off target, right-click or press Esc and the card goes back to your hand, with nothing played.',
+        details: [
+          'Works for Shouts, Choose One, and spells with a second target.',
+          'On a phone, tap empty space.',
+          'Hero powers and Equipment also back out on right-click and Esc.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Shop timer no longer stops while you choose a target. Discovers still stop it. If time runs out while you aim, the card goes back to your hand.',
+      },
+      {
+        category: 'Systems',
+        text: 'Game lobbies: a player still standing when the game ended now reads Still in once, not twice.',
+      },
       {
         category: 'Systems',
         text: 'Lobby rail: Health and Armor now show painted heart and shield medallions.',

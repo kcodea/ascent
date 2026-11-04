@@ -26,7 +26,7 @@ describe('the scaled stage: nothing escapes #stage', () => {
     // Outside the stage an element is drawn in window px while its sizes (--scale, --u, …) are layout px: on a
     // phone it renders ~3× too big and in the wrong place. The rotate prompt is the one deliberate exception (it
     // must be drawn in real device px), plus the bug reporter's throwaway download link.
-    const ALLOW = new Set(['Boot.tsx', 'bug-report/bugReportCapture.ts', 'stage.ts', 'renderedText.mount.tsx' /* jsdom test harness */]);
+    const ALLOW = new Set(['Boot.tsx', 'bug-report/bugReportCapture.ts', 'stage.ts', 'renderedText.mount.tsx' /* jsdom test harness */, 'popIn.ts' /* the opt-in probe's panel: a measuring tool, not the game */]);
     const offenders: string[] = [];
     for (const f of code) {
       if (ALLOW.has(rel(f))) continue;

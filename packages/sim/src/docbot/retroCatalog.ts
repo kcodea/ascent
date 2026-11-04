@@ -212,7 +212,7 @@ export const RETRO_CATALOG: readonly RetroCatalogEntry[] = [
     fixCommits: ['bf996507'],
     reportDate: '2026-08-04',
     patch: [{ file: RED,
-      find: 'if (ptDef?.targetTribe && !isTribe(target, ptDef.targetTribe)) return state;',
+      find: 'if (def?.targetTribe && !isTribe(target, def.targetTribe)) return false;',
       replace: '// REINJECT: the reducer accepts whatever target uid it is handed (#849 class)' }],
     lanes: ['packages/sim/src/docbot/interactionMatrix.test.ts', 'packages/sim/src/docbot/targetCardinality.test.ts', 'packages/sim/src/docbot/missDrivenOracles2.test.ts'],
     scope: generic,

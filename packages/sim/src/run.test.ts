@@ -444,10 +444,10 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'g', cardId: 'graverobber', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'g' });
-    const self = s.board.find((c) => c.cardId === 'graverobber')!.uid;
+    const self = 'g'; // held in hand until the pick (R-TARGET-CANCEL-01)
     const before = s.hand.length;
     s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: self }), { type: 'resolveShopDeath' }); // aim at itself → rejected
-    expect(s.board.some((c) => c.uid === self)).toBe(true); // still alive — it did not eat itself
+    expect(s.hand.some((c) => c.uid === self)).toBe(true); // still alive — it did not eat itself
     expect(s.pendingTarget).toBeDefined(); // the prompt stays open for a legal pick
     expect(s.hand.length).toBe(before); // and no spell was granted
     s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 't' }), { type: 'resolveShopDeath' }); // a legal target still resolves normally

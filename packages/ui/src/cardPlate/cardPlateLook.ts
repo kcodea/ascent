@@ -315,6 +315,10 @@ export const CARD_PLATE_LOOKS: Readonly<Record<string, CardPlateLook>> = Object.
   Object.keys(SETTINGS).map((id) => [id, buildLook(id, savedSettings(id))]),
 ));
 
+/** Every file one plate look draws: what the art pipe must hold for that plate's cards to mount ready. */
+export const plateLookUrls = (look: CardPlateLook): string[] =>
+  [look.plate, look.frame, look.backbox, look.thumb].filter((u): u is string => !!u);
+
 /** The plate this snapshot's owner wears, or null for the standard plates (none equipped, retired, unknown, no art). */
 export function cardPlateLookOf(snapshot: RunCosmeticSnapshot | null | undefined): CardPlateLook | null {
   const def = cardPlateOf(snapshot);

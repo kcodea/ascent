@@ -473,7 +473,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'timer-pauses',
     topic: 'controls',
     q: "Does the shop timer stop while I'm making a choice?",
-    a: "Yes. It pauses while a **Discover**, a **Choose One** or any other pick is open, while you're **aiming** a targeted effect, and while the **Compendium**, the bug reporter or the **Esc** menu is open (in Versus the Esc menu does not pause it).",
+    a: "Yes. It pauses while a **Discover**, a **Choose One** or any other pick is open, and while the **Compendium**, the bug reporter or the **Esc** menu is open (in Versus the Esc menu does not pause it). It keeps running while you **aim** at a target. If it runs out then, the card goes back to your hand.",
     aliases: ['timer paused', 'stop clock', 'discover timer', 'pause timer'],
     seeAlso: ['timer-runs-out', 'choose-one-flow'],
   },

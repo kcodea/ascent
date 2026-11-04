@@ -160,7 +160,8 @@ describe('R-TIMER-SYNC-01: wiring', () => {
   it('every input of the countdown gate is also a dependency, so each one holds and resumes it (the scouting reveal was missing)', () => {
     const at = recruit.indexOf('if (!turnClockMayTick({');
     const deps = recruit.slice(recruit.indexOf('}, [run.phase,', at), recruit.indexOf(']);', recruit.indexOf('}, [run.phase,', at)));
-    for (const dep of ['run.discover', 'run.questOffer', 'run.powerOffer', 'run.runeforgeOffer', 'run.pendingTarget', 'run.chooseOne',
+    // Not `run.pendingTarget`: an aim does not hold the clock (R-TIMER-AIM-01).
+    for (const dep of ['run.discover', 'run.questOffer', 'run.powerOffer', 'run.runeforgeOffer', 'run.chooseOne',
       'run.scoutedNextOpponent', 'run.ancients?.offer', 'heroSelecting', 'overlayOpen', 'settingsOpen', 'introPlaying', 'wipe', 'goldClockWaits']) {
       expect(deps, dep).toContain(dep);
     }

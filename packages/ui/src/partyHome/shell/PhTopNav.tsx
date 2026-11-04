@@ -80,6 +80,8 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
       sfx.pulse(); if (showBook) closeBook(); openCrates(); if (given !== 'collection') goTo('collection');
       return;
     }
+    // The Career tab always means your own Career, even from another player's.
+    if (dest === 'career' && current === 'career' && useGame.getState().careerOf) { sfx.pulse(); useGame.getState().openCareer(); return; }
     if (dest === current) return;
     sfx.pulse();
     if (showBook) closeBook();

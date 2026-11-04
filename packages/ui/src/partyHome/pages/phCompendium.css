@@ -192,7 +192,11 @@ html[data-ph-compact] .phb .phb-book { flex: 1 1 0; height: auto; min-height: 0;
    view here shows the shell's gold bar instead. The bar lives just outside the plate, the kit's "one right edge" move: the
    gallery plate is painted by `.book-main::before`, and the scroller runs on past it into a 12 unit gutter, so the bar never
    rides the plate's rounded corners. Phones keep overlay bars and the plate on the scroller. */
-.phb :is(.book-grid, .book-gloss-body, .wiki-list, .bookguides) { scrollbar-width: thin; scrollbar-color: var(--ph-gold) transparent; }
+/* `scrollbar-width` must stay `auto`: any other value (`thin`, or the book's own `none`) makes Chromium ignore the shell's
+   ::-webkit-scrollbar rules and draw the white OS bar with arrow steppers. The book's own `display: none` on the same
+   pseudo-element is undone here too; the shell's rules then paint the one gold thumb. */
+.phb :is(.book-grid, .book-gloss-body, .wiki-list, .bookguides) { scrollbar-width: auto; }
+.phb :is(.book-grid, .book-gloss-body, .wiki-list, .bookguides)::-webkit-scrollbar { display: block; width: calc(10 * var(--phu)); height: calc(10 * var(--phu)); }
 html[data-ph-shell]:not([data-ph-compact]) .phb { --phb-gut: calc(12 * var(--phu)); }
 html[data-ph-shell]:not([data-ph-compact]) .phb .phk-pagebody { scrollbar-gutter: auto; }
 html[data-ph-shell]:not([data-ph-compact]) .phb :is(.phb-sub, .book-tiers, .wiki-bar) { margin-right: var(--phb-gut); }
@@ -225,3 +229,10 @@ html[data-ph-compact] .phb .wiki-bar { flex-wrap: nowrap; gap: calc(8 * var(--ph
 html[data-ph-compact] .phb .wiki-search { flex: none; width: calc(240 * var(--phu)); height: calc(64 * var(--phu)); }
 html[data-ph-compact] .phb .wiki-chips { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 html[data-ph-compact] .phb .wiki-chip { flex: none; }
+
+/* Glossary: a group's title stays on one line (the divider gives way), so the four columns start level. */
+.phb .gloss-grouphead { white-space: nowrap; }
+.phb .gloss-grouphead::after { flex: 0 1 calc(144 * var(--phu)); min-width: 0; }
+/* Rules: the panel takes the page's full width, like every other Compendium view. */
+.phb .wiki-group { width: 100%; max-width: none; box-sizing: border-box; }
+.phb .wiki-list { padding-left: 0; padding-right: calc(2 * var(--phu)); }

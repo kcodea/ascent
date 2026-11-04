@@ -32,6 +32,9 @@ import type { DuosLeaderboardRow, DuosPlayerCard } from '../../../versus/versusR
 import { PhButton, PhEmpty, PhPage, PhPlace, PhSection, PhTabs } from '../../kit';
 import './phLeaderboard.css';
 
+/** One name format across the pages (Recent Games shows "Orangez"): the #tag stays in the row's accessible label. */
+export const shownName = (handle: string): string => handle.replace(/#\d+$/, '');
+
 export type PhBoard = 'solo' | 'duos';
 
 export interface PhLeaderboardProps {
@@ -99,7 +102,7 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
                   {art && <img className="phl-podart" src={art} alt="" draggable={false} decoding="sync" />}
                   <span className="phl-podplace"><PhPlace place={i + 1} size={i === 0 ? 'l' : 'm'} /></span>
                   <span className="phl-podwho">
-                    <span className="phl-podname">{w.handle}</span>
+                    <span className="phl-podname">{shownName(w.handle)}</span>
                     {w.title}
                     <span className="phl-podhero">{w.hero}</span>
                   </span>
@@ -131,7 +134,7 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
                   <PhPlace place={place} />
                   <span className="phl-thumb">{art && <img src={art} alt="" draggable={false} decoding="sync" loading="lazy" />}</span>
                   <span className="phl-who">
-                    <span className="phl-name">{w.handle}{w.title}</span>
+                    <span className="phl-name">{shownName(w.handle)}{w.title}</span>
                     <span className="phl-sub">{w.hero}</span>
                   </span>
                   <RankCell rank={rankPositionOf(r.rank)} />
@@ -147,7 +150,7 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
       {!meOnBoard && p.myRank && (
         <div className="phl-mepin" role="note" aria-label="Your standing">
           <span className="phl-who">
-            <span className="phl-name">{displayHandle(p.myName, p.myDisc, p.myId)}</span>
+            <span className="phl-name">{shownName(displayHandle(p.myName, p.myDisc, p.myId))}</span>
             <span className="phl-sub">Outside the top {p.rowsShown}</span>
           </span>
           <RankCell rank={p.myRank} />
@@ -158,7 +161,7 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
   );
 }
 
-const handleOf = (c: DuosPlayerCard | null): string | null => (c?.name ? displayHandle(c.name, c.discriminator, c.userId) : null);
+const handleOf = (c: DuosPlayerCard | null): string | null => (c?.name ? shownName(displayHandle(c.name, c.discriminator, c.userId)) : null);
 /** A team with no name and no named players reads as an unnamed team, never "Player & Player". */
 export function teamLabel(r: DuosLeaderboardRow): { name: string; sub: string } {
   const [a, b] = r.players;

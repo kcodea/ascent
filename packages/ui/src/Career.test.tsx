@@ -467,6 +467,24 @@ describe('states', () => {
     expect(ui.container.querySelector('.cv2-cols')).not.toBeNull();
   });
 
+  it('on the party home shell a known player whose history reads empty says so with Retry, never "no runs yet"', async () => {
+    const { setPartyHome } = await import('./partyHome/partyHomeFlag');
+    await import('./partyHome/pages/career/PhCareer');
+    try {
+      ui.unmount();
+      fetchMyRuns.mockResolvedValue([]);
+      useGame.setState({ careerCache: null, careerOf: { userId: 'them-1', author: 'Orangez', rating: 1632, gamesPlayed: 145 } });
+      act(() => { setPartyHome(true); });
+      ui = mount(<Career />);
+      await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(ui.container.textContent).toContain('games are not available right now');
+      expect(ui.container.textContent).not.toMatch(/hasn.t finished a lobby run|No runs yet/);
+      expect([...ui.container.querySelectorAll('button')].some((b) => b.textContent === 'Retry')).toBe(true);
+    } finally {
+      act(() => { setPartyHome(false); });
+    }
+  });
+
   it('on the party home shell a stalled read becomes "not available" with Retry, and a late answer replaces it', async () => {
     const { setPartyHome } = await import('./partyHome/partyHomeFlag');
     await import('./partyHome/pages/career/PhCareer');

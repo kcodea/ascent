@@ -111,7 +111,8 @@ describe('Leaderboard on the app shell', () => {
     const m = mount(<PhLeaderboard {...p} />);
     expect(m.container.querySelector('.phk-pagehead h1')?.textContent).toBe('Leaderboard');
     const pods = [...m.container.querySelectorAll('.phl-pod')].map((e) => e.querySelector('.phl-podname')?.textContent);
-    expect(pods).toEqual(['Player2#1002', 'Player1#1001', 'Player3#1003']);
+    expect(pods).toEqual(['Player2', 'Player1', 'Player3']); // one name format: no #tag on screen
+    expect(m.container.querySelector('.phl-podbtn')?.getAttribute('aria-label')).toContain('#100');
     const rows = m.container.querySelectorAll<HTMLButtonElement>('.phl-row .phl-rowbtn');
     expect(rows).toHaveLength(2);
     act(() => { rows[0]!.click(); });

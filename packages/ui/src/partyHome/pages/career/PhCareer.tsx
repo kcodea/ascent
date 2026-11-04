@@ -78,7 +78,7 @@ function DuosCell({ userId }: { userId: string | null }) {
   const [at, setAt] = useState(0);
   if (teams.length === 0) return null;
   const t = teams[at % teams.length]!;
-  const partner = `With ${handleOf(t.partner)}`;
+  const partner = `With ${handleOf(t.partner).replace(/#\d+$/, '')}`;
   return (
     <div className="phc-cell" role="group" aria-label="Ranked Duos teams">
       <RankBar position={{ divisionIndex: t.division, points: t.points }} size="row" showGate={false} />

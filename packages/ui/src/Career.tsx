@@ -814,6 +814,11 @@ export function Career() {
     else if (runs === undefined && loadStalled) pageState = st('Your career is not available right now', 'Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } });
     else if (runs === undefined) pageState = st('Loading your career', 'Fetching your recent runs from the server.', undefined, true);
     else if (runs === null) pageState = st('Couldn’t reach the server', 'Your career is stored on your account. Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } });
+    // A player the ladder knows (games, a rating) whose history comes back empty: the read was refused or failed, so it says
+    // so and offers Retry, never a false "no runs yet" beside their MMR (`fetchMyRuns` answers [] when row access refuses).
+    if (!pageState && viewing && runs && runs.length === 0 && (viewing.gamesPlayed > 0 || viewing.rating > 0)) {
+      pageState = st(`${shownName}’s games are not available right now`, 'Their history could not be read. Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } });
+    }
     const lvp = accountProgression ? levelProgress(accountProgression.accountXp) : null;
     const tabSub = tab === 'heroes'
       ? (heroes.length ? `${heroes.length} hero${heroes.length === 1 ? '' : 'es'} played` : '')

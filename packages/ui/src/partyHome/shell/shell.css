@@ -293,3 +293,5 @@ html[data-ph-shell] .gearbtn { display: none; }
 /* ── ONE BACKDROP (owner 2026-11-04) ── `Game` paints it; nothing above it may have a ground of its own. The first rules of this are
    in styles.css (they must hold before this lazy sheet arrives). A nav still on its way holds the nav's own place. */
 .ph-navwait { position: absolute; top: 0; left: 0; right: 0; height: var(--ph-nav-h); }
+/* Hero select keeps the same art inside its own layer (it runs outside the menus, so the steady one is down). */
+.hsph-bd .ph-steady { position: absolute !important; z-index: 0 !important; }

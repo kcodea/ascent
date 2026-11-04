@@ -38,6 +38,6 @@ for (const f of ['preload.cjs', 'icon.png']) copyFileSync(path.join(desktop, f),
 const version = JSON.parse(readFileSync(path.join(desktop, 'package.json'), 'utf8')).version;
 writeFileSync(
   path.join(out, 'package.json'),
-  `${JSON.stringify({ name: 'ascent', productName: 'ASCENT', version, main: 'main.cjs', author: 'kcodea' }, null, 2)}\n`,
+  `${JSON.stringify({ name: 'ascent', productName: 'ASCENT', version, description: 'ASCENT', main: 'main.cjs', author: 'kcodea' }, null, 2)}\n`,
 );
 console.log(`✓ shell bundled → ${path.relative(root, out)} (v${version})`);

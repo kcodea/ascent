@@ -75,7 +75,9 @@ jobs:
         shell: bash
         run: |
           npm i --no-save --no-audit --no-fund electron-builder@26.18.1
-          npx electron-builder --win nsis --publish never --projectDir apps/desktop
+          # electron-builder cannot resolve the workspace's ^range, so hand it the installed version.
+          ELECTRON_VERSION=$(node -p "require('electron/package.json').version")
+          npx electron-builder --win nsis --publish never --projectDir apps/desktop -c.electronVersion="$ELECTRON_VERSION"
       - name: Smoke-test the unpacked app
         shell: bash
         run: |

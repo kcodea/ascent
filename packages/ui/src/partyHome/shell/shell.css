@@ -304,3 +304,11 @@ html[data-ph-shell] :is(.lbpage, .modepick, .ph, .ph-booknav) .ph-top { visibili
 html[data-ph-shell] :is(.phk-field, .phk-seglbl, .ph-fadd) { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 html[data-ph-shell] :is(.ph-finput, .phk-fieldinput) { cursor: url('/cursors/gauntlet_default.svg') 6 2, text; }
 
+
+/* PHONE NAV: every label whole with the Aether and Level pills up: the tabs sit tight and the wallet gives up its slack. */
+html[data-ph-compact] .ph-navtab { min-width: 0; padding: 0 calc(5 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .ph-top .ph-navlbl { letter-spacing: -0.01em; }
+html[data-ph-compact] .ph-brand { padding-right: calc(4 * var(--phu)); margin-right: 0; }
+html[data-ph-compact] .ph-top .ph-iconbtn { width: calc(58 * var(--phu)); }
+html[data-ph-compact] .ph-wallet { gap: calc(2 * var(--phu)); }
+html[data-ph-compact] .ph-lv { padding-left: calc(6 * var(--phu)); padding-right: calc(6 * var(--phu)); }

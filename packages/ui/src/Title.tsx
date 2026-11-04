@@ -464,7 +464,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     // flash"): the effect that clears `covered` runs AFTER the frame in which the page closed, so for one frame the page
     // was gone and the title (and the mode picker inside it) was still skipped by `content-visibility: hidden`, a blank
     // frame. Deriving it in render un-skips the title in the same commit that removes the page.
-    <div className={`titlescreen${covered && pageOpen ? ' covered' : ''}${shellOn ? ' ph-clear' : ''}`}>
+    <div className={`titlescreen${covered && pageOpen ? ' covered' : ''}${shellOn ? ' ph-clear' : ''}${shellOn && pageOpen ? ' ph-paged' : ''}`}>
       {/* Static homescreen background — the looping menu video is disabled for now (owner request 2026-07-08);
           the full-bleed sky-castle art comes from the `.titlescreen` CSS background (homescreen.webp). */}
 

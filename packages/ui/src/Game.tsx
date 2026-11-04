@@ -485,6 +485,11 @@ export function Game() {
   const partyHomeOn = usePartyHome();
   const titleUp = useGame((s) => s.showTitle || s.practiceSetupOpen);
   const shellMenus = partyHomeOn && titleUp && !gameMenuOpen;
+  // The Compendium is a page too: while it is up, nothing under it shows through the transparent pages.
+  const bookUp = useGame((s) => s.showBook);
+  useLayoutEffect(() => {
+    document.documentElement.toggleAttribute('data-ph-book', shellMenus && bookUp);
+  }, [shellMenus, bookUp]);
   // A page under the shell that fails to load says so in place, with the nav and a way out, instead of the crash screen.
   const page = (el: JSX.Element): JSX.Element => (PhGuard && PhChrome && shellMenus
     ? <PhGuard onBack={() => useGame.getState().goTo('menu')} nav={<Suspense fallback={null}><PhChrome current={null} /></Suspense>}>{el}</PhGuard>
@@ -722,7 +727,7 @@ export function Game() {
       <DiscoverEntrancePreview />
       <WipePreview />
       <HeroLaunchCurtain />
-      {PhSteady && shellMenus && <PhSteady />}
+      {PhSteady && (shellMenus || (partyHomeOn && heroPicking)) && <PhSteady steady />}
       {PhSteadyNav && PhGuard && shellMenus && <PhGuard><PhSteadyNav /></PhGuard>}
       <Title onSettings={openSettings} />
       {/* THE RANKED GATE (owner 2026-10-12): "Yes, let's go." slams two doors shut over the mode picker and opens

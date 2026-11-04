@@ -16,7 +16,7 @@ export function markPhPage(): () => void {
 }
 const subscribe = (l: () => void): (() => void) => { subs.add(l); return () => { subs.delete(l); }; };
 
-const WAIT_MS = 350;
+const WAIT_MS = 800;
 const CENTRE: CSSProperties = { position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none', zIndex: 1 };
 const LINE: CSSProperties = { color: '#d8e2f5', fontWeight: 600, textShadow: '0 1px 3px rgba(0, 0, 0, 0.8)' };
 
@@ -26,7 +26,7 @@ export function PhPageWait() {
   const [late, setLate] = useState(false);
   useEffect(() => { const t = window.setTimeout(() => setLate(true), WAIT_MS); return () => window.clearTimeout(t); }, []);
   if (!late || count > 0 || !document.documentElement.hasAttribute('data-ph-shell')) return null;
-  return <div className="ph-pagewait" style={CENTRE}><span style={LINE}>Loading</span></div>;
+  return <div className="ph-pagewait" style={{ ...CENTRE, animation: 'fadein 0.3s ease both' }}><span style={LINE}>Loading</span></div>;
 }
 
 function Failed({ onBack, nav }: { onBack?: () => void; nav?: ReactNode }) {

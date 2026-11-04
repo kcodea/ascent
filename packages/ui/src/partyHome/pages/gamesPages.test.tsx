@@ -17,9 +17,10 @@ import type { RecentGameRow } from '../../remoteBoards';
 import type { LiveGameRow } from '../../live/liveRemote';
 import { LIVE_PAGE } from '../../live/liveRemote';
 
+const lobbyRead = vi.hoisted(() => ({ hang: false }));
 vi.mock('../../remoteBoards', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../remoteBoards')>()),
-  fetchRecentMatch: async () => null,
+  fetchRecentMatch: () => (lobbyRead.hang ? new Promise(() => {}) : Promise.resolve(null)),
 }));
 
 const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
@@ -112,6 +113,15 @@ describe('Recent Games on the shell', () => {
     ui = mount(<RecentGamesPh {...props({ rows: many })} />);
     expect(qa('.rgp-gem').length).toBe(30);
     expect(q('.rgp-spark polyline')).toBeNull();
+  });
+  it('holds the lobby\'s place with ghost tiles while it is read, and the board line already says what it will keep', () => {
+    lobbyRead.hang = true;
+    ui = mount(<RecentGamesPh {...props()} />);
+    lobbyRead.hang = false;
+    expect(qa('.rgp-lobby .rgp-ghost').length).toBe(8);
+    expect(q('.rgp-lobby')?.getAttribute('aria-busy')).toBe('true');
+    expect(q('.lp-showing-v')?.textContent).toBe("Player0's board");
+    expect(ui.container.textContent).not.toMatch(/Final board/);
   });
   it('names a placement in words', () => {
     // The production list's placement style (owner ruling 2026-11-03): band-coloured ordinal text, a crown on a win, no crest.

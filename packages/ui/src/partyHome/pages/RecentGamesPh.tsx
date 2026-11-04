@@ -30,7 +30,7 @@ import type { HeroCount } from '../../heroFilter';
 import { bandOf, placeText } from '../../GameCard';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from '../../matchDetails/matchDetailsText';
 import { SHOW_LOBBY_STRENGTH } from '../../lobbyStrengthDisplay';
-import { fetchRecentMatch } from '../../remoteBoards';
+import { fetchRecentMatch, peekRecentMatch } from '../../remoteBoards';
 import { partialText, playedAtText, recordText, runLengthText } from '../../leaderboardData';
 import { heroPortrait } from '../../skins/skins';
 import { DuosGameCard } from '../../duosHistory/DuosGameCard';
@@ -218,7 +218,8 @@ const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, o
   // A practice row carries its lobby; a ranked row's standings load on demand (two one-row reads, cached), exactly as the
   // classic page does. Until they land, or when none were recorded, there is simply no lobby section.
   const practiceRow = 'match' in r;
-  const [fetched, setFetched] = useState<MatchDetails | null>(null);
+  // undefined = still being read (the detail holds the lobby's place); a revisit has the answer at once.
+  const [fetched, setFetched] = useState<MatchDetails | null | undefined>(() => (practiceRow || r.rowId == null || !r.userId ? null : peekRecentMatch(r.rowId)));
   useEffect(() => {
     if (practiceRow) return undefined;
     let live = true;
@@ -241,7 +242,7 @@ const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, o
       recordTone={r.record ? (r.record.wins >= r.record.losses ? 'up' : 'down') : ''}
       rank={!practice && 'rank' in r && r.rank != null ? r.rank : null}
       facts={facts} notice={r.partial ? <PhChip className="rgp-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</PhChip> : null}
-      match={'match' in r ? r.match : fetched} own={mine} minions={r.board?.minions} skins={skins}
+      match={'match' in r ? r.match : fetched} matchPending={!practiceRow && fetched === undefined} own={mine} minions={r.board?.minions} skins={skins}
       runes={r.runes} runeLive={runeLiveStateOfSnapshot(r.board)}
       replay={!practice || watchable ? {
         watchable, busy, unplayable, onWatch: (e) => onWatch(e, r, key),

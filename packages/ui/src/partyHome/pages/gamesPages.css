@@ -68,7 +68,8 @@
 .rgp-split { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(440 * var(--phu)) minmax(0, 1fr); gap: calc(16 * var(--phu)); }
 .rgp-listwrap { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: calc(4 * var(--phu)); }
 .rgp-list.phk-selist { gap: calc(4 * var(--phu)); }
-.rgp-detailcol { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+/* The gutter stays reserved: a game whose lobby turns out unrecorded loses its held space, and the panel must not widen. */
+.rgp-detailcol { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-gutter: stable; }
 
 /* A history row: a rail slice. The band edge on the left, the placement in metal, the hero art fading in from the right. */
 .rgp-item { flex: none; width: 100%; box-sizing: border-box; gap: calc(16 * var(--phu)); min-height: calc(64 * var(--phu)); padding: 0 calc(16 * var(--phu)) 0 calc(20 * var(--phu)); margin: 0; border: 0; overflow: hidden;
@@ -233,8 +234,6 @@
 .lvp-watchers { display: inline-flex; align-items: center; gap: calc(4 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); color: var(--ph-muted); text-shadow: var(--ph-shadow); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .lvp-watchers svg { width: calc(16 * var(--phu)); height: calc(16 * var(--phu)); }
 .lvp-act .phk-btn { min-width: calc(104 * var(--phu)); }
-.lvp-quiet { flex: 1; min-height: calc(240 * var(--phu)); display: grid; place-items: center; }
-.lvp-quiet > .phk-section { width: min(100%, calc(560 * var(--phu))); }
 .lvp-quietbtns { display: flex; gap: calc(12 * var(--phu)); margin-top: calc(8 * var(--phu)); }
 .lvp-pager { flex: none; display: flex; align-items: center; justify-content: center; gap: calc(16 * var(--phu)); padding: calc(8 * var(--phu)) 0; }
 .lvp-pager span { font-size: var(--ph-t1); color: var(--ph-muted); }
@@ -318,3 +317,11 @@ html[data-touch-small] .rgp-facts .phk-statval { font-size: var(--ph-t2); }
 html[data-touch-small] .rgp-boardsec { gap: calc(4 * var(--phu)); padding: calc(4 * var(--phu)) calc(24 * var(--phu)) calc(8 * var(--phu)); }
 html[data-touch-small] .rgp .lp-hint { display: none; }
 html[data-touch-small] .rgp-lobby { padding: calc(8 * var(--phu)) calc(24 * var(--phu)) calc(24 * var(--phu)); }
+
+/* THE LOBBY WHILE IT IS READ (round 10 critic): quiet ghost tiles hold its exact place from the first paint, so the board
+   line, the panel width and the art do not move when it lands; the real tiles fade in (one-shot opacity). */
+.rgp .lp-tile.rgp-ghost, .rgp .lp-tile.rgp-ghost:hover { opacity: 0.4; transform: none; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); }
+.rgp .lp-tile.rgp-ghost::before { background: none; }
+.rgp-ghostface { display: block; width: calc(37.125 * var(--phu)); height: calc(37.125 * var(--phu)); border-radius: 50%; background: color-mix(in srgb, var(--ph-ink) 10%, transparent); }
+.rgp-lobby.fadein .lp-tiles { animation: lp-swap 0.22s cubic-bezier(0, 0, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .rgp-lobby.fadein .lp-tiles { animation: none; } }

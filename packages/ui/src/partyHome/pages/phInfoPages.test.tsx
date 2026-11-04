@@ -212,6 +212,26 @@ describe('the Compendium in the shell', () => {
     expect(ui.container.querySelector('.phb-actions'), 'a text panel drops the card controls').toBeNull();
   });
 
+  it('the rail: another group switches the view, and what is lit is what shows', () => {
+    ui = mount(<PhCompendium />);
+    const lit = (): string[] => [...ui!.container.querySelectorAll('.book-cat.on')].map((b) => b.textContent ?? '');
+    const pick = (name: string): void => { click([...ui!.container.querySelectorAll('.book-cat')].find((b) => b.textContent === name)); };
+    pick('Heroes');
+    expect(ui.container.querySelector('.phh-grid')).not.toBeNull();
+    pick('Beasts');
+    expect(lit()).toEqual(['Beasts']);
+    expect(ui.container.querySelector('.phh-grid'), 'Heroes gives way').toBeNull();
+    pick('Demons');
+    expect(lit(), 'tribes multi-select').toEqual(['Beasts', 'Demons']);
+    pick('Runes');
+    expect(lit()).toEqual(['Runes']);
+    pick('Rune Rewards');
+    expect(lit()).toEqual(['Rune Rewards']);
+    expect(ui.container.querySelector('.phb-sub')?.textContent).toContain('rune rewards');
+    pick('Rune Rewards');
+    expect(lit(), 'a second press clears it').toEqual([]);
+  });
+
   it('R-COMPENDIUM-GUIDES-FILTER-01: Guides shows its own tribe filter even with Runes lit before it', () => {
     ui = mount(<PhCompendium />);
     click([...ui.container.querySelectorAll('.book-cat')].find((b) => b.textContent === 'Runes'));

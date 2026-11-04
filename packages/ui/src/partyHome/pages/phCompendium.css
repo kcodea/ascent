@@ -225,8 +225,8 @@ html[data-ph-shell]:not([data-ph-compact]) .phb .bookguides { padding-right: cal
 html[data-ph-shell]:not([data-ph-compact]) .phb .book-gloss-body { padding-right: calc(2 * var(--phu)); }
 
 /* Phones: the Rules bar is two short lines' worth at most, the chips one row that scrolls sideways, so the list gets the height. */
-html[data-ph-compact] .phb .wiki-bar { flex-wrap: nowrap; gap: calc(8 * var(--phu)); padding: calc(4 * var(--phu)) calc(8 * var(--phu)); }
-html[data-ph-compact] .phb .wiki-search { flex: none; width: calc(240 * var(--phu)); height: calc(64 * var(--phu)); }
+html[data-ph-compact] .phb .wiki-bar { flex-wrap: nowrap; gap: 8px; padding: 4px 8px; }
+html[data-ph-compact] .phb .wiki-search { flex: none; width: 200px; height: 36px; }
 html[data-ph-compact] .phb .wiki-chips { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 html[data-ph-compact] .phb .wiki-chip { flex: none; }
 
@@ -304,3 +304,24 @@ html[data-ph-shell]:not([data-ph-compact]) .phb :is(.book-axislabel, .book-chart
 html[data-ph-compact] .phb :is(.book-setpick-name, .book-zoom-val, .book-gilded) { font-size: calc(18 * var(--phu)); }
 /* Runes: the rune card sets the column, so there is no wide gap round it, and the rows sit closer. */
 html[data-ph-shell]:not([data-ph-compact]) .phb .book-grid.is-runes { grid-template-columns: repeat(auto-fill, minmax(min(240px, 16%), 1fr)); gap: calc(24 * var(--phu)) calc(8 * var(--phu)); }
+/* Phones: the card's own text is set larger inside the zoomed gallery, so it reads at the default size; the name and art are
+   left as they are. */
+html[data-ph-compact] .phb .book-grid .card.compact.plated .drawer .desc { line-height: 1.15; }
+html[data-ph-compact] .phb .book-grid .card.compact.plated.plate-txt-s .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.55); }
+html[data-ph-compact] .phb .book-grid .card.compact.plated.plate-txt-m .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.4); }
+html[data-ph-compact] .phb .book-grid .card.compact.plated.plate-txt-l .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.25); }
+html[data-ph-compact] .phb .book-grid .card.compact.plated.plate-txt-xl .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.1); }
+html[data-ph-compact] .phb .book-grid .plate-tribe { font-size: 22px; }
+html[data-ph-compact] .phb .wiki-chip { font-size: 13px; }
+/* Inside the zoomed panels sizes are px: the zoom already carries the shell's unit. */
+html[data-ph-compact] .phb :is(.gloss-grouphead, .wiki-grouphead) { font-size: 15px; }
+html[data-ph-compact] .phb :is(.gloss-grouphead, .wiki-grouphead)::after { flex-basis: 96px; height: 10px; }
+html[data-ph-compact] .phb .book-setpick-opt { font-size: calc(18 * var(--phu)); }
+/* The Guides pills inside the zoomed panel: px (a shell-unit height would count the zoom twice and blow them into circles). */
+html[data-ph-shell][data-ph-compact] .phk-page .bookguides .book-runetribe { min-height: 34px; padding: 0 14px; }
+/* Phones keep the Runes and Guides filters: only the tier bars step aside, not the row that carries those pills. */
+html[data-ph-shell][data-ph-compact] .phk-page .phb-book .book-tiers.is-inert .book-chart { display: flex; }
+html[data-ph-compact] .phb .wiki-search { width: 280px; }
+html[data-ph-compact] .phb .book-tiers .book-runetribe { font-size: calc(18 * var(--phu)); }
+html[data-ph-compact] .phb .book-tiers .book-runetribe > span { font-size: inherit; }
+html[data-ph-compact] .phb .book-tiers .book-runetribe { padding: 0 calc(16 * var(--phu)); }

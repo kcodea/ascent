@@ -160,6 +160,11 @@ describe('Recent Games on the shell', () => {
     vi.useRealTimers();
     expect(qa('.rgp-item').length).toBe(40);
   });
+  it('the page stays invisible until its first frame is drawn, then fades in as one', () => {
+    const css = here('./gamesPages.css');
+    expect(css).toMatch(/\.phk-page\.rgp:not\(\[data-in\]\) \{ opacity: 0; \}/);
+    expect(here('./RecentGamesPh.tsx')).toMatch(/setAttribute\('data-in', ''\)/);
+  });
   it('the detail column never scrolls sideways (a phone: the hidden hover bubble must not widen it)', () => {
     const css = here('./gamesPages.css');
     expect(css).toMatch(/\.rgp-detailcol \{[^}]*overflow-x: hidden/);

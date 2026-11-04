@@ -74,11 +74,12 @@ function useFace(m: Pick<VersusMember, 'userId' | 'displayName' | 'profile'>, se
   const myAvatar = useGame((s) => s.playerAvatar);
   const myTitle = useProgression((s) => mirrorFor(currentUserId(), s.mirror)?.equippedTitleId ?? null);
   const myLoadout = useLiveLoadout();
+  const myName = useGame((s) => s.playerName);
   return useMemo(() => {
     const src = seatCardSource({ member: m, own, showOpp, server, ...(own ? { self: { avatar: myAvatar ?? null, titleId: myTitle, cosmetics: myLoadout } } : {}) });
     const art = playerCardArt(src);
-    return { name: src.name || 'Player', art: thumb ? heroThumb(art) : art, titleId: src.titleId, record: src.record };
-  }, [m.userId, m.displayName, m.profile, own, showOpp, server, myAvatar, myTitle, myLoadout, thumb]);
+    return { name: (own && myName) || src.name || 'Player', art: thumb ? heroThumb(art) : art, titleId: src.titleId, record: src.record };
+  }, [m.userId, m.displayName, m.profile, own, showOpp, server, myAvatar, myTitle, myLoadout, thumb, myName]);
 }
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
@@ -93,10 +94,11 @@ function BannerFoot({ face, medal, state }: { face: Face; medal?: ReactNode; sta
   return (
     <>
       <PhBannerName>{face.name}</PhBannerName>
-      {/* The same lines as the home's own banner (medal slot, then title), so a name never jumps when a room opens. */}
-      {medal ?? <span className="ph-rank">{record ?? ' '}</span>}
-      <span className="ph-sub">{face.titleId ? <TitleBadge id={face.titleId} className="ph-titlebadge" /> : medal && record ? record : ' '}</span>
-      {state}
+      {/* ONE FIXED FOOT: the home's own lines (medal, title, state strip) in every state, so no text ever moves. A line with
+          nothing to say keeps its height and draws nothing (never an empty chip). */}
+      {medal ?? <span className={`ph-rank ${record ? 'vsr-rankplain' : 'vsr-rankspace'}`}>{record ?? '\u00a0'}</span>}
+      <span className="ph-sub">{face.titleId ? <TitleBadge id={face.titleId} className="ph-titlebadge" /> : medal && record ? record : '\u00a0'}</span>
+      {state ?? <PhBannerState tone="space" />}
     </>
   );
 }
@@ -120,6 +122,8 @@ interface PhDrag {
   h: number;
   /** The sell line (stage px) for a seated card: above it the card goes to the stands. */
   sellTop: number | null;
+  /** The centre of the party stage (stage px): the Spectate chip sits over the banners, not the whole window. */
+  bandX: number;
   /** Springing back: the ghost's target (stage px). */
   snap: { x: number; y: number; s: number } | null;
 }
@@ -179,11 +183,13 @@ function useRoomDrag(root: RefObject<HTMLElement>): {
       const one = seatEls[0];
       const w = one?.offsetWidth || toStage(sr.width);
       const h = one?.offsetHeight || toStage(sr.height);
+      const stg = el.querySelector<HTMLElement>('.ph-stage')?.getBoundingClientRect();
+      const bandX = toStage(stg ? stg.left + stg.width / 2 : sr.left + sr.width / 2);
       pos.current = { x: x0, y: y0 };
       dragged.current = true;
       showDragCursorVeil();
       sfx.cardTouch();
-      put({ userId, from, zone: null, valid: false, w, h, sellTop: sellScreen === null ? null : toStage(sellScreen), snap: null });
+      put({ userId, from, zone: null, valid: false, w, h, sellTop: sellScreen === null ? null : toStage(sellScreen), bandX, snap: null });
     };
     const frame = (): void => {
       raf = 0;
@@ -265,7 +271,7 @@ export interface VersusRoomHome {
   /** The strip under the banners. */
   stands: JSX.Element | null;
   /** START. */
-  start: { label: string; ok: boolean; note: string | null; run: () => void } | null;
+  start: { label: string; ok: boolean; wait: boolean; note: string | null; run: () => void } | null;
   /** The buttons beside START (Leave room, Previous match stats, the DEV bot tools). */
   side: JSX.Element | null;
   /** The drag ghost, the rules notice, the match stats window. */
@@ -372,9 +378,9 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
       ? <span className="ph-pairlbl">Team {t + 1}</span>
       : <span className={`ph-pairlbl ${myTeam === t ? 'mine' : 'rival'}`}>{myTeam === t ? 'Your team' : 'Rivals'}</span>);
     row.push(
-      <div key="a" className="ph-pair" role="group" aria-label="Team 1">{lbl(0)}<div className="ph-pairrow">{cards[0]}</div></div>,
+      <div key="a" className="ph-pair" role="group" aria-label="Team 1"><div className="ph-pairrow">{lbl(0)}{cards[0]}</div></div>,
       <span key="vs" className="ph-vs" aria-hidden="true">VS</span>,
-      <div key="b" className="ph-pair" role="group" aria-label="Team 2">{lbl(1)}<div className="ph-pairrow">{cards[1]}</div></div>,
+      <div key="b" className="ph-pair" role="group" aria-label="Team 2"><div className="ph-pairrow">{lbl(1)}{cards[1]}</div></div>,
     );
   } else if (mode === 'duel') row.push(...cards[0]!, <span key="vs" className="ph-vs" aria-hidden="true">VS</span>, ...cards[1]!);
   else row.push(...cards[0]!);
@@ -383,7 +389,7 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   const side = (
     <>
       <PhButton onClick={leave}>{running && isPlayer ? 'Leave (concede)' : 'Leave room'}</PhButton>
-      {sampleOn && <PhButton size="s" onClick={() => { sfx.pulse(); sampleToggleView(); }}>{sampleView === 'host' ? 'View as guest' : 'View as host'}</PhButton>}
+      {sampleOn && <PhButton onClick={() => { sfx.pulse(); sampleToggleView(); }}>{sampleView === 'host' ? 'View as guest' : 'View as host'}</PhButton>}
       {open && lastMatch && <PhButton onClick={() => { sfx.pulse(); setVersusStatsOpen(true); }}>Previous match stats</PhButton>}
       {roomBots.length > 0 && (
         <>
@@ -399,10 +405,10 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
       {optionsNotice && <div className="vsr-notice" role="status">{optionsNotice}</div>}
       {drag && createPortal(
         <>
-          {sellBand && <div className={`vsr-sellband${drag.zone === 'stands' ? ' vsr-on' : ''}`} style={{ height: drag.sellTop! }} aria-hidden="true"><span>Spectate</span></div>}
+          {sellBand && <div className={`vsr-sellband${drag.zone === 'stands' ? ' vsr-on' : ''}`} style={{ height: drag.sellTop! }} aria-hidden="true"><span style={{ left: drag.bandX }}>Spectate</span></div>}
           <div ref={ghost} className={`vsr-ghost${drag.snap ? ' vsr-snap' : ''}${drag.valid && drag.zone && drag.zone !== 'stands' ? ' vsr-lit' : ''}`} aria-hidden="true"
             style={{ width: drag.w, height: drag.h, ...(drag.snap ? { transform: `translate(${drag.snap.x}px, ${drag.snap.y}px) scale(${drag.snap.s})`, transitionDuration: `${getDragFeel().snapMs}ms` } : {}) }}>
-            <GhostCard userId={drag.userId} room={room} data={seatData} host={drag.userId === room.host_user_id} />
+            <GhostCard userId={drag.userId} room={room} data={seatData} host={drag.userId === room.host_user_id} medal={drag.userId === me ? myMedal : null} />
           </div>
         </>,
         stageHost(),
@@ -412,10 +418,9 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   );
   return {
     row,
-    stands: <Stands spectators={spectators} room={room} me={me} data={seatData} draggingSeated={!!drag && !drag.snap && drag.from !== 'spectator'}
-      over={!!drag && !drag.snap && drag.zone === 'stands'} hiddenId={drag?.userId ?? null} onPointerDown={begin} myDraggable={myDraggable} />,
+    stands: <Stands spectators={spectators} room={room} me={me} data={seatData} hiddenId={drag?.userId ?? null} onPointerDown={begin} myDraggable={myDraggable} />,
     start: {
-      label: st.label, ok: st.canStart || watch, note: bots.error ? `Bot: ${bots.error}` : st.note,
+      label: st.label, ok: st.canStart || watch, wait: !!st.wait, note: bots.error ? `Bot: ${bots.error}` : st.note,
       run: () => { if (watch) resumeSpectating(); else if (st.canStart) void homeStart(); },
     },
     side, layers, memberIds: room.members.map((m) => m.userId).filter((id) => id !== me), seatsFree: openSeats.length, dragging: !!drag,
@@ -451,33 +456,33 @@ function SeatBanner({ side, i, m, medal, server, thumb, host, over, hidden, pool
     </PhBanner>
   );
   // My own banner starts the drag (a wrapper that takes no box, so the banner stays a direct item of the row).
-  return draggable ? <div className="vsr-dragwrap" onPointerDown={onPointerDown}>{banner}</div> : banner;
+  // Always there, so the banner never remounts (and replays its entrance) when the room starts.
+  return <div className="vsr-dragwrap" onPointerDown={draggable ? onPointerDown : undefined}>{banner}</div>;
 }
 
 /** The drag ghost's banner: the dragged member's face at seat size (inert: it never takes focus or a press). */
-function GhostCard({ userId, room, data, host }: { userId: string; room: VersusRoom; data: ReadonlyMap<string, SeatServerData>; host: boolean }) {
+function GhostCard({ userId, room, data, host, medal }: { userId: string; room: VersusRoom; data: ReadonlyMap<string, SeatServerData>; host: boolean; medal: ReactNode }) {
   const m = memberOf(room, userId);
   const face = useFace(m ?? { userId, displayName: '', profile: {} }, data.get(userId), true);
   return (
     <div className="vsr-ghostwrap" ref={(el) => { el?.setAttribute('inert', ''); }}>
       <PhBanner art={face.art} badge={host ? HOST_BADGE : undefined} className="vsr-ghostin" label={face.name}>
-        <BannerFoot face={face} state={null} />
+        <BannerFoot face={face} medal={medal} state={null} />
       </PhBanner>
     </div>
   );
 }
 
 /** THE STANDS: every spectator as a small tile; mine drags to a seat. */
-function Stands({ spectators, room, me, data, draggingSeated, over, hiddenId, onPointerDown, myDraggable }: {
+function Stands({ spectators, room, me, data, hiddenId, onPointerDown, myDraggable }: {
   spectators: VersusMember[]; room: VersusRoom; me: string | null; data: ReadonlyMap<string, SeatServerData>;
-  draggingSeated: boolean; over: boolean; hiddenId: string | null; onPointerDown: (e: ReactPointerEvent<HTMLElement>, userId: string) => void; myDraggable: boolean;
+  hiddenId: string | null; onPointerDown: (e: ReactPointerEvent<HTMLElement>, userId: string) => void; myDraggable: boolean;
 }) {
   return (
-    <section className={`vsr-stands${draggingSeated ? ' vsr-target' : ''}${over ? ' vsr-over' : ''}${spectators.length === 0 ? ' vsr-nostands' : ''}`} aria-label="Spectators">
+    <section className={`vsr-stands${spectators.length === 0 ? ' vsr-nostands' : ''}`} aria-label="Spectators">
       <header className="vsr-standshead">
         <h2>Spectators</h2>
         <span className="vsr-standsn">{spectators.length} / {VERSUS_SPECTATOR_CAP}</span>
-        {draggingSeated && <span className="vsr-standshint">Drop here to spectate</span>}
       </header>
       <div className="vsr-tiles" role="list">
         {spectators.length === 0
@@ -534,7 +539,7 @@ export function RoomRulesPanel({ room, me, modifier, onModifier, name, onName, p
       <PhSegmented label="Modifier" value={value} options={MODIFIERS} disabled={!editable} max={4} onPick={pick}
         hint={value ? riftDefFor(value, 'versus').blurb : 'The usual rules.'} />
       <div className="pho-note">
-        <span>{room ? (editable ? 'Versus is unranked. Changes show for everyone at once.' : 'Only the host can change these, between games.') : 'Press Start to open your room, then invite friends.'}</span>
+        <span>{room ? (editable ? 'Versus is unranked. Changes show for everyone at once.' : room.host_user_id === me ? 'The rules are set for this game. You can change them between games.' : 'Only the host can change these, between games.') : 'Press Start to open your room, then invite friends.'}</span>
         {!room && <PhButton size="s" onClick={() => { sfx.pulse(); onBrowse(); }}>Open rooms</PhButton>}
       </div>
     </>

@@ -1378,7 +1378,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Duos-only cards** (owner 2026-10-30; R-DUOS-CARDS-01..05, R-DUOS-EFFECT-PASS-QUEUE-01). Some minions and Shop Spells exist only in Duos runs
   (Versus Duos and Ranked Duos). They join a run's pool when their tribe is one of the set's tribes (neutrals and spells
   always), then the run's tribe roll narrows them like any card. **Only the manual pass costs Gold** (the drag, 1 Gold;
-  Brian's Pal frees the first each turn): a pass made by a card or spell (Handout, CueBee's Pass, Matchmaker) is free,
+  Brian's Pal frees the first each turn; Priestess's Passaria has its own 2 Gold price, below): a pass made by a card or spell (Handout, CueBee's Pass, Matchmaker) is free,
   never takes a Golden minion (unless its effect says so: a pass spell that TARGETS, Handout or CueBee's Pass, can never
   target a Golden minion, on the board or in the Shop; it gets no target glow and a drop on it snaps the spell back), and is **never refused for a full hand** (owner 2026-10-30: "if
   your teammate's hand is full, they get the card once there is space in their hand"): it waits on their run and lands,
@@ -1396,6 +1396,15 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   **Matchmaker** passes its Discover pick; **CueBee** is a neutral Whisper granter whose Whisper, Pass, aims at a Shop
   minion or one of yours. A card a teammate GIVES you (a gift: Disco's options, Antsy, Toot Toot, Tribe Bundle, a Gold
   Pouch, a rune's gift) waits for room like an effect pass, never lost.
+- **Duos-only heroes** (owner 2026-11-04; R-DUOS-PRIESTESS-01). `HeroDef.duosOnly`: only a team mode's deal (Versus Duos
+  and Ranked Duos) offers them, re-rolls included. They are out of solo, Group, Practice, generated rival seats and the
+  Mimic / Void / Power Shifter power Discovers, and the Compendium's Heroes tab shows them under its Duos toggle.
+  **Priestess** (14 Armor) wields **Passaria**: 2 Gold, once per turn, pass a non-Gilded minion in the Shop or on your
+  board. It is an effect pass in every way but the price: it follows the rules above (never Golden, never refused for a
+  full hand, counts as a pass, counts toward the 10 per round), and Brian's Pal and Playing Catch do not discount it. A
+  press with no legal target, no teammate or too little Gold spends nothing. If the room refuses the pass (the teammate
+  is away or out, the clock, the cap), the minion, the 2 Gold and that turn's charge all come back. Wishbone never passes
+  a second minion.
 - **Duos-only runes** (owner 2026-10-30; R-DUOS-RUNES-01..03). `RuneDef.duos`: only a Duos run's Runeforge (and a granted
   random rune) offers them. Basic: **Spell Theory** (2: passing a spell gets you a copy, once per turn), **Gold Gifts** (1:
   Equip Gold Gifter (1), the (1) is its Gold cost: your teammate gets 3 Gold), **Teammate Synergy** (2: each Gild gives your

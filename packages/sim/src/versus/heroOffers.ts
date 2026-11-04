@@ -20,8 +20,8 @@ import { VERSUS_HERO_OFFER_SIZE } from './constants';
 
 /** A seat's whole seeded hero order: the heroes its run's tribes allow, shuffled from its private hero seed. The
  *  first three are `versusHeroOffer` (unchanged since 2026-10-13). */
-export function versusHeroShuffle(heroSeed: number, runSeed: number, setId: SetId): string[] {
-  const ids = playableHeroes(runTribesForSeed(runSeed, setId)).map((h) => h.id);
+export function versusHeroShuffle(heroSeed: number, runSeed: number, setId: SetId, opts?: { duos?: boolean }): string[] {
+  const ids = playableHeroes(runTribesForSeed(runSeed, setId), opts).map((h) => h.id);
   const rng = makeRng(mixSeed(heroSeed, 0x4e50));
   for (let i = ids.length - 1; i > 0; i--) {
     const j = Math.floor(rng.next() * (i + 1));
@@ -37,9 +37,11 @@ export function versusHeroShuffle(heroSeed: number, runSeed: number, setId: SetI
  * BEFORE the party's offers are dealt): heroes the table already holds, never dealt. Each seat's list simply loses them
  * first, so with nothing excluded the deal is exactly the one of before. A list that runs out of free heroes falls back to
  * the excluded ones (never with today's roster: the tribe gate leaves 20+ heroes, the table holds 6).
+ *
+ * `opts.duos` (a team mode's deal, R-DUOS-PRIESTESS-01): the Duos-only heroes join the lists.
  */
-export function versusDisjointHeroOffers(seats: readonly { heroSeed: number; runSeed: number }[], setId: SetId, exclude?: ReadonlySet<string>): string[][] {
-  const full = seats.map((s) => versusHeroShuffle(s.heroSeed, s.runSeed, setId));
+export function versusDisjointHeroOffers(seats: readonly { heroSeed: number; runSeed: number }[], setId: SetId, exclude?: ReadonlySet<string>, opts?: { duos?: boolean }): string[][] {
+  const full = seats.map((s) => versusHeroShuffle(s.heroSeed, s.runSeed, setId, opts));
   const lists = exclude?.size
     ? full.map((l) => [...l.filter((h) => !exclude.has(h)), ...l.filter((h) => exclude.has(h))])
     : full;

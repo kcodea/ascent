@@ -34,7 +34,7 @@ import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounc
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
 import { applyDuosPass, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass, stampOutboxSrc, type DuosPassSource } from './duosPass';
-import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, receiveTeamEffect } from './recruit';
+import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, passariaTarget, passMinionToTeammate, receiveTeamEffect } from './recruit';
 import { advanceDuosMeters, armDuosRune, duosMetersMods, duosOnBoughtBuddy, duosOnTripleReward, duosPepTalkMods, duosPepTalkShop, settleDuosMeters } from './duosRunes';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -3661,6 +3661,13 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (!card || card.keywords.includes('R')) return state;
         card.keywords.push('R');
         card.tempReborn = true;
+      } else if (power.kind === 'passaria') {
+        // Priestess (Duos only, R-DUOS-PRIESTESS-01): THE EFFECT PASS (Handout's body) on a Shop or board minion. No-op (no
+        // charge, no Gold) outside a Duos run or on anything but a legal target. The shared block below spends the Gold;
+        // the outbox entry records it, so a server refusal hands the Gold and the charge back with the card. One
+        // application: `reps` (Wishbone) never passes a second minion.
+        const target = passariaTarget(s, action.uid);
+        if (!target || !passMinionToTeammate(s, target, { slot, paid: power.cost ?? 0 })) return state;
       } else if (power.kind === 'pocketMagic') {
         // Merrin: a random Shop spell (up to the current tier) to hand. No-op (no charge) if none exist or the
         // hand is full. Untargeted; the 1-Gold cost is spent by the shared block.

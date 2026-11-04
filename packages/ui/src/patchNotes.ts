@@ -59,6 +59,19 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-04',
     changes: [
       {
+        category: 'Balance',
+        text: 'New Duos hero: Priestess. Her power, Passaria, passes a minion to your teammate.',
+        details: [
+          'Priestess starts with 14 Armor and only appears in Versus Duos and Ranked Duos.',
+          'Passaria costs 2 Gold, once per turn. Pick a non-Gilded minion in the Shop or on your board.',
+          'If your teammate\'s hand is full, the minion waits until they have room.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Duos cards: Matchmaker moves to Tier 4 and CueBee moves to Tier 5.',
+      },
+      {
         category: 'Systems',
         text: 'Fixed: card frames, medallions and other art no longer pop in when you come back to the game after a while.',
         details: [

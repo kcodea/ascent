@@ -54,6 +54,52 @@ describe('Rune of Living Echoes', () => {
     expect(playerSummons(sim(thin, killer, { runeLivingEchoes: 3 }), 'b2_sunmane')).toBe(3);
   });
 
+  // R-ECHOES-CHARGE-01 (owner report 2026-11-03): "if the first sunmane survives, no other sunmanes summon once space
+  // clears up again". A Sunmane's summon is queued (it attacks immediately), so the fill used to see the same free
+  // slot three times, spend every charge at once, and lose the extra Sunmanes.
+  const wall: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 300 }]; // 1 Attack: a Sunmane (5/3) survives its swing
+  type Ev = ReturnType<typeof sim>['events'][number];
+  const sunmanes = (r: ReturnType<typeof sim>) =>
+    r.events.filter((e): e is Extract<Ev, { type: 'summon' }> =>
+      e.type === 'summon' && e.side === 'player' && e.minion.cardId === 'b2_sunmane');
+
+  it('3 open slots at the start: all 3 Sunmanes summon at once and fill the board', () => {
+    const four: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 300 }));
+    const r = sim(four, wall, { runeLivingEchoes: 3 });
+    const s = sunmanes(r);
+    expect(s.length).toBe(3);
+    const firstDeath = r.events.findIndex((e) => e.type === 'death' && e.side === 'player');
+    for (const ev of s) {
+      const at = r.events.indexOf(ev);
+      expect(firstDeath < 0 || at < firstDeath, 'every Sunmane should land before any slot had to free up').toBe(true);
+    }
+    // Each lands into its own slot: 4 + 3 = a full board of 7, all on it together.
+    const uids = new Set(s.map((e) => e.minion.uid));
+    expect(uids.size).toBe(3);
+    const firstNormalSwing = r.events.findIndex((e) => e.type === 'attack' && !uids.has(e.attacker));
+    expect(s.every((ev) => r.events.indexOf(ev) < firstNormalSwing), 'all 3 land before the rotation starts').toBe(true);
+  });
+
+  it('1 open slot: one Sunmane at a time, and a surviving Sunmane does not stop the rest arriving as space clears', () => {
+    const six: BoardMinion[] = Array.from({ length: 6 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }));
+    const r = sim(six, wall, { runeLivingEchoes: 3 });
+    const s = sunmanes(r);
+    expect(s.length, 'later Sunmanes never arrived once space opened').toBe(3);
+    const idx = (ev: (typeof r.events)[number]) => r.events.indexOf(ev);
+    const firstUid = s[0]!.minion.uid;
+    // The first Sunmane swings and SURVIVES (no death for it before the second arrives).
+    const firstSwing = r.events.findIndex((e) => e.type === 'attack' && e.attacker === firstUid);
+    expect(firstSwing).toBeGreaterThan(idx(s[0]!));
+    expect(firstSwing).toBeLessThan(idx(s[1]!));
+    const firstDiesAt = r.events.findIndex((e) => e.type === 'death' && e.target === firstUid);
+    expect(firstDiesAt < 0 || firstDiesAt > idx(s[1]!), 'the first Sunmane should still be alive when the second lands').toBe(true);
+    // Each later Sunmane waits for a fresh free slot: a player death between consecutive summons.
+    for (let i = 1; i < s.length; i++) {
+      const between = r.events.slice(idx(s[i - 1]!), idx(s[i]!));
+      expect(between.some((e) => e.type === 'death' && e.side === 'player'), `Sunmane ${i + 1} arrived without space opening`).toBe(true);
+    }
+  });
+
   it('the Herald attacks on arrival', () => {
     // It is queued with attackNow, so its summon and its strike land together.
     const r = sim(thin, killer, { runeLivingEchoes: 1 });

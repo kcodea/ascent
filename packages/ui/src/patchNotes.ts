@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-03',
     changes: [
       {
+        category: 'Balance',
+        text: 'Fixed: Rune of Living Echoes now summons all 3 Sunmanes. If the first one survived, the other two were lost instead of arriving as space opened.',
+      },
+      {
         category: 'Systems',
         text: 'Game lobbies: a player still standing when the game ended now reads Still in once, not twice.',
       },

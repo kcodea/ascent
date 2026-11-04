@@ -7,7 +7,7 @@ import { versusWorkerUrl } from '../versus/versusRemote';
 import { useVersus } from '../versus/versusStore';
 
 const PLAYER_COPY: Record<string, string> = {
-  "This build's game server isn't deployed yet. Run the pack or select a local server.": 'Versus is offline right now. Try again soon.',
+  "This build's game server isn't deployed yet. Run the pack or select a local server.": 'Versus is offline right now.',
   'You are already in a room. Leave it first.': 'You are already in a Versus room. Return to it or leave it first.',
 };
 
@@ -20,16 +20,17 @@ export function playerVersusError(text: string | null | undefined): string | nul
 /** How often the home re-checks a Versus server that did not answer, while a Versus tab stays open. */
 const DOWN_RECHECK_MS = 60_000;
 const PROBE_TIMEOUT_MS = 4000;
+/** The last answer: a home that opens again knows at once. */
+let lastDown = false;
 
 /**
- * IS THE VERSUS SERVER DOWN? One quiet `/health` read when a tab that needs it opens, so the home can say so BEFORE you
- * press START. Paused while the tab is hidden; a failure re-reads once a minute at most, and the moment the browser says
+ * IS THE VERSUS SERVER DOWN? One quiet `/health` read when the home opens (not when a Versus tab does, so the answer is
+ * already there the moment you open one), remembered across visits. It says so BEFORE you press START. Paused while the tab is hidden; a failure re-reads once a minute at most, and the moment the browser says
  * it is back online. Recovery clears a stale error.
  */
-export function useVersusDown(active: boolean): boolean {
-  const [down, setDown] = useState(false);
+export function useVersusDown(): boolean {
+  const [down, setDown] = useState(() => lastDown || (typeof navigator !== 'undefined' && navigator.onLine === false));
   useEffect(() => {
-    if (!active) { setDown(false); return undefined; }
     let live = true;
     let timer = 0;
     const check = async (): Promise<void> => {
@@ -42,6 +43,7 @@ export function useVersusDown(active: boolean): boolean {
         try { ok = (await fetch(`${versusWorkerUrl().replace(/\/$/, '')}/health`, { signal: ctl.signal })).ok; } catch { ok = false; } finally { window.clearTimeout(t); }
       }
       if (!live) return;
+      lastDown = !ok;
       setDown(!ok);
       if (ok) { if (useVersus.getState().error) useVersus.setState({ error: null }); return; }
       if (navigator.onLine !== false) timer = window.setTimeout(() => { void check(); }, DOWN_RECHECK_MS);
@@ -51,6 +53,6 @@ export function useVersusDown(active: boolean): boolean {
     window.addEventListener('online', again);
     document.addEventListener('visibilitychange', again);
     return () => { live = false; window.clearTimeout(timer); window.removeEventListener('online', again); document.removeEventListener('visibilitychange', again); };
-  }, [active]);
+  }, []);
   return down;
 }

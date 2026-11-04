@@ -59,8 +59,8 @@ export function PhLeaderBadge() {
 }
 
 /** A ghost banner's invite medallion and label (or the friend it waits on). */
-export function PhBannerInvite({ pending }: { pending?: string | null }) {
+export function PhBannerInvite({ pending, note }: { pending?: string | null; note?: string }) {
   return pending
     ? <><span className="ph-openlbl">Invited</span><span className="ph-opensub">{pending}</span><span className="ph-opensub">Waiting for an answer</span></>
-    : <><span className="ph-invmed" aria-hidden="true"><span>+</span></span><span className="ph-openlbl">Invite</span></>;
+    : <><span className="ph-invmed" aria-hidden="true"><span>+</span></span><span className="ph-openlbl">Invite</span>{note && <span className="ph-opensub">{note}</span>}</>;
 }

@@ -21,6 +21,7 @@ import './heroCeremony.css';
 import { useGame } from '../store';
 import { useVersusHeroesRevealed } from '../versus/versusStore';
 import { usePartyHome } from '../partyHome/partyHomeFlag';
+import { HeroPowerLine } from './HeroPowerLine';
 import { crumbLight, crumbTrail } from '../crashLog';
 
 /** VERSUS: how long a finished ceremony waits on Start Game before starting on its own (both heroes locked). */
@@ -441,12 +442,14 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
           {/* The resting face only (difficulty + tip) — the hover face never shows on a clone nobody can
               hover, and it dissolves with the rest of the chrome. */}
           <div className="hcbelow">
-            {tip && (
+            {tip && (!ph || !!cardEls.current[state.sourceIndex]?.querySelector('.hcdiff')) && (
               <div className="hcmeta">
                 <span className={`hcdiff d-${tip.difficulty.toLowerCase()}`}>{tip.difficulty}</span>
                 {SHOW_HERO_TIPS && <span className="hctip">{tip.tip}</span>}
               </div>
             )}
+            {/* The party home look keeps the power on the card at rest, so the clone keeps it too. */}
+            {ph && <div className="hcpw"><HeroPowerLine power={hero.power} /></div>}
           </div>
           {ph && <span className="hcfoot" aria-hidden="true" />}
         </div>

@@ -12,6 +12,7 @@ import { HeroSelect } from '../HeroSelect';
 import { useGame } from '../store';
 import { setPartyHome } from '../partyHome/partyHomeFlag';
 import { heroSelectEyebrow } from './heroSelectEyebrow';
+import { pageFitZoom } from './HeroSelectPhSkin';
 
 const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
 
@@ -52,6 +53,33 @@ describe('Hero Select, party home look', () => {
     const el = open(true);
     act(() => { el.querySelector('.hsback')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
     expect(useGame.getState().showTitle).toBe(true);
+  });
+});
+
+describe('round 6', () => {
+  const offer = (ids: string[]): HTMLElement => {
+    act(() => { setPartyHome(true); useGame.setState({ pendingMode: 'ascent', heroChoices: ids, heroReroll: null, rankedEntry: null }); });
+    ui = mount(<HeroSelect />);
+    return ui.container;
+  };
+  it('the difficulty pill shows only when it tells the offers apart', () => {
+    expect(offer(['indy', 'warden', 'soren']).querySelectorAll('.hcdiff')).toHaveLength(3); // Easy, Easy, Hard
+    ui?.unmount();
+    expect(offer(['indy', 'warden']).querySelector('.hcdiff')).toBeNull(); // Easy, Easy
+  });
+  it('every hero name is whole, and every power is on the card (no hover needed)', () => {
+    const css = here('./heroSelectPh.css');
+    const name = css.slice(css.indexOf('.hcname.hudpill-name {'));
+    expect(name.slice(0, name.indexOf('}'))).toMatch(/white-space: normal/);
+    expect(name.slice(0, name.indexOf('}'))).not.toMatch(/ellipsis/);
+    expect(css).toMatch(/\.hcbelow > :is\(\.hcpw, \.hcmeta\) \{[^}]*opacity: 1/);
+    expect(offer(['keshi', 'indy']).textContent).toContain('Keshi the Protector');
+  });
+  it('fits itself when the browser ignored the page scale, and only then', () => {
+    expect(pageFitZoom(true, 2337, 844)).toBeCloseTo(0.361, 3);
+    expect(pageFitZoom(true, 2337, 2337)).toBe(1); // the viewport meta did its job
+    expect(pageFitZoom(false, 2337, 844)).toBe(1); // no page scale in play
+    expect(pageFitZoom(true, Number.NaN, 844)).toBe(1);
   });
 });
 

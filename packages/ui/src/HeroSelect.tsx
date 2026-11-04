@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
-import { mdBold } from './Card';
 import { getHero, activeRift, heroTip, heroRerollCandidates, SHOW_HERO_TIPS, type HeroReroll } from '@game/sim';
 import { RiftPill } from './RiftPill';
 import { heroPowerArt } from './art';
@@ -27,6 +26,7 @@ import { leaveTeammateHero, useSpectate } from './versus/spectate';
 import { isRankedDuosRaw } from './versus/rankedDuosView';
 import { partyHomeOn, usePartyHome } from './partyHome/partyHomeFlag';
 import { heroSelectEyebrow } from './hero-select/heroSelectEyebrow';
+import { HeroPowerLine } from './hero-select/HeroPowerLine';
 
 /** THE PARTY HOME SKIN (party home prototype, DEV only; hero-select/HeroSelectPhSkin.tsx): the shell's backdrop and the
  *  new look's stylesheet, loaded lazily so a production build never carries either. Fetched at once when the switch is
@@ -219,6 +219,9 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const browse = choices.length > 6;
   const shown = browse ? [...choices].sort((a, b) => getHero(a).name.localeCompare(getHero(b).name)) : choices;
 
+  // THE PARTY HOME LOOK: the difficulty pill shows only when it tells the offers apart (three Easy heroes say nothing).
+  const showDifficulty = !ph || new Set(shown.map((id) => heroTip(id)?.difficulty)).size > 1;
+
   const active = ceremonyActive(ceremony);
   // Ceremony click handler (both card variants): pulse + commit. sfx.heroSelect moved to the voice beat,
   // pickHero to the launch curtain (§2). Geometry is read HERE, once, at commit time (§8).
@@ -348,20 +351,14 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                     {/* PRACTICE shows no difficulty (owner ask 2026-08-22) — you are picking a hero to try,
                         not being graded. With no resting face the power text simply stays visible (see the
                         `.hsrow.browse` rule), which is the useful thing in a browse list anyway. */}
-                    {tip && !browse && (
+                    {tip && !browse && showDifficulty && (
                       <div className="hcmeta" aria-hidden={false}>
                         <span className={`hcdiff d-${tip.difficulty.toLowerCase()}`}>{tip.difficulty}</span>
                         {SHOW_HERO_TIPS && <span className="hctip">{tip.tip}</span>}
                       </div>
                     )}
                     <div className="hcpw">
-                      {/* Power cost callout (owner ask 2026-09-01): actives show their Gold cost, a free
-                          active says Free; a PASSIVE is never cast, so a cost line would mislead — it says
-                          Passive instead. */}
-                      <b>{power.name}</b>{' '}
-                      <span className="hccost">{power.passive ? '(Passive)' : `(Cost: ${power.cost ? power.cost : 'Free'})`}</span>
-                      {' '}· <span dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
-                      {power.unlockWave && power.unlockWave > 1 && <span className="hclock">Unlocks turn {power.unlockWave}</span>}
+                      <HeroPowerLine power={power} />
                     </div>
                   </div>
                   {ph && <span className="hcfoot" aria-hidden="true" />}

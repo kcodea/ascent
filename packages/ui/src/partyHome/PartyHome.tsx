@@ -279,7 +279,7 @@ export default function PartyHome({ onRankedStart }: PartyHomeProps) {
   const takesParty = mode.id === 'duos';
   const full = vh.row ? vh.seatsFree === 0 : members.length + (demo ? sampleInvites.length : 0) >= mode.slots;
   const takesFriends = takesParty || mode.party === 'rivals';
-  const canInvite = !full && (!versusRoom || versusRoom.status === 'open') && (demo ? takesFriends : takesFriends && account && remoteEnabled() && !inGame);
+  const canInvite = !(vsDown && takesFriends) && !full && (!versusRoom || versusRoom.status === 'open') && (demo ? takesFriends : takesFriends && account && remoteEnabled() && !inGame);
   const memberIds = vh.row ? vh.memberIds : members.map((m) => m.userId).filter((x): x is string => !!x && x !== me);
   const sendRef = useRef<(f: Friend) => void>(() => undefined);
   sendRef.current = (f: Friend): void => {

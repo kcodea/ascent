@@ -410,3 +410,5 @@ html[data-touch-kb] .phk-dlgbox .phk-dlgtitle, html[data-touch-kb] .phk-dlgbox .
 /* ONE TAB BASELINE: every page's sub-tabs sit on the same line in the header. */
 html[data-ph-shell] .phk-pagehead .phk-pagetabs { align-self: flex-end; margin: 0; padding: 0; }
 html[data-ph-shell] .phk-pagehead .phk-tab { min-height: calc(56 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .phk-dlgtitle::after { display: none; }
+html[data-ph-shell][data-ph-compact] .ph-picker .phk-btn.s-s { min-height: calc(52 * var(--phu)) !important; height: calc(52 * var(--phu)); }

@@ -541,3 +541,5 @@ html[data-ph-compact] .ph-name { font-size: max(calc(17 * var(--phu)), min(calc(
 html[data-ph-compact] .ph-side { gap: calc(8 * var(--phu)); align-items: center; }
 html[data-ph-compact] .ph-phonecontinue { flex: none; }
 
+/* A long name on a narrow banner takes a second line at the floor size rather than cutting off. */
+html[data-ph-compact] .ph-name { white-space: normal; overflow-wrap: anywhere; line-height: 1.05; text-overflow: clip; }

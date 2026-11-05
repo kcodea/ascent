@@ -316,11 +316,20 @@ const descBoth = (s: string): string => s.replace(/<<(.+?)>>/g, '<span class="de
 /** A bolded STAT BUFF (`+3/+4`, `+2 Attack`, `+1 Health`, a minus too) → `<b class="buffnum">`, so a SPELL card can
  *  paint its buff numbers in the Shop Spell blue (owner ask 2026-11-05; the CSS is scoped to `.spellcard`, so a
  *  minion's bold numbers keep its tribe colour). Gold, damage, Rubies and other bold numbers are not buffs. */
+const STAT_BUFF = String.raw`[+\-−]\d+(?:\/[+\-−]\d+)?(?: (?:Attack|Health))?`;
 const descBuff = (s: string): string =>
-  s.replace(/<b>([+\-−]\d+(?:\/[+\-−]\d+)?(?: (?:Attack|Health))?)<\/b>/g, '<b class="buffnum">$1</b>');
-/** The FULL rules-text pipeline for a card body: rename + bold, the stat-buff tag, the four markers, then the term
+  s.replace(new RegExp(`<b>(${STAT_BUFF})<\\/b>`, 'g'), '<b class="buffnum">$1</b>');
+/** …and a stat buff inside a green LIVE value (`{{+1/+1}}` → `.descup`, e.g. Lantern Light's per-Tier total, which
+ *  arrives un-bolded) gets the same tag, so a spell's live buff is blue too (owner 2026-11-05: "didnt i say all shop
+ *  spell numbers should be light blue with glow?"). Only the stat token is tagged; the rest of the span stays green.
+ *  A token already tagged by `descBuff` (right after a `>`) is skipped. */
+const STAT_IN_TEXT = new RegExp(`(?<![>\\w/])${STAT_BUFF}(?![\\w/])`, 'g');
+const descUpBuff = (s: string): string =>
+  s.replace(/<span class="descup">([\s\S]*?)<\/span>/g, (_, inner: string) =>
+    `<span class="descup">${inner.replace(STAT_IN_TEXT, '<b class="buffnum">$&</b>')}</span>`);
+/** The FULL rules-text pipeline for a card body: rename + bold, the stat-buff tags, the four markers, then the term
  *  colouring. */
-export const rulesHtml = (s: string): string => colourTerms(descBoth(descRune(descTemp(descUp(descBuff(mdBoldRaw(s)))))));
+export const rulesHtml = (s: string): string => colourTerms(descBoth(descRune(descTemp(descUpBuff(descUp(descBuff(mdBoldRaw(s))))))));
 /**
  * Golden (tripled) cards show their numbers doubled to match the doubled effect:
  * "+1/+1" → "+2/+2", "deal 3" / "deal **3**" → "deal 6", "3 to every" → "6 to

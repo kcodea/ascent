@@ -8706,7 +8706,7 @@ export function Recruit() {
   // `toHand` carries. The combat previews follow the player's `toHand` order, so preview i is the i-th uid here:
   // a hand buff on it grows the preview, and a copy summoned from it greys it, exactly like a starting hand card.
   const combatGrantUids = useMemo(
-    () => (inCombat && !run.combatSettled ? playerGrantUidsOf(replay.replayEvents, (id) => !!CARD_INDEX[id]) : null),
+    () => (inCombat && !run.combatSettled ? playerGrantUidsOf(replay.replayEvents, (id) => !!CARD_INDEX[id], replay.ownHand) : null),
     [inCombat, run.combatSettled, replay.replayEvents],
   );
   // The same list is where a hand-summon of a GRANTED card lifts from: the grant's preview has no `data-uid`, so the

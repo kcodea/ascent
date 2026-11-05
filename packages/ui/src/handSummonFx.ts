@@ -1,4 +1,5 @@
 import type { CombatEvent, Side } from '@game/core';
+import { inHandRange, WHOLE_LOG, type HandRange } from './ownHandRange';
 import { handCardElement } from './handBuffFx';
 import { cardFxScale } from './fx/cardScale';
 import { getHandSummonConfig, type HandSummonConfig } from './handSummonConfig';
@@ -155,10 +156,10 @@ export function setPlayerGrantUids(uids: readonly (string | undefined)[]): void 
 
 /** Pure: the player's grant uids for a fight, in the order the hand previews them (every player `toHand` whose card
  *  the client knows, as `handPreviews` filters them). A grant that carries no uid keeps its slot as undefined. */
-export function playerGrantUidsOf(events: readonly CombatEvent[], known: (cardId: string) => boolean): (string | undefined)[] {
+export function playerGrantUidsOf(events: readonly CombatEvent[], known: (cardId: string) => boolean, own: HandRange = WHOLE_LOG): (string | undefined)[] {
   const out: (string | undefined)[] = [];
-  for (const e of events) {
-    if (e.type !== 'toHand' || e.side !== 'player' || !known(e.cardId)) continue;
+  for (const [i, e] of events.entries()) {
+    if (e.type !== 'toHand' || e.side !== 'player' || !known(e.cardId) || !inHandRange(i, own)) continue;
     const uid = (e as { uid?: unknown }).uid;
     out.push(typeof uid === 'string' && uid ? uid : undefined);
   }

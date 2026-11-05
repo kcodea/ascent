@@ -71,6 +71,9 @@ export function opponentHandCards(
   const end = Math.min(through, events.length);
   for (let i = 0; i < end; i++) {
     const e = events[i]!;
+    // Duos: this fan is the foe who fought first (its start hand is theirs). The reserve's cards are its own hand, not
+    // this one (R-DUOS-HAND-OWN-01), so it stops at the hand-off, as a player's own hand row does.
+    if (e.type === 'tagIn' && e.side === 'enemy') break;
     if (e.type === 'toHand' && e.side === 'enemy') {
       if (out.length < handMax) out.push({ key: grantKeyOf(e, i), spent: false, grant: true });
     } else if (e.type === 'summon' && e.side === 'enemy' && e.fromHandUid && summonConsumesHandCard(e)) {

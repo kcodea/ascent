@@ -9227,6 +9227,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateFrame.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
   {
+    id: 'R-DUOS-HAND-OWN-01',
+    title: 'Duos: cards sent to hand in a fight show only in the hand of the player who earned them',
+    statement:
+      'A Duos fight is one log, but each player has their own hand. A card sent to hand during the fight, and a buff to a card in hand, '
+      + 'shows only on the hand of the player whose board earned it: the first board up to the hand-off, the reserve after it. A reserve '
+      + 'that never stepped in shows none. The opposing team\x27s face-down fan follows the same rule for the foe who fought first. This '
+      + 'matches what each player keeps when the fight settles.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-05 (screenshot of a combat hand row)', quote: 'duos cards sent to hand combines both palyers which is messy. please fix this' },
+      { kind: 'code', ref: 'packages/ui/src/ownHandRange.ts; packages/ui/src/useCombatReplay.ts (grantsShownThrough, handBuffsShownThrough); packages/ui/src/handSummonFx.ts (playerGrantUidsOf); packages/ui/src/oppHandModel.ts (opponentHandCards)' },
+    ],
+    currentBehaviour: 'Fixed 2026-11-05 (fix/duos-hand-row-own-cards). Before, the row drew every team `toHand`, then the teammate\x27s cards vanished at settle.',
+    example: 'Ann fights first and earns a Ruby; Bob steps in and earns a Staff. During the fight Ann\x27s hand row shows the Ruby only and Bob\x27s shows the Staff only.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/ownHandRange.test.ts'], lastVerifiedAt: '2026-11-05' },
+  },
+  {
     id: 'R-DUOS-ORDER-01',
     title: 'Versus Duos: who fights first on each team is a seeded 50/50 every round, shown all shop long, never a player choice',
     statement:

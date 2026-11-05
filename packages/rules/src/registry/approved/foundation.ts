@@ -9169,7 +9169,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Versus Duos: 2v2 by seat pairs, one tag-team fight a round, one shared team Health pool, concede = the team out',
     statement:
       'A Versus room set to Duos seats exactly 4 players and starts only with 4: seats 1 and 2 are one team, seats 3 and 4 the other. Each '
-      + 'round is ONE tag-team fight, team against team. Who fights first on each team is a 50/50 pick every round that no player can change '
+      + 'round is ONE tag-team fight, team against team. Who fights first on each team alternates every round, which no player can change '
       + '(R-DUOS-ORDER-01); an empty board hands straight over to the teammate. Each team shares ONE Health pool (R-DUOS-HEALTH-01: 30 Health plus both heroes\x27 Armor; 7 team hearts, 2 for a stomp, until '
       + '2026-10-26): the losing team takes the lobby damage, a draw costs nobody. A team at 0 Health is out together and the other team wins. Placement is by team: the winning team is 1st and the '
       + 'losing team 2nd, both players each; teams are their own record (id, pool, placement), so more teams place the same way. '
@@ -9246,21 +9246,23 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-DUOS-ORDER-01',
-    title: 'Versus Duos: who fights first on each team is a seeded 50/50 every round, shown all shop long, never a player choice',
+    title: 'Duos: teammates alternate who fights first, from a seeded opener, and the top rail row is the one who does',
     statement:
-      'In Versus Duos, which teammate\x27s board fights first is picked at random for each team every round, 50/50, and no player can '
-      + 'change it. The pick is known when the round\x27s shop opens and is shown the whole shop as "<Name> fights first" (or "You fight '
-      + 'first"), on a plate that is display only. Every player, the server and a replay land the same pick: it comes from the match seed, '
-      + 'the round and the team through the one seeded RNG. An empty first board still hands straight over to the teammate.',
+      'In Versus Duos and Ranked Duos, a seeded coin picks which teammate\x27s board fights first in round 1, then the two alternate every '
+      + 'round. No player can change it. The order is known when the round\x27s shop opens and the rail shows it: the top row of each team '
+      + 'fights first, and the rows swap as the turn passes. Every player, the server and a replay land the same pick: it comes from the '
+      + 'match seed and the team through the one seeded RNG. A recorded Ranked Duos team keeps its recorded order. An empty first board '
+      + 'still hands straight over to the teammate.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-05 (Discord screenshot of the plate)', quote: 'we should make it alternate instead of a 50/50' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (fight order)', quote: 'I want the \x27who fights first\x27 to be a 50/50, not a player decision for duos teams. Every round it should say who fights first but players cannot decide who it is.' },
-      { kind: 'code', ref: 'packages/sim/src/versus/duos.ts (duosRandomFirst, versusDuosOrderSeed, resolveVersusDuosRound); packages/sim/src/versus/duosFinalize.ts; packages/ui/src/versus/versusGroupView.ts (duosFirstAt); packages/ui/src/versus/DuosOrderPlate.tsx; supabase/migrations/2026-10-25-versus-duos-random-order.sql (versus_duos_flip_order dropped)' },
+      { kind: 'code', ref: 'packages/sim/src/versus/duos.ts (duosAlternatingFirst, versusDuosOrderSeed, resolveVersusDuosRound); packages/sim/src/versus/duosFinalize.ts; packages/ui/src/versus/versusGroupView.ts (duosFirstAt); packages/ui/src/LobbyPanel.tsx (groupDuosRailRows, lobby.duosFirstIds); supabase/migrations/2026-10-25-versus-duos-random-order.sql (versus_duos_flip_order dropped)' },
     ],
-    currentBehaviour: 'Changed 2026-10-25 (fix/duos-fight-order-random). Before, the order alternated by round and either teammate could flip it in the shop until the team\x27s first End Turn; the flip (plate click, store call, RPC) is gone. Committed fights keep the order they fought in their own result, so old matches and replays read as before.',
-    example: 'Round 4: the shop opens and the plate says "Bob fights first". Neither Ann nor Bob can change it. Bob\x27s board fights first; if it falls, Ann\x27s steps in.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/versusDuosView.test.ts'], lastVerifiedAt: '2026-10-25' },
+    currentBehaviour: 'Changed 2026-11-05 (feat/duos-alternate-rail-order): the per-round 50/50 became an alternation and the plate gave way to the rail order. ' + 'Changed 2026-10-25 (fix/duos-fight-order-random). Before, the order alternated by round and either teammate could flip it in the shop until the team\x27s first End Turn; the flip (plate click, store call, RPC) is gone. Committed fights keep the order they fought in their own result, so old matches and replays read as before.',
+    example: 'Round 3: Ann is on top of her team in the rail, so her board fights first; if it falls, Bob\x27s steps in. In round 4 the rows swap and Bob fights first. Neither can change it.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/versusDuosView.test.ts'], lastVerifiedAt: '2026-11-05' },
   },
   {
     id: 'R-DUOS-PASS-01',

@@ -13,7 +13,7 @@ import { createRun } from './state';
 import type { VersusRoomOptions } from './versus/options';
 import { duosPassCost, duosWireOf } from './duosPass';
 import { duosRuneTally } from './duosRunes';
-import { duosMemberOf, duosMemberView, duosMateOf, duosRandomFirst, resolveVersusDuosRound } from './versus/duos';
+import { duosMemberOf, duosMemberView, duosMateOf, duosAlternatingFirst, resolveVersusDuosRound } from './versus/duos';
 
 const DUOS: VersusRoomOptions = { v: 1, mode: 'duos', modifiers: [] };
 const DUOS_RUNE_IDS = ['rune_spell_theory', 'rune_gold_gifts', 'rune_teammate_synergy', 'rune_passable', 'rune_playing_catch',
@@ -216,7 +216,7 @@ describe('R-DUOS-RUNES-02: a combat gift reaches the teammate in real time, once
     expect(ids.length).toBeGreaterThanOrEqual(7);
     const big = (seed: number): RunState => seat({ board: [{ ...card(plainMinion(), `big${seed}`), attack: 60, health: 600 }] }, seed);
     // Ann's board is all Echoes and fights FIRST for team A (seat her on the seeded first chair).
-    const first = duosRandomFirst(9, 1).a;
+    const first = duosAlternatingFirst(9, 1).a;
     const annSeat = first;
     const bobSeat = duosMateOf(first);
     let ann = rune(seat({ board: ids.slice(0, 7).map((eid, i) => card(eid, `e${i}`)) }, 21), 'rune_echoing_results');

@@ -10,7 +10,6 @@
  * Every surface here re-renders on Versus state only (a few times per round), never per frame.
  */
 import { DuosMateDock } from './DuosMateDock';
-import { DuosOrderPlate } from './DuosOrderPlate';
 import { TeammateFrame, useTeammateViewKeys } from './teammateView';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RunState } from '@game/sim';
@@ -255,7 +254,6 @@ export function VersusHud() {
   return (
     <>
       {held && !paused && <div className="vshold" aria-hidden="true" />}
-      {match.group?.duos && !paused && phase === 'recruit' && <DuosOrderPlate />}
       {/* The teammate portrait stays bottom right in combat too (owner 2026-10-25: "also keep the teammate portrait in the
           bottom right during combat too"); there it only shows who your teammate is (passing and watching are shop-only). */}
       {match.group?.duos && !paused && (phase === 'recruit' || phase === 'combat') && <DuosMateDock key="dock" watching={false} inCombat={phase === 'combat'} />}

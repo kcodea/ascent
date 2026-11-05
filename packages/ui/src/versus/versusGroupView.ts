@@ -11,7 +11,7 @@
  * round they went out in (rounds after it are not shown), with `end_reason` from why (`hearts` → the deciding fight is
  * watched first, as in 1v1; leaving or conceding → the end gate at once). The match goes on for the others.
  */
-import { duosMateOf, duosMemberView, duosTeamOf, versusGroupPairings, duosRandomFirst, type VersusGroupPairing, type VersusGroupSeat } from '@game/sim';
+import { duosMateOf, duosMemberView, duosTeamOf, versusGroupPairings, duosAlternatingFirst, type VersusGroupPairing, type VersusGroupSeat } from '@game/sim';
 import type { CombatEvent, CombatResult } from '@game/core';
 import { isRankedDuosRaw } from './rankedDuosView';
 import type { VersusGroupMatchRaw, VersusGroupRoundRaw, VersusGroupSeatRow, VersusMatch, VersusRoundRow } from './versusRemote';
@@ -31,10 +31,10 @@ const rankedFoeOf = (raw: VersusGroupMatchRaw, round: number): { seat: VersusGro
   return f && f.round === round ? f : null;
 };
 
-/** A Duos round's fight order: the seeded 50/50 pick from the match seed + round (R-DUOS-ORDER-01), the same one the
+/** A Duos round's fight order: the teammates' alternating turn from the match seed + round (R-DUOS-ORDER-01), the same one the
  *  resolver fights (a committed fight's result carries the order it actually used, after an empty-board hand-over). */
 export function duosFirstAt(raw: VersusGroupMatchRaw, round: number): { a: VersusGroupSeat; b: VersusGroupSeat } {
-  const f = duosRandomFirst(Number(raw.seed), Math.max(1, round));
+  const f = duosAlternatingFirst(Number(raw.seed), Math.max(1, round));
   // RANKED DUOS: the opponent is the round's recorded team (its board that fights first), by the lobby pairing.
   if (isRankedDuosRaw(raw)) return { a: f.a, b: rankedFoeOf(raw, Math.max(1, round))?.seat ?? f.b };
   return { a: f.a, b: f.b };
@@ -287,14 +287,16 @@ export function duosLobbySeatId(raw: VersusGroupMatchRaw, viewer: VersusGroupSea
 }
 
 /** VERSUS DUOS RAIL (R-DUOS-VIEW-01, lead ruling 2026-10-25): team rows stay together. The rail's ranked order picks
- *  which TEAM comes first; inside a team the rows keep their ranked order. Teams are the seat pairs `s0`+`s1` (you and
- *  your teammate, `duosLobbySeatId`) and `s2`+`s3`. Pure: the same rows, regrouped. */
-export function groupDuosRailRows<R extends { id: string }>(rows: readonly R[]): R[] {
+ *  which TEAM comes first; inside a team the seat that fights first this round sits on top (`firstIds`, owner 2026-11-05,
+ *  R-DUOS-ORDER-01), else the rows keep their ranked order. Teams are the seat pairs `s0`+`s1` (you and your teammate,
+ *  `duosLobbySeatId`) and `s2`+`s3`. Pure: the same rows, regrouped. */
+export function groupDuosRailRows<R extends { id: string }>(rows: readonly R[], firstIds: readonly string[] = []): R[] {
   // Teams are seat pairs: s0+s1, s2+s3, and in Ranked Duos s4+s5 and s6+s7 (four teams of two).
   const team = (id: string): number => { const n = Number(id.slice(1)); return Number.isFinite(n) ? Math.floor(n / 2) : 99; };
   const first = new Map<number, number>();
   rows.forEach((r, i) => { const t = team(r.id); if (!first.has(t)) first.set(t, i); });
-  return rows.map((r, i) => ({ r, i })).sort((a, b) => (first.get(team(a.r.id))! - first.get(team(b.r.id))!) || a.i - b.i).map((x) => x.r);
+  const below = (id: string): number => (firstIds.includes(id) ? 0 : 1);
+  return rows.map((r, i) => ({ r, i })).sort((a, b) => (first.get(team(a.r.id))! - first.get(team(b.r.id))!) || below(a.r.id) - below(b.r.id) || a.i - b.i).map((x) => x.r);
 }
 
 /** The seat whose board fights on `side` (`tagged` = after that side's hand-off), from the viewer's seat. */

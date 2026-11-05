@@ -39,7 +39,7 @@ import { installVersusHandlers, releaseVersusFightWait, type VersusFreeze } from
 import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow, type VersusDuosPassRow } from './versusRemote';
 import { duosFirstAt, duosLobbySeatId, groupPairingAt, groupSeatOf, groupViewerOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 import { concededHere, markConceded } from './concededMatches';
-import { isRankedDuosRaw, rankedCloseIso, rankedRoundsAsGroup, RANKED_DUOS_TEAM_COUNT, withServedSeats, type RankedDuosContext } from './rankedDuosView';
+import { isRankedDuosRaw, rankedCloseIso, rankedFirstSeats, rankedRoundsAsGroup, RANKED_DUOS_TEAM_COUNT, withServedSeats, type RankedDuosContext } from './rankedDuosView';
 import type { RankedDuosRoundRow } from './versusRemote';
 import type { RankResult } from '@game/sim';
 import { duosAfterRun, duosBackFromMate, duosPull, duosPushed, duosReset } from './duosPasses';
@@ -1310,7 +1310,13 @@ function groupLobbyInputFor(raw: VersusGroupMatchRaw, seat: VersusGroupSeat, run
     entering: versusEnteringFor<VersusGroupSeat>(raw.id),
     complete: raw.phase === 'complete',
     pairing: groupPairingAt(raw, run.wave),
-    ...(isDuosRaw(raw) ? { duos: { first: duosFirstAt(raw, run.wave) } } : {}),
+    ...(isDuosRaw(raw) ? {
+      duos: {
+        first: duosFirstAt(raw, run.wave),
+        // RANKED DUOS: all four teams' first seats, once this round's table is here (the rail's top rows, R-DUOS-ORDER-01).
+        ...(isRankedDuosRaw(raw) && ranked.matchId === raw.id && ranked.tableRound === run.wave ? { firstSeats: rankedFirstSeats(raw, ranked, run.wave) } : {}),
+      },
+    } : {}),
     // RANKED DUOS: each recorded member's board for the round being played (the rail and scout cards, R-LOBBY-SCOUT-01).
     ...(isRankedDuosRaw(raw) && ranked.matchId === raw.id && ranked.table && ranked.tableRound === run.wave
       ? { current: Object.fromEntries(ranked.table.served.filter((x) => x.board).map((x) => [`p${2 * (x.team.charCodeAt(0) - 97) + 1 + x.member}`, x.board!])) }

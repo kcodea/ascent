@@ -185,7 +185,7 @@ export interface RankedDuosTableRaw {
   round: number;
   teamName: string | null;
   served: RankedDuosServedRow[];
-  /** A recorded duo run's own fight order for the round served (team -> member first); absent = the seeded 50/50. */
+  /** A recorded duo run's own fight order for the round served (team -> member first); absent = the alternating turn. */
   orders?: Record<string, 0 | 1>;
   /** A recorded duo run's team name (when that pair named itself). */
   teamNames?: Record<string, string>;

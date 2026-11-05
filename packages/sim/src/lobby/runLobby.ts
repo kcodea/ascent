@@ -175,6 +175,8 @@ export interface RunLobby {
    *  the rail's next-opponent mark and the combat scene name exactly who (or which Copy) the player fights. Display
    *  lobbies only; absent everywhere else. */
   forcedOpponent?: { round: number; seatId: string };
+  /** DUOS (R-DUOS-ORDER-01): the rail ids of the seats that fight first this round. The rail puts each on top of its team. */
+  duosFirstIds?: string[];
   /** OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): this table was picked BEFORE the player's hero
    *  (`createLobbyTable`, at the ranked Play), and the player's hero offer was then rolled from the heroes no seat
    *  holds. The run flag that versions the order: absent = the table of before (picked after the hero, skipping it).

@@ -587,8 +587,14 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The foe's board is already prepared by `playerOpponent`, so reading it is free, and the imminent opponent has
   // CURRENT intel even on round 1. Every card reads the round you are IN, by one rule (`railSeatIntel`).
   const foeIntel: SeatIntel | undefined = foe ? railSeatIntel(lobby, foe, next) : undefined;
-  // VERSUS DUOS: team rows grouped (you next to your teammate), never split by Health.
-  const rows = duosMate || duosTeams ? groupDuosRailRows(rail.rows) : rail.rows;
+  // VERSUS DUOS: team rows grouped (you next to your teammate), never split by Health. Inside a team, the top row fights
+  // first this round (owner 2026-11-05, R-DUOS-ORDER-01): the rail IS the order, so the rows swap as the turn passes.
+  const rows = duosMate || duosTeams ? groupDuosRailRows(rail.rows, lobby.duosFirstIds) : rail.rows;
+  // A team's name heads whichever row is on top this round, not a fixed seat.
+  const rowTeamLabels = useMemo(() => {
+    if (!teamLabels) return null;
+    return Object.fromEntries(duosRailTeams(rows).map((t) => [t.rows[0]!.id, t.rows.map((m) => teamLabels[m.id]).find(Boolean) ?? '']));
+  }, [teamLabels, rows]);
   // THE PLACEMENT COLUMN (owner 2026-10-31: "a slender column that displays the players placement with 1-8"): the living by
   // their place in the stack (strongest first), the fallen by the place they finished.
   const rankOf = new Map(rows.map((r, i) => [r.id, r.alive ? i + 1 : r.placement ?? i + 1]));
@@ -858,10 +864,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               })()}
               {/* The opponent name owns its own full-width row (styles.css `.lobbynameline`). The next foe is
                   marked by the seat's own bright pulsing glow (the `foe` class → `.lobbyseat.foe`), not a pill. */}
-              <span className={`lobbynameline${!inTeam && teamLabels?.[seat.id] ? ' hasteam' : ''}`}>
+              <span className={`lobbynameline${!inTeam && rowTeamLabels?.[seat.id] ? ' hasteam' : ''}`}>
                 {/* RANKED DUOS: the team's name heads its first row on a line of its own, above the player's name (owner
                     live test 2026-10-26: laid over the row it collided with the name). */}
-                {!inTeam && teamLabels?.[seat.id] && <span className="lobbyteam" aria-label={`Team ${teamLabels[seat.id]}`}>{teamLabels[seat.id]}</span>}
+                {!inTeam && rowTeamLabels?.[seat.id] && <span className="lobbyteam" aria-label={`Team ${rowTeamLabels[seat.id]}`}>{rowTeamLabels[seat.id]}</span>}
                 <span className="lobbyname">{seat.label}</span>
               </span>
               {inTeam ? null : row.alive ? (

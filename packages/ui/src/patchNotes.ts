@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed: in the desktop app, Play Ranked no longer drops you into a lobby of bots. It finds real recorded opponents again.',
+      },
+      {
+        category: 'Systems',
         text: 'Your hero power\'s name now sits above the power, so tall hero portraits no longer cover it.',
       },
       {

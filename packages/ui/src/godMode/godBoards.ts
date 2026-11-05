@@ -1,5 +1,6 @@
 import { OPPONENT_POOL, isServableBoard, type BoardSnapshot, type RunState } from '@game/sim';
 import { supabaseClient } from '../remoteBoards';
+import { POOL_PATCH_PREFIX, poolPatchArg } from '../opponentPool/poolPatch';
 
 /**
  * GOD MODE opponent (owner 2026-10-08): "What round should your opponent board be on?" → a random REAL player board
@@ -55,14 +56,14 @@ export function liveGodBoardDeps(): GodBoardDeps {
     rpc: c
       ? async (wave, setId, patchPrefix, signal) => {
           // rows: god_board_sample is a scalar RPC (`returns jsonb`): one board or null, never a table to cut.
-          const res = await c.rpc('god_board_sample', { p_wave: wave, p_set: setId, p_patch_prefix: patchPrefix }).abortSignal(signal);
+          const res = await c.rpc('god_board_sample', { p_wave: wave, p_set: setId, p_patch_prefix: poolPatchArg(patchPrefix) }).abortSignal(signal);
           return res.error ? null : ((res.data ?? null) as BoardSnapshot | null);
         }
       : null,
     pool: () => OPPONENT_POOL,
     rand: Math.random,
     timeoutMs: 4000,
-    patchPrefix: `${typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : ''}+`,
+    patchPrefix: POOL_PATCH_PREFIX,
   };
 }
 

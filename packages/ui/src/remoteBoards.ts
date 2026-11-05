@@ -21,6 +21,7 @@ import { RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, p
 import { currentIdentity, currentUserId, identitySettled, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { createPoolLoader, STARTUP_LOAD, type PoolLoader } from './opponentPool/poolLoader';
+import { POOL_PATCH_PREFIX } from './opponentPool/poolPatch';
 import { idbPoolCache } from './opponentPool/poolCache';
 import { fetchPoolRuns, type PoolApi, type PoolFetchSession } from './opponentPool/poolFetch';
 import { careerRunOf, joinTelemetry, lengthFieldsOf, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
@@ -591,7 +592,7 @@ function poolApi(c: SupabaseClient): PoolApi {
 }
 
 /** The session's pool loader, or null when no backend is configured (offline builds, tests). */
-export function opponentPoolLoader(patchPrefix = `${typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : ''}+`): PoolLoader | null {
+export function opponentPoolLoader(patchPrefix = POOL_PATCH_PREFIX): PoolLoader | null {
   if (poolLoaderSingleton) return poolLoaderSingleton;
   const c = client();
   if (!c) return null;

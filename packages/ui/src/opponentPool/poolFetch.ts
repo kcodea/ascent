@@ -33,6 +33,7 @@
 import { MIN_RUN_WAVES, OPPONENT_SEATS, bandSteps, runUnderOverallCap, runWavesCover, seatableRuns, type BoardSnapshot, type StrengthBand } from '@game/sim';
 import type { SetId } from '@game/content';
 import type { PoolFetch, PoolRun } from './poolLoader';
+import { poolPatchArg } from './poolPatch';
 
 /** Runs per sample: about the size of the whole live pool today (150 runs, ~1,760 boards, ~2 MB of JSON before
  *  compression, the same as the old 17 x 120 per-wave pull), and far more than the 7 seats a lobby needs. */
@@ -51,7 +52,7 @@ export interface SampleRow { run_key: string; author: string; user_id: string | 
   strength_early?: number | string | null;
   strength_late?: number | string | null }
 export interface SampleArgs {
-  p_limit: number; p_set: string; p_patch_prefix: string; p_exclude_user: string | null;
+  p_limit: number; p_set: string; p_patch_prefix: string | null; p_exclude_user: string | null;
   /** The matchmaking band (R-LOBBY-09). Only sent once the server has it (`PoolFetchSession.bandsMissing`). */
   p_strength_min?: number; p_strength_max?: number;
   /** The band's early weight (R-LOBBY-13): min/max then filter the blended score. Only sent once the server has it
@@ -132,7 +133,7 @@ export async function fetchPoolRuns(api: PoolApi, opts: PoolFetchOptions, signal
   if (!session.rpcMissing) {
     // `p_exclude_user` stays null (owner 2026-09-30: your own runs are opponents too). The SQL keeps the parameter,
     // defaulting to null.
-    const base: SampleArgs = { p_limit: POOL_SAMPLE_RUNS, p_set: opts.setId, p_patch_prefix: opts.patchPrefix, p_exclude_user: null };
+    const base: SampleArgs = { p_limit: POOL_SAMPLE_RUNS, p_set: opts.setId, p_patch_prefix: poolPatchArg(opts.patchPrefix), p_exclude_user: null };
     const steps = bandSteps(opts.band ?? null);
     const byKey = new Map<string, PoolRun>();
     let widenings = 0;

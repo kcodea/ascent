@@ -13900,4 +13900,21 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'The Netlify origin stays in every list until the site is retired.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/origins.test.ts', 'packages/ui/src/friends/dm/hubUrl.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: 'R-POOL-ANY-VERSION-01',
+    title: 'A lobby draws recorded opponents from every app version',
+    statement:
+      'The opponent pool a lobby draws recorded runs from is never filtered by the app\x27s version number. A new release (v0.2.0, v0.2.1, …) '
+      + 'sees every recorded run of its card set, so a ranked lobby is never all-generated (unrated) just because the version changed.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-04 (desktop v0.2.0)', quote: 'i click play ranked and then they put me into a practice match' },
+      { kind: 'fix-pr', ref: 'fix/pool-any-version: packages/ui/src/opponentPool/poolPatch.ts (POOL_PATCH_PREFIX), poolFetch.ts, remoteBoards.ts, store.ts, godMode/godBoards.ts' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-04 (fix/pool-any-version). Before, the pool matched the version prefix (`${__APP_VERSION__}+`); every recorded run was v0.1.0, '
+      + 'so the desktop app (v0.2.0, the first build whose version changed) drew no recorded runs and every ranked lobby was all-generated.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/opponentPool/poolPatch.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
 ];

@@ -742,8 +742,8 @@ export const TEXT_RULES: GameRule[] = [
     statement:
       'On every spell card, a bold stat buff in its text (+3/+4, +2 Attack, +1 Health, and minus values too) wears the '
       + 'same light blue as the "Shop Spell" kind line under the text, with a very slight glow. Every other bold word on a '
-      + 'spell (Gold, damage, Rubies, tiers, tribe names, keywords) is a darker blue with no glow. Both blues wear a 1.5px '
-      + 'black outline. Minion cards keep the tribe colour.',
+      + 'spell (Gold, damage, Rubies, tiers, tribe names, keywords) is the same light blue with no glow. All of it wears '
+      + 'a 1.5px black outline. Minion cards keep the tribe colour.',
     domain: 'text',
     status: 'approved',
     evidence: [
@@ -752,6 +752,7 @@ export const TEXT_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-05 (screenshot of Summon Stone, Tier 1)', quote: 'make any non spell buff keywords a dark blue, no glow' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-05', quote: 'put a 1px stroke around the edges. black' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-05', quote: 'lets increase the stroke to 1.5px' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-05', quote: 'can we try the same light blue instead of dark blue for the keywords?' },
       { kind: 'fix-pr', ref: 'fix/spell-buff-number-blue: packages/ui/src/Card.tsx (descBuff in rulesHtml), packages/ui/src/styles.css (.spellcard .desc b.buffnum)' },
     ],
     currentBehaviour: 'Conforms from 2026-11-05 (fix/spell-buff-number-blue). Before, a spell bold buff took its tribe colour, grey on the Neutral spells.',

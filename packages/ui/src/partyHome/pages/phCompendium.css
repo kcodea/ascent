@@ -387,7 +387,7 @@ html[data-ph-compact] .phb-ov .phb .book-search { width: calc(120 * var(--phu));
 .phb .phh[role='button'] { transition: transform 0.12s ease; }
 .phb .phh[role='button']:hover { transform: translateY(calc(-3 * var(--phu))); }
 .phh-pop { position: fixed; inset: 0; }
-.phh-popbox { width: min(calc(760 * var(--phu)), 92vw); }
+.phh-popbox { width: calc(760 * var(--phu)); max-width: 92%; }
 .phh-popbox .phh { zoom: 1.5; }
 html[data-ph-compact] .phh-popbox .phh { zoom: 1; }
 .phb-ov .phb-sub { white-space: normal; overflow: visible; text-overflow: clip; }

@@ -24,7 +24,7 @@ for (const v of views) {
       must(!a.bad && a.hosts === 1, `${n}: ${JSON.stringify(a)}`);
       await p.page.reload({ waitUntil: 'commit' }); await home(p); await sleep(1800); const r = await look(p);
       must(!r.bad && r.hosts === 1, `${n} after reload: ${JSON.stringify(r)}`); out.push(`${n}>${r.on}`);
-      for (let i = 0; i < 3 && !await atHome(p); i++) { await back(p); await sleep(700); }
+      for (let i = 0; i < 3 && !await atHome(p); i++) { await p.page.keyboard.press('Escape'); await sleep(700); }
       must(await atHome(p), `${n}: Back did not reach Home`);
     }
     must(!p.errs.length, p.errs[0]); await p.ctx.close(); return out.join(' ');

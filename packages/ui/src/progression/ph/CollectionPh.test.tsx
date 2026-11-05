@@ -278,9 +278,9 @@ describe('the Collection in the party home shell', () => {
 
 describe('the shell skins keep the UI rules', () => {
   const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
-  it('DEV only: lazy imports behind import.meta.env.DEV', () => {
-    expect(here('../CollectionScreen.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/ph\/CollectionPh'\)/);
-    expect(here('../CrateShop.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/ph\/CrateShopPh'\)/);
+  it('the skins are lazy', () => {
+    expect(here('../CollectionScreen.tsx')).toMatch(/= lazy\(\(\) => import\('\.\/ph\/CollectionPh'\)/);
+    expect(here('../CrateShop.tsx')).toMatch(/= lazy\(\(\) => import\('\.\/ph\/CrateShopPh'\)/);
   });
   it('the chest opening ph-error phase class meets no shell rule of that name; it once pulled a failed opening off screen (R-PH-COLLECTION-01)', () => {
     expect(here('../../partyHome/partyHome.css')).not.toMatch(/\.ph-error\b/);

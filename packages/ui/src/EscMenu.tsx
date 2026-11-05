@@ -38,7 +38,7 @@ import { PHONE_DIAG_FLAGS, PHONE_GPU, activeDiagLabel, saveDiagFlags, storedDiag
 import { usePartyHome } from './partyHome/partyHomeFlag';
 
 /** The app shell's version of the page (party home prototype, DEV only; lazy and null in production, like the top nav). */
-const PhSettings = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/PhSettings').then((m) => ({ default: m.PhSettings }))) : null;
+const PhSettings = lazy(() => import('./partyHome/pages/PhSettings').then((m) => ({ default: m.PhSettings })));
 
 /** THE SETTINGS PAGE (owner 2026-10-29, R-ESC-SIDEBAR-01: "have the settings panel at the bottom baked into a normal
  *  'window' just like these other pages are"). A sidebar page like Collection: the menu rail on the left with Settings

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 /**
- * THE CAREER + LEADERBOARD ON THE APP SHELL (party home prototype, DEV only). Renders PhCareer and PhLeaderboard from
+ * THE CAREER + LEADERBOARD ON THE APP SHELL (R-PH-PRODUCTION-01). Renders PhCareer and PhLeaderboard from
  * fixture props and pins: the shared PhPage head (same heading for every page), the five Career views as tabs (Trends
  * now a tab), every profile number still on the page, the Heroes grid opening a hero's games, the Leaderboard podium in
  * 2nd / 1st / 3rd order with every row opening that player's Career, your row marked, your standing pinned when you are
- * off the board; and that production never loads either view (lazy behind `import.meta.env.DEV`). Plus the UI rules:
+ * off the board; and that both views load lazily. Plus the UI rules:
  * no native tooltips, no bare cursor, no looping animation, no em dash / Oath / climb in player text.
  */
 import { describe, expect, it, vi } from 'vitest';
@@ -239,9 +239,9 @@ describe('Leaderboard on the app shell', () => {
 });
 
 describe('shell pages: production and UI rules', () => {
-  it('production never loads either view (lazy, DEV only)', () => {
-    expect(here('../../Career.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/pages\/career\/PhCareer'\)/);
-    expect(here('../../Rankings.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/pages\/leaderboard\/PhLeaderboard'\)/);
+  it('both views are lazy, and no build leaves them out (R-PH-PRODUCTION-01)', () => {
+    expect(here('../../Career.tsx')).toMatch(/const PhCareer = lazy\(\(\) => import\('\.\/partyHome\/pages\/career\/PhCareer'\)/);
+    expect(here('../../Rankings.tsx')).toMatch(/const PhLeaderboard = lazy\(\(\) => import\('\.\/partyHome\/pages\/leaderboard\/PhLeaderboard'\)/);
   });
   it('no native tooltips, no own cursor, nothing loops, no em dash / Oath / climb in player text', () => {
     const tsx = [here('./career/PhCareer.tsx'), here('./leaderboard/PhLeaderboard.tsx')].join('\n');

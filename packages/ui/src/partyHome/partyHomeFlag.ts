@@ -1,11 +1,10 @@
 /**
- * THE PARTY HOME, A PROTOTYPE (owner 2026-11-02: "im wondering if we should have our main screen be this instead, with big
- * cards with your chosen portrait art like in valorant front and center, with the tabs for career etc at the top, then
- * allowing the player to invite from there"). DEV only, OFF by default: the DEV menu's "Party home (prototype)" action
- * flips it, and it is remembered on this machine (a convenience, localStorage). Production never reads it: `partyHomeOn`
- * is false whenever `import.meta.env.DEV` is, so the shipped title screen is unchanged.
+ * THE PARTY HOME IS THE GAME'S UI (owner 2026-11-05: "fix this so it's on main and is THE production UI"; R-PH-PRODUCTION-01).
+ * Born as a prototype on 2026-11-02 (owner: "im wondering if we should have our main screen be this instead"). A production
+ * build is always on it, with no way off. A DEV client is on it too, unless the DEV menu's "Party home" action (or
+ * `?partyhome=0`) turns it off to compare the old screens, remembered on this machine. Unit tests stay off unless they ask,
+ * so the old screens' tests keep reading the old screens until they are removed.
  *
- * `?partyhome=1` / `?partyhome=0` on a DEV URL sets it too (the headless screenshots use it).
  * The SAMPLE PARTY (`ascent.partyHome.demo`) fills the screen with sample teammates and friends so the layout can be
  * reviewed without a live backend or a second account. Clearly labelled on screen; DEV only.
  */
@@ -20,6 +19,8 @@ let demo: boolean | null = null;
 let sampleRoom: boolean | null = null;
 
 const readKey = (k: string): boolean => { try { return localStorage.getItem(k) === '1'; } catch { return false; } };
+/** A DEV client's switch: on unless it was turned off here. */
+const readSwitch = (): boolean => { try { return localStorage.getItem(KEY) !== '0'; } catch { return true; } };
 const writeKey = (k: string, v: boolean): void => { try { localStorage.setItem(k, v ? '1' : '0'); } catch { /* a convenience only */ } };
 
 function fromUrl(): void {
@@ -34,10 +35,10 @@ function fromUrl(): void {
   } catch { /* no window (tests) */ }
 }
 
-/** Is the party home prototype on? Always false outside a DEV build. */
+/** Is the party home on? Always, in a production build. */
 export function partyHomeOn(): boolean {
-  if (!import.meta.env.DEV) return false;
-  if (on === null) { fromUrl(); on = readKey(KEY); }
+  if (!import.meta.env.DEV) return true;
+  if (on === null) { fromUrl(); on = import.meta.env.VITEST ? readKey(KEY) : readSwitch(); }
   return on;
 }
 export function setPartyHome(v: boolean): void {

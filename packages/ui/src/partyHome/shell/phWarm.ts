@@ -1,11 +1,9 @@
 /**
- * WARM THE PAGE CHUNKS on idle (party home prototype): the shell's pages load lazily, so a first visit would otherwise show
+ * WARM THE PAGE CHUNKS on idle: the shell's pages load lazily, so a first visit would otherwise show
  * empty backdrop while its chunk arrives. One module per idle slot, after the home has settled. A glob, so it covers
- * whichever pages this build has. DEV only, like the prototype: production has none of this.
+ * whichever pages this build has.
  */
-const PAGES: Record<string, () => Promise<unknown>> = import.meta.env.DEV
-  ? import.meta.glob(['./PhPageChrome.tsx', './PhBookNav.tsx', '../pages/**/*Ph.tsx', '../pages/Ph*.tsx', '../pages/**/Ph*.tsx', '../../progression/ph/*Ph.tsx', '!**/*.test.tsx'])
-  : {};
+const PAGES: Record<string, () => Promise<unknown>> = import.meta.glob(['./PhPageChrome.tsx', './PhBookNav.tsx', '../pages/**/*Ph.tsx', '../pages/Ph*.tsx', '../pages/**/Ph*.tsx', '../../progression/ph/*Ph.tsx', '!**/*.test.tsx']);
 
 let warmed = false;
 export function warmPhPages(): void {

@@ -33,7 +33,7 @@ import { usePartyHome } from './partyHome/partyHomeFlag';
 import type { PhCareerTab, PhState } from './partyHome/pages/career/PhCareer';
 import type { GameDetailProps, GameFact, GameSplitView } from './partyHome/pages/gameView';
 /** The Career on the party home's app shell (DEV switch; lazy and null in production, so the shipped bundle never carries it). */
-const PhCareer = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/career/PhCareer').then((m) => ({ default: m.PhCareer }))) : null;
+const PhCareer = lazy(() => import('./partyHome/pages/career/PhCareer').then((m) => ({ default: m.PhCareer })));
 import { careerFresh, careerKeyUser, carryTelemetry, loadCareer } from './careerLoad';
 import { RankCard } from './rank/RankCard';
 import { cosmeticOf, isMasterTitle, levelProgress, titleName } from '@game/progression';

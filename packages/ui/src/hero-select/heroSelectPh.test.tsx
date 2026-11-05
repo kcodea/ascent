@@ -108,8 +108,8 @@ describe('the mode line', () => {
 });
 
 describe('rules', () => {
-  it('the skin is DEV only (lazy, null in production) and keeps to the UI rules', () => {
-    expect(here('../HeroSelect.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(loadPhSkin\) : null/);
+  it('the skin is lazy and keeps to the UI rules', () => {
+    expect(here('../HeroSelect.tsx')).toMatch(/= lazy\(loadPhSkin\)/);
     const css = here('./heroSelectPh.css');
     expect(css).not.toMatch(/cursor:/);
     expect(css).not.toMatch(/infinite/);

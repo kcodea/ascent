@@ -101,7 +101,7 @@ export interface CrateShopProps {
 }
 
 /** THE PARTY HOME SHELL's skin for this screen (DEV only, lazy: production never loads it). */
-const CrateShopPh = import.meta.env.DEV ? lazy(() => import('./ph/CrateShopPh').then((m) => ({ default: m.CrateShopPh }))) : null;
+const CrateShopPh = lazy(() => import('./ph/CrateShopPh').then((m) => ({ default: m.CrateShopPh })));
 
 const EMPTY: readonly string[] = [];
 

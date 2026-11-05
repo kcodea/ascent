@@ -5,7 +5,7 @@
  * The menu model (phone-menu-memory.mjs) stops at hero select and the Play model (phone-play-memory.mjs) counts audio,
  * WebGL and <img> bytes. Neither walks on into the run. This one does, on a PRODUCTION build in headless Chrome as an
  * iPhone in landscape (852 x 393, DPR 3, iOS UA, touch, coarse pointer, standalone), with REAL taps
- * (Input.dispatchTouchEvent): title -> Play -> the Play tile -> skip the tutorial nudge -> Yes -> the gate's crystal ->
+ * (Input.dispatchTouchEvent): the party home -> Start -> skip the tutorial nudge -> Yes -> the gate's crystal ->
  * hero select -> pick the first hero -> the ceremony -> the first shop. At each step it records:
  *   - JS heap
  *   - decoded images: every complete <img> in the DOM, every CSS background on a rendered element (and its ::before /
@@ -319,14 +319,17 @@ try {
     if (r) fs.writeFileSync(`${shot}-${name}.png`, Buffer.from(r.data, 'base64')); else console.log(`   (screenshot ${name} timed out)`);
   };
   await sleep(10000);
-  // A throttled network (--net) can still be on the loading gate after 10 s: wait for the title's Play.
-  for (let i = 0; i < 240 && !(await evaluate(c, `[...document.querySelectorAll('button,[role=button]')].some((x) => x.offsetParent && (x.innerText || '').trim().toUpperCase() === 'PLAY')`)); i++) await sleep(500);
+  // A throttled network (--net) can still be on the loading gate after 10 s: wait for the party home's Start.
+  for (let i = 0; i < 240 && !(await evaluate(c, `!!document.querySelector('.ph-start')`)); i++) await sleep(500);
   await sample('title');
   const steps = [
-    ['play', 'PLAY', 3000], ['tile', '.modecard.mc-hero', 2500], ['skip-tut', '.tutprompt-skip', 2500],
-    ['yes', '.rc-btn-yes', 5000], ['crystal', '.rgate.is-armed .rgate-crystal', 1200],
+    // The party home opens on Ranked: Start, the first-run nudge, then the Ranked prompt (its first button is Yes).
+    ['start', '.ph-start', 2500], ['skip-tut', 'Skip and just play', 2500],
+    ['yes', '.phk-dialog button', 5000], ['crystal', '.rgate.is-armed .rgate-crystal', 1200],
   ];
   for (const [label, sel, wait] of steps) {
+    // Skipping the nudge can land back on the party home: Start again for the Ranked prompt.
+    if (label === 'yes' && !(await evaluate(c, `!!document.querySelector('.phk-dialog')`))) { await tap(c, '.ph-start'); await sleep(1200); }
     const ok = await tap(c, sel);
     await sleep(wait);
     await sample(label, ok);

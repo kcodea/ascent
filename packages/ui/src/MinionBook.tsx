@@ -32,9 +32,9 @@ import './compendium.css';
 
 /** The app shell's Compendium page (party home prototype, DEV only; lazy and null in production, like the top nav). Loading
  *  the module registers the page with the shell's route; the mount itself renders nothing. */
-const PhCompendiumMount = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendiumMount }))) : null;
+const PhCompendiumMount = lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendiumMount })));
 /** The same page as an overlay over a match (switch on, in a game). */
-const PhCompendiumOverlay = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendiumOverlay }))) : null;
+const PhCompendiumOverlay = lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendiumOverlay })));
 
 /** Evolution units — non-buyable tokens a minion ascends/transforms into (Spirit Pup → Spirit Worgen,
  *  Tara → Taragosa). Detected from the SOURCE cards actually in the given set's pool (ascend targets +

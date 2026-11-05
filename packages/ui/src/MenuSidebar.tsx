@@ -48,9 +48,9 @@ import './friends/friends.css';
 import { usePartyHome } from './partyHome/partyHomeFlag';
 import { PhPageGuard, PhPageWait } from './partyHome/shell/PhPageGuard';
 /** The party home prototype's top nav (DEV only; lazy and null in production, so the shipped bundle never carries it). */
-const PhPageChrome = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhPageChrome')) : null;
-const PhGuard = import.meta.env.DEV ? PhPageGuard : null;
-const PhWait = import.meta.env.DEV ? PhPageWait : () => null;
+const PhPageChrome = lazy(() => import('./partyHome/shell/PhPageChrome'));
+const PhGuard = PhPageGuard;
+const PhWait = PhPageWait;
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
  *  the same event turn (a few ms); a title-plaque open or a row click carries no fresh stamp. */

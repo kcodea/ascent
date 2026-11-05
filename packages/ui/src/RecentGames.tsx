@@ -32,7 +32,7 @@ import { usePartyHome } from './partyHome/partyHomeFlag';
 
 /** THE PARTY HOME's version of this page (DEV switch "Party home (prototype)", owner 2026-11-02): the same data and handlers,
  *  drawn with the shell kit under the top nav. Lazy and null in production, so the shipped bundle never carries it. */
-const RecentGamesPh = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/RecentGamesPh').then((m) => ({ default: m.RecentGamesPh }))) : null;
+const RecentGamesPh = lazy(() => import('./partyHome/pages/RecentGamesPh').then((m) => ({ default: m.RecentGamesPh })));
 
 /**
  * Recent Games (owner ask 2026-08-11; polished 2026-09-20) — the last 100 finished games across ALL players (20, then 50, on 2026-10-16),

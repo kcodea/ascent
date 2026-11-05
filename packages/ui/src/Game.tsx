@@ -147,17 +147,17 @@ import { installFriendInvites } from './friends/friendsGo';
 import './tunedDefaults';
 
 /** The party home prototype's Compendium nav (DEV only; lazy and null in production). */
-const PhBookNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhBookNav')) : null;
+const PhBookNav = lazy(() => import('./partyHome/shell/PhBookNav'));
 /** The shell's one steady backdrop and its page guard: eager (they paint before any lazy chunk), and gone from production. */
-const PhSteady = import.meta.env.DEV ? PhBackdrop : null;
-const PhGuard = import.meta.env.DEV ? PhPageGuard : null;
+const PhSteady = PhBackdrop;
+const PhGuard = PhPageGuard;
 /** Settings opens over a page: its Back returns to that page, as it was. */
 const SETTINGS_BACK = { label: 'Back', onClick: (): void => { if (!phBack()) useGame.getState().closeSettings(); } };
 /** A page opened in a game: Back returns to the in-game menu, the game exactly as it was. */
 const closeInGamePage = (): void => useGame.setState(PAGES_CLOSED);
 const IN_GAME_BACK = { label: 'Back', onClick: (): void => { if (!phBack()) closeInGamePage(); } };
-const PhSteadyNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhSteadyNav')) : null;
-const PhChrome = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhPageChrome')) : null;
+const PhSteadyNav = lazy(() => import('./partyHome/shell/PhSteadyNav'));
+const PhChrome = lazy(() => import('./partyHome/shell/PhPageChrome'));
 
 /** The FX budget scene a run state is in (see `fxBudget.ts`): the Discover overlay, else the shop, else none. */
 function fxSceneOf(r: { discover?: unknown; phase?: string } | null | undefined): FxScene | null {
@@ -508,8 +508,8 @@ export function Game() {
   }, [shellMenus, bookUp]);
   // A page under the shell that fails to load says so in place, with the nav and a way out, instead of the crash screen.
   const page = (el: JSX.Element): JSX.Element => {
-    if (PhGuard && inGamePage) return <PhGuard onBack={closeInGamePage}><PhBackContext.Provider value={IN_GAME_BACK}>{el}</PhBackContext.Provider></PhGuard>;
-    return PhGuard && PhChrome && shellMenus
+    if (inGamePage) return <PhGuard onBack={closeInGamePage}><PhBackContext.Provider value={IN_GAME_BACK}>{el}</PhBackContext.Provider></PhGuard>;
+    return shellMenus
       ? <PhGuard onBack={() => useGame.getState().goTo('menu')} nav={<Suspense fallback={null}><PhChrome current={null} /></Suspense>}>{el}</PhGuard>
       : el;
   };

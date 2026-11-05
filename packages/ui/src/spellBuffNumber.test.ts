@@ -29,4 +29,10 @@ describe('R-TEXT-SPELL-BUFF-BLUE-01: spell buff numbers wear the Shop Spell blue
     expect(rule).toContain(`color: ${shopSpellBlue}`);
     expect(rule).toMatch(/text-shadow:\s*0 0 /);
   });
+
+  it('paints every other bold word on a spell a darker blue, with no glow', () => {
+    const rule = /\.card\.compact\.showtext\.spellcard \.drawer \.desc b:not\(\.buffnum\) \{([^}]*)\}/.exec(CSS)?.[1] ?? '';
+    expect(rule).toMatch(/color:\s*#3a7bd5/);
+    expect(rule).toMatch(/text-shadow:\s*none/);
+  });
 });

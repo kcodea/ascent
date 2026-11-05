@@ -73,7 +73,7 @@ export interface RankedDuosServedTeam {
   /** The `duo_runs.id` a duo team serves. */
   duoRunId?: string;
   members: [RankedDuosServedMember, RankedDuosServedMember];
-  /** Who fights first: a duo run keeps its RECORDED order; anything else is the seeded 50/50 (owner Q9). */
+  /** Who fights first: a duo run keeps its RECORDED order; anything else alternates (R-DUOS-ORDER-01). */
   order: 'recorded' | 'random';
 }
 

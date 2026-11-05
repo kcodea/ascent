@@ -17,10 +17,10 @@
  *     already shows in the damage, as more survivors.)
  *   - PLACEMENT IS BY TEAM (owner: "In duos you only place 1 and 2 in a 2v2"): the winners are both 1st, the losers
  *     both 2nd (with N teams: a team placed by how many teams were still in when it went out).
- *   - WHO FIGHTS FIRST is a 50/50 pick per team per round (owner ruling 2026-10-25, R-DUOS-ORDER-01: "I want the 'who
- *     fights first' to be a 50/50, not a player decision for duos teams. Every round it should say who fights first but
- *     players cannot decide who it is."). `duosRandomFirst` derives it from the match seed + round + team through the one
- *     seeded RNG, so every client, the resolver and a replay land the same pick, known from the start of the shop.
+ *   - WHO FIGHTS FIRST ALTERNATES inside each team, round by round (owner 2026-11-05, R-DUOS-ORDER-01, replacing the
+ *     2026-10-25 per-round 50/50): a seeded coin picks round 1, then the teammates take turns. No player can change it.
+ *     `duosAlternatingFirst` derives it from the match seed + round + team, so every client, the resolver and a replay
+ *     land the same pick, known from the start of the shop. The rail shows it: the top row of a team fights first.
  *   - The second board's Start of Combat, hero effects and rune / quest mods fire when it steps in; the turn order
  *     carries on and the incoming board starts from its left-most (core `simulate`'s tag-team, R-DUOS-TAGTEAM-01).
  *
@@ -78,14 +78,19 @@ export function versusDuosOrderSeed(matchSeed: number, round: number, team: numb
   return h | 0;
 }
 
-/** WHO FIGHTS FIRST in `round` (R-DUOS-ORDER-01): for each team, a 50/50 seeded pick between its two seats. Pure in
+/** The team member (0 or 1) who fights first in `round` (R-DUOS-ORDER-01): a seeded coin for round 1, then they alternate. */
+export function duosFirstMember(matchSeed: number, round: number, team: number): 0 | 1 {
+  const opener = makeRng(versusDuosOrderSeed(matchSeed, 1, team)).next() < 0.5 ? 0 : 1;
+  return (round % 2 === 1 ? opener : 1 - opener) as 0 | 1;
+}
+
+/** WHO FIGHTS FIRST in `round` (R-DUOS-ORDER-01): for each team, the seat whose turn it is (`duosFirstMember`). Pure in
  *  (matchSeed, round, teams): the shop shows it from the start, the resolver fights it, a replay reproduces it. No
  *  player can change it (the old flip is gone). An empty first board still hands over at resolve. */
-export function duosRandomFirst(matchSeed: number, round: number, teams = 2): Record<VersusDuosTeam, VersusGroupSeat> {
+export function duosAlternatingFirst(matchSeed: number, round: number, teams = 2): Record<VersusDuosTeam, VersusGroupSeat> {
   const out: Record<string, VersusGroupSeat> = {};
   for (let k = 0; k < teams; k++) {
-    const heads = makeRng(versusDuosOrderSeed(matchSeed, round, k)).next() < 0.5;
-    out[String.fromCharCode(97 + k)] = `p${2 * k + (heads ? 1 : 2)}` as VersusGroupSeat;
+    out[String.fromCharCode(97 + k)] = `p${2 * k + 1 + duosFirstMember(matchSeed, round, k)}` as VersusGroupSeat;
   }
   return out as Record<VersusDuosTeam, VersusGroupSeat>;
 }
@@ -141,7 +146,7 @@ export function resolveVersusDuosRound(input: VersusDuosRoundInput): VersusDuosR
     return r.side;
   };
   const sides = { p1: side('p1'), p2: side('p2'), p3: side('p3'), p4: side('p4') };
-  const pick = duosRandomFirst(input.matchSeed, input.round);
+  const pick = duosAlternatingFirst(input.matchSeed, input.round);
   const first: Record<VersusDuosTeam, VersusGroupSeat> = { a: pick.a, b: pick.b };
   for (const t of ['a', 'b'] as const) {
     // An empty first board hands straight over: the teammate's board fights first.

@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { combatSide, type BoardMinion } from '@game/core';
 import type { PreparedCombatSide } from '../state';
 import { resolveVersusFight } from './combat';
-import { duosMateOf, duosRandomFirst, resolveVersusDuosRound } from './duos';
+import { duosMateOf, duosAlternatingFirst, resolveVersusDuosRound } from './duos';
 import { resolveVersusGroupRound, type VersusGroupSeat } from './group';
 import type { VersusVitals } from './vitals';
 
@@ -57,7 +57,7 @@ describe('Versus: an empty board never stalls a round (R-VERSUS-EMPTY-01)', () =
   });
 
   it('DUOS: an empty first board hands over; an empty reserve never steps in; an empty team loses; an empty table draws', () => {
-    const pick = duosRandomFirst(5, 1);
+    const pick = duosAlternatingFirst(5, 1);
     const [a1, a2, b1, b2] = [pick.a, duosMateOf(pick.a), pick.b, duosMateOf(pick.b)];
     const vitals = { a: POOL, b: POOL };
     // Team A's drawn first board is empty: its teammate fights first.

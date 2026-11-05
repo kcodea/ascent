@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TeamEffect, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, extraTriggerContributors, boardShoutExtras, boardShoutContributors, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TeamEffect, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientGildedEchoGraft, gildedEchoGraftEffect, ancientNoteDiscoverOpened, MIDAS_ECHO_MARK } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
@@ -1847,6 +1847,14 @@ function spellCastMult(state: RunState): number {
 /** Yazzus' extra casts for ANY targeted spell — a Shop spell, a Ruby, a Tower Shield, a Clue: 2 if a golden copy
  *  is on board, 1 for a plain one, else 0. "Your targeted spells cast an additional time" (owner 2026-09-16: one
  *  Yazzus, every targeted spell — no Shop-only body any more). */
+/** Yazzus added casts to this spell (R-FX-EPIC-FIRE-01): stamp every Yazzus when `casts` ran above one and a Yazzus
+ *  is what the count credits (an aimed spell). Keg-hands keeps his own Ale pulse in the UI. */
+export function stampYazzusCasts(state: RunState, def: CardDef, casts: number): void {
+  if (casts <= 1 || yazzusExtraCasts(state) === 0) return;
+  if (def.target !== 'friendly' && def.target !== 'any' && def.target !== 'enemy') return;
+  stampEpicFire(state, state.board.filter((c) => c.cardId === 'yazzus').map((c) => c.uid));
+}
+
 export function yazzusExtraCasts(state: RunState): number {
   const y = state.board.filter((c) => c.cardId === 'yazzus');
   if (y.some((c) => c.golden)) return 2;
@@ -2849,6 +2857,7 @@ function conductorWelds(state: RunState): number {
 
 export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0, kind: 'play' | 'auto' = 'auto'): void {
   const reps = conductorWelds(state); // Attachment Conductor multiplies EVERY weld, the host's and the mirrors'
+  if (reps > 1) stampEpicFire(state, state.board.filter((c) => c.cardId === 'attachmentconductor').map((c) => c.uid)); // R-FX-EPIC-FIRE-01
   applyWeld(host, mag, reps);
   host.attachments = (host.attachments ?? 0) + reps; // Attachments welded on — drives Blueprint Cache
   bakeAttachmentAura(state, host);
@@ -3423,6 +3432,7 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   //     combat still pays its own first Echo of every fight).
   // Elderhorn (owner 2026-10-07): a tribe-scoped additive entry — it reads the dying body's tribe.
   const reaper = extraTriggerFires('deathrattle', ctx.state.board.filter((c) => c.uid !== minion.uid), (id) => CARD_INDEX[id], (t) => isTribe(minion, t));
+  if (hasDR && reaper > 0) stampEpicFire(ctx.state, extraTriggerContributors('deathrattle', ctx.state.board.filter((c) => c.uid !== minion.uid), (id) => CARD_INDEX[id], (t) => isTribe(minion, t))); // R-FX-EPIC-FIRE-01
   const beastRitualExtra = isTribe(minion, 'beast') ? ctx.state.beastRitualExtra ?? 0 : 0;
   let firstEchoBonus = 0;
   if (hasDR && (ctx.state.echoFirstEachCombat ?? 0) > 0 && !ctx.state.echoFirstUsedThisTurn) {
@@ -12814,10 +12824,22 @@ export function drummerRepeats(state: RunState): number {
  *  Every path used to count for itself: the extras and the charges lived only in the played counter, so a
  *  triggered Shout got Drakko and nothing else. A non-Shout card consumes nothing and adds no tally.
  *  Combat has the mirror fold, `ctx.shoutCarryExtras` (fed by `questCombatMods`). */
+/** Record the epic multipliers that just added fires (R-FX-EPIC-FIRE-01). Presentation only. */
+export function stampEpicFire(state: RunState, uids: readonly string[]): void {
+  if (uids.length === 0) return;
+  (state.epicFireFx ??= []).push(...uids);
+  state.epicFireFxSeq = (state.epicFireFxSeq ?? 0) + 1;
+}
+
 function shoutFireCount(state: RunState, def: CardDef): number {
   let n = drummerRepeats(state); // 1 + Drakko's extra
   const isShout = def.effects.some((e) => e.on === 'onPlay');
   if (isShout) {
+    // The Shout loops run this count right away: Drakko / Zyff and Orivax pulse as they add fires (R-FX-EPIC-FIRE-01).
+    stampEpicFire(state, [
+      ...(n > 1 ? extraTriggerContributors('battlecry', state.board, (id) => CARD_INDEX[id]) : []),
+      ...boardShoutContributors(state.board, (id) => CARD_INDEX[id]),
+    ]);
     const always = state.shoutExtraAlways ?? 0;
     if (always) procRuneId(state, 'rune_choir');
     n += always + (state.shoutExtraTurn ?? 0); // Choir / Hoardwake (permanent) + Demand an Encore (this turn)
@@ -14840,6 +14862,7 @@ export function fireShopRally(state: RunState, card: BoardCard): void {
  */
 export function shopRallyExtras(state: RunState, card: BoardCard): number {
   let extra = extraTriggerFires('rally', state.board, (id) => CARD_INDEX[id], (t) => isTribe(card, t));
+  if (extra > 0) stampEpicFire(state, extraTriggerContributors('rally', state.board, (id) => CARD_INDEX[id], (t) => isTribe(card, t))); // R-FX-EPIC-FIRE-01
   if (isTribe(card, 'beast')) extra += state.beastHuntExtra ?? 0;
   if (state.questFlags?.lawOfTeeth && isTribe(card, 'beast')) extra += 1;
   if (state.questTribeRallySlaughter && isTribe(card, state.questTribeRallySlaughter)) extra += 1;
@@ -15358,6 +15381,8 @@ function applyEndOfTurnBody(state: RunState): void {
       if (effect.align) noteAlignSpark(state, effect.align); // an aligned EoT half firing sparks its side
     }
   }
+  // Chronos / Uron repeated at least one End of Turn this turn (R-FX-EPIC-FIRE-01).
+  if (fires > 0 && familyRepeats(state, 'endOfTurn') > 1) stampEpicFire(state, extraTriggerContributors('endOfTurn', state.board, (id) => CARD_INDEX[id]));
   // Quest-granted recurring End-of-Turn effects (Echoing Roar → re-fire your leftmost Shout; The Hoard Wakes →
   // conjure a random Shout minion). They're End-of-Turn effects too — repeated by Chronos/Parliament + counted.
   // `recurringEotEffects` folds in the flag-armed rune recurrences (Lapidary / Crucible Choir). BEAT SYSTEM

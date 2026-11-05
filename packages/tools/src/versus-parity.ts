@@ -34,7 +34,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { contentRevision } from '@game/content';
-import { createRun, reduce, duosRandomFirst, resolveVersusDuosRound, resolveVersusFight, resolveVersusGroupRound, VERSUS_PROTOCOL, type PreparedCombatSide, type RunState } from '@game/sim';
+import { createRun, reduce, duosAlternatingFirst, resolveVersusDuosRound, resolveVersusFight, resolveVersusGroupRound, VERSUS_PROTOCOL, type PreparedCombatSide, type RunState } from '@game/sim';
 import { parityDuosRecord, parityGroupRecord, parityRecord } from '@game/sim/versus/server';
 import type { VersusDuosTeam, VersusGroupEliminations, VersusGroupSeat, VersusSeat, VersusVitals } from '@game/sim';
 import { GREEDY_PILOT } from '@game/sim/balance/pilots';
@@ -172,7 +172,7 @@ export function duosParityCases(cases: ParityCase[]): DuosParityCase[] {
     const base = { matchSeed: x.matchSeed, round: x.round };
     out.push({ ...base, name: `duos ${x.name} + ${y.name}`, sides });
     out.push({ ...base, name: `duos-reseeded ${x.name} + ${y.name}`, matchSeed: (x.matchSeed + 0x9e37) | 0, sides });
-    out.push({ ...base, name: `duos-empty-first ${x.name} + ${y.name}`, sides: { ...sides, [duosRandomFirst(x.matchSeed, x.round).a]: { ...x.p1, board: [] } } });
+    out.push({ ...base, name: `duos-empty-first ${x.name} + ${y.name}`, sides: { ...sides, [duosAlternatingFirst(x.matchSeed, x.round).a]: { ...x.p1, board: [] } } });
   }
   // HEALTH: every shape again with each team on a shared pool (30 + both Armors, or a low / lethal one).
   return [...out, ...out.map((c, i) => ({ ...c, name: `health ${c.name}`, vitals: { a: parityVitals(i, 0), b: parityVitals(i, 3) } }))];

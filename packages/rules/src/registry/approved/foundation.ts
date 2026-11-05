@@ -9169,7 +9169,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Versus Duos: 2v2 by seat pairs, one tag-team fight a round, one shared team Health pool, concede = the team out',
     statement:
       'A Versus room set to Duos seats exactly 4 players and starts only with 4: seats 1 and 2 are one team, seats 3 and 4 the other. Each '
-      + 'round is ONE tag-team fight, team against team. Who fights first on each team is a 50/50 pick every round that no player can change '
+      + 'round is ONE tag-team fight, team against team. Who fights first on each team alternates every round, which no player can change '
       + '(R-DUOS-ORDER-01); an empty board hands straight over to the teammate. Each team shares ONE Health pool (R-DUOS-HEALTH-01: 30 Health plus both heroes\x27 Armor; 7 team hearts, 2 for a stomp, until '
       + '2026-10-26): the losing team takes the lobby damage, a draw costs nobody. A team at 0 Health is out together and the other team wins. Placement is by team: the winning team is 1st and the '
       + 'losing team 2nd, both players each; teams are their own record (id, pool, placement), so more teams place the same way. '
@@ -9227,22 +9227,42 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateFrame.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
   {
-    id: 'R-DUOS-ORDER-01',
-    title: 'Versus Duos: who fights first on each team is a seeded 50/50 every round, shown all shop long, never a player choice',
+    id: 'R-DUOS-HAND-OWN-01',
+    title: 'Duos: cards sent to hand in a fight show only in the hand of the player who earned them',
     statement:
-      'In Versus Duos, which teammate\x27s board fights first is picked at random for each team every round, 50/50, and no player can '
-      + 'change it. The pick is known when the round\x27s shop opens and is shown the whole shop as "<Name> fights first" (or "You fight '
-      + 'first"), on a plate that is display only. Every player, the server and a replay land the same pick: it comes from the match seed, '
-      + 'the round and the team through the one seeded RNG. An empty first board still hands straight over to the teammate.',
+      'A Duos fight is one log, but each player has their own hand. A card sent to hand during the fight, and a buff to a card in hand, '
+      + 'shows only on the hand of the player whose board earned it: the first board up to the hand-off, the reserve after it. A reserve '
+      + 'that never stepped in shows none. The opposing team\x27s face-down fan follows the same rule for the foe who fought first. This '
+      + 'matches what each player keeps when the fight settles.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (fight order)', quote: 'I want the \x27who fights first\x27 to be a 50/50, not a player decision for duos teams. Every round it should say who fights first but players cannot decide who it is.' },
-      { kind: 'code', ref: 'packages/sim/src/versus/duos.ts (duosRandomFirst, versusDuosOrderSeed, resolveVersusDuosRound); packages/sim/src/versus/duosFinalize.ts; packages/ui/src/versus/versusGroupView.ts (duosFirstAt); packages/ui/src/versus/DuosOrderPlate.tsx; supabase/migrations/2026-10-25-versus-duos-random-order.sql (versus_duos_flip_order dropped)' },
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-05 (screenshot of a combat hand row)', quote: 'duos cards sent to hand combines both palyers which is messy. please fix this' },
+      { kind: 'code', ref: 'packages/ui/src/ownHandRange.ts; packages/ui/src/useCombatReplay.ts (grantsShownThrough, handBuffsShownThrough); packages/ui/src/handSummonFx.ts (playerGrantUidsOf); packages/ui/src/oppHandModel.ts (opponentHandCards)' },
     ],
-    currentBehaviour: 'Changed 2026-10-25 (fix/duos-fight-order-random). Before, the order alternated by round and either teammate could flip it in the shop until the team\x27s first End Turn; the flip (plate click, store call, RPC) is gone. Committed fights keep the order they fought in their own result, so old matches and replays read as before.',
-    example: 'Round 4: the shop opens and the plate says "Bob fights first". Neither Ann nor Bob can change it. Bob\x27s board fights first; if it falls, Ann\x27s steps in.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/versusDuosView.test.ts'], lastVerifiedAt: '2026-10-25' },
+    currentBehaviour: 'Fixed 2026-11-05 (fix/duos-hand-row-own-cards). Before, the row drew every team `toHand`, then the teammate\x27s cards vanished at settle.',
+    example: 'Ann fights first and earns a Ruby; Bob steps in and earns a Staff. During the fight Ann\x27s hand row shows the Ruby only and Bob\x27s shows the Staff only.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/ownHandRange.test.ts'], lastVerifiedAt: '2026-11-05' },
+  },
+  {
+    id: 'R-DUOS-ORDER-01',
+    title: 'Duos: teammates alternate who fights first, from a seeded opener, and the top rail row is the one who does',
+    statement:
+      'In Versus Duos and Ranked Duos, a seeded coin picks which teammate\x27s board fights first in round 1, then the two alternate every '
+      + 'round. No player can change it. The order is known when the round\x27s shop opens and the rail shows it: the top row of each team '
+      + 'fights first, and the rows swap as the turn passes. Every player, the server and a replay land the same pick: it comes from the '
+      + 'match seed and the team through the one seeded RNG. A recorded Ranked Duos team keeps its recorded order. An empty first board '
+      + 'still hands straight over to the teammate.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-05 (Discord screenshot of the plate)', quote: 'we should make it alternate instead of a 50/50' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (fight order)', quote: 'I want the \x27who fights first\x27 to be a 50/50, not a player decision for duos teams. Every round it should say who fights first but players cannot decide who it is.' },
+      { kind: 'code', ref: 'packages/sim/src/versus/duos.ts (duosAlternatingFirst, versusDuosOrderSeed, resolveVersusDuosRound); packages/sim/src/versus/duosFinalize.ts; packages/ui/src/versus/versusGroupView.ts (duosFirstAt); packages/ui/src/LobbyPanel.tsx (groupDuosRailRows, lobby.duosFirstIds); supabase/migrations/2026-10-25-versus-duos-random-order.sql (versus_duos_flip_order dropped)' },
+    ],
+    currentBehaviour: 'Changed 2026-11-05 (feat/duos-alternate-rail-order): the per-round 50/50 became an alternation and the plate gave way to the rail order. ' + 'Changed 2026-10-25 (fix/duos-fight-order-random). Before, the order alternated by round and either teammate could flip it in the shop until the team\x27s first End Turn; the flip (plate click, store call, RPC) is gone. Committed fights keep the order they fought in their own result, so old matches and replays read as before.',
+    example: 'Round 3: Ann is on top of her team in the rail, so her board fights first; if it falls, Bob\x27s steps in. In round 4 the rows swap and Bob fights first. Neither can change it.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/versusDuosView.test.ts'], lastVerifiedAt: '2026-11-05' },
   },
   {
     id: 'R-DUOS-PASS-01',
@@ -13934,5 +13954,59 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms on feat/party-home-prototype from 2026-11-04. Off the shell nothing changes: phLayer does nothing until the shell turns it on.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/shell/phHistory.test.ts', 'scripts/ph-flows/layers.mjs'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
+    id: 'R-POOL-ANY-VERSION-01',
+    title: 'A lobby draws recorded opponents from every app version',
+    statement:
+      'The opponent pool a lobby draws recorded runs from is never filtered by the app\x27s version number. A new release (v0.2.0, v0.2.1, …) '
+      + 'sees every recorded run of its card set, so a ranked lobby is never all-generated (unrated) just because the version changed.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-04 (desktop v0.2.0)', quote: 'i click play ranked and then they put me into a practice match' },
+      { kind: 'fix-pr', ref: 'fix/pool-any-version: packages/ui/src/opponentPool/poolPatch.ts (POOL_PATCH_PREFIX), poolFetch.ts, remoteBoards.ts, store.ts, godMode/godBoards.ts' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-04 (fix/pool-any-version). Before, the pool matched the version prefix (`${__APP_VERSION__}+`); every recorded run was v0.1.0, '
+      + 'so the desktop app (v0.2.0, the first build whose version changed) drew no recorded runs and every ranked lobby was all-generated.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/opponentPool/poolPatch.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
+    id: 'R-SPECTATE-FIGHT-SWAP-01',
+    title: 'A spectator sees every fight start, and can Skip it, whatever order the frames arrive in',
+    statement:
+      'On the watch screen every fight the watched player goes into starts playing: the entry curtain, then the units attack, and Skip fast-forwards it. '
+      + 'This holds whatever order or timing the player frames arrive in: a fight that arrives straight after the last one (no shop frame between them), or while the exit curtain from the last fight is still closing. '
+      + 'The screen never swaps one fight for the next in place: it leaves the fight on screen through the End Combat exit curtain, shows the shop under it, then goes into the new fight. The spectator never has to leave and come back to unstick a fight.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-04, spectating a desktop game', quote: 'it loads the fight and then no unit starts attacking. and i cant fast forward the combat, i have to leave spectating entirely and load back in' },
+      { kind: 'fix-pr', ref: 'fix/spectate-fight-swap' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts (render: the next fight leaves through the shop, holdShopBeat); packages/ui/src/Recruit.tsx (the fighting effect re-arms on a new lastCombat)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-04 (fix/spectate-fight-swap). Before, a combat view for the next wave arriving while the screen was in a fight (a stale shop dropped, End Turn merged into the fight frame, or the fight landing during the exit curtain) was swapped straight in. '
+      + 'Recruit stayed in combat, so the replay never armed: the new boards were drawn, nothing moved, and Skip did nothing. The Recruit backstop is pinned by a source check only (no test mounts Recruit).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateFightSwap.test.tsx'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
+    id: 'R-UPDATE-NOTES-DAY-01',
+    title: 'Update notes never drop a change because of the time zone',
+    statement:
+      'The notes for an update (the GitHub release notes "Ship Ascent" writes, and the in-game "Updated to vX" panel) list every patch-note entry '
+      + 'since the previous version, even when that version shipped on a different calendar day in UTC than on the owner\x27s calendar. '
+      + 'Repeating a day\x27s notes is allowed; leaving a shipped change out is not.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-04', quote: 'a pop up that the game has been updated and the associated patch notes show up on the home screen' },
+      { kind: 'fix-pr', ref: 'fix/release-notes-date-skew: packages/ui/src/updateNotes.ts (notesSince reaches back one day, dayBefore)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-05 (fix/release-notes-date-skew). Before, notesSince kept entries dated on or after the previous release\x27s UTC date; '
+      + 'v0.2.0 published 2026-11-05 UTC (the evening of 2026-11-04 locally), so v0.2.1\x27s release notes came out empty and were filled in by hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/updateNotes.test.ts'], lastVerifiedAt: '2026-11-05' },
   },
 ];

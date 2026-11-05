@@ -115,6 +115,7 @@ import { withRecordedEmotes } from '@game/sim';
 import type { RuneCombatProgress } from '@game/sim';
 import { takeShopEmotes } from './emotes/emoteRecording';
 import { pushProfileAvatar, backfillProfileAvatar, fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
+import { POOL_PATCH_PREFIX } from './opponentPool/poolPatch';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId, type Identity } from './identity';
 import { createAccountStartupGate } from './identityGate';
@@ -179,7 +180,7 @@ if (OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA]);
 // this module (after `useGame` exists) — see `initAccounts()`.
 // MATCHMAKING BAND (R-LOBBY-09): until the store exists, the stored profile says which band to fetch for.
 setPoolBandFallback(() => lobbyBandFor(loadProfile()));
-void fetchAndRegisterPool(`${__APP_VERSION__}+`);
+void fetchAndRegisterPool(POOL_PATCH_PREFIX);
 // BOARD STRENGTH: the pool's histogram, so a game that ends can freeze its percentile (same startup moment).
 void refreshStrengthHistogram();
 // (The board win-rate records read that lived here is gone: `board_results` is archived and never read, owner ruling
@@ -1953,7 +1954,7 @@ function commitResolvedAction(
         // Between-runs pool + win-rate refresh (owner ask 2026-07-18): the NEXT run in this session sees
         // fresh remote boards (registerOpponents dedupes) + fresh ledger weights. Delayed a beat so this
         // run's own uploads above land first and can flow back in. Never mid-run — the run just ended.
-        setTimeout(() => refreshOpponentPoolAndRecords(`${__APP_VERSION__}+`), 4000);
+        setTimeout(() => refreshOpponentPoolAndRecords(POOL_PATCH_PREFIX), 4000);
         // The final board shown on the leaderboard + Career + Recent Games: the END-STATE board (the post-SETTLE
         // run.board, with the last combat's carry-backs baked in), enriched with the SAME live view the end screen
         // renders — final stats incl. run-wide auras + live scaling text (a maxed-out Sergeant reads its real

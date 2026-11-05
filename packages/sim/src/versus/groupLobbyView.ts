@@ -81,7 +81,11 @@ export interface VersusGroupLobbyInput {
   /** VERSUS DUOS (R-DUOS-01): the round's fight order. Present = a Duos match: the teammate's row comes first after
    *  yours, every seat's board is the one it LOCKED for the round (its teammate's included, even when it never stepped
    *  in), and your opponent is the other team's first board. */
-  duos?: { first: { a: VersusGroupSeat; b: VersusGroupSeat } };
+  duos?: {
+    first: { a: VersusGroupSeat; b: VersusGroupSeat };
+    /** Every team's first seat this round, when more than `first` is known (Ranked Duos' four teams). */
+    firstSeats?: readonly VersusGroupSeat[];
+  };
   /** RANKED DUOS: a recorded member's board for THIS round (`versus_ranked_duos_table`), shown on its row and scout card
    *  exactly as a solo lobby shows a seat's current board (R-LOBBY-SCOUT-01). Keyed by its (virtual) seat. */
   current?: Partial<Record<string, { minions: BoardMinion[]; tier: number | null }>>;
@@ -265,14 +269,17 @@ export function versusGroupLobby(input: VersusGroupLobbyInput): RunLobby {
     rules: { seatCount: seats.length, startingResolve: startOf(input.me).health, startingArmor: 0, exhaustion: 'repeatFinal', maxRounds: 1000 },
     unrated: 'all-generated',
     ...(foeId ? { forcedOpponent: { round: Math.max(1, input.wave), seatId: foeId } } : {}),
+    ...(input.duos ? { duosFirstIds: firstSeatsOf(input.duos).flatMap((s) => idOf.get(s) ?? []) } : {}),
   };
 }
+
+const firstSeatsOf = (d: NonNullable<VersusGroupLobbyInput['duos']>): readonly VersusGroupSeat[] => d.firstSeats ?? [d.first.a, d.first.b];
 
 /** A cheap identity for the inputs that change the view, so the client rebuilds only when something moved. */
 export function versusGroupLobbyKey(input: VersusGroupLobbyInput): string {
   const last = input.rounds.reduce((n, r) => Math.max(n, r.round), 0);
   const seats = input.seats.map((s) => `${s.seat}:${s.heroId}:${s.label}:${s.eliminatedRound ?? ''}:${s.placement ?? ''}:${s.cosmetics ? 1 : 0}`).join(',');
-  const pairing = input.pairing.map((p) => `${p.a}${p.copy ? '~' : '-'}${p.b}`).join(',') + (input.duos ? `|d${input.duos.first.a}${input.duos.first.b}` : '');
+  const pairing = input.pairing.map((p) => `${p.a}${p.copy ? '~' : '-'}${p.b}`).join(',') + (input.duos ? `|d${input.duos.first.a}${input.duos.first.b}${firstSeatsOf(input.duos).join('')}` : '');
   const vit = input.rounds.filter((r) => Object.keys(r.vitals ?? {}).length).length;
   const cur = Object.entries(input.current ?? {}).map(([k, v]) => `${k}:${v?.minions.length ?? 0}:${v?.tier ?? ''}`).join(',');
   return `g|${enteringKey(input.entering)}|${input.complete ? 1 : 0}|${input.me}|${input.wave}|${input.inCombat ? 1 : 0}${input.combatSettled ? 1 : 0}|${last}|${input.rounds.length}|${vit}|${seats}|${pairing}|${cur}`;

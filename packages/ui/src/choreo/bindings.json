@@ -412,6 +412,9 @@
       "death": {
         "def": "sfx-vo-dw-edward-death",
         "gain": 0.3
+      },
+      "watcher": {
+        "def": "keghands-watcher-pulse"
       }
     },
     "dw_coinfire": {
@@ -848,6 +851,9 @@
       "death": {
         "def": "sfx-vo-k-deepdelve-death",
         "gain": 0.3
+      },
+      "watcher": {
+        "def": "drakko-effect"
       }
     },
     "k_mineralmaster": {
@@ -1068,6 +1074,9 @@
       "death": {
         "def": "sfx-vo-d2-orivax-death",
         "gain": 0.3
+      },
+      "watcher": {
+        "def": "drakko-effect"
       }
     },
     "d2_felconjurer": {
@@ -1108,6 +1117,12 @@
       "death": {
         "def": "sfx-vo-drummer-death",
         "gain": 0.3
+      },
+      "watcher": {
+        "def": "drakko-effect",
+        "also": [
+          "drakko-drum"
+        ]
       }
     },
     "sylus": {
@@ -1118,6 +1133,9 @@
       "death": {
         "def": "sfx-vo-sylus-death",
         "gain": 0.3
+      },
+      "watcher": {
+        "def": "drakko-effect"
       }
     },
     "chronos": {
@@ -1128,6 +1146,9 @@
       "death": {
         "def": "sfx-vo-chronos-death",
         "gain": 0.3
+      },
+      "watcher": {
+        "def": "drakko-effect"
       }
     },
     "yazzus": {
@@ -1138,6 +1159,9 @@
       "death": {
         "def": "sfx-vo-yazzus-death",
         "gain": 0.3
+      },
+      "watcher": {
+        "def": "drakko-effect"
       }
     },
     "joker": {
@@ -1248,6 +1272,9 @@
       "death": {
         "def": "sfx-vo-uron-death",
         "gain": 0.3
+      },
+      "watcher": {
+        "def": "drakko-effect"
       }
     },
     "zyff": {
@@ -1258,6 +1285,9 @@
       "death": {
         "def": "sfx-vo-zyff-death",
         "gain": 0.3
+      },
+      "watcher": {
+        "def": "drakko-effect"
       }
     },
     "n2_spellsword": {
@@ -1298,6 +1328,9 @@
       "death": {
         "def": "sfx-vo-n2-lastlight-death",
         "gain": 0.3
+      },
+      "wardGiven": {
+        "def": "lastlight-beam"
       }
     },
     "k_pouchpincher": {
@@ -1438,6 +1471,9 @@
       "death": {
         "def": "sfx-vo-d2-chorus-death",
         "gain": 0.3
+      },
+      "rally": {
+        "def": "chorusdrake-rally"
       }
     },
     "d2_grimoire": {
@@ -1648,6 +1684,9 @@
       "death": {
         "def": "sfx-vo-b2-elderhorn-death",
         "gain": 0.3
+      },
+      "watcher": {
+        "def": "drakko-effect"
       }
     },
     "b2_sunmane": {
@@ -1910,6 +1949,16 @@
         "def": "beast-damage-dealt",
         "fanOut": "struck",
         "launchOnDeath": true
+      }
+    },
+    "attachmentconductor": {
+      "watcher": {
+        "def": "drakko-effect"
+      }
+    },
+    "echowarden": {
+      "watcher": {
+        "def": "drakko-effect"
       }
     }
   }

@@ -2428,6 +2428,12 @@ export interface RunState {
   shoutLinkFx?: { fromUid: string; fromCardId: string; toUid: string; fxStart: number; fxEnd: number }[];
   /** Bumped when a `shoutLinkFx` entry is stamped, so the UI fires once per action. */
   shoutLinkFxSeq?: number;
+  /** PRESENTATION ONLY (R-FX-EPIC-FIRE-01): the board uids of the EPIC multipliers (Drakko, Sylus, Chronos, Yazzus,
+   *  Uron, Zyff, Elderhorn, Orivax, Attachment Conductor) that added fires this action, in fire order, so each plays
+   *  its On Watcher effect. No RNG, no stats; cleared per action like `shoutLinkFx`. */
+  epicFireFx?: string[];
+  /** Bumped when `epicFireFx` gains an entry, so the UI fires once per action. */
+  epicFireFxSeq?: number;
   weldFxUids?: string[];
   weldFxKind?: 'play' | 'auto';
   /** `weldFxSeq` as of the start of the current action — lets `stampWeldFx` tell its first stamp of an

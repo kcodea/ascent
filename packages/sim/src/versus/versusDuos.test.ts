@@ -14,7 +14,7 @@ import { handCap, type BoardCard, type PreparedCombatSide, type RunState } from 
 import { DUOS_PASS_GOLD, duosPassBlocked, duosWireOf } from '../duosPass';
 import { canonicalJson } from './canonical';
 import {
-  duosMateOf, duosRandomFirst, duosMemberOf, duosMemberView, duosTeamOf, duosTeamSeats, resolveVersusDuosRound, versusDuosCombatSeed,
+  duosMateOf, duosAlternatingFirst, duosMemberOf, duosMemberView, duosTeamOf, duosTeamSeats, resolveVersusDuosRound, versusDuosCombatSeed,
   VERSUS_DUOS_PASS_GOLD,
 } from './duos';
 import { CARD_INDEX as CARDS } from '@game/content';
@@ -37,46 +37,45 @@ describe('Versus Duos teams and order (R-DUOS-01)', () => {
     expect(duosMateOf('p4')).toBe('p3');
   });
 
-  // R-DUOS-ORDER-01 (owner 2026-10-25): "I want the 'who fights first' to be a 50/50, not a player decision for duos
-  // teams. Every round it should say who fights first but players cannot decide who it is."
+  // R-DUOS-ORDER-01 (owner 2026-11-05): a seeded coin opens, then the teammates alternate; no player can change it.
   it('who fights first is a seeded pick: the same seed + round + team always gives the same seat', () => {
     for (const seed of [1, 9, 123456, -77, 0x7fffffff]) {
       for (let round = 1; round <= 12; round++) {
-        const f = duosRandomFirst(seed, round);
-        expect(duosRandomFirst(seed, round)).toEqual(f);
+        const f = duosAlternatingFirst(seed, round);
+        expect(duosAlternatingFirst(seed, round)).toEqual(f);
         expect(['p1', 'p2']).toContain(f.a);
         expect(['p3', 'p4']).toContain(f.b);
       }
     }
   });
 
-  it('who fights first is roughly 50/50 per team, independent between the teams, and varies by round', () => {
+  it('who fights first alternates inside each team, from a roughly 50/50 seeded opener independent between teams', () => {
     const N = 4000;
     let a1 = 0;
     let b3 = 0;
     let both = 0;
-    let changed = 0;
-    for (let i = 0; i < N; i++) {
-      const seed = 1000 + Math.floor(i / 20);
-      const round = (i % 20) + 1;
-      const f = duosRandomFirst(seed, round);
-      if (f.a === 'p1') a1++;
-      if (f.b === 'p3') b3++;
-      if (f.a === 'p1' && f.b === 'p3') both++;
-      if (round > 1 && duosRandomFirst(seed, round - 1).a !== f.a) changed++;
+    for (let seed = 1000; seed < 1000 + N; seed++) {
+      const open = duosAlternatingFirst(seed, 1);
+      if (open.a === 'p1') a1++;
+      if (open.b === 'p3') b3++;
+      if (open.a === 'p1' && open.b === 'p3') both++;
+      for (let round = 2; round <= 12; round++) {
+        const f = duosAlternatingFirst(seed, round);
+        const was = duosAlternatingFirst(seed, round - 1);
+        expect(f.a).toBe(duosMateOf(was.a));
+        expect(f.b).toBe(duosMateOf(was.b));
+      }
     }
-    expect(a1 / N).toBeGreaterThan(0.46);
-    expect(a1 / N).toBeLessThan(0.54);
-    expect(b3 / N).toBeGreaterThan(0.46);
-    expect(b3 / N).toBeLessThan(0.54);
-    expect(both / N).toBeGreaterThan(0.21); // independent teams: about a quarter
-    expect(both / N).toBeLessThan(0.29);
-    expect(changed / (N * 0.95)).toBeGreaterThan(0.44); // no alternation pattern, no stickiness
-    expect(changed / (N * 0.95)).toBeLessThan(0.56);
+    for (const share of [a1 / N, b3 / N]) {
+      expect(share).toBeGreaterThan(0.46);
+      expect(share).toBeLessThan(0.54);
+    }
+    expect(both / N).toBeGreaterThan(0.2);
+    expect(both / N).toBeLessThan(0.3);
   });
 
   it('no player input can set the order: the round input has no order field and the resolver fights the seeded pick', () => {
-    const f = duosRandomFirst(31, 3);
+    const f = duosAlternatingFirst(31, 3);
     const big = side(sandbag(1, 5, 5, 'x'));
     // A smuggled order (the old flip's shape, the opposite of the pick) is ignored.
     const smuggled = { first: { a: duosMateOf(f.a), b: duosMateOf(f.b) } };
@@ -103,7 +102,7 @@ describe('a Duos round: one tag-team fight (R-DUOS-01)', () => {
   const small = side(sandbag(1, 1, 2, 'small'));
 
   // Seat the boards by the seeded pick of (9, round 1): `fa` fights first for team A, `ma` is its teammate.
-  const pick = duosRandomFirst(9, 1);
+  const pick = duosAlternatingFirst(9, 1);
   const fa = pick.a;
   const ma = duosMateOf(pick.a);
   const fb = pick.b;
@@ -346,9 +345,9 @@ describe('passing a card (R-DUOS-PASS-01: "passing should cost 1 gold")', () => 
   it('team ids are letters by seat pair, so N teams extend the same helpers', () => {
     expect(duosTeamSeats('a')).toEqual(['p1', 'p2']);
     expect(duosTeamSeats('b')).toEqual(['p3', 'p4']);
-    const four = duosRandomFirst(77, 3, 4);
+    const four = duosAlternatingFirst(77, 3, 4);
     expect(Object.keys(four)).toEqual(['a', 'b', 'c', 'd']);
     for (const [t, s] of Object.entries(four)) expect(duosTeamSeats(t)).toContain(s);
-    expect({ a: four.a, b: four.b }).toEqual(duosRandomFirst(77, 3)); // adding teams never reshuffles the first two
+    expect({ a: four.a, b: four.b }).toEqual(duosAlternatingFirst(77, 3)); // adding teams never reshuffles the first two
   });
 });

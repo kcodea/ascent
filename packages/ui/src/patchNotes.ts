@@ -56,8 +56,45 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-05',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Fixed: in Duos, cards sent to hand during a fight now show only in the hand of the player who earned them.',
+      },
+      {
+        category: 'Systems',
+        text: 'Duos: teammates now take turns fighting first, and the rail shows it. The top player on each team fights first.',
+        details: [
+          'Round 1 is picked at random. After that the two teammates alternate every round. Nobody can change it.',
+          'The two players swap places on the rail when the turn passes.',
+          'The plate that named who fights first is gone.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-04',
     changes: [
+      {
+        category: 'Systems',
+        text: 'New effects: Chorus Drake, Edward Keg-hands, Lastlight and every Epic minion now show their mechanics as they fire.',
+        details: [
+          'Chorus Drake bursts musical notes when he Rallies.',
+          'Edward Keg-hands lights up whenever an Ale is cast while he is on your board.',
+          'Lastlight sends a beam to each minion it gives Ward, and the Ward appears when the beam lands, one fire at a time.',
+          'Every minion now plays the Ward-gained effect the moment its Ward appears, whatever gave it.',
+          'Epic minions (Drakko, Sylus, Chronos and more) play an effect each time they add an extra trigger.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Fixed: in the desktop app, Play Ranked no longer drops you into a lobby of bots. It finds real recorded opponents again.',
+      },
+      {
+        category: 'Systems',
+        text: 'Fixed: watching a game no longer occasionally freezes at the start of a fight.',
+      },
       {
         category: 'Systems',
         text: 'Your hero power\'s name now sits above the power, so tall hero portraits no longer cover it.',

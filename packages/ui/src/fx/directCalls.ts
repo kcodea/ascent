@@ -196,7 +196,7 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // TWO of them since 2026-08-31: a Choose One Equipment plays its def when the PROMPT OPENS rather than when
   // the activation resolves (owner ask), so the same `eq.useFxId` is fired from a second site. Both are the
   // same data-resolved id; both go away together when the moment moves into `recruitCues.ts`.
-  'Recruit.tsx': 3, // + the Set 4 shop HIT record (2026-10-13): the dealer's bound `damage` def, resolved via bindingFor
+  'Recruit.tsx': 5, // + Drakko's Shout watcher (2026-11-04, its bound `watcher` def);+ Keg-hands' Ale watcher (2026-11-04, its bound `watcher` def);+ the Set 4 shop HIT record (2026-10-13): the dealer's bound `damage` def, resolved via bindingFor
   // A THIRD site for the same data-resolved id since 2026-09-22 (owner ruling "spiritbinder one beam per fire"):
   // the beam cascade plays `playDef(beam.fxId, …)` once PER FIRE for an Equipment flagged `useFxTargetsBuffed`,
   // where `beam.fxId` is that Equipment's own `useFxId` (Spiritbinder's `spiritbinder`). Same debt, same fix —
@@ -248,7 +248,7 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // SEVEN since 2026-11-04: the ON RALLY cue for an ORDINARY Rally (no ally proc, e.g. Chorus Drake) — one
   // `playDef(ownRally.def, …)` at the attacker's wind-up pulse, resolved by `ownRallyBindingFor`. Ally procs
   // (Echohorn) still play through the score's `rallyFx` row; this covers the Rally that logs no `rally` event.
-  'useCombatReplay.ts': 7,
+  'useCombatReplay.ts': 8, // + Drakko's combat Shout watcher (2026-11-04, its bound `watcher` def)
   // PER-TRIBE BUFF RIBBON (2026-09-09). One `playDef(`tendril-trail-${tribe}`, …)` in `fireBuffFx`: the buffer's
   // TRIBE picks its ribbon variant, so the id is data-resolved (from the tribe) rather than a literal — the
   // same shape as a binding, keyed on the source's tribe instead of a `bindings.json` row. The generic
@@ -269,6 +269,10 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // phase's cast path shares (the shop's rune / minion records, the End-of-Turn beats, the combat `spellCastFx` cue) — and `playRuneCastBuffFx`, a rune cast's per-buff row (`spellCastFanOutFor`: an Ale, Dragonflame).
   // …and `playCastAtSource` (2026-09-24 follow-up), a no-buff row (Golden / Reinforcing Ale) once at a rune's or minion's source.
   'fx/spellCastFx.ts': 3,
+  // ON WARD GIVEN (2026-11-04). Two `playDef(b.def, …)` in `fx/wardGivenLaunch.ts`: the giver's bound `wardGiven` def
+  // (Lastlight's beam, from its slot after the Echo skull) and the `shieldGain` binding (Orin's `ward-gain-blast`) on
+  // each warded minion as its dome appears — the latter also fired by score.ts's `wardGainFx` row through this file.
+  'fx/wardGivenLaunch.ts': 2,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

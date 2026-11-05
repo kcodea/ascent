@@ -5,8 +5,8 @@
  * 1. Read the match. Only a match in `resolving` at the requested round is finalized; anything else answers with the
  *    current phase (a late or duplicate caller is a client catching up, not an error).
  * 2. The deployed engine must be the one the match was created under (content revision), or it refuses.
- * 3. Read every seat's FINAL side, resolve the round's ONE tag-team fight in the seeded 50/50 fight order
- *    (`duosRandomFirst` from the match seed + round, R-DUOS-ORDER-01; no player input) (`resolveVersusDuosRound`), charge
+ * 3. Read every seat's FINAL side, resolve the round's ONE tag-team fight in the alternating fight order
+ *    (`duosAlternatingFirst` from the match seed + round, R-DUOS-ORDER-01; no player input) (`resolveVersusDuosRound`), charge
  *    the losing team's shared pool the lobby's capped damage (R-DUOS-HEALTH-01: stored, else 30 Health + both heroes'
  *    Armor), and commit through `versus_duos_commit_round` (idempotent in SQL; the pools, the knockout and the match end
  *    are applied there, under the row lock).

@@ -1336,12 +1336,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   triggers, no auras) but count for damage like survivors. If the first board fell and the teammate's board stepped in
   and won, nothing flies in (both boards fought). A draw flies nothing in. On screen they play the step-in's fly-in, and
   the damage formation (shown for Duos fights) counts each one from its slot. Ranked Duos fights work the same way.
-- **Who fights first** (R-DUOS-ORDER-01, owner ruling 2026-10-25: "I want the 'who fights first' to be a 50/50, not a
-  player decision for duos teams. Every round it should say who fights first but players cannot decide who it is."). For
-  each team, every round, a 50/50 pick between its two players; nobody can change it. It is known when the shop opens
-  and shown the whole shop. It comes from the match seed, the round and the team through the one seeded RNG
-  (`duosRandomFirst`), so every client, the server's resolver and a replay land the same pick. (Before 2026-10-25 it
-  alternated by round and either teammate could flip it; that flip is gone.)
+- **Who fights first** (R-DUOS-ORDER-01, owner 2026-11-05, replacing the 2026-10-25 per-round 50/50: "make it alternate
+  instead of a 50/50", "whoever is on top in the rail fights first"). For each team, a seeded coin picks round 1, then the
+  two players take turns every round; nobody can change it. It is known when the shop opens. The rail shows it: the top
+  row of each team fights first, and the two rows swap as the turn passes. It comes from the match seed and the team
+  (`duosAlternatingFirst`), so every client, the server's resolver and a replay land the same pick. A recorded Ranked
+  Duos team keeps the order it recorded. An empty first board still hands straight over to the teammate.
 - **One shared Health pool and placement** (owner 2026-10-26: "The duo gets 30 hp plus the sum of both armors";
   R-DUOS-HEALTH-01). Each team plays on ONE pool: 30 Health plus both heroes' Armor (Summit: +10 Armor per hero). The
   losing team takes the lobby's damage, capped by the lobby's round cap, Armor first: the tavern tier of the winning
@@ -1449,8 +1449,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   watched player's hero.
 - **On screen** (phase 2; R-DUOS-01, R-DUOS-VIEW-01, R-DUOS-SLOTS-01, R-DUOS-PASS-01). The room's options panel has 2v2; the two seat
   pairs carry "Team 1" / "Team 2". In game the rail keeps each team's two rows together (you and your teammate are always
-  side by side, never split by Health); the Health and Armor are the team's. A plate above the rail says who fights first ("You fight first" / "<Name> fights first") all shop long;
-  it is display only (no click, no hover). **The hand-off:** when a board falls, the next board's minions fly in from their team's edge of the screen one
+  side by side, never split by Health); the Health and Armor are the team's. Inside each team the top row fights first this round (R-DUOS-ORDER-01). **Cards sent to hand in a fight** show only in the hand of the player whose board earned them, on both sides (R-DUOS-HAND-OWN-01). **The hand-off:** when a board falls, the next board's minions fly in from their team's edge of the screen one
   after another. The opponent portrait becomes whoever is fighting now, the new face fading in. **Your own hero slot never
   changes** (owner 2026-10-26: "the player frame doesn't need to swap to the teammate's when they come in to attack. we
   can fade out their frame from the bottom right, and fade it in eclipsing the player hero in the bottom left";

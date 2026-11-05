@@ -45,9 +45,9 @@ describe('R-TEXT-SPELL-BUFF-BLUE-01: spell buff numbers wear the Shop Spell blue
     expect(at).toBeLessThan(CSS.indexOf('.card.compact.showtext.spellcard .drawer .desc b.buffnum {'));
   });
 
-  it('paints every other bold word on a spell the same blue, with no glow', () => {
+  it('paints every other bold word on a spell the dark blue #0136F4, with no glow', () => {
     const rule = /\.card\.compact\.showtext\.spellcard \.drawer \.desc b:not\(\.buffnum\) \{([^}]*)\}/.exec(CSS)?.[1] ?? '';
-    expect(rule).toMatch(/color:\s*#7cc4ff/);
+    expect(rule).toMatch(/color:\s*#0136f4/i);
     expect(rule).toMatch(/text-shadow:\s*none/);
   });
 

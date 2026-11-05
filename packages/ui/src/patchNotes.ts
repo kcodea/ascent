@@ -64,6 +64,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Fixed: watching a game no longer occasionally freezes at the start of a fight.',
+      },
+      {
+        category: 'Systems',
         text: 'Your hero power\'s name now sits above the power, so tall hero portraits no longer cover it.',
       },
       {

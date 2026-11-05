@@ -721,6 +721,7 @@ function clearQueue(): void {
   queue = [];
   shownView = null;
   awaitingShop = false;
+  endShopBeat();
   releaseGhostHold();
   if (useGame.getState().replayDragGhost) useGame.setState({ replayDragGhost: null });
 }
@@ -1067,13 +1068,33 @@ function render(): void {
   if (!snapshot) enter(view);
   const cur = useGame.getState().run;
   if (cur === run) return;
+  // THE NEXT FIGHT, STRAIGHT AFTER THIS ONE (R-SPECTATE-FIGHT-SWAP-01, owner 2026-11-04: "it loads the fight and then no
+  // unit starts attacking"): no shop frame came between the two (a stale shop dropped, End Turn merged into the fight, or
+  // the fight landing while the exit curtain still closes). Recruit starts a fight only on the way INTO combat, so the
+  // run is never swapped fight to fight: this fight is left like any other, the shop goes up under the curtain, and the
+  // new fight follows it.
+  const nextFight = cur.phase === 'combat' && run.phase === 'combat' && cur.runId === run.runId && cur.wave !== run.wave;
   // LEAVING A FIGHT: the player's End Combat (its relight and pulse) and the exit curtain, then the shop under it, as
-  // the player saw it. The swap waits for the curtain's full cover (`spectatorFightCovered`).
-  if (cur.phase === 'combat' && run.phase === 'recruit' && cur.runId === run.runId && leaving !== 'covered') {
+  // the player saw it. The swap waits for the curtain's full cover (`spectatorFightCovered`); a fight arriving meanwhile
+  // waits with it (it never resets the exit mid-curtain).
+  if (cur.phase === 'combat' && (run.phase === 'recruit' || nextFight) && cur.runId === run.runId && leaving !== 'covered') {
     if (leaving === 'no') startLeaving();
     return;
   }
+  // The shop between two fights is up: the next fight waits for its reveal (`holdShopBeat`).
+  if (shopBeat && cur.phase === 'recruit' && run.phase === 'combat') return;
   leaving = 'no';
+  if (nextFight) {
+    // Under the full cover: the shop the player ended this turn on (the fight's own view, before its fight), then the fight.
+    const { lastCombat: _fight, ...rest } = run as RunState & { lastCombat?: unknown };
+    void _fight;
+    const shop = { ...rest, phase: 'recruit', combatSettled: false } as RunState;
+    freshDrivers(shop.lobby);
+    useGame.setState({ run: shop });
+    holdShopBeat();
+    if (awaitingShop) { awaitingShop = false; window.setTimeout(pump, 0); }
+    return;
+  }
   freshDrivers(run.lobby);
   const afterPasses = watchedPassFlights(cur, run);
   useGame.setState({ run });
@@ -1107,6 +1128,25 @@ function startLeaving(): void {
   leaving = 'covering';
   leaveTimer = window.setTimeout(spectatorFightCovered, LEAVE_SAFETY_MS);
   emitPressCue('endCombat'); // the gem's relight + pulse, and Recruit's exit curtain (whose full cover calls back)
+}
+/**
+ * The shop between two fights (R-SPECTATE-FIGHT-SWAP-01) stays up until Recruit's exit curtain has revealed it (the wipe
+ * back at idle), so the screen really leaves combat before the next fight's entrance; a screen nobody draws goes on
+ * after `SHOP_BEAT_SAFETY_MS`.
+ */
+let shopBeat: { timer: number; unsub: () => void } | null = null;
+const SHOP_BEAT_SAFETY_MS = 3000;
+function holdShopBeat(): void {
+  endShopBeat();
+  const go = (): void => { endShopBeat(); schedule(); };
+  const unsub = useGame.subscribe((st, prev) => { if (st.wipeIdle && !prev.wipeIdle) go(); });
+  shopBeat = { timer: window.setTimeout(go, SHOP_BEAT_SAFETY_MS), unsub };
+}
+function endShopBeat(): void {
+  if (!shopBeat) return;
+  window.clearTimeout(shopBeat.timer);
+  shopBeat.unsub();
+  shopBeat = null;
 }
 /** Recruit, at the exit curtain's full cover on the watch screen: swap to the shop now, out of sight. */
 export function spectatorFightCovered(): void {

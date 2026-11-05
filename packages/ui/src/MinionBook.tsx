@@ -1043,8 +1043,9 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
           ) : cats.has('heroes') ? (
             heroesToShow.length > 0 ? (
           frame ? (
-            <div className="book-grid is-heroes phh-grid" ref={setGridEl}>
-              <LazyRootProvider root={gridEl}>
+            <div key="heroes" className="book-grid is-heroes phh-grid" ref={setGridEl}>
+              {/* The rows on screen plus half a screen: the rest mount ahead of the scroll, a few a frame. */}
+              <LazyRootProvider root={gridEl} lookahead="50%">
                 {heroesToShow.map((h, i) => <LazyCell key={h.id} eager={i < eagerN}>{() => <PhHeroTile h={h} />}</LazyCell>)}
               </LazyRootProvider>
             </div>
